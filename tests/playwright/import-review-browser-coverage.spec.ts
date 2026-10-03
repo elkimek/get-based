@@ -1,9 +1,12 @@
+type ImportReviewDraftRead = { parseResult?: { date?: unknown; markers?: { unit?: unknown; value?: unknown; refMin?: unknown; refMax?: unknown }[]; _excludedImportIndices?: { includes(value: number): unknown } } };
+type ImportPersistenceRead = { entries: { date?: unknown }[]; manualValues?: Record<string, unknown>; _deleted?: { entries?: { includes(value: unknown): unknown } } };
+import type {Page} from '@playwright/test';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('importReviewCoverage');
 
-async function openImportApp(page) {
+async function openImportApp(page: Page) {
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {
     await (await import('/js/import-loader.js')).loadImportStylesheet();
@@ -16,37 +19,37 @@ test('import file input and drop zone route browser file types and busy states',
   await page.waitForSelector('#drop-zone', { state: 'attached' });
 
   const results = await page.evaluate(async ({ fileInputUrl, dropZoneUrl }) => {
-    const fileInput = await import(fileInputUrl);
-    const dropZoneModule = await import(dropZoneUrl);
+    const fileInput = (await import(fileInputUrl) as unknown) as Pick<typeof import('../../js/import-file-input.js'), "handleImportInputChange">;
+    const dropZoneModule = (await import(dropZoneUrl) as unknown) as Pick<typeof import('../../js/import-drop-zone.js'), "setupDropZone">;
     const dropZoneRuntime = await import('/js/import-drop-zone-runtime.js');
     const dnaBridge = await import('/js/dna-runtime-bridge.js');
-    const outcomes = {};
-    const calls = [];
+    const outcomes: Record<string, unknown> = {};
+    const calls: unknown[][] = [];
     let importRunning = false;
     const previousDropZoneRuntimeDeps = dropZoneRuntime.configureImportDropZoneRuntimeDeps({
-      importDataJSON: file => { calls.push(['json', file.name]); },
+      importDataJSON: (file: File) => { calls.push(['json', file.name]); },
       isImportRunning: () => importRunning,
-      showNotification: (message, type) => { calls.push(['notify', type, message]); },
+      showNotification: (message: unknown, type: unknown) => { calls.push(['notify', type, message]); },
     });
     const previousDnaBridge = dnaBridge.configureDnaModuleBridge();
-    const input = document.getElementById('pdf-input');
+    const input = (document.getElementById('pdf-input') as HTMLInputElement | null);
     const originalDropZone = document.getElementById('drop-zone');
-    const dropZone = originalDropZone.cloneNode(true);
-    let originalClick = null;
-    originalDropZone.replaceWith(dropZone);
-    const flush = () => new Promise(resolve => setTimeout(resolve, 40));
-    const makeFiles = (...files) => {
+    const dropZone = originalDropZone!.cloneNode(true) as HTMLElement;
+    let originalClick: HTMLInputElement["click"] | null = null;
+    originalDropZone!.replaceWith(dropZone);
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 40));
+    const makeFiles = (...files: File[]) => {
       const dt = new DataTransfer();
       for (const file of files) dt.items.add(file);
       return dt.files;
     };
-    const setInputFiles = (...files) => {
+    const setInputFiles = (...files: File[]) => {
       Object.defineProperty(input, 'files', {
         configurable: true,
         value: makeFiles(...files),
       });
     };
-    const dispatchDrop = (...files) => {
+    const dispatchDrop = (...files: File[]) => {
       const event = new DragEvent('drop', { bubbles: true, cancelable: true });
       Object.defineProperty(event, 'dataTransfer', {
         configurable: true,
@@ -58,15 +61,15 @@ test('import file input and drop zone route browser file types and busy states',
     try {
       await (await import('/js/import-loader.js')).loadPdfImport();
       dnaBridge.configureDnaModuleBridge({
-        isDNAFileByContent: async file => (await file.text()).includes('MTDNA'),
-        detectDNAFile: header => header.includes('MTDNA') ? 'mtdna' : 'autosomal',
-        handleMtDNAFile: async file => { calls.push(['mtdna', file.name]); },
-        handleDNAFile: async file => { calls.push(['dna', file.name]); },
+        isDNAFileByContent: async (file: File) => (await file.text()).includes('MTDNA'),
+        detectDNAFile: (header: string) => header.includes('MTDNA') ? 'mtdna' : 'autosomal',
+        handleMtDNAFile: async (file: File) => { calls.push(['mtdna', file.name]); },
+        handleDNAFile: async (file: File) => { calls.push(['dna', file.name]); },
       });
 
       importRunning = true;
       setInputFiles(new File(['{"ok":true}'], 'busy.json', { type: 'application/json' }));
-      await fileInput.handleImportInputChange({ target: input });
+      await fileInput.handleImportInputChange({ target: input! });
       outcomes.busyInputSkipsRouting = calls.length === 0;
 
       importRunning = false;
@@ -74,20 +77,20 @@ test('import file input and drop zone route browser file types and busy states',
         new File(['{"ok":true}'], 'profile.json', { type: 'application/json' }),
         new File(['MTDNA raw data'], 'maternal.dna.txt', { type: 'text/plain' }),
       );
-      await fileInput.handleImportInputChange({ target: input });
+      await fileInput.handleImportInputChange({ target: input! });
       outcomes.inputRoutesJsonAndMtDna = calls.some(call => call[0] === 'json' && call[1] === 'profile.json')
         && calls.some(call => call[0] === 'mtdna' && call[1] === 'maternal.dna.txt');
 
       const beforeUnsupported = calls.length;
       setInputFiles(new File(['not supported'], 'archive.bin', { type: 'application/octet-stream' }));
-      await fileInput.handleImportInputChange({ target: input });
+      await fileInput.handleImportInputChange({ target: input! });
       outcomes.inputUnsupportedNotifies = calls.slice(beforeUnsupported)
-        .some(call => call[0] === 'notify' && call[1] === 'error' && call[2].includes('Unsupported file type'));
+        .some(call => call[0] === 'notify' && call[1] === 'error' && (call[2] as string).includes('Unsupported file type'));
 
       delete dropZone.dataset.lazyDropZoneBound;
       dropZoneModule.setupDropZone();
-      originalClick = input.click;
-      input.click = () => { calls.push(['picker']); };
+      originalClick = input!.click;
+      input!.click = () => { calls.push(['picker']); };
       dropZone.click();
       outcomes.dropZoneClickOpensPicker = calls.some(call => call[0] === 'picker');
 
@@ -96,7 +99,7 @@ test('import file input and drop zone route browser file types and busy states',
       dispatchDrop(new File(['{"ok":true}'], 'drop-busy.json', { type: 'application/json' }));
       await flush();
       outcomes.busyDropNotifiesAndSkips = calls.slice(beforeBusyDrop)
-        .some(call => call[0] === 'notify' && call[2].includes('Import already in progress'))
+        .some(call => call[0] === 'notify' && (call[2] as string).includes('Import already in progress'))
         && !calls.slice(beforeBusyDrop).some(call => call[0] === 'json');
 
       importRunning = false;
@@ -112,7 +115,7 @@ test('import file input and drop zone route browser file types and busy states',
       outcomes.dropRoutesJson = calls.slice(beforeDropJson)
         .some(call => call[0] === 'json' && call[1] === 'drop-profile.json');
     } finally {
-      if (originalClick) input.click = originalClick;
+      if (originalClick) input!.click = originalClick;
       dropZoneRuntime.configureImportDropZoneRuntimeDeps(previousDropZoneRuntimeDeps);
       dnaBridge.configureDnaModuleBridge({
         isDNAFileByContent: null,
@@ -121,7 +124,7 @@ test('import file input and drop zone route browser file types and busy states',
         handleDNAFile: null,
         ...previousDnaBridge,
       });
-      if (dropZone.isConnected) dropZone.replaceWith(originalDropZone);
+      if (dropZone.isConnected) dropZone.replaceWith(originalDropZone!);
     }
 
     return outcomes;
@@ -141,7 +144,7 @@ test('Escape closes the unit picker without discarding the import review', async
   });
   await openImportApp(page);
   await page.evaluate(async () => {
-    window.endTour?.();
+    ((window as unknown as {endTour?: unknown}).endTour as (() => unknown) | null | undefined)?.();
     (await import('/js/chat-panel.js')).closeChatPanel();
     (await import('/js/pdf-import-review.js')).showImportPreview({
       date: '2026-09-01', fileName: 'escape-review.pdf',
@@ -167,26 +170,26 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
   await page.waitForSelector('#drop-zone', { state: 'attached' });
 
   const results = await page.evaluate(async ({ reviewUrl }) => {
-    const review = await import(reviewUrl);
+    const review = (await import(reviewUrl) as unknown) as Pick<typeof import('../../js/pdf-import-review.js'), "showImportPreview" | "getPendingImport" | "getExcludedImportIndices" | "mapUnmatchedMarker" | "resolveImportPreviewBatch" | "showImportPreviewAsync">;
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const originalProfile = state.currentProfile;
     const dropZone = document.getElementById('drop-zone');
     const originalDropDisplay = dropZone?.style.display || '';
-    const dispatchChange = el => el?.dispatchEvent(new Event('change', { bubbles: true }));
-    const dispatchInput = el => el?.dispatchEvent(new Event('input', { bubbles: true }));
-    const openMapModal = row => {
-      row.querySelector('.import-map-picker-btn')?.click();
-      return document.querySelector('.import-marker-map-modal');
+    const dispatchChange = (el: Element | null | undefined) => el?.dispatchEvent(new Event('change', { bubbles: true }));
+    const dispatchInput = (el: Element | null | undefined) => el?.dispatchEvent(new Event('input', { bubbles: true }));
+    const openMapModal = (row: Element) => {
+      row.querySelector<HTMLElement>('.import-map-picker-btn')?.click();
+      return document.querySelector<HTMLElement>('.import-marker-map-modal');
     };
-    const selectMarkerFromMapModal = (row, query, key) => {
+    const selectMarkerFromMapModal = (row: Element, query: string, key: string) => {
       const mapModal = openMapModal(row);
-      const modalSearch = mapModal?.querySelector('.import-map-modal-search');
+      const modalSearch = mapModal?.querySelector<HTMLInputElement>('.import-map-modal-search');
       if (modalSearch && query) {
         modalSearch.value = query;
         dispatchInput(modalSearch);
       }
-      mapModal?.querySelector(`[data-import-map-key="${key}"]`)?.click();
+      mapModal?.querySelector<HTMLElement>(`[data-import-map-key="${key}"]`)?.click();
       return mapModal;
     };
     const baseMarkers = [
@@ -232,200 +235,200 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
 
       const modal = document.getElementById('import-modal');
       const overlay = document.getElementById('import-modal-overlay');
-      const confirmBtn = document.getElementById('import-confirm-btn');
+      const confirmBtn = (document.getElementById('import-confirm-btn') as HTMLButtonElement | null);
       outcomes.opensAndEscapesFilename = overlay?.classList.contains('show') === true
         && modal?.innerHTML.includes('&lt;cbc-review&gt;.pdf') === true;
       outcomes.rendersSummaryAndWarnings = modal?.textContent.includes('1 matched') === true
         && modal?.textContent.includes('1 new') === true
         && modal?.textContent.includes('11 unmatched') === true
-        && !!modal.querySelector('.import-review-date-warning')
-        && !!modal.querySelector('.import-review-warning:not(.import-review-date-warning)');
+        && !!modal.querySelector<HTMLElement>('.import-review-date-warning')
+        && !!modal.querySelector<HTMLElement>('.import-review-warning:not(.import-review-date-warning)');
       outcomes.missingDateDisablesImport = confirmBtn?.disabled === true;
       outcomes.collectionContextIsReviewableAndWarnsAgainstProcessingTime =
-        document.getElementById('import-sample-time')?.value === '09:15'
-        && document.getElementById('import-fasting')?.value === 'not-fasting'
+        (document.getElementById('import-sample-time') as HTMLInputElement | null)?.value === '09:15'
+        && (document.getElementById('import-fasting') as HTMLSelectElement | null)?.value === 'not-fasting'
         && modal?.textContent.includes('not received, processed, or report time');
-      outcomes.renderedControlsUseDelegatedActions = modal?.querySelectorAll('[onclick],[onchange],[oninput]').length === 0
-        && modal?.querySelectorAll('[data-import-review-action]').length >= 13;
+      outcomes.renderedControlsUseDelegatedActions = modal?.querySelectorAll<HTMLElement>('[onclick],[onchange],[oninput]').length === 0
+        && modal?.querySelectorAll<HTMLElement>('[data-import-review-action]').length >= 13;
 
-      const dateInput = document.getElementById('import-manual-date');
-      dateInput.value = '2026-06-01';
+      const dateInput = (document.getElementById('import-manual-date') as HTMLInputElement | null);
+      dateInput!.value = '2026-06-01';
       dispatchChange(dateInput);
 
-      const sampleTimeInput = document.getElementById('import-sample-time');
-      const fastingInput = document.getElementById('import-fasting');
-      sampleTimeInput.value = '07:40';
+      const sampleTimeInput = (document.getElementById('import-sample-time') as HTMLInputElement | null);
+      const fastingInput = (document.getElementById('import-fasting') as HTMLSelectElement | null);
+      sampleTimeInput!.value = '07:40';
       dispatchChange(sampleTimeInput);
-      fastingInput.value = 'fasting';
+      fastingInput!.value = 'fasting';
       dispatchChange(fastingInput);
       outcomes.collectionContextEditsUpdatePendingImport =
         review.getPendingImport()?.sampleTime === '07:40'
         && review.getPendingImport()?.fasting === true;
       outcomes.manualDateUpdatesPendingAndButton = review.getPendingImport()?.date === '2026-06-01'
         && confirmBtn?.disabled === false;
-      dateInput.value = '';
+      dateInput!.value = '';
       dispatchChange(dateInput);
       outcomes.emptyManualDateDisablesImport = review.getPendingImport()?.date === ''
         && confirmBtn?.disabled === true;
-      dateInput.value = '2026-06-01';
+      dateInput!.value = '2026-06-01';
       dispatchChange(dateInput);
 
-      const glucoseRow = document.querySelector('tr[data-import-idx="0"]');
-      const glucoseUnit = glucoseRow.querySelector('.import-unit-input');
-      glucoseUnit.click();
-      const glucoseMgOption = Array.from(document.querySelectorAll('.import-unit-option'))
+      const glucoseRow = document.querySelector<HTMLElement>('tr[data-import-idx="0"]');
+      const glucoseUnit = glucoseRow!.querySelector<HTMLElement>('.import-unit-input');
+      glucoseUnit!.click();
+      const glucoseMgOption = Array.from(document.querySelectorAll<HTMLElement>('.import-unit-option'))
         .find(option => option.dataset.importUnitOption === 'mg/l');
-      glucoseMgOption.click();
-      const glucoseValue = Number(glucoseRow.querySelector('.import-value-input').value);
-      const glucoseMarker = review.getPendingImport().markers[0];
+      glucoseMgOption!.click();
+      const glucoseValue = Number((glucoseRow!.querySelector<HTMLInputElement>('.import-value-input'))!.value);
+      const glucoseMarker = (review.getPendingImport())!.markers[0];
       outcomes.unitChangeRecomputesDisplayedValue = Math.abs(glucoseValue - 1045.04) < 0.01
-        && Math.abs(glucoseMarker.value - 1045.04) < 0.01
-        && glucoseMarker.unit === 'mg/l'
-        && glucoseUnit.textContent.includes('mg/l');
-      outcomes.unitChangeRecomputesLabRange = glucoseRow.querySelector('.import-range-cell')?.textContent.includes('702.702') === true
-        && Math.abs(glucoseMarker.refMin - 702.702) < 0.001
-        && Math.abs(glucoseMarker.refMax - 990.99) < 0.001;
-      outcomes.unitPickerClosesAfterSelection = document.querySelector('.import-unit-menu') === null
-        && glucoseUnit.getAttribute('aria-expanded') === 'false';
+        && Math.abs((glucoseMarker!.value as number) - 1045.04) < 0.01
+        && glucoseMarker!.unit === 'mg/l'
+        && glucoseUnit!.textContent.includes('mg/l');
+      outcomes.unitChangeRecomputesLabRange = glucoseRow!.querySelector<HTMLElement>('.import-range-cell')?.textContent.includes('702.702') === true
+        && Math.abs((glucoseMarker!.refMin)! - 702.702) < 0.001
+        && Math.abs((glucoseMarker!.refMax)! - 990.99) < 0.001;
+      outcomes.unitPickerClosesAfterSelection = document.querySelector<HTMLElement>('.import-unit-menu') === null
+        && glucoseUnit!.getAttribute('aria-expanded') === 'false';
 
-      const customRow = document.querySelector('tr[data-import-idx="1"]');
+      const customRow = document.querySelector<HTMLElement>('tr[data-import-idx="1"]');
       outcomes.newMarkerShowsGenericUnitAssist = customRow?.dataset.importStatus === 'new'
-        && customRow.querySelector('.import-unit-text')?.value === 'mg/l'
-        && !!customRow.querySelector('.import-unit-picker-btn')
-        && customRow.querySelector('.import-suggested-key')?.textContent.includes('customLabs.customSignal')
-        && customRow.querySelector('.import-map-input') === null;
-      selectMarkerFromMapModal(customRow, 'glucose', 'biochemistry.glucose');
-      const customMarker = review.getPendingImport().markers[1];
-      outcomes.mapNewMarkerByModal = customRow.dataset.importStatus === 'matched'
-        && customMarker.matched === true
-        && customMarker.mappedKey === 'biochemistry.glucose'
-        && customRow.querySelector('.import-unit-button')?.textContent.includes('mg/l');
-      openMapModal(customRow)?.querySelector('[data-import-map-action="clear"]')?.click();
-      outcomes.clearNewMarkerMappingRestoresNew = customRow.dataset.importStatus === 'new'
-        && customMarker.matched === false
-        && customMarker.mappedKey === null
-        && customMarker.suggestedKey === 'customLabs.customSignal'
-        && !!customRow.querySelector('.import-unit-picker-btn');
+        && customRow.querySelector<HTMLInputElement>('.import-unit-text')?.value === 'mg/l'
+        && !!customRow.querySelector<HTMLElement>('.import-unit-picker-btn')
+        && customRow.querySelector<HTMLElement>('.import-suggested-key')?.textContent.includes('customLabs.customSignal')
+        && customRow.querySelector<HTMLElement>('.import-map-input') === null;
+      selectMarkerFromMapModal(customRow!, 'glucose', 'biochemistry.glucose');
+      const customMarker = (review.getPendingImport())!.markers[1];
+      outcomes.mapNewMarkerByModal = customRow!.dataset.importStatus === 'matched'
+        && customMarker!.matched === true
+        && customMarker!.mappedKey === 'biochemistry.glucose'
+        && customRow!.querySelector<HTMLElement>('.import-unit-button')?.textContent.includes('mg/l');
+      openMapModal(customRow!)?.querySelector<HTMLElement>('[data-import-map-action="clear"]')?.click();
+      outcomes.clearNewMarkerMappingRestoresNew = customRow!.dataset.importStatus === 'new'
+        && customMarker!.matched === false
+        && customMarker!.mappedKey === null
+        && customMarker!.suggestedKey === 'customLabs.customSignal'
+        && !!customRow!.querySelector<HTMLElement>('.import-unit-picker-btn');
 
-      customRow.querySelector('.import-map-picker-btn').click();
-      const mapModal = document.querySelector('.import-marker-map-modal');
-      const modalSearch = mapModal.querySelector('.import-map-modal-search');
-      modalSearch.value = 'ferritin';
+      (customRow!.querySelector<HTMLElement>('.import-map-picker-btn'))!.click();
+      const mapModal = document.querySelector<HTMLElement>('.import-marker-map-modal');
+      const modalSearch = mapModal!.querySelector<HTMLInputElement>('.import-map-modal-search');
+      modalSearch!.value = 'ferritin';
       dispatchInput(modalSearch);
-      const hasIronCategory = Array.from(mapModal.querySelectorAll('.import-map-category'))
+      const hasIronCategory = Array.from(mapModal!.querySelectorAll<HTMLElement>('.import-map-category'))
         .some(btn => btn.textContent.includes('Iron'));
-      mapModal.querySelector('[data-import-map-key="iron.ferritin"]').click();
+      (mapModal!.querySelector<HTMLElement>('[data-import-map-key="iron.ferritin"]'))!.click();
       outcomes.mapModalSearchesCategoriesAndSelects = hasIronCategory
-        && customRow.dataset.importStatus === 'matched'
-        && customMarker.mappedKey === 'iron.ferritin'
-        && document.querySelector('.import-marker-map-modal') === null
-        && customRow.querySelector('.import-unit-button')?.textContent.includes('mg/l');
-      openMapModal(customRow)?.querySelector('[data-import-map-action="clear"]')?.click();
-      outcomes.clearModalMappingRestoresNew = customRow.dataset.importStatus === 'new'
-        && customMarker.mappedKey === null
-        && customMarker.matched === false
-        && !!customRow.querySelector('.import-map-picker-btn');
+        && customRow!.dataset.importStatus === 'matched'
+        && customMarker!.mappedKey === 'iron.ferritin'
+        && document.querySelector<HTMLElement>('.import-marker-map-modal') === null
+        && customRow!.querySelector<HTMLElement>('.import-unit-button')?.textContent.includes('mg/l');
+      openMapModal(customRow!)?.querySelector<HTMLElement>('[data-import-map-action="clear"]')?.click();
+      outcomes.clearModalMappingRestoresNew = customRow!.dataset.importStatus === 'new'
+        && customMarker!.mappedKey === null
+        && customMarker!.matched === false
+        && !!customRow!.querySelector<HTMLElement>('.import-map-picker-btn');
 
-      customRow.querySelector('.import-unit-picker-btn').click();
-      const customGramOption = Array.from(document.querySelectorAll('.import-unit-option'))
+      (customRow!.querySelector<HTMLElement>('.import-unit-picker-btn'))!.click();
+      const customGramOption = Array.from(document.querySelectorAll<HTMLElement>('.import-unit-option'))
         .find(option => option.dataset.importUnitOption === 'g/l');
-      customGramOption.click();
-      const customValue = Number(customRow.querySelector('.import-value-input').value);
+      customGramOption!.click();
+      const customValue = Number((customRow!.querySelector<HTMLInputElement>('.import-value-input'))!.value);
       outcomes.customUnitPickerConvertsGenericMass = Math.abs(customValue - 1) < 0.001
-        && Math.abs(customMarker.value - 1) < 0.001
-        && customMarker.unit === 'g/l'
-        && Math.abs(customMarker.refMin - 0.5) < 0.001
-        && Math.abs(customMarker.refMax - 1.5) < 0.001
-        && customRow.querySelector('.import-range-cell')?.textContent.includes('0.5')
-        && customRow.querySelector('.import-range-cell')?.textContent.includes('1.5');
-      const customUnitText = customRow.querySelector('.import-unit-text');
-      customUnitText.value = 'mg/l';
+        && Math.abs((customMarker!.value as number) - 1) < 0.001
+        && customMarker!.unit === 'g/l'
+        && Math.abs((customMarker!.refMin)! - 0.5) < 0.001
+        && Math.abs((customMarker!.refMax)! - 1.5) < 0.001
+        && customRow!.querySelector<HTMLElement>('.import-range-cell')?.textContent.includes('0.5')
+        && customRow!.querySelector<HTMLElement>('.import-range-cell')?.textContent.includes('1.5');
+      const customUnitText = customRow!.querySelector<HTMLInputElement>('.import-unit-text');
+      customUnitText!.value = 'mg/l';
       dispatchChange(customUnitText);
-      const customValueAfterTextUnit = Number(customRow.querySelector('.import-value-input').value);
+      const customValueAfterTextUnit = Number((customRow!.querySelector<HTMLInputElement>('.import-value-input'))!.value);
       outcomes.customUnitTextEditRecomputesAllRowValues = customValueAfterTextUnit === 1000
-        && customMarker.value === 1000
-        && customMarker.unit === 'mg/l'
-        && customMarker.refMin === 500
-        && customMarker.refMax === 1500
-        && customRow.querySelector('.import-range-cell')?.textContent.includes('500')
-        && customRow.querySelector('.import-range-cell')?.textContent.includes('1500');
-      customRow.querySelector('.import-unit-picker-btn').click();
-      const customArbOption = Array.from(document.querySelectorAll('.import-unit-option'))
+        && customMarker!.value === 1000
+        && customMarker!.unit === 'mg/l'
+        && customMarker!.refMin === 500
+        && customMarker!.refMax === 1500
+        && customRow!.querySelector<HTMLElement>('.import-range-cell')?.textContent.includes('500')
+        && customRow!.querySelector<HTMLElement>('.import-range-cell')?.textContent.includes('1500');
+      (customRow!.querySelector<HTMLElement>('.import-unit-picker-btn'))!.click();
+      const customArbOption = Array.from(document.querySelectorAll<HTMLElement>('.import-unit-option'))
         .find(option => option.dataset.importUnitOption === 'arb.j.');
-      customArbOption.click();
-      outcomes.customUnitPickerSkipsIncompatibleConversion = Number(customRow.querySelector('.import-value-input').value) === 1000
-        && customMarker.value === 1000
-        && customMarker.refMin === 500
-        && customMarker.refMax === 1500
-        && customMarker.unit === 'arb.j.';
+      customArbOption!.click();
+      outcomes.customUnitPickerSkipsIncompatibleConversion = Number((customRow!.querySelector<HTMLInputElement>('.import-value-input'))!.value) === 1000
+        && customMarker!.value === 1000
+        && customMarker!.refMin === 500
+        && customMarker!.refMax === 1500
+        && customMarker!.unit === 'arb.j.';
 
-      document.querySelector('.import-filter-btn[data-filter="unmatched"]').click();
+      (document.querySelector<HTMLElement>('.import-filter-btn[data-filter="unmatched"]'))!.click();
       outcomes.unmatchedFilterCountsRows = document.getElementById('import-visible-count')?.textContent === '11/13 shown';
 
-      const searchInput = document.getElementById('import-review-search');
-      searchInput.value = 'mystery marker 7';
+      const searchInput = (document.getElementById('import-review-search') as HTMLInputElement | null);
+      searchInput!.value = 'mystery marker 7';
       dispatchInput(searchInput);
       outcomes.searchNarrowsFilteredRows = document.getElementById('import-visible-count')?.textContent === '1/13 shown';
 
-      searchInput.value = '';
+      searchInput!.value = '';
       dispatchInput(searchInput);
-      document.querySelector('.import-filter-btn[data-filter="all"]').click();
-      const mapRow = document.querySelector('tr[data-import-status="unmatched"]');
-      selectMarkerFromMapModal(mapRow, 'glucose', 'biochemistry.glucose');
+      (document.querySelector<HTMLElement>('.import-filter-btn[data-filter="all"]'))!.click();
+      const mapRow = document.querySelector<HTMLElement>('tr[data-import-status="unmatched"]');
+      selectMarkerFromMapModal(mapRow!, 'glucose', 'biochemistry.glucose');
       outcomes.mapUnmatchedByModal = mapRow?.dataset.importStatus === 'matched'
-        && review.getPendingImport().markers[2].mappedKey === 'biochemistry.glucose';
-      const remappedUnitControl = mapRow?.querySelector('.import-unit-input');
+        && ((review.getPendingImport())!.markers[2])!.mappedKey === 'biochemistry.glucose';
+      const remappedUnitControl = mapRow?.querySelector<HTMLElement>('.import-unit-input');
       remappedUnitControl?.click();
       outcomes.mapUnmatchedRebuildsUnitPicker = remappedUnitControl?.tagName === 'BUTTON'
-        && Array.from(document.querySelectorAll('.import-unit-option'))
+        && Array.from(document.querySelectorAll<HTMLElement>('.import-unit-option'))
           .some(option => option.dataset.importUnitOption === 'mg/l');
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 
-      const stillUnmatchedRow = document.querySelector('tr[data-import-status="unmatched"]');
-      const invalidModal = openMapModal(stillUnmatchedRow);
-      const invalidSearch = invalidModal?.querySelector('.import-map-modal-search');
-      invalidSearch.value = 'Not a real marker';
+      const stillUnmatchedRow = document.querySelector<HTMLElement>('tr[data-import-status="unmatched"]');
+      const invalidModal = openMapModal(stillUnmatchedRow!);
+      const invalidSearch = invalidModal?.querySelector<HTMLInputElement>('.import-map-modal-search');
+      invalidSearch!.value = 'Not a real marker';
       dispatchInput(invalidSearch);
       outcomes.mapModalNoResultsKeepsUnmatched = invalidModal?.textContent.includes('No markers match this search.') === true
         && stillUnmatchedRow?.dataset.importStatus === 'unmatched';
-      invalidModal?.querySelector('[data-import-map-action="close"]')?.click();
+      invalidModal?.querySelector<HTMLElement>('[data-import-map-action="close"]')?.click();
 
-      const excludeBtn = document.querySelector('tr[data-import-idx="0"] .import-exclude-btn');
-      outcomes.rowActionsUseIconButtons = excludeBtn?.querySelector('.import-exclude-icon')?.textContent === '×'
+      const excludeBtn = document.querySelector<HTMLElement>('tr[data-import-idx="0"] .import-exclude-btn');
+      outcomes.rowActionsUseIconButtons = excludeBtn?.querySelector<HTMLElement>('.import-exclude-icon')?.textContent === '×'
         && excludeBtn?.getAttribute('aria-label')?.includes('Exclude') === true
-        && !!customRow.querySelector('.import-map-picker-icon');
-      excludeBtn.click();
-      outcomes.excludeUpdatesRowAndCount = excludeBtn.getAttribute('aria-label') === 'Include in import'
-        && excludeBtn.querySelector('.import-exclude-icon')?.textContent === '+'
-        && excludeBtn.closest('tr')?.classList.contains('import-excluded') === true
+        && !!customRow!.querySelector<HTMLElement>('.import-map-picker-icon');
+      excludeBtn!.click();
+      outcomes.excludeUpdatesRowAndCount = excludeBtn!.getAttribute('aria-label') === 'Include in import'
+        && excludeBtn!.querySelector<HTMLElement>('.import-exclude-icon')?.textContent === '+'
+        && excludeBtn!.closest('tr')?.classList.contains('import-excluded') === true
         && confirmBtn?.textContent === 'Import 2 Markers'
         && review.getExcludedImportIndices().has(0) === true;
-      const draftAfterExclusion = JSON.parse(sessionStorage.getItem('labcharts-import-review-draft-v1') || '{}');
+      const draftAfterExclusion = JSON.parse(sessionStorage.getItem('labcharts-import-review-draft-v1') || '{}') as unknown as ImportReviewDraftRead;
       outcomes.importReviewDraftTracksEdits = draftAfterExclusion.parseResult?.date === '2026-06-01'
         && draftAfterExclusion.parseResult?.markers?.[0]?.unit === 'mg/l'
-        && Math.abs(draftAfterExclusion.parseResult?.markers?.[0]?.value - 1045.04) < 0.01
-        && Math.abs(draftAfterExclusion.parseResult?.markers?.[0]?.refMin - 702.702) < 0.001
+        && Math.abs((draftAfterExclusion.parseResult?.markers?.[0]?.value as number) - 1045.04) < 0.01
+        && Math.abs((draftAfterExclusion.parseResult?.markers?.[0]?.refMin as number) - 702.702) < 0.001
         && draftAfterExclusion.parseResult?.markers?.[1]?.unit === 'arb.j.'
         && draftAfterExclusion.parseResult?.markers?.[1]?.value === 1000
         && draftAfterExclusion.parseResult?.markers?.[1]?.refMin === 500
         && draftAfterExclusion.parseResult?._excludedImportIndices?.includes(0) === true;
 
-      document.querySelector('.import-filter-btn[data-filter="excluded"]').click();
+      (document.querySelector<HTMLElement>('.import-filter-btn[data-filter="excluded"]'))!.click();
       outcomes.excludedFilterCountsRows = document.getElementById('import-visible-count')?.textContent === '1/13 shown';
 
-      document.querySelector('.import-filter-btn[data-filter="all"]').click();
-      const selectRow = document.querySelector('tr[data-import-status="unmatched"]');
+      (document.querySelector<HTMLElement>('.import-filter-btn[data-filter="all"]'))!.click();
+      const selectRow = document.querySelector<HTMLElement>('tr[data-import-status="unmatched"]');
       const select = document.createElement('select');
-      select.dataset.markerIdx = selectRow.dataset.importIdx;
+      select.dataset.markerIdx = selectRow!.dataset.importIdx;
       select.innerHTML = '<option value="iron.ferritin">Ferritin</option>';
       select.value = 'iron.ferritin';
-      selectRow.querySelector('.import-map-cell').append(select);
+      (selectRow!.querySelector<HTMLElement>('.import-map-cell'))!.append(select);
       review.mapUnmatchedMarker(select);
-      outcomes.mapUnmatchedBySelect = selectRow.dataset.importStatus === 'matched'
-        && review.getPendingImport().markers[Number(select.dataset.markerIdx)].mappedKey === 'iron.ferritin'
+      outcomes.mapUnmatchedBySelect = selectRow!.dataset.importStatus === 'matched'
+        && ((review.getPendingImport())!.markers[Number(select.dataset.markerIdx)])!.mappedKey === 'iron.ferritin'
         && confirmBtn?.textContent === 'Import 3 Markers';
 
-      document.querySelector('#import-modal .import-review-actions [data-import-review-action="close"]').click();
+      (document.querySelector<HTMLElement>('#import-modal .import-review-actions [data-import-review-action="close"]'))!.click();
       outcomes.closeClearsPending = overlay?.classList.contains('show') === false
         && review.getPendingImport() === null
         && sessionStorage.getItem('labcharts-import-review-draft-v1') === null;
@@ -435,18 +438,18 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
       const batchPromise = review.showImportPreviewAsync({
         date: '2026-06-02',
         fileName: 'batch-review.pdf',
-        markers: [baseMarkers[0]],
+        markers: [baseMarkers[0]!],
       }, 2, 5);
       outcomes.asyncPreviewHidesDropZone = dropZone?.style.display === 'none'
         && document.getElementById('import-modal')?.textContent.includes('File 2 of 5') === true;
-      document.querySelector('#import-modal .import-review-actions [data-import-review-action="close"]').click();
+      (document.querySelector<HTMLElement>('#import-modal .import-review-actions [data-import-review-action="close"]'))!.click();
       outcomes.asyncCloseResolvesSkip = await batchPromise === 'skip'
         && dropZone?.style.display === '';
 
       const importBatchPromise = review.showImportPreviewAsync({
         date: '2026-06-03',
         fileName: 'batch-import-review.pdf',
-        markers: [baseMarkers[0]],
+        markers: [baseMarkers[0]!],
       }, 3, 5);
       const resolvedImport = review.resolveImportPreviewBatch('import');
       outcomes.asyncResolveImportClearsModal = resolvedImport === true
@@ -456,10 +459,10 @@ test('PDF import review modal covers filtering mapping exclusion and batch close
         && dropZone?.style.display === '';
     } finally {
       state.currentProfile = originalProfile;
-      window._pendingImport = null;
-      window._pendingImportRefLookup = null;
-      window._batchImportResolve = null;
-      window._batchImportContext = null;
+      (window as unknown as {_pendingImport?: unknown})._pendingImport = null;
+      (window as unknown as {_pendingImportRefLookup?: unknown})._pendingImportRefLookup = null;
+      (window as unknown as {_batchImportResolve?: unknown})._batchImportResolve = null;
+      (window as unknown as {_batchImportContext?: unknown})._batchImportContext = null;
       document.getElementById('import-modal-overlay')?.classList.remove('show');
       if (dropZone) dropZone.style.display = originalDropDisplay;
     }
@@ -485,8 +488,8 @@ test('PDF import review mobile layout keeps actions compact and visible', async 
   await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
 
   const results = await page.evaluate(async ({ reviewUrl }) => {
-    const review = await import(reviewUrl);
-    const outcomes = {};
+    const review = (await import(reviewUrl) as unknown) as Pick<typeof import('../../js/pdf-import-review.js'), "showImportPreview" | "getPendingImport" | "getExcludedImportIndices" | "mapUnmatchedMarker" | "resolveImportPreviewBatch" | "showImportPreviewAsync">;
+    const outcomes: Record<string, unknown> = {};
 
     try {
       review.showImportPreview({
@@ -522,41 +525,41 @@ test('PDF import review mobile layout keeps actions compact and visible', async 
         ],
       });
 
-      const modal = document.querySelector('.import-preview-modal');
-      const body = document.querySelector('.import-review-body');
-      const firstRow = document.querySelector('tr[data-import-idx="0"]');
-      const newRow = document.querySelector('tr[data-import-idx="1"]');
-      const nameCell = firstRow?.querySelector('.import-name-cell');
-      const statusCell = firstRow?.querySelector('.import-status-cell');
-      const actionCell = firstRow?.querySelector('.import-row-action-btn');
-      const excludeBtn = firstRow?.querySelector('.import-exclude-btn');
-      const mapBtn = newRow?.querySelector('.import-map-picker-btn');
+      const modal = document.querySelector<HTMLElement>('.import-preview-modal');
+      const body = document.querySelector<HTMLElement>('.import-review-body');
+      const firstRow = document.querySelector<HTMLElement>('tr[data-import-idx="0"]');
+      const newRow = document.querySelector<HTMLElement>('tr[data-import-idx="1"]');
+      const nameCell = firstRow?.querySelector<HTMLElement>('.import-name-cell');
+      const statusCell = firstRow?.querySelector<HTMLElement>('.import-status-cell');
+      const actionCell = firstRow?.querySelector<HTMLElement>('.import-row-action-btn');
+      const excludeBtn = firstRow?.querySelector<HTMLElement>('.import-exclude-btn');
+      const mapBtn = newRow?.querySelector<HTMLElement>('.import-map-picker-btn');
       const mapBtnRect = mapBtn?.getBoundingClientRect();
       const modalRect = modal?.getBoundingClientRect();
       const bodyStyle = body ? getComputedStyle(body) : null;
       const firstRowStyle = firstRow ? getComputedStyle(firstRow) : null;
 
-      outcomes.mobileModalUsesAvailableWidth = modalRect?.width >= 370 && modalRect.width <= 390;
+      outcomes.mobileModalUsesAvailableWidth = (modalRect?.width)! >= 370 && modalRect!.width <= 390;
       outcomes.mobileBodyUsesCompactPadding = bodyStyle?.paddingTop === '14px'
         && bodyStyle?.paddingLeft === '12px';
-      outcomes.mobileNameCellBecomesHeading = getComputedStyle(nameCell).display === 'block'
-        && getComputedStyle(nameCell, '::before').display === 'none'
+      outcomes.mobileNameCellBecomesHeading = getComputedStyle(nameCell!).display === 'block'
+        && getComputedStyle(nameCell!, '::before').display === 'none'
         && nameCell?.textContent.includes('Glucose') === true;
-      outcomes.mobileStatusUsesRailInsteadOfRepeatedPills = getComputedStyle(statusCell).display === 'none'
-        && document.querySelector('.import-status-pill') === null
+      outcomes.mobileStatusUsesRailInsteadOfRepeatedPills = getComputedStyle(statusCell!).display === 'none'
+        && document.querySelector<HTMLElement>('.import-status-pill') === null
         && firstRowStyle?.borderLeftWidth === '4px';
-      outcomes.mobileActionsAreIconOnlyAndPinned = getComputedStyle(actionCell).position === 'absolute'
-        && excludeBtn?.querySelector('.import-exclude-icon')?.textContent === '×'
+      outcomes.mobileActionsAreIconOnlyAndPinned = getComputedStyle(actionCell!).position === 'absolute'
+        && excludeBtn?.querySelector<HTMLElement>('.import-exclude-icon')?.textContent === '×'
         && excludeBtn?.getAttribute('aria-label')?.includes('Exclude') === true
-        && mapBtn?.querySelector('.import-map-picker-icon') !== null
+        && mapBtn?.querySelector<HTMLElement>('.import-map-picker-icon') !== null
         && mapBtn?.title === 'Map marker'
-        && mapBtnRect?.width <= 40;
+        && (mapBtnRect?.width)! <= 40;
     } finally {
       document.getElementById('import-modal-overlay')?.classList.remove('show');
-      window._pendingImport = null;
-      window._pendingImportRefLookup = null;
-      window._batchImportResolve = null;
-      window._batchImportContext = null;
+      (window as unknown as {_pendingImport?: unknown})._pendingImport = null;
+      (window as unknown as {_pendingImportRefLookup?: unknown})._pendingImportRefLookup = null;
+      (window as unknown as {_batchImportResolve?: unknown})._batchImportResolve = null;
+      (window as unknown as {_batchImportContext?: unknown})._batchImportContext = null;
     }
 
     return outcomes;
@@ -574,8 +577,8 @@ test('PDF import review draft restores after refresh', async ({ page }) => {
   await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
 
   await page.evaluate(async ({ reviewUrl }) => {
-    const review = await import(reviewUrl);
-    const dispatchChange = el => el?.dispatchEvent(new Event('change', { bubbles: true }));
+    const review = (await import(reviewUrl) as unknown) as Pick<typeof import('../../js/pdf-import-review.js'), "showImportPreview" | "getPendingImport" | "getExcludedImportIndices" | "mapUnmatchedMarker" | "resolveImportPreviewBatch" | "showImportPreviewAsync">;
+    const dispatchChange = (el: Element | null | undefined) => el?.dispatchEvent(new Event('change', { bubbles: true }));
     sessionStorage.removeItem('labcharts-import-review-draft-v1');
     localStorage.setItem('labcharts-active-profile', 'default');
     const { state } = await import('/js/state.js');
@@ -604,10 +607,10 @@ test('PDF import review draft restores after refresh', async ({ page }) => {
         },
       ],
     });
-    const valueInput = document.querySelector('tr[data-import-idx="0"] .import-value-input');
-    valueInput.value = '6.2';
+    const valueInput = document.querySelector<HTMLInputElement>('tr[data-import-idx="0"] .import-value-input');
+    valueInput!.value = '6.2';
     dispatchChange(valueInput);
-    document.querySelector('tr[data-import-idx="1"] .import-exclude-btn')?.click();
+    document.querySelector<HTMLElement>('tr[data-import-idx="1"] .import-exclude-btn')?.click();
   }, {
     reviewUrl: moduleUrl('/js/pdf-import-review.js'),
   });
@@ -621,7 +624,7 @@ test('PDF import review draft restores after refresh', async ({ page }) => {
   await expect(page.locator('tr[data-import-idx="1"]')).toHaveClass(/import-excluded/);
 
   await page.evaluate(() => {
-    document.querySelector('#import-modal .import-review-actions [data-import-review-action="close"]')?.click();
+    document.querySelector<HTMLElement>('#import-modal .import-review-actions [data-import-review-action="close"]')?.click();
   });
   await expect(page.locator('#import-modal-overlay')).not.toHaveClass(/show/);
 });
@@ -631,11 +634,11 @@ test('PDF import review modal covers privacy cost and debug details', async ({ p
   await page.waitForSelector('#import-modal-overlay', { state: 'attached' });
 
   const results = await page.evaluate(async ({ reviewUrl }) => {
-    const review = await import(reviewUrl);
-    const outcomes = {};
-    const savedStorage = {};
-    const savedPIIDiffViewer = window.showPIIDiffViewer;
-    let piiDiffArgs = null;
+    const review = (await import(reviewUrl) as unknown) as Pick<typeof import('../../js/pdf-import-review.js'), "showImportPreview" | "getPendingImport" | "getExcludedImportIndices" | "mapUnmatchedMarker" | "resolveImportPreviewBatch" | "showImportPreviewAsync">;
+    const outcomes: Record<string, unknown> = {};
+    const savedStorage: Record<string, string | null> = {};
+    const savedPIIDiffViewer = (window as unknown as {showPIIDiffViewer?: unknown}).showPIIDiffViewer;
+    let piiDiffArgs: unknown[] | null = null;
     const storageKeys = [
       'labcharts-debug',
       'labcharts-ai-provider',
@@ -649,7 +652,7 @@ test('PDF import review modal covers privacy cost and debug details', async ({ p
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ollama-model', 'llama-debug');
       localStorage.setItem('labcharts-ollama-pii-model', 'pii-debug');
-      window.showPIIDiffViewer = (originalText, obfuscatedText) => {
+      (window as unknown as {showPIIDiffViewer?: unknown}).showPIIDiffViewer = (originalText: unknown, obfuscatedText: unknown) => {
         piiDiffArgs = [originalText, obfuscatedText];
       };
 
@@ -685,20 +688,20 @@ test('PDF import review modal covers privacy cost and debug details', async ({ p
         && modal?.textContent.includes('Free') === true;
       outcomes.debugDetailsRenderTimingAndPrivacyButton = modal?.textContent.includes('PII: 2s (pii-debug)') === true
         && modal?.textContent.includes('Analysis: 3s (llama-debug)') === true
-        && modal?.querySelector('.import-privacy-details-btn') !== null;
-      modal?.querySelector('.import-privacy-details-btn')?.click();
+        && modal?.querySelector<HTMLElement>('.import-privacy-details-btn') !== null;
+      modal?.querySelector<HTMLElement>('.import-privacy-details-btn')?.click();
       outcomes.privacyDetailsButtonDelegatesToViewer = piiDiffArgs?.[0] === 'Patient: Jane Example'
         && piiDiffArgs?.[1] === 'Patient: [NAME]';
-      outcomes.rangeAdoptionOptionRendersWhenLabRangesDiffer = modal?.querySelector('#import-adopt-ranges') !== null;
-      outcomes.rangeAdoptionDefaultsToLabRanges = modal?.querySelector('#import-adopt-ranges')?.checked === true;
+      outcomes.rangeAdoptionOptionRendersWhenLabRangesDiffer = modal?.querySelector<HTMLInputElement>('#import-adopt-ranges') !== null;
+      outcomes.rangeAdoptionDefaultsToLabRanges = modal?.querySelector<HTMLInputElement>('#import-adopt-ranges')?.checked === true;
     } finally {
-      window.showPIIDiffViewer = savedPIIDiffViewer;
+      (window as unknown as {showPIIDiffViewer?: unknown}).showPIIDiffViewer = savedPIIDiffViewer;
       for (const key of storageKeys) {
         if (savedStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, savedStorage[key]);
       }
-      window._pendingImport = null;
-      window._pendingImportRefLookup = null;
+      (window as unknown as {_pendingImport?: unknown})._pendingImport = null;
+      (window as unknown as {_pendingImportRefLookup?: unknown})._pendingImportRefLookup = null;
       document.getElementById('import-modal-overlay')?.classList.remove('show');
     }
 
@@ -717,29 +720,29 @@ test('PDF import persistence covers snapshots removal and date rename prompts', 
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ persistenceUrl }) => {
-    const persistence = await import(persistenceUrl);
+    const persistence = (await import(persistenceUrl) as unknown) as Pick<typeof import('../../js/pdf-import-persistence.js'), "snapshotImportedData" | "restoreImportedDataSnapshot" | "renameImportedEntryDate" | "removeImportedEntry">;
     const reviewRuntime = await import('/js/pdf-import-review-runtime.js');
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const originals = {
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      importedData: JSON.parse(JSON.stringify(state.importedData || {})) as unknown,
       currentView: state.currentView,
     };
-    const viewCalls = [];
+    const viewCalls: unknown[] = [];
     const previousReviewRuntime = reviewRuntime.configurePdfImportReviewRuntimeDeps({
       buildSidebar: () => { viewCalls.push('buildSidebar'); },
-      navigate: view => { viewCalls.push(`navigate:${view}`); },
+      navigate: (view: unknown) => { viewCalls.push(`navigate:${view}`); },
       updateHeaderDates: () => { viewCalls.push('updateHeaderDates'); },
     });
     const waitForPrompt = async () => {
       for (let attempt = 0; attempt < 40; attempt++) {
-        const input = document.getElementById('prompt-dialog-input');
+        const input = (document.getElementById('prompt-dialog-input') as HTMLInputElement | null);
         if (input) return input;
-        await new Promise(resolve => setTimeout(resolve, 25));
+        await new Promise((resolve) => setTimeout(resolve, 25));
       }
       throw new Error('Prompt did not open');
     };
-    const submitPrompt = async (value, inputType = null) => {
+    const submitPrompt = async (value: string, inputType: string | null = null) => {
       const input = await waitForPrompt();
       if (inputType) input.type = inputType;
       input.value = value;
@@ -748,7 +751,7 @@ test('PDF import persistence covers snapshots removal and date rename prompts', 
 
     try {
       state.currentView = 'labs';
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         entries: [
           {
             date: '2026-01-01',
@@ -769,48 +772,48 @@ test('PDF import persistence covers snapshots removal and date rename prompts', 
       };
 
       const snapshot = persistence.snapshotImportedData();
-      state.importedData.entries = [];
+      (state.importedData as unknown as ImportPersistenceRead).entries = [];
       persistence.restoreImportedDataSnapshot(snapshot);
-      outcomes.snapshotRestoresImportedData = state.importedData.entries.length === 2
-        && state.importedData.entries[0].date === '2026-01-01';
+      outcomes.snapshotRestoresImportedData = (state.importedData as unknown as ImportPersistenceRead).entries.length === 2
+        && ((state.importedData as unknown as ImportPersistenceRead).entries[0])!.date === '2026-01-01';
 
       const renamePromise = persistence.renameImportedEntryDate('2026-01-01');
       await submitPrompt('2026-01-02');
       const renamed = await renamePromise;
       outcomes.renameChangesDateAndManualValueKeys = renamed === true
-        && state.importedData.entries.some(entry => entry.date === '2026-01-02')
-        && !state.importedData.entries.some(entry => entry.date === '2026-01-01')
-        && !!state.importedData.manualValues['biochemistry.glucose:2026-01-02']
-        && !state.importedData.manualValues['biochemistry.glucose:2026-01-01']
-        && state.importedData._deleted?.entries?.includes('2026-01-01') === true;
+        && (state.importedData as unknown as ImportPersistenceRead).entries.some(entry => entry.date === '2026-01-02')
+        && !(state.importedData as unknown as ImportPersistenceRead).entries.some(entry => entry.date === '2026-01-01')
+        && !!(state.importedData as unknown as ImportPersistenceRead).manualValues!['biochemistry.glucose:2026-01-02']
+        && !(state.importedData as unknown as ImportPersistenceRead).manualValues!['biochemistry.glucose:2026-01-01']
+        && (state.importedData as unknown as ImportPersistenceRead)._deleted?.entries?.includes('2026-01-01') === true;
 
       const duplicatePromise = persistence.renameImportedEntryDate('2026-01-02');
       await submitPrompt('2026-01-03');
       outcomes.duplicateDateIsRejected = await duplicatePromise === false
-        && state.importedData.entries.some(entry => entry.date === '2026-01-02')
-        && Array.from(document.querySelectorAll('.notification-toast.error'))
+        && (state.importedData as unknown as ImportPersistenceRead).entries.some(entry => entry.date === '2026-01-02')
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
           .some(toast => toast.textContent.includes('Another entry already exists'));
 
       const invalidPromise = persistence.renameImportedEntryDate('2026-01-02');
       await submitPrompt('2026-02-30', 'text');
       outcomes.invalidCalendarDateIsRejected = await invalidPromise === false
-        && Array.from(document.querySelectorAll('.notification-toast.error'))
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
           .some(toast => toast.textContent.includes("doesn't exist"));
 
       const removed = await persistence.removeImportedEntry('2026-01-03');
       outcomes.removeDeletesEntryTombstonesAndRefreshes = removed === true
-        && !state.importedData.entries.some(entry => entry.date === '2026-01-03')
-        && state.importedData._deleted?.entries?.includes('2026-01-03') === true
+        && !(state.importedData as unknown as ImportPersistenceRead).entries.some(entry => entry.date === '2026-01-03')
+        && (state.importedData as unknown as ImportPersistenceRead)._deleted?.entries?.includes('2026-01-03') === true
         && viewCalls.includes('buildSidebar')
         && viewCalls.includes('updateHeaderDates')
         && viewCalls.includes('navigate:labs')
-        && Array.from(document.querySelectorAll('.notification-toast.info'))
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.info'))
           .some(toast => toast.textContent.includes('Removed 1 marker from 2026-01-03'));
 
       outcomes.missingDateReturnsFalse = await persistence.removeImportedEntry('') === false
         && await persistence.renameImportedEntryDate('missing-date') === false;
     } finally {
-      state.importedData = originals.importedData;
+      (state as unknown as {importedData:unknown}).importedData = originals.importedData;
       state.currentView = originals.currentView;
       reviewRuntime.configurePdfImportReviewRuntimeDeps(previousReviewRuntime);
       document.getElementById('prompt-dialog-overlay')?.classList.remove('show');
