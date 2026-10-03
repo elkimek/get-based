@@ -28,6 +28,9 @@
       ],
       "/js/voice-loader.js?pending-auto-read-context=1": [
         "./js/voice-loader.ts"
+      ],
+      "/wallet-test-lightning-invoices.js": [
+        "./tests/fixtures/lightning-invoices.ts"
       ]
     },
     "module": "NodeNext",
