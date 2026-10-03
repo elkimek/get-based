@@ -1,6 +1,6 @@
 import { expect, test } from './coverage-fixture.js';
 
-for (const [layout, width] of [['desktop', 1280], ['mobile', 390]]) {
+for (const [layout, width] of ([['desktop', 1280], ['mobile', 390]] as [string, number][])) {
   test(`${layout} dashboard can restore an older specialty category with All`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.addInitScript(() => {
@@ -15,7 +15,7 @@ for (const [layout, width] of [['desktop', 1280], ['mobile', 390]]) {
       (await import('/js/tour.js')).endTour({ openEmptyChat: false });
       (await import('/js/chat-panel.js')).closeChatPanel();
       const key = 'metabolomixMitochondrial.citric';
-      state.importedData = {
+      (state as unknown as {importedData: unknown}).importedData = {
         entries: [
           { date: '2020-05-26', markers: { [key]: 200 }, markerSources: {
             [key]: { snapshotId: 'synthetic-specialty', file: 'synthetic-specialty.pdf', at: 1000 },
@@ -42,8 +42,8 @@ for (const [layout, width] of [['desktop', 1280], ['mobile', 390]]) {
     await expect(range.getByRole('button', { name: '1Y', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(specialty).toHaveCount(0);
     const bounds = await range.boundingBox();
-    expect(bounds.x).toBeGreaterThanOrEqual(0);
-    expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
 
     await range.getByRole('button', { name: 'All', exact: true }).click();
     await expect(range.getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true');

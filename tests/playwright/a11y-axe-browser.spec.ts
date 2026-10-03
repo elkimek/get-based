@@ -14,7 +14,7 @@ test('axe accessibility browser scan', async ({ page }, testInfo) => {
 
   if (rebaseline) {
     await page.addInitScript(() => {
-      window.A11Y_REBASELINE = true;
+      (window as unknown as Window & {A11Y_REBASELINE?: boolean}).A11Y_REBASELINE = true;
     });
   }
 
@@ -25,6 +25,6 @@ test('axe accessibility browser scan', async ({ page }, testInfo) => {
   });
 
   if (rebaseline) {
-    expect(result.returnValue?._axeVersion).toBe(axeVersion);
+    expect((result.returnValue as {_axeVersion?: unknown} | null | undefined)?._axeVersion).toBe(axeVersion);
   }
 });

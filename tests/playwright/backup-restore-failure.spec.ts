@@ -14,27 +14,27 @@ for (const mode of ['file', 'snapshot']) {
           wearableIDB: { [profile]: { manual: [{ source: 'manual', date: '2026-09-21', weight: 80 }] } },
           cycleIDB: { [profile]: { manual: [{ source: 'manual', date: '2026-09-21', importId: 'fixture-import', bleeding: { flow: 'light' } }] } },
         };
-        const timeout = window.setTimeout;
-        window.restoreReloads = 0;
-        window.setTimeout = (callback, delay, ...args) => {
-          if (String(callback).includes('location.reload')) { window.restoreReloads += 1; return 0; }
+        const timeout = (window as Window).setTimeout;
+        (window as unknown as Window & {restoreReloads: number; restoreAborts: number; finishRestoreFixture: () => void}).restoreReloads = 0;
+        (window as Window).setTimeout = (callback: TimerHandler, delay?: number, ...args: unknown[]) => {
+          if (String(callback).includes('location.reload')) { (window as unknown as Window & {restoreReloads: number; restoreAborts: number; finishRestoreFixture: () => void}).restoreReloads += 1; return 0; }
           return timeout(callback, delay, ...args);
         };
         const put = IDBObjectStore.prototype.put;
-        window.restoreAborts = 0;
+        (window as unknown as Window & {restoreReloads: number; restoreAborts: number; finishRestoreFixture: () => void}).restoreAborts = 0;
         IDBObjectStore.prototype.put = function (...args) {
           const request = put.apply(this, args);
           const database = this.transaction.db.name;
           if (database.includes(source === 'wearable' ? 'wearables' : 'cycle') && this.name === (source === 'wearable' ? 'daily-metrics' : 'daily-observations')) {
-            request.addEventListener('success', () => { window.restoreAborts += 1; this.transaction.abort(); }, { once: true });
+            request.addEventListener('success', () => { (window as unknown as Window & {restoreReloads: number; restoreAborts: number; finishRestoreFixture: () => void}).restoreAborts += 1; this.transaction.abort(); }, { once: true });
           }
           return request;
         };
-        window.finishRestoreFixture = () => { IDBObjectStore.prototype.put = put; window.setTimeout = timeout; };
+        (window as unknown as Window & {restoreReloads: number; restoreAborts: number; finishRestoreFixture: () => void}).finishRestoreFixture = () => { IDBObjectStore.prototype.put = put; (window as Window).setTimeout = timeout; };
         if (mode === 'file') backup.importEncryptedBackup(new File([JSON.stringify(snapshot)], 'synthetic-backup.json', { type: 'application/json' }));
         else {
           const db = await backup.openBackupDB();
-          const id = await new Promise((resolve, reject) => {
+          const id = await new Promise<IDBValidKey>((resolve, reject) => {
             const tx = db.transaction('snapshots', 'readwrite');
             const request = tx.objectStore('snapshots').add({ createdAt: snapshot.createdAt, snapshot });
             tx.oncomplete = () => resolve(request.result); tx.onabort = () => reject(tx.error);
@@ -49,11 +49,11 @@ for (const mode of ['file', 'snapshot']) {
         }
       }, { mode, source });
       await page.locator('#confirm-dialog-overlay.show #confirm-ok').click();
-      await expect.poll(() => page.evaluate(() => window.restoreAborts)).toBeGreaterThan(0);
+      await expect.poll(() => page.evaluate(() => (window as unknown as Window & {restoreReloads: number; restoreAborts: number; finishRestoreFixture: () => void}).restoreAborts)).toBeGreaterThan(0);
       await expect(page.locator('#notification-container')).toContainText('incomplete');
-      expect(await page.evaluate(() => window.restoreReloads)).toBe(0);
+      expect(await page.evaluate(() => (window as unknown as Window & {restoreReloads: number; restoreAborts: number; finishRestoreFixture: () => void}).restoreReloads)).toBe(0);
       await expect(page.locator('#notification-container')).not.toContainText('Backup restored');
-      await page.evaluate(() => window.finishRestoreFixture());
+      await page.evaluate(() => (window as unknown as Window & {restoreReloads: number; restoreAborts: number; finishRestoreFixture: () => void}).finishRestoreFixture());
     });
   }
 }

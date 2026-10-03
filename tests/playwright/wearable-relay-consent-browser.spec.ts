@@ -6,9 +6,9 @@ test('hosted wearable consent matches the explicit cloud-consent interaction', a
   await page.evaluate(async () => {
     const consent = await import('/js/wearables-settings-groups.js');
     consent.withdrawHostedWearableRelayConsent('browser-profile', 'withings');
-    globalThis.__wearableRelayConsentResult = null;
+    (globalThis as typeof globalThis & {__wearableRelayConsentResult: boolean | null}).__wearableRelayConsentResult = null;
     consent.requestHostedWearableRelayConsent('browser-profile', 'withings', 'Withings')
-      .then(result => { globalThis.__wearableRelayConsentResult = result; });
+      .then((result: boolean) => { (globalThis as typeof globalThis & {__wearableRelayConsentResult: boolean | null}).__wearableRelayConsentResult = result; });
   });
 
   const overlay = page.locator('#wearable-relay-consent-overlay');
@@ -25,12 +25,12 @@ test('hosted wearable consent matches the explicit cloud-consent interaction', a
   await checkbox.check();
   await expect(approve).toBeEnabled();
   await approve.click();
-  await page.waitForFunction(() => globalThis.__wearableRelayConsentResult !== null);
-  expect(await page.evaluate(() => globalThis.__wearableRelayConsentResult)).toBe(true);
+  await page.waitForFunction(() => (globalThis as typeof globalThis & {__wearableRelayConsentResult: boolean | null}).__wearableRelayConsentResult !== null);
+  expect(await page.evaluate(() => (globalThis as typeof globalThis & {__wearableRelayConsentResult: boolean | null}).__wearableRelayConsentResult)).toBe(true);
   await expect(overlay).toHaveCount(0);
 
   const record = await page.evaluate(() => {
-    const stored = JSON.parse(localStorage.getItem('labcharts-hosted-wearable-consent'));
+    const stored = JSON.parse(localStorage.getItem('labcharts-hosted-wearable-consent')!);
     return stored.approvals['browser-profile:withings'];
   });
   expect(record).toMatchObject({

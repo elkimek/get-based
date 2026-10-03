@@ -36,15 +36,15 @@ for (const source of ['wearable', 'cycle']) {
     expect((await download).suggestedFilename()).toMatch(/^labcharts-backup-/);
     await expect(page.locator('#notification-container')).toContainText('Backup exported successfully');
     const recovered = await page.evaluate(async () => (await import('/js/backup.js')).buildFullBackupSnapshot());
-    expect(recovered.wearableIDB['backup-export-fixture'].manual[0].weight).toBe(80);
-    expect(recovered.cycleIDB['backup-export-fixture'].manual[0].bleeding.flow).toBe('light');
+    expect(recovered!.wearableIDB!['backup-export-fixture']!.manual![0]!.weight).toBe(80);
+    expect((recovered!.cycleIDB!['backup-export-fixture']!.manual![0]!.bleeding as {flow: unknown}).flow).toBe('light');
   });
 }
 
 test('encrypted backup includes legacy and IDB profiles with unchanged ciphertext', async ({ page }) => {
   await page.goto('/app');
   const result = await page.evaluate(async () => {
-    window.__WEARABLES_TEST = true;
+    (window as unknown as Window & {__WEARABLES_TEST?: boolean}).__WEARABLES_TEST = true;
     const crypto = await import('/js/crypto.js');
     const { getBlob } = await import('/js/blob-storage.js');
     const { buildFullBackupSnapshot } = await import('/js/backup.js');
@@ -55,12 +55,12 @@ test('encrypted backup includes legacy and IDB profiles with unchanged ciphertex
     await crypto.encryptedSetItem('labcharts-idb-fixture-imported', JSON.stringify({ entries: [], contextNotes: 'IDB private note' }));
     const legacy = await getBlob('labcharts-legacy-fixture-imported');
     const migrated = await getBlob('labcharts-idb-fixture-imported');
-    localStorage.setItem('labcharts-legacy-fixture-imported', legacy);
+    localStorage.setItem('labcharts-legacy-fixture-imported', legacy!);
     const snapshot = await buildFullBackupSnapshot();
     return {
-      profiles: snapshot.profiles.map(profile => profile.profileId),
-      sameCiphertext: snapshot.profiles[0].keys.imported === legacy && snapshot.profiles[1].keys.imported === migrated,
-      encrypted: snapshot.encrypted && snapshot.profileList.startsWith('v1:') && legacy.startsWith('v1:') && migrated.startsWith('v1:'),
+      profiles: snapshot!.profiles.map((profile: {profileId: unknown}) => profile.profileId),
+      sameCiphertext: snapshot!.profiles[0]!.keys.imported === legacy && snapshot!.profiles[1]!.keys.imported === migrated,
+      encrypted: snapshot!.encrypted && snapshot!.profileList.startsWith('v1:') && legacy!.startsWith('v1:') && migrated!.startsWith('v1:'),
       leakedPrivateNote: JSON.stringify(snapshot).includes('private note'),
     };
   });

@@ -28,7 +28,7 @@ test('mobile chat keeps its header and composer inside the keyboard viewport', a
     const header = document.querySelector('.chat-header');
     const messages = document.querySelector('.chat-messages');
     const composer = document.querySelector('.chat-input-area');
-    const rect = element => element?.getBoundingClientRect();
+    const rect = (element: Element | null) => element?.getBoundingClientRect();
     return {
       panel: rect(panel),
       header: rect(header),
@@ -40,10 +40,10 @@ test('mobile chat keeps its header and composer inside the keyboard viewport', a
   expect(keyboardLayout.panel?.top).toBe(96);
   expect(keyboardLayout.panel?.bottom).toBe(596);
   expect(keyboardLayout.panel?.height).toBe(500);
-  expect(keyboardLayout.header?.top).toBeGreaterThanOrEqual(keyboardLayout.panel.top);
-  expect(keyboardLayout.composer?.bottom).toBeLessThanOrEqual(keyboardLayout.panel.bottom);
-  expect(keyboardLayout.messages?.top).toBeGreaterThanOrEqual(keyboardLayout.header.bottom);
-  expect(keyboardLayout.messages?.bottom).toBeLessThanOrEqual(keyboardLayout.composer.top);
+  expect(keyboardLayout.header?.top).toBeGreaterThanOrEqual(keyboardLayout.panel!.top);
+  expect(keyboardLayout.composer?.bottom).toBeLessThanOrEqual(keyboardLayout.panel!.bottom);
+  expect(keyboardLayout.messages?.top).toBeGreaterThanOrEqual(keyboardLayout.header!.bottom);
+  expect(keyboardLayout.messages?.bottom).toBeLessThanOrEqual(keyboardLayout.composer!.top);
 
   await page.evaluate(() => {
     const panel = document.getElementById('chat-panel');

@@ -26,7 +26,7 @@ test('v8 repeat startup skips v7 and v7 restore invalidates the handoff', async 
   const firstOwner = await readOwner();
   expect(firstOwner?.id).toBeTruthy();
   expect(legacyRequests).toBeGreaterThan(0);
-  expect(await page.evaluate(mnemonic => Object.values(localStorage).includes(mnemonic), firstOwner.mnemonic))
+  expect(await page.evaluate(mnemonic => Object.values(localStorage).includes(mnemonic), firstOwner!.mnemonic))
     .toBe(false);
 
   blockLegacy = true;
@@ -47,8 +47,8 @@ test('v8 repeat startup skips v7 and v7 restore invalidates the handoff', async 
 
   await page.evaluate(async mnemonic => {
     const runtime = await import('/js/sync-runtime.js');
-    await runtime.getSyncEvolu().restoreAppOwner(mnemonic, { reload: false });
-  }, firstOwner.mnemonic);
+    await runtime.getSyncEvolu()!.restoreAppOwner(mnemonic, { reload: false });
+  }, firstOwner!.mnemonic);
   expect(await page.evaluate(() => localStorage.getItem('labcharts-sync-evolu8-identity-token')))
     .toBeNull();
 

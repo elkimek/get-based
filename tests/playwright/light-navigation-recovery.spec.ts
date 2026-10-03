@@ -8,21 +8,21 @@ for (const boundary of ['new-render', 'navigate-away', 'old-rejection']) {
     const result = await page.evaluate(async boundary => {
       const view = await import('/js/light-page-view.js');
       const {state} = await import('/js/state.js');
-      state.importedData = {entries:[],sunSessions:[],deviceSessions:[]};
-      let resolve, reject;
-      const pending = new Promise((done,fail) => { resolve=done; reject=fail; });
+      (state as unknown as {importedData: unknown}).importedData = {entries:[],sunSessions:[],deviceSessions:[]};
+      let resolve: ((value: string) => void) | undefined, reject: ((reason: unknown) => void) | undefined;
+      const pending = new Promise<string>((done,fail) => { resolve=done; reject=fail; });
       view.configureLightPageView({getDevices:()=>[{id:'fixture'}],renderDevicesSection:()=>pending});
       view.showLight(state.importedData);
-      if (boundary === 'navigate-away') document.getElementById('main-content').innerHTML='<p id="destination">Another page</p>';
+      if (boundary === 'navigate-away') document.getElementById('main-content')!.innerHTML='<p id="destination">Another page</p>';
       else {
         view.configureLightPageView({renderDevicesSection:async()=>'<section id="current-devices">Current devices</section>'});
         view.showLight(state.importedData);
         await Promise.resolve();
       }
-      if (boundary === 'old-rejection') reject(new Error('Old request failed'));
-      else resolve('<section id="stale-devices">Stale devices</section>');
+      if (boundary === 'old-rejection') reject!(new Error('Old request failed'));
+      else resolve!('<section id="stale-devices">Stale devices</section>');
       await Promise.resolve(); await Promise.resolve();
-      return {stale:!!document.getElementById('stale-devices'),current:!!document.getElementById('current-devices'),destination:!!document.getElementById('destination'),error:document.body.textContent.includes('Devices could not load')};
+      return {stale:!!document.getElementById('stale-devices'),current:!!document.getElementById('current-devices'),destination:!!document.getElementById('destination'),error:document.body.textContent!.includes('Devices could not load')};
     }, boundary);
     expect(result.stale).toBe(false);
     expect(result.error).toBe(false);

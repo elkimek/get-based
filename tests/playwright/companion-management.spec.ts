@@ -2,11 +2,11 @@ import { test, expect } from '@playwright/test';
 import { createServer } from 'node:http';
 import { createAgentHostService } from '../../lib/agent-host-service.js';
 
-let server, endpoint;
-let actions = [];
+let server: ReturnType<typeof createServer>, endpoint: string;
+let actions: string[] = [];
 test.beforeAll(async () => {
   let mode = 'temporary';
-  const service = createAgentHostService({
+  const service = (createAgentHostService as unknown as (options: Omit<Parameters<typeof createAgentHostService>[0], 'appServer'> & {appServer: Record<string, unknown>}) => ReturnType<typeof createAgentHostService>)({
     appServer: {}, token: 'private-installation-secret', workspaceRoot: '/tmp/unused-management-test',
     runtimeInfo: () => ({ runtimeMode: mode, companionVersion: 'test' }),
     controlHandler: async action => {
@@ -17,19 +17,19 @@ test.beforeAll(async () => {
     },
   });
   server = createServer(async (req, res) => {
-    const chunks = [];
+    const chunks: Buffer[] = [];
     for await (const chunk of req) chunks.push(chunk);
-    const result = await service.handleRequest(new Request(endpoint + req.url, {
+    const result = await service.handleRequest(new (Request as unknown as new (input: ConstructorParameters<typeof Request>[0], init: Omit<RequestInit, 'method' | 'headers' | 'body'> & {method: typeof req.method; headers: typeof req.headers; body: Buffer | undefined}) => Request)(endpoint + req.url, {
       method: req.method, headers: req.headers,
       body: chunks.length ? Buffer.concat(chunks) : undefined,
     }));
     res.writeHead(result.status, Object.fromEntries(result.headers));
     res.end(Buffer.from(await result.arrayBuffer()));
   });
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  endpoint = `http://127.0.0.1:${server.address().port}`;
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  endpoint = `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`;
 });
-test.afterAll(async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); });
+test.afterAll(async () => { server.closeAllConnections(); await new Promise<unknown>(resolve => server.close(resolve)); });
 
 test('local management runs controls while hosted discovery stays chat-only', async ({ page }) => {
   await page.goto(endpoint + '/manage');

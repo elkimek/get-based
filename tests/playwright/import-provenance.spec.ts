@@ -9,7 +9,7 @@ test('profile load repairs an imported edit and Settings keeps it under its repo
     const store = await import('/js/marker-detail-store.js');
     const key = 'biochemistry.glucose';
     const date = '2026-01-01';
-    state.importedData = migrateProfileData({
+    (state as unknown as {importedData: unknown}).importedData = migrateProfileData({
       entries: [{ date, markers: { [key]: 6 }, markerSources: { [key]: { file: null, at: 200 } } }],
       manualValues: { [`${key}:${date}`]: 5 },
       importSnapshots: [{ id: 'report', date, fileName: 'synthetic-lab.pdf', type: 'pdf', markerCount: 1,
@@ -18,7 +18,7 @@ test('profile load repairs an imported edit and Settings keeps it under its repo
     const repairedSettings = settings.renderDataEntriesSection();
     await store.editManualMarkerValue({ dotKey: key, date, storedValue: 7, now: 300 });
     const editedSettings = settings.renderDataEntriesSection();
-    const editedSource = { ...state.importedData.entries[0].markerSources[key] };
+    const editedSource = { ...state.importedData.entries[0]!.markerSources![key] };
     await store.revertManualMarkerValue(key, date, { now: 400 });
     const revertedSettings = settings.renderDataEntriesSection();
     const reverted = structuredClone(state.importedData.entries[0]);
@@ -32,8 +32,8 @@ test('profile load repairs an imported edit and Settings keeps it under its repo
     expect(html).not.toContain('Date locked');
   }
   expect(result.editedSource).toEqual({ file: 'synthetic-lab.pdf', snapshotId: 'report', at: 300, manuallyEdited: true });
-  expect(result.reverted.markerSources['biochemistry.glucose']).toEqual({ file: 'synthetic-lab.pdf', snapshotId: 'report', at: 400 });
-  expect(result.reverted.markers['biochemistry.glucose']).toBe(5);
+  expect(result.reverted!.markerSources!['biochemistry.glucose']).toEqual({ file: 'synthetic-lab.pdf', snapshotId: 'report', at: 400 });
+  expect(result.reverted!.markers['biochemistry.glucose']).toBe(5);
   expect(result.mixedSettings).toContain('manual markers not tied to an import file');
   expect(result.mixedSettings).toContain('Date locked');
 });

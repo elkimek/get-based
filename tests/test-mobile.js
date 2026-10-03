@@ -52,7 +52,8 @@ ${await fetchWithRetry('css/chat-redesign-open.css')}`;
     css.includes('[data-theme] .sidebar') &&
     css.includes('position: fixed') &&
     css.includes('z-index: 360'));
-  const dashboardPageViewSrc = await fetchWithRetry('js/dashboard-page-view.js');
+  const dashboardPageViewSrc = (await fetchWithRetry('js/dashboard-page-view.js'))
+    .replace(/if \(!isDesktopChatOnboardingViewport \|\| getDashboardPageRuntimeValue\('innerWidth'\) <= 768\)\s+return/, "if (!isDesktopChatOnboardingViewport || getDashboardPageRuntimeValue('innerWidth') <= 768) return");
   const mobileDashboardSrc = await fetchWithRetry('js/mobile-dashboard.js');
   const dashboardControlsSrc = await fetchWithRetry('js/dashboard-widget-controls.js');
   const routerSrc = await fetchWithRetry('js/views-router.js');

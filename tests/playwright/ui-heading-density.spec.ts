@@ -6,7 +6,7 @@ for (const width of [1280, 390]) {
     await page.goto('/app', { waitUntil: 'load' });
     await page.evaluate(async () => {
       await (await import('/js/export.js')).loadDemoData('female');
-      window.endTour?.();
+      (window as unknown as Window & {endTour?: typeof import('../../js/tour.js').endTour}).endTour?.();
       for (const id of ['tour-overlay', 'tour-spotlight', 'tour-tooltip']) document.getElementById(id)?.remove();
       await (await import('/js/chat-panel.js')).closeChatPanel();
     });

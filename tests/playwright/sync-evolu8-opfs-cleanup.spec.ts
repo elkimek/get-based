@@ -26,25 +26,25 @@ test('v8 cleanup removes only unlocked superseded OPFS generations', async ({ pa
         await writable.close();
       }
 
-      let releaseLock;
-      let markLockAcquired;
-      const lockAcquired = new Promise(resolve => { markLockAcquired = resolve; });
-      const holdLock = new Promise(resolve => { releaseLock = resolve; });
+      let releaseLock: (() => void) | undefined;
+      let markLockAcquired: (() => void) | undefined;
+      const lockAcquired = new Promise<void>(resolve => { markLockAcquired = resolve; });
+      const holdLock = new Promise<void>(resolve => { releaseLock = resolve; });
       const lockRequest = navigator.locks.request(
         `evolu-leaderlock-${locked}`,
         { mode: 'exclusive' },
         async () => {
-          markLockAcquired();
+          markLockAcquired!();
           await holdLock;
         },
       );
       await lockAcquired;
 
       const cleanupResult = await cleanupSupersededEvolu8Databases({ activeDatabaseName: active });
-      const namesAfterCleanup = [];
+      const namesAfterCleanup: string[] = [];
       for await (const name of root.keys()) namesAfterCleanup.push(name);
 
-      releaseLock();
+      releaseLock!();
       await lockRequest;
       return { active, stale, locked, legacy, cleanupResult, namesAfterCleanup };
     } finally {

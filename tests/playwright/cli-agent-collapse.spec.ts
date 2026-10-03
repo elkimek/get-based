@@ -24,7 +24,7 @@ test('active CLI options collapse by mouse and keyboard without deselecting the 
   await page.goto('/app', { waitUntil: 'load' });
   await page.addStyleTag({ url: '/css/settings.css' });
   await page.evaluate(async () => {
-    window.endTour?.();
+    (window as unknown as Window & {endTour?: typeof import('../../js/tour.js').endTour}).endTour?.();
     for (const id of ['tour-overlay', 'tour-spotlight', 'tour-tooltip']) document.getElementById(id)?.remove();
     (await import('/js/api-provider-storage.js')).setAIProvider('codex-agent');
     (await import('/js/agent-chat-settings.js')).setChatBackend('codex');
@@ -37,10 +37,10 @@ test('active CLI options collapse by mouse and keyboard without deselecting the 
   await expect(options).toBeVisible();
   const dotLayout = await header.locator('.local-agent-state').evaluate(state => {
     const dot = state.querySelector('.local-agent-dot');
-    const text = [...state.childNodes].find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+    const text = [...state.childNodes].find(node => node.nodeType === Node.TEXT_NODE && node.textContent!.trim());
     const range = document.createRange();
-    range.selectNode(text);
-    return { display: getComputedStyle(state).display, gap: range.getBoundingClientRect().left - dot.getBoundingClientRect().right, width: dot.getBoundingClientRect().width };
+    range.selectNode(text!);
+    return { display: getComputedStyle(state).display, gap: range.getBoundingClientRect().left - dot!.getBoundingClientRect().right, width: dot!.getBoundingClientRect().width };
   });
   expect(dotLayout.display).toBe('flex');
   expect(dotLayout.gap).toBeGreaterThanOrEqual(5);

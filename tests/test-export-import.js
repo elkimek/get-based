@@ -65,8 +65,13 @@ return (async function() {
   // ═══════════════════════════════════════
   console.log('%c 2. Client export structure (source) ', 'font-weight:bold;color:#f59e0b');
 
-  const exportSrc = await fetch('/js/export.js').then(r => r.text());
-  const exportImportSrc = await fetch('/js/export-import.js').then(r => r.text());
+  const exportSrc = (await fetch('/js/export.js').then(r => r.text()))
+    .replace(/if \(chat\)\s+entry\.chat = chat/g, 'if (chat) entry.chat = chat')
+    .replace(/try \{\s*\/\/ Delete the wallet first[\s\S]*?catch \(error\)[\s\S]*?return;\s*\}/, block => block.replace(/^[ \t]+/gm, ''));
+  const exportImportSrc = (await fetch('/js/export-import.js').then(r => r.text()))
+    .replace(/if \(url\.protocol === 'http:' \|\| url\.protocol === 'https:'\)\s+entry\.sourceUrl = url\.toString\(\)/, "if (url.protocol === 'http:' || url.protocol === 'https:') entry.sourceUrl = url.toString()")
+    .replace(/for \(const field of \['customMarkers', 'refOverrides',[\s\S]*?(?=if \(importData\.manualMetricTombstones)/, block => block.replace(/^[ \t]+/gm, ''))
+    .replace(/forceProfileScope: true, expectedData: raw, skipSync: true,[\s\S]*?_reviveImportedProfileSyncIdentity\(existing\.id\);/, block => block.replace(/^[ \t]+/gm, '').replace(/if \(!persisted\)\s+throw/, 'if (!persisted) throw'));
   const exportRuntimeSrc = await fetch('/js/export-runtime.js').then(r => r.text());
   const reportCoreSrc = await fetch('/js/export-report.js').then(r => r.text());
   const reportHtmlSrc = await fetch('/js/export-report-html.js').then(r => r.text());
@@ -966,7 +971,8 @@ return (async function() {
       assert('demo JSON ships focusCard.text',
         typeof demo.focusCard?.text === 'string' && demo.focusCard.text.length > 50,
         `got ${typeof demo.focusCard?.text} (${demo.focusCard?.text?.length || 0} chars)`);
-      const focusCardSrc = await fetch('/js/focus-card.js').then(r => r.text());
+      const focusCardSrc = (await fetch('/js/focus-card.js').then(r => r.text()))
+        .replace(/if \(!cached\.fingerprint\)\s+return;/, 'if (!cached.fingerprint) return;');
       assert('loadFocusCard early-returns when cache has no fingerprint (demo prefill marker)',
         focusCardSrc.includes('if (!cached.fingerprint) return;'),
         'loadFocusCard must skip AI refresh when cached.fingerprint is missing');

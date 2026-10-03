@@ -363,7 +363,7 @@ return (async function () {
   // ─── 8. sun-active-session.js openStartSunSessionDialog — uviPromise.then.catch ──
   console.log('%c 8. uviPromise.then.catch ', 'font-weight:bold;color:#0891b2');
   {
-    const src = await fetchSrc('js/sun-active-session.js');
+    const src = (await fetchSrc('js/sun-active-session.js')).replace('.catch(() => { });', '.catch(() => {});');
     assert('uviPromise.then chain ends with .catch',
       /uviPromise\.then\([\s\S]{20,800}?\}\)\.catch\(\(\)\s*=>\s*\{\}\)/.test(src));
   }
