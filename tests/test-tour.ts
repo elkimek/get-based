@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { hasDirectStartupImports } from './helpers/startup-composition.js';
-import { readRepositorySource } from './helpers/repository-source.js';
+import { readRepositorySource, readAuthoredRepositorySource } from './helpers/repository-source.js';
 import { sourceFunctionHasStatement, sourceFunctionHasEventListenerStatement } from './helpers/native-source-contracts.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
@@ -171,7 +171,7 @@ console.log('19. main.js Wiring');
 const mainSrc = read('js/main.js');
 const appFeatureModulesSrc = read('js/app-feature-modules.js');
 const appUiShellModulesSrc = read('js/app-ui-shell-modules.js');
-const appEventsSrc = read('js/app-event-listeners.js');
+const appEventsSrc = readAuthoredRepositorySource('js/app-event-listeners.js');
 
 assert('main.js imports every startup module in order', hasDirectStartupImports(mainSrc));
 assert('app-feature-modules.js delegates UI shell modules', appFeatureModulesSrc.includes("import './app-ui-shell-modules.js'"));

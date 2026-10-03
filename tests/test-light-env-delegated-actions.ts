@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-import { readRepositorySource } from './helpers/repository-source.js';
+import { readRepositorySource, readAuthoredRepositorySource } from './helpers/repository-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static Light Environment delegated-action source guards.
 
 const envSrc = readRepositorySource('js/light-env.js', 'utf8');
 const screenSrc = readRepositorySource('js/light-env-screen-ui.js', 'utf8');
-const actionSrc = readRepositorySource('js/light-env-actions.js', 'utf8');
+const actionSrc = readAuthoredRepositorySource('js/light-env-actions.js', 'utf8').replace(/\bactionEl!/g, 'actionEl').replace(/\bevent as KeyboardEvent\b/g, 'event').replace('(event.currentTarget as ActionRoot).contains!', 'event.currentTarget.contains').replace('(event.target as ActionTarget | null)', 'event.target');
 const auditSrc = readRepositorySource('js/light-env-audits.js', 'utf8');
 const appEventSrc = readRepositorySource('js/app-event-listeners.js', 'utf8');
 const appUiShellSrc = readRepositorySource('js/app-ui-shell-modules.js', 'utf8');

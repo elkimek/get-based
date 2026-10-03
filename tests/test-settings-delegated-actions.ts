@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readRepositorySource } from './helpers/repository-source.js';
+import { readRepositorySource, readAuthoredRepositorySource } from './helpers/repository-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Settings delegated-action source guards.
 
@@ -9,7 +9,7 @@ const chatOnboardingHostSrc = readRepositorySource('js/chat-onboarding-host-bind
 const lightPageUIHooksSrc = readRepositorySource('js/light-page-view-ui-hooks.js', 'utf8');
 const loaderSrc = readRepositorySource('js/settings-loader.js', 'utf8');
 const src = readRepositorySource('js/settings.js', 'utf8');
-const displaySrc = readRepositorySource('js/settings-display-panel.js', 'utf8');
+const displaySrc = readAuthoredRepositorySource('js/settings-display-panel.js', 'utf8');
 const eventTargetSrc = readRepositorySource('js/settings-event-target.js', 'utf8');
 const privacySrc = readRepositorySource('js/settings-privacy.js', 'utf8');
 const settingsDataSrc = readRepositorySource('js/settings-data.js', 'utf8');

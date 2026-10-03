@@ -1,4 +1,3 @@
-// @ts-check
 // settings-display-panel.js - Settings Display tab rendering and state refresh.
 
 import { state } from './state.js';
@@ -7,8 +6,7 @@ import { getAppVersionRuntime } from './utils-runtime.js';
 import { getTheme, getTimeFormat } from './theme.js';
 import { escapeHTML, isDebugMode } from './utils.js';
 
-/** @param {boolean} active */
-export function renderDisplaySettingsPanel(active) {
+export function renderDisplaySettingsPanel(active: boolean) {
   return `
     <div class="settings-tab-panel${active ? ' active' : ''}" data-tab-panel="display" id="settings-tab-display" role="tabpanel" aria-label="Display">
       <div class="settings-row">
@@ -92,16 +90,16 @@ export function renderDisplaySettingsPanel(active) {
 export function updateDisplaySettingsPanel() {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
-  const unitButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.unit-toggle-btn[data-unit]')));
+  const unitButtons = (Array.from(modal.querySelectorAll('.unit-toggle-btn[data-unit]')) as HTMLElement[]);
   unitButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.unit === state.unitSystem));
-  const rangeButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.range-toggle-btn')));
+  const rangeButtons = (Array.from(modal.querySelectorAll('.range-toggle-btn')) as HTMLElement[]);
   rangeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.range === state.rangeMode));
-  const altUnitButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.unit-toggle-btn[data-alt-units]')));
+  const altUnitButtons = (Array.from(modal.querySelectorAll('.unit-toggle-btn[data-alt-units]')) as HTMLElement[]);
   altUnitButtons.forEach(btn => btn.classList.toggle('active', (btn.dataset.altUnits === 'on') === !!state.showAltUnits));
   const theme = getTheme();
-  const themeButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.settings-theme-btn')));
+  const themeButtons = (Array.from(modal.querySelectorAll('.settings-theme-btn')) as HTMLElement[]);
   themeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.themeId === theme));
   const timeFmt = getTimeFormat();
-  const timeButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.time-toggle-btn')));
+  const timeButtons = (Array.from(modal.querySelectorAll('.time-toggle-btn')) as HTMLElement[]);
   timeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.timefmt === timeFmt));
 }

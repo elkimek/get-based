@@ -100,9 +100,9 @@ let _fundingRequest = null;
 let _fundingInvoice = null;
 const isRoutstrActive = () => getAIProvider() === 'routstr' && getChatBackend() === 'direct';
 const fundingMonitor = createFundingMonitor(walletRuntime, () => _refreshRoutstrWalletBalance(true), result => {
-  if (result.results?.some(item => item.quote === _fundingInvoice?.quote
-    && (item.mint || result.mint) === _fundingInvoice?.mint
-    && (item.paid || /^(EXPIRED|CANCELLED|CANCELED)$/.test(String(item.state).toUpperCase())))) _fundingInvoice = null;
+  if (result.results?.some(item => (/** @type {{quote?: unknown}} */ (item)).quote === _fundingInvoice?.quote
+    && ((/** @type {{mint?: unknown}} */ (item)).mint || result.mint) === _fundingInvoice?.mint
+    && ((/** @type {{paid?: unknown}} */ (item)).paid || /^(EXPIRED|CANCELLED|CANCELED)$/.test(String((/** @type {{state?: unknown}} */ (item)).state).toUpperCase())))) _fundingInvoice = null;
 }, isRoutstrActive);
 export function startRoutstrFundingMonitor(options = {}) {
   if (isRoutstrActive()) fundingMonitor.start(options);

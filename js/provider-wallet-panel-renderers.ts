@@ -1,10 +1,17 @@
-// @ts-check
 // provider-wallet-panel-renderers.js - Routstr/Cashu wallet action markup
 
 import { escapeHTML, escapeAttr } from './utils.js';
+import type { RoutstrNode } from './nostr-discovery.js';
 
-/** @param {string} mint @param {{ balance?: number | null, active?: boolean, accepted?: boolean, action?: string }} [options] */
-export function walletMintRowHtml(mint, { balance = null, active = false, accepted = false, action = 'set-mint-input' } = {}) {
+type WalletMintInventoryEntry = Awaited<ReturnType<typeof import('./cashu-wallet.js').getWalletMints>>[number];
+export type WalletMintPanelEntry = Pick<WalletMintInventoryEntry, 'mint'> & { balance?: unknown; active?: unknown };
+export interface WalletMintRowOptions { balance?: unknown; active?: unknown; accepted?: unknown; action?: unknown }
+export type RoutstrNodePanelReader = Pick<RoutstrNode, 'urls'> & {
+  [Field in keyof Pick<RoutstrNode, 'name' | 'modelCount' | 'onion' | 'pubkey'>]?: unknown;
+} & { models?: Array<{ id?: RoutstrNode['models'][number]['id'] } | null | undefined> | null | undefined };
+
+
+export function walletMintRowHtml(mint: WalletMintInventoryEntry['mint'], { balance = null, active = false, accepted = false, action = 'set-mint-input' }: WalletMintRowOptions = {}) {
   return `<button type="button" class="routstr-mint-row" data-routstr-wallet-action="${escapeAttr(action)}" data-mint-url="${escapeAttr(mint)}"${action === 'set-mint-input' ? ` aria-pressed="${active}"` : ''}>
     <span class="routstr-mint-row-copy">
       <span class="routstr-mint-name">${escapeHTML(mint.replace(/^https?:\/\//, ''))}</span>
@@ -15,7 +22,7 @@ export function walletMintRowHtml(mint, { balance = null, active = false, accept
   </button>`;
 }
 
-export function walletMintPickerHtml(currentMint, savedMints, nodeMints) {
+export function walletMintPickerHtml(currentMint: unknown, savedMints: WalletMintPanelEntry[], nodeMints: WalletMintInventoryEntry['mint'][]) {
   const savedMintsHtml = savedMints.map(entry => walletMintRowHtml(entry.mint, { balance: entry.balance, active: entry.active, accepted: nodeMints.includes(entry.mint) })).join('');
   const otherMints = nodeMints.filter(mint => !savedMints.some(entry => entry.mint === mint));
   const nodeMintsHtml = otherMints.length ? `<div class="routstr-mint-section-label">Also accepted by this node</div><div class="routstr-mint-list">${otherMints.map(mint => walletMintRowHtml(mint)).join('')}</div>` : '';
@@ -37,7 +44,7 @@ export function walletMintPickerHtml(currentMint, savedMints, nodeMints) {
   </div>`;
 }
 
-export function walletSeedOnboardingHtml(mnemonic) {
+export function walletSeedOnboardingHtml(mnemonic: unknown) {
   return `<div style="padding:12px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--accent);margin-top:8px">
     <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px">Your wallet seed phrase</div>
     <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px">This 12-word phrase is the <strong>only way to recover your wallet</strong>. Write it down and store it somewhere safe.</div>
@@ -52,12 +59,12 @@ export function walletSeedOnboardingHtml(mnemonic) {
   </div>`;
 }
 
-export function routstrNodePickerRowHtml(node) {
+export function routstrNodePickerRowHtml(node: RoutstrNodePanelReader) {
   const url = node.urls[0] || '';
   const domain = escapeHTML(url.replace(/^https?:\/\//, '').replace(/\/$/, ''));
   const label = escapeHTML(node.name || domain);
   const models = node.modelCount + ' model' + (node.modelCount !== 1 ? 's' : '');
-  const hasPrivateTee = (node.models || []).some(model => String(model.id || '').startsWith('tinfoil-'));
+  const hasPrivateTee = (node.models || []).some(model => String(model!.id || '').startsWith('tinfoil-'));
   const privateTee = hasPrivateTee ? ' <span style="font-size:9px;color:var(--green);font-weight:600">&#128274; Advertises Private TEE</span>' : '';
   const onion = node.onion ? ' <span style="font-size:10px" title="Tor available">\ud83e\udde5</span>' : '';
   return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
@@ -66,7 +73,7 @@ export function routstrNodePickerRowHtml(node) {
   </div>`;
 }
 
-export function walletSeedManagementHtml(mnemonic) {
+export function walletSeedManagementHtml(mnemonic: unknown) {
   return `<div style="margin-top:8px">
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Wallet Seed Phrase</div>
     <div id="wallet-seed-display" style="font-family:monospace;font-size:12px;background:var(--bg-primary);padding:10px;border-radius:6px;border:1px solid var(--border);color:var(--text-primary);filter:blur(4px);cursor:pointer;user-select:all" data-routstr-wallet-action="toggle-seed-blur">${escapeHTML(mnemonic)}</div>
@@ -89,16 +96,16 @@ export function walletSeedMissingHtml() {
   </div>`;
 }
 
-function walletSeedRestoreControlsHtml(extraTextareaStyle = '') {
+function walletSeedRestoreControlsHtml(extraTextareaStyle: unknown = '') {
   return `<textarea class="api-key-input" id="routstr-restore-seed" placeholder="Enter 12-word seed phrase..." rows="2" style="font-size:11px;font-family:monospace;resize:none;${extraTextareaStyle}"></textarea>
     <button class="import-btn import-btn-primary" style="margin-top:4px;width:100%" data-routstr-wallet-action="wallet-restore">Restore</button>
     <div id="routstr-restore-status"></div>`;
 }
 
-export function walletWithdrawHtml(balance) {
+export function walletWithdrawHtml(balance: unknown) {
   return `<div style="margin-top:8px">
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Withdraw</div>
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Wallet: \u26a1 ${balance.toLocaleString()} sats</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Wallet: \u26a1 ${(balance as { toLocaleString: () => unknown }).toLocaleString()} sats</div>
     <div style="display:flex;gap:4px;margin-bottom:6px">
       <button class="import-btn import-btn-secondary" style="flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="withdraw-lightning">\u26a1 Lightning</button>
       <button class="import-btn import-btn-secondary" style="flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="withdraw-token">Cashu Token</button>
@@ -120,16 +127,16 @@ export function walletWithdrawLightningHtml() {
   </div>`;
 }
 
-export function walletWithdrawTokenHtml(balance, presets) {
+export function walletWithdrawTokenHtml(balance: unknown, presets: unknown[]) {
   return `<div style="margin-top:4px">
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Send as Cashu token</div>
     <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
       <input type="number" class="api-key-input" id="routstr-token-amount" placeholder="sats" style="font-size:11px;flex:1" min="1" max="${balance}">
       <button class="import-btn import-btn-primary" style="white-space:nowrap" data-routstr-wallet-action="send-token-input">Send</button>
     </div>
-    ${balance > 0 ? `<div style="display:flex;flex-wrap:wrap;gap:4px">
-      ${presets.map(value => `<button class="import-btn import-btn-secondary" style="flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="send-token-preset" data-amount="${value}">\u26a1 ${value.toLocaleString()}</button>`).join('')}
-      <button class="import-btn import-btn-secondary" style="flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="send-token-preset" data-amount="${balance}">All (${balance.toLocaleString()})</button>
+    ${(balance as number) > 0 ? `<div style="display:flex;flex-wrap:wrap;gap:4px">
+      ${presets.map(value => `<button class="import-btn import-btn-secondary" style="flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="send-token-preset" data-amount="${value}">\u26a1 ${(value as { toLocaleString: () => unknown }).toLocaleString()}</button>`).join('')}
+      <button class="import-btn import-btn-secondary" style="flex:1;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)" data-routstr-wallet-action="send-token-preset" data-amount="${balance}">All (${(balance as { toLocaleString: () => unknown }).toLocaleString()})</button>
     </div>` : '<div style="font-size:11px;color:var(--text-muted)">No balance to withdraw</div>'}
     <div id="routstr-token-result"></div>
   </div>`;

@@ -1,4 +1,3 @@
-// @ts-check
 // settings-sync-panel-render.js — Cross-device sync settings state markup.
 
 import { escapeAttr, escapeHTML } from './utils.js';
@@ -10,14 +9,15 @@ import {
   isSyncPaused,
 } from './sync.js';
 
-/** @param {() => any[]} listPendingTombstones */
-function renderPendingTombstones(listPendingTombstones) {
+type PendingTombstoneList = () => Readonly<ReturnType<typeof import('./sync.js').listPendingTombstones>> | null | undefined;
+
+function renderPendingTombstones(listPendingTombstones: PendingTombstoneList) {
   const pending = listPendingTombstones() || [];
   if (pending.length === 0) return '';
   const rows = pending.map(p => `
     <div class="sync-tombstone-row" data-tomb-id="${escapeAttr(p.id)}">
       <span class="sync-tombstone-name">${escapeHTML(p.name)}</span>
-      <span class="sync-tombstone-meta">${p.at ? `flagged ${new Date(p.at).toLocaleDateString()}` : ''}</span>
+      <span class="sync-tombstone-meta">${p.at ? `flagged ${new Date(p.at as string | number).toLocaleDateString()}` : ''}</span>
       <button class="sync-tombstone-btn sync-tombstone-apply" data-sync-action="apply-tombstone" data-tomb-id="${escapeAttr(p.id)}">Apply delete</button>
       <button class="sync-tombstone-btn sync-tombstone-reject" data-sync-action="reject-tombstone" data-tomb-id="${escapeAttr(p.id)}">Restore</button>
     </div>`).join('');
@@ -31,8 +31,7 @@ function renderPendingTombstones(listPendingTombstones) {
     </div>`;
 }
 
-/** @param {() => any[]} listPendingTombstones */
-export function renderSyncSectionMarkup(listPendingTombstones) {
+export function renderSyncSectionMarkup(listPendingTombstones: PendingTombstoneList) {
   const enabled = isSyncEnabled();
   const configured = isSyncConfigured();
   const paused = isSyncPaused();

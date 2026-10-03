@@ -885,3 +885,15 @@ deploy/profile-share/data/
 /js/nutrition-targets.js
 
 /js/touch-tooltip.js
+
+/js/commit-hash.js
+
+/js/nutrition-render.js
+
+/js/provider-wallet-funding-recovery.js
+
+/js/provider-wallet-panel-renderers.js
+
+/js/settings-display-panel.js
+
+/js/settings-sync-panel-render.js

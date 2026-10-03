@@ -3,6 +3,7 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 // test-biology-scores.js — composite biology score engine smoke tests.
 
 import './_node-shim.js';
+import { readAuthoredRepositorySource } from './helpers/repository-source.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -963,7 +964,7 @@ assert('Biology Score AI empty state avoids repeating CTA explainer copy on ever
   && !emptyScoreAIHtml.includes('concise interpretation based on the current marker pattern')
   && !emptyScoreAIHtml.includes('A short, non-diagnostic read'),
   emptyScoreAIHtml);
-const biologyScoreSectionsSrc = await fs.promises.readFile(new URL('../js/biology-score-sections.js', import.meta.url), 'utf8');
+const biologyScoreSectionsSrc = readAuthoredRepositorySource('js/biology-score-sections.js', 'utf8');
 assert('Biology Score AI persistence binds the originating profile and checks the save result', biologyScoreSectionsSrc.includes('saveImportedDataForProfile(expectedProfile, snapshot') && biologyScoreSectionsSrc.includes('immediate: true, forceProfileScope: true') && biologyScoreSectionsSrc.includes('if (!saved) throw'));
 const biologyScoresSrc = await fs.promises.readFile(new URL('../js/biology-scores.js', import.meta.url), 'utf8');
 const biologyScoresRuntimeSrc = await fs.promises.readFile(new URL('../js/biology-scores-runtime.js', import.meta.url), 'utf8');

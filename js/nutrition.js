@@ -98,7 +98,7 @@ function populateEditorFromMeal(meal, reuse = false) {
   setElementValue('nutrition-meal-type', meal.mealType || '');
   setElementValue('nutrition-eaten-at', mealLocalDateTime(meal, reuse));
   setElementValue('nutrition-note', meal.note || '');
-  if (existingImages.length) renderStoredPhotoPreview(existingImages);
+  if (existingImages.length) renderStoredPhotoPreview(/** @type {Parameters<typeof renderStoredPhotoPreview>[0]} */ (existingImages));
   if (reuse) setStatus('Reviewed values copied. Adjust the time, occasion, or portions before saving.', 'success');
   else setStatus('Editing the stored record. Changes remain local until you save.', 'success');
   updateCorrectionState();

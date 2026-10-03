@@ -1,4 +1,3 @@
-// @ts-check
 // provider-wallet-funding-recovery.js - Pending Lightning funding recovery UI
 
 import { validateLightningInvoice } from './routstr-validation.js';
@@ -7,10 +6,39 @@ import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { createFundingCoordinator } from './cashu-funding-coordinator.js';
 
-export async function recoverPendingWalletFunding(walletRuntime, refreshBalance) {
+type NativeWallet = typeof import('./cashu-wallet.js');
+type FundingRecovery = Awaited<ReturnType<NativeWallet['recoverPendingFunding']>>;
+type PendingFundingQuote = FundingRecovery['pendingQuotes'][number];
+type FundingCheckError = FundingRecovery['errors'][number];
+type FundingHint = Pick<PendingFundingQuote, 'mint' | 'quote'>;
+type FundingCancel = Awaited<ReturnType<NativeWallet['subscribeFundingQuotes']>>;
+export interface FundingRecoveryRuntime {
+  cashuRecoverPendingFunding?: NativeWallet['recoverPendingFunding'] | null | undefined;
+  cashuRecoverPendingWalletOperation?: NativeWallet['recoverPendingWalletOperation'] | null | undefined;
+}
+export interface FundingMonitorRuntime {
+  cashuHasWalletSeed: NativeWallet['hasWalletSeed'];
+  cashuRecoverPendingFunding: NativeWallet['recoverPendingFunding'];
+  cashuSubscribeFundingQuotes?: NativeWallet['subscribeFundingQuotes'] | null | undefined;
+}
+interface FundingDisplayItem {
+  quote?: unknown; mint?: unknown; paid?: unknown; minted?: unknown; fee?: unknown; state?: unknown;
+}
+export interface FundingMonitorResult {
+  results: unknown[];
+  mint?: unknown; recovered?: unknown; failed?: unknown;
+}
+interface FundingSubscription {
+  key: string; retryAt: number; confirmed: boolean;
+  cancel?: FundingCancel; connecting?: boolean;
+}
+export type FundingInvoice = Pick<Awaited<ReturnType<NativeWallet['createFundingInvoice']>>, 'invoice' | 'amount' | 'quote'> & { mint?: unknown };
+
+
+export async function recoverPendingWalletFunding(walletRuntime: FundingRecoveryRuntime, refreshBalance: () => unknown) {
   const statusEl = document.getElementById('routstr-wfund-status');
   if (!statusEl) return;
-  const setStatus = (htmlMessage, color = 'var(--text-muted)', center = false) => {
+  const setStatus = (htmlMessage: string, color = 'var(--text-muted)', center = false) => {
     statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:' + color + (center ? ';text-align:center' : '') + '">' + htmlMessage + '</div>';
   };
   if (typeof walletRuntime.cashuRecoverPendingFunding !== 'function') return setStatus('Pending deposit recovery is unavailable.', 'var(--red)');
@@ -25,7 +53,7 @@ export async function recoverPendingWalletFunding(walletRuntime, refreshBalance)
       refreshBalance();
       return;
     }
-    if (!result.checked) return setStatus(operationRecovery.pending ? 'A wallet operation is still awaiting reconciliation. Retry its original token or check again when the mint is reachable.' : 'No pending Lightning deposits found.');
+    if (!result.checked) return setStatus((operationRecovery as {pending?: unknown}).pending ? 'A wallet operation is still awaiting reconciliation. Retry its original token or check again when the mint is reachable.' : 'No pending Lightning deposits found.');
     if (result.recovered > 0) {
       const extra = [
         result.cleared > 0 ? result.cleared + ' completed or expired deposit cleared.' : '',
@@ -44,7 +72,7 @@ export async function recoverPendingWalletFunding(walletRuntime, refreshBalance)
   }
 }
 
-function renderFundingPaid(status, credited) {
+function renderFundingPaid(status: HTMLElement, credited: number) {
   const confirmation = document.createElement('div');
   confirmation.setAttribute('role', 'status');
   confirmation.style.cssText = 'margin-top:8px;text-align:center';
@@ -69,8 +97,8 @@ function renderFundingPaid(status, credited) {
 }
 
 /** One wallet-wide loop, independent of the currently visible invoice/panel. */
-export function createFundingMonitor(runtime, refreshBalance, onResult = (_result) => {}, isActive = () => true) {
-  let timer = null;
+export function createFundingMonitor(runtime: FundingMonitorRuntime, refreshBalance: () => unknown, onResult: (result: FundingMonitorResult) => unknown = (_result) => {}, isActive: () => boolean = () => true) {
+  let timer: ReturnType<typeof setTimeout> | null = null;
   let running = false;
   let enabled = false;
   let leader = false;
@@ -79,15 +107,15 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
   let recheckRequested = false;
   let refreshingBalance = false;
   const canRun = () => enabled && leader && isActive();
-  const subscriptions = new Map();
-  const notified = new Map();
-  const quoteKey = item => item.mint + '\n' + item.quote;
+  const subscriptions = new Map<string, FundingSubscription>();
+  const notified = new Map<string, FundingHint>();
+  const quoteKey = (item: FundingHint) => item.mint + '\n' + item.quote;
 
-  function displayResult(result) {
-    if (!enabled || !result || !Array.isArray(result.results)) return;
-    onResult(result);
+  function displayResult(result: unknown) {
+    if (!enabled || !result || !Array.isArray((result as FundingMonitorResult).results)) return;
+    onResult(result as FundingMonitorResult);
     const status = document.getElementById('routstr-wfund-status');
-    const displayed = result.results.find(item => item.quote === status?.dataset.quote && (item.mint || result.mint) === status?.dataset.mint);
+    const displayed = (result as FundingMonitorResult).results.find(item => (item as FundingDisplayItem).quote === status?.dataset.quote && ((item as FundingDisplayItem).mint || (result as FundingMonitorResult).mint) === status?.dataset.mint) as FundingDisplayItem | undefined;
     if (displayed?.paid && status) {
       renderFundingPaid(status, Math.max(0, Number(displayed.minted) - Number(displayed.fee || 0)));
       delete status.dataset.quote;
@@ -95,7 +123,7 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
       status.textContent = 'This invoice expired or was cancelled. Request a new invoice to deposit.';
       delete status.dataset.quote;
     }
-    if (result.recovered > 0) showNotification('Wallet funded ⚡ ' + result.recovered.toLocaleString() + ' sats', 'success');
+    if (((result as FundingMonitorResult).recovered as number) > 0) showNotification('Wallet funded ⚡ ' + ((result as FundingMonitorResult).recovered as number).toLocaleString() + ' sats', 'success');
     // Both the leader and followers refresh from local proofs only.
     if (!refreshingBalance) {
       refreshingBalance = true;
@@ -104,7 +132,7 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
     const poll = document.getElementById('routstr-wfund-poll');
     if (poll) poll.textContent = displayed?.state === 'PAUSED'
       ? 'Mint rejected this invoice check. Automatic checks paused; use Check pending deposits to retry.'
-      : result.failed
+      : (result as FundingMonitorResult).failed
       ? 'Payment confirmation delayed. Retrying automatically…'
       : displayed?.state === 'ISSUED' ? 'Payment received. Recovering wallet balance…'
       : 'Waiting for payment… Deposits are credited automatically.';
@@ -116,12 +144,12 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
     notified.clear();
   }
 
-  function syncSubscriptions(quotes, errors = []) {
+  function syncSubscriptions(quotes: PendingFundingQuote[], errors: FundingCheckError[] = []) {
     if (typeof runtime.cashuSubscribeFundingQuotes !== 'function') return;
-    const groups = new Map();
+    const groups = new Map<string, string[]>();
     for (const item of quotes) {
       if (!groups.has(item.mint)) groups.set(item.mint, []);
-      groups.get(item.mint).push(item.quote);
+      groups.get(item.mint)!.push(item.quote);
     }
     for (const [mint, entry] of subscriptions) {
       if (!groups.has(mint)) { entry.cancel?.(); subscriptions.delete(mint); }
@@ -137,22 +165,22 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
       }
       if (previous && (previous.retryAt > Date.now() || (previous.key === key && (previous.cancel || previous.connecting)))) continue;
       previous?.cancel?.();
-      const entry = { key, cancel: /** @type {null | (() => void)} */ (null), connecting: true, confirmed: false, retryAt: 0 };
+      const entry: FundingSubscription = { key, cancel: (null), connecting: true, confirmed: false, retryAt: 0 };
       subscriptions.set(mint, entry);
-      const failed = error => {
+      const failed = (error: unknown) => {
         if (subscriptions.get(mint) !== entry) return;
         const wasConfirmed = entry.confirmed;
         entry.cancel?.();
         entry.cancel = null;
         entry.connecting = false;
         entry.confirmed = false;
-        entry.retryAt = Date.now() + Math.max(300000, Number(error?.retryAfterMs) || 0);
+        entry.retryAt = Date.now() + Math.max(300000, Number((error as {retryAfterMs?: unknown} | null | undefined)?.retryAfterMs) || 0);
         if (wasConfirmed) {
           for (const quote of ids) { const item = { mint, quote }; notified.set(quoteKey(item), item); }
           wakeLocal();
         }
       };
-      void Promise.resolve().then(() => canRun() ? runtime.cashuSubscribeFundingQuotes(mint, ids, update => {
+      void Promise.resolve().then(() => canRun() ? (runtime.cashuSubscribeFundingQuotes as NativeWallet['subscribeFundingQuotes'])(mint, ids, update => {
         if (!canRun() || subscriptions.get(mint) !== entry || !ids.includes(update?.quote)) return;
         entry.confirmed = true;
         if (/^(PAID|ISSUED|EXPIRED|CANCELLED|CANCELED)$/.test(String(update.state).toUpperCase())) {
@@ -189,7 +217,7 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
       if (await runtime.cashuHasWalletSeed() && canRun()) {
         const hints = [...notified.values()];
         notified.clear();
-        let result;
+        let result: FundingRecovery;
         try {
           result = await runtime.cashuRecoverPendingFunding({ automatic: true, shouldContinue: canRun, notified: hints, subscribedMints: [...subscriptions].filter(([, entry]) => entry.confirmed).map(([mint]) => mint) });
         } catch (error) { for (const hint of hints) notified.set(quoteKey(hint), hint); throw error; }
@@ -206,7 +234,7 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
         delay = document.visibilityState === 'hidden' ? 60000 : result.pending || result.failed ? 5000 : 30000;
       }
     } catch (error) {
-      delay = Math.max(Number(/** @type {{retryAfterMs?: number}} */ (error)?.retryAfterMs) || 0, Math.min(60000, 5000 * 2 ** Math.min(++failures, 4)));
+      delay = Math.max(Number((error as {retryAfterMs?: unknown} | null | undefined)?.retryAfterMs) || 0, Math.min(60000, 5000 * 2 ** Math.min(++failures, 4)));
       notBefore = Date.now() + delay;
       const poll = document.getElementById('routstr-wfund-poll');
       if (poll) poll.textContent = 'Payment confirmation delayed. Retrying automatically…';
@@ -225,7 +253,7 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
   const suspend = () => coordinator.stop();
   const resume = () => { if (enabled) coordinator.start(); };
   return {
-    start({ recheck = false } = {}) {
+    start({ recheck = false }: { recheck?: unknown } = {}) {
       if (!isActive()) return;
       if (!enabled) {
         enabled = true;
@@ -251,7 +279,7 @@ export function createFundingMonitor(runtime, refreshBalance, onResult = (_resul
   };
 }
 
-export async function renderFundingInvoice(result) {
+export async function renderFundingInvoice(result: FundingInvoice) {
   const status = document.getElementById('routstr-wfund-status');
   if (!status) return;
   validateLightningInvoice(result.invoice, result.amount);
@@ -265,7 +293,7 @@ export async function renderFundingInvoice(result) {
   } catch {} // The copyable invoice still works if the QR library is unavailable.
   if (status !== document.getElementById('routstr-wfund-status')) return;
   status.dataset.quote = result.quote;
-  status.dataset.mint = result.mint;
+  status.dataset.mint = result.mint as string;
   status.innerHTML = `<div style="margin-top:8px;text-align:center">
     <div style="font-size:12px;font-weight:600;margin-bottom:4px">⚡ ${result.amount.toLocaleString()} sats</div>
     ${qrSvg ? `<a href="${escapeAttr('lightning:' + result.invoice)}" style="display:inline-block;background:#fff;padding:10px;border-radius:8px;width:220px;height:220px">${qrSvg}</a>` : ''}

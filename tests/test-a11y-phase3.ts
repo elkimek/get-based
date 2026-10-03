@@ -8,6 +8,7 @@
 //
 // Run: node tests/test-a11y-phase3.ts  (or via npm test)
 
+import { readAuthoredRepositorySource } from './helpers/repository-source.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,7 +26,7 @@ function assert(name: string, cond: unknown, detail?: unknown) {
 }
 console.log('=== Phase 3 A11y Tests ===\n');
   // ─── 1. Global keyboard delegation ───
-  const appEventsSrc = read('/js/app-event-listeners.js');
+  const appEventsSrc = readAuthoredRepositorySource('js/app-event-listeners.js');
   assert('app-event-listeners.js installs global Enter/Space delegation for role=button',
     appEventsSrc.includes("if (e.key !== \"Enter\" && e.key !== \" \") return") &&
     appEventsSrc.includes("getAttribute('role') !== 'button'"));
