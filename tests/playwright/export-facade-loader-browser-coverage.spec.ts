@@ -32,7 +32,7 @@ test('export facade stays cold, applies deps, and single-flights actions', async
   await page.goto('/js/export-loader.js', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
-    const loader = await import(`/js/export-loader.js?coverage=${Date.now()}`);
+    const loader = (await import(`/js/export-loader.js?coverage=${Date.now()}`) as unknown) as Pick<typeof import('../../js/export-loader.js'), "configureExportFacadeLoaderDeps" | "isExportFacadeModuleLoaded" | "closeReportBuilder" | "loadDemoData" | "exportClientJSON" | "clearAllData" | "exportAllDataJSON" | "importDataJSON" | "openReportBuilder">;
     loader.configureExportFacadeLoaderDeps({
       buildSidebar() {},
       navigate() {},
@@ -57,9 +57,9 @@ test('export facade stays cold, applies deps, and single-flights actions', async
       clientExport,
       remaining,
       warmClose,
-      evalCount: globalThis.__exportFacadeEvalCount,
-      depKeys: globalThis.__exportFacadeDepKeys,
-      calls: globalThis.__exportFacadeCalls,
+      evalCount: (globalThis as typeof globalThis & {__exportFacadeEvalCount?: unknown}).__exportFacadeEvalCount,
+      depKeys: (globalThis as typeof globalThis & {__exportFacadeDepKeys?: unknown}).__exportFacadeDepKeys,
+      calls: (globalThis as typeof globalThis & {__exportFacadeCalls?: unknown}).__exportFacadeCalls,
       endsLoaded: loader.isExportFacadeModuleLoaded(),
     };
   });
@@ -88,7 +88,7 @@ test('export facade stays cold, applies deps, and single-flights actions', async
 
 test('export facade clears a failed load and retries with the fixed retry URL', async ({ page }) => {
   let requests = 0;
-  const requestUrls = [];
+  const requestUrls: string[] = [];
   await page.route('**/js/export.js*', route => {
     requests += 1;
     requestUrls.push(route.request().url());
@@ -102,7 +102,7 @@ test('export facade clears a failed load and retries with the fixed retry URL', 
   await page.goto('/js/export-loader.js', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
-    const loader = await import(`/js/export-loader.js?retry=${Date.now()}`);
+    const loader = (await import(`/js/export-loader.js?retry=${Date.now()}`) as unknown) as Pick<typeof import('../../js/export-loader.js'), "configureExportFacadeLoaderDeps" | "isExportFacadeModuleLoaded" | "closeReportBuilder" | "loadDemoData" | "exportClientJSON" | "clearAllData" | "exportAllDataJSON" | "importDataJSON" | "openReportBuilder">;
     const first = await loader.openReportBuilder('personal');
     const afterFailure = loader.isExportFacadeModuleLoaded();
     const second = await loader.openReportBuilder('clinician');
@@ -121,8 +121,8 @@ test('export facade clears a failed load and retries with the fixed retry URL', 
     afterRetry: true,
   });
   expect(requestUrls).toHaveLength(2);
-  expect(new URL(requestUrls[0]).search).toBe('');
-  expect(new URL(requestUrls[1]).searchParams.get('lazy-retry')).toBe('1');
+  expect(new URL(requestUrls[0]!).search).toBe('');
+  expect(new URL(requestUrls[1]!).searchParams.get('lazy-retry')).toBe('1');
 });
 
 test('empty-dashboard demo action loads the real export facade on demand', async ({ page }) => {

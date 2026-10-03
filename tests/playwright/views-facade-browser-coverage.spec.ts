@@ -1,7 +1,7 @@
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = path => `${path}?viewsFacadeCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?viewsFacadeCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   path: "/views-facade-browser-coverage", status: 200, body: `<!doctype html><html><body>
@@ -15,7 +15,7 @@ test('views facade browser coverage exercises genome lens picker filters and qui
 
   const results = await page.evaluate(async ({ viewsUrl }) => {
     const [views, dashboardComposition, stateModule, profileModule] = await Promise.all([
-      import(viewsUrl),
+      (import(viewsUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/views.js'), "configureDashboardViewFactory" | "showGenomeLens" | "openDashboardWidgetPicker" | "filterDashboardMarkerWidgetPicker" | "filterDashboardBiometricWidgetPicker" | "toggleDashboardQuickMarkerPin" | "closeDashboardWidgetPicker">>,
       import('/js/dashboard-view-composition.js'),
       import('/js/state.js'),
       import('/js/profile.js'),
@@ -26,7 +26,7 @@ test('views facade browser coverage exercises genome lens picker filters and qui
     const widgetPrefsKey = profileModule.profileStorageKey(profileId, 'dashboardWidgetsV10');
     const biometricKey = profileModule.profileStorageKey(profileId, 'dashboardBiometricMetricsV1');
     const quickPinsKey = profileModule.profileStorageKey(profileId, 'dashboardQuickMarkerPinsV1');
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const bridgedViewActions = [
       'getInitialView', 'showDetailModal', 'openRecommendationDetail', 'discussRecommendation',
       'saveRecommendation', 'dismissRecommendation', 'openChatProviderQuiz', 'setOnboardingFocus',
@@ -34,9 +34,9 @@ test('views facade browser coverage exercises genome lens picker filters and qui
       'loadFocusCard', 'renderLightTodayStrip', 'renderLightChannelsLive',
       '_openChannelOnLightPage', 'rememberModalTrigger', 'closeModal', 'navigate',
     ];
-    outcomes.viewFacadeExportsModuleActions = bridgedViewActions.every(name => typeof views[name] === 'function');
+    outcomes.viewFacadeExportsModuleActions = bridgedViewActions.every(name => typeof (views as unknown as Record<string, unknown>)[name] === 'function');
     outcomes.viewActionsStayOffWindow = bridgedViewActions.every(name => !(name in window));
-    const waitForToastText = async expectedTexts => {
+    const waitForToastText = async (expectedTexts: string[]) => {
       for (let i = 0; i < 20; i++) {
         const text = document.getElementById('notification-container')?.textContent || '';
         if (expectedTexts.every(expected => text.includes(expected))) return text;
@@ -49,7 +49,7 @@ test('views facade browser coverage exercises genome lens picker filters and qui
     state.currentView = 'dashboard';
     state.profileSex = 'female';
     state.markerRegistry = {};
-    state.importedData = {
+    (state as {importedData: unknown}).importedData = {
       entries: [
         {
           date: '2026-01-02',
@@ -113,8 +113,8 @@ test('views facade browser coverage exercises genome lens picker filters and qui
     views.openDashboardWidgetPicker();
     views.filterDashboardMarkerWidgetPicker('apo');
     views.filterDashboardBiometricWidgetPicker('weight');
-    const markerOptions = [...document.querySelectorAll('.dashboard-marker-widget-option')];
-    const biometricOptions = [...document.querySelectorAll('.dashboard-biometric-widget-option')];
+    const markerOptions = [...document.querySelectorAll<HTMLElement>('.dashboard-marker-widget-option')];
+    const biometricOptions = [...document.querySelectorAll<HTMLElement>('.dashboard-biometric-widget-option')];
     const visibleMarkerOptions = markerOptions.filter(option => !option.hidden);
     const apoBOption = markerOptions.find(option => (option.textContent || '').includes('Apo B'));
     const vitaminDOption = markerOptions.find(option => (option.textContent || '').includes('Vitamin D'));
@@ -137,9 +137,9 @@ test('views facade browser coverage exercises genome lens picker filters and qui
     outcomes.quickPinModuleApiExists = typeof quickPinFacade === 'function';
     outcomes.quickPinStaysOffWindow = !('toggleDashboardQuickMarkerPin' in window);
     if (typeof quickPinFacade === 'function') quickPinFacade('lipids_apoB');
-    const pinsAfterAdd = JSON.parse(localStorage.getItem(quickPinsKey) || '[]');
+    const pinsAfterAdd = JSON.parse(localStorage.getItem(quickPinsKey) || '[]') as {0?:unknown};
     if (typeof quickPinFacade === 'function') quickPinFacade('lipids_apoB');
-    const pinsAfterRemove = JSON.parse(localStorage.getItem(quickPinsKey) || '[]');
+    const pinsAfterRemove = JSON.parse(localStorage.getItem(quickPinsKey) || '[]') as {length?:unknown};
     const toastText = await waitForToastText(['Pinned to Quick Markers', 'Removed from Quick Markers']);
     outcomes.quickPinAddsMarkerToStorage = pinsAfterAdd[0] === 'lipids_apoB';
     outcomes.quickPinRemovesMarkerFromStorage = pinsAfterRemove.length === 0;

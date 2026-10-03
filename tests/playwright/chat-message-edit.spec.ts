@@ -18,7 +18,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-async function setupConversation(page) {
+async function setupConversation(page: import('@playwright/test').Page) {
   return page.evaluate(async () => {
     await import('/js/chat-window-bindings.js');
     const [{ state }, hooks, render, cryptoStore, threads, composer, panel, edit, history] = await Promise.all([
@@ -110,7 +110,7 @@ test('latest-message edit retries in place while a fork starts a linked new chat
     return {
       currentThreadId: state.currentThreadId,
       threadCount: state.chatThreads.length,
-      stored: JSON.parse(await cryptoStore.encryptedGetItem(`labcharts-${profileId}-chat-t_${sourceId}`) || '[]'),
+      stored: (JSON.parse(await cryptoStore.encryptedGetItem(`labcharts-${profileId}-chat-t_${sourceId}`) || '[]') as {content?: unknown}[]),
     };
   }, setup);
   expect(editedState.currentThreadId).toBe(setup.sourceId);
@@ -132,8 +132,8 @@ test('latest-message edit retries in place while a fork starts a linked new chat
     const fork = state.chatThreads.find(thread => thread.id === state.currentThreadId);
     return {
       fork,
-      forkHistory: JSON.parse(await cryptoStore.encryptedGetItem(`labcharts-${profileId}-chat-t_${fork.id}`) || '[]'),
-      sourceHistory: JSON.parse(await cryptoStore.encryptedGetItem(`labcharts-${profileId}-chat-t_${sourceId}`) || '[]'),
+      forkHistory: (JSON.parse(await cryptoStore.encryptedGetItem(`labcharts-${profileId}-chat-t_${fork!.id}`) || '[]') as {content?: unknown}[]),
+      sourceHistory: (JSON.parse(await cryptoStore.encryptedGetItem(`labcharts-${profileId}-chat-t_${sourceId}`) || '[]') as {content?: unknown}[]),
     };
   }, setup);
   expect(forkState.fork).toMatchObject({

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-async function seedMarkerPlacementProfile(page) {
+async function seedMarkerPlacementProfile(page: import('@playwright/test').Page) {
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-default-tour', 'completed');
     localStorage.setItem('labcharts-default-emptyTour', 'completed');
@@ -21,7 +21,7 @@ async function seedMarkerPlacementProfile(page) {
     state.profileDob = null;
     state.unitSystem = 'EU';
     state.markerRegistry = {};
-    state.importedData = {
+    (state as {importedData: unknown}).importedData = {
       entries: [{
         date: '2026-08-01',
         markers: {
@@ -60,7 +60,7 @@ test('marker detail moves and restores a marker without re-keying profile data',
   await expect(category).toHaveValue('biochemistry');
   await expect(category.locator('option[value="calculatedRatios"]')).toHaveCount(0);
   expect((await category.locator('option').evaluateAll(options => options.map(option => ({
-    value: option.value,
+    value: (option as HTMLOptionElement).value,
     label: option.textContent,
   })))).slice(0, 4)).toEqual([
     { value: 'biochemistry', label: 'Biochemistry' },
@@ -87,7 +87,7 @@ test('marker detail moves and restores a marker without re-keying profile data',
   expect(movedState.placements).toEqual({
     'gb:marker:glucose': { categoryKey: 'lipids' },
   });
-  expect(movedState.entries[0].markers).toEqual({
+  expect(movedState.entries[0]!.markers).toEqual({
     'biochemistry.glucose': 5.2,
     'lipids.cholesterol': 4.4,
   });
@@ -110,8 +110,8 @@ test('calculated ratio can move to a regular category and keeps its diagnostics'
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const data = await import('/js/data.js');
-    state.importedData.entries[0].markers['lipids.triglycerides'] = 1.5;
-    state.importedData.entries[0].markers['lipids.hdl'] = 1.2;
+    state.importedData.entries[0]!.markers['lipids.triglycerides'] = 1.5;
+    state.importedData.entries[0]!.markers['lipids.hdl'] = 1.2;
     data.invalidateActiveDataCache();
     const modal = await import('/js/marker-detail-modal.js');
     await modal.showDetailModal('calculatedRatios_tgHdlRatio');
@@ -133,8 +133,8 @@ test('calculated ratio can move to a regular category and keeps its diagnostics'
     const active = getActiveData();
     return {
       placements: state.importedData.markerPlacements,
-      storedMarkers: state.importedData.entries[0].markers,
-      ratio: active.categories.lipids.markers.tgHdlRatio,
+      storedMarkers: state.importedData.entries[0]!.markers,
+      ratio: active.categories.lipids!.markers.tgHdlRatio,
     };
   });
   expect(movedState.placements).toEqual({
@@ -149,7 +149,7 @@ test('calculated ratio can move to a regular category and keeps its diagnostics'
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const data = await import('/js/data.js');
-    delete state.importedData.entries[0].markers['lipids.hdl'];
+    delete state.importedData.entries[0]!.markers['lipids.hdl'];
     data.invalidateActiveDataCache();
     const modal = await import('/js/marker-detail-modal.js');
     await modal.showDetailModal('lipids_tgHdlRatio');

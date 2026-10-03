@@ -13,13 +13,13 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
 
   const results = await page.evaluate(async ({ refreshUrl, refreshRuntimeUrl, maintenanceUrl, stateUrl }) => {
     const [refreshModule, refreshRuntime, maintenance, { state }] = await Promise.all([
-      import(refreshUrl),
-      import(refreshRuntimeUrl),
-      import(maintenanceUrl),
-      import(stateUrl),
+      (import(refreshUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-pull-active-refresh.js'), "refreshActiveProfileAfterPull">>,
+      (import(refreshRuntimeUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-pull-active-refresh-runtime.js'), "configureSyncPullActiveRefreshDeps">>,
+      (import(maintenanceUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-pull-maintenance.js'), "clearStaleSyncHashKeysOnce">>,
+      (import(stateUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/state.js'), "state">>,
     ]);
-    const outcomes = {};
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const outcomes: Record<string, unknown> = {};
+    const clone = (value: unknown): unknown => value == null ? value : JSON.parse(JSON.stringify(value));
     const activeProfileId = `sync-refresh-${Date.now()}`;
     const original = {
       state: {
@@ -28,7 +28,7 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
         importedData: clone(state.importedData),
       },
     };
-    const calls = [];
+    const calls: Array<string | {type?:string;category?:unknown;options?:{preserveScroll?:unknown}|null}> = [];
     const previousThreadDeps = refreshRuntime.configureSyncPullActiveRefreshDeps({
       buildSidebar: () => { calls.push('buildSidebar'); },
       loadChatHistory: () => { calls.push('loadChatHistory'); },
@@ -37,7 +37,7 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
       navigate: (category, options) => { calls.push({ type: 'navigate', category, options: options || null }); },
       renderThreadList: () => { calls.push('renderThreadList'); },
     });
-    const debugCalls = [];
+    const debugCalls: string[] = [];
     let syncAppliedEvents = 0;
     const onSyncApplied = () => { syncAppliedEvents += 1; };
 
@@ -46,18 +46,18 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
 
       state.currentProfile = activeProfileId;
       state.currentView = 'light';
-      state.importedData = { entries: [{ date: '2026-06-01' }] };
-      const inactiveResult = refreshModule.refreshActiveProfileAfterPull({
+      (state as {importedData: unknown}).importedData = { entries: [{ date: '2026-06-01' }] };
+      const inactiveResult = (refreshModule.refreshActiveProfileAfterPull as (options: Omit<NonNullable<Parameters<typeof refreshModule.refreshActiveProfileAfterPull>[0]>, "merged"> & {merged?: unknown}) => ReturnType<typeof refreshModule.refreshActiveProfileAfterPull>)({
         profileId: `${activeProfileId}-other`,
         merged: { entries: [] },
         localDataChanged: true,
         debug: (...args) => { debugCalls.push(args.join(' ')); },
       });
       outcomes.inactiveProfileSkipsRefresh = inactiveResult === false
-        && state.importedData.entries[0].date === '2026-06-01'
+        && state.importedData.entries[0]!.date === '2026-06-01'
         && calls.length === 0;
 
-      const noChangeResult = refreshModule.refreshActiveProfileAfterPull({
+      const noChangeResult = (refreshModule.refreshActiveProfileAfterPull as (options: Omit<NonNullable<Parameters<typeof refreshModule.refreshActiveProfileAfterPull>[0]>, "merged"> & {merged?: unknown}) => ReturnType<typeof refreshModule.refreshActiveProfileAfterPull>)({
         profileId: activeProfileId,
         merged: { entries: [], contextNotes: 'No visible data change' },
         chatApplied: true,
@@ -71,7 +71,7 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
         && calls.includes('renderThreadList')
         && calls.includes('loadChatHistory')
         && calls.includes('buildSidebar')
-        && !calls.some(call => call?.type === 'navigate')
+        && !calls.some(call => (call as {type?: unknown} | null | undefined)?.type === 'navigate')
         && state.importedData.contextNotes === 'No visible data change';
 
       const overlay = document.createElement('div');
@@ -79,7 +79,7 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
       document.body.appendChild(overlay);
       calls.length = 0;
       const firstToastCount = document.querySelectorAll('.notification-toast').length;
-      const localEchoResult = refreshModule.refreshActiveProfileAfterPull({
+      const localEchoResult = (refreshModule.refreshActiveProfileAfterPull as (options: Omit<NonNullable<Parameters<typeof refreshModule.refreshActiveProfileAfterPull>[0]>, "merged"> & {merged?: unknown}) => ReturnType<typeof refreshModule.refreshActiveProfileAfterPull>)({
         profileId: activeProfileId,
         merged: { entries: [{ date: '2026-06-01T12:00:00.000Z' }], lightCircadian: null },
         localDataChanged: true,
@@ -88,29 +88,29 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
       });
       outcomes.localCommitEchoRefreshesWithoutMisleadingRemoteToast =
         localEchoResult === true
-        && calls.some(call => call?.type === 'navigate')
+        && calls.some(call => (call as {type?: unknown} | null | undefined)?.type === 'navigate')
         && document.querySelectorAll('.notification-toast').length === firstToastCount
         && syncAppliedEvents === 1
-        && debugCalls.some(message => message.includes('Suppressed local commit echo toast'));
+        && debugCalls.some(message => (message as {includes(value:string):unknown}).includes('Suppressed local commit echo toast'));
 
       calls.length = 0;
-      const changedResult = refreshModule.refreshActiveProfileAfterPull({
+      const changedResult = (refreshModule.refreshActiveProfileAfterPull as (options: Omit<NonNullable<Parameters<typeof refreshModule.refreshActiveProfileAfterPull>[0]>, "merged"> & {merged?: unknown}) => ReturnType<typeof refreshModule.refreshActiveProfileAfterPull>)({
         profileId: activeProfileId,
         merged: { entries: [{ date: '2026-06-02' }], lightCircadian: null },
         localDataChanged: true,
         debug: (...args) => { debugCalls.push(args.join(' ')); },
       });
-      const navigateCall = calls.find(call => call?.type === 'navigate');
+      const navigateCall = calls.find(call => (call as {type?: unknown} | null | undefined)?.type === 'navigate');
       const toastAfterFirstChange = document.querySelectorAll('.notification-toast').length;
       outcomes.visibleChangeNavigatesWithModalScrollPreservedAndDispatches =
         changedResult === true
-        && navigateCall?.category === 'light'
-        && navigateCall?.options?.preserveScroll === true
+        && (navigateCall as {category?: unknown} | null | undefined)?.category === 'light'
+        && (navigateCall as {options?: {preserveScroll?: unknown} | null} | null | undefined)?.options?.preserveScroll === true
         && toastAfterFirstChange === firstToastCount + 1
         && syncAppliedEvents === 2;
 
       calls.length = 0;
-      refreshModule.refreshActiveProfileAfterPull({
+      (refreshModule.refreshActiveProfileAfterPull as (options: Omit<NonNullable<Parameters<typeof refreshModule.refreshActiveProfileAfterPull>[0]>, "merged"> & {merged?: unknown}) => ReturnType<typeof refreshModule.refreshActiveProfileAfterPull>)({
         profileId: activeProfileId,
         merged: { entries: [{ date: '2026-06-03' }] },
         remoteBroughtNewRows: true,
@@ -118,7 +118,7 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
       });
       outcomes.repeatVisibleChangeSuppressesDuplicateToastButStillDispatches =
         document.querySelectorAll('.notification-toast').length === toastAfterFirstChange
-        && calls.some(call => call?.type === 'navigate')
+        && calls.some(call => (call as {type?: unknown} | null | undefined)?.type === 'navigate')
         && syncAppliedEvents === 3;
       overlay.remove();
 
@@ -126,14 +126,14 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
       localStorage.setItem('labcharts-alpha-sync-hash', 'stale-a');
       localStorage.setItem('labcharts-beta-sync-hash', 'stale-b');
       localStorage.setItem('labcharts-gamma-sync-hash-extra', 'keep');
-      const maintenanceDebug = [];
+      const maintenanceDebug: unknown[] = [];
       maintenance.clearStaleSyncHashKeysOnce(message => { maintenanceDebug.push(message); });
       outcomes.maintenanceClearsOnlyLegacySyncHashKeysOnce =
         localStorage.getItem('labcharts-alpha-sync-hash') == null
         && localStorage.getItem('labcharts-beta-sync-hash') == null
         && localStorage.getItem('labcharts-gamma-sync-hash-extra') === 'keep'
         && localStorage.getItem('labcharts-sync-hash-v2-migrated') === '1'
-        && maintenanceDebug.some(message => message.includes('Cleared 2 stale -sync-hash keys'));
+        && maintenanceDebug.some(message => (message as {includes(value:string):unknown}).includes('Cleared 2 stale -sync-hash keys'));
 
       localStorage.removeItem('labcharts-sync-hash-v2-migrated');
       localStorage.setItem('labcharts-default-debug-sync-hash', 'stale-default');
@@ -153,7 +153,7 @@ test('sync pull refresh browser coverage exercises active refresh and stale hash
       window.removeEventListener('labcharts-sync-applied', onSyncApplied);
       state.currentProfile = original.state.currentProfile;
       state.currentView = original.state.currentView;
-      state.importedData = original.state.importedData;
+      (state as {importedData: unknown}).importedData = original.state.importedData;
       refreshRuntime.configureSyncPullActiveRefreshDeps(previousThreadDeps);
       document.querySelector('.modal-overlay.show')?.remove();
       document.querySelectorAll('.notification-toast').forEach(toast => toast.remove());

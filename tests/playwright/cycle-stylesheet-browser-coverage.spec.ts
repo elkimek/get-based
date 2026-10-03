@@ -3,7 +3,7 @@ import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('cycleStylesheetCoverage');
 
-async function openCycleLoaderPage(page, path) {
+async function openCycleLoaderPage(page: import('@playwright/test').Page, path: string) {
   await page.route(`**${path}`, route => route.fulfill({
     status: 200,
     contentType: 'text/html',
@@ -29,7 +29,7 @@ test('Cycle stylesheet loader single-flights and preserves cascade order', async
   await openCycleLoaderPage(page, '/cycle-stylesheet-cache-coverage');
 
   const outcomes = await page.evaluate(async ({ runtimeUrl }) => {
-    const runtime = await import(runtimeUrl);
+    const runtime = (await import(runtimeUrl) as unknown) as Pick<typeof import('../../js/cycle-runtime.js'), "isCycleStylesheetLoaded" | "loadCycleStylesheet" | "loadCycleStylesheetForAction">;
     const loadedBeforeRequest = runtime.isCycleStylesheetLoaded();
     const [first, second] = await Promise.all([
       runtime.loadCycleStylesheet(),
@@ -43,7 +43,7 @@ test('Cycle stylesheet loader single-flights and preserves cascade order', async
       concurrentCallsShareTheSameLink: first === second,
       laterCallsReuseTheResolvedLink: first === third,
       oneStylesheetLink:
-        document.querySelectorAll('link[data-cycle-stylesheet]').length === 1,
+        document.querySelectorAll<HTMLLinkElement>('link[data-cycle-stylesheet]').length === 1,
       linkPrecedesAnchor: first.nextElementSibling === anchor,
       markerAnchorFollowsAnchor:
         anchor?.nextElementSibling?.hasAttribute('data-marker-detail-stylesheet-anchor') === true,
@@ -63,7 +63,7 @@ test('Cycle stylesheet loader single-flights and preserves cascade order', async
 });
 
 test('Cycle stylesheet failure is contained and retries with a fresh URL', async ({ page }) => {
-  const stylesheetRequests = [];
+  const stylesheetRequests: string[] = [];
   await page.route('**/css/cycle.css*', route => {
     stylesheetRequests.push(route.request().url());
     return route.abort('failed');
@@ -72,7 +72,7 @@ test('Cycle stylesheet failure is contained and retries with a fresh URL', async
 
   const runtimeUrl = moduleUrl('/js/cycle-runtime.js');
   const firstLoaded = await page.evaluate(
-    async ({ runtimeUrl: url }) => (await import(url)).loadCycleStylesheetForAction(),
+    async ({ runtimeUrl: url }) => ((await import(url) as unknown) as Pick<typeof import('../../js/cycle-runtime.js'), "loadCycleStylesheetForAction">).loadCycleStylesheetForAction(),
     { runtimeUrl },
   );
   expect(firstLoaded).toBe(false);
@@ -81,9 +81,9 @@ test('Cycle stylesheet failure is contained and retries with a fresh URL', async
 
   await page.unroute('**/css/cycle.css*');
   const retry = await page.evaluate(async ({ runtimeUrl: url }) => {
-    const runtime = await import(url);
+    const runtime = (await import(url) as unknown) as Pick<typeof import('../../js/cycle-runtime.js'), "isCycleStylesheetLoaded" | "loadCycleStylesheet" | "loadCycleStylesheetForAction">;
     const loaded = await runtime.loadCycleStylesheetForAction();
-    const link = document.querySelector('link[data-cycle-stylesheet]');
+    const link = document.querySelector<HTMLLinkElement>('link[data-cycle-stylesheet]');
     return {
       loaded,
       href: link?.href || '',
@@ -128,7 +128,7 @@ test('Female Body route contains a Cycle stylesheet failure and retries', async 
 });
 
 test('Female Body route waits for Cycle presentation while the default path stays cold', async ({ page }) => {
-  let stylesheetRoute;
+  let stylesheetRoute: import("@playwright/test").Route | undefined;
   await page.route('**/css/cycle.css*', route => {
     stylesheetRoute = route;
   });
@@ -142,24 +142,24 @@ test('Female Body route waits for Cycle presentation while the default path stay
       import('/js/views.js'),
     ]);
     state.profileSex = 'female';
-    window.__cycleBodyNavigation = views.navigate('body');
+    (window as Window & {__cycleBodyNavigation?: ReturnType<typeof import("../../js/views.js").navigate>}).__cycleBodyNavigation = views.navigate('body');
     return {
       status: document.getElementById('main-content')?.textContent || '',
-      links: document.querySelectorAll('link[data-cycle-stylesheet]').length,
+      links: document.querySelectorAll<HTMLLinkElement>('link[data-cycle-stylesheet]').length,
     };
   });
 
   expect(beforeLoad.status).toContain('Loading Body');
   expect(beforeLoad.links).toBe(1);
   await expect.poll(() => !!stylesheetRoute).toBe(true);
-  await stylesheetRoute.fulfill({
+  await stylesheetRoute!.fulfill({
     status: 200,
     contentType: 'text/css',
     body: '.cycle-section { display: grid; }',
   });
 
   const afterLoad = await page.evaluate(async () => {
-    const opened = await window.__cycleBodyNavigation;
+    const opened = await (window as Window & {__cycleBodyNavigation?: ReturnType<typeof import("../../js/views.js").navigate>}).__cycleBodyNavigation;
     const section = document.querySelector('.cycle-section');
     return {
       opened,

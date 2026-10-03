@@ -13,7 +13,7 @@ const CHAT_PRESENTATION_PATHS = [
 ];
 
 test('Chat presentation stays cold until the panel opens and preserves cascade order', async ({ page }) => {
-  let stylesheetRoute;
+  let stylesheetRoute: import("@playwright/test").Route | undefined;
   let stylesheetRequests = 0;
   await page.route('**/css/chat-onboarding.css*', route => {
     stylesheetRequests += 1;
@@ -47,19 +47,19 @@ test('Chat presentation stays cold until the panel opens and preserves cascade o
   });
 
   await page.evaluate(async () => {
-    window.__chatOpenResult = (await import('/js/chat-panel.js')).openChatPanel();
+    (window as Window & {__chatOpenResult?: ReturnType<typeof import("../../js/chat-panel.js").openChatPanel>}).__chatOpenResult = (await import('/js/chat-panel.js')).openChatPanel();
   });
   await expect.poll(() => !!stylesheetRoute).toBe(true);
   await expect(page.locator('#chat-panel')).not.toHaveClass(/open/);
   await expect(page.locator('link[data-chat-presentation-stylesheet]')).toHaveCount(9);
 
   await page.evaluate(async () => (await import('/js/chat-panel.js')).closeChatPanel());
-  await stylesheetRoute.fulfill({
+  await stylesheetRoute!.fulfill({
     status: 200,
     contentType: 'text/css',
     body: '.chat-panel { --coverage-chat-onboarding: ready; }',
   });
-  const cancelledOpen = await page.evaluate(async () => window.__chatOpenResult);
+  const cancelledOpen = await page.evaluate(async () => (window as Window & {__chatOpenResult?: ReturnType<typeof import("../../js/chat-panel.js").openChatPanel>}).__chatOpenResult);
   expect(cancelledOpen).toBe(false);
   await expect(page.locator('#chat-panel')).not.toHaveClass(/open/);
 
@@ -68,7 +68,7 @@ test('Chat presentation stays cold until the panel opens and preserves cascade o
     // The send button declares `transition: all`; under a busy parallel run
     // its 40px → 44px stylesheet transition can still be in flight here.
     await new Promise(resolve => setTimeout(resolve, 250));
-    const links = Array.from(document.querySelectorAll('link[data-chat-presentation-stylesheet]'));
+    const links = Array.from(document.querySelectorAll<HTMLLinkElement>('link[data-chat-presentation-stylesheet]'));
     const primaryAnchor = document.querySelector('[data-chat-presentation-stylesheet-anchor]');
     const redesignAnchor = document.querySelector('[data-chat-redesign-open-stylesheet-anchor]');
     const eagerRedesign = document.querySelector('link[href="css/chat-redesign.css"]');
@@ -83,7 +83,7 @@ test('Chat presentation stays cold until the panel opens and preserves cascade o
     return {
       opened,
       panelOpen: document.getElementById('chat-panel')?.classList.contains('open'),
-      token: getComputedStyle(document.getElementById('chat-panel')).getPropertyValue('--coverage-chat-onboarding').trim(),
+      token: getComputedStyle(document.getElementById('chat-panel')!).getPropertyValue('--coverage-chat-onboarding').trim(),
       paths: links.map(link => new URL(link.href).pathname),
       primaryGroupPrecedesAnchor: links.at(-2)?.nextElementSibling === primaryAnchor,
       redesignCascadePreserved: eagerRedesign?.nextElementSibling === redesignOpen
@@ -120,7 +120,7 @@ test('Chat presentation stays cold until the panel opens and preserves cascade o
 });
 
 test('Chat presentation failure is contained and retries the group with fresh URLs', async ({ page }) => {
-  const stylesheetRequests = [];
+  const stylesheetRequests: string[] = [];
   const presentationPattern = /\/css\/chat-(?:panel-open|personality|messages|composer|onboarding|responsive|actions|mobile|redesign-open)\.css/;
   await page.route(presentationPattern, route => {
     stylesheetRequests.push(route.request().url());
@@ -137,7 +137,7 @@ test('Chat presentation failure is contained and retries the group with fresh UR
   await page.unroute(presentationPattern);
   const retry = await page.evaluate(async () => {
     const opened = await (await import('/js/chat-panel.js')).openChatPanel();
-    const links = Array.from(document.querySelectorAll('link[data-chat-presentation-stylesheet]'));
+    const links = Array.from(document.querySelectorAll<HTMLLinkElement>('link[data-chat-presentation-stylesheet]'));
     return {
       opened,
       panelOpen: document.getElementById('chat-panel')?.classList.contains('open'),

@@ -1,6 +1,6 @@
 import { expect, test } from './coverage-fixture.js';
 
-async function prepareReturningApp(page) {
+async function prepareReturningApp(page: import('@playwright/test').Page) {
   await page.addInitScript(() => {
     const profileId = localStorage.getItem('labcharts-active-profile') || 'default';
     localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
@@ -14,8 +14,8 @@ async function prepareReturningApp(page) {
 }
 
 test('returning-user startup defers Client List CSS until the real shell action opens it', async ({ page }) => {
-  const stylesheetRequests = [];
-  const implementationRequests = [];
+  const stylesheetRequests: string[] = [];
+  const implementationRequests: string[] = [];
   page.on('request', request => {
     const url = new URL(request.url());
     if (url.pathname === '/css/client-list.css') stylesheetRequests.push(url.href);
@@ -59,7 +59,7 @@ test('Client List implementation, stylesheet, and modal opening are single-fligh
       loadedAfterAction: clientList.isClientListModuleLoaded(),
       bothCallsOpenTheModal: first === true && second === true,
       overlayVisible: document.getElementById('client-list-overlay')?.classList.contains('show') === true,
-      oneStylesheetLink: document.querySelectorAll('link[data-client-list-stylesheet]').length === 1,
+      oneStylesheetLink: document.querySelectorAll<HTMLLinkElement>('link[data-client-list-stylesheet]').length === 1,
     };
   });
 
@@ -75,7 +75,7 @@ test('Client List implementation, stylesheet, and modal opening are single-fligh
 });
 
 test('Client List implementation failure is contained and retries with a fixed URL', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   let failFirstRequest = true;
   await page.route('**/js/client-list-impl.js*', route => {
     implementationRequests.push(route.request().url());
@@ -108,7 +108,7 @@ test('Client List implementation failure is contained and retries with a fixed U
     retryOpensModal: true,
   });
   expect(implementationRequests).toHaveLength(2);
-  expect(new URL(implementationRequests[1]).searchParams.get('lazy-retry')).toBe('1');
+  expect(new URL(implementationRequests[1]!).searchParams.get('lazy-retry')).toBe('1');
 });
 
 test('closing the Client List shell does not load its implementation', async ({ page }) => {
@@ -137,7 +137,7 @@ test('closing the Client List shell does not load its implementation', async ({ 
 });
 
 test('Client List stylesheet failure is contained and retries with a cache-busting URL', async ({ page }) => {
-  const stylesheetRequests = [];
+  const stylesheetRequests: string[] = [];
   let failFirstRequest = true;
   await page.route('**/css/client-list.css*', route => {
     stylesheetRequests.push(route.request().url());
@@ -154,10 +154,10 @@ test('Client List stylesheet failure is contained and retries with a cache-busti
     const first = await clientList.openClientList();
     const firstFailureWasContained =
       first === false
-      && document.querySelectorAll('link[data-client-list-stylesheet]').length === 0
+      && document.querySelectorAll<HTMLLinkElement>('link[data-client-list-stylesheet]').length === 0
       && document.getElementById('client-list-overlay')?.classList.contains('show') !== true;
     const second = await clientList.openClientList();
-    const retryLink = document.querySelector('link[data-client-list-stylesheet]');
+    const retryLink = document.querySelector<HTMLLinkElement>('link[data-client-list-stylesheet]');
     return {
       firstFailureWasContained,
       retryOpensModal: second === true
@@ -173,5 +173,5 @@ test('Client List stylesheet failure is contained and retries with a cache-busti
     retryUsesCacheBuster: true,
   });
   expect(stylesheetRequests).toHaveLength(2);
-  expect(new URL(stylesheetRequests[1]).searchParams.get('lazy-retry')).toBe('1');
+  expect(new URL(stylesheetRequests[1]!).searchParams.get('lazy-retry')).toBe('1');
 });

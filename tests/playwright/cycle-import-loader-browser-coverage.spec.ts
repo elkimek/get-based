@@ -35,7 +35,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Cycle import facade stays cold, single-flights, and delegates its public actions', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/cycle-import.js*', async route => {
     implementationRequests.push(route.request().url());
     await new Promise(resolve => setTimeout(resolve, 25));
@@ -46,15 +46,15 @@ test('Cycle import facade stays cold, single-flights, and delegates its public a
   });
 
   const outcomes = await page.evaluate(async url => {
-    const loader = await import(url);
+    const loader = (await import(url) as unknown) as Pick<typeof import('../../js/cycle-import-loader.js'), "isCycleImportModuleLoaded" | "parseAppleHealthCycleBlob" | "showCycleImportPreview" | "loadCycleImportModule" | "clearCycleProfileData">;
     const cold = !loader.isCycleImportModuleLoaded();
-    const parse = loader.parseAppleHealthCycleBlob(new Blob(['health']), 'export.xml');
-    const preview = loader.showCycleImportPreview({ id: 'review' });
-    const first = loader.loadCycleImportModule();
-    const second = loader.loadCycleImportModule();
+    const parse = (loader.parseAppleHealthCycleBlob as (...args: Parameters<typeof loader.parseAppleHealthCycleBlob>)=>unknown)(new Blob(['health']), 'export.xml');
+    const preview = (loader.showCycleImportPreview as unknown as (parsed: {id:string}) => unknown)({ id: 'review' });
+    const first = (loader.loadCycleImportModule as (...args: Parameters<typeof loader.loadCycleImportModule>) => Promise<unknown>)();
+    const second = (loader.loadCycleImportModule as (...args: Parameters<typeof loader.loadCycleImportModule>) => Promise<unknown>)();
     const sharedPromise = first === second;
     const [parsed, previewed] = await Promise.all([parse, preview, first, second]);
-    const cleared = await loader.clearCycleProfileData();
+    const cleared = await (loader.clearCycleProfileData as (...args: Parameters<typeof loader.clearCycleProfileData>)=>unknown)();
     return {
       cold,
       sharedPromise,
@@ -62,7 +62,7 @@ test('Cycle import facade stays cold, single-flights, and delegates its public a
       parsed,
       previewed,
       cleared,
-      calls: window.__cycleImportLoaderCalls || [],
+      calls: (window as Window & {__cycleImportLoaderCalls?: unknown[][]}).__cycleImportLoaderCalls || [],
     };
   }, loaderUrl());
 
@@ -83,7 +83,7 @@ test('Cycle import facade stays cold, single-flights, and delegates its public a
 });
 
 test('first delegated click and change are replayed after the implementation loads', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/cycle-import.js*', async route => {
     implementationRequests.push(route.request().url());
     await new Promise(resolve => setTimeout(resolve, 25));
@@ -94,16 +94,16 @@ test('first delegated click and change are replayed after the implementation loa
   });
 
   const outcomes = await page.evaluate(async url => {
-    const loader = await import(url);
-    document.getElementById('cycle-import-button').click();
-    document.getElementById('cycle-import-file').dispatchEvent(new Event('change', { bubbles: true }));
+    const loader = (await import(url) as unknown) as Pick<typeof import('../../js/cycle-import-loader.js'), "isCycleImportModuleLoaded" | "parseAppleHealthCycleBlob" | "showCycleImportPreview" | "loadCycleImportModule" | "clearCycleProfileData">;
+    document.getElementById('cycle-import-button')!.click();
+    document.getElementById('cycle-import-file')!.dispatchEvent(new Event('change', { bubbles: true }));
     const deadline = Date.now() + 2000;
-    while ((window.__cycleImportLoaderCalls || []).length < 2 && Date.now() < deadline) {
+    while (((window as Window & {__cycleImportLoaderCalls?: unknown[][]}).__cycleImportLoaderCalls || []).length < 2 && Date.now() < deadline) {
       await new Promise(resolve => setTimeout(resolve, 10));
     }
     return {
       loaded: loader.isCycleImportModuleLoaded(),
-      calls: window.__cycleImportLoaderCalls || [],
+      calls: (window as Window & {__cycleImportLoaderCalls?: unknown[][]}).__cycleImportLoaderCalls || [],
     };
   }, loaderUrl());
 
@@ -118,7 +118,7 @@ test('first delegated click and change are replayed after the implementation loa
 });
 
 test('a failed delegated load remains retryable through the fixed implementation URL', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/cycle-import.js*', async route => {
     const url = route.request().url();
     implementationRequests.push(url);
@@ -133,16 +133,16 @@ test('a failed delegated load remains retryable through the fixed implementation
   });
 
   const outcomes = await page.evaluate(async url => {
-    const loader = await import(url);
+    const loader = (await import(url) as unknown) as Pick<typeof import('../../js/cycle-import-loader.js'), "isCycleImportModuleLoaded" | "parseAppleHealthCycleBlob" | "showCycleImportPreview" | "loadCycleImportModule" | "clearCycleProfileData">;
     const button = document.getElementById('cycle-import-button');
-    button.click();
+    button!.click();
     const deadline = Date.now() + 2000;
     while (!document.body.textContent.includes('Cycle import tools could not be loaded') && Date.now() < deadline) {
       await new Promise(resolve => setTimeout(resolve, 10));
     }
     const unloadedAfterFailure = !loader.isCycleImportModuleLoaded();
     const notification = document.body.textContent;
-    button.click();
+    button!.click();
     while (!loader.isCycleImportModuleLoaded() && Date.now() < deadline) {
       await new Promise(resolve => setTimeout(resolve, 10));
     }
@@ -150,13 +150,13 @@ test('a failed delegated load remains retryable through the fixed implementation
       unloadedAfterFailure,
       loadedAfterRetry: loader.isCycleImportModuleLoaded(),
       notification,
-      calls: window.__cycleImportLoaderCalls || [],
+      calls: (window as Window & {__cycleImportLoaderCalls?: unknown[][]}).__cycleImportLoaderCalls || [],
     };
   }, loaderUrl());
 
   expect(implementationRequests).toHaveLength(2);
-  expect(new URL(implementationRequests[0]).search).toBe('');
-  expect(new URL(implementationRequests[1]).search).toBe('?lazy-retry=1');
+  expect(new URL(implementationRequests[0]!).search).toBe('');
+  expect(new URL(implementationRequests[1]!).search).toBe('?lazy-retry=1');
   expect(outcomes).toMatchObject({
     unloadedAfterFailure: true,
     loadedAfterRetry: true,

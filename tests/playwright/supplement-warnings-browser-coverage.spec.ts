@@ -2,7 +2,7 @@ import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = (path, label = 'supplementWarningsCoverage') =>
+const moduleUrl = (path: string, label = 'supplementWarningsCoverage') =>
   `${path}?${label}=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
@@ -16,9 +16,9 @@ test('mitochondrial evidence browser coverage exercises loading lookup matching 
   await openBlankPage(page, '/supplement-warnings-browser-coverage');
 
   const results = await page.evaluate(async ({ successUrl, notOkUrl, throwUrl }) => {
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
-    const waitUntil = async (predicate, label) => {
+    const waitUntil = async (predicate: ()=>unknown, label: string) => {
       for (let i = 0; i < 100; i += 1) {
         if (predicate()) return;
         await wait(25);
@@ -33,7 +33,7 @@ test('mitochondrial evidence browser coverage exercises loading lookup matching 
         notOkFetchCalls += 1;
         return new Response('[]', { status: 503 });
       };
-      const notOk = await import(notOkUrl);
+      const notOk = (await import(notOkUrl) as unknown) as Pick<typeof import('../../js/supplement-warnings.js'), "preloadMitoCompoundData" | "lookupMitoCompound" | "scanSupplementsForWarnings" | "hasMitoCompoundData">;
       outcomes.notOkImportStaysCold = notOkFetchCalls === 0;
       await notOk.preloadMitoCompoundData();
       outcomes.notOkDataLoadLeavesLookupEmpty = notOk.lookupMitoCompound('metformin') === null;
@@ -47,7 +47,7 @@ test('mitochondrial evidence browser coverage exercises loading lookup matching 
         throwingFetchCalls += 1;
         throw new Error('offline');
       };
-      const thrown = await import(throwUrl);
+      const thrown = (await import(throwUrl) as unknown) as Pick<typeof import('../../js/supplement-warnings.js'), "preloadMitoCompoundData" | "lookupMitoCompound" | "scanSupplementsForWarnings" | "hasMitoCompoundData">;
       outcomes.throwingImportStaysCold = throwingFetchCalls === 0;
       await thrown.preloadMitoCompoundData();
       outcomes.throwingDataLoadLeavesLookupEmpty = thrown.lookupMitoCompound('metformin') === null;
@@ -61,7 +61,7 @@ test('mitochondrial evidence browser coverage exercises loading lookup matching 
         successFetchCalls += 1;
         return savedFetch(...args);
       };
-      const warnings = await import(successUrl);
+      const warnings = (await import(successUrl) as unknown) as Pick<typeof import('../../js/supplement-warnings.js'), "hasMitoCompoundData" | "scanSupplementsForWarnings" | "preloadMitoCompoundData" | "lookupMitoCompound" | "pubmedUrl" | "pubmedSearchUrl" | "mitochondrialDirectionLabel" | "buildMitochondrialEvidenceContext" | "humanizeEffect">;
       outcomes.successImportStaysCold = successFetchCalls === 0
         && warnings.hasMitoCompoundData() === false;
       const firstColdScan = warnings.scanSupplementsForWarnings([{ name: 'Metformin' }]);
@@ -119,9 +119,9 @@ test('mitochondrial evidence browser coverage exercises loading lookup matching 
       outcomes.scanIgnoresBrandAsAnUncuratedCandidate =
         combinationEvidence.every(item => item.compound !== 'Linezolid');
       outcomes.scanBuildsClaimLevelRecord =
-        metforminWarning?.summary.includes('acute oral metformin') === true
-        && metforminWarning.studyLabel === 'Animal mechanism study'
-        && metforminWarning.limitations.includes('does not show mitochondrial injury');
+        (metforminWarning?.summary as {includes(value:string):unknown}).includes('acute oral metformin') === true
+        && metforminWarning!.studyLabel === 'Animal mechanism study'
+        && (metforminWarning!.limitations as {includes(value:string):unknown}).includes('does not show mitochondrial injury');
       outcomes.scanIncludesPubMedUrls =
         /^https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/\d+\/$/.test(metforminWarning?.url || '');
       outcomes.scanIncludesSearchUrls =

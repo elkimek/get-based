@@ -7,11 +7,11 @@ test('provider model controls edge coverage handles pricing updates guards and m
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ controlsUrl }) => {
-    const controls = await import(controlsUrl);
+    const controls = (await import(controlsUrl) as unknown) as Pick<typeof import('../../js/provider-model-controls.js'), "updateVeniceModelPricing" | "renderVeniceModelDropdown" | "onVeniceModelDropdownChange" | "toggleVeniceE2EE" | "renderOpenRouterModelDropdown" | "renderRoutstrModelDropdown" | "renderPpqModelDropdown" | "updateRoutstrModelPricing" | "updatePpqModelPricing" | "updateCustomModelPricing" | "renderCustomApiModelDropdown" | "applyCustomApiManualModel">;
     const chatRuntime = await import('/js/chat-runtime.js');
     const providerRuntime = await import('/js/provider-model-controls-runtime.js');
-    const failures = [];
-    const check = (name, condition, detail = '') => {
+    const failures: Array<Parameters<typeof check>[0]> = [];
+    const check = (name: string, condition: unknown, detail = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
     };
     const storageKeys = [
@@ -29,13 +29,13 @@ test('provider model controls edge coverage handles pricing updates guards and m
       'labcharts-ppq-pricing',
       'labcharts-custom-model',
     ];
-    const oldStorage = {};
+    const oldStorage: Record<string, string | null | undefined> = {};
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
     let clearCount = 0;
     let headerRefreshes = 0;
     let webSearchRefreshes = 0;
-    let previousChatRuntime = null;
-    let previousProviderRuntime = null;
+    let previousChatRuntime: ReturnType<typeof chatRuntime.configureChatRuntimeCallbacks> | null = null;
+    let previousProviderRuntime: ReturnType<typeof providerRuntime.configureProviderModelControlsRuntimeDeps> | null = null;
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
@@ -69,7 +69,7 @@ test('provider model controls edge coverage handles pricing updates guards and m
         { id: 'venice-a', name: 'Venice A' },
         { id: 'venice-b', name: 'Venice B' },
       ]);
-      const veniceRenderedInitial = document.getElementById('venice-model-select')?.value === 'venice-a'
+      const veniceRenderedInitial = (document.getElementById('venice-model-select') as (HTMLElement & {value: string}) | null)?.value === 'venice-a'
         && (document.getElementById('venice-model-pricing')?.textContent || '').includes('$2.00/M in');
       controls.onVeniceModelDropdownChange('venice-b');
       const veniceDropdownChangeUpdatesRegularModel = localStorage.getItem('labcharts-venice-model') === 'venice-b'
@@ -89,7 +89,7 @@ test('provider model controls edge coverage handles pricing updates guards and m
         { id: 'e2ee-b', name: 'Secure B' },
       ]));
       controls.toggleVeniceE2EE(true);
-      const veniceToggleRendersRestoredE2EEList = document.getElementById('venice-model-select')?.value === 'e2ee-b'
+      const veniceToggleRendersRestoredE2EEList = (document.getElementById('venice-model-select') as (HTMLElement & {value: string}) | null)?.value === 'e2ee-b'
         && document.getElementById('venice-e2ee-indicator')?.style.display === ''
         && headerRefreshes >= 1
         && webSearchRefreshes >= 1;
@@ -104,9 +104,9 @@ test('provider model controls edge coverage handles pricing updates guards and m
       controls.updateRoutstrModelPricing();
       controls.updatePpqModelPricing('missing-before-render');
       controls.updateCustomModelPricing();
-      const emptyGuardsDoNotRenderControls = !document.getElementById('openrouter-model-select')
-        && !document.getElementById('routstr-model-select')
-        && !document.getElementById('ppq-model-select');
+      const emptyGuardsDoNotRenderControls = !(document.getElementById('openrouter-model-select') as (HTMLElement & {value: string}) | null)
+        && !(document.getElementById('routstr-model-select') as (HTMLElement & {value: string}) | null)
+        && !(document.getElementById('ppq-model-select') as (HTMLElement & {value: string}) | null);
 
       localStorage.setItem('labcharts-routstr-pricing', JSON.stringify({
         'routstr-b': { input: 0.75, output: 2.25 },
@@ -117,7 +117,7 @@ test('provider model controls edge coverage handles pricing updates guards and m
         { id: 'routstr-b', name: 'Routstr B' },
       ]);
       controls.updateRoutstrModelPricing('routstr-b');
-      const routstrPricingUpdatesRenderedHint = document.getElementById('routstr-model-select')?.value === 'routstr-b'
+      const routstrPricingUpdatesRenderedHint = (document.getElementById('routstr-model-select') as (HTMLElement & {value: string}) | null)?.value === 'routstr-b'
         && (document.getElementById('routstr-model-pricing')?.textContent || '').includes('$0.75/M in');
 
       localStorage.setItem('labcharts-ppq-pricing', JSON.stringify({
@@ -132,14 +132,14 @@ test('provider model controls edge coverage handles pricing updates guards and m
         { id: 'known-model', name: 'Known Model' },
         { id: 'second-model', name: 'Second Model' },
       ]);
-      const customKnownModelUsesDropdown = document.getElementById('custom-model-select')?.value === 'known-model'
-        && document.getElementById('custom-manual-model')?.value === '';
-      const customInput = document.getElementById('custom-manual-model');
-      customInput.value = '   ';
+      const customKnownModelUsesDropdown = (document.getElementById('custom-model-select') as (HTMLElement & {value: string}) | null)?.value === 'known-model'
+        && (document.getElementById('custom-manual-model') as (HTMLElement & {value: string}) | null)?.value === '';
+      const customInput = (document.getElementById('custom-manual-model') as (HTMLElement & {value: string}) | null);
+      customInput!.value = '   ';
       controls.applyCustomApiManualModel();
       const customManualEmptyIsRejected = localStorage.getItem('labcharts-custom-model') === 'known-model';
 
-      customInput.value = 'typed-edge-model';
+      customInput!.value = 'typed-edge-model';
       controls.applyCustomApiManualModel();
       const customManualTypedAppliesAndPrices = localStorage.getItem('labcharts-custom-model') === 'typed-edge-model'
         && (document.getElementById('custom-model-pricing')?.textContent || '') === '';
@@ -163,7 +163,7 @@ test('provider model controls edge coverage handles pricing updates guards and m
       if (previousChatRuntime) chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);
-        else localStorage.setItem(key, oldStorage[key]);
+        else localStorage.setItem(key, oldStorage[key]!);
       }
       document.getElementById('provider-controls-edge-fixture')?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());

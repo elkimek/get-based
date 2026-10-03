@@ -1,7 +1,9 @@
+import type { LabEntryDraft } from '../../js/lab-entry.js';
+interface LabMutationFixture {entries: LabEntryDraft[];manualValues: Record<string, unknown>;markerValueNotes: Record<string, unknown>;[key:string]:unknown;_deleted?: Exclude<NonNullable<Parameters<typeof import('../../js/lab-entry-mutations.js').deleteLabEntryMarkerValues>[0]>['_deleted'], undefined>}
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = path => `${path}?labEntryBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?labEntryBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   path: "/lab-entry-browser-coverage", status: 200, body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
@@ -23,11 +25,11 @@ test('lab entry browser coverage exercises marker helpers and imported-data muta
 
   const results = await page.evaluate(async ({ labEntryUrl, mutationsUrl }) => {
     const [labEntry, mutations] = await Promise.all([
-      import(labEntryUrl),
-      import(mutationsUrl),
+      (import(labEntryUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/lab-entry.js'), "createLabEntry" | "setLabEntryMarker" | "deleteLabEntryMarker" | "renameLabEntryMarker" | "getLabEntryMarkerValueTimestamp" | "getLabEntryMarkerTombstoneAt">>,
+      (import(mutationsUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/lab-entry-mutations.js'), "findOrCreateLabEntry" | "deleteLabEntryMarkerFromImportedData" | "deleteLabEntryMarkerValues">>,
     ]);
-    const outcomes = {};
-    const hasOwn = (object, key) => Object.prototype.hasOwnProperty.call(object || {}, key);
+    const outcomes: Record<string, unknown> = {};
+    const hasOwn = (object: unknown, key: PropertyKey) => Object.prototype.hasOwnProperty.call(object || {}, key);
 
     const entry = labEntry.createLabEntry('2026-05-01', { now: 100 });
     entry.deletedMarkers = { 'biochemistry.glucose': 90 };
@@ -38,7 +40,7 @@ test('lab entry browser coverage exercises marker helpers and imported-data muta
     outcomes.setMarkerClearsTombstoneAndStoresSource =
       entry.updatedAt === 200
       && entry.markers['biochemistry.glucose'] === 5.1
-      && entry.markerSources['biochemistry.glucose'].file === null
+      && entry.markerSources!['biochemistry.glucose']!.file === null
       && !hasOwn(entry.deletedMarkers, 'biochemistry.glucose');
 
     labEntry.setLabEntryMarker(entry, 'diabetes.insulin_d', 8, {
@@ -49,7 +51,7 @@ test('lab entry browser coverage exercises marker helpers and imported-data muta
       entry.markers['diabetes.insulin'] === 8
       && !hasOwn(entry.markers, 'diabetes.insulin_d')
       && !hasOwn(entry.markers, 'hormones.insulin')
-      && entry.markerSources['diabetes.insulin'].file === 'manual-entry'
+      && entry.markerSources!['diabetes.insulin']!.file === 'manual-entry'
       && entry.markers['diabetes.homaIR'] === Math.round((5.1 * 8) / 22.5 * 100) / 100;
 
     const deleteInsulin = labEntry.deleteLabEntryMarker(entry, 'diabetes.insulin', {
@@ -64,7 +66,7 @@ test('lab entry browser coverage exercises marker helpers and imported-data muta
       && !hasOwn(entry.markers, 'diabetes.homaIR')
       && entry.deletedMarkers['diabetes.insulin'] === 350;
 
-    const renameEntry = {
+    const renameEntry: LabEntryDraft = {
       date: '2026-05-03',
       updatedAt: 100,
       markers: { 'legacy.glucose': 7.2 },
@@ -77,9 +79,9 @@ test('lab entry browser coverage exercises marker helpers and imported-data muta
     outcomes.renameMarkerMovesValueSourceAndClearsOldTombstone =
       renamed
       && renameEntry.updatedAt === 450
-      && renameEntry.markers['biochemistry.glucose'] === 7.2
+      && renameEntry.markers!['biochemistry.glucose'] === 7.2
       && !hasOwn(renameEntry.markers, 'legacy.glucose')
-      && renameEntry.markerSources['biochemistry.glucose'].file === 'old.pdf'
+      && renameEntry.markerSources!['biochemistry.glucose']!.file === 'old.pdf'
       && !hasOwn(renameEntry.markerSources, 'legacy.glucose')
       && !hasOwn(renameEntry.deletedMarkers, 'legacy.glucose');
 
@@ -96,7 +98,7 @@ test('lab entry browser coverage exercises marker helpers and imported-data muta
       && labEntry.getLabEntryMarkerTombstoneAt(timestampEntry, 'removed') === Date.parse('2026-05-07T00:00:00.000Z')
       && labEntry.getLabEntryMarkerTombstoneAt(timestampEntry, 'missing') === 0;
 
-    const importedData = {
+    const importedData: LabMutationFixture = {
       entries: [
         {
           date: '2026-06-01',
@@ -147,10 +149,10 @@ test('lab entry browser coverage exercises marker helpers and imported-data muta
     outcomes.deleteMarkerFromImportedDataPreservesRowAndClearsMetadata =
       deleteGlucose.changed
       && !deleteGlucose.removedEntry
-      && importedData.entries.includes(firstEntry)
-      && !hasOwn(firstEntry.markers, 'biochemistry.glucose')
-      && firstEntry.markers['biochemistry.alp'] === 1.2
-      && firstEntry.deletedMarkers['biochemistry.glucose'] === 550
+      && importedData.entries.includes(firstEntry!)
+      && !hasOwn(firstEntry!.markers, 'biochemistry.glucose')
+      && firstEntry!.markers!['biochemistry.alp'] === 1.2
+      && firstEntry!.deletedMarkers!['biochemistry.glucose'] === 550
       && importedData.manualValues['biochemistry.glucose:2026-06-01'] === null
       && importedData.markerValueNotes['biochemistry.glucose:2026-06-01'] === null;
 
@@ -160,13 +162,13 @@ test('lab entry browser coverage exercises marker helpers and imported-data muta
       && importedData.entries.some(item =>
         item.date === '2026-06-01'
         && Object.keys(item.markers || {}).length === 0
-        && item.deletedMarkers['biochemistry.glucose'] === 550
-        && item.deletedMarkers['biochemistry.alp'] === 600
+        && item.deletedMarkers!['biochemistry.glucose'] === 550
+        && item.deletedMarkers!['biochemistry.alp'] === 600
       )
       && importedData.entries.some(item =>
         item.date === '2026-06-02'
         && Object.keys(item.markers || {}).length === 0
-        && item.deletedMarkers['biochemistry.alp'] === 600
+        && item.deletedMarkers!['biochemistry.alp'] === 600
       )
       && !importedData.entries.some(item => item.date === '2026-07-01')
       && importedData._deleted?.entries?.includes('2026-07-01')

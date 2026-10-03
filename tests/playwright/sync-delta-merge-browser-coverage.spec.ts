@@ -1,7 +1,8 @@
+interface MergeFixtureImported {lightDevices: {id:string;name?:unknown;updatedAt?:unknown}[];manualValues: Record<string,unknown>;diagnoses:{condition?:unknown};diet:{summary?:unknown}|null}
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = path => `${path}?syncDeltaMergeCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?syncDeltaMergeCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   status: 200, body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
@@ -12,17 +13,17 @@ test('sync delta merge browser coverage applies grouped row surfaces through the
 
   const results = await page.evaluate(async ({ mergeUrl, shapesUrl }) => {
     const [merge, shapes, observability, pullSnapshot] = await Promise.all([
-      import(mergeUrl),
-      import(shapesUrl),
+      (import(mergeUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-delta-merge.js'), "_mergeItemRowsIntoImported" | "configureSyncDeltaMerge">>,
+      (import(shapesUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-delta-merge-shapes.js'), "mergeArrayRowsIntoImported" | "mergeMapRowsIntoImported" | "mergeScalarRowsIntoImported">>,
       import('/js/sync-delta-observability.js'),
       import('/js/sync-delta-pull-snapshot.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const profileId = `merge-profile-${Date.now()}`;
     const queryToken = { table: 'itemRows' };
-    const queryCalls = [];
-    const payload = value => JSON.stringify(value);
-    const safeManualId = rawKey => rawKey.replace(/_/g, '__').replace(/:/g, '_');
+    const queryCalls: string[] = [];
+    const payload = (value: unknown) => JSON.stringify(value);
+    const safeManualId = (rawKey: string) => rawKey.replace(/_/g, '__').replace(/:/g, '_');
     const rows = [
       {
         profileId,
@@ -82,12 +83,12 @@ test('sync delta merge browser coverage applies grouped row surfaces through the
       },
     ];
     const evolu = {
-      getQueryRows(query) {
+      getQueryRows(query: unknown) {
         queryCalls.push(query === queryToken ? 'expected' : 'unexpected');
         return rows;
       },
     };
-    const imported = {
+    const imported: MergeFixtureImported = {
       lightDevices: [
         { id: 'dev-local', name: 'Local keeper', updatedAt: '2026-06-09T09:00:00.000Z' },
         { id: 'dev-tomb', name: 'Deleted device', updatedAt: '2026-06-09T09:30:00.000Z' },
@@ -101,11 +102,11 @@ test('sync delta merge browser coverage applies grouped row surfaces through the
 
     try {
       const noDepsImported = { lightDevices: [{ id: 'unchanged' }] };
-      const noDepsResult = await merge._mergeItemRowsIntoImported(profileId, noDepsImported);
+      const noDepsResult = await (merge._mergeItemRowsIntoImported as <Data>(profileId: Parameters<typeof merge._mergeItemRowsIntoImported>[0], imported: Data)=>Promise<Data>)(profileId, noDepsImported);
       outcomes.noDependenciesReturnOriginalImportedData = noDepsResult === noDepsImported;
       outcomes.noDependenciesLeaveArraysUnchanged =
         noDepsImported.lightDevices.length === 1
-        && noDepsImported.lightDevices[0].id === 'unchanged';
+        && noDepsImported.lightDevices[0]!.id === 'unchanged';
 
       outcomes.shapeFacadeExportsArrayDelegate = typeof shapes.mergeArrayRowsIntoImported === 'function';
       outcomes.shapeFacadeExportsMapDelegate = typeof shapes.mergeMapRowsIntoImported === 'function';
@@ -120,7 +121,7 @@ test('sync delta merge browser coverage applies grouped row surfaces through the
         getItemRowQuery: () => queryToken,
       });
 
-      const merged = await merge._mergeItemRowsIntoImported(profileId, imported);
+      const merged = await (merge._mergeItemRowsIntoImported as <Data>(profileId: Parameters<typeof merge._mergeItemRowsIntoImported>[0], imported: Data)=>Promise<Data>)(profileId, imported);
       const snapshot = pullSnapshot.getPullDeltaSnapshot(profileId);
 
       outcomes.facadeReturnsAndMutatesSameImportedObject = merged === imported;

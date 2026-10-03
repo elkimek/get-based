@@ -1,7 +1,7 @@
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = (path) => `${path}?schemaBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?schemaBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   path: "/schema-browser-coverage", status: 200, body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
@@ -12,13 +12,13 @@ test('schema browser coverage exercises units pricing usage phase ranges and EMF
 
   const results = await page.evaluate(async ({ schemaUrl }) => {
     const [schema, { state }] = await Promise.all([
-      import(schemaUrl),
+      (import(schemaUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/schema.js'), "MARKER_SCHEMA" | "UNIT_CONVERSIONS" | "OPTIMAL_RANGES" | "BUILTIN_MARKER_IDENTITIES" | "getBuiltinMarkerId" | "getBuiltinMarkerDotKey" | "resolveBuiltinMarkerDotKey" | "BUILTIN_MARKER_DOT_KEY_ALIASES" | "BUILTIN_MARKER_ID_ALIASES" | "CUSTOM_MARKER_ID_PREFIX" | "isCustomMarkerId" | "getAlternateUnit" | "convertUserInputToSI" | "getModelPricing" | "calculateCost" | "formatCost" | "trackUsage" | "getProfileUsage" | "getGlobalUsage" | "resetProfileUsage" | "PHASE_RANGES" | "getEMFSeverity">>,
       import('/js/state.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
 
-    const approxEqual = (actual, expected, epsilon = 0.000001) =>
-      Math.abs(actual - expected) <= epsilon;
+    const approxEqual = (actual: unknown, expected: number, epsilon = 0.000001) =>
+      Math.abs((actual as number) - expected) <= epsilon;
     const resetStorage = () => {
       for (const key of [
         'labcharts-openrouter-pricing',
@@ -38,12 +38,12 @@ test('schema browser coverage exercises units pricing usage phase ranges and EMF
       resetStorage();
 
       outcomes.schemaExportsCoreMarkerAndRangeTables =
-        schema.MARKER_SCHEMA.biochemistry.markers.glucose.unit === 'mmol/l'
-        && schema.MARKER_SCHEMA.vitamins.markers.vitaminD.name === 'Vitamin D Total'
-        && schema.UNIT_CONVERSIONS['biochemistry.glucose'].usUnit === 'mg/dl'
-        && schema.MARKER_SCHEMA.calculatedRatios.markers.tygIndex.refMax === 8.8
-        && schema.MARKER_SCHEMA.calculatedRatios.markers.anionGap.refMin === 5
-        && schema.OPTIMAL_RANGES['calculatedRatios.atherogenicIndexPlasma'].optimalMax === 0.11;
+        schema.MARKER_SCHEMA.biochemistry!.markers.glucose!.unit === 'mmol/l'
+        && schema.MARKER_SCHEMA.vitamins!.markers.vitaminD!.name === 'Vitamin D Total'
+        && schema.UNIT_CONVERSIONS['biochemistry.glucose']!.usUnit === 'mg/dl'
+        && schema.MARKER_SCHEMA.calculatedRatios!.markers.tygIndex!.refMax === 8.8
+        && schema.MARKER_SCHEMA.calculatedRatios!.markers.anionGap!.refMin === 5
+        && schema.OPTIMAL_RANGES['calculatedRatios.atherogenicIndexPlasma']!.optimalMax === 0.11;
 
       outcomes.schemaExportsStableMarkerIdentityContract =
         schema.BUILTIN_MARKER_IDENTITIES.length === 198
@@ -62,14 +62,14 @@ test('schema browser coverage exercises units pricing usage phase ranges and EMF
       const hba1cUs = schema.getAlternateUnit('diabetes.hba1c', 38.8, false);
       const hba1cSi = schema.getAlternateUnit('diabetes.hba1c', 5.7, true);
       outcomes.alternateUnitsHandleMultiplyAndHba1cConversions =
-        glucoseUs.value === 90.09
-        && glucoseUs.unit === 'mg/dl'
-        && glucoseSi.value === 5
-        && glucoseSi.unit === 'mmol/l'
-        && hba1cUs.value === 5.7
-        && hba1cUs.unit === '%'
-        && hba1cSi.value === 38.8
-        && hba1cSi.unit === 'mmol/mol';
+        glucoseUs!.value === 90.09
+        && glucoseUs!.unit === 'mg/dl'
+        && glucoseSi!.value === 5
+        && glucoseSi!.unit === 'mmol/l'
+        && hba1cUs!.value === 5.7
+        && hba1cUs!.unit === '%'
+        && hba1cSi!.value === 38.8
+        && hba1cSi!.unit === 'mmol/mol';
       outcomes.alternateUnitsRejectMissingInvalidAndUnknownInputs =
         schema.getAlternateUnit('biochemistry.glucose', null, false) === null
         && schema.getAlternateUnit('biochemistry.glucose', Number.NaN, false) === null
@@ -131,21 +131,21 @@ test('schema browser coverage exercises units pricing usage phase ranges and EMF
         && resetProfileUsage.totalCost === 0;
 
       outcomes.phaseRangesExposeCycleSpecificHormoneBands =
-        schema.PHASE_RANGES['hormones.estradiol'].ovulatory.max === 1828
-        && schema.PHASE_RANGES['hormones.progesterone'].luteal.min === 5.72
-        && schema.PHASE_RANGES['hormones.lh'].ovulatory.min === 14
-        && schema.PHASE_RANGES['hormones.fsh'].luteal.max === 7.7;
+        schema.PHASE_RANGES['hormones.estradiol']!.ovulatory!.max === 1828
+        && schema.PHASE_RANGES['hormones.progesterone']!.luteal!.min === 5.72
+        && schema.PHASE_RANGES['hormones.lh']!.ovulatory!.min === 14
+        && schema.PHASE_RANGES['hormones.fsh']!.luteal!.max === 7.7;
 
       const sleepingNoConcern = schema.getEMFSeverity('rfMicrowave', 0.05, true);
       const sleepingBoundary = schema.getEMFSeverity('rfMicrowave', 0.1, true);
       const daytimeSlight = schema.getEMFSeverity('rfMicrowave', 40, false);
       const extremeMagnetic = schema.getEMFSeverity('acMagnetic', 999999, true);
       outcomes.emfSeverityUsesSleepingDaytimeThresholdsAndBoundaries =
-        sleepingNoConcern.label === 'No concern'
-        && sleepingNoConcern.color === 'green'
-        && sleepingBoundary.label === 'Slight concern'
-        && daytimeSlight.label === 'Slight concern'
-        && extremeMagnetic.label === 'Extreme concern'
+        sleepingNoConcern!.label === 'No concern'
+        && sleepingNoConcern!.color === 'green'
+        && sleepingBoundary!.label === 'Slight concern'
+        && daytimeSlight!.label === 'Slight concern'
+        && extremeMagnetic!.label === 'Extreme concern'
         && schema.getEMFSeverity('missing', 10) === null
         && schema.getEMFSeverity('rfMicrowave', null) === null;
     } finally {

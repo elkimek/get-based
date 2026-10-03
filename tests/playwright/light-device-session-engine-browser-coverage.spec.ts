@@ -1,7 +1,7 @@
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = path => `${path}?lightDeviceSessionEngineCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?lightDeviceSessionEngineCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   status: 200, body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
@@ -11,8 +11,8 @@ test('light device session engine browser coverage covers mode area distance and
   await openBlankPage(page, '/light-device-session-engine-coverage');
 
   const outcomes = await page.evaluate(async ({ engineUrl }) => {
-    const engine = await import(engineUrl);
-    const calls = [];
+    const engine = (await import(engineUrl) as unknown) as Pick<typeof import('../../js/light-device-session-engine.js'), "resolveDeviceMode" | "bodyFractionForDeviceSession" | "computeDeviceSessionDoses" | "DEVICE_BODY_AREA_FRACTIONS" | "DEVICE_TYPE_CHANNELS" | "deviceDistanceFactor">;
+    const calls: [string, unknown][] = [];
     const modeDevice = {
       id: 'panel-1',
       recommendedDistanceCm: 20,
@@ -61,21 +61,21 @@ test('light device session engine browser coverage covers mode area distance and
         return { ...device, activeMode: mode };
       },
       synthesizeDeviceSpectrum: device => {
-        calls.push(['synthesizeDeviceSpectrum', device.activeMode]);
+        calls.push(['synthesizeDeviceSpectrum', (device as {activeMode?: unknown}).activeMode]);
         return { wavelengths: [660, 850], irradiance: [2, 4] };
       },
       computeChannelDoses: input => {
         calls.push(['computeChannelDoses', {
-          wavelengths: input.spectrum.wavelengths,
-          irradiance: input.spectrum.irradiance,
-          durationMin: input.durationMin,
-          bodyExposureFraction: input.bodyExposureFraction,
-          eyeMode: input.eyeExposure.mode,
-          durationSec: input.eyeExposure.durationSec,
+          wavelengths: input!.spectrum!.wavelengths,
+          irradiance: input!.spectrum!.irradiance,
+          durationMin: input!.durationMin,
+          bodyExposureFraction: input!.bodyExposureFraction,
+          eyeMode: input!.eyeExposure!.mode,
+          durationSec: input!.eyeExposure!.durationSec,
         }]);
         return {
-          pbm_red: input.spectrum.irradiance[0] * input.durationMin * input.bodyExposureFraction,
-          circadian: input.eyeExposure.durationSec,
+          pbm_red: input!.spectrum!.irradiance[0]! * input!.durationMin! * input!.bodyExposureFraction!,
+          circadian: input!.eyeExposure!.durationSec!,
         };
       },
     });
@@ -93,7 +93,7 @@ test('light device session engine browser coverage covers mode area distance and
       eyesProtected: true,
     });
 
-    const approx = (actual, expected) => Math.abs(actual - expected) < 1e-9;
+    const approx = (actual: unknown, expected: number) => Math.abs((actual as number) - expected) < 1e-9;
 
     return {
       constantsExposeExpectedChannelsAndFractions:
@@ -130,9 +130,9 @@ test('light device session engine browser coverage covers mode area distance and
         && calls.some(call => call[0] === 'effectiveDeviceForMode' && call[1] === 'red-only')
         && calls.some(call => call[0] === 'synthesizeDeviceSpectrum' && call[1] === 'red-only')
         && calls.some(call => call[0] === 'computeChannelDoses'
-          && JSON.stringify(call[1].irradiance) === JSON.stringify([2, 4])
-          && call[1].eyeMode === 'closed-eyes'
-          && call[1].durationSec === 300),
+          && JSON.stringify((call[1] as {irradiance: unknown}).irradiance) === JSON.stringify([2, 4])
+          && (call[1] as {eyeMode: unknown}).eyeMode === 'closed-eyes'
+          && (call[1] as {durationSec: unknown}).durationSec === 300),
       sadLuxFallbackKeepsPhotopicLuxButDoesNotInventMelanopicDose:
         sadDirect.doses.circadian === undefined
         && sadDirect.metrics.photopicLux === 10000

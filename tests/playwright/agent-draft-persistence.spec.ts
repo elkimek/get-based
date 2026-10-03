@@ -20,7 +20,7 @@ for (const kind of ['profile-note', 'marker-note', 'supplement']) {
           ? { name: 'Synthetic supplement', type: 'supplement', startDate: '2026-09-01' }
           : { scope: kind === 'marker-note' ? 'marker' : 'profile', marker: 'biochemistry.glucose', mode: 'append', text: 'Proposed context' },
       };
-      const before = JSON.parse(await encryptedGetItem(key));
+      const before: unknown = JSON.parse((await encryptedGetItem(key)) as string);
       const put = IDBObjectStore.prototype.put;
       IDBObjectStore.prototype.put = function (...args) {
         const request = put.apply(this, args);
@@ -28,13 +28,13 @@ for (const kind of ['profile-note', 'marker-note', 'supplement']) {
         return request;
       };
       let failed = '';
-      try { await applyAgentDraft(draft); } catch (error) { failed = error.message; }
+      try { await applyAgentDraft(draft); } catch (error: unknown) { failed = (error as {message: string}).message; }
       finally { IDBObjectStore.prototype.put = put; }
-      const diskUnchanged = JSON.stringify(JSON.parse(await encryptedGetItem(key))) === JSON.stringify(before);
+      const diskUnchanged = JSON.stringify(JSON.parse((await encryptedGetItem(key)) as string)) === JSON.stringify(before);
       const memoryUnchanged = state.importedData.contextNotes === 'Original context'
         && state.importedData.supplements.length === 0 && Object.keys(state.importedData.markerNotes).length === 0;
       const notice = await applyAgentDraft(draft);
-      const saved = JSON.parse(await encryptedGetItem(key));
+      const saved = JSON.parse((await encryptedGetItem(key)) as string) as {supplements:{name?:unknown}[];markerNotes:Record<string,unknown>;contextNotes?:unknown};
       return { failed, diskUnchanged, memoryUnchanged, notice, value: kind === 'supplement' ? saved.supplements.map(item => item.name) : kind === 'marker-note' ? saved.markerNotes['biochemistry.glucose'] : saved.contextNotes };
     }, kind);
     expect(result.failed).toMatch(/Could not save/);
@@ -55,7 +55,7 @@ test('proposal action persists its result and remains non-actionable after histo
     state.importedData.contextNotes = 'Original';
     if (!await saveImportedData()) throw new Error('Fixture save failed');
     state.currentThreadId = 'proposal-persistence';
-    state.chatThreads = [{ id: state.currentThreadId, name: 'Proposal', createdAt: new Date().toISOString() }];
+    (state as {chatThreads: unknown}).chatThreads = [{ id: state.currentThreadId, name: 'Proposal', createdAt: new Date().toISOString() }];
     state.chatHistory = [{ role: 'assistant', content: '', agentDrafts: [{
       id: 'draft-persistence', profileId: state.currentProfile, status: 'pending', kind: 'note',
       payload: { scope: 'profile', text: 'Applied once', mode: 'append' },
@@ -71,7 +71,7 @@ test('proposal action persists its result and remains non-actionable after histo
   await expect.poll(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const { encryptedGetItem } = await import('/js/crypto.js');
-    return JSON.parse(await encryptedGetItem(`labcharts-${state.currentProfile}-chat-t_proposal-persistence`))[0].agentDrafts[0].status;
+    return (JSON.parse((await encryptedGetItem(`labcharts-${state.currentProfile}-chat-t_proposal-persistence`)) as string) as {agentDrafts: {status?: unknown}[]}[])[0]!.agentDrafts[0]!.status;
   })).toBe('applied');
   const result = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
@@ -101,9 +101,9 @@ test('two stale tabs can apply a meal proposal only once', async ({ page, contex
       const { renderAgentDraftCards } = await import('/js/agent-drafts.js');
       state.currentProfile = profile;
       localStorage.setItem('labcharts-active-profile', profile);
-      state.importedData = JSON.parse(await encryptedGetItem(`labcharts-${profile}-imported`));
+      (state as {importedData: unknown}).importedData = JSON.parse((await encryptedGetItem(`labcharts-${profile}-imported`)) as string) as unknown;
       state.currentThreadId = 'shared-proposal';
-      state.chatThreads = [{ id: 'shared-proposal', name: 'Shared proposal' }];
+      (state as {chatThreads: unknown}).chatThreads = [{ id: 'shared-proposal', name: 'Shared proposal' }];
       state.chatHistory = [{ role: 'assistant', content: '', agentDrafts: [{
         id: 'shared-meal-proposal', profileId: profile, kind: 'meal', status: 'pending',
         payload: { name: 'One proposed lunch', eatenAt: '2026-09-21T12:00:00Z', nutrients: { energyKcal: 500 } },
@@ -117,16 +117,16 @@ test('two stale tabs can apply a meal proposal only once', async ({ page, contex
   const key = `labcharts-${profile}-agent-draft-claims`;
   await page.evaluate(key => {
     navigator.locks.request(key, async () => {
-      window.proposalLockHeld = true;
-      await new Promise(resolve => { window.releaseProposalLock = resolve; });
+      (window as Window & {proposalLockHeld?: boolean}).proposalLockHeld = true;
+      await new Promise<void>(resolve => { (window as Window & {releaseProposalLock?: (()=>void)}).releaseProposalLock = resolve; });
     });
   }, key);
-  await page.waitForFunction(() => window.proposalLockHeld);
+  await page.waitForFunction(() => (window as Window & {proposalLockHeld?: boolean}).proposalLockHeld);
   try {
     await Promise.all([page, second].map(tab => tab.locator('#shared-proposal-fixture [data-chat-message-action="apply-agent-draft"]').click()));
-    await expect.poll(() => page.evaluate(async key => (await navigator.locks.query()).pending.filter(lock => lock.name === key).length, key)).toBe(2);
-  } finally { await page.evaluate(() => window.releaseProposalLock()); }
-  await expect.poll(async () => Promise.all([page, second].map(tab => tab.evaluate(async () => (await import('/js/state.js')).state.chatHistory[0].agentDrafts[0].status)))).toEqual(expect.arrayContaining(['applied', 'failed']));
+    await expect.poll(() => page.evaluate(async key => (await navigator.locks.query()).pending!.filter(lock => lock.name === key).length, key)).toBe(2);
+  } finally { await page.evaluate(() => (window as Window & {releaseProposalLock?: (()=>void)}).releaseProposalLock!()); }
+  await expect.poll(async () => Promise.all([page, second].map(tab => tab.evaluate(async () => (await import('/js/state.js')).state.chatHistory[0]!.agentDrafts![0]!.status)))).toEqual(expect.arrayContaining(['applied', 'failed']));
   const meals = await page.evaluate(async profile => (await import('/js/nutrition-store.js')).listNutritionMeals(profile), profile);
   expect(meals.map(meal => meal.name)).toEqual(['One proposed lunch']);
   await second.reload();
@@ -143,12 +143,12 @@ test('proposal claims follow encryption and profile cleanup', async ({ page }) =
     const crypto = await import('/js/crypto.js');
     const { claimAgentDraft } = await import('/js/agent-draft-claims.js');
     const key = 'labcharts-claims-fixture-agent-draft-claims';
-    window.__WEARABLES_TEST = true;
+    (window as Window & {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST = true;
     await crypto._setTestSessionKey('synthetic-claims-passphrase');
     localStorage.setItem('labcharts-encryption-enabled', 'true');
     await claimAgentDraft('claims-fixture', 'private-proposal-id');
-    const encrypted = !localStorage.getItem(key).includes('private-proposal-id');
-    const decoded = JSON.parse(await crypto.encryptedGetItem(key));
+    const encrypted = !localStorage.getItem(key)!.includes('private-proposal-id');
+    const decoded = JSON.parse((await crypto.encryptedGetItem(key)) as string) as {claims:Record<string,unknown>};
     await (await import('/js/profile-storage-cleanup.js')).clearProfileStorage('claims-fixture');
     return { encrypted, claimed: decoded.claims['private-proposal-id'], removed: localStorage.getItem(key) === null };
   });

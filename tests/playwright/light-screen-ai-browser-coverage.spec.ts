@@ -1,3 +1,5 @@
+import type { AIScreen } from '../../js/light-screen-ai-analysis.js';
+type ScreenAIFixture = AIScreen;
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -8,14 +10,14 @@ test('light screen AI browser coverage refreshes and auto-analyzes screen verdic
 
   const outcomes = await page.evaluate(async ({ screenUrl }) => {
     const [screenAI, { state }, data, aiVerdictRuntime] = await Promise.all([
-      import(screenUrl),
+      (import(screenUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/light-screen-ai-analysis.js'), "refreshScreenAIAnalysis" | "renderScreenAIBlock" | "analyzeScreenAI">>,
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/ai-verdict-engine-runtime.js'),
     ]);
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async (predicate, label) => {
+    const clone = (value: unknown): unknown => value == null ? value : JSON.parse(JSON.stringify(value));
+    const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, label: string) => {
       for (let i = 0; i < 120; i += 1) {
         if (await predicate()) return true;
         await wait(25);
@@ -24,22 +26,22 @@ test('light screen AI browser coverage refreshes and auto-analyzes screen verdic
     };
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key!)];
     }));
     const saved = {
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
       fetch: window.fetch,
-      getOllamaConfig: window.getOllamaConfig,
-      disableAIVerdicts: window.DISABLE_AI_VERDICTS,
+      getOllamaConfig: (window as Window & {getOllamaConfig?: unknown}).getOllamaConfig,
+      disableAIVerdicts: (window as Window & {DISABLE_AI_VERDICTS?: unknown}).DISABLE_AI_VERDICTS,
       provider: localStorage.getItem('labcharts-ai-provider'),
       paused: localStorage.getItem('labcharts-ai-paused'),
       ollamaModel: localStorage.getItem('labcharts-ollama-model'),
     };
-    const results = {};
-    const refreshAnchors = [];
+    const results: Record<string, unknown> = {};
+    const refreshAnchors: string[] = [];
     const bedroom = { id: 'screen-room-sleep', name: 'Bedroom Coverage' };
-    const phoneScreen = {
+    const phoneScreen: ScreenAIFixture = {
       id: 'screen-refresh',
       device: 'phone',
       roomId: bedroom.id,
@@ -47,7 +49,7 @@ test('light screen AI browser coverage refreshes and auto-analyzes screen verdic
       eveningUseAfterSunset: 1.5,
       blueBlockerEnabled: false,
     };
-    const monitorScreen = {
+    const monitorScreen: ScreenAIFixture = {
       id: 'screen-auto',
       device: 'monitor',
       roomId: bedroom.id,
@@ -56,14 +58,14 @@ test('light screen AI browser coverage refreshes and auto-analyzes screen verdic
       blueBlockerEnabled: false,
     };
     let aiCalls = 0;
-    let releaseRefreshFetch = null;
+    let releaseRefreshFetch: (() => void) | null = null;
     const previousAIVerdictRuntimeDeps = aiVerdictRuntime.configureAIVerdictRuntimeDeps({
       refreshSunSurfaces: anchor => { refreshAnchors.push(anchor || ''); },
     });
 
     try {
       state.currentProfile = 'light-screen-ai-browser-coverage';
-      state.importedData = {
+      (state as {importedData: unknown}).importedData = {
         ...state.importedData,
         lightEnvironment: {
           rooms: [bedroom],
@@ -76,13 +78,13 @@ test('light screen AI browser coverage refreshes and auto-analyzes screen verdic
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.removeItem('labcharts-ai-paused');
       localStorage.setItem('labcharts-ollama-model', 'screen-coverage-model');
-      window.DISABLE_AI_VERDICTS = false;
-      window.getOllamaConfig = () => ({ url: 'http://ollama.test', apiKey: '' });
+      (window as Window & {DISABLE_AI_VERDICTS?: unknown}).DISABLE_AI_VERDICTS = false;
+      (window as Window & {getOllamaConfig?: unknown}).getOllamaConfig = () => ({ url: 'http://ollama.test', apiKey: '' });
       window.fetch = async (url, options = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
           aiCalls += 1;
           if (aiCalls === 1) {
-            await new Promise(resolve => { releaseRefreshFetch = resolve; });
+            await new Promise<void>(resolve => { releaseRefreshFetch = resolve; });
           }
           const content = aiCalls === 1
             ? '{"dot":"yellow","tip":"refresh tip","detail":"refresh detail"}'
@@ -98,7 +100,7 @@ test('light screen AI browser coverage refreshes and auto-analyzes screen verdic
       const refreshPromise = screenAI.refreshScreenAIAnalysis(phoneScreen.id);
       await waitFor(() => typeof releaseRefreshFetch === 'function', 'screen refresh fetch');
       const analyzingHtml = screenAI.renderScreenAIBlock(phoneScreen);
-      releaseRefreshFetch();
+      releaseRefreshFetch!();
       const refreshed = await refreshPromise;
       results.refreshStoresVerdictThroughTargetAdapter = refreshed?.status === 'ok'
         && phoneScreen.aiAnalysis?.tip === 'refresh tip'
@@ -125,13 +127,13 @@ test('light screen AI browser coverage refreshes and auto-analyzes screen verdic
       results.missingRefreshReturnsNull = missingRefresh === null;
     } finally {
       state.currentProfile = saved.currentProfile;
-      state.importedData = saved.importedData;
+      (state as {importedData: unknown}).importedData = saved.importedData;
       data.invalidateActiveDataCache();
       window.fetch = saved.fetch;
-      window.getOllamaConfig = saved.getOllamaConfig;
+      (window as Window & {getOllamaConfig?: unknown}).getOllamaConfig = saved.getOllamaConfig;
       aiVerdictRuntime.configureAIVerdictRuntimeDeps(previousAIVerdictRuntimeDeps);
-      if (saved.disableAIVerdicts === undefined) delete window.DISABLE_AI_VERDICTS;
-      else window.DISABLE_AI_VERDICTS = saved.disableAIVerdicts;
+      if (saved.disableAIVerdicts === undefined) delete (window as Window & {DISABLE_AI_VERDICTS?: unknown}).DISABLE_AI_VERDICTS;
+      else (window as Window & {DISABLE_AI_VERDICTS?: unknown}).DISABLE_AI_VERDICTS = saved.disableAIVerdicts;
       if (saved.provider == null) localStorage.removeItem('labcharts-ai-provider');
       else localStorage.setItem('labcharts-ai-provider', saved.provider);
       if (saved.paused == null) localStorage.removeItem('labcharts-ai-paused');

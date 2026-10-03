@@ -1,7 +1,11 @@
+import type { LightRoom, LightScreen, LightDeficitAxes } from '../../js/light-env-model.js';
+type LightActiveFixture = (LightRoom | LightScreen) & {skipToday?: boolean};
+interface LightEnvironmentFixture {rooms?: Array<LightRoom & {skipToday?: boolean}>; screens?: Array<LightScreen & {skipToday?: boolean}>}
+interface LightScoringFixtureOptions {screens?: Array<LightScreen & {skipToday?: boolean}>;isActiveToday?: (item: LightActiveFixture) => unknown;axes?: LightDeficitAxes}
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = (path) => `${path}?lightEnvModelBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?lightEnvModelBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   path: "/light-env-model-browser-coverage", status: 200, body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
@@ -11,9 +15,9 @@ test('light environment model browser coverage scores picker room screen and bur
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ modelUrl }) => {
-    const model = await import(modelUrl);
-    const outcomes = {};
-    const closeTo = (actual, expected) => Math.abs(actual - expected) < 0.001;
+    const model = (await import(modelUrl) as unknown) as Pick<typeof import('../../js/light-env-model.js'), "activeSourceArchetype" | "activeHoursBucket" | "activeEveningBucket" | "defaultHoursForName" | "computeRoomSeverityForRoom" | "computeScreenStatus" | "computeDeficitAxesForEnvironment" | "computeIndoorBurdenForEnvironment">;
+    const outcomes: Record<string, unknown> = {};
+    const closeTo = (actual: unknown, expected: number) => Math.abs((actual as number) - expected) < 0.001;
 
     outcomes.pickerHelpersNormalizeSourcesHoursEveningAndDefaultRooms =
       model.activeSourceArchetype(null) === null
@@ -41,9 +45,9 @@ test('light environment model browser coverage scores picker room screen and bur
       && model.defaultHoursForName('bathroom') === 1
       && model.defaultHoursForName('garage') === 4;
 
-    const unknownRoom = model.computeRoomSeverityForRoom(null);
-    const emptyRoom = model.computeRoomSeverityForRoom({ id: 'empty', name: 'Empty', primarySource: 'unknown', hoursOccupiedPerDay: 0 });
-    const severeRoom = model.computeRoomSeverityForRoom({
+    const unknownRoom = (model.computeRoomSeverityForRoom as (room: Parameters<typeof model.computeRoomSeverityForRoom>[0], measurements?: Parameters<typeof model.computeRoomSeverityForRoom>[1], options?: LightScoringFixtureOptions) => ReturnType<typeof model.computeRoomSeverityForRoom>)(null);
+    const emptyRoom = (model.computeRoomSeverityForRoom as (room: Parameters<typeof model.computeRoomSeverityForRoom>[0], measurements?: Parameters<typeof model.computeRoomSeverityForRoom>[1], options?: LightScoringFixtureOptions) => ReturnType<typeof model.computeRoomSeverityForRoom>)({ id: 'empty', name: 'Empty', primarySource: 'unknown', hoursOccupiedPerDay: 0 });
+    const severeRoom = (model.computeRoomSeverityForRoom as (room: Parameters<typeof model.computeRoomSeverityForRoom>[0], measurements?: Parameters<typeof model.computeRoomSeverityForRoom>[1], options?: LightScoringFixtureOptions) => ReturnType<typeof model.computeRoomSeverityForRoom>)({
       id: 'bedroom',
       name: 'Bedroom',
       primarySource: 'led-cool',
@@ -60,7 +64,7 @@ test('light environment model browser coverage scores picker room screen and bur
         { id: 'blocked', eveningUseAfterSunset: 6, blueBlockerEnabled: true },
         { id: 'skip', eveningUseAfterSunset: 6, blueBlockerEnabled: false, skipToday: true },
       ],
-      isActiveToday: item => !item.skipToday,
+      isActiveToday: (item: LightActiveFixture) => !item.skipToday,
     });
     outcomes.roomSeverityCoversUnknownIncompleteAndCompoundedRedSignals =
       unknownRoom.label === 'Unknown'
@@ -104,15 +108,15 @@ test('light environment model browser coverage scores picker room screen and bur
         { id: 'skipped-screen', eveningUseAfterSunset: 6, blueBlockerEnabled: false, skipToday: true },
       ],
     };
-    const isActiveToday = item => !item.skipToday;
-    const axes = model.computeDeficitAxesForEnvironment(environment, { isActiveToday });
-    const heavyBurden = model.computeIndoorBurdenForEnvironment(environment, { isActiveToday });
-    const emptyBurden = model.computeIndoorBurdenForEnvironment({ rooms: [], screens: [] });
-    const skippedBurden = model.computeIndoorBurdenForEnvironment({
+    const isActiveToday = (item: LightActiveFixture) => !item.skipToday;
+    const axes = (model.computeDeficitAxesForEnvironment as (environment: LightEnvironmentFixture, options?: LightScoringFixtureOptions) => ReturnType<typeof model.computeDeficitAxesForEnvironment>)(environment, { isActiveToday });
+    const heavyBurden = (model.computeIndoorBurdenForEnvironment as (environment: LightEnvironmentFixture, options?: LightScoringFixtureOptions) => ReturnType<typeof model.computeIndoorBurdenForEnvironment>)(environment, { isActiveToday });
+    const emptyBurden = (model.computeIndoorBurdenForEnvironment as (environment: LightEnvironmentFixture, options?: LightScoringFixtureOptions) => ReturnType<typeof model.computeIndoorBurdenForEnvironment>)({ rooms: [], screens: [] });
+    const skippedBurden = (model.computeIndoorBurdenForEnvironment as (environment: LightEnvironmentFixture, options?: LightScoringFixtureOptions) => ReturnType<typeof model.computeIndoorBurdenForEnvironment>)({
       rooms: [{ id: 'out', hoursOccupiedPerDay: 8, primarySource: 'natural-only', skipToday: true }],
       screens: [{ id: 'phone', eveningUseAfterSunset: 3, blueBlockerEnabled: false, skipToday: true }],
     }, { isActiveToday });
-    const axisOverrideBurden = model.computeIndoorBurdenForEnvironment(environment, {
+    const axisOverrideBurden = (model.computeIndoorBurdenForEnvironment as (environment: LightEnvironmentFixture, options?: LightScoringFixtureOptions) => ReturnType<typeof model.computeIndoorBurdenForEnvironment>)(environment, {
       axes: { d2: 2, d3: 3, daylightKnown: 1, eveningKnown: 1, missingDaylightRooms: 0 },
     });
     outcomes.environmentAxesAndBurdenRespectSkippedItemsAndInterpretationBranches =

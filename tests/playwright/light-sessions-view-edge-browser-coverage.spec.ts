@@ -1,3 +1,4 @@
+type LightSessionsFixtureDeps = Partial<Parameters<typeof import('../../js/light-sessions-view.js').configureLightSessionsView>[0]> & {deleteDeviceSession?: (id?: unknown)=>unknown; renderDeviceSessionAIInline?: (session: {id?: unknown})=>unknown;channelDisplay?: unknown;channelTier?: (value:number,key:string)=>unknown;formatChannelUnit?: (key:string,value:number)=>unknown};
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -8,12 +9,12 @@ test('light sessions view edge coverage handles empty and compact device history
   await page.waitForSelector('body');
 
   const results = await page.evaluate(async ({ sessionsUrl }) => {
-    const sessionsView = await import(sessionsUrl);
-    const outcomes = {};
-    const calls = [];
+    const sessionsView = (await import(sessionsUrl) as unknown) as Pick<typeof import('../../js/light-sessions-view.js'), "configureLightSessionsView" | "renderUnifiedSessionsList" | "_openAllSessionsModal" | "installLightSessionsActionDelegates">;
+    const outcomes: Record<string, unknown> = {};
+    const calls: [string, unknown][] = [];
     const base = Date.UTC(2026, 5, 10, 10, 0);
-    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const resetDeps = () => sessionsView.configureLightSessionsView({
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    const resetDeps = () => (sessionsView.configureLightSessionsView as (deps: LightSessionsFixtureDeps) => ReturnType<typeof sessionsView.configureLightSessionsView>)({
       getSessions: () => [],
       getDeviceSessions: () => [],
       getDevices: () => [],
@@ -27,31 +28,31 @@ test('light sessions view edge coverage handles empty and compact device history
     });
 
     try {
-      sessionsView.configureLightSessionsView({
+      (sessionsView.configureLightSessionsView as (deps: LightSessionsFixtureDeps) => ReturnType<typeof sessionsView.configureLightSessionsView>)({
         getSessions: () => [],
         getDeviceSessions: () => [],
         getDevices: () => [],
         renderSunSessionRow: sess => `<div class="sun-session light-session-row light-session-sun" data-id="${sess.id}" role="button">${sess.id}</div>`,
         openDeviceSessionDetail: id => calls.push(['detail', id]),
-        deleteDeviceSession: id => calls.push(['delete', id]),
-        renderDeviceSessionAIInline: sess => `<span class="ai-inline">AI ${sess.id}</span>`,
+        deleteDeviceSession: (id: unknown) => calls.push(['delete', id]),
+        renderDeviceSessionAIInline: (sess: {id?: unknown}) => `<span class="ai-inline">AI ${sess.id}</span>`,
         channelDisplay: {
           pbm_red: { icon: 'R', label: 'Red <unsafe>', what: 'Red channel' },
           pbm_nir: { icon: 'N', label: 'NIR', what: 'Near infrared' },
         },
-        channelTier: (value, key) => key === 'pbm_nir' && value > 0 ? 3 : 0,
-        formatChannelUnit: (key, value) => `${Math.round(value)} ${key}`,
+        channelTier: (value: number, key: string) => key === 'pbm_nir' && value > 0 ? 3 : 0,
+        formatChannelUnit: (key: string, value: number) => `${Math.round(value)} ${key}`,
       });
 
       outcomes.emptyInlineReturnsBlank = sessionsView.renderUnifiedSessionsList() === '';
       sessionsView._openAllSessionsModal();
-      let overlay = document.querySelector('.light-sessions-modal-overlay');
+      let overlay = document.querySelector<HTMLElement>('.light-sessions-modal-overlay');
       outcomes.emptyModalRendersSummaryAndEmptyState = overlay?.textContent.includes('All sessions (0)') === true
         && overlay?.textContent.includes('No completed sessions yet.') === true
         && overlay?.querySelectorAll('.sun-session').length === 0;
       overlay?.remove();
 
-      sessionsView.configureLightSessionsView({
+      (sessionsView.configureLightSessionsView as (deps: LightSessionsFixtureDeps) => ReturnType<typeof sessionsView.configureLightSessionsView>)({
         getSessions: () => [
           { id: 'sun-only-a', startedAt: base - 60000, endedAt: base, durationMin: 10 },
           { id: 'sun-active', startedAt: base + 1000, endedAt: null, durationMin: 0 },
@@ -64,7 +65,7 @@ test('light sessions view edge coverage handles empty and compact device history
         && !sunOnlyHost.querySelector('.light-sessions-list-unified')
         && !sunOnlyHost.querySelector('.light-sessions-show-more');
 
-      sessionsView.configureLightSessionsView({
+      (sessionsView.configureLightSessionsView as (deps: LightSessionsFixtureDeps) => ReturnType<typeof sessionsView.configureLightSessionsView>)({
         getSessions: () => [],
         getDevices: () => [{
           id: 'panel-a',
@@ -128,7 +129,7 @@ test('light sessions view edge coverage handles empty and compact device history
       outcomes.inlineRowClickAndEnterCallDetail = calls.filter(call => call[0] === 'detail' && call[1] === 'dev-nir').length === 2;
 
       sessionsView._openAllSessionsModal();
-      overlay = document.querySelector('.light-sessions-modal-overlay');
+      overlay = document.querySelector<HTMLElement>('.light-sessions-modal-overlay');
       if (overlay) sessionsView.installLightSessionsActionDelegates(overlay);
       const modalRow = overlay?.querySelector('.light-session-device[data-id="dev-nir"]');
       const detailCallsBeforeModalEnter = calls.filter(call => call[0] === 'detail' && call[1] === 'dev-nir').length;

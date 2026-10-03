@@ -47,7 +47,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Knowledge Base UI stays cold, single-flights, and enriches the core summary after loading', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/lens-knowledge-base-ui.js*', async route => {
     implementationRequests.push(route.request().url());
     await new Promise(resolve => setTimeout(resolve, 25));
@@ -65,7 +65,7 @@ test('Knowledge Base UI stays cold, single-flights, and enriches the core summar
       multiQuery: true,
     }));
     localStorage.setItem('labcharts-lens-local-count', '2');
-    const facade = await import(url);
+    const facade = (await import(url) as unknown) as Pick<typeof import('../../js/lens.js'), "isLensKnowledgeBaseUiLoaded" | "getLensSummary" | "closeKnowledgeBaseModal" | "renderCustomLensSection" | "loadLensKnowledgeBaseUi" | "openKnowledgeBaseModal" | "handleSaveLensConfig" | "handleLensBackendChange" | "handleLocalLensDeleteDoc" | "handleLocalLensClear" | "handleLibraryActivate" | "handleLibraryNew" | "handleLibraryRename" | "handleLibraryDelete" | "handleToggleLens" | "handleClearLensCache" | "handleRemoveLens">;
     const cold = !facade.isLensKnowledgeBaseUiLoaded();
     const coldSummary = facade.getLensSummary();
     const coldClose = facade.closeKnowledgeBaseModal();
@@ -74,8 +74,8 @@ test('Knowledge Base UI stays cold, single-flights, and enriches the core summar
     document.body.appendChild(section);
     section.innerHTML = facade.renderCustomLensSection();
     const coldMarkup = section.textContent;
-    const first = facade.loadLensKnowledgeBaseUi();
-    const second = facade.loadLensKnowledgeBaseUi();
+    const first = (facade.loadLensKnowledgeBaseUi as (...args: Parameters<typeof facade.loadLensKnowledgeBaseUi>) => Promise<unknown>)();
+    const second = (facade.loadLensKnowledgeBaseUi as (...args: Parameters<typeof facade.loadLensKnowledgeBaseUi>) => Promise<unknown>)();
     const sharedPromise = first === second;
     await Promise.all([first, second]);
     const warmSummary = facade.getLensSummary();
@@ -103,7 +103,7 @@ test('Knowledge Base UI stays cold, single-flights, and enriches the core summar
       toggled: facade.handleToggleLens(true),
       cacheCleared: facade.handleClearLensCache(),
       removed: facade.handleRemoveLens(),
-      calls: window.__lensUiLoaderCalls || [],
+      calls: (window as Window & {__lensUiLoaderCalls?: unknown[][]}).__lensUiLoaderCalls || [],
     };
   }, facadeUrl());
 
@@ -143,7 +143,7 @@ test('Knowledge Base UI stays cold, single-flights, and enriches the core summar
 });
 
 test('Knowledge Base UI retries with a fixed URL and reports the first failure', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/lens-knowledge-base-ui.js*', async route => {
     const url = route.request().url();
     implementationRequests.push(url);
@@ -158,7 +158,7 @@ test('Knowledge Base UI retries with a fixed URL and reports the first failure',
   });
 
   const outcomes = await page.evaluate(async url => {
-    const facade = await import(url);
+    const facade = (await import(url) as unknown) as Pick<typeof import('../../js/lens.js'), "isLensKnowledgeBaseUiLoaded" | "getLensSummary" | "closeKnowledgeBaseModal" | "renderCustomLensSection" | "loadLensKnowledgeBaseUi" | "openKnowledgeBaseModal" | "handleSaveLensConfig" | "handleLensBackendChange" | "handleLocalLensDeleteDoc" | "handleLocalLensClear" | "handleLibraryActivate" | "handleLibraryNew" | "handleLibraryRename" | "handleLibraryDelete" | "handleToggleLens" | "handleClearLensCache" | "handleRemoveLens">;
     const first = await facade.openKnowledgeBaseModal();
     const notification = document.querySelector('#notification-container')?.textContent || '';
     const second = await facade.openKnowledgeBaseModal();
@@ -171,8 +171,8 @@ test('Knowledge Base UI retries with a fixed URL and reports the first failure',
   }, facadeUrl());
 
   expect(implementationRequests).toHaveLength(2);
-  expect(new URL(implementationRequests[0]).search).toBe('');
-  expect(new URL(implementationRequests[1]).search).toBe('?lazy-retry=1');
+  expect(new URL(implementationRequests[0]!).search).toBe('');
+  expect(new URL(implementationRequests[1]!).search).toBe('?lazy-retry=1');
   expect(outcomes).toEqual({
     first: false,
     second: 'opened',

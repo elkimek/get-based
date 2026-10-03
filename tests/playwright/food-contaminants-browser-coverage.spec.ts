@@ -1,7 +1,7 @@
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = (path) => `${path}?foodContaminantsCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?foodContaminantsCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   path: "/food-contaminants-browser-coverage", status: 200, body: '<!doctype html><html><body><main id="fixture"></main><div id="modal-overlay"><div id="detail-modal"></div></div></body></html>',
@@ -13,13 +13,13 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
 
   const results = await page.evaluate(async ({ foodUrl, lifestyleUrl }) => {
     const [food, lifestyle, stateModule] = await Promise.all([
-      import(foodUrl),
-      import(lifestyleUrl),
+      (import(foodUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/food-contaminants.js'), "scanDietForContaminants">>,
+      (import(lifestyleUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/context-card-lifestyle-editors.js'), "renderDietContaminantsBadge" | "loadLifestyleContextEditors" | "showDietContaminantsModal">>,
       import('/js/state.js'),
     ]);
     const { state } = stateModule;
-    const outcomes = {};
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const outcomes: Record<string, unknown> = {};
+    const clone = (value: unknown): unknown => value == null ? value : JSON.parse(JSON.stringify(value));
     const savedDiet = clone(state.importedData?.diet);
 
     try {
@@ -32,7 +32,7 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
         restrictions: ['corn-free'],
         type: 'omnivore',
       });
-      const byType = type => warnings.filter(w => w.type === type);
+      const byType = (type: string) => warnings.filter(w => w.type === type);
       const warningText = warnings.map(w => w.warning).join('\n');
       const matches = warnings.map(w => w.match);
       outcomes.scanFindsPesticideCleanAndPlasticSignals =
@@ -86,7 +86,7 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
         && dedupText.includes('Strawberries: #2 on EWG Dirty Dozen')
         && dedupText.includes('Takeout containers increase plastic chemical levels');
 
-      state.importedData.diet = {
+      (state.importedData as {diet?: unknown}).diet = {
         breakfast: 'Spinach and avocado',
         lunch: 'Canned soup',
         dinner: '',
@@ -100,33 +100,33 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
         && !badge.includes('onclick=');
 
       let openedDietEditor = false;
-      window.openDietEditor = () => { openedDietEditor = true; };
+      (window as Window & {openDietEditor?: unknown}).openDietEditor = () => { openedDietEditor = true; };
       const fixture = document.getElementById('fixture');
-      fixture.innerHTML = '';
+      fixture!.innerHTML = '';
       const contextCard = document.createElement('div');
       contextCard.className = 'context-card';
       contextCard.setAttribute('onclick', 'window.openDietEditor()');
       contextCard.innerHTML = badge;
-      fixture.append(contextCard);
-      contextCard.querySelector('.diet-contaminants')?.click();
+      fixture!.append(contextCard);
+      contextCard.querySelector<HTMLElement>('.diet-contaminants')?.click();
       await lifestyle.loadLifestyleContextEditors();
       outcomes.dashboardBadgeClickBypassesParentCard =
         openedDietEditor === false
         && document.getElementById('modal-overlay')?.classList.contains('show') === true
         && (document.getElementById('detail-modal')?.textContent || '').includes('Food Contaminant Signals');
       document.getElementById('modal-overlay')?.classList.remove('show');
-      document.getElementById('detail-modal').innerHTML = '';
+      document.getElementById('detail-modal')!.innerHTML = '';
 
-      state.importedData.diet = { breakfast: 'avocado and pineapple' };
+      (state.importedData as {diet?: unknown}).diet = { breakfast: 'avocado and pineapple' };
       outcomes.cleanOnlyDietDoesNotRenderBadge = lifestyle.renderDietContaminantsBadge() === '';
 
-      state.importedData.diet = {
+      (state.importedData as {diet?: unknown}).diet = {
         breakfast: 'Spinach with pineapple',
         lunch: 'Canned beans and bottled water',
         dinner: 'Yogurt',
         snacks: '',
       };
-      lifestyle.showDietContaminantsModal();
+      (lifestyle.showDietContaminantsModal as (...args: Parameters<typeof lifestyle.showDietContaminantsModal>) => unknown)();
       const modal = document.getElementById('detail-modal');
       const overlay = document.getElementById('modal-overlay');
       const modalText = modal?.textContent || '';
@@ -138,17 +138,17 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
         && modalText.includes('Low Contamination')
         && modalText.includes('EWG Shopper')
         && modalText.includes('PlasticList')
-        && modal?.querySelectorAll('a[target="_blank"][rel="noopener"]').length >= 3
+        && modal?.querySelectorAll('a[target="_blank"][rel="noopener"]').length! >= 3
         && modal?.querySelector('[data-lifestyle-action="discuss-diet-contaminants"]')
         && !modal?.querySelector('[onclick]');
 
-      state.importedData.diet = { breakfast: '' };
-      document.getElementById('detail-modal').innerHTML = 'unchanged';
-      lifestyle.showDietContaminantsModal();
+      (state.importedData as {diet?: unknown}).diet = { breakfast: '' };
+      document.getElementById('detail-modal')!.innerHTML = 'unchanged';
+      (lifestyle.showDietContaminantsModal as (...args: Parameters<typeof lifestyle.showDietContaminantsModal>) => unknown)();
       outcomes.emptyWarningsLeaveModalUntouched = document.getElementById('detail-modal')?.innerHTML === 'unchanged';
     } finally {
-      if (savedDiet === undefined) delete state.importedData.diet;
-      else state.importedData.diet = savedDiet;
+      if (savedDiet === undefined) delete (state.importedData as {diet?: unknown}).diet;
+      else (state.importedData as {diet?: unknown}).diet = savedDiet;
       document.getElementById('modal-overlay')?.classList.remove('show');
       const modal = document.getElementById('detail-modal');
       if (modal) modal.innerHTML = '';
