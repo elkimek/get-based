@@ -1299,3 +1299,13 @@ deploy/profile-share/data/
 /types/dashboard-lab-widget-renderers.js
 /types/dashboard-recommendation-widget.js
 /types/dashboard-widget-renderers.js
+
+/scripts/build-production.mjs
+/scripts/production-smoke.mjs
+/scripts/supply-chain.mjs
+/scripts/build-browser-vendors.mjs
+/scripts/build-evolu8-vendor.mjs
+/scripts/verify-real-model-evidence.mjs
+/scripts/upgrade-demos.mjs
+/scripts/fetch-catalog.mjs
+/scripts/generate-import-reference-pdf.mjs
