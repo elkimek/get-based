@@ -1,5 +1,8 @@
+import type { ProfileRecord } from './profile.js';
+type ClientListCalls = { exportAllDataJSON(): unknown; exportClientJSON(profileId: string, includeChat?: boolean): unknown; importDataJSON(file: File): unknown; loadDemoData(sex?: string): unknown; openProfileShareModal(profileId?: string): unknown };
+export type ClientListRuntimeSnapshot = { [Key in keyof ClientListCalls]: unknown };
+
 import { createRetryingStylesheetLoader } from './retrying-module-loader.js';
-// @ts-check
 // client-list-impl.js — Client List modal implementation for managing profiles
 
 import { state } from './state.js';
@@ -23,18 +26,8 @@ export { openClientForm };
 
 const CLIENT_LIST_STYLESHEET_URL = new URL('../css/client-list.css', import.meta.url).href;
 
-/**
- * @typedef {{
- *   exportAllDataJSON: () => void,
- *   exportClientJSON: (profileId: string, includeChat?: boolean) => void,
- *   importDataJSON: (file: File) => void,
- *   loadDemoData: (sex?: string) => void,
- *   openProfileShareModal: (profileId?: string) => void,
- * }} ClientListRuntime
- */
-
-/** @type {ClientListRuntime} */
-const clientListRuntime = {
+// Private unchecked calls preserve raw configured slot errors and receiver.
+const clientListRuntime: ClientListCalls = {
   exportAllDataJSON: () => {},
   exportClientJSON: () => {},
   importDataJSON: () => {},
@@ -42,8 +35,7 @@ const clientListRuntime = {
   openProfileShareModal: () => {},
 };
 
-/** @param {Partial<ClientListRuntime>} [runtime] */
-export function configureClientListRuntime(runtime = {}) {
+export function configureClientListRuntime(runtime: unknown = {}): ClientListRuntimeSnapshot {
   const previous = { ...clientListRuntime };
   Object.assign(clientListRuntime, runtime);
   return previous;
@@ -70,8 +62,7 @@ const clientListStylesheetLoadCache = createRetryingStylesheetLoader({
   requireDocument: "Client List stylesheet requires a document",
   failedLoad: "Client List stylesheet could not be loaded",
 });
-/** @type {Promise<boolean> | null} */
-let _clientListOpen = null;
+let _clientListOpen: Promise<boolean> | null = null;
 
 const CL_ICONS = Object.freeze({
   archive: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>',
@@ -89,37 +80,37 @@ const CL_ICONS = Object.freeze({
   user: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>',
 });
 
-function _clActionAttrs(action, attrs = {}) {
+function _clActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   return Object.entries({ 'data-cl-action': action, ...attrs })
     .filter(([, value]) => value !== undefined && value !== null)
     .map(([name, value]) => `${name}="${escapeAttr(String(value))}"`)
     .join(' ');
 }
 
-function _clInputAttrs(action) {
+function _clInputAttrs(action: unknown) {
   return `data-cl-input-action="${escapeAttr(action)}"`;
 }
 
-function _clChangeAttrs(action) {
+function _clChangeAttrs(action: unknown) {
   return `data-cl-change-action="${escapeAttr(action)}"`;
 }
 
-function _clKeyAttrs(action) {
+function _clKeyAttrs(action: unknown) {
   return `data-cl-key-action="${escapeAttr(action)}"`;
 }
 
-function _clMenuButton({ icon, label, action, profileId, danger = false }) {
+function _clMenuButton({ icon, label, action, profileId, danger = false }: {icon: unknown; label: unknown; action: unknown; profileId: unknown; danger?: unknown}) {
   return `<button type="button" class="cl-menu-item${danger ? ' cl-menu-danger' : ''}" ${_clActionAttrs(action, { 'data-cl-profile-id': profileId })}>${icon}<span>${escapeHTML(label)}</span></button>`;
 }
 
-function _isSafeAvatarSrc(s) { return typeof s === 'string' && s.startsWith('data:image/'); }
+function _isSafeAvatarSrc(s: unknown) { return typeof s === 'string' && s.startsWith('data:image/'); }
 
-function _renderAvatarEl(profile) {
+function _renderAvatarEl(profile: ProfileRecord) {
   if (profile.avatar && _isSafeAvatarSrc(profile.avatar)) {
     return `<img class="cl-avatar cl-avatar-img" src="${escapeAttr(profile.avatar)}" alt="">`;
   }
   const color = getAvatarColor(profile.id);
-  const initial = (profile.name || '?')[0].toUpperCase();
+  const initial = (profile.name || '?')[0]!.toUpperCase();
   return `<span class="cl-avatar" style="background:${color}">${initial}</span>`;
 }
 
@@ -293,7 +284,7 @@ function renderClientList() {
   if (list) list.addEventListener('scroll', _closeMenus);
 }
 
-function _renderClientRow(p, activeId) {
+function _renderClientRow(p: ProfileRecord, activeId: ReturnType<typeof getActiveProfileId>) {
   const isActive = p.id === activeId;
   const timeAgo = _timeAgo(p.lastUpdated);
   const notePreview = (p.notes || '').slice(0, 60).replace(/\n/g, ' ');
@@ -327,7 +318,7 @@ function _renderClientRow(p, activeId) {
   </div>`;
 }
 
-function _getSortFn() {
+function _getSortFn(): (a: ProfileRecord, b: ProfileRecord) => number {
   switch (_sort) {
     case 'az': return (a, b) => (a.name || '').localeCompare(b.name || '');
     case 'za': return (a, b) => (b.name || '').localeCompare(a.name || '');
@@ -336,7 +327,7 @@ function _getSortFn() {
   }
 }
 
-function _timeAgo(ts) {
+function _timeAgo(ts: number | null | undefined) {
   if (!ts) return '';
   const diff = Date.now() - ts;
   const mins = Math.floor(diff / 60000);
@@ -353,13 +344,13 @@ function _timeAgo(ts) {
 // ═══════════════════════════════════════════════
 // LIST ACTIONS
 // ═══════════════════════════════════════════════
-function _clSelect(id) {
+function _clSelect(id: string) {
   switchProfile(id);
   refreshClientProfileButton();
   closeClientList();
 }
 
-function _clSearch(val) {
+function _clSearch(val: string) {
   _search = val;
   renderClientList();
   // Restore focus + cursor position
@@ -369,11 +360,11 @@ function _clSearch(val) {
   });
 }
 
-function _clSort(val) { _sort = val; renderClientList(); }
-function _clStatusFilter(val) { _statusFilter = val; renderClientList(); }
-function _clTagFilter(val) { _tagFilter = (_tagFilter === val) ? '' : val; renderClientList(); }
+function _clSort(val: string) { _sort = val; renderClientList(); }
+function _clStatusFilter(val: string) { _statusFilter = val; renderClientList(); }
+function _clTagFilter(val: string) { _tagFilter = (_tagFilter === val) ? '' : val; renderClientList(); }
 
-function _clToggleToolsMenu(e) {
+function _clToggleToolsMenu(e: Event) {
   e.stopPropagation();
   const menu = document.getElementById('cl-tools-menu');
   if (!menu) return;
@@ -382,7 +373,7 @@ function _clToggleToolsMenu(e) {
   menu.classList.toggle('show', !open);
 }
 
-function _clToggleMenu(e, id, buttonEl = null) {
+function _clToggleMenu(e: Event, id: string, buttonEl: Element | null = null) {
   e.stopPropagation();
   const menu = document.getElementById('cl-active-menu');
   if (!menu) return;
@@ -439,8 +430,8 @@ function _clToggleMenu(e, id, buttonEl = null) {
   menu.style.top = top + 'px';
 }
 
-function _clEdit(id) { _closeMenus(); openClientForm(id); }
-function _clUpdateProfile(id, updates, refreshProfileButton = false) {
+function _clEdit(id: string) { _closeMenus(); openClientForm(id); }
+function _clUpdateProfile(id: string, updates: Parameters<typeof updateProfileMeta>[1], refreshProfileButton = false) {
   void updateProfileMeta(id, updates).then(changed => {
     if (!changed) return;
     renderClientList();
@@ -449,41 +440,41 @@ function _clUpdateProfile(id, updates, refreshProfileButton = false) {
     // saveProfiles already surfaced the storage failure; retain current UI.
   });
 }
-function _clPin(id) { _clUpdateProfile(id, { pinned: true }); }
-function _clUnpin(id) { _clUpdateProfile(id, { pinned: false }); }
-function _clFlag(id) { _clUpdateProfile(id, { status: 'flagged' }, true); }
-function _clUnflag(id) { _clUpdateProfile(id, { status: 'active' }, true); }
-function _clArchive(id) { _clUpdateProfile(id, { status: 'archived' }, true); }
-function _clUnarchive(id) { _clUpdateProfile(id, { status: 'active' }, true); }
+function _clPin(id: string) { _clUpdateProfile(id, { pinned: true }); }
+function _clUnpin(id: string) { _clUpdateProfile(id, { pinned: false }); }
+function _clFlag(id: string) { _clUpdateProfile(id, { status: 'flagged' }, true); }
+function _clUnflag(id: string) { _clUpdateProfile(id, { status: 'active' }, true); }
+function _clArchive(id: string) { _clUpdateProfile(id, { status: 'archived' }, true); }
+function _clUnarchive(id: string) { _clUpdateProfile(id, { status: 'active' }, true); }
 function _closeMenus() {
   const m = document.getElementById('cl-active-menu');
   const tools = document.getElementById('cl-tools-menu');
   if (m) m.classList.remove('show');
   if (tools) tools.classList.remove('show');
 }
-function _clExport(id) { _closeMenus(); clientListRuntime.exportClientJSON(id); }
-function _clExportChat(id) { _closeMenus(); clientListRuntime.exportClientJSON(id, true); }
-function _clShare(id) {
+function _clExport(id: string) { _closeMenus(); clientListRuntime.exportClientJSON(id); }
+function _clExportChat(id: string) { _closeMenus(); clientListRuntime.exportClientJSON(id, true); }
+function _clShare(id: string) {
   _closeMenus();
   closeClientList();
   setTimeout(() => clientListRuntime.openProfileShareModal(id), 120);
 }
-function _clDelete(id) { _closeMenus(); deleteProfile(id, () => renderClientList()); }
+function _clDelete(id: string) { _closeMenus(); deleteProfile(id, () => renderClientList()); }
 
-function _closestClientEl(event, selector) {
+function _closestClientEl(event: Event, selector: string) {
   const target = event.target;
   if (!(target instanceof Element)) return null;
   const el = target.closest(selector);
   if (!el || !el.closest('#client-list-modal')) return null;
-  return el;
+  return el as HTMLElement;
 }
 
-function _clickFileInput(id) {
+function _clickFileInput(id: string) {
   const input = document.getElementById(id);
   if (input instanceof HTMLInputElement) input.click();
 }
 
-function _handleClientClick(event) {
+function _handleClientClick(event: MouseEvent) {
   const actionEl = _closestClientEl(event, '[data-cl-action]');
   if (!actionEl) return;
 
@@ -517,7 +508,7 @@ function _handleClientClick(event) {
   if (handled) event.preventDefault();
 }
 
-function _handleClientInput(event) {
+function _handleClientInput(event: Event) {
   const input = _closestClientEl(event, '[data-cl-input-action]');
   if (!(input instanceof HTMLInputElement)) return;
 
@@ -526,7 +517,7 @@ function _handleClientInput(event) {
   else handleClientFormInput(action || '');
 }
 
-function _handleClientChange(event) {
+function _handleClientChange(event: Event) {
   const el = _closestClientEl(event, '[data-cl-change-action]');
   if (!(el instanceof HTMLElement)) return;
 
@@ -546,17 +537,17 @@ function _handleClientChange(event) {
   }
 }
 
-function _handleClientSubmit(event) {
+function _handleClientSubmit(event: Event) {
   const form = _closestClientEl(event, '[data-cl-submit-action]');
   if (!(form instanceof HTMLFormElement)) return;
   handleClientFormSubmit(form.dataset.clSubmitAction || '', event);
 }
 
-function _handleClientKeydown(event) {
+function _handleClientKeydown(event: KeyboardEvent) {
   const el = _closestClientEl(event, '[data-cl-key-action]');
   if (!el) return;
   const action = el.dataset.clKeyAction;
-  if (handleClientFormKeydown(action, event)) return;
+  if (handleClientFormKeydown(action as string, event)) return;
   if (event.key !== 'Enter' && event.key !== ' ') return;
 
   if (action === 'select-profile') {
@@ -567,7 +558,7 @@ function _handleClientKeydown(event) {
 
 // Global "click outside" dismiss: intentionally not scoped to #client-list-modal
 // so open client-list menus close when the user clicks anywhere on the page.
-function _handleClientDocumentClick(event) {
+function _handleClientDocumentClick(event: MouseEvent) {
   const target = event.target;
   if (!(target instanceof Element)) return;
   if (!target.closest('.cl-row-menu-btn, .cl-row-menu, .cl-tools-wrap')) _closeMenus();

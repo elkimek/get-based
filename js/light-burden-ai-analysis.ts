@@ -1,11 +1,9 @@
-// @ts-check
 // light-burden-ai-analysis.js — AI verdict for the live indoor-burden
 // summary at the bottom of the Light Environment block.
 //
-// Replaces (when an AI provider is configured + the user has clicked
-// the CTA) the 5-branch hardcoded heuristic interp string in
-// computeIndoorBurden() with a personalized read of the user's actual
-// room + screen + occupancy mix.
+// Replaces the heuristic interpretation in computeIndoorBurden() with
+// a personalized read of the user's actual room, screen and occupancy
+// mix when a verdict is available from automatic analysis or refresh.
 //
 // Storage: singleton at state.importedData.lightEnvironment.burdenAI.
 // Trigger: auto-fire on render when the user has data + no cached
@@ -25,13 +23,22 @@ import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
+import type { LightRoom, LightScreen, LightMeasurement } from './light-env-model.js';
+import type { AIVerdictAnalysis, AIVerdictConfig, AIVerdictEngine } from './ai-verdict-engine.js';
+type RawAnalysis = Partial<Record<keyof AIVerdictAnalysis, unknown>>;
+// Private stored-container operations; cache leaves never promise parsed AI output.
+interface BurdenEnvironment { rooms: LightRoom[]; screens?: LightScreen[] | null | undefined; burdenAI?: RawAnalysis | null }
+type BurdenMeasurement = LightMeasurement & {roomId?: unknown; extra?: NonNullable<LightMeasurement['extra']> & {calibrationConfirmed?: unknown} | null};
+type RawVerdictConfig<T> = Omit<AIVerdictConfig<T>, 'getAIAnalysis' | 'setAIAnalysis'> & {getAIAnalysis(target: T): RawAnalysis | null | undefined; setAIAnalysis(target: T, value: RawAnalysis | null): void};
+type RawVerdictEngine<T> = Omit<AIVerdictEngine<T>, 'analyze' | 'refresh'> & {analyze(target: T | null | undefined, options?: Parameters<AIVerdictEngine<T>['analyze']>[1]): Promise<unknown>; refresh(id: string): Promise<unknown>};
+
 function _getEnv() {
   if (!state.importedData) return null;
   if (!state.importedData.lightEnvironment) state.importedData.lightEnvironment = { rooms: [], screens: [] };
-  return state.importedData.lightEnvironment;
+  return state.importedData.lightEnvironment as BurdenEnvironment;
 }
 
-const _SOURCE_LABELS = {
+const _SOURCE_LABELS: Record<string, string> = {
   unknown: 'unknown', incandescent: 'incandescent / halogen',
   'led-warm': 'warm LED', 'led-cool': 'cool LED',
   'led-tunable': 'tunable LED', fluorescent: 'fluorescent',
@@ -39,7 +46,7 @@ const _SOURCE_LABELS = {
   daylight: 'mostly daylight (windows)',
 };
 
-const _SCREEN_LABELS = {
+const _SCREEN_LABELS: Record<string, string> = {
   phone: 'phone', tablet: 'tablet', laptop: 'laptop',
   monitor: 'monitor', tv: 'TV', ereader: 'e-reader',
 };
@@ -48,7 +55,7 @@ export function getBurdenFingerprint() {
   const env = _getEnv();
   if (!env) return '';
   const burden = computeIndoorBurden();
-  const parts = /** @type {Array<string|number>} */ ([
+  const parts: Array<string | number> = ([
     'v2-screening-not-dose',
     burden.tier,
     Math.round(burden.d2 * 10) / 10,
@@ -57,9 +64,9 @@ export function getBurdenFingerprint() {
   for (const r of env.rooms || []) {
     if (!isActiveToday(r)) continue;
     parts.push(`r:${r.id}:${r.primarySource || ''}:${r.daylightLevel || ''}:${r.hoursOccupiedPerDay || 0}:${getRoomEveningHoursAfterSunset(r)}`);
-    const latestLux = (state.importedData?.lightMeasurements || [])
+    const latestLux = ((state.importedData?.lightMeasurements || []) as BurdenMeasurement[])
       .filter(m => m?.roomId === r.id && m.tool === 'lux')
-      .sort((a, b) => (b.capturedAt || 0) - (a.capturedAt || 0))[0];
+      .sort((a, b) => ((b.capturedAt || 0) as number) - ((a.capturedAt || 0) as number))[0];
     if (latestLux) parts.push(`lux:${r.id}:${Math.round(Number(latestLux.value) || 0)}:${latestLux.extra?.source || ''}:${latestLux.extra?.calibrationConfirmed ? 1 : 0}`);
   }
   for (const s of env.screens || []) {
@@ -73,7 +80,7 @@ export function buildBurdenContext() {
   const env = _getEnv();
   if (!env) return '';
   const burden = computeIndoorBurden();
-  const lines = [];
+  const lines: string[] = [];
   lines.push('### Indoor light burden — live snapshot of the user\'s active environment');
   lines.push(`Tier: ${burden.label} (0=generally aligned / 1=mixed signals / 2=needs attention)`);
   lines.push(`Daytime opportunity screening score (d2, 0–10; not hours or dose): ${burden.d2.toFixed(1)}`);
@@ -89,7 +96,7 @@ export function buildBurdenContext() {
     for (const r of rooms) {
       const ev = getRoomEveningHoursAfterSunset(r);
       const safeName = String(r.name || '').replace(/\s+/g, ' ').trim().slice(0, 80);
-      lines.push(`- ${safeName}: source=${_SOURCE_LABELS[r.primarySource] || r.primarySource || 'unknown'}, daylight=${r.daylightLevel || 'unknown'}, occupied ${r.hoursOccupiedPerDay || 0} hr/day${ev > 0 ? `, ${ev} hr after sunset` : ''}`);
+      lines.push(`- ${safeName}: source=${_SOURCE_LABELS[r.primarySource as string] || r.primarySource || 'unknown'}, daylight=${r.daylightLevel || 'unknown'}, occupied ${r.hoursOccupiedPerDay || 0} hr/day${ev > 0 ? `, ${ev} hr after sunset` : ''}`);
     }
   }
 
@@ -100,7 +107,7 @@ export function buildBurdenContext() {
     for (const s of screens) {
       const ev = s.eveningUseAfterSunset != null ? Number(s.eveningUseAfterSunset) : 0;
       const room = s.roomId ? (env.rooms.find(r => r.id === s.roomId)?.name || 'a room') : 'portable';
-      lines.push(`- ${_SCREEN_LABELS[s.device] || s.device} (${room}): ${s.hoursPerDay || 0} hr/day${ev > 0 ? `, ${ev} hr after sunset` : ''}${s.blueBlockerEnabled ? ', blue reduction noted (not zero exposure)' : ''}`);
+      lines.push(`- ${_SCREEN_LABELS[s.device as string] || s.device} (${room}): ${s.hoursPerDay || 0} hr/day${ev > 0 ? `, ${ev} hr after sunset` : ''}${s.blueBlockerEnabled ? ', blue reduction noted (not zero exposure)' : ''}`);
     }
   }
 
@@ -148,7 +155,7 @@ const SYSTEM_PROMPT = [
 // Singleton-target wrapper. The engine treats burdenAI as a list-of-one.
 const SINGLETON = { key: 'default', isBurdenTarget: true };
 
-const engine = createAIVerdict({
+const engine = (createAIVerdict as <T>(config: RawVerdictConfig<T>) => RawVerdictEngine<T>)({
   getTarget: () => (_getEnv() ? SINGLETON : null),
   getId: () => 'default',
   getAIAnalysis: () => _getEnv()?.burdenAI || null,
@@ -169,7 +176,7 @@ const engine = createAIVerdict({
   getAllTargets: () => (_getEnv() ? [SINGLETON] : []),
 });
 
-export const analyzeBurdenAI = (opts) => engine.analyze(SINGLETON, opts);
+export const analyzeBurdenAI = (opts?: Parameters<typeof engine.analyze>[1]) => engine.analyze(SINGLETON, opts);
 export const refreshBurdenAIAnalysis = () => engine.refresh('default');
 registerAIActionHandler('refresh-burden', refreshBurdenAIAnalysis);
 
@@ -179,14 +186,14 @@ registerAIActionHandler('refresh-burden', refreshBurdenAIAnalysis);
 // fired in this tab session we don't refire on every render even if
 // the engine errored or the cache is stale. Manual ↻ refresh stays the
 // recovery path, matching the light-today auto-fire pattern.
-const _autoFiredKeys = new Set();
+const _autoFiredKeys = new Set<string>();
 
 // The render integrates with the existing burden summary. Returns the
 // HTML for the interp paragraph + AI affordance row (CTA / refresh /
 // state). Caller is renderEnvironment() in light-env.js, which now
 // delegates the interp content to this fn instead of using burden.interp
 // directly. Falls through to the heuristic interp when no AI provider.
-export function renderBurdenInterp(burden) {
+export function renderBurdenInterp(burden: {interp?: unknown} | null | undefined) {
   const heuristic = burden?.interp || '';
   const env = _getEnv();
   if (!env || ((env.rooms || []).length === 0 && (env.screens || []).length === 0)) {
@@ -212,7 +219,7 @@ export function renderBurdenInterp(burden) {
     return `<p class="light-env-summary-interp">${escapeHTML(heuristic)}</p>`;
   }
   const status = engine.getStatus(SINGLETON);
-  const a = env.burdenAI;
+  const a = env.burdenAI as RawAnalysis;
   const currentFingerprint = getBurdenFingerprint();
   const cachedFingerprint = a?.fingerprint;
   const stale = cachedFingerprint && cachedFingerprint !== currentFingerprint;

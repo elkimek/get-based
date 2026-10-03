@@ -1082,3 +1082,17 @@ deploy/profile-share/data/
 /types/nutrition-controller.js
 /types/wearables-view.js
 /types/sun-session-ui.js
+
+/js/client-list-impl.js
+
+/js/light-burden-ai-analysis.js
+
+/js/context-card-dashboard-ai-impl.js
+
+/js/export-report-builder.js
+
+/lib/dev-catalog.js
+
+/types/context-card-dashboard-ai-impl.js
+
+/types/export-report-builder.js

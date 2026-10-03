@@ -1,5 +1,4 @@
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
-// @ts-check
 // context-card-dashboard-ai-impl.js - lazy AI context modal and DNA picker implementation
 
 import { getFolderBackupState, pickFolderForBackup } from './backup.js';
@@ -41,21 +40,22 @@ import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { migrateStoredContextSourceSettingsToProfile } from './context-source-registry.js';
 import { openInterpretiveLensEditorRuntime } from './context-cards-runtime.js';
 import { notifyDashboardAIContextStatusChanged } from './context-card-dashboard-ai-runtime.js';
+import type { LabSourceGroup, LabSourceStats, ContextImportedReader, ContextImportSnapshot, ContextImportMarker, ContextSourceToggle, ContextSourceSummary, AnswerGroundingReader, ContextActiveCategoryReader, LabGroupRenderOperations } from '../types/context-card-dashboard-ai-impl.js';
 
-let dashboardAISyncSetupHandler = showSyncSetupModal;
-const dashboardAIDataProtectionDeps = { pickFolderForBackup, showEnableEncryptionModal };
-export function configureDashboardAISyncSetup(handler = showSyncSetupModal) {
-  dashboardAISyncSetupHandler = typeof handler === 'function' ? handler : showSyncSetupModal;
+let dashboardAISyncSetupHandler: () => unknown = showSyncSetupModal;
+const dashboardAIDataProtectionDeps: { pickFolderForBackup: () => unknown; showEnableEncryptionModal: () => unknown } = { pickFolderForBackup, showEnableEncryptionModal };
+export function configureDashboardAISyncSetup(handler: unknown = showSyncSetupModal) {
+  dashboardAISyncSetupHandler = typeof handler === 'function' ? handler as () => unknown : showSyncSetupModal;
 }
 
-export function configureDashboardAIDataProtectionDeps(deps = {}) {
-  return configureRuntimeFunctions(dashboardAIDataProtectionDeps, deps, ["pickFolderForBackup","showEnableEncryptionModal"]);
+export function configureDashboardAIDataProtectionDeps(deps: unknown = {}) {
+  return configureRuntimeFunctions(dashboardAIDataProtectionDeps, deps as Partial<typeof dashboardAIDataProtectionDeps>, ["pickFolderForBackup","showEnableEncryptionModal"]);
 }
 
 // Programmatic DNA file picker. Mirrors the chat onboarding hidden-file-input
 // pattern so the same handleDNAFile parser runs.
 export function triggerDNAFilePicker() {
-  let input = /** @type {HTMLInputElement | null} */ (document.getElementById('dna-dashboard-input'));
+  let input = (document.getElementById('dna-dashboard-input') as HTMLInputElement | null);
   if (!input) {
     const newInput = document.createElement('input');
     newInput.type = 'file';
@@ -90,44 +90,24 @@ function getDataProtectionStatus() {
 }
 
 function hasGenomeSnpData() {
-  const snps = state.importedData?.genetics?.snps || {};
+  const snps = (state.importedData as ContextImportedReader | null | undefined)?.genetics?.snps || {};
   return Object.keys(snps).length > 0;
 }
 
 function hasGenomeSummaryData() {
-  const genetics = state.importedData?.genetics || {};
+  const genetics = (state.importedData as ContextImportedReader | null | undefined)?.genetics || {};
   return !!(genetics.apoe || genetics.mtdna);
 }
 
-/**
- * @typedef {{
- *   name: string,
- *   count: number,
- *   products: string[],
- *   sections: string[],
- * }} LabSourceGroup
- */
-
-/**
- * @typedef {{
- *   coreMarkers: number,
- *   totalMarkers: number,
- *   groups: LabSourceGroup[],
- * }} LabSourceStats
- */
-
-/** @returns {LabSourceStats} */
-function getLabSourceStats() {
-  /** @type {LabSourceStats} */
-  const stats = { coreMarkers: 0, totalMarkers: 0, groups: [] };
+function getLabSourceStats(): LabSourceStats {
+  const stats: LabSourceStats = { coreMarkers: 0, totalMarkers: 0, groups: [] };
   try {
-    const data = getActiveData();
-    /** @type {Map<string, { name: string, count: number, products: Set<string>, sections: Set<string> }>} */
-    const groups = new Map();
-    const imported = /** @type {any} */ (state.importedData || {});
-    const snapshotsById = new Map((imported.importSnapshots || []).filter(s => s?.id).map(s => [s.id, s]));
-    const sourceProductLabel = (dotKey) => {
-      const labels = new Set();
+    const data = getActiveData() as { categories?: Record<string, ContextActiveCategoryReader> };
+    const groups = new Map<unknown, { name: unknown; count: number; products: Set<unknown>; sections: Set<unknown> }>();
+    const imported = ((state.importedData || {}) as ContextImportedReader);
+    const snapshotsById = new Map((imported.importSnapshots || []).filter(s => s?.id).map(s => [(s as ContextImportSnapshot).id, s] as const));
+    const sourceProductLabel = (dotKey: string) => {
+      const labels = new Set<unknown>();
       for (const entry of imported.entries || []) {
         const source = entry?.markerSources?.[dotKey];
         if (!source?.snapshotId) continue;
@@ -142,7 +122,7 @@ function getLabSourceStats() {
       if (markers.length === 0) continue;
       stats.totalMarkers += markers.length;
       if (cat.group) {
-        const row = groups.get(cat.group) || { name: cat.group, count: 0, products: new Set(), sections: new Set() };
+        const row = groups.get(cat.group) || { name: cat.group, count: 0, products: new Set<unknown>(), sections: new Set<unknown>() };
         row.count += markers.length;
         if (cat.label) row.sections.add(cat.label);
         for (const [markerKey, marker] of markers) {
@@ -151,7 +131,7 @@ function getLabSourceStats() {
           for (const label of sourceProductLabel(dotKey)) row.products.add(label);
           const cm = imported.customMarkers?.[dotKey];
           const categoryLabel = cm?.categoryLabel;
-          if (cat.group === 'Fatty Acids' && categoryLabel && !/^fatty acids$/i.test(categoryLabel)) {
+          if (cat.group === 'Fatty Acids' && categoryLabel && !/^fatty acids$/i.test(categoryLabel as string)) {
             row.products.add(categoryLabel);
           }
         }
@@ -164,21 +144,21 @@ function getLabSourceStats() {
       .map(([, row]) => ({
         name: row.name,
         count: row.count,
-        products: [...row.products].sort((a, b) => a.localeCompare(b)),
-        sections: [...row.sections].sort((a, b) => a.localeCompare(b)),
+        products: [...row.products].sort((a, b) => (a as { localeCompare(value: unknown): number }).localeCompare(b)),
+        sections: [...row.sections].sort((a, b) => (a as { localeCompare(value: unknown): number }).localeCompare(b)),
       }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => (a.name as { localeCompare(value: unknown): number }).localeCompare(b.name));
   } catch { /* active data can be unavailable during early startup tests */ }
   return stats;
 }
 
-function getImportSnapshotProductLabel(snapshot, dotKey) {
+function getImportSnapshotProductLabel(snapshot: ContextImportSnapshot | null | undefined, dotKey: unknown) {
   if (!snapshot) return null;
   const marker = Array.isArray(snapshot.markers)
-    ? snapshot.markers.find(m => (m?.mappedKey || m?.suggestedKey) === dotKey)
+    ? (snapshot.markers as Array<ContextImportMarker | null | undefined>).find(m => (m?.mappedKey || m?.suggestedKey) === dotKey)
     : null;
   const markerProduct = marker?.suggestedCategoryLabel;
-  if (markerProduct && !/^fatty acids$/i.test(markerProduct)) return String(markerProduct);
+  if (markerProduct && !/^fatty acids$/i.test(markerProduct as string)) return String(markerProduct);
   const testType = String(snapshot.testType || '').trim();
   if (!testType || /^blood$/i.test(testType)) return markerProduct || null;
   if (/^fattyacids$/i.test(testType)) return markerProduct || 'Fatty Acids';
@@ -186,15 +166,13 @@ function getImportSnapshotProductLabel(snapshot, dotKey) {
   return testType;
 }
 
-/** @param {LabSourceGroup} group */
-function getLabGroupTitle(group) {
+function getLabGroupTitle(group: LabSourceGroup) {
   const products = group.products || [];
   if (products.length === 1 && products[0] !== group.name) return `${products[0]} · ${group.name}`;
   return group.name;
 }
 
-/** @param {LabSourceGroup} group */
-function getLabGroupDescription(group) {
+function getLabGroupDescription(group: LabSourceGroup) {
   const markerCount = `${group.count} marker${group.count !== 1 ? 's' : ''}`;
   const products = group.products || [];
   if (products.length > 1) return `${markerCount} from ${products.join(', ')}.`;
@@ -205,7 +183,7 @@ function getLabGroupDescription(group) {
 }
 
 function hasLightSunData() {
-  const imported = /** @type {any} */ (state.importedData || {});
+  const imported = ((state.importedData || {}) as ContextImportedReader);
   const env = imported.lightEnvironment;
   const hasEnv = (env && Array.isArray(env.rooms) && env.rooms.length > 0)
     || (env && Array.isArray(env.screens) && env.screens.length > 0)
@@ -221,7 +199,7 @@ function hasLightSunData() {
 }
 
 function hasWearableContextData() {
-  const imported = /** @type {any} */ (state.importedData || {});
+  const imported = ((state.importedData || {}) as ContextImportedReader);
   return !!(
     imported.wearableSummary
     || (imported.wearableConnections && Object.keys(imported.wearableConnections).length > 0)
@@ -230,10 +208,10 @@ function hasWearableContextData() {
 }
 
 function hasNutritionContextData() {
-  return Number(state.nutritionSummary?.totalMeals || 0) > 0;
+  return Number((state as { nutritionSummary?: { totalMeals?: unknown } | null }).nutritionSummary?.totalMeals || 0) > 0;
 }
 
-function hasMeaningfulContextValue(value) {
+function hasMeaningfulContextValue(value: unknown): boolean {
   if (value == null || value === false) return false;
   if (typeof value === 'string') return value.trim().length > 0;
   if (typeof value === 'number') return Number.isFinite(value);
@@ -244,7 +222,7 @@ function hasMeaningfulContextValue(value) {
 }
 
 function hasInsightContextData() {
-  const imported = /** @type {any} */ (state.importedData || {});
+  const imported = ((state.importedData || {}) as ContextImportedReader);
   return [
     'healthGoals',
     'diagnoses',
@@ -264,26 +242,11 @@ function hasInsightContextData() {
 }
 
 function hasSupplementsMedsData() {
-  const imported = /** @type {any} */ (state.importedData || {});
+  const imported = ((state.importedData || {}) as ContextImportedReader);
   return hasMeaningfulContextValue(imported.supplements);
 }
 
-/**
- * @param {{
- *   key: string,
- *   toggleKey?: string,
- *   title: string,
- *   description: string,
- *   status: string,
- *   checked: boolean,
- *   disabled?: boolean,
- *   attrs?: Record<string, unknown>,
- *   child?: boolean,
- *   affects?: string[],
- *   controlHtml?: string,
- * }} options
- */
-function renderContextSourceToggle({ key, toggleKey = key, title, description, status, checked, disabled = false, attrs = {}, child = false, affects = [], controlHtml = '' }) {
+function renderContextSourceToggle({ key, toggleKey = key, title, description, status, checked, disabled = false, attrs = {}, child = false, affects = [], controlHtml = '' }: ContextSourceToggle) {
   const id = `context-source-${key}`;
   const titleId = `${id}-title`;
   const descriptionId = `${id}-description`;
@@ -310,7 +273,7 @@ function renderContextSourceToggle({ key, toggleKey = key, title, description, s
   </div>`;
 }
 
-function renderContextSourceSection(key, title, subtitle, rows, { wide = false } = {}) {
+function renderContextSourceSection(key: unknown, title: unknown, subtitle: unknown, rows: readonly string[], { wide = false }: { wide?: boolean } = {}) {
   return `<section class="context-source-section${wide ? ' context-source-section-wide' : ''}" data-context-section="${escapeAttr(key)}">
     <div class="context-source-section-head">
       <span class="context-source-section-title">${escapeHTML(title)}</span>
@@ -320,13 +283,10 @@ function renderContextSourceSection(key, title, subtitle, rows, { wide = false }
   </section>`;
 }
 
-function renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasSupplements, labStats, labOn, genomeSummaryOn, genomePriorityOn, genomeOn, hasGenomeSummary, hasGenome, lightOn, bodyOn, hasBody, nutritionOn, hasNutrition }) {
-  /** @type {string[]} */
-  const included = [];
-  /** @type {string[]} */
-  const excluded = [];
-  /** @type {string[]} */
-  const inactive = [];
+function renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasSupplements, labStats, labOn, genomeSummaryOn, genomePriorityOn, genomeOn, hasGenomeSummary, hasGenome, lightOn, bodyOn, hasBody, nutritionOn, hasNutrition }: ContextSourceSummary) {
+  const included: unknown[] = [];
+  const excluded: unknown[] = [];
+  const inactive: unknown[] = [];
   if (hasInsight) {
     if (insightOn) included.push('Insight Cards');
     else excluded.push('Insight Cards');
@@ -368,7 +328,7 @@ function renderContextSourceSummary({ insightOn, hasInsight, supplementsOn, hasS
     if (nutritionOn) included.push('Meals & Nutrition');
     else excluded.push('Meals & Nutrition');
   } else inactive.push('Meals & Nutrition');
-  const renderMetric = (tone, label, items, detail) => `<div class="context-summary-metric context-summary-${escapeAttr(tone)}" aria-label="${escapeAttr(`${label}: ${items.length ? items.join(', ') : 'none'}`)}">
+  const renderMetric = (tone: unknown, label: unknown, items: readonly unknown[], detail: unknown) => `<div class="context-summary-metric context-summary-${escapeAttr(tone)}" aria-label="${escapeAttr(`${label}: ${items.length ? items.join(', ') : 'none'}`)}">
     <span class="context-summary-count">${items.length}</span>
     <span class="context-summary-copy">
       <span class="context-summary-label">${escapeHTML(label)}</span>
@@ -435,7 +395,7 @@ function renderContextSourceControls() {
       checked: labOn,
       affects: ['Chat', 'Scores', 'Warnings'],
     }),
-    ...labStats.groups.map((group, index) => renderContextSourceToggle({
+    ...(labStats.groups as LabGroupRenderOperations[]).map((group, index) => renderContextSourceToggle({
       key: `lab-group-${index}-${group.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
       toggleKey: 'lab-group',
       title: getLabGroupTitle(group),
@@ -540,9 +500,9 @@ function renderContextSourceControls() {
   </div>`;
 }
 
-function renderAnswerGroundingPanel({ lensSet, kbSet, kbEnabled, kbSummary, check }) {
+function renderAnswerGroundingPanel({ lensSet, kbSet, kbEnabled, kbSummary, check }: AnswerGroundingReader) {
   const kbStatus = kbSet
-    ? `${escapeHTML(kbSummary.displayName || 'Knowledge Base')} is enabled. Click to manage documents and retrieval.`
+    ? `${escapeHTML(kbSummary!.displayName || 'Knowledge Base')} is enabled. Click to manage documents and retrieval.`
     : (kbEnabled
       ? 'Knowledge Base is enabled, but no documents are indexed yet. Add a library before it can ground answers.'
       : 'Ground answers in your own documents, research papers, notes, and references.');
@@ -580,9 +540,9 @@ export function openDataProtectionPicker() {
     closeModalOverlay(overlay);
     document.removeEventListener('keydown', onKey);
   };
-  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
   const s = getDataProtectionStatus();
-  const card = (key, icon, title, sub, configured) => `
+  const card = (key: string, icon: string, title: string, sub: string, configured: boolean) => `
     <button type="button" class="dashboard-picker-card" data-pick="${key}" ${configured ? 'data-configured="true"' : ''}>
       <span class="dashboard-picker-icon" aria-hidden="true">${icon}</span>
       <span class="dashboard-picker-title">${title} ${configured ? '<span class="dashboard-picker-check" aria-hidden="true">&#10003;</span>' : ''}</span>
@@ -608,10 +568,10 @@ export function openDataProtectionPicker() {
   });
   document.addEventListener('keydown', onKey);
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
-  const cancelButton = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#data-protection-picker-cancel'));
+  const cancelButton = (overlay.querySelector('#data-protection-picker-cancel') as HTMLButtonElement | null);
   if (cancelButton) cancelButton.onclick = close;
   overlay.querySelectorAll('.dashboard-picker-card').forEach(btn => {
-    const button = /** @type {HTMLButtonElement} */ (btn);
+    const button = (btn as HTMLButtonElement);
     button.onclick = () => {
       const pick = button.getAttribute('data-pick');
       const isConfigured = button.getAttribute('data-configured') === 'true';
@@ -624,7 +584,7 @@ export function openDataProtectionPicker() {
   });
 }
 
-function applyContextSourceToggle(input) {
+function applyContextSourceToggle(input: HTMLInputElement) {
   const key = input.dataset.contextToggle || '';
   const checked = input.checked;
   if (key === 'insight-cards') setInsightContextCardsEnabled(checked);
@@ -642,9 +602,9 @@ function applyContextSourceToggle(input) {
   else if (key === 'body-nutrition') setNutritionContextEnabled(checked);
 }
 
-function bindContextSourceToggles(overlay) {
+function bindContextSourceToggles(overlay: HTMLElement) {
   overlay.querySelectorAll('[data-context-toggle]').forEach(inputEl => {
-    const input = /** @type {HTMLInputElement} */ (inputEl);
+    const input = (inputEl as HTMLInputElement);
     input.onchange = () => {
       const focusId = input.id;
       applyContextSourceToggle(input);
@@ -653,7 +613,7 @@ function bindContextSourceToggles(overlay) {
       if (panel) {
         panel.outerHTML = renderContextSourceControls();
         bindContextSourceInputs(overlay);
-        const next = /** @type {HTMLInputElement | null} */ (document.getElementById(focusId));
+        const next = (document.getElementById(focusId) as HTMLInputElement | null);
         next?.focus();
       }
       notifyDashboardAIContextStatusChanged();
@@ -661,9 +621,9 @@ function bindContextSourceToggles(overlay) {
   });
 }
 
-function bindContextSourceRanges(overlay) {
+function bindContextSourceRanges(overlay: HTMLElement) {
   overlay.querySelectorAll('[data-context-range]').forEach(selectEl => {
-    const select = /** @type {HTMLSelectElement} */ (selectEl);
+    const select = (selectEl as HTMLSelectElement);
     select.onchange = () => {
       const focusId = select.id;
       if (select.dataset.contextRange === 'nutrition') setNutritionContextDays(Number(select.value));
@@ -672,7 +632,7 @@ function bindContextSourceRanges(overlay) {
       if (panel) {
         panel.outerHTML = renderContextSourceControls();
         bindContextSourceInputs(overlay);
-        const next = /** @type {HTMLSelectElement | null} */ (document.getElementById(focusId));
+        const next = (document.getElementById(focusId) as HTMLSelectElement | null);
         next?.focus();
       }
       notifyDashboardAIContextStatusChanged();
@@ -680,7 +640,7 @@ function bindContextSourceRanges(overlay) {
   });
 }
 
-function bindContextSourceInputs(overlay) {
+function bindContextSourceInputs(overlay: HTMLElement) {
   bindContextSourceToggles(overlay);
   bindContextSourceRanges(overlay);
 }
@@ -700,9 +660,9 @@ export function openContextModal() {
     closeModalOverlay(overlay);
     document.removeEventListener('keydown', onKey);
   };
-  const onKey = (e) => { if (e.key === 'Escape') close(); };
-  const lensSet = !!(state.importedData.interpretiveLens || '').trim();
-  let kbSummary; try { kbSummary = getLensSummary(); } catch { kbSummary = null; }
+  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+  const lensSet = !!(((state.importedData as ContextImportedReader).interpretiveLens || '') as { trim(): unknown }).trim();
+  let kbSummary: ReturnType<typeof getLensSummary> | null; try { kbSummary = getLensSummary(); } catch { kbSummary = null; }
   const kbSet = !!kbSummary?.configured;
   const kbEnabled = !!kbSummary?.enabled;
   const check = '<span class="dashboard-picker-check" aria-hidden="true">&#10003;</span>';
@@ -732,12 +692,12 @@ export function openContextModal() {
   });
   document.addEventListener('keydown', onKey);
   overlay.onclick = (e) => { if (e.target === overlay) close(); };
-  const cancelButton = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#context-hub-cancel'));
+  const cancelButton = (overlay.querySelector('#context-hub-cancel') as HTMLButtonElement | null);
   if (cancelButton) cancelButton.onclick = close;
-  const closeButton = /** @type {HTMLButtonElement | null} */ (overlay.querySelector('#context-hub-close'));
+  const closeButton = (overlay.querySelector('#context-hub-close') as HTMLButtonElement | null);
   if (closeButton) closeButton.onclick = close;
   overlay.querySelectorAll('.ai-picker-card').forEach(btn => {
-    const button = /** @type {HTMLButtonElement} */ (btn);
+    const button = (btn as HTMLButtonElement);
     button.onclick = () => {
       const pick = button.getAttribute('data-pick');
       close();
