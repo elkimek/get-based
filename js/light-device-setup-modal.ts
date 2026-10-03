@@ -1,4 +1,16 @@
-// @ts-check
+import type { LightDeviceRecord } from './light-devices-store.js';
+
+export interface LightDeviceSetupDeps {
+  loadPresets(): Promise<{ presets: LightDeviceRecord[]; types: Record<string, { icon?: string; label?: string }> }>;
+  addDeviceFromPreset(presetId: string): Promise<unknown>;
+  addCustomDevice: typeof import('./light-devices-store.js').addCustomDevice;
+  wireModal(overlay: HTMLElement, closeFn: () => void): unknown;
+  refreshLightView(): unknown;
+}
+// Parsed extraction fields retain their raw values until the existing form readers apply.
+type ParsedDeviceSpec = Record<string, unknown> | null | undefined;
+type DeviceAIResponse = Pick<Awaited<ReturnType<typeof import('./agent-feature-inference.js').callCodexFeature>>, 'text'>;
+
 // light-device-setup-modal.js — add/custom light-device setup UI.
 //
 // Device persistence stays behind light-devices-store.js via injected
@@ -16,35 +28,19 @@ import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.
 import { getUtilsRuntimeHostname } from './utils-runtime.js';
 import { getProxyApiUrl } from './proxy-runtime.js';
 
-/**
- * @param {ParentNode} root
- * @param {string} selector
- * @returns {HTMLInputElement|null}
- */
-function _input(root, selector) {
-  return /** @type {HTMLInputElement|null} */ (root.querySelector(selector));
+function _input(root: ParentNode, selector: string) {
+  return (root.querySelector(selector) as HTMLInputElement | null);
 }
 
-/**
- * @param {ParentNode} root
- * @param {string} selector
- * @returns {HTMLButtonElement|null}
- */
-function _button(root, selector) {
-  return /** @type {HTMLButtonElement|null} */ (root.querySelector(selector));
+function _button(root: ParentNode, selector: string) {
+  return (root.querySelector(selector) as HTMLButtonElement | null);
 }
 
-/**
- * @param {ParentNode} root
- * @param {string} selector
- * @returns {HTMLSelectElement|null}
- */
-function _select(root, selector) {
-  return /** @type {HTMLSelectElement|null} */ (root.querySelector(selector));
+function _select(root: ParentNode, selector: string) {
+  return (root.querySelector(selector) as HTMLSelectElement | null);
 }
 
-/** @type {any} */
-const setupDeps = {
+const setupDeps: LightDeviceSetupDeps = {
   loadPresets: async () => ({ presets: [], types: {} }),
   addDeviceFromPreset: async () => null,
   addCustomDevice: async () => null,
@@ -52,16 +48,16 @@ const setupDeps = {
   refreshLightView: () => {},
 };
 
-export function configureLightDeviceSetup(deps = {}) {
+export function configureLightDeviceSetup(deps: Partial<LightDeviceSetupDeps> = {}) {
   Object.assign(setupDeps, deps);
 }
 
 export async function openAddDeviceDialog() {
   const { presets, types } = await setupDeps.loadPresets();
-  const groups = {};
+  const groups: Record<string, LightDeviceRecord[]> = {};
   for (const p of presets) {
-    if (!groups[p.type]) groups[p.type] = [];
-    groups[p.type].push(p);
+    if (!groups[p.type as string]) groups[p.type as string] = [];
+    groups[p.type as string]!.push(p);
   }
   // Order: UV (most distinctive — vitamin D capable) first, then UVA-only,
   // then red+NIR panels, then targeted PBM, then eye-channel devices
@@ -77,7 +73,7 @@ export async function openAddDeviceDialog() {
     presetSections += `<section class="light-device-preset-group" aria-labelledby="${escapeAttr(groupId)}">
       <h4 class="light-device-preset-heading" id="${escapeAttr(groupId)}">${escapeHTML((meta.icon || '') + ' ' + (meta.label || t))}</h4>
       <div class="light-device-preset-list">`;
-    for (const p of groups[t]) {
+    for (const p of groups[t]!) {
       const presetMeta = _formatPresetMeta(p);
       presetSections += `<button type="button" class="light-device-preset-row" data-preset-id="${escapeAttr(p.id)}" aria-pressed="false">
         <span class="light-device-preset-name">${escapeHTML(p.brand)} ${escapeHTML(p.model)}</span>
@@ -168,8 +164,8 @@ export async function openAddDeviceDialog() {
   });
 }
 
-function _formatPresetMeta(p) {
-  const parts = [];
+function _formatPresetMeta(p: Partial<LightDeviceRecord>) {
+  const parts: string[] = [];
   if (Array.isArray(p.peakWavelengths) && p.peakWavelengths.length) {
     parts.push(`${p.peakWavelengths.join('/')} nm`);
   }
@@ -303,7 +299,7 @@ export async function openCustomDeviceDialog() {
     if (hasVision) {
       const imageInput = _input(overlay, '#custom-dev-image');
       _button(overlay, '#custom-dev-scan')?.addEventListener('click', () => imageInput?.click());
-      imageInput?.addEventListener('change', (e) => _scanCustomDeviceLabel(/** @type {HTMLInputElement} */ (e.target), overlay));
+      imageInput?.addEventListener('change', (e) => _scanCustomDeviceLabel((e.target as HTMLInputElement), overlay));
     }
   }
   _button(overlay, '#custom-dev-save')?.addEventListener('click', async () => {
@@ -323,7 +319,7 @@ export async function openCustomDeviceDialog() {
   });
 }
 
-function _readCustomDeviceForm(overlay) {
+function _readCustomDeviceForm(overlay: HTMLElement) {
   const peaksRaw = _input(overlay, '#custom-dev-peaks')?.value.trim() || '';
   const peaks = peaksRaw
     ? peaksRaw.split(/[,\s]+/).map(s => parseFloat(s)).filter(n => Number.isFinite(n) && n > 100 && n < 3000)
@@ -337,12 +333,12 @@ function _readCustomDeviceForm(overlay) {
     : null;
   const luxRaw = _input(overlay, '#custom-dev-lux')?.value.trim() || '';
   const mediRaw = _input(overlay, '#custom-dev-medi')?.value.trim() || '';
-  let advanced = {};
+  let advanced: unknown = {};
   try {
     advanced = JSON.parse(_input(overlay, '#custom-dev-advanced')?.value || '{}');
   } catch (_) {}
   return {
-    ...advanced,
+    ...(advanced as Record<string, unknown>),
     brand: _input(overlay, '#custom-dev-brand')?.value.trim() || '',
     model: _input(overlay, '#custom-dev-model')?.value.trim() || '',
     type: _select(overlay, '#custom-dev-type')?.value || 'combined',
@@ -354,18 +350,12 @@ function _readCustomDeviceForm(overlay) {
   };
 }
 
-/**
- * @param {Record<string, any> | null | undefined} parsed
- * @param {HTMLElement} overlay
- * @param {string | null} [sourceUrl]
- * @returns {void}
- */
-function _applyParsedDevice(parsed, overlay, sourceUrl = null) {
+function _applyParsedDevice(parsed: ParsedDeviceSpec, overlay: HTMLElement, sourceUrl: string | null = null) {
   if (!parsed || typeof parsed !== 'object') return;
-  const valid = v => v != null && v !== '' && !/not (specified|found|available|provided)/i.test(String(v)) && !/^n\/?a$/i.test(String(v));
-  const set = (id, val) => {
+  const valid = (v: unknown) => v != null && v !== '' && !/not (specified|found|available|provided)/i.test(String(v)) && !/^n\/?a$/i.test(String(v));
+  const set = (id: string, val: unknown) => {
     if (!valid(val)) return;
-    const el = /** @type {HTMLInputElement|HTMLSelectElement|null} */ (overlay.querySelector(id));
+    const el = (overlay.querySelector(id) as HTMLInputElement | HTMLSelectElement | null);
     if (el && !el.value) el.value = String(val);
   };
   set('#custom-dev-brand', parsed.brand);
@@ -373,7 +363,7 @@ function _applyParsedDevice(parsed, overlay, sourceUrl = null) {
   if (parsed.type) {
     const sel = _select(overlay, '#custom-dev-type');
     const opt = sel ? Array.from(sel.options).find(o => o.value === parsed.type) : null;
-    if (sel && opt) sel.value = parsed.type;
+    if (sel && opt) sel.value = parsed.type as string;
   }
   if (Array.isArray(parsed.peakWavelengths) && parsed.peakWavelengths.length > 0) {
     const peaks = parsed.peakWavelengths.filter(n => Number.isFinite(Number(n))).join(', ');
@@ -401,7 +391,7 @@ function _applyParsedDevice(parsed, overlay, sourceUrl = null) {
     'melanopicBasis',
     'channelGroups', 'modes', 'coupling', 'notes',
   ];
-  const advanced = {};
+  const advanced: Record<string, unknown> = {};
   for (const key of advancedKeys) {
     if (parsed[key] != null) advanced[key] = parsed[key];
   }
@@ -455,10 +445,7 @@ channelGroups / modes / coupling guide (set ALL THREE to null if the product pag
 
 Use null for fields not found. A total irradiance for a hybrid UV + visible/red/NIR panel is NOT a UV irradiance: leave peakShares null unless a band split is stated. Do NOT invent modes, coupling, measurements, or spectral shares. No other text.`;
 
-/**
- * @param {HTMLElement} overlay
- */
-async function _fetchCustomDeviceFromURL(overlay) {
+async function _fetchCustomDeviceFromURL(overlay: HTMLElement) {
   const urlInput = _input(overlay, '#custom-dev-url');
   const url = urlInput?.value.trim();
   if (!url) { showNotification('Paste a product URL first', 'error'); return; }
@@ -470,11 +457,11 @@ async function _fetchCustomDeviceFromURL(overlay) {
     // the same-origin proxy, whose operated-host policy permits only a public
     // GET with no credentials or request body for this branch.
     const isLocal = ['localhost', '127.0.0.1'].includes(getUtilsRuntimeHostname());
-    let html;
+    let html: string;
     if (isLocal) {
       const res = await fetch('/api/fetch-page?url=' + encodeURIComponent(url));
       if (!res.ok) throw new Error(`Fetch error ${res.status}`);
-      const json = await res.json();
+      const json = await res.json() as { html: string };
       html = json.html;
     } else {
       const res = await fetch(getProxyApiUrl(), {
@@ -496,7 +483,7 @@ async function _fetchCustomDeviceFromURL(overlay) {
     doc.querySelectorAll('script, style, nav, footer, header, svg, noscript, template, iframe')
       .forEach(n => n.remove());
     const walker = doc.createTreeWalker(doc, NodeFilter.SHOW_COMMENT);
-    const comments = [];
+    const comments: Node[] = [];
     let c; while ((c = walker.nextNode())) comments.push(c);
     for (const comment of comments) comment.parentNode?.removeChild(comment);
     const plainText = (doc.body?.textContent || '').replace(/\s{2,}/g, ' ');
@@ -509,9 +496,9 @@ async function _fetchCustomDeviceFromURL(overlay) {
       maxTokens: 800,
     });
     if (!overlay.isConnected) return;
-    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+    const jsonMatch = (result as DeviceAIResponse).text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) { showNotification('Could not parse device specs from page', 'error'); return; }
-    _applyParsedDevice(JSON.parse(jsonMatch[0]), overlay, url);
+    _applyParsedDevice(JSON.parse(jsonMatch[0]!) as ParsedDeviceSpec, overlay, url);
   } catch (e) {
     if (!overlay.isConnected) return;
     if (isDebugMode()) console.warn('[fetchCustomDevice]', e);
@@ -521,11 +508,7 @@ async function _fetchCustomDeviceFromURL(overlay) {
   }
 }
 
-/**
- * @param {HTMLInputElement} input
- * @param {HTMLElement} overlay
- */
-async function _scanCustomDeviceLabel(input, overlay) {
+async function _scanCustomDeviceLabel(input: HTMLInputElement, overlay: HTMLElement) {
   const file = input.files?.[0];
   input.value = '';
   if (!file || !isValidImageType(file.type)) {
@@ -540,9 +523,9 @@ async function _scanCustomDeviceLabel(input, overlay) {
     const content = buildVisionContent([imageBlock], _CUSTOM_DEVICE_PROMPT, 'openrouter');
     const result = await callAssistantFeatureAI({ messages: [{ role: 'user', content }], maxTokens: 800, consentKind: 'image' });
     if (!overlay.isConnected) return;
-    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+    const jsonMatch = (result as DeviceAIResponse).text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) { showNotification('Could not parse device specs from image', 'error'); return; }
-    _applyParsedDevice(JSON.parse(jsonMatch[0]), overlay);
+    _applyParsedDevice(JSON.parse(jsonMatch[0]!) as ParsedDeviceSpec, overlay);
   } catch (e) {
     if (!overlay.isConnected) return;
     if (isDebugMode()) console.warn('[scanCustomDevice]', e);

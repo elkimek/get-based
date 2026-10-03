@@ -341,9 +341,9 @@ console.log('=== Phase 3 A11y Tests ===\n');
   // modals (Log device session) require explicit Cancel/Save so accidental
   // taps don't lose typed values.
   const lightDevSrc = read('/js/light-devices.js');
-  const lightDevModalLoaderSrc = read('/js/light-device-modal-loader.js');
-  const lightDevSetupSrc = read('/js/light-device-setup-modal.js');
-  const lightDevSessionSrc = read('/js/light-device-session-modal.js');
+  const lightDevModalLoaderSrc = read('/js/light-device-modal-loader.ts');
+  const lightDevSetupSrc = read('/js/light-device-setup-modal.ts');
+  const lightDevSessionSrc = read('/js/light-device-session-modal.ts');
   const lightDevCss = read('/css/light-devices.css');
   assert('light-devices.js lazily delegates session dialog rendering',
     lightDevSrc.includes("from './light-device-modal-loader.js'")

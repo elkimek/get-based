@@ -1,4 +1,18 @@
-// @ts-check
+import type { DeviceSessionRecord } from './light-devices-store.js';
+
+export interface DeviceSessionDialogDeps {
+  hydrateDevicesFromPresets?: (() => Promise<unknown>) | null;
+  getDevices?: typeof import('./light-devices-store.js').getDevices;
+  logDeviceSession?: typeof import('./light-devices-store.js').logDeviceSession;
+  getActiveDeviceSession?: typeof import('./light-devices-store.js').getActiveDeviceSession;
+  startDeviceSession?: typeof import('./light-devices-store.js').startDeviceSession;
+  ensureActiveDeviceTicker?: () => unknown;
+  validateModeCoupling?: typeof validateModeCoupling | null;
+  renderBodySilhouette?: typeof renderBodySilhouette | null;
+  bindBodySilhouette?: typeof bindBodySilhouette | null;
+  navigate?: ((route: string) => unknown) | null; openLightSetup?: (() => unknown) | null;
+}
+
 // light-device-session-modal.js — Log/start light therapy device sessions.
 
 import { state } from './state.js';
@@ -8,11 +22,7 @@ import { BODY_REGIONS, bindBodySilhouette, renderBodySilhouette } from './sun-bo
 import { validateModeCoupling } from './sun-spectrum.js';
 import { deviceEmitsUV } from './light-device-session-engine.js';
 
-/**
- * @param {Record<string, any>} [deps]
- * @returns {Record<string, any>}
- */
-function _resolveSessionDialogDeps(deps = {}) {
+function _resolveSessionDialogDeps(deps: DeviceSessionDialogDeps = {}) {
   return {
     ...deps,
     validateModeCoupling: deps.validateModeCoupling || validateModeCoupling,
@@ -23,34 +33,24 @@ function _resolveSessionDialogDeps(deps = {}) {
   };
 }
 
-/**
- * @param {ParentNode} root
- * @param {string} selector
- * @returns {HTMLInputElement|null}
- */
-function _input(root, selector) {
-  return /** @type {HTMLInputElement|null} */ (root.querySelector(selector));
+function _input(root: ParentNode, selector: string) {
+  return (root.querySelector(selector) as HTMLInputElement | null);
 }
 
-/**
- * @param {ParentNode} root
- * @param {string} selector
- * @returns {HTMLButtonElement|null}
- */
-function _button(root, selector) {
-  return /** @type {HTMLButtonElement|null} */ (root.querySelector(selector));
+function _button(root: ParentNode, selector: string) {
+  return (root.querySelector(selector) as HTMLButtonElement | null);
 }
 
-function _wireDeviceSessionModal(overlay, closeFn) {
+function _wireDeviceSessionModal(overlay: HTMLElement, closeFn: () => void) {
   if (typeof window === 'undefined') { document.body.appendChild(overlay); return; }
   openAppendedModalOverlay(overlay, closeFn);
 }
 
-function _defaultRegionsForLastSession(last) {
+function _defaultRegionsForLastSession(last: Pick<Partial<DeviceSessionRecord>, 'bodyAreas' | 'bodyArea'>) {
   // bodyAreas[] is the precise per-region field. For legacy sessions that
   // only have a broad bodyArea string, expand it to matching region keys
   // so the silhouette pre-selects sensibly.
-  const broadToRegions = {
+  const broadToRegions: Record<string, string[]> = {
     face: ['face'],
     torso: ['breast-chest', 'torso-front', 'abdomen'],
     arms: ['arms-front', 'arms-back'],
@@ -61,11 +61,11 @@ function _defaultRegionsForLastSession(last) {
     targeted: ['breast-chest'],
   };
   if (Array.isArray(last.bodyAreas) && last.bodyAreas.length > 0) return last.bodyAreas.slice();
-  if (last.bodyArea && broadToRegions[last.bodyArea]) return broadToRegions[last.bodyArea].slice();
+  if (last.bodyArea && broadToRegions[last.bodyArea]) return broadToRegions[last.bodyArea]!.slice();
   return ['breast-chest'];
 }
 
-function _broadAreaForRegions(bodyAreas) {
+function _broadAreaForRegions(bodyAreas: string[]) {
   // Denormalized broad-zone hint kept for legacy listing rows that have
   // not been migrated to bodyAreas yet. Pick the simplest match for the
   // chosen region set.
@@ -77,7 +77,7 @@ function _broadAreaForRegions(bodyAreas) {
   return 'targeted';
 }
 
-function _readDistanceCm(overlay, fallbackCm) {
+function _readDistanceCm(overlay: HTMLElement, fallbackCm: number) {
   const distInput = _input(overlay, '#dev-session-distance');
   const distVal = parseFloat(distInput?.value || '');
   const distUnit = distInput?.dataset.unit || 'cm';
@@ -86,13 +86,13 @@ function _readDistanceCm(overlay, fallbackCm) {
     : fallbackCm;
 }
 
-function _showEmptyRegionError(updateAreaHint, selectedRegions, hintEl) {
+function _showEmptyRegionError(updateAreaHint: (selected: Set<string>) => void, selectedRegions: Set<string>, hintEl: Element | null) {
   updateAreaHint(selectedRegions);
   hintEl?.classList.add('sun-silhouette-hint-error');
   setTimeout(() => hintEl?.classList.remove('sun-silhouette-hint-error'), 2500);
 }
 
-export async function openDeviceSessionDialog(deviceId, deps = {}) {
+export async function openDeviceSessionDialog(deviceId: string, deps: DeviceSessionDialogDeps = {}) {
   const resolvedDeps = _resolveSessionDialogDeps(deps);
   const {
     hydrateDevicesFromPresets,
@@ -128,8 +128,8 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   // Prefill from the user's last logged session on this device. First-time
   // logs fall through to vendor reference distance + sensible defaults.
   const last = device.lastSession || {};
-  const defaultDistanceCm = Number.isFinite(last.distanceCm) && last.distanceCm > 0
-    ? last.distanceCm
+  const defaultDistanceCm = Number.isFinite(last.distanceCm) && last.distanceCm! > 0
+    ? last.distanceCm!
     : (device.recommendedDistanceCm || 15);
   const defaultRegions = _defaultRegionsForLastSession(last);
 
@@ -138,19 +138,19 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
     ? device.modes.filter(m => validateModeCoupling(device, m.id).ok)
     : [];
   const showModePicker = validModes.length > 1;
-  let defaultMode = null;
+  let defaultMode: string | null = null;
   if (showModePicker) {
     const lastModeValid = last.mode && validModes.some(m => m.id === last.mode);
-    defaultMode = lastModeValid ? last.mode : (validModes.find(m => m.default) || validModes[0])?.id || null;
+    defaultMode = lastModeValid ? last.mode! : (validModes.find(m => m.default) || validModes[0])?.id || null;
   }
   const initialMode = showModePicker ? defaultMode : (last.mode || null);
   const isUVDevice = deviceEmitsUV(device, initialMode);
   // Never prefill a first UV session with the generic ten-minute PBM default.
   // Thirty seconds is only a neutral input starting point, not guidance.
-  const defaultDuration = Number.isFinite(last.durationMin) && last.durationMin > 0
-    ? last.durationMin
+  const defaultDuration = Number.isFinite(last.durationMin) && last.durationMin! > 0
+    ? last.durationMin!
     : (isUVDevice ? 0.5 : 10);
-  const isEyeLightDevice = ['sad', 'dawn-sim', 'full-spectrum'].includes(device.type) && !isUVDevice;
+  const isEyeLightDevice = ['sad', 'dawn-sim', 'full-spectrum'].includes(device.type as string) && !isUVDevice;
   const defaultEyeControlChecked = isEyeLightDevice
     ? last.eyesProtected !== true
     : last.eyesProtected !== false;
@@ -181,8 +181,8 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
         const useUS = state.unitSystem === 'US';
         const startUnit = useUS ? 'in' : 'cm';
         const refCm = device.recommendedDistanceCm || 15;
-        const fmt = (cm, u) => u === 'in' ? +(cm / 2.54).toFixed(1) : cm;
-        const hasOverride = Number.isFinite(last.distanceCm) && Math.abs(last.distanceCm - refCm) > 0.5;
+        const fmt = (cm: number, u: string) => u === 'in' ? +(cm / 2.54).toFixed(1) : cm;
+        const hasOverride = Number.isFinite(last.distanceCm) && Math.abs(last.distanceCm! - refCm) > 0.5;
         const overrideHint = hasOverride
           ? ` You usually log at ${fmt(defaultDistanceCm, 'cm')} cm — prefilled below.`
           : '';
@@ -230,9 +230,9 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   let durationEdited = false;
   durationInput?.addEventListener('input', () => { durationEdited = true; });
   let eyeControlKind = isUVDevice ? 'uv' : isEyeLightDevice ? 'ambient' : 'protection';
-  const syncEyeControlForMode = (mode, { initial = false } = {}) => {
+  const syncEyeControlForMode = (mode: string | null | undefined, { initial = false } = {}) => {
     const emitsUV = deviceEmitsUV(device, mode);
-    const kind = emitsUV ? 'uv' : ambientEyeTypes.includes(device.type) ? 'ambient' : 'protection';
+    const kind = emitsUV ? 'uv' : ambientEyeTypes.includes(device.type as string) ? 'ambient' : 'protection';
     const eyeInput = _input(overlay, '#dev-session-eyes');
     const eyeLabel = overlay.querySelector('#dev-session-eye-label');
     // A checkbox from a non-UV mode cannot be treated as confirmation that
@@ -253,10 +253,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   syncEyeControlForMode(initialMode, { initial: true });
 
   let lastModePointerActivation = 0;
-  /**
-   * @param {HTMLElement} btn
-   */
-  const setMode = (btn) => {
+  const setMode = (btn: HTMLElement) => {
     const mode = btn.dataset.mode || '';
     const input = _input(overlay, '#dev-session-mode');
     if (input) input.value = mode;
@@ -268,9 +265,9 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
     syncEyeControlForMode(mode);
   };
   for (const rawBtn of overlay.querySelectorAll('.dev-mode-btn[data-mode]')) {
-    const btn = /** @type {HTMLElement} */ (rawBtn);
+    const btn = (rawBtn as HTMLElement);
     btn.addEventListener('pointerup', (e) => {
-      if ((/** @type {PointerEvent} */ (e)).pointerType === 'mouse') return;
+      if (((e as PointerEvent)).pointerType === 'mouse') return;
       setMode(btn);
       lastModePointerActivation = Date.now();
       e.preventDefault();
@@ -295,7 +292,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   const labelByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.label]));
   const silhouetteSlot = overlay.querySelector('#dev-session-silhouette-slot');
   const hint = overlay.querySelector('#dev-session-area-hint');
-  const updateAreaHint = (set) => {
+  const updateAreaHint = (set: Set<string>) => {
     if (!hint) return;
     if (set.size === 0) {
       hint.textContent = 'Pick at least one region — what does the panel reach?';
@@ -359,13 +356,13 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
     const bodyArea = _broadAreaForRegions(bodyAreas);
     const emitsUV = deviceEmitsUV(device, mode);
     const eyeChecked = !!_input(overlay, '#dev-session-eyes')?.checked;
-    const eyeLightForMode = ambientEyeTypes.includes(device.type) && !emitsUV;
+    const eyeLightForMode = ambientEyeTypes.includes(device.type as string) && !emitsUV;
     const eyesProtected = eyeLightForMode ? !eyeChecked : eyeChecked;
     if (emitsUV && !eyesProtected) {
       const saveUnsafe = await showConfirmDialog('This records UV exposure without UV-rated goggles. Save it as an unsafe past exposure?');
       if (!saveUnsafe) return;
     }
-    const saved = await logDeviceSession({ deviceId, durationMin, distanceCm, bodyArea, bodyAreas, eyesProtected, mode });
+    const saved = await logDeviceSession!({ deviceId, durationMin, distanceCm, bodyArea, bodyAreas, eyesProtected, mode });
     if (!saved) {
       showNotification('The session could not be saved. Check the duration and distance.', 'error');
       return;
@@ -376,7 +373,7 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
   });
 
   _button(overlay, '#dev-session-start')?.addEventListener('click', async () => {
-    if (getActiveDeviceSession()) {
+    if (getActiveDeviceSession!()) {
       showNotification('Another device session is already running. Stop it first.', 'error');
       return;
     }
@@ -390,20 +387,20 @@ export async function openDeviceSessionDialog(deviceId, deps = {}) {
     const bodyArea = _broadAreaForRegions(bodyAreas);
     const emitsUV = deviceEmitsUV(device, mode);
     const eyeChecked = !!_input(overlay, '#dev-session-eyes')?.checked;
-    const eyeLightForMode = ambientEyeTypes.includes(device.type) && !emitsUV;
+    const eyeLightForMode = ambientEyeTypes.includes(device.type as string) && !emitsUV;
     const eyesProtected = eyeLightForMode ? !eyeChecked : eyeChecked;
     if (emitsUV && !eyesProtected) {
       showNotification('UV sessions require UV-rated goggles. Closed eyelids are not sufficient protection.', 'error', 8000);
       return;
     }
-    const startedId = await startDeviceSession({ deviceId, distanceCm, bodyAreas, bodyArea, eyesProtected, mode });
+    const startedId = await startDeviceSession!({ deviceId, distanceCm, bodyAreas, bodyArea, eyesProtected, mode });
     if (!startedId) {
       showNotification('The timer could not start. Check that no other session is active.', 'error');
       return;
     }
     closeDialog();
     showNotification(`Live ${escapeHTML(device.brand)} session started — tap Stop & save when finished.`);
-    ensureActiveDeviceTicker();
+    ensureActiveDeviceTicker!();
     navigate?.('light');
   });
   return true;

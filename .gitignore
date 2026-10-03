@@ -785,3 +785,7 @@ deploy/profile-share/data/
 /js/chat-onboarding.js
 
 /js/cycle.js
+
+/js/light-device-setup-modal.js
+/js/light-device-session-modal.js
+/js/light-device-modal-loader.js
