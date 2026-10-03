@@ -1,4 +1,3 @@
-// @ts-check
 // sun-onboarding-ai.js — AI verdict for the Light & Sun onboarding
 // completion. Synthesizes the user's setup answers + light patterns + sleep
 // complaints + goals into a personalized starting plan.
@@ -6,6 +5,15 @@
 // Thin wrapper around ai-verdict-engine. Single-target shape (the
 // sunDefaults object); the engine's list APIs handle that as a list of
 // one.
+
+import type { SunSetupDefaults } from './sun-defaults-model.js';
+import type { AIVerdictAnalysis, AnalyzeOptions } from './ai-verdict-engine.js';
+
+export interface OnboardingAIAnalysis extends AIVerdictAnalysis { actions?: unknown }
+export interface OnboardingDefaults extends SunSetupDefaults {
+  completedAt?: unknown;
+  aiAnalysis?: OnboardingAIAnalysis | null;
+}
 
 import { state } from './state.js';
 import { latestVitaminDContext } from './lab-vitamin-d-context.js';
@@ -17,9 +25,9 @@ import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 import { getSunSetupCoords } from './sun-defaults-runtime.js';
 
-function _getDefaults() { return state.importedData?.sunDefaults || null; }
+function _getDefaults() { return (state.importedData?.sunDefaults as OnboardingDefaults | null | undefined) || null; }
 
-const _OTT_LABELS = {
+const _OTT_LABELS: Record<string, string> = {
   'morning-light-deficit': 'Little or no outdoor daylight in the first 1–2 hours after waking',
   'glass-mediated-daytime': 'Most daytime hours behind glass',
   'dim-workspace': 'Dim daytime workspace with little daylight',
@@ -32,20 +40,20 @@ const _OTT_LABELS = {
   'low-outdoor-time': 'Less than 30 minutes outdoors on a typical day',
 };
 
-const _HOME_LIGHT_LABELS = {
+const _HOME_LIGHT_LABELS: Record<string, string> = {
   'led-cool': 'cool-white LED', 'led-warm': 'warm LED', 'led-tunable': 'tunable LED',
   'incandescent': 'incandescent / halogen', 'fluorescent': 'fluorescent',
   'candle': 'candles + dim warm sources', 'natural-only': 'mostly daylight (windows / outdoor)',
   'mixed': 'mixed sources', 'unknown': 'not sure',
 };
 
-const _EYEWEAR_LABELS = {
+const _EYEWEAR_LABELS: Record<string, string> = {
   'none': 'no eyewear outdoors', 'sunglasses': 'sunglasses',
   'clear-glasses': 'clear prescription glasses', 'both': 'sunglasses + prescription combinations',
   'contacts-uv': 'UV-blocking contacts',
 };
 
-const _PSM_LABELS = {
+const _PSM_LABELS: Record<string, string> = {
   unknown: 'not reviewed',
   none: 'no known warning',
   mild: 'possible sunlight warning',
@@ -61,17 +69,17 @@ export function getDefaultsFingerprint() {
 export function buildOnboardingContext() {
   const d = _getDefaults();
   if (!d) return '';
-  const lines = [];
+  const lines: string[] = [];
   lines.push('### Light & Sun setup answers');
   lines.push(`Skin type: Fitzpatrick ${d.fitzpatrick || '?'}`);
   if (d.photosensitiveMeds && d.photosensitiveMeds !== 'none') {
-    lines.push(`Photosensitizing medication tier: ${_PSM_LABELS[d.photosensitiveMeds] || d.photosensitiveMeds}`);
+    lines.push(`Photosensitizing medication tier: ${_PSM_LABELS[d.photosensitiveMeds as string] || d.photosensitiveMeds}`);
   }
   if (d.homeLight) lines.push(`Home / workspace lighting: ${_HOME_LIGHT_LABELS[d.homeLight] || d.homeLight}`);
   if (d.eyewear) lines.push(`Eyewear outdoors: ${_EYEWEAR_LABELS[d.eyewear] || d.eyewear}`);
 
   if (d.ott && typeof d.ott === 'object') {
-    const flagged = Object.keys(d.ott).filter(k => d.ott[k]);
+    const flagged = Object.keys(d.ott).filter(k => d.ott![k]);
     if (flagged.length) {
       lines.push('');
       lines.push('### Light timing and spectrum context (10-question map)');
@@ -155,13 +163,13 @@ const engine = createAIVerdict({
   shouldAutoFire: () => !!_getDefaults()?.completedAt,
   parseExtraFields: (parsed) => ({
     actions: Array.isArray(parsed.actions)
-      ? parsed.actions.slice(0, 5).map(a => String(a).slice(0, 200))
+      ? parsed.actions.slice(0, 5).map((a: unknown) => String(a).slice(0, 200))
       : [],
   }),
   getAllTargets: () => (_getDefaults() ? [SINGLETON_TARGET] : []),
 });
 
-export const analyzeOnboardingAI = (opts) => engine.analyze(SINGLETON_TARGET, opts);
+export const analyzeOnboardingAI = (opts?: AnalyzeOptions) => engine.analyze(SINGLETON_TARGET, opts);
 export const refreshOnboardingAIAnalysis = () => engine.refresh('default');
 registerAIActionHandler('refresh-onboarding', refreshOnboardingAIAnalysis);
 export function maybeAnalyzeOnboardingAfterSave() {
@@ -186,9 +194,9 @@ export function renderOnboardingAIBlock() {
     </div>`;
   }
   if (status === 'ok') {
-    const dot = a.dot;
-    const actionsHtml = Array.isArray(a.actions) && a.actions.length
-      ? `<ul class="light-setup-ai-actions">${a.actions.map(s => `<li>${escapeHTML(s)}</li>`).join('')}</ul>`
+    const dot = a!.dot;
+    const actionsHtml = Array.isArray(a!.actions) && a!.actions.length
+      ? `<ul class="light-setup-ai-actions">${a!.actions.map((s: unknown) => `<li>${escapeHTML(s)}</li>`).join('')}</ul>`
       : '';
     return `<div class="light-setup-ai-block light-setup-ai-block-${dot}">
       <div class="light-setup-ai-head">
@@ -198,9 +206,9 @@ export function renderOnboardingAIBlock() {
       <div class="sun-detail-ai sun-detail-ai-${dot}">
         <div class="sun-detail-ai-head">
           <span class="sun-session-ai-dot sun-session-ai-dot-${dot}" aria-hidden="true"></span>
-          <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a.tip || '')}</span>
+          <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a!.tip || '')}</span>
         </div>
-        ${a.detail ? `<div class="sun-detail-ai-body">${escapeHTML(a.detail)}</div>` : ''}
+        ${a!.detail ? `<div class="sun-detail-ai-body">${escapeHTML(a!.detail)}</div>` : ''}
         ${actionsHtml}
       </div>
     </div>`;

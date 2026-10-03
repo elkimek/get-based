@@ -1,4 +1,3 @@
-// @ts-check
 // light-env-ai-analysis.js — per-room AI verdict for the Light
 // Environment module. Synthesizes a room's measurements + occupancy +
 // primary source + screens into one circadian-friendliness verdict.
@@ -16,19 +15,26 @@ import { isQuantitativeDarknessMeasurement, isQuantitativeLuxMeasurement } from 
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
-function _getRooms() { return state.importedData?.lightEnvironment?.rooms || []; }
-function _getMeasurementsForRoom(roomId) {
-  return (state.importedData?.lightMeasurements || []).filter(m => m.roomId === roomId);
+import type { LightRoom, LightScreen } from './light-env-model.js';
+import type { MeasurementContextInput } from './light-tools-ai-analysis.js';
+import type { AIVerdictAnalysis } from './ai-verdict-engine.js';
+
+export interface AIRoom extends LightRoom { id: string; aiAnalysis?: AIVerdictAnalysis | null; }
+type RoomMeasurements = MeasurementContextInput;
+
+function _getRooms() { return (state.importedData?.lightEnvironment?.rooms || []) as AIRoom[]; }
+function _getMeasurementsForRoom(roomId: string | undefined) {
+  return ((state.importedData?.lightMeasurements || []) as RoomMeasurements[]).filter(m => m.roomId === roomId);
 }
-function _getScreensForRoom(roomId) {
-  return (state.importedData?.lightEnvironment?.screens || []).filter(s => s.roomId === roomId);
+function _getScreensForRoom(roomId: string | undefined) {
+  return ((state.importedData?.lightEnvironment?.screens || []) as LightScreen[]).filter(s => s.roomId === roomId);
 }
 
 // Bumped 2026-05-08: prompt biology priors tightened to Brown 2022
 // melanopic-EDI thresholds. Existing cached verdicts may carry the
 // older 100-lux daytime / >1-photopic-lux night anchors — invalidate.
 const _roomFingerprintSalt = 'v3-measurement-quality';
-export function getRoomFingerprint(r) {
+export function getRoomFingerprint(r: LightRoom | null | undefined) {
   if (!r) return '';
   const measurements = _getMeasurementsForRoom(r.id);
   const screens = _getScreensForRoom(r.id);
@@ -40,8 +46,8 @@ export function getRoomFingerprint(r) {
     r.hoursOccupiedPerDay || 0,
     getRoomEveningHoursAfterSunset(r),
   ];
-  const byTool = new Map();
-  for (const m of measurements.sort((a, b) => b.capturedAt - a.capturedAt)) {
+  const byTool = new Map<unknown, RoomMeasurements>();
+  for (const m of measurements.sort((a, b) => (b.capturedAt as number) - (a.capturedAt as number))) {
     if (!byTool.has(m.tool)) byTool.set(m.tool, m);
   }
   for (const [tool, m] of [...byTool.entries()].sort()) {
@@ -51,7 +57,7 @@ export function getRoomFingerprint(r) {
   return hashString(parts.join('|'));
 }
 
-function _formatNumber(n, digits = 1) {
+function _formatNumber(n: unknown, digits = 1) {
   if (n == null || !Number.isFinite(n)) return '—';
   return Number(n).toFixed(digits).replace(/\.0$/, '');
 }
@@ -60,16 +66,16 @@ function _formatNumber(n, digits = 1) {
 // prompt injection / token bloat from a 10kB pasted name. Strip newlines
 // + collapse whitespace so a name like "Bedroom\n[SYSTEM: ...]" becomes
 // inline text the model parses as a label, not as a directive.
-function _safeText(s, max = 80) {
+function _safeText(s: unknown, max = 80) {
   return String(s || '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-const _SCREEN_TYPE_LABELS = {
+const _SCREEN_TYPE_LABELS: Record<string, unknown> = {
   phone: 'phone', tablet: 'tablet', laptop: 'laptop',
   monitor: 'monitor', tv: 'TV', ereader: 'e-reader',
 };
 
-const _SOURCE_LABELS = {
+const _SOURCE_LABELS: Record<string, unknown> = {
   unknown: 'unknown', incandescent: 'incandescent / halogen',
   'led-warm': 'warm LED', 'led-cool': 'cool LED',
   'led-tunable': 'tunable LED', fluorescent: 'fluorescent',
@@ -77,11 +83,11 @@ const _SOURCE_LABELS = {
   daylight: 'mostly daylight (windows)',
 };
 
-export function buildRoomContext(r) {
+export function buildRoomContext(r: LightRoom | null | undefined) {
   if (!r) return '';
   const measurements = _getMeasurementsForRoom(r.id);
   const screens = _getScreensForRoom(r.id);
-  const lines = [];
+  const lines: string[] = [];
 
   lines.push(`### Room`);
   lines.push(`Name: ${_safeText(r.name) || '(unnamed)'}`);
@@ -94,8 +100,8 @@ export function buildRoomContext(r) {
     : 'Evening use after sunset: not used after dark');
 
   if (measurements.length) {
-    const byTool = new Map();
-    for (const m of measurements.sort((a, b) => b.capturedAt - a.capturedAt)) {
+    const byTool = new Map<unknown, RoomMeasurements>();
+    for (const m of measurements.sort((a, b) => (b.capturedAt as number) - (a.capturedAt as number))) {
       if (!byTool.has(m.tool)) byTool.set(m.tool, m);
     }
     lines.push('');
@@ -103,10 +109,10 @@ export function buildRoomContext(r) {
     for (const [tool, m] of byTool) {
       switch (tool) {
         case 'lux':
-          lines.push(`Lux: ${Math.round(m.value)} photopic lux (${m.extra?.source || 'legacy/unknown source'}; ${isQuantitativeLuxMeasurement(m) ? 'usable spot-check' : 'unverified camera estimate — do not threshold'})`);
+          lines.push(`Lux: ${Math.round(m.value as number)} photopic lux (${m.extra?.source || 'legacy/unknown source'}; ${isQuantitativeLuxMeasurement(m) ? 'usable spot-check' : 'unverified camera estimate — do not threshold'})`);
           break;
         case 'flicker': {
-          const score = Math.round(m.value || 0);
+          const score = Math.round((m.value || 0) as number);
           const sLabel = ['pristine', 'mild', 'moderate', 'severe'][score] || 'unknown';
           lines.push(`Camera banding: ${score}/3 (${sLabel})${m.extra?.stripes ? `, ${m.extra.stripes} rolling-shutter stripe groups` : ''}`);
           break;
@@ -121,14 +127,14 @@ export function buildRoomContext(r) {
         case 'cct':
           {
             const blueRatio = m.extra?.cameraBlueRatioProxy ?? m.extra?.melanopic;
-            lines.push(`Approximate camera CCT: ~${Math.round(m.value / 100) * 100} K${blueRatio != null ? `, camera RGB blue-ratio proxy ${_formatNumber(blueRatio, 2)} (not melanopic EDI)` : ''}${m.extra?.bandingDetected || m.extra?.pwmActive ? ', camera banding also detected' : ''}`);
+            lines.push(`Approximate camera CCT: ~${Math.round((m.value as number) / 100) * 100} K${blueRatio != null ? `, camera RGB blue-ratio proxy ${_formatNumber(blueRatio, 2)} (not melanopic EDI)` : ''}${m.extra?.bandingDetected || m.extra?.pwmActive ? ', camera banding also detected' : ''}`);
           }
           break;
         case 'spectrum':
           lines.push(`Spectrum: ${m.value || m.extra?.label}${m.extra?.circadian ? ` (${m.extra.circadian})` : ''}`);
           break;
         case 'glass-transmission':
-          lines.push(`Window transmission: ${Math.round((m.value || 0) * 100)}%`);
+          lines.push(`Window transmission: ${Math.round(((m.value || 0) as number) * 100)}%`);
           break;
       }
     }
@@ -140,10 +146,10 @@ export function buildRoomContext(r) {
   if (screens.length) {
     lines.push('');
     lines.push('### Screens used in this room');
-    const typeCounts = {};
+    const typeCounts: Record<string, unknown> = {};
     for (const s of screens) {
-      const t = _SCREEN_TYPE_LABELS[s.device] || s.device;
-      typeCounts[t] = (typeCounts[t] || 0) + 1;
+      const t = _SCREEN_TYPE_LABELS[s.device as string] || s.device;
+      typeCounts[t as string] = ((typeCounts[t as string] || 0) as number) + 1;
     }
     for (const [t, n] of Object.entries(typeCounts)) {
       lines.push(`  - ${n}× ${t}`);
@@ -187,7 +193,7 @@ const SYSTEM_PROMPT = [
   'No "you should" — be observational and direct. No emoji.',
 ].join('\n');
 
-const engine = createAIVerdict({
+const engine = createAIVerdict<AIRoom>({
   getTarget: (id) => _getRooms().find(r => r.id === id),
   getId: (r) => r?.id,
   getAIAnalysis: (r) => r?.aiAnalysis || null,
@@ -207,9 +213,9 @@ registerAIActionHandler('refresh-room', refreshRoomAIAnalysis);
 
 // Track auto-fired room IDs per session — same gate the light-today
 // hero uses, prevents tight-loop refire on transient errors.
-const _autoFiredRoomKeys = new Set();
+const _autoFiredRoomKeys = new Set<string>();
 
-export function renderRoomAIBlock(r) {
+export function renderRoomAIBlock(r: AIRoom | null | undefined) {
   if (!r) return '';
   if (!hasAssistantFeatureProvider() && !(r.aiAnalysis?.status === 'ok' && r.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(r);
@@ -217,7 +223,7 @@ export function renderRoomAIBlock(r) {
   const currentFingerprint = getRoomFingerprint(r);
   const cachedFingerprint = a?.fingerprint;
   const stale = !!(cachedFingerprint && cachedFingerprint !== currentFingerprint);
-  const renderInline = (state, bodyHTML) => `<div class="light-env-room-ai light-env-room-ai-${escapeAttr(state)}">
+  const renderInline = (state: unknown, bodyHTML: string) => `<div class="light-env-room-ai light-env-room-ai-${escapeAttr(state)}">
     ${bodyHTML}
   </div>`;
 
@@ -244,11 +250,11 @@ export function renderRoomAIBlock(r) {
       <span class="light-env-room-ai-tip">Checking this room…</span>`);
   }
   if (status === 'ok') {
-    const dot = a.dot;
+    const dot = a!.dot;
     return renderInline(dot, `
       <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
       <span class="light-env-room-ai-label">AI read</span>
-      <span class="light-env-room-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a.tip || '')}</span>
+      <span class="light-env-room-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a!.tip || '')}</span>
       <button class="sun-session-ai-refresh light-env-room-ai-refresh" ${aiActionAttrs('refresh-room', r.id)} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`);
   }
   if (status === 'error') {

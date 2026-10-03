@@ -1,12 +1,11 @@
-// @ts-check
 // light-screen-ai-analysis.js — per-screen AI verdict for the Light
 // Environment screens (phone, tablet, laptop, monitor, TV, e-reader).
 //
 // Storage: screen.aiAnalysis on each screen object (lightEnvironment.
-// screens is on the per-row CRDT — verdicts sync naturally). Manual
-// trigger only — screen edits come in flurries (device → hours → evening
-// → blue-blocker), and auto-firing on every chip click would burn API
-// calls during a single setup pass.
+// screens is on the per-row CRDT — verdicts sync naturally). Rendering
+// a configured device queues analysis when its verdict is idle or stale.
+// Per-session screen-ID/fingerprint keys suppress repeated analysis of
+// unchanged data; explicit refresh bypasses the verdict cache.
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
@@ -16,38 +15,43 @@ import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
-function _getScreens() { return state.importedData?.lightEnvironment?.screens || []; }
-function _getRooms() { return state.importedData?.lightEnvironment?.rooms || []; }
-function _getRoomFor(s) {
+import type { LightRoom, LightScreen } from './light-env-model.js';
+import type { AIVerdictAnalysis } from './ai-verdict-engine.js';
+
+export interface AIScreen extends LightScreen { id: string; aiAnalysis?: AIVerdictAnalysis | null; }
+
+function _getScreens() { return (state.importedData?.lightEnvironment?.screens || []) as AIScreen[]; }
+function _getRooms() { return (state.importedData?.lightEnvironment?.rooms || []) as LightRoom[]; }
+function _getRoomFor(s: LightScreen) {
   if (!s?.roomId) return null;
   return _getRooms().find(r => r.id === s.roomId) || null;
 }
 
-const _DEVICE_LABELS = {
+const _DEVICE_LABELS: Record<string, unknown> = {
   phone: 'phone', tablet: 'tablet', laptop: 'laptop',
   monitor: 'monitor', tv: 'TV', ereader: 'e-reader',
 };
 
-export function getScreenFingerprint(s) {
+export function getScreenFingerprint(s: LightScreen | null | undefined) {
   if (!s) return '';
   const parts = [
     'v2-blue-reduction-not-zero',
     s.device || '',
     s.roomId || 'portable',
-    Math.round((s.hoursPerDay || 0) * 10) / 10,
-    Math.round((s.eveningUseAfterSunset || 0) * 10) / 10,
+    Math.round(((s.hoursPerDay || 0) as number) * 10) / 10,
+    Math.round(((s.eveningUseAfterSunset || 0) as number) * 10) / 10,
     s.blueBlockerEnabled ? 1 : 0,
   ];
   return hashString(parts.join('|'));
 }
 
-export function buildScreenContext(s) {
+export function buildScreenContext(s: LightScreen | null | undefined) {
   if (!s) return '';
-  const lines = [];
+  const lines: string[] = [];
   const room = _getRoomFor(s);
 
   lines.push('### Screen');
-  lines.push(`Device: ${_DEVICE_LABELS[s.device] || s.device || 'unspecified'}`);
+  lines.push(`Device: ${_DEVICE_LABELS[s.device as string] || s.device || 'unspecified'}`);
   // Bound user-supplied room name to prevent prompt-injection via a
   // crafted name like "Bedroom\n[SYSTEM: ...]". 80 chars is plenty for
   // any real room name.
@@ -106,7 +110,7 @@ const SYSTEM_PROMPT = [
   'No "you should" — be observational. No emoji.',
 ].join('\n');
 
-const engine = createAIVerdict({
+const engine = createAIVerdict<AIScreen>({
   getTarget: (id) => _getScreens().find(s => s.id === id),
   getId: (s) => s?.id,
   getAIAnalysis: (s) => s?.aiAnalysis || null,
@@ -126,9 +130,9 @@ registerAIActionHandler('refresh-screen', refreshScreenAIAnalysis);
 
 // Track auto-fired screen IDs per session — same gate as the room
 // auto-fire path; prevents tight-loop refire on transient errors.
-const _autoFiredScreenKeys = new Set();
+const _autoFiredScreenKeys = new Set<string>();
 
-export function renderScreenAIBlock(s) {
+export function renderScreenAIBlock(s: AIScreen | null | undefined) {
   if (!s) return '';
   if (!hasAssistantFeatureProvider() && !(s.aiAnalysis?.status === 'ok' && s.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(s);
@@ -160,16 +164,16 @@ export function renderScreenAIBlock(s) {
     </div>`;
   }
   if (status === 'ok') {
-    const dot = a.dot;
+    const dot = a!.dot;
     return `<div class="light-env-screen-ai">
       <div class="light-env-screen-ai-head">⚡ AI verdict</div>
       <div class="sun-detail-ai sun-detail-ai-${escapeAttr(dot)}">
         <div class="sun-detail-ai-head">
           <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
-          <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a.tip || '')}</span>
+          <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a!.tip || '')}</span>
           <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-screen', s.id)} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
         </div>
-        ${a.detail ? `<div class="sun-detail-ai-body">${escapeHTML(a.detail)}</div>` : ''}
+        ${a!.detail ? `<div class="sun-detail-ai-body">${escapeHTML(a!.detail)}</div>` : ''}
       </div>
     </div>`;
   }

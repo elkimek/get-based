@@ -1,4 +1,3 @@
-// @ts-check
 // light-audit-ai-analysis.js — per-audit AI verdict for the Light
 // Audit feature (frozen snapshot of rooms + screens + measurements).
 //
@@ -6,8 +5,8 @@
 // a chat-panel comparison between two audits). This module gives each
 // audit its own persistent verdict — visible at-a-glance on the card
 // header (color dot) and as a full block in the audit detail body.
-// Trigger is manual since audits are explicit checkpoints, not high-
-// frequency events.
+// Analysis runs after saving an explicit checkpoint or when the user
+// refreshes its verdict; rendering alone never starts a request.
 //
 // Storage: audit.aiAnalysis — lightAudits is on the per-row CRDT, so
 // verdicts sync naturally.
@@ -21,19 +20,40 @@ import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
 import { isQuantitativeDarknessMeasurement, isQuantitativeLuxMeasurement } from './light-env-model.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
+import type { LightRoom, LightScreen } from './light-env-model.js';
+import type { MeasurementContextInput } from './light-tools-ai-analysis.js';
+import type { AIVerdictAnalysis } from './ai-verdict-engine.js';
 
-function _getAudits() {
-  if (!state.importedData) return [];
-  if (!Array.isArray(state.importedData.lightAudits)) state.importedData.lightAudits = [];
-  return state.importedData.lightAudits;
+export type AuditRoomInput = Pick<LightRoom, 'id' | 'name' | 'primarySource' | 'daylightLevel' | 'hoursOccupiedPerDay' | 'eveningHoursAfterSunset' | 'eveningUseAfterSunset'>;
+export type AuditScreenInput = Pick<LightScreen, 'device' | 'roomId' | 'hoursPerDay' | 'eveningUseAfterSunset' | 'blueBlockerEnabled'>;
+
+export interface AuditContextInput {
+  id?: string;
+  date?: unknown;
+  label?: unknown;
+  createdAt?: number | string | null;
+  rooms?: AuditRoomInput[] | null;
+  screens?: AuditScreenInput[] | null;
+  measurements?: MeasurementContextInput[] | null;
+}
+export interface AILightAudit extends AuditContextInput {
+  id: string;
+  aiAnalysis?: AIVerdictAnalysis | null;
 }
 
-const _SCREEN_LABELS = {
+
+function _getAudits(): AILightAudit[] {
+  if (!state.importedData) return [];
+  if (!Array.isArray(state.importedData.lightAudits)) state.importedData.lightAudits = [];
+  return state.importedData.lightAudits as AILightAudit[];
+}
+
+const _SCREEN_LABELS: Record<string, unknown> = {
   phone: 'phone', tablet: 'tablet', laptop: 'laptop',
   monitor: 'monitor', tv: 'TV', ereader: 'e-reader',
 };
 
-const _SOURCE_LABELS = {
+const _SOURCE_LABELS: Record<string, unknown> = {
   unknown: 'unknown', incandescent: 'incandescent / halogen',
   'led-warm': 'warm LED', 'led-cool': 'cool LED',
   'led-tunable': 'tunable LED', fluorescent: 'fluorescent',
@@ -45,7 +65,7 @@ const _SOURCE_LABELS = {
 // EDI thresholds; older cached verdicts used a 100-lux daytime / >1
 // photopic-lux night anchor and need to refresh.
 const _auditFingerprintSalt = 'v3-measurement-quality';
-export function getAuditFingerprint(a) {
+export function getAuditFingerprint(a: AuditContextInput | null | undefined) {
   if (!a) return '';
   const parts = [
     _auditFingerprintSalt,
@@ -68,26 +88,26 @@ export function getAuditFingerprint(a) {
   return hashString(parts.join('|'));
 }
 
-function _formatNumber(n, digits = 1) {
+function _formatNumber(n: unknown, digits = 1) {
   if (n == null || !Number.isFinite(n)) return '—';
   return Number(n).toFixed(digits).replace(/\.0$/, '');
 }
 
 // Bound user-controlled free-text in prompt context (audit label, room
 // names) to prevent prompt-injection via crafted strings + token bloat.
-function _safeText(s, max = 80) {
+function _safeText(s: unknown, max = 80) {
   return String(s || '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-function _latestInAudit(audit, tool, roomId) {
+function _latestInAudit(audit: AuditContextInput | null | undefined, tool: unknown, roomId: unknown) {
   return (audit?.measurements || [])
     .filter(m => m.tool === tool && m.roomId === roomId)
-    .sort((a, b) => (b.capturedAt || 0) - (a.capturedAt || 0))[0];
+    .sort((a, b) => ((b.capturedAt || 0) as number) - ((a.capturedAt || 0) as number))[0];
 }
 
-export function buildAuditContext(a) {
+export function buildAuditContext(a: AuditContextInput | null | undefined) {
   if (!a) return '';
-  const lines = [];
+  const lines: string[] = [];
   lines.push(`### Light environment audit`);
   lines.push(`Date: ${a.date}${a.label ? ` (${_safeText(a.label, 100)})` : ''}`);
   lines.push(`Snapshot taken on: ${new Date(a.createdAt || Date.now()).toISOString().slice(0, 10)}`);
@@ -114,9 +134,9 @@ export function buildAuditContext(a) {
         const m = _latestInAudit(a, t, r.id);
         if (!m) continue;
         switch (t) {
-          case 'lux': roomLines.push(`  Lux: ${Math.round(m.value)} photopic lux (${isQuantitativeLuxMeasurement(m) ? 'usable spot-check' : 'unverified camera estimate — do not threshold'})`); break;
+          case 'lux': roomLines.push(`  Lux: ${Math.round(m.value as number)} photopic lux (${isQuantitativeLuxMeasurement(m) ? 'usable spot-check' : 'unverified camera estimate — do not threshold'})`); break;
           case 'flicker': {
-            const score = Math.round(m.value || 0);
+            const score = Math.round((m.value || 0) as number);
             const sLabel = ['pristine', 'mild', 'moderate', 'severe'][score] || 'unknown';
             roomLines.push(`  Camera banding: ${score}/3 (${sLabel})${m.extra?.stripes ? `, ${m.extra.stripes} rolling-shutter stripe groups` : ''}`);
             break;
@@ -129,24 +149,24 @@ export function buildAuditContext(a) {
           case 'cct':
             {
               const blueRatio = m.extra?.cameraBlueRatioProxy ?? m.extra?.melanopic;
-              roomLines.push(`  Approximate camera CCT: ~${Math.round(m.value / 100) * 100} K${blueRatio != null ? `, camera RGB blue-ratio proxy ${_formatNumber(blueRatio, 2)} (not melanopic EDI)` : ''}`);
+              roomLines.push(`  Approximate camera CCT: ~${Math.round((m.value as number) / 100) * 100} K${blueRatio != null ? `, camera RGB blue-ratio proxy ${_formatNumber(blueRatio, 2)} (not melanopic EDI)` : ''}`);
             }
             break;
           case 'spectrum':
             roomLines.push(`  Spectrum: ${m.value || m.extra?.label}`);
             break;
           case 'glass-transmission':
-            roomLines.push(`  Window transmission: ${Math.round((m.value || 0) * 100)}%`);
+            roomLines.push(`  Window transmission: ${Math.round(((m.value || 0) as number) * 100)}%`);
             break;
         }
       }
       // Screens bound to this room
       const roomScreens = screens.filter(s => s.roomId === r.id);
       if (roomScreens.length) {
-        const counts = {};
+        const counts: Record<string, unknown> = {};
         for (const s of roomScreens) {
-          const t = _SCREEN_LABELS[s.device] || s.device;
-          counts[t] = (counts[t] || 0) + 1;
+          const t = _SCREEN_LABELS[s.device as string] || s.device;
+          counts[t as string] = ((counts[t as string] || 0) as number) + 1;
         }
         const desc = Object.entries(counts).map(([t, n]) => `${n}× ${t}`).join(', ');
         roomLines.push(`  Screens in room: ${desc}`);
@@ -162,7 +182,7 @@ export function buildAuditContext(a) {
     lines.push('### Portable screens');
     for (const s of portable) {
       const ev = s.eveningUseAfterSunset != null ? Number(s.eveningUseAfterSunset) : 0;
-      lines.push(`- ${_SCREEN_LABELS[s.device] || s.device}: ${s.hoursPerDay || 0} hr/day${ev > 0 ? ', ' + ev + ' hr after sunset' : ''}${s.blueBlockerEnabled ? ', blue reduction noted (not zero exposure)' : ''}`);
+      lines.push(`- ${_SCREEN_LABELS[s.device as string] || s.device}: ${s.hoursPerDay || 0} hr/day${ev > 0 ? ', ' + ev + ' hr after sunset' : ''}${s.blueBlockerEnabled ? ', blue reduction noted (not zero exposure)' : ''}`);
     }
   }
 
@@ -210,7 +230,7 @@ const SYSTEM_PROMPT = [
   'No "you should" — be observational. No emoji.',
 ].join('\n');
 
-const engine = createAIVerdict({
+const engine = createAIVerdict<AILightAudit>({
   getTarget: (id) => _getAudits().find(a => a.id === id),
   getId: (a) => a?.id,
   getAIAnalysis: (a) => a?.aiAnalysis || null,
@@ -232,7 +252,7 @@ export const maybeAnalyzeAuditAfterSave = engine.maybeAfterFinish;
 // Block that lives at the top of the audit detail body. Click "Analyze
 // audit" once per snapshot — the verdict is then frozen with the audit
 // (via aiAnalysis.fingerprint) and won't re-fire on subsequent renders.
-export function renderAuditAIBlock(a) {
+export function renderAuditAIBlock(a: AILightAudit | null | undefined) {
   if (!a) return '';
   if (!hasAssistantFeatureProvider() && !(a.aiAnalysis?.status === 'ok' && a.aiAnalysis?.dot)) return '';
   const status = engine.getStatus(a);
@@ -247,16 +267,16 @@ export function renderAuditAIBlock(a) {
     </div>`;
   }
   if (status === 'ok') {
-    const dot = verdict.dot;
+    const dot = verdict!.dot;
     return `<div class="light-audit-ai">
       <div class="light-audit-ai-head">⚡ AI verdict</div>
       <div class="sun-detail-ai sun-detail-ai-${escapeAttr(dot)}">
         <div class="sun-detail-ai-head">
           <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
-          <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(verdict.tip || '')}</span>
+          <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(verdict!.tip || '')}</span>
           <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-audit', a.id)} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
         </div>
-        ${verdict.detail ? `<div class="sun-detail-ai-body">${escapeHTML(verdict.detail)}</div>` : ''}
+        ${verdict!.detail ? `<div class="sun-detail-ai-body">${escapeHTML(verdict!.detail)}</div>` : ''}
       </div>
     </div>`;
   }
@@ -283,7 +303,7 @@ export function renderAuditAIBlock(a) {
 
 // Compact dot for the audit card header (collapsed view) — gives users
 // an at-a-glance read across multiple audits without expanding each.
-export function renderAuditAIDot(a) {
+export function renderAuditAIDot(a: Pick<AILightAudit, 'aiAnalysis'> | null | undefined) {
   // Dot is purely a cached-verdict indicator — render whenever the
   // verdict is present, regardless of provider state.
   if (!a?.aiAnalysis?.dot) return '';

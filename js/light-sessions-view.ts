@@ -1,5 +1,4 @@
-// @ts-check
-// light-sessions-view.js — Unified Light & Sun session list and modal
+// light-sessions-view.ts — Unified Light & Sun session list and modal
 
 import { bindModalSyncRefresh, escapeHTML, escapeAttr, formatDate } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
@@ -7,21 +6,27 @@ import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.
 const LIGHT_SESSIONS_ACTION_ATTR = 'data-light-sessions-action';
 const LIGHT_SESSION_ID_ATTR = 'data-light-session-id';
 const LIGHT_SESSIONS_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightSessionsActionDelegatesInstalled');
-const lightSessionsActionDelegateRoots = new WeakSet();
+const lightSessionsActionDelegateRoots = new WeakSet<DelegateRoot>();
 
-/**
- * @typedef {object} LightSessionsViewDeps
- * @property {() => any[]} getSessions
- * @property {() => any[]} getDeviceSessions
- * @property {() => any[]} getDevices
- * @property {(sess: any) => string} renderSunSessionRow
- * @property {(id: string) => void | Promise<any>} openDeviceSessionDetail
- * @property {(type: string, listener: EventListener) => void} addEventListener
- * @property {(type: string, listener: EventListener) => void} removeEventListener
- */
+import type { SunSessionRecord } from './sun-sessions-store.js';
+import type { DeviceSessionRecord, LightDeviceRecord } from './light-devices-store.js';
 
-/** @type {LightSessionsViewDeps} */
-const viewDeps = {
+export interface LightSessionsViewDeps {
+  getSessions(): SunSessionRecord[];
+  getDeviceSessions(): DeviceSessionRecord[];
+  getDevices(): LightDeviceRecord[];
+  renderSunSessionRow(session: SunSessionRecord): string;
+  openDeviceSessionDetail(id: string): unknown;
+  addEventListener(type: string, listener: EventListener): void;
+  removeEventListener(type: string, listener: EventListener): void;
+}
+type SessionRow = { kind: 'sun'; startedAt: number; sess: SunSessionRecord }
+  | { kind: 'device'; startedAt: number; sess: DeviceSessionRecord };
+type ActionTarget = Partial<Pick<Element, 'closest'>>;
+type ParentActionTarget = ActionTarget & { parentElement?: ActionTarget | null; parentNode?: ActionTarget | null };
+type DelegateRoot = Document | HTMLElement;
+
+const viewDeps: LightSessionsViewDeps = {
   getSessions: () => [],
   getDeviceSessions: () => [],
   getDevices: () => [],
@@ -39,19 +44,18 @@ const viewDeps = {
   },
 };
 
-/** @param {Partial<LightSessionsViewDeps>} [deps] */
-export function configureLightSessionsView(deps = {}) {
+export function configureLightSessionsView(deps: Partial<LightSessionsViewDeps> = {}) {
   Object.assign(viewDeps, deps);
 }
 
-function closestLightSessionsAction(target) {
+function closestLightSessionsAction(target: ActionTarget | null) {
   if (!target || !target.closest) return null;
   return target.closest(`[${LIGHT_SESSIONS_ACTION_ATTR}]`);
 }
 
-function handleLightSessionsActionClick(event) {
-  const actionEl = closestLightSessionsAction(event.target);
-  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+function handleLightSessionsActionClick(event: Event) {
+  const actionEl = closestLightSessionsAction(event.target as ActionTarget | null);
+  if (!actionEl || !(event.currentTarget as Partial<Node> | null)?.contains?.(actionEl)) return;
   const action = actionEl.getAttribute(LIGHT_SESSIONS_ACTION_ATTR);
   const sessionId = actionEl.getAttribute(LIGHT_SESSION_ID_ATTR) || '';
   if (action === 'open-device-session') {
@@ -65,18 +69,18 @@ function handleLightSessionsActionClick(event) {
   }
 }
 
-function handleLightSessionsActionKeydown(event) {
-  if (event.key !== 'Enter' && event.key !== ' ') return;
-  const actionEl = closestLightSessionsAction(event.target);
-  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+function handleLightSessionsActionKeydown(event: Event) {
+  if ((event as KeyboardEvent).key !== 'Enter' && (event as KeyboardEvent).key !== ' ') return;
+  const actionEl = closestLightSessionsAction(event.target as ActionTarget | null);
+  if (!actionEl || !(event.currentTarget as Partial<Node> | null)?.contains?.(actionEl)) return;
   if (actionEl.getAttribute('role') !== 'button') return;
-  if (event.target?.closest?.('button, a, input, textarea, select')) return;
+  if ((event.target as ActionTarget | null)?.closest?.('button, a, input, textarea, select')) return;
   event.preventDefault();
   handleLightSessionsActionClick(event);
 }
 
-export function installLightSessionsActionDelegates(root = typeof document !== 'undefined' ? document : null) {
-  if (!root || lightSessionsActionDelegateRoots.has(root) || root[LIGHT_SESSIONS_ACTION_DELEGATE_KEY]) return;
+export function installLightSessionsActionDelegates(root: DelegateRoot | null = typeof document !== 'undefined' ? document : null) {
+  if (!root || lightSessionsActionDelegateRoots.has(root) || (root as DelegateRoot & { [LIGHT_SESSIONS_ACTION_DELEGATE_KEY]?: boolean })[LIGHT_SESSIONS_ACTION_DELEGATE_KEY]) return;
   lightSessionsActionDelegateRoots.add(root);
   Object.defineProperty(root, LIGHT_SESSIONS_ACTION_DELEGATE_KEY, { value: true, configurable: true });
   root.addEventListener('click', handleLightSessionsActionClick);
@@ -104,14 +108,14 @@ function _collectUnifiedSessionRows() {
   // Active device sessions are pinned above (renderActiveDeviceSessionCard);
   // filter them out here so the same row doesn't render twice.
   const devSessions = viewDeps.getDeviceSessions().filter(s => !!s.endedAt);
-  const rows = [];
+  const rows: SessionRow[] = [];
   for (const s of sunSessions) rows.push({ kind: 'sun', startedAt: s.startedAt || 0, sess: s });
   for (const s of devSessions) rows.push({ kind: 'device', startedAt: s.startedAt || 0, sess: s });
   rows.sort((a, b) => b.startedAt - a.startedAt);
   return { rows, hasDeviceRows: devSessions.length > 0 };
 }
 
-function _localSessionStamp(timestamp) {
+function _localSessionStamp(timestamp: number) {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return { date: 'Date unavailable', time: '' };
   const localKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -121,7 +125,7 @@ function _localSessionStamp(timestamp) {
   };
 }
 
-function _renderSessionRowsHTML(rows) {
+function _renderSessionRowsHTML(rows: SessionRow[]) {
   const devices = viewDeps.getDevices();
   const deviceById = Object.fromEntries(devices.map(d => [d.id, d]));
   const renderSunRow = viewDeps.renderSunSessionRow;
@@ -131,7 +135,7 @@ function _renderSessionRowsHTML(rows) {
       html += renderSunRow(row.sess);
     } else if (row.kind === 'device') {
       const sess = row.sess;
-      const dev = deviceById[sess.deviceId] || sess.deviceSnapshot || null;
+      const dev = deviceById[sess.deviceId as string] || sess.deviceSnapshot || null;
       const devName = dev ? `${dev.brand} ${dev.model}` : 'Device details unavailable';
       const stamp = _localSessionStamp(row.startedAt);
       const dur = sess.durationMin ? `${Math.round(sess.durationMin * 10) / 10} min` : '—';
@@ -256,14 +260,14 @@ export function _openAllSessionsModal() {
     viewDeps.removeEventListener('labcharts-ai-verdict-updated', onVerdictRefresh);
   };
   viewDeps.addEventListener('labcharts-ai-verdict-updated', onVerdictRefresh);
-  const eventElement = (target) => {
+  const eventElement = (target: ParentActionTarget | null) => {
     if (!target) return null;
-    if (target.closest) return target;
+    if (target.closest) return target as Required<ActionTarget>;
     const parent = target.parentElement || target.parentNode;
-    return parent?.closest ? parent : null;
+    return parent?.closest ? parent as Required<ActionTarget> : null;
   };
   overlay.addEventListener('click', (event) => {
-    const target = eventElement(event.target);
+    const target = eventElement(event.target as ParentActionTarget | null);
     if (target?.closest?.('[data-light-sessions-close]')) {
       closeOverlay();
       return;
@@ -274,8 +278,8 @@ export function _openAllSessionsModal() {
     setTimeout(closeOverlay, 0);
   });
   overlay.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return;
-    const target = eventElement(event.target);
+    if ((event as KeyboardEvent).key !== 'Enter' && (event as KeyboardEvent).key !== ' ') return;
+    const target = eventElement(event.target as ParentActionTarget | null);
     const row = target?.closest?.('.sun-session[role="button"]');
     if (!row || !overlay.contains(row)) return;
     setTimeout(closeOverlay, 0);

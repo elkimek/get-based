@@ -821,3 +821,9 @@ deploy/profile-share/data/
 /js/export-report-html.js
 
 /types/report-export.js
+
+/js/light-audit-ai-analysis.js
+/js/light-env-ai-analysis.js
+/js/light-screen-ai-analysis.js
+/js/light-sessions-view.js
+/js/sun-onboarding-ai.js
