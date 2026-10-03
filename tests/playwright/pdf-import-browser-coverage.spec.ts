@@ -1,3 +1,7 @@
+type PdfRequestReader={stream?:unknown;messages?:{content:unknown}[]};
+type PdfEntryReader={date?:unknown;markers?:Record<string,unknown>;importedWith?:{provider?:unknown;modelId?:unknown};importHash?:unknown;sourceFiles?:string[];context?:{sampleTime?:unknown;fasting?:unknown};collectionContextSources?:Record<string,unknown>;markerSources?:Record<string,{snapshotId?:unknown;file?:unknown}>};
+type PdfSnapshotReader={id?:unknown;fileName?:unknown;date?:unknown;markers?:{value?:unknown;suggestedKey?:unknown}[];costInfo?:{inputTokens?:unknown;outputTokens?:unknown;cost?:unknown};timings?:{piiMs?:unknown;analysisMs?:unknown};importMode?:unknown;diagnostics?:{structuredOutputFallback?:unknown;streamFallback?:unknown};sampleTime?:unknown;fasting?:unknown;benchmarkAt?:unknown;adoptReferenceRanges?:unknown;collectionContextApplied?:string[];importedAt?:unknown};
+type PdfFixtureDataReader={entries:PdfEntryReader[];importSnapshots:PdfSnapshotReader[];refOverrides:Record<string,Record<string,unknown>>;customMarkers:Record<string,{name?:unknown;categoryLabel?:unknown;group?:unknown;markerId?:unknown}>;manualValues:Record<string,{value?:unknown}>;_deleted?:{entries?:string[];importSnapshots?:string[]}};
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -9,23 +13,23 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
 
   const results = await page.evaluate(async ({ progressUrl, pdfImportUrl }) => {
     const [progress, pdfImport, settingsBridge, reviewRuntime] = await Promise.all([
-      import(progressUrl),
-      import(pdfImportUrl),
+      (import(progressUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/pdf-import-progress.js'),"showImportProgress"|"updateImportProgressPct"|"handleImportStatusClick"|"showBatchImportProgress"|"syncImportStatusFab"|"hideImportProgress">>,
+      (import(pdfImportUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/pdf-import.js'),"configurePdfImportDeps"|"showAINeededDialog"|"tryParseJSON"|"assessTextQuality"|"classifyImportFiles"|"isPdfByMagic"|"parseLabPDFWithAI"|"parseLabPDFWithAIImages"|"handlePDFFile"|"handleTextFile"|"extractXLSXText"|"handleImageFile"|"hideImportProgress"|"confirmImport"|"deleteImportSnapshot"|"openImportReviewFromSnapshot"|"extractPDFText"|"extractPDFImages"|"setupDropZone"|"handleBatchPDFs">>,
       import('/js/settings-runtime-bridge.js'),
       import('/js/pdf-import-review-runtime.js'),
     ]);
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const saved = {
       profileSex: state.profileSex,
     };
-    const calls = [];
+    const calls:unknown[][] = [];
     const previousPdfImportDeps = pdfImport.configurePdfImportDeps({
-      loadDemoData: sex => calls.push(['demo', sex]),
+      loadDemoData: (sex:unknown) => calls.push(['demo', sex]),
       startOpenRouterOAuth: () => calls.push(['oauth']),
     });
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
-      openSettingsModal: tab => calls.push(['settings', tab]),
+      openSettingsModal: (tab:unknown) => calls.push(['settings', tab]),
     });
     const previousReviewRuntime = reviewRuntime.configurePdfImportReviewRuntimeDeps({
       navigate: view => calls.push(['navigate', view]),
@@ -36,31 +40,31 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
 
       await progress.showImportProgress(2, '<cbc>.pdf');
       const dropZone = document.getElementById('drop-zone');
-      const importBtn = document.querySelector('.header-import-btn');
+      const importBtn = document.querySelector<HTMLElement>('.header-import-btn');
       outcomes.showProgressCreatesHiddenDropZone = dropZone?.classList.contains('drop-zone-hidden') === true;
-      outcomes.progressStartsAtStepPercent = dropZone?.querySelector('.import-progress-bar')?.getAttribute('aria-valuenow') === '12'
-        && dropZone?.querySelector('.import-progress-pct')?.textContent === '12%'
+      outcomes.progressStartsAtStepPercent = dropZone?.querySelector<HTMLElement>('.import-progress-bar')?.getAttribute('aria-valuenow') === '12'
+        && dropZone?.querySelector<HTMLElement>('.import-progress-pct')?.textContent === '12%'
         && importBtn?.classList.contains('is-import-running') === true
-        && importBtn?.querySelector('.import-button-status-label')?.textContent === '12%';
+        && importBtn?.querySelector<HTMLElement>('.import-button-status-label')?.textContent === '12%';
       outcomes.progressEscapesFileName = dropZone?.textContent.includes('<cbc>.pdf') === true
-        && !dropZone?.querySelector('cbc');
+        && !dropZone?.querySelector<HTMLElement>('cbc');
 
       progress.updateImportProgressPct(42);
-      outcomes.progressUpdateSyncsBarAndImportButton = dropZone?.querySelector('.import-progress-bar')?.getAttribute('aria-valuenow') === '42'
-        && dropZone?.querySelector('.import-progress-bar-fill')?.style.width === '42%'
+      outcomes.progressUpdateSyncsBarAndImportButton = dropZone?.querySelector<HTMLElement>('.import-progress-bar')?.getAttribute('aria-valuenow') === '42'
+        && dropZone?.querySelector<HTMLElement>('.import-progress-bar-fill')?.style.width === '42%'
         && importBtn?.classList.contains('is-import-running') === true
-        && importBtn?.querySelector('.import-button-status-label')?.textContent === '42%'
+        && importBtn?.querySelector<HTMLElement>('.import-button-status-label')?.textContent === '42%'
         && importBtn?.getAttribute('aria-label') === 'Import in progress: 42%'
         && getComputedStyle(importBtn).animationName === 'importButtonPulse'
         && document.getElementById('import-status-fab') === null;
 
-      const progressBar = dropZone?.querySelector('.import-progress-bar');
+      const progressBar = dropZone?.querySelector<HTMLElement>('.import-progress-bar');
       let progressScrolled = false;
       if (progressBar) {
         const originalScrollIntoView = progressBar.scrollIntoView;
         try {
           progressBar.scrollIntoView = options => {
-            progressScrolled = options?.behavior === 'smooth' && options?.block === 'center';
+            progressScrolled = (options as {behavior?:unknown;block?:unknown}|undefined)?.behavior === 'smooth' && (options as {behavior?:unknown;block?:unknown}|undefined)?.block === 'center';
           };
           progress.handleImportStatusClick();
         } finally {
@@ -70,9 +74,9 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
       outcomes.importStatusClickScrollsRunningProgress = progressScrolled;
 
       await progress.showBatchImportProgress(1, 'batch-two.pdf', 2, 5);
-      outcomes.batchProgressShowsCounterAndImportButtonLabel = dropZone?.querySelector('.batch-progress-counter')?.textContent === 'Processing file 2 of 5'
-        && importBtn?.querySelector('.import-button-status-label')?.textContent.includes('2/5') === true
-        && importBtn?.querySelector('.import-button-status-label')?.textContent.includes('8%') === true;
+      outcomes.batchProgressShowsCounterAndImportButtonLabel = dropZone?.querySelector<HTMLElement>('.batch-progress-counter')?.textContent === 'Processing file 2 of 5'
+        && importBtn?.querySelector<HTMLElement>('.import-button-status-label')?.textContent.includes('2/5') === true
+        && importBtn?.querySelector<HTMLElement>('.import-button-status-label')?.textContent.includes('8%') === true;
 
       const importOverlay = document.getElementById('import-modal-overlay');
       let previewScrolled = false;
@@ -80,7 +84,7 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
         const originalScrollIntoView = importOverlay.scrollIntoView;
         try {
           importOverlay.scrollIntoView = options => {
-            previewScrolled = options?.behavior === 'smooth';
+            previewScrolled = (options as {behavior?:unknown;block?:unknown}|undefined)?.behavior === 'smooth';
           };
           importOverlay.classList.add('show');
           progress.handleImportStatusClick();
@@ -97,13 +101,13 @@ test('PDF import progress and AI-needed dialog cover browser UI states', async (
         && dropZone?.style.display === 'none';
       importOverlay?.classList.remove('show');
 
-      dropZone?.querySelector('.import-progress-bar')?.remove();
+      dropZone?.querySelector<HTMLElement>('.import-progress-bar')?.remove();
       progress.handleImportStatusClick();
       outcomes.importStatusClickNavigatesWhenProgressBarIsMissing = calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard');
 
       progress.hideImportProgress('cancel');
       outcomes.cancelResetsImportButtonStatus = importBtn?.classList.contains('is-import-active') === false
-        && importBtn?.querySelector('.import-button-status-label')?.textContent === ''
+        && importBtn?.querySelector<HTMLElement>('.import-button-status-label')?.textContent === ''
         && importBtn?.getAttribute('aria-label') === 'Import lab results';
 
       pdfImport.showAINeededDialog('image');
@@ -154,9 +158,9 @@ test('PDF import helpers cover JSON repair, text quality, and file classificatio
   await page.waitForSelector('#drop-zone', { state: 'attached' });
 
   const results = await page.evaluate(async ({ pdfImportUrl }) => {
-    const pdfImport = await import(pdfImportUrl);
+    const pdfImport = (await import(pdfImportUrl) as unknown) as Pick<typeof import('../../js/pdf-import.js'),"configurePdfImportDeps"|"showAINeededDialog"|"tryParseJSON"|"assessTextQuality"|"classifyImportFiles"|"isPdfByMagic"|"parseLabPDFWithAI"|"parseLabPDFWithAIImages"|"handlePDFFile"|"handleTextFile"|"extractXLSXText"|"handleImageFile"|"hideImportProgress"|"confirmImport"|"deleteImportSnapshot"|"openImportReviewFromSnapshot"|"extractPDFText"|"extractPDFImages"|"setupDropZone"|"handleBatchPDFs">;
     const dnaBridge = await import('/js/dna-runtime-bridge.js');
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const previousDnaBridge = dnaBridge.configureDnaModuleBridge();
 
     try {
@@ -167,13 +171,13 @@ test('PDF import helpers cover JSON repair, text quality, and file classificatio
       try {
         pdfImport.tryParseJSON('not json');
       } catch (err) {
-        invalidJsonThrows = String(err?.message || err).includes('invalid JSON');
+        invalidJsonThrows = String((err as {message?:unknown}|null|undefined)?.message || err).includes('invalid JSON');
       }
 
-      outcomes.jsonParserTrimsTrailingText = trailingJson.date === '2026-06-01';
-      outcomes.jsonParserRepairsTruncatedObjects = repairedJson.date === '2026-06-02'
-        && repairedJson.markers?.[0]?.rawName === 'Glucose';
-      outcomes.jsonParserRepairsOpenStrings = repairedString.date === '2026-06-';
+      outcomes.jsonParserTrimsTrailingText = (trailingJson as {date?:unknown;markers?:{rawName?:unknown}[]}).date === '2026-06-01';
+      outcomes.jsonParserRepairsTruncatedObjects = (repairedJson as {date?:unknown;markers?:{rawName?:unknown}[]}).date === '2026-06-02'
+        && (repairedJson as {date?:unknown;markers?:{rawName?:unknown}[]}).markers?.[0]?.rawName === 'Glucose';
+      outcomes.jsonParserRepairsOpenStrings = (repairedString as {date?:unknown;markers?:{rawName?:unknown}[]}).date === '2026-06-';
       outcomes.jsonParserRejectsUnrepairableInput = invalidJsonThrows;
 
       const goodText = Array.from({ length: 31 }, () => 'glucose').join(' ');
@@ -184,8 +188,8 @@ test('PDF import helpers cover JSON repair, text quality, and file classificatio
         && pdfImport.assessTextQuality(goodText) === 'good';
 
       dnaBridge.configureDnaModuleBridge({
-        isDNAFile: file => file.name.endsWith('.dna'),
-        isDNAFileByContent: async file => (await file.text()).includes('DNA RAW'),
+        isDNAFile: (file:File) => file.name.endsWith('.dna'),
+        isDNAFileByContent: async (file:File) => (await file.text()).includes('DNA RAW'),
       });
 
       const magicPdf = new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])], 'extensionless', {
@@ -263,11 +267,11 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
 
   const results = await page.evaluate(async ({ pdfImportUrl, reviewUrl }) => {
     const [pdfImport, review] = await Promise.all([
-      import(pdfImportUrl),
-      import(reviewUrl),
+      (import(pdfImportUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/pdf-import.js'),"configurePdfImportDeps"|"showAINeededDialog"|"tryParseJSON"|"assessTextQuality"|"classifyImportFiles"|"isPdfByMagic"|"parseLabPDFWithAI"|"parseLabPDFWithAIImages"|"handlePDFFile"|"handleTextFile"|"extractXLSXText"|"handleImageFile"|"hideImportProgress"|"confirmImport"|"deleteImportSnapshot"|"openImportReviewFromSnapshot"|"extractPDFText"|"extractPDFImages"|"setupDropZone"|"handleBatchPDFs">>,
+      (import(reviewUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/pdf-import-review.js'),"getPendingImport"|"closeImportModal"|"showImportPreview"|"applyManualImportCollectionContext">>,
     ]);
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const storageKeys = [
       'labcharts-ai-provider',
       'labcharts-ai-paused',
@@ -279,14 +283,14 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
     const savedStorage = Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)]));
     const original = {
       fetch: window.fetch,
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      importedData: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify((state.importedData as unknown as PdfFixtureDataReader) || {})),
       currentProfile: state.currentProfile,
       profileSex: state.profileSex,
-      jszip: window.JSZip,
+      jszip: (window as unknown as {JSZip?:unknown}).JSZip,
       hadJSZip: Object.prototype.hasOwnProperty.call(window, 'JSZip'),
     };
     const encoder = new TextEncoder();
-    const fetchCalls = [];
+    const fetchCalls:{stream:boolean;text:string}[] = [];
     let fallbackStreamAborts = 0;
 
     const parsedPayload = JSON.stringify({
@@ -322,14 +326,14 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
         : 'routine chemistry report value reference interval serum plasma validated'
     )).join(' ');
 
-    const jsonResponse = content => new Response(JSON.stringify({
+    const jsonResponse = (content:unknown) => new Response(JSON.stringify({
       choices: [{ message: { content }, finish_reason: 'stop' }],
       usage: { prompt_tokens: 21, completion_tokens: 9 },
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-    const streamResponse = content => {
+    const streamResponse = (content:unknown) => {
       const event = JSON.stringify({
         choices: [{ delta: { content }, finish_reason: null }],
         usage: { prompt_tokens: 31, completion_tokens: 11 },
@@ -350,9 +354,9 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
         headers: { 'Content-Type': 'text/event-stream' },
       });
     };
-    const requestText = body => (body.messages || []).map(message => {
+    const requestText = (body:PdfRequestReader) => (body.messages || []).map(message => {
       if (Array.isArray(message.content)) {
-        return message.content.map(block => block.text || block.type || '').join(' ');
+        return (message.content as {text?:unknown;type?:unknown}[]).map(block => block.text || block.type || '').join(' ');
       }
       return String(message.content || '');
     }).join('\n');
@@ -366,7 +370,7 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
       localStorage.removeItem('labcharts-debug');
       state.currentProfile = 'pdf-import-runtime-coverage';
       state.profileSex = 'female';
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         entries: [],
         notes: [],
         supplements: [],
@@ -374,15 +378,15 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
       };
 
       window.fetch = async (_url, options = {}) => {
-        const body = JSON.parse(String(options.body || '{}'));
-        const text = requestText(body);
-        fetchCalls.push({ stream: body.stream === true, text });
+        const body = (JSON.parse as(text:unknown)=>unknown)(String(options.body || '{}'));
+        const text = requestText(body as PdfRequestReader);
+        fetchCalls.push({ stream: (body as PdfRequestReader).stream === true, text });
         if (text.includes('What type of lab test')) return jsonResponse('{"testType":"blood"}');
-        if (body.stream && text.includes('fallback-stream.pdf') && fallbackStreamAborts === 0) {
+        if ((body as PdfRequestReader).stream && text.includes('fallback-stream.pdf') && fallbackStreamAborts === 0) {
           fallbackStreamAborts += 1;
           throw new Error('bodyStreamBuffer was aborted by user');
         }
-        return body.stream ? streamResponse(wrappedPayload) : jsonResponse(wrappedPayload);
+        return (body as PdfRequestReader).stream ? streamResponse(wrappedPayload) : jsonResponse(wrappedPayload);
       };
 
       const fallbackParsed = await pdfImport.parseLabPDFWithAI(
@@ -395,14 +399,14 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
         && fallbackParsed.markers.length === 2
         && fallbackParsed.provider === 'ollama';
 
-      const imageProgress = [];
+      const imageProgress:number[] = [];
       const imageParsed = await pdfImport.parseLabPDFWithAIImages(
         [{ base64: 'aW1hZ2UtYnl0ZXM=', mediaType: 'image/png', page: 1 }],
         'direct-image.png',
         pct => imageProgress.push(pct),
       );
       outcomes.imageParserBuildsVisionPayloadAndProgress = imageParsed.imageMode === true
-        && imageParsed.markers[0].mappedKey === 'biochemistry.glucose'
+        && imageParsed.markers[0]!.mappedKey === 'biochemistry.glucose'
         && imageProgress.length > 0
         && fetchCalls.some(call => call.stream && call.text.includes('image_url'));
 
@@ -422,7 +426,7 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
       review.closeImportModal();
 
       await pdfImport.handleTextFile(new File(['   \n'], 'blank.txt', { type: 'text/plain' }));
-      outcomes.emptyTextFileShowsError = Array.from(document.querySelectorAll('.notification-toast.error'))
+      outcomes.emptyTextFileShowsError = Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
         .some(toast => toast.textContent.includes('Text file is empty'));
 
       await pdfImport.handleTextFile(new File([labText], 'notes.txt', { type: 'text/plain' }));
@@ -438,28 +442,28 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
         && csvFilePending.privacyMethod === 'regex';
       review.closeImportModal();
 
-      delete window.JSZip;
+      delete (window as unknown as {JSZip?:unknown}).JSZip;
       const retryXlsxFile = new File(
         [new Uint8Array([0x50, 0x4b, 0x03, 0x04])],
         'retry.xlsx',
         { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
       );
-      let firstLoaderError = '';
-      let secondLoaderError = '';
+      let firstLoaderError:unknown = '';
+      let secondLoaderError:unknown = '';
       try {
         await pdfImport.extractXLSXText(retryXlsxFile);
       } catch (err) {
-        firstLoaderError = err?.message || String(err);
+        firstLoaderError = (err as {message?:unknown}|null|undefined)?.message || String(err);
       }
       try {
         await pdfImport.extractXLSXText(retryXlsxFile);
       } catch (err) {
-        secondLoaderError = err?.message || String(err);
+        secondLoaderError = (err as {message?:unknown}|null|undefined)?.message || String(err);
       }
-      outcomes.xlsxJsZipLoaderRetriesAfterScriptFailure = firstLoaderError.includes('Failed to load /vendor/jszip.min.js')
-        && secondLoaderError.includes('Workbook metadata is missing');
+      outcomes.xlsxJsZipLoaderRetriesAfterScriptFailure = (firstLoaderError as {includes(value:string):unknown}).includes('Failed to load /vendor/jszip.min.js')
+        && (secondLoaderError as {includes(value:string):unknown}).includes('Workbook metadata is missing');
 
-      const xlsxEntries = {
+      const xlsxEntries:Record<string,string> = {
         'xl/workbook.xml': `<?xml version="1.0" encoding="UTF-8"?>
           <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
             xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
@@ -487,10 +491,10 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
             </sheetData>
           </worksheet>`,
       };
-      window.JSZip = {
+      (window as unknown as {JSZip?:unknown}).JSZip = {
         loadAsync: async () => ({
           files: Object.fromEntries(Object.keys(xlsxEntries).map(path => [path, {}])),
-          file(path) {
+          file(path:string) {
             return xlsxEntries[path] == null ? null : { async: async () => xlsxEntries[path] };
           },
         }),
@@ -524,8 +528,8 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
         && imagePending.imageMode === true
         && imagePending.privacyMethod === 'none (image mode)';
       outcomes.imageFileHandlerRecordsCostHashAndProfile = imagePending?.fileName === 'scan.png'
-        && imagePending.costInfo?.inputTokens > 0
-        && imagePending.costInfo?.outputTokens > 0
+        && (imagePending.costInfo?.inputTokens as number) > 0
+        && (imagePending.costInfo?.outputTokens as number) > 0
         && !!imagePending.importHash
         && imagePending._importProfileId === 'pdf-import-runtime-coverage';
       review.closeImportModal();
@@ -535,11 +539,11 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
         && fetchCalls.some(call => !call.stream && call.text.includes('fallback-stream.pdf'));
     } finally {
       window.fetch = original.fetch;
-      state.importedData = original.importedData;
+      (state as unknown as {importedData:unknown}).importedData = original.importedData;
       state.currentProfile = original.currentProfile;
       state.profileSex = original.profileSex;
-      if (original.hadJSZip) window.JSZip = original.jszip;
-      else delete window.JSZip;
+      if (original.hadJSZip) (window as unknown as {JSZip?:unknown}).JSZip = original.jszip;
+      else delete (window as unknown as {JSZip?:unknown}).JSZip;
       for (const [key, value] of Object.entries(savedStorage)) {
         if (value == null) localStorage.removeItem(key);
         else localStorage.setItem(key, value);
@@ -586,8 +590,8 @@ test('PDF import scanned PDF dialog covers image mode choices', async ({ page })
   await page.waitForSelector('#drop-zone', { state: 'attached' });
 
   const results = await page.evaluate(async ({ pdfImportUrl }) => {
-    const pdfImport = await import(pdfImportUrl);
-    const outcomes = {};
+    const pdfImport = (await import(pdfImportUrl) as unknown) as Pick<typeof import('../../js/pdf-import.js'),"configurePdfImportDeps"|"showAINeededDialog"|"tryParseJSON"|"assessTextQuality"|"classifyImportFiles"|"isPdfByMagic"|"parseLabPDFWithAI"|"parseLabPDFWithAIImages"|"handlePDFFile"|"handleTextFile"|"extractXLSXText"|"handleImageFile"|"hideImportProgress"|"confirmImport"|"deleteImportSnapshot"|"openImportReviewFromSnapshot"|"extractPDFText"|"extractPDFImages"|"setupDropZone"|"handleBatchPDFs">;
+    const outcomes:Record<string,unknown> = {};
     const original = {
       setTimeout: window.setTimeout,
       aiProvider: localStorage.getItem('labcharts-ai-provider'),
@@ -596,7 +600,7 @@ test('PDF import scanned PDF dialog covers image mode choices', async ({ page })
     let createdConfirmOverlay = false;
     let createdConfirmDialog = false;
 
-    const waitFor = async (predicate, label) => {
+    const waitFor = async <T,>(predicate:()=>T, label:string) => {
       for (let i = 0; i < 120; i += 1) {
         const value = predicate();
         if (value) return value;
@@ -622,12 +626,12 @@ test('PDF import scanned PDF dialog covers image mode choices', async ({ page })
         createdConfirmDialog = true;
       }
     };
-    const notificationsText = () => Array.from(document.querySelectorAll('.notification-toast'))
+    const notificationsText = () => Array.from(document.querySelectorAll<HTMLElement>('.notification-toast'))
       .map(toast => toast.textContent || '')
       .join('\n');
-    const runChoice = async (choice) => {
+    const runChoice = async (choice:string) => {
       ensureConfirmDialog();
-      document.querySelectorAll('.notification-toast').forEach(toast => toast.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(toast => toast.remove());
       document.getElementById('ai-needed-overlay')?.classList.remove('show');
       pdfImport.hideImportProgress('cancel');
 
@@ -636,7 +640,7 @@ test('PDF import scanned PDF dialog covers image mode choices', async ({ page })
       const dialogState = await waitFor(() => {
         const overlay = document.getElementById('confirm-dialog-overlay');
         const dialog = document.getElementById('confirm-dialog');
-        const buttons = dialog ? Array.from(dialog.querySelectorAll('button')) : [];
+        const buttons = dialog ? Array.from(dialog.querySelectorAll<HTMLElement>('button')) : [];
         if (overlay?.classList.contains('show') && buttons.length === 3) return { overlay, buttons };
         return null;
       }, `${choice} scanned PDF dialog`);
@@ -687,7 +691,7 @@ test('PDF import scanned PDF dialog covers image mode choices', async ({ page })
       pdfImport.hideImportProgress('cancel');
       document.getElementById('ai-needed-overlay')?.classList.remove('show');
       document.getElementById('confirm-dialog-overlay')?.classList.remove('show');
-      document.querySelectorAll('.notification-toast').forEach(toast => toast.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(toast => toast.remove());
       if (createdConfirmDialog && !createdConfirmOverlay) document.getElementById('confirm-dialog')?.remove();
       if (createdConfirmOverlay) document.getElementById('confirm-dialog-overlay')?.remove();
     }
@@ -708,30 +712,30 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
 
   const results = await page.evaluate(async ({ pdfImportUrl, reviewUrl }) => {
     const [pdfImport, review, pdfImportCommit] = await Promise.all([
-      import(pdfImportUrl),
-      import(reviewUrl),
+      (import(pdfImportUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/pdf-import.js'),"configurePdfImportDeps"|"showAINeededDialog"|"tryParseJSON"|"assessTextQuality"|"classifyImportFiles"|"isPdfByMagic"|"parseLabPDFWithAI"|"parseLabPDFWithAIImages"|"handlePDFFile"|"handleTextFile"|"extractXLSXText"|"handleImageFile"|"hideImportProgress"|"confirmImport"|"deleteImportSnapshot"|"openImportReviewFromSnapshot"|"extractPDFText"|"extractPDFImages"|"setupDropZone"|"handleBatchPDFs">>,
+      (import(reviewUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/pdf-import-review.js'),"getPendingImport"|"closeImportModal"|"showImportPreview"|"applyManualImportCollectionContext">>,
       import('/js/pdf-import-commit.js'),
     ]);
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
       return [key, key === null || key === undefined ? null : localStorage.getItem(key)];
     }));
     const original = {
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      importedData: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify((state.importedData as unknown as PdfFixtureDataReader) || {})),
       currentProfile: state.currentProfile,
       profileSex: state.profileSex,
     };
     const previousCommitDeps = pdfImportCommit.configurePdfImportCommitDeps({
       maybeShowEncryptionNudge: () => {},
     });
-    const resetNotifications = () => document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+    const resetNotifications = () => document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
 
     try {
       state.currentProfile = 'pdf-import-confirm-coverage';
       state.profileSex = 'male';
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         entries: [],
         notes: [],
         supplements: [],
@@ -768,23 +772,23 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
           mappedKey: 'biochemistry.glucose',
         }],
       });
-      outcomes.labRangeAdoptionDefaultsOn = document.getElementById('import-adopt-ranges')?.checked === true;
+      outcomes.labRangeAdoptionDefaultsOn = (document.getElementById('import-adopt-ranges') as HTMLInputElement|null)?.checked === true;
       await pdfImport.confirmImport();
-      const imported = state.importedData.entries.find(entry => entry.date === '2026-06-07');
-      const snapshot = state.importedData.importSnapshots?.find(snap => snap.fileName === 'confirm-import.pdf');
+      const imported = (state.importedData as unknown as PdfFixtureDataReader).entries.find(entry => entry.date === '2026-06-07');
+      const snapshot = (state.importedData as unknown as PdfFixtureDataReader).importSnapshots?.find(snap => snap.fileName === 'confirm-import.pdf');
       outcomes.confirmImportPersistsMatchedPreview =
         imported?.markers?.['biochemistry.glucose'] === 5.4
         && imported.importedWith?.provider === 'ollama'
         && imported.importedWith?.modelId === 'llama-confirm'
         && imported.importHash === 'confirm-import-hash'
         && imported.sourceFiles?.includes('confirm-import.pdf') === true
-        && imported.context?.sampleTime === '07:45'
-        && imported.context?.fasting === true
+        && imported!.context?.sampleTime === '07:45'
+        && imported!.context?.fasting === true
         && review.getPendingImport() === null;
       outcomes.defaultLabRangeBecomesActive =
-        state.importedData.refOverrides['biochemistry.glucose']?.refMin === 3.9
-        && state.importedData.refOverrides['biochemistry.glucose']?.refMax === 5.5
-        && state.importedData.refOverrides['biochemistry.glucose']?.refSource === 'import';
+        (state.importedData as unknown as PdfFixtureDataReader).refOverrides['biochemistry.glucose']?.refMin === 3.9
+        && (state.importedData as unknown as PdfFixtureDataReader).refOverrides['biochemistry.glucose']?.refMax === 5.5
+        && (state.importedData as unknown as PdfFixtureDataReader).refOverrides['biochemistry.glucose']?.refSource === 'import';
       outcomes.confirmImportPersistsBenchmarkMetrics = snapshot?.costInfo?.inputTokens === 10
         && snapshot.costInfo.outputTokens === 5
         && snapshot.costInfo.cost === 0
@@ -813,20 +817,20 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
         }],
       });
       await pdfImport.confirmImport();
-      const laterContextSnapshot = state.importedData.importSnapshots
+      const laterContextSnapshot = (state.importedData as unknown as PdfFixtureDataReader).importSnapshots
         ?.find(snap => snap.fileName === 'same-date-context.pdf');
-      await pdfImport.deleteImportSnapshot(laterContextSnapshot?.id);
+      await (pdfImport.deleteImportSnapshot as(id:unknown)=>ReturnType<typeof pdfImport.deleteImportSnapshot>)(laterContextSnapshot?.id);
       outcomes.deletingLatestSameDateImportRestoresEarlierCollectionContext =
-        imported.context?.sampleTime === '07:45'
-        && imported.context?.fasting === true
-        && imported.collectionContextSources?.sampleTime === snapshot?.id
-        && imported.collectionContextSources?.fasting === snapshot?.id;
+        imported!.context?.sampleTime === '07:45'
+        && imported!.context?.fasting === true
+        && imported!.collectionContextSources?.sampleTime === snapshot?.id
+        && imported!.collectionContextSources?.fasting === snapshot?.id;
 
-      pdfImport.openImportReviewFromSnapshot(snapshot?.id);
+      (pdfImport.openImportReviewFromSnapshot as(id:unknown)=>ReturnType<typeof pdfImport.openImportReviewFromSnapshot>)(snapshot?.id);
       review.applyManualImportCollectionContext({ sampleTime: null, fasting: null });
       await pdfImport.confirmImport();
-      const clearedSnapshot = state.importedData.importSnapshots?.find(snap => snap.id === snapshot?.id);
-      const clearedEntry = state.importedData.entries.find(entry => entry.date === '2026-06-07');
+      const clearedSnapshot = (state.importedData as unknown as PdfFixtureDataReader).importSnapshots?.find(snap => snap.id === snapshot?.id);
+      const clearedEntry = (state.importedData as unknown as PdfFixtureDataReader).entries.find(entry => entry.date === '2026-06-07');
       outcomes.reReviewCanExplicitlyClearCollectionContext =
         clearedEntry?.context?.sampleTime === undefined
         && clearedEntry?.context?.fasting === undefined
@@ -837,8 +841,8 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
         && clearedSnapshot?.collectionContextApplied?.includes('sampleTime')
         && clearedSnapshot?.collectionContextApplied?.includes('fasting');
 
-      state.importedData.refOverrides['biochemistry.glucose'] = {
-        ...state.importedData.refOverrides['biochemistry.glucose'],
+      (state.importedData as unknown as PdfFixtureDataReader).refOverrides['biochemistry.glucose'] = {
+        ...(state.importedData as unknown as PdfFixtureDataReader).refOverrides['biochemistry.glucose'],
         refMin: 4.2,
         refMax: 5.2,
         refSource: 'manual',
@@ -858,7 +862,7 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
         }],
       });
       await pdfImport.confirmImport();
-      const guardedRange = state.importedData.refOverrides['biochemistry.glucose'];
+      const guardedRange = (state.importedData as unknown as PdfFixtureDataReader).refOverrides['biochemistry.glucose'];
       outcomes.manualRangeWinsWhileLatestLabRangeIsStashed =
         guardedRange?.refMin === 4.2
         && guardedRange.refMax === 5.2
@@ -883,18 +887,18 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
       });
       await pdfImport.confirmImport();
       outcomes.olderCollectionDoesNotReplaceNewestLabRange =
-        state.importedData.refOverrides['biochemistry.glucose']?.labRefMin === 4.0
-        && state.importedData.refOverrides['biochemistry.glucose']?.labRefMax === 6.0
-        && state.importedData.refOverrides['biochemistry.glucose']?.labRefDate === '2026-06-08';
+        (state.importedData as unknown as PdfFixtureDataReader).refOverrides['biochemistry.glucose']?.labRefMin === 4.0
+        && (state.importedData as unknown as PdfFixtureDataReader).refOverrides['biochemistry.glucose']?.labRefMax === 6.0
+        && (state.importedData as unknown as PdfFixtureDataReader).refOverrides['biochemistry.glucose']?.labRefDate === '2026-06-08';
 
-      const newestRangeSnapshot = state.importedData.importSnapshots
+      const newestRangeSnapshot = (state.importedData as unknown as PdfFixtureDataReader).importSnapshots
         ?.find(snap => snap.fileName === 'manual-range-guard.pdf');
-      await pdfImport.deleteImportSnapshot(newestRangeSnapshot?.id);
+      await (pdfImport.deleteImportSnapshot as(id:unknown)=>ReturnType<typeof pdfImport.deleteImportSnapshot>)(newestRangeSnapshot?.id);
       outcomes.deletingNewestRangeFallsBackByCollectionDate =
-        state.importedData.refOverrides['biochemistry.glucose']?.labRefMin === 3.9
-        && state.importedData.refOverrides['biochemistry.glucose']?.labRefMax === 5.5
-        && state.importedData.refOverrides['biochemistry.glucose']?.labRefDate === '2026-06-07'
-        && state.importedData.refOverrides['biochemistry.glucose']?.labRefSnapshotId === snapshot?.id;
+        (state.importedData as unknown as PdfFixtureDataReader).refOverrides['biochemistry.glucose']?.labRefMin === 3.9
+        && (state.importedData as unknown as PdfFixtureDataReader).refOverrides['biochemistry.glucose']?.labRefMax === 5.5
+        && (state.importedData as unknown as PdfFixtureDataReader).refOverrides['biochemistry.glucose']?.labRefDate === '2026-06-07'
+        && (state.importedData as unknown as PdfFixtureDataReader).refOverrides['biochemistry.glucose']?.labRefSnapshotId === snapshot?.id;
 
       review.showImportPreview({
         date: '2026-06-09',
@@ -910,19 +914,19 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
           mappedKey: 'biochemistry.glucose',
         }],
       });
-      const declinedRangeCheckbox = document.getElementById('import-adopt-ranges');
+      const declinedRangeCheckbox = (document.getElementById('import-adopt-ranges') as HTMLInputElement|null);
       if (declinedRangeCheckbox) declinedRangeCheckbox.checked = false;
       await pdfImport.confirmImport();
-      const declinedRangeSnapshot = state.importedData.importSnapshots
+      const declinedRangeSnapshot = (state.importedData as unknown as PdfFixtureDataReader).importSnapshots
         ?.find(snap => snap.fileName === 'declined-range.pdf');
-      pdfImport.openImportReviewFromSnapshot(declinedRangeSnapshot?.id);
+      (pdfImport.openImportReviewFromSnapshot as(id:unknown)=>ReturnType<typeof pdfImport.openImportReviewFromSnapshot>)(declinedRangeSnapshot?.id);
       outcomes.declinedRangeStaysInactiveAndUncheckedOnReview =
         declinedRangeSnapshot?.adoptReferenceRanges === false
-        && state.importedData.refOverrides['biochemistry.glucose']?.labRefDate === '2026-06-07'
-        && document.getElementById('import-adopt-ranges')?.checked === false;
+        && (state.importedData as unknown as PdfFixtureDataReader).refOverrides['biochemistry.glucose']?.labRefDate === '2026-06-07'
+        && (document.getElementById('import-adopt-ranges') as HTMLInputElement|null)?.checked === false;
       review.closeImportModal();
 
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         entries: [],
         notes: [],
         supplements: [],
@@ -959,10 +963,10 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
           ],
         }],
       };
-      pdfImport.openImportReviewFromSnapshot('snap-spadia-re-review');
+      (pdfImport.openImportReviewFromSnapshot as(id:unknown)=>ReturnType<typeof pdfImport.openImportReviewFromSnapshot>)('snap-spadia-re-review');
       await pdfImport.confirmImport();
-      const restoredSpadia = state.importedData.entries.find(entry => entry.date === '2024-07-04');
-      const restoredSpadiaDef = state.importedData.customMarkers['spadiaFA.omega3Index'];
+      const restoredSpadia = (state.importedData as unknown as PdfFixtureDataReader).entries.find(entry => entry.date === '2024-07-04');
+      const restoredSpadiaDef = (state.importedData as unknown as PdfFixtureDataReader).customMarkers['spadiaFA.omega3Index'];
       outcomes.spadiaSnapshotReReviewRestoresVisibleMarkers =
         restoredSpadia?.markers?.['spadiaFA.omega3Index'] === 7.1
         && restoredSpadia?.markers?.['vitamins.vitaminA'] === 2.39
@@ -970,9 +974,9 @@ test('PDF import confirm flow covers preview persistence', async ({ page }) => {
         && restoredSpadiaDef?.name === 'Omega-3 Index'
         && restoredSpadiaDef?.categoryLabel === 'Spadia'
         && restoredSpadiaDef?.group === 'Fatty Acids'
-        && /^custom:[A-Za-z0-9_-]+$/.test(restoredSpadiaDef?.markerId || '');
+        && (/^custom:[A-Za-z0-9_-]+$/.test as(value:unknown)=>boolean)(restoredSpadiaDef?.markerId || '');
     } finally {
-      state.importedData = original.importedData;
+      (state as unknown as {importedData:unknown}).importedData = original.importedData;
       state.currentProfile = original.currentProfile;
       state.profileSex = original.profileSex;
       pdfImportCommit.configurePdfImportCommitDeps(previousCommitDeps);
@@ -1009,14 +1013,14 @@ test('PDF import commit rolls back failed storage and retries safely', async ({ 
       import('/js/pdf-import-review-runtime.js'),
     ]);
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const original = {
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      importedData: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify((state.importedData as unknown as PdfFixtureDataReader) || {})),
       currentProfile: state.currentProfile,
       currentView: state.currentView,
       profileSex: state.profileSex,
     };
-    const refreshCalls = [];
+    const refreshCalls:string[] = [];
     let nudgeCalls = 0;
     const previousCommitDeps = commit.configurePdfImportCommitDeps({
       maybeShowEncryptionNudge: () => { nudgeCalls += 1; },
@@ -1026,7 +1030,7 @@ test('PDF import commit rolls back failed storage and retries safely', async ({ 
       navigate: route => { refreshCalls.push(`navigate:${route}`); },
       updateHeaderDates: () => { refreshCalls.push('dates'); },
     });
-    const clearNotifications = () => document.querySelectorAll('.notification-toast').forEach(toast => toast.remove());
+    const clearNotifications = () => document.querySelectorAll<HTMLElement>('.notification-toast').forEach(toast => toast.remove());
     const emptyImportedData = () => ({
       entries: [],
       notes: [],
@@ -1059,7 +1063,7 @@ test('PDF import commit rolls back failed storage and retries safely', async ({ 
         }
         return request;
       };
-      state.importedData = failingData;
+      (state as unknown as {importedData:unknown}).importedData = failingData;
       review.showImportPreview({
         _importProfileId: state.currentProfile,
         date: '2026-07-20',
@@ -1075,7 +1079,7 @@ test('PDF import commit rolls back failed storage and retries safely', async ({ 
           mappedKey: 'biochemistry.glucose',
         }],
       });
-      const adoptRanges = document.getElementById('import-adopt-ranges');
+      const adoptRanges = (document.getElementById('import-adopt-ranges') as HTMLInputElement|null);
       if (adoptRanges) adoptRanges.checked = true;
 
       try { await commit.confirmImport(); }
@@ -1083,32 +1087,32 @@ test('PDF import commit rolls back failed storage and retries safely', async ({ 
       outcomes.failedSaveRollsBackAndKeepsPreviewRetryable =
         abortedWrites === 1
         && await encryptedGetItem(storageKey) === durableBeforeFailure
-        && state.importedData.entries.length === 0
-        && state.importedData.importSnapshots.length === 0
+        && (state.importedData as unknown as PdfFixtureDataReader).entries.length === 0
+        && (state.importedData as unknown as PdfFixtureDataReader).importSnapshots.length === 0
         && review.getPendingImport()?.fileName === 'retry-import.pdf'
-        && document.getElementById('import-confirm-btn')?.disabled === false
+        && (document.getElementById('import-confirm-btn') as HTMLButtonElement|null)?.disabled === false
         && refreshCalls.length === 0
         && nudgeCalls === 0
-        && Array.from(document.querySelectorAll('.notification-toast.error'))
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
           .some(toast => toast.textContent.trim() === '✗ Could not save profile data. Check available storage and try again.');
 
       clearNotifications();
       await commit.confirmImport();
-      const retriedEntry = state.importedData.entries.find(entry => entry.date === '2026-07-20');
+      const retriedEntry = (state.importedData as unknown as PdfFixtureDataReader).entries.find(entry => entry.date === '2026-07-20');
       outcomes.retryCommitsOnceAndClosesPreview =
         retriedEntry?.markers?.['biochemistry.glucose'] === 5.2
-        && state.importedData.importSnapshots.length === 1
-        && !Object.hasOwn(state.importedData.refOverrides, 'biochemistry.glucose')
+        && (state.importedData as unknown as PdfFixtureDataReader).importSnapshots.length === 1
+        && !Object.hasOwn((state.importedData as unknown as PdfFixtureDataReader).refOverrides, 'biochemistry.glucose')
         && review.getPendingImport() === null
         && refreshCalls.filter(call => call === 'sidebar').length === 1
         && refreshCalls.includes('dates')
         && refreshCalls.includes('navigate:labs')
         && nudgeCalls === 1
-        && Array.from(document.querySelectorAll('.notification-toast.success'))
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.success'))
           .some(toast => toast.textContent.includes('Imported 1 markers'));
 
       clearNotifications();
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         ...emptyImportedData(),
         entries: [{
           date: '2026-07-19',
@@ -1134,19 +1138,19 @@ test('PDF import commit rolls back failed storage and retries safely', async ({ 
           }],
         }],
       };
-      commit.openImportReviewFromSnapshot('snap-re-review-cleanup');
+      (commit.openImportReviewFromSnapshot as(id:unknown)=>ReturnType<typeof commit.openImportReviewFromSnapshot>)('snap-re-review-cleanup');
       await commit.confirmImport();
-      const reReviewedEntry = state.importedData.entries.find(entry => entry.date === '2026-07-19');
+      const reReviewedEntry = (state.importedData as unknown as PdfFixtureDataReader).entries.find(entry => entry.date === '2026-07-19');
       outcomes.reReviewReplacesOldSnapshotEntryWithoutStaleManualData =
-        state.importedData.entries.length === 1
+        (state.importedData as unknown as PdfFixtureDataReader).entries.length === 1
         && reReviewedEntry?.markers?.['biochemistry.glucose'] === 5.4
         && reReviewedEntry?.markerSources?.['biochemistry.glucose']?.snapshotId === 'snap-re-review-cleanup'
-        && !Object.hasOwn(state.importedData.manualValues, 'biochemistry.glucose:2026-07-19')
-        && state.importedData.importSnapshots[0]?.markers?.[0]?.value === 5.4
-        && Number.isFinite(state.importedData.importSnapshots[0]?.importedAt);
+        && !Object.hasOwn((state.importedData as unknown as PdfFixtureDataReader).manualValues, 'biochemistry.glucose:2026-07-19')
+        && (state.importedData as unknown as PdfFixtureDataReader).importSnapshots[0]?.markers?.[0]?.value === 5.4
+        && Number.isFinite((state.importedData as unknown as PdfFixtureDataReader).importSnapshots[0]?.importedAt);
 
       clearNotifications();
-      state.importedData = emptyImportedData();
+      (state as unknown as {importedData:unknown}).importedData = emptyImportedData();
       state.currentProfile = 'pdf-import-current-profile';
       review.showImportPreview({
         _importProfileId: 'pdf-import-previous-profile',
@@ -1161,9 +1165,9 @@ test('PDF import commit rolls back failed storage and retries safely', async ({ 
         }],
       });
       await commit.confirmImport();
-      outcomes.profileSwapCancelsWithoutMutation = state.importedData.entries.length === 0
+      outcomes.profileSwapCancelsWithoutMutation = (state.importedData as unknown as PdfFixtureDataReader).entries.length === 0
         && review.getPendingImport() === null
-        && Array.from(document.querySelectorAll('.notification-toast.error'))
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
           .some(toast => toast.textContent.includes('Profile changed during import'));
 
       clearNotifications();
@@ -1181,13 +1185,13 @@ test('PDF import commit rolls back failed storage and retries safely', async ({ 
         }],
       });
       await commit.confirmImport();
-      outcomes.emptySelectionCancelsWithoutSnapshot = state.importedData.entries.length === 0
-        && state.importedData.importSnapshots.length === 0
+      outcomes.emptySelectionCancelsWithoutSnapshot = (state.importedData as unknown as PdfFixtureDataReader).entries.length === 0
+        && (state.importedData as unknown as PdfFixtureDataReader).importSnapshots.length === 0
         && review.getPendingImport() === null
-        && Array.from(document.querySelectorAll('.notification-toast.error'))
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
           .some(toast => toast.textContent.includes('No markers to import'));
     } finally {
-      state.importedData = original.importedData;
+      (state as unknown as {importedData:unknown}).importedData = original.importedData;
       state.currentProfile = original.currentProfile;
       state.currentView = original.currentView;
       state.profileSex = original.profileSex;
@@ -1216,24 +1220,24 @@ test('PDF import snapshot deletion restores provenance and rolls back failures',
       import('/js/pdf-import-review-runtime.js'),
     ]);
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const original = {
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      importedData: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify((state.importedData as unknown as PdfFixtureDataReader) || {})),
       currentProfile: state.currentProfile,
       currentView: state.currentView,
     };
-    const refreshCalls = [];
+    const refreshCalls:string[] = [];
     const previousReviewRuntime = reviewRuntime.configurePdfImportReviewRuntimeDeps({
       buildSidebar: () => { refreshCalls.push('sidebar'); },
       navigate: route => { refreshCalls.push(`navigate:${route}`); },
       updateHeaderDates: () => { refreshCalls.push('dates'); },
     });
-    const clearNotifications = () => document.querySelectorAll('.notification-toast').forEach(toast => toast.remove());
+    const clearNotifications = () => document.querySelectorAll<HTMLElement>('.notification-toast').forEach(toast => toast.remove());
 
     try {
       state.currentProfile = 'pdf-import-delete-coverage';
       state.currentView = 'labs';
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         entries: [{
           date: '2026-07-18',
           markers: {
@@ -1285,34 +1289,34 @@ test('PDF import snapshot deletion restores provenance and rolls back failures',
         ],
       };
 
-      outcomes.missingSnapshotIsRejected = await commit.deleteImportSnapshot('missing-snapshot') === false
-        && Array.from(document.querySelectorAll('.notification-toast.error'))
+      outcomes.missingSnapshotIsRejected = await (commit.deleteImportSnapshot as(id:unknown)=>ReturnType<typeof commit.deleteImportSnapshot>)('missing-snapshot') === false
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
           .some(toast => toast.textContent.includes('Import snapshot not found'));
       clearNotifications();
 
-      const deleted = await commit.deleteImportSnapshot('snap-new');
-      const restoredEntry = state.importedData.entries.find(entry => entry.date === '2026-07-18');
+      const deleted = await (commit.deleteImportSnapshot as(id:unknown)=>ReturnType<typeof commit.deleteImportSnapshot>)('snap-new');
+      const restoredEntry = (state.importedData as unknown as PdfFixtureDataReader).entries.find(entry => entry.date === '2026-07-18');
       outcomes.deletionRestoresLatestPriorMarkerProvenance = deleted === true
         && restoredEntry?.markers?.['biochemistry.glucose'] === 4.9
         && restoredEntry?.markerSources?.['biochemistry.glucose']?.snapshotId === 'snap-old'
         && restoredEntry?.markerSources?.['biochemistry.glucose']?.file === 'old.csv'
         && !Object.hasOwn(restoredEntry?.markers || {}, 'iron.ferritin')
-        && !Object.hasOwn(state.importedData.manualValues, 'biochemistry.glucose:2026-07-18')
-        && !Object.hasOwn(state.importedData.manualValues, 'iron.ferritin:2026-07-18')
-        && Object.hasOwn(state.importedData.manualValues, 'vitamins.vitaminD:2026-07-18')
-        && state.importedData.importSnapshots.map(snapshot => snapshot.id).join(',') === 'snap-older,snap-old'
-        && state.importedData._deleted?.importSnapshots?.includes('snap-new') === true
+        && !Object.hasOwn((state.importedData as unknown as PdfFixtureDataReader).manualValues, 'biochemistry.glucose:2026-07-18')
+        && !Object.hasOwn((state.importedData as unknown as PdfFixtureDataReader).manualValues, 'iron.ferritin:2026-07-18')
+        && Object.hasOwn((state.importedData as unknown as PdfFixtureDataReader).manualValues, 'vitamins.vitaminD:2026-07-18')
+        && (state.importedData as unknown as PdfFixtureDataReader).importSnapshots.map(snapshot => snapshot.id).join(',') === 'snap-older,snap-old'
+        && (state.importedData as unknown as PdfFixtureDataReader)._deleted?.importSnapshots?.includes('snap-new') === true
         && refreshCalls.includes('navigate:labs');
 
-      commit.openImportReviewFromSnapshot('snap-old');
+      (commit.openImportReviewFromSnapshot as(id:unknown)=>ReturnType<typeof commit.openImportReviewFromSnapshot>)('snap-old');
       const pendingReview = review.getPendingImport();
       outcomes.restoredSnapshotCanBeReviewedFromClonedData = pendingReview?._reReviewSnapshotId === 'snap-old'
         && pendingReview._excludedImportIndices?.[0] === 0
         && pendingReview.markers?.[1]?.suggestedKey === 'biochemistry.glucose'
-        && pendingReview.markers[1] !== state.importedData.importSnapshots.find(snapshot => snapshot.id === 'snap-old')?.markers[1];
+        && pendingReview.markers[1] !== (state.importedData as unknown as PdfFixtureDataReader).importSnapshots.find(snapshot => snapshot.id === 'snap-old')?.markers![1];
       review.closeImportModal();
 
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         entries: [{
           date: '2026-07-19',
           markers: { 'proteins.hsCRP': 0.8 },
@@ -1328,10 +1332,10 @@ test('PDF import snapshot deletion restores provenance and rolls back failures',
           markers: [{ mappedKey: 'proteins.hsCRP', value: 0.8, unit: 'mg/L' }],
         }],
       };
-      outcomes.lastMarkerDeletionRemovesAndTombstonesEntry = await commit.deleteImportSnapshot('snap-only') === true
-        && state.importedData.entries.length === 0
-        && state.importedData._deleted?.entries?.includes('2026-07-19') === true
-        && state.importedData._deleted?.importSnapshots?.includes('snap-only') === true;
+      outcomes.lastMarkerDeletionRemovesAndTombstonesEntry = await (commit.deleteImportSnapshot as(id:unknown)=>ReturnType<typeof commit.deleteImportSnapshot>)('snap-only') === true
+        && (state.importedData as unknown as PdfFixtureDataReader).entries.length === 0
+        && (state.importedData as unknown as PdfFixtureDataReader)._deleted?.entries?.includes('2026-07-19') === true
+        && (state.importedData as unknown as PdfFixtureDataReader)._deleted?.importSnapshots?.includes('snap-only') === true;
 
       const failingData = {
         entries: [{
@@ -1364,30 +1368,30 @@ test('PDF import snapshot deletion restores provenance and rolls back failures',
         }
         return request;
       };
-      state.importedData = failingData;
+      (state as unknown as {importedData:unknown}).importedData = failingData;
       let failedDelete;
-      try { failedDelete = await commit.deleteImportSnapshot('snap-delete-retry'); }
+      try { failedDelete = await (commit.deleteImportSnapshot as(id:unknown)=>ReturnType<typeof commit.deleteImportSnapshot>)('snap-delete-retry'); }
       finally { IDBObjectStore.prototype.put = originalPut; }
       outcomes.failedDeletionRestoresMarkersAndSnapshot = failedDelete === false
         && abortedWrites === 1
         && await encryptedGetItem(storageKey) === durableBeforeFailure
-        && state.importedData.entries[0]?.markers?.['iron.ferritin'] === 88
-        && state.importedData.entries[0]?.markerSources?.['iron.ferritin']?.snapshotId === 'snap-delete-retry'
-        && state.importedData.importSnapshots[0]?.id === 'snap-delete-retry'
-        && state.importedData.manualValues['iron.ferritin:2026-07-17']?.value === 88;
-      outcomes.deletionRetrySucceedsAfterRollback = await commit.deleteImportSnapshot('snap-delete-retry') === true
-        && state.importedData.entries.length === 0
-        && state.importedData.importSnapshots.length === 0;
+        && (state.importedData as unknown as PdfFixtureDataReader).entries[0]?.markers?.['iron.ferritin'] === 88
+        && (state.importedData as unknown as PdfFixtureDataReader).entries[0]?.markerSources?.['iron.ferritin']?.snapshotId === 'snap-delete-retry'
+        && (state.importedData as unknown as PdfFixtureDataReader).importSnapshots[0]?.id === 'snap-delete-retry'
+        && (state.importedData as unknown as PdfFixtureDataReader).manualValues['iron.ferritin:2026-07-17']?.value === 88;
+      outcomes.deletionRetrySucceedsAfterRollback = await (commit.deleteImportSnapshot as(id:unknown)=>ReturnType<typeof commit.deleteImportSnapshot>)('snap-delete-retry') === true
+        && (state.importedData as unknown as PdfFixtureDataReader).entries.length === 0
+        && (state.importedData as unknown as PdfFixtureDataReader).importSnapshots.length === 0;
 
       clearNotifications();
-      commit.openImportReviewFromSnapshot('missing-review');
-      state.importedData.importSnapshots.push({ id: 'empty-review', date: '2026-07-16', markers: [] });
-      commit.openImportReviewFromSnapshot('empty-review');
-      const errors = Array.from(document.querySelectorAll('.notification-toast.error')).map(toast => toast.textContent);
+      (commit.openImportReviewFromSnapshot as(id:unknown)=>ReturnType<typeof commit.openImportReviewFromSnapshot>)('missing-review');
+      (state.importedData as unknown as PdfFixtureDataReader).importSnapshots.push({ id: 'empty-review', date: '2026-07-16', markers: [] });
+      (commit.openImportReviewFromSnapshot as(id:unknown)=>ReturnType<typeof commit.openImportReviewFromSnapshot>)('empty-review');
+      const errors = Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error')).map(toast => toast.textContent);
       outcomes.reviewErrorsAreActionable = errors.some(text => text.includes('Import snapshot not found'))
         && errors.some(text => text.includes('no saved marker review data'));
     } finally {
-      state.importedData = original.importedData;
+      (state as unknown as {importedData:unknown}).importedData = original.importedData;
       state.currentProfile = original.currentProfile;
       state.currentView = original.currentView;
       reviewRuntime.configurePdfImportReviewRuntimeDeps(previousReviewRuntime);
@@ -1408,20 +1412,20 @@ test('PDF import preflight covers model mismatch and unsupported lab dialogs', a
   await page.waitForSelector('.header-import-btn', { state: 'attached' });
 
   const results = await page.evaluate(async ({ preflightUrl }) => {
-    const preflight = await import(preflightUrl);
+    const preflight = (await import(preflightUrl) as unknown) as Pick<typeof import('../../js/pdf-import-preflight.js'),"runPreflightChecks"|"normalizeImportModelId">;
     const { state } = await import('/js/state.js');
-    const outcomes = {};
-    const originalEntries = Array.isArray(state.importedData?.entries)
-      ? JSON.parse(JSON.stringify(state.importedData.entries))
+    const outcomes:Record<string,unknown> = {};
+    const originalEntries = Array.isArray((state.importedData as unknown as PdfFixtureDataReader)?.entries)
+      ? (JSON.parse as(text:unknown)=>unknown)(JSON.stringify((state.importedData as unknown as PdfFixtureDataReader).entries))
       : undefined;
-    const savedStorage = {};
+    const savedStorage:Record<string,string|null|undefined> = {};
     const storageKeys = [
       'labcharts-ai-provider',
       'labcharts-ai-paused',
       'labcharts-ollama-model',
     ];
     const originalFetch = window.fetch;
-    const waitFor = async predicate => {
+    const waitFor = async <T,>(predicate:()=>T) => {
       for (let i = 0; i < 80; i += 1) {
         const value = predicate();
         if (value) return value;
@@ -1432,12 +1436,12 @@ test('PDF import preflight covers model mismatch and unsupported lab dialogs', a
 
     try {
       for (const key of storageKeys) savedStorage[key] = localStorage.getItem(key);
-      state.importedData ||= {};
+      (state as unknown as {importedData:unknown}).importedData ||= {};
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ai-paused', 'false');
       localStorage.setItem('labcharts-ollama-model', 'llama-current');
 
-      state.importedData.entries = [{
+      (state.importedData as unknown as {entries?:unknown}).entries = [{
         date: '2026-05-20',
         importedWith: { provider: 'ollama', modelId: 'llama-previous' },
       }];
@@ -1457,11 +1461,11 @@ test('PDF import preflight covers model mismatch and unsupported lab dialogs', a
       outcomes.modelMismatchSwitchRestoresPreviousModel = await switchPromise === true
         && localStorage.getItem('labcharts-ollama-model') === 'llama-previous';
 
-      state.importedData.entries = [];
+      (state.importedData as unknown as {entries?:unknown}).entries = [];
       localStorage.setItem('labcharts-ollama-model', 'llama-current');
       let fetchCalls = 0;
       window.fetch = async (url, options = {}) => {
-        const href = typeof url === 'string' ? url : url?.url || '';
+        const href = typeof url === 'string' ? url : (url as {url?:string}|undefined)?.url || '';
         if (options.method !== 'POST') {
           if (href.endsWith('/v1/models')) return new Response(JSON.stringify({ data: [{ id: 'llama-current' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
           return new Response(JSON.stringify({ error: 'unsupported' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
@@ -1506,8 +1510,8 @@ test('PDF import preflight covers model mismatch and unsupported lab dialogs', a
       outcomes.unsupportedLabCanProceed = await unsupportedProceedPromise === true
         && fetchCalls === 2;
     } finally {
-      if (originalEntries === undefined) delete state.importedData.entries;
-      else state.importedData.entries = originalEntries;
+      if (originalEntries === undefined) delete (state.importedData as unknown as {entries?:unknown}).entries;
+      else (state.importedData as unknown as {entries?:unknown}).entries = originalEntries;
       for (const key of storageKeys) {
         if (savedStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, savedStorage[key]);
@@ -1532,16 +1536,16 @@ test('PDF import preflight covers duplicate prompts, cancellation, and supported
 
   const results = await page.evaluate(async ({ preflightUrl, utilsUrl }) => {
     const [preflight, utils] = await Promise.all([
-      import(preflightUrl),
-      import(utilsUrl),
+      (import(preflightUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/pdf-import-preflight.js'),"runPreflightChecks"|"normalizeImportModelId">>,
+      (import(utilsUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/utils.js'),"hashString">>,
     ]);
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const originals = {
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      importedData: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify((state.importedData as unknown as PdfFixtureDataReader) || {})),
       fetch: window.fetch,
     };
-    const savedStorage = {};
+    const savedStorage:Record<string,string|null|undefined> = {};
     const storageKeys = [
       'labcharts-ai-provider',
       'labcharts-ai-paused',
@@ -1552,7 +1556,7 @@ test('PDF import preflight covers duplicate prompts, cancellation, and supported
       'labcharts-ppq-model',
       'labcharts-custom-model',
     ];
-    const waitForButton = async id => {
+    const waitForButton = async (id:string) => {
       for (let i = 0; i < 80; i += 1) {
         const button = document.getElementById(id);
         const overlay = document.getElementById('confirm-dialog-overlay');
@@ -1564,7 +1568,7 @@ test('PDF import preflight covers duplicate prompts, cancellation, and supported
 
     try {
       for (const key of storageKeys) savedStorage[key] = localStorage.getItem(key);
-      state.importedData = { ...state.importedData, entries: [] };
+      (state as unknown as {importedData:unknown}).importedData = { ...(state.importedData as unknown as PdfFixtureDataReader), entries: [] };
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ai-paused', 'false');
       localStorage.setItem('labcharts-ollama-model', 'llama-current');
@@ -1573,7 +1577,7 @@ test('PDF import preflight covers duplicate prompts, cancellation, and supported
         && preflight.normalizeImportModelId('claude.sonnet.4.6') === 'claude-sonnet-4-6';
 
       const duplicateText = 'OmegaQuant Complete fatty acid report with EPA DHA';
-      state.importedData.entries = [{
+      (state.importedData as unknown as {entries?:unknown}).entries = [{
         date: '2026-06-01',
         importHash: utils.hashString(duplicateText),
       }];
@@ -1594,7 +1598,7 @@ test('PDF import preflight covers duplicate prompts, cancellation, and supported
       duplicateProceed.click();
       outcomes.duplicateProceedContinuesImport = await duplicateProceedPromise === true;
 
-      state.importedData.entries = [{
+      (state.importedData as unknown as {entries?:unknown}).entries = [{
         date: '2026-05-20',
         importedWith: { provider: 'ollama', modelId: 'llama-previous' },
       }];
@@ -1606,7 +1610,7 @@ test('PDF import preflight covers duplicate prompts, cancellation, and supported
       outcomes.modelMismatchCancelStopsImport = await mismatchCancelPromise === false
         && localStorage.getItem('labcharts-ollama-model') === 'llama-current';
 
-      state.importedData.entries = [{
+      (state.importedData as unknown as {entries?:unknown}).entries = [{
         date: '2026-05-21',
         importedWith: { provider: 'openrouter', modelId: 'anthropic/claude-sonnet-4.6' },
       }];
@@ -1620,7 +1624,7 @@ test('PDF import preflight covers duplicate prompts, cancellation, and supported
         && localStorage.getItem('labcharts-ai-provider') === 'openrouter'
         && localStorage.getItem('labcharts-openrouter-model') === 'anthropic/claude-sonnet-4.6';
 
-      state.importedData.entries = [];
+      (state.importedData as unknown as {entries?:unknown}).entries = [];
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ollama-model', 'llama-current');
       const classificationResponses = [
@@ -1630,7 +1634,7 @@ test('PDF import preflight covers duplicate prompts, cancellation, and supported
       ];
       let fetchCalls = 0;
       window.fetch = async (url, options = {}) => {
-        const href = typeof url === 'string' ? url : url?.url || '';
+        const href = typeof url === 'string' ? url : (url as {url?:string}|undefined)?.url || '';
         if (options.method !== 'POST') {
           if (href.endsWith('/v1/models')) return new Response(JSON.stringify({ data: [{ id: 'llama-current' }] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
           return new Response(JSON.stringify({ error: 'unsupported' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
@@ -1659,7 +1663,7 @@ test('PDF import preflight covers duplicate prompts, cancellation, and supported
         && fetchCalls === 3
         && document.getElementById('confirm-dialog-overlay')?.classList.contains('show') === false;
     } finally {
-      state.importedData = originals.importedData;
+      (state as unknown as {importedData:unknown}).importedData = originals.importedData;
       window.fetch = originals.fetch;
       for (const key of storageKeys) {
         if (savedStorage[key] == null) localStorage.removeItem(key);
@@ -1684,10 +1688,10 @@ test('PDF import covers extraction errors drop zone setup and batch retry', asyn
   await page.waitForSelector('#drop-zone', { state: 'attached' });
 
   const results = await page.evaluate(async ({ pdfImportUrl }) => {
-    const pdfImport = await import(pdfImportUrl);
-    const outcomes = {};
+    const pdfImport = (await import(pdfImportUrl) as unknown) as Pick<typeof import('../../js/pdf-import.js'),"configurePdfImportDeps"|"showAINeededDialog"|"tryParseJSON"|"assessTextQuality"|"classifyImportFiles"|"isPdfByMagic"|"parseLabPDFWithAI"|"parseLabPDFWithAIImages"|"handlePDFFile"|"handleTextFile"|"extractXLSXText"|"handleImageFile"|"hideImportProgress"|"confirmImport"|"deleteImportSnapshot"|"openImportReviewFromSnapshot"|"extractPDFText"|"extractPDFImages"|"setupDropZone"|"handleBatchPDFs">;
+    const outcomes:Record<string,unknown> = {};
     const dropZone = document.getElementById('drop-zone');
-    const pdfInput = document.getElementById('pdf-input');
+    const pdfInput = (document.getElementById('pdf-input') as HTMLInputElement|null);
     const original = {
       pdfInputClick: pdfInput?.click,
       setTimeout: window.setTimeout,
@@ -1697,7 +1701,7 @@ test('PDF import covers extraction errors drop zone setup and batch retry', asyn
       ollamaPiiEnabled: localStorage.getItem('labcharts-ollama-pii-enabled'),
       piiReview: localStorage.getItem('labcharts-pii-review'),
     };
-    const waitFor = async (predicate, label) => {
+    const waitFor = async <T,>(predicate:()=>T, label:string) => {
       for (let i = 0; i < 80; i += 1) {
         const value = predicate();
         if (value) return value;
@@ -1705,11 +1709,11 @@ test('PDF import covers extraction errors drop zone setup and batch retry', asyn
       }
       throw new Error(`Timed out waiting for ${label}`);
     };
-    const setOrRemove = (key, value) => {
+    const setOrRemove = (key:string, value:string|null|undefined) => {
       if (value == null) localStorage.removeItem(key);
       else localStorage.setItem(key, value);
     };
-    const notificationsText = () => Array.from(document.querySelectorAll('.notification-toast'))
+    const notificationsText = () => Array.from(document.querySelectorAll<HTMLElement>('.notification-toast'))
       .map(toast => toast.textContent || '')
       .join('\n');
 
@@ -1719,13 +1723,13 @@ test('PDF import covers extraction errors drop zone setup and batch retry', asyn
       try {
         await pdfImport.extractPDFText(invalidPdf);
       } catch (err) {
-        textError = String(err?.message || err);
+        textError = String((err as {message?:unknown}|null|undefined)?.message || err);
       }
       let imageError = '';
       try {
         await pdfImport.extractPDFImages(invalidPdf, 1);
       } catch (err) {
-        imageError = String(err?.message || err);
+        imageError = String((err as {message?:unknown}|null|undefined)?.message || err);
       }
 
       const fallbackPdf = new File(['also not a PDF'], 'fallback.pdf', { type: 'application/pdf' });
@@ -1736,7 +1740,7 @@ test('PDF import covers extraction errors drop zone setup and batch retry', asyn
       try {
         await pdfImport.extractPDFText(fallbackPdf);
       } catch (err) {
-        fallbackError = String(err?.message || err);
+        fallbackError = String((err as {message?:unknown}|null|undefined)?.message || err);
       }
       outcomes.invalidPdfExtractionAndFileReaderFallbackRejectThroughPdfLoader = textError.length > 0
         && imageError.length > 0
@@ -1776,13 +1780,13 @@ test('PDF import covers extraction errors drop zone setup and batch retry', asyn
       localStorage.setItem('labcharts-ollama-model', 'coverage-batch-model');
       localStorage.setItem('labcharts-ollama-pii-enabled', 'false');
       localStorage.setItem('labcharts-pii-review', 'false');
-      const immediateDelays = [];
-      window.setTimeout = (callback, delay, ...args) => {
+      const immediateDelays:number[] = [];
+      (window as unknown as {setTimeout:unknown}).setTimeout = (callback:unknown, delay:number|undefined, ...args:unknown[]) => {
         if (delay === 5000) {
           immediateDelays.push(delay);
-          return original.setTimeout.call(window, () => callback(...args), 0);
+          return original.setTimeout.call(window, () => (callback as(...args:unknown[])=>unknown)(...args), 0);
         }
-        return original.setTimeout.call(window, callback, delay, ...args);
+        return (original.setTimeout as(callback:unknown,delay:number|undefined,...args:unknown[])=>unknown).call(window, callback, delay, ...args);
       };
       await pdfImport.handleBatchPDFs([invalidPdf]);
       await waitFor(() => notificationsText().includes('Batch import complete'), 'batch completion notification');
