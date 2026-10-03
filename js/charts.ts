@@ -709,7 +709,7 @@ export function refreshChartThemeColors(options: { batchSize?: number } = {}) {
   runBatch();
 }
 
-export function getMarkerDescription(markerId: string) {
+export function getMarkerDescription(markerId: string): unknown {
   const marker = state.markerRegistry[markerId];
   if (marker && marker.desc) return marker.desc;
   // Fallback to localStorage cache for custom markers

@@ -516,28 +516,28 @@ export function supportsWebSearch(provider = getAIProvider()) {
 export function supportsVision(provider = getAIProvider(), modelId: string = getActiveModelId(provider) as string) {
   if (provider === 'openrouter') {
     try {
-      const visionIds = JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models') || '[]');
-      return visionIds.some(function(vid: string) { return modelId === vid || modelId.startsWith(vid.replace(/:\d{4}-\d{2}-\d{2}$/, '')); });
+      const visionIds: unknown = JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models') || '[]');
+      return (visionIds as { some: typeof Array.prototype.some }).some(function(vid: string) { return modelId === vid || modelId.startsWith(vid.replace(/:\d{4}-\d{2}-\d{2}$/, '')); });
     } catch { return false; }
   }
   if (provider === 'venice') {
     if (isE2EEModel(modelId)) return false;
     try {
-      const visionIds = JSON.parse(localStorage.getItem('labcharts-venice-vision-models') || '[]');
-      return visionIds.some(function(vid: string) { return modelId === vid || modelId.startsWith(vid.replace(/-\d{8}$/, '')); });
+      const visionIds: unknown = JSON.parse(localStorage.getItem('labcharts-venice-vision-models') || '[]');
+      return (visionIds as { some: typeof Array.prototype.some }).some(function(vid: string) { return modelId === vid || modelId.startsWith(vid.replace(/-\d{8}$/, '')); });
     } catch { return false; }
   }
   if (provider === 'routstr') {
     if (isRoutstrTinfoilModel(modelId)) return false;
     try {
-      const visionIds = JSON.parse(localStorage.getItem('labcharts-routstr-vision-models') || '[]');
-      return visionIds.some(function(vid: string) { return modelId === vid || modelId.startsWith(vid.replace(/-\d{8}$/, '')); });
+      const visionIds: unknown = JSON.parse(localStorage.getItem('labcharts-routstr-vision-models') || '[]');
+      return (visionIds as { some: typeof Array.prototype.some }).some(function(vid: string) { return modelId === vid || modelId.startsWith(vid.replace(/-\d{8}$/, '')); });
     } catch { return false; }
   }
   if (provider === 'ppq') {
     try {
-      const visionIds = JSON.parse(localStorage.getItem(isPpqPrivateModel(modelId) ? 'labcharts-ppq-private-vision-models' : 'labcharts-ppq-vision-models') || '[]');
-      return visionIds.some(function(vid: string) { return modelId === vid || modelId.startsWith(vid.replace(/-\d{8}$/, '')); });
+      const visionIds: unknown = JSON.parse(localStorage.getItem(isPpqPrivateModel(modelId) ? 'labcharts-ppq-private-vision-models' : 'labcharts-ppq-vision-models') || '[]');
+      return (visionIds as { some: typeof Array.prototype.some }).some(function(vid: string) { return modelId === vid || modelId.startsWith(vid.replace(/-\d{8}$/, '')); });
     } catch { return false; }
   }
   if (provider === 'custom') return true;

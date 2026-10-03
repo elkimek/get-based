@@ -22,7 +22,7 @@ const SECTION_ROWS: [string, string, string, string, number, number][] = [
   ['mineral', 'Mineral Metabolism', '⚖️', 'oatAminoFatty', 21, 22],
 ];
 
-export const MOSAIC_OAT_SECTIONS = Object.fromEntries([
+export const MOSAIC_OAT_SECTIONS: Record<string, { prefix: string; label: string; icon: string }> = Object.fromEntries([
   ...SECTION_ROWS.map(([key, label, icon]) => [key, { prefix: `mosaicOat${key[0]!.toUpperCase()}${key.slice(1)}`, label, icon }]),
   ['fluidIntake', { prefix: 'mosaicOatFluidIntake', label: 'Indicator of Fluid Intake', icon: '💧' }],
 ]);
