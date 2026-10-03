@@ -1,8 +1,9 @@
-import type { SupplementRecord } from '../types/supplement-data.js';
+import type { SupplementDomainRecord } from './supplement-medication-domain.js';
+export interface SupplementImpactReader extends SupplementDomainRecord { dosage?: unknown }
 
 type ImpactData = NonNullable<ReturnType<typeof getActiveData>>;
 interface ImpactCacheEntry { fp: string; dot: unknown; summary: unknown }
-interface PendingImpactAnalysis { supplement: SupplementRecord; editIdx: number }
+interface PendingImpactAnalysis { supplement: SupplementImpactReader; editIdx: number }
 
 // supplement-impact.js - supplement dose math and lab impact analysis
 
@@ -38,16 +39,16 @@ export function formatSupplementTotal(total: ReturnType<typeof ingredientDailyTo
   return `${v}${total.unit ? ' ' + total.unit : ''}/day`;
 }
 
-export function computeSupplementImpact(supplement: SupplementRecord, markerKey: string, markerName: string | undefined, unit: string | undefined, values: readonly (number | null)[] | null | undefined, dates: readonly string[] | null | undefined, refMin: number | null | undefined, refMax: number | null | undefined) {
+export function computeSupplementImpact(supplement: SupplementImpactReader, markerKey: string, markerName: string | undefined, unit: string | undefined, values: readonly (number | null)[] | null | undefined, dates: readonly string[] | null | undefined, refMin: number | null | undefined, refMax: number | null | undefined) {
   if (!values || !dates || values.length !== dates.length) return null;
   const pds = getSupplementPeriods(supplement);
-  const sortedPds = [...pds].sort((a, b) => a.start.localeCompare(b.start));
+  const sortedPds = [...pds].sort((a, b) => (a.start as { localeCompare(other: unknown): number }).localeCompare(b.start));
   const firstStart = sortedPds[0]!.start;
-  const isInPeriod = (date: string) => sortedPds.some(p => date >= p.start && (!p.end || date <= p.end));
+  const isInPeriod = (date: string) => sortedPds.some(p => date >= (p.start as string) && (!p.end || date <= (p.end as string)));
   const beforeValues: number[] = [], afterValues: number[] = [];
   for (let i = 0; i < dates.length; i++) {
     if (values[i] === null) continue;
-    if (dates[i]! < firstStart) {
+    if (dates[i]! < (firstStart as string)) {
       beforeValues.push(values[i]!);
     } else if (isInPeriod(dates[i]!)) {
       afterValues.push(values[i]!);
@@ -75,7 +76,7 @@ export function computeSupplementImpact(supplement: SupplementRecord, markerKey:
 
 type SignificantImpact = NonNullable<ReturnType<typeof computeSupplementImpact>> & { pctChange: number };
 
-export function computeAllImpacts(supplement: SupplementRecord, data: ImpactData | null | undefined) {
+export function computeAllImpacts(supplement: SupplementImpactReader, data: ImpactData | null | undefined) {
   if (!data || !data.categories || !data.dates) return [];
   const results: SignificantImpact[] = [];
   for (const [catKey, cat] of Object.entries(data.categories)) {
@@ -94,7 +95,7 @@ export function computeAllImpacts(supplement: SupplementRecord, data: ImpactData
   return results;
 }
 
-function getOverlappingSupplements(supplement: SupplementRecord, supps: SupplementRecord[]) {
+function getOverlappingSupplements(supplement: SupplementImpactReader, supps: SupplementImpactReader[]) {
   const sPds = getSupplementPeriods(supplement);
   return supps.filter(s => {
     if (s === supplement) return false;
@@ -102,19 +103,19 @@ function getOverlappingSupplements(supplement: SupplementRecord, supps: Suppleme
     return sPds.some(sp => oPds.some(op => {
       const sEnd = sp.end || '9999-12-31';
       const oEnd = op.end || '9999-12-31';
-      return sp.start <= oEnd && op.start <= sEnd;
+      return (sp.start as string) <= (oEnd as string) && (op.start as string) <= (sEnd as string);
     }));
   });
 }
 
 // Per-supplement fingerprint: changes when that supp's edit-visible fields or lab dates change.
 // Editing dosage/ingredients/periods for one supp invalidates only that supp's cache entry.
-function getSuppFingerprint(supp: SupplementRecord, data: ImpactData) {
+function getSuppFingerprint(supp: SupplementImpactReader, data: ImpactData) {
   const labPart = (data.dates || []).join(',');
   const pds = getSupplementPeriods(supp);
   const ings = (supp.ingredients || []).map(i => `${i.name}:${i.amount || ''}:${i.amountValue ?? ''}:${i.amountUnit || ''}:${i.timesPerDay || ''}`).join(',');
   const schedule = supp.schedule && typeof supp.schedule === 'object' ? JSON.stringify(supp.schedule) : '';
-  const suppPart = `${supp.name}|${supp.dosage || ''}|${supp.timesPerDay || ''}|${schedule}|${supp.type || ''}|${ings}|${pds.map(p => p.start + '~' + (p.end || '') + '~' + (p.dose || '')).join(',')}`;
+  const suppPart = `${supp.name}|${supp.dosage || ''}|${supp.timesPerDay || ''}|${schedule}|${supp.type || ''}|${ings}|${pds.map(p => (p.start as string) + '~' + (p.end || '') + '~' + (p.dose || '')).join(',')}`;
   return hashString(labPart + '||' + suppPart);
 }
 
@@ -139,11 +140,11 @@ function setImpactCache(cache: Record<string, ImpactCacheEntry>) {
 }
 
 // Debounced queue: coalesces multiple render calls into a single AI request for only the stale/missing supps.
-let _pendingAnalyses = new Map<string, PendingImpactAnalysis>(); // suppName -> { supplement, editIdx }
+let _pendingAnalyses = new Map<unknown, PendingImpactAnalysis>(); // suppName -> { supplement, editIdx }
 let _analyzeTimer: ReturnType<typeof setTimeout> | null = null;
 let _batchPromise: Promise<void> | null = null;
 
-export function renderSupplementImpact(supplement: SupplementRecord, editIdx: number) {
+export function renderSupplementImpact(supplement: SupplementImpactReader, editIdx: number) {
   const hasAI = hasAssistantFeatureProvider();
   const data = getActiveData();
   if (!data || !data.dates || data.dates.length < 2) {
@@ -162,7 +163,7 @@ export function renderSupplementImpact(supplement: SupplementRecord, editIdx: nu
   const fp = getSuppFingerprint(supplement, data);
   const cache = getImpactCache();
   const cacheKey = getSupplementRecordId(supplement) || supplement.name;
-  const entry = cache[cacheKey] || cache[supplement.name];
+  const entry = cache[cacheKey as string] || cache[supplement.name as string];
   const cached = (entry && entry.fp === fp) ? entry : null;
 
   const dotColor = cached ? `ctx-health-dot-${cached.dot}` : (hasAI ? 'ctx-health-dot-shimmer' : 'ctx-health-dot-gray');
@@ -183,7 +184,7 @@ export function renderSupplementImpact(supplement: SupplementRecord, editIdx: nu
   return html;
 }
 
-function scheduleAnalyze(supplement: SupplementRecord, editIdx: number, data: ImpactData) {
+function scheduleAnalyze(supplement: SupplementImpactReader, editIdx: number, data: ImpactData) {
   _pendingAnalyses.set(getSupplementRecordId(supplement) || supplement.name, { supplement, editIdx });
   if (_analyzeTimer) return;
   _analyzeTimer = setTimeout(() => { _analyzeTimer = null; flushAnalyses(data); }, 50);
@@ -215,7 +216,7 @@ async function loadImpactsForSupps(pending: PendingImpactAnalysis[], data: Impac
     const pds = getSupplementPeriods(s);
     const pdStr = pds.length === 1
       ? `since ${pds[0]!.start}${pds[0]!.end ? ' until ' + pds[0]!.end : ''}`
-      : `CYCLING: ${pds.map(p => p.start + ' to ' + (p.end || 'ongoing')).join('; ')}`;
+      : `CYCLING: ${pds.map(p => (p.start as string) + ' to ' + (p.end || 'ongoing')).join('; ')}`;
     const regimen = s.schedule?.mode === 'prn'
       ? `PRN${s.schedule?.maxPerDay ? ` (max ${s.schedule.maxPerDay}/day)` : ''}`
       : [s.schedule?.mode, s.schedule?.details].filter(Boolean).join(': ');
@@ -242,24 +243,24 @@ green=beneficial, yellow=mixed, red=concerning, gray=insufficient data. Mention 
 
   _batchPromise = (async () => {
     try {
-      const result = await callAssistantFeatureAI({ system, messages: [{ role: 'user', content: ctx }], maxTokens: 300 * suppEntries.length + 1000 }) as { text: string };
-      const cleaned = result.text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      const result = await callAssistantFeatureAI({ system, messages: [{ role: 'user', content: ctx }], maxTokens: 300 * suppEntries.length + 1000 }) as { text?: unknown };
+      const cleaned = ((result.text as { replace(pattern: RegExp, replacement: string): unknown }).replace(/<think>[\s\S]*?<\/think>/g, '') as { trim(): unknown }).trim();
+      const jsonMatch = (cleaned as { match(pattern: RegExp): { 0?: unknown } | null | undefined }).match(/\{[\s\S]*\}/);
       if (!jsonMatch) return;
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = JSON.parse(jsonMatch[0] as string) as Record<PropertyKey, unknown>;
 
       const cache = getImpactCache();
       for (const { supplement: s, editIdx } of suppEntries) {
-        const entry = parsed[s.name];
+        const entry = parsed[s.name as string] as { dot?: unknown; summary?: unknown } | null | undefined;
         if (!entry || typeof entry !== 'object') continue;
         const record = {
           fp: getSuppFingerprint(s, data),
-          dot: ['green', 'yellow', 'red', 'gray'].includes(entry.dot) ? entry.dot : 'gray',
-          summary: typeof entry.summary === 'string' ? entry.summary.slice(0, 150) : ''
+          dot: ['green', 'yellow', 'red', 'gray'].includes(entry.dot as string) ? entry.dot : 'gray',
+          summary: typeof entry.summary === 'string' ? (entry.summary as { slice(start: number, end: number): unknown }).slice(0, 150) : ''
         };
         const cacheKey = getSupplementRecordId(s) || s.name;
-        cache[cacheKey] = record;
-        if (cacheKey !== s.name) delete cache[s.name];
+        cache[cacheKey as string] = record;
+        if (cacheKey !== s.name) delete cache[s.name as string];
         applyImpactToDOM(editIdx, record);
       }
       // Cap cache at 50 entries (one per supp).
@@ -280,8 +281,8 @@ export function refreshSupplementImpact(editIdx: number) {
   const data = getActiveData();
   if (!data) return;
   const cache = getImpactCache();
-  delete cache[getSupplementRecordId(s) || s.name];
-  delete cache[s.name];
+  delete cache[(getSupplementRecordId(s) || s.name) as string];
+  delete cache[s.name as string];
   setImpactCache(cache);
   const dotEl = document.getElementById(`supp-impact-dot-${editIdx}`);
   if (dotEl) dotEl.className = 'ctx-health-dot ctx-health-dot-shimmer';

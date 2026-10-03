@@ -91,7 +91,7 @@ export function prepareTherapyHistory(record: TherapyRecord, today = localDateKe
   const snapshots = (p: HistoryPeriod | null) => Array.isArray(p?.ingredientDoses) ? p.ingredientDoses : (p?.dose as DoseView | null | undefined)?.ingredient ? [p!.dose as DoseView] : [];
   const ingredientOptions = [...new Set(raw.flatMap(p => snapshots(p).map(d => d?.ingredient)).filter(name => typeof name === 'string' && name) as string[])];
   const selectedIngredient = ingredientOptions.includes(ingredient) ? ingredient : ingredientOptions[0] || '';
-  const ingredientDose = (p: HistoryPeriod, name: string) => { const matches = snapshots(p).filter(d => d?.ingredient === name); return matches.length === 1 ? matches[0] : undefined; };
+  const ingredientDose = (p: HistoryPeriod, name: unknown) => { const matches = snapshots(p).filter(d => d?.ingredient === name); return matches.length === 1 ? matches[0] : undefined; };
   const selectedDose = (p: HistoryPeriod) => Array.isArray(p.ingredientDoses) || (p.dose as DoseView | null | undefined)?.ingredient ? ingredientDose(p, selectedIngredient) : p.dose;
   const periods = (raw.filter(p => p && correlationDay(p.start) !== null
     && (p.end === null || p.end === undefined || p.end === '' || correlationDay(p.end) !== null)

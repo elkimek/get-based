@@ -1063,3 +1063,7 @@ deploy/profile-share/data/
 /js/nutrition-history.js
 /types/light-env-view.js
 /types/light-page-view.js
+
+/js/supplement-import-controller.js
+/js/supplements.js
+/types/supplements.js

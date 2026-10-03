@@ -1,6 +1,6 @@
-// @ts-check
 // supplements.js — Public facade and editor controller for supplements/medications.
 
+import type { SupplementProfileOperations, EditedSupplementOperations, RawPeriods, RawPeriodSchedule, RawIngredientChange, RawIngredientCollector, RawQualityCollector, RawReplace, RawDelete, RawSave, RawStatus, RawId, RawConfirmPeriod } from '../types/supplements.js';
 import { state } from './state.js';
 import { bindDetailModalSyncRefresh, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 import { saveImportedDataForProfile } from './data.js';
@@ -119,25 +119,25 @@ function closeSupplementModal() {
   closeSupplementsModalRuntime();
 }
 
-function withSupplementDraftCheck(action) {
+function withSupplementDraftCheck(action: () => unknown) {
   if (!supplementFormHasChanges()) { action(); return; }
   void showConfirmDialog('You have unsaved supplement changes. Discard them and continue?', {
     confirmLabel: 'Discard changes', tone: 'danger', ariaLabel: 'Unsaved supplement changes',
   }).then(confirmed => { if (confirmed) action(); });
 }
 
-function navigateSupplementView(category) {
+function navigateSupplementView(category: string) {
   navigateSupplementsViewRuntime(category);
 }
 
-function refreshOpenSupplementsEditorOnSync({ modal }) {
+function refreshOpenSupplementsEditorOnSync({ modal }: { modal: HTMLElement | null }) {
   if (supplementFormHasChanges()) {
     showNotification('Synced data arrived. Your unsaved supplement edits are still open.', 'info');
     return;
   }
-  const index = Number.parseInt(modal.dataset.syncRefreshEditIdx || '', 10);
-  const itemId = modal.dataset.syncRefreshItemId || '';
-  const supplements = state.importedData.supplements || [];
+  const index = Number.parseInt(modal!.dataset.syncRefreshEditIdx || '', 10);
+  const itemId = modal!.dataset.syncRefreshItemId || '';
+  const supplements = (state.importedData as SupplementProfileOperations).supplements || [];
   let nextIndex = -1;
   if (Number.isInteger(index) && supplements[index]) {
     const indexItemId = getConfiguredArrayItemId('supplements', supplements[index]);
@@ -151,7 +151,7 @@ function refreshOpenSupplementsEditorOnSync({ modal }) {
 
 if (typeof window !== 'undefined') bindDetailModalSyncRefresh('supplements', refreshOpenSupplementsEditorOnSync);
 
-export function toggleSuppAccordion(index) {
+export function toggleSuppAccordion(index: number) {
   clearPendingSupplementImport();
   const addArea = document.getElementById('supp-add-form-area');
   if (addArea) addArea.innerHTML = '';
@@ -164,7 +164,7 @@ export function toggleSuppAccordion(index) {
     if (oldIndex === index) return;
   }
   if (!clickedRow) return;
-  const supplement = state.importedData.supplements?.[index];
+  const supplement = (state.importedData as SupplementProfileOperations).supplements?.[index];
   if (!supplement) return;
   clickedRow.classList.add('supp-list-item-active');
   clickedRow.insertAdjacentHTML('afterend', `<div class="supp-list-expanded" data-expanded-idx="${index}">${renderSupplementImpact(supplement, index)}${suppFormHtml(index, supplement)}</div>`);
@@ -172,9 +172,9 @@ export function toggleSuppAccordion(index) {
   document.querySelector('.supp-list-expanded')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function renderSupplementQualityOverview(supplements) {
+function renderSupplementQualityOverview(supplements: unknown) {
   const current = (Array.isArray(supplements) ? supplements : [])
-    .filter(supplement => getSupplementStatus(supplement) === 'active');
+    .filter(supplement => (getSupplementStatus as RawStatus)(supplement) === 'active');
   const groups = aggregateSupplementContaminants(current);
   if (!groups.length) return '';
   const rows = groups.map(group => {
@@ -189,21 +189,21 @@ function renderSupplementQualityOverview(supplements) {
   return `<section class="supp-quality-overview"><div class="supp-form-section-title">Current contaminant overview</div><div class="supp-form-help">Source-reported, often lot-specific laboratory data. Totals are shown only after the user confirms the report matches their bottle lot and the result is a compatible mass-per-serving/unit value with a personal daily frequency. No safety threshold or regulatory conclusion is applied.</div><div class="supp-quality-overview-scroll"><table><thead><tr><th>Analyte</th><th>Reported by product</th><th>Combined daily amount</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
 }
 
-export function openSupplementsEditor(editIndex) {
+export function openSupplementsEditor(editIndex?: number) {
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
   if (!modal || !overlay) return;
-  const supplements = state.importedData.supplements || [];
+  const supplements = (state.importedData as SupplementProfileOperations).supplements || [];
   clearPendingSupplementImport();
   const isEdit = typeof editIndex === 'number' && !!supplements[editIndex];
   let html = `<button class="modal-close" aria-label="Close supplements and medications" ${suppActionAttrs('close-modal')}>&times;</button><h3>Supplements & Medications</h3><div class="modal-unit">Track what you're taking and when. Click an item to edit it. This history supports context and research warnings; it is not a comprehensive interaction or prescribing checker.</div>${renderSupplementQualityOverview(supplements)}`;
   if (supplements.length) {
-    const formatDate = date => date && Number.isFinite(new Date(`${date}T00:00:00`).getTime())
+    const formatDate = (date: unknown) => date && Number.isFinite(new Date(`${date}T00:00:00`).getTime())
       ? new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'date not set';
-    const statusOrder = { active: 0, scheduled: 1, paused: 2, ended: 3, planned: 4 };
-    const statusLabels = { active: 'Current', scheduled: 'Upcoming', paused: 'Paused / between cycles', ended: 'History', planned: 'Planned' };
-    const orderedRows = supplements.map((supplement, index) => ({ supplement, index, status: getSupplementStatus(supplement) }))
-      .sort((a, b) => statusOrder[a.status] - statusOrder[b.status] || a.index - b.index);
+    const statusOrder: Record<string, number> = { active: 0, scheduled: 1, paused: 2, ended: 3, planned: 4 };
+    const statusLabels: Record<string, string> = { active: 'Current', scheduled: 'Upcoming', paused: 'Paused / between cycles', ended: 'History', planned: 'Planned' };
+    const orderedRows = supplements.map((supplement, index) => ({ supplement, index, status: (getSupplementStatus as RawStatus)(supplement) }))
+      .sort((a, b) => statusOrder[a.status]! - statusOrder[b.status]! || a.index - b.index);
     html += '<div class="supp-list">';
     let previousStatus = '';
     for (const { supplement, index, status } of orderedRows) {
@@ -212,12 +212,12 @@ export function openSupplementsEditor(editIndex) {
         previousStatus = status;
       }
       const icon = supplement.type === 'medication' ? '💊' : '💧';
-      const periods = getSupplementPeriods(supplement);
+      const periods = (getSupplementPeriods as RawPeriods)(supplement);
       const dateRange = periods.length === 1
-        ? `${formatDate(periods[0].start)} → ${periods[0].end ? formatDate(periods[0].end) : 'ongoing'}`
+        ? `${formatDate(periods[0]!.start)} → ${periods[0]!.end ? formatDate(periods[0]!.end) : 'ongoing'}`
         : periods.map(period => `${formatDate(period.start)}→${period.end ? formatDate(period.end) : 'now'}`).join(' · ');
       const source = sourceUrlParts(supplement.sourceUrl || supplement.importProvenance?.url);
-      const currentPeriod = periods.find(period => period.start <= localDateKey() && (!period.end || period.end >= localDateKey()));
+      const currentPeriod = periods.find(period => (period.start as string) <= localDateKey() && (!period.end || (period.end as string) >= localDateKey()));
       const recordedDose = supplementDoseText(currentPeriod?.dose);
       const qualityAICount = (supplement.qualityTests || []).filter(test => isSupplementQualityIncludedInAI(test, supplement)).length;
       const ingredientPills = supplement.ingredients?.map(ingredient => {
@@ -235,9 +235,9 @@ export function openSupplementsEditor(editIndex) {
   html += `<div class="supp-add-section"><button class="supp-add-btn" ${suppActionAttrs('toggle-add-form')}>+ Add New</button><div id="supp-add-form-area"></div></div>`;
   modal.innerHTML = html;
   rememberSupplementForm();
-  modal.dataset.syncRefreshKind = 'supplements';
-  modal.dataset.syncRefreshEditIdx = isEdit ? String(editIndex) : '';
-  modal.dataset.syncRefreshItemId = isEdit ? getConfiguredArrayItemId('supplements', supplements[editIndex]) || '' : '';
+  modal!.dataset.syncRefreshKind = 'supplements';
+  modal!.dataset.syncRefreshEditIdx = isEdit ? String(editIndex) : '';
+  modal!.dataset.syncRefreshItemId = isEdit ? getConfiguredArrayItemId('supplements', supplements[editIndex]) || '' : '';
   openModalOverlay(overlay);
   if (isEdit) setTimeout(() => document.querySelector('.supp-list-expanded')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
 }
@@ -261,7 +261,7 @@ export function showAddSuppForm() {
   }, 50);
 }
 
-function parseScheduleDetails(mode, details) {
+function parseScheduleDetails(mode: string, details: string): { daysOfWeek?: number[]; intervalDays?: number } {
   if (mode === 'selected-days') {
     const names = ['sun(?:day)?', 'mon(?:day)?', 'tue(?:s(?:day)?)?', 'wed(?:nesday)?', 'thu(?:rs?(?:day)?)?', 'fri(?:day)?', 'sat(?:urday)?'];
     return { daysOfWeek: names.flatMap((name, day) => new RegExp(`\\b${name}s?\\b`, 'i').test(details) ? [day] : []) };
@@ -276,7 +276,7 @@ function parseScheduleDetails(mode, details) {
 
 const scheduleFields = '#supp-schedule-mode, #supp-schedule-details, #supp-times, #supp-max-per-day';
 
-function preserveUntouchedSupplementFields(entry, previous) {
+function preserveUntouchedSupplementFields(entry: Record<string, unknown>, previous: Record<string, unknown> | null | undefined) {
   if (!previous) return;
   const fields = {
     name: '#supp-name', type: '#supp-type', dosage: '#supp-dosage', note: '#supp-note',
@@ -299,32 +299,31 @@ function preserveUntouchedSupplementFields(entry, previous) {
 let supplementSavePending = false;
 
 /** Persist a detached intent; failed writes must leave both saved state and the draft intact. */
-async function commitSupplementMutation(mutate) {
+async function commitSupplementMutation(mutate: (snapshot: SupplementProfileOperations) => unknown) {
   if (supplementSavePending) return false;
   const profile = state.currentProfile;
   if (!profile) { showNotification('Select a profile before saving.', 'error'); return false; }
   supplementSavePending = true;
   const baseData = structuredClone(state.importedData);
-  const snapshot = structuredClone(baseData);
+  const snapshot = structuredClone(baseData) as SupplementProfileOperations;
   const controls = Array.from(document.querySelectorAll('#supp-form-panel input, #supp-form-panel select, #supp-form-panel textarea, #supp-form-panel button')).filter(control => control instanceof HTMLInputElement || control instanceof HTMLSelectElement || control instanceof HTMLTextAreaElement || control instanceof HTMLButtonElement);
   const disabled = controls.map(control => control.disabled);
   controls.forEach(control => { control.disabled = true; });
   try {
     mutate(snapshot);
-    return await saveImportedDataForProfile(profile, snapshot, { baseData });
+    return await (saveImportedDataForProfile as RawSave)(profile, snapshot, { baseData });
   } finally {
-    controls.forEach((control, index) => { control.disabled = disabled[index]; });
+    controls.forEach((control, index) => { control.disabled = disabled[index]!; });
     supplementSavePending = false;
   }
 }
 
-/** @returns {Promise<boolean | void>} */
-export async function saveSupplement(index) {
+export async function saveSupplement(index: number): Promise<boolean | void> {
   if (supplementFormRecordChanged()) {
     showNotification('This record changed elsewhere. Copy any unsaved edits, then close and reopen it before saving.', 'error');
     return;
   }
-  const previous = index >= 0 ? state.importedData.supplements?.[index] : null;
+  const previous = index >= 0 ? (state.importedData as SupplementProfileOperations).supplements?.[index] : null;
   const periodsChanged = !previous || supplementFieldsChanged('#supp-periods');
   const scheduleChanged = !previous || supplementFieldsChanged(scheduleFields);
   const name = getFieldValue('supp-name').trim();
@@ -345,15 +344,15 @@ export async function saveSupplement(index) {
   }
   const sorted = [...periods].sort((a, b) => a.start.localeCompare(b.start));
   for (let periodIndex = 0; periodsChanged && periodIndex < sorted.length - 1; periodIndex += 1) {
-    if ((sorted[periodIndex].end || '9999-12-31') >= sorted[periodIndex + 1].start) {
+    if ((sorted[periodIndex]!.end || '9999-12-31') >= sorted[periodIndex + 1]!.start) {
       showNotification('Periods must not overlap or share the same date', 'error');
       return;
     }
   }
   const pendingImport = getPendingSupplementImport();
-  const ingredients = collectIngredients(pendingImport);
+  const ingredients = (collectIngredients as unknown as RawIngredientCollector)(pendingImport);
   const inactiveIngredients = collectInactiveIngredients();
-  const qualityTests = collectQualityTests(pendingImport);
+  const qualityTests = (collectQualityTests as unknown as RawQualityCollector)(pendingImport);
   const timesRaw = getFieldValue('supp-times').trim();
   const timesPerDay = timesRaw ? parseFloat(timesRaw) : NaN;
   const scheduleMode = getFieldValue('supp-schedule-mode') || 'daily';
@@ -373,7 +372,7 @@ export async function saveSupplement(index) {
   const maxPerDayRaw = getFieldValue('supp-max-per-day').trim();
   const maxPerDay = maxPerDayRaw ? parseFloat(maxPerDayRaw) : NaN;
   const sourceUrlRaw = getFieldValue('supp-url').trim();
-  let sourceUrl = null;
+  let sourceUrl: URL | null = null;
   if (sourceUrlRaw && (!previous || supplementFieldsChanged('#supp-url'))) {
     try {
       sourceUrl = new URL(sourceUrlRaw);
@@ -383,16 +382,9 @@ export async function saveSupplement(index) {
       return;
     }
   }
-  /** @type {Omit<import('../types/supplement-data.js').SupplementRecordWithHistory, 'periods' | 'ingredients' | 'qualityTests'> & {
-   * periods: (import('./supplement-form-ui.js').CollectedFormPeriod | NonNullable<import('../types/supplement-data.js').SupplementRecord['periods']>[number])[],
-   * ingredients?: unknown[], qualityTests?: unknown[],
-   * schedule: NonNullable<import('../types/supplement-data.js').SupplementRecord['schedule']>,
-   * lifecycle: NonNullable<import('../types/supplement-data.js').SupplementRecord['lifecycle']>,
-   * servingSize?: NonNullable<import('../types/supplement-data.js').SupplementRecord['servingSize']>, timesPerDay?: number
-   * }} */
-  const entry = {
+  const entry: EditedSupplementOperations = {
     ...(previous && typeof previous === 'object' ? previous : {}),
-    id: getSupplementRecordId(previous) || createSupplementRecordId(),
+    id: (getSupplementRecordId as RawId)(previous) || createSupplementRecordId(),
     schemaVersion: previous?.schemaVersion ?? SUPPLEMENT_RECORD_VERSION,
     name, dosage, type,
     startDate: sorted[0]?.start,
@@ -408,7 +400,7 @@ export async function saveSupplement(index) {
     },
     lifecycle: {
       ...(previous?.lifecycle && typeof previous.lifecycle === 'object' ? previous.lifecycle : {}),
-      state: sorted.some(period => period.start <= localDateKey() && !period.end) ? 'active' : previous?.lifecycle?.state || 'ended',
+      state: sorted.some(period => (period.start as string) <= localDateKey() && !period.end) ? 'active' : previous?.lifecycle?.state || 'ended',
     },
     updatedAt: Date.now(),
   };
@@ -430,7 +422,7 @@ export async function saveSupplement(index) {
   entry.schedule.timesPerDay = entry.timesPerDay ?? null;
 
   if (sourceUrl) entry.sourceUrl = sourceUrl.toString(); else delete entry.sourceUrl;
-  for (const [field, id] of [['brand','supp-brand'],['genericName','supp-generic-name'],['dosageForm','supp-dosage-form'],['route','supp-route'],['labelDirections','supp-label-directions'],['reason','supp-reason'],['prescriber','supp-prescriber']]) {
+  for (const [field, id] of [['brand','supp-brand'],['genericName','supp-generic-name'],['dosageForm','supp-dosage-form'],['route','supp-route'],['labelDirections','supp-label-directions'],['reason','supp-reason'],['prescriber','supp-prescriber']] as const) {
     const value = getFieldValue(id).trim();
     if (value) entry[field] = value; else delete entry[field];
   }
@@ -449,11 +441,11 @@ export async function saveSupplement(index) {
     if (servingUnit) entry.servingSize.unit = servingUnit; else delete entry.servingSize.unit;
   } else delete entry.servingSize;
   preserveUntouchedSupplementFields(entry, previous);
-  if (scheduleChanged || periodsChanged) entry.periods = (/** @type {(previous: Parameters<typeof recordSupplementSchedule>[0], periods: unknown, schedule: Parameters<typeof recordSupplementSchedule>[2]) => ReturnType<typeof recordSupplementSchedule>} */ (recordSupplementSchedule))(previous, (/** @type {(record: unknown) => ReturnType<typeof getSupplementPeriods>} */ (getSupplementPeriods))(entry), entry.schedule || { mode: 'daily', timesPerDay: entry.timesPerDay ?? null });
+  if (scheduleChanged || periodsChanged) entry.periods = (recordSupplementSchedule as RawPeriodSchedule)(previous, (getSupplementPeriods as RawPeriods)(entry), entry.schedule || { mode: 'daily', timesPerDay: entry.timesPerDay ?? null });
   const ingredientsChanged = !previous || supplementFieldsChanged('#supp-ingredients');
-  if (ingredientsChanged || scheduleChanged) (/** @type {(record: unknown, today: string, saved: Parameters<typeof recordIngredientDoseChange>[2]) => ReturnType<typeof recordIngredientDoseChange>} */ (recordIngredientDoseChange))(entry, localDateKey(), previous);
+  if (ingredientsChanged || scheduleChanged) (recordIngredientDoseChange as RawIngredientChange)(entry, localDateKey(), previous);
   if (periodsChanged || ingredientsChanged || scheduleChanged) {
-    const latestDose = (/** @type {(record: unknown) => ReturnType<typeof getSupplementPeriods>} */ (getSupplementPeriods))(entry).at(-1)?.dose;
+    const latestDose = (getSupplementPeriods as RawPeriods)(entry).at(-1)?.dose;
     if (latestDose) entry.currentDose = latestDose; else delete entry.currentDose;
   }
   if (pendingImport?.draft?.source?.reviewed) {
@@ -473,38 +465,38 @@ export async function saveSupplement(index) {
   const profile = state.currentProfile;
   const form = document.getElementById('supp-form-panel');
   const saved = await commitSupplementMutation(snapshot => {
-    if (index >= 0) replaceImportedArrayItem(snapshot, 'supplements', index, entry);
+    if (index >= 0) (replaceImportedArrayItem as RawReplace)(snapshot, 'supplements', index, entry);
     else appendImportedArrayItem(snapshot, 'supplements', entry);
   });
   if (!saved || state.currentProfile !== profile) return saved;
   showNotification(index >= 0 ? 'Changes saved' : 'Item added', 'success');
   if (document.getElementById('supp-form-panel') === form) {
-    refreshSupplementSurfaces(state.importedData.supplements.findIndex(item => getSupplementRecordId(item) === entry.id));
+    refreshSupplementSurfaces((state.importedData as SupplementProfileOperations).supplements!.findIndex(item => (getSupplementRecordId as RawId)(item) === entry.id));
   }
   return true;
 }
 
-function refreshSupplementSurfaces(editIndex) {
+function refreshSupplementSurfaces(editIndex?: number) {
   const section = document.querySelector('.supp-timeline-section');
   if (section) section.outerHTML = renderSupplementsSection();
   openSupplementsEditor(editIndex);
 }
 
-function previousDateKey(dateKey) {
+function previousDateKey(dateKey: unknown) {
   const date = new Date(`${dateKey}T12:00:00`);
   date.setDate(date.getDate() - 1);
   return localDateKey(date);
 }
 
-async function closeSupplementPeriod(index, lifecycleState) {
-  const previous = state.importedData.supplements?.[index];
+async function closeSupplementPeriod(index: number, lifecycleState: 'paused' | 'ended') {
+  const previous = (state.importedData as SupplementProfileOperations).supplements?.[index];
   if (!previous) return;
   const today = localDateKey();
   const formMatches = Number.parseInt(document.getElementById('supp-form-panel')?.getAttribute('data-edit-index') || '', 10) === index;
   const reason = formMatches ? getFieldValue('supp-end-reason').trim() : '';
   let changed = false;
-  const periods = getSupplementPeriods(previous).map(period => {
-    if (period?.start && period.start <= today && (!period.end || period.end >= today)) {
+  const periods = (getSupplementPeriods as RawPeriods)(previous).map(period => {
+    if (period?.start && (period.start as string) <= today && (!period.end || (period.end as string) >= today)) {
       changed = true;
       return { ...period, end: today, ...(reason ? { endReason: reason } : {}) };
     }
@@ -519,47 +511,47 @@ async function closeSupplementPeriod(index, lifecycleState) {
     updatedAt: Date.now(),
   };
   const profile = state.currentProfile;
-  if (await commitSupplementMutation(snapshot => replaceImportedArrayItem(snapshot, 'supplements', index, entry)) && state.currentProfile === profile) {
+  if (await commitSupplementMutation(snapshot => (replaceImportedArrayItem as RawReplace)(snapshot, 'supplements', index, entry)) && state.currentProfile === profile) {
     showNotification(lifecycleState === 'paused' ? 'Item paused and moved out of Current' : 'Item ended and moved to History', 'success');
     refreshSupplementSurfaces(index);
   }
 }
 
-export function pauseSupplement(index) { return closeSupplementPeriod(index, 'paused'); }
-export function endSupplement(index) { return closeSupplementPeriod(index, 'ended'); }
+export function pauseSupplement(index: number) { return closeSupplementPeriod(index, 'paused'); }
+export function endSupplement(index: number) { return closeSupplementPeriod(index, 'ended'); }
 
-export async function restartSupplement(index) {
-  const previous = state.importedData.supplements?.[index];
+export async function restartSupplement(index: number) {
+  const previous = (state.importedData as SupplementProfileOperations).supplements?.[index];
   if (!previous) return;
-  if (getSupplementStatus(previous) === 'active') { showNotification('This item is already current.', 'info'); return; }
+  if ((getSupplementStatus as RawStatus)(previous) === 'active') { showNotification('This item is already current.', 'info'); return; }
   const today = localDateKey();
-  if (getSupplementPeriods(previous).some(period => period.start > today)) {
+  if ((getSupplementPeriods as RawPeriods)(previous).some(period => (period.start as string) > today)) {
     showNotification('This item has a planned period. Edit its dates before restarting.', 'info');
     return;
   }
-  const periods = getSupplementPeriods(previous).map(period => ({ ...period }));
+  const periods = (getSupplementPeriods as RawPeriods)(previous).map(period => ({ ...period }));
   const latest = periods[periods.length - 1];
   if (latest?.end === today) latest.end = null;
   else periods.push({ start: today, end: null,
     ...(latest?.dose || previous.currentDose ? { dose: latest?.dose || previous.currentDose } : {}),
     ...(latest?.ingredientDoses ? { ingredientDoses: latest.ingredientDoses.map(dose => ({ ...dose })) } : {}),
-    ...(previous.schedule || latest?.schedule ? { schedule: { ...(previous.schedule || latest.schedule) } } : {}),
+    ...(previous.schedule || latest?.schedule ? { schedule: { ...(previous.schedule || latest!.schedule) } } : {}),
   });
   const entry = {
     ...previous, periods, startDate: periods[0]?.start || today, endDate: null,
     lifecycle: { ...(previous.lifecycle || {}), state: 'active', changedAt: Date.now() }, updatedAt: Date.now(),
   };
-  recordIngredientDoseChange(entry, localDateKey(), previous);
+  (recordIngredientDoseChange as RawIngredientChange)(entry, localDateKey(), previous);
   const profile = state.currentProfile;
-  if (await commitSupplementMutation(snapshot => replaceImportedArrayItem(snapshot, 'supplements', index, entry)) && state.currentProfile === profile) {
+  if (await commitSupplementMutation(snapshot => (replaceImportedArrayItem as RawReplace)(snapshot, 'supplements', index, entry)) && state.currentProfile === profile) {
     showNotification('Item restarted. Review the current dose and schedule.', 'success');
     refreshSupplementSurfaces(index);
   }
 }
 
-export function beginSupplementDoseChange(index) {
-  const previous = state.importedData.supplements?.[index];
-  if (!previous || getSupplementStatus(previous) !== 'active') return;
+export function beginSupplementDoseChange(index: number) {
+  const previous = (state.importedData as SupplementProfileOperations).supplements?.[index];
+  if (!previous || (getSupplementStatus as RawStatus)(previous) !== 'active') return;
   const today = localDateKey();
   const rows = Array.from(document.querySelectorAll('#supp-periods .supp-period-row'));
   const openRow = rows.find(row => {
@@ -588,13 +580,13 @@ export function beginSupplementDoseChange(index) {
   const previousEnd = getElementValue(end ?? null);
   const doseInput = openRow?.querySelector('.supp-period-dose');
   const originalIndex = Number.parseInt(openRow?.getAttribute('data-original-index') || '', 10);
-  const original = getSupplementPeriods(previous)[originalIndex];
+  const original = (getSupplementPeriods as RawPeriods)(previous)[originalIndex];
   let newDose = '';
   // If the user types first and then chooses a new dose, keep the saved
   // historical amount and move their edit into the new period.
   if (doseInput instanceof HTMLInputElement && original && doseInput.value !== supplementDoseText(original.dose)) {
     newDose = doseInput.value;
-    (/** @type {{ value: unknown }} */ (doseInput)).value = supplementDoseText(original.dose);
+    (doseInput as { value: unknown }).value = supplementDoseText(original.dose);
   }
   if (end instanceof HTMLInputElement) end.value = previousDateKey(today);
   addPeriodRow({ start: today, end: previousEnd || null, dose: newDose }, openRow, previousEnd);
@@ -604,20 +596,20 @@ export function beginSupplementDoseChange(index) {
   showNotification('New period starts today. Enter its dose, then Save changes.', 'info');
 }
 
-export async function deleteSupplement(index) {
-  const supplement = state.importedData.supplements?.[index];
+export async function deleteSupplement(index: number) {
+  const supplement = (state.importedData as SupplementProfileOperations).supplements?.[index];
   if (!supplement) return;
   const profile = state.currentProfile;
   const expectedRecord = JSON.stringify(supplement);
   const confirmed = await showConfirmDialog(`Permanently delete "${supplement.name}" and its full usage history? Ending it keeps the history and is usually better.`, {
     confirmLabel: 'Delete permanently', tone: 'danger', ariaLabel: 'Delete supplement or medication',
   });
-  if (!confirmed || state.currentProfile !== profile || JSON.stringify(state.importedData.supplements?.[index]) !== expectedRecord) return;
-  if (!await commitSupplementMutation(snapshot => deleteImportedArrayItem(snapshot, 'supplements', index)) || state.currentProfile !== profile) return;
+  if (!confirmed || state.currentProfile !== profile || JSON.stringify((state.importedData as SupplementProfileOperations).supplements?.[index]) !== expectedRecord) return;
+  if (!await commitSupplementMutation(snapshot => (deleteImportedArrayItem as RawDelete)(snapshot, 'supplements', index)) || state.currentProfile !== profile) return;
   showNotification(`"${supplement.name}" removed`, 'info');
   const section = document.querySelector('.supp-timeline-section');
   if (section) section.outerHTML = renderSupplementsSection();
-  if (state.importedData.supplements.length) openSupplementsEditor();
+  if ((state.importedData as SupplementProfileOperations).supplements!.length) openSupplementsEditor();
   else {
     closeSupplementModal();
     const activeNav = document.querySelector('.nav-item.active');
@@ -658,18 +650,18 @@ initSupplementActionDelegates({
 
 
 /** Commit only the dated ingredient confirmation the user just previewed. */
-export async function saveSupplementIngredientPeriod(id, periodIndex, expectedRecord) {
+export async function saveSupplementIngredientPeriod(id: unknown, periodIndex: number, expectedRecord: unknown) {
   const profile = state.currentProfile;
-  const records = state.importedData.supplements || [];
-  const index = records.findIndex(record => getSupplementRecordId(record) === id);
-  if (!profile || index < 0 || records.filter(record => getSupplementRecordId(record) === id).length !== 1
+  const records = (state.importedData as SupplementProfileOperations).supplements || [];
+  const index = records.findIndex(record => (getSupplementRecordId as RawId)(record) === id);
+  if (!profile || index < 0 || records.filter(record => (getSupplementRecordId as RawId)(record) === id).length !== 1
       || JSON.stringify(records[index]) !== expectedRecord) return false;
-  const confirmed = confirmIngredientDosePeriod(records[index], periodIndex);
+  const confirmed = (confirmIngredientDosePeriod as RawConfirmPeriod)(records[index], periodIndex);
   if (!confirmed) return false;
   const baseData = structuredClone(state.importedData);
-  const snapshot = structuredClone(baseData);
-  replaceImportedArrayItem(snapshot, 'supplements', index, confirmed);
-  const saved = await saveImportedDataForProfile(profile, snapshot, { baseData });
+  const snapshot = structuredClone(baseData) as SupplementProfileOperations;
+  (replaceImportedArrayItem as RawReplace)(snapshot, 'supplements', index, confirmed);
+  const saved = await (saveImportedDataForProfile as RawSave)(profile, snapshot, { baseData });
   if (saved && state.currentProfile === profile) showNotification('Dose dates saved', 'success');
   return saved;
 }

@@ -1,4 +1,3 @@
-// @ts-check
 // supplement-import-controller.js — URL/photo extraction progress and selective review.
 
 import { getErrorMessage } from './caught-error.js';
@@ -36,11 +35,20 @@ import {
   updateIngTotal,
 } from './supplement-form-ui.js';
 
-/** @type {{ draft: any, issues: string[] } | null} */
-let pendingSupplementImport = null;
+type NativeImportResult = ReturnType<typeof mergeSupplementImportDrafts>;
+type NativeIngredient = NativeImportResult['draft']['ingredients'][number];
+type NativeQualityTest = NativeImportResult['draft']['qualityTests'][number];
+// Mapped structural records let actual normalized fields reach the generic native readers.
+type ImportIngredient = { [Key in keyof NativeIngredient]: NativeIngredient[Key] };
+type ImportQualityTest = { [Key in keyof NativeQualityTest]: NativeQualityTest[Key] } & { includeInAIContext?: unknown };
+type ImportDraftOperations = { [Key in keyof NativeImportResult['draft']]:
+  Key extends 'ingredients' ? ImportIngredient[] : Key extends 'qualityTests' ? ImportQualityTest[] : NativeImportResult['draft'][Key]
+};
+type ImportResultOperations = { draft: ImportDraftOperations; issues: NativeImportResult['issues'] };
+
+let pendingSupplementImport: ReturnType<typeof mergeSupplementImportDrafts> | null = null;
 let supplementImportProgressId = 0;
-/** @type {{ id: number, phase: number, label: string, startedAt: number, timer: ReturnType<typeof setInterval> | null } | null} */
-let supplementImportProgress = null;
+let supplementImportProgress: { id: number; phase: number; label: string; startedAt: number; timer: ReturnType<typeof setInterval> | null } | null = null;
 
 export function getPendingSupplementImport() {
   return pendingSupplementImport;
@@ -50,12 +58,12 @@ export function clearPendingSupplementImport() {
   pendingSupplementImport = null;
 }
 
-function importElapsed(startedAt) {
+function importElapsed(startedAt: number) {
   const seconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
   return seconds < 60 ? `${seconds}s elapsed` : `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, '0')}s elapsed`;
 }
 
-function renderImportProgress(id, state = 'running') {
+function renderImportProgress(id: number, state = 'running') {
   if (!supplementImportProgress || supplementImportProgress.id !== id) return;
   const area = document.getElementById('supp-import-progress');
   if (!area) return;
@@ -69,8 +77,7 @@ function renderImportProgress(id, state = 'running') {
   area.innerHTML = `<div class="supp-import-progress-head"><strong>${escapeHTML(label)}</strong><span>${state === 'running' ? `Step ${phase} of 4 · ${importElapsed(startedAt)}${slowHint}` : state === 'success' ? 'Complete' : 'Stopped'}</span></div><div class="supp-import-progress-track" role="progressbar" aria-label="Supplement import progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><span style="width:${percent}%"></span></div>`;
 }
 
-/** @param {Element | null} activeButton @param {string} label */
-function startImportProgress(activeButton, label) {
+function startImportProgress(activeButton: Element | null, label: string) {
   if (supplementImportProgress?.timer) clearInterval(supplementImportProgress.timer);
   const id = ++supplementImportProgressId;
   supplementImportProgress = { id, phase: 1, label, startedAt: Date.now(), timer: null };
@@ -83,14 +90,14 @@ function startImportProgress(activeButton, label) {
   return id;
 }
 
-function updateImportProgress(id, phase, label) {
+function updateImportProgress(id: number, phase: number, label: string) {
   if (!supplementImportProgress || supplementImportProgress.id !== id) return;
   supplementImportProgress.phase = phase;
   supplementImportProgress.label = label;
   renderImportProgress(id);
 }
 
-function finishImportProgress(id, success) {
+function finishImportProgress(id: number, success: boolean) {
   if (!supplementImportProgress || supplementImportProgress.id !== id) return;
   if (supplementImportProgress.timer) clearInterval(supplementImportProgress.timer);
   supplementImportProgress.timer = null;
@@ -115,7 +122,7 @@ function loadImportReviewStyles() {
   });
 }
 
-export async function scanSupplementLabel(input) {
+export async function scanSupplementLabel(input: { files?: ArrayLike<File> | Iterable<File> | null | undefined; value: string }) {
   const files = Array.from(input.files || []).slice(0, 4);
   input.value = '';
   if (!files.length || files.some(file => !isValidImageType(file.type))) {
@@ -127,7 +134,7 @@ export async function scanSupplementLabel(input) {
   try {
     await loadImportReviewStyles();
     const provider = getAIProvider();
-    const imageBlocks = [];
+    const imageBlocks: Parameters<typeof buildVisionContent>[0] = [];
     for (const file of files) {
       const { base64, mediaType } = await resizeImage(file, 1400, 0.88);
       imageBlocks.push(formatImageBlock(base64, mediaType, provider));
@@ -137,7 +144,7 @@ export async function scanSupplementLabel(input) {
     updateImportProgress(progressId, 3, 'Classifying active ingredients and quality results with AI…');
     const result = await callAssistantFeatureAI({ messages: [{ role: 'user', content }], maxTokens: 6000, consentKind: 'image' }, provider);
     updateImportProgress(progressId, 4, 'Preparing selective review…');
-    stageParsedSupplement(parseSupplementImportJson(result.text), { kind: 'label photos' });
+    stageParsedSupplement(parseSupplementImportJson((result as { text?: unknown }).text), { kind: 'label photos' });
     completed = true;
   } catch (error) {
     if (isDebugMode()) console.warn('[scanLabel]', error);
@@ -149,7 +156,7 @@ export async function scanSupplementLabel(input) {
 
 export function renderPendingImportReview() {
   if (!pendingSupplementImport) return '';
-  const { draft, issues } = pendingSupplementImport;
+  const { draft, issues } = pendingSupplementImport as ImportResultOperations;
   const applied = draft.source?.reviewed === true;
   const evidence = Array.isArray(draft.source?.evidence) && draft.source.evidence.length
     ? draft.source.evidence : [draft.source];
@@ -177,7 +184,7 @@ function showPendingImportReview() {
   if (area) area.innerHTML = renderPendingImportReview();
 }
 
-function stageParsedSupplement(parsed, source = {}) {
+function stageParsedSupplement(parsed: unknown, source: Parameters<typeof normalizeSupplementImportDraft>[1] = {}) {
   try {
     pendingSupplementImport = mergeSupplementImportDrafts(
       pendingSupplementImport,
@@ -192,12 +199,12 @@ function stageParsedSupplement(parsed, source = {}) {
   }
 }
 
-function setImportedFieldIfBlank(id, value) {
+function setImportedFieldIfBlank(id: string, value: unknown) {
   const input = getFormField(id);
   if (input && value != null && String(value).trim() && !input.value.trim()) input.value = String(value);
 }
 
-function applyImportedIngredient(row, ingredient) {
+function applyImportedIngredient(row: Element, ingredient: ImportIngredient) {
   const amount = getIngredientQuantity(ingredient);
   const amountInput = row.querySelector('.supp-ing-amount');
   const unitSelect = row.querySelector('.supp-ing-unit');
@@ -217,20 +224,20 @@ function applyImportedIngredient(row, ingredient) {
   if (totalSource instanceof Element) updateIngTotal(totalSource);
 }
 
-function applyImportedIngredients(ingredients) {
+function applyImportedIngredients(ingredients: ImportIngredient[]) {
   const container = document.getElementById('supp-ingredients');
   if (!container || !ingredients.length) return;
   for (const row of container.querySelectorAll('.supp-ingredient-row')) {
     if (!getElementValue(row.querySelector('.supp-ing-name')).trim()) row.remove();
   }
-  const rowsByName = new Map();
+  const rowsByName = new Map<string, Element>();
   for (const row of container.querySelectorAll('.supp-ingredient-row')) {
     const key = supplementImportIngredientKey(getElementValue(row.querySelector('.supp-ing-name')));
     if (key) rowsByName.set(key, row);
   }
   for (const ingredient of ingredients) {
     const key = supplementImportIngredientKey(ingredient.name);
-    let row = rowsByName.get(key);
+    let row: Element | null | undefined = rowsByName.get(key);
     if (!row) {
       container.insertAdjacentHTML('beforeend', ingredientRowHtml(container.children.length, ingredient.name || '', ingredient.amount || '', '', getOuterTimesFromForm(), ingredient));
       row = container.lastElementChild;
@@ -240,16 +247,15 @@ function applyImportedIngredients(ingredients) {
   }
 }
 
-/** @param {{ test: any, importIndex: number }[]} qualityTests */
-function applyImportedQualityTests(qualityTests) {
+function applyImportedQualityTests(qualityTests: { test: ImportQualityTest; importIndex: number }[]) {
   const container = document.getElementById('supp-quality-tests');
   if (!container || !qualityTests?.length) return;
-  const qualityRowKey = (category, analyte, basis) => [
+  const qualityRowKey = (category: unknown, analyte: unknown, basis: unknown) => [
     category,
     supplementQualityKey(analyte),
     supplementQualityKey(basis),
   ].join('|');
-  const rowsByKey = new Map();
+  const rowsByKey = new Map<string, Element>();
   for (const row of container.querySelectorAll('.supp-quality-row')) {
     const analyte = getElementValue(row.querySelector('.supp-quality-analyte')).trim();
     const category = getElementValue(row.querySelector('.supp-quality-category'));
@@ -268,7 +274,7 @@ function applyImportedQualityTests(qualityTests) {
           ['.supp-quality-result', test.resultText || ''],
           ['.supp-quality-unit', test.unit || ''],
           ['.supp-quality-basis', test.basis || ''],
-        ]) {
+        ] as const) {
           const field = existing.querySelector(selector);
           if (field instanceof HTMLInputElement || field instanceof HTMLSelectElement) field.value = String(value);
         }
@@ -282,8 +288,7 @@ function applyImportedQualityTests(qualityTests) {
   }
 }
 
-/** @param {'ingredient'|'inactive'|'quality'} kind @param {any[]} values */
-function selectedImportValues(kind, values) {
+function selectedImportValues<Value>(kind: 'ingredient' | 'inactive' | 'quality', values: Value[]) {
   const inputs = Array.from(document.querySelectorAll(`[data-supp-import-kind="${kind}"]`));
   if (!inputs.length) return values;
   const selected = new Set(inputs
@@ -309,7 +314,7 @@ export function keepSafetyFocusedImportQuality() {
 
 export function applySupplementImportDraft() {
   if (!pendingSupplementImport) return;
-  const { draft } = pendingSupplementImport;
+  const { draft } = pendingSupplementImport as ImportResultOperations;
   const ingredients = selectedImportValues('ingredient', draft.ingredients || []);
   const inactiveIngredients = selectedImportValues('inactive', draft.inactiveIngredients || []);
   const qualityTests = selectedImportValues('quality', draft.qualityTests || []).map(test => ({
@@ -325,7 +330,7 @@ export function applySupplementImportDraft() {
     ['supp-name', draft.product], ['supp-brand', draft.brand], ['supp-dosage-form', draft.dosageForm],
     ['supp-generic-name', draft.genericName], ['supp-route', draft.route], ['supp-label-directions', draft.labelDirections],
     ['supp-serving-value', draft.servingSize?.value], ['supp-serving-unit', draft.servingSize?.unit],
-  ]) setImportedFieldIfBlank(id, value);
+  ] as const) setImportedFieldIfBlank(id, value);
   const typeInput = getFormField('supp-type');
   if (typeInput && draft.type && identityWasBlank) typeInput.value = draft.type;
   draft.source.reviewed = true;
@@ -340,8 +345,7 @@ export function discardSupplementImportDraft() {
   showPendingImportReview();
 }
 
-/** @param {Document} pageDocument @param {string} selector @param {number} [limit] */
-function collectImportScriptText(pageDocument, selector, limit = 8000) {
+function collectImportScriptText(pageDocument: Document, selector: string, limit = 8000) {
   let output = '';
   for (const script of pageDocument.querySelectorAll(selector)) {
     const text = (script.textContent || '').trim();
@@ -352,9 +356,8 @@ function collectImportScriptText(pageDocument, selector, limit = 8000) {
   return output;
 }
 
-/** @param {Document} pageDocument */
-function collectImportPageText(pageDocument) {
-  const body = /** @type {Element | null} */ (pageDocument.body?.cloneNode(true) || null);
+function collectImportPageText(pageDocument: Document) {
+  const body = (pageDocument.body?.cloneNode(true) || null) as Element | null;
   if (!body) return '';
   for (const element of body.querySelectorAll('script, style, noscript, template, nav, footer, header, svg')) {
     element.remove();
@@ -373,11 +376,11 @@ export async function fetchSupplementFromURL() {
   try {
     await loadImportReviewStyles();
     const isLocal = ['localhost', '127.0.0.1'].includes(getUtilsRuntimeHostname());
-    let html;
+    let html: unknown;
     if (isLocal) {
       const response = await fetch(`/api/fetch-page?url=${encodeURIComponent(url)}`);
       const responseText = await response.text();
-      let json;
+      let json: {error?: unknown;status?: unknown;html?: unknown};
       try { json = JSON.parse(responseText); }
       catch { throw new Error(`Local page fetch returned an invalid response (HTTP ${response.status})`); }
       if (!response.ok || json.error || Number(json.status) >= 400) {
@@ -400,9 +403,9 @@ export async function fetchSupplementFromURL() {
       }
       html = responseText;
     }
-    if (!html || html.length < 100) throw new Error('The website returned no readable product content. Try label photos for the missing facts.');
+    if (!html || (html as {length: number}).length < 100) throw new Error('The website returned no readable product content. Try label photos for the missing facts.');
     updateImportProgress(progressId, 2, 'Finding label, ingredient, and COA tables…');
-    const pageDocument = new DOMParser().parseFromString(html, 'text/html');
+    const pageDocument = (new DOMParser().parseFromString as (input: unknown, mimeType: DOMParserSupportedType) => Document)(html, 'text/html');
     const structuredPage = extractSupplementPageFacts(html);
     const pageFacts = { ...structuredPage.facts };
     const deterministicFields = [...new Set(structuredPage.deterministicFields)];
@@ -430,7 +433,7 @@ export async function fetchSupplementFromURL() {
       maxTokens: 6000,
     });
     let parsed;
-    try { parsed = parseSupplementImportJson(result.text); }
+    try { parsed = parseSupplementImportJson((result as { text?: unknown }).text); }
     catch (error) {
       if (!pageFacts.product && !pageFacts.ingredients?.length) throw error;
       updateImportProgress(progressId, 4, 'Preparing verified fallback review…');
@@ -441,7 +444,7 @@ export async function fetchSupplementFromURL() {
     }
     for (const field of deterministicFields) {
       const value = pageFacts[field];
-      if (value && (!Array.isArray(value) || value.length)) (/** @type {Record<string, unknown>} */ (parsed))[field] = value;
+      if (value && (!Array.isArray(value) || value.length)) (parsed as Record<string, unknown>)[field] = value;
     }
     updateImportProgress(progressId, 4, 'Preparing selective review…');
     stageParsedSupplement(parsed, source);

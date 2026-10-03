@@ -9,7 +9,7 @@ export interface SupplementScheduleView extends Record<string, unknown> {
   intervalDays?: unknown; maxPerDay?: unknown;
 }
 export interface SupplementIngredientView extends Record<string, unknown> {
-  name?: string; amount?: unknown; amountValue?: unknown; amountUnit?: unknown; timesPerDay?: unknown;
+  name?: unknown; amount?: unknown; amountValue?: unknown; amountUnit?: unknown; timesPerDay?: unknown;
 }
 export interface SupplementDoseView extends Record<string, unknown> {
   ingredient?: unknown; source?: unknown; basis?: unknown; value?: unknown; unit?: unknown; text?: unknown;
@@ -25,7 +25,7 @@ export interface SupplementDomainRecord extends Record<string, unknown> {
   ingredients?: SupplementIngredientView[] | null; timesPerDay?: unknown;
 }
 type SupplementInput = SupplementDomainRecord | null | undefined;
-type SupplementHistoryRecord = SupplementDomainRecord & { periods: StoredSupplementPeriod[] };
+type SupplementHistoryRecord = SupplementDomainRecord & { periods: SupplementPeriodView[] };
 type CalendarValue = Date | number | string;
 
 export const SUPPLEMENT_RECORD_VERSION = 2;
@@ -133,11 +133,12 @@ export function getSupplementPeriods(supplement: SupplementInput): SupplementPer
   return [{ start: supplement?.startDate || '', end: supplement?.endDate || null }] as SupplementPeriodView[];
 }
 
-export function getValidSupplementPeriods(supplement: SupplementInput) {
+// Date guards precede spread/getter rereads; copied date leaves remain opaque.
+export function getValidSupplementPeriods(supplement: SupplementInput): SupplementPeriodView[] {
   return getSupplementPeriods(supplement)
     .filter(period => period && isSafeDate(period.start))
-    .map(period => ({ ...period, end: isSafeDate(period.end) ? period.end : null }) as SupplementPeriod)
-    .sort((a, b) => (a.start as string).localeCompare(b.start as string));
+    .map(period => ({ ...period, end: isSafeDate(period.end) ? period.end : null }))
+    .sort((a, b) => (a.start as { localeCompare(other: unknown): number }).localeCompare(b.start));
 }
 
 export function supplementPeriodContains(period: SupplementPeriodView | null | undefined, date: unknown) {
@@ -155,14 +156,14 @@ export function getSupplementStatus(supplement: SupplementInput, asOf: CalendarV
   if (!date || periods.length === 0) return 'planned';
 
   const explicitState = supplement?.lifecycle?.state;
-  const hasOpenPeriod = periods.some(period => period.start <= date && !period.end);
+  const hasOpenPeriod = periods.some(period => (period.start as string) <= date && !period.end);
   if (hasOpenPeriod) return 'active';
-  const hasPastPeriod = periods.some(period => period.start <= date);
-  if (!hasPastPeriod && periods.some(period => period.start > date)) return 'scheduled';
+  const hasPastPeriod = periods.some(period => (period.start as string) <= date);
+  if (!hasPastPeriod && periods.some(period => (period.start as string) > date)) return 'scheduled';
   if (explicitState === 'paused') return 'paused';
   if (explicitState === 'ended') return 'ended';
   if (periods.some(period => supplementPeriodContains(period, date))) return 'active';
-  if (periods.some(period => period.start > date)) return hasPastPeriod ? 'paused' : 'scheduled';
+  if (periods.some(period => (period.start as string) > date)) return hasPastPeriod ? 'paused' : 'scheduled';
   return 'ended';
 }
 
@@ -187,7 +188,7 @@ export function isSupplementExpectedOnDate(supplement: SupplementInput, asOf: Ca
   if (mode === 'interval') {
     const intervalDays = Number(schedule!.intervalDays);
     const anchor = getValidSupplementPeriods(supplement)
-      .filter(period => period.start <= dateKey && (!period.end || dateKey <= period.end))
+      .filter(period => (period.start as string) <= dateKey && (!period.end || dateKey <= (period.end as string)))
       .at(-1)?.start;
     if (!anchor || !Number.isInteger(intervalDays) || intervalDays < 1) return false;
     const elapsedDays = Math.round((date.getTime() - new Date(`${anchor}T12:00:00`).getTime()) / 86400000);
@@ -218,7 +219,7 @@ export function supplementOverlapsRange(supplement: SupplementInput, start: unkn
   if (!isSafeDate(start) || !isSafeDate(end)) return false;
   return getValidSupplementPeriods(supplement).some(period => {
     const periodEnd = period.end || '9999-12-31';
-    return period.start <= end && start <= periodEnd;
+    return (period.start as string) <= end && start <= (periodEnd as string);
   });
 }
 
@@ -366,8 +367,8 @@ export function getSupplementDailyDoses(record: SupplementInput) {
   if (!['daily', 'multiple'].includes((record?.schedule?.mode || 'daily') as string)) return [];
   const ingredients = record?.ingredients || [];
   return ingredients.flatMap(ingredient => {
-    const name = ingredient.name?.trim();
-    if (!name || ingredients.filter(i => i.name?.trim().toLowerCase() === name.toLowerCase()).length !== 1) return [];
+    const name = (ingredient.name as { trim(): unknown } | null | undefined)?.trim();
+    if (!name || ingredients.filter(i => (i.name as { trim(): { toLowerCase(): unknown } } | null | undefined)?.trim().toLowerCase() === (name as { toLowerCase(): unknown }).toLowerCase()).length !== 1) return [];
     const total = ingredientDailyTotal(ingredient, record);
     if (!total || total.value <= 0 || !SUPPLEMENT_UNIT_OPTIONS.some(u => u.value === total.unit && u.value && u.value !== '%')) return [];
     return [{ value: total.value, unit: total.unit, basis: 'day' as const, ingredient: name, source: 'ingredient' as const }];
@@ -377,7 +378,7 @@ export function getSupplementDailyDoses(record: SupplementInput) {
 /** Snapshot the saved regimen from today; earlier unknown amounts stay unknown.
  */
 export function recordIngredientDoseChange(entry: SupplementHistoryRecord, today = localDateKey(), savedRecord: SupplementInput = null) {
-  const open = entry.periods.find(p => p.start <= today && (!p.end || p.end >= today));
+  const open = entry.periods.find(p => (p.start as string) <= today && (!p.end || (p.end as string) >= today));
   if (!open || (open.dose && (open.dose as SupplementDoseView).source !== 'ingredient' && !Array.isArray(open.ingredientDoses))) return;
   const next = getSupplementDailyDoses(entry);
   const previous = Array.isArray(open.ingredientDoses) ? open.ingredientDoses : (open.dose as SupplementDoseView | null | undefined)?.source === 'ingredient' ? [open.dose as SupplementDoseView] : [];
@@ -385,17 +386,17 @@ export function recordIngredientDoseChange(entry: SupplementHistoryRecord, today
   if (signature(next) === signature(previous)) return;
   // Unchanged ingredients must not recreate a period removed during a date
   // correction, including on subsequent saves. Earlier dates need confirmation.
-  if (savedRecord && open.start < today
+  if (savedRecord && (open.start as string) < today
       && signature(next) === signature(getSupplementDailyDoses(savedRecord))) return;
   let target = open;
-  if (open.start < today) {
+  if ((open.start as string) < today) {
     const yesterday = new Date(`${today}T12:00:00`);
     yesterday.setDate(yesterday.getDate() - 1);
     target = { ...open, start: today };
     open.end = localDateKey(yesterday);
     entry.periods.push(target);
   }
-  target.schedule = { ...entry.schedule } as NonNullable<SupplementRecord['schedule']>;
+  target.schedule = { ...entry.schedule };
   target.ingredientDoses = next;
   if (next.length === 1) target.dose = { ...next[0] };
   else delete target.dose;
@@ -410,7 +411,7 @@ export function confirmIngredientDosePeriod(record: SupplementInput, periodIndex
   const validDate = (date: unknown) => isSafeDate(date) && new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) === date;
   if (!period || period.dose || period.ingredientDoses?.length || !doses.length) return null;
   if (periods.some(p => !p || !validDate(p.start) || (p.end && (!validDate(p.end) || (p.end as string) < (p.start as string))))) return null;
-  const ordered = [...periods].sort((a, b) => (a.start as string).localeCompare(b.start as string));
+  const ordered = [...periods].sort((a, b) => (a.start as { localeCompare(other: unknown): number }).localeCompare(b.start));
   if (ordered.some((p, i) => i > 0 && (!ordered[i - 1]!.end || (ordered[i - 1]!.end as string) >= (p.start as string)))) return null;
   return { ...record, updatedAt: Date.now(), periods: periods.map((p, i) => i === periodIndex
     ? { ...p, end: p.end || null, ingredientDoses: doses, ...(doses.length === 1 ? { dose: doses[0] } : {}), schedule: p.schedule ? { ...p.schedule } : { mode: 'daily' } }
