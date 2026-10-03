@@ -1,4 +1,3 @@
-// @ts-check
 // sun-correlations.js — On-demand Pearson correlation between weekly
 // sun-channel doses and per-week biomarker values. Surfaces in the standard
 // AI tier so chat can answer "why did my testosterone drop in November?"
@@ -9,6 +8,16 @@
 
 import { state } from './state.js';
 import { getSessions } from './sun.js';
+
+import type { SunSessionRecord } from './sun-sessions-store.js';
+import type { DeviceSessionRecord } from './light-devices-store.js';
+
+export interface SunCorrelationPair {
+  channel: string; biomarker: string; biomarkerKey: string; r: number; n: number; lag: number;
+}
+export interface SunCorrelations {pairs: SunCorrelationPair[]; computedAt: number; weeks?: unknown}
+type DoseSession = Pick<SunSessionRecord | DeviceSessionRecord, 'doses' | 'endedAt'>;
+interface WeeklyChannelSlot {startMs: number; endMs: number; channels: Record<string, unknown>}
 
 // Schema keys for the biomarkers most coupled to light exposure. Keys must
 // match `category.markerKey` exactly as stored on entries — see js/schema.js.
@@ -28,16 +37,18 @@ const TARGET_BIOMARKERS = [
   { cat: 'thyroid',  key: 'ft3',          label: 'Free T3' },
 ];
 
+// Original unchecked dose additions and arithmetic can coerce raw stored
+// values. These operation assertions do not validate or normalize inputs.
 // Pearson correlation
-function pearson(xs, ys) {
+function pearson(xs: readonly unknown[], ys: readonly unknown[]) {
   if (xs.length !== ys.length || xs.length < 4) return null;
   const n = xs.length;
-  const mx = xs.reduce((a, b) => a + b, 0) / n;
-  const my = ys.reduce((a, b) => a + b, 0) / n;
+  const mx = (xs.reduce((a, b) => (a as number) + (b as number), 0) as number) / n;
+  const my = (ys.reduce((a, b) => (a as number) + (b as number), 0) as number) / n;
   let num = 0, dx2 = 0, dy2 = 0;
   for (let i = 0; i < n; i++) {
-    const ax = xs[i] - mx;
-    const ay = ys[i] - my;
+    const ax = (xs[i] as number) - mx;
+    const ay = (ys[i] as number) - my;
     num += ax * ay;
     dx2 += ax * ax;
     dy2 += ay * ay;
@@ -47,20 +58,20 @@ function pearson(xs, ys) {
 }
 
 // Bin sessions into N-day windows ending now
-function weeklyChannelSeries(sessions, deviceSessions, weeks = 12) {
+function weeklyChannelSeries(sessions: readonly DoseSession[] | null | undefined, deviceSessions: readonly DoseSession[] | null | undefined, weeks: unknown = 12) {
   const now = Date.now();
-  const series = []; // [{startMs, endMs, channels: {}}, ...]
-  for (let w = 0; w < weeks; w++) {
+  const series: WeeklyChannelSlot[] = []; // [{startMs, endMs, channels: {}}, ...]
+  for (let w = 0; w < (weeks as number); w++) {
     const endMs = now - w * 7 * 86400 * 1000;
     const startMs = endMs - 7 * 86400 * 1000;
     series.unshift({ startMs, endMs, channels: {} });
   }
-  const accumulate = (sess) => {
+  const accumulate = (sess: DoseSession | null | undefined) => {
     if (!sess?.doses || !sess.endedAt) return;
     for (const slot of series) {
       if (sess.endedAt >= slot.startMs && sess.endedAt < slot.endMs) {
         for (const [k, v] of Object.entries(sess.doses)) {
-          slot.channels[k] = (slot.channels[k] || 0) + v;
+          slot.channels[k] = ((slot.channels[k] || 0) as number) + v;
         }
         return;
       }
@@ -75,12 +86,12 @@ function weeklyChannelSeries(sessions, deviceSessions, weeks = 12) {
 // markers as a flat object keyed by `category.markerKey` (single dotted
 // string), not nested by category — earlier draft read e.values?.[cat]?.[m]
 // which never resolved.
-function weeklyBiomarkerValues(catKey, mKey, weeks = 12) {
+function weeklyBiomarkerValues(catKey: string, mKey: string, weeks: unknown = 12) {
   const entries = state.importedData?.entries || [];
   const flatKey = `${catKey}.${mKey}`;
   const now = Date.now();
-  const values = [];
-  for (let w = weeks - 1; w >= 0; w--) {
+  const values: (number | null)[] = [];
+  for (let w = (weeks as number) - 1; w >= 0; w--) {
     const endMs = now - w * 7 * 86400 * 1000;
     const startMs = endMs - 7 * 86400 * 1000;
     let sum = 0, count = 0;
@@ -97,7 +108,7 @@ function weeklyBiomarkerValues(catKey, mKey, weeks = 12) {
 
 // Compute correlation pairs (channel × biomarker). Skips pairs with <4
 // overlapping non-null weeks.
-export function computeSunCorrelations({ weeks = 12 } = {}) {
+export function computeSunCorrelations({ weeks = 12 }: {weeks?: unknown} = {}): SunCorrelations {
   const sessions = getSessions();
   const devSessions = state.importedData?.deviceSessions || [];
   if (sessions.length === 0 && devSessions.length === 0) return { pairs: [], computedAt: Date.now() };
@@ -109,15 +120,15 @@ export function computeSunCorrelations({ weeks = 12 } = {}) {
   // the entire device-PBM × biomarker signal for device-only users.
   const channels = ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'nir_solar', 'pbm_red', 'pbm_nir'];
 
-  const pairs = [];
+  const pairs: SunCorrelationPair[] = [];
   for (const ch of channels) {
     const xs = series.map(s => s.channels[ch] || 0);
     for (const m of TARGET_BIOMARKERS) {
       const ys = weeklyBiomarkerValues(m.cat, m.key, weeks);
       // Filter to weeks where biomarker has data
-      const x = [], y = [];
+      const x: unknown[] = [], y: number[] = [];
       for (let i = 0; i < xs.length; i++) {
-        if (ys[i] != null) { x.push(xs[i]); y.push(ys[i]); }
+        if (ys[i] != null) { x.push(xs[i]); y.push(ys[i]!); }
       }
       if (x.length < 4) continue;
       const r = pearson(x, y);
@@ -130,7 +141,7 @@ export function computeSunCorrelations({ weeks = 12 } = {}) {
 }
 
 // Cache helpers
-let _cache = null;
+let _cache: {key: string; value: SunCorrelations; computedAt: number} | null = null;
 function cacheKey() {
   const p = state.currentProfile || 'default';
   const s = state.importedData?.sunSessions?.length || 0;

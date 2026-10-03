@@ -1,4 +1,3 @@
-// @ts-check
 // app-health-data-modules.js - full Health & Data composition for explicit warmup
 
 import './charts.js';

@@ -1,4 +1,3 @@
-// @ts-check
 // sun-context.js — buildSunContext({ tier }) for AI integration.
 // Two-tier prompt blob; per-session detail moved to a tool-call API.
 //
@@ -23,6 +22,17 @@ import {
 import { lightEnvironmentBlock } from './sun-context-environment.js';
 import { isLightSunContextEnabled } from './lab-context.js';
 
+import type { SunSessionRecord } from './sun-sessions-store.js';
+import type { DeviceSessionRecord } from './light-devices-store.js';
+import type { vitaminDIUPerSession } from './sun-spectrum.js';
+
+// Private operation views preserve the original unchecked configured callbacks
+// and saved fields; the public producer returns prompt text, not validated rows.
+type TrendSessionOperations = Pick<SunSessionRecord, 'doses' | 'endedAt' | 'safety' | 'atmosphere' | 'bodyExposure'> & Pick<DeviceSessionRecord, 'bodyAreas' | 'bodyArea'>;
+type VitaminDSessionReader = (...args: Parameters<typeof vitaminDIUPerSession>) => unknown;
+interface CorrelationOperations {channel?: unknown; biomarker?: unknown; n?: unknown; r?: unknown; lag?: unknown}
+interface SleepOperations {rolling: {d7: number}; baseline?: number | null; trend30d?: unknown}
+
 export { configureSunContext } from './sun-context-runtime.js';
 export { getSunSessionsSlice, getSunSessionDetail } from './sun-context-session-tools.js';
 
@@ -40,14 +50,14 @@ function _bodyRegionsCtxKey() {
 export function isBodyRegionsInAIContext() {
   return localStorage.getItem(_bodyRegionsCtxKey()) === 'on';
 }
-export function setBodyRegionsInAIContext(on) {
+export function setBodyRegionsInAIContext(on: unknown) {
   localStorage.setItem(_bodyRegionsCtxKey(), on ? 'on' : 'off');
-  (/** @type {(() => unknown) | null | undefined} */ (sunContextDeps.invalidateLabContextCache))?.();
+  (sunContextDeps.invalidateLabContextCache as (() => unknown) | null | undefined)?.();
 }
 
 // ─── Public API ────────────────────────────────────────────────────────
 
-export function buildSunContext({ tier = 'always', ignoreContextToggles = false } = {}) {
+export function buildSunContext({ tier = 'always', ignoreContextToggles = false }: {tier?: unknown; ignoreContextToggles?: unknown} = {}) {
   if (!ignoreContextToggles && !isLightSunContextEnabled()) return '';
   const sessions = state.importedData?.sunSessions || [];
   const deviceSessions = state.importedData?.deviceSessions || [];
@@ -119,7 +129,7 @@ export function buildSunContext({ tier = 'always', ignoreContextToggles = false 
 // blocks; they used to drop FIRST which was backwards. Now they survive
 // the soft cap; only the hard cap touches them, and indoor env goes
 // before calibration (calibration is single-line, indoor env is bulk).
-function _trimToBudget(ctx, budget, aggressive = false) {
+function _trimToBudget(ctx: string, budget: number, aggressive = false) {
   if (ctx.length <= budget) return ctx;
 
   // 1. Trim per-room audit before/after detail beyond the most-recent
@@ -128,7 +138,7 @@ function _trimToBudget(ctx, budget, aggressive = false) {
   // older audits where the agent can already see chronological dates.
   // Match the second-and-onward audit blocks via the "  - YYYY-..."
   // pattern; first occurrence keeps its before/after annotations.
-  ctx = ctx.replace(/( \(was: [^)]+ on [^)]+\))/g, (m, _full, offset, str) => {
+  ctx = ctx.replace(/( \(was: [^)]+ on [^)]+\))/g, (m: string, _full: string, offset: number, str: string) => {
     // Find the audit block this annotation belongs to. Walk backwards
     // to the nearest "  - " line — that's its parent audit. The first
     // such audit in the section keeps its tags; subsequent ones lose them.
@@ -143,7 +153,7 @@ function _trimToBudget(ctx, budget, aggressive = false) {
   if (ctx.length <= budget) return ctx;
 
   // 2. Trim "Active light-tool warnings" list to first 3.
-  ctx = ctx.replace(/(- Active light-tool warnings: )([^\n]*)/, (_, head, list) => {
+  ctx = ctx.replace(/(- Active light-tool warnings: )([^\n]*)/, (_: string, head: string, list: string) => {
     const items = list.split('; ').filter(s => !/^\+\d+ more$/.test(s));
     const kept = items.slice(0, 3);
     const overflow = items.length - 3;
@@ -157,7 +167,7 @@ function _trimToBudget(ctx, budget, aggressive = false) {
 
   // 4. Drop older audits past the most recent — keep one full audit
   // block, drop the rest. Same logic as step 1 but at the audit level.
-  ctx = ctx.replace(/(### Light audits[^\n]*\n(?:[^\n]*\n)*?  - [^\n]*\n(?:    · [^\n]*\n)*)([\s\S]*?)(?=\n[A-Z]|\n\[|\n###|$)/, (_match, kept, _rest) => {
+  ctx = ctx.replace(/(### Light audits[^\n]*\n(?:[^\n]*\n)*?  - [^\n]*\n(?:    · [^\n]*\n)*)([\s\S]*?)(?=\n[A-Z]|\n\[|\n###|$)/, (_match: string, kept: string, _rest: string) => {
     return kept;
   });
   if (ctx.length <= budget) return ctx;
@@ -177,12 +187,12 @@ function _trimToBudget(ctx, budget, aggressive = false) {
 
 // ─── Tier: always (~520 tok) ───────────────────────────────────────────
 
-function alwaysTierBlock(sessions) {
+function alwaysTierBlock(sessions: readonly SunSessionRecord[]) {
   // Keep sunlight and devices separate. These totals describe recorded light
   // inputs, not biological completion or a single combined light score.
-  const sunTot7 = (typeof sunContextDeps.rollingChannelTotals === 'function' ? sunContextDeps.rollingChannelTotals(7) : null) || {};
-  const devTot7 = (typeof sunContextDeps.rollingDeviceTotals === 'function' ? sunContextDeps.rollingDeviceTotals(7) : null) || {};
-  const medToday = typeof sunContextDeps.cumulativeMEDToday === 'function' ? sunContextDeps.cumulativeMEDToday() : 0;
+  const sunTot7 = (typeof sunContextDeps.rollingChannelTotals === 'function' ? (sunContextDeps.rollingChannelTotals as (days: number) => unknown)(7) : null) || {};
+  const devTot7 = (typeof sunContextDeps.rollingDeviceTotals === 'function' ? (sunContextDeps.rollingDeviceTotals as (days: number) => unknown)(7) : null) || {};
+  const medToday = (typeof sunContextDeps.cumulativeMEDToday === 'function' ? (sunContextDeps.cumulativeMEDToday as () => unknown)() : 0) as number;
   const lastSession = sessions.filter(s => s.endedAt).slice(-1)[0];
   const activeSession = sessions.find(s => !s.endedAt);
 
@@ -273,29 +283,29 @@ function calibrationLine() {
   // `e?.vitamins?.vitaminD` which never resolved against real data —
   // the calibration block silently failed for every user with bloodwork
   // logged. Same bug class sun-correlations.js carried until v1.7.20.
-  let vitD = null;
-  let vitDDate = null;
+  let vitD: number | null = null;
+  let vitDDate: unknown = null;
   const entries = state.importedData?.entries || [];
   for (let i = entries.length - 1; i >= 0; i--) {
     const e = entries[i];
     const v = e?.markers?.['vitamins.vitaminD'];
     if (typeof v === 'number' && isFinite(v) && v > 0) {
       vitD = v;
-      vitDDate = e.date || null;
+      vitDDate = e!.date || null;
       break;
     }
   }
 
   // Sleep — wearable summary, if computed and recent.
-  let sleep = null;
+  let sleep: SleepOperations | null = null;
   const sleepMetric = state.importedData?.wearableSummary?.metrics?.sleep_score;
   if (sleepMetric && typeof sleepMetric.rolling?.d7 === 'number') {
-    sleep = sleepMetric;
+    sleep = sleepMetric as SleepOperations;
   }
 
   if (vitD == null && sleep == null) return '';
 
-  const parts = [];
+  const parts: string[] = [];
   if (vitD != null) {
     // Schema unit is nmol/L; ng/mL = nmol/L ÷ 2.5. Surface both for the
     // AI since literature splits the convention by region. Round each.
@@ -330,7 +340,7 @@ function calibrationLine() {
 // loading every session into every prompt. Net savings on a typical
 // active user: ~1,200–1,500 chars (~300–375 tok) per chat turn.
 
-function standardTierBlock(sessions) {
+function standardTierBlock(sessions: readonly SunSessionRecord[]) {
   const sun = sessions.filter(s => s.endedAt);
   const dev = (state.importedData?.deviceSessions || []).filter(s => s.endedAt);
   if (sun.length === 0 && dev.length === 0) {
@@ -343,7 +353,7 @@ function standardTierBlock(sessions) {
   const WEEKS = 6;
   const now = Date.now();
   const channels = ['vitamin_d', 'circadian', 'nir_solar', 'pbm_red', 'pbm_nir', 'no_cv', 'pomc'];
-  const makeBuckets = () => Object.fromEntries(channels.map(k => [k, new Array(WEEKS).fill(0)]));
+  const makeBuckets = () => Object.fromEntries(channels.map(k => [k, (new Array(WEEKS).fill(0) as number[])]));
   const sunBuckets = makeBuckets();
   const deviceBuckets = makeBuckets();
   // Same per-session cap path the always-tier 7d rollup uses, so the
@@ -351,18 +361,18 @@ function standardTierBlock(sessions) {
   // (without this, raw channel-au sums to nonsense for vit-D).
   const _genetics = state.importedData?.genetics || null;
   const _fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
-  const _perSession = typeof sunContextDeps.vitaminDIUPerSession === 'function' ? sunContextDeps.vitaminDIUPerSession : null;
+  const _perSession = (typeof sunContextDeps.vitaminDIUPerSession === 'function' ? sunContextDeps.vitaminDIUPerSession : null) as VitaminDSessionReader | null;
   const _fracByKey = _bodyRegionFractionByKey();
-  const _broadFracs = { face: 0.04, arms: 0.10, torso: 0.13, legs: 0.30, 'whole-body': 0.92, targeted: 0.05 };
-  const _devBodyFrac = (s) => {
+  const _broadFracs: Readonly<Record<string, unknown>> = { face: 0.04, arms: 0.10, torso: 0.13, legs: 0.30, 'whole-body': 0.92, targeted: 0.05 };
+  const _devBodyFrac = (s: Pick<DeviceSessionRecord, 'bodyAreas' | 'bodyArea'>): unknown => {
     if (Array.isArray(s.bodyAreas) && s.bodyAreas.length > 0) {
-      return s.bodyAreas.reduce((acc, k) => acc + (_fracByKey[k] || 0), 0) || null;
+      return s.bodyAreas.reduce((acc, k) => acc + ((_fracByKey[k] || 0) as number), 0) || null;
     }
     return s.bodyArea ? (_broadFracs[s.bodyArea] ?? null) : null;
   };
-  const addSessions = (sourceSessions, buckets, isSun) => {
-    for (const s of sourceSessions) {
-      const weekIdx = Math.floor((now - s.endedAt) / (7 * 86400 * 1000));
+  const addSessions = (sourceSessions: readonly unknown[], buckets: Record<string, number[]>, isSun: boolean) => {
+    for (const s of sourceSessions as readonly TrendSessionOperations[]) {
+      const weekIdx = Math.floor((now - s.endedAt!) / (7 * 86400 * 1000));
       if (weekIdx < 0 || weekIdx >= WEEKS) continue;
       const slot = WEEKS - 1 - weekIdx;
       const fitz = isSun ? (s.safety?.fitzpatrick || 'III') : _fitzForDevice;
@@ -371,11 +381,11 @@ function standardTierBlock(sessions) {
       const bf = isSun ? s.bodyExposure?.fraction : _devBodyFrac(s);
       for (const k of channels) {
         const au = s.doses?.[k];
-        if (!Number.isFinite(au) || au <= 0) continue;
+        if (!Number.isFinite(au) || (au as number) <= 0) continue;
         if (k === 'vitamin_d' && _perSession) {
-          buckets[k][slot] += _perSession(au, fitz, uvi, rotated, _genetics, bf);
+          buckets[k]![slot]! += _perSession(au as number, fitz, uvi as number | null, rotated, _genetics, bf as number | null) as number;
         } else {
-          buckets[k][slot] += au;
+          buckets[k]![slot]! += au as number;
         }
       }
     }
@@ -388,21 +398,21 @@ function standardTierBlock(sessions) {
   // lux·h for circadian, J/cm² for the three PBM-band channels, raw
   // channel-au for no_cv and pomc (no canonical SI unit — the AI sees
   // the trend shape, not magnitude).
-  const fmtIUCompact = (n) => n >= 10000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`
+  const fmtIUCompact = (n: number) => n >= 10000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`
     : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${Math.round(n)}`;
-  const fmtJ = (n) => n >= 10 ? `${Math.round(n)}` : n >= 1 ? n.toFixed(1) : n.toFixed(2);
-  const _luxHFromAu = (weeklyAu) => {
+  const fmtJ = (n: unknown) => (n as number) >= 10 ? `${Math.round(n as number)}` : (n as number) >= 1 ? (n as {toFixed(digits: number): unknown}).toFixed(1) : (n as {toFixed(digits: number): unknown}).toFixed(2);
+  const _luxHFromAu = (weeklyAu: number) => {
     // circadian channel-au needs duration to convert; bucket totals are
     // au-aggregates not lux-h. Approximation: use the always-tier helper
     // pattern but on a representative 1-hour basis. The AI cares about
     // shape week-to-week, not absolute lux-h here (always-tier already
     // shows the absolute 7d total).
     if (typeof sunContextDeps.circadianMelanopicLux === 'function') {
-      return Math.round(sunContextDeps.circadianMelanopicLux(weeklyAu, 60) * 1); // 60-min basis
+      return Math.round(((sunContextDeps.circadianMelanopicLux as (au: number, duration: number) => unknown)(weeklyAu, 60) as number) * 1); // 60-min basis
     }
     return Math.round(weeklyAu);
   };
-  const labels = {
+  const labels: Readonly<Record<string, unknown>> = {
     vitamin_d: 'Vit-D (IU)',
     circadian: 'Body clock (lux·h)',
     nir_solar: 'Cell energy & repair (J/cm²)',
@@ -411,10 +421,10 @@ function standardTierBlock(sessions) {
     no_cv: 'Cardiovascular (au)',
     pomc: 'Mood/hormones (au)',
   };
-  const renderBucketLines = (buckets) => {
-    const lines = [];
+  const renderBucketLines = (buckets: Record<string, number[]>) => {
+    const lines: string[] = [];
     for (const k of channels) {
-      const b = buckets[k];
+      const b = buckets[k]!;
       if (b.every(v => v === 0)) continue;
       let formatted;
       if (k === 'vitamin_d') {
@@ -424,7 +434,7 @@ function standardTierBlock(sessions) {
       } else if (k === 'nir_solar' || k === 'pbm_red' || k === 'pbm_nir') {
         formatted = b.map(v => {
           if (v <= 0) return '0';
-          const j = typeof sunContextDeps.pbmJoulesPerCm2 === 'function' ? sunContextDeps.pbmJoulesPerCm2(v) : v / 10000;
+          const j = typeof sunContextDeps.pbmJoulesPerCm2 === 'function' ? (sunContextDeps.pbmJoulesPerCm2 as (au: number) => unknown)(v) : v / 10000;
           return fmtJ(j);
         }).join('→');
       } else {
@@ -452,10 +462,10 @@ function standardTierBlock(sessions) {
   // this week vs 5 the prior week"). One line, both kinds.
   const _last7d = now - 7 * 86400 * 1000;
   const _prior7d = now - 14 * 86400 * 1000;
-  const sun7 = sun.filter(s => s.endedAt >= _last7d).length;
-  const sunPrev7 = sun.filter(s => s.endedAt >= _prior7d && s.endedAt < _last7d).length;
-  const dev7 = dev.filter(s => s.endedAt >= _last7d).length;
-  const devPrev7 = dev.filter(s => s.endedAt >= _prior7d && s.endedAt < _last7d).length;
+  const sun7 = sun.filter(s => s.endedAt! >= _last7d).length;
+  const sunPrev7 = sun.filter(s => s.endedAt! >= _prior7d && s.endedAt! < _last7d).length;
+  const dev7 = dev.filter(s => s.endedAt! >= _last7d).length;
+  const devPrev7 = dev.filter(s => s.endedAt! >= _prior7d && s.endedAt! < _last7d).length;
   if (sun7 + dev7 + sunPrev7 + devPrev7 > 0) {
     block += `### Session cadence\n- Last 7d: ${sun7} outdoor + ${dev7} device (prior 7d: ${sunPrev7} outdoor + ${devPrev7} device)\n- Per-session detail: agent can call \`getSunSessionsSlice({days: 30})\` or \`getSunSessionDetail(id)\` for forensics\n\n`;
   }
@@ -468,14 +478,14 @@ function standardTierBlock(sessions) {
 // Pearson over 12-week rolling windows). Kept as-is — it's the highest-
 // signal block for cross-lens reasoning and it's already lean.
 function _correlationsBlock() {
-  let corr = state.importedData?.sunCorrelations;
-  if (!corr || !corr.pairs) {
+  let corr: unknown = state.importedData?.sunCorrelations;
+  if (!corr || !(corr as {pairs?: unknown}).pairs) {
     try { corr = getSunCorrelations(); } catch (e) {
       _debugWarn('[sun-context] getSunCorrelations failed', e);
     }
   }
-  if (corr && corr.pairs) {
-    return `### Sun-channel × biomarker correlations (computed from your data)\n${formatCorrelations(corr.pairs)}\n\n`;
+  if (corr && (corr as {pairs?: unknown}).pairs) {
+    return `### Sun-channel × biomarker correlations (computed from your data)\n${formatCorrelations((corr as {pairs?: unknown}).pairs)}\n\n`;
   }
   return '';
 }
@@ -493,29 +503,29 @@ const CHANNEL_LABELS = {
   pbm_nir:    'PBM near-IR',
 };
 
-function formatLoggedSignals(totals) {
-  const labels = [];
+function formatLoggedSignals(totals: unknown) {
+  const labels: string[] = [];
   for (const [key, label] of Object.entries(CHANNEL_LABELS)) {
-    if (Number.isFinite(totals?.[key]) && totals[key] > 0) labels.push(label);
+    if (Number.isFinite((totals as Record<string, unknown> | null | undefined)?.[key]) && ((totals as Record<string, unknown>)[key] as number) > 0) labels.push(label);
   }
   return labels.length > 0 ? `${labels.join(', ')} logged` : 'no signals logged';
 }
 
-function formatCorrelations(pairs) {
+function formatCorrelations(pairs: unknown) {
   if (!Array.isArray(pairs) || pairs.length === 0) return '_no correlations computed yet_';
   // pairs: [{ channel, biomarker, r, n, p, lag }]
-  const sig = pairs.filter(p => p.n >= 14 && Math.abs(p.r) >= 0.3);
+  const sig = (pairs as readonly CorrelationOperations[]).filter(p => (p.n as number) >= 14 && Math.abs(p.r as number) >= 0.3);
   if (sig.length === 0) return '_no significant correlations (n≥14, |r|≥0.3) yet_';
   const lines = ['| Channel | Biomarker | r | n | lag |', '|---------|-----------|---|---|-----|'];
   for (const p of sig.slice(0, 12)) {
-    lines.push(`| ${CHANNEL_LABELS[p.channel] || p.channel} | ${p.biomarker} | ${p.r.toFixed(2)} | ${p.n} | ${p.lag || 0}d |`);
+    lines.push(`| ${(CHANNEL_LABELS as Readonly<Record<PropertyKey, unknown>>)[p.channel as PropertyKey] || p.channel} | ${p.biomarker} | ${(p.r as {toFixed(digits: number): unknown}).toFixed(2)} | ${p.n} | ${p.lag || 0}d |`);
   }
   return lines.join('\n');
 }
 
-function formatRelative(ts) {
+function formatRelative(ts: unknown) {
   if (!ts) return '?';
-  const diff = Date.now() - ts;
+  const diff = Date.now() - (ts as number);
   const min = Math.round(diff / 60000);
   if (min < 60) return `${min} min ago`;
   const hr = Math.round(min / 60);

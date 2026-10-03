@@ -1124,3 +1124,13 @@ deploy/profile-share/data/
 /dev-server.js
 
 /types/dev-server.js
+
+/js/health-data-loader.js
+
+/js/app-health-data-modules.js
+
+/js/sun-correlations.js
+
+/js/sun-context.js
+
+/types/health-data-loader.js
