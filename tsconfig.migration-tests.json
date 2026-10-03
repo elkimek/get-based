@@ -8,6 +8,8 @@
   "include": [
     "tests/**/*.test.ts",
     "tests/**/*.spec.ts",
-    "tests/test-*.ts"
+    "tests/test-*.ts",
+    "tests/verify-modules.ts",
+    "tests/validate-storage-shim-throwing-getters.mts"
   ]
 }

@@ -1488,3 +1488,5 @@ deploy/profile-share/data/
 /tests/test-wearables-manual.js
 /tests/test-wearables-sync-flow.js
 /tests/test-wearables.js
+/tests/verify-modules.js
+/tests/validate-storage-shim-throwing-getters.mjs

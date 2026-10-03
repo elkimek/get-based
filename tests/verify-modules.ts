@@ -4,9 +4,9 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 // Static Node check: node tests/verify-modules.js
 (async function() {
   'use strict';
-  let passed = 0, failed = 0, errors = [];
+  let passed = 0, failed = 0, errors: Array<{name: string; detail: unknown}> = [];
 
-  function assert(name, condition, detail) {
+  function assert(name: string, condition: unknown, detail?: unknown) {
     if (condition) {
       passed++;
     } else {
@@ -17,7 +17,7 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
   }
 
   // Keep the public-export lists and their verification order explicit.
-  function assertModuleOnlyExports(names) {
+  function assertModuleOnlyExports(names: readonly string[]) {
     for (const name of names) {
       assert(`window.${name} stays module-only`, !(name in window));
     }
@@ -179,7 +179,7 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
     '/js/sync-pull-active-refresh-runtime.js',
   ];
 
-  function assertServiceWorkerCache(sw) {
+  function assertServiceWorkerCache(sw: string) {
     assert('SW uses importScripts for version', sw.includes("importScripts('/version.js'"));
     assert('SW CACHE_NAME uses semver template', sw.includes('`labcharts-v${self.APP_VERSION}`'));
     assert('SW APP_SHELL includes version.js', sw.includes("'/version.js'"));
@@ -200,7 +200,7 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
       fs.readFile(path.join(root, 'tsconfig.checkjs.json'), 'utf8'),
       fs.readFile(path.join(root, 'js', 'app-ui-shell-modules.js'), 'utf8'),
     ]);
-    const checkJsConfig = JSON.parse(checkJsConfigText);
+    const checkJsConfig = (JSON.parse as (input: string) => unknown)(checkJsConfigText) as {include?: unknown};
 
     assert('Module script tag exists', indexHtml.includes('<script type="module" src="js/main.js"></script>'));
     assert('Old app.js script tag removed', !/<script[^>]+src=["']app\.js["']/.test(indexHtml));
@@ -783,7 +783,7 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
   ];
 
   // views.js is module-only; cycle-sensitive consumers use scoped runtime adapters.
-  const viewsLegacyExports = [];
+  const viewsLegacyExports: string[] = [];
   const viewsFacadeModuleExports = [
     'configureDashboardViewFactory','getInitialView','navigate','showDashboard','showLabs','showBiologyScoresLens','showGenomeLens',
     'showBodyLens','showInsightLens','showRecommendations','openRecommendationDetail',
@@ -819,13 +819,13 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
   ];
 
   for (const name of apiExports) {
-    const val = apiModule[name];
+    const val = (apiModule as Record<string, unknown>)[name];
     const isFunc = typeof val === 'function';
     assert(`api.${name} (api.js)`, val !== undefined, isFunc ? 'function' : typeof val);
   }
   console.log(`Checked ${apiExports.length} api.js module exports`);
 
-  for (const [moduleName, moduleApi, exports] of [
+  for (const [moduleName, moduleApi, exports] of ([
     ['backup.js', backupModule, backupExports],
     ['cashu-wallet.js', cashuWalletModule, cashuWalletExports],
     ['changelog.js', changelogModule, changelogExports],
@@ -860,9 +860,9 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
     ['utils.js', utilsModule, utilsExports],
     ['views.js facade', viewsModule, viewsFacadeModuleExports],
     ['views.js dashboard widgets', viewsModule, viewsDashboardWidgetExports],
-  ]) {
+  ] as Array<[string, object, string[]]>)) {
     for (const name of exports) {
-      const val = moduleApi[name];
+      const val = (moduleApi as Record<string, unknown>)[name];
       const isFunc = typeof val === 'function';
       assert(`${moduleName}.${name} module export`, val !== undefined, isFunc ? 'function' : typeof val);
     }
@@ -1023,7 +1023,7 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
   for (const [mod, exports] of Object.entries(allModules)) {
     for (const name of exports) {
       totalExports++;
-      const val = window[name];
+      const val = (window as unknown as Record<string, unknown>)[name];
       const isFunc = typeof val === 'function';
       // profileStorageKey is a function, rest should be functions too
       assert(`window.${name} (${mod})`, val !== undefined, isFunc ? 'function' : typeof val);
@@ -1211,14 +1211,14 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 
   // Summary functions work without crashing
   assert('getGoalsSummary works', typeof contextCardsModule.getGoalsSummary() === 'string' || contextCardsModule.getGoalsSummary() === '');
-  assert('getConditionsSummary works', typeof contextCardsModule.getConditionsSummary() === 'string' || contextCardsModule.getConditionsSummary() === '');
-  assert('getDietSummary works', typeof contextCardsModule.getDietSummary() === 'string' || contextCardsModule.getDietSummary() === '');
-  assert('getExerciseSummary works', typeof contextCardsModule.getExerciseSummary() === 'string' || contextCardsModule.getExerciseSummary() === '');
-  assert('getSleepSummary works', typeof contextCardsModule.getSleepSummary() === 'string' || contextCardsModule.getSleepSummary() === '');
-  assert('getLightCircadianSummary works', typeof contextCardsModule.getLightCircadianSummary() === 'string' || contextCardsModule.getLightCircadianSummary() === '');
-  assert('getStressSummary works', typeof contextCardsModule.getStressSummary() === 'string' || contextCardsModule.getStressSummary() === '');
-  assert('getLoveLifeSummary works', typeof contextCardsModule.getLoveLifeSummary() === 'string' || contextCardsModule.getLoveLifeSummary() === '');
-  assert('getEnvironmentSummary works', typeof contextCardsModule.getEnvironmentSummary() === 'string' || contextCardsModule.getEnvironmentSummary() === '');
+  assert('getConditionsSummary works', typeof (contextCardsModule.getConditionsSummary as (...args: Partial<Parameters<typeof contextCardsModule.getConditionsSummary>>) => ReturnType<typeof contextCardsModule.getConditionsSummary>)() === 'string' || (contextCardsModule.getConditionsSummary as (...args: Partial<Parameters<typeof contextCardsModule.getConditionsSummary>>) => ReturnType<typeof contextCardsModule.getConditionsSummary>)() === '');
+  assert('getDietSummary works', typeof (contextCardsModule.getDietSummary as (...args: Partial<Parameters<typeof contextCardsModule.getDietSummary>>) => ReturnType<typeof contextCardsModule.getDietSummary>)() === 'string' || (contextCardsModule.getDietSummary as (...args: Partial<Parameters<typeof contextCardsModule.getDietSummary>>) => ReturnType<typeof contextCardsModule.getDietSummary>)() === '');
+  assert('getExerciseSummary works', typeof (contextCardsModule.getExerciseSummary as (...args: Partial<Parameters<typeof contextCardsModule.getExerciseSummary>>) => ReturnType<typeof contextCardsModule.getExerciseSummary>)() === 'string' || (contextCardsModule.getExerciseSummary as (...args: Partial<Parameters<typeof contextCardsModule.getExerciseSummary>>) => ReturnType<typeof contextCardsModule.getExerciseSummary>)() === '');
+  assert('getSleepSummary works', typeof (contextCardsModule.getSleepSummary as (...args: Partial<Parameters<typeof contextCardsModule.getSleepSummary>>) => ReturnType<typeof contextCardsModule.getSleepSummary>)() === 'string' || (contextCardsModule.getSleepSummary as (...args: Partial<Parameters<typeof contextCardsModule.getSleepSummary>>) => ReturnType<typeof contextCardsModule.getSleepSummary>)() === '');
+  assert('getLightCircadianSummary works', typeof (contextCardsModule.getLightCircadianSummary as (...args: Partial<Parameters<typeof contextCardsModule.getLightCircadianSummary>>) => ReturnType<typeof contextCardsModule.getLightCircadianSummary>)() === 'string' || (contextCardsModule.getLightCircadianSummary as (...args: Partial<Parameters<typeof contextCardsModule.getLightCircadianSummary>>) => ReturnType<typeof contextCardsModule.getLightCircadianSummary>)() === '');
+  assert('getStressSummary works', typeof (contextCardsModule.getStressSummary as (...args: Partial<Parameters<typeof contextCardsModule.getStressSummary>>) => ReturnType<typeof contextCardsModule.getStressSummary>)() === 'string' || (contextCardsModule.getStressSummary as (...args: Partial<Parameters<typeof contextCardsModule.getStressSummary>>) => ReturnType<typeof contextCardsModule.getStressSummary>)() === '');
+  assert('getLoveLifeSummary works', typeof (contextCardsModule.getLoveLifeSummary as (...args: Partial<Parameters<typeof contextCardsModule.getLoveLifeSummary>>) => ReturnType<typeof contextCardsModule.getLoveLifeSummary>)() === 'string' || (contextCardsModule.getLoveLifeSummary as (...args: Partial<Parameters<typeof contextCardsModule.getLoveLifeSummary>>) => ReturnType<typeof contextCardsModule.getLoveLifeSummary>)() === '');
+  assert('getEnvironmentSummary works', typeof (contextCardsModule.getEnvironmentSummary as (...args: Partial<Parameters<typeof contextCardsModule.getEnvironmentSummary>>) => ReturnType<typeof contextCardsModule.getEnvironmentSummary>)() === 'string' || (contextCardsModule.getEnvironmentSummary as (...args: Partial<Parameters<typeof contextCardsModule.getEnvironmentSummary>>) => ReturnType<typeof contextCardsModule.getEnvironmentSummary>)() === '');
 
   // isContextFilled
   assert('isContextFilled returns boolean', typeof contextCardsModule.isContextFilled('diet') === 'boolean');
@@ -1233,7 +1233,7 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
     assert('Navigation activates biochemistry nav item', bioNavItem.classList.contains('active'));
   } else {
     // No data loaded — biochemistry nav item doesn't exist, but navigate still renders content
-    assert('Navigate to biochemistry renders view', main?.innerHTML.length > 100);
+    assert('Navigate to biochemistry renders view', (main?.innerHTML.length)! > 100);
   }
   assert('Main content updated after navigate', main?.innerHTML.includes('biochemistry') || main?.innerHTML.includes('Biochemistry') || main?.innerHTML.includes('category'));
 
@@ -1256,7 +1256,7 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
   // ═══════════════════════════════════════════════
   // 16. UNIT/RANGE SYSTEM — works
   // ═══════════════════════════════════════════════
-  const effectiveRange = dataModule.getEffectiveRange({ refMin: 3.5, refMax: 5.0, optMin: 3.8, optMax: 4.5 });
+  const effectiveRange = (dataModule.getEffectiveRange as (marker: Partial<Parameters<typeof dataModule.getEffectiveRange>[0]>) => ReturnType<typeof dataModule.getEffectiveRange>)({ refMin: 3.5, refMax: 5.0, optMin: 3.8, optMax: 4.5 });
   assert('getEffectiveRange returns object', effectiveRange && typeof effectiveRange.min === 'number');
 
   // ═══════════════════════════════════════════════
@@ -1285,7 +1285,7 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
     periods: [{ startDate: '2026-02-01' }]
   });
   assert('getCyclePhase returns object', phase && typeof phase === 'object');
-  assert('getCyclePhase has phaseName', typeof phase.phaseName === 'string');
+  assert('getCyclePhase has phaseName', typeof phase!.phaseName === 'string');
 
   // ═══════════════════════════════════════════════
   // 20. SERVICE WORKER — cache version check
@@ -1315,7 +1315,7 @@ import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
       process.exitCode = 1;
     }
   }
-})().catch(error => {
+})().catch((error: unknown) => {
   console.error(error);
   if (typeof process !== 'undefined' &&
       process.versions?.node) {

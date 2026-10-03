@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 
 const setupFile = process.argv[2] || 'tests/_node-shim.js';
 
-function installThrowingGetter(name) {
+function installThrowingGetter(name: string) {
   Object.defineProperty(globalThis, name, {
     configurable: true,
     enumerable: true,
@@ -15,8 +15,8 @@ function installThrowingGetter(name) {
   });
 }
 
-function assertStorageWorks(name) {
-  const storage = globalThis[name];
+function assertStorageWorks(name: string) {
+  const storage = (globalThis as unknown as Record<string, unknown>)[name] as Partial<Storage> | null | undefined;
   if (
     !storage ||
     typeof storage.getItem !== 'function' ||
@@ -35,12 +35,12 @@ function assertStorageWorks(name) {
     throw new Error(`${name} key/length API failed after importing ${setupFile}`);
   }
   storage.removeItem('__throwing_getter_probe__');
-  if (storage.getItem('__throwing_getter_probe__') !== null || storage.length !== 0) {
+  if (storage.getItem('__throwing_getter_probe__') !== null || (storage.length as number) !== 0) {
     throw new Error(`${name} removeItem failed after importing ${setupFile}`);
   }
   storage.setItem('__throwing_getter_probe__', 'ok');
   storage.clear();
-  if (storage.getItem('__throwing_getter_probe__') !== null || storage.length !== 0) {
+  if (storage.getItem('__throwing_getter_probe__') !== null || (storage.length as number) !== 0) {
     throw new Error(`${name} clear failed after importing ${setupFile}`);
   }
 }
@@ -48,7 +48,7 @@ function assertStorageWorks(name) {
 installThrowingGetter('localStorage');
 installThrowingGetter('sessionStorage');
 
-await import(pathToFileURL(setupFile).href);
+await (import(pathToFileURL(setupFile).href) as Promise<unknown>);
 
 assertStorageWorks('localStorage');
 assertStorageWorks('sessionStorage');
