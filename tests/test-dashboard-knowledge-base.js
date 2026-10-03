@@ -18,6 +18,7 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 
 import './_node-shim.js';
 import fs from 'fs';
+import { readAuthoredRepositorySource } from './helpers/repository-source.js';
 
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
@@ -213,7 +214,7 @@ try {
 
   // ─── 8. Current-head Greptile regressions ───
   {
-    const chatSrc = fs.readFileSync('js/chat-personalities.js', 'utf8');
+    const chatSrc = readAuthoredRepositorySource('js/chat-personalities.js', 'utf8');
     const chatContextStatusSrc = fs.readFileSync('js/chat-context-status.js', 'utf8');
     assert('chat header hides AI Context chip when no provider is configured',
       /function updateChatContextStatus\(\)[\s\S]*?const clearStatus = \(\) => \{[\s\S]*?status\.hidden = true;[\s\S]*?if \(!hasChatResponseBackend\(\)\) \{[\s\S]*?clearStatus\(\);[\s\S]*?return;[\s\S]*?const contextState/.test(chatContextStatusSrc));

@@ -1,37 +1,51 @@
-// @ts-check
 // chat-personality-editor.js — custom persona dialog and hosted-use agreement policy.
 
 import { escapeHTML } from './utils.js';
 import { openAppendedModalOverlay } from './modal-lifecycle.js';
 
+import type { StoredCustomPersonality } from './chat-storage-safety.js';
+
+export type PersonaEditorPersonality = { [Field in keyof Pick<StoredCustomPersonality, 'name' | 'promptText' | 'personaAgreement'>]?: unknown };
+type PersonaAgreementReader = { [Field in keyof Pick<NonNullable<StoredCustomPersonality['personaAgreement']>, 'accepted' | 'version'>]?: unknown };
+export interface PersonaEditorLocation { hostname?: unknown }
+export interface PersonaEditorDialogOptions {
+  isNew: unknown;
+  personality?: PersonaEditorPersonality | null;
+  locationLike?: PersonaEditorLocation | null;
+  actionAttrs: (action: string) => unknown;
+  inputAttrs: (action: string) => unknown;
+  onCancel: () => unknown;
+}
+
+
 const PERSONA_AGREEMENT_VERSION = 1;
 const PERSONA_AGREEMENT_TEXT = 'I understand this persona is an AI-generated interpretation—not the real person or endorsed by them—and agree not to use it to impersonate a real person or imply their participation or endorsement without permission.';
 const EDITOR_OVERLAY_ID = 'chat-personality-editor-overlay';
 
-export function isOfficialHostedPersonaApp(locationLike = globalThis.location) {
+export function isOfficialHostedPersonaApp(locationLike: PersonaEditorLocation | null | undefined = globalThis.location) {
   const hostname = String(locationLike?.hostname || '').toLowerCase().replace(/\.$/, '');
   return hostname === 'getbased.health' || hostname.endsWith('.getbased.health');
 }
 
-export function hasCurrentPersonaAgreement(personality) {
-  return personality?.personaAgreement?.accepted === true
-    && personality.personaAgreement.version === PERSONA_AGREEMENT_VERSION;
+export function hasCurrentPersonaAgreement(personality: unknown) {
+  return ((personality as PersonaEditorPersonality | null | undefined)?.personaAgreement as PersonaAgreementReader | null | undefined)?.accepted === true
+    && ((personality as PersonaEditorPersonality).personaAgreement as PersonaAgreementReader).version === PERSONA_AGREEMENT_VERSION;
 }
 
-export function isCustomPersonalityUsable(personality, locationLike = globalThis.location) {
+export function isCustomPersonalityUsable(personality: unknown, locationLike: PersonaEditorLocation | null | undefined = globalThis.location) {
   return !isOfficialHostedPersonaApp(locationLike) || hasCurrentPersonaAgreement(personality);
 }
 
 export function getPersonaAgreementCheckbox() {
-  return /** @type {HTMLInputElement | null} */ (
-    document.getElementById('chat-personality-agreement-checkbox')
+  return (
+    document.getElementById('chat-personality-agreement-checkbox') as HTMLInputElement | null
   );
 }
 
-export function buildPersonaAgreementRecord(overlay, acceptedAt = new Date()) {
+export function buildPersonaAgreementRecord(overlay: HTMLElement | null | undefined, acceptedAt: Pick<Date, 'toISOString'> = new Date()) {
   if (!getPersonaAgreementCheckbox()?.checked) return null;
   return {
-    accepted: true,
+    accepted: true as const,
     version: PERSONA_AGREEMENT_VERSION,
     acceptedAt: acceptedAt.toISOString(),
     host: overlay?.dataset.personaAgreementHost || '',
@@ -39,7 +53,7 @@ export function buildPersonaAgreementRecord(overlay, acceptedAt = new Date()) {
   };
 }
 
-function agreementMarkup(required, inputAttrs) {
+function agreementMarkup(required: boolean, inputAttrs: PersonaEditorDialogOptions['inputAttrs']) {
   if (!required) {
     return '<span class="chat-personality-disclaimer">Custom personas are AI-generated interpretations—not the real person or endorsed by them. Use them responsibly and do not imply a real person participated without permission.</span>';
   }
@@ -56,7 +70,7 @@ export function openPersonaEditorDialog({
   actionAttrs,
   inputAttrs,
   onCancel,
-}) {
+}: PersonaEditorDialogOptions) {
   const agreementRequired = isOfficialHostedPersonaApp(locationLike);
   const agreementHost = String(locationLike?.hostname || '').toLowerCase().replace(/\.$/, '');
   const overlay = document.createElement('div');
@@ -105,15 +119,15 @@ export function openPersonaEditorDialog({
     scrollLock: true,
     focusTrapOptions: { closeOnEscape: false },
   });
-  const nameInput = /** @type {HTMLInputElement | null} */ (
-    document.getElementById('chat-personality-custom-name')
+  const nameInput = (
+    document.getElementById('chat-personality-custom-name') as HTMLInputElement | null
   );
-  const textarea = /** @type {HTMLTextAreaElement | null} */ (
-    document.querySelector('.chat-personality-custom-textarea')
+  const textarea = (
+    document.querySelector('.chat-personality-custom-textarea') as HTMLTextAreaElement | null
   );
   if (nameInput && personality) {
-    nameInput.value = personality.name !== 'Custom Personality' ? personality.name : '';
+    (nameInput as { value: unknown }).value = personality.name !== 'Custom Personality' ? personality.name : '';
   }
-  if (textarea && personality) textarea.value = personality.promptText;
+  if (textarea && personality) (textarea as { value: unknown }).value = personality.promptText;
   return overlay;
 }

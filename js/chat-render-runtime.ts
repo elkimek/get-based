@@ -1,4 +1,3 @@
-// @ts-check
 // chat-render-runtime.js - Browser runtime adapters for chat render hooks.
 
 import {
@@ -14,14 +13,13 @@ export function isChatRenderProductRecsEnabled() {
   }
 }
 
-/** @param {unknown} slots */
-export function renderChatRecommendationSections(slots) {
+export function renderChatRecommendationSections(slots: unknown) {
   if (!Array.isArray(slots) || !slots.length || !isChatRenderProductRecsEnabled()) return [];
-  const renderRecommendationSectionSync = getRecommendationModuleFunction('renderRecommendationSectionSync');
+  const renderRecommendationSectionSync = getRecommendationModuleFunction('renderRecommendationSectionSync') as ((slotKey: string, options: { label: unknown; maxProducts: number }) => unknown) | null;
   const catalog = getRecommendationsCatalogCache();
-  const catalogSlots = catalog?.slots;
+  const catalogSlots = catalog?.slots as Readonly<Record<string, { label?: unknown } | null | undefined>> | null | undefined;
   if (!renderRecommendationSectionSync || !catalogSlots) return [];
-  return slots.map(slot => {
+  return (slots as unknown[]).map(slot => {
     const slotKey = String(slot || '');
     if (!slotKey) return '';
     const slotLabel = catalogSlots[slotKey]?.label || slotKey.split('.').pop();

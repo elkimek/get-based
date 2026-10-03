@@ -166,7 +166,7 @@ export function renderChatMessages({ preserveScroll = false } = {}) {
       }
       // Rec slots (persisted on message, rendered from catalog)
       if (msg.recSlots?.length) {
-        const recSections = renderChatRecommendationSections(msg.recSlots);
+        const recSections = /** @type {Array<{replace(search: string, replacement: string): unknown}>} */ (renderChatRecommendationSections(msg.recSlots));
         if (recSections.length) {
           const openAttr = msg.recOpen ? ' open' : '';
           const unseenClass = msg.recNew ? ' rec-chat-unseen' : '';

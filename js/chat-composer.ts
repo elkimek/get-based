@@ -1,5 +1,4 @@
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
-// @ts-check
 // chat-composer.js — growing message input and per-conversation draft state
 
 import { state } from './state.js';
@@ -13,28 +12,25 @@ import {
 let composerInstalled = false;
 let draftRestoreRequest = 0;
 
-const composerDeps = {
-  updateSendButtonState: /** @type {() => void} */ (() => {}),
+const composerDeps: { updateSendButtonState: () => unknown } = {
+  updateSendButtonState: () => {},
 };
 
-/** @param {Partial<typeof composerDeps>} [deps] */
-export function configureChatComposer(deps = {}) {
-  return configureRuntimeFunctions(composerDeps, deps, ["updateSendButtonState"]);
+export function configureChatComposer(deps: Record<string, unknown> = {}) {
+  return (configureRuntimeFunctions as (current: typeof composerDeps, updates: Record<string, unknown>, fields: ReadonlyArray<keyof typeof composerDeps>) => ReturnType<typeof configureRuntimeFunctions<typeof composerDeps>>)(composerDeps, deps, ["updateSendButtonState"]);
 }
 
 function getChatInput() {
   if (typeof document === 'undefined') return null;
-  return /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
+  return (document.getElementById('chat-input') as HTMLTextAreaElement | null);
 }
 
-/** @param {string | null | undefined} threadId */
-function draftContext(threadId) {
+function draftContext(threadId: string | null | undefined) {
   const profileId = state.currentProfile || 'default';
   return threadId ? { profileId, threadId } : null;
 }
 
-/** @param {HTMLTextAreaElement | null} [input] */
-export function resizeChatInput(input = getChatInput()) {
+export function resizeChatInput(input: HTMLTextAreaElement | null = getChatInput()) {
   if (!input) return 0;
   input.style.height = 'auto';
   const styles = typeof getComputedStyle === 'function' ? getComputedStyle(input) : null;
@@ -53,8 +49,7 @@ export function resizeChatInput(input = getChatInput()) {
   return height;
 }
 
-/** @param {string | null | undefined} [threadId] */
-export function saveChatDraft(threadId = state.currentThreadId) {
+export function saveChatDraft(threadId: string | null | undefined = state.currentThreadId) {
   const context = draftContext(threadId);
   const input = getChatInput();
   if (!context || !input) return '';
@@ -62,22 +57,19 @@ export function saveChatDraft(threadId = state.currentThreadId) {
   return input.value;
 }
 
-/** @param {string | null | undefined} [threadId] */
-export function getChatDraft(threadId = state.currentThreadId) {
+export function getChatDraft(threadId: string | null | undefined = state.currentThreadId) {
   const context = draftContext(threadId);
   if (!context) return '';
   return getCachedChatDraft(context.profileId, context.threadId) || '';
 }
 
-/** @param {string | null | undefined} [threadId] */
-export function clearChatDraft(threadId = state.currentThreadId) {
+export function clearChatDraft(threadId: string | null | undefined = state.currentThreadId) {
   const context = draftContext(threadId);
   if (!context) return Promise.resolve();
   return clearStoredChatDraft(context.profileId, context.threadId);
 }
 
-/** @param {string} value @param {boolean} focus */
-function applyChatInputValue(value, focus) {
+function applyChatInputValue(value: unknown, focus: boolean) {
   const input = getChatInput();
   if (!input) return false;
   input.value = String(value || '');
@@ -87,11 +79,7 @@ function applyChatInputValue(value, focus) {
   return true;
 }
 
-/**
- * @param {string} value
- * @param {{ remember?: boolean, focus?: boolean }} [options]
- */
-export function setChatInputValue(value, { remember = true, focus = false } = {}) {
+export function setChatInputValue(value: unknown, { remember = true, focus = false }: { remember?: boolean; focus?: boolean } = {}) {
   draftRestoreRequest += 1;
   const applied = applyChatInputValue(value, focus);
   if (!applied) return false;
@@ -99,11 +87,7 @@ export function setChatInputValue(value, { remember = true, focus = false } = {}
   return true;
 }
 
-/**
- * @param {string | null | undefined} [threadId]
- * @param {{ focus?: boolean }} [options]
- */
-export async function restoreChatDraft(threadId = state.currentThreadId, { focus = false } = {}) {
+export async function restoreChatDraft(threadId: string | null | undefined = state.currentThreadId, { focus = false }: { focus?: boolean } = {}) {
   const context = draftContext(threadId);
   if (!context) return applyChatInputValue('', focus);
   const request = ++draftRestoreRequest;
@@ -115,8 +99,7 @@ export async function restoreChatDraft(threadId = state.currentThreadId, { focus
   return applyChatInputValue(value, focus);
 }
 
-/** @param {{ clearDraft?: boolean, focus?: boolean }} [options] */
-export function resetChatComposer({ clearDraft = true, focus = false } = {}) {
+export function resetChatComposer({ clearDraft = true, focus = false }: { clearDraft?: boolean; focus?: boolean } = {}) {
   if (clearDraft) void clearChatDraft();
   return setChatInputValue('', { remember: false, focus });
 }

@@ -1,9 +1,9 @@
-// @ts-check
 // Pure conversation-list rendering, separate from async storage and actions.
 import { state } from './state.js';
 import { escapeAttr, escapeHTML } from './utils.js';
 import { CHAT_PERSONALITIES } from './constants.js';
 import { getThreadProjectNames } from './chat-thread-search.js';
+import type { ChatThread } from '../types/chat-data.js';
 
 const THREAD_ICON_EDIT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const THREAD_ICON_DELETE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>';
@@ -11,13 +11,12 @@ const THREAD_ICON_MORE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx
 const THREAD_ICON_FOLDER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg>';
 const THREAD_ICON_PIN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 4 6 6-3 1-4 4-1 5-2-2-4 4-1-1 4-4-2-2 5-1 4-4z"/></svg>';
 
-/** @param {string} sort @param {string} [filter] */
-export function renderChatThreadList(sort, filter) {
+export function renderChatThreadList(sort: string, filter?: string) {
   const list = document.getElementById('chat-thread-list');
   if (!list) return;
-  const sortSelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('chat-thread-sort'));
+  const sortSelect = document.getElementById('chat-thread-sort') as HTMLSelectElement | null;
   if (sortSelect) sortSelect.value = sort;
-  const compareThreads = (a, b) => sort === 'name'
+  const compareThreads = (a: ChatThread, b: ChatThread) => sort === 'name'
     ? a.name.localeCompare(b.name)
     : sort === 'oldest'
       ? a.updatedAt.localeCompare(b.updatedAt)
@@ -32,15 +31,15 @@ export function renderChatThreadList(sort, filter) {
       (filter ? 'No matching conversations' : 'No conversations yet') + '</div>';
     return;
   }
-  const personalityMap = {};
+  const personalityMap: Record<string, unknown> = {};
   for (const p of CHAT_PERSONALITIES) personalityMap[p.id] = p.icon;
   const projects = getThreadProjectNames();
 
-  const renderThread = t => {
+  const renderThread = (t: ChatThread) => {
     const isActive = t.id === state.currentThreadId;
     const date = new Date(t.updatedAt);
     const dateStr = formatThreadDate(date);
-    const icon = t.personalityIcon || personalityMap[t.personality] || personalityMap.default || '';
+    const icon = t.personalityIcon || personalityMap[t.personality as string] || personalityMap.default || '';
     const iconTitle = t.personalityName ? ` title="${escapeHTML(t.personalityName)}"` : '';
     const messageCount = Number.isFinite(Number(t.messageCount))
       ? Math.max(0, Math.trunc(Number(t.messageCount)))
@@ -74,7 +73,7 @@ export function renderChatThreadList(sort, filter) {
       </details>
     </div>`;
   };
-  const renderGroup = (title, items, icon = '', projectName = /** @type {string | null} */ (null)) => items.length
+  const renderGroup = (title: string, items: ChatThread[], icon = '', projectName: string | null = null) => items.length
     ? `<section class="chat-thread-group"${projectName !== null ? ` data-chat-project-drop="${escapeAttr(projectName)}"` : ''}><div class="chat-thread-group-title"><span class="chat-thread-group-label">${icon}${escapeHTML(title)}</span>${projectName !== null ? `<details class="chat-project-menu">
         <summary class="chat-project-action" aria-label="Actions for ${escapeAttr(title)}" title="Project actions">${THREAD_ICON_MORE}</summary>
         <div class="chat-project-menu-popover" role="menu">
@@ -89,7 +88,7 @@ export function renderChatThreadList(sort, filter) {
   }
   const pinned = threads.filter(thread => thread.pinned === true);
   const remaining = threads.filter(thread => thread.pinned !== true);
-  const groups = [];
+  const groups: string[] = [];
   groups.push(renderGroup('Pinned', pinned, THREAD_ICON_PIN));
   for (const name of projects) {
     groups.push(renderGroup(name, remaining.filter(thread => thread.projectName === name), THREAD_ICON_FOLDER, name));
@@ -102,7 +101,7 @@ export function renderChatThreadList(sort, filter) {
     today.setHours(0, 0, 0, 0);
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    const updatedTime = thread => {
+    const updatedTime = (thread: ChatThread) => {
       const time = new Date(thread.updatedAt).getTime();
       return Number.isFinite(time) ? time : 0;
     };
@@ -117,7 +116,7 @@ export function renderChatThreadList(sort, filter) {
   list.innerHTML = groups.join('');
 }
 
-function formatThreadDate(date) {
+function formatThreadDate(date: Date) {
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   const mins = Math.floor(diff / 60000);

@@ -1,5 +1,4 @@
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
-// @ts-check
 // startup-profile.js - profile migration, active-profile load, and UI state
 
 import { state } from './state.js';
@@ -19,12 +18,26 @@ import { configureCryptoProfileDeps, encryptedGetItem, encryptedSetItem } from '
 import { ensureImportedArray } from './data-merge.js';
 import { normalizeUnitProfile } from './unit-profiles.js';
 
-const startupProfileDeps = {
-  hydrateNutritionSummary: /** @type {(profileId: string) => Promise<any> | any} */ (async () => {}),
+export interface StartupProfileDependencies {
+  hydrateNutritionSummary: (profileId: typeof state.currentProfile) => unknown;
+}
+export type StartupProfileDependencyRegistry = { [Key in keyof StartupProfileDependencies]: unknown };
+export type StartupProfileDependencyUpdates = Partial<StartupProfileDependencyRegistry>;
+type StartupProfileConfigurer = (
+  current: StartupProfileDependencyRegistry, updates: StartupProfileDependencyUpdates,
+  fields: ReadonlyArray<keyof StartupProfileDependencies>,
+) => StartupProfileDependencyRegistry;
+
+// JSON and injected return values retain their original unvalidated boundaries.
+type ImportedProfileState = { importedData: unknown };
+type ProfileMigrationReader = (data: unknown) => unknown;
+
+const startupProfileDeps: StartupProfileDependencyRegistry = {
+  hydrateNutritionSummary: (async () => {}),
 };
 
-export function configureStartupProfileDeps(deps = {}) {
-  return configureRuntimeFunctions(startupProfileDeps, deps, ["hydrateNutritionSummary"]);
+export function configureStartupProfileDeps(deps: StartupProfileDependencyUpdates = {}) {
+  return (configureRuntimeFunctions as StartupProfileConfigurer)(startupProfileDeps, deps, ["hydrateNutritionSummary"]);
 }
 
 configureCryptoProfileDeps({ migrateProfileData });
@@ -60,8 +73,8 @@ async function migrateLegacyProfileStorage() {
     // the legacy blob is large enough to exceed the localStorage cap.
     let migratedImported = oldImported;
     try {
-      const parsed = JSON.parse(oldImported);
-      migrateProfileData(parsed);
+      const parsed: unknown = JSON.parse(oldImported);
+      (migrateProfileData as ProfileMigrationReader)(parsed);
       migratedImported = JSON.stringify(parsed);
     } catch {
       // Keep original bytes if legacy data is malformed; loadProfile will
@@ -91,19 +104,19 @@ export async function initializeProfileData() {
   const savedImported = await encryptedGetItem(profileStorageKey(state.currentProfile, 'imported'));
   if (savedImported) {
     try {
-      state.importedData = JSON.parse(savedImported);
-      ensureImportedArray(state.importedData, 'notes');
-      migrateProfileData(state.importedData);
+      (state as ImportedProfileState).importedData = JSON.parse(savedImported) as unknown;
+      ensureImportedArray((state as ImportedProfileState).importedData, 'notes');
+      (migrateProfileData as ProfileMigrationReader)((state as ImportedProfileState).importedData);
     } catch (e) {}
   }
   // Empty profiles also need a baseline before the first unsaved edit.
-  rememberProfileData(state.importedData);
+  rememberProfileData((state as ImportedProfileState).importedData);
   // Initial boot uses this path rather than loadProfile; restore before routing.
   await restoreCorrelationWorkspace(state.currentProfile);
   // Profile switches already hydrate this local-only aggregate. Initial boot
   // must do the same before Dashboard/Body render or a hard refresh makes
   // saved meals appear to have vanished until the nutrition editor is opened.
-  try { await startupProfileDeps.hydrateNutritionSummary(state.currentProfile); } catch {
+  try { await (startupProfileDeps.hydrateNutritionSummary as StartupProfileDependencies['hydrateNutritionSummary'])(state.currentProfile); } catch {
     state.nutritionSummary = null;
   }
 }
@@ -118,18 +131,18 @@ export function applyProfileDisplayState() {
   state.profileDob = getProfileDob(state.currentProfile);
 
   document.querySelectorAll('.unit-toggle-btn').forEach(btn => {
-    const toggle = /** @type {HTMLElement} */ (btn);
+    const toggle = (btn as HTMLElement);
     toggle.classList.toggle('active', toggle.dataset.unit === state.unitSystem);
   });
   document.querySelectorAll('.sex-toggle-btn').forEach(btn => {
-    const toggle = /** @type {HTMLElement} */ (btn);
+    const toggle = (btn as HTMLElement);
     toggle.classList.toggle('active', toggle.dataset.sex === state.profileSex);
   });
   document.querySelectorAll('.range-toggle-btn').forEach(btn => {
-    const toggle = /** @type {HTMLElement} */ (btn);
+    const toggle = (btn as HTMLElement);
     toggle.classList.toggle('active', toggle.dataset.range === state.rangeMode);
   });
 
-  const dobInputInit = /** @type {HTMLInputElement | null} */ (document.getElementById('dob-input'));
+  const dobInputInit = (document.getElementById('dob-input') as HTMLInputElement | null);
   if (dobInputInit) dobInputInit.value = state.profileDob || '';
 }

@@ -1,4 +1,3 @@
-// @ts-check
 // chat-context-status.js - Unified AI Context state in the chat header.
 
 import { hasChatResponseBackend } from './chat-backend-selection.js';
@@ -14,9 +13,9 @@ function isGenomeLookupContextActive() {
 }
 
 function getAIContextHeaderState() {
-  const active = [];
-  const pending = [];
-  let knowledgeError = '';
+  const active: unknown[] = [];
+  const pending: string[] = [];
+  let knowledgeError: unknown = '';
   if ((state.importedData?.interpretiveLens || '').trim()) active.push('Lens');
   try {
     const kb = getLensSummary();
@@ -32,13 +31,13 @@ function getAIContextHeaderState() {
   return { active, pending, knowledgeError };
 }
 
-function ensureChatContextStatus(el) {
+function ensureChatContextStatus(el: Element) {
   const parent = el.parentElement;
   if (!parent) return null;
-  let status = parent.querySelector('.chat-context-status');
+  let status = parent.querySelector('.chat-context-status') as HTMLElement | null;
   if (!status) {
     status = document.createElement('button');
-    status.type = 'button';
+    (status as HTMLButtonElement).type = 'button';
     status.className = 'chat-context-status';
     status.addEventListener('click', () => openChatContextModalRuntime());
     parent.appendChild(status);

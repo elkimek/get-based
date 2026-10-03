@@ -1,7 +1,11 @@
-// @ts-check
 // sun-uvdata-config.js - encrypted Sun/UV data source config storage.
 
 import { encryptedGetItem, encryptedSetCredentialItem } from './crypto.js';
+import type { MeteoConfig } from './sun-uvdata-client-types.js';
+
+// A raw save may reread an accessor after its field guard; cache leaves stay opaque.
+export type MeteoConfigReader = { [Key in keyof MeteoConfig]: unknown };
+type ParsedMeteoConfig = Partial<MeteoConfigReader>;
 
 //
 // Storage: meteo config (mode, selfhostUrl, selfhostBearer, privacyRounding)
@@ -24,7 +28,7 @@ let _warnedAboutEmptySelfhost = false;
 // on startup + after every saveMeteoConfig(). Lets the rest of the app
 // keep calling getMeteoConfig() synchronously even though the at-rest
 // representation is AES-GCM-encrypted via encryptedGetItem.
-let _meteoConfigCache = null;
+let _meteoConfigCache: MeteoConfigReader | null = null;
 // Serialize encrypted writes so rapid settings changes cannot finish out of
 // order. The previous durable envelope remains in place until its replacement
 // has been encrypted successfully.
@@ -36,13 +40,13 @@ let _meteoPendingSaves = 0;
 // value bearing `{"__proto__": {...}}` from spoofing config: building a
 // fresh defaultConfig() and assigning known keys means a hostile parsed
 // value can't reach Object.prototype.
-function _buildConfigFromParsed(parsed) {
-  const cfg = defaultConfig();
+function _buildConfigFromParsed(parsed: unknown) {
+  const cfg: MeteoConfigReader = defaultConfig();
   if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-    if (typeof parsed.mode === 'string') cfg.mode = parsed.mode;
-    if (typeof parsed.selfhostUrl === 'string') cfg.selfhostUrl = parsed.selfhostUrl;
-    if (typeof parsed.selfhostBearer === 'string') cfg.selfhostBearer = parsed.selfhostBearer;
-    if (Number.isFinite(parsed.privacyRounding)) cfg.privacyRounding = parsed.privacyRounding;
+    if (typeof (parsed as ParsedMeteoConfig).mode === 'string') cfg.mode = (parsed as ParsedMeteoConfig).mode;
+    if (typeof (parsed as ParsedMeteoConfig).selfhostUrl === 'string') cfg.selfhostUrl = (parsed as ParsedMeteoConfig).selfhostUrl;
+    if (typeof (parsed as ParsedMeteoConfig).selfhostBearer === 'string') cfg.selfhostBearer = (parsed as ParsedMeteoConfig).selfhostBearer;
+    if ((Number.isFinite as (value: unknown) => boolean)((parsed as ParsedMeteoConfig).privacyRounding)) cfg.privacyRounding = (parsed as ParsedMeteoConfig).privacyRounding;
   }
   return cfg;
 }
@@ -50,7 +54,7 @@ function _buildConfigFromParsed(parsed) {
 // Apply runtime migrations + selfhost-empty-URL sanity. Returns a possibly-
 // new config plus a flag indicating whether the persisted record needs
 // rewriting (legacy `cams`/`noaa`/`manual` mode → `auto`).
-function _applyConfigRuntimeFixups(cfg) {
+function _applyConfigRuntimeFixups(cfg: MeteoConfigReader) {
   let needsPersist = false;
   // Migration: older configs may carry removed source modes. Manual UVI was
   // retired because it was easy to mistake an instrument reading for a full
@@ -66,7 +70,7 @@ function _applyConfigRuntimeFixups(cfg) {
   // user expected CAMS quality. Treat as in-memory `auto` for sensible
   // behaviour, warn once per session, leave the persisted record alone
   // (the picker still shows what the user clicked).
-  if (cfg.mode === 'selfhost' && (!cfg.selfhostUrl || cfg.selfhostUrl.trim() === '')) {
+  if (cfg.mode === 'selfhost' && (!cfg.selfhostUrl || (cfg.selfhostUrl as Pick<string, 'trim'>).trim() === '')) {
     if (!_warnedAboutEmptySelfhost) {
       try {
         if (typeof console !== 'undefined' && console.warn) {
@@ -94,7 +98,7 @@ export async function initMeteoConfigCache() {
       _meteoConfigCache = defaultConfig();
       return;
     }
-    let parsed;
+    let parsed: unknown;
     try { parsed = JSON.parse(raw); } catch { _meteoConfigCache = defaultConfig(); return; }
     const cfg = _buildConfigFromParsed(parsed);
     const { needsPersist } = _applyConfigRuntimeFixups(cfg);
@@ -145,7 +149,7 @@ export function getMeteoConfig() {
   // legacy mode was migrated. Tests that use raw localStorage.setItem
   // exercise this branch directly.
   try {
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     const cfg = _buildConfigFromParsed(parsed);
     const { cfg: out, needsPersist } = _applyConfigRuntimeFixups(cfg);
     if (needsPersist) {
@@ -157,7 +161,7 @@ export function getMeteoConfig() {
   }
 }
 
-export function saveMeteoConfig(cfg) {
+export function saveMeteoConfig(cfg: unknown) {
   // Cache update first — keeps the synchronous getMeteoConfig contract
   // working immediately while the encrypted write completes.
   _meteoConfigCache = _buildConfigFromParsed(cfg);
@@ -166,7 +170,7 @@ export function saveMeteoConfig(cfg) {
   const write = _meteoPersistTail.then(() => encryptedSetCredentialItem(STORAGE_KEY, json));
   const result = write.then(
     () => true,
-    error => {
+    (error: unknown) => {
       console.warn('[meteo] secure config persistence failed', error);
       return false;
     },
@@ -178,7 +182,7 @@ export function saveMeteoConfig(cfg) {
   return result;
 }
 
-function defaultConfig() {
+function defaultConfig(): MeteoConfig {
   return {
     // 'auto'       — narrow CAMS relay + browser-direct Open-Meteo fallback
     // 'open-meteo' — browser-direct Open-Meteo

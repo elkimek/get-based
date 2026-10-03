@@ -1,14 +1,11 @@
-// @ts-check
 // chat-recommendation-disclosure.js — progressive recommendation discovery.
 
-/** @param {unknown} value */
-function uniqueSlots(value) {
+function uniqueSlots(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
-  return [...new Set(value.filter(slot => typeof slot === 'string' && slot))];
+  return [...new Set((value as unknown[]).filter(slot => typeof slot === 'string' && slot))] as string[];
 }
 
-/** @param {string[]} left @param {string[]} right */
-function haveSameSlots(left, right) {
+function haveSameSlots(left: readonly string[], right: readonly string[]) {
   if (left.length !== right.length) return false;
   const rightSlots = new Set(right);
   return left.every(slot => rightSlots.has(slot));
@@ -18,16 +15,13 @@ function haveSameSlots(left, right) {
  * Keep recommendation disclosures collapsed. The first set receives a New
  * cue for discovery; later sets receive it only when their recommendation
  * areas differ from the previous set.
- * @param {any[]} history
- * @param {unknown} slots
- * @param {any} [currentMessage]
  */
-export function getRecommendationDisclosureState(history, slots, currentMessage) {
+export function getRecommendationDisclosureState(history: Iterable<unknown>, slots: unknown, currentMessage?: unknown) {
   const nextSlots = uniqueSlots(slots);
   const previousMessage = [...history].reverse().find(message =>
-    message !== currentMessage && uniqueSlots(message?.recSlots).length > 0
+    message !== currentMessage && uniqueSlots((message as { recSlots?: unknown } | null | undefined)?.recSlots).length > 0
   );
-  const previousSlots = uniqueSlots(previousMessage?.recSlots);
+  const previousSlots = uniqueSlots((previousMessage as { recSlots?: unknown } | null | undefined)?.recSlots);
   return {
     count: nextSlots.length,
     open: false,
@@ -35,8 +29,7 @@ export function getRecommendationDisclosureState(history, slots, currentMessage)
   };
 }
 
-/** @param {number} count @param {boolean} [isNew] */
-export function recommendationSummaryHTML(count, isNew = false) {
+export function recommendationSummaryHTML(count: unknown, isNew: unknown = false) {
   const safeCount = Math.max(0, Math.trunc(Number(count) || 0));
   const noun = safeCount === 1 ? 'suggestion' : 'suggestions';
   const newBadge = isNew ? '<span class="rec-chat-new">New</span>' : '';
@@ -46,9 +39,8 @@ export function recommendationSummaryHTML(count, isNew = false) {
 /**
  * Start the finite attention animation once the newly inserted CTA is
  * actually visible. This is called only for live responses, never restores.
- * @param {HTMLDetailsElement} wrapper
  */
-export function startRecommendationAttention(wrapper) {
+export function startRecommendationAttention(wrapper: Element) {
   if (!wrapper.classList.contains('rec-chat-unseen')) return;
   const summary = wrapper.querySelector('.rec-chat-summary');
   if (!summary) return;

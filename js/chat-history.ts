@@ -1,7 +1,7 @@
-// @ts-check
 // chat-history.js - thread-aware chat history persistence and clearing
 
 import { state } from './state.js';
+import type { ChatThread } from '../types/chat-data.js';
 import { encryptedSetItem, encryptedGetItem } from './crypto.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItems } from './data-merge.js';
@@ -15,23 +15,22 @@ import { getActivePersonality, updateChatHeaderTitle } from './chat-personalitie
 import { renderChatMessagesRuntime, updateDiscussButtonRuntime } from './chat-runtime.js';
 import { normalizeChatMessages } from './chat-storage-safety.js';
 
-const blockedChatHistoryKeys = new Set();
-const notifiedChatHistoryKeys = new Set();
+const blockedChatHistoryKeys = new Set<string>();
+const notifiedChatHistoryKeys = new Set<string>();
 let historyLoadRevision = 0;
-/** @type {Map<string, Promise<boolean>>} */
-const pendingHistoryWrites = new Map();
-const clearingHistoryKeys = new Set();
+const pendingHistoryWrites = new Map<string, Promise<boolean>>();
+const clearingHistoryKeys = new Set<string>();
 
-function clearChatHistoryWriteBlock(key) {
+function clearChatHistoryWriteBlock(key: string) {
   blockedChatHistoryKeys.delete(key);
   notifiedChatHistoryKeys.delete(key);
 }
 
-function blockChatHistoryWrites(key) {
+function blockChatHistoryWrites(key: string) {
   blockedChatHistoryKeys.add(key);
 }
 
-function notifyChatHistoryBlocked(key) {
+function notifyChatHistoryBlocked(key: string) {
   if (notifiedChatHistoryKeys.has(key)) return;
   notifiedChatHistoryKeys.add(key);
   showNotification("Can't read this conversation. Saving is paused to protect its messages.", 'error', 7000);
@@ -80,7 +79,7 @@ export async function loadChatHistory() {
     const stored = await encryptedGetItem(key);
     if (!isCurrent()) return false;
     if (stored === null) throw new Error();
-    const parsed = JSON.parse(stored);
+    const parsed: unknown = JSON.parse(stored);
     if (!Array.isArray(parsed)) throw new Error();
     state.chatHistory = normalizeChatMessages(parsed);
     clearChatHistoryWriteBlock(key);
@@ -111,11 +110,11 @@ export async function saveChatHistory() {
   const saving = (async () => {
     let committed = false;
     let bodyWritten = false;
-    let previousRaw = null;
-    let writtenRaw = null;
-    let thread = null;
-    const previousMetadata = {};
-    const writtenMetadata = {};
+    let previousRaw: string | null = null;
+    let writtenRaw: string | null = null;
+    let thread: ChatThread | null | undefined = null;
+    const previousMetadata: Record<string, unknown> = {};
+    const writtenMetadata: Record<string, unknown> = {};
     try {
       if (previous) await previous;
       if (!isCurrent()) return false;

@@ -1,5 +1,6 @@
-// @ts-check
 // chat-personalities.js - chat personality selection, custom personas, and header status
+
+import type { PersonaEditorLocation } from './chat-personality-editor.js';
 
 import { state } from './state.js';
 import { CHAT_PERSONALITIES } from './constants.js';
@@ -45,13 +46,13 @@ const CHAT_PERSONALITY_INPUT_ATTR = 'data-chat-personality-input';
 const CHAT_PERSONALITY_ID_ATTR = 'data-chat-personality-id';
 const CHAT_PERSONALITY_ACTION_SELECTOR = `[${CHAT_PERSONALITY_ACTION_ATTR}]`;
 const CHAT_PERSONALITY_INPUT_SELECTOR = `[${CHAT_PERSONALITY_INPUT_ATTR}]`;
-const chatPersonalityDelegateRoots = new WeakSet();
+const chatPersonalityDelegateRoots = new WeakSet<Pick<Document, 'addEventListener'>>();
 
-function chatPersonalityAttrName(name) {
+function chatPersonalityAttrName(name: unknown) {
   return String(name).replace(/[A-Z]/g, char => `-${char.toLowerCase()}`);
 }
 
-function chatPersonalityAttrs(kind, action, attrs = {}) {
+function chatPersonalityAttrs(kind: string, action: unknown, attrs: Record<string, unknown> = {}) {
   let html = `data-chat-personality-${kind}="${escapeAttr(action)}"`;
   for (const [name, value] of Object.entries(attrs)) {
     if (value === undefined || value === null || value === false) continue;
@@ -60,30 +61,28 @@ function chatPersonalityAttrs(kind, action, attrs = {}) {
   return html;
 }
 
-export function chatPersonalityActionAttrs(action, attrs = {}) {
+export function chatPersonalityActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   return chatPersonalityAttrs('action', action, attrs);
 }
 
-export function chatPersonalityInputAttrs(action, attrs = {}) {
+export function chatPersonalityInputAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   return chatPersonalityAttrs('input', action, attrs);
 }
 
-function closestChatPersonalityElement(target, selector) {
-  return /** @type {HTMLElement | null} */ (
-    target && typeof target.closest === 'function' ? target.closest(selector) : null
-  );
+function closestChatPersonalityElement(target: unknown, selector: string) {
+  return (target && typeof (target as { closest?: unknown }).closest === 'function' ? (target as { closest(selector: string): HTMLElement | null }).closest(selector) : null as HTMLElement | null);
 }
 
-function rootContains(root, el) {
-  return !!(root && typeof root.contains === 'function' && root.contains(el));
+function rootContains(root: unknown, el: Node) {
+  return !!(root && typeof (root as { contains?: unknown }).contains === 'function' && (root as { contains(el: Node): unknown }).contains(el));
 }
 
-function containPersonalityClick(event) {
+function containPersonalityClick(event: Event) {
   event.stopPropagation();
   if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
 }
 
-function handleChatPersonalityClick(event) {
+function handleChatPersonalityClick(event: Event) {
   const actionEl = closestChatPersonalityElement(event.target, CHAT_PERSONALITY_ACTION_SELECTOR);
   if (!actionEl || !rootContains(event.currentTarget, actionEl)) return;
   const action = actionEl.getAttribute(CHAT_PERSONALITY_ACTION_ATTR);
@@ -106,7 +105,7 @@ function handleChatPersonalityClick(event) {
   }
 }
 
-function handleChatPersonalityInput(event) {
+function handleChatPersonalityInput(event: Event) {
   const actionEl = closestChatPersonalityElement(event.target, CHAT_PERSONALITY_INPUT_SELECTOR);
   if (!actionEl || !rootContains(event.currentTarget, actionEl)) return;
   const action = actionEl.getAttribute(CHAT_PERSONALITY_INPUT_ATTR);
@@ -118,7 +117,7 @@ function handleChatPersonalityInput(event) {
   }
 }
 
-function handlePersonalityDismiss(event) {
+function handlePersonalityDismiss(event: Event) {
   const bar = document.querySelector('.chat-personality-bar');
   if (!bar?.classList.contains('open')) return;
   const target = event.target;
@@ -132,7 +131,7 @@ function handlePersonalityDismiss(event) {
   document.querySelector('.chat-personality-current')?.setAttribute('aria-expanded', 'false');
 }
 
-function handlePersonalityEscape(event) {
+function handlePersonalityEscape(event: KeyboardEvent) {
   if (event.key !== 'Escape') return;
   const bar = document.querySelector('.chat-personality-bar');
   if (!bar?.classList.contains('open')) return;
@@ -142,16 +141,16 @@ function handlePersonalityEscape(event) {
       if (!discard) return;
       bar.classList.remove('open');
       document.querySelector('.chat-personality-current')?.setAttribute('aria-expanded', 'false');
-      /** @type {HTMLElement | null} */ (document.querySelector('.chat-personality-current'))?.focus();
+      (document.querySelector('.chat-personality-current') as HTMLElement | null)?.focus();
     });
     return;
   }
   bar.classList.remove('open');
   document.querySelector('.chat-personality-current')?.setAttribute('aria-expanded', 'false');
-  /** @type {HTMLElement | null} */ (document.querySelector('.chat-personality-current'))?.focus();
+  (document.querySelector('.chat-personality-current') as HTMLElement | null)?.focus();
 }
 
-export function installChatPersonalityActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+export function installChatPersonalityActionDelegates(root: Pick<Document, 'addEventListener'> | null = typeof document !== 'undefined' ? document : null) {
   if (!root || chatPersonalityDelegateRoots.has(root)) return;
   chatPersonalityDelegateRoots.add(root);
   root.addEventListener('click', handleChatPersonalityClick);
@@ -162,31 +161,27 @@ export function installChatPersonalityActionDelegates(root = typeof document !==
 
 installChatPersonalityActionDelegates();
 
-/** @param {string} id */
-function textControlById(id) {
-  return /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(id));
+function textControlById(id: string) {
+  return (document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null);
 }
 
-/** @param {string} selector */
-function textareaBySelector(selector) {
-  return /** @type {HTMLTextAreaElement | null} */ (document.querySelector(selector));
+function textareaBySelector(selector: string) {
+  return (document.querySelector(selector) as HTMLTextAreaElement | null);
 }
 
-/** @param {string} selector */
-function buttonBySelector(selector) {
-  return /** @type {HTMLButtonElement | null} */ (document.querySelector(selector));
+function buttonBySelector(selector: string) {
+  return (document.querySelector(selector) as HTMLButtonElement | null);
 }
 
-/** @param {string} id */
-function buttonById(id) {
-  return /** @type {HTMLButtonElement | null} */ (document.getElementById(id));
+function buttonById(id: string) {
+  return (document.getElementById(id) as HTMLButtonElement | null);
 }
 
-export function pickPersonaIcon(name) {
+export function pickPersonaIcon(name: string | null | undefined) {
   if (!name || !name.trim()) return '✏️';
   let hash = 5381;
   for (let i = 0; i < name.length; i++) hash = ((hash << 5) + hash) + name.charCodeAt(i);
-  return PERSONA_ICONS[Math.abs(hash) % PERSONA_ICONS.length];
+  return PERSONA_ICONS[Math.abs(hash) % PERSONA_ICONS.length]!;
 }
 
 export function getCustomPersonalities() { return getCachedCustomPersonalities(); }
@@ -195,7 +190,7 @@ export function loadCustomPersonalities() {
   return loadCustomPersonalitiesFromStorage();
 }
 
-export async function saveCustomPersonalities(arr) {
+export async function saveCustomPersonalities(arr: unknown) {
   const saved = await saveCustomPersonalitiesToStorage(arr);
   notifyCustomPersonalitySavedRuntime();
   return saved;
@@ -229,14 +224,14 @@ export function getActivePersonality() {
       };
     }
   }
-  return CHAT_PERSONALITIES.find(p => p.id === state.currentChatPersonality) || CHAT_PERSONALITIES[0];
+  return CHAT_PERSONALITIES.find(p => p.id === state.currentChatPersonality) || CHAT_PERSONALITIES[0]!;
 }
 
 export function getCustomPersonalityText() {
   return getCustomPersonality().promptText;
 }
 
-export async function setChatPersonality(id, opts = {}) {
+export async function setChatPersonality(id: string, opts: { locationLike?: PersonaEditorLocation | null; keepPickerOpen?: unknown } = {}) {
   const prev = state.currentChatPersonality;
   if (isPersonalityDirty() && !(await confirmDiscardPersonalityChanges())) return;
   if (id.startsWith('custom_')) {
@@ -294,8 +289,8 @@ export function loadChatPersonality() {
   if (saved === 'custom') {
     const customs = getCustomPersonalities();
     if (customs.length > 0) {
-      state.currentChatPersonality = customs[0].id;
-      localStorage.setItem(`labcharts-${state.currentProfile}-chatPersonality`, customs[0].id);
+      state.currentChatPersonality = customs[0]!.id;
+      localStorage.setItem(`labcharts-${state.currentProfile}-chatPersonality`, customs[0]!.id);
       return;
     }
   }
@@ -303,9 +298,9 @@ export function loadChatPersonality() {
 }
 
 export function updateChatHeaderTitle() {
-  const el = /** @type {HTMLElement | null} */ (document.querySelector('.chat-header-title'));
+  const el = (document.querySelector('.chat-header-title') as HTMLElement | null);
   if (!el) return;
-  const names = [];
+  const names: string[] = [];
   const seen = new Set();
   for (const m of state.chatHistory) {
     if (m.role === 'assistant' && m.personalityName && !seen.has(m.personalityName)) {
@@ -379,7 +374,7 @@ export function updatePersonalityBar() {
     if (name) name.textContent = p.name;
   }
   document.querySelectorAll('.chat-personality-opt[data-personality="default"], .chat-personality-opt[data-personality="house"]').forEach(btn => {
-    const option = /** @type {HTMLElement} */ (btn);
+    const option = (btn as HTMLElement);
     option.classList.toggle('active', option.dataset.personality === state.currentChatPersonality);
   });
   const section = document.getElementById('chat-personality-custom-section');
@@ -430,9 +425,9 @@ export function togglePersonalityBar() {
   }
 }
 
-let _editingPersonalityId = null;
-let _generatedPersonaIcon = null;
-let _personaCleanState = null;
+let _editingPersonalityId: string | null = null;
+let _generatedPersonaIcon: string | null = null;
+let _personaCleanState: ReturnType<typeof _getPersonaCurrentState> | null = null;
 const PERSONALITY_EDITOR_OVERLAY_ID = 'chat-personality-editor-overlay';
 
 function closePersonalityPicker() {
@@ -442,7 +437,7 @@ function closePersonalityPicker() {
 
 function showPersonalityPickerAfterEditor(personalityId = '') {
   const bar = document.querySelector('.chat-personality-bar');
-  const trigger = /** @type {HTMLElement | null} */ (document.querySelector('.chat-personality-current'));
+  const trigger = (document.querySelector('.chat-personality-current') as HTMLElement | null);
   if (!bar || !trigger) return;
   bar.classList.add('open');
   trigger.setAttribute('aria-expanded', 'true');
@@ -450,7 +445,7 @@ function showPersonalityPickerAfterEditor(personalityId = '') {
     const target = personalityId
       ? document.querySelector(`.chat-personality-opt[data-personality="${CSS.escape(personalityId)}"]`)
       : document.querySelector('.chat-personality-add-btn');
-    /** @type {HTMLElement | null} */ (target)?.focus();
+    (target as HTMLElement | null)?.focus();
   });
 }
 
@@ -462,10 +457,10 @@ function closePersonalityEditor({ returnToPicker = true, personalityId = '' } = 
   _personaCleanState = null;
   updatePersonalityBar();
   if (returnToPicker) showPersonalityPickerAfterEditor(personalityId);
-  else /** @type {HTMLElement | null} */ (document.querySelector('.chat-personality-current'))?.focus();
+  else (document.querySelector('.chat-personality-current') as HTMLElement | null)?.focus();
 }
 
-function openPersonalityEditor(id, locationLike = globalThis.location) {
+function openPersonalityEditor(id: string, locationLike: PersonaEditorLocation | null | undefined = globalThis.location) {
   document.getElementById(PERSONALITY_EDITOR_OVERLAY_ID)?.remove();
   const isNew = id === 'new';
   const personality = isNew ? null : getCustomPersonalities().find(item => item.id === id);
@@ -476,7 +471,7 @@ function openPersonalityEditor(id, locationLike = globalThis.location) {
   closePersonalityPicker();
   openPersonaEditorDialog({
     isNew,
-    personality,
+    personality: personality!,
     locationLike,
     actionAttrs: chatPersonalityActionAttrs,
     inputAttrs: chatPersonalityInputAttrs,
@@ -557,19 +552,19 @@ export async function saveCustomPersonality() {
     return;
   }
   const editorOverlay = document.getElementById(PERSONALITY_EDITOR_OVERLAY_ID);
-  const personaAgreement = /** @type {import('./chat-storage-safety.js').StoredCustomPersonality['personaAgreement'] | null} */ (buildPersonaAgreementRecord(editorOverlay));
+  const personaAgreement = (buildPersonaAgreementRecord(editorOverlay));
   const customs = getCustomPersonalities();
   const now = new Date().toISOString();
-  let id;
+  let id: string;
   if (_editingPersonalityId && _editingPersonalityId !== 'new') {
     id = _editingPersonalityId;
     const idx = customs.findIndex(p => p.id === id);
     if (idx >= 0) customs[idx] = {
-      ...customs[idx],
+      ...customs[idx]!,
       name,
       icon,
       promptText,
-      createdAt: customs[idx].createdAt || now,
+      createdAt: customs[idx]!.createdAt || now,
       updatedAt: now,
       ...(personaAgreement ? { personaAgreement } : {}),
     };
@@ -608,7 +603,7 @@ export async function saveCustomPersonality() {
   showNotification('Custom personality saved', 'success');
 }
 
-export function startNewCustomPersonality(locationLike = globalThis.location) {
+export function startNewCustomPersonality(locationLike: PersonaEditorLocation | null | undefined = globalThis.location) {
   const openEditor = () => openPersonalityEditor('new', locationLike);
   if (isPersonalityDirty()) {
     void confirmDiscardPersonalityChanges().then(discard => { if (discard) openEditor(); });
@@ -617,7 +612,7 @@ export function startNewCustomPersonality(locationLike = globalThis.location) {
   }
 }
 
-export function editCustomPersonality(id, locationLike = globalThis.location) {
+export function editCustomPersonality(id: string, locationLike: PersonaEditorLocation | null | undefined = globalThis.location) {
   const openEditor = () => openPersonalityEditor(id, locationLike);
   if (isPersonalityDirty()) {
     void confirmDiscardPersonalityChanges().then(discard => { if (discard) openEditor(); });
@@ -631,7 +626,7 @@ export async function cancelCustomPersonalityEditor() {
   closePersonalityEditor();
 }
 
-export async function deleteCustomPersonality(id) {
+export async function deleteCustomPersonality(id: string) {
   const customs = getCustomPersonalities();
   const cp = customs.find(p => p.id === id);
   const name = cp ? cp.name : 'personality';
@@ -651,7 +646,7 @@ export async function deleteCustomPersonality(id) {
       const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
       if (thread) {
         thread.personality = 'default';
-        const fallback = CHAT_PERSONALITIES.find(p => p.id === 'default') || CHAT_PERSONALITIES[0];
+        const fallback = CHAT_PERSONALITIES.find(p => p.id === 'default') || CHAT_PERSONALITIES[0]!;
         thread.personalityName = fallback?.name || 'Default';
         thread.personalityIcon = fallback?.icon || '';
         void saveChatThreadIndex();
@@ -714,22 +709,22 @@ IMPORTANT: On the very first line, output ONLY a single emoji that best captures
         textarea.value = text;
         autoResizePersonaTextarea();
       }
-    });
-    const lines = text.split('\n');
-    const firstLine = lines[0].trim();
+    }) as { text: unknown };
+    const lines = (text as { split(separator: string): string[] }).split('\n');
+    const firstLine = lines[0]!.trim();
     const emojiMatch = firstLine.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?(\u200D(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?))*)/u);
     if (emojiMatch && emojiMatch[0] && firstLine.length <= 4) {
       _generatedPersonaIcon = emojiMatch[0];
       const rest = lines.slice(1).join('\n').replace(/^\n+/, '');
       textarea.value = rest;
     } else {
-      textarea.value = text;
+      (textarea as { value: unknown }).value = text;
     }
     autoResizePersonaTextarea();
     markPersonalityDirty();
     textarea.placeholder = 'Describe how you want the AI to communicate, or enter a name above and generate a draft...';
   } catch (err) {
-    const error = /** @type {Error} */ (err);
+    const error = err as { message?: unknown };
     textarea.placeholder = 'Describe how you want the AI to communicate, or enter a name above and generate a draft...';
     textarea.value = previousText;
     autoResizePersonaTextarea();

@@ -1,4 +1,3 @@
-// @ts-check
 // chat-summaries.js - conversation summary generation, storage, and modal actions
 
 import { getErrorMessage, getErrorName } from './caught-error.js';
@@ -25,6 +24,31 @@ import {
 import { createUniqueId } from './unique-id.js';
 import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 
+// Unvalidated persisted summary leaves and AI response extensions stay opaque.
+interface SummaryMessageReader { role?: unknown; content?: unknown; personalityName?: unknown }
+interface SavedSummaryReader extends Record<string, unknown> {
+  id?: unknown; threadId?: unknown; threadName?: unknown; content?: unknown;
+  createdAt?: unknown; model?: unknown; attribution?: unknown; cost?: unknown;
+}
+interface GeneratedSavedSummary extends SavedSummaryReader {
+  threadId: (typeof state.chatThreads)[number]['id'];
+  threadName: (typeof state.chatThreads)[number]['name'];
+  createdAt: ReturnType<Date['toISOString']>;
+  model: ReturnType<typeof getAssistantFeatureIdentity>['modelDisplay'];
+  attribution: ReturnType<typeof getAIOutputAttribution>;
+  content: unknown;
+  cost: SummaryUsageReader | null;
+}
+interface SummaryThreadReader extends Record<string, unknown> {
+  name?: unknown; summaryDate?: unknown; summaryModel?: unknown;
+  summaryAttribution?: unknown; summaryCost?: unknown; _savedId?: unknown;
+}
+interface SummaryUsageReader { provider?: unknown; modelId?: unknown; modelDisplay?: unknown; inputTokens?: unknown; outputTokens?: unknown }
+interface ActiveSummaryReader { content: unknown; name: unknown; date: unknown; model: unknown; attribution: string }
+// This local rendering projection describes the original unchecked Date operation,
+// not a normalized storage record. Malformed imported values keep original errors.
+type SummaryDateRenderReader = Omit<SavedSummaryReader, 'createdAt'> & { createdAt: ConstructorParameters<typeof Date>[0] };
+
 const SUMMARY_PROMPT = `You are a concise medical note-taker. Summarize this health consultation into a structured note.
 
 FORMAT (use these exact headings):
@@ -43,17 +67,17 @@ RULES:
 - Skip pleasantries and meta-discussion, extract only substance
 - If the conversation is too short or trivial, say so in one line`;
 
-let _summaryAbortController = null;
-let _activeSummary = null;
+let _summaryAbortController: AbortController | null = null;
+let _activeSummary: ActiveSummaryReader | null = null;
 
-function _contentToText(content) {
+function _contentToText(content: unknown) {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
-    return content.map(part => {
+    return (content as unknown[]).map(part => {
       if (!part) return '';
       if (typeof part === 'string') return part;
-      if (part.type === 'text') return part.text || '';
-      if (part.type === 'image_url' || part.type === 'image') return '[image attached]';
+      if ((part as { type?: unknown }).type === 'text') return (part as { text?: unknown }).text || '';
+      if ((part as { type?: unknown }).type === 'image_url' || (part as { type?: unknown }).type === 'image') return '[image attached]';
       return '';
     }).filter(Boolean).join('\n');
   }
@@ -61,8 +85,8 @@ function _contentToText(content) {
   return String(content);
 }
 
-export function buildSummaryTranscript(history = []) {
-  const chunks = [];
+export function buildSummaryTranscript(history: readonly (SummaryMessageReader | null | undefined)[] = []) {
+  const chunks: string[] = [];
   for (const msg of history) {
     if (!msg || (msg.role !== 'user' && msg.role !== 'assistant')) continue;
     const content = _contentToText(msg.content).trim();
@@ -144,17 +168,16 @@ async function _generateSummary() {
           body.scrollTop = body.scrollHeight;
         }
       }
-    });
+    }) as { text: unknown; usage?: unknown };
     if (!isCurrent()) return;
 
-    const costInfo = usage && !identity.subscription ? { provider: _provider, modelId: _modelId, modelDisplay: _modelDisplay, inputTokens: usage.inputTokens, outputTokens: usage.outputTokens } : null;
+    const costInfo = usage && !identity.subscription ? { provider: _provider, modelId: _modelId, modelDisplay: _modelDisplay, inputTokens: (usage as SummaryUsageReader).inputTokens, outputTokens: (usage as SummaryUsageReader).outputTokens } : null;
     const now = new Date().toISOString();
-    /** @type {Array<[string, unknown]>} */
-    const previous = ['summary', 'summaryDate', 'summaryModel', 'summaryCost'].map(key => [key, thread[key]]);
-    thread.summary = text;
+    const previous: Array<[string, unknown]> = ['summary', 'summaryDate', 'summaryModel', 'summaryCost'].map(key => [key, thread[key]]);
+    (thread as { summary?: unknown }).summary = text;
     thread.summaryDate = now;
     thread.summaryModel = _modelDisplay;
-    if (costInfo) thread.summaryCost = costInfo;
+    if (costInfo) (thread as { summaryCost?: unknown }).summaryCost = costInfo;
     if (!await saveChatThreadIndex()) {
       if (isCurrent()) for (const [key, value] of previous) {
         if (value === undefined) delete thread[key];
@@ -198,15 +221,16 @@ async function _generateSummary() {
   }
 }
 
+// Array/row readers describe unchecked consumer operations, never validation.
 function _getSavedSummaries() {
-  return (state.importedData.chatSummaries || []);
+  return (state.importedData.chatSummaries || []) as SavedSummaryReader[];
 }
 
-async function _saveSummaryToProfile(summary) {
-  const summaries = ensureImportedArray(state.importedData, 'chatSummaries');
+async function _saveSummaryToProfile(summary: GeneratedSavedSummary) {
+  const summaries = ensureImportedArray(state.importedData, 'chatSummaries') as SavedSummaryReader[];
   const idx = summaries.findIndex(s => s.threadId === summary.threadId);
   if (idx >= 0) {
-    summary.id = summaries[idx].id;
+    summary.id = summaries[idx]!.id;
     replaceImportedArrayItem(state.importedData, 'chatSummaries', idx, summary);
   } else {
     appendImportedArrayItem(state.importedData, 'chatSummaries', summary);
@@ -214,14 +238,14 @@ async function _saveSummaryToProfile(summary) {
   await saveImportedData();
 }
 
-function _getLatestSavedSummary(threadId) {
+function _getLatestSavedSummary(threadId: unknown) {
   return _getSavedSummaries().find(s => s.threadId === threadId);
 }
 
-function refreshOpenSummaryModalOnSync({ itemId: id = '' } = {}) {
+function refreshOpenSummaryModalOnSync({ itemId: id = '' }: { itemId?: unknown } = {}) {
   renderSavedSummaries();
   if (!id) return;
-  const summary = _getSavedSummaries().find(s => s.id === id);
+  const summary = _getSavedSummaries().find((s: unknown) => (s as SavedSummaryReader).id === id);
   if (summary) {
     viewSavedSummary(id);
   } else {
@@ -240,17 +264,17 @@ if (typeof window !== 'undefined') {
   });
 }
 
-export async function deleteSavedSummary(id) {
+export async function deleteSavedSummary(id: unknown) {
   if (!state.importedData.chatSummaries) return;
-  deleteImportedArrayItems(state.importedData, 'chatSummaries', s => s.id === id);
+  deleteImportedArrayItems(state.importedData, 'chatSummaries', (s: unknown) => (s as SavedSummaryReader).id === id);
   await saveImportedData();
   renderSavedSummaries();
   _closeSummaryModal();
   showNotification('Summary deleted', 'info');
 }
 
-export function viewSavedSummary(id) {
-  const s = _getSavedSummaries().find(s => s.id === id);
+export function viewSavedSummary(id: unknown) {
+  const s = _getSavedSummaries().find((s: unknown) => (s as SavedSummaryReader).id === id);
   if (!s) return;
   _showSummaryModal(s.content, {
     name: s.threadName,
@@ -266,7 +290,7 @@ export function viewSavedSummary(id) {
 export function renderSavedSummaries() {
   const container = document.getElementById('chat-saved-summaries');
   if (!container) return;
-  const summaries = _getSavedSummaries().slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const summaries = (_getSavedSummaries() as SummaryDateRenderReader[]).slice().sort((a, b) => (b.createdAt as { localeCompare(value: unknown): number }).localeCompare(a.createdAt));
   if (summaries.length === 0) {
     container.innerHTML = '';
     return;
@@ -282,13 +306,7 @@ export function renderSavedSummaries() {
     }).join('');
 }
 
-/**
- * @param {string | null} summaryText
- * @param {any} thread
- * @param {boolean} [loading]
- * @param {{ provider: string, modelId: any, modelDisplay: any, inputTokens: any, outputTokens: any } | null} [usageInfo]
- */
-function _showSummaryModal(summaryText, thread, loading = false, usageInfo = null) {
+function _showSummaryModal(summaryText: unknown, thread: SummaryThreadReader | null | undefined, loading = false, usageInfo: SummaryUsageReader | null = null) {
   _activeSummary = summaryText ? {
     content: summaryText,
     name: thread?.name,
@@ -312,17 +330,17 @@ function _showSummaryModal(summaryText, thread, loading = false, usageInfo = nul
     overlay.className = 'modal-overlay';
   }
   overlay.dataset.syncRefreshKind = 'chat-summary';
-  overlay.dataset.syncRefreshSummaryId = thread?._savedId || '';
+  (overlay.dataset as Record<string, unknown>).syncRefreshSummaryId = thread?._savedId || '';
 
   const threadName = thread ? escapeHTML(thread.name) : 'Conversation';
-  const dateStr = thread?.summaryDate ? new Date(thread.summaryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  const dateStr = thread?.summaryDate ? new Date(thread.summaryDate as ConstructorParameters<typeof Date>[0]).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
   const modelStr = thread?.summaryModel ? ` \u00b7 ${escapeHTML(thread.summaryModel)}` : '';
 
   let costLine = '';
-  const ui = usageInfo || thread?.summaryCost;
-  if (ui && ui.modelDisplay && !shouldHideAppExtensionAIUsage(ui.provider)) {
-    const cost = calculateCost(ui.provider, ui.modelId, ui.inputTokens, ui.outputTokens);
-    const totalTokens = (ui.inputTokens || 0) + (ui.outputTokens || 0);
+  const ui = (usageInfo || thread?.summaryCost) as SummaryUsageReader | null | undefined;
+  if (ui && ui.modelDisplay && !(shouldHideAppExtensionAIUsage as (provider: unknown) => ReturnType<typeof shouldHideAppExtensionAIUsage>)(ui.provider)) {
+    const cost = (calculateCost as (provider: unknown, modelId: unknown, inputTokens: unknown, outputTokens: unknown) => ReturnType<typeof calculateCost>)(ui.provider, ui.modelId, ui.inputTokens, ui.outputTokens);
+    const totalTokens = ((ui.inputTokens || 0) as number) + ((ui.outputTokens || 0) as number);
     costLine = ` \u00b7 ${escapeHTML(formatCost(cost))} \u00b7 ${totalTokens.toLocaleString()} tokens`;
   }
 
@@ -373,7 +391,7 @@ export function copySummary() {
   const text = _activeSummary.attribution
     ? `${_activeSummary.content}\n\n${_activeSummary.attribution}`
     : _activeSummary.content;
-  navigator.clipboard.writeText(text).then(() => {
+  (navigator.clipboard.writeText as (text: unknown) => ReturnType<typeof navigator.clipboard.writeText>)(text).then(() => {
     showNotification('Summary copied to clipboard', 'info');
   });
 }
@@ -381,8 +399,8 @@ export function copySummary() {
 export function downloadSummary() {
   if (!_activeSummary?.content) return;
   const name = _activeSummary.name || 'summary';
-  const filename = name.replace(/[^a-zA-Z0-9_-]/g, '_') + '_summary.md';
-  const dateLine = _activeSummary.date ? `_Summarized ${new Date(_activeSummary.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}${_activeSummary.model ? ' \u00b7 ' + _activeSummary.model : ''}_` : '';
+  const filename = (name as { replace(pattern: RegExp, replacement: string): unknown }).replace(/[^a-zA-Z0-9_-]/g, '_') + '_summary.md';
+  const dateLine = _activeSummary.date ? `_Summarized ${new Date(_activeSummary.date as ConstructorParameters<typeof Date>[0]).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}${_activeSummary.model ? ' \u00b7 ' + _activeSummary.model : ''}_` : '';
   const header = `# ${name}\n\n${dateLine}\n\n---\n\n`;
   const attribution = _activeSummary.attribution ? `\n\n${_activeSummary.attribution}` : '';
   const blob = new Blob([header + _activeSummary.content + attribution], { type: 'text/markdown' });
@@ -399,7 +417,7 @@ export function printSummary() {
   const html = renderMarkdown(_activeSummary.content);
   const attribution = _activeSummary.attribution
     ? `<p class="attribution">${escapeHTML(_activeSummary.attribution)}</p>` : '';
-  const dateLine = _activeSummary.date ? `Summarized ${new Date(_activeSummary.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}${_activeSummary.model ? ' \u00b7 ' + escapeHTML(_activeSummary.model) : ''}` : '';
+  const dateLine = _activeSummary.date ? `Summarized ${new Date(_activeSummary.date as ConstructorParameters<typeof Date>[0]).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}${_activeSummary.model ? ' \u00b7 ' + escapeHTML(_activeSummary.model) : ''}` : '';
   const w = openUtilsRuntimeWindow('', '_blank');
   if (!w) { showNotification('Popup blocked \u2014 allow popups for this site', 'error'); return; }
   w.document.write(`<!DOCTYPE html><html><head><title>${escapeHTML(name)} - Summary</title>

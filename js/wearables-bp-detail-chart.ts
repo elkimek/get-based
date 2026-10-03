@@ -1,4 +1,3 @@
-// @ts-check
 
 import { state } from './state.js';
 import { adapterById, isMetricValueMeaningful } from './wearable-adapters.js';
@@ -7,16 +6,37 @@ import { createChartRuntime, hasChartRuntime } from './charts-runtime.js';
 import { getChartColors } from './theme.js';
 import { formatValue, shortDate } from './wearables-formatters.js';
 
-/** @typedef {{ primarySource?: string, baseline?: number | null }} BloodPressureMetricSummary */
+import type { CanonicalWearableMetric } from './wearable-adapters.js';
+import type { StoredWearableRow } from './wearable-storage-types.js';
+import type { WearableMetricSummary } from './wearables-summary-model.js';
+
+export type BloodPressureMetricSummary = { [Field in keyof Pick<WearableMetricSummary, 'primarySource' | 'baseline'>]?: unknown };
+export type BloodPressureCanonicalMetric = { [Field in keyof Pick<CanonicalWearableMetric, 'unit'>]?: unknown };
+export type BloodPressureSeriesPoint = Pick<StoredWearableRow, 'date'> & {
+  v: StoredWearableRow['bp_systolic'];
+  pairedV?: StoredWearableRow['bp_diastolic'];
+};
+interface BloodPressureDataset {
+  type?: 'scatter'; label: string;
+  data: Array<{ x: BloodPressureSeriesPoint['date'] | undefined; y: unknown }>;
+  _kind: 'baseline' | 'primary' | 'manual';
+  borderColor: string; backgroundColor: string;
+  borderWidth?: number; borderDash?: number[];
+  pointRadius: number; pointHoverRadius: number;
+  tension?: number; spanGaps?: boolean; showLine?: boolean;
+}
+interface BloodPressureTooltipTitleItem { raw?: { x?: unknown } | null; label?: unknown }
+interface BloodPressureTooltipLabelContext { dataset: { label?: unknown; _kind?: unknown }; parsed: { y?: unknown } }
+
 
 export function renderBloodPressureChart(
-  canvas,
-  canon,
-  m,
-  systolicSeries,
-  diastolicSeries = [],
-  manualSeries = [],
-  pairedMetric = /** @type {BloodPressureMetricSummary | null} */ (null),
+  canvas: Parameters<typeof createChartRuntime>[0],
+  canon: BloodPressureCanonicalMetric,
+  m: BloodPressureMetricSummary,
+  systolicSeries: readonly BloodPressureSeriesPoint[],
+  diastolicSeries: readonly BloodPressureSeriesPoint[] = [],
+  manualSeries: readonly BloodPressureSeriesPoint[] = [],
+  pairedMetric: BloodPressureMetricSummary | null | undefined = (null),
 ) {
   if (!hasChartRuntime() || !isChartDateAdapterReady()) {
     const retryToken = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -42,11 +62,11 @@ export function renderBloodPressureChart(
   const xDates = [...systolicSeries, ...diastolicSeries, ...manualSeries].map(p => p.date).filter(Boolean).sort();
   const values = [...sysData, ...diaData, ...manualSysData, ...manualDiaData]
     .map(p => p.y)
-    .filter(v => typeof v === 'number' && isFinite(v));
+    .filter((v): v is number => typeof v === 'number' && isFinite(v));
   if (values.length === 0) return;
 
   const unit = canon.unit || '';
-  const formatV = v => formatValue(v, unit);
+  const formatV = (v: unknown) => (formatValue as (value: unknown, unit: unknown) => unknown)(v, unit);
   const primaryAdapter = adapterById(m.primarySource);
   const primaryLabel = primaryAdapter?.displayName || 'Primary source';
   const pairedAdapter = adapterById(pairedMetric?.primarySource);
@@ -57,7 +77,7 @@ export function renderBloodPressureChart(
   // Keep manual diastolic visually distinct from the primary diastolic line.
   const manualDiaColor = '#f43f5e';
 
-  const baselineDatasets = [];
+  const baselineDatasets: BloodPressureDataset[] = [];
   if (xDates.length && typeof m.baseline === 'number' && isFinite(m.baseline)) {
     baselineDatasets.push({
       label: 'Systolic baseline',
@@ -87,7 +107,7 @@ export function renderBloodPressureChart(
     });
   }
 
-  const datasets = [];
+  const datasets: BloodPressureDataset[] = [];
   if (sysData.length) datasets.push({
     label: `Systolic (${primaryLabel})`,
     data: sysData,
@@ -142,7 +162,7 @@ export function renderBloodPressureChart(
   const ymin = Math.min(...yValues);
   const ymax = Math.max(...yValues);
   const pad = Math.max((ymax - ymin) * 0.08, 2);
-  const titleForPoint = (items) => {
+  const titleForPoint = (items: readonly BloodPressureTooltipTitleItem[] | null | undefined) => {
     const rawX = items?.[0]?.raw?.x;
     if (typeof rawX === 'string') return shortDate(rawX);
     return items?.[0]?.label || '';
@@ -162,7 +182,7 @@ export function renderBloodPressureChart(
           bodyColor: tc.tooltipBody, borderColor: tc.tooltipBorder, borderWidth: 1,
           callbacks: {
             title: titleForPoint,
-            label: (c) => `${c.dataset.label}: ${formatV(c.parsed.y)}${unit ? ' ' + unit : ''}${c.dataset._kind === 'manual' ? '  (manual entry)' : ''}`,
+            label: (c: BloodPressureTooltipLabelContext) => `${c.dataset.label}: ${formatV(c.parsed.y)}${unit ? ' ' + unit : ''}${c.dataset._kind === 'manual' ? '  (manual entry)' : ''}`,
           },
         },
       },

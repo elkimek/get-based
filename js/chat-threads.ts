@@ -1,6 +1,7 @@
-// @ts-check
 // chat-threads.js — Conversation-thread management for the chat panel
 import { state } from './state.js';
+import type { ChatThread } from '../types/chat-data.js';
+import type { ChatThreadDependencyMethods, ChatThreadDependencyRegistry, PendingThreadDrag } from '../types/chat-threads.js';
 import { showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItems } from './data-merge.js';
@@ -30,17 +31,17 @@ const MOBILE_THREAD_RAIL_QUERY = '(max-width: 768px)';
 const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 let chatThreadDelegatesInstalled = false;
 let draggedThreadId = '';
-let pendingThreadDrag = null;
+let pendingThreadDrag: PendingThreadDrag | null = null;
 let suppressThreadClick = false;
-let blockedThreadIndexKey = null;
+let blockedThreadIndexKey: string | null = null;
 let blockedThreadIndexNoticeShown = false;
 let threadLoadRevision = 0;
 let threadSwitchRevision = 0;
-const noop = (..._args) => {};
+const noop = (..._args: unknown[]) => {};
 const asyncNoop = async () => {};
 const defaultPersonality = () => ({ name: 'Default', icon: '' });
 
-const chatThreadDeps = {
+const chatThreadDeps: ChatThreadDependencyRegistry = {
   cleanupDiscussionState: noop,
   deleteAttachmentDraft: noop,
   getActivePersonality: defaultPersonality,
@@ -57,7 +58,7 @@ const chatThreadDeps = {
   updatePersonalityBar: noop,
 };
 
-function applyThreadContext(thread) {
+function applyThreadContext(thread: ChatThread | null | undefined) {
   if (!thread) return false;
   state.currentThreadId = thread.id;
   state.currentChatPersonality = thread.personality || 'default';
@@ -65,9 +66,9 @@ function applyThreadContext(thread) {
     `labcharts-${state.currentProfile}-chatPersonality`,
     state.currentChatPersonality,
   );
-  chatThreadDeps.updateChatHeaderTitle();
-  chatThreadDeps.updatePersonalityBar();
-  chatThreadDeps.refreshAttachmentDraft();
+  (chatThreadDeps.updateChatHeaderTitle as ChatThreadDependencyMethods['updateChatHeaderTitle'])();
+  (chatThreadDeps.updatePersonalityBar as ChatThreadDependencyMethods['updatePersonalityBar'])();
+  (chatThreadDeps.refreshAttachmentDraft as ChatThreadDependencyMethods['refreshAttachmentDraft'])();
   if (typeof document !== 'undefined'
     && typeof document.dispatchEvent === 'function'
     && typeof CustomEvent === 'function') {
@@ -76,7 +77,7 @@ function applyThreadContext(thread) {
   return true;
 }
 
-export function configureChatThreadDeps(deps = {}) {
+export function configureChatThreadDeps(deps: Record<string, unknown> = {}) {
   const previous = { ...chatThreadDeps };
   Object.assign(chatThreadDeps, deps);
   return previous;
@@ -86,19 +87,19 @@ export function getChatThreadsKey() {
   return `labcharts-${state.currentProfile}-chat-threads`;
 }
 
-export function getChatThreadKey(threadId) {
+export function getChatThreadKey(threadId: unknown) {
   return `labcharts-${state.currentProfile}-chat-t_${threadId}`;
 }
 
-function recordDeletedChatThread(threadId, deletedAt = Date.now()) {
+function recordDeletedChatThread(threadId: string, deletedAt = Date.now()) {
   if (!state.currentProfile || !threadId) return;
   if (CHAT_DELETED_PROTO_KEYS.has(threadId)) return;
   try {
     const key = chatDeletedThreadsKey(state.currentProfile);
     const raw = localStorage.getItem(key);
-    const parsed = raw ? JSON.parse(raw) : {};
+    const parsed: unknown = raw ? JSON.parse(raw) : {};
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return;
-    const deleted = Object.create(null);
+    const deleted: Record<string, number> = Object.create(null);
     for (const [id, ts] of Object.entries(parsed)) {
       if (CHAT_DELETED_PROTO_KEYS.has(id)) continue;
       const n = Number(ts);
@@ -113,13 +114,13 @@ function generateThreadId() {
   return createUniqueId('t_');
 }
 
-function clearThreadIndexWriteBlock(key) {
+function clearThreadIndexWriteBlock(key: string) {
   if (blockedThreadIndexKey !== key) return;
   blockedThreadIndexKey = null;
   blockedThreadIndexNoticeShown = false;
 }
 
-function blockThreadIndexWrites(key) {
+function blockThreadIndexWrites(key: string) {
   if (blockedThreadIndexKey !== key) blockedThreadIndexNoticeShown = false;
   blockedThreadIndexKey = key;
 }
@@ -134,8 +135,8 @@ function notifyThreadIndexBlocked() {
   showNotification('Conversations could not be read, so new chat creation is paused to protect saved chats.', 'error', 6000);
 }
 
-function parseThreadIndex(raw) {
-  const parsed = JSON.parse(raw);
+function parseThreadIndex(raw: string) {
+  const parsed: unknown = JSON.parse(raw);
   return Array.isArray(parsed) ? normalizeChatThreads(parsed) : null;
 }
 
@@ -146,7 +147,7 @@ export async function loadChatThreads() {
   const isCurrent = () => revision === threadLoadRevision && key === getChatThreadsKey();
   const storedRaw = localStorage.getItem(key);
   if (storedRaw !== null) {
-    let raw = null;
+    let raw: string | null = null;
     try { raw = await encryptedGetItem(key); } catch { raw = null; }
     if (!isCurrent()) return false;
     if (raw === null) {
@@ -174,7 +175,7 @@ export async function loadChatThreads() {
   const legacyStoredRaw = localStorage.getItem(legacyKey);
   if (legacyStoredRaw === null) return true;
 
-  let legacyRaw = null;
+  let legacyRaw: string | null = null;
   try { legacyRaw = await encryptedGetItem(legacyKey); } catch { legacyRaw = null; }
   if (!isCurrent()) return false;
   if (legacyRaw === null) {
@@ -183,7 +184,7 @@ export async function loadChatThreads() {
     return false;
   }
   try {
-    const messages = JSON.parse(legacyRaw);
+    const messages: unknown = JSON.parse(legacyRaw);
     if (Array.isArray(messages) && messages.length > 0) {
       const threadId = 't_migrated';
       const now = new Date().toISOString();
@@ -209,7 +210,7 @@ export async function loadChatThreads() {
   }
 }
 
-export function saveChatThreadIndex({ sync = true } = {}) {
+export function saveChatThreadIndex({ sync = true }: { sync?: boolean } = {}) {
   if (isThreadIndexWriteBlocked()) {
     notifyThreadIndexBlocked();
     return false;
@@ -221,9 +222,9 @@ export function saveChatThreadIndex({ sync = true } = {}) {
       if (sync && key === getChatThreadsKey()) onChatSaved();
       return true;
     })
-    .catch((err) => {
+    .catch((err: unknown) => {
       if (key !== getChatThreadsKey()) return false;
-      console.warn('[chat-threads] failed to save thread index', err?.message || err);
+      console.warn('[chat-threads] failed to save thread index', (err as { message?: unknown } | null | undefined)?.message || err);
       showNotification('Could not save conversation list', 'error');
       return false;
     });
@@ -248,21 +249,21 @@ export function ensureActiveThread() {
   return true;
 }
 
-export function createNewThread({ sync = true, projectName = '' } = {}) {
+export function createNewThread({ sync = true, projectName = '' }: { sync?: boolean; projectName?: string } = {}) {
   if (isThreadIndexWriteBlocked()) {
     notifyThreadIndexBlocked();
     return null;
   }
   saveChatDraft();
-  chatThreadDeps.stopChatGeneration();
-  chatThreadDeps.stopVoiceActivity();
-  chatThreadDeps.cleanupDiscussionState();
+  (chatThreadDeps.stopChatGeneration as ChatThreadDependencyMethods['stopChatGeneration'])();
+  (chatThreadDeps.stopVoiceActivity as ChatThreadDependencyMethods['stopVoiceActivity'])();
+  (chatThreadDeps.cleanupDiscussionState as ChatThreadDependencyMethods['cleanupDiscussionState'])();
   // A new conversation intentionally starts with the neutral personality.
   state.currentChatPersonality = 'default';
   localStorage.setItem(`labcharts-${state.currentProfile}-chatPersonality`, 'default');
   const id = generateThreadId();
   const now = new Date().toISOString();
-  const p = chatThreadDeps.getActivePersonality() || defaultPersonality();
+  const p = (chatThreadDeps.getActivePersonality as ChatThreadDependencyMethods['getActivePersonality'])() || defaultPersonality();
   const thread = {
     id,
     name: 'New Conversation',
@@ -278,9 +279,9 @@ export function createNewThread({ sync = true, projectName = '' } = {}) {
   saveChatThreadIndex({ sync });
   applyThreadContext(thread);
   state.chatHistory = [];
-  chatThreadDeps.renderChatMessages();
-  chatThreadDeps.updateChatHeaderTitle();
-  chatThreadDeps.updatePersonalityBar();
+  (chatThreadDeps.renderChatMessages as ChatThreadDependencyMethods['renderChatMessages'])();
+  (chatThreadDeps.updateChatHeaderTitle as ChatThreadDependencyMethods['updateChatHeaderTitle'])();
+  (chatThreadDeps.updatePersonalityBar as ChatThreadDependencyMethods['updatePersonalityBar'])();
   renderThreadList();
   closeThreadRailAfterMobileSelection();
   restoreChatDraft(id, { focus: true });
@@ -289,11 +290,8 @@ export function createNewThread({ sync = true, projectName = '' } = {}) {
 
 /**
  * Creates a non-destructive fork with the supplied conversation context.
- * @param {string} sourceThreadId
- * @param {number} sourceMessageIndex
- * @param {any[]} messages
  */
-export async function createForkedThread(sourceThreadId, sourceMessageIndex, messages) {
+export async function createForkedThread(sourceThreadId: string, sourceMessageIndex: number, messages: unknown) {
   const profile = state.currentProfile;
   if (isThreadIndexWriteBlocked()) {
     notifyThreadIndexBlocked();
@@ -301,9 +299,9 @@ export async function createForkedThread(sourceThreadId, sourceMessageIndex, mes
   }
   const source = state.chatThreads.find(thread => thread.id === sourceThreadId);
   if (!source) return null;
-  chatThreadDeps.stopChatGeneration();
-  chatThreadDeps.stopVoiceActivity();
-  chatThreadDeps.cleanupDiscussionState();
+  (chatThreadDeps.stopChatGeneration as ChatThreadDependencyMethods['stopChatGeneration'])();
+  (chatThreadDeps.stopVoiceActivity as ChatThreadDependencyMethods['stopVoiceActivity'])();
+  (chatThreadDeps.cleanupDiscussionState as ChatThreadDependencyMethods['cleanupDiscussionState'])();
   const id = generateThreadId();
   const now = new Date().toISOString();
   const history = normalizeChatMessages(messages);
@@ -345,43 +343,43 @@ export async function createForkedThread(sourceThreadId, sourceMessageIndex, mes
   if (profile !== state.currentProfile || originThreadId !== state.currentThreadId) return null;
   applyThreadContext(thread);
   state.chatHistory = history;
-  chatThreadDeps.renderChatMessages();
-  chatThreadDeps.updateChatHeaderTitle();
-  chatThreadDeps.updatePersonalityBar();
+  (chatThreadDeps.renderChatMessages as ChatThreadDependencyMethods['renderChatMessages'])();
+  (chatThreadDeps.updateChatHeaderTitle as ChatThreadDependencyMethods['updateChatHeaderTitle'])();
+  (chatThreadDeps.updatePersonalityBar as ChatThreadDependencyMethods['updatePersonalityBar'])();
   renderThreadList();
   closeThreadRailAfterMobileSelection();
   return thread;
 }
 
-export async function switchToThread(threadId) {
+export async function switchToThread(threadId: string) {
   const profile = state.currentProfile;
   const revision = ++threadSwitchRevision;
   const isCurrent = () => profile === state.currentProfile && revision === threadSwitchRevision;
   closeThreadRailAfterMobileSelection();
   if (threadId === state.currentThreadId) return;
-  chatThreadDeps.stopVoiceActivity();
-  chatThreadDeps.stopChatGeneration();
+  (chatThreadDeps.stopVoiceActivity as ChatThreadDependencyMethods['stopVoiceActivity'])();
+  (chatThreadDeps.stopChatGeneration as ChatThreadDependencyMethods['stopChatGeneration'])();
   saveChatDraft();
   // Save current thread messages
-  await chatThreadDeps.saveChatHistory();
+  await (chatThreadDeps.saveChatHistory as ChatThreadDependencyMethods['saveChatHistory'])();
   if (!isCurrent()) return;
-  chatThreadDeps.cleanupDiscussionState();
+  (chatThreadDeps.cleanupDiscussionState as ChatThreadDependencyMethods['cleanupDiscussionState'])();
   // Switch
   const thread = state.chatThreads.find(t => t.id === threadId);
   if (!applyThreadContext(thread)) return;
-  await chatThreadDeps.loadChatHistory();
+  await (chatThreadDeps.loadChatHistory as ChatThreadDependencyMethods['loadChatHistory'])();
   if (!isCurrent() || state.currentThreadId !== threadId) return;
-  chatThreadDeps.restoreDiscussionContinuePrompt();
+  (chatThreadDeps.restoreDiscussionContinuePrompt as ChatThreadDependencyMethods['restoreDiscussionContinuePrompt'])();
   renderThreadList();
   await restoreChatDraft(threadId);
 }
 
-export async function deleteThread(threadId) {
+export async function deleteThread(threadId: string) {
   const profile = state.currentProfile;
   if (await showConfirmDialog('Delete this conversation? This cannot be undone.')) {
     if (profile !== state.currentProfile) return false;
     const previousThreads = state.chatThreads;
-    if (threadId === state.currentThreadId) chatThreadDeps.stopChatGeneration();
+    if (threadId === state.currentThreadId) (chatThreadDeps.stopChatGeneration as ChatThreadDependencyMethods['stopChatGeneration'])();
     invalidateThreadContentCache();
     // Remove from index
     state.chatThreads = state.chatThreads.filter(t => t.id !== threadId);
@@ -396,7 +394,7 @@ export async function deleteThread(threadId) {
     onChatSaved();
     await clearChatDraft(threadId);
     if (profile !== state.currentProfile) return false;
-    chatThreadDeps.deleteAttachmentDraft(threadId);
+    (chatThreadDeps.deleteAttachmentDraft as ChatThreadDependencyMethods['deleteAttachmentDraft'])(threadId);
     // Remove per-thread messages
     localStorage.removeItem(getChatThreadKey(threadId));
     // Remove saved summary
@@ -404,16 +402,16 @@ export async function deleteThread(threadId) {
       deleteImportedArrayItems(state.importedData, 'chatSummaries', s => s.threadId === threadId);
       saveImportedData();
     }
-    chatThreadDeps.renderSavedSummaries();
+    (chatThreadDeps.renderSavedSummaries as ChatThreadDependencyMethods['renderSavedSummaries'])();
     // If we deleted the active thread, switch
     if (state.currentThreadId === threadId) {
-      chatThreadDeps.cleanupDiscussionState();
+      (chatThreadDeps.cleanupDiscussionState as ChatThreadDependencyMethods['cleanupDiscussionState'])();
       if (state.chatThreads.length > 0) {
-        const nextThread = state.chatThreads.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+        const nextThread = state.chatThreads.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]!;
         applyThreadContext(nextThread);
-        await chatThreadDeps.loadChatHistory();
+        await (chatThreadDeps.loadChatHistory as ChatThreadDependencyMethods['loadChatHistory'])();
         if (profile !== state.currentProfile || state.currentThreadId !== nextThread.id) return false;
-        chatThreadDeps.restoreDiscussionContinuePrompt();
+        (chatThreadDeps.restoreDiscussionContinuePrompt as ChatThreadDependencyMethods['restoreDiscussionContinuePrompt'])();
         await restoreChatDraft(state.currentThreadId);
         if (profile !== state.currentProfile) return false;
       } else {
@@ -427,7 +425,7 @@ export async function deleteThread(threadId) {
   return false;
 }
 
-export function renameThread(threadId, newName) {
+export function renameThread(threadId: unknown, newName: string) {
   const thread = state.chatThreads.find(t => t.id === threadId);
   if (thread && newName && newName.trim()) {
     thread.name = newName.trim().slice(0, 60);
@@ -437,11 +435,11 @@ export function renameThread(threadId, newName) {
   }
 }
 
-export async function renameThreadPrompt(threadId) {
+export async function renameThreadPrompt(threadId: string) {
   const profile = state.currentProfile;
   const thread = state.chatThreads.find(t => t.id === threadId);
   if (!thread) return;
-  const name = await chatThreadDeps.showPromptDialog('Rename conversation:', {
+  const name = await (chatThreadDeps.showPromptDialog as ChatThreadDependencyMethods['showPromptDialog'])('Rename conversation:', {
     defaultValue: thread.name,
     okLabel: 'Rename',
   });
@@ -453,13 +451,13 @@ export function getChatThreadSort() {
   return ['recent', 'oldest', 'name'].includes(value || '') ? value : 'recent';
 }
 
-export function setChatThreadSort(value) {
+export function setChatThreadSort(value: string) {
   const sort = ['recent', 'oldest', 'name'].includes(value) ? value : 'recent';
   localStorage.setItem('labcharts-chat-thread-sort', sort);
   renderThreadList();
 }
 
-export function autoNameThread(threadId, firstMessage) {
+export function autoNameThread(threadId: string, firstMessage: string) {
   const thread = state.chatThreads.find(t => t.id === threadId);
   if (!thread || thread.name !== 'New Conversation') return;
   // Extract first 40 chars from the message, trimmed at word boundary
@@ -496,21 +494,18 @@ function closeThreadRailAfterMobileSelection() {
   return true;
 }
 
-/** @param {Event} event */
-function closestThreadAction(event) {
+function closestThreadAction(event: Event) {
   const target = event.target;
   if (typeof Element === 'undefined' || !(target instanceof Element)) return null;
-  return /** @type {HTMLElement | null} */ (target.closest('[data-chat-thread-action]'));
+  return target.closest('[data-chat-thread-action]') as HTMLElement | null;
 }
 
-/** @param {HTMLElement} actionEl */
-function getThreadActionId(actionEl) {
-  const threadEl = /** @type {HTMLElement | null} */ (actionEl.closest('[data-thread-id]'));
+function getThreadActionId(actionEl: HTMLElement) {
+  const threadEl = actionEl.closest('[data-thread-id]') as HTMLElement | null;
   return actionEl.dataset.threadId || threadEl?.dataset.threadId || '';
 }
 
-/** @param {Event} event */
-function handleThreadActionClick(event) {
+function handleThreadActionClick(event: Event) {
   if (suppressThreadClick) {
     event.preventDefault();
     event.stopPropagation();
@@ -582,20 +577,19 @@ function beginThreadPointerDrag() {
   document.getElementById('chat-thread-list')?.classList.add('is-thread-dragging');
 }
 
-function projectDropTargetAt(clientX, clientY) {
+function projectDropTargetAt(clientX: number, clientY: number) {
   const hit = document.elementFromPoint(clientX, clientY);
   return hit instanceof Element ? hit.closest('[data-chat-project-drop]') : null;
 }
 
-function highlightProjectDropTarget(target) {
+function highlightProjectDropTarget(target: Element | null) {
   document.querySelectorAll('[data-chat-project-drop].is-drop-target').forEach(item => {
     if (item !== target) item.classList.remove('is-drop-target');
   });
   target?.classList.add('is-drop-target');
 }
 
-/** @param {PointerEvent} event */
-function handleThreadPointerDown(event) {
+function handleThreadPointerDown(event: PointerEvent) {
   if (event.button !== 0 || event.isPrimary === false || event.pointerType === 'touch') return;
   const isMobile = typeof matchMedia === 'function' && matchMedia(MOBILE_THREAD_RAIL_QUERY).matches;
   if (isMobile) return;
@@ -607,8 +601,7 @@ function handleThreadPointerDown(event) {
   pendingThreadDrag = { threadId, item, source: target, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY };
 }
 
-/** @param {PointerEvent} event */
-function handleThreadPointerMove(event) {
+function handleThreadPointerMove(event: PointerEvent) {
   if (!pendingThreadDrag || pendingThreadDrag.pointerId !== event.pointerId) return;
   if (!draggedThreadId) {
     const distance = Math.hypot(event.clientX - pendingThreadDrag.startX, event.clientY - pendingThreadDrag.startY);
@@ -621,8 +614,7 @@ function handleThreadPointerMove(event) {
   highlightProjectDropTarget(projectDropTargetAt(event.clientX, event.clientY));
 }
 
-/** @param {PointerEvent} event */
-function handleThreadPointerUp(event) {
+function handleThreadPointerUp(event: PointerEvent) {
   if (!pendingThreadDrag || pendingThreadDrag.pointerId !== event.pointerId) return;
   const didDrag = !!draggedThreadId;
   const threadId = draggedThreadId;
@@ -637,8 +629,7 @@ function handleThreadPointerUp(event) {
   if (target) void moveThreadToProject(threadId, projectName);
 }
 
-/** @param {PointerEvent} event */
-function handleThreadPointerCancel(event) {
+function handleThreadPointerCancel(event: PointerEvent) {
   if (pendingThreadDrag?.pointerId !== event.pointerId) return;
   clearThreadDragState();
 }
@@ -654,8 +645,7 @@ export function installChatThreadDelegates() {
   globalThis.addEventListener?.('blur', clearThreadDragState);
 }
 
-/** @param {string} [filter] */
-export function renderThreadList(filter) {
+export function renderThreadList(filter?: string) {
   renderChatThreadList(getChatThreadSort(), filter);
 }
 
@@ -698,7 +688,6 @@ configureChatThreadProjects({
   createNewThread,
   renderThreadList,
   saveChatThreadIndex,
-  /** @param {Parameters<typeof showPromptDialog>} args */
-  showPromptDialog: (...args) => chatThreadDeps.showPromptDialog(...args),
+  showPromptDialog: (...args: Parameters<typeof showPromptDialog>) => (chatThreadDeps.showPromptDialog as ChatThreadDependencyMethods['showPromptDialog'])(...args),
 });
 installChatThreadDelegates();
