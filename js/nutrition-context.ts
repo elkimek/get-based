@@ -1,5 +1,4 @@
 import { createRetryingStylesheetLoader, findStylesheet } from './retrying-module-loader.js';
-// @ts-check
 // nutrition-context.js — compact summary-only context for chat and source controls.
 
 import { state } from './state.js';
@@ -10,25 +9,31 @@ import { getNutritionContextDays, isNutritionContextEnabled } from './lab-contex
 export { isNutritionContextEnabled, setNutritionContextEnabled } from './lab-context-settings.js';
 export { doesNutritionContextOverrideTypicalMeals } from './context-card-summaries.js';
 
-export function buildNutritionContext(importedData = state, { ignoreContextToggles = false } = {}) {
+// Consumed property view; raw inputs and truthy context leaves remain opaque.
+export interface NutritionContextInput {
+  nutritionSummary?: {contextByDays?: Record<string, unknown> | null} | null;
+  importedData?: Parameters<typeof getNutritionContextDays>[0];
+}
+
+export function buildNutritionContext(importedData: unknown = state, { ignoreContextToggles = false }: {ignoreContextToggles?: unknown} = {}): unknown {
   if (!ignoreContextToggles && !isNutritionContextEnabled()) return '';
-  const summary = importedData?.nutritionSummary;
-  const profileData = importedData === state ? state.importedData : importedData?.importedData;
+  const summary = (importedData as NutritionContextInput | null | undefined)?.nutritionSummary;
+  const profileData = importedData === state ? state.importedData : (importedData as NutritionContextInput | null | undefined)?.importedData;
   return summary?.contextByDays?.[`d${getNutritionContextDays(profileData || state.importedData)}`] || '';
 }
 
-export function nutritionHistoryRequestFromQuery(queryText = '') {
+export function nutritionHistoryRequestFromQuery(queryText: unknown = '') {
   const match = String(queryText).match(/^Nutrition history range:\s*(30D|3M|6M|1Y|All)\s*\(([^\n)]+)\)\.\s*$/mi);
-  return match ? { label: match[1], description: match[2].trim() } : null;
+  return match ? { label: match[1]!, description: match[2]!.trim() } : null;
 }
 
-export function buildNutritionHistoryReceiptContext(queryText = '') {
+export function buildNutritionHistoryReceiptContext(queryText: unknown = '') {
   const request = nutritionHistoryRequestFromQuery(queryText);
   if (!request) return '';
   return `[section:nutritionHistory]\n## Meals & Nutrition — ${request.label} one-off history\nOne-off aggregate is in the editable user message; automatic nutrition summary is omitted. Individual meals, names, notes, ingredients, and photos are not included.\n[/section:nutritionHistory]\n\n`;
 }
 
-export async function hydrateNutritionSummary(...args) {
+export async function hydrateNutritionSummary(...args: Parameters<typeof import('./nutrition-store.js').hydrateNutritionSummary>) {
   const store = await import('./nutrition-store.js');
   return store.hydrateNutritionSummary(...args);
 }
@@ -52,10 +57,9 @@ const stylesheetPromiseCache = createRetryingStylesheetLoader({
   requireDocument: "Nutrition stylesheet requires a document.",
   failedLoad: "Nutrition presentation could not be loaded.",
 });
-let modulePromise = null;
-let moduleValue = null;
-/** @type {Promise<unknown>} */
-let syncHydrationPromise = Promise.resolve();
+let modulePromise: Promise<typeof import('./nutrition.js')> | null = null;
+let moduleValue: typeof import('./nutrition.js') | null = null;
+let syncHydrationPromise: Promise<unknown> = Promise.resolve();
 
 // Pull refresh replaces state.importedData in place. Reconcile its synced meal
 // rows into the encrypted local thumbnail cache before the widget is rendered.
@@ -110,11 +114,10 @@ export function renderFuelWidget() {
   return moduleValue?.renderNutritionFuelWidget?.() || '';
 }
 
-/** @param {((category: string) => void) | null} [navigate] */
-export async function openNutritionModule(navigate = null) {
+export async function openNutritionModule(navigate: unknown = null) {
   try {
     const module = await loadNutritionFeature();
-    if (typeof navigate === 'function') navigate('body');
+    if (typeof navigate === 'function') (navigate as (category: string) => unknown)('body');
     setTimeout(() => { void module.openNutritionEditor?.(); }, 0);
     return true;
   } catch (error) {
@@ -124,11 +127,10 @@ export async function openNutritionModule(navigate = null) {
   }
 }
 
-/** @param {{view?: string, focus?: string}} [options] @param {((category: string) => void) | null} [navigate] */
-export async function openNutritionHistoryModule({ view = 'meals', focus = '' } = {}, navigate = null) {
+export async function openNutritionHistoryModule({ view = 'meals', focus = '' }: {view?: unknown; focus?: unknown} = {}, navigate: unknown = null) {
   try {
     const module = await loadNutritionFeature();
-    if (typeof navigate === 'function') navigate('body');
+    if (typeof navigate === 'function') (navigate as (category: string) => unknown)('body');
     setTimeout(() => { void module.openNutritionHistoryView?.(view, { focus }); }, 0);
     return true;
   } catch (error) {

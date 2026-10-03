@@ -1096,3 +1096,21 @@ deploy/profile-share/data/
 /types/context-card-dashboard-ai-impl.js
 
 /types/export-report-builder.js
+
+/js/sun-active-session.js
+
+/js/nutrition-context.js
+
+/js/context-card-dashboard-ai.js
+
+/js/provider-wallet-runtime.js
+
+/js/provider-wallet-delegates.js
+
+/js/provider-wallet-panels.js
+
+/js/client-list.js
+
+/types/sun-active-session.js
+
+/types/provider-wallet-panels.js

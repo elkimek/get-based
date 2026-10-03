@@ -1,4 +1,4 @@
-// @ts-check
+import type { WalletOperations, FundingMonitorReader, FundingRecoveryReader, InvoiceOperations, InvoiceRendererReader, MintInventoryOperations, NodeCatalogOperations, WalletCallbacks, PanelHTMLWriter } from '../types/provider-wallet-panels.js';
 // provider-wallet-panels.js - Routstr/Cashu wallet UI and node funding actions
 
 import { canonicalRoutstrUrl, validateLightningInvoice } from './routstr-validation.js';
@@ -31,38 +31,38 @@ import { configureRoutstrWalletRuntime, walletRuntime } from './provider-wallet-
 export { configureRoutstrWalletRuntime, walletRuntime };
 export { buildRoutstrNodeActions, routstrWalletActionButtons };
 
-const walletCallbacks = {
-  renderAIProviderPanel: /** @type {((provider: string) => string) | null} */ (null), renderRoutstrModelDropdown: /** @type {((models: any[]) => void) | null} */ (null),
-  initSettingsModelFetch: /** @type {(() => void) | null} */ (null), requestProviderActivation: /** @type {((provider: string, options?: any) => Promise<boolean>) | null} */ (null),
-  returnToChatIfOnboarding: /** @type {(() => void) | null} */ (null)
+const walletCallbacks: WalletCallbacks = {
+  renderAIProviderPanel: null, renderRoutstrModelDropdown: null,
+  initSettingsModelFetch: null, requestProviderActivation: null,
+  returnToChatIfOnboarding: null
 };
 
-export function configureRoutstrWalletPanels(callbacks = {}) {
+export function configureRoutstrWalletPanels(callbacks: unknown = {}) {
   Object.assign(walletCallbacks, callbacks);
 }
 
 function _renderRoutstrPanel(provider = 'routstr') {
   return typeof walletCallbacks.renderAIProviderPanel === 'function'
-    ? walletCallbacks.renderAIProviderPanel(provider)
+    ? (walletCallbacks.renderAIProviderPanel as (provider: string) => unknown)(provider)
     : '';
 }
 
-function _renderRoutstrModelDropdown(models) {
+function _renderRoutstrModelDropdown(models: unknown) {
   if (typeof walletCallbacks.renderRoutstrModelDropdown === 'function') {
-    walletCallbacks.renderRoutstrModelDropdown(models);
+    (walletCallbacks.renderRoutstrModelDropdown as (models: unknown) => unknown)(models);
   }
 }
 
 function _returnToChatIfOnboarding() {
   if (typeof walletCallbacks.returnToChatIfOnboarding === 'function') {
-    walletCallbacks.returnToChatIfOnboarding();
+    (walletCallbacks.returnToChatIfOnboarding as () => unknown)();
   }
 }
 
-let _rsCashuBackupTimer = null;
-let _walletSeedThenAction = null;
+let _rsCashuBackupTimer: ReturnType<typeof setTimeout> | null = null;
+let _walletSeedThenAction: (() => unknown) | null = null;
 
-function _rsBalanceHtml(sats) {
+function _rsBalanceHtml(sats: number) {
   const color = sats < 100 ? 'var(--red)' : sats < 500 ? 'var(--yellow, #f0a800)' : 'var(--green)';
   return 'Balance: <span style="color:' + color + '">\u26a1 ' + sats.toLocaleString() + ' sats</span>';
 }
@@ -71,9 +71,9 @@ export function refreshCashuWalletBalance() {
   const el = document.getElementById('routstr-wallet-balance');
   if (el) el.textContent = '\u26a1 verifying...';
   refreshWalletSeedStatus();
-  if (walletRuntime.cashuCheckProofStates) {
-    walletRuntime.cashuCheckProofStates().then(function(bal) {
-      if (el) el.textContent = '\u26a1 ' + bal.toLocaleString() + ' sats';
+  if ((walletRuntime as WalletOperations).cashuCheckProofStates) {
+    (walletRuntime as WalletOperations).cashuCheckProofStates().then(function(bal: unknown) {
+      if (el) el.textContent = '\u26a1 ' + (bal as {toLocaleString(): unknown}).toLocaleString() + ' sats';
     }).catch(function() {
       if (el) el.textContent = '\u26a1 check failed';
     });
@@ -96,15 +96,15 @@ export function refreshRoutstrBalance() {
 
 installRoutstrBalanceSettlementRefresh(refreshRoutstrBalance);
 
-let _fundingRequest = null;
-let _fundingInvoice = null;
+let _fundingRequest: Promise<boolean> | null = null;
+let _fundingInvoice: InvoiceOperations | null = null;
 const isRoutstrActive = () => getAIProvider() === 'routstr' && getChatBackend() === 'direct';
-const fundingMonitor = createFundingMonitor(walletRuntime, () => _refreshRoutstrWalletBalance(true), result => {
-  if (result.results?.some(item => (/** @type {{quote?: unknown}} */ (item)).quote === _fundingInvoice?.quote
-    && ((/** @type {{mint?: unknown}} */ (item)).mint || result.mint) === _fundingInvoice?.mint
-    && ((/** @type {{paid?: unknown}} */ (item)).paid || /^(EXPIRED|CANCELLED|CANCELED)$/.test(String((/** @type {{state?: unknown}} */ (item)).state).toUpperCase())))) _fundingInvoice = null;
+const fundingMonitor = (createFundingMonitor as FundingMonitorReader)(walletRuntime as WalletOperations, () => _refreshRoutstrWalletBalance(true), result => {
+  if (result.results?.some(item => ((item as {quote?: unknown})).quote === _fundingInvoice?.quote
+    && (((item as {mint?: unknown})).mint || result.mint) === _fundingInvoice?.mint
+    && (((item as {paid?: unknown})).paid || /^(EXPIRED|CANCELLED|CANCELED)$/.test(String(((item as {state?: unknown})).state).toUpperCase())))) _fundingInvoice = null;
 }, isRoutstrActive);
-export function startRoutstrFundingMonitor(options = {}) {
+export function startRoutstrFundingMonitor(options: Parameters<ReturnType<typeof createFundingMonitor>['start']>[0] = {}) {
   if (isRoutstrActive()) fundingMonitor.start(options);
   else fundingMonitor.stop();
 }
@@ -112,12 +112,12 @@ for (const event of ['labcharts-ai-settings-local-changed', 'labcharts-ai-settin
   globalThis.addEventListener?.(event, () => startRoutstrFundingMonitor());
 }
 
-function _getWalletInput(id) {
-  return /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(id));
+function _getWalletInput(id: string) {
+  return (document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null);
 }
 
 export function clearRoutstrWalletTimers() {
-  if (_rsCashuBackupTimer) { clearTimeout(_rsCashuBackupTimer); _rsCashuBackupTimer = null; }
+  if (_rsCashuBackupTimer) { clearTimeout(_rsCashuBackupTimer as Parameters<typeof clearTimeout>[0]); _rsCashuBackupTimer = null; }
   clearRoutstrBalanceSettlementTimers();
   _walletSeedThenAction = null;
 }
@@ -135,7 +135,7 @@ async function _renderWalletFundUI() {
   if (!area) return;
   area.style.display = 'block';
   const presets = [1000, 5000, 10000, 25000];
-  const feePct = typeof walletRuntime.cashuGetFeePct === 'function' ? walletRuntime.cashuGetFeePct() : 0;
+  const feePct = (typeof (walletRuntime as WalletOperations).cashuGetFeePct === 'function' ? (walletRuntime as WalletOperations).cashuGetFeePct() : 0) as number;
   const feeNote = feePct > 0 ? `<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">${Math.round(feePct * 100)}% development fee applies</div>` : '';
   const cashuFeeLabel = feePct > 0 ? `or paste Cashu token (${Math.round(feePct * 100)}% fee)` : 'or paste Cashu token';
   area.innerHTML = `<div style="margin-top:8px">
@@ -156,8 +156,8 @@ async function _renderWalletFundUI() {
   </div>`;
   startRoutstrFundingMonitor();
   const invoice = _fundingInvoice;
-  if (invoice && invoice.mint === await walletRuntime.cashuGetMintUrl()) {
-    try { await renderFundingInvoice(invoice); }
+  if (invoice && invoice.mint === await (walletRuntime as WalletOperations).cashuGetMintUrl()) {
+    try { await (renderFundingInvoice as InvoiceRendererReader)(invoice); }
     catch { _fundingInvoice = null; }
   }
 }
@@ -181,7 +181,7 @@ export function doRoutstrWalletFundCustom() {
   void doRoutstrWalletFund(amount);
 }
 
-export async function doRoutstrWalletFund(amountSats) {
+export async function doRoutstrWalletFund(amountSats: number) {
   // Repeated clicks must not race to replace the displayed invoice.
   if (_fundingRequest) return false;
   const statusEl = document.getElementById('routstr-wfund-status');
@@ -194,13 +194,13 @@ export async function doRoutstrWalletFund(amountSats) {
   delete statusEl.dataset.quote;
   _fundingRequest = (async () => {
     try {
-      const mint = await walletRuntime.cashuGetMintUrl();
-      const result = await walletRuntime.cashuCreateFundingInvoice(amountSats);
+      const mint = await (walletRuntime as WalletOperations).cashuGetMintUrl();
+      const result = await (walletRuntime as WalletOperations).cashuCreateFundingInvoice(amountSats) as Pick<InvoiceOperations, 'invoice' | 'quote'>;
       _fundingInvoice = { ...result, amount: amountSats, mint };
       startRoutstrFundingMonitor({ recheck: true });
       // The quote is durable even if the user navigated away while creating it.
       if (statusEl === document.getElementById('routstr-wfund-status')) {
-        await renderFundingInvoice(_fundingInvoice);
+        await (renderFundingInvoice as InvoiceRendererReader)(_fundingInvoice!);
       }
       return true;
     } catch (e) {
@@ -213,7 +213,7 @@ export async function doRoutstrWalletFund(amountSats) {
 }
 
 export async function recoverPendingWalletFunding() {
-  return recoverPendingWalletFundingImpl(walletRuntime, _refreshRoutstrWalletBalance);
+  return (recoverPendingWalletFundingImpl as FundingRecoveryReader)(walletRuntime as WalletOperations, _refreshRoutstrWalletBalance);
 }
 
 export async function doRoutstrWalletReceiveCashu() {
@@ -223,7 +223,7 @@ export async function doRoutstrWalletReceiveCashu() {
   let token = input.value.trim();
   if (token.startsWith('cashu:')) token = token.slice(6);
   if (!token || !token.startsWith('cashuA') && !token.startsWith('cashuB')) { statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Paste a valid Cashu token (starts with cashuA or cashuB)</div>'; return; }
-  if (!await walletRuntime.cashuHasWalletSeed?.()) {
+  if (!await (walletRuntime as WalletOperations).cashuHasWalletSeed?.()) {
     await _ensureWalletSeed(() => {
       _renderWalletFundUI();
       return _receiveRoutstrWalletCashu(token);
@@ -234,19 +234,19 @@ export async function doRoutstrWalletReceiveCashu() {
 }
 
 async function _receiveRoutstrWalletCashu(
-  token,
-  input = /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (null),
-  statusEl = /** @type {HTMLElement | null} */ (null)
+  token: string,
+  input: HTMLInputElement | HTMLTextAreaElement | null = null,
+  statusEl: HTMLElement | null = null
 ) {
   statusEl = statusEl || document.getElementById('routstr-wfund-status');
   input = input || _getWalletInput('routstr-wcashu-input');
   if (statusEl) statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Depositing to wallet\u2026</div>';
   try {
-    const result = await walletRuntime.cashuReceiveToken(token);
+    const result = await (walletRuntime as WalletOperations).cashuReceiveToken(token as string) as {received?: unknown; fee?: unknown};
     if (input) input.value = '';
     const fundArea = document.getElementById('routstr-wallet-fund-area');
     if (fundArea) { fundArea.style.display = 'none'; _setActiveWalletAction(null); }
-    showNotification('Wallet funded \u26a1 +' + result.received + ' sats' + (result.fee > 0 ? ' (' + result.fee + ' fee)' : ''), 'success');
+    showNotification('Wallet funded \u26a1 +' + result.received + ' sats' + ((result.fee as number) > 0 ? ' (' + result.fee + ' fee)' : ''), 'success');
     _refreshRoutstrWalletBalance();
   } catch (e) {
     if (statusEl) statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
@@ -258,27 +258,27 @@ export async function showRoutstrMintEdit() {
   const area = document.getElementById('routstr-mint-edit');
   if (!area) return;
   if (area.style.display !== 'none') { area.style.display = 'none'; return; }
-  const currentMint = await walletRuntime.cashuGetMintUrl();
-  const nodeUrl = walletRuntime.nostrGetSelectedNode?.() || '';
-  let nodeMints = [];
+  const currentMint = await (walletRuntime as WalletOperations).cashuGetMintUrl();
+  const nodeUrl = (walletRuntime as WalletOperations).nostrGetSelectedNode?.() || '';
+  let nodeMints: string[] = [];
   if (nodeUrl) {
     try {
       nodeMints = await getNodeMints(nodeUrl);
     } catch {}
   }
-  const savedMints = await walletRuntime.cashuGetWalletMints();
+  const savedMints = await (walletRuntime as WalletOperations).cashuGetWalletMints() as MintInventoryOperations;
   area.style.display = 'block';
   area.innerHTML = walletMintPickerHtml(currentMint, savedMints, nodeMints);
 }
 
-export async function chooseRoutstrNodeMint(mint) {
+export async function chooseRoutstrNodeMint(mint: string) {
   const area = document.getElementById('routstr-mint-edit');
   if (area) area.style.display = 'none';
   await showRoutstrMintEdit();
   const input = _getWalletInput('routstr-mint-input');
   if (input) { input.value = mint; input.dispatchEvent(new Event('input', { bubbles: true })); }
   area?.scrollIntoView({ block: 'nearest' });
-  /** @type {HTMLElement | null} */ (area?.querySelector('[data-routstr-wallet-action="save-mint"]'))?.focus({ preventScroll: true });
+  (area?.querySelector('[data-routstr-wallet-action="save-mint"]') as HTMLElement | null)?.focus({ preventScroll: true });
 }
 
 export async function doRoutstrMintChange() {
@@ -294,7 +294,7 @@ export async function doRoutstrMintChange() {
   }
   statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Checking mint\u2026</div>';
   try {
-    const savedMints = await walletRuntime.cashuGetWalletMints();
+    const savedMints = await (walletRuntime as WalletOperations).cashuGetWalletMints() as MintInventoryOperations;
     // Saved balances and token exports must remain accessible while offline.
     if (!savedMints.some(entry => entry.mint === url)) {
       const res = await fetch(url + '/v1/info', { redirect: 'error', signal: AbortSignal.timeout(20000) });
@@ -302,7 +302,7 @@ export async function doRoutstrMintChange() {
       const info = await res.json();
       if (!info.nuts) throw new Error('Not a valid Cashu mint');
     }
-    await walletRuntime.cashuSetMintUrl(url);
+    await (walletRuntime as WalletOperations).cashuSetMintUrl(url);
     const label = document.getElementById('routstr-mint-label');
     if (label) label.textContent = url.replace(/^https?:\/\//, '');
     const mintEdit = document.getElementById('routstr-mint-edit'); if (mintEdit) mintEdit.style.display = 'none';
@@ -322,11 +322,11 @@ export async function doRoutstrMintChange() {
 export async function showRoutstrWalletBackup() {
   _setActiveWalletAction('backup');
   try {
-    const token = await walletRuntime.cashuExportWallet();
+    const token = await (walletRuntime as WalletOperations).cashuExportWallet();
     if (!token) { showNotification('Wallet is empty', 'info'); _setActiveWalletAction(null); return; }
-    await navigator.clipboard.writeText(token);
+    await (navigator.clipboard as {writeText(value: unknown): Promise<void>}).writeText(token);
     showNotification('Wallet backup copied to clipboard (clears in 60s)', 'success');
-    clearTimeout(_rsCashuBackupTimer);
+    clearTimeout(_rsCashuBackupTimer as Parameters<typeof clearTimeout>[0]);
     _rsCashuBackupTimer = setTimeout(() => navigator.clipboard.writeText(''), 60000);
   } catch (e) {
     showNotification('Backup failed: ' + getErrorMessage(e), 'error');
@@ -342,7 +342,7 @@ export async function showRoutstrNodePicker() {
   area.style.display = 'block';
   area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Searching Nostr relays\u2026</div>';
   try {
-    const allNodes = await walletRuntime.nostrDiscoverNodes(true);
+    const allNodes = await (walletRuntime as WalletOperations).nostrDiscoverNodes(true) as NodeCatalogOperations;
     const nodes = allNodes.filter(n => n.online);
     if (!nodes.length) {
       area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">No online nodes found (' + allNodes.length + ' discovered). Try again later.</div>';
@@ -355,19 +355,19 @@ export async function showRoutstrNodePicker() {
 }
 
 let _nodeSelectionInFlight = false;
-export async function connectRoutstrNode(nodeUrl) {
+export async function connectRoutstrNode(nodeUrl: string) {
   if (_nodeSelectionInFlight) return;
   _nodeSelectionInFlight = true;
   try {
     nodeUrl = canonicalRoutstrUrl(nodeUrl);
-    if (typeof walletCallbacks.requestProviderActivation === 'function' && !await walletCallbacks.requestProviderActivation('routstr', { endpoint: nodeUrl })) return;
-    const previousNode = walletRuntime.nostrGetSelectedNode?.();
+    if (typeof walletCallbacks.requestProviderActivation === 'function' && !await (walletCallbacks.requestProviderActivation as (provider: string, options: {endpoint?: unknown}) => unknown)('routstr', { endpoint: nodeUrl })) return;
+    const previousNode = (walletRuntime as WalletOperations).nostrGetSelectedNode?.() as string | null | undefined;
     const previousKey = previousNode && getRoutstrKey(previousNode);
     if (previousKey && previousNode !== nodeUrl) await saveRoutstrKey(previousKey, previousNode);
-    walletRuntime.nostrSetSelectedNode(nodeUrl);
+    (walletRuntime as WalletOperations).nostrSetSelectedNode(nodeUrl);
     clearRoutstrModelCaches();
     const models = await fetchRoutstrModels();
-    const panel = document.getElementById('ai-provider-panel');
+    const panel = document.getElementById('ai-provider-panel') as PanelHTMLWriter | null;
     const html = _renderRoutstrPanel('routstr');
     if (panel && html) panel.innerHTML = html;
     if (models.length) _renderRoutstrModelDropdown(models);
@@ -382,16 +382,16 @@ export async function connectRoutstrNode(nodeUrl) {
   } finally { _nodeSelectionInFlight = false; }
 }
 
-async function getNodeMints(nodeUrl) {
+async function getNodeMints(nodeUrl: unknown) {
   const response = await fetch(canonicalRoutstrUrl(nodeUrl) + '/v1/info', { redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(20000) });
   if (!response.ok) throw new Error('Could not check this node’s accepted mints. Try again.');
-  const info = await response.json();
+  const info = await response.json() as {mints?: unknown};
   if (info.mints == null) return [];
-  if (!Array.isArray(info.mints) || info.mints.some(mint => typeof mint !== 'string' || !isValidExternalUrl(mint))) throw new Error('Node returned an invalid mint list.');
-  return [...new Set(info.mints.map(mint => mint.trim().replace(/\/+$/, '')))];
+  if (!Array.isArray(info.mints) || info.mints.some((mint: unknown) => typeof mint !== 'string' || !isValidExternalUrl(mint))) throw new Error('Node returned an invalid mint list.');
+  return [...new Set(info.mints.map((mint: string) => mint.trim().replace(/\/+$/, '')))];
 }
 
-export async function showRoutstrNodeDeposit(nodeUrl) {
+export async function showRoutstrNodeDeposit(nodeUrl: string) {
   nodeUrl = canonicalRoutstrUrl(nodeUrl);
   const picker = document.getElementById('routstr-node-picker');
   if (picker) { picker.style.display = 'block'; picker.dataset.mode = 'deposit'; }
@@ -403,10 +403,10 @@ export async function showRoutstrNodeDeposit(nodeUrl) {
   let nodeMints;
   try { nodeMints = await getNodeMints(nodeUrl); }
   catch (e) { if (picker) picker.textContent = getErrorMessage(e); return; }
-  const currentMint = (await walletRuntime.cashuGetMintUrl()).replace(/\/+$/, '');
-  const walletBalance = await walletRuntime.cashuGetBalance();
+  const currentMint = (await (walletRuntime as WalletOperations).cashuGetMintUrl() as string).replace(/\/+$/, '');
+  const walletBalance = await (walletRuntime as WalletOperations).cashuGetBalance() as number;
   if (nodeMints.length > 0 && !nodeMints.includes(currentMint)) {
-    const savedMints = await walletRuntime.cashuGetWalletMints();
+    const savedMints = await (walletRuntime as WalletOperations).cashuGetWalletMints() as MintInventoryOperations;
     if (picker) picker.innerHTML = `<div class="routstr-mint-panel">
       <div class="routstr-mint-heading">Choose a mint for this node</div>
       <p class="routstr-mint-help">This node accepts a different mint. Select one below to continue.</p>
@@ -440,7 +440,7 @@ export async function showRoutstrNodeDeposit(nodeUrl) {
 
 let _rsConnecting = false;
 
-export async function doRoutstrNodeDeposit(nodeUrl, amount) {
+export async function doRoutstrNodeDeposit(nodeUrl: string, amount: number) {
   if (_rsConnecting) return;
   _rsConnecting = true;
   const statusEl = document.getElementById('routstr-deposit-status');
@@ -452,25 +452,25 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
   if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--text-muted)">Depositing ' + amount.toLocaleString() + ' sats\u2026</div>';
   try {
     const nodeMints = await getNodeMints(nodeUrl);
-    const currentMint = (await walletRuntime.cashuGetMintUrl()).replace(/\/+$/, '');
+    const currentMint = (await (walletRuntime as WalletOperations).cashuGetMintUrl() as string).replace(/\/+$/, '');
     if (nodeMints.length > 0 && !nodeMints.includes(currentMint)) throw new Error('Select a mint accepted by this node before depositing. Your other balances remain available.');
   } catch (e) {
     _rsConnecting = false;
     if (statusEl) statusEl.textContent = getErrorMessage(e);
     return;
   }
-  if (typeof walletCallbacks.requestProviderActivation === 'function' && !await walletCallbacks.requestProviderActivation('routstr', { endpoint: nodeUrl })) { if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--text-muted)">Node verified — AI not activated</div>'; _rsConnecting = false; return; }
+  if (typeof walletCallbacks.requestProviderActivation === 'function' && !await (walletCallbacks.requestProviderActivation as (provider: string, options: {endpoint?: unknown}) => unknown)('routstr', { endpoint: nodeUrl })) { if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--text-muted)">Node verified — AI not activated</div>'; _rsConnecting = false; return; }
   try {
     nodeUrl = canonicalRoutstrUrl(nodeUrl);
     const existingKey = getRoutstrKey(nodeUrl);
-    const result = await walletRuntime.cashuDepositToNode(nodeUrl, amount, existingKey);
-    walletRuntime.nostrSetSelectedNode(nodeUrl);
+    const result = await (walletRuntime as WalletOperations).cashuDepositToNode(nodeUrl, amount, existingKey) as {api_key?: unknown};
+    (walletRuntime as WalletOperations).nostrSetSelectedNode(nodeUrl);
     if (result.api_key) {
       clearRoutstrModelCaches();
     }
     const models = await fetchRoutstrModels();
     showNotification('Connected to ' + nodeUrl.replace(/^https?:\/\//, '') + ' \u26a1 ' + amount.toLocaleString() + ' sats', 'success');
-    const panel = document.getElementById('ai-provider-panel');
+    const panel = document.getElementById('ai-provider-panel') as PanelHTMLWriter | null;
     const panelHtml = _renderRoutstrPanel('routstr');
     if (panel && panelHtml) panel.innerHTML = panelHtml;
     if (models.length) _renderRoutstrModelDropdown(models);
@@ -480,7 +480,7 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
   } catch (e) {
     if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
     _refreshRoutstrWalletBalance();
-    if (walletRuntime.cashuRecoverPendingDeposit) walletRuntime.cashuRecoverPendingDeposit().then(function(token) {
+    if ((walletRuntime as WalletOperations).cashuRecoverPendingDeposit) (walletRuntime as WalletOperations).cashuRecoverPendingDeposit().then(function(token) {
       if (!token) return;
       const area = document.getElementById('routstr-wallet-fund-area');
       if (!area) return;
@@ -498,10 +498,10 @@ export async function doRoutstrNodeDeposit(nodeUrl, amount) {
 }
 
 let _nodeRefundInFlight = false;
-export async function doRoutstrNodeWithdraw(nodeUrl) {
+export async function doRoutstrNodeWithdraw(nodeUrl?: unknown) {
   if (_nodeRefundInFlight) return;
-  const target = typeof nodeUrl === 'string' ? nodeUrl : walletRuntime.nostrGetSelectedNode?.();
-  if (!await walletRuntime.cashuHasWalletSeed?.()) {
+  const target = typeof nodeUrl === 'string' ? nodeUrl : (walletRuntime as WalletOperations).nostrGetSelectedNode?.();
+  if (!await (walletRuntime as WalletOperations).cashuHasWalletSeed?.()) {
     await _ensureWalletSeed(() => doRoutstrNodeWithdraw(target));
     return;
   }
@@ -509,18 +509,18 @@ export async function doRoutstrNodeWithdraw(nodeUrl) {
   _nodeRefundInFlight = true;
   const picker = document.getElementById('routstr-node-picker');
   if (picker) { picker.style.display = 'block'; picker.textContent = 'Checking node refund…'; }
-  let token = '';
+  let token: unknown = '';
   try {
-    const refund = await walletRuntime.cashuRefundNodeToToken(target);
+    const refund = await (walletRuntime as WalletOperations).cashuRefundNodeToToken(target as string) as {token?: unknown};
     token = refund.token;
-    const result = await walletRuntime.cashuReceiveToken(token);
-    await walletRuntime.cashuFinishNodeRefund(token);
+    const result = await (walletRuntime as WalletOperations).cashuReceiveToken(token as string) as {received?: unknown; fee?: unknown};
+    await (walletRuntime as WalletOperations).cashuFinishNodeRefund(token as string);
     showNotification('Withdrawn ⚡ ' + Number(result.received).toLocaleString() + ' sats to wallet', 'success');
     if (picker) picker.textContent = 'Node refund received in your wallet.';
     _refreshRoutstrWalletBalance();
     refreshRoutstrBalance();
   } catch (error) {
-    token = token || /** @type {{recoveryToken?: string}} */ (error)?.recoveryToken || '';
+    token = token || (error as {recoveryToken?: unknown} | null | undefined)?.recoveryToken || '';
     if (picker) {
       picker.innerHTML = '<div class="routstr-wallet-message routstr-wallet-message-error" role="status">' + escapeHTML(getErrorMessage(error)) + '</div>';
       if (token) picker.innerHTML += '<p class="routstr-wallet-help" id="routstr-refund-token-hint">Keep this refund token until recovery succeeds.</p><textarea class="api-key-input routstr-refund-token" aria-label="Node refund recovery token" aria-describedby="routstr-refund-token-hint" readonly>' + escapeHTML(token) + '</textarea>';
@@ -536,9 +536,9 @@ async function _refreshRoutstrWalletBalance(localOnly = false) {
   const el = document.getElementById('routstr-wallet-balance');
   if (!el) return;
   try {
-    const mint = await walletRuntime.cashuGetMintUrl?.();
-    const balance = await (localOnly ? walletRuntime.cashuGetLocalBalance() : walletRuntime.cashuGetBalance());
-    const currentMint = await walletRuntime.cashuGetMintUrl?.();
+    const mint = await (walletRuntime as WalletOperations).cashuGetMintUrl?.() as string | null | undefined;
+    const balance = await (localOnly ? (walletRuntime as WalletOperations).cashuGetLocalBalance() : (walletRuntime as WalletOperations).cashuGetBalance()) as {toLocaleString(): unknown};
+    const currentMint = await (walletRuntime as WalletOperations).cashuGetMintUrl?.();
     if (request !== _walletBalanceRefresh || el !== document.getElementById('routstr-wallet-balance')) return;
     if (mint !== currentMint) return _refreshRoutstrWalletBalance(localOnly);
     el.textContent = '\u26a1 ' + balance.toLocaleString() + ' sats';
@@ -551,9 +551,9 @@ async function _refreshRoutstrWalletBalance(localOnly = false) {
 
 export async function refreshWalletSeedStatus() {
   const el = document.getElementById('routstr-wallet-device-status');
-  if (!el || typeof walletRuntime.cashuHasWalletSeed !== 'function') return;
+  if (!el || typeof (walletRuntime as WalletOperations).cashuHasWalletSeed !== 'function') return;
   try {
-    const ready = await walletRuntime.cashuHasWalletSeed();
+    const ready = await (walletRuntime as WalletOperations).cashuHasWalletSeed();
     el.textContent = ready ? '12-word wallet seed set up on this device' : 'No 12-word wallet seed on this device';
     el.style.color = ready ? 'var(--green)' : 'var(--yellow, #f0a800)';
   } catch {
@@ -562,28 +562,28 @@ export async function refreshWalletSeedStatus() {
   }
 }
 
-export function _setActiveNodeAction(actionId) {
+export function _setActiveNodeAction(actionId: unknown) {
   const el = document.getElementById('routstr-node-actions');
-  const nodeUrl = walletRuntime.nostrGetSelectedNode?.() || '';
+  const nodeUrl = (walletRuntime as WalletOperations).nostrGetSelectedNode?.() || '';
   const hasKey = !!getRoutstrKey();
   if (el) el.innerHTML = buildRoutstrNodeActions(nodeUrl, hasKey, actionId);
 }
 
-let _activeWalletAction = null;
+let _activeWalletAction: unknown = null;
 
-function _setActiveWalletAction(actionId) {
+function _setActiveWalletAction(actionId: unknown) {
   _activeWalletAction = actionId;
   const el = document.getElementById('routstr-wallet-actions');
   if (el) el.innerHTML = routstrWalletActionButtons(actionId);
 }
 
-async function _ensureWalletSeed(thenAction) {
-  const hasSeed = await walletRuntime.cashuHasWalletSeed?.();
+async function _ensureWalletSeed(thenAction: () => unknown) {
+  const hasSeed = await (walletRuntime as WalletOperations).cashuHasWalletSeed?.();
   if (hasSeed) { await thenAction(); return true; }
   const area = document.getElementById('routstr-wallet-fund-area');
   if (!area) return false;
   area.style.display = 'block';
-  const { mnemonic } = await walletRuntime.cashuGenerateWalletSeed();
+  const { mnemonic } = await (walletRuntime as WalletOperations).cashuGenerateWalletSeed() as {mnemonic?: unknown};
   area.innerHTML = walletSeedOnboardingHtml(mnemonic);
   _walletSeedThenAction = thenAction;
   return false;
@@ -613,7 +613,7 @@ export async function showWalletSeedPhrase() {
   if (area.style.display !== 'none' && _activeWalletAction === 'seed') { area.style.display = 'none'; _setActiveWalletAction(null); return; }
   _setActiveWalletAction('seed');
   area.style.display = 'block';
-  const mnemonic = await walletRuntime.cashuGetWalletMnemonic?.();
+  const mnemonic = await (walletRuntime as WalletOperations).cashuGetWalletMnemonic?.();
   area.innerHTML = mnemonic ? walletSeedManagementHtml(mnemonic) : walletSeedMissingHtml();
 }
 
@@ -623,7 +623,7 @@ export async function showRoutstrWithdraw() {
   if (area.style.display !== 'none' && _activeWalletAction === 'withdraw') { area.style.display = 'none'; _setActiveWalletAction(null); return; }
   _setActiveWalletAction('withdraw');
   area.style.display = 'block';
-  const balance = await walletRuntime.cashuGetBalance();
+  const balance = await (walletRuntime as WalletOperations).cashuGetBalance() as number;
   area.innerHTML = walletWithdrawHtml(balance);
 }
 
@@ -643,12 +643,12 @@ export function showRoutstrWithdrawLightning() {
 export async function showRoutstrWithdrawToken() {
   const statusEl = document.getElementById('routstr-withdraw-status');
   if (!statusEl) return;
-  const balance = await walletRuntime.cashuGetBalance();
+  const balance = await (walletRuntime as WalletOperations).cashuGetBalance() as number;
   const presets = [100, 500, 1000, 2500].filter(v => v <= balance);
   statusEl.innerHTML = walletWithdrawTokenHtml(balance, presets);
 }
 
-export async function doRoutstrSendToken(amount) {
+export async function doRoutstrSendToken(amount: number) {
   const resultEl = document.getElementById('routstr-token-result');
   if (!resultEl) return;
   if (!amount || amount < 1 || isNaN(amount)) {
@@ -657,7 +657,7 @@ export async function doRoutstrSendToken(amount) {
   }
   resultEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Creating token\u2026</div>';
   try {
-    const result = await walletRuntime.cashuSendAsToken(amount);
+    const result = await (walletRuntime as WalletOperations).cashuSendAsToken(amount) as {amount: {toLocaleString(): unknown}; token?: unknown};
     resultEl.innerHTML = `<div style="margin-top:6px">
       <div style="font-size:11px;color:var(--green);margin-bottom:4px">\u2713 Token created \u2014 \u26a1 ${result.amount.toLocaleString()} sats</div>
       <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Copy and share. Sats are deducted from your wallet now.</div>
@@ -691,7 +691,7 @@ export async function doRoutstrWithdrawQuote() {
     }
     statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Withdrawing to ' + escapeHTML(val) + '\u2026</div>';
     try {
-      const withdrawal = await walletRuntime.cashuWithdrawToAddress(val, amount);
+      const withdrawal = await (walletRuntime as WalletOperations).cashuWithdrawToAddress(val, amount) as {paid?: unknown; amount: {toLocaleString(): unknown}};
       if (!withdrawal.paid) throw new Error('Payment is still awaiting confirmation');
       statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--green)">\u2713 Sent ' + withdrawal.amount.toLocaleString() + ' sats to ' + escapeHTML(val) + '</div>';
       showNotification('Withdrawal complete', 'success');
@@ -707,7 +707,7 @@ export async function doRoutstrWithdrawQuote() {
   }
   statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Checking fee\u2026</div>';
   try {
-    const quote = await walletRuntime.cashuCreateWithdrawQuote(val);
+    const quote = await (walletRuntime as WalletOperations).cashuCreateWithdrawQuote(val) as {amount: number; fee_reserve: number; quote?: unknown};
     statusEl.innerHTML = `<div style="margin-top:6px;padding:8px;background:var(--bg-primary);border-radius:6px;border:1px solid var(--border)">
       <div style="font-size:11px;color:var(--text-muted)">Amount: <strong>${quote.amount.toLocaleString()} sats</strong></div>
       <div style="font-size:11px;color:var(--text-muted)">Fee reserve: <strong>${quote.fee_reserve.toLocaleString()} sats</strong></div>
@@ -719,12 +719,12 @@ export async function doRoutstrWithdrawQuote() {
   }
 }
 
-export async function doRoutstrWithdrawExecute(quoteId) {
+export async function doRoutstrWithdrawExecute(quoteId: string) {
   const statusEl = document.getElementById('routstr-withdraw-status');
   if (!statusEl) return;
   statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Withdrawing\u2026</div>';
   try {
-    const result = await walletRuntime.cashuExecuteWithdraw(quoteId);
+    const result = await (walletRuntime as WalletOperations).cashuExecuteWithdraw(quoteId) as {paid?: unknown};
     if (!result.paid) throw new Error('Payment is still awaiting confirmation');
     statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--green)">\u2713 Withdrawn! Lightning payment sent.</div>';
     showNotification('Withdrawal complete', 'success');
@@ -746,7 +746,7 @@ export async function doRoutstrWalletRestore() {
   }
   statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Restoring from mint\u2026 (this may take a moment)</div>';
   try {
-    const result = await walletRuntime.cashuRestoreWalletFromSeed(mnemonic);
+    const result = await (walletRuntime as WalletOperations).cashuRestoreWalletFromSeed(mnemonic) as {balance: {toLocaleString(): unknown}};
     statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--green)">\u2713 Restored! Balance: \u26a1 ' + result.balance.toLocaleString() + ' sats</div>';
     showNotification('Wallet restored', 'success');
     _refreshRoutstrWalletBalance();

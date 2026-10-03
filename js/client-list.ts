@@ -1,21 +1,14 @@
-// @ts-check
 // client-list.js — lightweight public entry point for the Client List modal
 
 import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
 import { closeModalOverlay } from './modal-lifecycle.js';
 import { showClientListNotification } from './client-list-runtime.js';
 
-/** @typedef {{
- *   exportAllDataJSON: () => void,
- *   exportClientJSON: (profileId: string, includeChat?: boolean) => void,
- *   importDataJSON: (file: File) => void,
- *   loadDemoData: (sex?: string) => void,
- *   openProfileShareModal: (profileId?: string) => void,
- * }} ClientListRuntime */
+import type { ClientListRuntimeSnapshot } from './client-list-impl.js';
+type ClientListModule = typeof import('./client-list-impl.js');
+type ClientListActionResult<Name extends keyof ClientListModule> = ReturnType<ClientListModule[Name]>;
 
-/** @typedef {typeof import('./client-list-impl.js')} ClientListModule */
-
-const clientListModuleLoader = createRetryingModuleLoader(
+const clientListModuleLoader = createRetryingModuleLoader<ClientListModule>(
   retry => retry ? loadClientListRetryModule() : import('./client-list-impl.js'),
   module => {
     module.configureClientListRuntime(clientListRuntime);
@@ -23,8 +16,8 @@ const clientListModuleLoader = createRetryingModuleLoader(
   },
 );
 
-/** @type {ClientListRuntime} */
-const clientListRuntime = {
+// Snapshot fields are opaque because configuration accepts unchecked overrides.
+const clientListRuntime: ClientListRuntimeSnapshot = {
   exportAllDataJSON: () => {},
   exportClientJSON: () => {},
   importDataJSON: () => {},
@@ -37,14 +30,13 @@ export function isClientListModuleLoaded() {
 }
 
 /** @returns {Promise<ClientListModule>} */
-function loadClientListRetryModule() {
-  // @ts-expect-error The browser accepts a fixed query-string module URL;
-  // TypeScript resolves declarations only for the query-free source path.
-  return import('./client-list-impl.js?lazy-retry=1');
+function loadClientListRetryModule(): Promise<ClientListModule> {
+  // The fixed retry URL serves the same checked native module.
+  return import('./client-list-impl.js?lazy-retry=1' as './client-list-impl.js');
 }
 
 /** @returns {Promise<ClientListModule>} */
-export function loadClientListModule() {
+export function loadClientListModule(): Promise<ClientListModule> {
   return clientListModuleLoader.load();
 }
 
@@ -52,17 +44,15 @@ export function loadClientListModule() {
  * Preserve startup dependency injection without pulling the implementation
  * into the eager graph.
  *
- * @param {Partial<ClientListRuntime>} [runtime]
  */
-export function configureClientListRuntime(runtime = {}) {
+export function configureClientListRuntime(runtime: unknown = {}) {
   const previous = { ...clientListRuntime };
   Object.assign(clientListRuntime, runtime);
   clientListModuleLoader.module?.configureClientListRuntime(runtime);
   return previous;
 }
 
-/** @param {keyof ClientListModule} name @param {unknown} err */
-function reportClientListActionError(name, err) {
+function reportClientListActionError(name: keyof ClientListModule, err: unknown) {
   console.error(`[client-list] Could not run ${String(name)}:`, err);
   showClientListNotification(
     'Could not open clients. Reload the app to finish updating, then try again.',
@@ -75,21 +65,19 @@ function reportClientListActionError(name, err) {
  * Keep actions synchronous after the implementation is resident while making
  * the first action load it on demand.
  *
- * @param {keyof ClientListModule} name
- * @param {any[]} args
  */
-function runClientListAction(name, args) {
-  const run = (/** @type {ClientListModule} */ module) => {
+function runClientListAction<Name extends keyof ClientListModule>(name: Name, args: unknown[]) {
+  const run = (module: ClientListModule): ClientListActionResult<Name> => {
     const action = module[name];
     if (typeof action !== 'function') {
       throw new Error(`Client List action ${String(name)} is unavailable`);
     }
-    return Reflect.apply(action, module, args);
+    return Reflect.apply(action, module, args) as ClientListActionResult<Name>;
   };
   return invokeCachedModule(clientListModuleLoader, loadClientListModule, run, err => reportClientListActionError(name, err), 'propagate');
 }
 
-export function openClientList(...args) {
+export function openClientList(...args: unknown[]) {
   return runClientListAction('openClientList', args);
 }
 
@@ -100,10 +88,10 @@ export function closeClientList() {
   closeModalOverlay('client-list-overlay');
 }
 
-export function openClientForm(...args) {
+export function openClientForm(...args: unknown[]) {
   return runClientListAction('openClientForm', args);
 }
 
-export function openProfileLocationEditor(...args) {
+export function openProfileLocationEditor(...args: unknown[]) {
   return runClientListAction('openProfileLocationEditor', args);
 }

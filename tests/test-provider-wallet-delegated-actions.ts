@@ -7,7 +7,7 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 const walletPanelSrc = readRepositorySource('js/provider-wallet-panels.js', 'utf8');
 const walletPanelRendererSrc = readRepositorySource('js/provider-wallet-panel-renderers.js', 'utf8');
 const walletUiSrc = walletPanelSrc + '\n' + walletPanelRendererSrc;
-const walletDelegatesSrc = readRepositorySource('js/provider-wallet-delegates.js', 'utf8');
+const walletDelegatesSrc = readRepositorySource('js/provider-wallet-delegates.js', 'utf8').replace(/\s+/g, ' ');
 const swSrc = readServiceWorkerSource(relative => readRepositorySource(relative, 'utf8'));
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");

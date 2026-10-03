@@ -1,4 +1,3 @@
-// @ts-check
 // provider-wallet-runtime.js - Cashu/Nostr dependencies for Routstr wallet panels
 
 import {
@@ -79,9 +78,12 @@ const walletRuntimeDefaults = {
   nostrSetSelectedNode,
 };
 
-export const walletRuntime = { ...walletRuntimeDefaults };
+// Defaults are genuine native functions; unchecked overrides make each mutable slot opaque.
+export type ProviderWalletDefaults = typeof walletRuntimeDefaults;
+export type ProviderWalletRuntime = { [Key in keyof ProviderWalletDefaults]: unknown } & Record<PropertyKey, unknown>;
+export const walletRuntime: ProviderWalletRuntime = { ...walletRuntimeDefaults };
 
-export function configureRoutstrWalletRuntime(overrides = {}) {
+export function configureRoutstrWalletRuntime(overrides: unknown = {}) {
   const previous = { ...walletRuntime };
   for (const key of Object.keys(walletRuntime)) {
     if (!Object.prototype.hasOwnProperty.call(walletRuntimeDefaults, key)) delete walletRuntime[key];

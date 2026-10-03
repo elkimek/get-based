@@ -448,7 +448,7 @@ export function rollingChannelTotals(days = 7) {
     // the 7d total.
     if (!sess.endedAt) {
       if ((sess.startedAt || 0) < cutoff) continue;
-      const live = _liveDosesFor(sess);
+      const live = /** @type {(Omit<NonNullable<ReturnType<typeof _liveDosesFor>>, 'doses' | 'medFraction'> & {doses: Record<string, number>; medFraction: number}) | null} */ (_liveDosesFor(sess));
       if (live?.doses) {
         for (const [k, v] of Object.entries(live.doses)) {
           totals[k] = (totals[k] || 0) + (Number.isFinite(v) ? v : 0);
@@ -492,9 +492,9 @@ export function dailyChannelBreakdown(channelKey, days = 7) {
     if (!sess.endedAt) {
       // In-progress session — pull live partial dose so the chart reflects
       // an active session in progress (matches rollingChannelTotals).
-      const live = _liveDosesFor(sess);
+      const live = /** @type {(Omit<NonNullable<ReturnType<typeof _liveDosesFor>>, 'doses' | 'medFraction'> & {doses: Record<string, number>; medFraction: number}) | null} */ (_liveDosesFor(sess));
       const v = live?.doses?.[channelKey];
-      if (Number.isFinite(v)) buckets[i].sun += v;
+      if (Number.isFinite(v)) buckets[i].sun += /** @type {number} */ (v);
       continue;
     }
     if (!sess.doses) continue;
@@ -524,7 +524,7 @@ export function cumulativeMEDToday() {
   let total = 0;
   for (const sess of getSessions()) {
     if (!sess.endedAt) {
-      const live = _liveDosesFor(sess);
+      const live = /** @type {(Omit<NonNullable<ReturnType<typeof _liveDosesFor>>, 'doses' | 'medFraction'> & {doses: Record<string, number>; medFraction: number}) | null} */ (_liveDosesFor(sess));
       if (live && Number.isFinite(live.medFraction)) total += live.medFraction;
       continue;
     }
@@ -550,7 +550,7 @@ export function cumulativeMEDYesterday() {
     if (!sess.endedAt) {
       const startedAt = sess.startedAt || 0;
       if (startedAt < yStart || startedAt >= todayStart) continue;
-      const live = _liveDosesFor(sess);
+      const live = /** @type {(Omit<NonNullable<ReturnType<typeof _liveDosesFor>>, 'doses' | 'medFraction'> & {doses: Record<string, number>; medFraction: number}) | null} */ (_liveDosesFor(sess));
       if (!live || !Number.isFinite(live.medFraction)) continue;
       const totalElapsedMs = Date.now() - startedAt;
       const yesterdayMs = Math.max(0, todayStart - startedAt);

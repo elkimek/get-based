@@ -1,4 +1,3 @@
-// @ts-check
 // context-card-dashboard-ai.js - cold-safe AI context and data protection facade
 
 import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
@@ -16,7 +15,9 @@ import {
 } from './context-card-dashboard-ai-actions.js';
 import { openInterpretiveLensEditorRuntime } from './context-cards-runtime.js';
 
-/** @typedef {typeof import('./context-card-dashboard-ai-impl.js')} DashboardAIModule */
+type DashboardAIModule = typeof import('./context-card-dashboard-ai-impl.js');
+interface DashboardAIProtectionUpdates { pickFolderForBackup?: unknown; showEnableEncryptionModal?: unknown }
+interface DataProtectionReader { encryption?: unknown; sync?: unknown; backup?: unknown; backupSupported?: unknown }
 
 const dashboardAIModuleLoader = createRetryingModuleLoader(
   retry => retry ? loadDashboardAIRetryModule() : import('./context-card-dashboard-ai-impl.js'),
@@ -27,45 +28,41 @@ const dashboardAIModuleLoader = createRetryingModuleLoader(
   },
 );
 
-let dashboardAISyncSetupHandler = showSyncSetupModal;
-const dashboardAIDataProtectionDeps = { pickFolderForBackup, showEnableEncryptionModal };
+let dashboardAISyncSetupHandler: () => unknown = showSyncSetupModal;
+const dashboardAIDataProtectionDeps: { pickFolderForBackup: () => unknown; showEnableEncryptionModal: () => unknown } = { pickFolderForBackup, showEnableEncryptionModal };
 
 export function isDashboardAIModuleLoaded() {
   return dashboardAIModuleLoader.module !== null;
 }
 
-/** @returns {Promise<DashboardAIModule>} */
 function loadDashboardAIRetryModule() {
-  // @ts-expect-error TypeScript resolves only the query-free source path.
-  return import('./context-card-dashboard-ai-impl.js?lazy-retry=1');
+  return import('./context-card-dashboard-ai-impl.js?lazy-retry=1' as './context-card-dashboard-ai-impl.js');
 }
 
-/** @returns {Promise<DashboardAIModule>} */
 export function loadDashboardAIModule() {
   return dashboardAIModuleLoader.load();
 }
 
-export function configureDashboardAISyncSetup(handler = showSyncSetupModal) {
-  dashboardAISyncSetupHandler = typeof handler === 'function' ? handler : showSyncSetupModal;
+export function configureDashboardAISyncSetup(handler: unknown = showSyncSetupModal) {
+  dashboardAISyncSetupHandler = typeof handler === 'function' ? handler as () => unknown : showSyncSetupModal;
   dashboardAIModuleLoader.module?.configureDashboardAISyncSetup(dashboardAISyncSetupHandler);
 }
 
-export function configureDashboardAIDataProtectionDeps(deps = {}) {
+export function configureDashboardAIDataProtectionDeps(deps: unknown = {}) {
   const previous = { ...dashboardAIDataProtectionDeps };
-  if (typeof deps.pickFolderForBackup === 'function') dashboardAIDataProtectionDeps.pickFolderForBackup = deps.pickFolderForBackup;
-  if (typeof deps.showEnableEncryptionModal === 'function') dashboardAIDataProtectionDeps.showEnableEncryptionModal = deps.showEnableEncryptionModal;
+  if (typeof (deps as DashboardAIProtectionUpdates).pickFolderForBackup === 'function') dashboardAIDataProtectionDeps.pickFolderForBackup = (deps as DashboardAIProtectionUpdates).pickFolderForBackup as () => unknown;
+  if (typeof (deps as DashboardAIProtectionUpdates).showEnableEncryptionModal === 'function') dashboardAIDataProtectionDeps.showEnableEncryptionModal = (deps as DashboardAIProtectionUpdates).showEnableEncryptionModal as () => unknown;
   dashboardAIModuleLoader.module?.configureDashboardAIDataProtectionDeps(deps);
   return previous;
 }
 
-/** @param {keyof DashboardAIModule} name */
-function runDashboardAIAction(name) {
-  const run = (/** @type {DashboardAIModule} */ module) => {
+function runDashboardAIAction(name: keyof DashboardAIModule) {
+  const run = (module: DashboardAIModule) => {
     const action = module[name];
     if (typeof action !== 'function') {
       throw new Error(`Dashboard AI action ${String(name)} is unavailable`);
     }
-    return Reflect.apply(action, module, []);
+    return Reflect.apply(action, module, []) as unknown;
   };
   return invokeCachedModule(dashboardAIModuleLoader, loadDashboardAIModule, run, (err) => {
     console.error(`[context-cards] Could not run ${String(name)}:`, err);
@@ -109,26 +106,26 @@ export { installDashboardAIActionDelegates };
 //   - Full-width row for the Knowledge Base, only if a library is set.
 //   - Inline pill CTA when Lens or KB is unset.
 export function renderInterpretiveLensSection() {
-  const lens = (state.importedData.interpretiveLens || '').trim();
-  let summary; try { summary = getLensSummary(); } catch { summary = null; }
+  const lens = (((state.importedData as { interpretiveLens?: unknown }).interpretiveLens || '') as { trim(): unknown }).trim();
+  let summary: ReturnType<typeof getLensSummary> | null; try { summary = getLensSummary(); } catch { summary = null; }
   const kbConfigured = !!(summary && summary.configured);
   const kbEnabled = !!(summary && summary.enabled);
 
   const lensRow = lens
     ? `<div class="lens-section" role="button" tabindex="0" aria-label="Edit Interpretive Lens" ${dashboardAIActionAttrs('open-interpretive-lens')} title="Interpretive Lens - click to edit"><span class="lens-section-icon">&#129694;</span><span class="lens-section-body"><span class="lens-section-label">Interpretive Lens</span><span class="lens-section-text">${escapeHTML(lens)}</span></span><span class="lens-section-edit">&#9998;</span></div>`
     : '';
-  const kbRow = (kbConfigured || kbEnabled) ? renderKnowledgeBaseRow(summary) : '';
+  const kbRow = (kbConfigured || kbEnabled) ? renderKnowledgeBaseRow(summary as ReturnType<typeof getLensSummary>) : '';
   const aiCta = renderPersonalizeAICta(!!lens, kbConfigured);
   return lensRow + kbRow + aiCta + renderDataProtectionCta();
 }
 
 export function renderKnowledgeBaseSection() {
-  let summary; try { summary = getLensSummary(); } catch { return ''; }
+  let summary: ReturnType<typeof getLensSummary> | null; try { summary = getLensSummary(); } catch { return ''; }
   if (!summary || (!summary.configured && !summary.enabled)) return '';
   return renderKnowledgeBaseRow(summary);
 }
 
-function renderKnowledgeBaseRow(summary) {
+function renderKnowledgeBaseRow(summary: ReturnType<typeof getLensSummary>) {
   const docFragment = (summary.docCount != null && summary.docCount > 0)
     ? ` &middot; ${summary.docCount} document${summary.docCount !== 1 ? 's' : ''}`
     : '';
@@ -140,9 +137,9 @@ function renderKnowledgeBaseRow(summary) {
   return `<div class="lens-section" role="button" tabindex="0" aria-label="Manage Knowledge Base" ${dashboardAIActionAttrs('open-knowledge-base')} title="Knowledge Base - click to manage"><span class="lens-section-icon">&#128218;</span><span class="lens-section-body"><span class="lens-section-label">Knowledge Base</span><span class="lens-section-text">${detail}</span></span><span class="lens-section-edit">&#9998;</span></div>`;
 }
 
-function renderPersonalizeAICta(lensSet, kbSet) {
+function renderPersonalizeAICta(lensSet: boolean, kbSet: boolean) {
   if (lensSet && kbSet) return '';
-  let icon, label, action;
+  let icon: string, label: string, action: string;
   if (!lensSet && !kbSet) {
     icon = '&#10024;';
     label = 'Personalize how AI answers';
@@ -181,8 +178,8 @@ function getDataProtectionStatus() {
 
 // Pure render: tests pass explicit state to avoid monkey-patching module-level
 // imports, while production reads the current feature status.
-export function renderDataProtectionCta(stateOverride) {
-  const protectionState = stateOverride || getDataProtectionStatus();
+export function renderDataProtectionCta(stateOverride?: unknown) {
+  const protectionState = (stateOverride || getDataProtectionStatus()) as DataProtectionReader;
   const backupOk = protectionState.backup || !protectionState.backupSupported;
   const missing = [
     !protectionState.encryption ? 'encryption' : null,

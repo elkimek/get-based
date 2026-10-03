@@ -109,7 +109,7 @@ export function rollingVitaminDIU(days = 7) {
   for (const sess of getSessions()) {
     if (!sess.endedAt) {
       if ((sess.startedAt || 0) < cutoff) continue;
-      const live = _liveDosesFor(sess);
+      const live = /** @type {(Omit<NonNullable<ReturnType<typeof _liveDosesFor>>, 'doses' | 'fitzpatrick' | 'atm'> & {doses: Record<string, number>; fitzpatrick?: string; atm?: {uvIndex?: number | null} | null}) | null} */ (_liveDosesFor(sess));
       if (live?.doses?.vitamin_d) {
         const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
         const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
@@ -159,7 +159,7 @@ export function dailyVitaminDIUBreakdown(days = 7) {
     if (i < 0) continue;
     let au, fitz, uvi, rotated;
     if (!sess.endedAt) {
-      const live = _liveDosesFor(sess);
+      const live = /** @type {(Omit<NonNullable<ReturnType<typeof _liveDosesFor>>, 'doses' | 'fitzpatrick' | 'atm'> & {doses: Record<string, number>; fitzpatrick?: string; atm?: {uvIndex?: number | null} | null}) | null} */ (_liveDosesFor(sess));
       au = live?.doses?.vitamin_d;
       fitz = live?.fitzpatrick || sess.safety?.fitzpatrick || 'III';
       uvi = live?.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;
@@ -170,9 +170,9 @@ export function dailyVitaminDIUBreakdown(days = 7) {
       uvi = sess.atmosphere?.uvIndex ?? null;
       rotated = !!sess.bodyExposure?.rotatedSides;
     }
-    if (!Number.isFinite(au) || au <= 0) continue;
+    if (!Number.isFinite(au) || /** @type {number} */ (au) <= 0) continue;
     const bodyFrac = sess.bodyExposure?.fraction;
-    buckets[i].sun += vitaminDIUPerSession(au, fitz, uvi, rotated, genetics, bodyFrac);
+    buckets[i].sun += vitaminDIUPerSession(/** @type {number} */ (au), fitz, uvi, rotated, genetics, bodyFrac);
   }
   const fitzForDevice = state.importedData?.sunDefaults?.fitzpatrick || 'III';
   const fracByKey = getBodyFractionByRegion();
@@ -205,7 +205,7 @@ export function cumulativeVitaminDIUToday() {
     const bucketTs = getSunSessionBucketTs(sess);
     if (!bucketTs || localDayKey(bucketTs) !== todayKey) continue;
     if (!sess.endedAt) {
-      const live = _liveDosesFor(sess);
+      const live = /** @type {(Omit<NonNullable<ReturnType<typeof _liveDosesFor>>, 'doses' | 'fitzpatrick' | 'atm'> & {doses: Record<string, number>; fitzpatrick?: string; atm?: {uvIndex?: number | null} | null}) | null} */ (_liveDosesFor(sess));
       if (live?.doses?.vitamin_d) {
         const fitz = live.fitzpatrick || sess.safety?.fitzpatrick || 'III';
         const uvi = live.atm?.uvIndex ?? sess.atmosphere?.uvIndex ?? null;

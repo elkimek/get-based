@@ -300,7 +300,7 @@ export function initSettingsModelFetch() {
           '</div></div>';
       }
     });
-    walletRuntime.cashuGetPendingNodeRefund?.().then(function(refund) {
+    (/** @type {((...args: Parameters<import('./provider-wallet-runtime.js').ProviderWalletDefaults['cashuGetPendingNodeRefund']>) => Promise<{nodeUrl?: unknown} | null | undefined>) | null | undefined} */ (walletRuntime.cashuGetPendingNodeRefund))?.().then(function(refund) {
       if (!refund) return;
       const area = document.getElementById('routstr-node-picker');
       if (!area) return;
