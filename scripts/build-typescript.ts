@@ -64,6 +64,32 @@ function classicBrowserFixtureEntries(rootDir: string): string[] {
   return entries;
 }
 
+/** Reduce emitted indentation while preserving literal text and all line boundaries. */
+export function compactRuntimeIndentation(source: string): string {
+  const file = ts.createSourceFile('runtime.js', source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.JS);
+  const protectedRanges: Array<{ start: number; end: number }> = [];
+  function protect(node: ts.Node): void {
+    if (ts.isStringLiteralLike(node) || ts.isTemplateLiteralToken(node) || ts.isRegularExpressionLiteral(node)) {
+      protectedRanges.push({ start: node.getStart(file), end: node.end });
+    }
+    ts.forEachChild(node, protect);
+  }
+  protect(file);
+  const scanner = ts.createScanner(ts.ScriptTarget.ES2022, false, ts.LanguageVariant.Standard, source);
+  for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan()) {
+    if (token === ts.SyntaxKind.SingleLineCommentTrivia || token === ts.SyntaxKind.MultiLineCommentTrivia) {
+      protectedRanges.push({ start: scanner.getTokenPos(), end: scanner.getTextPos() });
+    }
+  }
+  protectedRanges.sort((a, b) => a.start - b.start);
+  let rangeIndex = 0;
+  return source.replace(/^ {4,}/gm, (indent: string, offset: number) => {
+    while (protectedRanges[rangeIndex] && protectedRanges[rangeIndex]!.end <= offset) rangeIndex++;
+    const range = protectedRanges[rangeIndex];
+    return range && range.start <= offset ? indent : ' '.repeat(Math.ceil(indent.length / 2));
+  });
+}
+
 export function buildTypeScript(rootDir = root): void {
   const manifest = classicBrowserFixtureEntries(rootDir);
   const fixtures = manifest.filter(name => existsSync(path.join(rootDir, name)));
@@ -75,12 +101,21 @@ export function buildTypeScript(rootDir = root): void {
   }
   // Reject accidental module payload before any compilation overwrites an existing URL.
   for (const name of fixtures) fixtureFunction(readFileSync(path.join(rootDir, name), 'utf8'), name, false);
+  const outputs = new Set<string>();
   for (const config of ['tsconfig.migration.json', 'tsconfig.worker-migration.json', 'tsconfig.fixture-migration.json', 'tsconfig.bootstrap-migration.json']) {
+    const configFile = path.join(rootDir, config);
+    const parsed = ts.parseJsonConfigFileContent(ts.readConfigFile(configFile, ts.sys.readFile).config, ts.sys, rootDir);
+    for (const source of parsed.fileNames) {
+      if (/\.(?:ts|mts)$/.test(source) && !source.endsWith('.d.ts')) {
+        outputs.add(source.replace(/\.mts$/, '.mjs').replace(/\.ts$/, '.js'));
+      }
+    }
     execFileSync(process.execPath, [
       path.join(rootDir, 'node_modules/typescript/bin/tsc'),
       '-p', path.join(rootDir, config),
     ], { cwd: rootDir, stdio: 'inherit' });
   }
+  for (const output of outputs) writeFileSync(output, compactRuntimeIndentation(readFileSync(output, 'utf8')));
   // Validate every compiled wrapper before replacing any wrapper with its body.
   const bodies = fixtures.map(name => {
     const output = path.join(rootDir, name.replace(/\.ts$/, '.js'));
