@@ -1,3 +1,9 @@
+type ThemeProfileFixture={id:string;name?:unknown;sex?:unknown;dob?:unknown;location?:unknown;tags?:unknown};
+import type {Browser,Page,TestInfo} from '@playwright/test';
+type ThemeName=typeof THEMES[number];
+type ViewportFixture=typeof VIEWPORTS[number];
+type FixtureAssert=(name:string,condition:unknown,detail?:unknown)=>void;
+type ColorReader={r:number;g:number;b:number;a:number};
 // Theme/responsive E2E smoke: real Chrome, real viewport changes, every shipped theme.
 //
 // This complements the legacy in-page tests. Those cover behavior well, but
@@ -11,7 +17,7 @@ import { startPageCoverage, stopPageCoverage, test } from './coverage-fixture.js
 
 const PORT = process.env.PORT || 8000;
 const BASE_URL = `http://localhost:${PORT}/app`;
-const THEMES = ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer'];
+const THEMES = ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer'] as const;
 const THEME_BAR_COLORS = {
   dark: '#0a0a12',
   light: '#ffffff',
@@ -35,15 +41,15 @@ const ARTIFACTS_DIR = process.env.REDESIGN_E2E_ARTIFACTS
   ? path.resolve(process.env.REDESIGN_E2E_ARTIFACTS)
   : '';
 
-function testName(theme, viewport, label) {
+function testName(theme:ThemeName, viewport:string, label:string) {
   return `${theme}/${viewport}: ${label}`;
 }
 
-function delay(ms) {
+function delay(ms:number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function waitForApp(page) {
+async function waitForApp(page:Page) {
   await page.waitForFunction(
     async () => !!(await import('/js/state.js')).state,
     null,
@@ -51,7 +57,7 @@ async function waitForApp(page) {
   );
 }
 
-async function seedDemoData(page) {
+async function seedDemoData(page:Page) {
   await page.evaluate(async () => {
     const [{ state }, dataModule, profileModule, { loadLightSunUI }] = await Promise.all([
       import('/js/state.js'),
@@ -59,9 +65,9 @@ async function seedDemoData(page) {
       import('/js/profile.js'),
       import('/js/light-sun-loader.js'),
     ]);
-    const demo = await fetch('/data/demo-male.json', { cache: 'no-store' }).then(r => r.json());
+    const demo = await fetch('/data/demo-male.json', { cache: 'no-store' }).then(r => (r.json as()=>Promise<unknown>)());
     const profileId = state.currentProfile || 'default';
-    const profiles = profileModule.getProfiles() || [];
+    const profiles = (profileModule.getProfiles as()=>ThemeProfileFixture[])() || [];
     let profile = profiles.find(p => p.id === profileId);
     if (!profile) {
       profile = { id: profileId, name: 'E2E Dashboard' };
@@ -72,7 +78,7 @@ async function seedDemoData(page) {
     profile.dob = '1987-11-22';
     profile.location = { country: 'united states', zip: '10001' };
     profile.tags = Array.from(new Set([...(Array.isArray(profile.tags) ? profile.tags : []), 'demo']));
-    await profileModule.saveProfiles(profiles);
+    await (profileModule.saveProfiles as(profiles:ThemeProfileFixture[])=>ReturnType<typeof profileModule.saveProfiles>)(profiles);
     const profileKey = profileModule.profileStorageKey;
     localStorage.setItem(profileKey(profileId, 'onboarded'), 'profile-set');
     localStorage.setItem(profileKey(profileId, 'emptyTour'), 'completed');
@@ -81,7 +87,7 @@ async function seedDemoData(page) {
     localStorage.setItem(`labcharts-onboard-extras-done-${profileId}`, '1');
     localStorage.setItem(`labcharts-onboard-provider-skipped-${profileId}`, '1');
     localStorage.setItem('labcharts-analytics-consent-seen', '1');
-    localStorage.setItem('labcharts-changelog-seen', window.APP_VERSION || 'test');
+    (localStorage.setItem as(key:string,value:unknown)=>void)('labcharts-changelog-seen', (window as unknown as {APP_VERSION?:unknown}).APP_VERSION || 'test');
     const fetchAtmosphereStub = async () => {
       const now = Date.now();
       return {
@@ -114,11 +120,11 @@ async function seedDemoData(page) {
         fetchedAt: now,
       };
     };
-    window.fetchAtmosphere = fetchAtmosphereStub;
+    (window as unknown as {fetchAtmosphere?:unknown}).fetchAtmosphere = fetchAtmosphereStub;
     await loadLightSunUI();
     const conditionsNow = await import('/js/light-conditions-now.js');
     conditionsNow.configureLightConditionsNow?.({ fetchAtmosphere: fetchAtmosphereStub });
-    state.importedData = demo;
+    (state as unknown as {importedData:unknown}).importedData = demo;
     state.profileSex = 'male';
     state.profileDob = '1987-11-22';
     await dataModule.saveImportedData();
@@ -130,7 +136,7 @@ async function seedDemoData(page) {
   await delay(200);
 }
 
-async function seedMobileLightSessions(page) {
+async function seedMobileLightSessions(page:Page) {
   await page.evaluate(async () => {
     const [{ state }, { logCompletedSession }] = await Promise.all([
       import('/js/state.js'),
@@ -140,7 +146,7 @@ async function seedMobileLightSessions(page) {
     const now = Date.now();
     state.importedData.sunSessions = [];
     state.importedData.deviceSessions = [];
-    state.importedData.lightDevices = [{
+    (state.importedData as unknown as {lightDevices:unknown}).lightDevices = [{
       id: 'D-mobile-long',
       brand: 'Mitochondriak Performance Systems',
       model: 'Ultra Bright Red Near Infrared Panel Max 9000',
@@ -185,7 +191,7 @@ async function seedMobileLightSessions(page) {
   });
 }
 
-async function prepareScenario(page, theme, viewport) {
+async function prepareScenario(page:Page, theme:ThemeName, viewport:ViewportFixture) {
   await page.setViewportSize({
     width: viewport.width,
     height: viewport.height,
@@ -199,8 +205,8 @@ async function prepareScenario(page, theme, viewport) {
     settings.closeSettingsModal();
     (await import('/js/chat-panel.js')).closeChatPanel();
     (await import('/js/nav.js')).closeMobileSidebar();
-    document.querySelectorAll('#tour-overlay, #tour-spotlight, #tour-tooltip').forEach(el => el.remove());
-    document.querySelectorAll('.modal-overlay.show').forEach(el => el.classList.remove('show'));
+    document.querySelectorAll<HTMLElement>('#tour-overlay, #tour-spotlight, #tour-tooltip').forEach(el => el.remove());
+    document.querySelectorAll<HTMLElement>('.modal-overlay.show').forEach(el => el.classList.remove('show'));
     localStorage.removeItem('labcharts-accent-override');
     localStorage.removeItem('labcharts-sunset-mode');
     localStorage.removeItem('labcharts-crt-effects');
@@ -213,13 +219,13 @@ async function prepareScenario(page, theme, viewport) {
   }, theme);
   await seedDemoData(page);
   await page.evaluate(async () => {
-    window.endTour?.();
+    (window as unknown as {endTour?:(()=>unknown)|undefined}).endTour?.();
     (await import('/js/chat-panel.js')).closeChatPanel();
-    document.querySelectorAll('#tour-overlay, #tour-spotlight, #tour-tooltip').forEach(el => el.remove());
+    document.querySelectorAll<HTMLElement>('#tour-overlay, #tour-spotlight, #tour-tooltip').forEach(el => el.remove());
   });
 }
 
-async function captureArtifact(page, theme, viewport, assert) {
+async function captureArtifact(page:Page, theme:ThemeName, viewport:string, assert:FixtureAssert) {
   const shot = await page.screenshot({ fullPage: false });
   assert(testName(theme, viewport, 'Chrome screenshot is non-empty'), shot.length > 10000, `bytes=${shot.length}`);
   if (ARTIFACTS_DIR) {
@@ -228,29 +234,29 @@ async function captureArtifact(page, theme, viewport, assert) {
   }
 }
 
-async function evaluateBaseChecks(page, theme, viewport) {
+async function evaluateBaseChecks(page:Page, theme:ThemeName, viewport:ViewportFixture) {
   return page.evaluate(({ theme, viewport, themeBarColors }) => {
-    const failures = [];
-    const notes = [];
+    const failures:{name:string;detail:unknown}[] = [];
+    const notes:{name:string;detail:unknown}[] = [];
     const expectedAttr = theme === 'dark' ? null : theme;
 
-    function ok(name, cond, detail = '') {
+    function ok(name:string, cond:unknown, detail:unknown = '') {
       if (!cond) failures.push({ name, detail });
     }
-    function note(name, detail = '') {
+    function note(name:string, detail:unknown = '') {
       notes.push({ name, detail });
     }
-    function cssVar(name) {
+    function cssVar(name:string) {
       return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     }
-    function bySelector(selector) {
-      return Array.from(document.querySelectorAll(selector));
+    function bySelector(selector:string) {
+      return Array.from(document.querySelectorAll<HTMLElement>(selector));
     }
-    function rect(el) {
-      const r = el.getBoundingClientRect();
+    function rect(el:Element|null|undefined) {
+      const r = el!.getBoundingClientRect();
       return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
     }
-    function visible(el) {
+    function visible(el:HTMLElement|null|undefined):el is HTMLElement {
       if (!el) return false;
       const cs = getComputedStyle(el);
       const r = el.getBoundingClientRect();
@@ -260,21 +266,21 @@ async function evaluateBaseChecks(page, theme, viewport) {
         && r.width > 1
         && r.height > 1;
     }
-    function inViewport(el, margin = 1) {
+    function inViewport(el:Element|null|undefined, margin = 1) {
       const r = rect(el);
       return r.left >= -margin
         && r.top >= -margin
         && r.right <= window.innerWidth + margin
         && r.bottom <= window.innerHeight + margin;
     }
-    function overlap(a, b) {
+    function overlap(a:Element|undefined, b:Element|undefined) {
       const ar = rect(a);
       const br = rect(b);
       const x = Math.max(0, Math.min(ar.right, br.right) - Math.max(ar.left, br.left));
       const y = Math.max(0, Math.min(ar.bottom, br.bottom) - Math.max(ar.top, br.top));
       return x * y;
     }
-    function assertNoOverlap(selector, label) {
+    function assertNoOverlap(selector:string, label:string) {
       const els = bySelector(selector).filter(visible);
       for (let i = 0; i < els.length; i++) {
         for (let j = i + 1; j < els.length; j++) {
@@ -303,11 +309,11 @@ async function evaluateBaseChecks(page, theme, viewport) {
         return `${selector}: ${el.textContent.trim().slice(0, 60)}`;
       }).filter(Boolean));
     }
-    function parseColor(input) {
+    function parseColor(input:unknown) {
       const value = String(input || '').trim();
       let m = value.match(/^rgba?\(([^)]+)\)$/i);
       if (m) {
-        const parts = m[1].replace(/\//g, ',').split(/[\s,]+/).filter(Boolean);
+        const parts = m[1]!.replace(/\//g, ',').split(/[\s,]+/).filter(Boolean);
         return {
           r: Number(parts[0]),
           g: Number(parts[1]),
@@ -326,19 +332,19 @@ async function evaluateBaseChecks(page, theme, viewport) {
       }
       m = value.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
       if (m) {
-        const hex = m[1].length === 3
-          ? m[1].split('').map(c => c + c).join('')
+        const hex = m[1]!.length === 3
+          ? m[1]!.split('').map(c => c + c).join('')
           : m[1];
         return {
-          r: parseInt(hex.slice(0, 2), 16),
-          g: parseInt(hex.slice(2, 4), 16),
-          b: parseInt(hex.slice(4, 6), 16),
+          r: parseInt(hex!.slice(0, 2), 16),
+          g: parseInt(hex!.slice(2, 4), 16),
+          b: parseInt(hex!.slice(4, 6), 16),
           a: 1,
         };
       }
       return null;
     }
-    function resolveColor(value, prop = 'color') {
+    function resolveColor(value:string, prop:'color'|'backgroundColor' = 'color') {
       const el = document.createElement('span');
       el.style[prop] = value;
       document.body.appendChild(el);
@@ -346,7 +352,7 @@ async function evaluateBaseChecks(page, theme, viewport) {
       el.remove();
       return parseColor(resolved);
     }
-    function composite(fg, bg) {
+    function composite(fg:ColorReader, bg:ColorReader) {
       const alpha = fg.a == null ? 1 : fg.a;
       return {
         r: fg.r * alpha + bg.r * (1 - alpha),
@@ -355,22 +361,22 @@ async function evaluateBaseChecks(page, theme, viewport) {
         a: 1,
       };
     }
-    function luminance(c) {
+    function luminance(c:ColorReader) {
       const ch = [c.r, c.g, c.b].map(v => {
         const s = Math.max(0, Math.min(255, v)) / 255;
         return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
       });
-      return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+      return 0.2126 * ch[0]! + 0.7152 * ch[1]! + 0.0722 * ch[2]!;
     }
-    function contrast(a, b) {
+    function contrast(a:ColorReader, b:ColorReader) {
       const l1 = luminance(a);
       const l2 = luminance(b);
       return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
     }
-    function resolvedVar(name, prop = 'color') {
+    function resolvedVar(name:string, prop:'color'|'backgroundColor' = 'color') {
       return resolveColor(cssVar(name), prop);
     }
-    function contrastAgainst(tokenA, tokenB, min, label, bgFallback = null) {
+    function contrastAgainst(tokenA:string, tokenB:string, min:number, label:string, bgFallback:ColorReader|null = null) {
       const a = resolvedVar(tokenA);
       let b = resolvedVar(tokenB, 'backgroundColor');
       if (b && b.a < 1 && bgFallback) b = composite(b, bgFallback);
@@ -384,7 +390,7 @@ async function evaluateBaseChecks(page, theme, viewport) {
 
     ok('theme attribute matches selected theme', root.getAttribute('data-theme') === expectedAttr,
       `expected=${expectedAttr} actual=${root.getAttribute('data-theme')}`);
-    const themeColorMetas = bySelector('meta[name="theme-color"]');
+    const themeColorMetas = bySelector('meta[name="theme-color"]') as HTMLMetaElement[];
     const expectedThemeColor = themeBarColors[theme] || themeBarColors.dark;
     ok('theme-color meta follows selected theme',
       themeColorMetas.length >= 1 && themeColorMetas.every(meta => meta.content.toLowerCase() === expectedThemeColor),
@@ -393,8 +399,8 @@ async function evaluateBaseChecks(page, theme, viewport) {
     ok('viewport breakpoint matches expected mode', mobile === viewport.mobile,
       `matchMedia=${mobile} width=${window.innerWidth}`);
     ok('page has no document-level horizontal overflow',
-      document.scrollingElement.scrollWidth <= window.innerWidth + 2,
-      `scrollWidth=${document.scrollingElement.scrollWidth} viewport=${window.innerWidth}`);
+      document.scrollingElement!.scrollWidth <= window.innerWidth + 2,
+      `scrollWidth=${document.scrollingElement!.scrollWidth} viewport=${window.innerWidth}`);
     ok('main content exists and is visible', visible(document.getElementById('main-content')));
     contrastAgainst('--text-primary', '--bg-card', 4.5, 'primary text contrasts with card background', primaryBg);
     contrastAgainst('--text-secondary', '--bg-card', 3.0, 'secondary text contrasts with card background', primaryBg);
@@ -406,11 +412,11 @@ async function evaluateBaseChecks(page, theme, viewport) {
       overflowingText.join('; '));
 
     if (viewport.mobile) {
-      const shell = document.querySelector('.m-shell');
-      const tabbar = document.querySelector('.m-tabbar');
+      const shell = document.querySelector<HTMLElement>('.m-shell');
+      const tabbar = document.querySelector<HTMLElement>('.m-tabbar');
       const fab = document.getElementById('chat-fab');
       const fabRect = fab?.getBoundingClientRect();
-      const headerImportBtn = document.querySelector('.header-import-btn');
+      const headerImportBtn = document.querySelector<HTMLElement>('.header-import-btn');
       ok('mobile dashboard shell is active', document.body.classList.contains('mobile-dashboard-active'));
       ok('mobile chrome root mirrors dashboard state', document.documentElement.classList.contains('mobile-dashboard-active'));
       ok('mobile shell is visible', visible(shell));
@@ -420,14 +426,14 @@ async function evaluateBaseChecks(page, theme, viewport) {
         visible(headerImportBtn) && inViewport(headerImportBtn, 2));
       ok('mobile dashboard tabbar is outside clipped shell', tabbar && !tabbar.closest('.m-shell'));
       ok('mobile dashboard uses the shared chat FAB',
-        visible(fab) && !document.querySelector('.m-chat-fab'));
+        visible(fab) && !document.querySelector<HTMLElement>('.m-chat-fab'));
       ok('mobile chat FAB has a usable square target and sits above tabbar',
         !!fabRect && tabbar &&
         fabRect.width >= 48 &&
         Math.abs(fabRect.width - fabRect.height) <= 1 &&
         fabRect.bottom < rect(tabbar).top,
         fabRect ? `size=${fabRect.width.toFixed(1)}x${fabRect.height.toFixed(1)}` : 'missing');
-      ok('donate button hidden on mobile', !visible(document.querySelector('.donate-btn')));
+      ok('donate button hidden on mobile', !visible(document.querySelector<HTMLElement>('.donate-btn')));
       const mobileWidgets = bySelector('.m-dashboard-widgets .dashboard-widget[data-widget-id]').filter(visible);
       ok('mobile renders the shared dashboard widget stack', mobileWidgets.length >= 5, `widgets=${mobileWidgets.length}`);
       ok('mobile dashboard exposes widget customize controls',
@@ -441,38 +447,38 @@ async function evaluateBaseChecks(page, theme, viewport) {
       ok('mobile dashboard has no static duplicate dashboard sections',
         bySelector('.m-stat-card, .m-marker-row, #mobile-light-section, #mobile-body-section, #mobile-genome-section').filter(visible).length === 0);
       ok('mobile top brand stays inside viewport',
-        inViewport(document.querySelector('.brand-mark'), 2));
+        inViewport(document.querySelector<HTMLElement>('.brand-mark'), 2));
       assertNoOverlap('.m-tab', 'mobile tab buttons');
       assertNoOverlap('.m-dashboard-widgets .dashboard-widget', 'mobile dashboard widgets');
 
       if (theme === 'cyberterm') {
         ok('cyberterm mobile section titles show bracket signature',
-          getComputedStyle(document.querySelector('.m-section-title'), '::before').content.includes('['));
+          getComputedStyle(document.querySelector<HTMLElement>('.m-section-title')!, '::before').content.includes('['));
       }
       if (theme === 'glass') {
-        const filter = getComputedStyle(tabbar).backdropFilter || getComputedStyle(tabbar).webkitBackdropFilter;
+        const filter = getComputedStyle(tabbar!).backdropFilter || (getComputedStyle(tabbar!) as unknown as {webkitBackdropFilter?:unknown}).webkitBackdropFilter;
         ok('glass mobile tabbar uses frosted backdrop', filter && filter !== 'none');
       }
       if (theme === 'synth-sunrise') {
         ok('synth mobile background grid is active',
-          getComputedStyle(document.querySelector('.m-bg')).transform !== 'none');
+          getComputedStyle(document.querySelector<HTMLElement>('.m-bg')!).transform !== 'none');
       }
       if (theme === 'neuromancer') {
         ok('neuromancer mobile grid background is active',
-          getComputedStyle(document.querySelector('.m-bg')).backgroundImage.includes('linear-gradient'));
+          getComputedStyle(document.querySelector<HTMLElement>('.m-bg')!).backgroundImage.includes('linear-gradient'));
       }
     } else {
       ok('desktop shell is not using mobile dashboard', !document.body.classList.contains('mobile-dashboard-active'));
       ok('desktop sidebar is visible', visible(document.getElementById('sidebar-nav')));
-      ok('desktop header is visible', visible(document.querySelector('.header')));
+      ok('desktop header is visible', visible(document.querySelector<HTMLElement>('.header')));
       ok('desktop dashboard widgets render', bySelector('.dashboard-widget').filter(visible).length >= 5);
       ok('desktop Current Priority widget renders',
-        !!document.querySelector('.dashboard-widget[data-widget-id="spotlight"]'));
+        !!document.querySelector<HTMLElement>('.dashboard-widget[data-widget-id="spotlight"]'));
       ok('desktop Key Trends widget renders compact rows',
-        !!document.querySelector('.dashboard-widget[data-widget-id="key-trends"] .db-key-trend-row'));
-      const donate = document.querySelector('.donate-split');
-      const bitcoinDonate = donate?.querySelector('.donate-option-bitcoin');
-      const kofiDonate = donate?.querySelector('.donate-option-kofi');
+        !!document.querySelector<HTMLElement>('.dashboard-widget[data-widget-id="key-trends"] .db-key-trend-row'));
+      const donate = document.querySelector<HTMLElement>('.donate-split');
+      const bitcoinDonate = donate?.querySelector<HTMLElement>('.donate-option-bitcoin');
+      const kofiDonate = donate?.querySelector<HTMLElement>('.donate-option-kofi');
       const bitcoinDonateHref = 'https://hydranode.org/btcpay/api/v1/invoices?storeId=BfxZicwEaRcJvJnkBPHdzGuCAonAhwLBb5vbWfjT2ZR1&checkoutDesc=Donate%20to%20getbased.health&price=&currency=USD&redirectURL=https%3A%2F%2Fgetbased.health%2Fthank-you';
       ok('desktop donation split is visible and not icon-sized',
         visible(donate) && rect(donate).width >= 120 && rect(donate).height >= 32
@@ -484,13 +490,13 @@ async function evaluateBaseChecks(page, theme, viewport) {
 
       if (theme === 'cyberterm') {
         ok('cyberterm brand prompt is visible',
-          getComputedStyle(document.querySelector('.brand-mark'), '::before').content.includes('$'));
+          getComputedStyle(document.querySelector<HTMLElement>('.brand-mark')!, '::before').content.includes('$'));
         ok('cyberterm dashboard title brackets are visible',
-          getComputedStyle(document.querySelector('.dashboard-widget-title'), '::before').content.includes('['));
+          getComputedStyle(document.querySelector<HTMLElement>('.dashboard-widget-title')!, '::before').content.includes('['));
       }
       if (theme === 'glass') {
-        const filter = getComputedStyle(document.querySelector('.header')).backdropFilter
-          || getComputedStyle(document.querySelector('.header')).webkitBackdropFilter;
+        const filter = getComputedStyle(document.querySelector<HTMLElement>('.header')!).backdropFilter
+          || (getComputedStyle(document.querySelector<HTMLElement>('.header')!) as unknown as {webkitBackdropFilter?:unknown}).webkitBackdropFilter;
         ok('glass desktop chrome uses frosted backdrop', filter && filter !== 'none');
       }
       if (theme === 'synth-sunrise') {
@@ -508,19 +514,19 @@ async function evaluateBaseChecks(page, theme, viewport) {
   }, { theme, viewport, themeBarColors: THEME_BAR_COLORS });
 }
 
-async function checkDesktopModals(page, theme, viewportName, assert) {
+async function checkDesktopModals(page:Page, theme:ThemeName, viewportName:string, assert:FixtureAssert) {
   await page.evaluate(async () => (await import('/js/settings.js')).openSettingsModal('display'));
   await delay(200);
-  let result = await page.evaluate(() => {
+  let result:Record<string,unknown> = await page.evaluate(() => {
     const overlay = document.getElementById('settings-modal-overlay');
     const modal = document.getElementById('settings-modal');
-    const r = modal.getBoundingClientRect();
+    const r = modal!.getBoundingClientRect();
     return {
-      open: overlay.classList.contains('show'),
-      visible: getComputedStyle(modal).display !== 'none' && r.width > 100 && r.height > 100,
+      open: overlay!.classList.contains('show'),
+      visible: getComputedStyle(modal!).display !== 'none' && r.width > 100 && r.height > 100,
       contained: r.left >= -1 && r.right <= window.innerWidth + 1 && r.top >= -1 && r.bottom <= window.innerHeight + 1,
-      hasTweaksButton: !!document.querySelector('.tweaks-btn'),
-      hasDuplicateThemeGrid: !!document.querySelector('.settings-theme-grid'),
+      hasTweaksButton: !!document.querySelector<HTMLElement>('.tweaks-btn'),
+      hasDuplicateThemeGrid: !!document.querySelector<HTMLElement>('.settings-theme-grid'),
     };
   });
   assert(testName(theme, viewportName, 'settings modal opens visibly'), result.open && result.visible);
@@ -535,18 +541,18 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
     const themeModule = await import('/js/theme.js');
     const panel = document.getElementById('tweaks-panel');
     const r = panel?.getBoundingClientRect();
-    const defaultSwatch = panel?.querySelector('.tweaks-accent-btn[data-accent-id=""] .tweaks-accent-swatch');
+    const defaultSwatch = panel?.querySelector<HTMLElement>('.tweaks-accent-btn[data-accent-id=""] .tweaks-accent-swatch');
     const defaultAccent = defaultSwatch?.style.getPropertyValue('--tweak-accent')?.trim()?.toLowerCase() || '';
-    const crtRow = panel?.querySelector('#tweaks-crt-effects-row');
-    const crtToggle = panel?.querySelector('#tweaks-crt-effects');
+    const crtRow = panel?.querySelector<HTMLElement>('#tweaks-crt-effects-row');
+    const crtToggle = panel?.querySelector<HTMLInputElement>('#tweaks-crt-effects');
     const crtSupported = themeModule.supportsCrtEffects(theme);
-    const crtRowVisible = !!crtRow && !crtRow.hidden && getComputedStyle(crtRow).display !== 'none';
+    const crtRowVisible = !!crtRow && !crtRow.hidden && getComputedStyle(crtRow!).display !== 'none';
     return {
       open: !!panel,
       contained: !!r && r.left >= -1 && r.right <= window.innerWidth + 1 && r.top >= -1 && r.bottom <= window.innerHeight + 1,
-      activeTheme: panel?.querySelector('.tweaks-theme-btn.active')?.dataset.themeId || '',
-      themeButtons: panel?.querySelectorAll('.tweaks-theme-btn').length || 0,
-      accentButtons: panel?.querySelectorAll('.tweaks-accent-btn').length || 0,
+      activeTheme: panel?.querySelector<HTMLElement>('.tweaks-theme-btn.active')?.dataset.themeId || '',
+      themeButtons: panel?.querySelectorAll<HTMLElement>('.tweaks-theme-btn').length || 0,
+      accentButtons: panel?.querySelectorAll<HTMLElement>('.tweaks-accent-btn').length || 0,
       hasCrtToggle: !!crtToggle,
       crtSupported,
       crtRowVisible,
@@ -569,7 +575,7 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
   assert(testName(theme, viewportName, 'tweaks owns current theme controls'),
     result.activeTheme === theme
       && result.themeButtons === THEMES.length
-      && result.accentButtons >= 6
+      && (result.accentButtons as number) >= 6
       && result.hasCrtToggle
       && result.crtRowVisible === result.crtSupported
       && result.crtToggleDisabled === !result.crtSupported
@@ -583,7 +589,7 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
   result = await page.evaluate(() => ({
     storedAccent: localStorage.getItem('labcharts-accent-override') || '',
     rootAccent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim().toLowerCase(),
-    activeAccent: document.querySelector('.tweaks-accent-btn.active')?.dataset.accentId || '',
+    activeAccent: document.querySelector<HTMLElement>('.tweaks-accent-btn.active')?.dataset.accentId || '',
   }));
   assert(testName(theme, viewportName, 'custom accent applies through tweaks'),
     result.storedAccent === 'rose' && result.rootAccent === '#f43f5e' && result.activeAccent === 'rose',
@@ -597,8 +603,8 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
   result = await page.evaluate(async (theme) => {
     const supported = (await import('/js/theme.js')).supportsCrtEffects(theme);
     const crtRow = document.getElementById('tweaks-crt-effects-row');
-    const crtToggle = document.getElementById('tweaks-crt-effects');
-    const crtRowVisible = !!crtRow && !crtRow.hidden && getComputedStyle(crtRow).display !== 'none';
+    const crtToggle = (document.getElementById('tweaks-crt-effects') as HTMLInputElement|null);
+    const crtRowVisible = !!crtRow && !crtRow.hidden && getComputedStyle(crtRow!).display !== 'none';
     const bodyAfter = getComputedStyle(document.body, '::after');
     return {
       supported,
@@ -620,7 +626,7 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
       && result.crtRowVisible === result.supported
       && result.crtToggleDisabled === !result.supported
       && (result.supported
-        ? result.bodyAfterContent !== 'none' && result.bodyAfterPosition === 'fixed' && result.bodyAfterAnimation.includes('crt-flicker') && result.bodyAfterAnimation.includes('crt-sweep') && result.bodyAfterBlend === 'overlay'
+        ? result.bodyAfterContent !== 'none' && result.bodyAfterPosition === 'fixed' && (result.bodyAfterAnimation as {includes(value:string):boolean}).includes('crt-flicker') && (result.bodyAfterAnimation as {includes(value:string):boolean}).includes('crt-sweep') && result.bodyAfterBlend === 'overlay'
         : result.bodyAfterContent === 'none'),
     JSON.stringify(result));
   await page.evaluate(async () => {
@@ -632,8 +638,8 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
   result = await page.evaluate(async (theme) => {
     const supported = (await import('/js/theme.js')).supportsCrtEffects(theme);
     const crtRow = document.getElementById('tweaks-crt-effects-row');
-    const crtToggle = document.getElementById('tweaks-crt-effects');
-    const crtRowVisible = !!crtRow && !crtRow.hidden && getComputedStyle(crtRow).display !== 'none';
+    const crtToggle = (document.getElementById('tweaks-crt-effects') as HTMLInputElement|null);
+    const crtRowVisible = !!crtRow && !crtRow.hidden && getComputedStyle(crtRow!).display !== 'none';
     return {
       supported,
       crtAttr: document.documentElement.dataset.crtEffects || '',
@@ -661,7 +667,7 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
   await delay(80);
   result = await page.evaluate((sunsetThemeColor) => {
     const rootStyle = getComputedStyle(document.documentElement);
-    const metas = Array.from(document.querySelectorAll('meta[name="theme-color"]')).map(meta => meta.content.toLowerCase());
+    const metas = Array.from(document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')).map(meta => meta.content.toLowerCase());
     const accent = rootStyle.getPropertyValue('--accent').trim().toLowerCase();
     const cyan = rootStyle.getPropertyValue('--cyan').trim().toLowerCase();
     return {
@@ -670,7 +676,7 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
       rootAccent: accent,
       cyan,
       themeColors: metas,
-      sunsetToggle: !!document.getElementById('tweaks-sunset-mode')?.checked,
+      sunsetToggle: !!(document.getElementById('tweaks-sunset-mode') as HTMLInputElement|null)?.checked,
       hasCoolAccentLeak: accent === '#f43f5e' || accent.includes('79, 140, 255') || cyan.includes('182, 212') || cyan.includes('229, 255'),
       expectedThemeColor: sunsetThemeColor,
     };
@@ -681,7 +687,7 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
       && result.rootAccent === '#ffb000'
       && !result.hasCoolAccentLeak
       && result.sunsetToggle
-      && result.themeColors.every(color => color === SUNSET_THEME_COLOR),
+      && (result.themeColors as {every(fn:(color:unknown)=>boolean):boolean}).every(color => color === SUNSET_THEME_COLOR),
     JSON.stringify(result));
   await page.evaluate(async () => {
     (await import('/js/theme.js')).setSunsetMode(false);
@@ -724,17 +730,17 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
     result = await page.evaluate(() => {
       const overlay = document.getElementById('modal-overlay');
       const modal = document.getElementById('detail-modal');
-      const r = modal.getBoundingClientRect();
-      const canvas = modal.querySelector('canvas');
+      const r = modal!.getBoundingClientRect();
+      const canvas = modal!.querySelector<HTMLElement>('canvas');
       return {
-        open: overlay.classList.contains('show'),
+        open: overlay!.classList.contains('show'),
         contained: r.left >= -1 && r.right <= window.innerWidth + 1 && r.top >= -1 && r.bottom <= window.innerHeight + 1,
-        valueCards: modal.querySelectorAll('.modal-value-card').length,
+        valueCards: modal!.querySelectorAll<HTMLElement>('.modal-value-card').length,
         canvasSize: canvas ? `${canvas.clientWidth}x${canvas.clientHeight}` : '',
       };
     });
     assert(testName(theme, viewportName, 'marker detail modal opens with values'),
-      result.open && result.valueCards > 0,
+      result.open && (result.valueCards as number) > 0,
       JSON.stringify(result));
     assert(testName(theme, viewportName, 'marker detail modal fits viewport'),
       result.contained,
@@ -744,10 +750,10 @@ async function checkDesktopModals(page, theme, viewportName, assert) {
   }
 }
 
-async function checkMobileInteractions(page, theme, viewportName, assert) {
+async function checkMobileInteractions(page:Page, theme:ThemeName, viewportName:string, assert:FixtureAssert) {
   await page.click('#sidebar-toggle');
   await delay(150);
-  let result = await page.evaluate(() => ({
+  let result:Record<string,unknown> = await page.evaluate(() => ({
     open: document.getElementById('sidebar-nav')?.classList.contains('mobile-open'),
     focused: document.activeElement?.id === 'sidebar-search',
   }));
@@ -757,7 +763,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
 
   result = await page.evaluate(() => {
     const root = document.documentElement;
-    const tabbar = document.querySelector('.m-tabbar');
+    const tabbar = document.querySelector<HTMLElement>('.m-tabbar');
     const before = tabbar?.getBoundingClientRect();
     root.style.setProperty('--mobile-visual-bottom-offset', '48px');
     const shifted = tabbar?.getBoundingClientRect();
@@ -778,10 +784,10 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     const panel = document.getElementById('tweaks-panel');
     const overlay = document.getElementById('tweaks-panel-overlay');
     const r = panel?.getBoundingClientRect();
-    const body = panel?.querySelector('.tweaks-body');
+    const body = panel?.querySelector<HTMLElement>('.tweaks-body');
     const bodyRect = body?.getBoundingClientRect();
     const viewportWidth = document.documentElement.clientWidth;
-    const shadowRightReach = (boxShadow) => {
+    const shadowRightReach = (boxShadow:unknown) => {
       const lengths = String(boxShadow || '').match(/-?\d+(?:\.\d+)?px/g)?.map(v => Number(v.replace('px', ''))) || [];
       let reach = 0;
       for (let i = 0; i < lengths.length; i += 4) {
@@ -796,7 +802,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     const rightShadowReach = shadowRightReach(panelStyle?.boxShadow);
     const terminalTweakTheme = theme === 'cyberterm' || theme === 'neuromancer';
     const overflowingChildren = panel
-      ? Array.from(panel.querySelectorAll('*')).filter(child => {
+      ? Array.from(panel.querySelectorAll<HTMLElement>('*')).filter(child => {
         const childRect = child.getBoundingClientRect();
         return childRect.left < -1 || childRect.right > viewportWidth + 1;
       }).length
@@ -815,8 +821,8 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     };
   }, theme);
   assert(testName(theme, viewportName, 'mobile tweaks panel fits viewport'),
-    result.open && result.contained && result.leftGutter >= 12 && result.rightGutter >= 12 &&
-      result.bodyContained && result.bodyScrollLocked && result.horizontalOverflow <= 1 &&
+    result.open && result.contained && (result.leftGutter as number) >= 12 && (result.rightGutter as number) >= 12 &&
+      result.bodyContained && result.bodyScrollLocked && (result.horizontalOverflow as number) <= 1 &&
       result.overflowingChildren === 0 && result.terminalShadowContained,
     JSON.stringify(result));
   await page.evaluate(async () => (await import('/js/settings.js')).closeTweaksPanel());
@@ -830,9 +836,9 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     result = await page.evaluate(() => {
       const overlay = document.getElementById('modal-overlay');
       const modal = document.getElementById('detail-modal');
-      const r = modal.getBoundingClientRect();
+      const r = modal!.getBoundingClientRect();
       return {
-        open: overlay.classList.contains('show'),
+        open: overlay!.classList.contains('show'),
         contained: r.left >= -1 && r.right <= window.innerWidth + 1 && r.top >= -1 && r.bottom <= window.innerHeight + 1,
         sideGutters: r.left >= 12 && window.innerWidth - r.right >= 12,
       };
@@ -850,9 +856,9 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
       import('/js/state.js'),
       import('/js/supplements.js'),
     ]);
-    window.__suppModalSnapshot = JSON.stringify(state?.importedData?.supplements || []);
+    (window as unknown as {__suppModalSnapshot?:unknown}).__suppModalSnapshot = JSON.stringify(state?.importedData?.supplements || []);
     if (state?.importedData) {
-      state.importedData.supplements = [{
+      (state.importedData as unknown as {supplements:unknown}).supplements = [{
         name: 'Supplement With Ingredient Header',
         dosage: '500mg',
         type: 'supplement',
@@ -873,7 +879,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
   await delay(150);
   result = await page.evaluate(async () => {
     const form = document.getElementById('supp-form-panel');
-    const item = document.querySelector('.supp-list-item');
+    const item = document.querySelector<HTMLElement>('.supp-list-item');
     const overlay = document.getElementById('modal-overlay');
     const formRect = form?.getBoundingClientRect();
     const itemRect = item?.getBoundingClientRect();
@@ -895,14 +901,14 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
       '.supp-ing-pill',
     ];
     const bad = form && formRect
-      ? selectors.flatMap(sel => Array.from(document.querySelectorAll(sel)).map((el, i) => {
+      ? selectors.flatMap(sel => Array.from(document.querySelectorAll<HTMLElement>(sel)).map((el, i) => {
         const r = el.getBoundingClientRect();
         const over = r.left < formRect.left - 1 || r.right > formRect.right + 1 || r.left < -1 || r.right > document.documentElement.clientWidth + 1;
         return over ? `${sel}[${i}] ${Math.round(r.left)}-${Math.round(r.right)} / ${Math.round(formRect.left)}-${Math.round(formRect.right)}` : null;
       })).filter(Boolean)
       : ['missing-form'];
     const badHeader = item && itemRect
-      ? headerSelectors.flatMap(sel => Array.from(item.querySelectorAll(sel)).map((el, i) => {
+      ? headerSelectors.flatMap(sel => Array.from(item.querySelectorAll<HTMLElement>(sel)).map((el, i) => {
         const r = el.getBoundingClientRect();
         const over = r.left < itemRect.left - 1 || r.right > itemRect.right + 1 || r.left < -1 || r.right > document.documentElement.clientWidth + 1;
         return over ? `${sel}[${i}] ${Math.round(r.left)}-${Math.round(r.right)} / ${Math.round(itemRect.left)}-${Math.round(itemRect.right)}` : null;
@@ -911,7 +917,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     const compactFields = ['#supp-name', '#supp-dosage', '#supp-times', '#supp-type'];
     const oversizedFields = form
       ? compactFields.map(sel => {
-        const field = document.querySelector(sel)?.closest('.supp-form-field');
+        const field = document.querySelector<HTMLElement>(sel)?.closest('.supp-form-field');
         const height = field?.getBoundingClientRect().height || 0;
         return height > 86 ? `${sel} field height ${Math.round(height)}` : null;
       }).filter(Boolean)
@@ -920,10 +926,10 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     const open = overlay?.classList.contains('show');
     (await import('/js/views.js')).closeModal();
     const { state } = await import('/js/state.js');
-    if (state?.importedData && window.__suppModalSnapshot) {
-      state.importedData.supplements = JSON.parse(window.__suppModalSnapshot);
+    if (state?.importedData && (window as unknown as {__suppModalSnapshot?:unknown}).__suppModalSnapshot) {
+      (state.importedData as unknown as {supplements:unknown}).supplements = (JSON.parse as(text:unknown)=>unknown)((window as unknown as {__suppModalSnapshot?:unknown}).__suppModalSnapshot);
     }
-    delete window.__suppModalSnapshot;
+    delete (window as unknown as {__suppModalSnapshot?:unknown}).__suppModalSnapshot;
     return {
       open,
       form: !!form,
@@ -935,7 +941,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     };
   });
   assert(testName(theme, viewportName, 'mobile supplement modal fields stay inside form frame'),
-    result.open && result.form && result.item && result.bad.length === 0 && result.badHeader.length === 0 && result.oversizedFields.length === 0 && result.horizontalOverflow <= 1,
+    result.open && result.form && result.item && (result.bad as {length:unknown}).length === 0 && (result.badHeader as {length:unknown}).length === 0 && (result.oversizedFields as {length:unknown}).length === 0 && (result.horizontalOverflow as number) <= 1,
     JSON.stringify(result));
   await delay(100);
 
@@ -960,19 +966,19 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     await delay(250);
     if (tab === 'light') {
       await page.waitForFunction(
-        () => !!document.querySelector('.lens-page-widgets[data-lens-route="light"] .conditions-now-grid'),
+        () => !!document.querySelector<HTMLElement>('.lens-page-widgets[data-lens-route="light"] .conditions-now-grid'),
         null,
         { timeout: 2500 }
       ).catch(() => {});
     }
     result = await page.evaluate(async ({ tab, theme, homeFabGeometry }) => {
       const { state } = await import('/js/state.js');
-      const active = document.querySelector(`#mobile-bottom-tabs .m-tab[data-tab="${tab}"], .m-tabbar .m-tab[data-tab="${tab}"]`);
-      const conditionsGrid = document.querySelector('.lens-page-widgets[data-lens-route="light"] .conditions-now-grid') || document.querySelector('.conditions-now-grid');
+      const active = document.querySelector<HTMLElement>(`#mobile-bottom-tabs .m-tab[data-tab="${tab}"], .m-tabbar .m-tab[data-tab="${tab}"]`);
+      const conditionsGrid = document.querySelector<HTMLElement>('.lens-page-widgets[data-lens-route="light"] .conditions-now-grid') || document.querySelector<HTMLElement>('.conditions-now-grid');
       const supportColumns = conditionsGrid
         ? getComputedStyle(conditionsGrid).gridTemplateColumns.split(' ').filter(Boolean).length
         : 0;
-      const shadowReach = (boxShadow) => {
+      const shadowReach = (boxShadow:unknown) => {
         const lengths = String(boxShadow || '').match(/-?\d+(?:\.\d+)?px/g)?.map(v => Number(v.replace('px', ''))) || [];
         const reach = { left: 0, right: 0 };
         for (let i = 0; i < lengths.length; i += 4) {
@@ -985,13 +991,13 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
         }
         return reach;
       };
-      const tabbar = document.querySelector('.m-tabbar');
-      const tabbarStyle = tabbar ? getComputedStyle(tabbar) : null;
+      const tabbar = document.querySelector<HTMLElement>('.m-tabbar');
+      const tabbarStyle = tabbar ? getComputedStyle(tabbar!) : null;
       const tabbarRect = tabbar?.getBoundingClientRect();
       const fab = document.getElementById('chat-fab');
       const fabStyle = fab ? getComputedStyle(fab) : null;
       const fabRect = fab?.getBoundingClientRect();
-      const lightWidgetRoute = document.querySelector('.lens-page-widgets[data-lens-route="light"]');
+      const lightWidgetRoute = document.querySelector<HTMLElement>('.lens-page-widgets[data-lens-route="light"]');
       const viewportWidth = document.documentElement.clientWidth;
       const tabbarPaint = shadowReach(tabbarStyle?.boxShadow);
       const fabPaint = shadowReach(fabStyle?.boxShadow);
@@ -1003,18 +1009,18 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
         bottom: fabStyle.bottom,
         borderRadius: fabStyle.borderRadius,
       } : null;
-      window.scrollTo(0, Math.min(620, document.scrollingElement.scrollHeight));
-      const header = document.querySelector('.header');
+      window.scrollTo(0, Math.min(620, document.scrollingElement!.scrollHeight));
+      const header = document.querySelector<HTMLElement>('.header');
       const headerStyle = header ? getComputedStyle(header) : null;
       const headerRect = header?.getBoundingClientRect();
       const tabbarAfterY = tabbar?.getBoundingClientRect();
       window.scrollTo(80, window.scrollY);
       const tabbarAfterX = tabbar?.getBoundingClientRect();
-      const sessionWidget = document.querySelector('.dashboard-widget[data-widget-id="light-sessions"]');
-      const sessionRows = Array.from(sessionWidget?.querySelectorAll('.sun-session') || []);
+      const sessionWidget = document.querySelector<HTMLElement>('.dashboard-widget[data-widget-id="light-sessions"]');
+      const sessionRows = Array.from(sessionWidget?.querySelectorAll<HTMLElement>('.sun-session') || []);
       const overflowingSessionRows = sessionRows.filter(row => {
         const rowRect = row.getBoundingClientRect();
-        const badChild = Array.from(row.querySelectorAll('*')).some(child => {
+        const badChild = Array.from(row.querySelectorAll<HTMLElement>('*')).some(child => {
           const childRect = child.getBoundingClientRect();
           return childRect.left < -1 || childRect.right > viewportWidth + 1;
         });
@@ -1022,9 +1028,9 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
       });
       return {
         active: !!active?.classList.contains('active'),
-        hasBottomTabs: !!document.querySelector('#mobile-bottom-tabs, .m-shell .m-tabbar'),
+        hasBottomTabs: !!document.querySelector<HTMLElement>('#mobile-bottom-tabs, .m-shell .m-tabbar'),
         currentView: state?.currentView,
-        visibleMain: document.getElementById('main-content')?.textContent?.trim().length > 40,
+        visibleMain: (document.getElementById('main-content')?.textContent?.trim().length as number) > 40,
         fabMatchesHome: !!fabGeometry && JSON.stringify(fabGeometry) === JSON.stringify(homeFabGeometry),
         fabGeometry,
         homeFabGeometry,
@@ -1057,27 +1063,27 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
         fabPaint,
         lightWidgetRoute: !!lightWidgetRoute,
         pageSurfaceGutters: (() => {
-          const surface = document.querySelector('.lens-page-widgets .dashboard-widget, .category-header, #recommendations-page');
+          const surface = document.querySelector<HTMLElement>('.lens-page-widgets .dashboard-widget, .category-header, #recommendations-page');
           if (!surface) return true;
           const sr = surface.getBoundingClientRect();
           return sr.left >= 12 && viewportWidth - sr.right >= 12;
         })(),
-        lightWidgetCount: lightWidgetRoute?.querySelectorAll('.dashboard-widget[data-widget-id^="light-"]').length || 0,
-        lightMoveControls: lightWidgetRoute?.querySelectorAll('.dashboard-widget-tool[aria-label^="Move page section"]').length || 0,
-        lightSeparatedOps: !!document.querySelector('.dashboard-widget[data-widget-id="light-conditions-now"] .light-conditions-now-wrap')
-          && !!document.querySelector('.dashboard-widget[data-widget-id="light-session-log"] .light-quicklog-row')
-          && !!document.querySelector('.dashboard-widget[data-widget-id="light-setup"]'),
+        lightWidgetCount: lightWidgetRoute?.querySelectorAll<HTMLElement>('.dashboard-widget[data-widget-id^="light-"]').length || 0,
+        lightMoveControls: lightWidgetRoute?.querySelectorAll<HTMLElement>('.dashboard-widget-tool[aria-label^="Move page section"]').length || 0,
+        lightSeparatedOps: !!document.querySelector<HTMLElement>('.dashboard-widget[data-widget-id="light-conditions-now"] .light-conditions-now-wrap')
+          && !!document.querySelector<HTMLElement>('.dashboard-widget[data-widget-id="light-session-log"] .light-quicklog-row')
+          && !!document.querySelector<HTMLElement>('.dashboard-widget[data-widget-id="light-setup"]'),
         lightDashboardToggles: ['light-conditions-now', 'light-session-log', 'light-channels'].every(id =>
-          !!lightWidgetRoute?.querySelector(`.dashboard-widget[data-widget-id="${id}"] .lens-widget-dashboard-toggle`)) &&
-          (!lightWidgetRoute?.querySelector('.dashboard-widget[data-widget-id="light-live-session"]')
-            || !!lightWidgetRoute.querySelector('.dashboard-widget[data-widget-id="light-live-session"] .lens-widget-dashboard-toggle')) &&
+          !!lightWidgetRoute?.querySelector<HTMLElement>(`.dashboard-widget[data-widget-id="${id}"] .lens-widget-dashboard-toggle`)) &&
+          (!lightWidgetRoute?.querySelector<HTMLElement>('.dashboard-widget[data-widget-id="light-live-session"]')
+            || !!lightWidgetRoute.querySelector<HTMLElement>('.dashboard-widget[data-widget-id="light-live-session"] .lens-widget-dashboard-toggle')) &&
           ['light-setup', 'light-guidance', 'light-sessions', 'light-devices', 'light-environment', 'light-tools', 'light-methods'].every(id =>
-            !lightWidgetRoute?.querySelector(`.dashboard-widget[data-widget-id="${id}"] .lens-widget-dashboard-toggle`)),
+            !lightWidgetRoute?.querySelector<HTMLElement>(`.dashboard-widget[data-widget-id="${id}"] .lens-widget-dashboard-toggle`)),
         lightSessionRows: sessionRows.length,
         lightSessionOverflow: overflowingSessionRows.length,
         horizontalOverflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - viewportWidth,
-        longDeviceKindWraps: !!sessionWidget?.querySelector('.light-session-device .light-session-kind') &&
-          getComputedStyle(sessionWidget.querySelector('.light-session-device .light-session-kind')).whiteSpace !== 'nowrap',
+        longDeviceKindWraps: !!sessionWidget?.querySelector<HTMLElement>('.light-session-device .light-session-kind') &&
+          getComputedStyle(sessionWidget.querySelector<HTMLElement>('.light-session-device .light-session-kind')!).whiteSpace !== 'nowrap',
         supportColumns,
       };
     }, { tab, theme, homeFabGeometry });
@@ -1087,7 +1093,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     assert(testName(theme, viewportName, `tab ${tab} keeps mobile nav fixed and clipped`),
       result.rootTabsActive && result.tabbarOutsideShell &&
         result.tabbarFixed && result.tabbarContained && result.tabbarStable &&
-        result.horizontalOverflow <= 1 && result.bottomChromePaintContained,
+        (result.horizontalOverflow as number) <= 1 && result.bottomChromePaintContained,
       JSON.stringify(result));
     assert(testName(theme, viewportName, `tab ${tab} keeps the Home chat FAB geometry`),
       result.fabMatchesHome,
@@ -1100,12 +1106,12 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
       JSON.stringify(result));
     if (tab === 'light') {
       assert(testName(theme, viewportName, 'light page uses separate mobile operation widgets'),
-        result.lightWidgetRoute && result.lightWidgetCount >= 3 && result.lightMoveControls >= 1 &&
-          result.lightSeparatedOps && result.lightDashboardToggles && result.supportColumns >= 3,
+        result.lightWidgetRoute && (result.lightWidgetCount as number) >= 3 && (result.lightMoveControls as number) >= 1 &&
+          result.lightSeparatedOps && result.lightDashboardToggles && (result.supportColumns as number) >= 3,
         JSON.stringify(result));
       assert(testName(theme, viewportName, 'light sessions fit mobile viewport'),
-        result.lightSessionRows >= 3 && result.lightSessionOverflow === 0 &&
-          result.horizontalOverflow <= 1 && result.longDeviceKindWraps,
+        (result.lightSessionRows as number) >= 3 && result.lightSessionOverflow === 0 &&
+          (result.horizontalOverflow as number) <= 1 && result.longDeviceKindWraps,
         JSON.stringify(result));
     }
   }
@@ -1121,25 +1127,25 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
     const wrapperClass = view === 'table' ? 'data-table-wrapper' : 'heatmap-wrapper';
     await page.evaluate(async (view) => {
       const viewsModule = await import('/js/views.js');
-      const btns = document.querySelectorAll('.view-toggle .view-btn');
+      const btns = document.querySelectorAll<HTMLElement>('.view-toggle .view-btn');
       const btn = btns[view === 'table' ? 1 : 2];
-      viewsModule.switchView?.(view, 'biochemistry', btn);
+      viewsModule.switchView?.(view, 'biochemistry', btn!);
       window.scrollTo(0, 0);
     }, view);
     await page.waitForSelector(`.gb-table-shell-${shellKind} .gb-table-sticky-head`, { state: 'attached', timeout: 5000 });
     await delay(120);
     result = await page.evaluate(({ shellKind, wrapperClass }) => {
-      const maxScroll = Math.max(0, document.scrollingElement.scrollHeight - window.innerHeight);
+      const maxScroll = Math.max(0, document.scrollingElement!.scrollHeight - window.innerHeight);
       window.scrollTo(0, Math.min(560, maxScroll));
-      const headerRect = document.querySelector('.header')?.getBoundingClientRect();
-      const shell = document.querySelector(`.gb-table-shell-${shellKind}`);
-      const stickyHead = shell?.querySelector('.gb-table-sticky-head');
+      const headerRect = document.querySelector<HTMLElement>('.header')?.getBoundingClientRect();
+      const shell = document.querySelector<HTMLElement>(`.gb-table-shell-${shellKind}`);
+      const stickyHead = shell?.querySelector<HTMLElement>('.gb-table-sticky-head');
       const stickyRect = stickyHead?.getBoundingClientRect();
-      const stickyCellRect = stickyHead?.querySelector('th')?.getBoundingClientRect();
-      const wrapper = shell?.querySelector(`.${wrapperClass}`);
-      const realHeadRect = wrapper?.querySelector('thead')?.getBoundingClientRect();
-      const firstBodyCell = wrapper?.querySelector('tbody tr:first-child td:first-child');
-      const firstStickyHeaderCell = stickyHead?.querySelector('th:first-child');
+      const stickyCellRect = stickyHead?.querySelector<HTMLElement>('th')?.getBoundingClientRect();
+      const wrapper = shell?.querySelector<HTMLElement>(`.${wrapperClass}`);
+      const realHeadRect = wrapper?.querySelector<HTMLElement>('thead')?.getBoundingClientRect();
+      const firstBodyCell = wrapper?.querySelector<HTMLElement>('tbody tr:first-child td:first-child');
+      const firstStickyHeaderCell = stickyHead?.querySelector<HTMLElement>('th:first-child');
       const scrollable = !!wrapper && wrapper.scrollWidth - wrapper.clientWidth > 8;
       if (scrollable) {
         wrapper.scrollLeft = Math.min(96, wrapper.scrollWidth - wrapper.clientWidth);
@@ -1161,19 +1167,19 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
           stickyRect.top >= headerRect.bottom - 1 &&
           stickyRect.top <= headerRect.bottom + 4 &&
           stickyCellRect.bottom > headerRect.bottom + 20,
-        realHeadScrolledAway: !!realHeadRect && realHeadRect.bottom < headerRect.bottom,
+        realHeadScrolledAway: !!realHeadRect && realHeadRect.bottom < headerRect!.bottom,
         horizontalOverflow: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth) - viewportWidth,
         tableScrollable: scrollable,
         firstColumnSticky:
           !scrollable ||
-          (!!firstBodyRect && !!firstStickyHeaderRect && firstBodyDelta <= 2 && firstHeadDelta <= 2),
+          (!!firstBodyRect && !!firstStickyHeaderRect && firstBodyDelta! <= 2 && firstHeadDelta! <= 2),
         firstBodyDelta,
         firstHeadDelta,
       };
     }, { shellKind, wrapperClass });
     assert(testName(theme, viewportName, `category ${view} header sticks below top header`),
       result.scrolled && result.topHeaderSticky && result.stickyHeadVisible &&
-        result.realHeadScrolledAway && result.horizontalOverflow <= 1,
+        result.realHeadScrolledAway && (result.horizontalOverflow as number) <= 1,
       JSON.stringify(result));
     assert(testName(theme, viewportName, `category ${view} pins Biomarker column on horizontal scroll`),
       result.firstColumnSticky,
@@ -1181,7 +1187,7 @@ async function checkMobileInteractions(page, theme, viewportName, assert) {
   }
 }
 
-async function makeScenarioPage(browser, viewport, recordFailure, testInfo, label) {
+async function makeScenarioPage(browser:Browser, viewport:ViewportFixture, recordFailure:(msg:string)=>void, testInfo:TestInfo, label:string) {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
     isMobile: viewport.mobile,
@@ -1203,11 +1209,11 @@ async function makeScenarioPage(browser, viewport, recordFailure, testInfo, labe
   }
 }
 
-async function run(browser, testInfo) {
+async function run(browser:Browser, testInfo:TestInfo) {
   let pass = 0;
   let fail = 0;
-  const failures = [];
-  function assert(name, condition, detail = '') {
+  const failures:string[] = [];
+  function assert(name:string, condition:unknown, detail:unknown = '') {
     if (condition) {
       pass++;
       console.log(`  PASS ${name}`);
@@ -1218,7 +1224,7 @@ async function run(browser, testInfo) {
       console.error(`  FAIL ${msg}`);
     }
   }
-  function recordFailure(msg) {
+  function recordFailure(msg:string) {
     fail++;
     failures.push(msg);
     console.error(`  FAIL ${msg}`);
@@ -1254,7 +1260,7 @@ async function run(browser, testInfo) {
     try {
       console.log(`\n▶ Theme Responsive E2E dark/${viewport.name}`);
       await prepareScenario(page, 'dark', viewport);
-      const result = await page.evaluate((expectedMobile) => ({
+      const result = await page.evaluate((_expectedMobile) => ({
         media: window.matchMedia('(max-width: 799px)').matches,
         mobileShell: document.body.classList.contains('mobile-dashboard-active'),
         bottomTabs: !!document.getElementById('mobile-bottom-tabs'),

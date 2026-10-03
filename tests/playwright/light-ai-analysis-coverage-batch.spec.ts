@@ -1,3 +1,6 @@
+type FixtureVerdictRead = { status?: unknown; dot?: unknown; tip?: unknown; detail?: unknown; actions?: unknown; fingerprint?: unknown; errorMessage?: unknown };
+type FixtureFirstArgument<Callable> = Callable extends (...args: infer Args) => infer Result ? Args extends [unknown, ...infer Rest] ? (fixture: unknown, ...args: Rest) => Result : never : never;
+type FixtureImportedRead = { sunDefaults?: { aiAnalysis?: FixtureVerdictRead | undefined } | null | undefined; sleepRest?: unknown; lightEnvironment?: { screens: { blueBlockerEnabled?: unknown }[]; burdenAI?: FixtureVerdictRead } | null; lightMeasurements?: unknown[]; channelMixAI?: FixtureVerdictRead; lightDailyVerdicts?: Record<string, FixtureVerdictRead> };
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -9,17 +12,17 @@ test('sun and device session AI analysis covers contexts fingerprints and render
   const results = await page.evaluate(async ({ sunUrl, deviceUrl, apiUrl }) => {
     const [{ state }, sun, device, api, aiVerdictRuntime] = await Promise.all([
       import('/js/state.js'),
-      import(sunUrl),
-      import(deviceUrl),
-      import(apiUrl),
+      (import(sunUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sun-ai-analysis.js'), "buildSingleSessionContext" | "getSessionFingerprint" | "renderSessionAIInline" | "renderSessionAIDetail" | "analyzeSunSessionAI" | "refreshSessionAIAnalysis" | "maybeAnalyzeSessionAfterFinish">>,
+      (import(deviceUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/light-device-ai-analysis.js'), "buildDeviceSessionContext" | "getDeviceSessionFingerprint" | "renderDeviceSessionAIInline" | "renderDeviceSessionAIDetail" | "refreshDeviceSessionAIAnalysis" | "analyzeDeviceSessionAI" | "maybeAnalyzeDeviceSessionAfterFinish">>,
+      (import(apiUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/api.js'), "hasAIProvider">>,
       import('/js/ai-verdict-engine-runtime.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const saved = {
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      importedData: JSON.parse(JSON.stringify(state.importedData || {})) as unknown,
       fetch: window.fetch,
-      getOllamaConfig: window.getOllamaConfig,
-      solarZenithAngle: window.solarZenithAngle,
+      getOllamaConfig: (window as unknown as {getOllamaConfig?: unknown}).getOllamaConfig,
+      solarZenithAngle: (window as unknown as {solarZenithAngle?: unknown}).solarZenithAngle,
       provider: localStorage.getItem('labcharts-ai-provider'),
       paused: localStorage.getItem('labcharts-ai-paused'),
       ollamaModel: localStorage.getItem('labcharts-ollama-model'),
@@ -36,7 +39,7 @@ test('sun and device session AI analysis covers contexts fingerprints and render
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.removeItem('labcharts-ai-paused');
       localStorage.setItem('labcharts-ollama-model', 'test-light-model');
-      window.getOllamaConfig = () => ({ url: 'http://ollama.test', apiKey: '' });
+      (window as unknown as {getOllamaConfig?: unknown}).getOllamaConfig = () => ({ url: 'http://ollama.test', apiKey: '' });
     };
 
     try {
@@ -125,7 +128,7 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         doses: { pbm_red: 4, pbm_nir: 5 },
       };
 
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         ...state.importedData,
         sunDefaults: {
           fitzpatrick: 'II',
@@ -165,7 +168,7 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         && sunFpA !== sunFpB
         && sun.getSessionFingerprint(null) === '';
 
-      const deviceContext = device.buildDeviceSessionContext(deviceSession);
+      const deviceContext = (device.buildDeviceSessionContext as FixtureFirstArgument<typeof device.buildDeviceSessionContext>)(deviceSession);
       outcomes.deviceContextIncludesSanitizedDeviceMode = deviceContext.includes('Brand · model: Glow PanelGlow Panel')
         && deviceContext.includes('Mode: Red + NIR repair (user-selected, off-default)')
         && deviceContext.includes('Firing LED groups: Red LEDs, NIR LEDs')
@@ -175,19 +178,19 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         && deviceContext.includes('Modeled light signals')
         && !deviceContext.includes('Last 7 days of device use')
         && !deviceContext.includes('Health goals:');
-      const devFpA = device.getDeviceSessionFingerprint(deviceSession);
-      const devFpB = device.getDeviceSessionFingerprint({
+      const devFpA = (device.getDeviceSessionFingerprint as FixtureFirstArgument<typeof device.getDeviceSessionFingerprint>)(deviceSession);
+      const devFpB = (device.getDeviceSessionFingerprint as FixtureFirstArgument<typeof device.getDeviceSessionFingerprint>)({
         ...deviceSession,
         eyesProtected: true,
       });
       outcomes.deviceFingerprintChangesWithSessionSafety = !!devFpA
         && devFpA !== devFpB
-        && device.getDeviceSessionFingerprint(null) === '';
+        && (device.getDeviceSessionFingerprint as FixtureFirstArgument<typeof device.getDeviceSessionFingerprint>)(null) === '';
 
       setPausedProvider();
       outcomes.pausedProviderHidesUncachedSessionVerdicts =
         sun.renderSessionAIInline({ ...sunSession, aiAnalysis: null }) === ''
-        && device.renderDeviceSessionAIInline({ ...deviceSession, aiAnalysis: null }) === '';
+        && (device.renderDeviceSessionAIInline as FixtureFirstArgument<typeof device.renderDeviceSessionAIInline>)({ ...deviceSession, aiAnalysis: null }) === '';
       const cachedSun = {
         ...sunSession,
         aiAnalysis: {
@@ -205,13 +208,13 @@ test('sun and device session AI analysis covers contexts fingerprints and render
           dot: 'yellow',
           tip: 'device tip',
           detail: '<device detail>',
-          fingerprint: device.getDeviceSessionFingerprint(deviceSession),
+          fingerprint: (device.getDeviceSessionFingerprint as FixtureFirstArgument<typeof device.getDeviceSessionFingerprint>)(deviceSession),
         },
       };
       const cachedSunInline = sun.renderSessionAIInline(cachedSun);
       const cachedSunDetail = sun.renderSessionAIDetail(cachedSun);
-      const cachedDeviceInline = device.renderDeviceSessionAIInline(cachedDevice);
-      const cachedDeviceDetail = device.renderDeviceSessionAIDetail(cachedDevice);
+      const cachedDeviceInline = (device.renderDeviceSessionAIInline as FixtureFirstArgument<typeof device.renderDeviceSessionAIInline>)(cachedDevice);
+      const cachedDeviceDetail = (device.renderDeviceSessionAIDetail as FixtureFirstArgument<typeof device.renderDeviceSessionAIDetail>)(cachedDevice);
       // `sun-session-ai-dot-*` is the shared verdict-dot class across Light/Sun AI surfaces.
       outcomes.cachedSessionVerdictsRenderWithoutProvider = cachedSunInline.includes('sun-session-ai-dot-green')
         && cachedSunDetail.includes('&lt;sun detail&gt;')
@@ -220,24 +223,24 @@ test('sun and device session AI analysis covers contexts fingerprints and render
 
       setLiveProvider();
       outcomes.inProgressSessionsDoNotRender = sun.renderSessionAIInline({ ...sunSession, endedAt: null }) === ''
-        && device.renderDeviceSessionAIInline({ ...deviceSession, endedAt: null }) === '';
+        && (device.renderDeviceSessionAIInline as FixtureFirstArgument<typeof device.renderDeviceSessionAIInline>)({ ...deviceSession, endedAt: null }) === '';
       outcomes.incompleteModeledSessionsDoNotOfferAnalysis = sun.renderSessionAIDetail({
         ...sunSession,
         doses: null,
         safety: null,
         calculationStatus: 'calculation-error',
-      }) === '' && device.renderDeviceSessionAIDetail({
+      }) === '' && (device.renderDeviceSessionAIDetail as FixtureFirstArgument<typeof device.renderDeviceSessionAIDetail>)({
         ...deviceSession,
         doses: null,
         safety: null,
       }) === '';
       const sunIdleHtml = sun.renderSessionAIDetail({ ...sunSession, aiAnalysis: null });
-      const deviceIdleHtml = device.renderDeviceSessionAIDetail({ ...deviceSession, aiAnalysis: null });
+      const deviceIdleHtml = (device.renderDeviceSessionAIDetail as FixtureFirstArgument<typeof device.renderDeviceSessionAIDetail>)({ ...deviceSession, aiAnalysis: null });
       const sunErrorHtml = sun.renderSessionAIInline({
         ...sunSession,
         aiAnalysis: { status: 'error', errorMessage: 'sun unavailable', fingerprint: sunFpA },
       });
-      const deviceErrorHtml = device.renderDeviceSessionAIDetail({
+      const deviceErrorHtml = (device.renderDeviceSessionAIDetail as FixtureFirstArgument<typeof device.renderDeviceSessionAIDetail>)({
         ...deviceSession,
         aiAnalysis: { status: 'error', errorMessage: 'device unavailable', fingerprint: devFpA },
       });
@@ -246,14 +249,14 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         && sunErrorHtml.includes('sun unavailable')
         && deviceErrorHtml.includes('device unavailable');
 
-      let releaseFetch;
-      let signalFetchStarted;
-      const fetchStarted = new Promise(resolve => { signalFetchStarted = resolve; });
-      window.fetch = async (url, options = {}) => {
+      let releaseFetch: (() => void) | undefined;
+      let signalFetchStarted: (() => void) | undefined;
+      const fetchStarted = new Promise<void>((resolve) => { signalFetchStarted = resolve; });
+      window.fetch = async (url: RequestInfo | URL, options: RequestInit = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
-          await new Promise(resolve => {
+          await new Promise<void>((resolve) => {
             releaseFetch = resolve;
-            signalFetchStarted();
+            signalFetchStarted!();
           });
           return new Response(JSON.stringify({
             choices: [{ message: { content: '{"dot":"yellow","tip":"pending tip","detail":"pending detail"}' } }],
@@ -262,18 +265,18 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         }
         return saved.fetch(url, options);
       };
-      delete sunSession.aiAnalysis;
+      delete (sunSession as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis;
       const analyzingPromise = sun.analyzeSunSessionAI(sunSession, { force: true });
       await fetchStarted;
       const sunAnalyzingHtml = sun.renderSessionAIInline(sunSession);
-      releaseFetch();
+      releaseFetch!();
       await analyzingPromise;
       outcomes.sunAnalyzeShowsInflightThenStoresVerdict = sunAnalyzingHtml.includes('Analyzing')
-        && sunSession.aiAnalysis?.status === 'ok'
-        && sunSession.aiAnalysis.tip === 'pending tip';
+        && (sunSession as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis?.status === 'ok'
+        && (sunSession as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis!.tip === 'pending tip';
 
       let sunRefreshCalls = 0;
-      window.fetch = async (url, options = {}) => {
+      window.fetch = async (url: RequestInfo | URL, options: RequestInit = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
           sunRefreshCalls++;
           return new Response(JSON.stringify({
@@ -282,21 +285,21 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         }
         return saved.fetch(url, options);
       };
-      delete sunSession.aiAnalysis;
+      delete (sunSession as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis;
       const sunRefresh = await sun.refreshSessionAIAnalysis(sunSession.id);
       const sunRefreshCallCountAfterHit = sunRefreshCalls;
       let missingSunRefreshCrashed = false;
       try { await sun.refreshSessionAIAnalysis('missing-sun-session'); }
       catch (_) { missingSunRefreshCrashed = true; }
-      outcomes.sunRefreshWritesVerdictBySessionId = sunRefresh?.status === 'ok'
-        && sunSession.aiAnalysis?.tip === 'sun refresh tip'
+      outcomes.sunRefreshWritesVerdictBySessionId = (sunRefresh as FixtureVerdictRead | null | undefined)?.status === 'ok'
+        && (sunSession as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis?.tip === 'sun refresh tip'
         && sun.renderSessionAIInline(sunSession).includes('sun refresh tip')
         && sunRefreshCallCountAfterHit === 1;
       outcomes.sunRefreshMissingIdNoops = !missingSunRefreshCrashed
         && sunRefreshCalls === sunRefreshCallCountAfterHit;
 
       let sunAutoFireCalls = 0;
-      window.fetch = async (url, options = {}) => {
+      window.fetch = async (url: RequestInfo | URL, options: RequestInit = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
           sunAutoFireCalls++;
           return new Response(JSON.stringify({
@@ -308,11 +311,11 @@ test('sun and device session AI analysis covers contexts fingerprints and render
       outcomes.sunAutoFireProviderGateIsLive = api.hasAIProvider() === true;
       sun.maybeAnalyzeSessionAfterFinish({ ...sunSession, id: 'sun-unfinished', endedAt: null });
       sun.maybeAnalyzeSessionAfterFinish({ ...sunSession, id: 'sun-complete-on-demand' });
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       outcomes.sunSessionAnalysisStaysOnDemand = outcomes.sunAutoFireProviderGateIsLive
         && sunAutoFireCalls === 0;
 
-      window.fetch = async (url, options = {}) => {
+      window.fetch = async (url: RequestInfo | URL, options: RequestInit = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
           return new Response(JSON.stringify({
             choices: [{ message: { content: '{"dot":"green","tip":"device refresh tip","detail":"device refresh detail"}' } }],
@@ -320,14 +323,14 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         }
         return saved.fetch(url, options);
       };
-      delete deviceSession.aiAnalysis;
+      delete (deviceSession as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis;
       const deviceRefresh = await device.refreshDeviceSessionAIAnalysis(deviceSession.id);
-      outcomes.deviceRefreshWritesVerdictBySessionId = deviceRefresh?.status === 'ok'
-        && deviceSession.aiAnalysis?.tip === 'device refresh tip'
-        && device.renderDeviceSessionAIInline(deviceSession).includes('device refresh tip');
+      outcomes.deviceRefreshWritesVerdictBySessionId = (deviceRefresh as FixtureVerdictRead | null | undefined)?.status === 'ok'
+        && (deviceSession as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis?.tip === 'device refresh tip'
+        && (device.renderDeviceSessionAIInline as FixtureFirstArgument<typeof device.renderDeviceSessionAIInline>)(deviceSession).includes('device refresh tip');
 
       let deviceAuthCalls = 0;
-      window.fetch = async (url, options = {}) => {
+      window.fetch = async (url: RequestInfo | URL, options: RequestInit = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
           deviceAuthCalls++;
           return new Response(JSON.stringify({ error: { type: 'authentication_error', message: 'bad key' } }), {
@@ -337,21 +340,21 @@ test('sun and device session AI analysis covers contexts fingerprints and render
         }
         return saved.fetch(url, options);
       };
-      delete deviceSession.aiAnalysis;
+      delete (deviceSession as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis;
       const authResult = await device.analyzeDeviceSessionAI(deviceSession, { force: true });
       outcomes.deviceAnalyzeNormalizesAuthError = authResult === null
         && deviceAuthCalls === 1
-        && deviceSession.aiAnalysis?.status === 'error'
-        && device.renderDeviceSessionAIDetail(deviceSession).includes('Provider rejected')
-        && device.renderDeviceSessionAIDetail(deviceSession).includes('check Settings');
+        && (deviceSession as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis?.status === 'error'
+        && (device.renderDeviceSessionAIDetail as FixtureFirstArgument<typeof device.renderDeviceSessionAIDetail>)(deviceSession).includes('Provider rejected')
+        && (device.renderDeviceSessionAIDetail as FixtureFirstArgument<typeof device.renderDeviceSessionAIDetail>)(deviceSession).includes('check Settings');
       device.maybeAnalyzeDeviceSessionAfterFinish({ ...deviceSession, id: 'device-unfinished', endedAt: null });
       device.maybeAnalyzeDeviceSessionAfterFinish({ ...deviceSession, id: 'device-complete-on-demand' });
       outcomes.deviceSessionAnalysisStaysOnDemand = deviceAuthCalls === 1;
     } finally {
-      state.importedData = saved.importedData;
+      (state as unknown as {importedData:unknown}).importedData = saved.importedData;
       window.fetch = saved.fetch;
-      window.getOllamaConfig = saved.getOllamaConfig;
-      window.solarZenithAngle = saved.solarZenithAngle;
+      (window as unknown as {getOllamaConfig?: unknown}).getOllamaConfig = saved.getOllamaConfig;
+      (window as unknown as {solarZenithAngle?: unknown}).solarZenithAngle = saved.solarZenithAngle;
       aiVerdictRuntime.configureAIVerdictRuntimeDeps(previousAIVerdictRuntimeDeps);
       if (saved.provider == null) localStorage.removeItem('labcharts-ai-provider');
       else localStorage.setItem('labcharts-ai-provider', saved.provider);
@@ -379,18 +382,18 @@ test('light environment AI analysis covers audit room screen and onboarding verd
   const results = await page.evaluate(async ({ auditUrl, roomUrl, screenUrl, onboardingUrl }) => {
     const [{ state }, audit, roomAI, screenAI, onboarding, aiVerdictRuntime, sunDefaultsRuntime] = await Promise.all([
       import('/js/state.js'),
-      import(auditUrl),
-      import(roomUrl),
-      import(screenUrl),
-      import(onboardingUrl),
+      (import(auditUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/light-audit-ai-analysis.js'), "buildAuditContext" | "getAuditFingerprint" | "renderAuditAIDot" | "renderAuditAIBlock" | "refreshAuditAIAnalysis">>,
+      (import(roomUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/light-env-ai-analysis.js'), "buildRoomContext" | "getRoomFingerprint" | "renderRoomAIBlock" | "refreshRoomAIAnalysis">>,
+      (import(screenUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/light-screen-ai-analysis.js'), "buildScreenContext" | "getScreenFingerprint" | "renderScreenAIBlock">>,
+      (import(onboardingUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sun-onboarding-ai.js'), "buildOnboardingContext" | "getDefaultsFingerprint" | "renderOnboardingAIBlock" | "analyzeOnboardingAI">>,
       import('/js/ai-verdict-engine-runtime.js'),
       import('/js/sun-defaults-runtime.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const saved = {
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      importedData: JSON.parse(JSON.stringify(state.importedData || {})) as unknown,
       fetch: window.fetch,
-      getOllamaConfig: window.getOllamaConfig,
+      getOllamaConfig: (window as unknown as {getOllamaConfig?: unknown}).getOllamaConfig,
       provider: localStorage.getItem('labcharts-ai-provider'),
       paused: localStorage.getItem('labcharts-ai-paused'),
       ollamaModel: localStorage.getItem('labcharts-ollama-model'),
@@ -409,7 +412,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.removeItem('labcharts-ai-paused');
       localStorage.setItem('labcharts-ollama-model', 'test-light-model');
-      window.getOllamaConfig = () => ({ url: 'http://ollama.test', apiKey: '' });
+      (window as unknown as {getOllamaConfig?: unknown}).getOllamaConfig = () => ({ url: 'http://ollama.test', apiKey: '' });
     };
 
     try {
@@ -463,7 +466,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
         screens: [phoneScreen, portableTablet],
         measurements,
       };
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         ...state.importedData,
         lightEnvironment: {
           rooms: [bedroom, office],
@@ -496,7 +499,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
           { date: '2026-06-01', markers: { 'vitamins.vitaminD': 24 } },
         ],
       };
-      window.fetch = async (url, options = {}) => {
+      window.fetch = async (url: RequestInfo | URL, options: RequestInit = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
           return new Response(JSON.stringify({
             choices: [{ message: { content: '{"dot":"yellow","tip":"auto tip","detail":"auto detail","actions":["Walk outside at wake","Dim bedroom lamps","Move phone out"]}' } }],
@@ -549,22 +552,22 @@ test('light environment AI analysis covers audit room screen and onboarding verd
         && onboardingContext.includes('Latest 25-OH-D: 24');
       const defaultsFp = onboarding.getDefaultsFingerprint();
       outcomes.onboardingFingerprintHandlesMissingDefaults = !!defaultsFp;
-      const savedDefaults = state.importedData.sunDefaults;
-      delete state.importedData.sunDefaults;
+      const savedDefaults = (state.importedData as unknown as FixtureImportedRead).sunDefaults;
+      delete (state.importedData as unknown as FixtureImportedRead).sunDefaults;
       outcomes.onboardingMissingDefaultsReturnEmpty = onboarding.getDefaultsFingerprint() === ''
         && onboarding.buildOnboardingContext() === ''
         && onboarding.renderOnboardingAIBlock() === '';
-      state.importedData.sunDefaults = savedDefaults;
+      (state.importedData as unknown as FixtureImportedRead).sunDefaults = savedDefaults;
 
       setPausedProvider();
       outcomes.providerGateHidesUncachedBlocks = audit.renderAuditAIBlock({ ...auditSnapshot, aiAnalysis: null }) === ''
         && roomAI.renderRoomAIBlock({ ...bedroom, aiAnalysis: null }) === ''
         && screenAI.renderScreenAIBlock({ ...phoneScreen, aiAnalysis: null }) === ''
         && onboarding.renderOnboardingAIBlock() === '';
-      auditSnapshot.aiAnalysis = { status: 'ok', dot: 'green', tip: '<audit>', detail: '<detail>', fingerprint: auditFp };
-      bedroom.aiAnalysis = { status: 'ok', dot: 'yellow', tip: 'room tip', detail: 'room detail', fingerprint: roomFp };
-      phoneScreen.aiAnalysis = { status: 'ok', dot: 'red', tip: 'screen tip', detail: '<screen detail>', fingerprint: screenFp };
-      state.importedData.sunDefaults.aiAnalysis = {
+      (auditSnapshot as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis = { status: 'ok', dot: 'green', tip: '<audit>', detail: '<detail>', fingerprint: auditFp };
+      (bedroom as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis = { status: 'ok', dot: 'yellow', tip: 'room tip', detail: 'room detail', fingerprint: roomFp };
+      (phoneScreen as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis = { status: 'ok', dot: 'red', tip: 'screen tip', detail: '<screen detail>', fingerprint: screenFp };
+      (state.importedData as unknown as FixtureImportedRead).sunDefaults!.aiAnalysis = {
         status: 'ok',
         dot: 'green',
         tip: 'setup tip',
@@ -586,10 +589,10 @@ test('light environment AI analysis covers audit room screen and onboarding verd
         && cachedOnboardingHtml.includes('&lt;dim lamps&gt;');
 
       setLiveProvider();
-      delete auditSnapshot.aiAnalysis;
-      delete bedroom.aiAnalysis;
-      delete phoneScreen.aiAnalysis;
-      delete state.importedData.sunDefaults.aiAnalysis;
+      delete (auditSnapshot as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis;
+      delete (bedroom as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis;
+      delete (phoneScreen as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis;
+      delete (state.importedData as unknown as FixtureImportedRead).sunDefaults!.aiAnalysis;
       const idleAudit = audit.renderAuditAIBlock(auditSnapshot);
       const idleRoom = roomAI.renderRoomAIBlock({ id: 'empty-room', name: 'Empty room' });
       const idleScreen = screenAI.renderScreenAIBlock({ id: 'empty-screen', device: '' });
@@ -599,42 +602,42 @@ test('light environment AI analysis covers audit room screen and onboarding verd
         && idleScreen.includes('Analyze screen')
         && idleOnboarding.includes('Generate context');
 
-      auditSnapshot.aiAnalysis = { status: 'error', errorMessage: 'audit failed', fingerprint: auditFp };
-      bedroom.aiAnalysis = { status: 'error', errorMessage: 'room failed', fingerprint: roomFp };
-      phoneScreen.aiAnalysis = { status: 'error', errorMessage: 'screen failed', fingerprint: screenFp };
-      state.importedData.sunDefaults.aiAnalysis = { status: 'error', errorMessage: 'setup failed', fingerprint: defaultsFp };
+      (auditSnapshot as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis = { status: 'error', errorMessage: 'audit failed', fingerprint: auditFp };
+      (bedroom as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis = { status: 'error', errorMessage: 'room failed', fingerprint: roomFp };
+      (phoneScreen as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis = { status: 'error', errorMessage: 'screen failed', fingerprint: screenFp };
+      (state.importedData as unknown as FixtureImportedRead).sunDefaults!.aiAnalysis = { status: 'error', errorMessage: 'setup failed', fingerprint: defaultsFp };
       outcomes.liveProviderShowsErrorStates = audit.renderAuditAIBlock(auditSnapshot).includes('audit failed')
         && roomAI.renderRoomAIBlock(bedroom).includes('room failed')
         && screenAI.renderScreenAIBlock(phoneScreen).includes('screen failed')
         && onboarding.renderOnboardingAIBlock().includes('setup failed');
 
-      delete auditSnapshot.aiAnalysis;
+      delete (auditSnapshot as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis;
       const auditRefresh = await audit.refreshAuditAIAnalysis('audit-ai');
       let missingAuditRefreshCrashed = false;
       try { await audit.refreshAuditAIAnalysis('missing-audit'); }
       catch (_) { missingAuditRefreshCrashed = true; }
-      outcomes.auditRefreshResolvesByIdAndWritesVerdict = auditRefresh?.status === 'ok'
-        && auditSnapshot.aiAnalysis?.tip === 'auto tip';
+      outcomes.auditRefreshResolvesByIdAndWritesVerdict = (auditRefresh as FixtureVerdictRead | null | undefined)?.status === 'ok'
+        && (auditSnapshot as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis?.tip === 'auto tip';
       outcomes.auditRefreshMissingIdNoops = !missingAuditRefreshCrashed;
 
-      delete bedroom.aiAnalysis;
+      delete (bedroom as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis;
       const roomRefresh = await roomAI.refreshRoomAIAnalysis('bedroom');
       let missingRoomRefreshCrashed = false;
       try { await roomAI.refreshRoomAIAnalysis('missing-room'); }
       catch (_) { missingRoomRefreshCrashed = true; }
-      outcomes.roomRefreshResolvesByIdAndWritesVerdict = roomRefresh?.status === 'ok'
-        && bedroom.aiAnalysis?.tip === 'auto tip';
+      outcomes.roomRefreshResolvesByIdAndWritesVerdict = (roomRefresh as FixtureVerdictRead | null | undefined)?.status === 'ok'
+        && (bedroom as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis?.tip === 'auto tip';
       outcomes.roomRefreshMissingIdNoops = !missingRoomRefreshCrashed;
 
-      delete state.importedData.sunDefaults.aiAnalysis;
+      delete (state.importedData as unknown as FixtureImportedRead).sunDefaults!.aiAnalysis;
       const analyzeResult = await onboarding.analyzeOnboardingAI({ force: true });
-      outcomes.onboardingAnalyzeParsesActions = analyzeResult?.status === 'ok'
-        && Array.isArray(state.importedData.sunDefaults.aiAnalysis?.actions)
-        && state.importedData.sunDefaults.aiAnalysis.actions.length === 3;
+      outcomes.onboardingAnalyzeParsesActions = (analyzeResult as FixtureVerdictRead | null | undefined)?.status === 'ok'
+        && Array.isArray((state.importedData as unknown as FixtureImportedRead).sunDefaults!.aiAnalysis?.actions)
+        && ((state.importedData as unknown as FixtureImportedRead).sunDefaults!.aiAnalysis!.actions as unknown[]).length === 3;
     } finally {
-      state.importedData = saved.importedData;
+      (state as unknown as {importedData:unknown}).importedData = saved.importedData;
       window.fetch = saved.fetch;
-      window.getOllamaConfig = saved.getOllamaConfig;
+      (window as unknown as {getOllamaConfig?: unknown}).getOllamaConfig = saved.getOllamaConfig;
       aiVerdictRuntime.configureAIVerdictRuntimeDeps(previousAIVerdictRuntimeDeps);
       sunDefaultsRuntime.configureSunDefaultsRuntimeDeps(previousSunDefaultsRuntimeDeps);
       if (saved.provider == null) localStorage.removeItem('labcharts-ai-provider');
@@ -665,23 +668,23 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
   const results = await page.evaluate(async ({ channelUrl, burdenUrl, todayUrl }) => {
     const [{ state }, channelAI, burdenAI, todayAI, aiVerdictRuntime] = await Promise.all([
       import('/js/state.js'),
-      import(channelUrl),
-      import(burdenUrl),
-      import(todayUrl),
+      (import(channelUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/light-channels-ai-analysis.js'), "configureLightChannelsAIAnalysisDeps" | "buildChannelMixContext" | "getChannelMixFingerprint" | "renderChannelMixVerdict" | "analyzeChannelMixAI" | "refreshChannelMixAI">>,
+      (import(burdenUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/light-burden-ai-analysis.js'), "buildBurdenContext" | "getBurdenFingerprint" | "renderBurdenInterp" | "analyzeBurdenAI" | "refreshBurdenAIAnalysis">>,
+      (import(todayUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/light-today-ai.js'), "configureLightTodayAI" | "buildDayContext" | "computeLightTrends" | "getDayFingerprint" | "renderLightTodayHero" | "renderLightTodayDashboardChip" | "analyzeDayAI" | "refreshDayAIAnalysis">>,
       import('/js/ai-verdict-engine-runtime.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const saved = {
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      importedData: JSON.parse(JSON.stringify(state.importedData || {})) as unknown,
       fetch: window.fetch,
-      getOllamaConfig: window.getOllamaConfig,
-      solarZenithAngle: window.solarZenithAngle,
-      disableAIVerdicts: window.DISABLE_AI_VERDICTS,
+      getOllamaConfig: (window as unknown as {getOllamaConfig?: unknown}).getOllamaConfig,
+      solarZenithAngle: (window as unknown as {solarZenithAngle?: unknown}).solarZenithAngle,
+      disableAIVerdicts: (window as unknown as {DISABLE_AI_VERDICTS?: unknown}).DISABLE_AI_VERDICTS,
       provider: localStorage.getItem('labcharts-ai-provider'),
       paused: localStorage.getItem('labcharts-ai-paused'),
       ollamaModel: localStorage.getItem('labcharts-ollama-model'),
     };
-    const localDateKey = date => {
+    const localDateKey = (date: Date) => {
       const y = date.getFullYear();
       const m = String(date.getMonth() + 1).padStart(2, '0');
       const d = String(date.getDate()).padStart(2, '0');
@@ -695,12 +698,12 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.removeItem('labcharts-ai-paused');
       localStorage.setItem('labcharts-ollama-model', 'test-light-model');
-      window.getOllamaConfig = () => ({ url: 'http://ollama.test', apiKey: '' });
+      (window as unknown as {getOllamaConfig?: unknown}).getOllamaConfig = () => ({ url: 'http://ollama.test', apiKey: '' });
     };
     const previousAIVerdictRuntimeDeps = aiVerdictRuntime.configureAIVerdictRuntimeDeps({
       refreshSunSurfaces: () => {},
     });
-    let previousChannelAIAnalysisDeps = null;
+    let previousChannelAIAnalysisDeps: ReturnType<typeof channelAI.configureLightChannelsAIAnalysisDeps> | null = null;
 
     try {
       const today = new Date();
@@ -779,7 +782,7 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         model: 'Morning Box',
         type: 'sad',
       };
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         ...state.importedData,
         sunDefaults: {
           fitzpatrick: 'III',
@@ -809,15 +812,15 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         },
         lightDailyVerdicts: {},
       };
-      window.solarZenithAngle = date => (date.getHours() < 7 ? 87 : 28);
-      const rollingChannelTotals = days => days === 7
+      (window as unknown as {solarZenithAngle?: unknown}).solarZenithAngle = (date: Date) => (date.getHours() < 7 ? 87 : 28);
+      const rollingChannelTotals = (days: unknown) => days === 7
         ? { vitamin_d: 260, circadian: 180, nir_solar: 130, no_cv: 60, pomc: 55, violet_eye: 30 }
         : { vitamin_d: 540, circadian: 360, nir_solar: 320, no_cv: 140, pomc: 120, violet_eye: 45 };
-      const rollingDeviceTotals = days => days === 7
+      const rollingDeviceTotals = (days: unknown) => days === 7
         ? { circadian: 90, nir_solar: 50 }
         : { circadian: 180, nir_solar: 90 };
       const rollingVitaminDIU = () => 900;
-      const weeklyChannelTier = (value, key) => {
+      const weeklyChannelTier = (value: number, key: string) => {
         if (key === 'vitamin_d' && value >= 250) return 3;
         if (value >= 260) return 4;
         if (value >= 150) return 3;
@@ -825,9 +828,9 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         if (value > 0) return 1;
         return 0;
       };
-      const tierLabel = tier => ['none', 'low', 'moderate', 'good', 'strong'][tier] || 'none';
+      const tierLabel = (tier: number) => ['none', 'low', 'moderate', 'good', 'strong'][tier] || 'none';
       todayAI.configureLightTodayAI({
-        solarZenithAngle: window.solarZenithAngle,
+        solarZenithAngle: (window as unknown as {solarZenithAngle?: unknown}).solarZenithAngle,
         rollingChannelTotals,
         rollingDeviceTotals,
         rollingVitaminDIU,
@@ -838,8 +841,8 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         tierLabel,
         getSessions: () => state.importedData.sunSessions,
       });
-      const queuedAIResponses = [];
-      window.fetch = async (url, options = {}) => {
+      const queuedAIResponses: unknown[] = [];
+      window.fetch = async (url: RequestInfo | URL, options: RequestInit = {}) => {
         if (String(url).includes('/v1/chat/completions')) {
           const verdict = queuedAIResponses.shift() || {
             dot: 'yellow',
@@ -876,12 +879,12 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         && burdenContext.includes('Office')
         && burdenContext.includes('TV (Bedroom): 3 hr/day, 2 hr after sunset')
         && burdenContext.includes('Reported bedtime') === false;
-      state.importedData.sleepRest = { qualityScore: 4, bedtime: '00:10' };
+      (state.importedData as unknown as FixtureImportedRead).sleepRest = { qualityScore: 4, bedtime: '00:10' };
       outcomes.burdenContextAddsSleepWhenPresent = burdenAI.buildBurdenContext().includes('Reported bedtime: 00:10');
       const burdenFp = burdenAI.getBurdenFingerprint();
-      state.importedData.lightEnvironment.screens[0].blueBlockerEnabled = true;
+      (state.importedData as unknown as FixtureImportedRead).lightEnvironment!.screens[0]!.blueBlockerEnabled = true;
       const burdenFpChanged = burdenAI.getBurdenFingerprint();
-      state.importedData.lightEnvironment.screens[0].blueBlockerEnabled = false;
+      (state.importedData as unknown as FixtureImportedRead).lightEnvironment!.screens[0]!.blueBlockerEnabled = false;
       outcomes.burdenFingerprintChangesWithSetup = !!burdenFp && burdenFp !== burdenFpChanged;
 
       const dayTarget = { key: todayKey, date: today, isLightTodayTarget: true };
@@ -898,31 +901,31 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         && trends.signals.some(s => s.includes('Light activity dropped'))
         && !trends.signals.some(s => s.includes('vit-D synthesis'));
       const dayFp = todayAI.getDayFingerprint(dayTarget);
-      state.importedData.lightMeasurements.push({ ...lightMeasurement, id: 'today-cct', tool: 'cct', value: 4200 });
+      (state.importedData as unknown as FixtureImportedRead).lightMeasurements!.push({ ...lightMeasurement, id: 'today-cct', tool: 'cct', value: 4200 });
       const dayFpChanged = todayAI.getDayFingerprint(dayTarget);
-      state.importedData.lightMeasurements.pop();
+      (state.importedData as unknown as FixtureImportedRead).lightMeasurements!.pop();
       outcomes.dayFingerprintChangesWithActivity = !!dayFp && dayFp !== dayFpChanged;
 
       setPausedProvider();
-      outcomes.noProviderFallsBackOrHidesUncached = channelAI.renderChannelMixVerdict('<p>static channel</p>').includes('static channel')
+      outcomes.noProviderFallsBackOrHidesUncached = (channelAI.renderChannelMixVerdict('<p>static channel</p>') as string).includes('static channel')
         && burdenAI.renderBurdenInterp({ interp: 'static burden' }).includes('static burden')
         && todayAI.renderLightTodayHero() === ''
         && todayAI.renderLightTodayDashboardChip() === '';
-      state.importedData.channelMixAI = {
+      (state.importedData as unknown as FixtureImportedRead).channelMixAI = {
         status: 'ok',
         dot: 'green',
         tip: 'channel cached',
         detail: '<channel detail>',
         fingerprint: channelAI.getChannelMixFingerprint(),
       };
-      state.importedData.lightEnvironment.burdenAI = {
+      (state.importedData as unknown as FixtureImportedRead).lightEnvironment!.burdenAI = {
         status: 'ok',
         dot: 'yellow',
         tip: 'burden cached',
         detail: '<burden detail>',
         fingerprint: burdenAI.getBurdenFingerprint(),
       };
-      state.importedData.lightDailyVerdicts[todayKey] = {
+      (state.importedData as unknown as FixtureImportedRead).lightDailyVerdicts![todayKey] = {
         status: 'ok',
         dot: 'green',
         tip: 'today cached',
@@ -933,8 +936,8 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
       const cachedBurdenHtml = burdenAI.renderBurdenInterp({ interp: 'static burden' });
       const cachedHeroHtml = todayAI.renderLightTodayHero();
       const cachedChipHtml = todayAI.renderLightTodayDashboardChip();
-      outcomes.cachedAggregateVerdictsRenderWithoutProvider = cachedChannelHtml.includes('channel cached')
-        && cachedChannelHtml.includes('&lt;channel detail&gt;')
+      outcomes.cachedAggregateVerdictsRenderWithoutProvider = (cachedChannelHtml as string).includes('channel cached')
+        && (cachedChannelHtml as string).includes('&lt;channel detail&gt;')
         && cachedBurdenHtml.includes('burden cached')
         && cachedBurdenHtml.includes('&lt;burden detail&gt;')
         && cachedHeroHtml.includes('today cached')
@@ -942,27 +945,27 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         && cachedChipHtml.includes('today cached');
 
       setLiveProvider();
-      delete state.importedData.channelMixAI;
-      delete state.importedData.lightEnvironment.burdenAI;
-      delete state.importedData.lightDailyVerdicts[todayKey];
+      delete (state.importedData as unknown as FixtureImportedRead).channelMixAI;
+      delete (state.importedData as unknown as FixtureImportedRead).lightEnvironment!.burdenAI;
+      delete (state.importedData as unknown as FixtureImportedRead).lightDailyVerdicts![todayKey];
       // Keep auto-fire macrotasks deterministic while still asserting live-provider idle rendering.
-      window.DISABLE_AI_VERDICTS = true;
+      (window as unknown as {DISABLE_AI_VERDICTS?: unknown}).DISABLE_AI_VERDICTS = true;
       const idleChannelHtml = channelAI.renderChannelMixVerdict('<p>static channel</p>');
       const idleBurdenHtml = burdenAI.renderBurdenInterp({ interp: 'static burden' });
       const idleHeroHtml = todayAI.renderLightTodayHero();
       const idleChipHtml = todayAI.renderLightTodayDashboardChip();
-      outcomes.idleCtasRenderWhenNoCachedVerdictAndAnalysisGated = idleChannelHtml.includes('Generate weekly review')
-        && idleChannelHtml.includes('dashboard-action-btn light-channel-mix-ai-cta')
+      outcomes.idleCtasRenderWhenNoCachedVerdictAndAnalysisGated = (idleChannelHtml as string).includes('Generate weekly review')
+        && (idleChannelHtml as string).includes('dashboard-action-btn light-channel-mix-ai-cta')
         && idleBurdenHtml.includes('Get AI verdict')
         && idleHeroHtml.includes("Run today's verdict")
         && idleChipHtml.includes("Get today's AI verdict");
-      await new Promise(resolve => setTimeout(resolve, 20));
-      window.DISABLE_AI_VERDICTS = false;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      (window as unknown as {DISABLE_AI_VERDICTS?: unknown}).DISABLE_AI_VERDICTS = false;
 
-      state.importedData.channelMixAI = { status: 'error', errorMessage: 'channel failed', fingerprint: channelFp };
-      state.importedData.lightEnvironment.burdenAI = { status: 'error', errorMessage: 'burden failed', fingerprint: burdenFp };
-      state.importedData.lightDailyVerdicts[todayKey] = { status: 'error', errorMessage: 'today failed', fingerprint: dayFp };
-      outcomes.liveProviderShowsErrorAggregateStates = channelAI.renderChannelMixVerdict('<p>static channel</p>').includes('channel failed')
+      (state.importedData as unknown as FixtureImportedRead).channelMixAI = { status: 'error', errorMessage: 'channel failed', fingerprint: channelFp };
+      (state.importedData as unknown as FixtureImportedRead).lightEnvironment!.burdenAI = { status: 'error', errorMessage: 'burden failed', fingerprint: burdenFp };
+      (state.importedData as unknown as FixtureImportedRead).lightDailyVerdicts![todayKey] = { status: 'error', errorMessage: 'today failed', fingerprint: dayFp };
+      outcomes.liveProviderShowsErrorAggregateStates = (channelAI.renderChannelMixVerdict('<p>static channel</p>') as string).includes('channel failed')
         && burdenAI.renderBurdenInterp({ interp: 'static burden' }).includes('AI verdict failed')
         && todayAI.renderLightTodayHero().includes('today failed')
         && todayAI.renderLightTodayDashboardChip().includes('today failed');
@@ -973,47 +976,47 @@ test('light aggregate AI analysis covers channel burden and daily verdicts', asy
         { dot: 'green', tip: 'burden analyze tip', detail: 'burden analyze detail' },
         { dot: 'red', tip: 'burden refresh tip', detail: 'burden refresh detail' },
       );
-      delete state.importedData.channelMixAI;
-      delete state.importedData.lightEnvironment.burdenAI;
+      delete (state.importedData as unknown as FixtureImportedRead).channelMixAI;
+      delete (state.importedData as unknown as FixtureImportedRead).lightEnvironment!.burdenAI;
       const channelAnalysis = await channelAI.analyzeChannelMixAI({ force: true });
       // engine.refresh() forces a fresh analyze, so same-fingerprint refreshes consume the queued verdicts below.
       const channelRefresh = await channelAI.refreshChannelMixAI();
       const burdenAnalysis = await burdenAI.analyzeBurdenAI({ force: true });
       const burdenRefresh = await burdenAI.refreshBurdenAIAnalysis();
-      outcomes.aggregateSingletonAnalyzeAndRefreshWriteVerdicts = channelAnalysis?.tip === 'channel analyze tip'
-        && channelRefresh?.tip === 'channel refresh tip'
-        && state.importedData.channelMixAI?.tip === 'channel refresh tip'
-        && burdenAnalysis?.tip === 'burden analyze tip'
-        && burdenRefresh?.tip === 'burden refresh tip'
-        && state.importedData.lightEnvironment.burdenAI?.tip === 'burden refresh tip'
+      outcomes.aggregateSingletonAnalyzeAndRefreshWriteVerdicts = (channelAnalysis as FixtureVerdictRead | null | undefined)?.tip === 'channel analyze tip'
+        && (channelRefresh as FixtureVerdictRead | null | undefined)?.tip === 'channel refresh tip'
+        && (state.importedData as unknown as FixtureImportedRead).channelMixAI?.tip === 'channel refresh tip'
+        && (burdenAnalysis as FixtureVerdictRead | null | undefined)?.tip === 'burden analyze tip'
+        && (burdenRefresh as FixtureVerdictRead | null | undefined)?.tip === 'burden refresh tip'
+        && (state.importedData as unknown as FixtureImportedRead).lightEnvironment!.burdenAI?.tip === 'burden refresh tip'
         && queuedAIResponses.length === 0;
 
       queuedAIResponses.push({ dot: 'yellow', tip: 'aggregate tip', detail: 'aggregate detail' });
-      delete state.importedData.lightDailyVerdicts[todayKey];
+      delete (state.importedData as unknown as FixtureImportedRead).lightDailyVerdicts![todayKey];
       const dayAnalysis = await todayAI.analyzeDayAI(today, { force: true });
-      outcomes.dayAnalyzeWritesDailyVerdict = dayAnalysis?.status === 'ok'
-        && state.importedData.lightDailyVerdicts[todayKey]?.tip === 'aggregate tip';
+      outcomes.dayAnalyzeWritesDailyVerdict = (dayAnalysis as FixtureVerdictRead | null | undefined)?.status === 'ok'
+        && (state.importedData as unknown as FixtureImportedRead).lightDailyVerdicts![todayKey]?.tip === 'aggregate tip';
 
       queuedAIResponses.push({ dot: 'red', tip: 'today refresh tip', detail: 'today refresh detail' });
       const dayRefresh = await todayAI.refreshDayAIAnalysis(todayKey);
       let invalidDayRefreshCrashed = false;
       try { await todayAI.refreshDayAIAnalysis('not-a-date'); }
       catch (_) { invalidDayRefreshCrashed = true; }
-      outcomes.dayRefreshUsesDateKeyAndWritesDailyVerdict = dayRefresh?.status === 'ok'
-        && state.importedData.lightDailyVerdicts[todayKey]?.tip === 'today refresh tip';
+      outcomes.dayRefreshUsesDateKeyAndWritesDailyVerdict = (dayRefresh as FixtureVerdictRead | null | undefined)?.status === 'ok'
+        && (state.importedData as unknown as FixtureImportedRead).lightDailyVerdicts![todayKey]?.tip === 'today refresh tip';
       outcomes.dayRefreshInvalidKeyNoops = !invalidDayRefreshCrashed;
     } finally {
-      state.importedData = saved.importedData;
+      (state as unknown as {importedData:unknown}).importedData = saved.importedData;
       window.fetch = saved.fetch;
-      window.getOllamaConfig = saved.getOllamaConfig;
+      (window as unknown as {getOllamaConfig?: unknown}).getOllamaConfig = saved.getOllamaConfig;
       aiVerdictRuntime.configureAIVerdictRuntimeDeps(previousAIVerdictRuntimeDeps);
-      window.solarZenithAngle = saved.solarZenithAngle;
+      (window as unknown as {solarZenithAngle?: unknown}).solarZenithAngle = saved.solarZenithAngle;
       todayAI.configureLightTodayAI({});
       if (previousChannelAIAnalysisDeps) {
         channelAI.configureLightChannelsAIAnalysisDeps(previousChannelAIAnalysisDeps);
       }
-      if (saved.disableAIVerdicts === undefined) delete window.DISABLE_AI_VERDICTS;
-      else window.DISABLE_AI_VERDICTS = saved.disableAIVerdicts;
+      if (saved.disableAIVerdicts === undefined) delete (window as unknown as {DISABLE_AI_VERDICTS?: unknown}).DISABLE_AI_VERDICTS;
+      else (window as unknown as {DISABLE_AI_VERDICTS?: unknown}).DISABLE_AI_VERDICTS = saved.disableAIVerdicts;
       if (saved.provider == null) localStorage.removeItem('labcharts-ai-provider');
       else localStorage.setItem('labcharts-ai-provider', saved.provider);
       if (saved.paused == null) localStorage.removeItem('labcharts-ai-paused');
