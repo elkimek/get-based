@@ -1,3 +1,4 @@
+import type { JSONDetached } from './export-report.js';
 // Period summaries retain denominators and source boundaries; raw rows remain separate.
 import { nutrientRollup } from './nutrition-summary.js';
 import { NUTRIENT_DEFINITIONS } from './nutrition-nutrient-registry.js';
@@ -11,7 +12,7 @@ import type { SunSessionRecord } from './sun-sessions-store.js';
 import type { LightMeasurement, LightRoom, LightScreen } from './light-env-model.js';
 
 export type ReportNutritionMeal = Pick<ReturnType<typeof computeNutritionHistory>['meals'][number],
-  'localDate' | 'eatenAt' | 'reviewed' | 'source' | 'nutrients'>;
+  'localDate' | 'reviewed' | 'source' | 'nutrients'> & { eatenAt?: unknown };
 export interface ReportWearableRecord {
   id: string;
   source?: string | null | undefined;
@@ -25,8 +26,8 @@ export type ReportLightSession = Partial<Pick<DeviceSessionRecord,
   & { safety?: Partial<NonNullable<DeviceSessionRecord['safety']>> | null };
 export interface ReportLightRecord {
   kind: string;
-  session: ReportLightSession;
-  device?: LightDeviceRecord | null | undefined;
+  session: ReportLightSession | JSONDetached<ReportLightSession>;
+  device?: LightDeviceRecord | JSONDetached<LightDeviceRecord> | null | undefined;
 }
 export interface ReportEnvironmentMeasurement extends Omit<LightMeasurement, 'extra'> {
   id?: string;
@@ -48,6 +49,7 @@ export interface ReportEnvironmentSources {
   emfAssessment?: ReportEnvironmentObservation & { assessments?: ReportEnvironmentObservation[] | null } | null | undefined;
   measurementFacts?: Record<string, string> | null | undefined;
 }
+type ReportEnvironmentSourceReader = { [Key in keyof ReportEnvironmentSources]?: ReportEnvironmentSources[Key] | JSONDetached<ReportEnvironmentSources[Key]> };
 type DateInput = string | number | Date;
 
 
@@ -66,7 +68,7 @@ const mean = (values: number[]) => values.reduce((total, value) => total + value
 const span = (days: string[]) => days.length ? `${days[0]} to ${days[days.length - 1]}` : 'No dated records';
 const dayKeys = (rows: Array<{ date: unknown }>) => [...new Set(rows.map(row => reportDay(row.date)).filter(Boolean))].sort();
 
-export function summarizeNutrition(meals: ReportNutritionMeal[]) {
+export function summarizeNutrition(meals: Array<ReportNutritionMeal | JSONDetached<ReportNutritionMeal>>) {
   const dated = meals.filter(meal => reportDay(meal.localDate || meal.eatenAt));
   const rollup = nutrientRollup(dated);
   const days = [...new Set(dated.map(meal => reportDay(meal.localDate || meal.eatenAt)))].sort();
@@ -116,7 +118,7 @@ export function summarizeWearables(records: ReportWearableRecord[], scope: { uni
     note: 'Sources are kept separate. Daily means weight each observed day equally; min–max describes daily means. Synced latest readings are replaced by same-source/day history when available. A single latest reading is not a period history. Unlogged days are unknown.' };
 }
 
-export function summarizeLight(sessions: ReportLightRecord[], channelExposure: (key: string, value: number, session: ReportLightSession) => string) {
+export function summarizeLight(sessions: ReportLightRecord[], channelExposure: (key: string, value: number, session: ReportLightSession | JSONDetached<ReportLightSession>) => string) {
   const groups = new Map<string, ReportLightRecord[]>();
   for (const item of sessions) {
     const key = JSON.stringify([item.kind, item.session.deviceId || item.device?.name || '', item.session.mode || '']);
@@ -156,7 +158,7 @@ export function summarizeLight(sessions: ReportLightRecord[], channelExposure: (
     note: 'Only completed, dated sessions with positive duration enter averages. Unlogged days are unknown. Timing uses this device’s timezone. Exposure is modeled, not a measured health effect. Incompatible settings are not pooled; vitamin-D equivalents are not intake. Detailed safety context is retained in the appendix when selected.' };
 }
 
-export function summarizeEnvironment(sources: ReportEnvironmentSources, within: (date: unknown) => unknown, facts: (record: unknown, keys: string[]) => string, describe: (record: unknown) => string) {
+export function summarizeEnvironment(sources: ReportEnvironmentSourceReader, within: (date: unknown) => unknown, facts: (record: unknown, keys: string[]) => string, describe: (record: unknown) => string) {
   const rows: unknown[][] = [];
   const rooms = sources.lightEnvironment?.rooms || [];
   const roomFields = ['primarySource', 'daylightLevel', 'cct', 'flickerScore', 'hoursOccupiedPerDay', 'eveningHoursAfterSunset', 'notes'];

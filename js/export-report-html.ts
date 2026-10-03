@@ -1,5 +1,4 @@
-// @ts-check
-// export-report-html.js — PDF report HTML renderer
+// export-report-html.ts — PDF report HTML renderer
 
 import { getCachedSnpCatalog } from './dna-evidence.js';
 import { renderConciseReportBody, renderReportOriginNotice } from './export-report-summary-html.js';
@@ -20,6 +19,77 @@ import {
   reportIncludes,
 } from './export-report.js';
 
+import type { ActiveMarker, ActiveCategory } from './data-view-types.js';
+import type { ReportDataSnapshot, ReportMarker, ReportResult, ReportContextSection, ReportSnpCatalog, ReportGenetics, ReportGenomeFinding } from './export-report-data.js';
+import type { ReportHeaderFact } from './export-report-summary-html.js';
+import type { SupplementRecord } from '../types/supplement-data.js';
+import type { ReportCoreOptions, PreparedReportPayload, ReportLifecycle, JSONDetached } from './export-report.js';
+
+type DeclaredFields<T> = { [Key in keyof T as string extends Key ? never : number extends Key ? never : Key]: T[Key] };
+type NativeOrDetachedFields<Value> = { [Key in keyof Value]?: Value[Key] | JSONDetached<Value[Key]> };
+type NativeFlag = ReturnType<typeof getAllFlaggedMarkers>[number];
+type NativeRange = ReturnType<typeof resolveMarkerRangeContext>['displayedRanges'][number];
+export interface ReportHTMLRange extends Omit<Partial<NativeRange>, 'min' | 'max' | 'label' | 'source'> {
+  min?: unknown; max?: unknown; label?: unknown; source?: unknown;
+}
+export interface ReportHTMLFlag extends Omit<Partial<NativeFlag>,
+  'value' | 'rawValue' | 'name' | 'unit' | 'effectiveMin' | 'effectiveMax' | 'effectiveLabel' | 'displayedRanges' | 'status' | 'dateIndex' | 'date'> {
+  value?: unknown; rawValue?: unknown; name?: unknown; unit?: unknown;
+  effectiveMin?: unknown; effectiveMax?: unknown; effectiveLabel?: unknown;
+  displayedRanges?: ReportHTMLRange[] | null;
+  status: string; dateIndex?: unknown; date?: unknown;
+}
+export interface ReportHTMLMarker extends Omit<DeclaredFields<ActiveMarker>, 'name' | 'unit' | 'values'> {
+  name?: unknown; unit?: unknown; hidden?: unknown; values: Array<number | null | undefined>;
+}
+export interface ReportHTMLCategory extends Omit<DeclaredFields<ActiveCategory>, 'label' | 'icon' | 'singleDate' | 'markers'> {
+  label?: unknown; icon?: string; singleDate?: unknown; markers: Record<string, ReportHTMLMarker>;
+}
+export interface ReportHTMLData {
+  dates: string[];
+  categories: Record<string, ReportHTMLCategory>;
+}
+export interface ReportHTMLPortableMarker extends Pick<Partial<ReportMarker>, 'storageDotKey' | 'id' | 'note'> {
+  results?: Array<Pick<NativeOrDetachedFields<ReportResult>, 'dateIndex' | 'note' | 'source'> & { date?: unknown }>;
+}
+export interface ReportHTMLGenomeFinding extends Pick<ReportGenomeFinding, 'rsid'> {
+  tone: string;
+  gene?: unknown; variant?: unknown; genotype?: unknown; category?: unknown; direction?: unknown;
+  note?: unknown; apoeComponent?: unknown; strandNote?: unknown; references?: unknown[];
+  evidence: { evidenceLabel?: unknown; relevanceLabel?: unknown; scope?: unknown; context?: unknown };
+}
+export interface ReportHTMLGenetics extends Omit<NativeOrDetachedFields<ReportGenetics>, 'findings'> {
+  findings?: ReportHTMLGenomeFinding[];
+}
+export interface ReportHTMLPortableData extends Omit<NativeOrDetachedFields<ReportDataSnapshot>, 'labs' | 'scope' | 'genetics' | 'notes'> {
+  scope?: Pick<Partial<ReportDataSnapshot['scope']>, 'rangeMode' | 'unitSystem'>;
+  genetics?: ReportHTMLGenetics | null;
+  notes?: ReportHTMLNote[];
+  labs?: { categories: Array<{ markers: ReportHTMLPortableMarker[] }>; collectionContextByDate?: unknown } | null;
+}
+export interface ReportHTMLOptions extends ReportCoreOptions {
+  detailed?: unknown;
+  reportData?: ReportHTMLPortableData | null;
+  headerFacts?: ReportHeaderFact[] | null;
+}
+export interface ReportHTMLNote { date?: unknown; text?: unknown }
+export type ReportHTMLSupplement = SupplementRecord | JSONDetached<SupplementRecord>;
+type SnapshotInput = NonNullable<Parameters<typeof buildReportDataSnapshot>[0]>;
+type HTMLSnapshotInput = Omit<SnapshotInput, 'data' | 'profile' | 'importedData'> & {
+  data: ReportHTMLData;
+  profile: Parameters<typeof buildReportHeaderFacts>[0]['profile'];
+  importedData: Omit<NonNullable<SnapshotInput['importedData']>, 'notes' | 'genetics' | 'supplements'> & {
+    notes: ReportHTMLNote[]; genetics: unknown; supplements: ReportHTMLSupplement[];
+  };
+};
+// Legacy presentation inputs may be copied into the portable result without canonicalizing them.
+type HTMLSnapshotReader = (input: HTMLSnapshotInput) => ReportHTMLPortableData;
+// Partial supplied records retain the original branch reads and missing-data failures.
+type HTMLConciseReader = (report: ReportHTMLPortableData, ...rest: Parameters<typeof renderConciseReportBody> extends [unknown, ...infer Rest] ? Rest : never) => ReturnType<typeof renderConciseReportBody>;
+type DateColumn = { label: unknown; index: number; date: unknown };
+type HTMLRangeContext = { displayedRanges: ReportHTMLRange[] };
+type HTMLRangeBounds = Pick<ReportHTMLRange, 'min' | 'max'> & Pick<ReportHTMLFlag, 'effectiveMin' | 'effectiveMax'>;
+
 function getReportRuntimeWindow() {
   return typeof window !== 'undefined' ? window : null;
 }
@@ -32,11 +102,10 @@ export function openReportPreviewWindow() {
 }
 
 function getReportSnpTableCache() {
-  return /** @type {import('./export-report-data.js').ReportSnpCatalog | null} */ (getCachedSnpCatalog() || getReportRuntimeWindow()?._snpTableCache || null);
+  return (getCachedSnpCatalog() || (getReportRuntimeWindow() as (Window & { _snpTableCache?: unknown }) | null)?._snpTableCache || null) as ReportSnpCatalog | null;
 }
 
-/** @param {any} options @param {Window | null} [previewWindow] @param {any} [preparedPayload] @param {any} [lifecycle] */
-export function exportPDFReport(options = {}, previewWindow = null, preparedPayload = null, lifecycle = {}) {
+export function exportPDFReport(options: ReportHTMLOptions = {}, previewWindow: Window | null = null, preparedPayload: PreparedReportPayload | null = null, lifecycle: ReportLifecycle = {}) {
   const captured = preparedPayload || buildPreparedReportPayload(options);
   const payload = { ...captured, reportOptions: { ...captured.reportOptions, aiSummary: options.aiSummary } };
   const win = previewWindow || openReportPreviewWindow();
@@ -72,7 +141,7 @@ export function exportPDFReport(options = {}, previewWindow = null, preparedPayl
   return finish();
 }
 
-export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps, contextSections, options = {}) {
+export function buildReportHTML(profileName: string, sexLabel: string, data: ReportHTMLData, flags: ReportHTMLFlag[], notes: ReportHTMLNote[], supps: ReportHTMLSupplement[], contextSections: ReportContextSection[], options: ReportHTMLOptions = {}) {
   const portableReport = options.reportData || null;
   const reportOptions = normalizeReportOptions(options);
   const renderOptions = { ...reportOptions, sections: options.detailed ? reportOptions.sections : reportOptions.appendixSections };
@@ -80,10 +149,10 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   if (!includesLabs) { data = { ...data, dates: [], categories: {} }; flags = []; }
   const now = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   const rangeMode = portableReport?.scope?.rangeMode || reportOptions.rangeMode;
-  if (includesLabs && options.rangeMode) flags = getAllFlaggedMarkers(data, rangeMode);
+  if (includesLabs && options.rangeMode) flags = (getAllFlaggedMarkers as unknown as (data: ReportHTMLData, rangeMode?: string) => ReportHTMLFlag[])(data, rangeMode);
   const unitLabel = getUnitProfileLabel(portableReport?.scope?.unitSystem || state.unitSystem);
-  const fmtDate = d => d && Number.isFinite(new Date(d + 'T00:00:00').getTime())
-    ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const fmtDate = (d: unknown) => d && Number.isFinite(new Date((d as string) + 'T00:00:00').getTime())
+    ? new Date((d as string) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : 'date not set';
   const fullDateLabels = data.dates.map(d => fmtDate(d));
   const reportDates = new Set(data.dates || []);
@@ -91,7 +160,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     for (const marker of Object.values(category.markers || {})) {
       if ((marker.singlePoint || category.singlePoint) && marker.values?.some(value => value != null)) {
         const date = marker.singleDate || category.singleDate;
-        if (date) reportDates.add(date);
+        if (date) reportDates.add(date as string);
       }
     }
   }
@@ -99,7 +168,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   const dateRange = !includesLabs ? 'Lab results not selected' : reportDateLabels.length > 0
     ? `${reportDateLabels[0]} \u2013 ${reportDateLabels[reportDateLabels.length - 1]}`
     : 'No lab dates in selected range';
-  const hasReportValue = value => value !== null && value !== undefined;
+  const hasReportValue = (value: unknown) => value !== null && value !== undefined;
   const trendItems = buildTrendItems();
   const reportStats = buildReportStats();
   const genetics = portableReport ? portableReport.genetics : buildReportGenetics(state.importedData.genetics, getReportSnpTableCache());
@@ -176,7 +245,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     for (const [catKey, cat] of Object.entries(data.categories)) {
       const markersWithData = Object.entries(cat.markers).filter(([_, m]) => !m.hidden && m.values && m.values.some(hasReportValue));
       if (markersWithData.length === 0) continue;
-      const dateColumns = cat.singleDate
+      const dateColumns: DateColumn[] = cat.singleDate
         ? [{ label: cat.singleDateLabel || fmtDate(cat.singleDate), index: 0, date: cat.singleDate }]
         : fullDateLabels
             .map((label, index) => ({ label, index, date: data.dates[index] }))
@@ -193,9 +262,9 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
       body += `<th>Trend</th></tr></thead><tbody>`;
       for (const [markerKey, marker] of markersWithData) {
         const latestIndex = getLatestReportValueIndex(marker.values);
-        const r = resolveMarkerRangeContext(marker, latestIndex, rangeMode).judgingRange;
+        const r = resolveMarkerRangeContext(marker as ActiveMarker, latestIndex, rangeMode).judgingRange;
         const trendValues = marker.values.map(v => hasReportValue(v) ? v : null);
-        const trend = getTrend(trendValues, r.min, r.max);
+        const trend = getTrend(trendValues as Array<number | null>, r.min, r.max);
         const markerColumns = dateColumns.map(column => ({ ...column,
           index: marker.singlePoint || cat.singlePoint
             ? (column.date === (marker.singleDate || cat.singleDate || null) ? 0 : -1) : column.index,
@@ -209,7 +278,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
         body += `<tr><td>${esc(marker.name)}${markerNote}</td><td class="muted">${esc(marker.unit)}</td><td class="muted">${rangeStr}</td>`;
         for (const column of markerColumns) {
           const v = marker.values[column.index] ?? null;
-          const resultRange = resolveMarkerRangeContext(marker, column.index, rangeMode).judgingRange;
+          const resultRange = resolveMarkerRangeContext(marker as ActiveMarker, column.index, rangeMode).judgingRange;
           const s = getReportStatus(v, resultRange);
           const sPrefix = s === 'high' ? '\u25B2 ' : s === 'low' ? '\u25BC ' : '';
           const resultDate = marker.singlePoint || cat.singlePoint
@@ -300,9 +369,9 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     <p class="disclaimer">This report is for informational purposes only and does not constitute medical advice. Always consult a qualified healthcare professional for interpretation of lab results.</p>
   </div>`;
 
-  function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function esc(s: unknown) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-  function renderContextBody(text) {
+  function renderContextBody(text: unknown) {
     const lines = String(text || '').split(/\n+/).map(line => line.trim()).filter(Boolean);
     if (lines.length <= 1) return `<p class="context-text">${esc(lines[0] || '')}</p>`;
     const rows = lines.map(line => {
@@ -317,9 +386,9 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
 
   function renderCollectionContextSection() {
     const labs = portableReport?.labs;
-    const entries = Object.entries(labs?.collectionContextByDate || {});
+    const entries = Object.entries(labs?.collectionContextByDate as Record<string, unknown> || {});
     if (!labs || entries.length === 0) return '';
-    const markerResults = labs.categories.flatMap(category => category.markers.flatMap(marker => marker.results));
+    const markerResults = labs.categories.flatMap(category => category.markers.flatMap(marker => marker.results)) as Array<NonNullable<ReportHTMLPortableMarker['results']>[number]>;
     const rows = entries.map(([date, context]) => {
       const details = Object.entries(context || {}).filter(([, value]) => value != null && value !== '').map(([key, value]) => {
         const label = String(key).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/_/g, ' ').replace(/^./, char => char.toUpperCase());
@@ -328,24 +397,24 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
       });
       const sourceFiles = [...new Set(markerResults
         .filter(result => result.date === date && result.source?.file)
-        .map(result => result.source.file))];
+        .map(result => result.source!.file))];
       if (sourceFiles.length > 0) details.push(`Source: ${sourceFiles.join(', ')}`);
       return `<tr><td>${esc(fmtDate(date))}</td><td>${esc(details.join(' · '))}</td></tr>`;
     }).join('');
     return `<section class="report-collection-context"><h2>Collection Context</h2><table><thead><tr><th>Date</th><th>Reported draw context</th></tr></thead><tbody>${rows}</tbody></table></section>`;
   }
 
-  function formatSupplementDosage(s) {
+  function formatSupplementDosage(s: ReportHTMLSupplement) {
     const parts = getSupplementDosageParts(s);
     return parts.length > 0 ? parts.map(part => esc(part)).join('<br>') : '\u2014';
   }
 
-  function formatSupplementSummary(s) {
+  function formatSupplementSummary(s: ReportHTMLSupplement) {
     const dosage = getSupplementDosageParts(s)[0];
     return `${esc(s.name)} [${esc(getSupplementStatus(s))}]${dosage ? ' (' + esc(dosage) + ')' : ''}`;
   }
 
-  function renderReference(reference) {
+  function renderReference(reference: unknown) {
     try {
       const url = new URL(String(reference));
       if (!['https:', 'http:'].includes(url.protocol)) return esc(reference);
@@ -374,14 +443,14 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   }
 
   function buildTrendItems() {
-    const items = [];
+    const items: string[] = [];
     for (const cat of Object.values(data.categories)) {
       for (const marker of Object.values(cat.markers)) {
         const nonNull = marker.values.map((v,i) => ({v,i})).filter(x => hasReportValue(x.v));
         if (nonNull.length < 2) continue;
-        const first = nonNull[0], last = nonNull[nonNull.length - 1];
+        const first = nonNull[0]!, last = nonNull[nonNull.length - 1]!;
         if (first.v === 0) continue;
-        const pctChange = ((last.v - first.v) / first.v) * 100;
+        const pctChange = ((last.v! - first.v!) / first.v!) * 100;
         if (Math.abs(pctChange) > 10) {
           const dir = pctChange > 0 ? 'increased' : 'decreased';
           const firstDate = fullDateLabels[first.i] || '';
@@ -393,36 +462,36 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     return items;
   }
 
-  function getLatestReportValueIndex(values = []) {
+  function getLatestReportValueIndex(values: Array<number | null | undefined> = []) {
     for (let i = values.length - 1; i >= 0; i--) {
       if (hasReportValue(values[i])) return i;
     }
     return -1;
   }
 
-  function getReportStatus(value, range) {
+  function getReportStatus(value: number | null | undefined, range: ReturnType<typeof resolveMarkerRangeContext>['judgingRange'] | null | undefined) {
     if (!hasReportValue(value)) return 'missing';
     if (range?.min == null && range?.max == null) return 'unrated';
-    return getStatus(value, range.min, range.max);
+    return getStatus(value, range!.min, range!.max);
   }
 
-  function formatRangeBounds(range) {
-    const min = Object.prototype.hasOwnProperty.call(range || {}, 'min') ? range.min : range?.effectiveMin;
-    const max = Object.prototype.hasOwnProperty.call(range || {}, 'max') ? range.max : range?.effectiveMax;
+  function formatRangeBounds(range: HTMLRangeBounds | null | undefined) {
+    const min = Object.prototype.hasOwnProperty.call(range || {}, 'min') ? range!.min : range?.effectiveMin;
+    const max = Object.prototype.hasOwnProperty.call(range || {}, 'max') ? range!.max : range?.effectiveMax;
     if ([min, max].some(value => value != null && (typeof value !== 'number' || !Number.isFinite(value)))) return 'invalid range';
     if (min == null && max == null) return 'not set';
-    if (min == null) return `\u2264${esc(formatValue(max))}`;
-    if (max == null) return `\u2265${esc(formatValue(min))}`;
-    return `${esc(formatValue(min))} \u2013 ${esc(formatValue(max))}`;
+    if (min == null) return `\u2264${esc(formatValue(max as number))}`;
+    if (max == null) return `\u2265${esc(formatValue(min as number))}`;
+    return `${esc(formatValue(min as number))} \u2013 ${esc(formatValue(max as number))}`;
   }
 
-  function rangeSetIdentity(rangeContext) {
+  function rangeSetIdentity(rangeContext: HTMLRangeContext) {
     return rangeContext.displayedRanges
       .map(range => [range.min ?? '', range.max ?? '', range.label || '', range.kind || '', range.source || ''].join('|'))
       .join('||');
   }
 
-  function renderRangeSet(rangeContext, includeLabels) {
+  function renderRangeSet(rangeContext: HTMLRangeContext, includeLabels: boolean) {
     return rangeContext.displayedRanges.map(range => {
       const bounds = formatRangeBounds(range);
       if (!includeLabels && rangeContext.displayedRanges.length === 1) return bounds;
@@ -435,18 +504,18 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     }).join('<br>');
   }
 
-  function renderMarkerRanges(marker, dateColumns) {
+  function renderMarkerRanges(marker: ReportHTMLMarker, dateColumns: DateColumn[]) {
     const datedRanges = dateColumns
       .filter(column => hasReportValue(marker.values?.[column.index]))
       .map(column => ({
         label: column.label,
-        context: resolveMarkerRangeContext(marker, column.index, rangeMode),
+        context: resolveMarkerRangeContext(marker as ActiveMarker, column.index, rangeMode),
       }));
     if (datedRanges.length === 0) return '\u2014';
-    const firstIdentity = rangeSetIdentity(datedRanges[0].context);
+    const firstIdentity = rangeSetIdentity(datedRanges[0]!.context);
     const changesByDate = datedRanges.some(item => rangeSetIdentity(item.context) !== firstIdentity);
     if (!changesByDate) {
-      return renderRangeSet(datedRanges[0].context, true);
+      return renderRangeSet(datedRanges[0]!.context, true);
     }
     return datedRanges.map(item => `${esc(item.label)}: ${renderRangeSet(item.context, true)}`).join('<br>');
   }
@@ -460,7 +529,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
         if (li !== -1) {
           categoryHasData = true;
           totalWithData++;
-          const r = resolveMarkerRangeContext(marker, li, rangeMode).judgingRange;
+          const r = resolveMarkerRangeContext(marker as ActiveMarker, li, rangeMode).judgingRange;
           const status = getReportStatus(marker.values[li], r);
           if (status === 'normal') totalInRange++;
           else if (status === 'unrated') totalUnrated++;
@@ -481,8 +550,8 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
       summary += `<p class="report-subhead">Out of Range Highlights (${summaryFlags.length} of ${flags.length})</p><ul class="report-list">`;
       for (const f of summaryFlags) {
         const boundary = f.status === 'high' ? f.effectiveMax : f.effectiveMin;
-        const diff = f.status === 'high' ? f.rawValue - boundary : boundary - f.rawValue;
-        const pctBeyond = boundary !== 0 ? ((diff / boundary) * 100).toFixed(0) : '?';
+        const diff = f.status === 'high' ? (f.rawValue as number) - (boundary as number) : (boundary as number) - (f.rawValue as number);
+        const pctBeyond = boundary !== 0 ? ((diff / (boundary as number)) * 100).toFixed(0) : '?';
         summary += `<li><strong>${esc(f.name)}</strong>: ${esc(f.value)} ${esc(f.unit)} \u2014 <span class="val-${f.status === 'high' ? 'high' : 'low'}">${esc(f.status.toUpperCase())}</span> (${pctBeyond}% beyond ${f.status === 'high' ? 'upper' : 'lower'} limit; ${esc(f.effectiveLabel || 'range')}: ${formatRangeBounds(f)})</li>`;
       }
       summary += `</ul>`;
@@ -509,7 +578,7 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
     }
 
     if (reportIncludes(renderOptions, 'genetics') && includeApoe) {
-      summary += `<p class="report-copy"><strong>APOE:</strong> ${esc(genetics.apoe)}</p>`;
+      summary += `<p class="report-copy"><strong>APOE:</strong> ${esc(genetics!.apoe)}</p>`;
     }
 
     summary += `<p class="report-note">This summary is calculated from the selected records and ranges. Flags do not establish a diagnosis or treatment need.</p></section>`;
@@ -517,12 +586,12 @@ export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps
   }
 
   if (!options.detailed) {
-    const report = portableReport || buildReportDataSnapshot({
+    const report = portableReport || (buildReportDataSnapshot as unknown as HTMLSnapshotReader)({
       data, profile: { ...headerProfile, name: profileName }, importedData: { notes, supplements: supps, genetics: state.importedData.genetics },
       reportOptions, rangeMode, unitSystem: state.unitSystem, contextSections, snpTable: getReportSnpTableCache(),
     });
     const appendix = reportOptions.appendixSections.length ? `<section id="report-appendix"><h2>Appendix — selected detailed records</h2><p class="report-note">${esc(reportOptions.appendixSections.join(', '))} · <a href="#report-top">Back to summary</a></p>${body || '<p>No detailed records available for these selections.</p>'}</section>` : '';
-    body = renderConciseReportBody(report, reportOptions, headerFacts, renderReportAISummarySection(reportOptions.aiSummary)) + appendix;
+    body = (renderConciseReportBody as HTMLConciseReader)(report, reportOptions, headerFacts, renderReportAISummarySection(reportOptions.aiSummary)) + appendix;
   }
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>getbased Report - ${esc(profileName)}</title>

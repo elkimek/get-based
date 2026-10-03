@@ -1,5 +1,20 @@
-// @ts-check
-// export-report.js — PDF report data preparation and HTML export
+import type { ActiveData, ActiveCategory } from './data-view-types.js';
+import type { ReportDataSnapshot, ReportSnpCatalog } from './export-report-data.js';
+import type { ProfileRecord } from './profile.js';
+import type { Biometrics } from '../types/profile-context-data.js';
+import type { callCodexFeature } from './agent-feature-inference.js';
+
+import type {
+  ReportAISummary, ReportCoreOptions, NormalizedReportOptions, ReportTextContext,
+  ReportHeaderProfile, PreparedReportPayload, DetachedReportDataSnapshot, ReportPresetView, ReportLifecycle,
+  HeaderFactsInput, HeightInfo, MetricSnapshot, WeightCandidate, TextCandidate,
+} from '../types/report-export.js';
+export type {
+  ReportAISummary, ReportCoreOptions, NormalizedReportOptions, ReportTextContext, ReportHeaderProfile,
+  JSONDetached, PreparedReportPayload, DetachedReportDataSnapshot, ReportPresetView, ReportLifecycle,
+} from '../types/report-export.js';
+
+// export-report.ts — PDF report data preparation and HTML export
 
 import { loadSnpCatalog, getCachedSnpCatalog } from './dna-evidence.js';
 import { EXTRA_REPORT_SECTIONS, captureReportSources, loadExtraReportSources } from './export-report-sections.js';
@@ -118,53 +133,53 @@ export const REPORT_RANGE_MODE_OPTIONS = [
   { value: 'both', label: 'Both ranges' },
 ];
 
-export function getReportPreset(presetId) {
-  return REPORT_PRESETS[presetId] || REPORT_PRESETS[DEFAULT_REPORT_PRESET];
+export function getReportPreset(presetId: string | null | undefined): ReportPresetView {
+  return (REPORT_PRESETS as Record<string, ReportPresetView | undefined>)[presetId as string] || REPORT_PRESETS[DEFAULT_REPORT_PRESET];
 }
 
-export function normalizeReportOptions(options = {}) {
+export function normalizeReportOptions(options: ReportCoreOptions = {}): NormalizedReportOptions {
   const hasExplicitOptions = options && Object.keys(options).length > 0;
   const fallbackPreset = hasExplicitOptions ? DEFAULT_REPORT_PRESET : 'full';
-  const presetId = REPORT_PRESETS[options.preset] ? options.preset : fallbackPreset;
+  const presetId = (REPORT_PRESETS as Record<string, ReportPresetView | undefined>)[options.preset as string] ? options.preset : fallbackPreset;
   const preset = getReportPreset(presetId);
   const sectionInput = Array.isArray(options.sections)
-    ? options.sections
+    ? options.sections as unknown[]
     : preset.sections;
-  const sectionSet = new Set(sectionInput);
+  const sectionSet = new Set<unknown>(sectionInput);
   const dateRange = REPORT_DATE_RANGE_OPTIONS.some(option => option.value === options.dateRange)
-    ? options.dateRange
+    ? options.dateRange!
     : (hasExplicitOptions ? preset.dateRange : 'current');
   return {
-    preset: presetId,
+    preset: presetId!,
     presetLabel: options.presetLabel || preset.label,
     dateRange,
     rangeMode: REPORT_RANGE_MODE_OPTIONS.some(option => option.value === options.rangeMode)
-      ? options.rangeMode : (state.rangeMode || 'optimal'),
+      ? options.rangeMode! : (state.rangeMode || 'optimal'),
     sections: REPORT_SECTION_IDS.filter(id => sectionSet.has(id)),
-    categoryKeys: Array.isArray(options.categoryKeys) ? options.categoryKeys.filter(Boolean) : null,
+    categoryKeys: Array.isArray(options.categoryKeys) ? (options.categoryKeys as unknown[]).filter(Boolean) : null,
     appendixSections: REPORT_SECTION_IDS.filter(id => sectionSet.has(id) && Array.isArray(options.appendixSections) && options.appendixSections.includes(id)),
     purpose: String(options.purpose || '').trim().slice(0, 1200),
-    contextTitles: Array.isArray(options.contextTitles) ? options.contextTitles.map(String) : null,
-    genomeMode: REPORT_GENOME_MODES.includes(options.genomeMode) ? options.genomeMode : options.preset && !Array.isArray(options.sections) && !Array.isArray(options.genomeVariants) ? 'risks' : null,
-    genomeVariants: Array.isArray(options.genomeVariants) ? options.genomeVariants.map(String) : [],
+    contextTitles: Array.isArray(options.contextTitles) ? (options.contextTitles as unknown[]).map(String) : null,
+    genomeMode: REPORT_GENOME_MODES.includes(options.genomeMode as string) ? options.genomeMode : options.preset && !Array.isArray(options.sections) && !Array.isArray(options.genomeVariants) ? 'risks' : null,
+    genomeVariants: Array.isArray(options.genomeVariants) ? (options.genomeVariants as unknown[]).map(String) : [],
     aiSummary: normalizeReportAISummary(options.aiSummary),
   };
 }
 
-export function reportIncludes(options, sectionId) {
+export function reportIncludes(options: Pick<NormalizedReportOptions, 'sections'>, sectionId: string) {
   return options.sections.includes(sectionId);
 }
 
-function cleanReportAISummaryText(text) {
+function cleanReportAISummaryText(text: unknown) {
   let cleaned = String(text || '').replace(/\r\n?/g, '\n').trim();
   cleaned = cleaned.replace(/^```(?:markdown|text)?\s*/i, '').replace(/```$/i, '').trim();
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
   return cleaned.slice(0, REPORT_AI_SUMMARY_MAX_CHARS).trim();
 }
 
-function normalizeReportAISummary(summary) {
+function normalizeReportAISummary(summary: unknown): ReportAISummary | null {
   if (!summary) return null;
-  const input = typeof summary === 'string' ? { text: summary } : summary;
+  const input = (typeof summary === 'string' ? { text: summary } : summary) as Record<string, unknown> | null;
   if (!input || typeof input !== 'object') return null;
   const text = cleanReportAISummaryText(input.text || input.content || '');
   if (!text) return null;
@@ -178,12 +193,12 @@ function normalizeReportAISummary(summary) {
   };
 }
 
-function formatReportDateLabel(dateStr) {
+function formatReportDateLabel(dateStr: string | null | undefined) {
   if (!dateStr) return '';
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function getReportAgeLabel(dob) {
+function getReportAgeLabel(dob: string | null | undefined) {
   if (!dob) return '';
   const birth = new Date(dob + 'T00:00:00');
   if (Number.isNaN(birth.getTime())) return '';
@@ -194,7 +209,7 @@ function getReportAgeLabel(dob) {
   return age >= 0 && age <= 130 ? `${age} years` : '';
 }
 
-export function getReportHeaderProfile(profileName) {
+export function getReportHeaderProfile(profileName: string) {
   const profile = getProfiles().find(p => p.id === state.currentProfile) || null;
   return {
     ...(profile || {}),
@@ -204,28 +219,28 @@ export function getReportHeaderProfile(profileName) {
   };
 }
 
-function formatReportLocationLabel(location) {
+function formatReportLocationLabel(location: unknown) {
   if (!location) return '';
   if (typeof location === 'string') return location.trim();
   if (typeof location !== 'object') return '';
-  if (location.label) return String(location.label).trim();
-  const parts = [];
-  const city = location.city || location.locality;
-  const region = location.region || location.state || location.province;
-  const country = location.country;
-  const zip = location.zip || location.postalCode || location.postcode;
+  if ((location as Record<string, unknown>).label) return String((location as Record<string, unknown>).label).trim();
+  const parts: string[] = [];
+  const city = (location as Record<string, unknown>).city || (location as Record<string, unknown>).locality;
+  const region = (location as Record<string, unknown>).region || (location as Record<string, unknown>).state || (location as Record<string, unknown>).province;
+  const country = (location as Record<string, unknown>).country;
+  const zip = (location as Record<string, unknown>).zip || (location as Record<string, unknown>).postalCode || (location as Record<string, unknown>).postcode;
   for (const part of [city, region, country, zip]) {
     const text = String(part || '').trim();
     if (text && !parts.includes(text)) parts.push(text);
   }
   if (parts.length > 0) return parts.join(', ');
-  if (Number.isFinite(location.lat) && Number.isFinite(location.lon)) {
-    return `${location.lat.toFixed(2)}, ${location.lon.toFixed(2)}`;
+  if (Number.isFinite((location as Record<string, unknown>).lat) && Number.isFinite((location as Record<string, unknown>).lon)) {
+    return `${((location as Record<string, unknown>).lat as number).toFixed(2)}, ${((location as Record<string, unknown>).lon as number).toFixed(2)}`;
   }
   return '';
 }
 
-function getReportHeightInfo(profile) {
+function getReportHeightInfo(profile: Pick<ReportHeaderProfile, 'height' | 'heightUnit'>) {
   const stored = getProfileHeight(state.currentProfile);
   const height = stored?.height ?? profile?.height ?? null;
   if (height == null || height === '') return null;
@@ -237,35 +252,35 @@ function getReportHeightInfo(profile) {
   };
 }
 
-function getReportHeightMeters(heightInfo) {
+function getReportHeightMeters(heightInfo: HeightInfo | null) {
   if (!heightInfo?.height) return null;
   // Profile height is stored canonically in centimeters. The saved unit is
   // only the user's display preference.
-  return heightInfo.height / 100;
+  return (heightInfo.height as number) / 100;
 }
 
-function formatReportHeightLabel(heightInfo) {
+function formatReportHeightLabel(heightInfo: HeightInfo | null) {
   if (!heightInfo?.height) return '';
   const unit = String(heightInfo.unit || 'cm').toLowerCase();
   if (unit === 'in' || unit === 'inch' || unit === 'inches') {
-    const totalInches = Math.round(heightInfo.height / 2.54);
+    const totalInches = Math.round((heightInfo.height as number) / 2.54);
     const feet = Math.floor(totalInches / 12);
     const inches = totalInches % 12;
     return `${feet} ft ${inches} in`;
   }
-  if (unit === 'm' || unit === 'meter' || unit === 'meters') return `${formatValue(heightInfo.height / 100)} m`;
-  return `${formatValue(heightInfo.height)} cm`;
+  if (unit === 'm' || unit === 'meter' || unit === 'meters') return `${formatValue((heightInfo.height as number) / 100)} m`;
+  return `${formatValue(heightInfo.height as number)} cm`;
 }
 
-function getLatestReportCandidate(candidates) {
+function getLatestReportCandidate<Candidate extends { value?: unknown; date?: unknown }>(candidates: Candidate[]) {
   return candidates
     .filter(item => item && item.value != null)
     .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0] || null;
 }
 
 function getLatestReportWeight() {
-  const candidates = [];
-  const biometrics = state.importedData.biometrics;
+  const candidates: WeightCandidate[] = [];
+  const biometrics = state.importedData.biometrics as Biometrics | null | undefined;
   if (Array.isArray(biometrics?.weight)) {
     for (const entry of biometrics.weight) {
       if (Number.isFinite(Number(entry.value))) {
@@ -277,12 +292,12 @@ function getLatestReportWeight() {
       }
     }
   }
-  const wearableWeight = state.importedData?.wearableSummary?.metrics?.weight;
+  const wearableWeight = state.importedData?.wearableSummary?.metrics?.weight as MetricSnapshot[string] | undefined;
   if (Number.isFinite(wearableWeight?.latest)) {
     candidates.push({
-      valueKg: wearableWeight.latest,
-      date: wearableWeight.latestDate || '',
-      source: wearableWeight.primarySource || 'wearable',
+      valueKg: wearableWeight!.latest!,
+      date: wearableWeight!.latestDate || '',
+      source: wearableWeight!.primarySource || 'wearable',
     });
   }
   const latest = getLatestReportCandidate(candidates.map(candidate => ({
@@ -292,20 +307,20 @@ function getLatestReportWeight() {
   if (!latest) return null;
   return {
     ...latest,
-    value: wearableDisplayValue('weight', latest.valueKg, state.unitSystem),
+    value: wearableDisplayValue('weight', latest.valueKg!, state.unitSystem),
     unit: wearableDisplayUnit('weight', 'kg', state.unitSystem),
   };
 }
 
-function getWeightKg(weight) {
+function getWeightKg(weight: ReturnType<typeof getLatestReportWeight>) {
   if (!weight) return null;
   if (Number.isFinite(weight.valueKg)) return weight.valueKg;
   return weightToKilograms(weight.value, weight.unit || 'kg');
 }
 
 function getLatestReportBloodPressure() {
-  const candidates = [];
-  const biometrics = state.importedData.biometrics;
+  const candidates: TextCandidate[] = [];
+  const biometrics = state.importedData.biometrics as Biometrics | null | undefined;
   if (Array.isArray(biometrics?.bp)) {
     for (const entry of biometrics.bp) {
       const sys = Number(entry.sys ?? entry.systolic);
@@ -315,19 +330,19 @@ function getLatestReportBloodPressure() {
       }
     }
   }
-  const wm = state.importedData?.wearableSummary?.metrics;
+  const wm = state.importedData?.wearableSummary?.metrics as MetricSnapshot | undefined;
   if (Number.isFinite(wm?.bp_systolic?.latest) && Number.isFinite(wm?.bp_diastolic?.latest)) {
     candidates.push({
-      value: `${formatValue(wm.bp_systolic.latest)}/${formatValue(wm.bp_diastolic.latest)} mmHg`,
-      date: wm.bp_systolic.latestDate || wm.bp_diastolic.latestDate || '',
+      value: `${formatValue(wm!.bp_systolic!.latest)}/${formatValue(wm!.bp_diastolic!.latest)} mmHg`,
+      date: wm!.bp_systolic!.latestDate || wm!.bp_diastolic!.latestDate || '',
     });
   }
   return getLatestReportCandidate(candidates);
 }
 
 function getLatestReportRestingPulse() {
-  const candidates = [];
-  const biometrics = state.importedData.biometrics;
+  const candidates: TextCandidate[] = [];
+  const biometrics = state.importedData.biometrics as Biometrics | null | undefined;
   if (Array.isArray(biometrics?.pulse)) {
     for (const entry of biometrics.pulse) {
       if (Number.isFinite(Number(entry.value))) {
@@ -335,26 +350,26 @@ function getLatestReportRestingPulse() {
       }
     }
   }
-  const rhr = state.importedData?.wearableSummary?.metrics?.rhr;
+  const rhr = state.importedData?.wearableSummary?.metrics?.rhr as MetricSnapshot[string] | undefined;
   if (Number.isFinite(rhr?.latest)) {
-    candidates.push({ value: `${formatValue(rhr.latest)} bpm`, date: rhr.latestDate || '' });
+    candidates.push({ value: `${formatValue(rhr!.latest)} bpm`, date: rhr!.latestDate || '' });
   }
   return getLatestReportCandidate(candidates);
 }
 
 function getLatestReportBodyFat() {
-  const bodyFat = state.importedData?.wearableSummary?.metrics?.body_fat_pct;
+  const bodyFat = state.importedData?.wearableSummary?.metrics?.body_fat_pct as MetricSnapshot[string] | undefined;
   if (!Number.isFinite(bodyFat?.latest)) return null;
-  return { value: `${formatValue(bodyFat.latest)}%`, date: bodyFat.latestDate || '' };
+  return { value: `${formatValue(bodyFat!.latest)}%`, date: bodyFat!.latestDate || '' };
 }
 
-function formatReportValueWithDate(value, date) {
+function formatReportValueWithDate(value: string | null | undefined, date: string | null | undefined) {
   if (!value) return '';
   const dateLabel = formatReportDateLabel(date);
   return dateLabel ? `${value} (${dateLabel})` : value;
 }
 
-export function buildReportHeaderFacts({ profile, reportOptions, dateRange, sexLabel, unitLabel }) {
+export function buildReportHeaderFacts({ profile, reportOptions, dateRange, sexLabel, unitLabel }: HeaderFactsInput) {
   const heightInfo = getReportHeightInfo(profile);
   const latestWeight = getLatestReportWeight();
   const weightKg = getWeightKg(latestWeight);
@@ -389,7 +404,7 @@ export function buildReportHeaderFacts({ profile, reportOptions, dateRange, sexL
   return rows.filter(row => row.value != null && String(row.value).trim() && (includeBody || !['Weight', 'BMI', 'Blood pressure', 'Resting pulse', 'Body fat'].includes(row.label)));
 }
 
-function filterDataByDateIndices(data, indices, cutoffStr) {
+function filterDataByDateIndices(data: ActiveData, indices: readonly number[], cutoffStr: string | null): ActiveData {
   const selectedDates = new Set(indices.map(i => data.dates[i]));
   for (const category of Object.values(data.categories || {})) {
     for (const marker of Object.values(category.markers || {})) {
@@ -398,13 +413,13 @@ function filterDataByDateIndices(data, indices, cutoffStr) {
       if (singleDate && (!cutoffStr || singleDate >= cutoffStr)) selectedDates.add(singleDate);
     }
   }
-  const filtered = {
-    dates: indices.map(i => data.dates[i]),
-    dateLabels: indices.map(i => data.dateLabels?.[i] || data.dates[i]),
-    ...(data.phaseLabels && { phaseLabels: indices.map(i => data.phaseLabels[i]) }),
-    ...(data.phaseDisplayLabels && { phaseDisplayLabels: indices.map(i => data.phaseDisplayLabels[i]) }),
-    ...(data.phaseCycleDays && { phaseCycleDays: indices.map(i => data.phaseCycleDays[i]) }),
-    ...(data.phaseSources && { phaseSources: indices.map(i => data.phaseSources[i]) }),
+  const filtered: ActiveData = {
+    dates: indices.map(i => data.dates[i]!),
+    dateLabels: indices.map(i => data.dateLabels?.[i] || data.dates[i]!),
+    ...(data.phaseLabels && { phaseLabels: indices.map(i => data.phaseLabels![i]) }),
+    ...(data.phaseDisplayLabels && { phaseDisplayLabels: indices.map(i => data.phaseDisplayLabels![i]) }),
+    ...(data.phaseCycleDays && { phaseCycleDays: indices.map(i => data.phaseCycleDays![i]) }),
+    ...(data.phaseSources && { phaseSources: indices.map(i => data.phaseSources![i]) }),
     ...(data.entryContextByDate && {
       entryContextByDate: Object.fromEntries(
         Object.entries(data.entryContextByDate).filter(([date]) => selectedDates.has(date))
@@ -413,7 +428,7 @@ function filterDataByDateIndices(data, indices, cutoffStr) {
     categories: {}
   };
   for (const [catKey, cat] of Object.entries(data.categories || {})) {
-    const filteredCat = { ...cat, markers: {} };
+    const filteredCat: ActiveCategory = { ...cat, markers: {} };
     for (const [mKey, marker] of Object.entries(cat.markers || {})) {
       if (marker.singlePoint || cat.singlePoint) {
         const spDate = marker.singleDate || cat.singleDate;
@@ -426,15 +441,15 @@ function filterDataByDateIndices(data, indices, cutoffStr) {
         filteredCat.markers[mKey] = {
           ...marker,
           values: indices.map(i => marker.values?.[i] ?? null),
-          ...(marker.phaseRefRanges && { phaseRefRanges: indices.map(i => marker.phaseRefRanges[i]) }),
-          ...(marker.phaseLabels && { phaseLabels: indices.map(i => marker.phaseLabels[i]) }),
-          ...(marker.phaseDisplayLabels && { phaseDisplayLabels: indices.map(i => marker.phaseDisplayLabels[i]) }),
-          ...(marker.phaseCycleDays && { phaseCycleDays: indices.map(i => marker.phaseCycleDays[i]) }),
-          ...(marker.phaseSources && { phaseSources: indices.map(i => marker.phaseSources[i]) }),
-          ...(marker.contextRefRanges && { contextRefRanges: indices.map(i => marker.contextRefRanges[i]) }),
-          ...(marker.contextRangeLabels && { contextRangeLabels: indices.map(i => marker.contextRangeLabels[i]) }),
-          ...(marker.contextOptimalRanges && { contextOptimalRanges: indices.map(i => marker.contextOptimalRanges[i]) }),
-          ...(marker.contextOptimalRangeLabels && { contextOptimalRangeLabels: indices.map(i => marker.contextOptimalRangeLabels[i]) }),
+          ...(marker.phaseRefRanges && { phaseRefRanges: indices.map(i => marker.phaseRefRanges![i]) }),
+          ...(marker.phaseLabels && { phaseLabels: indices.map(i => marker.phaseLabels![i]) }),
+          ...(marker.phaseDisplayLabels && { phaseDisplayLabels: indices.map(i => marker.phaseDisplayLabels![i]) }),
+          ...(marker.phaseCycleDays && { phaseCycleDays: indices.map(i => marker.phaseCycleDays![i]) }),
+          ...(marker.phaseSources && { phaseSources: indices.map(i => marker.phaseSources![i]) }),
+          ...(marker.contextRefRanges && { contextRefRanges: indices.map(i => marker.contextRefRanges![i]) }),
+          ...(marker.contextRangeLabels && { contextRangeLabels: indices.map(i => marker.contextRangeLabels![i]) }),
+          ...(marker.contextOptimalRanges && { contextOptimalRanges: indices.map(i => marker.contextOptimalRanges![i]) }),
+          ...(marker.contextOptimalRangeLabels && { contextOptimalRangeLabels: indices.map(i => marker.contextOptimalRangeLabels![i]) }),
         };
       }
     }
@@ -443,7 +458,7 @@ function filterDataByDateIndices(data, indices, cutoffStr) {
   return filtered;
 }
 
-function getReportCutoffDate(range) {
+function getReportCutoffDate(range: string | undefined) {
   const effectiveRange = range === 'current' ? state.dateRangeFilter : range;
   if (!effectiveRange || effectiveRange === 'all') return null;
   const months = effectiveRange === '3m' ? 3 : effectiveRange === '6m' ? 6 : 12;
@@ -455,27 +470,27 @@ function getReportCutoffDate(range) {
   return formatReportDateKey(cutoff);
 }
 
-function formatReportDateKey(date) {
+function formatReportDateKey(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
-function filterDataByReportRange(rawData, range) {
+function filterDataByReportRange(rawData: ActiveData, range: string | undefined) {
   if (!rawData || range === 'all') return rawData;
   const cutoffStr = getReportCutoffDate(range);
   if (!cutoffStr) return rawData;
-  const indices = [];
+  const indices: number[] = [];
   for (let i = 0; i < (rawData.dates || []).length; i++) {
-    if (rawData.dates[i] >= cutoffStr) indices.push(i);
+    if (rawData.dates[i]! >= cutoffStr) indices.push(i);
   }
   return filterDataByDateIndices(rawData, indices, cutoffStr);
 }
 
-function filterReportCategories(data, categoryKeys) {
+function filterReportCategories(data: ActiveData, categoryKeys: unknown) {
   const allowed = Array.isArray(categoryKeys) ? new Set(categoryKeys) : null;
-  const categories = {};
+  const categories: Record<string, ActiveCategory> = {};
   for (const [catKey, cat] of Object.entries(data.categories || {})) {
     if (allowed && !allowed.has(catKey)) continue;
     categories[catKey] = {
@@ -492,58 +507,58 @@ function filterReportCategories(data, categoryKeys) {
   return filterDataByDateIndices(selectedData, indices, null);
 }
 
-function getReportNotes(options) {
+function getReportNotes(options: Pick<NormalizedReportOptions, 'dateRange'>) {
   const notes = (state.importedData.notes || []).slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   const cutoffStr = getReportCutoffDate(options.dateRange);
   if (!cutoffStr) return notes;
   return notes.filter(note => !note.date || note.date >= cutoffStr);
 }
 
-function getReportSupplements(options) {
+function getReportSupplements(options: Pick<NormalizedReportOptions, 'dateRange'>) {
   const supplements = state.importedData.supplements || [];
   const cutoffStr = getReportCutoffDate(options.dateRange);
   if (!cutoffStr) return supplements;
   return getSupplementsOverlappingRange(supplements, cutoffStr, formatReportDateKey(new Date()));
 }
 
-export function buildReportContextSections(data) {
-  const contextSections = [];
-  const humanizeContextKey = key => String(key)
+export function buildReportContextSections(data: Pick<ActiveData, 'dates' | 'entryContextByDate'>) {
+  const contextSections: ReportTextContext[] = [];
+  const humanizeContextKey = (key: unknown) => String(key)
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, c => c.toUpperCase())
     .replace(/\b(Am|Uv|Emf|Bp|If|Rf|Hr|Dna)\b/g, match => match.toUpperCase());
-  const formatConditionItem = item => {
+  const formatConditionItem = (item: unknown) => {
     if (typeof item !== 'object' || item == null) return String(item);
-    const name = item.name || item.condition || item.text || '';
-    const details = [];
-    if (item.severity) details.push(item.severity);
-    if (item.since) details.push(`since ${item.since}`);
-    if (item.variant) details.push(item.variant);
-    if (item.genotype) details.push(item.genotype);
-    if (item.note) details.push(item.note);
+    const name = (item as Record<string, unknown>).name || (item as Record<string, unknown>).condition || (item as Record<string, unknown>).text || '';
+    const details: unknown[] = [];
+    if ((item as Record<string, unknown>).severity) details.push((item as Record<string, unknown>).severity);
+    if ((item as Record<string, unknown>).since) details.push(`since ${(item as Record<string, unknown>).since}`);
+    if ((item as Record<string, unknown>).variant) details.push((item as Record<string, unknown>).variant);
+    if ((item as Record<string, unknown>).genotype) details.push((item as Record<string, unknown>).genotype);
+    if ((item as Record<string, unknown>).note) details.push((item as Record<string, unknown>).note);
     return [name, details.length ? `(${details.join(', ')})` : ''].filter(Boolean).join(' ');
   };
-  const formatFamilyHistoryItem = item => {
+  const formatFamilyHistoryItem = (item: unknown) => {
     if (typeof item !== 'object' || item == null) return String(item);
-    const relative = item.relative ? humanizeContextKey(item.relative) : 'Family';
-    const details = [];
-    if (item.onsetAge != null && item.onsetAge !== '') details.push(`onset ${item.onsetAge}`);
-    if (item.note) details.push(item.note);
-    return `${relative}: ${item.condition || 'Condition not specified'}${details.length ? ` (${details.join(', ')})` : ''}`;
+    const relative = (item as Record<string, unknown>).relative ? humanizeContextKey((item as Record<string, unknown>).relative) : 'Family';
+    const details: unknown[] = [];
+    if ((item as Record<string, unknown>).onsetAge != null && (item as Record<string, unknown>).onsetAge !== '') details.push(`onset ${(item as Record<string, unknown>).onsetAge}`);
+    if ((item as Record<string, unknown>).note) details.push((item as Record<string, unknown>).note);
+    return `${relative}: ${(item as Record<string, unknown>).condition || 'Condition not specified'}${details.length ? ` (${details.join(', ')})` : ''}`;
   };
-  const formatObjectItem = item => {
+  const formatObjectItem = (item: unknown): string => {
     if (typeof item !== 'object' || item == null) return String(item);
-    if (item.relative || item.condition) return formatFamilyHistoryItem(item);
-    if (item.name || item.severity || item.since) return formatConditionItem(item);
-    const parts = [];
-    for (const [key, value] of Object.entries(item)) {
+    if ((item as Record<string, unknown>).relative || (item as Record<string, unknown>).condition) return formatFamilyHistoryItem(item);
+    if ((item as Record<string, unknown>).name || (item as Record<string, unknown>).severity || (item as Record<string, unknown>).since) return formatConditionItem(item);
+    const parts: string[] = [];
+    for (const [key, value] of Object.entries(item as Record<string, unknown>)) {
       if (value == null || value === '') continue;
       parts.push(`${humanizeContextKey(key)}: ${formatContextValue(key, value)}`);
     }
     return parts.join('; ');
   };
-  const formatContextValue = (key, value) => {
+  const formatContextValue = (key: string, value: unknown): string => {
     if (value == null || value === '') return '';
     if (Array.isArray(value)) {
       const items = value.map(item => {
@@ -556,19 +571,19 @@ export function buildReportContextSections(data) {
     if (typeof value === 'object') return formatObjectItem(value);
     return String(value);
   };
-  const fmtCtx = obj => {
+  const fmtCtx = (obj: unknown) => {
     if (typeof obj === 'string') return obj;
-    const parts = [];
-    for (const [k, v] of Object.entries(obj)) {
+    const parts: string[] = [];
+    for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
       if (v == null || k === 'note') continue;
       const formatted = formatContextValue(k, v);
       if (formatted) parts.push(`${humanizeContextKey(k)}: ${formatted}`);
     }
-    if (obj.note) parts.push(`Note: ${obj.note}`);
+    if ((obj as Record<string, unknown>).note) parts.push(`Note: ${(obj as Record<string, unknown>).note}`);
     return parts.join('\n');
   };
   for (const [key, title] of Object.entries({ diagnoses: 'Medical History', diet: 'Diet & Digestion', exercise: 'Exercise & Movement', sleepRest: 'Sleep & Rest', lightCircadian: 'Light & Circadian', stress: 'Stress', loveLife: 'Love Life & Relationships', environment: 'Environment', interpretiveLens: 'Interpretive Lens', contextNotes: 'Additional Notes' })) {
-    const value = state.importedData[key];
+    const value = state.importedData[key] as unknown;
     if (value) contextSections.push({ title, text: fmtCtx(value) });
   }
   const profile = getProfiles().find(p => p.id === state.currentProfile);
@@ -579,7 +594,7 @@ export function buildReportContextSections(data) {
     const goalsText = hg.map(g => `[${g.severity}] ${g.text}`).join('\n');
     contextSections.push({ title: 'Health Goals', text: goalsText });
   }
-  const mc = state.importedData.menstrualCycle;
+  const mc = state.importedData.menstrualCycle as Parameters<typeof getBloodDrawPhases>[0];
   if (mc && state.profileSex === 'female') {
     const regLabel = mc.regularity === 'very_irregular' ? 'very irregular' : mc.regularity || 'regular';
     let cycleText = `${mc.cycleLength || 28}-day cycle, ${regLabel}, ${mc.flow || 'moderate'} flow`;
@@ -596,12 +611,12 @@ export function buildReportContextSections(data) {
     }
     contextSections.push({ title: 'Menstrual Cycle', text: cycleText });
   }
-  const pBio = state.importedData.biometrics;
+  const pBio = state.importedData.biometrics as Biometrics | null | undefined;
   const pHeight = getProfileHeight(state.currentProfile);
   // Fallback to the wearable summary when legacy biometrics arrays are empty -
   // wearable-only users (manual via Edit Client retired in Phase 4 + OAuth
   // sources) carry weight/BP/pulse only inside wearableSummary.metrics.
-  const wm = state.importedData?.wearableSummary?.metrics;
+  const wm = state.importedData?.wearableSummary?.metrics as MetricSnapshot | undefined;
   if (pBio || pHeight?.height || wm) {
     let bioText = '';
     if (pHeight?.height) bioText += `Height: ${formatReportHeightLabel({ height: pHeight.height, unit: pHeight.unit || 'cm' })}\n`;
@@ -609,7 +624,7 @@ export function buildReportContextSections(data) {
     if (latestWeight) {
       bioText += `Latest weight: ${formatValue(latestWeight.value)} ${latestWeight.unit} (${latestWeight.date || '-'})\n`;
     }
-    for (const [label, value] of [['Latest BP', getLatestReportBloodPressure()], ['Latest pulse', getLatestReportRestingPulse()], ['Body fat', getLatestReportBodyFat()]]) {
+    for (const [label, value] of ([['Latest BP', getLatestReportBloodPressure()], ['Latest pulse', getLatestReportRestingPulse()], ['Body fat', getLatestReportBodyFat()]] as Array<[string, TextCandidate | null]>)) {
       if (value) bioText += `${label}: ${formatReportValueWithDate(value.value, value.date)}\n`;
     }
     if (bioText) contextSections.push({ title: 'Biometrics', text: bioText.trim() });
@@ -617,7 +632,7 @@ export function buildReportContextSections(data) {
   return contextSections.filter(section => String(section.text || '').trim());
 }
 
-export function buildPreparedReportPayload(options = {}) {
+export function buildPreparedReportPayload(options: ReportCoreOptions = {}): PreparedReportPayload {
   const reportOptions = normalizeReportOptions(options);
   reportOptions.startDate = getReportCutoffDate(reportOptions.dateRange);
   reportOptions.endDate = formatReportDateKey(new Date());
@@ -625,14 +640,14 @@ export function buildPreparedReportPayload(options = {}) {
   let data = filterDataByReportRange(rawData, reportOptions.dateRange);
   data = filterReportCategories(data, reportOptions.categoryKeys);
   const profiles = getProfiles();
-  const profile = profiles.find(p => p.id === state.currentProfile) || { name: 'Profile' };
+  const profile: Partial<ProfileRecord> & { name: string } = profiles.find(p => p.id === state.currentProfile) || { name: 'Profile' };
   const profileName = profile.name;
   const sexLabel = state.profileSex === 'female' ? 'Female' : state.profileSex === 'male' ? 'Male' : 'Not specified';
   const flags = getAllFlaggedMarkers(data, reportOptions.rangeMode);
   const notes = getReportNotes(reportOptions);
   const supps = getReportSupplements(reportOptions);
   const contextSections = buildReportContextSections(data).filter(section => !reportOptions.contextTitles || reportOptions.contextTitles.includes(section.title));
-  const runtimeWindow = typeof window !== 'undefined' ? window : null;
+  const runtimeWindow = typeof window !== 'undefined' ? window as Window & { _snpTableCache?: ReportSnpCatalog } : null;
   const reportData = buildReportDataSnapshot({
     data,
     profile,
@@ -640,25 +655,25 @@ export function buildPreparedReportPayload(options = {}) {
     reportOptions,
     rangeMode: reportOptions.rangeMode,
     unitSystem: state.unitSystem,
-    snpTable: /** @type {import('./export-report-data.js').ReportSnpCatalog | null | undefined} */ (getCachedSnpCatalog() || runtimeWindow?._snpTableCache),
+    snpTable: (getCachedSnpCatalog() || runtimeWindow?._snpTableCache) as ReportSnpCatalog | null,
     contextSections,
   });
 
   const extraSources = captureReportSources(state.importedData, reportOptions.sections);
   const headerFacts = buildReportHeaderFacts({ profile, reportOptions, dateRange: 'pending', sexLabel, unitLabel: getUnitProfileLabel(reportData.scope.unitSystem) });
   // Keep AI input and the eventual PDF independent of background profile sync.
-  return JSON.parse(JSON.stringify({ reportOptions, data, profile, profileName, sexLabel, flags, notes, supps, contextSections, reportData, extraSources, headerFacts }));
+  return JSON.parse(JSON.stringify({ reportOptions, data, profile, profileName, sexLabel, flags, notes, supps, contextSections, reportData, extraSources, headerFacts })) as PreparedReportPayload;
 }
 
-export async function loadReportDetails(payload) {
+export async function loadReportDetails(payload: PreparedReportPayload<unknown>) {
   if (payload.detailsLoaded) return;
   await loadReportGenetics(payload.reportData);
-  payload.reportData.additionalSections = await loadExtraReportSources(payload.profile.id, payload.extraSources, payload.reportOptions.sections, payload.reportData.scope);
+  payload.reportData.additionalSections = await loadExtraReportSources(payload.profile.id as string, payload.extraSources, payload.reportOptions.sections, payload.reportData.scope);
   payload.detailsLoaded = true;
 }
 
 /** Load current catalog annotations before PDF or AI generation. */
-export async function loadReportGenetics(reportData) {
+export async function loadReportGenetics(reportData: ReportDataSnapshot | DetachedReportDataSnapshot) {
   if (!Object.keys(reportData.genetics?.snps || {}).length) return;
   const table = await loadSnpCatalog();
   if (!table) throw new Error('Genome catalog is unavailable. Please retry the report.');
@@ -666,7 +681,7 @@ export async function loadReportGenetics(reportData) {
 }
 
 /** Collect a detached snapshot; unloaded catalog calls remain explicitly unclassified. */
-export function collectReportData(options = {}) {
+export function collectReportData(options: ReportCoreOptions = {}) {
   return buildPreparedReportPayload(options).reportData;
 }
 
@@ -675,11 +690,11 @@ export function collectReportData(options = {}) {
  * report. This is suitable for an agent prompt; collectReportData() is the
  * lossless structured interface.
  */
-export function buildReportAgentContext(options = {}) {
+export function buildReportAgentContext(options: ReportCoreOptions = {}) {
   return formatReportDataForAgent(collectReportData(options));
 }
 
-export async function generateReportAISummary(options = {}, lifecycle = {}) {
+export async function generateReportAISummary(options: ReportCoreOptions = {}, lifecycle: ReportLifecycle = {}) {
   if (Array.isArray(options.sections) && options.sections.length === 0) {
     showNotification('Choose at least one report section', 'error');
     return null;
@@ -710,7 +725,7 @@ export async function generateReportAISummary(options = {}, lifecycle = {}) {
     maxTokens: 900,
     consentKind: 'report',
     forceNonStream: true,
-  });
+  }) as Partial<Pick<Awaited<ReturnType<typeof callCodexFeature>>, 'text' | 'usage'>> | null | undefined;
 
   const text = cleanReportAISummaryText(result?.text || '');
   if (!text) throw new Error('AI returned an empty summary');
@@ -727,10 +742,10 @@ export async function generateReportAISummary(options = {}, lifecycle = {}) {
   };
 }
 
-function renderReportAISummaryText(text) {
+function renderReportAISummaryText(text: unknown) {
   const lines = cleanReportAISummaryText(text).split('\n').map(line => line.trim()).filter(Boolean);
-  const chunks = [];
-  let list = [];
+  const chunks: string[] = [];
+  let list: string[] = [];
   const flushList = () => {
     if (list.length === 0) return;
     chunks.push(`<ul class="report-list">${list.map(item => `<li>${escapeHTML(item)}</li>`).join('')}</ul>`);
@@ -739,7 +754,7 @@ function renderReportAISummaryText(text) {
   for (const line of lines) {
     const bullet = line.match(/^(?:[-*]|\u2022|\d+[.)])\s+(.+)$/);
     if (bullet) {
-      list.push(bullet[1]);
+      list.push(bullet[1]!);
     } else if (/^[A-Za-z][A-Za-z /&-]{2,42}:$/.test(line)) {
       flushList();
       chunks.push(`<p class="report-ai-subhead">${escapeHTML(line.slice(0, -1))}</p>`);
@@ -752,10 +767,10 @@ function renderReportAISummaryText(text) {
   return chunks.join('') || '<p>No AI overview was generated.</p>';
 }
 
-export function renderReportAISummarySection(summary) {
+export function renderReportAISummarySection(summary: ReportAISummary | null | undefined) {
   if (!summary?.text) return '';
   const generatedDate = summary.generatedAt
-    ? new Date(summary.generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    ? new Date(summary.generatedAt as string | number | Date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : '';
   const meta = [summary.model, generatedDate ? `generated ${generatedDate}` : ''].filter(Boolean).join(' · ');
   const attribution = getAIOutputAttribution(summary);

@@ -1,3 +1,4 @@
+import type { JSONDetached } from './export-report.js';
 // Optional report histories, projected into allowlisted, printable facts.
 import { reportDay, summarizeNutrition, summarizeWearables, summarizeLight, summarizeEnvironment } from './export-report-aggregates.js';
 export { reportDay };
@@ -42,6 +43,8 @@ export interface ReportSources extends Omit<ReportEnvironmentSources, 'lightMeas
   lightDevices?: LightDeviceRecord[] | null | undefined;
   lightMeasurements?: Array<ReportEnvironmentMeasurement & { notes?: unknown }> | null | undefined;
 }
+/** Detail loading writes native store fields into an otherwise detached snapshot. */
+export type ReportSourceReader = { [Key in keyof ReportSources]: ReportSources[Key] | JSONDetached<ReportSources>[Key] };
 export interface ReportSectionScope {
   startDate?: string | null | undefined;
   endDate?: string | null | undefined;
@@ -69,8 +72,8 @@ const SOURCE_FIELDS = {
   light: ['sunSessions', 'deviceSessions', 'lightDevices'],
   environment: ['lightEnvironment', 'lightMeasurements', 'lightAudits', 'emfAssessment'],
 };
-export function captureReportSources(importedData: ReportSources, sections: string[]): ReportSources {
-  const sources: ReportSources = {};
+export function captureReportSources(importedData: ReportSources, sections: string[]): JSONDetached<ReportSources> {
+  const sources: JSONDetached<ReportSources> = {};
   for (const section of sections) for (const field of (SOURCE_FIELDS as Record<string, string[]>)[section] || []) {
     if ((importedData as Record<string, unknown>)[field] != null) {
       const value = field === 'nutritionMeals' ? ((importedData as Record<string, unknown>)[field] as ReportMeal[]).map(({ images, image, dataUrl, photoDataUrl, fullSizePhoto, ...meal }) => meal) : (importedData as Record<string, unknown>)[field];
@@ -82,12 +85,12 @@ export function captureReportSources(importedData: ReportSources, sections: stri
 }
 const FIELD_LABELS = { cct: 'Color temperature (K)', distanceCm: 'Distance (cm)', vitamin_d: 'Vitamin D', nir_solar: 'Solar near-IR', pbm_red: 'Red light', pbm_nir: 'Near-IR', circadian: 'Circadian', erythemalSED: 'Modeled erythemal dose (SED)' };
 const humanize = (value: unknown) => (FIELD_LABELS as Record<string, string>)[value as string] || String(value ?? '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').replace(/^./, char => char.toUpperCase());
-function channelExposure(key: string, value: number, session: ReportLightSession) {
+function channelExposure(key: string, value: number, session: ReportLightSession | JSONDetached<ReportLightSession>) {
   const label = humanize(key);
   if (['nir_solar', 'pbm_red', 'pbm_nir'].includes(key)) return `${label}: ${formatValue(pbmJoulesPerCm2(value))} J/cm²`;
   if (key === 'circadian' && session.durationMin! > 0) return `${label}: ${formatValue(circadianMelanopicLux(value, session.durationMin!))} estimated melanopic-equivalent lux`;
-  const fitz = (session.safety as ReportSession['safety'])?.fitzpatrick || (session as ReportSession).fitzpatrick;
-  if (key === 'vitamin_d' && fitz) return `${label}: ${formatValue(vitaminDIUPerSession(value, fitz, (session as ReportSession).atmosphere?.uvIndex as number | null | undefined, !!session.bodyExposure?.rotatedSides, null, session.bodyExposure?.fraction))} modeled IU-equivalent`;
+  const fitz = (session.safety as ReportSession['safety'] | JSONDetached<ReportSession['safety']>)?.fitzpatrick || (session as ReportSession | JSONDetached<ReportSession>).fitzpatrick;
+  if (key === 'vitamin_d' && fitz) return `${label}: ${formatValue(vitaminDIUPerSession(value, fitz, (session as ReportSession | JSONDetached<ReportSession>).atmosphere?.uvIndex as number | null | undefined, !!session.bodyExposure?.rotatedSides, null, session.bodyExposure?.fraction))} modeled IU-equivalent`;
   return `${label}: ${formatValue(value)} a.u.`;
 }
 function facts(record: unknown, keys: string[]): string {
@@ -98,20 +101,20 @@ function describe(value: unknown): string {
   if (value && typeof value === 'object') return facts(value, Object.keys(value).filter(key => !/^(id|.*Id|.*At|ai.*|.*Analysis|.*Prompt)$/i.test(key)));
   return String(value ?? '');
 }
-export function buildExtraReportSections(sources: ReportSources, sections: string[], scope: ReportSectionScope) {
+export function buildExtraReportSections(sources: ReportSourceReader, sections: string[], scope: ReportSectionScope) {
   const within = (value: unknown) => { const day = reportDay(value); return !day || ((!scope.startDate || day >= scope.startDate) && (!scope.endDate || day <= scope.endDate)); };
   const result: ExtraReportSection[] = [];
   const add = (id: string, title: string, columns: string[], rows: unknown[][], note = '') => result.push({ id, title, columns, rows, note });
   if (sections.includes('nutrition')) {
     const deleted = new Set(sources.deletedMeals || sources._deleted?.nutritionMeals || []);
-    const meals = (sources.nutritionMeals || []).filter(meal => meal && !deleted.has(meal.id) && within(meal.localDate || meal.eatenAt)) as ReportMeal[];
+    const meals = (sources.nutritionMeals || []).filter(meal => meal && !deleted.has(meal.id) && within(meal.localDate || meal.eatenAt)) as Array<ReportMeal | JSONDetached<ReportMeal>>;
     meals.sort((a, b) => String(a.localDate || a.eatenAt || '').localeCompare(String(b.localDate || b.eatenAt || '')));
     add('nutrition', 'Nutrition and hydration', ['Date / meal', 'Recorded nutrients', 'Source and notes'], meals.map(meal => [
       `${meal.localDate || reportDay(meal.eatenAt) || 'Undated'} ${meal.name || 'Meal'}${meal.components?.length ? '\nFoods: ' + meal.components.map(item => item.name || item.description || '').filter(Boolean).join(', ') : ''}`,
       NUTRIENT_DEFINITIONS.filter(field => typeof meal.nutrients?.[field.key] === 'number' && Number.isFinite(meal.nutrients[field.key])).map(field => `${field.label}: ${formatValue(meal.nutrients![field.key] as number)} ${field.unit}`).join('\n') || 'Not recorded',
       [humanize(meal.source?.kind || 'Not specified'), meal.notes, meal.assumptions?.join?.('; '), meal.uncertainties?.join?.('; ')].filter(Boolean).join('\n'),
     ]), 'Recorded or estimated intake, not a complete dietary assessment. Missing nutrients are not zero. Photos are excluded.');
-    result[result.length - 1]!.summary = summarizeNutrition(meals as Parameters<typeof summarizeNutrition>[0]);
+    result[result.length - 1]!.summary = summarizeNutrition(meals);
   }
   if (sections.includes('wearables')) {
     const rows: Array<[string, string, ...unknown[]]> = [];
@@ -124,7 +127,7 @@ export function buildExtraReportSections(sources: ReportSources, sections: strin
     };
     for (const [id, metric] of Object.entries(sources.wearableSummary?.metrics || {})) append(id, metric.latest, metric.latestDate, metric.primarySource, 'Synced latest reading');
     for (const row of sources.wearableDaily || []) for (const id of Object.keys(CANONICAL_METRICS)) append(id, row[id], row.date, row.source, 'Local daily history');
-    for (const item of sources.biometrics?.weight || []) append('weight', /lb/i.test(item.unit || '') ? item.value / 2.2046226218 : item.value, item.date, 'manual', 'Profile history');
+    for (const item of sources.biometrics?.weight || []) append('weight', /lb/i.test(item.unit || '') ? item.value! / 2.2046226218 : item.value, item.date, 'manual', 'Profile history');
     for (const item of sources.biometrics?.bp || []) { append('bp_systolic', item.sys, item.date, 'manual', 'Profile history'); append('bp_diastolic', item.dia, item.date, 'manual', 'Profile history'); }
     for (const item of sources.biometrics?.pulse || []) append('rhr', item.value, item.date, 'manual', 'Profile history');
     rows.sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]));
@@ -134,14 +137,14 @@ export function buildExtraReportSections(sources: ReportSources, sections: strin
   if (sections.includes('light')) {
     const rows: Array<[string, string, ...unknown[]]> = [];
     const recordedSessions: ReportLightRecord[] = [];
-    for (const [kind, sessions] of [['Sun', sources.sunSessions], ['Device', sources.deviceSessions]] as Array<[string, ReportSession[] | null | undefined]>) for (const session of sessions || []) {
+    for (const [kind, sessions] of [['Sun', sources.sunSessions], ['Device', sources.deviceSessions]] as Array<[string, Array<ReportSession | JSONDetached<ReportSession>> | null | undefined]>) for (const session of sessions || []) {
       if (!within(session.startedAt)) continue;
       const device = session.deviceSnapshot || sources.lightDevices?.find(item => item.id === session.deviceId);
       recordedSessions.push({ kind, session, device });
       rows.push([reportDay(session.startedAt) || 'Undated', kind === 'Device' ? `Device: ${device?.name || 'Unnamed'}` : kind,
         !session.endedAt ? 'In progress' : session.durationMin != null ? `${formatValue(session.durationMin)} min` : 'Not recorded',
         [facts(session, ['mode', 'distanceCm', 'bodyArea', 'bodyExposure', 'eyeExposure', 'eyesProtected']), session.notes].filter(Boolean).join('\n'),
-        session.doses ? Object.entries(session.doses).filter(([, value]) => typeof value === 'number').map(([key, value]) => channelExposure(key, value, session)).join('\n') : 'Not calculated',
+        session.doses ? Object.entries(session.doses).filter(([, value]) => typeof value === 'number').map(([key, value]) => channelExposure(key, value as number, session)).join('\n') : 'Not calculated',
         facts(session.safety, ['unsafeEyeExposure', 'erythemalSED', 'uvDoseStatus', 'conservativeBaseMedFraction']),
       ]);
     }
@@ -161,7 +164,7 @@ export function buildExtraReportSections(sources: ReportSources, sections: strin
   }
   return result;
 }
-export async function loadExtraReportSources(profileId: string, sources: ReportSources, sections: string[], scope: ReportSectionScope) {
+export async function loadExtraReportSources(profileId: string, sources: ReportSourceReader, sections: string[], scope: ReportSectionScope) {
   if (sections.includes('nutrition') && !Array.isArray(sources.nutritionMeals)) {
     const { listNutritionMeals } = await import('./nutrition-store.js');
     sources.nutritionMeals = await listNutritionMeals(profileId, { limit: Number.MAX_SAFE_INTEGER }) as ReportMeal[];

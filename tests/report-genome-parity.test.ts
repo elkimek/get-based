@@ -8,10 +8,11 @@ import { invalidateActiveDataCache } from '../js/data.js';
 import { buildReportDataSnapshot, buildReportGenetics, formatReportDataForAgent } from '../js/export-report-data.js';
 import { buildReportHTML as renderReportHTML, exportPDFReport } from '../js/export-report-html.js';
 
-const buildReportHTML = (...args) => { args[7] = { ...args[7], detailed: true }; return renderReportHTML(...args); };
-const { loadCatalog } = vi.hoisted(() => ({ loadCatalog: vi.fn() }));
-vi.mock('../js/dna-evidence.js', async original => ({ ...await original(), loadSnpCatalog: loadCatalog }));
-const catalog = JSON.parse(readFileSync('data/snp-health.json', 'utf8'));
+import type { ReportSnpCatalog, ReportGenomeFinding, BuildReportDataSnapshotInput } from '../js/export-report-data.js';
+const buildReportHTML = (...args: Parameters<typeof renderReportHTML>) => { args[7] = { ...args[7], detailed: true }; return renderReportHTML(...args); };
+const { loadCatalog } = vi.hoisted(() => ({ loadCatalog: vi.fn<typeof import('../js/dna-evidence.js').loadSnpCatalog>() }));
+vi.mock('../js/dna-evidence.js', async original => ({ ...await original<typeof import('../js/dna-evidence.js')>(), loadSnpCatalog: loadCatalog }));
+const catalog: ReportSnpCatalog = JSON.parse(readFileSync('data/snp-health.json', 'utf8'));
 const options = { preset: 'full', dateRange: 'all', sections: ['genetics'], genomeVariants: ['rs4680', 'rs1815739', 'rs11591147', 'rs10455872', 'rsUnknown'] };
 const emptyLabs = { dates: [], categories: {} };
 const genetics = {
@@ -29,7 +30,7 @@ const genetics = {
 function snapshot() {
   return buildReportDataSnapshot({ data: emptyLabs, profile: { name: 'Selected person' }, importedData: { genetics }, snpTable: catalog, reportOptions: options });
 }
-function render(data = emptyLabs, reportOptions = options) {
+function render(data: Parameters<typeof renderReportHTML>[2] = emptyLabs, reportOptions: Parameters<typeof renderReportHTML>[7] = options) {
   return buildReportHTML('Selected person', 'Female', data, [], [], [], [], reportOptions);
 }
 
@@ -42,8 +43,8 @@ beforeEach(() => {
   state.rangeMode = 'reference';
   state.unitSystem = 'EU';
   state.dateRangeFilter = 'all';
-  state.importedData = { entries: [], notes: [], supplements: [], customMarkers: {}, genetics: structuredClone(genetics) };
-  window._snpTableCache = null;
+  (state as { importedData: Partial<typeof state.importedData> }).importedData = { entries: [], notes: [], supplements: [], customMarkers: {}, genetics: structuredClone(genetics) };
+  (window as Window & { _snpTableCache?: Parameters<typeof buildReportGenetics>[1] })._snpTableCache = null;
   loadCatalog.mockReset();
   invalidateActiveDataCache();
 });
@@ -52,23 +53,23 @@ afterEach(() => { vi.restoreAllMocks(); });
 describe('Genome report parity', () => {
   it('preserves traits, protective calls, risk associations and independent evidence grades', () => {
     const report = snapshot();
-    const rows = Object.fromEntries(report.genetics.findings.map(f => [f.rsid, f]));
+    const rows: Record<string, ReportGenomeFinding> = Object.fromEntries(report.genetics!.findings.map(f => [f.rsid, f]));
     expect(rows.rs4680).toMatchObject({ direction: 'informational trait', evidence: { evidenceLevel: 'strong', relevanceLevel: 'trait' } });
-    expect(rows.rs1815739.direction).toBe('informational trait');
-    expect(rows.rs11591147.direction).toBe('protective association');
-    expect(rows.rs10455872.direction).toBe('risk association');
+    expect(rows.rs1815739!.direction).toBe('informational trait');
+    expect(rows.rs11591147!.direction).toBe('protective association');
+    expect(rows.rs10455872!.direction).toBe('risk association');
     expect(rows.rsUnknown).toMatchObject({ direction: 'unclassified', evidence: { evidenceLevel: 'unreviewed' } });
     const html = render(emptyLabs, { ...options, reportData: report });
     const doc = new DOMParser().parseFromString(html, 'text/html');
     expect(doc.querySelectorAll('.genetics-table tbody tr')).toHaveLength(5);
-    expect(doc.querySelector('.genome-risk').textContent).toBe('risk association');
-    expect(doc.querySelector('.genome-trait').textContent).toBe('informational trait');
-    expect(doc.querySelector('.genome-protective').textContent).toBe('protective association');
-    expect(doc.querySelector('.genome-neutral').textContent).toBe('unclassified');
+    expect(doc.querySelector('.genome-risk')!.textContent).toBe('risk association');
+    expect(doc.querySelector('.genome-trait')!.textContent).toBe('informational trait');
+    expect(doc.querySelector('.genome-protective')!.textContent).toBe('protective association');
+    expect(doc.querySelector('.genome-neutral')!.textContent).toBe('unclassified');
     const reference = doc.querySelector('.genetics-table a');
-    expect(reference.href).toMatch(/^https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/\d+\/$/);
-    expect(reference.textContent).toMatch(/^PubMed \d+$/);
-    expect(reference.rel).toBe('noopener noreferrer');
+    expect((reference as HTMLAnchorElement).href).toMatch(/^https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\/\d+\/$/);
+    expect(reference!.textContent).toMatch(/^PubMed \d+$/);
+    expect((reference as HTMLAnchorElement).rel).toBe('noopener noreferrer');
     expect(doc.querySelector('img')).toBeNull();
     expect(doc.body.textContent).toContain(genetics.importDate);
     expect(doc.body.textContent).toContain('Marker match: 4 / 7');
@@ -84,27 +85,27 @@ describe('Genome report parity', () => {
   it.each([false, true])('keeps AI-origin labels outside editable text and in both report layouts (detailed=%s)', detailed => {
     const html = render(emptyLabs, { ...options, detailed, reportData: snapshot(), aiSummary: { text: 'Synthetic overview', model: '<img src=x>' } });
     const doc = new DOMParser().parseFromString(html, 'text/html');
-    expect(doc.querySelector('.report-header .report-origin-notice').textContent).toContain('AI-generated overview');
-    expect(doc.querySelector('.report-ai-summary h2').textContent).toBe('AI-generated overview');
-    expect(doc.querySelector('.report-origin-notice').closest('[contenteditable]')).toBeNull();
+    expect(doc.querySelector('.report-header .report-origin-notice')!.textContent).toContain('AI-generated overview');
+    expect(doc.querySelector('.report-ai-summary h2')!.textContent).toBe('AI-generated overview');
+    expect(doc.querySelector('.report-origin-notice')!.closest('[contenteditable]')).toBeNull();
     expect(doc.querySelector('img')).toBeNull();
     const without = new DOMParser().parseFromString(render(emptyLabs, { ...options, detailed, reportData: snapshot() }), 'text/html');
     expect(without.querySelector('.report-origin-notice')).toBeNull();
-    expect(without.querySelector('.report-origin-note').textContent).toContain('No new AI overview');
+    expect(without.querySelector('.report-origin-note')!.textContent).toContain('No new AI overview');
   });
 
   it('escapes reference text and attributes and rejects executable reference URLs', () => {
     const report = snapshot();
-    report.genetics.findings = [report.genetics.findings[0]];
-    report.genetics.findings[0].tone = 'risk" onmouseover="alert(1)';
-    report.genetics.findings[0].references = [
+    report.genetics!.findings = [report.genetics!.findings[0]!];
+    (report.genetics!.findings[0]! as { tone: string }).tone = 'risk" onmouseover="alert(1)';
+    report.genetics!.findings[0]!.references = [
       'javascript:alert(1)', 'data:text/html,<script>alert(1)</script>',
       'not a URL <img src=x onerror=alert(1)>',
       'https://example.com/?q=" onclick="alert(1)&v=<test>',
     ];
     const doc = new DOMParser().parseFromString(render(emptyLabs, { ...options, reportData: report }), 'text/html');
     expect(doc.querySelectorAll('.genetics-table a')).toHaveLength(1);
-    expect(doc.querySelector('a').hostname).toBe('example.com');
+    expect(doc.querySelector<HTMLAnchorElement>('a')!.hostname).toBe('example.com');
     expect(doc.querySelector('[onclick], [onmouseover], img, script')).toBeNull();
     expect(doc.querySelector('.genome-neutral')).not.toBeNull();
     expect(doc.body.textContent).toContain('not a URL <img src=x onerror=alert(1)>');
@@ -113,19 +114,19 @@ describe('Genome report parity', () => {
   it.each(['reference', 'optimal', 'both'])('uses the report %s mode consistently without changing dashboard ranges', mode => {
     state.rangeMode = mode === 'reference' ? 'optimal' : 'reference';
     const dashboardMode = state.rangeMode;
-    vi.spyOn(dataModule, 'getActiveData').mockReturnValue({ dates: ['2026-01-01'], categories: { lab: { label: 'Test lab', markers: {
+    vi.spyOn(dataModule as { getActiveData: () => NonNullable<BuildReportDataSnapshotInput['data']> }, 'getActiveData').mockReturnValue({ dates: ['2026-01-01'], categories: { lab: { label: 'Test lab', markers: {
       sample: { name: 'Range fixture', unit: 'u', values: [7], refMin: 1, refMax: 10, optimalMin: 3, optimalMax: 5, referenceRangeSource: 'import' },
     } } } });
     const payload = buildPreparedReportPayload({ preset: 'full', sections: ['categories', 'flagged', 'summary'], dateRange: 'all', rangeMode: mode });
     expect(payload.reportOptions.rangeMode).toBe(mode);
     expect(payload.reportData.scope.rangeMode).toBe(mode);
     expect(payload.flags).toHaveLength(mode === 'reference' ? 0 : 1);
-    expect(payload.reportData.labs.flags).toHaveLength(payload.flags.length);
+    expect(payload.reportData.labs!.flags).toHaveLength(payload.flags.length);
     const doc = new DOMParser().parseFromString(buildReportHTML('Fixture', 'Female', payload.data, payload.flags, [], [], [], { ...payload.reportOptions, reportData: payload.reportData }), 'text/html');
-    expect(doc.querySelector('.report-stat-value').textContent).toBe(mode === 'reference' ? '0' : '1');
+    expect(doc.querySelector('.report-stat-value')!.textContent).toBe(mode === 'reference' ? '0' : '1');
     const cells = [...doc.querySelectorAll('td')].map(cell => cell.textContent);
-    expect(cells.some(text => text.includes('Lab reference: 1 – 10'))).toBe(mode !== 'optimal');
-    expect(cells.some(text => text.includes('opt: 3 – 5'))).toBe(mode !== 'reference');
+    expect(cells.some(text => text!.includes('Lab reference: 1 – 10'))).toBe(mode !== 'optimal');
+    expect(cells.some(text => text!.includes('opt: 3 – 5'))).toBe(mode !== 'reference');
     const agentText = formatReportDataForAgent(payload.reportData);
     expect(agentText).toContain(`Range mode: ${mode}`);
     expect(agentText.includes('Lab reference 1-10')).toBe(mode !== 'optimal');
@@ -134,16 +135,16 @@ describe('Genome report parity', () => {
   });
 
   it('retains phase-specific precedence and reference fallback under selected report ranges', () => {
-    vi.spyOn(dataModule, 'getActiveData').mockReturnValue({ dates: ['2026-01-01'], categories: { lab: { label: 'Test lab', markers: {
+    vi.spyOn(dataModule as { getActiveData: () => NonNullable<BuildReportDataSnapshotInput['data']> }, 'getActiveData').mockReturnValue({ dates: ['2026-01-01'], categories: { lab: { label: 'Test lab', markers: {
       phase: { name: 'Phase fixture', values: [7], refMin: 1, refMax: 10, optimalMin: 3, optimalMax: 5, phaseRefRanges: [{ min: 6, max: 8, label: 'Phase reference' }] },
       fallback: { name: 'Fallback fixture', values: [7], refMin: 1, refMax: 10 },
     } } } });
     const payload = buildPreparedReportPayload({ preset: 'full', sections: ['categories'], dateRange: 'all', rangeMode: 'optimal' });
     expect(payload.flags).toEqual([]);
-    expect(payload.reportData.labs.summary.latestInRangeCount).toBe(2);
-    const results = payload.reportData.labs.categories[0].markers.map(marker => marker.latestResult);
-    expect(results[0].ranges.judging).toMatchObject({ kind: 'phase', min: 6, max: 8 });
-    expect(results[1].ranges.judging).toMatchObject({ kind: 'reference', min: 1, max: 10 });
+    expect(payload.reportData.labs!.summary!.latestInRangeCount).toBe(2);
+    const results = payload.reportData.labs!.categories[0]!.markers.map(marker => marker.latestResult);
+    expect(results[0]!.ranges.judging).toMatchObject({ kind: 'phase', min: 6, max: 8 });
+    expect(results[1]!.ranges.judging).toMatchObject({ kind: 'reference', min: 1, max: 10 });
   });
 
   it('retains neutral, reference, unmatched and malformed calls without inventing annotations', () => {
@@ -152,8 +153,8 @@ describe('Genome report parity', () => {
       rsReference: { genotypes: { AA: { effect: 'none' } } },
       rsWrong: { genotypes: { AA: { effect: 'significant' } } },
     });
-    expect(result.findings.map(f => f.direction)).toEqual(['neutral finding', 'reference finding', 'unclassified', 'unclassified']);
-    expect(buildReportGenetics(genetics).findings.every(f => f.direction === 'unclassified')).toBe(true);
+    expect(result!.findings.map(f => f.direction)).toEqual(['neutral finding', 'reference finding', 'unclassified', 'unclassified']);
+    expect(buildReportGenetics(genetics)!.findings.every(f => f.direction === 'unclassified')).toBe(true);
   });
 
   it('uses the selected snapshot and never substitutes the active profile genetics', () => {
@@ -164,18 +165,18 @@ describe('Genome report parity', () => {
   });
 
   it('loads the catalog on a cold export and keeps the captured profile while awaiting it', async () => {
-    let resolveCatalog;
+    let resolveCatalog: (value: typeof catalog) => void;
     loadCatalog.mockImplementation(() => new Promise(resolve => { resolveCatalog = resolve; }));
     let html = '';
-    const preview = { document: { write: vi.fn(value => { html = value; }), close: vi.fn(), querySelector: () => null }, close: vi.fn() };
-    vi.spyOn(window, 'open').mockReturnValue(preview);
+    const preview = { document: { write: vi.fn((value: string) => { html = value; }), close: vi.fn(), querySelector: () => null }, close: vi.fn() };
+    vi.spyOn(window as unknown as { open: () => typeof preview }, 'open').mockReturnValue(preview);
     const pending = exportPDFReport(options);
     expect(window.open).toHaveBeenCalledOnce();
     await vi.waitFor(() => expect(loadCatalog).toHaveBeenCalledOnce());
     state.currentProfile = 'other';
-    state.importedData = { genetics: { apoe: 'Other person private APOE' } };
+    (state as { importedData: Partial<typeof state.importedData> }).importedData = { genetics: { apoe: 'Other person private APOE' } };
     state.rangeMode = 'optimal';
-    resolveCatalog(catalog);
+    resolveCatalog!(catalog);
     expect(await pending).toBe(true);
     expect(html).toContain('Selected person health report');
     expect(html).toContain('protective association');
@@ -186,7 +187,7 @@ describe('Genome report parity', () => {
   it('reports catalog failures and leaves no misleading partial preview', async () => {
     loadCatalog.mockRejectedValue(new Error('offline'));
     const preview = { document: { write: vi.fn() }, close: vi.fn() };
-    vi.spyOn(window, 'open').mockReturnValue(preview);
+    vi.spyOn(window as unknown as { open: () => typeof preview }, 'open').mockReturnValue(preview);
     expect(await exportPDFReport(options)).toBe(false);
     expect(preview.document.write).not.toHaveBeenCalled();
     expect(preview.close).toHaveBeenCalledOnce();
@@ -201,10 +202,10 @@ describe('Genome report parity', () => {
   });
 
   it('does not retain an unrelated lab date for a category containing only a single-point measurement', () => {
-    vi.spyOn(dataModule, 'getActiveData').mockReturnValue({ dates: ['2026-01-01'], categories: { spot: { markers: { only: { singlePoint: true, singleDate: '2026-04-02', values: [7] } } } } });
+    vi.spyOn(dataModule as { getActiveData: () => NonNullable<BuildReportDataSnapshotInput['data']> }, 'getActiveData').mockReturnValue({ dates: ['2026-01-01'], categories: { spot: { markers: { only: { singlePoint: true, singleDate: '2026-04-02', values: [7] } } } } });
     const payload = buildPreparedReportPayload({ ...options, sections: ['categories'], categoryKeys: ['spot'] });
     expect(payload.data.dates).toEqual([]);
-    expect(payload.reportData.labs.dates).toContain('2026-04-02');
+    expect(payload.reportData.labs!.dates).toContain('2026-04-02');
   });
 
   it('renders independently dated measurements at their own dates, including without lab draws', () => {
@@ -213,11 +214,11 @@ describe('Genome report parity', () => {
       spot: { name: 'Spot', unit: 'u', singlePoint: true, singleDate: '2026-04-02', values: [7] },
     } } } };
     const doc = new DOMParser().parseFromString(render(data, { ...options, sections: ['categories'] }), 'text/html');
-    const row = [...doc.querySelectorAll('tr')].find(tr => tr.textContent.includes('Spot'));
-    expect([...row.querySelectorAll('td')].map(td => td.textContent)).toEqual(['Spot', 'u', 'Reference: not set', '—', '7', '—']);
+    const row = [...doc.querySelectorAll('tr')].find(tr => tr.textContent!.includes('Spot'));
+    expect([...row!.querySelectorAll('td')].map(td => td.textContent)).toEqual(['Spot', 'u', 'Reference: not set', '—', '7', '—']);
     expect(doc.body.textContent).toContain('Apr 2, 2026');
     data.dates = [];
-    delete data.categories.mixed.markers.serial;
+    delete (data.categories.mixed.markers as Partial<typeof data.categories.mixed.markers>).serial;
     expect(render(data, { ...options, sections: ['categories'] })).toContain('>7</td>');
   });
 });

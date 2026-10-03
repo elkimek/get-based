@@ -4,10 +4,11 @@ import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { state } from '../js/state.js';
+import type { NormalizedProfileData } from '../types/app-state.js';
 import { buildReportHTML as renderReportHTML, exportPDFReport } from '../js/export-report-html.js';
 
 // Exercise the retained detailed appendix renderer; summary behavior has dedicated tests.
-const buildReportHTML = (...args) => { args[7] = { ...args[7], detailed: true }; return renderReportHTML(...args); };
+const buildReportHTML = (...args: Parameters<typeof renderReportHTML>) => { args[7] = { ...args[7], detailed: true }; return renderReportHTML(...args); };
 
 const exportReportHtmlSource = readFileSync(
   'js/export-report-html.js',
@@ -117,7 +118,7 @@ function resetReportState() {
     notes: '',
     status: 'active',
   }];
-  state.importedData = {
+  (state as { importedData: Partial<NormalizedProfileData> }).importedData = {
     entries: [],
     notes: [],
     supplements: [],
@@ -129,7 +130,7 @@ function resetReportState() {
     },
     customMarkers: {},
   };
-  window._snpTableCache = null;
+  (window as Window & { _snpTableCache?: unknown })._snpTableCache = null;
 }
 
 describe('report HTML runtime coverage', () => {
@@ -292,7 +293,7 @@ describe('report HTML runtime coverage', () => {
         source: 'mtDNA file',
       },
     };
-    window._snpTableCache = {
+    (window as Window & { _snpTableCache?: unknown })._snpTableCache = {
       rsSig: {
         category: 'iron',
         genotypes: {
@@ -380,16 +381,16 @@ describe('report HTML runtime coverage', () => {
     }];
 
     let capturedReport = '';
-    let printHandler = null;
+    let printHandler: (() => void) | null = null;
     const print = vi.fn();
     window.open = vi.fn(() => ({
       document: {
-        write(markup) { capturedReport += markup; },
+        write(markup: string) { capturedReport += markup; },
         close: vi.fn(),
-        querySelector(selector) {
+        querySelector(selector: string) {
           expect(selector).toBe('.report-print-btn');
           return {
-            addEventListener(type, handler) {
+            addEventListener(type: string, handler: () => void) {
               expect(type).toBe('click');
               printHandler = handler;
             },
@@ -397,7 +398,7 @@ describe('report HTML runtime coverage', () => {
         },
       },
       print,
-    }));
+    })) as unknown as typeof window.open;
 
     expect(exportPDFReport({
       preset: 'personal',
@@ -412,7 +413,7 @@ describe('report HTML runtime coverage', () => {
     expect(document.querySelector('.notification-toast.info')?.textContent).toContain('PDF preview opened');
     expect(printHandler).toEqual(expect.any(Function));
 
-    printHandler();
+    printHandler!();
     expect(print).toHaveBeenCalledTimes(1);
     vi.runOnlyPendingTimers();
   });

@@ -38,7 +38,7 @@ function isReportTemplateCustomized(overlay) {
   const sections = selectedReportSections(overlay);
   const categories = Array.from(overlay.querySelectorAll('[data-report-category]'));
   return overlay.querySelector('#report-date-range')?.value !== preset.dateRange
-    || sections.length !== preset.sections.length || sections.some(section => !preset.sections.includes(section))
+    || sections.length !== /** @type {string[]} */ (preset.sections).length || sections.some(section => !/** @type {string[]} */ (preset.sections).includes(section))
     || (sections.includes('categories') && categories.some(input => !input.checked));
 }
 
@@ -309,6 +309,7 @@ function applyReportPreset(overlay, presetId) {
   updateReportBuilderSelectionState(overlay);
 }
 
+/** @param {import('./export-report.js').PreparedReportPayload | null} [payload] */
 function setReportBuilderAISummary(overlay, summary, payload = null) {
   const textEl = overlay.querySelector('#report-ai-summary-text');
   const statusEl = overlay.querySelector('[data-report-ai-status]');

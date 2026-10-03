@@ -30,11 +30,11 @@ describe('configurable report histories', () => {
     expect(text).not.toContain('PRIVATE');
     expect(text).not.toContain('wearable');
     const [section] = buildExtraReportSections(sources, ['nutrition'], scope);
-    expect(section.rows).toHaveLength(1);
-    expect(section.rows[0][0]).toContain('2026-04-02 Selected meal');
-    expect(section.rows[0][1]).toContain('Protein: 0 g');
-    expect(section.rows[0][1]).not.toContain('Sodium');
-    expect(section.rows[0][2]).toContain('Ai-photo-estimate');
+    expect(section!.rows).toHaveLength(1);
+    expect(section!.rows[0]![0]).toContain('2026-04-02 Selected meal');
+    expect(section!.rows[0]![1]).toContain('Protein: 0 g');
+    expect(section!.rows[0]![1]).not.toContain('Sodium');
+    expect(section!.rows[0]![2]).toContain('Ai-photo-estimate');
     expect(JSON.stringify(input)).toContain('PRIVATE PHOTO');
   });
 
@@ -43,11 +43,11 @@ describe('configurable report histories', () => {
     const body = JSON.stringify(sections);
     expect(body).not.toContain('OLD');
     expect(body).not.toContain('PRIVATE TOKEN');
-    expect(sections[0].rows).toHaveLength(1);
-    expect(sections[0].rows[0]).toContain('176.4');
-    expect(sections[0].rows[0]).toContain('lb');
-    expect(sections[0].rows[0]).toContain('Synced latest reading');
-    expect(sections[1].rows[0][4]).toContain('100 a.u.');
+    expect(sections[0]!.rows).toHaveLength(1);
+    expect(sections[0]!.rows[0]!).toContain('176.4');
+    expect(sections[0]!.rows[0]!).toContain('lb');
+    expect(sections[0]!.rows[0]!).toContain('Synced latest reading');
+    expect(sections[1]!.rows[0]![4]).toContain('100 a.u.');
     expect(body).toContain('Bedroom EMF');
     expect(body).toContain('V/m');
   });
@@ -68,17 +68,17 @@ describe('configurable report histories', () => {
     expect(history.rows).toEqual([{ source: 'oura', date: '2026-04-02', rhr: 57 }]);
     expect(history.unavailable).toBe(1);
     const sections = await loadExtraReportSources(profileId, captureReportSources(input, ['wearables']), ['wearables'], scope);
-    expect(sections[0].note).toContain('1 local rows could not be decrypted');
-    expect(sections[0].rows.some(row => row.includes('Local daily history'))).toBe(true);
+    expect(sections[0]!.note).toContain('1 local rows could not be decrypted');
+    expect(sections[0]!.rows.some(row => row.includes('Local daily history'))).toBe(true);
     expect(JSON.stringify(sections)).not.toContain('_payload');
   });
 
   it('reads legacy device-local nutrition when the synced meal surface is absent', async () => {
     await putNutritionMeal(profileId, { id: 'legacy', name: 'Legacy meal', localDate: '2026-04-02', eatenAt: '2026-04-02T12:00:00Z', nutrients: { energyKcal: 123 } });
     const sections = await loadExtraReportSources(profileId, {}, ['nutrition'], scope);
-    expect(sections[0].rows[0][0]).toContain('Legacy meal');
+    expect(sections[0]!.rows[0]![0]).toContain('Legacy meal');
     const cleared = await loadExtraReportSources(profileId, { nutritionMeals: [] }, ['nutrition'], scope);
-    expect(cleared[0].rows).toEqual([]);
+    expect(cleared[0]!.rows).toEqual([]);
   });
 
   it('shares selected facts with the AI overview and leaves unchecked sources absent', () => {
@@ -91,6 +91,6 @@ describe('configurable report histories', () => {
     expect(context).not.toContain('Bedroom');
     expect(context).not.toContain('PRIVATE');
     const [empty] = buildExtraReportSections({}, ['light'], scope);
-    expect(empty.rows).toEqual([]);
+    expect(empty!.rows).toEqual([]);
   });
 });

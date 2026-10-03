@@ -816,3 +816,8 @@ deploy/profile-share/data/
 /js/export-report-sections.js
 /js/export-report-summary-html.js
 /js/light-tools-ai-analysis.js
+
+/js/export-report.js
+/js/export-report-html.js
+
+/types/report-export.js

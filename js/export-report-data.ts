@@ -1,3 +1,4 @@
+import type { JSONDetached } from './export-report.js';
 import type { ActiveData, ActiveCategory, ActiveMarker } from './data-view-types.js';
 import type { GeneticsData, StoredSnpCall } from './dna-runtime.js';
 import type { SnpCatalog } from './dna-evidence.js';
@@ -13,8 +14,13 @@ export interface ReportGenomeFinding {
   evidence: ReturnType<typeof resolveSnpEvidenceProfile>; note: unknown;
   apoeComponent: boolean; references: unknown[]; strandNote: unknown; rank: number;
 }
-export interface ReportGeneticsInput extends Omit<GeneticsData, 'snps'> {
+/** Reports interpret raw calls; imported coverage and lineage metadata remain descriptive. */
+export interface ReportGeneticsInput extends Pick<GeneticsData, 'apoe' | 'source' | 'importDate'> {
   snps?: Record<string, StoredSnpCall | null | undefined> | null;
+  coverage?: { found?: unknown; total?: unknown } | null | undefined;
+  effects?: unknown;
+  catalogVersion?: { size?: unknown; hash?: unknown } | null;
+  mtdna?: NonNullable<GeneticsData['mtdna']> | JSONDetached<NonNullable<GeneticsData['mtdna']>> | null;
 }
 export interface ReportGenetics extends ReportGeneticsInput {
   findings: ReportGenomeFinding[];
@@ -23,7 +29,7 @@ export interface ReportGenetics extends ReportGeneticsInput {
 }
 export type ReportSnpCatalog = SnpCatalog & { _meta?: { version?: unknown } };
 export interface ReportOptions {
-  preset?: string; presetLabel?: string; dateRange?: string;
+  preset?: string; presetLabel?: string | undefined; dateRange?: string | undefined;
   startDate?: string | null | undefined; endDate?: string | null | undefined;
   sections?: string[]; purpose?: string; appendixSections?: string[];
   genomeVariants?: string[]; genomeMode?: string | null | undefined;
@@ -125,7 +131,10 @@ export function buildReportGenetics(genetics: ReportGeneticsInput | null | undef
 export const REPORT_GENOME_MODES = ['risks', 'risks-traits', 'traits', 'all'];
 
 /** Apply the same current-catalog selection to the PDF and AI overview. */
-export function selectReportGenomeFindings(genetics: ReportGenetics | null | undefined, options: Pick<ReportOptions, 'genomeMode' | 'genomeVariants'> = {}) {
+export function selectReportGenomeFindings<Finding extends Pick<ReportGenomeFinding, 'rsid'> & { tone: string } = ReportGenomeFinding>(
+  genetics: { findings?: Finding[] } | null | undefined,
+  options: Pick<ReportOptions, 'genomeMode' | 'genomeVariants'> = {},
+) {
   const findings = genetics?.findings || [];
   if (options.genomeMode === 'all') return findings;
   if (options.genomeMode === 'risks') return findings.filter(finding => finding.tone === 'risk');
@@ -134,7 +143,7 @@ export function selectReportGenomeFindings(genetics: ReportGenetics | null | und
   return findings.filter(finding => options.genomeVariants?.includes(finding.rsid));
 }
 
-export function getSupplementDosageParts(s: SupplementRecord) {
+export function getSupplementDosageParts(s: SupplementRecord | JSONDetached<SupplementRecord>) {
   const parts: string[] = [];
   if (s.dosage) parts.push(String(s.dosage));
   if (s.dose) parts.push(String(s.dose));
@@ -505,7 +514,7 @@ function compactContextValue(value: unknown) {
  * The snapshot remains the lossless contract; this projection deliberately
  * prioritizes latest abnormalities, representative markers, and notable trends.
  */
-export function formatReportDataForAgent(reportData: ReportDataSnapshot | null | undefined, {
+export function formatReportDataForAgent(reportData: ReportDataSnapshot | JSONDetached<ReportDataSnapshot> | null | undefined, {
   markerLimit = 32,
   flagLimit = 16,
   trendLimit = 12,
@@ -664,7 +673,7 @@ export function buildReportDataSnapshot(input: BuildReportDataSnapshotInput = {}
       purpose: options.purpose || '',
       appendixSections: options.appendixSections || [],
       genomeVariants: options.genomeVariants || [],
-      genomeMode: REPORT_GENOME_MODES.includes(options.genomeMode as string) ? options.genomeMode : null,
+      genomeMode: REPORT_GENOME_MODES.includes(options.genomeMode as string) ? options.genomeMode! : null,
       categoryKeys: Array.isArray(options.categoryKeys) ? [...options.categoryKeys] : null,
       rangeMode: normalizedRangeMode,
       statusBasis: normalizedRangeMode === 'reference'
