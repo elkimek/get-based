@@ -28,7 +28,7 @@ const { assert, results: legacyAssertions } = createLegacyAssertions();
 console.log('=== BP Card Merge Tests ===\n');
 
 const wearablesSrc = read('js/wearables.js');
-const wearablesActionsSrc = read('js/wearables-strip-actions.js');
+const wearablesActionsSrc = read('js/wearables-strip-actions.js').replace(/\s+/g, ' ');
 
 // ═══════════════════════════════════════
 // 1. Strip-render filter — dia hidden when sys present

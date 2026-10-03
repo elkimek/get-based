@@ -33,7 +33,7 @@ export interface LensPageWidget {
   id: string;
   title: unknown;
   description?: string;
-  body: string;
+  body: unknown;
   size?: string;
   opts?: LensWidgetOptions;
 }
@@ -215,13 +215,13 @@ export function renderLensDashboardToggle(dashboardId: string | null | undefined
   return `<button type="button" class="dashboard-widget-tool lens-widget-dashboard-toggle" ${lensPageActionAttrs(action, { id: dashboardId })}>${label}</button>`;
 }
 
-export function renderLensWidget(id: string, title: unknown, description: string | undefined, body: string, size = 'full', opts: LensWidgetOptions = {}) {
+export function renderLensWidget(id: string, title: unknown, description: string | undefined, body: unknown, size = 'full', opts: LensWidgetOptions = {}) {
   const headerDescription = getWidgetHeaderDescription(id, description);
   const dashboardId = Object.prototype.hasOwnProperty.call(opts, 'dashboardId') ? opts.dashboardId : id;
   const dashboardToggle = renderLensDashboardToggle(dashboardId);
   const pageControls = renderLensPageMoveControls(opts.pageRoute || '', id, opts.pageIndex || 0, opts.pageCount || 0);
   const tools = [pageControls, dashboardToggle].filter(Boolean).join('');
-  if (opts.compactScore) return `<section class="biology-score-lens-row" data-widget-id="${escapeAttr(id)}">${body.replace('<!--score-tools-->', tools)}</section>`;
+  if (opts.compactScore) return `<section class="biology-score-lens-row" data-widget-id="${escapeAttr(id)}">${(body as { replace(search: string, replacement: string): unknown }).replace('<!--score-tools-->', tools)}</section>`;
   return `<section class="dashboard-widget dashboard-widget-${escapeAttr(size)}${body ? '' : ' is-empty'}" data-widget-id="${escapeAttr(id)}">
     <div class="dashboard-widget-chrome">
       <div class="dashboard-widget-heading">

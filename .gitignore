@@ -1043,3 +1043,15 @@ deploy/profile-share/data/
 /js/marker-detail-runtime.js
 
 /js/wearables-strip-actions.js
+
+/js/light-env-editor.js
+
+/js/light-channel-view.js
+
+/js/agent-drafts.js
+
+/js/export-import.js
+
+/types/export-import.js
+
+/js/views-router.js

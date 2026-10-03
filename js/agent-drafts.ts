@@ -1,4 +1,3 @@
-// @ts-check
 // Review-and-approve boundary for changes proposed by a connected CLI agent.
 
 import { state } from './state.js';
@@ -17,8 +16,21 @@ import { escapeHTML } from './utils.js';
 import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
 import { resolveAgentMarker } from './agent-tool-bindings.js';
 
-function draftRows(draft) {
-  const payload = draft?.payload || {};
+import type { AgentDraft } from './agent-tool-runtime.js';
+import type { StoredChatMessage } from './chat-storage-safety.js';
+interface DraftReader {
+  status?: unknown; profileId?: unknown; kind?: unknown; payload?: unknown;
+  id?: unknown; summary?: unknown;
+}
+// The cards consume native draft status strings; payload leaves stay unvalidated.
+interface DraftCardReader extends DraftReader {
+  status: NonNullable<StoredChatMessage['agentDrafts']>[number]['status'] | AgentDraft['status'] | 'applying';
+}
+type DraftPayload = Readonly<AgentDraft['payload']>;
+type RawReading<Reading> = { [Key in keyof Reading]?: unknown };
+
+function draftRows(draft: DraftReader | null | undefined) {
+  const payload = (draft?.payload || {}) as DraftPayload;
   if (draft?.kind === 'note') return [
     ['Destination', payload.scope === 'marker' ? `Marker · ${payload.marker}` : 'Profile context note'],
     ['Mode', payload.mode || 'append'],
@@ -39,8 +51,8 @@ function draftRows(draft) {
     ...(payload.dosage ? [['Directions', payload.dosage]] : []), ...(payload.note ? [['Note', payload.note]] : [])];
 }
 
-export function renderAgentDraftCards(message, messageIndex) {
-  const drafts = Array.isArray(message?.agentDrafts) ? message.agentDrafts : [];
+export function renderAgentDraftCards(message: { agentDrafts?: unknown } | null | undefined, messageIndex: unknown) {
+  const drafts = (Array.isArray(message?.agentDrafts) ? message.agentDrafts : []) as DraftCardReader[];
   if (!drafts.length) return '';
   return drafts.map(draft => {
     const status = ['applying', 'applied', 'discarded', 'failed'].includes(draft.status) ? draft.status : 'pending';
@@ -53,7 +65,7 @@ export function renderAgentDraftCards(message, messageIndex) {
   }).join('');
 }
 
-function localMealTime(date) {
+function localMealTime(date: Date) {
   return {
     localDate: localDateKey(date),
     localTimeMinutes: date.getHours() * 60 + date.getMinutes(),
@@ -61,7 +73,7 @@ function localMealTime(date) {
   };
 }
 
-async function applyNote(payload, profileId) {
+async function applyNote(payload: DraftPayload, profileId: string) {
   if (payload.scope === 'marker') {
     const resolved = resolveAgentMarker(payload.marker);
     if (!resolved.row) throw new Error(resolved.matches.length ? 'Choose an unambiguous marker before applying.' : 'That marker is no longer available.');
@@ -73,13 +85,13 @@ async function applyNote(payload, profileId) {
   const baseData = structuredClone(state.importedData);
   const draft = structuredClone(baseData);
   const current = String(draft.contextNotes || '').trim();
-  draft.contextNotes = payload.mode === 'replace' || !current ? payload.text : `${current}\n\n${payload.text}`;
+  (draft as { contextNotes?: unknown }).contextNotes = payload.mode === 'replace' || !current ? payload.text : `${current}\n\n${payload.text}`;
   if (!await saveImportedDataForProfile(profileId, draft, { baseData })) throw new Error('Could not save the profile context note.');
   return 'Profile context note saved.';
 }
 
-async function applyMeal(payload) {
-  const date = payload.eatenAt ? new Date(payload.eatenAt) : new Date();
+async function applyMeal(payload: DraftPayload) {
+  const date = payload.eatenAt ? new Date(payload.eatenAt as string | number) : new Date();
   if (!Number.isFinite(date.getTime())) throw new Error('The proposed meal time is invalid.');
   let timeZone = '';
   try { timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch {}
@@ -91,7 +103,7 @@ async function applyMeal(payload) {
     ...localMealTime(date),
     timeZone,
     note: payload.note || '',
-    nutrients: { ...(payload.nutrients || {}) },
+    nutrients: { ...((payload.nutrients || {}) as Record<string, unknown>) },
     components: [], assumptions: [], warnings: [], images: [],
     confidence: null,
     source: { kind: 'manual-agent-draft', recordedAt: new Date().toISOString(), nutrientBasis: 'user-entered', review: { reviewedAt: new Date().toISOString() } },
@@ -100,9 +112,9 @@ async function applyMeal(payload) {
   return `Meal “${saved.name}” saved.`;
 }
 
-async function applyBiometric(payload, profileId) {
+async function applyBiometric(payload: DraftPayload, profileId: string) {
   if (payload.metric === 'bp') {
-    await logManualBP(profileId, {
+    await (logManualBP as (profileId: Parameters<typeof logManualBP>[0], reading: RawReading<Parameters<typeof logManualBP>[1]>) => ReturnType<typeof logManualBP>)(profileId, {
       date: payload.date || undefined,
       systolic: payload.systolic,
       diastolic: payload.diastolic,
@@ -112,7 +124,7 @@ async function applyBiometric(payload, profileId) {
     });
     return 'Blood pressure saved.';
   }
-  await logManualMetric(profileId, payload.metric, {
+  await (logManualMetric as (profileId: Parameters<typeof logManualMetric>[0], metric: unknown, reading: RawReading<Parameters<typeof logManualMetric>[2]>) => ReturnType<typeof logManualMetric>)(profileId, payload.metric, {
     date: payload.date || undefined,
     value: payload.value,
     unit: payload.unit || (payload.metric === 'weight' ? 'kg' : 'bpm'),
@@ -122,7 +134,7 @@ async function applyBiometric(payload, profileId) {
   return payload.metric === 'weight' ? 'Weight saved.' : 'Resting pulse saved.';
 }
 
-async function applySupplement(payload, profileId) {
+async function applySupplement(payload: DraftPayload, profileId: string) {
   const startDate = payload.startDate || localDateKey();
   const now = Date.now();
   const entry = {
@@ -136,7 +148,7 @@ async function applySupplement(payload, profileId) {
     endDate: null,
     periods: [{ start: startDate, end: null }],
     schedule: { mode: 'daily', timesPerDay: null },
-    lifecycle: { state: startDate <= localDateKey() ? 'active' : 'planned', changedAt: now },
+    lifecycle: { state: (startDate as string) <= localDateKey() ? 'active' : 'planned', changedAt: now },
     updatedAt: now,
   };
   const baseData = structuredClone(state.importedData);
@@ -146,15 +158,15 @@ async function applySupplement(payload, profileId) {
   return `${payload.type === 'medication' ? 'Medication' : 'Supplement'} “${payload.name}” saved.`;
 }
 
-export async function applyAgentDraft(draft) {
+export async function applyAgentDraft(draft: DraftReader | null | undefined) {
   if (!draft || draft.status !== 'pending') throw new Error('This proposal is no longer pending.');
   const activeProfileId = getActiveProfileId();
   if (!draft.profileId || draft.profileId !== activeProfileId) {
     throw new Error('Switch back to the profile where this proposal was created before applying it.');
   }
-  if (draft.kind === 'note') return applyNote(draft.payload, activeProfileId);
-  if (draft.kind === 'meal') return applyMeal(draft.payload);
-  if (draft.kind === 'biometric') return applyBiometric(draft.payload, activeProfileId);
-  if (draft.kind === 'supplement') return applySupplement(draft.payload, activeProfileId);
+  if (draft.kind === 'note') return applyNote(draft.payload as DraftPayload, activeProfileId);
+  if (draft.kind === 'meal') return applyMeal(draft.payload as DraftPayload);
+  if (draft.kind === 'biometric') return applyBiometric(draft.payload as DraftPayload, activeProfileId);
+  if (draft.kind === 'supplement') return applySupplement(draft.payload as DraftPayload, activeProfileId);
   throw new Error('This proposal type is not supported.');
 }

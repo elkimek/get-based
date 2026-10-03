@@ -1,4 +1,3 @@
-// @ts-check
 // views-router.js — route validation, route persistence, and scroll anchoring
 
 import { state } from './state.js';
@@ -14,6 +13,11 @@ import {
   scrollViewportBy,
   syncImportStatusFabFromRuntime,
 } from './views-router-runtime.js';
+
+interface ScrollAnchor { selector: string; viewportTop: number }
+interface RouteDataOperations { categories?: Record<string, unknown> | null; preserveScroll?: unknown; scrollAnchor?: string }
+type RouteHandler = (data?: unknown) => unknown;
+export interface NavigateDependencies { routeHandlers: Partial<Record<'dashboard' | 'labs' | 'genome' | 'body' | 'insight' | 'recommendations' | 'correlations' | 'compare' | 'light' | 'biologyScores', RouteHandler>> & { category?: (route: string, data?: unknown) => unknown }; syncMobileBottomNav?: ((route: string) => unknown) | null; destroyAllCharts?: (() => unknown) | null }
 
 export const CORE_ROUTES = new Set([
   'dashboard',
@@ -32,19 +36,19 @@ function _lastViewStorageKey() {
   return profileStorageKey(state.currentProfile || 'default', 'lastViewV1');
 }
 
-function _routeData(preData) {
-  return preData && typeof preData === 'object' && preData.categories ? preData : getActiveData();
+function _routeData(preData: unknown) {
+  return preData && typeof preData === 'object' && (preData as RouteDataOperations).categories ? preData : getActiveData();
 }
 
-export function isKnownRoute(route, preData = null) {
+export function isKnownRoute(route: unknown, preData: unknown = null) {
   route = String(route || '');
-  if (CORE_ROUTES.has(route)) return true;
+  if (CORE_ROUTES.has(route as string)) return true;
   if (!safeMarkerId(route)) return false;
   const data = _routeData(preData);
-  return !!data?.categories?.[route];
+  return !!(data as RouteDataOperations | null | undefined)?.categories?.[route as string];
 }
 
-function _persistCurrentView(route) {
+function _persistCurrentView(route: string) {
   if (!isKnownRoute(route)) return;
   try { localStorage.setItem(_lastViewStorageKey(), route); } catch (_) {}
 }
@@ -55,7 +59,7 @@ export function getInitialView() {
   return isKnownRoute(saved) ? saved : 'dashboard';
 }
 
-export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllCharts }) {
+export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllCharts }: NavigateDependencies) {
   // Monotonic counter for in-flight anchor-restore loops. Each navigate
   // captures a new token; older loops compare and bail when the user
   // has moved on.
@@ -63,9 +67,9 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
   // Currently-active anchor for this navigator — rapid same-selector
   // re-navigates reuse the original captured viewportTop instead of
   // re-capturing AFTER the jump that the original was trying to prevent.
-  let _activeAnchor = null;
+  let _activeAnchor: ScrollAnchor | null = null;
 
-  return function navigate(category, data) {
+  return (function navigate(category: unknown, data?: RouteDataOperations | null) {
     const requestedCategory = String(category || 'dashboard');
     const preserveScroll = !!(data && typeof data === 'object' && data.preserveScroll);
     const optionsOnlyData = !!(data && typeof data === 'object' && !data.categories && (data.scrollAnchor || data.preserveScroll));
@@ -84,7 +88,7 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
     // viewport — they'd see a jump even though scrollY was technically
     // preserved.
     const sameView = routeCategory === state.currentView;
-    let anchor = null;
+    let anchor: ScrollAnchor | null = null;
     // Track whether the caller explicitly requested an anchor — even if
     // the element isn't found, an explicit request means "don't fall
     // back to auto-pick." This covers the cross-view race where an AI
@@ -100,13 +104,13 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
         // _refresh → setTimeout-navigate all firing within ms), reuse the
         // original captured viewportTop. Without this, each successive
         // navigate captures AFTER the jump and pins to the wrong place.
-        if (_activeAnchor && _activeAnchor.selector === data.scrollAnchor) {
+        if (_activeAnchor && _activeAnchor.selector === data!.scrollAnchor) {
           anchor = _activeAnchor;
         } else {
-          const el = document.querySelector(data.scrollAnchor);
+          const el = document.querySelector(data!.scrollAnchor!);
           if (el) {
             const rect = el.getBoundingClientRect();
-            anchor = { selector: data.scrollAnchor, viewportTop: rect.top };
+            anchor = { selector: data!.scrollAnchor!, viewportTop: rect.top };
           }
           // Element not found AND explicit anchor was requested →
           // intentionally skip the auto-pick fallback below.
@@ -185,17 +189,17 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
       requestAnimationFrame(reapply);
     }
     return routeResult;
-  };
+  }) as (category: unknown, data?: unknown) => unknown;
 }
 
-function _restorePixelScroll(pos) {
+function _restorePixelScroll(pos: Parameters<typeof restoreViewportScroll>[0]) {
   restoreViewportScroll(pos);
 }
 
-function _syncSidebarActive(routeCategory) {
+function _syncSidebarActive(routeCategory: string) {
   if (typeof document === 'undefined') return;
   document.querySelectorAll(".nav-item").forEach(el => {
-    const item = /** @type {HTMLElement} */ (el);
+    const item = (el as HTMLElement);
     const isActive = item.dataset.category === routeCategory;
     item.classList.toggle("active", isActive);
     item.classList.toggle("is-active", isActive);
@@ -247,9 +251,9 @@ function _captureScrollAnchor() {
   // side elements with centers inside the viewport beat it.
   const candidates = document.querySelectorAll('[data-id], [data-screen-id], [data-room-id]');
   const viewportCenter = hasViewportHeight ? vh / 2 : 0;
-  let containingBest = null;
+  let containingBest: ScrollAnchor | null = null;
   let containingBestArea = Infinity;
-  let centerBest = null;
+  let centerBest: ScrollAnchor | null = null;
   let centerBestDist = Infinity;
   for (const c of candidates) {
     const rect = c.getBoundingClientRect();
@@ -275,15 +279,15 @@ function _captureScrollAnchor() {
   return containingBest || centerBest;
 }
 
-function _stableSelectorFor(el) {
-  if (!el || !el.dataset) return null;
-  if (el.dataset.id) return `[data-id="${CSS.escape(el.dataset.id)}"]`;
-  if (el.dataset.screenId) return `[data-screen-id="${CSS.escape(el.dataset.screenId)}"]`;
-  if (el.dataset.roomId) return `[data-room-id="${CSS.escape(el.dataset.roomId)}"]`;
+function _stableSelectorFor(el: Element | null) {
+  if (!el || !(el as HTMLElement).dataset) return null;
+  if ((el as HTMLElement).dataset.id) return `[data-id="${CSS.escape((el as HTMLElement).dataset.id!)}"]`;
+  if ((el as HTMLElement).dataset.screenId) return `[data-screen-id="${CSS.escape((el as HTMLElement).dataset.screenId!)}"]`;
+  if ((el as HTMLElement).dataset.roomId) return `[data-room-id="${CSS.escape((el as HTMLElement).dataset.roomId!)}"]`;
   return null;
 }
 
-function _restoreScrollAnchor(anchor) {
+function _restoreScrollAnchor(anchor: ScrollAnchor | null) {
   if (!anchor) return;
   let el;
   try {

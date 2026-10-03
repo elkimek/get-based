@@ -1,27 +1,51 @@
-// @ts-check
 // light-channel-view.js — Light channel pill and detail renderers
 
 import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { getCachedConditionsAtmosphere } from './light-conditions-now.js';
 
-/** @type {Record<string, any>} */
-const lightChannelDeps = {
+// Private operations used by the original renderer, not validation of injected
+// callbacks or persisted values. Public configuration snapshots and merged totals
+// stay opaque; erased readers preserve unchecked coercions and error behavior.
+interface ChannelMetaReader { icon?: unknown; label?: unknown; what?: unknown }
+interface ChannelDayOperations { sun: number; device: number; date: { getDay(): number; getTime(): unknown } }
+interface ChannelDeviceReader { channels?: unknown }
+interface ChannelAtmosphereOperations { daily?: { peakAt?: string | number | null; uvIndexMax?: number | null } | null }
+interface ChannelNavigationOperations { then?: ((callback: () => unknown) => { catch(callback: (error: unknown) => unknown): unknown }) | null }
+interface ChannelCalls extends Record<string, unknown> {
+  channelDisplay: unknown;
+  dailyChannelBreakdown: ((key: unknown, days: number) => ChannelDayOperations[]) | null;
+  dailyVitaminDIUBreakdown: ((days: number) => ChannelDayOperations[]) | null;
+  rollingChannelTotals: (days: number) => unknown;
+  rollingDeviceTotals: (days: number) => unknown;
+  pbmJoulesPerCm2: ((value: number) => number) | null;
+  getDevices: () => unknown;
+  navigate: (view: string) => unknown;
+  quickLogSunSession: () => unknown;
+  quickLogDeviceSession: () => unknown;
+}
+interface ChannelActionTarget { closest?: ((selector: string) => HTMLElement | null) | null }
+interface ChannelActionRoot { contains?: ((element: HTMLElement) => unknown) | null; addEventListener(type: string, listener: (event: ChannelActionEvent) => void): unknown; [key: symbol]: unknown }
+interface ChannelActionEvent { target?: ChannelActionTarget | null; currentTarget?: ChannelActionRoot | null; stopPropagation(): unknown }
+interface ChannelCitation { spectrum: string; refs: Array<{ cite: string; href: string; why: string }> }
+interface ChannelSessionReader { endedAt?: unknown }
+
+const lightChannelDeps: ChannelCalls = {
   channelDisplay: {}, dailyChannelBreakdown: null, dailyVitaminDIUBreakdown: null, weeklyChannelTier: () => 0,
   tierLabel: () => 'none', rollingChannelTotals: () => ({}), rollingDeviceTotals: () => ({}), rollingVitaminDIU: () => 0,
   pbmJoulesPerCm2: null, getDevices: () => [], navigate: () => {}, quickLogSunSession: () => {}, quickLogDeviceSession: () => {},
 };
-export function configureLightChannelView(deps = {}) { const previous = { ...lightChannelDeps }; Object.assign(lightChannelDeps, deps); return previous; }
-const getChannelDisplay = () => lightChannelDeps.channelDisplay || {};
+export function configureLightChannelView(deps: unknown = {}): Record<string, unknown> { const previous = { ...lightChannelDeps }; Object.assign(lightChannelDeps, deps); return previous; }
+const getChannelDisplay = () => (lightChannelDeps.channelDisplay || {}) as Record<string, ChannelMetaReader | undefined>;
 
 const LIGHT_CHANNEL_ACTION_ATTR = 'data-light-channel-action';
 const LIGHT_CHANNEL_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightChannelActionDelegatesInstalled'), lightChannelActionDelegateRoots = new WeakSet();
-function closestLightChannelAction(target) { return target?.closest?.(`[${LIGHT_CHANNEL_ACTION_ATTR}]`) || null; }
-function handleLightChannelActionClick(event) {
+function closestLightChannelAction(target: ChannelActionTarget | null | undefined) { return target?.closest?.(`[${LIGHT_CHANNEL_ACTION_ATTR}]`) || null; }
+function handleLightChannelActionClick(event: ChannelActionEvent) {
   const actionEl = closestLightChannelAction(event.target);
   if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
   const action = actionEl.getAttribute(LIGHT_CHANNEL_ACTION_ATTR);
-  const channelKey = /** @type {HTMLElement} */ (actionEl).dataset.channel || '';
+  const channelKey = (actionEl as HTMLElement).dataset.channel || '';
   let handled = true;
   if (action === 'toggle-detail' && channelKey) _toggleChannelDetail(channelKey);
   else if (action === 'quick-log-sun') lightChannelDeps.quickLogSunSession();
@@ -29,22 +53,22 @@ function handleLightChannelActionClick(event) {
   else handled = false;
   if (handled) event.stopPropagation();
 }
-export function installLightChannelActionDelegates(root = typeof document !== 'undefined' ? document : null) {
-  if (!root || lightChannelActionDelegateRoots.has(root) || root[LIGHT_CHANNEL_ACTION_DELEGATE_KEY]) return;
-  lightChannelActionDelegateRoots.add(root);
+export function installLightChannelActionDelegates(root: unknown = typeof document !== 'undefined' ? document : null) {
+  if (!root || lightChannelActionDelegateRoots.has(root as object) || (root as ChannelActionRoot)[LIGHT_CHANNEL_ACTION_DELEGATE_KEY]) return;
+  lightChannelActionDelegateRoots.add(root as object);
   Object.defineProperty(root, LIGHT_CHANNEL_ACTION_DELEGATE_KEY, { value: true, configurable: true });
-  root.addEventListener('click', handleLightChannelActionClick);
+  (root as ChannelActionRoot).addEventListener('click', handleLightChannelActionClick);
 }
 if (typeof document !== 'undefined') installLightChannelActionDelegates();
-export function mergeTotals(a, b) {
-  const out = { ...a };
-  for (const [k, v] of Object.entries(b || {})) out[k] = (out[k] || 0) + v;
+export function mergeTotals(a: unknown, b: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...(a as Record<string, unknown>) };
+  for (const [k, v] of Object.entries(b || {})) out[k] = ((out[k] || 0) as number) + (v as number);
   return out;
 }
 
-const _hasSignal = value => Number.isFinite(value) && value > 0.0001;
+const _hasSignal = (value: unknown) => Number.isFinite(value) && (value as number) > 0.0001;
 
-function _sourceSignalLabel(sun, device) {
+function _sourceSignalLabel(sun: unknown, device: unknown) {
   const hasSun = _hasSignal(sun);
   const hasDevice = _hasSignal(device);
   if (hasSun && hasDevice) return 'Sunlight + device logged';
@@ -56,7 +80,7 @@ function _sourceSignalLabel(sun, device) {
 // Mini 7-day sparkline rendered as inline SVG. Height shows the rhythm of
 // modeled exposure, while solid/faded segments keep sunlight and devices
 // visibly separate. There is no target or completion color.
-export function _channelSparkline(channelKey) {
+export function _channelSparkline(channelKey: unknown) {
   const breakdown = lightChannelDeps.dailyChannelBreakdown;
   if (!breakdown) return '';
   const days = breakdown(channelKey, 7);
@@ -78,7 +102,7 @@ export function _channelSparkline(channelKey) {
 
 // Count days on which this channel received any modeled signal. This is a log
 // summary, not a sufficiency threshold or a biological streak.
-export function _channelDayCount(channelKey) {
+export function _channelDayCount(channelKey: unknown) {
   const breakdown = lightChannelDeps.dailyChannelBreakdown;
   if (!breakdown) return { txt: 'Not logged', n: 0, sun: 0, device: 0 };
   const days = breakdown(channelKey, 7);
@@ -97,14 +121,14 @@ export function _channelDayCount(channelKey) {
 // and research). Empty state renders the same row with all-empty
 // sparklines; bars fill in as data accumulates. One renderer for both
 // states.
-export function renderChannelPills(sunTotals7d, deviceTotals7d = {}) {
+export function renderChannelPills(sunTotals7d: unknown, deviceTotals7d: unknown = {}) {
   const ch = getChannelDisplay();
   const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
   let html = `<div class="light-pills-row light-pills-interactive">`;
   for (const k of order) {
     const meta = ch[k] || {};
-    const sun = sunTotals7d[k] || 0;
-    const device = deviceTotals7d[k] || 0;
+    const sun = (sunTotals7d as Record<string, unknown>)[k] || 0;
+    const device = (deviceTotals7d as Record<string, unknown>)[k] || 0;
     const active = _hasSignal(sun) || _hasSignal(device);
     const sourceLabel = _sourceSignalLabel(sun, device);
     const dc = _channelDayCount(k);
@@ -225,10 +249,10 @@ const CHANNEL_CITATIONS = {
   },
 };
 
-function _renderChannelCitations(channelKey) {
-  const cit = CHANNEL_CITATIONS[channelKey];
+function _renderChannelCitations(channelKey: unknown) {
+  const cit = (CHANNEL_CITATIONS as Record<string, ChannelCitation>)[channelKey as string];
   if (!cit) return '';
-  const meta = getChannelDisplay()[channelKey] || {};
+  const meta = getChannelDisplay()[channelKey as string] || {};
   const channelName = meta.label || channelKey;
   const refs = cit.refs.map(({ cite, href, why }) => `<li>
     <a href="${escapeAttr(href)}" target="_blank" rel="noopener">${escapeHTML(cite)}</a>
@@ -260,7 +284,7 @@ function _renderChannelCitations(channelKey) {
 // Seven-day source-aware history. Bars show when modeled light reached the
 // channel; they are deliberately scaled to the user's own week and have no
 // target line, completion mark, or good/bad color.
-function _renderChannelWeekChart(channelKey) {
+function _renderChannelWeekChart(channelKey: unknown) {
   const breakdown = lightChannelDeps.dailyChannelBreakdown;
   if (!breakdown) return '';
   const days = breakdown(channelKey, 7);
@@ -274,13 +298,13 @@ function _renderChannelWeekChart(channelKey) {
   const innerH = H - padTop - padBottom;
   const barW = (W - 2 * padX) / 7;
   const barInner = Math.max(10, barW * 0.7);
-  const dayLetter = (date) => 'SMTWTFS'[date.getDay()];
+  const dayLetter = (date: ChannelDayOperations['date']) => 'SMTWTFS'[date.getDay()];
   const today = new Date(); today.setHours(0,0,0,0);
 
   // Keep real-unit labels only where the app already exposes a defensible
   // estimate. Other channels use the shape of the bars without inventing a
   // percentage of biological sufficiency.
-  const fmt = (n, dayIdx) => {
+  const fmt = (n: number, dayIdx: number | null | undefined) => {
     if (!Number.isFinite(n) || n < 0.5) return '';
     if (channelKey === 'vitamin_d') {
       const iu = iuDays && dayIdx != null
@@ -328,7 +352,7 @@ function _renderChannelWeekChart(channelKey) {
   }).join('');
 
   // SR readable summary
-  const dayName = (date) => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][date.getDay()];
+  const dayName = (date: ChannelDayOperations['date']) => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][date.getDay()];
   const srRows = days.map(d => {
     const total = d.sun + d.device;
     if (total < 0.0001) return `${dayName(d.date)}: no exposure`;
@@ -346,7 +370,7 @@ function _renderChannelWeekChart(channelKey) {
   </div>`;
 }
 
-function _signalDays(days) {
+function _signalDays(days: unknown) {
   if (!Array.isArray(days)) return { any: 0, sun: 0, device: 0 };
   let any = 0, sun = 0, device = 0;
   for (const day of days) {
@@ -357,7 +381,7 @@ function _signalDays(days) {
   return { any, sun, device };
 }
 
-function _channelHero(sunCurrent, deviceCurrent, days7) {
+function _channelHero(sunCurrent: unknown, deviceCurrent: unknown, days7: unknown) {
   const counts = _signalDays(days7);
   const primary = _sourceSignalLabel(sunCurrent, deviceCurrent);
   const sourceDays = [counts.sun ? `sunlight on ${counts.sun} day${counts.sun === 1 ? '' : 's'}` : '', counts.device ? `device on ${counts.device} day${counts.device === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · ');
@@ -372,7 +396,7 @@ function _channelHero(sunCurrent, deviceCurrent, days7) {
   </div>`;
 }
 
-function _renderHowToReadNote(channelKey) {
+function _renderHowToReadNote(channelKey: unknown) {
   const NOTES = {
     vitamin_d:  'This shows when vitamin-D-effective UVB reached uncovered skin. It is not a reason to stay outside longer.',
     nir_solar:  'This records red and near-infrared exposure. Sunlight and a targeted device are not treated as the same experience.',
@@ -381,12 +405,12 @@ function _renderHowToReadNote(channelKey) {
     pomc:       'This shows light that may start the skin pathway. It does not measure hormones or mood.',
     violet_eye: 'This is an early-stage pathway model. Use normal ambient outdoor light and never stare at the sun.',
   };
-  const txt = NOTES[channelKey];
+  const txt = (NOTES as Record<string, unknown>)[channelKey as string];
   if (!txt) return '';
   return `<p class="light-channel-banking-note"><strong>How to read it.</strong> ${escapeHTML(txt)}</p>`;
 }
 
-function _renderChannelSources(sun, device) {
+function _renderChannelSources(sun: unknown, device: unknown) {
   const hasSun = _hasSignal(sun);
   const hasDevice = _hasSignal(device);
   if (!hasSun && !hasDevice) return '';
@@ -399,10 +423,10 @@ function _renderChannelSources(sun, device) {
 
 // One plain-language takeaway. It explains the logged signal without asking
 // the user to fill a channel or exposing an artificial sufficiency tier.
-function _channelNextMove(channelKey, hasSun, hasDevice, devices, atm) {
-  const matchingDevice = (devices || []).find(d => Array.isArray(d.channels) && d.channels.includes(channelKey));
+function _channelNextMove(channelKey: unknown, hasSun: boolean, hasDevice: boolean, devices: unknown, atm: ChannelAtmosphereOperations | null | undefined) {
+  const matchingDevice = ((devices || []) as ChannelDeviceReader[]).find(d => Array.isArray(d.channels) && d.channels.includes(channelKey));
   const peakTime = atm?.daily?.peakAt || null;
-  const peakUVI = atm?.daily?.uvIndexMax ?? null;
+  const peakUVI = (atm?.daily?.uvIndexMax ?? null) as number;
   const peakHHMM = peakTime ? new Date(peakTime).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : null;
 
   const recipes = {
@@ -425,7 +449,7 @@ function _channelNextMove(channelKey, hasSun, hasDevice, devices, atm) {
       ? 'Ambient outdoor light reached this modeled eye pathway. Keep normal eye protection when needed and never stare at the sun.'
       : 'A normal outdoor walk can provide ambient violet light. The human biology is still being studied.',
   };
-  const txt = recipes[channelKey] || '';
+  const txt = (recipes as Record<string, unknown>)[channelKey as string] || '';
   if (!txt) return '';
   const showDev = !!matchingDevice;
   const buttons = `
@@ -449,15 +473,15 @@ function _channelNextMove(channelKey, hasSun, hasDevice, devices, atm) {
 //   5. 7-day rhythm without a target line
 //   6. Simple takeaway + action buttons
 //   7. Research citations (expandable)
-function _renderChannelDetailPanel(channelKey) {
+function _renderChannelDetailPanel(channelKey: unknown) {
   const ch = getChannelDisplay();
-  const meta = ch[channelKey] || {};
+  const meta = ch[channelKey as string] || {};
   const sunTot7 = (typeof lightChannelDeps.rollingChannelTotals === 'function' ? lightChannelDeps.rollingChannelTotals(7) : null) || {};
   const devTot7 = (typeof lightChannelDeps.rollingDeviceTotals === 'function' ? lightChannelDeps.rollingDeviceTotals(7) : null) || {};
-  const sun7 = sunTot7[channelKey] || 0;
-  const dev7 = devTot7[channelKey] || 0;
+  const sun7 = (sunTot7 as Record<string, unknown>)[channelKey as string] || 0;
+  const dev7 = (devTot7 as Record<string, unknown>)[channelKey as string] || 0;
 
-  let days7 = [];
+  let days7: ChannelDayOperations[] = [];
   try {
     const breakdown = lightChannelDeps.dailyChannelBreakdown;
     if (breakdown) {
@@ -470,7 +494,7 @@ function _renderChannelDetailPanel(channelKey) {
 
   // Pull the Conditions Now atm if in cache so the next-move can quote
   // today's UV-peak time — way more actionable than "spend time outdoors."
-  const atm = getCachedConditionsAtmosphere();
+  const atm = getCachedConditionsAtmosphere() as ChannelAtmosphereOperations | null | undefined;
 
   return `<div class="light-channel-detail" data-channel="${escapeAttr(channelKey)}" id="light-pill-detail-${escapeAttr(channelKey)}" role="region" aria-label="${escapeHTML(meta.label || channelKey)} detail">
     <header class="light-channel-detail-head">
@@ -500,7 +524,7 @@ function _renderChannelDetailPanel(channelKey) {
 // them one-click access to the science / 30d trend / suggestion
 // instead of forcing them to find the same pill on the Light page
 // after navigation. Already on Light? Just toggle in place.
-export function _openChannelOnLightPage(channelKey) {
+export function _openChannelOnLightPage(channelKey: unknown) {
   // Helper: scroll the expanded panel into view + briefly flash so the
   // user notices when they're already on the Light page and the panel may
   // be far below the fold.
@@ -522,7 +546,7 @@ export function _openChannelOnLightPage(channelKey) {
     _toggleChannelDetail(channelKey);
     flashPanel();
   }));
-  const navigation = lightChannelDeps.navigate('light');
+  const navigation = lightChannelDeps.navigate('light') as ChannelNavigationOperations | null | undefined;
   if (!navigation || typeof navigation.then !== 'function') { expandAfterNavigation(); return; }
   void navigation.then(expandAfterNavigation).catch(err => console.error('Failed to open Light & Sun channel', err));
 }
@@ -530,8 +554,8 @@ export function _openChannelOnLightPage(channelKey) {
 // Toggle a per-channel detail panel below the pill row. One channel
 // expanded at a time — opening another collapses the previous one.
 // Re-clicking the same pill collapses it.
-export function _toggleChannelDetail(channelKey) {
-  const slot = /** @type {HTMLElement | null} */ (document.querySelector('[data-channel-detail-slot]'));
+export function _toggleChannelDetail(channelKey: unknown) {
+  const slot = (document.querySelector('[data-channel-detail-slot]') as HTMLElement | null);
   if (!slot) return;
   const row = slot.previousElementSibling; // the pill row
   const pills = row ? row.querySelectorAll('.light-pill') : [];
@@ -545,12 +569,12 @@ export function _toggleChannelDetail(channelKey) {
     return;
   }
   slot.innerHTML = _renderChannelDetailPanel(channelKey);
-  slot.dataset.openChannel = channelKey;
+  slot.dataset.openChannel = channelKey as string;
   // Mark the matching pill expanded; move focus into the panel for SR users
   for (const p of pills) {
-    if (/** @type {HTMLElement} */ (p).dataset.channel === channelKey) {
+    if ((p as HTMLElement).dataset.channel === channelKey) {
       p.setAttribute('aria-expanded', 'true');
-      const panel = /** @type {HTMLElement | null} */ (slot.firstElementChild);
+      const panel = (slot.firstElementChild as HTMLElement | null);
       if (panel) panel.setAttribute('tabindex', '-1');
       requestAnimationFrame(() => panel && panel.focus({ preventScroll: false }));
       break;
@@ -558,25 +582,19 @@ export function _toggleChannelDetail(channelKey) {
   }
 }
 
-/**
- * @param {Array<Record<string, any>> | null | undefined} sessions
- * @param {number} start
- * @param {number} end
- * @returns {{ sessions: number, days: number }}
- */
-function _weeklySessionSummary(sessions, start, end) {
-  const completed = (Array.isArray(sessions) ? sessions : []).filter(session => {
+function _weeklySessionSummary(sessions: unknown, start: number, end: number) {
+  const completed = ((Array.isArray(sessions) ? sessions : []) as Array<ChannelSessionReader | null | undefined>).filter(session => {
     const timestamp = Number(session?.endedAt || 0);
     return timestamp >= start && timestamp < end;
   });
   const days = new Set(completed.map(session => {
-    const date = new Date(Number(session.endedAt));
+    const date = new Date(Number(session!.endedAt));
     return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
   }));
   return { sessions: completed.length, days: days.size };
 }
 
-function _sessionCountText(count, source) {
+function _sessionCountText(count: number, source: string) {
   return `${count} ${source} session${count === 1 ? '' : 's'}`;
 }
 
@@ -585,16 +603,9 @@ function _sessionCountText(count, source) {
 // missing records never become a claim that the person received no light.
 // Session arrays are optional so older consumers that only have channel
 // totals still receive a useful source summary.
-/**
- * @param {Record<string, any>} [sunTotals7d]
- * @param {Record<string, any>} [deviceTotals7d]
- * @param {Array<Record<string, any>> | null} [sunSessions]
- * @param {Array<Record<string, any>> | null} [deviceSessions]
- * @returns {string}
- */
-export function renderSuggestion(sunTotals7d = {}, deviceTotals7d = {}, sunSessions = null, deviceSessions = null) {
-  const hasSun = Object.values(sunTotals7d).some(_hasSignal);
-  const hasDevice = Object.values(deviceTotals7d).some(_hasSignal);
+export function renderSuggestion(sunTotals7d: unknown = {}, deviceTotals7d: unknown = {}, sunSessions: unknown = null, deviceSessions: unknown = null) {
+  const hasSun = Object.values(sunTotals7d as object).some(_hasSignal);
+  const hasDevice = Object.values(deviceTotals7d as object).some(_hasSignal);
   const now = Date.now();
   const dayMs = 86400000;
   const hasSessionHistory = Array.isArray(sunSessions) || Array.isArray(deviceSessions);
@@ -612,9 +623,9 @@ export function renderSuggestion(sunTotals7d = {}, deviceTotals7d = {}, sunSessi
     : { sessions: 0, days: 0 };
   const currentTotal = currentSun.sessions + currentDevice.sessions;
   const previousTotal = previousSun.sessions + previousDevice.sessions;
-  const loggedDays = new Set();
+  const loggedDays = new Set<string>();
   if (hasSessionHistory) {
-    for (const session of [...(sunSessions || []), ...(deviceSessions || [])]) {
+    for (const session of [...((sunSessions || []) as Iterable<ChannelSessionReader | null | undefined>), ...((deviceSessions || []) as Iterable<ChannelSessionReader | null | undefined>)]) {
       const timestamp = Number(session?.endedAt || 0);
       if (timestamp < now - 7 * dayMs || timestamp >= now) continue;
       const date = new Date(timestamp);
@@ -622,8 +633,8 @@ export function renderSuggestion(sunTotals7d = {}, deviceTotals7d = {}, sunSessi
     }
   }
 
-  let headline;
-  let nextStep;
+  let headline: string;
+  let nextStep: string;
   if (currentTotal === 0) {
     headline = 'No outdoor or device sessions were logged in the past 7 days. We can’t tell whether you received little light or simply didn’t record it.';
     nextStep = 'If this reflects your week, a brief outdoor daylight break when practical can add a clear daytime signal. Ambient daylight is enough for the eyes; never stare at the sun.';
@@ -643,7 +654,7 @@ export function renderSuggestion(sunTotals7d = {}, deviceTotals7d = {}, sunSessi
     }
   }
 
-  let comparison;
+  let comparison: string;
   if (previousTotal === 0 && currentTotal === 0) comparison = 'There are no logged sessions in the previous 7 days either.';
   else if (previousTotal === 0) comparison = 'The previous 7 days contain no logged sessions for comparison.';
   else {
