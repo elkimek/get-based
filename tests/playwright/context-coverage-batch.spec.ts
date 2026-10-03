@@ -1,19 +1,23 @@
+type ContextCallbackDataRead = { categories?: { lipids?: unknown } };
+type ContextFixtureRead = { diet?: Record<string, unknown> | null; exercise?: Record<string, unknown> | null; sleepRest?: Record<string, unknown> | null; lightCircadian?: Record<string, unknown> | null; stress?: Record<string, unknown> | null; loveLife?: Record<string, unknown> | null; environment?: Record<string, unknown> | null; healthGoals?: { text?: unknown; severity?: unknown }[]; categoryLabels?: Record<string, unknown>; markerLabels?: Record<string, unknown>; categoryIcons?: Record<string, unknown>; customMarkers?: Record<string, Record<string, unknown>>; wearableSummary?: unknown; sunDefaults?: unknown; emfAssessment?: unknown; contextNotes?: unknown };
+type ContextHealthCacheRead = { dots?: Record<string, unknown>; summaries?: Record<string, unknown>; cardSummaries?: Record<string, unknown>; fingerprints?: Record<string, unknown>; sources?: Record<string, unknown> };
+type ContextAIRequestRead = { model?: unknown; messages: { role?: unknown; content?: unknown }[]; stream?: unknown; max_tokens?: unknown; reasoning_effort?: unknown };
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = path => `${path}?contextCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?contextCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 test('context editor select option helper toggles active buttons', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ editorUrl }) => {
     const [editor, contextRuntime] = await Promise.all([
-      import(editorUrl),
+      (import(editorUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/context-card-editor-ui.js'), "renderSelectField" | "getSelectedOption" | "selectCtxOption" | "renderTagsField" | "getSelectedTags" | "renderContextEditorSection" | "renderNoteField" | "renderContextEditorModal" | "contextEditorActions">>,
       import('/js/context-cards-runtime.js'),
     ]);
     const editorSrc = await fetch(editorUrl).then(response => response.text());
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const host = document.createElement('div');
-    const calls = [];
+    const calls: unknown[][] = [];
     const previousContextRuntime = contextRuntime.configureContextCardsRuntimeCallbacks({
       closeModal: () => calls.push(['close']),
     });
@@ -25,28 +29,28 @@ test('context editor select option helper toggles active buttons', async ({ page
         { value: 'mild', label: 'Mild impact' },
         { value: 'minor', label: 'Minor impact' },
       ], 'major');
-      const buttons = Array.from(host.querySelectorAll('#ctx-select-coverage .ctx-btn-option'));
+      const buttons = Array.from(host.querySelectorAll<HTMLElement>('#ctx-select-coverage .ctx-btn-option'));
 
       outcomes.initialSelectionComesFromRenderedField =
         buttons.length === 3
         && editor.getSelectedOption('ctx-select-coverage') === 'major'
-        && buttons[0].classList.contains('active')
-        && buttons[0].textContent === 'Major impact'
-        && buttons[0].dataset.contextValue === 'major'
-        && buttons[0].getAttribute('aria-pressed') === 'true';
+        && (buttons[0])!.classList.contains('active')
+        && (buttons[0])!.textContent === 'Major impact'
+        && (buttons[0])!.dataset.contextValue === 'major'
+        && (buttons[0])!.getAttribute('aria-pressed') === 'true';
 
       outcomes.renderSelectFieldUsesDelegatedActions =
-        !host.querySelector('[onclick]')
+        !host.querySelector<HTMLElement>('[onclick]')
         && buttons.every(button => button.dataset.ctxEditorAction === 'select-option');
 
       buttons[1]?.click();
       outcomes.selectCtxOptionMovesActiveState =
         editor.getSelectedOption('ctx-select-coverage') === 'mild'
-        && !buttons[0].classList.contains('active')
-        && buttons[1].classList.contains('active')
-        && !buttons[2].classList.contains('active')
-        && buttons[0].getAttribute('aria-pressed') === 'false'
-        && buttons[1].getAttribute('aria-pressed') === 'true';
+        && !(buttons[0])!.classList.contains('active')
+        && (buttons[1])!.classList.contains('active')
+        && !(buttons[2])!.classList.contains('active')
+        && (buttons[0])!.getAttribute('aria-pressed') === 'false'
+        && (buttons[1])!.getAttribute('aria-pressed') === 'true';
 
       buttons[1]?.click();
       outcomes.selectCtxOptionTogglesActiveButtonOff =
@@ -54,17 +58,17 @@ test('context editor select option helper toggles active buttons', async ({ page
         && buttons.every(button => !button.classList.contains('active'))
         && buttons.every(button => button.getAttribute('aria-pressed') === 'false');
 
-      buttons[2].classList.add('active');
-      editor.selectCtxOption(buttons[2], 'missing-select-group');
+      (buttons[2])!.classList.add('active');
+      editor.selectCtxOption(buttons[2]!, 'missing-select-group');
       outcomes.selectCtxOptionMissingGroupNoops =
         editor.getSelectedOption('missing-select-group') === null
-        && buttons[2].classList.contains('active');
+        && (buttons[2])!.classList.contains('active');
 
       host.innerHTML = editor.renderTagsField('Sources', 'ctx-tags-coverage', [
         { value: 'work', label: 'Práce' },
         { value: 'family', label: 'Rodina' },
       ], ['work']);
-      const tags = Array.from(host.querySelectorAll('#ctx-tags-coverage .ctx-tag'));
+      const tags = Array.from(host.querySelectorAll<HTMLElement>('#ctx-tags-coverage .ctx-tag'));
       tags[1]?.click();
       outcomes.translatedTagLabelsKeepCanonicalStoredValues =
         tags[0]?.textContent === 'Práce'
@@ -79,12 +83,12 @@ test('context editor select option helper toggles active buttons', async ({ page
         '<input id="inside-context-section">',
       );
       outcomes.optionalEditorSectionUsesNativeDisclosure =
-        host.querySelector('details.ctx-editor-section')?.open === false
-        && host.querySelector('summary')?.textContent.includes('More details')
-        && !!host.querySelector('#inside-context-section');
+        host.querySelector<HTMLDetailsElement>('details.ctx-editor-section')?.open === false
+        && host.querySelector<HTMLElement>('summary')?.textContent.includes('More details')
+        && !!host.querySelector<HTMLElement>('#inside-context-section');
 
       host.innerHTML = editor.renderNoteField('First line\nSecond line');
-      const noteField = host.querySelector('#ctx-note-input');
+      const noteField = host.querySelector<HTMLTextAreaElement>('#ctx-note-input');
       outcomes.contextNotesUseExpandableTextareas =
         noteField?.tagName === 'TEXTAREA'
         && noteField.value === 'First line\nSecond line'
@@ -101,13 +105,13 @@ test('context editor select option helper toggles active buttons', async ({ page
         ),
       );
       outcomes.contextEditorUsesOwnedActionAttrsWithoutDynamicFunctionNames =
-        host.querySelector('[data-test-context-action="save"]')?.textContent === 'Save'
-        && host.querySelector('[data-test-context-action="clear"]')?.textContent === 'Clear'
-        && !host.querySelector('[data-ctx-editor-fn]')
+        host.querySelector<HTMLElement>('[data-test-context-action="save"]')?.textContent === 'Save'
+        && host.querySelector<HTMLElement>('[data-test-context-action="clear"]')?.textContent === 'Clear'
+        && !host.querySelector<HTMLElement>('[data-ctx-editor-fn]')
         && !editorSrc.includes('getViewRuntimeFunction')
         && !editorSrc.includes('ctxEditorFn')
         && !/\bwindow(?:\.|\s*\[)/.test(editorSrc);
-      host.querySelector('.modal-close')?.click();
+      host.querySelector<HTMLElement>('.modal-close')?.click();
       outcomes.contextEditorCloseUsesContextCardsRuntime = calls.some(call => call[0] === 'close');
     } finally {
       contextRuntime.configureContextCardsRuntimeCallbacks(previousContextRuntime);
@@ -128,34 +132,34 @@ test('category customization covers rename icon and emoji picker browser paths',
   const results = await page.evaluate(async ({ categoryUrl }) => {
     const [{ state }, category, categoryRuntime] = await Promise.all([
       import('/js/state.js'),
-      import(categoryUrl),
+      (import(categoryUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/category-customization.js'), "renameCategory" | "configureCategoryCustomization" | "renameMarker" | "revertMarkerName" | "showEmojiPicker" | "changeCategoryIcon">>,
       import('/js/category-customization-runtime.js'),
     ]);
     const categorySrc = await fetch(categoryUrl).then(response => response.text());
     const categoryRuntimeSrc = await fetch('/js/category-customization-runtime.js').then(response => response.text());
-    const outcomes = {};
-    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const outcomes: Record<string, unknown> = {};
+    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const clone = (value: unknown) => value == null ? value : JSON.parse(JSON.stringify(value)) as unknown;
     const saved = {
       importedData: clone(state.importedData),
       currentView: state.currentView,
     };
-    const calls = [];
-    let promptValue = null;
-    const navigate = (route, data) => calls.push(['navigate', route, !!data?.categories?.lipids]);
+    const calls: unknown[][] = [];
+    let promptValue: string | null = null;
+    const navigate = (route: unknown, data: unknown) => calls.push(['navigate', route, !!(data as ContextCallbackDataRead | null | undefined)?.categories?.lipids]);
     const previousCategoryRuntimeDeps = categoryRuntime.configureCategoryCustomizationRuntimeDeps({
-      buildSidebar: data => calls.push(['fallbackSidebar', !!data?.categories?.lipids]),
+      buildSidebar: (data: unknown) => calls.push(['fallbackSidebar', !!(data as ContextCallbackDataRead | null | undefined)?.categories?.lipids]),
       navigate,
       showPromptDialog: async () => promptValue,
     });
 
     try {
-      const demo = await fetch('data/demo-male.json').then(r => r.json());
-      state.importedData = demo;
-      state.importedData.categoryLabels = {};
-      state.importedData.markerLabels = { 'lipids.apoB': 'Old ApoB' };
-      state.importedData.categoryIcons = { lipids: 'L' };
-      state.importedData.customMarkers = {
+      const demo = await fetch('data/demo-male.json').then(r => r.json() as Promise<unknown>);
+      (state as unknown as {importedData:unknown}).importedData = demo;
+      (state.importedData as unknown as ContextFixtureRead).categoryLabels = {};
+      (state.importedData as unknown as ContextFixtureRead).markerLabels = { 'lipids.apoB': 'Old ApoB' };
+      (state.importedData as unknown as ContextFixtureRead).categoryIcons = { lipids: 'L' };
+      (state.importedData as unknown as ContextFixtureRead).customMarkers = {
         'lipids.contextCustom': {
           name: 'Context Custom',
           categoryLabel: 'Lipids',
@@ -169,21 +173,21 @@ test('category customization covers rename icon and emoji picker browser paths',
 
       promptValue = '  Fallback Lipids  ';
       await category.renameCategory('lipids');
-      outcomes.renameCategoryKeepsSidebarFallback = state.importedData.categoryLabels?.lipids === 'Fallback Lipids'
+      outcomes.renameCategoryKeepsSidebarFallback = (state.importedData as unknown as ContextFixtureRead).categoryLabels?.lipids === 'Fallback Lipids'
         && calls.some(call => call[0] === 'fallbackSidebar' && call[1] === true);
 
       category.configureCategoryCustomization({
-        buildSidebar: data => calls.push(['sidebar', !!data?.categories?.lipids]),
+        buildSidebar: (data: unknown) => calls.push(['sidebar', !!(data as ContextCallbackDataRead | null | undefined)?.categories?.lipids]),
         navigate,
       });
 
       promptValue = '  Better Lipids  ';
       await category.renameCategory('lipids');
-      outcomes.renameCategoryStoresTrimmedLabel = state.importedData.categoryLabels?.lipids === 'Better Lipids';
-      outcomes.renameCategoryUpdatesCustomMarkerLabel = state.importedData.customMarkers['lipids.contextCustom']?.categoryLabel === 'Better Lipids';
+      outcomes.renameCategoryStoresTrimmedLabel = (state.importedData as unknown as ContextFixtureRead).categoryLabels?.lipids === 'Better Lipids';
+      outcomes.renameCategoryUpdatesCustomMarkerLabel = ((state.importedData as unknown as ContextFixtureRead).customMarkers)!['lipids.contextCustom']?.categoryLabel === 'Better Lipids';
       outcomes.renameCategoryRefreshesSidebarThroughConfiguredCallback = calls.some(call => call[0] === 'sidebar' && call[1] === true);
       outcomes.renameCategoryRefreshesForcedRoute = calls.some(call => call[0] === 'navigate' && call[1] === 'lipids' && call[2] === true);
-      outcomes.categoryCustomizationDoesNotUseWindowBuildSidebar = categorySrc.includes('buildSidebar?:')
+      outcomes.categoryCustomizationDoesNotUseWindowBuildSidebar = categorySrc.includes("typeof deps.buildSidebar === 'function'")
         && categorySrc.includes("from './category-customization-runtime.js'")
         && categorySrc.includes('showCategoryCustomizationPrompt')
         && categorySrc.includes('getCategoryCustomizationViewportSize')
@@ -195,44 +199,44 @@ test('category customization covers rename icon and emoji picker browser paths',
 
       promptValue = '  ApoB Better Name  ';
       await category.renameMarker('lipids_apoB');
-      outcomes.renameMarkerStoresDotKeyLabel = state.importedData.markerLabels?.['lipids.apoB'] === 'ApoB Better Name';
+      outcomes.renameMarkerStoresDotKeyLabel = (state.importedData as unknown as ContextFixtureRead).markerLabels?.['lipids.apoB'] === 'ApoB Better Name';
       category.revertMarkerName('lipids_apoB');
-      outcomes.revertMarkerNameDeletesOverride = !state.importedData.markerLabels?.['lipids.apoB'];
+      outcomes.revertMarkerNameDeletesOverride = !(state.importedData as unknown as ContextFixtureRead).markerLabels?.['lipids.apoB'];
       category.revertMarkerName('lipids_missing');
-      outcomes.revertMissingMarkerNoops = !state.importedData.markerLabels?.['lipids.missing'];
+      outcomes.revertMissingMarkerNoops = !(state.importedData as unknown as ContextFixtureRead).markerLabels?.['lipids.missing'];
 
       const anchor = document.createElement('button');
       anchor.id = 'emoji-anchor';
       anchor.getBoundingClientRect = () => ({ left: 12, right: 42, top: 20, bottom: 52, width: 30, height: 32, x: 12, y: 20, toJSON: () => ({}) });
       document.body.appendChild(anchor);
-      let pickedValue = 'unset';
-      category.showEmojiPicker(anchor, value => { pickedValue = value; }, { showReset: true });
+      let pickedValue: unknown = 'unset';
+      category.showEmojiPicker(anchor, (value: unknown) => { pickedValue = value; }, { showReset: true });
       await delay(80);
-      const picker = document.querySelector('.emoji-picker');
-      const resetButton = picker?.querySelector('[data-cat="__reset"]');
-      const bodyButton = picker?.querySelector('[data-cat="body"]');
+      const picker = document.querySelector<HTMLElement>('.emoji-picker');
+      const resetButton = picker?.querySelector<HTMLElement>('[data-cat="__reset"]');
+      const bodyButton = picker?.querySelector<HTMLElement>('[data-cat="body"]');
       outcomes.emojiPickerRendersSearchResetAndCategories = !!picker
-        && !!picker.querySelector('input')
+        && !!picker.querySelector<HTMLInputElement>('input')
         && !!resetButton
         && !!bodyButton
-        && picker.querySelectorAll('.emoji-picker-grid span[data-emoji]').length > 0;
+        && picker.querySelectorAll<HTMLElement>('.emoji-picker-grid span[data-emoji]').length > 0;
       bodyButton?.click();
       await delay(0);
-      outcomes.emojiPickerFiltersByCategory = document.querySelector('.emoji-picker [data-cat="body"]')?.classList.contains('active') === true;
-      const search = document.querySelector('.emoji-picker input');
-      search.value = 'not-a-real-category';
-      search.dispatchEvent(new Event('input', { bubbles: true }));
+      outcomes.emojiPickerFiltersByCategory = document.querySelector<HTMLElement>('.emoji-picker [data-cat="body"]')?.classList.contains('active') === true;
+      const search = document.querySelector<HTMLInputElement>('.emoji-picker input');
+      search!.value = 'not-a-real-category';
+      search!.dispatchEvent(new Event('input', { bubbles: true }));
       await delay(0);
-      outcomes.emojiPickerShowsEmptySearch = document.querySelector('.emoji-picker')?.textContent.includes('No results') === true;
-      document.querySelector('.emoji-picker [data-cat="__reset"]')?.click();
-      outcomes.emojiPickerResetReturnsNullAndCloses = pickedValue === null && !document.querySelector('.emoji-picker');
+      outcomes.emojiPickerShowsEmptySearch = document.querySelector<HTMLElement>('.emoji-picker')?.textContent.includes('No results') === true;
+      document.querySelector<HTMLElement>('.emoji-picker [data-cat="__reset"]')?.click();
+      outcomes.emojiPickerResetReturnsNullAndCloses = pickedValue === null && !document.querySelector<HTMLElement>('.emoji-picker');
 
-      category.showEmojiPicker(anchor, value => { pickedValue = value; });
+      category.showEmojiPicker(anchor, (value: unknown) => { pickedValue = value; });
       await delay(80);
-      const emoji = document.querySelector('.emoji-picker .emoji-picker-grid span[data-emoji]');
+      const emoji = document.querySelector<HTMLElement>('.emoji-picker .emoji-picker-grid span[data-emoji]');
       const expectedEmoji = emoji?.dataset.emoji;
       emoji?.click();
-      outcomes.emojiPickerReturnsClickedEmoji = !!expectedEmoji && pickedValue === expectedEmoji && !document.querySelector('.emoji-picker');
+      outcomes.emojiPickerReturnsClickedEmoji = !!expectedEmoji && pickedValue === expectedEmoji && !document.querySelector<HTMLElement>('.emoji-picker');
 
       const header = document.createElement('div');
       header.className = 'category-header';
@@ -240,31 +244,31 @@ test('category customization covers rename icon and emoji picker browser paths',
       document.body.appendChild(header);
       category.changeCategoryIcon('lipids');
       await delay(80);
-      document.querySelector('.emoji-picker [data-cat="__reset"]')?.click();
-      outcomes.changeCategoryIconResetClearsOverride = !('lipids' in (state.importedData.categoryIcons || {}))
-        && !('icon' in state.importedData.customMarkers['lipids.contextCustom']);
+      document.querySelector<HTMLElement>('.emoji-picker [data-cat="__reset"]')?.click();
+      outcomes.changeCategoryIconResetClearsOverride = !('lipids' in ((state.importedData as unknown as ContextFixtureRead).categoryIcons || {}))
+        && !('icon' in ((state.importedData as unknown as ContextFixtureRead).customMarkers!['lipids.contextCustom'])!);
       category.changeCategoryIcon('lipids');
       await delay(80);
-      const iconPick = document.querySelector('.emoji-picker .emoji-picker-grid span[data-emoji]');
+      const iconPick = document.querySelector<HTMLElement>('.emoji-picker .emoji-picker-grid span[data-emoji]');
       const expectedIcon = iconPick?.dataset.emoji;
       iconPick?.click();
       outcomes.changeCategoryIconStoresOverride = !!expectedIcon
-        && state.importedData.categoryIcons?.lipids === expectedIcon
-        && state.importedData.customMarkers['lipids.contextCustom']?.icon === expectedIcon;
+        && (state.importedData as unknown as ContextFixtureRead).categoryIcons?.lipids === expectedIcon
+        && ((state.importedData as unknown as ContextFixtureRead).customMarkers)!['lipids.contextCustom']?.icon === expectedIcon;
       outcomes.changeCategoryIconMissingNoops = category.changeCategoryIcon('missing-category') === undefined;
 
       anchor.remove();
       header.remove();
     } finally {
-      state.importedData = saved.importedData;
+      (state as unknown as {importedData:unknown}).importedData = saved.importedData;
       state.currentView = saved.currentView;
       categoryRuntime.configureCategoryCustomizationRuntimeDeps(previousCategoryRuntimeDeps);
       category.configureCategoryCustomization({
         buildSidebar: previousCategoryRuntimeDeps.buildSidebar || (() => {}),
         navigate: previousCategoryRuntimeDeps.navigate || (() => {}),
       });
-      document.querySelector('.emoji-picker')?.remove();
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      document.querySelector<HTMLElement>('.emoji-picker')?.remove();
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
       document.getElementById('emoji-anchor')?.remove();
     }
 
@@ -282,12 +286,12 @@ test('lifestyle context editors cover save clear health goals lens and contamina
   const results = await page.evaluate(async ({ lifestyleUrl }) => {
     const [{ state }, lifestyle, lifestyleRuntime] = await Promise.all([
       import('/js/state.js'),
-      import(lifestyleUrl),
+      (import(lifestyleUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/context-card-lifestyle-editors.js'), "openExerciseEditor" | "openHealthGoalsEditor" | "renderHealthGoalsModal" | "configureLifestyleContextEditors" | "openDietEditor" | "renderDietContaminantsBadge" | "showDietContaminantsModal" | "openSleepRestEditor" | "saveSleepRest" | "clearSleepRest" | "openLightCircadianEditor" | "saveLightCircadian" | "clearLightCircadian" | "saveExercise" | "clearExercise" | "openStressEditor" | "saveStress" | "clearStress" | "openLoveLifeEditor" | "saveLoveLife" | "clearLoveLife" | "openEnvironmentEditor" | "saveEnvironment" | "clearEnvironment" | "openInterpretiveLensEditor" | "addHealthGoal">>,
       import('/js/context-card-lifestyle-runtime.js'),
     ]);
-    const outcomes = {};
-    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const outcomes: Record<string, unknown> = {};
+    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const clone = (value: unknown) => value == null ? value : JSON.parse(JSON.stringify(value)) as unknown;
     const overlay = document.getElementById('modal-overlay') || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'modal-overlay' }));
     const modal = document.getElementById('detail-modal') || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'detail-modal' }));
     const saved = {
@@ -295,24 +299,24 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       profileSex: state.profileSex,
       unitSystem: state.unitSystem,
     };
-    const calls = [];
+    const calls: unknown[][] = [];
     const previousLifestyleRuntimeDeps = lifestyleRuntime.configureContextCardLifestyleRuntimeDeps({
       closeModal: () => { calls.push(['close']); overlay.classList.remove('show'); },
-      navigate: route => calls.push(['navigate', route]),
+      navigate: (route: unknown) => calls.push(['navigate', route]),
       openChatPanel: () => calls.push(['chat']),
-      useChatPrompt: prompt => calls.push(['prompt', prompt]),
+      useChatPrompt: (prompt: unknown) => calls.push(['prompt', prompt]),
     });
-    const controlOutcomeName = (kind, id, index) =>
+    const controlOutcomeName = (kind: unknown, id: unknown, index: number) =>
       `${kind}_${id}_${index}_renders`.replace(/[^a-zA-Z0-9_]/g, '_');
-    const setOption = (id, index = 0) => {
-      const btn = document.querySelectorAll(`#${id} .ctx-btn-option`)[index];
+    const setOption = (id: unknown, index = 0) => {
+      const btn = document.querySelectorAll<HTMLElement>(`#${id} .ctx-btn-option`)[index];
       const label = btn?.textContent?.trim() || '';
       outcomes[controlOutcomeName('option', id, index)] = !!btn && !!label;
       btn?.click();
       return btn?.dataset.contextValue || label;
     };
-    const setTag = (id, index = 0) => {
-      const btn = document.querySelectorAll(`#${id} .ctx-tag`)[index];
+    const setTag = (id: unknown, index = 0) => {
+      const btn = document.querySelectorAll<HTMLElement>(`#${id} .ctx-tag`)[index];
       const label = btn?.textContent?.trim() || '';
       outcomes[controlOutcomeName('tag', id, index)] = !!btn && !!label;
       btn?.click();
@@ -322,7 +326,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
     try {
       state.profileSex = 'male';
       state.unitSystem = 'EU';
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         entries: [],
         notes: [],
         diet: null,
@@ -338,37 +342,37 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       };
       await lifestyle.openExerciseEditor();
       const defaultExerciseFrequency = setOption('exercise-freq');
-      const defaultExerciseSave = modal.querySelector('[data-lifestyle-action="save-exercise"]');
+      const defaultExerciseSave = modal.querySelector<HTMLElement>('[data-lifestyle-action="save-exercise"]');
       defaultExerciseSave?.click();
-      outcomes.defaultSaveContextAndRefreshStoresAndNotifies = state.importedData.exercise?.frequency === defaultExerciseFrequency
-        && Array.from(document.querySelectorAll('.notification-toast')).some(el => el.textContent.includes('Exercise saved'))
+      outcomes.defaultSaveContextAndRefreshStoresAndNotifies = (state.importedData as unknown as ContextFixtureRead).exercise?.frequency === defaultExerciseFrequency
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast')).some(el => el.textContent.includes('Exercise saved'))
         && !!defaultExerciseSave;
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
-      state.importedData.exercise = null;
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
+      (state.importedData as unknown as ContextFixtureRead).exercise = null;
 
-      state.importedData.healthGoals = [{ text: 'Initial sync goal', severity: 'major' }];
+      (state.importedData as unknown as ContextFixtureRead).healthGoals = [{ text: 'Initial sync goal', severity: 'major' }];
       await lifestyle.openHealthGoalsEditor();
       outcomes.healthGoalsModalStartsWithInitialSyncGoal = modal.textContent.includes('Initial sync goal');
-      outcomes.healthGoalsModalUsesDelegatedActions = !modal.querySelector('[onclick], [onkeydown]');
-      state.importedData.healthGoals = [{ text: 'Synced goal from sync', severity: 'minor' }];
+      outcomes.healthGoalsModalUsesDelegatedActions = !modal.querySelector<HTMLElement>('[onclick], [onkeydown]');
+      (state.importedData as unknown as ContextFixtureRead).healthGoals = [{ text: 'Synced goal from sync', severity: 'minor' }];
       window.dispatchEvent(new CustomEvent('labcharts-sync-applied'));
       await delay(0);
       outcomes.healthGoalsModalRefreshesOnSync = modal.textContent.includes('Synced goal from sync')
         && !modal.textContent.includes('Initial sync goal');
-      state.importedData.healthGoals = [
+      (state.importedData as unknown as ContextFixtureRead).healthGoals = [
         { text: 'Low priority goal', severity: 'minor' },
         { text: 'High priority goal', severity: 'major' },
         { text: 'Medium priority goal', severity: 'mild' },
       ];
       lifestyle.renderHealthGoalsModal(modal);
       outcomes.healthGoalsSortHighToLowWithoutMutatingStorage =
-        Array.from(modal.querySelectorAll('.goals-text')).map(el => el.textContent).join(',') === 'High priority goal,Medium priority goal,Low priority goal'
-        && state.importedData.healthGoals.map(goal => goal.text).join(',') === 'Low priority goal,High priority goal,Medium priority goal';
-      state.importedData.healthGoals = [];
+        Array.from(modal.querySelectorAll<HTMLElement>('.goals-text')).map(el => el.textContent).join(',') === 'High priority goal,Medium priority goal,Low priority goal'
+        && ((state.importedData as unknown as ContextFixtureRead).healthGoals)!.map(goal => goal.text).join(',') === 'Low priority goal,High priority goal,Medium priority goal';
+      (state.importedData as unknown as ContextFixtureRead).healthGoals = [];
 
       lifestyle.configureLifestyleContextEditors({
-        recordChange: field => calls.push(['record', field]),
-        saveAndRefresh: (msg, field) => calls.push(['save', msg, field || '']),
+        recordChange: (field: unknown) => calls.push(['record', field]),
+        saveAndRefresh: (msg: unknown, field: unknown) => calls.push(['save', msg, field || '']),
       });
 
       await lifestyle.openDietEditor();
@@ -381,29 +385,29 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       const dietRecentChange = setTag('diet-recent-changes');
       outcomes.dietUsesInterpretableProteinAndUnitAwareFluidRanges = dietProtein.includes('g/kg/day')
         && dietHydration.includes('L/day')
-        && modal.querySelector('#diet-protein')?.textContent.includes('g/kg/day')
-        && modal.querySelector('#diet-hydration')?.textContent.includes('L/day');
-      document.getElementById('diet-breakfast').value = 'strawberries and yogurt';
-      document.getElementById('diet-lunch').value = 'canned tuna with avocado';
-      document.getElementById('ctx-note-input').value = 'track digestion';
-      const dietSave = modal.querySelector('[data-lifestyle-action="save-diet"]');
+        && modal.querySelector<HTMLElement>('#diet-protein')?.textContent.includes('g/kg/day')
+        && modal.querySelector<HTMLElement>('#diet-hydration')?.textContent.includes('L/day');
+      ((document.getElementById('diet-breakfast') as HTMLInputElement | null))!.value = 'strawberries and yogurt';
+      ((document.getElementById('diet-lunch') as HTMLInputElement | null))!.value = 'canned tuna with avocado';
+      ((document.getElementById('ctx-note-input') as HTMLTextAreaElement | null))!.value = 'track digestion';
+      const dietSave = modal.querySelector<HTMLElement>('[data-lifestyle-action="save-diet"]');
       dietSave?.click();
-      outcomes.saveDietStoresSelectionsMealsAndNote = state.importedData.diet?.type === dietType
-        && state.importedData.diet?.pattern === dietPattern
-        && state.importedData.diet?.proteinIntake === dietProtein
-        && state.importedData.diet?.hydration === dietHydration
-        && state.importedData.diet?.restrictions?.includes(dietRestriction)
-        && state.importedData.diet?.alcohol === dietAlcohol
-        && state.importedData.diet?.recentChanges?.includes(dietRecentChange)
-        && state.importedData.diet?.breakfast === 'strawberries and yogurt'
-        && state.importedData.diet?.lunch === 'canned tuna with avocado'
-        && state.importedData.diet?.note === 'track digestion'
+      outcomes.saveDietStoresSelectionsMealsAndNote = (state.importedData as unknown as ContextFixtureRead).diet?.type === dietType
+        && (state.importedData as unknown as ContextFixtureRead).diet?.pattern === dietPattern
+        && (state.importedData as unknown as ContextFixtureRead).diet?.proteinIntake === dietProtein
+        && (state.importedData as unknown as ContextFixtureRead).diet?.hydration === dietHydration
+        && ((state.importedData as unknown as ContextFixtureRead).diet?.restrictions as {includes(value:unknown):unknown} | null | undefined)?.includes(dietRestriction)
+        && (state.importedData as unknown as ContextFixtureRead).diet?.alcohol === dietAlcohol
+        && ((state.importedData as unknown as ContextFixtureRead).diet?.recentChanges as {includes(value:unknown):unknown} | null | undefined)?.includes(dietRecentChange)
+        && (state.importedData as unknown as ContextFixtureRead).diet?.breakfast === 'strawberries and yogurt'
+        && (state.importedData as unknown as ContextFixtureRead).diet?.lunch === 'canned tuna with avocado'
+        && (state.importedData as unknown as ContextFixtureRead).diet?.note === 'track digestion'
         && !!dietSave;
       state.unitSystem = 'US';
       await lifestyle.openDietEditor();
-      outcomes.dietFluidRangeUsesUSDisplayWithoutChangingStoredCanonicalValue = modal.querySelector('#diet-hydration')?.textContent.includes('fl oz/day') === true
-        && modal.querySelector('#diet-hydration .ctx-btn-option.active')?.dataset.contextValue === dietHydration
-        && state.importedData.diet?.hydration === dietHydration;
+      outcomes.dietFluidRangeUsesUSDisplayWithoutChangingStoredCanonicalValue = modal.querySelector<HTMLElement>('#diet-hydration')?.textContent.includes('fl oz/day') === true
+        && modal.querySelector<HTMLElement>('#diet-hydration .ctx-btn-option.active')?.dataset.contextValue === dietHydration
+        && (state.importedData as unknown as ContextFixtureRead).diet?.hydration === dietHydration;
       state.unitSystem = 'EU';
       const contaminantBadge = lifestyle.renderDietContaminantsBadge();
       outcomes.dietContaminantsBadgeCountsFlaggedSignals = contaminantBadge.includes('food contaminant signal')
@@ -415,56 +419,56 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       outcomes.dietContaminantsModalGroupsWarnings = modal.textContent.includes('Pesticide Residues')
         && modal.textContent.includes('Plastic Chemicals')
         && modal.textContent.includes('Low Contamination');
-      outcomes.dietContaminantsModalUsesDelegatedActions = !modal.querySelector('[onclick]');
-      modal.querySelector('.contaminant-actions .import-btn-primary')?.click();
+      outcomes.dietContaminantsModalUsesDelegatedActions = !modal.querySelector<HTMLElement>('[onclick]');
+      modal.querySelector<HTMLElement>('.contaminant-actions .import-btn-primary')?.click();
       await delay(350);
       outcomes.dietContaminantsDiscussesWithAI = calls.some(call => call[0] === 'chat')
-        && calls.some(call => call[0] === 'prompt' && call[1].includes('food contaminants'));
+        && calls.some(call => call[0] === 'prompt' && (call[1] as string).includes('food contaminants'));
       await lifestyle.openDietEditor();
-      const dietClear = modal.querySelector('[data-lifestyle-action="clear-diet"]');
+      const dietClear = modal.querySelector<HTMLElement>('[data-lifestyle-action="clear-diet"]');
       dietClear?.click();
       await delay(0);
-      outcomes.clearDietRequiresConfirmation = state.importedData.diet !== null
+      outcomes.clearDietRequiresConfirmation = (state.importedData as unknown as ContextFixtureRead).diet !== null
         && document.getElementById('confirm-dialog-overlay')?.classList.contains('show') === true;
       document.getElementById('confirm-cancel')?.click();
       await delay(0);
-      outcomes.cancelClearDietPreservesDiet = state.importedData.diet !== null;
+      outcomes.cancelClearDietPreservesDiet = (state.importedData as unknown as ContextFixtureRead).diet !== null;
       dietClear?.click();
       await delay(0);
       document.getElementById('confirm-ok')?.click();
       await delay(0);
-      outcomes.clearDietNullsDiet = state.importedData.diet === null && !!dietClear;
+      outcomes.clearDietNullsDiet = (state.importedData as unknown as ContextFixtureRead).diet === null && !!dietClear;
 
-      state.importedData.sleepRest = { duration: '7-8h', quality: 'excellent', issues: [] };
-      state.importedData.wearableSummary = {
+      (state.importedData as unknown as ContextFixtureRead).sleepRest = { duration: '7-8h', quality: 'excellent', issues: [] };
+      (state.importedData as unknown as ContextFixtureRead).wearableSummary = {
         metrics: {
           sleep_total_min: { rolling: { d7: 315 } },
           sleep_score: { rolling: { d7: 61 } },
         },
       };
       await lifestyle.openSleepRestEditor();
-      outcomes.sleepEditorFlagsStrongProfileTrackedMismatch = modal.querySelector('.ctx-data-mismatch')?.textContent.includes('Profile and tracked sleep differ') === true
-        && modal.querySelector('.ctx-data-mismatch')?.textContent.includes('5.3h') === true
-        && modal.querySelector('.ctx-data-mismatch')?.textContent.includes('61/100') === true;
+      outcomes.sleepEditorFlagsStrongProfileTrackedMismatch = modal.querySelector<HTMLElement>('.ctx-data-mismatch')?.textContent.includes('Profile and tracked sleep differ') === true
+        && modal.querySelector<HTMLElement>('.ctx-data-mismatch')?.textContent.includes('5.3h') === true
+        && modal.querySelector<HTMLElement>('.ctx-data-mismatch')?.textContent.includes('61/100') === true;
       const sleepDuration = setOption('sleep-duration');
       const sleepIssue = setTag('sleep-issues');
       const daytimeSleepiness = setOption('sleep-daytime', 2);
       const apneaStatus = setOption('sleep-apnea-status', 2);
       const papUse = setOption('sleep-pap-use', 1);
-      document.getElementById('ctx-note-input').value = 'cool room';
+      ((document.getElementById('ctx-note-input') as HTMLTextAreaElement | null))!.value = 'cool room';
       lifestyle.saveSleepRest();
-      outcomes.saveSleepRestStoresSelections = state.importedData.sleepRest?.duration === sleepDuration
-        && state.importedData.sleepRest?.issues?.includes(sleepIssue)
-        && state.importedData.sleepRest?.daytimeSleepiness === daytimeSleepiness
-        && state.importedData.sleepRest?.apneaStatus === apneaStatus
-        && state.importedData.sleepRest?.papUse === papUse
-        && state.importedData.sleepRest?.note === 'cool room';
+      outcomes.saveSleepRestStoresSelections = (state.importedData as unknown as ContextFixtureRead).sleepRest?.duration === sleepDuration
+        && ((state.importedData as unknown as ContextFixtureRead).sleepRest?.issues as {includes(value:unknown):unknown} | null | undefined)?.includes(sleepIssue)
+        && (state.importedData as unknown as ContextFixtureRead).sleepRest?.daytimeSleepiness === daytimeSleepiness
+        && (state.importedData as unknown as ContextFixtureRead).sleepRest?.apneaStatus === apneaStatus
+        && (state.importedData as unknown as ContextFixtureRead).sleepRest?.papUse === papUse
+        && (state.importedData as unknown as ContextFixtureRead).sleepRest?.note === 'cool room';
       lifestyle.clearSleepRest();
-      outcomes.clearSleepRestNullsSleep = state.importedData.sleepRest === null;
-      delete state.importedData.wearableSummary;
+      outcomes.clearSleepRestNullsSleep = (state.importedData as unknown as ContextFixtureRead).sleepRest === null;
+      delete (state.importedData as unknown as ContextFixtureRead).wearableSummary;
 
-      state.importedData.sunDefaults = { fitzpatrick: 'III', homeLight: 'led-warm', eyewear: 'sunglasses', ottScore: 4 };
-      state.importedData.lightCircadian = { skinType: 'III' };
+      (state.importedData as unknown as ContextFixtureRead).sunDefaults = { fitzpatrick: 'III', homeLight: 'led-warm', eyewear: 'sunglasses', ottScore: 4 };
+      (state.importedData as unknown as ContextFixtureRead).lightCircadian = { skinType: 'III' };
       await lifestyle.openLightCircadianEditor();
       outcomes.lightCircadianMirrorRendersSetup = modal.textContent.includes('Mostly LED — warm white')
         && modal.textContent.includes('Sunglasses outdoors')
@@ -473,30 +477,30 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       const evening = setTag('light-evening');
       const tech = setTag('light-tech');
       lifestyle.saveLightCircadian();
-      outcomes.saveLightCircadianPreservesSkinAndStoresTags = state.importedData.lightCircadian?.skinType === 'III'
-        && state.importedData.lightCircadian?.amLight === amLight
-        && state.importedData.lightCircadian?.evening?.includes(evening)
-        && state.importedData.lightCircadian?.techEnv?.includes(tech);
+      outcomes.saveLightCircadianPreservesSkinAndStoresTags = (state.importedData as unknown as ContextFixtureRead).lightCircadian?.skinType === 'III'
+        && (state.importedData as unknown as ContextFixtureRead).lightCircadian?.amLight === amLight
+        && ((state.importedData as unknown as ContextFixtureRead).lightCircadian?.evening as {includes(value:unknown):unknown} | null | undefined)?.includes(evening)
+        && ((state.importedData as unknown as ContextFixtureRead).lightCircadian?.techEnv as {includes(value:unknown):unknown} | null | undefined)?.includes(tech);
       lifestyle.clearLightCircadian();
-      outcomes.clearLightCircadianNullsValue = state.importedData.lightCircadian === null;
+      outcomes.clearLightCircadianNullsValue = (state.importedData as unknown as ContextFixtureRead).lightCircadian === null;
 
       await lifestyle.openExerciseEditor();
-      outcomes.exerciseTypesIncludeFocusedRehabAndBroaderMovementOptions = modal.querySelector('#exercise-types')?.textContent.includes('physiotherapy / rehab') === true
-        && modal.querySelector('#exercise-types')?.textContent.includes('Pilates') === true
-        && modal.querySelector('#exercise-types')?.textContent.includes('team / racket sports') === true;
+      outcomes.exerciseTypesIncludeFocusedRehabAndBroaderMovementOptions = modal.querySelector<HTMLElement>('#exercise-types')?.textContent.includes('physiotherapy / rehab') === true
+        && modal.querySelector<HTMLElement>('#exercise-types')?.textContent.includes('Pilates') === true
+        && modal.querySelector<HTMLElement>('#exercise-types')?.textContent.includes('team / racket sports') === true;
       const exerciseFrequency = setOption('exercise-freq');
       const exerciseType = setTag('exercise-types');
       const exerciseDuration = setOption('exercise-duration', 1);
       const exerciseMuscle = setOption('exercise-muscle', 2);
       const exerciseLimitation = setTag('exercise-limitations');
       lifestyle.saveExercise();
-      outcomes.saveExerciseStoresFrequencyAndType = state.importedData.exercise?.frequency === exerciseFrequency
-        && state.importedData.exercise?.types?.includes(exerciseType)
-        && state.importedData.exercise?.duration === exerciseDuration
-        && state.importedData.exercise?.muscleContext === exerciseMuscle
-        && state.importedData.exercise?.limitations?.includes(exerciseLimitation);
+      outcomes.saveExerciseStoresFrequencyAndType = (state.importedData as unknown as ContextFixtureRead).exercise?.frequency === exerciseFrequency
+        && ((state.importedData as unknown as ContextFixtureRead).exercise?.types as {includes(value:unknown):unknown} | null | undefined)?.includes(exerciseType)
+        && (state.importedData as unknown as ContextFixtureRead).exercise?.duration === exerciseDuration
+        && (state.importedData as unknown as ContextFixtureRead).exercise?.muscleContext === exerciseMuscle
+        && ((state.importedData as unknown as ContextFixtureRead).exercise?.limitations as {includes(value:unknown):unknown} | null | undefined)?.includes(exerciseLimitation);
       lifestyle.clearExercise();
-      outcomes.clearExerciseNullsExercise = state.importedData.exercise === null;
+      outcomes.clearExerciseNullsExercise = (state.importedData as unknown as ContextFixtureRead).exercise === null;
 
       await lifestyle.openStressEditor();
       outcomes.stressManagementKeepsFriendlyWording = modal.textContent.includes('Stress management (what helps)');
@@ -505,12 +509,12 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       const stressSource = setTag('stress-sources');
       const stressTrend = setOption('stress-trend', 2);
       lifestyle.saveStress();
-      outcomes.saveStressStoresLevelAndSource = state.importedData.stress?.level === stressLevel
-        && state.importedData.stress?.duration === stressDuration
-        && state.importedData.stress?.trend === stressTrend
-        && state.importedData.stress?.sources?.includes(stressSource);
+      outcomes.saveStressStoresLevelAndSource = (state.importedData as unknown as ContextFixtureRead).stress?.level === stressLevel
+        && (state.importedData as unknown as ContextFixtureRead).stress?.duration === stressDuration
+        && (state.importedData as unknown as ContextFixtureRead).stress?.trend === stressTrend
+        && ((state.importedData as unknown as ContextFixtureRead).stress?.sources as {includes(value:unknown):unknown} | null | undefined)?.includes(stressSource);
       lifestyle.clearStress();
-      outcomes.clearStressNullsStress = state.importedData.stress === null;
+      outcomes.clearStressNullsStress = (state.importedData as unknown as ContextFixtureRead).stress === null;
 
       await lifestyle.openLoveLifeEditor();
       outcomes.loveLifeFiltersSexSpecificConcern = modal.textContent.includes('erectile issues')
@@ -520,16 +524,16 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       const reproductiveGoal = setTag('love-reproductive-goals');
       const loveConcern = setTag('love-concerns');
       lifestyle.saveLoveLife();
-      outcomes.saveLoveLifeStoresStatusAndConcern = state.importedData.loveLife?.status === loveStatus
-        && state.importedData.loveLife?.libidoChange === libidoChange
-        && state.importedData.loveLife?.reproductiveGoals?.includes(reproductiveGoal)
-        && state.importedData.loveLife?.concerns?.includes(loveConcern);
+      outcomes.saveLoveLifeStoresStatusAndConcern = (state.importedData as unknown as ContextFixtureRead).loveLife?.status === loveStatus
+        && (state.importedData as unknown as ContextFixtureRead).loveLife?.libidoChange === libidoChange
+        && ((state.importedData as unknown as ContextFixtureRead).loveLife?.reproductiveGoals as {includes(value:unknown):unknown} | null | undefined)?.includes(reproductiveGoal)
+        && ((state.importedData as unknown as ContextFixtureRead).loveLife?.concerns as {includes(value:unknown):unknown} | null | undefined)?.includes(loveConcern);
       lifestyle.clearLoveLife();
-      outcomes.clearLoveLifeNullsValue = state.importedData.loveLife === null;
+      outcomes.clearLoveLifeNullsValue = (state.importedData as unknown as ContextFixtureRead).loveLife === null;
 
       await lifestyle.openEnvironmentEditor();
-      outcomes.environmentIncludesGlacierWaterAndAgriculturalAirContext = modal.querySelector('#env-water')?.textContent.includes('glacier water') === true
-        && modal.querySelector('#env-air')?.textContent.includes('agricultural area / crop spraying nearby') === true;
+      outcomes.environmentIncludesGlacierWaterAndAgriculturalAirContext = modal.querySelector<HTMLElement>('#env-water')?.textContent.includes('glacier water') === true
+        && modal.querySelector<HTMLElement>('#env-air')?.textContent.includes('agricultural area / crop spraying nearby') === true;
       const setting = setOption('env-setting');
       const altitude = setOption('env-altitude', 1);
       const inhaledExposure = setTag('env-inhaled');
@@ -537,80 +541,80 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       const waterConcern = setTag('env-water-concerns');
       const emfTag = setTag('env-emf');
       lifestyle.saveEnvironment();
-      outcomes.saveEnvironmentStoresFallbackEmfFields = state.importedData.environment?.setting === setting
-        && state.importedData.environment?.altitude === altitude
-        && state.importedData.environment?.inhaledExposures?.includes(inhaledExposure)
-        && state.importedData.environment?.occupationalExposures?.includes(occupationalExposure)
-        && state.importedData.environment?.waterConcerns?.includes(waterConcern)
-        && state.importedData.environment?.emf?.includes(emfTag);
-      state.importedData.emfAssessment = { assessments: [{ id: 'emf-one', date: '2026-06-07', rooms: [] }] };
-      state.importedData.environment = { emf: ['existing emf'], emfMitigation: ['existing mitigation'] };
+      outcomes.saveEnvironmentStoresFallbackEmfFields = (state.importedData as unknown as ContextFixtureRead).environment?.setting === setting
+        && (state.importedData as unknown as ContextFixtureRead).environment?.altitude === altitude
+        && ((state.importedData as unknown as ContextFixtureRead).environment?.inhaledExposures as {includes(value:unknown):unknown} | null | undefined)?.includes(inhaledExposure)
+        && ((state.importedData as unknown as ContextFixtureRead).environment?.occupationalExposures as {includes(value:unknown):unknown} | null | undefined)?.includes(occupationalExposure)
+        && ((state.importedData as unknown as ContextFixtureRead).environment?.waterConcerns as {includes(value:unknown):unknown} | null | undefined)?.includes(waterConcern)
+        && ((state.importedData as unknown as ContextFixtureRead).environment?.emf as {includes(value:unknown):unknown} | null | undefined)?.includes(emfTag);
+      (state.importedData as unknown as ContextFixtureRead).emfAssessment = { assessments: [{ id: 'emf-one', date: '2026-06-07', rooms: [] }] };
+      (state.importedData as unknown as ContextFixtureRead).environment = { emf: ['existing emf'], emfMitigation: ['existing mitigation'] };
       await lifestyle.openEnvironmentEditor();
-      outcomes.environmentWithAssessmentUsesLauncherInsteadOfFallbackTags = !!modal.querySelector('.ctx-emf-launcher.has-data')
+      outcomes.environmentWithAssessmentUsesLauncherInsteadOfFallbackTags = !!modal.querySelector<HTMLElement>('.ctx-emf-launcher.has-data')
         && !document.getElementById('env-emf');
       lifestyle.saveEnvironment();
-      outcomes.environmentWithAssessmentPreservesExistingEmfFields = state.importedData.environment?.emf?.includes('existing emf')
-        && state.importedData.environment?.emfMitigation?.includes('existing mitigation');
+      outcomes.environmentWithAssessmentPreservesExistingEmfFields = ((state.importedData as unknown as ContextFixtureRead).environment?.emf as {includes(value:unknown):unknown} | null | undefined)?.includes('existing emf')
+        && ((state.importedData as unknown as ContextFixtureRead).environment?.emfMitigation as {includes(value:unknown):unknown} | null | undefined)?.includes('existing mitigation');
       lifestyle.clearEnvironment();
-      outcomes.clearEnvironmentNullsValue = state.importedData.environment === null;
+      outcomes.clearEnvironmentNullsValue = (state.importedData as unknown as ContextFixtureRead).environment === null;
 
       await lifestyle.openHealthGoalsEditor();
-      const starter = document.querySelector('[data-lifestyle-action="suggest-health-goal"]');
+      const starter = document.querySelector<HTMLElement>('[data-lifestyle-action="suggest-health-goal"]');
       starter?.click();
-      outcomes.healthGoalStarterPrefillsEditableGoal = document.getElementById('goal-text-input')?.value === starter?.dataset.lifestyleValue;
-      const goalPriorityButtons = Array.from(document.querySelectorAll('#goal-severity-select .ctx-btn-option'));
+      outcomes.healthGoalStarterPrefillsEditableGoal = (document.getElementById('goal-text-input') as HTMLInputElement | null)?.value === starter?.dataset.lifestyleValue;
+      const goalPriorityButtons = Array.from(document.querySelectorAll<HTMLElement>('#goal-severity-select .ctx-btn-option'));
       outcomes.healthGoalPrioritiesUseFriendlyLabelsAndSafeDefault =
         goalPriorityButtons.map(btn => btn.textContent.trim()).join(',') === 'High,Medium,Low'
         && goalPriorityButtons[1]?.classList.contains('active') === true
         && goalPriorityButtons[1]?.dataset.contextValue === 'mild'
-        && Boolean(goalPriorityButtons[0]?.compareDocumentPosition(
-          document.querySelector('[data-lifestyle-action="add-health-goal"]'),
-        ) & Node.DOCUMENT_POSITION_FOLLOWING);
-      document.getElementById('goal-text-input').value = 'Improve sleep timing';
-      document.querySelectorAll('#goal-severity-select .ctx-btn-option').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('#goal-severity-select .ctx-btn-option')[1]?.click();
-      document.querySelector('[data-lifestyle-action="add-health-goal"]')?.click();
-      outcomes.addHealthGoalAppendsSeverity = state.importedData.healthGoals?.[0]?.text === 'Improve sleep timing'
-        && state.importedData.healthGoals?.[0]?.severity === 'mild';
-      document.querySelector('[data-lifestyle-action="delete-health-goal"][data-lifestyle-index="0"]')?.click();
-      outcomes.deleteHealthGoalRemovesByIndex = state.importedData.healthGoals?.length === 0;
-      document.getElementById('goal-text-input').value = 'Reduce eye strain';
-      document.getElementById('goal-text-input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      document.querySelector('[data-lifestyle-action="close-health-goals"]')?.click();
+        && Boolean((goalPriorityButtons[0]?.compareDocumentPosition(
+          document.querySelector<HTMLElement>('[data-lifestyle-action="add-health-goal"]')!,
+        ))! & Node.DOCUMENT_POSITION_FOLLOWING);
+      ((document.getElementById('goal-text-input') as HTMLInputElement | null))!.value = 'Improve sleep timing';
+      document.querySelectorAll<HTMLElement>('#goal-severity-select .ctx-btn-option').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll<HTMLElement>('#goal-severity-select .ctx-btn-option')[1]?.click();
+      document.querySelector<HTMLElement>('[data-lifestyle-action="add-health-goal"]')?.click();
+      outcomes.addHealthGoalAppendsSeverity = (state.importedData as unknown as ContextFixtureRead).healthGoals?.[0]?.text === 'Improve sleep timing'
+        && (state.importedData as unknown as ContextFixtureRead).healthGoals?.[0]?.severity === 'mild';
+      document.querySelector<HTMLElement>('[data-lifestyle-action="delete-health-goal"][data-lifestyle-index="0"]')?.click();
+      outcomes.deleteHealthGoalRemovesByIndex = (state.importedData as unknown as ContextFixtureRead).healthGoals?.length === 0;
+      ((document.getElementById('goal-text-input') as HTMLInputElement | null))!.value = 'Reduce eye strain';
+      ((document.getElementById('goal-text-input') as HTMLInputElement | null))!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      document.querySelector<HTMLElement>('[data-lifestyle-action="close-health-goals"]')?.click();
       outcomes.closeHealthGoalsClosesAndNavigates = calls.some(call => call[0] === 'close')
         && calls.some(call => call[0] === 'navigate');
       await lifestyle.openHealthGoalsEditor();
-      document.querySelector('[data-lifestyle-action="clear-health-goals"]')?.click();
+      document.querySelector<HTMLElement>('[data-lifestyle-action="clear-health-goals"]')?.click();
       await delay(0);
-      outcomes.clearHealthGoalsRequiresConfirmation = state.importedData.healthGoals.length === 1
+      outcomes.clearHealthGoalsRequiresConfirmation = ((state.importedData as unknown as ContextFixtureRead).healthGoals)!.length === 1
         && document.getElementById('confirm-dialog-overlay')?.classList.contains('show') === true;
       document.getElementById('confirm-ok')?.click();
       await delay(0);
-      outcomes.clearHealthGoalsEmptiesArray = Array.isArray(state.importedData.healthGoals)
-        && state.importedData.healthGoals.length === 0;
+      outcomes.clearHealthGoalsEmptiesArray = Array.isArray((state.importedData as unknown as ContextFixtureRead).healthGoals)
+        && ((state.importedData as unknown as ContextFixtureRead).healthGoals)!.length === 0;
 
       await lifestyle.openInterpretiveLensEditor();
-      document.getElementById('interpretive-lens-textarea').value = 'Functional endocrinology';
-      document.querySelector('[data-lifestyle-action="save-interpretive-lens"]')?.click();
+      ((document.getElementById('interpretive-lens-textarea') as HTMLTextAreaElement | null))!.value = 'Functional endocrinology';
+      document.querySelector<HTMLElement>('[data-lifestyle-action="save-interpretive-lens"]')?.click();
       outcomes.saveInterpretiveLensStoresTrimmedText = state.importedData.interpretiveLens === 'Functional endocrinology';
       await lifestyle.openInterpretiveLensEditor();
-      document.querySelector('[data-lifestyle-action="clear-interpretive-lens"]')?.click();
+      document.querySelector<HTMLElement>('[data-lifestyle-action="clear-interpretive-lens"]')?.click();
       outcomes.clearInterpretiveLensBlanksText = state.importedData.interpretiveLens === '';
 
       await lifestyle.openHealthGoalsEditor();
-      document.getElementById('goal-text-input').value = 'Callback coverage goal';
+      ((document.getElementById('goal-text-input') as HTMLInputElement | null))!.value = 'Callback coverage goal';
       lifestyle.addHealthGoal();
       outcomes.configureCallbacksWereUsed = calls.some(call => call[0] === 'save' && call[2] === 'sleepRest')
         && calls.some(call => call[0] === 'record' && call[1] === 'healthGoals');
     } finally {
-      state.importedData = saved.importedData;
+      (state as unknown as {importedData:unknown}).importedData = saved.importedData;
       state.profileSex = saved.profileSex;
       state.unitSystem = saved.unitSystem;
       lifestyleRuntime.configureContextCardLifestyleRuntimeDeps(previousLifestyleRuntimeDeps);
       lifestyle.configureLifestyleContextEditors({ recordChange: () => {}, saveAndRefresh: () => {} });
       overlay.classList.remove('show');
       modal.innerHTML = '';
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
       document.getElementById('confirm-dialog-overlay')?.remove();
     }
 
@@ -628,8 +632,8 @@ test('context health dots and focus card cover cache fallback and empty states',
   const results = await page.evaluate(async ({ healthUrl, focusUrl }) => {
     const [{ state }, health, focus, summaries, profile, data, labContext, cryptoStore, cloudConsent] = await Promise.all([
       import('/js/state.js'),
-      import(healthUrl),
-      import(focusUrl),
+      (import(healthUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/context-card-health-dots.js'), "configureContextCardHealthDots" | "getCardFingerprint" | "loadContextHealthDots" | "refreshAllHealthDots" | "getDemoContextAIMode" | "enableDemoContextLiveAI">>,
+      (import(focusUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/focus-card.js'), "renderFocusCard" | "loadFocusCard" | "buildFocusContext">>,
       import('/js/context-card-summaries.js'),
       import('/js/profile.js'),
       import('/js/data.js'),
@@ -637,9 +641,9 @@ test('context health dots and focus card cover cache fallback and empty states',
       import('/js/crypto.js'),
       import('/js/cloud-ai-consent.js'),
     ]);
-    const outcomes = {};
-    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const outcomes: Record<string, unknown> = {};
+    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const clone = (value: unknown) => value == null ? value : JSON.parse(JSON.stringify(value)) as unknown;
     const saved = {
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
@@ -658,14 +662,14 @@ test('context health dots and focus card cover cache fallback and empty states',
       fetch: window.fetch,
     };
     const originalHealthDotDeps = health.configureContextCardHealthDots();
-    const cacheKeys = [];
+    const cacheKeys: string[] = [];
     const host = document.createElement('div');
 
     try {
       state.currentProfile = 'context-coverage-profile';
       state.profileSex = 'female';
       state.profileDob = '1990-06-01';
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         entries: [{ date: '2026-06-01', markers: { 'vitamins.vitaminD': 22, 'lipids.apoB': 115 } }],
         healthGoals: [{ text: 'Improve sleep', severity: 'major' }],
         diet: { type: 'omnivore', breakfast: 'eggs' },
@@ -687,7 +691,7 @@ test('context health dots and focus card cover cache fallback and empty states',
 
       const healthCacheKey = profile.profileStorageKey(state.currentProfile, 'contextHealth');
       cacheKeys.push(healthCacheKey);
-      const cachedHealth = { dots: {}, summaries: {}, cardSummaries: {}, fingerprints: {} };
+      const cachedHealth: { dots: Record<string, unknown>; summaries: Record<string, unknown>; cardSummaries: Record<string, unknown>; fingerprints: Record<string, unknown> } = { dots: {}, summaries: {}, cardSummaries: {}, fingerprints: {} };
       for (const key of summaries.CONTEXT_CARD_KEYS) {
         cachedHealth.dots[key] = key === 'diet' ? 'yellow' : 'green';
         cachedHealth.summaries[key] = `${key} cached tip`;
@@ -718,7 +722,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       localStorage.setItem('labcharts-openrouter-model', 'openai/gpt-5.4');
       cryptoStore.updateKeyCache('labcharts-openrouter-key', 'demo-cost-guard-key');
       let demoInferenceCalls = 0;
-      window.fetch = async url => {
+      window.fetch = async (_url: RequestInfo | URL) => {
         demoInferenceCalls += 1;
         return new Response(JSON.stringify({
           choices: [{ message: { content: JSON.stringify({
@@ -742,7 +746,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       }));
       health.enableDemoContextLiveAI();
       await health.loadContextHealthDots();
-      const liveDemoCache = JSON.parse(localStorage.getItem(healthCacheKey) || '{}');
+      const liveDemoCache = JSON.parse(localStorage.getItem(healthCacheKey) || '{}') as unknown as ContextHealthCacheRead;
       outcomes.paidDemoInfersAfterProviderAndModelSpecificConsent = demoInferenceCalls === 1
         && health.getDemoContextAIMode().mode === 'paid-live'
         && liveDemoCache.sources?.diet === 'ai'
@@ -754,9 +758,9 @@ test('context health dots and focus card cover cache fallback and empty states',
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ollama-model', 'vendor/model-cloud');
       outcomes.cloudTaggedLocalAIModelsStillRequireCostConsent = health.getDemoContextAIMode().mode === 'paid-off'
-        && health.getDemoContextAIMode().providerLabel === 'Local AI cloud model';
+        && (health.getDemoContextAIMode() as {providerLabel?:unknown}).providerLabel === 'Local AI cloud model';
       localStorage.setItem('labcharts-ollama-model', 'context-test-model');
-      state.importedData.diet = { ...state.importedData.diet, breakfast: 'Edited for local AI' };
+      (state.importedData as unknown as ContextFixtureRead).diet = { ...(state.importedData as unknown as ContextFixtureRead).diet, breakfast: 'Edited for local AI' };
       await health.loadContextHealthDots();
       outcomes.localDemoAIUpdatesAutomaticallyWithoutPaidConsent = demoInferenceCalls === 2
         && health.getDemoContextAIMode().mode === 'local-live';
@@ -764,7 +768,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       health.configureContextCardHealthDots(originalHealthDotDeps);
 
       localStorage.removeItem(healthCacheKey);
-      state.importedData = { entries: [], healthGoals: [] };
+      (state as unknown as {importedData:unknown}).importedData = { entries: [], healthGoals: [] };
       await health.loadContextHealthDots();
       outcomes.healthDotsGrayWhenNoAssessableData = summaries.CONTEXT_CARD_KEYS.every(key =>
         document.getElementById(`ctx-dot-${key}`)?.classList.contains('ctx-health-dot-gray')
@@ -779,7 +783,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.removeItem('labcharts-ai-paused');
       localStorage.setItem('labcharts-ollama-model', 'context-test-model');
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         entries: [{ date: '2026-06-01', markers: { 'vitamins.vitaminD': 22, 'lipids.apoB': 115 } }],
         healthGoals: [{ text: 'Improve sleep', severity: 'major' }],
         diagnoses: { conditions: [{ name: 'Hashimoto', severity: 'mild' }] },
@@ -798,15 +802,15 @@ test('context health dots and focus card cover cache fallback and empty states',
         exercise: { summary: 'Exercises daily with a consistent routine.', dot: 'purple', tip: 'invalid color' },
         environment: { summary: Array(40).fill('reported').join(' '), dot: 'yellow', tip: 'environment reviewed' },
       });
-      const aiCalls = [];
+      const aiCalls: {url:string;body:unknown}[] = [];
       cryptoStore.updateKeyCache('labcharts-ollama', JSON.stringify({ url: 'http://127.0.0.1:11434', model: 'context-test-model', mode: 'ollama', apiKey: '' }));
       health.configureContextCardHealthDots({
         buildLabContext: () => summaries.CONTEXT_CARD_KEYS.map(key => `[section:${key}]\n${key} section\n[/section:${key}]`).join('\n'),
       });
-      window.fetch = async (url, options = {}) => {
-        const href = typeof url === 'string' ? url : url?.url || '';
+      window.fetch = async (url: RequestInfo | URL, options: RequestInit = {}) => {
+        const href = typeof url === 'string' ? url : (url as {url?: unknown} | null | undefined)?.url || '';
         if (href === 'http://127.0.0.1:11434/v1/chat/completions') {
-          const body = JSON.parse(options.body || '{}');
+          const body = JSON.parse((options.body || '{}') as string) as unknown;
           aiCalls.push({ url: href, body });
           return new Response(JSON.stringify({
             choices: [{ message: { content: aiResponse }, finish_reason: 'stop' }],
@@ -818,16 +822,16 @@ test('context health dots and focus card cover cache fallback and empty states',
       const firstHealthLoad = health.loadContextHealthDots();
       const duplicateHealthLoad = health.loadContextHealthDots();
       await Promise.all([firstHealthLoad, duplicateHealthLoad]);
-      const parsedHealthCache = JSON.parse(localStorage.getItem(healthCacheKey) || '{}');
+      const parsedHealthCache = JSON.parse(localStorage.getItem(healthCacheKey) || '{}') as unknown as ContextHealthCacheRead;
       outcomes.concurrentHealthDotHydrationCoalescesToOneInference = firstHealthLoad === duplicateHealthLoad
         && aiCalls.length === 1;
       outcomes.healthDotsCallsLocalCompatibleEndpoint = aiCalls.length === 1
-        && aiCalls[0].url === 'http://127.0.0.1:11434/v1/chat/completions'
-        && aiCalls[0].body.model === 'context-test-model'
-        && aiCalls[0].body.messages.some(msg => msg.role === 'system' && msg.content.includes('"healthGoals"'))
-        && aiCalls[0].body.messages.some(msg => msg.role === 'system' && msg.content.includes('"summary"'))
-        && aiCalls[0].body.messages.some(msg => msg.role === 'system' && msg.content.includes('ONLY the person\'s explicitly reported information'))
-        && aiCalls[0].body.messages.some(msg => msg.role === 'user' && msg.content.includes('[section:diet]'));
+        && aiCalls[0]!.url === 'http://127.0.0.1:11434/v1/chat/completions'
+        && (aiCalls[0]!.body as ContextAIRequestRead).model === 'context-test-model'
+        && (aiCalls[0]!.body as ContextAIRequestRead).messages.some(msg => msg.role === 'system' && (msg.content as string).includes('"healthGoals"'))
+        && (aiCalls[0]!.body as ContextAIRequestRead).messages.some(msg => msg.role === 'system' && (msg.content as string).includes('"summary"'))
+        && (aiCalls[0]!.body as ContextAIRequestRead).messages.some(msg => msg.role === 'system' && (msg.content as string).includes('ONLY the person\'s explicitly reported information'))
+        && (aiCalls[0]!.body as ContextAIRequestRead).messages.some(msg => msg.role === 'user' && (msg.content as string).includes('[section:diet]'));
       outcomes.healthDotsCachesParsedObjectAndStringEntries = document.getElementById('ctx-dot-healthGoals')?.classList.contains('ctx-health-dot-green') === true
         && document.getElementById('ctx-summary-healthGoals')?.textContent === 'Focused on improving sleep quality and consistency.'
         && document.getElementById('ctx-summary-healthGoals')?.dataset.summarySource === 'ai'
@@ -840,8 +844,8 @@ test('context health dots and focus card cover cache fallback and empty states',
         && parsedHealthCache.summaries?.healthGoals === 'goals covered'
         && parsedHealthCache.cardSummaries?.healthGoals === 'Focused on improving sleep quality and consistency.'
         && parsedHealthCache.cardSummaries?.diet === ''
-        && parsedHealthCache.cardSummaries?.environment?.length <= 160
-        && parsedHealthCache.cardSummaries?.environment?.endsWith('\u2026')
+        && ((parsedHealthCache.cardSummaries?.environment as {length?:unknown} | null | undefined)?.length as number) <= 160
+        && (parsedHealthCache.cardSummaries?.environment as {endsWith(value:string):unknown} | null | undefined)?.endsWith('\u2026')
         && parsedHealthCache.dots?.diet === 'yellow'
         && typeof parsedHealthCache.fingerprints?.healthGoals === 'string';
 
@@ -856,10 +860,10 @@ test('context health dots and focus card cover cache fallback and empty states',
       window.fetch = saved.fetch;
       health.configureContextCardHealthDots(originalHealthDotDeps);
 
-      const demo = await fetch('data/demo-male.json').then(r => r.json());
-      state.importedData = demo;
-      state.importedData.healthGoals = [{ text: 'Improve insulin sensitivity', severity: 'major' }];
-      state.importedData.contextNotes = 'Prioritize fatigue and training recovery.';
+      const demo = await fetch('data/demo-male.json').then(r => r.json() as Promise<unknown>);
+      (state as unknown as {importedData:unknown}).importedData = demo;
+      (state.importedData as unknown as ContextFixtureRead).healthGoals = [{ text: 'Improve insulin sensitivity', severity: 'major' }];
+      (state.importedData as unknown as ContextFixtureRead).contextNotes = 'Prioritize fatigue and training recovery.';
       state.profileSex = 'male';
       state.profileDob = '1988-01-01';
       state.currentProfile = 'context-focus-profile';
@@ -876,7 +880,7 @@ test('context health dots and focus card cover cache fallback and empty states',
         && !focus.renderFocusCard().includes('onclick=');
       const focusShell = document.createElement('div');
       focusShell.innerHTML = focus.renderFocusCard();
-      const renderedFocusBody = focusShell.querySelector('#focus-card-body');
+      const renderedFocusBody = focusShell.querySelector<HTMLElement>('#focus-card-body');
       outcomes.focusCardBodyParsedFromRenderedCard = !!renderedFocusBody;
       if (renderedFocusBody) document.getElementById('focus-card-body')?.replaceWith(renderedFocusBody);
       await focus.loadFocusCard({ refreshStale: false });
@@ -897,20 +901,20 @@ test('context health dots and focus card cover cache fallback and empty states',
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.removeItem('labcharts-ai-paused');
       localStorage.setItem('labcharts-ollama-model', 'context-test-model');
-      const focusAiCalls = [];
+      const focusAiCalls: unknown[] = [];
       let focusResponseMode = 'success';
-      window.fetch = async (url, options = {}) => {
-        const href = typeof url === 'string' ? url : url?.url || '';
+      window.fetch = async (url: RequestInfo | URL, options: RequestInit = {}) => {
+        const href = typeof url === 'string' ? url : (url as {url?: unknown} | null | undefined)?.url || '';
         if (href === 'http://127.0.0.1:11434/v1/chat/completions') {
-          const body = JSON.parse(options.body || '{}');
+          const body = JSON.parse((options.body || '{}') as string) as unknown;
           focusAiCalls.push(body);
           if (focusResponseMode === 'failure') {
             return new Response(JSON.stringify({
               error: { message: '<img src=x onerror=alert(1)> model rejected request' },
             }), { status: 400, headers: { 'Content-Type': 'application/json' } });
           }
-          const stream = new ReadableStream({
-            start(controller) {
+          const stream = new ReadableStream<Uint8Array>({
+            start(controller: ReadableStreamDefaultController<Uint8Array>) {
               const encoder = new TextEncoder();
               controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"Vitamin D is low."}}]}\n\n'));
               controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":" Recheck with ApoB."},"finish_reason":"stop"}],"usage":{"prompt_tokens":9,"completion_tokens":6}}\n\n'));
@@ -922,25 +926,25 @@ test('context health dots and focus card cover cache fallback and empty states',
         }
         return saved.fetch(url, options);
       };
-      document.getElementById('focus-card-body').innerHTML = '';
+      (document.getElementById('focus-card-body'))!.innerHTML = '';
       await focus.loadFocusCard();
       await delay(30);
-      const streamedFocusCache = JSON.parse(localStorage.getItem(focusCacheKey) || '{}');
+      const streamedFocusCache = JSON.parse(localStorage.getItem(focusCacheKey) || '{}') as unknown as { text?: unknown };
       outcomes.loadFocusCardStreamsAndCachesLocalAI = focusAiCalls.length === 1
-        && focusAiCalls[0].stream === true
-        && focusAiCalls[0].max_tokens === 500
-        && focusAiCalls[0].reasoning_effort === 'none'
+        && (focusAiCalls[0] as ContextAIRequestRead).stream === true
+        && (focusAiCalls[0] as ContextAIRequestRead).max_tokens === 500
+        && (focusAiCalls[0] as ContextAIRequestRead).reasoning_effort === 'none'
         && document.getElementById('focus-card-body')?.textContent.includes('Vitamin D is low. Recheck with ApoB') === true
         && streamedFocusCache.text === 'Vitamin D is low. Recheck with ApoB.';
 
       localStorage.removeItem(focusCacheKey);
       focusResponseMode = 'failure';
-      document.getElementById('focus-card-body').innerHTML = '';
+      (document.getElementById('focus-card-body'))!.innerHTML = '';
       await focus.loadFocusCard();
       const failedFocusBody = document.getElementById('focus-card-body');
       outcomes.loadFocusCardSafelySurfacesProviderFailure =
         failedFocusBody?.textContent.includes('model rejected request') === true
-        && failedFocusBody.querySelector('img') === null;
+        && failedFocusBody.querySelector<HTMLElement>('img') === null;
       window.fetch = saved.fetch;
 
       localStorage.removeItem(focusCacheKey);
@@ -948,11 +952,11 @@ test('context health dots and focus card cover cache fallback and empty states',
       localStorage.removeItem('labcharts-ai-paused');
       localStorage.removeItem('labcharts-openrouter-key');
       cryptoStore.updateKeyCache('labcharts-openrouter-key', '');
-      document.getElementById('focus-card-body').innerHTML = '';
+      (document.getElementById('focus-card-body'))!.innerHTML = '';
       await focus.loadFocusCard();
       outcomes.loadFocusCardShowsEnableAIWithoutConnectedProvider = document.getElementById('focus-card-body')?.textContent.includes('Enable AI') === true;
       localStorage.setItem(focusCacheKey, JSON.stringify({ fingerprint: focusFp, text: 'Temporary focus cache' }));
-      document.getElementById('focus-card-body').innerHTML = '<span>Temporary focus cache</span>';
+      (document.getElementById('focus-card-body'))!.innerHTML = '<span>Temporary focus cache</span>';
       const focusRefreshBtn = document.createElement('button');
       focusRefreshBtn.setAttribute('data-focus-card-action', 'refresh');
       document.body.appendChild(focusRefreshBtn);
@@ -962,15 +966,15 @@ test('context health dots and focus card cover cache fallback and empty states',
         && document.getElementById('focus-card-body')?.textContent.includes('Enable AI') === true;
       focusRefreshBtn.remove();
 
-      state.importedData = { entries: [] };
+      (state as unknown as {importedData:unknown}).importedData = { entries: [] };
       data.invalidateActiveDataCache();
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.removeItem('labcharts-ai-paused');
-      document.getElementById('focus-card-body').innerHTML = '';
+      (document.getElementById('focus-card-body'))!.innerHTML = '';
       await focus.loadFocusCard();
       outcomes.loadFocusCardShowsNoInsightWithoutLabs = document.getElementById('focus-card-body')?.textContent.includes('No insight available') === true;
     } finally {
-      state.importedData = saved.importedData;
+      (state as unknown as {importedData:unknown}).importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
       state.profileSex = saved.profileSex;
       state.profileDob = saved.profileDob;
@@ -996,7 +1000,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       health.configureContextCardHealthDots(originalHealthDotDeps);
       for (const key of cacheKeys) localStorage.removeItem(key);
       host.remove();
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
       data.invalidateActiveDataCache();
     }
 
