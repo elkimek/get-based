@@ -1,4 +1,4 @@
-// @ts-check
+import type { CategoryMarkerReader, CategoryReader, CategoryNumericMarkerOperations, CategoryNumericRangeOperations, CategoryRangeReader, CategoryDelegateRoot, CategoryScrollTarget, CategoryEventRoot } from '../types/category-view-renderers.js';
 // category-view-renderers.js — Category chart, table, heatmap, and fatty-acid render helpers
 
 import { state } from './state.js';
@@ -9,19 +9,19 @@ import { createChartRuntime, hasChartRuntime } from './charts-runtime.js';
 import { getEffectiveRange, getEffectiveRangeForDate, getEffectiveRangeLabelForDate, getLatestValueIndex, statusIcon } from './marker-analysis.js';
 import { markerDetailActionAttrs } from './marker-detail-actions.js';
 
-const categoryRendererDelegateRoots = new WeakSet();
+const categoryRendererDelegateRoots = new WeakSet<CategoryDelegateRoot>();
 const STACKED_SNAPSHOT_UNIT_LENGTH = 12;
 
-function handleTableScrollSync(event) {
-  const target = event.target;
+function handleTableScrollSync(event: Event) {
+  const target = event.target as CategoryScrollTarget | null;
   if (!target || typeof target.closest !== 'function') return;
-  const scrollEl = /** @type {HTMLElement | null} */ (target.closest('[data-gb-table-scroll-sync]'));
-  if (!scrollEl || !event.currentTarget?.contains?.(scrollEl)) return;
-  const shell = /** @type {HTMLElement | null} */ (scrollEl.closest('.gb-table-shell'));
+  const scrollEl = ((target.closest as (selector: string) => unknown)('[data-gb-table-scroll-sync]') as HTMLElement | null);
+  if (!scrollEl || !(event.currentTarget as CategoryEventRoot | null)?.contains?.(scrollEl)) return;
+  const shell = (scrollEl.closest('.gb-table-shell') as HTMLElement | null);
   shell?.style.setProperty('--gb-table-scroll-x', `${scrollEl.scrollLeft}px`);
 }
 
-export function installCategoryRendererDelegates(root = typeof document !== 'undefined' ? document : null) {
+export function installCategoryRendererDelegates(root: CategoryDelegateRoot | null = typeof document !== 'undefined' ? document : null) {
   if (!root || categoryRendererDelegateRoots.has(root)) return;
   categoryRendererDelegateRoots.add(root);
   root.addEventListener('scroll', handleTableScrollSync, { capture: true, passive: true });
@@ -29,11 +29,11 @@ export function installCategoryRendererDelegates(root = typeof document !== 'und
 
 if (typeof document !== 'undefined') installCategoryRendererDelegates();
 
-function clampPct(value) {
+function clampPct(value: number) {
   return Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
 }
 
-function renderSemanticRangeRail(value, minValue, maxValue, status, style = '') {
+function renderSemanticRangeRail(value: unknown, minValue: unknown, maxValue: unknown, status: unknown, style: unknown = '') {
   const valueNum = Number(value);
   const minNum = Number(minValue);
   const maxNum = Number(maxValue);
@@ -66,16 +66,16 @@ function renderSemanticRangeRail(value, minValue, maxValue, status, style = '') 
   </div>`;
 }
 
-function hasRangeBounds(range) {
+function hasRangeBounds(range: CategoryRangeReader | null | undefined) {
   return range?.min != null || range?.max != null;
 }
 
-function markerValueStatus(value, range) {
+function markerValueStatus(value: unknown, range: CategoryRangeReader) {
   if (value === null || value === undefined) return 'missing';
-  return hasRangeBounds(range) ? getStatus(value, range.min, range.max) : 'unrated';
+  return hasRangeBounds(range) ? (getStatus as (value: unknown, min: unknown, max: unknown) => ReturnType<typeof getStatus>)(value, range.min, range.max) : 'unrated';
 }
 
-function exactObservationLabel(isoDate, fallback, includeYear = true) {
+function exactObservationLabel(isoDate: unknown, fallback: unknown, includeYear: unknown = true) {
   if (typeof isoDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return fallback;
   const date = new Date(`${isoDate}T00:00:00`);
   if (Number.isNaN(date.getTime())) return fallback;
@@ -86,40 +86,40 @@ function exactObservationLabel(isoDate, fallback, includeYear = true) {
   });
 }
 
-export function renderChartCard(id, marker, dateLabels, chartDates = []) {
+export function renderChartCard(id: string, marker: CategoryMarkerReader, dateLabels: readonly unknown[], chartDates: readonly unknown[] = []) {
   // id is interpolated into delegated data attributes and DOM ids below.
   // Single chokepoint guard for every caller (dashboard, showCategory,
   // switchView).
   if (!safeMarkerId(id)) return '';
   state.markerRegistry[id] = marker;
-  const latestIdx = getLatestValueIndex(marker.values);
-  const latestVal = latestIdx !== -1 ? marker.values[latestIdx] : null;
-  const lr = getEffectiveRangeForDate(marker, latestIdx);
+  const latestIdx = (getLatestValueIndex as (values: unknown) => number)(marker.values);
+  const latestVal = (latestIdx !== -1 ? marker.values[latestIdx] : null) as number | null | undefined;
+  const lr = (getEffectiveRangeForDate as (marker: unknown, index: number) => CategoryNumericRangeOperations)(marker, latestIdx);
   const status = markerValueStatus(latestVal, lr);
-  const effectiveRangeLabel = getEffectiveRangeLabelForDate(marker, latestIdx);
+  const effectiveRangeLabel = (getEffectiveRangeLabelForDate as (marker: unknown, index: number, mode?: string) => unknown)(marker, latestIdx);
   const statusLabel = status === "normal" ? "Normal"
     : status === "high" ? "High"
     : status === "low" ? "Low"
     : status === 'unrated' ? 'No range' : "N/A";
   const sIcon = statusIcon(status);
 
-  const trend = getTrend(marker.values, lr.min, lr.max);
+  const trend = (getTrend as (values: unknown, min: unknown, max: unknown) => ReturnType<typeof getTrend>)(marker.values, lr.min, lr.max);
   const trendBadge = trend.arrow !== '—'
     ? `<span class="chart-card-trend ${trend.cls}" aria-label="${escapeAttr(trend.label)}" title="${escapeAttr(trend.label)}">${escapeHTML(trend.arrow)}</span>`
     : '';
   const markerName = marker.name || '';
   const labels = marker.singlePoint ? [marker.singleDateLabel || "N/A"] : dateLabels;
-  const fmtRange = (min, max) => `${min != null ? formatValue(min) : '–'} – ${max != null ? formatValue(max) : '–'}`;
-  const latestPhaseRange = latestIdx !== -1 ? marker.phaseRefRanges?.[latestIdx] : null;
-  const latestContextRange = latestIdx !== -1 ? marker.contextRefRanges?.[latestIdx] : null;
-  const latestContextOptimalRange = latestIdx !== -1 ? marker.contextOptimalRanges?.[latestIdx] : null;
+  const fmtRange = (min: unknown, max: unknown) => `${min != null ? (formatValue as (value: unknown) => unknown)(min) : '–'} – ${max != null ? (formatValue as (value: unknown) => unknown)(max) : '–'}`;
+  const latestPhaseRange = (latestIdx !== -1 ? marker.phaseRefRanges?.[latestIdx] : null) as CategoryRangeReader | null | undefined;
+  const latestContextRange = (latestIdx !== -1 ? marker.contextRefRanges?.[latestIdx] : null) as CategoryRangeReader | null | undefined;
+  const latestContextOptimalRange = (latestIdx !== -1 ? marker.contextOptimalRanges?.[latestIdx] : null) as CategoryRangeReader | null | undefined;
   const referenceRange = latestContextRange || { min: marker.refMin, max: marker.refMax };
   const optimalRange = latestContextOptimalRange || { min: marker.optimalMin, max: marker.optimalMax };
-  const referenceRangeLabel = getEffectiveRangeLabelForDate(marker, latestIdx, 'reference');
-  const rangeRows = [];
+  const referenceRangeLabel = (getEffectiveRangeLabelForDate as (marker: unknown, index: number, mode?: string) => unknown)(marker, latestIdx, 'reference');
+  const rangeRows: { label: unknown; value: string }[] = [];
   if (hasRangeBounds(latestPhaseRange)) {
     rangeRows.push({
-      label: getEffectiveRangeLabelForDate(marker, latestIdx, 'reference'),
+      label: (getEffectiveRangeLabelForDate as (marker: unknown, index: number, mode?: string) => unknown)(marker, latestIdx, 'reference'),
       value: fmtRange(lr.min, lr.max),
     });
   } else if (state.rangeMode === 'both') {
@@ -141,25 +141,25 @@ export function renderChartCard(id, marker, dateLabels, chartDates = []) {
   if (rangeRows.length === 0) rangeRows.push({ label: 'Range', value: 'Not set' });
 
   // Show only actual observations so missing dates do not consume summary slots.
-  const visibleValueIndexes = [];
+  const visibleValueIndexes: number[] = [];
   for (let i = 0; i < marker.values.length; i++) {
     if (marker.values[i] !== null && marker.values[i] !== undefined) visibleValueIndexes.push(i);
   }
   const compactValueIndexes = visibleValueIndexes.length > 4 ? visibleValueIndexes.slice(-4) : visibleValueIndexes;
-  const labelCounts = new Map();
+  const labelCounts = new Map<unknown, number>();
   for (const i of visibleValueIndexes) {
     const label = labels[i] || '';
     labelCounts.set(label, (labelCounts.get(label) || 0) + 1);
   }
-  const displayDateLabel = (index, includeYear) => {
+  const displayDateLabel = (index: number, includeYear: boolean) => {
     const fallback = labels[index] || '';
-    return labelCounts.get(fallback) > 1
+    return (labelCounts.get(fallback) as number) > 1
       ? exactObservationLabel(chartDates[index], fallback, includeYear)
       : fallback;
   };
 
   const latestDateLabel = latestIdx !== -1 ? (displayDateLabel(latestIdx, true) || 'Latest') : 'No value';
-  const latestDisplay = latestVal !== null ? formatValue(latestVal) : '—';
+  const latestDisplay = latestVal !== null ? (formatValue as (value: unknown) => unknown)(latestVal) : '—';
   const latestUnit = marker.unit || '';
   // Long ratio/sample qualifiers cannot share a narrow card row with the
   // reference range. Stack only those summaries; ordinary units retain the
@@ -210,8 +210,8 @@ export function renderChartCard(id, marker, dateLabels, chartDates = []) {
     <div class="chart-values" role="list" aria-label="Recent results" style="--chart-value-count:${Math.max(1, compactValueIndexes.length)}">
       <span class="chart-values-label" aria-hidden="true">Recent results</span>`;
   for (const i of compactValueIndexes) {
-    const v = marker.values[i];
-    const ri = getEffectiveRangeForDate(marker, i);
+    const v = marker.values[i] as number | null | undefined;
+    const ri = (getEffectiveRangeForDate as (marker: unknown, index: number) => CategoryNumericRangeOperations)(marker, i);
     const s = markerValueStatus(v, ri);
     const itemDateLabel = displayDateLabel(i, false);
     const fullDateLabel = exactObservationLabel(chartDates[i], labels[i] || '', true);
@@ -222,11 +222,11 @@ export function renderChartCard(id, marker, dateLabels, chartDates = []) {
   return html;
 }
 
-export function renderTableColgroup(cols) {
+export function renderTableColgroup(cols: readonly unknown[]) {
   return `<colgroup>${cols.map(cls => `<col class="${escapeAttr(cls)}">`).join('')}</colgroup>`;
 }
 
-export function renderScrollableTableShell(kind, wrapperClass, tableClass, colgroup, headHtml, bodyHtml, minWidth) {
+export function renderScrollableTableShell(kind: unknown, wrapperClass: unknown, tableClass: unknown, colgroup: unknown, headHtml: unknown, bodyHtml: unknown, minWidth: number) {
   const shellClass = `gb-table-shell gb-table-shell-${kind}`;
   return `<div class="${shellClass}" style="--gb-table-min-width:${Math.max(660, Math.round(minWidth))}px">
     <div class="gb-table-sticky-head" aria-hidden="true">
@@ -240,7 +240,7 @@ export function renderScrollableTableShell(kind, wrapperClass, tableClass, colgr
   </div>`;
 }
 
-function populatedDateColumnIndexes(markerEntries, labels) {
+function populatedDateColumnIndexes(markerEntries: [string, CategoryNumericMarkerOperations][], labels: readonly unknown[]) {
   return labels
     .map((_, index) => index)
     .filter(index => markerEntries.some(([, marker]) => {
@@ -249,10 +249,10 @@ function populatedDateColumnIndexes(markerEntries, labels) {
     }));
 }
 
-export function renderTableView(cat, dateLabels, categoryKey, dates) {
+export function renderTableView(cat: CategoryReader, dateLabels: readonly unknown[], categoryKey?: string | null, dates?: readonly unknown[] | null) {
   const labels = cat.singleDate ? [cat.singleDateLabel || "N/A"] : dateLabels;
   // Hide markers with no values at all — sidebar still lists them with 0 count.
-  const markerEntries = Object.entries(cat.markers).filter(([, m]) =>
+  const markerEntries = Object.entries(cat.markers as Record<string, CategoryNumericMarkerOperations>).filter(([, m]) =>
     m.values && m.values.some(v => v !== null && v !== undefined)
   );
   if (markerEntries.length === 0) {
@@ -277,7 +277,7 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
   let bodyHtml = '';
   for (const [key, marker] of markerEntries) {
     const id = categoryKey ? categoryKey + '_' + key : '';
-    const r = getEffectiveRange(marker);
+    const r = (getEffectiveRange as (marker: unknown) => CategoryNumericRangeOperations)(marker);
     let refCell = r.min != null && r.max != null ? `${formatValue(r.min)} – ${formatValue(r.max)}` : '—';
     if (state.rangeMode === 'both') {
       if (marker.optimalMin != null || marker.optimalMax != null) refCell = `${formatValue(marker.refMin)} – ${formatValue(marker.refMax)}<br><span style="color:var(--green);font-size:11px">opt: ${formatValue(marker.optimalMin)} – ${formatValue(marker.optimalMax)}</span>`;
@@ -287,8 +287,8 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
       <td class="unit-col">${escapeHTML(marker.unit)}</td>
       <td class="ref-col">${refCell}</td>`;
     for (const i of dateColumnIndexes) {
-      const v = marker.values[i];
-      const ri = getEffectiveRangeForDate(marker, i);
+      const v = marker.values[i] as number | null | undefined;
+      const ri = (getEffectiveRangeForDate as (marker: unknown, index: number) => CategoryNumericRangeOperations)(marker, i);
       const hasValue = v !== null && v !== undefined;
       const s = hasValue ? getStatus(v, ri.min, ri.max) : "missing";
       // Empty cells: click → add a value for THIS column's date (not today).
@@ -299,12 +299,12 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
         : '';
       bodyHtml += `<td class="value-cell val-${s}"${emptyClick}>${hasValue ? formatValue(v) : "—"}</td>`;
     }
-    const li = getLatestValueIndex(marker.values);
-    const trendRange = li !== -1 ? getEffectiveRangeForDate(marker, li) : r;
+    const li = (getLatestValueIndex as (values: unknown) => number)(marker.values);
+    const trendRange = li !== -1 ? (getEffectiveRangeForDate as (marker: unknown, index: number) => CategoryNumericRangeOperations)(marker, li) : r;
     const trend = getTrend(marker.values, trendRange.min, trendRange.max);
     bodyHtml += `<td><span class="trend-arrow ${trend.cls}">${trend.arrow}</span></td>`;
     if (li !== -1 && r.min != null && r.max != null) {
-      const lr = getEffectiveRangeForDate(marker, li);
+      const lr = (getEffectiveRangeForDate as (marker: unknown, index: number) => CategoryNumericRangeOperations)(marker, li);
       const s = getStatus(marker.values[li], lr.min, lr.max);
       bodyHtml += `<td>${renderSemanticRangeRail(marker.values[li], lr.min, lr.max, s)}</td>`;
     } else bodyHtml += `<td>—</td>`;
@@ -314,9 +314,9 @@ export function renderTableView(cat, dateLabels, categoryKey, dates) {
   return renderScrollableTableShell('data', 'data-table-wrapper', 'data-table', colgroup, headHtml, bodyHtml, minWidth);
 }
 
-export function renderHeatmapView(cat, dateLabels, categoryKey) {
+export function renderHeatmapView(cat: CategoryReader, dateLabels: readonly unknown[], categoryKey: string) {
   const labels = cat.singleDate ? [cat.singleDateLabel || "N/A"] : dateLabels;
-  const markerEntries = Object.entries(cat.markers).filter(([, m]) =>
+  const markerEntries = Object.entries(cat.markers as Record<string, CategoryNumericMarkerOperations>).filter(([, m]) =>
     m.values && m.values.some(v => v !== null && v !== undefined)
   );
   if (markerEntries.length === 0) {
@@ -337,8 +337,8 @@ export function renderHeatmapView(cat, dateLabels, categoryKey) {
     state.markerRegistry[id] = marker;
     bodyHtml += `<tr><td role="button" tabindex="0" aria-label="${escapeHTML(marker.name)}" style="cursor:pointer" ${markerDetailActionAttrs('show-detail-modal', { id })}>${escapeHTML(marker.name)}</td>`;
     for (const i of dateColumnIndexes) {
-      const v = marker.values[i];
-      const ri = getEffectiveRangeForDate(marker, i);
+      const v = marker.values[i] as number | null | undefined;
+      const ri = (getEffectiveRangeForDate as (marker: unknown, index: number) => CategoryNumericRangeOperations)(marker, i);
       const hasValue = v !== null && v !== undefined;
       const s = hasValue ? getStatus(v, ri.min, ri.max) : "missing";
       const cellLabel = `${escapeHTML(marker.name)} ${labels[i] || ''}: ${hasValue ? formatValue(v) : 'no value'}`;
@@ -350,16 +350,16 @@ export function renderHeatmapView(cat, dateLabels, categoryKey) {
   return renderScrollableTableShell('heatmap', 'heatmap-wrapper', 'heatmap-table', colgroup, headHtml, bodyHtml, minWidth);
 }
 
-export function renderFattyAcidsView(cat, categoryKey) {
+export function renderFattyAcidsView(cat: CategoryReader, categoryKey: string) {
   // categoryKey + per-marker key flow into delegated data attributes below.
   if (!safeMarkerId(categoryKey)) return '';
   let html = `<div style="background:var(--bg-card);border-radius:var(--radius);padding:20px;margin-bottom:20px;border:1px solid var(--border)">
     <h3 style="margin-bottom:16px;font-size:16px">Fatty Acid Profile${cat.singleDate ? ' — ' + new Date(cat.singleDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ''}</h3>
     <div class="fa-bar-chart-container"><canvas id="chart-fa-bar"></canvas></div></div>`;
   html += `<div class="fatty-acids-grid">`;
-  for (const [key, marker] of Object.entries(cat.markers)) {
+  for (const [key, marker] of Object.entries(cat.markers as Record<string, CategoryNumericMarkerOperations>)) {
     if (!safeMarkerId(key)) continue;
-    const r = getEffectiveRange(marker);
+    const r = (getEffectiveRange as (marker: unknown) => CategoryNumericRangeOperations)(marker);
     const v = marker.values[0], s = getStatus(v, r.min, r.max);
     let faRangeText;
     if (state.rangeMode === 'both' && (marker.optimalMin != null || marker.optimalMax != null) && (marker.refMin != null || marker.refMax != null)) {
@@ -377,7 +377,7 @@ export function renderFattyAcidsView(cat, categoryKey) {
   return html;
 }
 
-export function renderFattyAcidsCharts(cat) {
+export function renderFattyAcidsCharts(cat: CategoryReader) {
   if (!hasChartRuntime()) {
     ensureChartJs().then(() => {
       if (document.getElementById("chart-fa-bar")) renderFattyAcidsCharts(cat);
@@ -385,17 +385,17 @@ export function renderFattyAcidsCharts(cat) {
     return;
   }
   const tc = getChartColors();
-  const names=[], vals=[], mins=[], maxs=[], bgC=[], brC=[];
-  for (const [key, m] of Object.entries(cat.markers)) {
+  const names: unknown[]=[], vals: unknown[]=[], mins: unknown[]=[], maxs: unknown[]=[], bgC: string[]=[], brC: string[]=[];
+  for (const [key, m] of Object.entries(cat.markers as Record<string, CategoryNumericMarkerOperations>)) {
     if (!safeMarkerId(key)) continue;
-    const r = getEffectiveRange(m);
-    names.push(m.name.replace(/\(.+\)/,"").trim());
+    const r = (getEffectiveRange as (marker: unknown) => CategoryNumericRangeOperations)(m);
+    names.push((m.name as { replace(pattern: RegExp, value: string): { trim(): unknown } }).replace(/\(.+\)/,"").trim());
     vals.push(m.values[0]); mins.push(r.min); maxs.push(r.max);
     const s = getStatus(m.values[0], r.min, r.max);
     bgC.push(s==="normal"?tc.green+"99":s==="high"?tc.red+"99":tc.yellow+"99");
     brC.push(s==="normal"?tc.green:s==="high"?tc.red:tc.yellow);
   }
-  const ctx = /** @type {HTMLCanvasElement | null} */ (document.getElementById("chart-fa-bar"));
+  const ctx = (document.getElementById("chart-fa-bar") as HTMLCanvasElement | null);
   if (!ctx) return;
   const chart = createChartRuntime(ctx, {
     type: "bar",

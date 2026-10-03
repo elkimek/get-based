@@ -1,5 +1,5 @@
+import type { ClientExportObject, BundleProfile, ExportBundle, ClientDataReader, ChatThreadReader } from '../types/export.js';
 import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
-// @ts-check
 // export.js — JSON export/import, report facade, clear all data
 
 import { createRetryingModuleLoader } from './retrying-module-loader.js';
@@ -46,19 +46,21 @@ import {
   propagateClearedProfilesToRelay,
 } from './clear-all-profile-reset.js';
 
-/** @typedef {typeof import('./export-report-builder.js')} ReportBuilderModule */
 
-/** @typedef {typeof import('./export-import.js')} ExportImportModule */
 
-const reportBuilderModuleLoader = createRetryingModuleLoader(
+
+
+type ReportBuilderModule = typeof import('./export-report-builder.js');
+type ExportImportModule = typeof import('./export-import.js');
+const reportBuilderModuleLoader = createRetryingModuleLoader<ReportBuilderModule>(
   retry => retry ? loadReportBuilderRetryModule() : import('./export-report-builder.js'),
 );
 
-const exportImportModuleLoader = createRetryingModuleLoader(
+const exportImportModuleLoader = createRetryingModuleLoader<ExportImportModule>(
   retry => retry ? loadExportImportRetryModule() : import('./export-import.js'),
 );
 
-async function buildProfileNutritionArchive(profileId) {
+async function buildProfileNutritionArchive(profileId: string) {
   const { buildNutritionArchive } = await import('./nutrition-store.js');
   return buildNutritionArchive(profileId);
 }
@@ -67,19 +69,18 @@ export function isExportImportModuleLoaded() {
   return exportImportModuleLoader.module !== null;
 }
 
-/** @returns {Promise<ExportImportModule>} */
-function loadExportImportRetryModule() {
-  // @ts-expect-error TypeScript resolves only the query-free source path.
-  return import('./export-import.js?lazy-retry=1');
+
+function loadExportImportRetryModule(): Promise<ExportImportModule> {
+  return import('./export-import.js?lazy-retry=1' as './export-import.js');
 }
 
-/** @returns {Promise<ExportImportModule>} */
-export function loadExportImportModule() {
+
+export function loadExportImportModule(): Promise<ExportImportModule> {
   return exportImportModuleLoader.load();
 }
 
-/** @param {File} file */
-export async function importDataJSON(file) {
+
+export async function importDataJSON(file: File) {
   try {
     const module = exportImportModuleLoader.module || await loadExportImportModule();
     return await module.importDataJSON(file);
@@ -94,62 +95,58 @@ export function isReportBuilderModuleLoaded() {
   return reportBuilderModuleLoader.module !== null;
 }
 
-/** @returns {Promise<ReportBuilderModule>} */
-function loadReportBuilderRetryModule() {
-  // @ts-expect-error TypeScript resolves only the query-free source path.
-  return import('./export-report-builder.js?lazy-retry=1');
+
+function loadReportBuilderRetryModule(): Promise<ReportBuilderModule> {
+  return import('./export-report-builder.js?lazy-retry=1' as './export-report-builder.js');
 }
 
-/** @returns {Promise<ReportBuilderModule>} */
-export function loadReportBuilderModule() {
+
+export function loadReportBuilderModule(): Promise<ReportBuilderModule> {
   return reportBuilderModuleLoader.load();
 }
 
-/** @param {unknown} err */
-function reportReportBuilderLoadError(err) {
+
+function reportReportBuilderLoadError(err: unknown) {
   console.error('[export] Could not load the report builder:', err);
   showNotification('Report builder could not be loaded. Try again.', 'error');
   return false;
 }
 
-/** @type {{
- *   buildSidebar: null | (() => void),
- *   navigate: null | ((route?: string) => void),
- * }} */
-const exportRuntimeDeps = {
+
+const exportRuntimeDeps: Record<string, unknown> = {
   buildSidebar: null,
   navigate: null,
 };
 
-/** @param {Partial<typeof exportRuntimeDeps>} [deps] */
-export function configureExportRuntimeDeps(deps = {}) {
-  return configureValidRuntimeCallbacks(exportRuntimeDeps, deps, ["buildSidebar","navigate"]);
+
+export function configureExportRuntimeDeps(deps: unknown = {}): Record<string, unknown> {
+  return (configureValidRuntimeCallbacks as (current: Record<string, unknown>, updates: unknown, fields: readonly string[]) => Record<string, unknown>)(exportRuntimeDeps, deps, ["buildSidebar","navigate"]);
 }
 
 // ═══════════════════════════════════════════════
 // PDF REPORT EXPORT FACADE
 // ═══════════════════════════════════════════════
-export async function generateReportAISummary(options = {}) {
+export async function generateReportAISummary(options: Parameters<typeof generateReportAISummaryImpl>[0] = {}) {
   return generateReportAISummaryImpl(options);
 }
 
-export function collectReportData(options = {}) {
+export function collectReportData(options: Parameters<typeof collectReportDataImpl>[0] = {}) {
   return collectReportDataImpl(options);
 }
 
-export function buildReportAgentContext(options = {}) {
+export function buildReportAgentContext(options: Parameters<typeof buildReportAgentContextImpl>[0] = {}) {
   return buildReportAgentContextImpl(options);
 }
 
-export function exportPDFReport(options = {}) {
+export function exportPDFReport(options: Parameters<typeof exportPDFReportImpl>[0] = {}) {
   return exportPDFReportImpl(options);
 }
 
-export function buildReportHTML(profileName, sexLabel, data, flags, notes, supps, contextSections, options = {}) {
+export function buildReportHTML(profileName: Parameters<typeof buildReportHTMLImpl>[0], sexLabel: Parameters<typeof buildReportHTMLImpl>[1], data: Parameters<typeof buildReportHTMLImpl>[2], flags: Parameters<typeof buildReportHTMLImpl>[3], notes: Parameters<typeof buildReportHTMLImpl>[4], supps: Parameters<typeof buildReportHTMLImpl>[5], contextSections: Parameters<typeof buildReportHTMLImpl>[6], options: Parameters<typeof buildReportHTMLImpl>[7] = {}) {
   return buildReportHTMLImpl(profileName, sexLabel, data, flags, notes, supps, contextSections, options);
 }
 
-export function openReportBuilder(presetId) {
+export function openReportBuilder(presetId: unknown) {
   try {
     if (reportBuilderModuleLoader.module) return reportBuilderModuleLoader.module.openReportBuilder(presetId);
     return loadReportBuilderModule()
@@ -175,131 +172,52 @@ export function closeReportBuilder() {
 // ═══════════════════════════════════════════════
 // CHAT EXPORT/IMPORT HELPERS
 // ═══════════════════════════════════════════════
-async function _exportChatData(profileId) {
+async function _exportChatData(profileId: string) {
   const threadsRaw = await encryptedGetItem(`labcharts-${profileId}-chat-threads`);
-  let threads;
+  let threads: unknown;
   try { threads = threadsRaw ? JSON.parse(threadsRaw) : []; } catch { threads = []; }
-  const messages = {};
-  for (const t of threads) {
+  const messages: Record<string, unknown> = {};
+  for (const t of threads as Iterable<ChatThreadReader>) {
     const raw = await encryptedGetItem(`labcharts-${profileId}-chat-t_${t.id}`);
-    try { messages[t.id] = raw ? JSON.parse(raw) : []; } catch { messages[t.id] = []; }
+    try { messages[t.id as string] = raw ? JSON.parse(raw) : []; } catch { messages[t.id as string] = []; }
   }
   const personality = localStorage.getItem(`labcharts-${profileId}-chatPersonality`) || null;
   const customRaw = await encryptedGetItem(`labcharts-${profileId}-chatPersonalityCustom`);
   const customDeletedRaw = await encryptedGetItem(`labcharts-${profileId}-chatPersonalityDeleted`);
-  let customPersonalities;
-  let customPersonalityDeleted;
+  let customPersonalities: unknown;
+  let customPersonalityDeleted: unknown;
   try { customPersonalities = customRaw ? JSON.parse(customRaw) : null; } catch { customPersonalities = null; }
   try { customPersonalityDeleted = customDeletedRaw ? JSON.parse(customDeletedRaw) : null; } catch { customPersonalityDeleted = null; }
-  if (!threads.length && !customPersonalities?.length && !Object.keys(customPersonalityDeleted || {}).length) return null;
+  if (!(threads as {length?:unknown}).length && !(customPersonalities as {length?:unknown}|null|undefined)?.length && !Object.keys(customPersonalityDeleted || {}).length) return null;
   return { threads, messages, personality, customPersonalities, customPersonalityDeleted };
 }
 
 // ═══════════════════════════════════════════════
 // Legacy alias — calls exportClientJSON for the active profile
-/**
- * @typedef {Object} ClientExportProfile
- * @property {string} name
- * @property {string | null} sex
- * @property {string | null} dob
- * @property {unknown} location
- * @property {string[]} tags
- * @property {string} notes
- * @property {string} status
- * @property {string | null} avatar
- * @property {boolean} pinned
- * @property {number | string | null} height
- * @property {string} heightUnit
- */
 
-/**
- * @typedef {Object} ClientExportObject
- * @property {number} version
- * @property {string} exportedAt
- * @property {ClientExportProfile} profile
- * @property {Array<Object.<string, unknown>>} entries
- * @property {Array<Object.<string, unknown>>} notes
- * @property {Array<Object.<string, unknown>>} supplements
- * @property {unknown} diagnoses
- * @property {unknown} diet
- * @property {unknown} exercise
- * @property {unknown} sleepRest
- * @property {unknown} lightCircadian
- * @property {unknown} stress
- * @property {unknown} loveLife
- * @property {unknown} environment
- * @property {string} interpretiveLens
- * @property {string} contextNotes
- * @property {Array<unknown>} healthGoals
- * @property {Object.<string, unknown>} customMarkers
- * @property {Object.<string, unknown>} markerPlacements
- * @property {Object.<string, unknown>} refOverrides
- * @property {unknown} categoryLabels
- * @property {unknown} categoryIcons
- * @property {unknown} markerLabels
- * @property {unknown} menstrualCycle
- * @property {unknown} emfAssessment
- * @property {unknown} genetics
- * @property {unknown} biometrics
- * @property {Object.<string, unknown>} markerNotes
- * @property {Object.<string, unknown>} markerValueNotes
- * @property {Object.<string, unknown>} manualValues
- * @property {Object.<string, number>} manualMetricTombstones
- * @property {Array<unknown>} changeHistory
- * @property {Array<unknown>} chatSummaries
- * @property {unknown} wearableSummary
- * @property {unknown} wearableCardOrder
- * @property {unknown} wearablePrimaryOverride
- * @property {Array<unknown>} sunSessions
- * @property {Array<unknown>} deviceSessions
- * @property {Array<unknown>} lightDevices
- * @property {Array<unknown>} lightAudits
- * @property {Array<unknown>} lightMeasurements
- * @property {unknown} lightEnvironment
- * @property {unknown} sunDefaults
- * @property {unknown} sunCorrelations
- * @property {unknown} lifelightProfile
- * @property {unknown} lightDailyVerdicts
- * @property {unknown} channelMixAI
- * @property {unknown} biologyScoreAI
- * @property {unknown} biologyScoreContextAI
- * @property {Object.<string, boolean>} contextSourceSettings
- * @property {7|30|90} nutritionContextDays
- * @property {unknown} nutritionTargets
- * @property {Array<unknown>} importSnapshots
- * @property {unknown} [chat]
- * @property {unknown} [nutrition]
- */
 
-/** @returns {void} */
+
+
+
 export function exportDataJSON() {
   exportClientJSON(state.currentProfile);
 }
 
-/**
- * Builds the JSON-safe client export object used by downloads and encrypted
- * downloads and, with nutrition disabled, encrypted profile shares.
- * Token-bearing wearable connection records are deliberately excluded.
- *
- * @param {string} profileId
- * @param {boolean} [includeChat]
- * @param {boolean} [includeNutrition]
- * @returns {Promise<ClientExportObject>}
- */
-export async function buildClientExportObject(profileId, includeChat = false, includeNutrition = true) {
+
+export async function buildClientExportObject(profileId: string, includeChat = false, includeNutrition = true): Promise<ClientExportObject> {
   const profiles = getProfiles();
   const profile = profiles.find(p => p.id === profileId);
   if (!profile) throw new Error('Profile not found');
   const raw = await encryptedGetItem(profileStorageKey(profileId, 'imported'));
   const nutrition = includeNutrition ? await buildProfileNutritionArchive(profileId) : null;
-  let data;
+  let data: ClientDataReader | null;
   try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
   if (!data || typeof data !== 'object') data = {};
-  migrateCustomMarkerIdentities(data?.customMarkers);
-  if (data) migrateMarkerPlacements(data);
+  (migrateCustomMarkerIdentities as (value:unknown)=>ReturnType<typeof migrateCustomMarkerIdentities>)(data?.customMarkers);
+  if (data) (migrateMarkerPlacements as (data: unknown)=>ReturnType<typeof migrateMarkerPlacements>)(data);
   if ((!data || !data.entries || data.entries.length === 0) && !nutrition?.meals?.length) throw new Error('No data to export for this client');
-  /** @type {ClientExportObject} */
-  const exportObj = {
+
+  const exportObj: ClientExportObject = {
     version: 2, exportedAt: new Date().toISOString(),
     profile: { name: profile.name, sex: profile.sex || null, dob: profile.dob || null, location: profile.location || null, tags: profile.tags || [], notes: profile.notes || '', status: profile.status || 'active', avatar: profile.avatar || null, pinned: profile.pinned || false, height: profile.height || null, heightUnit: profile.heightUnit || 'cm' },
     entries: data.entries || [], notes: data.notes || [], supplements: data.supplements || [],
@@ -348,7 +266,7 @@ export async function buildClientExportObject(profileId, includeChat = false, in
     biologyScoreContextAI: data.biologyScoreContextAI || null,
     biologyScoreAI: data.biologyScoreAI || {},
     contextSourceSettings: data.contextSourceSettings || {},
-    nutritionContextDays: [7, 30, 90].includes(Number(data.nutritionContextDays)) ? /** @type {7|30|90} */ (Number(data.nutritionContextDays)) : 30,
+    nutritionContextDays: [7, 30, 90].includes(Number(data.nutritionContextDays)) ? Number(data.nutritionContextDays) : 30,
     nutritionTargets: data.nutritionTargets && typeof data.nutritionTargets === 'object' && !Array.isArray(data.nutritionTargets)
       ? data.nutritionTargets
       : null,
@@ -362,14 +280,8 @@ export async function buildClientExportObject(profileId, includeChat = false, in
   return exportObj;
 }
 
-/**
- * Downloads a single-profile JSON backup.
- *
- * @param {string} profileId
- * @param {boolean} [includeChat]
- * @returns {Promise<void>}
- */
-export async function exportClientJSON(profileId, includeChat = false) {
+
+export async function exportClientJSON(profileId: string, includeChat = false) {
   let exportObj;
   try {
     exportObj = await buildClientExportObject(profileId, includeChat);
@@ -382,7 +294,7 @@ export async function exportClientJSON(profileId, includeChat = false) {
   const a = document.createElement('a');
   a.href = url;
   const profileName = exportObj.profile?.name || 'client';
-  const safeName = profileName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const safeName = (profileName as {toLowerCase():{replace(pattern:RegExp,replacement:string):unknown}}).toLowerCase().replace(/[^a-z0-9]+/g, '-');
   a.download = `getbased-${safeName}-${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(a);
   a.click();
@@ -391,25 +303,25 @@ export async function exportClientJSON(profileId, includeChat = false) {
   showNotification(`Exported "${profileName}"`, 'success');
 }
 
-/** @returns {Promise<string | null>} */
+
 export async function buildAllDataBundle() {
   const profiles = getProfiles();
   if (profiles.length === 0) return null;
-  const bundle = {
+  const bundle: ExportBundle = {
     version: 2,
     type: 'database',
     exportedAt: new Date().toISOString(),
-    profiles: /** @type {Array<Record<string, any>>} */ ([]),
+    profiles:  ([]),
   };
   for (const p of profiles) {
     const raw = await encryptedGetItem(profileStorageKey(p.id, 'imported'));
-    let data;
+    let data: ClientDataReader | null;
     try { data = raw ? JSON.parse(raw) : {}; } catch { data = {}; }
-    migrateCustomMarkerIdentities(data?.customMarkers);
-    migrateMarkerPlacements(data);
+    (migrateCustomMarkerIdentities as (value:unknown)=>ReturnType<typeof migrateCustomMarkerIdentities>)(data?.customMarkers);
+    (migrateMarkerPlacements as (data: unknown)=>ReturnType<typeof migrateMarkerPlacements>)(data);
     const chat = await _exportChatData(p.id);
     const nutrition = await buildProfileNutritionArchive(p.id);
-    const entry = {
+    const entry: BundleProfile = {
       id: p.id, name: p.name, sex: p.sex || null, dob: p.dob || null,
       location: p.location || null, tags: p.tags || [], notes: p.notes || '',
       status: p.status || 'active', avatar: p.avatar || null, pinned: p.pinned || false,
@@ -429,7 +341,7 @@ export async function buildAllDataBundle() {
   return JSON.stringify(bundle, null, 2);
 }
 
-/** @returns {Promise<void>} */
+
 export async function exportAllDataJSON() {
   const json = await buildAllDataBundle();
   if (!json) { showNotification('No profiles to export', 'error'); return; }
@@ -508,7 +420,7 @@ export async function clearAllData() {
   }
 }
 
-export async function loadDemoData(sex = 'male') {
+export async function loadDemoData(sex: string = 'male') {
   // Cancel the empty dashboard's welcome timer before any download/import wait.
   document.body.classList.remove('chat-autostart-reserved');
   try {
@@ -534,7 +446,7 @@ export async function loadDemoData(sex = 'male') {
       // lives in IndexedDB. encryptedGetItem migrates from localStorage on
       // first read, so this works whether the value is in either place.
       const defaultRaw = await encryptedGetItem('labcharts-default-imported');
-      const defaultData = defaultRaw ? JSON.parse(defaultRaw) : {};
+      const defaultData = (defaultRaw ? JSON.parse(defaultRaw) : {}) as { entries?: { length?: unknown } };
       if (!defaultData.entries || defaultData.entries.length === 0) {
         await saveProfiles(allProfiles.filter(p => p.id !== 'default'));
         await encryptedRemoveItem('labcharts-default-imported');
@@ -562,14 +474,14 @@ export async function loadDemoData(sex = 'male') {
     const demoJson = prepareDemoBiologyData(JSON.parse(await blob.text()), sex);
     addDemoNutrition(demoJson, sex);
     const demoImportFile = new File([JSON.stringify(demoJson)], file, { type: 'application/json' });
-    if ((/** @type {{ text?: unknown } | null | undefined} */ (demoJson?.focusCard))?.text) {
+    if ((demoJson?.focusCard as { text?: unknown } | null | undefined)?.text) {
       // Focus card cache ships without a fingerprint — loadFocusCard
       // treats that as a hand-authored prefill and never auto-refreshes
       // against a live provider. Manual ↻ clears the cache.
       localStorage.setItem(profileStorageKey(profileId, 'focusCard'),
-        JSON.stringify({ text: (/** @type {{ text: unknown }} */ (demoJson.focusCard)).text }));
+        JSON.stringify({ text: (demoJson.focusCard as { text: unknown }).text }));
     }
-    if ((/** @type {{ dots?: unknown } | null | undefined} */ (demoJson?.contextHealth))?.dots || demoJson?.entries?.length) {
+    if ((demoJson?.contextHealth as { dots?: unknown } | null | undefined)?.dots || demoJson?.entries?.length) {
       try {
         const { getCardFingerprint } = await import('./context-cards.js');
         // Compute fingerprints against the demo JSON directly — passing
@@ -597,28 +509,28 @@ export async function loadDemoData(sex = 'male') {
         _ctxData.entries = [];
         for (const entry of _ctxSourceEntries) {
           if (!entry.date || !entry.markers) continue;
-          const existing = (/** @type {(data: { entries: unknown[], [key: string]: unknown }, date: unknown, options: Parameters<typeof findOrCreateLabEntry>[2]) => NonNullable<Parameters<typeof setLabEntryMarker>[0]>} */ (findOrCreateLabEntry))(_ctxData, entry.date, { now: _ctxImportTs });
-          for (const [key, value] of Object.entries(entry.markers)) {
+          const existing = ( (findOrCreateLabEntry as (data:unknown,date:unknown,options:Parameters<typeof findOrCreateLabEntry>[2])=>NonNullable<Parameters<typeof setLabEntryMarker>[0]>))(_ctxData, entry.date, { now: _ctxImportTs });
+          for (const [key, value] of Object.entries(entry.markers as Record<string,unknown>)) {
             setLabEntryMarker(existing, key, value, { now: _ctxImportTs });
           }
         }
-        try { (/** @type {(data: Record<string, unknown>) => unknown} */ (migrateProfileData))(_ctxData); } catch (_) {}
-        if ((/** @type {{ dots?: unknown } | null | undefined} */ (demoJson?.contextHealth))?.dots) {
+        try { ( (migrateProfileData as (data:unknown)=>ReturnType<typeof migrateProfileData>))(_ctxData); } catch (_) {}
+        if ((demoJson?.contextHealth as { dots?: unknown } | null | undefined)?.dots) {
           const ctx = {
             importedData: _ctxData,
             profileSex: sex,
             profileDob: dob,
           };
           const cacheKey = profileStorageKey(profileId, 'contextHealth');
-          const dots = {};
-          const summaries = {};
-          const cardSummaries = {};
-          const fingerprints = {};
-          const sources = {};
-          for (const k of Object.keys((/** @type {{ dots: Record<string, unknown> }} */ (demoJson.contextHealth)).dots)) {
-            dots[k] = (/** @type {{ dots: Record<string, unknown> }} */ (demoJson.contextHealth)).dots[k];
-            summaries[k] = (/** @type {{ summaries?: Record<string, unknown> | null }} */ (demoJson.contextHealth)).summaries?.[k] || '';
-            cardSummaries[k] = (/** @type {{ cardSummaries?: Record<string, unknown> | null }} */ (demoJson.contextHealth)).cardSummaries?.[k] || '';
+          const dots: Record<string, unknown> = {};
+          const summaries: Record<string, unknown> = {};
+          const cardSummaries: Record<string, unknown> = {};
+          const fingerprints: Record<string, unknown> = {};
+          const sources: Record<string, unknown> = {};
+          for (const k of Object.keys(( (demoJson.contextHealth as {dots:Record<string,unknown>})).dots)) {
+            dots[k] = ( (demoJson.contextHealth as {dots:Record<string,unknown>})).dots[k];
+            summaries[k] = ( (demoJson.contextHealth as {summaries?:Record<string,unknown>|null})).summaries?.[k] || '';
+            cardSummaries[k] = ( (demoJson.contextHealth as {cardSummaries?:Record<string,unknown>|null})).cardSummaries?.[k] || '';
             sources[k] = 'demo';
             try { fingerprints[k] = getCardFingerprint(k, ctx); } catch (_) {}
           }

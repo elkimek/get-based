@@ -1,4 +1,3 @@
-// @ts-check
 // sun-context-hooks.js - wire Sun AI context dependencies at startup.
 
 import {

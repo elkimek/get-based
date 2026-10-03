@@ -1,5 +1,5 @@
+import type { PdfImportDependencyOperations, PdfImportDependencies, RawAIImportReader, RawNormalizer, ParsedPDFResult, ParsePDFOptions, AIProgressCallback, BenchmarkPatch, PreviewReader, ImportAIResult, ProgressFactory, PerformanceWriter, FileClassifier } from '../types/pdf-import.js';
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
-// @ts-check
 // pdf-import.js — PDF parsing pipeline, import preview, drop zone, batch import
 
 import { getErrorMessage, getErrorName } from './caught-error.js';
@@ -74,7 +74,7 @@ const pdfImportDeps = {
   loadDemoData,
   maybeShowEncryptionNudge,
   startOpenRouterOAuth,
-};
+} as PdfImportDependencyOperations;
 
 configurePdfImportFileHandlers({
   parseLabPDFWithAI,
@@ -82,8 +82,8 @@ configurePdfImportFileHandlers({
   showAINeededDialog,
 });
 
-export function configurePdfImportDeps(deps = {}) {
-  return configureRuntimeFunctions(pdfImportDeps, deps, ["importDataJSON","loadDemoData","maybeShowEncryptionNudge","startOpenRouterOAuth"]);
+export function configurePdfImportDeps(deps: unknown = {}): PdfImportDependencies {
+  return (configureRuntimeFunctions as (current: PdfImportDependencies, updates: unknown, fields: readonly string[]) => PdfImportDependencies)(pdfImportDeps, deps, ["importDataJSON","loadDemoData","maybeShowEncryptionNudge","startOpenRouterOAuth"]);
 }
 
 export { buildMarkerReference, reconcileImportMarkerMappings } from './pdf-import-marker-mapping.js';
@@ -120,7 +120,7 @@ export {
 // matching the same mental model as the chat-onboarding quiz: easy (OpenRouter
 // OAuth), advanced (Settings for paste-a-key), or escape hatch (load demo data).
 // ═══════════════════════════════════════════════
-export function showAINeededDialog(action = 'import') {
+export function showAINeededDialog(action: unknown = 'import') {
   let overlay = document.getElementById('ai-needed-overlay');
   if (!overlay) {
     overlay = document.createElement('div');
@@ -191,14 +191,7 @@ export function showAINeededDialog(action = 'import') {
 // ═══════════════════════════════════════════════
 export { extractPDFText };
 
-/**
- * @param {string} pdfText
- * @param {string} fileName
- * @param {((pct: number, stageLabel?: string) => void) | undefined} onProgress
- * @param {{captureRawModelOutput?: boolean, deterministicBenchmark?: boolean}} [options]
- * @returns {Promise<any>}
- */
-export async function parseLabPDFWithAI(pdfText, fileName, onProgress, options = {}) {
+export async function parseLabPDFWithAI(pdfText: string, fileName: string, onProgress?: AIProgressCallback, options: ParsePDFOptions = {}): Promise<ParsedPDFResult> {
   const deterministicBenchmark = options.deterministicBenchmark === true;
   const markerRef = buildMarkerReference(deterministicBenchmark
     ? { profileSex: 'male', includeCustomMarkers: false }
@@ -292,7 +285,7 @@ Return ONLY valid JSON in this exact format, no other text:
   const provider = featureIdentity.provider;
   const maxTokens = 16384;
   // Include previously imported marker keys so the AI reuses consistent mappings
-  const existingKeys = deterministicBenchmark ? new Set() : getExistingImportMarkerKeys();
+  const existingKeys = deterministicBenchmark ? new Set<string>() : getExistingImportMarkerKeys();
   const existingKeysNote = existingKeys.size > 0
     ? `\n\nIMPORTANT — These marker keys were used in previous imports for this profile. Reuse them for the same biomarkers to ensure consistency:\n${[...existingKeys].join(', ')}`
     : '';
@@ -300,12 +293,12 @@ Return ONLY valid JSON in this exact format, no other text:
   // Phase-aware progress: "reading" until the first streamed token, then
   // "writing" driven by generated length (15% → 90%).
   const perfKey = importAIPerfKey();
-  const progress = createImportAIProgress({
+  const progress = (createImportAIProgress as ProgressFactory)({
     perfKey,
     estimatedPromptTokens: Math.ceil((system.length + pdfText.length) / 3),
     onProgress,
   });
-  let response, usage, diagnostics, truncated;
+  let response: ImportAIResult['text'], usage: ImportAIResult['usage'], diagnostics: ImportAIResult['diagnostics'], truncated: ImportAIResult['truncated'];
   progress.start();
   try {
     ({ text: response, usage, diagnostics, truncated } = await callImportAIWithStreamFallback({
@@ -325,7 +318,7 @@ Return ONLY valid JSON in this exact format, no other text:
   } finally {
     progress.finish();
   }
-  saveImportAIPerf(perfKey, { usage, diagnostics });
+  (saveImportAIPerf as PerformanceWriter)(perfKey, { usage, diagnostics });
 
   if (truncated) {
     throw new Error('The AI response was cut off before the marker list completed (output limit or context window reached). Increase the model’s context length, or split the report into smaller imports.');
@@ -336,11 +329,11 @@ Return ONLY valid JSON in this exact format, no other text:
   // Strip thinking model tags (e.g. <think>...</think> from DeepSeek, Qwen, etc.)
   jsonStr = jsonStr.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
   const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (codeBlockMatch) jsonStr = codeBlockMatch[1].trim();
+  if (codeBlockMatch) jsonStr = codeBlockMatch[1]!.trim();
   // Strip any leading text before the JSON object
   const jsonStart = jsonStr.indexOf('{');
   if (jsonStart > 0) jsonStr = jsonStr.slice(jsonStart);
-  const parsed = /** @type {import('./pdf-import-ai-utils.js').ParsedAIImport} */ (tryParseJSON(jsonStr));
+  const parsed = tryParseJSON(jsonStr) as RawAIImportReader;
   const rawModelResult = options.captureRawModelOutput ? {
     date: parsed.date || null,
     ...normalizeImportedCollectionContext(parsed),
@@ -351,7 +344,7 @@ Return ONLY valid JSON in this exact format, no other text:
       : [],
   } : null;
 
-  const { testType, markers } = normalizeParsedImportMarkers(parsed, {
+  const { testType, markers } = (normalizeParsedImportMarkers as RawNormalizer)(parsed, {
     markerRef,
     fileName,
     sourceText: pdfText,
@@ -378,8 +371,8 @@ Return ONLY valid JSON in this exact format, no other text:
 // FILE CLASSIFICATION
 export const isPdfByMagic = isPdfFileByMagic;
 
-export async function classifyImportFiles(files) {
-  return classifyImportFileBuckets(files, {
+export async function classifyImportFiles(files: Parameters<typeof classifyImportFileBuckets>[0]) {
+  return (classifyImportFileBuckets as FileClassifier)(files, {
     isDNAFile: getDnaModuleFunction('isDNAFile') || undefined,
     isDNAFileByContent: getDnaModuleFunction('isDNAFileByContent') || undefined,
     isCycleImportFile,
@@ -424,7 +417,7 @@ export function setupDropZone() {
       for (const f of textFiles) { if (state.currentProfile !== ownerProfile) return; await handleTextFile(f); }
       for (const f of imageFiles) { if (state.currentProfile !== ownerProfile) return; await handleImageFile(f); }
       if (state.currentProfile !== ownerProfile) return;
-      if (pdfFiles.length === 1) await handlePDFFile(pdfFiles[0]);
+      if (pdfFiles.length === 1) await handlePDFFile(pdfFiles[0]!);
       else if (pdfFiles.length > 1) await handleBatchPDFs(pdfFiles);
     } finally { importDispatch.busy = false; }
   });
@@ -435,11 +428,11 @@ export function setupDropZone() {
 // ═══════════════════════════════════════════════
 export const assessTextQuality = assessImportedTextQuality;
 
-export async function extractPDFImages(file, maxPages = 8) {
+export async function extractPDFImages(file: File, maxPages = 8) {
   return extractPdfImagesFromFile(file, maxPages);
 }
 
-export async function parseLabPDFWithAIImages(images, fileName, onProgress) {
+export async function parseLabPDFWithAIImages(images: Parameters<NonNullable<import('./pdf-import-file-handlers.js').PdfImportFileHandlerDependencies['parseLabPDFWithAIImages']>>[0], fileName: string, onProgress?: AIProgressCallback): Promise<ParsedPDFResult> {
   const markerRef = buildMarkerReference();
   const country = (getProfileLocation(getActiveProfileId())?.country || '').trim();
   const dateHint = country
@@ -498,20 +491,20 @@ Return ONLY valid JSON in this exact format:
   // Build content array with image blocks + text instruction
   // All providers use OpenAI-compatible image format
   const imageBlocks = images.map(img => {
-    return { type: 'image_url', image_url: { url: `data:${img.mediaType};base64,${img.base64}` } };
+    return { type: 'image_url' as const, image_url: { url: `data:${img.mediaType};base64,${img.base64}` } };
   });
   const content = [
     ...imageBlocks,
-    { type: 'text', text: `Extract all biomarker results from this lab report${fileName ? ' (file: ' + fileName + ')' : ''}. Read every page carefully.` }
+    { type: 'text' as const, text: `Extract all biomarker results from this lab report${fileName ? ' (file: ' + fileName + ')' : ''}. Read every page carefully.` }
   ];
 
   const perfKey = importAIPerfKey();
-  const progress = createImportAIProgress({
+  const progress = (createImportAIProgress as ProgressFactory)({
     perfKey,
     estimatedPromptTokens: Math.ceil(system.length / 3) + images.length * 1600,
     onProgress,
   });
-  let response, usage, diagnostics, truncated;
+  let response: ImportAIResult['text'], usage: ImportAIResult['usage'], diagnostics: ImportAIResult['diagnostics'], truncated: ImportAIResult['truncated'];
   progress.start();
   try {
     ({ text: response, usage, diagnostics, truncated } = await callImportAIWithStreamFallback({
@@ -531,7 +524,7 @@ Return ONLY valid JSON in this exact format:
   } finally {
     progress.finish();
   }
-  saveImportAIPerf(perfKey, { usage, diagnostics });
+  (saveImportAIPerf as PerformanceWriter)(perfKey, { usage, diagnostics });
 
   if (truncated) {
     throw new Error('The AI response was cut off before the marker list completed (output limit or context window reached). Increase the model’s context length, or import fewer pages at once.');
@@ -540,12 +533,12 @@ Return ONLY valid JSON in this exact format:
   let jsonStr = (response || '').trim();
   jsonStr = jsonStr.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
   const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (codeBlockMatch) jsonStr = codeBlockMatch[1].trim();
+  if (codeBlockMatch) jsonStr = codeBlockMatch[1]!.trim();
   const jsonStart = jsonStr.indexOf('{');
   if (jsonStart > 0) jsonStr = jsonStr.slice(jsonStart);
-  const parsed = /** @type {import('./pdf-import-ai-utils.js').ParsedAIImport} */ (tryParseJSON(jsonStr));
+  const parsed = tryParseJSON(jsonStr) as RawAIImportReader;
 
-  const { testType, markers } = normalizeParsedImportMarkers(parsed, {
+  const { testType, markers } = (normalizeParsedImportMarkers as RawNormalizer)(parsed, {
     markerRef,
     fileName,
     sourceText: '',
@@ -565,17 +558,17 @@ Return ONLY valid JSON in this exact format:
   };
 }
 
-export async function handlePDFFile(file, forceImageMode = false, preExtractedText = /** @type {string | null} */ (null)) {
+export async function handlePDFFile(file: File, forceImageMode = false, preExtractedText: string | null = null) {
   return handlePDFFileWorkflow(file, forceImageMode, preExtractedText);
 }
 
 // ═══════════════════════════════════════════════
 // BATCH PDF IMPORT
 // ═══════════════════════════════════════════════
-async function _processBatchFile(file, ollama, fileNum, totalFiles) {
+async function _processBatchFile(file: File, ollama: Awaited<ReturnType<typeof checkOllamaPII>>, fileNum: number, totalFiles: number) {
   const benchmarkStarted = performance.now();
   const benchmarkId = startImportBenchmark({ fileName: file.name, fileSize: file.size, importMode: 'text' });
-  const finishBatchBenchmark = (status, patch = {}) => finishImportBenchmark(benchmarkId, status, { totalMs: Math.round(performance.now() - benchmarkStarted), ...patch });
+  const finishBatchBenchmark = (status: string, patch: BenchmarkPatch = {}) => finishImportBenchmark(benchmarkId, status, { totalMs: Math.round(performance.now() - benchmarkStarted), ...patch });
   try {
   await showBatchImportProgress(0, file.name, fileNum, totalFiles);
   const pdfText = await extractPDFText(file);
@@ -594,9 +587,9 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
   // PII obfuscation
   await showBatchImportProgress(2, file.name, fileNum, totalFiles);
   let textForAI = pdfText;
-  let privacyMethod = null;
+  let privacyMethod: string | null = null;
   let privacyReplacements = 0;
-  let privacyOriginal = null;
+  let privacyOriginal: string | null = null;
   let piiTime = 0;
   let piiMs = 0;
 
@@ -690,7 +683,7 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
   if (result.markers.length === 0) { finishBatchBenchmark('no-markers', benchmarkResultPatch(result, performance.now() - benchmarkStarted)); showNotification(`${file.name}: No markers found`, 'error'); return 'no-markers'; }
   finishBatchBenchmark('preview', benchmarkResultPatch(result, performance.now() - benchmarkStarted));
   await showBatchImportProgress(4, file.name, fileNum, totalFiles);
-  const action = await showImportPreviewAsync(result, fileNum, totalFiles);
+  const action = await (showImportPreviewAsync as PreviewReader)(result, fileNum, totalFiles);
   return action === 'skip' ? 'skipped' : 'imported';
   } catch (error) {
     finishBatchBenchmark('failed', { stage: 'analysis', error: getErrorMessage(error) });
@@ -698,7 +691,7 @@ async function _processBatchFile(file, ollama, fileNum, totalFiles) {
   }
 }
 
-export async function handleBatchPDFs(pdfFiles) {
+export async function handleBatchPDFs(pdfFiles: File[]) {
   if (!hasAssistantFeatureProvider()) {
     showAINeededDialog('import');
     return;
@@ -706,9 +699,9 @@ export async function handleBatchPDFs(pdfFiles) {
   setPdfImportBatchMode(true);
   const ollama = await checkOllamaPII();
   let imported = 0, skipped = 0, failed = 0;
-  const failedFiles = [];
+  const failedFiles: { file: File; error: string }[] = [];
   for (let i = 0; i < pdfFiles.length; i++) {
-    const file = pdfFiles[i];
+    const file = pdfFiles[i]!;
     try {
       const result = await _processBatchFile(file, ollama, i + 1, pdfFiles.length);
       if (result === 'imported') imported++;
@@ -730,7 +723,7 @@ export async function handleBatchPDFs(pdfFiles) {
     showNotification(`Retrying ${failedFiles.length} failed file(s)...`, 'info');
     await new Promise(r => setTimeout(r, 5000));
     for (let i = 0; i < failedFiles.length; i++) {
-      const { file } = failedFiles[i];
+      const { file } = failedFiles[i]!;
       try {
         const result = await _processBatchFile(file, ollama, i + 1, failedFiles.length);
         if (result === 'imported') { retryImported++; imported++; }
@@ -752,7 +745,7 @@ export async function handleBatchPDFs(pdfFiles) {
   // Refresh UI once after all files processed
   refreshImportedDataViews();
   hideImportProgress();
-  const parts = [];
+  const parts: string[] = [];
   if (imported > 0) parts.push(`${imported} imported`);
   if (skipped > 0) parts.push(`${skipped} skipped`);
   if (failed > 0) parts.push(`${failed} failed`);
@@ -764,14 +757,14 @@ export async function handleBatchPDFs(pdfFiles) {
 // ═══════════════════════════════════════════════
 // IMAGE FILE IMPORT (JPG/PNG lab reports)
 // ═══════════════════════════════════════════════
-export async function handleImageFile(file) {
+export async function handleImageFile(file: File) {
   return handleImageFileWorkflow(file);
 }
 
 // ═══════════════════════════════════════════════
 // TEXT FILE IMPORT
 // ═══════════════════════════════════════════════
-export async function handleTextFile(file) {
+export async function handleTextFile(file: File) {
   const profileId = state.currentProfile, importedData = state.importedData;
   const isXlsx = isXlsxFile(file);
   const isCsv = isCsvTextFile(file);

@@ -1,4 +1,3 @@
-// @ts-check
 // light-channels-ai-analysis.js — seven-day Light review. It compares the
 // most recent seven days with the seven before them, while keeping sunlight
 // and targeted devices separate and never grading biological completion.
@@ -18,42 +17,43 @@ import { getDeviceSessions, rollingDeviceTotals } from './light-devices-store.js
 import { rollingChannelTotals } from './sun.js';
 import { getSessions } from './sun-sessions-store.js';
 
-const lightChannelsAIAnalysisDeps = {
+import type { AnalyzeOptions, AIVerdictAnalysis } from './ai-verdict-engine.js';
+
+// These operation views retain the original unvalidated configured/storage
+// reads. They are not guarantees that callbacks or saved JSON were validated.
+type ChannelDeps = { rollingChannelTotals: unknown; rollingDeviceTotals: unknown; getSessions: unknown; getDeviceSessions: unknown };
+type SessionRead = { id?: unknown; startedAt?: unknown; endedAt?: unknown; durationMin?: unknown };
+type MixRead = { status?: unknown; dot?: unknown; tip?: unknown; detail?: unknown; fingerprint?: unknown; errorMessage?: unknown };
+
+
+const lightChannelsAIAnalysisDeps: ChannelDeps = {
   rollingChannelTotals,
   rollingDeviceTotals,
   getSessions,
   getDeviceSessions,
 };
 
-/**
- * @param {{
- *   rollingChannelTotals?: ((days: number) => Record<string, number>) | null,
- *   rollingDeviceTotals?: ((days: number) => Record<string, number>) | null,
- *   getSessions?: (() => any[]) | null,
- *   getDeviceSessions?: (() => any[]) | null,
- * }} deps
- */
-export function configureLightChannelsAIAnalysisDeps(deps = {}) {
+export function configureLightChannelsAIAnalysisDeps(deps: unknown = {}) {
   const previous = { ...lightChannelsAIAnalysisDeps };
   for (const name of Object.keys(lightChannelsAIAnalysisDeps)) {
-    if (name in deps && typeof deps[name] === 'function') {
-      lightChannelsAIAnalysisDeps[name] = deps[name];
+    if (name in (deps as Record<string, unknown>) && typeof (deps as Record<string, unknown>)[name] === 'function') {
+      lightChannelsAIAnalysisDeps[name as keyof ChannelDeps] = (deps as Record<string, unknown>)[name];
     }
   }
   return previous;
 }
 
 function _getMix() {
-  return state.importedData?.channelMixAI || null;
+  return (state.importedData?.channelMixAI || null) as MixRead | null;
 }
 
-function _setMix(v) {
+function _setMix(v: AIVerdictAnalysis | null) {
   if (!state.importedData) return;
   if (v == null) delete state.importedData.channelMixAI;
   else state.importedData.channelMixAI = v;
 }
 
-const _CHANNEL_DEF = {
+const _CHANNEL_DEF: Record<string, { label: string; biology: string }> = {
   vitamin_d:  { label: 'Vitamin D',            biology: 'vitamin-D-effective UVB reaching uncovered skin' },
   circadian:  { label: 'Body clock',           biology: 'timed ambient light reaching the eyes' },
   nir_solar:  { label: 'Cell energy and repair', biology: 'red and near-infrared light reaching skin and deeper tissue; systemic effects remain under study' },
@@ -62,22 +62,22 @@ const _CHANNEL_DEF = {
   violet_eye: { label: 'Outdoor eye light',    biology: 'violet/cyan exposure at the eye; human pathway details remain exploratory' },
 };
 
-function _rollingChannelTotals(days) {
-  return lightChannelsAIAnalysisDeps.rollingChannelTotals(days) || {};
+function _rollingChannelTotals(days: number) {
+  return (lightChannelsAIAnalysisDeps.rollingChannelTotals as (days: number) => Record<string, unknown> | null | undefined)(days) || {};
 }
 
-function _rollingDeviceTotals(days) {
-  return lightChannelsAIAnalysisDeps.rollingDeviceTotals(days) || {};
+function _rollingDeviceTotals(days: number) {
+  return (lightChannelsAIAnalysisDeps.rollingDeviceTotals as (days: number) => Record<string, unknown> | null | undefined)(days) || {};
 }
 
 function _getSessions() {
-  const sessions = lightChannelsAIAnalysisDeps.getSessions();
-  return Array.isArray(sessions) ? sessions : [];
+  const sessions = (lightChannelsAIAnalysisDeps.getSessions as () => unknown)();
+  return Array.isArray(sessions) ? sessions as unknown[] : [];
 }
 
 function _getDeviceSessions() {
-  const sessions = lightChannelsAIAnalysisDeps.getDeviceSessions();
-  return Array.isArray(sessions) ? sessions : [];
+  const sessions = (lightChannelsAIAnalysisDeps.getDeviceSessions as () => unknown)();
+  return Array.isArray(sessions) ? sessions as unknown[] : [];
 }
 
 function _channelTotals() {
@@ -88,37 +88,37 @@ function _channelTotals() {
 
 const _DAY_MS = 86400000;
 
-function _sessionTime(session) {
-  return Number(session?.endedAt || 0);
+function _sessionTime(session: unknown) {
+  return Number((session as SessionRead | null | undefined)?.endedAt || 0);
 }
 
-function _sessionsInWindow(sessions, start, end) {
-  return (Array.isArray(sessions) ? sessions : []).filter(session => {
+function _sessionsInWindow(sessions: readonly unknown[], start: number, end: number) {
+  return (Array.isArray(sessions) ? sessions as unknown[] : []).filter(session => {
     const timestamp = _sessionTime(session);
     return timestamp >= start && timestamp < end;
   });
 }
 
-function _durationMinutes(session) {
-  const recorded = Number(session?.durationMin);
+function _durationMinutes(session: unknown) {
+  const recorded = Number((session as SessionRead | null | undefined)?.durationMin);
   if (Number.isFinite(recorded) && recorded >= 0) return recorded;
-  const startedAt = Number(session?.startedAt);
-  const endedAt = Number(session?.endedAt);
+  const startedAt = Number((session as SessionRead | null | undefined)?.startedAt);
+  const endedAt = Number((session as SessionRead | null | undefined)?.endedAt);
   if (!Number.isFinite(startedAt) || !Number.isFinite(endedAt) || endedAt < startedAt) return 0;
   return (endedAt - startedAt) / 60000;
 }
 
-function _localDayKey(timestamp) {
+function _localDayKey(timestamp: number) {
   const date = new Date(timestamp);
   return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
 }
 
-function _summarizeSessions(sessions) {
-  const days = new Set();
+function _summarizeSessions(sessions: readonly unknown[]) {
+  const days = new Set<string>();
   const timing = { morning: 0, afternoon: 0, evening: 0 };
   let durationMin = 0;
   for (const session of sessions) {
-    const timestamp = Number(session?.startedAt || session?.endedAt || 0);
+    const timestamp = Number((session as SessionRead | null | undefined)?.startedAt || (session as SessionRead | null | undefined)?.endedAt || 0);
     if (timestamp) {
       days.add(_localDayKey(timestamp));
       const hour = new Date(timestamp).getHours();
@@ -131,7 +131,7 @@ function _summarizeSessions(sessions) {
   return { count: sessions.length, days: days.size, durationMin: Math.round(durationMin), timing };
 }
 
-function _timingText(timing) {
+function _timingText(timing: { morning: number; afternoon: number; evening: number }) {
   return `morning ${timing.morning}; afternoon ${timing.afternoon}; evening ${timing.evening}`;
 }
 
@@ -159,11 +159,11 @@ export function getChannelMixFingerprint() {
   const windows = _weeklyWindows();
   const parts = ['weekly-light-pattern-v2'];
   for (const k of Object.keys(_CHANNEL_DEF).sort()) {
-    parts.push(`${k}:sun${/** @type {number} */ (t.sun7[k] || 0) > 0 ? 1 : 0}:dev${(t.dev7[k] || 0) > 0 ? 1 : 0}`);
+    parts.push(`${k}:sun${((t.sun7[k] || 0) as number) > 0 ? 1 : 0}:dev${((t.dev7[k] || 0) as number) > 0 ? 1 : 0}`);
   }
   for (const [source, sessions] of Object.entries(windows)) {
     for (const session of sessions) {
-      parts.push(source, String(session?.id || ''), String(session?.startedAt || 0), String(session?.endedAt || 0), String(Math.round(_durationMinutes(session))));
+      parts.push(source, String((session as SessionRead | null | undefined)?.id || ''), String((session as SessionRead | null | undefined)?.startedAt || 0), String((session as SessionRead | null | undefined)?.endedAt || 0), String(Math.round(_durationMinutes(session))));
     }
   }
   return hashString(parts.join('|'));
@@ -176,7 +176,7 @@ export function buildChannelMixContext() {
   const currentDevice = _summarizeSessions(windows.currentDevice);
   const previousSun = _summarizeSessions(windows.previousSun);
   const previousDevice = _summarizeSessions(windows.previousDevice);
-  const lines = [];
+  const lines: string[] = [];
 
   lines.push('### Weekly light review');
   lines.push('Window: rolling past 7 days, compared with the previous 7 days. These are logged records, not continuous exposure measurements.');
@@ -195,8 +195,8 @@ export function buildChannelMixContext() {
   lines.push('');
   lines.push('### Light-responsive source signals — past 7 days');
   for (const [k, def] of Object.entries(_CHANNEL_DEF)) {
-    const sun = /** @type {number} */ (t.sun7[k] || 0) > 0 ? 'logged' : 'not logged';
-    const device = (t.dev7[k] || 0) > 0 ? 'logged separately' : 'not logged';
+    const sun = ((t.sun7[k] || 0) as number) > 0 ? 'logged' : 'not logged';
+    const device = ((t.dev7[k] || 0) as number) > 0 ? 'logged separately' : 'not logged';
     lines.push(`- ${def.label} (${k}): sunlight ${sun}; device ${device}. Model: ${def.biology}`);
   }
 
@@ -241,7 +241,7 @@ const SINGLETON = { key: 'default', isChannelMixTarget: true };
 const engine = createAIVerdict({
   getTarget: () => (state.importedData ? SINGLETON : null),
   getId: () => 'default',
-  getAIAnalysis: () => _getMix(),
+  getAIAnalysis: () => _getMix() as AIVerdictAnalysis | null,
   setAIAnalysis: (_t, v) => _setMix(v),
   getFingerprint: () => getChannelMixFingerprint(),
   buildContext: () => buildChannelMixContext(),
@@ -258,7 +258,7 @@ const engine = createAIVerdict({
   getAllTargets: () => (state.importedData ? [SINGLETON] : []),
 });
 
-export const analyzeChannelMixAI = (opts) => engine.analyze(SINGLETON, opts);
+export const analyzeChannelMixAI = (opts?: AnalyzeOptions) => engine.analyze(SINGLETON, opts) as Promise<unknown>;
 export async function refreshChannelMixAI() {
   if (!_hasWeeklyReviewData()) {
     if (typeof document !== 'undefined') {
@@ -276,7 +276,7 @@ registerAIActionHandler('refresh-channel-mix', refreshChannelMixAI);
 // other auto-fire surfaces; prevents tight-loop refire.
 const _autoFiredChannelKeys = new Set();
 
-function _renderWeeklyAIReview(analysis, action = '') {
+function _renderWeeklyAIReview(analysis: MixRead | null, action = '') {
   return `<div class="light-channel-mix-ai">
     <section class="light-weekly-ai-review">
       <div class="light-weekly-ai-head">
@@ -294,7 +294,7 @@ function _renderWeeklyAIReview(analysis, action = '') {
 // Drop-in replacement for renderSuggestion. The AI output is deliberately
 // neutral: safety colors belong to deterministic Today checks, while this
 // block only explains patterns in the two rolling seven-day windows.
-export function renderChannelMixVerdict(staticFallback) {
+export function renderChannelMixVerdict(staticFallback: unknown): unknown {
   if (!hasAssistantFeatureProvider()) {
     // Pre-populated demo or cross-device synced cached verdict still
     // renders even without a provider when it matches the new source-aware

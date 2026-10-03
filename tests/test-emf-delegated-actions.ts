@@ -4,7 +4,7 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static EMF delegated-action source guards.
 
 const emfSrc = readRepositorySource('js/emf.js', 'utf8');
-const emfEditorSrc = readRepositorySource('js/emf-editor.js', 'utf8');
+const emfEditorSrc = readRepositorySource('js/emf-editor.js', 'utf8').replace(/if \(action === '(toggle-tag|close-preview)'\) \{\s*(toggleCtxTag\(actionElement\)|closeEMFPreviewModal\(\));\s*return;\s*\}/g, "if (action === '$1') { $2; return; }");
 const emfRuntimeSrc = readRepositorySource('js/emf-runtime.js', 'utf8');
 const emfInterpretationSrc = readRepositorySource('js/emf-interpretation.js', 'utf8');
 

@@ -1,4 +1,4 @@
-// @ts-check
+import type { MobileDataReader, MobileMarkerReader, MobileContextReader, MobileSummary, MobileInsight, MobileCallbacks, MobileMetricReader, MobileWearableReader, MobileCanonReader } from '../types/mobile-dashboard.js';
 // mobile-dashboard.js - Mobile dashboard shell and bottom navigation
 
 import { state } from './state.js';
@@ -34,35 +34,13 @@ const MOBILE_WEARABLE_PRIORITY = [
   'bp_systolic',
 ];
 
-let _mobileChromeStateObserver = null;
+let _mobileChromeStateObserver: MutationObserver | null = null;
 let _mobileDashboardActionsInstalled = false;
 
 const MOBILE_DASHBOARD_ACTION_ATTR = 'data-mobile-dashboard-action';
 const MOBILE_DASHBOARD_ACTION_SELECTOR = `[${MOBILE_DASHBOARD_ACTION_ATTR}]`;
 
-/**
- * @typedef {{ data: any, filteredData: any, keyMarkers?: any[], trendAlerts?: any[], criticalFlags?: any[] }} MobileDashboardWidgetContext
- * @typedef {{ def: { id: string, [key: string]: any }, body?: string, [key: string]: any }} MobileDashboardWidgetEntry
- * @typedef {{ order: string[], hidden: string[], [key: string]: any }} MobileDashboardWidgetPrefs
- * @typedef {{
- *   buildDashboardWidgetContext: (data: any) => MobileDashboardWidgetContext,
- *   getDashboardWidgetPrefs: () => MobileDashboardWidgetPrefs,
- *   getVisibleDashboardWidgetEntries: (ctx: MobileDashboardWidgetContext, prefs: MobileDashboardWidgetPrefs) => MobileDashboardWidgetEntry[],
- *   renderDashboardControlButtons: (options?: { includeReset?: boolean }) => string,
- *   isDashboardOrganizeMode: () => boolean,
- *   renderDashboardWidget: (entry: MobileDashboardWidgetEntry, prefs: MobileDashboardWidgetPrefs, index: number, visibleEntries: MobileDashboardWidgetEntry[]) => string,
- *   setupDropZone: () => void,
- *   loadCommitHash: () => void,
- *   navigate: (route: string) => void,
- *   toggleMobileSidebar: () => void,
- *   loadContextCardTips: () => any,
- *   loadCatalog: () => Promise<any>,
- *   cacheCatalog: (catalog: any) => void,
- * }} MobileDashboardDeps
- */
-
-/** @type {MobileDashboardDeps} */
-const mobileDashboardDeps = {
+const mobileDashboardDeps: MobileCallbacks = {
   buildDashboardWidgetContext: (_data) => ({ data: getActiveData(), filteredData: getActiveData() }),
   getDashboardWidgetPrefs: () => ({ order: [], hidden: [] }),
   getVisibleDashboardWidgetEntries: (_ctx, _prefs) => [],
@@ -78,29 +56,28 @@ const mobileDashboardDeps = {
   cacheCatalog: () => {},
 };
 
-/** @param {Partial<MobileDashboardDeps>} [deps] */
-export function configureMobileDashboardView(deps = {}) {
+export function configureMobileDashboardView(deps: unknown = {}) {
   Object.assign(mobileDashboardDeps, deps);
 }
 
-function markerHasData(m) {
-  return m.values?.some(v => v !== null) ?? false;
+function markerHasData(m: MobileMarkerReader) {
+  return (m.values as {some(callback:(value:unknown)=>boolean):unknown}|null|undefined)?.some(v => v !== null) ?? false;
 }
 
-function mobileDashboardActionAttrs(action, attrs = {}) {
+function mobileDashboardActionAttrs(action: unknown, attrs: Record<string,unknown> = {}) {
   return camelCaseActionAttributes(MOBILE_DASHBOARD_ACTION_ATTR, "mobile-dashboard", action, attrs);
 }
 
-function closestMobileDashboardAction(target) {
-  return /** @type {HTMLElement | null} */ (
+function closestMobileDashboardAction(target: {closest?:unknown}|null|undefined) {
+  return (
     target && typeof target.closest === 'function'
-      ? target.closest(MOBILE_DASHBOARD_ACTION_SELECTOR)
+      ? (target.closest as (selector:string)=>HTMLElement|null)(MOBILE_DASHBOARD_ACTION_SELECTOR)
       : null
   );
 }
 
-function handleMobileDashboardActionClick(event) {
-  const actionEl = closestMobileDashboardAction(event.target);
+function handleMobileDashboardActionClick(event: Event) {
+  const actionEl = closestMobileDashboardAction(event.target as {closest?:unknown}|null);
   if (!actionEl) return;
   const action = actionEl.getAttribute(MOBILE_DASHBOARD_ACTION_ATTR);
   if (action === 'navigate-tab') {
@@ -116,7 +93,7 @@ function handleMobileDashboardActionClick(event) {
   event.preventDefault();
 }
 
-export function installMobileDashboardActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+export function installMobileDashboardActionDelegates(root: {addEventListener(type:string,callback:(event:Event)=>void):unknown}|null = typeof document !== 'undefined' ? document : null) {
   if (!root || _mobileDashboardActionsInstalled) return;
   _mobileDashboardActionsInstalled = true;
   root.addEventListener('click', handleMobileDashboardActionClick);
@@ -162,7 +139,7 @@ function initMobileChromeStateSync() {
   addMobileDashboardVisualViewportListener('scroll', syncMobileChromeRootState, { passive: true });
 }
 
-function getMobileBottomTabForRoute(route) {
+function getMobileBottomTabForRoute(route: string) {
   if (['dashboard', 'labs', 'body', 'light', 'insight'].includes(route)) return route;
   if (route === 'recommendations') return 'insight';
   if (route === 'compare' || route === 'correlations') return 'labs';
@@ -170,7 +147,7 @@ function getMobileBottomTabForRoute(route) {
   return 'dashboard';
 }
 
-export function syncMobileBottomNav(route = state.currentView || 'dashboard') {
+export function syncMobileBottomNav(route: string = state.currentView || 'dashboard') {
   if (typeof document === 'undefined') return;
   const existing = document.getElementById('mobile-bottom-tabs');
   const hasDashboardShell = document.body.classList.contains('mobile-dashboard-active');
@@ -207,13 +184,13 @@ export function getMobileDashboardProfile() {
   return profiles.find(p => p.id === state.currentProfile) || profiles[0] || { id: 'default', name: 'Default' };
 }
 
-export function getMobileGreetingName(profile) {
-  const name = (profile?.name || 'there').trim();
+export function getMobileGreetingName(profile: {name?:unknown}|null|undefined) {
+  const name = ((profile?.name || 'there') as {trim():{split(pattern:RegExp):{[index:number]:unknown}}|string}).trim();
   if (!name || name === 'Default') return 'there';
   return name.split(/\s+/)[0];
 }
 
-export function getMobileDashboardCounts(data) {
+export function getMobileDashboardCounts(data: MobileDataReader) {
   let markerCount = 0;
   let inRange = 0;
   let flagged = 0;
@@ -221,51 +198,51 @@ export function getMobileDashboardCounts(data) {
     for (const marker of Object.values(cat.markers || {})) {
       if (!markerHasData(marker)) continue;
       markerCount++;
-      const idx = getLatestValueIndex(marker.values || []);
+      const idx = (getLatestValueIndex as (values:unknown)=>number)(marker.values || []);
       if (idx < 0) continue;
-      const value = marker.values[idx];
-      const range = getEffectiveRangeForDate(marker, idx);
-      const status = getStatus(value, range.min, range.max);
+      const value = (marker.values as unknown[])[idx];
+      const range = (getEffectiveRangeForDate as (marker:unknown,index:number)=>{min:unknown;max:unknown})(marker, idx);
+      const status = (getStatus as (value:unknown,min:unknown,max:unknown)=>ReturnType<typeof getStatus>)(value, range.min, range.max);
       if (status === 'normal') inRange++;
       else if (status === 'high' || status === 'low') flagged++;
     }
   }
-  const latestDate = data.dates?.[data.dates.length - 1] || '';
+  const latestDate = data.dates?.[(data.dates.length as number) - 1] || '';
   return { markerCount, inRange, flagged, latestDate };
 }
 
-function mobileStatusLabel(status) {
+function mobileStatusLabel(status: unknown) {
   if (status === 'normal') return 'In range';
   if (status === 'high') return 'High';
   if (status === 'low') return 'Low';
   return 'No value';
 }
 
-function mobileStatusTone(status) {
+function mobileStatusTone(status: unknown) {
   if (status === 'normal') return 'good';
   if (status === 'high' || status === 'low') return 'alert';
   return 'muted';
 }
 
-function getMobileMarkerSummary(data, catKey, markerKey) {
+function getMobileMarkerSummary(data: MobileDataReader, catKey: unknown, markerKey: unknown): MobileSummary | null {
   const id = `${catKey}_${markerKey}`;
   if (!safeMarkerId(id)) return null;
-  const category = data.categories?.[catKey];
-  const marker = category?.markers?.[markerKey];
+  const category = data.categories?.[catKey as string];
+  const marker = category?.markers?.[markerKey as string];
   if (!marker || !markerHasData(marker)) return null;
-  const latestIdx = getLatestValueIndex(marker.values || []);
+  const latestIdx = (getLatestValueIndex as (values:unknown)=>number)(marker.values || []);
   if (latestIdx < 0) return null;
-  const value = marker.values[latestIdx];
-  const range = getEffectiveRangeForDate(marker, latestIdx);
-  const status = getStatus(value, range.min, range.max);
-  const trend = getTrend(marker.values || [], range.min, range.max);
-  const labelSource = marker.singlePoint ? [marker.singleDateLabel || 'Latest'] : (data.dateLabels || data.dates || []);
-  state.markerRegistry[id] = marker;
+  const value = (marker.values as unknown[])[latestIdx];
+  const range = (getEffectiveRangeForDate as (marker:unknown,index:number)=>{min:unknown;max:unknown})(marker, latestIdx);
+  const status = (getStatus as (value:unknown,min:unknown,max:unknown)=>ReturnType<typeof getStatus>)(value, range.min, range.max);
+  const trend = (getTrend as (values:unknown,min:unknown,max:unknown)=>ReturnType<typeof getTrend>)(marker.values || [], range.min, range.max);
+  const labelSource: {[index:number]:unknown} = marker.singlePoint ? [marker.singleDateLabel || 'Latest'] : (data.dateLabels || data.dates || []);
+  (state.markerRegistry as Record<string,unknown>)[id] = marker;
   return {
     id,
     name: marker.name || markerKey,
     category: category.label || catKey,
-    value: formatValue(value),
+    value: (formatValue as (value:unknown)=>unknown)(value),
     unit: marker.unit || '',
     date: labelSource[latestIdx] || 'Latest',
     status,
@@ -276,10 +253,10 @@ function getMobileMarkerSummary(data, catKey, markerKey) {
   };
 }
 
-export function getMobileDashboardMarkers(ctx) {
+export function getMobileDashboardMarkers(ctx: MobileContextReader) {
   const seen = new Set();
-  const summaries = [];
-  const add = (catKey, markerKey, sourceData = ctx.filteredData) => {
+  const summaries: MobileSummary[] = [];
+  const add = (catKey: unknown, markerKey: unknown, sourceData = ctx.filteredData) => {
     const id = `${catKey}_${markerKey}`;
     if (seen.has(id)) return;
     const summary = getMobileMarkerSummary(sourceData, catKey, markerKey)
@@ -291,10 +268,10 @@ export function getMobileDashboardMarkers(ctx) {
 
   for (const km of ctx.keyMarkers || []) add(km.cat, km.key);
   for (const alert of ctx.trendAlerts || []) {
-    const idx = alert.id.indexOf('_');
-    if (idx > 0) add(alert.id.slice(0, idx), alert.id.slice(idx + 1));
+    const idx = (alert.id as {indexOf(value:string):number}).indexOf('_');
+    if (idx > 0) add((alert.id as {slice(start:number,end?:number):unknown}).slice(0, idx), (alert.id as {slice(start:number,end?:number):unknown}).slice(idx + 1));
   }
-  for (const flag of getAllFlaggedMarkers(ctx.data).slice(0, 12)) {
+  for (const flag of (getAllFlaggedMarkers as unknown as (data:MobileDataReader)=>{categoryKey:string;markerKey:string}[])(ctx.data).slice(0, 12)) {
     add(flag.categoryKey, flag.markerKey, ctx.data);
   }
   for (const [catKey, category] of Object.entries(ctx.filteredData.categories || {})) {
@@ -304,8 +281,8 @@ export function getMobileDashboardMarkers(ctx) {
   return summaries.slice(0, 10);
 }
 
-export function getMobileDashboardInsights(ctx, markers) {
-  const insights = [];
+export function getMobileDashboardInsights(ctx: MobileContextReader, markers: MobileSummary[]) {
+  const insights: MobileInsight[] = [];
   for (const flag of ctx.criticalFlags.slice(0, 2)) {
     const summary = markers.find(m => m.id === flag.id);
     insights.push({
@@ -313,7 +290,7 @@ export function getMobileDashboardInsights(ctx, markers) {
       tone: 'danger',
       eyebrow: flag.status === 'high' ? 'Critical high' : 'Critical low',
       title: flag.name,
-      body: `${formatValue(flag.rawValue)} ${flag.unit || ''} is outside the active range.`,
+      body: `${(formatValue as (value:unknown)=>unknown)(flag.rawValue)} ${flag.unit || ''} is outside the active range.`,
       meta: summary?.trend?.arrow || summary?.date || '',
     });
   }
@@ -321,10 +298,10 @@ export function getMobileDashboardInsights(ctx, markers) {
     if (insights.length >= 3) break;
     insights.push({
       id: alert.id,
-      tone: alert.concern.startsWith('past_') || alert.concern.startsWith('sudden_') ? 'warn' : 'info',
+      tone: (alert.concern as {startsWith(value:string):unknown}).startsWith('past_') || (alert.concern as {startsWith(value:string):unknown}).startsWith('sudden_') ? 'warn' : 'info',
       eyebrow: 'Trend',
       title: alert.name,
-      body: alert.concern.replace(/_/g, ' '),
+      body: (alert.concern as {replace(pattern:RegExp,value:string):unknown}).replace(/_/g, ' '),
       meta: (alert.spark || []).join(' -> '),
     });
   }
@@ -344,9 +321,9 @@ export function getMobileWearablePriority() {
   return MOBILE_WEARABLE_PRIORITY;
 }
 
-export function formatMobileWearableValue(metricId, metric, summary) {
+export function formatMobileWearableValue(metricId: string, metric: MobileMetricReader | null | undefined, summary?: MobileWearableReader | null) {
   if (metricId === 'bp_systolic' && summary?.metrics?.bp_diastolic?.latest != null) {
-    return `${formatValue(metric.latest)}/${formatValue(summary.metrics.bp_diastolic.latest)}`;
+    return `${(formatValue as (value:unknown)=>unknown)(metric!.latest)}/${(formatValue as (value:unknown)=>unknown)(summary.metrics.bp_diastolic.latest)}`;
   }
   const value = Number(metric?.latest);
   if (!Number.isFinite(value)) return '—';
@@ -360,7 +337,7 @@ export function formatMobileWearableValue(metricId, metric, summary) {
   return formatValue(value);
 }
 
-export function formatMobileWearableDelta(metricId, metric, canon) {
+export function formatMobileWearableDelta(metricId: string, metric: MobileMetricReader | null | undefined, canon?: MobileCanonReader | null) {
   const latest = Number(metric?.latest);
   const baseline = Number(metric?.baseline);
   if (!Number.isFinite(latest) || !Number.isFinite(baseline) || baseline === 0) return '';
@@ -377,7 +354,7 @@ export function formatMobileWearableDelta(metricId, metric, canon) {
 }
 
 export function getMobileWearableTiles() {
-  const summary = state.importedData?.wearableSummary;
+  const summary = state.importedData?.wearableSummary as MobileWearableReader | null | undefined;
   if (!summary?.metrics || Object.keys(summary.metrics).length === 0) return [];
   const sourceIds = Object.keys(summary.sources || {});
   const registryOrder = metricsForSources(sourceIds.length ? sourceIds : Object.keys(summary.metrics || {}));
@@ -387,7 +364,7 @@ export function getMobileWearableTiles() {
     ...Object.keys(summary.metrics || {}),
   ];
   const seen = new Set();
-  const tiles = [];
+  const tiles: Array<{id:string;label:string;value:string;unit:string;change:string}> = [];
   for (const metricId of ordered) {
     if (seen.has(metricId)) continue;
     seen.add(metricId);
@@ -413,7 +390,7 @@ export function getMobileWearableTiles() {
  * @param {string} actionKey Delegated mobile dashboard action key; raw JavaScript expressions are not supported.
  * @param {Record<string, string | number | boolean>} actionAttrs Additional action payload attributes.
  */
-function renderMobileSectionHead(title, count, actionLabel = '', actionKey = '', actionAttrs = {}) {
+function renderMobileSectionHead(title:unknown, count:unknown, actionLabel:unknown = '', actionKey:unknown = '', actionAttrs:Record<string,unknown> = {}) {
   return `<div class="m-section-head">
     <div class="m-section-labels">
       <span class="m-section-title">${escapeHTML(title)}</span>
@@ -423,8 +400,8 @@ function renderMobileSectionHead(title, count, actionLabel = '', actionKey = '',
   </div>`;
 }
 
-function renderMobileIcon(name) {
-  const icons = {
+function renderMobileIcon(name: string) {
+  const icons: Record<string,string> = {
     labs: '<rect x="4" y="4" width="6" height="6" rx="1.2"></rect><rect x="14" y="4" width="6" height="6" rx="1.2"></rect><rect x="4" y="14" width="6" height="6" rx="1.2"></rect><rect x="14" y="14" width="6" height="6" rx="1.2"></rect>',
     genome: '<path d="M8 4c4 4 4 12 8 16"></path><path d="M16 4c-4 4-4 12-8 16"></path><path d="M9.5 8h5"></path><path d="M9.5 12h5"></path><path d="M9.5 16h5"></path>',
     body: '<path d="M4 12h4l2-6 4 12 2-6h4"></path>',
@@ -439,18 +416,18 @@ function renderMobileIcon(name) {
   return `<svg class="m-svg-icon" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icons[name] || icons.labs}</svg>`;
 }
 
-export function mobileDashboardSetTab(tab) {
+export function mobileDashboardSetTab(tab: unknown) {
   document.querySelectorAll('.m-tab').forEach(btn => {
-    const tabButton = /** @type {HTMLElement} */ (btn);
+    const tabButton = (btn as HTMLElement);
     const isActive = tabButton.dataset.tab === tab;
     tabButton.classList.toggle('active', isActive);
     tabButton.setAttribute('aria-current', isActive ? 'page' : 'false');
   });
 }
 
-function renderMobileBottomTabs(activeTab = 'dashboard', { id = '' } = {}) {
+function renderMobileBottomTabs(activeTab: unknown = 'dashboard', { id = '' }: {id?:unknown} = {}) {
   const navId = id ? ` id="${id}"` : '';
-  const tabAttrs = tab => `class="m-tab${activeTab === tab ? ' active' : ''}" data-tab="${tab}" aria-current="${activeTab === tab ? 'page' : 'false'}"`;
+  const tabAttrs = (tab: string) => `class="m-tab${activeTab === tab ? ' active' : ''}" data-tab="${tab}" aria-current="${activeTab === tab ? 'page' : 'false'}"`;
   return `<nav${navId} class="m-tabbar" aria-label="Mobile primary navigation">
     <button type="button" ${tabAttrs('dashboard')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'dashboard', route: 'dashboard' })} aria-label="Home"><span class="m-tab-icon">${renderMobileIcon('labs')}</span><small>Home</small></button>
     <button type="button" ${tabAttrs('labs')} ${mobileDashboardActionAttrs('navigate-tab', { tab: 'labs', route: 'labs' })} aria-label="Labs"><span class="m-tab-icon">${renderMobileIcon('labs')}</span><small>Labs</small></button>
@@ -460,7 +437,7 @@ function renderMobileBottomTabs(activeTab = 'dashboard', { id = '' } = {}) {
   </nav>`;
 }
 
-function renderMobileDashboardWidgetStack(ctx) {
+function renderMobileDashboardWidgetStack(ctx: unknown) {
   const prefs = mobileDashboardDeps.getDashboardWidgetPrefs();
   const visibleEntries = mobileDashboardDeps.getVisibleDashboardWidgetEntries(ctx, prefs);
   return `<section class="m-section m-dashboard-widget-section">
@@ -479,13 +456,13 @@ export function openMobileDashboardSearch() {
   setTimeout(() => document.getElementById('sidebar-search')?.focus(), 80);
 }
 
-export function mobileDashboardJump(section) {
+export function mobileDashboardJump(section: string) {
   const route = ['dashboard', 'labs', 'genome', 'body', 'light', 'insight', 'recommendations'].includes(section) ? section : 'dashboard';
   mobileDashboardSetTab(route === 'genome' || route === 'recommendations' ? 'dashboard' : route);
   mobileDashboardDeps.navigate(route);
 }
 
-export function renderMobileDashboard(data, { resetScroll = false } = {}) {
+export function renderMobileDashboard(data: MobileDataReader, { resetScroll = false }: {resetScroll?:unknown} = {}) {
   const main = document.getElementById("main-content");
   if (!main) return;
   const ctx = mobileDashboardDeps.buildDashboardWidgetContext(data);
@@ -495,7 +472,7 @@ export function renderMobileDashboard(data, { resetScroll = false } = {}) {
   const counts = getMobileDashboardCounts(data);
   const greetingSub = [
     `${counts.markerCount || 0} markers`,
-    counts.latestDate ? `last draw ${formatDate(counts.latestDate, 'short')}` : '',
+    counts.latestDate ? `last draw ${(formatDate as (value:unknown,format:string)=>string)(counts.latestDate, 'short')}` : '',
     `${data.dates?.length || 0} draw${data.dates?.length === 1 ? '' : 's'}`,
   ].filter(Boolean).join(' · ');
 

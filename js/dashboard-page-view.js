@@ -145,7 +145,7 @@ export function createDashboardPageView(deps) {
     const span = getDashboardMonthSpan(ctx.data);
     const parts = [
       `${counts.inRange} of ${counts.markerCount || 0} markers in range`,
-      counts.latestDate ? `last draw ${formatDate(counts.latestDate, 'short')}` : '',
+      counts.latestDate ? `last draw ${(/** @type {(value: unknown, format: Parameters<typeof formatDate>[1]) => ReturnType<typeof formatDate>} */ (formatDate))(counts.latestDate, 'short')}` : '',
       `${panelCount} panel${panelCount === 1 ? '' : 's'}${span ? ` across ${span}` : ''}`,
       `${visibleCount} widget${visibleCount === 1 ? '' : 's'} active`,
     ].filter(Boolean);

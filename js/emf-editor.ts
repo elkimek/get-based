@@ -1,4 +1,3 @@
-// @ts-check
 // emf-editor.js — EMF assessment modal rendering and delegated interaction owner.
 
 import { SBM_2015_THRESHOLDS, getEMFSeverity } from './schema.js';
@@ -21,7 +20,9 @@ import {
   safeEMFMediaType,
 } from './emf-model.js';
 
-/** @type {Record<string, any>} */
+import type { AssessmentOperations, RoomOperations, MeasurementOperations, EditorDependencyOperations, PreviewInput, EditorOptions, ReturnRoute, SeverityReader } from '../types/emf-editor.js';
+
+// Private invocation view; configuration/snapshots stay raw and nullable callbacks retain original errors.
 const emfEditorDeps = {
   addEMFAssessment: null,
   addEMFPhotos: null,
@@ -45,45 +46,44 @@ const emfEditorDeps = {
   updateEMFMeter: null,
   updateEMFRoom: null,
   viewEMFPhoto: null,
-};
+} as EditorDependencyOperations;
 
-export function configureEMFEditor(deps = {}) {
+export function configureEMFEditor(deps: unknown = {}): Record<string, unknown> {
   const previous = { ...emfEditorDeps };
   for (const [key, value] of Object.entries(deps || {})) {
     if (Object.hasOwn(emfEditorDeps, key) && (typeof value === 'function' || value === null)) {
-      emfEditorDeps[key] = value;
+      (emfEditorDeps as Record<string, unknown>)[key] = value;
     }
   }
   return previous;
 }
 
 export const emfEditorState = {
-  editingAssessmentId: /** @type {string | null} */ (null),
+  editingAssessmentId: null as unknown,
   activeRoomIdx: 0,
   compareMode: false,
 };
 
-/** @type {{ label: string, callback: (() => void) | null } | null} */
-let emfEditorReturnRoute = null;
+let emfEditorReturnRoute: ReturnRoute | null = null;
 
 let emfEditorDelegatesInstalled = false;
 
-function emfAttrString(attrs) {
+function emfAttrString(attrs: Record<string, unknown>) {
   return Object.entries(attrs)
     .filter(([, value]) => value !== undefined && value !== null)
     .map(([name, value]) => `${name}="${escapeAttr(String(value))}"`)
     .join(' ');
 }
 
-function emfActionAttrs(action, attrs = {}) {
+function emfActionAttrs(action: string, attrs: Record<string, unknown> = {}) {
   return emfAttrString({ 'data-emf-action': action, ...attrs });
 }
 
-function emfChangeAttrs(action, attrs = {}) {
+function emfChangeAttrs(action: string, attrs: Record<string, unknown> = {}) {
   return emfAttrString({ 'data-emf-change-action': action, ...attrs });
 }
 
-function isEMFEditorTarget(element) {
+function isEMFEditorTarget(element: Element) {
   return !!element.closest('#detail-modal');
 }
 
@@ -99,8 +99,8 @@ function closeEMFPreviewModal() {
   const modal = document.getElementById('detail-modal');
   if (!modal) return;
   renderEMFEditor(modal);
-  const focusTarget = /** @type {HTMLElement | null} */ (
-    modal.querySelector('[data-emf-action="trigger-pdf-import"], [data-emf-action="add-assessment"]')
+  const focusTarget = (
+    modal.querySelector<HTMLElement>('[data-emf-action="trigger-pdf-import"], [data-emf-action="add-assessment"]')
   );
   requestAnimationFrame(() => focusTarget?.focus());
 }
@@ -122,16 +122,16 @@ function returnFromEMFEditor() {
   removeEMFEditorDelegates();
   emfEditorReturnRoute = null;
   emfEditorDeps.closeModal?.();
-  if (route?.callback) setTimeout(route.callback, 0);
+  if (route?.callback) setTimeout(route.callback as () => void, 0);
 }
 
-function emfNumberAttr(element, name, fallback = 0) {
+function emfNumberAttr(element: HTMLElement, name: string, fallback = 0) {
   const raw = element.dataset[name];
   const value = Number(raw);
   return Number.isFinite(value) ? value : fallback;
 }
 
-function handleEMFEditorClick(event) {
+function handleEMFEditorClick(event: MouseEvent) {
   const target = event.target;
   if (!(target instanceof Element)) return;
   const actionElement = target.closest('[data-emf-action]');
@@ -190,7 +190,7 @@ function handleEMFEditorClick(event) {
   if (action === 'interpret-comparison') { emfEditorDeps.interpretEMFComparison?.(); }
 }
 
-function handleEMFEditorChange(event) {
+function handleEMFEditorChange(event: Event) {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
   const actionElement = target.closest('[data-emf-change-action]');
@@ -226,7 +226,7 @@ function handleEMFEditorChange(event) {
 
   if (action === 'room-field') {
     const field = actionElement.dataset.emfRoomField || '';
-    let value;
+    let value: string | boolean | undefined;
     if (actionElement instanceof HTMLInputElement && actionElement.type === 'checkbox') {
       value = actionElement.checked;
     } else if (actionElement instanceof HTMLInputElement || actionElement instanceof HTMLTextAreaElement) {
@@ -256,7 +256,7 @@ function handleEMFEditorChange(event) {
   }
 }
 
-function handleEMFEditorKeydown(event) {
+function handleEMFEditorKeydown(event: KeyboardEvent) {
   if (event.key !== 'Enter' && event.key !== ' ') return;
   const target = event.target;
   if (!(target instanceof Element)) return;
@@ -276,7 +276,7 @@ function installEMFEditorDelegates() {
   document.addEventListener('keydown', handleEMFEditorKeydown);
 }
 
-export function openEMFAssessmentEditor(options = {}) {
+export function openEMFAssessmentEditor(options: EditorOptions = {}) {
   installEMFEditorDelegates();
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
@@ -288,14 +288,14 @@ export function openEMFAssessmentEditor(options = {}) {
   openModalOverlay(overlay);
 }
 
-function getRoomWorstSeverity(room) {
-  let worst = null;
+function getRoomWorstSeverity(room: RoomOperations) {
+  let worst: ReturnType<typeof getEMFSeverity> = null;
   let worstIdx = -1;
   const sleeping = room.sleeping !== false;
   const tierOrder = ['green', 'yellow', 'orange', 'red'];
   for (const [type, measurement] of Object.entries(room.measurements || {})) {
     if (measurement && measurement.value != null) {
-      const severity = getEMFSeverity(type, measurement.value, sleeping);
+      const severity = (getEMFSeverity as SeverityReader)(type, measurement.value, sleeping);
       if (severity) {
         const index = tierOrder.indexOf(severity.color);
         if (index > worstIdx) {
@@ -308,8 +308,8 @@ function getRoomWorstSeverity(room) {
   return worst;
 }
 
-function getWorstSeverity(assessment) {
-  let worst = null;
+function getWorstSeverity(assessment: AssessmentOperations) {
+  let worst: ReturnType<typeof getEMFSeverity> = null;
   let worstIdx = -1;
   const tierOrder = ['green', 'yellow', 'orange', 'red'];
   for (const room of assessment.rooms) {
@@ -325,21 +325,21 @@ function getWorstSeverity(assessment) {
   return worst;
 }
 
-function severityDot(type, value, sleeping = true) {
-  const severity = getEMFSeverity(type, value, sleeping);
+function severityDot(type: string, value: unknown, sleeping = true) {
+  const severity = (getEMFSeverity as SeverityReader)(type, value, sleeping);
   if (!severity) return '';
   return `<span class="emf-severity-dot" style="background:var(--${severity.color})" title="${severity.label}"></span>`;
 }
 
-function severityBadge(assessment) {
+function severityBadge(assessment: AssessmentOperations) {
   const worst = getWorstSeverity(assessment);
   if (!worst) return '<span class="emf-badge emf-badge-none">No data</span>';
   return `<span class="emf-badge emf-badge-${worst.color}">${worst.label}</span>`;
 }
 
-export function renderEMFEditor(modal) {
-  const assessments = ensureEMFAssessments();
-  const sorted = [...assessments].sort((a, b) => b.date.localeCompare(a.date));
+export function renderEMFEditor(modal: {innerHTML: string} | null) {
+  const assessments = ensureEMFAssessments() as AssessmentOperations[];
+  const sorted = [...assessments].sort((a, b) => (b.date as {localeCompare(value: unknown): number}).localeCompare(a.date));
 
   let html = `${emfEditorReturnRoute ? `<button type="button" class="context-back-btn" aria-label="${escapeAttr(emfEditorReturnRoute.label)}" title="${escapeAttr(emfEditorReturnRoute.label)}" ${emfActionAttrs('return-to-origin')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button>` : ''}<button type="button" class="modal-close" aria-label="Close" ${emfActionAttrs('close-editor')}>&times;</button>
     <h3>Baubiologie EMF Assessment</h3>
@@ -360,7 +360,7 @@ export function renderEMFEditor(modal) {
   } else {
     for (const assessment of sorted) {
       const isExpanded = emfEditorState.editingAssessmentId === assessment.id;
-      const formattedDate = new Date(assessment.date + 'T00:00:00')
+      const formattedDate = new Date((assessment.date as string) + 'T00:00:00')
         .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       html += `<div class="emf-assessment-card${isExpanded ? ' expanded' : ''}">
         <div class="emf-assessment-header" role="button" tabindex="0" ${emfActionAttrs('toggle-assessment', { 'data-emf-assessment-id': assessment.id })}>
@@ -378,7 +378,7 @@ export function renderEMFEditor(modal) {
   }
 
   html += `<div id="emf-meter-recs-slot"></div>`;
-  modal.innerHTML = html;
+  modal!.innerHTML = html;
 
   const meterSlot = document.getElementById('emf-meter-recs-slot');
   if (meterSlot && isProductRecsEnabled()) {
@@ -390,7 +390,7 @@ export function renderEMFEditor(modal) {
   }
 }
 
-function renderAssessmentDetail(assessment) {
+function renderAssessmentDetail(assessment: AssessmentOperations) {
   if (emfEditorState.activeRoomIdx >= assessment.rooms.length) emfEditorState.activeRoomIdx = 0;
   const roomIdx = emfEditorState.activeRoomIdx;
 
@@ -403,7 +403,7 @@ function renderAssessmentDetail(assessment) {
 
   html += `<div class="emf-room-tabs">`;
   for (let index = 0; index < assessment.rooms.length; index++) {
-    const room = assessment.rooms[index];
+    const room = assessment.rooms[index]!;
     const worst = getRoomWorstSeverity(room);
     const dot = worst ? `<span class="emf-severity-dot" style="background:var(--${worst.color})"></span>` : '';
     html += `<button type="button" class="emf-room-tab${index === roomIdx ? ' active' : ''}" ${emfActionAttrs('select-room', { 'data-emf-assessment-id': assessment.id, 'data-emf-room-idx': index })}>${escapeHTML(room.name || 'Room ' + (index + 1))} ${dot}</button>`;
@@ -411,7 +411,7 @@ function renderAssessmentDetail(assessment) {
   html += `<button type="button" class="emf-room-tab emf-room-tab-add" ${emfActionAttrs('add-room', { 'data-emf-assessment-id': assessment.id })} title="Add room">+</button>`;
   html += `</div>`;
 
-  html += renderRoomContent(assessment.id, roomIdx, assessment.rooms[roomIdx], assessment.rooms.length);
+  html += renderRoomContent(assessment.id, roomIdx, assessment.rooms[roomIdx]!, assessment.rooms.length);
 
   html += `<div class="emf-meta-row" style="margin-top:12px">
       <label style="flex:1">Notes <input type="text" class="emf-input" data-emf-field="note" value="${escapeAttr(assessment.note)}" placeholder="General assessment notes" ${emfChangeAttrs('field', { 'data-emf-assessment-id': assessment.id })}></label>
@@ -426,17 +426,17 @@ function renderAssessmentDetail(assessment) {
   return html;
 }
 
-function renderRoomContent(assessmentId, roomIdx, room, roomCount) {
-  const assessment = ensureEMFAssessments().find(candidate => candidate.id === assessmentId);
+function renderRoomContent(assessmentId: unknown, roomIdx: number, room: RoomOperations, roomCount: number) {
+  const assessment = (ensureEMFAssessments() as AssessmentOperations[]).find(candidate => candidate.id === assessmentId);
   const existingNames = new Set(assessment ? assessment.rooms.map(candidate => candidate.name) : []);
   const availablePresets = EMF_ROOM_PRESETS.filter(name => !existingNames.has(name));
 
   let options = '';
-  if (!EMF_ROOM_PRESETS.includes(room.name) && room.name) {
+  if (!EMF_ROOM_PRESETS.includes(room.name as string) && room.name) {
     options += `<option value="_current" selected>${escapeHTML(room.name)}</option>`;
   }
   for (let index = 0; index < (assessment ? assessment.rooms.length : 0); index++) {
-    const candidate = assessment.rooms[index];
+    const candidate = assessment!.rooms[index]!;
     const isCurrent = index === roomIdx;
     options += `<option value="_room_${index}"${isCurrent ? ' selected' : ''}>${escapeHTML(candidate.name || 'Room ' + (index + 1))}${isCurrent ? '' : ' ↩'}</option>`;
   }
@@ -464,9 +464,9 @@ function renderRoomContent(assessmentId, roomIdx, room, roomCount) {
 
   const sleeping = room.sleeping !== false;
   for (const measurementType of MEASUREMENT_TYPES) {
-    const definition = SBM_2015_THRESHOLDS[measurementType.key];
-    const measurement = (room.measurements && room.measurements[measurementType.key]) || {};
-    const value = measurement.value != null ? measurement.value : '';
+    const definition = SBM_2015_THRESHOLDS[measurementType.key]!;
+    const measurement: MeasurementOperations = (room.measurements && room.measurements[measurementType.key]) || {};
+    const value = (measurement.value != null ? measurement.value : '') as string;
     html += `<div class="emf-measurement-row">
       <span class="emf-measurement-label">${measurementType.short}</span>
       <input type="number" class="emf-input emf-value-input" value="${escapeAttr(String(value))}" step="any" placeholder="—"
@@ -521,7 +521,7 @@ function renderRoomContent(assessmentId, roomIdx, room, roomCount) {
   return html;
 }
 
-export function showEMFImportPreview(parsed) {
+export function showEMFImportPreview(parsed: PreviewInput) {
   installEMFEditorDelegates();
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
@@ -530,7 +530,7 @@ export function showEMFImportPreview(parsed) {
   // first so Cancel/Back can reconstruct the exact assessment state.
   emfEditorDeps.collectActiveAssessmentState?.();
   const formattedDate = parsed.date
-    ? new Date(parsed.date + 'T00:00:00').toLocaleDateString('en-US', {
+    ? new Date((parsed.date as string) + 'T00:00:00').toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -541,7 +541,7 @@ export function showEMFImportPreview(parsed) {
     <h3>EMF Report Preview</h3>
     <div class="modal-unit">${formattedDate}${parsed.consultant ? ' — by ' + escapeHTML(parsed.consultant) : ''}</div>`;
 
-  for (const room of parsed.rooms) {
+  for (const room of parsed.rooms as RoomOperations[]) {
     html += `<div class="emf-room-card">
       <div class="emf-room-header"><strong>${escapeHTML(room.name)}</strong>
         ${room.location ? `<span style="color:var(--text-muted);font-size:12px">${escapeHTML(room.location)}</span>` : ''}
@@ -550,9 +550,9 @@ export function showEMFImportPreview(parsed) {
     for (const measurementType of MEASUREMENT_TYPES) {
       const measurement = (room.measurements || {})[measurementType.key];
       if (!measurement) continue;
-      const definition = SBM_2015_THRESHOLDS[measurementType.key];
-      const sleeping = SLEEPING_ROOMS.has(room.name);
-      const severity = getEMFSeverity(measurementType.key, measurement.value, sleeping);
+      const definition = SBM_2015_THRESHOLDS[measurementType.key]!;
+      const sleeping = SLEEPING_ROOMS.has(room.name as string);
+      const severity = (getEMFSeverity as SeverityReader)(measurementType.key, measurement.value, sleeping);
       html += `<div class="emf-measurement-row">
         <span class="emf-measurement-label">${measurementType.short}</span>
         <span style="font-weight:600">${measurement.value}</span>
@@ -582,16 +582,16 @@ export function showEMFImportPreview(parsed) {
   openModalOverlay(overlay);
 
   confirmButton.addEventListener('click', () => {
-    const assessments = ensureEMFAssessments();
+    const assessments = ensureEMFAssessments() as AssessmentOperations[];
     const assessment = {
       id: createUniqueId('emf_'),
       date: parsed.date || new Date().toISOString().slice(0, 10),
       label: '',
       consultant: parsed.consultant || '',
-      rooms: parsed.rooms.map(room => ({
+      rooms: (parsed.rooms as RoomOperations[]).map(room => ({
         name: room.name || 'Unknown',
         location: room.location || '',
-        sleeping: SLEEPING_ROOMS.has(room.name || 'Unknown'),
+        sleeping: SLEEPING_ROOMS.has((room.name || 'Unknown') as string),
         measurements: room.measurements || {},
         sources: room.sources || [],
         mitigations: room.mitigations || [],
@@ -613,10 +613,10 @@ export function showEMFImportPreview(parsed) {
   });
 }
 
-function renderComparisonView(sorted) {
-  const before = sorted[sorted.length > 1 ? 1 : 0];
-  const after = sorted[0];
-  const formatDate = date => new Date(date + 'T00:00:00')
+function renderComparisonView(sorted: AssessmentOperations[]) {
+  const before = sorted[sorted.length > 1 ? 1 : 0]!;
+  const after = sorted[0]!;
+  const formatDate = (date: unknown) => new Date((date as string) + 'T00:00:00')
     .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const roomNames = [...new Set([
     ...before.rooms.map(room => room.name),
@@ -656,15 +656,15 @@ function renderComparisonView(sorted) {
       }
 
       const beforeSeverity = beforeValue != null
-        ? getEMFSeverity(measurementType.key, beforeValue, sleeping)
+        ? (getEMFSeverity as SeverityReader)(measurementType.key, beforeValue, sleeping)
         : null;
       const afterSeverity = afterValue != null
-        ? getEMFSeverity(measurementType.key, afterValue, sleeping)
+        ? (getEMFSeverity as SeverityReader)(measurementType.key, afterValue, sleeping)
         : null;
 
       let cellHtml = '';
       if (beforeValue != null && afterValue != null) {
-        const delta = afterValue - beforeValue;
+        const delta = (afterValue as number) - (beforeValue as number);
         const arrow = delta < 0 ? '↓' : delta > 0 ? '↑' : '=';
         const arrowColor = delta < 0
           ? 'var(--green)'

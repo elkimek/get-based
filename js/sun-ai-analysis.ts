@@ -1,4 +1,3 @@
-// @ts-check
 // sun-ai-analysis.js — per-session AI verdict + tip for sun sessions.
 //
 // Thin wrapper around ai-verdict-engine: supplies the sun-specific
@@ -18,14 +17,22 @@ import { solarZenithAngle } from './sun-uvdata.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
+import type { SunSessionRecord } from './sun-sessions-store.js';
+import type { AnalyzeOptions, AIVerdictAnalysis } from './ai-verdict-engine.js';
+
+// Saved verdicts are opaque; these views describe existing property reads,
+// without validating or coercing the persisted payload.
+type VerdictRead = { status?: unknown; dot?: unknown; tip?: unknown; detail?: unknown; errorMessage?: unknown };
+
+
 // ─── Fingerprint ───────────────────────────────────────────────────────
 //
 // Hash of the session fields that, when changed, should invalidate a
 // previously-cached analysis. Timing and location are biological inputs here,
 // not cosmetic metadata: together they determine solar elevation and phase.
-function getSessionFingerprint(sess) {
+function getSessionFingerprint(sess: SunSessionRecord | null | undefined) {
   if (!sess) return '';
-  const parts = [
+  const parts: unknown[] = [
     sess.startedAt || 0,
     sess.endedAt || 0,
     Math.round((sess.durationMin || 0) * 10) / 10,
@@ -63,12 +70,12 @@ export { getSessionFingerprint };
 
 // ─── Solar-phase classifier ────────────────────────────────────────────
 
-function _formatNumber(n, digits = 1) {
+function _formatNumber(n: unknown, digits = 1) {
   if (n == null || !Number.isFinite(n)) return '—';
   return Number(n).toFixed(digits).replace(/\.0$/, '');
 }
 
-function _localDateKey(date) {
+function _localDateKey(date: unknown) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '—';
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -82,7 +89,7 @@ function _localDateKey(date) {
 // labelled — without it, low-dose sunrise sessions get judged on
 // vitamin-D yield (which is correctly zero) and miss the actual benefit
 // (melatonin clearance, NO release, cortisol awakening).
-function _classifySolarPhase(startElev, endElev) {
+function _classifySolarPhase(startElev: number | null, endElev: number | null) {
   if (startElev == null || endElev == null) return null;
   const rising = endElev > startElev;
   const lo = Math.min(startElev, endElev);
@@ -104,10 +111,10 @@ function _classifySolarPhase(startElev, endElev) {
   return 'midday peak (near-zenith sun)';
 }
 
-export function buildSingleSessionContext(sess) {
+export function buildSingleSessionContext(sess: SunSessionRecord | null | undefined) {
   if (!sess) return '';
   const sd = getSunDefaults() || {};
-  const lines = [];
+  const lines: string[] = [];
 
   lines.push('### Session');
   const start = new Date(sess.startedAt || Date.now());
@@ -129,8 +136,8 @@ export function buildSingleSessionContext(sess) {
   // Solar geometry
   if (end && sess.location) {
     try {
-      const zStart = solarZenithAngle(start, sess.location.lat, sess.location.lon);
-      const zEnd = solarZenithAngle(end, sess.location.lat, sess.location.lon);
+      const zStart = solarZenithAngle(start, sess.location.lat as number, sess.location.lon as number);
+      const zEnd = solarZenithAngle(end, sess.location.lat as number, sess.location.lon as number);
       const elevStart = 90 - zStart;
       const elevEnd = 90 - zEnd;
       lines.push(`Solar elevation: ${elevStart.toFixed(1)}° at start → ${elevEnd.toFixed(1)}° at end`);
@@ -140,23 +147,23 @@ export function buildSingleSessionContext(sess) {
   }
 
   if (sess.doses) {
-    let zenith = null;
+    let zenith: number | null = null;
     try {
       if (sess.startedAt && sess.endedAt && sess.location) {
         const mid = new Date((sess.startedAt + sess.endedAt) / 2);
-        zenith = solarZenithAngle(mid, sess.location.lat, sess.location.lon);
+        zenith = solarZenithAngle(mid, sess.location.lat as number, sess.location.lon as number);
       }
     } catch (_) {}
     const fitz = sess.safety?.fitzpatrick || sd.fitzpatrick || 'III';
     const uvi = sess.atmosphere?.uvIndex ?? null;
     const dur = sess.durationMin || 0;
     const rotated = !!sess.bodyExposure?.rotatedSides;
-    const parts = [];
+    const parts: string[] = [];
     const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
     for (const k of channelOrder) {
       const v = sess.doses?.[k];
       if (v == null || v === 0) continue;
-      const meta = CHANNEL_DISPLAY[k] || { label: k };
+      const meta = (CHANNEL_DISPLAY as Record<string, { label?: unknown }>)[k] || { label: k };
       let display = formatChannelUnit(k, v, dur, fitz, uvi, zenith, rotated, sess.bodyExposure?.fraction || null);
       if (!display) display = 'sunlight signal logged';
       parts.push(`${meta.label || k}: ${display}`);
@@ -201,10 +208,10 @@ const SYSTEM_PROMPT = [
 
 // ─── Engine ────────────────────────────────────────────────────────────
 
-const engine = createAIVerdict({
+const engine = createAIVerdict<SunSessionRecord>({
   getTarget: (id) => getSessions().find(s => s.id === id),
   getId: (s) => s?.id,
-  getAIAnalysis: (s) => s?.aiAnalysis || null,
+  getAIAnalysis: (s) => (s?.aiAnalysis || null) as AIVerdictAnalysis | null,
   setAIAnalysis: (s, v) => { if (v == null) delete s.aiAnalysis; else s.aiAnalysis = v; },
   getFingerprint: getSessionFingerprint,
   buildContext: buildSingleSessionContext,
@@ -218,29 +225,29 @@ const engine = createAIVerdict({
   getAllTargets: getSessions,
 });
 
-export const analyzeSunSessionAI = engine.analyze;
+export const analyzeSunSessionAI = engine.analyze as (target: unknown, opts?: AnalyzeOptions) => Promise<unknown>;
 export const refreshSessionAIAnalysis = engine.refresh;
 registerAIActionHandler('refresh-sun-session', refreshSessionAIAnalysis);
-export const maybeAnalyzeSessionAfterFinish = engine.maybeAfterFinish;
+export const maybeAnalyzeSessionAfterFinish = engine.maybeAfterFinish as (target: unknown) => void;
 
 // ─── Render helpers ────────────────────────────────────────────────────
 
-function _hasCompleteModeledSession(sess) {
+function _hasCompleteModeledSession(sess: SunSessionRecord | null | undefined): sess is SunSessionRecord {
   return !!sess?.endedAt
     && !!sess?.doses
     && !!sess?.safety
     && (!sess.calculationStatus || sess.calculationStatus === 'computed');
 }
 
-export function renderSessionAIInline(sess) {
+export function renderSessionAIInline(sess: SunSessionRecord | null | undefined) {
   if (!_hasCompleteModeledSession(sess)) return '';
   // Render cached verdict even when no provider — pre-populated demos +
   // cross-device-synced verdicts shouldn't disappear just because the
   // current device hasn't configured an AI key. Provider-gate only the
   // fresh-analyze paths (engine.analyze checks hasAIProvider internally).
-  if (!hasAssistantFeatureProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !((sess.aiAnalysis as VerdictRead | null)?.status === 'ok' && (sess.aiAnalysis as VerdictRead | null)?.dot)) return '';
   const status = engine.getStatus(sess);
-  const a = sess.aiAnalysis;
+  const a = sess.aiAnalysis as VerdictRead;
   const refreshBtn = `<button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-sun-session', sess.id, { stopPropagation: true })} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`;
   if (status === 'analyzing') {
     return `<div class="sun-session-ai" ${aiActionAttrs('stop-propagation')}>
@@ -270,15 +277,15 @@ export function renderSessionAIInline(sess) {
   </div>`;
 }
 
-export function renderSessionAIDetail(sess) {
+export function renderSessionAIDetail(sess: SunSessionRecord | null | undefined) {
   if (!_hasCompleteModeledSession(sess)) return '';
   // Render cached verdict even when no provider — pre-populated demos +
   // cross-device-synced verdicts shouldn't disappear just because the
   // current device hasn't configured an AI key. Provider-gate only the
   // fresh-analyze paths (engine.analyze checks hasAIProvider internally).
-  if (!hasAssistantFeatureProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !((sess.aiAnalysis as VerdictRead | null)?.status === 'ok' && (sess.aiAnalysis as VerdictRead | null)?.dot)) return '';
   const status = engine.getStatus(sess);
-  const a = sess.aiAnalysis;
+  const a = sess.aiAnalysis as VerdictRead;
   if (status === 'analyzing') {
     return `<div class="sun-detail-ai sun-detail-ai-loading">
       <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>

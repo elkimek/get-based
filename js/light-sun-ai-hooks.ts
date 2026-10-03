@@ -1,4 +1,3 @@
-// @ts-check
 // light-sun-ai-hooks.js - wire session-store completion hooks to AI analyzers.
 
 import { configureLightDevicesStore } from './light-devices-store.js';

@@ -1,4 +1,3 @@
-// @ts-check
 // light-conditions-now-hooks.js - wire Conditions Now runtime dependencies at startup.
 
 import {

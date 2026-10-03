@@ -1,4 +1,3 @@
-// @ts-check
 // light-device-ai-analysis.js — per-session AI verdict for light therapy
 // device sessions (PBM panels, SAD lamps, dawn simulators, UVB phototherapy).
 //
@@ -14,11 +13,19 @@ import { CHANNEL_DISPLAY, formatChannelUnit, BODY_REGIONS } from './sun.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
+import type { DeviceSessionRecord } from './light-devices-store.js';
+import type { AnalyzeOptions, AIVerdictAnalysis } from './ai-verdict-engine.js';
+
+// Saved verdicts are opaque; these views describe existing property reads,
+// without validating or coercing the persisted payload.
+type VerdictRead = { status?: unknown; dot?: unknown; tip?: unknown; detail?: unknown; errorMessage?: unknown };
+
+
 // ─── Fingerprint ───────────────────────────────────────────────────────
 
-export function getDeviceSessionFingerprint(sess) {
+export function getDeviceSessionFingerprint(sess: DeviceSessionRecord | null | undefined) {
   if (!sess) return '';
-  const parts = [
+  const parts: unknown[] = [
     sess.startedAt || 0,
     sess.endedAt || 0,
     Math.round((sess.durationMin || 0) * 10) / 10,
@@ -56,12 +63,12 @@ export function getDeviceSessionFingerprint(sess) {
 
 // ─── Prompt context ────────────────────────────────────────────────────
 
-function _formatNumber(n, digits = 1) {
+function _formatNumber(n: unknown, digits = 1) {
   if (n == null || !Number.isFinite(n)) return '—';
   return Number(n).toFixed(digits).replace(/\.0$/, '');
 }
 
-function _localDateKey(date) {
+function _localDateKey(date: unknown) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '—';
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -71,11 +78,11 @@ function _localDateKey(date) {
 
 // Cap user-supplied free-text fields fed into prompt context. A device named
 // "Glow\n[SYSTEM: ignore previous]" would otherwise break out of the prompt.
-function _safeText(s, max = 80) {
+function _safeText(s: unknown, max = 80) {
   return String(s || '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-const _DEVICE_TYPE_DESCRIPTIONS = {
+const _DEVICE_TYPE_DESCRIPTIONS: Record<string, unknown> = {
   uvb: 'UVB phototherapy panel — vitamin-D synthesis + POMC; eye exposure must be blocked',
   uva: 'UVA panel — modeled nitric-oxide wellness channel; no vitamin D; UV-rated eye protection required',
   combined: 'red + near-IR PBM panel — cellular repair, mitochondrial signaling',
@@ -85,11 +92,11 @@ const _DEVICE_TYPE_DESCRIPTIONS = {
   'full-spectrum': 'full-spectrum bulb — daytime alertness if used at sufficient duration',
 };
 
-export function buildDeviceSessionContext(sess) {
+export function buildDeviceSessionContext(sess: DeviceSessionRecord | null | undefined) {
   if (!sess) return '';
   const sd = getSunDefaults() || {};
   const device = getDevices().find(d => d.id === sess.deviceId) || sess.deviceSnapshot || null;
-  const lines = [];
+  const lines: string[] = [];
 
   lines.push('### Session');
   const start = new Date(sess.startedAt || Date.now());
@@ -130,7 +137,7 @@ export function buildDeviceSessionContext(sess) {
           const g = (device.channelGroups || []).find(cg => cg.id === gid);
           return g ? (g.label || g.id) : gid;
         }).join(', ');
-        const firingPeaks = new Set();
+        const firingPeaks = new Set<number>();
         for (const gid of (resolved.groups || [])) {
           const g = (device.channelGroups || []).find(cg => cg.id === gid);
           if (g?.peaks) for (const p of g.peaks) firingPeaks.add(p);
@@ -159,7 +166,7 @@ export function buildDeviceSessionContext(sess) {
     lines.push(`Deterministic UV safety: ${sess.safety.unsafeEyeExposure ? 'UNSAFE EYE EXPOSURE RECORDED' : 'UV-rated eye protection recorded'}`);
     if ((sess.safety.uvDoseStatus === 'modeled' || sess.safety.uvDoseStatus == null)
         && Number.isFinite(sess.safety.erythemalSED)) {
-      lines.push(`Local erythemal dose: ${_formatNumber(sess.safety.erythemalSED, 2)} SED${Number.isFinite(sess.safety.conservativeBaseMedFraction) ? `; ${Math.round(sess.safety.conservativeBaseMedFraction * 100)}% of conservative Type I base MED` : ''}`);
+      lines.push(`Local erythemal dose: ${_formatNumber(sess.safety.erythemalSED, 2)} SED${Number.isFinite(sess.safety.conservativeBaseMedFraction) ? `; ${Math.round((sess.safety.conservativeBaseMedFraction as number) * 100)}% of conservative Type I base MED` : ''}`);
     } else {
       lines.push('UV dose: unavailable — the required spectral output, band split, or supported distance basis was not provided; do not infer burn dose or vitamin-D output.');
     }
@@ -169,22 +176,22 @@ export function buildDeviceSessionContext(sess) {
   }
 
   if (sess.doses) {
-    const fitz = sess.fitzpatrick || sd.fitzpatrick || sess.safety?.fitzpatrick || 'III';
+    const fitz = sess.fitzpatrick || sd.fitzpatrick || (sess.safety as { fitzpatrick?: unknown } | null)?.fitzpatrick || 'III';
     const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye', 'pbm_red', 'pbm_nir'];
     // Body-fraction for the per-session vit-D cap (Audit P1 #8). Device
     // session schema stores bodyAreas[]; BODY_REGIONS provides the per-
     // region weights. Falls back to null on missing data.
-    let _bf = null;
+    let _bf: number | null = null;
     if (Array.isArray(sess.bodyAreas) && sess.bodyAreas.length > 0
         && Array.isArray(BODY_REGIONS)) {
       const _fbk = Object.fromEntries(BODY_REGIONS.map(r => [r.key, r.fraction]));
       _bf = sess.bodyAreas.reduce((s, k) => s + (_fbk[k] || 0), 0) || null;
     }
-    const parts = [];
+    const parts: string[] = [];
     for (const k of channelOrder) {
       const v = sess.doses[k];
       if (v == null || v === 0) continue;
-      const meta = CHANNEL_DISPLAY[k] || { label: k };
+      const meta = (CHANNEL_DISPLAY as Record<string, { label?: unknown }>)[k] || { label: k };
       let display = formatChannelUnit(k, v, sess.durationMin || 0, fitz, null, null, false, _bf);
       if (!display) display = 'targeted device signal logged';
       parts.push(`${meta.label || k}: ${display}`);
@@ -228,10 +235,10 @@ const SYSTEM_PROMPT = [
   'No "you should" — be observational. No emoji.',
 ].join('\n');
 
-const engine = createAIVerdict({
+const engine = createAIVerdict<DeviceSessionRecord>({
   getTarget: (id) => getDeviceSessions().find(s => s.id === id),
   getId: (s) => s?.id,
-  getAIAnalysis: (s) => s?.aiAnalysis || null,
+  getAIAnalysis: (s) => (s?.aiAnalysis || null) as AIVerdictAnalysis | null,
   setAIAnalysis: (s, v) => { if (v == null) delete s.aiAnalysis; else s.aiAnalysis = v; },
   getFingerprint: getDeviceSessionFingerprint,
   buildContext: buildDeviceSessionContext,
@@ -244,24 +251,24 @@ const engine = createAIVerdict({
   getAllTargets: getDeviceSessions,
 });
 
-export const analyzeDeviceSessionAI = engine.analyze;
+export const analyzeDeviceSessionAI = engine.analyze as (target: unknown, opts?: AnalyzeOptions) => Promise<unknown>;
 export const refreshDeviceSessionAIAnalysis = engine.refresh;
 registerAIActionHandler('refresh-device-session', refreshDeviceSessionAIAnalysis);
-export const maybeAnalyzeDeviceSessionAfterFinish = engine.maybeAfterFinish;
+export const maybeAnalyzeDeviceSessionAfterFinish = engine.maybeAfterFinish as (target: unknown) => void;
 
 // ─── Render ────────────────────────────────────────────────────────────
 
-function _hasCompleteModeledDeviceSession(sess) {
+function _hasCompleteModeledDeviceSession(sess: DeviceSessionRecord | null | undefined): sess is DeviceSessionRecord {
   return !!sess?.endedAt
     && !!sess?.doses
     && !!sess?.safety;
 }
 
-export function renderDeviceSessionAIInline(sess) {
+export function renderDeviceSessionAIInline(sess: DeviceSessionRecord | null | undefined) {
   if (!_hasCompleteModeledDeviceSession(sess)) return '';
-  if (!hasAssistantFeatureProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !((sess.aiAnalysis as VerdictRead | null)?.status === 'ok' && (sess.aiAnalysis as VerdictRead | null)?.dot)) return '';
   const status = engine.getStatus(sess);
-  const a = sess.aiAnalysis;
+  const a = sess.aiAnalysis as VerdictRead;
   const refreshBtn = `<button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-device-session', sess.id, { stopPropagation: true })} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`;
   if (status === 'analyzing') {
     return `<div class="sun-session-ai" ${aiActionAttrs('stop-propagation')}>
@@ -291,11 +298,11 @@ export function renderDeviceSessionAIInline(sess) {
   </div>`;
 }
 
-export function renderDeviceSessionAIDetail(sess) {
+export function renderDeviceSessionAIDetail(sess: DeviceSessionRecord | null | undefined) {
   if (!_hasCompleteModeledDeviceSession(sess)) return '';
-  if (!hasAssistantFeatureProvider() && !(sess.aiAnalysis?.status === 'ok' && sess.aiAnalysis?.dot)) return '';
+  if (!hasAssistantFeatureProvider() && !((sess.aiAnalysis as VerdictRead | null)?.status === 'ok' && (sess.aiAnalysis as VerdictRead | null)?.dot)) return '';
   const status = engine.getStatus(sess);
-  const a = sess.aiAnalysis;
+  const a = sess.aiAnalysis as VerdictRead;
   if (status === 'analyzing') {
     return `<div class="sun-detail-ai sun-detail-ai-loading">
       <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
