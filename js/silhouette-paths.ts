@@ -1,4 +1,5 @@
-// @ts-check
+type Point = [number, number];
+
 // silhouette-paths.js — figure-study silhouettes for the sun-session picker.
 //
 // AESTHETIC: Pompeii fresco × Klimt golden line × app-modern.
@@ -23,14 +24,14 @@
 //   • Details: small filled accents (nipples, mons, penis, glutes)
 //
 // API:
-//   buildBody(sex, view)      → { d }
-//   buildLandmarks(sex, view) → string[]
-//   buildDetails(sex, view)   → string[]
+//   buildBody(sex: string, view: string)      → { d }
+//   buildLandmarks(sex: string, view: string) → string[]
+//   buildDetails(sex: string, view: string)   → string[]
 //
 // Legacy:
 //   MALE_BODY_PATH / FEMALE_BODY_PATH (front view canonical)
 //   SILHOUETTE_NATIVE — viewBox dimensions
-//   buildBodyParts(sex)
+//   buildBodyParts(sex: string)
 
 // Catmull-Rom-to-Bezier path builder.
 //
@@ -38,16 +39,16 @@
 // emits a single closed Bezier path that passes through every waypoint
 // with tangent continuity. Tension controls curve tightness — 0.5 reads
 // as natural-figure-drawing, lower for tighter bends, higher for swoopier.
-function smoothPath(waypoints, tension = 0.5) {
+function smoothPath(waypoints: Point[], tension = 0.5) {
   const n = waypoints.length;
   if (n < 2) return '';
   const t = tension / 6;
-  const out = [`M ${waypoints[0][0]} ${waypoints[0][1]}`];
+  const out = [`M ${waypoints[0]![0]} ${waypoints[0]![1]}`];
   for (let i = 0; i < n; i++) {
-    const p0 = waypoints[(i - 1 + n) % n];
-    const p1 = waypoints[i];
-    const p2 = waypoints[(i + 1) % n];
-    const p3 = waypoints[(i + 2) % n];
+    const p0 = waypoints[(i - 1 + n) % n]!;
+    const p1 = waypoints[i]!;
+    const p2 = waypoints[(i + 1) % n]!;
+    const p3 = waypoints[(i + 2) % n]!;
     const cp1x = (p1[0] + (p2[0] - p0[0]) * t * 1).toFixed(2);
     const cp1y = (p1[1] + (p2[1] - p0[1]) * t * 1).toFixed(2);
     const cp2x = (p2[0] - (p3[0] - p1[0]) * t * 1).toFixed(2);
@@ -58,9 +59,9 @@ function smoothPath(waypoints, tension = 0.5) {
   return out.join(' ');
 }
 
-const D = (raw) => raw.replace(/\s+/g, ' ').trim();
+const D = (raw: string) => raw.replace(/\s+/g, ' ').trim();
 
-function mirrorAndClose(rightSide, opts = {}) {
+function mirrorAndClose(rightSide: Point[], opts: { cx?: number } = {}) {
   // rightSide: waypoints from crown down right side to crotch-right,
   //            INCLUDING crotch midpoint as last element if you want.
   // Returns full closed waypoint loop with left side mirrored across cx=50.
@@ -69,7 +70,7 @@ function mirrorAndClose(rightSide, opts = {}) {
   // Mirror in reverse, skipping the final element if it's on the centerline
   // (avoids duplicating the crotch midpoint).
   for (let i = rightSide.length - 1; i >= 0; i--) {
-    const [x, y] = rightSide[i];
+    const [x, y] = rightSide[i]!;
     if (Math.abs(x - cx) < 0.01 && i === rightSide.length - 1) continue;
     out.push([2 * cx - x, y]);
   }
@@ -83,8 +84,9 @@ function mirrorAndClose(rightSide, opts = {}) {
 // shapes meeting at the crotch cleft (proper figure topology).
 
 // — Female front, right-side waypoints
-const FF_RIGHT = [
-  [50,    4],     // crown
+// Shared female outline; the front and back retain their distinct torso waypoints.
+const FEMALE_UPPER: Point[] = [
+  [50,    4], // crown
   [56,    7],
   [58,   13],
   [57.5, 19],
@@ -92,37 +94,31 @@ const FF_RIGHT = [
   [54,   26],
   [52.5, 27.5],
   [52.5, 31],
-  [52.5, 33.5],   // base of neck
+  [52.5, 33.5], // base of neck
   [56,   34.8],
   [62,   36],
   [67,   37.5],
-  [70,   39],     // shoulder cap (wider)
-  [71.5, 43],     // deltoid peak (more outward)
-  [71,   49],     // bicep
-  [69,   60],     // upper arm
-  [67,   75],     // mid arm
-  [65,   90],     // elbow
-  [63,  103],     // forearm
-  [61.5,114],     // wrist outer
-  [61,   119],    // wrist
-  [59.5, 122],    // hand tip
-  [58,   121],    // inner wrist
+  [70,   39], // shoulder cap (wider)
+  [71.5, 43], // deltoid peak (more outward)
+  [71,   49], // bicep
+  [69,   60], // upper arm
+  [67,   75], // mid arm
+  [65,   90], // elbow
+  [63,  103], // forearm
+  [61.5,114], // wrist outer
+  [61,   119], // wrist
+  [59.5, 122], // hand tip
+  [58,   121], // inner wrist
   [57.5, 117],
-  [57.8, 105],    // inner forearm
+  [57.8, 105], // inner forearm
   [58,    92],
-  [58.2,  78],    // inner upper arm
+  [58.2,  78], // inner upper arm
   [58.5,  65],
   [58.5,  56],
   [58,    50],
-    [56,    47],    // armpit
-  [56.5,  50],
-  [60.5,  54],    // upper bust
-  [67,    60],    // BUST APEX (more pronounced)
-  [67,    66],
-  [63,    74],    // underbust
-  [58.5,  82],
-  [55,    87],
-  [53.5,  90],    // WAIST (cinched)
+  [56,    47], // armpit
+];
+const FEMALE_LEGS: Point[] = [
   [54.5,  96],
   [60,   106],
   [66,   113],
@@ -130,87 +126,51 @@ const FF_RIGHT = [
   [66.5, 130],
   [64.5, 145],
   [60,   160],
-  [56,   172],    // outer knee
-  [56.5, 180],    // calf bulge
+  [56,   172], // outer knee
+  [56.5, 180], // calf bulge
   [55,   190],
-  [53.5, 200],    // outer ankle
-  [54.5, 206],    // outer foot
-  [56,   208],    // outer toe
-  [50.5, 208],    // foot bottom inner
-  [50.5, 202],    // inner ankle
+  [53.5, 200], // outer ankle
+  [54.5, 206], // outer foot
+  [56,   208], // outer toe
+  [50.5, 208], // foot bottom inner
+  [50.5, 202], // inner ankle
   [51,   192],
   [51,   182],
-  [51,   172],    // inner knee
+  [51,   172], // inner knee
   [50.8, 160],
   [50.5, 145],
-  [50,   135],    // crotch
+  [50,   135], // crotch
+];
+
+const FF_RIGHT: Point[] = [
+  ...FEMALE_UPPER,
+  [56.5,  50],
+  [60.5,  54], // upper bust
+  [67,    60], // BUST APEX (more pronounced)
+  [67,    66],
+  [63,    74], // underbust
+  [58.5,  82],
+  [55,    87],
+  [53.5,  90], // WAIST (cinched)
+  ...FEMALE_LEGS,
 ];
 
 // — Female back: same envelope but smoother torso (no bust apex)
-const FB_RIGHT = [
-  [50,    4],
-  [56,    7],
-  [58,   13],
-  [57.5, 19],
-  [55.5, 24],
-  [54,   26],
-  [52.5, 27.5],
-  [52.5, 31],
-  [52.5, 33.5],
-  [56,   34.8],
-  [62,   36],
-  [67,   37.5],
-  [70,   39],
-  [71.5, 43],
-  [71,   49],
-  [69,   60],
-  [67,   75],
-  [65,   90],
-  [63,  103],
-  [61.5,114],
-  [61,   119],
-  [59.5, 122],
-  [58,   121],
-  [57.5, 117],
-  [57.8, 105],
-  [58,    92],
-  [58.2,  78],
-  [58.5,  65],
-  [58.5,  56],
-  [58,    50],
-  [56,    47],
+const FB_RIGHT: Point[] = [
+  ...FEMALE_UPPER,
   [57,    55],
-  [58.5,  66],   // smoother — no bust bulge
+  [58.5,  66], // smoother — no bust bulge
   [58.5,  76],
   [56.5,  84],
   [54,    89],
-  [53,    90],   // WAIST
-  [54.5,  96],
-  [60,   106],
-  [66,   113],
-  [67,   118],
-  [66.5, 130],
-  [64.5, 145],
-  [60,   160],
-  [56,   172],
-  [56.5, 180],
-  [55,   190],
-  [53.5, 200],
-  [54.5, 206],
-  [56,   208],
-  [50.5, 208],
-  [50.5, 202],
-  [51,   192],
-  [51,   182],
-  [51,   172],
-  [50.8, 160],
-  [50.5, 145],
-  [50,   135],
+  [53,    90], // WAIST
+  ...FEMALE_LEGS,
 ];
 
 // — Male front: V-shape, no bust bulge, broader shoulders, narrower hips
-const MF_RIGHT = [
-  [50,    4],
+// Shared male outline; the front and back retain their distinct torso waypoints.
+const MALE_UPPER: Point[] = [
+  [50,    4], // crown
   [57,    7],
   [59,   13],
   [58.5, 19],
@@ -222,117 +182,73 @@ const MF_RIGHT = [
   [58,   34.5],
   [65,   35.8],
   [70,   37.5],
-  [74,   39],     // shoulder cap (much wider for male)
-  [76,   43],     // deltoid peak
+  [74,   39], // shoulder cap (much wider for male)
+  [76,   43], // deltoid peak
   [75.5, 50],
-  [73.5, 60],     // bicep
-  [71,   75],     // mid arm
-  [69,   90],     // elbow
-  [67,  103],     // forearm
-  [65.5,114],     // wrist outer
+  [73.5, 60], // bicep
+  [71,   75], // mid arm
+  [69,   90], // elbow
+  [67,  103], // forearm
+  [65.5,114], // wrist outer
   [65,  119],
-  [63,  122],     // hand tip
-  [61.5,121],     // inner wrist
+  [63,  122], // hand tip
+  [61.5,121], // inner wrist
   [61,  117],
   [61,  105],
-  [60.5, 92],
+  [60.5, 92], // waist (less cinched than female)
   [60.5, 78],
   [61,   65],
   [61,   56],
   [60.5, 50],
-  [58,   47],     // armpit
-  [59,   54],     // upper pec
-  [63.5, 60],     // pec outer
+  [58,   47], // armpit
+];
+const MALE_LEGS: Point[] = [
+  [60.5, 92], // waist (less cinched than female)
+  [60.5, 100],
+  [62,  108],
+  [63,  114], // hip
+  [63,  120],
+  [63,  130],
+  [61,  145],
+  [58.5,160],
+  [56,  172], // outer knee
+  [56.5,180], // calf bulge
+  [55,  190],
+  [53.5,200], // outer ankle
+  [54.5,206], // outer foot
+  [56,  208], // outer toe
+  [50.5,208], // foot bottom inner
+  [50.5,202], // inner ankle
+  [51,  192],
+  [51,  182],
+  [51,  172], // inner knee
+  [50.8,160],
+  [50.5,145],
+  [50,  135], // crotch
+];
+
+const MF_RIGHT: Point[] = [
+  ...MALE_UPPER,
+  [59,   54], // upper pec
+  [63.5, 60], // pec outer
   [64.5, 68],
   [63,   78],
   [61.5, 86],
-  [60.5, 92],     // waist (less cinched than female)
-  [60.5, 100],
-  [62,  108],
-  [63,  114],     // hip
-  [63,  120],
-  [63,  130],
-  [61,  145],
-  [58.5,160],
-  [56,  172],     // outer knee
-  [56.5,180],     // calf bulge
-  [55,  190],
-  [53.5,200],     // outer ankle
-  [54.5,206],     // outer foot
-  [56,  208],     // outer toe
-  [50.5,208],     // foot bottom inner (close to cx for foot meet)
-  [50.5,202],     // inner ankle
-  [51,  192],
-  [51,  182],
-  [51,  172],     // inner knee
-  [50.8,160],
-  [50.5,145],
-  [50,  135],     // crotch
+  ...MALE_LEGS,
 ];
 
 // — Male back: V-shape, smoother torso
-const MB_RIGHT = [
-  [50,    4],
-  [57,    7],
-  [59,   13],
-  [58.5, 19],
-  [56.5, 24],
-  [54.5, 26],
-  [53,   27.5],
-  [53,   31],
-  [53,   33.5],
-  [58,   34.5],
-  [65,   35.8],
-  [70,   37.5],
-  [74,   39],
-  [76,   43],
-  [75.5, 50],
-  [73.5, 60],
-  [71,   75],
-  [69,   90],
-  [67,  103],
-  [65.5,114],
-  [65,  119],
-  [63,  122],
-  [61.5,121],
-  [61,  117],
-  [61,  105],
-  [60.5, 92],
-  [60.5, 78],
-  [61,   65],
-  [61,   56],
-  [60.5, 50],
-  [58,   47],
+const MB_RIGHT: Point[] = [
+  ...MALE_UPPER,
   [59,   55],
-  [62,   65],     // smoother back (no pec line)
+  [62,   65], // smoother back (no pec line)
   [62,   75],
   [60.5, 84],
-  [60.5, 92],
-  [60.5,100],
-  [62,  108],
-  [63,  114],
-  [63,  120],
-  [63,  130],
-  [61,  145],
-  [58.5,160],
-  [56,  172],
-  [56.5,180],
-  [55,  190],
-  [53.5,200],
-  [54.5,206],
-  [56,  208],
-  [50.5,208],
-  [50.5,202],
-  [51,  192],
-  [51,  182],
-  [51,  172],
-  [50.8,160],
-  [50.5,145],
-  [50,  135],
+  ...MALE_LEGS,
 ];
 
 // Build complete closed waypoint loops by mirroring.
-function buildClosedLoop(rightSide) {
+function buildClosedLoop(rightSide: Point[]) {
   return mirrorAndClose(rightSide);
 }
 
@@ -466,7 +382,7 @@ const MALE_BACK_DETAILS = [
 
 // ─── Public API ────────────────────────────────────────────────────────────
 
-export function buildBody(sex, view) {
+export function buildBody(sex: string, view: string) {
   const key = `${sex}-${view}`;
   switch (key) {
     case 'female-front': return { d: FEMALE_FRONT_BODY };
@@ -477,7 +393,7 @@ export function buildBody(sex, view) {
   }
 }
 
-export function buildLandmarks(sex, view) {
+export function buildLandmarks(sex: string, view: string) {
   const key = `${sex}-${view}`;
   switch (key) {
     case 'female-front': return FEMALE_FRONT_LANDMARKS;
@@ -488,7 +404,7 @@ export function buildLandmarks(sex, view) {
   }
 }
 
-export function buildDetails(sex, view) {
+export function buildDetails(sex: string, view: string) {
   const key = `${sex}-${view}`;
   switch (key) {
     case 'female-front': return FEMALE_FRONT_DETAILS;
@@ -507,7 +423,7 @@ export const SILHOUETTE_NATIVE = {
   female: { vbW: 100, vbH: 210 },
 };
 
-export function buildBodyParts(sex) {
+export function buildBodyParts(sex: string) {
   const d = sex === 'female' ? FEMALE_FRONT_BODY : MALE_FRONT_BODY;
   return { head: d, torso: d, armR: d, armL: d, legR: d, legL: d };
 }

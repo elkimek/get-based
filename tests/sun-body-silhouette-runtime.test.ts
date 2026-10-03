@@ -1,3 +1,4 @@
+import type { getProfiles } from '../js/profile.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { setRuntimeWindow } from './helpers/runtime-globals.js';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -19,30 +20,31 @@ const defaultRuntimeDeps = configureSunBodySilhouetteRuntimeDeps();
 afterEach(() => {
   configureSunBodySilhouetteRuntimeDeps(defaultRuntimeDeps);
   if (savedWindow) Object.defineProperty(globalThis, 'window', savedWindow);
-  else delete globalThis.window;
+  else delete (globalThis as { window?: unknown }).window;
   if (savedCustomEvent) Object.defineProperty(globalThis, 'CustomEvent', savedCustomEvent);
-  else delete globalThis.CustomEvent;
+  else delete (globalThis as { CustomEvent?: unknown }).CustomEvent;
 });
 
 describe('sun body silhouette runtime adapter', () => {
   it('delegates profile lookup and overlay-ready events', () => {
     class CustomEventStub {
-      constructor(type) {
+      declare type: string;
+      constructor(type: string) {
         this.type = type;
       }
     }
     const listener = () => {};
-    const profiles = [{ id: 'profile-female', sex: 'female' }];
-    const calls = [];
+    const profiles = [{ id: 'profile-female', sex: 'female' }] as ReturnType<typeof getProfiles>;
+    const calls: unknown[][] = [];
     configureSunBodySilhouetteRuntimeDeps({
       getActiveProfileId: () => 'profile-female',
       getProfiles: () => profiles,
     });
     setRuntimeWindow({
       CustomEvent: CustomEventStub,
-      dispatchEvent: event => calls.push(['dispatch', event.type, event instanceof CustomEventStub]),
-      addEventListener: (type, fn) => calls.push(['add', type, fn]),
-      removeEventListener: (type, fn) => calls.push(['remove', type, fn]),
+      dispatchEvent: (event: { type: string }) => calls.push(['dispatch', event.type, event instanceof CustomEventStub]),
+      addEventListener: (type: string, fn: EventListenerOrEventListenerObject) => calls.push(['add', type, fn]),
+      removeEventListener: (type: string, fn: EventListenerOrEventListenerObject) => calls.push(['remove', type, fn]),
     });
 
     expect(getActiveSilhouetteProfileIdRuntime()).toBe('profile-female');
@@ -67,7 +69,7 @@ describe('sun body silhouette runtime adapter', () => {
       addEventListener: null,
       removeEventListener: null,
     });
-    delete globalThis.CustomEvent;
+    delete (globalThis as { CustomEvent?: unknown }).CustomEvent;
 
     expect(getActiveSilhouetteProfileIdRuntime()).toBeNull();
     expect(getSilhouetteProfilesRuntime()).toEqual([]);
@@ -75,7 +77,7 @@ describe('sun body silhouette runtime adapter', () => {
     expect(addSunOverlayReadyListenerRuntime(() => {})).toBe(false);
     expect(removeSunOverlayReadyListenerRuntime(() => {})).toBe(false);
 
-    delete globalThis.window;
+    delete (globalThis as { window?: unknown }).window;
     expect(getActiveSilhouetteProfileIdRuntime()).toBeNull();
     expect(getSilhouetteProfilesRuntime()).toEqual([]);
     expect(dispatchSunOverlayReadyRuntime()).toBe(false);

@@ -1,4 +1,8 @@
-// @ts-check
+interface StockCell { sx: number; sy: number; cw: number; ch: number }
+interface ImagePlacement { imgX: number; imgY: number; fullW: number; fullH: number }
+type OverlayReady = ((url?: string) => void) | undefined;
+type PickerInputEvent = (MouseEvent | TouchEvent | PointerEvent) & { target: Element };
+
 // sun-body-silhouette.js — Anatomical body-region picker for sun sessions.
 
 import { escapeAttr } from './utils.js';
@@ -64,7 +68,7 @@ function _activeProfileSex() {
 // distinct keys (arms-front vs arms-back, legs-front vs legs-back) so the
 // two silhouette views can be toggled independently — clicking front-legs
 // no longer also selects the back of the legs.
-function _silhouetteRegionPaths(sex) {
+function _silhouetteRegionPaths(sex: string) {
   // Tap zones aligned to the er.svg figures (per-sex because female and
   // male silhouettes differ in shoulder/torso width). Coordinates in the
   // picker's 100×210 viewBox. The figure occupies a different x-range per
@@ -112,7 +116,7 @@ function _silhouetteRegionPaths(sex) {
   const ySole     = 200;
 
   // Region templates as `M x1 y1 L x2 y1 L x2 y2 L x1 y2 Z`.
-  const rect = (x1, y1, x2, y2) => `M ${x1} ${y1} L ${x2} ${y1} L ${x2} ${y2} L ${x1} ${y2} Z`;
+  const rect = (x1: number, y1: number, x2: number, y2: number) => `M ${x1} ${y1} L ${x2} ${y1} L ${x2} ${y2} L ${x1} ${y2} Z`;
 
   // Arms — both sides of figure. Upper arm is narrow (shoulder cap to
   // under-chest), lower arm/wrist widens because hands rest on the hips
@@ -193,7 +197,7 @@ const STOCK_FIGURE_PROTOTYPE = true;
 // generated at runtime from `src` itself (`_loadRegionMap`), so there
 // is no static `regionMap` PNG. Generating from the live SVG ensures
 // region boundaries align 1:1 with the actual rendered figure pixels.
-const STOCK_IMG = {
+const STOCK_IMG: { src: string; mask: string; cells: Record<string, StockCell>; imgW: number; imgH: number } = {
   src: '/er.svg',
   mask: '/er-mask.png',
   cells: {
@@ -210,7 +214,7 @@ const STOCK_IMG = {
 
 // Region color palette — MUST match scripts/gen-regionmap.py exactly.
 // One unique RGB triple per region key; transparent means "no region".
-const REGION_COLOR_RGB = {
+const REGION_COLOR_RGB: Record<string, [number, number, number]> = {
   'face':                [255,   0,   0],
   'face-back':           [192,   0,  64],
   'thyroid-throat':      [  0, 255,   0],
@@ -243,14 +247,14 @@ const _REGION_BY_RGB_INT = (() => {
 // drifted by ~5 picker units because Chrome rendered the headless mask
 // at a slightly different baseline than the in-app `<image>` element).
 // Cached on first call; ~50–80ms one-shot cost on session-log open.
-let _regionMapData = null;
-let _regionMapPromise = null;
+let _regionMapData: ImageData | null = null;
+let _regionMapPromise: Promise<ImageData> | null = null;
 const _REGION_BAND_LANDMARKS = {
   yChinTop: 31, yShldrTop: 39, yChestTop: 42, yChestBot: 66,
   yNavel: 90, yPubicTop: 107, yCrotch: 114, yAnkle: 189, ySole: 200,
 };
 
-function _paintRegionMapCell(data, out, W, H, key, cell) {
+function _paintRegionMapCell(data: Uint8ClampedArray, out: Uint8ClampedArray, W: number, H: number, key: string, cell: StockCell) {
   const [, view] = key.split('-');
   const isFront = view === 'front';
   const VB_W = STOCK_IMG.imgW, VB_H = STOCK_IMG.imgH;
@@ -264,7 +268,7 @@ function _paintRegionMapCell(data, out, W, H, key, cell) {
   for (let my = y0; my < y1; my++) {
     let bodyLeft = -1, bodyRight = -1;
     for (let x = x0; x < x1; x++) {
-      if (data[((my * W) + x) * 4 + 3] > 30) {
+      if (data[((my * W) + x) * 4 + 3]! > 30) {
         if (bodyLeft < 0) bodyLeft = x;
         bodyRight = x;
       }
@@ -273,11 +277,11 @@ function _paintRegionMapCell(data, out, W, H, key, cell) {
     const bodyWidth = bodyRight - bodyLeft + 1;
     const py = (my * VB_H / H - cell.sy) * 210 / cell.ch;
     if (py < -2 || py > 215) continue;
-    const inC = (x, frac) => {
+    const inC = (x: number, frac: number) => {
       const e = bodyWidth * frac;
       return bodyLeft + e <= x && x <= bodyRight - e;
     };
-    let bandPaint;
+    let bandPaint: (x: number) => string;
     if      (py < L.yChinTop)  bandPaint = () => isFront ? 'face' : 'face-back';
     else if (py < L.yShldrTop) bandPaint = () => isFront ? 'thyroid-throat' : 'thyroid-throat-back';
     else if (py < L.yChestTop) bandPaint = (x) => inC(x, 0.40) ? (isFront ? 'breast-chest' : 'torso-back') : (isFront ? 'arms-front' : 'arms-back');
@@ -292,10 +296,10 @@ function _paintRegionMapCell(data, out, W, H, key, cell) {
     else if (py <= L.ySole + 8) bandPaint = () => isFront ? 'feet-front' : 'feet-back';
     else continue;
     for (let x = bodyLeft; x <= bodyRight; x++) {
-      if (data[((my * W) + x) * 4 + 3] <= 30) continue;
+      if (data[((my * W) + x) * 4 + 3]! <= 30) continue;
       const region = bandPaint(x);
       if (!region) continue;
-      const col = COLORS[region];
+      const col = COLORS[region]!;
       const idx = (my * W + x) * 4;
       out[idx] = col[0]; out[idx + 1] = col[1]; out[idx + 2] = col[2]; out[idx + 3] = 255;
     }
@@ -332,16 +336,16 @@ function _loadRegionMap() {
 }
 
 // Sample the region map at source-viewBox coords (sx, sy) → region key or null.
-function _regionAtSource(src_x, src_y) {
+function _regionAtSource(src_x: number, src_y: number) {
   if (!_regionMapData) return null;
   const px = Math.round(src_x * (_regionMapData.width / STOCK_IMG.imgW));
   const py = Math.round(src_y * (_regionMapData.height / STOCK_IMG.imgH));
   if (px < 0 || px >= _regionMapData.width || py < 0 || py >= _regionMapData.height) return null;
   const idx = (py * _regionMapData.width + px) * 4;
-  const r = _regionMapData.data[idx];
-  const g = _regionMapData.data[idx + 1];
-  const b = _regionMapData.data[idx + 2];
-  const a = _regionMapData.data[idx + 3];
+  const r = _regionMapData.data[idx]!;
+  const g = _regionMapData.data[idx + 1]!;
+  const b = _regionMapData.data[idx + 2]!;
+  const a = _regionMapData.data[idx + 3]!;
   if (a < 30) return null;
   return _REGION_BY_RGB_INT.get((r << 16) | (g << 8) | b) || null;
 }
@@ -358,20 +362,13 @@ function _regionAtSource(src_x, src_y) {
 // but render as nothing).
 let _overlayCache = { key: '', url: '' };
 let _overlayPending = false;
-/** @type {{ selected: Set<string>, onReady?: (url?: string) => void } | null} */
-let _overlayQueued = null;
+let _overlayQueued: { selected: Set<string>; onReady?: OverlayReady } | null = null;
 
-/** @param {Set<string>} selected */
-function _selectedKey(selected) {
+function _selectedKey(selected: Set<string>) {
   return Array.from(selected).sort().join('|');
 }
 
-/**
- * @param {Set<string>} selected
- * @param {(url?: string) => void} [onReady]
- * @returns {string | null}
- */
-function _renderSelectionOverlay(selected, onReady) {
+function _renderSelectionOverlay(selected: Set<string>, onReady: OverlayReady) {
   if (!_regionMapData || !selected || selected.size === 0) return null;
   const key = _selectedKey(selected);
   if (key === _overlayCache.key) return _overlayCache.url;
@@ -401,8 +398,8 @@ function _renderSelectionOverlay(selected, onReady) {
   const out = ctx.createImageData(W, H);
   const outData = out.data;
   for (let i = 0; i < inData.length; i += 4) {
-    if (inData[i + 3] < 30) continue;
-    const ci = (inData[i] << 16) | (inData[i + 1] << 8) | inData[i + 2];
+    if (inData[i + 3]! < 30) continue;
+    const ci = (inData[i]! << 16) | (inData[i + 1]! << 8) | inData[i + 2]!;
     if (selectedInts.has(ci)) {
       outData[i]     = 79;
       outData[i + 1] = 140;
@@ -439,7 +436,7 @@ function _renderSelectionOverlay(selected, onReady) {
 // region keys; each region path fills with accent when selected. Sex
 // follows the active profile (Settings → Profile) — there is no in-modal
 // toggle.
-export function renderBodySilhouette(selected) {
+export function renderBodySilhouette(selected: Set<string>) {
   const sex = _activeProfileSex();
   const { front, back } = _silhouetteRegionPaths(sex);
   const bodyFront = buildBody(sex, 'front');
@@ -453,17 +450,15 @@ export function renderBodySilhouette(selected) {
   // view shows just the matching cell of the source grid, scaled to fit
   // a 100×210 figure area (top of the 100×220 view, leaving y 210–220 for
   // the italic-serif label).
-  /** @type {((view?: string) => string) & { _placement?: (view?: string) => { imgX: number, imgY: number, fullW: number, fullH: number } | null }} */
-  let renderStockImage = () => '';
+  let renderStockImage: ((view?: string) => string) & { _placement?: (view?: string) => ImagePlacement | null } = () => '';
   // Per-view alpha mask using the er.svg image itself — selection rects
   // are masked to figure-shape so the blue wash fills the body exactly,
   // no rectangular overflow past the silhouette.
-  /** @type {(view?: string, maskId?: string) => string} */
-  let renderFigureMask = () => '';
+  let renderFigureMask: (view?: string, maskId?: string) => string = () => '';
   if (STOCK_FIGURE_PROTOTYPE) {
     // Per-cell scale so each figure fits 210 high regardless of source
     // figure dimensions (female cells are narrower than male).
-    const placement = (view) => {
+    const placement = (view?: string) => {
       const cell = STOCK_IMG.cells[`${sex}-${view}`];
       if (!cell) return null;
       const scale = 210 / cell.ch;
@@ -503,14 +498,14 @@ export function renderBodySilhouette(selected) {
   const overlayState = selected?.size
     ? (overlayMatchesSelection ? 'ready' : 'pending')
     : 'none';
-  const renderSelectionImage = (view) => {
+  const renderSelectionImage = (view: string) => {
     if (!selOverlayUrl || !STOCK_FIGURE_PROTOTYPE) return '';
     const p = renderStockImage._placement && renderStockImage._placement(view);
     if (!p) return '';
     return `<image href="${selOverlayUrl}" x="${p.imgX.toFixed(2)}" y="${p.imgY.toFixed(2)}" width="${p.fullW.toFixed(2)}" height="${p.fullH.toFixed(2)}" preserveAspectRatio="none" pointer-events="none"/>`;
   };
 
-  const renderRegion = (regions, viewKey) =>
+  const renderRegion = (regions: Record<string, string>, viewKey: string) =>
     Object.entries(regions).map(([region, d]) => {
       const isSel = selected.has(region);
       const label = (BODY_REGIONS.find(r => r.key === region)?.label) || region;
@@ -523,10 +518,10 @@ export function renderBodySilhouette(selected) {
       return `<path d="${d}" data-region="${region}" data-view="${viewKey}" class="${cls}" role="button" tabindex="0" aria-pressed="${isSel}" aria-label="${escapeAttr(aria)}"><title>${label}${isSel ? ' (selected)' : ''}</title></path>`;
     }).join('');
 
-  const renderLandmarks = (paths) =>
+  const renderLandmarks = (paths: string[]) =>
     paths.map(d => `<path d="${d}" class="sun-silhouette-landmark" />`).join('');
 
-  const renderDetails = (paths) =>
+  const renderDetails = (paths: string[]) =>
     paths.map(d => `<path d="${d}" class="sun-silhouette-detail" />`).join('');
 
   // Per-view clip paths so the female front silhouette (with bust bulge) and
@@ -589,16 +584,16 @@ export function renderBodySilhouette(selected) {
 // Keyboard: each region has tabindex=0; Enter / Space toggle selection.
 // Re-render preserves focus on the toggled region so SR users hear the
 // new aria-pressed state without losing their place.
-export function bindBodySilhouette(rootEl, selected, onChange) {
-  const rerender = (focusRegion, focusView) => {
+export function bindBodySilhouette(rootEl: Element, selected: Set<string>, onChange?: (selected: Set<string>) => void) {
+  const rerender = (focusRegion?: string, focusView?: string) => {
     rootEl.innerHTML = renderBodySilhouette(selected);
     if (focusRegion) {
-      const next = rootEl.querySelector(`[data-region="${CSS.escape(focusRegion)}"][data-view="${CSS.escape(focusView)}"]`);
+      const next = rootEl.querySelector<SVGElement>(`[data-region="${CSS.escape(focusRegion)}"][data-view="${CSS.escape(focusView!)}"]`);
       if (next) try { next.focus(); } catch (e) {}
     }
   };
 
-  const toggleRegion = (regionKey, focusAfter) => {
+  const toggleRegion = (regionKey?: string, focusAfter?: string) => {
     if (!regionKey) return;
     if (selected.has(regionKey)) selected.delete(regionKey); else selected.add(regionKey);
     rerender(regionKey, focusAfter);
@@ -648,16 +643,16 @@ export function bindBodySilhouette(rootEl, selected, onChange) {
 
   // Map a click on the SVG to a region key via the region map. Falls
   // back to per-region path detection if the map hasn't loaded yet.
-  const _resolveRegionFromEvent = (e) => {
+  const _resolveRegionFromEvent = (e: PickerInputEvent) => {
     if (!_regionMapData) return null;
-    const svg = rootEl.querySelector('svg.sun-silhouette');
+    const svg = rootEl.querySelector<SVGSVGElement>('svg.sun-silhouette');
     if (!svg) return null;
     // Convert clientX/Y into the SVG's local (viewBox) coordinate space.
     let pt;
     try { pt = svg.createSVGPoint(); } catch (err) { return null; }
-    const touch = e.changedTouches?.[0] || e.touches?.[0] || null;
-    pt.x = touch ? touch.clientX : e.clientX;
-    pt.y = touch ? touch.clientY : e.clientY;
+    const touch = (e as TouchEvent).changedTouches?.[0] || (e as TouchEvent).touches?.[0] || null;
+    pt.x = touch ? touch.clientX : (e as MouseEvent).clientX;
+    pt.y = touch ? touch.clientY : (e as MouseEvent).clientY;
     const ctm = svg.getScreenCTM();
     if (!ctm) return null;
     const local = pt.matrixTransform(ctm.inverse());
@@ -678,18 +673,18 @@ export function bindBodySilhouette(rootEl, selected, onChange) {
     return _regionAtSource(src_x, src_y);
   };
 
-  const activateFromEvent = (e) => {
+  const activateFromEvent = (e: PickerInputEvent) => {
     // Region-map sampling is the source of truth — try it first whenever
     // the click landed inside the figure SVG. Fall back to per-region
     // path matching for keyboard / a11y entry points.
     const fromMap = _resolveRegionFromEvent(e);
     if (fromMap) {
-      const view = e.target.closest('[data-click-view]')?.dataset.clickView
-        || (e.target.closest('.sun-silhouette-back') ? 'back' : 'front');
+      const view = (e.target as Element).closest<SVGElement>('[data-click-view]')?.dataset.clickView
+        || ((e.target as Element).closest('.sun-silhouette-back') ? 'back' : 'front');
       toggleRegion(fromMap, view);
       return true;
     }
-    const t = e.target.closest('[data-region]');
+    const t = (e.target as Element).closest<SVGElement>('[data-region]');
     if (!t) return false;
     toggleRegion(t.dataset.region, t.dataset.view);
     return true;
@@ -697,16 +692,16 @@ export function bindBodySilhouette(rootEl, selected, onChange) {
 
   let lastPointerActivation = 0;
   rootEl.addEventListener('pointerup', (e) => {
-    if (e.pointerType === 'mouse') return;
-    if (!e.target.closest('svg.sun-silhouette')) return;
-    if (!activateFromEvent(e)) return;
+    if ((e as PointerEvent).pointerType === 'mouse') return;
+    if (!(e.target as Element).closest('svg.sun-silhouette')) return;
+    if (!activateFromEvent(e as PickerInputEvent)) return;
     lastPointerActivation = Date.now();
     e.preventDefault();
   }, { passive: false });
   rootEl.addEventListener('touchend', (e) => {
     if (Date.now() - lastPointerActivation < 80) return;
-    if (!e.target.closest('svg.sun-silhouette')) return;
-    if (!activateFromEvent(e)) return;
+    if (!(e.target as Element).closest('svg.sun-silhouette')) return;
+    if (!activateFromEvent(e as PickerInputEvent)) return;
     lastPointerActivation = Date.now();
     e.preventDefault();
   }, { passive: false });
@@ -716,11 +711,11 @@ export function bindBodySilhouette(rootEl, selected, onChange) {
       e.preventDefault();
       return;
     }
-    activateFromEvent(e);
+    activateFromEvent(e as PickerInputEvent);
   });
   rootEl.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    const t = e.target.closest('[data-region]');
+    if ((e as KeyboardEvent).key !== 'Enter' && (e as KeyboardEvent).key !== ' ') return;
+    const t = (e.target as Element).closest<SVGElement>('[data-region]');
     if (!t) return;
     e.preventDefault();
     toggleRegion(t.dataset.region, t.dataset.view);

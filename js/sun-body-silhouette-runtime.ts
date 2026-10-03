@@ -1,4 +1,3 @@
-// @ts-check
 // sun-body-silhouette-runtime.js - Browser runtime adapters for the sun body picker.
 
 import { configureRuntimeDependencies } from './runtime-callbacks.js';
@@ -6,13 +5,13 @@ import { getActiveProfileId, getProfiles } from './profile.js';
 
 const sunBodySilhouetteRuntimeDeps = { getActiveProfileId, getProfiles };
 
-export function configureSunBodySilhouetteRuntimeDeps(deps = {}) {
+export function configureSunBodySilhouetteRuntimeDeps(deps: Partial<typeof sunBodySilhouetteRuntimeDeps> = {}) {
   return configureRuntimeDependencies(sunBodySilhouetteRuntimeDeps, deps);
 }
 
 function getSilhouetteRuntime() {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
+    ? window
     : null;
 }
 
@@ -47,16 +46,14 @@ export function dispatchSunOverlayReadyRuntime() {
   }
 }
 
-/** @param {EventListenerOrEventListenerObject} listener */
-export function addSunOverlayReadyListenerRuntime(listener) {
+export function addSunOverlayReadyListenerRuntime(listener: EventListenerOrEventListenerObject) {
   const runtime = getSilhouetteRuntime();
   if (!runtime || typeof runtime.addEventListener !== 'function') return false;
   runtime.addEventListener('sun-overlay-ready', listener);
   return true;
 }
 
-/** @param {EventListenerOrEventListenerObject} listener */
-export function removeSunOverlayReadyListenerRuntime(listener) {
+export function removeSunOverlayReadyListenerRuntime(listener: EventListenerOrEventListenerObject) {
   const runtime = getSilhouetteRuntime();
   if (!runtime || typeof runtime.removeEventListener !== 'function') return false;
   runtime.removeEventListener('sun-overlay-ready', listener);

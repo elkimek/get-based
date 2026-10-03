@@ -770,3 +770,6 @@ deploy/profile-share/data/
 /js/app-feature-modules.js
 
 /tests/helpers/startup-composition.js
+/js/silhouette-paths.js
+/js/sun-body-silhouette-runtime.js
+/js/sun-body-silhouette.js

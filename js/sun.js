@@ -363,7 +363,7 @@ export async function changeCoverageMidSession(id) {
       hint.textContent = `${selected.size} region${selected.size === 1 ? '' : 's'} exposed (${pctLabel}) — ${labels}`;
     }
   };
-  bindBodySilhouette(slot, selected, updateHint);
+  bindBodySilhouette(/** @type {Element} */ (slot), selected, updateHint);
   updateHint();
 
   confirmButton.addEventListener('click', async () => {
