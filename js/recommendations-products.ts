@@ -1,4 +1,28 @@
-// @ts-check
+import type { LightDeviceRecord } from './light-devices-store.js';
+
+// Catalog scalar fields remain raw; the original renderers escape/coerce them.
+export interface RecommendationProduct extends Record<string, unknown> {
+  regions?: string[] | null; matchTypes?: string[] | null;
+  key?: unknown; name?: unknown; brand?: unknown; vendor?: unknown; vendorKey?: unknown;
+  kind?: unknown; blurb?: unknown; dosage?: unknown; priceCZK?: unknown; priceEUR?: unknown;
+  url?: unknown; affiliateUrl?: unknown; _tag?: unknown;
+}
+export interface RecommendationVendor extends Record<string, unknown> {
+  name?: unknown; coupon?: unknown; homepage?: unknown;
+  vendor?: { coupon?: unknown } | null;
+}
+export interface ProductCatalog extends RecommendationVendor {
+  products?: Record<string, RecommendationProduct[]> | null;
+  vendors?: Record<string, RecommendationVendor> | null;
+}
+type CatalogInput = ProductCatalog | null | undefined;
+type ProductCoupon = Record<string, unknown>;
+type Region = string | null | undefined;
+type DeviceProductPreset = Pick<LightDeviceRecord, 'catalogSlug' | 'channels'>;
+type DeviceProductPresets = Array<DeviceProductPreset | null | undefined>
+  | { presets?: Array<DeviceProductPreset | null | undefined> | null } | null | undefined;
+interface ProductSectionOptions { types?: string[] | null; heading?: unknown; eventPrefix?: string }
+
 // recommendations-products.js - product filtering, affiliate URLs, and product rec renderers
 
 import { getProfileLocation } from './profile.js';
@@ -11,7 +35,7 @@ import { scheduleRecommendationsTask } from './recommendations-runtime.js';
 import { escapeAttr, escapeHTML } from './utils.js';
 import { actionAttributes } from './action-attributes.js';
 
-export function recActionAttrs(action, attrs = {}) {
+export function recActionAttrs(action: string, attrs: Parameters<typeof actionAttributes>[2] = {}) {
   return actionAttributes("rec", action, attrs);
 }
 
@@ -19,7 +43,7 @@ export function isProductRecsEnabled() {
   return localStorage.getItem('labcharts-show-product-recs') !== 'false';
 }
 
-export function setProductRecsEnabled(on) {
+export function setProductRecsEnabled(on: unknown) {
   localStorage.setItem('labcharts-show-product-recs', on ? 'true' : 'false');
 }
 
@@ -31,7 +55,7 @@ export function markDisclosureSeen() {
   localStorage.setItem('labcharts-rec-disclosure', 'seen');
 }
 
-export function regionLookupChain(region) {
+export function regionLookupChain(region: Region) {
   return lookupRegionChain(region);
 }
 
@@ -52,7 +76,7 @@ export function getUserRegion() {
 // to everyone (INTL is in every chain), a product tagged ["EU"] is visible
 // to CZ/SK/EU/DE/AT users, and a product tagged ["CZ"] is only visible to
 // CZ + CZSK users. Single hierarchy shared with _pickRegional.
-export function getProductsForSlot(catalog, slotKey, region) {
+export function getProductsForSlot(catalog: CatalogInput, slotKey: string, region: Region) {
   if (!catalog || !catalog.products) return [];
   const products = catalog.products[slotKey];
   if (!products || !products.length) return [];
@@ -60,11 +84,11 @@ export function getProductsForSlot(catalog, slotKey, region) {
   return products.filter(p => p.regions && p.regions.some(r => chain.has(r)));
 }
 
-export function regionLabel(region) {
-  return formatRegionLabel(region);
+export function regionLabel(region: Region) {
+  return formatRegionLabel(region as string);
 }
 
-export function getEMFMeters(catalog, types) {
+export function getEMFMeters(catalog: CatalogInput, types?: string[] | null) {
   const products = catalog?.products?.['_internal.emfMeters'] || [];
   if (!types || !types.length) return products;
   const wanted = new Set(types);
@@ -74,7 +98,7 @@ export function getEMFMeters(catalog, types) {
 // Mitigation tag (stored on a room) -> catalog slot key. Single map keeps the
 // per-room chip strings (which match the constants.js EMF_MITIGATIONS list)
 // glued to the slot keys we created in the unified catalog.
-const _MITIGATION_TAG_TO_SLOT = {
+const _MITIGATION_TAG_TO_SLOT: Record<string, string> = {
   'shielding paint (Yshield)': 'env.shieldingPaint',
   'shielding fabric / canopy': 'env.shieldingFabric',
   'Stetzerizer filters': 'env.dirtyElectricity',
@@ -89,7 +113,7 @@ const _MITIGATION_TAG_TO_SLOT = {
 // Falls back to the device's preset id if catalogSlug isn't set on
 // older device records - old devices added before this wiring landed
 // still resolve correctly without a migration.
-export function getLightDeviceProduct(catalog, slug) {
+export function getLightDeviceProduct(catalog: CatalogInput, slug: unknown) {
   if (!catalog?.products || !slug) return null;
   const products = catalog.products['_internal.lightDevices'];
   if (!Array.isArray(products) || products.length === 0) return null;
@@ -116,7 +140,7 @@ export function getLightDeviceProduct(catalog, slug) {
 // Campaign tag is "light-devices" so the partner-side UTM dashboard can
 // attribute device-card traffic separately from the EMF + supplement
 // surfaces.
-export function renderLightDeviceAffiliateRow(catalog, slug) {
+export function renderLightDeviceAffiliateRow(catalog: CatalogInput, slug: unknown) {
   if (!isProductRecsEnabled() || !catalog || !slug) return '';
   const product = getLightDeviceProduct(catalog, slug);
   if (!product) return '';
@@ -131,10 +155,10 @@ export function renderLightDeviceAffiliateRow(catalog, slug) {
   return `<a class="rec-product-link rec-light-device-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}" aria-label="View ${productName} on ${vendorName}, opens in new tab">View on ${vendorName} →</a>`;
 }
 
-export function getEMFProductsForMitigations(catalog, tags) {
+export function getEMFProductsForMitigations(catalog: CatalogInput, tags: string[] | null | undefined) {
   if (!catalog?.products) return [];
-  const out = [];
-  const seen = new Set();
+  const out: RecommendationProduct[] = [];
+  const seen = new Set<unknown>();
   for (const tag of tags || []) {
     const slotKey = _MITIGATION_TAG_TO_SLOT[tag];
     if (!slotKey) continue;
@@ -156,13 +180,13 @@ export function getEMFProductsForMitigations(catalog, tags) {
 // shown alongside the section. Today every SLT entry shares the same coupon,
 // so this is a simple lookup; future affiliates with their own coupons just
 // register a vendor block.
-export function _resolveVendorForCoupon(catalog, products) {
+export function _resolveVendorForCoupon(catalog: CatalogInput, products: RecommendationProduct[] | null | undefined) {
   if (!products?.length || !catalog?.vendors) return null;
   for (const p of products) {
     const key = p.vendorKey || p.vendor;
     if (!key) continue;
     // Try by vendorKey first (canonical), fall back to scanning by name
-    const direct = catalog.vendors[key];
+    const direct = catalog.vendors[key as string];
     if (direct) return direct;
     for (const v of Object.values(catalog.vendors)) {
       if (v.name === key) return v;
@@ -176,7 +200,7 @@ export function _resolveVendorForCoupon(catalog, products) {
 // single entry using the catalog's region, decomposing multi-region markers
 // like "CZSK" into component codes (CZ, SK), and falling back to a worldwide
 // key (EN/INTL/WORLDWIDE) before giving up.
-export function _pickRegional(map, catalogRegion) {
+export function _pickRegional<T>(map: Record<string, T> | null | undefined, catalogRegion: Region): T | null {
   // Arrays trip `typeof === 'object'`. Reject them up front - without this
   // a malformed `coupon: [{code:'X'}]` would silently render via the
   // Object.values fallback, producing wrong attribution.
@@ -202,38 +226,38 @@ export function _pickRegional(map, catalogRegion) {
 // Discriminator: a Coupon has a `code` field; a per-region map does not.
 // Arrays are rejected (an array could contain `code` as an inherited property
 // path in some JS hosts; defense-in-depth).
-export function _resolveCouponForRegion(coupon, region) {
+export function _resolveCouponForRegion(coupon: unknown, region: Region) {
   if (!coupon || typeof coupon !== 'object' || Array.isArray(coupon)) return null;
-  if ('code' in coupon) return coupon;
-  return _pickRegional(coupon, region);
+  if ('code' in coupon) return coupon as ProductCoupon;
+  return _pickRegional(coupon as Record<string, ProductCoupon>, region);
 }
 
 // Discriminator: a flat homepage is a string; a per-region map is an object.
-export function _resolveHomepageForRegion(homepage, region) {
+export function _resolveHomepageForRegion(homepage: unknown, region: Region) {
   if (!homepage) return null;
   if (typeof homepage === 'string') return homepage;
-  return _pickRegional(homepage, region);
+  return _pickRegional(homepage as Record<string, unknown>, region);
 }
 
 // Resolve a product's outbound URL for the active catalog region. Both
 // `url` and `affiliateUrl` may be a flat string OR a Record<RegionCode, string>
 // when the brand has different storefronts per market (e.g. easylight.sk for
 // CZ/SK + mitochondriak.com for INTL). Prefer affiliateUrl over url.
-export function _resolveProductUrlForRegion(product, region) {
+export function _resolveProductUrlForRegion(product: RecommendationProduct | null | undefined, region: Region) {
   if (!product) return null;
   const aff = _resolveOneUrlField(product.affiliateUrl, region);
   if (aff) return aff;
   return _resolveOneUrlField(product.url, region);
 }
 
-function _resolveOneUrlField(field, region) {
+function _resolveOneUrlField(field: unknown, region: Region) {
   if (!field) return null;
   if (typeof field === 'string') return field;
-  if (typeof field === 'object' && !Array.isArray(field)) return _pickRegional(field, region);
+  if (typeof field === 'object' && !Array.isArray(field)) return _pickRegional(field as Record<string, unknown>, region);
   return null;
 }
 
-export function _buildCouponLine(catalogOrVendor, region) {
+export function _buildCouponLine(catalogOrVendor: RecommendationVendor | null | undefined, region: Region) {
   // Accept either a vendor object directly, or a catalog with legacy .vendor
   // top-level (back-compat with the old emf-products.json shape).
   const rawCoupon = catalogOrVendor?.coupon || catalogOrVendor?.vendor?.coupon;
@@ -244,14 +268,14 @@ export function _buildCouponLine(catalogOrVendor, region) {
   return `<div class="rec-coupon" aria-live="polite" aria-atomic="true">Use code <button type="button" class="rec-coupon-code" ${recActionAttrs('copy-coupon')} data-code="${escapeAttr(c.code)}" aria-label="Copy coupon code ${code} to clipboard" title="Click to copy">${code}</button> at checkout for ${escapeHTML(c.userDiscount || '10%')} off.</div>`;
 }
 
-export function copyCouponCode(btn) {
+export function copyCouponCode(btn: HTMLElement | null | undefined) {
   const code = btn?.dataset?.code;
   if (!code) return;
   // Guard against rapid double-clicks: if the button is still in the
   // "✓ Copied" flash state, skip - the new flash would otherwise stomp the
   // running timer and the button could get stuck on the temporary text.
   if (btn.dataset.flashing === '1') return;
-  const flashCopied = (label) => {
+  const flashCopied = (label: string) => {
     const orig = btn.textContent;
     btn.dataset.flashing = '1';
     btn.textContent = label;
@@ -291,24 +315,24 @@ const _STATIC_AFFILIATE_ALLOWLIST = [
   'safelivingtechnologies.com',
 ];
 
-function _vendorHomepageHosts(catalog) {
-  const hosts = new Set();
+function _vendorHomepageHosts(catalog: CatalogInput) {
+  const hosts = new Set<string>();
   const vendors = catalog?.vendors || {};
   for (const v of Object.values(vendors)) {
     const hp = v?.homepage;
     if (!hp) continue;
     const urls = typeof hp === 'string' ? [hp] : (typeof hp === 'object' ? Object.values(hp) : []);
     for (const u of urls) {
-      try { hosts.add(new URL(u).hostname.toLowerCase()); } catch {}
+      try { hosts.add(new URL(u as string).hostname.toLowerCase()); } catch {}
     }
   }
   return hosts;
 }
 
-function _isTrustedAffiliateUrl(url, catalog) {
-  if (!url || !/^https?:\/\//i.test(url)) return false;
+function _isTrustedAffiliateUrl(url: unknown, catalog: CatalogInput) {
+  if (!url || !/^https?:\/\//i.test(url as string)) return false;
   try {
-    const host = new URL(url).hostname.toLowerCase();
+    const host = new URL(url as string).hostname.toLowerCase();
     if (_STATIC_AFFILIATE_ALLOWLIST.some(d => host === d || host.endsWith('.' + d))) return true;
     // Catalog-derived: the maintainer's vendor entries authorize their own
     // domains. New vendors don't need a code change.
@@ -320,7 +344,7 @@ function _isTrustedAffiliateUrl(url, catalog) {
     const products = catalog?.products || {};
     for (const slot of Object.values(products)) {
       for (const p of slot) {
-        const candidates = [];
+        const candidates: unknown[] = [];
         const u = p?.url;
         const a = p?.affiliateUrl;
         if (typeof u === 'string') candidates.push(u);
@@ -329,7 +353,7 @@ function _isTrustedAffiliateUrl(url, catalog) {
         else if (a && typeof a === 'object') candidates.push(...Object.values(a));
         for (const c of candidates) {
           try {
-            if (new URL(c).hostname.toLowerCase() === host) return true;
+            if (new URL(c as string).hostname.toLowerCase() === host) return true;
           } catch {}
         }
       }
@@ -341,7 +365,7 @@ function _isTrustedAffiliateUrl(url, catalog) {
 // Sluggify a product key/name into a stable analytics event suffix.
 // Strict character filter prevents broken HTML attrs and keeps Umami event
 // names tidy. ASCII-only, lowercase, dash-separated.
-function _eventSlug(s) {
+function _eventSlug(s: unknown) {
   return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
 }
 
@@ -354,23 +378,23 @@ function _eventSlug(s) {
 // caller; non-EMF surfaces (supplements, lifestyle, marker recs) pass their
 // own bucket so SLT-side and Mitochondriak-side dashboards can attribute
 // per-surface traffic without bucketing everything under "emf".
-export function _addUTMParams(url, content, campaign = 'emf') {
+export function _addUTMParams<T>(url: T, content: unknown, campaign = 'emf') {
   if (!url) return url;
   let u;
-  try { u = new URL(url); } catch { return url; }
+  try { u = new URL(url as string); } catch { return url; }
   u.searchParams.set('utm_source', 'getbased');
   u.searchParams.set('utm_medium', 'affiliate');
   u.searchParams.set('utm_campaign', campaign);
-  if (content) u.searchParams.set('utm_content', content);
+  if (content) u.searchParams.set('utm_content', content as string);
   return u.toString();
 }
 
-function _buildEMFProductRow(product, eventPrefix, region, catalog) {
+function _buildEMFProductRow(product: RecommendationProduct, eventPrefix: string | null | undefined, region: Region, catalog: CatalogInput) {
   // Resolve region-aware URL: prefer affiliateUrl, fall back to url. Either
   // may be a Record<RegionCode, string> for products with per-market shops.
   const rawUrl = _resolveProductUrlForRegion(product, region) || product.url;
   const isValid = _isTrustedAffiliateUrl(rawUrl, catalog);
-  const meta = [];
+  const meta: string[] = [];
   if (product.vendor) meta.push(escapeHTML(product.vendor));
   if (product.kind) meta.push(escapeHTML(product.kind));
   const productName = escapeHTML(product.name);
@@ -401,7 +425,7 @@ function _buildEMFProductRow(product, eventPrefix, region, catalog) {
  * Render the EMF meter recommendation card (empty-state CTA).
  * Returns '' when the toggle is off or the catalog couldn't load.
  */
-export function renderEMFMeterRecs(catalog, opts = {}) {
+export function renderEMFMeterRecs(catalog: CatalogInput, opts: ProductSectionOptions = {}) {
   if (!isProductRecsEnabled() || !catalog) return '';
   const meters = getEMFMeters(catalog, opts.types);
   if (!meters.length) return '';
@@ -424,7 +448,7 @@ export function renderEMFMeterRecs(catalog, opts = {}) {
  * Render the EMF mitigation-product recommendation block (post-interpretation CTA).
  * tags = flat array of mitigation strings collected across all rooms.
  */
-export function renderEMFMitigationRecs(catalog, tags, opts = {}) {
+export function renderEMFMitigationRecs(catalog: CatalogInput, tags: string[] | null | undefined, opts: ProductSectionOptions = {}) {
   if (!isProductRecsEnabled() || !catalog) return '';
   const products = getEMFProductsForMitigations(catalog, tags);
   if (!products.length) return '';
@@ -443,11 +467,11 @@ export function renderEMFMitigationRecs(catalog, tags, opts = {}) {
   </div>`;
 }
 
-export function buildProductRow(product, region, slotKey) {
-  const parts = [];
+export function buildProductRow(product: RecommendationProduct, region: Region, slotKey?: string | null) {
+  const parts: string[] = [];
   if (product.brand) parts.push(`<strong>${escapeHTML(product.brand)}</strong>`);
   if (product.name) parts.push(escapeHTML(product.name));
-  const meta = [];
+  const meta: string[] = [];
   if (product.dosage) meta.push(escapeHTML(product.dosage));
   if (product.priceCZK) meta.push(`~${escapeHTML(String(product.priceCZK))} CZK`);
   else if (product.priceEUR) meta.push(`~€${escapeHTML(String(product.priceEUR))}`);
@@ -463,7 +487,7 @@ export function buildProductRow(product, region, slotKey) {
   const campaign = slotKey ? slotKey.split('.')[0] : 'rec';
   const productSlug = _eventSlug(product.key || `${product.brand || ''}-${product.name || ''}`);
   const utmContent = slotKey ? `${slotKey.replace('.', '-')}-${productSlug}` : productSlug;
-  const url = isValid ? _addUTMParams(rawUrl, utmContent, campaign) : rawUrl;
+  const url = isValid ? _addUTMParams(rawUrl, utmContent, campaign!) : rawUrl;
   // Umami event mirrors utm_content so the partner-side report (UTM) and
   // our internal click count (Umami) share the same surface label.
   // Prefix `rec-` separates these from the existing `emf-*` events.
@@ -509,11 +533,11 @@ export function _buildDisclosureBanner() {
 // Used by the Light & Sun page to surface a CTA when deficit detection
 // fires for a channel a device can address (especially pbm_red / pbm_nir,
 // where solar exposure can't realistically fill the gap).
-export function recommendDeviceProductsForChannelDeficit(catalog, channelKey, presets) {
+export function recommendDeviceProductsForChannelDeficit(catalog: CatalogInput, channelKey: string | null | undefined, presets: DeviceProductPresets) {
   if (!catalog?.products || !channelKey || !presets) return [];
   const presetList = Array.isArray(presets) ? presets : (presets.presets || []);
   if (!presetList.length) return [];
-  const slugs = new Set();
+  const slugs = new Set<unknown>();
   for (const p of presetList) {
     if (!p?.catalogSlug) continue;
     if (Array.isArray(p.channels) && p.channels.includes(channelKey)) {
@@ -525,8 +549,8 @@ export function recommendDeviceProductsForChannelDeficit(catalog, channelKey, pr
   if (!Array.isArray(products) || !products.length) return [];
   const region = getUserRegion();
   const chain = new Set(regionLookupChain(region));
-  const seen = new Set();
-  const out = [];
+  const seen = new Set<unknown>();
+  const out: RecommendationProduct[] = [];
   for (const product of products) {
     if (!slugs.has(product.key)) continue;
     if (!Array.isArray(product.regions) || !product.regions.some(r => chain.has(r))) continue;
@@ -541,7 +565,7 @@ export function recommendDeviceProductsForChannelDeficit(catalog, channelKey, pr
 // deficient channel. Returns '' when product recs are off, no presets/
 // catalog match, or no trusted URL resolves. The `humanLabel` is shown in
 // the card title (e.g. "Red 660 nm" rather than "pbm_red").
-export function renderChannelDeficitDeviceRecs(catalog, channelKey, presets, opts = {}) {
+export function renderChannelDeficitDeviceRecs(catalog: CatalogInput, channelKey: string | null | undefined, presets: DeviceProductPresets, opts: { label?: unknown } = {}) {
   if (!isProductRecsEnabled()) return '';
   const products = recommendDeviceProductsForChannelDeficit(catalog, channelKey, presets);
   if (!products.length) return '';
@@ -549,7 +573,7 @@ export function renderChannelDeficitDeviceRecs(catalog, channelKey, presets, opt
   const humanLabel = escapeHTML(opts.label || channelKey);
   // Cap at 3 to keep the card compact - the catalog is curated, not a
   // marketplace. If the user wants more they can browse Light devices.
-  const rows = [];
+  const rows: string[] = [];
   for (const product of products.slice(0, 3)) {
     const rawUrl = _resolveProductUrlForRegion(product, region) || product.url;
     if (!_isTrustedAffiliateUrl(rawUrl, catalog)) continue;

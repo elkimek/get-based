@@ -791,3 +791,5 @@ deploy/profile-share/data/
 /js/light-device-modal-loader.js
 
 /js/settings-cli-agent-panel.js
+
+/js/recommendations-products.js

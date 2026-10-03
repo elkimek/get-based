@@ -2,6 +2,7 @@
 
 import { configureRuntimeDependencies, scheduleRuntimeTask } from './runtime-callbacks.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
+import type { ProductCatalog } from './recommendations-products.js';
 import type { GenotypeEntry } from './dna-genotype.js';
 
 export interface RecommendationCatalogSlot {
@@ -10,7 +11,7 @@ export interface RecommendationCatalogSlot {
   forms?: string[];
   [key: string]: unknown;
 }
-export interface RecommendationCatalog {
+export interface RecommendationCatalog extends ProductCatalog {
   slots: Record<string, RecommendationCatalogSlot>;
   [key: string]: unknown;
 }

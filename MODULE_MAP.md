@@ -1067,10 +1067,10 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>recommendations</code> family — 4 modules</summary>
 
-- [`js/recommendations-products.js`](js/recommendations-products.js) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendations-region.ts`](js/recommendations-region.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/recommendations-products.ts`](js/recommendations-products.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendations-region.ts`](js/recommendations-region.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/recommendations-region.ts`](js/recommendations-region.ts) → no in-scope imports
 - [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts) → [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
-- [`js/recommendations.js`](js/recommendations.js) → [`js/dna-evidence.ts`](js/dna-evidence.ts), [`js/dna-genotype.ts`](js/dna-genotype.ts), [`js/recommendations-products.js`](js/recommendations-products.js), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/recommendations.js`](js/recommendations.js) → [`js/dna-evidence.ts`](js/dna-evidence.ts), [`js/dna-genotype.ts`](js/dna-genotype.ts), [`js/recommendations-products.ts`](js/recommendations-products.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 

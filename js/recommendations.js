@@ -347,7 +347,7 @@ function _renderRecSection(slotKey, opts = {}) {
   const toolProducts = products.filter(p => p.type === 'product').slice(0, maxProducts);
   const suppProducts = products.filter(p => p.type === 'supplement').slice(0, maxProducts);
   const drugProducts = products.filter(p => p.type === 'drug').slice(0, maxProducts);
-  const otherProducts = products.filter(p => !knownTypes.includes(p.type)).slice(0, maxProducts);
+  const otherProducts = products.filter(p => !knownTypes.includes(/** @type {string} */ (p.type))).slice(0, maxProducts);
 
   let inner = '';
 
