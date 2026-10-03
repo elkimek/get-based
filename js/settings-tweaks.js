@@ -79,6 +79,7 @@ function refreshVisualSurfaces() {
   scheduleChartThemeRefresh();
 }
 
+/** @type {unknown} */
 let chartThemeRefreshFrame = 0;
 /** @type {ReturnType<typeof setTimeout> | 0} */
 let chartThemeRefreshTimer = 0;
@@ -104,6 +105,7 @@ function scheduleChartThemeRefresh() {
   }
 }
 
+/** @type {unknown} */
 let themeChangeFrame = 0;
 /** @type {ReturnType<typeof setTimeout> | 0} */
 let themeChangeTimer = 0;

@@ -163,7 +163,7 @@ export function renderPrivacyAnalyticsSection() {
 }
 
 function _renderMeteoModeOption(mode, label, desc) {
-  const cur = getSettingsMeteoConfig().mode || 'auto';
+  const cur = (/** @type {{ mode?: unknown }} */ (getSettingsMeteoConfig())).mode || 'auto';
   const checked = cur === mode;
   return `<label style="display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;${checked ? 'background:var(--bg-card);border-color:var(--accent);' : ''}">
     <input type="radio" name="meteo-mode" value="${mode}" ${checked ? 'checked' : ''} data-sun-source-action="set-meteo-mode" style="margin-top:3px">
@@ -180,7 +180,7 @@ function _renderMeteoModeOption(mode, label, desc) {
 // privacy posture. The `Round location to ~11 km grid` toggle inside is
 // privacy-flavored but stays here for cohesion.
 export function renderSunDataSourceSettings() {
-  const cfg = getSettingsMeteoConfig();
+  const cfg = /** @type {{ mode?: unknown, selfhostUrl?: unknown, selfhostBearer?: unknown, privacyRounding?: number | null }} */ (getSettingsMeteoConfig());
   const officialHost = isOfficialGetbasedHost();
   return `<div class="local-ai-settings" id="sun-data-source-section">
     <h4 style="margin:0 0 6px 0;font-size:13px;color:var(--text-primary)">☀ Sun data source</h4>
@@ -211,7 +211,7 @@ export function renderSunDataSourceSettings() {
 }
 
 async function setMeteoMode(mode) {
-  const cfg = getSettingsMeteoConfig();
+  const cfg = /** @type {{ mode?: unknown, selfhostUrl?: unknown, selfhostBearer?: unknown, privacyRounding?: number | null }} */ (getSettingsMeteoConfig());
   cfg.mode = mode;
   if (!await saveSettingsMeteoConfig(cfg)) {
     notifyMeteoSaveUnavailable();
@@ -226,7 +226,7 @@ function notifyMeteoSaveUnavailable() {
 }
 
 async function saveMeteoSelfhost() {
-  const cfg = getSettingsMeteoConfig();
+  const cfg = /** @type {{ mode?: unknown, selfhostUrl?: unknown, selfhostBearer?: unknown, privacyRounding?: number | null }} */ (getSettingsMeteoConfig());
   const url = /** @type {HTMLInputElement | null} */ (document.getElementById('meteo-selfhost-url'))?.value?.trim() || '';
   const bearer = /** @type {HTMLInputElement | null} */ (document.getElementById('meteo-selfhost-bearer'))?.value?.trim() || '';
   cfg.selfhostUrl = url;
@@ -237,7 +237,7 @@ async function saveMeteoSelfhost() {
 }
 
 async function toggleMeteoRounding(enabled) {
-  const cfg = getSettingsMeteoConfig();
+  const cfg = /** @type {{ mode?: unknown, selfhostUrl?: unknown, selfhostBearer?: unknown, privacyRounding?: number | null }} */ (getSettingsMeteoConfig());
   cfg.privacyRounding = enabled ? 0.1 : 0;
   if (!await saveSettingsMeteoConfig(cfg)) {
     notifyMeteoSaveUnavailable();

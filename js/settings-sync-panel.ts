@@ -1,4 +1,3 @@
-// @ts-check
 // settings-sync-panel.js — cold-safe Settings sync-panel facade
 
 import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
@@ -11,7 +10,7 @@ import {
 } from './sync.js';
 import { showNotification } from './utils.js';
 
-/** @typedef {typeof import('./settings-sync-panel-impl.js')} SettingsSyncPanelModule */
+type SettingsSyncPanelModule = typeof import('./settings-sync-panel-impl.js');
 
 const settingsSyncPanelModuleLoader = createRetryingModuleLoader(
   retry => retry ? loadSettingsSyncPanelRetryModule() : import('./settings-sync-panel-impl.js'),
@@ -26,7 +25,7 @@ const settingsSyncPanelModuleLoader = createRetryingModuleLoader(
   },
 );
 
-const settingsSyncPanelDeps = {
+const settingsSyncPanelDeps: Record<string, unknown> = {
   applyPendingTombstone,
   listPendingTombstones,
   pushContextToGateway,
@@ -34,8 +33,7 @@ const settingsSyncPanelDeps = {
   updateSyncIndicator,
 };
 
-/** @param {SettingsSyncPanelModule} module */
-function replaceSettingsSyncPanelPlaceholders(module) {
+function replaceSettingsSyncPanelPlaceholders(module: SettingsSyncPanelModule) {
   const syncSection = document.getElementById('sync-section');
   if (syncSection?.querySelector('[data-settings-sync-placeholder="sync"]')) {
     syncSection.innerHTML = module.renderSyncSection();
@@ -50,22 +48,17 @@ export function isSettingsSyncPanelLoaded() {
   return settingsSyncPanelModuleLoader.module !== null;
 }
 
-/** @returns {Promise<SettingsSyncPanelModule>} */
 function loadSettingsSyncPanelRetryModule() {
-  // @ts-expect-error TypeScript resolves only the query-free source path.
-  return import('./settings-sync-panel-impl.js?lazy-retry=1');
+  return import('./settings-sync-panel-impl.js?lazy-retry=1' as './settings-sync-panel-impl.js');
 }
 
-/** @returns {Promise<SettingsSyncPanelModule>} */
 export function loadSettingsSyncPanelModule() {
   return settingsSyncPanelModuleLoader.load();
 }
 
-/** @param {Partial<typeof settingsSyncPanelDeps>} deps */
-export function configureSettingsSyncPanelDeps(deps = {}) {
+export function configureSettingsSyncPanelDeps(deps: Record<string, unknown> = {}) {
   const previous = { ...settingsSyncPanelDeps };
-  /** @type {Partial<typeof settingsSyncPanelDeps>} */
-  const update = {};
+  const update: Record<string, unknown> = {};
   for (const [name, value] of Object.entries(deps)) {
     if (typeof value === 'function' && name in settingsSyncPanelDeps) {
       settingsSyncPanelDeps[name] = value;
@@ -76,13 +69,8 @@ export function configureSettingsSyncPanelDeps(deps = {}) {
   return previous;
 }
 
-/**
- * @param {keyof SettingsSyncPanelModule} name
- * @param {any[]} args
- * @param {boolean} [shouldLoad]
- */
-function runSettingsSyncPanelAction(name, args, shouldLoad = true) {
-  const run = (/** @type {SettingsSyncPanelModule} */ module) => {
+function runSettingsSyncPanelAction(name: keyof SettingsSyncPanelModule, args: unknown[], shouldLoad = true) {
+  const run = (module: SettingsSyncPanelModule): unknown => {
     const action = module[name];
     if (typeof action !== 'function') {
       throw new Error(`Settings sync-panel action ${String(name)} is unavailable`);

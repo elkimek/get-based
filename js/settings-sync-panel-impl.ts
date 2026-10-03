@@ -1,4 +1,3 @@
-// @ts-check
 // settings-sync-panel-impl.js — lazy Cross-device sync and Agent Access settings UI
 
 import { getErrorMessage } from './caught-error.js';
@@ -67,12 +66,12 @@ function snapshotImportedData() {
   try { return JSON.stringify(state.importedData || {}); } catch { return null; }
 }
 
-function restoreImportedDataSnapshot(snapshot) {
+function restoreImportedDataSnapshot(snapshot: string | null | undefined) {
   if (!snapshot) return;
   try { adoptProfileData(state.importedData, JSON.parse(snapshot)); } catch {}
 }
 
-const settingsSyncPanelDeps = {
+const settingsSyncPanelDeps: Record<string, unknown> = {
   applyPendingTombstone,
   listPendingTombstones,
   pushContextToGateway,
@@ -80,8 +79,7 @@ const settingsSyncPanelDeps = {
   updateSyncIndicator,
 };
 
-/** @param {Partial<typeof settingsSyncPanelDeps>} deps */
-export function configureSettingsSyncPanelDeps(deps = {}) {
+export function configureSettingsSyncPanelDeps(deps: Record<string, unknown> = {}) {
   const previous = { ...settingsSyncPanelDeps };
   for (const [name, value] of Object.entries(deps)) {
     if (typeof value === 'function' && name in settingsSyncPanelDeps) {
@@ -101,7 +99,7 @@ const SETTINGS_SYNC_STATE_ACTIONS = new Set([
   'set-agent-wearable-series-days',
 ]);
 
-function closestSettingsSyncAction(event, selector = '[data-sync-action],[data-sync-setup-action]') {
+function closestSettingsSyncAction(event: Event, selector = '[data-sync-action],[data-sync-setup-action]') {
   const target = event.target;
   if (!(target instanceof Element)) return null;
   const el = target.closest(selector);
@@ -116,7 +114,7 @@ function nudgeSyncSetupDialog() {
   d.addEventListener('animationend', () => d.classList.remove('modal-nudge'), { once: true });
 }
 
-async function handleSettingsSyncClick(event) {
+async function handleSettingsSyncClick(event: Event) {
   const target = event.target;
   if (target instanceof Element && target.id === 'sync-setup-overlay') {
     nudgeSyncSetupDialog();
@@ -138,10 +136,10 @@ async function handleSettingsSyncClick(event) {
   event.preventDefault();
 
   if (action === 'apply-tombstone') {
-    await settingsSyncPanelDeps.applyPendingTombstone(actionEl.dataset.tombId || '');
+    await (settingsSyncPanelDeps.applyPendingTombstone as (...args: Parameters<typeof applyPendingTombstone>) => unknown)(actionEl.dataset.tombId || '');
     getSettingsModuleFunction('openSettingsModal')?.('data');
   } else if (action === 'reject-tombstone') {
-    await settingsSyncPanelDeps.rejectPendingTombstone(actionEl.dataset.tombId || '');
+    await (settingsSyncPanelDeps.rejectPendingTombstone as (...args: Parameters<typeof rejectPendingTombstone>) => unknown)(actionEl.dataset.tombId || '');
     getSettingsModuleFunction('openSettingsModal')?.('data');
   } else if (action === 'toggle-mnemonic') {
     toggleMnemonicVisibility();
@@ -200,7 +198,7 @@ async function handleSettingsSyncClick(event) {
   }
 }
 
-async function handleSettingsSyncChange(event) {
+async function handleSettingsSyncChange(event: Event) {
   const actionEl = closestSettingsSyncAction(event);
   if (!actionEl) return;
   const action = actionEl.dataset.syncAction || actionEl.dataset.syncSetupAction;
@@ -219,7 +217,7 @@ async function handleSettingsSyncChange(event) {
       setAgentAccessWearableSeriesDays(days);
       const saved = await saveImportedData({ reason: 'agent-access-series' });
       if (saved === false) throw new Error('saveImportedData returned false while saving Agent Access wearable-series preference');
-      settingsSyncPanelDeps.pushContextToGateway();
+      (settingsSyncPanelDeps.pushContextToGateway as (...args: Parameters<typeof pushContextToGateway>) => unknown)();
     } catch (err) {
       restoreImportedDataSnapshot(rollback);
       console.warn('[agent-access] failed to persist wearable series preference', err);
@@ -229,7 +227,7 @@ async function handleSettingsSyncChange(event) {
   }
 }
 
-function handleSettingsSyncInput(event) {
+function handleSettingsSyncInput(event: Event) {
   const actionEl = closestSettingsSyncAction(event);
   if (!(actionEl instanceof HTMLTextAreaElement)) return;
   const action = actionEl.dataset.syncAction || actionEl.dataset.syncSetupAction;
@@ -246,17 +244,17 @@ function installSettingsSyncDelegates() {
 }
 
 export function renderSyncSection() {
-  return renderSyncSectionMarkup(settingsSyncPanelDeps.listPendingTombstones);
+  return (renderSyncSectionMarkup as (list: unknown) => ReturnType<typeof renderSyncSectionMarkup>)(settingsSyncPanelDeps.listPendingTombstones);
 }
 
 let _syncToggling = false;
-let _syncToggleWatchdog = null;
+let _syncToggleWatchdog: ReturnType<typeof setTimeout> | null = null;
 function _releaseSyncToggle() {
   _syncToggling = false;
   if (_syncToggleWatchdog) { clearTimeout(_syncToggleWatchdog); _syncToggleWatchdog = null; }
 }
 
-async function toggleSync(enabled) {
+async function toggleSync(enabled: boolean) {
   if (_syncToggling) {
     // Don't silently swallow — tell the user their click registered but is
     // already mid-flight. (If they're hitting this repeatedly, the watchdog
@@ -319,7 +317,7 @@ async function disconnectSync() {
     _mnemonicCache = null;
     _identityFingerprintCache = null;
     _mnemonicRetries = 0;
-    clearTimeout(_mnemonicRetryTimer);
+    (clearTimeout as (timer: ReturnType<typeof setTimeout> | null) => void)(_mnemonicRetryTimer);
     await disableSync();
     const el = document.getElementById('sync-section');
     if (el) el.innerHTML = renderSyncSection();
@@ -382,7 +380,7 @@ export async function closeSyncSetup() {
     if (isSyncEnabled()) {
       _mnemonicCache = null;
       _mnemonicRetries = 0;
-      clearTimeout(_mnemonicRetryTimer);
+      (clearTimeout as (timer: ReturnType<typeof setTimeout> | null) => void)(_mnemonicRetryTimer);
       await disableSync();
     }
   } catch (e) {
@@ -412,7 +410,7 @@ async function syncSetupNew() {
     await enableSync({ skipPush: false });
 
     // Wait for mnemonic to resolve
-    let mnemonic = null;
+    let mnemonic: ReturnType<typeof getMnemonic> = null;
     for (let i = 0; i < 30; i++) {
       if (!isSyncEnabled()) return; // cancelled during wait
       mnemonic = getMnemonic();
@@ -447,7 +445,7 @@ async function syncSetupNew() {
 }
 
 function updateSyncSetupAck(ack = document.getElementById('sync-setup-ack')) {
-  const doneBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('sync-setup-done-btn'));
+  const doneBtn = ((document.getElementById('sync-setup-done-btn')) as HTMLButtonElement | null);
   if (!(ack instanceof HTMLInputElement) || !doneBtn) return;
   doneBtn.disabled = !ack.checked;
   doneBtn.style.opacity = ack.checked ? '1' : '0.45';
@@ -472,12 +470,12 @@ function syncSetupRestore() {
   restoreEl.style.display = 'block';
   const title = document.getElementById('sync-setup-title');
   if (title) title.textContent = 'Join existing sync';
-  const choiceFooter = /** @type {HTMLElement | null} */ (document.querySelector('#sync-setup-overlay .sync-setup-choice-footer'));
+  const choiceFooter = ((document.querySelector('#sync-setup-overlay .sync-setup-choice-footer')) as HTMLElement | null);
   const restoreActions = document.querySelector('#sync-setup-overlay .sync-setup-restore-actions');
   const cancel = document.getElementById('sync-setup-cancel');
   if (restoreActions && cancel) restoreActions.append(cancel);
   if (choiceFooter) choiceFooter.hidden = true;
-  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('sync-setup-restore-input'));
+  const input = ((document.getElementById('sync-setup-restore-input')) as HTMLTextAreaElement | null);
   updateSyncSetupRestoreState(input);
   input?.focus();
 }
@@ -492,7 +490,7 @@ function syncSetupBack() {
   newEl.style.display = 'none';
   const title = document.getElementById('sync-setup-title');
   if (title) title.textContent = 'Set up sync';
-  const choiceFooter = /** @type {HTMLElement | null} */ (document.querySelector('#sync-setup-overlay .sync-setup-choice-footer'));
+  const choiceFooter = ((document.querySelector('#sync-setup-overlay .sync-setup-choice-footer')) as HTMLElement | null);
   const cancel = document.getElementById('sync-setup-cancel');
   if (choiceFooter && cancel) choiceFooter.append(cancel);
   if (choiceFooter) choiceFooter.hidden = false;
@@ -503,7 +501,7 @@ async function syncSetupDoRestore() {
     showNotification('Sync setup is already in progress…', 'info');
     return;
   }
-  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('sync-setup-restore-input'));
+  const input = ((document.getElementById('sync-setup-restore-input')) as HTMLTextAreaElement | null);
   if (!input) return;
   const raw = (input.value || '').trim();
   if (!raw) {
@@ -527,7 +525,7 @@ async function syncSetupDoRestore() {
     // identity becomes durable only after Evolu accepts the supplied seed.
     const enabled = await enableSync({ skipPush: true, persist: false });
     if (enabled !== true) {
-      throw new Error(/** @type {string} */ (getMnemonicResolutionError() || 'Sync could not initialize in this browser'));
+      throw new Error(((getMnemonicResolutionError() || 'Sync could not initialize in this browser') as string));
     }
     setSyncSetupRestoreBusy(true, 'Sync is ready. Checking the 24-word identity…');
     const result = await restoreFromMnemonic(mnemonic);
@@ -558,18 +556,18 @@ async function updateRelayStatus() {
   dot.style.background = connected ? '#22c55e' : 'var(--red)';
   text.textContent = connected ? 'Connected to relay' : 'Relay unreachable';
   // Keep header indicator in sync
-  settingsSyncPanelDeps.updateSyncIndicator();
+  (settingsSyncPanelDeps.updateSyncIndicator as (...args: Parameters<typeof updateSyncIndicator>) => unknown)();
 }
 
 let _mnemonicRetries = 0;
-let _mnemonicCache = null;
-let _mnemonicRetryTimer = null;
-let _identityFingerprintCache = null;
+let _mnemonicCache: ReturnType<typeof getMnemonic> = null;
+let _mnemonicRetryTimer: ReturnType<typeof setTimeout> | null = null;
+let _identityFingerprintCache: Awaited<ReturnType<typeof getSyncIdentityFingerprint>> = null;
 const MNEMONIC_MASK = '\u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022';
 
 async function loadSyncIdentityFingerprint() {
   const codeEl = document.getElementById('sync-identity-code');
-  const copyBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('sync-identity-copy'));
+  const copyBtn = ((document.getElementById('sync-identity-copy')) as HTMLButtonElement | null);
   if (!codeEl || !isSyncEnabled()) return;
   const fingerprint = await getSyncIdentityFingerprint();
   if (!fingerprint) {
@@ -583,7 +581,7 @@ async function loadSyncIdentityFingerprint() {
 }
 
 function loadMnemonic() {
-  clearTimeout(_mnemonicRetryTimer);
+  (clearTimeout as (timer: ReturnType<typeof setTimeout> | null) => void)(_mnemonicRetryTimer);
   const el = document.getElementById('sync-mnemonic');
   if (!el || !isSyncEnabled()) { _mnemonicRetries = 0; return; }
   const mnemonic = getMnemonic();
@@ -623,7 +621,7 @@ function toggleMnemonicVisibility() {
   if (!el || !btn || !_mnemonicCache) return;
   const masked = el.dataset.masked === 'true';
   if (masked) {
-    el.textContent = _mnemonicCache;
+    el.textContent = _mnemonicCache as string;
     el.dataset.masked = 'false';
     el.style.userSelect = 'all';
     btn.textContent = 'Hide';
@@ -635,12 +633,12 @@ function toggleMnemonicVisibility() {
   }
 }
 
-let _clipboardClearTimer = null;
+let _clipboardClearTimer: ReturnType<typeof setTimeout> | null = null;
 function copyMnemonic() {
   if (!_mnemonicCache) return;
-  navigator.clipboard.writeText(_mnemonicCache).then(() => {
+  (navigator.clipboard.writeText as (value: unknown) => Promise<void>)(_mnemonicCache).then(() => {
     showNotification('Mnemonic copied — clipboard will clear in 60s', 'success');
-    clearTimeout(_clipboardClearTimer);
+    (clearTimeout as (timer: ReturnType<typeof setTimeout> | null) => void)(_clipboardClearTimer);
     _clipboardClearTimer = setTimeout(() => {
       navigator.clipboard.writeText('').catch(() => {});
     }, 60000);
@@ -659,8 +657,8 @@ function copySyncIdentityCode() {
 }
 
 async function confirmRestoreMnemonic() {
-  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('sync-restore-dialog-input'));
-  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('sync-restore-dialog-go'));
+  const input = ((document.getElementById('sync-restore-dialog-input')) as HTMLTextAreaElement | null);
+  const btn = ((document.getElementById('sync-restore-dialog-go')) as HTMLButtonElement | null);
   if (!input) return;
   const raw = (input.value || '').trim();
   const words = raw.split(/\s+/);
@@ -696,7 +694,7 @@ async function confirmRestoreMnemonic() {
 }
 
 function saveSyncRelay() {
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('sync-relay-input'));
+  const input = ((document.getElementById('sync-relay-input')) as HTMLInputElement | null);
   if (!input) return;
   const url = input.value.trim();
   if (!url.startsWith('wss://') && !url.startsWith('ws://')) {

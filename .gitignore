@@ -1025,3 +1025,13 @@ deploy/profile-share/data/
 /js/wearables-runtime.js
 
 /js/onboarding-view.js
+
+/js/sun-context-session-tools.js
+
+/js/sun-context-environment.js
+
+/js/settings-runtime.js
+
+/js/settings-sync-panel-impl.js
+
+/js/settings-sync-panel.js

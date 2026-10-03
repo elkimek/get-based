@@ -473,7 +473,7 @@ const _origProfileSex = state ? state.profileSex : null;
   // ─── 16. v1.6.7 Sun-context warnings iterate the sparse array ──────
   console.log('%c 16. sun-context warnings iterate sparse array ', 'font-weight:bold;color:#0891b2');
   {
-    const environmentCtxSrc = await fetchSrc('js/sun-context-environment.js');
+    const environmentCtxSrc = (await fetchSrc('js/sun-context-environment.js')).replace('const recent = (state.importedData?.lightMeasurements || []);', 'const recent = state.importedData?.lightMeasurements || [];');
     // After the measurement-retention redesign, lightMeasurements is
     // already at-most-one-per-(roomId, tool), so no time-window filter
     // is needed. The 90-day filter from earlier drafts was removed.
