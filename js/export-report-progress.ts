@@ -1,6 +1,11 @@
-// @ts-check
+export interface ReportProgress {
+  stage(value: string): void;
+  stop(): void;
+  cancel(): void;
+}
+
 // Visible stages and elapsed time; the provider does not expose a percentage.
-const activeProgress = new WeakMap();
+const activeProgress = new WeakMap<Element, ReportProgress>();
 const stages = {
   preparing: ['Preparing selected records', 'Collecting the data selected for this report.'],
   approval: ['Waiting for AI approval', 'Return to Create a report to review any required AI disclosure and data-sharing approval.'],
@@ -9,7 +14,7 @@ const stages = {
 };
 const progressStyles = `.report-generation-progress{width:100%;flex:0 0 100%;padding:4px 0;color:var(--text-primary,#172c29);font:14px/1.5 system-ui,sans-serif}.report-progress-head{display:flex;justify-content:space-between;gap:16px}.report-progress-time{color:var(--text-muted,#576963);white-space:nowrap}.report-progress-bar{height:5px;border-radius:8px;background:var(--border,#e3eae7);overflow:hidden;margin:9px 0}.report-progress-bar span{display:block;width:35%;height:100%;border-radius:8px;background:var(--accent,#227a66);animation:report-progress-slide 1.4s ease-in-out infinite alternate}.report-progress-help{color:var(--text-muted,#576963);margin:0;font-size:12px}@keyframes report-progress-slide{from{transform:translateX(0)}to{transform:translateX(185%)}}@media(prefers-reduced-motion:reduce){.report-progress-bar span{animation:none}}`;
 
-function createProgress(doc, parent) {
+function createProgress(doc: Document, parent: Element) {
   const style = doc.createElement('style');
   style.textContent = progressStyles;
   const root = doc.createElement('div');
@@ -34,10 +39,9 @@ function createProgress(doc, parent) {
   return { root, label, elapsed, help };
 }
 
-/** @param {any} overlay @param {Window | null} [preview] */
-export function startReportProgress(overlay, preview = null) {
+export function startReportProgress(overlay: Element, preview: Window | null = null) {
   cancelReportProgress(overlay);
-  const displays = [createProgress(overlay.ownerDocument, overlay.querySelector('.report-builder-actions'))];
+  const displays = [createProgress(overlay.ownerDocument, overlay.querySelector('.report-builder-actions')!)];
   if (preview) {
     const doc = preview.document;
     doc.title = 'Preparing your report';
@@ -54,20 +58,20 @@ export function startReportProgress(overlay, preview = null) {
     displays.push(createProgress(doc, area));
   }
   const started = Date.now();
-  let stage = 'preparing';
+  let stage: keyof typeof stages = 'preparing';
   let stopped = false;
   const render = () => {
     if (stopped) return;
     const seconds = Math.floor((Date.now() - started) / 1000);
     for (const display of displays) {
-      display.label.textContent = stages[stage][0];
+      display.label.textContent = stages[stage][0]!;
       display.elapsed.textContent = `${seconds}s elapsed`;
       display.help.textContent = stages[stage][1] + (stage === 'generating' && seconds >= 15 ? ' This is taking a little longer; you can keep this tab open.' : '');
     }
   };
   const timer = setInterval(render, 1000);
-  const progress = {
-    stage(value) { if (stages[value]) { stage = value; render(); } },
+  const progress: ReportProgress = {
+    stage(value) { if (stages[value as keyof typeof stages]) { stage = value as keyof typeof stages; render(); } },
     stop() { stopped = true; clearInterval(timer); displays.forEach(display => display.root.remove()); activeProgress.delete(overlay); },
     cancel() { progress.stop(); if (preview && !preview.closed) preview.close(); },
   };
@@ -76,6 +80,6 @@ export function startReportProgress(overlay, preview = null) {
   return progress;
 }
 
-export function cancelReportProgress(overlay) {
+export function cancelReportProgress(overlay: Element) {
   activeProgress.get(overlay)?.cancel();
 }

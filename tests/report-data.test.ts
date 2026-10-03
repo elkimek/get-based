@@ -6,7 +6,7 @@ import {
   formatReportDataForAgent,
 } from '../js/export-report-data.js';
 
-function reportOptions(sections = ['flagged', 'categories', 'summary', 'trends', 'supplements', 'notes', 'genetics', 'context']) {
+function reportOptions(sections: string[] = ['flagged', 'categories', 'summary', 'trends', 'supplements', 'notes', 'genetics', 'context']) {
   return {
     preset: 'full',
     presetLabel: 'Full lab report',
@@ -126,14 +126,14 @@ function reportInput(rangeMode = 'optimal') {
 describe('portable report data', () => {
   it('resolves every result against its own contextual range and provenance', () => {
     const snapshot = buildReportDataSnapshot(reportInput());
-    const markers = snapshot.labs.categories[0].markers;
-    const contextual = markers.find(marker => marker.name === 'Contextual marker');
-    const unrated = markers.find(marker => marker.name === 'Needs fasting');
+    const markers = snapshot.labs!.categories[0]!.markers;
+    const contextual = markers.find(marker => marker.name === 'Contextual marker')!;
+    const unrated = markers.find(marker => marker.name === 'Needs fasting')!;
 
     expect(snapshot.schemaVersion).toBe(REPORT_DATA_SCHEMA_VERSION);
     expect(snapshot.scope).toMatchObject({ rangeMode: 'optimal', unitSystem: 'ANZ' });
     expect(contextual.results.map(result => result.status)).toEqual(['high', 'normal']);
-    expect(contextual.results[0].ranges.judging).toMatchObject({
+    expect(contextual.results[0]!.ranges.judging).toMatchObject({
       min: 2,
       max: 5,
       label: 'Earlier guidance',
@@ -167,7 +167,7 @@ describe('portable report data', () => {
     expect(contextual.latestResult.note).toBe('Afternoon retest');
     expect(unrated.latestResult.status).toBe('unrated');
     expect(unrated.latestResult.ranges.judging.label).toBe('Requires fasting sample');
-    expect(snapshot.labs.summary).toMatchObject({
+    expect(snapshot.labs!.summary).toMatchObject({
       dateCount: 2,
       categoryCount: 1,
       markerCount: 3,
@@ -176,14 +176,14 @@ describe('portable report data', () => {
       latestOutOfRangeCount: 1,
       latestUnratedCount: 1,
     });
-    expect(snapshot.labs.flags).toEqual([
+    expect(snapshot.labs!.flags).toEqual([
       expect.objectContaining({ name: 'Flagged marker', date: '2026-08-10', value: 12, status: 'high' }),
     ]);
   });
 
   it('keeps optimal guidance available when reference ranges judge status', () => {
     const snapshot = buildReportDataSnapshot(reportInput('reference'));
-    const contextual = snapshot.labs.categories[0].markers[0];
+    const contextual = snapshot.labs!.categories[0]!.markers[0]!;
 
     expect(contextual.latestResult.status).toBe('normal');
     expect(contextual.latestResult.ranges.judging).toMatchObject({ min: 0, max: 12, kind: 'reference' });
@@ -223,9 +223,9 @@ describe('portable report data', () => {
     expect(snapshot.context).toBeNull();
     expect(() => JSON.stringify(snapshot)).not.toThrow();
 
-    input.importedData.notes[0].text = 'mutated later';
+    input.importedData.notes[0]!.text = 'mutated later';
     input.profile.tags.push('mutated');
-    expect(snapshot.notes[0].text).toBe('Follow-up note');
+    expect(snapshot.notes[0]!.text).toBe('Follow-up note');
     expect(snapshot.profile.tags).toEqual([]);
     expect(snapshot.profile.notes).toBe('');
   });

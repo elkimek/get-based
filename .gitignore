@@ -810,3 +810,9 @@ deploy/profile-share/data/
 /js/chat-thinking-status.js
 
 /js/export-report-aggregates.js
+
+/js/export-report-data.js
+/js/export-report-progress.js
+/js/export-report-sections.js
+/js/export-report-summary-html.js
+/js/light-tools-ai-analysis.js

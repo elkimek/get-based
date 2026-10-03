@@ -32,7 +32,7 @@ export function openReportPreviewWindow() {
 }
 
 function getReportSnpTableCache() {
-  return getCachedSnpCatalog() || getReportRuntimeWindow()?._snpTableCache || null;
+  return /** @type {import('./export-report-data.js').ReportSnpCatalog | null} */ (getCachedSnpCatalog() || getReportRuntimeWindow()?._snpTableCache || null);
 }
 
 /** @param {any} options @param {Window | null} [previewWindow] @param {any} [preparedPayload] @param {any} [lifecycle] */

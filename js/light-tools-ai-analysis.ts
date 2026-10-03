@@ -1,4 +1,3 @@
-// @ts-check
 // light-tools-ai-analysis.js — per-measurement AI interpretation for the
 // Light Tools (Lux Meter, Flicker Detector, Sleep Darkness, CCT Meter,
 // Spectrum Classifier, Glass Transmission, Eye-Level Audit).
@@ -14,32 +13,46 @@ import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
+import type { LightMeasurement, LightRoom } from './light-env-model.js';
+import type { AIVerdictAnalysis } from './ai-verdict-engine.js';
 
-function _formatNumber(n, digits = 1) {
+export interface MeasurementFactsInput extends LightMeasurement {
+  extra?: NonNullable<LightMeasurement['extra']> & Record<string, unknown> | null | undefined;
+}
+export interface MeasurementContextInput extends MeasurementFactsInput {
+  roomId?: unknown;
+  confidence?: unknown;
+}
+export interface AILightMeasurement extends MeasurementContextInput {
+  id: string;
+  aiAnalysis?: AIVerdictAnalysis | null;
+}
+
+function _formatNumber(n: unknown, digits = 1) {
   if (n == null || !Number.isFinite(n)) return '—';
   return Number(n).toFixed(digits).replace(/\.0$/, '');
 }
 
-function getMeasurements() {
+function getMeasurements(): AILightMeasurement[] {
   if (!state.importedData) return [];
   if (!Array.isArray(state.importedData.lightMeasurements)) state.importedData.lightMeasurements = [];
-  return state.importedData.lightMeasurements;
+  return state.importedData.lightMeasurements as AILightMeasurement[];
 }
 
-function getRoomNameFor(m) {
+function getRoomNameFor(m: MeasurementContextInput) {
   if (!m?.roomId) return null;
-  const rooms = state.importedData?.lightEnvironment?.rooms || [];
+  const rooms = (state.importedData?.lightEnvironment?.rooms || []) as LightRoom[];
   return rooms.find(r => r.id === m.roomId)?.name || null;
 }
 
-export function getMeasurementFingerprint(m) {
+export function getMeasurementFingerprint(m: MeasurementContextInput | null | undefined) {
   if (!m) return '';
   const parts = [
     'v2-measurement-quality',
     m.tool || '',
     typeof m.value === 'number' ? Math.round(m.value * 1000) / 1000 : String(m.value || ''),
     m.roomId || '',
-    Math.round((m.confidence || 0) * 100),
+    Math.round(((m.confidence || 0) as number) * 100),
   ];
   if (m.extra && typeof m.extra === 'object') {
     for (const k of Object.keys(m.extra).sort()) {
@@ -51,7 +64,7 @@ export function getMeasurementFingerprint(m) {
   return hashString(parts.join('|'));
 }
 
-const _TOOL_DESCRIPTIONS = {
+const _TOOL_DESCRIPTIONS: Record<string, string> = {
   lux: 'Illuminance reading (general light level at the user\'s position)',
   flicker: 'Rolling-shutter camera screen for visible banding; not a calibrated flicker meter',
   darkness: 'Qualitative low-light camera check or user-entered photopic lux-meter reading',
@@ -61,13 +74,13 @@ const _TOOL_DESCRIPTIONS = {
   audit: 'Eye-level multi-room camera walkthrough for relative brightness; not lux',
 };
 
-function _buildLuxContext(m) {
+function _buildLuxContext(m: MeasurementFactsInput) {
   const cameraEstimate = m.extra?.source === 'camera-estimate';
   const lines = [
     'Tool: lux meter',
     cameraEstimate
-      ? `Reading: ~${Math.round(m.value)} camera-estimated photopic lux; approximate and excluded from indoor scoring`
-      : `Reading: ${Math.round(m.value)} photopic lux`,
+      ? `Reading: ~${Math.round(m.value as number)} camera-estimated photopic lux; approximate and excluded from indoor scoring`
+      : `Reading: ${Math.round(m.value as number)} photopic lux`,
   ];
   if (m.extra?.source) lines.push(`Sensor: ${m.extra.source}`);
   if (m.extra?.source === 'camera-estimate') lines.push(`Camera calibration confirmed: ${m.extra?.calibrationConfirmed === true ? 'yes' : 'no — do not threshold'}`);
@@ -77,10 +90,10 @@ function _buildLuxContext(m) {
   return lines;
 }
 
-function _buildFlickerContext(m) {
+function _buildFlickerContext(m: MeasurementFactsInput) {
   const lines = [`Tool: flicker detector`];
-  const SCORE_LABELS = { 0: 'no rolling-shutter banding detected', 1: 'some banding', 2: 'clear banding', 3: 'strong banding' };
-  const score = Math.round(m.value || 0);
+  const SCORE_LABELS: Record<number, string> = { 0: 'no rolling-shutter banding detected', 1: 'some banding', 2: 'clear banding', 3: 'strong banding' };
+  const score = Math.round((m.value || 0) as number);
   lines.push(`Flicker score: ${score}/3 — ${SCORE_LABELS[score] || 'unknown'}`);
   if (m.extra?.label) lines.push(`Tool's verdict: ${m.extra.label}`);
   if (m.extra?.peakBanding != null) lines.push(`Peak banding (intra-frame): ${_formatNumber(m.extra.peakBanding, 2)}`);
@@ -89,7 +102,7 @@ function _buildFlickerContext(m) {
   return lines;
 }
 
-function _buildDarknessContext(m) {
+function _buildDarknessContext(m: MeasurementFactsInput) {
   const lines = [`Tool: sleep-light check`];
   if (m.extra?.method === 'meter-entry') {
     lines.push(`Meter entry: ${_formatNumber(m.value, 2)} photopic lux (not melanopic EDI)`);
@@ -100,8 +113,8 @@ function _buildDarknessContext(m) {
   return lines;
 }
 
-function _buildCCTContext(m) {
-  const lines = [`Tool: camera warm/cool estimate`, `Approximate color temperature: ~${Math.round(m.value / 100) * 100} K`];
+function _buildCCTContext(m: MeasurementFactsInput) {
+  const lines = [`Tool: camera warm/cool estimate`, `Approximate color temperature: ~${Math.round((m.value as number) / 100) * 100} K`];
   const blueRatio = m.extra?.cameraBlueRatioProxy ?? m.extra?.melanopic;
   if (blueRatio != null) lines.push(`Camera RGB blue-ratio proxy (not melanopic EDI): ${_formatNumber(blueRatio, 2)}`);
   if (m.extra?.temperatureTone) lines.push(`Tone: ${m.extra.temperatureTone}`);
@@ -109,7 +122,7 @@ function _buildCCTContext(m) {
   return lines;
 }
 
-function _buildSpectrumContext(m) {
+function _buildSpectrumContext(m: MeasurementFactsInput) {
   const lines = [`Tool: spectrum classifier`, `Source classification: ${m.value || m.extra?.label || 'unknown'}`];
   if (m.extra?.reason) lines.push(`Tool's reasoning: ${m.extra.reason}`);
   const blueRatio = m.extra?.cameraBlueRatioProxy ?? m.extra?.melanopic;
@@ -121,26 +134,26 @@ function _buildSpectrumContext(m) {
   return lines;
 }
 
-function _buildGlassContext(m) {
+function _buildGlassContext(m: MeasurementFactsInput) {
   const lines = [`Tool: two-sample camera window comparison`];
-  const pct = Math.round((m.value || 0) * 100);
+  const pct = Math.round(((m.value || 0) as number) * 100);
   lines.push(`Relative camera-visible response: about ${pct}%; not calibrated visible, UV, or IR transmission`);
   if (m.extra?.lockMode !== 'manual') lines.push('Camera auto-exposure was active; treat as qualitative only');
   return lines;
 }
 
-function _buildAuditContext(m) {
-  const lines = [`Tool: eye-level audit (multi-room walkthrough)`, `Rooms detected: ${Math.round(m.value || 0)}`];
+function _buildAuditContext(m: MeasurementFactsInput) {
+  const lines = [`Tool: eye-level audit (multi-room walkthrough)`, `Rooms detected: ${Math.round((m.value || 0) as number)}`];
   const rooms = m.extra?.rooms;
   if (Array.isArray(rooms) && rooms.length) {
-    for (const r of rooms.slice(0, 6)) {
+    for (const r of (rooms as { index?: unknown; label?: unknown; levelLabel?: unknown }[]).slice(0, 6)) {
       lines.push(`  - Room ${r.index}${r.label ? ' (' + r.label + ')' : ''}: ${r.levelLabel || 'relative'} camera brightness`);
     }
   }
   return lines;
 }
 
-export function buildMeasurementFacts(m) {
+export function buildMeasurementFacts(m: MeasurementFactsInput) {
   switch (m.tool) {
     case 'lux': return _buildLuxContext(m);
     case 'flicker': return _buildFlickerContext(m);
@@ -153,12 +166,12 @@ export function buildMeasurementFacts(m) {
   }
 }
 
-export function buildMeasurementContext(m) {
+export function buildMeasurementContext(m: MeasurementContextInput | null | undefined) {
   if (!m) return '';
   const lines = ['### Measurement', ...(buildMeasurementFacts(m))];
-  const desc = _TOOL_DESCRIPTIONS[m.tool];
+  const desc = _TOOL_DESCRIPTIONS[m.tool as string];
   if (desc) lines.push(`Tool description: ${desc}`);
-  lines.push(`Confidence: ${Math.round((m.confidence || 0.7) * 100)}%`);
+  lines.push(`Confidence: ${Math.round(((m.confidence || 0.7) as number) * 100)}%`);
   if (m.capturedAt) {
     const d = new Date(m.capturedAt);
     const hour = d.getHours();
@@ -201,7 +214,7 @@ const SYSTEM_PROMPT = [
   'No "you should" — be observational. No emoji.',
 ].join('\n');
 
-const engine = createAIVerdict({
+const engine = createAIVerdict<AILightMeasurement>({
   getTarget: (id) => getMeasurements().find(m => m.id === id),
   getId: (m) => m?.id,
   getAIAnalysis: (m) => m?.aiAnalysis || null,
@@ -212,7 +225,7 @@ const engine = createAIVerdict({
   maxTokens: 350,
   // Skip the audit aggregate row — its per-room lux entries get analyzed
   // on their own (saveMeasurement fires once per pause).
-  shouldAutoFire: (m) => !['audit', 'brightness-proxy'].includes(m?.tool),
+  shouldAutoFire: (m) => !['audit', 'brightness-proxy'].includes(m?.tool as string),
   getAllTargets: getMeasurements,
   // Anchor the post-verdict rebuild to the row's room so the user
   // stays put when the verdict lands. Portable readings (no roomId)
@@ -227,7 +240,7 @@ export const maybeAnalyzeMeasurementAfterSave = engine.maybeAfterFinish;
 
 // ─── Render ────────────────────────────────────────────────────────────
 
-export function renderMeasurementAIInline(m) {
+export function renderMeasurementAIInline(m: AILightMeasurement | null | undefined) {
   if (!m) return '';
   if (m.tool === 'audit') return ''; // aggregate row carries no per-tool verdict
   if (!hasAssistantFeatureProvider() && !(m.aiAnalysis?.status === 'ok' && m.aiAnalysis?.dot)) return '';
@@ -241,10 +254,10 @@ export function renderMeasurementAIInline(m) {
     </div>`;
   }
   if (status === 'ok') {
-    const dot = a.dot;
-    return `<div class="light-env-reading-ai" title="${escapeAttr(a.detail || '')}">
+    const dot = a!.dot;
+    return `<div class="light-env-reading-ai" title="${escapeAttr(a!.detail || '')}">
       <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
-      <span class="sun-session-ai-tip sun-session-ai-tip-${escapeAttr(dot)}"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a.tip || '')}</span>
+      <span class="sun-session-ai-tip sun-session-ai-tip-${escapeAttr(dot)}"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a!.tip || '')}</span>
       ${refreshBtn}
     </div>`;
   }

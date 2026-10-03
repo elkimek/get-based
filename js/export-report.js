@@ -640,7 +640,7 @@ export function buildPreparedReportPayload(options = {}) {
     reportOptions,
     rangeMode: reportOptions.rangeMode,
     unitSystem: state.unitSystem,
-    snpTable: getCachedSnpCatalog() || runtimeWindow?._snpTableCache,
+    snpTable: /** @type {import('./export-report-data.js').ReportSnpCatalog | null | undefined} */ (getCachedSnpCatalog() || runtimeWindow?._snpTableCache),
     contextSections,
   });
 

@@ -1,5 +1,92 @@
-// @ts-check
-// export-report-data.js — portable, renderer-independent report snapshots
+import type { ActiveData, ActiveCategory, ActiveMarker } from './data-view-types.js';
+import type { GeneticsData, StoredSnpCall } from './dna-runtime.js';
+import type { SnpCatalog } from './dna-evidence.js';
+import type { StoredProfileRecord } from './profile-list-store.js';
+import type { LabEntry, LabCollectionContext, MarkerProvenance } from '../types/lab-data.js';
+import type { ProfileImportSnapshot } from './profile-marker-alias-migrations.js';
+import type { ProfileNote } from '../types/app-state.js';
+import type { SupplementRecord } from '../types/supplement-data.js';
+
+export interface ReportGenomeFinding {
+  rsid: string; gene: unknown; variant: unknown; genotype: unknown; category: string;
+  direction: string; tone: ReturnType<typeof snpFindingPresentation>['tone'];
+  evidence: ReturnType<typeof resolveSnpEvidenceProfile>; note: unknown;
+  apoeComponent: boolean; references: unknown[]; strandNote: unknown; rank: number;
+}
+export interface ReportGeneticsInput extends Omit<GeneticsData, 'snps'> {
+  snps?: Record<string, StoredSnpCall | null | undefined> | null;
+}
+export interface ReportGenetics extends ReportGeneticsInput {
+  findings: ReportGenomeFinding[];
+  catalogAvailable: boolean;
+  interpretationCatalogVersion: unknown;
+}
+export type ReportSnpCatalog = SnpCatalog & { _meta?: { version?: unknown } };
+export interface ReportOptions {
+  preset?: string; presetLabel?: string; dateRange?: string;
+  startDate?: string | null | undefined; endDate?: string | null | undefined;
+  sections?: string[]; purpose?: string; appendixSections?: string[];
+  genomeVariants?: string[]; genomeMode?: string | null | undefined;
+  categoryKeys?: unknown; contextTitles?: string[] | null;
+}
+interface ReportMarkerSource extends MarkerProvenance { entryId?: unknown; files?: string[] }
+interface ReportLabEntry extends LabEntry {
+  id?: unknown;
+  markerSources?: Record<string, ReportMarkerSource | null>;
+}
+export type ReportImportedData = Parameters<typeof buildExtraReportSections>[0] & {
+  entries?: ReportLabEntry[]; importSnapshots?: ProfileImportSnapshot[];
+  markerNotes?: Record<string, unknown>; markerValueNotes?: Record<string, unknown>;
+  notes?: ProfileNote[]; supplements?: SupplementRecord[]; genetics?: ReportGeneticsInput | null;
+  [key: string]: unknown;
+};
+export interface ReportContextSection { title: string; text?: unknown; [key: string]: unknown }
+/** Portable lab snapshots consume category facts independently of UI icons. */
+export type ReportCategoryInput = Pick<ActiveCategory, 'markers' | 'singlePoint' | 'singleDate' | 'group'>
+  & Partial<Pick<ActiveCategory, 'label' | 'icon'>> & { [field: string]: unknown };
+export type ReportActiveData = Partial<Omit<ActiveData, 'categories'>> & {
+  categories?: Record<string, ReportCategoryInput>;
+};
+export interface BuildReportDataSnapshotInput {
+  data?: ReportActiveData | null;
+  profile?: Partial<StoredProfileRecord> | null;
+  importedData?: ReportImportedData | null;
+  reportOptions?: ReportOptions | null;
+  rangeMode?: string; unitSystem?: string;
+  contextSections?: ReportContextSection[];
+  generatedAt?: string; snpTable?: ReportSnpCatalog | null;
+}
+export interface ReportResult {
+  date: string | null; dateIndex: number; value: number; displayValue: string;
+  status: ReturnType<typeof statusForResult>; ranges: ReturnType<typeof rangesForResult>;
+  collectionContext: LabCollectionContext | null;
+  collectionContextSources: Record<string, string> | null;
+  source: ReportMarkerSource | null;
+  sourceReportedRange: ReportSourceRange | null;
+  note: unknown;
+}
+interface ReportSourceRange {
+  min: unknown; max: unknown; unit: unknown;
+  snapshotId: unknown; file: unknown;
+}
+export interface ReportMarker {
+  id: string; key: string; categoryKey: string; storageDotKey: string; nativeCategoryKey: string;
+  name: string; unit: string; custom: boolean; calculated: boolean; rangePolicy: string;
+  note: unknown; results: ReportResult[]; latestResult: ReportResult;
+  trend: ReturnType<typeof buildMarkerTrend>;
+}
+export interface ReportCategory { key: string; label: string; group: string | null; singlePoint: boolean; markers: ReportMarker[] }
+export interface ReportFlag extends Pick<ReportResult, 'date' | 'value' | 'displayValue' | 'status' | 'note'> {
+  markerId: string; markerKey: string; categoryKey: string; storageDotKey: string;
+  category: string; name: string; unit: string;
+  range: ReturnType<typeof rangesForResult>['judging'];
+  availableRanges: ReturnType<typeof rangesForResult>['available'];
+  displayedRanges: ReturnType<typeof rangesForResult>['displayed'];
+}
+export type ReportTrend = NonNullable<ReturnType<typeof buildMarkerTrend>> & Pick<ReportMarker, 'categoryKey' | 'name' | 'unit'> & { markerId: string; markerKey: string };
+export type ReportDataSnapshot = ReturnType<typeof buildReportDataSnapshot>;
+
+// export-report-data.ts — portable, renderer-independent report snapshots
 
 import { buildExtraReportSections } from './export-report-sections.js';
 import { resolveMarkerRangeContext } from './marker-analysis.js';
@@ -9,12 +96,10 @@ import { findGenotypeInfo } from './dna-genotype.js';
 import { getSnpCategoryLabel, resolveSnpEvidenceProfile, snpFindingPresentation, snpFindingRank } from './dna-evidence.js';
 import { formatValue } from './utils.js';
 
-/** Resolve imported calls against current annotations.
- * @param {any} genetics @param {Record<string, any> | null} [snpTable]
- */
-export function buildReportGenetics(genetics, snpTable = null) {
+/** Resolve imported calls against current annotations. */
+export function buildReportGenetics(genetics: ReportGeneticsInput | null | undefined, snpTable: ReportSnpCatalog | null = null) {
   if (!genetics) return null;
-  const result = cloneSerializable(genetics);
+  const result = cloneSerializable(genetics) as ReportGenetics;
   result.findings = Object.entries(genetics.snps || {}).map(([rsid, raw]) => {
     const stored = raw || {};
     const entry = snpTable?.[rsid];
@@ -40,7 +125,7 @@ export function buildReportGenetics(genetics, snpTable = null) {
 export const REPORT_GENOME_MODES = ['risks', 'risks-traits', 'traits', 'all'];
 
 /** Apply the same current-catalog selection to the PDF and AI overview. */
-export function selectReportGenomeFindings(genetics, options = {}) {
+export function selectReportGenomeFindings(genetics: ReportGenetics | null | undefined, options: Pick<ReportOptions, 'genomeMode' | 'genomeVariants'> = {}) {
   const findings = genetics?.findings || [];
   if (options.genomeMode === 'all') return findings;
   if (options.genomeMode === 'risks') return findings.filter(finding => finding.tone === 'risk');
@@ -49,8 +134,8 @@ export function selectReportGenomeFindings(genetics, options = {}) {
   return findings.filter(finding => options.genomeVariants?.includes(finding.rsid));
 }
 
-export function getSupplementDosageParts(s) {
-  const parts = [];
+export function getSupplementDosageParts(s: SupplementRecord) {
+  const parts: string[] = [];
   if (s.dosage) parts.push(String(s.dosage));
   if (s.dose) parts.push(String(s.dose));
   if (s.amount) parts.push(String(s.amount));
@@ -89,52 +174,44 @@ export function getSupplementDosageParts(s) {
 
 export const REPORT_DATA_SCHEMA_VERSION = 1;
 
-/**
- * @typedef {{
- *   data?: any,
- *   profile?: any,
- *   importedData?: any,
- *   reportOptions?: any,
- *   rangeMode?: string,
- *   unitSystem?: string,
- *   contextSections?: any[],
- *   generatedAt?: string,
- *   snpTable?: any,
- * }} BuildReportDataSnapshotInput
- */
-
 const LAB_SECTION_IDS = new Set(['flagged', 'categories', 'summary', 'trends']);
 // Preserve the v1 programmatic context contract; builder selections use explicit titles.
 const CONTEXT_FIELDS = ['healthGoals', 'diagnoses', 'diet', 'exercise', 'sleepRest', 'lightCircadian', 'stress', 'loveLife', 'environment', 'interpretiveLens', 'contextNotes', 'menstrualCycle', 'biometrics', 'wearableSummary', 'emfAssessment', 'sunSessions', 'deviceSessions', 'lightDevices', 'lightEnvironment', 'lightMeasurements', 'lightAudits', 'sunCorrelations', 'lifelightProfile'];
 
 
-function normalizeRangeMode(rangeMode) {
+function normalizeRangeMode(rangeMode: string) {
   return rangeMode === 'reference' || rangeMode === 'both' ? rangeMode : 'optimal';
 }
 
-function hasRangeBounds(range) {
+function hasRangeBounds(range: ReturnType<typeof copyRange>) {
   return range?.min != null || range?.max != null;
 }
 
-function statusForResult(value, range) {
+function statusForResult(value: number | null | undefined, range: ReturnType<typeof copyRange>) {
   if (value == null) return 'missing';
   if (!hasRangeBounds(range)) return 'unrated';
-  if (range.min != null && value < range.min) return 'low';
-  if (range.max != null && value > range.max) return 'high';
+  if (range!.min != null && value < range!.min) return 'low';
+  if (range!.max != null && value > range!.max) return 'high';
   return 'normal';
 }
 
-function cloneSerializable(value) {
+function cloneSerializable<Value>(value: Value): Value {
   if (value == null || typeof value !== 'object') return value;
-  if (Array.isArray(value)) return value.map(cloneSerializable);
-  const cloned = {};
+  if (Array.isArray(value)) return value.map(cloneSerializable) as Value;
+  const cloned: Record<string, unknown> = {};
   for (const [key, item] of Object.entries(value)) {
     if (item !== undefined && typeof item !== 'function') cloned[key] = cloneSerializable(item);
   }
-  return cloned;
+  return cloned as Value;
 }
 
-function copyRange(range, usedForStatus = false) {
+type ReportRangeInput = Partial<ReturnType<typeof resolveMarkerRangeContext>['judgingRange']>;
+export interface CopiedReportRange {
+  min: number | null; max: number | null; label: string; kind: string; source: string; usedForStatus: boolean;
+}
+function copyRange(range: ReportRangeInput, usedForStatus?: boolean): CopiedReportRange;
+function copyRange(range: ReportRangeInput | null | undefined, usedForStatus?: boolean): CopiedReportRange | null;
+function copyRange(range: ReportRangeInput | null | undefined, usedForStatus = false): CopiedReportRange | null {
   if (!range) return null;
   return {
     min: range.min ?? null,
@@ -146,16 +223,16 @@ function copyRange(range, usedForStatus = false) {
   };
 }
 
-function rangeIdentity(range) {
+function rangeIdentity(range: ReturnType<typeof copyRange>) {
   return [range?.min ?? '', range?.max ?? '', range?.label || '', range?.kind || '', range?.source || ''].join('|');
 }
 
-function rangesForResult(marker, dateIndex, rangeMode) {
+function rangesForResult(marker: ActiveMarker, dateIndex: number, rangeMode: string) {
   const selected = resolveMarkerRangeContext(marker, dateIndex, rangeMode);
   const judging = copyRange(selected.judgingRange, true);
   const displayed = selected.displayedRanges.map(range => copyRange(range, !!range.usedForStatus));
-  const available = [];
-  const seen = new Set();
+  const available: CopiedReportRange[] = [];
+  const seen = new Set<string>();
   const allRanges = resolveMarkerRangeContext(marker, dateIndex, 'both').displayedRanges;
   for (const range of allRanges) {
     const identity = rangeIdentity(range);
@@ -166,17 +243,17 @@ function rangesForResult(marker, dateIndex, rangeMode) {
   return { judging, displayed, available };
 }
 
-function markerResultDate(data, category, marker, index) {
+function markerResultDate(data: ReportActiveData, category: ReportCategoryInput, marker: ActiveMarker, index: number) {
   if (marker.singlePoint || category.singlePoint) {
     return marker.singleDate || category.singleDate || null;
   }
   return data.dates?.[index] || null;
 }
 
-function buildMarkerTrend(results) {
+function buildMarkerTrend(results: readonly ReportResult[]) {
   if (results.length < 2) return null;
-  const first = results[0];
-  const latest = results[results.length - 1];
+  const first = results[0]!;
+  const latest = results[results.length - 1]!;
   const delta = latest.value - first.value;
   const percentChange = first.value === 0 ? null : (delta / first.value) * 100;
   return {
@@ -189,22 +266,22 @@ function buildMarkerTrend(results) {
   };
 }
 
-function markerNote(importedData, marker, categoryKey, markerKey) {
+function markerNote(importedData: ReportImportedData, marker: ActiveMarker, categoryKey: string, markerKey: string) {
   const storageDotKey = marker.storageDotKey || `${categoryKey}.${markerKey}`;
   return importedData.markerNotes?.[storageDotKey] ?? null;
 }
 
-function valueNote(importedData, marker, categoryKey, markerKey, date) {
+function valueNote(importedData: ReportImportedData, marker: ActiveMarker, categoryKey: string, markerKey: string, date: string | null) {
   if (!date) return null;
   const storageDotKey = marker.storageDotKey || `${categoryKey}.${markerKey}`;
   return importedData.markerValueNotes?.[`${storageDotKey}:${date}`] ?? null;
 }
 
-function buildEntryProvenance(importedData) {
-  const resultSources = new Map();
-  const sourceReportedRanges = new Map();
-  const collectionContextSourcesByDate = {};
-  const snapshotsById = new Map((importedData.importSnapshots || [])
+function buildEntryProvenance(importedData: ReportImportedData) {
+  const resultSources = new Map<string, ReportMarkerSource>();
+  const sourceReportedRanges = new Map<string, ReportSourceRange>();
+  const collectionContextSourcesByDate: Record<string, Record<string, string>> = {};
+  const snapshotsById = new Map<unknown, ProfileImportSnapshot>((importedData.importSnapshots || [])
     .filter(snapshot => snapshot?.id)
     .map(snapshot => [snapshot.id, snapshot]));
   for (const entry of importedData.entries || []) {
@@ -236,8 +313,8 @@ function buildEntryProvenance(importedData) {
           min: snapshotMarker.refMin ?? null,
           max: snapshotMarker.refMax ?? null,
           unit: snapshotMarker.unit || null,
-          snapshotId: snapshot.id,
-          file: snapshot.fileName || source?.file || null,
+          snapshotId: snapshot!.id,
+          file: snapshot!.fileName || source?.file || null,
         });
       }
     }
@@ -245,11 +322,11 @@ function buildEntryProvenance(importedData) {
   return { resultSources, sourceReportedRanges, collectionContextSourcesByDate };
 }
 
-function buildLabs(data, importedData, rangeMode) {
-  const categories = [];
-  const flags = [];
-  const notableTrends = [];
-  const allDates = new Set();
+function buildLabs(data: ReportActiveData, importedData: ReportImportedData, rangeMode: string) {
+  const categories: ReportCategory[] = [];
+  const flags: ReportFlag[] = [];
+  const notableTrends: ReportTrend[] = [];
+  const allDates = new Set<string>();
   let resultCount = 0;
   let inRangeCount = 0;
   let outOfRangeCount = 0;
@@ -257,10 +334,10 @@ function buildLabs(data, importedData, rangeMode) {
   const provenance = buildEntryProvenance(importedData);
 
   for (const [categoryKey, category] of Object.entries(data.categories || {})) {
-    const markers = [];
+    const markers: ReportMarker[] = [];
     for (const [markerKey, marker] of Object.entries(category.markers || {})) {
       if (marker.hidden) continue;
-      const results = [];
+      const results: ReportResult[] = [];
       for (let index = 0; index < (marker.values || []).length; index++) {
         const value = marker.values[index];
         if (value == null) continue;
@@ -290,7 +367,7 @@ function buildLabs(data, importedData, rangeMode) {
       if (results.length === 0) continue;
 
       resultCount += results.length;
-      const latestResult = results[results.length - 1];
+      const latestResult = results[results.length - 1]!;
       if (latestResult.status === 'normal') inRangeCount++;
       else if (latestResult.status === 'unrated') unratedCount++;
       else if (latestResult.status === 'high' || latestResult.status === 'low') outOfRangeCount++;
@@ -335,7 +412,7 @@ function buildLabs(data, importedData, rangeMode) {
           note: latestResult.note,
         });
       }
-      if (trend && trend.percentChange != null && Math.abs(trend.percentChange) > 10) {
+      if (trend && trend.percentChange != null && Math.abs(trend.percentChange!) > 10) {
         notableTrends.push({
           markerId,
           markerKey,
@@ -380,7 +457,7 @@ function buildLabs(data, importedData, rangeMode) {
   };
 }
 
-function buildProfile(profile, includeContext) {
+function buildProfile(profile: Partial<StoredProfileRecord>, includeContext: boolean) {
   return cloneSerializable({
     id: profile?.id || null,
     name: profile?.name || 'Profile',
@@ -395,18 +472,18 @@ function buildProfile(profile, includeContext) {
   });
 }
 
-function formatAgentRange(range) {
+function formatAgentRange(range: ReturnType<typeof copyRange>) {
   if (range?.min != null && range?.max != null) return `${formatValue(range.min)}-${formatValue(range.max)}`;
   if (range?.min != null) return `\u2265${formatValue(range.min)}`;
   if (range?.max != null) return `\u2264${formatValue(range.max)}`;
   return 'not specified';
 }
 
-function formatAgentRanges(ranges) {
+function formatAgentRanges(ranges: readonly ReturnType<typeof copyRange>[]) {
   return ranges.map(range => `${range?.label || 'range'} ${formatAgentRange(range)}${range?.usedForStatus ? ' [status basis]' : ''}`).join('; ');
 }
 
-function reportAge(profile, generatedAt) {
+function reportAge(profile: Pick<Partial<StoredProfileRecord>, 'dob'>, generatedAt: string) {
   if (!profile?.dob) return '';
   const birth = new Date(`${profile.dob}T00:00:00`);
   const at = new Date(generatedAt || Date.now());
@@ -417,7 +494,7 @@ function reportAge(profile, generatedAt) {
   return age >= 0 && age <= 130 ? `${age} years` : '';
 }
 
-function compactContextValue(value) {
+function compactContextValue(value: unknown) {
   if (value == null) return '';
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
@@ -428,7 +505,7 @@ function compactContextValue(value) {
  * The snapshot remains the lossless contract; this projection deliberately
  * prioritizes latest abnormalities, representative markers, and notable trends.
  */
-export function formatReportDataForAgent(reportData, {
+export function formatReportDataForAgent(reportData: ReportDataSnapshot | null | undefined, {
   markerLimit = 32,
   flagLimit = 16,
   trendLimit = 12,
@@ -436,7 +513,7 @@ export function formatReportDataForAgent(reportData, {
 } = {}) {
   if (!reportData) return '';
   const sections = new Set(reportData.scope?.sections || []);
-  const profile = reportData.profile || {};
+  const profile: Partial<NonNullable<ReportDataSnapshot['profile']>> = reportData.profile || {};
   const sex = profile.sex === 'female' ? 'Female' : profile.sex === 'male' ? 'Male' : 'Not specified';
   const lines = [
     `Profile: ${profile.name || 'Profile'}`,
@@ -501,7 +578,7 @@ export function formatReportDataForAgent(reportData, {
     if (sections.has('trends') && labs.notableTrends?.length > 0) {
       lines.push('Notable trends:');
       for (const trend of labs.notableTrends.slice(0, trendLimit)) {
-        lines.push(`- ${trend.name} ${trend.direction} ${Math.abs(trend.percentChange).toFixed(0)}% (${formatValue(trend.first.value)} to ${formatValue(trend.latest.value)} ${trend.unit || ''}, ${trend.first.date || 'first result'} to ${trend.latest.date || 'latest result'})`);
+        lines.push(`- ${trend.name} ${trend.direction} ${Math.abs(trend.percentChange!).toFixed(0)}% (${formatValue(trend.first.value)} to ${formatValue(trend.latest.value)} ${trend.unit || ''}, ${trend.first.date || 'first result'} to ${trend.latest.date || 'latest result'})`);
       }
     }
   }
@@ -525,9 +602,9 @@ export function formatReportDataForAgent(reportData, {
       lines.push(`- ${note.date || 'undated'}: ${String(note.text || '').slice(0, 220)}`);
     }
   }
-  if (sections.has('context') && reportData.context?.sections?.length > 0) {
+  if (sections.has('context') && (reportData.context?.sections?.length as number) > 0) {
     lines.push('Profile context:');
-    for (const section of reportData.context.sections.slice(0, contextLimit)) {
+    for (const section of reportData.context!.sections.slice(0, contextLimit)) {
       lines.push(`- ${section.title}: ${String(section.text || '').replace(/\s+/g, ' ').slice(0, 280)}`);
     }
   }
@@ -557,7 +634,7 @@ export function formatReportDataForAgent(reportData, {
  * This function has no dependency on application state or PDF/HTML rendering,
  * so other agents and local integrations can consume the same resolved facts.
  */
-export function buildReportDataSnapshot(/** @type {BuildReportDataSnapshotInput} */ input = {}) {
+export function buildReportDataSnapshot(input: BuildReportDataSnapshotInput = {}) {
   const {
     data,
     profile,
@@ -587,7 +664,7 @@ export function buildReportDataSnapshot(/** @type {BuildReportDataSnapshotInput}
       purpose: options.purpose || '',
       appendixSections: options.appendixSections || [],
       genomeVariants: options.genomeVariants || [],
-      genomeMode: REPORT_GENOME_MODES.includes(options.genomeMode) ? options.genomeMode : null,
+      genomeMode: REPORT_GENOME_MODES.includes(options.genomeMode as string) ? options.genomeMode : null,
       categoryKeys: Array.isArray(options.categoryKeys) ? [...options.categoryKeys] : null,
       rangeMode: normalizedRangeMode,
       statusBasis: normalizedRangeMode === 'reference'
