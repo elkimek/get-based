@@ -22,7 +22,7 @@ interface ExportFacadeModule extends ExportFacadeActions {
 }
 
 const exportFacadeModuleLoader = createRetryingModuleLoader<ExportFacadeModule>(
-  retry => retry ? loadExportFacadeRetryModule() : import('./export.js' as string),
+  (retry): Promise<typeof import('./export.js')> => retry ? loadExportFacadeRetryModule() : import('./export.js' as string),
   module => {
     return applyExportFacadeLoaderDeps(module);
   },

@@ -196,9 +196,13 @@ npm run dev-server
 
 Open `http://localhost:8000/app`. The root URL may serve the sibling `get-based-site` landing page when that repository is present.
 
+Edit the authored `.ts` and `.mts` sources. TypeScript 7 emits ignored JavaScript at the existing runtime URLs. `npm ci`, `npm run dev-server`, and `npm test` compile before use; run `npm run typescript:build` before invoking Node entry points or Playwright directly after editing.
+
 Useful checks:
 
 ```bash
+npm run typecheck:migration
+npm run typecheck:migration-tests
 npm run typecheck
 npm run typecheck:checkjs
 npm run architecture:check
@@ -206,8 +210,8 @@ npm run vendor:check
 npm run supply-chain:check
 npm run sbom
 npm run quality
-npm test -- tests/<relevant-test>.test.js
-npx playwright test tests/playwright/<relevant-spec>.spec.js
+npm test -- tests/<relevant-test>.test.ts
+npx playwright test tests/playwright/<relevant-spec>.spec.ts
 npm run test:evolu8-browsers
 npm run test:firefox
 npm run performance:check

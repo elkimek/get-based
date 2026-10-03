@@ -55,7 +55,7 @@ export function configureMedicalHistoryEditor({ close, recordChange, saveAndRefr
 
 
 function runMedicalHistoryEditorAction(name: keyof MedicalHistoryEditorModule, args: unknown[], shouldLoad: boolean = true) {
-  const run = (module: MedicalHistoryEditorModule) => {
+  const run = (module: MedicalHistoryEditorModule): unknown => {
     const action = module[name];
     if (typeof action !== 'function') {
       throw new Error(`Medical history editor action ${String(name)} is unavailable`);

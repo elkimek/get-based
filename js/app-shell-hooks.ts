@@ -387,7 +387,7 @@ configureWearablesConnectRuntimeDeps({ navigate });
 configureWearableDetailRuntimeDeps({ closeModal, navigate, rememberModalTrigger });
 configureWearablesRuntime({
   closeModal,
-  loadModule: (useRetryUrl: unknown) => {
+  loadModule: (useRetryUrl: unknown): Promise<typeof import('./wearables.js')> => {
     if (useRetryUrl) {
       return import('./wearables.js?lazy-retry=1' as './wearables.js');
     }

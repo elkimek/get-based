@@ -68,7 +68,7 @@ export function renderDietContaminantsBadge() {
 
 
 function runLifestyleContextEditorAction(name: keyof LifestyleContextEditorsModule, args: unknown[], shouldLoad: boolean = true) {
-  const run = (module: LifestyleContextEditorsModule) => {
+  const run = (module: LifestyleContextEditorsModule): unknown => {
     const action = module[name];
     if (typeof action !== 'function') {
       throw new Error(`Lifestyle context editor action ${String(name)} is unavailable`);
