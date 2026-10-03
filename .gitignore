@@ -847,3 +847,13 @@ deploy/profile-share/data/
 /js/service-worker-update.js
 
 /js/sun-location.js
+
+/js/chat-draft-storage.js
+
+/js/light-devices-actions.js
+
+/js/light-tools.js
+
+/js/nutrition-analysis.js
+
+/js/pdf-import-file-handlers.js

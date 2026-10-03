@@ -27,7 +27,7 @@ const tools = await import('../js/light-tools.js');
     clearLuxCalibration, isLuxCalibrationConfirmed, loadLuxCalibration, lockCameraForMeasurement,
     normalizeGoldenHourMinutes, saveLuxCalibration,
     } = tools;
-    const lightToolsSrc = fs.readFileSync(new URL('../js/light-tools.js', import.meta.url), 'utf8');
+    const lightToolsSrc = fs.readFileSync(sourcePath(fileURLToPath(new URL('../js/light-tools.js', import.meta.url))), 'utf8').replace("'./light-tool-camera-modals.js?lazy-retry=1' as './light-tool-camera-modals.js'", "'./light-tool-camera-modals.js?lazy-retry=1'");
     const lightAiSaveHooksSrc = fs.readFileSync(new URL('../js/light-ai-save-hooks.js', import.meta.url), 'utf8');
     const lightToolsUiHooksSrc = fs.readFileSync(new URL('../js/light-tools-ui-hooks.js', import.meta.url), 'utf8');
     const appLightSunSrc = fs.readFileSync(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');

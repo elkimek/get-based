@@ -13,11 +13,12 @@ export interface ImportBenchmarkRecord extends BenchmarkPatch {
 interface BenchmarkProfile { importBenchmarks?: ImportBenchmarkRecord[] | undefined; deletedImportBenchmarkIds?: unknown[] | undefined }
 interface BenchmarkMeta extends DiagnosticFields { provider?: string | null; modelId?: string | null }
 interface ImportReviewMarker { mappedKey?: unknown; suggestedKey?: unknown; _benchmarkValueEdited?: unknown; _benchmarkUnitEdited?: unknown }
+interface ImportUsageReader { inputTokens?: unknown; outputTokens?: unknown }
 interface ImportBenchmarkResult extends DiagnosticFields {
   provider?: string | null; modelId?: unknown; importHash?: unknown; inputHash?: unknown;
   costInfo?: { provider?: string | null; modelId?: unknown; inputTokens?: unknown; outputTokens?: unknown } | null | undefined;
   runtime?: RuntimeDetails | null;
-  timings?: DiagnosticFields | null | undefined; usage?: DiagnosticFields | null;
+  timings?: DiagnosticFields | null | undefined; usage?: ImportUsageReader | null | undefined;
   diagnostics?: (DiagnosticFields & { performance?: DiagnosticFields | null; localPlan?: DiagnosticFields | null }) | null | undefined;
   markers?: Array<ImportReviewMarker | null | undefined> | null;
   _benchmarkInitialMappings?: unknown[] | null; _benchmarkInitialDate?: unknown;

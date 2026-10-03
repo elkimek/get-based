@@ -1,4 +1,3 @@
-// @ts-check
 // light-tools.js — In-browser measurement tools for the Light lens.
 // All tools run fully on-device. Camera frames are processed in-browser
 // and never leave the user's device. Camera tools cover lux, flicker, CCT,
@@ -15,18 +14,43 @@ import { aimingGuideHTML, getRequired2DContext, lockCameraForMeasurement } from 
 import { createUniqueId } from './unique-id.js';
 import { classifyDayWindow, formatSunClock, normalizeGoldenHourMinutes } from './light-tools-solar-time.js';
 export { normalizeGoldenHourMinutes } from './light-tools-solar-time.js';
-/** @typedef {typeof import('./light-tool-camera-modals.js')} LightToolCameraModals */
-/** @type {Promise<LightToolCameraModals> | null} */ let lightToolCameraModalsPromise = null;
-/** @type {LightToolCameraModals | null} */ let lightToolCameraModals = null;
+import type { LightRoom } from './light-env-model.js';
+import type { AILightMeasurement } from './light-tools-ai-analysis.js';
+import type { SunSetupCoords } from './sun-defaults-model.js';
+import type { SunSessionRecord } from './sun-sessions-store.js';
+
+export interface StoredLightMeasurement {
+  id?: unknown; tool?: unknown; value?: unknown; capturedAt?: unknown; takenAt?: unknown;
+  roomId?: unknown; confidence?: unknown; label?: unknown; notes?: unknown; extra?: unknown;
+}
+export interface SavedLightMeasurement extends StoredLightMeasurement { id: string; tool: string; capturedAt: number }
+export type LightToolsCoords = Omit<SunSetupCoords, 'altitudeM'> & { altitudeM?: unknown };
+export interface LightToolsDeps {
+  maybeAnalyzeMeasurementAfterSave: (entry: AILightMeasurement) => unknown;
+  suggestRoomSourceFromSpectrum: (roomId: unknown, value: unknown, metadata?: {}) => unknown;
+  refreshLightEnvironmentAssessment: () => unknown;
+  navigate: (view: string, options?: { scrollAnchor: string }) => unknown;
+  getSunCoords: () => LightToolsCoords | null | undefined;
+  solarZenithAngle: Parameters<typeof classifyDayWindow>[2];
+  logCompletedSession: ((payload: Omit<Partial<SunSessionRecord>, 'location'> & { location?: NonNullable<SunSessionRecord['location']> & { source?: string } }) => Promise<string | null | undefined>) | null;
+  getSessions: () => unknown;
+  hydrateSession: (id: string, coords: SunSetupCoords) => unknown;
+  getRooms: () => unknown;
+  addRoom: (name: string) => Promise<string | null>;
+}
+
+type RawLightToolsSessionLogger = (payload: Omit<Parameters<NonNullable<LightToolsDeps['logCompletedSession']>>[0], 'location'> & { location: LightToolsCoords }) => ReturnType<NonNullable<LightToolsDeps['logCompletedSession']>>;
+type LightToolCameraModals = typeof import('./light-tool-camera-modals.js');
+let lightToolCameraModalsPromise: Promise<LightToolCameraModals> | null = null;
+let lightToolCameraModals: LightToolCameraModals | null = null;
 let useLightToolCameraModalsRetryUrl = false;
 
 const LIGHT_TOOLS_ACTION_ATTR = 'data-light-tools-action';
 const LIGHT_TOOL_ID_ATTR = 'data-light-tool-id';
 const LIGHT_TOOLS_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightToolsActionDelegatesInstalled');
-const lightToolsActionDelegateRoots = new WeakSet();
+const lightToolsActionDelegateRoots = new WeakSet<object>();
 
-/** @type {{ maybeAnalyzeMeasurementAfterSave: AnyFunction, suggestRoomSourceFromSpectrum: AnyFunction, refreshLightEnvironmentAssessment: AnyFunction, navigate: AnyFunction, getSunCoords: AnyFunction, solarZenithAngle: AnyFunction | null, logCompletedSession: AnyFunction | null, getSessions: AnyFunction, hydrateSession: AnyFunction, getRooms: AnyFunction, addRoom: AnyFunction }} */
-const lightToolsDeps = {
+const lightToolsDeps: LightToolsDeps = {
   maybeAnalyzeMeasurementAfterSave: () => {},
   suggestRoomSourceFromSpectrum: async () => {},
   refreshLightEnvironmentAssessment: () => {},
@@ -40,19 +64,19 @@ const lightToolsDeps = {
   addRoom: async () => null,
 };
 
-export function configureLightTools(deps = {}) {
+export function configureLightTools(deps: Partial<LightToolsDeps> = {}) {
   Object.assign(lightToolsDeps, deps);
 }
 
-function maybeAnalyzeMeasurementAfterSave(entry) {
-  try { lightToolsDeps.maybeAnalyzeMeasurementAfterSave(entry); } catch (_) {}
+function maybeAnalyzeMeasurementAfterSave(entry: SavedLightMeasurement) {
+  try { (lightToolsDeps.maybeAnalyzeMeasurementAfterSave as (entry: SavedLightMeasurement) => unknown)(entry); } catch (_) {}
 }
 
 function refreshLightEnvironmentAssessment() {
   try { lightToolsDeps.refreshLightEnvironmentAssessment(); } catch (_) {}
 }
 
-function navigateLight(options) {
+function navigateLight(options?: { scrollAnchor: string }) {
   try { lightToolsDeps.navigate('light', options); } catch (_) {}
 }
 
@@ -61,20 +85,20 @@ function getSunCoords() {
 }
 
 function getSunSessions() {
-  try { const sessions = lightToolsDeps.getSessions(); return Array.isArray(sessions) ? sessions : []; } catch (_) { return []; }
+  try { const sessions = lightToolsDeps.getSessions(); return Array.isArray(sessions) ? sessions as Array<Pick<SunSessionRecord, 'id'>> : []; } catch (_) { return []; }
 }
 
 function getLightRooms() {
-  try { const rooms = lightToolsDeps.getRooms(); return Array.isArray(rooms) ? rooms : []; } catch (_) { return []; }
+  try { const rooms = lightToolsDeps.getRooms(); return Array.isArray(rooms) ? rooms as Array<LightRoom | null | undefined> : []; } catch (_) { return []; }
 }
 
-function closestLightToolsAction(target) {
+function closestLightToolsAction(target: (EventTarget & { closest?: (selector: string) => Element | null }) | null) {
   if (!target || !target.closest) return null;
   return target.closest(`[${LIGHT_TOOLS_ACTION_ATTR}]`);
 }
 
-function openLightToolById(toolId) {
-  const openers = {
+function openLightToolById(toolId: string) {
+  const openers: Record<string, (() => unknown) | undefined> = {
     spectrum: openSpectrumClassifier,
     lux: openLuxMeter,
     cct: openCCTMeter,
@@ -88,9 +112,9 @@ function openLightToolById(toolId) {
   if (opener) opener();
 }
 
-function handleLightToolsActionClick(event) {
-  const actionEl = closestLightToolsAction(event.target);
-  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+function handleLightToolsActionClick(event: Event) {
+  const actionEl = closestLightToolsAction(event.target as EventTarget & { closest?: (selector: string) => Element | null });
+  if (!actionEl || !(event.currentTarget as Node | null)?.contains?.(actionEl)) return;
   const action = actionEl.getAttribute(LIGHT_TOOLS_ACTION_ATTR);
   if (action === 'close-audit') {
     closeEyeLevelAudit();
@@ -104,7 +128,7 @@ function handleLightToolsActionClick(event) {
   }
 }
 
-export function installLightToolsActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+export function installLightToolsActionDelegates(root: (Document | Element) & { [LIGHT_TOOLS_ACTION_DELEGATE_KEY]?: unknown } | null = typeof document !== 'undefined' ? document : null) {
   if (!root || lightToolsActionDelegateRoots.has(root) || root[LIGHT_TOOLS_ACTION_DELEGATE_KEY]) return;
   lightToolsActionDelegateRoots.add(root);
   Object.defineProperty(root, LIGHT_TOOLS_ACTION_DELEGATE_KEY, { value: true, configurable: true });
@@ -145,9 +169,9 @@ export {
 
 // One-time-per-session migration: collapse any pre-redesign history into
 // the latest entry per (roomId, tool). Runs lazily on first read.
-const _collapsedThisSession = new WeakSet();
+const _collapsedThisSession = new WeakSet<object>();
 
-export function getMeasurements() {
+export function getMeasurements(): StoredLightMeasurement[] {
   if (!state.importedData) return [];
   if (!Array.isArray(state.importedData.lightMeasurements)) state.importedData.lightMeasurements = [];
   if (!_collapsedThisSession.has(state.importedData.lightMeasurements)) {
@@ -157,7 +181,7 @@ export function getMeasurements() {
       void saveImportedData();
     }
   }
-  return state.importedData.lightMeasurements;
+  return state.importedData.lightMeasurements as StoredLightMeasurement[];
 }
 
 // Latest-per-(roomId, tool) wins. On pre-redesign data, this is the
@@ -165,22 +189,22 @@ export function getMeasurements() {
 // so the cleanup propagates across paired devices. New writes go
 // through _supersedePriorMeasurement which handles replacement +
 // tombstoning at write time, so this only needs to run once.
-function _collapseToLatestPerRoomTool(list) {
+function _collapseToLatestPerRoomTool(list: Array<StoredLightMeasurement | null | undefined>) {
   if (!Array.isArray(list) || list.length === 0) return 0;
   // Group by (roomId, tool), pick the most-recent entry per group.
   // Audit-tool rows are exempt — each walkthrough is its own record
   // (per-pause labels + lux readings in `extra.rooms`), so collapsing
   // would destroy the per-walkthrough history. Audit rows pass through
   // untouched.
-  const latest = new Map();
-  const auditRows = [];
+  const latest = new Map<string, StoredLightMeasurement>();
+  const auditRows: StoredLightMeasurement[] = [];
   for (const m of list) {
     if (!m || !m.tool) continue;
     if (m.tool === 'audit') { auditRows.push(m); continue; }
     const key = `${m.roomId || ''}::${m.tool}`;
     const ts = m.capturedAt || m.takenAt || 0;
     const cur = latest.get(key);
-    if (!cur || ts > (cur.capturedAt || cur.takenAt || 0)) latest.set(key, m);
+    if (!cur || (ts as number) > ((cur.capturedAt || cur.takenAt || 0) as number)) latest.set(key, m);
   }
   if (latest.size + auditRows.length === list.length) return 0; // already collapsed
   const keep = new Set(auditRows);
@@ -188,7 +212,7 @@ function _collapseToLatestPerRoomTool(list) {
   let dropped = 0;
   for (let i = list.length - 1; i >= 0; i--) {
     const m = list[i];
-    if (keep.has(m)) continue;
+    if (keep.has(m as StoredLightMeasurement)) continue;
     deleteImportedArrayItem(state.importedData, 'lightMeasurements', i);
     dropped++;
   }
@@ -199,7 +223,7 @@ function _collapseToLatestPerRoomTool(list) {
 // a tombstone so paired devices apply the same replacement on pull.
 // Returns the count of superseded entries (≤1 in normal use, >1 only
 // when migrating from pre-redesign data with multiple historical rows).
-function _supersedePriorMeasurement(list, roomId, tool) {
+function _supersedePriorMeasurement(list: Array<StoredLightMeasurement | null | undefined>, roomId: unknown, tool: unknown) {
   if (!Array.isArray(list)) return 0;
   let removed = 0;
   for (let i = list.length - 1; i >= 0; i--) {
@@ -213,9 +237,9 @@ function _supersedePriorMeasurement(list, roomId, tool) {
   return removed;
 }
 
-export async function saveMeasurement(tool, value, opts = {}) {
+export async function saveMeasurement(tool: string, value: unknown, opts: Record<string, unknown> = {}) {
   const id = createUniqueId('lm_');
-  const entry = {
+  const entry: SavedLightMeasurement = {
     id,
     tool,
     value,
@@ -248,7 +272,7 @@ export async function saveMeasurement(tool, value, opts = {}) {
   // the classifier knows warm vs cool vs fluorescent. Only fires when
   // a roomId is bound; only updates when source is unset/unknown.
   if (tool === 'spectrum' && opts.roomId) {
-    try { await lightToolsDeps.suggestRoomSourceFromSpectrum(opts.roomId, value, entry.extra); } catch (e) {}
+    try { await (lightToolsDeps.suggestRoomSourceFromSpectrum as (roomId: unknown, value: unknown, metadata: unknown) => unknown)(opts.roomId, value, entry.extra); } catch (e) {}
   }
   refreshLightEnvironmentAssessment();
   // Re-render the Light & Sun page if the user is on it so per-room
@@ -264,7 +288,7 @@ export async function saveMeasurement(tool, value, opts = {}) {
     setTimeout(() => {
       if (document.querySelector('.modal-overlay.show')) return;
       const anchor = opts.roomId
-        ? `[data-id="${CSS.escape(opts.roomId)}"]`
+        ? `[data-id="${CSS.escape(opts.roomId as string)}"]`
         : null;
       navigateLight(anchor ? { scrollAnchor: anchor } : undefined);
     }, 50);
@@ -274,12 +298,12 @@ export async function saveMeasurement(tool, value, opts = {}) {
 
 // Filter the global measurement list down to a single room. Used by the
 // room detail panel + room severity derivation.
-export function getMeasurementsForRoom(roomId) {
+export function getMeasurementsForRoom(roomId: unknown) {
   if (!roomId) return [];
   return getMeasurements().filter(m => m.roomId === roomId);
 }
 
-export async function deleteMeasurement(id) {
+export async function deleteMeasurement(id: unknown) {
   const list = getMeasurements();
   const idx = list.findIndex(m => m.id === id);
   if (idx < 0) return false;
@@ -290,13 +314,10 @@ export async function deleteMeasurement(id) {
 
 // ─── Camera-backed tool modal facade ──────────────────────────────────
 export function isLightToolCameraModalsLoaded() { return lightToolCameraModals !== null; }
-/** @returns {Promise<LightToolCameraModals>} */
-function loadLightToolCameraModalsRetryModule() {
-  // @ts-expect-error TypeScript resolves only the query-free source path.
-  return import('./light-tool-camera-modals.js?lazy-retry=1');
+function loadLightToolCameraModalsRetryModule(): Promise<LightToolCameraModals> {
+  return import('./light-tool-camera-modals.js?lazy-retry=1' as './light-tool-camera-modals.js');
 }
-/** @returns {Promise<LightToolCameraModals>} */
-export function loadLightToolCameraModals() {
+export function loadLightToolCameraModals(): Promise<LightToolCameraModals> {
   if (lightToolCameraModalsPromise) return lightToolCameraModalsPromise;
   // Failed module-map fetches are cached; retry once with a second fixed URL.
   const load = useLightToolCameraModalsRetryUrl
@@ -308,9 +329,8 @@ export function loadLightToolCameraModals() {
   });
   return lightToolCameraModalsPromise;
 }
-/** @param {keyof LightToolCameraModals} name @param {any[]} args @param {boolean} [shouldLoad] */
-function runLightToolCameraAction(name, args, shouldLoad = true) {
-  const run = (/** @type {LightToolCameraModals} */ module) => {
+function runLightToolCameraAction(name: keyof LightToolCameraModals, args: unknown[], shouldLoad = true): unknown {
+  const run = (module: LightToolCameraModals): unknown => {
     const action = module[name];
     if (typeof action !== 'function') throw new Error(`Light tool camera action ${String(name)} is unavailable`);
     return Reflect.apply(action, module, args);
@@ -329,10 +349,8 @@ function runLightToolCameraAction(name, args, shouldLoad = true) {
     return shouldLoad ? false : undefined;
   }
 }
-/** @param {keyof LightToolCameraModals} name */
-const openCameraTool = name => async (opts = {}) => runLightToolCameraAction(name, [opts, { saveMeasurement }]);
-/** @param {keyof LightToolCameraModals} name */
-const closeCameraToolIfLoaded = name => () => runLightToolCameraAction(name, [], false);
+const openCameraTool = (name: keyof LightToolCameraModals) => async (opts: Record<string, unknown> = {}) => runLightToolCameraAction(name, [opts, { saveMeasurement }]);
+const closeCameraToolIfLoaded = (name: keyof LightToolCameraModals) => () => runLightToolCameraAction(name, [], false);
 export const openLuxMeter = openCameraTool('openLuxMeter'), openFlickerDetector = openCameraTool('openFlickerDetector'), openDarknessMeter = openCameraTool('openDarknessMeter'), openCCTMeter = openCameraTool('openCCTMeter'), openSpectrumClassifier = openCameraTool('openSpectrumClassifier'), openGlassTransmission = openCameraTool('openGlassTransmission');
 // Escape/teardown cleanup must not fetch an implementation that was never used.
 export const closeLuxMeter = closeCameraToolIfLoaded('closeLuxMeter'), closeFlickerDetector = closeCameraToolIfLoaded('closeFlickerDetector'), closeDarknessMeter = closeCameraToolIfLoaded('closeDarknessMeter'), closeCCTMeter = closeCameraToolIfLoaded('closeCCTMeter'), closeSpectrumClassifier = closeCameraToolIfLoaded('closeSpectrumClassifier'), closeGlassTransmission = closeCameraToolIfLoaded('closeGlassTransmission');
@@ -343,7 +361,7 @@ export function openSunriseLogger() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay light-tool-overlay';
   const coords = getSunCoords();
-  const cls = classifyDayWindow(coords, new Date(), lightToolsDeps.solarZenithAngle);
+  const cls = (classifyDayWindow as (coords: Pick<SunSetupCoords, 'lat' | 'lon'> | null, now: Date, solar: LightToolsDeps['solarZenithAngle']) => ReturnType<typeof classifyDayWindow>)(coords, new Date(), lightToolsDeps.solarZenithAngle);
   const subtitleHtml = cls.kind === 'unknown'
     ? `<span style="color:var(--orange);font-size:11px">No location coords — set country in profile for accurate sunrise/sunset windows.</span>`
     : (cls.sunrise && cls.sunset)
@@ -382,11 +400,11 @@ export function openSunriseLogger() {
       showNotification('Set a Light & Sun location before saving so this session can be computed.', 'error', 7000);
       return;
     }
-    const durationInput = /** @type {HTMLInputElement} */ (queryRequired(overlay, '#sunrise-duration'));
+    const durationInput = (queryRequired(overlay, '#sunrise-duration') as HTMLInputElement);
     const minutes = normalizeGoldenHourMinutes(durationInput.value);
     if (typeof lightToolsDeps.logCompletedSession === 'function') {
       const start = Date.now() - minutes * 60 * 1000;
-      const loggedId = await lightToolsDeps.logCompletedSession({
+      const loggedId = await (lightToolsDeps.logCompletedSession as RawLightToolsSessionLogger)({
         startedAt: start,
         endedAt: Date.now(),
         location: { lat: coords.lat, lon: coords.lon, altitudeM: coords.altitudeM || 0, source: coords.source || 'profile' },
@@ -396,7 +414,7 @@ export function openSunriseLogger() {
       });
       const id = loggedId || getSunSessions().slice(-1)[0]?.id;
       if (id) {
-        try { await lightToolsDeps.hydrateSession(id, coords); } catch (e) {}
+        try { await (lightToolsDeps.hydrateSession as (id: string, coords: LightToolsCoords) => ReturnType<LightToolsDeps['hydrateSession']>)(id, coords); } catch (e) {}
       }
     }
     showNotification(`${cls.label} logged: ${minutes} min`);
@@ -407,10 +425,8 @@ export function openSunriseLogger() {
 
 // ─── Tool 8: Eye-Level Audit (10-min walkthrough) ─────────────────────
 
-/** @type {{ running: boolean, stream: MediaStream | null, samples: Array<{ t: number, luma: number }> }} */
-let _auditState = { running: false, stream: null, samples: [] };
-/** @type {AnyFunction | null} */
-let activeEyeLevelAuditCloser = null;
+let _auditState: { running: boolean; stream: MediaStream | null; samples: Array<{ t: number; luma: number }> } = { running: false, stream: null, samples: [] };
+let activeEyeLevelAuditCloser: (() => void) | null = null;
 
 export function closeEyeLevelAudit() {
   if (typeof activeEyeLevelAuditCloser === 'function') activeEyeLevelAuditCloser();
@@ -447,10 +463,10 @@ export async function openEyeLevelAudit() {
   activeEyeLevelAuditCloser = closeAuditOverlay;
   openAppendedModalOverlay(overlay, closeAuditOverlay);
 
-  const statusEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#audit-status'));
-  const listEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#audit-room-list'));
-  const toggleBtn = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#audit-toggle'));
-  /** @type {Array<{ at: number, luma: number, cameraLevel: number, lux: number | null, levelLabel: string, label: string }>} */ let pauseDetections = [];
+  const statusEl = (queryRequired(overlay, '#audit-status') as HTMLElement);
+  const listEl = (queryRequired(overlay, '#audit-room-list') as HTMLElement);
+  const toggleBtn = (queryRequired(overlay, '#audit-toggle') as HTMLButtonElement);
+  let pauseDetections: Array<{ at: number; luma: number; cameraLevel: number; lux: number | null; levelLabel: string; label: string }> = [];
 
   // Common room labels for one-tap selection. The free-text input is
   // always available; this just removes the typing burden mid-walkthrough.
@@ -469,7 +485,7 @@ export async function openEyeLevelAudit() {
     `).join('');
     // Wire up the inputs every render — DOM was just rebuilt.
     listEl.querySelectorAll('.audit-room-label-input').forEach((input) => {
-      const labelInput = /** @type {HTMLInputElement} */ (input);
+      const labelInput = (input as HTMLInputElement);
       labelInput.addEventListener('change', () => {
         const idx = parseInt(labelInput.dataset.idx || '', 10);
         if (!isNaN(idx) && pauseDetections[idx]) {
@@ -510,15 +526,15 @@ export async function openEyeLevelAudit() {
         }
         const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 24;
         const ctx = getRequired2DContext(canvas);
-        let lastSampleLuma = null;
-        let pauseStart = null;
+        let lastSampleLuma: number | null = null;
+        let pauseStart: number | null = null;
         let waitingForMovement = false;
         const tick = async () => {
           if (!_auditState.running) return;
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
           let sum = 0;
-          for (let i = 0; i < data.length; i += 4) sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+          for (let i = 0; i < data.length; i += 4) sum += 0.2126 * data[i]! + 0.7152 * data[i + 1]! + 0.0722 * data[i + 2]!;
           const luma = sum / (data.length / 4);
           const t = performance.now();
           _auditState.samples.push({ t, luma });
@@ -578,12 +594,12 @@ export async function openEyeLevelAudit() {
         // light-env.js so this modal does not reach through browser globals.
         let bound = 0;
         const existingRooms = getLightRooms();
-        const byLabel = new Map();
+        const byLabel = new Map<string, string | null | undefined>();
         for (const r of existingRooms) {
           if (r && typeof r.name === 'string') byLabel.set(r.name.toLowerCase().trim(), r.id);
         }
         for (let i = 0; i < pauseDetections.length; i++) {
-          const p = pauseDetections[i];
+          const p = pauseDetections[i]!;
           const label = (p.label || '').trim();
           if (!label) continue; // unlabeled pauses stay in the bulk record only
           let roomId = byLabel.get(label.toLowerCase());
@@ -621,12 +637,12 @@ export function renderLightTools() {
   const all = getMeasurements();
   const total = all.length;
   const cutoff7d = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const recent7 = all.filter(m => (m.capturedAt || 0) >= cutoff7d).length;
+  const recent7 = all.filter(m => ((m.capturedAt || 0) as number) >= cutoff7d).length;
   const env = state.importedData?.lightEnvironment || {};
   const rooms = Array.isArray(env.rooms) ? env.rooms : [];
   const roomCount = rooms.length;
 
-  const tools = {
+  const tools: Record<string, { icon: string; name: string; desc: string; short: string } | undefined> = {
     spectrum: {
       icon: '🔬',
       name: 'What is this light?',
@@ -677,7 +693,7 @@ export function renderLightTools() {
     },
   };
 
-  const action = (id, opts = {}) => {
+  const action = (id: string, opts: { reason?: string; primary?: boolean } = {}) => {
     const t = tools[id];
     if (!t) return '';
     const reason = opts.reason || t.short;
@@ -708,7 +724,7 @@ export function renderLightTools() {
       roomCount > 0 ? `${roomCount} room${roomCount === 1 ? '' : 's'} ready` : 'Map rooms to attach readings',
     ];
 
-  const group = (title, time, ids) => `<details class="light-tools-group">
+  const group = (title: string, time: string, ids: string[]) => `<details class="light-tools-group">
     <summary class="light-tools-group-head">
       <span>${escapeHTML(title)}</span>
       <span class="light-tools-group-time">${escapeHTML(time)}</span>

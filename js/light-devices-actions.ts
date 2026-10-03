@@ -1,4 +1,3 @@
-// @ts-check
 // light-devices-actions.js - delegated actions for light device cards
 
 const LIGHT_DEVICES_ACTION_ATTR = 'data-light-devices-action';
@@ -7,36 +6,42 @@ const LIGHT_DEVICE_SESSION_ID_ATTR = 'data-light-device-session-id';
 const LIGHT_DEVICES_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightDevicesActionDelegatesInstalled');
 const lightDevicesActionDelegateRoots = new WeakSet();
 
-/** @typedef {'stopDeviceSessionAndNotify' | 'openAddDeviceDialog' | 'deleteLightDevice' | 'openDeviceSessionDialog'} LightDevicesActionName */
-/** @type {Record<LightDevicesActionName, ((id?: string) => unknown) | null>} */
-const lightDevicesActions = {
+type LightDevicesActionName = 'stopDeviceSessionAndNotify' | 'openAddDeviceDialog' | 'deleteLightDevice' | 'openDeviceSessionDialog';
+interface LightDevicesActions {
+  stopDeviceSessionAndNotify: ((id: string) => unknown) | null;
+  openAddDeviceDialog: (() => unknown) | null;
+  deleteLightDevice: ((id: string) => unknown) | null;
+  openDeviceSessionDialog: ((id: string) => unknown) | null;
+}
+
+const lightDevicesActions: LightDevicesActions = {
   stopDeviceSessionAndNotify: null,
   openAddDeviceDialog: null,
   deleteLightDevice: null,
   openDeviceSessionDialog: null,
 };
 
-/**
- * @param {Partial<typeof lightDevicesActions>} [actions]
- * @returns {typeof lightDevicesActions}
- */
-export function configureLightDevicesActions(actions = {}) {
+type LightDevicesActionConfiguration = {
+  [Name in keyof LightDevicesActions]?: LightDevicesActions[Name] | undefined;
+};
+
+export function configureLightDevicesActions(actions: LightDevicesActionConfiguration = {}) {
   const previous = { ...lightDevicesActions };
-  for (const name of /** @type {LightDevicesActionName[]} */ (Object.keys(lightDevicesActions))) {
+  for (const name of (Object.keys(lightDevicesActions) as LightDevicesActionName[])) {
     if (name in actions) {
-      lightDevicesActions[name] = typeof actions[name] === 'function' ? actions[name] : null;
+      (lightDevicesActions as Record<LightDevicesActionName, LightDevicesActions[LightDevicesActionName]>)[name] = typeof actions[name] === 'function' ? actions[name] : null;
     }
   }
   return previous;
 }
 
-function closestLightDevicesAction(target) {
-  return target?.closest?.(`[${LIGHT_DEVICES_ACTION_ATTR}]`) || null;
+function closestLightDevicesAction(target: EventTarget | null) {
+  return (target as { closest?: Element['closest'] } | null)?.closest?.(`[${LIGHT_DEVICES_ACTION_ATTR}]`) || null;
 }
 
-function handleLightDevicesActionClick(event) {
+function handleLightDevicesActionClick(event: Event) {
   const actionEl = closestLightDevicesAction(event.target);
-  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  if (!actionEl || !(event.currentTarget as { contains?: Node['contains'] } | null)?.contains?.(actionEl)) return;
   const action = actionEl.getAttribute(LIGHT_DEVICES_ACTION_ATTR);
   if (action === 'suppress') {
     event.stopPropagation();
@@ -60,8 +65,8 @@ function handleLightDevicesActionClick(event) {
   }
 }
 
-export function installLightDevicesActionDelegates(root = typeof document !== 'undefined' ? document : null) {
-  if (!root || lightDevicesActionDelegateRoots.has(root) || root[LIGHT_DEVICES_ACTION_DELEGATE_KEY]) return;
+export function installLightDevicesActionDelegates(root: Document | Element | null = typeof document !== 'undefined' ? document : null) {
+  if (!root || lightDevicesActionDelegateRoots.has(root) || (root as Partial<Record<typeof LIGHT_DEVICES_ACTION_DELEGATE_KEY, unknown>>)[LIGHT_DEVICES_ACTION_DELEGATE_KEY]) return;
   lightDevicesActionDelegateRoots.add(root);
   Object.defineProperty(root, LIGHT_DEVICES_ACTION_DELEGATE_KEY, { value: true, configurable: true });
   root.addEventListener('click', handleLightDevicesActionClick);

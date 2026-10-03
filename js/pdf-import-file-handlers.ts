@@ -1,4 +1,3 @@
-// @ts-check
 // pdf-import-file-handlers.js — single-file PDF and image import workflows
 
 import { getErrorName } from './caught-error.js';
@@ -32,27 +31,46 @@ import {
 import { logPrivacyDiagnostic } from './privacy-safe-diagnostics.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 
-const fileHandlerDeps = {
-  parseLabPDFWithAI: /** @type {((text: string, fileName: string, onProgress?: (pct: number) => void) => Promise<any>) | null} */ (null),
-  parseLabPDFWithAIImages: /** @type {((images: any[], fileName: string, onProgress?: (pct: number) => void) => Promise<any>) | null} */ (null),
-  showAINeededDialog: /** @type {((action?: string) => void) | null} */ (null),
+import type { PendingImport } from './pdf-import-review-runtime.js';
+import type { ImportedPDFImage } from './pdf-import-file-utils.js';
+
+export interface FileImportImage extends Omit<ImportedPDFImage, 'mediaType'> { mediaType: string }
+type NormalizedImportMarker = ReturnType<typeof import('./pdf-import-marker-normalization.js').normalizeParsedImportMarkers>['markers'][number];
+type ForwardedImportMetadata = 'rawName' | 'unit' | 'refMin' | 'refMax' | 'group' | 'suggestedName' | 'suggestedCategoryLabel' | 'suggestedGroup';
+export type FileImportMarker = Omit<NormalizedImportMarker, ForwardedImportMetadata> & { [Field in ForwardedImportMetadata]?: unknown };
+export interface FileImportResult extends Pick<PendingImport,
+  'fileName' | 'sampleTime' | 'fasting' | 'diagnostics' | 'imageMode' | 'importHash' | 'benchmarkId' |
+  'privacyMethod' | 'privacyOriginal' | 'privacyObfuscated' | 'privacyReplacements' | 'costInfo' | 'timings' | '_importProfileId'> {
+  date?: unknown;
+  testType?: unknown;
+  markers: FileImportMarker[];
+  provider?: string | null;
+  modelId?: string | null;
+  usage?: Parameters<typeof getUsageTokens>[0];
+  [key: string]: unknown;
+}
+export interface PdfImportFileHandlerDependencies {
+  parseLabPDFWithAI?: (text: string, fileName: string, onProgress?: typeof updateImportProgressPct) => Promise<FileImportResult>;
+  parseLabPDFWithAIImages?: (images: FileImportImage[], fileName: string, onProgress?: typeof updateImportProgressPct) => Promise<FileImportResult>;
+  showAINeededDialog?: (action?: string) => void;
+}
+type ImageModeChoice = 'cancel' | 'text' | 'image';
+type BenchmarkPatch = NonNullable<Parameters<typeof updateImportBenchmark>[1]>;
+
+const fileHandlerDeps: { [Key in keyof PdfImportFileHandlerDependencies]-?: NonNullable<PdfImportFileHandlerDependencies[Key]> | null } = {
+  parseLabPDFWithAI: null,
+  parseLabPDFWithAIImages: null,
+  showAINeededDialog: null,
 };
 
-/**
- * @param {{
- *   parseLabPDFWithAI?: (text: string, fileName: string, onProgress?: (pct: number) => void) => Promise<any>,
- *   parseLabPDFWithAIImages?: (images: any[], fileName: string, onProgress?: (pct: number) => void) => Promise<any>,
- *   showAINeededDialog?: (action?: string) => void,
- * }} [deps]
- */
-export function configurePdfImportFileHandlers(deps = {}) {
+export function configurePdfImportFileHandlers(deps: PdfImportFileHandlerDependencies = {}) {
   if (typeof deps.parseLabPDFWithAI === 'function') fileHandlerDeps.parseLabPDFWithAI = deps.parseLabPDFWithAI;
   if (typeof deps.parseLabPDFWithAIImages === 'function') fileHandlerDeps.parseLabPDFWithAIImages = deps.parseLabPDFWithAIImages;
   if (typeof deps.showAINeededDialog === 'function') fileHandlerDeps.showAINeededDialog = deps.showAINeededDialog;
 }
 
 async function _showImageModeDialog() {
-  return new Promise(resolve => {
+  return new Promise<ImageModeChoice>(resolve => {
     const overlay = document.getElementById('confirm-dialog-overlay');
     const dialog = document.getElementById('confirm-dialog');
     if (!overlay || !dialog) { resolve('cancel'); return; }
@@ -68,14 +86,14 @@ async function _showImageModeDialog() {
         <button class="btn" style="padding:7px 16px;border-radius:6px;border:none;background:var(--accent-gradient);color:white;cursor:pointer;font-weight:500">Use image mode</button>
       </div>`;
     let settled = false;
-    const closeWithChoice = (choice) => {
+    const closeWithChoice = (choice: ImageModeChoice) => {
       if (settled) return;
       settled = true;
       document.removeEventListener('keydown', onKey);
       closeModalOverlay(overlay);
       resolve(choice);
     };
-    const onKey = (e) => { if (e.key === 'Escape') closeWithChoice('cancel'); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeWithChoice('cancel'); };
     document.addEventListener('keydown', onKey, { once: true });
     dialog.querySelectorAll('button').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -89,7 +107,7 @@ async function _showImageModeDialog() {
   });
 }
 
-export async function handlePDFFileWorkflow(file, forceImageMode = false, preExtractedText = /** @type {string | null} */ (null)) {
+export async function handlePDFFileWorkflow(file: File, forceImageMode = false, preExtractedText: string | null = null) {
   const { parseLabPDFWithAI, parseLabPDFWithAIImages, showAINeededDialog } = fileHandlerDeps;
   if (!parseLabPDFWithAI || !parseLabPDFWithAIImages || !showAINeededDialog) {
     throw new Error('PDF import file handler dependencies are not configured');
@@ -99,11 +117,11 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
   const benchmarkId = startImportBenchmark({ fileName: file.name, fileSize: file.size, importMode: forceImageMode ? 'image' : 'text' });
   let benchmarkFinished = false;
   let benchmarkStage = 'extract';
-  const setBenchmarkStage = (stage, patch = {}) => {
+  const setBenchmarkStage = (stage: string, patch: BenchmarkPatch = {}) => {
     benchmarkStage = stage;
     updateImportBenchmark(benchmarkId, { stage, ...patch }, { persist: false });
   };
-  const finishBenchmark = (status, patch = {}) => {
+  const finishBenchmark = (status: Parameters<typeof finishImportBenchmark>[1], patch: BenchmarkPatch = {}) => {
     if (benchmarkFinished) return;
     benchmarkFinished = true;
     finishImportBenchmark(benchmarkId, status, { stage: benchmarkStage, ...patch });
@@ -169,7 +187,7 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
       if (result.markers.length === 0) { finishBenchmark('no-markers', benchmarkResultPatch(result, performance.now() - benchmarkStarted)); hideImportProgress('error'); showNotification("No biomarkers found in PDF images", "error"); return; }
       finishBenchmark('preview', benchmarkResultPatch(result, performance.now() - benchmarkStarted));
       await showImportProgress(4, file.name);
-      showImportPreview(result);
+      (showImportPreview as unknown as (result: FileImportResult) => ReturnType<typeof showImportPreview>)(result);
       hideImportProgress();
       return;
     }
@@ -190,9 +208,9 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
     await showImportProgress(2, file.name);
     setBenchmarkStage('privacy');
     let textForAI = pdfText;
-    let privacyMethod = null;
+    let privacyMethod: string | null = null;
     let privacyReplacements = 0;
-    let privacyOriginal = /** @type {string | null} */ (null);
+    let privacyOriginal: string | null = null;
     let piiTime = 0;
     let piiMs = 0;
     const ollama = await checkOllamaPII();
@@ -288,7 +306,7 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
     if (result.markers.length === 0) { finishBenchmark('no-markers', benchmarkResultPatch(result, performance.now() - benchmarkStarted)); hideImportProgress('error'); showNotification(`No biomarkers found in ${textImportKind}`, "error"); return; }
     finishBenchmark('preview', benchmarkResultPatch(result, performance.now() - benchmarkStarted));
     await showImportProgress(4, file.name);
-    showImportPreview(result);
+    (showImportPreview as unknown as (result: FileImportResult) => ReturnType<typeof showImportPreview>)(result);
     hideImportProgress();
   } catch (err) {
     finishBenchmark('failed', { error: formatImportError(err), totalMs: Math.round(performance.now() - benchmarkStarted) });
@@ -303,7 +321,7 @@ export async function handlePDFFileWorkflow(file, forceImageMode = false, preExt
   }
 }
 
-export async function handleImageFileWorkflow(file) {
+export async function handleImageFileWorkflow(file: File) {
   const { parseLabPDFWithAIImages, showAINeededDialog } = fileHandlerDeps;
   if (!parseLabPDFWithAIImages || !showAINeededDialog) {
     throw new Error('PDF import image handler dependencies are not configured');
@@ -320,7 +338,7 @@ export async function handleImageFileWorkflow(file) {
   const benchmarkId = startImportBenchmark({ fileName: file.name, fileSize: file.size, importMode: 'image', pageCount: 1 });
   try {
     await showImportProgress(3, file.name);
-    const base64 = await new Promise((resolve, reject) => {
+    const base64 = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
       reader.onerror = reject;
@@ -359,7 +377,7 @@ export async function handleImageFileWorkflow(file) {
     }
     finishImportBenchmark(benchmarkId, 'preview', benchmarkResultPatch(result, performance.now() - benchmarkStarted));
     await showImportProgress(4, file.name);
-    showImportPreview(result);
+    (showImportPreview as unknown as (result: FileImportResult) => ReturnType<typeof showImportPreview>)(result);
     hideImportProgress();
   } catch (err) {
     finishImportBenchmark(benchmarkId, 'failed', {

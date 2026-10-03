@@ -1,4 +1,3 @@
-// @ts-check
 // nutrition-analysis.js — provider-agnostic meal-photo extraction.
 
 import { AI_IMPORT_REQUEST_TIMEOUT_MS, callClaudeAPI } from './api.js';
@@ -11,6 +10,55 @@ import { getMealAISelection, getMealAISelectionForRoute } from './nutrition-ai-s
 import { NUTRITION_KEYS, normalizeNutritionTotals } from './nutrition-summary.js';
 import { normalizeNutritionComponent, sumComponentNutrients } from './nutrition-food-data.js';
 import { calculateCost, formatCost, getModelPricing, trackUsage } from './schema.js';
+
+import type { ResizedImage } from './image-utils.js';
+import type { NutritionAIRoute } from './nutrition-ai-settings.js';
+import type { MealComponent, MealImage } from '../types/nutrition-data.js';
+
+export interface MealAnalysisPromptOptions {
+  correctedMealName?: unknown;
+  previousMealName?: unknown;
+  analysisKind?: unknown;
+  consumedAmount?: unknown;
+  consumedUnit?: unknown;
+  userContext?: unknown;
+}
+export interface PreparedMealPhoto {
+  item: File;
+  analysisImage?: { base64: string; mediaType: string } | undefined;
+  qualityPreview?: ResizedImage | undefined;
+  resized?: ResizedImage | undefined;
+  thumbnail: ResizedImage;
+  index?: number;
+}
+export interface NewPreparedMealPhoto extends PreparedMealPhoto {
+  analysisImage: { base64: string; mediaType: string };
+  qualityPreview: ResizedImage;
+  index: number;
+}
+export interface AnalyzeMealPhotoOptions extends MealAnalysisPromptOptions {
+  onProgress?: ((phase: number, label: string) => void) | undefined;
+  selection?: NutritionAIRoute | undefined;
+  preparedPhotos?: PreparedMealPhoto[] | undefined;
+  includeImages?: boolean | undefined;
+  signal?: AbortSignal | undefined;
+}
+type AnalysisComponentInput = Pick<MealComponent, 'name'> & {
+  quantityG: number | null;
+  confidence: number;
+  nutrients: ReturnType<typeof normalizeNutritionTotals>;
+};
+export type MealAnalysisComponent = ReturnType<typeof normalizeNutritionComponent<AnalysisComponentInput>>;
+export type MealPhotoAnalysis = Omit<ReturnType<typeof normalizeMealAnalysis>, 'label'> & {
+  label: (Omit<NonNullable<ReturnType<typeof normalizeMealAnalysis>['label']>, 'consumedUnit'> & { consumedUnit: unknown }) | null;
+};
+interface RawAIUsage {
+  inputTokens?: unknown; prompt_tokens?: unknown; input_tokens?: unknown;
+  outputTokens?: unknown; completion_tokens?: unknown; output_tokens?: unknown;
+}
+interface MealAIResponse { text?: unknown; usage?: unknown; truncated?: unknown }
+interface StoredMealAnalysisImage extends Partial<MealImage> { dataUrl?: string | undefined }
+type ImageBlockPhoto = Partial<Pick<PreparedMealPhoto, 'analysisImage' | 'item' | 'resized'>>;
 
 const PARSE_DIAGNOSTIC = Symbol('nutrition-parse-diagnostic');
 
@@ -33,7 +81,7 @@ const NUTRITION_LABEL_SCHEMA = Object.freeze({
   },
 });
 
-function mealAnalysisSchema(nutrientKeys, componentNutrientKeys) {
+function mealAnalysisSchema(nutrientKeys: readonly string[], componentNutrientKeys: readonly string[]) {
   // Keep nullable numbers constraint-light for cross-provider structured
   // output. Client normalization still rejects negative/non-finite values.
   const nutrientSchema = Object.fromEntries(nutrientKeys.map(key => [key, { type: ['number', 'null'] }]));
@@ -105,12 +153,12 @@ Rules:
 - Use null for absent/unreadable values and never invent micronutrients or use zero for unknown.
 - The component represents the consumed product. Derive grams and drink volume when possible; plainWaterMl is only plain water.`;
 
-export function buildMealAnalysisPrompt({ correctedMealName = '', previousMealName = '', analysisKind = 'meal-photo', consumedAmount = 1, consumedUnit = 'servings', userContext = '' } = {}) {
+export function buildMealAnalysisPrompt({ correctedMealName = '', previousMealName = '', analysisKind = 'meal-photo', consumedAmount = 1, consumedUnit = 'servings', userContext = '' }: MealAnalysisPromptOptions = {}) {
   const correction = cleanString(correctedMealName, 120);
   const isLabel = analysisKind === 'nutrition-label';
   const amount = Number(consumedAmount);
   const safeAmount = Number.isFinite(amount) && amount > 0 ? Math.min(amount, 100000) : 1;
-  const unit = ['servings', 'g', 'ml', 'packages'].includes(consumedUnit) ? consumedUnit : 'servings';
+  const unit = ['servings', 'g', 'ml', 'packages'].includes(consumedUnit as string) ? consumedUnit : 'servings';
   let prompt = isLabel
     ? `${LABEL_PROMPT}\n\nUser-reported consumption: ${safeAmount} ${unit}. Nutrient totals and component quantity must represent this consumed amount, not automatically the whole container.`
     : MEAL_PROMPT;
@@ -125,7 +173,7 @@ Recalculate components, grams, and nutrients from scratch without anchoring to t
   return prompt;
 }
 
-const NUTRIENT_ALIASES = Object.freeze({
+const NUTRIENT_ALIASES: Readonly<Record<string, unknown>> = Object.freeze({
   energyKcal: ['calories', 'calorie', 'kcal', 'energy'],
   proteinG: ['protein'],
   carbohydrateG: ['carbohydrate', 'carbohydrates', 'carbs', 'totalcarbohydrate', 'totalcarbs'],
@@ -166,11 +214,11 @@ const NUTRIENT_ALIASES = Object.freeze({
   alcoholG: ['alcohol'],
 });
 
-function cleanString(value, max = 240) {
+function cleanString(value: unknown, max = 240) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-function boundedConfidence(value) {
+function boundedConfidence(value: unknown) {
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
   const normalized = number >= 10 && number <= 100 ? number / 100 : number;
@@ -182,7 +230,7 @@ function boundedConfidence(value) {
  * low-precision UI label. The raw value is retained for local evaluation, but
  * should never be presented as measured correctness.
  */
-export function modelSelfRating(value) {
+export function modelSelfRating(value: unknown) {
   const missing = { label: 'Not provided', tone: 'unknown', percent: null, explanation: 'No structured self-check returned' };
   if (value === null || value === undefined || value === '') return missing;
   const confidence = Number(value);
@@ -194,14 +242,14 @@ export function modelSelfRating(value) {
   return { label: 'Very low', tone: 'very-low', percent: 25, explanation: 'Identity is mostly inferred from context' };
 }
 
-export function normalizeNutritionAIUsage(value) {
+export function normalizeNutritionAIUsage(value: unknown) {
   if (!value || typeof value !== 'object') return null;
-  const inputTokens = Math.max(0, Math.trunc(Number(value.inputTokens ?? value.prompt_tokens ?? value.input_tokens) || 0));
-  const outputTokens = Math.max(0, Math.trunc(Number(value.outputTokens ?? value.completion_tokens ?? value.output_tokens) || 0));
+  const inputTokens = Math.max(0, Math.trunc(Number((value as RawAIUsage).inputTokens ?? (value as RawAIUsage).prompt_tokens ?? (value as RawAIUsage).input_tokens) || 0));
+  const outputTokens = Math.max(0, Math.trunc(Number((value as RawAIUsage).outputTokens ?? (value as RawAIUsage).completion_tokens ?? (value as RawAIUsage).output_tokens) || 0));
   return inputTokens || outputTokens ? { inputTokens, outputTokens } : null;
 }
 
-export function nutritionUsageSummary(source = {}) {
+export function nutritionUsageSummary(source: {usage?: unknown; provider?: unknown; model?: unknown} | null = {}) {
   const usage = normalizeNutritionAIUsage(source?.usage);
   if (!usage) return null;
   const provider = String(source?.provider || '');
@@ -216,18 +264,18 @@ export function nutritionUsageSummary(source = {}) {
   };
 }
 
-function normalizedKey(value) {
+function normalizedKey(value: unknown) {
   return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-function objectLookup(value) {
-  const lookup = new Map();
+function objectLookup(value: unknown) {
+  const lookup = new Map<string, unknown>();
   if (!value || typeof value !== 'object' || Array.isArray(value)) return lookup;
-  for (const [key, item] of Object.entries(value)) lookup.set(normalizedKey(key), item);
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) lookup.set(normalizedKey(key), item);
   return lookup;
 }
 
-function pick(value, names) {
+function pick(value: unknown, names: readonly string[]) {
   const lookup = objectLookup(value);
   for (const name of names) {
     const found = lookup.get(normalizedKey(name));
@@ -236,18 +284,18 @@ function pick(value, names) {
   return undefined;
 }
 
-function numericValue(value) {
+function numericValue(value: unknown) {
   if (value && typeof value === 'object') value = pick(value, ['value', 'amount', 'estimate', 'total']);
   if (value === null || value === undefined || value === '') return null;
   const number = Number(value);
   if (Number.isFinite(number) && number >= 0) return number;
   const grams = typeof value === 'string' ? value.match(/(\d+(?:[.,]\d+)?)\s*g(?:rams?)?\b/i) : null;
   if (!grams) return null;
-  return Number(grams[1].replace(',', '.'));
+  return Number(grams[1]!.replace(',', '.'));
 }
 
-function unwrapAnalysis(value) {
-  let parsed = Array.isArray(value) && value.length === 1 ? value[0] : value;
+function unwrapAnalysis(value: unknown) {
+  let parsed = Array.isArray(value) && value.length === 1 ? (value as unknown[])[0] : value;
   parsed = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
   for (let depth = 0; depth < 3; depth += 1) {
     if (pick(parsed, ['mealName', 'components', 'nutrients', 'foods', 'items'])) break;
@@ -258,21 +306,21 @@ function unwrapAnalysis(value) {
   return parsed;
 }
 
-function normalizeNutrientInput(parsed, nutrientKeys = NUTRITION_KEYS) {
+function normalizeNutrientInput(parsed: unknown, nutrientKeys: readonly string[] = NUTRITION_KEYS) {
   const source = pick(parsed, ['nutrients', 'nutrition', 'nutritionTotals', 'nutrientTotals', 'totals', 'macros']) || parsed;
-  const lookup = new Map();
+  const lookup = new Map<string, unknown>();
   if (Array.isArray(source)) {
-    for (const row of source) {
+    for (const row of source as unknown[]) {
       const name = pick(row, ['key', 'name', 'nutrient']);
       if (name) lookup.set(normalizedKey(name), pick(row, ['value', 'amount', 'estimate', 'total']));
     }
   } else {
     for (const [key, value] of objectLookup(source)) lookup.set(key, value);
   }
-  const normalized = {};
+  const normalized: Record<string, number> = {};
   for (const key of nutrientKeys) {
-    const aliases = [key, ...(NUTRIENT_ALIASES[key] || [])];
-    let raw;
+    const aliases = [key, ...((NUTRIENT_ALIASES[key] || []) as string[])];
+    let raw: unknown;
     for (const alias of aliases) {
       raw = lookup.get(normalizedKey(alias));
       if (raw !== undefined) break;
@@ -283,15 +331,15 @@ function normalizeNutrientInput(parsed, nutrientKeys = NUTRITION_KEYS) {
   return normalizeNutritionTotals(normalized);
 }
 
-function contentText(value) {
+function contentText(value: unknown) {
   if (typeof value === 'string') return value;
   if (Array.isArray(value)) {
-    return value.map(part => typeof part === 'string' ? part : part?.text || part?.content || '').join('');
+    return (value as unknown[]).map(part => typeof part === 'string' ? part : (part as {text?: unknown} | null | undefined)?.text || (part as {content?: unknown} | null | undefined)?.content || '').join('');
   }
   return '';
 }
 
-function firstBalancedJsonObject(text) {
+function firstBalancedJsonObject(text: string) {
   const start = text.indexOf('{');
   if (start < 0) return '';
   let depth = 0;
@@ -312,7 +360,7 @@ function firstBalancedJsonObject(text) {
   return text.slice(start);
 }
 
-function repairCommonMealJson(text) {
+function repairCommonMealJson(text: string) {
   const original = text;
   let repaired = text
     .replace(/^\uFEFF/, '')
@@ -324,7 +372,7 @@ function repairCommonMealJson(text) {
     .replace(/]\s*(?=\[)/g, '],');
   try {
     return {
-      parsed: JSON.parse(repaired),
+      parsed: JSON.parse(repaired) as unknown,
       diagnostic: repaired === original ? '' : 'missing-separator-repaired',
     };
   } catch {}
@@ -332,20 +380,20 @@ function repairCommonMealJson(text) {
   throw new Error('The response did not contain complete JSON.');
 }
 
-function withParseDiagnostic(parsed, diagnostic) {
+function withParseDiagnostic(parsed: unknown, diagnostic: unknown) {
   if (parsed && typeof parsed === 'object' && diagnostic) {
     Object.defineProperty(parsed, PARSE_DIAGNOSTIC, { value: diagnostic, enumerable: false });
   }
   return parsed;
 }
 
-export function parseMealAnalysisText(value) {
+export function parseMealAnalysisText(value: unknown): unknown {
   if (value && typeof value === 'object' && !Array.isArray(value)) return value;
   const raw = contentText(value).replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim() || raw;
   const candidates = [fenced, firstBalancedJsonObject(fenced)].filter(Boolean);
   for (const candidate of [...new Set(candidates)]) {
-    try { return JSON.parse(candidate); } catch {}
+    try { return JSON.parse(candidate) as unknown; } catch {}
     try {
       const repaired = repairCommonMealJson(candidate);
       return withParseDiagnostic(repaired.parsed, repaired.diagnostic);
@@ -354,11 +402,11 @@ export function parseMealAnalysisText(value) {
   throw new Error('The vision model returned malformed meal data. Try the analysis again or choose another meal-photo model.');
 }
 
-export function normalizeMealAnalysis(value, { nutrientKeys = NUTRITION_KEYS, componentNutrientKeys = NUTRITION_KEYS } = {}) {
-  const responseDiagnostic = value && typeof value === 'object' ? value[PARSE_DIAGNOSTIC] || '' : '';
+export function normalizeMealAnalysis(value: unknown, { nutrientKeys = NUTRITION_KEYS, componentNutrientKeys = NUTRITION_KEYS }: {nutrientKeys?: readonly string[]; componentNutrientKeys?: readonly string[]} = {}) {
+  const responseDiagnostic = value && typeof value === 'object' ? (value as {[PARSE_DIAGNOSTIC]?: unknown})[PARSE_DIAGNOSTIC] || '' : '';
   const parsed = unwrapAnalysis(value);
   const componentSource = pick(parsed, ['components', 'foods', 'foodItems', 'items', 'ingredients']);
-  const components = (Array.isArray(componentSource) ? componentSource : [])
+  const components = (Array.isArray(componentSource) ? componentSource as unknown[] : [])
     .map(component => {
       const quantity = numericValue(pick(component, [
         'quantityG', 'quantityGrams', 'amountG', 'amountGrams', 'weightG', 'weightGrams',
@@ -373,9 +421,9 @@ export function normalizeMealAnalysis(value, { nutrientKeys = NUTRITION_KEYS, co
       };
     })
     .filter(component => component.name)
-    .map(normalizeNutritionComponent)
+    .map(normalizeNutritionComponent<AnalysisComponentInput>)
     .slice(0, 24);
-  const cleanList = list => (Array.isArray(list) ? list : (typeof list === 'string' ? [list] : []))
+  const cleanList = (list: unknown) => (Array.isArray(list) ? list as unknown[] : (typeof list === 'string' ? [list] : []))
     .map(item => cleanString(item))
     .filter(Boolean)
     .slice(0, 12);
@@ -399,10 +447,10 @@ export function normalizeMealAnalysis(value, { nutrientKeys = NUTRITION_KEYS, co
   // those totals describe that component exactly, so retain them as its linked
   // profile. This makes later gram edits deterministic instead of clearing or
   // freezing the extended nutrient fields.
-  if (components.length === 1 && components[0].quantityG !== null && Object.keys(suppliedTotals).length) {
+  if (components.length === 1 && components[0]!.quantityG !== null && Object.keys(suppliedTotals).length) {
     components[0] = normalizeNutritionComponent({
-      ...components[0],
-      nutrients: { ...suppliedTotals, ...(components[0].nutrients || {}) },
+      ...components[0]!,
+      nutrients: { ...suppliedTotals, ...(components[0]!.nutrients || {}) },
     });
   }
   const componentSum = sumComponentNutrients(components);
@@ -426,17 +474,17 @@ export function normalizeMealAnalysis(value, { nutrientKeys = NUTRITION_KEYS, co
   };
 }
 
-export function hasActionableMealAnalysis(analysis) {
+export function hasActionableMealAnalysis(analysis: {components?: {length?: unknown} | null; nutrients?: unknown} | null | undefined) {
   return !!(analysis?.components?.length
-    || Object.values(analysis?.nutrients || {}).some(value => Number(value) > 0));
+    || Object.values((analysis?.nutrients || {}) as object).some(value => Number(value) > 0));
 }
 
 export function getMealAnalysisAvailability() {
   return getMealAISelection();
 }
 
-export async function prepareMealPhotos(file) {
-  const files = (Array.isArray(file) ? file : [file]).filter(item => item instanceof File);
+export async function prepareMealPhotos(file: unknown) {
+  const files = (Array.isArray(file) ? file as unknown[] : [file]).filter(item => item instanceof File);
   if (files.length > 4) throw new Error('Choose no more than four photos for one analysis.');
   if (!files.length || files.some(item => !isValidImageType(item.type))) {
     throw new Error('Choose up to four JPG, PNG, WebP, or GIF photos.');
@@ -445,7 +493,8 @@ export async function prepareMealPhotos(file) {
   const totalBytes = files.reduce((sum, item) => sum + Number(item.size || 0), 0);
   if (files.some(item => item.size > maxFileBytes)) throw new Error('Each photo must be 20 MB or smaller.');
   if (totalBytes > 50 * 1024 * 1024) throw new Error('The selected photos must total 50 MB or less.');
-  const prepared = [];
+  // Two requested native resize variants produce these two previews in order.
+  const prepared: NewPreparedMealPhoto[] = [];
   for (const [index, item] of files.entries()) {
     const [analysisBase64, [qualityPreview, thumbnail]] = await Promise.all([
       imageFileToBase64(item),
@@ -454,7 +503,7 @@ export async function prepareMealPhotos(file) {
         // is neither sent to the model nor persisted in browser storage.
         { maxDim: 1280, quality: 0.86, includeQualityWarnings: true },
         { maxDim: 240, quality: 0.78, includeQualityWarnings: false },
-      ]),
+      ]) as Promise<[ResizedImage, ResizedImage]>,
     ]);
     prepared.push({
       item,
@@ -467,8 +516,8 @@ export async function prepareMealPhotos(file) {
   return prepared;
 }
 
-export function mealImagesFromPreparedPhotos(prepared) {
-  return (Array.isArray(prepared) ? prepared : []).map(({ item, qualityPreview, resized, thumbnail }) => {
+export function mealImagesFromPreparedPhotos(prepared: readonly PreparedMealPhoto[] | null | undefined) {
+  return (Array.isArray(prepared) ? prepared as PreparedMealPhoto[] : []).map(({ item, qualityPreview, resized, thumbnail }) => {
     // `resized` is accepted only for in-memory compatibility with an analysis
     // started by the previous module version. It is never persisted.
     const preview = qualityPreview || resized || thumbnail;
@@ -485,12 +534,12 @@ export function mealImagesFromPreparedPhotos(prepared) {
   });
 }
 
-export async function mealAnalysisFiles(selected, storedImages = []) {
+export async function mealAnalysisFiles(selected: File[], storedImages: StoredMealAnalysisImage[] = []) {
   if (selected.length) return selected;
   return Promise.all(storedImages.slice(0, 4)
     .filter(image => image?.dataUrl || image?.thumbnailUrl)
     .map(async (image, index) => {
-      const response = await fetch(image.dataUrl || image.thumbnailUrl);
+      const response = await fetch((image.dataUrl || image.thumbnailUrl)!);
       const blob = await response.blob();
       const extension = String(blob.type || 'image/jpeg').split('/')[1] || 'jpg';
       return new File([blob], image.fileName || `meal-view-${index + 1}.${extension}`, {
@@ -499,29 +548,24 @@ export async function mealAnalysisFiles(selected, storedImages = []) {
     }));
 }
 
-export function mealAnalysisImageBlocks(prepared, provider) {
-  return (Array.isArray(prepared) ? prepared : []).map(({ analysisImage, item, resized }) => {
+export function mealAnalysisImageBlocks(prepared: readonly ImageBlockPhoto[] | null | undefined, provider: string) {
+  return (Array.isArray(prepared) ? prepared as ImageBlockPhoto[] : []).map(({ analysisImage, item, resized }) => {
     // Prepared objects from this version carry the original file bytes. The
     // legacy fallback keeps a comparison already in progress functional after
     // a hot module update, but new analysis never uses the resized preview.
     const source = analysisImage || { base64: resized?.base64, mediaType: resized?.mediaType || item?.type };
-    return formatImageBlock(source.base64, source.mediaType, provider);
+    return (formatImageBlock as (base64: string | undefined, mediaType: string | undefined, provider: string) => ReturnType<typeof formatImageBlock>)(source.base64, source.mediaType, provider);
   });
 }
 
-/**
- * @param {File | File[]} file
- * @param {{ onProgress?: (phase: number, label: string) => void, correctedMealName?: string, previousMealName?: string, analysisKind?: 'meal-photo'|'nutrition-label', consumedAmount?: number, consumedUnit?: 'servings'|'g'|'ml'|'packages', userContext?: string, selection?: {provider: string, model: string}, preparedPhotos?: Array<any>, includeImages?: boolean, signal?: AbortSignal }} [options]
- */
-export async function analyzeMealPhoto(file, options = {}) {
+export async function analyzeMealPhoto(file: File | File[], options: AnalyzeMealPhotoOptions = {}) {
   const onProgress = options.onProgress || (() => {});
   const correctedMealName = cleanString(options.correctedMealName, 120);
   const previousMealName = cleanString(options.previousMealName, 120);
   const analysisKind = options.analysisKind === 'nutrition-label' ? 'nutrition-label' : 'meal-photo';
   const consumedAmount = Number.isFinite(Number(options.consumedAmount)) && Number(options.consumedAmount) > 0 ? Number(options.consumedAmount) : 1;
-  /** @type {'servings'|'g'|'ml'|'packages'} */
   const consumedUnit = ['servings', 'g', 'ml', 'packages'].includes(String(options.consumedUnit))
-    ? /** @type {'servings'|'g'|'ml'|'packages'} */ (options.consumedUnit)
+    ? options.consumedUnit
     : 'servings';
   const availability = options.selection
     ? getMealAISelectionForRoute(options.selection)
@@ -536,7 +580,7 @@ export async function analyzeMealPhoto(file, options = {}) {
   onProgress(2, `${correctedMealName ? 'Recalculating with' : analysisKind === 'nutrition-label' ? 'Reading label with' : 'Waiting for'} ${availability.modelDisplay}…`);
   const prompt = buildMealAnalysisPrompt({ correctedMealName, previousMealName, analysisKind, consumedAmount, consumedUnit, userContext: options.userContext });
   const jsonSchema = analysisKind === 'nutrition-label' ? MEAL_ANALYSIS_SCHEMA : MEAL_PHOTO_ANALYSIS_SCHEMA;
-  const result = availability.adapter === 'codex'
+  const result = (availability.adapter === 'codex'
     ? await callCodexVisionFeature({
       files: prepared.map(item => item.item),
       prompt,
@@ -559,14 +603,14 @@ export async function analyzeMealPhoto(file, options = {}) {
       signal: options.signal,
       consentKind: 'meal-photo',
       modelOverride: availability.model,
-    }, availability.provider);
+    }, availability.provider)) as MealAIResponse | null | undefined;
   const usage = normalizeNutritionAIUsage(result?.usage);
   if (usage && availability.adapter !== 'codex') trackUsage(availability.provider, availability.model, usage.inputTokens, usage.outputTokens);
   onProgress(3, 'Checking foods, portions, and nutrients…');
   if (result?.truncated) {
     throw new Error('The vision model cut off the meal data before it was complete. Try again or choose a faster meal-photo model.');
   }
-  const analysis = normalizeMealAnalysis(parseMealAnalysisText(result?.text), analysisKind === 'nutrition-label'
+  const analysis: MealPhotoAnalysis = normalizeMealAnalysis(parseMealAnalysisText(result?.text), analysisKind === 'nutrition-label'
     ? undefined
     : { nutrientKeys: PHOTO_ESTIMATED_NUTRIENT_KEYS, componentNutrientKeys: PHOTO_COMPONENT_NUTRIENT_KEYS });
   if (!hasActionableMealAnalysis(analysis)) {
