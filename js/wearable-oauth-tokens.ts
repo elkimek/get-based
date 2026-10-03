@@ -22,6 +22,30 @@ export function normalizeOAuthTokenResponse(body: OAuthTokenBody, defaults: OAut
   };
 }
 
+// Return the actual async entry point so sharing adds no promise adoption
+// turn. Provider modules have no import cycles and initialize this before
+// exposing their debug API; the returned name and arity remain unchanged.
+export function createWearableTokenRefresh(
+  proxyUrl: string, requestKey: string, normalize: (body: OAuthTokenBody) => OAuthTokens,
+  primaryError: 'error' | 'error_description' = 'error',
+) {
+  const secondaryError = primaryError === 'error' ? 'error_description' : 'error';
+  return async function refreshTokens({ clientId, refreshToken }: OAuthRefreshOptions) {
+    const res = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [requestKey]: { refresh_token: refreshToken, client_id: clientId } }),
+    });
+    const body: OAuthTokenBody = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const error: OAuthError = new Error((body?.[primaryError] || body?.[secondaryError] || `Refresh failed (${res.status})`) as string);
+      error.status = res.status;
+      throw error;
+    }
+    return normalize(body);
+  };
+}
+
 interface OAuthRefreshPolicy {
   lockKey: string;
   refreshTokens: (options: OAuthRefreshOptions) => Promise<OAuthTokens>;

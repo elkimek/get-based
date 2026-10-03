@@ -4,9 +4,9 @@ import {
   isPendingOAuthCallback,
   randomOAuthState as randomState,
 } from './wearable-oauth-state.js';
-import { normalizeOAuthTokenResponse, refreshWearableConnection } from './wearable-oauth-tokens.js';
+import { normalizeOAuthTokenResponse, refreshWearableConnection, createWearableTokenRefresh } from './wearable-oauth-tokens.js';
 import type {
-  OAuthAuthorizeOptions, OAuthBeginOptions, OAuthRefreshOptions,
+  OAuthAuthorizeOptions, OAuthBeginOptions,
   OAuthTokenBody, OAuthConnection, OAuthCallbackResult,
   OAuthQuery, OAuthLocation, OAuthError,
 } from './wearable-oauth-types.js';
@@ -133,25 +133,9 @@ export function isGoogleHealthCallback(urlParams: OAuthQuery) {
   return isPendingOAuthCallback(urlParams, STATE_KEY);
 }
 
-export async function refreshTokens({ clientId, refreshToken }: OAuthRefreshOptions) {
-  const res = await fetch(PROXY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      google_health_token_refresh: {
-        refresh_token: refreshToken,
-        client_id: clientId,
-      },
-    }),
-  });
-  const body: OAuthTokenBody = await res.json().catch(() => ({}));
-  if (!res.ok) {
-        const error: OAuthError = new Error((body?.error_description || body?.error || `Refresh failed (${res.status})`) as string);
-    error.status = res.status;
-    throw error;
-  }
-  return normalizeTokenResponse(body);
-}
+export const refreshTokens = createWearableTokenRefresh(
+  PROXY_URL, 'google_health_token_refresh', normalizeTokenResponse, 'error_description',
+);
 
 function normalizeTokenResponse(body: OAuthTokenBody) {
   return normalizeOAuthTokenResponse(body, { expiresIn: 3600, tokenType: 'Bearer', nullableRefresh: true });

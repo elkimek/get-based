@@ -5,11 +5,11 @@ import {
   beginWearableOAuth,
   buildWearableAuthorizeUrl,
 } from './wearable-oauth-state.js';
-import { normalizeOAuthTokenResponse, refreshWearableConnection } from './wearable-oauth-tokens.js';
+import { normalizeOAuthTokenResponse, refreshWearableConnection, createWearableTokenRefresh } from './wearable-oauth-tokens.js';
 import type {
-  OAuthAuthorizeOptions, OAuthBeginOptions, OAuthRefreshOptions,
+  OAuthAuthorizeOptions, OAuthBeginOptions,
   OAuthTokenBody, OAuthConnection, OAuthCallbackResult,
-  OAuthQuery, OAuthLocation, OAuthError,
+  OAuthQuery, OAuthLocation,
 } from './wearable-oauth-types.js';
 
 // wearables-ultrahuman-auth.js — Ultrahuman OAuth2 server-side flow
@@ -88,21 +88,9 @@ export function isUltrahumanCallback(urlParams: OAuthQuery) {
   return isPendingOAuthCallback(urlParams, STATE_KEY);
 }
 
-export async function refreshTokens({ clientId, refreshToken }: OAuthRefreshOptions) {
-  const res = await fetch(PROXY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      ultrahuman_token_refresh: { refresh_token: refreshToken, client_id: clientId },
-    }),
-  });
-  const body: OAuthTokenBody = await res.json().catch(() => ({}));
-  if (!res.ok) {
-        const err: OAuthError = new Error((body?.error_description || body?.error || `Refresh failed (${res.status})`) as string);
-    err.status = res.status; throw err;
-  }
-  return normalizeTokenResponse(body);
-}
+export const refreshTokens = createWearableTokenRefresh(
+  PROXY_URL, 'ultrahuman_token_refresh', normalizeTokenResponse, 'error_description',
+);
 
 function normalizeTokenResponse(body: OAuthTokenBody) {
   return normalizeOAuthTokenResponse(body, { expiresIn: 3600, tokenType: 'Bearer' });

@@ -5,11 +5,11 @@ import {
   beginWearableOAuth,
   buildWearableAuthorizeUrl,
 } from './wearable-oauth-state.js';
-import { normalizeOAuthTokenResponse, refreshWearableConnection } from './wearable-oauth-tokens.js';
+import { normalizeOAuthTokenResponse, refreshWearableConnection, createWearableTokenRefresh } from './wearable-oauth-tokens.js';
 import type {
-  OAuthAuthorizeOptions, OAuthBeginOptions, OAuthRefreshOptions,
+  OAuthAuthorizeOptions, OAuthBeginOptions,
   OAuthTokenBody, OAuthConnection, OAuthCallbackResult,
-  OAuthQuery, OAuthLocation, OAuthError,
+  OAuthQuery, OAuthLocation,
 } from './wearable-oauth-types.js';
 
 // wearables-oura-auth.js — Oura OAuth2 server-side flow (browser side)
@@ -128,22 +128,9 @@ export function isOuraCallback(urlParams: OAuthQuery) {
 // Refresh
 // ─────────────────────────────────────────────────────────
 
-export async function refreshTokens({ clientId, refreshToken }: OAuthRefreshOptions) {
-  const res = await fetch(PROXY_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      oura_token_refresh: { refresh_token: refreshToken, client_id: clientId },
-    }),
-  });
-  const body: OAuthTokenBody = await res.json().catch(() => ({}));
-  if (!res.ok) {
-        const err: OAuthError = new Error((body?.error || body?.error_description || `Refresh failed (${res.status})`) as string);
-    err.status = res.status;
-    throw err;
-  }
-  return normalizeTokenResponse(body);
-}
+export const refreshTokens = createWearableTokenRefresh(
+  PROXY_URL, 'oura_token_refresh', normalizeTokenResponse,
+);
 
 function normalizeTokenResponse(body: OAuthTokenBody) {
   return normalizeOAuthTokenResponse(body, { expiresIn: 86400, tokenType: 'bearer' });
