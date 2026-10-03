@@ -9,7 +9,9 @@
   "include": [
     "js/theme-bootstrap.ts",
     "js/extra-theme-bootstrap.ts",
-    "js/legal-consent-bootstrap.ts"
+    "js/legal-consent-bootstrap.ts",
+    "js/analytics-bootstrap.ts",
+    "js/app-extension-bootstrap.ts"
   ],
   "exclude": []
 }

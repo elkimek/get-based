@@ -141,7 +141,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>analytics</code> family — 1 module</summary>
 
-- [`js/analytics-bootstrap.js`](js/analytics-bootstrap.js) → no in-scope imports
+- [`js/analytics-bootstrap.ts`](js/analytics-bootstrap.ts) → no in-scope imports
 
 </details>
 
@@ -169,7 +169,7 @@ Native browser modules shipped with the static application.
 - [`js/app-ai-interaction-modules.js`](js/app-ai-interaction-modules.js) → [`js/app-chat-hooks.js`](js/app-chat-hooks.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-summaries.ts`](js/chat-summaries.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/chat.js`](js/chat.js), [`js/voice-loader.ts`](js/voice-loader.ts)
 - [`js/app-chat-hooks.js`](js/app-chat-hooks.js) → [`js/api.ts`](js/api.ts), [`js/chat-actions.js`](js/chat-actions.js), [`js/chat-discussion.js`](js/chat-discussion.js), [`js/chat-empty-state.js`](js/chat-empty-state.js), [`js/chat-images.js`](js/chat-images.js), [`js/chat-message-edit.js`](js/chat-message-edit.js), [`js/chat-nudge.ts`](js/chat-nudge.ts), [`js/chat-onboarding-host-bindings.ts`](js/chat-onboarding-host-bindings.ts), [`js/chat-panel.js`](js/chat-panel.js), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-render.js`](js/chat-render.js), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/chat-send.js`](js/chat-send.js), [`js/chat-summaries.ts`](js/chat-summaries.ts), [`js/chat-thread-search.ts`](js/chat-thread-search.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/voice-loader.ts`](js/voice-loader.ts)
 - [`js/app-event-listeners.ts`](js/app-event-listeners.ts) → [`js/data.ts`](js/data.ts), [`js/nav.ts`](js/nav.ts), [`js/state.ts`](js/state.ts), [`js/tour.ts`](js/tour.ts)
-- [`js/app-extension-bootstrap.js`](js/app-extension-bootstrap.js) → no in-scope imports
+- [`js/app-extension-bootstrap.ts`](js/app-extension-bootstrap.ts) → no in-scope imports
 - [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts) → no in-scope imports
 - [`js/app-feature-modules.ts`](js/app-feature-modules.ts) → [`js/app-foundation-modules.ts`](js/app-foundation-modules.ts), [`js/app-ui-shell-modules.ts`](js/app-ui-shell-modules.ts), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/light-sun-loader.js`](js/light-sun-loader.js)
 - [`js/app-foundation-modules.ts`](js/app-foundation-modules.ts) → [`js/constants.ts`](js/constants.ts), [`js/legal-consent.ts`](js/legal-consent.ts), [`js/schema.ts`](js/schema.ts), [`js/utils.ts`](js/utils.ts)
@@ -837,7 +837,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>main</code> family — 1 module</summary>
 
-- [`js/main.js`](js/main.js) → [`js/app-extension-bootstrap.js`](js/app-extension-bootstrap.js), [`js/app-shell-hooks.js`](js/app-shell-hooks.js), [`js/constants.ts`](js/constants.ts), [`js/feedback.ts`](js/feedback.ts), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/legal-consent.ts`](js/legal-consent.ts), [`js/light-env-shell-hooks.js`](js/light-env-shell-hooks.js), [`js/light-sun-loader.js`](js/light-sun-loader.js), [`js/schema.ts`](js/schema.ts), [`js/shell-actions.js`](js/shell-actions.js), [`js/startup-orchestrator.js`](js/startup-orchestrator.js), [`js/touch-tooltip.ts`](js/touch-tooltip.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts), [`js/views.js`](js/views.js)
+- [`js/main.js`](js/main.js) → [`js/app-extension-bootstrap.ts`](js/app-extension-bootstrap.ts), [`js/app-shell-hooks.js`](js/app-shell-hooks.js), [`js/constants.ts`](js/constants.ts), [`js/feedback.ts`](js/feedback.ts), [`js/health-data-loader.js`](js/health-data-loader.js), [`js/legal-consent.ts`](js/legal-consent.ts), [`js/light-env-shell-hooks.js`](js/light-env-shell-hooks.js), [`js/light-sun-loader.js`](js/light-sun-loader.js), [`js/schema.ts`](js/schema.ts), [`js/shell-actions.js`](js/shell-actions.js), [`js/startup-orchestrator.js`](js/startup-orchestrator.js), [`js/touch-tooltip.ts`](js/touch-tooltip.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts), [`js/views.js`](js/views.js)
 
 </details>
 

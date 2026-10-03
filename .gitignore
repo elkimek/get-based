@@ -987,3 +987,7 @@ deploy/profile-share/data/
 /js/export-runtime.js
 
 /js/sun-session-log-modal.js
+
+/js/analytics-bootstrap.js
+
+/js/app-extension-bootstrap.js

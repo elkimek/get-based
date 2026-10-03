@@ -47,6 +47,8 @@
     "js/lens-local-worker.ts",
     "js/voice-local-stt-worker.ts",
     "js/voice-local-tts-worker.ts",
-    "js/legal-consent-bootstrap.ts"
+    "js/legal-consent-bootstrap.ts",
+    "js/analytics-bootstrap.ts",
+    "js/app-extension-bootstrap.ts"
   ]
 }
