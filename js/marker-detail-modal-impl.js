@@ -128,7 +128,7 @@ configureMarkerDetailCustomMarkers({
   closeModal,
   navigate: (...args) => markerDetailDeps.navigate(...args),
   openManualEntryForm,
-  showEmojiPicker: (...args) => markerDetailDeps.showEmojiPicker(...args),
+  showEmojiPicker: /** @param {Parameters<typeof markerDetailDeps.showEmojiPicker>} args */ (...args) => markerDetailDeps.showEmojiPicker(...args),
 });
 configureMarkerDetailPlacement({ showDetailModal });
 if (typeof document !== 'undefined') {

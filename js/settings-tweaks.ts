@@ -1,4 +1,3 @@
-// @ts-check
 // settings-tweaks.js - Theme, accent, visual-mode, and dashboard quick controls.
 
 import { refreshChartThemeColors } from './charts.js';
@@ -33,18 +32,13 @@ import {
   getSettingsProxyToggle,
 } from './settings-event-target.js';
 
-/**
- * @typedef {{
- *   clearDashboardWidgets: () => void,
- *   openFeedbackModal: () => void,
- *   resetDashboardWidgets: () => void,
- *   toggleDashboardOrganizeMode: (force?: boolean) => void,
- *   updateSettingsUI: () => void,
- * }} SettingsTweaksRuntime
- */
+interface SettingsTweaksCalls {
+  clearDashboardWidgets(): unknown; openFeedbackModal(): unknown;
+  resetDashboardWidgets(): unknown; toggleDashboardOrganizeMode(force?: boolean): unknown;
+  updateSettingsUI(): unknown;
+}
 
-/** @type {SettingsTweaksRuntime} */
-const settingsTweaksRuntime = {
+const settingsTweaksRuntime: SettingsTweaksCalls = {
   clearDashboardWidgets: () => {},
   openFeedbackModal: () => {},
   resetDashboardWidgets: () => {},
@@ -52,12 +46,11 @@ const settingsTweaksRuntime = {
   updateSettingsUI: () => {},
 };
 
-/** @param {Partial<SettingsTweaksRuntime>} [runtime] */
-export function configureSettingsTweaksRuntime(runtime = {}) {
+export function configureSettingsTweaksRuntime(runtime: unknown = {}) {
   Object.assign(settingsTweaksRuntime, runtime);
 }
 
-function renderThemeButton(theme, currentTheme) {
+function renderThemeButton(theme: typeof THEMES[number], currentTheme: unknown) {
   const id = escapeAttr(theme.id);
   const label = escapeHTML(theme.label);
   const active = currentTheme === theme.id ? ' active' : '';
@@ -79,10 +72,8 @@ function refreshVisualSurfaces() {
   scheduleChartThemeRefresh();
 }
 
-/** @type {unknown} */
-let chartThemeRefreshFrame = 0;
-/** @type {ReturnType<typeof setTimeout> | 0} */
-let chartThemeRefreshTimer = 0;
+let chartThemeRefreshFrame: unknown = 0;
+let chartThemeRefreshTimer: ReturnType<typeof setTimeout> | 0 = 0;
 function scheduleChartThemeRefresh() {
   if (chartThemeRefreshFrame) cancelSettingsFrame(chartThemeRefreshFrame);
   if (chartThemeRefreshTimer) clearTimeout(chartThemeRefreshTimer);
@@ -105,25 +96,23 @@ function scheduleChartThemeRefresh() {
   }
 }
 
-/** @type {unknown} */
-let themeChangeFrame = 0;
-/** @type {ReturnType<typeof setTimeout> | 0} */
-let themeChangeTimer = 0;
-let pendingThemeId = '';
-function markThemeControls(themeId) {
-  const buttons = /** @type {HTMLElement[]} */ (Array.from(document.querySelectorAll('.settings-theme-btn,.tweaks-theme-btn')));
+let themeChangeFrame: unknown = 0;
+let themeChangeTimer: ReturnType<typeof setTimeout> | 0 = 0;
+let pendingThemeId: unknown = '';
+function markThemeControls(themeId: unknown) {
+  const buttons = (Array.from(document.querySelectorAll('.settings-theme-btn,.tweaks-theme-btn')) as HTMLElement[]);
   buttons.forEach(btn => {
     btn.classList.toggle('active', btn.dataset.themeId === themeId);
   });
 }
 
-function applyThemeChange(themeId) {
-  setTheme(themeId);
+function applyThemeChange(themeId: unknown) {
+  (setTheme as (theme: unknown) => ReturnType<typeof setTheme>)(themeId);
   applyAccentOverride();
   refreshVisualSurfaces();
 }
 
-export function scheduleSettingsThemeChange(themeId) {
+export function scheduleSettingsThemeChange(themeId: unknown) {
   pendingThemeId = themeId;
   markThemeControls(themeId);
   if (themeChangeFrame) cancelSettingsFrame(themeChangeFrame);
@@ -154,7 +143,7 @@ export function scheduleSettingsThemeChange(themeId) {
   }
 }
 
-function applyTweaksToggle(actionEl) {
+function applyTweaksToggle(actionEl: HTMLElement) {
   if (actionEl instanceof HTMLInputElement && actionEl.disabled) return false;
 
   const action = actionEl.dataset.tweaksAction;
@@ -169,12 +158,12 @@ function applyTweaksToggle(actionEl) {
   return false;
 }
 
-function isTweaksToggleAction(actionEl) {
+function isTweaksToggleAction(actionEl: HTMLElement) {
   return actionEl.dataset.tweaksAction === 'toggle-sunset'
     || actionEl.dataset.tweaksAction === 'toggle-crt';
 }
 
-function handleTweaksClick(event) {
+function handleTweaksClick(event: Event) {
   const overlay = document.getElementById('tweaks-panel-overlay');
   if (!overlay) return;
 
@@ -225,21 +214,21 @@ function handleTweaksClick(event) {
   }
 }
 
-function handleTweaksChange(event) {
+function handleTweaksChange(event: Event) {
   const overlay = document.getElementById('tweaks-panel-overlay');
   if (!overlay) return;
   const actionEl = closestSettingsTarget(event, '[data-tweaks-action]', overlay);
   if (actionEl && isTweaksToggleAction(actionEl)) applyTweaksToggle(actionEl);
 }
 
-function installTweaksDelegates(overlay) {
+function installTweaksDelegates(overlay: HTMLElement | null) {
   if (!overlay || overlay.dataset.delegatedActions === '1') return;
   overlay.dataset.delegatedActions = '1';
   overlay.addEventListener('click', handleTweaksClick);
   overlay.addEventListener('change', handleTweaksChange);
 }
 
-export function selectTweaksTheme(themeId) {
+export function selectTweaksTheme(themeId: unknown) {
   if (themeChangeFrame) cancelSettingsFrame(themeChangeFrame);
   if (themeChangeTimer) clearTimeout(themeChangeTimer);
   themeChangeFrame = 0;
@@ -249,18 +238,18 @@ export function selectTweaksTheme(themeId) {
   applyThemeChange(themeId);
 }
 
-export function selectTweaksAccent(accentId) {
-  setAccentOverride(accentId);
+export function selectTweaksAccent(accentId: unknown) {
+  (setAccentOverride as (accent: unknown) => ReturnType<typeof setAccentOverride>)(accentId);
   refreshVisualSurfaces();
 }
 
-export function toggleTweaksSunsetMode(enabled) {
+export function toggleTweaksSunsetMode(enabled: unknown) {
   setSunsetMode(!!enabled);
   applyAccentOverride();
   refreshVisualSurfaces();
 }
 
-export function toggleTweaksCrtEffects(enabled) {
+export function toggleTweaksCrtEffects(enabled: unknown) {
   setCrtEffectsEnabled(!!enabled);
   refreshVisualSurfaces();
 }
@@ -276,22 +265,22 @@ export function updateTweaksUI() {
   panel.classList.toggle('sunset-active', sunset);
   panel.classList.toggle('crt-active', crtEffects);
   panel.classList.toggle('crt-supported', crtSupported);
-  const sunsetToggle = /** @type {HTMLInputElement | null} */ (panel.querySelector('#tweaks-sunset-mode'));
+  const sunsetToggle = (panel.querySelector('#tweaks-sunset-mode') as HTMLInputElement | null);
   if (sunsetToggle) sunsetToggle.checked = sunset;
-  const crtRow = /** @type {HTMLElement | null} */ (panel.querySelector('#tweaks-crt-effects-row'));
+  const crtRow = (panel.querySelector('#tweaks-crt-effects-row') as HTMLElement | null);
   if (crtRow) crtRow.hidden = !crtSupported;
-  const crtToggle = /** @type {HTMLInputElement | null} */ (panel.querySelector('#tweaks-crt-effects'));
+  const crtToggle = (panel.querySelector('#tweaks-crt-effects') as HTMLInputElement | null);
   if (crtToggle) {
     crtToggle.checked = crtEffects;
     crtToggle.disabled = !crtSupported;
   }
-  const themeButtons = /** @type {HTMLElement[]} */ (Array.from(panel.querySelectorAll('.tweaks-theme-btn')));
+  const themeButtons = (Array.from(panel.querySelectorAll('.tweaks-theme-btn')) as HTMLElement[]);
   themeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.themeId === theme));
-  const accentButtons = /** @type {HTMLElement[]} */ (Array.from(panel.querySelectorAll('.tweaks-accent-btn')));
+  const accentButtons = (Array.from(panel.querySelectorAll('.tweaks-accent-btn')) as HTMLElement[]);
   accentButtons.forEach(btn => {
     btn.classList.toggle('active', btn.dataset.accentId === accentId);
     if (btn.dataset.accentId === '') {
-      const swatch = /** @type {HTMLElement | null} */ (btn.querySelector('.tweaks-accent-swatch'));
+      const swatch = (btn.querySelector('.tweaks-accent-swatch') as HTMLElement | null);
       const spec = accentSwatchSpec(null, theme);
       swatch?.style.setProperty('--tweak-accent', spec.color);
       swatch?.style.setProperty('--tweak-gradient', spec.gradient);

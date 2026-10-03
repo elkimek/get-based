@@ -1,4 +1,3 @@
-// @ts-check
 // marker-detail-custom-markers.js — Custom biomarker create/delete flow owner
 
 import { state } from './state.js';
@@ -15,25 +14,22 @@ import {
   setDetailModalShell,
 } from './marker-detail-runtime.js';
 
-/**
- * @typedef {{
- *   closeModal: () => void,
- *   navigate: (category?: string, data?: any) => any,
- *   openManualEntryForm: (id: string) => any,
- *   showEmojiPicker: (element: Element, callback: (emoji?: string | null) => void) => any,
- * }} MarkerDetailCustomMarkerRuntime
- */
-
-/** @type {MarkerDetailCustomMarkerRuntime} */
-const customMarkerRuntime = {
+interface CustomMarkerCalls {
+  closeModal(): unknown;
+  navigate(category?: string, data?: unknown): unknown;
+  openManualEntryForm(id: string): unknown;
+  showEmojiPicker(element: Element, callback: (emoji?: unknown) => void): unknown;
+}
+export type CustomMarkerRuntimeSnapshot = { [Key in keyof CustomMarkerCalls]: unknown };
+interface DeletedMarkerReader { markerId?: unknown; name?: unknown; categoryLabel?: unknown }
+const customMarkerRuntime: CustomMarkerCalls = {
   closeModal: () => {},
   navigate: () => {},
   openManualEntryForm: () => {},
   showEmojiPicker: () => {},
 };
 
-/** @param {Partial<MarkerDetailCustomMarkerRuntime>} [runtime] */
-export function configureMarkerDetailCustomMarkers(runtime = {}) {
+export function configureMarkerDetailCustomMarkers(runtime: unknown = {}): CustomMarkerRuntimeSnapshot {
   const previous = { ...customMarkerRuntime };
   Object.assign(customMarkerRuntime, runtime);
   return previous;
@@ -106,23 +102,22 @@ function renderCreateMarkerModal() {
   openModalOverlay(overlay, { initialFocus: '#cm-name', focusDelay: 50 });
 }
 
-/** @param {HTMLElement} element */
-export function pickNewCatIcon(element) {
+export function pickNewCatIcon(element: HTMLElement) {
   customMarkerRuntime.showEmojiPicker(element, emoji => {
     if (emoji) {
-      element.textContent = emoji;
+      element.textContent = emoji as string;
       element.dataset.custom = '1';
     }
   });
 }
 
 export function saveCustomMarker() {
-  const categorySelect = /** @type {HTMLSelectElement | null} */ (document.getElementById('cm-category'));
-  const newCategoryInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-new-cat'));
-  const nameInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-name'));
-  const unitInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-unit'));
-  const refMinInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-ref-min'));
-  const refMaxInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-ref-max'));
+  const categorySelect = (document.getElementById('cm-category') as HTMLSelectElement | null);
+  const newCategoryInput = (document.getElementById('cm-new-cat') as HTMLInputElement | null);
+  const nameInput = (document.getElementById('cm-name') as HTMLInputElement | null);
+  const unitInput = (document.getElementById('cm-unit') as HTMLInputElement | null);
+  const refMinInput = (document.getElementById('cm-ref-min') as HTMLInputElement | null);
+  const refMaxInput = (document.getElementById('cm-ref-max') as HTMLInputElement | null);
   if (!categorySelect) return;
   if (!nameInput?.value.trim()) {
     showNotification('Please enter a marker name', 'error');
@@ -130,17 +125,17 @@ export function saveCustomMarker() {
   }
   const name = nameInput.value.trim();
 
-  let categoryKey;
-  let categoryLabel;
-  let newCategoryIcon = null;
+  let categoryKey: string;
+  let categoryLabel: string;
+  let newCategoryIcon: string | null = null;
   if (categorySelect.value === '__new__') {
     categoryLabel = (newCategoryInput?.value || '').trim();
     if (!categoryLabel) {
       showNotification('Please enter a category name', 'error');
       return;
     }
-    const iconElement = /** @type {HTMLElement | null} */ (document.getElementById('cm-new-cat-icon'));
-    newCategoryIcon = iconElement?.dataset.custom === '1' ? iconElement.textContent.trim() : null;
+    const iconElement = (document.getElementById('cm-new-cat-icon') as HTMLElement | null);
+    newCategoryIcon = iconElement?.dataset.custom === '1' ? iconElement.textContent!.trim() : null;
     categoryKey = categoryLabel.replace(/[^a-zA-Z0-9\s]/g, '').split(/\s+/)
       .map((word, index) => index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join('');
@@ -149,7 +144,7 @@ export function saveCustomMarker() {
     }
   } else {
     categoryKey = categorySelect.value;
-    categoryLabel = categorySelect.options[categorySelect.selectedIndex].text;
+    categoryLabel = categorySelect.options[categorySelect.selectedIndex]!.text;
   }
 
   const markerKey = name
@@ -173,8 +168,8 @@ export function saveCustomMarker() {
   const refMax = refMaxInput?.value ? parseFloat(refMaxInput.value) : null;
   const validRefMin = refMin != null && !Number.isNaN(refMin) ? refMin : null;
   const validRefMax = refMax != null && !Number.isNaN(refMax) ? refMax : null;
-  const optMinInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-opt-min'));
-  const optMaxInput = /** @type {HTMLInputElement | null} */ (document.getElementById('cm-opt-max'));
+  const optMinInput = (document.getElementById('cm-opt-min') as HTMLInputElement | null);
+  const optMaxInput = (document.getElementById('cm-opt-max') as HTMLInputElement | null);
   const optMin = optMinInput?.value ? parseFloat(optMinInput.value) : null;
   const optMax = optMaxInput?.value ? parseFloat(optMaxInput.value) : null;
 
@@ -212,8 +207,7 @@ export function saveCustomMarker() {
   setTimeout(() => customMarkerRuntime.openManualEntryForm(id), 100);
 }
 
-/** @param {string} id */
-export async function deleteCustomMarker(id) {
+export async function deleteCustomMarker(id: string) {
   const separator = id.indexOf('_');
   const activeMarker = separator > 0
     ? getActiveData().categories[id.slice(0, separator)]?.markers[id.slice(separator + 1)]
@@ -221,7 +215,7 @@ export async function deleteCustomMarker(id) {
   const dotKey = getMarkerStorageDotKey(activeMarker || state.markerRegistry[id], id);
   if (!dotKey) return;
   const categoryKey = dotKey.split('.')[0];
-  const definition = state.importedData?.customMarkers?.[dotKey];
+  const definition = state.importedData?.customMarkers?.[dotKey] as DeletedMarkerReader | null | undefined;
   if (!definition) return;
   const siblings = Object.keys(state.importedData.customMarkers).filter(key => key.startsWith(categoryKey + '.'));
   const isLastInCategory = siblings.length <= 1;
@@ -233,13 +227,13 @@ export async function deleteCustomMarker(id) {
   const keysToDelete = isLastInCategory ? siblings : [dotKey];
   const now = Date.now();
   for (const key of keysToDelete) {
-    const markerId = state.importedData.customMarkers[key]?.markerId;
+    const markerId = (state.importedData.customMarkers[key] as DeletedMarkerReader | null | undefined)?.markerId;
     deleteLabEntryMarkerValues(state.importedData, key, { now, deleteEmptyEntries: false });
     if (state.importedData.refOverrides) delete state.importedData.refOverrides[key];
     if (state.importedData.markerNotes) delete state.importedData.markerNotes[key];
     if (state.importedData.markerLabels) delete state.importedData.markerLabels[key];
     if (markerId && state.importedData.markerPlacements) {
-      delete state.importedData.markerPlacements[markerId];
+      delete state.importedData.markerPlacements[markerId as string];
     }
     delete state.importedData.customMarkers[key];
   }

@@ -1,5 +1,7 @@
-// @ts-check
 // settings-privacy.js - Settings privacy and Sun data-source controls.
+
+// Private operations preserve unchecked config fields and original coercion.
+interface MeteoConfigOperations { mode?: unknown; selfhostUrl?: unknown; selfhostBearer?: unknown; privacyRounding?: number | null }
 
 import { getOllamaPIIApiKey, getOllamaPIIUrl, getOllamaPIIModel } from './api.js';
 import { isOllamaPIIEnabled, setOllamaPIIEnabled, checkOllamaPII } from './pii.js';
@@ -162,8 +164,8 @@ export function renderPrivacyAnalyticsSection() {
   </div>`;
 }
 
-function _renderMeteoModeOption(mode, label, desc) {
-  const cur = (/** @type {{ mode?: unknown }} */ (getSettingsMeteoConfig())).mode || 'auto';
+function _renderMeteoModeOption(mode: unknown, label: unknown, desc: unknown) {
+  const cur = (getSettingsMeteoConfig() as { mode?: unknown }).mode || 'auto';
   const checked = cur === mode;
   return `<label style="display:flex;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;${checked ? 'background:var(--bg-card);border-color:var(--accent);' : ''}">
     <input type="radio" name="meteo-mode" value="${mode}" ${checked ? 'checked' : ''} data-sun-source-action="set-meteo-mode" style="margin-top:3px">
@@ -180,7 +182,7 @@ function _renderMeteoModeOption(mode, label, desc) {
 // privacy posture. The `Round location to ~11 km grid` toggle inside is
 // privacy-flavored but stays here for cohesion.
 export function renderSunDataSourceSettings() {
-  const cfg = /** @type {{ mode?: unknown, selfhostUrl?: unknown, selfhostBearer?: unknown, privacyRounding?: number | null }} */ (getSettingsMeteoConfig());
+  const cfg = (getSettingsMeteoConfig() as MeteoConfigOperations);
   const officialHost = isOfficialGetbasedHost();
   return `<div class="local-ai-settings" id="sun-data-source-section">
     <h4 style="margin:0 0 6px 0;font-size:13px;color:var(--text-primary)">☀ Sun data source</h4>
@@ -210,8 +212,8 @@ export function renderSunDataSourceSettings() {
   </div>`;
 }
 
-async function setMeteoMode(mode) {
-  const cfg = /** @type {{ mode?: unknown, selfhostUrl?: unknown, selfhostBearer?: unknown, privacyRounding?: number | null }} */ (getSettingsMeteoConfig());
+async function setMeteoMode(mode: unknown) {
+  const cfg = (getSettingsMeteoConfig() as MeteoConfigOperations);
   cfg.mode = mode;
   if (!await saveSettingsMeteoConfig(cfg)) {
     notifyMeteoSaveUnavailable();
@@ -226,9 +228,9 @@ function notifyMeteoSaveUnavailable() {
 }
 
 async function saveMeteoSelfhost() {
-  const cfg = /** @type {{ mode?: unknown, selfhostUrl?: unknown, selfhostBearer?: unknown, privacyRounding?: number | null }} */ (getSettingsMeteoConfig());
-  const url = /** @type {HTMLInputElement | null} */ (document.getElementById('meteo-selfhost-url'))?.value?.trim() || '';
-  const bearer = /** @type {HTMLInputElement | null} */ (document.getElementById('meteo-selfhost-bearer'))?.value?.trim() || '';
+  const cfg = (getSettingsMeteoConfig() as MeteoConfigOperations);
+  const url = (document.getElementById('meteo-selfhost-url') as HTMLInputElement | null)?.value?.trim() || '';
+  const bearer = (document.getElementById('meteo-selfhost-bearer') as HTMLInputElement | null)?.value?.trim() || '';
   cfg.selfhostUrl = url;
   cfg.selfhostBearer = bearer;
   if (!await saveSettingsMeteoConfig(cfg)) {
@@ -236,8 +238,8 @@ async function saveMeteoSelfhost() {
   }
 }
 
-async function toggleMeteoRounding(enabled) {
-  const cfg = /** @type {{ mode?: unknown, selfhostUrl?: unknown, selfhostBearer?: unknown, privacyRounding?: number | null }} */ (getSettingsMeteoConfig());
+async function toggleMeteoRounding(enabled: unknown) {
+  const cfg = (getSettingsMeteoConfig() as MeteoConfigOperations);
   cfg.privacyRounding = enabled ? 0.1 : 0;
   if (!await saveSettingsMeteoConfig(cfg)) {
     notifyMeteoSaveUnavailable();
@@ -246,14 +248,14 @@ async function toggleMeteoRounding(enabled) {
 
 let sunDataSourceDelegatesInstalled = false;
 
-function closestSunDataSourceControl(event) {
+function closestSunDataSourceControl(event: Event) {
   const target = event.target;
   if (!(target instanceof Element)) return null;
   const el = target.closest('[data-sun-source-action]');
   return el instanceof HTMLElement && el.closest('#sun-data-source-section') ? el : null;
 }
 
-async function handleSunDataSourceChange(event) {
+async function handleSunDataSourceChange(event: Event) {
   const el = closestSunDataSourceControl(event);
   if (!el) return;
   const action = el.dataset.sunSourceAction;
@@ -282,7 +284,7 @@ export function togglePrivacyConfigure() {
   if (arrow) arrow.innerHTML = open ? '&#9654;' : '&#9660;';
 }
 
-export function toggleOllamaPII(enabled) {
+export function toggleOllamaPII(enabled: unknown) {
   setOllamaPIIEnabled(enabled);
   updatePrivacyStatusCard();
   if (enabled) {
@@ -294,7 +296,7 @@ export function toggleOllamaPII(enabled) {
   }
 }
 
-export async function updatePrivacyStatusCard(enhanced) {
+export async function updatePrivacyStatusCard(enhanced?: unknown) {
   const icon = document.getElementById('privacy-status-icon');
   const title = document.getElementById('privacy-status-title');
   const detail = document.getElementById('privacy-status-detail');

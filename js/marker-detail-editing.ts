@@ -1,4 +1,3 @@
-// @ts-check
 // marker-detail-editing.js — Marker value, range, and note mutation workflows
 
 import { state } from './state.js';
@@ -29,13 +28,17 @@ import {
   convertUnitInputToCanonical,
 } from './unit-profiles.js';
 
-const markerDetailDeps = /** @type {{
-  navigate: (category?: string, data?: any) => any,
-  buildSidebar: () => any,
-  showDetailModal: (id?: string, opts?: any) => any,
-  openManualEntryForm: (id?: string, prefillDate?: string) => any,
-  closeModal: () => any,
-}} */ ({
+import type { PlacementViewMarker } from './marker-placement.js';
+interface MarkerEditingCalls {
+  navigate: typeof navigateMarkerDetailRuntime;
+  buildSidebar: typeof buildMarkerDetailSidebarRuntime;
+  showDetailModal(id?: string, opts?: unknown): unknown;
+  openManualEntryForm(id?: string, prefillDate?: string): unknown;
+  closeModal(): unknown;
+}
+interface RegistryRangeReader extends PlacementViewMarker { optimalMin?: unknown; optimalMax?: unknown; refMin?: unknown; refMax?: unknown }
+interface RawInputWriter extends Omit<HTMLInputElement, 'value'> { value: unknown }
+const markerDetailDeps: MarkerEditingCalls = ({
   navigate: navigateMarkerDetailRuntime,
   buildSidebar: buildMarkerDetailSidebarRuntime,
   showDetailModal: () => {},
@@ -43,18 +46,15 @@ const markerDetailDeps = /** @type {{
   closeModal: () => {},
 });
 
-/**
- * @param {Partial<typeof markerDetailDeps>} [deps]
- */
-export function configureMarkerDetailEditing(deps = {}) {
+export function configureMarkerDetailEditing(deps: unknown = {}) {
   Object.assign(markerDetailDeps, deps);
 }
 
-function showDetailModal(id, opts) {
+function showDetailModal(id?: string, opts?: unknown) {
   return markerDetailDeps.showDetailModal(id, opts);
 }
 
-function openManualEntryForm(id, prefillDate) {
+function openManualEntryForm(id?: string, prefillDate?: string) {
   return markerDetailDeps.openManualEntryForm(id, prefillDate);
 }
 
@@ -66,19 +66,18 @@ function closeModal() {
   return markerDetailDeps.closeModal();
 }
 
-/** @param {string} id @param {Record<string, any> | null | undefined} [marker] */
-function storageDotKeyForId(id, marker = state.markerRegistry[id]) {
+function storageDotKeyForId(id: string, marker: PlacementViewMarker | null | undefined = state.markerRegistry[id] as PlacementViewMarker | null | undefined) {
   return getMarkerStorageDotKey(marker, id);
 }
 
-export async function saveManualEntry(id, opts = {}) {
+export async function saveManualEntry(id: string, opts: {keepOpen?: unknown} = {}) {
   const { keepOpen = false } = opts;
-  const dateInput = /** @type {HTMLInputElement | null} */ (document.getElementById('me-date'));
-  const valueInput = /** @type {HTMLInputElement | null} */ (document.getElementById('me-value'));
-  const noteField = /** @type {HTMLTextAreaElement | HTMLInputElement | null} */ (document.getElementById('me-note'));
-  const unitInput = /** @type {HTMLInputElement | null} */ (document.getElementById('me-unit'));
-  const sampleTimeInput = /** @type {HTMLInputElement | null} */ (document.getElementById('me-sample-time'));
-  const fastingInput = /** @type {HTMLSelectElement | null} */ (document.getElementById('me-fasting'));
+  const dateInput = (document.getElementById('me-date') as HTMLInputElement | null);
+  const valueInput = (document.getElementById('me-value') as HTMLInputElement | null);
+  const noteField = (document.getElementById('me-note') as HTMLTextAreaElement | HTMLInputElement | null);
+  const unitInput = (document.getElementById('me-unit') as HTMLInputElement | null);
+  const sampleTimeInput = (document.getElementById('me-sample-time') as HTMLInputElement | null);
+  const fastingInput = (document.getElementById('me-fasting') as HTMLSelectElement | null);
   if (!dateInput || !valueInput) return;
   const date = dateInput.value;
   const value = parseFloat(valueInput.value);
@@ -123,7 +122,7 @@ export async function saveManualEntry(id, opts = {}) {
   }
   // Range sanity check: catches decimal/unit slips (e.g. typing 100 mg/dL when SI ref is 4–6 mmol/L).
   if (marker) {
-    let warn = null;
+    let warn: string | null = null;
     if (value < 0) warn = `${value} is negative — values are usually 0 or positive.`;
     else if (checkRefMax != null && checkRefMax > 0 && value > checkRefMax * 10) warn = `${value} is much higher than the reference range (${checkRefMin ?? '?'}–${checkRefMax} ${checkUnit}). Did you enter the right unit?`;
     else if (checkRefMin != null && checkRefMin > 0 && value < checkRefMin / 10) warn = `${value} is much lower than the reference range (${checkRefMin}–${checkRefMax ?? '?'} ${checkUnit}). Did you enter the right unit?`;
@@ -183,11 +182,11 @@ export async function saveManualEntry(id, opts = {}) {
   }
 }
 
-export function saveAndAddAnotherManualEntry(id) {
+export function saveAndAddAnotherManualEntry(id: string) {
   return saveManualEntry(id, { keepOpen: true });
 }
 
-export async function deleteMarkerValue(id, date) {
+export async function deleteMarkerValue(id: string, date: string) {
   const dotKey = storageDotKeyForId(id);
   if (!dotKey) return;
   if (!state.importedData.entries) return;
@@ -208,13 +207,13 @@ export async function deleteMarkerValue(id, date) {
   }
 }
 
-export function editMarkerValue(id, date, currentValue, event) {
-  const el = event.target.closest('.mv-value');
+export function editMarkerValue(id: string, date: string, currentValue: unknown, event: Event) {
+  const el = (event.target as Element).closest('.mv-value');
   if (!el || el.querySelector('input')) return;
   const input = document.createElement('input');
   input.type = 'number';
   input.step = 'any';
-  input.value = currentValue;
+  (input as RawInputWriter).value = currentValue;
   input.className = 'ref-edit-input';
   input.style.cssText = 'width:100%;max-width:140px;text-align:center;font-size:inherit;box-sizing:border-box;padding:2px 4px';
   el.textContent = '';
@@ -230,7 +229,7 @@ export function editMarkerValue(id, date, currentValue, event) {
     const newValue = parseFloat(input.value);
     if (isNaN(newValue)) { showDetailModal(id); return; }
     // No-op if the value didn't change — don't flip provenance to manual.
-    if (newValue === parseFloat(currentValue)) { showDetailModal(id); return; }
+    if (newValue === (parseFloat as (value: unknown) => number)(currentValue)) { showDetailModal(id); return; }
     const dotKey = storageDotKeyForId(id);
     if (!dotKey) return;
     const storedValue = convertDisplayToSI(dotKey, newValue);
@@ -247,7 +246,7 @@ export function editMarkerValue(id, date, currentValue, event) {
   });
 }
 
-export async function revertMarkerValue(id, date) {
+export async function revertMarkerValue(id: string, date: string) {
   const dotKey = storageDotKeyForId(id);
   if (!dotKey) return;
   const updated = await revertManualMarkerValue(dotKey, date);
@@ -257,7 +256,7 @@ export async function revertMarkerValue(id, date) {
   showDetailModal(id);
 }
 
-export async function editValueNote(id, date) {
+export async function editValueNote(id: string, date: string) {
   if (!id || !date) return;
   const dotKey = storageDotKeyForId(id);
   if (!dotKey) return;
@@ -276,7 +275,7 @@ export async function editValueNote(id, date) {
   showDetailModal(id);
 }
 
-export async function deleteValueNote(id, date) {
+export async function deleteValueNote(id: string, date: string) {
   if (!id || !date) return;
   if (!await showConfirmDialog(`Remove the note for ${date}?`)) return;
   const dotKey = storageDotKeyForId(id);
@@ -285,13 +284,8 @@ export async function deleteValueNote(id, date) {
   if (changed) showDetailModal(id);
 }
 
-/**
- * @param {string} id
- * @param {string} type
- * @param {Event} evt
- */
-export function editRefRange(id, type, evt) {
-  const marker = state.markerRegistry[id];
+export function editRefRange(id: string, type: string, evt: Event) {
+  const marker = state.markerRegistry[id] as RegistryRangeReader | null | undefined;
   if (!marker) return;
   const isOptimal = type === 'optimal';
   const curMin = isOptimal ? marker.optimalMin : marker.refMin;
@@ -306,7 +300,7 @@ export function editRefRange(id, type, evt) {
   form.className = 'ref-edit-form';
   form.innerHTML = `${escapeHTML(label)}: <span class="ref-edit-field"><input type="text" inputmode="decimal" value="${escapeAttr(curMin ?? '')}" placeholder="none" class="ref-edit-input" id="ref-edit-min"><button type="button" class="ref-edit-clear" ${markerDetailActionAttrs('clear-ref-edit-field', { field: 'min' })} title="Clear (open-ended)">\u00d7</button></span> \u2013 <span class="ref-edit-field"><input type="text" inputmode="decimal" value="${escapeAttr(curMax ?? '')}" placeholder="none" class="ref-edit-input" id="ref-edit-max"><button type="button" class="ref-edit-clear" ${markerDetailActionAttrs('clear-ref-edit-field', { field: 'max' })} title="Clear (open-ended)">\u00d7</button></span> <button type="button" class="ref-edit-save" ${markerDetailActionAttrs('save-ref-range', { id, type })}>Save</button>`;
   span.replaceWith(form);
-  /** @type {HTMLElement | null} */ (form.querySelector('#ref-edit-min'))?.focus();
+  (form.querySelector('#ref-edit-min') as HTMLElement | null)?.focus();
 
   // Enter to save
   form.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); saveRefRange(id, type); } });
@@ -314,11 +308,11 @@ export function editRefRange(id, type, evt) {
   form.addEventListener('keydown', e => { if (e.key === 'Escape') showDetailModal(id); });
 }
 
-export async function saveRefRange(id, type) {
+export async function saveRefRange(id: string, type: string) {
   const dotKey = storageDotKeyForId(id);
   if (!dotKey) return;
-  const minEl = /** @type {HTMLInputElement | null} */ (document.getElementById('ref-edit-min'));
-  const maxEl = /** @type {HTMLInputElement | null} */ (document.getElementById('ref-edit-max'));
+  const minEl = (document.getElementById('ref-edit-min') as HTMLInputElement | null);
+  const maxEl = (document.getElementById('ref-edit-max') as HTMLInputElement | null);
   if (!minEl || !maxEl) return;
   let newMin = minEl.value.trim() !== '' ? parseFloat(minEl.value) : null;
   let newMax = maxEl.value.trim() !== '' ? parseFloat(maxEl.value) : null;
@@ -333,18 +327,18 @@ export async function saveRefRange(id, type) {
   const saved = await saveRefRangeOverride(dotKey, type, { min: newMin, max: newMax });
   if (!saved) return;
   // Refresh background view, then re-render modal with new ranges
-  const activeNav = /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'));
+  const activeNav = (document.querySelector('.nav-item.active') as HTMLElement | null);
   markerDetailDeps.navigate(activeNav ? activeNav.dataset.category : 'dashboard');
   showDetailModal(id);
   showNotification('Range updated', 'info');
 }
 
-export async function revertRefRange(id, type) {
+export async function revertRefRange(id: string, type: string) {
   const dotKey = storageDotKeyForId(id);
   if (!dotKey) return;
   const result = await revertRefRangeOverride(dotKey, type);
   if (!result) return;
-  const activeNav = /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'));
+  const activeNav = (document.querySelector('.nav-item.active') as HTMLElement | null);
   markerDetailDeps.navigate(activeNav ? activeNav.dataset.category : 'dashboard');
   showDetailModal(id);
   showNotification(result.message, 'info');
@@ -356,13 +350,13 @@ export function toggleMarkerNoteEditor() {
   const isHidden = editor.style.display === 'none';
   editor.style.display = isHidden ? 'block' : 'none';
   if (isHidden) {
-    const input = /** @type {HTMLElement | null} */ (document.getElementById('marker-note-input'));
+    const input = (document.getElementById('marker-note-input') as HTMLTextAreaElement | HTMLInputElement | null);
     if (input) input.focus();
   }
 }
 
-export async function saveMarkerNote(dotKey, id) {
-  const input = /** @type {HTMLTextAreaElement | HTMLInputElement | null} */ (document.getElementById('marker-note-input'));
+export async function saveMarkerNote(dotKey: string, id: string) {
+  const input = (document.getElementById('marker-note-input') as HTMLTextAreaElement | HTMLInputElement | null);
   const text = input?.value?.trim();
   const result = await saveMarkerNoteText(dotKey, text);
   if (!result || result.action === 'noop') return;
@@ -370,7 +364,7 @@ export async function saveMarkerNote(dotKey, id) {
   showDetailModal(id);
 }
 
-export async function deleteMarkerNote(dotKey, id) {
+export async function deleteMarkerNote(dotKey: string, id: string) {
   const changed = await deleteMarkerNoteText(dotKey);
   if (!changed) return;
   showNotification('Note removed', 'info');

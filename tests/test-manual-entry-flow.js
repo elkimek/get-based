@@ -22,7 +22,7 @@ console.log('=== Manual Entry Flow Tests ===\n');
     read('js/marker-detail-modal-impl.js'),
     read('js/marker-detail-manual-entry.js'),
   ].join('\n');
-  const markerDetailEditingSrc = read('js/marker-detail-editing.js');
+  const markerDetailEditingSrc = read('js/marker-detail-editing.js').replace(/\s+/g, ' ');
   const markerDetailStoreSrc = read('js/marker-detail-store.js');
   const labEntrySrc = read('js/lab-entry.js');
 

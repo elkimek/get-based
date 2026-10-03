@@ -1,4 +1,3 @@
-// @ts-check
 // marker-detail-manual-entry.js — Manual marker-value entry form owner
 
 import { state } from './state.js';
@@ -11,37 +10,23 @@ import { openWithMarkerDetailStylesheet, setDetailModalShell } from './marker-de
 import { getMarkerStorageDotKey } from './marker-placement.js';
 import { getMarkerInputUnits } from './unit-profiles.js';
 
-/**
- * @typedef {{
- *   showDetailModal: (id: string) => any,
- * }} MarkerDetailManualEntryRuntime
- */
-
-/** @type {MarkerDetailManualEntryRuntime} */
-const manualEntryRuntime = {
+interface ManualEntryCalls { showDetailModal(id: string): unknown }
+export type ManualEntryRuntimeSnapshot = { [Key in keyof ManualEntryCalls]: unknown };
+const manualEntryRuntime: ManualEntryCalls = {
   showDetailModal: () => {},
 };
 
-/** @param {Partial<MarkerDetailManualEntryRuntime>} [runtime] */
-export function configureMarkerDetailManualEntry(runtime = {}) {
+export function configureMarkerDetailManualEntry(runtime: unknown = {}): ManualEntryRuntimeSnapshot {
   const previous = { ...manualEntryRuntime };
   Object.assign(manualEntryRuntime, runtime);
   return previous;
 }
 
-/**
- * @param {string} id
- * @param {string} [prefillDate]
- */
-export function openManualEntryForm(id, prefillDate) {
+export function openManualEntryForm(id: string, prefillDate?: unknown) {
   return openWithMarkerDetailStylesheet(() => renderManualEntryForm(id, prefillDate));
 }
 
-/**
- * @param {string} id
- * @param {string} [prefillDate]
- */
-function renderManualEntryForm(id, prefillDate) {
+function renderManualEntryForm(id: string, prefillDate?: unknown) {
   // Always re-resolve from getActiveData — state.markerRegistry carries the
   // unit-system mode in effect when it was rendered and can become stale.
   const idx = id.indexOf('_');
@@ -57,7 +42,7 @@ function renderManualEntryForm(id, prefillDate) {
   if (!modal) return;
   const today = new Date().toISOString().slice(0, 10);
   // Explicit prefill → last-used date in this tab → today.
-  let sessionLast = null;
+  let sessionLast: string | null = null;
   try {
     const raw = sessionStorage.getItem('labcharts-last-manual-date');
     if (raw && /^\d{4}-\d{2}-\d{2}$/.test(raw)) sessionLast = raw;
@@ -138,10 +123,10 @@ function renderManualEntryForm(id, prefillDate) {
     </div>`;
   openModalOverlay(overlay, { initialFocus: '#me-value', focusDelay: 50 });
   setTimeout(() => {
-    const valueInput = document.getElementById('me-value');
+    const valueInput = document.getElementById('me-value') as HTMLInputElement | null;
     if (!valueInput) return;
     // Enter-to-save / Esc-to-cancel for keyboard users.
-    const onKey = (event) => {
+    const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Enter') {
         event.preventDefault();
         saveManualEntry(id);
@@ -151,12 +136,12 @@ function renderManualEntryForm(id, prefillDate) {
       }
     };
     valueInput.addEventListener('keydown', onKey);
-    const dateInput = /** @type {HTMLInputElement | null} */ (document.getElementById('me-date'));
+    const dateInput = (document.getElementById('me-date') as HTMLInputElement | null);
     dateInput?.addEventListener('keydown', onKey);
     dateInput?.addEventListener('change', () => {
       const context = state.importedData?.entries?.find(entry => entry?.date === dateInput.value)?.context || {};
-      const sampleTime = /** @type {HTMLInputElement | null} */ (document.getElementById('me-sample-time'));
-      const fasting = /** @type {HTMLSelectElement | null} */ (document.getElementById('me-fasting'));
+      const sampleTime = (document.getElementById('me-sample-time') as HTMLInputElement | null);
+      const fasting = (document.getElementById('me-fasting') as HTMLSelectElement | null);
       if (sampleTime) sampleTime.value = typeof context.sampleTime === 'string' ? context.sampleTime : '';
       if (fasting) fasting.value = context.fasting === true ? 'fasting' : context.fasting === false ? 'not-fasting' : 'unknown';
     });

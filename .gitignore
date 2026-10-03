@@ -1067,3 +1067,10 @@ deploy/profile-share/data/
 /js/supplement-import-controller.js
 /js/supplements.js
 /types/supplements.js
+
+/js/marker-detail-custom-markers.js
+/js/marker-detail-placement.js
+/js/marker-detail-editing.js
+/js/marker-detail-manual-entry.js
+/js/settings-privacy.js
+/js/settings-tweaks.js
