@@ -1,4 +1,3 @@
-// @ts-check
 // chat-render.js — chat transcript rendering
 
 import { state } from './state.js';
@@ -37,7 +36,9 @@ import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 
 export { _getNoDataPrompts } from './chat-empty-state.js';
 
-function bindRenderedChatContainClicks(container) {
+interface LensSourceReader {source?:unknown;score?:unknown;text?:unknown}
+
+function bindRenderedChatContainClicks(container: HTMLElement) {
   container.querySelectorAll('[data-chat-message-action="contain-click"]').forEach(el => {
     el.addEventListener('click', event => event.stopPropagation());
   });
@@ -50,10 +51,10 @@ function bindRenderedChatContainClicks(container) {
  * (or not, if its answer drifts from the cited sources). Collapsed by
  * default so the chat stays scannable.
  */
-export function _renderLensSources(chunks, sourceName) {
+export function _renderLensSources(chunks: unknown, sourceName?: unknown) {
   if (!Array.isArray(chunks) || chunks.length === 0) return '';
   const sourceLabel = sourceName ? escapeHTML(sourceName) : 'knowledge base';
-  const items = chunks.map((c, i) => {
+  const items = (chunks as LensSourceReader[]).map((c, i) => {
     const src = c.source || `excerpt ${i + 1}`;
     const score = typeof c.score === 'number'
       ? `<span class="chat-lens-source-score" title="Cosine similarity">${c.score.toFixed(2)}</span>`
@@ -73,8 +74,7 @@ export function _renderLensSources(chunks, sourceName) {
   </details>`;
 }
 
-/** @param {{ preserveScroll?: boolean }} [options] */
-export function renderChatMessages({ preserveScroll = false } = {}) {
+export function renderChatMessages({ preserveScroll = false }: {preserveScroll?:boolean} = {}) {
   const container = document.getElementById('chat-messages');
   if (!container) return;
   initChatScrollControls();
@@ -93,9 +93,9 @@ export function renderChatMessages({ preserveScroll = false } = {}) {
   html += renderStart > 0
     ? `<div class="chat-history-window"><button type="button" class="chat-history-earlier" ${chatMessageActionAttrs('show-earlier-messages')}>Show earlier messages <span>(${renderStart} remaining)</span></button></div>`
     : '';
-  let lastPersonaName = null;
+  let lastPersonaName: string|null = null;
   for (let i = renderStart; i < state.chatHistory.length; i++) {
-    const msg = state.chatHistory[i];
+    const msg = state.chatHistory[i]!;
     const cls = msg.role === 'user' ? 'chat-user' : 'chat-ai';
     // "Joined" system messages
     if (msg.joined) {
@@ -166,7 +166,7 @@ export function renderChatMessages({ preserveScroll = false } = {}) {
       }
       // Rec slots (persisted on message, rendered from catalog)
       if (msg.recSlots?.length) {
-        const recSections = /** @type {Array<{replace(search: string, replacement: string): unknown}>} */ (renderChatRecommendationSections(msg.recSlots));
+        const recSections = renderChatRecommendationSections(msg.recSlots) as Array<{replace(search: string, replacement: string): unknown}>;
         if (recSections.length) {
           const openAttr = msg.recOpen ? ' open' : '';
           const unseenClass = msg.recNew ? ' rec-chat-unseen' : '';
@@ -201,15 +201,14 @@ export function showEarlierChatMessages() {
   renderChatMessages({ preserveScroll: true });
   requestAnimationFrame(() => {
     container.scrollTop = previousTop + Math.max(0, container.scrollHeight - previousHeight);
-    if (nextStart > 0) /** @type {HTMLElement | null} */ (
-      container.querySelector('.chat-history-earlier')
+    if (nextStart > 0) (
+      container.querySelector<HTMLElement>('.chat-history-earlier')
     )?.focus();
   });
   return true;
 }
 
-/** @param {number} index */
-export function revealChatMessage(index) {
+export function revealChatMessage(index: number) {
   if (!state.currentThreadId) return false;
   const changed = revealChatRenderIndex(state.currentThreadId, index, state.chatHistory.length);
   if (changed) renderChatMessages({ preserveScroll: true });

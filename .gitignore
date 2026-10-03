@@ -1224,3 +1224,22 @@ deploy/profile-share/data/
 /types/dashboard-page-view.js
 
 /types/profile-share.js
+
+/js/chat-images.js
+/js/chat-actions.js
+/js/chat-empty-state.js
+/js/chat-model-controls.js
+/js/chat-panel.js
+/js/chat-discussion-ui.js
+/js/chat-discussion-lifecycle.js
+/js/chat-discussion-round-request.js
+/js/chat-discussion-round-runner.js
+/js/chat-discussion-turns.js
+/js/chat-discussion-flow.js
+/js/chat-discussion.js
+/js/chat-render.js
+/js/import-reference-benchmark.js
+/js/settings-data.js
+/js/settings-import-benchmark-controller.js
+/types/import-reference-benchmark.js
+/types/settings-data.js

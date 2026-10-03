@@ -1,4 +1,3 @@
-// @ts-check
 // Compact model and reasoning picker shared by direct, local, and CLI-backed
 // chat routes. Provider setup remains in Settings; this surface only switches
 // models exposed by the active provider.
@@ -57,6 +56,15 @@ import { updateChatHeaderModelRuntime } from './chat-runtime.js';
 import { hasPendingAttachments } from './chat-images.js';
 import { escapeAttr, escapeHTML, showNotification } from './utils.js';
 
+import type { AgentModel } from './agent-model-catalog.js';
+// Unvalidated persisted model leaves remain opaque; source helpers retain their original coercions/errors.
+interface DirectModel extends Record<string,unknown> {id?:unknown;name?:unknown;displayName?:unknown}
+interface ControlModel {id:unknown;name:unknown;search:unknown;group:string|undefined}
+interface ControlCommon {provider:string;providerLabel:unknown;selectedId:unknown;selectedName:unknown;models:ControlModel[];efforts:string[];defaultEffort:string;selectedEffort:string}
+type ControlState = (ControlCommon & {cli:true;target:string;selectedId:string}) | (ControlCommon & {cli:false});
+type ModelOptionOperations = Omit<ControlModel,'search'> & {search:{toLowerCase():unknown}};
+interface EffortOption {value:string;label:string}
+interface RawEffortOption {value?:unknown;label?:unknown}
 const MODEL_SEARCH_THRESHOLD = 9;
 let controlsInitialized = false;
 let modelRefreshInProgress = false;
@@ -76,21 +84,21 @@ const PROVIDER_LABELS = Object.freeze({
   openclaw: 'OpenClaw',
 });
 
-function titleCase(value) {
+function titleCase(value: unknown) {
   const raw = String(value || '');
   if (raw === 'xhigh') return 'Extra high';
   if (raw === 'none') return 'Off';
   return raw ? `${raw.charAt(0).toUpperCase()}${raw.slice(1)}` : 'Default';
 }
 
-function normalizedEfforts(value) {
+function normalizedEfforts(value: unknown) {
   if (!Array.isArray(value)) return [];
   return sortReasoningEffortValues([...new Set(value.map(item => typeof item === 'string'
     ? item
-    : item?.reasoningEffort || item?.effort || item?.value || '').map(item => String(item).trim()).filter(Boolean))]);
+    : (item as {reasoningEffort?:unknown;effort?:unknown;value?:unknown}|null|undefined)?.reasoningEffort || (item as {effort?:unknown}|null|undefined)?.effort || (item as {value?:unknown}|null|undefined)?.value || '').map(item => String(item).trim()).filter(Boolean))]);
 }
 
-function readDirectModels(provider) {
+function readDirectModels(provider: string): DirectModel[] {
   if (provider === 'ollama') {
     return getCachedLocalAiModelDetails().modelDetails.map(model => ({
       ...model,
@@ -98,19 +106,19 @@ function readDirectModels(provider) {
       name: model.name || model.id,
     })).filter(model => model.id);
   }
-  const keys = {
+  const keys = ({
     openrouter: ['labcharts-openrouter-models'],
     venice: [getVeniceE2EE() ? 'labcharts-venice-e2ee-models' : 'labcharts-venice-models'],
     routstr: [isRoutstrPrivateModeActive() ? 'labcharts-routstr-private-models' : 'labcharts-routstr-models'],
     ppq: [getPpqPrivateMode() ? 'labcharts-ppq-private-models' : 'labcharts-ppq-models'],
     custom: ['labcharts-custom-models'],
-  }[provider] || [];
-  const models = keys.flatMap(readStoredArray).filter(model => model && typeof model === 'object'
-    && model.id && modelMetadataIsAvailable(model));
+  } as Record<string,string[]>)[provider] || [];
+  const models = keys.flatMap(readStoredArray<unknown>).filter(model => model && typeof model === 'object'
+    && (model as DirectModel).id && modelMetadataIsAvailable(model)) as DirectModel[];
   return [...new Map(models.map(model => [model.id, model])).values()];
 }
 
-function providerGroupFromModel(agent, modelId) {
+function providerGroupFromModel(agent: string, modelId: unknown) {
   const id = String(modelId || '');
   if (agent === 'opencode' || agent === 'openclaw') return id.includes('/') ? id.split('/')[0] : agent;
   if (agent === 'hermes') {
@@ -120,7 +128,7 @@ function providerGroupFromModel(agent, modelId) {
   return '';
 }
 
-function friendlyProviderGroup(value) {
+function friendlyProviderGroup(value: unknown) {
   const known = {
     recommended: 'Recommended',
     current: 'Current personal profile',
@@ -140,11 +148,11 @@ function friendlyProviderGroup(value) {
     'custom:ollama': 'Ollama',
     'custom:openrouter': 'OpenRouter (custom)',
   };
-  return known[value] || String(value || '').split(/[-_:]/).filter(Boolean)
+  return (known as Record<PropertyKey,unknown>)[value as PropertyKey] || String(value || '').split(/[-_:]/).filter(Boolean)
     .map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`).join(' ');
 }
 
-function cliModelIsRecommended(agent, modelId) {
+function cliModelIsRecommended(agent: string, modelId: unknown) {
   const id = String(modelId || '');
   if (agent === 'opencode' && id.startsWith('openrouter/')) {
     return isRecommendedModel('openrouter', id.slice('openrouter/'.length));
@@ -152,12 +160,12 @@ function cliModelIsRecommended(agent, modelId) {
   return isRecommendedModel('custom', id);
 }
 
-function orderCliModels(agent, target, catalog) {
+function orderCliModels(agent: string, target: string, catalog: AgentModel[]) {
   // A personal gateway is the authority for its own profile. Do not apply
   // getbased's cross-provider recommendations to that catalog: they can make
   // an unrelated model look endorsed even when the gateway merely reports it.
   const recommended = target === 'local'
-    ? selectLatestModelFamilies(catalog.filter(model => cliModelIsRecommended(agent, model.id)))
+    ? (selectLatestModelFamilies as (models:AgentModel[])=>AgentModel[])(catalog.filter(model => cliModelIsRecommended(agent, model.id)))
     : catalog.filter(model => model.isDefault);
   const recommendedIds = new Set(recommended.map(model => model.id));
   return {
@@ -166,8 +174,8 @@ function orderCliModels(agent, target, catalog) {
   };
 }
 
-function orderDirectModels(provider, catalog) {
-  const recommended = selectLatestRecommendedModels(provider, catalog);
+function orderDirectModels(provider: string, catalog: DirectModel[]) {
+  const recommended = (selectLatestRecommendedModels as (provider:Parameters<typeof selectLatestRecommendedModels>[0],models:DirectModel[])=>DirectModel[])(provider, catalog);
   const recommendedIds = new Set(recommended.map(model => model.id));
   return {
     recommendedIds,
@@ -175,7 +183,7 @@ function orderDirectModels(provider, catalog) {
   };
 }
 
-function currentControlState() {
+function currentControlState(): ControlState {
   const cli = getChatBackend() === 'codex';
   if (cli) {
     const agent = getAgentHostAgent();
@@ -185,7 +193,7 @@ function currentControlState() {
     const selected = resolveAgentModel(selectedId, catalog);
     const defaultModel = catalog.find(model => model.isDefault) || catalog[0] || null;
     const orderedCatalog = orderCliModels(agent, target, catalog);
-    const models = [
+    const models: ControlModel[] = [
       {
         id: '',
         name: defaultModel ? `Default · ${defaultModel.displayName}` : 'CLI default',
@@ -208,7 +216,7 @@ function currentControlState() {
       cli: true,
       provider: agent,
       target,
-      providerLabel: PROVIDER_LABELS[agent] || 'CLI agent',
+      providerLabel: (PROVIDER_LABELS as Record<string,unknown>)[agent] || 'CLI agent',
       selectedId,
       selectedName: selectedId ? getAgentModelDisplay(selectedId, catalog) : (defaultModel?.displayName || 'CLI default'),
       models,
@@ -218,12 +226,12 @@ function currentControlState() {
     };
   }
   const provider = getAIProvider();
-  const selectedId = getActiveModelId(provider);
+  const selectedId = (getActiveModelId as (provider:Parameters<typeof getActiveModelId>[0])=>unknown)(provider);
   const cached = readDirectModels(provider);
   const selected = cached.find(model => model.id === selectedId) || null;
-  const reasoningCapabilities = getModelReasoningCapabilities(provider, selected);
+  const reasoningCapabilities = (getModelReasoningCapabilities as (provider:Parameters<typeof getModelReasoningCapabilities>[0],model:unknown)=>ReturnType<typeof getModelReasoningCapabilities>)(provider, selected);
   const orderedCatalog = orderDirectModels(provider, cached);
-  const models = orderedCatalog.models.map(model => ({
+  const models: ControlModel[] = orderedCatalog.models.map(model => ({
     id: model.id,
     name: model.name || model.displayName || model.id,
     search: `${model.name || ''} ${model.displayName || ''} ${model.id}`,
@@ -242,7 +250,7 @@ function currentControlState() {
   return {
     cli: false,
     provider,
-    providerLabel: PROVIDER_LABELS[provider] || provider,
+    providerLabel: (PROVIDER_LABELS as Record<string,unknown>)[provider] || provider,
     selectedId,
     selectedName: getActiveModelDisplay(provider),
     models,
@@ -258,8 +266,7 @@ function currentCatalogIsEmpty() {
     : readDirectModels(getAIProvider()).length === 0;
 }
 
-/** @param {{cli: boolean, provider: string, target?: string}} snapshot */
-function controlStateIsCurrent(snapshot) {
+function controlStateIsCurrent(snapshot: {cli:boolean;provider:string;target?:string}) {
   if ((getChatBackend() === 'codex') !== snapshot.cli) return false;
   if (snapshot.cli) {
     return getAgentHostAgent() === snapshot.provider
@@ -268,20 +275,20 @@ function controlStateIsCurrent(snapshot) {
   return getAIProvider() === snapshot.provider;
 }
 
-function effortOptions(state) {
+function effortOptions(state: ControlState): EffortOption[] {
   return [
     { value: '', label: state.defaultEffort ? `Default · ${titleCase(state.defaultEffort)}` : 'Default' },
     ...state.efforts.map(value => ({ value, label: titleCase(value) })),
   ];
 }
 
-function renderModelGroups(state) {
+function renderModelGroups(state: ControlState) {
   if (!state.models.length) return '<div class="chat-model-empty">No model catalog is available yet.</div>';
-  const groups = new Map();
-  for (const model of state.models) {
+  const groups = new Map<string,ModelOptionOperations[]>();
+  for (const model of state.models as ModelOptionOperations[]) {
     const group = model.group || '';
     if (!groups.has(group)) groups.set(group, []);
-    groups.get(group).push(model);
+    groups.get(group)!.push(model);
   }
   return [...groups.entries()].map(([group, models]) => `
     <section class="chat-model-option-group">
@@ -292,7 +299,7 @@ function renderModelGroups(state) {
     </section>`).join('');
 }
 
-function renderEffortSlider(state) {
+function renderEffortSlider(state: ControlState) {
   if (!state.efforts.length) {
     return '<div class="chat-model-effort-unavailable">This model does not expose a separate reasoning control.</div>';
   }
@@ -300,9 +307,9 @@ function renderEffortSlider(state) {
   const selectedIndex = Math.max(0, options.findIndex(option => option.value === state.selectedEffort));
   const progress = options.length > 1 ? selectedIndex / (options.length - 1) * 100 : 0;
   return `<div class="chat-model-effort">
-    <div class="chat-model-effort-head"><span>Reasoning</span><strong id="chat-model-effort-value">${escapeHTML(options[selectedIndex].label)}</strong></div>
+    <div class="chat-model-effort-head"><span>Reasoning</span><strong id="chat-model-effort-value">${escapeHTML(options[selectedIndex]!.label)}</strong></div>
     <div class="chat-model-effort-control" style="--chat-effort-progress:${progress}%">
-      <input type="range" id="chat-model-effort" min="0" max="${options.length - 1}" step="1" value="${selectedIndex}" aria-label="Reasoning effort" aria-valuetext="${escapeAttr(options[selectedIndex].label)}" data-chat-effort-values="${escapeAttr(JSON.stringify(options))}">
+      <input type="range" id="chat-model-effort" min="0" max="${options.length - 1}" step="1" value="${selectedIndex}" aria-label="Reasoning effort" aria-valuetext="${escapeAttr(options[selectedIndex]!.label)}" data-chat-effort-values="${escapeAttr(JSON.stringify(options))}">
       <div class="chat-model-effort-dots" aria-hidden="true">${options.map(() => '<span></span>').join('')}</div>
     </div>
   </div>`;
@@ -328,7 +335,7 @@ export function refreshChatModelControls() {
     </button>`;
 }
 
-function filterModelOptions(query) {
+function filterModelOptions(query: unknown) {
   const normalized = String(query || '').trim().toLowerCase();
   document.querySelectorAll('#chat-model-options [data-chat-model-search]').forEach(option => {
     option.toggleAttribute('hidden', Boolean(normalized) && !String(option.getAttribute('data-chat-model-search') || '').includes(normalized));
@@ -338,7 +345,7 @@ function filterModelOptions(query) {
   });
 }
 
-async function selectDirectModel(provider, model) {
+async function selectDirectModel(provider: string, model: string) {
   if (provider === 'ollama') setOllamaMainModel(model);
   else if (provider === 'ppq') setPpqModel(model);
   else if (provider === 'custom') setCustomApiModel(model);
@@ -350,7 +357,7 @@ async function selectDirectModel(provider, model) {
   }
 }
 
-async function selectModel(value) {
+async function selectModel(value: string) {
   const state = currentControlState();
   if (hasPendingAttachments()) {
     const supportsImages = state.cli
@@ -420,28 +427,28 @@ async function refreshModels() {
   }
 }
 
-function parseEffortOptions(input) {
+function parseEffortOptions(input: HTMLInputElement): RawEffortOption[] {
   try {
-    const parsed = JSON.parse(input.dataset.chatEffortValues || '[]');
-    return Array.isArray(parsed) ? parsed : [];
+    const parsed: unknown = JSON.parse(input.dataset.chatEffortValues || '[]');
+    return Array.isArray(parsed) ? parsed as RawEffortOption[] : [];
   } catch {
     return [];
   }
 }
 
-function updateEffortSlider(input, persist = false) {
+function updateEffortSlider(input: HTMLInputElement, persist = false) {
   const options = parseEffortOptions(input);
   const index = Math.max(0, Math.min(options.length - 1, Number(input.value) || 0));
   const selected = options[index] || { value: '', label: 'Default' };
-  const control = input.closest('.chat-model-effort-control');
+  const control = input.closest<HTMLElement>('.chat-model-effort-control');
   const progress = options.length > 1 ? index / (options.length - 1) * 100 : 0;
   control?.style.setProperty('--chat-effort-progress', `${progress}%`);
-  input.setAttribute('aria-valuetext', selected.label);
+  input.setAttribute('aria-valuetext', selected.label as string);
   const label = document.getElementById('chat-model-effort-value');
-  if (label) label.textContent = selected.label;
+  if (label) label.textContent = selected.label as string;
   if (!persist) return;
   const state = currentControlState();
-  if (state.cli) void saveAgentChatSettings({ effort: selected.value }).then(refreshChatModelControls);
+  if (state.cli) void (saveAgentChatSettings as (settings:Omit<Parameters<typeof saveAgentChatSettings>[0],'effort'>&{effort:unknown})=>ReturnType<typeof saveAgentChatSettings>)({ effort: selected.value }).then(refreshChatModelControls);
   else setDirectChatReasoningEffort(state.provider, state.selectedId, selected.value);
 }
 
@@ -450,7 +457,7 @@ export function initChatModelControls() {
   if (controlsInitialized) return;
   controlsInitialized = true;
   document.getElementById('chat-model-menu')?.addEventListener('toggle', event => {
-    const menu = /** @type {HTMLDetailsElement} */ (event.currentTarget);
+    const menu = event.currentTarget as HTMLDetailsElement;
     if (!menu.open) return;
     refreshChatModelControls();
     if (currentCatalogIsEmpty()) void refreshModels();

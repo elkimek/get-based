@@ -1,4 +1,3 @@
-// @ts-check
 // chat-actions.js — message action bar rendering and handlers
 
 import { state } from './state.js';
@@ -25,39 +24,43 @@ import { applyAgentDraft, renderAgentDraftCards } from './agent-drafts.js';
 import { claimAgentDraft } from './agent-draft-claims.js';
 import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 
-const chatMessageActionDeps = {
-  closeSummaryModal: /** @type {() => void} */ (() => {}),
-  continueDiscussion: /** @type {() => void | Promise<void>} */ (() => {}),
-  copySummary: /** @type {() => void} */ (() => {}),
-  deleteSavedSummary: /** @type {(id: string) => void | Promise<void>} */ (() => {}),
-  downloadSummary: /** @type {() => void} */ (() => {}),
-  endDiscussion: /** @type {() => void} */ (() => {}),
-  editUserMessage: /** @type {(index: number) => void} */ (() => {}),
-  forkMessage: /** @type {(index: number) => void | Promise<void>} */ (() => {}),
-  jumpToSearchResult: /** @type {(threadId: string, index: number, prefix: string) => void | Promise<void>} */ (() => {}),
+// Configuration snapshots remain opaque; private calls describe the original
+// consumed callback operation and retain raw results/errors and method receivers.
+type ContextRead = Array<{ label: unknown; detail?: unknown }>;
+type ActionTargetRead = { closest?: (selector: string) => HTMLElement | null };
+const chatMessageActionDeps: Record<string, unknown> = {
+  closeSummaryModal: (() => {}),
+  continueDiscussion: (() => {}),
+  copySummary: (() => {}),
+  deleteSavedSummary: (() => {}),
+  downloadSummary: (() => {}),
+  endDiscussion: (() => {}),
+  editUserMessage: (() => {}),
+  forkMessage: (() => {}),
+  jumpToSearchResult: (() => {}),
   openEMFAssessmentEditor,
-  openImageLightbox: /** @type {(src: string) => void} */ (() => {}),
-  pauseDiscussion: /** @type {() => void} */ (() => {}),
-  printSummary: /** @type {() => void} */ (() => {}),
-  cancelMessageEdit: /** @type {() => void} */ (() => {}),
-  removeImageAttachment: /** @type {(index: number) => void} */ (() => {}),
-  resumeDiscussion: /** @type {() => void | Promise<void>} */ (() => {}),
-  retryDiscussionParticipant: /** @type {(id: string) => void | Promise<void>} */ (() => {}),
-  showEarlierMessages: /** @type {() => void} */ (() => {}),
-  submitMessageEdit: /** @type {() => void | Promise<void>} */ (() => {}),
-  switchThread: /** @type {(threadId: string) => void | Promise<void>} */ (() => {}),
-  startDiscussionFromPicker: /** @type {() => void | Promise<void>} */ (() => {}),
-  toggleMessageSpeech: /** @type {(index: number) => void | Promise<void>} */ (() => {}),
-  viewSavedSummary: /** @type {(id: string) => void} */ (() => {}),
-  renderChatMessages: /** @type {() => void} */ (() => {}),
+  openImageLightbox: (() => {}),
+  pauseDiscussion: (() => {}),
+  printSummary: (() => {}),
+  cancelMessageEdit: (() => {}),
+  removeImageAttachment: (() => {}),
+  resumeDiscussion: (() => {}),
+  retryDiscussionParticipant: (() => {}),
+  showEarlierMessages: (() => {}),
+  submitMessageEdit: (() => {}),
+  switchThread: (() => {}),
+  startDiscussionFromPicker: (() => {}),
+  toggleMessageSpeech: (() => {}),
+  viewSavedSummary: (() => {}),
+  renderChatMessages: (() => {}),
 };
 
-export function configureChatMessageActionDeps(deps = {}) {
+export function configureChatMessageActionDeps(deps: unknown = {}) {
   const previous = { ...chatMessageActionDeps };
   for (const name of Object.keys(chatMessageActionDeps)) {
-    const candidate = /** @type {any} */ (deps)[name];
+    const candidate = (deps as Record<string, unknown>)[name];
     if (typeof candidate === 'function') {
-      /** @type {any} */ (chatMessageActionDeps)[name] = candidate;
+      (chatMessageActionDeps)[name] = candidate;
     }
   }
   return previous;
@@ -66,21 +69,21 @@ export function configureChatMessageActionDeps(deps = {}) {
 let chatMessageDelegatesInstalled = false;
 export { chatMessageActionAttrs } from './chat-message-action-attrs.js';
 
-function closestChatMessageAction(target) {
-  return /** @type {HTMLElement | null} */ (
+function closestChatMessageAction(target: ActionTargetRead | null | undefined) {
+  return (
     target && typeof target.closest === 'function'
       ? target.closest(CHAT_MESSAGE_ACTION_SELECTOR)
       : null
   );
 }
 
-function readMessageIndex(actionEl) {
+function readMessageIndex(actionEl: HTMLElement) {
   const raw = actionEl.getAttribute(CHAT_MESSAGE_INDEX_ATTR);
   const index = raw == null ? NaN : Number(raw);
   return Number.isInteger(index) ? index : null;
 }
 
-function containChatMessageEvent(event) {
+function containChatMessageEvent(event: Event) {
   event.stopPropagation();
   if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
 }
@@ -88,9 +91,9 @@ function containChatMessageEvent(event) {
 /** Context is an unvalidated extension; this view describes the existing display reader.
  * @typedef {Array<{ label: unknown, detail?: unknown }>} ChatContextDisplay
  */
-const pendingDraftActions = new WeakSet();
+const pendingDraftActions = new WeakSet<object>();
 
-async function updateAgentDraft(actionEl, apply) {
+async function updateAgentDraft(actionEl: HTMLElement, apply: boolean) {
   const index = readMessageIndex(actionEl);
   const draftId = actionEl.dataset.chatMessageDraftId || '';
   const message = index == null ? null : state.chatHistory[index];
@@ -101,7 +104,7 @@ async function updateAgentDraft(actionEl, apply) {
   const thread = state.currentThreadId;
   const history = state.chatHistory;
   const isCurrent = () => profile === state.currentProfile && thread === state.currentThreadId && history === state.chatHistory;
-  const refresh = () => { if (isCurrent()) chatMessageActionDeps.renderChatMessages(); };
+  const refresh = () => { if (isCurrent()) (chatMessageActionDeps.renderChatMessages as (...args: unknown[]) => unknown)(); };
   let claimAttempted = false;
   let mutationStarted = false;
   let mutationCompleted = false;
@@ -120,7 +123,7 @@ async function updateAgentDraft(actionEl, apply) {
     draft.status = 'applying';
     refresh();
     claimAttempted = true;
-    await claimAgentDraft(profile, draftId);
+    await claimAgentDraft(profile as string, draftId);
     if (!isCurrent()) { draft.status = 'failed'; return true; }
     mutationStarted = true;
     const notice = await applyAgentDraft({ ...draft, status: 'pending' });
@@ -148,7 +151,7 @@ async function updateAgentDraft(actionEl, apply) {
   return true;
 }
 
-function runChatMessageAction(actionEl, event) {
+function runChatMessageAction(actionEl: HTMLElement, event: Event) {
   const action = actionEl.getAttribute(CHAT_MESSAGE_ACTION_ATTR);
 
   if (action === 'contain-click') {
@@ -165,19 +168,19 @@ function runChatMessageAction(actionEl, event) {
   } else if (action === 'edit-user-message') {
     const index = readMessageIndex(actionEl);
     if (index == null) return false;
-    chatMessageActionDeps.editUserMessage(index);
+    (chatMessageActionDeps.editUserMessage as (...args: unknown[]) => unknown)(index);
   } else if (action === 'fork-message') {
     const index = readMessageIndex(actionEl);
     if (index == null) return false;
-    void chatMessageActionDeps.forkMessage(index);
+    void (chatMessageActionDeps.forkMessage as (...args: unknown[]) => unknown)(index);
   } else if (action === 'cancel-message-edit') {
-    chatMessageActionDeps.cancelMessageEdit();
+    (chatMessageActionDeps.cancelMessageEdit as (...args: unknown[]) => unknown)();
   } else if (action === 'submit-message-edit') {
-    void chatMessageActionDeps.submitMessageEdit();
+    void (chatMessageActionDeps.submitMessageEdit as (...args: unknown[]) => unknown)();
   } else if (action === 'switch-fork-source') {
     const threadId = actionEl.dataset.chatMessageThreadId || '';
     if (!threadId) return false;
-    void chatMessageActionDeps.switchThread(threadId);
+    void (chatMessageActionDeps.switchThread as (...args: unknown[]) => unknown)(threadId);
   } else if (action === 'toggle-context-details') {
     const index = readMessageIndex(actionEl);
     if (index == null) return false;
@@ -185,54 +188,54 @@ function runChatMessageAction(actionEl, event) {
   } else if (action === 'toggle-message-speech') {
     const index = readMessageIndex(actionEl);
     if (index == null) return false;
-    void chatMessageActionDeps.toggleMessageSpeech(index);
+    void (chatMessageActionDeps.toggleMessageSpeech as (...args: unknown[]) => unknown)(index);
   } else if (action === 'remove-image-attachment') {
     const index = readMessageIndex(actionEl);
     if (index == null) return false;
-    chatMessageActionDeps.removeImageAttachment(index);
+    (chatMessageActionDeps.removeImageAttachment as (...args: unknown[]) => unknown)(index);
   } else if (action === 'open-image-lightbox') {
     const src = actionEl instanceof HTMLImageElement ? actionEl.src : actionEl.dataset.chatMessageSrc;
     if (!src) return false;
-    chatMessageActionDeps.openImageLightbox(src);
+    (chatMessageActionDeps.openImageLightbox as (...args: unknown[]) => unknown)(src);
   } else if (action === 'open-emf-assessment') {
-    void chatMessageActionDeps.openEMFAssessmentEditor();
+    void (chatMessageActionDeps.openEMFAssessmentEditor as (...args: unknown[]) => unknown)();
   } else if (action === 'jump-search-result') {
     const index = readMessageIndex(actionEl);
     const threadId = actionEl.dataset.chatMessageThreadId || '';
     if (!threadId || index == null) return false;
-    void chatMessageActionDeps.jumpToSearchResult(threadId, index, actionEl.dataset.chatMessagePrefix || '');
+    void (chatMessageActionDeps.jumpToSearchResult as (...args: unknown[]) => unknown)(threadId, index, actionEl.dataset.chatMessagePrefix || '');
   } else if (action === 'view-summary') {
     const id = actionEl.dataset.chatMessageSummaryId || '';
     if (!id) return false;
-    chatMessageActionDeps.viewSavedSummary(id);
+    (chatMessageActionDeps.viewSavedSummary as (...args: unknown[]) => unknown)(id);
   } else if (action === 'close-summary') {
-    chatMessageActionDeps.closeSummaryModal();
+    (chatMessageActionDeps.closeSummaryModal as (...args: unknown[]) => unknown)();
   } else if (action === 'copy-summary') {
-    chatMessageActionDeps.copySummary();
+    (chatMessageActionDeps.copySummary as (...args: unknown[]) => unknown)();
   } else if (action === 'download-summary') {
-    chatMessageActionDeps.downloadSummary();
+    (chatMessageActionDeps.downloadSummary as (...args: unknown[]) => unknown)();
   } else if (action === 'print-summary') {
-    chatMessageActionDeps.printSummary();
+    (chatMessageActionDeps.printSummary as (...args: unknown[]) => unknown)();
   } else if (action === 'delete-summary') {
     const id = actionEl.dataset.chatMessageSummaryId || '';
     if (!id) return false;
-    void chatMessageActionDeps.deleteSavedSummary(id);
+    void (chatMessageActionDeps.deleteSavedSummary as (...args: unknown[]) => unknown)(id);
   } else if (action === 'start-discussion-from-picker') {
-    void chatMessageActionDeps.startDiscussionFromPicker();
+    void (chatMessageActionDeps.startDiscussionFromPicker as (...args: unknown[]) => unknown)();
   } else if (action === 'continue-discussion') {
-    void chatMessageActionDeps.continueDiscussion();
+    void (chatMessageActionDeps.continueDiscussion as (...args: unknown[]) => unknown)();
   } else if (action === 'end-discussion') {
-    chatMessageActionDeps.endDiscussion();
+    (chatMessageActionDeps.endDiscussion as (...args: unknown[]) => unknown)();
   } else if (action === 'resume-discussion') {
-    void chatMessageActionDeps.resumeDiscussion();
+    void (chatMessageActionDeps.resumeDiscussion as (...args: unknown[]) => unknown)();
   } else if (action === 'retry-discussion-participant') {
     const personaId = actionEl.dataset.chatMessagePersonaId || '';
     if (!personaId) return false;
-    void chatMessageActionDeps.retryDiscussionParticipant(personaId);
+    void (chatMessageActionDeps.retryDiscussionParticipant as (...args: unknown[]) => unknown)(personaId);
   } else if (action === 'pause-discussion') {
-    chatMessageActionDeps.pauseDiscussion();
+    (chatMessageActionDeps.pauseDiscussion as (...args: unknown[]) => unknown)();
   } else if (action === 'show-earlier-messages') {
-    chatMessageActionDeps.showEarlierMessages();
+    (chatMessageActionDeps.showEarlierMessages as (...args: unknown[]) => unknown)();
   } else if (action === 'apply-agent-draft') {
     void updateAgentDraft(actionEl, true);
   } else if (action === 'discard-agent-draft') {
@@ -245,18 +248,18 @@ function runChatMessageAction(actionEl, event) {
   return true;
 }
 
-function handleChatMessageClick(event) {
-  const actionEl = closestChatMessageAction(event.target);
+function handleChatMessageClick(event: Event) {
+  const actionEl = closestChatMessageAction(event.target as ActionTargetRead | null);
   if (!actionEl) return;
   runChatMessageAction(actionEl, event);
 }
 
-function handleChatMessageKeydown(event) {
+function handleChatMessageKeydown(event: Event & Partial<Pick<KeyboardEvent, 'key'>>) {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
   if (event.key === 'Enter' && target.dataset.chatMessageKeyAction === 'continue-discussion') {
     event.preventDefault();
-    void chatMessageActionDeps.continueDiscussion();
+    void (chatMessageActionDeps.continueDiscussion as (...args: unknown[]) => unknown)();
     return;
   }
 
@@ -266,7 +269,7 @@ function handleChatMessageKeydown(event) {
   runChatMessageAction(actionEl, event);
 }
 
-function handleChatRecommendationToggle(event) {
+function handleChatRecommendationToggle(event: Event) {
   const details = event.target;
   if (!(details instanceof HTMLDetailsElement) || !details.classList.contains('rec-chat-wrapper')) return;
   const index = readMessageIndex(details);
@@ -286,7 +289,7 @@ function handleChatRecommendationToggle(event) {
   void saveChatHistory();
 }
 
-export function installChatMessageActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+export function installChatMessageActionDelegates(root: Document | HTMLElement | null = typeof document !== 'undefined' ? document : null) {
   if (!root || chatMessageDelegatesInstalled) return;
   chatMessageDelegatesInstalled = true;
   root.addEventListener('click', handleChatMessageClick);
@@ -296,8 +299,7 @@ export function installChatMessageActionDelegates(root = typeof document !== 'un
 
 installChatMessageActionDelegates();
 
-/** @param {number} msgIndex */
-function buildForkActions(msgIndex) {
+function buildForkActions(msgIndex: number) {
   const attrs = chatMessageActionAttrs('fork-message', { index: msgIndex });
   return `<button class="chat-action-btn chat-fork-action" type="button" ${attrs} title="Continue from this message in a new chat">${CHAT_ICON_FORK}<span>Fork to new chat</span></button>
     <details class="chat-action-more"><summary title="More message actions" aria-label="More message actions"><span aria-hidden="true">•••</span></summary><div class="chat-action-more-popover"><button type="button" ${attrs}>${CHAT_ICON_FORK}<span>Fork to new chat</span></button></div></details>`;
@@ -311,8 +313,8 @@ function latestVisibleUserMessageIndex() {
   return -1;
 }
 
-export function buildActionBar(msgIndex) {
-  const msg = state.chatHistory[msgIndex];
+export function buildActionBar(msgIndex: number) {
+  const msg = state.chatHistory[msgIndex] as ((typeof state.chatHistory)[number] & { context?: ContextRead }) | undefined;
   if (!msg || msg.role !== 'assistant') return '';
   const isLast = msgIndex === state.chatHistory.length - 1;
 
@@ -348,7 +350,7 @@ export function buildActionBar(msgIndex) {
   return html;
 }
 
-export function buildUserActionBar(msgIndex) {
+export function buildUserActionBar(msgIndex: number) {
   const msg = state.chatHistory[msgIndex];
   if (!msg || msg.role !== 'user' || msg.hidden) return '';
   const latestUserIndex = latestVisibleUserMessageIndex();
@@ -378,7 +380,7 @@ export function regenerateLastMessage() {
     || lastResponse?.role !== 'assistant') return undefined;
   const profile = state.currentProfile;
   const threadId = state.currentThreadId;
-  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
+  const input = document.getElementById('chat-input') as HTMLTextAreaElement | null;
   const draft = input?.value;
   const prefix = history.slice(0, -2);
   let removed = false;
@@ -432,7 +434,7 @@ export function regenerateLastMessage() {
   })();
 }
 
-export function copyMessage(msgIndex) {
+export function copyMessage(msgIndex: number) {
   const msg = state.chatHistory[msgIndex];
   if (!msg || msg.joined) return;
   const btn = document.getElementById(`chat-copy-btn-${msgIndex}`);
@@ -458,7 +460,7 @@ export function copyMessage(msgIndex) {
   });
 }
 
-export function toggleContextDetails(msgIndex) {
+export function toggleContextDetails(msgIndex: number) {
   const details = document.getElementById(`chat-ctx-details-${msgIndex}`);
   const arrow = document.getElementById(`chat-ctx-arrow-${msgIndex}`);
   const toggle = document.querySelector(`[data-chat-message-action="toggle-context-details"][data-chat-message-index="${msgIndex}"]`);

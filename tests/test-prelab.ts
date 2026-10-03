@@ -24,7 +24,7 @@ console.log('=== Pre-Lab Onboarding Tests ===\n');
 const chatSrc = read('js/chat.js');
 const chatPanelSrc = read('js/chat-panel.js');
 const chatOnboardingSrc = read('js/chat-onboarding.js');
-const chatEmptyStateSrc = read('js/chat-empty-state.js');
+const chatEmptyStateSrc = read('js/chat-empty-state.js').replace(/if \(hasLabs\)\s+return null;/g, 'if (hasLabs) return null;');
 const chatRenderSrc = read('js/chat-render.js');
 const chatSendSrc = read('js/chat-send.js');
 const labCtxSrc = read('js/lab-context.js');

@@ -1,4 +1,3 @@
-// @ts-check
 // chat-discussion-flow.js - public discussion user-action handlers
 
 import { state } from './state.js';
@@ -23,7 +22,7 @@ export {
   showDiscussContinuePrompt,
 } from './chat-discussion-lifecycle.js';
 
-export async function sendDiscussionUserTurn(text, discussionState = getCurrentDiscussionState()) {
+export async function sendDiscussionUserTurn(text: unknown, discussionState = getCurrentDiscussionState()) {
   if (!discussionState) return;
   if (getChatAbortController()) return;
   const threadId = state.currentThreadId;
@@ -37,18 +36,18 @@ export async function sendDiscussionUserTurn(text, discussionState = getCurrentD
 }
 
 /** @param {string | null} [personaId] */
-export async function resumeDiscussion(personaId = null) {
+export async function resumeDiscussion(personaId: unknown = null) {
   if (getChatAbortController()) return;
-  const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
+  const thread = state.chatThreads.find(t => t.id === state.currentThreadId) as { discussionPendingPersonas?: unknown } | undefined;
   const discussionState = getCurrentDiscussionState({ allowHistoryFallback: false });
   const pendingPersonas = thread?.discussionPendingPersonas;
   if (!discussionState || !Array.isArray(pendingPersonas) || !pendingPersonas.length) return;
   const selectedPersonas = personaId
-    ? pendingPersonas.filter(persona => persona.id === personaId)
+    ? pendingPersonas.filter(persona => (persona as { id?: unknown }).id === personaId)
     : pendingPersonas;
   if (!selectedPersonas.length) return;
   const deferredPersonas = personaId
-    ? pendingPersonas.filter(persona => persona.id !== personaId)
+    ? pendingPersonas.filter(persona => (persona as { id?: unknown }).id !== personaId)
     : [];
   await runDiscussionContinuation(
     selectedPersonas,
@@ -91,7 +90,7 @@ export async function startDiscussionFromPicker() {
   if (newPersonas.length === 1) {
     // The active persona has already answered the current turn. Let only the
     // newly added perspective weigh in now; everyone joins future user turns.
-    return runSingleDiscussionTurn(newPersonas[0], allPersonas);
+    return runSingleDiscussionTurn(newPersonas[0]!, allPersonas);
   }
   return runDiscussion(allPersonas);
 }

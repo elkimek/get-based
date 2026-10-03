@@ -1,4 +1,3 @@
-// @ts-check
 // chat-images.js — Chat panel attachment and health-file import flow
 //
 // Extracted from chat.js (v1.21.9) as the first Phase 2e refactor split.
@@ -23,23 +22,25 @@ const MAX_ATTACHMENTS = 5;
 const MAX_AGENT_ATTACHMENTS = 4;
 const MAX_TOTAL_ATTACHMENT_BYTES = 18 * 1024 * 1024;
 const THUMB_SIZE = 80;
-/** @typedef {{ base64: string, mediaType: string, name: string, previewUrl: string, thumbUrl: string | null, sizeBytes: number }} PendingAttachment */
-/** @type {Map<string, PendingAttachment[]>} */
-const pendingAttachmentsByThread = new Map();
-/** @type {WeakMap<object, PendingAttachment[]>} */
-const sentMessageAttachments = new WeakMap();
+// Restored or programmatically queued message copies retain their opaque leaves.
+export interface ChatAttachment {
+  base64?: unknown; mediaType?: unknown; name?: unknown; previewUrl?: unknown;
+  thumbUrl?: unknown; sizeBytes?: unknown; [key: string]: unknown;
+}
+const pendingAttachmentsByThread = new Map<string, ChatAttachment[]>();
+const sentMessageAttachments = new WeakMap<object, ChatAttachment[]>();
 let chatMenuDismissInstalled = false;
-const chatImageDeps = {
+const chatImageDeps: { updateSendButtonState: unknown; importFiles: unknown } = {
   updateSendButtonState: () => {},
-  importFiles: files => handleImportInputChange({ target: { files, value: '' } }),
+  importFiles: (files: File[]) => handleImportInputChange({ target: { files, value: '' } }),
 };
 
-export function configureChatImages(deps = {}) {
-  if (typeof deps.updateSendButtonState === 'function') {
-    chatImageDeps.updateSendButtonState = deps.updateSendButtonState;
+export function configureChatImages(deps: unknown = {}) {
+  if (typeof (deps as { updateSendButtonState?: unknown }).updateSendButtonState === 'function') {
+    chatImageDeps.updateSendButtonState = (deps as { updateSendButtonState?: unknown }).updateSendButtonState;
   }
-  if (typeof deps.importFiles === 'function') {
-    chatImageDeps.importFiles = deps.importFiles;
+  if (typeof (deps as { importFiles?: unknown }).importFiles === 'function') {
+    chatImageDeps.importFiles = (deps as { importFiles?: unknown }).importFiles;
   }
 }
 
@@ -49,7 +50,7 @@ function canAttachImages() {
     : hasAIProvider() && supportsVision();
 }
 
-function isChatImageFile(file) {
+function isChatImageFile(file: File) {
   return isValidImageType(file.type);
 }
 
@@ -57,9 +58,8 @@ function currentAttachmentLimit() {
   return isCodexChatBackend() ? MAX_AGENT_ATTACHMENTS : MAX_ATTACHMENTS;
 }
 
-/** @param {File} file */
-function readImageDimensions(file) {
-  return new Promise((resolve, reject) => {
+function readImageDimensions(file: File) {
+  return new Promise<{ width: number; height: number }>((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
@@ -82,7 +82,7 @@ function readImageDimensions(file) {
  * also offered to the import flow instead of disappearing silently.
  * @param {File[] | FileList} files
  */
-export async function handleChatFiles(files) {
+export async function handleChatFiles(files: File[] | FileList | null | undefined) {
   const scope = attachmentDraftKey();
   const selectedFiles = Array.from(files || []);
   if (selectedFiles.length === 0) return;
@@ -95,16 +95,15 @@ export async function handleChatFiles(files) {
   if (scope !== attachmentDraftKey()) return;
   if (importFiles.length === 0) return;
   try {
-    await chatImageDeps.importFiles(importFiles);
+    await (chatImageDeps.importFiles as (files: File[]) => unknown)(importFiles);
   } catch (error) {
     console.error('[chat-files] import failed:', error);
     showNotification('Import failed — check the file and try again.', 'error');
   }
 }
 
-/** @param {File} file */
-function snapshotDroppedFile(file) {
-  return new Promise((resolve, reject) => {
+function snapshotDroppedFile(file: File) {
+  return new Promise<File>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => reader.result instanceof ArrayBuffer
       ? resolve(new File([reader.result], file.name, { type: file.type, lastModified: file.lastModified }))
@@ -115,32 +114,31 @@ function snapshotDroppedFile(file) {
   });
 }
 
-/** @param {DataTransferItem} item */
-function readDroppedItem(item) {
-  const reads = [];
+function readDroppedItem(item: DataTransferItem) {
+  const reads: Promise<File>[] = [];
   const directFile = item.getAsFile();
   if (directFile) reads.push(snapshotDroppedFile(directFile));
 
-  const getHandle = /** @type {any} */ (item).getAsFileSystemHandle;
+  const getHandle = (item as DataTransferItem & { getAsFileSystemHandle?: unknown }).getAsFileSystemHandle;
   if (typeof getHandle === 'function') {
     try {
-      const handleRequest = getHandle.call(item);
+      const handleRequest = (getHandle as (this: DataTransferItem) => unknown).call(item);
       reads.push(Promise.resolve(handleRequest).then(async handle => {
-        if (!handle || handle.kind !== 'file' || typeof handle.getFile !== 'function') {
+        if (!handle || (handle as { kind?: unknown }).kind !== 'file' || typeof (handle as { getFile?: unknown }).getFile !== 'function') {
           throw new Error('The dropped item is not a readable file.');
         }
-        return snapshotDroppedFile(await handle.getFile());
+        return snapshotDroppedFile(await (handle as { getFile(): File | PromiseLike<File> }).getFile());
       }));
     } catch (_) {}
   }
 
-  const getEntry = /** @type {any} */ (item).webkitGetAsEntry;
+  const getEntry = item.webkitGetAsEntry;
   if (typeof getEntry === 'function') {
     try {
       const entry = getEntry.call(item);
-      if (entry?.isFile && typeof entry.file === 'function') {
-        reads.push(new Promise((resolve, reject) => {
-          entry.file(file => snapshotDroppedFile(file).then(resolve, reject), reject);
+      if (entry?.isFile && typeof (entry as FileSystemFileEntry).file === 'function') {
+        reads.push(new Promise<File>((resolve, reject) => {
+          (entry as FileSystemFileEntry).file(file => snapshotDroppedFile(file).then(resolve, reject), reject);
         }));
       }
     } catch (_) {}
@@ -155,7 +153,7 @@ function readDroppedItem(item) {
  * PDF loading.
  * @param {DataTransfer | File[] | FileList} source
  */
-export async function handleDroppedChatFiles(source) {
+export async function handleDroppedChatFiles(source: DataTransfer | File[] | FileList) {
   const scope = attachmentDraftKey();
   const fileItems = 'items' in source
     ? Array.from(source.items || []).filter(item => item.kind === 'file')
@@ -164,7 +162,7 @@ export async function handleDroppedChatFiles(source) {
     ? fileItems.map(readDroppedItem)
     : Array.from('files' in source ? source.files : source).map(snapshotDroppedFile);
   try {
-    const files = /** @type {File[]} */ (await Promise.all(reads));
+    const files = (await Promise.all(reads));
     if (scope !== attachmentDraftKey()) return;
     await handleChatFiles(files);
   } catch (error) {
@@ -186,7 +184,7 @@ export async function handleDroppedChatFiles(source) {
   }
 }
 
-function attachmentDraftKey(threadId = state.currentThreadId) {
+function attachmentDraftKey(threadId: unknown = state.currentThreadId) {
   return `${state.currentProfile || 'default'}:${threadId || 'unassigned'}`;
 }
 
@@ -205,8 +203,8 @@ export function getPendingAttachments() { return currentAttachmentDraft(); }
 export function hasPendingAttachments() { return currentAttachmentDraft({ create: false }).length > 0; }
 
 /** Shrink an image to a tiny thumbnail data URL for chat history storage */
-function makeThumbnail(previewUrl, width, height) {
-  return new Promise(resolve => {
+function makeThumbnail(previewUrl: string, width: number, height: number) {
+  return new Promise<string | null>(resolve => {
     const img = new Image();
     img.onload = () => {
       const scale = THUMB_SIZE / Math.max(width, height);
@@ -226,7 +224,7 @@ function makeThumbnail(previewUrl, width, height) {
   });
 }
 
-export async function addImageAttachment(file) {
+export async function addImageAttachment(file: File) {
   if (!isValidImageType(file.type)) {
     showNotification('Unsupported image type. Use JPEG, PNG, GIF, or WebP.', 'error');
     return;
@@ -237,7 +235,7 @@ export async function addImageAttachment(file) {
     showNotification(`Maximum ${attachmentLimit} images per message`, 'error');
     return;
   }
-  const queuedBytes = pendingAttachments.reduce((total, attachment) => total + (attachment.sizeBytes || 0), 0);
+  const queuedBytes = pendingAttachments.reduce((total, attachment) => total + ((attachment.sizeBytes || 0) as number), 0);
   if (!file.size || file.size + queuedBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
     showNotification('Photos can be up to 18 MB total per message. The original files are not compressed.', 'error', 6000);
     return;
@@ -252,21 +250,21 @@ export async function addImageAttachment(file) {
     const thumbUrl = await makeThumbnail(previewUrl, width, height);
     pendingAttachments.push({ base64, mediaType, name: file.name, previewUrl, thumbUrl, sizeBytes: file.size });
     renderAttachmentPreview();
-    chatImageDeps.updateSendButtonState();
+    (chatImageDeps.updateSendButtonState as () => unknown)();
     const longSide = Math.max(width, height);
     if (longSide < 512) {
       showNotification(`Low resolution image (${width}×${height}). AI may struggle with fine details.`, 'info', 5000);
     }
   } catch (e) {
-    const error = /** @type {Error} */ (e);
+    const error = e as { message?: unknown };
     showNotification('Failed to process image: ' + error.message, 'error');
   }
 }
 
-export function removeImageAttachment(index) {
+export function removeImageAttachment(index: number) {
   currentAttachmentDraft().splice(index, 1);
   renderAttachmentPreview();
-  chatImageDeps.updateSendButtonState();
+  (chatImageDeps.updateSendButtonState as () => unknown)();
 }
 
 export function renderAttachmentPreview() {
@@ -288,7 +286,7 @@ export function renderAttachmentPreview() {
   `<span class="chat-attach-count">${pendingAttachments.length}/${currentAttachmentLimit()}</span>`;
 }
 
-export function openImageLightbox(src) {
+export function openImageLightbox(src: unknown) {
   const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const overlay = document.createElement('div');
   overlay.className = 'chat-lightbox';
@@ -296,7 +294,7 @@ export function openImageLightbox(src) {
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-label', 'Attached image preview');
   const img = document.createElement('img');
-  img.src = src;
+  img.src = src as string;
   img.alt = 'Attached image preview';
   overlay.appendChild(img);
   const closeButton = document.createElement('button');
@@ -313,7 +311,7 @@ export function openImageLightbox(src) {
     removeModalOverlay(overlay);
     returnFocus?.focus();
   };
-  const onKeydown = (e) => {
+  const onKeydown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
       closeLightbox();
@@ -328,40 +326,40 @@ export function openImageLightbox(src) {
   closeButton.focus();
 }
 
-export function clearAttachments(threadId = state.currentThreadId) {
+export function clearAttachments(threadId: unknown = state.currentThreadId) {
   pendingAttachmentsByThread.delete(attachmentDraftKey(threadId));
   renderAttachmentPreview();
 }
 
 /** Remove only the submitted objects, retaining attachments added during a save. */
-export function consumeAttachments(attachments) {
+export function consumeAttachments(attachments: Iterable<unknown> | null | undefined) {
   const draft = currentAttachmentDraft({ create: false });
   const submitted = new Set(attachments);
   pendingAttachmentsByThread.set(attachmentDraftKey(), draft.filter(attachment => !submitted.has(attachment)));
   refreshAttachmentDraft();
 }
 
-export function deleteAttachmentDraft(threadId) {
+export function deleteAttachmentDraft(threadId: unknown) {
   pendingAttachmentsByThread.delete(attachmentDraftKey(threadId));
   if (threadId === state.currentThreadId) refreshAttachmentDraft();
 }
 
 export function refreshAttachmentDraft() {
   renderAttachmentPreview();
-  chatImageDeps.updateSendButtonState();
+  (chatImageDeps.updateSendButtonState as () => unknown)();
 }
 
-export function rememberMessageAttachments(message, attachments) {
+export function rememberMessageAttachments(message: unknown, attachments: unknown) {
   if (!message || typeof message !== 'object' || !Array.isArray(attachments) || !attachments.length) return;
-  sentMessageAttachments.set(message, attachments.map(attachment => ({ ...attachment })));
+  sentMessageAttachments.set(message, (attachments as unknown[]).map(attachment => ({ ...(attachment as object) })));
 }
 
-export function getMessageAttachments(message) {
+export function getMessageAttachments(message: unknown) {
   const attachments = message && typeof message === 'object' ? sentMessageAttachments.get(message) : null;
   return attachments ? attachments.map(attachment => ({ ...attachment })) : [];
 }
 
-export function restoreMessageAttachments(message) {
+export function restoreMessageAttachments(message: unknown) {
   const attachments = getMessageAttachments(message);
   if (!attachments?.length) return false;
   pendingAttachmentsByThread.set(
@@ -375,7 +373,7 @@ export function restoreMessageAttachments(message) {
 export function updateAttachButtonVisibility() {
   const btn = document.getElementById('chat-attach-btn');
   if (btn) btn.style.display = 'flex';
-  const photoAction = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-add-photo-action'));
+  const photoAction = (document.getElementById('chat-add-photo-action') as HTMLButtonElement | null);
   if (photoAction) photoAction.hidden = !canAttachImages();
 }
 
@@ -385,8 +383,8 @@ if (typeof globalThis.addEventListener === 'function') {
 }
 
 export function initChatImageHandlers() {
-  const textarea = document.getElementById('chat-input');
-  const chatDropZone = /** @type {HTMLElement | null} */ (document.querySelector('.chat-panel-conversation'));
+  const textarea = document.getElementById('chat-input') as HTMLTextAreaElement | null;
+  const chatDropZone = document.querySelector('.chat-panel-conversation') as HTMLElement | null;
   const chatDropOverlay = document.getElementById('chat-drop-overlay');
   const fileInput = document.getElementById('chat-image-input');
   const fallbackFileInput = document.getElementById('chat-file-input');
@@ -394,15 +392,15 @@ export function initChatImageHandlers() {
   if (!chatMenuDismissInstalled) {
     chatMenuDismissInstalled = true;
     document.addEventListener('click', event => {
-      const menu = /** @type {HTMLDetailsElement | null} */ (document.getElementById('chat-context-menu'));
+      const menu = document.getElementById('chat-context-menu') as HTMLDetailsElement | null;
       if (menu?.open && event.target instanceof Node && !menu.contains(event.target)) menu.open = false;
     });
     document.addEventListener('keydown', event => {
       if (event.key !== 'Escape') return;
-      const menu = /** @type {HTMLDetailsElement | null} */ (document.getElementById('chat-context-menu'));
+      const menu = document.getElementById('chat-context-menu') as HTMLDetailsElement | null;
       if (!menu?.open) return;
       menu.open = false;
-      menu.querySelector('summary')?.focus();
+      menu.querySelector<HTMLElement>('summary')?.focus();
     });
   }
 
@@ -426,12 +424,12 @@ export function initChatImageHandlers() {
   // image-attachment vs health-import split before the user releases a file.
   if (chatDropZone && chatDropZone.dataset.chatFileDropBound !== 'true') {
     chatDropZone.dataset.chatFileDropBound = 'true';
-    const setDropActive = active => {
+    const setDropActive = (active: boolean) => {
       chatDropZone.classList.toggle('chat-drop-active', active);
       if (chatDropOverlay) chatDropOverlay.hidden = !active;
     };
     chatDropZone.addEventListener('dragover', (e) => {
-      const dragEvent = /** @type {DragEvent} */ (e);
+      const dragEvent = e as DragEvent;
       const hasFiles = [...(dragEvent.dataTransfer?.types || [])].includes('Files');
       if (hasFiles) {
         dragEvent.preventDefault();
@@ -441,13 +439,13 @@ export function initChatImageHandlers() {
       }
     });
     chatDropZone.addEventListener('dragleave', (e) => {
-      const relatedTarget = /** @type {Node | null} */ (/** @type {DragEvent} */ (e).relatedTarget);
+      const relatedTarget = (e as DragEvent).relatedTarget as Node | null;
       if (!relatedTarget || !chatDropZone.contains(relatedTarget)) {
         setDropActive(false);
       }
     });
     chatDropZone.addEventListener('drop', (e) => {
-      const dragEvent = /** @type {DragEvent} */ (e);
+      const dragEvent = e as DragEvent;
       if (dragEvent.defaultPrevented) return;
       dragEvent.preventDefault();
       dragEvent.stopPropagation();
@@ -460,7 +458,7 @@ export function initChatImageHandlers() {
   if (fileInput && fileInput.dataset.chatFilePickerBound !== 'true') {
     fileInput.dataset.chatFilePickerBound = 'true';
     fileInput.addEventListener('change', (e) => {
-      const input = /** @type {HTMLInputElement} */ (e.target);
+      const input = e.target as HTMLInputElement;
       const files = Array.from(input.files || []);
       void handleChatFiles(files).finally(() => { input.value = ''; });
     });
@@ -468,7 +466,7 @@ export function initChatImageHandlers() {
   if (fallbackFileInput && fallbackFileInput.dataset.chatFilePickerBound !== 'true') {
     fallbackFileInput.dataset.chatFilePickerBound = 'true';
     fallbackFileInput.addEventListener('change', (e) => {
-      const input = /** @type {HTMLInputElement} */ (e.target);
+      const input = e.target as HTMLInputElement;
       const files = Array.from(input.files || []);
       void handleChatFiles(files).finally(() => { input.value = ''; });
     });

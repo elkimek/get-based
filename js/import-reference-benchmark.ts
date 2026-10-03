@@ -1,5 +1,6 @@
-// @ts-check
 // import-reference-benchmark.js - Bundled synthetic gold-reference scoring.
+
+import type { ReferenceMarkerReader, ReferenceDocumentReader, ReferenceManifest, ReferenceIssue, ReferenceDiscrepancy, ReferenceNormalizer, ReferenceFileConstructor } from '../types/import-reference-benchmark.js';
 
 import { getErrorMessage } from './caught-error.js';
 import { getAIProvider, getActiveModelId, hasAIProvider } from './api.js';
@@ -94,7 +95,7 @@ export function getBundledImportReferenceGoldBenchmark() {
   };
 }
 
-function referencePipelineScorePatch(score) {
+function referencePipelineScorePatch(score: ReturnType<typeof scoreReferenceImport>) {
   return {
     referencePipelineReturnedMarkerCount: score.referenceReturnedMarkerCount,
     referencePipelineDetectedMarkerCount: score.referenceDetectedMarkerCount,
@@ -106,14 +107,14 @@ function referencePipelineScorePatch(score) {
   };
 }
 
-export function scoreReferenceModelAndPipeline(modelResult, pipelineResult, expected) {
+export function scoreReferenceModelAndPipeline(modelResult: unknown, pipelineResult: unknown, expected: unknown) {
   return {
     ...scoreReferenceImport(modelResult, expected),
     ...referencePipelineScorePatch(scoreReferenceImport(pipelineResult, expected)),
   };
 }
 
-function normalizedName(value) {
+function normalizedName(value: unknown) {
   return String(value || '')
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -121,7 +122,7 @@ function normalizedName(value) {
     .replace(/[^a-z0-9]+/g, '');
 }
 
-function normalizedUnit(value) {
+function normalizedUnit(value: unknown) {
   return String(value || '')
     .normalize('NFKC')
     .toLowerCase()
@@ -135,19 +136,19 @@ function normalizedUnit(value) {
     .replace(/\s+/g, '');
 }
 
-function nearlyEqual(actual, expected) {
+function nearlyEqual(actual: number | null, expected: number | null) {
   if (!Number.isFinite(actual) || !Number.isFinite(expected)) return false;
-  return Math.abs(actual - expected) <= Math.max(1e-6, Math.abs(expected) * 1e-6);
+  return Math.abs((actual as number) - (expected as number)) <= Math.max(1e-6, Math.abs(expected as number) * 1e-6);
 }
 
-function normalizedMarkerNumber(marker, key, field) {
+function normalizedMarkerNumber(marker: ReferenceMarkerReader | null | undefined, key: unknown, field: string) {
   const raw = Number(marker?.[field]);
   if (!Number.isFinite(raw)) return null;
-  const normalized = normalizeToSI(key, raw, marker?.unit || null, marker);
+  const normalized = (normalizeToSI as ReferenceNormalizer)(key, raw, marker?.unit || null, marker);
   return Number.isFinite(normalized) ? normalized : raw;
 }
 
-function markerNumberMatches(actual, expected, field) {
+function markerNumberMatches(actual: ReferenceMarkerReader | null | undefined, expected: ReferenceMarkerReader, field: string) {
   const expectedValue = expected?.[field];
   const actualValue = actual?.[field];
   if (expectedValue == null || actualValue == null) return expectedValue == null && actualValue == null;
@@ -158,50 +159,45 @@ function markerNumberMatches(actual, expected, field) {
   );
 }
 
-function roundedPercent(numerator, denominator) {
+function roundedPercent(numerator: number, denominator: number) {
   if (!denominator) return 0;
   return Math.round((numerator / denominator) * 1000) / 10;
 }
 
-/** @param {any} value @param {string} [fallback] */
-function discrepancyText(value, fallback = '\u2014') {
+function discrepancyText(value: unknown, fallback = '\u2014') {
   const text = String(value ?? '').trim();
   return (text || fallback).slice(0, MAX_REFERENCE_DISCREPANCY_TEXT);
 }
 
-/** @param {any} marker */
-function markerResultText(marker) {
+function markerResultText(marker: ReferenceMarkerReader | null | undefined) {
   const value = discrepancyText(marker?.value, 'Missing');
   const unit = discrepancyText(marker?.unit, '');
   return unit ? `${value} ${unit}` : value;
 }
 
-/** @param {any} marker */
-function markerRangeText(marker) {
+function markerRangeText(marker: ReferenceMarkerReader | null | undefined) {
   const min = marker?.refMin == null ? '\u2014' : discrepancyText(marker.refMin);
   const max = marker?.refMax == null ? '\u2014' : discrepancyText(marker.refMax);
   return `${min} to ${max}`;
 }
 
-/** @param {any} marker */
-function markerMappingText(marker) {
+function markerMappingText(marker: ReferenceMarkerReader | null | undefined) {
   const name = discrepancyText(marker?.rawName, 'Unnamed result');
   const key = discrepancyText(marker?.mappedKey || marker?.suggestedKey, 'unmatched');
   return `${name} \u2192 ${key}`;
 }
 
-/** @param {any[]} discrepancies @param {any} discrepancy */
-function appendReferenceDiscrepancy(discrepancies, discrepancy) {
+function appendReferenceDiscrepancy(discrepancies: ReferenceDiscrepancy[], discrepancy: ReferenceDiscrepancy) {
   if (discrepancies.length >= MAX_REFERENCE_DISCREPANCIES) return false;
   discrepancies.push(discrepancy);
   return true;
 }
 
-export function scoreReferenceImport(result, expected) {
-  const expectedMarkers = Array.isArray(expected?.markers) ? expected.markers : [];
-  const returnedMarkers = Array.isArray(result?.markers) ? result.markers : [];
+export function scoreReferenceImport(result: unknown, expected: unknown) {
+  const expectedMarkers = Array.isArray((expected as ReferenceDocumentReader | null | undefined)?.markers) ? (expected as ReferenceDocumentReader).markers as ReferenceMarkerReader[] : [];
+  const returnedMarkers = Array.isArray((result as ReferenceDocumentReader | null | undefined)?.markers) ? (result as ReferenceDocumentReader).markers as ReferenceMarkerReader[] : [];
   const unusedReturned = new Set(returnedMarkers.map((_, index) => index));
-  const referenceDiscrepancies = [];
+  const referenceDiscrepancies: ReferenceDiscrepancy[] = [];
   let referenceDiscrepanciesTruncated = false;
   let detectedCount = 0;
   let mappingCount = 0;
@@ -246,7 +242,7 @@ export function scoreReferenceImport(result, expected) {
     const unitCorrect = normalizedUnit(actualMarker?.unit) === normalizedUnit(expectedMarker.unit);
     const rangeCorrect = markerNumberMatches(actualMarker, expectedMarker, 'refMin')
       && markerNumberMatches(actualMarker, expectedMarker, 'refMax');
-    const issues = [];
+    const issues: ReferenceIssue[] = [];
     if (!mappingCorrect) {
       issues.push({
         field: 'mapping',
@@ -304,8 +300,8 @@ export function scoreReferenceImport(result, expected) {
   const f1 = precision + recall > 0
     ? Math.round(((2 * precision * recall) / (precision + recall)) * 10) / 10
     : 0;
-  const dateCorrect = String(result?.date || '') === String(expected?.date || '');
-  const testTypeCorrect = String(result?.testType || '').toLowerCase() === String(expected?.testType || '').toLowerCase();
+  const dateCorrect = String((result as ReferenceDocumentReader | null | undefined)?.date || '') === String((expected as ReferenceDocumentReader | null | undefined)?.date || '');
+  const testTypeCorrect = String((result as ReferenceDocumentReader | null | undefined)?.testType || '').toLowerCase() === String((expected as ReferenceDocumentReader | null | undefined)?.testType || '').toLowerCase();
   for (const index of unusedReturned) {
     const marker = returnedMarkers[index];
     referenceDiscrepanciesTruncated = !appendReferenceDiscrepancy(referenceDiscrepancies, {
@@ -321,21 +317,21 @@ export function scoreReferenceImport(result, expected) {
       }],
     }) || referenceDiscrepanciesTruncated;
   }
-  const reportIssues = [];
+  const reportIssues: ReferenceIssue[] = [];
   if (!dateCorrect) {
     reportIssues.push({
       field: 'collection-date',
       label: 'Collection date',
-      expected: discrepancyText(expected?.date, 'Missing'),
-      actual: discrepancyText(result?.date, 'Missing'),
+      expected: discrepancyText((expected as ReferenceDocumentReader | null | undefined)?.date, 'Missing'),
+      actual: discrepancyText((result as ReferenceDocumentReader | null | undefined)?.date, 'Missing'),
     });
   }
   if (!testTypeCorrect) {
     reportIssues.push({
       field: 'report-type',
       label: 'Report type',
-      expected: discrepancyText(expected?.testType, 'Missing'),
-      actual: discrepancyText(result?.testType, 'Missing'),
+      expected: discrepancyText((expected as ReferenceDocumentReader | null | undefined)?.testType, 'Missing'),
+      actual: discrepancyText((result as ReferenceDocumentReader | null | undefined)?.testType, 'Missing'),
     });
   }
   if (reportIssues.length > 0) {
@@ -393,15 +389,14 @@ export function scoreReferenceImport(result, expected) {
 export async function loadImportReferenceManifest() {
   const response = await fetch(IMPORT_REFERENCE_MANIFEST_PATH, { cache: 'no-store' });
   if (!response.ok) throw new Error(`Could not load bundled reference manifest (${response.status}).`);
-  const manifest = await response.json();
-  if (!manifest?.id || !manifest?.sourcePath || !Array.isArray(manifest?.expected?.markers)) {
+  const manifest: unknown = await response.json();
+  if (!(manifest as ReferenceManifest | null)?.id || !(manifest as ReferenceManifest | null)?.sourcePath || !Array.isArray(((manifest as ReferenceManifest | null)?.expected as ReferenceDocumentReader | null)?.markers)) {
     throw new Error('Bundled reference manifest is invalid.');
   }
-  return manifest;
+  return manifest as ReferenceManifest;
 }
 
-/** @param {{onProgress?: (pct: number, label?: string) => void}} [options] */
-export async function runBundledImportReferenceBenchmark({ onProgress } = {}) {
+export async function runBundledImportReferenceBenchmark({ onProgress }: { onProgress?: ((pct: number, label?: string) => unknown) | undefined } = {}) {
   if (referenceBenchmarkRunning) throw new Error('A sample-report model test is already running.');
   referenceBenchmarkRunning = true;
   try {
@@ -410,10 +405,10 @@ export async function runBundledImportReferenceBenchmark({ onProgress } = {}) {
     const modelIdAtStart = getActiveModelId(providerAtStart);
     onProgress?.(2, 'Opening sample report');
     const manifest = await loadImportReferenceManifest();
-    const sourceResponse = await fetch(manifest.sourcePath, { cache: 'no-store' });
+    const sourceResponse = await (fetch as (request: unknown, init: Parameters<typeof fetch>[1]) => ReturnType<typeof fetch>)(manifest.sourcePath, { cache: 'no-store' });
     if (!sourceResponse.ok) throw new Error(`Could not load bundled reference report (${sourceResponse.status}).`);
     const sourceBuffer = await sourceResponse.arrayBuffer();
-    const sourceFile = new File([sourceBuffer], manifest.fileName, { type: 'application/pdf' });
+    const sourceFile = new (File as unknown as ReferenceFileConstructor)([sourceBuffer], manifest.fileName, { type: 'application/pdf' });
     const benchmarkId = startImportBenchmark({
       fileName: manifest.fileName,
       fileSize: sourceFile.size,
@@ -447,7 +442,7 @@ export async function runBundledImportReferenceBenchmark({ onProgress } = {}) {
       }, { persist: false });
       onProgress?.(15, 'Sending 68 results to the model');
       const analysisStartedAt = performance.now();
-      const result = await parseLabPDFWithAI(sourceText, manifest.fileName, (pct, stageLabel) => {
+      const result = await parseLabPDFWithAI(sourceText, manifest.fileName as Parameters<typeof parseLabPDFWithAI>[1], (pct, stageLabel) => {
         onProgress?.(Math.max(15, Math.min(90, Number(pct) || 15)), stageLabel || 'Model is reading the report');
       }, { captureRawModelOutput: true, deterministicBenchmark: true });
       const analysisMs = Math.max(0, Math.round(performance.now() - analysisStartedAt));

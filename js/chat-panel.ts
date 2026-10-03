@@ -1,4 +1,3 @@
-// @ts-check
 // chat-panel.js — Chat panel chrome, web-search toggle, and input state
 
 import { isAIPaused, supportsWebSearch } from './api.js';
@@ -30,10 +29,11 @@ import {
 
 export { setChatNudge, updateChatNudge } from './chat-nudge.js';
 
-/** @typedef {{ name: string, url: string, anchorSelector?: string }} ChatPresentationStylesheet */
-
-/** @type {ChatPresentationStylesheet[]} */
-const CHAT_PRESENTATION_STYLESHEETS = [
+interface ChatPresentationStylesheet {name:string;url:string;anchorSelector?:string}
+interface PanelCallbackOperations {restoreDiscussionContinuePrompt?:(()=>unknown)|null;isChatStreaming?:(()=>unknown)|null;isVoicePlaybackActive?:(()=>unknown)|null;
+refreshMobileDashboardActiveTab?:(()=>unknown)|null;restoreChatGenerationUI?:(()=>unknown)|null;restoreVoicePlaybackUi?:(()=>unknown)|null;
+stopVoiceActivity?:((options?:{preservePlayback?:boolean})=>unknown)|null}
+const CHAT_PRESENTATION_STYLESHEETS: ChatPresentationStylesheet[] = [
   { name: 'panel-open', url: new URL('../css/chat-panel-open.css', import.meta.url).href },
   { name: 'personality', url: new URL('../css/chat-personality.css', import.meta.url).href },
   { name: 'messages', url: new URL('../css/chat-messages.css', import.meta.url).href },
@@ -49,21 +49,11 @@ const CHAT_PRESENTATION_STYLESHEETS = [
   },
 ];
 
-/** @type {Promise<HTMLLinkElement[]> | null} */
-let chatPresentationStylesheetPromise = null;
+let chatPresentationStylesheetPromise: Promise<HTMLLinkElement[]>|null = null;
 let chatPresentationStylesheetsLoaded = false;
 let useChatPresentationStylesheetRetryUrl = false;
 
-/** @type {{
- *   restoreDiscussionContinuePrompt: (() => void) | null,
- *   isChatStreaming: (() => boolean) | null,
- *   isVoicePlaybackActive: (() => boolean) | null,
- *   refreshMobileDashboardActiveTab: (() => void) | null,
- *   restoreChatGenerationUI: (() => boolean) | null,
- *   restoreVoicePlaybackUi: (() => boolean) | null,
- *   stopVoiceActivity: ((options?: { preservePlayback?: boolean }) => void) | null,
- * }} */
-const panelCallbacks = {
+const panelCallbacks: Record<string,unknown> = {
   restoreDiscussionContinuePrompt: null,
   isChatStreaming: null,
   isVoicePlaybackActive: null,
@@ -73,17 +63,17 @@ const panelCallbacks = {
   stopVoiceActivity: null,
 };
 let chatThreadInputBlocked = false;
-let chatPanelReturnFocus = null;
+let chatPanelReturnFocus: Element|null = null;
 let chatPanelIntent = 0;
 
-function setChatBackgroundInert(inert) {
+function setChatBackgroundInert(inert: boolean) {
   document.querySelectorAll('.main, .sidebar, .app-footer, .mobile-dashboard').forEach(element => {
     if (element.id === 'chat-panel' || element.contains(document.getElementById('chat-panel'))) return;
-    /** @type {HTMLElement} */ (element).inert = inert;
+    (element as HTMLElement).inert = inert;
   });
 }
 
-function updateChatPanelAccessibility(panel, open) {
+function updateChatPanelAccessibility(panel: HTMLElement, open: boolean) {
   const mobile = typeof matchMedia === 'function' && matchMedia('(max-width: 768px)').matches;
   panel.inert = !open;
   panel.setAttribute('aria-hidden', String(!open));
@@ -93,8 +83,7 @@ function updateChatPanelAccessibility(panel, open) {
   setChatBackgroundInert(open && mobile);
 }
 
-/** @param {{ restoreDiscussionContinuePrompt?: (() => void) | null, isChatStreaming?: (() => boolean) | null, isVoicePlaybackActive?: (() => boolean) | null, refreshMobileDashboardActiveTab?: (() => void) | null, restoreChatGenerationUI?: (() => boolean) | null, restoreVoicePlaybackUi?: (() => boolean) | null, stopVoiceActivity?: ((options?: { preservePlayback?: boolean }) => void) | null }} [callbacks] */
-export function configureChatPanel(callbacks = {}) {
+export function configureChatPanel(callbacks: unknown = {}) {
   const previous = { ...panelCallbacks };
   Object.assign(panelCallbacks, callbacks);
   return previous;
@@ -107,13 +96,13 @@ export function getChatWebSearchEnabled() {
   return localStorage.getItem('labcharts-chat-websearch') === 'on';
 }
 
-export function setChatWebSearchEnabled(val) {
+export function setChatWebSearchEnabled(val: unknown) {
   localStorage.setItem('labcharts-chat-websearch', val ? 'on' : 'off');
   updateWebSearchToggleVisibility();
 }
 
-export async function setChatBackendFromUI(value) {
-  const select = /** @type {HTMLSelectElement | null} */ (document.getElementById('chat-backend-select'));
+export async function setChatBackendFromUI(value: unknown) {
+  const select = document.getElementById('chat-backend-select') as HTMLSelectElement|null;
   if (value === 'codex') {
     if (select) select.disabled = true;
     try {
@@ -136,7 +125,7 @@ export async function setChatBackendFromUI(value) {
 }
 
 function updateWebSearchToggleVisibility() {
-  const label = /** @type {HTMLElement | null} */ (document.querySelector('#chat-panel .chat-websearch-toggle-label'));
+  const label = document.querySelector('#chat-panel .chat-websearch-toggle-label') as HTMLElement|null;
   if (label) label.style.display = !isCodexChatBackend() && supportsWebSearch() ? '' : 'none';
 }
 
@@ -148,15 +137,14 @@ export function isChatThreadInputBlocked() {
   return chatThreadInputBlocked;
 }
 
-/** @param {ChatPresentationStylesheet} stylesheet */
-function existingChatPresentationStylesheet(stylesheet) {
+function existingChatPresentationStylesheet(stylesheet: ChatPresentationStylesheet): HTMLLinkElement|null {
   if (typeof document === 'undefined') return null;
-  return /** @type {HTMLLinkElement | null} */ (
-    document.querySelector(`link[data-chat-presentation-stylesheet="${stylesheet.name}"]`)
-    || Array.from(document.querySelectorAll('link[rel="stylesheet"][href]'))
+  return (
+    document.querySelector<HTMLLinkElement>(`link[data-chat-presentation-stylesheet="${stylesheet.name}"]`)
+    || Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"][href]'))
       .find(link => {
         try {
-          return new URL(/** @type {HTMLLinkElement} */ (link).href).pathname
+          return new URL(link.href).pathname
             === new URL(stylesheet.url).pathname;
         } catch {
           return false;
@@ -166,8 +154,7 @@ function existingChatPresentationStylesheet(stylesheet) {
   );
 }
 
-/** @param {ChatPresentationStylesheet} stylesheet */
-function chatPresentationStylesheetUrl(stylesheet) {
+function chatPresentationStylesheetUrl(stylesheet: ChatPresentationStylesheet) {
   if (!useChatPresentationStylesheetRetryUrl) return stylesheet.url;
   const retryUrl = new URL(stylesheet.url);
   retryUrl.searchParams.set('lazy-retry', '1');
@@ -180,12 +167,7 @@ export function areChatPresentationStylesheetsLoaded() {
   );
 }
 
-/**
- * @param {ChatPresentationStylesheet} stylesheet
- * @param {Element | null} anchor
- * @returns {Promise<HTMLLinkElement>}
- */
-function loadChatPresentationStylesheet(stylesheet, anchor) {
+function loadChatPresentationStylesheet(stylesheet: ChatPresentationStylesheet, anchor: Element|null) {
   const existing = existingChatPresentationStylesheet(stylesheet);
   if (existing?.sheet) {
     return Promise.resolve(existing);
@@ -196,7 +178,7 @@ function loadChatPresentationStylesheet(stylesheet, anchor) {
     link.href = chatPresentationStylesheetUrl(stylesheet);
     link.dataset.chatPresentationStylesheet = stylesheet.name;
   }
-  return new Promise(function beginChatPresentationStylesheetLoad(resolve, reject) {
+  return new Promise<HTMLLinkElement>(function beginChatPresentationStylesheetLoad(resolve, reject) {
     link.addEventListener('load', function markChatPresentationStylesheetLoaded() {
       resolve(link);
     }, { once: true });
@@ -211,11 +193,10 @@ function loadChatPresentationStylesheet(stylesheet, anchor) {
   });
 }
 
-/** @returns {Promise<HTMLLinkElement[]>} */
-export function loadChatPresentationStylesheets() {
+export function loadChatPresentationStylesheets(): Promise<Array<HTMLLinkElement|null>> {
   if (areChatPresentationStylesheetsLoaded()) {
     return Promise.resolve(CHAT_PRESENTATION_STYLESHEETS.map(
-      stylesheet => /** @type {HTMLLinkElement} */ (existingChatPresentationStylesheet(stylesheet)),
+      stylesheet => existingChatPresentationStylesheet(stylesheet),
     ));
   }
   if (!chatPresentationStylesheetPromise) {
@@ -231,7 +212,7 @@ export function loadChatPresentationStylesheets() {
     ).then(function markChatPresentationStylesheetsLoaded(links) {
       chatPresentationStylesheetsLoaded = true;
       return links;
-    }).catch(function resetChatPresentationStylesheetLoad(err) {
+    }).catch(function resetChatPresentationStylesheetLoad(err: unknown): never {
       chatPresentationStylesheetPromise = null;
       chatPresentationStylesheetsLoaded = false;
       useChatPresentationStylesheetRetryUrl = true;
@@ -277,14 +258,14 @@ export function toggleChatFullscreen() {
   panel.classList.toggle('chat-panel-fullscreen', next);
   document.body.classList.toggle('chat-fullscreen', next);
   localStorage.setItem('labcharts-chat-fullscreen', next ? 'true' : 'false');
-  const button = /** @type {HTMLElement | null} */ (document.querySelector('.chat-fullscreen-btn'));
+  const button = document.querySelector('.chat-fullscreen-btn') as HTMLElement|null;
   button?.setAttribute('aria-pressed', String(next));
   button?.setAttribute('aria-label', next ? 'Exit fullscreen chat' : 'Enter fullscreen chat');
   if (button) button.title = next ? 'Exit fullscreen' : 'Enter fullscreen';
   syncChatLayout();
 }
 
-export async function openChatPanel(prefillMessage) {
+export async function openChatPanel(prefillMessage?: Parameters<typeof setChatInputValue>[0]) {
   const openIntent = ++chatPanelIntent;
   const panel = document.getElementById('chat-panel');
   const backdrop = document.getElementById('chat-backdrop');
@@ -325,7 +306,7 @@ export async function openChatPanel(prefillMessage) {
   updateChatHeaderTitle();
   updatePersonalityBar();
   // Sync web search toggle
-  const wsCb = /** @type {HTMLInputElement | null} */ (panel.querySelector('#chat-websearch-checkbox'));
+  const wsCb = panel.querySelector('#chat-websearch-checkbox') as HTMLInputElement|null;
   if (wsCb) wsCb.checked = getChatWebSearchEnabled();
   updateWebSearchToggleVisibility();
   // An in-flight answer exists only in the live request/typewriter state
@@ -333,8 +314,8 @@ export async function openChatPanel(prefillMessage) {
   // partial response and typing indicator while the request kept running,
   // making the latest user message look interrupted and retryable. Replacing
   // message objects during speech would likewise invalidate its active turn.
-  const generationInProgress = panelCallbacks.isChatStreaming?.() === true;
-  const voicePlaybackInProgress = panelCallbacks.isVoicePlaybackActive?.() === true;
+  const generationInProgress = (panelCallbacks as PanelCallbackOperations).isChatStreaming?.() === true;
+  const voicePlaybackInProgress = (panelCallbacks as PanelCallbackOperations).isVoicePlaybackActive?.() === true;
   const liveSessionInProgress = generationInProgress || voicePlaybackInProgress;
   // Load threads and ensure active thread
   let threadsLoaded = true;
@@ -348,24 +329,24 @@ export async function openChatPanel(prefillMessage) {
   renderThreadList();
   renderSavedSummaries();
   if (!liveSessionInProgress && threadsLoaded !== false) await loadChatHistory();
-  if (!generationInProgress) panelCallbacks.restoreDiscussionContinuePrompt?.();
+  if (!generationInProgress) (panelCallbacks as PanelCallbackOperations).restoreDiscussionContinuePrompt?.();
   updateChatInputState();
   initChatComposer();
   initChatModelControls();
   if (generationInProgress) {
-    panelCallbacks.restoreChatGenerationUI?.();
+    (panelCallbacks as PanelCallbackOperations).restoreChatGenerationUI?.();
   } else if (!chatThreadInputBlocked) {
     if (prefillMessage) setChatInputValue(prefillMessage, { focus: true });
     else await restoreChatDraft(undefined, { focus: true });
   }
-  panelCallbacks.restoreVoicePlaybackUi?.();
+  (panelCallbacks as PanelCallbackOperations).restoreVoicePlaybackUi?.();
   return true;
 }
 
 export function updateChatInputState() {
-  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
-  const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
-  const voiceBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-voice-btn'));
+  const input = document.getElementById('chat-input') as HTMLTextAreaElement|null;
+  const sendBtn = document.getElementById('chat-send-btn') as HTMLButtonElement|null;
+  const voiceBtn = document.getElementById('chat-voice-btn') as HTMLButtonElement|null;
   const noAI = !hasChatResponseBackend();
   const blocked = chatThreadInputBlocked;
   if (input) {
@@ -403,7 +384,7 @@ if (typeof globalThis.addEventListener === 'function') {
 
 export function closeChatPanel() {
   chatPanelIntent += 1;
-  panelCallbacks.stopVoiceActivity?.({ preservePlayback: true });
+  (panelCallbacks as PanelCallbackOperations).stopVoiceActivity?.({ preservePlayback: true });
   stopMobileChatViewportSync();
   const panel = document.getElementById('chat-panel');
   panel?.classList.remove('open');
@@ -418,7 +399,7 @@ export function closeChatPanel() {
   const fab = document.getElementById('chat-fab');
   if (fab) fab.classList.remove('hidden');
   const returnTarget = chatPanelReturnFocus?.isConnected ? chatPanelReturnFocus : fab;
-  returnTarget?.focus?.();
+  (returnTarget as (Element & {focus?:()=>unknown})|null)?.focus?.();
   chatPanelReturnFocus = null;
-  panelCallbacks.refreshMobileDashboardActiveTab?.();
+  (panelCallbacks as PanelCallbackOperations).refreshMobileDashboardActiveTab?.();
 }

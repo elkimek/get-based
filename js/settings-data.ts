@@ -1,4 +1,4 @@
-// @ts-check
+import type { SettingsBenchmarkReader, EntryOperations, SnapshotOperations, UsageOperations, BenchmarkMetric, DifferenceValue, DiscrepancyOperations, NumericFields, ProviderLabelReader } from '../types/settings-data.js';
 // settings-data.js - Settings data-entry management and AI usage helpers.
 
 import { state } from './state.js';
@@ -20,9 +20,9 @@ import {
 } from './import-reference-benchmark.js';
 
 export function renderDataEntriesSection() {
-  const snapshots = state.importedData?.importSnapshots || [];
-  const rawEntries = state.importedData?.entries || [];
-  const entries = [];
+  const snapshots = (state.importedData?.importSnapshots || []) as unknown as SnapshotOperations[];
+  const rawEntries = (state.importedData?.entries || []) as unknown as EntryOperations[];
+  const entries: EntryOperations[] = [];
   for (const entry of rawEntries) {
     if (Object.keys(entry?.markers || {}).length > 0) entries.push(entry);
   }
@@ -35,16 +35,16 @@ export function renderDataEntriesSection() {
   let html = '';
 
   if (hasSnapshots) {
-    const sortedSnapshots = [...snapshots].sort((a, b) => (b.importedAt || 0) - (a.importedAt || 0));
+    const sortedSnapshots = [...snapshots].sort((a, b) => ((b.importedAt || 0) as number) - ((a.importedAt || 0) as number));
     html += '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 4px">Imports</div>';
     for (const snap of sortedSnapshots) {
-      const d = new Date((snap.date || '') + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const d = new Date(((snap.date || '') as string) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       const cnt = snap.markerCount || (snap.markers || []).length;
       const fileName = snap.fileName || 'Unknown file';
       const typeLabel = snap.type || 'import';
       const modelLabel = snap.costInfo?.modelId ? `${snap.costInfo.modelId}` : '';
       const importedLabel = Number.isFinite(snap.importedAt)
-        ? new Date(snap.importedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+        ? new Date(snap.importedAt as number).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
         : '';
       const snapId = snap.id;
       html += `<div class="imported-entry imported-entry-snapshot">
@@ -68,17 +68,17 @@ export function renderDataEntriesSection() {
     }
   }
 
-  const manualValues = state.importedData.manualValues || {};
-  const legacyEntries = [];
+  const manualValues = (state.importedData.manualValues || {}) as unknown as Record<string,unknown>;
+  const legacyEntries: Array<{entry:EntryOperations;otherKeys:string[];manualKeys:string[];hasSnapshotMarkers:boolean}> = [];
   for (const entry of entries) {
     const entryMarkerKeys = Object.keys(entry.markers || {});
     const manualKeys = entryMarkerKeys.filter(k => manualValues[k + ':' + entry.date]);
     const manualNonSnapshotKeys = manualKeys.filter(k => {
-      if (isSnapshotDerivedHOMAIR(entry, k)) return false;
+      if ((isSnapshotDerivedHOMAIR as (entry:EntryOperations, key:string)=>ReturnType<typeof isSnapshotDerivedHOMAIR>)(entry, k)) return false;
       return !entry.markerSources?.[k]?.snapshotId;
     });
     const legacyKeys = entryMarkerKeys.filter(k => {
-      if (isSnapshotDerivedHOMAIR(entry, k)) return false;
+      if ((isSnapshotDerivedHOMAIR as (entry:EntryOperations, key:string)=>ReturnType<typeof isSnapshotDerivedHOMAIR>)(entry, k)) return false;
       const src = entry.markerSources?.[k];
       return !src || !src.snapshotId;
     });
@@ -88,11 +88,11 @@ export function renderDataEntriesSection() {
   }
 
   if (legacyEntries.length > 0) {
-    const sortedLegacy = [...legacyEntries].sort((a, b) => a.entry.date.localeCompare(b.entry.date));
+    const sortedLegacy = [...legacyEntries].sort((a, b) => (a.entry.date as {localeCompare(value:unknown):number}).localeCompare(b.entry.date));
     html += '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 4px">Manual / legacy markers</div>';
     for (const legacy of sortedLegacy) {
       const { entry, otherKeys, manualKeys, hasSnapshotMarkers } = legacy;
-      const d = new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const d = new Date((entry.date as string) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       const cnt = otherKeys.length;
       const isManual = cnt > 0 && cnt === manualKeys.length;
       const sourceLabel = isManual
@@ -125,10 +125,10 @@ export function refreshDataEntriesSection() {
   if (el) el.innerHTML = renderDataEntriesSection();
 }
 
-export async function removeImportedEntryFromSettings(date) {
+export async function removeImportedEntryFromSettings(date: unknown) {
   try {
     const { removeImportedEntry } = await loadPdfImport();
-    const ok = await removeImportedEntry(date);
+    const ok = await (removeImportedEntry as (date:unknown)=>ReturnType<typeof removeImportedEntry>)(date);
     if (ok) refreshDataEntriesSection();
   } catch (err) {
     if (isDebugMode()) console.error('Remove imported entry failed:', err);
@@ -136,10 +136,10 @@ export async function removeImportedEntryFromSettings(date) {
   }
 }
 
-export async function renameImportedEntryDateFromSettings(date) {
+export async function renameImportedEntryDateFromSettings(date: unknown) {
   try {
     const { renameImportedEntryDate } = await loadPdfImport();
-    const ok = await renameImportedEntryDate(date);
+    const ok = await (renameImportedEntryDate as (date:unknown)=>ReturnType<typeof renameImportedEntryDate>)(date);
     if (ok) refreshDataEntriesSection();
   } catch (err) {
     if (isDebugMode()) console.error('Rename imported entry failed:', err);
@@ -147,17 +147,17 @@ export async function renameImportedEntryDateFromSettings(date) {
   }
 }
 
-function formatTokens(n) {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k';
+function formatTokens(n: unknown) {
+  if ((n as number) >= 1_000_000) return ((n as number) / 1_000_000).toFixed(1) + 'M';
+  if ((n as number) >= 1_000) return ((n as number) / 1_000).toFixed(1) + 'k';
   return String(n);
 }
 
-export function getImportBenchmarkSnapshots() {
+export function getImportBenchmarkSnapshots(): unknown[] {
   const deletedIds = new Set(getDeletedImportBenchmarkIds());
-  const snapshots = state.importedData?.importSnapshots || [];
+  const snapshots = (state.importedData?.importSnapshots || []) as unknown as SnapshotOperations[];
   recoverConfirmedImportBenchmarks(snapshots);
-  const attempts = getImportBenchmarks();
+  const attempts = getImportBenchmarks() as SettingsBenchmarkReader[];
   const legacy = snapshots.filter(snap => {
     if (!snap?.timings || !snap?.costInfo?.modelId) return false;
     if (attempts.some(item => item.id === snap.benchmarkId)) return false;
@@ -166,23 +166,23 @@ export function getImportBenchmarkSnapshots() {
   });
   const stored = [...attempts, ...legacy]
     .filter(snap => !deletedIds.has(importBenchmarkStorageId(snap)))
-    .sort((a, b) => (b.benchmarkAt || b.importedAt || 0) - (a.benchmarkAt || a.importedAt || 0));
+    .sort((a, b) => ((b.benchmarkAt || b.importedAt || 0) as number) - ((a.benchmarkAt || a.importedAt || 0) as number));
   return [getBundledImportReferenceGoldBenchmark(), ...stored];
 }
-export function importBenchmarkStorageId(snap) {
+export function importBenchmarkStorageId(snap: SettingsBenchmarkReader | null | undefined) {
   return String(snap?.id || snap?.benchmarkId || `legacy_${snap?.benchmarkAt || snap?.importedAt || 0}_${snap?.fileName || 'unknown'}`);
 }
 
-export function isImportBenchmarkComparable(snap) {
+export function isImportBenchmarkComparable(snap: SettingsBenchmarkReader | null | undefined) {
   if (!snap?.status) return true;
-  return ['confirmed', 'reference-scored', 'reference-passed'].includes(snap.status);
+  return ['confirmed', 'reference-scored', 'reference-passed'].includes(snap.status as string);
 }
 
-function isReferenceBenchmark(snap) {
+function isReferenceBenchmark(snap: SettingsBenchmarkReader | null | undefined) {
   return snap?.benchmarkKind === 'reference' || snap?.benchmarkKind === 'reference-gold';
 }
 
-function importBenchmarkInputIdentity(snap) {
+function importBenchmarkInputIdentity(snap: SettingsBenchmarkReader | null | undefined) {
   if (isReferenceBenchmark(snap) && snap?.referenceFixtureId) {
     const version = snap.referenceFixtureVersion
       || (snap.referenceFixtureId === IMPORT_REFERENCE_FIXTURE.id ? IMPORT_REFERENCE_FIXTURE.version : 1);
@@ -192,20 +192,20 @@ function importBenchmarkInputIdentity(snap) {
   return hash ? `report:${hash}` : '';
 }
 
-export function importBenchmarksUseSameInput(first, second) {
+export function importBenchmarksUseSameInput(first:SettingsBenchmarkReader|null|undefined, second:SettingsBenchmarkReader|null|undefined) {
   const firstIdentity = importBenchmarkInputIdentity(first);
   return !!firstIdentity && firstIdentity === importBenchmarkInputIdentity(second);
 }
-export function latestCompatibleModelTests(snapshots) {
+export function latestCompatibleModelTests<Snapshot extends SettingsBenchmarkReader>(snapshots:readonly Snapshot[]):Snapshot[] {
   const modelRuns = snapshots.filter(snap => isImportBenchmarkComparable(snap) && !snap.benchmarkLocked);
   for (let index = 0; index < modelRuns.length; index++) {
     const match = modelRuns.slice(index + 1).find(candidate => importBenchmarksUseSameInput(modelRuns[index], candidate));
-    if (match) return [modelRuns[index], match];
+    if (match) return [modelRuns[index]!, match];
   }
   return [];
 }
 
-function formatBenchmarkDuration(ms) {
+function formatBenchmarkDuration(ms: unknown) {
   const value = Math.max(0, Number(ms) || 0);
   if (value < 1000) return `${Math.round(value)} ms`;
   if (value < 60_000) return `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)} s`;
@@ -214,25 +214,25 @@ function formatBenchmarkDuration(ms) {
   return `${minutes}m ${seconds}s`;
 }
 
-function formatOptionalBenchmarkDuration(ms) {
+function formatOptionalBenchmarkDuration(ms: unknown) {
   return Number(ms) > 0 ? formatBenchmarkDuration(ms) : '\u2014';
 }
 
-function formatBenchmarkPercent(value) {
+function formatBenchmarkPercent(value: unknown) {
   return `${Number(value).toFixed(1)}%`;
 }
-function benchmarkFallbackLabel(diagnostics) {
-  const fallbacks = [];
+function benchmarkFallbackLabel(diagnostics: NumericFields|null|undefined) {
+  const fallbacks: string[] = [];
   if (diagnostics?.structuredOutputFallback) fallbacks.push('schema retry');
   if (diagnostics?.streamFallback) fallbacks.push('stream retry');
   if (diagnostics?.reasoningControlFallback) fallbacks.push('reasoning retry');
   return fallbacks.length ? fallbacks.join(' + ') : 'direct';
 }
-function referenceDiscrepancyState(snap) {
+function referenceDiscrepancyState(snap: SettingsBenchmarkReader | null | undefined) {
   const captured = Number(snap?.referenceDiscrepanciesVersion) > 0
     && Array.isArray(snap?.referenceDiscrepancies);
   const groups = captured
-    ? snap.referenceDiscrepancies
+    ? (snap!.referenceDiscrepancies as DiscrepancyOperations[])
       .filter(item => item && Array.isArray(item.issues) && item.issues.length > 0)
       .slice(0, 100)
     : [];
@@ -255,11 +255,11 @@ function referenceDiscrepancyState(snap) {
   };
 }
 
-export function referenceDifferenceLabel(count) {
+export function referenceDifferenceLabel(count: unknown) {
   return `${count} difference${count === 1 ? '' : 's'}`;
 }
 
-export function renderReferenceDiscrepancyDetails(snap, { showClose = false } = {}) {
+export function renderReferenceDiscrepancyDetails(snap:SettingsBenchmarkReader|null|undefined, { showClose = false } = {}) {
   const state = referenceDiscrepancyState(snap);
   const modelId = snap?.modelId || snap?.costInfo?.modelId || 'this model';
   if (state.unavailable) {
@@ -269,7 +269,7 @@ export function renderReferenceDiscrepancyDetails(snap, { showClose = false } = 
     </div>`;
   }
   if (!state.captured || state.issueCount === 0) return '';
-  const summaryParts = [];
+  const summaryParts: string[] = [];
   if (state.dataCount > 0) summaryParts.push(`${state.dataCount} lab-data difference${state.dataCount === 1 ? '' : 's'} across ${state.affectedMarkerCount} result${state.affectedMarkerCount === 1 ? '' : 's'}`);
   if (state.reportCount > 0) summaryParts.push(`${state.reportCount} report-detail difference${state.reportCount === 1 ? '' : 's'}`);
   const rows = state.groups.map(group => {
@@ -301,7 +301,7 @@ export function renderReferenceDiscrepancyDetails(snap, { showClose = false } = 
   </div>`;
 }
 
-function renderReferenceComparisonReviewControl(snap, id) {
+function renderReferenceComparisonReviewControl(snap:SettingsBenchmarkReader, id:string) {
   if (!isReferenceBenchmark(snap) || snap?.benchmarkLocked) return '';
   const state = referenceDiscrepancyState(snap);
   if (state.issueCount > 0) {
@@ -311,13 +311,13 @@ function renderReferenceComparisonReviewControl(snap, id) {
   return '';
 }
 
-function importBenchmarkView(snap) {
+function importBenchmarkView(snap:SettingsBenchmarkReader) {
   const isGoldStandard = !!snap.benchmarkLocked;
   const measuredAnalysisMs = Number.isFinite(Number(snap.timings?.analysisMs))
-    ? Number(snap.timings.analysisMs)
+    ? Number(snap.timings!.analysisMs)
     : (Number(snap.timings?.analysis) || 0) * 1000;
   const piiMs = Number.isFinite(Number(snap.timings?.piiMs))
-    ? Number(snap.timings.piiMs)
+    ? Number(snap.timings!.piiMs)
     : (Number(snap.timings?.pii) || 0) * 1000;
   const inputTokens = Number(snap.usage?.inputTokens ?? snap.costInfo?.inputTokens) || 0;
   const outputTokens = Number(snap.usage?.outputTokens ?? snap.costInfo?.outputTokens) || 0;
@@ -406,7 +406,7 @@ function importBenchmarkView(snap) {
   };
 }
 
-const IMPORT_BENCHMARK_COMPARISON_METRICS = [
+const IMPORT_BENCHMARK_COMPARISON_METRICS: BenchmarkMetric[] = [
   { group: 'Raw model accuracy', key: 'referenceExactMarkerPercent', label: 'Fully correct results', hint: 'What the model got right before automatic marker corrections', direction: 'higher', optional: true, diffMode: 'points', format: formatBenchmarkPercent },
   { group: 'Raw model accuracy', key: 'referenceFieldAccuracyPercent', label: 'All fields correct', hint: 'Every raw model field checked against the answer key', direction: 'higher', optional: true, diffMode: 'points', format: formatBenchmarkPercent },
   { group: 'Raw model accuracy', key: 'referencePrecisionPercent', label: 'Precision (no extras)', hint: 'How many returned results belong in the answer key', direction: 'higher', optional: true, diffMode: 'points', format: formatBenchmarkPercent },
@@ -431,7 +431,7 @@ const IMPORT_BENCHMARK_COMPARISON_METRICS = [
   { group: 'Import review', key: 'unmappedMarkerCount', label: 'Unmatched results', hint: 'Results that could not be assigned to a marker', direction: 'lower', optional: true, format: value => String(value) },
   { group: 'Speed', key: 'totalMs', label: 'Total time', hint: 'From opening the report to a finished result', direction: 'lower', optional: true, format: formatBenchmarkDuration },
   { group: 'Speed', key: 'analysisMs', label: 'Model time', hint: 'Time spent waiting for the model', direction: 'lower', optional: true, format: formatBenchmarkDuration },
-  { group: 'Speed', key: 'throughput', label: 'Generation speed', hint: 'Tokens generated each second', direction: 'higher', optional: true, zeroIsMissing: true, format: value => `${value.toFixed(1)} tok/s` },
+  { group: 'Speed', key: 'throughput', label: 'Generation speed', hint: 'Tokens generated each second', direction: 'higher', optional: true, zeroIsMissing: true, format: value => `${(value as number).toFixed(1)} tok/s` },
   { group: 'Speed', key: 'inputTokens', label: 'Input size', hint: 'Tokens sent to the model', direction: 'neutral', optional: true, zeroIsMissing: true, format: formatTokens },
   { group: 'Speed', key: 'outputTokens', label: 'Output size', hint: 'Tokens returned by the model', direction: 'neutral', optional: true, zeroIsMissing: true, format: formatTokens },
   { group: 'Technical details', key: 'piiMs', label: 'Privacy preparation', hint: 'Time spent preparing private data before the model call', direction: 'lower', optional: true, zeroIsMissing: true, format: formatBenchmarkDuration },
@@ -440,10 +440,10 @@ const IMPORT_BENCHMARK_COMPARISON_METRICS = [
   { group: 'Technical details', key: 'timeToFirstTokenMs', label: 'First response', hint: 'Time until the model began answering', direction: 'lower', optional: true, zeroIsMissing: true, format: formatBenchmarkDuration },
 ];
 
-function benchmarkPercentDiff(value, baseline, mode = 'percent') {
+function benchmarkPercentDiff(value:number|null, baseline:number|null, mode = 'percent') {
   if (!Number.isFinite(value) || !Number.isFinite(baseline)) return null;
   if (mode === 'points') {
-    const rawPoints = value - baseline;
+    const rawPoints = (value as number) - (baseline as number);
     const normalizedPoints = Math.abs(rawPoints) < 0.05 ? 0 : rawPoints;
     return {
       raw: normalizedPoints,
@@ -451,7 +451,7 @@ function benchmarkPercentDiff(value, baseline, mode = 'percent') {
     };
   }
   if (baseline === 0) return null;
-  const raw = ((value - baseline) / Math.abs(baseline)) * 100;
+  const raw = (((value as number) - (baseline as number)) / Math.abs(baseline as number)) * 100;
   const normalized = Math.abs(raw) < 0.05 ? 0 : raw;
   const decimals = Math.abs(normalized) >= 100 ? 0 : 1;
   return {
@@ -460,19 +460,19 @@ function benchmarkPercentDiff(value, baseline, mode = 'percent') {
   };
 }
 
-function benchmarkDiffClass(diff, direction) {
+function benchmarkDiffClass(diff:DifferenceValue|null, direction:string) {
   if (!diff || diff.raw === 0 || direction === 'neutral') return ' neutral';
   const better = direction === 'lower' ? diff.raw < 0 : diff.raw > 0;
   return better ? ' better' : ' worse';
 }
 
-export function importBenchmarkModelIdentity(snap) {
+export function importBenchmarkModelIdentity(snap:SettingsBenchmarkReader|null|undefined) {
   const modelId = snap?.modelId || snap?.costInfo?.modelId;
   if (!modelId) return '';
-  return `${getImportBenchmarkProviderLabel(snap)}\n${modelId}`;
+  return `${(getImportBenchmarkProviderLabel as ProviderLabelReader)(snap)}\n${modelId}`;
 }
 
-function renderImportBenchmarkSummary(snapshots) {
+function renderImportBenchmarkSummary(snapshots:readonly SettingsBenchmarkReader[]) {
   const modelRuns = snapshots.filter(snap => !snap.benchmarkLocked);
   const modelSetups = new Set(modelRuns.map(importBenchmarkModelIdentity).filter(Boolean));
   const comparable = modelRuns.filter(isImportBenchmarkComparable).length;
@@ -485,12 +485,12 @@ function renderImportBenchmarkSummary(snapshots) {
   </div>`;
 }
 
-function renderImportBenchmarkComparison(selectedSnapshots) {
+function renderImportBenchmarkComparison(selectedSnapshots:readonly SettingsBenchmarkReader[]) {
   const runs = selectedSnapshots.map(importBenchmarkView);
-  const baseline = runs[0];
+  const baseline = runs[0]!;
   const headerCells = runs.map((run, index) => {
     const modelId = run.snap.modelId || run.snap.costInfo?.modelId || 'unknown model';
-    const provider = getImportBenchmarkProviderLabel(run.snap);
+    const provider = (getImportBenchmarkProviderLabel as ProviderLabelReader)(run.snap);
     const fileName = run.snap.fileName || 'Unknown file';
     return `<th scope="col" data-benchmark-run-header="${escapeAttr(run.id)}">
       <span class="import-benchmark-run-label">${index === 0 ? 'Baseline' : `Test ${index + 1}`}</span>
@@ -516,7 +516,7 @@ function renderImportBenchmarkComparison(selectedSnapshots) {
         <span class="import-benchmark-diff${index === 0 ? ' baseline' : benchmarkDiffClass(diff, metric.direction)}">${diffLabel}</span>
       </td>`;
     }).join('');
-    const groupRow = metricIndex === 0 || visibleMetrics[metricIndex - 1].group !== metric.group
+    const groupRow = metricIndex === 0 || visibleMetrics[metricIndex - 1]!.group !== metric.group
       ? `<tr class="import-benchmark-metric-group"><th colspan="${runs.length + 1}">${metric.group}</th></tr>`
       : '';
     return `${groupRow}<tr>
@@ -537,7 +537,7 @@ function renderImportBenchmarkComparison(selectedSnapshots) {
     </div>`;
 }
 
-function renderImportBenchmarkCards(snapshots, { selectable = true, emptyCopy = '' } = {}) {
+function renderImportBenchmarkCards(snapshots:readonly SettingsBenchmarkReader[], { selectable = true, emptyCopy = '' } = {}) {
   if (snapshots.length === 0) {
     return `<div class="import-benchmarks-empty">
       ${emptyCopy || 'No model tests yet.'}
@@ -558,7 +558,7 @@ function renderImportBenchmarkCards(snapshots, { selectable = true, emptyCopy = 
     const mode = isGoldStandard ? 'answer key' : isReference ? 'sample report test' : (snap.importMode === 'image' ? 'image import' : 'text import');
     const fallbackLabel = benchmarkFallbackLabel(snap.diagnostics);
     const modelId = snap.modelId || snap.costInfo?.modelId || 'unknown';
-    const provider = getImportBenchmarkProviderLabel(snap);
+    const provider = (getImportBenchmarkProviderLabel as ProviderLabelReader)(snap);
     const status = snap.status || 'confirmed';
     const statusLabel = isGoldStandard
       ? 'answer key \u00b7 100%'
@@ -651,7 +651,7 @@ function renderImportBenchmarkCards(snapshots, { selectable = true, emptyCopy = 
   }).join('');
 }
 
-export function renderImportBenchmarksBody(snapshots) {
+export function renderImportBenchmarksBody(snapshots:readonly SettingsBenchmarkReader[]) {
   const comparableRuns = snapshots.filter(isImportBenchmarkComparable);
   const goldBaselines = comparableRuns.filter(snap => snap.benchmarkLocked);
   const modelRuns = comparableRuns.filter(snap => !snap.benchmarkLocked);
@@ -704,17 +704,17 @@ export function renderImportBenchmarksBody(snapshots) {
     </details>` : ''}`;
 }
 
-export function updateImportBenchmarkSelection(overlay, snapshots, selectedIds) {
+export function updateImportBenchmarkSelection(overlay:Element, snapshots:readonly SettingsBenchmarkReader[], selectedIds:Set<string>) {
   const snapshotsById = new Map(snapshots.map(snap => [importBenchmarkStorageId(snap), snap]));
   for (const id of selectedIds) {
     if (!snapshotsById.has(id) || !isImportBenchmarkComparable(snapshotsById.get(id))) selectedIds.delete(id);
   }
   const selectedList = [...selectedIds];
-  const baselineSnapshot = snapshotsById.get(selectedList[0]);
+  const baselineSnapshot = snapshotsById.get(selectedList[0]!);
   for (const id of selectedList.slice(1)) {
     if (!importBenchmarksUseSameInput(baselineSnapshot, snapshotsById.get(id))) selectedIds.delete(id);
   }
-  const selectedSnapshots = [...selectedIds].map(id => snapshotsById.get(id)).filter(Boolean);
+  const selectedSnapshots = [...selectedIds].map(id => snapshotsById.get(id)).filter(Boolean) as SettingsBenchmarkReader[];
   overlay.querySelectorAll('[data-import-benchmark-select]').forEach(input => {
     if (!(input instanceof HTMLInputElement)) return;
     const id = input.dataset.importBenchmarkSelect || '';
@@ -752,9 +752,9 @@ export function updateImportBenchmarkSelection(overlay, snapshots, selectedIds) 
 }
 
 export function renderAIUsageSection() {
-  const pu = getProfileUsage(state.currentProfile);
-  const gu = getGlobalUsage();
-  const profileName = state.profiles?.[state.currentProfile]?.name || 'Current profile';
+  const pu = getProfileUsage(state.currentProfile) as unknown as UsageOperations;
+  const gu = getGlobalUsage() as unknown as UsageOperations;
+  const profileName = (state.profiles as unknown as Record<string,{name?:unknown}>|null)?.[state.currentProfile]?.name || 'Current profile';
   const separator = ' \u00b7 ';
   let html = '<div style="font-size:13px;color:var(--text-secondary);line-height:2">';
   html += `<div><strong>${escapeHTML(profileName)}</strong>: ${formatCost(pu.totalCost)}${separator}${pu.requestCount} request${pu.requestCount !== 1 ? 's' : ''}${separator}${formatTokens(pu.totalInputTokens + pu.totalOutputTokens)} tokens</div>`;
@@ -775,7 +775,7 @@ export function resetCurrentProfileUsage() {
 // Disable confirmation for the PII review toggle. On->off shows a one-time
 // warning so users do not silently lose visibility into what is leaving their
 // device. Re-enabling and the initial setup are silent.
-export async function confirmDisablePIIReview(checkbox) {
+export async function confirmDisablePIIReview(checkbox:{checked:unknown}) {
   if (checkbox.checked) {
     setPIIReviewEnabled(true);
     return;

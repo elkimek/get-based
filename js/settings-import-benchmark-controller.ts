@@ -1,4 +1,4 @@
-// @ts-check
+import type { SettingsBenchmarkReader } from '../types/settings-data.js';
 // settings-import-benchmark-controller.js - Import benchmark modal lifecycle and actions.
 
 import { getErrorMessage } from './caught-error.js';
@@ -24,11 +24,10 @@ import { isDebugMode, showConfirmDialog, showNotification } from './utils.js';
 
 const IMPORT_BENCHMARKS_REFRESH_EVENT = 'import-benchmarks-refresh';
 
-/** @typedef {Awaited<ReturnType<typeof runBundledImportReferenceBenchmark>>} ImportReferenceBenchmarkCompletion */
-/** @typedef {{ benchmarkId: string, manifestId: string }} ImportBenchmarksRefreshDetail */
+type ImportReferenceBenchmarkCompletion = Awaited<ReturnType<typeof runBundledImportReferenceBenchmark>>;
+interface ImportBenchmarksRefreshDetail {benchmarkId?:unknown;manifestId?:unknown}
 
-/** @param {ImportReferenceBenchmarkCompletion | null} [completed] */
-function refreshOpenImportBenchmarksModal(completed = null) {
+function refreshOpenImportBenchmarksModal(completed:ImportReferenceBenchmarkCompletion|null = null) {
   const activeOverlay = document.getElementById('import-benchmarks-overlay');
   if (!activeOverlay) return;
   activeOverlay.dispatchEvent(new CustomEvent(IMPORT_BENCHMARKS_REFRESH_EVENT, {
@@ -47,8 +46,8 @@ export function closeImportBenchmarksModal() {
 export function openImportBenchmarksModal() {
   const existingOverlay = document.getElementById('import-benchmarks-overlay');
   if (existingOverlay && !closeImportBenchmarksModal()) return false;
-  let snapshots = getImportBenchmarkSnapshots();
-  const selectedIds = new Set();
+  let snapshots = getImportBenchmarkSnapshots() as SettingsBenchmarkReader[];
+  const selectedIds = new Set<string>();
   const goldStandard = snapshots.find(snap => snap.benchmarkLocked && snap.referenceFixtureId === IMPORT_REFERENCE_FIXTURE.id);
   const latestReferenceRun = snapshots.find(snap => (
     snap.benchmarkKind === 'reference'
@@ -74,9 +73,8 @@ export function openImportBenchmarksModal() {
       ${renderImportBenchmarksBody(snapshots)}
     </div>
   </div>`;
-  /** @param {ImportBenchmarksRefreshDetail | null} [detail] */
-  const refreshOverlay = (detail = null) => {
-    snapshots = getImportBenchmarkSnapshots();
+  const refreshOverlay = (detail:ImportBenchmarksRefreshDetail|null = null) => {
+    snapshots = getImportBenchmarkSnapshots() as SettingsBenchmarkReader[];
     selectedIds.clear();
     if (detail) {
       const gold = snapshots.find(snap => snap.benchmarkLocked && snap.referenceFixtureId === detail.manifestId);
@@ -89,7 +87,7 @@ export function openImportBenchmarksModal() {
     updateImportBenchmarkSelection(overlay, snapshots, selectedIds);
   };
   overlay.addEventListener(IMPORT_BENCHMARKS_REFRESH_EVENT, event => {
-    refreshOverlay(event instanceof CustomEvent ? event.detail : null);
+    refreshOverlay(event instanceof CustomEvent ? event.detail as ImportBenchmarksRefreshDetail|null : null);
   });
   updateImportBenchmarkSelection(overlay, snapshots, selectedIds);
   overlay.addEventListener('click', async event => {
@@ -153,7 +151,7 @@ export function openImportBenchmarksModal() {
       if (progress instanceof HTMLElement) progress.hidden = false;
       const progressStartedAt = performance.now();
       let progressValue = 1;
-      let progressLabel = 'Preparing model test';
+      let progressLabel: unknown = 'Preparing model test';
       let progressIndeterminate = false;
       const renderProgressCopy = () => {
         const elapsedSeconds = Math.max(0, Math.round((performance.now() - progressStartedAt) / 1000));
@@ -163,11 +161,11 @@ export function openImportBenchmarksModal() {
             : `${progressLabel} \u00b7 ${progressValue}% \u00b7 ${elapsedSeconds}s`;
         }
       };
-      const setProgress = (pct, label) => {
+      const setProgress = (pct:unknown, label:unknown) => {
         const value = Math.max(0, Math.min(100, Math.round(Number(pct) || 0)));
         progressValue = value;
         progressLabel = label || 'Testing model';
-        progressIndeterminate = /(?:analyzing|model is reading)/i.test(progressLabel) && value < 90;
+        progressIndeterminate = /(?:analyzing|model is reading)/i.test(progressLabel as string) && value < 90;
         if (progressFill instanceof HTMLElement) progressFill.style.width = `${value}%`;
         if (progressTrack instanceof HTMLElement) {
           progressTrack.classList.toggle('indeterminate', progressIndeterminate);
@@ -178,8 +176,8 @@ export function openImportBenchmarksModal() {
       };
       setProgress(1, 'Preparing model test');
       const progressTimer = setInterval(renderProgressCopy, 1000);
-      let completed = null;
-      let failure = null;
+      let completed:ImportReferenceBenchmarkCompletion|null = null;
+      let failure:unknown = null;
       try {
         completed = await runBundledImportReferenceBenchmark({
           onProgress: (pct, label) => {
@@ -236,7 +234,7 @@ export function openImportBenchmarksModal() {
     const deletedCount = await deleteImportBenchmarks(idsToDelete);
     if (deletedCount === 0) return;
     idsToDelete.forEach(id => selectedIds.delete(id));
-    snapshots = getImportBenchmarkSnapshots();
+    snapshots = getImportBenchmarkSnapshots() as SettingsBenchmarkReader[];
     const body = overlay.querySelector('.import-benchmarks-body');
     if (body) body.innerHTML = renderImportBenchmarksBody(snapshots);
     updateImportBenchmarkSelection(overlay, snapshots, selectedIds);
@@ -248,7 +246,7 @@ export function openImportBenchmarksModal() {
 
 
 export function renderImportBenchmarksEntrySection() {
-  const snapshots = getImportBenchmarkSnapshots();
+  const snapshots = getImportBenchmarkSnapshots() as SettingsBenchmarkReader[];
   const storedRuns = snapshots.filter(snap => !snap.benchmarkLocked);
   const modelCount = new Set(storedRuns.map(importBenchmarkModelIdentity).filter(Boolean)).size;
   return `<div class="import-benchmarks-entrypoint">

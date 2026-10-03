@@ -1,4 +1,3 @@
-// @ts-check
 // chat-discussion-round-request.js - API request helpers for discussion rounds
 
 import { CHAT_SYSTEM_PROMPT } from './chat-system-prompt.js';
@@ -25,9 +24,35 @@ import {
 import { getAgentModelDisplay, getCachedAgentModelCatalog } from './agent-model-catalog.js';
 import { mergeAgentContextReceipts } from './agent-tool-runtime.js';
 
-export async function buildDiscussionRoundRequest({ msgText, roundHistory, signal }) {
+import type { PromptHistoryMessage, SerializedLensSources } from './chat-prompt-context.js';
+import type { DiscussionUsageReader } from './chat-discussion-round-view.js';
+
+export type DiscussionRoundRequest = Awaited<ReturnType<typeof buildDiscussionRoundRequest>>;
+export type DiscussionRoundAssistantResult = Awaited<ReturnType<typeof callDiscussionRoundAssistant>>;
+interface RoundRequestInput { msgText: unknown; roundHistory: readonly PromptHistoryMessage[]; signal?: AbortSignal | undefined }
+interface RoundAssistantInput {
+  request: DiscussionRoundRequest;
+  thread?: { agentThreadId?: unknown; chatBackend?: unknown; agentModel?: unknown } | null | undefined;
+  profileId: string;
+  signal?: AbortSignal | undefined;
+  onStream?: Parameters<typeof callCodexAgent>[0]['onStream'];
+}
+export interface DiscussionAssistantMessage extends Partial<SerializedLensSources> {
+  role: 'assistant'; discussion: true; content: unknown; context: DiscussionRoundRequest['context'];
+  personalityName: DiscussionRoundRequest['personality']['name']; personalityIcon: DiscussionRoundRequest['personality']['icon'];
+  provider: DiscussionRoundRequest['provider']; agentId: string; modelId: unknown; modelDisplay: unknown;
+  truncated?: boolean; finishReason?: unknown; webSearch?: boolean; agentDrafts?: unknown;
+  e2ee?: boolean; attestation?: unknown; stopped?: boolean;
+  usage?: { inputTokens: unknown; outputTokens: unknown };
+}
+interface AssistantMessageInput {
+  fullText: unknown; request: DiscussionRoundRequest; aiResult: unknown; responseTruncated: unknown; attestation: unknown;
+}
+type RoundAIResultReader = { finishReason?: unknown; drafts?: unknown };
+
+export async function buildDiscussionRoundRequest({ msgText, roundHistory, signal }: RoundRequestInput) {
   let labContext = buildChatLabContext(msgText);
-  let lensResult = null;
+  let lensResult: Awaited<ReturnType<typeof queryLensMulti>> = null;
   if (hasLens()) {
     lensResult = await queryLensMulti(msgText, { signal });
     if (lensResult) {
@@ -46,10 +71,10 @@ export async function buildDiscussionRoundRequest({ msgText, roundHistory, signa
   const provider = useCodexAgent
     ? (isPersonalAgentTarget(target) ? 'personal-agent-gateway' : 'codex-agent')
     : directProvider;
-  const modelId = useCodexAgent ? (route.model || agentId || 'cli-default') : getActiveModelId(provider);
+  const modelId = useCodexAgent ? (route.model || agentId || 'cli-default') : (getActiveModelId as (provider: Parameters<typeof getActiveModelId>[0]) => unknown)(provider);
   const modelDisplay = useCodexAgent
     ? (route.modelDisplay || route.providerDisplay || 'CLI agent')
-    : getActiveModelDisplay(provider);
+    : (getActiveModelDisplay as (provider: Parameters<typeof getActiveModelDisplay>[0]) => unknown)(provider);
   const reasoningEffort = useCodexAgent ? '' : getDirectChatReasoningEffort(provider, modelId);
   const e2ee = !useCodexAgent && ((provider === 'venice' && isVeniceE2EEActive())
     || (provider === 'ppq' && isPpqPrivateModeActive())
@@ -94,9 +119,9 @@ export async function buildDiscussionRoundRequest({ msgText, roundHistory, signa
   };
 }
 
-export async function callDiscussionRoundAssistant({ request, thread, profileId, signal, onStream }) {
+export async function callDiscussionRoundAssistant({ request, thread, profileId, signal, onStream }: RoundAssistantInput) {
   if (!request.useCodexAgent) {
-    return callChatAPIWithContinuation({
+    return (callChatAPIWithContinuation as (options: Omit<Parameters<typeof callChatAPIWithContinuation>[0], 'messages'> & { messages: DiscussionRoundRequest['apiMessages'] }) => ReturnType<typeof callChatAPIWithContinuation>)({
       system: request.systemPrompt,
       messages: request.apiMessages,
       maxTokens: CHAT_RESPONSE_MAX_TOKENS,
@@ -108,7 +133,7 @@ export async function callDiscussionRoundAssistant({ request, thread, profileId,
     });
   }
 
-  const result = await callCodexAgent({
+  const result = await (callCodexAgent as (options: Omit<Parameters<typeof callCodexAgent>[0], 'prompt' | 'threadId' | 'history'> & { prompt: unknown; threadId: unknown; history: Array<{ role: unknown; content: unknown }> }) => ReturnType<typeof callCodexAgent>)({
     prompt: request.msgText || 'Continue the discussion.',
     instructions: request.agentInstructions,
     labContext: request.labContext,
@@ -140,8 +165,8 @@ export async function callDiscussionRoundAssistant({ request, thread, profileId,
 
 export function buildDiscussionAssistantMessage({
   fullText, request, aiResult, responseTruncated, attestation,
-}) {
-  const assistantMsg = {
+}: AssistantMessageInput) {
+  const assistantMsg: DiscussionAssistantMessage = {
     role: 'assistant',
     discussion: true,
     content: fullText,
@@ -155,11 +180,11 @@ export function buildDiscussionAssistantMessage({
   };
   if (responseTruncated) {
     assistantMsg.truncated = true;
-    assistantMsg.finishReason = aiResult.finishReason || 'length';
+    assistantMsg.finishReason = (aiResult as RoundAIResultReader).finishReason || 'length';
   }
   if (request.webSearch) assistantMsg.webSearch = true;
-  if (request.useCodexAgent && Array.isArray(aiResult.drafts) && aiResult.drafts.length) {
-    assistantMsg.agentDrafts = aiResult.drafts;
+  if (request.useCodexAgent && Array.isArray((aiResult as RoundAIResultReader).drafts) && ((aiResult as RoundAIResultReader).drafts as { length: unknown }).length) {
+    assistantMsg.agentDrafts = (aiResult as RoundAIResultReader).drafts;
   }
   if (request.e2ee) {
     assistantMsg.e2ee = true;
@@ -169,7 +194,7 @@ export function buildDiscussionAssistantMessage({
   return assistantMsg;
 }
 
-export function trackDiscussionUsage(request, usage) {
+export function trackDiscussionUsage(request: Pick<DiscussionRoundRequest, 'useCodexAgent' | 'provider' | 'modelId'>, usage: DiscussionUsageReader | null | undefined) {
   if (request.useCodexAgent || !usage || !(usage.inputTokens || usage.outputTokens)) return;
-  trackUsage(request.provider, request.modelId, usage.inputTokens, usage.outputTokens);
+  (trackUsage as (provider: Parameters<typeof trackUsage>[0], modelId: unknown, inputTokens: unknown, outputTokens: unknown) => ReturnType<typeof trackUsage>)(request.provider, request.modelId, usage.inputTokens, usage.outputTokens);
 }

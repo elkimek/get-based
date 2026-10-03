@@ -1,4 +1,3 @@
-// @ts-check
 // chat-discussion-round-runner.js - per-persona discussion round execution
 
 import { state } from './state.js';
@@ -31,36 +30,49 @@ import { updateDiscussionProgress } from './chat-discussion-ui.js';
 import { setChatStreamStatus } from './chat-stream-status.js';
 import { stopChatThinkingStatus } from './chat-thinking-status.js';
 
-export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
+import type { DiscussionRoundRequest } from './chat-discussion-round-request.js';
+import type { DiscussionTypewriter } from './chat-discussion-callbacks.js';
+import type { PromptHistoryMessage } from './chat-prompt-context.js';
+
+export interface DiscussionRoundPersona { id?: unknown; name?: unknown; icon?: unknown }
+export interface DiscussionRoundOptions { threadId?: unknown; suppressAutoMsg?: unknown; hideAutoMsg?: unknown }
+export interface DiscussionRoundResult { completedCount: number; outcome: 'unavailable' | 'complete' | 'stopped' | 'error'; remainingPersonas: unknown }
+// These operation views retain the original unvalidated array/property reads.
+interface RoundPersonaOperations { length: number; [index: number]: DiscussionRoundPersona; slice(start: number): unknown }
+interface ActiveDiscussionRound {
+  aiMsgEl: HTMLElement | null; index: number; persona: DiscussionRoundPersona;
+  request: DiscussionRoundRequest | null; typewriter: DiscussionTypewriter | null; typingEl: HTMLElement;
+}
+
+export async function runDiscussionRound(personas: unknown, steerPrompt: unknown, opts: DiscussionRoundOptions = {}): Promise<DiscussionRoundResult> {
   const container = document.getElementById('chat-messages');
   const sendBtn = document.getElementById('chat-send-btn');
   if (!container) return { completedCount: 0, outcome: 'unavailable', remainingPersonas: personas };
   const roundThreadId = opts.threadId || state.currentThreadId;
-  const roundHistory = state.chatHistory;
+  const roundHistory = state.chatHistory as Array<PromptHistoryMessage & { discussion?: unknown; discussionError?: unknown; discussionPersonaId?: unknown; personalityIcon?: unknown }>;
 
   const controller = new AbortController();
   setChatAbortController(controller);
   setSendButtonMode(sendBtn, 'streaming');
 
   const hasExistingDebate = hasExistingDiscussionResponses(roundHistory);
-  /** @type {{ aiMsgEl: HTMLElement | null, index: number, persona: any, request: any, typewriter: any, typingEl: HTMLElement } | null} */
-  let activeRound = null;
+  let activeRound: ActiveDiscussionRound | null = null;
   let completedCount = 0;
-  let remainingPersonas = [];
-  let outcome = 'complete';
+  let remainingPersonas: unknown = [];
+  let outcome: DiscussionRoundResult['outcome'] = 'complete';
 
   try {
-    for (let pi = 0; pi < personas.length; pi++) {
+    for (let pi = 0; pi < (personas as RoundPersonaOperations).length; pi++) {
       if (controller.signal.aborted) {
         outcome = 'stopped';
-        remainingPersonas = personas.slice(pi);
+        remainingPersonas = (personas as RoundPersonaOperations).slice(pi);
         break;
       }
-      const persona = personas[pi];
-      updateDiscussionProgress(persona, pi, personas.length);
-      setChatStreamStatus(`${persona.name || 'Participant'} is responding, ${pi + 1} of ${personas.length}.`, { busy: true });
+      const persona = (personas as RoundPersonaOperations)[pi]!;
+      updateDiscussionProgress(persona, pi, (personas as RoundPersonaOperations).length);
+      setChatStreamStatus(`${persona.name || 'Participant'} is responding, ${pi + 1} of ${(personas as RoundPersonaOperations).length}.`, { busy: true });
 
-      state.currentChatPersonality = persona.id;
+      (state as { currentChatPersonality: unknown }).currentChatPersonality = persona.id;
 
       const msgText = getDiscussionPromptText({
         hasExistingDebate,
@@ -112,7 +124,7 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       });
       const fullText = aiResult.text;
       const usage = /** @type {{ inputTokens?: number, outputTokens?: number } | undefined} */ (aiResult.usage);
-      const responseTruncated = isAIResponseTruncated(aiResult);
+      const responseTruncated = (isAIResponseTruncated as (result: Pick<NonNullable<Parameters<typeof isAIResponseTruncated>[0]>, 'truncated' | 'finishReason'>) => ReturnType<typeof isAIResponseTruncated>)(aiResult);
       const attestation = getChatProviderAttestation(request.provider);
 
       typewriter.stop();
@@ -126,7 +138,7 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         responseTruncated,
       });
 
-      appendDiscussionUsageFootnote({
+      (appendDiscussionUsageFootnote as (options: Omit<Parameters<typeof appendDiscussionUsageFootnote>[0], 'usage'> & { usage: Parameters<typeof appendDiscussionUsageFootnote>[0]['usage'] }) => ReturnType<typeof appendDiscussionUsageFootnote>)({
         threadId: roundThreadId,
         aiMsgEl,
         provider: request.provider,
@@ -165,7 +177,7 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
       if (isRoundThreadActive(roundThreadId)) notifyChatContentAdded(container);
     }
   } catch (err) {
-    const error = /** @type {any} */ (err);
+    const error = err as { name?: unknown; _modalShown?: unknown };
     const interruptedRound = activeRound;
     interruptedRound?.typewriter?.stop?.();
     if (interruptedRound?.typingEl) stopChatThinkingStatus(interruptedRound.typingEl);
@@ -188,11 +200,11 @@ export async function runDiscussionRound(personas, steerPrompt, opts = {}) {
         renderRoundMessages(roundThreadId, roundHistory, renderChatMessages);
       }
       const interruptedIndex = interruptedRound?.index ?? 0;
-      remainingPersonas = personas.slice(partialText ? interruptedIndex + 1 : interruptedIndex);
+      remainingPersonas = (personas as RoundPersonaOperations).slice(partialText ? interruptedIndex + 1 : interruptedIndex);
     } else {
       outcome = 'error';
-      const persona = interruptedRound?.persona || personas[completedCount];
-      remainingPersonas = personas.slice(interruptedRound?.index ?? completedCount);
+      const persona = interruptedRound?.persona || (personas as RoundPersonaOperations)[completedCount];
+      remainingPersonas = (personas as RoundPersonaOperations).slice(interruptedRound?.index ?? completedCount);
       if (!error?._modalShown) {
         roundHistory.push({
           role: 'assistant',

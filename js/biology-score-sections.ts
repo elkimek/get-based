@@ -15,7 +15,7 @@ export interface BiologySectionScore extends Omit<Partial<AIExplanationScore>,
   profileContext?: ScoreProfileContext;
   panelRoute?: string;
   presentationDates?: ReturnType<typeof computeBiologicalCoherence>['presentationDates'];
-  aiRangeMode?: string;
+  aiRangeMode?: unknown;
   scoreConfidence?: string;
   attention?: unknown;
   anchorWarning?: string;

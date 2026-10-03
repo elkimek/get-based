@@ -1,5 +1,4 @@
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
-// @ts-check
 // chat-empty-state.js — chat empty states and onboarding message HTML
 
 import { state } from './state.js';
@@ -34,44 +33,49 @@ const CHAT_EMPTY_STOP_PROPAGATION_ACTIONS = new Set([
   'open-wearables-settings',
 ]);
 
-const chatEmptyStateDeps = {
+type ChatEmptyStateOperations = {closeChatPanel():unknown;openChatProviderQuiz():unknown;setOnboardingFocus(focus:unknown):unknown};
+type ChatEmptyStateDependencies = {[Key in keyof ChatEmptyStateOperations]:unknown};
+type EmptyChatContext = ReturnType<typeof getEmptyChatContext>;
+type PersonaContext = Pick<EmptyChatContext,'personality'|'name'>;
+type ContextGenetics = {snps?:unknown;mtdna?:{haplogroup?:unknown}|null};
+// Private operations at unchecked storage boundaries; these readers do not validate persisted data.
+type EmptyDataOperations = {entries?:{length:number};healthGoals?:{length:number}|null;genetics?:ContextGenetics|null;
+  menstrualCycle?:{periods?:{length:number}|null;cycleLength?:unknown;cycleStatus?:unknown}|null;
+  supplements?:Parameters<typeof getCurrentSupplements>[0]|null;
+  wearableConnections?:Record<string,{accessToken?:unknown;connectedSince?:unknown}|null>|null;[field:string]:unknown};
+const chatEmptyStateDeps: ChatEmptyStateDependencies = {
   closeChatPanel: () => {},
   openChatProviderQuiz: () => {},
-  setOnboardingFocus: (_focus) => {},
+  setOnboardingFocus: (_focus: unknown) => {},
 };
 
-export function configureChatEmptyStateDeps(deps = {}) {
-  return configureRuntimeFunctions(chatEmptyStateDeps, deps, ["closeChatPanel","openChatProviderQuiz","setOnboardingFocus"]);
+export function configureChatEmptyStateDeps(deps: unknown = {}) {
+  return (configureRuntimeFunctions as (current:ChatEmptyStateDependencies,updates:unknown,fields:Parameters<typeof configureRuntimeFunctions<ChatEmptyStateOperations>>[2])=>ChatEmptyStateDependencies)(chatEmptyStateDeps, deps, ["closeChatPanel","openChatProviderQuiz","setOnboardingFocus"]);
 }
 
-/**
- * @param {any} event
- * @param {string} [selector]
- * @returns {HTMLElement | null}
- */
-function closestChatEmptyAction(event, selector = '[data-chat-empty-action]') {
+function closestChatEmptyAction(event: Event, selector = '[data-chat-empty-action]') {
   const target = event.target;
   if (!(target instanceof Element)) return null;
-  const actionEl = /** @type {HTMLElement | null} */ (target.closest(selector));
+  const actionEl = target.closest<HTMLElement>(selector);
   if (!actionEl) return null;
-  return event.currentTarget?.contains(actionEl) ? actionEl : null;
+  return (event.currentTarget as HTMLElement|null)?.contains(actionEl) ? actionEl : null;
 }
 
-function callChatEmptyRuntime(name, ...args) {
+function callChatEmptyRuntime(name: string, ...args: unknown[]) {
   const fn = getSettingsModuleFunction(name)
     || getDnaModuleFunction(name);
   return typeof fn === 'function' ? fn(...args) : undefined;
 }
 
 function closeChatPanel() {
-  chatEmptyStateDeps.closeChatPanel();
+  (chatEmptyStateDeps as ChatEmptyStateOperations).closeChatPanel();
 }
 
-function getChatProfileHeight(profileId) {
+function getChatProfileHeight(profileId: Parameters<typeof getProfileHeight>[0]) {
   return getProfileHeight(profileId);
 }
 
-function handleChatEmptyClick(event) {
+function handleChatEmptyClick(event: Event) {
   const actionEl = closestChatEmptyAction(event);
   if (!actionEl) return;
   const action = actionEl.dataset.chatEmptyAction;
@@ -101,7 +105,7 @@ function handleChatEmptyClick(event) {
     closeChatPanel();
     triggerContextCardDNAFilePickerRuntime();
   } else if (action === 'import-mtdna') {
-    const input = /** @type {HTMLInputElement | null} */ (event.currentTarget?.querySelector('#mtdna-onboard-input') || null);
+    const input = (event.currentTarget as HTMLElement|null)?.querySelector<HTMLInputElement>('#mtdna-onboard-input') || null;
     closeChatPanel();
     input?.click();
   } else if (action === 'open-wearables-settings') {
@@ -112,7 +116,7 @@ function handleChatEmptyClick(event) {
   } else if (action === 'request-lab-import-provider') {
     requestOnboardingLabImportProvider();
   } else if (action === 'open-provider-quiz') {
-    chatEmptyStateDeps.openChatProviderQuiz();
+    (chatEmptyStateDeps as ChatEmptyStateOperations).openChatProviderQuiz();
   } else if (action === 'scroll-context-cards') {
     const currentTarget = event.currentTarget instanceof Element ? event.currentTarget : null;
     currentTarget?.querySelector('.chat-context-cards')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -121,11 +125,11 @@ function handleChatEmptyClick(event) {
   } else if (action === 'start-file-import') {
     startOnboardingFileImport();
   } else if (action === 'set-onboarding-focus') {
-    chatEmptyStateDeps.setOnboardingFocus(actionEl.dataset.focus || '');
+    (chatEmptyStateDeps as ChatEmptyStateOperations).setOnboardingFocus(actionEl.dataset.focus || '');
   }
 }
 
-function handleChatEmptyChange(event) {
+function handleChatEmptyChange(event: Event) {
   const actionEl = closestChatEmptyAction(event);
   if (!actionEl) return;
   const action = actionEl.dataset.chatEmptyAction;
@@ -144,14 +148,13 @@ function handleChatEmptyChange(event) {
   }
 }
 
-function handleChatEmptyInput(event) {
+function handleChatEmptyInput(event: Event) {
   const actionEl = closestChatEmptyAction(event);
   if (!actionEl) return;
   if (actionEl.dataset.chatEmptyAction === 'save-location') void saveChatLocation();
 }
 
-/** @param {HTMLElement | null} container */
-function installChatEmptyStateDelegates(container) {
+function installChatEmptyStateDelegates(container: HTMLElement|null) {
   if (!container || container.dataset.chatEmptyDelegates === '1') return;
   container.dataset.chatEmptyDelegates = '1';
   container.addEventListener('click', handleChatEmptyClick);
@@ -165,8 +168,8 @@ export function _getNoDataPrompts() {
   if (hasLabs) return null;
   const cardKeys = ['healthGoals', 'diagnoses', 'diet', 'exercise', 'sleepRest', 'lightCircadian', 'stress', 'loveLife', 'environment'];
   const filledCount = cardKeys.filter(k => {
-    if (k === 'healthGoals') return (state.importedData.healthGoals || []).length > 0;
-    return hasCardContent(state.importedData[k]);
+    if (k === 'healthGoals') return ((state.importedData as EmptyDataOperations).healthGoals || []).length > 0;
+    return hasCardContent((state.importedData as EmptyDataOperations)[k]);
   }).length;
   if (filledCount === 0) {
     return [
@@ -184,7 +187,7 @@ export function _getNoDataPrompts() {
   ];
 }
 
-export function renderEmptyChatState(container, panel) {
+export function renderEmptyChatState(container: HTMLElement, panel?: HTMLElement|null) {
   installChatEmptyStateDelegates(container);
   const context = getEmptyChatContext();
   const forcedStep = sessionStorage.getItem(`chat-onboard-force-step-${state.currentProfile}`) || '';
@@ -215,7 +218,7 @@ export function renderEmptyChatState(container, panel) {
 
 function getEmptyChatContext() {
   const personality = getActivePersonality();
-  const hasData = state.importedData?.entries?.length > 0;
+  const hasData = ((state.importedData as EmptyDataOperations)?.entries?.length as number) > 0;
   const currentP = getProfiles().find(p => p.id === state.currentProfile);
   const hasProfile = Boolean(currentP?.name && currentP.name !== 'Default' && state.profileSex);
   const name = currentP?.name || 'there';
@@ -223,7 +226,7 @@ function getEmptyChatContext() {
   return { personality, hasData, currentP, hasProfile, name };
 }
 
-function setOnboardingActive(panel) {
+function setOnboardingActive(panel: HTMLElement|null|undefined) {
   panel?.classList.add('chat-onboarding-active');
 }
 
@@ -231,7 +234,7 @@ function renderChatContextCards() {
   return `<div class="chat-context-cards">${renderProfileContextCards()}</div>`;
 }
 
-function renderOnboardingCompleteLabel(label) {
+function renderOnboardingCompleteLabel(label: unknown) {
   return `<div class="chat-onboard-complete-label">${escapeHTML(label)}</div>`;
 }
 
@@ -240,7 +243,7 @@ function shouldRenderProviderSetup() {
   return !hasChatResponseBackend() && providerRequested;
 }
 
-function renderProfileOnboardingState(container, panel, { personality, currentP }) {
+function renderProfileOnboardingState(container: HTMLElement, panel: HTMLElement|null|undefined, { personality, currentP }: Pick<EmptyChatContext,'personality'|'currentP'>) {
   setOnboardingActive(panel);
   const pName = (currentP?.name && currentP.name !== 'Default') ? currentP.name : '';
   const pSex = state.profileSex || '';
@@ -308,7 +311,7 @@ function renderProfileOnboardingState(container, panel, { personality, currentP 
   return true;
 }
 
-function renderAIPausedState(container, panel, { personality, name }) {
+function renderAIPausedState(container: HTMLElement, panel: HTMLElement|null|undefined, { personality, name }: PersonaContext) {
   setOnboardingActive(panel);
   container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
@@ -320,7 +323,7 @@ function renderAIPausedState(container, panel, { personality, name }) {
   return true;
 }
 
-function renderProviderSetupState(container, panel, { personality, name }) {
+function renderProviderSetupState(container: HTMLElement, panel: HTMLElement|null|undefined, { personality, name }: PersonaContext) {
   setOnboardingActive(panel);
   if (hasChatResponseBackend()) return renderProviderConnectedState(container, { personality, name });
   const branch = sessionStorage.getItem(`chat-onboard-provider-branch-${state.currentProfile}`) || '';
@@ -332,7 +335,7 @@ function renderProviderSetupState(container, panel, { personality, name }) {
   return true;
 }
 
-function renderProviderConnectedState(container, { personality, name }) {
+function renderProviderConnectedState(container: HTMLElement, { personality, name }: PersonaContext) {
   container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${renderOnboardingCompleteLabel('AI connected')}
@@ -345,18 +348,18 @@ function renderProviderConnectedState(container, { personality, name }) {
   return true;
 }
 
-function renderAffiliateDnaKitLink(hasSnps) {
+function renderAffiliateDnaKitLink(hasSnps: unknown) {
   if (hasSnps) return '';
   return `<div class="chat-onboard-affiliate-foot">
     No DNA file? We recommend a <a href="https://www.dpbolvw.net/q2101xdmjdl0212824AA4024989447" target="_blank" rel="noopener sponsored" class="chat-onboard-affiliate-link">LivingDNA kit</a>.
   </div>`;
 }
 
-function renderOptionalContextState(container, panel, { personality }) {
+function renderOptionalContextState(container: HTMLElement, panel: HTMLElement|null|undefined, { personality }: Pick<EmptyChatContext,'personality'>) {
   setOnboardingActive(panel);
   const cards = buildOptionalContextTaskCards();
-  const genetics = state.importedData.genetics || {};
-  const hasSnps = Object.keys(genetics.snps || {}).length > 0;
+  const genetics = (state.importedData as EmptyDataOperations).genetics || {};
+  const hasSnps = Object.keys((genetics.snps || {}) as object).length > 0;
   container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       ${_renderOnboardCrumbs(3)}
@@ -373,13 +376,13 @@ function renderOptionalContextState(container, panel, { personality }) {
 
 function buildOptionalContextTaskCards() {
   const isFemale = state.profileSex === 'female';
-  const mc = state.importedData?.menstrualCycle;
-  const hasCycle = mc?.periods?.length > 0 || mc?.cycleLength || mc?.cycleStatus;
-  const supps = state.importedData.supplements || [];
-  const genetics = state.importedData.genetics || {};
-  const hasSnps = Object.keys(genetics.snps || {}).length > 0;
+  const mc = (state.importedData as EmptyDataOperations)?.menstrualCycle;
+  const hasCycle = (mc?.periods?.length as number) > 0 || mc?.cycleLength || mc?.cycleStatus;
+  const supps = (state.importedData as EmptyDataOperations).supplements || [];
+  const genetics = (state.importedData as EmptyDataOperations).genetics || {};
+  const hasSnps = Object.keys((genetics.snps || {}) as object).length > 0;
   const hasMtdna = !!genetics.mtdna;
-  const wearableConns = state.importedData?.wearableConnections || {};
+  const wearableConns = (state.importedData as EmptyDataOperations)?.wearableConnections || {};
   const hasWearable = Object.values(wearableConns).some(c => c?.accessToken || c?.connectedSince);
   const suppSummary = summarizeSupplements(supps);
   const dnaSummary = summarizeGenetics(genetics, hasSnps, hasMtdna);
@@ -392,10 +395,10 @@ function buildOptionalContextTaskCards() {
   ].filter(Boolean).join('');
 }
 
-function summarizeSupplements(supps) {
+function summarizeSupplements(supps: Parameters<typeof getCurrentSupplements>[0]) {
   const current = getCurrentSupplements(supps);
   if (current.length) {
-    return current.slice(0, 2).map(s => `${s.name}${s.dosage ? ` ${s.dosage}` : ''}`).join(', ')
+    return current.slice(0, 2).map(s => `${s!.name}${s!.dosage ? ` ${s!.dosage}` : ''}`).join(', ')
       + (current.length > 2 ? ` +${current.length - 2}` : '')
       + (supps.length > current.length ? ` · ${supps.length - current.length} in history` : '');
   }
@@ -404,14 +407,14 @@ function summarizeSupplements(supps) {
     : 'Add medications or supplements that can shift labs.';
 }
 
-function summarizeGenetics(genetics, hasSnps, hasMtdna) {
+function summarizeGenetics(genetics: ContextGenetics, hasSnps: unknown, hasMtdna: unknown) {
   return [
-    hasSnps ? `${Object.keys(genetics.snps || {}).length} SNPs` : '',
+    hasSnps ? `${Object.keys((genetics.snps || {}) as object).length} SNPs` : '',
     hasMtdna ? `mtDNA ${genetics.mtdna?.haplogroup || ''}`.trim() : '',
   ].filter(Boolean).join(' · ') || 'Import nuclear DNA (SNPs) or mitochondrial DNA (mtDNA) raw data.';
 }
 
-function renderCycleTask(hasCycle) {
+function renderCycleTask(hasCycle: unknown) {
   return `<article class="chat-onboard-task${hasCycle ? ' is-complete' : ''}">
     <span class="chat-onboard-task-icon" aria-hidden="true">◐</span>
     <span class="chat-onboard-task-body">
@@ -425,7 +428,7 @@ function renderCycleTask(hasCycle) {
   </article>`;
 }
 
-function renderSupplementsTask(supps, suppSummary) {
+function renderSupplementsTask(supps: {length:number}, suppSummary: unknown) {
   return `<article class="chat-onboard-task${supps.length ? ' is-complete' : ''}">
     <span class="chat-onboard-task-icon" aria-hidden="true">Rx</span>
     <span class="chat-onboard-task-body">
@@ -436,7 +439,7 @@ function renderSupplementsTask(supps, suppSummary) {
   </article>`;
 }
 
-function renderGeneticsTask(hasSnps, hasMtdna, dnaSummary) {
+function renderGeneticsTask(hasSnps: unknown, hasMtdna: unknown, dnaSummary: unknown) {
   return `<article class="chat-onboard-task chat-onboard-dna${hasSnps || hasMtdna ? ' is-complete' : ''}">
     <span class="chat-onboard-task-icon" aria-hidden="true">DNA</span>
     <span class="chat-onboard-task-body">
@@ -464,7 +467,7 @@ function renderWearableTask() {
   </article>`;
 }
 
-function renderFullContextNoDataState(container, panel, { personality, name }) {
+function renderFullContextNoDataState(container: HTMLElement, panel: HTMLElement|null|undefined, { personality, name }: PersonaContext) {
   panel?.classList.remove('chat-onboarding-active');
   const providerConnected = hasChatResponseBackend();
   container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
@@ -483,7 +486,7 @@ function renderFullContextNoDataState(container, panel, { personality, name }) {
   return true;
 }
 
-function renderPartialContextNoDataState(container, panel, { personality, name }, filled) {
+function renderPartialContextNoDataState(container: HTMLElement, panel: HTMLElement|null|undefined, { personality, name }: PersonaContext, filled: number) {
   setOnboardingActive(panel);
   const progressPct = Math.round((filled / 9) * 100);
   const providerConnected = hasChatResponseBackend();
@@ -506,7 +509,7 @@ function renderPartialContextNoDataState(container, panel, { personality, name }
   return true;
 }
 
-function renderContextImportHandoffState(container, panel, { personality, name }, skipped) {
+function renderContextImportHandoffState(container: HTMLElement, panel: HTMLElement|null|undefined, { personality, name }: PersonaContext, skipped: boolean) {
   panel?.classList.remove('chat-onboarding-active');
   const providerConnected = hasChatResponseBackend();
   const filled = _countFilledCards();
@@ -533,7 +536,7 @@ function renderContextImportHandoffState(container, panel, { personality, name }
   return true;
 }
 
-function renderInitialNoDataState(container, panel, { personality }) {
+function renderInitialNoDataState(container: HTMLElement, panel: HTMLElement|null|undefined, { personality }: Pick<EmptyChatContext,'personality'>) {
   setOnboardingActive(panel);
   const providerConnected = hasChatResponseBackend();
   container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
@@ -553,7 +556,7 @@ function renderInitialNoDataState(container, panel, { personality }) {
   return true;
 }
 
-function renderDataContextNudgeState(container, { personality }) {
+function renderDataContextNudgeState(container: HTMLElement, { personality }: Pick<EmptyChatContext,'personality'>) {
   container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
     <div class="chat-msg chat-ai">
       <p>I can see your lab results — nice! 👋 I can already analyze these, but if you fill in a few lifestyle cards I'll give you much more personalized insights.</p>
@@ -565,7 +568,7 @@ function renderDataContextNudgeState(container, { personality }) {
   return true;
 }
 
-function renderGeneralPromptState(container, { personality }) {
+function renderGeneralPromptState(container: HTMLElement, { personality }: Pick<EmptyChatContext,'personality'>) {
   const noDataPrompts = _getNoDataPrompts();
   const prompts = noDataPrompts || [
     'What are my most concerning results?',

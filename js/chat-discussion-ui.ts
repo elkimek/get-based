@@ -1,4 +1,3 @@
-// @ts-check
 // chat-discussion-ui.js - button and continuation controls for multi-persona discussions
 
 import { state } from './state.js';
@@ -14,6 +13,10 @@ export {
   showDiscussPersonaPicker,
 } from './chat-discussion-picker.js';
 
+// Raw participant property reader; it carries no validation promise for stored persona fields.
+export interface DiscussionUIPersona {icon?:unknown;name?:unknown}
+export interface DiscussionUIOptions {onPersist?:unknown;pendingPersonas?:unknown}
+type DiscussionUIState = {_discussionPersonas?:unknown;_discussionOriginalPersonality?:unknown};
 export function updateDiscussButton() {
   const btn = document.getElementById('chat-discuss-btn');
   if (!btn) return;
@@ -27,12 +30,7 @@ export function updateDiscussButton() {
   btn.setAttribute?.('aria-label', btn.title);
 }
 
-/**
- * @param {any[]} personas
- * @param {string | null | undefined} originalPersonality
- * @param {{ onPersist?: () => void, pendingPersonas?: any[] }} [options]
- */
-export function showDiscussContinuePrompt(personas, originalPersonality, { onPersist, pendingPersonas = [] } = {}) {
+export function showDiscussContinuePrompt(personas: DiscussionUIPersona[], originalPersonality: unknown, { onPersist, pendingPersonas = [] }: DiscussionUIOptions = {}) {
   const inputArea = document.querySelector('.chat-input-area');
   if (!inputArea) return;
   const existing = inputArea.querySelector('.chat-discussion-mode');
@@ -59,7 +57,7 @@ export function showDiscussContinuePrompt(personas, originalPersonality, { onPer
     <div class="chat-discussion-progress" role="status" aria-live="polite" hidden></div>`;
   inputArea.insertBefore(prompt, inputArea.firstChild);
 
-  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
+  const input = document.getElementById('chat-input') as HTMLTextAreaElement|null;
   if (input) {
     input.placeholder = 'Reply to the discussion…';
     input.setAttribute('aria-describedby', 'chat-discussion-composer-help');
@@ -67,49 +65,49 @@ export function showDiscussContinuePrompt(personas, originalPersonality, { onPer
   const expectation = prompt.querySelector('.chat-discussion-expectation');
   if (expectation) expectation.id = 'chat-discussion-composer-help';
   refreshChatComposer();
-  const photoAction = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-add-photo-action'));
+  const photoAction = document.getElementById('chat-add-photo-action') as HTMLButtonElement|null;
   if (photoAction) {
     photoAction.disabled = true;
     photoAction.title = 'End the discussion to attach photos';
   }
 
-  state._discussionPersonas = personas;
-  state._discussionOriginalPersonality = originalPersonality;
-  onPersist?.();
+  (state as DiscussionUIState)._discussionPersonas = personas;
+  (state as DiscussionUIState)._discussionOriginalPersonality = originalPersonality;
+  (onPersist as (()=>unknown)|null|undefined)?.();
 }
 
 export function removeDiscussContinuePrompt() {
   const el = document.querySelector('.chat-discussion-mode');
   if (el) el.remove();
-  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
+  const input = document.getElementById('chat-input') as HTMLTextAreaElement|null;
   if (input) {
     input.placeholder = 'Ask about your lab results...';
     input.removeAttribute('aria-describedby');
   }
   refreshChatComposer();
   updateAttachButtonVisibility();
-  const photoAction = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-add-photo-action'));
+  const photoAction = document.getElementById('chat-add-photo-action') as HTMLButtonElement|null;
   if (photoAction) {
     photoAction.disabled = false;
     photoAction.removeAttribute('title');
   }
 }
 
-export function updateDiscussionProgress(persona, index, total, status = 'responding') {
-  const progress = /** @type {HTMLElement | null} */ (document.querySelector('.chat-discussion-progress'));
+export function updateDiscussionProgress(persona: DiscussionUIPersona|null|undefined, index: unknown, total: unknown, status: unknown = 'responding') {
+  const progress = document.querySelector<HTMLElement>('.chat-discussion-progress');
   if (!progress) return;
   if (!persona || !total) {
     progress.hidden = true;
     progress.textContent = '';
-    const pause = /** @type {HTMLButtonElement | null} */ (document.querySelector('.chat-discussion-pause'));
+    const pause = document.querySelector<HTMLButtonElement>('.chat-discussion-pause');
     if (pause) pause.hidden = true;
     return;
   }
-  const pause = /** @type {HTMLButtonElement | null} */ (document.querySelector('.chat-discussion-pause'));
+  const pause = document.querySelector<HTMLButtonElement>('.chat-discussion-pause');
   if (pause) pause.hidden = false;
   progress.hidden = false;
   const name = `${persona.icon || ''} ${persona.name || 'Participant'}`.trim();
   progress.textContent = status === 'responding'
-    ? `${name} is responding · ${index + 1} of ${total}`
-    : `${name} ${status} · ${index + 1} of ${total}`;
+    ? `${name} is responding · ${(index as number) + 1} of ${total}`
+    : `${name} ${status} · ${(index as number) + 1} of ${total}`;
 }
