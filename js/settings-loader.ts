@@ -38,7 +38,7 @@ export function configureSettingsLoader(deps: unknown = {}) {
 }
 
 /** @returns {Promise<SettingsModule>} */
-function loadSettingsRetryModule() {
+function loadSettingsRetryModule(): Promise<typeof import('./settings.js')> {
   // The fixed query identifies a retry of this same native module.
   return import('./settings.js?lazy-retry=1' as './settings.js');
 }

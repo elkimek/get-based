@@ -48,7 +48,7 @@ export function isSettingsSyncPanelLoaded() {
   return settingsSyncPanelModuleLoader.module !== null;
 }
 
-function loadSettingsSyncPanelRetryModule() {
+function loadSettingsSyncPanelRetryModule(): Promise<typeof import('./settings-sync-panel-impl.js')> {
   return import('./settings-sync-panel-impl.js?lazy-retry=1' as './settings-sync-panel-impl.js');
 }
 

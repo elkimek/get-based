@@ -43,31 +43,31 @@ function createLazyModule<Module>(initialLoad: () => Promise<Module>, retryLoad:
   };
 }
 
-function retryChartsModule() {
+function retryChartsModule(): Promise<typeof import('./charts.js')> {
   return import('./charts.js?lazy-retry=1' as './charts.js');
 }
 
-function retryNotesModule() {
+function retryNotesModule(): Promise<typeof import('./notes.js')> {
   return import('./notes.js?lazy-retry=1' as './notes.js');
 }
 
-function retrySupplementsModule() {
+function retrySupplementsModule(): Promise<typeof import('./supplements.js')> {
   return import('./supplements.js?lazy-retry=1' as './supplements.js');
 }
 
-function retryRecommendationsModule() {
+function retryRecommendationsModule(): Promise<typeof import('./recommendations.js')> {
   return import('./recommendations.js?lazy-retry=1' as './recommendations.js');
 }
 
-function retryCycleModule() {
+function retryCycleModule(): Promise<typeof import('./cycle.js')> {
   return import('./cycle.js?lazy-retry=1' as './cycle.js');
 }
 
-function retryContextCardsModule() {
+function retryContextCardsModule(): Promise<typeof import('./context-cards.js')> {
   return import('./context-cards.js?lazy-retry=1' as './context-cards.js');
 }
 
-function retryDnaModule() {
+function retryDnaModule(): Promise<typeof import('./dna.js')> {
   return import('./dna.js?lazy-retry=1' as './dna.js');
 }
 

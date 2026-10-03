@@ -12,7 +12,7 @@ export function configureChatLoader(deps: unknown = {}) {
   chatModule?.configureAppChatHooks(chatHostDeps);
 }
 
-function loadChatRetryModule() {
+function loadChatRetryModule(): Promise<typeof import('./app-ai-interaction-modules.js')> {
   return import('./app-ai-interaction-modules.js?lazy-retry=1' as './app-ai-interaction-modules.js');
 }
 

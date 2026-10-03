@@ -24,7 +24,7 @@ export function isMedicalHistoryEditorLoaded() {
 }
 
 
-function loadMedicalHistoryEditorRetryModule() {
+function loadMedicalHistoryEditorRetryModule(): Promise<typeof import('./context-card-medical-history-editor-impl.js')> {
   // @ts-expect-error TypeScript resolves only the query-free source path.
   return import('./context-card-medical-history-editor-impl.js?lazy-retry=1');
 }

@@ -33,7 +33,7 @@ export function isMarkerDetailModuleLoaded() {
 }
 
 /** @returns {Promise<MarkerDetailModule>} */
-function loadMarkerDetailRetryModule() {
+function loadMarkerDetailRetryModule(): Promise<typeof import('./marker-detail-modal-impl.js')> {
   return import('./marker-detail-modal-impl.js?lazy-retry=1' as './marker-detail-modal-impl.js');
 }
 

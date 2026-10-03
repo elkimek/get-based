@@ -35,7 +35,7 @@ export function isDashboardAIModuleLoaded() {
   return dashboardAIModuleLoader.module !== null;
 }
 
-function loadDashboardAIRetryModule() {
+function loadDashboardAIRetryModule(): Promise<typeof import('./context-card-dashboard-ai-impl.js')> {
   return import('./context-card-dashboard-ai-impl.js?lazy-retry=1' as './context-card-dashboard-ai-impl.js');
 }
 

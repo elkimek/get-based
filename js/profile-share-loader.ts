@@ -18,7 +18,7 @@ export function isProfileShareModuleLoaded() {
   return _profileShareModuleLoaded;
 }
 
-function loadProfileShareRetryModule() {
+function loadProfileShareRetryModule(): Promise<typeof import('./profile-share.js')> {
   return import('./profile-share.js?lazy-retry=1' as './profile-share.js');
 }
 

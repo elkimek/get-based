@@ -54,7 +54,7 @@ export function isExportFacadeModuleLoaded() {
   return exportFacadeModuleLoader.module !== null;
 }
 
-function loadExportFacadeRetryModule() {
+function loadExportFacadeRetryModule(): Promise<typeof import('./export.js')> {
   return import('./export.js?lazy-retry=1' as string);
 }
 

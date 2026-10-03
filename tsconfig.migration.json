@@ -25,6 +25,9 @@
       ],
       "/js/wearables.js?lazy-retry=1": [
         "./js/wearables.ts"
+      ],
+      "/js/voice-loader.js?pending-auto-read-context=1": [
+        "./js/voice-loader.ts"
       ]
     },
     "module": "NodeNext",

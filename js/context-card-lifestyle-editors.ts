@@ -26,7 +26,7 @@ export function isLifestyleContextEditorsLoaded() {
 }
 
 
-function loadLifestyleContextEditorsRetryModule() {
+function loadLifestyleContextEditorsRetryModule(): Promise<typeof import('./context-card-lifestyle-editors-impl.js')> {
   // @ts-expect-error TypeScript resolves only the query-free source path.
   return import('./context-card-lifestyle-editors-impl.js?lazy-retry=1');
 }
