@@ -277,7 +277,7 @@ export function handleLocalModelProgress(event, panel) {
 }
 
 export async function verifyRenderedLocalModels(panel) {
-  for (const kind of ['stt', 'tts']) {
+  for (const kind of /** @type {Array<import('../types/voice-local.js').VoiceKind>} */ (['stt', 'tts'])) {
     const model = currentModel(kind);
     if (!isLocalVoiceModelReady(kind, model, selectedBackend(kind))) continue;
     const ready = await verifyLocalVoiceModelReady(kind, model, selectedBackend(kind));

@@ -1,4 +1,13 @@
-// @ts-check
+import type { VoiceBackendEnvironment, VoiceKind, VoiceModelStatus, VoiceNavigator, VoiceOptions, VoiceReply, VoiceRequest, VoiceRequestId, VoiceWorkerError } from '../types/voice-local.js';
+export interface LocalVoiceWorker extends Pick<EventTarget, 'addEventListener'> {
+  postMessage(message: VoiceRequest, transfer: Transferable[]): void;
+  terminate(): void;
+}
+interface VoiceEngineDeps { workerFactory: (url: URL) => LocalVoiceWorker; workerUrls: Record<VoiceKind, URL> }
+interface PendingVoiceRequest {
+  model: string | undefined; backend: string | undefined; onChunk: ((message: VoiceReply) => void) | undefined;
+  resolve(value: VoiceReply): void; reject(error: unknown): void;
+}
 // voice-local-engine.js — serialized main-thread controller for local voice workers.
 
 import { VOICE_RUNTIME_VERSION } from './voice-model-catalog.js';
@@ -10,15 +19,15 @@ const defaultWorkerUrls = {
   tts: new URL('./voice-local-tts-worker.js', import.meta.url),
 };
 
-const engineDeps = {
+const engineDeps: VoiceEngineDeps = {
   workerFactory: (url) => new Worker(url, { type: 'module' }),
   workerUrls: defaultWorkerUrls,
 };
 
-const workers = { stt: null, tts: null };
-const inflight = { stt: new Map(), tts: new Map() };
-const queues = { stt: Promise.resolve(), tts: Promise.resolve() };
-const failedGpuModels = { stt: new Set(), tts: new Set() };
+const workers: Record<VoiceKind, LocalVoiceWorker | null> = { stt: null, tts: null };
+const inflight: Record<VoiceKind, Map<VoiceRequestId, PendingVoiceRequest>> = { stt: new Map(), tts: new Map() };
+const queues: Record<VoiceKind, Promise<VoiceReply | void>> = { stt: Promise.resolve(), tts: Promise.resolve() };
+const failedGpuModels: Record<VoiceKind, Set<string>> = { stt: new Set(), tts: new Set() };
 let nextRequestId = 1;
 
 /**
@@ -26,15 +35,14 @@ let nextRequestId = 1;
  * device's NPU. Large local voice graphs can be slower than WASM or cause the
  * browser GPU process to run out of memory, so Automatic stays on CPU there.
  *
- * @param {Navigator | { userAgent?: string, userAgentData?: { platform?: string } } | undefined} [navigatorLike]
  */
-export function isAndroidDevice(navigatorLike = globalThis.navigator) {
-  const platform = String(/** @type {any} */ (navigatorLike)?.userAgentData?.platform || '');
+export function isAndroidDevice(navigatorLike: VoiceNavigator | undefined = globalThis.navigator) {
+  const platform = String(navigatorLike?.userAgentData?.platform || '');
   const userAgent = String(navigatorLike?.userAgent || '');
   return /android/i.test(`${platform} ${userAgent}`);
 }
 
-export function configureVoiceLocalEngine(deps = {}) {
+export function configureVoiceLocalEngine(deps: Partial<Omit<VoiceEngineDeps, 'workerUrls'>> & { workerUrls?: Partial<VoiceEngineDeps['workerUrls']> } = {}) {
   const previous = {
     workerFactory: engineDeps.workerFactory,
     workerUrls: engineDeps.workerUrls,
@@ -44,26 +52,26 @@ export function configureVoiceLocalEngine(deps = {}) {
   return previous;
 }
 
-function installKey(kind, model) {
-  return `${INSTALL_KEY_PREFIX}${kind}-${encodeURIComponent(model)}`;
+function installKey(kind: VoiceKind, model: string | undefined) {
+  return `${INSTALL_KEY_PREFIX}${kind}-${encodeURIComponent(model!)}`;
 }
 
 function rememberInstalled(
-  kind,
-  model,
-  backend,
+  kind: VoiceKind,
+  model: string | undefined,
+  backend: string | undefined,
   fallbackReason = '',
-  inferenceMs,
-  audioSeconds,
+  inferenceMs?: number,
+  audioSeconds?: number,
 ) {
   try {
     const previous = getLocalVoiceModelStatus(kind, model);
     const performance = { ...(previous?.performance || {}) };
     const availableBackends = new Set(previous?.availableBackends || [previous?.backend].filter(Boolean));
-    if (['wasm', 'webgpu'].includes(backend)) availableBackends.add(backend);
-    if (Number.isFinite(inferenceMs) && ['wasm', 'webgpu'].includes(backend)) {
+    if (['wasm', 'webgpu'].includes(backend!)) availableBackends.add(backend);
+    if (Number.isFinite(inferenceMs) && ['wasm', 'webgpu'].includes(backend!)) {
       const safeAudioSeconds = Number(audioSeconds);
-      performance[backend] = {
+      performance[backend!] = {
         inferenceMs: Number(inferenceMs),
         ...(Number.isFinite(safeAudioSeconds) && safeAudioSeconds > 0
           ? {
@@ -86,9 +94,9 @@ function rememberInstalled(
   } catch {}
 }
 
-export function isMobileVoiceDevice(navigatorValue = globalThis.navigator) {
+export function isMobileVoiceDevice(navigatorValue: VoiceNavigator | undefined = globalThis.navigator) {
   try {
-    const clientHints = /** @type {any} */ (navigatorValue)?.userAgentData;
+    const clientHints = navigatorValue?.userAgentData;
     if (typeof clientHints?.mobile === 'boolean') return clientHints.mobile;
     return /Android|iPhone|iPad|iPod|Mobile/i.test(String(navigatorValue?.userAgent || ''));
   } catch {
@@ -96,8 +104,8 @@ export function isMobileVoiceDevice(navigatorValue = globalThis.navigator) {
   }
 }
 
-export function initialLocalVoiceBackend(navigatorValue = globalThis.navigator) {
-  const gpu = /** @type {any} */ (navigatorValue)?.gpu;
+export function initialLocalVoiceBackend(navigatorValue: VoiceNavigator | undefined = globalThis.navigator) {
+  const gpu = navigatorValue?.gpu;
   return !isAndroidDevice(navigatorValue)
     && isMobileVoiceDevice(navigatorValue)
     && typeof gpu?.requestAdapter === 'function'
@@ -105,15 +113,10 @@ export function initialLocalVoiceBackend(navigatorValue = globalThis.navigator) 
     : 'wasm';
 }
 
-/**
- * @param {string} [backend]
- * @param {Record<string, any>} [performance]
- * @param {'wasm' | 'webgpu' | { android?: boolean, initialBackend?: 'wasm' | 'webgpu' }} [initialBackendOrEnvironment]
- */
 export function resolveLocalBackend(
   backend = 'auto',
-  performance = {},
-  initialBackendOrEnvironment = 'wasm',
+  performance: Record<string, unknown> = {},
+  initialBackendOrEnvironment: 'wasm' | 'webgpu' | VoiceBackendEnvironment = 'wasm',
 ) {
   if (backend !== 'auto') return backend;
   const environment = typeof initialBackendOrEnvironment === 'object'
@@ -126,9 +129,9 @@ export function resolveLocalBackend(
     ? environment.android
     : isAndroidDevice();
   if (android) return 'wasm';
-  const score = measurement => {
+  const score = (measurement: unknown) => {
     if (measurement == null) return Number.NaN;
-    const normalized = Number(measurement?.realtimeFactor);
+    const normalized = Number((measurement as { realtimeFactor?: unknown } | null | undefined)?.realtimeFactor);
     if (Number.isFinite(normalized)) return normalized;
     return Number(measurement);
   };
@@ -141,7 +144,7 @@ export function resolveLocalBackend(
   return initialBackend === 'webgpu' ? 'webgpu' : 'wasm';
 }
 
-export function preferredLocalVoiceBackend(kind, model, backend) {
+export function preferredLocalVoiceBackend(kind: VoiceKind, model: string | undefined, backend?: string) {
   if (backend === 'auto' && failedGpuModels[kind].has(String(model || ''))) return 'wasm';
   const status = getLocalVoiceModelStatus(kind, model);
   const performance = status?.performance || {};
@@ -150,9 +153,9 @@ export function preferredLocalVoiceBackend(kind, model, backend) {
     && !isAndroidDevice()
     && !Object.keys(performance).length
     && status?.fallbackReason
-    && ['wasm', 'webgpu'].includes(status.backend)
+    && ['wasm', 'webgpu'].includes(status.backend!)
   ) {
-    return status.backend;
+    return status.backend!;
   }
   return resolveLocalBackend(backend, performance, initialLocalVoiceBackend());
 }
@@ -161,9 +164,9 @@ export function preferredLocalVoiceBackend(kind, model, backend) {
 // transcription-specific name before the backend chooser became shared.
 export const resolveLocalSttBackend = resolveLocalBackend;
 
-export function getLocalVoiceModelStatus(kind, model) {
+export function getLocalVoiceModelStatus(kind: VoiceKind, model: string | undefined) {
   try {
-    const parsed = JSON.parse(localStorage.getItem(installKey(kind, model)) || 'null');
+    const parsed = JSON.parse(localStorage.getItem(installKey(kind, model)) || 'null') as VoiceModelStatus | null;
     if (parsed?.version !== VOICE_RUNTIME_VERSION || parsed?.model !== model) return null;
     return parsed;
   } catch {
@@ -171,7 +174,7 @@ export function getLocalVoiceModelStatus(kind, model) {
   }
 }
 
-export function isLocalVoiceModelReady(kind, model, backend = 'auto') {
+export function isLocalVoiceModelReady(kind: VoiceKind, model: string | undefined, backend = 'auto') {
   const status = getLocalVoiceModelStatus(kind, model);
   if (!status) return false;
   if (kind !== 'tts') return true;
@@ -183,7 +186,7 @@ export function isLocalVoiceModelReady(kind, model, backend = 'auto') {
   return available.has(preferred);
 }
 
-async function hasCachedModelAssets(model) {
+async function hasCachedModelAssets(model: string | undefined) {
   if (typeof caches === 'undefined') return true;
   const needles = [
     String(model),
@@ -206,7 +209,7 @@ async function hasCachedModelAssets(model) {
   return false;
 }
 
-export async function verifyLocalVoiceModelReady(kind, model, backend = 'auto') {
+export async function verifyLocalVoiceModelReady(kind: VoiceKind, model: string | undefined, backend = 'auto') {
   if (!isLocalVoiceModelReady(kind, model, backend)) return false;
   if (await hasCachedModelAssets(model)) return true;
   terminateLocalVoiceWorker(kind);
@@ -214,32 +217,32 @@ export async function verifyLocalVoiceModelReady(kind, model, backend = 'auto') 
   return false;
 }
 
-function hasStaleInstallation(kind, model) {
+function hasStaleInstallation(kind: VoiceKind, model: string | undefined) {
   try {
-    const parsed = JSON.parse(localStorage.getItem(installKey(kind, model)) || 'null');
+    const parsed = JSON.parse(localStorage.getItem(installKey(kind, model)) || 'null') as VoiceModelStatus | null;
     return !!parsed && (parsed.version !== VOICE_RUNTIME_VERSION || parsed.model !== model);
   } catch {
     return true;
   }
 }
 
-function dispatchProgress(detail) {
+function dispatchProgress(detail: VoiceReply) {
   if (typeof globalThis.dispatchEvent !== 'function') return;
   try {
     globalThis.dispatchEvent(new CustomEvent('labcharts-voice-model-progress', { detail }));
   } catch {}
 }
 
-function rejectInflight(kind, error) {
+function rejectInflight(kind: VoiceKind, error: unknown) {
   for (const pending of inflight[kind].values()) pending.reject(error);
   inflight[kind].clear();
 }
 
-function ensureWorker(kind) {
+function ensureWorker(kind: VoiceKind) {
   if (workers[kind]) return workers[kind];
   const worker = engineDeps.workerFactory(engineDeps.workerUrls[kind]);
   worker.addEventListener('message', event => {
-    const message = event.data || {};
+    const message = (event as MessageEvent<VoiceReply>).data || {};
     if (message.type === 'progress') {
       const pending = inflight[kind].get(message.id);
       if (pending) {
@@ -261,12 +264,12 @@ function ensureWorker(kind) {
     inflight[kind].delete(message.id);
     if (message.type === 'error') {
       const error = new Error(message.message || `Local ${kind} failed`);
-      if (message.backend) /** @type {any} */ (error).voiceBackend = message.backend;
+      if (message.backend) (error as Error & VoiceWorkerError).voiceBackend = message.backend;
       pending.reject(error);
     } else pending.resolve(message);
   });
   worker.addEventListener('error', event => {
-    const error = new Error(event.message || `Local ${kind} worker failed`);
+    const error = new Error((event as ErrorEvent).message || `Local ${kind} worker failed`);
     rejectInflight(kind, error);
     worker.terminate();
     workers[kind] = null;
@@ -275,17 +278,17 @@ function ensureWorker(kind) {
   return worker;
 }
 
-function rawWorkerRequest(kind, payload, transfer = [], signal, onChunk) {
-  return new Promise((resolve, reject) => {
+function rawWorkerRequest(kind: VoiceKind, payload: VoiceRequest, transfer: Transferable[] = [], signal?: AbortSignal, onChunk?: (message: VoiceReply) => void) {
+  return new Promise<VoiceReply>((resolve, reject) => {
     if (signal?.aborted) {
-      reject(signal.reason || new DOMException('Voice operation aborted', 'AbortError'));
+      reject(signal!.reason || new DOMException('Voice operation aborted', 'AbortError'));
       return;
     }
     const id = nextRequestId++;
     const worker = ensureWorker(kind);
     const onAbort = () => {
       inflight[kind].delete(id);
-      reject(signal.reason || new DOMException('Voice operation aborted', 'AbortError'));
+      reject(signal!.reason || new DOMException('Voice operation aborted', 'AbortError'));
       terminateLocalVoiceWorker(kind);
     };
     signal?.addEventListener('abort', onAbort, { once: true });
@@ -306,7 +309,7 @@ function rawWorkerRequest(kind, payload, transfer = [], signal, onChunk) {
   });
 }
 
-function workerRequest(kind, payload, transfer = [], signal, onChunk) {
+function workerRequest(kind: VoiceKind, payload: VoiceRequest, transfer: Transferable[] = [], signal?: AbortSignal, onChunk?: (message: VoiceReply) => void) {
   const result = queues[kind].catch(() => undefined)
     .then(() => {
       // Whisper and Kokoro are large enough that retaining both workers can
@@ -319,7 +322,7 @@ function workerRequest(kind, payload, transfer = [], signal, onChunk) {
   return result;
 }
 
-export async function installLocalVoiceModel(kind, model, signal, backend = 'auto') {
+export async function installLocalVoiceModel(kind: VoiceKind, model: string | undefined, signal?: AbortSignal, backend = 'auto') {
   if (hasStaleInstallation(kind, model)) {
     await removeLocalVoiceModel(kind, model);
   }
@@ -340,20 +343,32 @@ export async function installLocalVoiceModel(kind, model, signal, backend = 'aut
   return result;
 }
 
-/**
- * @param {Float32Array | ArrayLike<number>} samples
- * @param {{ model?: string, language?: string, backend?: string, signal?: AbortSignal }} [options]
- */
-export async function transcribeLocalAudio(samples, {
+// Keep the fallback decision synchronous: retrying must not add an await boundary.
+function prepareCpuRetry(kind: VoiceKind, model: string | undefined, backend: string, preferredBackend: string, error: unknown, emittedChunks = 0) {
+  const errorBackend = (error as VoiceWorkerError | null | undefined)?.voiceBackend;
+  const mayBeGpuFailure = errorBackend === 'webgpu'
+    || backend === 'webgpu'
+    || (backend === 'auto' && preferredBackend === 'webgpu');
+  if (
+    emittedChunks > 0
+    || !mayBeGpuFailure
+    || (error as VoiceWorkerError | null | undefined)?.name === 'AbortError'
+    || !isLocalVoiceModelReady(kind, model, 'wasm')
+  ) throw error;
+  failedGpuModels[kind].add(String(model || ''));
+  terminateLocalVoiceWorker(kind);
+}
+
+export async function transcribeLocalAudio(samples: Float32Array | ArrayLike<number>, {
   model,
   language = 'auto',
   backend = 'auto',
   signal,
-} = {}) {
+}: VoiceOptions = {}) {
   const audio = samples instanceof Float32Array ? samples : new Float32Array(samples || []);
   const audioSeconds = audio.length / 16_000;
   const preferredBackend = preferredLocalVoiceBackend('stt', model, backend);
-  const request = (requestedBackend, requestedPreference, allowWebGpuFallback) => {
+  const request = (requestedBackend: string, requestedPreference: string, allowWebGpuFallback: boolean) => {
     const transferableAudio = audio.slice();
     return workerRequest(
       'stt',
@@ -374,19 +389,9 @@ export async function transcribeLocalAudio(samples, {
   try {
     result = await request(backend, preferredBackend, !isAndroidDevice());
   } catch (error) {
-    const errorBackend = /** @type {any} */ (error)?.voiceBackend;
-    const mayBeGpuFailure = errorBackend === 'webgpu'
-      || backend === 'webgpu'
-      || (backend === 'auto' && preferredBackend === 'webgpu');
-    if (
-      !mayBeGpuFailure
-      || /** @type {any} */ (error)?.name === 'AbortError'
-      || !isLocalVoiceModelReady('stt', model, 'wasm')
-    ) throw error;
-    failedGpuModels.stt.add(String(model || ''));
-    terminateLocalVoiceWorker('stt');
+    prepareCpuRetry('stt', model, backend, preferredBackend, error);
     result = await request('wasm', 'wasm', false);
-    result.fallbackReason = String(/** @type {any} */ (error)?.message || 'Graphics processing failed');
+    result.fallbackReason = String((error as VoiceWorkerError | null | undefined)?.message || 'Graphics processing failed');
   }
   rememberInstalled(
     'stt',
@@ -405,19 +410,15 @@ export async function transcribeLocalAudio(samples, {
   };
 }
 
-/**
- * @param {string} text
- * @param {{ model?: string, voice?: string, rate?: number, backend?: string, signal?: AbortSignal }} [options]
- */
-export async function synthesizeLocalSpeech(text, {
+export async function synthesizeLocalSpeech(text: string, {
   model,
   voice,
   rate = 1,
   backend = 'auto',
   signal,
-} = {}) {
+}: VoiceOptions = {}) {
   const preferredBackend = preferredLocalVoiceBackend('tts', model, backend);
-  const request = (requestedBackend, requestedPreference, allowWebGpuFallback) => workerRequest(
+  const request = (requestedBackend: string, requestedPreference: string, allowWebGpuFallback: boolean) => workerRequest(
     'tts',
     {
       type: 'synthesize',
@@ -436,19 +437,9 @@ export async function synthesizeLocalSpeech(text, {
   try {
     result = await request(backend, preferredBackend, !isAndroidDevice());
   } catch (error) {
-    const errorBackend = /** @type {any} */ (error)?.voiceBackend;
-    const mayBeGpuFailure = errorBackend === 'webgpu'
-      || backend === 'webgpu'
-      || (backend === 'auto' && preferredBackend === 'webgpu');
-    if (
-      !mayBeGpuFailure
-      || /** @type {any} */ (error)?.name === 'AbortError'
-      || !isLocalVoiceModelReady('tts', model, 'wasm')
-    ) throw error;
-    failedGpuModels.tts.add(String(model || ''));
-    terminateLocalVoiceWorker('tts');
+    prepareCpuRetry('tts', model, backend, preferredBackend, error);
     result = await request('wasm', 'wasm', false);
-    result.fallbackReason = String(/** @type {any} */ (error)?.message || 'Graphics processing failed');
+    result.fallbackReason = String((error as VoiceWorkerError | null | undefined)?.message || 'Graphics processing failed');
   }
   rememberInstalled(
     'tts',
@@ -459,7 +450,7 @@ export async function synthesizeLocalSpeech(text, {
     result.audioSeconds,
   );
   return {
-    samples: new Float32Array(result.samples),
+    samples: new Float32Array(result.samples!),
     sampleRate: Number(result.sampleRate) || 24_000,
     backend: result.backend,
     fallbackReason: result.fallbackReason,
@@ -473,27 +464,27 @@ export async function synthesizeLocalSpeech(text, {
  * @param {string} text
  * @param {{ model?: string, voice?: string, rate?: number, backend?: string, signal?: AbortSignal }} [options]
  */
-export function streamLocalSpeech(text, {
+export function streamLocalSpeech(text: string, {
   model,
   voice,
   rate = 1,
   backend = 'auto',
   signal,
-} = {}) {
+}: VoiceOptions = {}) {
   let cancelled = false;
   const preferredBackend = preferredLocalVoiceBackend('tts', model, backend);
-  const stream = new ReadableStream({
+  const stream = new ReadableStream<{ samples: Float32Array<ArrayBuffer>; sampleRate: number }>({
     start(controller) {
       let emittedChunks = 0;
-      const onChunk = message => {
+      const onChunk = (message: VoiceReply) => {
         if (cancelled) return;
         emittedChunks += 1;
         controller.enqueue({
-          samples: new Float32Array(message.samples),
+          samples: new Float32Array(message.samples!),
           sampleRate: Number(message.sampleRate) || 24_000,
         });
       };
-      const request = (requestedBackend, requestedPreference, allowWebGpuFallback) => workerRequest(
+      const request = (requestedBackend: string, requestedPreference: string, allowWebGpuFallback: boolean) => workerRequest(
         'tts',
         {
           type: 'synthesize',
@@ -514,20 +505,9 @@ export function streamLocalSpeech(text, {
         try {
           return await request(backend, preferredBackend, !isAndroidDevice());
         } catch (error) {
-          const errorBackend = /** @type {any} */ (error)?.voiceBackend;
-          const mayBeGpuFailure = errorBackend === 'webgpu'
-            || backend === 'webgpu'
-            || (backend === 'auto' && preferredBackend === 'webgpu');
-          if (
-            emittedChunks > 0
-            || !mayBeGpuFailure
-            || /** @type {any} */ (error)?.name === 'AbortError'
-            || !isLocalVoiceModelReady('tts', model, 'wasm')
-          ) throw error;
-          failedGpuModels.tts.add(String(model || ''));
-          terminateLocalVoiceWorker('tts');
+          prepareCpuRetry('tts', model, backend, preferredBackend, error, emittedChunks);
           const result = await request('wasm', 'wasm', false);
-          result.fallbackReason = String(/** @type {any} */ (error)?.message || 'Graphics processing failed');
+          result.fallbackReason = String((error as VoiceWorkerError | null | undefined)?.message || 'Graphics processing failed');
           return result;
         }
       };
@@ -553,7 +533,7 @@ export function streamLocalSpeech(text, {
   return stream;
 }
 
-export function terminateLocalVoiceWorker(kind) {
+export function terminateLocalVoiceWorker(kind: VoiceKind) {
   const worker = workers[kind];
   if (!worker) return;
   workers[kind] = null;
@@ -566,7 +546,7 @@ export function terminateLocalVoiceWorkers() {
   terminateLocalVoiceWorker('tts');
 }
 
-export async function removeLocalVoiceModel(kind, model) {
+export async function removeLocalVoiceModel(kind: VoiceKind, model: string | undefined) {
   terminateLocalVoiceWorker(kind);
   try { localStorage.removeItem(installKey(kind, model)); } catch {}
   if (typeof caches === 'undefined') return 0;

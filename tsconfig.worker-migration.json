@@ -15,7 +15,9 @@
     "service-worker-runtime.ts",
     "service-worker-assets.ts",
     "version.ts",
-    "js/lens-local-worker.ts"
+    "js/lens-local-worker.ts",
+    "js/voice-local-stt-worker.ts",
+    "js/voice-local-tts-worker.ts"
   ],
   "exclude": []
 }

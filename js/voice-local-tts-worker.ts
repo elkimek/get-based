@@ -1,46 +1,41 @@
-// @ts-check
+import type { VoiceGpu, VoiceProgress, VoiceReady, VoiceReply, VoiceRequest, VoiceRequestId } from '../types/voice-local.js';
+declare const self: {
+  location: { search: string; origin: string };
+  navigator: { gpu?: VoiceGpu };
+  postMessage(message: VoiceReply, transfer?: Transferable[]): void;
+  addEventListener(type: 'message', handler: (event: MessageEvent<VoiceRequest>) => unknown): void;
+};
+interface SpeechSplitter { push(text: string): void; close(): void }
+interface SpeechChunk { audio?: { audio?: Float32Array<ArrayBuffer> | number[]; data?: Float32Array<ArrayBuffer> | number[]; sampling_rate?: number; sampleRate?: number } }
+export interface Synthesizer {
+  model?: { dispose?(): Promise<void> };
+  stream(splitter: SpeechSplitter, options: { voice: string; speed: number }): AsyncIterable<SpeechChunk | null>;
+}
+export interface KokoroModule {
+  KokoroTTS: { from_pretrained(model: string, options: { device: string; dtype: string; progress_callback(progress: VoiceProgress): void }): Promise<Synthesizer> };
+  TextSplitterStream: new () => SpeechSplitter;
+}
+type SpeechResult = VoiceReady & { sampleRate: number; inferenceMs: number; audioSeconds: number } &
+  ({ streamed: true } | { streamed?: false; samples: Float32Array<ArrayBuffer> });
 // voice-local-tts-worker.js — Kokoro inference in a dedicated module worker.
 
 import { getErrorMessage } from './caught-error.js';
 
 const DEFAULT_MODEL = 'onnx-community/Kokoro-82M-v1.0-ONNX';
 
-/**
- * @typedef {{
- *   model: string,
- *   backend: string,
- *   fallbackReason?: string,
- *   streamed: true,
- *   sampleRate: number,
- *   inferenceMs: number,
- *   audioSeconds: number,
- * }} StreamedSpeechResult
- */
-/**
- * @typedef {{
- *   model: string,
- *   backend: string,
- *   fallbackReason?: string,
- *   streamed?: false,
- *   samples: Float32Array,
- *   sampleRate: number,
- *   inferenceMs: number,
- *   audioSeconds: number,
- * }} BufferedSpeechResult
- */
 
-let synthesizer = null;
+let synthesizer: Synthesizer | null = null;
 let activeModel = '';
 let activeBackend = '';
 let activeFallbackReason = '';
-let kokoroModule = null;
+let kokoroModule: KokoroModule | null = null;
 
 function isMockMode() {
   return new URLSearchParams(self.location.search || '').has('mock');
 }
 
-function postProgress(id, progress) {
-  const safe = {};
+function postProgress(id: VoiceRequestId, progress: VoiceProgress) {
+  const safe: Record<string, string | number> = {};
   for (const key of ['status', 'name', 'file', 'progress', 'loaded', 'total']) {
     const value = progress?.[key];
     if (typeof value === 'string' || typeof value === 'number') safe[key] = value;
@@ -51,16 +46,15 @@ function postProgress(id, progress) {
 async function ensureKokoro() {
   if (!kokoroModule) {
     // @ts-expect-error Browser module workers can import the pinned HTTPS module.
-    kokoroModule = await import('https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js');
+    kokoroModule = (await import('https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js')) as KokoroModule;
   }
   return kokoroModule;
 }
 
-/** @template T @param {() => Promise<T>} operation @returns {Promise<T>} */
-async function withoutUnknownLengthWarning(operation) {
+async function withoutUnknownLengthWarning<T>(operation: () => Promise<T>) {
   const previous = console.warn;
   const previousError = console.error;
-  const expected = args => args.map(value => String(value)).join(' ');
+  const expected = (args: unknown[]) => args.map(value => String(value)).join(' ');
   console.warn = (...args) => {
     const message = expected(args);
     if (message.includes('Unable to determine content-length from response headers')) return;
@@ -79,8 +73,8 @@ async function withoutUnknownLengthWarning(operation) {
   }
 }
 
-function normalizeBackend(value) {
-  return ['auto', 'webgpu', 'wasm'].includes(value) ? value : 'auto';
+function normalizeBackend(value: string | undefined) {
+  return ['auto', 'webgpu', 'wasm'].includes(value!) ? value! : 'auto';
 }
 
 async function prepareWebGpu() {
@@ -89,7 +83,7 @@ async function prepareWebGpu() {
   if (!adapter) throw new Error('The browser could not access a graphics processor.');
 }
 
-async function createSynthesizer(KokoroTTS, model, backend, id) {
+async function createSynthesizer(KokoroTTS: KokoroModule['KokoroTTS'], model: string, backend: string, id: VoiceRequestId) {
   if (backend === 'webgpu') await prepareWebGpu();
   return withoutUnknownLengthWarning(() => (
     KokoroTTS.from_pretrained(model, {
@@ -101,12 +95,12 @@ async function createSynthesizer(KokoroTTS, model, backend, id) {
 }
 
 async function loadSynthesizer(
-  model,
-  id,
+  model: string | undefined,
+  id: VoiceRequestId,
   backendPreference = 'auto',
   preferredBackend = 'wasm',
   allowWebGpuFallback = true,
-) {
+): Promise<VoiceReady> {
   const requestedModel = String(model || DEFAULT_MODEL);
   const requestedBackend = normalizeBackend(backendPreference);
   const autoPreference = ['webgpu', 'wasm'].includes(preferredBackend) ? preferredBackend : 'wasm';
@@ -161,7 +155,7 @@ async function loadSynthesizer(
   throw new Error('No local speech backend is available.');
 }
 
-function concatenateAudio(parts) {
+function concatenateAudio(parts: readonly Float32Array<ArrayBuffer>[]) {
   const length = parts.reduce((total, part) => total + part.length, 0);
   const output = new Float32Array(length);
   let offset = 0;
@@ -172,8 +166,7 @@ function concatenateAudio(parts) {
   return output;
 }
 
-/** @returns {Promise<StreamedSpeechResult | BufferedSpeechResult>} */
-async function synthesize(message) {
+async function synthesize(message: VoiceRequest): Promise<SpeechResult> {
   const ready = await loadSynthesizer(
     message.model,
     message.id,
@@ -188,7 +181,7 @@ async function synthesize(message) {
       samples[index] = Math.sin(2 * Math.PI * 440 * index / sampleRate) * 0.08;
     }
     if (message.streaming) {
-      /** @type {any} */ (self).postMessage({
+      self.postMessage({
         type: 'audio-chunk',
         id: message.id,
         kind: 'tts',
@@ -205,11 +198,11 @@ async function synthesize(message) {
   const splitter = new TextSplitterStream();
   splitter.push(String(message.text || ''));
   splitter.close();
-  const parts = [];
+  const parts: Float32Array<ArrayBuffer>[] = [];
   let emittedParts = 0;
   let emittedSamples = 0;
   let sampleRate = 24_000;
-  for await (const chunk of synthesizer.stream(splitter, {
+  for await (const chunk of synthesizer!.stream(splitter, {
     voice: message.voice || 'af_heart',
     speed: Number(message.rate) || 1,
   })) {
@@ -221,7 +214,7 @@ async function synthesize(message) {
     emittedSamples += part.length;
     if (message.streaming) {
       const transferable = part.slice();
-      /** @type {any} */ (self).postMessage({
+      self.postMessage({
         type: 'audio-chunk',
         id: message.id,
         kind: 'tts',
@@ -285,7 +278,7 @@ self.addEventListener('message', async event => {
         });
         return;
       }
-      /** @type {any} */ (self).postMessage(
+      self.postMessage(
         { type: 'audio', id, kind: 'tts', ...result, samples: result.samples.buffer },
         [result.samples.buffer],
       );
