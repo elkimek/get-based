@@ -875,3 +875,13 @@ deploy/profile-share/data/
 /js/nutrition-comparison.js
 
 /js/supplement-action-delegates.js
+
+/js/focus-card.js
+
+/js/legal-consent.js
+
+/js/legal-consent-bootstrap.js
+
+/js/nutrition-targets.js
+
+/js/touch-tooltip.js

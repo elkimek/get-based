@@ -18,7 +18,7 @@ export function buildTypeScript(): void {
   }
   // TS7 always emits strict mode. Classic scripts retain their original execution
   // mode; this affects emission only, and every source still passes strict checks.
-  for (const name of ['service-worker', 'service-worker-runtime', 'service-worker-assets', 'version', 'js/theme-bootstrap', 'js/extra-theme-bootstrap']) {
+  for (const name of ['service-worker', 'service-worker-runtime', 'service-worker-assets', 'version', 'js/theme-bootstrap', 'js/extra-theme-bootstrap', 'js/legal-consent-bootstrap']) {
     const output = path.join(root, name + '.js');
     writeFileSync(output, readFileSync(output, 'utf8').replace(/^"use strict";\r?\n/, ''));
   }

@@ -1,8 +1,10 @@
-// @ts-check
 // legal-consent-bootstrap.js — make the first-launch deployment-policy gate
 // interactive before the main application bundle finishes loading.
 
 (() => {
+  type PreviousAcceptance = Pick<import('./legal-consent.js').LegalAcceptanceReader,
+    'accepted' | 'termsVersion' | 'privacyVersion' | 'policyScope'> | null | undefined;
+
   const overlay = document.getElementById('legal-consent-overlay');
   if (!(overlay instanceof HTMLElement)) return;
 
@@ -14,8 +16,8 @@
     || hostname.endsWith('.getbased.health')
     || hostname === 'get-based.vercel.app'
     || hostname === 'get-based-managed-subscription-v2.vercel.app';
-  const meta = name => String(document.querySelector(`meta[name="${name}"]`)?.getAttribute('content') || '').trim();
-  const cleanUrl = value => {
+  const meta = (name: string) => String(document.querySelector(`meta[name="${name}"]`)?.getAttribute('content') || '').trim();
+  const cleanUrl = (value: unknown) => {
     const raw = String(value || '').trim();
     if (!raw) return '';
     try {
@@ -45,7 +47,7 @@
     : 'self-hosted-notice';
   overlay.dataset.policyScope = policyScope;
 
-  let previous = null;
+  let previous: unknown = null;
   try {
     const raw = localStorage.getItem(acceptanceKey);
     previous = raw ? JSON.parse(raw) : null;
@@ -53,10 +55,10 @@
     previous = null;
   }
 
-  const acceptedCurrent = previous?.accepted === true
-    && previous?.termsVersion === termsVersion
-    && previous?.privacyVersion === privacyVersion
-    && previous?.policyScope === policyScope;
+  const acceptedCurrent = (previous as PreviousAcceptance)?.accepted === true
+    && (previous as PreviousAcceptance)?.termsVersion === termsVersion
+    && (previous as PreviousAcceptance)?.privacyVersion === privacyVersion
+    && (previous as PreviousAcceptance)?.policyScope === policyScope;
   if (acceptedCurrent) {
     overlay.remove();
     return;
@@ -67,9 +69,7 @@
   const description = document.getElementById('legal-consent-desc');
   const summary = overlay.querySelector('.legal-consent-summary');
   const statement = overlay.querySelector('.legal-consent-check span');
-  const acceptButton = /** @type {HTMLButtonElement | null} */ (
-    overlay.querySelector('[data-legal-consent-action="accept"]')
-  );
+  const acceptButton = (overlay.querySelector('[data-legal-consent-action="accept"]') as HTMLButtonElement | null);
 
   if (!officialHost) summary?.remove();
   if (kicker) kicker.textContent = hasPolicies ? `${operator.name || 'Deployment'} legal` : 'Self-hosted getbased';
@@ -91,8 +91,7 @@
       statement.textContent = 'I acknowledge that this self-hosted getbased deployment is operated independently and that optional network features send data to the destinations disclosed at activation.';
     } else {
       statement.append(`I have read and agree to ${operator.name ? `${operator.name}'s ` : 'the deployment operator\'s '}`);
-      /** @type {Array<{ label: string, url: string }>} */
-      const documents = [];
+      const documents: Array<{ label: string; url: string }> = [];
       if (operator.termsUrl) documents.push({ label: 'Terms of Service', url: operator.termsUrl });
       if (operator.privacyUrl) documents.push({ label: 'Privacy Policy', url: operator.privacyUrl });
       documents.forEach((policyDocument, index) => {
@@ -109,9 +108,7 @@
   }
   if (acceptButton) acceptButton.textContent = hasPolicies ? 'Accept & continue' : 'Acknowledge & continue';
 
-  const checkbox = /** @type {HTMLInputElement | null} */ (
-    document.getElementById('legal-consent-checkbox')
-  );
+  const checkbox = (document.getElementById('legal-consent-checkbox') as HTMLInputElement | null);
   if (!checkbox || !acceptButton) return;
 
   const syncAcceptButton = () => {
@@ -127,7 +124,7 @@
         privacyVersion,
         policyScope,
         acceptedAt: new Date().toISOString(),
-        appVersion: globalThis.APP_VERSION || null,
+        appVersion: (globalThis as typeof globalThis & { APP_VERSION?: unknown }).APP_VERSION || null,
         location: location.origin + location.pathname,
       }));
     } catch (error) {

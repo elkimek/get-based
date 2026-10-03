@@ -46,6 +46,7 @@
     "js/extra-theme-bootstrap.ts",
     "js/lens-local-worker.ts",
     "js/voice-local-stt-worker.ts",
-    "js/voice-local-tts-worker.ts"
+    "js/voice-local-tts-worker.ts",
+    "js/legal-consent-bootstrap.ts"
   ]
 }

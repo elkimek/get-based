@@ -1,4 +1,3 @@
-// @ts-check
 // touch-tooltip.js — app-wide tooltip overlay for title/data tooltip text.
 //
 // The app historically used native `title` attributes for hundreds of small
@@ -17,37 +16,37 @@ import {
 const HOLD_MS = 500;
 const MAX_DRIFT_PX = 10;
 const TOOLTIP_ID = 'app-tooltip';
-const TITLE_CACHE = new WeakMap();
+const TITLE_CACHE = new WeakMap<Element, string>();
 
-let _holdTimer = null;
+let _holdTimer: ReturnType<typeof setTimeout> | null = null;
 let _startX = 0, _startY = 0;
-let _tooltip = null;
-let _activeTarget = null;
-let _touchAnchor = null;
+let _tooltip: HTMLDivElement | null = null;
+let _activeTarget: Element | null = null;
+let _touchAnchor: { left: number; right: number; top: number; bottom: number; centerX: number } | null = null;
 let _lastTouchAt = 0;
 
 function _isTouchDevice() {
   return isTouchTooltipTouchRuntime();
 }
 
-function _tooltipText(el) {
+function _tooltipText(el: Node | null | undefined): string {
   if (!el || el.nodeType !== 1) return '';
-  return el.getAttribute('data-app-tooltip')
-    || el.getAttribute('data-conditions-tooltip')
-    || el.getAttribute('title')
-    || TITLE_CACHE.get(el)
+  return (el as Element).getAttribute('data-app-tooltip')
+    || (el as Element).getAttribute('data-conditions-tooltip')
+    || (el as Element).getAttribute('title')
+    || TITLE_CACHE.get(el as Element)
     || '';
 }
 
-function _findTooltipEl(el) {
+function _findTooltipEl(el: Node | null | undefined): Element | null {
   while (el && el !== document.body) {
-    if (el.nodeType === 1 && _tooltipText(el).trim()) return el;
+    if (el.nodeType === 1 && _tooltipText(el).trim()) return el as Element;
     el = el.parentNode;
   }
   return null;
 }
 
-function _suspendNativeTitle(el) {
+function _suspendNativeTitle(el: Element | null) {
   if (!el?.hasAttribute?.('title')) return;
   const title = el.getAttribute('title');
   if (!title) return;
@@ -55,9 +54,9 @@ function _suspendNativeTitle(el) {
   el.removeAttribute('title');
 }
 
-function _restoreNativeTitle(el) {
+function _restoreNativeTitle(el: Element | null) {
   if (!el || !TITLE_CACHE.has(el)) return;
-  if (!el.hasAttribute('title')) el.setAttribute('title', TITLE_CACHE.get(el));
+  if (!el.hasAttribute('title')) el.setAttribute('title', TITLE_CACHE.get(el)!);
   TITLE_CACHE.delete(el);
 }
 
@@ -86,7 +85,7 @@ function _positionTooltip() {
   const margin = 10;
   const gap = 10;
   const anchor = _touchAnchor || (() => {
-    const rect = _activeTarget.getBoundingClientRect();
+    const rect = _activeTarget!.getBoundingClientRect();
     return {
       left: rect.left,
       right: rect.right,
@@ -113,11 +112,7 @@ function _positionTooltip() {
   _tooltip.dataset.placement = placement;
 }
 
-/**
- * @param {Element} target
- * @param {{ clientX: number, clientY: number } | null} [touchPoint]
- */
-function _showTooltip(target, touchPoint = null) {
+function _showTooltip(target: Element, touchPoint: { clientX: number; clientY: number } | null = null) {
   const text = _tooltipText(target).trim();
   if (!text) return;
   if (_activeTarget && _activeTarget !== target) _restoreNativeTitle(_activeTarget);
@@ -157,19 +152,19 @@ function _hideTooltip() {
   if (_tooltip) _tooltip.classList.remove('is-visible');
 }
 
-function _onHoverStart(e) {
-  if (e.pointerType === 'touch') return;
+function _onHoverStart(e: MouseEvent | PointerEvent) {
+  if ((e as PointerEvent).pointerType === 'touch') return;
   if (e.type?.startsWith('mouse') && _isTouchDevice()) return;
-  const target = _findTooltipEl(e.target);
+  const target = _findTooltipEl(e.target as Node | null);
   if (target) _showTooltip(target);
 }
 
-function _onHoverEnd(e) {
-  if (!_activeTarget || e.pointerType === 'touch') return;
+function _onHoverEnd(e: MouseEvent | PointerEvent) {
+  if (!_activeTarget || (e as PointerEvent).pointerType === 'touch') return;
   if (e.type?.startsWith('mouse') && _isTouchDevice()) return;
-  const leaving = _findTooltipEl(e.target);
+  const leaving = _findTooltipEl(e.target as Node | null);
   if (leaving !== _activeTarget) return;
-  if (e.relatedTarget && _activeTarget.contains(e.relatedTarget)) return;
+  if (e.relatedTarget && _activeTarget.contains(e.relatedTarget as Node)) return;
   const targetToHide = _activeTarget;
   requestAnimationFrame(() => {
     if (_activeTarget !== targetToHide) return;
@@ -178,25 +173,25 @@ function _onHoverEnd(e) {
   });
 }
 
-function _onFocusIn(e) {
+function _onFocusIn(e: FocusEvent) {
   if (_isTouchDevice() && Date.now() - _lastTouchAt < 1000) return;
-  const target = _findTooltipEl(e.target);
+  const target = _findTooltipEl(e.target as Node | null);
   if (target) _showTooltip(target);
 }
 
-function _onFocusOut(e) {
+function _onFocusOut(e: FocusEvent) {
   if (!_activeTarget) return;
-  if (e.relatedTarget && _activeTarget.contains(e.relatedTarget)) return;
+  if (e.relatedTarget && _activeTarget.contains(e.relatedTarget as Node)) return;
   _hideTooltip();
 }
 
-function _onTouchStart(e) {
+function _onTouchStart(e: TouchEvent) {
   _lastTouchAt = Date.now();
   _hideTooltip();
   if (!e.touches || e.touches.length !== 1) return;
-  const target = _findTooltipEl(e.target);
+  const target = _findTooltipEl(e.target as Node | null);
   if (!target) return;
-  const t = e.touches[0];
+  const t = e.touches[0]!;
   _startX = t.clientX;
   _startY = t.clientY;
   _clearHoldTimer();
@@ -206,7 +201,7 @@ function _onTouchStart(e) {
   }, HOLD_MS);
 }
 
-function _onTouchMove(e) {
+function _onTouchMove(e: TouchEvent) {
   if (!_holdTimer && !_activeTarget) return;
   const t = e.touches?.[0];
   if (!t) return;

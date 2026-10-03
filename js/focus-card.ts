@@ -1,4 +1,3 @@
-// @ts-check
 // focus-card.js - Current Focus dashboard and Insight lens card
 
 import { state } from './state.js';
@@ -15,31 +14,38 @@ import { applyInlineMarkdown } from './markdown.js';
 import { computeAllImpacts } from './supplement-impact.js';
 import { getCurrentSupplements, getSupplementPeriods, getSupplementsOverlappingRange } from './supplement-medication-domain.js';
 
+type FocusData = ReturnType<typeof getActiveData>;
+interface FocusActionTarget { closest?: (selector: string) => HTMLElement | null }
+interface FocusActionRoot { contains?: (element: HTMLElement) => unknown }
+interface FocusCacheReader { fingerprint?: unknown; text?: unknown }
+interface FocusResponseReader { text?: unknown; usage?: unknown }
+export interface FocusCardOptions { refreshStale?: unknown; userInitiated?: unknown }
+
 const focusCardActionDelegateRoots = new WeakSet();
 const FOCUS_CARD_ACTION_ATTR = 'data-focus-card-action';
 
-function focusCardActionAttrs(action) {
+function focusCardActionAttrs(action: unknown) {
   return `${FOCUS_CARD_ACTION_ATTR}="${escapeAttr(action)}"`;
 }
 
-function closestFocusCardAction(target) {
-  return /** @type {HTMLElement | null} */ (
+function closestFocusCardAction(target: FocusActionTarget | null) {
+  return (
     target && typeof target.closest === 'function'
       ? target.closest(`[${FOCUS_CARD_ACTION_ATTR}]`)
       : null
   );
 }
 
-function handleFocusCardActionClick(event) {
-  const actionEl = closestFocusCardAction(event.target);
-  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+function handleFocusCardActionClick(event: Event) {
+  const actionEl = closestFocusCardAction(event.target as FocusActionTarget | null);
+  if (!actionEl || !(event.currentTarget as FocusActionRoot | null)?.contains?.(actionEl)) return;
   if (actionEl.getAttribute(FOCUS_CARD_ACTION_ATTR) !== 'refresh') return;
   refreshFocusCard();
   event.preventDefault();
   event.stopPropagation();
 }
 
-export function installFocusCardActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+export function installFocusCardActionDelegates(root: Pick<EventTarget, 'addEventListener'> | null = typeof document !== 'undefined' ? document : null) {
   if (!root || focusCardActionDelegateRoots.has(root)) return;
   focusCardActionDelegateRoots.add(root);
   root.addEventListener('click', handleFocusCardActionClick);
@@ -47,19 +53,19 @@ export function installFocusCardActionDelegates(root = typeof document !== 'unde
 
 if (typeof document !== 'undefined') installFocusCardActionDelegates();
 
-function focusCategoryInContext(data, catKey) {
+function focusCategoryInContext(data: FocusData, catKey: string) {
   const group = data?.categories?.[catKey]?.group;
   return !group || isGroupInAIContext(group);
 }
 
-function getFocusFlaggedMarkers(data) {
+function getFocusFlaggedMarkers(data: FocusData) {
   if (!isLabMarkersContextEnabled()) return [];
   return getAllFlaggedMarkers(data).filter(f => focusCategoryInContext(data, f.categoryKey));
 }
 
 export function renderFocusCard() {
   const cacheKey = profileStorageKey(state.currentProfile, 'focusCard');
-  const cached = (() => { try { return JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch(e) { return null; } })();
+  const cached: FocusCacheReader | null = (() => { try { return JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch(e) { return null; } })();
   const fp = getFocusCardFingerprint();
   const text = (cached && cached.fingerprint === fp) ? cached.text : null;
   return `<div class="focus-card" id="focus-card">
@@ -87,9 +93,9 @@ export function buildFocusContext() {
 
   const healthGoals = state.importedData.healthGoals || [];
   if (includeInsightCards && healthGoals.length > 0) {
-    const byPriority = { major: [], mild: [], minor: [] };
-    for (const g of healthGoals) (byPriority[g.severity] || byPriority.minor).push(g.text);
-    const parts = [];
+    const byPriority: { major: string[]; mild: string[]; minor: string[] } = { major: [], mild: [], minor: [] };
+    for (const g of healthGoals) (((byPriority as Record<string, unknown>)[g.severity as string] || byPriority.minor) as { push: (text: string) => unknown }).push(g.text);
+    const parts: string[] = [];
     for (const [sev, items] of Object.entries(byPriority)) {
       if (items.length > 0) parts.push(`${sev}: ${items.join('; ')}`);
     }
@@ -101,7 +107,7 @@ export function buildFocusContext() {
     ctx += `Lens: ${interpretiveLens.trim()}\n`;
   }
 
-  const diag = state.importedData.diagnoses;
+  const diag = state.importedData.diagnoses as { conditions?: import('../types/profile-context-data.js').Diagnoses['conditions']; note?: unknown } | null;
   if (includeInsightCards && hasCardContent(diag)) {
     const conditions = (diag.conditions || []).map(c => `${c.name} (${c.severity})`);
     if (conditions.length > 0) ctx += `Conditions: ${conditions.join(', ')}\n`;
@@ -130,12 +136,12 @@ export function buildFocusContext() {
     for (const s of supps) {
       const pds = [...getSupplementPeriods(s)].sort((a, b) => (a.start || '').localeCompare(b.start || ''));
       const dateRange = pds.length === 1
-        ? `${pds[0].start} \u2192 ${pds[0].end || 'ongoing'}`
+        ? `${pds[0]!.start} \u2192 ${pds[0]!.end || 'ongoing'}`
         : pds.map(p => `${p.start}\u2192${p.end || 'now'}`).join(', ');
       let timing = '';
-      const firstStart = pds[0].start;
+      const firstStart = pds[0]!.start;
       if (lastDate && firstStart > lastDate) timing = ' (started AFTER last labs \u2014 cannot have affected these results)';
-      else if (lastDate && data.dates.length >= 2 && firstStart > data.dates[data.dates.length - 2]) timing = ' (started between last two labs)';
+      else if (lastDate && data.dates.length >= 2 && firstStart > data.dates[data.dates.length - 2]!) timing = ' (started between last two labs)';
       let impactNote = '';
       if (!timing && data.dates.length >= 2) {
         const impacts = computeAllImpacts(s, data);
@@ -153,14 +159,14 @@ export function buildFocusContext() {
     }
   }
 
-  const changes = [];
+  const changes: string[] = [];
   for (const [catKey, cat] of Object.entries(data.categories)) {
     if (!focusCategoryInContext(data, catKey)) continue;
     for (const [, m] of Object.entries(cat.markers)) {
       const nonNull = m.values.filter(v => v !== null);
       if (nonNull.length < 2) continue;
-      const prev = nonNull[nonNull.length - 2];
-      const last = nonNull[nonNull.length - 1];
+      const prev = nonNull[nonNull.length - 2]!;
+      const last = nonNull[nonNull.length - 1]!;
       if (prev === 0) continue;
       const pct = Math.abs((last - prev) / prev * 100);
       if (pct > 20) {
@@ -178,12 +184,12 @@ export function buildFocusContext() {
   return ctx;
 }
 
-export async function loadFocusCard(opts = {}) {
+export async function loadFocusCard(opts: FocusCardOptions = {}) {
   const el = document.getElementById('focus-card-body');
   if (!el) return;
   const refreshStale = opts.refreshStale !== false;
   const cacheKey = profileStorageKey(state.currentProfile, 'focusCard');
-  const cached = (() => { try { return JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch(e) { return null; } })();
+  const cached: FocusCacheReader | null = (() => { try { return JSON.parse(localStorage.getItem(cacheKey) || 'null'); } catch(e) { return null; } })();
   const fp = getFocusCardFingerprint();
   if (cached && cached.text) {
     el.innerHTML = `<span class="focus-card-text">${applyInlineMarkdown(cached.text)}</span>`;
@@ -227,7 +233,7 @@ export async function loadFocusCard(opts = {}) {
 
     const textEl = document.createElement('span');
     textEl.className = 'focus-card-text';
-    let target = '', displayed = 0, timer = null;
+    let target = '', displayed = 0, timer: ReturnType<typeof setTimeout> | null = null;
     function tick() {
       if (displayed >= target.length) { timer = null; return; }
       const batch = Math.max(1, Math.ceil((target.length - displayed) * 0.3));
@@ -250,19 +256,19 @@ export async function loadFocusCard(opts = {}) {
         if (!textEl.parentNode) { el.innerHTML = ''; el.appendChild(textEl); }
         if (!timer) tick();
       }
-    });
+    }) as FocusResponseReader;
     if (timer) { clearTimeout(timer); timer = null; }
 
     if (usage && !getAssistantFeatureIdentity().subscription) {
-      trackUsage(getAIProvider(), getActiveModelId(), usage.inputTokens || 0, usage.outputTokens || 0);
+      (trackUsage as (provider: Parameters<typeof trackUsage>[0], modelId: Parameters<typeof trackUsage>[1], inputTokens: unknown, outputTokens: unknown) => ReturnType<typeof trackUsage>)(getAIProvider(), getActiveModelId(), (usage as { inputTokens?: unknown }).inputTokens || 0, (usage as { outputTokens?: unknown }).outputTokens || 0);
     }
-    let trimmed = (fullText || '')
+    let trimmed = ((fullText || '') as string)
       .replace(/<think>[\s\S]*?<\/think>/g, '')
       .trim();
     const lines = trimmed.split('\n');
     const thinkingPattern = /^(Let me |I need to |I should |I'll |Key findings|The user |Looking at the|Now |First,|So |OK |Alright|\d+\.\s+\w+:)/i;
     let startIdx = 0;
-    while (startIdx < lines.length && (thinkingPattern.test(lines[startIdx].trim()) || lines[startIdx].trim() === '')) startIdx++;
+    while (startIdx < lines.length && (thinkingPattern.test(lines[startIdx]!.trim()) || lines[startIdx]!.trim() === '')) startIdx++;
     if (startIdx > 0 && startIdx < lines.length) trimmed = lines.slice(startIdx).join('\n').trim();
     if (trimmed.length > 1500) { const cut = trimmed.slice(0, 1500).lastIndexOf('.'); if (cut > 100) trimmed = trimmed.slice(0, cut + 1); }
     if (trimmed) {

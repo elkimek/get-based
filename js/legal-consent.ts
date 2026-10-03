@@ -1,9 +1,20 @@
-// @ts-check
 // legal-consent.js — first-launch Terms/Privacy gate and re-consent on document updates.
 
 import { dispatchUtilsRuntimeEvent, getAppVersionRuntime } from './utils-runtime.js';
 import { showNotification } from './utils.js';
 import { getDeploymentOperatorPolicy } from './deployment-policy.js';
+
+export interface LegalAcceptanceReader {
+  accepted?: unknown;
+  termsVersion?: unknown;
+  privacyVersion?: unknown;
+  policyScope?: unknown;
+  appVersion?: unknown;
+  [key: string]: unknown;
+}
+type LegalConsentOptions = { update?: boolean | undefined };
+interface LegalConsentClickTarget { closest?: (selector: string) => Element | null; }
+interface LegalConsentClickRoot { contains?: (element: Element) => boolean; }
 
 const LEGAL_ACCEPTANCE_KEY = 'labcharts-legal-acceptance';
 export const TERMS_VERSION = '2026-08-22';
@@ -16,12 +27,12 @@ function nowIso() {
   try { return new Date().toISOString(); } catch { return ''; }
 }
 
-export function getLegalAcceptance() {
+export function getLegalAcceptance(): LegalAcceptanceReader | null {
   try {
     const raw = localStorage.getItem(LEGAL_ACCEPTANCE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : null;
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed as LegalAcceptanceReader : null;
   } catch {
     return null;
   }
@@ -64,8 +75,8 @@ function currentPolicyScope() {
     : 'self-hosted-notice';
 }
 
-function policyAcceptanceMarkup(policy) {
-  const links = [];
+function policyAcceptanceMarkup(policy: ReturnType<typeof getDeploymentOperatorPolicy>) {
+  const links: string[] = [];
   if (policy.termsUrl) links.push(`<a href="${policy.termsUrl}" data-legal-kind="terms" target="_blank" rel="noopener">Terms of Service</a>`);
   if (policy.privacyUrl) links.push(`<a href="${policy.privacyUrl}" data-legal-kind="privacy" target="_blank" rel="noopener">Privacy Policy</a>`);
   if (!links.length) {
@@ -74,7 +85,7 @@ function policyAcceptanceMarkup(policy) {
   return `I have read and agree to ${policy.name ? `${policy.name}'s ` : 'the deployment operator\'s '}${links.join(' and ')}.`;
 }
 
-function renderLegalConsentModal({ update = false } = {}) {
+function renderLegalConsentModal({ update = false }: LegalConsentOptions = {}) {
   const policy = currentPolicy();
   const hasPolicies = !!(policy.termsUrl || policy.privacyUrl);
   const intro = update
@@ -131,7 +142,7 @@ function backfillBootstrapAcceptanceMetadata() {
   }
 }
 
-function showAcceptanceNotification(persisted) {
+function showAcceptanceNotification(persisted: boolean) {
   if (persisted) {
     showNotification('Terms and Privacy accepted.', 'success', 3000);
   } else {
@@ -157,7 +168,7 @@ function bindBootstrapAcceptanceNotification() {
   globalThis.addEventListener('legal-consent-accepted', notifyBootstrapAcceptance, { once: true });
 }
 
-function prepareLegalConsentOverlay(overlay, { update = false } = {}) {
+function prepareLegalConsentOverlay(overlay: HTMLElement, { update = false }: LegalConsentOptions = {}) {
   if (update) {
     const title = overlay.querySelector('#legal-consent-title');
     const description = overlay.querySelector('#legal-consent-desc');
@@ -176,8 +187,8 @@ function applyDeploymentPolicyFooter() {
   const group = document.querySelector('[data-deployment-policy-footer]');
   if (!group) return;
   const policy = currentPolicy();
-  const privacy = /** @type {HTMLAnchorElement | null} */ (group.querySelector('[data-footer-policy-kind="privacy"]'));
-  const terms = /** @type {HTMLAnchorElement | null} */ (group.querySelector('[data-footer-policy-kind="terms"]'));
+  const privacy = (group.querySelector('[data-footer-policy-kind="privacy"]') as HTMLAnchorElement | null);
+  const terms = (group.querySelector('[data-footer-policy-kind="terms"]') as HTMLAnchorElement | null);
   if (!policy.privacyUrl && !policy.termsUrl) {
     group.remove();
     return;
@@ -192,29 +203,29 @@ function applyDeploymentPolicyFooter() {
   }
 }
 
-function bindLegalConsentOverlay(overlay) {
+function bindLegalConsentOverlay(overlay: HTMLElement) {
   if (overlay.dataset.legalConsentModuleBound === 'true') return;
   overlay.dataset.legalConsentModuleBound = 'true';
   overlay.addEventListener('click', handleLegalConsentClick);
   overlay.addEventListener('change', handleLegalConsentChange);
-  const checkbox = /** @type {HTMLInputElement | null} */ (
-    overlay.querySelector('#legal-consent-checkbox')
+  const checkbox = (
+    overlay.querySelector('#legal-consent-checkbox') as HTMLInputElement | null
   );
-  const acceptButton = /** @type {HTMLButtonElement | null} */ (
-    overlay.querySelector(`[${LEGAL_ACTION_ATTR}="accept"]`)
+  const acceptButton = (
+    overlay.querySelector(`[${LEGAL_ACTION_ATTR}="accept"]`) as HTMLButtonElement | null
   );
   if (acceptButton) acceptButton.disabled = !checkbox?.checked;
 }
 
-function handleLegalConsentClick(event) {
-  const target = event.target;
+function handleLegalConsentClick(event: Event) {
+  const target = event.target as LegalConsentClickTarget | null;
   if (!target || typeof target.closest !== 'function') return;
   const actionEl = target.closest(`[${LEGAL_ACTION_ATTR}]`);
-  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  if (!actionEl || !(event.currentTarget as LegalConsentClickRoot | null)?.contains?.(actionEl)) return;
   const action = actionEl.getAttribute(LEGAL_ACTION_ATTR);
   if (action !== 'accept') return;
   event.preventDefault();
-  const checkbox = /** @type {HTMLInputElement | null} */ (document.getElementById('legal-consent-checkbox'));
+  const checkbox = (document.getElementById('legal-consent-checkbox') as HTMLInputElement | null);
   if (!checkbox?.checked) return;
   let persisted = true;
   try {
@@ -228,10 +239,10 @@ function handleLegalConsentClick(event) {
   showAcceptanceNotification(persisted);
 }
 
-function handleLegalConsentChange(event) {
+function handleLegalConsentChange(event: Event) {
   const target = event.target;
   if (!(target instanceof HTMLInputElement) || target.id !== 'legal-consent-checkbox') return;
-  const acceptBtn = /** @type {HTMLButtonElement | null} */ (document.querySelector('#legal-consent-overlay [data-legal-consent-action="accept"]'));
+  const acceptBtn = (document.querySelector('#legal-consent-overlay [data-legal-consent-action="accept"]') as HTMLButtonElement | null);
   if (acceptBtn) acceptBtn.disabled = !target.checked;
 }
 
@@ -245,7 +256,7 @@ export function maybeShowLegalConsentGate() {
     return false;
   }
   const previous = getLegalAcceptance();
-  let overlay = /** @type {HTMLElement | null} */ (document.getElementById('legal-consent-overlay'));
+  let overlay = (document.getElementById('legal-consent-overlay') as HTMLElement | null);
   const prerenderMatchesCurrent = overlay?.dataset.termsVersion === TERMS_VERSION
     && overlay?.dataset.privacyVersion === PRIVACY_VERSION
     && overlay?.dataset.policyScope === currentPolicyScope();
