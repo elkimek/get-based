@@ -1,3 +1,4 @@
+import type { BrowserContext, Page, PlaywrightTestArgs, PlaywrightWorkerArgs, PlaywrightWorkerOptions, TestInfo } from '@playwright/test';
 import { devices, expect, test } from '@playwright/test';
 
 const LEGACY_BUNDLE = '**/vendor/evolu/evolu-bundle.js';
@@ -7,12 +8,12 @@ const TEST_IDENTITY = {
   mnemonic: 'oven federal awkward resist alter sound social version apart misery differ power buyer cloud avocado amount lady wedding silent nest fragile blanket oval fame',
 };
 
-async function configureCandidate(context, { forceFallback = false } = {}) {
+async function configureCandidate(context: BrowserContext, { forceFallback = false } = {}) {
   await context.addInitScript(({ forceOneTabFallback }) => {
     localStorage.setItem('labcharts-sync-relay', 'ws://127.0.0.1:41999');
     if (!forceOneTabFallback) return;
 
-    const replaceGlobal = (name, value) => {
+    const replaceGlobal = (name: string, value: unknown) => {
       try {
         Object.defineProperty(globalThis, name, {
           configurable: true,
@@ -25,11 +26,11 @@ async function configureCandidate(context, { forceFallback = false } = {}) {
     replaceGlobal('DisposableStack', undefined);
     replaceGlobal('AsyncDisposableStack', undefined);
     replaceGlobal('SuppressedError', undefined);
-    globalThis.__evolu8FallbackForced = typeof globalThis.SharedWorker === 'undefined';
+    (globalThis as typeof globalThis & { __evolu8FallbackForced?: boolean }).__evolu8FallbackForced = typeof globalThis.SharedWorker === 'undefined';
   }, { forceOneTabFallback: forceFallback });
 }
 
-async function seedCandidateIdentity(page) {
+async function seedCandidateIdentity(page: Page) {
   await page.evaluate(async identity => {
     const { createEvolu8IdentityVault } = await import('/js/sync-evolu8-identity-vault.js');
     await createEvolu8IdentityVault().write(identity);
@@ -37,7 +38,7 @@ async function seedCandidateIdentity(page) {
   }, TEST_IDENTITY);
 }
 
-async function getCompatibleBrowserPage({ browserName, context, page, playwright }, testInfo) {
+async function getCompatibleBrowserPage({ browserName, context, page, playwright }: Pick<PlaywrightTestArgs & PlaywrightWorkerArgs & PlaywrightWorkerOptions, 'browserName' | 'context' | 'page' | 'playwright'>, testInfo: TestInfo) {
   if (browserName !== 'webkit') {
     return { context, page, close: async () => {} };
   }
@@ -61,22 +62,22 @@ async function getCompatibleBrowserPage({ browserName, context, page, playwright
   };
 }
 
-async function readRuntime(page) {
+async function readRuntime(page: Page) {
   return page.evaluate(async () => {
     const runtime = await import('/js/sync-runtime.js');
     const owner = runtime.getSyncAppOwner();
     return {
-      clientVersion: runtime.getSyncEvolu()?.__evoluClientVersion || null,
+      clientVersion: (runtime.getSyncEvolu() as (ReturnType<typeof runtime.getSyncEvolu> & { __evoluClientVersion?: unknown }))?.__evoluClientVersion || null,
       error: runtime.getSyncAppOwnerError(),
       ownerId: owner?.id ? String(owner.id) : null,
     };
   });
 }
 
-async function waitForOwner(page) {
+async function waitForOwner(page: Page) {
   await expect.poll(async () => {
     const runtime = await readRuntime(page);
-    if (runtime.error) throw new Error(runtime.error);
+    if (runtime.error) throw new Error(runtime.error as string);
     return runtime.ownerId;
   }, {
     timeout: 30_000,
@@ -94,7 +95,7 @@ test('starts v8 from its durable identity without the v7 worker', async ({
   const { context, page } = browserPage;
   try {
     await configureCandidate(context);
-    const pageErrors = [];
+    const pageErrors: string[] = [];
     page.on('pageerror', error => pageErrors.push(error.message));
     let legacyRequests = 0;
     await page.route(LEGACY_BUNDLE, route => {
@@ -135,7 +136,7 @@ test('keeps the explicit v7 rollback isolated from the v8 runtime', async ({
     await context.addInitScript(() => {
       localStorage.setItem('labcharts-sync-enabled', 'true');
     });
-    const pageErrors = [];
+    const pageErrors: string[] = [];
     page.on('pageerror', error => pageErrors.push(error.message));
     let modernRequests = 0;
     await page.route('**/vendor/evolu8/**', route => {
@@ -163,7 +164,7 @@ test('polyfills resource management and enforces the one-tab worker fallback', a
   const { context, page } = browserPage;
   try {
     await configureCandidate(context, { forceFallback: true });
-    const pageErrors = [];
+    const pageErrors: string[] = [];
     page.on('pageerror', error => pageErrors.push(error.message));
     let legacyRequests = 0;
     await page.route(LEGACY_BUNDLE, route => {
@@ -181,7 +182,7 @@ test('polyfills resource management and enforces the one-tab worker fallback', a
     expect(await page.evaluate(() => ({
       asyncDisposableStack: typeof globalThis.AsyncDisposableStack,
       disposableStack: typeof globalThis.DisposableStack,
-      fallbackForced: globalThis.__evolu8FallbackForced,
+      fallbackForced: (globalThis as typeof globalThis & { __evolu8FallbackForced?: boolean }).__evolu8FallbackForced,
       sharedWorker: typeof globalThis.SharedWorker,
       suppressedError: typeof globalThis.SuppressedError,
     }))).toEqual({

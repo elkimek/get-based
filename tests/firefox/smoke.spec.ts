@@ -1,9 +1,10 @@
+import type { Page } from '@playwright/test';
 import { expect, test } from '../playwright/coverage-fixture.js';
 
 test.use({ serviceWorkers: 'allow' });
 
-async function openApp(page, path = '/app') {
-  const pageErrors = [];
+async function openApp(page: Page, path = '/app') {
+  const pageErrors: string[] = [];
   page.on('pageerror', error => pageErrors.push(error.message));
   await page.addInitScript(() => {
     const profileId = localStorage.getItem('labcharts-active-profile') || 'default';
@@ -16,8 +17,8 @@ async function openApp(page, path = '/app') {
     return !!state && !!document.getElementById('main-content');
   });
   await page.evaluate(async () => {
-    localStorage.setItem('labcharts-changelog-seen', window.APP_VERSION || 'test');
-    window.endTour?.();
+    localStorage.setItem('labcharts-changelog-seen', (window as typeof window & { APP_VERSION?: string }).APP_VERSION || 'test');
+    (window as typeof window & { endTour?: typeof import('../../js/tour.js').endTour }).endTour?.();
     (await import('/js/chat-panel.js')).closeChatPanel();
     document.getElementById('tour-overlay')?.remove();
     document.getElementById('tour-spotlight')?.remove();
@@ -48,7 +49,7 @@ test('loads demo data and supports core navigation and settings', async ({ brows
     const profileId = state.currentProfile;
     localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
     localStorage.setItem(`labcharts-${profileId}-tour`, 'completed');
-    window.endTour?.();
+    (window as typeof window & { endTour?: typeof import('../../js/tour.js').endTour }).endTour?.();
     document.getElementById('tour-overlay')?.remove();
     document.getElementById('tour-spotlight')?.remove();
     document.getElementById('tour-tooltip')?.remove();
@@ -68,7 +69,7 @@ test('loads demo data and supports core navigation and settings', async ({ brows
   await expect(chatPanel).not.toHaveClass(/\bopen\b/);
   // Firefox can race a delayed chat auto-open between the close assertion and
   // pointer hit testing. Dispatch the real delegated click without hit testing.
-  await page.locator('[data-shell-action="open-settings"]').evaluate(button => button.click());
+  await page.locator('[data-shell-action="open-settings"]').evaluate(button => (button as HTMLElement).click());
   await expect(page.locator('#settings-modal-overlay')).toHaveClass(/\bshow\b/);
   await page.locator('[data-settings-tab="privacy"]').click();
   await expect(page.locator('[data-tab-panel="privacy"]')).toHaveClass(/\bactive\b/);
@@ -86,13 +87,13 @@ test('round-trips a profile through browser JSON APIs', async ({ browserName, pa
       import('/js/export.js'),
       import('/js/profile.js'),
     ]);
-    const demo = await fetch('/data/demo-male.json', { cache: 'no-store' }).then(response => response.json());
-    state.importedData = demo;
+    const demo: unknown = await fetch('/data/demo-male.json', { cache: 'no-store' }).then(response => response.json());
+    state.importedData = demo as typeof state.importedData;
     state.profileSex = 'male';
     state.profileDob = '1987-11-22';
     await dataModule.saveImportedData();
 
-    const exported = await exportModule.buildClientExportObject(state.currentProfile, false);
+    const exported = (await exportModule.buildClientExportObject(state.currentProfile, false)) as Awaited<ReturnType<typeof exportModule.buildClientExportObject>> & { entries: { date?: unknown; markers?: Record<string, unknown> }[] };
     exported.profile.name = 'Firefox Round Trip';
     const sampleEntry = exported.entries.find(entry => entry?.date && Object.keys(entry.markers || {}).length > 0);
     const sampleKey = Object.keys(sampleEntry?.markers || {})[0] || '';
@@ -208,7 +209,7 @@ test('installs a readable app shell for offline use', async ({ browserName, cont
   // The delayed chat-onboarding panel can cover the header while the full app
   // shell finishes installing. Dispatch the same delegated shell action
   // directly so this check remains about offline first use, not panel timing.
-  await page.locator('.settings-btn').evaluate(button => button.click());
+  await page.locator('.settings-btn').evaluate(button => (button as HTMLElement).click());
   await expect(page.locator('#settings-modal-overlay')).toHaveClass(/\bshow\b/);
   await expect(page.locator('#settings-modal .settings-layout')).toHaveCSS('display', 'grid');
   await page.evaluate(async () => {
