@@ -1,3 +1,9 @@
+import type { DeltaMutationClient } from '../../js/sync-delta-observability-context.js';
+type ReferenceGoldFixtureReader = {
+  sourcePath: unknown; fileName: unknown; pageCount?: unknown;
+  expected: { date?: unknown; testType?: unknown; markers: { rawName?: unknown; mappedKey?: unknown }[] };
+};
+import type {Page} from '@playwright/test';
 import { expect, test } from './coverage-fixture.js';
 
 test.beforeEach(async ({ page }) => {
@@ -7,7 +13,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-async function preparePage(page) {
+async function preparePage(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-debug', 'false');
     localStorage.setItem('labcharts-default-emptyTour', 'completed');
@@ -15,14 +21,14 @@ async function preparePage(page) {
   });
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {
-    window.endTour?.();
+    (window as { endTour?: () => unknown }).endTour?.();
     document.getElementById('tour-overlay')?.remove();
     const { state } = await import('/js/state.js');
     state.currentProfile = 'benchmark-ui-profile';
     localStorage.setItem(`labcharts-${state.currentProfile}-emptyTour`, 'completed');
     localStorage.setItem(`labcharts-${state.currentProfile}-tour`, 'completed');
     state.profiles = [{ id: 'benchmark-ui-profile', name: 'Benchmark UI' }];
-    state.importedData = {
+    (state as { importedData: unknown }).importedData = {
       entries: [{ date: '2026-07-19', markers: { glucose: 91 } }],
       importSnapshots: [{
         id: 'snapshot-b',
@@ -176,7 +182,7 @@ test('import benchmarks compare multiple runs and delete diagnostics without del
   const persistedState = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     return {
-      benchmarkIds: state.importedData.importBenchmarks.map(item => item.id),
+      benchmarkIds: (state.importedData.importBenchmarks as Record<string, unknown>[]).map(item => item.id),
       deletedIds: state.importedData.deletedImportBenchmarkIds,
       entries: state.importedData.entries,
       importSnapshots: state.importedData.importSnapshots,
@@ -199,10 +205,10 @@ test('import benchmarks compare multiple runs and delete diagnostics without del
 test('comparison only offers runs produced from the same report', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {
-    window.endTour?.();
+    (window as { endTour?: () => unknown }).endTour?.();
     document.getElementById('tour-overlay')?.remove();
     const { state } = await import('/js/state.js');
-    state.importedData = {
+    (state as { importedData: unknown }).importedData = {
       entries: [],
       importSnapshots: [],
       importBenchmarks: [{
@@ -250,7 +256,7 @@ test('comparison headers distinguish the same model across cloud providers', asy
       timings: { analysisMs: 9_000 },
       modelId: 'x-ai/grok-4.5',
     };
-    state.importedData = {
+    (state as { importedData: unknown }).importedData = {
       entries: [],
       importSnapshots: [],
       importBenchmarks: [{ ...base, id: 'openrouter-grok', provider: 'openrouter' }, {
@@ -314,7 +320,7 @@ test('reference accuracy preserves raw model mapping errors separately from app 
 
   expect(score.referenceMappingAccuracyPercent).toBe(0);
   expect(score.referenceExactMarkerPercent).toBe(0);
-  expect(score.referenceDiscrepancies[0].issues.map(issue => issue.field)).toContain('mapping');
+  expect(score.referenceDiscrepancies[0]!.issues.map(issue => issue.field)).toContain('mapping');
   expect(score.referencePipelineMappingAccuracyPercent).toBe(100);
   expect(score.referencePipelineExactMarkerPercent).toBe(100);
 });
@@ -327,16 +333,16 @@ test('only one bundled reference benchmark can run at a time', async ({ page }) 
     setOllamaMainModel('model-under-test');
     const benchmark = await import('/js/import-reference-benchmark.js');
     const originalFetch = window.fetch;
-    let releaseManifest;
-    const manifestResponse = new Promise(resolve => { releaseManifest = resolve; });
-    window.fetch = (url, options) => String(url).endsWith('.gold.json')
+    let releaseManifest: ((value: Response | PromiseLike<Response>) => void) | undefined;
+    const manifestResponse = new Promise<Response>((resolve) => { releaseManifest = resolve; });
+    window.fetch = (url: RequestInfo | URL, options?: RequestInit) => String(url).endsWith('.gold.json')
       ? manifestResponse
       : originalFetch(url, options);
-    const first = benchmark.runBundledImportReferenceBenchmark().catch(error => error.message);
-    await new Promise(resolve => setTimeout(resolve, 0));
+    const first = benchmark.runBundledImportReferenceBenchmark().catch((error: unknown) => (error as { message?: unknown }).message);
+    await new Promise((resolve) => setTimeout(resolve, 0));
     const runningDuring = benchmark.isBundledImportReferenceBenchmarkRunning();
-    const secondError = await benchmark.runBundledImportReferenceBenchmark().catch(error => error.message);
-    releaseManifest(new Response('', { status: 503 }));
+    const secondError = await benchmark.runBundledImportReferenceBenchmark().catch((error: unknown) => (error as { message?: unknown }).message);
+    releaseManifest!(new Response('', { status: 503 }));
     const firstError = await first;
     const runningAfter = benchmark.isBundledImportReferenceBenchmarkRunning();
     window.fetch = originalFetch;
@@ -356,11 +362,11 @@ test('model test modal can close while a test continues in the background', asyn
     setAIProvider('ollama');
     setOllamaMainModel('model-under-test');
     const originalFetch = window.fetch;
-    let releaseManifest;
-    const manifestResponse = new Promise(resolve => { releaseManifest = resolve; });
-    window.__benchmarkOriginalFetch = originalFetch;
-    window.__releaseBenchmarkManifest = releaseManifest;
-    window.fetch = (url, options) => String(url).endsWith('.gold.json')
+    let releaseManifest: ((value: Response | PromiseLike<Response>) => void) | undefined;
+    const manifestResponse = new Promise<Response>((resolve) => { releaseManifest = resolve; });
+    (window as {__benchmarkOriginalFetch?: unknown}).__benchmarkOriginalFetch = originalFetch;
+    (window as {__releaseBenchmarkManifest?: unknown}).__releaseBenchmarkManifest = releaseManifest;
+    window.fetch = (url: RequestInfo | URL, options?: RequestInit) => String(url).endsWith('.gold.json')
       ? manifestResponse
       : originalFetch(url, options);
     (await import('/js/settings-import-benchmark-controller.js')).openImportBenchmarksModal();
@@ -386,14 +392,14 @@ test('model test modal can close while a test continues in the background', asyn
   await expect(reopenedRunButton).toHaveText('Model test running…');
 
   await page.evaluate(async () => {
-    window.__releaseBenchmarkManifest(new Response('', { status: 503 }));
+    ((window as {__releaseBenchmarkManifest?: unknown}).__releaseBenchmarkManifest as (value: Response) => unknown)(new Response('', { status: 503 }));
     const benchmark = await import('/js/import-reference-benchmark.js');
     while (benchmark.isBundledImportReferenceBenchmarkRunning()) {
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
     }
-    window.fetch = window.__benchmarkOriginalFetch;
-    delete window.__benchmarkOriginalFetch;
-    delete window.__releaseBenchmarkManifest;
+    (window as { fetch: unknown }).fetch = (window as {__benchmarkOriginalFetch?: unknown}).__benchmarkOriginalFetch;
+    delete (window as {__benchmarkOriginalFetch?: unknown}).__benchmarkOriginalFetch;
+    delete (window as {__releaseBenchmarkManifest?: unknown}).__releaseBenchmarkManifest;
   });
   await expect(reopenedRunButton).toBeEnabled();
   await expect(reopenedRunButton).toHaveText(/Test current model/);
@@ -484,7 +490,7 @@ test('reference scoring retains exact lab-data and report-detail discrepancies',
     kind: 'mismatch',
     markerName: 'Fasting Glucose',
   });
-  expect(score.referenceDiscrepancies[0].issues.map(issue => issue.field)).toEqual([
+  expect(score.referenceDiscrepancies[0]!.issues.map(issue => issue.field)).toEqual([
     'mapping',
     'value',
     'unit',
@@ -492,7 +498,7 @@ test('reference scoring retains exact lab-data and report-detail discrepancies',
   ]);
   expect(score.referenceDiscrepancies[1]).toMatchObject({ kind: 'missing', markerName: 'Sodium' });
   expect(score.referenceDiscrepancies[2]).toMatchObject({ kind: 'unexpected', markerName: 'Unexpected Marker' });
-  expect(score.referenceDiscrepancies[3].issues.map(issue => issue.field)).toEqual([
+  expect(score.referenceDiscrepancies[3]!.issues.map(issue => issue.field)).toEqual([
     'collection-date',
     'report-type',
   ]);
@@ -525,7 +531,7 @@ test('eGFR unit typography does not create false benchmark differences and repai
     state.currentProfile = 'reference-equivalence-repair-profile';
     localStorage.setItem(`labcharts-${state.currentProfile}-emptyTour`, 'completed');
     localStorage.setItem(`labcharts-${state.currentProfile}-tour`, 'completed');
-    state.importedData = {
+    (state as { importedData: unknown }).importedData = {
       entries: [],
       importSnapshots: [],
       importBenchmarks: [{
@@ -569,18 +575,18 @@ test('eGFR unit typography does not create false benchmark differences and repai
   expect(result.score.referenceDiscrepancyCount).toBe(0);
   expect(result.score.referenceValueAccuracyPercent).toBe(100);
   expect(result.score.referenceRangeAccuracyPercent).toBe(100);
-  expect(result.repaired.referenceDiscrepanciesVersion).toBe(2);
-  expect(result.repaired.referenceDiscrepancyCount).toBe(0);
-  expect(result.repaired.referenceDiscrepancies).toEqual([]);
-  expect(result.repaired.referenceExactMarkerCount).toBe(68);
-  expect(result.repaired.referenceExactMarkerPercent).toBe(100);
-  expect(result.repaired.referenceValueAccuracyPercent).toBe(100);
-  expect(result.repaired.referenceRangeAccuracyPercent).toBe(100);
-  expect(result.repaired.referenceFieldAccuracyPercent).toBe(100);
-  expect(result.repaired.referencePipelineExactMarkerPercent).toBe(100);
-  expect(result.repaired.referencePipelineFieldAccuracyPercent).toBe(100);
-  expect(result.repaired.referenceExactMatch).toBe(true);
-  expect(result.repaired.referencePipelineExactMatch).toBe(true);
+  expect(result.repaired!.referenceDiscrepanciesVersion).toBe(2);
+  expect(result.repaired!.referenceDiscrepancyCount).toBe(0);
+  expect(result.repaired!.referenceDiscrepancies).toEqual([]);
+  expect(result.repaired!.referenceExactMarkerCount).toBe(68);
+  expect(result.repaired!.referenceExactMarkerPercent).toBe(100);
+  expect(result.repaired!.referenceValueAccuracyPercent).toBe(100);
+  expect(result.repaired!.referenceRangeAccuracyPercent).toBe(100);
+  expect(result.repaired!.referenceFieldAccuracyPercent).toBe(100);
+  expect(result.repaired!.referencePipelineExactMarkerPercent).toBe(100);
+  expect(result.repaired!.referencePipelineFieldAccuracyPercent).toBe(100);
+  expect(result.repaired!.referenceExactMatch).toBe(true);
+  expect(result.repaired!.referencePipelineExactMatch).toBe(true);
 });
 
 test('two successful imports persist as two distinct comparable model runs', async ({ page }) => {
@@ -589,7 +595,7 @@ test('two successful imports persist as two distinct comparable model runs', asy
   });
   await page.goto('/app', { waitUntil: 'load' });
   const saved = await page.evaluate(async () => {
-    window.endTour?.();
+    (window as { endTour?: () => unknown }).endTour?.();
     document.getElementById('tour-overlay')?.remove();
     const { state } = await import('/js/state.js');
     const { setAIProvider, setOllamaMainModel } = await import('/js/api.js');
@@ -600,7 +606,7 @@ test('two successful imports persist as two distinct comparable model runs', asy
     localStorage.setItem(`labcharts-${state.currentProfile}-emptyTour`, 'completed');
     localStorage.setItem(`labcharts-${state.currentProfile}-tour`, 'completed');
     state.profiles = [{ id: state.currentProfile, name: 'Two model benchmark' }];
-    state.importedData = {
+    (state as { importedData: unknown }).importedData = {
       entries: [],
       importSnapshots: [],
       importBenchmarks: [],
@@ -609,7 +615,7 @@ test('two successful imports persist as two distinct comparable model runs', asy
     };
     setAIProvider('ollama');
 
-    const importWithModel = async (modelId, value) => {
+    const importWithModel = async (modelId: string, value: number) => {
       setOllamaMainModel(modelId);
       const benchmarkId = startImportBenchmark({
         fileName: 'same-reference.pdf',
@@ -656,7 +662,7 @@ test('two successful imports persist as two distinct comparable model runs', asy
 
     await importWithModel('local-model-a', 91);
     await importWithModel('local-model-b', 92);
-    const records = state.importedData.importBenchmarks.map(run => ({
+    const records = (state.importedData.importBenchmarks as Record<string, unknown>[]).map(run => ({
       id: run.id,
       modelId: run.modelId,
       status: run.status,
@@ -671,7 +677,7 @@ test('two successful imports persist as two distinct comparable model runs', asy
   expect(saved.records.map(run => run.status)).toEqual(['confirmed', 'confirmed']);
   await expect(page.locator('#import-benchmarks-section')).toContainText('2 saved tests across 2 model setups');
   await page.evaluate(() => {
-    window.endTour?.();
+    (window as { endTour?: () => unknown }).endTour?.();
     document.getElementById('tour-overlay')?.remove();
   });
   await page.locator('[data-settings-action="open-import-benchmarks"]').click();
@@ -694,7 +700,7 @@ test('benchmark history remains device-local across saves and inbound sync merge
     const { persistImportBenchmarks } = await import('/js/import-benchmarks.js');
     const profileId = `local-benchmark-${Date.now()}`;
     let pushed = 0;
-    syncDelta.configureSyncDelta({
+    (syncDelta.configureSyncDelta as (deps: Omit<NonNullable<Parameters<typeof syncDelta.configureSyncDelta>[0]>, 'getEvolu'> & { getEvolu: () => Pick<DeltaMutationClient, 'getQueryRows'> }) => ReturnType<typeof syncDelta.configureSyncDelta>)({
       getEvolu: () => ({ getQueryRows: () => [] }),
       getItemRowQuery: () => ({}),
     });
@@ -708,7 +714,7 @@ test('benchmark history remains device-local across saves and inbound sync merge
     state.currentProfile = profileId;
     localStorage.setItem(`labcharts-${state.currentProfile}-emptyTour`, 'completed');
     localStorage.setItem(`labcharts-${state.currentProfile}-tour`, 'completed');
-    state.importedData = {
+    (state as { importedData: unknown }).importedData = {
       entries: [],
       notes: [{ id: 'local-note', text: 'kept locally' }],
       importBenchmarks: [{
@@ -722,7 +728,7 @@ test('benchmark history remains device-local across saves and inbound sync merge
     };
 
     const saved = await persistImportBenchmarks();
-    await new Promise(resolve => setTimeout(resolve, 25));
+    await new Promise((resolve) => setTimeout(resolve, 25));
     const outbound = stripLocalOnlyProfileData(state.importedData);
     const merged = await mergePulledImportedData(profileId, {
       entries: [{ date: '2026-07-18', markers: { glucose: 90 } }],
@@ -740,7 +746,7 @@ test('benchmark history remains device-local across saves and inbound sync merge
       pushed,
       outboundHasBenchmarks: Object.prototype.hasOwnProperty.call(outbound, 'importBenchmarks'),
       outboundHasDeletedIds: Object.prototype.hasOwnProperty.call(outbound, 'deletedImportBenchmarkIds'),
-      mergedBenchmarkIds: merged.merged.importBenchmarks?.map(item => item.id) || [],
+      mergedBenchmarkIds: (merged.merged.importBenchmarks as Record<string, unknown>[] | null | undefined)?.map(item => item.id) || [],
       mergedDeletedIds: merged.merged.deletedImportBenchmarkIds || [],
       remoteEntryKept: merged.merged.entries?.some(entry => entry.date === '2026-07-18') || false,
     };
@@ -764,7 +770,7 @@ test('LM Studio is shown as the local backend instead of the internal Ollama pro
     localStorage.setItem(`labcharts-${state.currentProfile}-emptyTour`, 'completed');
     localStorage.setItem(`labcharts-${state.currentProfile}-tour`, 'completed');
     state.profiles = [{ id: state.currentProfile, name: 'LM Studio test' }];
-    state.importedData = {
+    (state as { importedData: unknown }).importedData = {
       entries: [],
       importSnapshots: [],
       importBenchmarks: [{
@@ -808,7 +814,7 @@ test('comparison model header opens exact expected-versus-returned differences',
     localStorage.setItem(`labcharts-${state.currentProfile}-emptyTour`, 'completed');
     localStorage.setItem(`labcharts-${state.currentProfile}-tour`, 'completed');
     state.profiles = [{ id: state.currentProfile, name: 'Difference review' }];
-    state.importedData = {
+    (state as { importedData: unknown }).importedData = {
       entries: [],
       importSnapshots: [],
       importBenchmarks: [{
@@ -898,7 +904,7 @@ test('a successfully imported snapshot recovers an older benchmark stuck in prev
   await page.goto('/app', { waitUntil: 'load' });
   const recovered = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
-    state.importedData = {
+    (state as { importedData: unknown }).importedData = {
       entries: [],
       importSnapshots: [{
         id: 'saved-import',
@@ -932,9 +938,9 @@ test('a successfully imported snapshot recovers an older benchmark stuck in prev
 test('bundled English reference fixture is internally exact and fully mapped', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   const result = await page.evaluate(async () => {
-    const manifest = await fetch('/data/import-benchmark-reference-us-v2.gold.json').then(response => response.json());
-    const sourceBuffer = await fetch(manifest.sourcePath).then(response => response.arrayBuffer());
-    const sourceFile = new File([sourceBuffer], manifest.fileName, { type: 'application/pdf' });
+    const manifest = await fetch('/data/import-benchmark-reference-us-v2.gold.json').then(response => response.json()) as unknown as ReferenceGoldFixtureReader;
+    const sourceBuffer = await fetch(manifest.sourcePath as string).then(response => response.arrayBuffer());
+    const sourceFile = new File([sourceBuffer], manifest.fileName as string, { type: 'application/pdf' });
     const { extractPDFText } = await import('/js/pdf-import.js');
     const sourceText = await extractPDFText(sourceFile);
     const { scoreReferenceImport } = await import('/js/import-reference-benchmark.js');
@@ -949,9 +955,9 @@ test('bundled English reference fixture is internally exact and fully mapped', a
       score,
       markerCount: manifest.expected.markers.length,
       pageCount: manifest.pageCount,
-      pdfSource: manifest.sourcePath.endsWith('.pdf'),
-      allNamesInReport: manifest.expected.markers.every(marker => sourceText.includes(marker.rawName)),
-      allMappingsExist: manifest.expected.markers.every(marker => !!markerReference[marker.mappedKey]),
+      pdfSource: (manifest.sourcePath as { endsWith(value: string): unknown }).endsWith('.pdf'),
+      allNamesInReport: manifest.expected.markers.every(marker => sourceText.includes(marker.rawName as string)),
+      allMappingsExist: manifest.expected.markers.every(marker => !!markerReference[marker.mappedKey as string]),
       syntheticDisclosure: sourceText.includes('NOT A REAL PATIENT OR LABORATORY REPORT'),
     };
   });
@@ -994,7 +1000,7 @@ test('reference model tests use deterministic prompts and explicit protocol iden
       name: 'Deterministic benchmark',
       location: { country: 'Czech Republic', zip: '' },
     }];
-    state.importedData = {
+    (state as { importedData: unknown }).importedData = {
       entries: [],
       importSnapshots: [],
       importBenchmarks: [],
@@ -1009,10 +1015,10 @@ test('reference model tests use deterministic prompts and explicit protocol iden
       version: cloudConsent.CLOUD_AI_CONSENT_VERSION,
       approvals: { openrouter: { accepted: true } },
     }));
-    const requestBodies = [];
+    const requestBodies: { messages: { content?: unknown }[] }[] = [];
     const originalFetch = window.fetch;
-    window.fetch = async (_url, init = {}) => {
-      if (init.method === 'POST') requestBodies.push(JSON.parse(init.body));
+    window.fetch = async (_url: RequestInfo | URL, init: RequestInit = {}) => {
+      if (init.method === 'POST') requestBodies.push((JSON.parse as (text: string) => unknown)(init.body as string) as { messages: { content?: unknown }[] });
       return new Response(JSON.stringify({
         choices: [{ message: { content: '{"testType":"blood","date":"2026-07-14","markers":[]}' }, finish_reason: 'stop' }],
         usage: { prompt_tokens: 100, completion_tokens: 20 },
@@ -1040,8 +1046,8 @@ test('reference model tests use deterministic prompts and explicit protocol iden
     };
     return {
       deterministicRequestsMatch: JSON.stringify(requestBodies[0]) === JSON.stringify(requestBodies[1]),
-      deterministicSystem: requestBodies[0].messages[0].content,
-      profileAwareSystem: requestBodies[2].messages[0].content,
+      deterministicSystem: requestBodies[0]!.messages[0]!.content,
+      profileAwareSystem: requestBodies[2]!.messages[0]!.content,
       sameProtocolMatches: importBenchmarksUseSameInput(protocolTwo, { ...protocolTwo }),
       differentProtocolMatches: importBenchmarksUseSameInput(protocolTwo, {
         ...protocolTwo,
@@ -1091,7 +1097,7 @@ test('gold-reference baseline is permanent and auto-compares the latest matching
       status: 'reference-scored',
       fileName: 'getbased-reference-us-v2.pdf',
     };
-    state.importedData = {
+    (state as { importedData: unknown }).importedData = {
       entries: [],
       importSnapshots: [],
       importBenchmarks: [{

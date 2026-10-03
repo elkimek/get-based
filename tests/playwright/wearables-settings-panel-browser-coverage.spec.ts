@@ -14,18 +14,18 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
     let runtimeConfigCalls = 0;
     let hangingRequestAborted = false;
     adapters._resetOAuthOverrides();
-    state.importedData = { wearableConnections: {} };
+    (state as {importedData:unknown}).importedData = { wearableConnections: {} };
     document.getElementById('wearables-section')?.remove();
-    window.setTimeout = (handler, delay = 0, ...args) => originalSetTimeout(
+    (window as unknown as {setTimeout:(handler:TimerHandler,delay?:number,...args:unknown[])=>number}).setTimeout = (handler, delay = 0, ...args) => (originalSetTimeout as unknown as (handler:TimerHandler,delay:number,...args:unknown[])=>number)(
       handler, delay === 10000 ? 0 : delay, ...args);
 
     window.fetch = async (url, options = {}) => {
       if (String(url) === '/api/proxy') {
-        const payload = JSON.parse(String(options.body || '{}'));
+        const payload = JSON.parse(String(options.body || '{}')) as Record<string,unknown>;
         if (payload.wearable_runtime_config) {
           runtimeConfigCalls += 1;
           if (runtimeConfigCalls === 1) return new Response(null, { status: 503 });
-          if (runtimeConfigCalls === 2) return new Promise((_resolve, reject) => {
+          if (runtimeConfigCalls === 2) return new Promise<never>((_resolve, reject) => {
             options.signal?.addEventListener('abort', () => {
               hangingRequestAborted = true;
               reject(new DOMException('Aborted', 'AbortError'));
@@ -50,7 +50,7 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
         <section id="wearables-section">${settings.renderWearablesSettingsSection()}</section>
       `);
       const initialRow = document.querySelector('[data-adapter="google_health"]');
-      const initiallySelfHostOnly = initialRow?.textContent.includes('Available when self-hosted');
+      const initiallySelfHostOnly = initialRow?.textContent!.includes('Available when self-hosted');
       const initiallyHasConnect = Boolean(initialRow
         ?.querySelector('[data-wearable-settings-action="connect"]'));
 
@@ -58,19 +58,19 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
       while (runtimeConfigCalls < 1) await new Promise(resolve => setTimeout(resolve, 10));
       await new Promise(resolve => setTimeout(resolve, 0));
       const afterFailureStillSelfHostOnly = document.querySelector('[data-adapter="google_health"]')
-        ?.textContent.includes('Available when self-hosted');
+        ?.textContent!.includes('Available when self-hosted');
       document.dispatchEvent(new Event('settings:wearables-rendered'));
-      while (!hangingRequestAborted) await new Promise(resolve => setTimeout(resolve, 10));
+      while (!(hangingRequestAborted as boolean)) await new Promise(resolve => setTimeout(resolve, 10));
       await new Promise(resolve => setTimeout(resolve, 0));
       document.dispatchEvent(new Event('settings:wearables-rendered'));
       for (let attempt = 0; attempt < 80; attempt += 1) {
         const row = document.querySelector('[data-adapter="google_health"]');
-        if (row?.textContent.includes('Connect through Google Health')) break;
+        if (row?.textContent!.includes('Connect through Google Health')) break;
         await new Promise(resolve => setTimeout(resolve, 25));
       }
 
       const configuredRow = document.querySelector('[data-adapter="google_health"]');
-      const adapterIdsInGroup = groupId => Array.from(document.querySelectorAll(
+      const adapterIdsInGroup = (groupId:string) => Array.from(document.querySelectorAll(
         `[data-wearable-group="${groupId}"] [data-adapter]`,
       )).map(row => row.getAttribute('data-adapter'));
       return {
@@ -83,10 +83,10 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
         configuredHasConnect: Boolean(configuredRow
           ?.querySelector('[data-wearable-settings-action="connect"]')),
         ultrahumanConfigured: document.querySelector('[data-adapter="ultrahuman"]')
-          ?.textContent.includes('Available when self-hosted')
+          ?.textContent!.includes('Available when self-hosted')
           && Boolean(document.querySelector('[data-adapter="ultrahuman"] [data-wearable-settings-action="connect"]')),
         whoopConfigured: document.querySelector('[data-adapter="whoop"]')
-          ?.textContent.includes('Available when self-hosted')
+          ?.textContent!.includes('Available when self-hosted')
           && Boolean(document.querySelector('[data-adapter="whoop"] [data-wearable-settings-action="connect"]')),
         groupIds: Array.from(document.querySelectorAll('[data-wearable-group]'))
           .map(group => group.getAttribute('data-wearable-group')),
@@ -124,12 +124,12 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async () => {
-    const failures = [];
-    const check = (name, condition, detail = '') => {
+    const failures:string[] = [];
+    const check = (name:string, condition:unknown, detail:unknown = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
     };
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async (predicate, label) => {
+    const wait = (ms:number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+    const waitFor = async (predicate:()=>unknown, label:string) => {
       for (let attempt = 0; attempt < 80; attempt += 1) {
         if (predicate()) return true;
         await wait(25);
@@ -157,15 +157,15 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
     const oldProfiles = state.profiles;
     const oldImportedData = state.importedData;
     const oldScrollIntoView = Element.prototype.scrollIntoView;
-    const navigations = [];
-    const docsClicks = [];
+    const navigations:unknown[] = [];
+    const docsClicks:{defaultPrevented:boolean;currentTarget:boolean}[] = [];
     let closedSettings = 0;
     let scrolledToStrip = 0;
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
       closeSettingsModal: () => { closedSettings += 1; },
     });
     const previousSettingsRuntimeDeps = settingsRuntime.configureWearableSettingsRuntimeDeps({
-      navigate: route => { navigations.push(route); },
+      navigate: (route:unknown) => { navigations.push(route); },
     });
 
     try {
@@ -173,7 +173,7 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       localStorage.setItem(betaFlagKey, 'true');
       localStorage.removeItem(hiddenKey);
       state.currentProfile = profileId;
-      state.profiles = [{
+      (state as {profiles:unknown}).profiles = [{
         id: profileId,
         name: 'Wearables settings coverage',
         createdAt: Date.now(),
@@ -183,7 +183,7 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
         status: 'active',
         pinned: false,
       }];
-      state.importedData = {
+      (state as {importedData:unknown}).importedData = {
         entries: [],
         notes: [],
         supplements: [],
@@ -241,19 +241,19 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       `);
       document.dispatchEvent(new Event('settings:wearables-rendered'));
       await waitFor(
-        () => document.querySelector('[data-role="manual-counts"]')?.textContent.includes('pulse'),
+        () => document.querySelector('[data-role="manual-counts"]')?.textContent!.includes('pulse'),
         'manual counts to populate'
       );
 
       const section = document.getElementById('wearables-section');
-      const toggle = document.getElementById('wearables-strip-hidden-toggle');
-      const ouraRow = section.querySelector('[data-adapter="oura"]');
-      const fitbitRow = section.querySelector('[data-adapter="fitbit"]');
-      const ultrahumanRow = section.querySelector('[data-adapter="ultrahuman"]');
-      const manualRow = section.querySelector('[data-adapter="manual"]');
-      const appleRow = section.querySelector('[data-adapter="apple_health"]');
-      const manualCounts = section.querySelector('[data-role="manual-counts"]')?.textContent || '';
-      const connectedOrder = Array.from(section.querySelectorAll(
+      const toggle = document.getElementById('wearables-strip-hidden-toggle') as HTMLInputElement|null;
+      const ouraRow = section!.querySelector('[data-adapter="oura"]');
+      const fitbitRow = section!.querySelector('[data-adapter="fitbit"]');
+      const ultrahumanRow = section!.querySelector('[data-adapter="ultrahuman"]');
+      const manualRow = section!.querySelector('[data-adapter="manual"]');
+      const appleRow = section!.querySelector('[data-adapter="apple_health"]');
+      const manualCounts = section!.querySelector('[data-role="manual-counts"]')?.textContent || '';
+      const connectedOrder = Array.from(section!.querySelectorAll(
         '[data-wearable-group="connected"] [data-adapter]',
       )).map(row => row.getAttribute('data-adapter'));
 
@@ -261,46 +261,46 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       check('connected group puts the migration warning before healthy connections',
         connectedOrder.join(',') === 'fitbit,oura,manual,apple_health', connectedOrder.join(','));
       check('connected sources are removed from the setup groups',
-        !section.querySelector('[data-wearable-group="available"] [data-adapter="oura"]')
-        && !section.querySelector('[data-wearable-group="local"] [data-adapter="manual"]')
-        && !section.querySelector('[data-wearable-group="local"] [data-adapter="apple_health"]'));
+        !section!.querySelector('[data-wearable-group="available"] [data-adapter="oura"]')
+        && !section!.querySelector('[data-wearable-group="local"] [data-adapter="manual"]')
+        && !section!.querySelector('[data-wearable-group="local"] [data-adapter="apple_health"]'));
       check('connected OAuth row renders status and identity',
-        ouraRow?.textContent.includes('Connected') && ouraRow?.textContent.includes('oura@example.test'));
+        ouraRow?.textContent!.includes('Connected') && ouraRow?.textContent!.includes('oura@example.test'));
       check('legacy Fitbit reauth state explains self-host Google Health migration',
-        fitbitRow?.textContent.includes('Move this connection')
-        && fitbitRow?.textContent.includes('self-host only')
-        && fitbitRow?.textContent.includes('Disconnect legacy Fitbit')
-        && !fitbitRow?.textContent.includes('Connect Google Health')
-        && !fitbitRow?.textContent.includes('Reconnect'));
+        fitbitRow?.textContent!.includes('Move this connection')
+        && fitbitRow?.textContent!.includes('self-host only')
+        && fitbitRow?.textContent!.includes('Disconnect legacy Fitbit')
+        && !fitbitRow?.textContent!.includes('Connect Google Health')
+        && !fitbitRow?.textContent!.includes('Reconnect'));
       const ultrahumanDocsLink = ultrahumanRow?.querySelector('.wearable-row-detail a.wearable-row-link');
       check('experimental self-host setup row renders native docs link without Connect',
-        ultrahumanRow?.textContent.includes('Set up on your server')
+        ultrahumanRow?.textContent!.includes('Set up on your server')
         && ultrahumanDocsLink?.getAttribute('href') === 'https://docs.getbased.health/guides/self-hosting#wearable-oauth-apps'
         && !ultrahumanRow?.querySelector('[data-wearable-settings-action="connect"]')
         && !ultrahumanRow?.querySelector('summary a[href]'));
       check('manual row renders browser-populated counts',
-        manualRow?.textContent.includes('Manual')
+        manualRow?.textContent!.includes('Manual')
         && manualCounts.includes('1 weight')
         && manualCounts.includes('1 blood pressure')
         && manualCounts.includes('1 pulse'));
       check('Apple Health row renders file import management',
-        appleRow?.textContent.includes('coverage-export.zip')
-        && appleRow?.textContent.includes('42 days')
-        && !!section.querySelector('#apple-health-file-input'));
+        appleRow?.textContent!.includes('coverage-export.zip')
+        && appleRow?.textContent!.includes('42 days')
+        && !!section!.querySelector('#apple-health-file-input'));
 
-      toggle.checked = false;
-      toggle.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+      toggle!.checked = false;
+      toggle!.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
       check('delegated strip visibility toggle stores per-profile hidden preference',
         settings.isWearableStripHidden() === true && localStorage.getItem(hiddenKey) === '1');
-      toggle.checked = true;
-      toggle.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+      toggle!.checked = true;
+      toggle!.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
       check('delegated strip visibility toggle removes hidden preference',
         settings.isWearableStripHidden() === false && localStorage.getItem(hiddenKey) == null);
 
       const dashboardNavBefore = navigations.filter(route => route === 'dashboard').length;
-      section.querySelector('[data-wearable-settings-action="manual-dashboard"]')
+      section!.querySelector('[data-wearable-settings-action="manual-dashboard"]')
         ?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-      await new Promise(resolve => requestAnimationFrame(resolve));
+      await new Promise<number>(resolve => requestAnimationFrame(resolve));
       const dashboardNavAfter = navigations.filter(route => route === 'dashboard').length;
       check('delegated manual dashboard action closes settings navigates and scrolls strip',
         closedSettings === 1
@@ -317,8 +317,8 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       ultrahumanDocsLink?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
       check('pending docs link reaches target uncanceled without toggling row',
         docsClicks.length === 1
-        && docsClicks[0].currentTarget === true
-        && docsClicks[0].defaultPrevented === false
+        && docsClicks[0]!.currentTarget === true
+        && docsClicks[0]!.defaultPrevented === false
         && !ultrahumanRow?.hasAttribute('open'),
         JSON.stringify({ docsClicks, rowOpen: ultrahumanRow?.hasAttribute('open') }));
     } finally {
@@ -334,8 +334,8 @@ test('wearables settings panel browser coverage renders rows, counts, and naviga
       if (oldBetaFlag == null) localStorage.removeItem(betaFlagKey);
       else localStorage.setItem(betaFlagKey, oldBetaFlag);
       state.currentProfile = oldCurrentProfile;
-      state.profiles = oldProfiles;
-      state.importedData = oldImportedData;
+      (state as {profiles:unknown}).profiles = oldProfiles;
+      (state as {importedData:unknown}).importedData = oldImportedData;
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       settingsRuntime.configureWearableSettingsRuntimeDeps(previousSettingsRuntimeDeps);
       Element.prototype.scrollIntoView = oldScrollIntoView;
@@ -351,12 +351,12 @@ test('wearables settings panel browser coverage deletes manual data after confir
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async () => {
-    const failures = [];
-    const check = (name, condition, detail = '') => {
+    const failures:string[] = [];
+    const check = (name:string, condition:unknown, detail:unknown = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
     };
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitUntil = async (predicate, label) => {
+    const wait = (ms:number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+    const waitUntil = async (predicate:()=>unknown, label:string) => {
       for (let attempt = 0; attempt < 80; attempt += 1) {
         if (predicate()) return true;
         await wait(25);
@@ -378,13 +378,13 @@ test('wearables settings panel browser coverage deletes manual data after confir
     const oldProfiles = state.profiles;
     const oldImportedData = state.importedData;
     const oldSettingsRuntimeDeps = settingsRuntime.configureWearableSettingsRuntimeDeps();
-    const navigations = [];
-    const confirmMessages = [];
+    const navigations:unknown[] = [];
+    const confirmMessages:unknown[] = [];
 
     try {
       localStorage.setItem('labcharts-active-profile', profileId);
       state.currentProfile = profileId;
-      state.profiles = [{
+      (state as {profiles:unknown}).profiles = [{
         id: profileId,
         name: 'Wearables manual delete coverage',
         createdAt: Date.now(),
@@ -394,7 +394,7 @@ test('wearables settings panel browser coverage deletes manual data after confir
         status: 'active',
         pinned: false,
       }];
-      state.importedData = {
+      (state as {importedData:unknown}).importedData = {
         entries: [],
         notes: [],
         supplements: [],
@@ -424,8 +424,8 @@ test('wearables settings panel browser coverage deletes manual data after confir
       ]);
 
       settingsRuntime.configureWearableSettingsRuntimeDeps({
-        navigate: route => { navigations.push(route); },
-        showConfirmDialog: async message => {
+        navigate: (route:unknown) => { navigations.push(route); },
+        showConfirmDialog: async (message:unknown) => {
           confirmMessages.push(message);
           return true;
         },
@@ -448,7 +448,7 @@ test('wearables settings panel browser coverage deletes manual data after confir
       const toastText = document.getElementById('notification-container')?.textContent || '';
 
       check('manual disconnect prompts with destructive confirmation copy',
-        confirmMessages.length === 1 && confirmMessages[0].includes('Delete all manual entries'));
+        confirmMessages.length === 1 && (confirmMessages[0] as string).includes('Delete all manual entries'));
       check('manual disconnect clears manual L1 rows', rows.length === 0);
       check('manual disconnect removes manual connection record',
         state.importedData.wearableConnections?.manual == null);
@@ -463,8 +463,8 @@ test('wearables settings panel browser coverage deletes manual data after confir
       if (oldActiveProfile == null) localStorage.removeItem('labcharts-active-profile');
       else localStorage.setItem('labcharts-active-profile', oldActiveProfile);
       state.currentProfile = oldCurrentProfile;
-      state.profiles = oldProfiles;
-      state.importedData = oldImportedData;
+      (state as {profiles:unknown}).profiles = oldProfiles;
+      (state as {importedData:unknown}).importedData = oldImportedData;
       settingsRuntime.configureWearableSettingsRuntimeDeps(oldSettingsRuntimeDeps);
     }
     return failures;

@@ -1,3 +1,5 @@
+type SyncMergeRowFixture = Pick<Parameters<typeof import('../../js/sync-delta-array-merge.js').mergeArrayRowsIntoImported>[2][number], 'itemId'> & Partial<Parameters<typeof import('../../js/sync-delta-array-merge.js').mergeArrayRowsIntoImported>[2][number]>;
+
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -18,20 +20,20 @@ test('sync apply cutover cleanup and rebroadcast helpers cover guarded browser p
       syncDelta,
       chatRuntime,
     ] = await Promise.all([
-      import(applyUrl),
-      import(cleanupUrl),
-      import(cutoverUrl),
-      import(rebroadcastUrl),
+      ((import(applyUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-apply.js'), 'applyAISettings'|'applyDisplayPrefs'>>),
+      ((import(cleanupUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-disable-cleanup.js'), 'isSyncDisableCleanupKey'|'clearSyncDisableStorage'>>),
+      ((import(cutoverUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-cutover.js'), 'enablePhase2Cutover'|'isPhase2CutoverEnabled'|'disablePhase2Cutover'>>),
+      ((import(rebroadcastUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-pull-rebroadcast.js'), 'maybeScheduleRebroadcast'|'beginSyncRebroadcastSettling'|'finishSyncRebroadcastSettling'>>),
       import('/js/state.js'),
       import('/js/sync-state.js'),
       import('/js/sync-delta.js'),
       import('/js/chat-runtime.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string,unknown> = {};
     const profileId = `sync-helper-${Date.now()}`;
-    const debugCalls = [];
-    const pushed = [];
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const debugCalls: string[] = [];
+    const pushed: (string|{id:unknown;data:unknown})[] = [];
+    const clone = (value: unknown): unknown => value == null ? value : JSON.parse(JSON.stringify(value)) as unknown;
     const aiKeys = [
       'labcharts-ai-provider',
       'labcharts-openrouter-key',
@@ -69,11 +71,11 @@ test('sync apply cutover cleanup and rebroadcast helpers cover guarded browser p
       localStorage: Object.fromEntries(storageKeys.map(key => [key, localStorage.getItem(key)])),
       sessionStorage: Object.fromEntries(sessionKeys.map(key => [key, sessionStorage.getItem(key)])),
     };
-    let previousChatRuntime = null;
+    let previousChatRuntime: ReturnType<typeof chatRuntime.configureChatRuntimeCallbacks>|null = null;
 
-    const restoreStoredValue = (store, key, value) => {
+    const restoreStoredValue = (store: Storage, key:string, value: unknown) => {
       if (value == null) store.removeItem(key);
-      else store.setItem(key, value);
+      else store.setItem(key, value as string);
     };
 
     try {
@@ -148,21 +150,21 @@ test('sync apply cutover cleanup and rebroadcast helpers cover guarded browser p
         && localStorage.getItem('labcharts-relay-quota-warned') == null
         && localStorage.getItem(`labcharts-${profileId}-keep`) === 'keep';
 
-      syncDelta.configureSyncDelta({
+      (syncDelta.configureSyncDelta as unknown as (options: {getEvolu:()=>unknown;getItemRowQuery:()=>unknown}) => ReturnType<typeof syncDelta.configureSyncDelta>)({
         getEvolu: () => ({ getQueryRows: () => [] }),
         getItemRowQuery: () => ({}),
       });
-      state.importedData = { entries: [{ date: '2026-06-08', markers: {} }] };
+      (state as {importedData:unknown}).importedData = { entries: [{ date: '2026-06-08', markers: {} }] };
       const noProfile = cutover.enablePhase2Cutover('');
       const notReady = cutover.enablePhase2Cutover(profileId);
-      state.importedData = {};
+      (state as {importedData:unknown}).importedData = {};
       const enabled = cutover.enablePhase2Cutover(profileId);
       const flagAfterEnable = cutover.isPhase2CutoverEnabled(profileId);
       const disabled = cutover.disablePhase2Cutover(profileId);
       outcomes.cutoverGatesOnProfileAndReadiness =
-        noProfile.reason === 'no-profile'
-        && notReady.reason === 'not-ready'
-        && notReady.blockerCount > 0
+        (noProfile as {reason?:unknown}).reason === 'no-profile'
+        && (notReady as {reason?:unknown}).reason === 'not-ready'
+        && ((notReady as {blockerCount?:unknown}).blockerCount as number) > 0
         && enabled.ok === true
         && flagAfterEnable === true
         && disabled === true
@@ -183,7 +185,7 @@ test('sync apply cutover cleanup and rebroadcast helpers cover guarded browser p
         debug: () => { throw new Error('debug should be swallowed'); },
       });
       syncState.resetSyncStatus();
-      state.importedData = { value: 3 };
+      (state as {importedData:unknown}).importedData = { value: 3 };
       rebroadcast.beginSyncRebroadcastSettling();
       const skippedSettling = rebroadcast.maybeScheduleRebroadcast({
         profileId,
@@ -198,7 +200,7 @@ test('sync apply cutover cleanup and rebroadcast helpers cover guarded browser p
         pushProfile: (id, data) => { pushed.push({ id, data: clone(data) }); },
         debug: (...args) => { debugCalls.push(args.join(' ')); },
       });
-      state.importedData = { value: 33 };
+      (state as {importedData:unknown}).importedData = { value: 33 };
       await new Promise(resolve => setTimeout(resolve, 140));
       const abortedProfileId = `${profileId}-abort`;
       state.currentProfile = abortedProfileId;
@@ -217,15 +219,15 @@ test('sync apply cutover cleanup and rebroadcast helpers cover guarded browser p
         && scheduled === true
         && scheduledAbort === true
         && pushed.length === 1
-        && pushed[0].id === profileId
-        && pushed[0].data.value === 33
+        && (pushed[0] as {id?:unknown}).id === profileId
+        && ((pushed[0] as {data?:unknown}).data as {value?:unknown}).value === 33
         && debugCalls.some(message => message.includes('initial replica still settling'))
         && debugCalls.some(message => message.includes('rebroadcast'))
         && debugCalls.some(message => message.includes('active profile switched'));
     } finally {
       rebroadcast.finishSyncRebroadcastSettling();
       state.currentProfile = saved.state.currentProfile;
-      state.importedData = saved.state.importedData;
+      (state as {importedData:unknown}).importedData = saved.state.importedData;
       syncState.resetSyncStatus();
       for (const [key, value] of Object.entries(saved.localStorage)) {
         restoreStoredValue(localStorage, key, value);
@@ -255,36 +257,36 @@ test('sync delta planners and committed apply cover row mutation contracts', asy
 
   const results = await page.evaluate(async ({ arrayPlannerUrl, mapPlannerUrl, scalarPlannerUrl, pushDeltasUrl }) => {
     const [arrayPlanner, mapPlanner, scalarPlanner, pushDeltas, syncDelta] = await Promise.all([
-      import(arrayPlannerUrl),
-      import(mapPlannerUrl),
-      import(scalarPlannerUrl),
-      import(pushDeltasUrl),
+      ((import(arrayPlannerUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-delta-array-planner.js'), '_planArrayDelta'>>),
+      ((import(mapPlannerUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-delta-map-planner.js'), '_planKeyedMapDelta'>>),
+      ((import(scalarPlannerUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-delta-scalar-planner.js'), '_planScalarDelta'>>),
+      ((import(pushDeltasUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-push-deltas.js'), 'planProfileDeltas'|'applyCommittedDeltas'>>),
       import('/js/sync-delta.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string,unknown> = {};
     const profileId = `sync-delta-plan-${Date.now()}`;
-    const manualItemId = rawKey => rawKey.replace(/_/g, '__').replace(/:/g, '_');
-    let itemRows = [];
-    const applied = [];
-    const warnings = [];
-    const debugCalls = [];
+    const manualItemId = (rawKey:string) => rawKey.replace(/_/g, '__').replace(/:/g, '_');
+    let itemRows: {id:string;profileId:string;arrayName:string;itemId:string;isDeleted:number|null;syncedAt?:string}[] = [];
+    const applied: {table:unknown;kind:string;args:Record<string,unknown>}[] = [];
+    const warnings: string[] = [];
+    const debugCalls: string[] = [];
     const originalWarn = console.warn;
     const deltaKeyPrefix = `labcharts-${profileId}-delta-`;
     const removeDeltaKeys = () => {
       for (const key of Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)).filter(Boolean)) {
-        if (key.startsWith(deltaKeyPrefix)) localStorage.removeItem(key);
+        if (key!.startsWith(deltaKeyPrefix)) localStorage.removeItem(key!);
       }
     };
-    const parsePayload = op => JSON.parse(op.args.payload);
+    const parsePayload = (op: {args: {payload?:unknown}}): {k?:unknown;v?:unknown} => JSON.parse(op.args.payload as string);
 
     try {
       console.warn = (...args) => { warnings.push(args.map(String).join(' ')); };
       removeDeltaKeys();
-      syncDelta.configureSyncDelta({
+      (syncDelta.configureSyncDelta as unknown as (options: {getEvolu:()=>unknown;getItemRowQuery:()=>unknown}) => ReturnType<typeof syncDelta.configureSyncDelta>)({
         getEvolu: () => ({
           getQueryRows: () => itemRows,
-          insert: (table, args) => { applied.push({ table, kind: 'insert', args }); },
-          update: (table, args) => { applied.push({ table, kind: 'update', args }); },
+          insert: (table:unknown, args:Record<string,unknown>) => { applied.push({ table, kind: 'insert', args }); },
+          update: (table:unknown, args:Record<string,unknown>) => { applied.push({ table, kind: 'update', args }); },
         }),
         getItemRowQuery: () => ({}),
       });
@@ -306,7 +308,7 @@ test('sync delta planners and committed apply cover row mutation contracts', asy
         && entryPlan.ops.some(op => op.kind === 'insert' && op.args.itemId === '2026-06-02')
         && entryPlan.ops.some(op => op.kind === 'tombstone' && op.args.id === 'row-entry-old');
 
-      const stormPrev = {};
+      const stormPrev: Record<string,string> = {};
       itemRows = [];
       for (let i = 0; i < 20; i += 1) {
         const itemId = `2026-04-${String(i + 1).padStart(2, '0')}`;
@@ -342,7 +344,7 @@ test('sync delta planners and committed apply cover row mutation contracts', asy
           isDeleted: null,
         },
       ];
-      const manualValues = Object.create(null);
+      const manualValues = Object.create(null) as Record<string,unknown>;
       manualValues[glucoseKey] = 7;
       manualValues[nullKey] = null;
       Object.defineProperty(manualValues, '__proto__', {
@@ -397,13 +399,13 @@ test('sync delta planners and committed apply cover row mutation contracts', asy
       const scalarTombstonePlan = await scalarPlanner._planScalarDelta(profileId, 'menstrualCycle', null);
       outcomes.scalarPlannerResurrectsLatestRowAndTombstonesClears =
         scalarUpdatePlan.ops.length === 1
-        && scalarUpdatePlan.ops[0].kind === 'update'
-        && scalarUpdatePlan.ops[0].args.id === 'row-cycle-latest'
-        && scalarUpdatePlan.ops[0].args.isDeleted === null
-        && parsePayload(scalarUpdatePlan.ops[0]).v.cycleLength === 28
+        && scalarUpdatePlan.ops[0]!.kind === 'update'
+        && scalarUpdatePlan.ops[0]!.args.id === 'row-cycle-latest'
+        && scalarUpdatePlan.ops[0]!.args.isDeleted === null
+        && (parsePayload(scalarUpdatePlan.ops[0]!).v as {cycleLength?:unknown}).cycleLength === 28
         && scalarTombstonePlan.ops.length === 1
-        && scalarTombstonePlan.ops[0].kind === 'tombstone'
-        && scalarTombstonePlan.ops[0].args.id === 'row-cycle-active';
+        && scalarTombstonePlan.ops[0]!.kind === 'tombstone'
+        && scalarTombstonePlan.ops[0]!.args.id === 'row-cycle-active';
 
       removeDeltaKeys();
       itemRows = [];
@@ -414,17 +416,17 @@ test('sync delta planners and committed apply cover row mutation contracts', asy
         menstrualCycle: { cycleLength: 29 },
       });
       const geneticsPlan = planned.deltaPlans.find(({ arrayName }) => arrayName === 'genetics');
-      const geneticsPayload = geneticsPlan ? JSON.parse(geneticsPlan.plan.ops[0].args.payload) : null;
+      const geneticsPayload = geneticsPlan ? JSON.parse(geneticsPlan.plan.ops[0]!.args.payload as string) as {v?:{provider?:unknown;snps?:unknown}} : null;
       outcomes.planProfileDeltasWalksArraysMapsAndStripsGeneticsSnps =
         planned.deltaOpCount >= 4
         && planned.deltaPlans.some(({ arrayName }) => arrayName === 'lightDevices')
         && planned.deltaPlans.some(({ arrayName }) => arrayName === 'manualValues')
         && planned.deltaPlans.some(({ arrayName }) => arrayName === 'genetics.snps')
         && geneticsPayload?.v?.provider === 'imported'
-        && !Object.prototype.hasOwnProperty.call(geneticsPayload.v, 'snps');
+        && !Object.prototype.hasOwnProperty.call(geneticsPayload!.v, 'snps');
 
       applied.length = 0;
-      const committedPlan = {
+      const committedPlan: Parameters<typeof pushDeltas.applyCommittedDeltas>[2][number]["plan"] = {
         ops: [
           {
             kind: 'insert',
@@ -450,7 +452,7 @@ test('sync delta planners and committed apply cover row mutation contracts', asy
         JSON.stringify({ lightDevices: [{ id: 'device-committed' }] }),
         [{ arrayName: 'lightDevices', plan: committedPlan }],
         committedPlan.ops.length,
-        message => { debugCalls.push(message); }
+        (message:string) => { debugCalls.push(message); }
       );
       const telemetry = syncDelta.getDeltaTelemetry(profileId);
       const lastPush = telemetry?.pushes?.at(-1);
@@ -463,7 +465,7 @@ test('sync delta planners and committed apply cover row mutation contracts', asy
         && telemetry?.summary?.totalOps === 2
         && lastPush?.perArray?.lightDevices?.ins === 1
         && lastPush?.perArray?.lightDevices?.tom === 1
-        && lastPush.blobBytes > 0;
+        && lastPush!.blobBytes > 0;
     } finally {
       console.warn = originalWarn;
       removeDeltaKeys();
@@ -488,13 +490,13 @@ test('sync delta merge helpers overlay array map and scalar rows', async ({ page
 
   const results = await page.evaluate(async ({ arrayMergeUrl, mapMergeUrl, scalarMergeUrl }) => {
     const [arrayMerge, mapMerge, scalarMerge] = await Promise.all([
-      import(arrayMergeUrl),
-      import(mapMergeUrl),
-      import(scalarMergeUrl),
+      ((import(arrayMergeUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-delta-array-merge.js'), 'mergeArrayRowsIntoImported'>>),
+      ((import(mapMergeUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-delta-map-merge.js'), 'mergeMapRowsIntoImported'>>),
+      ((import(scalarMergeUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-delta-scalar-merge.js'), 'mergeScalarRowsIntoImported'>>),
     ]);
-    const outcomes = {};
-    const payload = value => JSON.stringify(value);
-    const manualItemId = rawKey => rawKey.replace(/_/g, '__').replace(/:/g, '_');
+    const outcomes: Record<string,unknown> = {};
+    const payload = (value:unknown) => JSON.stringify(value);
+    const manualItemId = (rawKey:string) => rawKey.replace(/_/g, '__').replace(/:/g, '_');
 
     const importedArrays = {
       lightDevices: [
@@ -505,7 +507,7 @@ test('sync delta merge helpers overlay array map and scalar rows', async ({ page
       ],
       _deleted: { lightDevices: ['device-local-tomb'] },
     };
-    await arrayMerge.mergeArrayRowsIntoImported(importedArrays, 'lightDevices', [
+    await (arrayMerge.mergeArrayRowsIntoImported as (imported: Parameters<typeof arrayMerge.mergeArrayRowsIntoImported>[0], arrayName: Parameters<typeof arrayMerge.mergeArrayRowsIntoImported>[1], rows: readonly SyncMergeRowFixture[]) => ReturnType<typeof arrayMerge.mergeArrayRowsIntoImported>)(importedArrays, 'lightDevices', [
       {
         profileId: 'merge-profile',
         arrayName: 'lightDevices',
@@ -550,7 +552,7 @@ test('sync delta merge helpers overlay array map and scalar rows', async ({ page
         [ironKey]: 9,
       },
     };
-    await mapMerge.mergeMapRowsIntoImported(importedMap, 'manualValues', [
+    await (mapMerge.mergeMapRowsIntoImported as (imported: Parameters<typeof mapMerge.mergeMapRowsIntoImported>[0], arrayName: Parameters<typeof mapMerge.mergeMapRowsIntoImported>[1], rows: readonly SyncMergeRowFixture[]) => ReturnType<typeof mapMerge.mergeMapRowsIntoImported>)(importedMap, 'manualValues', [
       {
         profileId: 'merge-profile',
         arrayName: 'manualValues',
@@ -576,14 +578,14 @@ test('sync delta merge helpers overlay array map and scalar rows', async ({ page
     outcomes.mapMergePreservesRawKeysDeletesSynthIdsAndRejectsPollution =
       importedMap.manualValues[glucoseKey] === 7
       && !Object.prototype.hasOwnProperty.call(importedMap.manualValues, ironKey)
-      && !({}).polluted
+      && !({} as {polluted?:unknown}).polluted
       && !Object.prototype.hasOwnProperty.call(importedMap.manualValues, '__proto__');
 
     const importedScalars = {
       genetics: { provider: 'local', snps: { rs1: 'AA' } },
       lightEnvironment: { burdenAI: { score: 4 } },
     };
-    await scalarMerge.mergeScalarRowsIntoImported(importedScalars, 'genetics', [
+    await (scalarMerge.mergeScalarRowsIntoImported as (imported: Parameters<typeof scalarMerge.mergeScalarRowsIntoImported>[0], arrayName: Parameters<typeof scalarMerge.mergeScalarRowsIntoImported>[1], rows: readonly SyncMergeRowFixture[]) => ReturnType<typeof scalarMerge.mergeScalarRowsIntoImported>)(importedScalars, 'genetics', [
       {
         profileId: 'merge-profile',
         arrayName: 'genetics',
@@ -592,7 +594,7 @@ test('sync delta merge helpers overlay array map and scalar rows', async ({ page
         syncedAt: '2026-06-02T00:00:00.000Z',
       },
     ]);
-    await scalarMerge.mergeScalarRowsIntoImported(importedScalars, 'lightEnvironment.burdenAI', [
+    await (scalarMerge.mergeScalarRowsIntoImported as (imported: Parameters<typeof scalarMerge.mergeScalarRowsIntoImported>[0], arrayName: Parameters<typeof scalarMerge.mergeScalarRowsIntoImported>[1], rows: readonly SyncMergeRowFixture[]) => ReturnType<typeof scalarMerge.mergeScalarRowsIntoImported>)(importedScalars, 'lightEnvironment.burdenAI', [
       {
         profileId: 'merge-profile',
         arrayName: 'lightEnvironment.burdenAI',
@@ -604,7 +606,7 @@ test('sync delta merge helpers overlay array map and scalar rows', async ({ page
     outcomes.scalarMergePreservesNestedMapFieldsAndClearsDottedLeaves =
       importedScalars.genetics.provider === 'remote'
       && importedScalars.genetics.snps.rs1 === 'AA'
-      && importedScalars.lightEnvironment.burdenAI === null;
+      && (importedScalars.lightEnvironment as {burdenAI:unknown}).burdenAI === null;
 
     return outcomes;
   }, {

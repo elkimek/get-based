@@ -6,15 +6,15 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
-    const { makeTestInvoice, LNURL_METADATA } = await import('/wallet-test-lightning-invoices.js');
-    const { validateLightningInvoice } = await import('/js/routstr-validation.js');
+    const { makeTestInvoice, LNURL_METADATA: _LNURL_METADATA } = await import('/wallet-test-lightning-invoices.js');
+    const { validateLightningInvoice: _validateLightningInvoice } = await import('/js/routstr-validation.js');
     const api = await import('/js/api.js');
     const cryptoStore = await import('/js/crypto.js');
     const cloudConsent = await import('/js/cloud-ai-consent.js');
     const providerPanels = await import('/js/provider-panels.js');
     const settings = await import('/js/settings.js');
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+    const wait = (ms:number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+    const jsonResponse = (body:unknown, status = 200) => new Response(JSON.stringify(body), {
       status,
       headers: {
         'Content-Type': 'application/json',
@@ -52,8 +52,8 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       'cashuExecuteWithdraw',
       'cashuWithdrawToAddress',
     ];
-    const oldGlobals = {};
-    for (const name of globalNames) oldGlobals[name] = window[name];
+    const oldGlobals:Record<string,unknown> = {};
+    for (const name of globalNames) oldGlobals[name] = (window as unknown as Record<string,unknown>)[name];
 
     const storageKeys = [
       'labcharts-ai-provider',
@@ -67,33 +67,33 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       'labcharts-routstr-session-updated-at',
       'labcharts-cashu-wallet-mint',
     ];
-    const oldStorage = {};
+    const oldStorage:Record<string,string|null|undefined> = {};
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
 
-    let currentMint = 'https://mint-old.example';
+    let currentMint:unknown = 'https://mint-old.example';
     let walletBalance = 1500;
-    let setMintUrl = null;
-    let depositArgs = null;
+    let setMintUrl:unknown = null;
+    let depositArgs:unknown = null;
     let recoverCalled = false;
     let refundCalled = false;
-    let importedToken = null;
-    let receivedToken = null;
-    let fundingInvoiceAmount = null;
+    let importedToken:unknown = null;
+    let receivedToken:unknown = null;
+    let fundingInvoiceAmount:unknown = null;
     let fundingInvoiceCount = 0;
-    let fundingStatusQuote = null;
+    let fundingStatusQuote:unknown = null;
     let pendingFundingChecked = false;
     let exportedWallet = false;
-    let sentTokenAmount = null;
-    let withdrawAddressArgs = null;
-    let withdrawQuoteInvoice = null;
-    let executeWithdrawQuote = null;
-    let savedPendingWithdraw = null;
+    let sentTokenAmount:unknown = null;
+    let withdrawAddressArgs:unknown = null;
+    let withdrawQuoteInvoice:unknown = null;
+    let executeWithdrawQuote:unknown = null;
+    let savedPendingWithdraw:unknown = null;
     let clearPendingWithdrawCalled = false;
-    let restoredMnemonic = null;
+    let restoredMnemonic:unknown = null;
 
     try {
       window.fetch = async function(url, opts = {}) {
-        const href = typeof url === 'string' ? url : url?.url || '';
+        const href = typeof url === 'string' ? url : (url as Request|undefined)?.url || '';
         if (href.startsWith(nodeUrl)) {
           if (href.endsWith('/v1/info')) return jsonResponse({ nuts: {}, mints: ['https://mint-required.example'] });
           if (href.endsWith('/v1/models')) {
@@ -108,120 +108,120 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
           }
           if (href.endsWith('/v1/balance/info')) return jsonResponse({ balance: 777000, total_requests: 0, total_spent: 0 });
           if (href.endsWith('/v1/wallet/refund')) {
-            refundCalled = opts.method === 'POST' && opts.headers?.Authorization === 'Bearer sk-routstr-dom';
+            refundCalled = opts.method === 'POST' && (opts.headers as {Authorization?:unknown}|null|undefined)?.Authorization === 'Bearer sk-routstr-dom';
             return jsonResponse({ cashu_token: 'cashuArefundtoken' });
           }
           return jsonResponse({}, 404);
         }
-        return oldGlobals.fetch.call(window, url, opts);
+        return (oldGlobals.fetch as typeof fetch).call(window, url, opts);
       };
 
-      window.cashuGetBalance = async () => walletBalance;
-      window.cashuGetMintUrl = async () => currentMint;
-      window.cashuSetMintUrl = async url => {
+      (window as unknown as Record<string,unknown>).cashuGetBalance = async () => walletBalance;
+      (window as unknown as Record<string,unknown>).cashuGetMintUrl = async () => currentMint;
+      (window as unknown as Record<string,unknown>).cashuSetMintUrl = async (url:unknown) => {
         setMintUrl = url;
         currentMint = url;
-        localStorage.setItem('labcharts-cashu-wallet-mint', url);
+        localStorage.setItem('labcharts-cashu-wallet-mint', url as string);
       };
-      window.cashuCreateFundingInvoice = async amount => {
+      (window as unknown as Record<string,unknown>).cashuCreateFundingInvoice = async (amount:number) => {
         fundingInvoiceAmount = amount;
         fundingInvoiceCount += 1;
         return { quote: 'funding-quote-1000', invoice: makeTestInvoice(amount) };
       };
-      window.cashuCheckFundingStatus = async quote => {
+      (window as unknown as Record<string,unknown>).cashuCheckFundingStatus = async (quote:unknown) => {
         fundingStatusQuote = quote;
         return { paid: true, minted: 1000, fee: 2 };
       };
-      window.cashuRecoverPendingFunding = async () => {
+      (window as unknown as Record<string,unknown>).cashuRecoverPendingFunding = async () => {
         pendingFundingChecked = true;
         return { checked: 1, recovered: 998, pending: 0, failed: 0, cleared: 0 };
       };
-      window.cashuDepositToNode = async (url, amount, existingKey) => {
+      (window as unknown as Record<string,unknown>).cashuDepositToNode = async (url:unknown, amount:unknown, existingKey:unknown) => {
         depositArgs = { url, amount, existingKey };
         throw new Error('mock node rejected deposit');
       };
-      window.cashuRecoverPendingDeposit = async () => {
+      (window as unknown as Record<string,unknown>).cashuRecoverPendingDeposit = async () => {
         recoverCalled = true;
         return 'cashuArecoverytoken';
       };
-      window.cashuImportWallet = async token => {
+      (window as unknown as Record<string,unknown>).cashuImportWallet = async (token:unknown) => {
         importedToken = token;
         return 888;
       };
-      window.cashuReceiveToken = async token => {
+      (window as unknown as Record<string,unknown>).cashuReceiveToken = async (token:unknown) => {
         receivedToken = token;
         return { received: 888, balance: 2388 };
       };
-      window.cashuExportWallet = async () => {
+      (window as unknown as Record<string,unknown>).cashuExportWallet = async () => {
         exportedWallet = true;
         return 'cashuAbackupwallet';
       };
-      window.cashuSendAsToken = async amount => {
+      (window as unknown as Record<string,unknown>).cashuSendAsToken = async (amount:number) => {
         sentTokenAmount = amount;
         return { token: 'cashuAsendtoken', amount, remaining: 1400 - amount };
       };
-      window.cashuCreateWithdrawQuote = async invoice => {
+      (window as unknown as Record<string,unknown>).cashuCreateWithdrawQuote = async (invoice:unknown) => {
         withdrawQuoteInvoice = invoice;
         return { quote: 'withdraw-quote-1', amount: 123, fee_reserve: 4 };
       };
-      window.cashuExecuteWithdraw = async quote => {
+      (window as unknown as Record<string,unknown>).cashuExecuteWithdraw = async (quote:unknown) => {
         executeWithdrawQuote = quote;
         return { paid: true };
       };
-      window.cashuWithdrawToAddress = async (address, amount) => {
+      (window as unknown as Record<string,unknown>).cashuWithdrawToAddress = async (address:unknown, amount:unknown) => {
         withdrawAddressArgs = { address, amount };
         return { paid: true, amount, balance: 1234 };
       };
-      window.cashuSavePendingWithdrawToken = async (token, source) => {
+      (window as unknown as Record<string,unknown>).cashuSavePendingWithdrawToken = async (token:unknown, source:unknown) => {
         savedPendingWithdraw = { token, source };
       };
-      window.cashuClearPendingWithdraw = async () => {
+      (window as unknown as Record<string,unknown>).cashuClearPendingWithdraw = async () => {
         clearPendingWithdrawCalled = true;
       };
-      window.cashuRefundNodeToToken = async url => {
-        refundCalled = url === nodeUrl && api.getRoutstrKey(url) === 'sk-routstr-dom';
+      (window as unknown as Record<string,unknown>).cashuRefundNodeToToken = async (url:unknown) => {
+        refundCalled = url === nodeUrl && (api.getRoutstrKey as (url:unknown)=>ReturnType<typeof api.getRoutstrKey>)(url) === 'sk-routstr-dom';
         savedPendingWithdraw = { token: 'cashuArefundtoken', source: 'routstr-node-refund' };
         return savedPendingWithdraw;
       };
-      window.cashuFinishNodeRefund = async token => { clearPendingWithdrawCalled = token === 'cashuArefundtoken'; };
-      window.cashuGetPendingNodeRefund = async () => null;
-      window.cashuClearPendingDeposit = async () => {};
-      window.cashuGetWalletMnemonic = async () => null;
-      window.cashuRestoreWalletFromSeed = async mnemonic => {
+      (window as unknown as Record<string,unknown>).cashuFinishNodeRefund = async (token:unknown) => { clearPendingWithdrawCalled = token === 'cashuArefundtoken'; };
+      (window as unknown as Record<string,unknown>).cashuGetPendingNodeRefund = async () => null;
+      (window as unknown as Record<string,unknown>).cashuClearPendingDeposit = async () => {};
+      (window as unknown as Record<string,unknown>).cashuGetWalletMnemonic = async () => null;
+      (window as unknown as Record<string,unknown>).cashuRestoreWalletFromSeed = async (mnemonic:unknown) => {
         restoredMnemonic = mnemonic;
         return { balance: 4321 };
       };
-      window.cashuHasWalletSeed = async () => false;
-      window.cashuGenerateWalletSeed = async () => {
+      (window as unknown as Record<string,unknown>).cashuHasWalletSeed = async () => false;
+      (window as unknown as Record<string,unknown>).cashuGenerateWalletSeed = async () => {
         return { mnemonic: 'abandon ability able about above absent absorb abstract absurd abuse access accident' };
       };
       const panels = await import('/js/provider-wallet-panels.js');
       panels.configureRoutstrWalletRuntime({
-        cashuGetBalance: window.cashuGetBalance,
-        cashuGetMintUrl: window.cashuGetMintUrl,
-        cashuSetMintUrl: window.cashuSetMintUrl,
-        cashuCreateFundingInvoice: window.cashuCreateFundingInvoice,
-        cashuCheckFundingStatus: window.cashuCheckFundingStatus,
-        cashuRecoverPendingFunding: window.cashuRecoverPendingFunding,
-        cashuDepositToNode: window.cashuDepositToNode,
-        cashuRecoverPendingDeposit: window.cashuRecoverPendingDeposit,
-        cashuImportWallet: window.cashuImportWallet,
-        cashuReceiveToken: window.cashuReceiveToken,
-        cashuExportWallet: window.cashuExportWallet,
-        cashuSavePendingWithdrawToken: window.cashuSavePendingWithdrawToken,
-        cashuClearPendingDeposit: window.cashuClearPendingDeposit,
-        cashuClearPendingWithdraw: window.cashuClearPendingWithdraw,
-        cashuRefundNodeToToken: window.cashuRefundNodeToToken,
-        cashuFinishNodeRefund: window.cashuFinishNodeRefund,
-        cashuGetPendingNodeRefund: window.cashuGetPendingNodeRefund,
-        cashuGetWalletMnemonic: window.cashuGetWalletMnemonic,
-        cashuRestoreWalletFromSeed: window.cashuRestoreWalletFromSeed,
-        cashuHasWalletSeed: window.cashuHasWalletSeed,
-        cashuGenerateWalletSeed: window.cashuGenerateWalletSeed,
-        cashuSendAsToken: window.cashuSendAsToken,
-        cashuCreateWithdrawQuote: window.cashuCreateWithdrawQuote,
-        cashuExecuteWithdraw: window.cashuExecuteWithdraw,
-        cashuWithdrawToAddress: window.cashuWithdrawToAddress,
+        cashuGetBalance: (window as unknown as Record<string,unknown>).cashuGetBalance,
+        cashuGetMintUrl: (window as unknown as Record<string,unknown>).cashuGetMintUrl,
+        cashuSetMintUrl: (window as unknown as Record<string,unknown>).cashuSetMintUrl,
+        cashuCreateFundingInvoice: (window as unknown as Record<string,unknown>).cashuCreateFundingInvoice,
+        cashuCheckFundingStatus: (window as unknown as Record<string,unknown>).cashuCheckFundingStatus,
+        cashuRecoverPendingFunding: (window as unknown as Record<string,unknown>).cashuRecoverPendingFunding,
+        cashuDepositToNode: (window as unknown as Record<string,unknown>).cashuDepositToNode,
+        cashuRecoverPendingDeposit: (window as unknown as Record<string,unknown>).cashuRecoverPendingDeposit,
+        cashuImportWallet: (window as unknown as Record<string,unknown>).cashuImportWallet,
+        cashuReceiveToken: (window as unknown as Record<string,unknown>).cashuReceiveToken,
+        cashuExportWallet: (window as unknown as Record<string,unknown>).cashuExportWallet,
+        cashuSavePendingWithdrawToken: (window as unknown as Record<string,unknown>).cashuSavePendingWithdrawToken,
+        cashuClearPendingDeposit: (window as unknown as Record<string,unknown>).cashuClearPendingDeposit,
+        cashuClearPendingWithdraw: (window as unknown as Record<string,unknown>).cashuClearPendingWithdraw,
+        cashuRefundNodeToToken: (window as unknown as Record<string,unknown>).cashuRefundNodeToToken,
+        cashuFinishNodeRefund: (window as unknown as Record<string,unknown>).cashuFinishNodeRefund,
+        cashuGetPendingNodeRefund: (window as unknown as Record<string,unknown>).cashuGetPendingNodeRefund,
+        cashuGetWalletMnemonic: (window as unknown as Record<string,unknown>).cashuGetWalletMnemonic,
+        cashuRestoreWalletFromSeed: (window as unknown as Record<string,unknown>).cashuRestoreWalletFromSeed,
+        cashuHasWalletSeed: (window as unknown as Record<string,unknown>).cashuHasWalletSeed,
+        cashuGenerateWalletSeed: (window as unknown as Record<string,unknown>).cashuGenerateWalletSeed,
+        cashuSendAsToken: (window as unknown as Record<string,unknown>).cashuSendAsToken,
+        cashuCreateWithdrawQuote: (window as unknown as Record<string,unknown>).cashuCreateWithdrawQuote,
+        cashuExecuteWithdraw: (window as unknown as Record<string,unknown>).cashuExecuteWithdraw,
+        cashuWithdrawToAddress: (window as unknown as Record<string,unknown>).cashuWithdrawToAddress,
       });
 
       localStorage.setItem('labcharts-ai-provider', 'routstr');
@@ -248,13 +248,13 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       await wait(100);
       const fundedWalletRefusesMintSwitch = setMintUrl === null
         && currentMint === 'https://mint-old.example'
-        && document.getElementById('routstr-node-picker')?.textContent.includes('stay available');
+        && document.getElementById('routstr-node-picker')?.textContent!.includes('stay available');
 
       walletBalance = 0;
       await panels.showRoutstrNodeDeposit(nodeUrl);
       await wait(100);
       const emptyWalletDoesNotSwitchMint = setMintUrl === null;
-      await window.cashuSetMintUrl('https://mint-required.example');
+      await ((window as unknown as Record<string,unknown>).cashuSetMintUrl as typeof import('../../js/cashu-wallet.js').setMintUrl)('https://mint-required.example');
 
       walletBalance = 1500;
       await panels.showRoutstrNodeDeposit(nodeUrl);
@@ -264,22 +264,22 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       await providerPanels.doRoutstrNodeDeposit(nodeUrl, 500);
       await wait(150);
       const fundAreaText = document.getElementById('routstr-wallet-fund-area')?.textContent || '';
-      const depositUsesSessionKey = depositArgs?.url === nodeUrl
-        && depositArgs.amount === 500
-        && depositArgs.existingKey === 'sk-routstr-dom';
+      const depositUsesSessionKey = (depositArgs as {url?:unknown}|null|undefined)?.url === nodeUrl
+        && (depositArgs as {amount?:unknown}).amount === 500
+        && (depositArgs as {existingKey?:unknown}).existingKey === 'sk-routstr-dom';
       const depositFailureChecksRecovery = recoverCalled;
       const depositFailureShowsRecovery = fundAreaText.includes('Deposit outcome unconfirmed')
         && fundAreaText.includes('Recover to Wallet')
         && fundAreaText.includes('Copy Token');
-      const recoveryButtonCarriesToken = document.querySelector('#routstr-wallet-fund-area [data-token="cashuArecoverytoken"]') !== null;
+      const recoveryButtonCarriesToken = document.querySelector<HTMLElement>('#routstr-wallet-fund-area [data-token="cashuArecoverytoken"]') !== null;
 
       localStorage.setItem('labcharts-routstr-key', 'sk-routstr-dom');
       cryptoStore.updateKeyCache('labcharts-routstr-key', 'sk-routstr-dom');
       await providerPanels.doRoutstrNodeWithdraw();
       await wait(50);
       const refundBlockedUntilSeedAck = !refundCalled
-        && !!document.getElementById('routstr-seed-continue');
-      const refundSeedAck = document.getElementById('routstr-seed-ack');
+        && !!(document.getElementById('routstr-seed-continue') as HTMLButtonElement|null);
+      const refundSeedAck = (document.getElementById('routstr-seed-ack') as HTMLInputElement|null);
       if (refundSeedAck) {
         refundSeedAck.checked = true;
         refundSeedAck.dispatchEvent(new Event('change', { bubbles: true }));
@@ -288,21 +288,21 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       }
       await wait(150);
       const refundUsesSessionKey = refundCalled;
-      const refundPersistsTokenBeforeReceive = savedPendingWithdraw?.token === 'cashuArefundtoken'
-        && savedPendingWithdraw.source === 'routstr-node-refund';
+      const refundPersistsTokenBeforeReceive = (savedPendingWithdraw as {token?:unknown}|null|undefined)?.token === 'cashuArefundtoken'
+        && (savedPendingWithdraw as {source?:unknown}).source === 'routstr-node-refund';
       const refundReceivesToken = receivedToken === 'cashuArefundtoken';
       const refundDoesNotUseBackupImport = importedToken === null;
       const refundClearsPendingWithdraw = clearPendingWithdrawCalled;
       const routstrKeyRetainedAfterRefund = api.getRoutstrKey() === 'sk-routstr-dom';
 
-      window.cashuHasWalletSeed = async () => false;
-      panels.configureRoutstrWalletRuntime({ ...panels.walletRuntime, cashuHasWalletSeed: window.cashuHasWalletSeed });
+      (window as unknown as Record<string,unknown>).cashuHasWalletSeed = async () => false;
+      panels.configureRoutstrWalletRuntime({ ...panels.walletRuntime, cashuHasWalletSeed: (window as unknown as Record<string,unknown>).cashuHasWalletSeed });
       await providerPanels.showWalletSeedPhrase();
       await wait(50);
-      const restoreInput = document.getElementById('routstr-restore-seed');
+      const restoreInput = (document.getElementById('routstr-restore-seed') as HTMLInputElement|null);
       const restoreTextareaRenders = !!restoreInput;
       const unseededSetupExplainsMnemonicSplit = (document.getElementById('routstr-wallet-fund-area')?.textContent || '').includes('24-word Data Sync mnemonic')
-        && !!document.querySelector('[data-routstr-wallet-action="setup-wallet-seed"]');
+        && !!document.querySelector<HTMLElement>('[data-routstr-wallet-action="setup-wallet-seed"]');
       if (restoreInput) {
         restoreInput.value = 'abandon ability able about above absent absorb abstract absurd abuse access accident';
       }
@@ -313,8 +313,8 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
 
       await providerPanels.showRoutstrWalletFund();
       await wait(50);
-      const continueBtn = document.getElementById('routstr-seed-continue');
-      const ack = document.getElementById('routstr-seed-ack');
+      const continueBtn = (document.getElementById('routstr-seed-continue') as HTMLButtonElement|null);
+      const ack = (document.getElementById('routstr-seed-ack') as HTMLInputElement|null);
       const seedGateRenders = !!continueBtn && !!ack;
       const seedContinueStartsDisabled = continueBtn?.disabled === true;
       let seedAckEnablesContinue = false;
@@ -322,7 +322,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       if (ack && continueBtn) {
         ack.checked = true;
         ack.dispatchEvent(new Event('change', { bubbles: true }));
-        seedAckEnablesContinue = !continueBtn.disabled;
+        seedAckEnablesContinue = !(continueBtn.disabled as boolean);
         providerPanels.walletSeedAcknowledged();
         await wait(50);
         seedAckProceedsToFunding = !!document.getElementById('routstr-wcashu-input');
@@ -332,7 +332,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       await wait(50);
       const lightningFundingCreatesInvoice = fundingInvoiceAmount === 1000
         && (document.getElementById('routstr-wfund-status')?.textContent || '').includes('Waiting for payment');
-      document.querySelector('[data-routstr-wallet-action="recover-wallet-funding"]').click();
+      document.querySelector<HTMLElement>('[data-routstr-wallet-action="recover-wallet-funding"]')!.click();
       await wait(50);
       const pendingFundingRecoveryReportsRecovered = pendingFundingChecked
         && (document.getElementById('routstr-wfund-status')?.textContent || '').includes('+998 sats recovered');
@@ -342,7 +342,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       let terminalFundingInvoicesAreReplaced = true;
       for (const state of ['EXPIRED', 'CANCELLED', 'CANCELED']) {
         await panels.showRoutstrWalletFund(); // Close the deposit panel.
-        document.getElementById('routstr-wallet-fund-area').innerHTML = '';
+        document.getElementById('routstr-wallet-fund-area')!.innerHTML = '';
         let terminalReported = false;
         panels.configureRoutstrWalletRuntime({
           ...panels.walletRuntime,
@@ -365,11 +365,11 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         await panels.doRoutstrWalletFund(1000);
         terminalFundingInvoicesAreReplaced &&= fundingInvoiceCount === previousCount + 1;
       }
-      panels.configureRoutstrWalletRuntime({ ...panels.walletRuntime, cashuHasWalletSeed: window.cashuHasWalletSeed, cashuRecoverPendingFunding: window.cashuRecoverPendingFunding });
+      panels.configureRoutstrWalletRuntime({ ...panels.walletRuntime, cashuHasWalletSeed: (window as unknown as Record<string,unknown>).cashuHasWalletSeed, cashuRecoverPendingFunding: (window as unknown as Record<string,unknown>).cashuRecoverPendingFunding });
 
       await panels.showRoutstrWalletBackup();
       await wait(50);
-      const walletBackupExportCalled = exportedWallet === true;
+      const walletBackupExportCalled = (exportedWallet as boolean) === true;
 
       await panels.showRoutstrWithdraw();
       await wait(50);
@@ -382,7 +382,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
 
       await panels.showRoutstrWithdrawLightning();
       await wait(50);
-      const lightningInput = document.getElementById('routstr-withdraw-input');
+      const lightningInput = (document.getElementById('routstr-withdraw-input') as HTMLInputElement|null);
       if (lightningInput) lightningInput.value = 'lnbc123getbasedtestinvoice';
       await panels.doRoutstrWithdrawQuote();
       await wait(50);
@@ -394,20 +394,20 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         && (document.getElementById('routstr-withdraw-status')?.textContent || '').includes('Withdrawn');
       await panels.showRoutstrWithdrawLightning();
       await wait(50);
-      const addressInput = document.getElementById('routstr-withdraw-input');
+      const addressInput = (document.getElementById('routstr-withdraw-input') as HTMLInputElement|null);
       if (addressInput) {
         addressInput.value = 'alice@getbased.test';
         addressInput.dispatchEvent(new Event('input', { bubbles: true }));
       }
-      const amountInput = document.getElementById('routstr-withdraw-amount');
+      const amountInput = (document.getElementById('routstr-withdraw-amount') as HTMLInputElement|null);
       if (amountInput) {
         amountInput.value = '42';
         amountInput.dispatchEvent(new Event('input', { bubbles: true }));
       }
       await panels.doRoutstrWithdrawQuote();
       await wait(50);
-      const lightningAddressWithdrawUsesAmount = withdrawAddressArgs?.address === 'alice@getbased.test'
-        && withdrawAddressArgs.amount === 42;
+      const lightningAddressWithdrawUsesAmount = (withdrawAddressArgs as {address?:unknown}|null|undefined)?.address === 'alice@getbased.test'
+        && (withdrawAddressArgs as {amount?:unknown}).amount === 42;
 
       return {
         walletRenders,
@@ -450,7 +450,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       const panels = await import('/js/provider-wallet-panels.js');
       panels.configureRoutstrWalletRuntime();
       panels.clearRoutstrWalletTimers();
-      for (const name of globalNames) window[name] = oldGlobals[name];
+      for (const name of globalNames) (window as unknown as Record<string,unknown>)[name] = oldGlobals[name];
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]);

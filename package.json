@@ -44,7 +44,7 @@
     "vendor:evolu8:build": "node scripts/build-evolu8-vendor.mjs",
     "vendor:evolu8:check": "node scripts/build-evolu8-vendor.mjs --check",
     "test:watch": "vitest",
-    "test:routstr-wallet": "PORT=${PORT:-8180} playwright test tests/playwright/routstr-wallet-dom.spec.js",
+    "test:routstr-wallet": "PORT=${PORT:-8180} playwright test tests/playwright/routstr-wallet-dom.spec.ts",
     "canary:routstr-real": "node scripts/routstr-real-funds-canary.mjs",
     "test:critical-coverage": "vitest run --config vitest.critical.config.js",
     "typescript:build": "node scripts/build-typescript.ts",

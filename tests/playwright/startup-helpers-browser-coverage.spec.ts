@@ -1,3 +1,5 @@
+import type {Page} from '@playwright/test';
+interface StartupFixtureGlobals {__startupFoundationCalls:unknown[];__startupProfileCalls:unknown[][];__encryptedReads:unknown[];__encryptedWrites:[unknown,string][];__activeProfileId:unknown;__profileSex:unknown;__profileDob:unknown;__startupProfileState:{currentProfile:unknown;importedData:Record<string,unknown>;unitSystem:unknown;rangeMode:unknown;profileSex:unknown;profileDob:unknown};__startupMaintenanceCalls:unknown[];__startupMaintenanceState:{currentProfile:unknown;importedData:{lightDevices:unknown[];[key:string]:unknown}};__startupUICalls:unknown[];APP_VERSION:unknown;_openSettingsAfterInit?:unknown;_openChatAfterInit?:unknown}
 import { routeHtml } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
@@ -6,7 +8,7 @@ test.setTimeout(30_000);
 
 const moduleUrl = createModuleUrl('startupHelpersCoverage');
 
-async function openStartupFixture(page, dependencyRoutes) {
+async function openStartupFixture(page:Page, dependencyRoutes:Record<string,string>) {
   await routeHtml(page, '**/startup-helpers-browser-coverage', '<!doctype html><html><body><main id="fixture"></main></body></html>', 200);
 
   for (const [glob, body] of Object.entries(dependencyRoutes)) {
@@ -19,7 +21,7 @@ async function openStartupFixture(page, dependencyRoutes) {
   await page.goto('/startup-helpers-browser-coverage', { waitUntil: 'load' });
 }
 
-function expectOutcomes(outcomes) {
+function expectOutcomes(outcomes:Record<string,unknown>) {
   for (const [name, passed] of Object.entries(outcomes)) {
     expect(passed, name).toBe(true);
   }
@@ -46,12 +48,12 @@ test('startup foundation initializes blocking services in order', async ({ page 
   });
 
   const outcomes = await page.evaluate(async ({ foundationUrl }) => {
-    window.__startupFoundationCalls = [];
-    const foundation = await import(foundationUrl);
+    (window as unknown as StartupFixtureGlobals).__startupFoundationCalls = [];
+    const foundation = await ((import(foundationUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/startup-foundation.js"), "initializeStartupFoundation"> >);
     await foundation.initializeStartupFoundation();
 
     return {
-      initializesServicesInBlockingOrder: JSON.stringify(window.__startupFoundationCalls) === JSON.stringify([
+      initializesServicesInBlockingOrder: JSON.stringify((window as unknown as StartupFixtureGlobals).__startupFoundationCalls) === JSON.stringify([
         'initEncryption',
         'initMeteoConfigCache',
         'initBroadcastChannel',
@@ -132,13 +134,13 @@ test('startup profile migrates legacy storage and applies saved display state', 
       <button class="range-toggle-btn" data-range="both"></button>
       <input id="dob-input">
     `;
-    window.__startupProfileCalls = [];
-    window.__encryptedReads = [];
-    window.__encryptedWrites = [];
-    window.__activeProfileId = null;
-    window.__profileSex = 'female';
-    window.__profileDob = '1990-02-03';
-    window.__startupProfileState = {
+    (window as unknown as StartupFixtureGlobals).__startupProfileCalls = [];
+    (window as unknown as StartupFixtureGlobals).__encryptedReads = [];
+    (window as unknown as StartupFixtureGlobals).__encryptedWrites = [];
+    (window as unknown as StartupFixtureGlobals).__activeProfileId = null;
+    (window as unknown as StartupFixtureGlobals).__profileSex = 'female';
+    (window as unknown as StartupFixtureGlobals).__profileDob = '1990-02-03';
+    (window as unknown as StartupFixtureGlobals).__startupProfileState = {
       currentProfile: '',
       importedData: {},
       unitSystem: 'SI',
@@ -150,7 +152,7 @@ test('startup profile migrates legacy storage and applies saved display state', 
     localStorage.setItem('labcharts-units', 'US');
     localStorage.setItem('labcharts-default-rangeMode', 'both');
 
-    const profile = await import(profileUrl);
+    const profile = await ((import(profileUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/startup-profile.js"), "initializeProfileData" | "applyProfileDisplayState"> >);
     await profile.initializeProfileData();
     profile.applyProfileDisplayState();
 
@@ -158,33 +160,33 @@ test('startup profile migrates legacy storage and applies saved display state', 
     const inactiveUnit = document.querySelector('.unit-toggle-btn[data-unit="SI"]');
     const activeSex = document.querySelector('.sex-toggle-btn[data-sex="female"]');
     const activeRange = document.querySelector('.range-toggle-btn[data-range="both"]');
-    const dobInput = document.getElementById('dob-input');
+    const dobInput = document.getElementById('dob-input') as HTMLInputElement|null;
 
     return {
       legacyProfileStorageIsCreatedAndOldKeysRemoved:
         JSON.parse(localStorage.getItem('labcharts-profiles') || '[]')[0]?.id === 'default'
-        && window.__activeProfileId === 'default'
+        && (window as unknown as StartupFixtureGlobals).__activeProfileId === 'default'
         && localStorage.getItem('labcharts-imported') === null
         && localStorage.getItem('labcharts-units') === null,
       legacyImportedDataMovesThroughEncryptedStorage:
-        window.__encryptedWrites.some(([key, value]) => key === 'labcharts-default-imported' && value.includes('2026-06-01'))
-        && window.__encryptedReads.includes('labcharts-default-imported'),
+        (window as unknown as StartupFixtureGlobals).__encryptedWrites.some(([key, value]) => key === 'labcharts-default-imported' && value.includes('2026-06-01'))
+        && (window as unknown as StartupFixtureGlobals).__encryptedReads.includes('labcharts-default-imported'),
       activeProfileDataLoadsAndMigrates:
-        window.__startupProfileState.currentProfile === 'default'
-        && Array.isArray(window.__startupProfileState.importedData.notes)
-        && window.__startupProfileState.importedData.migratedByProfileStub === true
-        && window.__startupProfileCalls.some(call => call[0] === 'initProfilesCache')
-        && window.__startupProfileCalls.some(call => call[0] === 'ensureImportedArray' && call[1] === 'notes'),
+        (window as unknown as StartupFixtureGlobals).__startupProfileState.currentProfile === 'default'
+        && Array.isArray((window as unknown as StartupFixtureGlobals).__startupProfileState.importedData.notes)
+        && (window as unknown as StartupFixtureGlobals).__startupProfileState.importedData.migratedByProfileStub === true
+        && (window as unknown as StartupFixtureGlobals).__startupProfileCalls.some(call => call[0] === 'initProfilesCache')
+        && (window as unknown as StartupFixtureGlobals).__startupProfileCalls.some(call => call[0] === 'ensureImportedArray' && call[1] === 'notes'),
       savedDisplayStateUpdatesStateAndControls:
-        window.__startupProfileState.unitSystem === 'US'
-        && window.__startupProfileState.rangeMode === 'both'
-        && window.__startupProfileState.profileSex === 'female'
-        && window.__startupProfileState.profileDob === '1990-02-03'
-        && activeUnit.classList.contains('active')
-        && !inactiveUnit.classList.contains('active')
-        && activeSex.classList.contains('active')
-        && activeRange.classList.contains('active')
-        && dobInput.value === '1990-02-03',
+        (window as unknown as StartupFixtureGlobals).__startupProfileState.unitSystem === 'US'
+        && (window as unknown as StartupFixtureGlobals).__startupProfileState.rangeMode === 'both'
+        && (window as unknown as StartupFixtureGlobals).__startupProfileState.profileSex === 'female'
+        && (window as unknown as StartupFixtureGlobals).__startupProfileState.profileDob === '1990-02-03'
+        && activeUnit!.classList.contains('active')
+        && !inactiveUnit!.classList.contains('active')
+        && activeSex!.classList.contains('active')
+        && activeRange!.classList.contains('active')
+        && dobInput!.value === '1990-02-03',
     };
   }, {
     profileUrl: moduleUrl('/js/startup-profile.js'),
@@ -242,9 +244,9 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
   const outcomes = await page.evaluate(async ({ maintenanceUrl }) => {
     const originalSetTimeout = window.setTimeout;
     const originalConsoleLog = console.log;
-    const logs = [];
-    window.__startupMaintenanceCalls = [];
-    window.__startupMaintenanceState = {
+    const logs:string[] = [];
+    (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls = [];
+    (window as unknown as StartupFixtureGlobals).__startupMaintenanceState = {
       currentProfile: 'startup-maintenance-profile',
       importedData: {
         biometrics: { weight: 70 },
@@ -268,51 +270,51 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
     const previousStartupSunDeps = startupRuntime.configureStartupMaintenanceSunDeps({
       getSunEngineVersion: () => 'maintenance-test',
       rehydrateStaleSessions: async () => {
-        window.__startupMaintenanceCalls.push('rehydrateStaleSessions');
+        (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.push('rehydrateStaleSessions');
         return { rehydrated: 2 };
       },
     });
 
-    window.setTimeout = (callback, delay, ...args) => {
-      window.__startupMaintenanceCalls.push(['setTimeout', delay]);
+    (window as unknown as {setTimeout:(callback:(...args:unknown[])=>unknown,delay?:number,...args:unknown[])=>number}).setTimeout = (callback, delay, ...args) => {
+      (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.push(['setTimeout', delay]);
       callback(...args);
       return 1;
     };
     console.log = (...args) => {
       logs.push(args.map(arg => String(arg)).join(' '));
     };
-    const waitUntil = async predicate => {
+    const waitUntil = async (predicate:()=>unknown) => {
       for (let attempt = 0; attempt < 500; attempt += 1) {
         if (predicate()) return true;
-        await new Promise(resolve => originalSetTimeout(resolve, 10));
+        await new Promise<void>(resolve => originalSetTimeout(resolve, 10));
       }
       return false;
     };
 
     try {
-      const maintenance = await import(maintenanceUrl);
+      const maintenance = await ((import(maintenanceUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/startup-maintenance.js"), "runPostProfileStartupMaintenance"> >);
       maintenance.runPostProfileStartupMaintenance();
-      const maintenanceSettled = await waitUntil(() => window.__startupMaintenanceCalls
+      const maintenanceSettled = await waitUntil(() => (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls
         .some(call => Array.isArray(call) && call[0] === 'syncWearableSummary')
-        && window.__startupMaintenanceCalls.includes('initWearableScheduler')
-        && window.__startupMaintenanceCalls.includes('hydrateDevicesFromPresets')
+        && (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.includes('initWearableScheduler')
+        && (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.includes('hydrateDevicesFromPresets')
         && logs.some(line => line.includes('[light] hydrated user devices from preset library')));
-      const trackedDeviceHydrationCount = window.__startupMaintenanceCalls
+      const trackedDeviceHydrationCount = (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls
         .filter(call => call === 'hydrateDevicesFromPresets').length;
-      window.__startupMaintenanceState.importedData.lightDevices = [];
+      (window as unknown as StartupFixtureGlobals).__startupMaintenanceState.importedData.lightDevices = [];
       maintenance.runPostProfileStartupMaintenance();
-      const emptyDeviceHydrationCount = window.__startupMaintenanceCalls
+      const emptyDeviceHydrationCount = (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls
         .filter(call => call === 'hydrateDevicesFromPresets').length;
 
       return {
         startupServicesInitializeWearableConfigAndScheduler:
-          window.__startupMaintenanceCalls.includes('loadWearableRuntimeConfig')
-          && window.__startupMaintenanceCalls.includes('initWearableScheduler'),
+          (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.includes('loadWearableRuntimeConfig')
+          && (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.includes('initWearableScheduler'),
         connectedWearableSchedulerStartsAfterProfileLoad:
-          window.__startupMaintenanceCalls.includes('initWearableScheduler'),
+          (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.includes('initWearableScheduler'),
         sunSessionRehydrateIsDeferredAndLogged:
-          window.__startupMaintenanceCalls.some(call => Array.isArray(call) && call[0] === 'setTimeout' && call[1] === 1500)
-          && window.__startupMaintenanceCalls.includes('rehydrateStaleSessions')
+          (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.some(call => Array.isArray(call) && call[0] === 'setTimeout' && call[1] === 1500)
+          && (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.includes('rehydrateStaleSessions')
           && logs.some(line => line.includes('[sun] self-healed 2 session(s) under vmaintenance-test')),
         lightDeviceHydrationRunsAndLogsDirtyState:
           trackedDeviceHydrationCount === 1
@@ -320,14 +322,14 @@ test('startup maintenance starts services and runs non-blocking migrations', asy
         emptyProfilesSkipLightDevicePresetHydration:
           emptyDeviceHydrationCount === trackedDeviceHydrationCount,
         trackedSupplementsPreloadWarningData:
-          window.__startupMaintenanceCalls.includes('preloadMitoCompoundData'),
+          (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.includes('preloadMitoCompoundData'),
         legacyBiometricsMigrationRefreshesManualSummary:
           maintenanceSettled
-          && window.__startupMaintenanceCalls.some(call => Array.isArray(call)
+          && (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.some(call => Array.isArray(call)
             && call[0] === 'migrateBiometricsToManual'
             && call[1] === 'startup-maintenance-profile'
             && call[2] === 70)
-          && window.__startupMaintenanceCalls.some(call => Array.isArray(call)
+          && (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.some(call => Array.isArray(call)
             && call[0] === 'syncWearableSummary'
             && call[1] === 'startup-maintenance-profile'
             && JSON.stringify(call[2]) === JSON.stringify({
@@ -422,101 +424,101 @@ test('startup UI renders chrome and schedules deferred startup work', async ({ p
     const chatRuntime = await import('/js/chat-runtime.js');
     const originalSetTimeout = window.setTimeout;
     const originalRequestAnimationFrame = window.requestAnimationFrame;
-    window.__startupUICalls = [];
+    (window as unknown as StartupFixtureGlobals).__startupUICalls = [];
     document.body.innerHTML = `
       <span id="app-version-text"></span>
       <div id="passphrase-overlay" style="display: none;"></div>
     `;
-    window.APP_VERSION = 'startup-ui-test-version';
+    (window as unknown as StartupFixtureGlobals).APP_VERSION = 'startup-ui-test-version';
     const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
-      updateChatNudge: () => window.__startupUICalls.push('updateChatNudge'),
+      updateChatNudge: () => (window as unknown as StartupFixtureGlobals).__startupUICalls.push('updateChatNudge'),
     });
-    window._openSettingsAfterInit = 'display';
-    window._openChatAfterInit = true;
+    (window as unknown as StartupFixtureGlobals)._openSettingsAfterInit = 'display';
+    (window as unknown as StartupFixtureGlobals)._openChatAfterInit = true;
     window.requestAnimationFrame = callback => {
-      window.__startupUICalls.push('requestAnimationFrame');
+      (window as unknown as StartupFixtureGlobals).__startupUICalls.push('requestAnimationFrame');
       callback(performance.now());
       return 1;
     };
-    window.setTimeout = (callback, delay, ...args) => {
-      window.__startupUICalls.push(['setTimeout', delay]);
+    (window as unknown as {setTimeout:(callback:(...args:unknown[])=>unknown,delay?:number,...args:unknown[])=>number}).setTimeout = (callback, delay, ...args) => {
+      (window as unknown as StartupFixtureGlobals).__startupUICalls.push(['setTimeout', delay]);
       callback(...args);
       return 1;
     };
 
-    const waitUntil = async predicate => {
+    const waitUntil = async (predicate:()=>unknown) => {
       for (let attempt = 0; attempt < 50; attempt += 1) {
         if (predicate()) return true;
-        await new Promise(resolve => originalSetTimeout(resolve, 10));
+        await new Promise<void>(resolve => originalSetTimeout(resolve, 10));
       }
       return false;
     };
 
     try {
-      const startupUi = await import(startupUiUrl);
+      const startupUi = await ((import(startupUiUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/startup-ui.js"), "configureStartupUIDeps" | "renderStartupUI"> >);
       startupUi.configureStartupUIDeps({
         getInitialView: () => 'light',
         initChatImageHandlers: () => {
-          window.__startupUICalls.push('initChatImageHandlers');
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.push('initChatImageHandlers');
         },
         maybeShowAnalyticsConsent: () => {
-          window.__startupUICalls.push('maybeShowAnalyticsConsent');
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.push('maybeShowAnalyticsConsent');
         },
-        navigate: view => {
-          window.__startupUICalls.push(['navigate', view]);
+        navigate: (view:unknown) => {
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.push(['navigate', view]);
         },
         openChatPanel: () => {
-          window.__startupUICalls.push('openChatPanel');
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.push('openChatPanel');
         },
-        openSettingsModal: section => {
-          window.__startupUICalls.push(['openSettingsModal', section]);
+        openSettingsModal: (section:unknown) => {
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.push(['openSettingsModal', section]);
         },
         updateAttachButtonVisibility: () => {
-          window.__startupUICalls.push('updateAttachButtonVisibility');
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.push('updateAttachButtonVisibility');
         },
       });
       startupUi.renderStartupUI();
-      const deferredWorkCompleted = await waitUntil(() => window.__startupUICalls
+      const deferredWorkCompleted = await waitUntil(() => (window as unknown as StartupFixtureGlobals).__startupUICalls
         .filter(call => call === 'renderSyncIndicator').length >= 2);
 
       return {
         footerVersionRendersFromAppVersion:
           document.getElementById('app-version-text')?.textContent === 'startup-ui-test-version',
         firstPaintChromeAndNavigationRun:
-          window.__startupUICalls.includes('primeSyncState')
-          && window.__startupUICalls.includes('applyProfileDisplayState')
-          && window.__startupUICalls.some(call => Array.isArray(call) && call[0] === 'setTheme' && call[1] === 'glass')
-          && window.__startupUICalls.includes('buildSidebar')
-          && window.__startupUICalls.some(call => Array.isArray(call) && call[0] === 'navigate' && call[1] === 'light'),
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('primeSyncState')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('applyProfileDisplayState')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.some(call => Array.isArray(call) && call[0] === 'setTheme' && call[1] === 'glass')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('buildSidebar')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.some(call => Array.isArray(call) && call[0] === 'navigate' && call[1] === 'light'),
         deferredSyncAndCatalogWarmupRun:
           deferredWorkCompleted
-          && window.__startupUICalls.includes('requestAnimationFrame')
-          && window.__startupUICalls.some(call => Array.isArray(call) && call[0] === 'setTimeout' && call[1] === 0)
-          && window.__startupUICalls.includes('initSync')
-          && window.__startupUICalls.includes('ensureDnaTablesForPersistedState'),
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('requestAnimationFrame')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.some(call => Array.isArray(call) && call[0] === 'setTimeout' && call[1] === 0)
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('initSync')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('ensureDnaTablesForPersistedState'),
         changelogNudgesAndDeferredDestinationsRun:
-          window.__startupUICalls.includes('maybeShowChangelog')
-          && window.__startupUICalls.includes('maybeShowAnalyticsConsent')
-          && window.__startupUICalls.includes('maybeShowBackupNudge')
-          && window.__startupUICalls.some(call => Array.isArray(call) && call[0] === 'openSettingsModal' && call[1] === 'display')
-          && window.__startupUICalls.includes('openChatPanel')
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('maybeShowChangelog')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('maybeShowAnalyticsConsent')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('maybeShowBackupNudge')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.some(call => Array.isArray(call) && call[0] === 'openSettingsModal' && call[1] === 'display')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('openChatPanel')
           && !('_openSettingsAfterInit' in window)
           && !('_openChatAfterInit' in window),
         chromeRefreshRunsAndChatAttachmentsStayDeferred:
-          window.__startupUICalls.includes('updateHeaderDates')
-          && window.__startupUICalls.includes('updateHeaderRangeToggle')
-          && window.__startupUICalls.includes('renderProfileDropdown')
-          && !window.__startupUICalls.includes('initChatImageHandlers')
-          && !window.__startupUICalls.includes('updateAttachButtonVisibility')
-          && window.__startupUICalls.includes('updateChatNudge')
-          && window.__startupUICalls.includes('bindImportFileInput'),
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('updateHeaderDates')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('updateHeaderRangeToggle')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('renderProfileDropdown')
+          && !(window as unknown as StartupFixtureGlobals).__startupUICalls.includes('initChatImageHandlers')
+          && !(window as unknown as StartupFixtureGlobals).__startupUICalls.includes('updateAttachButtonVisibility')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('updateChatNudge')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('bindImportFileInput'),
       };
     } finally {
       chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       window.setTimeout = originalSetTimeout;
       window.requestAnimationFrame = originalRequestAnimationFrame;
-      delete window._openSettingsAfterInit;
-      delete window._openChatAfterInit;
+      delete (window as unknown as StartupFixtureGlobals)._openSettingsAfterInit;
+      delete (window as unknown as StartupFixtureGlobals)._openChatAfterInit;
     }
   }, {
     startupUiUrl: moduleUrl('/js/startup-ui.js'),
