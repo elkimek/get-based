@@ -1,34 +1,35 @@
-// @ts-check
 // onboarding-view-runtime.js - Browser runtime adapters for dashboard onboarding hooks.
 
 import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { renderChatMessagesRuntime } from './chat-runtime.js';
 
-const onboardingViewRuntimeDeps = {
-  buildSidebar: /** @type {null | ((data: unknown) => void)} */ (null),
-  createNewThread: /** @type {null | (() => void)} */ (null),
-  navigate: /** @type {null | ((route: string, data: unknown) => void)} */ (null),
-  openChatPanel: /** @type {null | (() => unknown)} */ (null),
-  toggleChatPanel: /** @type {null | (() => void)} */ (null),
-};
-
-export function configureOnboardingViewRuntimeDeps(deps = {}) {
-  return configureRuntimeCallbacks(onboardingViewRuntimeDeps, deps);
+interface OnboardingViewRuntimeDeps {
+  buildSidebar: ((data: unknown) => unknown) | null;
+  createNewThread: (() => unknown) | null;
+  navigate: ((route: string, data: unknown) => unknown) | null;
+  openChatPanel: (() => unknown) | null;
+  toggleChatPanel: (() => unknown) | null;
 }
 
-/** @param {unknown} data */
-export function rebuildOnboardingSidebarRuntime(data) {
+const onboardingViewRuntimeDeps: OnboardingViewRuntimeDeps = {
+  buildSidebar:  null,
+  createNewThread:  null,
+  navigate:  null,
+  openChatPanel:  null,
+  toggleChatPanel:  null,
+};
+
+export function configureOnboardingViewRuntimeDeps(deps: unknown = {}) {
+  return configureRuntimeCallbacks(onboardingViewRuntimeDeps, deps as Partial<OnboardingViewRuntimeDeps>) as { [Key in keyof OnboardingViewRuntimeDeps]: unknown };
+}
+
+export function rebuildOnboardingSidebarRuntime(data: unknown) {
   onboardingViewRuntimeDeps.buildSidebar?.(data);
 }
 
-/**
- * @param {string} route
- * @param {unknown} data
- * @param {Function | null} [preferredNavigate]
- */
-export function navigateOnboardingRuntime(route, data, preferredNavigate = null) {
+export function navigateOnboardingRuntime(route: string, data: unknown, preferredNavigate: unknown = null) {
   const navigate = typeof preferredNavigate === 'function'
-    ? preferredNavigate
+    ? preferredNavigate as NonNullable<OnboardingViewRuntimeDeps['navigate']>
     : onboardingViewRuntimeDeps.navigate;
   navigate?.(route, data);
 }

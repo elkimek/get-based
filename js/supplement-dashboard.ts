@@ -1,7 +1,7 @@
-// @ts-check
 // supplement-dashboard.js — Current supplement/medication timeline and evidence summary.
 
 import { state } from './state.js';
+import type { SupplementDomainRecord } from './supplement-medication-domain.js';
 import { escapeHTML } from './utils.js';
 import { suppActionAttrs } from './supplement-action-delegates.js';
 import {
@@ -19,11 +19,14 @@ import {
   localDateKey,
 } from './supplement-medication-domain.js';
 
-/** @type {Promise<void> | null} */
-let supplementWarningRefreshLoad = null;
+type DashboardEvidence = ReturnType<typeof groupMitochondrialEvidenceMatches>[number]['evidence'][number];
+// Persisted rows are consumed without new validation; native domain readers keep leaves opaque.
+type DashboardSupplement = SupplementDomainRecord;
+type SupplementNameReader = { replace(pattern: RegExp, replacement: string): { trim(): unknown } };
 
-/** @param {Array<any>} supplements */
-function scheduleSupplementWarningRefresh(supplements) {
+let supplementWarningRefreshLoad: Promise<void> | null = null;
+
+function scheduleSupplementWarningRefresh(supplements: readonly DashboardSupplement[]) {
   if (!supplements.length || hasMitoCompoundData() || supplementWarningRefreshLoad) return;
   supplementWarningRefreshLoad = preloadMitoCompoundData()
     .then(data => {
@@ -36,33 +39,28 @@ function scheduleSupplementWarningRefresh(supplements) {
     });
 }
 
-/** @param {any} evidence */
-function directionClass(evidence) {
-  return ['adverse', 'beneficial', 'mixed', 'null'].includes(evidence.direction)
+function directionClass(evidence: DashboardEvidence) {
+  return ['adverse', 'beneficial', 'mixed', 'null'].includes(evidence.direction as string)
     ? evidence.direction : 'mechanism';
 }
 
-/** @param {any} evidence */
-function evidenceLinks(evidence) {
+function evidenceLinks(evidence: DashboardEvidence) {
   const reportUrl = mitochondrialEvidenceIssueUrl(evidence);
   return `<a href="${evidence.url}" target="_blank" rel="noopener" class="supp-mitotox-link">Primary study · PMID ${evidence.pmid}</a><a href="${evidence.searchUrl}" target="_blank" rel="noopener" class="supp-mitotox-link">Related PubMed research</a><a href="${escapeHTML(reportUrl)}" target="_blank" rel="noopener" class="supp-mitotox-link supp-mito-report-link" title="Opens a public GitHub issue without your tracked product or dose">Report evidence issue</a>`;
 }
 
-/** @param {any} evidence */
-function evidenceBadges(evidence) {
+function evidenceBadges(evidence: DashboardEvidence) {
   const direction = mitochondrialDirectionLabel(evidence.direction, evidence.studyType);
   const scope = evidence.scopeLabel
     ? `<span class="supp-mito-scope">${escapeHTML(evidence.scopeLabel)}</span>` : '';
   return `<span class="supp-mito-badge">${escapeHTML(evidence.studyLabel)}</span><span class="supp-mito-direction supp-mito-direction-${directionClass(evidence)}">${escapeHTML(direction)}</span>${scope}`;
 }
 
-/** @param {any} evidence */
-function evidenceDetail(evidence) {
+function evidenceDetail(evidence: DashboardEvidence) {
   return `<div><strong>Study model:</strong> ${escapeHTML(evidence.model)}</div><div><strong>Exposure:</strong> ${escapeHTML(evidence.exposure)}</div><div><strong>What it cannot tell us:</strong> ${escapeHTML(evidence.limitations)}</div><div><strong>Source:</strong> ${escapeHTML(evidence.title)}</div><div>${evidenceLinks(evidence)}</div>`;
 }
 
-/** @param {Array<any>} warnings */
-function renderMitochondrialEvidence(warnings) {
+function renderMitochondrialEvidence(warnings: ReturnType<typeof scanSupplementsForWarnings>) {
   const groups = groupMitochondrialEvidenceMatches(warnings);
   if (!groups.length) return '';
   const compoundCount = `${groups.length} matched compound${groups.length === 1 ? '' : 's'}`;
@@ -73,7 +71,7 @@ function renderMitochondrialEvidence(warnings) {
   for (const group of groups) {
     const products = group.productNames.length ? group.productNames.join(', ') : group.compound;
     if (group.evidence.length === 1) {
-      const evidence = group.evidence[0];
+      const evidence = group.evidence[0]!;
       html += `<details class="supp-mitotox-item" data-mito-compound="${escapeHTML(group.compound)}">
         <summary><strong>${escapeHTML(group.compound)}</strong>${evidenceBadges(evidence)}<span class="supp-mito-summary">${escapeHTML(evidence.summary)}</span></summary>
         <div class="supp-mito-detail"><div><strong>Matched in:</strong> ${escapeHTML(products)}</div>${evidenceDetail(evidence)}</div>
@@ -96,7 +94,7 @@ function renderMitochondrialEvidence(warnings) {
 }
 
 export function renderSupplementsSection() {
-  const supplements = state.importedData.supplements || [];
+  const supplements = (state.importedData.supplements || []) as DashboardSupplement[];
   const currentRows = supplements
     .map((supplement, index) => ({ supplement, index }))
     .filter(({ supplement }) => getSupplementStatus(supplement) === 'active');
@@ -126,7 +124,7 @@ export function renderSupplementsSection() {
   const minTime = new Date(`${minDate}T00:00:00`).getTime();
   const maxTime = new Date(`${maxDate}T00:00:00`).getTime();
   const range = maxTime - minTime || 1;
-  const formatAxis = date => new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  const formatAxis = (date: unknown) => new Date(`${date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   const midDate = new Date((minTime + maxTime) / 2).toISOString().slice(0, 10);
   html += `<div class="supp-timeline"><div class="supp-timeline-axis"><span>${formatAxis(minDate)}</span><span>${formatAxis(midDate)}</span><span>${formatAxis(maxDate)}</span></div>`;
   for (const { supplement, index } of currentRows) {
@@ -134,22 +132,22 @@ export function renderSupplementsSection() {
     const periods = getSupplementPeriods(supplement);
     let bars = '';
     for (let periodIndex = 0; periodIndex < periods.length; periodIndex += 1) {
-      const period = periods[periodIndex];
+      const period = periods[periodIndex]!;
       const startTime = new Date(`${period.start}T00:00:00`).getTime();
       const endTime = new Date(`${period.end || today}T00:00:00`).getTime();
       if (!Number.isFinite(startTime) || !Number.isFinite(endTime)) continue;
       const left = ((startTime - minTime) / range * 100).toFixed(2);
       const width = (((endTime - startTime) / range) * 100).toFixed(2);
-      if (periodIndex > 0 && periods[periodIndex - 1].end) {
-        const gapStart = new Date(`${periods[periodIndex - 1].end}T00:00:00`).getTime();
+      if (periodIndex > 0 && periods[periodIndex - 1]!.end) {
+        const gapStart = new Date(`${periods[periodIndex - 1]!.end}T00:00:00`).getTime();
         const gapLeft = ((gapStart - minTime) / range * 100).toFixed(2);
         const gapWidth = (((startTime - gapStart) / range) * 100).toFixed(2);
         if (parseFloat(gapWidth) > 0.3) bars += `<div class="supp-bar-gap" style="left:${gapLeft}%;width:${gapWidth}%"></div>`;
       }
       bars += `<div class="supp-bar ${typeClass}${period.end ? '' : ' supp-bar-ongoing'}" style="left:${left}%;width:${Math.max(parseFloat(width), 0.5)}%"></div>`;
     }
-    const fullLabel = supplement.name + (supplement.dosage ? ` · ${supplement.dosage}` : '');
-    const shortName = supplement.name.replace(/,?\s*\d+\s*x?\s*(?:ml|g|kg|oz|fl\.?\s*oz|caps(?:ules?)?|tabs?|tablets?|softgels?|ct)\b.*$/i, '').trim() || supplement.name;
+    const fullLabel = (supplement.name as string) + (supplement.dosage ? ` · ${supplement.dosage}` : '');
+    const shortName = (supplement.name as SupplementNameReader).replace(/,?\s*\d+\s*x?\s*(?:ml|g|kg|oz|fl\.?\s*oz|caps(?:ules?)?|tabs?|tablets?|softgels?|ct)\b.*$/i, '').trim() || supplement.name;
     html += `<div class="supp-bar-row" role="button" tabindex="0" aria-label="Edit ${escapeHTML(fullLabel)}" ${suppActionAttrs('open-editor', `data-supp-index="${index}"`)}><span class="supp-bar-label" title="${escapeHTML(fullLabel)}">${escapeHTML(shortName)}</span><div class="supp-bar-track">${bars}</div></div>`;
   }
   html += `</div>${renderMitochondrialEvidence(scanSupplementsForWarnings(currentSupplements))}</div>`;

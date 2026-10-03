@@ -1,7 +1,24 @@
-// @ts-check
 // supplement-form-ui.js — Structured supplement/medication form controls and collection.
 
 import { state } from './state.js';
+import type { SupplementDoseView } from './supplement-medication-domain.js';
+import type { QualityTestView } from './supplement-quality.js';
+
+export interface FormIngredientReader extends Record<string, unknown> { name?: unknown; amount?: unknown; amountValue?: unknown; amountUnit?: unknown; timesPerDay?: unknown }
+export interface FormPeriodReader extends Record<string, unknown> { start?: unknown; end?: unknown; dose?: unknown; ingredientDoses?: SupplementDoseView[] | null; schedule?: unknown }
+export interface CollectedFormPeriod extends Record<string, unknown> { start: string; end: string | null; dose?: unknown; ingredientDoses?: unknown; schedule?: unknown }
+export interface FormSupplementReader extends Record<string, unknown> {
+  ingredients?: FormIngredientReader[] | null; inactiveIngredients?: unknown[] | null; qualityTests?: QualityTestView[] | null;
+  importProvenance?: { url?: unknown } | null; servingSize?: { value?: unknown; unit?: unknown } | null;
+  schedule?: Record<string, unknown> | null; lifecycle?: { reason?: unknown; state?: unknown } | null;
+}
+export interface FormPendingImportReader { draft?: { source?: { reviewed?: unknown }; ingredients?: FormIngredientReader[]; qualityTests?: QualityTestView[] } }
+// These local readers describe original unchecked operations, not normalized stored values.
+interface FormScheduleRenderReader extends Record<string, unknown> { daysOfWeek?: { map<Result>(callback: (day: number) => Result): Result[] } | null }
+type QuantityReader = (ingredient: FormIngredientReader | null | undefined) => ReturnType<typeof getIngredientQuantity>;
+type FormPeriodGetter = (supplement: FormSupplementReader | null | undefined) => FormPeriodReader[];
+type FormStatusGetter = (supplement: FormSupplementReader | null | undefined) => ReturnType<typeof getSupplementStatus>;
+
 import { escapeHTML } from './utils.js';
 import { assistantFeatureSupports, hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { suppActionAttrs } from './supplement-action-delegates.js';
@@ -24,32 +41,29 @@ import {
 } from './supplement-quality.js';
 import { supplementImportIngredientKey } from './supplement-import-draft.js';
 
-/** @param {string} id */
-export function getFormField(id) {
+export function getFormField(id: string) {
   const element = document.getElementById(id);
   return element instanceof HTMLInputElement
     || element instanceof HTMLSelectElement
     || element instanceof HTMLTextAreaElement ? element : null;
 }
 
-/** @param {Element | null} element */
-export function getElementValue(element) {
+export function getElementValue(element: unknown) {
   return element instanceof HTMLInputElement
     || element instanceof HTMLSelectElement
     || element instanceof HTMLTextAreaElement ? element.value : '';
 }
 
-/** @param {string} id */
-export function getFieldValue(id) {
+export function getFieldValue(id: string) {
   return getFormField(id)?.value || '';
 }
 
-const formSnapshots = new WeakMap();
-const recordSnapshots = new WeakMap();
-const fieldSnapshots = new WeakMap();
+const formSnapshots = new WeakMap<Element, string>();
+const recordSnapshots = new WeakMap<Element, string | undefined>();
+const fieldSnapshots = new WeakMap<Element, string>();
 
-function supplementFormSnapshot(form) {
-  return JSON.stringify(Array.from(form.querySelectorAll('input, select, textarea')).map(field =>
+function supplementFormSnapshot(form: Element) {
+  return JSON.stringify(Array.from(form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input, select, textarea')).map(field =>
     [field.id, field.className, field.value, field instanceof HTMLInputElement ? field.checked : null]))
     + JSON.stringify(Array.from(form.querySelectorAll('[data-ingredient-doses]')).map(row => row.getAttribute('data-ingredient-doses')));
 }
@@ -68,7 +82,7 @@ export function rememberSupplementForm() {
 }
 
 /** Untouched controls must not normalize or discard legacy data on an unrelated edit. */
-export function supplementFieldsChanged(selector) {
+export function supplementFieldsChanged(selector: string) {
   return Array.from(document.querySelectorAll(selector)).some(element =>
     !fieldSnapshots.has(element) || fieldSnapshots.get(element) !== (element.matches('input, select, textarea')
       ? JSON.stringify([getElementValue(element), element instanceof HTMLInputElement ? element.checked : null]) : supplementFormSnapshot(element)));
@@ -86,7 +100,7 @@ export function supplementFormHasChanges() {
   return !!form && formSnapshots.has(form) && formSnapshots.get(form) !== supplementFormSnapshot(form);
 }
 
-export function parseHttpUrl(raw) {
+export function parseHttpUrl(raw: unknown) {
   const value = String(raw || '').trim();
   if (!value) return null;
   try {
@@ -97,15 +111,15 @@ export function parseHttpUrl(raw) {
   }
 }
 
-export function sourceUrlParts(raw) {
+export function sourceUrlParts(raw: unknown) {
   const parsed = parseHttpUrl(raw);
   return parsed ? { url: parsed.toString(), host: parsed.hostname.replace(/^www\./, '') } : null;
 }
 
-export function ingredientRowHtml(idx, name = '', amount = '', timesPerDay = '', outerTimes = '', sourceIngredient = null) {
+export function ingredientRowHtml(idx: number, name: unknown = '', amount: unknown = '', timesPerDay: unknown = '', outerTimes: unknown = '', sourceIngredient: unknown = null) {
   const ingredient = sourceIngredient && typeof sourceIngredient === 'object'
-    ? sourceIngredient : { name, amount, timesPerDay };
-  const quantity = getIngredientQuantity(ingredient);
+    ? sourceIngredient as FormIngredientReader : { name, amount, timesPerDay };
+  const quantity = (getIngredientQuantity as QuantityReader)(ingredient);
   const amountValue = quantity ? String(quantity.value) : amount;
   const amountUnit = quantity?.unit || normalizeSupplementUnit(ingredient.amountUnit || '');
   const standardUnits = new Set(SUPPLEMENT_UNIT_OPTIONS.map(option => option.value));
@@ -133,8 +147,7 @@ export function getOuterTimesFromForm() {
   return getFieldValue('supp-times').trim();
 }
 
-/** @param {Element} inputElement */
-export function updateIngTotal(inputElement) {
+export function updateIngTotal(inputElement: Element) {
   const row = inputElement.closest('.supp-ingredient-row');
   if (!row) return;
   const amountValue = getElementValue(row.querySelector('.supp-ing-amount'));
@@ -158,8 +171,7 @@ export function updateAllIngTotals() {
   }
 }
 
-/** @param {Element} inputElement */
-export function updateIngredientUnit(inputElement) {
+export function updateIngredientUnit(inputElement: Element) {
   const row = inputElement.closest('.supp-ingredient-row');
   const custom = row?.querySelector('.supp-ing-unit-custom');
   if (custom instanceof HTMLInputElement) {
@@ -178,12 +190,11 @@ export function addIngredientRow() {
   if (last instanceof HTMLElement) last.focus();
 }
 
-/** @param {Element} button */
-export function removeIngredientRow(button) {
+export function removeIngredientRow(button: Element) {
   button.closest('.supp-ingredient-row')?.remove();
 }
 
-export function periodRowHtml(idx, period = {}, showRemove = true, originalIndex = -1) {
+export function periodRowHtml(idx: number, period: FormPeriodReader = {}, showRemove: unknown = true, originalIndex = -1) {
   return `<div class="supp-period-row" data-idx="${idx}" data-original-index="${originalIndex}">
     <input type="date" class="supp-period-start" aria-label="Period start" required value="${escapeHTML(period.start || '')}">
     <span class="supp-period-arrow">&rarr;</span>
@@ -196,29 +207,28 @@ export function periodRowHtml(idx, period = {}, showRemove = true, originalIndex
 }
 
 /** Copy a current amount only after the user chooses the dated period. Saving remains explicit. */
-export function applyIngredientDoseToPeriod(button) {
+export function applyIngredientDoseToPeriod(button: Element) {
   const row = button.closest('.supp-period-row');
   if (!row) return;
-  const doses = getSupplementDailyDoses({ ingredients: collectIngredients(), timesPerDay: Number(getFieldValue('supp-times')),
+  const doses = (getSupplementDailyDoses as (record: unknown) => ReturnType<typeof getSupplementDailyDoses>)({ ingredients: collectIngredients(), timesPerDay: Number(getFieldValue('supp-times')),
     schedule: { mode: getFieldValue('supp-schedule-mode') || 'daily' } });
   if (!doses.length) {
     button.textContent = 'Set ingredient amounts and daily frequency first';
     return;
   }
-  const input = row.querySelector('.supp-period-dose');
-  input.value = doses.length === 1 ? supplementDoseText(doses[0]) : '';
+  const input = row.querySelector<HTMLInputElement>('.supp-period-dose')!;
+  (input as { value: unknown }).value = doses.length === 1 ? supplementDoseText(doses[0]!) : '';
   row.setAttribute('data-ingredient-doses', JSON.stringify(doses));
   row.querySelector('.supp-period-dose-summary')?.remove();
   const summary = document.createElement('small');
   summary.className = 'supp-period-dose-summary';
-  summary.textContent = doses.map(d => `${d.ingredient}: ${supplementDoseText(d)}`).join('; ') + ` — ${row.querySelector('.supp-period-start').value || 'set start date'} → ${row.querySelector('.supp-period-end').value || 'ongoing'}. Save changes to keep these dates.`;
+  summary.textContent = doses.map(d => `${d.ingredient}: ${supplementDoseText(d)}`).join('; ') + ` — ${row.querySelector<HTMLInputElement>('.supp-period-start')!.value || 'set start date'} → ${row.querySelector<HTMLInputElement>('.supp-period-end')!.value || 'ongoing'}. Save changes to keep these dates.`;
   row.append(summary);
 }
 
-const draftDoseSplits = new WeakMap();
+const draftDoseSplits = new WeakMap<Element, { row: Element; end: string; previousEnd: string }>();
 
-/** @param {any} [period] @param {Element | null} [splitRow] @param {string} [previousEnd] */
-export function addPeriodRow(period = {}, splitRow = null, previousEnd = '') {
+export function addPeriodRow(period: FormPeriodReader = {}, splitRow: Element | null = null, previousEnd = '') {
   const container = document.getElementById('supp-periods');
   if (!container) return;
   container.insertAdjacentHTML('beforeend', periodRowHtml(container.children.length, period, true, -1));
@@ -230,23 +240,22 @@ export function addPeriodRow(period = {}, splitRow = null, previousEnd = '') {
   }
 }
 
-/** @param {Element} button */
-export function removePeriodRow(button) {
+export function removePeriodRow(button: Element) {
   const container = document.getElementById('supp-periods');
   if (!container) return;
   const row = button.closest('.supp-period-row');
   const split = row && draftDoseSplits.get(row);
   const end = split?.row.querySelector('.supp-period-end');
   // Removing an unsaved new-dose row also undoes its automatic end date.
-  if (end instanceof HTMLInputElement && end.value === split.end) end.value = split.previousEnd;
+  if (end instanceof HTMLInputElement && end.value === split!.end) end.value = split!.previousEnd;
   row?.remove();
   const rows = container.querySelectorAll('.supp-period-row');
-  const removeButton = rows.length === 1 ? rows[0].querySelector('.supp-period-remove') : null;
+  const removeButton = rows.length === 1 ? rows[0]!.querySelector('.supp-period-remove') : null;
   if (removeButton instanceof HTMLElement) removeButton.style.display = 'none';
 }
 
 export function collectPeriods() {
-  const periods = [];
+  const periods: CollectedFormPeriod[] = [];
   for (const row of document.querySelectorAll('#supp-periods .supp-period-row')) {
     const start = getElementValue(row.querySelector('.supp-period-start'));
     const end = getElementValue(row.querySelector('.supp-period-end')) || null;
@@ -254,23 +263,23 @@ export function collectPeriods() {
     const previousIndex = Number.parseInt(row.getAttribute('data-original-index') || '', 10);
     const supplementIndex = Number.parseInt(document.getElementById('supp-form-panel')?.getAttribute('data-edit-index') || '', 10);
     const previous = Number.isInteger(supplementIndex) && supplementIndex >= 0
-      ? getSupplementPeriods(state.importedData.supplements?.[supplementIndex])?.[previousIndex] : null;
+      ? (getSupplementPeriods as FormPeriodGetter)(state.importedData.supplements?.[supplementIndex])?.[previousIndex] : null;
     if (!start) continue;
-    const period = { ...(previous && typeof previous === 'object' ? previous : {}), start, end };
+    const period: CollectedFormPeriod = { ...(previous && typeof previous === 'object' ? previous : {}), start, end };
     const snapshot = row.getAttribute('data-ingredient-doses');
     if (snapshot) {
-      const doses = JSON.parse(snapshot);
-      if (dose === (doses.length === 1 ? supplementDoseText(doses[0]) : '')) {
+      const doses = JSON.parse(snapshot) as { length?: unknown; [index: number]: unknown };
+      if (dose === (doses.length === 1 ? supplementDoseText(doses[0]!) : '')) {
         period.ingredientDoses = doses;
         if (doses.length === 1) period.dose = doses[0]; else delete period.dose;
-        period.schedule = previous?.schedule ? { ...previous.schedule } : { mode: 'daily' };
+        period.schedule = previous?.schedule ? { ...(previous.schedule as object) } : { mode: 'daily' };
         periods.push(period);
         continue;
       }
     }
     if (dose !== supplementDoseText(previous?.dose)) delete period.ingredientDoses;
     if (dose) {
-      const linked = typeof previous?.dose === 'object' ? previous.dose : null;
+      const linked = (typeof previous?.dose === 'object' ? previous.dose : null) as SupplementDoseView | null | undefined;
       period.dose = previous?.dose && supplementDoseText(previous.dose) === dose ? previous.dose
         : linked?.ingredient ? { text: dose, ingredient: linked.ingredient } : dose;
     }
@@ -280,9 +289,8 @@ export function collectPeriods() {
   return periods;
 }
 
-/** @param {{ draft: any, issues: string[] } | null} [pendingImport] */
-export function collectIngredients(pendingImport = null) {
-  const ingredients = [];
+export function collectIngredients(pendingImport: FormPendingImportReader | null = null) {
+  const ingredients: unknown[] = [];
   for (const row of document.querySelectorAll('#supp-ingredients .supp-ingredient-row')) {
     const name = getElementValue(row.querySelector('.supp-ing-name')).trim();
     if (!name) continue;
@@ -300,9 +308,9 @@ export function collectIngredients(pendingImport = null) {
       continue;
     }
     const imported = pendingImport?.draft?.source?.reviewed
-      ? pendingImport.draft.ingredients.find(candidate => supplementImportIngredientKey(candidate.name) === supplementImportIngredientKey(name))
+      ? pendingImport.draft.ingredients!.find(candidate => supplementImportIngredientKey(candidate.name) === supplementImportIngredientKey(name))
       : null;
-    const ingredient = { ...(imported && typeof imported === 'object' ? imported : {}), ...(previous && typeof previous === 'object' ? previous : {}), name };
+    const ingredient: FormIngredientReader = { ...(imported && typeof imported === 'object' ? imported : {}), ...(previous && typeof previous === 'object' ? previous : {}), name };
     const numericAmount = Number(amountValueRaw.replace(',', '.'));
     if (amountValueRaw && Number.isFinite(numericAmount)) {
       ingredient.amountValue = numericAmount;
@@ -321,7 +329,7 @@ export function collectIngredients(pendingImport = null) {
   return ingredients.length ? ingredients : undefined;
 }
 
-export function qualityTestRowHtml(idx, test = {}, originalIndex = -1, importIndex = -1) {
+export function qualityTestRowHtml(idx: number, test: QualityTestView = {}, originalIndex = -1, importIndex = -1) {
   const categories = [
     ['contaminant', 'Contaminant / heavy metal'], ['potency', 'Potency / label claim'],
     ['microbiology', 'Microbiology'], ['identity', 'Identity / purity'], ['other', 'Other laboratory result'],
@@ -337,7 +345,7 @@ export function qualityTestRowHtml(idx, test = {}, originalIndex = -1, importInd
   </div>`;
 }
 
-export function addQualityTestRow(test = {}) {
+export function addQualityTestRow(test: QualityTestView = {}) {
   const container = document.getElementById('supp-quality-tests');
   if (!container) return;
   container.insertAdjacentHTML('beforeend', qualityTestRowHtml(container.children.length, test, -1));
@@ -345,8 +353,7 @@ export function addQualityTestRow(test = {}) {
   if (input instanceof HTMLElement) input.focus();
 }
 
-/** @param {Element} button */
-export function removeQualityTestRow(button) {
+export function removeQualityTestRow(button: Element) {
   button.closest('.supp-quality-row')?.remove();
 }
 
@@ -355,7 +362,7 @@ export function collectInactiveIngredients() {
   return names.length ? names : undefined;
 }
 
-function qualityStatus(resultText, priorStatus = '') {
+function qualityStatus(resultText: string, priorStatus: unknown = '') {
   const normalized = resultText.trim().toLowerCase().replace(/[.\s-]+/gu, '');
   if (['nd', 'notdetected'].includes(normalized)) return 'not-detected';
   if (['nq', 'notquantified', 'notquantifiable'].includes(normalized)) return 'not-quantified';
@@ -365,9 +372,8 @@ function qualityStatus(resultText, priorStatus = '') {
   return priorStatus && priorStatus !== 'unknown' ? priorStatus : resultText ? 'reported' : 'unknown';
 }
 
-/** @param {{ draft: any, issues: string[] } | null} [pendingImport] */
-export function collectQualityTests(pendingImport = null) {
-  const tests = [];
+export function collectQualityTests(pendingImport: FormPendingImportReader | null = null) {
+  const tests: unknown[] = [];
   const supplementIndex = Number.parseInt(document.getElementById('supp-form-panel')?.getAttribute('data-edit-index') || '', 10);
   const previousTests = Number.isInteger(supplementIndex) && supplementIndex >= 0
     ? state.importedData.supplements?.[supplementIndex]?.qualityTests || [] : [];
@@ -420,16 +426,16 @@ export function collectQualityTests(pendingImport = null) {
   return tests.length ? tests : undefined;
 }
 
-export function suppFormHtml(editIdx, supplement, importReviewHtml = '') {
+export function suppFormHtml(editIdx: number, supplement: FormSupplementReader | null | undefined, importReviewHtml: unknown = '') {
   const editing = !!supplement;
   const ingredients = editing && supplement.ingredients ? supplement.ingredients : [];
   const inactiveIngredients = editing && Array.isArray(supplement.inactiveIngredients) ? supplement.inactiveIngredients : [];
   const qualityTests = editing && Array.isArray(supplement.qualityTests)
     ? supplement.qualityTests.map(test => ({ ...test, includeInAIContext: isSupplementQualityIncludedInAI(test, supplement) })) : [];
-  const periods = editing ? getSupplementPeriods(supplement) : [{ start: localDateKey(), end: null }];
-  const schedule = editing && supplement.schedule && typeof supplement.schedule === 'object'
+  const periods = editing ? (getSupplementPeriods as FormPeriodGetter)(supplement) : [{ start: localDateKey(), end: null }];
+  const schedule: FormScheduleRenderReader = editing && supplement.schedule && typeof supplement.schedule === 'object'
     ? supplement.schedule : { mode: editing && Number(supplement.timesPerDay) > 1 ? 'multiple' : 'daily' };
-  const status = editing ? getSupplementStatus(supplement) : 'planned';
+  const status = editing ? (getSupplementStatus as FormStatusGetter)(supplement) : 'planned';
   return `<div class="supp-form" id="supp-form-panel" data-edit-index="${editIdx}">
     <div class="supp-form-row supp-url-row"><div class="supp-form-field"><label>Import product facts <span class="supp-label-hint">Review required before anything is applied</span></label>
       <div class="supp-url-input-row"><input type="url" id="supp-url" aria-label="Product URL" placeholder="https://..." autocomplete="off" value="${escapeHTML(editing ? supplement.sourceUrl || supplement.importProvenance?.url || '' : '')}"><button type="button" class="supp-url-fetch" ${suppActionAttrs('fetch-url')}>Review link</button>${hasAssistantFeatureProvider() && assistantFeatureSupports('image') ? `<button type="button" class="supp-url-fetch supp-scan-label" ${suppActionAttrs('scan-label')}>Review photos</button><input type="file" id="supp-label-input" accept="image/*" capture="environment" multiple hidden>` : ''}</div>

@@ -1,14 +1,20 @@
-// @ts-check
 // chat-discussion-state.js — multi-persona discussion state helpers
 
 import { state } from './state.js';
 import { CHAT_PERSONALITIES } from './constants.js';
 import { getCustomPersonalities } from './chat-personalities.js';
 import { saveChatThreadIndex } from './chat-threads.js';
+import type { ChatThread } from '../types/chat-data.js';
+
+interface DiscussionMessageReader { role?: unknown; personalityName?: unknown; personalityIcon?: unknown }
+interface CollectedDiscussionPersona { id: string; name: unknown; icon: unknown }
+interface TransientDiscussionReader { _discussionPersonas?: unknown; _discussionOriginalPersonality?: unknown }
+export type DiscussionThreadReader = { [Field in keyof ChatThread]: Field extends 'discussionPersonas' | 'discussionPendingPersonas' | 'discussionOriginalPersonality' | 'discussionEnded' ? unknown : ChatThread[Field] };
+export interface CurrentDiscussionState { personas: unknown; originalPersonality: unknown }
 
 export function getThreadPersonaCount() {
-  const names = new Set();
-  for (const m of state.chatHistory) {
+  const names = new Set<unknown>();
+  for (const m of state.chatHistory as DiscussionMessageReader[]) {
     if (m.role === 'assistant' && m.personalityName) names.add(m.personalityName);
   }
   return names.size;
@@ -16,13 +22,13 @@ export function getThreadPersonaCount() {
 
 export function collectDiscussionPersonas() {
   // Walk history backwards to find the 2 most recently active personas.
-  const seenIds = new Set();
-  const personas = [];
+  const seenIds = new Set<string>();
+  const personas: CollectedDiscussionPersona[] = [];
   for (let i = state.chatHistory.length - 1; i >= 0; i--) {
-    const m = state.chatHistory[i];
+    const m = state.chatHistory[i] as DiscussionMessageReader;
     if (m.role !== 'assistant' || !m.personalityName) continue;
 
-    let pid = null;
+    let pid: string | null = null;
     const builtIn = CHAT_PERSONALITIES.find(p => p.name === m.personalityName);
     if (builtIn) {
       pid = builtIn.id;
@@ -40,11 +46,11 @@ export function collectDiscussionPersonas() {
   return personas;
 }
 
-export function getCurrentThread() {
+export function getCurrentThread(): DiscussionThreadReader | null {
   return state.chatThreads.find(t => t.id === state.currentThreadId) || null;
 }
 
-export function clearCurrentDiscussionThreadState({ clearThread = false, markEnded = false } = {}) {
+export function clearCurrentDiscussionThreadState({ clearThread = false, markEnded = false }: { clearThread?: unknown; markEnded?: unknown } = {}) {
   const thread = getCurrentThread();
   if (!thread || (!clearThread && !markEnded)) return;
 
@@ -64,14 +70,14 @@ export function reopenCurrentDiscussionThread() {
   return thread;
 }
 
-export function getCurrentDiscussionState({ allowHistoryFallback = true } = {}) {
+export function getCurrentDiscussionState({ allowHistoryFallback = true }: { allowHistoryFallback?: unknown } = {}): CurrentDiscussionState | null {
   const thread = getCurrentThread();
   if (thread?.discussionEnded) return null;
 
-  if (Array.isArray(state._discussionPersonas) && state._discussionPersonas.length >= 2) {
+  if (Array.isArray((state as TransientDiscussionReader)._discussionPersonas) && ((state as TransientDiscussionReader)._discussionPersonas as { length: number }).length >= 2) {
     return {
-      personas: state._discussionPersonas,
-      originalPersonality: state._discussionOriginalPersonality || thread?.discussionOriginalPersonality || state.currentChatPersonality,
+      personas: (state as TransientDiscussionReader)._discussionPersonas,
+      originalPersonality: (state as TransientDiscussionReader)._discussionOriginalPersonality || thread?.discussionOriginalPersonality || state.currentChatPersonality,
     };
   }
 

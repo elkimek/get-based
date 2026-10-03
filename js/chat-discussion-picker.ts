@@ -1,4 +1,3 @@
-// @ts-check
 // chat-discussion-picker.js - persona picker controls for multi-persona discussions
 
 import { state } from './state.js';
@@ -16,8 +15,8 @@ export function readDiscussPersonaPickerSelection() {
   const picker = document.querySelector('.discuss-persona-picker');
   if (!picker) return null;
 
-  const lockedInputs = /** @type {NodeListOf<HTMLInputElement>} */ (picker.querySelectorAll('input[data-locked="1"]'));
-  const checkedInputs = /** @type {NodeListOf<HTMLInputElement>} */ (picker.querySelectorAll('input:checked:not([data-locked="1"])'));
+  const lockedInputs = (picker.querySelectorAll('input[data-locked="1"]') as NodeListOf<HTMLInputElement>);
+  const checkedInputs = (picker.querySelectorAll('input:checked:not([data-locked="1"])') as NodeListOf<HTMLInputElement>);
   const allSelected = [...lockedInputs, ...checkedInputs];
   if (lockedInputs.length > 0) {
     if (checkedInputs.length !== 1) return null;
@@ -35,7 +34,7 @@ export function readDiscussPersonaPickerSelection() {
   return {
     allPersonas,
     newPersonas,
-    addingToExisting: /** @type {HTMLElement} */ (picker).dataset.existingDiscussion === 'true',
+    addingToExisting: (picker as HTMLElement).dataset.existingDiscussion === 'true',
   };
 }
 
@@ -59,13 +58,14 @@ export function showDiscussPersonaPicker() {
   document.getElementById('chat-thread-rail')?.classList.remove('open');
   document.querySelector('.chat-rail-toggle')?.setAttribute('aria-expanded', 'false');
 
-  const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
+  // Imported extension fields are consumed without adding validation.
+  const thread = state.chatThreads.find(t => t.id === state.currentThreadId) as { discussionPersonas?: unknown; discussionEnded?: unknown } | undefined;
   const existingDiscussion = Array.isArray(thread?.discussionPersonas)
     && thread.discussionPersonas.length >= 2
     && !thread.discussionEnded;
   const activePersonaIds = new Set(
     existingDiscussion
-      ? (thread.discussionPersonas || []).map(persona => persona.id)
+      ? ((thread!.discussionPersonas || []) as Array<{ id?: unknown }>).map(persona => persona.id)
       : [state.currentChatPersonality || 'default'],
   );
   const addingToExisting = existingDiscussion;
@@ -105,7 +105,7 @@ export function showDiscussPersonaPicker() {
     const checkedCount = picker.querySelectorAll('input:checked:not([data-locked="1"])').length;
     const lockedCount = lockedInputsCount(picker);
     const maxNewSelections = addingToExisting || lockedCount > 0 ? 1 : 2;
-    const startBtn = /** @type {HTMLButtonElement | null} */ (picker.querySelector('.discuss-picker-start'));
+    const startBtn = (picker.querySelector('.discuss-picker-start') as HTMLButtonElement | null);
     if (!startBtn) return;
     startBtn.disabled = checkedCount !== maxNewSelections;
     const immediateResponses = checkedCount;
@@ -124,11 +124,11 @@ export function showDiscussPersonaPicker() {
     }
     if (checkedCount >= maxNewSelections) {
       picker.querySelectorAll('input:not(:checked):not([data-locked="1"])').forEach(cb => {
-        /** @type {HTMLInputElement} */ (cb).disabled = true;
+        (cb as HTMLInputElement).disabled = true;
       });
     } else {
       picker.querySelectorAll('input:not([data-locked="1"])').forEach(cb => {
-        /** @type {HTMLInputElement} */ (cb).disabled = false;
+        (cb as HTMLInputElement).disabled = false;
       });
     }
   }
@@ -137,14 +137,14 @@ export function showDiscussPersonaPicker() {
     if (event.key !== 'Escape') return;
     event.preventDefault();
     picker.remove();
-    /** @type {HTMLElement | null} */ (document.getElementById('chat-discuss-btn'))?.focus();
+    (document.getElementById('chat-discuss-btn') as HTMLElement | null)?.focus();
   });
   updatePickerState();
 
   container.insertBefore(picker, container.firstChild);
-  /** @type {HTMLElement | null} */ (picker.querySelector('input:not(:disabled)'))?.focus();
+  (picker.querySelector('input:not(:disabled)') as HTMLElement | null)?.focus();
 }
 
-function lockedInputsCount(picker) {
+function lockedInputsCount(picker: Pick<Element, 'querySelectorAll'>) {
   return picker.querySelectorAll('input[data-locked="1"]').length;
 }

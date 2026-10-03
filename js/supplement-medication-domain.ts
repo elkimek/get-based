@@ -311,11 +311,11 @@ export function migrateSupplementMedicationRecords<T>(data: T): T {
 }
 
 /** Render both existing free-text doses and structured imported doses losslessly. */
-export function supplementDoseText(dose: string | SupplementDoseView | null | undefined) {
+export function supplementDoseText(dose: unknown) {
   if (typeof dose === 'string') return dose;
   if (!dose || typeof dose !== 'object') return '';
-  if (typeof dose.text === 'string') return dose.text;
-  return dose.value != null ? `${dose.value}${dose.unit ? ` ${dose.unit}` : ''}${dose.basis === 'day' ? '/day' : ''}` : '';
+  if (typeof (dose as SupplementDoseView).text === 'string') return (dose as SupplementDoseView).text;
+  return (dose as SupplementDoseView).value != null ? `${(dose as SupplementDoseView).value}${(dose as SupplementDoseView).unit ? ` ${(dose as SupplementDoseView).unit}` : ''}${(dose as SupplementDoseView).basis === 'day' ? '/day' : ''}` : '';
 }
 
 /** Save today's schedule without projecting it into older historical periods. */

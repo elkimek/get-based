@@ -420,6 +420,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
     });
 
     // Send last 30 messages for context — tag messages from other personas
+    /** @type {Array<{role: unknown; content: string | undefined | ReturnType<typeof buildVisionContent>}>} */
     const apiMessages = buildTaggedChatMessages(state.chatHistory, currentPersonaName);
 
     // Inject vision content into the last user message if images were attached
@@ -428,7 +429,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
       const imageBlocks = attachments.map(att => formatImageBlock(att.base64, att.mediaType, _msgProvider));
       apiMessages[lastUserIdx] = {
         role: 'user',
-        content: buildVisionContent(imageBlocks, apiMessages[lastUserIdx].content, _msgProvider)
+        content: (/** @type {(imageBlocks: Parameters<typeof buildVisionContent>[0], text: string | undefined, provider: Parameters<typeof buildVisionContent>[2]) => ReturnType<typeof buildVisionContent>} */ (buildVisionContent))(imageBlocks, /** @type {string | undefined} */ (apiMessages[lastUserIdx].content), _msgProvider)
       };
     }
 
@@ -469,7 +470,8 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
     let aiResult;
     if (useCodexAgent) {
       const currentThread = state.chatThreads.find(thread => thread.id === state.currentThreadId);
-      aiResult = await callCodexAgent({
+      // The native sender serializes historical roles without validating their values.
+      aiResult = await (/** @type {(options: Omit<Parameters<typeof callCodexAgent>[0], 'history'> & {history?: Array<{role: unknown; content: string}>}) => ReturnType<typeof callCodexAgent>} */ (callCodexAgent))({
         prompt: text || 'Respond to the attached image.',
         instructions: `${CHAT_SYSTEM_PROMPT}${personalityPrompt}${multiPersonaInstruction}`,
         labContext,
@@ -478,7 +480,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
         threadId: currentThread?.agentThreadId,
         history: apiMessages.slice(0, -1).filter(message => typeof message.content === 'string').map(message => ({
           role: message.role,
-          content: message.content,
+          content: /** @type {string} */ (message.content),
         })),
         images: attachments.map(attachment => ({ base64: attachment.base64, mediaType: attachment.mediaType })),
         signal: getStreamSignal(),

@@ -1,10 +1,20 @@
-// @ts-check
 
 import { escapeAttr, escapeHTML } from './utils.js';
 import { BODY_REGIONS, bindBodySilhouette, renderBodySilhouette } from './sun-body-silhouette.js';
 import { sunSessionActionAttrs } from './sun-session-actions.js';
 
-export function renderPastSessionLogModal(options) {
+// Option leaves remain opaque; native silhouette selection is the existing Set contract.
+export interface PastSessionLogOptions {
+  lastUsed?: { posture?: unknown; surfaceAlbedo?: unknown } | null;
+  lastRegions: Parameters<typeof renderBodySilhouette>[0];
+  eyeMode: unknown; lensTint: unknown; localStartDefault: unknown; localNow: unknown;
+  eyeModes: ReadonlyArray<{ key?: unknown; pickerLabel?: unknown; label?: unknown }>;
+  lensTints: ReadonlyArray<{ key?: unknown; label?: unknown }>;
+  postureOptions: ReadonlyArray<{ key?: unknown; label?: unknown }>;
+  surfaceOptions: ReadonlyArray<{ key?: unknown; label?: unknown }>;
+}
+
+export function renderPastSessionLogModal(options: PastSessionLogOptions) {
   const { lastUsed, lastRegions, eyeMode, lensTint, localStartDefault, localNow, eyeModes, lensTints, postureOptions, surfaceOptions } = options;
   return `<div class="modal sun-detailed-modal" role="dialog" aria-label="Past session log">
     <div class="modal-header">
@@ -61,28 +71,28 @@ export function renderPastSessionLogModal(options) {
   </div>`;
 }
 
-export function bindPastSessionRegionPicker(overlay, initialRegions) {
-  const selected = new Set(initialRegions);
+export function bindPastSessionRegionPicker<Region = string>(overlay: Element, initialRegions: Iterable<Region> | null | undefined) {
+  const selected = new Set<Region | string>(initialRegions);
   const slot = overlay.querySelector('#sun-silhouette-slot');
   const hint = overlay.querySelector('#sun-silhouette-hint');
   const updateHint = () => {
     if (!hint) return;
-    const fraction = Array.from(selected).reduce((sum, key) => sum + (BODY_REGIONS.find(region => region.key === key)?.fraction || 0), 0);
+    const fraction = Array.from(selected).reduce<number>((sum, key) => sum + (BODY_REGIONS.find(region => region.key === key)?.fraction || 0), 0);
     if (selected.size === 0) hint.textContent = 'Tap any body region to toggle whether it was uncovered.';
     else {
       const labels = Array.from(selected).map(key => BODY_REGIONS.find(region => region.key === key)?.label || key).join(', ');
       hint.textContent = `${selected.size} region${selected.size === 1 ? '' : 's'} exposed (${(fraction * 100).toFixed(0)}% of skin) — ${labels}`;
     }
   };
-  bindBodySilhouette(slot, selected, updateHint);
+  (bindBodySilhouette as (root: Element | null, selected: Set<unknown>, changed: () => void) => void)(slot, selected, updateHint);
   updateHint();
   return selected;
 }
 
-export function bindPastSessionDurationHint(overlay) {
-  const start = /** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-started-at'));
-  const end = /** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-ended-at'));
-  const hint = /** @type {HTMLElement | null} */ (overlay.querySelector('#det-duration-hint'));
+export function bindPastSessionDurationHint(overlay: Element) {
+  const start = overlay.querySelector<HTMLInputElement>('#det-started-at');
+  const end = overlay.querySelector<HTMLInputElement>('#det-ended-at');
+  const hint = overlay.querySelector<HTMLElement>('#det-duration-hint');
   const update = () => {
     if (!start || !end || !hint) return;
     const startMs = new Date(start.value).getTime();

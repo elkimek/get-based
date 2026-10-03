@@ -383,7 +383,13 @@ export async function saveSupplement(index) {
       return;
     }
   }
-  /** @type {import('../types/supplement-data.js').SupplementRecordWithHistory} */
+  /** @type {Omit<import('../types/supplement-data.js').SupplementRecordWithHistory, 'periods' | 'ingredients' | 'qualityTests'> & {
+   * periods: (import('./supplement-form-ui.js').CollectedFormPeriod | NonNullable<import('../types/supplement-data.js').SupplementRecord['periods']>[number])[],
+   * ingredients?: unknown[], qualityTests?: unknown[],
+   * schedule: NonNullable<import('../types/supplement-data.js').SupplementRecord['schedule']>,
+   * lifecycle: NonNullable<import('../types/supplement-data.js').SupplementRecord['lifecycle']>,
+   * servingSize?: NonNullable<import('../types/supplement-data.js').SupplementRecord['servingSize']>, timesPerDay?: number
+   * }} */
   const entry = {
     ...(previous && typeof previous === 'object' ? previous : {}),
     id: getSupplementRecordId(previous) || createSupplementRecordId(),
@@ -443,11 +449,11 @@ export async function saveSupplement(index) {
     if (servingUnit) entry.servingSize.unit = servingUnit; else delete entry.servingSize.unit;
   } else delete entry.servingSize;
   preserveUntouchedSupplementFields(entry, previous);
-  if (scheduleChanged || periodsChanged) entry.periods = recordSupplementSchedule(previous, getSupplementPeriods(entry), entry.schedule || { mode: 'daily', timesPerDay: entry.timesPerDay ?? null });
+  if (scheduleChanged || periodsChanged) entry.periods = (/** @type {(previous: Parameters<typeof recordSupplementSchedule>[0], periods: unknown, schedule: Parameters<typeof recordSupplementSchedule>[2]) => ReturnType<typeof recordSupplementSchedule>} */ (recordSupplementSchedule))(previous, (/** @type {(record: unknown) => ReturnType<typeof getSupplementPeriods>} */ (getSupplementPeriods))(entry), entry.schedule || { mode: 'daily', timesPerDay: entry.timesPerDay ?? null });
   const ingredientsChanged = !previous || supplementFieldsChanged('#supp-ingredients');
-  if (ingredientsChanged || scheduleChanged) recordIngredientDoseChange(entry, localDateKey(), previous);
+  if (ingredientsChanged || scheduleChanged) (/** @type {(record: unknown, today: string, saved: Parameters<typeof recordIngredientDoseChange>[2]) => ReturnType<typeof recordIngredientDoseChange>} */ (recordIngredientDoseChange))(entry, localDateKey(), previous);
   if (periodsChanged || ingredientsChanged || scheduleChanged) {
-    const latestDose = getSupplementPeriods(entry).at(-1)?.dose;
+    const latestDose = (/** @type {(record: unknown) => ReturnType<typeof getSupplementPeriods>} */ (getSupplementPeriods))(entry).at(-1)?.dose;
     if (latestDose) entry.currentDose = latestDose; else delete entry.currentDose;
   }
   if (pendingImport?.draft?.source?.reviewed) {
@@ -588,7 +594,7 @@ export function beginSupplementDoseChange(index) {
   // historical amount and move their edit into the new period.
   if (doseInput instanceof HTMLInputElement && original && doseInput.value !== supplementDoseText(original.dose)) {
     newDose = doseInput.value;
-    doseInput.value = supplementDoseText(original.dose);
+    (/** @type {{ value: unknown }} */ (doseInput)).value = supplementDoseText(original.dose);
   }
   if (end instanceof HTMLInputElement) end.value = previousDateKey(today);
   addPeriodRow({ start: today, end: previousEnd || null, dose: newDose }, openRow, previousEnd);

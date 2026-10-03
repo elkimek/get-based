@@ -1,4 +1,3 @@
-// @ts-check
 // export-runtime.js - Browser runtime adapters for export/import flows.
 
 import { createRetryingModuleLoader } from './retrying-module-loader.js';
@@ -6,7 +5,7 @@ import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { encryptedGetItem } from './crypto.js';
 import { state } from './state.js';
 
-/** @typedef {typeof import('./cashu-wallet.js')} CashuWalletModule */
+type CashuWalletModule = typeof import('./cashu-wallet.js');
 
 const cashuWalletModuleLoader = createRetryingModuleLoader(
   retry => retry ? loadCashuWalletRetryModule() : import('./cashu-wallet.js'),
@@ -16,30 +15,32 @@ export function isCashuWalletModuleLoaded() {
   return cashuWalletModuleLoader.module !== null;
 }
 
-/** @returns {Promise<CashuWalletModule>} */
-function loadCashuWalletRetryModule() {
-  // @ts-expect-error TypeScript resolves only the query-free source path.
-  return import('./cashu-wallet.js?lazy-retry=1');
+function loadCashuWalletRetryModule(): Promise<CashuWalletModule> {
+  return import('./cashu-wallet.js?lazy-retry=1' as './cashu-wallet.js');
 }
 
-/** @returns {Promise<CashuWalletModule>} */
 export function loadCashuWalletModule() {
   return cashuWalletModuleLoader.load();
 }
 
-/** @typedef {{
- * buildSidebar: null | (() => void),
- * ensureActiveThread: null | (() => void),
- * loadChatThreads: null | (() => any),
- * navigate: null | ((route?: string) => void),
- * refreshChatPersonalities: null | (() => any),
- * renderProfileButton: null | (() => void),
- * renderThreadList: null | (() => void),
- * updateHeaderDates: null | (() => void),
- * }} ExportImportRuntimeDeps */
+export interface ExportImportRuntimeDeps {
+  buildSidebar: unknown;
+  ensureActiveThread: unknown;
+  loadChatThreads: unknown;
+  navigate: unknown;
+  refreshChatPersonalities: unknown;
+  renderProfileButton: unknown;
+  renderThreadList: unknown;
+  updateHeaderDates: unknown;
+}
+export type ExportImportRuntimeUpdates = { [Key in keyof ExportImportRuntimeDeps]?: unknown };
+interface RestoredThreadReader {
+  id?: unknown; name?: unknown; personalityIcon?: unknown; personalityName?: unknown;
+  updatedAt?: unknown; messageCount?: unknown;
+}
+type RuntimeFunction = (...args: unknown[]) => unknown;
 
-/** @type {ExportImportRuntimeDeps} */
-const exportImportRuntimeDeps = {
+const exportImportRuntimeDeps: ExportImportRuntimeDeps = {
   buildSidebar: null,
   ensureActiveThread: null,
   loadChatThreads: null,
@@ -50,35 +51,34 @@ const exportImportRuntimeDeps = {
   updateHeaderDates: null,
 };
 
-/** @param {Partial<ExportImportRuntimeDeps>} [deps] */
-export function configureExportImportRuntimeDeps(deps = {}) {
-  return configureRuntimeCallbacks(exportImportRuntimeDeps, deps, 'inherited');
+export function configureExportImportRuntimeDeps(deps: ExportImportRuntimeUpdates = {}) {
+  return (configureRuntimeCallbacks as (current: ExportImportRuntimeDeps, updates: ExportImportRuntimeUpdates, keyScope: 'inherited') => ExportImportRuntimeDeps)(exportImportRuntimeDeps, deps, 'inherited');
 }
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
-    : /** @type {any} */ (globalThis);
+    ? (window as unknown as Record<string, unknown>)
+    : (globalThis as unknown as Record<string, unknown>);
 }
 
-function getRuntimeFunction(name) {
+function getRuntimeFunction(name: string) {
   const runtime = getRuntimeWindow();
-  if (typeof runtime[name] === 'function') return runtime[name];
+  if (typeof runtime[name] === 'function') return runtime[name] as RuntimeFunction;
   return null;
 }
 
-function escapeRuntimeHTML(value) {
+function escapeRuntimeHTML(value: unknown) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({
     '&': '&amp;',
     '<': '&lt;',
     '>': '&gt;',
     '"': '&quot;',
     "'": '&#039;',
-  })[ch]);
+  })[ch]!);
 }
 
-function formatThreadDateFallback(value) {
-  const date = new Date(value || Date.now());
+function formatThreadDateFallback(value: unknown) {
+  const date = new Date((value || Date.now()) as string | number);
   if (Number.isNaN(date.getTime())) return '';
   const now = new Date();
   const diff = now.getTime() - date.getTime();
@@ -93,7 +93,7 @@ function formatThreadDateFallback(value) {
 }
 
 function sortedChatThreads() {
-  return (Array.isArray(state.chatThreads) ? state.chatThreads : [])
+  return ((Array.isArray(state.chatThreads) ? state.chatThreads : []) as Array<RestoredThreadReader | null | undefined>)
     .slice()
     .sort((a, b) => String(b?.updatedAt || '').localeCompare(String(a?.updatedAt || '')));
 }
@@ -105,8 +105,8 @@ async function loadChatThreadsFromStorageFallback() {
     return true;
   }
   try {
-    const parsed = JSON.parse(raw);
-    state.chatThreads = Array.isArray(parsed) ? parsed : [];
+    const parsed: unknown = JSON.parse(raw);
+    (state as { chatThreads: unknown[] }).chatThreads = Array.isArray(parsed) ? parsed : [];
     return true;
   } catch {
     return false;
@@ -120,7 +120,7 @@ function ensureActiveThreadFallback() {
     return;
   }
   const currentExists = threads.some(thread => thread?.id === state.currentThreadId);
-  if (!currentExists) state.currentThreadId = threads[0]?.id || null;
+  if (!currentExists) (state as { currentThreadId: unknown }).currentThreadId = threads[0]?.id || null;
 }
 
 function renderThreadListFallback() {
@@ -156,12 +156,12 @@ function renderThreadListFallback() {
 }
 
 async function refreshChatThreadsRuntime() {
-  const loadChatThreads = exportImportRuntimeDeps.loadChatThreads || getRuntimeFunction('loadChatThreads');
-  const ensureActiveThread = exportImportRuntimeDeps.ensureActiveThread || getRuntimeFunction('ensureActiveThread');
-  const renderThreadList = exportImportRuntimeDeps.renderThreadList || getRuntimeFunction('renderThreadList');
+  const loadChatThreads = (exportImportRuntimeDeps.loadChatThreads || getRuntimeFunction('loadChatThreads')) as RuntimeFunction | null;
+  const ensureActiveThread = (exportImportRuntimeDeps.ensureActiveThread || getRuntimeFunction('ensureActiveThread')) as RuntimeFunction | null;
+  const renderThreadList = (exportImportRuntimeDeps.renderThreadList || getRuntimeFunction('renderThreadList')) as RuntimeFunction | null;
   let threadsLoaded = true;
 
-  await exportImportRuntimeDeps.refreshChatPersonalities?.();
+  await (exportImportRuntimeDeps.refreshChatPersonalities as RuntimeFunction | null | undefined)?.();
   if (loadChatThreads) threadsLoaded = await loadChatThreads() !== false;
   else threadsLoaded = await loadChatThreadsFromStorageFallback();
   if (!threadsLoaded) return;
@@ -178,26 +178,26 @@ export async function destroyWalletRuntimeDB() {
   await wallet.destroyWalletDB();
 }
 
-export function markDemoLoadingProfile(profileId) {
+export function markDemoLoadingProfile(profileId: unknown) {
   getRuntimeWindow()._demoLoadingProfileId = profileId;
 }
 
-export function isDemoLoadingProfile(profileId) {
+export function isDemoLoadingProfile(profileId: unknown) {
   return getRuntimeWindow()._demoLoadingProfileId === profileId;
 }
 
-export function clearDemoLoadingProfile(profileId) {
+export function clearDemoLoadingProfile(profileId?: unknown) {
   const runtime = getRuntimeWindow();
   if (profileId && runtime._demoLoadingProfileId !== profileId) return;
   delete runtime._demoLoadingProfileId;
 }
 
-export async function refreshImportRuntimeShell(options = {}) {
+export async function refreshImportRuntimeShell(options: { chat?: unknown; profileButton?: unknown; route?: unknown } = {}) {
   const { chat = false, profileButton = false, route = 'dashboard' } = options;
-  const buildSidebar = exportImportRuntimeDeps.buildSidebar || getRuntimeFunction('buildSidebar');
-  const updateHeaderDates = exportImportRuntimeDeps.updateHeaderDates || getRuntimeFunction('updateHeaderDates');
-  const renderProfileButton = exportImportRuntimeDeps.renderProfileButton || getRuntimeFunction('renderProfileButton');
-  const navigate = exportImportRuntimeDeps.navigate || getRuntimeFunction('navigate');
+  const buildSidebar = (exportImportRuntimeDeps.buildSidebar || getRuntimeFunction('buildSidebar')) as RuntimeFunction | null;
+  const updateHeaderDates = (exportImportRuntimeDeps.updateHeaderDates || getRuntimeFunction('updateHeaderDates')) as RuntimeFunction | null;
+  const renderProfileButton = (exportImportRuntimeDeps.renderProfileButton || getRuntimeFunction('renderProfileButton')) as RuntimeFunction | null;
+  const navigate = (exportImportRuntimeDeps.navigate || getRuntimeFunction('navigate')) as RuntimeFunction | null;
 
   if (chat) await refreshChatThreadsRuntime();
   buildSidebar?.();

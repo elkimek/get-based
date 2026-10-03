@@ -963,3 +963,27 @@ deploy/profile-share/data/
 /types/chat-threads.js
 
 /types/nutrition-comparison-ui.js
+
+/js/chat-discussion-round-state.js
+
+/js/chat-discussion-state.js
+
+/js/chat-prompt-context.js
+
+/js/context-card-dashboard-ai-actions.js
+
+/js/supplement-dashboard.js
+
+/js/wearables-connect-loader.js
+
+/js/onboarding-view-runtime.js
+
+/js/chat-discussion-picker.js
+
+/js/supplement-form-ui.js
+
+/js/chat-discussion-round-view.js
+
+/js/export-runtime.js
+
+/js/sun-session-log-modal.js

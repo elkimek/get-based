@@ -1,4 +1,3 @@
-// @ts-check
 // chat-discussion-round-view.js - DOM helpers for live discussion round messages
 
 import { calculateCost, formatCost } from './schema.js';
@@ -13,33 +12,44 @@ import {
   createChatThinkingIndicator, stopChatThinkingStatus,
 } from './chat-thinking-status.js';
 import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
+import type { ChatAvatarDetails } from './chat-message-avatars.js';
+import type { AIOutputIdentity } from './cli-agent-brand-assets.js';
 
-export function createDiscussionTypingIndicator(personality = {}) {
-  return createChatThinkingIndicator({
+export type DiscussionPersonalityReader = { [Key in 'name' | 'icon']?: unknown };
+type DiscussionAvatarReader = { [Key in keyof ChatAvatarDetails]?: unknown };
+export interface DiscussionUsageReader { inputTokens?: unknown; outputTokens?: unknown }
+interface RoundDOMInput { threadId?: unknown; container: Pick<HTMLElement, 'appendChild'>; labelEl: HTMLElement; aiMsgEl: HTMLElement; typingEl: HTMLElement; fullText: unknown; responseTruncated?: unknown }
+interface UsageFootnoteInput { threadId?: unknown; aiMsgEl: Pick<HTMLElement, 'appendChild'>; provider: unknown; modelId?: unknown; modelDisplay?: unknown; usage?: DiscussionUsageReader | null; webSearch?: unknown; e2ee?: unknown; attestation?: unknown }
+interface OutputAttributionInput extends Pick<AIOutputIdentity, 'provider' | 'agentId' | 'modelId' | 'modelDisplay'> { threadId?: unknown; aiMsgEl: Pick<HTMLElement, 'appendChild'> }
+interface RoundErrorInput { threadId?: unknown; container: Pick<HTMLElement, 'appendChild'>; error?: { message?: unknown } | null }
+
+
+export function createDiscussionTypingIndicator(personality: DiscussionPersonalityReader = {}) {
+  return (createChatThinkingIndicator as (identity: DiscussionAvatarReader) => ReturnType<typeof createChatThinkingIndicator>)({
     personalityName: personality.name,
     personalityIcon: personality.icon,
   });
 }
 
-export function createDiscussionPersonaLabel(personality) {
+export function createDiscussionPersonaLabel(personality: DiscussionPersonalityReader) {
   const labelEl = document.createElement('div');
   labelEl.className = 'chat-persona-label';
   labelEl.textContent = `${personality.icon || ''} ${personality.name}`;
   return labelEl;
 }
 
-export function appendRoundPersonaLabel(threadId, container, labelEl) {
+export function appendRoundPersonaLabel(threadId: unknown, container: Pick<HTMLElement, 'appendChild'>, labelEl: HTMLElement) {
   if (!isRoundThreadActive(threadId) || labelEl.parentNode) return;
   container.appendChild(labelEl);
 }
 
-export function createDiscussionAiMessage(personality = {}) {
+export function createDiscussionAiMessage(personality: DiscussionPersonalityReader = {}) {
   const aiMsgEl = document.createElement('div');
   aiMsgEl.className = 'chat-msg chat-ai';
   aiMsgEl.setAttribute('role', 'article');
   aiMsgEl.setAttribute('aria-label', 'AI response');
   aiMsgEl.style.whiteSpace = 'pre-wrap';
-  applyChatMessageAvatar(aiMsgEl, {
+  (applyChatMessageAvatar as (element: Parameters<typeof applyChatMessageAvatar>[0], identity: DiscussionAvatarReader & { role: 'assistant' }) => ReturnType<typeof applyChatMessageAvatar>)(aiMsgEl, {
     role: 'assistant',
     personalityName: personality.name,
     personalityIcon: personality.icon,
@@ -49,7 +59,7 @@ export function createDiscussionAiMessage(personality = {}) {
 
 export function renderFinalDiscussionMessage({
   threadId, container, labelEl, aiMsgEl, typingEl, fullText, responseTruncated,
-}) {
+}: RoundDOMInput) {
   if (!isRoundThreadActive(threadId)) return false;
   appendRoundPersonaLabel(threadId, container, labelEl);
   aiMsgEl.style.whiteSpace = '';
@@ -63,14 +73,15 @@ export function renderFinalDiscussionMessage({
 
 export function appendDiscussionUsageFootnote({
   threadId, aiMsgEl, provider, modelId, modelDisplay, usage, webSearch, e2ee, attestation,
-}) {
+}: UsageFootnoteInput) {
   if (!isRoundThreadActive(threadId) || !usage || !(usage.inputTokens || usage.outputTokens)
-    || shouldHideAppExtensionAIUsage(provider)) {
+    || (shouldHideAppExtensionAIUsage as (provider: unknown) => ReturnType<typeof shouldHideAppExtensionAIUsage>)(provider)) {
     return false;
   }
 
-  const cost = calculateCost(provider, modelId, usage.inputTokens, usage.outputTokens);
-  const totalTokens = (usage.inputTokens || 0) + (usage.outputTokens || 0);
+  const cost = (calculateCost as (provider: unknown, modelId: unknown, inputTokens: unknown, outputTokens: unknown) => ReturnType<typeof calculateCost>)(provider, modelId, usage.inputTokens, usage.outputTokens);
+  // The arithmetic consumer retains JavaScript coercion of raw token fields.
+  const totalTokens = ((usage.inputTokens || 0) as number) + ((usage.outputTokens || 0) as number);
   const webTag = webSearch ? ' \u00b7 \ud83c\udf10 web' : '';
   const e2eeTag = e2ee ? e2eeLockFootnote(attestation) : '';
   const footnote = document.createElement('div');
@@ -82,7 +93,7 @@ export function appendDiscussionUsageFootnote({
 
 export function appendDiscussionOutputAttribution({
   threadId, aiMsgEl, provider, agentId, modelId, modelDisplay,
-}) {
+}: OutputAttributionInput) {
   if (!isRoundThreadActive(threadId)) return false;
   const attribution = getAIOutputAttribution({ provider, agentId, modelId, modelDisplay });
   // Live discussion output follows the same display rule as restored chat.
@@ -94,7 +105,7 @@ export function appendDiscussionOutputAttribution({
   return true;
 }
 
-export function renderDiscussionRoundError({ threadId, container, error }) {
+export function renderDiscussionRoundError({ threadId, container, error }: RoundErrorInput) {
   if (!isRoundThreadActive(threadId)) return false;
   const errEl = document.createElement('div');
   errEl.className = 'chat-msg chat-ai';

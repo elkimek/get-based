@@ -28,7 +28,9 @@ export function restoreDiscussionContinuePrompt() {
 
 export function showDiscussContinuePrompt(personas, originalPersonality) {
   const thread = getCurrentThread();
-  showDiscussContinuePromptUI(personas, originalPersonality, {
+  // The UI checks Array.isArray before reading pending rows; this input stays raw.
+  /** @type {(personas: Parameters<typeof showDiscussContinuePromptUI>[0], originalPersonality: Parameters<typeof showDiscussContinuePromptUI>[1], options: Omit<NonNullable<Parameters<typeof showDiscussContinuePromptUI>[2]>, 'pendingPersonas'> & { pendingPersonas?: unknown }) => ReturnType<typeof showDiscussContinuePromptUI>} */
+  (showDiscussContinuePromptUI)(personas, originalPersonality, {
     pendingPersonas: thread?.discussionPendingPersonas || [],
     onPersist() {
       const currentThread = getCurrentThread();
