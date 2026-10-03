@@ -1,22 +1,23 @@
-// @ts-check
+import type { VoiceConnectionResult, LocalVoiceConnectionOptions, LocalVoiceSynthesisOptions, LocalVoiceTranscriptionOptions, VoiceModelRow, VoiceTranscript } from '../types/voice-provider.js';
+
 // voice-provider-local-server.js — direct OpenAI-compatible local voice adapter.
 
 import { expectVoiceResponseOk } from './voice-response-utils.js';
 import { requireAIProcessingApproval } from './cloud-ai-consent.js';
 
-function endpoint(baseUrl, path) {
+function endpoint(baseUrl: string | undefined, path: string) {
   const base = String(baseUrl || '').replace(/\/+$/, '');
   if (!base) throw new Error('Set a local voice server URL in Settings → Voice.');
   return `${base}${path}`;
 }
 
-function authHeaders(apiKey, extra = {}) {
+function authHeaders(apiKey: string | undefined, extra: Record<string, string> = {}) {
   return apiKey ? { ...extra, Authorization: `Bearer ${apiKey}` } : extra;
 }
 
 export const localServerVoiceProvider = {
   id: 'local-server',
-  async transcribe({ audio, baseUrl, apiKey, modelId = 'whisper-1', language = 'auto', signal }) {
+  async transcribe({ audio, baseUrl, apiKey, modelId = 'whisper-1', language = 'auto', signal }: LocalVoiceTranscriptionOptions) {
     await requireAIProcessingApproval('local-server', { kind: 'voice-input', endpoint: baseUrl, modelId });
     const form = new FormData();
     form.append('model', modelId);
@@ -27,9 +28,9 @@ export const localServerVoiceProvider = {
       headers: authHeaders(apiKey),
       body: form,
       signal,
-    });
+    } as RequestInit);
     await expectVoiceResponseOk(response, 'Local transcription failed');
-    const result = await response.json();
+    const result = await response.json() as VoiceTranscript;
     return { text: String(result?.text || '').trim(), language: result?.language };
   },
   async synthesize({
@@ -40,7 +41,7 @@ export const localServerVoiceProvider = {
     voiceId = 'alloy',
     rate = 1,
     signal,
-  }) {
+  }: LocalVoiceSynthesisOptions) {
     await requireAIProcessingApproval('local-server', { kind: 'voice-output', endpoint: baseUrl, modelId });
     const response = await fetch(endpoint(baseUrl, '/v1/audio/speech'), {
       method: 'POST',
@@ -53,7 +54,7 @@ export const localServerVoiceProvider = {
         response_format: 'mp3',
       }),
       signal,
-    });
+    } as RequestInit);
     await expectVoiceResponseOk(response, 'Local speech generation failed');
     const contentType = response.headers.get('content-type') || 'audio/mpeg';
     if (response.body) {
@@ -67,17 +68,13 @@ export const localServerVoiceProvider = {
       contentType,
     };
   },
-  /**
-   * @param {string} _kind
-   * @param {{ baseUrl?: string, apiKey?: string, signal?: AbortSignal }} [options]
-   */
-  async listModels(_kind, { baseUrl, apiKey, signal } = {}) {
+  async listModels(_kind: string, { baseUrl, apiKey, signal }: LocalVoiceConnectionOptions = {}) {
     const response = await fetch(endpoint(baseUrl, '/v1/models'), {
       headers: authHeaders(apiKey),
       signal,
-    });
+    } as RequestInit);
     await expectVoiceResponseOk(response, 'Could not list local voice models');
-    const payload = await response.json();
+    const payload = await response.json() as { data?: VoiceModelRow[] | null };
     return (Array.isArray(payload?.data) ? payload.data : []).map(model => ({
       id: String(model?.id || ''),
       label: String(model?.name || model?.id || ''),
@@ -86,8 +83,7 @@ export const localServerVoiceProvider = {
   listVoices() {
     return Promise.resolve([]);
   },
-  /** @param {{ baseUrl?: string, apiKey?: string, signal?: AbortSignal }} [options] */
-  async testConnection({ baseUrl, apiKey, signal } = {}) {
+  async testConnection({ baseUrl, apiKey, signal }: LocalVoiceConnectionOptions = {}): Promise<VoiceConnectionResult> {
     const models = await this.listModels('stt', { baseUrl, apiKey, signal });
     return { ok: true, message: `Connected. ${models.length} model${models.length === 1 ? '' : 's'} reported.` };
   },

@@ -44,7 +44,7 @@ export const VOICE_SETTINGS_SCHEMA = Object.freeze({
 
 export const VOICE_STORAGE_KEYS = Object.freeze(Object.fromEntries(
   Object.entries(VOICE_SETTINGS_SCHEMA).map(([name, definition]) => [name, definition.key]),
-));
+)) as Readonly<Record<keyof typeof VOICE_SETTINGS_SCHEMA, string>> & Readonly<Record<string, string | undefined>>;
 
 export const VOICE_SYNC_KEYS = Object.freeze(Object.values(VOICE_SETTINGS_SCHEMA)
   .filter(definition => definition.scope === 'sync')

@@ -738,3 +738,14 @@ deploy/profile-share/data/
 /js/voice-local-engine.js
 /js/voice-local-stt-worker.js
 /js/voice-local-tts-worker.js
+/js/voice-openrouter-catalog.js
+/js/voice-ai-provider.js
+/js/voice-provider-cloud-shared.js
+/js/voice-provider-ai-cloud.js
+/js/voice-provider-elevenlabs.js
+/js/voice-provider-local-server.js
+/js/voice-audio.js
+/js/voice-provider-browser-local.js
+/js/voice-settings-storage.js
+/js/voice-provider-registry.js
+/js/voice-service.js

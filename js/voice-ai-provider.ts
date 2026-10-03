@@ -1,4 +1,5 @@
-// @ts-check
+import type { AiVoiceDefaults } from '../types/voice-provider.js';
+
 // voice-ai-provider.js — reuse supported AI-provider connections for voice.
 
 import {
@@ -35,9 +36,9 @@ export const AI_VOICE_DEFAULTS = Object.freeze({
     ttsModel: 'tts-kokoro',
     voice: 'af_sky',
   }),
-});
+}) as Readonly<Record<string, AiVoiceDefaults | undefined>> & Readonly<Record<'openrouter' | 'ppq' | 'venice', AiVoiceDefaults>>;
 
-const AI_PROVIDER_LABELS = Object.freeze({
+const AI_PROVIDER_LABELS: Readonly<Record<string, string | undefined>> = Object.freeze({
   openrouter: 'OpenRouter',
   ppq: 'PPQ',
   venice: 'Venice',
@@ -46,18 +47,18 @@ const AI_PROVIDER_LABELS = Object.freeze({
   custom: 'Custom API',
 });
 
-export function isAiVoiceProvider(providerId) {
+export function isAiVoiceProvider(providerId: string) {
   return Object.hasOwn(AI_VOICE_DEFAULTS, providerId);
 }
 
-export function getAiVoiceProviderKey(providerId) {
+export function getAiVoiceProviderKey(providerId: string) {
   if (providerId === 'openrouter') return getOpenRouterKey();
   if (providerId === 'ppq') return getPpqKey();
   if (providerId === 'venice') return getVeniceKey();
   return '';
 }
 
-export function resolveVoiceProviderId(_kind, configuredProvider) {
+export function resolveVoiceProviderId(_kind: string, configuredProvider: string) {
   if (configuredProvider !== AUTO_VOICE_PROVIDER_ID) return configuredProvider;
   // A CLI chat selection must not silently revive a previously configured
   // cloud AI provider for audio. Users can still choose that voice provider

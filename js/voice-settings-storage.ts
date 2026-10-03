@@ -1,4 +1,3 @@
-// @ts-check
 // voice-settings-storage.js — device-local voice preferences and encrypted BYOK credentials.
 
 import {
@@ -26,7 +25,7 @@ const PROVIDER_IDS = new Set(VOICE_PROVIDERS.map(provider => provider.id));
 const LANGUAGE_IDS = new Set(VOICE_LANGUAGES.map(language => language.id));
 const STT_BACKEND_IDS = new Set(['auto', 'webgpu', 'wasm']);
 
-function storageGet(key, fallback = '') {
+function storageGet(key: string, fallback = '') {
   try {
     return localStorage.getItem(key) || fallback;
   } catch {
@@ -34,27 +33,27 @@ function storageGet(key, fallback = '') {
   }
 }
 
-function storageSet(key, value) {
+function storageSet(key: string, value: unknown) {
   localStorage.setItem(key, String(value));
   dispatchVoiceSettingsChanged();
   dispatchAISettingsLocalChangedRuntime();
 }
 
-function storageSetMany(entries) {
+function storageSetMany(entries: readonly (readonly [string, unknown])[]) {
   for (const [key, value] of entries) localStorage.setItem(key, String(value));
   dispatchVoiceSettingsChanged();
   dispatchAISettingsLocalChangedRuntime();
 }
 
-function normalizeProvider(value) {
+function normalizeProvider(value: string) {
   return PROVIDER_IDS.has(value) ? value : 'browser-local';
 }
 
-function normalizeLanguage(value) {
+function normalizeLanguage(value: string) {
   return LANGUAGE_IDS.has(value) ? value : 'auto';
 }
 
-function normalizeSttBackend(value) {
+function normalizeSttBackend(value: string) {
   return STT_BACKEND_IDS.has(value) ? value : 'auto';
 }
 
@@ -80,7 +79,7 @@ function getLocalSttModelPreference() {
   return selected;
 }
 
-export function normalizeLocalVoiceServerUrl(value) {
+export function normalizeLocalVoiceServerUrl(value: unknown) {
   const raw = String(value || '').trim();
   if (!raw) return '';
   try {
@@ -143,8 +142,8 @@ export function getVoiceSettings() {
   };
 }
 
-export function setVoiceSetting(name, value) {
-  const key = VOICE_STORAGE_KEYS[name];
+export function setVoiceSetting(name: string, value: unknown) {
+  const key = (VOICE_STORAGE_KEYS as Readonly<Record<string, string | undefined>>)[name];
   if (!key || ['xaiKey', 'elevenlabsKey', 'localServerKey'].includes(name)) {
     throw new Error(`Unsupported voice preference: ${name}`);
   }
@@ -187,7 +186,7 @@ export function setVoiceSetting(name, value) {
   return getVoiceSettings();
 }
 
-export function setSharedVoiceProvider(provider) {
+export function setSharedVoiceProvider(provider: unknown) {
   const normalized = normalizeProvider(String(provider));
   storageSetMany([
     [VOICE_STORAGE_KEYS.providersLinked, 'true'],
@@ -197,27 +196,25 @@ export function setSharedVoiceProvider(provider) {
   return getVoiceSettings();
 }
 
-export function getVoiceProviderKey(provider) {
-  const aiProviderKey = getAiVoiceProviderKey(provider);
-  if (aiProviderKey) return aiProviderKey;
-  const key = provider === 'xai'
+function deviceVoiceKey(provider: string) {
+  return provider === 'xai'
     ? VOICE_STORAGE_KEYS.xaiKey
     : provider === 'elevenlabs'
       ? VOICE_STORAGE_KEYS.elevenlabsKey
       : provider === 'local-server'
         ? VOICE_STORAGE_KEYS.localServerKey
         : '';
+}
+
+export function getVoiceProviderKey(provider: string) {
+  const aiProviderKey = getAiVoiceProviderKey(provider);
+  if (aiProviderKey) return aiProviderKey;
+  const key = deviceVoiceKey(provider);
   return key ? getCachedKey(key) || '' : '';
 }
 
-export async function saveVoiceProviderKey(provider, value) {
-  const key = provider === 'xai'
-    ? VOICE_STORAGE_KEYS.xaiKey
-    : provider === 'elevenlabs'
-      ? VOICE_STORAGE_KEYS.elevenlabsKey
-      : provider === 'local-server'
-        ? VOICE_STORAGE_KEYS.localServerKey
-        : '';
+export async function saveVoiceProviderKey(provider: string, value: unknown) {
+  const key = deviceVoiceKey(provider);
   if (!key) throw new Error(`Provider ${provider} does not accept an API key`);
   const clean = String(value || '').trim();
   await encryptedSetProviderItemRuntime(key, clean);
@@ -226,7 +223,7 @@ export async function saveVoiceProviderKey(provider, value) {
   dispatchAISettingsLocalChangedRuntime();
 }
 
-export function hasVoiceProviderKey(provider) {
+export function hasVoiceProviderKey(provider: string) {
   return !!getVoiceProviderKey(provider);
 }
 

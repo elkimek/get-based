@@ -1,3 +1,4 @@
+/** @typedef {import('../types/voice-provider.js').VoiceSynthesisResult} VoiceSynthesisResult */
 // @ts-check
 // voice-controller.js — chat microphone and per-message speech orchestration.
 
@@ -196,7 +197,7 @@ async function finishVoiceRecording() {
     if (result.providerId === 'browser-local' && Number.isFinite(result.inferenceMs)) {
       const execution = result.backend === 'webgpu' ? 'GPU' : 'CPU';
       showNotification(
-        `Transcribed in ${(result.inferenceMs / 1000).toFixed(1)}s using ${execution}.`,
+        `Transcribed in ${(/** @type {number} */ (result.inferenceMs) / 1000).toFixed(1)}s using ${execution}.`,
         'success',
         4500,
       );
@@ -466,7 +467,7 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
       if (nextSynthesis) void nextSynthesis.catch(() => undefined);
       try {
         if (hasPcmStream) {
-          await voicePlayer.playPcmStream(result.pcmStream, {
+          await voicePlayer.playPcmStream(/** @type {NonNullable<VoiceSynthesisResult['pcmStream']>} */ (result.pcmStream), {
             signal: controller.signal,
             rate: 1,
             onPlaybackStart: () => setSpeechButton(messageIndex, 'speaking'),
@@ -474,7 +475,7 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
           });
         } else if (hasStream) {
           setSpeechButton(messageIndex, 'speaking');
-          await voicePlayer.playStream(result.stream, {
+          await voicePlayer.playStream(/** @type {NonNullable<VoiceSynthesisResult['stream']>} */ (result.stream), {
             contentType: result.contentType,
             signal: controller.signal,
             rate: 1,

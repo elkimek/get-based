@@ -1,4 +1,5 @@
-// @ts-check
+import type { CuratedVoiceModel, LiveVoiceModel, VoiceConnectionOptions, VoiceModelRow } from '../types/voice-provider.js';
+
 // voice-openrouter-catalog.js — curated OpenRouter voice models with live availability.
 
 export const OPENROUTER_STT_MODELS = Object.freeze([
@@ -20,16 +21,16 @@ export const OPENROUTER_TTS_MODELS = Object.freeze([
   }),
 ]);
 
-export const OPENROUTER_DEFAULT_STT_MODEL = OPENROUTER_STT_MODELS[0].id;
-export const OPENROUTER_DEFAULT_TTS_MODEL = OPENROUTER_TTS_MODELS[0].id;
-export const OPENROUTER_DEFAULT_VOICE = OPENROUTER_TTS_MODELS[0].defaultVoice;
+export const OPENROUTER_DEFAULT_STT_MODEL = OPENROUTER_STT_MODELS[0]!.id;
+export const OPENROUTER_DEFAULT_TTS_MODEL = OPENROUTER_TTS_MODELS[0]!.id;
+export const OPENROUTER_DEFAULT_VOICE = OPENROUTER_TTS_MODELS[0]!.defaultVoice;
 
-const MODEL_LISTS = Object.freeze({
+const MODEL_LISTS: Readonly<Record<string, readonly CuratedVoiceModel[] | undefined>> = Object.freeze({
   stt: OPENROUTER_STT_MODELS,
   tts: OPENROUTER_TTS_MODELS,
 });
 
-const KOKORO_PREFIXES = Object.freeze({
+const KOKORO_PREFIXES: Readonly<Record<string, readonly string[] | undefined>> = Object.freeze({
   af: ['en-US', 'female'],
   am: ['en-US', 'male'],
   bf: ['en-GB', 'female'],
@@ -49,13 +50,13 @@ const KOKORO_PREFIXES = Object.freeze({
   zm: ['zh', 'male'],
 });
 
-function titleCaseVoice(value) {
+function titleCaseVoice(value: unknown) {
   return String(value || '')
     .replace(/[_-]+/g, ' ')
     .replace(/\b\w/g, character => character.toUpperCase());
 }
 
-export function normalizeKokoroVoice(voiceId) {
+export function normalizeKokoroVoice(voiceId: unknown) {
   const id = String(voiceId || '');
   const prefix = id.slice(0, 2).toLowerCase();
   const kokoro = KOKORO_PREFIXES[prefix];
@@ -67,37 +68,37 @@ export function normalizeKokoroVoice(voiceId) {
   };
 }
 
-export function getOpenRouterCuratedModels(kind) {
+export function getOpenRouterCuratedModels(kind: string) {
   return MODEL_LISTS[kind] || [];
 }
 
-export function normalizeOpenRouterVoiceModel(kind, value) {
+export function normalizeOpenRouterVoiceModel(kind: string, value: unknown) {
   const models = getOpenRouterCuratedModels(kind);
-  return models.some(model => model.id === value) ? value : models[0]?.id || '';
+  return models.some(model => model.id === value) ? value as string : models[0]?.id || '';
 }
 
-export function getOpenRouterDefaultVoice(modelId) {
+export function getOpenRouterDefaultVoice(modelId: unknown) {
   return OPENROUTER_TTS_MODELS.find(model => model.id === modelId)?.defaultVoice || '';
 }
 
-export function openRouterVoiceCatalogId(modelId) {
+export function openRouterVoiceCatalogId(modelId: unknown) {
   return `openrouter-${encodeURIComponent(String(modelId || OPENROUTER_DEFAULT_TTS_MODEL))}`;
 }
 
-export function normalizeOpenRouterVoice(modelId, voiceId) {
+export function normalizeOpenRouterVoice(modelId: unknown, voiceId: unknown) {
   if (modelId === 'hexgrad/kokoro-82m') return normalizeKokoroVoice(voiceId);
   const id = String(voiceId || '');
   return { id, name: titleCaseVoice(id), language: '', descriptor: '' };
 }
 
-export function voicesForOpenRouterModel(model) {
+export function voicesForOpenRouterModel(model: { id?: unknown; supportedVoices?: unknown } | null | undefined) {
   const liveRows = Array.isArray(model?.supportedVoices) ? model.supportedVoices : [];
   return liveRows
     .map(voice => normalizeOpenRouterVoice(model?.id, voice))
     .filter(voice => voice.id);
 }
 
-function normalizeLiveModel(kind, liveModel) {
+function normalizeLiveModel(kind: string, liveModel: VoiceModelRow | null | undefined) {
   const curated = getOpenRouterCuratedModels(kind).find(model => model.id === liveModel?.id);
   if (!curated) return null;
   return {
@@ -108,11 +109,7 @@ function normalizeLiveModel(kind, liveModel) {
   };
 }
 
-/**
- * @param {string} kind
- * @param {{ apiKey?: string, signal?: AbortSignal }} [options]
- */
-export async function fetchOpenRouterVoiceModels(kind, options = {}) {
+export async function fetchOpenRouterVoiceModels(kind: string, options: VoiceConnectionOptions = {}) {
   const { apiKey = '', signal } = options;
   const modality = kind === 'stt' ? 'transcription' : 'speech';
   const response = await fetch(
@@ -120,15 +117,15 @@ export async function fetchOpenRouterVoiceModels(kind, options = {}) {
     {
       headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
       signal,
-    },
+    } as RequestInit,
   );
   if (!response.ok) {
     throw new Error(`OpenRouter voice catalogue returned ${response.status}.`);
   }
-  const payload = await response.json();
+  const payload = await response.json() as { data?: VoiceModelRow[] | null };
   const liveModels = Array.isArray(payload?.data) ? payload.data : [];
   const byId = new Map(liveModels.map(model => [model?.id, model]));
   return getOpenRouterCuratedModels(kind)
     .map(model => normalizeLiveModel(kind, byId.get(model.id)))
-    .filter(Boolean);
+    .filter(Boolean) as LiveVoiceModel[];
 }

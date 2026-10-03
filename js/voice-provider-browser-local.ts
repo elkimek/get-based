@@ -1,4 +1,6 @@
-// @ts-check
+import type { VoiceConnectionResult, BrowserVoiceSynthesisOptions, BrowserVoiceTranscriptionOptions } from '../types/voice-provider.js';
+import type { VoiceKind } from '../types/voice-local.js';
+
 // voice-provider-browser-local.js — browser-local Whisper and Kokoro adapter.
 
 import { audioSamplesToWavBlob, decodeAudioBlob } from './voice-audio.js';
@@ -17,13 +19,13 @@ import {
   resolveLocalSttLanguage,
 } from './voice-model-catalog.js';
 
-async function requireInstalledModel(kind, modelId, backend = 'auto') {
+async function requireInstalledModel(kind: VoiceKind, modelId: string, backend = 'auto') {
   if (
     isLocalVoiceModelReady(kind, modelId, backend)
     && await verifyLocalVoiceModelReady(kind, modelId, backend)
   ) return;
   const models = kind === 'tts' ? LOCAL_TTS_MODELS : LOCAL_STT_MODELS;
-  const model = models.find(item => item.id === modelId) || models[0];
+  const model = models.find(item => item.id === modelId) || models[0]!;
   throw new Error(
     `${model.label} is not downloaded for the selected processing mode. Download it in Settings → Voice before using it.`,
   );
@@ -31,7 +33,7 @@ async function requireInstalledModel(kind, modelId, backend = 'auto') {
 
 export const browserLocalVoiceProvider = {
   id: 'browser-local',
-  async transcribe({ audio, modelId, language = 'auto', backend = 'auto', signal }) {
+  async transcribe({ audio, modelId, language = 'auto', backend = 'auto', signal }: BrowserVoiceTranscriptionOptions) {
     const model = modelId || LOCAL_STT_MODELS[0].id;
     await requireInstalledModel('stt', model);
     const samples = audio instanceof Float32Array ? audio : await decodeAudioBlob(audio, 16_000);
@@ -42,7 +44,7 @@ export const browserLocalVoiceProvider = {
       signal,
     });
   },
-  async synthesize({ text, modelId, voiceId, rate = 1, backend = 'auto', signal, streaming = false }) {
+  async synthesize({ text, modelId, voiceId, rate = 1, backend = 'auto', signal, streaming = false }: BrowserVoiceSynthesisOptions) {
     const model = modelId || LOCAL_TTS_MODELS[0].id;
     await requireInstalledModel('tts', model, backend);
     if (streaming) {
@@ -74,14 +76,14 @@ export const browserLocalVoiceProvider = {
   listVoices() {
     return Promise.resolve(KOKORO_VOICES.map(voice => ({ ...voice })));
   },
-  listModels(kind) {
+  listModels(kind: string) {
     return Promise.resolve((kind === 'tts' ? LOCAL_TTS_MODELS : LOCAL_STT_MODELS)
       .map(model => ({ ...model })));
   },
-  installModel(kind, modelId, signal, backend = 'auto') {
+  installModel(kind: VoiceKind, modelId: string, signal: AbortSignal | undefined, backend = 'auto') {
     return installLocalVoiceModel(kind, modelId, signal, backend);
   },
-  testConnection() {
+  testConnection(): Promise<VoiceConnectionResult> {
     return Promise.resolve({
       ok: typeof Worker !== 'undefined' && typeof WebAssembly !== 'undefined',
       message: typeof Worker !== 'undefined' && typeof WebAssembly !== 'undefined'

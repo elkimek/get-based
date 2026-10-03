@@ -1,4 +1,5 @@
-// @ts-check
+import type { VoiceConnectionOptions, VoiceSynthesisResult, VoiceTranscriptionResult } from '../types/voice-provider.js';
+
 // voice-service.js — provider-neutral STT/TTS operation configuration.
 
 import { getVoiceProviderDefinition } from './voice-provider-catalog.js';
@@ -12,12 +13,12 @@ import { getVoiceProviderKey, getVoiceSettings } from './voice-settings-storage.
 import { authorizeAppExtensionVoiceRequest } from './app-extension-runtime.js';
 import { requireAIProcessingApproval } from './cloud-ai-consent.js';
 
-export function getVoiceProviderId(kind, settings = getVoiceSettings()) {
+export function getVoiceProviderId(kind: string, settings = getVoiceSettings()) {
   const configured = kind === 'tts' ? settings.outputProvider : settings.inputProvider;
   return resolveVoiceProviderId(kind, configured);
 }
 
-function assertCapability(providerId, provider, kind) {
+function assertCapability(providerId: string, provider: Awaited<ReturnType<typeof loadVoiceProvider>>, kind: string) {
   const definition = getVoiceProviderDefinition(providerId);
   const capability = kind === 'tts' ? 'tts' : 'stt';
   const operation = kind === 'tts' ? provider?.synthesize : provider?.transcribe;
@@ -27,7 +28,7 @@ function assertCapability(providerId, provider, kind) {
   return definition;
 }
 
-function transcriptionOptions(providerId, settings, audio, signal) {
+function transcriptionOptions(providerId: string, settings: ReturnType<typeof getVoiceSettings>, audio: Blob | Float32Array | null, signal: AbortSignal | undefined) {
   const common = {
     audio,
     language: providerId === 'browser-local'
@@ -66,7 +67,7 @@ function transcriptionOptions(providerId, settings, audio, signal) {
   };
 }
 
-function synthesisOptions(providerId, settings, text, signal) {
+function synthesisOptions(providerId: string, settings: ReturnType<typeof getVoiceSettings>, text: string, signal: AbortSignal | undefined) {
   const common = {
     text,
     language: providerId === 'browser-local' ? 'en' : settings.outputLanguage,
@@ -120,11 +121,8 @@ function synthesisOptions(providerId, settings, text, signal) {
  * setup begins. The request itself rechecks authorization immediately before
  * any audio or text is sent.
  *
- * @param {'stt' | 'tts'} kind
- * @param {string} providerId
- * @param {ReturnType<typeof getVoiceSettings>} [settings]
  */
-export async function ensureVoiceRequestPrivacy(kind, providerId, settings = getVoiceSettings()) {
+export async function ensureVoiceRequestPrivacy(kind: 'stt' | 'tts', providerId: string, settings = getVoiceSettings()) {
   const requestOptions = kind === 'tts'
     ? synthesisOptions(providerId, settings, '', undefined)
     : transcriptionOptions(providerId, settings, null, undefined);
@@ -145,37 +143,31 @@ export async function ensureVoiceRequestPrivacy(kind, providerId, settings = get
   return true;
 }
 
-/**
- * @param {Blob | Float32Array} audio
- * @param {{ settings?: ReturnType<typeof getVoiceSettings>, signal?: AbortSignal }} [options]
- */
-export async function transcribeVoice(audio, {
+export async function transcribeVoice(audio: Blob | Float32Array, {
   settings = getVoiceSettings(),
   signal,
-} = {}) {
+}: VoiceConnectionOptions & { settings?: ReturnType<typeof getVoiceSettings> } = {}): Promise<VoiceTranscriptionResult & { providerId: string; definition: ReturnType<typeof getVoiceProviderDefinition> }> {
   const providerId = getVoiceProviderId('stt', settings);
   const requestOptions = transcriptionOptions(providerId, settings, audio, signal);
   await ensureVoiceRequestPrivacy('stt', providerId, settings);
   const provider = await loadVoiceProvider(providerId);
   const definition = assertCapability(providerId, provider, 'stt');
-  const result = /** @type {any} */ (await provider.transcribe(requestOptions));
+  // Browser-local also accepts PCM and receives it unchanged through this shared dispatch.
+  const result = await provider.transcribe(requestOptions as Parameters<typeof provider.transcribe>[0] & { audio: Blob });
   return { ...result, providerId, definition };
 }
 
-/**
- * @param {{ settings?: ReturnType<typeof getVoiceSettings>, signal?: AbortSignal }} [options]
- */
 export async function createVoiceSynthesizer({
   settings = getVoiceSettings(),
   signal,
-} = {}) {
+}: VoiceConnectionOptions & { settings?: ReturnType<typeof getVoiceSettings> } = {}) {
   const providerId = getVoiceProviderId('tts', settings);
   const provider = await loadVoiceProvider(providerId);
   const definition = assertCapability(providerId, provider, 'tts');
   return {
     providerId,
     definition,
-    async synthesize(text) {
+    async synthesize(text: string): Promise<VoiceSynthesisResult> {
       const requestOptions = synthesisOptions(providerId, settings, text, signal);
       await ensureVoiceRequestPrivacy('tts', providerId, settings);
       return provider.synthesize(requestOptions);

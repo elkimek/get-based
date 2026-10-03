@@ -1,9 +1,10 @@
-// @ts-check
+import type { VoiceProvider } from '../types/voice-provider.js';
+
 // voice-provider-registry.js — literal lazy imports for independent voice providers.
 
 export { getVoiceProviderDefinition } from './voice-provider-catalog.js';
 
-export async function loadVoiceProvider(providerId) {
+export async function loadVoiceProvider(providerId: string): Promise<VoiceProvider> {
   if (providerId === 'openrouter') {
     return (await import('./voice-provider-ai-cloud.js')).openRouterVoiceProvider;
   }

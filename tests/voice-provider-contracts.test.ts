@@ -1,3 +1,5 @@
+import type { Mock } from 'vitest';
+
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { localServerVoiceProvider } from '../js/voice-provider-local-server.js';
@@ -126,12 +128,12 @@ describe('OpenAI-compatible local voice provider', () => {
     });
 
     expect(result.text).toBe('local transcript');
-    const [url, init] = globalThis.fetch.mock.calls[0];
+    const [url, init] = (globalThis.fetch as Mock<typeof fetch>).mock.calls[0]! as [RequestInfo | URL, RequestInit];
     expect(url).toBe('http://localhost:8001/v1/audio/transcriptions');
-    expect(init.headers.Authorization).toBe('Bearer local-secret');
-    expect(init.body.get('model')).toBe('whisper-small');
-    expect(init.body.get('language')).toBe('en');
-    expect(init.body.get('file')).toBeInstanceOf(Blob);
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer local-secret');
+    expect((init.body as FormData).get('model')).toBe('whisper-small');
+    expect((init.body as FormData).get('language')).toBe('en');
+    expect((init.body as FormData).get('file')).toBeInstanceOf(Blob);
   });
 
   it('uses the OpenAI speech contract and returns progressive audio', async () => {
@@ -149,7 +151,7 @@ describe('OpenAI-compatible local voice provider', () => {
     expect(result.stream).toBeInstanceOf(ReadableStream);
     await expect(new Response(result.stream).arrayBuffer())
       .resolves.toEqual(new Uint8Array([1, 2, 3]).buffer);
-    const body = JSON.parse(globalThis.fetch.mock.calls[0][1].body);
+    const body = JSON.parse((globalThis.fetch as Mock<typeof fetch>).mock.calls[0]![1]!.body as string);
     expect(body).toMatchObject({
       input: 'Hello',
       model: 'kokoro',
@@ -308,9 +310,9 @@ describe('direct browser cloud voice client', () => {
     const synthesizer = await createVoiceSynthesizer();
     await synthesizer.synthesize('Ahoj');
 
-    const transcription = globalThis.fetch.mock.calls[0][1];
-    expect(transcription.body.get('model')).toBe('openai/whisper-large-v3');
-    const speech = JSON.parse(globalThis.fetch.mock.calls[1][1].body);
+    const transcription = (globalThis.fetch as Mock<typeof fetch>).mock.calls[0]![1]!;
+    expect((transcription.body as FormData).get('model')).toBe('openai/whisper-large-v3');
+    const speech = JSON.parse((globalThis.fetch as Mock<typeof fetch>).mock.calls[1]![1]!.body as string);
     expect(speech).toMatchObject({
       model: 'hexgrad/kokoro-82m',
       voice: 'af_heart',
@@ -332,11 +334,11 @@ describe('direct browser cloud voice client', () => {
       text: 'automatic PPQ transcript',
       providerId: 'ppq',
     });
-    const [url, request] = globalThis.fetch.mock.calls[0];
+    const [url, request] = (globalThis.fetch as Mock<typeof fetch>).mock.calls[0]!;
     expect(url).toBe('https://api.ppq.ai/v1/audio/transcriptions');
-    expect(request.headers.Authorization).toBe('Bearer ppq-ai-secret');
-    expect(request.body.get('model')).toBe('nova-3');
-    expect(request.body.get('language')).toBe('multi');
+    expect((request!.headers as Record<string, string>).Authorization).toBe('Bearer ppq-ai-secret');
+    expect((request!.body as FormData).get('model')).toBe('nova-3');
+    expect((request!.body as FormData).get('language')).toBe('multi');
   });
 
   it('uses the saved PPQ voice through the automatic AI connection', async () => {
@@ -351,10 +353,10 @@ describe('direct browser cloud voice client', () => {
     const synthesizer = await createVoiceSynthesizer();
     await synthesizer.synthesize('Hello from PPQ');
 
-    const [url, request] = globalThis.fetch.mock.calls[0];
+    const [url, request] = (globalThis.fetch as Mock<typeof fetch>).mock.calls[0]!;
     expect(url).toBe('https://api.ppq.ai/v1/audio/speech');
-    expect(request.headers.Authorization).toBe('Bearer ppq-ai-secret');
-    expect(JSON.parse(request.body)).toMatchObject({
+    expect((request!.headers as Record<string, string>).Authorization).toBe('Bearer ppq-ai-secret');
+    expect(JSON.parse(request!.body as string)).toMatchObject({
       model: 'deepgram_aura_2',
       voice: 'aura-2-thalia-en',
     });
@@ -372,10 +374,10 @@ describe('direct browser cloud voice client', () => {
     const synthesizer = await createVoiceSynthesizer();
     await synthesizer.synthesize('Hello from Venice');
 
-    const [url, request] = globalThis.fetch.mock.calls[0];
+    const [url, request] = (globalThis.fetch as Mock<typeof fetch>).mock.calls[0]!;
     expect(url).toBe('https://api.venice.ai/api/v1/audio/speech');
-    expect(request.headers.Authorization).toBe('Bearer venice-ai-secret');
-    expect(JSON.parse(request.body)).toMatchObject({
+    expect((request!.headers as Record<string, string>).Authorization).toBe('Bearer venice-ai-secret');
+    expect(JSON.parse(request!.body as string)).toMatchObject({
       model: 'tts-kokoro',
       voice: 'bm_george',
     });
@@ -394,8 +396,8 @@ describe('direct browser cloud voice client', () => {
       text: 'accurate Venice transcript',
       providerId: 'venice',
     });
-    const [, request] = globalThis.fetch.mock.calls[0];
-    expect(request.body.get('model')).toBe('openai/whisper-large-v3');
+    const [, request] = (globalThis.fetch as Mock<typeof fetch>).mock.calls[0]!;
+    expect((request!.body as FormData).get('model')).toBe('openai/whisper-large-v3');
   });
 
   it('keeps API keys in authorization headers and uploads audio as multipart', async () => {
@@ -411,12 +413,12 @@ describe('direct browser cloud voice client', () => {
     });
 
     expect(result.text).toBe('cloud transcript');
-    const [url, init] = globalThis.fetch.mock.calls[0];
+    const [url, init] = (globalThis.fetch as Mock<typeof fetch>).mock.calls[0]! as [RequestInfo | URL, RequestInit];
     expect(url).toBe('https://api.elevenlabs.io/v1/speech-to-text');
-    expect(init.headers['xi-api-key']).toBe('xi-secret');
+    expect((init.headers as Record<string, string>)['xi-api-key']).toBe('xi-secret');
     expect(init.credentials).toBe('omit');
-    expect(init.body.get('model_id')).toBe('scribe_v2');
-    expect(init.body.get('language_code')).toBe('cs');
+    expect((init.body as FormData).get('model_id')).toBe('scribe_v2');
+    expect((init.body as FormData).get('language_code')).toBe('cs');
   });
 
   it('uses OpenAI-compatible voice contracts for AI-provider connections', async () => {
@@ -436,10 +438,10 @@ describe('direct browser cloud voice client', () => {
       modelId: 'nova-3',
       language: 'auto',
     });
-    const transcription = globalThis.fetch.mock.calls[0][1];
-    expect(transcription.body.get('model')).toBe('nova-3');
-    expect(transcription.body.get('response_format')).toBe('json');
-    expect(transcription.body.get('language')).toBe('multi');
+    const transcription = (globalThis.fetch as Mock<typeof fetch>).mock.calls[0]![1]!;
+    expect((transcription.body as FormData).get('model')).toBe('nova-3');
+    expect((transcription.body as FormData).get('response_format')).toBe('json');
+    expect((transcription.body as FormData).get('language')).toBe('multi');
 
     await directSynthesis('openrouter', {
       apiKey: 'or-secret',
@@ -447,7 +449,7 @@ describe('direct browser cloud voice client', () => {
       modelId: 'hexgrad/kokoro-82m',
       voiceId: 'af_heart',
     });
-    const speech = JSON.parse(globalThis.fetch.mock.calls[1][1].body);
+    const speech = JSON.parse((globalThis.fetch as Mock<typeof fetch>).mock.calls[1]![1]!.body as string);
     expect(speech).toMatchObject({
       input: 'Hello',
       model: 'hexgrad/kokoro-82m',
