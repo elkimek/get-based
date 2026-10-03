@@ -14,7 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => readFileSync(path.join(ROOT, rel), 'utf-8');
+const read = (rel: string) => readFileSync(path.join(ROOT, rel), 'utf-8');
 
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
@@ -45,7 +45,7 @@ const {
   const orig = state.importedData;
   // Reset to a clean slate per test block.
   function reset(seed = {}) {
-    state.importedData = Object.assign({ entries: [], sunSessions: [] }, seed);
+    (state as {importedData: unknown}).importedData = Object.assign({ entries: [], sunSessions: [] }, seed);
   }
 
   // ─── 1. Constant shape ───────────────────────────────────────────────
@@ -120,8 +120,8 @@ const {
   // CHANNEL_DISPLAY entries used by the AI context + dashboard
   for (const k of ['vitamin_d', 'circadian', 'no_cv', 'pomc', 'violet_eye', 'nir_solar', 'pbm_red', 'pbm_nir']) {
     assert(`CHANNEL_DISPLAY has '${k}' (icon + label + dailyTarget + what)`,
-      CHANNEL_DISPLAY[k] && CHANNEL_DISPLAY[k].icon && CHANNEL_DISPLAY[k].label &&
-      typeof CHANNEL_DISPLAY[k].dailyTarget === 'number' && CHANNEL_DISPLAY[k].what);
+      CHANNEL_DISPLAY[k as keyof typeof CHANNEL_DISPLAY] && CHANNEL_DISPLAY[k as keyof typeof CHANNEL_DISPLAY].icon && CHANNEL_DISPLAY[k as keyof typeof CHANNEL_DISPLAY].label &&
+      typeof CHANNEL_DISPLAY[k as keyof typeof CHANNEL_DISPLAY].dailyTarget === 'number' && CHANNEL_DISPLAY[k as keyof typeof CHANNEL_DISPLAY].what);
   }
 
   // ─── 2. Tier helpers ─────────────────────────────────────────────────
@@ -162,38 +162,38 @@ const {
   const id1 = await startSession({ exposurePreset: 'tshirt', eyeMode: 'sunglasses' });
   assert('startSession returns string id', typeof id1 === 'string' && id1.startsWith('sun_'));
   assert('Session is persisted into importedData.sunSessions',
-    getSessions().length === 1 && getSessions()[0].id === id1);
-  assert('Session has no endedAt (in progress)', getSessions()[0].endedAt === null);
+    getSessions().length === 1 && getSessions()[0]!.id === id1);
+  assert('Session has no endedAt (in progress)', getSessions()[0]!.endedAt === null);
   assert('Active session is marked pending until its dose slices are finalized',
-    getSessions()[0].calculationStatus === 'pending');
+    getSessions()[0]!.calculationStatus === 'pending');
   assert('getActiveSession finds the in-progress one',
-    getActiveSession() && getActiveSession().id === id1);
+    getActiveSession() && getActiveSession()!.id === id1);
   assert('Body fraction matches preset (tshirt = 0.20)',
-    Math.abs(getSessions()[0].bodyExposure.fraction - 0.20) < 1e-9);
+    Math.abs(getSessions()[0]!.bodyExposure!.fraction! - 0.20) < 1e-9);
   assert('Eye mode threaded through (sunglasses)',
-    getSessions()[0].eyeExposure.mode === 'sunglasses');
+    getSessions()[0]!.eyeExposure!.mode! === 'sunglasses');
 
   // stop populates durationMin + endedAt + clears active
   await new Promise(r => setTimeout(r, 30));
   await stopSession(id1);
   const stopped = getSessions().find(s => s.id === id1);
-  assert('stopSession populates endedAt', stopped.endedAt && stopped.endedAt > stopped.startedAt);
-  assert('stopSession populates durationMin', typeof stopped.durationMin === 'number');
+  assert('stopSession populates endedAt', stopped!.endedAt && stopped!.endedAt > stopped!.startedAt);
+  assert('stopSession populates durationMin', typeof stopped!.durationMin === 'number');
   assert('stopSession assigns eyeExposure.durationSec from elapsed time',
-    Number.isFinite(stopped.eyeExposure.durationSec) && stopped.eyeExposure.durationSec >= 0);
+    Number.isFinite(stopped!.eyeExposure!.durationSec!) && stopped!.eyeExposure!.durationSec! >= 0);
   assert('After stop, getActiveSession → null', getActiveSession() === null);
 
   // start with regions (anatomical picker path)
   const id2 = await startSession({ regions: ['face', 'arms-front'], eyeMode: 'direct' });
   const sess2 = getSessions().find(s => s.id === id2);
   assert('startSession accepts regions array',
-    Array.isArray(sess2.bodyExposure.regions) && sess2.bodyExposure.regions.length === 2);
+    Array.isArray(sess2!.bodyExposure!.regions!) && sess2!.bodyExposure!.regions.length === 2);
   // face=0.04 + arms-front=0.05 = 0.09 exactly; local-dose calculations
   // must not inflate small selected areas to a hidden 5% floor.
   assert('Region fraction sums exact selected anatomical areas',
-    Math.abs(sess2.bodyExposure.fraction - 0.09) < 1e-9);
+    Math.abs(sess2!.bodyExposure!.fraction! - 0.09) < 1e-9);
   assert('Region path marks preset === "detailed"',
-    sess2.bodyExposure.preset === 'detailed');
+    sess2!.bodyExposure!.preset! === 'detailed');
 
   // empty regions array must throw (don't silently substitute a phantom default)
   let threw = false;
@@ -204,41 +204,41 @@ const {
   // callable through the public sun.js facade.
   await pauseSession(id2);
   assert('pauseSession marks active session paused',
-    sess2.paused === true && Number.isFinite(sess2.pausedAt));
+    sess2!.paused === true && Number.isFinite(sess2!.pausedAt));
   await resumeSession(id2);
   assert('resumeSession clears paused state',
-    sess2.paused === false && sess2.pausedAt === undefined);
+    sess2!.paused === false && sess2!.pausedAt === undefined);
   const beforeRotate = Date.now() - 1;
   await markSessionRotated(id2);
   assert('markSessionRotated sets rotatedSides and stamps updatedAt',
-    sess2.bodyExposure.rotatedSides === true && sess2.updatedAt >= beforeRotate);
-  const rotatedAt = sess2.updatedAt;
+    sess2!.bodyExposure!.rotatedSides! === true && sess2!.updatedAt! >= beforeRotate);
+  const rotatedAt = sess2!.updatedAt;
   await markSessionRotated(id2);
   assert('markSessionRotated is idempotent once already rotated',
-    sess2.updatedAt === rotatedAt);
+    sess2!.updatedAt === rotatedAt);
   await setSessionSunscreen(id2, 30);
   assert('setSessionSunscreen writes SPF and stamps updatedAt',
-    sess2.bodyExposure.sunscreenSPF === 30 && sess2.updatedAt >= rotatedAt);
+    sess2!.bodyExposure!.sunscreenSPF! === 30 && sess2!.updatedAt! >= rotatedAt!);
   await setSessionSunscreen(id2, 0);
   assert('setSessionSunscreen stores zero SPF as null',
-    sess2.bodyExposure.sunscreenSPF === null);
-  const beforeInvalidSpfAt = sess2.updatedAt;
+    sess2!.bodyExposure!.sunscreenSPF! === null);
+  const beforeInvalidSpfAt = sess2!.updatedAt;
   const invalidSpf = await setSessionSunscreen(id2, 101);
   assert('setSessionSunscreen rejects out-of-range SPF at the store boundary',
-    invalidSpf === null && sess2.updatedAt === beforeInvalidSpfAt);
+    invalidSpf === null && sess2!.updatedAt === beforeInvalidSpfAt);
   await setSessionCoverage(id2, ['face', 'arms-front', 'face', 'unknown-region']);
   assert('setSessionCoverage stores deduped allowlisted regions',
-    JSON.stringify(sess2.bodyExposure.regions) === JSON.stringify(['face', 'arms-front']));
+    JSON.stringify(sess2!.bodyExposure!.regions!) === JSON.stringify(['face', 'arms-front']));
   assert('setSessionCoverage recalculates body fraction',
-    Math.abs(sess2.bodyExposure.fraction - 0.09) < 1e-9);
+    Math.abs(sess2!.bodyExposure!.fraction! - 0.09) < 1e-9);
   assert('setSessionCoverage uses detailed preset for selected regions',
-    sess2.bodyExposure.preset === 'detailed');
+    sess2!.bodyExposure!.preset! === 'detailed');
   await setSessionCoverage(id2, []);
   assert('setSessionCoverage accepts fully clothed zero-fraction state',
-    Array.isArray(sess2.bodyExposure.regions)
-      && sess2.bodyExposure.regions.length === 0
-      && sess2.bodyExposure.fraction === 0
-      && sess2.bodyExposure.preset === 'covered');
+    Array.isArray(sess2!.bodyExposure!.regions!)
+      && sess2!.bodyExposure!.regions.length === 0
+      && sess2!.bodyExposure!.fraction! === 0
+      && sess2!.bodyExposure!.preset! === 'covered');
 
   // delete one
   await stopSession(id2);
@@ -252,16 +252,16 @@ const {
   reset();
   const pausedId = await startSession({ exposurePreset: 'tshirt', eyeMode: 'direct' });
   const pausedSess = getSessions().find(s => s.id === pausedId);
-  pausedSess.startedAt = Date.now() - 10 * 60000;
+  pausedSess!.startedAt = Date.now() - 10 * 60000;
   await pauseSession(pausedId);
-  pausedSess.pausedAt = Date.now() - 5 * 60000;
+  pausedSess!.pausedAt = Date.now() - 5 * 60000;
   await stopSession(pausedId);
   assert('stopSession excludes paused wall-clock time from saved duration',
-    pausedSess.durationMin > 4.9 && pausedSess.durationMin < 5.1,
-    `duration=${pausedSess.durationMin}`);
+    pausedSess!.durationMin! > 4.9 && pausedSess!.durationMin! < 5.1,
+    `duration=${pausedSess!.durationMin}`);
   assert('Eye exposure duration also excludes paused wall-clock time',
-    pausedSess.eyeExposure.durationSec >= 294 && pausedSess.eyeExposure.durationSec <= 306,
-    `eye seconds=${pausedSess.eyeExposure.durationSec}`);
+    pausedSess!.eyeExposure!.durationSec! >= 294 && pausedSess!.eyeExposure!.durationSec! <= 306,
+    `eye seconds=${pausedSess!.eyeExposure!.durationSec!}`);
 
   // ─── 4. logCompletedSession (after-the-fact entry) ────────────────────
   console.log('%c 4. logCompletedSession ', 'font-weight:bold;color:#f59e0b');
@@ -278,27 +278,27 @@ const {
   const sLog = getSessions().find(s => s.id === idLog);
   assert('logCompletedSession persists the session', sLog && sLog.notes === 'pool day');
   assert('logCompletedSession derives durationMin from start/end',
-    sLog && Math.abs(sLog.durationMin - 30) < 0.01);
+    sLog && Math.abs(sLog.durationMin! - 30) < 0.01);
   assert('logCompletedSession preserves SPF',
-    sLog.bodyExposure.sunscreenSPF === 30);
+    sLog!.bodyExposure!.sunscreenSPF! === 30);
 
   // ─── 5. updateSession ─────────────────────────────────────────────────
   console.log('%c 5. updateSession ', 'font-weight:bold;color:#f59e0b');
 
   // patch only allowed fields
-  await updateSession(idLog, { notes: 'updated', durationMin: 45, _evil: 'should not stick' });
+  await (updateSession as (id: Parameters<typeof updateSession>[0], patch: unknown) => ReturnType<typeof updateSession>)(idLog, { notes: 'updated', durationMin: 45, _evil: 'should not stick' });
   const upd = getSessions().find(s => s.id === idLog);
-  assert('updateSession patches notes', upd.notes === 'updated');
-  assert('updateSession patches durationMin', upd.durationMin === 45);
+  assert('updateSession patches notes', upd!.notes === 'updated');
+  assert('updateSession patches durationMin', upd!.durationMin === 45);
   assert('updateSession derives new endedAt when durationMin patched',
-    Math.abs(upd.endedAt - (upd.startedAt + 45 * 60000)) < 5);
+    Math.abs(upd!.endedAt! - (upd!.startedAt + 45 * 60000)) < 5);
   assert('updateSession ignores non-whitelisted keys (no _evil)',
-    upd._evil === undefined);
+    upd!._evil === undefined);
   assert('updateSession stamps updatedAt for cross-device merge',
-    Number.isFinite(upd.updatedAt) && upd.updatedAt > 0);
+    Number.isFinite(upd!.updatedAt) && upd!.updatedAt! > 0);
   // Eye-exposure duration should mirror new session duration
   assert('updateSession syncs eyeExposure.durationSec to new duration',
-    upd.eyeExposure.durationSec === Math.round(45 * 60));
+    upd!.eyeExposure!.durationSec! === Math.round(45 * 60));
 
   // updateSession on unknown id → null
   const nullPatch = await updateSession('sun_nope', { notes: 'x' });
@@ -327,14 +327,14 @@ const {
   });
   const tot7 = rollingChannelTotals(7);
   assert('rollingChannelTotals(7) sums in-window vitamin_d (50+80=130)',
-    Math.abs(tot7.vitamin_d - 130) < 1e-9, `got ${tot7.vitamin_d}`);
+    Math.abs((tot7.vitamin_d as number) - 130) < 1e-9, `got ${tot7.vitamin_d}`);
   assert('rollingChannelTotals(7) sums in-window circadian (8000+12000)',
-    Math.abs(tot7.circadian - 20000) < 1e-9);
+    Math.abs((tot7.circadian as number) - 20000) < 1e-9);
   assert('rollingChannelTotals(7) excludes 20-day-old session (no 999)',
-    !tot7.vitamin_d || tot7.vitamin_d < 200);
+    !tot7.vitamin_d || ((tot7.vitamin_d as number) < 200));
   const tot30 = rollingChannelTotals(30);
   assert('rollingChannelTotals(30) includes the 20d session',
-    tot30.vitamin_d >= 1000);
+    (tot30.vitamin_d as number) >= 1000);
 
   // sessions with no doses should be ignored, not crash
   await logCompletedSession({
@@ -363,9 +363,9 @@ const {
   assert('dailyChannelBreakdown returns array length === days',
     buckets.length === 7);
   assert('Most recent bucket = today, holds today\'s session',
-    Math.abs(buckets[6].sun - 100) < 1e-9, `got ${buckets[6].sun}`);
+    Math.abs(buckets[6]!.sun - 100) < 1e-9, `got ${buckets[6]!.sun}`);
   assert('Yesterday bucket holds yesterday\'s session',
-    Math.abs(buckets[5].sun - 50) < 1e-9, `got ${buckets[5].sun}`);
+    Math.abs(buckets[5]!.sun - 50) < 1e-9, `got ${buckets[5]!.sun}`);
   assert('Bucket has device split field (=0 with no device sessions)',
     buckets.every(b => b.device === 0));
 
@@ -384,7 +384,7 @@ const {
   assert('rollingVitaminDIU returns finite non-negative IU sum',
     Number.isFinite(iu) && iu >= 0, `iu=${iu}`);
   {
-    const localKey = (ts) => {
+    const localKey = (ts: number) => {
       const d = new Date(ts);
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
@@ -407,7 +407,7 @@ const {
     assert('dailyVitaminDIUBreakdown keys match local bucket dates',
       breakdown.every(b => b.key === localKey(b.date.getTime())));
     assert('completed midnight-crossing sessions stay on their start-day bucket',
-      startBucket?.sun > 0 && (endBucket?.sun || 0) === 0,
+      startBucket!?.sun > 0 && (endBucket?.sun || 0) === 0,
       `start=${startBucket?.sun || 0} end=${endBucket?.sun || 0}`);
   }
   {
@@ -500,7 +500,7 @@ const {
   });
   const todayMED = cumulativeMEDToday();
   assert('cumulativeMEDToday sums today\'s sessions (0.4+0.3=0.7)',
-    Math.abs(todayMED - 0.7) < 1e-9, `got ${todayMED}`);
+    Math.abs((todayMED as number) - 0.7) < 1e-9, `got ${todayMED}`);
 
   // Yesterday's session — startedAt = midnight - 1h, endedAt = midnight - 1s
   const now = new Date();
@@ -512,10 +512,10 @@ const {
   });
   const yMED = cumulativeMEDYesterday();
   assert('cumulativeMEDYesterday picks up yesterday-ended session',
-    Math.abs(yMED - 0.6) < 1e-9, `got ${yMED}`);
+    Math.abs((yMED as number) - 0.6) < 1e-9, `got ${yMED}`);
   // today total still includes only today's sessions
   assert('Today\'s MED unchanged after adding a yesterday-ended session',
-    Math.abs(cumulativeMEDToday() - 0.7) < 1e-9);
+    Math.abs((cumulativeMEDToday() as number) - 0.7) < 1e-9);
 
   // Sessions without safety must not crash either accumulator
   await logCompletedSession({
@@ -541,7 +541,7 @@ const {
   assert('Legacy UVI override is ignored', overridden.uvIndex === 5);
   assert('Override replaces cloudCover (50 vs 30)', overridden.cloudCover === 50);
   assert('Override replaces ozoneDU (250 vs 300)', overridden.ozoneDU === 250);
-  assert('Legacy _uvOverridden marker is absent', overridden._uvOverridden == null);
+  assert('Legacy _uvOverridden marker is absent', (overridden as {_uvOverridden?: unknown})._uvOverridden == null);
 
   // null/non-finite override is ignored, not blindly applied
   state.importedData.sunDefaults = {
@@ -565,7 +565,7 @@ const {
 
   reset();
   let fetchCalls = 0;
-  let releaseFetch;
+  let releaseFetch!: (value?: unknown) => void;
   const fetchGate = new Promise(resolve => { releaseFetch = resolve; });
   sunSessionsStore.configureSunSessionsStore({
     fetchAtmosphere: async () => {
@@ -600,12 +600,12 @@ const {
     resultA.rehydrated === 1 && resultB.rehydrated === 1,
     `A=${resultA.rehydrated}, B=${resultB.rehydrated}`);
   assert('Shared rehydrate stamps the session with current engine output',
-    staleSess.engineVersion === SUN_ENGINE_VERSION &&
-    staleSess.doses?.vitamin_d === 42 &&
-    staleSess.safety?.medFraction === 0.2);
+    staleSess!.engineVersion === SUN_ENGINE_VERSION &&
+    staleSess!.doses?.vitamin_d === 42 &&
+    staleSess!.safety?.medFraction === 0.2);
 
   const fetchCallsBeforeSegmentFinalize = fetchCalls;
-  const segmentedId = await logCompletedSession({
+  const segmentedId = await (logCompletedSession as (payload: Omit<Parameters<typeof logCompletedSession>[0], 'exposureSegments'> & {exposureSegments: Array<NonNullable<Parameters<typeof logCompletedSession>[0]['exposureSegments']>[number] & {startedAt: number; endedAt: number}>}) => ReturnType<typeof logCompletedSession>)({
     startedAt: Date.now() - 12 * 60000,
     endedAt: Date.now(),
     exposureSegments: [
@@ -635,15 +635,15 @@ const {
       && fetchCalls === fetchCallsBeforeSegmentFinalize
       && segmentedSess.durationMin === 5);
   assert('Segment finalization preserves and sums dose, SED, and ocular actinic UV slices',
-    segmentedSess.doses.vitamin_d === 17
-      && segmentedSess.doses.circadian === 5
-      && segmentedSess.doses.no_cv === 3
-      && segmentedSess.safety.sed === 1
-      && segmentedSess.safety.ocularActinicUV === 4
-      && segmentedSess.atmosphere.uvIndex === 7);
+    segmentedSess!.doses!.vitamin_d! === 17
+      && segmentedSess!.doses!.circadian! === 5
+      && segmentedSess!.doses!.no_cv! === 3
+      && segmentedSess!.safety!.sed! === 1
+      && segmentedSess!.safety!.ocularActinicUV! === 4
+      && segmentedSess!.atmosphere!.uvIndex! === 7);
   assert('Unset skin type is explicitly persisted as a conservative Type I assumption',
-    segmentedSess.safety.fitzpatrick === 'I'
-      && segmentedSess.safety.fitzpatrickAssumed === true);
+    segmentedSess!.safety!.fitzpatrick! === 'I'
+      && segmentedSess!.safety!.fitzpatrickAssumed! === true);
 
   // ─── 13. Source split guardrails ─────────────────────────────────────
   console.log('%c 13. Sun session module boundaries ', 'font-weight:bold;color:#f59e0b');
@@ -732,7 +732,7 @@ const {
     swSrc.includes("'/js/light-sun-ai-hooks.js'"));
 
   // Restore
-  state.importedData = orig;
+  (state as {importedData: unknown}).importedData = orig;
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
 process.exit(legacyAssertions.fail > 0 ? 1 : 0);

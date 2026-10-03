@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+type FixtureMetricSummary = Omit<Partial<import("../js/wearables-summary-model.js").WearableMetricSummary>, "rolling"> & {rolling?: Partial<NonNullable<import("../js/wearables-summary-model.js").WearableMetricSummary["rolling"]>>};
+type FixtureSummarySnapshot = Omit<NonNullable<Parameters<typeof import("../js/wearables-summary-model.js").shouldWriteL2>[0]>, "metrics"> & {metrics: Record<string, FixtureMetricSummary>};
+
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
@@ -21,7 +24,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 const CSS_FILES = ['styles.css', 'css/wearables.css'];
 const fetchCssBundle = async () => (await Promise.all(
   CSS_FILES.map(rel => fetch('/' + rel).then(r => r.text()))
@@ -58,7 +61,7 @@ assert('Oura has oauth.clientId',
   typeof ouraAdapter?.oauth?.clientId === 'string' && ouraAdapter.oauth.clientId.length > 10);
 assert('Oura has redirect URIs registered', Array.isArray(ouraAdapter?.oauth?.redirectUris) && ouraAdapter.oauth.redirectUris.length > 0);
 assert('Oura redirect URIs include localhost for dev',
-  ouraAdapter.oauth.redirectUris.some(u => u.startsWith('http://localhost')));
+  ouraAdapter!.oauth!.redirectUris.some(u => u.startsWith('http://localhost')));
 assert('Oura scopes include personal', ouraAdapter?.oauth?.scopes?.includes('personal'));
 assert('CANONICAL_METRICS has hrv_rmssd', !!reg.CANONICAL_METRICS.hrv_rmssd);
 assert('CANONICAL_METRICS has rhr', !!reg.CANONICAL_METRICS.rhr);
@@ -95,14 +98,14 @@ try {
   await store.upsertDailyBatch(TEST_PROFILE, batch);
   const range = await store.getDailyRange(TEST_PROFILE, 'oura', '2026-03-01', '2026-03-30');
   assert('Batch upsert + range query returns 30 rows', range.length === 30, `got ${range.length}`);
-  assert('Range rows sorted ascending by date', range[0].date === '2026-03-01' && range[29].date === '2026-03-30');
+  assert('Range rows sorted ascending by date', range[0]!.date === '2026-03-01' && range[29]!.date === '2026-03-30');
 
   const n = await store.countSource(TEST_PROFILE, 'oura');
   assert('countSource returns total', n === 31); // 30 batch + 1 earlier
 
   await store.setMeta(TEST_PROFILE, 'last-sync:oura', { at: 12345, rows: 7 });
   const meta = await store.getMeta(TEST_PROFILE, 'last-sync:oura');
-  assert('Meta KV round-trip', meta?.at === 12345 && meta?.rows === 7);
+  assert('Meta KV round-trip', (meta as {at?: unknown; rows?: unknown} | null)?.at === 12345 && (meta as {at?: unknown; rows?: unknown} | null)?.rows === 7);
 
   await store.clearSource(TEST_PROFILE, 'oura');
   const afterClear = await store.countSource(TEST_PROFILE, 'oura');
@@ -110,7 +113,7 @@ try {
 
   await store.deleteWearablesDB(TEST_PROFILE);
 } catch (e) {
-  assert('IDB path did not throw', false, e.message);
+  assert('IDB path did not throw', false, (e as {message?: unknown}).message);
 }
 
 // ═══════════════════════════════════════
@@ -118,7 +121,7 @@ try {
 // ═══════════════════════════════════════
 console.log('3. L2 Summary Math');
 
-function makeRows(start, n, hrvFn) {
+function makeRows(start: string, n: number, hrvFn: (index: number) => number) {
   const rows = [];
   for (let i = 0; i < n; i++) {
     const d = new Date(start); d.setUTCDate(d.getUTCDate() + i);
@@ -138,12 +141,12 @@ const sum = summary.computeWearableSummary(
 assert('Summary has sources.oura', !!sum.sources?.oura);
 assert('Summary has metrics.hrv_rmssd', !!sum.metrics?.hrv_rmssd);
 const hrv = sum.metrics.hrv_rmssd;
-assert('HRV primarySource = oura', hrv.primarySource === 'oura');
-assert('HRV latest is most recent (declining)', hrv.latest < 52);
-assert('HRV baseline ~52 (median of mostly-stable)', Math.abs(hrv.baseline - 52) < 3, `baseline=${hrv.baseline}`);
-assert('HRV trend30d is declining', hrv.trend30d === 'declining', hrv.trend30d);
-assert('Weekly has up to 12 entries', hrv.weekly.length <= 12 && hrv.weekly.length > 0);
-assert('Rolling d7 < d90 on declining series', hrv.rolling.d7 < hrv.rolling.d90);
+assert('HRV primarySource = oura', hrv!.primarySource === 'oura');
+assert('HRV latest is most recent (declining)', hrv!.latest < 52);
+assert('HRV baseline ~52 (median of mostly-stable)', Math.abs(hrv!.baseline - 52) < 3, `baseline=${hrv!.baseline}`);
+assert('HRV trend30d is declining', hrv!.trend30d === 'declining', hrv!.trend30d);
+assert('Weekly has up to 12 entries', hrv!.weekly.length <= 12 && hrv!.weekly.length > 0);
+assert('Rolling d7 < d90 on declining series', hrv!.rolling.d7! < hrv!.rolling.d90!);
 
 // ═══════════════════════════════════════
 // 4. shouldWriteL2 gate
@@ -163,13 +166,13 @@ const bigShiftSummary = summary.computeWearableSummary(
   { oura: { connectedSince: '2026-01-22', lastSyncAt: Date.now() } }
 );
 
-assert('Gate: initial writes', summary.shouldWriteL2(baseSummary, null).write === true);
-assert('Gate: tiny drift does NOT write', summary.shouldWriteL2(driftSummary, baseSummary).write === false);
-assert('Gate: big d7 shift DOES write',    summary.shouldWriteL2(bigShiftSummary, baseSummary).write === true);
+assert('Gate: initial writes', (summary.shouldWriteL2 as (next: FixtureSummarySnapshot | null | undefined, previous: FixtureSummarySnapshot | null | undefined) => ReturnType<typeof summary.shouldWriteL2>)(baseSummary, null).write === true);
+assert('Gate: tiny drift does NOT write', (summary.shouldWriteL2 as (next: FixtureSummarySnapshot | null | undefined, previous: FixtureSummarySnapshot | null | undefined) => ReturnType<typeof summary.shouldWriteL2>)(driftSummary, baseSummary).write === false);
+assert('Gate: big d7 shift DOES write',    (summary.shouldWriteL2 as (next: FixtureSummarySnapshot | null | undefined, previous: FixtureSummarySnapshot | null | undefined) => ReturnType<typeof summary.shouldWriteL2>)(bigShiftSummary, baseSummary).write === true);
 // Min cadence: pretend old is 15 days old
-const stale = JSON.parse(JSON.stringify(baseSummary));
+const stale = ((JSON.parse as (value: string) => unknown)(JSON.stringify(baseSummary)) as FixtureSummarySnapshot);
 stale.summaryUpdatedAt = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
-const minCadenceRes = summary.shouldWriteL2(driftSummary, stale);
+const minCadenceRes = (summary.shouldWriteL2 as (next: FixtureSummarySnapshot | null | undefined, previous: FixtureSummarySnapshot | null | undefined) => ReturnType<typeof summary.shouldWriteL2>)(driftSummary, stale);
 assert('Gate: 15d-stale L2 forces write regardless of drift', minCadenceRes.write === true, minCadenceRes.reason);
 
 // Trend flip → anomaly event. Use a 0.5/day rise so normalized slope clears
@@ -178,7 +181,7 @@ const risingSummary = summary.computeWearableSummary(
   { oura: makeRows('2026-01-22', 90, i => 52 + i * 0.5) },
   { oura: { connectedSince: '2026-01-22', lastSyncAt: Date.now() } }
 );
-const flipRes = summary.shouldWriteL2(risingSummary, baseSummary);
+const flipRes = (summary.shouldWriteL2 as (next: FixtureSummarySnapshot | null | undefined, previous: FixtureSummarySnapshot | null | undefined) => ReturnType<typeof summary.shouldWriteL2>)(risingSummary, baseSummary);
 const hasFlipEvent = flipRes.anomalyEvents?.some(e => e.kind === 'trend-flip' && e.metricId === 'hrv_rmssd');
 assert('Gate: trend flip emits anomaly event', hasFlipEvent, `events: ${JSON.stringify(flipRes.anomalyEvents)}`);
 
@@ -192,7 +195,7 @@ const oldWithWeight = {
   metrics: { ...baseSummary.metrics, weight: { latest: 82, primarySource: 'manual', baseline: 82, rolling: { d7: 82 }, trend30d: 'flat', weekly: [82] } }
 };
 const newWithoutWeight = { ...baseSummary }; // has no `weight` key
-const removedRes = summary.shouldWriteL2(newWithoutWeight, oldWithWeight);
+const removedRes = (summary.shouldWriteL2 as (next: FixtureSummarySnapshot | null | undefined, previous: FixtureSummarySnapshot | null | undefined) => ReturnType<typeof summary.shouldWriteL2>)(newWithoutWeight, oldWithWeight);
 assert('Gate: metric-removed trips write',
   removedRes.write === true && removedRes.reason?.startsWith('metric-removed:'),
   `reason=${removedRes.reason}`);
@@ -210,7 +213,7 @@ const newRhrOura = {
   sources: baseSummary.sources,
   metrics: { rhr: { latest: 64, primarySource: 'oura', baseline: 65, rolling: { d7: 64 }, trend30d: 'flat', weekly: [64] } }
 };
-const sourceFlipRes = summary.shouldWriteL2(newRhrOura, oldRhrManual);
+const sourceFlipRes = (summary.shouldWriteL2 as (next: FixtureSummarySnapshot | null | undefined, previous: FixtureSummarySnapshot | null | undefined) => ReturnType<typeof summary.shouldWriteL2>)(newRhrOura, oldRhrManual);
 assert('Gate: source-flip trips write even without d7 shift',
   sourceFlipRes.write === true && sourceFlipRes.reason?.startsWith('source-flip:'),
   `reason=${sourceFlipRes.reason}`);
@@ -231,15 +234,15 @@ const newAdvanced = {
   sources: baseSummary.sources,
   metrics: { hrv_rmssd: { latest: 43, latestDate: '2026-04-26', primarySource: 'oura', baseline: 42, rolling: { d7: 42.3 }, trend30d: 'flat', weekly: [42.3] } }
 };
-const advRes = summary.shouldWriteL2(newAdvanced, oldLagging);
+const advRes = (summary.shouldWriteL2 as (next: FixtureSummarySnapshot | null | undefined, previous: FixtureSummarySnapshot | null | undefined) => ReturnType<typeof summary.shouldWriteL2>)(newAdvanced, oldLagging);
 assert('Gate: latest-advanced trips write even when d7 / trend / weekly are stable',
   advRes.write === true && advRes.reason?.startsWith('latest-advanced:'),
   `reason=${advRes.reason}`);
 
 // Sanity: same latestDate (re-sync of an already-current snapshot) does
 // NOT trigger a redundant write. Preserves the write-minimization budget.
-const sameDate = JSON.parse(JSON.stringify(oldLagging));
-const sameDateRes = summary.shouldWriteL2(sameDate, oldLagging);
+const sameDate = ((JSON.parse as (value: string) => unknown)(JSON.stringify(oldLagging)) as FixtureSummarySnapshot);
+const sameDateRes = (summary.shouldWriteL2 as (next: FixtureSummarySnapshot | null | undefined, previous: FixtureSummarySnapshot | null | undefined) => ReturnType<typeof summary.shouldWriteL2>)(sameDate, oldLagging);
 assert('Gate: identical snapshot (same latestDate) does NOT write',
   sameDateRes.write === false, `reason=${sameDateRes.reason}`);
 
@@ -376,8 +379,8 @@ assert('Re-enable toggle', labCtx.isWearableContextEnabled() === true);
 // ═══════════════════════════════════════
 console.log('6. OAuth2 Helpers');
 
-const clientId = ouraAdapter.oauth.clientId;
-const redirectUri = ouraAdapter.oauth.redirectUris[0];
+const clientId = ouraAdapter!.oauth!.clientId;
+const redirectUri = ouraAdapter!.oauth!.redirectUris[0]!;
 
 // buildAuthorizeUrl produces a well-formed URL with required params
 const authUrl = oauth.buildAuthorizeUrl({
@@ -394,20 +397,20 @@ assert('Authorize URL has scope list space-joined', authParsed.searchParams.get(
 
 // pickRedirectUri prefers the one that matches current origin+path
 const fakeLoc = { origin: 'http://localhost:8000', pathname: '/app' };
-const picked = oauth.pickRedirectUri(ouraAdapter.oauth.redirectUris, fakeLoc);
+const picked = oauth.pickRedirectUri(ouraAdapter!.oauth!.redirectUris, fakeLoc);
 assert('pickRedirectUri returns localhost URI when on localhost', picked === 'http://localhost:8000/app');
 
 // completeOAuthCallback rejects when state is missing in sessionStorage
 sessionStorage.removeItem('oura-oauth-pending');
 const noPending = await oauth.completeOAuthCallback(new URLSearchParams('code=X&state=Y'));
-assert('Callback w/ no pending state rejected', noPending.ok === false && /pending/i.test(noPending.error));
+assert('Callback w/ no pending state rejected', noPending.ok === false && /pending/i.test((noPending.error as string)));
 
 // completeOAuthCallback rejects on state mismatch (CSRF guard)
 sessionStorage.setItem('oura-oauth-pending', JSON.stringify({
   state: 'correct-state', redirectUri, startedAt: Date.now(), clientId,
 }));
 const badState = await oauth.completeOAuthCallback(new URLSearchParams('code=X&state=wrong-state'));
-assert('Callback w/ state mismatch rejected (CSRF guard)', badState.ok === false && /state/i.test(badState.error));
+assert('Callback w/ state mismatch rejected (CSRF guard)', badState.ok === false && /state/i.test((badState.error as string)));
 assert('State consumed even on failure', sessionStorage.getItem('oura-oauth-pending') === null);
 
 // isOuraCallback recognises a pending Oura flow
@@ -432,11 +435,11 @@ assert('DEFAULT_OURA_SCOPES does NOT include docs-claimed spo2Daily (gate reject
 // Adapter-registered scopes must match what the auth module requests — a drift
 // here means the authorize URL and the token-gate check for different things.
 assert('Oura adapter scope list matches DEFAULT_OURA_SCOPES',
-  JSON.stringify([...ouraAdapter.oauth.scopes].sort()) === JSON.stringify([...oauth.DEFAULT_OURA_SCOPES].sort()));
+  JSON.stringify([...ouraAdapter!.oauth!.scopes].sort()) === JSON.stringify([...oauth.DEFAULT_OURA_SCOPES].sort()));
 
 // Extended canonical metrics (9 cards ship with the dashboard strip at v1.22.2)
 for (const mid of ['activity_score','steps','stress_high_min','resilience_level','cardio_age']) {
-  assert(`CANONICAL_METRICS has ${mid}`, !!reg.CANONICAL_METRICS[mid]);
+  assert(`CANONICAL_METRICS has ${mid}`, !!reg.CANONICAL_METRICS[mid as keyof typeof reg.CANONICAL_METRICS]);
   assert(`Oura adapter maps ${mid}`, reg.adapterSupportsMetric('oura', mid));
 }
 assert('Oura adapter maps VO2max',
@@ -468,8 +471,8 @@ assert('CANONICAL_METRICS rhr drops the redundant sub (Resting implies overnight
 assert('CANONICAL_METRICS bp_systolic carries spoken-aria override', reg.CANONICAL_METRICS.bp_systolic?.ariaLabel === 'Blood pressure systolic');
 assert('CANONICAL_METRICS bp_diastolic carries spoken-aria override', reg.CANONICAL_METRICS.bp_diastolic?.ariaLabel === 'Blood pressure diastolic');
 assert('Steps is mapped to the same endpoint as activity_score (both from daily_activity)',
-  reg.adapterById('oura').metrics.steps.endpoint === reg.adapterById('oura').metrics.activity_score.endpoint);
-const appleHealth = reg.adapterById('apple_health');
+  reg.adapterById('oura')!.metrics.steps!.endpoint! === reg.adapterById('oura')!.metrics.activity_score!.endpoint!);
+reg.adapterById('apple_health');
 for (const mid of ['weight', 'body_fat_pct', 'lean_mass_kg', 'bp_systolic', 'bp_diastolic']) {
   assert(`Apple Health adapter maps ${mid}`, reg.adapterSupportsMetric('apple_health', mid));
 }
@@ -478,7 +481,7 @@ for (const mid of ['weight', 'body_fat_pct', 'lean_mass_kg', 'bp_systolic', 'bp_
 // metric without falling back to raw ids.
 const fakeSummary = {
   sources: { oura: { connectedSince: '2026-01-01', lastSyncAt: Date.now(), coverageDays: 30 } },
-  metrics: {},
+  metrics: {} as Record<string, Omit<import("../js/wearables-summary-model.js").WearableMetricSummary, "latestDate"> & Partial<Pick<import("../js/wearables-summary-model.js").WearableMetricSummary, "latestDate">>>,
 };
 for (const mid of reg.DEFAULT_METRIC_ORDER) {
   fakeSummary.metrics[mid] = { primarySource: 'oura', latest: 50, baseline: 50, baselineP25: 45, baselineP75: 55, rolling: { d7: 50, d30: 50, d90: 50 }, trend30d: 'flat', weekly: [49, 50, 51, 50, 50, 50] };
@@ -506,8 +509,8 @@ assert('stress_high_min metric unit is min (registry contract)',
   reg.CANONICAL_METRICS.stress_high_min.unit === 'min');
 const fetchBeforeOuraStub = globalThis.fetch;
 try {
-  globalThis.fetch = async (url, opts = {}) => {
-    const payload = JSON.parse(opts.body || '{}');
+  globalThis.fetch = async (_url, opts = {}) => {
+    const payload = ((JSON.parse as (input: unknown) => unknown)(opts.body || '{}') as {url: string});
     const path = new URL(payload.url).pathname;
     const dataByPath = {
       '/v2/usercollection/daily_spo2': [
@@ -523,7 +526,7 @@ try {
       ],
     };
     return new Response(JSON.stringify({
-      data: dataByPath[path] || [],
+      data: dataByPath[path as keyof typeof dataByPath] || [],
       next_token: null,
     }), {
       status: 200,
@@ -558,7 +561,7 @@ const zeroBaselineSummary = {
   },
 };
 // Stash summary so renderWearableStrip reads it
-state.importedData = state.importedData || {};
+(state as {importedData: unknown}).importedData = state.importedData || {};
 state.importedData.wearableSummary = zeroBaselineSummary;
 const html = wearablesModule.renderWearableStrip();
 assert('render never emits NaN% on zero baseline', !/NaN/.test(html));
@@ -641,7 +644,7 @@ const wearableDashboardModuleExports = [
   'moveWearableCard',
 ];
 assert('wearable dashboard handlers are module exports',
-  wearableDashboardModuleExports.every(name => typeof wearablesModule[name] === 'function'));
+  wearableDashboardModuleExports.every(name => typeof (wearablesModule as Record<string, unknown>)[name] === 'function'));
 assert('wearable dashboard handlers stay off window',
   wearableDashboardModuleExports.every(name => !(name in window)));
 assert('wearable settings renderer is a module export',
@@ -676,7 +679,7 @@ const wearableSettingsLegacyGlobals = [
 assert('wearable settings handlers stay module-only',
   wearableSettingsLegacyGlobals.every(name => !(name in window)));
 assert('handleWearablePATConnect removed (Ultrahuman moved to OAuth2)',
-  typeof window.handleWearablePATConnect === 'undefined');
+  typeof (window as {handleWearablePATConnect?: unknown}).handleWearablePATConnect === 'undefined');
 
 // ═══════════════════════════════════════
 // 11. Phase-3 multi-vendor adapter registry
@@ -711,7 +714,7 @@ assert('Withings maps weight + BP pair',
 
 // New canonicals the Phase-3 adapters introduced
 for (const mid of ['hrv_sdnn', 'strain', 'weight', 'bp_systolic', 'bp_diastolic']) {
-  assert(`CANONICAL_METRICS now has ${mid}`, !!reg.CANONICAL_METRICS[mid]);
+  assert(`CANONICAL_METRICS now has ${mid}`, !!reg.CANONICAL_METRICS[mid as keyof typeof reg.CANONICAL_METRICS]);
 }
 
 // ═══════════════════════════════════════
@@ -752,7 +755,7 @@ assert('Ultrahuman authorize URL hits auth.ultrahuman.com/authorise',
 assert('Ultrahuman scope list is space-delimited',
   /scope=profile\+ring_data\+cgm_data/.test(uhUrl));
 assert('Ultrahuman adapter scope list matches DEFAULT_ULTRAHUMAN_SCOPES',
-  JSON.stringify([...reg.adapterById('ultrahuman').oauth.scopes].sort()) ===
+  JSON.stringify([...reg.adapterById('ultrahuman')!.oauth!.scopes].sort()) ===
   JSON.stringify([...uhAuth.DEFAULT_ULTRAHUMAN_SCOPES].sort()));
 
 // ═══════════════════════════════════════
@@ -765,7 +768,7 @@ const ahRows = ah.parseAppleHealthXml(fixtureXml);
 assert('Apple Health parser returned 2 canonical day rows (2026-04-20, 2026-04-21)',
   ahRows.length === 2);
 assert('Apple rows sorted ascending by date',
-  ahRows[0].date === '2026-04-20' && ahRows[1].date === '2026-04-21');
+  ahRows[0]!.date === '2026-04-20' && ahRows[1]!.date === '2026-04-21');
 const day1 = ahRows.find(r => r.date === '2026-04-20');
 const day2 = ahRows.find(r => r.date === '2026-04-21');
 
@@ -773,62 +776,62 @@ const day2 = ahRows.find(r => r.date === '2026-04-21');
 // sleep-derived value timestamped at wake, so hour-of-day splitting would
 // mis-classify it. Min still protects against 3rd-party-app spikes.
 assert('RHR uses min-per-day aggregator (ignores 85bpm 3rd-party outlier, keeps 58)',
-  day1.rhr === 58);
+  day1!.rhr === 58);
 // HRV SDNN: both fixture samples are at 02:15 and 03:20 — night-window
 // (22:00–06:00) → mean(42.5, 48.5) = 45.5 routes to hrv_sdnn (overnight).
 assert('HRV SDNN aggregates night-window samples (42.5 & 48.5 → 45.5)',
-  day1.hrv_sdnn === 45.5);
+  day1!.hrv_sdnn === 45.5);
 // No day-window HRV samples in fixture → hrv_day should be null on day 1.
 assert('hrv_day is null when no day-window samples exist',
-  day1.hrv_day === null);
+  day1!.hrv_day === null);
 // Steps are additive per source but Apple Health may contain overlapping
 // iPhone/Watch/Oura rows. Sum within source, then take the max source total:
 // iPhone=2420, Apple Watch=5430 → 5430.
 assert('Steps de-duplicate multi-source Apple Health days by max source total',
-  day1.steps === 5430, `got ${day1.steps}`);
+  day1!.steps === 5430, `got ${day1!.steps}`);
 // SpO2 mean of 97 + 95 = 96
 assert('SpO2 mean-per-day aggregator (97+95 → 96)',
-  day1.spo2_avg === 96);
+  day1!.spo2_avg === 96);
 // Day 2 has single readings — single 02:10 SDNN sample is night-window → 51
-assert('Day 2 RHR populated (single reading → 56)', day2.rhr === 56);
-assert('Day 2 HRV SDNN populated (single night-window sample → 51)', day2.hrv_sdnn === 51);
-assert('Day 2 hrv_day null (no day-window samples)', day2.hrv_day === null);
+assert('Day 2 RHR populated (single reading → 56)', day2!.rhr === 56);
+assert('Day 2 HRV SDNN populated (single night-window sample → 51)', day2!.hrv_sdnn === 51);
+assert('Day 2 hrv_day null (no day-window samples)', day2!.hrv_day === null);
 assert('Day 2 steps single-source value passes through unchanged',
-  day2.steps === 8200, `got ${day2.steps}`);
+  day2!.steps === 8200, `got ${day2!.steps}`);
 
 // Records we explicitly don't map must NOT end up in canonical rows.
 assert('rMSSD is not derivable from Apple Health (we use SDNN type only) — hrv_rmssd stays null',
-  day1.hrv_rmssd === null && day2.hrv_rmssd === null);
+  day1!.hrv_rmssd === null && day2!.hrv_rmssd === null);
 // Day 1 has one HKQuantityTypeIdentifierHeartRate sample at 10:00 (day window) value=72.
 // Day 2 has none. Verify hr_day surfaces 72 on day 1, null on day 2.
 assert('hr_day populated from raw HeartRate stream (day-window mean)',
-  day1.hr_day === 72);
+  day1!.hr_day === 72);
 assert('hr_day null when no day-window HR samples exist on that day',
-  day2.hr_day === null);
+  day2!.hr_day === null);
 assert('Body temp delta correctly dropped (no baseline yet, absolute temp unusable)',
-  day1.body_temp_delta === null);
+  day1!.body_temp_delta === null);
 assert('Apple Health BodyMass maps to weight',
-  day2.weight === 72.5, `weight=${day2.weight}`);
+  day2!.weight === 72.5, `weight=${day2!.weight}`);
 assert('Apple Health BodyFatPercentage fraction maps to percent',
-  day2.body_fat_pct === 18.5, `body_fat_pct=${day2.body_fat_pct}`);
+  day2!.body_fat_pct === 18.5, `body_fat_pct=${day2!.body_fat_pct}`);
 assert('Apple Health derives fat_mass_kg from weight and body fat percent',
-  day2.fat_mass_kg === 13.41, `fat_mass_kg=${day2.fat_mass_kg}`);
+  day2!.fat_mass_kg === 13.41, `fat_mass_kg=${day2!.fat_mass_kg}`);
 assert('Apple Health LeanBodyMass lb converts to kg',
-  day2.lean_mass_kg === 58.11, `lean_mass_kg=${day2.lean_mass_kg}`);
+  day2!.lean_mass_kg === 58.11, `lean_mass_kg=${day2!.lean_mass_kg}`);
 assert('Apple Health BP parses systolic and diastolic',
-  day2.bp_systolic === 121 && day2.bp_diastolic === 78,
-  `bp=${day2.bp_systolic}/${day2.bp_diastolic}`);
+  day2!.bp_systolic === 121 && day2!.bp_diastolic === 78,
+  `bp=${day2!.bp_systolic}/${day2!.bp_diastolic}`);
 
 // Source tag is apple_health so the L1 IDB + multi-source badge paths pick
 // it up as a distinct vendor alongside Oura/WHOOP.
-assert('Canonical row carries source: apple_health', day1.source === 'apple_health');
+assert('Canonical row carries source: apple_health', day1!.source === 'apple_health');
 
 // Unit-normalisation guard — a record with a bogus unit string must be
 // dropped rather than silently stored in the wrong scale.
 const hostileXml = '<?xml version="1.0"?><HealthData><Record type="HKQuantityTypeIdentifierStepCount" unit="furlongs" startDate="2026-04-20 00:00:00 +0000" value="12"/></HealthData>';
 const hostileRows = ah.parseAppleHealthXml(hostileXml);
 assert('Hostile unit ("furlongs" for steps) is refused, not ingested',
-  hostileRows.length === 0 || hostileRows[0].steps === null);
+  hostileRows.length === 0 || hostileRows[0]!.steps === null);
 const bodyUnitXml = '<?xml version="1.0"?><HealthData>'
   + '<Record type="HKQuantityTypeIdentifierBodyMass" unit="st" startDate="2026-04-20 00:00:00 +0000" value="11"/>'
   + '<Record type="HKQuantityTypeIdentifierLeanBodyMass" unit="lb" startDate="2026-04-20 00:00:00 +0000" value="100"/>'
@@ -862,7 +865,7 @@ assert('Apple Health delegates cycle import callbacks to its runtime adapter',
     && ahRuntimeSrc.includes('export async function showAppleHealthCyclePreviewRuntime'));
 assert('Apple Health debug bridge stays off window',
   !ahSrc.includes('exposeAppleHealthDebugBindings') &&
-    typeof window._appleHealth === 'undefined');
+    typeof (window as {_appleHealth?: unknown})._appleHealth === 'undefined');
 assert('loadJSZip memoizes via module-level _jszipLoad',
   /let\s+_jszipLoad\s*=\s*null/.test(ahSrc));
 assert('loadJSZip injects /vendor/jszip.min.js script tag',
@@ -892,7 +895,7 @@ assert('Wearable OAuth modules delegate browser globals to auth runtime',
     !/\bwindow(?:\.|\s*\[)/.test(src)) &&
     authRuntimeSrc.includes('export function getWearableAuthLocation') &&
     authRuntimeSrc.includes('export function exposeWearableAuthDebug'),
-  authModuleFiles.find((file, index) => /\bwindow(?:\.|\s*\[)/.test(authModuleSources[index])) || 'missing runtime import');
+  authModuleFiles.find((_file, index) => /\bwindow(?:\.|\s*\[)/.test(authModuleSources[index]!)) || 'missing runtime import');
 assert('wearable connector passes the initiating profile into OAuth modules',
   (await fetch('/js/wearables-connect.js').then(r => r.text()))
     .includes('profileId = getActiveProfileId()'));
@@ -951,7 +954,7 @@ const vo2HostileXml = '<?xml version="1.0"?><HealthData>' +
   '</HealthData>';
 const vo2HostileRows = ah.parseAppleHealthXml(vo2HostileXml);
 assert('VO₂max rejects unknown unit (no canonical-scale silent fallback)',
-  vo2HostileRows.length === 0 || vo2HostileRows[0].vo2max === null);
+  vo2HostileRows.length === 0 || vo2HostileRows[0]!.vo2max === null);
 
 // ═══════════════════════════════════════
 // 15. Withings OAuth2 + measure-type decoding
@@ -974,21 +977,21 @@ assert('Withings scope list is comma-delimited (not space)',
 
 const withingsReg = reg.adapterById('withings');
 assert('Withings adapter scopes match DEFAULT_WITHINGS_SCOPES',
-  JSON.stringify([...withingsReg.oauth.scopes].sort()) === JSON.stringify([...withingsAuth.DEFAULT_WITHINGS_SCOPES].sort()));
+  JSON.stringify([...withingsReg!.oauth!.scopes].sort()) === JSON.stringify([...withingsAuth.DEFAULT_WITHINGS_SCOPES].sort()));
 
 // Measure-type code sanity — Withings uses numeric codes (1=weight, 10=BP sys
 // etc.). Our adapter declares them explicitly so the renderer can surface
 // them; if a tester's scale is only pushing type 77 (hydration) we ignore it
 // rather than mapping to something wrong.
-assert('Withings weight maps to measType 1',      withingsReg.metrics.weight?.measType === 1);
-assert('Withings BP diastolic maps to measType 9', withingsReg.metrics.bp_diastolic?.measType === 9);
-assert('Withings BP systolic maps to measType 10', withingsReg.metrics.bp_systolic?.measType === 10);
+assert('Withings weight maps to measType 1',      withingsReg!.metrics.weight?.measType === 1);
+assert('Withings BP diastolic maps to measType 9', withingsReg!.metrics.bp_diastolic?.measType === 9);
+assert('Withings BP systolic maps to measType 10', withingsReg!.metrics.bp_systolic?.measType === 10);
 // Scale pulse (type 11) is a daytime spot reading, NOT resting HR. It now
 // routes to hr_day; the rhr slot is filled from sleep summary's hr_min.
 assert('Withings scale pulse (type 11) maps to hr_day, not rhr',
-  withingsReg.metrics.hr_day?.measType === 11 && !withingsReg.metrics.rhr?.measType);
+  withingsReg!.metrics.hr_day?.measType === 11 && !withingsReg!.metrics.rhr?.measType);
 assert('Withings rhr is sourced from sleep summary hr_min',
-  withingsReg.metrics.rhr?.endpoint === 'v2/sleep' && withingsReg.metrics.rhr?.field === 'hr_min');
+  withingsReg!.metrics.rhr?.endpoint === 'v2/sleep' && withingsReg!.metrics.rhr?.field === 'hr_min');
 
 // Withings full-coverage map. The fetcher's MEAS_TYPES table is source
 // of truth for /measure; this double-asserts the registry side so a
@@ -1003,10 +1006,10 @@ const expectedMeasTypes = {
 };
 for (const [canonical, measType] of Object.entries(expectedMeasTypes)) {
   assert(`Withings ${canonical} → /measure measType ${measType}`,
-    withingsReg.metrics[canonical]?.measType === measType);
+    withingsReg!.metrics[canonical as keyof NonNullable<typeof withingsReg>["metrics"]]?.measType === measType);
 }
 // /v2/sleep getsleepsummary — registered fields and their transforms.
-const expectedSleepFields = {
+const expectedSleepFields: Record<string, {field: string; transform?: string}> = {
   sleep_score: { field: 'sleep_score' },
   rhr: { field: 'hr_min' },
   sleep_total_min: { field: 'asleepduration', transform: 'sec→min' },
@@ -1020,7 +1023,7 @@ const expectedSleepFields = {
   sleep_breath_disturb: { field: 'breathing_disturbances_intensity' },
 };
 for (const [canonical, spec] of Object.entries(expectedSleepFields)) {
-  const reg = withingsReg.metrics[canonical];
+  const reg = withingsReg!.metrics[canonical as keyof NonNullable<typeof withingsReg>["metrics"]];
   assert(`Withings ${canonical} → /v2/sleep field "${spec.field}"`,
     reg?.endpoint === 'v2/sleep' && reg?.field === spec.field);
   if (spec.transform) {
@@ -1052,7 +1055,7 @@ for (const id of ['muscle_mass_kg', 'bone_mass_kg', 'water_mass_kg', 'visceral_f
 assert('lean_mass_kg label reads "Lean mass" not just "Lean"',
   reg.canonicalMetric('lean_mass_kg')?.label === 'Lean mass');
 assert('lean_mass_kg has aria-label clarifying "fat-free"',
-  /fat-free/i.test(reg.canonicalMetric('lean_mass_kg')?.ariaLabel || ''));
+  /fat-free/i.test((reg.canonicalMetric('lean_mass_kg') as {ariaLabel?: string} | null | undefined)?.ariaLabel || ''));
 
 // AI context cluster roll-ups — body comp + sleep architecture each
 // collapse into one line to keep prompt budget predictable. The
@@ -1085,15 +1088,15 @@ assert('Fitbit scopes include heartrate + sleep + profile',
 assert('Fitbit scopes include temperature + weight (for skin Δ + scale readings)',
   ['temperature', 'weight'].every(s => fitbitAuth.DEFAULT_FITBIT_SCOPES.includes(s)));
 assert('Fitbit adapter scope list matches DEFAULT_FITBIT_SCOPES (no drift)',
-  JSON.stringify([...fitbitReg.oauth.scopes].sort()) ===
+  JSON.stringify([...fitbitReg!.oauth!.scopes].sort()) ===
   JSON.stringify([...fitbitAuth.DEFAULT_FITBIT_SCOPES].sort()));
 assert('Fitbit hosted redirect matches dev-console value exactly',
-  fitbitReg.oauth.redirectUris.includes('https://app.getbased.health'));
+  fitbitReg!.oauth!.redirectUris.includes('https://app.getbased.health'));
 assert('Fitbit redirect picker uses exact registered live-host URI without adding slash or /app',
-  fitbitAuth.pickRedirectUri(fitbitReg.oauth.redirectUris, { origin: 'https://app.getbased.health', pathname: '/app' }) === 'https://app.getbased.health');
+  fitbitAuth.pickRedirectUri(fitbitReg!.oauth!.redirectUris, { origin: 'https://app.getbased.health', pathname: '/app' }) === 'https://app.getbased.health');
 assert('Fitbit redirect registry does not include unregistered hosted /app or slash variants',
-  !fitbitReg.oauth.redirectUris.includes('https://app.getbased.health/app') &&
-  !fitbitReg.oauth.redirectUris.includes('https://app.getbased.health/'));
+  !fitbitReg!.oauth!.redirectUris.includes('https://app.getbased.health/app') &&
+  !fitbitReg!.oauth!.redirectUris.includes('https://app.getbased.health/'));
 
 const fbUrl = await fitbitAuth.buildAuthorizeUrl({
   clientId: 'fb-test-client', redirectUri: 'http://localhost:8000/app',
@@ -1114,7 +1117,7 @@ assert('fetchFitbitPersonalInfo exists', typeof fitbitFetcher.fetchFitbitPersona
 // 17. Multi-source primary-source override (post-audit fix)
 // ═══════════════════════════════════════
 console.log('17. Primary-Source Override');
-const baseRow = (src, date, metrics) => ({ source: src, date, ...metrics });
+const baseRow = <Metrics extends Record<string, number | null>>(src: string, date: string, metrics: Metrics) => ({ source: src, date, ...metrics });
 const rowsBySource = {
   oura:   [baseRow('oura',   '2026-04-22', { hrv_rmssd: 40, steps: 0 })],
   fitbit: [baseRow('fitbit', '2026-04-22', { hrv_rmssd: 45, steps: 8200 })],
@@ -1170,13 +1173,13 @@ const freshConn = {
 let refreshCalled = false;
 // Temporarily stub refreshTokens to detect if it's (incorrectly) called.
 const origFetch = window.fetch;
-window.fetch = async () => { refreshCalled = true; return { ok: false, status: 400, json: async () => ({ error: 'shouldnt-run' }) }; };
+(window as {fetch?: unknown}).fetch = async () => { refreshCalled = true; return { ok: false, status: 400, json: async () => ({ error: 'shouldnt-run' }) }; };
 try {
   const result = await oauth.withFreshToken(staleConn, 'test-client', async () => {}, () => freshConn);
   assert('withFreshToken: returns fresh connection from readLatest without hitting token endpoint',
     result.accessToken === 'fresh-at' && !refreshCalled);
 } catch (e) {
-  assert('withFreshToken: no throw when another tab already refreshed', false, e.message);
+  assert('withFreshToken: no throw when another tab already refreshed', false, (e as {message?: unknown}).message);
 } finally {
   window.fetch = origFetch;
 }
@@ -1227,9 +1230,9 @@ for (const id of dispatchIds) {
 // 3. Each dispatch entry exposes the full hook surface
 const REQUIRED_HOOKS = ['begin', 'isCallback', 'complete', 'withFreshToken', 'fetchAccountInfo', 'fetchRange', 'displayName'];
 for (const id of dispatchIds) {
-  const entry = connect.OAUTH_DISPATCH[id];
+  const entry = connect.OAUTH_DISPATCH[id as keyof typeof connect.OAUTH_DISPATCH];
   for (const hook of REQUIRED_HOOKS) {
-    assert(`OAUTH_DISPATCH.${id}.${hook} present`, entry && entry[hook] != null);
+    assert(`OAUTH_DISPATCH.${id}.${hook} present`, entry && (entry as unknown as Record<string, unknown>)[hook] != null);
   }
 }
 // 4. Apple Health is explicitly NOT in dispatch (file-import, no OAuth)
@@ -1242,15 +1245,15 @@ assert('apple_health NOT in OAUTH_DISPATCH', !dispatchIds.includes('apple_health
 console.log('14b. Withings error codes');
 const withings = await import('../js/wearables-withings.js');
 assert('withingsErrorMessage exported', typeof withings.withingsErrorMessage === 'function');
-assert('maps 100 → token invalid', /token/i.test(withings.withingsErrorMessage(100)));
-assert('maps 293 → rate limit', /rate/i.test(withings.withingsErrorMessage(293)));
-assert('maps 284 → token not found', /token not found/i.test(withings.withingsErrorMessage(284)));
-assert('maps 283 → token used', /token/i.test(withings.withingsErrorMessage(283)));
-assert('maps 251 → grant invalid', /grant/i.test(withings.withingsErrorMessage(251)));
-assert('maps 601 → rate limited', /rate/i.test(withings.withingsErrorMessage(601)));
+assert('maps 100 → token invalid', (/token/i.test as (value: unknown) => boolean)(withings.withingsErrorMessage(100)));
+assert('maps 293 → rate limit', (/rate/i.test as (value: unknown) => boolean)(withings.withingsErrorMessage(293)));
+assert('maps 284 → token not found', (/token not found/i.test as (value: unknown) => boolean)(withings.withingsErrorMessage(284)));
+assert('maps 283 → token used', (/token/i.test as (value: unknown) => boolean)(withings.withingsErrorMessage(283)));
+assert('maps 251 → grant invalid', (/grant/i.test as (value: unknown) => boolean)(withings.withingsErrorMessage(251)));
+assert('maps 601 → rate limited', (/rate/i.test as (value: unknown) => boolean)(withings.withingsErrorMessage(601)));
 assert('unknown code returns null', withings.withingsErrorMessage(99999) === null);
 assert('non-numeric returns null', withings.withingsErrorMessage('foo') === null);
-assert('numeric string works', /token/i.test(withings.withingsErrorMessage('100')));
+assert('numeric string works', (/token/i.test as (value: unknown) => boolean)(withings.withingsErrorMessage('100')));
 
 // ═══════════════════════════════════════
 // 15. PKCE: code_verifier → code_challenge SHA256 spec compliance
@@ -1331,7 +1334,7 @@ console.log('17r. Behavioral Coverage');
 // Writes a plaintext row, then a row under encryption, reads back.
 // Asserts plaintext path passes through, encrypted path round-trips.
 try {
-  window.__WEARABLES_TEST = true;
+  (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST = true;
   // CRITICAL: do NOT cache-bust the crypto/store modules. crypto.js injects
   // its providers into the production store singleton; a cache-busted crypto
   // instance would own a separate private _sessionKey. Use the production
@@ -1375,12 +1378,12 @@ try {
     // Session-locked refusal: clearing the key while encryption is on
     // should make upsert THROW (not silently downgrade to plaintext).
     await cryptoB._setTestSessionKey(null);
-    let thrown = null;
+    let thrown: unknown = null;
     try {
       await storeB.upsertDaily(TEST_PROFILE_E, { source: 'oura', date: '2026-04-22', hrv_rmssd: 40 });
     } catch (e) { thrown = e; }
     assert('upsertDaily throws session-locked error when encrypt-on but key missing',
-      thrown?.code === 'session-locked');
+      (thrown as {code?: unknown} | null)?.code === 'session-locked');
   } finally {
     // Cleanup — clear encryption state FIRST so deletes don't hit
     // the encrypt path. Drop test flag LAST so _setTestSessionKey
@@ -1393,11 +1396,11 @@ try {
     if (origActive) localStorage.setItem('labcharts-active-profile', origActive);
     else localStorage.removeItem('labcharts-active-profile');
     state.currentProfile = origCurrent;
-    delete window.__WEARABLES_TEST;
+    delete (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST;
   }
 } catch (e) {
   legacyAssertions.fail++;
-  console.log('  FAIL: IDB encryption round-trip block crashed — ' + (e?.message || e));
+  console.log('  FAIL: IDB encryption round-trip block crashed — ' + ((e as {message?: unknown})?.message || e));
 }
 
 // ─── detectWearableTrendSlots (was source-grep-only) ─────────────────
@@ -1442,8 +1445,8 @@ try {
   const labCtxMcp = await import('../js/lab-context.js');
   labCtxMcp.setAgentWearableSeriesDays(7);
   // Stub a minimal summary so the builder produces a non-empty section.
-  const origSummary = state.importedData?.wearableSummary;
-  state.importedData = state.importedData || { entries: [] };
+  const origSummary: unknown = state.importedData?.wearableSummary;
+  (state as {importedData: unknown}).importedData = state.importedData || { entries: [] };
   state.importedData.wearableSummary = {
     summaryUpdatedAt: new Date().toISOString(),
     sources: { oura: { connectedSince: '2026-01-01', lastSyncAt: Date.now(), coverageDays: 5 }},
@@ -1708,7 +1711,7 @@ console.log('17v. Test Isolation');
 // anti-pattern can't come back.
 const syncFlowSrc = await fetch('/tests/test-wearables-sync-flow.js').then(r => r.text());
 const uiFlowSrc = await fetch('/tests/test-wearables-ui-flows.js').then(r => r.text());
-for (const [name, src] of [['sync-flow', syncFlowSrc], ['ui-flows', uiFlowSrc]]) {
+for (const [name, src] of ([['sync-flow', syncFlowSrc], ['ui-flows', uiFlowSrc]] as Array<[string, string]>)) {
   assert(`${name}: snapshots state.currentProfile before swapping profile`,
     /origCurrentProfile\s*=\s*state\.currentProfile/.test(src));
   assert(`${name}: assigns TEST_PROFILE_ID to state.currentProfile (not just localStorage)`,
@@ -1841,7 +1844,7 @@ console.log('17x. Behavioral Replacements');
 // Set up an isolated test summary with TWO connected sources so the
 // source-badge gate is exercised positively.
 const _origImported = state.importedData;
-state.importedData = {
+(state as {importedData: unknown}).importedData = {
   entries: [],
   wearableConnections: {
     oura:   { source: 'oura',   connectedAt: new Date().toISOString(), lastSyncAt: Date.now() },
@@ -1928,7 +1931,7 @@ try {
   state.currentProfile = origCurrent2;
   try { const { deleteWearablesDB } = await import('../js/wearables-store.js'); await deleteWearablesDB(TEST_PROFILE_3); } catch {}
 }
-state.importedData = _origImported;
+(state as {importedData: unknown}).importedData = _origImported;
 
 // ═══════════════════════════════════════
 // 17y. P1 audit fallout (v1.27.4)
@@ -2165,24 +2168,24 @@ assert('WHOOP declares hr_day from cycle endpoint',
 assert('Fitbit declares hrv_day from dailyRmssd (sleep+wake aggregate)',
   reg.adapterSupportsMetric('fitbit', 'hrv_day'));
 assert('Fitbit hrv_rmssd routes to deepRmssd (deep sleep only)',
-  reg.adapterById('fitbit').metrics.hrv_rmssd?.field?.includes('deepRmssd'));
+  reg.adapterById('fitbit')!.metrics.hrv_rmssd?.field?.includes('deepRmssd'));
 assert('Fitbit hrv_day routes to dailyRmssd (broader-window aggregate)',
-  reg.adapterById('fitbit').metrics.hrv_day?.field?.includes('dailyRmssd'));
+  reg.adapterById('fitbit')!.metrics.hrv_day?.field?.includes('dailyRmssd'));
 assert('Ultrahuman declares both hrv_day and hr_day (.avg fields are 24h)',
   reg.adapterSupportsMetric('ultrahuman', 'hrv_day') &&
   reg.adapterSupportsMetric('ultrahuman', 'hr_day'));
 assert('Ultrahuman hrv_rmssd routes to hrv.sleep (overnight)',
-  reg.adapterById('ultrahuman').metrics.hrv_rmssd?.field === 'hrv.sleep');
+  reg.adapterById('ultrahuman')!.metrics.hrv_rmssd?.field === 'hrv.sleep');
 assert('Ultrahuman rhr routes to resting_heart_rate.sleep (overnight)',
-  reg.adapterById('ultrahuman').metrics.rhr?.field === 'resting_heart_rate.sleep');
+  reg.adapterById('ultrahuman')!.metrics.rhr?.field === 'resting_heart_rate.sleep');
 assert('Polar hr_day routes to activity-transactions average',
-  reg.adapterById('polar').metrics.hr_day?.endpoint?.includes('activity-transactions'));
+  reg.adapterById('polar')!.metrics.hr_day?.endpoint?.includes('activity-transactions'));
 assert('Polar hrv_day routes to exercise-transactions (workout HRV is daytime)',
-  reg.adapterById('polar').metrics.hrv_day?.endpoint?.includes('exercise-transactions'));
+  reg.adapterById('polar')!.metrics.hrv_day?.endpoint?.includes('exercise-transactions'));
 assert('Polar rhr routes to sleep nights (true overnight RHR)',
-  reg.adapterById('polar').metrics.rhr?.endpoint?.includes('/sleep'));
+  reg.adapterById('polar')!.metrics.rhr?.endpoint?.includes('/sleep'));
 assert('Apple Health declares hrv_day with window:day flag',
-  reg.adapterById('apple_health').metrics.hrv_day?.window === 'day');
+  reg.adapterById('apple_health')!.metrics.hrv_day?.window === 'day');
 
 // Strip integration: hrv_day/hr_day are summarised but hidden from the
 // strip cards — they live in the detail modal as sub-stats and in the
@@ -2223,9 +2226,9 @@ const hrDay1 = hrRows.find(r => r.date === '2026-05-01');
 assert('hr_day is mean of day-window samples only ((65+85)/2 = 75, ignores 23:00 night sample)',
   hrDay1?.hr_day === 75);
 assert('hr_day source declaration uses HKQuantityTypeIdentifierHeartRate (NOT RestingHeartRate)',
-  reg.adapterById('apple_health').metrics.hr_day?.hkType === 'HKQuantityTypeIdentifierHeartRate');
+  reg.adapterById('apple_health')!.metrics.hr_day?.hkType === 'HKQuantityTypeIdentifierHeartRate');
 assert('hr_day declaration carries window:day flag so it routes through the day-window aggregator',
-  reg.adapterById('apple_health').metrics.hr_day?.window === 'day');
+  reg.adapterById('apple_health')!.metrics.hr_day?.window === 'day');
 
 // ═══════════════════════════════════════
 // 17c. JSON export carries wearable layer (v1.27.1)
@@ -2282,11 +2285,11 @@ assert('Series builder returns empty string when toggle is off',
 // Behaviour: returns '' when toggle is on but no wearable summary exists.
 labCtxAgent.setAgentWearableSeriesEnabled(true);
 const origImported = state.importedData;
-state.importedData = { wearableSummary: null };
+(state as {importedData: unknown}).importedData = { wearableSummary: null };
 const noSummaryResult = await labCtxAgent.buildWearableSeriesSection(30);
 assert('Series builder returns empty string when no wearableSummary',
   noSummaryResult === '');
-state.importedData = origImported;
+(state as {importedData: unknown}).importedData = origImported;
 labCtxAgent.setAgentWearableSeriesEnabled(false);  // restore default
 
 // Source-grep guards: pushContextToGateway must concat the series block.

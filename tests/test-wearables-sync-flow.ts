@@ -19,7 +19,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 
 // fs-backed fetch shim — installed BEFORE the test body so the test's
 // `realFetch = window.fetch` snapshot captures it, and mockFetch's
@@ -66,24 +66,27 @@ localStorage.setItem('labcharts-active-profile', TEST_PROFILE_ID);
 state.currentProfile = TEST_PROFILE_ID;
 
 const origState = state.importedData;
-state.importedData = {
+(state as {importedData: unknown}).importedData = {
   entries: [],
   wearableConnections: {},
   wearableSummary: null,
   changeHistory: [],
 };
 
+// Non-validating property view used only by the original proxy fixture reads.
+interface FixtureProxyBody { url?: unknown; method?: unknown; headers?: unknown; body?: unknown }
+interface FixtureMockRoute { matcher: string | RegExp; body: unknown; status?: number; count?: number }
 const realFetch = window.fetch;
-let routes = [];
-let calls = [];
-function mockFetch(input, init) {
-  const url = (typeof input === 'string') ? input : input?.url;
+let routes: FixtureMockRoute[] = [];
+let calls: FixtureProxyBody[] = [];
+function mockFetch(input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) {
+  const url = (typeof input === 'string') ? input : (input as {url?: string})?.url;
   if (url !== '/api/proxy') return realFetch.call(window, input, init);
-  let body = {};
-  try { body = JSON.parse(init?.body || '{}'); } catch {}
+  let body: FixtureProxyBody = {};
+  try { body = ((JSON.parse as (input: unknown) => unknown)(init?.body || '{}') as FixtureProxyBody); } catch {}
   calls.push({ url: body.url, method: body.method });
   for (const r of routes) {
-    const ok = (typeof r.matcher === 'string') ? body.url?.includes(r.matcher) : r.matcher.test(body.url || '');
+    const ok = (typeof r.matcher === 'string') ? (body.url as string | undefined)?.includes(r.matcher) : (r.matcher.test as (value: unknown) => boolean)(body.url || '');
     if (ok) {
       return Promise.resolve(new Response(JSON.stringify(r.body), {
         status: r.status || 200,
@@ -93,11 +96,11 @@ function mockFetch(input, init) {
   }
   return Promise.resolve(new Response(JSON.stringify({}), { status: 200 }));
 }
-function installRoutes(rs) { routes = rs; calls = []; window.fetch = mockFetch; }
+function installRoutes(rs: FixtureMockRoute[]) { routes = rs; calls = []; window.fetch = mockFetch; }
 function restore() { window.fetch = realFetch; }
 
 // Fake-connect Oura so wearables-connect.js sees an authenticated state.
-function fakeConnect(adapterId) {
+function fakeConnect(adapterId: string) {
   state.importedData.wearableConnections[adapterId] = {
     accessToken: 'test-' + adapterId + '-token',
     refreshToken: 'test-' + adapterId + '-refresh',
@@ -125,7 +128,7 @@ const oldManualRows = await store.getDailyRange(TEST_PROFILE_ID, 'manual', '2025
 assert('Older manual RHR row is persisted in L1',
   oldManualRows.some(r => r.date === oldManualDate && r.rhr === 57));
 const oldManualSync = await summary.syncWearableSummary(TEST_PROFILE_ID, connect.listConnectedSources());
-const oldManualSummary = state.importedData?.wearableSummary;
+const oldManualSummary: ReturnType<typeof summary.computeWearableSummary> | null | undefined = state.importedData?.wearableSummary;
 assert('Older manual RHR writes an L2 summary metric outside the 90d vendor window',
   oldManualSync.wrote === true &&
   oldManualSummary?.metrics?.rhr?.latest === 57 &&
@@ -176,11 +179,11 @@ try {
 
   const meta = await store.getMeta(TEST_PROFILE_ID, 'last-sync:oura');
   assert('last-sync meta written after backfill', !!meta);
-  assert('last-sync meta carries rows count', typeof meta?.rows === 'number');
-  assert('last-sync meta carries startDate + endDate', !!meta?.startDate && !!meta?.endDate);
+  assert('last-sync meta carries rows count', typeof (meta as {rows?: unknown})?.rows === 'number');
+  assert('last-sync meta carries startDate + endDate', !!(meta as {startDate?: unknown})?.startDate && !!(meta as {endDate?: unknown})?.endDate);
 
-  const conn = state.importedData.wearableConnections.oura;
-  assert('Connection.lastSyncAt updated post-backfill', conn?.lastSyncAt > 0);
+  const conn: {lastSyncAt?: unknown} | null | undefined = state.importedData.wearableConnections.oura;
+  assert('Connection.lastSyncAt updated post-backfill', (conn?.lastSyncAt as number) > 0);
 } finally { restore(); }
 
 // ═══════════════════════════════════════
@@ -190,7 +193,7 @@ console.log('2. L2 Recompute');
 const sync2 = await summary.syncWearableSummary(TEST_PROFILE_ID, connect.listConnectedSources());
 assert('syncWearableSummary writes on first call (initial summary, no prior)',
   sync2.wrote === true && sync2.reason === 'initial');
-const sumState = state.importedData?.wearableSummary;
+const sumState: ReturnType<typeof summary.computeWearableSummary> | null | undefined = state.importedData?.wearableSummary;
 assert('wearableSummary persisted into state.importedData', !!sumState);
 assert('wearableSummary.metrics carries hrv_rmssd entry from IDB rows',
   !!sumState?.metrics?.hrv_rmssd);
@@ -200,14 +203,14 @@ assert('hrv_rmssd weekly array has at least one bucket',
   Array.isArray(sumState?.metrics?.hrv_rmssd?.weekly) &&
   sumState.metrics.hrv_rmssd.weekly.length >= 1);
 assert('summary.sources.oura.coverageDays > 0 after backfill',
-  sumState?.sources?.oura?.coverageDays > 0);
+  (sumState?.sources?.oura?.coverageDays as number) > 0);
 
 // ═══════════════════════════════════════
 // 3. incrementalSyncWearable — uses lastSync.endDate as start
 // ═══════════════════════════════════════
 console.log('3. Incremental Sync');
 try {
-  let observedStart = null;
+  let observedStart: unknown = null;
   installRoutes([
     { matcher: 'usercollection/sleep', body: { data: [], next_token: null }},
     { matcher: /heartrate.*start_datetime/, body: { data: [], next_token: null }},
@@ -217,8 +220,8 @@ try {
   window.fetch = (input, init) => {
     if (input === '/api/proxy' && observedStart === null) {
       try {
-        const body = JSON.parse(init.body);
-        const m = body.url?.match(/start_date=(\d{4}-\d{2}-\d{2})/);
+        const body = ((JSON.parse as (input: unknown) => unknown)(init!.body) as FixtureProxyBody);
+        const m = (body.url as string | undefined)?.match(/start_date=(\d{4}-\d{2}-\d{2})/);
         if (m) observedStart = m[1];
       } catch {}
     }
@@ -234,7 +237,7 @@ try {
 // 3b. Force-mode incrementalSync — when the user clicks "Sync now" we pass
 // force:true so the window is at least 7 days back.
 try {
-  let observedStartForce = null;
+  let observedStartForce: unknown = null;
   installRoutes([
     { matcher: 'usercollection/sleep', body: { data: [], next_token: null }},
     { matcher: /heartrate.*start_datetime/, body: { data: [], next_token: null }},
@@ -246,8 +249,8 @@ try {
   window.fetch = (input, init) => {
     if (input === '/api/proxy' && observedStartForce === null) {
       try {
-        const body = JSON.parse(init.body);
-        const m = body.url?.match(/start_date=(\d{4}-\d{2}-\d{2})/);
+        const body = ((JSON.parse as (input: unknown) => unknown)(init!.body) as FixtureProxyBody);
+        const m = (body.url as string | undefined)?.match(/start_date=(\d{4}-\d{2}-\d{2})/);
         if (m) observedStartForce = m[1];
       } catch {}
     }
@@ -256,7 +259,7 @@ try {
   await connect.incrementalSyncWearable('oura', { force: true });
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   assert('Force-mode expands start_date to ≥ 7 days back even when lastSync.endDate is today',
-    observedStartForce !== null && observedStartForce <= sevenDaysAgo,
+    observedStartForce !== null && (observedStartForce as string) <= sevenDaysAgo,
     `observed start_date=${observedStartForce}, expected ≤ ${sevenDaysAgo}`);
 } finally { restore(); }
 
@@ -270,9 +273,9 @@ try {
   ]);
   state.importedData.wearableConnections.oura.lastSyncAt = Date.now() - (13 * 60 * 60 * 1000);
   await connect.syncStaleWearablesNow();
-  const afterStaleAuto = state.importedData.wearableConnections.oura.lastSyncAt || 0;
+  const afterStaleAuto: unknown = state.importedData.wearableConnections.oura.lastSyncAt || 0;
   assert('syncStaleWearablesNow auto-syncs stale connected sources',
-    calls.length > 0 && Date.now() - afterStaleAuto < 60 * 1000,
+    calls.length > 0 && Date.now() - (afterStaleAuto as number) < 60 * 1000,
     `calls=${calls.length}, lastSyncAt=${afterStaleAuto}`);
 
   calls = [];
@@ -297,7 +300,7 @@ try {
     { matcher: /heartrate.*start_datetime/, body: { data: [], next_token: null }},
     { matcher: /usercollection\//, body: { data: [], next_token: null }},
   ]);
-  let err = null;
+  let err: unknown = null;
   try { await connect.backfillWearable('oura', 7); }
   catch (e) { err = e; }
   assert('Backfill swallows per-endpoint 5xx and continues with the rest',
@@ -311,7 +314,7 @@ try {
 // 5. L2 gate — minimum-cadence force-write after 14d silence
 // ═══════════════════════════════════════
 console.log('5. Gate Min-Cadence');
-const old = state.importedData.wearableSummary;
+const old: {summaryUpdatedAt?: unknown} | null | undefined = state.importedData.wearableSummary;
 if (old) {
   const fortnightAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
   old.summaryUpdatedAt = fortnightAgo;
@@ -368,10 +371,10 @@ try {
 // 8. stripWearableCredentials — token leak prevention
 // ═══════════════════════════════════════
 console.log('8. stripWearableCredentials');
-const TEST_PROFILE_2 = 'strip-creds-test-' + Date.now().toString(36);
+'strip-creds-test-' + Date.now().toString(36);
 const sentinelToken = 'SENTINEL-TOKEN-' + Math.random().toString(36).slice(2);
 const sentinelRefresh = 'SENTINEL-REFRESH-' + Math.random().toString(36).slice(2);
-state.importedData = {
+(state as {importedData: unknown}).importedData = {
   entries: [],
   wearableConnections: {
     oura: {
@@ -427,7 +430,7 @@ localStorage.removeItem(`labcharts-${TEST_PROFILE_ID}-imported`);
 if (origActiveProfile) localStorage.setItem('labcharts-active-profile', origActiveProfile);
 else localStorage.removeItem('labcharts-active-profile');
 state.currentProfile = origCurrentProfile;
-state.importedData = origState;
+(state as {importedData: unknown}).importedData = origState;
 try { const { deleteWearablesDB } = await import('../js/wearables-store.js'); await deleteWearablesDB(TEST_PROFILE_ID); } catch {}
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);

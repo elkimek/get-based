@@ -14,11 +14,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const _isNode = typeof process !== 'undefined' && !!process.versions?.node;
 
 let pass = 0, fail = 0;
-function assert(name, cond, detail) {
+function assert(name: string, cond: unknown, detail?: unknown) {
   if (cond) { pass++; console.log(`  PASS: ${name}`); }
   else { fail++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
 }
-function fetchSrc(rel) {
+function fetchSrc(rel: string) {
   // In Node: read from disk. In browser: original would `fetch(...)`.
   try { return fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8'); }
   catch (_) { return ''; }
@@ -37,7 +37,7 @@ const lightTools = await import('../js/light-tools.js');
 const viewsModule = await import('../js/views.js');
 
 // Snapshot mutable state we touch.
-const _origImported = state ? JSON.parse(JSON.stringify(state.importedData)) : null;
+const _origImported: unknown = state ? JSON.parse(JSON.stringify(state.importedData)) : null;
 const _origProfileSex = state ? state.profileSex : null;
 
   // ─── 1. v1.6.7 CAMS source-flip guard (sun-active-session.js _snapshotActiveRate) ─
@@ -95,7 +95,7 @@ const _origProfileSex = state ? state.profileSex : null;
     if (!S || typeof dailyVitaminDIUBreakdown !== 'function' || typeof rollingVitaminDIU !== 'function') {
       assert('dailyVitaminDIUBreakdown exported by sun.js', false);
     } else {
-      const _saved = JSON.parse(JSON.stringify(S.importedData));
+      const _saved: unknown = JSON.parse(JSON.stringify(S.importedData));
       // Two synthetic sessions with known channel-au + body fraction
       // ending TODAY and YESTERDAY. Verify breakdown sums per day,
       // and the 7-day total matches rollingVitaminDIU(7).
@@ -131,9 +131,9 @@ const _origProfileSex = state ? state.profileSex : null;
       // already proves the two methods agree).
       if (!_isNode) {
         assert('today/yesterday rows non-zero',
-          buckets[6].sun > 0 && buckets[5].sun > 0);
+          buckets[6]!.sun > 0 && buckets[5]!.sun > 0);
       }
-      S.importedData = _saved;
+      (S as {importedData: unknown}).importedData = _saved;
     }
   }
 
@@ -144,7 +144,7 @@ const _origProfileSex = state ? state.profileSex : null;
     if (!S || typeof lightTools.saveMeasurement !== 'function' || typeof lightTools.getMeasurements !== 'function') {
       assert('saveMeasurement / getMeasurements exported', false);
     } else {
-      const _saved = JSON.parse(JSON.stringify(S.importedData));
+      const _saved: unknown = JSON.parse(JSON.stringify(S.importedData));
       S.importedData.lightMeasurements = [];
       delete S.importedData._deleted;
       const r = 'room_test_retain';
@@ -160,9 +160,9 @@ const _origProfileSex = state ? state.profileSex : null;
         flickerRows[0]?.value === 3);
       assert('Different tool on same room keeps its own row',
         luxRows.length === 1 && luxRows[0]?.value === 800);
-      const tombstones = S.importedData._deleted?.lightMeasurements || [];
+      const tombstones = (S.importedData._deleted?.lightMeasurements || []) as {length: unknown};
       assert('Superseded entry tombstoned via _deleted for sync propagation',
-        tombstones.length >= 1);
+        (tombstones.length as number) >= 1);
 
       // Audit-tool exemption: walkthrough records (tool='audit') must
       // NOT supersede each other. Each walkthrough is a separate record
@@ -176,12 +176,12 @@ const _origProfileSex = state ? state.profileSex : null;
       const auditRows = lightTools.getMeasurements().filter(m => m.tool === 'audit');
       assert('Audit walkthroughs preserved across saves (no supersession)',
         auditRows.length === 2);
-      const auditTombstones = (S.importedData._deleted?.lightMeasurements || []).length;
+      const auditTombstones: unknown = (S.importedData._deleted?.lightMeasurements || []).length;
       assert('Audit save does not tombstone the prior walkthrough',
         auditTombstones === 0, `tombstones=${auditTombstones}`);
 
       // Restore.
-      S.importedData = _saved;
+      (S as {importedData: unknown}).importedData = _saved;
     }
     const ltSrc = await fetchSrc('js/light-tools.js');
     assert('light-tools.js: retention model is latest-per-(roomId, tool)',
@@ -419,7 +419,7 @@ const _origProfileSex = state ? state.profileSex : null;
       const after = document.querySelectorAll('.modal-overlay').length;
       assert('views._openAllSessionsModal opens a modal-overlay', after > before);
       const m = document.querySelectorAll('.modal-overlay');
-      if (m.length > before) m[m.length - 1].remove();
+      if (m.length > before) m[m.length - 1]!.remove();
     }
   }
 
@@ -571,7 +571,7 @@ const _origProfileSex = state ? state.profileSex : null;
   // ─── 19. Category marker card redesign ──────────────────────────────
   console.log('%c 19. category marker card redesign ', 'font-weight:bold;color:#0891b2');
   {
-    const viewsSrc = fetchSrc('js/views.js');
+    fetchSrc('js/views.js');
     const categoryPageViewSrc = fetchSrc('js/category-page-view.js');
     const categoryViewRenderersSrc = fetchSrc('js/category-view-renderers.js');
     const chartCardRecsSrc = fetchSrc('js/chart-card-recs.js');
@@ -711,7 +711,7 @@ const _origProfileSex = state ? state.profileSex : null;
   }
 
   // ─── Restore state ──────────────────────────────────────────────────
-  if (state && _origImported) state.importedData = _origImported;
+  if (state && _origImported) (state as {importedData: unknown}).importedData = _origImported;
   if (state) state.profileSex = _origProfileSex;
 
 console.log(`\nResults: ${pass} passed, ${fail} failed, ${pass + fail} total`);

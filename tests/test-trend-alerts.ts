@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 const dashboardCssSrc = [
   read('styles.css'),
   read('css/dashboard-core.css'),
@@ -26,7 +26,9 @@ const { assert, results: legacyAssertions } = createLegacyAssertions();
 console.log('=== Trend Alerts & Status Tests ===\n');
 
 const { linearRegression, getStatus, getTrend } = await import('../js/utils.js');
-const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await import('../js/marker-analysis.js');
+type FixtureTrendCall = (data: Pick<Parameters<typeof detectTrendAlerts>[0], 'dates'> & {categories: Record<string, Omit<Parameters<typeof detectTrendAlerts>[0]['categories'][string], 'icon'>>}) => ReturnType<typeof detectTrendAlerts>;
+
+const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange: _getEffectiveRange } = await import('../js/marker-analysis.js');
 
   // =======================================
   // 1. linearRegression — perfect fit
@@ -129,15 +131,15 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     }
   };
 
-  const alerts1 = detectTrendAlerts(mockSuddenHigh);
+  const alerts1 = (detectTrendAlerts as FixtureTrendCall)(mockSuddenHigh);
   assert('Sudden high detected', alerts1.length === 1, `got ${alerts1.length}`);
   if (alerts1.length >= 1) {
-    assert('Concern = sudden_high', alerts1[0].concern === 'sudden_high');
-    assert('Has name (Glucose)', alerts1[0].name === 'Glucose');
-    assert('Has category label', alerts1[0].category === 'Biochemistry');
-    assert('Direction = rising', alerts1[0].direction === 'rising');
-    assert('Has id', alerts1[0].id === 'biochemistry_glucose');
-    assert('Has spark values', Array.isArray(alerts1[0].spark) && alerts1[0].spark.length === 2);
+    assert('Concern = sudden_high', alerts1[0]!.concern === 'sudden_high');
+    assert('Has name (Glucose)', alerts1[0]!.name === 'Glucose');
+    assert('Has category label', alerts1[0]!.category === 'Biochemistry');
+    assert('Direction = rising', alerts1[0]!.direction === 'rising');
+    assert('Has id', alerts1[0]!.id === 'biochemistry_glucose');
+    assert('Has spark values', Array.isArray(alerts1[0]!.spark) && alerts1[0]!.spark.length === 2);
   }
 
   // =======================================
@@ -160,11 +162,11 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     }
   };
 
-  const alerts2 = detectTrendAlerts(mockSuddenLow);
+  const alerts2 = (detectTrendAlerts as FixtureTrendCall)(mockSuddenLow);
   assert('Sudden low detected', alerts2.length === 1, `got ${alerts2.length}`);
   if (alerts2.length >= 1) {
-    assert('Concern = sudden_low', alerts2[0].concern === 'sudden_low');
-    assert('Direction = falling', alerts2[0].direction === 'falling');
+    assert('Concern = sudden_low', alerts2[0]!.concern === 'sudden_low');
+    assert('Direction = falling', alerts2[0]!.direction === 'falling');
   }
 
   // =======================================
@@ -188,7 +190,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     }
   };
 
-  const alerts3 = detectTrendAlerts(mockInRange);
+  const alerts3 = (detectTrendAlerts as FixtureTrendCall)(mockInRange);
   assert('No sudden alert for in-range jump', alerts3.length === 0, `got ${alerts3.length}`);
 
   // =======================================
@@ -213,11 +215,11 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     }
   };
 
-  const alerts4 = detectTrendAlerts(mockRegressionHigh);
+  const alerts4 = (detectTrendAlerts as FixtureTrendCall)(mockRegressionHigh);
   assert('Regression past_high detected', alerts4.length === 1, `got ${alerts4.length}`);
   if (alerts4.length >= 1) {
-    assert('Concern = past_high', alerts4[0].concern === 'past_high');
-    assert('Direction = rising', alerts4[0].direction === 'rising');
+    assert('Concern = past_high', alerts4[0]!.concern === 'past_high');
+    assert('Direction = rising', alerts4[0]!.direction === 'rising');
   }
 
   // =======================================
@@ -242,11 +244,11 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     }
   };
 
-  const alerts5 = detectTrendAlerts(mockApproachLow);
+  const alerts5 = (detectTrendAlerts as FixtureTrendCall)(mockApproachLow);
   assert('Approaching low detected', alerts5.length === 1, `got ${alerts5.length}`);
   if (alerts5.length >= 1) {
-    assert('Concern = approaching_low', alerts5[0].concern === 'approaching_low');
-    assert('Direction = falling', alerts5[0].direction === 'falling');
+    assert('Concern = approaching_low', alerts5[0]!.concern === 'approaching_low');
+    assert('Direction = falling', alerts5[0]!.direction === 'falling');
   }
 
   // =======================================
@@ -269,7 +271,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     }
   };
 
-  const alerts6 = detectTrendAlerts(mockSinglePoint);
+  const alerts6 = (detectTrendAlerts as FixtureTrendCall)(mockSinglePoint);
   assert('singlePoint category yields no alerts', alerts6.length === 0);
 
   // =======================================
@@ -292,7 +294,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     }
   };
 
-  const alerts7 = detectTrendAlerts(mockNullRefs);
+  const alerts7 = (detectTrendAlerts as FixtureTrendCall)(mockNullRefs);
   assert('No alerts when refs are null', alerts7.length === 0);
 
   // =======================================
@@ -326,7 +328,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     }
   };
 
-  const alerts8 = detectTrendAlerts(mockMixed);
+  const alerts8 = (detectTrendAlerts as FixtureTrendCall)(mockMixed);
   const suddenIdx = alerts8.findIndex(a => a.concern.startsWith('sudden_'));
   const pastIdx = alerts8.findIndex(a => a.concern.startsWith('past_'));
   if (suddenIdx >= 0 && pastIdx >= 0) {
@@ -356,10 +358,10 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     }
   };
 
-  const alerts9 = detectTrendAlerts(mockNulls);
+  const alerts9 = (detectTrendAlerts as FixtureTrendCall)(mockNulls);
   assert('Handles null-interspersed values', alerts9.length >= 0);
   // Only 2 non-null values: [5.0, 6.5], jump = 1.5 > 0.475 (25% of 1.9), latest 6.5 > 5.8 = sudden_high
-  assert('Detects sudden high with interspersed nulls', alerts9.length === 1 && alerts9[0].concern === 'sudden_high',
+  assert('Detects sudden high with interspersed nulls', alerts9.length === 1 && alerts9[0]!.concern === 'sudden_high',
     `got ${alerts9.length} alerts${alerts9[0] ? ', concern=' + alerts9[0].concern : ''}`);
 
   // =======================================
@@ -383,7 +385,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     }
   };
 
-  const alerts10 = detectTrendAlerts(mockLowR2);
+  const alerts10 = (detectTrendAlerts as FixtureTrendCall)(mockLowR2);
   // Very noisy with no clear trend, no sudden jump > 25% of range (1.9) with out-of-range latest
   // The last two points: 6.0->4.2 jump=1.8 > 0.475 but 4.2 is within range: no sudden
   // Regression on 4 points: zig-zag, R2 should be very low, normSlope may be small
@@ -411,11 +413,11 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     }
   };
 
-  const alerts11 = detectTrendAlerts(mockApproachHigh);
+  const alerts11 = (detectTrendAlerts as FixtureTrendCall)(mockApproachHigh);
   assert('Approaching high detected', alerts11.length === 1, `got ${alerts11.length}`);
   if (alerts11.length >= 1) {
-    assert('Concern = approaching_high', alerts11[0].concern === 'approaching_high');
-    assert('Direction = rising', alerts11[0].direction === 'rising');
+    assert('Concern = approaching_high', alerts11[0]!.concern === 'approaching_high');
+    assert('Direction = rising', alerts11[0]!.direction === 'rising');
   }
 
   // =======================================
@@ -424,7 +426,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
   console.log('%c 17. detectTrendAlerts \u2014 Empty Data ', 'font-weight:bold;color:#f59e0b');
 
   const mockEmpty = { dates: [], categories: {} };
-  const alerts12 = detectTrendAlerts(mockEmpty);
+  const alerts12 = (detectTrendAlerts as FixtureTrendCall)(mockEmpty);
   assert('Empty data returns empty array', Array.isArray(alerts12) && alerts12.length === 0);
 
   // =======================================
@@ -447,7 +449,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     }
   };
 
-  const alerts13 = detectTrendAlerts(mockOnePoint);
+  const alerts13 = (detectTrendAlerts as FixtureTrendCall)(mockOnePoint);
   assert('Single data point yields no alerts', alerts13.length === 0);
 
   // =======================================
@@ -505,7 +507,7 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     }
   };
 
-  const trends1 = getKeyTrendMarkers(mockTrend);
+  const trends1 = (getKeyTrendMarkers as (data: Parameters<FixtureTrendCall>[0]) => ReturnType<typeof getKeyTrendMarkers>)(mockTrend);
   assert('Returns array', Array.isArray(trends1));
   assert('Max 8 markers', trends1.length <= 8, `got ${trends1.length}`);
   if (trends1.length > 0) {
@@ -569,11 +571,11 @@ const { detectTrendAlerts, getKeyTrendMarkers, getEffectiveRange } = await impor
     }
   };
 
-  const trends2 = getKeyTrendMarkers(mockAlertPriority);
+  const trends2 = (getKeyTrendMarkers as (data: Parameters<FixtureTrendCall>[0]) => ReturnType<typeof getKeyTrendMarkers>)(mockAlertPriority);
   assert('Alert marker (LDL) appears in results', trends2.some(t => t.cat === 'lipids' && t.key === 'ldl'));
   if (trends2.length > 0) {
-    assert('Alert marker (LDL) is first', trends2[0].cat === 'lipids' && trends2[0].key === 'ldl',
-      `first was ${trends2[0].cat}.${trends2[0].key}`);
+    assert('Alert marker (LDL) is first', trends2[0]!.cat === 'lipids' && trends2[0]!.key === 'ldl',
+      `first was ${trends2[0]!.cat}.${trends2[0]!.key}`);
   }
 
   // =======================================

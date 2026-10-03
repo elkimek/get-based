@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
@@ -33,7 +33,7 @@ const reviewSrc = read('js/pdf-import-review.js');
 const reviewRuntimeSrc = read('js/pdf-import-review-runtime.js');
 const progressSrc = read('js/pdf-import-progress.js');
 const labEntrySrc = read('js/lab-entry.js');
-const profileSrc = read('js/profile.js');
+read('js/profile.js');
 const profileDataMigrationsSrc = read('js/profile-data-migrations.js');
 const importCssSrc = read('css/import.css');
   // ═══════════════════════════════════════
@@ -217,10 +217,13 @@ const importCssSrc = read('css/import.css');
   const { UNIT_CONVERSIONS } = await import('../js/schema.js');
 
   // Simulate normalizeToSI (same logic as the function)
-  function normUnit(s) {
+  function normUnit(s: string) {
     return s.toLowerCase().replace(/\s/g, '').replace(/[\u00b5\u03bc]/g, 'u').replace(/^mcg/, 'ug').replace(/^iu\//, 'u/');
   }
-  function testNormalize(key, value, unit) {
+  function testNormalize(key: string, value: number, unit: string | null | undefined): number;
+  function testNormalize(key: string, value: null, unit: string | null | undefined): null;
+  function testNormalize(key: string, value: undefined, unit: string | null | undefined): undefined;
+  function testNormalize(key: string, value: number | null | undefined, unit: string | null | undefined) {
     if (value == null || !unit) return value;
     const conv = UNIT_CONVERSIONS[key];
     if (!conv) return value;
@@ -352,8 +355,8 @@ const importCssSrc = read('css/import.css');
   assert('bunCreatRatio in calculatedRatios',
     MARKER_SCHEMA.calculatedRatios?.markers?.bunCreatRatio != null);
   assert('bunCreatRatio ref range 10-20',
-    MARKER_SCHEMA.calculatedRatios.markers.bunCreatRatio.refMin === 10 &&
-    MARKER_SCHEMA.calculatedRatios.markers.bunCreatRatio.refMax === 20);
+    MARKER_SCHEMA.calculatedRatios!.markers.bunCreatRatio!.refMin! === 10 &&
+    MARKER_SCHEMA.calculatedRatios!.markers.bunCreatRatio!.refMax! === 20);
 
   // ═══════════════════════════════════════
   // 6. FA normalization doesn't rewrite standard markers
@@ -410,7 +413,7 @@ const importCssSrc = read('css/import.css');
       && spadiaFA.mappedKey === null
       && spadiaFA.suggestedKey === 'spadiaFA.epaC20_5'
       && spadiaFA.suggestedCategoryLabel === 'Spadia'
-      && spadiaFA.group === 'Fatty Acids',
+      && (spadiaFA as {group?: unknown}).group === 'Fatty Acids',
     JSON.stringify(spadiaFA));
   assert('Blood-classified Spadia report keeps true blood markers mapped',
     spadiaVitaminA
@@ -423,7 +426,7 @@ const importCssSrc = read('css/import.css');
       && spadiaUnknownFA.mappedKey === null
       && spadiaUnknownFA.suggestedKey === 'spadiaFA.epa'
       && spadiaUnknownFA.suggestedCategoryLabel === 'Spadia'
-      && spadiaUnknownFA.group === 'Fatty Acids',
+      && (spadiaUnknownFA as {group?: unknown}).group === 'Fatty Acids',
     JSON.stringify(spadiaUnknownFA));
   assert('Blood-classified Spadia guard demotes malformed generic FA keys',
     spadiaMalformedFA
@@ -457,20 +460,20 @@ const importCssSrc = read('css/import.css');
   const { buildMarkerReference, reconcileImportMarkerMappings } = await import('../js/pdf-import.js');
   const { state } = await import('../js/state.js');
   const originalImportedData = state.importedData;
-  state.importedData = {
+  (state as {importedData: unknown}).importedData = {
     entries: [{
       date: '2026-03-13',
       markers: {
         'custom.activeB12': 145,
         'spadiaFA.epaC20_5': 0.46
-      }
+      } as Record<string, unknown>
     }],
     customMarkers: {
       'custom.activeB12': { name: 'Active B12', unit: 'pmol/l' },
       'custom.eosinophilsLegacy': { name: 'Eosinophils %', unit: '%' },
       'spadiaFA.epaC20_5': { name: 'EPA C20:5', unit: '%' },
       'biochemistry.alpUkatL': { name: 'ALP (ukat/l)', unit: 'µkat/l' }
-    }
+    } as Record<string, Record<string, unknown>>
   };
   try {
     const markerRef = buildMarkerReference();
@@ -523,51 +526,51 @@ const importCssSrc = read('css/import.css');
     ];
     reconcileImportMarkerMappings(importMarkers, { testType: 'blood' });
     assert('Czech glucose reconciles to existing schema marker',
-      importMarkers[0].matched && importMarkers[0].mappedKey === 'biochemistry.glucose');
+      importMarkers[0]!.matched && importMarkers[0]!.mappedKey === 'biochemistry.glucose');
     assert('Erythrocyte magnesium reconciles to magnesium RBC',
-      importMarkers[1].matched && importMarkers[1].mappedKey === 'electrolytes.magnesiumRBC');
+      importMarkers[1]!.matched && importMarkers[1]!.mappedKey === 'electrolytes.magnesiumRBC');
     assert('Active B12 reconciles to the standard vitamins schema marker',
-      importMarkers[2].matched && importMarkers[2].mappedKey === 'vitamins.activeB12');
+      importMarkers[2]!.matched && importMarkers[2]!.mappedKey === 'vitamins.activeB12');
     assert('Differential # value reconciles to absolute-count marker',
-      importMarkers[3].matched && importMarkers[3].mappedKey === 'differential.neutrophils');
+      importMarkers[3]!.matched && importMarkers[3]!.mappedKey === 'differential.neutrophils');
     assert('Urine glucose is not incorrectly merged into blood glucose',
-      !importMarkers[4].matched && importMarkers[4].suggestedKey === 'custom.urineGlucose');
+      !importMarkers[4]!.matched && importMarkers[4]!.suggestedKey === 'custom.urineGlucose');
     assert('Urine pH reconciles to urinalysis pH',
-      importMarkers[5].matched && importMarkers[5].mappedKey === 'urinalysis.ph');
+      importMarkers[5]!.matched && importMarkers[5]!.mappedKey === 'urinalysis.ph');
     assert('Serum total protein reconciles to proteins.totalProtein',
-      importMarkers[6].matched && importMarkers[6].mappedKey === 'proteins.totalProtein');
+      importMarkers[6]!.matched && importMarkers[6]!.mappedKey === 'proteins.totalProtein');
     assert('Urine total protein reconciles to the quantitative urinalysis marker',
-      importMarkers[7].matched
-      && importMarkers[7].mappedKey === 'urinalysis.totalProtein'
-      && importMarkers[7].suggestedKey === null);
+      importMarkers[7]!.matched
+      && importMarkers[7]!.mappedKey === 'urinalysis.totalProtein'
+      && importMarkers[7]!.suggestedKey === null);
     assert('Existing product-specific custom key is matched, not new',
-      importMarkers[8].matched && importMarkers[8].mappedKey === 'spadiaFA.epaC20_5');
+      importMarkers[8]!.matched && importMarkers[8]!.mappedKey === 'spadiaFA.epaC20_5');
     assert('Unit suffix in marker label does not create duplicate ALP marker',
-      importMarkers[9].matched && importMarkers[9].mappedKey === 'biochemistry.alp');
+      importMarkers[9]!.matched && importMarkers[9]!.mappedKey === 'biochemistry.alp');
     assert('Invalid matched key with unit suffix is remapped to existing ALT',
-      importMarkers[10].matched && importMarkers[10].mappedKey === 'biochemistry.alt');
+      importMarkers[10]!.matched && importMarkers[10]!.mappedKey === 'biochemistry.alt');
     assert('Urine sediment prefix is not merged into blood WBC',
-      !importMarkers[11].matched
-      && importMarkers[11].mappedKey === null
-      && importMarkers[11].suggestedKey === 'urinalysis.leukocytesQualitative');
+      !importMarkers[11]!.matched
+      && importMarkers[11]!.mappedKey === null
+      && importMarkers[11]!.suggestedKey === 'urinalysis.leukocytesQualitative');
     assert('Unknown invalid mappedKey is demoted so it becomes a real custom marker',
-      !importMarkers[12].matched && importMarkers[12].mappedKey === null && importMarkers[12].suggestedKey === 'custom.unknownMarker');
+      !importMarkers[12]!.matched && importMarkers[12]!.mappedKey === null && importMarkers[12]!.suggestedKey === 'custom.unknownMarker');
     assert('Differential lymphocyte percent maps to percentage marker despite AI absolute key',
-      importMarkers[13].matched && importMarkers[13].mappedKey === 'differential.lymphocytesPct');
+      importMarkers[13]!.matched && importMarkers[13]!.mappedKey === 'differential.lymphocytesPct');
     assert('Differential monocyte percentage label maps to percentage marker despite AI absolute key',
-      importMarkers[14].matched && importMarkers[14].mappedKey === 'differential.monocytesPct');
+      importMarkers[14]!.matched && importMarkers[14]!.mappedKey === 'differential.monocytesPct');
     assert('Differential eosinophil percent maps to percentage marker',
-      importMarkers[15].matched && importMarkers[15].mappedKey === 'differential.eosinophilsPct');
+      importMarkers[15]!.matched && importMarkers[15]!.mappedKey === 'differential.eosinophilsPct');
     assert('Differential basophil percent maps to percentage marker',
-      importMarkers[21].matched && importMarkers[21].mappedKey === 'differential.basophilsPct');
+      importMarkers[21]!.matched && importMarkers[21]!.mappedKey === 'differential.basophilsPct');
     assert('Biology-score specialty-adjacent blood markers reconcile to standard schema keys',
-      importMarkers[16].matched && importMarkers[16].mappedKey === 'thyroid.reverseT3'
-      && importMarkers[17].matched && importMarkers[17].mappedKey === 'coagulation.dDimer'
-      && importMarkers[18].matched && importMarkers[18].mappedKey === 'hormones.cortisol'
-      && importMarkers[19].matched && importMarkers[19].mappedKey === 'lipids.lpA',
+      importMarkers[16]!.matched && importMarkers[16]!.mappedKey === 'thyroid.reverseT3'
+      && importMarkers[17]!.matched && importMarkers[17]!.mappedKey === 'coagulation.dDimer'
+      && importMarkers[18]!.matched && importMarkers[18]!.mappedKey === 'hormones.cortisol'
+      && importMarkers[19]!.matched && importMarkers[19]!.mappedKey === 'lipids.lpA',
       JSON.stringify(importMarkers.slice(16, 20)));
     assert('Lab-reported total cholesterol/HDL ratio maps to canonical calculated ratio key',
-      importMarkers[20].matched && importMarkers[20].mappedKey === 'calculatedRatios.cholHdlRatio',
+      importMarkers[20]!.matched && importMarkers[20]!.mappedKey === 'calculatedRatios.cholHdlRatio',
       JSON.stringify(importMarkers[20]));
     const calculatedMarkers = [
       { rawName: 'TG/HDL Ratio', value: 1.2, unit: '', matched: false, mappedKey: null, suggestedKey: 'biochemistry.tgHdl' },
@@ -607,12 +610,12 @@ const importCssSrc = read('css/import.css');
     ];
     reconcileImportMarkerMappings(gutMarkers, { testType: 'stool' });
     assert('Gut/stool specialty markers reconcile to adapter keys for Biology Scores',
-      gutMarkers[0].matched && gutMarkers[0].mappedKey === 'stool.calprotectin'
-      && gutMarkers[1].matched && gutMarkers[1].mappedKey === 'stool.zonulin'
-      && gutMarkers[2].matched && gutMarkers[2].mappedKey === 'stool.secretoryIgA',
+      gutMarkers[0]!.matched && gutMarkers[0]!.mappedKey === 'stool.calprotectin'
+      && gutMarkers[1]!.matched && gutMarkers[1]!.mappedKey === 'stool.zonulin'
+      && gutMarkers[2]!.matched && gutMarkers[2]!.mappedKey === 'stool.secretoryIgA',
       JSON.stringify(gutMarkers));
   } finally {
-    state.importedData = originalImportedData;
+    (state as {importedData: unknown}).importedData = originalImportedData;
   }
 
   // ═══════════════════════════════════════
@@ -624,23 +627,23 @@ const importCssSrc = read('css/import.css');
   const migrated = {
     entries: [{
       date: '2026-05-01',
-      markers: { 'biochemistry.alpUkatL': 1.2 },
-      markerSources: { 'biochemistry.alpUkatL': { file: 'spadia.pdf' } }
+      markers: { 'biochemistry.alpUkatL': 1.2 } as Record<string, unknown>,
+      markerSources: { 'biochemistry.alpUkatL': { file: 'spadia.pdf' } } as Record<string, Record<string, unknown>>
     }],
     customMarkers: {
       'biochemistry.alpUkatL': { name: 'ALP (ukat/l)', unit: 'µkat/l' }
-    },
+    } as Record<string, Record<string, unknown>>,
     markerLabels: {
       'biochemistry.alpUkatL': 'My ALP label'
-    },
+    } as Record<string, unknown>,
     markerValueNotes: {
       'biochemistry.alpUkatL:2026-05-01': 'lab note'
-    }
+    } as Record<string, unknown>
   };
-  migrateProfileData(migrated);
+  (migrateProfileData as (input: unknown) => unknown)(migrated);
   assert('Profile migration moves ALP unit-suffixed duplicate onto schema key',
-    migrated.entries[0].markers['biochemistry.alp'] === 1.2
-    && migrated.entries[0].markers['biochemistry.alpUkatL'] === undefined);
+    migrated.entries[0]!.markers['biochemistry.alp'] === 1.2
+    && migrated.entries[0]!.markers['biochemistry.alpUkatL'] === undefined);
   assert('Profile migration removes duplicate custom marker definition',
     migrated.customMarkers['biochemistry.alpUkatL'] === undefined);
   assert('Profile migration remaps marker value notes',
@@ -649,80 +652,80 @@ const importCssSrc = read('css/import.css');
     migrated.markerLabels['biochemistry.alp'] === 'My ALP label'
     && migrated.markerLabels['biochemistry.alpUkatL'] === undefined);
   const invisible = {
-    entries: [{ date: '2026-05-01', markers: { 'biochemistry.altUkatL': 0.5 } }],
-    customMarkers: {}
+    entries: [{ date: '2026-05-01', markers: { 'biochemistry.altUkatL': 0.5 } as Record<string, unknown> }],
+    customMarkers: {} as Record<string, Record<string, unknown>>
   };
-  migrateProfileData(invisible);
+  (migrateProfileData as (input: unknown) => unknown)(invisible);
   assert('Profile migration repairs unit-suffixed entry keys even without custom marker definition',
-    invisible.entries[0].markers['biochemistry.alt'] === 0.5
-    && invisible.entries[0].markers['biochemistry.altUkatL'] === undefined);
+    invisible.entries[0]!.markers['biochemistry.alt'] === 0.5
+    && invisible.entries[0]!.markers['biochemistry.altUkatL'] === undefined);
   const legacyProlactinRange = {
     entries: [{
       date: '2026-04-01',
-      markers: { 'hormones.prolactin': 12.44 },
-      markerSources: { 'hormones.prolactin': { file: 'hormones.pdf', snapshotId: 'snap_prl' } },
+      markers: { 'hormones.prolactin': 12.44 } as Record<string, unknown>,
+      markerSources: { 'hormones.prolactin': { file: 'hormones.pdf', snapshotId: 'snap_prl' } } as Record<string, Record<string, unknown>>,
     }],
     refOverrides: {
       'hormones.prolactin': { refMin: 86, refMax: 324, refSource: 'import' },
-    },
+    } as Record<string, Record<string, unknown>>,
     importSnapshots: [{
       id: 'snap_prl', date: '2026-04-01', fileName: 'hormones.pdf',
       markers: [{ mappedKey: 'hormones.prolactin', value: 263.7, unit: 'mIU/l', refMin: 86, refMax: 324 }],
     }],
   };
-  migrateProfileData(legacyProlactinRange);
+  (migrateProfileData as (input: unknown) => unknown)(legacyProlactinRange);
   assert('Profile migration converts snapshot-backed prolactin lab ranges from mIU/L to µg/L',
-    Math.abs(legacyProlactinRange.refOverrides['hormones.prolactin'].refMin - (86 / 21.2)) < 0.001
-      && Math.abs(legacyProlactinRange.refOverrides['hormones.prolactin'].refMax - (324 / 21.2)) < 0.001
-      && legacyProlactinRange.entries[0].markers['hormones.prolactin'] === 12.44);
+    Math.abs((legacyProlactinRange.refOverrides['hormones.prolactin']!.refMin as number) - (86 / 21.2)) < 0.001
+      && Math.abs((legacyProlactinRange.refOverrides['hormones.prolactin']!.refMax as number) - (324 / 21.2)) < 0.001
+      && legacyProlactinRange.entries[0]!.markers['hormones.prolactin'] === 12.44);
   const manualProlactinRange = {
-    entries: [{ date: '2026-04-01', markers: { 'hormones.prolactin': 12.44 } }],
+    entries: [{ date: '2026-04-01', markers: { 'hormones.prolactin': 12.44 } as Record<string, unknown> }],
     refOverrides: {
       'hormones.prolactin': {
         refMin: 5, refMax: 14, refSource: 'manual', labRefMin: 86, labRefMax: 324,
       },
-    },
+    } as Record<string, Record<string, unknown>>,
     importSnapshots: legacyProlactinRange.importSnapshots.map(snapshot => ({
       ...snapshot,
       markers: snapshot.markers.map(marker => ({ ...marker })),
     })),
   };
-  migrateProfileData(manualProlactinRange);
+  (migrateProfileData as (input: unknown) => unknown)(manualProlactinRange);
   assert('Profile migration preserves manual prolactin ranges while repairing the stashed lab interval',
-    manualProlactinRange.refOverrides['hormones.prolactin'].refMin === 5
-      && manualProlactinRange.refOverrides['hormones.prolactin'].refMax === 14
-      && Math.abs(manualProlactinRange.refOverrides['hormones.prolactin'].labRefMax - (324 / 21.2)) < 0.001);
+    manualProlactinRange.refOverrides['hormones.prolactin']!.refMin === 5
+      && manualProlactinRange.refOverrides['hormones.prolactin']!.refMax === 14
+      && Math.abs((manualProlactinRange.refOverrides['hormones.prolactin']!.labRefMax as number) - (324 / 21.2)) < 0.001);
   const urineProtein = {
-    entries: [{ date: '2026-05-01', markers: { 'urinalysis.totalProtein': 0.142 } }],
+    entries: [{ date: '2026-05-01', markers: { 'urinalysis.totalProtein': 0.142 } as Record<string, unknown> }],
     customMarkers: {
       'urinalysis.totalProtein': { name: 'Celková bílkovina', unit: 'g/l' }
-    }
+    } as Record<string, Record<string, unknown>>
   };
-  migrateProfileData(urineProtein);
+  (migrateProfileData as (input: unknown) => unknown)(urineProtein);
   assert('Profile migration adopts the exact urine marker without remapping it to serum total protein',
-    urineProtein.entries[0].markers['urinalysis.totalProtein'] === 0.142
-    && urineProtein.entries[0].markers['proteins.totalProtein'] === undefined
+    urineProtein.entries[0]!.markers['urinalysis.totalProtein'] === 0.142
+    && urineProtein.entries[0]!.markers['proteins.totalProtein'] === undefined
     && urineProtein.customMarkers['urinalysis.totalProtein'] === undefined);
   const urineProteinUnitDecorated = {
-    entries: [{ date: '2026-05-01', markers: { 'urinalysis.totalProteinGl': 0.142 } }],
+    entries: [{ date: '2026-05-01', markers: { 'urinalysis.totalProteinGl': 0.142 } as Record<string, unknown> }],
     customMarkers: {
       'urinalysis.totalProteinGl': { name: 'Total Protein (g/l)', unit: 'g/l' }
-    }
+    } as Record<string, Record<string, unknown>>
   };
-  migrateProfileData(urineProteinUnitDecorated);
+  (migrateProfileData as (input: unknown) => unknown)(urineProteinUnitDecorated);
   assert('Profile migration does not cross-map unit-decorated urine markers into blood categories',
-    urineProteinUnitDecorated.entries[0].markers['urinalysis.totalProteinGl'] === 0.142
-    && urineProteinUnitDecorated.entries[0].markers['proteins.totalProtein'] === undefined
+    urineProteinUnitDecorated.entries[0]!.markers['urinalysis.totalProteinGl'] === 0.142
+    && urineProteinUnitDecorated.entries[0]!.markers['proteins.totalProtein'] === undefined
     && urineProteinUnitDecorated.customMarkers['urinalysis.totalProteinGl']);
   const cPeptideAlias = {
-    entries: [{ date: '2026-05-01', markers: { 'hormones.cPeptide': 1.4 } }],
-    customMarkers: { 'hormones.cPeptide': { name: 'C-peptide', unit: 'µg/l' } },
-    markerValueNotes: { 'hormones.cPeptide:2026-05-01': 'legacy category' }
+    entries: [{ date: '2026-05-01', markers: { 'hormones.cPeptide': 1.4 } as Record<string, unknown> }],
+    customMarkers: { 'hormones.cPeptide': { name: 'C-peptide', unit: 'µg/l' } } as Record<string, Record<string, unknown>>,
+    markerValueNotes: { 'hormones.cPeptide:2026-05-01': 'legacy category' } as Record<string, unknown>
   };
-  migrateProfileData(cPeptideAlias);
+  (migrateProfileData as (input: unknown) => unknown)(cPeptideAlias);
   assert('Profile migration canonicalizes legacy hormones.cPeptide to diabetes.cPeptide',
-    cPeptideAlias.entries[0].markers['diabetes.cPeptide'] === 1.4
-    && cPeptideAlias.entries[0].markers['hormones.cPeptide'] === undefined
+    cPeptideAlias.entries[0]!.markers['diabetes.cPeptide'] === 1.4
+    && cPeptideAlias.entries[0]!.markers['hormones.cPeptide'] === undefined
     && cPeptideAlias.customMarkers['hormones.cPeptide'] === undefined
     && cPeptideAlias.markerValueNotes['diabetes.cPeptide:2026-05-01'] === 'legacy category');
 
@@ -732,16 +735,16 @@ const importCssSrc = read('css/import.css');
       markers: {
         'differential.eosinophilsPct': 4.1,
         'differential.basophilsPct': 0.6,
-      },
+      } as Record<string, unknown>,
       markerSources: {
         'differential.eosinophilsPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_new_pct' },
         'differential.basophilsPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_new_pct' },
-      },
+      } as Record<string, Record<string, unknown>>,
     }],
     customMarkers: {
       'differential.eosinophilsPct': { name: 'Eosinophils %', unit: '%', refMin: 0, refMax: 5 },
       'differential.basophilsPct': { name: 'Basophils %', unit: '%', refMin: 0, refMax: 2 },
-    },
+    } as Record<string, Record<string, unknown>>,
     importSnapshots: [{
       id: 'snap_cbc_new_pct',
       fileName: 'cbc.pdf',
@@ -754,21 +757,21 @@ const importCssSrc = read('css/import.css');
     refOverrides: {
       'differential.eosinophilsPct': { refMin: 0, refMax: 5, labRefMin: 0, labRefMax: 5, refSource: 'import' },
       'differential.basophilsPct': { refMin: 0, refMax: 2, labRefMin: 0, labRefMax: 2, refSource: 'import' },
-    },
+    } as Record<string, Record<string, unknown>>,
   };
-  migrateProfileData(legacyUnsupportedDifferentialPct);
+  (migrateProfileData as (input: unknown) => unknown)(legacyUnsupportedDifferentialPct);
   assert('Profile migration canonicalizes newly-supported differential percent custom markers',
-    legacyUnsupportedDifferentialPct.entries[0].markers['differential.eosinophilsPct'] === 0.041
-    && legacyUnsupportedDifferentialPct.entries[0].markers['differential.basophilsPct'] === 0.006
+    legacyUnsupportedDifferentialPct.entries[0]!.markers['differential.eosinophilsPct'] === 0.041
+    && legacyUnsupportedDifferentialPct.entries[0]!.markers['differential.basophilsPct'] === 0.006
     && legacyUnsupportedDifferentialPct.customMarkers['differential.eosinophilsPct'] === undefined
     && legacyUnsupportedDifferentialPct.customMarkers['differential.basophilsPct'] === undefined);
   assert('Profile migration repairs newly-supported differential percent snapshots and ranges',
-    legacyUnsupportedDifferentialPct.importSnapshots[0].markers[0].mappedKey === 'differential.eosinophilsPct'
-    && legacyUnsupportedDifferentialPct.importSnapshots[0].markers[0].suggestedKey === null
-    && legacyUnsupportedDifferentialPct.importSnapshots[0].markers[0].matched === true
-    && legacyUnsupportedDifferentialPct.importSnapshots[0].markers[1].mappedKey === 'differential.basophilsPct'
-    && legacyUnsupportedDifferentialPct.refOverrides['differential.eosinophilsPct'].refMax === 0.05
-    && legacyUnsupportedDifferentialPct.refOverrides['differential.basophilsPct'].refMax === 0.02);
+    (legacyUnsupportedDifferentialPct.importSnapshots[0]!.markers[0]! as {mappedKey?: unknown}).mappedKey === 'differential.eosinophilsPct'
+    && legacyUnsupportedDifferentialPct.importSnapshots[0]!.markers[0]!.suggestedKey === null
+    && legacyUnsupportedDifferentialPct.importSnapshots[0]!.markers[0]!.matched === true
+    && (legacyUnsupportedDifferentialPct.importSnapshots[0]!.markers[1]! as {mappedKey?: unknown}).mappedKey === 'differential.basophilsPct'
+    && legacyUnsupportedDifferentialPct.refOverrides['differential.eosinophilsPct']!.refMax === 0.05
+    && legacyUnsupportedDifferentialPct.refOverrides['differential.basophilsPct']!.refMax === 0.02);
 
   const dividedDifferentialPct = {
     entries: [{
@@ -779,14 +782,14 @@ const importCssSrc = read('css/import.css');
         'differential.lymphocytesPct': 0.328,
         'differential.eosinophilsPct': 0.00041,
         'differential.basophilsPct': 0.00006,
-      },
+      } as Record<string, unknown>,
       markerSources: {
         'differential.neutrophilsPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_fraction_pct' },
         'differential.monocytesPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_fraction_pct' },
         'differential.lymphocytesPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_fraction_pct' },
         'differential.eosinophilsPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_fraction_pct' },
         'differential.basophilsPct': { file: 'cbc.pdf', snapshotId: 'snap_cbc_fraction_pct' },
-      },
+      } as Record<string, Record<string, unknown>>,
     }],
     importSnapshots: [{
       id: 'snap_cbc_fraction_pct',
@@ -802,61 +805,61 @@ const importCssSrc = read('css/import.css');
     }],
     refOverrides: {
       'differential.neutrophilsPct': { refMin: 0.0045, refMax: 0.007, labRefMin: 0.0045, labRefMax: 0.007, refSource: 'import' },
-    },
+    } as Record<string, Record<string, unknown>>,
   };
-  migrateProfileData(dividedDifferentialPct);
+  (migrateProfileData as (input: unknown) => unknown)(dividedDifferentialPct);
   assert('Profile migration repairs fraction-stored differential percent values divided during import',
-    dividedDifferentialPct.entries[0].markers['differential.neutrophilsPct'] === 0.609
-    && dividedDifferentialPct.entries[0].markers['differential.monocytesPct'] === 0.074
-    && dividedDifferentialPct.entries[0].markers['differential.lymphocytesPct'] === 0.328
-    && dividedDifferentialPct.entries[0].markers['differential.eosinophilsPct'] === 0.041
-    && dividedDifferentialPct.entries[0].markers['differential.basophilsPct'] === 0.006);
+    dividedDifferentialPct.entries[0]!.markers['differential.neutrophilsPct'] === 0.609
+    && dividedDifferentialPct.entries[0]!.markers['differential.monocytesPct'] === 0.074
+    && dividedDifferentialPct.entries[0]!.markers['differential.lymphocytesPct'] === 0.328
+    && dividedDifferentialPct.entries[0]!.markers['differential.eosinophilsPct'] === 0.041
+    && dividedDifferentialPct.entries[0]!.markers['differential.basophilsPct'] === 0.006);
   assert('Profile migration repairs divided imported differential percent reference overrides',
-    dividedDifferentialPct.refOverrides['differential.neutrophilsPct'].refMin === 0.45
-    && dividedDifferentialPct.refOverrides['differential.neutrophilsPct'].refMax === 0.70
-    && dividedDifferentialPct.refOverrides['differential.neutrophilsPct'].labRefMin === 0.45
-    && dividedDifferentialPct.refOverrides['differential.neutrophilsPct'].labRefMax === 0.70);
+    dividedDifferentialPct.refOverrides['differential.neutrophilsPct']!.refMin === 0.45
+    && dividedDifferentialPct.refOverrides['differential.neutrophilsPct']!.refMax === 0.70
+    && dividedDifferentialPct.refOverrides['differential.neutrophilsPct']!.labRefMin === 0.45
+    && dividedDifferentialPct.refOverrides['differential.neutrophilsPct']!.labRefMax === 0.70);
 
   const lipidAliases = {
-    entries: [{ date: '2026-05-01', markers: { 'lipids.lpa': 42, 'lipids.totalCholesterol': 4.6, 'lipids.hdlCholesterol': 1.4, 'lipids.cholHdlRatio': 3.3 } }],
+    entries: [{ date: '2026-05-01', markers: { 'lipids.lpa': 42, 'lipids.totalCholesterol': 4.6, 'lipids.hdlCholesterol': 1.4, 'lipids.cholHdlRatio': 3.3 } as Record<string, unknown> }],
     customMarkers: {
       'lipids.lpa': { name: 'Lipoprotein A (Lp(a))', unit: 'nmol/l' },
       'lipids.totalCholesterol': { name: 'Total Cholesterol', unit: 'mmol/l' },
       'lipids.hdlCholesterol': { name: 'HDL Cholesterol', unit: 'mmol/l' },
       'lipids.cholHdlRatio': { name: 'Total cholesterol/HDL ratio', unit: '' },
-    },
-    markerValueNotes: { 'lipids.lpa:2026-05-01': 'duplicate alias' }
+    } as Record<string, Record<string, unknown>>,
+    markerValueNotes: { 'lipids.lpa:2026-05-01': 'duplicate alias' } as Record<string, unknown>
   };
-  migrateProfileData(lipidAliases);
+  (migrateProfileData as (input: unknown) => unknown)(lipidAliases);
   assert('Profile migration canonicalizes duplicate lipid aliases onto schema keys',
-    lipidAliases.entries[0].markers['lipids.lpA'] === 42
-    && lipidAliases.entries[0].markers['lipids.cholesterol'] === 4.6
-    && lipidAliases.entries[0].markers['lipids.hdl'] === 1.4
-    && lipidAliases.entries[0].markers['calculatedRatios.cholHdlRatio'] === 3.3
-    && lipidAliases.entries[0].markers['lipids.lpa'] === undefined
+    lipidAliases.entries[0]!.markers['lipids.lpA'] === 42
+    && lipidAliases.entries[0]!.markers['lipids.cholesterol'] === 4.6
+    && lipidAliases.entries[0]!.markers['lipids.hdl'] === 1.4
+    && lipidAliases.entries[0]!.markers['calculatedRatios.cholHdlRatio'] === 3.3
+    && lipidAliases.entries[0]!.markers['lipids.lpa'] === undefined
     && lipidAliases.customMarkers['lipids.lpa'] === undefined
     && lipidAliases.markerValueNotes['lipids.lpA:2026-05-01'] === 'duplicate alias');
 
   const calculatedRatioAliases = {
     entries: [{
       date: '2026-05-01',
-      markers: { 'biochemistry.fib4': 1.14 },
-      markerSources: { 'biochemistry.fib4': { file: 'liver-panel.pdf', snapshotId: 'snap_fib4_old' } },
+      markers: { 'biochemistry.fib4': 1.14 } as Record<string, unknown>,
+      markerSources: { 'biochemistry.fib4': { file: 'liver-panel.pdf', snapshotId: 'snap_fib4_old' } } as Record<string, Record<string, unknown>>,
     }, {
       date: '2026-06-01',
       markers: {
         'biochemistry.fib4Index': 1.21,
         'calculatedRatios.fib4Index': 1.23,
-      },
+      } as Record<string, unknown>,
       markerSources: {
         'biochemistry.fib4Index': { file: 'old-liver-panel.pdf' },
         'calculatedRatios.fib4Index': { file: 'new-liver-panel.pdf' },
-      },
+      } as Record<string, Record<string, unknown>>,
     }],
     customMarkers: {
       'biochemistry.fib4': { name: 'FIB-4', unit: '', categoryLabel: 'Biochemistry' },
       'biochemistry.fib4Index': { name: 'FIB-4 Index', unit: '', categoryLabel: 'Biochemistry' },
-    },
+    } as Record<string, Record<string, unknown>>,
     importSnapshots: [{
       id: 'snap_fib4_old',
       date: '2026-05-01',
@@ -867,36 +870,36 @@ const importCssSrc = read('css/import.css');
     }],
     refOverrides: {
       'biochemistry.fib4': { refMin: 0, refMax: 1.3, refSource: 'import' },
-    },
-    markerNotes: { 'biochemistry.fib4': 'Reported by the lab' },
-    markerValueNotes: { 'biochemistry.fib4:2026-05-01': 'legacy ratio note' },
+    } as Record<string, Record<string, unknown>>,
+    markerNotes: { 'biochemistry.fib4': 'Reported by the lab' } as Record<string, unknown>,
+    markerValueNotes: { 'biochemistry.fib4:2026-05-01': 'legacy ratio note' } as Record<string, unknown>,
   };
-  migrateProfileData(calculatedRatioAliases);
+  (migrateProfileData as (input: unknown) => unknown)(calculatedRatioAliases);
   assert('Profile migration moves historical FIB-4 values into Calculated Ratios',
-    calculatedRatioAliases.entries[0].markers['calculatedRatios.fib4Index'] === 1.14
-    && calculatedRatioAliases.entries[0].markers['biochemistry.fib4'] === undefined
-    && calculatedRatioAliases.entries[0].markerSources['calculatedRatios.fib4Index']?.snapshotId === 'snap_fib4_old');
+    calculatedRatioAliases.entries[0]!.markers['calculatedRatios.fib4Index'] === 1.14
+    && calculatedRatioAliases.entries[0]!.markers['biochemistry.fib4'] === undefined
+    && calculatedRatioAliases.entries[0]!.markerSources['calculatedRatios.fib4Index']?.snapshotId === 'snap_fib4_old');
   assert('Existing canonical reported ratio wins when a historical duplicate shares the draw date',
-    calculatedRatioAliases.entries[1].markers['calculatedRatios.fib4Index'] === 1.23
-    && calculatedRatioAliases.entries[1].markers['biochemistry.fib4Index'] === undefined
-    && calculatedRatioAliases.entries[1].markerSources['calculatedRatios.fib4Index']?.file === 'new-liver-panel.pdf');
+    calculatedRatioAliases.entries[1]!.markers['calculatedRatios.fib4Index'] === 1.23
+    && calculatedRatioAliases.entries[1]!.markers['biochemistry.fib4Index'] === undefined
+    && calculatedRatioAliases.entries[1]!.markerSources['calculatedRatios.fib4Index']?.file === 'new-liver-panel.pdf');
   assert('Profile migration removes old ratio cards and canonicalizes their snapshot and metadata',
     calculatedRatioAliases.customMarkers['biochemistry.fib4'] === undefined
     && calculatedRatioAliases.customMarkers['biochemistry.fib4Index'] === undefined
-    && calculatedRatioAliases.importSnapshots[0].markers[0].mappedKey === 'calculatedRatios.fib4Index'
-    && calculatedRatioAliases.importSnapshots[0].markers[0].suggestedKey === null
-    && calculatedRatioAliases.importSnapshots[0].markers[0].matched === true
+    && calculatedRatioAliases.importSnapshots[0]!.markers[0]!.mappedKey === 'calculatedRatios.fib4Index'
+    && calculatedRatioAliases.importSnapshots[0]!.markers[0]!.suggestedKey === null
+    && calculatedRatioAliases.importSnapshots[0]!.markers[0]!.matched === true
     && calculatedRatioAliases.refOverrides['calculatedRatios.fib4Index']?.refMax === 1.3
     && calculatedRatioAliases.markerNotes['calculatedRatios.fib4Index'] === 'Reported by the lab'
     && calculatedRatioAliases.markerValueNotes['calculatedRatios.fib4Index:2026-05-01'] === 'legacy ratio note');
 
   const lipidNameAlias = {
-    entries: [{ date: '2026-05-01', markers: { 'lipids.lipoproteinMarker': 55 } }],
-    customMarkers: { 'lipids.lipoproteinMarker': { name: 'Lipoprotein A', unit: 'nmol/l' } }
+    entries: [{ date: '2026-05-01', markers: { 'lipids.lipoproteinMarker': 55 } as Record<string, unknown> }],
+    customMarkers: { 'lipids.lipoproteinMarker': { name: 'Lipoprotein A', unit: 'nmol/l' } } as Record<string, Record<string, unknown>>
   };
-  migrateProfileData(lipidNameAlias);
+  (migrateProfileData as (input: unknown) => unknown)(lipidNameAlias);
   assert('Profile migration canonicalizes named Lipoprotein A custom duplicates',
-    lipidNameAlias.entries[0].markers['lipids.lpA'] === 55
+    lipidNameAlias.entries[0]!.markers['lipids.lpA'] === 55
     && lipidNameAlias.customMarkers['lipids.lipoproteinMarker'] === undefined);
 
   const savedSpadiaFA = {
@@ -904,15 +907,15 @@ const importCssSrc = read('css/import.css');
       date: '2024-07-04',
       sourceFile: 'EDG328K.pdf',
       sourceFiles: ['EDG328K.pdf'],
-      markers: { 'fattyAcids.epaC20_5': 0.90, 'vitamins.vitaminA': 2.39 },
+      markers: { 'fattyAcids.epaC20_5': 0.90, 'vitamins.vitaminA': 2.39 } as Record<string, unknown>,
       markerSources: {
         'fattyAcids.epaC20_5': { file: 'EDG328K.pdf', snapshotId: 'snap_spadia' },
         'vitamins.vitaminA': { file: 'EDG328K.pdf', snapshotId: 'snap_spadia' },
-      },
+      } as Record<string, Record<string, unknown>>,
     }],
     customMarkers: {
       'fattyAcids.epaC20_5': { name: 'EPA C20:5', unit: '%', refMin: 3.23, refMax: 4.72, categoryLabel: 'Fatty Acids', group: 'Fatty Acids', customMeta: 'preserve me' },
-    },
+    } as Record<string, Record<string, unknown>>,
     importSnapshots: [{
       id: 'snap_spadia',
       fileName: 'EDG328K.pdf',
@@ -922,27 +925,27 @@ const importCssSrc = read('css/import.css');
         { rawName: 'S Vitamin A', value: 2.39, unit: 'µmol/l', mappedKey: 'vitamins.vitaminA', suggestedKey: null, matched: true },
       ],
     }],
-    markerValueNotes: { 'fattyAcids.epaC20_5:2024-07-04': 'already imported note' },
-    markerLabels: { 'fattyAcids.epaC20_5': 'EPA label' },
+    markerValueNotes: { 'fattyAcids.epaC20_5:2024-07-04': 'already imported note' } as Record<string, unknown>,
+    markerLabels: { 'fattyAcids.epaC20_5': 'EPA label' } as Record<string, unknown>,
   };
-  migrateProfileData(savedSpadiaFA);
+  (migrateProfileData as (input: unknown) => unknown)(savedSpadiaFA);
   assert('Profile migration moves saved Spadia generic FA marker to spadiaFA',
-    savedSpadiaFA.entries[0].markers['spadiaFA.epaC20_5'] === 0.90
-    && savedSpadiaFA.entries[0].markers['fattyAcids.epaC20_5'] === undefined);
+    savedSpadiaFA.entries[0]!.markers['spadiaFA.epaC20_5'] === 0.90
+    && savedSpadiaFA.entries[0]!.markers['fattyAcids.epaC20_5'] === undefined);
   assert('Profile migration preserves standard markers in saved Spadia report',
-    savedSpadiaFA.entries[0].markers['vitamins.vitaminA'] === 2.39);
+    savedSpadiaFA.entries[0]!.markers['vitamins.vitaminA'] === 2.39);
   assert('Profile migration remaps Spadia marker source metadata',
-    savedSpadiaFA.entries[0].markerSources['spadiaFA.epaC20_5']?.snapshotId === 'snap_spadia'
-    && savedSpadiaFA.entries[0].markerSources['fattyAcids.epaC20_5'] === undefined);
+    savedSpadiaFA.entries[0]!.markerSources['spadiaFA.epaC20_5']?.snapshotId === 'snap_spadia'
+    && savedSpadiaFA.entries[0]!.markerSources['fattyAcids.epaC20_5'] === undefined);
   assert('Profile migration creates Spadia category metadata',
     savedSpadiaFA.customMarkers['spadiaFA.epaC20_5']?.categoryLabel === 'Spadia'
     && savedSpadiaFA.customMarkers['spadiaFA.epaC20_5']?.group === 'Fatty Acids'
     && savedSpadiaFA.customMarkers['spadiaFA.epaC20_5']?.customMeta === 'preserve me'
     && savedSpadiaFA.customMarkers['fattyAcids.epaC20_5'] === undefined);
   assert('Profile migration remaps saved Spadia import snapshot marker',
-    savedSpadiaFA.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.epaC20_5'
-    && savedSpadiaFA.importSnapshots[0].markers[0].suggestedCategoryLabel === 'Spadia'
-    && savedSpadiaFA.importSnapshots[0].markers[1].mappedKey === 'vitamins.vitaminA');
+    savedSpadiaFA.importSnapshots[0]!.markers[0]!.mappedKey === 'spadiaFA.epaC20_5'
+    && savedSpadiaFA.importSnapshots[0]!.markers[0]!.suggestedCategoryLabel! === 'Spadia'
+    && savedSpadiaFA.importSnapshots[0]!.markers[1]!.mappedKey === 'vitamins.vitaminA');
   assert('Profile migration remaps saved Spadia marker notes and labels',
     savedSpadiaFA.markerValueNotes['spadiaFA.epaC20_5:2024-07-04'] === 'already imported note'
     && savedSpadiaFA.markerLabels['spadiaFA.epaC20_5'] === 'EPA label'
@@ -952,13 +955,13 @@ const importCssSrc = read('css/import.css');
   const snapshotReadySpadiaFA = {
     entries: [{
       date: '2024-07-04',
-      markers: { 'spadiaFA.omega3Index': 7.1, 'vitamins.vitaminA': 2.39 },
+      markers: { 'spadiaFA.omega3Index': 7.1, 'vitamins.vitaminA': 2.39 } as Record<string, unknown>,
       markerSources: {
         'spadiaFA.omega3Index': { file: 'Spadia Fatty Acids.pdf', snapshotId: 'snap_spadia_ready' },
         'vitamins.vitaminA': { file: 'Spadia Fatty Acids.pdf', snapshotId: 'snap_spadia_ready' },
-      },
+      } as Record<string, Record<string, unknown>>,
     }],
-    customMarkers: {},
+    customMarkers: {} as Record<string, Record<string, unknown>>,
     importSnapshots: [{
       id: 'snap_spadia_ready',
       fileName: 'Spadia Fatty Acids.pdf',
@@ -969,33 +972,33 @@ const importCssSrc = read('css/import.css');
       ],
     }],
   };
-  migrateProfileData(snapshotReadySpadiaFA);
+  (migrateProfileData as (input: unknown) => unknown)(snapshotReadySpadiaFA);
   assert('Profile migration preserves snapshot-ready Spadia values in mixed reports when metadata is missing',
-    snapshotReadySpadiaFA.entries[0].markers['spadiaFA.omega3Index'] === 7.1
-    && snapshotReadySpadiaFA.entries[0].markers['vitamins.vitaminA'] === 2.39);
+    snapshotReadySpadiaFA.entries[0]!.markers['spadiaFA.omega3Index'] === 7.1
+    && snapshotReadySpadiaFA.entries[0]!.markers['vitamins.vitaminA'] === 2.39);
   assert('Profile migration rebuilds missing custom marker metadata from snapshot-ready Spadia keys',
     snapshotReadySpadiaFA.customMarkers['spadiaFA.omega3Index']?.name === 'Omega-3 Index'
     && snapshotReadySpadiaFA.customMarkers['spadiaFA.omega3Index']?.unit === '%'
     && snapshotReadySpadiaFA.customMarkers['spadiaFA.omega3Index']?.categoryLabel === 'Spadia'
     && snapshotReadySpadiaFA.customMarkers['spadiaFA.omega3Index']?.group === 'Fatty Acids');
 
-  const productFAFixtures = [
+  const productFAFixtures: Array<[string, string]> = [
     ['zinzinoFA', 'ZinZino'],
     ['omegaquantFA', 'OmegaQuant'],
     ['metabolomixFA', 'Fatty Acids'],
     ['fattyAcidsTest', 'Fatty Acids Test'],
     ['nutriBalanceFA', 'Nutri Balance'],
   ];
-  const snapshotBackedProductFA = { entries: [], customMarkers: {}, importSnapshots: [] };
+  const snapshotBackedProductFA = { entries: [] as Array<{date: string; markers: Record<string, unknown>; markerSources?: Record<string, Record<string, unknown>>}>, customMarkers: {} as Record<string, Record<string, unknown>>, importSnapshots: [] as Array<{id: string; fileName: string; date: string; markers: Array<Record<string, unknown>>}> };
   for (let i = 0; i < productFAFixtures.length; i++) {
-    const [prefix, categoryLabel] = productFAFixtures[i];
+    const [prefix, categoryLabel] = productFAFixtures[i]!;
     const date = `2026-02-0${i + 1}`;
     const snapshotId = `snap_product_fa_${i}`;
     const key = `${prefix}.omega3Index`;
     snapshotBackedProductFA.entries.push({
       date,
-      markers: { [key]: 7 + i, 'vitamins.vitaminA': 2.39 },
-      markerSources: { [key]: { file: `${categoryLabel}.pdf`, snapshotId } },
+      markers: { [key]: 7 + i, 'vitamins.vitaminA': 2.39 } as Record<string, unknown>,
+      markerSources: { [key]: { file: `${categoryLabel}.pdf`, snapshotId } } as Record<string, Record<string, unknown>>,
     });
     snapshotBackedProductFA.importSnapshots.push({
       id: snapshotId,
@@ -1013,11 +1016,11 @@ const importCssSrc = read('css/import.css');
       }],
     });
   }
-  migrateProfileData(snapshotBackedProductFA);
+  (migrateProfileData as (input: unknown) => unknown)(snapshotBackedProductFA);
   assert('Profile migration preserves snapshot-backed values for every fatty-acid adapter prefix',
     productFAFixtures.every(([prefix], i) =>
-      snapshotBackedProductFA.entries[i].markers[`${prefix}.omega3Index`] === 7 + i
-      && snapshotBackedProductFA.entries[i].markers['vitamins.vitaminA'] === 2.39));
+      snapshotBackedProductFA.entries[i]!.markers[`${prefix}.omega3Index`] === 7 + i
+      && snapshotBackedProductFA.entries[i]!.markers['vitamins.vitaminA'] === 2.39));
   assert('Profile migration rebuilds metadata for known and dynamic fatty-acid adapters',
     productFAFixtures.every(([prefix, categoryLabel]) => {
       const def = snapshotBackedProductFA.customMarkers[`${prefix}.omega3Index`];
@@ -1028,43 +1031,43 @@ const importCssSrc = read('css/import.css');
     }));
 
   const unprovenCorruptFA = {
-    entries: [{ date: '2026-02-10', markers: { 'accidentalFA.glucose': 5.2, 'vitamins.vitaminA': 2.39 } }],
-    customMarkers: {},
+    entries: [{ date: '2026-02-10', markers: { 'accidentalFA.glucose': 5.2, 'vitamins.vitaminA': 2.39 } as Record<string, unknown> }],
+    customMarkers: {} as Record<string, Record<string, unknown>>,
     importSnapshots: [],
   };
-  migrateProfileData(unprovenCorruptFA);
+  (migrateProfileData as (input: unknown) => unknown)(unprovenCorruptFA);
   assert('Profile migration still removes unproven FA-prefixed blood-marker corruption',
-    unprovenCorruptFA.entries[0].markers['accidentalFA.glucose'] === undefined
-    && unprovenCorruptFA.entries[0].markers['vitamins.vitaminA'] === 2.39);
+    unprovenCorruptFA.entries[0]!.markers['accidentalFA.glucose'] === undefined
+    && unprovenCorruptFA.entries[0]!.markers['vitamins.vitaminA'] === 2.39);
 
   const savedGenericFA = {
     entries: [{
       date: '2024-07-04',
       sourceFile: 'Other Lab Fatty Acids.pdf',
-      markers: { 'fattyAcids.epaC20_5': 0.90 },
+      markers: { 'fattyAcids.epaC20_5': 0.90 } as Record<string, unknown>,
     }],
     customMarkers: {
       'fattyAcids.epaC20_5': { name: 'EPA C20:5', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
-    },
+    } as Record<string, Record<string, unknown>>,
   };
-  migrateProfileData(savedGenericFA);
+  (migrateProfileData as (input: unknown) => unknown)(savedGenericFA);
   assert('Profile migration leaves non-Spadia generic FA marker unchanged',
-    savedGenericFA.entries[0].markers['fattyAcids.epaC20_5'] === 0.90
-    && savedGenericFA.entries[0].markers['spadiaFA.epaC20_5'] === undefined
+    savedGenericFA.entries[0]!.markers['fattyAcids.epaC20_5'] === 0.90
+    && savedGenericFA.entries[0]!.markers['spadiaFA.epaC20_5'] === undefined
     && savedGenericFA.customMarkers['fattyAcids.epaC20_5']);
 
   const negatedSpadiaSourceMetadata = {
     entries: [{
       date: '2026-01-20',
       sourceFile: 'Non-Spadia generic fatty acids.csv',
-      markers: { 'fattyAcids.epaC20_5': 0.50 },
+      markers: { 'fattyAcids.epaC20_5': 0.50 } as Record<string, unknown>,
       markerSources: {
         'fattyAcids.epaC20_5': { file: 'Non-Spadia generic fatty acids.csv', snapshotId: 'snap_non_spadia_generic' },
-      },
+      } as Record<string, Record<string, unknown>>,
     }],
     customMarkers: {
       'fattyAcids.epaC20_5': { name: 'EPA C20:5', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
-    },
+    } as Record<string, Record<string, unknown>>,
     importSnapshots: [{
       id: 'snap_non_spadia_generic',
       fileName: 'Non-Spadia generic fatty acids.csv',
@@ -1075,14 +1078,14 @@ const importCssSrc = read('css/import.css');
         { rawName: 'EPA C20:5', value: 0.50, unit: '%', mappedKey: 'fattyAcids.epaC20_5', suggestedKey: null, suggestedCategoryLabel: 'Fatty Acids', suggestedGroup: 'Fatty Acids', matched: true },
       ],
     }],
-    markerValueNotes: { 'fattyAcids.epaC20_5:2026-01-20': 'generic note' },
+    markerValueNotes: { 'fattyAcids.epaC20_5:2026-01-20': 'generic note' } as Record<string, unknown>,
   };
-  migrateProfileData(negatedSpadiaSourceMetadata);
+  (migrateProfileData as (input: unknown) => unknown)(negatedSpadiaSourceMetadata);
   assert('Profile migration does not treat negated Spadia source metadata as Spadia',
-    negatedSpadiaSourceMetadata.entries[0].markers['fattyAcids.epaC20_5'] === 0.50
-    && negatedSpadiaSourceMetadata.entries[0].markers['spadiaFA.epaC20_5'] === undefined
-    && negatedSpadiaSourceMetadata.entries[0].markerSources['fattyAcids.epaC20_5']?.snapshotId === 'snap_non_spadia_generic'
-    && negatedSpadiaSourceMetadata.importSnapshots[0].markers[0].mappedKey === 'fattyAcids.epaC20_5'
+    negatedSpadiaSourceMetadata.entries[0]!.markers['fattyAcids.epaC20_5'] === 0.50
+    && negatedSpadiaSourceMetadata.entries[0]!.markers['spadiaFA.epaC20_5'] === undefined
+    && negatedSpadiaSourceMetadata.entries[0]!.markerSources['fattyAcids.epaC20_5']?.snapshotId === 'snap_non_spadia_generic'
+    && negatedSpadiaSourceMetadata.importSnapshots[0]!.markers[0]!.mappedKey === 'fattyAcids.epaC20_5'
     && negatedSpadiaSourceMetadata.markerValueNotes['fattyAcids.epaC20_5:2026-01-20'] === 'generic note'
     && negatedSpadiaSourceMetadata.markerValueNotes['spadiaFA.epaC20_5:2026-01-20'] === undefined
     && negatedSpadiaSourceMetadata.customMarkers['fattyAcids.epaC20_5']);
@@ -1092,21 +1095,21 @@ const importCssSrc = read('css/import.css');
       {
         date: '2024-07-04',
         sourceFile: 'EDG328K.pdf',
-        markers: { 'fattyAcids.omega3Index': 7.1 },
-        markerSources: { 'fattyAcids.omega3Index': { file: 'EDG328K.pdf', snapshotId: 'snap_spadia_shared' } },
+        markers: { 'fattyAcids.omega3Index': 7.1 } as Record<string, unknown>,
+        markerSources: { 'fattyAcids.omega3Index': { file: 'EDG328K.pdf', snapshotId: 'snap_spadia_shared' } } as Record<string, Record<string, unknown>>,
       },
       {
         date: '2024-08-04',
         sourceFile: 'Other Lab Fatty Acids.pdf',
-        markers: { 'fattyAcids.omega3Index': 6.2 },
+        markers: { 'fattyAcids.omega3Index': 6.2 } as Record<string, unknown>,
       },
     ],
     customMarkers: {
       'fattyAcids.omega3Index': { name: 'Omega-3 Index', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
-    },
-    markerNotes: { 'fattyAcids.omega3Index': 'global note' },
-    markerLabels: { 'fattyAcids.omega3Index': 'Omega label' },
-    refOverrides: { 'fattyAcids.omega3Index': { min: 8, max: 12 } },
+    } as Record<string, Record<string, unknown>>,
+    markerNotes: { 'fattyAcids.omega3Index': 'global note' } as Record<string, unknown>,
+    markerLabels: { 'fattyAcids.omega3Index': 'Omega label' } as Record<string, unknown>,
+    refOverrides: { 'fattyAcids.omega3Index': { min: 8, max: 12 } } as Record<string, Record<string, unknown>>,
     importSnapshots: [{
       id: 'snap_spadia_shared',
       fileName: 'EDG328K.pdf',
@@ -1116,10 +1119,10 @@ const importCssSrc = read('css/import.css');
       ],
     }],
   };
-  migrateProfileData(sharedGenericAndSpadiaFA);
+  (migrateProfileData as (input: unknown) => unknown)(sharedGenericAndSpadiaFA);
   assert('Profile migration copies global metadata when generic FA key is still shared',
-    sharedGenericAndSpadiaFA.entries[0].markers['spadiaFA.omega3Index'] === 7.1
-    && sharedGenericAndSpadiaFA.entries[1].markers['fattyAcids.omega3Index'] === 6.2
+    sharedGenericAndSpadiaFA.entries[0]!.markers['spadiaFA.omega3Index'] === 7.1
+    && sharedGenericAndSpadiaFA.entries[1]!.markers['fattyAcids.omega3Index'] === 6.2
     && sharedGenericAndSpadiaFA.markerNotes['spadiaFA.omega3Index'] === 'global note'
     && sharedGenericAndSpadiaFA.markerNotes['fattyAcids.omega3Index'] === 'global note'
     && sharedGenericAndSpadiaFA.markerLabels['spadiaFA.omega3Index'] === 'Omega label'
@@ -1133,11 +1136,11 @@ const importCssSrc = read('css/import.css');
     entries: [{
       date: '2024-07-04',
       sourceFile: 'Fatty Acids.pdf',
-      markers: { 'fattyAcids.omega3Index': 7.1 },
+      markers: { 'fattyAcids.omega3Index': 7.1 } as Record<string, unknown>,
     }],
     customMarkers: {
       'fattyAcids.omega3Index': { name: 'Omega-3 Index', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
-    },
+    } as Record<string, Record<string, unknown>>,
     importSnapshots: [{
       id: 'snap_spadia_omega3',
       fileName: 'EDG328K.pdf',
@@ -1147,22 +1150,22 @@ const importCssSrc = read('css/import.css');
       ],
     }],
   };
-  migrateProfileData(spadiaSnapshotOnlySource);
+  (migrateProfileData as (input: unknown) => unknown)(spadiaSnapshotOnlySource);
   assert('Profile migration uses Spadia snapshot evidence to keep entries and snapshots aligned',
-    spadiaSnapshotOnlySource.entries[0].markers['spadiaFA.omega3Index'] === 7.1
-    && spadiaSnapshotOnlySource.entries[0].markers['fattyAcids.omega3Index'] === undefined
-    && spadiaSnapshotOnlySource.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.omega3Index');
+    spadiaSnapshotOnlySource.entries[0]!.markers['spadiaFA.omega3Index'] === 7.1
+    && spadiaSnapshotOnlySource.entries[0]!.markers['fattyAcids.omega3Index'] === undefined
+    && spadiaSnapshotOnlySource.importSnapshots[0]!.markers[0]!.mappedKey === 'spadiaFA.omega3Index');
 
   const sourceNamedSpadiaSnapshot = {
     entries: [{
       date: '2024-07-04',
       sourceFile: 'EDG328K.pdf',
-      markers: { 'fattyAcids.epaC20_5': 0.90 },
-      markerSources: { 'fattyAcids.epaC20_5': { file: 'EDG328K.pdf', snapshotId: 'snap_spadia_source_named' } },
+      markers: { 'fattyAcids.epaC20_5': 0.90 } as Record<string, unknown>,
+      markerSources: { 'fattyAcids.epaC20_5': { file: 'EDG328K.pdf', snapshotId: 'snap_spadia_source_named' } } as Record<string, Record<string, unknown>>,
     }],
     customMarkers: {
       'fattyAcids.epaC20_5': { name: 'EPA C20:5', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
-    },
+    } as Record<string, Record<string, unknown>>,
     importSnapshots: [{
       id: 'snap_spadia_source_named',
       fileName: 'EDG328K.pdf',
@@ -1173,14 +1176,14 @@ const importCssSrc = read('css/import.css');
         { rawName: 'EPA C20:5', value: 0.90, unit: '%', mappedKey: 'fattyAcids.epaC20_5', suggestedKey: null, matched: true },
       ],
     }],
-    markerValueNotes: { 'fattyAcids.epaC20_5:2024-07-04': 'source metadata note' },
+    markerValueNotes: { 'fattyAcids.epaC20_5:2024-07-04': 'source metadata note' } as Record<string, unknown>,
   };
-  migrateProfileData(sourceNamedSpadiaSnapshot);
+  (migrateProfileData as (input: unknown) => unknown)(sourceNamedSpadiaSnapshot);
   assert('Profile migration uses Spadia source metadata without filename hints',
-    sourceNamedSpadiaSnapshot.entries[0].markers['spadiaFA.epaC20_5'] === 0.90
-    && sourceNamedSpadiaSnapshot.entries[0].markers['fattyAcids.epaC20_5'] === undefined
-    && sourceNamedSpadiaSnapshot.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.epaC20_5'
-    && sourceNamedSpadiaSnapshot.importSnapshots[0].markers[0].suggestedCategoryLabel === 'Spadia'
+    sourceNamedSpadiaSnapshot.entries[0]!.markers['spadiaFA.epaC20_5'] === 0.90
+    && sourceNamedSpadiaSnapshot.entries[0]!.markers['fattyAcids.epaC20_5'] === undefined
+    && sourceNamedSpadiaSnapshot.importSnapshots[0]!.markers[0]!.mappedKey === 'spadiaFA.epaC20_5'
+    && (sourceNamedSpadiaSnapshot.importSnapshots[0]!.markers[0]! as {suggestedCategoryLabel?: unknown}).suggestedCategoryLabel === 'Spadia'
     && sourceNamedSpadiaSnapshot.markerValueNotes['spadiaFA.epaC20_5:2024-07-04'] === 'source metadata note'
     && sourceNamedSpadiaSnapshot.markerValueNotes['fattyAcids.epaC20_5:2024-07-04'] === undefined
     && sourceNamedSpadiaSnapshot.customMarkers['fattyAcids.epaC20_5'] === undefined);
@@ -1189,12 +1192,12 @@ const importCssSrc = read('css/import.css');
     entries: [{
       date: '2024-05-10',
       sourceFile: 'Fatty Acids.pdf',
-      markers: { 'fattyAcids.epaC20_5': 0.90 },
-      markerSources: { 'fattyAcids.epaC20_5': { file: 'Fatty Acids.pdf', snapshotId: 'snap_spadia_source_file' } },
+      markers: { 'fattyAcids.epaC20_5': 0.90 } as Record<string, unknown>,
+      markerSources: { 'fattyAcids.epaC20_5': { file: 'Fatty Acids.pdf', snapshotId: 'snap_spadia_source_file' } } as Record<string, Record<string, unknown>>,
     }],
     customMarkers: {
       'fattyAcids.epaC20_5': { name: 'EPA C20:5', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
-    },
+    } as Record<string, Record<string, unknown>>,
     importSnapshots: [{
       id: 'snap_spadia_source_file',
       fileName: 'EDG328K.pdf',
@@ -1205,13 +1208,13 @@ const importCssSrc = read('css/import.css');
         { rawName: 'EPA C20:5', value: 0.90, unit: '%', mappedKey: 'fattyAcids.epaC20_5', suggestedKey: null, matched: true },
       ],
     }],
-    markerValueNotes: { 'fattyAcids.epaC20_5:2024-05-10': 'source file note' },
+    markerValueNotes: { 'fattyAcids.epaC20_5:2024-05-10': 'source file note' } as Record<string, unknown>,
   };
-  migrateProfileData(sourceFileAttributedSpadiaSnapshot);
+  (migrateProfileData as (input: unknown) => unknown)(sourceFileAttributedSpadiaSnapshot);
   assert('Profile migration uses Spadia snapshot sourceFile and importer metadata',
-    sourceFileAttributedSpadiaSnapshot.entries[0].markers['spadiaFA.epaC20_5'] === 0.90
-    && sourceFileAttributedSpadiaSnapshot.entries[0].markers['fattyAcids.epaC20_5'] === undefined
-    && sourceFileAttributedSpadiaSnapshot.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.epaC20_5'
+    sourceFileAttributedSpadiaSnapshot.entries[0]!.markers['spadiaFA.epaC20_5'] === 0.90
+    && sourceFileAttributedSpadiaSnapshot.entries[0]!.markers['fattyAcids.epaC20_5'] === undefined
+    && sourceFileAttributedSpadiaSnapshot.importSnapshots[0]!.markers[0]!.mappedKey === 'spadiaFA.epaC20_5'
     && sourceFileAttributedSpadiaSnapshot.markerValueNotes['spadiaFA.epaC20_5:2024-05-10'] === 'source file note'
     && sourceFileAttributedSpadiaSnapshot.markerValueNotes['fattyAcids.epaC20_5:2024-05-10'] === undefined
     && sourceFileAttributedSpadiaSnapshot.customMarkers['fattyAcids.epaC20_5'] === undefined);
@@ -1219,12 +1222,12 @@ const importCssSrc = read('css/import.css');
   const datelessSpadiaFA = {
     entries: [{
       sourceFile: 'EDG328K.pdf',
-      markers: { 'fattyAcids.omega3Index': 7.1 },
-      markerSources: { 'fattyAcids.omega3Index': { file: 'EDG328K.pdf', snapshotId: 'snap_spadia_dateless' } },
+      markers: { 'fattyAcids.omega3Index': 7.1 } as Record<string, unknown>,
+      markerSources: { 'fattyAcids.omega3Index': { file: 'EDG328K.pdf', snapshotId: 'snap_spadia_dateless' } } as Record<string, Record<string, unknown>>,
     }],
     customMarkers: {
       'fattyAcids.omega3Index': { name: 'Omega-3 Index', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
-    },
+    } as Record<string, Record<string, unknown>>,
     importSnapshots: [{
       id: 'snap_spadia_dateless',
       fileName: 'EDG328K.pdf',
@@ -1232,12 +1235,12 @@ const importCssSrc = read('css/import.css');
         { rawName: 'Omega-3 Index', value: 7.1, unit: '%', mappedKey: 'fattyAcids.omega3Index', suggestedKey: null, suggestedCategoryLabel: 'Spadia', suggestedGroup: 'Fatty Acids', matched: true },
       ],
     }],
-    manualValues: { 'fattyAcids.omega3Index:2024-07-04': 7.3 },
-    markerValueNotes: { 'fattyAcids.omega3Index:2024-07-04': 'dateless note' },
+    manualValues: { 'fattyAcids.omega3Index:2024-07-04': 7.3 } as Record<string, unknown>,
+    markerValueNotes: { 'fattyAcids.omega3Index:2024-07-04': 'dateless note' } as Record<string, unknown>,
   };
-  migrateProfileData(datelessSpadiaFA);
+  (migrateProfileData as (input: unknown) => unknown)(datelessSpadiaFA);
   assert('Profile migration remaps date-scoped data for dateless Spadia entries',
-    datelessSpadiaFA.entries[0].markers['spadiaFA.omega3Index'] === 7.1
+    datelessSpadiaFA.entries[0]!.markers['spadiaFA.omega3Index'] === 7.1
     && datelessSpadiaFA.manualValues['spadiaFA.omega3Index:2024-07-04'] === 7.3
     && datelessSpadiaFA.markerValueNotes['spadiaFA.omega3Index:2024-07-04'] === 'dateless note'
     && datelessSpadiaFA.manualValues['fattyAcids.omega3Index:2024-07-04'] === undefined
@@ -1245,11 +1248,11 @@ const importCssSrc = read('css/import.css');
 
   const datelessSpadiaSnapshotNoEntrySource = {
     entries: [{
-      markers: { 'fattyAcids.epaC20_5': 0.90 },
+      markers: { 'fattyAcids.epaC20_5': 0.90 } as Record<string, unknown>,
     }],
     customMarkers: {
       'fattyAcids.epaC20_5': { name: 'EPA C20:5', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
-    },
+    } as Record<string, Record<string, unknown>>,
     importSnapshots: [{
       id: 'snap_spadia_dateless_value_match',
       fileName: 'EDG328K.pdf',
@@ -1258,21 +1261,21 @@ const importCssSrc = read('css/import.css');
       ],
     }],
   };
-  migrateProfileData(datelessSpadiaSnapshotNoEntrySource);
+  (migrateProfileData as (input: unknown) => unknown)(datelessSpadiaSnapshotNoEntrySource);
   assert('Profile migration value-matches dateless Spadia snapshots to dateless entries without source metadata',
-    datelessSpadiaSnapshotNoEntrySource.entries[0].markers['spadiaFA.epaC20_5'] === 0.90
-    && datelessSpadiaSnapshotNoEntrySource.entries[0].markers['fattyAcids.epaC20_5'] === undefined
-    && datelessSpadiaSnapshotNoEntrySource.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.epaC20_5'
+    datelessSpadiaSnapshotNoEntrySource.entries[0]!.markers['spadiaFA.epaC20_5'] === 0.90
+    && datelessSpadiaSnapshotNoEntrySource.entries[0]!.markers['fattyAcids.epaC20_5'] === undefined
+    && datelessSpadiaSnapshotNoEntrySource.importSnapshots[0]!.markers[0]!.mappedKey === 'spadiaFA.epaC20_5'
     && datelessSpadiaSnapshotNoEntrySource.customMarkers['spadiaFA.epaC20_5']?.categoryLabel === 'Spadia'
     && datelessSpadiaSnapshotNoEntrySource.customMarkers['fattyAcids.epaC20_5'] === undefined);
 
   const datedSpadiaSnapshotDatelessEntry = {
     entries: [{
-      markers: { 'fattyAcids.epaC20_5': 0.90 },
+      markers: { 'fattyAcids.epaC20_5': 0.90 } as Record<string, unknown>,
     }],
     customMarkers: {
       'fattyAcids.epaC20_5': { name: 'EPA C20:5', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
-    },
+    } as Record<string, Record<string, unknown>>,
     importSnapshots: [{
       id: 'snap_spadia_dated_dateless_entry',
       fileName: 'EDG328K.pdf',
@@ -1281,13 +1284,13 @@ const importCssSrc = read('css/import.css');
         { rawName: 'EPA C20:5', value: 0.90, unit: '%', mappedKey: 'fattyAcids.epaC20_5', suggestedKey: null, suggestedCategoryLabel: 'Spadia', suggestedGroup: 'Fatty Acids', matched: true },
       ],
     }],
-    markerValueNotes: { 'fattyAcids.epaC20_5:2024-07-04': 'dated snapshot note' },
+    markerValueNotes: { 'fattyAcids.epaC20_5:2024-07-04': 'dated snapshot note' } as Record<string, unknown>,
   };
-  migrateProfileData(datedSpadiaSnapshotDatelessEntry);
+  (migrateProfileData as (input: unknown) => unknown)(datedSpadiaSnapshotDatelessEntry);
   assert('Profile migration value-matches dated Spadia snapshots to dateless entries without source metadata',
-    datedSpadiaSnapshotDatelessEntry.entries[0].markers['spadiaFA.epaC20_5'] === 0.90
-    && datedSpadiaSnapshotDatelessEntry.entries[0].markers['fattyAcids.epaC20_5'] === undefined
-    && datedSpadiaSnapshotDatelessEntry.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.epaC20_5'
+    datedSpadiaSnapshotDatelessEntry.entries[0]!.markers['spadiaFA.epaC20_5'] === 0.90
+    && datedSpadiaSnapshotDatelessEntry.entries[0]!.markers['fattyAcids.epaC20_5'] === undefined
+    && datedSpadiaSnapshotDatelessEntry.importSnapshots[0]!.markers[0]!.mappedKey === 'spadiaFA.epaC20_5'
     && datedSpadiaSnapshotDatelessEntry.markerValueNotes['spadiaFA.epaC20_5:2024-07-04'] === 'dated snapshot note'
     && datedSpadiaSnapshotDatelessEntry.markerValueNotes['fattyAcids.epaC20_5:2024-07-04'] === undefined
     && datedSpadiaSnapshotDatelessEntry.customMarkers['fattyAcids.epaC20_5'] === undefined);
@@ -1295,11 +1298,11 @@ const importCssSrc = read('css/import.css');
   const datelessSpadiaSnapshotGenericPeer = {
     entries: [{
       sourceFile: 'Other Lab Fatty Acids.pdf',
-      markers: { 'fattyAcids.omega3Index': 7.1 },
+      markers: { 'fattyAcids.omega3Index': 7.1 } as Record<string, unknown>,
     }],
     customMarkers: {
       'fattyAcids.omega3Index': { name: 'Omega-3 Index', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
-    },
+    } as Record<string, Record<string, unknown>>,
     importSnapshots: [{
       id: 'snap_spadia_dateless_generic_peer',
       fileName: 'EDG328K.pdf',
@@ -1308,29 +1311,29 @@ const importCssSrc = read('css/import.css');
       ],
     }],
   };
-  migrateProfileData(datelessSpadiaSnapshotGenericPeer);
+  (migrateProfileData as (input: unknown) => unknown)(datelessSpadiaSnapshotGenericPeer);
   assert('Profile migration does not value-match dateless generic source peers into Spadia',
-    datelessSpadiaSnapshotGenericPeer.entries[0].markers['fattyAcids.omega3Index'] === 7.1
-    && datelessSpadiaSnapshotGenericPeer.entries[0].markers['spadiaFA.omega3Index'] === undefined
-    && datelessSpadiaSnapshotGenericPeer.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.omega3Index'
+    datelessSpadiaSnapshotGenericPeer.entries[0]!.markers['fattyAcids.omega3Index'] === 7.1
+    && datelessSpadiaSnapshotGenericPeer.entries[0]!.markers['spadiaFA.omega3Index'] === undefined
+    && datelessSpadiaSnapshotGenericPeer.importSnapshots[0]!.markers[0]!.mappedKey === 'spadiaFA.omega3Index'
     && datelessSpadiaSnapshotGenericPeer.customMarkers['fattyAcids.omega3Index']);
 
   const undatedSpadiaSnapshotSharedScopedData = {
     entries: [
       {
         sourceFile: 'Fatty Acids.pdf',
-        markers: { 'fattyAcids.omega3Index': 7.1 },
-        markerSources: { 'fattyAcids.omega3Index': { file: 'Fatty Acids.pdf', snapshotId: 'snap_spadia_undated_shared_scope' } },
+        markers: { 'fattyAcids.omega3Index': 7.1 } as Record<string, unknown>,
+        markerSources: { 'fattyAcids.omega3Index': { file: 'Fatty Acids.pdf', snapshotId: 'snap_spadia_undated_shared_scope' } } as Record<string, Record<string, unknown>>,
       },
       {
         date: '2024-08-01',
         sourceFile: 'Other Lab Fatty Acids.pdf',
-        markers: { 'fattyAcids.omega3Index': 6.8 },
+        markers: { 'fattyAcids.omega3Index': 6.8 } as Record<string, unknown>,
       },
     ],
     customMarkers: {
       'fattyAcids.omega3Index': { name: 'Omega-3 Index', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
-    },
+    } as Record<string, Record<string, unknown>>,
     importSnapshots: [{
       id: 'snap_spadia_undated_shared_scope',
       fileName: 'EDG328K.pdf',
@@ -1338,15 +1341,15 @@ const importCssSrc = read('css/import.css');
         { rawName: 'Omega-3 Index', value: 7.1, unit: '%', mappedKey: 'fattyAcids.omega3Index', suggestedKey: null, suggestedCategoryLabel: 'Spadia', suggestedGroup: 'Fatty Acids', matched: true },
       ],
     }],
-    manualValues: { 'fattyAcids.omega3Index:2024-08-01': 6.8 },
-    markerValueNotes: { 'fattyAcids.omega3Index:2024-08-01': 'generic dated note' },
-    markerLabels: { 'fattyAcids.omega3Index:2024-08-01': 'generic dated label' },
-    refOverrides: { 'fattyAcids.omega3Index:2024-08-01': { min: 6, max: 9 } },
+    manualValues: { 'fattyAcids.omega3Index:2024-08-01': 6.8 } as Record<string, unknown>,
+    markerValueNotes: { 'fattyAcids.omega3Index:2024-08-01': 'generic dated note' } as Record<string, unknown>,
+    markerLabels: { 'fattyAcids.omega3Index:2024-08-01': 'generic dated label' } as Record<string, unknown>,
+    refOverrides: { 'fattyAcids.omega3Index:2024-08-01': { min: 6, max: 9 } } as Record<string, Record<string, unknown>>,
   };
-  migrateProfileData(undatedSpadiaSnapshotSharedScopedData);
+  (migrateProfileData as (input: unknown) => unknown)(undatedSpadiaSnapshotSharedScopedData);
   assert('Profile migration does not copy undated Spadia snapshot metadata onto generic dated peers',
-    undatedSpadiaSnapshotSharedScopedData.entries[0].markers['spadiaFA.omega3Index'] === 7.1
-    && undatedSpadiaSnapshotSharedScopedData.entries[1].markers['fattyAcids.omega3Index'] === 6.8
+    undatedSpadiaSnapshotSharedScopedData.entries[0]!.markers['spadiaFA.omega3Index'] === 7.1
+    && undatedSpadiaSnapshotSharedScopedData.entries[1]!.markers['fattyAcids.omega3Index'] === 6.8
     && undatedSpadiaSnapshotSharedScopedData.manualValues['spadiaFA.omega3Index:2024-08-01'] === undefined
     && undatedSpadiaSnapshotSharedScopedData.markerValueNotes['spadiaFA.omega3Index:2024-08-01'] === undefined
     && undatedSpadiaSnapshotSharedScopedData.markerLabels['spadiaFA.omega3Index:2024-08-01'] === undefined
@@ -1360,12 +1363,12 @@ const importCssSrc = read('css/import.css');
     entries: [{
       date: '2024-07-01',
       sourceFile: 'EDG328K.pdf',
-      markers: { 'fattyAcids.omega3Index': 7.1 },
-      markerSources: { 'fattyAcids.omega3Index': { file: 'EDG328K.pdf', snapshotId: 'snap_spadia_cleanup' } },
+      markers: { 'fattyAcids.omega3Index': 7.1 } as Record<string, unknown>,
+      markerSources: { 'fattyAcids.omega3Index': { file: 'EDG328K.pdf', snapshotId: 'snap_spadia_cleanup' } } as Record<string, Record<string, unknown>>,
     }],
     customMarkers: {
       'fattyAcids.omega3Index': { name: 'Omega-3 Index', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
-    },
+    } as Record<string, Record<string, unknown>>,
     importSnapshots: [{
       id: 'snap_spadia_cleanup',
       fileName: 'EDG328K.pdf',
@@ -1377,23 +1380,23 @@ const importCssSrc = read('css/import.css');
     manualValues: {
       'fattyAcids.omega3Index:2024-07-01': 7.1,
       'fattyAcids.omega3Index:2024-07-04': 7.4,
-    },
+    } as Record<string, unknown>,
     markerValueNotes: {
       'fattyAcids.omega3Index:2024-07-01': 'import date note',
       'fattyAcids.omega3Index:2024-07-04': 'nearby manual note',
-    },
+    } as Record<string, unknown>,
     markerLabels: {
       'fattyAcids.omega3Index:2024-07-01': 'import date label',
       'fattyAcids.omega3Index:2024-07-04': 'nearby manual label',
-    },
+    } as Record<string, unknown>,
     refOverrides: {
       'fattyAcids.omega3Index:2024-07-01': { min: 8, max: 12 },
       'fattyAcids.omega3Index:2024-07-04': { min: 7, max: 11 },
-    },
+    } as Record<string, Record<string, unknown>>,
   };
-  migrateProfileData(spadiaScopedCleanup);
+  (migrateProfileData as (input: unknown) => unknown)(spadiaScopedCleanup);
   assert('Profile migration preserves all scoped metadata before generic Spadia cleanup',
-    spadiaScopedCleanup.entries[0].markers['spadiaFA.omega3Index'] === 7.1
+    spadiaScopedCleanup.entries[0]!.markers['spadiaFA.omega3Index'] === 7.1
     && spadiaScopedCleanup.manualValues['spadiaFA.omega3Index:2024-07-01'] === 7.1
     && spadiaScopedCleanup.manualValues['spadiaFA.omega3Index:2024-07-04'] === 7.4
     && spadiaScopedCleanup.markerValueNotes['spadiaFA.omega3Index:2024-07-01'] === 'import date note'
@@ -1415,12 +1418,12 @@ const importCssSrc = read('css/import.css');
     entries: [{
       date: '2024-07-01',
       sourceFile: 'EDG328K.pdf',
-      markers: { 'fattyAcids.omega3Index': 7.1 },
-      markerSources: { 'fattyAcids.omega3Index': { file: 'EDG328K.pdf', snapshotId: 'snap_spadia_dated_source' } },
+      markers: { 'fattyAcids.omega3Index': 7.1 } as Record<string, unknown>,
+      markerSources: { 'fattyAcids.omega3Index': { file: 'EDG328K.pdf', snapshotId: 'snap_spadia_dated_source' } } as Record<string, Record<string, unknown>>,
     }],
     customMarkers: {
       'fattyAcids.omega3Index': { name: 'Omega-3 Index', unit: '%', categoryLabel: 'Fatty Acids', group: 'Fatty Acids' },
-    },
+    } as Record<string, Record<string, unknown>>,
     importSnapshots: [
       {
         id: 'snap_spadia_dated_source',
@@ -1440,16 +1443,16 @@ const importCssSrc = read('css/import.css');
         ],
       },
     ],
-    manualValues: { 'fattyAcids.omega3Index:2024-07-01': 7.1 },
-    markerValueNotes: { 'fattyAcids.omega3Index:2024-07-01': 'shared undated snapshot note' },
-    markerLabels: { 'fattyAcids.omega3Index:2024-07-01': 'shared undated snapshot label' },
-    refOverrides: { 'fattyAcids.omega3Index:2024-07-01': { min: 8, max: 12 } },
+    manualValues: { 'fattyAcids.omega3Index:2024-07-01': 7.1 } as Record<string, unknown>,
+    markerValueNotes: { 'fattyAcids.omega3Index:2024-07-01': 'shared undated snapshot note' } as Record<string, unknown>,
+    markerLabels: { 'fattyAcids.omega3Index:2024-07-01': 'shared undated snapshot label' } as Record<string, unknown>,
+    refOverrides: { 'fattyAcids.omega3Index:2024-07-01': { min: 8, max: 12 } } as Record<string, Record<string, unknown>>,
   };
-  migrateProfileData(undatedGenericSnapshotReference);
+  (migrateProfileData as (input: unknown) => unknown)(undatedGenericSnapshotReference);
   assert('Profile migration keeps old scoped metadata when an undated generic snapshot still owns the key',
-    undatedGenericSnapshotReference.entries[0].markers['spadiaFA.omega3Index'] === 7.1
-    && undatedGenericSnapshotReference.importSnapshots[0].markers[0].mappedKey === 'spadiaFA.omega3Index'
-    && undatedGenericSnapshotReference.importSnapshots[1].markers[0].mappedKey === 'fattyAcids.omega3Index'
+    undatedGenericSnapshotReference.entries[0]!.markers['spadiaFA.omega3Index'] === 7.1
+    && undatedGenericSnapshotReference.importSnapshots[0]!.markers[0]!.mappedKey === 'spadiaFA.omega3Index'
+    && undatedGenericSnapshotReference.importSnapshots[1]!.markers[0]!.mappedKey === 'fattyAcids.omega3Index'
     && undatedGenericSnapshotReference.manualValues['spadiaFA.omega3Index:2024-07-01'] === 7.1
     && undatedGenericSnapshotReference.manualValues['fattyAcids.omega3Index:2024-07-01'] === 7.1
     && undatedGenericSnapshotReference.markerValueNotes['spadiaFA.omega3Index:2024-07-01'] === 'shared undated snapshot note'

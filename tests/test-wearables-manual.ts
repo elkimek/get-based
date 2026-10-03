@@ -21,7 +21,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 const CSS_FILES = ['styles.css', 'css/wearables.css'];
 const fetchCssBundle = async () => (await Promise.all(
   CSS_FILES.map(rel => fetch(rel).then(r => r.text()))
@@ -133,7 +133,7 @@ const _idbProfiles = [TEST_PROFILE];
 const origProfile = state.currentProfile;
 const origImported = state.importedData;
 state.currentProfile = TEST_PROFILE;
-state.importedData = { wearableConnections: {} };
+(state as {importedData: unknown}).importedData = { wearableConnections: {} };
 
 try {
   await manual.logManualMetric(TEST_PROFILE, 'weight', { date: '2026-04-24', value: 82.1 });
@@ -153,7 +153,7 @@ try {
   });
   const poundsRow = await store.getDaily(TEST_PROFILE, 'manual', '2026-04-26');
   assert('explicit pound input is canonicalized before the manual row is stored',
-    Math.abs((poundsRow?.weight || 0) - (180 / 2.2046226218)) < 0.01);
+    Math.abs(((poundsRow?.weight || 0) as number) - (180 / 2.2046226218)) < 0.01);
 
   // ═══════════════════════════════════════
   // 4. logManualBP writes combined row
@@ -201,7 +201,7 @@ try {
   const MIGRATE_PROFILE = 'test-mig-' + Math.random().toString(36).slice(2, 8);
   _idbProfiles.push(MIGRATE_PROFILE);
   state.currentProfile = MIGRATE_PROFILE;
-  state.importedData = { wearableConnections: {} };
+  (state as {importedData: unknown}).importedData = { wearableConnections: {} };
   const legacyBiometrics = {
     weight: [
       { date: '2026-04-20', value: 82.5, unit: 'kg', source: 'manual' },
@@ -218,8 +218,8 @@ try {
   const result = await manual.migrateBiometricsToManual(MIGRATE_PROFILE, legacyBiometrics);
   assert('migration runs (not skipped)', result.migrated === true);
   assert('migration counted 3 weight + 1 bp + 1 pulse entries',
-    result.counts.weight === 3 && result.counts.bp === 1 && result.counts.pulse === 1);
-  assert('migration wrote 3 rows (by-date dedup)', result.counts.rows === 3);
+    result.counts!.weight === 3 && result.counts!.bp === 1 && result.counts!.pulse === 1);
+  assert('migration wrote 3 rows (by-date dedup)', result.counts!.rows === 3);
 
   const migRow22 = await store.getDaily(MIGRATE_PROFILE, 'manual', '2026-04-22');
   assert('migrated 04-22 row has weight + BP + pulse merged',
@@ -228,7 +228,7 @@ try {
   const migRow23 = await store.getDaily(MIGRATE_PROFILE, 'manual', '2026-04-23');
   const lbInKg = 180 / 2.20462;
   assert('lb → kg unit conversion on migration',
-    Math.abs((migRow23?.weight || 0) - lbInKg) < 0.01);
+    Math.abs(((migRow23?.weight || 0) as number) - lbInKg) < 0.01);
 
   const rerun = await manual.migrateBiometricsToManual(MIGRATE_PROFILE, legacyBiometrics);
   assert('migration is idempotent (second run skipped)', rerun.skipped === 'already-migrated');
@@ -245,7 +245,7 @@ try {
   const DEL_PROFILE = 'test-del-' + Math.random().toString(36).slice(2, 8);
   _idbProfiles.push(DEL_PROFILE);
   state.currentProfile = DEL_PROFILE;
-  state.importedData = { wearableConnections: {} };
+  (state as {importedData: unknown}).importedData = { wearableConnections: {} };
   await manual.logManualMetric(DEL_PROFILE, 'weight', { date: '2026-04-24', value: 82 });
   await manual.logManualBP(DEL_PROFILE, { date: '2026-04-24', systolic: 118, diastolic: 76, pulse: 64 });
 
@@ -276,7 +276,7 @@ try {
   const TAG_PROFILE = 'test-tags-' + Math.random().toString(36).slice(2, 8);
   _idbProfiles.push(TAG_PROFILE);
   state.currentProfile = TAG_PROFILE;
-  state.importedData = { wearableConnections: {} };
+  (state as {importedData: unknown}).importedData = { wearableConnections: {} };
   await manual.logManualBP(TAG_PROFILE, {
     date: '2026-04-24', systolic: 145, diastolic: 92,
     tags: ['post-workout', 'stress']
@@ -284,7 +284,7 @@ try {
   const taggedRow = await store.getDaily(TAG_PROFILE, 'manual', '2026-04-24');
   assert('BP row persists tags array', Array.isArray(taggedRow?.tags));
   assert('tags contain post-workout + stress',
-    taggedRow?.tags?.includes('post-workout') && taggedRow?.tags?.includes('stress'));
+    (taggedRow?.tags as {includes(value: string): unknown} | undefined)?.includes('post-workout') && (taggedRow?.tags as {includes(value: string): unknown} | undefined)?.includes('stress'));
 
   await manual.logManualMetric(TAG_PROFILE, 'weight', {
     date: '2026-04-25', value: 81,
@@ -292,11 +292,11 @@ try {
   });
   const weightRow = await store.getDaily(TAG_PROFILE, 'manual', '2026-04-25');
   assert('unknown tags are filtered out',
-    !weightRow?.tags?.includes('bogus-tag'));
+    !(weightRow?.tags as {includes(value: string): unknown} | undefined)?.includes('bogus-tag'));
   assert('valid tags survive the filter',
-    weightRow?.tags?.includes('morning-fasted') &&
-    weightRow?.tags?.includes('resting') &&
-    weightRow?.tags?.includes('post-workout'));
+    (weightRow?.tags as {includes(value: string): unknown} | undefined)?.includes('morning-fasted') &&
+    (weightRow?.tags as {includes(value: string): unknown} | undefined)?.includes('resting') &&
+    (weightRow?.tags as {includes(value: string): unknown} | undefined)?.includes('post-workout'));
 
   assert('wearables strip actions render tag chips on bp form', wearablesActionsSrc.includes('_renderTagChips'));
   assert('toggleManualLogChip is a module export',
@@ -357,29 +357,29 @@ try {
   });
   const rows = await store.getDailyRange(probeProfile, 'manual', '2099-05-12', '2099-05-12');
   assert('logManualMetric persists note on the row',
-    rows.length === 1 && rows[0].note === 'morning, just woke');
+    rows.length === 1 && rows[0]!.note === 'morning, just woke');
   assert('logManualMetric still persists tags alongside note',
-    Array.isArray(rows[0].tags) && rows[0].tags.includes('resting'));
+    Array.isArray(rows[0]!.tags) && rows[0]!.tags.includes('resting'));
   const longNote = 'x'.repeat(800);
   await manual.logManualMetric(probeProfile, 'weight', {
     date: '2099-05-13', value: 70, note: longNote
   });
   const rows2 = await store.getDailyRange(probeProfile, 'manual', '2099-05-13', '2099-05-13');
   assert('Note capped at 500 chars',
-    rows2[0].note && rows2[0].note.length === 500);
+    rows2[0]!.note && (rows2[0]!.note as {length: unknown}).length === 500);
   await manual.logManualMetric(probeProfile, 'weight', {
     date: '2099-05-14', value: 71, note: '   '
   });
   const rows3 = await store.getDailyRange(probeProfile, 'manual', '2099-05-14', '2099-05-14');
   assert('Whitespace-only note is dropped (no note field on row)',
-    rows3[0].note === undefined);
+    rows3[0]!.note === undefined);
 
   await manual.logManualBP(probeProfile, {
     date: '2099-05-15', systolic: 120, diastolic: 80, tags: ['post-workout'], note: 'after run'
   });
   const rows4 = await store.getDailyRange(probeProfile, 'manual', '2099-05-15', '2099-05-15');
   assert('logManualBP persists note on the row',
-    rows4[0].note === 'after run' && rows4[0].tags?.includes('post-workout'));
+    rows4[0]!.note === 'after run' && (rows4[0]!.tags as {includes(value: string): unknown} | undefined)?.includes('post-workout'));
 
   // Detail-modal form has chips for rhr + bp (parity with empty-card form).
   const combinedManualFormSrc = wearablesActionsSrc + '\n' + wearablesDetailSrc;
@@ -467,7 +467,7 @@ try {
   }
   // Restore live profile
   state.currentProfile = origProfile;
-  state.importedData = origImported;
+  (state as {importedData: unknown}).importedData = origImported;
 }
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);

@@ -24,24 +24,27 @@ const polar      = await import('../js/wearables-polar.js');
   // ─────────────────────────────────────────────────────────
   // Relay-only adapters use /api/proxy on self-hosted deployments; providers
   // with browser CORS call their upstream directly. Normalize both shapes.
-  const realFetch = window.fetch;
-  let routes = []; // [{matcher: regex|string, status, body, count}, ...]
-  let calls = [];  // recorded POST bodies for assertions
-  function mockFetch(input, init) {
-    const url = (typeof input === 'string') ? input : input?.url;
+  // Non-validating property view used only by the original proxy fixture reads.
+interface FixtureProxyBody { url?: unknown; method?: unknown; headers?: unknown; body?: unknown }
+interface FixtureMockRoute { matcher: string | RegExp; body: unknown; status?: number; count?: number }
+const realFetch = window.fetch;
+  let routes: FixtureMockRoute[] = []; // [{matcher: regex|string, status, body, count}, ...]
+  let calls: FixtureProxyBody[] = [];  // recorded POST bodies for assertions
+  function mockFetch(input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) {
+    const url = (typeof input === 'string') ? input : (input as {url?: string})?.url;
     if (url !== '/api/proxy' && !/^https?:/i.test(url || '')) {
       // Non-network fixture reads — pass through.
       return realFetch.call(window, input, init);
     }
-    let body = {};
+    let body: FixtureProxyBody = {};
     if (url === '/api/proxy') {
-      try { body = JSON.parse(init?.body || '{}'); } catch {}
+      try { body = ((JSON.parse as (input: unknown) => unknown)(init?.body || '{}') as FixtureProxyBody); } catch {}
     } else {
       body = { url, method: init?.method || 'GET', headers: init?.headers || {}, body: init?.body };
     }
     calls.push({ url: body.url, method: body.method, headers: body.headers, body: body.body });
     for (const r of routes) {
-      const ok = (typeof r.matcher === 'string') ? body.url?.includes(r.matcher) : r.matcher.test(body.url || '');
+      const ok = (typeof r.matcher === 'string') ? (body.url as string | undefined)?.includes(r.matcher) : (r.matcher.test as (value: unknown) => boolean)(body.url || '');
       if (ok) {
         r.count = (r.count || 0) + 1;
         const status = r.status || 200;
@@ -54,7 +57,7 @@ const polar      = await import('../js/wearables-polar.js');
     // No route matched — return 404 so we surface unintended calls.
     return Promise.resolve(new Response(JSON.stringify({ error: 'no-mock' }), { status: 404 }));
   }
-  function installMocks(rs) {
+  function installMocks(rs: FixtureMockRoute[]) {
     routes = rs;
     calls = [];
     window.fetch = mockFetch;
@@ -111,7 +114,7 @@ const polar      = await import('../js/wearables-polar.js');
     assert('Oura stress_high seconds → minutes (1800s → 30min)', r?.stress_high_min === 30);
     assert('Oura resilience level enum → 1-5 (solid → 3)', r?.resilience_level === 3);
     assert('Oura cardio_age from daily_cardiovascular_age.vascular_age', r?.cardio_age === 38);
-    assert('Oura ignores rest-tagged HR samples for hr_day', !calls.some(c => c.url?.includes('rest')) || r?.hr_day === 80);
+    assert('Oura ignores rest-tagged HR samples for hr_day', !calls.some(c => (c.url as string | undefined)?.includes('rest')) || r?.hr_day === 80);
   } finally { restoreFetch(); }
 
   // Heartrate cap chunking — 90-day window must produce ≥3 calls
@@ -122,7 +125,7 @@ const polar      = await import('../js/wearables-polar.js');
       { matcher: /usercollection\//, body: { data: [], next_token: null }},
     ]);
     await oura.fetchOuraDailyRange('test-token', '2026-01-25', '2026-04-25');
-    const heartrateCalls = calls.filter(c => c.url?.includes('/heartrate?'));
+    const heartrateCalls = calls.filter(c => (c.url as string | undefined)?.includes('/heartrate?'));
     assert('Oura heartrate fetch chunks 90-day window (≥3 calls of ≤30 days each)',
       heartrateCalls.length >= 3, `got ${heartrateCalls.length} chunks`);
   } finally { restoreFetch(); }
@@ -164,7 +167,7 @@ const polar      = await import('../js/wearables-polar.js');
       r?.hrv_rmssd != null && Math.abs(r.hrv_rmssd - 45.44) < 0.5,
       `got ${r?.hrv_rmssd}`);
     assert('Oura time-series HRV filters zero-valued samples (gaps in recording)',
-      r?.hrv_rmssd > 40, // would be 28.something if zeros were included
+      r!?.hrv_rmssd! > 40, // would be 28.something if zeros were included
       `got ${r?.hrv_rmssd}`);
     // RHR is the minimum of [62,60,56,54,52,53,55,58,60] (zeros filtered) = 52
     assert('Oura rhr falls back to time-series min when scalar null',
@@ -426,12 +429,12 @@ const polar      = await import('../js/wearables-polar.js');
       { matcher: /\/v2\/sleep$/, body: { status: 0, body: { series: [] } }},
     ]);
     let rows = [];
-    let err = null;
+    let err: unknown = null;
     try { rows = await withings.fetchWithingsDailyRange('bad-token', '2026-04-23', '2026-04-23'); }
     catch (e) { err = e; }
     assert('Withings status:100 (token invalid) handled without crashing the whole fetch',
-      err === null || /token|expired|reconnect/i.test(err.message || ''),
-      err ? `error: ${err.message}` : `rows: ${rows.length}`);
+      err === null || /token|expired|reconnect/i.test((err as {message?: string})!.message || ''),
+      err ? `error: ${(err as {message?: unknown}).message}` : `rows: ${rows.length}`);
   } finally { restoreFetch(); }
 
   // Incremental sync: when lastSyncUnix is provided, /measure must be called
@@ -445,8 +448,8 @@ const polar      = await import('../js/wearables-polar.js');
     ]);
     const lastSyncMs = Date.UTC(2026, 3, 22, 12, 0, 0); // 2026-04-22T12:00Z
     await withings.fetchWithingsDailyRange('test-token', '2026-04-23', '2026-04-23', lastSyncMs);
-    const measCall = calls.find(c => /\/measure$/.test(c.url || ''));
-    const params = new URLSearchParams(measCall?.body || '');
+    const measCall = calls.find(c => (/\/measure$/.test as (value: unknown) => boolean)(c.url || ''));
+    const params = new URLSearchParams((measCall?.body || '') as ConstructorParameters<typeof URLSearchParams>[0]);
     assert('Withings incremental: /measure called with lastupdate (seconds)',
       params.get('lastupdate') === String(Math.floor(lastSyncMs / 1000)),
       `lastupdate=${params.get('lastupdate')}`);
@@ -465,8 +468,8 @@ const polar      = await import('../js/wearables-polar.js');
       { matcher: /\/v2\/sleep$/, body: { status: 0, body: { series: [] } }},
     ]);
     await withings.fetchWithingsDailyRange('test-token', '2026-04-23', '2026-04-23');
-    const measCall = calls.find(c => /\/measure$/.test(c.url || ''));
-    const params = new URLSearchParams(measCall?.body || '');
+    const measCall = calls.find(c => (/\/measure$/.test as (value: unknown) => boolean)(c.url || ''));
+    const params = new URLSearchParams((measCall?.body || '') as ConstructorParameters<typeof URLSearchParams>[0]);
     assert('Withings first-sync: startdate/enddate window used (no lastSyncUnix)',
       params.has('startdate') && params.has('enddate'));
     assert('Withings first-sync: lastupdate NOT sent', !params.has('lastupdate'));
@@ -507,7 +510,7 @@ const polar      = await import('../js/wearables-polar.js');
     assert('Ultrahuman body_temp_delta from temperature.deviation', r?.body_temp_delta === -0.2);
     assert('Ultrahuman glucose_avg from glucose.avg (cgm scope)', r?.glucose_avg === 92);
     assert('Ultrahuman health data is fetched browser-direct, not through /api/proxy',
-      calls.some(c => c.url?.startsWith('https://partner.ultrahuman.com/api/partners/v1/user_data/metrics')));
+      calls.some(c => (c.url as string | undefined)?.startsWith('https://partner.ultrahuman.com/api/partners/v1/user_data/metrics')));
   } finally { restoreFetch(); }
 
   // ═══════════════════════════════════════
@@ -563,14 +566,14 @@ const polar      = await import('../js/wearables-polar.js');
       { matcher: 'usercollection', status: 401, body: { detail: 'Unauthorized' }},
       { matcher: 'heartrate', status: 401, body: { detail: 'Unauthorized' }},
     ]);
-    let rows = null, err = null;
+    let rows: Awaited<ReturnType<typeof oura.fetchOuraDailyRange | typeof whoop.fetchWhoopDailyRange | typeof fitbit.fetchFitbitDailyRange | typeof ultrahuman.fetchUltrahumanDailyRange | typeof polar.fetchPolarDailyRange>> | null = null, err: unknown = null;
     try { rows = await oura.fetchOuraDailyRange('expired-token', '2026-04-23', '2026-04-23'); }
     catch (e) { err = e; }
     // Oura's fetcher swallows per-endpoint errors and logs (returns empty rows).
     // Either contract is acceptable as long as it doesn't throw an uncaught error.
     assert('Oura 401 across all endpoints does not crash the fetcher',
       err === null,
-      err ? `unexpected throw: ${err.message}` : `rows: ${rows?.length || 0}`);
+      err ? `unexpected throw: ${(err as {message?: unknown}).message}` : `rows: ${rows?.length || 0}`);
     assert('Oura 401 produces zero canonical rows (not a partial / wrong-shape record)',
       Array.isArray(rows) && rows.length === 0);
   } finally { restoreFetch(); }
@@ -581,7 +584,7 @@ const polar      = await import('../js/wearables-polar.js');
       { matcher: 'developer/v2/activity/sleep', status: 200, body: { records: [], next_token: null }},
       { matcher: 'developer/v2/cycle', status: 200, body: { records: [], next_token: null }},
     ]);
-    let rows = null, err = null;
+    let rows: Awaited<ReturnType<typeof oura.fetchOuraDailyRange | typeof whoop.fetchWhoopDailyRange | typeof fitbit.fetchFitbitDailyRange | typeof ultrahuman.fetchUltrahumanDailyRange | typeof polar.fetchPolarDailyRange>> | null = null, err: unknown = null;
     try { rows = await whoop.fetchWhoopDailyRange('test-token', '2026-04-23', '2026-04-23'); }
     catch (e) { err = e; }
     assert('WHOOP 429 on recovery endpoint does not crash the fetch',
@@ -597,7 +600,7 @@ const polar      = await import('../js/wearables-polar.js');
   // Each vendor expects a different top-level shape — generic catch-all
   // would crash some fetchers (e.g. Fitbit's spo2 expects an array, not
   // {data:[]}). Per-vendor empty fixtures.
-  const emptyVendors = [
+  const emptyVendors: Array<[string, (...args: never[]) => ReturnType<typeof oura.fetchOuraDailyRange | typeof whoop.fetchWhoopDailyRange | typeof fitbit.fetchFitbitDailyRange | typeof ultrahuman.fetchUltrahumanDailyRange | typeof polar.fetchPolarDailyRange>, [string, string, string, ...unknown[]], FixtureMockRoute[]]> = [
     ['Oura',       oura.fetchOuraDailyRange,       ['t', '2026-04-23', '2026-04-23'],
       [{ matcher: /./, body: { data: [], next_token: null }}]],
     ['WHOOP',      whoop.fetchWhoopDailyRange,     ['t', '2026-04-23', '2026-04-23'],
@@ -619,10 +622,10 @@ const polar      = await import('../js/wearables-polar.js');
   for (const [name, fetcher, args, mocks] of emptyVendors) {
     try {
       installMocks(mocks);
-      let rows = null, err = null;
-      try { rows = await fetcher(...args); } catch (e) { err = e; }
+      let rows: Awaited<ReturnType<typeof oura.fetchOuraDailyRange | typeof whoop.fetchWhoopDailyRange | typeof fitbit.fetchFitbitDailyRange | typeof ultrahuman.fetchUltrahumanDailyRange | typeof polar.fetchPolarDailyRange>> | null = null, err: unknown = null;
+      try { rows = await (fetcher as (...args: unknown[]) => ReturnType<typeof oura.fetchOuraDailyRange | typeof whoop.fetchWhoopDailyRange | typeof fitbit.fetchFitbitDailyRange | typeof ultrahuman.fetchUltrahumanDailyRange | typeof polar.fetchPolarDailyRange>)(...args); } catch (e) { err = e; }
       assert(`${name} fetcher handles empty payload without crashing`, err === null,
-        err ? `error: ${err.message}` : '');
+        err ? `error: ${(err as {message?: unknown}).message}` : '');
       assert(`${name} fetcher returns an array on empty payload`, Array.isArray(rows));
     } finally { restoreFetch(); }
   }

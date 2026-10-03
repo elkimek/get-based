@@ -11,11 +11,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
 let pass = 0, fail = 0;
-const results = [];
-function assert(name, condition, detail) {
+const results: string[] = [];
+function assert(name: string, condition: unknown, detail?: unknown) {
   if (condition) { pass++; results.push('  PASS: ' + name); }
   else { fail++; results.push('  FAIL: ' + name + (detail ? ' — ' + detail : '')); }
 }
@@ -109,14 +109,14 @@ assert('fromHex exported', typeof e2eeMod.fromHex === 'function');
 const veniceClient = e2eeMod.createVeniceE2EE({ apiKey: 'test-client' });
 assert('client exposes attestation and response-signature fetches',
   typeof veniceClient.attest === 'function' && typeof veniceClient.fetchResponseSignature === 'function');
-let requiredGpuWithoutAttestationError = '';
+let requiredGpuWithoutAttestationError: unknown = '';
 try {
   e2eeMod.createVeniceE2EE({ apiKey: 'test-v0.4-gpu-policy', verifyAttestation: false, requireGpu: true });
 } catch (error) {
-  requiredGpuWithoutAttestationError = error.message;
+  requiredGpuWithoutAttestationError = (error as {message?: unknown}).message;
 }
 assert('v0.4 rejects required GPU verification when attestation is disabled',
-  requiredGpuWithoutAttestationError.includes('Attestation policy cannot be required'));
+  (requiredGpuWithoutAttestationError as {includes(value: string): unknown}).includes('Attestation policy cannot be required'));
 assert('attestationTooltip exported', typeof chatAttestationMod.attestationTooltip === 'function');
 assert('e2eeLockHTML exported', typeof chatAttestationMod.e2eeLockHTML === 'function');
 assert('e2eeLockFootnote exported', typeof chatAttestationMod.e2eeLockFootnote === 'function');
@@ -171,20 +171,20 @@ try {
   const decUni = await e2eeMod.decryptChunk(keypair.privateKey, encUni);
   assert('unicode round-trip', decUni === unicodeText);
 } catch (e) {
-  assert('crypto operations threw no error', false, e.message);
+  assert('crypto operations threw no error', false, (e as {message?: unknown}).message);
 }
 
 // 11. decryptChunk fails closed for non-encrypted model output
-let plaintextError = '';
-try { await e2eeMod.decryptChunk(keypair.privateKey, 'hello'); } catch (e) { plaintextError = e.message; }
-assert('short non-hex response fails closed', plaintextError.includes('unencrypted content'), plaintextError);
+let plaintextError: unknown = '';
+try { await e2eeMod.decryptChunk(keypair.privateKey, 'hello'); } catch (e) { plaintextError = (e as {message?: unknown}).message; }
+assert('short non-hex response fails closed', (plaintextError as {includes(value: string): unknown}).includes('unencrypted content'), plaintextError);
 const pt2 = await e2eeMod.decryptChunk(keypair.privateKey, '');
 assert('empty string passes through', pt2 === '');
 const pt3 = await e2eeMod.decryptChunk(keypair.privateKey, ' \n');
 assert('whitespace-only response passes through', pt3 === ' \n');
-let nullError = '';
-try { await e2eeMod.decryptChunk(keypair.privateKey, null); } catch (e) { nullError = e.message; }
-assert('non-string response fails closed', nullError.includes('must be a string'), nullError);
+let nullError: unknown = '';
+try { await (e2eeMod.decryptChunk as (key: Parameters<typeof e2eeMod.decryptChunk>[0], chunk: unknown) => ReturnType<typeof e2eeMod.decryptChunk>)(keypair.privateKey, null); } catch (e) { nullError = (e as {message?: unknown}).message; }
+assert('non-string response fails closed', (nullError as {includes(value: string): unknown}).includes('must be a string'), nullError);
 
 // 12. createVeniceE2EE factory
 const instance = e2eeMod.createVeniceE2EE({ apiKey: 'test-key', verifyAttestation: false });
@@ -247,7 +247,7 @@ const savedVeniceModelRegular = localStorage.getItem('labcharts-venice-model-reg
 const savedVeniceModelE2EE = localStorage.getItem('labcharts-venice-model-e2ee');
 const originalFetch = globalThis.fetch;
 try {
-  globalThis.fetch = async () => ({
+  (globalThis as {fetch?: unknown}).fetch = async () => ({
     ok: true,
     json: async () => ({
       data: [
@@ -260,17 +260,17 @@ try {
   api.setVeniceE2EE(true);
   api.setVeniceModel('e2ee-qwen3-30b-a3b-p');
   await api.fetchVeniceModels('test-key');
-  const cachedE2EE = JSON.parse(localStorage.getItem('labcharts-venice-e2ee-models') || '[]');
-  const cachedRegular = JSON.parse(localStorage.getItem('labcharts-venice-models') || '[]');
-  assert('fetchVeniceModels uses supportsE2EE capability', cachedE2EE.length === 1 && cachedE2EE[0].id === 'e2ee-qwen3-5-122b-a10b', JSON.stringify(cachedE2EE.map(m => m.id)));
+  const cachedE2EE = JSON.parse(localStorage.getItem('labcharts-venice-e2ee-models') || '[]') as Array<{id?: unknown}>;
+  const cachedRegular = JSON.parse(localStorage.getItem('labcharts-venice-models') || '[]') as Array<{id?: unknown}>;
+  assert('fetchVeniceModels uses supportsE2EE capability', cachedE2EE.length === 1 && cachedE2EE[0]!.id === 'e2ee-qwen3-5-122b-a10b', JSON.stringify(cachedE2EE.map(m => m.id)));
   assert('unsupported e2ee prefix is not cached as regular Venice model', !cachedRegular.some(m => m.id === 'e2ee-qwen3-30b-a3b-p'), JSON.stringify(cachedRegular.map(m => m.id)));
   assert('stale E2EE model replaced with current E2EE model', api.getVeniceModel() === 'e2ee-qwen3-5-122b-a10b', api.getVeniceModel());
   assert('stale E2EE prefix no longer active after capability cache', !api.isE2EEModel('e2ee-qwen3-30b-a3b-p'));
 } catch (e) {
-  assert('Venice E2EE model cache refresh threw no error', false, e.message);
+  assert('Venice E2EE model cache refresh threw no error', false, (e as {message?: unknown}).message);
 } finally {
-  if (originalFetch) globalThis.fetch = originalFetch;
-  else delete globalThis.fetch;
+  if (originalFetch) (globalThis as {fetch?: unknown}).fetch = originalFetch;
+  else delete (globalThis as {fetch?: unknown}).fetch;
   if (savedVeniceModels) localStorage.setItem('labcharts-venice-models', savedVeniceModels);
   else localStorage.removeItem('labcharts-venice-models');
   if (savedVeniceE2EEModels) localStorage.setItem('labcharts-venice-e2ee-models', savedVeniceE2EEModels);
@@ -309,9 +309,9 @@ try {
     api.setVeniceE2EE(false);
     api.setVeniceModel('e2ee-qwen3-30b-a3b-p');
 
-    let capturedModel = '';
-    globalThis.fetch = async (_url, options) => {
-      capturedModel = JSON.parse(options.body).model;
+    let capturedModel: unknown = '';
+    (globalThis as {fetch?: unknown}).fetch = async (_url: Parameters<typeof fetch>[0], options?: Parameters<typeof fetch>[1]) => {
+      capturedModel = ((JSON.parse as (input: unknown) => unknown)(options!.body) as Record<string, unknown>).model;
       return {
         ok: true,
         status: 200,
@@ -327,10 +327,10 @@ try {
     assert('deprecated E2EE prefix is inactive with empty capability cache', !api.isE2EEModel('e2ee-qwen3-30b-a3b-p'));
     assert('deprecated E2EE prefix does not enable Venice E2EE', api.getVeniceE2EE() === false);
   } catch (e) {
-    assert('deprecated E2EE prefix Venice call threw no error', false, e.message);
+    assert('deprecated E2EE prefix Venice call threw no error', false, (e as {message?: unknown}).message);
   } finally {
-    if (originalFetchB) globalThis.fetch = originalFetchB;
-    else delete globalThis.fetch;
+    if (originalFetchB) (globalThis as {fetch?: unknown}).fetch = originalFetchB;
+    else delete (globalThis as {fetch?: unknown}).fetch;
     if (savedVeniceModelsB) localStorage.setItem('labcharts-venice-models', savedVeniceModelsB);
     else localStorage.removeItem('labcharts-venice-models');
     if (savedVeniceE2EEModelsB) localStorage.setItem('labcharts-venice-e2ee-models', savedVeniceE2EEModelsB);
@@ -371,7 +371,7 @@ try {
     api.setVeniceModel('llama-3.3-70b');
 
     let completionCalls = 0;
-    globalThis.fetch = async () => {
+    (globalThis as {fetch?: unknown}).fetch = async () => {
       completionCalls += 1;
       return {
         ok: true,
@@ -383,20 +383,20 @@ try {
       };
     };
 
-    let errorMessage = '';
+    let errorMessage: unknown = '';
     try {
       await api.callVeniceAPI({ messages: [{ role: 'user', content: 'hi' }], maxTokens: 1 });
     } catch (e) {
-      errorMessage = e.message;
+      errorMessage = (e as {message?: unknown}).message;
     }
-    assert('missing Venice E2EE models blocks unencrypted fallback', errorMessage.includes('no current Venice E2EE model'), errorMessage);
+    assert('missing Venice E2EE models blocks unencrypted fallback', (errorMessage as {includes(value: string): unknown}).includes('no current Venice E2EE model'), errorMessage);
     assert('missing Venice E2EE models preserves E2EE toggle', api.getVeniceE2EE() === true);
     assert('missing Venice E2EE models skips completion request', completionCalls === 0, `calls=${completionCalls}`);
   } catch (e) {
-    assert('missing Venice E2EE model guard threw no unexpected error', false, e.message);
+    assert('missing Venice E2EE model guard threw no unexpected error', false, (e as {message?: unknown}).message);
   } finally {
-    if (originalFetchC) globalThis.fetch = originalFetchC;
-    else delete globalThis.fetch;
+    if (originalFetchC) (globalThis as {fetch?: unknown}).fetch = originalFetchC;
+    else delete (globalThis as {fetch?: unknown}).fetch;
     if (savedVeniceModelsC) localStorage.setItem('labcharts-venice-models', savedVeniceModelsC);
     else localStorage.removeItem('labcharts-venice-models');
     if (savedVeniceE2EEModelsC) localStorage.setItem('labcharts-venice-e2ee-models', savedVeniceE2EEModelsC);

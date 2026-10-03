@@ -14,15 +14,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 // Compat shim: original test used `await fetchWithRetry(path).then(s => s.includes(...))`
 // — port it as a sync wrapper that returns the file text (the .then is harmless).
-function fetchWithRetry(rel) {
+function fetchWithRetry(rel: string) {
   return Promise.resolve(read(rel));
 }
 
-function listJsFiles(dir) {
-  const out = [];
+function listJsFiles(dir: string): string[] {
+  const out: string[] = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) out.push(...listJsFiles(full));
@@ -47,7 +47,7 @@ const syncDelta = await import('../js/sync-delta.js');
 const syncCutover = await import('../js/sync-cutover.js');
 const dataMerge = await import('../js/data-merge.js');
 const syncSubscriptions = await import('../js/sync-subscriptions.js');
-const syncPayload = await import('../js/sync-payload.js');
+await import('../js/sync-payload.js');
 const syncPayloadCollectors = await import('../js/sync-payload-collectors.js');
 const syncStorageCleanup = await import('../js/sync-storage-cleanup.js');
 await import('../js/sync.js');
@@ -168,8 +168,8 @@ await import('../js/settings.js');
   const syncDeltaObservabilitySearchSrc = `${syncDeltaObservabilitySrc}\n${syncDeltaObservabilityContextSrc}\n${syncDeltaPullSnapshotSrc}\n${syncDeltaTelemetrySrc}\n${syncDeltaReadinessSrc}`;
   const syncDiagnosticsSearchSrc = `${syncDiagnosticsSrc}\n${syncDiagnosticsContextSrc}\n${syncDiagnosticsSnapshotSrc}\n${syncDiagnosticsTextSrc}`;
   const deltaSearchSrc = `${syncSrc}\n${syncPushSrc}\n${syncPushDeltasSrc}\n${syncReconcileSrc}\n${syncPullSrc}\n${syncPullMergeSrc}\n${syncPullMaintenanceSrc}\n${syncPullActiveRefreshSrc}\n${syncPullRebroadcastSrc}\n${syncCutoverSrc}\n${syncDeltaSrc}\n${syncDeltaPlannerSearchSrc}\n${syncDeltaSnapshotSrc}\n${syncDeltaMergeSrc}\n${syncDeltaMergeSearchSrc}\n${syncDeltaRegistrySearchSrc}\n${syncDeltaObservabilitySearchSrc}\n${syncDiagnosticsSearchSrc}\n${syncDiagnoseActionsSrc}\n${syncDiagnoseActionsContextSrc}\n${syncDiagnoseRelayActionsSrc}\n${syncDiagnoseIdentityActionsSrc}\n${syncDiagnoseCutoverActionsSrc}\n${syncDiagnoseRuntimeSrc}\n${syncDiagnoseUiSrc}\n${syncDiagnoseRenderSrc}`;
-  const exportBlockIncludes = (src, names) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
-    .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block)));
+  const exportBlockIncludes = (src: string, names: readonly string[]) => [...src.matchAll(/export\s+\{([^}]*)\};/g)]
+    .some(([, block]) => names.every(name => new RegExp(`\\b${name}\\b`).test(block!)));
 
   // ═══════════════════════════════════════
   // 1. MODULE EXPORTS
@@ -802,7 +802,7 @@ await import('../js/settings.js');
     const helperOwnedFiles = new Set(['js/data-merge.js']);
     const ownerExpr = '(?:state\\.importedData|current|imp)';
     const mutationExpr = new RegExp(`${ownerExpr}\\.(${syncedArraySurfaces.join('|')})(?:\\s*=|\\.(?:push|splice|filter|sort|unshift|shift|pop|reverse)\\b)`);
-    const violations = [];
+    const violations: string[] = [];
     for (const abs of listJsFiles(path.join(ROOT, 'js'))) {
       const rel = path.relative(ROOT, abs).replace(/\\/g, '/');
       if (helperOwnedFiles.has(rel)) continue;
@@ -825,7 +825,7 @@ await import('../js/settings.js');
       && chatSummariesSrc.includes('viewSavedSummary(id)')
       && !chatSummariesSrc.includes("window.addEventListener('labcharts-sync-applied', refreshOpenSummaryModalOnSync)"));
   {
-    const violations = [];
+    const violations: string[] = [];
     for (const abs of listJsFiles(path.join(ROOT, 'js'))) {
       const rel = path.relative(ROOT, abs).replace(/\\/g, '/');
       if (rel === 'js/utils.js') continue;
@@ -1003,10 +1003,10 @@ await import('../js/settings.js');
     const profileQuery = { name: 'profiles' };
     const tombstoneQuery = { name: 'tombstones' };
     const itemRowQuery = { name: 'itemRows' };
-    const callbacks = new Map();
+    const callbacks = new Map<unknown, () => void>();
     const fakeEvolu = {
-      subscribeQuery(query) {
-        return cb => callbacks.set(query, cb);
+      subscribeQuery(query: unknown) {
+        return (cb: () => void) => callbacks.set(query, cb);
       },
       subscribeError() {},
       getQueryRows() { return []; },
@@ -1016,7 +1016,7 @@ await import('../js/settings.js');
       isPulling: () => pulling,
       onSyncReceived: () => { received++; },
     });
-    syncSubscriptions.bindSyncSubscriptions({ evolu: fakeEvolu, profileQuery, tombstoneQuery, itemRowQuery });
+    (syncSubscriptions.bindSyncSubscriptions as unknown as (options: Omit<NonNullable<Parameters<typeof syncSubscriptions.bindSyncSubscriptions>[0]>, "evolu"> & {evolu: {subscribeQuery(query: unknown): (callback: () => void) => unknown; subscribeError(): void; getQueryRows(): unknown[]}}) => ReturnType<typeof syncSubscriptions.bindSyncSubscriptions>)({ evolu: fakeEvolu, profileQuery, tombstoneQuery, itemRowQuery });
     callbacks.get(profileQuery)?.();
     assert('subscription receive is not dropped while syncing', received === 0);
     syncing = false;
@@ -1353,7 +1353,7 @@ await import('../js/settings.js');
     const gzBytes = new Uint8Array(await new Response(gzStream).arrayBuffer());
     let b64 = '';
     const CHUNK = 0x8000;
-    for (let i = 0; i < gzBytes.length; i += CHUNK) b64 += String.fromCharCode.apply(null, gzBytes.subarray(i, i + CHUNK));
+    for (let i = 0; i < gzBytes.length; i += CHUNK) b64 += (String.fromCharCode.apply as (receiver: null, values: ArrayLike<number>) => string)(null, gzBytes.subarray(i, i + CHUNK));
     b64 = btoa(b64);
     const envelope = `GZ|v1|${b64}`;
     assert('gzip envelope is meaningfully smaller than plain JSON',
@@ -1727,7 +1727,7 @@ await import('../js/settings.js');
       const chatData = await syncPayloadCollectors.collectChatData(profileId);
       assert('collectChatData skips corrupt custom personalities without dropping chat',
         chatData?.threads?.[0]?.id === 'keep'
-          && chatData?.messages?.keep?.[0]?.content === 'still sync me'
+          && (chatData?.messages as Record<string, Array<{content?: unknown}>> | undefined)?.keep?.[0]?.content === 'still sync me'
           && chatData.customPersonalities === undefined);
     } finally {
       localStorage.removeItem(threadsKey);
@@ -1788,7 +1788,7 @@ await import('../js/settings.js');
       });
       assert('applyChatData functional: remote thread index applied', applied === true);
       assert('applyChatData functional: stale remote absence does not delete local-only thread',
-        JSON.parse(localStorage.getItem(threadsKey) || '[]').some(t => t.id === 'gone')
+        JSON.parse(localStorage.getItem(threadsKey) || '[]').some((t: {id?: unknown}) => t.id === 'gone')
           && localStorage.getItem(goneKey) !== null);
       assert('applyChatData functional: kept thread messages overwritten',
         JSON.parse(localStorage.getItem(keepKey) || '[]')?.[0]?.content === 'new');
@@ -1799,7 +1799,7 @@ await import('../js/settings.js');
       });
       assert('applyChatData functional: explicit remote tombstone removes deleted thread message key',
         localStorage.getItem(goneKey) === null
-          && !JSON.parse(localStorage.getItem(threadsKey) || '[]').some(t => t.id === 'gone'));
+          && !JSON.parse(localStorage.getItem(threadsKey) || '[]').some((t: {id?: unknown}) => t.id === 'gone'));
 
       sessionStorage.setItem('labcharts-chat-local-lock-until', String(Date.now() + 90000));
       localStorage.setItem(threadsKey, JSON.stringify([
@@ -1824,14 +1824,14 @@ await import('../js/settings.js');
         messages: { lockedRemote: [{ role: 'assistant', content: 'held while local lock is active' }] },
         deletedThreads: { lockedGone: Date.parse('2026-05-24T10:30:00.000Z') },
       });
-      const lockedThreads = JSON.parse(localStorage.getItem(threadsKey) || '[]');
+      const lockedThreads: Array<{id?: unknown}> = ((JSON.parse as (input: string) => unknown)(localStorage.getItem(threadsKey) || '[]') as Array<{id?: unknown}>);
       assert('applyChatData functional: remote tombstone applies even while local chat lock is active',
         lockedDeleteApplied === true
           && localStorage.getItem(lockedGoneKey) === null
-          && !lockedThreads.some(t => t.id === 'lockedGone'));
+          && !lockedThreads.some((t: {id?: unknown}) => t.id === 'lockedGone'));
       assert('applyChatData functional: local chat lock still blocks non-delete remote thread merge',
-        lockedThreads.some(t => t.id === 'lockedKeep')
-          && !lockedThreads.some(t => t.id === 'lockedRemote')
+        lockedThreads.some((t: {id?: unknown}) => t.id === 'lockedKeep')
+          && !lockedThreads.some((t: {id?: unknown}) => t.id === 'lockedRemote')
           && localStorage.getItem(lockedRemoteKey) === null);
     } finally {
       state.currentProfile = prevProfileId;
@@ -1903,7 +1903,7 @@ await import('../js/settings.js');
     'closeSyncSetup', 'closeRestoreMnemonicDialog', 'hydrateSettingsSyncPanel',
   ];
   for (const fn of settingsSyncPanelExports) {
-    assert(`settings-sync-panel.${fn} exists`, typeof settingsSyncPanel[fn] === 'function');
+    assert(`settings-sync-panel.${fn} exists`, typeof (settingsSyncPanel as Record<string, unknown>)[fn] === 'function');
   }
 
   const settingsLegacyWindowFns = [
@@ -1979,7 +1979,7 @@ await import('../js/settings.js');
   // Live: round-trip the changeHistory itemIdFn — verify a synth itemId
   // for a realistic recordChange entry is allowlist-safe and stable.
   if (typeof window !== 'undefined') {
-    const synthFn = (it) => {
+    const synthFn = (it: {field?: unknown; date?: string | undefined} | null) => {
       if (!it || typeof it !== 'object' || !it.field || !it.date) return null;
       const ts = Date.parse(it.date);
       if (!Number.isFinite(ts)) return null;
@@ -1988,7 +1988,7 @@ await import('../js/settings.js');
     const e = { field: 'biochemistry.glucose', date: '2026-05-03T10:30:00Z', snapshot: { value: 5.4 } };
     const id = synthFn(e);
     assert('synth itemId is non-null for valid changeHistory entry', typeof id === 'string' && id.length > 0, id);
-    assert('synth itemId passes the allowlist regex', /^[a-zA-Z0-9_.-]+$/.test(id), id);
+    assert('synth itemId passes the allowlist regex', (/^[a-zA-Z0-9_.-]+$/.test as (value: unknown) => boolean)(id), id);
     assert('synth itemId is stable across calls', synthFn(e) === id);
     assert('synth itemId differs when field differs',
       synthFn({ ...e, field: 'biochemistry.sodium' }) !== id);
@@ -2040,16 +2040,16 @@ await import('../js/settings.js');
 
   // Live: round-trip the three itemIdFns to verify determinism + uniqueness
   if (typeof window !== 'undefined') {
-    function djb2(str) {
+    function djb2(str: string) {
       let h = 5381;
       for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
       return (h >>> 0).toString(36);
     }
-    function isAllowlistSafe(id) {
+    function isAllowlistSafe(id: unknown) {
       return typeof id === 'string' && id.length > 0 && /^[a-zA-Z0-9_.-]+$/.test(id);
     }
 
-    const entriesFn = (it) => (it && typeof it.date === 'string' && isAllowlistSafe(it.date)) ? it.date : null;
+    const entriesFn = (it: {date?: unknown; markers?: unknown} | null) => (it && typeof it.date === 'string' && isAllowlistSafe(it.date)) ? it.date : null;
     const e1 = { date: '2026-05-04', markers: { 'biochemistry.glucose': 5.4 } };
     assert('entries itemIdFn returns date for valid entry', entriesFn(e1) === '2026-05-04');
     assert('entries itemId is allowlist-safe', isAllowlistSafe(entriesFn(e1)));
@@ -2057,7 +2057,7 @@ await import('../js/settings.js');
     assert('entries itemId is stable (same date → same id)',
       entriesFn(e1) === entriesFn({ ...e1, markers: { 'biochemistry.sodium': 140 } }));
 
-    const suppFn = (it) => {
+    const suppFn = (it: {name?: unknown; startDate?: unknown; type?: unknown} | null) => {
       if (!it || typeof it !== 'object') return null;
       const sig = `${it.name || ''}|${it.startDate || ''}|${it.type || ''}`;
       return sig === '||' ? null : `s_${djb2(sig)}`;
@@ -2075,7 +2075,7 @@ await import('../js/settings.js');
     assert('supplements itemIdFn null on empty struct',
       suppFn({ name: '', startDate: '', type: '' }) === null);
 
-    const goalFn = (it) => {
+    const goalFn = (it: {text?: string; severity?: unknown} | null) => {
       if (!it || typeof it !== 'object' || !it.text) return null;
       return `g_${djb2(it.text)}`;
     };
@@ -2090,7 +2090,7 @@ await import('../js/settings.js');
       goalFn(g3) !== gid);
     assert('healthGoals itemIdFn null on missing text', goalFn({ severity: 'major' }) === null);
 
-    const notesFn = (it) => {
+    const notesFn = (it: {date?: unknown; text?: unknown} | null) => {
       if (!it || typeof it !== 'object') return null;
       const sig = `${it.date || ''}|${it.text || ''}`;
       return sig === '|' ? null : `n_${djb2(sig)}`;
@@ -2107,9 +2107,9 @@ await import('../js/settings.js');
     assert('notes itemIdFn null on empty struct',
       notesFn({ date: '', text: '' }) === null);
 
-    const chatSumFn = (it) => {
-      if (!it || typeof it !== 'object' || !it.threadId) return null;
-      return `cs_${djb2(String(it.threadId))}`;
+    const chatSumFn = (it: unknown) => {
+      if (!it || typeof it !== 'object' || !(it as {threadId?: unknown}).threadId) return null;
+      return `cs_${djb2(String((it as {threadId?: unknown}).threadId))}`;
     };
     const cs1 = { id: 's_abc123', threadId: 't_xyz789', threadName: 'Lab analysis', content: 'TLDR…', createdAt: 1778000000000 };
     const cs2 = { ...cs1, id: 's_def456', content: 'Different summary text' };  // device-2 concurrent summary
@@ -2167,7 +2167,7 @@ await import('../js/settings.js');
   // result is allowlist-safe, original key recoverable on pull via
   // payload.k. Validates the synth-id contract end-to-end.
   if (typeof window !== 'undefined') {
-    const synthFn = (rawKey) => {
+    const synthFn = (rawKey: unknown) => {
       if (typeof rawKey !== 'string' || rawKey.length === 0) return null;
       const safe = rawKey.replace(/:/g, '_');
       return /^[a-zA-Z0-9_.-]+$/.test(safe) ? safe : null;
@@ -2177,7 +2177,7 @@ await import('../js/settings.js');
     assert('synth keyId for ISO timestamp (multi-colon date)',
       synthFn('biochemistry.glucose:2026-05-03T10:30:00Z') === 'biochemistry.glucose_2026-05-03T10_30_00Z');
     assert('synth keyId passes allowlist regex for typical key',
-      /^[a-zA-Z0-9_.-]+$/.test(synthFn('biochemistry.glucose:2026-05-03T10:30:00Z')));
+      (/^[a-zA-Z0-9_.-]+$/.test as (value: unknown) => boolean)(synthFn('biochemistry.glucose:2026-05-03T10:30:00Z')));
     assert('synth keyId returns null for empty input', synthFn('') === null);
     assert('synth keyId returns null for non-string', synthFn(null) === null);
     // Distinct keys must produce distinct synths (no collisions for
@@ -2195,7 +2195,7 @@ await import('../js/settings.js');
       try {
         localStorage.removeItem(snapshotKey);
         localStorage.removeItem(metaKey);
-        syncDelta.configureSyncDelta({
+        (syncDelta.configureSyncDelta as (options: Omit<NonNullable<Parameters<typeof syncDelta.configureSyncDelta>[0]>, "getEvolu"> & {getEvolu: () => {getQueryRows: (...args: unknown[]) => unknown[]} | null}) => ReturnType<typeof syncDelta.configureSyncDelta>)({
           getEvolu: () => ({
             getQueryRows: () => [{
               id: 'row_manual_insulin',
@@ -2210,16 +2210,16 @@ await import('../js/settings.js');
           getItemRowQuery: () => ({}),
         });
         const plan = await syncDelta._planKeyedMapDelta(profileId, 'manualValues', { [rawKey]: null });
-        const payload = JSON.parse(plan.ops[0]?.args?.payload || '{}');
+        const payload = ((JSON.parse as (value: string) => unknown)(plan.ops[0]?.args?.payload || '{}') as {k?: unknown; v?: unknown});
         assert('manualValues null clear updates a pulled row instead of being skipped',
           plan.ops.length === 1
-            && plan.ops[0].kind === 'update'
-            && plan.ops[0].args.id === 'row_manual_insulin'
+            && plan.ops[0]!.kind === 'update'
+            && plan.ops[0]!.args.id === 'row_manual_insulin'
             && payload.k === rawKey
             && payload.v === null
             && Object.prototype.hasOwnProperty.call(plan.next || {}, itemId));
       } finally {
-        syncDelta.configureSyncDelta({ getEvolu: () => null, getItemRowQuery: () => null });
+        (syncDelta.configureSyncDelta as (options: Omit<NonNullable<Parameters<typeof syncDelta.configureSyncDelta>[0]>, "getEvolu"> & {getEvolu: () => {getQueryRows: (...args: unknown[]) => unknown[]} | null}) => ReturnType<typeof syncDelta.configureSyncDelta>)({ getEvolu: () => null, getItemRowQuery: () => null });
         if (oldSnapshot === null) localStorage.removeItem(snapshotKey);
         else localStorage.setItem(snapshotKey, oldSnapshot);
         if (oldMeta === null) localStorage.removeItem(metaKey);
@@ -2264,7 +2264,7 @@ await import('../js/settings.js');
     const keys = Object.keys(sample).filter(k => /^[a-zA-Z0-9_.-]+$/.test(k));
     assert('All sample markerNote keys pass allowlist regex', keys.length === 2, `kept ${keys.length}/2`);
     const wrapped = JSON.stringify({ k: 'biochemistry.glucose', v: sample['biochemistry.glucose'] });
-    const reparsed = JSON.parse(wrapped);
+    const reparsed = ((JSON.parse as (value: string) => unknown)(wrapped) as {k?: unknown; v?: unknown});
     assert('Wrapped {k,v} payload round-trips via JSON',
       reparsed.k === 'biochemistry.glucose' && reparsed.v === 'a bit high after Christmas');
     // A pathological key with `:` or spaces should be skipped, not pushed
@@ -2472,7 +2472,7 @@ await import('../js/settings.js');
     assert('readiness no-data status for empty maps', r.surfaces.customMarkers?.status === 'no-data');
     assert('readiness no-data status for null scalars', r.surfaces.diet?.status === 'no-data');
     assert('readiness ready=false when blockers exist', r.ready === false);
-    assert('readiness blockerCount > 0', r.blockerCount > 0);
+    assert('readiness blockerCount > 0', r.blockerCount! > 0);
     // Edge: empty importedData should be all no-data + ready=true (no
     // local data anywhere → nothing for Phase 2 to lose).
     const empty = syncDelta.getDeltaCutoverReadiness(TEST_PID, {});
@@ -2620,7 +2620,7 @@ await import('../js/settings.js');
 
   // Live: proto-pollution defence — verify a malicious key is rejected
   if (typeof window !== 'undefined') {
-    const safeFn = (id) => typeof id === 'string' && id.length > 0
+    const safeFn = (id: unknown) => typeof id === 'string' && id.length > 0
       && /^[a-zA-Z0-9_.-]+$/.test(id) && !['__proto__', 'constructor', 'prototype'].includes(id);
     assert('proto check: __proto__ rejected', safeFn('__proto__') === false);
     assert('proto check: constructor rejected', safeFn('constructor') === false);
@@ -2692,7 +2692,7 @@ await import('../js/settings.js');
   // Live test: distinct rawKeys → distinct synth itemIds (prove the
   // v1.7.5 collision case is closed)
   if (typeof window !== 'undefined') {
-    const synthV13 = (rawKey) => {
+    const synthV13 = (rawKey: unknown) => {
       if (typeof rawKey !== 'string' || rawKey.length === 0) return null;
       const safe = rawKey.replace(/_/g, '__').replace(/:/g, '_');
       return /^[a-zA-Z0-9_.-]+$/.test(safe) ? safe : null;
@@ -2703,7 +2703,7 @@ await import('../js/settings.js');
       synthV13('biochemistry.b_12:2026-05-03') !== synthV13('biochemistry.b_12_2026-05-03'),
       `${synthV13('biochemistry.b_12:2026-05-03')} vs ${synthV13('biochemistry.b_12_2026-05-03')}`);
     assert('manualValues v1.7.13 synth: typical case stays allowlist-safe',
-      /^[a-zA-Z0-9_.-]+$/.test(synthV13('biochemistry.glucose:2026-05-03')));
+      (/^[a-zA-Z0-9_.-]+$/.test as (value: unknown) => boolean)(synthV13('biochemistry.glucose:2026-05-03')));
     assert('manualValues v1.7.13 synth: round-trips deterministically',
       synthV13('a:b:c') === synthV13('a:b:c'));
   }
@@ -2760,12 +2760,12 @@ await import('../js/settings.js');
     // pass cleanly. Then build 6MB of zeros and verify it throws.
     const small = '0'.repeat(1024 * 1024);
     const big = '0'.repeat(6 * 1024 * 1024);
-    async function gzB64(s) {
+    async function gzB64(s: string) {
       const stream = new Blob([s]).stream().pipeThrough(new CompressionStream('gzip'));
       const buf = await new Response(stream).arrayBuffer();
       const bytes = new Uint8Array(buf);
       let str = '';
-      for (let i = 0; i < bytes.length; i += 0x8000) str += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      for (let i = 0; i < bytes.length; i += 0x8000) str += (String.fromCharCode.apply as (receiver: null, values: ArrayLike<number>) => string)(null, bytes.subarray(i, i + 0x8000));
       return `GZ|v1|${btoa(str)}`;
     }
     // Wrap as a v3-like payload so JSON.parse downstream succeeds
@@ -2775,7 +2775,7 @@ await import('../js/settings.js');
     const wireBig = await gzB64(innerBig);
     // Use the actual exported function via dynamic import, since
     // parseSyncPayload isn't on window
-    const mod = await import('../js/sync.js');
+    await import('../js/sync.js');
     // Note: parseSyncPayload isn't exported either — fall back to
     // testing via a known caller. The shape is fine; just verify
     // the wireSmall round-trips and wireBig throws via _gunzipToStringCapped.
@@ -2840,7 +2840,7 @@ await import('../js/settings.js');
   // raw JSON.parse on a GZ envelope threw and silently fell through.
   if (typeof window !== 'undefined' && typeof CompressionStream !== 'undefined') {
     try {
-      const mod = await import('../js/sync.js');
+      await import('../js/sync.js');
       // buildSyncPayload + parseSyncPayload aren't exported (module-private),
       // but we can still exercise the round-trip via the gzip envelope path
       // directly to verify the contract: producer writes, consumer reads
@@ -2852,7 +2852,7 @@ await import('../js/settings.js');
       const gzBuf = await new Response(gzStream).arrayBuffer();
       const gzBytes = new Uint8Array(gzBuf);
       let b64Str = '';
-      for (let i = 0; i < gzBytes.length; i += 0x8000) b64Str += String.fromCharCode.apply(null, gzBytes.subarray(i, i + 0x8000));
+      for (let i = 0; i < gzBytes.length; i += 0x8000) b64Str += (String.fromCharCode.apply as (receiver: null, values: ArrayLike<number>) => string)(null, gzBytes.subarray(i, i + 0x8000));
       const wire = `GZ|v1|${btoa(b64Str)}`;
       // Reproduce parseSyncPayload's decode path (the part we want to
       // verify round-trips identically)
@@ -2861,7 +2861,7 @@ await import('../js/settings.js');
       for (let i = 0; i < decoded.length; i++) decBytes[i] = decoded.charCodeAt(i);
       const dStream = new Blob([decBytes]).stream().pipeThrough(new DecompressionStream('gzip'));
       const dText = await new Response(dStream).text();
-      const reParsed = JSON.parse(dText);
+      const reParsed = ((JSON.parse as (value: string) => unknown)(dText) as {profile?: {id?: unknown}; importedData?: {sunSessions?: unknown[]; lightDevices?: unknown[]}});
       assert('round-trip: profile.id survives gzip envelope intact',
         reParsed?.profile?.id === 'test-pid-12345', `got ${reParsed?.profile?.id}`);
       assert('round-trip: importedData.sunSessions.length survives intact',
@@ -2876,7 +2876,7 @@ await import('../js/settings.js');
         !wire.startsWith('{') && wire.startsWith('GZ|v1|'));
     } catch (e) {
       assert('round-trip parse-equivalence test ran without exception',
-        false, `unexpected error: ${e?.message || e}`);
+        false, `unexpected error: ${(e as {message?: unknown})?.message || e}`);
     }
   }
 
@@ -2926,8 +2926,8 @@ await import('../js/settings.js');
       const prevMetaRaw = localStorage.getItem(META_KEY);
       if (prevMetaRaw) {
         try {
-          const m = JSON.parse(prevMetaRaw);
-          if (Number.isFinite(m?.plannedAt) && m.plannedAt > staleT) return false;
+          const m = ((JSON.parse as (value: string) => unknown)(prevMetaRaw) as {plannedAt?: unknown});
+          if (Number.isFinite(m?.plannedAt) && (m.plannedAt as number) > staleT) return false;
         } catch {}
       }
       return true;
@@ -2939,8 +2939,8 @@ await import('../js/settings.js');
       const prevMetaRaw = localStorage.getItem(META_KEY);
       if (prevMetaRaw) {
         try {
-          const m = JSON.parse(prevMetaRaw);
-          if (Number.isFinite(m?.plannedAt) && m.plannedAt > futureT) return false;
+          const m = ((JSON.parse as (value: string) => unknown)(prevMetaRaw) as {plannedAt?: unknown});
+          if (Number.isFinite(m?.plannedAt) && (m.plannedAt as number) > futureT) return false;
         } catch {}
       }
       return true;
@@ -2965,11 +2965,11 @@ await import('../js/settings.js');
   // check membership inside that slice — a window-based regex would
   // otherwise tunnel past the closing bracket and find the entry name
   // in a sibling const + report a false positive.
-  const inList = (constName, entry) => {
+  const inList = (constName: string, entry: string) => {
     const re = new RegExp(`const ${constName}\\s*=\\s*\\[([\\s\\S]*?)\\]`, 'm');
     const m = syncDeltaSurfacesSrc.match(re);
     if (!m) return false;
-    return m[1].includes(`'${entry}'`);
+    return m[1]!.includes(`'${entry}'`);
   };
 
   // DELTA_ARRAYS — high-velocity array surfaces. Each one missing here
@@ -3124,20 +3124,20 @@ await import('../js/settings.js');
     },
     entries: [],
   };
-  const mergedMetadataOnly = dataMerge.mergeImportedData(localWithSnps, remoteMetadataOnly);
+  const mergedMetadataOnly = dataMerge.mergeImportedData<typeof localWithSnps | typeof remoteMetadataOnly>(localWithSnps, remoteMetadataOnly);
   assert('metadata-only genetics blob preserves local SNP map during pull merge',
-    Object.keys(mergedMetadataOnly.genetics?.snps || {}).length === 2
-    && mergedMetadataOnly.genetics.snps.rs1801133?.genotype === 'GA'
+    Object.keys((mergedMetadataOnly.genetics as {snps?: Record<string, {genotype?: unknown}>})?.snps || {}).length === 2
+    && (mergedMetadataOnly.genetics as {snps: Record<string, {genotype?: unknown}>}).snps.rs1801133?.genotype === 'GA'
     && mergedMetadataOnly.genetics.importDate === '2026-05-30');
 
   const remoteExplicitDelete = { genetics: null, entries: [] };
-  const mergedDelete = dataMerge.mergeImportedData(localWithSnps, remoteExplicitDelete);
+  const mergedDelete = dataMerge.mergeImportedData<typeof localWithSnps | typeof remoteExplicitDelete>(localWithSnps, remoteExplicitDelete);
   assert('explicit remote genetics delete still clears SNP map',
     mergedDelete.genetics === null);
 
   // Live: simulate the strip helper inline and prove shape preservation
   if (typeof window !== 'undefined') {
-    const stripSnps = (data) => {
+    const stripSnps = (data: {genetics?: {snps?: unknown; [key: string]: unknown}; [key: string]: unknown} | null) => {
       if (!data || typeof data !== 'object') return data;
       if (data.genetics && typeof data.genetics === 'object') {
         const g = { ...data.genetics };
@@ -3158,10 +3158,10 @@ await import('../js/settings.js');
     };
     const after = stripSnps(before);
     assert('strip simulator drops .snps but keeps siblings',
-      after.genetics.source === '23andme'
-      && after.genetics.coverage === 0.94
-      && !('snps' in after.genetics)
-      && Array.isArray(after.entries));
+      after!.genetics!.source === '23andme'
+      && after!.genetics!.coverage === 0.94
+      && !('snps' in after!.genetics!)
+      && Array.isArray(after!.entries));
     assert('strip simulator does not mutate input',
       'snps' in before.genetics
       && Object.keys(before.genetics.snps).length === 2);
@@ -3189,7 +3189,7 @@ await import('../js/settings.js');
       try {
         localStorage.setItem(snapshotKey, JSON.stringify(prevSnapshot));
         localStorage.removeItem(metaKey);
-        syncDelta.configureSyncDelta({
+        (syncDelta.configureSyncDelta as (options: Omit<NonNullable<Parameters<typeof syncDelta.configureSyncDelta>[0]>, "getEvolu"> & {getEvolu: () => {getQueryRows: (...args: unknown[]) => unknown[]} | null}) => ReturnType<typeof syncDelta.configureSyncDelta>)({
           getEvolu: () => ({ getQueryRows: () => rows }),
           getItemRowQuery: () => ({}),
         });
@@ -3208,7 +3208,7 @@ await import('../js/settings.js');
           Object.keys(emptyMapPlan.next || {}).length === rows.length);
         assert('genetics.snps empty-map fallback avoids false tombstone-storm warning',
           tombstoneStormWarned === false);
-        syncDelta.configureSyncDelta({
+        (syncDelta.configureSyncDelta as (options: Omit<NonNullable<Parameters<typeof syncDelta.configureSyncDelta>[0]>, "getEvolu"> & {getEvolu: () => {getQueryRows: (...args: unknown[]) => unknown[]} | null}) => ReturnType<typeof syncDelta.configureSyncDelta>)({
           getEvolu: () => ({ getQueryRows: () => [] }),
           getItemRowQuery: () => ({}),
         });
@@ -3220,7 +3220,7 @@ await import('../js/settings.js');
           tombstoneStormWarned === false);
       } finally {
         console.warn = oldWarn;
-        syncDelta.configureSyncDelta({ getEvolu: () => null, getItemRowQuery: () => null });
+        (syncDelta.configureSyncDelta as (options: Omit<NonNullable<Parameters<typeof syncDelta.configureSyncDelta>[0]>, "getEvolu"> & {getEvolu: () => {getQueryRows: (...args: unknown[]) => unknown[]} | null}) => ReturnType<typeof syncDelta.configureSyncDelta>)({ getEvolu: () => null, getItemRowQuery: () => null });
         if (oldSnapshot === null) localStorage.removeItem(snapshotKey);
         else localStorage.setItem(snapshotKey, oldSnapshot);
         if (oldMeta === null) localStorage.removeItem(metaKey);
@@ -3253,7 +3253,7 @@ await import('../js/settings.js');
   // <50%" and accepts the inverse cases.
   if (typeof window !== 'undefined') {
     const STORM_FLOOR = 20;
-    const wouldStorm = (prev, next) => prev >= STORM_FLOOR && next < prev * 0.5;
+    const wouldStorm = (prev: number, next: number) => prev >= STORM_FLOOR && next < prev * 0.5;
     assert('Storm guard: 50→5 triggers (prev>=floor, ratio<50%)',
       wouldStorm(50, 5) === true);
     assert('Storm guard: 50→30 does not trigger (ratio above 50%)',
@@ -3327,7 +3327,7 @@ await import('../js/settings.js');
     const idableArrays = ['sunSessions', 'deviceSessions', 'lightDevices',
                           'lightMeasurements', 'lightAudits', 'chatSummaries'];
     for (const arrayName of idableArrays) {
-      const items = sample[arrayName];
+      const items = sample[arrayName as keyof typeof sample] as Array<{id: string}>;
       const allHaveStableId = items.every(it => typeof it.id === 'string' && it.id.length > 0);
       assert(`${arrayName} items have stable .id (default itemIdFn applies)`,
         allHaveStableId);
@@ -3339,7 +3339,7 @@ await import('../js/settings.js');
 
     // Nested arrays under lightEnvironment use the same id-keyed shape.
     for (const nestedName of ['rooms', 'screens']) {
-      const items = sample.lightEnvironment[nestedName];
+      const items = sample.lightEnvironment[nestedName as keyof typeof sample.lightEnvironment];
       const allHaveStableId = items.every(it => typeof it.id === 'string' && it.id.length > 0);
       assert(`lightEnvironment.${nestedName} items have stable .id`, allHaveStableId);
     }
@@ -3378,12 +3378,12 @@ await import('../js/settings.js');
       w2.write(new Uint8Array(buf));
       w2.close();
       const decoded = await new Response(ds.readable).text();
-      const parsed = JSON.parse(decoded);
+      const parsed = ((JSON.parse as (value: string) => unknown)(decoded) as {importedData: {sunSessions: {length: unknown}; lightEnvironment: {rooms: Array<{id?: unknown}>}; wearablePrimaryOverride: Record<string, unknown>; sunDefaults: {coords: Record<string, unknown>}; chatSummaries: Array<{lastMessage?: unknown}>}});
       assert('Gzip round-trip: sunSessions length preserved',
         parsed.importedData.sunSessions.length === sample.sunSessions.length);
       assert('Gzip round-trip: lightEnvironment.rooms shape preserved',
         parsed.importedData.lightEnvironment.rooms.length === 2
-        && parsed.importedData.lightEnvironment.rooms[0].id === 'r_1');
+        && parsed.importedData.lightEnvironment.rooms[0]!.id === 'r_1');
       assert('Gzip round-trip: wearablePrimaryOverride keys preserved',
         parsed.importedData.wearablePrimaryOverride.weight === 'fitbit'
         && parsed.importedData.wearablePrimaryOverride.bp_systolic === 'manual');
@@ -3392,7 +3392,7 @@ await import('../js/settings.js');
         && parsed.importedData.sunDefaults.coords.lng === 14.42);
       assert('Gzip round-trip: chatSummaries length + lastMessage preserved',
         parsed.importedData.chatSummaries.length === 1
-        && parsed.importedData.chatSummaries[0].lastMessage === 'thanks');
+        && parsed.importedData.chatSummaries[0]!.lastMessage === 'thanks');
     } catch (e) {
       assert('Gzip round-trip succeeded (no encode/decode crash)', false, String(e));
     }
@@ -3462,7 +3462,7 @@ await import('../js/settings.js');
   if (typeof window !== 'undefined') {
     // Inline the helper logic — we can't import data-merge.js from a
     // Playwright-driven test page, but the logic is small enough to re-check.
-    const pickTs = (rec) => {
+    const pickTs = (rec: (Record<string, unknown> & {date?: unknown}) | null) => {
       for (const field of ['updatedAt', 'endedAt', 'startedAt', 'capturedAt', 'takenAt', 'savedAt', 'loggedAt', 'createdAt', 'addedAt', 'at']) {
         const value = rec?.[field];
         if (Number.isFinite(value)) return value;
@@ -3474,19 +3474,19 @@ await import('../js/settings.js');
       const parsedDate = typeof rec?.date === 'string' ? Date.parse(rec.date) : NaN;
       return Number.isFinite(parsedDate) ? parsedDate : 0;
     };
-    const detect = (local, remote) => {
+    const detect = (local: {sunSessions?: Array<Record<string, unknown>>}, remote: {sunSessions?: Array<Record<string, unknown>>}) => {
       // Mirror localHasRowsRemoteLacks for sunSessions only — that's the
       // surface motivating the fix; full helper covers more arrays but
       // the logic per array is identical.
       const lArr = local.sunSessions || [];
       const rArr = remote.sunSessions || [];
-      const remoteById = new Map();
+      const remoteById = new Map<unknown, Record<string, unknown>>();
       for (const item of rArr) if (item?.id) remoteById.set(item.id, item);
       for (const item of lArr) {
         if (!item?.id) continue;
         const r = remoteById.get(item.id);
         if (!r) return 'new-id';
-        if (pickTs(item) > pickTs(r)) return 'higher-ts';
+        if ((pickTs(item) as number) > (pickTs(r) as number)) return 'higher-ts';
       }
       return 'no-mismatch';
     };

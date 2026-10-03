@@ -23,7 +23,7 @@ labCtxMod.setLightSunContextEnabled(true);
 
   const orig = state.importedData;
   function reset(seed = {}) {
-    state.importedData = Object.assign({ entries: [], sunSessions: [] }, seed);
+    (state as {importedData: unknown}).importedData = Object.assign({ entries: [], sunSessions: [] }, seed);
   }
 
   // ─── 1. Empty path ──────────────────────────────────────────────────
@@ -204,11 +204,11 @@ labCtxMod.setLightSunContextEnabled(true);
   assert('Slice length matches recent ended sessions',
     slice.length === sessions.length);
   assert('Default slice carries date / channels / safety / atmosphere / body',
-    slice[0].date && slice[0].channels && slice[0].safety && slice[0].atmosphere && slice[0].body);
+    slice[0]!.date && slice[0]!.channels && slice[0]!.safety && slice[0]!.atmosphere && slice[0]!.body);
   assert('Default slice withholds location (privacy-by-default — sub-11km coords stay opt-in)',
-    slice[0].location === undefined);
+    slice[0]!.location === undefined);
   assert('Slice ordered most-recent-first',
-    slice.length < 2 || slice[0].date >= slice[1].date);
+    slice.length < 2 || slice[0]!.date! >= slice[1]!.date!);
 
   // Days cap
   const longSlice = getSunSessionsSlice({ days: 365 });
@@ -218,7 +218,7 @@ labCtxMod.setLightSunContextEnabled(true);
   const richSlice = getSunSessionsSlice({ fields: ['date', 'body', 'location'] });
   if (richSlice.length > 0) {
     assert('Slice with fields=[body] surfaces body block',
-      richSlice[0].body !== undefined);
+      richSlice[0]!.body !== undefined);
   }
 
   // Single-session detail
@@ -239,11 +239,11 @@ labCtxMod.setLightSunContextEnabled(true);
   const detail = getSunSessionDetail('locked');
   const offSlice = getSunSessionsSlice({ days: 30, fields: ['date', 'body', 'location'] });
   assert('getSunSessionsSlice remains agent-visible when Light & Sun context is off',
-    Array.isArray(offSlice) && offSlice.length === 1 && offSlice[0].id === 'locked');
+    Array.isArray(offSlice) && offSlice.length === 1 && offSlice[0]!.id === 'locked');
   assert('getSunSessionsSlice body regions remain visible to agent helpers when Light & Sun context is off',
-    Array.isArray(offSlice[0].body.regions) && offSlice[0].body.regions.includes('face'));
+    Array.isArray(offSlice[0]!.body!.regions) && offSlice[0]!.body!.regions.includes('face'));
   assert('getSunSessionDetail remains agent-visible when Light & Sun context is off',
-    detail && detail.id === 'locked' && Array.isArray(detail.body.regions) && detail.body.regions.includes('hands'));
+    detail && detail.id === 'locked' && Array.isArray(detail.body!.regions) && detail.body!.regions.includes('hands'));
   assert('buildSunContext returns empty when Light & Sun context is off',
     buildSunContext({ tier: 'standard' }) === '');
 
@@ -253,8 +253,8 @@ labCtxMod.setLightSunContextEnabled(true);
   assert('getSunSessionDetail: known id → projected session when Light & Sun context is on',
     detailWithRegions && detailWithRegions.id === 'locked');
   assert('getSunSessionDetail body block carries regions array when Light & Sun context is on',
-    Array.isArray(detailWithRegions.body.regions)
-    && detailWithRegions.body.regions.includes('face'));
+    Array.isArray(detailWithRegions!.body!.regions)
+    && detailWithRegions!.body!.regions.includes('face'));
 
   assert('getSunSessionDetail unknown id → null',
     getSunSessionDetail('does-not-exist') === null);
@@ -265,12 +265,12 @@ labCtxMod.setLightSunContextEnabled(true);
   const restoreMeteoDeps = configureSunContext({ getMeteoConfig: () => ({ privacyRounding: 0.1 }) });
   const detailCoarse = getSunSessionDetail('locked');
   assert('Detail rounds lat to 0.1° privacy',
-    detailCoarse.location.lat === 50.1 && detailCoarse.location.lon === 14.4);
+    detailCoarse!.location!.lat === 50.1 && detailCoarse!.location!.lon === 14.4);
 
   configureSunContext({ getMeteoConfig: () => ({ privacyRounding: 0.01 }) });
   const detailSharp = getSunSessionDetail('locked');
   assert('Detail rounds lat to 0.01° privacy',
-    detailSharp.location.lat === 50.07 && detailSharp.location.lon === 14.44);
+    detailSharp!.location!.lat === 50.07 && detailSharp!.location!.lon === 14.44);
 
   configureSunContext(restoreMeteoDeps);
 
@@ -544,7 +544,7 @@ labCtxMod.setLightSunContextEnabled(true);
     populatedStandard.length < 8500, `len=${populatedStandard.length}`);
 
   // Restore
-  state.importedData = orig;
+  (state as {importedData: unknown}).importedData = orig;
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
 process.exit(legacyAssertions.fail > 0 ? 1 : 0);

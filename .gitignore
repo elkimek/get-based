@@ -1475,3 +1475,16 @@ deploy/profile-share/data/
 /tests/test-data-merge.js
 /tests/test-dev-server-helpers.js
 /vendor/bip39-minimal.js
+/tests/test-sun-context.js
+/tests/test-sun.js
+/tests/test-supplement-impact.js
+/tests/test-sync-modal-refresh.js
+/tests/test-sync.js
+/tests/test-trend-alerts.js
+/tests/test-unit-import.js
+/tests/test-v1-6-shipped.js
+/tests/test-venice-e2ee.js
+/tests/test-wearables-fetchers.js
+/tests/test-wearables-manual.js
+/tests/test-wearables-sync-flow.js
+/tests/test-wearables.js
