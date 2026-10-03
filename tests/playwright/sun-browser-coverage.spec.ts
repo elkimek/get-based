@@ -27,10 +27,10 @@ test('sun session model browser coverage exercises safety defaults and caveats',
 
   const outcomes = await page.evaluate(async ({ caveatsUrl, modelUrl }) => {
     const [caveats, model] = await Promise.all([
-      import(caveatsUrl),
-      import(modelUrl),
+      (import(caveatsUrl) as Promise<unknown> as Promise<Pick<typeof import('../../js/lighting-hardware-caveats.js'), "LIGHTING_HARDWARE_CAVEATS" | "LIGHTING_HARDWARE_CAVEATS_TEXT">>),
+      (import(modelUrl) as Promise<unknown> as Promise<Pick<typeof import('../../js/sun-session-model.js'), "PHOTOSENSITIVE_MED_TIERS" | "photosensitiveMedScale" | "_normalizePSMTier" | "EXPOSURE_PRESETS" | "POSTURE_OPTIONS" | "POSTURE_MULTIPLIERS" | "SURFACE_OPTIONS" | "SURFACE_ALBEDO">>),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, boolean> = {};
 
     outcomes.photosensitiveTiersNormalizeLegacyAndUnknownInputs =
       model.PHOTOSENSITIVE_MED_TIERS.map(tier => tier.key).join(',') === 'unknown,none,mild,moderate,severe'
@@ -81,11 +81,11 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
   const outcomes = await page.evaluate(async ({ sunUrl, utilsUrl, formerSunGlobals }) => {
     const [{ state }, sun, utils, sunRuntime] = await Promise.all([
       import('/js/state.js'),
-      import(sunUrl),
-      import(utilsUrl),
+      (import(sunUrl) as Promise<unknown> as Promise<Pick<typeof import('../../js/sun.js'), "rollingChannelTotals" | "applySunscreenMidSession" | "SUN_ENGINE_VERSION" | "channelTier" | "weeklyChannelTier" | "tierLabel" | "tierDots" | "formatChannelUnit" | "dailyChannelBreakdown" | "dailyVitaminDIUBreakdown" | "rollingVitaminDIU" | "cumulativeVitaminDIUToday" | "vitaminDBudgetStatus" | "cumulativeMEDToday" | "cumulativeMEDYesterday" | "pauseSunSession" | "resumeSunSession" | "flipSidesMidSession" | "changeCoverageMidSession" | "setOzoneOverrideMidSession" | "_forgotStopPrompt" | "getSunCoords" | "requestPreciseLocation" | "clearCurrentLocation">>),
+      (import(utilsUrl) as Promise<unknown> as Promise<Pick<typeof import('../../js/utils.js'), "showPromptDialog">>),
       import('/js/sun-runtime.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, boolean> = {};
     const profileId = `sun-browser-${Date.now()}`;
     const activeId = 'sun-active-coverage';
     const now = Date.now();
@@ -93,8 +93,8 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
     const yesterdayStart = todayStart - 86400000;
     const saved = {
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
-      profilesState: state.profiles ? JSON.parse(JSON.stringify(state.profiles)) : state.profiles,
+      importedData: JSON.parse(JSON.stringify(state.importedData || {})) as unknown,
+      profilesState: state.profiles ? JSON.parse(JSON.stringify(state.profiles)) as unknown : state.profiles,
       currentProfile: state.currentProfile,
       profiles: localStorage.getItem('labcharts-profiles'),
       geolocation: Object.getOwnPropertyDescriptor(navigator, 'geolocation'),
@@ -103,8 +103,8 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       buildSidebar: () => {},
       navigate: () => {},
     });
-    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async (predicate, attempts = 100) => {
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, attempts = 100) => {
       for (let i = 0; i < attempts; i += 1) {
         try {
           if (await predicate()) return true;
@@ -115,9 +115,9 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
     };
     const toasts = () => Array.from(document.querySelectorAll('.notification-toast')).map(el => el.textContent || '');
     const clearToasts = () => document.querySelectorAll('.notification-toast').forEach(el => el.remove());
-    const setPromptValue = async value => {
+    const setPromptValue = async (value: string) => {
       await waitFor(() => document.getElementById('prompt-dialog-input'));
-      const input = document.getElementById('prompt-dialog-input');
+      const input = document.getElementById('prompt-dialog-input') as HTMLInputElement;
       input.value = value;
       input.dispatchEvent(new Event('input', { bubbles: true }));
       document.getElementById('prompt-ok')?.click();
@@ -159,7 +159,7 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       doses: { vitamin_d: 9999, no_cv: 9999 },
       safety: { medFraction: 0.99, fitzpatrick: 'III' },
     };
-    const activeSession = {
+    const activeSession: {id: string; startedAt: number; endedAt: number | null; durationMin?: number; paused?: boolean; bodyExposure: {preset:string; fraction:number; regions:string[]; sunscreenSPF:number | null; glassBetween:boolean; rotatedSides:boolean}; eyeExposure:{mode:string; lensTint:string}; atmosphere:{uvIndex:number}; doses:null; safety:{medFraction:number; fitzpatrick:string}} = {
       id: activeId,
       startedAt: now - 13 * 3600000,
       endedAt: null,
@@ -182,7 +182,7 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
         name: 'Sun Browser',
         location: { country: 'Japan', zip: '' },
       }]));
-      state.importedData = {
+      (state as unknown as {importedData: unknown}).importedData = {
         ...state.importedData,
         genetics: { snps: [] },
         sunDefaults: { fitzpatrick: 'II', overrides: {} },
@@ -239,10 +239,10 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       const budget = sun.vitaminDBudgetStatus();
       outcomes.aggregateTotalsAndBreakdownsIncludeSunAndDeviceData = totals.vitamin_d === 4100
         && totals.no_cv === 7500
-        && channelBreakdown.at(-1).sun === 3200
-        && channelBreakdown.at(-1).device === 2200
-        && iuBreakdown.at(-1).sun > 0
-        && iuBreakdown.at(-1).device > 0
+        && channelBreakdown.at(-1)!.sun === 3200
+        && channelBreakdown.at(-1)!.device === 2200
+        && iuBreakdown.at(-1)!.sun > 0
+        && iuBreakdown.at(-1)!.device > 0
         && rollingIU >= todayIU
         && budget.supplementIU === 5000
         && budget.exceedsSupplementUL === true;
@@ -276,7 +276,7 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       await sun.changeCoverageMidSession(activeId);
       const coverageOverlay = document.querySelector('.sun-start-modal')?.closest('.modal-overlay');
       const coverageHint = coverageOverlay?.querySelector('#sun-coverage-hint')?.textContent || '';
-      coverageOverlay?.querySelector('#coverage-confirm')?.click();
+      coverageOverlay?.querySelector<HTMLElement>('#coverage-confirm')?.click();
       await waitFor(() => toasts().some(text => text.includes('fully clothed')));
       outcomes.coverageModalAppliesEmptyRegionState = coverageHint.includes('No regions exposed')
         && activeSession.bodyExposure.fraction === 0
@@ -294,7 +294,7 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       await setPromptValue('');
       await ozoneClear;
       outcomes.ozonePromptValidatesSetsAndClearsOverride =
-        state.importedData.sunDefaults.overrides.ozoneDU === null
+        state.importedData.sunDefaults!.overrides.ozoneDU === null
         && toasts().some(text => text.includes('Ozone DU must be 100-600'))
         && toasts().some(text => text.includes('Ozone override set: 320 DU'))
         && toasts().some(text => text.includes('Ozone override cleared'));
@@ -304,7 +304,7 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       await confirmDialog();
       await forgetStop;
       outcomes.forgotStopConfirmEndsActiveSession = Number.isFinite(activeSession.endedAt)
-        && activeSession.durationMin > 700
+        && activeSession.durationMin! > 700
         && toasts().some(text => text.includes('Session ended'));
       clearToasts();
 
@@ -312,34 +312,34 @@ test('sun browser coverage exercises facade totals prompts and location paths', 
       Object.defineProperty(navigator, 'geolocation', {
         configurable: true,
         value: {
-          getCurrentPosition(resolve) {
+          getCurrentPosition(resolve: (position: {coords:{latitude:number;longitude:number;altitude:null}}) => void) {
             resolve({ coords: { latitude: 40.7, longitude: -74.0, altitude: null } });
           },
         },
       });
       const precise = await sun.requestPreciseLocation();
       sun.clearCurrentLocation();
-      delete state.importedData.sunDefaults.coords;
+      delete state.importedData.sunDefaults!.coords;
       state.profiles = [{ id: profileId, name: 'Sun Browser', location: { country: '', zip: '' } }];
       localStorage.setItem('labcharts-profiles', JSON.stringify([{ id: profileId, name: 'Sun Browser', location: { country: '', zip: '' } }]));
       const noCoords = sun.getSunCoords();
       outcomes.locationFallbacksAndPreciseRequest =
-        countryCoords.source === 'country-band'
-        && Math.abs(countryCoords.lat - 36.2) < 0.1
+        countryCoords!.source === 'country-band'
+        && Math.abs(countryCoords!.lat - 36.2) < 0.1
         && precise?.lat === 40.7
         && precise?.lon === -74
         && noCoords === null
         && precise?.source === 'current-device'
         && toasts().some(text => text.includes('Current location is active for today'));
     } finally {
-      state.importedData = saved.importedData;
-      state.profiles = saved.profilesState;
+      (state as unknown as {importedData: unknown}).importedData = saved.importedData;
+      (state as unknown as {profiles: unknown}).profiles = saved.profilesState;
       state.currentProfile = saved.currentProfile;
       if (saved.profiles == null) localStorage.removeItem('labcharts-profiles');
       else localStorage.setItem('labcharts-profiles', saved.profiles);
       sunRuntime.configureSunRuntimeDeps(previousSunRuntimeDeps);
       if (saved.geolocation) Object.defineProperty(navigator, 'geolocation', saved.geolocation);
-      else delete navigator.geolocation;
+      else delete (navigator as unknown as {geolocation?: unknown}).geolocation;
       document.querySelectorAll('.notification-container,.notification-toast,#prompt-dialog-overlay,#confirm-dialog-overlay,.modal-overlay').forEach(el => el.remove());
     }
     return outcomes;

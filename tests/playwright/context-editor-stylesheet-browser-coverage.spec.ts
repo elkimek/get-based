@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { expect, test } from './coverage-fixture.js';
 import { createRequire } from 'node:module';
 
@@ -8,7 +9,7 @@ function moduleUrl() {
   return `/js/context-card-editor-ui.js?contextEditorStylesheetCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-async function openLoaderPage(page, path) {
+async function openLoaderPage(page: Page, path: string) {
   await page.route(`**${path}`, route => route.fulfill({
     status: 200,
     contentType: 'text/html',
@@ -34,7 +35,7 @@ test('context editor stylesheet loader single-flights and preserves cascade orde
   await openLoaderPage(page, '/context-editor-stylesheet-cache-coverage');
 
   const outcomes = await page.evaluate(async ({ runtimeUrl }) => {
-    const runtime = await import(runtimeUrl);
+    const runtime = await (import(runtimeUrl) as Promise<unknown> as Promise<Pick<typeof import('../../js/context-card-editor-ui.js'), "isContextEditorStylesheetLoaded" | "loadContextEditorStylesheet" | "runWithContextEditorStylesheet">>);
     const loadedBeforeRequest = runtime.isContextEditorStylesheetLoaded();
     const [first, second] = await Promise.all([
       runtime.loadContextEditorStylesheet(),
@@ -69,7 +70,7 @@ test('context editor stylesheet loader single-flights and preserves cascade orde
 });
 
 test('context editor stylesheet failure is contained and retries before running the action', async ({ page }) => {
-  const stylesheetRequests = [];
+  const stylesheetRequests: string[] = [];
   await page.route('**/css/context-editor.css*', route => {
     stylesheetRequests.push(route.request().url());
     return route.abort('failed');
@@ -78,7 +79,7 @@ test('context editor stylesheet failure is contained and retries before running 
   const runtimeUrl = moduleUrl();
 
   const firstAttempt = await page.evaluate(async ({ runtimeUrl: url }) => {
-    const runtime = await import(url);
+    const runtime = await (import(url) as Promise<unknown> as Promise<Pick<typeof import('../../js/context-card-editor-ui.js'), "isContextEditorStylesheetLoaded" | "loadContextEditorStylesheet" | "runWithContextEditorStylesheet">>);
     let actions = 0;
     return {
       result: await runtime.runWithContextEditorStylesheet(() => { actions += 1; }),
@@ -92,10 +93,10 @@ test('context editor stylesheet failure is contained and retries before running 
 
   await page.unroute('**/css/context-editor.css*');
   const retry = await page.evaluate(async ({ runtimeUrl: url }) => {
-    const runtime = await import(url);
+    const runtime = await (import(url) as Promise<unknown> as Promise<Pick<typeof import('../../js/context-card-editor-ui.js'), "isContextEditorStylesheetLoaded" | "loadContextEditorStylesheet" | "runWithContextEditorStylesheet">>);
     let actions = 0;
     await runtime.runWithContextEditorStylesheet(() => { actions += 1; });
-    const link = document.querySelector('link[data-context-editor-stylesheet]');
+    const link = document.querySelector<HTMLLinkElement>('link[data-context-editor-stylesheet]');
     return {
       actions,
       href: link?.href || '',
@@ -121,7 +122,7 @@ test('cold startup defers context editor presentation until a real editor opens'
   const opened = await page.evaluate(async () => {
     const contextCards = await import('/js/context-cards.js');
     await contextCards.openDietEditor();
-    const modal = document.getElementById('detail-modal');
+    const modal = document.getElementById('detail-modal')!;
     const head = modal?.querySelector('.ctx-editor-head');
     return {
       label: modal?.getAttribute('aria-label') || '',
@@ -170,7 +171,7 @@ test('long context editors use accessible progressive disclosure on mobile', asy
 
   await page.addScriptTag({ path: axeScriptPath });
   const violations = await page.evaluate(async () => {
-    const result = await window.axe.run(document.getElementById('detail-modal'), {
+    const result = await (window as unknown as {axe: typeof import('axe-core')}).axe.run(document.getElementById('detail-modal')!, {
       runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
     });
     return result.violations.map(violation => violation.id);
@@ -323,7 +324,7 @@ test('saved long-form details stay summarized and reopened editors start at the 
     };
 
     await contextCards.openDietEditor();
-    const modal = document.getElementById('detail-modal');
+    const modal = document.getElementById('detail-modal')!;
     modal.scrollTop = 500;
     const scrolledDiet = modal.scrollTop > 0;
     modalLifecycle.closeModalOverlay('modal-overlay', { restoreFocus: false });
@@ -335,8 +336,8 @@ test('saved long-form details stay summarized and reopened editors start at the 
       collapsedSections: modal.querySelectorAll('details.ctx-editor-section[open]').length,
       sectionSummaries: Array.from(modal.querySelectorAll('.ctx-editor-section-summary'))
         .map(el => el.textContent.trim()),
-      noteTag: modal.querySelector('#ctx-note-input')?.tagName,
-      noteValue: modal.querySelector('#ctx-note-input')?.value,
+      noteTag: modal.querySelector<HTMLTextAreaElement>('#ctx-note-input')?.tagName,
+      noteValue: modal.querySelector<HTMLTextAreaElement>('#ctx-note-input')?.value,
     };
   });
 

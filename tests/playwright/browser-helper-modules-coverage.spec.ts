@@ -1,7 +1,7 @@
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = (path) => `${path}?browserHelperCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?browserHelperCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   path: "/browser-helper-coverage", body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
@@ -20,18 +20,18 @@ test('browser helper coverage exercises url safety marker keys markdown legal le
     utilsUrl,
   }) => {
     const [brandAssets, healthGoals, legalConsent, lensLocalStore, markdown, urlSafety, utils] = await Promise.all([
-      import(brandAssetsUrl),
-      import(healthGoalsUrl),
-      import(legalConsentUrl),
-      import(lensLocalStoreUrl),
-      import(markdownUrl),
-      import(urlSafetyUrl),
-      import(utilsUrl),
+      (import(brandAssetsUrl) as Promise<unknown> as Promise<Pick<typeof import('../../js/brand-assets.js'), "brandMarkMono" | "brandAsset" | "brandHasSignIn" | "brandSignInUrl" | "brandColor">>),
+      (import(healthGoalsUrl) as Promise<unknown> as Promise<Pick<typeof import('../../js/health-goals-utils.js'), "formatHealthGoalsText">>),
+      (import(legalConsentUrl) as Promise<unknown> as Promise<Pick<typeof import('../../js/legal-consent.js'), "maybeShowLegalConsentGate" | "getLegalAcceptance" | "hasAcceptedCurrentLegal" | "isLegalConsentGateVisible">>),
+      (import(lensLocalStoreUrl) as Promise<unknown> as Promise<Pick<typeof import('../../js/lens-local-store.js'), "normaliseLibraryRegistry" | "sameLibraryRegistry" | "normaliseLibraryRecord" | "isSafeLibraryId" | "fallbackLibraryName" | "modelKeyFromManifest">>),
+      (import(markdownUrl) as Promise<unknown> as Promise<Pick<typeof import('../../js/markdown.js'), "applyInlineMarkdown" | "renderMarkdown">>),
+      (import(urlSafetyUrl) as Promise<unknown> as Promise<Pick<typeof import('../../js/url-safety.js'), "isValidExternalUrl">>),
+      (import(utilsUrl) as Promise<unknown> as Promise<Pick<typeof import('../../js/utils.js'), "safeMarkerId" | "sanitizeMarkerKey" | "setAnalyticsEnabled" | "isAnalyticsEnabled" | "maybeShowAnalyticsConsent" | "isStartupNudgeBlocked">>),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, boolean> = {};
     const isValidUrl = urlSafety.isValidExternalUrl;
 
-    const blockedUrlCases = [
+    const blockedUrlCases: [string, string][] = [
       ['invalidInput', 'not a url'],
       ['ftpProtocol', 'ftp://example.com/file'],
       ['localhost', 'https://localhost/private'],
@@ -114,7 +114,7 @@ test('browser helper coverage exercises url safety marker keys markdown legal le
       ].every(key => utils.sanitizeMarkerKey(key) === null);
 
     const analyticsKeys = ['labcharts-analytics-disabled', 'labcharts-analytics-consent-seen'];
-    const oldAnalytics = {};
+    const oldAnalytics: Record<string, string | null> = {};
     for (const key of analyticsKeys) oldAnalytics[key] = localStorage.getItem(key);
     try {
       for (const key of analyticsKeys) localStorage.removeItem(key);
@@ -153,10 +153,10 @@ test('browser helper coverage exercises url safety marker keys markdown legal le
       const banner = document.getElementById('analytics-consent-banner');
       const analyticsBannerRendersOnce = document.querySelectorAll('#analytics-consent-banner').length === 1
         && banner?.getAttribute('role') === 'region'
-        && !!banner?.querySelector('[data-analytics-consent-action="dismiss"]')
-        && !!banner?.querySelector('[data-analytics-consent-action="disable"]')
+        && !!banner?.querySelector<HTMLElement>('[data-analytics-consent-action="dismiss"]')
+        && !!banner?.querySelector<HTMLElement>('[data-analytics-consent-action="disable"]')
         && document.body.classList.contains('analytics-consent-visible');
-      banner?.querySelector('[data-analytics-consent-action="dismiss"]')?.click();
+      banner?.querySelector<HTMLElement>('[data-analytics-consent-action="dismiss"]')?.click();
       const analyticsDismissMarksSeenAndRemovesBanner =
         localStorage.getItem('labcharts-analytics-consent-seen') === '1'
         && !document.getElementById('analytics-consent-banner')
@@ -169,7 +169,7 @@ test('browser helper coverage exercises url safety marker keys markdown legal le
 
       for (const key of analyticsKeys) localStorage.removeItem(key);
       utils.maybeShowAnalyticsConsent();
-      document.querySelector('#analytics-consent-banner [data-analytics-consent-action="disable"]')?.click();
+      document.querySelector<HTMLElement>('#analytics-consent-banner [data-analytics-consent-action="disable"]')?.click();
       outcomes.analyticsConsentHelpersCoverStorageBannerAndDisable =
         analyticsCanEnable
         && analyticsCanDisable
@@ -207,14 +207,14 @@ test('browser helper coverage exercises url safety marker keys markdown legal le
     });
     outcomes.lensLocalStoreNormalizesValidatesComparesAndMatchesModels =
       normalizedLibraries?.activeId === 'lib-primary'
-      && normalizedLibraries.libraries[0].name === 'primary'
+      && normalizedLibraries.libraries[0]!.name === 'primary'
       && normalizedLibraries.revision === 4
       && lensLocalStore.sameLibraryRegistry(normalizedLibraries, sameLibraries)
       && lensLocalStore.normaliseLibraryRecord({ id: 'default', createdAt: 1 })?.name === 'My Library'
       && lensLocalStore.isSafeLibraryId('safe_library-1')
       && !lensLocalStore.isSafeLibraryId('unsafe library')
       && lensLocalStore.fallbackLibraryName('lib-recovered_name') === 'recovered name'
-      && lensLocalStore.modelKeyFromManifest(
+      && (lensLocalStore.modelKeyFromManifest as (manifest: Partial<Parameters<typeof lensLocalStore.modelKeyFromManifest>[0]>, models: Parameters<typeof lensLocalStore.modelKeyFromManifest>[1]) => ReturnType<typeof lensLocalStore.modelKeyFromManifest>)(
         { modelId: 'model-small', dim: 384 },
         { small: { id: 'model-small', dim: 384 } },
       ) === 'small';
@@ -226,8 +226,8 @@ test('browser helper coverage exercises url safety marker keys markdown legal le
       document.getElementById('legal-consent-overlay')?.remove();
       document.body.classList.remove('legal-consent-visible');
       const firstShow = legalConsent.maybeShowLegalConsentGate();
-      const checkbox = document.getElementById('legal-consent-checkbox');
-      const acceptButton = document.querySelector('[data-legal-consent-action="accept"]');
+      const checkbox = (document.getElementById('legal-consent-checkbox') as HTMLInputElement);
+      const acceptButton = document.querySelector<HTMLButtonElement>('[data-legal-consent-action="accept"]')!;
       checkbox.checked = true;
       checkbox.dispatchEvent(new Event('change', { bubbles: true }));
       const buttonEnabled = acceptButton.disabled === false;
@@ -281,7 +281,7 @@ test('browser helper coverage exercises url safety marker keys markdown legal le
       'paragraph line',
       'continued',
     ].join('\n'));
-    const fixture = document.getElementById('fixture');
+    const fixture = document.getElementById('fixture')!;
     fixture.innerHTML = blockHtml;
     outcomes.blockMarkdownCoversRenderShapes = blockHtml.includes('class="chat-h1"')
       && blockHtml.includes('<blockquote class="chat-blockquote">')
@@ -315,7 +315,7 @@ test('browser helper coverage exercises url safety marker keys markdown legal le
       && brandAssets.brandHasSignIn('fitbit', 'dark') === false
       && brandAssets.brandMarkMono('fitbit').includes('/brands/fitbit/mark-mono.svg')
       && brandAssets.brandHasSignIn('apple_health', 'dark') === false
-      && brandAssets.brandSignInUrl('withings', 'light').endsWith('/brands/withings/wordmark-on-light.svg')
+      && brandAssets.brandSignInUrl('withings', 'light')!.endsWith('/brands/withings/wordmark-on-light.svg')
       && brandAssets.brandSignInUrl('missing') === null
       && brandAssets.brandColor('withings') === '#00B0EA'
       && brandAssets.brandColor('oura') === null;

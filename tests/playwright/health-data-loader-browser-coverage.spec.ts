@@ -2,6 +2,20 @@ import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
+// Served module stubs deliberately return synthetic opaque values. Keep genuine facade argument
+// tuples for ordinary calls; required inputs may be omitted by these controlled stub implementations.
+type HealthFacade = typeof import('../../js/health-data-loader.js');
+type StubFacade = {
+  [Key in keyof HealthFacade]: HealthFacade[Key] extends (...args: infer Args) => unknown
+    ? (...args: Partial<Args>) => unknown : unknown;
+};
+type HealthFixtureOperations = Omit<StubFacade, 'loadAllHealthDataModules' | 'refBandPlugin'> & {
+  loadAllHealthDataModules(...args: Parameters<HealthFacade['loadAllHealthDataModules']>): Promise<unknown[]>;
+  refBandPlugin: {draw(): unknown};
+};
+type LoadKey = Extract<keyof HealthFacade, `load${string}Module`>;
+type LoadedKey = Extract<keyof HealthFacade, `is${string}ModuleLoaded`>;
+
 const moduleUrl = createModuleUrl('healthDataLoaderCoverage');
 
 const openBlankPage = createBlankPage({
@@ -18,7 +32,7 @@ test('Health and Data modules stay cold and single-flight their first load', asy
     'context-cards',
     'dna',
   ];
-  const moduleExports = {
+  const moduleExports: Record<string, string> = {
     charts: `
       export function ensureChartJs() { return 'chart-ready'; }
       export function isChartDateAdapterReady() { return true; }
@@ -104,7 +118,7 @@ test('Health and Data modules stay cold and single-flight their first load', asy
   const requestCounts = Object.fromEntries(moduleNames.map(name => [name, 0]));
   for (const name of moduleNames) {
     await page.route(`**/js/${name}.js`, route => {
-      requestCounts[name] += 1;
+      requestCounts[name]! += 1;
       return route.fulfill({
         status: 200,
         contentType: 'application/javascript',
@@ -119,14 +133,14 @@ test('Health and Data modules stay cold and single-flight their first load', asy
   }
   await openBlankPage(page, '/health-data-loader-cache-coverage');
 
-  const results = await page.evaluate(async ({ loaderUrl, moduleNames }) => {
-    const loader = await import(loaderUrl);
+  const results: Record<string, boolean> = await page.evaluate(async ({ loaderUrl, moduleNames }) => {
+    const loader = await (import(loaderUrl) as Promise<unknown> as Promise<HealthFixtureOperations>);
     const startsCold = moduleNames.every(name => {
       const exportName = `is${name
         .split('-')
-        .map(part => part[0].toUpperCase() + part.slice(1))
+        .map(part => part[0]!.toUpperCase() + part.slice(1))
         .join('')}ModuleLoaded`;
-      return loader[exportName]() === false;
+      return loader[exportName as LoadedKey]!() === false;
     });
     const [first, second] = await Promise.all([
       loader.loadAllHealthDataModules(),
@@ -140,7 +154,7 @@ test('Health and Data modules stay cold and single-flight their first load', asy
       import('/js/recommendations-runtime.js'),
     ]);
     state.profileSex = 'female';
-    state.importedData = {
+    (state as unknown as {importedData: unknown}).importedData = {
       entries: [{ date: '2026-07-01', markers: { 'coverage.marker': 1 } }],
       genetics: { snps: { rs1801133: { genotype: 'GA' } }, mtdna: { haplogroup: 'H1' } },
       menstrualCycle: { periods: [{ startDate: '2026-07-01' }] },
@@ -176,8 +190,8 @@ test('Health and Data modules stay cold and single-flight their first load', asy
       loader.loadInsightHealthDataModules(),
       loader.loadRecommendationsHealthDataModules(),
       loader.loadHealthDataContextForPersistedState(),
-      recommendationRuntime.getRecommendationModuleFunction('renderRecommendationSection')?.('slot'),
-      dnaBridge.getDnaModuleFunction('handleDNAFile')?.({ name: 'dna.txt' }),
+      (recommendationRuntime.getRecommendationModuleFunction as (...args: Parameters<typeof recommendationRuntime.getRecommendationModuleFunction>) => ((...args: unknown[]) => unknown) | null)('renderRecommendationSection')?.('slot'),
+      (dnaBridge.getDnaModuleFunction as (...args: Parameters<typeof dnaBridge.getDnaModuleFunction>) => ((...args: unknown[]) => unknown) | null)('handleDNAFile')?.({ name: 'dna.txt' }),
       ...[
         'handleSnpReportFile',
         'importSnpReport',
@@ -195,7 +209,7 @@ test('Health and Data modules stay cold and single-flight their first load', asy
         'confirmMtDNAImport',
         'deleteMtDNAData',
         'setManualHaplogroup',
-      ].map(name => dnaBridge.getDnaModuleFunction(name)?.()),
+      ].map(name => (dnaBridge.getDnaModuleFunction as (...args: Parameters<typeof dnaBridge.getDnaModuleFunction>) => ((...args: unknown[]) => unknown) | null)(name)?.()),
     ]);
     loader.recordChange('genetics');
     const synchronousFacadeResults = [
@@ -232,22 +246,22 @@ test('Health and Data modules stay cold and single-flight their first load', asy
         loader.getLoadedCycleModule,
         loader.getLoadedContextCardsModule,
         loader.getLoadedDnaModule,
-      ][index]()),
-      dnaBridge.getDnaModuleFunction('buildGeneticsContext')?.({}),
-      dnaBridge.getDnaModuleFunction('getRelevantSNPs')?.({}),
-      dnaBridge.getDnaModuleFunction('parseClinicalSnpReportText')?.('report'),
-      dnaBridge.getDnaModuleFunction('parseManualSnpRows')?.([]),
-      dnaBridge.getDnaModuleFunction('upsertGeneticsSnp')?.({}),
+      ][index]!()),
+      (dnaBridge.getDnaModuleFunction as (...args: Parameters<typeof dnaBridge.getDnaModuleFunction>) => ((...args: unknown[]) => unknown) | null)('buildGeneticsContext')?.({}),
+      (dnaBridge.getDnaModuleFunction as (...args: Parameters<typeof dnaBridge.getDnaModuleFunction>) => ((...args: unknown[]) => unknown) | null)('getRelevantSNPs')?.({}),
+      (dnaBridge.getDnaModuleFunction as (...args: Parameters<typeof dnaBridge.getDnaModuleFunction>) => ((...args: unknown[]) => unknown) | null)('parseClinicalSnpReportText')?.('report'),
+      (dnaBridge.getDnaModuleFunction as (...args: Parameters<typeof dnaBridge.getDnaModuleFunction>) => ((...args: unknown[]) => unknown) | null)('parseManualSnpRows')?.([]),
+      (dnaBridge.getDnaModuleFunction as (...args: Parameters<typeof dnaBridge.getDnaModuleFunction>) => ((...args: unknown[]) => unknown) | null)('upsertGeneticsSnp')?.({}),
       contextRuntime.openContextModalRuntime(),
       contextRuntime.openInterpretiveLensEditorRuntime(),
       contextRuntime.triggerContextCardDNAFilePickerRuntime(),
-      recommendationRuntime.getRecommendationModuleFunction('renderRecommendationSectionSync')?.('slot'),
-      recommendationRuntime.getRecommendationModuleFunction('detectSupplementSlots')?.({}),
-      recommendationRuntime.getRecommendationModuleFunction('buildDNAHints')?.('slot'),
-      recommendationRuntime.getRecommendationModuleFunction('getCardSlotKeys')?.({}),
-      recommendationRuntime.getRecommendationModuleFunction('renderCardTipsModal')?.({}),
-      recommendationRuntime.getRecommendationModuleFunction('detectEMFRelevance')?.({}),
-      recommendationRuntime.getRecommendationModuleFunction('renderLightDeviceAffiliateRow')?.({}),
+      (recommendationRuntime.getRecommendationModuleFunction as (...args: Parameters<typeof recommendationRuntime.getRecommendationModuleFunction>) => ((...args: unknown[]) => unknown) | null)('renderRecommendationSectionSync')?.('slot'),
+      (recommendationRuntime.getRecommendationModuleFunction as (...args: Parameters<typeof recommendationRuntime.getRecommendationModuleFunction>) => ((...args: unknown[]) => unknown) | null)('detectSupplementSlots')?.({}),
+      (recommendationRuntime.getRecommendationModuleFunction as (...args: Parameters<typeof recommendationRuntime.getRecommendationModuleFunction>) => ((...args: unknown[]) => unknown) | null)('buildDNAHints')?.('slot'),
+      (recommendationRuntime.getRecommendationModuleFunction as (...args: Parameters<typeof recommendationRuntime.getRecommendationModuleFunction>) => ((...args: unknown[]) => unknown) | null)('getCardSlotKeys')?.({}),
+      (recommendationRuntime.getRecommendationModuleFunction as (...args: Parameters<typeof recommendationRuntime.getRecommendationModuleFunction>) => ((...args: unknown[]) => unknown) | null)('renderCardTipsModal')?.({}),
+      (recommendationRuntime.getRecommendationModuleFunction as (...args: Parameters<typeof recommendationRuntime.getRecommendationModuleFunction>) => ((...args: unknown[]) => unknown) | null)('detectEMFRelevance')?.({}),
+      (recommendationRuntime.getRecommendationModuleFunction as (...args: Parameters<typeof recommendationRuntime.getRecommendationModuleFunction>) => ((...args: unknown[]) => unknown) | null)('renderLightDeviceAffiliateRow')?.({}),
     ];
     return {
       startsCold,
@@ -262,7 +276,7 @@ test('Health and Data modules stay cold and single-flight their first load', asy
         loader.isContextCardsModuleLoaded(),
         loader.isDnaModuleLoaded(),
       ].every(Boolean),
-      eachModuleEvaluatesOnce: moduleNames.every(name => globalThis.__healthDataEvals?.[name] === 1),
+      eachModuleEvaluatesOnce: moduleNames.every(name => (globalThis as unknown as {__healthDataEvals?: Record<string, unknown>}).__healthDataEvals?.[name] === 1),
       facadesDelegateAfterLoading:
         facadeResults.every(result => result !== undefined)
         && synchronousFacadeResults.every(result => result !== undefined),
@@ -279,7 +293,7 @@ test('Health and Data modules stay cold and single-flight their first load', asy
 });
 
 test('Health and Data modules clear failed loads and use fixed retry URLs', async ({ page }) => {
-  const modules = [
+  const modules: Array<[string, string]> = [
     ['charts', 'Charts'],
     ['notes', 'Notes'],
     ['supplements', 'Supplements'],
@@ -288,11 +302,11 @@ test('Health and Data modules clear failed loads and use fixed retry URLs', asyn
     ['context-cards', 'ContextCards'],
     ['dna', 'Dna'],
   ];
-  const requestUrls = Object.fromEntries(modules.map(([name]) => [name, []]));
+  const requestUrls = Object.fromEntries<string[]>(modules.map(([name]) => [name, []]));
   for (const [name] of modules) {
     await page.route(`**/js/${name}.js*`, route => {
       const url = route.request().url();
-      requestUrls[name].push(url);
+      requestUrls[name]!.push(url);
       if (!url.includes('lazy-retry=1')) return route.abort('failed');
       return route.fulfill({
         status: 200,
@@ -307,12 +321,12 @@ test('Health and Data modules clear failed loads and use fixed retry URLs', asyn
   }
   await openBlankPage(page, '/health-data-loader-retry-coverage');
 
-  const results = await page.evaluate(async ({ loaderUrl, modules }) => {
-    const loader = await import(loaderUrl);
+  const results: Record<string, boolean> = await page.evaluate(async ({ loaderUrl, modules }) => {
+    const loader = await (import(loaderUrl) as Promise<unknown> as Promise<HealthFixtureOperations>);
     const outcomes = [];
     for (const [name, exportStem] of modules) {
-      const load = loader[`load${exportStem}Module`];
-      const isLoaded = loader[`is${exportStem}ModuleLoaded`];
+      const load = loader[`load${exportStem}Module` as LoadKey];
+      const isLoaded = loader[`is${exportStem}ModuleLoaded` as LoadedKey];
       let firstRejected = false;
       try {
         await load();
@@ -324,9 +338,9 @@ test('Health and Data modules clear failed loads and use fixed retry URLs', asyn
       outcomes.push(
         firstRejected
         && unloadedAfterFailure
-        && retried.marker === `${name}-retried`
+        && (retried as {marker?: unknown}).marker === `${name}-retried`
         && isLoaded() === true
-        && globalThis.__healthDataRetryEvals?.[name] === 1
+        && (globalThis as unknown as {__healthDataRetryEvals?: Record<string, unknown>}).__healthDataRetryEvals?.[name] === 1
       );
     }
     return {
@@ -338,8 +352,8 @@ test('Health and Data modules clear failed loads and use fixed retry URLs', asyn
   });
   results.initialAndRetryRequested = Object.values(requestUrls).every(urls =>
     urls.length === 2
-    && new URL(urls[0]).search === ''
-    && new URL(urls[1]).searchParams.get('lazy-retry') === '1'
+    && new URL(urls[0]!).search === ''
+    && new URL(urls[1]!).searchParams.get('lazy-retry') === '1'
   );
 
   for (const [name, passed] of Object.entries(results)) {
