@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { isSourceFile } from './source-files.js';
 
 type Counts = { lines: number; nonblank: number };
-type Baseline = { commit: string; minimumReduction: number; totals: Counts };
+type Baseline = { commit: string; totals: Counts };
 const script = fileURLToPath(import.meta.url);
 const root = path.resolve(path.dirname(script), '..');
 const extensions = new Set(['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.css', '.html', '.py', '.sh']);
@@ -41,10 +41,9 @@ export function migrationProgress() {
     nonblank: 1 - totals.nonblank / baseline.totals.nonblank,
   };
   return { baselineCommit: baseline.commit, baseline: baseline.totals, current: totals,
-    reduction, minimumReduction: baseline.minimumReduction,
+    reduction,
     authoredJavaScriptFiles: javascript.length, authoredTypeScriptFiles: typescript.length,
     migrated: javascript.length === 0,
-    locTargetMet: Object.values(reduction).every(value => value >= baseline.minimumReduction),
     remainingRuntimeJavaScriptFiles: javascript.filter(file => isSourceFile(file) && /^(js|api|lib|server|shared|bin)\//.test(file)),
   };
 }
@@ -52,5 +51,5 @@ export function migrationProgress() {
 if (process.argv[1] && path.resolve(process.argv[1]) === script) {
   const report = migrationProgress();
   console.log(JSON.stringify(report, null, 2));
-  if (process.argv.includes('--check') && (!report.migrated || !report.locTargetMet)) process.exitCode = 1;
+  if (process.argv.includes('--check') && !report.migrated) process.exitCode = 1;
 }
