@@ -1,3 +1,5 @@
+type OnboardingConfigurator = Pick<typeof import('../../js/chat-onboarding.js'), 'configureChatOnboarding'>;
+type CycleFixtureReader = { cycleStatus?: unknown; periods: { flow?: unknown }[]; periodLength: unknown };
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -9,18 +11,18 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
 
   const results = await page.evaluate(async ({ onboardingUrl }) => {
     const [onboarding, { state }, profile] = await Promise.all([
-      import(onboardingUrl),
+      (import(onboardingUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-onboarding.js'), "configureChatOnboarding" | "useChatPrompt" | "requestOnboardingLabImportProvider" | "startOnboardingLabImport" | "setChatProfileSex" | "_updateOnboardNextBtn" | "onboardHeightUnitChanged" | "saveChatProfile" | "saveChatLocation" | "onContextCardSaved" | "_renderOnboardCrumbs" | "_renderProviderQuiz" | "setProviderQuizBranch" | "backToProviderQuiz" | "skipProviderSetup" | "skipOnboardingExtras" | "skipContextCards" | "goToOnboardingStep" | "showCycleNoMensesOptions" | "showCyclePeriodEntry" | "saveCycleStatus" | "_updatePeriodBtn" | "saveChatPeriod" | "addChatSupplement" | "removeChatSupplement" | "_countFilledCards">>,
       import('/js/state.js'),
       import('/js/profile.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const localSnapshot = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key as string)];
     }));
     const sessionSnapshot = new Map(Array.from({ length: sessionStorage.length }, (_, i) => {
       const key = sessionStorage.key(i);
-      return [key, sessionStorage.getItem(key)];
+      return [key, sessionStorage.getItem(key as string)];
     }));
     const savedState = {
       currentProfile: state.currentProfile,
@@ -31,10 +33,10 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
       chatHistory: state.chatHistory,
     };
     const host = document.createElement('div');
-    const calls = [];
+    const calls: string[] = [];
     const profileId = `chat_onboard_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const chatInput = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
-    const pdfInput = /** @type {HTMLInputElement | null} */ (document.getElementById('pdf-input'));
+    const chatInput = /** @type {HTMLTextAreaElement | null} */ ((document.getElementById('chat-input') as HTMLTextAreaElement | null));
+    const pdfInput = /** @type {HTMLInputElement | null} */ ((document.getElementById('pdf-input') as HTMLInputElement | null));
     const savedChatInputValue = chatInput?.value;
     const onPdfClick = () => { calls.push('pdf-click'); };
     const profileRecord = {
@@ -54,7 +56,7 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
       pinned: false,
     };
     const defaultData = profile.createDefaultProfileData();
-    const restoreStorage = (storage, snapshot) => {
+    const restoreStorage = (storage: Storage, snapshot: Iterable<readonly [string | null, string | null]>) => {
       storage.clear();
       for (const [key, value] of snapshot) {
         if (key && value != null) storage.setItem(key, value);
@@ -91,7 +93,7 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
       state.profiles = [profileRecord];
       state.profileSex = null;
       state.profileDob = null;
-      state.importedData = defaultData;
+      (state as { importedData: unknown }).importedData = defaultData;
       state.chatHistory = [];
       localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
       localStorage.setItem('labcharts-location-cache', JSON.stringify({ 'germany|': 52 }));
@@ -100,12 +102,12 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
       onboarding.configureChatOnboarding({
         closeChatPanel: () => { calls.push('close'); },
         openChatProviderQuiz: () => { calls.push('provider-quiz'); },
-        openSettingsModal: tab => { calls.push(`settings:${tab}`); },
+        openSettingsModal: (tab: unknown) => { calls.push(`settings:${tab}`); },
         renderChatMessages: () => { calls.push('render'); },
         renderProfileButton: () => { calls.push('render-profile-button'); },
         sendChatMessage: () => { calls.push('send'); },
-        setChatNudge: mode => { calls.push(`nudge:${mode || ''}`); },
-        setProfileHeight: (id, height, unit) => { calls.push(`height:${id}:${height}:${unit}`); },
+        setChatNudge: (mode: unknown) => { calls.push(`nudge:${mode || ''}`); },
+        setProfileHeight: (id: unknown, height: unknown, unit: unknown) => { calls.push(`height:${id}:${height}:${unit}`); },
         updateChatNudge: () => { calls.push('update-nudge'); },
       });
       pdfInput?.addEventListener('click', onPdfClick);
@@ -147,54 +149,54 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
       outcomes.importWithProviderClicksFileInput = calls.includes('pdf-click')
         && calls.filter(call => call === 'close').length >= 2;
 
-      const nameInput = document.getElementById('chat-onboard-name');
-      const nextButton = document.getElementById('chat-onboard-next');
+      const nameInput = (document.getElementById('chat-onboard-name') as HTMLInputElement | null);
+      const nextButton = (document.getElementById('chat-onboard-next') as HTMLButtonElement | null);
       await onboarding.setChatProfileSex('female');
       outcomes.sexButtonStateAndNextGate = state.profileSex === 'female'
-        && host.querySelectorAll('.welcome-sex-btn')[1].classList.contains('active')
-        && nextButton.disabled === true;
+        && host.querySelectorAll('.welcome-sex-btn')[1]!.classList.contains('active')
+        && nextButton!.disabled === true;
 
-      nameInput.value = 'Ada Lovelace';
+      nameInput!.value = 'Ada Lovelace';
       onboarding._updateOnboardNextBtn();
-      outcomes.nextButtonEnablesWhenNameAndSexExist = nextButton.disabled === false;
+      outcomes.nextButtonEnablesWhenNameAndSexExist = nextButton!.disabled === false;
 
-      const heightInput = document.getElementById('chat-onboard-height');
-      const heightUnit = document.getElementById('chat-onboard-height-unit');
-      heightInput.value = '180';
-      heightUnit.value = 'in';
+      const heightInput = (document.getElementById('chat-onboard-height') as HTMLInputElement | null);
+      const heightUnit = (document.getElementById('chat-onboard-height-unit') as HTMLSelectElement | null);
+      heightInput!.value = '180';
+      heightUnit!.value = 'in';
       onboarding.onboardHeightUnitChanged();
-      const convertedToInches = heightInput.value === '70.9' && heightInput.placeholder === 'inches';
-      heightUnit.value = 'cm';
+      const convertedToInches = heightInput!.value === '70.9' && heightInput!.placeholder === 'inches';
+      heightUnit!.value = 'cm';
       onboarding.onboardHeightUnitChanged();
       outcomes.heightUnitConversionRunsBothDirections = convertedToInches
-        && heightInput.value === '180.1'
-        && heightInput.placeholder === 'cm';
+        && heightInput!.value === '180.1'
+        && heightInput!.placeholder === 'cm';
 
-      document.getElementById('chat-onboard-dob').value = '1990-01-02';
-      heightInput.value = '70';
-      heightUnit.value = 'in';
-      document.getElementById('chat-onboard-weight').value = '150';
-      document.getElementById('chat-onboard-weight-unit').value = 'lb';
-      const countryInput = document.getElementById('chat-onboard-country');
-      countryInput.value = '';
+      (document.getElementById('chat-onboard-dob') as HTMLInputElement | null)!.value = '1990-01-02';
+      heightInput!.value = '70';
+      heightUnit!.value = 'in';
+      (document.getElementById('chat-onboard-weight') as HTMLInputElement | null)!.value = '150';
+      (document.getElementById('chat-onboard-weight-unit') as HTMLSelectElement | null)!.value = 'lb';
+      const countryInput = (document.getElementById('chat-onboard-country') as HTMLInputElement | null);
+      countryInput!.value = '';
       localStorage.setItem('labcharts-ai-paused', 'true');
       localStorage.setItem('labcharts-ai-provider', 'openrouter');
       localStorage.removeItem('labcharts-openrouter-key');
       await onboarding.saveChatProfile(true);
-      countryInput.value = 'Germany';
+      countryInput!.value = 'Germany';
       await onboarding.saveChatLocation();
       const loc = profile.getProfileLocation(profileId);
-      outcomes.saveProfilePersistsProfileFieldsAndBiometrics = state.profiles[0].name === 'Ada Lovelace'
+      outcomes.saveProfilePersistsProfileFieldsAndBiometrics = state.profiles[0]!.name === 'Ada Lovelace'
         && state.profileDob === '1990-01-02'
         && calls.some(call => call.startsWith(`height:${profileId}:177.8:in`))
-        && state.importedData.biometrics.weight.length === 1
-        && state.importedData.biometrics.weight[0].unit === 'lb'
+        && state.importedData.biometrics!.weight!.length === 1
+        && state.importedData.biometrics!.weight![0]!.unit === 'lb'
         && loc.country === 'Germany'
         && calls.includes('render-profile-button')
         && calls.includes('update-nudge');
       outcomes.cachedLocationDisplaysLatitudeBand =
-        document.getElementById('chat-onboard-lat').textContent.includes('52')
-        && document.getElementById('chat-onboard-lat').textContent.includes('N');
+        document.getElementById('chat-onboard-lat')!.textContent!.includes('52')
+        && document.getElementById('chat-onboard-lat')!.textContent!.includes('N');
     } finally {
       await Promise.resolve();
       await Promise.resolve();
@@ -202,7 +204,7 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
       state.profiles = savedState.profiles;
       state.profileSex = savedState.profileSex;
       state.profileDob = savedState.profileDob;
-      state.importedData = savedState.importedData;
+      (state as { importedData: unknown }).importedData = savedState.importedData;
       state.chatHistory = savedState.chatHistory;
       restoreStorage(localStorage, localSnapshot);
       restoreStorage(sessionStorage, sessionSnapshot);
@@ -236,14 +238,14 @@ test('chat onboarding browser coverage keeps default callbacks safe before chat 
 
   const results = await page.evaluate(async ({ onboardingUrl }) => {
     const [onboarding, { state }, profile] = await Promise.all([
-      import(onboardingUrl),
+      (import(onboardingUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-onboarding.js'), "configureChatOnboarding" | "useChatPrompt" | "requestOnboardingLabImportProvider" | "startOnboardingLabImport" | "setChatProfileSex" | "_updateOnboardNextBtn" | "onboardHeightUnitChanged" | "saveChatProfile" | "saveChatLocation" | "onContextCardSaved" | "_renderOnboardCrumbs" | "_renderProviderQuiz" | "setProviderQuizBranch" | "backToProviderQuiz" | "skipProviderSetup" | "skipOnboardingExtras" | "skipContextCards" | "goToOnboardingStep" | "showCycleNoMensesOptions" | "showCyclePeriodEntry" | "saveCycleStatus" | "_updatePeriodBtn" | "saveChatPeriod" | "addChatSupplement" | "removeChatSupplement" | "_countFilledCards">>,
       import('/js/state.js'),
       import('/js/profile.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const localSnapshot = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key as string)];
     }));
     const savedState = {
       currentProfile: state.currentProfile,
@@ -277,7 +279,7 @@ test('chat onboarding browser coverage keeps default callbacks safe before chat 
         if (key && value != null) localStorage.setItem(key, value);
       }
     };
-    let thrownError = null;
+    let thrownError: unknown = null;
 
     try {
       host.innerHTML = `
@@ -294,13 +296,13 @@ test('chat onboarding browser coverage keeps default callbacks safe before chat 
       state.profiles = [profileRecord];
       state.profileSex = 'female';
       state.profileDob = null;
-      state.importedData = profile.createDefaultProfileData();
+      (state as { importedData: unknown }).importedData = profile.createDefaultProfileData();
       state.chatHistory = [];
       localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
 
       await onboarding.saveChatProfile(true);
       outcomes.defaultUpdateNudgeCallbackAllowsProfileAdvance =
-        state.profiles[0].name === 'Callback Safe'
+        state.profiles[0]!.name === 'Callback Safe'
         && state.profileDob === '1985-04-12'
         && localStorage.getItem('labcharts-chat-nudge') === null;
 
@@ -325,7 +327,7 @@ test('chat onboarding browser coverage keeps default callbacks safe before chat 
         && sessionStorage.getItem(`chat-onboard-provider-requested-${profileId}`) === '1'
         && sessionStorage.getItem(`chat-onboard-provider-branch-${profileId}`) === null;
 
-      state.importedData = {
+      (state as { importedData: unknown }).importedData = {
         ...profile.createDefaultProfileData(),
         entries: [],
         diet: { pattern: 'Mediterranean' },
@@ -340,7 +342,7 @@ test('chat onboarding browser coverage keeps default callbacks safe before chat 
       state.profiles = savedState.profiles;
       state.profileSex = savedState.profileSex;
       state.profileDob = savedState.profileDob;
-      state.importedData = savedState.importedData;
+      (state as { importedData: unknown }).importedData = savedState.importedData;
       state.chatHistory = savedState.chatHistory;
       restoreStorage();
       host.remove();
@@ -362,19 +364,19 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
 
   const results = await page.evaluate(async ({ onboardingUrl }) => {
     const [onboarding, appOnboarding, { state }, profile] = await Promise.all([
-      import(onboardingUrl),
+      (import(onboardingUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-onboarding.js'), "configureChatOnboarding" | "useChatPrompt" | "requestOnboardingLabImportProvider" | "startOnboardingLabImport" | "setChatProfileSex" | "_updateOnboardNextBtn" | "onboardHeightUnitChanged" | "saveChatProfile" | "saveChatLocation" | "onContextCardSaved" | "_renderOnboardCrumbs" | "_renderProviderQuiz" | "setProviderQuizBranch" | "backToProviderQuiz" | "skipProviderSetup" | "skipOnboardingExtras" | "skipContextCards" | "goToOnboardingStep" | "showCycleNoMensesOptions" | "showCyclePeriodEntry" | "saveCycleStatus" | "_updatePeriodBtn" | "saveChatPeriod" | "addChatSupplement" | "removeChatSupplement" | "_countFilledCards">>,
       import('/js/chat-onboarding.js'),
       import('/js/state.js'),
       import('/js/profile.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const localSnapshot = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key as string)];
     }));
     const sessionSnapshot = new Map(Array.from({ length: sessionStorage.length }, (_, i) => {
       const key = sessionStorage.key(i);
-      return [key, sessionStorage.getItem(key)];
+      return [key, sessionStorage.getItem(key as string)];
     }));
     const savedState = {
       currentProfile: state.currentProfile,
@@ -385,26 +387,26 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
       chatHistory: state.chatHistory,
     };
     const host = document.createElement('div');
-    const calls = [];
+    const calls: string[] = [];
     const profileId = `chat_onboard_cycle_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     const chatPanel = document.getElementById('chat-panel');
     const savedChatPanelClass = chatPanel?.className;
-    const restoreStorage = (storage, snapshot) => {
+    const restoreStorage = (storage: Storage, snapshot: Iterable<readonly [string | null, string | null]>) => {
       storage.clear();
       for (const [key, value] of snapshot) {
         if (key && value != null) storage.setItem(key, value);
       }
     };
-    const waitForProviderTimer = () => new Promise(resolve => setTimeout(resolve, 350));
-    const configureOnboardingForTest = target => {
+    const waitForProviderTimer = () => new Promise((resolve) => setTimeout(resolve, 350));
+    const configureOnboardingForTest = (target: OnboardingConfigurator) => {
       target.configureChatOnboarding({
         closeChatPanel: () => { calls.push('close'); },
         getActiveData: () => state.importedData,
-        navigate: view => { calls.push(`navigate:${view}`); },
-        openSettingsModal: tab => { calls.push(`settings:${tab}`); },
-        recordChange: key => { calls.push(`record:${key}`); },
+        navigate: (view: unknown) => { calls.push(`navigate:${view}`); },
+        openSettingsModal: (tab: unknown) => { calls.push(`settings:${tab}`); },
+        recordChange: (key: string) => { calls.push(`record:${key}`); },
         renderChatMessages: () => { calls.push('render'); },
-        renderMenstrualCycleSection: (_data, options = {}) => {
+        renderMenstrualCycleSection: (_data: unknown, options: { variant?: unknown } = {}) => {
           calls.push(options.variant === 'dashboard' ? 'render-cycle-dashboard' : 'render-cycle');
           return '<div class="cycle-section">cycle refreshed</div>';
         },
@@ -413,13 +415,13 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
           return '<div class="supp-timeline-section">supps refreshed</div>';
         },
         sendChatMessage: () => { calls.push('send'); },
-        setChatNudge: mode => { calls.push(`nudge:${mode || ''}`); },
+        setChatNudge: (mode: unknown) => { calls.push(`nudge:${mode || ''}`); },
         startOpenRouterOAuth: () => { calls.push('oauth'); },
-        switchAIProvider: provider => { calls.push(`provider:${provider}`); },
+        switchAIProvider: (provider: unknown) => { calls.push(`provider:${provider}`); },
         updateChatNudge: () => { calls.push('update-nudge'); },
       });
     };
-    const resetOnboardingForTest = target => {
+    const resetOnboardingForTest = (target: OnboardingConfigurator) => {
       target.configureChatOnboarding({
         closeChatPanel: () => {},
         getActiveData: () => state.importedData,
@@ -478,7 +480,7 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
       }];
       state.profileSex = 'female';
       state.profileDob = null;
-      state.importedData = profile.createDefaultProfileData();
+      (state as { importedData: unknown }).importedData = profile.createDefaultProfileData();
       state.chatHistory = [];
       localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
 
@@ -493,7 +495,7 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       const connectedCrumbs = onboarding._renderOnboardCrumbs(3);
       const connectedContextCrumbs = onboarding._renderOnboardCrumbs(4);
-      const quizRoot = onboarding._renderProviderQuiz(null, '<Ada>');
+      const quizRoot = (onboarding._renderProviderQuiz as (branch: string | null, ...rest: [name: Parameters<typeof onboarding._renderProviderQuiz>[1]]) => ReturnType<typeof onboarding._renderProviderQuiz>)(null, '<Ada>');
       const quizCard = onboarding._renderProviderQuiz('card', 'Ada');
       const quizLocal = onboarding._renderProviderQuiz('local', 'Ada');
       const quizBitcoin = onboarding._renderProviderQuiz('bitcoin', 'Ada');
@@ -524,26 +526,26 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
       const delegatedMarkup = !quizHost.querySelector('[onclick], [onkeydown], [onchange], [oninput]')
         && quizHost.querySelectorAll('[data-chat-onboarding-action]').length >= 13;
       quizHost.innerHTML = quizRoot;
-      quizHost.querySelector('[data-chat-onboarding-action="set-provider-branch"][data-chat-provider-branch="card"]')?.click();
+      quizHost.querySelector<HTMLElement>('[data-chat-onboarding-action="set-provider-branch"][data-chat-provider-branch="card"]')?.click();
       const delegatedBranchClick = sessionStorage.getItem(`chat-onboard-provider-branch-${profileId}`) === 'card';
       quizHost.innerHTML = quizCard;
-      quizHost.querySelector('[data-chat-onboarding-action="back-to-provider-quiz"]')?.click();
+      quizHost.querySelector<HTMLElement>('[data-chat-onboarding-action="back-to-provider-quiz"]')?.click();
       const delegatedBackClick = sessionStorage.getItem(`chat-onboard-provider-branch-${profileId}`) === null;
-      quizHost.querySelector('[data-chat-onboarding-action="start-openrouter-oauth"]')?.click();
-      quizHost.querySelector('[data-chat-onboarding-action="open-provider-settings"][data-chat-provider="openrouter"]')?.click();
+      quizHost.querySelector<HTMLElement>('[data-chat-onboarding-action="start-openrouter-oauth"]')?.click();
+      quizHost.querySelector<HTMLElement>('[data-chat-onboarding-action="open-provider-settings"][data-chat-provider="openrouter"]')?.click();
       await waitForProviderTimer();
       quizHost.innerHTML = quizLocal;
-      quizHost.querySelector('[data-chat-onboarding-action="open-provider-settings"][data-chat-provider="ollama"]')?.click();
+      quizHost.querySelector<HTMLElement>('[data-chat-onboarding-action="open-provider-settings"][data-chat-provider="ollama"]')?.click();
       await waitForProviderTimer();
       quizHost.innerHTML = quizBitcoin;
-      quizHost.querySelector('[data-chat-onboarding-action="open-provider-settings"][data-chat-provider="routstr"]')?.click();
+      quizHost.querySelector<HTMLElement>('[data-chat-onboarding-action="open-provider-settings"][data-chat-provider="routstr"]')?.click();
       await waitForProviderTimer();
-      quizHost.querySelector('[data-chat-onboarding-action="open-provider-settings"][data-chat-provider="ppq"]')?.click();
+      quizHost.querySelector<HTMLElement>('[data-chat-onboarding-action="open-provider-settings"][data-chat-provider="ppq"]')?.click();
       await waitForProviderTimer();
       quizHost.innerHTML = quizRoot;
-      quizHost.querySelector('[data-chat-onboarding-action="open-ai-settings"]')?.click();
+      quizHost.querySelector<HTMLElement>('[data-chat-onboarding-action="open-ai-settings"]')?.click();
       await waitForProviderTimer();
-      quizHost.querySelector('[data-chat-onboarding-action="skip-provider-setup"]')?.click();
+      quizHost.querySelector<HTMLElement>('[data-chat-onboarding-action="skip-provider-setup"]')?.click();
       outcomes.providerQuizDelegatesAllActions = delegatedMarkup
         && delegatedBranchClick
         && delegatedBackClick
@@ -626,63 +628,63 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
 
       onboarding.showCycleNoMensesOptions();
       outcomes.noMensesOptionsSwitchViews =
-        document.getElementById('chat-onboard-cycle-options').style.display === 'none'
-        && document.getElementById('chat-onboard-cycle-no-menses').style.display === 'block';
+        document.getElementById('chat-onboard-cycle-options')!.style.display === 'none'
+        && document.getElementById('chat-onboard-cycle-no-menses')!.style.display === 'block';
 
-      document.getElementById('chat-onboard-cycle-options').style.display = 'block';
+      document.getElementById('chat-onboard-cycle-options')!.style.display = 'block';
       onboarding.showCyclePeriodEntry();
       outcomes.periodEntrySwitchesViews =
-        document.getElementById('chat-onboard-cycle-options').style.display === 'none'
-        && document.getElementById('chat-onboard-cycle-entry').style.display === 'block';
+        document.getElementById('chat-onboard-cycle-options')!.style.display === 'none'
+        && document.getElementById('chat-onboard-cycle-entry')!.style.display === 'block';
 
       onboarding.saveCycleStatus('pregnant');
-      outcomes.saveCycleStatusRefreshesDashboard = state.importedData.menstrualCycle.cycleStatus === 'pregnant'
-        && Array.isArray(state.importedData.menstrualCycle.periods)
+      outcomes.saveCycleStatusRefreshesDashboard = (state.importedData.menstrualCycle as CycleFixtureReader).cycleStatus === 'pregnant'
+        && Array.isArray((state.importedData.menstrualCycle as CycleFixtureReader).periods)
         && calls.includes('record:menstrualCycle')
         && calls.includes('render-cycle')
         && calls.includes('render');
 
-      const startInput = document.getElementById('chat-onboard-period-start');
-      const endInput = document.getElementById('chat-onboard-period-end');
-      const periodBtn = document.getElementById('chat-onboard-period-btn');
+      const startInput = (document.getElementById('chat-onboard-period-start') as HTMLInputElement | null);
+      const endInput = (document.getElementById('chat-onboard-period-end') as HTMLInputElement | null);
+      const periodBtn = (document.getElementById('chat-onboard-period-btn') as HTMLButtonElement | null);
       const preview = document.getElementById('chat-onboard-period-preview');
-      startInput.value = '1';
-      endInput.value = '5';
+      startInput!.value = '1';
+      endInput!.value = '5';
       onboarding._updatePeriodBtn();
-      const shortPreview = preview.textContent.includes('day') && periodBtn.disabled === false;
-      endInput.value = '20';
+      const shortPreview = preview!.textContent!.includes('day') && periodBtn!.disabled === false;
+      endInput!.value = '20';
       onboarding._updatePeriodBtn();
       outcomes.periodPreviewHandlesShortAndLongRanges = shortPreview
-        && preview.textContent.includes('double-check')
-        && preview.style.color === 'var(--yellow)';
+        && preview!.textContent!.includes('double-check')
+        && preview!.style.color === 'var(--yellow)';
 
-      endInput.value = '5';
+      endInput!.value = '5';
       onboarding.saveChatPeriod();
-      outcomes.saveChatPeriodAddsRegularPeriod = state.importedData.menstrualCycle.cycleStatus === 'regular'
-        && state.importedData.menstrualCycle.periods.some(period => period.flow === 'moderate')
-        && state.importedData.menstrualCycle.periodLength >= 1
+      outcomes.saveChatPeriodAddsRegularPeriod = (state.importedData.menstrualCycle as CycleFixtureReader).cycleStatus === 'regular'
+        && (state.importedData.menstrualCycle as CycleFixtureReader).periods.some(period => period.flow === 'moderate')
+        && ((state.importedData.menstrualCycle as CycleFixtureReader).periodLength as number) >= 1
         && calls.filter(call => call === 'record:menstrualCycle').length >= 2;
 
-      const suppName = document.getElementById('chat-onboard-supp-name');
-      const suppDose = document.getElementById('chat-onboard-supp-dose');
-      const suppType = document.getElementById('chat-onboard-supp-type');
+      const suppName = (document.getElementById('chat-onboard-supp-name') as HTMLInputElement | null);
+      const suppDose = (document.getElementById('chat-onboard-supp-dose') as HTMLInputElement | null);
+      const suppType = (document.getElementById('chat-onboard-supp-type') as HTMLSelectElement | null);
       let focused = false;
-      suppName.focus = () => { focused = true; };
+      suppName!.focus = () => { focused = true; };
       onboarding.addChatSupplement();
-      const emptyNameFocuses = focused === true && state.importedData.supplements.length === 0;
-      suppName.value = 'Magnesium';
-      suppDose.value = '200 mg';
-      suppType.value = 'supplement';
+      const emptyNameFocuses = (focused as boolean) === true && state.importedData.supplements.length === 0;
+      suppName!.value = 'Magnesium';
+      suppDose!.value = '200 mg';
+      suppType!.value = 'supplement';
       onboarding.addChatSupplement();
       const addedSupplement = state.importedData.supplements.length === 1
-        && state.importedData.supplements[0].name === 'Magnesium'
+        && state.importedData.supplements[0]!.name === 'Magnesium'
         && calls.includes('render-supps');
       onboarding.removeChatSupplement(0);
       outcomes.supplementAddRemovePaths = emptyNameFocuses
         && addedSupplement
         && state.importedData.supplements.length === 0;
 
-      state.importedData = {
+      (state as { importedData: unknown }).importedData = {
         ...profile.createDefaultProfileData(),
         healthGoals: [{ text: 'Energy', severity: 'medium' }],
         diagnoses: { condition: 'Hashimoto' },
@@ -703,14 +705,14 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
       outcomes.contextCardSavedClearsCardSkip =
         localStorage.getItem(`labcharts-onboard-context-cards-skipped-${profileId}`) === null;
 
-      state.importedData = {
+      (state as { importedData: unknown }).importedData = {
         ...profile.createDefaultProfileData(),
         diet: { pattern: 'Mediterranean' },
       };
       onboarding.onContextCardSaved();
       outcomes.partialContextNudgesContext = calls.includes('nudge:context');
 
-      state.importedData = {
+      (state as { importedData: unknown }).importedData = {
         ...profile.createDefaultProfileData(),
         entries: [{ date: '2026-06-08', markers: {} }],
       };
@@ -725,7 +727,7 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
       state.profiles = savedState.profiles;
       state.profileSex = savedState.profileSex;
       state.profileDob = savedState.profileDob;
-      state.importedData = savedState.importedData;
+      (state as { importedData: unknown }).importedData = savedState.importedData;
       state.chatHistory = savedState.chatHistory;
       restoreStorage(localStorage, localSnapshot);
       restoreStorage(sessionStorage, sessionSnapshot);

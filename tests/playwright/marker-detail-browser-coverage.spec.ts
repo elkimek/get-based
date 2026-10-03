@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
@@ -40,7 +41,7 @@ function markerDetailFacadeStubBody() {
   `;
 }
 
-async function openMarkerDetailLoaderPage(page, path) {
+async function openMarkerDetailLoaderPage(page: Page, path: string) {
   await page.route(`**${path}`, route => route.fulfill({
     status: 200,
     contentType: 'text/html',
@@ -61,7 +62,7 @@ test('marker detail implementation loads on demand and single-flights', async ({
   await openMarkerDetailLoaderPage(page, '/marker-detail-module-cache-coverage');
 
   const outcomes = await page.evaluate(async ({ modalUrl }) => {
-    const modal = await import(modalUrl);
+    const modal = (await import(modalUrl) as unknown) as Pick<typeof import('../../js/marker-detail-modal.js'), "isMarkerDetailModuleLoaded" | "loadMarkerDetailModule" | "configureMarkerDetailModal" | "fetchCustomMarkerDescription" | "showDetailModal" | "editRefRange" | "saveRefRange" | "revertRefRange" | "openManualEntryForm" | "saveManualEntry" | "saveAndAddAnotherManualEntry" | "openCreateMarkerModal" | "pickNewCatIcon" | "saveCustomMarker" | "deleteMarkerValue" | "deleteCustomMarker" | "editMarkerValue" | "revertMarkerValue" | "editValueNote" | "deleteValueNote" | "toggleMarkerNoteEditor" | "saveMarkerNote" | "deleteMarkerNote" | "loadMarkerDetailStylesheet" | "closeModal">;
     const loadedBeforeAction = modal.isMarkerDetailModuleLoaded();
     const [first, second] = await Promise.all([
       modal.loadMarkerDetailModule(),
@@ -95,7 +96,7 @@ test('first delegated marker-card click loads and opens marker details', async (
   await openMarkerDetailLoaderPage(page, '/marker-detail-first-card-click-coverage');
 
   const loadedBeforeClick = await page.evaluate(async ({ modalUrl }) => {
-    const modal = await import(modalUrl);
+    const modal = (await import(modalUrl) as unknown) as Pick<typeof import('../../js/marker-detail-modal.js'), "isMarkerDetailModuleLoaded" | "loadMarkerDetailModule" | "configureMarkerDetailModal" | "fetchCustomMarkerDescription" | "showDetailModal" | "editRefRange" | "saveRefRange" | "revertRefRange" | "openManualEntryForm" | "saveManualEntry" | "saveAndAddAnotherManualEntry" | "openCreateMarkerModal" | "pickNewCatIcon" | "saveCustomMarker" | "deleteMarkerValue" | "deleteCustomMarker" | "editMarkerValue" | "revertMarkerValue" | "editValueNote" | "deleteValueNote" | "toggleMarkerNoteEditor" | "saveMarkerNote" | "deleteMarkerNote" | "loadMarkerDetailStylesheet" | "closeModal">;
     const card = document.createElement('button');
     card.type = 'button';
     card.dataset.markerDetailAction = 'show-detail-modal';
@@ -107,7 +108,7 @@ test('first delegated marker-card click loads and opens marker details', async (
   }, { modalUrl: moduleUrl('/js/marker-detail-modal.js') });
 
   expect(loadedBeforeClick).toBe(false);
-  await expect.poll(() => page.evaluate(() => window.__markerDetailFacadeCalls || []))
+  await expect.poll(() => page.evaluate(() => (window as unknown as {__markerDetailFacadeCalls: unknown}).__markerDetailFacadeCalls || []))
     .toEqual([['showDetailModal', 'proteins_albumin', {}]]);
   expect(implementationRequests).toBe(1);
 });
@@ -130,7 +131,7 @@ test('hard-refreshed category view opens a marker card before any Dashboard mark
     tourModule.endTour({ openEmptyChat: false });
     localStorage.setItem(`labcharts-${state.currentProfile}-tour`, 'completed');
     localStorage.setItem(`labcharts-${state.currentProfile}-emptyTour`, 'completed');
-    state.importedData = await fetch('/data/demo-male.json', { cache: 'no-store' }).then(response => response.json());
+    (state as unknown as {importedData: unknown}).importedData = await fetch('/data/demo-male.json', { cache: 'no-store' }).then(response => response.json());
     state.profileSex = 'male';
     state.profileDob = '1987-11-22';
     state.dateRangeFilter = 'all';
@@ -139,7 +140,7 @@ test('hard-refreshed category view opens a marker card before any Dashboard mark
     viewsModule.showCategory('biochemistry');
     return {
       implementationLoaded: modalModule.isMarkerDetailModuleLoaded(),
-      markerCards: document.querySelectorAll(
+      markerCards: document.querySelectorAll<HTMLElement>(
         '.chart-card-main[data-marker-detail-action="show-detail-modal"]',
       ).length,
     };
@@ -156,11 +157,11 @@ test('hard-refreshed category view opens a marker card before any Dashboard mark
 
   await expect(page.locator('#modal-overlay')).toHaveClass(/show/);
   await expect(page.locator('#detail-modal')).toHaveClass(/marker-detail-modal/);
-  await expect(page.locator('#detail-modal')).toHaveAttribute('data-sync-refresh-item-id', markerId);
+  await expect(page.locator('#detail-modal')).toHaveAttribute('data-sync-refresh-item-id', markerId!);
   const rangeSuggestion = page.locator('#detail-modal .marker-range-suggest');
   await expect(rangeSuggestion).toHaveText(/Suggest a better range/);
   const suggestionHref = await rangeSuggestion.getAttribute('href');
-  const suggestionUrl = new URL(suggestionHref);
+  const suggestionUrl = new URL(suggestionHref!);
   expect(suggestionUrl.pathname).toBe('/elkimek/get-based/issues/new');
   expect(suggestionUrl.searchParams.get('body')).toContain('## Built-in marker');
   expect(suggestionUrl.searchParams.get('body')).not.toContain('1987-11-22');
@@ -177,17 +178,17 @@ test('hard-refreshed category view opens a marker card before any Dashboard mark
     state.importedData.refOverrides[dotKey] = { refMin: 3.9, refMax: 5.5, refSource: 'import' };
     dataModule.invalidateActiveDataCache();
     await modalModule.showDetailModal(id);
-    const hiddenForLabRange = !document.querySelector('#detail-modal .marker-range-suggest');
+    const hiddenForLabRange = !document.querySelector<HTMLElement>('#detail-modal .marker-range-suggest');
 
     state.importedData.refOverrides[dotKey] = { optimalMin: 4.4, optimalMax: 5.0, optimalSource: 'manual' };
     dataModule.invalidateActiveDataCache();
     await modalModule.showDetailModal(id);
-    const hiddenForManualOptimal = !document.querySelector('#detail-modal .marker-range-suggest');
+    const hiddenForManualOptimal = !document.querySelector<HTMLElement>('#detail-modal .marker-range-suggest');
 
     delete state.importedData.refOverrides[dotKey];
     dataModule.invalidateActiveDataCache();
     await modalModule.showDetailModal(id);
-    const restoredForBuiltIn = !!document.querySelector('#detail-modal .marker-range-suggest');
+    const restoredForBuiltIn = !!document.querySelector<HTMLElement>('#detail-modal .marker-range-suggest');
     return { hiddenForLabRange, hiddenForManualOptimal, restoredForBuiltIn };
   });
   expect(rangeSuggestionGating).toEqual({
@@ -206,7 +207,7 @@ test('marker detail lazy facade forwards its complete editing contract', async (
   await openMarkerDetailLoaderPage(page, '/marker-detail-facade-contract-coverage');
 
   const outcomes = await page.evaluate(async ({ modalUrl }) => {
-    const modal = await import(modalUrl);
+    const modal = (await import(modalUrl) as unknown) as Pick<typeof import('../../js/marker-detail-modal.js'), "isMarkerDetailModuleLoaded" | "loadMarkerDetailModule" | "configureMarkerDetailModal" | "fetchCustomMarkerDescription" | "showDetailModal" | "editRefRange" | "saveRefRange" | "revertRefRange" | "openManualEntryForm" | "saveManualEntry" | "saveAndAddAnotherManualEntry" | "openCreateMarkerModal" | "pickNewCatIcon" | "saveCustomMarker" | "deleteMarkerValue" | "deleteCustomMarker" | "editMarkerValue" | "revertMarkerValue" | "editValueNote" | "deleteValueNote" | "toggleMarkerNoteEditor" | "saveMarkerNote" | "deleteMarkerNote" | "loadMarkerDetailStylesheet" | "closeModal">;
     modal.configureMarkerDetailModal({ marker: 'configured' });
     await modal.loadMarkerDetailModule();
     const results = [
@@ -232,9 +233,9 @@ test('marker detail lazy facade forwards its complete editing contract', async (
       modal.deleteMarkerNote('marker'),
     ];
     return {
-      configKeys: window.__markerDetailFacadeConfigKeys,
+      configKeys: (window as unknown as {__markerDetailFacadeConfigKeys: unknown}).__markerDetailFacadeConfigKeys,
       results,
-      calls: window.__markerDetailFacadeCalls,
+      calls: (window as unknown as {__markerDetailFacadeCalls: unknown}).__markerDetailFacadeCalls,
     };
   }, { modalUrl: moduleUrl('/js/marker-detail-modal.js') });
 
@@ -262,11 +263,11 @@ test('marker detail lazy facade forwards its complete editing contract', async (
   ];
   expect(outcomes.configKeys).toEqual(['marker']);
   expect(outcomes.results).toEqual(expectedActions);
-  expect(outcomes.calls.map(call => call[0])).toEqual(expectedActions);
+  expect((outcomes.calls as unknown[][]).map(call => call[0])).toEqual(expectedActions);
 });
 
 test('marker detail implementation removes a failure and retries once', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   let failFirstRequest = true;
   await page.route('**/js/marker-detail-modal-impl.js*', route => {
     implementationRequests.push(route.request().url());
@@ -279,7 +280,7 @@ test('marker detail implementation removes a failure and retries once', async ({
   await openMarkerDetailLoaderPage(page, '/marker-detail-module-retry-coverage');
 
   const outcomes = await page.evaluate(async ({ modalUrl }) => {
-    const modal = await import(modalUrl);
+    const modal = (await import(modalUrl) as unknown) as Pick<typeof import('../../js/marker-detail-modal.js'), "isMarkerDetailModuleLoaded" | "loadMarkerDetailModule" | "configureMarkerDetailModal" | "fetchCustomMarkerDescription" | "showDetailModal" | "editRefRange" | "saveRefRange" | "revertRefRange" | "openManualEntryForm" | "saveManualEntry" | "saveAndAddAnotherManualEntry" | "openCreateMarkerModal" | "pickNewCatIcon" | "saveCustomMarker" | "deleteMarkerValue" | "deleteCustomMarker" | "editMarkerValue" | "revertMarkerValue" | "editValueNote" | "deleteValueNote" | "toggleMarkerNoteEditor" | "saveMarkerNote" | "deleteMarkerNote" | "loadMarkerDetailStylesheet" | "closeModal">;
     let firstRejected = false;
     try {
       await modal.loadMarkerDetailModule();
@@ -300,7 +301,7 @@ test('marker detail implementation removes a failure and retries once', async ({
     retryHasPublicAction: true,
   });
   expect(implementationRequests).toHaveLength(2);
-  expect(new URL(implementationRequests[1]).searchParams.get('lazy-retry')).toBe('1');
+  expect(new URL(implementationRequests[1]!).searchParams.get('lazy-retry')).toBe('1');
 });
 
 test('marker detail entry contains an implementation load failure', async ({ page }) => {
@@ -308,7 +309,7 @@ test('marker detail entry contains an implementation load failure', async ({ pag
   await openMarkerDetailLoaderPage(page, '/marker-detail-module-entry-failure-coverage');
 
   const outcomes = await page.evaluate(async ({ modalUrl }) => {
-    const modal = await import(modalUrl);
+    const modal = (await import(modalUrl) as unknown) as Pick<typeof import('../../js/marker-detail-modal.js'), "isMarkerDetailModuleLoaded" | "loadMarkerDetailModule" | "configureMarkerDetailModal" | "fetchCustomMarkerDescription" | "showDetailModal" | "editRefRange" | "saveRefRange" | "revertRefRange" | "openManualEntryForm" | "saveManualEntry" | "saveAndAddAnotherManualEntry" | "openCreateMarkerModal" | "pickNewCatIcon" | "saveCustomMarker" | "deleteMarkerValue" | "deleteCustomMarker" | "editMarkerValue" | "revertMarkerValue" | "editValueNote" | "deleteValueNote" | "toggleMarkerNoteEditor" | "saveMarkerNote" | "deleteMarkerNote" | "loadMarkerDetailStylesheet" | "closeModal">;
     const opened = await modal.openCreateMarkerModal();
     return {
       returnsFalse: opened === false,
@@ -342,17 +343,17 @@ test('marker detail stylesheet loader single-flights and preserves cascade order
   await openMarkerDetailLoaderPage(page, '/marker-detail-stylesheet-cache-coverage');
 
   const outcomes = await page.evaluate(async ({ modalUrl }) => {
-    const modal = await import(modalUrl);
+    const modal = (await import(modalUrl) as unknown) as Pick<typeof import('../../js/marker-detail-modal.js'), "isMarkerDetailModuleLoaded" | "loadMarkerDetailModule" | "configureMarkerDetailModal" | "fetchCustomMarkerDescription" | "showDetailModal" | "editRefRange" | "saveRefRange" | "revertRefRange" | "openManualEntryForm" | "saveManualEntry" | "saveAndAddAnotherManualEntry" | "openCreateMarkerModal" | "pickNewCatIcon" | "saveCustomMarker" | "deleteMarkerValue" | "deleteCustomMarker" | "editMarkerValue" | "revertMarkerValue" | "editValueNote" | "deleteValueNote" | "toggleMarkerNoteEditor" | "saveMarkerNote" | "deleteMarkerNote" | "loadMarkerDetailStylesheet" | "closeModal">;
     const [first, second] = await Promise.all([
       modal.loadMarkerDetailStylesheet(),
       modal.loadMarkerDetailStylesheet(),
     ]);
     const third = await modal.loadMarkerDetailStylesheet();
-    const anchor = document.querySelector('[data-marker-detail-stylesheet-anchor]');
+    const anchor = document.querySelector<HTMLElement>('[data-marker-detail-stylesheet-anchor]');
     return {
       concurrentCallsShareTheSameLink: first === second,
       laterCallsReuseTheResolvedLink: first === third,
-      oneStylesheetLink: document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 1,
+      oneStylesheetLink: document.querySelectorAll<HTMLElement>('link[data-marker-detail-stylesheet]').length === 1,
       linkPrecedesAnchor: first.nextElementSibling === anchor,
     };
   }, { modalUrl: moduleUrl('/js/marker-detail-modal.js') });
@@ -367,7 +368,7 @@ test('marker detail stylesheet loader single-flights and preserves cascade order
 });
 
 test('marker detail stylesheet loader removes a failure and retries', async ({ page }) => {
-  const stylesheetRequests = [];
+  const stylesheetRequests: string[] = [];
   let failFirstRequest = true;
   await page.route('**/css/marker-detail-modal.css*', route => {
     stylesheetRequests.push(route.request().url());
@@ -384,7 +385,7 @@ test('marker detail stylesheet loader removes a failure and retries', async ({ p
   await openMarkerDetailLoaderPage(page, '/marker-detail-stylesheet-retry-coverage');
 
   const outcomes = await page.evaluate(async ({ modalUrl }) => {
-    const modal = await import(modalUrl);
+    const modal = (await import(modalUrl) as unknown) as Pick<typeof import('../../js/marker-detail-modal.js'), "isMarkerDetailModuleLoaded" | "loadMarkerDetailModule" | "configureMarkerDetailModal" | "fetchCustomMarkerDescription" | "showDetailModal" | "editRefRange" | "saveRefRange" | "revertRefRange" | "openManualEntryForm" | "saveManualEntry" | "saveAndAddAnotherManualEntry" | "openCreateMarkerModal" | "pickNewCatIcon" | "saveCustomMarker" | "deleteMarkerValue" | "deleteCustomMarker" | "editMarkerValue" | "revertMarkerValue" | "editValueNote" | "deleteValueNote" | "toggleMarkerNoteEditor" | "saveMarkerNote" | "deleteMarkerNote" | "loadMarkerDetailStylesheet" | "closeModal">;
     let firstRejected = false;
     try {
       await modal.loadMarkerDetailStylesheet();
@@ -392,7 +393,7 @@ test('marker detail stylesheet loader removes a failure and retries', async ({ p
       firstRejected = true;
     }
     const failedLinkWasRemoved =
-      document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 0;
+      document.querySelectorAll<HTMLElement>('link[data-marker-detail-stylesheet]').length === 0;
     const retryLink = await modal.loadMarkerDetailStylesheet();
     return {
       firstRejected,
@@ -410,7 +411,7 @@ test('marker detail stylesheet loader removes a failure and retries', async ({ p
     retryUsesCacheBuster: true,
   });
   expect(stylesheetRequests).toHaveLength(2);
-  expect(new URL(stylesheetRequests[1]).searchParams.get('lazy-retry')).toBe('1');
+  expect(new URL(stylesheetRequests[1]!).searchParams.get('lazy-retry')).toBe('1');
 });
 
 test('marker detail entry contains a stylesheet load failure', async ({ page }) => {
@@ -418,12 +419,12 @@ test('marker detail entry contains a stylesheet load failure', async ({ page }) 
   await openMarkerDetailLoaderPage(page, '/marker-detail-stylesheet-entry-failure-coverage');
 
   const outcomes = await page.evaluate(async ({ modalUrl }) => {
-    const modal = await import(modalUrl);
+    const modal = (await import(modalUrl) as unknown) as Pick<typeof import('../../js/marker-detail-modal.js'), "isMarkerDetailModuleLoaded" | "loadMarkerDetailModule" | "configureMarkerDetailModal" | "fetchCustomMarkerDescription" | "showDetailModal" | "editRefRange" | "saveRefRange" | "revertRefRange" | "openManualEntryForm" | "saveManualEntry" | "saveAndAddAnotherManualEntry" | "openCreateMarkerModal" | "pickNewCatIcon" | "saveCustomMarker" | "deleteMarkerValue" | "deleteCustomMarker" | "editMarkerValue" | "revertMarkerValue" | "editValueNote" | "deleteValueNote" | "toggleMarkerNoteEditor" | "saveMarkerNote" | "deleteMarkerNote" | "loadMarkerDetailStylesheet" | "closeModal">;
     const opened = await modal.openCreateMarkerModal();
     return {
       returnsFalse: opened === false,
       failedLinkWasRemoved:
-        document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 0,
+        document.querySelectorAll<HTMLElement>('link[data-marker-detail-stylesheet]').length === 0,
       modalStayedClosed:
         !document.getElementById('modal-overlay')?.classList.contains('show'),
       errorWasExplained:
@@ -446,16 +447,16 @@ test('marker detail editing covers default dependency callbacks', async ({ page 
 
   const results = await page.evaluate(async ({ editingUrl }) => {
     const [editing, { state }, data, markerRuntime] = await Promise.all([
-      import(editingUrl),
+      (import(editingUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/marker-detail-editing.js'), "saveManualEntry" | "saveAndAddAnotherManualEntry" | "configureMarkerDetailEditing" | "editMarkerValue" | "editValueNote" | "deleteValueNote" | "revertMarkerValue" | "deleteMarkerValue" | "editRefRange" | "saveRefRange" | "revertRefRange" | "toggleMarkerNoteEditor" | "saveMarkerNote" | "deleteMarkerNote">>,
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/marker-detail-runtime.js'),
     ]);
-    const outcomes = {};
-    const calls = [];
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const outcomes: Record<string, unknown> = {};
+    const calls: unknown[] = [];
+    const clone = (value: unknown) => value == null ? value : ((JSON.parse as (text: unknown) => unknown)(JSON.stringify(value)) as unknown);
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
-    const fillManualForm = ({ date, value, unit = 'g/l' }) => {
+    const fillManualForm = ({ date, value, unit = 'g/l' }:{date:unknown;value:unknown;unit?:unknown}) => {
       let fixture = document.getElementById('marker-detail-default-deps-fixture');
       if (!fixture) {
         fixture = document.createElement('div');
@@ -482,7 +483,7 @@ test('marker detail editing covers default dependency callbacks', async ({ page 
     const dotKey = 'proteins.albumin';
     const previousMarkerRuntime = markerRuntime.configureMarkerDetailRuntime({
       buildSidebar: () => calls.push(['sidebar']),
-      navigate: (category, payload) => calls.push(['navigate', category, payload || null]),
+      navigate: (category: unknown, payload: unknown) => calls.push(['navigate', category, payload || null]),
     });
 
     try {
@@ -491,7 +492,7 @@ test('marker detail editing covers default dependency callbacks', async ({ page 
       state.profileSex = 'male';
       state.profileDob = '1980-01-02';
       state.unitSystem = 'EU';
-      state.importedData = {
+      (state as unknown as {importedData: unknown}).importedData = {
         entries: [],
         notes: [],
         supplements: [],
@@ -504,25 +505,25 @@ test('marker detail editing covers default dependency callbacks', async ({ page 
       data.invalidateActiveDataCache();
       const active = data.getActiveData();
       state.markerRegistry = {
-        [id]: active.categories.proteins.markers.albumin,
+        [id]: active.categories.proteins!.markers.albumin,
       };
       fillManualForm({ date: '2026-06-04', value: '44' });
       await editing.saveManualEntry(id);
       await wait(70);
       outcomes.defaultCloseModalPathSavesAndNavigates =
         state.importedData.entries.some(entry => entry.date === '2026-06-04' && entry.markers?.[dotKey] === 44)
-        && calls.some(call => call[0] === 'sidebar')
-        && calls.some(call => call[0] === 'navigate' && call[1] === 'proteins');
+        && calls.some(call => (call as unknown[])[0] === 'sidebar')
+        && calls.some(call => (call as unknown[])[0] === 'navigate' && (call as unknown[])[1] === 'proteins');
 
       fillManualForm({ date: '2026-06-05', value: '45' });
       await editing.saveAndAddAnotherManualEntry(id);
       await wait(0);
       outcomes.defaultOpenManualEntryPathSavesAndNavigates =
         state.importedData.entries.some(entry => entry.date === '2026-06-05' && entry.markers?.[dotKey] === 45)
-        && calls.filter(call => call[0] === 'navigate' && call[1] === 'proteins').length >= 2;
+        && calls.filter(call => (call as unknown[])[0] === 'navigate' && (call as unknown[])[1] === 'proteins').length >= 2;
     } finally {
-      state.importedData = saved.importedData;
-      state.markerRegistry = saved.markerRegistry;
+      (state as unknown as {importedData: unknown}).importedData = saved.importedData;
+      (state as {markerRegistry:unknown}).markerRegistry = saved.markerRegistry;
       state.currentProfile = saved.currentProfile;
       state.currentView = saved.currentView;
       state.profileSex = saved.profileSex;
@@ -531,7 +532,7 @@ test('marker detail editing covers default dependency callbacks', async ({ page 
       markerRuntime.configureMarkerDetailRuntime(previousMarkerRuntime);
       data.invalidateActiveDataCache();
       document.getElementById('marker-detail-default-deps-fixture')?.remove();
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
     }
 
     return outcomes;
@@ -548,24 +549,24 @@ test('marker detail editing covers manual values notes delete and revert workflo
 
   const results = await page.evaluate(async ({ editingUrl }) => {
     const [editing, { state }, data, markerRuntime] = await Promise.all([
-      import(editingUrl),
+      (import(editingUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/marker-detail-editing.js'), "saveManualEntry" | "saveAndAddAnotherManualEntry" | "configureMarkerDetailEditing" | "editMarkerValue" | "editValueNote" | "deleteValueNote" | "revertMarkerValue" | "deleteMarkerValue" | "editRefRange" | "saveRefRange" | "revertRefRange" | "toggleMarkerNoteEditor" | "saveMarkerNote" | "deleteMarkerNote">>,
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/marker-detail-runtime.js'),
     ]);
-    const outcomes = {};
-    const calls = [];
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const outcomes: Record<string, unknown> = {};
+    const calls: unknown[] = [];
+    const clone = (value: unknown) => value == null ? value : ((JSON.parse as (text: unknown) => unknown)(JSON.stringify(value)) as unknown);
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async selector => {
+    const waitFor = async (selector: string) => {
       for (let i = 0; i < 40; i += 1) {
-        const el = document.querySelector(selector);
+        const el = document.querySelector<HTMLElement>(selector);
         if (el) return el;
         await wait(25);
       }
       throw new Error(`Timed out waiting for ${selector}`);
     };
-    const waitUntil = async (predicate, label) => {
+    const waitUntil = async (predicate: () => unknown | Promise<unknown>, label: string) => {
       for (let i = 0; i < 40; i += 1) {
         if (predicate()) return;
         await wait(25);
@@ -577,7 +578,7 @@ test('marker detail editing covers manual values notes delete and revert workflo
       document.getElementById(ok ? 'confirm-ok' : 'confirm-cancel')?.click();
       await wait(0);
     };
-    const fillManualForm = ({ date, value, note = '', unit = 'g/l' }) => {
+    const fillManualForm = ({ date, value, note = '', unit = 'g/l' }:{date:unknown;value:unknown;note?:unknown;unit?:unknown}) => {
       let fixture = document.getElementById('marker-detail-coverage-fixture');
       if (!fixture) {
         fixture = document.createElement('div');
@@ -593,11 +594,11 @@ test('marker detail editing covers manual values notes delete and revert workflo
     };
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, (localStorage.getItem as (key:unknown)=>string|null)(key)];
     }));
     const sessionStorageSnapshot = new Map(Array.from({ length: sessionStorage.length }, (_, i) => {
       const key = sessionStorage.key(i);
-      return [key, sessionStorage.getItem(key)];
+      return [key, (sessionStorage.getItem as (key:unknown)=>string|null)(key)];
     }));
     const saved = {
       importedData: clone(state.importedData),
@@ -621,7 +622,7 @@ test('marker detail editing covers manual values notes delete and revert workflo
       state.profileSex = 'male';
       state.profileDob = '1980-01-02';
       state.unitSystem = 'EU';
-      state.importedData = {
+      (state as unknown as {importedData: unknown}).importedData = {
         entries: [{
           date: '2026-06-01',
           markers: { [dotKey]: 42 },
@@ -638,12 +639,12 @@ test('marker detail editing covers manual values notes delete and revert workflo
       data.invalidateActiveDataCache();
       const active = data.getActiveData();
       state.markerRegistry = {
-        [id]: active.categories.proteins.markers.albumin,
+        [id]: active.categories.proteins!.markers.albumin,
       };
       editing.configureMarkerDetailEditing({
-        navigate: route => calls.push(['navigate', route]),
-        showDetailModal: (modalId, opts) => calls.push(['detail', modalId, opts || null]),
-        openManualEntryForm: (modalId, date) => calls.push(['open-form', modalId, date]),
+        navigate: (route: unknown) => calls.push(['navigate', route]),
+        showDetailModal: (modalId: unknown, opts: unknown) => calls.push(['detail', modalId, opts || null]),
+        openManualEntryForm: (modalId: unknown, date: unknown) => calls.push(['open-form', modalId, date]),
         closeModal: () => calls.push(['close']),
       });
 
@@ -653,14 +654,14 @@ test('marker detail editing covers manual values notes delete and revert workflo
       await overwrite;
       await wait(70);
       outcomes.saveManualEntryOverwritesDuplicateAndCapsNote =
-        state.importedData.entries[0].markers[dotKey] === 43.8
-        && state.importedData.manualValues[`${dotKey}:2026-06-01`] === 42
-        && state.importedData.markerValueNotes[`${dotKey}:2026-06-01`].length === 500
+        state.importedData.entries[0]!.markers[dotKey] === 43.8
+        && state.importedData.manualValues![`${dotKey}:2026-06-01`] === 42
+        && state.importedData.markerValueNotes[`${dotKey}:2026-06-01`]!.length === 500
         && sessionStorage.getItem('labcharts-last-manual-date') === '2026-06-01'
-        && calls.some(call => call[0] === 'sidebar')
-        && calls.some(call => call[0] === 'close')
-        && calls.some(call => call[0] === 'navigate' && call[1] === 'proteins')
-        && calls.some(call => call[0] === 'detail' && call[1] === id);
+        && calls.some(call => (call as unknown[])[0] === 'sidebar')
+        && calls.some(call => (call as unknown[])[0] === 'close')
+        && calls.some(call => (call as unknown[])[0] === 'navigate' && (call as unknown[])[1] === 'proteins')
+        && calls.some(call => (call as unknown[])[0] === 'detail' && (call as unknown[])[1] === id);
 
       fillManualForm({ date: '2026-06-02', value: '-2', note: 'cancelled warning' });
       const negative = editing.saveManualEntry(id);
@@ -673,42 +674,42 @@ test('marker detail editing covers manual values notes delete and revert workflo
       await editing.saveAndAddAnotherManualEntry(id);
       outcomes.keepOpenManualEntryReopensForm =
         state.importedData.entries.some(entry => entry.date === '2026-06-03' && entry.markers[dotKey] === 45)
-        && calls.some(call => call[0] === 'open-form' && call[1] === id && call[2] === '2026-06-03');
+        && calls.some(call => (call as unknown[])[0] === 'open-form' && (call as unknown[])[1] === id && (call as unknown[])[2] === '2026-06-03');
 
       const valueEl = document.createElement('div');
       valueEl.className = 'mv-value';
       valueEl.textContent = '45';
       document.body.appendChild(valueEl);
-      editing.editMarkerValue(id, '2026-06-03', '45', { target: valueEl });
-      const editInput = valueEl.querySelector('input');
-      editInput.value = '46.5';
-      editInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      (editing.editMarkerValue as (id:Parameters<typeof editing.editMarkerValue>[0],date:Parameters<typeof editing.editMarkerValue>[1],value:Parameters<typeof editing.editMarkerValue>[2],event:Pick<Event,"target">)=>ReturnType<typeof editing.editMarkerValue>)(id, '2026-06-03', '45', { target: valueEl });
+      const editInput = valueEl.querySelector<HTMLInputElement>('input');
+      editInput!.value = '46.5';
+      editInput!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
       await waitUntil(() => {
         const entry = state.importedData.entries.find(item => item.date === '2026-06-03');
         return entry?.markers?.[dotKey] === 46.5
-          && calls.some(call => call[0] === 'detail' && call[1] === id);
+          && calls.some(call => (call as unknown[])[0] === 'detail' && (call as unknown[])[1] === id);
       }, 'inline marker value save');
       const editedEntry = state.importedData.entries.find(entry => entry.date === '2026-06-03');
       outcomes.inlineEditUpdatesManualValue = editedEntry?.markers?.[dotKey] === 46.5
-        && calls.some(call => call[0] === 'detail' && call[1] === id);
+        && calls.some(call => (call as unknown[])[0] === 'detail' && (call as unknown[])[1] === id);
 
       const cancelEl = document.createElement('div');
       cancelEl.className = 'mv-value';
       cancelEl.textContent = '46.5';
       document.body.appendChild(cancelEl);
-      const detailCallsBeforeCancel = calls.filter(call => call[0] === 'detail').length;
-      editing.editMarkerValue(id, '2026-06-03', '46.5', { target: cancelEl });
-      cancelEl.querySelector('input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      const detailCallsBeforeCancel = calls.filter(call => (call as unknown[])[0] === 'detail').length;
+      (editing.editMarkerValue as (id:Parameters<typeof editing.editMarkerValue>[0],date:Parameters<typeof editing.editMarkerValue>[1],value:Parameters<typeof editing.editMarkerValue>[2],event:Pick<Event,"target">)=>ReturnType<typeof editing.editMarkerValue>)(id, '2026-06-03', '46.5', { target: cancelEl });
+      cancelEl.querySelector<HTMLInputElement>('input')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await wait(0);
-      outcomes.inlineEditEscapeCancels = calls.filter(call => call[0] === 'detail').length > detailCallsBeforeCancel;
+      outcomes.inlineEditEscapeCancels = calls.filter(call => (call as unknown[])[0] === 'detail').length > detailCallsBeforeCancel;
 
       const noteEdit = editing.editValueNote(id, '2026-06-03');
       const promptInput = await waitFor('#prompt-dialog-input');
-      promptInput.value = `${'follow-up '.repeat(70)}`;
+      (promptInput as unknown as {value: string}).value = `${'follow-up '.repeat(70)}`;
       document.getElementById('prompt-ok')?.click();
       await noteEdit;
       outcomes.editValueNoteSavesCappedText =
-        state.importedData.markerValueNotes[`${dotKey}:2026-06-03`].length === 500;
+        state.importedData.markerValueNotes[`${dotKey}:2026-06-03`]!.length === 500;
 
       const noteDelete = editing.deleteValueNote(id, '2026-06-03');
       await clickConfirm(true);
@@ -718,8 +719,8 @@ test('marker detail editing covers manual values notes delete and revert workflo
 
       await editing.revertMarkerValue(id, '2026-06-01');
       outcomes.revertManualValueRestoresImportedOriginal =
-        state.importedData.entries[0].markers[dotKey] === 42
-        && state.importedData.manualValues[`${dotKey}:2026-06-01`] === null;
+        state.importedData.entries[0]!.markers[dotKey] === 42
+        && state.importedData.manualValues![`${dotKey}:2026-06-01`] === null;
 
       const deleteValue = editing.deleteMarkerValue(id, '2026-06-03');
       await clickConfirm(true);
@@ -728,8 +729,8 @@ test('marker detail editing covers manual values notes delete and revert workflo
       outcomes.deleteMarkerValueRemovesManualEntryValue =
         afterDelete && !Object.prototype.hasOwnProperty.call(afterDelete.markers || {}, dotKey);
     } finally {
-      state.importedData = saved.importedData;
-      state.markerRegistry = saved.markerRegistry;
+      (state as unknown as {importedData: unknown}).importedData = saved.importedData;
+      (state as {markerRegistry:unknown}).markerRegistry = saved.markerRegistry;
       state.currentProfile = saved.currentProfile;
       state.currentView = saved.currentView;
       state.profileSex = saved.profileSex;
@@ -744,7 +745,7 @@ test('marker detail editing covers manual values notes delete and revert workflo
         closeModal: () => {},
       });
       document.getElementById('marker-detail-coverage-fixture')?.remove();
-      document.querySelectorAll('.mv-value,.confirm-overlay,.notification-toast').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.mv-value,.confirm-overlay,.notification-toast').forEach(el => el.remove());
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);
@@ -769,15 +770,15 @@ test('marker detail editing covers range overrides and marker note editor paths'
 
   const results = await page.evaluate(async ({ editingUrl }) => {
     const [editing, { state }, data] = await Promise.all([
-      import(editingUrl),
+      (import(editingUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/marker-detail-editing.js'), "saveManualEntry" | "saveAndAddAnotherManualEntry" | "configureMarkerDetailEditing" | "editMarkerValue" | "editValueNote" | "deleteValueNote" | "revertMarkerValue" | "deleteMarkerValue" | "editRefRange" | "saveRefRange" | "revertRefRange" | "toggleMarkerNoteEditor" | "saveMarkerNote" | "deleteMarkerNote">>,
       import('/js/state.js'),
       import('/js/data.js'),
     ]);
-    const outcomes = {};
-    const calls = [];
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const outcomes: Record<string, unknown> = {};
+    const calls: unknown[] = [];
+    const clone = (value: unknown) => value == null ? value : ((JSON.parse as (text: unknown) => unknown)(JSON.stringify(value)) as unknown);
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
-    const waitUntil = async (predicate, label) => {
+    const waitUntil = async (predicate: () => unknown | Promise<unknown>, label: string) => {
       for (let i = 0; i < 40; i += 1) {
         if (predicate()) return;
         await wait(25);
@@ -802,7 +803,7 @@ test('marker detail editing covers range overrides and marker note editor paths'
       state.profileSex = 'male';
       state.profileDob = '1980-01-02';
       state.unitSystem = 'EU';
-      state.importedData = {
+      (state as unknown as {importedData: unknown}).importedData = {
         entries: [{ date: '2026-06-01', markers: { [dotKey]: 42 } }],
         notes: [],
         supplements: [],
@@ -814,11 +815,11 @@ test('marker detail editing covers range overrides and marker note editor paths'
       };
       data.invalidateActiveDataCache();
       state.markerRegistry = {
-        [id]: data.getActiveData().categories.proteins.markers.albumin,
+        [id]: data.getActiveData().categories.proteins!.markers.albumin,
       };
       editing.configureMarkerDetailEditing({
-        navigate: route => calls.push(['navigate', route]),
-        showDetailModal: modalId => calls.push(['detail', modalId]),
+        navigate: (route: unknown) => calls.push(['navigate', route]),
+        showDetailModal: (modalId: unknown) => calls.push(['detail', modalId]),
         openManualEntryForm: () => {},
         closeModal: () => {},
       });
@@ -835,24 +836,24 @@ test('marker detail editing covers range overrides and marker note editor paths'
       `;
       document.body.appendChild(fixture);
 
-      editing.editRefRange(id, 'ref', { target: document.getElementById('ref-span') });
+      (editing.editRefRange as (id:Parameters<typeof editing.editRefRange>[0],range:Parameters<typeof editing.editRefRange>[1],event:Pick<Event,"target">)=>ReturnType<typeof editing.editRefRange>)(id, 'ref', { target: document.getElementById('ref-span') });
       outcomes.editRefRangeSwapsInlineInputs =
-        document.getElementById('ref-edit-min')?.value === '35'
-        && document.getElementById('ref-edit-max')?.value === '52';
+        (document.getElementById('ref-edit-min') as HTMLInputElement)?.value === '35'
+        && (document.getElementById('ref-edit-max') as HTMLInputElement)?.value === '52';
       outcomes.editRefRangeRendersDelegatedControls =
-        document.querySelectorAll('[data-marker-detail-action="clear-ref-edit-field"]').length === 2
-        && !!document.querySelector('[data-marker-detail-action="save-ref-range"]')
-        && !document.querySelector('.ref-edit-form')?.innerHTML.includes('onclick=');
-      document.getElementById('ref-edit-min').value = '36';
-      document.getElementById('ref-edit-max').value = '';
+        document.querySelectorAll<HTMLElement>('[data-marker-detail-action="clear-ref-edit-field"]').length === 2
+        && !!document.querySelector<HTMLElement>('[data-marker-detail-action="save-ref-range"]')
+        && !document.querySelector<HTMLElement>('.ref-edit-form')?.innerHTML.includes('onclick=');
+      (document.getElementById('ref-edit-min') as HTMLInputElement).value = '36';
+      (document.getElementById('ref-edit-max') as HTMLInputElement).value = '';
       await editing.saveRefRange(id, 'ref');
       outcomes.saveReferenceRangeStoresManualOpenEndedOverride =
         state.importedData.refOverrides[dotKey]?.refMin === 36
         && state.importedData.refOverrides[dotKey]?.refMax === null
         && state.importedData.refOverrides[dotKey]?.refSource === 'manual'
-        && calls.some(call => call[0] === 'navigate')
-        && calls.some(call => call[0] === 'detail' && call[1] === id);
-      document.querySelectorAll('.ref-edit-form').forEach(el => el.remove());
+        && calls.some(call => (call as unknown[])[0] === 'navigate')
+        && calls.some(call => (call as unknown[])[0] === 'detail' && (call as unknown[])[1] === id);
+      document.querySelectorAll<HTMLElement>('.ref-edit-form').forEach(el => el.remove());
 
       Object.assign(state.importedData.refOverrides[dotKey], {
         labRefMin: 35,
@@ -868,21 +869,21 @@ test('marker detail editing covers range overrides and marker note editor paths'
         && state.importedData.refOverrides[dotKey]?.refSource === 'import'
         && !('labRefMin' in state.importedData.refOverrides[dotKey]);
 
-      editing.editRefRange(id, 'optimal', { target: document.getElementById('optimal-span') });
-      const optimalForm = document.querySelector('.ref-edit-form');
-      optimalForm.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      (editing.editRefRange as (id:Parameters<typeof editing.editRefRange>[0],range:Parameters<typeof editing.editRefRange>[1],event:Pick<Event,"target">)=>ReturnType<typeof editing.editRefRange>)(id, 'optimal', { target: document.getElementById('optimal-span') });
+      const optimalForm = document.querySelector<HTMLElement>('.ref-edit-form');
+      optimalForm!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await wait(0);
       outcomes.escapeFromOptimalRangeEditRerendersModal =
-        calls.some(call => call[0] === 'detail' && call[1] === id);
-      document.querySelectorAll('.ref-edit-form').forEach(el => el.remove());
+        calls.some(call => (call as unknown[])[0] === 'detail' && (call as unknown[])[1] === id);
+      document.querySelectorAll<HTMLElement>('.ref-edit-form').forEach(el => el.remove());
 
       const nextOptimalSpan = document.createElement('span');
       nextOptimalSpan.className = 'ref-editable';
       fixture.appendChild(nextOptimalSpan);
-      editing.editRefRange(id, 'optimal', { target: nextOptimalSpan });
-      document.getElementById('ref-edit-min').value = '44';
-      document.getElementById('ref-edit-max').value = '48';
-      document.querySelector('.ref-edit-form').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      (editing.editRefRange as (id:Parameters<typeof editing.editRefRange>[0],range:Parameters<typeof editing.editRefRange>[1],event:Pick<Event,"target">)=>ReturnType<typeof editing.editRefRange>)(id, 'optimal', { target: nextOptimalSpan });
+      (document.getElementById('ref-edit-min') as HTMLInputElement).value = '44';
+      (document.getElementById('ref-edit-max') as HTMLInputElement).value = '48';
+      document.querySelector<HTMLElement>('.ref-edit-form')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
       await waitUntil(
         () => state.importedData.refOverrides[dotKey]?.optimalMin === 44
           && state.importedData.refOverrides[dotKey]?.optimalMax === 48
@@ -894,31 +895,31 @@ test('marker detail editing covers range overrides and marker note editor paths'
         && state.importedData.refOverrides[dotKey]?.optimalMax === 48
         && state.importedData.refOverrides[dotKey]?.optimalSource === 'manual';
 
-      editing.toggleMarkerNoteEditor(dotKey);
+      (editing.toggleMarkerNoteEditor as (...args:[...Parameters<typeof editing.toggleMarkerNoteEditor>,...ignored:unknown[]])=>ReturnType<typeof editing.toggleMarkerNoteEditor>)(dotKey);
       outcomes.toggleMarkerNoteEditorShowsAndFocuses =
         document.getElementById('marker-note-editor')?.style.display === 'block'
         && document.activeElement === document.getElementById('marker-note-input');
-      editing.toggleMarkerNoteEditor(dotKey);
+      (editing.toggleMarkerNoteEditor as (...args:[...Parameters<typeof editing.toggleMarkerNoteEditor>,...ignored:unknown[]])=>ReturnType<typeof editing.toggleMarkerNoteEditor>)(dotKey);
       outcomes.toggleMarkerNoteEditorHides =
         document.getElementById('marker-note-editor')?.style.display === 'none';
 
-      document.getElementById('marker-note-input').value = 'track albumin trend';
+      (document.getElementById('marker-note-input') as HTMLTextAreaElement).value = 'track albumin trend';
       await editing.saveMarkerNote(dotKey, id);
       outcomes.saveMarkerNotePersistsText =
         state.importedData.markerNotes[dotKey] === 'track albumin trend'
-        && calls.some(call => call[0] === 'detail' && call[1] === id);
+        && calls.some(call => (call as unknown[])[0] === 'detail' && (call as unknown[])[1] === id);
       await editing.deleteMarkerNote(dotKey, id);
       outcomes.deleteMarkerNoteRemovesText =
         !Object.prototype.hasOwnProperty.call(state.importedData.markerNotes, dotKey);
 
-      document.getElementById('marker-note-input').value = '';
-      const detailCallsBeforeNoop = calls.filter(call => call[0] === 'detail').length;
+      (document.getElementById('marker-note-input') as HTMLTextAreaElement).value = '';
+      const detailCallsBeforeNoop = calls.filter(call => (call as unknown[])[0] === 'detail').length;
       await editing.saveMarkerNote(dotKey, id);
       outcomes.emptyMarkerNoteWithoutStoredNoteNoops =
-        calls.filter(call => call[0] === 'detail').length === detailCallsBeforeNoop;
+        calls.filter(call => (call as unknown[])[0] === 'detail').length === detailCallsBeforeNoop;
     } finally {
-      state.importedData = saved.importedData;
-      state.markerRegistry = saved.markerRegistry;
+      (state as unknown as {importedData: unknown}).importedData = saved.importedData;
+      (state as {markerRegistry:unknown}).markerRegistry = saved.markerRegistry;
       state.currentProfile = saved.currentProfile;
       state.currentView = saved.currentView;
       state.profileSex = saved.profileSex;
@@ -932,7 +933,7 @@ test('marker detail editing covers range overrides and marker note editor paths'
         closeModal: () => {},
       });
       document.getElementById('marker-detail-range-fixture')?.remove();
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
     }
 
     return outcomes;
@@ -947,42 +948,42 @@ test('marker detail delegated actions cover click key and data attribute contrac
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ actionsUrl }) => {
-    const actionsModule = await import(actionsUrl);
-    const outcomes = {};
-    const calls = [];
+    const actionsModule = (await import(actionsUrl) as unknown) as Pick<typeof import('../../js/marker-detail-actions.js'), "markerDetailActionAttrs" | "installMarkerDetailActionDelegates">;
+    const outcomes: Record<string, unknown> = {};
+    const calls: unknown[] = [];
     const root = document.createElement('div');
     root.id = 'marker-detail-action-fixture';
     document.body.appendChild(root);
     const actions = {
       closeModal: () => calls.push(['close']),
-      toggleDashboardQuickMarkerPin: id => calls.push(['pin', id]),
-      editRefRange: (id, type) => calls.push(['edit-ref', id, type]),
-      revertRefRange: (id, type) => calls.push(['revert-ref', id, type]),
-      renameMarker: id => calls.push(['rename', id]),
-      revertMarkerName: id => calls.push(['revert-name', id]),
-      openMarkerPlacementModal: id => calls.push(['open-placement', id]),
-      saveMarkerPlacement: id => calls.push(['save-placement', id]),
-      restoreMarkerPlacement: id => calls.push(['restore-placement', id]),
-      editMarkerValue: (id, date, value) => calls.push(['edit-value', id, date, value]),
-      deleteMarkerValue: (id, date) => calls.push(['delete-value', id, date]),
-      revertMarkerValue: (id, date) => calls.push(['revert-value', id, date]),
-      editValueNote: (id, date) => calls.push(['edit-note', id, date]),
-      deleteValueNote: (id, date) => calls.push(['delete-note', id, date]),
-      showDetailModal: (id, opts) => calls.push(['show', id, opts]),
-      openManualEntryForm: id => calls.push(['open-manual', id]),
-      askAIAboutMarker: id => calls.push(['ask-ai', id]),
-      toggleMarkerNoteEditor: dotKey => calls.push(['toggle-note-editor', dotKey]),
-      saveMarkerNote: (dotKey, id) => calls.push(['save-marker-note', dotKey, id]),
-      deleteMarkerNote: (dotKey, id) => calls.push(['delete-marker-note', dotKey, id]),
-      deleteCustomMarker: id => calls.push(['delete-custom', id]),
-      saveManualEntry: id => calls.push(['save-manual', id]),
-      saveAndAddAnotherManualEntry: id => calls.push(['save-add-manual', id]),
+      toggleDashboardQuickMarkerPin: (id: string) => calls.push(['pin', id]),
+      editRefRange: (id: string, type: unknown) => calls.push(['edit-ref', id, type]),
+      revertRefRange: (id: string, type: unknown) => calls.push(['revert-ref', id, type]),
+      renameMarker: (id: string) => calls.push(['rename', id]),
+      revertMarkerName: (id: string) => calls.push(['revert-name', id]),
+      openMarkerPlacementModal: (id: string) => calls.push(['open-placement', id]),
+      saveMarkerPlacement: (id: string) => calls.push(['save-placement', id]),
+      restoreMarkerPlacement: (id: string) => calls.push(['restore-placement', id]),
+      editMarkerValue: (id: string, date: unknown, value: unknown) => calls.push(['edit-value', id, date, value]),
+      deleteMarkerValue: (id: string, date: unknown) => calls.push(['delete-value', id, date]),
+      revertMarkerValue: (id: string, date: unknown) => calls.push(['revert-value', id, date]),
+      editValueNote: (id: string, date: unknown) => calls.push(['edit-note', id, date]),
+      deleteValueNote: (id: string, date: unknown) => calls.push(['delete-note', id, date]),
+      showDetailModal: (id: string, opts: unknown) => calls.push(['show', id, opts]),
+      openManualEntryForm: (id: string) => calls.push(['open-manual', id]),
+      askAIAboutMarker: (id: string) => calls.push(['ask-ai', id]),
+      toggleMarkerNoteEditor: (dotKey: unknown) => calls.push(['toggle-note-editor', dotKey]),
+      saveMarkerNote: (dotKey: unknown, id: string) => calls.push(['save-marker-note', dotKey, id]),
+      deleteMarkerNote: (dotKey: unknown, id: string) => calls.push(['delete-marker-note', dotKey, id]),
+      deleteCustomMarker: (id: string) => calls.push(['delete-custom', id]),
+      saveManualEntry: (id: string) => calls.push(['save-manual', id]),
+      saveAndAddAnotherManualEntry: (id: string) => calls.push(['save-add-manual', id]),
     };
-    const clickAction = (action, attrs = {}, tag = 'button') => {
+    const clickAction = (action: unknown, attrs:NonNullable<Parameters<typeof actionsModule.markerDetailActionAttrs>[1]> = {}, tag = 'button') => {
       const typeAttr = tag === 'button' ? ' type="button"' : '';
       root.insertAdjacentHTML('beforeend', `<${tag}${typeAttr} ${actionsModule.markerDetailActionAttrs(action, attrs)}>Action</${tag}>`);
-      const actionEl = root.lastElementChild;
-      actionEl.click();
+      const actionEl = root.lastElementChild as HTMLElement|null;
+      actionEl!.click();
       return actionEl;
     };
 
@@ -1026,8 +1027,8 @@ test('marker detail delegated actions cover click key and data attribute contrac
       row.className = 'marker-history-row';
       row.innerHTML = `<button type="button" ${actionsModule.markerDetailActionAttrs('toggle-history-note')}>Note</button><span class="mv-note-text">hidden</span>`;
       root.appendChild(row);
-      row.querySelector('button').click();
-      outcomes.toggleHistoryNoteAddsShowClass = row.querySelector('.mv-note-text').classList.contains('show');
+      row.querySelector<HTMLElement>('button')!.click();
+      outcomes.toggleHistoryNoteAddsShowClass = row.querySelector<HTMLElement>('.mv-note-text')!.classList.contains('show');
 
       const keyEl = document.createElement('div');
       keyEl.setAttribute('role', 'button');
@@ -1045,10 +1046,10 @@ test('marker detail delegated actions cover click key and data attribute contrac
       nestedInput.setAttribute('data-marker-detail-id', 'proteins_albumin');
       nestedInput.innerHTML = '<input value="typing">';
       root.appendChild(nestedInput);
-      const pinCallsBeforeInput = calls.filter(call => call[0] === 'pin').length;
-      nestedInput.querySelector('input').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      const pinCallsBeforeInput = calls.filter(call => (call as unknown[])[0] === 'pin').length;
+      nestedInput.querySelector<HTMLInputElement>('input')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
       outcomes.keydownFromFormControlIsIgnored =
-        calls.filter(call => call[0] === 'pin').length === pinCallsBeforeInput;
+        calls.filter(call => (call as unknown[])[0] === 'pin').length === pinCallsBeforeInput;
 
       const escapedAttrs = actionsModule.markerDetailActionAttrs('show-detail-modal', {
         id: 'x"y',
@@ -1061,30 +1062,30 @@ test('marker detail delegated actions cover click key and data attribute contrac
         && escapedAttrs.includes('data-marker-detail-history-limit="0"');
 
       outcomes.clickDelegatesCallEveryRegisteredAction =
-        calls.some(call => call[0] === 'upgraded-close')
-        && !calls.some(call => call[0] === 'close')
-        && calls.some(call => call[0] === 'pin' && call[1] === 'proteins_albumin')
-        && calls.some(call => call[0] === 'edit-ref' && call[2] === 'ref')
-        && calls.some(call => call[0] === 'revert-ref' && call[2] === 'optimal')
-        && calls.some(call => call[0] === 'rename')
-        && calls.some(call => call[0] === 'revert-name')
-        && calls.some(call => call[0] === 'open-placement')
-        && calls.some(call => call[0] === 'save-placement')
-        && calls.some(call => call[0] === 'restore-placement')
-        && calls.filter(call => call[0] === 'edit-value').length === 1
-        && calls.some(call => call[0] === 'delete-value')
-        && calls.some(call => call[0] === 'revert-value')
-        && calls.some(call => call[0] === 'edit-note')
-        && calls.some(call => call[0] === 'delete-note')
-        && calls.some(call => call[0] === 'show' && call[2].showAllHistory === true && call[2].historyLimit === 7)
-        && calls.filter(call => call[0] === 'open-manual').length >= 3
-        && calls.some(call => call[0] === 'ask-ai')
-        && calls.some(call => call[0] === 'toggle-note-editor')
-        && calls.some(call => call[0] === 'save-marker-note')
-        && calls.some(call => call[0] === 'delete-marker-note')
-        && calls.some(call => call[0] === 'delete-custom')
-        && calls.some(call => call[0] === 'save-manual')
-        && calls.some(call => call[0] === 'save-add-manual');
+        calls.some(call => (call as unknown[])[0] === 'upgraded-close')
+        && !calls.some(call => (call as unknown[])[0] === 'close')
+        && calls.some(call => (call as unknown[])[0] === 'pin' && (call as unknown[])[1] === 'proteins_albumin')
+        && calls.some(call => (call as unknown[])[0] === 'edit-ref' && (call as unknown[])[2] === 'ref')
+        && calls.some(call => (call as unknown[])[0] === 'revert-ref' && (call as unknown[])[2] === 'optimal')
+        && calls.some(call => (call as unknown[])[0] === 'rename')
+        && calls.some(call => (call as unknown[])[0] === 'revert-name')
+        && calls.some(call => (call as unknown[])[0] === 'open-placement')
+        && calls.some(call => (call as unknown[])[0] === 'save-placement')
+        && calls.some(call => (call as unknown[])[0] === 'restore-placement')
+        && calls.filter(call => (call as unknown[])[0] === 'edit-value').length === 1
+        && calls.some(call => (call as unknown[])[0] === 'delete-value')
+        && calls.some(call => (call as unknown[])[0] === 'revert-value')
+        && calls.some(call => (call as unknown[])[0] === 'edit-note')
+        && calls.some(call => (call as unknown[])[0] === 'delete-note')
+        && calls.some(call => (call as unknown[])[0] === 'show' && ((call as unknown[])[2] as {showAllHistory: unknown}).showAllHistory === true && ((call as unknown[])[2] as {historyLimit: unknown}).historyLimit === 7)
+        && calls.filter(call => (call as unknown[])[0] === 'open-manual').length >= 3
+        && calls.some(call => (call as unknown[])[0] === 'ask-ai')
+        && calls.some(call => (call as unknown[])[0] === 'toggle-note-editor')
+        && calls.some(call => (call as unknown[])[0] === 'save-marker-note')
+        && calls.some(call => (call as unknown[])[0] === 'delete-marker-note')
+        && calls.some(call => (call as unknown[])[0] === 'delete-custom')
+        && calls.some(call => (call as unknown[])[0] === 'save-manual')
+        && calls.some(call => (call as unknown[])[0] === 'save-add-manual');
     } finally {
       root.remove();
     }
@@ -1109,7 +1110,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
 
   const results = await page.evaluate(async ({ modalUrl }) => {
     const [modal, markerRuntime, recommendationRuntime, wearablesRuntime, dnaBridge, { state }, data] = await Promise.all([
-      import(modalUrl),
+      (import(modalUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/marker-detail-modal.js'), "isMarkerDetailModuleLoaded" | "loadMarkerDetailModule" | "configureMarkerDetailModal" | "fetchCustomMarkerDescription" | "showDetailModal" | "editRefRange" | "saveRefRange" | "revertRefRange" | "openManualEntryForm" | "saveManualEntry" | "saveAndAddAnotherManualEntry" | "openCreateMarkerModal" | "pickNewCatIcon" | "saveCustomMarker" | "deleteMarkerValue" | "deleteCustomMarker" | "editMarkerValue" | "revertMarkerValue" | "editValueNote" | "deleteValueNote" | "toggleMarkerNoteEditor" | "saveMarkerNote" | "deleteMarkerNote" | "loadMarkerDetailStylesheet" | "closeModal">>,
       import('/js/marker-detail-runtime.js'),
       import('/js/recommendations-runtime.js'),
       import('/js/wearables-runtime.js'),
@@ -1117,13 +1118,13 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       import('/js/state.js'),
       import('/js/data.js'),
     ]);
-    const outcomes = {};
-    const calls = [];
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const outcomes: Record<string, unknown> = {};
+    const calls: unknown[] = [];
+    const clone = (value: unknown) => value == null ? value : ((JSON.parse as (text: unknown) => unknown)(JSON.stringify(value)) as unknown);
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, (localStorage.getItem as (key:unknown)=>string|null)(key)];
     }));
     const saved = {
       importedData: clone(state.importedData),
@@ -1146,19 +1147,19 @@ test('marker detail modal covers default deps descriptions alt units and bio age
     const albuminId = 'proteins_albumin';
     const albuminKey = 'proteins.albumin';
     const restoreMarkerRuntime = markerRuntime.configureMarkerDetailRuntime({
-      askAIAboutMarker: id => calls.push(['ask-ai', id]),
+      askAIAboutMarker: (id: string) => calls.push(['ask-ai', id]),
       buildSidebar: () => calls.push(['sidebar']),
       closeEMFInterpretation: () => calls.push(['close-emf']),
       isDashboardQuickMarkerPinned: () => false,
-      navigate: (...args) => calls.push(['navigate', ...args]),
-      renameMarker: id => calls.push(['rename', id]),
-      revertMarkerName: id => calls.push(['revert-name', id]),
+      navigate: (...args: unknown[]) => calls.push(['navigate', ...args]),
+      renameMarker: (id: string) => calls.push(['rename', id]),
+      revertMarkerName: (id: string) => calls.push(['revert-name', id]),
       showEmojiPicker: () => {},
-      toggleDashboardQuickMarkerPin: id => calls.push(['pin', id]),
+      toggleDashboardQuickMarkerPin: (id: string) => calls.push(['pin', id]),
     });
     const restoreRecommendationRuntime = recommendationRuntime.configureRecommendationModuleBridge({
       isProductRecsEnabled: () => true,
-      renderRecommendationSection: async id => `<div class="coverage-rec">rec ${id}</div>`,
+      renderRecommendationSection: async (id: string) => `<div class="coverage-rec">rec ${id}</div>`,
     });
     const restoreWearablesRuntime = wearablesRuntime.configureWearablesModuleBridge({
       _uninstallWearableModalFocusTrap: () => calls.push(['uninstall-focus']),
@@ -1176,7 +1177,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       state.showAltUnits = true;
       state.rangeMode = 'both';
       state.chartInstances = {};
-      state.importedData = {
+      (state as unknown as {importedData: unknown}).importedData = {
         entries: [{
           date,
           markers: {
@@ -1212,7 +1213,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
         await modal.fetchCustomMarkerDescription('coverage.cached', 'Coverage cached', 'u') === 'Cached marker description';
 
       outcomes.markerDetailStylesheetIsAbsentBeforeFirstOpen =
-        document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 0;
+        document.querySelectorAll<HTMLElement>('link[data-marker-detail-stylesheet]').length === 0;
       const firstOpenStartedAt = performance.now();
       await modal.showDetailModal(albuminId, { scrollToHistory: true, scrollToRec: true });
       outcomes.firstOpenCompletesWithinInteractionBudget =
@@ -1221,7 +1222,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       const detail = document.getElementById('detail-modal');
       const detailText = detail?.textContent || '';
       outcomes.firstOpenLoadsAndAppliesMarkerDetailStylesheet =
-        document.querySelectorAll('link[data-marker-detail-stylesheet]').length === 1
+        document.querySelectorAll<HTMLElement>('link[data-marker-detail-stylesheet]').length === 1
         && !!detail
         && getComputedStyle(detail).paddingTop === '0px';
       outcomes.missingMarkerReturnsFalse =
@@ -1230,13 +1231,13 @@ test('marker detail modal covers default deps descriptions alt units and bio age
         detailText.includes('Albumin renamed')
         && detailText.includes('g/dl')
         && detailText.includes('coverage-lab.pdf')
-        && !!detail?.querySelector('.gb-detail-pin-btn[aria-pressed="false"]')
+        && !!detail?.querySelector<HTMLElement>('.gb-detail-pin-btn[aria-pressed="false"]')
         && detailText.includes('rec proteins.albumin');
       outcomes.detailModalRunsRequestedScrollCallbacks = scrollCalls >= 2;
       outcomes.detailModalBothModeLabelsEachRangeAndUsesNativeEditButtons =
-        detail?.querySelector('.stat-card-value-range')?.textContent.includes('reference')
-        && detail.querySelector('.stat-card:nth-child(2) .stat-card-meta')?.textContent.includes('Optimal')
-        && [...detail.querySelectorAll('.stat-card-range-controls .ref-editable')].every(control => control.tagName === 'BUTTON')
+        detail?.querySelector<HTMLElement>('.stat-card-value-range')?.textContent.includes('reference')
+        && detail.querySelector<HTMLElement>('.stat-card:nth-child(2) .stat-card-meta')?.textContent.includes('Optimal')
+        && [...detail.querySelectorAll<HTMLElement>('.stat-card-range-controls .ref-editable')].every(control => control.tagName === 'BUTTON')
         && detailText.includes('History All time');
 
       state.rangeMode = 'reference';
@@ -1244,24 +1245,24 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       await wait(20);
       const referenceDetail = document.getElementById('detail-modal');
       outcomes.detailModalReferenceModeUsesReferenceAsThePrimaryRange =
-        referenceDetail?.querySelector('.stat-card-value-range')?.textContent.includes('reference')
-        && !referenceDetail.querySelector('.stat-card-value-range')?.textContent.includes('optimal');
+        referenceDetail?.querySelector<HTMLElement>('.stat-card-value-range')?.textContent.includes('reference')
+        && !referenceDetail.querySelector<HTMLElement>('.stat-card-value-range')?.textContent.includes('optimal');
       outcomes.detailModalReferenceModeOmitsOptimalSecondaryRange =
-        !referenceDetail?.querySelector('.stat-card:nth-child(2) .stat-card-meta')?.textContent.includes('Optimal');
+        !referenceDetail?.querySelector<HTMLElement>('.stat-card:nth-child(2) .stat-card-meta')?.textContent.includes('Optimal');
       state.rangeMode = 'both';
       await modal.showDetailModal(albuminId);
       await wait(20);
 
       const restoredDetail = document.getElementById('detail-modal');
-      restoredDetail?.querySelector('[data-marker-detail-action="quick-pin"]')?.click();
-      restoredDetail?.querySelector('[data-marker-detail-action="rename-marker"]')?.click();
-      restoredDetail?.querySelector('[data-marker-detail-action="revert-marker-name"]')?.click();
-      restoredDetail?.querySelector('[data-marker-detail-action="ask-ai"]')?.click();
+      restoredDetail?.querySelector<HTMLElement>('[data-marker-detail-action="quick-pin"]')?.click();
+      restoredDetail?.querySelector<HTMLElement>('[data-marker-detail-action="rename-marker"]')?.click();
+      restoredDetail?.querySelector<HTMLElement>('[data-marker-detail-action="revert-marker-name"]')?.click();
+      restoredDetail?.querySelector<HTMLElement>('[data-marker-detail-action="ask-ai"]')?.click();
       outcomes.defaultDelegatesCallInjectedMarkerActions =
-        calls.some(call => call[0] === 'pin' && call[1] === albuminId)
-        && calls.some(call => call[0] === 'rename' && call[1] === albuminId)
-        && calls.some(call => call[0] === 'revert-name' && call[1] === albuminId)
-        && calls.some(call => call[0] === 'ask-ai' && call[1] === albuminId);
+        calls.some(call => (call as unknown[])[0] === 'pin' && (call as unknown[])[1] === albuminId)
+        && calls.some(call => (call as unknown[])[0] === 'rename' && (call as unknown[])[1] === albuminId)
+        && calls.some(call => (call as unknown[])[0] === 'revert-name' && (call as unknown[])[1] === albuminId)
+        && calls.some(call => (call as unknown[])[0] === 'ask-ai' && (call as unknown[])[1] === albuminId);
 
       const icon = document.createElement('span');
       icon.textContent = '*';
@@ -1293,26 +1294,26 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       await wait(70);
       outcomes.manualEntryExposesStructuredDrawContext =
         document.getElementById('me-sample-time')?.getAttribute('type') === 'time'
-        && document.getElementById('me-fasting')?.value === 'unknown'
+        && (document.getElementById('me-fasting') as HTMLSelectElement)?.value === 'unknown'
         && document.getElementById('detail-modal')?.textContent.includes('not the lab processing or report time');
-      document.getElementById('me-value').value = '43';
-      document.getElementById('me-sample-time').value = '07:35';
-      document.getElementById('me-fasting').value = 'fasting';
+      (document.getElementById('me-value') as HTMLInputElement).value = '43';
+      (document.getElementById('me-sample-time') as HTMLInputElement).value = '07:35';
+      (document.getElementById('me-fasting') as HTMLSelectElement).value = 'fasting';
       await modal.saveManualEntry(albuminId, { keepOpen: true });
       await wait(20);
       const structuredContextEntry = state.importedData.entries.find(entry => entry.date === '2026-06-02');
       outcomes.keepOpenManualSaveRunsDefaultSidebarAndFormCallbacks =
-        calls.some(call => call[0] === 'sidebar')
-        && calls.some(call => call[0] === 'navigate')
-        && document.getElementById('me-date')?.value === '2026-06-02'
-        && document.getElementById('me-sample-time')?.value === '07:35'
-        && document.getElementById('me-fasting')?.value === 'fasting'
+        calls.some(call => (call as unknown[])[0] === 'sidebar')
+        && calls.some(call => (call as unknown[])[0] === 'navigate')
+        && (document.getElementById('me-date') as HTMLInputElement)?.value === '2026-06-02'
+        && (document.getElementById('me-sample-time') as HTMLInputElement)?.value === '07:35'
+        && (document.getElementById('me-fasting') as HTMLSelectElement)?.value === 'fasting'
         && structuredContextEntry?.context?.sampleTime === '07:35'
         && structuredContextEntry?.context?.fasting === true;
 
-      document.getElementById('me-date').value = '2026-06-03';
-      document.getElementById('me-date').dispatchEvent(new Event('change', { bubbles: true }));
-      document.getElementById('me-value').value = '44';
+      (document.getElementById('me-date') as HTMLInputElement).value = '2026-06-03';
+      document.getElementById('me-date')!.dispatchEvent(new Event('change', { bubbles: true }));
+      (document.getElementById('me-value') as HTMLInputElement).value = '44';
       await modal.saveManualEntry(albuminId);
       await wait(80);
       outcomes.closingManualSaveRunsDefaultCloseCallback =
@@ -1322,7 +1323,7 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       outcomes.markerHistoryExposesCollectionContext =
         document.getElementById('detail-modal')?.textContent.includes('Collected 07:35 · fasting') === true;
 
-      state.importedData.entries = [{
+      (state.importedData as unknown as {entries: unknown}).entries = [{
         date: '2026-06-10',
         markers: { 'proteins.crp': 1.2 },
       }];
@@ -1333,13 +1334,13 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       }
       await modal.showDetailModal('calculatedRatios_phenoAge');
       await wait(20);
-      const sparseIssue = document.querySelector('.calc-missing-inputs')?.textContent || '';
+      const sparseIssue = document.querySelector<HTMLElement>('.calc-missing-inputs')?.textContent || '';
       outcomes.bioAgeFallbackRebuildsRemainingMissingInputs =
         sparseIssue.includes('Missing:')
         && sparseIssue.includes('Albumin')
         && !sparseIssue.includes('hs-CRP');
 
-      state.importedData.entries = [{
+      (state.importedData as unknown as {entries: unknown}).entries = [{
         date: '2026-06-11',
         markers: {
           [albuminKey]: 42,
@@ -1363,21 +1364,21 @@ test('marker detail modal covers default deps descriptions alt units and bio age
       }
       await modal.showDetailModal('calculatedRatios_phenoAge');
       await wait(20);
-      const latestGapIssue = document.querySelector('.calc-missing-inputs')?.textContent || '';
+      const latestGapIssue = document.querySelector<HTMLElement>('.calc-missing-inputs')?.textContent || '';
       outcomes.bioAgeFallbackNamesLatestPanelGaps =
         latestGapIssue.includes('Missing on latest date')
         && latestGapIssue.includes('Albumin');
 
       const customKey = 'customCoverage.marker';
       const customId = 'customCoverage_marker';
-      state.importedData.entries = [{
+      (state.importedData as unknown as {entries: unknown}).entries = [{
         date,
         markers: {
           [albuminKey]: 42,
           [customKey]: 7,
         },
       }];
-      state.importedData.customMarkers = {
+      (state.importedData as unknown as {customMarkers: unknown}).customMarkers = {
         [customKey]: {
           name: 'Coverage marker',
           unit: 'u',
@@ -1401,12 +1402,12 @@ test('marker detail modal covers default deps descriptions alt units and bio age
 
       modal.closeModal();
       outcomes.closeModalRunsCleanupHooks =
-        calls.some(call => call[0] === 'close-emf')
-        && calls.some(call => call[0] === 'uninstall-focus')
+        calls.some(call => (call as unknown[])[0] === 'close-emf')
+        && calls.some(call => (call as unknown[])[0] === 'uninstall-focus')
         && !document.getElementById('modal-overlay')?.classList.contains('show');
     } finally {
-      state.importedData = saved.importedData;
-      state.markerRegistry = saved.markerRegistry;
+      (state as unknown as {importedData: unknown}).importedData = saved.importedData;
+      (state as {markerRegistry:unknown}).markerRegistry = saved.markerRegistry;
       state.currentProfile = saved.currentProfile;
       state.currentView = saved.currentView;
       state.profileSex = saved.profileSex;
@@ -1431,12 +1432,12 @@ test('marker detail modal covers default deps descriptions alt units and bio age
         toggleDashboardQuickMarkerPin: () => {},
         renameMarker: () => {},
         revertMarkerName: () => {},
-        askAIAboutMarker: id => markerRuntime.askAIAboutMarkerRuntime(id),
+        askAIAboutMarker: (id: string) => markerRuntime.askAIAboutMarkerRuntime(id),
         showEmojiPicker: () => {},
       });
       document.getElementById('modal-overlay')?.classList.remove('show');
       document.getElementById('detail-modal')?.replaceChildren();
-      document.querySelectorAll('.notification-toast,.confirm-overlay').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast,.confirm-overlay').forEach(el => el.remove());
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);

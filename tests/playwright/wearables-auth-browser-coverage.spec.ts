@@ -1,3 +1,6 @@
+type ConfidentialAuthNamespace = typeof import('../../js/wearables-oura-auth.js') | typeof import('../../js/wearables-withings-auth.js') | typeof import('../../js/wearables-ultrahuman-auth.js') | typeof import('../../js/wearables-whoop-auth.js') | typeof import('../../js/wearables-polar-auth.js');
+type PKCEAuthNamespace = typeof import('../../js/wearables-fitbit-auth.js');
+type AuthCallbackOperations = {isOuraCallback:typeof import('../../js/wearables-oura-auth.js').isOuraCallback;isWithingsCallback:typeof import('../../js/wearables-withings-auth.js').isWithingsCallback;isUltrahumanCallback:typeof import('../../js/wearables-ultrahuman-auth.js').isUltrahumanCallback;isWhoopCallback:typeof import('../../js/wearables-whoop-auth.js').isWhoopCallback;isPolarCallback:typeof import('../../js/wearables-polar-auth.js').isPolarCallback;isFitbitCallback:typeof import('../../js/wearables-fitbit-auth.js').isFitbitCallback};
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -7,17 +10,17 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ cases }) => {
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const originalFetch = window.fetch;
 
-    const makeResponse = ({ body = {}, status = 200 } = {}) => new Response(JSON.stringify(body), {
+    const makeResponse = ({ body = {}, status = 200 }:{body?:unknown;status?:number} = {}) => new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json' },
     });
-    const exerciseBeginOAuth = async (spec) => {
+    const exerciseBeginOAuth = async (spec:typeof cases[number]) => {
       const frame = document.createElement('iframe');
-      let timeoutId = null;
-      const loaded = new Promise((resolve, reject) => {
+      let timeoutId:ReturnType<typeof setTimeout>|null = null;
+      const loaded = new Promise<void>((resolve, reject) => {
         frame.onload = () => {
           if (timeoutId != null) clearTimeout(timeoutId);
           resolve();
@@ -29,18 +32,18 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
       try {
         await loaded;
         const win = frame.contentWindow;
-        win.sessionStorage.removeItem(spec.stateKey);
+        win!.sessionStorage.removeItem(spec.stateKey);
         sessionStorage.removeItem(spec.stateKey);
-        const frameMod = await win.eval(`import(${JSON.stringify(`${spec.url}&beginFrame=1`)})`);
-        const maybePromise = frameMod.beginOAuth({
+        const frameMod = (await (win! as unknown as {eval(source:string):unknown}).eval(`import(${JSON.stringify(`${spec.url}&beginFrame=1`)})`)) as Pick<ConfidentialAuthNamespace,"beginOAuth">;
+        const maybePromise = (frameMod.beginOAuth as (...args:Parameters<typeof frameMod.beginOAuth>)=>unknown)({
           clientId: 'client-id',
           registeredUris: [`${location.origin}/app`],
           scopes: ['scope:one'],
           profileId: 'wearables-auth-profile',
         });
-        if (maybePromise?.catch) maybePromise.catch(() => {});
-        const raw = sessionStorage.getItem(spec.stateKey) || win.sessionStorage.getItem(spec.stateKey);
-        return JSON.parse(raw || '{}');
+        if ((maybePromise as {catch?:unknown}|null|undefined)?.catch) (maybePromise as {catch(handler:()=>void):unknown}).catch(() => {});
+        const raw = sessionStorage.getItem(spec.stateKey) || win!.sessionStorage.getItem(spec.stateKey);
+        return ((JSON.parse as (text: unknown) => unknown)(raw || '{}') as unknown);
       } finally {
         if (timeoutId != null) clearTimeout(timeoutId);
         frame.remove();
@@ -50,11 +53,11 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
     try {
       for (const spec of cases) {
         try {
-          const mod = await import(spec.url);
-          const requests = [];
-          const fetchQueue = [];
-          window.fetch = async (url, options = {}) => {
-            const parsedBody = JSON.parse(String(options.body || '{}'));
+          const mod = (await import(spec.url) as unknown) as ConfidentialAuthNamespace;
+          const requests:{url:string;method:RequestInit["method"];body:unknown}[] = [];
+          const fetchQueue:{body:unknown;status:number}[] = [];
+          window.fetch = async (url: NonNullable<Parameters<typeof fetch>[0]>, options: NonNullable<Parameters<typeof fetch>[1]> = {}) => {
+            const parsedBody = ((JSON.parse as (text: unknown) => unknown)(String(options.body || '{}')) as unknown);
             requests.push({
               url: String(url),
               method: options.method,
@@ -64,7 +67,7 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
             if (!next) throw new Error(`Unexpected fetch for ${spec.id}`);
             return makeResponse(next);
           };
-          const enqueue = (body, status = 200) => fetchQueue.push({ body, status });
+          const enqueue = (body: unknown, status = 200) => fetchQueue.push({ body, status });
 
           const exact = mod.pickRedirectUri([
             `${location.origin}/app`,
@@ -99,13 +102,13 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
             && !parsedAuthUrl.searchParams.has('code_challenge');
 
           const beginState = await exerciseBeginOAuth(spec);
-          outcomes[`${spec.id}BeginOAuthStoresPending`] = beginState.clientId === 'client-id'
-            && beginState.redirectUri === `${location.origin}/app`
-            && beginState.profileId === 'wearables-auth-profile'
-            && typeof beginState.startedAt === 'number'
-            && typeof beginState.state === 'string'
-            && beginState.state.length === 32
-            && beginState.codeVerifier === undefined;
+          outcomes[`${spec.id}BeginOAuthStoresPending`] = (beginState as {clientId: unknown}).clientId === 'client-id'
+            && (beginState as {redirectUri: unknown}).redirectUri === `${location.origin}/app`
+            && (beginState as {profileId: unknown}).profileId === 'wearables-auth-profile'
+            && typeof (beginState as {startedAt: unknown}).startedAt === 'number'
+            && typeof (beginState as {state: unknown}).state === 'string'
+            && ((beginState as {state: unknown}).state as {length:number}).length === 32
+            && (beginState as {codeVerifier: unknown}).codeVerifier === undefined;
           sessionStorage.removeItem(spec.stateKey);
 
           sessionStorage.setItem(spec.stateKey, JSON.stringify({
@@ -116,8 +119,8 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
             profileId: 'wearables-auth-profile',
           }));
           enqueue(spec.exchangeResponse);
-          const callback = await mod[spec.completeName](new URLSearchParams('code=code-123&state=state-ok'));
-          const exchangeBody = requests.at(-1)?.body?.[spec.exchangeKey];
+          const callback = await mod[spec.completeName as "completeOAuthCallback"](new URLSearchParams('code=code-123&state=state-ok'));
+          const exchangeBody = (requests.at(-1)?.body as Record<string,{code?:unknown;redirect_uri?:unknown;client_id?:unknown}>|null|undefined)?.[spec.exchangeKey];
           outcomes[`${spec.id}CallbackSuccess`] = callback.ok === true
             && callback.tokens.accessToken === spec.exchangeAccess
             && callback.tokens.refreshToken === spec.exchangeRefresh
@@ -129,11 +132,11 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
             && exchangeBody?.client_id === 'client-id'
             && (!spec.exchangeUserId || callback.tokens.userId === spec.exchangeUserId);
 
-          const errorCallback = await mod[spec.completeName](new URLSearchParams('error=access_denied&error_description=nope'));
-          const missingStateCallback = await mod[spec.completeName](new URLSearchParams('code=only-code'));
-          const missingCodeCallback = await mod[spec.completeName](new URLSearchParams('state=only-state'));
+          const errorCallback = await mod[spec.completeName as "completeOAuthCallback"](new URLSearchParams('error=access_denied&error_description=nope'));
+          const missingStateCallback = await mod[spec.completeName as "completeOAuthCallback"](new URLSearchParams('code=only-code'));
+          const missingCodeCallback = await mod[spec.completeName as "completeOAuthCallback"](new URLSearchParams('state=only-state'));
           outcomes[`${spec.id}CallbackEarlyErrors`] = errorCallback.ok === false
-            && errorCallback.error.includes('access_denied')
+            && (errorCallback.error as {includes(...args:Parameters<string['includes']>):unknown}).includes('access_denied')
             && missingStateCallback.ok === false
             && missingStateCallback.error === 'Missing code or state in callback'
             && missingCodeCallback.ok === false
@@ -145,9 +148,9 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
             startedAt: Date.now(),
             clientId: 'client-id',
           }));
-          const mismatch = await mod[spec.completeName](new URLSearchParams('code=code-123&state=wrong-state'));
+          const mismatch = await mod[spec.completeName as "completeOAuthCallback"](new URLSearchParams('code=code-123&state=wrong-state'));
           outcomes[`${spec.id}CallbackConsumesMismatch`] = mismatch.ok === false
-            && mismatch.error.includes('State mismatch')
+            && (mismatch.error as {includes(...args:Parameters<string['includes']>):unknown}).includes('State mismatch')
             && sessionStorage.getItem(spec.stateKey) === null;
 
           sessionStorage.setItem(spec.stateKey, JSON.stringify({
@@ -156,25 +159,25 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
             startedAt: Date.now() - (11 * 60 * 1000),
             clientId: 'client-id',
           }));
-          const stale = await mod[spec.completeName](new URLSearchParams('code=code-123&state=state-ok'));
+          const stale = await mod[spec.completeName as "completeOAuthCallback"](new URLSearchParams('code=code-123&state=state-ok'));
           outcomes[`${spec.id}CallbackRejectsStale`] = stale.ok === false
-            && stale.error.includes('expired');
+            && (stale.error as {includes(...args:Parameters<string['includes']>):unknown}).includes('expired');
 
           sessionStorage.setItem(spec.stateKey, '{bad json');
-          const corrupt = await mod[spec.completeName](new URLSearchParams('code=code-123&state=state-ok'));
+          const corrupt = await mod[spec.completeName as "completeOAuthCallback"](new URLSearchParams('code=code-123&state=state-ok'));
           outcomes[`${spec.id}CallbackRejectsCorrupt`] = corrupt.ok === false
-            && corrupt.error.includes('Corrupt pending state');
+            && (corrupt.error as {includes(...args:Parameters<string['includes']>):unknown}).includes('Corrupt pending state');
 
           sessionStorage.setItem(spec.stateKey, JSON.stringify({ state: 'callback-state' }));
-          outcomes[`${spec.id}CallbackDetector`] = mod[spec.callbackName](new URLSearchParams('state=callback-state')) === true
-            && mod[spec.callbackName](new URLSearchParams('state=other-state')) === false;
+          outcomes[`${spec.id}CallbackDetector`] = (mod as Partial<AuthCallbackOperations>)[spec.callbackName as keyof AuthCallbackOperations]!(new URLSearchParams('state=callback-state')) === true
+            && (mod as Partial<AuthCallbackOperations>)[spec.callbackName as keyof AuthCallbackOperations]!(new URLSearchParams('state=other-state')) === false;
           sessionStorage.setItem(spec.stateKey, '{bad json');
-          outcomes[`${spec.id}CallbackDetectorRejectsCorrupt`] = mod[spec.callbackName](new URLSearchParams('state=callback-state')) === false;
+          outcomes[`${spec.id}CallbackDetectorRejectsCorrupt`] = (mod as Partial<AuthCallbackOperations>)[spec.callbackName as keyof AuthCallbackOperations]!(new URLSearchParams('state=callback-state')) === false;
           sessionStorage.removeItem(spec.stateKey);
 
           enqueue(spec.refreshResponse);
           const refreshed = await mod.refreshTokens({ clientId: 'client-id', refreshToken: 'refresh-old' });
-          const refreshBody = requests.at(-1)?.body?.[spec.refreshKey];
+          const refreshBody = (requests.at(-1)?.body as Record<string,{refresh_token?:unknown;client_id?:unknown}>|null|undefined)?.[spec.refreshKey];
           outcomes[`${spec.id}RefreshSuccess`] = refreshed.accessToken === spec.refreshAccess
             && refreshed.refreshToken === spec.refreshRefresh
             && refreshed.tokenType === spec.refreshTokenType
@@ -183,26 +186,26 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
             && (!spec.refreshUserId || refreshed.userId === spec.refreshUserId);
 
           enqueue(spec.httpErrorResponse, 401);
-          let refreshHttpError = null;
+          let refreshHttpError: unknown = null;
           try {
             await mod.refreshTokens({ clientId: 'client-id', refreshToken: 'bad-refresh' });
           } catch (error) {
             refreshHttpError = error;
           }
-          outcomes[`${spec.id}RefreshHttpError`] = refreshHttpError?.status === 401
-            && refreshHttpError.message.includes(spec.httpErrorText);
+          outcomes[`${spec.id}RefreshHttpError`] = (refreshHttpError as {status: unknown})?.status === 401
+            && (refreshHttpError as {message:{includes(value:string):boolean}}).message.includes(spec.httpErrorText);
 
           if (spec.withingsStatusError) {
             enqueue(spec.withingsStatusError);
-            let withingsStatusError = null;
+            let withingsStatusError: unknown = null;
             try {
               await mod.refreshTokens({ clientId: 'client-id', refreshToken: 'dead-refresh' });
             } catch (error) {
               withingsStatusError = error;
             }
-            outcomes[`${spec.id}RefreshProviderError`] = withingsStatusError?.status === 401
-              && withingsStatusError.withingsCode === spec.withingsStatusError.status
-              && withingsStatusError.message.toLowerCase().includes('token');
+            outcomes[`${spec.id}RefreshProviderError`] = (withingsStatusError as {status: unknown})?.status === 401
+              && (withingsStatusError as {withingsCode: unknown}).withingsCode === spec.withingsStatusError.status
+              && (withingsStatusError as {message:Pick<string,"toLowerCase">}).message.toLowerCase().includes('token');
           }
 
           const validConnection = {
@@ -212,8 +215,8 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
             scope: 'old-scope',
             userId: spec.refreshUserId ? 'user-old' : undefined,
           };
-          const noWrite = [];
-          const validResult = await mod.withFreshToken(validConnection, 'client-id', async updated => noWrite.push(updated));
+          const noWrite: unknown[] = [];
+          const validResult = await mod.withFreshToken(validConnection, 'client-id', async (updated: unknown) => noWrite.push(updated));
           outcomes[`${spec.id}WithFreshTokenSkipsValid`] = validResult === validConnection
             && noWrite.length === 0;
 
@@ -224,48 +227,48 @@ test('confidential wearable OAuth modules cover callback refresh and token guard
             scope: 'latest-scope',
             userId: spec.refreshUserId ? 'latest-user' : undefined,
           };
-          const latestWrites = [];
+          const latestWrites: unknown[] = [];
           const latestResult = await mod.withFreshToken({
             accessToken: 'expired',
             refreshToken: 'refresh-old',
             expiresAt: Date.now() - 1,
-          }, 'client-id', async updated => latestWrites.push(updated), () => latestConnection);
+          }, 'client-id', async (updated: unknown) => latestWrites.push(updated), () => latestConnection);
           outcomes[`${spec.id}WithFreshTokenUsesLatest`] = latestResult === latestConnection
             && latestWrites.length === 0;
 
           enqueue(spec.freshResponse);
-          const writes = [];
+          const writes: unknown[] = [];
           const updated = await mod.withFreshToken({
             accessToken: 'expired',
             refreshToken: 'refresh-old',
             expiresAt: Date.now() - 1,
             scope: 'old-scope',
             userId: spec.refreshUserId ? 'old-user' : undefined,
-          }, 'client-id', async next => writes.push(next), () => null);
+          }, 'client-id', async (next: unknown) => writes.push(next), () => null);
           outcomes[`${spec.id}WithFreshTokenRefreshesAndWrites`] = updated.accessToken === spec.freshAccess
             && updated.refreshToken === spec.freshRefresh
             && updated.scope === spec.freshScope
             && writes.length === 1
-            && writes[0].accessToken === spec.freshAccess
+            && (writes[0] as {accessToken: unknown}).accessToken === spec.freshAccess
             && (!spec.freshUserId || updated.userId === spec.freshUserId);
 
-          const missingRefreshWrites = [];
-          let missingRefreshError = null;
-          let missingRefreshResult = null;
+          const missingRefreshWrites: unknown[] = [];
+          let missingRefreshError: unknown = null;
+          let missingRefreshResult: unknown = null;
           try {
             missingRefreshResult = await mod.withFreshToken({
               accessToken: 'expired',
               expiresAt: Date.now() - 1,
-            }, 'client-id', async next => missingRefreshWrites.push(next), () => null);
+            }, 'client-id', async (next: unknown) => missingRefreshWrites.push(next), () => null);
           } catch (error) {
             missingRefreshError = error;
           }
           outcomes[`${spec.id}WithFreshTokenMissingRefresh`] = spec.id === 'polar'
-            ? missingRefreshResult?.accessToken === 'expired' && missingRefreshWrites.length === 0
-            : missingRefreshError?.code === 'needs-reauth' && missingRefreshWrites.length === 0;
+            ? (missingRefreshResult as {accessToken?:unknown}|null|undefined)?.accessToken === 'expired' && missingRefreshWrites.length === 0
+            : (missingRefreshError as {code: unknown})?.code === 'needs-reauth' && missingRefreshWrites.length === 0;
           outcomes[`${spec.id}ProviderCompleted`] = true;
         } catch (error) {
-          outcomes[`${spec.id}ProviderError: ${error?.message || error}`] = false;
+          outcomes[`${spec.id}ProviderError: ${(error as {message: unknown})?.message || error}`] = false;
         } finally {
           sessionStorage.removeItem(spec.stateKey);
         }
@@ -422,19 +425,19 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ cases }) => {
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const originalFetch = window.fetch;
     const verifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
     const challenge = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
 
-    const makeResponse = ({ body = {}, status = 200 } = {}) => new Response(JSON.stringify(body), {
+    const makeResponse = ({ body = {}, status = 200 }:{body?:unknown;status?:number} = {}) => new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json' },
     });
-    const exerciseBeginOAuth = async (spec) => {
+    const exerciseBeginOAuth = async (spec:typeof cases[number]) => {
       const frame = document.createElement('iframe');
-      let timeoutId = null;
-      const loaded = new Promise((resolve, reject) => {
+      let timeoutId:ReturnType<typeof setTimeout>|null = null;
+      const loaded = new Promise<void>((resolve, reject) => {
         frame.onload = () => {
           if (timeoutId != null) clearTimeout(timeoutId);
           resolve();
@@ -446,18 +449,18 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
       try {
         await loaded;
         const win = frame.contentWindow;
-        win.sessionStorage.removeItem(spec.stateKey);
+        win!.sessionStorage.removeItem(spec.stateKey);
         sessionStorage.removeItem(spec.stateKey);
-        const frameMod = await win.eval(`import(${JSON.stringify(`${spec.url}&beginFrame=1`)})`);
-        const maybePromise = frameMod.beginOAuth({
+        const frameMod = (await (win! as unknown as {eval(source:string):unknown}).eval(`import(${JSON.stringify(`${spec.url}&beginFrame=1`)})`)) as Pick<PKCEAuthNamespace,"beginOAuth">;
+        const maybePromise = (frameMod.beginOAuth as (...args:Parameters<typeof frameMod.beginOAuth>)=>unknown)({
           clientId: 'client-id',
           registeredUris: [`${location.origin}/app`],
           scopes: ['scope:one'],
           profileId: 'wearables-auth-profile',
         });
-        if (maybePromise?.catch) maybePromise.catch(() => {});
-        const raw = sessionStorage.getItem(spec.stateKey) || win.sessionStorage.getItem(spec.stateKey);
-        return JSON.parse(raw || '{}');
+        if ((maybePromise as {catch?:unknown}|null|undefined)?.catch) (maybePromise as {catch(handler:()=>void):unknown}).catch(() => {});
+        const raw = sessionStorage.getItem(spec.stateKey) || win!.sessionStorage.getItem(spec.stateKey);
+        return ((JSON.parse as (text: unknown) => unknown)(raw || '{}') as unknown);
       } finally {
         if (timeoutId != null) clearTimeout(timeoutId);
         frame.remove();
@@ -467,11 +470,11 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
     try {
       for (const spec of cases) {
         try {
-          const mod = await import(spec.url);
-          const requests = [];
-          const fetchQueue = [];
-          window.fetch = async (url, options = {}) => {
-            const parsedBody = JSON.parse(String(options.body || '{}'));
+          const mod = (await import(spec.url) as unknown) as PKCEAuthNamespace;
+          const requests:{url:string;method:RequestInit["method"];body:unknown}[] = [];
+          const fetchQueue:{body:unknown;status:number}[] = [];
+          window.fetch = async (url: NonNullable<Parameters<typeof fetch>[0]>, options: NonNullable<Parameters<typeof fetch>[1]> = {}) => {
+            const parsedBody = ((JSON.parse as (text: unknown) => unknown)(String(options.body || '{}')) as unknown);
             requests.push({
               url: String(url),
               method: options.method,
@@ -481,7 +484,7 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
             if (!next) throw new Error(`Unexpected fetch for ${spec.id}`);
             return makeResponse(next);
           };
-          const enqueue = (body, status = 200) => fetchQueue.push({ body, status });
+          const enqueue = (body: unknown, status = 200) => fetchQueue.push({ body, status });
 
           const exact = mod.pickRedirectUri([
             `${location.origin}/app`,
@@ -520,14 +523,14 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
             && parsedAuthUrl.searchParams.get('code_challenge_method') === 'S256';
 
           const beginState = await exerciseBeginOAuth(spec);
-          outcomes[`${spec.id}BeginOAuthStoresPending`] = beginState.clientId === 'client-id'
-            && beginState.redirectUri === `${location.origin}/app`
-            && beginState.profileId === 'wearables-auth-profile'
-            && typeof beginState.startedAt === 'number'
-            && typeof beginState.state === 'string'
-            && beginState.state.length >= 20
-            && typeof beginState.codeVerifier === 'string'
-            && beginState.codeVerifier.length >= 40;
+          outcomes[`${spec.id}BeginOAuthStoresPending`] = (beginState as {clientId: unknown}).clientId === 'client-id'
+            && (beginState as {redirectUri: unknown}).redirectUri === `${location.origin}/app`
+            && (beginState as {profileId: unknown}).profileId === 'wearables-auth-profile'
+            && typeof (beginState as {startedAt: unknown}).startedAt === 'number'
+            && typeof (beginState as {state: unknown}).state === 'string'
+            && ((beginState as {state: unknown}).state as {length:number}).length >= 20
+            && typeof (beginState as {codeVerifier: unknown}).codeVerifier === 'string'
+            && ((beginState as {codeVerifier: unknown}).codeVerifier as {length:number}).length >= 40;
           sessionStorage.removeItem(spec.stateKey);
 
           sessionStorage.setItem(spec.stateKey, JSON.stringify({
@@ -539,26 +542,26 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
             profileId: 'wearables-auth-profile',
           }));
           enqueue(spec.exchangeResponse);
-          const callback = await mod[spec.completeName](new URLSearchParams('code=code-123&state=state-ok'));
-          const exchangeBody = new URLSearchParams(requests.at(-1)?.body?.body || '');
+          const callback = await mod[spec.completeName as "completeOAuthCallback"](new URLSearchParams('code=code-123&state=state-ok'));
+          const exchangeBody = new (URLSearchParams as new(value:unknown)=>URLSearchParams)(((requests.at(-1) as {body: unknown})?.body as {body: unknown})?.body || '');
           outcomes[`${spec.id}CallbackSuccess`] = callback.ok === true
             && callback.tokens.accessToken === spec.exchangeAccess
             && callback.tokens.refreshToken === spec.exchangeRefresh
             && callback.tokens.tokenType === spec.exchangeTokenType
             && callback.redirectUri === `${location.origin}/app`
             && callback.profileId === 'wearables-auth-profile'
-            && requests.at(-1)?.body?.url === spec.tokenUrl
+            && ((requests.at(-1) as {body: unknown})?.body as {url: unknown})?.url === spec.tokenUrl
             && exchangeBody.get('grant_type') === 'authorization_code'
             && exchangeBody.get('code') === 'code-123'
             && exchangeBody.get('client_id') === 'client-id'
             && exchangeBody.get('code_verifier') === verifier
             && (!spec.exchangeUserId || callback.tokens.userId === spec.exchangeUserId);
 
-          const errorCallback = await mod[spec.completeName](new URLSearchParams('error=access_denied&error_description=nope'));
-          const missingStateCallback = await mod[spec.completeName](new URLSearchParams('code=only-code'));
-          const missingCodeCallback = await mod[spec.completeName](new URLSearchParams('state=only-state'));
+          const errorCallback = await mod[spec.completeName as "completeOAuthCallback"](new URLSearchParams('error=access_denied&error_description=nope'));
+          const missingStateCallback = await mod[spec.completeName as "completeOAuthCallback"](new URLSearchParams('code=only-code'));
+          const missingCodeCallback = await mod[spec.completeName as "completeOAuthCallback"](new URLSearchParams('state=only-state'));
           outcomes[`${spec.id}CallbackEarlyErrors`] = errorCallback.ok === false
-            && errorCallback.error.includes('access_denied')
+            && (errorCallback.error as {includes(...args:Parameters<string['includes']>):unknown}).includes('access_denied')
             && missingStateCallback.ok === false
             && missingStateCallback.error === 'Missing code or state in callback'
             && missingCodeCallback.ok === false
@@ -571,9 +574,9 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
             clientId: 'client-id',
             codeVerifier: verifier,
           }));
-          const mismatch = await mod[spec.completeName](new URLSearchParams('code=code-123&state=wrong-state'));
+          const mismatch = await mod[spec.completeName as "completeOAuthCallback"](new URLSearchParams('code=code-123&state=wrong-state'));
           outcomes[`${spec.id}CallbackConsumesMismatch`] = mismatch.ok === false
-            && mismatch.error.includes('State mismatch')
+            && (mismatch.error as {includes(...args:Parameters<string['includes']>):unknown}).includes('State mismatch')
             && sessionStorage.getItem(spec.stateKey) === null;
 
           sessionStorage.setItem(spec.stateKey, JSON.stringify({
@@ -583,44 +586,44 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
             clientId: 'client-id',
             codeVerifier: verifier,
           }));
-          const stale = await mod[spec.completeName](new URLSearchParams('code=code-123&state=state-ok'));
+          const stale = await mod[spec.completeName as "completeOAuthCallback"](new URLSearchParams('code=code-123&state=state-ok'));
           outcomes[`${spec.id}CallbackRejectsStale`] = stale.ok === false
-            && stale.error.includes('expired');
+            && (stale.error as {includes(...args:Parameters<string['includes']>):unknown}).includes('expired');
 
           sessionStorage.setItem(spec.stateKey, '{bad json');
-          const corrupt = await mod[spec.completeName](new URLSearchParams('code=code-123&state=state-ok'));
+          const corrupt = await mod[spec.completeName as "completeOAuthCallback"](new URLSearchParams('code=code-123&state=state-ok'));
           outcomes[`${spec.id}CallbackRejectsCorrupt`] = corrupt.ok === false
-            && corrupt.error.includes('Corrupt pending state');
+            && (corrupt.error as {includes(...args:Parameters<string['includes']>):unknown}).includes('Corrupt pending state');
 
           sessionStorage.setItem(spec.stateKey, JSON.stringify({ state: 'callback-state' }));
-          outcomes[`${spec.id}CallbackDetector`] = mod[spec.callbackName](new URLSearchParams('state=callback-state')) === true
-            && mod[spec.callbackName](new URLSearchParams('state=other-state')) === false;
+          outcomes[`${spec.id}CallbackDetector`] = (mod as Partial<AuthCallbackOperations>)[spec.callbackName as keyof AuthCallbackOperations]!(new URLSearchParams('state=callback-state')) === true
+            && (mod as Partial<AuthCallbackOperations>)[spec.callbackName as keyof AuthCallbackOperations]!(new URLSearchParams('state=other-state')) === false;
           sessionStorage.setItem(spec.stateKey, '{bad json');
-          outcomes[`${spec.id}CallbackDetectorRejectsCorrupt`] = mod[spec.callbackName](new URLSearchParams('state=callback-state')) === false;
+          outcomes[`${spec.id}CallbackDetectorRejectsCorrupt`] = (mod as Partial<AuthCallbackOperations>)[spec.callbackName as keyof AuthCallbackOperations]!(new URLSearchParams('state=callback-state')) === false;
           sessionStorage.removeItem(spec.stateKey);
 
           enqueue(spec.refreshResponse);
           const refreshed = await mod.refreshTokens({ clientId: 'client-id', refreshToken: 'refresh-old' });
-          const refreshBody = new URLSearchParams(requests.at(-1)?.body?.body || '');
+          const refreshBody = new (URLSearchParams as new(value:unknown)=>URLSearchParams)(((requests.at(-1) as {body: unknown})?.body as {body: unknown})?.body || '');
           outcomes[`${spec.id}RefreshSuccess`] = refreshed.accessToken === spec.refreshAccess
             && refreshed.refreshToken === spec.refreshRefresh
             && refreshed.tokenType === spec.refreshTokenType
-            && requests.at(-1)?.body?.url === spec.tokenUrl
+            && ((requests.at(-1) as {body: unknown})?.body as {url: unknown})?.url === spec.tokenUrl
             && refreshBody.get('grant_type') === 'refresh_token'
             && refreshBody.get('refresh_token') === 'refresh-old'
             && refreshBody.get('client_id') === 'client-id'
-            && (!spec.refreshScope || refreshBody.get('scope') === spec.refreshScope)
+            && (!(spec as typeof spec & {refreshScope?:unknown}).refreshScope || refreshBody.get('scope') === (spec as typeof spec & {refreshScope?:unknown}).refreshScope)
             && (!spec.refreshUserId || refreshed.userId === spec.refreshUserId);
 
           enqueue(spec.httpErrorResponse, 401);
-          let refreshHttpError = null;
+          let refreshHttpError: unknown = null;
           try {
             await mod.refreshTokens({ clientId: 'client-id', refreshToken: 'bad-refresh' });
           } catch (error) {
             refreshHttpError = error;
           }
-          outcomes[`${spec.id}RefreshHttpError`] = refreshHttpError?.status === 401
-            && refreshHttpError.message.includes(spec.httpErrorText);
+          outcomes[`${spec.id}RefreshHttpError`] = (refreshHttpError as {status: unknown})?.status === 401
+            && (refreshHttpError as {message:{includes(value:string):boolean}}).message.includes(spec.httpErrorText);
 
           const validConnection = {
             accessToken: 'still-valid',
@@ -629,8 +632,8 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
             scope: 'old-scope',
             userId: spec.refreshUserId ? 'user-old' : undefined,
           };
-          const noWrite = [];
-          const validResult = await mod.withFreshToken(validConnection, 'client-id', async updated => noWrite.push(updated));
+          const noWrite: unknown[] = [];
+          const validResult = await mod.withFreshToken(validConnection, 'client-id', async (updated: unknown) => noWrite.push(updated));
           outcomes[`${spec.id}WithFreshTokenSkipsValid`] = validResult === validConnection
             && noWrite.length === 0;
 
@@ -641,46 +644,46 @@ test('PKCE wearable OAuth modules cover callback refresh and challenge paths', a
             scope: 'latest-scope',
             userId: spec.refreshUserId ? 'latest-user' : undefined,
           };
-          const latestWrites = [];
+          const latestWrites: unknown[] = [];
           const latestResult = await mod.withFreshToken({
             accessToken: 'expired',
             refreshToken: 'refresh-old',
             expiresAt: Date.now() - 1,
-          }, 'client-id', async updated => latestWrites.push(updated), () => latestConnection);
+          }, 'client-id', async (updated: unknown) => latestWrites.push(updated), () => latestConnection);
           outcomes[`${spec.id}WithFreshTokenUsesLatest`] = latestResult === latestConnection
             && latestWrites.length === 0;
 
           enqueue(spec.freshResponse);
-          const writes = [];
+          const writes: unknown[] = [];
           const updated = await mod.withFreshToken({
             accessToken: 'expired',
             refreshToken: 'refresh-old',
             expiresAt: Date.now() - 1,
             scope: 'old-scope',
             userId: spec.refreshUserId ? 'old-user' : undefined,
-          }, 'client-id', async next => writes.push(next), () => null);
+          }, 'client-id', async (next: unknown) => writes.push(next), () => null);
           outcomes[`${spec.id}WithFreshTokenRefreshesAndWrites`] = updated.accessToken === spec.freshAccess
             && updated.refreshToken === spec.freshRefresh
             && updated.scope === spec.freshScope
             && writes.length === 1
-            && writes[0].accessToken === spec.freshAccess
+            && (writes[0] as {accessToken: unknown}).accessToken === spec.freshAccess
             && (!spec.freshUserId || updated.userId === spec.freshUserId);
 
-          const missingRefreshWrites = [];
-          let missingRefreshError = null;
+          const missingRefreshWrites: unknown[] = [];
+          let missingRefreshError: unknown = null;
           try {
             await mod.withFreshToken({
               accessToken: 'expired',
               expiresAt: Date.now() - 1,
-            }, 'client-id', async next => missingRefreshWrites.push(next), () => null);
+            }, 'client-id', async (next: unknown) => missingRefreshWrites.push(next), () => null);
           } catch (error) {
             missingRefreshError = error;
           }
-          outcomes[`${spec.id}WithFreshTokenMissingRefresh`] = missingRefreshError?.code === 'needs-reauth'
+          outcomes[`${spec.id}WithFreshTokenMissingRefresh`] = (missingRefreshError as {code: unknown})?.code === 'needs-reauth'
             && missingRefreshWrites.length === 0;
           outcomes[`${spec.id}ProviderCompleted`] = true;
         } catch (error) {
-          outcomes[`${spec.id}ProviderError: ${error?.message || error}`] = false;
+          outcomes[`${spec.id}ProviderError: ${(error as {message: unknown})?.message || error}`] = false;
         } finally {
           sessionStorage.removeItem(spec.stateKey);
         }

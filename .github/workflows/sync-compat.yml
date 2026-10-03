@@ -121,7 +121,7 @@ jobs:
             SYNC_TRANSPORT_EVOLU_CLIENT="${client}" \
             SYNC_TRANSPORT_RELAY=ws://127.0.0.1:4000 \
             SYNC_TRANSPORT_SELF_URL=http://127.0.0.1:4003 \
-            npx playwright test tests/playwright/sync-relay-transport-e2e.spec.js --workers=1
+            npx playwright test tests/playwright/sync-relay-transport-e2e.spec.ts --workers=1
 
       - name: Upload transport logs on failure
         if: failure()

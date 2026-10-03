@@ -1,3 +1,4 @@
+import type { Page, Route } from '@playwright/test';
 import { mealEditorViolations } from '../helpers/nutrition-browser-fixtures.js';
 import { stoppedChatCompletion } from '../helpers/http-responses.js';
 import { expect, test } from './coverage-fixture.js';
@@ -13,7 +14,7 @@ const TINY_PNG = Buffer.from(
 
 // Pin the catalogue before navigation; opening provider controls can refresh it.
 // Seeded model choices must never depend on the live provider catalogue.
-async function mockMobileNutritionCatalog(page) {
+async function mockMobileNutritionCatalog(page: Page) {
   await page.route('https://openrouter.ai/api/v1/models**', route => route.fulfill({
     json: { data: [
       { id: 'openai/gpt-5.6-sol', name: 'Vision A' },
@@ -40,8 +41,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Venice meal analysis supports a correction-aware recalculation with visible progress', async ({ page }) => {
-  const requestBodies = [];
-  let releaseResponse;
+  const requestBodies: unknown[] = [];
+  let releaseResponse:(()=>void)|undefined;
   await page.route('https://api.venice.ai/api/v1/chat/completions', async route => {
     requestBodies.push(route.request().postDataJSON());
     if (requestBodies.length === 1) {
@@ -54,7 +55,7 @@ test('Venice meal analysis supports a correction-aware recalculation with visibl
       });
       return;
     }
-    if (requestBodies.length === 2) await new Promise(resolve => { releaseResponse = resolve; });
+    if (requestBodies.length === 2) await new Promise<void>(resolve => { releaseResponse = resolve; });
     const isCorrection = requestBodies.length === 3;
     await route.fulfill({
       status: 200,
@@ -140,7 +141,7 @@ test('Venice meal analysis supports a correction-aware recalculation with visibl
   await expect(page.locator('.nutrition-analysis-progress-track')).toHaveAttribute('aria-valuenow', /^(5[8-9]|[6-7]\d|8[0-2])$/);
   await page.locator('#modal-overlay').click({ position: { x: 2, y: 2 } });
   await expect(page.locator('#modal-overlay')).toBeHidden();
-  releaseResponse();
+  releaseResponse!();
   await page.evaluate(async () => (await import('/js/nutrition.js')).openNutritionEditor());
   await expect(page.locator('#modal-overlay')).toBeVisible();
 
@@ -185,11 +186,11 @@ test('Venice meal analysis supports a correction-aware recalculation with visibl
   await page.locator('#confirm-cancel').click();
   await expect(page.locator('#nutrition-meal-name')).toHaveValue('Chicken rice bowl');
   expect(requestBodies).toHaveLength(2);
-  expect(requestBodies[0].model).toBe('claude-opus-4.8');
-  expect(requestBodies[0].temperature).toBe(0);
-  expect(requestBodies[0].response_format?.type).toBe('json_schema');
-  expect(JSON.stringify(requestBodies[0].messages)).toContain('Fried Edam cheese; the beer was not consumed.');
-  expect(requestBodies[0].messages[0].content.filter(item => item.type === 'image_url')).toHaveLength(2);
+  expect((requestBodies[0] as {model: unknown}).model).toBe('claude-opus-4.8');
+  expect((requestBodies[0] as {temperature: unknown}).temperature).toBe(0);
+  expect(((requestBodies[0] as {response_format: unknown}).response_format as {type: unknown})?.type).toBe('json_schema');
+  expect(JSON.stringify((requestBodies[0] as {messages: unknown}).messages)).toContain('Fried Edam cheese; the beer was not consumed.');
+  expect((((requestBodies[0] as {messages: unknown}).messages as unknown[])[0] as {content:{type?:unknown}[]}).content.filter(item => item.type === 'image_url')).toHaveLength(2);
   expect(requestBodies[1]).not.toHaveProperty('response_format');
 
   const firstIngredient = page.locator('[data-nutrition-component-name="0"]');
@@ -219,11 +220,11 @@ test('Venice meal analysis supports a correction-aware recalculation with visibl
   await expect(page.locator('#nutrition-analysis-status')).toContainText('Recalculated estimate');
   await expect(page.locator('#nutrition-save-btn')).toBeDisabled();
   expect(requestBodies).toHaveLength(3);
-  expect(requestBodies[2].temperature).toBe(0);
-  expect(requestBodies[2].response_format?.type).toBe('json_schema');
-  expect(JSON.stringify(requestBodies[2].messages)).toContain(correctedName);
-  expect(JSON.stringify(requestBodies[2].messages)).toContain('User-reviewed ingredients and portions: Breaded fried Edam cheese (145 g)');
-  expect(JSON.stringify(requestBodies[2].messages)).toContain('from scratch');
+  expect((requestBodies[2] as {temperature: unknown}).temperature).toBe(0);
+  expect(((requestBodies[2] as {response_format: unknown}).response_format as {type: unknown})?.type).toBe('json_schema');
+  expect(JSON.stringify((requestBodies[2] as {messages: unknown}).messages)).toContain(correctedName);
+  expect(JSON.stringify((requestBodies[2] as {messages: unknown}).messages)).toContain('User-reviewed ingredients and portions: Breaded fried Edam cheese (145 g)');
+  expect(JSON.stringify((requestBodies[2] as {messages: unknown}).messages)).toContain('from scratch');
 
   await page.locator('#nutrition-meal-type').selectOption('dinner');
   await expect(page.locator('#nutrition-save-btn')).toBeEnabled();
@@ -260,21 +261,21 @@ test('Venice meal analysis supports a correction-aware recalculation with visibl
     return meals.find(meal => meal.name === 'Fried Edam cheese with fries, tartar sauce, and beer')?.images || [];
   });
   expect(savedImages).toHaveLength(2);
-  expect(savedImages.every(image => image.thumbnailUrl
+  expect((savedImages as {thumbnailUrl?:unknown;dataUrl?:unknown;base64?:unknown;analysisImage?:unknown}[]).every(image => image.thumbnailUrl
     && !image.dataUrl && !image.base64 && !image.analysisImage)).toBe(true);
   const savedMealLayout = await page.locator('.nutrition-detail-layout').evaluate(element => {
-    const gallery = element.querySelector('.nutrition-detail-gallery')?.getBoundingClientRect();
-    const overview = element.querySelector('.nutrition-detail-overview')?.getBoundingClientRect();
-    const content = element.querySelector('.nutrition-detail-content-grid')?.getBoundingClientRect();
+    const gallery = element.querySelector<HTMLElement>('.nutrition-detail-gallery')?.getBoundingClientRect();
+    const overview = element.querySelector<HTMLElement>('.nutrition-detail-overview')?.getBoundingClientRect();
+    const content = element.querySelector<HTMLElement>('.nutrition-detail-content-grid')?.getBoundingClientRect();
     return { galleryAboveOverview: !!gallery && !!overview && gallery.bottom <= overview.top + 1, contentBelowOverview: !!overview && !!content && overview.bottom <= content.top + 1 };
   });
   expect(savedMealLayout).toEqual({ galleryAboveOverview: true, contentBelowOverview: true });
 });
 
 test('a slow meal analysis can be canceled without refreshing the editor', async ({ page }) => {
-  let releaseResponse;
+  let releaseResponse:(()=>void)|undefined;
   await page.route('https://api.venice.ai/api/v1/chat/completions', async route => {
-    await new Promise(resolve => { releaseResponse = resolve; });
+    await new Promise<void>(resolve => { releaseResponse = resolve; });
     try {
       await route.fulfill({
         status: 200,
@@ -309,7 +310,7 @@ test('a slow meal analysis can be canceled without refreshing the editor', async
   await expect(page.locator('#nutrition-analysis-progress')).toContainText('Analysis stopped');
   await expect(page.locator('#nutrition-analyze-btn')).toBeEnabled();
   await expect(page.locator('#nutrition-meal-name')).toHaveValue('');
-  releaseResponse();
+  releaseResponse!();
 });
 
 test('fresh photo analysis keeps complete nutrient profiles model-owned', async ({ page }) => {
@@ -399,10 +400,10 @@ test('fresh photo analysis keeps complete nutrient profiles model-owned', async 
     const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
     const meal = meals.find(item => item.name === 'Grilled chicken and rice');
     return {
-      sodiumMg: meal?.nutrients?.sodiumMg,
-      nutrientBasis: meal?.source?.nutrientBasis,
-      hasFoodComposition: !!meal?.source?.foodComposition,
-      hasDatabaseCandidates: meal?.components?.some(component => component.foodDataCandidates || component.foodData),
+      sodiumMg: (meal?.nutrients as {sodiumMg: unknown})?.sodiumMg,
+      nutrientBasis: (meal?.source as {nutrientBasis: unknown})?.nutrientBasis,
+      hasFoodComposition: !!(meal?.source as {foodComposition: unknown})?.foodComposition,
+      hasDatabaseCandidates: (meal?.components as {foodDataCandidates?:unknown;foodData?:unknown}[]|null|undefined)?.some(component => component.foodDataCandidates || component.foodData),
     };
   });
   expect(saved).toEqual({
@@ -414,18 +415,18 @@ test('fresh photo analysis keeps complete nutrient profiles model-owned', async 
 });
 
 test('Debug mode compares meal models against local reference data and can use the closest estimate', async ({ page }) => {
-  const requestedModels = [];
+  const requestedModels: unknown[] = [];
   let geminiAttempts = 0;
   let activeRequests = 0;
   let peakConcurrentRequests = 0;
   await page.route('https://openrouter.ai/api/v1/chat/completions', async route => {
-    const body = route.request().postDataJSON();
-    requestedModels.push(body.model);
+    const body: unknown = route.request().postDataJSON();
+    requestedModels.push((body as {model:unknown}).model);
     activeRequests += 1;
     peakConcurrentRequests = Math.max(peakConcurrentRequests, activeRequests);
     await new Promise(resolve => setTimeout(resolve, 45));
     try {
-      if (body.model === 'google/gemini-3.7-flash' && ++geminiAttempts === 1) {
+      if ((body as {model:unknown}).model === 'google/gemini-3.7-flash' && ++geminiAttempts === 1) {
         await route.fulfill({
           status: 429,
           contentType: 'application/json',
@@ -433,7 +434,7 @@ test('Debug mode compares meal models against local reference data and can use t
         });
         return;
       }
-      const close = body.model === 'openai/gpt-5.6-sol';
+      const close = (body as {model:unknown}).model === 'openai/gpt-5.6-sol';
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -531,7 +532,7 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(page.locator('#nutrition-model-comparison')).toContainText('Selected models run together.');
   await page.getByRole('button', { name: 'Log meal' }).click();
   await expect(page.locator('#detail-modal')).not.toHaveClass(/nutrition-benchmark-modal/);
-  expect(await page.locator('#nutrition-photo-input').evaluate(input => input.files.length)).toBe(0);
+  expect(await page.locator('#nutrition-photo-input').evaluate((input:HTMLInputElement) => input.files!.length)).toBe(0);
   await expect(page.locator('#nutrition-analyze-btn')).toBeDisabled();
   await page.locator('[data-nutrition-action="toggle-comparison"]').first().click();
   await expect(page.locator('#detail-modal')).toHaveClass(/nutrition-benchmark-modal/);
@@ -575,13 +576,13 @@ test('Debug mode compares meal models against local reference data and can use t
   const modelList = page.locator('.nutrition-comparison-models');
   await expect(confidentChoice).toHaveClass(/is-selected/);
   await expect(geminiChoice).not.toHaveClass(/is-selected/);
-  const selectedBeforeRoundTrip = await page.locator('[data-nutrition-comparison-model]:checked').evaluateAll(inputs => inputs.map(input => input.value).sort());
+  const selectedBeforeRoundTrip = await page.locator('[data-nutrition-comparison-model]:checked').evaluateAll((inputs:HTMLInputElement[]) => inputs.map(input => input.value).sort());
   await page.getByRole('button', { name: 'Log meal' }).click();
   await page.locator('[data-nutrition-action="toggle-comparison"]').first().click();
-  await expect.poll(() => page.locator('[data-nutrition-comparison-model]:checked').evaluateAll(inputs => inputs.map(input => input.value).sort())).toEqual(selectedBeforeRoundTrip);
+  await expect.poll(() => page.locator('[data-nutrition-comparison-model]:checked').evaluateAll((inputs:HTMLInputElement[]) => inputs.map(input => input.value).sort())).toEqual(selectedBeforeRoundTrip);
   await expect(page.locator('#nutrition-benchmark-photo-status')).toContainText('benchmark view ready');
   const pickerLayout = await modelList.evaluate(element => {
-    const cards = Array.from(element.querySelectorAll('.nutrition-comparison-model'));
+    const cards = Array.from(element.querySelectorAll<HTMLElement>('.nutrition-comparison-model'));
     const first = cards[0]?.getBoundingClientRect();
     const second = cards[1]?.getBoundingClientRect();
     const style = getComputedStyle(element);
@@ -632,14 +633,14 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(ingredientPanels).toHaveCount(2);
   await expect(ingredientPanels.nth(0)).toContainText('3 returned');
   await expect(ingredientPanels.nth(1)).toContainText('6 returned');
-  const alignedResultCards = await page.locator('.nutrition-comparison-card').evaluateAll(cards => ({
+  const alignedResultCards = await page.locator('.nutrition-comparison-card').evaluateAll((cards:HTMLElement[]) => ({
     cardHeights: cards.map(card => card.getBoundingClientRect().height),
-    ingredientHeights: cards.map(card => card.querySelector('.nutrition-comparison-ingredient-panel')?.getBoundingClientRect().height),
-    ingredientTops: cards.map(card => card.querySelector('.nutrition-comparison-ingredient-panel')?.getBoundingClientRect().top),
+    ingredientHeights: cards.map(card => card.querySelector<HTMLElement>('.nutrition-comparison-ingredient-panel')?.getBoundingClientRect().height),
+    ingredientTops: cards.map(card => card.querySelector<HTMLElement>('.nutrition-comparison-ingredient-panel')?.getBoundingClientRect().top),
   }));
   expect(Math.max(...alignedResultCards.cardHeights) - Math.min(...alignedResultCards.cardHeights)).toBeLessThan(1);
-  expect(Math.max(...alignedResultCards.ingredientHeights) - Math.min(...alignedResultCards.ingredientHeights)).toBeLessThan(1);
-  expect(Math.max(...alignedResultCards.ingredientTops) - Math.min(...alignedResultCards.ingredientTops)).toBeLessThan(1);
+  expect((Math.max as (...values:(number|undefined)[])=>number)(...alignedResultCards.ingredientHeights) - (Math.min as (...values:(number|undefined)[])=>number)(...alignedResultCards.ingredientHeights)).toBeLessThan(1);
+  expect((Math.max as (...values:(number|undefined)[])=>number)(...alignedResultCards.ingredientTops) - (Math.min as (...values:(number|undefined)[])=>number)(...alignedResultCards.ingredientTops)).toBeLessThan(1);
   await expect(page.getByRole('button', { name: 'Open full-screen comparison' })).toBeVisible();
   await expect(page.locator('.nutrition-comparison-reference-banner')).toContainText('Known values active.');
   await expect(page.locator('#nutrition-comparison-progress')).toContainText('Comparison ready');
@@ -657,15 +658,15 @@ test('Debug mode compares meal models against local reference data and can use t
   await differenceDetails.locator('summary').click();
   await expect(differenceDetails.getByRole('columnheader')).toHaveCount(4);
   await expect(differenceDetails.locator('tbody tr')).toHaveCount(11);
-  const alignedReferenceColumns = await differenceDetails.locator('table').evaluate(table => {
+  const alignedReferenceColumns = await differenceDetails.locator('table').evaluate((table:HTMLTableElement) => {
     const rows = Array.from(table.rows);
-    const expected = Array.from(rows[0].cells).map(cell => cell.getBoundingClientRect().left);
-    return rows.every(row => row.cells.length === 4 && Array.from(row.cells).every((cell, index) => Math.abs(cell.getBoundingClientRect().left - expected[index]) < 1));
+    const expected = Array.from(rows[0]!.cells).map(cell => cell.getBoundingClientRect().left);
+    return rows.every(row => (row.cells as {length: unknown}).length === 4 && Array.from(row.cells).every((cell, index) => Math.abs(cell.getBoundingClientRect().left - expected[index]!) < 1));
   });
   expect(alignedReferenceColumns).toBe(true);
   await page.addScriptTag({ path: axeScriptPath });
   const benchmarkViolations = await page.evaluate(async () => {
-    const result = await window.axe.run(document.querySelector('#nutrition-model-comparison'), {
+    const result = await (window as unknown as {axe:typeof import("axe-core")}).axe.run(document.querySelector<HTMLElement>('#nutrition-model-comparison')!, {
       runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
     });
     return result.violations.map(violation => ({
@@ -753,20 +754,20 @@ test('Debug mode compares meal models against local reference data and can use t
   await expect(page.getByRole('button', { name: 'Exit full-screen comparison' })).toHaveAttribute('aria-pressed', 'true');
   const presentationLayout = await page.evaluate(() => {
     const modal = document.getElementById('detail-modal');
-    const cards = [...document.querySelectorAll('.nutrition-comparison-card')];
+    const cards = [...document.querySelectorAll<HTMLElement>('.nutrition-comparison-card')];
     const cardRects = cards.map(card => card.getBoundingClientRect());
-    const ingredientRects = cards.map(card => card.querySelector('.nutrition-comparison-ingredient-panel')?.getBoundingClientRect());
-    const modalRect = modal.getBoundingClientRect();
+    const ingredientRects = cards.map(card => card.querySelector<HTMLElement>('.nutrition-comparison-ingredient-panel')?.getBoundingClientRect());
+    const modalRect = modal!.getBoundingClientRect();
     return {
       modalRect: { top: modalRect.top, left: modalRect.left, right: modalRect.right, bottom: modalRect.bottom },
-      setupDisplay: getComputedStyle(document.querySelector('.nutrition-comparison-setup')).display,
-      actionsDisplay: getComputedStyle(document.querySelector('.nutrition-comparison-card-actions')).display,
+      setupDisplay: getComputedStyle(document.querySelector<HTMLElement>('.nutrition-comparison-setup')!).display,
+      actionsDisplay: getComputedStyle(document.querySelector<HTMLElement>('.nutrition-comparison-card-actions')!).display,
       columns: new Set(cardRects.map(rect => Math.round(rect.left))).size,
       cardHeightSpread: Math.max(...cardRects.map(rect => rect.height)) - Math.min(...cardRects.map(rect => rect.height)),
-      ingredientHeightSpread: Math.max(...ingredientRects.map(rect => rect.height)) - Math.min(...ingredientRects.map(rect => rect.height)),
+      ingredientHeightSpread: Math.max(...ingredientRects.map(rect => rect!.height)) - Math.min(...ingredientRects.map(rect => rect!.height)),
       allCardsOnScreen: cardRects.every(rect => rect.top >= -1 && rect.bottom <= innerHeight + 1),
-      modalHasScroll: modal.scrollHeight > modal.clientHeight + 1,
-      workspaceHasScroll: document.querySelector('#nutrition-model-comparison').scrollHeight > document.querySelector('#nutrition-model-comparison').clientHeight + 1,
+      modalHasScroll: modal!.scrollHeight > modal!.clientHeight + 1,
+      workspaceHasScroll: document.querySelector<HTMLElement>('#nutrition-model-comparison')!.scrollHeight > document.querySelector<HTMLElement>('#nutrition-model-comparison')!.clientHeight + 1,
     };
   });
   expect(presentationLayout.modalRect).toEqual({ top: 0, left: 0, right: 1100, bottom: 768 });
@@ -795,17 +796,17 @@ test('Debug mode compares meal models against local reference data and can use t
 });
 
 test('a running benchmark can close, cancel one model, and never cross profiles', async ({ page }) => {
-  const releases = new Map();
+  const releases = new Map<unknown,()=>void>();
   await page.route('https://openrouter.ai/api/v1/chat/completions', async route => {
-    const body = route.request().postDataJSON();
-    await new Promise(resolve => releases.set(body.model, resolve));
+    const body: unknown = route.request().postDataJSON();
+    await new Promise<void>(resolve => releases.set((body as {model:unknown}).model, resolve));
     try {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           ...stoppedChatCompletion(JSON.stringify({
-            mealName: body.model.includes('openai') ? 'OpenAI background meal' : 'Anthropic background meal',
+            mealName: ((body as {model:unknown}).model as {includes(search:string):unknown}).includes('openai') ? 'OpenAI background meal' : 'Anthropic background meal',
             components: [{ name: 'Test meal', quantityG: 250, confidence: 0.75 }],
             nutrients: { energyKcal: 500, proteinG: 30, carbohydrateG: 50, fatG: 20 },
             confidence: 0.75,
@@ -854,8 +855,8 @@ test('a running benchmark can close, cancel one model, and never cross profiles'
   await expect(page.locator('#modal-overlay')).toBeHidden();
   await page.evaluate(() => {
     const modal = document.getElementById('detail-modal');
-    modal.innerHTML = '<section id="other-app-workspace">Other app workspace</section>';
-    modal.className = 'modal';
+    modal!.innerHTML = '<section id="other-app-workspace">Other app workspace</section>';
+    modal!.className = 'modal';
   });
   await expect(page.locator('#nutrition-background-workspace')).toBeHidden();
 
@@ -888,10 +889,10 @@ test('a running benchmark can close, cancel one model, and never cross profiles'
 });
 
 test('model comparison preselects and routes models from separate configured providers', async ({ page }) => {
-  const requests = [];
-  const fulfillAnalysis = async (route, provider) => {
-    const body = route.request().postDataJSON();
-    requests.push({ provider, model: body.model });
+  const requests: unknown[] = [];
+  const fulfillAnalysis = async (route: Route, provider: unknown) => {
+    const body: unknown = route.request().postDataJSON();
+    requests.push({ provider, model: (body as {model?:unknown}).model });
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -963,7 +964,7 @@ test('model comparison preselects and routes models from separate configured pro
 });
 
 test('Log Meal restores the Local AI photo model after refresh without opening Settings', async ({ page }) => {
-  const discoveryRequests = [];
+  const discoveryRequests: string[] = [];
   await page.route('http://localhost:11434/**', async route => {
     const url = new URL(route.request().url());
     discoveryRequests.push(url.pathname);
@@ -1022,7 +1023,7 @@ test('Log Meal restores the Local AI photo model after refresh without opening S
 });
 
 test('model comparison discovers a saved Local AI connection while cloud AI is main', async ({ page }) => {
-  const discoveryRequests = [];
+  const discoveryRequests: string[] = [];
   await page.route('http://localhost:11434/**', async route => {
     const url = new URL(route.request().url());
     discoveryRequests.push(url.pathname);
@@ -1130,7 +1131,7 @@ test('the meal editor, nutrition setup, and drink logger have no automated WCAG 
 });
 
 test('nutrition label mode scales the scanned values to the amount eaten', async ({ page }) => {
-  const requestBodies = [];
+  const requestBodies: unknown[] = [];
   await page.route('https://api.venice.ai/api/v1/chat/completions', async route => {
     requestBodies.push(route.request().postDataJSON());
     await route.fulfill({
@@ -1200,8 +1201,8 @@ test('nutrition label mode scales the scanned values to the amount eaten', async
   await expect(page.locator('#nutrition-label-details')).toContainText('Serving size 1 tub (150 g)');
   await expect(page.locator('#nutrition-label-details')).toContainText('Logged 2 servings');
   expect(requestBodies).toHaveLength(1);
-  expect(JSON.stringify(requestBodies[0].messages)).toContain('Nutrition Facts');
-  expect(JSON.stringify(requestBodies[0].messages)).toContain('User-reported consumption: 2 servings');
+  expect(JSON.stringify((requestBodies[0] as {messages: unknown}).messages)).toContain('Nutrition Facts');
+  expect(JSON.stringify((requestBodies[0] as {messages: unknown}).messages)).toContain('User-reported consumption: 2 servings');
 
   await page.locator('.nutrition-more-nutrients summary').click();
   await page.locator('[data-nutrition-component-grams="0"]').fill('150');
@@ -1336,7 +1337,7 @@ test('saved meals can be edited deterministically and logged again without anoth
   await expect(page.locator('#detail-modal')).toContainText('Edit meal');
   // Set the visible field without dispatching change: Save must synchronize it
   // instead of depending on blur/change event ordering.
-  await page.locator('[data-nutrition-component-grams="0"]').evaluate(input => { input.value = '200'; });
+  await page.locator('[data-nutrition-component-grams="0"]').evaluate(input => { (input as unknown as {value: string}).value = '200'; });
   await page.locator('#nutrition-save-btn').click();
   await expect(page.locator('#detail-modal')).toContainText('260 kcal');
   await expect(page.locator('#detail-modal')).toContainText('56 g');
@@ -1344,10 +1345,10 @@ test('saved meals can be edited deterministically and logged again without anoth
     const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
     const meal = meals.find(item => item.name === 'White rice');
     return {
-      quantityG: meal?.components?.[0]?.quantityG,
-      componentCarbs: meal?.components?.[0]?.nutrients?.carbohydrateG,
-      totalCarbs: meal?.nutrients?.carbohydrateG,
-      totalEnergy: meal?.nutrients?.energyKcal,
+      quantityG: ((meal?.components as unknown[])?.[0] as {quantityG: unknown})?.quantityG,
+      componentCarbs: (((meal?.components as unknown[])?.[0] as {nutrients: unknown})?.nutrients as {carbohydrateG?:unknown}|null|undefined)?.carbohydrateG,
+      totalCarbs: (meal?.nutrients as {carbohydrateG: unknown})?.carbohydrateG,
+      totalEnergy: (meal?.nutrients as {energyKcal: unknown})?.energyKcal,
       response: meal?.responseCheckIn,
     };
   });
@@ -1362,8 +1363,8 @@ test('saved meals can be edited deterministically and logged again without anoth
   await expect(page.locator('#detail-modal')).toContainText('Logged again from a reviewed meal');
   const result = await page.evaluate(async () => {
     const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
-    const reused = meals.find(meal => meal.source.kind === 'reused-meal');
-    return { count: meals.length, hasReused: !!reused, reusedImages: reused?.images?.length || 0, reusedResponse: reused?.responseCheckIn || null };
+    const reused = meals.find(meal => (meal.source as {kind: unknown}).kind === 'reused-meal');
+    return { count: meals.length, hasReused: !!reused, reusedImages: (reused?.images as {length: unknown})?.length || 0, reusedResponse: reused?.responseCheckIn || null };
   });
   expect(result).toEqual({ count: 2, hasReused: true, reusedImages: 0, reusedResponse: null });
 });
@@ -1420,7 +1421,7 @@ test('ingredient correction evidence records final ingredients, not individual k
   await expect(page.locator('#detail-modal')).toContainText('1 ingredient identity corrected');
   const review = await page.evaluate(async () => {
     const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
-    return meals.find(meal => meal.name === 'Rice bowl')?.source?.review?.editedComponentIdentities;
+    return ((meals.find(meal => meal.name === 'Rice bowl')?.source as {review: unknown})?.review as {editedComponentIdentities: unknown})?.editedComponentIdentities;
   });
   expect(review).toEqual(['Brown rice']);
 });
@@ -1430,15 +1431,15 @@ test('the nutrition widget shows visual seven-day coverage and weight-aware pers
   await page.evaluate(async () => {
     const nutrition = await import('/js/nutrition.js');
     const { state } = await import('/js/state.js');
-    const localDay = offset => {
+    const localDay = (offset:number) => {
       const date = new Date();
       date.setDate(date.getDate() - offset);
       return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     };
-    state.importedData.wearableSummary = {
+    (state.importedData as unknown as {wearableSummary: unknown}).wearableSummary = {
       metrics: { weight: { latest: 80, latestDate: localDay(0), primarySource: 'fitbit' } },
     };
-    state.importedData.nutritionTargets = {
+    (state.importedData as unknown as {nutritionTargets: unknown}).nutritionTargets = {
       configured: true,
       proteinBasis: 'active',
       energyKcal: 2000,
@@ -1484,18 +1485,18 @@ test('the nutrition widget shows visual seven-day coverage and weight-aware pers
     fuelHost.id = 'nutrition-fuel-widget-test-host';
     fuelHost.innerHTML = nutrition.renderNutritionFuelWidget();
     const configuredTargets = state.importedData.nutritionTargets;
-    state.importedData.nutritionTargets = { ...configuredTargets, configured: false };
+    (state.importedData as unknown as {nutritionTargets: unknown}).nutritionTargets = { ...configuredTargets, configured: false };
     const starterHost = document.createElement('div');
     starterHost.id = 'nutrition-starter-widget-test-host';
     starterHost.innerHTML = nutrition.renderNutritionWidget();
-    state.importedData.nutritionTargets = {
+    (state.importedData as unknown as {nutritionTargets: unknown}).nutritionTargets = {
       ...configuredTargets,
       widgetNutrients: ['proteinG', 'carbohydrateG', 'fatG', 'fiberG'],
     };
     const macroHost = document.createElement('div');
     macroHost.id = 'nutrition-macro-widget-test-host';
     macroHost.innerHTML = nutrition.renderNutritionWidget();
-    state.importedData.nutritionTargets = configuredTargets;
+    (state.importedData as unknown as {nutritionTargets: unknown}).nutritionTargets = configuredTargets;
     document.body.append(host, fuelHost, starterHost, macroHost);
   });
 
@@ -1590,7 +1591,7 @@ test('nutrition history defaults to 30D and offers 3M, 6M, 1Y, and All on deskto
     const { state } = await import('/js/state.js');
     localStorage.removeItem('nutrition-history-range');
     localStorage.removeItem('nutrition-history-view');
-    const historicMeal = (id, name, monthsAgo, energyKcal) => {
+    const historicMeal = (id: string, name: string, monthsAgo:number, energyKcal:number) => {
       const local = new Date();
       local.setHours(12, 0, 0, 0);
       local.setMonth(local.getMonth() - monthsAgo);
@@ -1608,7 +1609,7 @@ test('nutrition history defaults to 30D and offers 3M, 6M, 1Y, and All on deskto
       historicMeal('history-2y', 'PRIVATE TWO YEAR MEAL', 24, 900),
     ];
     for (const meal of meals) await store.putNutritionMeal(state.currentProfile, meal, { preserveUpdatedAt: true });
-    state.importedData.nutritionTargets = {
+    (state.importedData as unknown as {nutritionTargets: unknown}).nutritionTargets = {
       configured: true,
       energyKcal: 2000,
       proteinBasis: 'fixed',
@@ -1618,7 +1619,7 @@ test('nutrition history defaults to 30D and offers 3M, 6M, 1Y, and All on deskto
       fiberG: 25,
       widgetNutrients: ['proteinG', 'carbohydrateG', 'fatG', 'fiberG'],
     };
-    state.importedData.contextSourceSettings = { ...(state.importedData.contextSourceSettings || {}), 'meals-nutrition': true };
+    (state.importedData as unknown as {contextSourceSettings: unknown}).contextSourceSettings = { ...(state.importedData.contextSourceSettings || {}), 'meals-nutrition': true };
     state.nutritionSummary = summary.computeNutritionSummary(meals);
     const host = document.createElement('div');
     host.id = 'nutrition-history-widget-host';
@@ -1628,7 +1629,7 @@ test('nutrition history defaults to 30D and offers 3M, 6M, 1Y, and All on deskto
 
   const widget = page.locator('#nutrition-history-widget-host');
   await expect(widget).toContainText('Last 7 days');
-  await widget.getByRole('button', { name: 'History' }).evaluate(button => button.click());
+  await widget.getByRole('button', { name: 'History' }).evaluate((button:HTMLElement) => button.click());
   await expect(page.locator('.nutrition-history-modal')).toBeVisible();
   await expect(page.locator('.nutrition-history-head h3')).toHaveText('Meals & Nutrition');
   await expect(page.getByRole('tab', { name: 'Meals' })).toHaveAttribute('aria-selected', 'true');
@@ -1659,10 +1660,10 @@ test('nutrition history defaults to 30D and offers 3M, 6M, 1Y, and All on deskto
 
   await page.addScriptTag({ path: axeScriptPath });
   const accessibility = await page.evaluate(async () => {
-    const result = await window.axe.run(document.querySelector('.nutrition-history-modal'), {
+    const result = await (window as unknown as {axe:typeof import("axe-core")}).axe.run(document.querySelector<HTMLElement>('.nutrition-history-modal')!, {
       runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
     });
-    return result.violations.filter(violation => ['critical', 'serious'].includes(violation.impact));
+    return result.violations.filter(violation => (['critical', 'serious'].includes as (value:unknown)=>boolean)(violation.impact));
   });
   expect(accessibility).toEqual([]);
 
@@ -1683,7 +1684,7 @@ test('nutrition history defaults to 30D and offers 3M, 6M, 1Y, and All on deskto
   await expect(page.getByRole('tab', { name: 'Trends' })).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('.nutrition-history-timing')).toBeVisible();
   await page.locator('.nutrition-history-modal .modal-close').click();
-  await widget.getByRole('button', { name: 'History' }).evaluate(button => button.click());
+  await widget.getByRole('button', { name: 'History' }).evaluate((button:HTMLElement) => button.click());
   await expect(page.locator('[data-nutrition-action="set-history-range"][data-nutrition-range="all"]')).toHaveAttribute('aria-pressed', 'true');
   await page.locator('.nutrition-history-ai').getByRole('button', { name: 'Ask AI', exact: true }).click();
   await expect(page.locator('#chat-panel')).toHaveClass(/open/);
@@ -1711,7 +1712,7 @@ test('saved nutrition summary hydrates after a cache-bypassing hard reload on Da
   });
 
   const cdp = await context.newCDPSession(page);
-  const navigation = page.waitForEvent('framenavigated', frame => frame === page.mainFrame());
+  const navigation = page.waitForEvent('framenavigated', (frame: unknown) => frame === page.mainFrame());
   await cdp.send('Page.reload', { ignoreCache: true });
   await navigation;
   await page.waitForLoadState('load');
@@ -1768,7 +1769,7 @@ test('personal nutrition targets persist with the profile and expose weight-awar
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
-    state.importedData.wearableSummary = {
+    (state.importedData as unknown as {wearableSummary: unknown}).wearableSummary = {
       metrics: { weight: { latest: 80, latestDate: '2026-08-24', primarySource: 'fitbit' } },
     };
     await (await import('/js/nutrition.js')).openNutritionTargets();
@@ -1781,10 +1782,10 @@ test('personal nutrition targets persist with the profile and expose weight-awar
   await expect(page.locator('#nutrition-photo-input')).toHaveCount(0);
   await expect(page.locator('#nutrition-widget-metric-count')).toHaveText('4 selected');
   await expect(page.locator('[data-nutrition-widget-metric]:checked')).toHaveCount(4);
-  expect(await page.locator('[data-nutrition-widget-metric]:checked').evaluateAll(inputs =>
+  expect(await page.locator('[data-nutrition-widget-metric]:checked').evaluateAll((inputs:HTMLInputElement[]) =>
     inputs.map(input => input instanceof HTMLInputElement ? input.value : '')
   )).toEqual(['proteinG', 'carbohydrateG', 'fatG', 'fiberG']);
-  const widgetOptionValues = await page.locator('[data-nutrition-widget-metric]').evaluateAll(inputs =>
+  const widgetOptionValues = await page.locator('[data-nutrition-widget-metric]').evaluateAll((inputs:HTMLInputElement[]) =>
     inputs.map(input => input instanceof HTMLInputElement ? input.value : '').filter(Boolean).sort()
   );
   const trackedNutrientValues = await page.evaluate(async () =>
@@ -1843,7 +1844,7 @@ test('quick drink logging stores total beverage volume and plain water separatel
       import('/js/data.js'),
       import('/js/nutrition.js'),
     ]);
-    state.importedData.nutritionTargets = {
+    (state.importedData as unknown as {nutritionTargets: unknown}).nutritionTargets = {
       ...targets.getNutritionTargets(),
       widgetNutrients: [...targets.DEFAULT_NUTRITION_WIDGET_NUTRIENTS, 'fluidMl'],
     };
@@ -1867,7 +1868,7 @@ test('quick drink logging stores total beverage volume and plain water separatel
   await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).state.nutritionSummary?.windows?.d7?.dailyAverages?.fluidMl)).toBe(500);
   const result = await page.evaluate(async () => {
     const meals = await (await import('/js/nutrition-store.js')).listActiveProfileMeals();
-    const drink = meals.find(meal => meal.source?.kind === 'manual-water');
+    const drink = meals.find(meal => (meal.source as {kind: unknown})?.kind === 'manual-water');
     return { name: drink?.name, mealType: drink?.mealType, nutrients: drink?.nutrients };
   });
   expect(result).toEqual({ name: 'Sparkling water', mealType: 'drink', nutrients: { fluidMl: 500, plainWaterMl: 500 } });
@@ -2076,34 +2077,34 @@ test('nutrition review, Debug comparison, targets, and drink logging fit a narro
   await page.locator('[data-nutrition-action="toggle-comparison"]').first().click();
 
   const mobileLayout = await page.evaluate(() => {
-    const modal = document.querySelector('#detail-modal');
-    const modalRect = modal.getBoundingClientRect();
+    const modal = document.querySelector<HTMLElement>('#detail-modal');
+    const modalRect = modal!.getBoundingClientRect();
     const selectors = [
       '#nutrition-meal-type', '.nutrition-component-row', '#nutrition-model-comparison',
       '.nutrition-comparison-model', '.nutrition-comparison-reference-grid', '.nutrition-fuel-preview',
     ];
-    const offenders = selectors.flatMap(selector => [...document.querySelectorAll(selector)])
+    const offenders = selectors.flatMap((selector: string) => [...document.querySelectorAll<HTMLElement>(selector)])
       .filter(element => {
         const rect = element.getBoundingClientRect();
         return rect.left < modalRect.left - 1 || rect.right > modalRect.right + 1;
       })
       .map(element => element.className || element.id || element.tagName);
     const touchTargets = [
-      document.querySelector('#detail-modal > .modal-close'),
-      document.querySelector('.nutrition-mode-navigation button'),
-      document.querySelector('#nutrition-run-comparison'),
-      document.querySelector('.nutrition-comparison-model'),
+      document.querySelector<HTMLElement>('#detail-modal > .modal-close'),
+      document.querySelector<HTMLElement>('.nutrition-mode-navigation button'),
+      document.querySelector<HTMLElement>('#nutrition-run-comparison'),
+      document.querySelector<HTMLElement>('.nutrition-comparison-model'),
     ].filter(Boolean).map(element => {
-      const rect = element.getBoundingClientRect();
+      const rect = element!.getBoundingClientRect();
       return { width: rect.width, height: rect.height };
     });
     const controlFontSizes = [
-      document.querySelector('[data-nutrition-reference="mealName"]'),
-      document.querySelector('[data-nutrition-reference="energyKcal"]'),
-      document.querySelector('#nutrition-meal-type'),
-    ].filter(Boolean).map(element => Number.parseFloat(getComputedStyle(element).fontSize));
+      document.querySelector<HTMLElement>('[data-nutrition-reference="mealName"]'),
+      document.querySelector<HTMLElement>('[data-nutrition-reference="energyKcal"]'),
+      document.querySelector<HTMLElement>('#nutrition-meal-type'),
+    ].filter(Boolean).map(element => Number.parseFloat(getComputedStyle(element!).fontSize));
     return {
-      modalOverflow: modal.scrollWidth - modal.clientWidth,
+      modalOverflow: modal!.scrollWidth - modal!.clientWidth,
       modalInsideViewport: modalRect.left >= -1 && modalRect.right <= innerWidth + 1
         && modalRect.top >= -1 && modalRect.bottom <= innerHeight + 1,
       offenders,
@@ -2139,21 +2140,21 @@ test('nutrition review, Debug comparison, targets, and drink logging fit a narro
     },
   ];
   for (const surface of mobileSurfaces) {
-    await page.evaluate(async open => (await import('/js/nutrition.js'))[open](), surface.open);
+    await page.evaluate(async open => (await import('/js/nutrition.js'))[open as 'openNutritionTargets'|'openFluidLog'](), surface.open);
     const audit = await page.evaluate(({ selectors, controls, targets }) => {
-      const modal = document.querySelector('#detail-modal');
-      const modalRect = modal.getBoundingClientRect();
-      const offenders = selectors.flatMap(selector => [...document.querySelectorAll(selector)])
+      const modal = document.querySelector<HTMLElement>('#detail-modal');
+      const modalRect = modal!.getBoundingClientRect();
+      const offenders = selectors.flatMap((selector: string) => [...document.querySelectorAll<HTMLElement>(selector)])
         .filter(element => {
           const rect = element.getBoundingClientRect();
           return rect.left < modalRect.left - 1 || rect.right > modalRect.right + 1;
         });
-      const fontSizes = controls.flatMap(selector => [...document.querySelectorAll(selector)])
-        .map(element => Number.parseFloat(getComputedStyle(element).fontSize));
-      const touchTargets = targets.flatMap(selector => [...document.querySelectorAll(selector)])
+      const fontSizes = controls.flatMap((selector: string) => [...document.querySelectorAll<HTMLElement>(selector)])
+        .map(element => Number.parseFloat(getComputedStyle(element!).fontSize));
+      const touchTargets = targets.flatMap((selector: string) => [...document.querySelectorAll<HTMLElement>(selector)])
         .map(element => element.getBoundingClientRect());
       return {
-        modalOverflow: modal.scrollWidth - modal.clientWidth,
+        modalOverflow: modal!.scrollWidth - modal!.clientWidth,
         modalInsideViewport: modalRect.left >= -1 && modalRect.right <= innerWidth + 1
           && modalRect.top >= -1 && modalRect.bottom <= innerHeight + 1,
         offenderCount: offenders.length,
@@ -2210,11 +2211,11 @@ test('mobile photo analysis moves focus to the editable review', async ({ page }
   await expect(page.locator('#nutrition-meal-name')).toHaveValue('Mobile rice bowl');
   await expect(page.locator('.nutrition-review-heading')).toBeFocused();
   const handoff = await page.evaluate(() => {
-    const modal = document.querySelector('#detail-modal');
-    const heading = document.querySelector('.nutrition-review-heading');
-    const modalRect = modal.getBoundingClientRect();
-    const headingRect = heading.getBoundingClientRect();
-    return { scrollTop: modal.scrollTop, headingVisible: headingRect.top >= modalRect.top && headingRect.top < modalRect.bottom };
+    const modal = document.querySelector<HTMLElement>('#detail-modal');
+    const heading = document.querySelector<HTMLElement>('.nutrition-review-heading');
+    const modalRect = modal!.getBoundingClientRect();
+    const headingRect = heading!.getBoundingClientRect();
+    return { scrollTop: modal!.scrollTop, headingVisible: headingRect.top >= modalRect.top && headingRect.top < modalRect.bottom };
   });
   expect(handoff.scrollTop).toBeGreaterThan(0);
   expect(handoff.headingVisible).toBe(true);
@@ -2294,7 +2295,7 @@ test('the logger links to a bounded chronological meal timeline on mobile', asyn
   await expect(showMore).toContainText('38 remaining');
   expect(await showMore.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
   await modal.evaluate(element => { element.scrollTop = 240; });
-  await showMore.evaluate(element => element.click());
+  await showMore.evaluate((element:HTMLElement) => element.click());
   await expect(timeline.locator('.nutrition-meal-row')).toHaveCount(24);
   await expect(page.getByRole('button', { name: /Show more meals/ })).toContainText('26 remaining');
   await expect.poll(() => modal.evaluate(element => element.scrollTop)).toBeGreaterThanOrEqual(230);

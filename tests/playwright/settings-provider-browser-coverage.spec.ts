@@ -1,19 +1,19 @@
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = (path) => `${path}?settingsProviderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path:string) => `${path}?settingsProviderCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 test('local AI settings controls cover connection, advisor, privacy, and hardware override branches', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ controlsUrl, piiUrl, providerStorageUrl }) => {
-    const controls = await import(controlsUrl);
-    const pii = await import(piiUrl);
-    const providerStorage = await import(providerStorageUrl);
+    const controls = ((await import(controlsUrl) as unknown) as Pick<typeof import('../../js/provider-local-ai-controls.js'),'testOllamaConnection'|'configureLocalAiControls'|'initSettingsOllamaCheck'|'refreshModelAdvisor'|'copyOllamaPullCmd'|'applyHardwareOverride'|'testPIIOllamaConnection'|'renderModelAdvisor'>);
+    await (import(piiUrl) as Promise<unknown>);
+    const providerStorage = ((await import(providerStorageUrl) as unknown) as Pick<typeof import('../../js/api-provider-storage.js'),'setOllamaMainModel'|'getOllamaMainModel'|'getOllamaPIIApiKey'|'saveOllamaConfig'|'getOllamaConfig'>);
     const cryptoStore = await import('/js/crypto.js');
     const settingsBridge = await import('/js/settings-runtime-bridge.js');
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+    const wait = (ms:number) => new Promise(resolve => setTimeout(resolve, ms));
+    const jsonResponse = (body:unknown, status = 200) => new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -27,13 +27,13 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
       'labcharts-ollama-pii-enabled',
       'labcharts-hw-vram-override',
     ];
-    const oldStorage = {};
+    const oldStorage: Record<string,string|null|undefined> = {};
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
     const oldGlobals = {
       fetch: window.fetch,
       clipboard: navigator.clipboard,
     };
-    const writes = [];
+    const writes: string[] = [];
     let privacyUpdates = 0;
     let chatReturns = 0;
     let corsProbe = false;
@@ -49,7 +49,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
         value: {
-          writeText: async value => { writes.push(String(value)); },
+          writeText: async (value:unknown) => { writes.push(String(value)); },
         },
       });
 
@@ -74,12 +74,12 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         </section>
       `);
 
-      const urlInput = document.getElementById('local-ai-url-input');
-      const statusText = document.getElementById('local-ai-status-text');
-      const dot = document.getElementById('local-ai-dot');
+      const urlInput = (document.getElementById('local-ai-url-input') as HTMLInputElement|null);
+      const statusText = (document.getElementById('local-ai-status-text') as HTMLElement|null);
+      const dot = (document.getElementById('local-ai-dot') as HTMLElement|null);
 
       window.fetch = async function(url, opts = {}) {
-        const href = typeof url === 'string' ? url : url?.url || '';
+        const href = typeof url === 'string' ? url : (url as {url?:string}|null|undefined)?.url || '';
         if (href === 'http://localhost:11434/v1/models' && opts.method === 'HEAD') {
           return new Response('', { status: 204 });
         }
@@ -101,11 +101,11 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         }
         return oldGlobals.fetch.call(window, url, opts);
       };
-      urlInput.value = 'http://localhost:11434';
+      urlInput!.value = 'http://localhost:11434';
       await controls.testOllamaConnection();
       await wait(0);
-      const defaultReturnCallbackAllowsConnection = statusText.textContent.includes('Connected')
-        && dot.classList.contains('connected')
+      const defaultReturnCallbackAllowsConnection = statusText!.textContent!.includes('Connected')
+        && dot!.classList.contains('connected')
         && chatReturns === 0;
 
       controls.configureLocalAiControls({
@@ -114,19 +114,19 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
       });
 
       controls.initSettingsOllamaCheck();
-      for (let i = 0; i < 30 && statusText.textContent.includes('Checking'); i += 1) {
+      for (let i = 0; i < 30 && statusText!.textContent!.includes('Checking'); i += 1) {
         await wait(10);
       }
-      const backgroundDiscoveryDoesNotRequestActivation = statusText.textContent.includes('Connected')
+      const backgroundDiscoveryDoesNotRequestActivation = statusText!.textContent!.includes('Connected')
         && activationRequests === 0;
 
-      urlInput.value = 'not a url';
+      urlInput!.value = 'not a url';
       await controls.testOllamaConnection();
-      const invalidUrlBranch = statusText.textContent.includes('valid Local AI URL')
-        && dot.classList.contains('disconnected');
+      const invalidUrlBranch = statusText!.textContent!.includes('valid Local AI URL')
+        && dot!.classList.contains('disconnected');
 
       window.fetch = async function(url, opts = {}) {
-        const href = typeof url === 'string' ? url : url?.url || '';
+        const href = typeof url === 'string' ? url : (url as {url?:string}|null|undefined)?.url || '';
         if (href === 'http://localhost:11434/v1/models' && opts.method === 'HEAD' && opts.mode === 'no-cors') {
           corsProbe = true;
           return new Response('', { status: 200 });
@@ -136,17 +136,17 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         }
         return oldGlobals.fetch.call(window, url, opts);
       };
-      urlInput.value = 'http://localhost:11434';
+      urlInput!.value = 'http://localhost:11434';
       await controls.testOllamaConnection();
       const corsHelp = corsProbe
-        && statusText.textContent.includes('Blocked by CORS')
-        && statusText.textContent.includes('Ollama')
-        && !statusText.textContent.includes('LM Studio')
-        && !statusText.textContent.includes('Unsloth')
-        && dot.classList.contains('disconnected');
+        && statusText!.textContent!.includes('Blocked by CORS')
+        && statusText!.textContent!.includes('Ollama')
+        && !statusText!.textContent!.includes('LM Studio')
+        && !statusText!.textContent!.includes('Unsloth')
+        && dot!.classList.contains('disconnected');
 
       window.fetch = async function(url, opts = {}) {
-        const href = typeof url === 'string' ? url : url?.url || '';
+        const href = typeof url === 'string' ? url : (url as {url?:string}|null|undefined)?.url || '';
         if (href === 'http://localhost:11434/v1/models' && opts.method === 'HEAD') {
           return new Response('', { status: 204 });
         }
@@ -177,78 +177,78 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         }
         return oldGlobals.fetch.call(window, url, opts);
       };
-      urlInput.value = ' http://localhost:11434/ ';
+      urlInput!.value = ' http://localhost:11434/ ';
       providerStorage.setOllamaMainModel('kimi-k2.5:cloud');
       await controls.testOllamaConnection();
       await wait(0);
-      const localConnectSuccess = statusText.textContent.includes('Connected')
-        && dot.classList.contains('connected')
-        && document.getElementById('local-ai-model-section')?.style.display === 'block'
-        && document.getElementById('local-ai-model-select')?.options.length === 2
-        && document.getElementById('local-ai-advisor')?.textContent.includes('llama3.2')
+      const localConnectSuccess = statusText!.textContent!.includes('Connected')
+        && dot!.classList.contains('connected')
+        && (document.getElementById('local-ai-model-section') as HTMLElement|null)?.style.display === 'block'
+        && (document.getElementById('local-ai-model-select') as HTMLSelectElement|null)?.options.length === 2
+        && (document.getElementById('local-ai-advisor') as HTMLElement|null)?.textContent!.includes('llama3.2')
         && localFetchCount >= 1
         && privacyUpdates >= 1
         && chatReturns === 1
         && activationRequests === 1;
       const staleLocalModelReconciled = providerStorage.getOllamaMainModel() === 'llama3.2'
-        && statusText.textContent.includes('llama3.2')
-        && !statusText.textContent.includes('kimi-k2.5:cloud');
-      const ollamaAllocationDisplayed = document.getElementById('local-ai-advisor')?.textContent.includes('currently allocated')
-        && document.getElementById('local-ai-advisor')?.textContent.includes('8.7 GB VRAM')
-        && document.getElementById('local-ai-advisor')?.textContent.includes('loaded now')
-        && document.getElementById('local-ai-advisor')?.textContent.includes('available \u2014 loads on first request')
-        && !document.getElementById('local-ai-advisor')?.textContent.includes('not loaded');
-      document.getElementById('local-ai-advisor').innerHTML = '';
+        && statusText!.textContent!.includes('llama3.2')
+        && !statusText!.textContent!.includes('kimi-k2.5:cloud');
+      const ollamaAllocationDisplayed = (document.getElementById('local-ai-advisor') as HTMLElement|null)?.textContent!.includes('currently allocated')
+        && (document.getElementById('local-ai-advisor') as HTMLElement|null)?.textContent!.includes('8.7 GB VRAM')
+        && (document.getElementById('local-ai-advisor') as HTMLElement|null)?.textContent!.includes('loaded now')
+        && (document.getElementById('local-ai-advisor') as HTMLElement|null)?.textContent!.includes('available \u2014 loads on first request')
+        && !(document.getElementById('local-ai-advisor') as HTMLElement|null)?.textContent!.includes('not loaded');
+      (document.getElementById('local-ai-advisor') as HTMLElement|null)!.innerHTML = '';
       controls.refreshModelAdvisor();
-      for (let i = 0; i < 20 && !document.getElementById('local-ai-advisor')?.textContent.includes('qwen2.5:14b'); i += 1) {
+      for (let i = 0; i < 20 && !(document.getElementById('local-ai-advisor') as HTMLElement|null)?.textContent!.includes('qwen2.5:14b'); i += 1) {
         await wait(10);
       }
       const refreshModelAdvisorRerendersCachedDetails =
-        document.getElementById('local-ai-advisor')?.textContent.includes('qwen2.5:14b');
+        (document.getElementById('local-ai-advisor') as HTMLElement|null)?.textContent!.includes('qwen2.5:14b');
 
       controls.copyOllamaPullCmd('ollama pull qwen2.5:14b');
       await wait(0);
       const copyPullCommand = writes.includes('ollama pull qwen2.5:14b');
 
-      const overrideToggle = document.querySelector('[data-local-ai-action="toggle-override"]');
+      const overrideToggle = document.querySelector<HTMLElement>('[data-local-ai-action="toggle-override"]');
       overrideToggle?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      const hardwareOverrideKeyboardToggle = document.querySelector('.model-advisor-override-body')?.style.display === 'flex'
+      const hardwareOverrideKeyboardToggle = document.querySelector<HTMLElement>('.model-advisor-override-body')?.style.display === 'flex'
         && overrideToggle?.getAttribute('aria-expanded') === 'true';
-      document.getElementById('hw-vram-override-input').value = '16';
-      document.querySelector('[data-local-ai-action="apply-hardware-override"]')?.click();
-      for (let i = 0; i < 20 && !document.getElementById('local-ai-advisor')?.textContent.includes('16 GB'); i += 1) {
+      (document.getElementById('hw-vram-override-input') as HTMLInputElement|null)!.value = '16';
+      document.querySelector<HTMLButtonElement>('[data-local-ai-action="apply-hardware-override"]')?.click();
+      for (let i = 0; i < 20 && !(document.getElementById('local-ai-advisor') as HTMLElement|null)?.textContent!.includes('16 GB'); i += 1) {
         await wait(10);
       }
       const hardwareOverrideApplied = localStorage.getItem('labcharts-hw-vram-override') === '16'
-        && document.getElementById('local-ai-advisor')?.textContent.includes('16 GB');
+        && (document.getElementById('local-ai-advisor') as HTMLElement|null)?.textContent!.includes('16 GB');
       controls.applyHardwareOverride('0');
       await wait(0);
       const invalidHardwareOverride = [...document.querySelectorAll('.notification-toast')]
-        .some(el => el.textContent.includes('valid VRAM'));
-      document.querySelector('[data-local-ai-action="clear-hardware-override"]')?.click();
+        .some(el => el.textContent!.includes('valid VRAM'));
+      document.querySelector<HTMLButtonElement>('[data-local-ai-action="clear-hardware-override"]')?.click();
       for (let i = 0; i < 20 && localStorage.getItem('labcharts-hw-vram-override'); i += 1) {
         await wait(10);
       }
       const hardwareOverrideCleared = !localStorage.getItem('labcharts-hw-vram-override');
 
-      document.getElementById('pii-local-url-input').value = 'http://localhost:11434';
+      (document.getElementById('pii-local-url-input') as HTMLInputElement|null)!.value = 'http://localhost:11434';
       await controls.testPIIOllamaConnection();
-      const piiConnectSuccess = document.getElementById('pii-local-status-text')?.textContent.includes('Connection verified')
-        && document.getElementById('pii-local-dot')?.classList.contains('connected')
-        && document.getElementById('pii-local-toggle')?.checked === false
-        && document.getElementById('pii-model-dropdown')?.style.display === 'block'
-        && document.getElementById('pii-model-select')?.options.length === 2
+      const piiConnectSuccess = (document.getElementById('pii-local-status-text') as HTMLElement|null)?.textContent!.includes('Connection verified')
+        && (document.getElementById('pii-local-dot') as HTMLElement|null)?.classList.contains('connected')
+        && (document.getElementById('pii-local-toggle') as HTMLInputElement|null)?.checked === false
+        && (document.getElementById('pii-model-dropdown') as HTMLElement|null)?.style.display === 'block'
+        && (document.getElementById('pii-model-select') as HTMLSelectElement|null)?.options.length === 2
         && localStorage.getItem('labcharts-ollama-pii-enabled') !== 'true'
         && providerStorage.getOllamaPIIApiKey() === 'sk-pii-local';
 
       await providerStorage.saveOllamaConfig({ url: 'https://remote.example/v1', model: 'remote-model', mode: 'openai-compatible', apiKey: '' });
-      document.getElementById('local-ai-model-select').innerHTML = '<option value="remote-small">remote-small</option><option value="remote-huge">remote-huge</option>';
+      (document.getElementById('local-ai-model-select') as HTMLSelectElement|null)!.innerHTML = '<option value="remote-small">remote-small</option><option value="remote-huge">remote-huge</option>';
       await controls.renderModelAdvisor([
         { name: 'remote-small', size: 2000000000, quantLevel: 'Q4', paramSize: '2B' },
         { name: 'remote-huge', size: 30000000000, quantLevel: 'Q4', paramSize: '30B' },
-      ], document.getElementById('local-ai-model-select'), false);
-      const remoteAdvisorPromptsVram = document.getElementById('local-ai-advisor')?.textContent.includes('Remote server')
-        && document.querySelector('.model-advisor-override-body')?.style.display === 'flex';
+      ], (document.getElementById('local-ai-model-select') as HTMLSelectElement|null), false);
+      const remoteAdvisorPromptsVram = (document.getElementById('local-ai-advisor') as HTMLElement|null)?.textContent!.includes('Remote server')
+        && document.querySelector<HTMLElement>('.model-advisor-override-body')?.style.display === 'flex';
 
       return {
         defaultReturnCallbackAllowsConnection,
@@ -275,10 +275,10 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
       }
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);
-        else localStorage.setItem(key, oldStorage[key]);
+        else localStorage.setItem(key, oldStorage[key]!);
       }
       cryptoStore.updateKeyCache('labcharts-ollama', oldStorage['labcharts-ollama'] || '');
-      document.getElementById('local-ai-fixture')?.remove();
+      (document.getElementById('local-ai-fixture') as HTMLElement|null)?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
     }
   }, {
@@ -297,18 +297,18 @@ test('switching local backends automatically releases the previous server VRAM f
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const result = await page.evaluate(async ({ controlsUrl, providerStorageUrl }) => {
-    const controls = await import(controlsUrl);
-    const providerStorage = await import(providerStorageUrl);
+    const controls = ((await import(controlsUrl) as unknown) as Pick<typeof import('../../js/provider-local-ai-controls.js'),'testOllamaConnection'|'configureLocalAiControls'|'initSettingsOllamaCheck'|'refreshModelAdvisor'|'copyOllamaPullCmd'|'applyHardwareOverride'|'testPIIOllamaConnection'|'renderModelAdvisor'>);
+    const providerStorage = ((await import(providerStorageUrl) as unknown) as Pick<typeof import('../../js/api-provider-storage.js'),'setOllamaMainModel'|'getOllamaMainModel'|'getOllamaPIIApiKey'|'saveOllamaConfig'|'getOllamaConfig'>);
     const discovery = await import('/js/local-ai-discovery.js');
     const cryptoStore = await import('/js/crypto.js');
-    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+    const jsonResponse = (body:unknown, status = 200) => new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json' },
     });
     const oldFetch = window.fetch;
     const oldConfig = cryptoStore.getCachedKey('labcharts-ollama');
     const oldModel = localStorage.getItem('labcharts-ollama-model');
-    const unloadBodies = [];
+    const unloadBodies: unknown[] = [];
     try {
       document.body.insertAdjacentHTML('beforeend', `
         <section id="local-ai-switch-fixture">
@@ -344,7 +344,7 @@ test('switching local backends automatically releases the previous server VRAM f
           return jsonResponse({ data: [{ id: 'qwen/qwen3.6-27b' }] });
         }
         if (href === 'http://10.222.88.195:1234/api/v1/models/unload' && options.method === 'POST') {
-          unloadBodies.push(JSON.parse(options.body));
+          unloadBodies.push(JSON.parse(options.body as string) as unknown);
           return jsonResponse({ ok: true });
         }
         if (href === 'http://10.222.88.195:11434/api/v1/models') return jsonResponse({}, 404);
@@ -359,13 +359,13 @@ test('switching local backends automatically releases the previous server VRAM f
       await controls.testOllamaConnection();
 
       return {
-        noConfirmationRequired: !document.getElementById('confirm-dialog-overlay'),
+        noConfirmationRequired: !(document.getElementById('confirm-dialog-overlay') as HTMLElement|null),
         unloadUsesLoadedInstance: unloadBodies.length === 1
-          && unloadBodies[0].instance_id === 'qwen-lm-instance',
+          && (unloadBodies[0] as {instance_id?:unknown}).instance_id === 'qwen-lm-instance',
         switchSavedAfterRelease: providerStorage.getOllamaConfig().url === 'http://10.222.88.195:11434'
           && providerStorage.getOllamaConfig().mode === 'ollama'
           && providerStorage.getOllamaMainModel() === 'qwen3.6:27b',
-        statusShowsNewServer: document.getElementById('local-ai-status-text')?.textContent.includes('qwen3.6:27b'),
+        statusShowsNewServer: (document.getElementById('local-ai-status-text') as HTMLElement|null)?.textContent!.includes('qwen3.6:27b'),
       };
     } finally {
       window.fetch = oldFetch;
@@ -373,7 +373,7 @@ test('switching local backends automatically releases the previous server VRAM f
       cryptoStore.updateKeyCache('labcharts-ollama', oldConfig || '');
       if (oldModel == null) localStorage.removeItem('labcharts-ollama-model');
       else localStorage.setItem('labcharts-ollama-model', oldModel);
-      document.getElementById('local-ai-switch-fixture')?.remove();
+      (document.getElementById('local-ai-switch-fixture') as HTMLElement|null)?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
     }
   }, {
@@ -389,14 +389,14 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ syncPanelUrl, syncStateUrl, syncRuntimeUrl, syncMessengerUrl }) => {
-    const syncPanel = await import(syncPanelUrl);
+    const syncPanel = ((await import(syncPanelUrl) as unknown) as Pick<typeof import('../../js/settings-sync-panel.js'),'loadSettingsSyncPanelModule'|'configureSettingsSyncPanelDeps'|'renderSyncSection'|'renderMessengerSection'>);
     await syncPanel.loadSettingsSyncPanelModule();
-    const syncState = await import(syncStateUrl);
-    const syncRuntime = await import(syncRuntimeUrl);
-    const syncMessenger = await import(syncMessengerUrl);
+    const syncState = ((await import(syncStateUrl) as unknown) as Pick<typeof import('../../js/sync-settings-state.js'),'setSyncEnabled'|'setSyncPaused'>);
+    const syncRuntime = ((await import(syncRuntimeUrl) as unknown) as Pick<typeof import('../../js/sync-runtime.js'),'setSyncAppOwner'>);
+    const syncMessenger = ((await import(syncMessengerUrl) as unknown) as Pick<typeof import('../../js/sync-messenger.js'),'isMessengerEnabled'|'getMessengerToken'|'getMessengerContextKey'|'getAgentAccessState'>);
     const settingsBridge = await import('/js/settings-runtime-bridge.js');
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async (predicate, label) => {
+    const wait = (ms:number) => new Promise(resolve => setTimeout(resolve, ms));
+    const waitFor = async (predicate:()=>unknown, label:string) => {
       for (let attempt = 0; attempt < 60; attempt += 1) {
         if (predicate()) return true;
         await wait(25);
@@ -415,25 +415,25 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       'labcharts-agent-context-key',
       'labcharts-agent-wearable-series-days',
     ];
-    const oldStorage = {};
+    const oldStorage: Record<string,string|null|undefined> = {};
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
     const oldGlobals = {
       clipboard: navigator.clipboard,
       fetch: window.fetch,
       WebSocket: window.WebSocket,
     };
-    const writes = [];
-    const applied = [];
-    const rejected = [];
-    const openedTabs = [];
+    const writes: string[] = [];
+    const applied: unknown[] = [];
+    const rejected: unknown[] = [];
+    const openedTabs: unknown[] = [];
     let syncIndicatorUpdates = 0;
     let pushedContexts = 0;
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
-      openSettingsModal: tab => { openedTabs.push(tab); },
+      openSettingsModal: (tab:unknown) => { openedTabs.push(tab); },
     });
     const previousSyncPanelDeps = syncPanel.configureSettingsSyncPanelDeps({
-      applyPendingTombstone: async id => { applied.push(id); },
-      rejectPendingTombstone: async id => { rejected.push(id); },
+      applyPendingTombstone: async (id:unknown) => { applied.push(id); },
+      rejectPendingTombstone: async (id:unknown) => { rejected.push(id); },
       listPendingTombstones: () => [{ id: 'profile-old', name: 'Old Profile', at: '2026-06-07T12:00:00Z' }],
       updateSyncIndicator: () => { syncIndicatorUpdates += 1; },
       pushContextToGateway: () => { pushedContexts += 1; },
@@ -443,17 +443,17 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       for (const key of storageKeys) localStorage.removeItem(key);
       syncState.setSyncEnabled(false);
       window.fetch = async () => new Response('', { status: 200 });
-      window.WebSocket = class {
-        constructor(url) {
-          this.url = url;
-          Promise.resolve().then(() => this.onopen?.());
+      (window as unknown as {WebSocket:unknown}).WebSocket = class {
+        constructor(url:unknown) {
+          (this as unknown as {url:unknown}).url = url;
+          Promise.resolve().then(() => (this as {onopen?:()=>unknown}).onopen?.());
         }
         close() {}
       };
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
         value: {
-          writeText: async value => { writes.push(String(value)); },
+          writeText: async (value:unknown) => { writes.push(String(value)); },
         },
       });
 
@@ -461,94 +461,94 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         <section id="sync-section"></section>
         <section id="messenger-section"></section>
       `);
-      const syncSection = document.getElementById('sync-section');
-      const messengerSection = document.getElementById('messenger-section');
+      const syncSection = (document.getElementById('sync-section') as HTMLElement|null);
+      const messengerSection = (document.getElementById('messenger-section') as HTMLElement|null);
 
-      syncSection.innerHTML = syncPanel.renderSyncSection();
-      const tombstoneBanner = syncSection.textContent.includes('Old Profile');
-      syncSection.querySelector('[data-sync-action="apply-tombstone"]').click();
-      syncSection.querySelector('[data-sync-action="reject-tombstone"]').click();
+      syncSection!.innerHTML = syncPanel.renderSyncSection();
+      const tombstoneBanner = syncSection!.textContent!.includes('Old Profile');
+      syncSection!.querySelector<HTMLButtonElement>('[data-sync-action="apply-tombstone"]')!.click();
+      syncSection!.querySelector<HTMLButtonElement>('[data-sync-action="reject-tombstone"]')!.click();
       const tombstoneDelegates = await waitFor(() => applied.includes('profile-old')
         && rejected.includes('profile-old')
         && openedTabs.filter(tab => tab === 'data').length >= 2, 'tombstone delegates');
 
-      syncSection.querySelector('[data-sync-action="toggle-sync"]').checked = true;
-      syncSection.querySelector('[data-sync-action="toggle-sync"]').dispatchEvent(new Event('change', { bubbles: true }));
+      syncSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-sync"]')!.checked = true;
+      syncSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-sync"]')!.dispatchEvent(new Event('change', { bubbles: true }));
       await wait(0);
-      const setupOverlay = document.getElementById('sync-setup-overlay');
+      const setupOverlay = (document.getElementById('sync-setup-overlay') as HTMLElement|null);
       const setupModalOpened = setupOverlay?.classList.contains('show')
-        && syncSection.querySelector('[data-sync-action="toggle-sync"]')?.checked === true;
-      setupOverlay.click();
-      const setupNudgesOnBackdrop = setupOverlay.querySelector('.confirm-dialog')?.classList.contains('modal-nudge');
-      setupOverlay.querySelector('[data-sync-setup-action="setup-restore"]').click();
-      const setupRestoreShown = setupOverlay.querySelector('#sync-setup-restore')?.style.display === 'block';
-      setupOverlay.querySelector('[data-sync-setup-action="setup-back"]').click();
-      const setupBackRestoresChoices = setupOverlay.querySelector('#sync-setup-choices')?.style.display === '';
+        && syncSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-sync"]')?.checked === true;
+      setupOverlay!.click();
+      const setupNudgesOnBackdrop = setupOverlay!.querySelector<HTMLElement>('.confirm-dialog')?.classList.contains('modal-nudge');
+      setupOverlay!.querySelector<HTMLButtonElement>('[data-sync-setup-action="setup-restore"]')!.click();
+      const setupRestoreShown = setupOverlay!.querySelector<HTMLElement>('#sync-setup-restore')?.style.display === 'block';
+      setupOverlay!.querySelector<HTMLButtonElement>('[data-sync-setup-action="setup-back"]')!.click();
+      const setupBackRestoresChoices = setupOverlay!.querySelector<HTMLElement>('#sync-setup-choices')?.style.display === '';
 
       const setupDoneButton = document.createElement('button');
       setupDoneButton.dataset.syncSetupAction = 'setup-done';
-      setupOverlay.querySelector('.confirm-dialog')?.appendChild(setupDoneButton);
+      setupOverlay!.querySelector<HTMLElement>('.confirm-dialog')?.appendChild(setupDoneButton);
       setupDoneButton.click();
-      const setupDoneCloses = !setupOverlay.classList.contains('show');
+      const setupDoneCloses = !setupOverlay!.classList.contains('show');
 
       syncState.setSyncEnabled(true);
       localStorage.setItem('labcharts-sync-enabled', 'true');
-      messengerSection.innerHTML = syncPanel.renderMessengerSection();
-      const ownerPendingToggle = messengerSection.querySelector('[data-sync-action="toggle-messenger"]');
+      messengerSection!.innerHTML = syncPanel.renderMessengerSection();
+      const ownerPendingToggle = messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]');
       const ownerPendingDisabled = ownerPendingToggle?.disabled === true;
       syncRuntime.setSyncAppOwner({
         id: 'abcdefghijklmnopqrstuv',
         writeKey: new Uint8Array(32).fill(7),
       });
       await wait(0);
-      const ownerReadyRerenderEnables = messengerSection.querySelector('[data-sync-action="toggle-messenger"]')?.disabled === false;
+      const ownerReadyRerenderEnables = messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]')?.disabled === false;
       localStorage.setItem('labcharts-sync-relay', 'wss://relay.example');
-      syncSection.innerHTML = syncPanel.renderSyncSection();
-      const enabledRender = syncSection.textContent.includes('Your mnemonic')
-        && syncSection.querySelector('#sync-relay-input')?.value === 'wss://relay.example';
+      syncSection!.innerHTML = syncPanel.renderSyncSection();
+      const enabledRender = syncSection!.textContent!.includes('Your mnemonic')
+        && syncSection!.querySelector<HTMLInputElement>('#sync-relay-input')?.value === 'wss://relay.example';
       syncState.setSyncPaused(true);
-      syncSection.innerHTML = syncPanel.renderSyncSection();
-      const pausedRender = syncSection.textContent.includes('Paused')
-        && syncSection.textContent.includes('identity and sync history are retained')
-        && !!syncSection.querySelector('[data-sync-action="resume-sync"]')
-        && !!syncSection.querySelector('[data-sync-action="disconnect-sync"]')
-        && !syncSection.querySelector('[data-sync-action="setup-restore-direct"]');
+      syncSection!.innerHTML = syncPanel.renderSyncSection();
+      const pausedRender = syncSection!.textContent!.includes('Paused')
+        && syncSection!.textContent!.includes('identity and sync history are retained')
+        && !!syncSection!.querySelector<HTMLButtonElement>('[data-sync-action="resume-sync"]')
+        && !!syncSection!.querySelector<HTMLButtonElement>('[data-sync-action="disconnect-sync"]')
+        && !syncSection!.querySelector<HTMLButtonElement>('[data-sync-action="setup-restore-direct"]');
       syncState.setSyncPaused(false);
-      syncSection.innerHTML = syncPanel.renderSyncSection();
-      syncSection.querySelector('[data-sync-action="open-restore-dialog"]').click();
+      syncSection!.innerHTML = syncPanel.renderSyncSection();
+      syncSection!.querySelector<HTMLButtonElement>('[data-sync-action="open-restore-dialog"]')!.click();
       await wait(0);
-      const restoreOverlay = document.getElementById('sync-restore-overlay');
+      const restoreOverlay = (document.getElementById('sync-restore-overlay') as HTMLElement|null);
       const restoreDialogOpens = restoreOverlay?.classList.contains('show')
-        && restoreOverlay.querySelector('#sync-restore-dialog-go')?.disabled === true;
-      const restoreInput = restoreOverlay.querySelector('#sync-restore-dialog-input');
-      restoreInput.value = words.slice(0, 3).join(' ');
-      restoreInput.dispatchEvent(new Event('input', { bubbles: true }));
-      const restoreCountsWords = restoreOverlay.querySelector('#sync-restore-dialog-msg')?.textContent.includes('3 words');
-      restoreInput.value = mnemonic;
-      restoreInput.dispatchEvent(new Event('input', { bubbles: true }));
-      const restoreEnablesSubmit = restoreOverlay.querySelector('#sync-restore-dialog-msg')?.textContent.includes('24 words')
-        && restoreOverlay.querySelector('#sync-restore-dialog-go')?.disabled === false;
-      restoreOverlay.click();
-      const restoreBackdropCloses = !restoreOverlay.classList.contains('show');
+        && restoreOverlay!.querySelector<HTMLButtonElement>('#sync-restore-dialog-go')?.disabled === true;
+      const restoreInput = restoreOverlay!.querySelector<HTMLTextAreaElement>('#sync-restore-dialog-input');
+      restoreInput!.value = words.slice(0, 3).join(' ');
+      restoreInput!.dispatchEvent(new Event('input', { bubbles: true }));
+      const restoreCountsWords = restoreOverlay!.querySelector<HTMLElement>('#sync-restore-dialog-msg')?.textContent!.includes('3 words');
+      restoreInput!.value = mnemonic;
+      restoreInput!.dispatchEvent(new Event('input', { bubbles: true }));
+      const restoreEnablesSubmit = restoreOverlay!.querySelector<HTMLElement>('#sync-restore-dialog-msg')?.textContent!.includes('24 words')
+        && restoreOverlay!.querySelector<HTMLButtonElement>('#sync-restore-dialog-go')?.disabled === false;
+      restoreOverlay!.click();
+      const restoreBackdropCloses = !restoreOverlay!.classList.contains('show');
 
-      const relayInput = syncSection.querySelector('#sync-relay-input');
-      relayInput.value = 'https://bad-relay.example';
-      syncSection.querySelector('[data-sync-action="save-relay"]').click();
+      const relayInput = syncSection!.querySelector<HTMLInputElement>('#sync-relay-input');
+      relayInput!.value = 'https://bad-relay.example';
+      syncSection!.querySelector<HTMLButtonElement>('[data-sync-action="save-relay"]')!.click();
       await wait(0);
       const invalidRelayToast = [...document.querySelectorAll('.notification-toast')]
-        .some(el => el.textContent.includes('Relay URL must start'));
-      relayInput.value = 'wss://new-relay.example';
-      syncSection.querySelector('[data-sync-action="save-relay"]').click();
+        .some(el => el.textContent!.includes('Relay URL must start'));
+      relayInput!.value = 'wss://new-relay.example';
+      syncSection!.querySelector<HTMLButtonElement>('[data-sync-action="save-relay"]')!.click();
       const relaySaved = await waitFor(() => localStorage.getItem('labcharts-sync-relay') === 'wss://new-relay.example'
         && syncIndicatorUpdates >= 1
-        && document.getElementById('sync-status-text')?.textContent.includes('Connected'), 'relay connected status');
+        && (document.getElementById('sync-status-text') as HTMLElement|null)?.textContent!.includes('Connected'), 'relay connected status');
 
-      messengerSection.innerHTML = syncPanel.renderMessengerSection();
-      messengerSection.querySelector('[data-sync-action="toggle-messenger"]').checked = true;
-      messengerSection.querySelector('[data-sync-action="toggle-messenger"]').dispatchEvent(new Event('change', { bubbles: true }));
+      messengerSection!.innerHTML = syncPanel.renderMessengerSection();
+      messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]')!.checked = true;
+      messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]')!.dispatchEvent(new Event('change', { bubbles: true }));
       await waitFor(() => syncMessenger.isMessengerEnabled()
-        && messengerSection.textContent.includes('Read-only token')
-        && messengerSection.textContent.includes('GETBASED_AGENT_CONTEXT_KEY'), 'Agent Access enable render');
+        && messengerSection!.textContent!.includes('Read-only token')
+        && messengerSection!.textContent!.includes('GETBASED_AGENT_CONTEXT_KEY'), 'Agent Access enable render');
       const token = syncMessenger.getMessengerToken();
       const contextKey = syncMessenger.getMessengerContextKey();
       const messengerEnabled = localStorage.getItem('labcharts-messenger-enabled') === 'true'
@@ -556,24 +556,24 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         && !localStorage.getItem('labcharts-agent-context-key')
         && !!token
         && !!contextKey
-        && messengerSection.textContent.includes('Read-only token')
-        && messengerSection.textContent.includes('Context encryption key')
-        && messengerSection.textContent.includes('GETBASED_AGENT_CONTEXT_KEY');
-      messengerSection.querySelector('[data-sync-action="toggle-messenger-token"]').click();
-      const tokenShown = document.getElementById('messenger-token')?.dataset.masked === 'false'
-        && document.getElementById('messenger-token')?.textContent !== '•'.repeat(64)
-        && document.getElementById('messenger-token-toggle')?.textContent === 'Hide';
-      messengerSection.querySelector('[data-sync-action="toggle-messenger-context-key"]').click();
-      const contextKeyShown = document.getElementById('messenger-context-key')?.dataset.masked === 'false'
-        && document.getElementById('messenger-context-key')?.textContent === contextKey
-        && document.getElementById('messenger-context-key-toggle')?.textContent === 'Hide';
-      messengerSection.querySelector('[data-sync-action="copy-messenger-token"]').click();
-      messengerSection.querySelector('[data-sync-action="copy-messenger-context-key"]').click();
+        && messengerSection!.textContent!.includes('Read-only token')
+        && messengerSection!.textContent!.includes('Context encryption key')
+        && messengerSection!.textContent!.includes('GETBASED_AGENT_CONTEXT_KEY');
+      messengerSection!.querySelector<HTMLButtonElement>('[data-sync-action="toggle-messenger-token"]')!.click();
+      const tokenShown = (document.getElementById('messenger-token') as HTMLElement|null)?.dataset.masked === 'false'
+        && (document.getElementById('messenger-token') as HTMLElement|null)?.textContent !== '•'.repeat(64)
+        && (document.getElementById('messenger-token-toggle') as HTMLElement|null)?.textContent === 'Hide';
+      messengerSection!.querySelector<HTMLButtonElement>('[data-sync-action="toggle-messenger-context-key"]')!.click();
+      const contextKeyShown = (document.getElementById('messenger-context-key') as HTMLElement|null)?.dataset.masked === 'false'
+        && (document.getElementById('messenger-context-key') as HTMLElement|null)?.textContent === contextKey
+        && (document.getElementById('messenger-context-key-toggle') as HTMLElement|null)?.textContent === 'Hide';
+      messengerSection!.querySelector<HTMLButtonElement>('[data-sync-action="copy-messenger-token"]')!.click();
+      messengerSection!.querySelector<HTMLButtonElement>('[data-sync-action="copy-messenger-context-key"]')!.click();
       await wait(0);
-      const tokenCopied = writes.includes(token);
-      const contextKeyCopied = writes.includes(contextKey);
-      messengerSection.querySelector('[data-sync-action="set-agent-wearable-series-days"]').value = '30';
-      messengerSection.querySelector('[data-sync-action="set-agent-wearable-series-days"]').dispatchEvent(new Event('change', { bubbles: true }));
+      const tokenCopied = (writes.includes as (value:unknown)=>ReturnType<typeof writes.includes>)(token);
+      const contextKeyCopied = (writes.includes as (value:unknown)=>ReturnType<typeof writes.includes>)(contextKey);
+      messengerSection!.querySelector<HTMLSelectElement>('[data-sync-action="set-agent-wearable-series-days"]')!.value = '30';
+      messengerSection!.querySelector<HTMLSelectElement>('[data-sync-action="set-agent-wearable-series-days"]')!.dispatchEvent(new Event('change', { bubbles: true }));
       await waitFor(() => pushedContexts >= 1, 'series save then context push');
       const seriesProfileId = localStorage.getItem('labcharts-active-profile') || 'default';
       const seriesDelegated = syncMessenger.getAgentAccessState().wearableSeriesDays === 30
@@ -581,34 +581,34 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         && !('getAgentWearableSeriesDays' in window)
         && !('setAgentWearableSeriesDays' in window)
         && pushedContexts >= 1;
-      messengerSection.querySelector('[data-sync-action="regenerate-messenger-token"]').click();
+      messengerSection!.querySelector<HTMLButtonElement>('[data-sync-action="regenerate-messenger-token"]')!.click();
       await waitFor(() => syncMessenger.getMessengerToken() !== token
-        && messengerSection.textContent.includes('Read-only token'), 'token regenerated');
+        && messengerSection!.textContent!.includes('Read-only token'), 'token regenerated');
       const regenerated = !localStorage.getItem('labcharts-messenger-token')
         && syncMessenger.getMessengerToken() !== token
-        && messengerSection.textContent.includes('Read-only token');
+        && messengerSection!.textContent!.includes('Read-only token');
       const contextKeyBeforeRegen = syncMessenger.getMessengerContextKey();
-      messengerSection.querySelector('[data-sync-action="regenerate-messenger-context-key"]').click();
+      messengerSection!.querySelector<HTMLButtonElement>('[data-sync-action="regenerate-messenger-context-key"]')!.click();
       await waitFor(() => syncMessenger.getMessengerContextKey() !== contextKeyBeforeRegen
-        && messengerSection.textContent.includes('Context encryption key'), 'context key regenerated');
+        && messengerSection!.textContent!.includes('Context encryption key'), 'context key regenerated');
       const contextKeyRegenerated = !localStorage.getItem('labcharts-agent-context-key')
         && syncMessenger.getMessengerContextKey() !== contextKeyBeforeRegen
-        && messengerSection.textContent.includes('Context encryption key');
+        && messengerSection!.textContent!.includes('Context encryption key');
       syncRuntime.setSyncAppOwner(null);
-      messengerSection.innerHTML = syncPanel.renderMessengerSection();
-      const ownerLostToggle = messengerSection.querySelector('[data-sync-action="toggle-messenger"]');
+      messengerSection!.innerHTML = syncPanel.renderMessengerSection();
+      const ownerLostToggle = messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]');
       const ownerLostCanDisable = ownerLostToggle?.checked === true
         && ownerLostToggle?.disabled === false
-        && messengerSection.querySelector('[data-sync-action="regenerate-messenger-token"]')?.disabled === true
-        && messengerSection.querySelector('[data-sync-action="regenerate-messenger-context-key"]')?.disabled === true
-        && messengerSection.querySelector('[data-sync-action="set-agent-wearable-series-days"]')?.disabled === true;
-      ownerLostToggle.checked = false;
-      ownerLostToggle.dispatchEvent(new Event('change', { bubbles: true }));
+        && messengerSection!.querySelector<HTMLButtonElement>('[data-sync-action="regenerate-messenger-token"]')?.disabled === true
+        && messengerSection!.querySelector<HTMLButtonElement>('[data-sync-action="regenerate-messenger-context-key"]')?.disabled === true
+        && messengerSection!.querySelector<HTMLSelectElement>('[data-sync-action="set-agent-wearable-series-days"]')?.disabled === true;
+      ownerLostToggle!.checked = false;
+      ownerLostToggle!.dispatchEvent(new Event('change', { bubbles: true }));
       await wait(0);
       const messengerDisabled = localStorage.getItem('labcharts-messenger-enabled') === 'false'
         && !localStorage.getItem('labcharts-messenger-token')
         && !localStorage.getItem('labcharts-agent-context-key')
-        && messengerSection.textContent.includes('Let AI agents query your labs');
+        && messengerSection!.textContent!.includes('Let AI agents query your labs');
 
       return {
         tombstoneBanner,
@@ -649,14 +649,14 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       }
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);
-        else localStorage.setItem(key, oldStorage[key]);
+        else localStorage.setItem(key, oldStorage[key]!);
       }
       syncRuntime.setSyncAppOwner(null);
       syncState.setSyncEnabled(oldStorage['labcharts-sync-enabled'] === 'true');
-      document.getElementById('sync-section')?.remove();
-      document.getElementById('messenger-section')?.remove();
-      document.getElementById('sync-setup-overlay')?.remove();
-      document.getElementById('sync-restore-overlay')?.remove();
+      (document.getElementById('sync-section') as HTMLElement|null)?.remove();
+      (document.getElementById('messenger-section') as HTMLElement|null)?.remove();
+      (document.getElementById('sync-setup-overlay') as HTMLElement|null)?.remove();
+      (document.getElementById('sync-restore-overlay') as HTMLElement|null)?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
     }
   }, {

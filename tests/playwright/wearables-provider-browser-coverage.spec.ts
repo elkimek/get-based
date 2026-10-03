@@ -1,3 +1,6 @@
+type ProviderProxyFixture={url:unknown;method?:unknown;body?:unknown;headers?:unknown};
+type WearableProfileFixture={wearableConnections?:{whoop?:{account?:{email?:unknown}}};wearableSummary?:{sources?:{whoop?:{coverageDays?:unknown}};metrics?:{readiness_score?:{latest?:unknown}}};wearablePrimaryOverride?:{readiness_score?:unknown};changeHistory?:{source?:unknown}[]};
+
 import { routeHtml } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
@@ -9,30 +12,30 @@ test('Fitbit Ultrahuman and Withings provider fetchers normalize proxy responses
 
   const results = await page.evaluate(async ({ adaptersUrl, fitbitUrl, ultrahumanUrl, withingsUrl }) => {
     const [{ isoDay }, fitbit, ultrahuman, withings] = await Promise.all([
-      import(adaptersUrl),
-      import(fitbitUrl),
-      import(ultrahumanUrl),
-      import(withingsUrl),
+      ((import(adaptersUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/wearable-adapters.js'),'isoDay'>>),
+      ((import(fitbitUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/wearables-fitbit.js'),'fetchFitbitPersonalInfo'|'fetchFitbitDailyRange'>>),
+      ((import(ultrahumanUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/wearables-ultrahuman.js'),'fetchUltrahumanPersonalInfo'|'fetchUltrahumanDailyRange'>>),
+      ((import(withingsUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/wearables-withings.js'),'withingsErrorMessage'|'fetchWithingsPersonalInfo'|'fetchWithingsDailyRange'>>),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string,unknown> = {};
     const originalFetch = window.fetch;
     const originalDebug = localStorage.getItem('labcharts-debug');
-    const requests = [];
+    const requests: ProviderProxyFixture[] = [];
 
-    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+    const jsonResponse = (body:unknown,status = 200) => new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json' },
     });
-    const installFetch = (handler) => {
+    const installFetch = (handler:(proxy:ProviderProxyFixture)=>unknown|Promise<unknown>) => {
       window.fetch = async (url, options = {}) => {
         const rawBody = String(options.body || '');
         const proxy = rawBody
-          ? JSON.parse(rawBody)
+          ? JSON.parse(rawBody) as ProviderProxyFixture
           : { url: String(url), method: options.method || 'GET', headers: options.headers || {} };
         requests.push(proxy);
         const reply = await handler(proxy);
         if (reply instanceof Response) return reply;
-        return jsonResponse(reply?.body ?? reply, reply?.status || 200);
+        return jsonResponse((reply as {body?:unknown}|null|undefined)?.body ?? reply, ((reply as {status?:unknown}|null|undefined)?.status || 200) as number);
       };
     };
 
@@ -40,7 +43,7 @@ test('Fitbit Ultrahuman and Withings provider fetchers normalize proxy responses
       localStorage.setItem('labcharts-debug', 'true');
 
       installFetch((proxy) => {
-        const url = new URL(proxy.url);
+        const url = new URL(proxy.url as string);
         const path = url.pathname;
         if (path.endsWith('/profile.json')) {
           return { body: { user: { email: 'fitbit@example.test', displayName: 'Fit Bit' } } };
@@ -88,7 +91,7 @@ test('Fitbit Ultrahuman and Withings provider fetchers normalize proxy responses
       const fitbitRows = await fitbit.fetchFitbitDailyRange('fitbit-token', '2026-06-01', '2026-06-02');
       const fitbitDay = fitbitRows.find(row => row.date === '2026-06-01');
       outcomes.fitbitNormalizesRange = fitbitInfo.ok === true
-        && fitbitInfo.account.email === 'fitbit@example.test'
+        && fitbitInfo.account!.email === 'fitbit@example.test'
         && fitbitDay?.hrv_rmssd === 52
         && fitbitDay?.hrv_day === 44
         && fitbitDay?.rhr === 55
@@ -97,7 +100,7 @@ test('Fitbit Ultrahuman and Withings provider fetchers normalize proxy responses
         && fitbitDay?.spo2_avg === null
         && fitbitDay?.body_temp_delta === -0.2
         && fitbitDay?.weight === 70.3
-        && requests.some(req => req.headers?.Authorization === 'Bearer fitbit-token');
+        && requests.some(req => (req.headers as {Authorization?:unknown}|null|undefined)?.Authorization === 'Bearer fitbit-token');
       installFetch(() => ({ status: 401, body: { errors: [{ message: 'profile denied' }] } }));
       const fitbitError = await fitbit.fetchFitbitPersonalInfo('bad-fitbit-token');
       outcomes.fitbitPersonalInfoError = fitbitError.ok === false
@@ -105,7 +108,7 @@ test('Fitbit Ultrahuman and Withings provider fetchers normalize proxy responses
         && fitbitError.error.includes('profile denied');
 
       installFetch((proxy) => {
-        const url = new URL(proxy.url);
+        const url = new URL(proxy.url as string);
         const path = url.pathname;
         if (path.endsWith('/user_info')) {
           return { body: { user: { email: 'uh@example.test', first_name: 'Ultra', last_name: 'Human' } } };
@@ -132,31 +135,31 @@ test('Fitbit Ultrahuman and Withings provider fetchers normalize proxy responses
       const ultrahumanRows = await ultrahuman.fetchUltrahumanDailyRange('uh-token', '2026-06-01', '2026-06-03');
       const ultrahumanDay = ultrahumanRows[0];
       outcomes.ultrahumanNormalizesRange = ultrahumanInfo.ok === true
-        && ultrahumanInfo.account.email === 'uh@example.test'
+        && ultrahumanInfo.account!.email === 'uh@example.test'
         && ultrahumanRows.length === 1
-        && ultrahumanDay.date === '2026-06-01'
-        && ultrahumanDay.hrv_rmssd === 55
-        && ultrahumanDay.hrv_day === 62
-        && ultrahumanDay.rhr === 49
-        && ultrahumanDay.hr_day === 70
-        && ultrahumanDay.sleep_score === 88
-        && ultrahumanDay.readiness_score === 91
-        && ultrahumanDay.steps === 12345
-        && ultrahumanDay.body_temp_delta === -0.1
-        && ultrahumanDay.glucose_avg === 102;
+        && ultrahumanDay!.date === '2026-06-01'
+        && ultrahumanDay!.hrv_rmssd === 55
+        && ultrahumanDay!.hrv_day === 62
+        && ultrahumanDay!.rhr === 49
+        && ultrahumanDay!.hr_day === 70
+        && ultrahumanDay!.sleep_score === 88
+        && ultrahumanDay!.readiness_score === 91
+        && ultrahumanDay!.steps === 12345
+        && ultrahumanDay!.body_temp_delta === -0.1
+        && ultrahumanDay!.glucose_avg === 102;
       installFetch(() => ({ status: 401, body: { message: 'user info denied' } }));
       const ultrahumanError = await ultrahuman.fetchUltrahumanPersonalInfo('bad-uh-token');
       outcomes.ultrahumanPersonalInfoError = ultrahumanError.ok === false
         && ultrahumanError.status === 401
         && ultrahumanError.error.includes('user info denied');
 
-      outcomes.withingsErrorMapping = withings.withingsErrorMessage(284).includes('Token not found')
+      outcomes.withingsErrorMapping = withings.withingsErrorMessage(284)!.includes('Token not found')
         && withings.withingsErrorMessage('not-a-number') === null
         && withings.withingsErrorMessage(999) === null;
       const measureEpoch = Math.floor(new Date('2026-06-01T12:00:00Z').getTime() / 1000);
       const expectedMeasureDay = isoDay(new Date(measureEpoch * 1000));
       installFetch((proxy) => {
-        const form = new URLSearchParams(proxy.body || '');
+        const form = new URLSearchParams((proxy.body || '') as string);
         const action = form.get('action');
         if (action === 'getmeas' && form.has('startdate') && !form.has('category')) {
           return { body: { status: 0, body: { updatetime: measureEpoch } } };
@@ -197,7 +200,7 @@ test('Fitbit Ultrahuman and Withings provider fetchers normalize proxy responses
       const withingsRows = await withings.fetchWithingsDailyRange('withings-token', '2026-06-01', '2026-06-02');
       const withingsDay = withingsRows.find(row => row.date === expectedMeasureDay);
       outcomes.withingsNormalizesRange = withingsInfo.ok === true
-        && withingsInfo.account.lastMeasure === expectedMeasureDay
+        && withingsInfo.account!.lastMeasure === expectedMeasureDay
         && withingsDay?.weight === 72.5
         && withingsDay?.bp_systolic === 121
         && withingsDay?.bp_diastolic === 78
@@ -212,7 +215,7 @@ test('Fitbit Ultrahuman and Withings provider fetchers normalize proxy responses
         && withingsDay?.sleep_snoring_min === 2
         && withingsDay?.sleep_breath_disturb === 12;
       installFetch((proxy) => {
-        const form = new URLSearchParams(proxy.body || '');
+        const form = new URLSearchParams((proxy.body || '') as string);
         const action = form.get('action');
         if (action === 'getmeas') return { status: 502, body: { error: 'measure proxy down' } };
         return { body: { status: 284, error: 'token missing' } };
@@ -248,25 +251,25 @@ test('Oura and WHOOP provider fetchers collect paginated rows and canonical metr
 
   const results = await page.evaluate(async ({ ouraUrl, whoopUrl }) => {
     const [oura, whoop] = await Promise.all([
-      import(ouraUrl),
-      import(whoopUrl),
+      ((import(ouraUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/wearables-oura.js'),'fetchOuraPersonalInfo'|'fetchOuraDailyRange'>>),
+      ((import(whoopUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/wearables-whoop.js'),'fetchWhoopPersonalInfo'|'fetchWhoopDailyRange'>>),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string,unknown> = {};
     const originalFetch = window.fetch;
     const originalDebug = localStorage.getItem('labcharts-debug');
-    const requests = [];
+    const requests: ProviderProxyFixture[] = [];
 
-    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+    const jsonResponse = (body:unknown,status = 200) => new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json' },
     });
-    const installFetch = (handler) => {
+    const installFetch = (handler:(proxy:ProviderProxyFixture)=>unknown|Promise<unknown>) => {
       window.fetch = async (_url, options = {}) => {
-        const proxy = JSON.parse(String(options.body || '{}'));
+        const proxy = JSON.parse(String(options.body || '{}')) as ProviderProxyFixture;
         requests.push(proxy);
         const reply = await handler(proxy);
         if (reply instanceof Response) return reply;
-        return jsonResponse(reply?.body ?? reply, reply?.status || 200);
+        return jsonResponse((reply as {body?:unknown}|null|undefined)?.body ?? reply, ((reply as {status?:unknown}|null|undefined)?.status || 200) as number);
       };
     };
 
@@ -274,7 +277,7 @@ test('Oura and WHOOP provider fetchers collect paginated rows and canonical metr
       localStorage.setItem('labcharts-debug', 'true');
 
       installFetch((proxy) => {
-        const url = new URL(proxy.url);
+        const url = new URL(proxy.url as string);
         const path = url.pathname;
         if (path.endsWith('/personal_info')) {
           return { body: {
@@ -360,7 +363,7 @@ test('Oura and WHOOP provider fetchers collect paginated rows and canonical metr
           ] } };
         }
         if (path.endsWith('/heartrate')) {
-          if (requests.filter(req => new URL(req.url).pathname.endsWith('/heartrate')).length > 1) {
+          if (requests.filter(req => new URL(req.url as string).pathname.endsWith('/heartrate')).length > 1) {
             return { status: 500, body: { detail: 'heartrate chunk unavailable' } };
           }
           return { body: { data: [
@@ -377,7 +380,7 @@ test('Oura and WHOOP provider fetchers collect paginated rows and canonical metr
       const ouraDay1 = ouraRows.find(row => row.date === '2026-01-01');
       const ouraDay2 = ouraRows.find(row => row.date === '2026-01-02');
       outcomes.ouraCollectsAndNormalizes = ouraInfo.ok === true
-        && ouraInfo.account.email === 'oura@example.test'
+        && ouraInfo.account!.email === 'oura@example.test'
         && ouraDay1?.hrv_rmssd === 50
         && ouraDay1?.rhr === 47
         && ouraDay1?.hr_day === 81
@@ -394,8 +397,8 @@ test('Oura and WHOOP provider fetchers collect paginated rows and canonical metr
         && ouraDay1?.vo2max === 43
         && ouraDay2?.hrv_rmssd === 35
         && ouraDay2?.activity_score === 82
-        && requests.some(req => new URL(req.url).searchParams.get('next_token') === 'activity-page-2')
-        && requests.filter(req => new URL(req.url).pathname.endsWith('/heartrate')).length >= 2;
+        && requests.some(req => new URL(req.url as string).searchParams.get('next_token') === 'activity-page-2')
+        && requests.filter(req => new URL(req.url as string).pathname.endsWith('/heartrate')).length >= 2;
       installFetch(() => ({ status: 401, body: { detail: 'oura denied' } }));
       const ouraError = await oura.fetchOuraPersonalInfo('bad-oura-token');
       outcomes.ouraPersonalInfoError = ouraError.ok === false
@@ -403,7 +406,7 @@ test('Oura and WHOOP provider fetchers collect paginated rows and canonical metr
         && ouraError.error.includes('oura denied');
 
       installFetch((proxy) => {
-        const url = new URL(proxy.url);
+        const url = new URL(proxy.url as string);
         const path = url.pathname;
         if (path.endsWith('/profile/basic')) {
           return { body: { email: 'whoop@example.test', first_name: 'Who', last_name: 'Op' } };
@@ -440,7 +443,7 @@ test('Oura and WHOOP provider fetchers collect paginated rows and canonical metr
       const whoopDay1 = whoopRows.find(row => row.date === '2026-06-01');
       const whoopDay2 = whoopRows.find(row => row.date === '2026-06-02');
       outcomes.whoopCollectsAndNormalizes = whoopInfo.ok === true
-        && whoopInfo.account.email === 'whoop@example.test'
+        && whoopInfo.account!.email === 'whoop@example.test'
         && whoopDay1?.hrv_rmssd === 65
         && whoopDay1?.rhr === 48
         && whoopDay1?.readiness_score === 77
@@ -449,7 +452,7 @@ test('Oura and WHOOP provider fetchers collect paginated rows and canonical metr
         && whoopDay1?.sleep_score === 88
         && whoopDay2?.hrv_rmssd === 61
         && whoopDay2?.strain === 9
-        && requests.some(req => new URL(req.url).searchParams.get('nextToken') === 'cycle-page-2');
+        && requests.some(req => new URL(req.url as string).searchParams.get('nextToken') === 'cycle-page-2');
       installFetch(() => ({ status: 500, body: { message: 'whoop endpoint down' } }));
       const emptyWhoopRows = await whoop.fetchWhoopDailyRange('whoop-token', '2026-06-01', '2026-06-02');
       const whoopError = await whoop.fetchWhoopPersonalInfo('bad-whoop-token');
@@ -518,13 +521,13 @@ test('WHOOP consent and device-only storage protect rows and derived profile dat
     localStorage.removeItem('labcharts-encryption-enabled');
     localStorage.setItem('labcharts-active-profile', profileId);
     state.currentProfile = profileId;
-    state.importedData = { entries: [], wearableConnections: {} };
+    (state as {importedData:unknown}).importedData = { entries: [], wearableConnections: {} };
     applyOAuthOverrides({ whoop: 'self-host-whoop-client' });
     applyOAuthConfigured({ whoop: true });
 
-    const consentMessages = [];
+    const consentMessages: unknown[] = [];
     const previousSettingsRuntime = settingsRuntime.configureWearableSettingsRuntimeDeps({
-      showConfirmDialog: async message => {
+      showConfirmDialog: async (message:unknown) => {
         consentMessages.push(message);
         return false;
       },
@@ -543,7 +546,7 @@ test('WHOOP consent and device-only storage protect rows and derived profile dat
     // Simulate a row written by the pre-protection release. Reading it must
     // preserve its runtime value while upgrading the stored record in place.
     const db = await openWearablesDB(profileId);
-    await new Promise((resolve, reject) => {
+    await new Promise<Event>((resolve, reject) => {
       const tx = db.transaction('daily-metrics', 'readwrite');
       tx.objectStore('daily-metrics').put({
         source: 'whoop',
@@ -589,33 +592,33 @@ test('WHOOP consent and device-only storage protect rows and derived profile dat
     await encryptedSetItem(storageKey, JSON.stringify(imported));
     const rawProfile = await getBlob(storageKey);
     const protectedProfile = await getMeta(profileId, WHOOP_PROFILE_DATA_META);
-    const hydratedProfile = JSON.parse(await encryptedGetItem(storageKey));
+    const hydratedProfile = JSON.parse(await encryptedGetItem(storageKey) as string) as WearableProfileFixture;
     const settingsHtml = renderWearablesSettingsSection();
 
-    window.__WEARABLES_TEST = true;
+    (window as {__WEARABLES_TEST?:unknown}).__WEARABLES_TEST = true;
     await cryptoStorage._setTestSessionKey('whoop-storage-passphrase');
     localStorage.setItem('labcharts-encryption-enabled', 'true');
     await cryptoStorage._migrateAllStorageForTest('encrypted');
     const passphraseProtectedProfile = await getBlob(storageKey);
     const sidecarAfterPassphraseEnable = await getMeta(profileId, WHOOP_PROFILE_DATA_META);
-    const hydratedWithPassphrase = JSON.parse(await encryptedGetItem(storageKey));
+    const hydratedWithPassphrase = JSON.parse(await encryptedGetItem(storageKey) as string) as WearableProfileFixture;
 
     await cryptoStorage._migrateAllStorageForTest('plain');
     localStorage.removeItem('labcharts-encryption-enabled');
     const deviceProtectedProfileAgain = await getBlob(storageKey);
     const sidecarAfterPassphraseDisable = await getMeta(profileId, WHOOP_PROFILE_DATA_META);
-    const decryptedSidecarAfterPassphraseDisable = await decryptWearableDeviceLocalValue(
+    const decryptedSidecarAfterPassphraseDisable = await (decryptWearableDeviceLocalValue as (profileId:Parameters<typeof decryptWearableDeviceLocalValue>[0],envelope:unknown)=>ReturnType<typeof decryptWearableDeviceLocalValue>)(
       profileId,
       sidecarAfterPassphraseDisable,
     );
-    const hydratedAfterPassphraseDisable = JSON.parse(await encryptedGetItem(storageKey));
+    const hydratedAfterPassphraseDisable = JSON.parse(await encryptedGetItem(storageKey) as string) as WearableProfileFixture;
     await cryptoStorage._setTestSessionKey(null);
 
-    state.importedData = structuredClone(hydratedAfterPassphraseDisable);
+    (state as {importedData:unknown}).importedData = structuredClone(hydratedAfterPassphraseDisable);
     await disconnectWearable('whoop', { deleteData: true });
     const sidecarAfterDisconnect = await getMeta(profileId, WHOOP_PROFILE_DATA_META);
     const rowsAfterDisconnect = await getDailyRangeRaw(profileId, 'whoop', '2026-08-01', '2026-08-31');
-    const profileAfterDisconnect = JSON.parse(await encryptedGetItem(storageKey));
+    const profileAfterDisconnect = JSON.parse(await encryptedGetItem(storageKey) as string) as WearableProfileFixture;
 
     await encryptedRemoveItem(storageKey);
     await deleteWearablesDB(profileId);
@@ -623,19 +626,19 @@ test('WHOOP consent and device-only storage protect rows and derived profile dat
     return {
       consentIsExplicit: consentMessages.length === 1
         && consentMessages[0] === WHOOP_CONNECT_DISCLOSURE
-        && consentMessages[0].includes('authorize this deployment to access and store')
-        && consentMessages[0].includes('No write access is requested')
+        && (consentMessages[0] as {includes(value:string):unknown}).includes('authorize this deployment to access and store')
+        && (consentMessages[0] as {includes(value:string):unknown}).includes('No write access is requested')
         && !sessionStorage.getItem('whoop-oauth-pending'),
       privacyCopyNamesWhoop: settingsHtml.includes('WHOOP and Google Health imports are always encrypted on this device'),
-      newRowEncrypted: rawNewRows[0]?._devicePayload?.version === 1
+      newRowEncrypted: ((rawNewRows[0] as {_devicePayload?:unknown}|null|undefined)?._devicePayload as {version?:unknown}|null|undefined)?.version === 1
         && rawNewRows[0]?.readiness_score == null
         && rawNewRows[0]?.hrv_rmssd == null,
       newRowReadable: readableNewRows[0]?.hrv_rmssd === 57
         && readableNewRows[0]?.readiness_score === 81,
       legacyRowMigrated: readableLegacyRows[0]?.readiness_score === 74
-        && rawMigratedRows[0]?._devicePayload?.version === 1
+        && ((rawMigratedRows[0] as {_devicePayload?:unknown}|null|undefined)?._devicePayload as {version?:unknown}|null|undefined)?.version === 1
         && rawMigratedRows[0]?.readiness_score == null
-        && rawHistoricalRows[0]?._devicePayload?.version === 1
+        && ((rawHistoricalRows[0] as {_devicePayload?:unknown}|null|undefined)?._devicePayload as {version?:unknown}|null|undefined)?.version === 1
         && rawHistoricalRows[0]?.readiness_score == null,
       profileBlobSanitized: typeof rawProfile === 'string'
         && rawProfile.includes('_deviceProtectedWearableProfile')
@@ -643,7 +646,7 @@ test('WHOOP consent and device-only storage protect rows and derived profile dat
         && !rawProfile.includes('whoop-private@example.test')
         && !rawProfile.includes('readiness_score')
         && !rawProfile.includes('WHOOP readiness changed'),
-      profileEnvelopeEncrypted: protectedProfile?.version === 1
+      profileEnvelopeEncrypted: (protectedProfile as {version?:unknown}|null|undefined)?.version === 1
         && !JSON.stringify(protectedProfile).includes('whoop-private@example.test')
         && !JSON.stringify(protectedProfile).includes('readiness_score'),
       profileHydratesForRuntime: hydratedProfile.wearableConnections?.whoop?.account?.email === 'whoop-private@example.test'
@@ -652,12 +655,12 @@ test('WHOOP consent and device-only storage protect rows and derived profile dat
         && hydratedProfile.wearablePrimaryOverride?.readiness_score === 'whoop'
         && hydratedProfile.changeHistory?.some(event => event.source === 'whoop'),
       passphraseBlobEncrypted: passphraseProtectedProfile?.startsWith('v1:'),
-      passphraseSidecarRetained: sidecarAfterPassphraseEnable?.version === 1,
+      passphraseSidecarRetained: (sidecarAfterPassphraseEnable as {version?:unknown}|null|undefined)?.version === 1,
       passphraseProfileHydrates: hydratedWithPassphrase.wearableConnections?.whoop?.account?.email === 'whoop-private@example.test',
       disabledProfileUsesMarker: deviceProtectedProfileAgain?.includes('_deviceProtectedWearableProfile')
         && !deviceProtectedProfileAgain?.includes('whoop-private@example.test'),
-      disabledSidecarRetained: sidecarAfterPassphraseDisable?.version === 1,
-      disabledSidecarDecrypts: decryptedSidecarAfterPassphraseDisable?.connection?.account?.email === 'whoop-private@example.test',
+      disabledSidecarRetained: (sidecarAfterPassphraseDisable as {version?:unknown}|null|undefined)?.version === 1,
+      disabledSidecarDecrypts: (decryptedSidecarAfterPassphraseDisable as {connection?:{account?:{email?:unknown}}}|null|undefined)?.connection?.account?.email === 'whoop-private@example.test',
       disabledProfileHydrates: hydratedAfterPassphraseDisable.wearableConnections?.whoop?.account?.email === 'whoop-private@example.test',
       disconnectPurgesProtectedData: sidecarAfterDisconnect == null
         && rowsAfterDisconnect.length === 0
@@ -678,31 +681,31 @@ test('Polar provider fetcher covers registration transactions commits and guards
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ polarUrl }) => {
-    const polar = await import(polarUrl);
-    const outcomes = {};
+    const polar = await ((import(polarUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/wearables-polar.js'),'registerPolarUser'|'fetchPolarPersonalInfo'|'fetchPolarDailyRange'|'commitPolarTransactions'>>);
+    const outcomes: Record<string,unknown> = {};
     const originalFetch = window.fetch;
     const originalDebug = localStorage.getItem('labcharts-debug');
-    const requests = [];
+    const requests: ProviderProxyFixture[] = [];
     let registerConflict = false;
 
-    const textResponse = (body, status = 200) => new Response(
+    const textResponse = (body:unknown,status = 200) => new Response(
       typeof body === 'string' ? body : JSON.stringify(body),
       { status, headers: { 'Content-Type': 'application/json' } }
     );
-    const installFetch = (handler) => {
+    const installFetch = (handler:(proxy:ProviderProxyFixture)=>unknown|Promise<unknown>) => {
       window.fetch = async (_url, options = {}) => {
-        const proxy = JSON.parse(String(options.body || '{}'));
+        const proxy = JSON.parse(String(options.body || '{}')) as ProviderProxyFixture;
         requests.push(proxy);
         const reply = await handler(proxy);
         if (reply instanceof Response) return reply;
-        return textResponse(reply?.body ?? reply, reply?.status || 200);
+        return textResponse((reply as {body?:unknown}|null|undefined)?.body ?? reply, ((reply as {status?:unknown}|null|undefined)?.status || 200) as number);
       };
     };
 
     try {
       localStorage.setItem('labcharts-debug', 'true');
       installFetch((proxy) => {
-        const url = new URL(proxy.url);
+        const url = new URL(proxy.url as string);
         const path = url.pathname;
         if (proxy.method === 'POST' && path.endsWith('/v3/users')) {
           if (registerConflict) return { status: 409, body: { error: 'already registered' } };
@@ -757,9 +760,9 @@ test('Polar provider fetcher covers registration transactions commits and guards
       const registered = await polar.registerPolarUser('polar-token', 'member-1');
       registerConflict = true;
       const alreadyRegistered = await polar.registerPolarUser('polar-token', 'member-1');
-      const noUserInfo = await polar.fetchPolarPersonalInfo('polar-token');
+      const noUserInfo = await (polar.fetchPolarPersonalInfo as (token:Parameters<typeof polar.fetchPolarPersonalInfo>[0], userId?:Parameters<typeof polar.fetchPolarPersonalInfo>[1])=>ReturnType<typeof polar.fetchPolarPersonalInfo>)('polar-token');
       const info = await polar.fetchPolarPersonalInfo('polar-token', 'user-1');
-      let missingConnectionError = null;
+      let missingConnectionError:unknown = null;
       try {
         await polar.fetchPolarDailyRange('polar-token', '2026-06-01', '2026-06-02');
       } catch (error) {
@@ -778,11 +781,11 @@ test('Polar provider fetcher covers registration transactions commits and guards
         && alreadyRegistered.ok === true
         && alreadyRegistered.alreadyRegistered === true
         && noUserInfo.ok === false
-        && noUserInfo.error.includes('No userId')
+        && noUserInfo.error!.includes('No userId')
         && info.ok === true
-        && info.account.userId === 'user-1'
-        && info.account.firstName === 'Polar';
-      outcomes.polarRangeTransactions = missingConnectionError?.code === 'needs-reauth'
+        && info.account!.userId === 'user-1'
+        && info.account!.firstName === 'Polar';
+      outcomes.polarRangeTransactions = (missingConnectionError as {code?:unknown}|null|undefined)?.code === 'needs-reauth'
         && rows.length === 3
         && activityDay?.steps === 777
         && activityDay?.hr_day === 73
@@ -797,8 +800,8 @@ test('Polar provider fetcher covers registration transactions commits and guards
         && committed.committed === 1
         && emptyCommit.ok === true
         && emptyCommit.committed === 0
-        && requests.some(req => req.method === 'PUT' && req.url.includes('/activity-transactions/act-1'))
-        && requests.some(req => req.method === 'PUT' && req.url.includes('/exercise-transactions/ex-1'));
+        && requests.some(req => req.method === 'PUT' && (req.url as {includes(value:string):unknown}).includes('/activity-transactions/act-1'))
+        && requests.some(req => req.method === 'PUT' && (req.url as {includes(value:string):unknown}).includes('/exercise-transactions/ex-1'));
     } finally {
       window.fetch = originalFetch;
       if (originalDebug == null) localStorage.removeItem('labcharts-debug');

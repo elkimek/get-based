@@ -9,27 +9,27 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
   const results = await page.evaluate(async ({ saveHooksUrl, messengerUrl, labContextUrl }) => {
     const [{ state }, saveHooks, messenger, labContext] = await Promise.all([
       import('/js/state.js'),
-      import(saveHooksUrl),
-      import(messengerUrl),
-      import(labContextUrl),
+      (import(saveHooksUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-save-hooks.js'), "clearSyncSaveTimers" | "onDataSaved" | "onChatSaved" | "onProfileSaved" | "configureSyncSaveHooks" | "bindSyncSaveHookEvents">>,
+      (import(messengerUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-messenger.js'), "migrateLocalAgentAccessToProfile" | "configureSyncMessenger" | "pushContextToGateway" | "revokeMessengerToken" | "isMessengerEnabled" | "getMessengerToken">>,
+      (import(labContextUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/lab-context.js'), "invalidateLabContextCache" | "buildLabContext">>,
     ]);
-    const outcomes = {};
-    const pushes = [];
-    const fetches = [];
-    const debugCalls = [];
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
-    const decodeBase64 = value => {
-      const binary = atob(value);
-      return Uint8Array.from(binary, char => char.charCodeAt(0));
+    const outcomes: Record<string, unknown> = {};
+    const pushes: unknown[] = [];
+    const fetches: unknown[] = [];
+    const debugCalls:string[] = [];
+    const clone = (value: unknown) => value == null ? value : ((JSON.parse as (text: unknown) => unknown)(JSON.stringify(value)) as unknown);
+    const decodeBase64 = (value: unknown) => {
+      const binary = (atob as (value:unknown)=>string)(value);
+      return Uint8Array.from(binary, (char:string) => char.charCodeAt(0));
     };
-    const decryptAgentContext = async envelope => {
-      const rawKey = Uint8Array.from({ length: 32 }, (_, index) => index);
+    const decryptAgentContext = async (envelope: unknown) => {
+      const rawKey = Uint8Array.from({ length: 32 }, (_: unknown, index: number) => index);
       const key = await crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['decrypt']);
       const plaintext = await crypto.subtle.decrypt({
         name: 'AES-GCM',
-        iv: decodeBase64(envelope.iv),
+        iv: decodeBase64((envelope as {iv: unknown}).iv),
         additionalData: new TextEncoder().encode(`getbased-agent-context-v2:${profileId}`),
-      }, key, decodeBase64(envelope.ciphertext));
+      }, key, decodeBase64((envelope as {ciphertext: unknown}).ciphertext));
       return new TextDecoder().decode(plaintext);
     };
     const profileId = 'sync-hooks-active';
@@ -53,8 +53,8 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
     let ready = true;
     let syncing = false;
     let timerId = 1;
-    const timers = new Map();
-    const boundListeners = [];
+    const timers = new Map<number|undefined,{fn:()=>unknown;ms:number;cleared:boolean}>();
+    const boundListeners:{type:Parameters<typeof window.addEventListener>[0];listener:Parameters<typeof window.addEventListener>[1];options:Parameters<typeof window.addEventListener>[2]}[] = [];
     const runPendingTimers = async (cycles = 1) => {
       for (let cycle = 0; cycle < cycles; cycle += 1) {
         const pending = Array.from(timers.entries()).filter(([, timer]) => !timer.cleared);
@@ -69,23 +69,23 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
     };
 
     try {
-      window.setTimeout = (fn, ms) => {
+      (window as unknown as {setTimeout:(fn:()=>unknown,ms:number)=>number}).setTimeout = (fn: () => unknown, ms: number) => {
         const id = timerId++;
         timers.set(id, { fn, ms, cleared: false });
         return id;
       };
-      window.clearTimeout = id => {
+      (window as unknown as {clearTimeout:(id:number|undefined)=>void}).clearTimeout = (id:number|undefined) => {
         const timer = timers.get(id);
         if (timer) timer.cleared = true;
         timers.delete(id);
       };
-      window.addEventListener = (type, listener, options) => {
+      window.addEventListener = (type:Parameters<typeof saved.addEventListener>[0], listener:Parameters<typeof saved.addEventListener>[1], options?:Parameters<typeof saved.addEventListener>[2]) => {
         if (type === 'labcharts-ai-settings-local-changed') {
           boundListeners.push({ type, listener, options });
         }
         return saved.addEventListener.call(window, type, listener, options);
       };
-      window.fetch = async (url, options = {}) => {
+      window.fetch = async (url: NonNullable<Parameters<typeof fetch>[0]>, options: NonNullable<Parameters<typeof fetch>[1]> = {}) => {
         fetches.push({ url: String(url), options: clone(options) });
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,
@@ -93,7 +93,7 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
         });
       };
       state.currentProfile = profileId;
-      state.importedData = {
+      (state as unknown as {importedData: unknown}).importedData = {
         entries: [{ date: '2026-06-09', markers: { metabolic: { glucose: 4.9 } } }],
         contextSourceSettings: {
           'insight-cards': false,
@@ -247,7 +247,7 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
       outcomes.defaultPushProfileNoopAllowsImmediateDataSave = pushes.length === 0 && timers.size === 0;
 
       saveHooks.configureSyncSaveHooks({
-        pushProfile: async (id, data, options) => {
+        pushProfile: async (id:unknown, data: unknown, options?:unknown) => {
           pushes.push({ id, data: clone(data), options: clone(options || null) });
         },
         isSyncEnabled: () => enabled,
@@ -257,17 +257,17 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
 
       saveHooks.onDataSaved({ immediate: true });
       outcomes.immediateDataSavePushesActiveProfile = pushes.length === 1
-        && pushes[0].id === profileId
-        && pushes[0].data.entries?.[0]?.markers?.metabolic?.glucose === 4.9;
+        && (pushes[0] as {id: unknown}).id === profileId
+        && ((pushes[0] as {data: unknown}).data as {entries?:{date?:unknown;markers?:{metabolic?:{glucose?:unknown}}}[]}).entries?.[0]?.markers?.metabolic?.glucose === 4.9;
 
       saveHooks.onChatSaved();
       await runPendingTimers();
       outcomes.chatSaveMarksLocalAndDebouncesPush = pushes.length === 2
-        && pushes[1].id === profileId
+        && (pushes[1] as {id: unknown}).id === profileId
         && Number(sessionStorage.getItem('labcharts-chat-local-lock-until') || '0') > Date.now();
 
       const { encryptedSetItem, encryptedRemoveItem } = await import('/js/crypto.js');
-      const waitForPushes = async count => {
+      const waitForPushes = async (count:number) => {
         const deadline = Date.now() + 5000;
         while (pushes.length < count && Date.now() < deadline) {
           await new Promise(resolve => saved.setTimeout.call(window, resolve, 10));
@@ -279,8 +279,8 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
       await waitForPushes(3);
       await encryptedRemoveItem('labcharts-profile-fallback-imported');
       outcomes.profileSaveUsesLatestPersistedData = pushes.length === 3
-        && pushes[2].id === 'profile-fallback'
-        && pushes[2].data.notes?.[0]?.text === 'persisted data';
+        && (pushes[2] as {id: unknown}).id === 'profile-fallback'
+        && ((pushes[2] as {data: unknown}).data as {notes?:{text?:unknown}[]}).notes?.[0]?.text === 'persisted data';
 
       ready = false;
       await encryptedSetItem('labcharts-profile-retry-imported', JSON.stringify({ notes: [{ text: 'retry data' }] }));
@@ -293,16 +293,16 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
       await waitForPushes(4);
       await encryptedRemoveItem('labcharts-profile-retry-imported');
       outcomes.profileRetryFlushPushesAfterReady = pushes.length === 4
-        && pushes[3].id === 'profile-retry'
-        && pushes[3].data.notes?.[0]?.text === 'retry data';
+        && (pushes[3] as {id: unknown}).id === 'profile-retry'
+        && ((pushes[3] as {data: unknown}).data as {notes?:{text?:unknown}[]}).notes?.[0]?.text === 'retry data';
 
       saveHooks.bindSyncSaveHookEvents();
       saveHooks.bindSyncSaveHookEvents();
       window.dispatchEvent(new Event('labcharts-ai-settings-local-changed'));
       await runPendingTimers();
       outcomes.aiSettingsEventDebouncesSingleProfilePush = pushes.length === 5
-        && pushes[4].id === profileId
-        && pushes[4].data.entries?.[0]?.date === '2026-06-09';
+        && (pushes[4] as {id: unknown}).id === profileId
+        && ((pushes[4] as {data: unknown}).data as {entries?:{date?:unknown;markers?:{metabolic?:{glucose?:unknown}}}[]}).entries?.[0]?.date === '2026-06-09';
 
       syncing = true;
       window.dispatchEvent(new Event('labcharts-ai-settings-local-changed'));
@@ -312,7 +312,7 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
       syncing = false;
       await runPendingTimers();
       outcomes.aiSettingsRetryFlushesAfterEvoluIsReady = pushes.length === 6
-        && pushes[5].id === profileId;
+        && (pushes[5] as {id: unknown}).id === profileId;
 
       localStorage.setItem('labcharts-messenger-enabled', 'true');
       localStorage.setItem('labcharts-messenger-token', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
@@ -326,25 +326,25 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
       messenger.pushContextToGateway();
       await runPendingTimers();
       const defaultGateway = fetches.at(-1);
-      const defaultGatewayBody = JSON.parse(defaultGateway.options?.body || '{}');
-      const defaultGatewayContext = JSON.parse(defaultGatewayBody.context || '{}');
-      const decryptedAgentContext = await decryptAgentContext(defaultGatewayContext.encryptedContext);
-      outcomes.messengerDefaultRelayPushesEncryptedContext = defaultGateway?.url === 'https://sync.getbased.health/api/context'
-        && defaultGateway.options?.headers?.Authorization === 'Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
-        && defaultGatewayBody.profileId === profileId
-        && defaultGatewayBody.ownerId === 'MDEyMzQ1Njc4OWFiY2RlZg'
-        && typeof defaultGatewayBody.timestamp === 'number'
-        && /^[0-9a-f]{64}$/.test(defaultGatewayBody.signature || '')
-        && typeof defaultGatewayBody.context === 'string'
-        && !defaultGatewayBody.context.includes('2026-06-09')
-        && defaultGatewayContext.encryptedContext?.version === 2
-        && defaultGatewayContext.encryptedContext?.alg === 'AES-256-GCM'
-        && defaultGatewayContext.encryptedContext?.keyDerivation === 'raw-256-bit-key'
-        && typeof defaultGatewayContext.encryptedContext?.keyId === 'string'
-        && !('salt' in defaultGatewayContext.encryptedContext)
-        && typeof defaultGatewayContext.encryptedContext?.iv === 'string'
-        && typeof defaultGatewayContext.encryptedContext?.ciphertext === 'string'
-        && !defaultGatewayContext.encryptedContext.ciphertext.includes('2026-06-09');
+      const defaultGatewayBody = ((JSON.parse as (text: unknown) => unknown)(((defaultGateway as {options: unknown}).options as {body: unknown})?.body || '{}') as unknown);
+      const defaultGatewayContext = ((JSON.parse as (text: unknown) => unknown)((defaultGatewayBody as {context: unknown}).context || '{}') as unknown);
+      const decryptedAgentContext = await decryptAgentContext((defaultGatewayContext as {encryptedContext: unknown}).encryptedContext);
+      outcomes.messengerDefaultRelayPushesEncryptedContext = (defaultGateway as {url: unknown})?.url === 'https://sync.getbased.health/api/context'
+        && (defaultGateway as {options?:{headers?:{Authorization?:unknown}}}).options?.headers?.Authorization === 'Bearer aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        && (defaultGatewayBody as {profileId: unknown}).profileId === profileId
+        && (defaultGatewayBody as {ownerId: unknown}).ownerId === 'MDEyMzQ1Njc4OWFiY2RlZg'
+        && typeof (defaultGatewayBody as {timestamp: unknown}).timestamp === 'number'
+        && (/^[0-9a-f]{64}$/.test as (value:unknown)=>boolean)((defaultGatewayBody as {signature: unknown}).signature || '')
+        && typeof (defaultGatewayBody as {context: unknown}).context === 'string'
+        && !((defaultGatewayBody as {context: unknown}).context as {includes(value:string):unknown}).includes('2026-06-09')
+        && ((defaultGatewayContext as {encryptedContext: unknown}).encryptedContext as {version: unknown})?.version === 2
+        && ((defaultGatewayContext as {encryptedContext: unknown}).encryptedContext as {alg: unknown})?.alg === 'AES-256-GCM'
+        && ((defaultGatewayContext as {encryptedContext: unknown}).encryptedContext as {keyDerivation: unknown})?.keyDerivation === 'raw-256-bit-key'
+        && typeof ((defaultGatewayContext as {encryptedContext: unknown}).encryptedContext as {keyId: unknown})?.keyId === 'string'
+        && !('salt' in ((defaultGatewayContext as {encryptedContext: unknown}).encryptedContext as object))
+        && typeof ((defaultGatewayContext as {encryptedContext: unknown}).encryptedContext as {iv: unknown})?.iv === 'string'
+        && typeof ((defaultGatewayContext as {encryptedContext: unknown}).encryptedContext as {ciphertext: unknown})?.ciphertext === 'string'
+        && !(((defaultGatewayContext as {encryptedContext: unknown}).encryptedContext as {ciphertext: unknown}).ciphertext as {includes(value:string):unknown}).includes('2026-06-09');
       outcomes.messengerEncryptedPayloadRespectsDisabledContextSources =
         !decryptedAgentContext.includes('Medical-history agent sentinel')
         && !decryptedAgentContext.includes('Light agent sentinel');
@@ -354,9 +354,9 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
       labContext.invalidateLabContextCache();
       messenger.pushContextToGateway();
       await runPendingTimers();
-      const enabledGatewayBody = JSON.parse(fetches.at(-1)?.options?.body || '{}');
-      const enabledGatewayContext = JSON.parse(enabledGatewayBody.context || '{}');
-      const enabledDecryptedAgentContext = await decryptAgentContext(enabledGatewayContext.encryptedContext);
+      const enabledGatewayBody = ((JSON.parse as (text: unknown) => unknown)(((fetches.at(-1) as {options: unknown})?.options as {body: unknown})?.body || '{}') as unknown);
+      const enabledGatewayContext = ((JSON.parse as (text: unknown) => unknown)((enabledGatewayBody as {context: unknown}).context || '{}') as unknown);
+      const enabledDecryptedAgentContext = await decryptAgentContext((enabledGatewayContext as {encryptedContext: unknown}).encryptedContext);
       const redesignedContextFragments = [
         '[section:healthGoals]',
         'Restore stable morning energy',
@@ -460,12 +460,12 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
 
       messenger.configureSyncMessenger({
         getSyncRelay: () => 'ws://relay.local',
-        debug: (...args) => { debugCalls.push(args.map(String).join(' ')); },
+        debug: (...args: unknown[]) => { debugCalls.push(args.map(String).join(' ')); },
       });
       messenger.pushContextToGateway();
       await runPendingTimers();
       const customGateway = fetches.at(-1);
-      outcomes.messengerCustomRelayNormalizesWsAndDebugs = customGateway?.url === 'http://relay.local/api/context'
+      outcomes.messengerCustomRelayNormalizesWsAndDebugs = (customGateway as {url: unknown})?.url === 'http://relay.local/api/context'
         && debugCalls.some(message => message.includes('Encrypted context pushed to gateway'));
 
       messenger.revokeMessengerToken();
@@ -487,7 +487,7 @@ test('sync save hooks and messenger cover debounce and gateway paths', async ({ 
       messenger.configureSyncMessenger({ getSyncRelay: () => 'wss://sync.getbased.health', debug: () => {} });
       labContext.invalidateLabContextCache();
       state.currentProfile = saved.currentProfile;
-      state.importedData = saved.importedData;
+      (state as unknown as {importedData: unknown}).importedData = saved.importedData;
       for (const { type, listener, options } of boundListeners) {
         saved.removeEventListener.call(window, type, listener, options);
       }
@@ -523,13 +523,13 @@ test('sync action delegates push force pull and all-profile paths', async ({ pag
   const results = await page.evaluate(async ({ actionsUrl }) => {
     const [{ state }, actions, profile] = await Promise.all([
       import('/js/state.js'),
-      import(actionsUrl),
+      (import(actionsUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-actions.js'), "pushCurrentProfile" | "syncNow" | "forceResendCurrentProfile" | "configureSyncActions" | "pushAllProfiles" | "bindSyncActionEvents" | "clearSyncActionTimers">>,
       import('/js/profile.js'),
     ]);
-    const outcomes = {};
-    const pushes = [];
-    const pulls = [];
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const outcomes: Record<string, unknown> = {};
+    const pushes: unknown[] = [];
+    const pulls: unknown[] = [];
+    const clone = (value: unknown) => value == null ? value : ((JSON.parse as (text: unknown) => unknown)(JSON.stringify(value)) as unknown);
     const profileId = 'sync-actions-active';
     const otherProfileId = 'sync-actions-other';
     const otherDataKey = profile.profileStorageKey(otherProfileId, 'imported');
@@ -549,8 +549,8 @@ test('sync action delegates push force pull and all-profile paths', async ({ pag
 
     try {
       state.currentProfile = profileId;
-      state.importedData = { entries: [{ date: '2026-06-07', markers: { metabolic: { glucose: 5.2 } } }] };
-      state.profiles = [
+      (state as unknown as {importedData: unknown}).importedData = { entries: [{ date: '2026-06-07', markers: { metabolic: { glucose: 5.2 } } }] };
+      (state as unknown as {profiles: unknown}).profiles = [
         { id: profileId, name: 'Sync Active', createdAt: Date.now(), lastUpdated: Date.now() },
         { id: otherProfileId, name: 'Sync Other', createdAt: Date.now(), lastUpdated: Date.now() },
       ];
@@ -566,7 +566,7 @@ test('sync action delegates push force pull and all-profile paths', async ({ pag
       outcomes.defaultActionDependenciesAreSafeNoops = pushes.length === 0 && pulls.length === 0;
       actions.configureSyncActions({
         isEvoluReady: () => true,
-        pushProfile: async (id, data, options) => {
+        pushProfile: async (id:unknown, data: unknown, options?:unknown) => {
           pushes.push({ id, data: clone(data), options: clone(options || null) });
         },
       });
@@ -576,7 +576,7 @@ test('sync action delegates push force pull and all-profile paths', async ({ pag
       let enabled = false;
       let ready = false;
       actions.configureSyncActions({
-        pushProfile: async (id, data, options) => {
+        pushProfile: async (id:unknown, data: unknown, options?:unknown) => {
           pushes.push({ id, data: clone(data), options: clone(options || null) });
         },
         forcePull: () => { pulls.push('pull'); },
@@ -589,31 +589,31 @@ test('sync action delegates push force pull and all-profile paths', async ({ pag
 
       await actions.forceResendCurrentProfile();
       outcomes.forceResendDisabledDoesNotPush = pushes.length === 0
-        && Array.from(document.querySelectorAll('.notification-toast.warning'))
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.warning'))
           .some(toast => toast.textContent.includes('Sync is not enabled'));
 
       enabled = true;
       ready = true;
       await actions.pushCurrentProfile();
       outcomes.pushCurrentProfileUsesActiveState = pushes.length === 1
-        && pushes[0].id === profileId
-        && pushes[0].data.entries?.[0]?.markers?.metabolic?.glucose === 5.2;
+        && (pushes[0] as {id: unknown}).id === profileId
+        && ((pushes[0] as {data: unknown}).data as {entries?:{date?:unknown;markers?:{metabolic?:{glucose?:unknown}}}[]}).entries?.[0]?.markers?.metabolic?.glucose === 5.2;
 
       await actions.forceResendCurrentProfile();
-      outcomes.forceResendUsesForceOption = pushes.some(call => call.id === profileId && call.options?.force === true);
+      outcomes.forceResendUsesForceOption = pushes.some(call => (call as {id: unknown}).id === profileId && ((call as {options: unknown}).options as {force: unknown})?.force === true);
 
       await actions.syncNow();
-      outcomes.cleanSyncNowOnlyPulls = pushes.filter(call => call.id === profileId).length === 2
+      outcomes.cleanSyncNowOnlyPulls = pushes.filter(call => (call as {id: unknown}).id === profileId).length === 2
         && pulls.length === 1;
 
       await actions.pushAllProfiles({ force: true });
       const allProfilePushes = pushes.slice(-2);
-      const activeProfilePush = allProfilePushes.find(call => call.id === profileId);
-      const otherProfilePush = allProfilePushes.find(call => call.id === otherProfileId);
+      const activeProfilePush = allProfilePushes.find(call => (call as {id: unknown}).id === profileId);
+      const otherProfilePush = allProfilePushes.find(call => (call as {id: unknown}).id === otherProfileId);
       outcomes.pushAllProfilesReadsCurrentAndStoredData = allProfilePushes.length === 2
-        && activeProfilePush?.data.entries?.[0]?.date === '2026-06-07'
-        && otherProfilePush?.data.notes?.[0]?.text === 'other profile'
-        && allProfilePushes.every(call => call.options?.force === true);
+        && ((activeProfilePush as {data: unknown})?.data as {entries?:{date?:unknown;markers?:{metabolic?:{glucose?:unknown}}}[]}).entries?.[0]?.date === '2026-06-07'
+        && ((otherProfilePush as {data: unknown})?.data as {notes?:{text?:unknown}[]}).notes?.[0]?.text === 'other profile'
+        && allProfilePushes.every(call => ((call as {options: unknown}).options as {force: unknown})?.force === true);
 
       actions.bindSyncActionEvents();
       actions.clearSyncActionTimers();
@@ -629,14 +629,14 @@ test('sync action delegates push force pull and all-profile paths', async ({ pag
         createDefaultProfileData: () => ({ entries: [] }),
       });
       actions.clearSyncActionTimers();
-      state.profiles = saved.profiles;
+      (state as unknown as {profiles: unknown}).profiles = saved.profiles;
       state.currentProfile = saved.currentProfile;
-      state.importedData = saved.importedData;
+      (state as unknown as {importedData: unknown}).importedData = saved.importedData;
       for (const [key, value] of Object.entries(saved.storage)) {
         if (value == null) localStorage.removeItem(key);
         else localStorage.setItem(key, value);
       }
-      document.querySelectorAll('.notification-container,.notification-toast').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.notification-container,.notification-toast').forEach(el => el.remove());
     }
 
     return outcomes;
@@ -653,13 +653,13 @@ test('sync indicator popover renders debug actions and copies activity', async (
 
   const results = await page.evaluate(async ({ uiUrl }) => {
     const [syncUi, syncState, settingsBridge] = await Promise.all([
-      import(uiUrl),
+      (import(uiUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-ui.js'), "configureSyncUI" | "initSyncUIDelegates" | "renderSyncIndicator" | "toggleSyncDetail" | "updateSyncIndicator" | "copySyncEvents" | "bindSyncUIStatusUpdates">>,
       import('/js/sync-state.js'),
       import('/js/settings-runtime-bridge.js'),
     ]);
-    const outcomes = {};
-    const copied = [];
-    const waitFor = async (predicate, label) => {
+    const outcomes: Record<string, unknown> = {};
+    const copied:string[] = [];
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, label: string) => {
       for (let attempt = 0; attempt < 60; attempt += 1) {
         if (predicate()) return true;
         await new Promise(resolve => setTimeout(resolve, 25));
@@ -672,9 +672,9 @@ test('sync indicator popover renders debug actions and copies activity', async (
     };
     let enabled = false;
     const slot = document.getElementById('sync-indicator-slot') || document.createElement('div');
-    const actionCalls = [];
+    const actionCalls: unknown[] = [];
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
-      openSettingsModal: tab => { actionCalls.push(`settings:${tab}`); },
+      openSettingsModal: (tab: unknown) => { actionCalls.push(`settings:${tab}`); },
     });
     const previousSyncUIDeps = syncUi.configureSyncUI();
 
@@ -707,20 +707,20 @@ test('sync indicator popover renders debug actions and copies activity', async (
       enabled = true;
       syncState.updateSyncStatus({ relay: 'connected', push: 'confirmed', pushConfirmedAt: Date.now() - 2_000 });
       syncUi.renderSyncIndicator();
-      outcomes.enabledRenderShowsSyncedDot = !!slot.querySelector('#sync-indicator-btn .sync-dot-synced');
+      outcomes.enabledRenderShowsSyncedDot = !!slot.querySelector<HTMLElement>('#sync-indicator-btn .sync-dot-synced');
 
       syncUi.toggleSyncDetail();
       const standardPopover = document.getElementById('sync-popover');
       if (!standardPopover) throw new Error('standard sync popover did not render');
-      outcomes.standardPopoverShowsSyncStatus = !!standardPopover.querySelector('[data-sync-ui-action="show-diagnose"]')
+      outcomes.standardPopoverShowsSyncStatus = !!standardPopover.querySelector<HTMLElement>('[data-sync-ui-action="show-diagnose"]')
         && standardPopover.textContent.includes('Sync status')
-        && !standardPopover.querySelector('[data-sync-ui-action="force-resend"]');
+        && !standardPopover.querySelector<HTMLElement>('[data-sync-ui-action="force-resend"]');
       standardPopover.remove();
       localStorage.setItem('labcharts-debug', 'true');
 
       syncState.updateSyncStatus({ push: 'pending', pushStartedAt: Date.now() });
       syncUi.updateSyncIndicator();
-      outcomes.updateReflectsSyncingState = !!slot.querySelector('#sync-indicator-btn .sync-dot-syncing');
+      outcomes.updateReflectsSyncingState = !!slot.querySelector<HTMLElement>('#sync-indicator-btn .sync-dot-syncing');
 
       syncState.logSyncEvent('push', 'profile abc pushed');
       syncState.logSyncEvent('skip', 'stale profile skipped');
@@ -738,35 +738,35 @@ test('sync indicator popover renders debug actions and copies activity', async (
         && popover?.textContent.includes('Reload') === true
         && popover?.textContent.includes('Sync status') === true;
       outcomes.popoverUsesDelegatedActions =
-        !popover.querySelector('[onclick],[onchange],[oninput],[onkeydown],[onsubmit]')
-        && !!popover.querySelector('[data-sync-ui-action="copy-events"]')
-        && !!popover.querySelector('[data-sync-ui-action="sync-now"]')
-        && !!popover.querySelector('[data-sync-ui-action="force-resend"]')
-        && !!popover.querySelector('[data-sync-ui-action="clean-storage"]')
-        && !!popover.querySelector('[data-sync-ui-action="test-relay"]')
-        && !!popover.querySelector('[data-sync-ui-action="show-diagnose"]');
+        !popover.querySelector<HTMLElement>('[onclick],[onchange],[oninput],[onkeydown],[onsubmit]')
+        && !!popover.querySelector<HTMLElement>('[data-sync-ui-action="copy-events"]')
+        && !!popover.querySelector<HTMLElement>('[data-sync-ui-action="sync-now"]')
+        && !!popover.querySelector<HTMLElement>('[data-sync-ui-action="force-resend"]')
+        && !!popover.querySelector<HTMLElement>('[data-sync-ui-action="clean-storage"]')
+        && !!popover.querySelector<HTMLElement>('[data-sync-ui-action="test-relay"]')
+        && !!popover.querySelector<HTMLElement>('[data-sync-ui-action="show-diagnose"]');
 
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
-        value: { writeText: async value => copied.push(String(value || '')) },
+        value: { writeText: async (value: unknown) => copied.push(String(value || '')) },
       });
-      const copyBtn = popover.querySelector('button[title="Copy events to clipboard"]');
+      const copyBtn = popover.querySelector<HTMLElement>('button[title="Copy events to clipboard"]');
       if (!copyBtn) throw new Error('sync activity copy button did not render');
       copyBtn.click();
       await waitFor(() => copied.length === 1, 'clipboard write');
-      outcomes.copySyncEventsUsesClipboard = copied[0].includes('Sync activity')
-        && copied[0].includes('profile abc pushed')
+      outcomes.copySyncEventsUsesClipboard = copied[0]!.includes('Sync activity')
+        && copied[0]!.includes('profile abc pushed')
         && copyBtn.textContent.includes('Copied');
 
       Object.defineProperty(navigator, 'clipboard', { configurable: true, value: null });
       await syncUi.copySyncEvents(null);
-      outcomes.copyFallbackRendersTextarea = !!document.querySelector('textarea')
-        && Array.from(document.querySelectorAll('.notification-toast.warning'))
+      outcomes.copyFallbackRendersTextarea = !!document.querySelector<HTMLTextAreaElement>('textarea')
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.warning'))
           .some(toast => toast.textContent.includes('Auto-copy blocked'));
-      document.querySelector('textarea')?.dispatchEvent(new Event('blur'));
+      document.querySelector<HTMLTextAreaElement>('textarea')?.dispatchEvent(new Event('blur'));
 
-      const clickPopoverAction = async action => {
-        const btn = document.querySelector(`#sync-popover [data-sync-ui-action="${action}"]`);
+      const clickPopoverAction = async (action: unknown) => {
+        const btn = document.querySelector<HTMLElement>(`#sync-popover [data-sync-ui-action="${action}"]`);
         if (!btn) throw new Error(`missing sync popover action: ${action}`);
         btn.click();
         await Promise.resolve();
@@ -774,7 +774,7 @@ test('sync indicator popover renders debug actions and copies activity', async (
       await clickPopoverAction('test-relay');
       await waitFor(() => actionCalls.includes('test-relay'), 'test-relay delegate');
       await waitFor(
-        () => Array.from(document.querySelectorAll('.notification-toast'))
+        () => Array.from(document.querySelectorAll<HTMLElement>('.notification-toast'))
           .some(toast => toast.textContent.includes('Relay reachable')),
         'test-relay success notification'
       );
@@ -786,7 +786,7 @@ test('sync indicator popover renders debug actions and copies activity', async (
       });
       await clickPopoverAction('test-relay');
       await waitFor(
-        () => Array.from(document.querySelectorAll('.notification-toast.error'))
+        () => Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
           .some(toast => toast.textContent.includes('Relay check failed: relay offline')),
         'test-relay error notification'
       );
@@ -815,9 +815,9 @@ test('sync indicator popover renders debug actions and copies activity', async (
       if (!document.getElementById('sync-popover')) throw new Error('sync popover did not reopen');
       const originalAppendChild = Element.prototype.appendChild;
       let popoverAppendCount = 0;
-      Element.prototype.appendChild = function(node) {
-        if (node?.id === 'sync-popover') popoverAppendCount += 1;
-        return originalAppendChild.call(this, node);
+      Element.prototype.appendChild = function<T extends Node>(node:T) {
+        if ((node as unknown as {id?:unknown})?.id === 'sync-popover') popoverAppendCount += 1;
+        return (originalAppendChild as (this:Element,node:T)=>T).call(this, node);
       };
       try {
         syncState.updateSyncStatus({ push: 'confirmed', pushConfirmedAt: Date.now(), lastError: null, relay: 'connected' });
@@ -828,7 +828,7 @@ test('sync indicator popover renders debug actions and copies activity', async (
         await waitFor(() => popoverAppendCount >= 1, 'status-bound popover repaint');
         outcomes.bindStatusUpdatesIsIdempotent = popoverAppendCount === 1
           && !!document.getElementById('sync-popover')
-          && !!slot.querySelector('#sync-indicator-btn .sync-dot-syncing');
+          && !!slot.querySelector<HTMLElement>('#sync-indicator-btn .sync-dot-syncing');
       } finally {
         Element.prototype.appendChild = originalAppendChild;
       }
@@ -838,11 +838,11 @@ test('sync indicator popover renders debug actions and copies activity', async (
       if (saved.debug == null) localStorage.removeItem('labcharts-debug');
       else localStorage.setItem('labcharts-debug', saved.debug);
       if (saved.clipboardOwn) Object.defineProperty(navigator, 'clipboard', saved.clipboardOwn);
-      else delete navigator.clipboard;
+      else delete (navigator as {clipboard?:unknown}).clipboard;
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       document.getElementById('sync-popover')?.remove();
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
-      document.querySelectorAll('.notification-container').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.notification-container').forEach(el => el.remove());
       slot.innerHTML = '';
     }
 
@@ -862,22 +862,22 @@ test('sync identity rotation modal covers cancel copy malformed and apply paths'
     // The cache-busted identity module statically imports this canonical
     // singleton, so configuring it here injects deps into that fresh instance.
     const [identityActions, context, confirmRuntime] = await Promise.all([
-      import(identityUrl),
+      (import(identityUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-diagnose-identity-actions.js'), "confirmRotateIdentity">>,
       import('/js/sync-diagnose-actions-context.js'),
       import('/js/sync-diagnose-runtime.js'),
     ]);
-    const outcomes = {};
-    const calls = [];
-    const copied = [];
+    const outcomes: Record<string, unknown> = {};
+    const calls: unknown[] = [];
+    const copied:string[] = [];
     let confirmAnswer = false;
     const previousConfirmDeps = confirmRuntime.configureSyncDiagnoseRuntimeDeps({
-      showConfirmDialog: async message => {
+      showConfirmDialog: async (message: unknown) => {
         calls.push(['confirm', message]);
         return confirmAnswer;
       },
     });
-    const words = Array.from({ length: 24 }, (_, index) => `word${index + 1}`).join(' ');
-    const waitFor = async (predicate, label) => {
+    const words = Array.from({ length: 24 }, (_, index: number) => `word${index + 1}`).join(' ');
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, label: string) => {
       for (let attempt = 0; attempt < 60; attempt += 1) {
         if (predicate()) return true;
         await new Promise(resolve => setTimeout(resolve, 25));
@@ -885,75 +885,75 @@ test('sync identity rotation modal covers cancel copy malformed and apply paths'
       throw new Error(`Timed out waiting for ${label}`);
     };
     const saved = {
-      bip39: window.bip39,
-      qrcode: window.qrcode,
+      bip39: (window as unknown as {bip39?: unknown}).bip39,
+      qrcode: (window as unknown as {qrcode?: unknown}).qrcode,
       clipboardOwn: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
     };
 
     try {
       confirmAnswer = false;
       await identityActions.confirmRotateIdentity(document.body);
-      outcomes.cancelStopsBeforeMnemonic = calls.some(call => call[0] === 'confirm')
-        && !document.querySelector('[aria-label="Rotate sync identity"]');
+      outcomes.cancelStopsBeforeMnemonic = calls.some(call => (call as unknown[])[0] === 'confirm')
+        && !document.querySelector<HTMLElement>('[aria-label="Rotate sync identity"]');
 
       confirmAnswer = true;
-      window.bip39 = { generateMnemonic: async () => 'too few words' };
+      (window as unknown as {bip39?: unknown}).bip39 = { generateMnemonic: async () => 'too few words' };
       await identityActions.confirmRotateIdentity(document.body);
-      outcomes.malformedMnemonicNotifies = Array.from(document.querySelectorAll('.notification-toast.error'))
+      outcomes.malformedMnemonicNotifies = Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
         .some(toast => toast.textContent.includes('Generated mnemonic is malformed'));
 
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
-      window.bip39 = { generateMnemonic: async strength => {
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
+      (window as unknown as {bip39?: unknown}).bip39 = { generateMnemonic: async (strength: unknown) => {
         calls.push(['generate', strength]);
         return words;
       } };
-      window.qrcode = () => ({
-        addData(value) { calls.push(['qr-data', value.split(/\s+/).length]); },
+      (window as unknown as {qrcode?: unknown}).qrcode = () => ({
+        addData(value: unknown) { calls.push(['qr-data', (value as Pick<string,"split">).split(/\s+/).length]); },
         make() { calls.push(['qr-make']); },
         createSvgTag() { return '<svg data-qr="1"></svg>'; },
       });
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
-        value: { writeText: async value => copied.push(String(value || '')) },
+        value: { writeText: async (value: unknown) => copied.push(String(value || '')) },
       });
       let syncEnabled = false;
       context.configureSyncDiagnoseActionContext({
         isSyncEnabled: () => syncEnabled,
-        enableSync: async options => {
-          calls.push(['enable', options?.skipPush === true]);
+        enableSync: async (options: unknown) => {
+          calls.push(['enable', (options as {skipPush: unknown})?.skipPush === true]);
           syncEnabled = true;
           return true;
         },
-        restoreFromMnemonic: async (mnemonic, options) => {
-          calls.push(['restore', mnemonic.split(/\s+/).length, options?.seedLocal === true]);
+        restoreFromMnemonic: async (mnemonic: string, options: unknown) => {
+          calls.push(['restore', mnemonic.split(/\s+/).length, (options as {seedLocal: unknown})?.seedLocal === true]);
           return true;
         },
       });
 
       await identityActions.confirmRotateIdentity(document.body);
-      const overlay = document.querySelector('[aria-label="Rotate sync identity"]')?.closest('.modal-overlay');
-      const applyBtn = overlay?.querySelector('#rotate-apply-btn');
-      const check = overlay?.querySelector('#rotate-saved-check');
+      const overlay = document.querySelector<HTMLElement>('[aria-label="Rotate sync identity"]')?.closest('.modal-overlay');
+      const applyBtn = overlay?.querySelector<HTMLButtonElement>('#rotate-apply-btn');
+      const check = overlay?.querySelector<HTMLInputElement>('#rotate-saved-check');
       if (!overlay || !applyBtn || !check) throw new Error('rotate identity modal controls did not render');
       outcomes.rotateModalRendersQrAndGatesApply = overlay?.classList.contains('show') === true
-        && !!overlay.querySelector('svg[data-qr="1"]')
+        && !!overlay.querySelector<HTMLElement>('svg[data-qr="1"]')
         && applyBtn?.disabled === true
-        && calls.some(call => call[0] === 'generate' && call[1] === 256)
-        && calls.some(call => call[0] === 'qr-data' && call[1] === 24);
+        && calls.some(call => (call as unknown[])[0] === 'generate' && (call as unknown[])[1] === 256)
+        && calls.some(call => (call as unknown[])[0] === 'qr-data' && (call as unknown[])[1] === 24);
 
-      overlay.querySelector('#rotate-copy-btn')?.click();
+      overlay.querySelector<HTMLElement>('#rotate-copy-btn')?.click();
       await waitFor(() => copied.length === 1, 'mnemonic clipboard copy');
-      outcomes.copyMnemonicWritesAllWords = copied[0].split(/\s+/).length === 24
-        && overlay.querySelector('#rotate-copy-btn')?.textContent.includes('Copied');
+      outcomes.copyMnemonicWritesAllWords = copied[0]!.split(/\s+/).length === 24
+        && overlay.querySelector<HTMLElement>('#rotate-copy-btn')?.textContent.includes('Copied');
 
-      check.checked = true;
+      (check as unknown as {checked: boolean}).checked = true;
       check.dispatchEvent(new Event('change', { bubbles: true }));
       outcomes.savedCheckboxEnablesApply = applyBtn.disabled === false;
 
       applyBtn.click();
-      await waitFor(() => calls.some(call => call[0] === 'restore'), 'restore after apply');
-      outcomes.applyEnablesSyncAndRestoresMnemonic = calls.some(call => call[0] === 'enable' && call[1] === true)
-        && calls.some(call => call[0] === 'restore' && call[1] === 24 && call[2] === true)
+      await waitFor(() => calls.some(call => (call as unknown[])[0] === 'restore'), 'restore after apply');
+      outcomes.applyEnablesSyncAndRestoresMnemonic = calls.some(call => (call as unknown[])[0] === 'enable' && (call as unknown[])[1] === true)
+        && calls.some(call => (call as unknown[])[0] === 'restore' && (call as unknown[])[1] === 24 && (call as unknown[])[2] === true)
         && applyBtn.textContent.includes('Applying');
     } finally {
       context.configureSyncDiagnoseActionContext({
@@ -962,13 +962,13 @@ test('sync identity rotation modal covers cancel copy malformed and apply paths'
         isSyncEnabled: () => false,
       });
       confirmRuntime.configureSyncDiagnoseRuntimeDeps(previousConfirmDeps);
-      if (saved.bip39 === undefined) delete window.bip39;
-      else window.bip39 = saved.bip39;
-      if (saved.qrcode === undefined) delete window.qrcode;
-      else window.qrcode = saved.qrcode;
+      if (saved.bip39 === undefined) delete (window as unknown as {bip39?: unknown}).bip39;
+      else (window as unknown as {bip39?: unknown}).bip39 = saved.bip39;
+      if (saved.qrcode === undefined) delete (window as unknown as {qrcode?: unknown}).qrcode;
+      else (window as unknown as {qrcode?: unknown}).qrcode = saved.qrcode;
       if (saved.clipboardOwn) Object.defineProperty(navigator, 'clipboard', saved.clipboardOwn);
-      else delete navigator.clipboard;
-      document.querySelectorAll('.modal-overlay,.notification-container,.notification-toast').forEach(el => el.remove());
+      else delete (navigator as {clipboard?:unknown}).clipboard;
+      document.querySelectorAll<HTMLElement>('.modal-overlay,.notification-container,.notification-toast').forEach(el => el.remove());
     }
 
     return outcomes;

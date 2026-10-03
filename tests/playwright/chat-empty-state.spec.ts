@@ -27,24 +27,24 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
     const chatMessages = document.getElementById('chat-messages');
     const savedChatMessagesHTML = chatMessages?.innerHTML;
 
-    const calls = [];
+    const calls: unknown[] = [];
     const previousContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
       triggerDNAFilePicker: () => calls.push('import-dna'),
     });
     const previousSettingsBridge = settingsBridge.configureSettingsModuleBridge({
-      openSettingsModal: tab => calls.push(`open-settings:${tab}`),
+      openSettingsModal: (tab: unknown) => calls.push(`open-settings:${tab}`),
     });
     const previousChatEmptyStateDeps = chatEmptyState.configureChatEmptyStateDeps({
       closeChatPanel: () => calls.push('close-chat'),
     });
-    const waitUntil = async (predicate, label) => {
+    const waitUntil = async (predicate: () => unknown | Promise<unknown>, label: string) => {
       for (let i = 0; i < 80; i += 1) {
         if (predicate()) return;
-        await new Promise(resolve => setTimeout(resolve, 25));
+        await new Promise((resolve) => setTimeout(resolve, 25));
       }
       throw new Error(`Timed out waiting for ${label}`);
     };
-    const inputClicks = [];
+    const inputClicks: unknown[] = [];
     const container = document.createElement('div');
     const panel = document.createElement('div');
     const strayMtDnaInput = document.createElement('input');
@@ -61,7 +61,7 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       state.profiles = [{ id: 'chat-empty-test', name: 'Default', tags: [], notes: '', status: 'active' }];
       state.profileSex = null;
       state.profileDob = null;
-      state.importedData = {
+      (state as { importedData: unknown }).importedData = {
         entries: [],
         notes: [],
         supplements: [],
@@ -94,11 +94,11 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
 
       chatEmptyState.renderEmptyChatState(container, panel);
 
-      const nameInput = container.querySelector('#chat-onboard-name');
-      nameInput.value = 'Ada';
-      nameInput.dispatchEvent(new Event('change', { bubbles: true }));
+      const nameInput = container.querySelector<HTMLInputElement>('#chat-onboard-name');
+      nameInput!.value = 'Ada';
+      nameInput!.dispatchEvent(new Event('change', { bubbles: true }));
 
-      container.querySelector('[data-chat-empty-action="set-profile-sex"][data-sex="female"]')?.click();
+      container.querySelector<HTMLElement>('[data-chat-empty-action="set-profile-sex"][data-sex="female"]')?.click();
       await waitUntil(
         () => state.profileSex === 'female'
           && container.querySelector('[data-sex="female"]')?.classList.contains('active') === true,
@@ -107,15 +107,15 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       const sexSavedAndActive = state.profileSex === 'female'
         && container.querySelector('[data-sex="female"]')?.classList.contains('active') === true;
 
-      const heightInput = container.querySelector('#chat-onboard-height');
-      const heightUnit = container.querySelector('#chat-onboard-height-unit');
-      heightInput.value = '180';
-      heightUnit.value = 'in';
-      heightUnit.dispatchEvent(new Event('change', { bubbles: true }));
+      const heightInput = container.querySelector<HTMLInputElement>('#chat-onboard-height');
+      const heightUnit = container.querySelector<HTMLSelectElement>('#chat-onboard-height-unit');
+      heightInput!.value = '180';
+      heightUnit!.value = 'in';
+      heightUnit!.dispatchEvent(new Event('change', { bubbles: true }));
 
-      const countryInput = container.querySelector('#chat-onboard-country');
-      countryInput.value = 'Germany';
-      countryInput.dispatchEvent(new Event('input', { bubbles: true }));
+      const countryInput = container.querySelector<HTMLInputElement>('#chat-onboard-country');
+      countryInput!.value = 'Germany';
+      countryInput!.dispatchEvent(new Event('input', { bubbles: true }));
       await waitUntil(
         () => getProfileLocation('chat-empty-test').country === 'Germany',
         'durable chat profile location',
@@ -123,8 +123,8 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
 
       chatEmptyState.renderEmptyChatState(container, panel);
       const bubbledBeforeOptionalActions = bubbledClicks;
-      container.querySelector('[data-chat-empty-action="open-cycle-editor"]')?.click();
-      await new Promise(resolve => {
+      container.querySelector<HTMLElement>('[data-chat-empty-action="open-cycle-editor"]')?.click();
+      await new Promise<void>((resolve) => {
         const started = performance.now();
         const waitForEditor = () => {
           if (document.querySelector('#detail-modal .gb-modal-title')?.textContent === 'Menstrual Cycle'
@@ -135,10 +135,10 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       });
       const cycleEditorOpenedThroughModule = document.getElementById('modal-overlay')?.classList.contains('show') === true
         && document.querySelector('#detail-modal .gb-modal-title')?.textContent === 'Menstrual Cycle';
-      container.querySelector('[data-chat-empty-action="open-supplements-editor"]')?.click();
-      container.querySelector('[data-chat-empty-action="import-dna"]')?.click();
-      container.querySelector('[data-chat-empty-action="import-mtdna"]')?.click();
-      container.querySelector('[data-chat-empty-action="open-wearables-settings"]')?.click();
+      container.querySelector<HTMLElement>('[data-chat-empty-action="open-supplements-editor"]')?.click();
+      container.querySelector<HTMLElement>('[data-chat-empty-action="import-dna"]')?.click();
+      container.querySelector<HTMLElement>('[data-chat-empty-action="import-mtdna"]')?.click();
+      container.querySelector<HTMLElement>('[data-chat-empty-action="open-wearables-settings"]')?.click();
 
       return {
         delegatesInstalled: container.dataset.chatEmptyDelegates === '1',
@@ -147,7 +147,7 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
         nameSaved: state.profiles[0]?.name === 'Ada',
         sexSavedAndActive,
         nonClosingActionsBubble: bubbledClicks > 0,
-        heightConverted: heightInput.value === '70.9',
+        heightConverted: heightInput!.value === '70.9',
         countrySaved: getProfileLocation('chat-empty-test').country === 'Germany',
         optionalActionsCalled: calls.includes('close-chat')
           && calls.includes('import-dna')
@@ -163,10 +163,10 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       chatEmptyState.configureChatEmptyStateDeps(previousChatEmptyStateDeps);
       state.currentProfile = saved.currentProfile;
-      state.profiles = saved.profiles;
+      (state as { profiles: unknown }).profiles = saved.profiles;
       state.profileSex = saved.profileSex;
       state.profileDob = saved.profileDob;
-      state.importedData = saved.importedData;
+      (state as { importedData: unknown }).importedData = saved.importedData;
       if (saved.profilesStorage === null) localStorage.removeItem('labcharts-profiles');
       else localStorage.setItem('labcharts-profiles', saved.profilesStorage);
       document.getElementById('modal-overlay')?.classList.remove('show');
@@ -198,7 +198,7 @@ test('chat onboarding walks connected and disconnected funnels coherently', asyn
       import('/js/chat-onboarding.js'),
     ]);
 
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const clone = (value: unknown): unknown => value == null ? value : JSON.parse(JSON.stringify(value)) as unknown;
     const saved = {
       currentProfile: state.currentProfile,
       profiles: clone(state.profiles),
@@ -210,19 +210,19 @@ test('chat onboarding walks connected and disconnected funnels coherently', asyn
     };
     const localSnapshot = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key as string)];
     }));
     const sessionSnapshot = new Map(Array.from({ length: sessionStorage.length }, (_, i) => {
       const key = sessionStorage.key(i);
-      return [key, sessionStorage.getItem(key)];
+      return [key, sessionStorage.getItem(key as string)];
     }));
     const existingPanel = document.getElementById('chat-panel');
     const panel = existingPanel || document.createElement('div');
     const container = document.createElement('div');
     const savedPanelClass = panel.className;
     const savedPanelId = panel.id;
-    const calls = [];
-    const outcomes = {};
+    const calls: unknown[] = [];
+    const outcomes: Record<string, unknown> = {};
 
     const baseImportedData = () => ({
       entries: [],
@@ -247,13 +247,13 @@ test('chat onboarding walks connected and disconnected funnels coherently', asyn
       markerValueNotes: {},
       changeHistory: [],
     });
-    const restoreStorage = (storage, snapshot) => {
+    const restoreStorage = (storage: Storage, snapshot: Iterable<readonly [string | null, string | null]>) => {
       storage.clear();
       for (const [key, value] of snapshot) {
         if (key && value != null) storage.setItem(key, value);
       }
     };
-    const setProvider = connected => {
+    const setProvider = (connected: unknown) => {
       localStorage.setItem('labcharts-ai-paused', 'false');
       localStorage.setItem('labcharts-ai-provider', connected ? 'ollama' : 'custom');
       if (!connected) {
@@ -261,7 +261,7 @@ test('chat onboarding walks connected and disconnected funnels coherently', asyn
         localStorage.removeItem('labcharts-custom-key');
       }
     };
-    const setupProfile = (profileId, connected) => {
+    const setupProfile = (profileId: string, connected: unknown) => {
       localStorage.clear();
       sessionStorage.clear();
       setProvider(connected);
@@ -270,7 +270,7 @@ test('chat onboarding walks connected and disconnected funnels coherently', asyn
       state.profileSex = null;
       state.profileDob = null;
       state.currentChatPersonality = 'default';
-      state.importedData = baseImportedData();
+      (state as { importedData: unknown }).importedData = baseImportedData();
       state.chatHistory = [];
       data.invalidateActiveDataCache();
       container.innerHTML = '';
@@ -278,26 +278,26 @@ test('chat onboarding walks connected and disconnected funnels coherently', asyn
       renderEmptyChatState(container, panel);
     };
     const text = () => container.textContent || '';
-    const click = selector => {
+    const click = (selector: string) => {
       const el = container.querySelector(selector);
       if (!el) return false;
       el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
       return true;
     };
-    const waitUntil = async (predicate, label) => {
+    const waitUntil = async (predicate: () => unknown | Promise<unknown>, label: string) => {
       for (let i = 0; i < 80; i += 1) {
         if (predicate()) return;
-        await new Promise(resolve => setTimeout(resolve, 25));
+        await new Promise((resolve) => setTimeout(resolve, 25));
       }
       throw new Error(`Timed out waiting for ${label}`);
     };
     const finishStep1 = async () => {
-      const nameInput = container.querySelector('#chat-onboard-name');
-      if (nameInput) nameInput.value = 'Ada';
+      const nameInput = container.querySelector<HTMLInputElement>('#chat-onboard-name');
+      if (nameInput) nameInput!.value = 'Ada';
       click('[data-chat-empty-action="set-profile-sex"][data-sex="female"]');
       await waitUntil(
         () => state.profileSex === 'female'
-          && container.querySelector('#chat-onboard-next')?.disabled === false,
+          && container.querySelector<HTMLButtonElement>('#chat-onboard-next')?.disabled === false,
         'durable profile sex before advancing',
       );
       click('[data-chat-empty-action="save-profile-advance"]');
@@ -314,7 +314,7 @@ test('chat onboarding walks connected and disconnected funnels coherently', asyn
       if (!existingPanel) document.body.append(panel);
       panel.append(container);
       chatOnboarding.configureChatOnboarding({
-        navigate: route => calls.push(`navigate:${route}`),
+        navigate: (route: unknown) => calls.push(`navigate:${route}`),
         renderChatMessages: () => renderEmptyChatState(container, panel),
         renderProfileButton: () => {},
         setChatNudge: () => {},
@@ -383,12 +383,12 @@ test('chat onboarding walks connected and disconnected funnels coherently', asyn
         && !!container.querySelector('[data-chat-onboarding-action="go-onboarding-step"][data-chat-step="4"]');
     } finally {
       state.currentProfile = saved.currentProfile;
-      state.profiles = saved.profiles;
+      (state as { profiles: unknown }).profiles = saved.profiles;
       state.profileSex = saved.profileSex;
       state.profileDob = saved.profileDob;
       state.currentChatPersonality = saved.currentChatPersonality;
-      state.importedData = saved.importedData;
-      state.chatHistory = saved.chatHistory;
+      (state as { importedData: unknown }).importedData = saved.importedData;
+      (state as { chatHistory: unknown }).chatHistory = saved.chatHistory;
       data.invalidateActiveDataCache();
       restoreStorage(localStorage, localSnapshot);
       restoreStorage(sessionStorage, sessionSnapshot);
@@ -429,7 +429,7 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
       import('/js/chat-runtime.js'),
     ]);
 
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const clone = (value: unknown): unknown => value == null ? value : JSON.parse(JSON.stringify(value)) as unknown;
     const profileId = 'chat-empty-state-branches';
     const saved = {
       currentProfile: state.currentProfile,
@@ -441,30 +441,30 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
     };
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key as string)];
     }));
     const sessionSnapshot = new Map(Array.from({ length: sessionStorage.length }, (_, i) => {
       const key = sessionStorage.key(i);
-      return [key, sessionStorage.getItem(key)];
+      return [key, sessionStorage.getItem(key as string)];
     }));
     const savedFns = {
-      showNotification: window.showNotification,
+      showNotification: (window as { showNotification?: unknown }).showNotification,
       inputClick: HTMLInputElement.prototype.click,
       scrollIntoView: Element.prototype.scrollIntoView,
     };
-    const outcomes = {};
-    const calls = [];
+    const outcomes: Record<string, unknown> = {};
+    const calls: unknown[][] = [];
     const previousChatEmptyStateDeps = configureChatEmptyStateDeps({
       openChatProviderQuiz: () => calls.push(['provider-quiz']),
-      setOnboardingFocus: focus => calls.push(['focus', focus]),
+      setOnboardingFocus: (focus: unknown) => calls.push(['focus', focus]),
     });
     const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
       resumeAI: () => calls.push(['resume-ai']),
     });
     const container = document.createElement('div');
     const panel = document.createElement('div');
-    const existingChatInput = /** @type {HTMLTextAreaElement | HTMLInputElement | null} */ (document.getElementById('chat-input'));
-    const existingPdfInput = /** @type {HTMLInputElement | null} */ (document.getElementById('pdf-input'));
+    const existingChatInput = /** @type {HTMLTextAreaElement | HTMLInputElement | null} */ ((document.getElementById('chat-input') as HTMLTextAreaElement | null));
+    const existingPdfInput = /** @type {HTMLInputElement | null} */ ((document.getElementById('pdf-input') as HTMLInputElement | null));
     const chatInput = existingChatInput || document.createElement('textarea');
     const pdfInput = existingPdfInput || document.createElement('input');
     const createdChatInput = !existingChatInput;
@@ -472,7 +472,7 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
     const savedChatInputValue = existingChatInput?.value || '';
     const savedPdfInputValue = existingPdfInput?.value || '';
 
-    const baseImportedData = overrides => ({
+    const baseImportedData = (overrides: object) => ({
       entries: [],
       notes: [],
       supplements: [],
@@ -511,7 +511,7 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
       loveLife: { status: 'partnered' },
       environment: { air: 'city' },
     });
-    const labData = overrides => baseImportedData({
+    const labData = (overrides: object) => baseImportedData({
       entries: [{ date: '2026-06-01', markers: { 'biochemistry.glucose': 5.2 } }],
       ...overrides,
     });
@@ -532,13 +532,13 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
         localStorage.removeItem('labcharts-custom-key');
       }
     };
-    const setFixture = (importedData, opts = {}) => {
+    const setFixture = (importedData: unknown, opts: { profileSex?: unknown; connected?: unknown; paused?: unknown; extrasDone?: unknown; contextCardsSkipped?: unknown; forceContextCards?: unknown; providerRequested?: unknown; providerBranch?: unknown } = {}) => {
       state.currentProfile = profileId;
       state.profiles = [{ id: profileId, name: 'Ada Lovelace', tags: [], notes: '', status: 'active' }];
-      state.profileSex = opts.profileSex ?? 'female';
+      (state as { profileSex: unknown }).profileSex = opts.profileSex ?? 'female';
       state.profileDob = '1815-12-10';
       state.currentChatPersonality = 'default';
-      state.importedData = importedData;
+      (state as { importedData: unknown }).importedData = importedData;
       data.invalidateActiveDataCache();
       clearBranchStorage();
       setProviderState({ connected: opts.connected !== false, paused: !!opts.paused });
@@ -546,7 +546,7 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
       if (opts.contextCardsSkipped) localStorage.setItem(`labcharts-onboard-context-cards-skipped-${profileId}`, '1');
       if (opts.forceContextCards) sessionStorage.setItem(`chat-onboard-force-context-cards-${profileId}`, '1');
       if (opts.providerRequested) sessionStorage.setItem(`chat-onboard-provider-requested-${profileId}`, '1');
-      if (opts.providerBranch) sessionStorage.setItem(`chat-onboard-provider-branch-${profileId}`, opts.providerBranch);
+      if (opts.providerBranch) sessionStorage.setItem(`chat-onboard-provider-branch-${profileId}`, opts.providerBranch as string);
       container.innerHTML = '';
       panel.className = '';
       chatInput.value = '';
@@ -572,12 +572,12 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
       } else {
         pdfInput.value = '';
       }
-      window.showNotification = (message, tone) => calls.push(['notification', message, tone]);
+      (window as { showNotification?: unknown }).showNotification = (message: unknown, tone: unknown) => calls.push(['notification', message, tone]);
       chatOnboarding.configureChatOnboarding({
         closeChatPanel: () => calls.push(['close-chat']),
         renderChatMessages: () => calls.push(['render-chat']),
         sendChatMessage: () => calls.push(['send-chat']),
-        setChatNudge: mode => calls.push(['nudge', mode]),
+        setChatNudge: (mode: unknown) => calls.push(['nudge', mode]),
         updateChatNudge: () => calls.push(['update-nudge']),
       });
       HTMLInputElement.prototype.click = function() {
@@ -615,7 +615,7 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
       const fullText = renderText();
       container.querySelector('[data-chat-empty-action="start-lab-import"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       container.querySelector('[data-chat-empty-action="use-prompt"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      const promptInputValue = document.getElementById('chat-input')?.value || '';
+      const promptInputValue = (document.getElementById('chat-input') as HTMLTextAreaElement | null)?.value || '';
       outcomes.fullContextNoDataStateLeavesPanelInactive = !panel.classList.contains('chat-onboarding-active');
       outcomes.fullContextNoDataStateRendersHandoffCopy = fullText.includes('Context complete')
         && fullText.includes('context cards are complete')
@@ -745,11 +745,11 @@ test('chat empty-state renders remaining prompt states and actions', async ({ pa
       outcomes.generalPromptStateRendersPromptButtons = container.querySelectorAll('.chat-prompt-btn').length >= 5;
     } finally {
       state.currentProfile = saved.currentProfile;
-      state.profiles = saved.profiles;
+      (state as { profiles: unknown }).profiles = saved.profiles;
       state.profileSex = saved.profileSex;
       state.profileDob = saved.profileDob;
       state.currentChatPersonality = saved.currentChatPersonality;
-      state.importedData = saved.importedData;
+      (state as { importedData: unknown }).importedData = saved.importedData;
       data.invalidateActiveDataCache();
       localStorage.clear();
       for (const [key, value] of storage) {

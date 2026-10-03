@@ -1,3 +1,6 @@
+import type {DeltaItemRow} from "../../js/sync-delta-row-codec.js";
+import type { Browser } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
 const TRANSPORT_E2E_ENABLED = process.env.SYNC_TRANSPORT_E2E === '1';
@@ -24,7 +27,7 @@ function legalAcceptance() {
   };
 }
 
-async function createDevice(browser, label) {
+async function createDevice(browser: Browser, label: string) {
   const context = await browser.newContext({ serviceWorkers: 'block' });
   await context.addInitScript(({ relayUrl, selfUrl, acceptance, debug }) => {
     if (!/^https?:$/.test(location.protocol)) return;
@@ -48,8 +51,8 @@ async function createDevice(browser, label) {
   });
 
   const page = await context.newPage();
-  const errors = [];
-  page.on('pageerror', error => errors.push(`${label}: ${error.message}`));
+  const errors: unknown[] = [];
+  page.on('pageerror', (error: unknown) => errors.push(`${label}: ${(error as {message: unknown}).message}`));
   if (process.env.SYNC_TRANSPORT_DEBUG === '1') {
     page.on('console', message => {
       if (message.text().includes('[sync]')) console.log(`${label}: ${message.text()}`);
@@ -64,10 +67,10 @@ async function createDevice(browser, label) {
   return { context, page, label, errors };
 }
 
-async function waitForOwner(page, expectedOwnerId = null) {
+async function waitForOwner(page: Page, expectedOwnerId: unknown = null) {
   const readOwnerId = async () => page.evaluate(async () => {
     const runtime = await import('/js/sync-runtime.js');
-    return runtime.getSyncAppOwner()?.id ? String(runtime.getSyncAppOwner().id) : null;
+    return runtime.getSyncAppOwner()?.id ? String(runtime.getSyncAppOwner()!.id) : null;
   });
   if (expectedOwnerId) {
     await expect.poll(readOwnerId, {
@@ -103,11 +106,11 @@ async function waitForOwner(page, expectedOwnerId = null) {
       import('/js/sync-runtime.js'),
     ]);
     const owner = runtime.getSyncAppOwner();
-    return { ownerId: String(owner.id), mnemonic: getMnemonic() };
+    return { ownerId: String(owner!.id), mnemonic: getMnemonic() };
   });
 }
 
-async function enableNewIdentity(page) {
+async function enableNewIdentity(page: Page) {
   await page.evaluate(async () => {
     const { enableSync } = await import('/js/sync.js');
     await enableSync({ skipPush: false });
@@ -115,7 +118,7 @@ async function enableNewIdentity(page) {
   return waitForOwner(page);
 }
 
-async function joinIdentity(page, mnemonic, ownerId) {
+async function joinIdentity(page: Page, mnemonic:string|null, ownerId: unknown) {
   await page.evaluate(async () => {
     const { enableSync } = await import('/js/sync.js');
     // Match the Settings "Join existing device" path: the throwaway owner is
@@ -129,20 +132,20 @@ async function joinIdentity(page, mnemonic, ownerId) {
   try {
     restored = await page.evaluate(async words => {
       const { restoreFromMnemonic } = await import('/js/sync.js');
-      return restoreFromMnemonic(words);
+      return (restoreFromMnemonic as (input:typeof words)=>ReturnType<typeof restoreFromMnemonic>)(words);
     }, mnemonic);
   } catch (error) {
     // Evolu's restore reloads the app as part of the successful reset, which
     // can destroy this evaluation context before its boolean crosses back to
     // Playwright. The owner-id assertion below is the authoritative result.
-    if (!/Execution context was destroyed|navigation/i.test(error?.message || '')) throw error;
+    if (!(/Execution context was destroyed|navigation/i.test as (value:unknown)=>boolean)((error as {message: unknown})?.message || '')) throw error;
   }
   expect(restored).toBe(true);
   await reloaded;
   await waitForOwner(page, ownerId);
 }
 
-async function rotateIdentityWithLocalData(page) {
+async function rotateIdentityWithLocalData(page: Page) {
   const previous = await waitForOwner(page);
   const reloaded = page.waitForEvent('load', { timeout: 30_000 });
   const rotated = await page.evaluate(async () => {
@@ -160,36 +163,36 @@ async function rotateIdentityWithLocalData(page) {
   return next;
 }
 
-async function profileIds(page) {
+async function profileIds(page: Page) {
   return page.evaluate(async () => (await import('/js/profile.js')).getProfiles().map(profile => profile.id));
 }
 
-async function profileDiagnostics(page) {
+async function profileDiagnostics(page: Page) {
   return page.evaluate(async () => {
     const profiles = (await import('/js/profile.js')).getProfiles();
-    const keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter(Boolean);
+    const keys = Array.from({ length: localStorage.length }, (_, index: number) => localStorage.key(index)).filter(Boolean);
     return profiles.map(profile => ({
       profile,
-      localKeys: keys.filter(key => key.includes(profile.id)),
+      localKeys: keys.filter(key => key!.includes(profile.id)),
     }));
   });
 }
 
-async function waitForProfilePresence(page, profileId, present) {
-  await expect.poll(async () => (await profileIds(page)).includes(profileId), {
+async function waitForProfilePresence(page: Page, profileId:unknown, present: unknown) {
+  await expect.poll(async () => ((await profileIds(page)).includes as (value:unknown)=>boolean)(profileId), {
     timeout: 30_000,
     intervals: [100, 250, 500, 1000],
   }).toBe(present);
 }
 
-async function activateProfile(page, profileId) {
+async function activateProfile(page: Page, profileId: string) {
   await page.evaluate(async id => (await import('/js/profile.js')).loadProfile(id), profileId);
   await expect.poll(() => page.evaluate(async id => (
     (await import('/js/state.js')).state.currentProfile === id
   ), profileId), { timeout: 30_000 }).toBe(true);
 }
 
-async function captureProfileSnapshot(page, profileId) {
+async function captureProfileSnapshot(page: Page, profileId: string) {
   return page.evaluate(async id => {
     const [{ state }, profileModule] = await Promise.all([
       import('/js/state.js'),
@@ -198,13 +201,13 @@ async function captureProfileSnapshot(page, profileId) {
     const profile = profileModule.getProfiles().find(candidate => candidate.id === id);
     if (!profile || state.currentProfile !== id) throw new Error(`Profile ${id} is not active`);
     return {
-      profile: JSON.parse(JSON.stringify(profile)),
-      importedData: JSON.parse(JSON.stringify(state.importedData)),
+      profile: ((JSON.parse as (text: unknown) => unknown)(JSON.stringify(profile)) as unknown),
+      importedData: ((JSON.parse as (text: unknown) => unknown)(JSON.stringify(state.importedData)) as unknown),
     };
   }, profileId);
 }
 
-async function restoreProfileSnapshot(page, snapshot) {
+async function restoreProfileSnapshot(page: Page, snapshot: unknown) {
   await page.evaluate(async restored => {
     const [crypto, storageKeys, profileModule, restoreState] = await Promise.all([
       import('/js/crypto.js'),
@@ -212,24 +215,24 @@ async function restoreProfileSnapshot(page, snapshot) {
       import('/js/profile.js'),
       import('/js/sync-backup-restore-state.js'),
     ]);
-    const profileId = restored.profile.id;
+    const profileId = ((restored as {profile: unknown}).profile as {id: unknown}).id;
     await crypto.encryptedSetItem(
-      storageKeys.profileStorageKey(profileId, 'imported'),
-      JSON.stringify(restored.importedData),
+      (storageKeys.profileStorageKey as (profileId:unknown,suffix:Parameters<typeof storageKeys.profileStorageKey>[1])=>ReturnType<typeof storageKeys.profileStorageKey>)(profileId, 'imported'),
+      JSON.stringify((restored as {importedData: unknown}).importedData),
     );
-    await profileModule.saveProfiles([restored.profile]);
-    localStorage.setItem('labcharts-active-profile', profileId);
+    await (profileModule.saveProfiles as (profiles:unknown[])=>ReturnType<typeof profileModule.saveProfiles>)([(restored as {profile: unknown}).profile]);
+    (localStorage.setItem as (key:string,value:unknown)=>void)('labcharts-active-profile', profileId);
     restoreState.prepareRestoredProfilesForSync({ profiles: [{ profileId }] });
   }, snapshot);
   await page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
   await waitForOwner(page);
-  await waitForProfilePresence(page, snapshot.profile.id, true);
+  await waitForProfilePresence(page, ((snapshot as {profile: unknown}).profile as {id: unknown}).id, true);
   await expect.poll(async () => page.evaluate(async id => (
     (await import('/js/state.js')).state.currentProfile === id
-  ), snapshot.profile.id), { timeout: 30_000 }).toBe(true);
+  ), ((snapshot as {profile: unknown}).profile as {id: unknown}).id), { timeout: 30_000 }).toBe(true);
 }
 
-async function clearAllProfileData(page, oldProfileId) {
+async function clearAllProfileData(page: Page, oldProfileId: unknown) {
   const clearPromise = page.evaluate(async () => (
     (await import('/js/export.js')).clearAllData()
   ));
@@ -250,7 +253,7 @@ async function clearAllProfileData(page, oldProfileId) {
   }, oldProfileId);
 }
 
-async function setSyntheticData(page, action) {
+async function setSyntheticData(page: Page, action: unknown) {
   return page.evaluate(async requestedAction => {
     const [{ state }, dataModule, mergeModule] = await Promise.all([
       import('/js/state.js'),
@@ -258,21 +261,21 @@ async function setSyntheticData(page, action) {
       import('/js/data-merge.js'),
     ]);
     if (requestedAction === 'seed') {
-      state.importedData.contextNotes = 'transport-e2e-baseline';
-      state.importedData.notes = [{
+      (state.importedData as unknown as {contextNotes: unknown}).contextNotes = 'transport-e2e-baseline';
+      (state.importedData as unknown as {notes: unknown}).notes = [{
         date: '2026-08-06T08:00:00.000Z',
         text: 'baseline-note',
         updatedAt: '2026-08-06T08:00:00.000Z',
       }];
     } else if (requestedAction === 'update-a') {
-      state.importedData.contextNotes = 'transport-e2e-updated';
+      (state.importedData as unknown as {contextNotes: unknown}).contextNotes = 'transport-e2e-updated';
       state.importedData.notes.push({
         date: '2026-08-06T09:00:00.000Z',
         text: 'from-device-a',
         updatedAt: '2026-08-06T09:00:00.000Z',
       });
     } else if (requestedAction === 'offline-context') {
-      state.importedData.contextNotes = 'transport-e2e-offline-recovery';
+      (state.importedData as unknown as {contextNotes: unknown}).contextNotes = 'transport-e2e-offline-recovery';
     } else if (requestedAction === 'concurrent-a') {
       state.importedData.notes.push({
         date: '2026-08-06T10:00:00.000Z',
@@ -286,7 +289,7 @@ async function setSyntheticData(page, action) {
         updatedAt: '2026-08-06T10:00:01.000Z',
       });
     } else if (requestedAction === 'delete-baseline') {
-      const index = state.importedData.notes.findIndex(note => note.text === 'baseline-note');
+      const index = state.importedData.notes.findIndex((note: unknown) => (note as {text: unknown}).text === 'baseline-note');
       if (index >= 0) mergeModule.deleteImportedArrayItem(state.importedData, 'notes', index);
     } else {
       throw new Error(`Unknown synthetic mutation: ${requestedAction}`);
@@ -295,7 +298,7 @@ async function setSyntheticData(page, action) {
   }, action);
 }
 
-async function syncNow(page) {
+async function syncNow(page: Page) {
   return page.evaluate(async () => {
     const result = await (await import('/js/sync.js')).syncNow();
     return result ? {
@@ -306,7 +309,7 @@ async function syncNow(page) {
   });
 }
 
-async function relayStorage(page) {
+async function relayStorage(page: Page) {
   return page.evaluate(async () => {
     const result = await (await import('/js/sync.js')).fetchOwnerStorageFromRelay();
     return result && {
@@ -318,14 +321,14 @@ async function relayStorage(page) {
   });
 }
 
-async function waitForStableRelayStorage(page, { minimumMessages = 1 } = {}) {
-  let previous = null;
+async function waitForStableRelayStorage(page: Page, { minimumMessages = 1 } = {}):Promise<Awaited<ReturnType<typeof relayStorage>>> {
+  let previous:string|null = null;
   let stableReads = 0;
-  let latest = null;
+  let latest:Awaited<ReturnType<typeof relayStorage>> = null;
   await expect.poll(async () => {
     latest = await relayStorage(page);
     const key = latest && `${latest.storedBytes}:${latest.messageCount}:${latest.lastWriteToken || ''}`;
-    if (latest?.messageCount >= minimumMessages && key === previous) stableReads++;
+    if ((latest?.messageCount as number) >= minimumMessages && key === previous) stableReads++;
     else stableReads = 0;
     previous = key;
     return stableReads;
@@ -333,16 +336,16 @@ async function waitForStableRelayStorage(page, { minimumMessages = 1 } = {}) {
   return latest;
 }
 
-async function contextNotes(page) {
+async function contextNotes(page: Page) {
   return page.evaluate(async () => (await import('/js/state.js')).state.importedData?.contextNotes || '');
 }
 
-async function noteTexts(page) {
+async function noteTexts(page: Page) {
   return page.evaluate(async () => ((await import('/js/state.js')).state.importedData?.notes || [])
     .map(note => note.text).sort());
 }
 
-async function syncDiagnostics(page) {
+async function syncDiagnostics(page: Page) {
   return page.evaluate(async () => {
     const [runtime, rowCodec, payloadCodec] = await Promise.all([
       import('/js/sync-runtime.js'),
@@ -350,16 +353,16 @@ async function syncDiagnostics(page) {
       import('/js/sync-payload-codec.js'),
     ]);
     const evolu = runtime.getSyncEvolu();
-    const itemRows = evolu?.getQueryRows(runtime.getSyncItemRowQuery()) || [];
+    const itemRows = evolu?.getQueryRows<DeltaItemRow>(runtime.getSyncItemRowQuery()) || [];
     const profileRows = evolu?.getQueryRows(runtime.getSyncProfileQuery()) || [];
-    const rows = [];
+    const rows: unknown[] = [];
     for (const row of itemRows.filter(candidate => (
       candidate?.arrayName === 'notes' || candidate?.arrayName === 'contextNotes'
     ))) {
-      let value = null;
+      let value: unknown = null;
       try {
         const parsed = await rowCodec.decodeRowPayload(row);
-        value = row.arrayName === 'notes' ? parsed?.text || null : parsed?.v ?? null;
+        value = row.arrayName === 'notes' ? (parsed as {text: unknown})?.text || null : (parsed as {v: unknown})?.v ?? null;
       } catch {}
       rows.push({
         id: row.id,
@@ -370,14 +373,14 @@ async function syncDiagnostics(page) {
         value,
       });
     }
-    const profiles = [];
+    const profiles: unknown[] = [];
     for (const row of profileRows) {
-      let contextNotes = null;
-      let noteTexts = [];
+      let contextNotes: unknown = null;
+      let noteTexts: unknown[] = [];
       try {
         const payload = await payloadCodec.parseSyncPayload(row.dataJson);
-        contextNotes = payload?.importedData?.contextNotes ?? null;
-        noteTexts = (payload?.importedData?.notes || []).map(note => note.text).sort();
+        contextNotes = (payload?.importedData as {contextNotes: unknown})?.contextNotes ?? null;
+        noteTexts = (((payload?.importedData as {notes: unknown})?.notes || []) as {text:unknown}[]).map(note => note.text).sort();
       } catch {}
       profiles.push({ id: row.id, syncedAt: row.syncedAt, contextNotes, noteTexts });
     }
@@ -393,7 +396,7 @@ async function syncDiagnostics(page) {
   });
 }
 
-async function waitForContext(page, expected) {
+async function waitForContext(page: Page, expected:unknown) {
   try {
     await expect.poll(() => contextNotes(page), {
       timeout: 30_000,
@@ -405,7 +408,7 @@ async function waitForContext(page, expected) {
   }
 }
 
-async function waitForNotes(page, expected) {
+async function waitForNotes(page: Page, expected:readonly unknown[]) {
   await expect.poll(() => noteTexts(page), {
     timeout: 30_000,
     intervals: [100, 250, 500, 1000],
@@ -414,8 +417,8 @@ async function waitForNotes(page, expected) {
 
 test('real relay converges devices, resists no-op bloat, recovers offline, and rebuilds', async ({ browser }) => {
   test.setTimeout(240_000);
-  const devices = [];
-  let cleanupPage = null;
+  const devices: Array<Awaited<ReturnType<typeof createDevice>>> = [];
+  let cleanupPage: Page | null = null;
 
   try {
     const deviceA = await createDevice(browser, 'device A');
@@ -426,7 +429,7 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     const identity = await enableNewIdentity(deviceA.page);
     expect(identity.mnemonic?.trim().split(/\s+/)).toHaveLength(24);
     const initialStorage = await waitForStableRelayStorage(deviceA.page);
-    expect(initialStorage.quotaBytes).toBeGreaterThan(0);
+    expect(initialStorage!.quotaBytes).toBeGreaterThan(0);
 
     const deviceB = await createDevice(browser, 'device B');
     devices.push(deviceB);
@@ -447,8 +450,8 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
       expect(result).toMatchObject({ ok: true, skipped: true, reason: 'unchanged' });
     }
     const afterRefreshes = await waitForStableRelayStorage(deviceA.page);
-    expect(afterRefreshes.messageCount).toBe(beforeRefreshes.messageCount);
-    expect(afterRefreshes.storedBytes).toBe(beforeRefreshes.storedBytes);
+    expect(afterRefreshes!.messageCount).toBe(beforeRefreshes!.messageCount);
+    expect(afterRefreshes!.storedBytes).toBe(beforeRefreshes!.storedBytes);
 
     await deviceB.context.setOffline(true);
     await setSyntheticData(deviceA.page, 'offline-context');
@@ -494,15 +497,15 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     const compacted = await deviceA.page.evaluate(async () => (
       (await import('/js/sync.js')).compactOwnerSelfServe()
     ));
-    expect(compacted.beforeStoredBytes).toBe(beforeCompaction.storedBytes);
-    expect(compacted.afterStoredBytes).toBe(0);
+    expect(compacted!.beforeStoredBytes).toBe(beforeCompaction!.storedBytes);
+    expect(compacted!.afterStoredBytes).toBe(0);
 
     const rebuilt = await deviceA.page.evaluate(async () => (
       (await import('/js/sync-actions.js')).rebuildOwnerRelayState()
     ));
     expect(rebuilt.failed).toBe(0);
     const afterRebuild = await waitForStableRelayStorage(deviceA.page);
-    expect(afterRebuild.messageCount).toBeGreaterThan(0);
+    expect(afterRebuild!.messageCount).toBeGreaterThan(0);
     await waitForContext(deviceA.page, OFFLINE_CONTEXT);
 
     const deviceC = await createDevice(browser, 'device C');
@@ -527,15 +530,15 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
     // Reconciliation may produce a small number of genuinely new messages on
     // the stale device. The discarded pre-compaction log itself must remain
     // filtered, and subsequent reconnects must not grow storage again.
-    expect(afterOldDeviceReconnect.messageCount).toBeLessThan(compacted.deletedMessages);
-    expect(afterOldDeviceReconnect.storedBytes).toBeLessThan(beforeCompaction.storedBytes);
+    expect(afterOldDeviceReconnect!.messageCount).toBeLessThan(compacted!.deletedMessages as number);
+    expect(afterOldDeviceReconnect!.storedBytes).toBeLessThan(beforeCompaction!.storedBytes);
 
     await deviceB.page.reload({ waitUntil: 'domcontentloaded', timeout: 30_000 });
     await waitForOwner(deviceB.page, identity.ownerId);
     await waitForNotes(deviceB.page, ['from-device-a', 'concurrent-a', 'concurrent-b']);
     const afterRepeatedReconnect = await waitForStableRelayStorage(deviceA.page);
-    expect(afterRepeatedReconnect.messageCount).toBe(afterOldDeviceReconnect.messageCount);
-    expect(afterRepeatedReconnect.storedBytes).toBe(afterOldDeviceReconnect.storedBytes);
+    expect(afterRepeatedReconnect!.messageCount).toBe(afterOldDeviceReconnect!.messageCount);
+    expect(afterRepeatedReconnect!.storedBytes).toBe(afterOldDeviceReconnect!.storedBytes);
 
     for (const device of devices) expect(device.errors).toEqual([]);
   } finally {
@@ -552,7 +555,7 @@ test('real relay converges devices, resists no-op bloat, recovers offline, and r
 
 test('restored profiles survive old tombstones and a new sync identity', async ({ browser }) => {
   test.setTimeout(300_000);
-  const devices = [];
+  const devices: Array<Awaited<ReturnType<typeof createDevice>>> = [];
   const profileId = 'default';
 
   try {
@@ -625,7 +628,7 @@ test('restored profiles survive old tombstones and a new sync identity', async (
     expect(cleared.profileIds).toEqual([cleared.activeProfileId]);
     expect(cleared.contextNotes).toBe('');
     expect(cleared.noteCount).toBe(0);
-    expect(JSON.parse(cleared.oldDeleteIntent)).toMatchObject({ source: 'clear-all' });
+    expect(((JSON.parse as (text: unknown) => unknown)(cleared.oldDeleteIntent) as unknown)).toMatchObject({ source: 'clear-all' });
     expect((await syncNow(deviceA.page))?.ok).toBe(true);
 
     await waitForProfilePresence(deviceB.page, profileId, false);

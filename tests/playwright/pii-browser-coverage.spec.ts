@@ -1,7 +1,7 @@
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = (path) => `${path}?piiBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?piiBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   body: '<!doctype html><html><body><div id="notification-container"></div></body></html>',
@@ -11,16 +11,16 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
   await openBlankPage(page, '/pii-browser-coverage');
 
   const results = await page.evaluate(async ({ piiUrl, cryptoUrl, providerStorageUrl }) => {
-    const failures = [];
-    const check = (name, condition, detail = '') => {
+    const failures: unknown[] = [];
+    const check = (name: string, condition: unknown, detail:unknown = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
     };
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
-    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+    const jsonResponse = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json' },
     });
-    const streamResponse = (chunks) => new Response(new ReadableStream({
+    const streamResponse = (chunks: Iterable<string>) => new Response(new ReadableStream<Uint8Array>({
       start(controller) {
         const encoder = new TextEncoder();
         for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
@@ -28,9 +28,9 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
       },
     }), { headers: { 'Content-Type': 'text/event-stream' } });
 
-    const pii = await import(piiUrl);
-    const cryptoStore = await import(cryptoUrl);
-    const providerStorage = await import(providerStorageUrl);
+    const pii = (await import(piiUrl) as unknown) as Pick<typeof import('../../js/pii.js'), "detectSexFromPDF" | "fakeName" | "randomPick" | "fakeBirthNumber" | "fakePhone" | "fakeEmail" | "fakeDate" | "fakePatientId" | "checkOllama" | "checkOpenAICompatible" | "setOllamaPIIEnabled" | "checkOllamaPII" | "isOllamaPIIEnabled" | "unloadOllamaPIIModel" | "obfuscatePDFText" | "validatePIIResult" | "buildPIIDiffHTML" | "showPIIDiffViewer" | "sanitizeWithOllama" | "sanitizeWithOllamaStreaming" | "reviewPIIBeforeSend">;
+    const cryptoStore = (await import(cryptoUrl) as unknown) as Pick<typeof import('../../js/crypto.js'), "encryptedSetItem" | "updateKeyCache">;
+    const providerStorage = (await import(providerStorageUrl) as unknown) as Pick<typeof import('../../js/api-provider-storage.js'), "setOllamaPIIUrl" | "setOllamaPIIModel" | "getOllamaConfig" | "saveOllamaConfig" | "saveOllamaPIIApiKey">;
     const providerStorageRuntime = await import('/js/api-provider-storage-runtime.js');
     const previousProviderStorageRuntime = providerStorageRuntime.configureApiProviderStorageRuntimeDeps({
       encryptedSetItem: cryptoStore.encryptedSetItem,
@@ -52,7 +52,7 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
       abortSignalAnyDescriptor: Object.getOwnPropertyDescriptor(AbortSignal, 'any'),
     };
 
-    const fetchCalls = [];
+    const fetchCalls:{href:string;method:string;auth:unknown;body:string}[] = [];
     let mode = 'ok';
     let abortAnyPatched = false;
 
@@ -63,19 +63,19 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
       providerStorage.setOllamaPIIUrl('http://localhost:11434');
       providerStorage.setOllamaPIIModel('privacy-qwen:7b');
 
-      window.fetch = async (url, options = {}) => {
-        const href = typeof url === 'string' ? url : url?.url || String(url);
+      window.fetch = async (url: NonNullable<Parameters<typeof fetch>[0]>, options: NonNullable<Parameters<typeof fetch>[1]> = {}) => {
+        const href = typeof url === 'string' ? url : (url as {url?:string})?.url || String(url);
         const headers = options.headers instanceof Headers ? Object.fromEntries(options.headers.entries()) : (options.headers || {});
         fetchCalls.push({
           href,
           method: String(options.method || 'GET').toUpperCase(),
-          auth: headers.Authorization || headers.authorization || '',
+          auth: (headers as {Authorization?:unknown}).Authorization || (headers as {authorization?:unknown}).authorization || '',
           body: String(options.body || ''),
         });
 
         if (href.endsWith('/api/version')) {
           if (mode === 'probe-abort') {
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve, reject:(reason?:unknown)=>ReturnType<typeof resolve>) => {
               options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
             });
           }
@@ -138,7 +138,7 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
         }
         if (href.endsWith('/v1/models')) {
           if (mode === 'probe-abort') {
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve, reject:(reason?:unknown)=>ReturnType<typeof resolve>) => {
               options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
             });
           }
@@ -219,10 +219,10 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
       check('checkOllama covers success non-ok and fetch errors',
         ollamaOk.available === true &&
         ollamaOk.models.includes('llama3.2:latest') &&
-        ollamaOk.modelDetails[0].paramSize === '3B' &&
-        ollamaOk.modelDetails[0].loaded === true &&
-        ollamaOk.modelDetails[0].vramAllocated === 2800000000 &&
-        ollamaOk.modelDetails[0].contextLength === 8192 &&
+        ollamaOk.modelDetails[0]!.paramSize === '3B' &&
+        ollamaOk.modelDetails[0]!.loaded === true &&
+        ollamaOk.modelDetails[0]!.vramAllocated === 2800000000 &&
+        ollamaOk.modelDetails[0]!.contextLength === 8192 &&
         ollamaOk.vramAllocated === 2800000000 &&
         ollamaNonOk.available === false &&
         ollamaThrows.available === false);
@@ -231,7 +231,7 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
       const ollamaWithoutRuntimeInfo = await pii.checkOllama('http://localhost:11434');
       check('Ollama tags remain available when runtime allocation cannot be read',
         ollamaWithoutRuntimeInfo.available === true &&
-        ollamaWithoutRuntimeInfo.modelDetails[0].loaded === null &&
+        ollamaWithoutRuntimeInfo.modelDetails[0]!.loaded === null &&
         ollamaWithoutRuntimeInfo.vramAllocated === 0);
 
       mode = 'ok';
@@ -328,83 +328,83 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
 
       await pii.showPIIDiffViewer('Name: Alice', 'Name: Jana');
       await wait(25);
-      const viewer = document.querySelector('.pii-warning-overlay');
+      const viewer = document.querySelector<HTMLElement>('.pii-warning-overlay');
       check('showPIIDiffViewer opens modal and locks body scroll',
         viewer?.classList.contains('show') === true &&
         document.body.style.overflow === 'hidden' &&
-        viewer.querySelector('.pii-diff-left')?.innerHTML.includes('Alice'));
-      viewer.querySelector('.modal-close')?.click();
-      check('showPIIDiffViewer close button removes overlay', !document.querySelector('.pii-warning-overlay'));
+        viewer.querySelector<HTMLElement>('.pii-diff-left')?.innerHTML.includes('Alice'));
+      viewer!.querySelector<HTMLElement>('.modal-close')?.click();
+      check('showPIIDiffViewer close button removes overlay', !document.querySelector<HTMLElement>('.pii-warning-overlay'));
 
       mode = 'ok';
       await providerStorage.saveOllamaPIIApiKey('pii-only-key');
       providerStorage.setOllamaPIIModel('kimi-k2.5:cloud');
       const beforeCloudAttempt = fetchCalls.length;
-      let cloudModelError = '';
+      let cloudModelError:unknown = '';
       try {
         await pii.sanitizeWithOllama('Patient: Alice\nDate: 2026-01-02');
       } catch (error) {
-        cloudModelError = error.message;
+        cloudModelError = (error as {message: unknown}).message;
       }
       check('PII sanitizer blocks cloud models before any request',
-        /not a self-hosted text model/i.test(cloudModelError) && fetchCalls.length === beforeCloudAttempt);
+        (/not a self-hosted text model/i.test as (value:unknown)=>boolean)(cloudModelError) && fetchCalls.length === beforeCloudAttempt);
       providerStorage.setOllamaPIIModel('privacy-qwen:7b');
       const sanitized = await pii.sanitizeWithOllama('Patient: Alice\nDate: 2026-01-02\nPhone: +420 777 888 999');
       mode = 'sanitize-short';
-      let shortError = '';
+      let shortError:unknown = '';
       try {
         await pii.sanitizeWithOllama('Patient: Alice\nDate: 2026-01-02\nPhone: +420 777 888 999');
       } catch (error) {
-        shortError = error.message;
+        shortError = (error as {message: unknown}).message;
       }
       mode = 'sanitize-timeout';
-      let timeoutError = '';
+      let timeoutError:unknown = '';
       try {
         await pii.sanitizeWithOllama('Patient: Alice\nDate: 2026-01-02\nPhone: +420 777 888 999');
       } catch (error) {
-        timeoutError = error.message;
+        timeoutError = (error as {message: unknown}).message;
       }
       check('sanitizeWithOllama covers success validation and timeout notification',
         !sanitized.includes('Alice') &&
         sanitized.includes('2026-01-02') &&
         fetchCalls.some(call => call.href.endsWith('/v1/chat/completions') && call.auth === 'Bearer pii-only-key') &&
-        /too short/i.test(shortError) &&
-        /timed out/i.test(timeoutError) &&
+        (/too short/i.test as (value:unknown)=>boolean)(shortError) &&
+        (/timed out/i.test as (value:unknown)=>boolean)(timeoutError) &&
         document.getElementById('notification-container')?.textContent.includes('timed out'));
 
-      const streamChunks = [];
-      const thinkingChunks = [];
+      const streamChunks: unknown[] = [];
+      const thinkingChunks: unknown[] = [];
       mode = 'streaming';
-      const streamed = await pii.sanitizeWithOllamaStreaming(
+      const streamed = await (pii.sanitizeWithOllamaStreaming as (text:Parameters<typeof pii.sanitizeWithOllamaStreaming>[0],onChunk:Parameters<typeof pii.sanitizeWithOllamaStreaming>[1],signal?:Parameters<typeof pii.sanitizeWithOllamaStreaming>[2],onThinking?:Parameters<typeof pii.sanitizeWithOllamaStreaming>[3])=>ReturnType<typeof pii.sanitizeWithOllamaStreaming>)(
         'Patient: Alice\nDate: 2026-01-02\nPhone: +420 777 888 999',
-        chunk => streamChunks.push(chunk),
+        (chunk: unknown) => streamChunks.push(chunk),
         undefined,
-        chunk => thinkingChunks.push(chunk)
+        (chunk: unknown) => thinkingChunks.push(chunk)
       );
       mode = 'streaming-malformed';
-      let malformedError = '';
+      let malformedError:unknown = '';
       try {
-        await pii.sanitizeWithOllamaStreaming(
+        await (pii.sanitizeWithOllamaStreaming as (text:Parameters<typeof pii.sanitizeWithOllamaStreaming>[0],onChunk:Parameters<typeof pii.sanitizeWithOllamaStreaming>[1],signal?:Parameters<typeof pii.sanitizeWithOllamaStreaming>[2],onThinking?:Parameters<typeof pii.sanitizeWithOllamaStreaming>[3])=>ReturnType<typeof pii.sanitizeWithOllamaStreaming>)(
           'Patient: Alice\nDate: 2026-01-02\nPhone: +420 777 888 999',
           () => {},
         );
       } catch (error) {
-        malformedError = error.message;
+        malformedError = (error as {message: unknown}).message;
       }
       mode = 'probe-abort';
-      let probeError = '';
+      let probeError:unknown = '';
       try {
         if (saved.abortSignalAnyDescriptor?.configurable) {
           Object.defineProperty(AbortSignal, 'any', { configurable: true, value: undefined });
           abortAnyPatched = true;
         }
         const abortController = new AbortController();
-        const probeRun = pii.sanitizeWithOllamaStreaming('Patient: Alice\nDate: 2026-01-02', () => {}, abortController.signal);
+        const probeRun = (pii.sanitizeWithOllamaStreaming as (text:Parameters<typeof pii.sanitizeWithOllamaStreaming>[0],onChunk:Parameters<typeof pii.sanitizeWithOllamaStreaming>[1],signal?:Parameters<typeof pii.sanitizeWithOllamaStreaming>[2],onThinking?:Parameters<typeof pii.sanitizeWithOllamaStreaming>[3])=>ReturnType<typeof pii.sanitizeWithOllamaStreaming>)('Patient: Alice\nDate: 2026-01-02', () => {}, abortController.signal);
         await wait();
         abortController.abort(new DOMException('Stopped', 'AbortError'));
         await probeRun;
       } catch (error) {
-        probeError = error.message;
+        probeError = (error as {message: unknown}).message;
       }
       check('sanitizeWithOllamaStreaming filters thinking and rejects malformed complete events',
         !streamed.includes('Alice') &&
@@ -412,9 +412,9 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
         streamChunks.join('').includes('Patient: Jana') &&
         thinkingChunks.join('').includes('checking identifiers') &&
         thinkingChunks.join('').includes('hidden chain') &&
-        malformedError.length > 0);
+        (malformedError as {length:number}).length > 0);
       check('sanitizeWithOllamaStreaming abort probe fallback reports unreachable server',
-        /unreachable/i.test(probeError),
+        (/unreachable/i.test as (value:unknown)=>boolean)(probeError),
         probeError);
     } finally {
       window.fetch = saved.fetch;
@@ -422,7 +422,7 @@ test('PII browser coverage exercises config probes regex obfuscation and diff he
       if (saved.aiSettingsLock == null) sessionStorage.removeItem('labcharts-ai-settings-local-lock-until');
       else sessionStorage.setItem('labcharts-ai-settings-local-lock-until', saved.aiSettingsLock);
       document.body.style.overflow = saved.bodyOverflow;
-      document.querySelectorAll('.pii-warning-overlay').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.pii-warning-overlay').forEach(el => el.remove());
       if (abortAnyPatched && saved.abortSignalAnyDescriptor) {
         Object.defineProperty(AbortSignal, 'any', saved.abortSignalAnyDescriptor);
       }
@@ -448,12 +448,12 @@ test('PII browser coverage exercises review modal search edit streaming stop ret
   await openBlankPage(page, '/pii-browser-review-coverage');
 
   const results = await page.evaluate(async ({ piiUrl }) => {
-    const failures = [];
-    const check = (name, condition, detail = '') => {
+    const failures: unknown[] = [];
+    const check = (name: string, condition: unknown, detail:unknown = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
     };
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async (predicate, label, timeout = 2500) => {
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, label: string, timeout = 2500) => {
       const start = Date.now();
       while (Date.now() - start < timeout) {
         if (predicate()) return true;
@@ -462,21 +462,21 @@ test('PII browser coverage exercises review modal search edit streaming stop ret
       failures.push(`Timed out waiting for ${label}`);
       return false;
     };
-    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+    const jsonResponse = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json' },
     });
-    const pii = await import(piiUrl);
+    const pii = (await import(piiUrl) as unknown) as Pick<typeof import('../../js/pii.js'), "detectSexFromPDF" | "fakeName" | "randomPick" | "fakeBirthNumber" | "fakePhone" | "fakeEmail" | "fakeDate" | "fakePatientId" | "checkOllama" | "checkOpenAICompatible" | "setOllamaPIIEnabled" | "checkOllamaPII" | "isOllamaPIIEnabled" | "unloadOllamaPIIModel" | "obfuscatePDFText" | "validatePIIResult" | "buildPIIDiffHTML" | "showPIIDiffViewer" | "sanitizeWithOllama" | "sanitizeWithOllamaStreaming" | "reviewPIIBeforeSend">;
 
     const saved = {
       fetch: window.fetch,
       bodyOverflow: document.body.style.overflow,
     };
-    const unloadCalls = [];
+    const unloadCalls:string[] = [];
 
     try {
-      window.fetch = async (url, options = {}) => {
-        const href = typeof url === 'string' ? url : url?.url || String(url);
+      window.fetch = async (url: NonNullable<Parameters<typeof fetch>[0]>, options: NonNullable<Parameters<typeof fetch>[1]> = {}) => {
+        const href = typeof url === 'string' ? url : (url as {url?:string})?.url || String(url);
         if (href.endsWith('/api/generate')) {
           unloadCalls.push(String(options.body || ''));
           return jsonResponse({ done: true });
@@ -488,37 +488,37 @@ test('PII browser coverage exercises review modal search edit streaming stop ret
       const obfuscated = 'Patient: Jana Novak\nPhone: +420 711 222 333\nDate: 2026-01-02';
 
       const cancelPromise = pii.reviewPIIBeforeSend(original, { obfuscatedText: obfuscated });
-      await waitFor(() => !!document.querySelector('.pii-warning-overlay'), 'non-streaming review modal');
-      let overlay = document.querySelector('.pii-warning-overlay');
-      const search = overlay.querySelector('#pii-search-input');
-      const textarea = overlay.querySelector('#pii-edit-textarea');
-      const sendBtn = overlay.querySelector('#pii-review-send');
-      const searchCount = overlay.querySelector('#pii-search-count');
+      await waitFor(() => !!document.querySelector<HTMLElement>('.pii-warning-overlay'), 'non-streaming review modal');
+      let overlay = document.querySelector<HTMLElement>('.pii-warning-overlay');
+      const search = overlay!.querySelector<HTMLInputElement>('#pii-search-input');
+      const textarea = overlay!.querySelector<HTMLTextAreaElement>('#pii-edit-textarea');
+      const sendBtn = overlay!.querySelector<HTMLButtonElement>('#pii-review-send');
+      const searchCount = overlay!.querySelector<HTMLElement>('#pii-search-count');
 
-      overlay.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      overlay!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       await wait();
-      const nudged = overlay.querySelector('.pii-diff-modal')?.classList.contains('modal-nudge') === true;
-      search.value = 'A';
-      search.dispatchEvent(new Event('input', { bubbles: true }));
-      const shortSearchClears = searchCount.textContent === '';
-      search.value = 'Jana';
-      search.dispatchEvent(new Event('input', { bubbles: true }));
-      const searchFinds = searchCount.textContent.includes('found') && searchCount.classList.contains('pii-search-warn');
-      search.value = 'NotPresent';
-      search.dispatchEvent(new Event('input', { bubbles: true }));
-      const searchClears = searchCount.textContent === 'Not found' && searchCount.classList.contains('pii-search-clear');
-      textarea.value += '\nReviewed';
-      textarea.dispatchEvent(new Event('input', { bubbles: true }));
-      const dirtyButton = sendBtn.textContent.includes('Save');
-      textarea.focus();
-      textarea.blur();
-      await waitFor(() => !!overlay.querySelector('.pii-diff-preview'), 'diff preview after blur');
-      overlay.querySelector('#pii-edit-btn').click();
-      const editMode = textarea.style.display !== 'none';
-      overlay.querySelector('#pii-review-regex').click();
-      await waitFor(() => !!overlay.querySelector('.pii-diff-preview'), 'regex diff preview');
-      const regexFallback = textarea.value.includes('Jana') || textarea.value.includes('Jan');
-      overlay.querySelector('#pii-review-cancel').click();
+      const nudged = overlay!.querySelector<HTMLElement>('.pii-diff-modal')?.classList.contains('modal-nudge') === true;
+      (search! as unknown as {value: string}).value = 'A';
+      search!.dispatchEvent(new Event('input', { bubbles: true }));
+      const shortSearchClears = searchCount!.textContent === '';
+      (search! as unknown as {value: string}).value = 'Jana';
+      search!.dispatchEvent(new Event('input', { bubbles: true }));
+      const searchFinds = searchCount!.textContent.includes('found') && searchCount!.classList.contains('pii-search-warn');
+      (search! as unknown as {value: string}).value = 'NotPresent';
+      search!.dispatchEvent(new Event('input', { bubbles: true }));
+      const searchClears = searchCount!.textContent === 'Not found' && searchCount!.classList.contains('pii-search-clear');
+      (textarea! as unknown as {value: string}).value += '\nReviewed';
+      textarea!.dispatchEvent(new Event('input', { bubbles: true }));
+      const dirtyButton = sendBtn!.textContent.includes('Save');
+      textarea!.focus();
+      textarea!.blur();
+      await waitFor(() => !!overlay!.querySelector<HTMLElement>('.pii-diff-preview'), 'diff preview after blur');
+      overlay!.querySelector<HTMLElement>('#pii-edit-btn')!.click();
+      const editMode = textarea!.style.display !== 'none';
+      overlay!.querySelector<HTMLElement>('#pii-review-regex')!.click();
+      await waitFor(() => !!overlay!.querySelector<HTMLElement>('.pii-diff-preview'), 'regex diff preview');
+      const regexFallback = (textarea! as unknown as {value: string}).value.includes('Jana') || (textarea! as unknown as {value: string}).value.includes('Jan');
+      overlay!.querySelector<HTMLElement>('#pii-review-cancel')!.click();
       const cancelResult = await cancelPromise;
 
       check('non-streaming PII review modal covers nudge search edit regex and cancel',
@@ -531,11 +531,11 @@ test('PII browser coverage exercises review modal search edit streaming stop ret
           if (streamAttempts === 1) {
             onThinking('first-pass thinking');
             onChunk('Partial ');
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve, reject:(reason?:unknown)=>ReturnType<typeof resolve>) => {
               signal.addEventListener('abort', () => reject(new DOMException('Stopped', 'AbortError')), { once: true });
             });
           }
-          return new Promise(resolve => {
+          return new Promise<void>(resolve => {
             onThinking('retry thinking');
             setTimeout(() => {
               onChunk('Patient: Jana Novak\nDate: 2026-01-02');
@@ -544,24 +544,24 @@ test('PII browser coverage exercises review modal search edit streaming stop ret
           });
         },
       });
-      await waitFor(() => !!document.querySelector('.pii-warning-overlay'), 'streaming review modal');
-      overlay = document.querySelector('.pii-warning-overlay');
-      await waitFor(() => overlay.querySelector('#pii-edit-textarea')?.value.includes('Partial'), 'initial streaming chunk');
-      overlay.querySelector('#pii-stream-stop').click();
-      await waitFor(() => overlay.querySelector('#pii-stream-status')?.textContent.includes('Stopped'), 'stream stop status');
-      const stopState = overlay.querySelector('#pii-stream-retry')?.hidden === false
-        && overlay.querySelector('#pii-stream-stop')?.hidden === true
-        && overlay.querySelector('#pii-review-send')?.disabled === true;
-      overlay.querySelector('#pii-stream-retry').click();
-      await waitFor(() => overlay.querySelector('#pii-stream-status')?.textContent.includes('Complete'), 'stream retry completion');
-      const retryState = overlay.querySelector('#pii-thinking-section')?.hidden === false
-        && overlay.querySelector('#pii-thinking-section summary')?.textContent.includes('done')
-        && overlay.querySelector('.pii-diff-preview')?.textContent.includes('Jana Novak');
-      overlay.querySelector('#pii-edit-btn').click();
-      const streamTextarea = overlay.querySelector('#pii-edit-textarea');
-      streamTextarea.value += '\nReviewed after retry';
-      streamTextarea.dispatchEvent(new Event('input', { bubbles: true }));
-      overlay.querySelector('#pii-review-send').click();
+      await waitFor(() => !!document.querySelector<HTMLElement>('.pii-warning-overlay'), 'streaming review modal');
+      overlay = document.querySelector<HTMLElement>('.pii-warning-overlay');
+      await waitFor(() => (overlay!.querySelector<HTMLTextAreaElement>('#pii-edit-textarea') as unknown as {value: string})?.value.includes('Partial'), 'initial streaming chunk');
+      overlay!.querySelector<HTMLElement>('#pii-stream-stop')!.click();
+      await waitFor(() => overlay!.querySelector<HTMLElement>('#pii-stream-status')?.textContent.includes('Stopped'), 'stream stop status');
+      const stopState = overlay!.querySelector<HTMLElement>('#pii-stream-retry')?.hidden === false
+        && overlay!.querySelector<HTMLElement>('#pii-stream-stop')?.hidden === true
+        && overlay!.querySelector<HTMLButtonElement>('#pii-review-send')?.disabled === true;
+      overlay!.querySelector<HTMLElement>('#pii-stream-retry')!.click();
+      await waitFor(() => overlay!.querySelector<HTMLElement>('#pii-stream-status')?.textContent.includes('Complete'), 'stream retry completion');
+      const retryState = overlay!.querySelector<HTMLElement>('#pii-thinking-section')?.hidden === false
+        && overlay!.querySelector<HTMLElement>('#pii-thinking-section summary')?.textContent.includes('done')
+        && overlay!.querySelector<HTMLElement>('.pii-diff-preview')?.textContent.includes('Jana Novak');
+      overlay!.querySelector<HTMLElement>('#pii-edit-btn')!.click();
+      const streamTextarea = overlay!.querySelector<HTMLTextAreaElement>('#pii-edit-textarea');
+      (streamTextarea! as unknown as {value: string}).value += '\nReviewed after retry';
+      streamTextarea!.dispatchEvent(new Event('input', { bubbles: true }));
+      overlay!.querySelector<HTMLButtonElement>('#pii-review-send')!.click();
       const streamedResult = await streamPromise;
 
       check('streaming PII review modal covers stop retry thinking completion edit and send',
@@ -578,7 +578,7 @@ test('PII browser coverage exercises review modal search edit streaming stop ret
     } finally {
       window.fetch = saved.fetch;
       document.body.style.overflow = saved.bodyOverflow;
-      document.querySelectorAll('.pii-warning-overlay').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.pii-warning-overlay').forEach(el => el.remove());
     }
 
     return { failures };

@@ -191,7 +191,7 @@ test('recommendations browser coverage exercises catalog renderers detectors and
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ recUrl, runtimeUrl }) => {
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const clone = (value: unknown) => value == null ? value : ((JSON.parse as (text: unknown) => unknown)(JSON.stringify(value)) as unknown);
     const { state } = await import('/js/state.js');
     const recommendationWindowKeys = [
       'isProductRecsEnabled',
@@ -217,38 +217,38 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       'renderChannelDeficitDeviceRecs',
       'copyCouponCode',
     ];
-    const rec = await import(recUrl);
-    const recommendationsRuntime = await import(runtimeUrl);
-    const runtimeCalls = [];
+    const rec = (await import(recUrl) as unknown) as Pick<typeof import('../../js/recommendations.js'), "renderRecommendationSection" | "setProductRecsEnabled" | "loadCatalog" | "loadEMFCatalog" | "isProductRecsEnabled" | "markDisclosureSeen" | "hasSeenDisclosure" | "regionLookupChain" | "getUserRegion" | "regionLabel" | "getProductsForSlot" | "_pickRegional" | "_resolveCouponForRegion" | "_resolveHomepageForRegion" | "_resolveProductUrlForRegion" | "_addUTMParams" | "renderRecommendationSectionSync" | "copyCouponCode" | "buildDNAHints" | "getCardSlotKeys" | "renderCardTipsModal" | "getEMFMeters" | "getEMFProductsForMitigations" | "renderEMFMeterRecs" | "renderEMFMitigationRecs" | "getLightDeviceProduct" | "renderLightDeviceAffiliateRow" | "detectSupplementSlots" | "detectMitigationsInText" | "detectEMFRelevance" | "detectWearableTrendSlots" | "recommendDeviceProductsForChannelDeficit" | "renderChannelDeficitDeviceRecs">;
+    const recommendationsRuntime = (await import(runtimeUrl) as unknown) as Pick<typeof import('../../js/recommendations-runtime.js'), "configureRecommendationsRuntime">;
+    const runtimeCalls: unknown[][] = [];
     const savedRecommendationsRuntime = recommendationsRuntime.configureRecommendationsRuntime({
       closeModal: () => runtimeCalls.push(['close']),
       openProfileLocationEditor: () => {},
-      openSettingsModal: tab => runtimeCalls.push(['settings', tab]),
+      openSettingsModal: (tab: unknown) => runtimeCalls.push(['settings', tab]),
     });
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key!)];
     }));
     const saved = {
       currentProfile: state.currentProfile,
       profiles: clone(state.profiles),
       importedData: clone(state.importedData),
-      snpTable: window._snpTableCache,
+      snpTable: (window as unknown as {_snpTableCache?: unknown})._snpTableCache,
       clipboard: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
       setTimeout: window.setTimeout,
     };
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const host = document.createElement('div');
-    const wait = ms => new Promise(resolve => saved.setTimeout.call(window, resolve, ms));
-    const restoreWindowProp = (key, value) => {
-      if (value === undefined) delete window[key];
-      else window[key] = value;
+    const wait = (ms: number) => new Promise(resolve => saved.setTimeout.call(window, resolve, ms));
+    const restoreWindowProp = (key: string, value: unknown) => {
+      if (value === undefined) delete (window as unknown as Record<string, unknown>)[key];
+      else (window as unknown as Record<string, unknown>)[key] = value;
     };
 
     try {
       document.body.append(host);
       state.currentProfile = 'recommendations-coverage';
-      state.profiles = [{
+      (state as unknown as {profiles: unknown}).profiles = [{
         id: state.currentProfile,
         name: 'Recommendations Coverage',
         location: { country: 'Slovakia', zip: '81101' },
@@ -259,7 +259,7 @@ test('recommendations browser coverage exercises catalog renderers detectors and
         lastUpdated: Date.now(),
         pinned: false,
       }];
-      state.importedData = {
+      (state as unknown as {importedData: unknown}).importedData = {
         entries: [],
         supplements: [],
         customMarkers: {},
@@ -274,7 +274,7 @@ test('recommendations browser coverage exercises catalog renderers detectors and
           },
         },
       };
-      window._snpTableCache = {
+      (window as unknown as {_snpTableCache?: unknown})._snpTableCache = {
         rs123: {
           contextCards: ['sleepRest'],
           genotypes: { CT: { effect: 'moderate' } },
@@ -292,8 +292,8 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       host.innerHTML = `
         <button type="button" data-rec-action="close-modal">Close</button>
         <button type="button" data-rec-action="open-privacy-settings">Privacy</button>`;
-      host.querySelector('[data-rec-action="close-modal"]')?.click();
-      host.querySelector('[data-rec-action="open-privacy-settings"]')?.click();
+      host.querySelector<HTMLElement>('[data-rec-action="close-modal"]')?.click();
+      host.querySelector<HTMLElement>('[data-rec-action="open-privacy-settings"]')?.click();
       outcomes.recommendationHostActionsUseInjectedRuntimeDeps =
         runtimeCalls.some(call => call[0] === 'close')
         && runtimeCalls.some(call => call[0] === 'settings' && call[1] === 'privacy')
@@ -310,7 +310,7 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       outcomes.loadCatalogDedupes = catalogA === catalogB && !!catalogA?.slots?.magnesium;
       outcomes.loadEMFCatalogUsesUnifiedCatalog = (await rec.loadEMFCatalog()) === catalogA;
       outcomes.recommendationExportsStayModuleOnly = recommendationWindowKeys.every(key =>
-        typeof rec[key] === 'function' && !(key in window)
+        typeof (rec as Record<string, unknown>)[key] === 'function' && !(key in window)
       );
 
       outcomes.settingToggleRoundTrips = rec.isProductRecsEnabled() === true;
@@ -328,12 +328,12 @@ test('recommendations browser coverage exercises catalog renderers detectors and
         && !skProducts.some(product => product.key === 'cz-only-magnesium');
 
       outcomes.pickRegionalPrefersSpecific = rec._pickRegional({ INTL: 'world', SK: 'local' }, 'SK') === 'local';
-      outcomes.pickRegionalRejectsArray = rec._pickRegional([{ SK: 'bad' }], 'SK') === null;
+      outcomes.pickRegionalRejectsArray = (rec._pickRegional as (value: unknown, region: Parameters<typeof rec._pickRegional>[1]) => ReturnType<typeof rec._pickRegional>)([{ SK: 'bad' }], 'SK') === null;
       outcomes.resolveCouponFlatAndMapped = rec._resolveCouponForRegion({ code: 'FLAT' }, 'SK')?.code === 'FLAT'
         && rec._resolveCouponForRegion({ SK: { code: 'MAP' } }, 'SK')?.code === 'MAP';
       outcomes.resolveHomepageFlatAndMapped = rec._resolveHomepageForRegion('https://example.com', 'SK') === 'https://example.com'
         && rec._resolveHomepageForRegion({ SK: 'https://sk.example.com' }, 'SK') === 'https://sk.example.com';
-      outcomes.resolveProductUrlPrefersAffiliate = rec._resolveProductUrlForRegion(catalogA.products.magnesium[2], 'SK') === 'https://mitochondriak.sk/magnesium-glycinate';
+      outcomes.resolveProductUrlPrefersAffiliate = rec._resolveProductUrlForRegion(catalogA!.products!.magnesium![2]!, 'SK') === 'https://mitochondriak.sk/magnesium-glycinate';
       outcomes.utmParamsAreApplied = rec._addUTMParams('https://mitochondriak.sk/item?x=1', 'slot-product', 'vitamins')
         .includes('utm_campaign=vitamins');
 
@@ -359,43 +359,43 @@ test('recommendations browser coverage exercises catalog renderers detectors and
         && sectionHtml.includes('PHARMACEUTICALS')
         && sectionHtml.includes('OTHER')
         && sectionHtml.includes('Your value is in range');
-      outcomes.renderAddsTrustedAffiliateLinks = Array.from(host.querySelectorAll('a.rec-product-link'))
+      outcomes.renderAddsTrustedAffiliateLinks = Array.from(host.querySelectorAll<HTMLAnchorElement>('a.rec-product-link'))
         .some(link => link.href.includes('mitochondriak.sk') && link.href.includes('utm_source=getbased'));
-      outcomes.disclosureBannerGatesThenDismisses = !!host.querySelector('.rec-disclosure-banner')
-        && !!host.querySelector('.rec-section-gated');
-      const disclosureButton = host.querySelector('.rec-disclosure-btn');
+      outcomes.disclosureBannerGatesThenDismisses = !!host.querySelector<HTMLElement>('.rec-disclosure-banner')
+        && !!host.querySelector<HTMLElement>('.rec-section-gated');
+      const disclosureButton = host.querySelector<HTMLElement>('.rec-disclosure-btn');
       outcomes.disclosureButtonFound = !!disclosureButton;
       disclosureButton?.click();
       outcomes.disclosureButtonUngatesSections = localStorage.getItem('labcharts-rec-disclosure') === 'seen'
-        && !host.querySelector('.rec-section-gated');
+        && !host.querySelector<HTMLElement>('.rec-section-gated');
 
-      let copiedCode = '';
-      let couponFlashCleanup = null;
+      let copiedCode: unknown = '';
+      let couponFlashCleanup: unknown = null;
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
-        value: { writeText: async code => { copiedCode = code; } },
+        value: { writeText: async (code: unknown) => { copiedCode = code; } },
       });
-      window.setTimeout = (fn, _ms, ...args) => {
+      (window as unknown as {setTimeout: unknown}).setTimeout = (fn: (...args: unknown[]) => unknown, _ms: unknown, ...args: unknown[]) => {
         couponFlashCleanup = () => fn(...args);
         return 1;
       };
-      const couponBtn = host.querySelector('.rec-coupon-code');
+      const couponBtn = host.querySelector<HTMLElement>('.rec-coupon-code');
       rec.copyCouponCode(couponBtn);
       await wait(0);
       outcomes.copyCouponUsesClipboard = copiedCode === 'SK12'
         && couponBtn?.dataset.flashing === '1'
         && couponBtn?.textContent.includes('Copied');
-      couponFlashCleanup?.();
+      (couponFlashCleanup as (() => unknown) | null)?.();
       outcomes.copyCouponCleanupRestoresButton = couponBtn?.dataset.flashing !== '1'
         && couponBtn?.textContent === 'SK12';
-      window.setTimeout = saved.setTimeout;
+      (window as unknown as {setTimeout: unknown}).setTimeout = saved.setTimeout;
 
       localStorage.removeItem('labcharts-rec-disclosure');
       const chatWrapper = document.createElement('details');
       chatWrapper.className = 'rec-chat-wrapper';
       chatWrapper.open = true;
       let chatWrapperStoppedBubble = false;
-      chatWrapper.onclick = event => {
+      chatWrapper.onclick = (event: MouseEvent) => {
         chatWrapperStoppedBubble = true;
         event.stopPropagation();
       };
@@ -405,20 +405,20 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       document.body.appendChild(chatWrapper);
       copiedCode = '';
       couponFlashCleanup = null;
-      window.setTimeout = (fn, _ms, ...args) => {
+      (window as unknown as {setTimeout: unknown}).setTimeout = (fn: (...args: unknown[]) => unknown, _ms: unknown, ...args: unknown[]) => {
         couponFlashCleanup = () => fn(...args);
         return 1;
       };
-      chatWrapper.querySelector('.rec-coupon-code')?.click();
+      chatWrapper.querySelector<HTMLElement>('.rec-coupon-code')?.click();
       await wait(0);
-      chatWrapper.querySelector('.rec-disclosure-btn')?.click();
+      chatWrapper.querySelector<HTMLElement>('.rec-disclosure-btn')?.click();
       outcomes.chatWrappedRecommendationActionsSurviveStopPropagation = chatWrapperStoppedBubble
         && copiedCode === 'SK12'
         && localStorage.getItem('labcharts-rec-disclosure') === 'seen'
-        && !chatWrapper.querySelector('.rec-section-gated');
-      couponFlashCleanup?.();
+        && !chatWrapper.querySelector<HTMLElement>('.rec-section-gated');
+      (couponFlashCleanup as (() => unknown) | null)?.();
       chatWrapper.remove();
-      window.setTimeout = saved.setTimeout;
+      (window as unknown as {setTimeout: unknown}).setTimeout = saved.setTimeout;
 
       const asyncHtml = await rec.renderRecommendationSection('magnesium', { label: 'Async recommendations' });
       outcomes.asyncRenderUsesLoadedCatalog = asyncHtml.includes('Async recommendations')
@@ -429,11 +429,11 @@ test('recommendations browser coverage exercises catalog renderers detectors and
       const sleepTips = rec.renderCardTipsModal('sleepRest');
       outcomes.cardTipsIncludeDnaAndSlotTips = sleepTips.includes('MTHFR') && sleepTips.includes('Low-dose melatonin');
 
-      state.importedData.emfAssessment = { assessments: [] };
+      (state.importedData as unknown as {emfAssessment: unknown}).emfAssessment = { assessments: [] };
       const environmentTips = rec.renderCardTipsModal('environment');
       outcomes.environmentCardIncludesEmfNudge = environmentTips.includes('Open the EMF assessment');
       const staleAssessmentDate = new Date(Date.now() - 130 * 86400_000).toISOString().slice(0, 10);
-      state.importedData.emfAssessment = { assessments: [{ date: staleAssessmentDate }] };
+      (state.importedData as unknown as {emfAssessment: unknown}).emfAssessment = { assessments: [{ date: staleAssessmentDate }] };
       outcomes.staleEmfNudgeRenders = rec.renderCardTipsModal('environment').includes('Re-check the room');
 
       outcomes.emfMetersFilterByType = rec.getEMFMeters(catalogA, ['rf'])[0]?.key === 'safe-meter';
@@ -481,13 +481,13 @@ test('recommendations browser coverage exercises catalog renderers detectors and
         && deficitHtml.includes('utm_campaign=light-devices');
     } finally {
       state.currentProfile = saved.currentProfile;
-      state.profiles = saved.profiles;
-      state.importedData = saved.importedData;
+      (state as unknown as {profiles: unknown}).profiles = saved.profiles;
+      (state as unknown as {importedData: unknown}).importedData = saved.importedData;
       restoreWindowProp('_snpTableCache', saved.snpTable);
       recommendationsRuntime.configureRecommendationsRuntime(savedRecommendationsRuntime);
-      window.setTimeout = saved.setTimeout;
+      (window as unknown as {setTimeout: unknown}).setTimeout = saved.setTimeout;
       if (saved.clipboard) Object.defineProperty(navigator, 'clipboard', saved.clipboard);
-      else delete navigator.clipboard;
+      else delete (navigator as unknown as {clipboard?: unknown}).clipboard;
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);

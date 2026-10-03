@@ -1,16 +1,18 @@
+import type { Page } from '@playwright/test';
 import { expect, test } from './coverage-fixture.js';
 
-async function installVoiceBrowserFakes(page) {
+async function installVoiceBrowserFakes(page: Page) {
   await page.addInitScript(() => {
-    window.__voiceTrackStops = 0;
-    window.__voiceGetUserMediaCalls = 0;
-    window.__voiceObjectUrlKinds = [];
+    (window as unknown as {__voiceTrackStops: number}).__voiceTrackStops = 0;
+    (window as unknown as {__voiceGetUserMediaCalls: number}).__voiceGetUserMediaCalls = 0;
+    (window as unknown as {__voiceObjectUrlKinds: unknown[]}).__voiceObjectUrlKinds = [];
+    interface FakeMediaRecorder {mimeType:string;state:string}
     class FakeMediaRecorder extends EventTarget {
-      static isTypeSupported(type) {
+      static isTypeSupported(type: unknown) {
         return type === 'audio/webm;codecs=opus';
       }
 
-      constructor(_stream, options = {}) {
+      constructor(_stream:unknown, options:MediaRecorderOptions = {}) {
         super();
         this.mimeType = options.mimeType || 'audio/webm';
         this.state = 'inactive';
@@ -30,6 +32,7 @@ async function installVoiceBrowserFakes(page) {
         this.dispatchEvent(new Event('stop'));
       }
     }
+    interface FakeAudio {paused:boolean;src:string;playbackRate:number}
     class FakeAudio extends EventTarget {
       constructor() {
         super();
@@ -55,10 +58,10 @@ async function installVoiceBrowserFakes(page) {
       configurable: true,
       value: {
         getUserMedia: async () => {
-          window.__voiceGetUserMediaCalls += 1;
+          (window as unknown as {__voiceGetUserMediaCalls: number}).__voiceGetUserMediaCalls += 1;
           return {
             getTracks: () => [{
-              stop: () => { window.__voiceTrackStops += 1; },
+              stop: () => { (window as unknown as {__voiceTrackStops: number}).__voiceTrackStops += 1; },
             }],
           };
         },
@@ -90,8 +93,8 @@ async function installVoiceBrowserFakes(page) {
     });
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
-      value: source => {
-        window.__voiceObjectUrlKinds.push(source instanceof Blob
+      value: (source: unknown) => {
+        (window as unknown as {__voiceObjectUrlKinds: unknown[]}).__voiceObjectUrlKinds.push(source instanceof Blob
           ? `blob:${source.type}:${source.size}`
           : 'media-source');
         return 'blob:voice-browser-fixture';
@@ -104,7 +107,7 @@ async function installVoiceBrowserFakes(page) {
   });
 }
 
-async function openVoiceSettingsFromUi(page) {
+async function openVoiceSettingsFromUi(page: Page) {
   await page.waitForTimeout(300);
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
@@ -154,7 +157,7 @@ test('browser-local voice routes first use to an explicit model download', async
   });
 
   expect(started).toBe(false);
-  expect(await page.evaluate(() => window.__voiceGetUserMediaCalls)).toBe(0);
+  expect(await page.evaluate(() => (window as unknown as {__voiceGetUserMediaCalls: number}).__voiceGetUserMediaCalls)).toBe(0);
   await expect(page.locator('[data-tab-panel="voice"]')).toHaveClass(/\bactive\b/);
   const sttRow = page.locator('[data-voice-model-kind="stt"]');
   await expect(sttRow.locator('[data-voice-model-status="stt"]')).toContainText(
@@ -219,13 +222,13 @@ test('denied hosted dictation never requests microphone access', async ({ page }
   });
 
   expect(started).toBe(false);
-  expect(await page.evaluate(() => window.__voiceGetUserMediaCalls)).toBe(0);
+  expect(await page.evaluate(() => (window as unknown as {__voiceGetUserMediaCalls: number}).__voiceGetUserMediaCalls)).toBe(0);
   await expect(page.locator('#chat-voice-status')).toContainText('No audio was sent');
 });
 
 test('an edition can buffer managed OpenRouter speech before browser playback', async ({ page }) => {
   await installVoiceBrowserFakes(page);
-  let requestPayload;
+  let requestPayload: unknown;
   await page.route('https://openrouter.ai/api/v1/audio/speech', async route => {
     requestPayload = route.request().postDataJSON();
     await route.fulfill({
@@ -268,18 +271,18 @@ test('an edition can buffer managed OpenRouter speech before browser playback', 
     model: 'hexgrad/kokoro-82m',
     voice: 'af_heart',
   });
-  expect(await page.evaluate(() => window.__voiceObjectUrlKinds)).toEqual([
+  expect(await page.evaluate(() => (window as unknown as {__voiceObjectUrlKinds: unknown[]}).__voiceObjectUrlKinds)).toEqual([
     'blob:audio/mpeg:25',
   ]);
 });
 
 test('pending first-use auto-read stays bound to its open panel and thread', async ({ page }) => {
-  let releaseController;
-  let markControllerRequested;
-  const controllerGate = new Promise(resolve => { releaseController = resolve; });
-  const controllerRequested = new Promise(resolve => { markControllerRequested = resolve; });
+  let releaseController:(()=>void)|undefined;
+  let markControllerRequested:(()=>void)|undefined;
+  const controllerGate = new Promise<void>(resolve => { releaseController = resolve; });
+  const controllerRequested = new Promise<void>(resolve => { markControllerRequested = resolve; });
   await page.route('**/js/voice-controller.js', async route => {
-    markControllerRequested();
+    markControllerRequested!();
     await controllerGate;
     await route.fulfill({
       status: 200,
@@ -301,37 +304,37 @@ test('pending first-use auto-read stays bound to its open panel and thread', asy
     const { state } = await import('/js/state.js');
     const loader = await import('/js/voice-loader.js?pending-auto-read-context=1');
     const panel = document.getElementById('chat-panel');
-    panel.classList.add('open');
+    panel!.classList.add('open');
     state.currentThreadId = 'thread-origin';
     state.chatHistory = [{ role: 'assistant', content: 'Origin reply' }];
     localStorage.setItem('labcharts-voice-auto-read', 'true');
-    globalThis.__pendingVoiceReadCalls = [];
-    globalThis.__pendingVoiceLoader = loader;
-    globalThis.__pendingVoiceRead = loader.maybeAutoReadAssistantMessage(0);
+    (globalThis as unknown as {__pendingVoiceReadCalls: Array<Record<string, unknown>>}).__pendingVoiceReadCalls = [];
+    (globalThis as unknown as {__pendingVoiceLoader: unknown}).__pendingVoiceLoader = loader;
+    (globalThis as unknown as {__pendingVoiceRead: unknown}).__pendingVoiceRead = loader.maybeAutoReadAssistantMessage(0);
   });
   await controllerRequested;
 
   await page.evaluate(() => {
     document.getElementById('chat-panel')?.classList.remove('open');
-    globalThis.__pendingVoiceLoader.stopVoiceActivity();
+    ((globalThis as unknown as {__pendingVoiceLoader: unknown}).__pendingVoiceLoader as Pick<typeof import("../../js/voice-loader.js"),"stopVoiceActivity">).stopVoiceActivity();
   });
-  releaseController();
-  expect(await page.evaluate(() => globalThis.__pendingVoiceRead)).toBe(false);
-  expect(await page.evaluate(() => globalThis.__pendingVoiceReadCalls)).toEqual([]);
+  releaseController!();
+  expect(await page.evaluate(() => (globalThis as unknown as {__pendingVoiceRead: unknown}).__pendingVoiceRead)).toBe(false);
+  expect(await page.evaluate(() => (globalThis as unknown as {__pendingVoiceReadCalls: Array<Record<string, unknown>>}).__pendingVoiceReadCalls)).toEqual([]);
 
   const switchedThreadResult = await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const panel = document.getElementById('chat-panel');
-    panel.classList.add('open');
+    panel!.classList.add('open');
     state.currentThreadId = 'thread-origin';
     state.chatHistory = [{ role: 'assistant', content: 'Origin reply' }];
-    const pending = globalThis.__pendingVoiceLoader.maybeAutoReadAssistantMessage(0);
+    const pending = ((globalThis as unknown as {__pendingVoiceLoader: unknown}).__pendingVoiceLoader as Pick<typeof import("../../js/voice-loader.js"),"maybeAutoReadAssistantMessage">).maybeAutoReadAssistantMessage(0);
     state.currentThreadId = 'thread-other';
     state.chatHistory = [{ role: 'assistant', content: 'Unrelated reply' }];
     return pending;
   });
   expect(switchedThreadResult).toBe(false);
-  expect(await page.evaluate(() => globalThis.__pendingVoiceReadCalls)).toEqual([]);
+  expect(await page.evaluate(() => (globalThis as unknown as {__pendingVoiceReadCalls: Array<Record<string, unknown>>}).__pendingVoiceReadCalls)).toEqual([]);
 });
 
 test('Voice settings and chat STT/TTS controls work with a local compatible server', async ({ page }) => {
@@ -486,9 +489,9 @@ test('Voice settings and chat STT/TTS controls work with a local compatible serv
     settings.setVoiceSetting('outputProvider', 'local-server');
     settings.setVoiceSetting('localServerUrl', 'http://127.0.0.1:8765');
 
-    const input = document.getElementById('chat-input');
-    input.value = 'Draft:';
-    input.setSelectionRange(input.value.length, input.value.length);
+    const input = document.getElementById('chat-input') as HTMLTextAreaElement|null;
+    input!.value = 'Draft:';
+    input!.setSelectionRange(input!.value.length, input!.value.length);
     await controller.toggleVoiceRecording();
     const recordingPressed = document.getElementById('chat-voice-btn')?.getAttribute('aria-pressed');
     await controller.toggleVoiceRecording();
@@ -502,11 +505,11 @@ test('Voice settings and chat STT/TTS controls work with a local compatible serv
     host.remove();
 
     return {
-      composer: input.value,
+      composer: input!.value,
       recordingPressed,
       readResult,
       listenLabel,
-      trackStops: window.__voiceTrackStops,
+      trackStops: (window as unknown as {__voiceTrackStops: number}).__voiceTrackStops,
     };
   });
 
@@ -619,34 +622,34 @@ test('Venice voice settings load the private Kokoro voices and preserve the choi
 test('built-in Voice workers complete their mock STT and TTS protocols', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   const result = await page.evaluate(async () => {
-    const request = (worker, message, transfer = []) => new Promise((resolve, reject) => {
+    const request = (worker: Worker, message: unknown, transfer:Transferable[] = []) => new Promise<unknown>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Voice worker timed out')), 5000);
-      const onMessage = event => {
-        if (event.data?.id !== message.id || event.data?.type === 'progress') return;
+      const onMessage = (event: MessageEvent<unknown>) => {
+        if (((event as {data: unknown}).data as {id: unknown})?.id !== (message as {id: unknown}).id || ((event as {data: unknown}).data as {type: unknown})?.type === 'progress') return;
         clearTimeout(timeout);
         worker.removeEventListener('message', onMessage);
-        if (event.data.type === 'error') reject(new Error(event.data.message));
-        else resolve(event.data);
+        if (((event as {data: unknown}).data as {type: unknown}).type === 'error') reject(new (Error as new(message:unknown)=>Error)(((event as {data: unknown}).data as {message: unknown}).message));
+        else resolve((event as {data: unknown}).data);
       };
       worker.addEventListener('message', onMessage);
       worker.postMessage(message, transfer);
     });
-    const requestStream = (worker, message) => new Promise((resolve, reject) => {
-      const chunks = [];
+    const requestStream = (worker: Worker, message: unknown) => new Promise<unknown[]>((resolve, reject) => {
+      const chunks: unknown[] = [];
       const timeout = setTimeout(() => reject(new Error('Voice stream timed out')), 5000);
-      const onMessage = event => {
-        if (event.data?.id !== message.id || event.data?.type === 'progress') return;
-        if (event.data.type === 'error') {
+      const onMessage = (event: MessageEvent<unknown>) => {
+        if (((event as {data: unknown}).data as {id: unknown})?.id !== (message as {id: unknown}).id || ((event as {data: unknown}).data as {type: unknown})?.type === 'progress') return;
+        if (((event as {data: unknown}).data as {type: unknown}).type === 'error') {
           clearTimeout(timeout);
           worker.removeEventListener('message', onMessage);
-          reject(new Error(event.data.message));
+          reject(new (Error as new(message:unknown)=>Error)(((event as {data: unknown}).data as {message: unknown}).message));
           return;
         }
-        if (event.data.type === 'audio-chunk') {
-          chunks.push(event.data.samples.byteLength);
+        if (((event as {data: unknown}).data as {type: unknown}).type === 'audio-chunk') {
+          chunks.push((((event as {data: unknown}).data as {samples: unknown}).samples as {byteLength:unknown}).byteLength);
           return;
         }
-        if (event.data.type === 'audio-done') {
+        if (((event as {data: unknown}).data as {type: unknown}).type === 'audio-done') {
           clearTimeout(timeout);
           worker.removeEventListener('message', onMessage);
           resolve(chunks);
@@ -686,12 +689,12 @@ test('built-in Voice workers complete their mock STT and TTS protocols', async (
         text: 'Stream hello',
       });
       return {
-        sttBackend: readyStt.backend,
-        text: transcript.text,
-        ttsBackend: readyTts.backend,
-        ttsSamples: speech.samples.byteLength,
+        sttBackend: (readyStt as {backend: unknown}).backend,
+        text: (transcript as {text: unknown}).text,
+        ttsBackend: (readyTts as {backend: unknown}).backend,
+        ttsSamples: ((speech as {samples: unknown}).samples as {byteLength: unknown}).byteLength,
         streamedChunks,
-        sampleRate: speech.sampleRate,
+        sampleRate: (speech as {sampleRate: unknown}).sampleRate,
       };
     } finally {
       stt.terminate();
@@ -717,7 +720,7 @@ test('cloud connection controls preserve masked keys, labels, and provider error
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          voices: Array.from({ length: 26 }, (_, index) => ({
+          voices: Array.from({ length: 26 }, (_, index: number) => ({
             id: `voice-${index + 1}`,
             name: `Voice ${index + 1}`,
           })),
@@ -835,12 +838,12 @@ test('Voice settings use standard responsive Settings rows without horizontal ov
 
   const layout = async () => page.locator('[data-tab-panel="voice"]').evaluate(panel => {
     const content = panel.closest('.settings-content');
-    const visibleControls = [...panel.querySelectorAll('input, select, button')]
+    const visibleControls = [...panel.querySelectorAll<HTMLInputElement>('input, select, button')]
       .filter(element => element.getClientRects().length);
-    const contentRect = content.getBoundingClientRect();
+    const contentRect = content!.getBoundingClientRect();
     return {
       panelOverflow: panel.scrollWidth - panel.clientWidth,
-      contentOverflow: content.scrollWidth - content.clientWidth,
+      contentOverflow: content!.scrollWidth - content!.clientWidth,
       controlsInside: visibleControls.every(element => {
         const rect = element.getBoundingClientRect();
         return rect.left >= contentRect.left - 1 && rect.right <= contentRect.right + 1;

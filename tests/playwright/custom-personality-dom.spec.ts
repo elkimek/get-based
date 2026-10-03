@@ -46,12 +46,12 @@ test('custom personality DOM renders editor controls and delegated discuss actio
       { id: 'custom_abc', name: 'Longevity Expert', icon: 'L', promptText: 'Expert prompt', evidenceBased: true },
       { id: 'custom_def', name: 'Functional Doc', icon: 'F', promptText: 'Functional prompt', evidenceBased: false },
     ];
-    const outcomes = {};
-    const waitFor = async (predicate, timeoutMs = 1000) => {
+    const outcomes: Record<string, unknown> = {};
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, timeoutMs = 1000) => {
       const start = performance.now();
       while (performance.now() - start < timeoutMs) {
         if (predicate()) return true;
-        await new Promise(resolve => setTimeout(resolve, 20));
+        await new Promise((resolve) => setTimeout(resolve, 20));
       }
       return false;
     };
@@ -63,15 +63,15 @@ test('custom personality DOM renders editor controls and delegated discuss actio
       chatPersonalities.updatePersonalityBar();
 
       const section = document.getElementById('chat-personality-custom-section');
-      section?.querySelectorAll('.chat-personality-edit')[0]?.click();
+      section?.querySelectorAll<HTMLElement>('.chat-personality-edit')[0]?.click();
       await Promise.resolve();
-      const customBtns = section?.querySelectorAll('.chat-personality-opt') || [];
+      const customBtns = section?.querySelectorAll<HTMLElement>('.chat-personality-opt') || [];
       const addBtn = section?.querySelector('.chat-personality-add-btn');
       const deleteBtns = section?.querySelectorAll('.chat-personality-delete') || [];
-      const nameInput = document.getElementById('chat-personality-custom-name');
-      const genBtn = document.getElementById('chat-personality-generate-btn');
-      const textarea = document.querySelector('.chat-personality-custom-textarea');
-      const saveBtn = document.querySelector('.chat-personality-custom-save');
+      const nameInput = (document.getElementById('chat-personality-custom-name') as HTMLInputElement | null);
+      const genBtn = (document.getElementById('chat-personality-generate-btn') as HTMLButtonElement | null);
+      const textarea = document.querySelector<HTMLTextAreaElement>('.chat-personality-custom-textarea');
+      const saveBtn = document.querySelector<HTMLButtonElement>('.chat-personality-custom-save');
       const editor = document.querySelector('.chat-personality-editor');
 
       outcomes.customSectionRenders = !!section;
@@ -85,7 +85,7 @@ test('custom personality DOM renders editor controls and delegated discuss actio
         && customBtns[0]?.classList.contains('active') === true
         && customBtns[1]?.classList.contains('active') === false;
       outcomes.customEditorControlsRender = !!addBtn
-        && addBtn.textContent.includes('New Personality')
+        && addBtn.textContent!.includes('New Personality')
         && addBtn.getAttribute('data-chat-personality-action') === 'start-new-custom'
         && deleteBtns.length === 2
         && deleteBtns[0]?.getAttribute('data-chat-personality-action') === 'delete-custom'
@@ -95,38 +95,38 @@ test('custom personality DOM renders editor controls and delegated discuss actio
         && nameInput?.type === 'text'
         && nameInput.getAttribute('data-chat-personality-input') === 'mark-dirty'
         && nameInput.placeholder.toLowerCase().includes('longevity')
-        && genBtn?.textContent.trim() === 'Generate draft'
+        && genBtn?.textContent!.trim() === 'Generate draft'
         && genBtn?.getAttribute('data-chat-personality-action') === 'generate-custom'
         && !!textarea
         && textarea.getAttribute('data-chat-personality-input') === 'resize-and-mark-dirty'
         && saveBtn?.getAttribute('data-chat-personality-action') === 'save-custom'
-        && saveBtn?.textContent.trim() === 'Save changes'
+        && saveBtn?.textContent!.trim() === 'Save changes'
         && document.querySelector('.chat-personality-custom-cancel')?.getAttribute('data-chat-personality-action') === 'cancel-custom'
-        && document.querySelector('.chat-personality-disclaimer')?.textContent.includes('AI-generated interpretations')
+        && document.querySelector('.chat-personality-disclaimer')?.textContent!.includes('AI-generated interpretations')
         && document.getElementById('chat-personality-agreement-checkbox') === null;
       outcomes.customEditorFieldsPopulate = nameInput?.value === 'Longevity Expert'
         && textarea?.value === 'Expert prompt';
 
       const bar = document.querySelector('.chat-personality-bar');
       bar?.classList.add('open');
-      section?.querySelectorAll('.chat-personality-edit')[1]?.click();
+      section?.querySelectorAll<HTMLElement>('.chat-personality-edit')[1]?.click();
       await Promise.resolve();
       outcomes.editInactiveClosesPickerAndKeepsDialog = bar?.classList.contains('open') === false
         && document.querySelector('.chat-personality-editor')?.getAttribute('role') === 'dialog';
       outcomes.editInactiveDoesNotActivatePersona = chatPersonalities.getActivePersonality().id === 'custom_abc';
-      outcomes.editInactiveLoadsFields = document.getElementById('chat-personality-custom-name')?.value === 'Functional Doc'
-        && document.querySelector('.chat-personality-custom-textarea')?.value === 'Functional prompt';
+      outcomes.editInactiveLoadsFields = (document.getElementById('chat-personality-custom-name') as HTMLInputElement | null)?.value === 'Functional Doc'
+        && document.querySelector<HTMLTextAreaElement>('.chat-personality-custom-textarea')?.value === 'Functional prompt';
 
       await (await import('/js/chat-panel.js')).loadChatPresentationStylesheets();
-      const selectors = new Set();
+      const selectors = new Set<string>();
       for (const sheet of Array.from(document.styleSheets)) {
         try {
           for (const rule of sheet.cssRules || []) {
-            if (rule.selectorText) selectors.add(rule.selectorText);
+            if ((rule as CSSRule & Partial<Pick<CSSStyleRule, 'selectorText'>>).selectorText) selectors.add((rule as CSSRule & Partial<Pick<CSSStyleRule, 'selectorText'>>).selectorText!);
           }
         } catch (_) {}
       }
-      const hasSelectorContaining = needle => Array.from(selectors).some(selector => selector.includes(needle));
+      const hasSelectorContaining = (needle: string) => Array.from(selectors).some(selector => selector.includes(needle));
       outcomes.cssSelectorsExist = [
         '.chat-personality-delete',
         '.chat-personality-add-btn',
@@ -142,31 +142,31 @@ test('custom personality DOM renders editor controls and delegated discuss actio
       ].every(hasSelectorContaining);
 
       chatPersonalities.startNewCustomPersonality();
-      const saveBtn2 = document.querySelector('.chat-personality-custom-save');
+      const saveBtn2 = document.querySelector<HTMLButtonElement>('.chat-personality-custom-save');
       chatPersonalities.snapshotPersonalityClean();
       outcomes.saveDisabledAfterSnapshot = saveBtn2?.disabled === true;
       chatPersonalities.markPersonalityDirty();
       outcomes.saveStaysDisabledWhenStateMatchesSnapshot = saveBtn2?.disabled === true;
 
-      const draftName = document.getElementById('chat-personality-custom-name');
-      draftName.value = 'Unsaved persona';
-      draftName.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      const draftName = (document.getElementById('chat-personality-custom-name') as HTMLInputElement | null);
+      draftName!.value = 'Unsaved persona';
+      draftName!.dispatchEvent(new InputEvent('input', { bubbles: true }));
       document.querySelector('.chat-personality-editor')?.dispatchEvent(
         new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }),
       );
       const discardPromptOpened = await waitFor(() => !!document.getElementById('confirm-cancel'));
       document.getElementById('confirm-cancel')?.click();
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       outcomes.escapeKeepsDirtyEditorWhenDiscardDeclined = discardPromptOpened
         && !!document.getElementById('chat-personality-editor-overlay');
 
-      draftName.value = '';
-      draftName.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      draftName!.value = '';
+      draftName!.dispatchEvent(new InputEvent('input', { bubbles: true }));
       await chatPersonalities.cancelCustomPersonalityEditor();
-      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       outcomes.cancelReturnsToPicker = !document.getElementById('chat-personality-editor-overlay')
         && bar?.classList.contains('open') === true
-        && document.activeElement === document.querySelector('.chat-personality-add-btn');
+        && document.activeElement === document.querySelector<HTMLButtonElement>('.chat-personality-add-btn');
 
       const discussBtn = document.getElementById('chat-discuss-btn');
       outcomes.discussButtonDelegated = !!discussBtn
@@ -235,10 +235,10 @@ test('mobile persona editor fits the viewport without zoom-sized inputs or clipp
     const body = /** @type {HTMLElement | null} */ (document.querySelector('.chat-personality-editor-body'));
     const footer = /** @type {HTMLElement | null} */ (document.querySelector('.chat-personality-custom-footer'));
     const close = /** @type {HTMLElement | null} */ (document.querySelector('.chat-personality-editor-close'));
-    const save = /** @type {HTMLElement | null} */ (document.querySelector('.chat-personality-custom-save'));
+    const save = /** @type {HTMLElement | null} */ (document.querySelector<HTMLButtonElement>('.chat-personality-custom-save'));
     const name = /** @type {HTMLElement | null} */ (document.querySelector('.chat-personality-custom-name-input'));
-    const textarea = /** @type {HTMLElement | null} */ (document.querySelector('.chat-personality-custom-textarea'));
-    const rect = element => element?.getBoundingClientRect();
+    const textarea = /** @type {HTMLElement | null} */ (document.querySelector<HTMLTextAreaElement>('.chat-personality-custom-textarea'));
+    const rect = (element: Element | null) => element?.getBoundingClientRect();
     return {
       overlay: rect(overlay),
       editor: rect(editor),
@@ -321,8 +321,8 @@ test('hosted persona agreement requires explicit assent and records it per perso
       host: 'app.getbased.health',
     },
   });
-  expect(saved.personas[0].personaAgreement.acceptedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-  expect(saved.personas[0].personaAgreement.statement).toContain('not to use it to impersonate a real person');
+  expect(saved.personas[0]!.personaAgreement!.acceptedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  expect(saved.personas[0]!.personaAgreement!.statement).toContain('not to use it to impersonate a real person');
   expect(saved.legacyAgreement).toBeNull();
 
   const beforeReload = await page.evaluate(async () => {
@@ -373,10 +373,10 @@ test('custom persona UI keeps instructions usable while data protection stores c
     const original = {
       profileId: state.currentProfile,
       encryptionEnabled: localStorage.getItem('labcharts-encryption-enabled'),
-      wearablesTest: window.__WEARABLES_TEST,
+      wearablesTest: (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST,
     };
     state.currentProfile = profileId;
-    window.__WEARABLES_TEST = true;
+    (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST = true;
     localStorage.setItem('labcharts-encryption-enabled', 'true');
     await cryptoModule._setTestSessionKey('PersonaEncryptionPass1!');
     chatPersonalities.startNewCustomPersonality({ hostname: 'localhost' });
@@ -400,14 +400,14 @@ test('custom persona UI keeps instructions usable while data protection stores c
       ]);
       const key = `labcharts-${profileId}-chatPersonalityCustom`;
       return {
-        raw: localStorage.getItem(key),
+        raw: localStorage.getItem(key as string),
         decrypted: await cryptoModule.encryptedGetItem(key),
         visible: chatPersonalities.getCustomPersonalities(),
       };
     }, setup.profileId);
     expect(stored.raw).toMatch(/^v1:/);
     expect(stored.raw).not.toContain('private, careful');
-    expect(JSON.parse(stored.decrypted)[0]).toMatchObject({
+    expect(((JSON.parse(stored.decrypted as string) as unknown) as unknown[])[0]).toMatchObject({
       name: 'Encrypted Persona',
       promptText: 'Use a private, careful communication framework.',
     });
@@ -424,8 +424,8 @@ test('custom persona UI keeps instructions usable while data protection stores c
       await cryptoModule._setTestSessionKey(null);
       if (original.encryptionEnabled == null) localStorage.removeItem('labcharts-encryption-enabled');
       else localStorage.setItem('labcharts-encryption-enabled', original.encryptionEnabled);
-      if (original.wearablesTest === undefined) delete window.__WEARABLES_TEST;
-      else window.__WEARABLES_TEST = original.wearablesTest;
+      if (original.wearablesTest === undefined) delete (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST;
+      else (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST = original.wearablesTest;
       state.currentProfile = original.profileId;
       document.getElementById('chat-personality-editor-overlay')?.remove();
     }, setup);
@@ -445,12 +445,12 @@ test('cross-device persona apply refreshes the encrypted personality picker UI',
     const original = {
       profileId: state.currentProfile,
       encryptionEnabled: localStorage.getItem('labcharts-encryption-enabled'),
-      wearablesTest: window.__WEARABLES_TEST,
+      wearablesTest: (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST,
     };
     state.currentProfile = profileId;
     state.chatThreads = [];
     state.chatHistory = [];
-    window.__WEARABLES_TEST = true;
+    (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST = true;
     localStorage.setItem('labcharts-encryption-enabled', 'true');
     await cryptoModule._setTestSessionKey('PersonaSyncUiPass1!');
     await chatLoader.loadChatModule();
@@ -488,8 +488,8 @@ test('cross-device persona apply refreshes the encrypted personality picker UI',
       await cryptoModule._setTestSessionKey(null);
       if (original.encryptionEnabled == null) localStorage.removeItem('labcharts-encryption-enabled');
       else localStorage.setItem('labcharts-encryption-enabled', original.encryptionEnabled);
-      if (original.wearablesTest === undefined) delete window.__WEARABLES_TEST;
-      else window.__WEARABLES_TEST = original.wearablesTest;
+      if (original.wearablesTest === undefined) delete (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST;
+      else (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST = original.wearablesTest;
       state.currentProfile = original.profileId;
     }, setup);
   }
@@ -581,18 +581,18 @@ test('custom personality generator fills prompt and preserves selected custom te
   const results = await page.evaluate(async ({ personalityUrl }) => {
     const [{ state }, personalities] = await Promise.all([
       import('/js/state.js'),
-      import(personalityUrl),
+      (import(personalityUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-personalities.js'), "getCustomPersonalityText" | "generateCustomPersonality">>,
     ]);
     const storage = new Map(Array.from({ length: localStorage.length }, (_, index) => {
       const key = localStorage.key(index);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key as string)];
     }));
     const original = {
       currentProfile: state.currentProfile,
       currentChatPersonality: state.currentChatPersonality,
       body: document.body.innerHTML,
     };
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
 
     try {
       state.currentProfile = 'chat-personality-generator';
@@ -612,9 +612,9 @@ test('custom personality generator fills prompt and preserves selected custom te
         <button class="chat-personality-custom-save" disabled>Save</button>
       `;
       await personalities.generateCustomPersonality();
-      const textarea = document.querySelector('.chat-personality-custom-textarea');
-      const generateButton = document.getElementById('chat-personality-generate-btn');
-      const saveButton = document.querySelector('.chat-personality-custom-save');
+      const textarea = document.querySelector<HTMLTextAreaElement>('.chat-personality-custom-textarea');
+      const generateButton = (document.getElementById('chat-personality-generate-btn') as HTMLButtonElement | null);
+      const saveButton = document.querySelector<HTMLButtonElement>('.chat-personality-custom-save');
       outcomes.generatorWritesFinalPersona =
         textarea?.value === 'You are a deliberate cold exposure coach.';
       outcomes.generatorResetsButtonPlaceholderAndEnablesSave =
@@ -622,13 +622,13 @@ test('custom personality generator fills prompt and preserves selected custom te
         && generateButton?.textContent === 'Generate draft'
         && textarea?.placeholder.includes('Describe how you want the AI')
         && saveButton?.disabled === false;
-      textarea.value = 'Keep this carefully written draft.';
-      document.getElementById('chat-personality-custom-name').value = 'Failure Persona';
+      textarea!.value = 'Keep this carefully written draft.';
+      (document.getElementById('chat-personality-custom-name') as HTMLInputElement | null)!.value = 'Failure Persona';
       await personalities.generateCustomPersonality();
       outcomes.generatorFailurePreservesExistingDraft =
-        textarea.value === 'Keep this carefully written draft.'
-        && generateButton.disabled === false
-        && generateButton.textContent === 'Generate draft';
+        textarea!.value === 'Keep this carefully written draft.'
+        && generateButton!.disabled === false
+        && generateButton!.textContent === 'Generate draft';
     } finally {
       state.currentProfile = original.currentProfile;
       state.currentChatPersonality = original.currentChatPersonality;
@@ -678,7 +678,7 @@ test('custom personality save path updates picker, header, and persisted state',
     ]);
     const storage = new Map(Array.from({ length: localStorage.length }, (_, index) => {
       const key = localStorage.key(index);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key as string)];
     }));
     const original = {
       currentProfile: state.currentProfile,
@@ -691,12 +691,12 @@ test('custom personality save path updates picker, header, and persisted state',
     const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
       renderChatMessages: () => {},
     });
-    const outcomes = {};
-    const waitFor = async (predicate, timeoutMs = 1000) => {
+    const outcomes: Record<string, unknown> = {};
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, timeoutMs = 1000) => {
       const start = performance.now();
       while (performance.now() - start < timeoutMs) {
         if (predicate()) return true;
-        await new Promise(resolve => setTimeout(resolve, 20));
+        await new Promise((resolve) => setTimeout(resolve, 20));
       }
       return false;
     };
@@ -725,15 +725,15 @@ test('custom personality save path updates picker, header, and persisted state',
       localStorage.setItem(personalityKey, 'default');
 
       chatPersonalities.updateChatHeaderTitle();
-      const summaryBtn = document.querySelector('.chat-summary-btn');
+      const summaryBtn = document.querySelector<HTMLButtonElement>('.chat-summary-btn');
       outcomes.headerTitleCombinesAssistantPersonas =
-        document.querySelector('.chat-header-title')?.textContent === 'A Analyst One + 1 perspective'
-        && document.querySelector('.chat-header-title')?.title.includes('C Coach Two');
+        document.querySelector<HTMLElement>('.chat-header-title')?.textContent === 'A Analyst One + 1 perspective'
+        && document.querySelector<HTMLElement>('.chat-header-title')?.title.includes('C Coach Two');
       outcomes.summaryButtonReflectsThreadSummary =
         summaryBtn?.classList.contains('has-summary') === true
         && summaryBtn?.getAttribute('title') === 'View summary';
 
-      delete state.chatThreads[0].summary;
+      delete state.chatThreads[0]!.summary;
       chatPersonalities.updateSummaryButton();
       outcomes.summaryButtonClearsWithoutSummary =
         summaryBtn?.classList.contains('has-summary') === false
@@ -755,30 +755,30 @@ test('custom personality save path updates picker, header, and persisted state',
       state.chatHistory = [];
       chatPersonalities.updateChatHeaderTitle();
       chatPersonalities.updatePersonalityBar();
-      document.querySelector('.chat-personality-add-btn')?.click();
-      await waitFor(() => !!document.getElementById('chat-personality-custom-name'));
-      await waitFor(() => document.activeElement === document.getElementById('chat-personality-custom-name'));
+      document.querySelector<HTMLButtonElement>('.chat-personality-add-btn')?.click();
+      await waitFor(() => !!(document.getElementById('chat-personality-custom-name') as HTMLInputElement | null));
+      await waitFor(() => document.activeElement === (document.getElementById('chat-personality-custom-name') as HTMLInputElement | null));
       outcomes.newPersonalityOpensDialogOnFirstClick =
         document.querySelector('.chat-personality-editor')?.getAttribute('role') === 'dialog'
         && bar?.classList.contains('open') === false
-        && document.activeElement === document.getElementById('chat-personality-custom-name');
-      const nameInput = document.getElementById('chat-personality-custom-name');
-      const textarea = document.querySelector('.chat-personality-custom-textarea');
-      nameInput.value = 'Methodical Reviewer';
-      nameInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
-      textarea.value = 'Prefer careful concise lab review.';
-      textarea.dispatchEvent(new InputEvent('input', { bubbles: true }));
+        && document.activeElement === (document.getElementById('chat-personality-custom-name') as HTMLInputElement | null);
+      const nameInput = (document.getElementById('chat-personality-custom-name') as HTMLInputElement | null);
+      const textarea = document.querySelector<HTMLTextAreaElement>('.chat-personality-custom-textarea');
+      nameInput!.value = 'Methodical Reviewer';
+      nameInput!.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      textarea!.value = 'Prefer careful concise lab review.';
+      textarea!.dispatchEvent(new InputEvent('input', { bubbles: true }));
       outcomes.newCustomEditorEnablesSave =
-        document.querySelector('.chat-personality-custom-save')?.disabled === false;
+        document.querySelector<HTMLButtonElement>('.chat-personality-custom-save')?.disabled === false;
 
-      document.querySelector('.chat-personality-custom-save')?.click();
+      document.querySelector<HTMLButtonElement>('.chat-personality-custom-save')?.click();
       await waitFor(() => !document.getElementById('chat-personality-editor-overlay'));
-      const savedCustoms = JSON.parse(localStorage.getItem(customKey) || '[]');
+      const savedCustoms = (JSON.parse(localStorage.getItem(customKey) || '[]') as unknown) as { name?: unknown; id?: unknown; promptText?: unknown }[];
       const created = savedCustoms.find(personality => personality.name === 'Methodical Reviewer');
       outcomes.saveNewCustomPersistsSelectsAndUpdatesDisplay =
         savedCustoms.length === 1
-        && created?.id?.startsWith('custom_') === true
-        && created.promptText === 'Prefer careful concise lab review.'
+        && (created?.id as string | undefined)?.startsWith('custom_') === true
+        && created!.promptText === 'Prefer careful concise lab review.'
         && state.currentChatPersonality === 'default'
         && localStorage.getItem(personalityKey) === 'default'
         && document.querySelector('.chat-personality-current-name')?.textContent === 'AI Lab Analyst'
@@ -786,17 +786,17 @@ test('custom personality save path updates picker, header, and persisted state',
         && bar?.classList.contains('open') === true
         && !document.getElementById('chat-personality-editor-overlay');
 
-      chatPersonalities.editCustomPersonality(created.id);
-      document.getElementById('chat-personality-custom-name').value = 'Updated Reviewer';
-      document.querySelector('.chat-personality-custom-textarea').value = 'Updated prompt';
+      chatPersonalities.editCustomPersonality(created!.id as string);
+      (document.getElementById('chat-personality-custom-name') as HTMLInputElement | null)!.value = 'Updated Reviewer';
+      document.querySelector<HTMLTextAreaElement>('.chat-personality-custom-textarea')!.value = 'Updated prompt';
       chatPersonalities.markPersonalityDirty();
       await chatPersonalities.saveCustomPersonality();
-      const editedCustoms = JSON.parse(localStorage.getItem(customKey) || '[]');
+      const editedCustoms = (JSON.parse(localStorage.getItem(customKey) || '[]') as unknown) as { name?: unknown; id?: unknown; promptText?: unknown }[];
       outcomes.editCustomUpdatesExistingWithoutDuplicate =
         editedCustoms.length === 1
-        && editedCustoms[0].id === created.id
-        && editedCustoms[0].name === 'Updated Reviewer'
-        && editedCustoms[0].promptText === 'Updated prompt'
+        && editedCustoms[0]!.id === created!.id
+        && editedCustoms[0]!.name === 'Updated Reviewer'
+        && editedCustoms[0]!.promptText === 'Updated prompt'
         && state.currentChatPersonality === 'default'
         && document.querySelector('.chat-personality-current-name')?.textContent === 'AI Lab Analyst';
 
@@ -818,20 +818,20 @@ test('custom personality save path updates picker, header, and persisted state',
       chatPersonalities.updatePersonalityBar();
       const deleteResultPromise = chatPersonalities.deleteCustomPersonality('custom_migrate')
         .then(() => ({ ok: true }))
-        .catch(error => ({ ok: false, error: error?.message || String(error) }));
+        .catch((error: unknown) => ({ ok: false, error: (error as { message?: unknown } | null)?.message || String(error) }));
       const confirmReady = await waitFor(() => !!document.getElementById('confirm-ok'));
       if (confirmReady) {
         const promptText = document.getElementById('confirm-dialog-overlay')?.textContent || '';
         document.getElementById('confirm-ok')?.click();
         const deleteResult = await deleteResultPromise;
-        const afterDelete = JSON.parse(localStorage.getItem(customKey) || '[]');
+        const afterDelete = (JSON.parse(localStorage.getItem(customKey) || '[]') as unknown) as { length: unknown };
         outcomes.deleteCustomConfirmsRemovesAndFallsBack =
           deleteResult.ok === true
           && promptText.includes('Migrated Voice')
           && afterDelete.length === 0
           && state.currentChatPersonality === 'default'
           && localStorage.getItem(personalityKey) === 'default'
-          && document.querySelector('.chat-header-title')?.textContent === 'AI Lab Analyst';
+          && document.querySelector<HTMLElement>('.chat-header-title')?.textContent === 'AI Lab Analyst';
       } else {
         outcomes.deleteCustomConfirmsRemovesAndFallsBack = false;
       }

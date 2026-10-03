@@ -10,14 +10,14 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
   await page.goto('/app', { waitUntil: 'load' });
 
   const outcomes = await page.evaluate(async ({ sunUrl }) => {
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const storageKey = 'labcharts-meteo-config';
     const originalConfig = localStorage.getItem(storageKey);
     const originalEncryptionEnabled = localStorage.getItem('labcharts-encryption-enabled');
-    const originalWearablesTest = window.__WEARABLES_TEST;
+    const originalWearablesTest = (window as unknown as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST;
     const originalWarn = console.warn;
     const cleanup = () => {
-      const keys = [];
+      const keys: unknown[] = [];
       for (let i = 0; i < localStorage.length; i += 1) {
         const key = localStorage.key(i);
         if (
@@ -32,7 +32,7 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
           keys.push(key);
         }
       }
-      keys.forEach(key => localStorage.removeItem(key));
+      keys.forEach(key => (localStorage.removeItem as (key:unknown)=>void)(key));
     };
 
     try {
@@ -43,7 +43,7 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
       localStorage.setItem('meteo:v4:old-a', 'old-version-cache');
       localStorage.setItem('meteo:v5:keep-a', 'fresh-cache');
 
-      const mod = await import(sunUrl);
+      const mod = (await import(sunUrl) as unknown) as Pick<typeof import('../../js/sun-uvdata.js'), "getMeteoConfig" | "saveMeteoConfig" | "initMeteoConfigCache" | "purgeMeteoCache" | "computeUVConfidence" | "fetchAtmosphere" | "UV_SOURCE_CONFIDENCE" | "_testShapeNoaaResponse" | "_testIsUSCoords" | "interpolateAtmosphere">;
       const cryptoStore = await import('/js/crypto.js');
       const waitForSecureConfig = async () => {
         for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -91,7 +91,7 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
       }));
       const migrated = mod.getMeteoConfig();
       const migratedEnvelope = await waitForSecureConfig();
-      const persistedMigration = JSON.parse(await cryptoStore.encryptedGetItem(storageKey));
+      const persistedMigration = ((JSON.parse as (text: unknown) => unknown)(await cryptoStore.encryptedGetItem(storageKey)) as unknown);
       outcomes.legacyModeMigratesAndSanitizesStoredConfig =
         migrated.mode === 'auto'
         && migrated.selfhostUrl === 'https://legacy.example/uv'
@@ -99,15 +99,15 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
         && migrated.privacyRounding === 0.25
         && migratedEnvelope?.startsWith('d1:')
         && !migratedEnvelope.includes('legacy.example')
-        && persistedMigration.mode === 'auto'
-        && persistedMigration.extra === undefined;
+        && (persistedMigration as {mode: unknown}).mode === 'auto'
+        && (persistedMigration as {extra: unknown}).extra === undefined;
 
       localStorage.setItem(storageKey, JSON.stringify({ mode: 'manual', privacyRounding: 0.1 }));
       outcomes.legacyManualModeMigratesToAuto = mod.getMeteoConfig().mode === 'auto';
       await waitForSecureConfig();
 
-      const warnings = [];
-      console.warn = (...args) => warnings.push(args.join(' '));
+      const warnings:string[] = [];
+      console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
       localStorage.setItem(storageKey, JSON.stringify({
         mode: 'selfhost',
         selfhostUrl: '',
@@ -115,12 +115,12 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
         privacyRounding: 0.5,
       }));
       const emptySelfhost = mod.getMeteoConfig();
-      const persistedSelfhost = JSON.parse(localStorage.getItem(storageKey));
+      const persistedSelfhost = ((JSON.parse as (text: unknown) => unknown)(localStorage.getItem(storageKey)) as unknown);
       outcomes.emptySelfhostFallsBackInMemoryAndWarnsOnce =
         emptySelfhost.mode === 'auto'
-        && persistedSelfhost.mode === 'selfhost'
+        && (persistedSelfhost as {mode: unknown}).mode === 'selfhost'
         && warnings.length === 1
-        && warnings[0].includes('mode=selfhost with empty selfhostUrl');
+        && warnings[0]!.includes('mode=selfhost with empty selfhostUrl');
 
       mod.saveMeteoConfig({
         mode: 'selfhost',
@@ -152,9 +152,9 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
       });
       const orderedSaveResults = await Promise.all([firstSave, latestSave]);
       const latestDurableRaw = localStorage.getItem(storageKey);
-      const latestDurableConfig = JSON.parse(await cryptoStore.encryptedGetItem(storageKey));
+      const latestDurableConfig = ((JSON.parse as (text: unknown) => unknown)(await cryptoStore.encryptedGetItem(storageKey)) as unknown);
 
-      window.__WEARABLES_TEST = true;
+      (window as unknown as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST = true;
       localStorage.setItem('labcharts-encryption-enabled', 'true');
       await cryptoStore._setTestSessionKey(null);
       const failedSaveResult = await mod.saveMeteoConfig({
@@ -170,7 +170,7 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
         orderedSaveResults.every(Boolean)
         && latestDurableRaw?.startsWith('d1:') === true
         && !latestDurableRaw.includes('latest-token')
-        && latestDurableConfig.selfhostUrl === 'https://latest.example'
+        && (latestDurableConfig as {selfhostUrl: unknown}).selfhostUrl === 'https://latest.example'
         && failedSaveResult === false
         && durableRawAfterFailure === latestDurableRaw
         && mod.getMeteoConfig().selfhostUrl === 'https://latest.example';
@@ -209,8 +209,8 @@ test('sun uvdata browser coverage handles config cache module API and purging', 
       else localStorage.setItem(storageKey, originalConfig);
       if (originalEncryptionEnabled == null) localStorage.removeItem('labcharts-encryption-enabled');
       else localStorage.setItem('labcharts-encryption-enabled', originalEncryptionEnabled);
-      if (originalWearablesTest === undefined) delete window.__WEARABLES_TEST;
-      else window.__WEARABLES_TEST = originalWearablesTest;
+      if (originalWearablesTest === undefined) delete (window as unknown as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST;
+      else (window as unknown as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST = originalWearablesTest;
     }
 
     return outcomes;
@@ -223,26 +223,26 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
   await page.goto('/app', { waitUntil: 'load' });
 
   const outcomes = await page.evaluate(async ({ sunUrl }) => {
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const storageKey = 'labcharts-meteo-config';
     const originalConfig = localStorage.getItem(storageKey);
     const originalFetch = window.fetch;
     const originalWarn = console.warn;
-    const mod = await import(sunUrl);
+    const mod = (await import(sunUrl) as unknown) as Pick<typeof import('../../js/sun-uvdata.js'), "getMeteoConfig" | "saveMeteoConfig" | "initMeteoConfigCache" | "purgeMeteoCache" | "computeUVConfidence" | "fetchAtmosphere" | "UV_SOURCE_CONFIDENCE" | "_testShapeNoaaResponse" | "_testIsUSCoords" | "interpolateAtmosphere">;
     const iso = '2026-06-01T12:30:00.000Z';
-    const jsonResponse = (json, init = {}) => new Response(JSON.stringify(json), {
+    const jsonResponse = (json: unknown, init:ResponseInit = {}) => new Response(JSON.stringify(json), {
       status: init.status || 200,
       headers: {
         'content-type': 'application/json',
         ...(init.headers || {}),
       },
     });
-    const forecast = (uvIndex = 4.4, extra = {}) => ({
+    const forecast = (uvIndex:number|null = 4.4, extra:{hourly?:Record<string,unknown>;daily?:Record<string,unknown>;root?:Record<string,unknown>} = {}) => ({
       utc_offset_seconds: 0,
       hourly: {
         time: ['2026-06-01T12:00'],
         uv_index: [uvIndex],
-        uv_index_clear_sky: [Number.isFinite(uvIndex) ? uvIndex + 1 : uvIndex],
+        uv_index_clear_sky: [Number.isFinite(uvIndex) ? (uvIndex as number) + 1 : uvIndex],
         cloud_cover: [20],
         temperature_2m: [22],
         ...(extra.hourly || {}),
@@ -251,7 +251,7 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         time: ['2026-06-01'],
         sunrise: ['2026-06-01T05:10'],
         sunset: ['2026-06-01T20:35'],
-        uv_index_max: [Number.isFinite(uvIndex) ? uvIndex + 1 : uvIndex],
+        uv_index_max: [Number.isFinite(uvIndex) ? (uvIndex as number) + 1 : uvIndex],
         ...(extra.daily || {}),
       },
       ...extra.root,
@@ -273,19 +273,19 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
       },
       current: { pm2_5: 6, pm10: 11, european_aqi: 18 },
     };
-    const saveConfig = cfg => mod.saveMeteoConfig({
-      mode: cfg.mode,
-      selfhostUrl: cfg.selfhostUrl || '',
-      selfhostBearer: cfg.selfhostBearer || '',
-      privacyRounding: cfg.privacyRounding ?? 0.1,
+    const saveConfig = (cfg: unknown) => mod.saveMeteoConfig({
+      mode: (cfg as {mode: unknown}).mode,
+      selfhostUrl: (cfg as {selfhostUrl: unknown}).selfhostUrl || '',
+      selfhostBearer: (cfg as {selfhostBearer: unknown}).selfhostBearer || '',
+      privacyRounding: (cfg as {privacyRounding: unknown}).privacyRounding ?? 0.1,
     });
     const cleanupCache = () => {
-      const keys = [];
+      const keys: unknown[] = [];
       for (let i = 0; i < localStorage.length; i += 1) {
         const key = localStorage.key(i);
         if (key?.startsWith('meteo:v5:')) keys.push(key);
       }
-      keys.forEach(key => localStorage.removeItem(key));
+      keys.forEach(key => (localStorage.removeItem as (key:unknown)=>void)(key));
     };
 
     try {
@@ -296,11 +296,11 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         selfhostUrl: 'https://uvdata.example/base/',
         selfhostBearer: 'token',
       });
-      const selfhostCalls = [];
-      window.fetch = async (url, opts = {}) => {
+      const selfhostCalls:{url:string;authorization:unknown}[] = [];
+      window.fetch = async (url: NonNullable<Parameters<typeof fetch>[0]>, opts: NonNullable<Parameters<typeof fetch>[1]> = {}) => {
         selfhostCalls.push({
           url: String(url),
-          authorization: opts.headers?.Authorization || '',
+          authorization: (opts.headers as {Authorization?:unknown}|null|undefined)?.Authorization || '',
         });
         return jsonResponse(forecast(5.2));
       };
@@ -313,16 +313,16 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
       outcomes.selfhostAddsBearerClampsCoordsAndShapes =
         selfhost.source === 'selfhost'
         && selfhost.uvIndex === 5.2
-        && selfhostCalls[0].authorization === 'Bearer token'
-        && selfhostCalls[0].url.includes('latitude=90.000000')
-        && selfhostCalls[0].url.includes('longitude=-180.000000');
+        && (selfhostCalls[0] as {authorization: unknown}).authorization === 'Bearer token'
+        && selfhostCalls[0]!.url.includes('latitude=90.000000')
+        && selfhostCalls[0]!.url.includes('longitude=-180.000000');
 
       saveConfig({
         mode: 'selfhost',
         selfhostUrl: 'https://uvdata.example/base',
       });
-      const fallbackCalls = [];
-      window.fetch = async (url) => {
+      const fallbackCalls:string[] = [];
+      window.fetch = async (url: NonNullable<Parameters<typeof fetch>[0]>) => {
         const href = String(url);
         fallbackCalls.push(href);
         if (href.startsWith('https://uvdata.example')) return jsonResponse({ ok: true });
@@ -348,10 +348,10 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         mode: 'selfhost',
         selfhostUrl: 'http://127.0.0.1:9000',
       });
-      const rejectedSelfhostCalls = [];
-      const rejectedSelfhostWarnings = [];
-      console.warn = (...args) => rejectedSelfhostWarnings.push(args.join(' '));
-      window.fetch = async (url) => {
+      const rejectedSelfhostCalls:string[] = [];
+      const rejectedSelfhostWarnings:string[] = [];
+      console.warn = (...args: unknown[]) => rejectedSelfhostWarnings.push(args.join(' '));
+      window.fetch = async (url: NonNullable<Parameters<typeof fetch>[0]>) => {
         const href = String(url);
         rejectedSelfhostCalls.push(href);
         if (href.includes('air-quality')) return jsonResponse(airQuality);
@@ -372,7 +372,7 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         && rejectedSelfhostWarnings.some(line => line.includes('selfhost URL rejected'));
 
       saveConfig({ mode: 'auto' });
-      window.fetch = async (url) => {
+      window.fetch = async (url: NonNullable<Parameters<typeof fetch>[0]>) => {
         const href = String(url);
         if (href === '/api/proxy') {
           return jsonResponse(forecast(null, {
@@ -405,10 +405,10 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         merged.source === 'cams+open_meteo'
         && merged.uvIndex === 6.6
         && merged.ozoneDU === 315
-        && merged.airQuality?.aod === 0.07
-        && Math.abs(merged.confidence - 0.65) < 0.01;
+        && (merged.airQuality as {aod: unknown})?.aod === 0.07
+        && Math.abs((merged.confidence as number) - 0.65) < 0.01;
 
-      window.fetch = async url => {
+      window.fetch = async (url: NonNullable<Parameters<typeof fetch>[0]>) => {
         if (String(url) !== '/api/proxy') throw new Error('direct CAMS relay should not need browser fallback');
         return jsonResponse(forecast(5.8, {
           hourly: {
@@ -442,12 +442,12 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         && enhanced.uvIndex === 5.8
         && enhanced.ozoneDU === 308
         && enhanced.confidence === mod.UV_SOURCE_CONFIDENCE.cams_satellite
-        && enhanced.fieldSources?.uvIndex === 'cams_uvbedcs+satellite_cmf'
-        && enhanced.hourly?.uv_index_cams_total_sky?.[0] === 6.1;
+        && (enhanced.fieldSources as {uvIndex: unknown})?.uvIndex === 'cams_uvbedcs+satellite_cmf'
+        && ((enhanced.hourly as {uv_index_cams_total_sky: unknown})?.uv_index_cams_total_sky as unknown[])?.[0] === 6.1;
 
       saveConfig({ mode: 'noaa' });
-      const legacyNoaaCalls = [];
-      window.fetch = async (url) => {
+      const legacyNoaaCalls:string[] = [];
+      window.fetch = async (url: NonNullable<Parameters<typeof fetch>[0]>) => {
         const href = String(url);
         legacyNoaaCalls.push(href);
         if (href.includes('air-quality')) return jsonResponse(airQuality);
@@ -465,13 +465,13 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
         && legacyNoaaCalls.length === 1
         && legacyNoaaCalls[0] === '/api/proxy';
 
-      const shapedNoaa = mod._testShapeNoaaResponse({ UVI: 6.1, ozone: 307 }, iso);
+      const shapedNoaa = (mod._testShapeNoaaResponse as (...args:[...Parameters<typeof mod._testShapeNoaaResponse>,...ignored:unknown[]])=>ReturnType<typeof mod._testShapeNoaaResponse>)({ UVI: 6.1, ozone: 307 }, iso);
       outcomes.noaaTestHooksCoverLegacyShaperAndUsPredicate =
         shapedNoaa?.source === 'noaa_nws'
         && shapedNoaa.uvIndex === 6.1
         && shapedNoaa.ozoneDU === 307
         && shapedNoaa.confidence === mod.UV_SOURCE_CONFIDENCE.noaa_nws
-        && mod._testShapeNoaaResponse({}, iso) === null
+        && (mod._testShapeNoaaResponse as (...args:[...Parameters<typeof mod._testShapeNoaaResponse>,...ignored:unknown[]])=>ReturnType<typeof mod._testShapeNoaaResponse>)({}, iso) === null
         && mod._testIsUSCoords(40, -100) === true
         && mod._testIsUSCoords(61, -150) === true
         && mod._testIsUSCoords(20.5, -157) === true
@@ -480,7 +480,7 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
       saveConfig({ mode: 'open-meteo' });
       cleanupCache();
       let cacheFetches = 0;
-      window.fetch = async (url) => {
+      window.fetch = async (url: NonNullable<Parameters<typeof fetch>[0]>) => {
         cacheFetches += 1;
         return String(url).includes('air-quality')
           ? jsonResponse(airQuality)
@@ -524,7 +524,7 @@ test('sun uvdata browser coverage drives provider chain cache stale and offline 
       outcomes.allProvidersFailedUsesZenithOfflineEstimate =
         offline.source === 'zenith_offline'
         && offline._offline === true
-        && offline.uvIndex > 10
+        && (offline.uvIndex as number) > 10
         && offline.ozoneDU === 300;
     } finally {
       window.fetch = originalFetch;
@@ -544,11 +544,11 @@ test('sun uvdata browser coverage handles response caps shapers and interpolatio
   await page.goto('/app', { waitUntil: 'load' });
 
   const outcomes = await page.evaluate(async ({ sunUrl }) => {
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const storageKey = 'labcharts-meteo-config';
     const originalConfig = localStorage.getItem(storageKey);
     const originalFetch = window.fetch;
-    const mod = await import(sunUrl);
+    const mod = (await import(sunUrl) as unknown) as Pick<typeof import('../../js/sun-uvdata.js'), "getMeteoConfig" | "saveMeteoConfig" | "initMeteoConfigCache" | "purgeMeteoCache" | "computeUVConfidence" | "fetchAtmosphere" | "UV_SOURCE_CONFIDENCE" | "_testShapeNoaaResponse" | "_testIsUSCoords" | "interpolateAtmosphere">;
     const saveOpenMeteo = () => mod.saveMeteoConfig({
       mode: 'open-meteo',
       selfhostUrl: '',
@@ -556,12 +556,12 @@ test('sun uvdata browser coverage handles response caps shapers and interpolatio
       privacyRounding: 0.1,
     });
     const cleanupCache = () => {
-      const keys = [];
+      const keys: unknown[] = [];
       for (let i = 0; i < localStorage.length; i += 1) {
         const key = localStorage.key(i);
         if (key?.startsWith('meteo:v5:')) keys.push(key);
       }
-      keys.forEach(key => localStorage.removeItem(key));
+      keys.forEach(key => (localStorage.removeItem as (key:unknown)=>void)(key));
     };
 
     try {
@@ -633,7 +633,7 @@ test('sun uvdata browser coverage handles response caps shapers and interpolatio
         },
         current: { pm2_5: 9, pm10: 18, european_aqi: 2 },
       };
-      window.fetch = async (url) => new Response(JSON.stringify(
+      window.fetch = async (url: NonNullable<Parameters<typeof fetch>[0]>) => new Response(JSON.stringify(
         String(url).includes('air-quality') ? airQuality : forecast
       ), { status: 200, headers: { 'content-type': 'application/json' } });
 
@@ -647,24 +647,24 @@ test('sun uvdata browser coverage handles response caps shapers and interpolatio
         shaped.source === 'open_meteo'
         && shaped.uvIndex === 5
         && shaped.ozoneDU === null
-        && shaped.airQuality?.surfaceOzoneUgM3 === 80
-        && shaped.airQuality?.european_aqi === 2
-        && shaped.daily?.sunrise === '2026-06-01T05:10'
-        && shaped.daily?.sunset === '2026-06-01T20:35'
-        && shaped.daily?.uvIndexMax === 7
-        && shaped.daily?.peakAt === '2026-06-01T13:00'
-        && shaped.hourly?.utcOffsetSeconds === 7200;
+        && (shaped.airQuality as {surfaceOzoneUgM3: unknown})?.surfaceOzoneUgM3 === 80
+        && (shaped.airQuality as {european_aqi: unknown})?.european_aqi === 2
+        && (shaped.daily as {sunrise: unknown})?.sunrise === '2026-06-01T05:10'
+        && (shaped.daily as {sunset: unknown})?.sunset === '2026-06-01T20:35'
+        && (shaped.daily as {uvIndexMax?:unknown}|null|undefined)?.uvIndexMax === 7
+        && (shaped.daily as {peakAt?:unknown}|null|undefined)?.peakAt === '2026-06-01T13:00'
+        && (shaped.hourly as {utcOffsetSeconds: unknown})?.utcOffsetSeconds === 7200;
 
-      const lerped = mod.interpolateAtmosphere(shaped, '2026-06-01T10:30:00.000Z');
-      const nearest = mod.interpolateAtmosphere(shaped, '2026-06-02T00:00:00.000Z');
-      const invalidTarget = mod.interpolateAtmosphere(shaped, 'not a date');
-      const invalidTimes = mod.interpolateAtmosphere({ hourly: { time: ['bad'], uv_index: [1] } }, '2026-06-01T10:30:00.000Z');
+      const lerped = (mod.interpolateAtmosphere as (data:Record<string,unknown>|null|undefined,time:Parameters<typeof mod.interpolateAtmosphere>[1])=>ReturnType<typeof mod.interpolateAtmosphere>)(shaped, '2026-06-01T10:30:00.000Z');
+      const nearest = (mod.interpolateAtmosphere as (data:Record<string,unknown>|null|undefined,time:Parameters<typeof mod.interpolateAtmosphere>[1])=>ReturnType<typeof mod.interpolateAtmosphere>)(shaped, '2026-06-02T00:00:00.000Z');
+      const invalidTarget = (mod.interpolateAtmosphere as (data:Record<string,unknown>|null|undefined,time:Parameters<typeof mod.interpolateAtmosphere>[1])=>ReturnType<typeof mod.interpolateAtmosphere>)(shaped, 'not a date');
+      const invalidTimes = (mod.interpolateAtmosphere as (data:Record<string,unknown>|null|undefined,time:Parameters<typeof mod.interpolateAtmosphere>[1])=>ReturnType<typeof mod.interpolateAtmosphere>)({ hourly: { time: ['bad'], uv_index: [1] } }, '2026-06-01T10:30:00.000Z');
       outcomes.interpolateAtmosphereCoversLerpNearestAndInvalid =
-        Math.abs(lerped.uvIndex - 6) < 0.001
-        && Math.abs(lerped.uvClearSky - 7) < 0.001
-        && Math.abs(lerped.cloudCover - 15) < 0.001
-        && Math.abs(lerped.temperatureC - 22) < 0.001
-        && nearest.uvIndex === 7
+        Math.abs(lerped!.uvIndex! - 6) < 0.001
+        && Math.abs(lerped!.uvClearSky! - 7) < 0.001
+        && Math.abs(lerped!.cloudCover! - 15) < 0.001
+        && Math.abs(lerped!.temperatureC! - 22) < 0.001
+        && nearest!.uvIndex === 7
         && invalidTarget === null
         && invalidTimes === null;
     } finally {
