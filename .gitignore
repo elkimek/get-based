@@ -1074,3 +1074,11 @@ deploy/profile-share/data/
 /js/marker-detail-manual-entry.js
 /js/settings-privacy.js
 /js/settings-tweaks.js
+
+/js/nutrition.js
+/js/wearables.js
+/js/sun-session-ui.js
+/js/therapy-correlation-view.js
+/types/nutrition-controller.js
+/types/wearables-view.js
+/types/sun-session-ui.js

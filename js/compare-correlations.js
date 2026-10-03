@@ -575,7 +575,7 @@ export function renderCorrelationChart() {
     return;
   }
   const selection = prepareCorrelationSelection(data, state.importedData, state.selectedCorrelationMarkers, state.selectedCorrelationSupplements, 0, state.correlationView);
-  renderCorrelationWorkspace(selection, results, renderCorrelationChart);
+  renderCorrelationWorkspace(selection, /** @type {HTMLElement} */ (results), renderCorrelationChart);
   if (focused?.startsWith('corr-')) document.getElementById(focused)?.focus({ preventScroll: true });
 }
 

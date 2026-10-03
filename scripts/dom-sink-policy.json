@@ -866,7 +866,7 @@
     },
     "js/sun-session-ui.js": {
       "count": 2,
-      "digest": "1b1ab1709cfe007c2956f7a0bc104261c808ab34b13a691139319720f32161c4",
+      "digest": "96fcde4d46db57d0cba444cc4228b7a9cfc959970a73461401c28c51a394d8d3",
       "kinds": {
         "innerHTML": 2
       }
@@ -932,7 +932,7 @@
     },
     "js/therapy-correlation-view.js": {
       "count": 5,
-      "digest": "c7f7360bb9a9c1e6f77b89855e2cab323f89c1945f91daa7ebc5cce52c3c91da",
+      "digest": "48dd3017d42cc930b9d2c4776018702b191f08022cd7378050978e076d4f3a6a",
       "kinds": {
         "innerHTML": 5
       }

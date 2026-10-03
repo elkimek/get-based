@@ -1,4 +1,3 @@
-// @ts-check
 // wearables.js — Dashboard wearable strip
 // Source-agnostic: reads `wearableSummary` (the L2 shape that ships to Evolu)
 // and walks CANONICAL_METRICS via the registry in wearable-adapters.js.
@@ -15,6 +14,8 @@
 //                  trend30d,                // 'declining' | 'rising' | 'improving' | 'flat'
 //                  weekly: number[]         // up to 12 weekly means (oldest → newest)
 //                } }
+
+import type { MetricOperations, SummaryOperations, CardOptions, CanonicalMetric, ActionTarget, DisplayItem, ProfileCacheReader } from '../types/wearables-view.js';
 
 import { escapeHTML, escapeAttr } from './utils.js';
 import { state } from './state.js';
@@ -76,12 +77,12 @@ export {
 
 let wearableDelegatesInstalled = false;
 
-function isWearableActionScope(actionEl) {
+function isWearableActionScope(actionEl: ActionTarget) {
   return !!actionEl.closest('.wearable-strip, #detail-modal, .db-biometric-overview-grid');
 }
 
-function handleWearableActionClick(event) {
-  const target = event.target;
+function handleWearableActionClick(event: MouseEvent) {
+  const target = event.target as ActionTarget | null;
   if (!target || typeof target.closest !== 'function') return;
   const actionEl = target.closest('[data-wearable-action]');
   if (!actionEl || !isWearableActionScope(actionEl)) return;
@@ -133,9 +134,9 @@ function handleWearableActionClick(event) {
   if (handled) event.preventDefault();
 }
 
-function handleWearableActionKeydown(event) {
+function handleWearableActionKeydown(event: KeyboardEvent) {
   if (event.key !== 'Enter' && event.key !== ' ') return;
-  const target = event.target;
+  const target = event.target as ActionTarget | null;
   if (!target || typeof target.closest !== 'function') return;
   if (target.closest('input, textarea, select, button, a')) return;
   const actionEl = target.closest('[data-wearable-action]');
@@ -146,8 +147,8 @@ function handleWearableActionKeydown(event) {
   actionEl.click();
 }
 
-function handleWearableFormSubmit(event) {
-  const target = event.target;
+function handleWearableFormSubmit(event: Event) {
+  const target = event.target as ActionTarget | null;
   if (!target || typeof target.closest !== 'function') return;
   const form = target.closest('[data-wearable-form]');
   if (!form || !form.closest('#detail-modal')) return;
@@ -164,7 +165,7 @@ function installWearableDelegates() {
   document.addEventListener('submit', handleWearableFormSubmit);
 }
 
-export function openWearableDetail(metricId, opts = {}) {
+export function openWearableDetail(metricId: Parameters<typeof openWearableDetailModal>[0], opts: Parameters<typeof openWearableDetailModal>[1] = {}) {
   resetOpenManualLogForms();
   return openWearableDetailModal(metricId, opts);
 }
@@ -229,13 +230,13 @@ function isMockAllowed() {
   if (localStorage.getItem('wearables-mock-off') === '1') return false;
   // Show mock only when no real connection exists — keeps the dashboard lively
   // during onboarding / demo flows without shadowing real data.
-  const real = state.importedData?.wearableSummary;
+  const real = state.importedData?.wearableSummary as SummaryOperations | null | undefined;
   if (real && real.sources && Object.keys(real.sources).length > 0) return false;
   return true;
 }
 
-function getWearableSummary() {
-  const real = state.importedData?.wearableSummary;
+function getWearableSummary(): SummaryOperations | null {
+  const real = state.importedData?.wearableSummary as SummaryOperations | null | undefined;
   if (real && real.sources && Object.keys(real.sources).length > 0) return real;
   if (isMockAllowed()) return MOCK_SUMMARY;
   return null;
@@ -245,7 +246,7 @@ function getWearableSummary() {
 // FORMATTERS
 // ─────────────────────────────────────────────────────────
 
-function formatAgo(ts) {
+function formatAgo(ts: number | null | undefined) {
   if (!ts) return 'never';
   const mins = Math.max(0, Math.round((Date.now() - ts) / 60000));
   if (mins < 1) return 'just now';
@@ -258,9 +259,9 @@ function formatAgo(ts) {
 
 // Semantic delta colour: worse-direction → red, better-direction → green, ~flat → neutral.
 // Returns 'delta-flat' for zero/missing baseline so we don't paint NaN% red/green.
-function deltaClassFor(latest, baseline, worseWhen) {
+function deltaClassFor(latest: number | null | undefined, baseline: number | null | undefined, worseWhen: unknown) {
   if (!baseline || !isFinite(baseline)) return 'delta-flat';
-  const pct = ((latest - baseline) / baseline) * 100;
+  const pct = (((latest as number) - baseline) / baseline) * 100;
   if (Math.abs(pct) < 3) return 'delta-flat';
   const isDown = pct < 0;
   const worse = (isDown && worseWhen === 'down') || (!isDown && worseWhen === 'up');
@@ -272,11 +273,11 @@ function deltaClassFor(latest, baseline, worseWhen) {
 // from the user's nightly norm) already encode a Δ; their baseline naturally
 // hovers near zero, so percentages blow up (baseline=-0.05, latest=0.5 →
 // "↓ 1100%"). For these we render the absolute change in unit instead.
-function isDeltaStyleMetric(canon) {
+function isDeltaStyleMetric(canon: CanonicalMetric | null | undefined) {
   return canon?.sub === 'Δ';
 }
 
-function formatDelta(latest, baseline, metricId, canon) {
+function formatDelta(latest: number | null | undefined, baseline: number | null | undefined, metricId: string, canon: CanonicalMetric) {
   // Zero baseline happens when the metric is 0 across the period (e.g. activity
   // score on a ring that wasn't worn) — suppress the delta entirely rather than
   // rendering "→ —" which reads as "we measured something."
@@ -296,19 +297,19 @@ function formatDelta(latest, baseline, metricId, canon) {
     const unit = canon?.unit ? canon.unit : '';
     return `${arrow} ${Math.abs(diff).toFixed(2)}${unit}`;
   }
-  const pct = ((latest - baseline) / baseline) * 100;
+  const pct = (((latest as number) - baseline) / baseline) * 100;
   const arrow = pct > 0.5 ? '↑' : pct < -0.5 ? '↓' : '→';
   return `${arrow} ${Math.abs(pct).toFixed(0)}%`;
 }
 
-function trendLabel(t) {
+function trendLabel(t: unknown) {
   if (t === 'declining') return 'declining 30d';
   if (t === 'rising')    return 'rising 30d';
   if (t === 'improving') return 'improving 30d';
   return 'flat 30d';
 }
 
-function trendClassFor(trend, worseWhen) {
+function trendClassFor(trend: unknown, worseWhen: unknown) {
   // 'declining' and 'rising' are directional — paint them the semantic colour
   // based on which direction is worse for THIS metric.
   if (trend === 'improving') return 'wearable-trend-improving';
@@ -321,19 +322,19 @@ function trendClassFor(trend, worseWhen) {
 // SPARKLINE
 // ─────────────────────────────────────────────────────────
 
-function sparklineSVG(series, baseline, worseWhen) {
+function sparklineSVG(series: number[] | null | undefined, baseline: number, worseWhen: unknown) {
   if (!series || series.length === 0) return '';
   const VW = 100, VH = 30, pad = 2;
   const all = series.concat([baseline]);
   const min = Math.min(...all), max = Math.max(...all);
   const range = Math.max(max - min, 1e-6);
   const xStep = (VW - pad * 2) / Math.max(series.length - 1, 1);
-  const yFor = v => VH - pad - ((v - min) / range) * (VH - pad * 2);
+  const yFor = (v: number) => VH - pad - ((v - min) / range) * (VH - pad * 2);
   const pts = series.map((v, i) => `${(pad + i * xStep).toFixed(1)},${yFor(v).toFixed(1)}`).join(' ');
   const lastX = (pad + (series.length - 1) * xStep).toFixed(1);
-  const lastY = yFor(series[series.length - 1]).toFixed(1);
+  const lastY = yFor(series[series.length - 1]!).toFixed(1);
   const baselineY = yFor(baseline).toFixed(1);
-  const last = series[series.length - 1];
+  const last = series[series.length - 1]!;
   const deltaPct = (baseline && isFinite(baseline)) ? Math.abs((last - baseline) / baseline) : 0;
   let toneClass = 'spark-neutral';
   if (deltaPct >= 0.03 && worseWhen !== 'either') {
@@ -358,7 +359,7 @@ function sparklineSVG(series, baseline, worseWhen) {
 // optional pulse) on one card; bp_diastolic and rhr are folded into that
 // same card when BP is empty, so the user sees ONE "BP" affordance rather
 // than three.
-function renderEmptyManualCard(metricId, canon, opts = {}) {
+function renderEmptyManualCard(metricId: string, canon: CanonicalMetric, opts: CardOptions = {}) {
   const subLabel = canon.sub ? ` <span class="wearable-metric-sub">${escapeHTML(canon.sub)}</span>` : '';
   const label = metricId === 'bp_systolic' ? 'Blood pressure' : canon.label;
   const actionAttrs = opts.interactive === false
@@ -377,14 +378,14 @@ function renderEmptyManualCard(metricId, canon, opts = {}) {
   </div>`;
 }
 
-function formatStalenessDate(date) {
+function formatStalenessDate(date: string | null | undefined) {
   if (!date) return '';
   const d = new Date(`${date}T00:00:00`);
   if (Number.isNaN(d.getTime())) return shortDate(date);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate, opts = {}) {
+function renderCard(metricId: string, canon: CanonicalMetric, metric: MetricOperations, showSourceBadge: unknown, sourceMaxDate: string | undefined, opts: CardOptions = {}) {
   const pairedMetric = opts.pairedMetric || null;
   const interactive = opts.interactive !== false;
   // Paired BP card: relabel "BP sys" → "Blood pressure", swap latest/baseline
@@ -402,7 +403,7 @@ function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate, opt
   // Units starting with "/" (e.g. "/5" for resilience level) read tighter
   // without a separator between value and unit — render "1/5", not "1 /5".
   const displayUnit = wearableDisplayUnit(metricId, canon.unit || '', state.unitSystem);
-  const formatDisplayValue = value => formatWearableMetricValue(
+  const formatDisplayValue = (value: number | null | undefined) => formatWearableMetricValue(
     metricId,
     value,
     canon.unit || '',
@@ -436,7 +437,7 @@ function renderCard(metricId, canon, metric, showSourceBadge, sourceMaxDate, opt
   const sysRead = formatDisplayValue(metric.latest);
   const diaRead = isBPCard ? formatDisplayValue(pairedMetric.latest) : null;
   const valueRead = isBPCard ? `${sysRead}/${diaRead || '—'}` : sysRead;
-  const formatBaselineValue = value => metricId === 'weight'
+  const formatBaselineValue = (value: number | null | undefined) => metricId === 'weight'
     ? formatDisplayValue(value)
     : String(value ?? '—');
   const baselineRead = isBPCard
@@ -527,7 +528,7 @@ export function renderWearableStrip() {
   // of summary.sources insertion order — that way the strip header reads
   // "Oura + Fitbit + Apple Health" regardless of which one the user
   // connected first.
-  const adapterOrderIndex = (sid) => {
+  const adapterOrderIndex = (sid: string) => {
     const idx = ADAPTERS.findIndex(a => a.id === sid);
     return idx === -1 ? 999 : idx;
   };
@@ -577,7 +578,7 @@ export function renderWearableStrip() {
   // somehow only dia exists (no sys), let dia surface on its own so the data
   // isn't invisible.
   const hasSys = !!summary.metrics?.bp_systolic;
-  const displayOrder = [];
+  const displayOrder: DisplayItem[] = [];
   const seenDisplay = new Set();
   for (const id of baseMetricOrder) {
     if (STRIP_HIDDEN_METRICS.has(id)) continue;
@@ -604,7 +605,7 @@ export function renderWearableStrip() {
   const finalOrder = savedOrder && savedOrder.length
     ? (() => {
         const byId = new Map(displayOrder.map(d => [d.id, d]));
-        const out = [];
+        const out: DisplayItem[] = [];
         for (const id of savedOrder) {
           const item = byId.get(id);
           if (item) { out.push(item); byId.delete(id); }
@@ -620,12 +621,12 @@ export function renderWearableStrip() {
   // renderer flag metrics whose latest sample is older than the source's
   // own freshest reading (e.g. HRV from Oura's /sleep lags daily_sleep by
   // hours-to-days while the night's session finishes processing).
-  const sourceMaxDate = {};
+  const sourceMaxDate: Record<string, string> = {};
   for (const m of Object.values(summary.metrics || {})) {
     const src = m?.primarySource;
     const d = m?.latestDate;
     if (!src || !d) continue;
-    if (!sourceMaxDate[src] || d > sourceMaxDate[src]) sourceMaxDate[src] = d;
+    if (!sourceMaxDate[src] || d > sourceMaxDate[src]!) sourceMaxDate[src] = d;
   }
 
   // Header meta: most recent sync across connected sources + a short coverage label.
@@ -649,7 +650,7 @@ export function renderWearableStrip() {
     try {
       const profilesRaw = localStorage.getItem('labcharts-profiles');
       if (!profilesRaw) return false;
-      const profiles = JSON.parse(profilesRaw);
+      const profiles = JSON.parse(profilesRaw) as ProfileCacheReader;
       const active = profiles.find(p => p.id === state.currentProfile);
       return Array.isArray(active?.tags) && active.tags.includes('demo');
     } catch (_) { return false; }
@@ -711,14 +712,14 @@ export function renderWearableStrip() {
   // arrow handles and detail-modal clicks are suppressed.
 
   for (let i = 0; i < finalOrder.length; i++) {
-    const { id: metricId, empty } = finalOrder[i];
+    const { id: metricId, empty } = finalOrder[i]!;
     const canon = canonicalMetric(metricId);
     if (!canon) continue;
     let cardHtml;
     if (empty) {
       cardHtml = renderEmptyManualCard(metricId, canon, { interactive: !reorderMode });
     } else {
-      const metric = summary.metrics[metricId];
+      const metric = (summary.metrics as NonNullable<SummaryOperations['metrics']>)[metricId];
       if (!metric) continue;
       // Source badge appears on every populated card whenever ≥2 wearables
       // are connected — users need to see at-a-glance which source backs each

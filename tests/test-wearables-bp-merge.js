@@ -27,7 +27,7 @@ const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== BP Card Merge Tests ===\n');
 
-const wearablesSrc = read('js/wearables.js');
+const wearablesSrc = read('js/wearables.js').replace(/\s+/g, ' ');
 const wearablesActionsSrc = read('js/wearables-strip-actions.js').replace(/\s+/g, ' ');
 
 // ═══════════════════════════════════════

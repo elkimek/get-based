@@ -1,4 +1,4 @@
-// @ts-check
+import type { ComponentOperations, SourceOperations, AnalysisOperations, MealOperations, ImageOperations, NutritionEditorOptions, RequestLifecycleReader } from '../types/nutrition-controller.js';
 import { PHOTO_NUTRIENT_KEYS } from './nutrition-analysis.js';
 import { deleteActiveProfileMeal, getActiveProfileMeal, saveActiveProfileMeal } from './nutrition-store.js';
 import { normalizeNutritionComponent, recalculateMealFromComponents, updateComponentQuantity } from './nutrition-food-data.js';
@@ -20,23 +20,23 @@ export { deleteNutritionDB } from './nutrition-store.js';
 export { openNutritionHistory, openNutritionHistoryView, renderNutritionFuelWidget, renderNutritionWidget };
 const ACTION_ATTR = 'data-nutrition-action';
 let delegatesInstalled = false;
-let previewUrls = [];
-let pendingAnalysis = null;
-/** @type {unknown} */ let lastAnalyzedMealName = '';
-/** @type {unknown} */ let lastAnalyzedKind = 'meal-photo';
+let previewUrls: string[] = [];
+let pendingAnalysis: AnalysisOperations | null = null;
+ let lastAnalyzedMealName: unknown = '';
+ let lastAnalyzedKind: unknown = 'meal-photo';
 let lastAnalyzedConsumption = '';
 let lastAnalyzedContext = '';
-/** @type {'meal-photo'|'nutrition-label'} */ let analysisKind = 'meal-photo';
+ let analysisKind: 'meal-photo' | 'nutrition-label' = 'meal-photo';
 let componentIdentityDirty = false;
-let analyzedComponentIdentityBaseline = [];
-let editingMealId = '';
-let editingCreatedAt = '';
-let editingResponseCheckIn = null;
-let reusedMealId = '';
+let analyzedComponentIdentityBaseline: string[] = [];
+let editingMealId: unknown = '';
+let editingCreatedAt: unknown = '';
+let editingResponseCheckIn: unknown = null;
+let reusedMealId: unknown = '';
 let editorDetailReturnTo = 'history';
-let existingImages = [];
-const userEditedNutrients = new Set();
-const userEditedComponentIdentities = new Set();
+let existingImages: ImageOperations[] = [];
+const userEditedNutrients = new Set<unknown>();
+const userEditedComponentIdentities = new Set<unknown>();
 function clearPreviewUrl() { for (const url of previewUrls) URL.revokeObjectURL(url); previewUrls = []; }
 function resetEditorState() {
   discardSuspendedNutritionEditor();
@@ -61,13 +61,13 @@ function resetEditorState() {
   userEditedComponentIdentities.clear();
   clearPreviewUrl();
 }
-function populateEditorFromMeal(meal, reuse = false) {
+function populateEditorFromMeal(meal: MealOperations, reuse = false) {
   const sourceKind = meal?.source?.kind || 'manual';
   const manualSource = sourceKind === 'manual' || sourceKind === 'reused-meal' || sourceKind === 'barcode-database';
   analysisKind = sourceKind === 'ai-label-scan' ? 'nutrition-label' : 'meal-photo';
   setAnalysisKind(analysisKind);
   if (manualSource) setManualEntryMode({ focus: false });
-  existingImages = reuse ? [] : mealImages(meal);
+  existingImages = reuse ? [] : mealImages(meal) as ImageOperations[];
   editingResponseCheckIn = reuse ? null : (meal?.responseCheckIn || null);
   pendingAnalysis = {
     analysis: {
@@ -98,12 +98,12 @@ function populateEditorFromMeal(meal, reuse = false) {
   setElementValue('nutrition-meal-type', meal.mealType || '');
   setElementValue('nutrition-eaten-at', mealLocalDateTime(meal, reuse));
   setElementValue('nutrition-note', meal.note || '');
-  if (existingImages.length) renderStoredPhotoPreview(/** @type {Parameters<typeof renderStoredPhotoPreview>[0]} */ (existingImages));
+  if (existingImages.length) renderStoredPhotoPreview(existingImages);
   if (reuse) setStatus('Reviewed values copied. Adjust the time, occasion, or portions before saving.', 'success');
   else setStatus('Editing the stored record. Changes remain local until you save.', 'success');
   updateCorrectionState();
 }
-export async function openNutritionEditor(options = {}) {
+export async function openNutritionEditor(options: NutritionEditorOptions = {}) {
   await ensureNutritionStylesheet();
   const modal = document.getElementById('detail-modal');
   const overlay = document.getElementById('modal-overlay');
@@ -111,7 +111,7 @@ export async function openNutritionEditor(options = {}) {
   if (resumeNutritionBackgroundSession(modal, overlay)) return true;
   void hydrateNutritionLocalAICatalog();
   resetEditorState();
-  const seedMeal = options?.seedMeal || null;
+  const seedMeal = (options?.seedMeal || null) as MealOperations | null;
   if (seedMeal && options?.mode === 'edit') {
     editingMealId = seedMeal.id || '';
     editingCreatedAt = seedMeal.createdAt || '';
@@ -129,7 +129,7 @@ export async function openNutritionEditor(options = {}) {
   modal.scrollTop = 0;
   modal.classList.remove('nutrition-targets-modal', 'nutrition-fluid-modal', 'nutrition-history-modal', 'nutrition-manual-mode');
   modal.classList.add('nutrition-modal');
-  const manualDefault = !seedMeal && /** @type {HTMLButtonElement | null} */ (document.getElementById('nutrition-analyze-btn'))?.disabled === true;
+  const manualDefault = !seedMeal &&  (document.getElementById('nutrition-analyze-btn') as HTMLButtonElement | null)?.disabled === true;
   enhanceNutritionEditorNavigation(modal, { manualDefault });
   overlay.setAttribute('data-modal-dismiss-protected', '');
   renderEditableComponents([]);
@@ -139,7 +139,7 @@ export async function openNutritionEditor(options = {}) {
   openModalOverlay(overlay, { initialFocus: manualDefault ? '#nutrition-meal-name' : '#nutrition-photo-input', focusDelay: 30 });
   return true;
 }
-export async function openNutritionTargets(options = {}) {
+export async function openNutritionTargets(options: Pick<NutritionEditorOptions, 'returnTo'> = {}) {
   if (isNutritionBackgroundSession()) {
     showNotification('Return to the background meal request before opening Nutrition setup.', 'info');
     return false;
@@ -178,12 +178,12 @@ export async function openFluidLog() {
   openModalOverlay(overlay, { initialFocus: '#nutrition-fluid-amount', focusDelay: 30 });
   return true;
 }
-async function openMealEditor(id, mode, origin = 'history') {
+async function openMealEditor(id: string, mode: string, origin = 'history') {
   if (suspendedNutritionEditorHasDraft() && !await showConfirmDialog(
     `Opening this meal to ${mode === 'reuse' ? 'log it again' : 'edit it'} will replace the meal entry you left open. Continue?`,
     { confirmLabel: mode === 'reuse' ? 'Log this meal again' : 'Edit this meal', cancelLabel: 'Keep meal entry', ariaLabel: 'Replace open meal entry' },
   )) return false;
-  let meal;
+  let meal: Awaited<ReturnType<typeof getActiveProfileMeal>>;
   try { meal = await getActiveProfileMeal(id); }
   catch (error) {
     showNotification(getErrorMessage(error, 'This stored meal could not be read.'), 'error');
@@ -223,18 +223,18 @@ async function returnToNutritionHistory() {
     ariaLabel: 'Discard meal draft and return to meals',
   });
 }
-function returnToMealDetail(id, origin) {
+function returnToMealDetail(id: string, origin: string) {
   return requestNutritionEditorNavigation(() => openMealDetail(id, { returnTo: origin }), {
     message: 'Return to the saved meal details and discard these unsaved changes?',
     confirmLabel: 'Return to details',
     ariaLabel: 'Discard meal changes and return to details',
   });
 }
-async function saveTargetsAndContinue(returnTo) {
+async function saveTargetsAndContinue(returnTo: string) {
   const saved = await saveNutritionTargets({ closeOnSave: returnTo !== 'history' });
   if (saved && returnTo === 'history') await openNutritionHistory(getNutritionHistoryRange(), { view: getNutritionHistoryView() });
 }
-function selectedPhotos() { return Array.from(/** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-photo-input'))?.files || []).slice(0, 4); }
+function selectedPhotos() { return Array.from((document.getElementById('nutrition-photo-input') as HTMLInputElement | null)?.files || []).slice(0, 4); }
 
 configureNutritionBenchmarkWorkspace({
   selectedPhotos,
@@ -246,7 +246,7 @@ configureNutritionBenchmarkWorkspace({
   openEditor: openNutritionEditor,
   updateCorrectionState,
 });
-configureNutritionRequestLifecycle({
+(configureNutritionRequestLifecycle as RequestLifecycleReader)({
   selectedPhotos,
   getExistingImages: () => existingImages,
   getAnalysisKind: () => analysisKind,
@@ -278,16 +278,16 @@ configureNutritionReviewUI({
   getExistingImages: () => existingImages,
   selectedPhotoCount: () => selectedPhotos().length,
   applyResultState: (result, analyzed) => {
-    pendingAnalysis = result;
+    pendingAnalysis = result as AnalysisOperations | null;
     lastAnalyzedMealName = analyzed.mealName;
     lastAnalyzedKind = analyzed.kind;
     lastAnalyzedConsumption = analyzed.consumption;
     lastAnalyzedContext = analyzed.context;
-    analyzedComponentIdentityBaseline = ((/** @type {{analysis?: {components?: Array<{name?: unknown} | null | undefined> | null} | null} | null | undefined} */ (result))?.analysis?.components || []).map(item => normalizeMealName(item?.name));
+    analyzedComponentIdentityBaseline = ((result as AnalysisOperations | null | undefined)?.analysis?.components || []).map(item => normalizeMealName(item?.name));
     componentIdentityDirty = false;
   },
 });
-function handlePhotoSelection(input) {
+function handlePhotoSelection(input: HTMLInputElement) {
   const files = Array.from(input.files || []);
   if (files.length > 4) {
     input.value = '';
@@ -334,7 +334,7 @@ configureNutritionComparisonUI({
   setStatus,
 });
 async function analyzeSelectedPhoto() {
-  const button = /** @type {HTMLButtonElement | null} */ (document.getElementById('nutrition-analyze-btn'));
+  const button = (document.getElementById('nutrition-analyze-btn') as HTMLButtonElement | null);
   await runNutritionMealAnalysis({ button });
 }
 async function reanalyzeCorrectedMeal() {
@@ -347,7 +347,7 @@ async function reanalyzeCorrectedMeal() {
     showNotification('Enter the corrected meal name first.', 'info');
     return;
   }
-  const button = /** @type {HTMLButtonElement | null} */ (document.getElementById('nutrition-recalculate-btn'));
+  const button = (document.getElementById('nutrition-recalculate-btn') as HTMLButtonElement | null);
   await runNutritionMealAnalysis({
     correctedMealName: mealNameCorrectionIsDirty() ? correctedMealName : '',
     previousMealName: lastAnalyzedMealName,
@@ -355,16 +355,16 @@ async function reanalyzeCorrectedMeal() {
   });
 }
 function currentExplicitNutrients() {
-  const totals = {};
+  const totals: Record<string, number> = {};
   for (const key of userEditedNutrients) {
     const value = numberInput(`nutrition-${key}`);
-    if (value !== null) totals[key] = value;
+    if (value !== null) totals[key as string] = value;
   }
   return totals;
 }
-function refreshNutrientInputs(nutrients) {
+function refreshNutrientInputs(nutrients: Record<string, unknown> | null | undefined) {
   for (const [key] of ALL_REVIEW_FIELDS) {
-    const input = /** @type {HTMLInputElement | null} */ (document.getElementById(`nutrition-${key}`));
+    const input = (document.getElementById(`nutrition-${key}`) as HTMLInputElement | null);
     if (!input || userEditedNutrients.has(key)) continue;
     const value = nutrients?.[key];
     input.value = hasFiniteNumber(value) ? String(value) : '';
@@ -381,7 +381,7 @@ function refreshFuelPreviewFromInputs() {
   });
 }
 
-function markReviewChange(kind, detail = '') {
+function markReviewChange(kind: string, detail: unknown = '') {
   if (!pendingAnalysis) return;
   pendingAnalysis.source = pendingAnalysis.source || { kind: 'manual' };
   pendingAnalysis.source.review = pendingAnalysis.source.review || {};
@@ -396,7 +396,7 @@ function markReviewChange(kind, detail = '') {
 function recalculateReviewedComponents(message = 'Portion updated', preserveUnlinked = false) {
   if (!pendingAnalysis) return;
   const previous = pendingAnalysis.analysis.nutrients;
-  const result = recalculateMealFromComponents(
+  const result: Omit<ReturnType<typeof recalculateMealFromComponents>, 'nutrients'> & {nutrients: Record<string, unknown>} = recalculateMealFromComponents(
     pendingAnalysis.analysis.components,
     previous,
     currentExplicitNutrients(),
@@ -422,7 +422,7 @@ function refreshComponentIdentityDirty() {
     || current.some((name, index) => name !== analyzedComponentIdentityBaseline[index]));
 }
 
-function updateComponentName(index, value) {
+function updateComponentName(index: number, value: unknown) {
   const component = pendingAnalysis?.analysis?.components?.[index];
   if (!component) return;
   component.name = String(value || '').trim().slice(0, 120);
@@ -435,14 +435,14 @@ function updateComponentName(index, value) {
   updateCorrectionState();
 }
 
-function updateComponentGrams(index, value) {
+function updateComponentGrams(index: number, value: unknown) {
   const component = pendingAnalysis?.analysis?.components?.[index];
   if (!component) return;
   const grams = value === '' ? null : Number(value);
   const next = grams !== null && Number.isFinite(grams) && grams >= 0 ? grams : null;
   const current = hasFiniteNumber(component.quantityG) ? Number(component.quantityG) : null;
   if (next === current) { updateCorrectionState(); return; }
-  pendingAnalysis.analysis.components[index] = updateComponentQuantity(component, next);
+  pendingAnalysis!.analysis.components[index] = updateComponentQuantity(component, next);
   markReviewChange('portion');
   recalculateReviewedComponents('Portion updated', true);
 }
@@ -461,7 +461,7 @@ function syncReviewedComponentGrams() {
     const next = Number.isFinite(parsed) && Number(parsed) >= 0 ? Number(parsed) : null;
     const current = hasFiniteNumber(component.quantityG) ? Number(component.quantityG) : null;
     if (next === current) continue;
-    pendingAnalysis.analysis.components[index] = updateComponentQuantity(component, next);
+    pendingAnalysis!.analysis.components[index] = updateComponentQuantity(component, next);
     markReviewChange('portion');
     changed = true;
   }
@@ -483,23 +483,23 @@ function addMissingComponent() {
   pendingAnalysis.analysis.components.push(normalizeNutritionComponent({ name: '', quantityG: null, confidence: null, nutrients: {} }));
   refreshComponentIdentityDirty();
   renderEditableComponents(pendingAnalysis.analysis.components);
-  /** @type {HTMLElement | null} */ (document.querySelector(`[data-nutrition-component-name="${pendingAnalysis.analysis.components.length - 1}"]`))?.focus();
+  (document.querySelector(`[data-nutrition-component-name="${pendingAnalysis.analysis.components.length - 1}"]`) as HTMLElement | null)?.focus();
   updateCorrectionState();
 }
 
-function removeComponent(index) {
+function removeComponent(index: number) {
   const component = pendingAnalysis?.analysis?.components?.[index];
   if (!component) return;
   userEditedComponentIdentities.delete(component);
   userEditedComponentIdentities.delete(component.name);
-  pendingAnalysis.analysis.components.splice(index, 1);
+  pendingAnalysis!.analysis.components.splice(index, 1);
   refreshComponentIdentityDirty();
   markReviewChange('removed', component.name || 'Unnamed item');
   recalculateReviewedComponents(`${component.name || 'Item'} removed`);
 }
 
-function numberInput(id) {
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById(id));
+function numberInput(id: string) {
+  const input = (document.getElementById(id) as HTMLInputElement | null);
   if (input?.dataset.nutritionPartial === 'true') return null;
   const value = input?.value;
   return value !== '' && Number.isFinite(Number(value)) && Number(value) >= 0 ? Number(value) : null;
@@ -512,9 +512,9 @@ async function saveMeal() {
     document.getElementById('nutrition-recalculate-btn')?.focus();
     return;
   }
-  const name = /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-meal-name'))?.value.trim() || '';
-  const localDate = /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-eaten-at'))?.value || '';
-  const mealType = /** @type {HTMLSelectElement | null} */ (document.getElementById('nutrition-meal-type'))?.value || '';
+  const name =  (document.getElementById('nutrition-meal-name') as HTMLInputElement | null)?.value.trim() || '';
+  const localDate =  (document.getElementById('nutrition-eaten-at') as HTMLInputElement | null)?.value || '';
+  const mealType =  (document.getElementById('nutrition-meal-type') as HTMLSelectElement | null)?.value || '';
   if (!name) {
     showNotification('Add a meal name before saving.', 'error');
     document.getElementById('nutrition-meal-name')?.focus();
@@ -543,7 +543,7 @@ async function saveMeal() {
     showNotification('Choose a valid meal date and time.', 'error');
     return;
   }
-  const note = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('nutrition-note'))?.value.trim() || '';
+  const note =  (document.getElementById('nutrition-note') as HTMLTextAreaElement | null)?.value.trim() || '';
   const analysisContext = currentKnownDetails();
   const [, timePart = '00:00'] = localDate.split('T');
   const [localHour, localMinute] = timePart.split(':').map(Number);
@@ -551,7 +551,7 @@ async function saveMeal() {
   try { timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch {}
   try {
     const wasEditing = !!editingMealId;
-    const source = reusedMealId
+    const source: SourceOperations = reusedMealId
       ? {
           kind: 'reused-meal',
           templateMealId: reusedMealId,
@@ -561,7 +561,7 @@ async function saveMeal() {
         }
       : { ...(pendingAnalysis?.source || { kind: 'manual', recordedAt: new Date().toISOString() }) };
     const editedComponentIdentities = [...new Set([...userEditedComponentIdentities]
-      .map(value => value && typeof value === 'object' ? value.name : value)
+      .map(value => value && typeof value === 'object' ? (value as ComponentOperations).name : value)
       .map(value => String(value || '').trim())
       .filter(Boolean))];
     source.review = {
@@ -585,7 +585,7 @@ async function saveMeal() {
       mealType,
       eatenAt: eatenAt.toISOString(),
       localDate: localDate.slice(0, 10),
-      localTimeMinutes: Number.isFinite(localHour) && Number.isFinite(localMinute) ? localHour * 60 + localMinute : null,
+      localTimeMinutes: Number.isFinite(localHour) && Number.isFinite(localMinute) ? localHour! * 60 + localMinute! : null,
       timezoneOffsetMinutes: eatenAt.getTimezoneOffset(),
       timeZone,
       note,
@@ -608,7 +608,7 @@ async function saveMeal() {
   }
 }
 
-async function deleteMeal(id, origin = 'history') {
+async function deleteMeal(id: string, origin = 'history') {
   if (!id || !await showConfirmDialog('Delete this meal and its thumbnail from synced devices?')) return;
   try {
     await deleteActiveProfileMeal(id);
@@ -640,7 +640,7 @@ function refreshMealModelCatalogSurfaces() {
   refreshComparisonModelPicker();
 }
 
-function handleClick(event) {
+function handleClick(event: Event) {
   const target = event.target instanceof Element ? event.target.closest(`[${ACTION_ATTR}]`) : null;
   if (!target) return;
   const action = target.getAttribute(ACTION_ATTR);
@@ -688,7 +688,7 @@ function handleClick(event) {
   else if (action === 'save-targets') void saveTargetsAndContinue(target.getAttribute('data-nutrition-return') || '');
   else if (action === 'save-fluid') void saveFluidLog();
   else if (action === 'set-fluid-amount') {
-    const amountInput = /** @type {HTMLInputElement | null} */ (document.getElementById('nutrition-fluid-amount'));
+    const amountInput = (document.getElementById('nutrition-fluid-amount') as HTMLInputElement | null);
     if (amountInput) amountInput.value = target.getAttribute('data-nutrition-amount') || amountInput.value;
     updateFluidLogControls();
   }
@@ -710,7 +710,7 @@ function handleClick(event) {
   event.stopPropagation();
 }
 
-function handleChange(event) {
+function handleChange(event: Event) {
   const target = event.target;
   if (target instanceof HTMLInputElement && target.getAttribute(ACTION_ATTR) === 'photo') handlePhotoSelection(target);
   else if (target instanceof HTMLInputElement && target.id === 'nutrition-benchmark-photo-input') handleNutritionBenchmarkPhotoSelection(target);
@@ -735,7 +735,7 @@ function handleChange(event) {
   else if (target instanceof HTMLInputElement && target.hasAttribute('data-nutrition-component-grams')) updateComponentGrams(Number(target.getAttribute('data-nutrition-component-grams')), target.value);
 }
 
-function handleInput(event) {
+function handleInput(event: Event) {
   const target = event.target;
   if (target instanceof HTMLInputElement && target.hasAttribute('data-nutrition-comparison-search')) filterNutritionComparisonModels(target.value);
   else if (target instanceof HTMLInputElement && target.id.startsWith('nutrition-target-')) updateNutritionTargetControls();

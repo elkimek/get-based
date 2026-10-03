@@ -10,18 +10,18 @@ interface DoseView extends Record<string, unknown> {
   basis?: string; value?: unknown; unit?: unknown; text?: string; ingredient?: unknown;
 }
 interface HistorySchedule {
-  mode?: string; timesPerDay?: unknown; daysOfWeek?: Array<number | string>; intervalDays?: number;
+  mode?: unknown; timesPerDay?: unknown; daysOfWeek?: unknown; intervalDays?: unknown;
   [key: string]: unknown;
 }
 interface HistoryPeriod {
-  start?: string; end?: string | null; dose?: string | DoseView | null;
+  start?: unknown; end?: unknown; dose?: string | DoseView | null;
   ingredientDoses?: DoseView[] | null; schedule?: HistorySchedule | null | undefined;
   [key: string]: unknown;
 }
-export interface TherapyRecord extends SupplementDomainRecord { name?: string; type?: string }
+export interface TherapyRecord extends SupplementDomainRecord { name?: unknown; type?: unknown }
 export interface CorrelationQuantity { ingredient: string; value: number; unit: string; basis: string; text: string; key: string }
 export interface TherapyExposure {
-  date: string; value: number | null; unit: string; basis: string; label: string; periodStart: string;
+  date: string; value: number | null; unit: string; basis: string; label: string; periodStart: unknown;
   daysSinceChange: number | null; key: string; status: string; usage: number | null; ingredient?: string;
 }
 export interface CorrelationMarker extends PlacementViewMarker {
@@ -95,11 +95,11 @@ export function prepareTherapyHistory(record: TherapyRecord, today = localDateKe
   const selectedDose = (p: HistoryPeriod) => Array.isArray(p.ingredientDoses) || (p.dose as DoseView | null | undefined)?.ingredient ? ingredientDose(p, selectedIngredient) : p.dose;
   const periods = (raw.filter(p => p && correlationDay(p.start) !== null
     && (p.end === null || p.end === undefined || p.end === '' || correlationDay(p.end) !== null)
-    && (!p.end || p.end >= (p.start as string))) as Array<HistoryPeriod & { start: string }>)
+    && (!p.end || (p.end as string) >= (p.start as string))) as HistoryPeriod[])
     .map(p => ({ ...p, dose: selectedDose(p), end: p.end || null, quantity: parseCorrelationDose(selectedDose(p)) }))
-    .sort((a, b) => a.start.localeCompare(b.start));
+    .sort((a, b) => (a.start as { localeCompare(value: unknown): number }).localeCompare(b.start));
   const invalid = periods.length !== raw.length || !periods.length
-    || periods.some((p, i) => i > 0 && (!periods[i - 1]!.end || periods[i - 1]!.end! >= p.start));
+    || periods.some((p, i) => i > 0 && (!periods[i - 1]!.end || (periods[i - 1]!.end as string) >= (p.start as string)));
   const keys = [...new Set(periods.filter(p => p.quantity).map(p => p.quantity!.key))];
   const quantity = keys.length === 1 ? periods.find(p => p.quantity)?.quantity : null;
   const warnings: string[] = [];
@@ -109,7 +109,7 @@ export function prepareTherapyHistory(record: TherapyRecord, today = localDateKe
   if (periods.some(p => !p.schedule)) warnings.push('Some periods lack a schedule; recorded doses do not verify intake.');
   const currentDoses = getSupplementDailyDoses(record).map(dose => {
     const quantity = parseCorrelationDose(dose);
-    const confirmed = !invalid && (raw as Array<HistoryPeriod & { start: string }>).find(p => p.start <= today && (!p.end || today <= p.end)
+    const confirmed = !invalid && (raw as HistoryPeriod[]).find(p => (p.start as string) <= today && (!p.end || today <= (p.end as string))
       && (() => { const q = parseCorrelationDose(ingredientDose(p, dose.ingredient)); return q?.key === quantity?.key && q?.value === quantity?.value; })());
     return { ...dose, quantity, confirmedSince: confirmed ? confirmed.start : null };
   }).filter(d => d.quantity);
@@ -121,7 +121,7 @@ export function therapyExposure(history: TherapyHistory, date: string): TherapyE
   const unknown = (reason: string): TherapyExposure => ({ date, value: null, unit: '', basis: '', label: reason, periodStart: '', daysSinceChange: null, key: '', status: 'unknown', usage: null });
   if (day === null || date > history.today) return unknown('Outside recorded history');
   if (history.invalid) return unknown('Invalid or overlapping periods');
-  const period = history.periods.find(p => p.start <= date && (!p.end || date <= p.end));
+  const period = history.periods.find(p => (p.start as string) <= date && (!p.end || date <= (p.end as string)));
   if (period) {
     const periodStart = correlationDay(period.start);
     if (periodStart === null) return unknown('Invalid period start');
@@ -132,23 +132,23 @@ export function therapyExposure(history: TherapyHistory, date: string): TherapyE
     const base = { date, periodStart: period.start, daysSinceChange: day - periodStart, label, status: 'recorded', usage: 1 };
     if (mode === 'prn') return { ...unknown('As-needed use; actual intake unknown'), ...base, label: `${label} · as needed; actual intake unknown`, status: 'unknown' };
     const intermittent = ['selected-days', 'interval'];
-    if (!mode || !['daily', 'multiple', ...intermittent].includes(mode))
+    if (!mode || !['daily', 'multiple', ...intermittent].includes(mode as string))
       return { ...unknown('Historical schedule unavailable'), usage: 1 };
-    if (intermittent.includes(mode)) {
+    if (intermittent.includes(mode as string)) {
       const schedule = period.schedule!;
       const weekdays = schedule.daysOfWeek;
       const interval = schedule.intervalDays;
       const valid = mode === 'selected-days'
-        ? Array.isArray(weekdays) && weekdays.length > 0 && weekdays.every(d => Number.isInteger(d) && (d as number) >= 0 && (d as number) <= 6)
-        : Number.isInteger(interval) && interval! > 0;
+        ? Array.isArray(weekdays) && weekdays.length > 0 && (weekdays as unknown[]).every(d => Number.isInteger(d) && (d as number) >= 0 && (d as number) <= 6)
+        : Number.isInteger(interval) && (interval as number) > 0;
       if (!valid) return { ...unknown('Historical schedule is incomplete'), usage: 1 };
-      const expected = mode === 'selected-days' ? weekdays!.includes(new Date(day * DAY).getUTCDay()) : (day - periodStart) % interval! === 0;
+      const expected = mode === 'selected-days' ? (weekdays as { includes(day: number): unknown }).includes(new Date(day * DAY).getUTCDay()) : (day - periodStart) % (interval as number) === 0;
       if (!expected) return { ...base, value: quantity ? 0 : null, unit: quantity?.unit || '', basis: quantity?.basis || '', key: quantity?.key || '', label: 'Scheduled off-day (intake not verified)', status: 'scheduled-off', usage: 0 };
     }
     if (!quantity) return { ...unknown(label), ...base, status: 'unknown' };
     return { ...base, value: quantity.value, unit: quantity.unit, basis: quantity.basis, key: quantity.key, ingredient: quantity.ingredient };
   }
-  const previous = history.periods.filter(p => p.end && p.end < date).at(-1);
+  const previous = history.periods.filter(p => p.end && (p.end as string) < date).at(-1);
   if (!previous) return unknown('Before first recorded use');
   const previousEnd = correlationDay(previous.end);
   if (previousEnd === null) return unknown('Invalid period end');
@@ -247,7 +247,7 @@ export function prepareCorrelationSelection(data: CorrelationData, importedData:
   });
   for (const history of histories) {
     const others = records.filter(s => getSupplementRecordId(s) !== history.id && getSupplementPeriods(s).some(p =>
-      correlationDay(p?.start) !== null && history.periods.some(h => (p.start as string) <= (h.end || history.today) && h.start <= ((p.end as string) || history.today))));
+      correlationDay(p?.start) !== null && history.periods.some(h => (p.start as string) <= ((h.end as string) || history.today) && (h.start as string) <= ((p.end as string) || history.today))));
     if (others.length) history.warnings.push(`Overlapping treatments: ${others.map(s => s.name).join(', ')}. Their effects cannot be separated.`);
   }
   const markers = markerKeys.flatMap(key => {

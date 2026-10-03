@@ -1,5 +1,6 @@
-// @ts-check
 // sun-session-ui.js — UI rendering/editing for saved sun sessions.
+
+import type { SessionReader, SessionCalls, DoseReader, ChipRow, OptionOperations } from '../types/sun-session-ui.js';
 
 import { state } from './state.js';
 import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, formatDate, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
@@ -8,44 +9,7 @@ import { BODY_REGIONS } from './sun-body-silhouette.js';
 import { installSunSessionActionDelegates, sunSessionActionAttrs } from './sun-session-actions.js';
 import { bindPastSessionDurationHint, bindPastSessionRegionPicker, renderPastSessionLogModal } from './sun-session-log-modal.js';
 
-/**
- * @typedef {object} SunSessionUIDeps
- * @property {() => any[]} getSessions
- * @property {(id: any) => Promise<boolean> | boolean} deleteSession
- * @property {(id: any, patch: any) => Promise<any>} updateSession
- * @property {(opts: any) => Promise<any>} logCompletedSession
- * @property {(id: any, coords?: any) => Promise<any>} hydrateSession
- * @property {() => any} getSunCoords
- * @property {() => void} refreshSurfaces
- * @property {(sess: any) => string} summarizeBodyExposure
- * @property {(ms: number) => string} formatElapsed
- * @property {Array<{ key: string, label: string }>} exposurePresets
- * @property {Array<{ key: string, label: string, pickerLabel?: string }>} eyeModes
- * @property {Array<{ key: string, label: string }>} lensTints
- * @property {Array<{ key: string, label: string }>} postureOptions
- * @property {Array<{ key: string, label: string }>} surfaceOptions
- * @property {Record<string, any>} channelDisplay
- * @property {(value: any, key: any) => number} channelTier
- * @property {(tier: any) => string} tierLabel
- * @property {(...args: any[]) => string} formatChannelUnit
- * @property {number} tooShortForChannelVerdictMin
- * @property {() => Promise<any> | any} quickLogSunSession
- * @property {(id: any) => Promise<any> | any} pauseSunSession
- * @property {(id: any) => Promise<any> | any} resumeSunSession
- * @property {(id: any) => Promise<any> | any} flipSidesMidSession
- * @property {(id: any) => Promise<any> | any} changeCoverageMidSession
- * @property {(id: any) => Promise<any> | any} applySunscreenMidSession
- * @property {() => Promise<any> | any} setOzoneOverrideMidSession
- * @property {(id: any) => Promise<any> | any} forgotStopPrompt
- * @property {(channel: string) => void} openChannelOnLightPage
- * @property {(sess: any) => string} renderSessionAIDetail
- * @property {(route: string, data?: any) => void} navigate
- * @property {() => void} openLightSetup
- * Runtime math hooks are also configured here; defaults are no-ops.
- */
-
-/** @type {SunSessionUIDeps & Record<string, any>} */
-const uiDeps = {
+const uiDeps: SessionCalls = {
   getSessions: () => [],
   deleteSession: async () => false,
   updateSession: async () => null,
@@ -89,22 +53,21 @@ const sunSessionDelegateActions = {
   editSunSessionDuration,
   retrySunSessionCalculation,
   quickLogSunSession: () => uiDeps.quickLogSunSession(),
-  pauseSunSession: id => uiDeps.pauseSunSession(id),
-  resumeSunSession: id => uiDeps.resumeSunSession(id),
-  flipSidesMidSession: id => uiDeps.flipSidesMidSession(id),
-  changeCoverageMidSession: id => uiDeps.changeCoverageMidSession(id),
-  applySunscreenMidSession: id => uiDeps.applySunscreenMidSession(id),
+  pauseSunSession: (id: unknown) => uiDeps.pauseSunSession(id),
+  resumeSunSession: (id: unknown) => uiDeps.resumeSunSession(id),
+  flipSidesMidSession: (id: unknown) => uiDeps.flipSidesMidSession(id),
+  changeCoverageMidSession: (id: unknown) => uiDeps.changeCoverageMidSession(id),
+  applySunscreenMidSession: (id: unknown) => uiDeps.applySunscreenMidSession(id),
   setOzoneOverrideMidSession: () => uiDeps.setOzoneOverrideMidSession(),
-  forgotStopPrompt: id => uiDeps.forgotStopPrompt(id),
-  openChannelOnLightPage: channel => uiDeps.openChannelOnLightPage(channel),
+  forgotStopPrompt: (id: unknown) => uiDeps.forgotStopPrompt(id),
+  openChannelOnLightPage: (channel: string) => uiDeps.openChannelOnLightPage(channel),
 };
 
 if (typeof document !== 'undefined') {
   installSunSessionActionDelegates(sunSessionDelegateActions);
 }
 
-/** @param {(Partial<SunSessionUIDeps> & Record<string, any>)} [deps] */
-export function configureSunSessionUI(deps = {}) {
+export function configureSunSessionUI(deps: unknown = {}) {
   Object.assign(uiDeps, deps);
 }
 
@@ -114,7 +77,7 @@ function refreshLightView() {
 
 // ─── UI: Sessions list (used by the dedicated Light & Sun page) ────────
 
-function resolvedSessionDurationMin(sess) {
+function resolvedSessionDurationMin(sess: SessionReader | null | undefined) {
   const stored = sess?.durationMin == null ? Number.NaN : Number(sess.durationMin);
   if (Number.isFinite(stored) && stored >= 0) return stored;
   const start = Number(sess?.startedAt);
@@ -125,8 +88,8 @@ function resolvedSessionDurationMin(sess) {
   return null;
 }
 
-function localSessionStamp(timestamp) {
-  const date = new Date(timestamp);
+function localSessionStamp(timestamp: unknown) {
+  const date = new Date(timestamp as number);
   if (Number.isNaN(date.getTime())) return { date: 'Date unavailable', time: '' };
   const localKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   return {
@@ -135,17 +98,17 @@ function localSessionStamp(timestamp) {
   };
 }
 
-function renderCompletedSunSessionRow(sess) {
+function renderCompletedSunSessionRow(sess: SessionReader) {
   const stamp = localSessionStamp(sess.startedAt);
   const durationMin = resolvedSessionDurationMin(sess);
   const dur = durationMin != null ? `${Math.round(durationMin)} min` : 'duration unavailable';
   const vitaminD = sess.doses?.vitamin_d
     ? _sessionChipValue('vitamin_d', sess.doses.vitamin_d, sess)
     : '';
-  const status = sess.calculationStatus;
+  const status = sess.calculationStatus as string | null | undefined;
   let statusBadge = '';
   if (status && status !== 'computed') {
-    const statusLabels = {
+    const statusLabels: Record<string, unknown> = {
       pending: 'Updating estimates…',
       'needs-location': 'Location needed for estimates',
       'atmosphere-unavailable': 'Conditions unavailable — retry',
@@ -179,19 +142,19 @@ function renderCompletedSunSessionRow(sess) {
   </div>`;
 }
 
-export function renderSunSessionRow(sess) {
+export function renderSunSessionRow(sess: SessionReader) {
   const isActive = !sess.endedAt;
   if (!isActive) return renderCompletedSunSessionRow(sess);
   const eyeLabels = Object.fromEntries(uiDeps.eyeModes.map(e => [e.key, e.label]));
   const start = localSessionStamp(sess.startedAt).date;
   const now = Date.now();
-  const currentPauseMs = sess.paused && Number.isFinite(sess.pausedAt) ? Math.max(0, now - sess.pausedAt) : 0;
-  const activeElapsedMs = Math.max(0, now - sess.startedAt - (sess.accumulatedPausedMs || 0) - currentPauseMs);
+  const currentPauseMs = sess.paused && Number.isFinite(sess.pausedAt) ? Math.max(0, now - (sess.pausedAt as number)) : 0;
+  const activeElapsedMs = Math.max(0, now - (sess.startedAt as number) - ((sess.accumulatedPausedMs || 0) as number) - currentPauseMs);
   const completedDurationMin = resolvedSessionDurationMin(sess);
   const dur = isActive
     ? uiDeps.formatElapsed(activeElapsedMs)
     : (completedDurationMin != null ? `${Math.round(completedDurationMin)} min` : 'duration unavailable');
-  const med = sess.safety?.medFraction;
+  const med = sess.safety?.medFraction as number | null | undefined;
   let medStr = '';
   if (med != null) {
     const pct = Math.round(med * 100);
@@ -201,7 +164,7 @@ export function renderSunSessionRow(sess) {
     else if (med >= 0.3) { label = 'moderate'; cls = ''; }
     const medicationCaution = sess.safety?.medicationThresholdUnknown ? ' Medication effects are not included.' : '';
     const skinAssumption = sess.safety?.fitzpatrickAssumed ? ' Conservative Type I is assumed because skin type was unset.' : '';
-    medStr = `<span class="sun-session-med ${cls}" title="Base skin-type burn dose: ${pct}% of Fitzpatrick ${escapeAttr(sess.safety.fitzpatrick || 'I')} MED.${escapeAttr(skinAssumption + medicationCaution)}">Base burn dose: ${escapeHTML(label)}${(skinAssumption || medicationCaution) ? ' ⚠' : ''}</span>`;
+    medStr = `<span class="sun-session-med ${cls}" title="Base skin-type burn dose: ${pct}% of Fitzpatrick ${escapeAttr(sess.safety!.fitzpatrick || 'I')} MED.${escapeAttr(skinAssumption + medicationCaution)}">Base burn dose: ${escapeHTML(label)}${(skinAssumption || medicationCaution) ? ' ⚠' : ''}</span>`;
   }
   const channelChips = renderChannelChips(sess.doses, sess);
   const liveReadouts = isActive
@@ -237,8 +200,8 @@ export function renderSunSessionRow(sess) {
   const calculationBadge = !isActive && sess.calculationStatus && sess.calculationStatus !== 'computed'
     ? `<span class="sun-session-paused" title="This session has no computed dose yet.">⚠ ${escapeHTML(sess.calculationStatus === 'needs-location' ? 'location needed' : 'calculation pending')}</span>`
     : '';
-  const forgotBanner = isActive && (Date.now() - sess.startedAt > 12 * 3600 * 1000)
-    ? `<div class="sun-session-forgot" ${sunSessionActionAttrs('forgot-stop', { id: sess.id })} role="button" tabindex="0">⚠ This session has been running for ${Math.round((Date.now() - sess.startedAt) / 3600000)}h. Tap to end it.</div>`
+  const forgotBanner = isActive && (Date.now() - (sess.startedAt as number) > 12 * 3600 * 1000)
+    ? `<div class="sun-session-forgot" ${sunSessionActionAttrs('forgot-stop', { id: sess.id })} role="button" tabindex="0">⚠ This session has been running for ${Math.round((Date.now() - (sess.startedAt as number)) / 3600000)}h. Tap to end it.</div>`
     : '';
   // Click anywhere on the card (except nested delegated controls) to open
   // the detail modal. Specific controls declare their own data action.
@@ -253,7 +216,7 @@ export function renderSunSessionRow(sess) {
       ${isActive ? '' : `<button type="button" class="sun-session-delete" ${sunSessionActionAttrs('delete-session', { id: sess.id })} title="Delete session" aria-label="Delete session">×</button>`}
     </div>
     <div class="sun-session-meta">
-      ${escapeHTML(uiDeps.summarizeBodyExposure(sess))} · ${sess.eyeExposure?.mode === 'direct' ? `<span class="sun-eye-warn" title="Never look directly at the sun">⚠</span> ` : ''}${escapeHTML(eyeLabels[sess.eyeExposure?.mode] || 'Eyes unset')}${sess.bodyExposure?.glassBetween ? ' · through glass' : ''}${sess.bodyExposure?.sunscreenSPF ? ` · SPF ${sess.bodyExposure.sunscreenSPF}` : ''}
+      ${escapeHTML(uiDeps.summarizeBodyExposure(sess))} · ${sess.eyeExposure?.mode === 'direct' ? `<span class="sun-eye-warn" title="Never look directly at the sun">⚠</span> ` : ''}${escapeHTML(eyeLabels[sess.eyeExposure?.mode as string] || 'Eyes unset')}${sess.bodyExposure?.glassBetween ? ' · through glass' : ''}${sess.bodyExposure?.sunscreenSPF ? ` · SPF ${sess.bodyExposure.sunscreenSPF}` : ''}
     </div>
     ${liveReadouts}
     ${forgotBanner}
@@ -263,7 +226,7 @@ export function renderSunSessionRow(sess) {
 }
 
 export function renderSessionsList() {
-  const sessions = [...uiDeps.getSessions()].sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
+  const sessions = [...uiDeps.getSessions()].sort((a, b) => ((b.startedAt || 0) as number) - ((a.startedAt || 0) as number));
   if (sessions.length === 0) {
     return `<div class="sun-empty">
       <p>No sun sessions logged yet.</p>
@@ -277,15 +240,15 @@ export function renderSessionsList() {
 }
 
 // ─── UI: per-session detail modal ──────────────────────────────────────
-export function openSunSessionDetail(id) {
+export function openSunSessionDetail(id: unknown) {
   const sess = uiDeps.getSessions().find(s => s.id === id);
   if (!sess) return;
-  const start = new Date(sess.startedAt);
-  const end = sess.endedAt ? new Date(sess.endedAt) : null;
-  const fmtTime = (d) => d ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—';
+  const start = new Date(sess.startedAt as number);
+  const end = sess.endedAt ? new Date(sess.endedAt as number) : null;
+  const fmtTime = (d: Date | null) => d ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—';
   // Modal title date: full month + day + year — avoids the "Sun session
   // — Sun, May 3" stutter and gives a clear timestamp at a glance.
-  const fmtTitleDate = (d) => d ? d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '—';
+  const fmtTitleDate = (d: Date | null) => d ? d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '—';
   const durationMin = resolvedSessionDurationMin(sess);
   const dur = durationMin != null
     ? `${Math.round(durationMin)} min`
@@ -302,14 +265,14 @@ export function openSunSessionDetail(id) {
   const lensLabels = Object.fromEntries(uiDeps.lensTints.map(l => [l.key, l.label]));
 
   // Body exposure summary
-  const regions = sess.bodyExposure?.regions || [];
+  const regions = (sess.bodyExposure?.regions || []) as unknown[];
   const regionLabels = regions.length
     ? regions.map(k => BODY_REGIONS.find(r => r.key === k)?.label || k).join(', ')
-    : (sess.bodyExposure?.preset === 'covered' ? 'No skin exposed' : (presetLabels[sess.bodyExposure?.preset] || 'Body unset'));
-  const fractionPct = Math.round((sess.bodyExposure?.fraction || 0) * 100);
+    : (sess.bodyExposure?.preset === 'covered' ? 'No skin exposed' : (presetLabels[sess.bodyExposure?.preset as string] || 'Body unset'));
+  const fractionPct = Math.round(((sess.bodyExposure?.fraction || 0) as number) * 100);
 
   // Burn-risk
-  const med = sess.safety?.medFraction;
+  const med = sess.safety?.medFraction as number | null | undefined;
   let medStr = '—';
   if (med != null) {
     const pct = Math.round(med * 100);
@@ -321,17 +284,17 @@ export function openSunSessionDetail(id) {
     medStr = `${pct}% · ${label}`;
   }
 
-  let sessZenith = null;
+  let sessZenith: number | null = null;
   try {
     if (sess.startedAt && sess.endedAt && sess.location && uiDeps.solarZenithAngle) {
-      const midDate = new Date((sess.startedAt + sess.endedAt) / 2);
+      const midDate = new Date(((sess.startedAt as number) + (sess.endedAt as number)) / 2);
       sessZenith = uiDeps.solarZenithAngle(midDate, sess.location.lat, sess.location.lon);
     }
   } catch (e) {}
   const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
   const channelRows = sess.doses ? channelOrder.map(k => {
     const meta = uiDeps.channelDisplay[k] || {};
-    const v = sess.doses[k] || 0;
+    const v = (sess.doses![k] || 0) as number;
     const unitText = uiDeps.formatChannelUnit(k, v, durationMin || 0, sess.safety?.fitzpatrick || 'I', sess.atmosphere?.uvIndex, sessZenith, !!sess.bodyExposure?.rotatedSides, sess.bodyExposure?.fraction || null);
     const hasSignal = Number.isFinite(v) && v > 0;
     const valueText = unitText || (hasSignal ? 'Signal logged' : 'Not modeled');
@@ -348,11 +311,11 @@ export function openSunSessionDetail(id) {
 
   // Location summary (declared above the atmosphere block so derived metrics
   // can read sess.location for zenith + altitude).
-  const loc = sess.location;
+  const loc = sess.location as {lat: number; lon: number; source?: unknown; altitudeM?: number} | null | undefined;
 
   // Atmosphere snapshot + derived geometry. Surfaces zenith, altitude, and
   // a UVA/UVB split so biohackers can audit the math behind the channels.
-  const atm = sess.atmosphere;
+  const atm = sess.atmosphere as NonNullable<Parameters<NonNullable<SessionCalls['reconstructSpectrum']>>[0]> & {uvIndex?: number | null; ozoneDU?: number | null; cloudCover?: number | null; source?: unknown; airQuality?: {pm25?: number | null; aod?: number | null} | null} | null | undefined;
   let atmHtml = '';
   if (atm) {
     const uvi = atm.uvIndex != null ? Math.round(atm.uvIndex * 10) / 10 : '—';
@@ -365,22 +328,22 @@ export function openSunSessionDetail(id) {
     let zenithStr = '—';
     try {
       if (sess.startedAt && sess.endedAt && loc && uiDeps.solarZenithAngle) {
-        const mid = new Date((sess.startedAt + sess.endedAt) / 2);
+        const mid = new Date(((sess.startedAt as number) + (sess.endedAt as number)) / 2);
         const z = uiDeps.solarZenithAngle(mid, loc.lat, loc.lon);
         zenithStr = `${z.toFixed(1)}°`;
       }
     } catch (e) {}
-    const altStr = (loc?.altitudeM ?? 0) > 0 ? `${Math.round(loc.altitudeM)} m` : 'sea level';
+    const altStr = (loc?.altitudeM ?? 0) > 0 ? `${Math.round(loc!.altitudeM!)} m` : 'sea level';
     let uvSplitStr = '';
     try {
       if (loc && uiDeps.reconstructSpectrum && uiDeps.solarZenithAngle && atm.uvIndex != null) {
-        const mid = new Date((sess.startedAt + sess.endedAt) / 2);
+        const mid = new Date(((sess.startedAt as number) + (sess.endedAt as number)) / 2);
         const z = uiDeps.solarZenithAngle(mid, loc.lat, loc.lon);
         if (z < 90) {
           const spec = uiDeps.reconstructSpectrum({
             zenithDeg: z,
             ozoneDU: atm.ozoneDU ?? 300,
-            altitudeM: loc.altitudeM ?? 0,
+            altitudeM: loc!.altitudeM! ?? 0,
             cloudCover: (atm.cloudCover ?? 0) / 100,
             aod: atm?.airQuality?.aod ?? null,
             targetUVI: atm.uvIndex ?? null,
@@ -388,9 +351,9 @@ export function openSunSessionDetail(id) {
           const dl = 5;
           let uvb = 0, uva = 0;
           for (let i = 0; i < spec.irradiance.length; i++) {
-            const nm = spec.wavelengths[i];
+            const nm = spec.wavelengths[i]!;
             if (nm > 400) break;
-            const e = spec.irradiance[i];
+            const e = spec.irradiance[i]!;
             if (nm < 320) uvb += e * dl;
             else uva += e * dl;
           }
@@ -404,8 +367,8 @@ export function openSunSessionDetail(id) {
       }
     } catch (e) {}
     // Source label: pretty-print the raw provider key.
-    const sourceLabels = { open_meteo: 'Open-Meteo', open_meteo_cams: 'Open-Meteo + CAMS context', cams: 'CAMS', cams_satellite: 'CAMS + satellite clouds', noaa_nws: 'NOAA NWS', selfhost: 'Self-hosted', manual: 'Manual entry' };
-    const sourceStr = sourceLabels[atm.source] || atm.source || 'unknown';
+    const sourceLabels: Record<string, unknown> = { open_meteo: 'Open-Meteo', open_meteo_cams: 'Open-Meteo + CAMS context', cams: 'CAMS', cams_satellite: 'CAMS + satellite clouds', noaa_nws: 'NOAA NWS', selfhost: 'Self-hosted', manual: 'Manual entry' };
+    const sourceStr = sourceLabels[atm.source as string] || atm.source || 'unknown';
     atmHtml = `<div class="sun-detail-atm">
       <div title="WHO UV index at session midpoint"><span>UVI</span><strong>${uvi}</strong></div>
       <div title="Total stratospheric ozone column (Dobson Units). Lower DU → more UVB through. Engine defaults to 300 DU when source doesn't expose it."><span>Ozone</span><strong>${ozoneStr}</strong></div>
@@ -428,10 +391,10 @@ export function openSunSessionDetail(id) {
   // Body summary — combine fraction + regions onto one line so the section
   // doesn't flag the percent as a label decoration. Also consolidate Eyes
   // + Modifiers into the same section when both fit cleanly.
-  const eyeMode = eyeLabels[sess.eyeExposure?.mode] || 'Eyes unset';
+  const eyeMode = eyeLabels[sess.eyeExposure?.mode as string] || 'Eyes unset';
   const lensTintStr = sess.eyeExposure?.lensTint && sess.eyeExposure.lensTint !== 'clear'
-    ? ` · ${lensLabels[sess.eyeExposure.lensTint] || ''}` : '';
-  const modifierBits = [];
+    ? ` · ${lensLabels[sess.eyeExposure.lensTint as string] || ''}` : '';
+  const modifierBits: unknown[] = [];
   if (sess.bodyExposure?.glassBetween) modifierBits.push('Behind glass');
   if (sess.bodyExposure?.sunscreenSPF) modifierBits.push(`SPF ${sess.bodyExposure.sunscreenSPF}`);
   if (sess.posture && sess.posture !== 'standing') {
@@ -439,18 +402,18 @@ export function openSunSessionDetail(id) {
     if (postureLabel) modifierBits.push(postureLabel);
   }
   if (sess.surfaceAlbedo && sess.surfaceAlbedo !== 'grass') {
-    const surfLabel = (uiDeps.surfaceOptions.find(s => s.key === sess.surfaceAlbedo) || {}).label;
+    const surfLabel = ((uiDeps.surfaceOptions as OptionOperations[]).find(s => s.key === sess.surfaceAlbedo) || {}).label;
     if (surfLabel) modifierBits.push(surfLabel.split(' (')[0]); // drop the "(~25%)" suffix
   }
   const aiDetailHtml = uiDeps.renderSessionAIDetail(sess);
-  const calculationMessages = {
+  const calculationMessages: Record<string, unknown> = {
     pending: 'Estimates are being recalculated. Previous derived values are hidden until the new calculation finishes.',
     'needs-location': 'A location is needed to reconstruct conditions and calculate this session.',
     'atmosphere-unavailable': 'Conditions could not be loaded for this session. No dose or burn estimate is being shown.',
     'calculation-error': 'The session could not be calculated. No stale estimate is being shown.',
   };
-  const calculationMessage = calculationMessages[sess.calculationStatus] || '';
-  const canRetryCalculation = ['needs-location', 'atmosphere-unavailable', 'calculation-error'].includes(sess.calculationStatus);
+  const calculationMessage = calculationMessages[sess.calculationStatus as string] || '';
+  const canRetryCalculation = ['needs-location', 'atmosphere-unavailable', 'calculation-error'].includes(sess.calculationStatus as string);
   const calculationStateHtml = calculationMessage ? `<div class="sun-calculation-state${sess.calculationStatus === 'calculation-error' ? ' is-error' : ''}" role="status">
     <span>${escapeHTML(calculationMessage)}</span>
     ${canRetryCalculation ? `<button type="button" class="import-btn import-btn-secondary" ${sunSessionActionAttrs('retry-calculation', { id: sess.id })}>Retry calculation</button>` : ''}
@@ -521,7 +484,7 @@ export function openSunSessionDetail(id) {
   </div>`;
   const closeDialog = () => removeModalOverlay(overlay);
   openAppendedModalOverlay(overlay, closeDialog);
-  bindDetachedModalSyncRefresh({
+  (bindDetachedModalSyncRefresh as (options: Omit<NonNullable<Parameters<typeof bindDetachedModalSyncRefresh>[0]>, 'id' | 'opener' | 'exists'> & {id: unknown; opener(id: unknown): unknown; exists(id: unknown): boolean}) => ReturnType<typeof bindDetachedModalSyncRefresh>)({
     overlay,
     id,
     opener: openSunSessionDetail,
@@ -536,8 +499,8 @@ export function openSunSessionDetail(id) {
 //   circadian → estimated melanopic-equivalent illuminance for modeled SPDs
 //   no_cv / pomc / violet_eye → no invented percentage; label only
 // Returns '' when a compact chip should use its plain signal label.
-function _sessionChipValue(channelKey, channelAu, sess) {
-  if (!Number.isFinite(channelAu) || channelAu <= 0) return '';
+function _sessionChipValue(channelKey: string, channelAu: unknown, sess: SessionReader | null | undefined) {
+  if (!Number.isFinite(channelAu) || (channelAu as number) <= 0) return '';
   const fitz = sess?.safety?.fitzpatrick || 'I';
   const uvi = sess?.atmosphere?.uvIndex ?? null;
   const dur = resolvedSessionDurationMin(sess) || 0;
@@ -549,8 +512,8 @@ function _sessionChipValue(channelKey, channelAu, sess) {
     // Session chip uses per-session cap when bodyFraction is set
     // (Audit P1 #8). Falls back to daily-cap helper for legacy chip
     // contexts where bodyFraction wasn't recorded.
-    const bf = sess?.bodyExposure?.fraction;
-    const iu = (Number.isFinite(bf) && bf > 0 && typeof uiDeps.vitaminDIUPerSession === 'function')
+    const bf = sess?.bodyExposure?.fraction as number | null | undefined;
+    const iu = (Number.isFinite(bf) && (bf as number) > 0 && typeof uiDeps.vitaminDIUPerSession === 'function')
       ? uiDeps.vitaminDIUPerSession(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides, state.importedData?.genetics || null, bf)
       : uiDeps.vitaminDIU(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides, state.importedData?.genetics || null);
     if (iu < 30) return '';
@@ -574,17 +537,17 @@ function _sessionChipValue(channelKey, channelAu, sess) {
   return '';
 }
 
-export function renderChannelChips(doses, sess = null) {
+export function renderChannelChips(doses: DoseReader | null | undefined, sess: SessionReader | null = null) {
   if (!doses) return '';
   const order = ['vitamin_d', 'pomc', 'no_cv', 'violet_eye', 'circadian', 'nir_solar'];
   // Top-3 contributing channels for at-a-glance reading. Full grid lives on
   // the Light & Sun page; per-row noise is what the v1.7.0a UX review flagged.
   const logged = order
     .map(key => ({ key, v: doses[key] || 0 }))
-    .filter(row => Number.isFinite(row.v) && row.v > 0);
+    .filter(row => Number.isFinite(row.v) && (row.v as number) > 0) as ChipRow[];
   const showAll = logged.length > 3;
   const visible = showAll ? logged.slice(0, 3) : logged;
-  const chipFor = (r, extraClass = '') => {
+  const chipFor = (r: ChipRow, extraClass = '') => {
     const meta = uiDeps.channelDisplay[r.key];
     const label = meta?.label || r.key.replace('_', ' ');
     const valueStr = _sessionChipValue(r.key, r.v, sess);
@@ -631,15 +594,15 @@ export function openDetailedSessionDialog() {
   const lastUsed = uiDeps.getSessions().filter(s => s.endedAt).slice(-1)[0];
   const eyeMode = lastUsed?.eyeExposure?.mode || 'direct';
   const lensTint = lastUsed?.eyeExposure?.lensTint || 'clear';
-  const lastRegions = new Set(lastUsed?.bodyExposure?.regions || []);
+  const lastRegions = new Set((lastUsed?.bodyExposure?.regions || []) as Iterable<unknown>);
 
   // Default the "Ended at" picker to now so quick "log the session that just
   // ended" stays one-click. Users backfilling earlier sessions can pick any
   // moment up to the present. <input type="datetime-local"> needs a local-tz
   // string; build it manually so we don't rely on the browser's locale guess.
   const now = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  const fmtLocal = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const fmtLocal = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   const localNow = fmtLocal(now);
   // Started-at defaults to now − 15 min so the most-common quick-log
   // ("I just had a 15-min session") works with zero edits. Users
@@ -650,7 +613,7 @@ export function openDetailedSessionDialog() {
   // silhouette per the v1.7.0a UX review. Each chip shows the region label
   // and toggles on click. Free-form, accessible, mobile-friendly.
 
-  overlay.innerHTML = renderPastSessionLogModal({
+  overlay.innerHTML = (renderPastSessionLogModal as (options: Omit<Parameters<typeof renderPastSessionLogModal>[0], 'lastRegions' | 'lastUsed'> & {lastRegions: Set<unknown>; lastUsed: SessionReader | undefined}) => ReturnType<typeof renderPastSessionLogModal>)({
     lastUsed,
     lastRegions,
     eyeMode,
@@ -671,18 +634,18 @@ export function openDetailedSessionDialog() {
   const saveButton = overlay.querySelector('#det-save');
   if (!saveButton) return closeDialog();
   saveButton.addEventListener('click', async () => {
-    const eyeModeVal = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#det-eye-mode'))?.value || 'direct';
-    const lensTintVal = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#det-lens-tint'))?.value || 'clear';
-    const spf = parseInt(/** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-spf'))?.value || '', 10) || null;
-    const glass = !!/** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-glass'))?.checked;
+    const eyeModeVal = (overlay.querySelector('#det-eye-mode') as HTMLSelectElement | null)?.value || 'direct';
+    const lensTintVal = (overlay.querySelector('#det-lens-tint') as HTMLSelectElement | null)?.value || 'clear';
+    const spf = parseInt((overlay.querySelector('#det-spf') as HTMLInputElement | null)?.value || '', 10) || null;
+    const glass = !!(overlay.querySelector('#det-glass') as HTMLInputElement | null)?.checked;
     const modeledEyeMode = glass && eyeModeVal === 'direct' ? 'glass-window' : eyeModeVal;
-    const notes = /** @type {HTMLTextAreaElement | null} */ (overlay.querySelector('#det-notes'))?.value || '';
+    const notes = (overlay.querySelector('#det-notes') as HTMLTextAreaElement | null)?.value || '';
 
     // Resolve the two timestamps. Both fields default to a sensible
     // 15-min window ending now, so the empty-field fallback never fires
     // in practice — but we guard anyway in case a user clears one.
-    const startedAtRaw = /** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-started-at'))?.value || '';
-    const endedAtRaw = /** @type {HTMLInputElement | null} */ (overlay.querySelector('#det-ended-at'))?.value || '';
+    const startedAtRaw = (overlay.querySelector('#det-started-at') as HTMLInputElement | null)?.value || '';
+    const endedAtRaw = (overlay.querySelector('#det-ended-at') as HTMLInputElement | null)?.value || '';
     const endedMsRaw = endedAtRaw ? new Date(endedAtRaw).getTime() : Date.now();
     const startedMsRaw = startedAtRaw
       ? new Date(startedAtRaw).getTime()
@@ -701,12 +664,12 @@ export function openDetailedSessionDialog() {
 
     // Compute exposure fraction from selected regions
     const regions = Array.from(selected);
-    const fraction = regions.reduce((sum, key) => {
+    const fraction = regions.reduce<number>((sum, key) => {
       const r = BODY_REGIONS.find(b => b.key === key);
       return sum + (r?.fraction || 0);
     }, 0);
-    const posture = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#det-posture'))?.value || 'standing';
-    const surfaceAlbedo = /** @type {HTMLSelectElement | null} */ (overlay.querySelector('#det-surface'))?.value || 'grass';
+    const posture = (overlay.querySelector('#det-posture') as HTMLSelectElement | null)?.value || 'standing';
+    const surfaceAlbedo = (overlay.querySelector('#det-surface') as HTMLSelectElement | null)?.value || 'grass';
     // Resolve coordinates so hydrateSession has somewhere to fetch
     // atmosphere from. Without this the past-session save records the
     // session but `useLat == null` short-circuits hydration → channels
@@ -731,14 +694,14 @@ export function openDetailedSessionDialog() {
 }
 
 // User-facing delete entry point shared by delegated UI actions.
-export async function deleteSunSession(id) {
+export async function deleteSunSession(id: unknown) {
   if (await showConfirmDialog('Delete this sun session?')) {
     await uiDeps.deleteSession(id);
     uiDeps.refreshSurfaces();
   }
 }
 
-export async function retrySunSessionCalculation(id) {
+export async function retrySunSessionCalculation(id: unknown) {
   const sess = uiDeps.getSessions().find(s => s.id === id);
   if (!sess) return;
   const fallback = uiDeps.getSunCoords?.();
@@ -763,13 +726,13 @@ export async function retrySunSessionCalculation(id) {
 // User-facing edit-duration entry point — prompts for a new minutes
 // value, validates the range, calls updateSession (which bumps
 // updatedAt + re-hydrates doses on duration change), then re-renders.
-export async function editSunSessionDuration(id) {
+export async function editSunSessionDuration(id: unknown) {
   const sess = uiDeps.getSessions().find(s => s.id === id);
   if (!sess) {
     showNotification('Session not found', 'error');
     return;
   }
-  const current = Math.max(0, Math.round(sess.durationMin || 0));
+  const current = Math.max(0, Math.round((sess.durationMin || 0) as number));
   const raw = await showPromptDialog('New duration (in minutes)', {
     defaultValue: String(current),
     okLabel: 'Save',
