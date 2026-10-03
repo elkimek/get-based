@@ -4,7 +4,7 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static client-list delegated-action source guards.
 
 const clientListImplSrc = readRepositorySource('js/client-list-impl.js', 'utf8');
-const clientListFormSrc = readRepositorySource('js/client-list-form.js', 'utf8');
+const clientListFormSrc = readRepositorySource('js/client-list-form.js', 'utf8').replace(/\s+/g, ' ');
 const clientListSrc = `${clientListImplSrc}\n${clientListFormSrc}`;
 const profileSrc = readRepositorySource('js/profile.js', 'utf8');
 const clientListUsesScrollLockedOverlay = /openModalOverlay\s*\(\s*overlay\s*,\s*\{\s*initialFocus:\s*['"]#cl-search['"]\s*,\s*scrollLock:\s*true\s*,?\s*\}\s*\)/s.test(clientListSrc);

@@ -1,4 +1,3 @@
-// @ts-check
 // light-env.js — Light Environment module: rooms, screens, indoor light dose.
 //
 // Tracks continuous indoor light context alongside episodic Sun Sessions.
@@ -10,6 +9,7 @@
 //     screens: [{ device, hoursPerDay, eveningUseAfterSunset, ... }],
 //   }
 
+import type { EnvironmentRoomOperations, EnvironmentScreenReader, EnvironmentMeasurementOperations, EnvironmentAuditCollection, EnvironmentCalls, EnvironmentSeverityOptions, EnvironmentRefreshOptions, EnvironmentSeverity, RawTextLookup } from '../types/light-env-view.js';
 import { state } from './state.js';
 import { bindModalSyncRefresh, escapeHTML, escapeAttr } from './utils.js';
 import { roomUsesEveningAfterSunset } from './light-env-evening.js';
@@ -82,8 +82,7 @@ export {
 } from './light-env-evening.js';
 export { nextDefaultRoomName, suggestRoomSourceFromSpectrum };
 
-/** @type {{ getMeasurementsForRoom: AnyFunction | null, navigate: AnyFunction | null, renderBurdenInterp: AnyFunction | null, renderMeasurementAIInline: AnyFunction | null, renderRoomAIBlock: AnyFunction | null, renderScreenAIBlock: AnyFunction | null, openSpectrumClassifier: AnyFunction | null, openLuxMeter: AnyFunction | null, openFlickerDetector: AnyFunction | null, openCCTMeter: AnyFunction | null, openDarknessMeter: AnyFunction | null }} */
-const lightEnvDeps = {
+const lightEnvDeps: EnvironmentCalls = {
   getMeasurementsForRoom: null,
   navigate: null,
   renderBurdenInterp: null,
@@ -97,11 +96,11 @@ const lightEnvDeps = {
   openDarknessMeter: null,
 };
 
-export function configureLightEnv(deps = {}) {
+export function configureLightEnv(deps: unknown = {}): Record<string, unknown> {
   const previous = { ...lightEnvDeps };
-  for (const [key, value] of Object.entries(deps || {})) {
+  for (const [key, value] of Object.entries((deps || {}) as object)) {
     if (Object.prototype.hasOwnProperty.call(lightEnvDeps, key)) {
-      lightEnvDeps[key] = value;
+      (lightEnvDeps as Record<string, unknown>)[key] = value;
     }
   }
   return previous;
@@ -111,7 +110,7 @@ export function configureLightEnv(deps = {}) {
 // for source / hours / evening, plus the "More options" reveal that
 // drops back to the full 10-option dropdown for power users.
 
-function renderSourcePicker(r) {
+function renderSourcePicker(r: EnvironmentRoomOperations) {
   const active = activeSourceArchetype(r.primarySource);
   const chips = SOURCE_ARCHETYPES.map(a => {
     const isActive = active === a.key;
@@ -132,8 +131,8 @@ function renderSourcePicker(r) {
   </div>`;
 }
 
-function renderHoursPicker(r) {
-  const active = activeHoursBucket(r.hoursOccupiedPerDay);
+function renderHoursPicker(r: EnvironmentRoomOperations) {
+  const active = (activeHoursBucket as (hours: unknown) => ReturnType<typeof activeHoursBucket>)(r.hoursOccupiedPerDay);
   const chips = HOURS_BUCKETS.map(b => {
     const isActive = active === b.key;
     return `<button type="button" class="light-env-chip${isActive ? ' light-env-chip-active' : ''}" aria-pressed="${isActive ? 'true' : 'false'}" ${lightEnvActionAttrs('set-room-hours-bucket', { id: r.id, key: b.key })}>${escapeHTML(b.label)}</button>`;
@@ -148,7 +147,7 @@ function renderHoursPicker(r) {
   </div>`;
 }
 
-function renderDaylightPicker(r) {
+function renderDaylightPicker(r: EnvironmentRoomOperations) {
   const chips = DAYLIGHT_LEVELS.map(level => {
     const active = r.daylightLevel === level.key;
     return `<button type="button" class="light-env-chip${active ? ' light-env-chip-active' : ''}" aria-pressed="${active ? 'true' : 'false'}" ${lightEnvActionAttrs('set-room-daylight-level', { id: r.id, key: level.key })}>${escapeHTML(level.label)}</button>`;
@@ -160,8 +159,8 @@ function renderDaylightPicker(r) {
   </div>`;
 }
 
-function renderEveningPicker(r) {
-  const active = activeEveningBucket(r);
+function renderEveningPicker(r: EnvironmentRoomOperations) {
+  const active = (activeEveningBucket as (room: EnvironmentRoomOperations) => ReturnType<typeof activeEveningBucket>)(r);
   const chips = EVENING_BUCKETS.map(b => {
     const isActive = active === b.key;
     return `<button type="button" class="light-env-chip${isActive ? ' light-env-chip-active' : ''}" aria-pressed="${isActive ? 'true' : 'false'}" ${lightEnvActionAttrs('set-room-evening-bucket', { id: r.id, key: b.key })}>${escapeHTML(b.label)}</button>`;
@@ -174,22 +173,22 @@ function renderEveningPicker(r) {
 
 // Environment-aware wrappers around the deterministic model. The model stays
 // state-free; this module supplies today's skip toggles and room-linked screens.
-export function computeRoomSeverity(room, measurements = [], options = {}) {
-  return computeRoomSeverityForRoom(room, measurements, {
-    screens: options.screens || (room?.id ? getScreensForRoom(room.id) : []),
+export function computeRoomSeverity(room: unknown, measurements: unknown = [], options: EnvironmentSeverityOptions = {}) {
+  return (computeRoomSeverityForRoom as (room: unknown, measurements: unknown, options: EnvironmentSeverityOptions) => ReturnType<typeof computeRoomSeverityForRoom>)(room, measurements, {
+    screens: options.screens || ((room as { id?: unknown } | null | undefined)?.id ? getScreensForRoom((room as { id?: unknown }).id) : []),
     isActiveToday: options.isActiveToday || isActiveToday,
   });
 }
 
 export function computeDeficitAxes() {
-  return computeDeficitAxesForEnvironment(getEnvironment(), {
+  return (computeDeficitAxesForEnvironment as (env: unknown, options: { isActiveToday: typeof isActiveToday; getMeasurementsForRoom: typeof getMeasurementsFor }) => ReturnType<typeof computeDeficitAxesForEnvironment>)(getEnvironment(), {
     isActiveToday,
     getMeasurementsForRoom: getMeasurementsFor,
   });
 }
 
 export function computeIndoorBurden() {
-  return computeIndoorBurdenForEnvironment(getEnvironment(), {
+  return (computeIndoorBurdenForEnvironment as (env: unknown, options: { isActiveToday: typeof isActiveToday; getMeasurementsForRoom: typeof getMeasurementsFor }) => ReturnType<typeof computeIndoorBurdenForEnvironment>)(getEnvironment(), {
     isActiveToday,
     getMeasurementsForRoom: getMeasurementsFor,
   });
@@ -203,21 +202,21 @@ export function computeIndoorBurden() {
 // mental model. First render auto-expands a useful room, but explicit
 // user collapse is preserved.
 
-function getMeasurementsFor(roomId) {
+function getMeasurementsFor(roomId: unknown) {
   if (typeof lightEnvDeps.getMeasurementsForRoom !== 'function') return [];
   try {
     const measurements = lightEnvDeps.getMeasurementsForRoom(roomId);
-    return Array.isArray(measurements) ? measurements : [];
+    return Array.isArray(measurements) ? measurements as EnvironmentMeasurementOperations[] : [];
   } catch (_) {
     return [];
   }
 }
 
-function fmtMeasureValue(m) {
+function fmtMeasureValue(m: EnvironmentMeasurementOperations) {
   if (m.tool === 'lux') {
     const value = Math.round(m.value).toLocaleString();
     if (m.extra?.source === 'camera-estimate') return `~${value} lux (camera estimate)`;
-    if (['AmbientLightSensor', 'manual-entry', 'meter-entry'].includes(m.extra?.source)) return `${value} lux`;
+    if (['AmbientLightSensor', 'manual-entry', 'meter-entry'].includes(m.extra?.source as string)) return `${value} lux`;
     return `${value} lux (method unknown)`;
   }
   if (m.tool === 'flicker') return ['no banding detected', 'some banding', 'clear banding', 'strong banding'][Math.min(m.value || 0, 3)];
@@ -238,7 +237,7 @@ function fmtMeasureValue(m) {
   return String(m.value);
 }
 
-function fmtMeasureTime(ts) {
+function fmtMeasureTime(ts: number) {
   const days = Math.floor((Date.now() - ts) / (24 * 60 * 60 * 1000));
   if (days <= 0) return 'today';
   if (days === 1) return 'yesterday';
@@ -253,7 +252,7 @@ const TOOL_ICONS = {
 };
 
 // Per-day use toggle; the stored date makes it reset at midnight.
-function _renderTodayToggle(kind, id, activeToday, opts = {}) {
+function _renderTodayToggle(kind: unknown, id: unknown, activeToday: unknown, opts: { compact?: unknown } = {}) {
   const compact = opts.compact !== false;
   const cls = `light-env-today-toggle${activeToday ? ' light-env-today-on' : ' light-env-today-off'}${compact ? ' light-env-today-compact' : ''}`;
   const icon = activeToday ? '✓' : '⊘';
@@ -267,7 +266,7 @@ function _renderTodayToggle(kind, id, activeToday, opts = {}) {
 }
 
 // Screen disclosure card.
-function renderLightEnvScreenCard(s, rooms) {
+function renderLightEnvScreenCard(s: EnvironmentScreenReader, rooms: unknown) {
   return renderScreenCard(s, {
     expanded: isLightEnvScreenExpanded(s.id),
     renderTodayToggle: _renderTodayToggle,
@@ -280,7 +279,7 @@ function renderLightEnvScreenCard(s, rooms) {
 // "Room 1" footgun and accelerates the common path. Hides chips for
 // names already in use; "Other…" opens a prompt for custom names.
 const ROOM_QUICK_PICKS = ['Bedroom', 'Living room', 'Kitchen', 'Office', 'Bathroom'];
-const SCREEN_QUICK_PICK_LABELS = {
+const SCREEN_QUICK_PICK_LABELS: RawTextLookup = {
   phone: '📱 Phone',
   laptop: '💻 Laptop',
   monitor: '🖥 Monitor',
@@ -288,7 +287,7 @@ const SCREEN_QUICK_PICK_LABELS = {
   tv: '📺 TV',
 };
 
-function renderRoomQuickPicks(rooms) {
+function renderRoomQuickPicks(rooms: EnvironmentRoomOperations[]) {
   const usedLC = new Set((rooms || []).map(r => (r.name || '').trim().toLowerCase()));
   const chips = ROOM_QUICK_PICKS
     .filter(name => !usedLC.has(name.toLowerCase()))
@@ -301,7 +300,7 @@ function renderRoomQuickPicks(rooms) {
   </div>`;
 }
 
-function renderScreenQuickPicks(screens, roomId = null, preferred = ['phone', 'laptop', 'monitor', 'tablet', 'tv']) {
+function renderScreenQuickPicks(screens: EnvironmentScreenReader[], roomId: unknown = null, preferred = ['phone', 'laptop', 'monitor', 'tablet', 'tv']) {
   const existing = new Set((screens || []).filter(s => (s.roomId || null) === (roomId || null)).map(s => s.device));
   const chips = preferred
     .filter(device => !existing.has(device))
@@ -349,7 +348,7 @@ function renderEnvironmentLoadSummary() {
   </div>`;
 }
 
-function formatLatestLightAudit(audits) {
+function formatLatestLightAudit(audits: EnvironmentAuditCollection) {
   if (!audits.length) return 'No saved snapshots';
   const latest = audits
     .slice()
@@ -361,15 +360,15 @@ function formatLatestLightAudit(audits) {
 
 export function renderEnvironmentAssessmentSummary() {
   const env = getEnvironment();
-  const rooms = env?.rooms || [];
-  const screens = env?.screens || [];
-  const audits = /** @type {{ length: unknown }} */ (getLightAudits());
-  const measurements = state.importedData?.lightMeasurements || [];
+  const rooms = (env?.rooms || []) as EnvironmentRoomOperations[];
+  const screens = (env?.screens || []) as EnvironmentScreenReader[];
+  const audits = getLightAudits() as EnvironmentAuditCollection;
+  const measurements = (state.importedData?.lightMeasurements || []) as EnvironmentMeasurementOperations[];
   const roomIds = new Set(rooms.map(r => r.id).filter(Boolean));
   const mappedMeasurements = measurements.filter(m => m?.roomId && roomIds.has(m.roomId));
   const burden = computeIndoorBurden();
-  const activeRooms = rooms.filter(isActiveToday).length;
-  const activeScreens = screens.filter(isActiveToday).length;
+  const activeRooms = rooms.filter(isActiveToday as (item: EnvironmentRoomOperations) => unknown).length;
+  const activeScreens = screens.filter(isActiveToday as (item: EnvironmentScreenReader) => unknown).length;
   const measuredRooms = new Set(mappedMeasurements.map(m => m.roomId)).size;
   const hasMapped = rooms.length > 0 || screens.length > 0;
   const hasRooms = rooms.length > 0;
@@ -473,7 +472,7 @@ function refreshOpenLightEnvironmentAssessmentOnSync() {
   renderLightEnvironmentAssessmentModal();
 }
 
-function setLightEnvironmentAssessmentScrollTop(scrollTop) {
+function setLightEnvironmentAssessmentScrollTop(scrollTop: number) {
   const modal = getLightEnvironmentAssessmentOverlay()?.querySelector('.light-env-assessment-modal');
   if (!modal) return;
   const apply = () => { modal.scrollTop = Math.max(0, scrollTop || 0); };
@@ -481,7 +480,7 @@ function setLightEnvironmentAssessmentScrollTop(scrollTop) {
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(apply);
 }
 
-function scrollLightEnvironmentAssessmentTo(selector, fallbackSelector = '') {
+function scrollLightEnvironmentAssessmentTo(selector: string, fallbackSelector = '') {
   const overlay = getLightEnvironmentAssessmentOverlay();
   const modal = overlay?.querySelector('.light-env-assessment-modal');
   const target = selector ? modal?.querySelector(selector) : null;
@@ -499,7 +498,7 @@ function scrollLightEnvironmentAssessmentTo(selector, fallbackSelector = '') {
   setTimeout(apply, 60);
 }
 
-function refreshLightEnvironmentUI(options = {}) {
+function refreshLightEnvironmentUI(options: EnvironmentRefreshOptions = {}) {
   const modal = getLightEnvironmentAssessmentOverlay()?.querySelector('.light-env-assessment-modal');
   const priorScrollTop = modal?.scrollTop || 0;
   refreshLightEnvironmentAssessment();
@@ -515,11 +514,11 @@ function refreshLightEnvironmentUI(options = {}) {
 // hours · source · today-toggle · expand affordance. Click anywhere on
 // the header (except interactive children) to toggle expand. Expanded
 // state reveals the Step 1/2/3 body.
-function renderRoomDisclosure(r, expanded) {
+function renderRoomDisclosure(r: EnvironmentRoomOperations, expanded: boolean) {
   const measurements = getMeasurementsFor(r.id).sort((a, b) => b.capturedAt - a.capturedAt);
   const sev = computeRoomSeverity(r, measurements);
-  const activeToday = isActiveToday(r);
-  const sourceShort = PRIMARY_SOURCE_SHORT[r.primarySource] || '';
+  const activeToday = (isActiveToday as (item: EnvironmentRoomOperations) => ReturnType<typeof isActiveToday>)(r);
+  const sourceShort = (PRIMARY_SOURCE_SHORT as RawTextLookup)[r.primarySource as string] || '';
   const hours = r.hoursOccupiedPerDay;
   const hoursLabel = hours ? `${hours} hr/day` : '';
 
@@ -548,15 +547,15 @@ function renderRoomDisclosure(r, expanded) {
 // The expanded body — three numbered steps so the linear flow is
 // obvious (versus the old layout where 5 concerns competed for
 // attention all at once).
-function renderRoomExpandedBody(r, measurements, sev) {
-  const latestByTool = new Map();
+function renderRoomExpandedBody(r: EnvironmentRoomOperations, measurements: EnvironmentMeasurementOperations[], sev: EnvironmentSeverity) {
+  const latestByTool = new Map<string, EnvironmentMeasurementOperations>();
   for (const m of measurements) {
     if (!latestByTool.has(m.tool)) latestByTool.set(m.tool, m);
   }
 
   // activeToday is recomputed here so the in-body toggle reflects the
   // same per-day flag the collapsed-row toggle would use.
-  const _activeToday = isActiveToday(r);
+  const _activeToday = (isActiveToday as (item: EnvironmentRoomOperations) => ReturnType<typeof isActiveToday>)(r);
   let html = `<div class="light-env-room-disclosure-body">
 
     <div class="light-env-room-step light-env-room-step-about">
@@ -600,7 +599,7 @@ function renderRoomExpandedBody(r, measurements, sev) {
   } else {
     html += `<div class="light-env-room-readings">`;
     for (const [tool, m] of latestByTool) {
-      const icon = TOOL_ICONS[tool] || '·';
+      const icon = (TOOL_ICONS as RawTextLookup)[tool] || '·';
       html += `<div class="light-env-reading">
         <span class="light-env-reading-icon">${icon}</span>
         <span class="light-env-reading-value">${escapeHTML(fmtMeasureValue(m))}</span>
@@ -625,7 +624,7 @@ function renderRoomExpandedBody(r, measurements, sev) {
   // toward it for bedroom rooms.
   const screensHere = getScreensForRoom(r.id);
   const roomName = (r.name || '').toLowerCase();
-  let stepHead, emptyCopy, quickPicks;
+  let stepHead: string, emptyCopy: string, quickPicks: string[];
   if (/bedroom|sleep/.test(roomName)) {
     stepHead = 'Screens used in bed';
     emptyCopy = 'If a phone or tablet is used near bedtime, add it here. Timing is useful context; brightness and viewing distance are not measured.';
@@ -651,7 +650,7 @@ function renderRoomExpandedBody(r, measurements, sev) {
     html += `<p class="light-env-room-empty">${escapeHTML(emptyCopy)}</p>`;
   } else {
     html += `<div class="light-env-room-screens-list">`;
-    const rooms = getEnvironment()?.rooms || [];
+    const rooms = (getEnvironment()?.rooms || []) as EnvironmentRoomOperations[];
     for (const s of screensHere) html += renderLightEnvScreenCard(s, rooms);
     html += `</div>`;
   }
@@ -668,10 +667,10 @@ function renderRoomExpandedBody(r, measurements, sev) {
   return html;
 }
 
-export function renderEnvironmentSection(options = {}) {
+export function renderEnvironmentSection(options: { embedded?: unknown } = {}) {
   const env = getEnvironment();
-  const rooms = env?.rooms || [];
-  const screens = env?.screens || [];
+  const rooms = (env?.rooms || []) as EnvironmentRoomOperations[];
+  const screens = (env?.screens || []) as EnvironmentScreenReader[];
   const embedded = !!options.embedded;
 
   let html = `<div class="light-env-section${embedded ? ' light-env-section-embedded' : ''}">`;
@@ -747,11 +746,11 @@ export function renderEnvironmentSection(options = {}) {
   return html;
 }
 
-export function getRooms() {
+export function getRooms(): unknown {
   return (getEnvironment()?.rooms) || [];
 }
 
-function openLightEnvTool(tool, roomId) {
+function openLightEnvTool(tool: unknown, roomId: unknown) {
   const opts = roomId ? { roomId } : undefined;
   const openers = {
     spectrum: lightEnvDeps.openSpectrumClassifier,
@@ -760,8 +759,8 @@ function openLightEnvTool(tool, roomId) {
     cct: lightEnvDeps.openCCTMeter,
     darkness: lightEnvDeps.openDarknessMeter,
   };
-  const opener = openers[tool];
-  if (typeof opener === 'function') opener(opts);
+  const opener = (openers as Record<string, unknown>)[tool as string];
+  if (typeof opener === 'function') (opener as (options: unknown) => unknown)(opts);
 }
 
 export const lightEnvActionHandlers = Object.freeze({

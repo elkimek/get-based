@@ -1,4 +1,3 @@
-// @ts-check
 // nutrition-history.js — on-demand, local-only nutrition history controller.
 
 import { getErrorMessage } from './caught-error.js';
@@ -13,6 +12,9 @@ import { computeNutritionHistory, NUTRITION_HISTORY_RANGES } from './nutrition-s
 import { listActiveProfileMeals } from './nutrition-store.js';
 import { showNotification } from './utils.js';
 
+export interface NutritionHistoryOptions { view?: unknown; focus?: unknown; resetMeals?: unknown; preserveScroll?: unknown; returnTo?: unknown }
+type NutritionHistoryReader = (meals: Parameters<typeof computeNutritionHistory>[0], options: Omit<NonNullable<Parameters<typeof computeNutritionHistory>[1]>, 'rangeKey'> & {rangeKey?: unknown}) => ReturnType<typeof computeNutritionHistory>;
+
 const NUTRITION_HISTORY_RANGE_KEY = 'nutrition-history-range';
 const NUTRITION_HISTORY_VIEW_KEY = 'nutrition-history-view';
 let historyRequestGeneration = 0;
@@ -26,8 +28,8 @@ export function getNutritionHistoryRange() {
   return NUTRITION_HISTORY_RANGES.some(range => range.key === stored) ? stored : '30d';
 }
 
-export function setNutritionHistoryRange(rangeKey) {
-  const valid = NUTRITION_HISTORY_RANGES.some(range => range.key === rangeKey) ? rangeKey : '30d';
+export function setNutritionHistoryRange(rangeKey: unknown) {
+  const valid = NUTRITION_HISTORY_RANGES.some(range => range.key === rangeKey) ? (rangeKey as string) : '30d';
   try { localStorage.setItem(NUTRITION_HISTORY_RANGE_KEY, valid); }
   catch {}
   return valid;
@@ -40,18 +42,14 @@ export function getNutritionHistoryView() {
   return stored === 'trends' ? 'trends' : 'meals';
 }
 
-export function setNutritionHistoryView(view) {
+export function setNutritionHistoryView(view: unknown) {
   const valid = view === 'trends' ? 'trends' : 'meals';
   try { localStorage.setItem(NUTRITION_HISTORY_VIEW_KEY, valid); }
   catch {}
   return valid;
 }
 
-/**
- * @param {string} [rangeKey]
- * @param {{view?: string, focus?: string, resetMeals?: boolean, preserveScroll?: boolean, returnTo?: string}} [options]
- */
-export async function openNutritionHistory(rangeKey = getNutritionHistoryRange(), options = {}) {
+export async function openNutritionHistory(rangeKey: unknown = getNutritionHistoryRange(), options: NutritionHistoryOptions = {}) {
   const { view = getNutritionHistoryView(), focus = '', resetMeals = false, preserveScroll = false } = options;
   const generation = ++historyRequestGeneration;
   const previousScrollTop = preserveScroll ? Number(document.getElementById('detail-modal')?.scrollTop || 0) : 0;
@@ -65,7 +63,7 @@ export async function openNutritionHistory(rangeKey = getNutritionHistoryRange()
   const replacingOpenNutrition = overlay.classList.contains('show') && modal.classList.contains('nutrition-modal');
   if (Object.hasOwn(options, 'returnTo')) historyReturnTo = options.returnTo === 'editor' ? 'editor' : '';
   else if (!replacingOpenNutrition) historyReturnTo = '';
-  let meals = [];
+  let meals: Awaited<ReturnType<typeof listActiveProfileMeals>> = [];
   let storageError = '';
   try {
     meals = await listActiveProfileMeals({ limit: 10000 });
@@ -94,7 +92,7 @@ export async function openNutritionHistory(rangeKey = getNutritionHistoryRange()
   if (preserveScroll) {
     setTimeout(() => {
       modal.scrollTop = previousScrollTop;
-      /** @type {HTMLElement | null} */ (modal.querySelector('.nutrition-history-more'))?.focus({ preventScroll: true });
+      (modal.querySelector('.nutrition-history-more') as HTMLElement | null)?.focus({ preventScroll: true });
     }, 40);
   }
   if (focus === 'timing') {
@@ -103,7 +101,7 @@ export async function openNutritionHistory(rangeKey = getNutritionHistoryRange()
   return true;
 }
 
-export function openNutritionHistoryView(view, { focus = '' } = {}) {
+export function openNutritionHistoryView(view: unknown, { focus = '' }: Pick<NutritionHistoryOptions, 'focus'> = {}) {
   visibleMealCount = HISTORY_MEAL_PAGE_SIZE;
   return openNutritionHistory(getNutritionHistoryRange(), { view, focus });
 }
@@ -113,13 +111,13 @@ export function showMoreNutritionHistoryMeals() {
   return openNutritionHistory(getNutritionHistoryRange(), { view: 'meals', preserveScroll: true });
 }
 
-export async function askAIAboutNutritionHistory(rangeKey) {
+export async function askAIAboutNutritionHistory(rangeKey: unknown) {
   if (!isNutritionContextEnabled()) {
     showNotification('Enable Meals & Nutrition in Manage → Context before sharing this aggregate with AI.', 'info');
     return false;
   }
   try {
-    const history = computeNutritionHistory(await listActiveProfileMeals({ limit: 10000 }), { rangeKey });
+    const history = (computeNutritionHistory as NutritionHistoryReader)(await listActiveProfileMeals({ limit: 10000 }), { rangeKey });
     const prompt = buildNutritionHistoryAnalysisPrompt(history);
     if (!prompt) {
       showNotification('There are no logged meals in this timeframe to analyze.', 'info');

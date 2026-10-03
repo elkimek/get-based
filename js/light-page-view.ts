@@ -1,6 +1,6 @@
-// @ts-check
 // light-page-view.js — Light & Sun page shell and dashboard strip renderers
 
+import type { PageCalls, PageActionEvent, PageDelegateRoot, PageInnerHTMLWriter, PageOuterHTMLWriter, PageMetaOperations, PageWidget, PageSessionOperations } from '../types/light-page-view.js';
 import { state } from './state.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import { renderLensHeader, renderLensPageWidgets } from './lens-page-shell.js';
@@ -14,8 +14,7 @@ import {
   renderSuggestion,
 } from './light-channel-view.js';
 
-/** @type {Record<string, any>} */
-const lightPageDeps = {
+const lightPageDeps: PageCalls = {
   channelDisplay: {},
   weeklyChannelTier: () => 0,
   channelTier: () => 0,
@@ -57,20 +56,19 @@ const lightPageDeps = {
 // newer Light page that happened to render within the same millisecond.
 let lightWidgetSlotSequence = 0;
 
-/** @param {Partial<typeof lightPageDeps>} [deps] */
-export function configureLightPageView(deps = {}) {
+export function configureLightPageView(deps: unknown = {}) {
   Object.assign(lightPageDeps, deps);
 }
 
-function closestLightPageAction(event) {
+function closestLightPageAction(event: PageActionEvent) {
   const target = event.target;
   if (!(target instanceof Element)) return null;
-  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-light-page-action]'));
+  const actionEl = (target.closest('[data-light-page-action]') as HTMLElement | null);
   if (!actionEl) return null;
   return event.currentTarget?.contains(actionEl) ? actionEl : null;
 }
 
-function handleLightPageActionClick(event) {
+function handleLightPageActionClick(event: PageActionEvent) {
   const actionEl = closestLightPageAction(event);
   if (!actionEl) return;
   const action = actionEl.dataset.lightPageAction;
@@ -100,10 +98,10 @@ function handleLightPageActionClick(event) {
 }
 
 const lightPageActionDelegateRoots = new WeakSet();
-export function installLightPageActionDelegates(root = (typeof document !== 'undefined' ? document : null)) {
-  if (!root || lightPageActionDelegateRoots.has(root)) return;
-  lightPageActionDelegateRoots.add(root);
-  root.addEventListener('click', handleLightPageActionClick);
+export function installLightPageActionDelegates(root: unknown = (typeof document !== 'undefined' ? document : null)) {
+  if (!root || lightPageActionDelegateRoots.has(root as object)) return;
+  lightPageActionDelegateRoots.add(root as object);
+  (root as PageDelegateRoot).addEventListener('click', handleLightPageActionClick);
 }
 
 if (typeof document !== 'undefined') installLightPageActionDelegates();
@@ -113,7 +111,7 @@ if (typeof document !== 'undefined') installLightPageActionDelegates();
 // ═══════════════════════════════════════════════
 
 export function renderDashboardLightChannelPills() {
-  const ch = lightPageDeps.channelDisplay || {};
+  const ch = (lightPageDeps.channelDisplay || {}) as Record<string, PageMetaOperations | undefined>;
   const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
   const sunTotals7d = lightPageDeps.rollingChannelTotals(7) || {};
   const devTotals7d = lightPageDeps.rollingDeviceTotals(7) || {};
@@ -153,7 +151,7 @@ export function renderLightSessionLogActions() {
   if (sunActive || deviceActive) {
     // Stop controls live in the live-session card. Keep only starts that are
     // actually available; the device store permits one device timer at once.
-    const availableStarts = [];
+    const availableStarts: string[] = [];
     if (!sunActive) {
       availableStarts.push('<button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-log-action" data-light-page-action="quick-log-sun">Start sun session</button>');
     }
@@ -187,7 +185,7 @@ export function renderLightSessionLogActions() {
  *
  * @param {{ includeEmptyState?: boolean }} [options]
  */
-export function renderLightLiveSession({ includeEmptyState = false } = {}) {
+export function renderLightLiveSession({ includeEmptyState = false }: { includeEmptyState?: unknown } = {}) {
   const activeSunSession = lightPageDeps.getActiveSession() || null;
   let html = '';
   if (activeSunSession) {
@@ -207,7 +205,7 @@ export function renderLightLiveSession({ includeEmptyState = false } = {}) {
   );
 }
 
-function renderLightWidgetPrompt(status, ctaLabel, ctaAction, hint, extraClass = '') {
+function renderLightWidgetPrompt(status: unknown, ctaLabel: unknown, ctaAction: unknown, hint: unknown, extraClass = '') {
   return `<div class="light-widget-prompt ${escapeAttr(extraClass)}">
     <div class="light-widget-prompt-copy">
       <strong>${escapeHTML(status)}</strong>
@@ -272,7 +270,7 @@ export function renderLightTodayStrip() {
   let deviceBtn = '';
   if (hasDevices) {
     if (devicesArr.length === 1) {
-      const d = devicesArr[0];
+      const d = devicesArr[0]!;
       const label = `🔴 ${d.brand || ''} ${d.model || ''}`.trim();
       deviceBtn = `<button type="button" class="light-today-cta light-today-cta-secondary" data-light-page-action="quick-log-device" title="Log a session on your ${escapeAttr(d.brand || '')} ${escapeAttr(d.model || '')}">${escapeHTML(label)}</button>`;
     } else {
@@ -304,7 +302,7 @@ export function renderLightTodayStrip() {
   // Keep the legacy roomBtn name so the template strings below don't change.
   const roomBtn = setupBtn;
 
-  let cta;
+  let cta: string;
   if (active) {
     // mm:ss live counter; the active-session ticker updates this same
     // element every second via the [data-live-elapsed-for] selector.
@@ -351,7 +349,7 @@ export function renderLightTodayStrip() {
   if (weeklyIU >= 100) {
     // Keep this explicitly as an IU-equivalent comparison total. Aggregating
     // sessions does not remove the model's biological uncertainty.
-    const fmt = (n) => n >= 10000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
+    const fmt = (n: number) => n >= 10000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
       : n >= 1000 ? Math.round(n / 100) * 100
       : Math.round(n / 10) * 10;
     weeklyIUStr = `<span class="light-today-vitd" title="Modeled vitamin D IU-equivalent from incident action-weighted UVB over the last 7 days. This is not measured skin absorption or a predicted blood response; optical and individual biological uncertainty is multi-fold.">☀ ~${fmt(weeklyIU)} IU-eq vitamin D estimate this week</span>`;
@@ -364,7 +362,7 @@ export function renderLightTodayStrip() {
   let vitDBudgetChip = '';
   const b = lightPageDeps.vitaminDBudgetStatus();
   if (b) {
-    const fmtIU = (n) => n >= 1000 ? `${(n/1000).toFixed(1).replace(/\.0$/, '')}k` : `${Math.round(n)}`;
+    const fmtIU = (n: number) => n >= 1000 ? `${(n/1000).toFixed(1).replace(/\.0$/, '')}k` : `${Math.round(n)}`;
     if (b.exceedsSupplementUL) {
       vitDBudgetChip = `<span class="light-today-vitd-warn" title="The adult tolerable upper intake level is 4,000 IU/day from food, beverages, and supplements. The app sees ${fmtIU(b.supplementIU)} IU in logged supplements but does not know dietary intake. Its separate ~${fmtIU(b.sunIU)} IU-eq sunlight estimate is not intake and is not added. Discuss clinician-directed high-dose treatment with the prescriber.">⚠ Logged vitamin D supplements: ${fmtIU(b.supplementIU)} IU above the adult intake UL</span>`;
     } else if (b.supplementIU > 0 && b.sunIU > 0) {
@@ -412,10 +410,10 @@ export function renderLightChannelsLive() {
   const totals7d = lightPageDeps.rollingChannelTotals(7) || {};
   const devTotals7d = lightPageDeps.rollingDeviceTotals(7) || {};
   const row = section.querySelector('.light-pills-row');
-  const slot = /** @type {HTMLElement | null} */ (section.querySelector('[data-channel-detail-slot]'));
+  const slot = (section.querySelector('[data-channel-detail-slot]') as HTMLElement | null);
   const openChannel = slot?.dataset.openChannel || '';
   if (row) {
-    const wrap = document.createElement('div');
+    const wrap = document.createElement('div') as PageInnerHTMLWriter;
     wrap.innerHTML = renderChannelPills(totals7d, devTotals7d);
     const newRow = wrap.querySelector('.light-pills-row');
     if (newRow) row.replaceWith(newRow);
@@ -440,17 +438,17 @@ function solarWindowLabel() {
   return 'Sun window';
 }
 
-function _hasCompletedSunSessionToday(sessions) {
+function _hasCompletedSunSessionToday(sessions: unknown) {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
   return (Array.isArray(sessions) ? sessions : []).some(session => {
-    const timestamp = Number(session?.endedAt || 0);
+    const timestamp = Number((session as PageSessionOperations | null | undefined)?.endedAt || 0);
     return timestamp >= start && timestamp < end;
   });
 }
 
-function renderTodayUVSafety(sessions, medToday, medYesterday) {
+function renderTodayUVSafety(sessions: unknown, medToday: number, medYesterday: number) {
   if (!_hasCompletedSunSessionToday(sessions) && !(medToday > 0)) return '';
   const medPct = Math.round(medToday * 100);
   let medCls = 'info';
@@ -488,7 +486,7 @@ function renderTodayUVSafety(sessions, medToday, medYesterday) {
 // LIGHT & SUN — dedicated view
 // ═══════════════════════════════════════════════
 
-export function showLight(_data) {
+export function showLight(_data: unknown) {
   // Resume the live-session ticker if a session was started before this
   // page loaded — without this, hard-reload while outside leaves the card
   // static until you explicitly tap something else.
@@ -502,7 +500,7 @@ export function showLight(_data) {
   const medYesterday = lightPageDeps.cumulativeMEDYesterday() || 0;
   const deviceSessionsAll = lightPageDeps.getDeviceSessions() || [];
   const totalSessions = sessions.length + deviceSessionsAll.length;
-  const widgets = [];
+  const widgets: PageWidget[] = [];
 
   let html = `<div class="light-page">
     ${renderLensHeader('Light & Sun', 'Sunlight, indoor light, and your daily rhythm.')}`;
@@ -550,7 +548,7 @@ export function showLight(_data) {
   // Setup card / saved summary. renderSunSetupCard() returns the editor
   // when onboarding is incomplete or the user has reopened to edit, and a
   // compact "Light setup saved" summary with an Edit button otherwise.
-  let setupHtml = '';
+  let setupHtml: unknown = '';
   try { setupHtml = lightPageDeps.renderSunSetupCard() || ''; } catch (_) {}
   const conditionsCoords = lightPageDeps.getSunCoords();
   const conditionsLocationHint = conditionsCoords?.source === 'country-band' ? getSunCoordsHint() : '';
@@ -688,24 +686,24 @@ export function showLight(_data) {
   main.innerHTML = html;
   main.querySelector('.light-page')?.classList.add('is-ready');
 
-  let devicesRender;
+  let devicesRender: unknown;
   try {
     devicesRender = lightPageDeps.renderDevicesSection();
   } catch (error) {
     devicesRender = Promise.reject(error);
   }
   Promise.resolve(devicesRender).then((devHtml) => {
-    const slot = document.getElementById(devicesSlotId);
+    const slot = document.getElementById(devicesSlotId) as PageOuterHTMLWriter | null;
     if (!slot) return;
     const devices = lightPageDeps.getDevices() || [];
     slot.outerHTML = devices.length > 0
       ? devHtml
       : renderLightWidgetPrompt('No devices added', 'Add device', 'open-add-device', 'Device sessions show targeted light alongside sunlight, without treating the two as interchangeable.');
   }).catch(() => {
-    const slot = document.getElementById(devicesSlotId);
+    const slot = document.getElementById(devicesSlotId) as PageOuterHTMLWriter | null;
     if (slot) slot.outerHTML = renderLightWidgetPrompt('Devices could not load', 'Retry', 'navigate-light', 'Your saved device data was not removed. Reopen Light & Sun to try again.');
   });
-  const envSlot = document.getElementById(environmentSlotId);
+  const envSlot = document.getElementById(environmentSlotId) as PageOuterHTMLWriter | null;
   if (envSlot) {
     try {
       const envHtml = lightPageDeps.renderEnvironmentAssessmentSummary() || '';
@@ -715,7 +713,7 @@ export function showLight(_data) {
       envSlot.outerHTML = renderLightWidgetPrompt('Assessment could not load', 'Retry', 'navigate-light', 'Your saved rooms and audits were not removed. Reopen Light & Sun to try again.');
     }
   }
-  const toolsSlot = document.getElementById(toolsSlotId);
+  const toolsSlot = document.getElementById(toolsSlotId) as PageOuterHTMLWriter | null;
   if (toolsSlot) {
     try {
       const toolsHtml = lightPageDeps.renderLightTools() || '';
@@ -732,7 +730,7 @@ export function showLight(_data) {
 export function _expandLightToolsSection() {
   const collapsed = document.querySelector('.light-tools-section-collapsed');
   if (!collapsed) return;
-  const wrap = document.createElement('div');
+  const wrap = document.createElement('div') as PageInnerHTMLWriter;
   wrap.innerHTML = lightPageDeps.renderLightTools() || '';
   if (wrap.firstElementChild) collapsed.replaceWith(wrap.firstElementChild);
 }

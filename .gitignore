@@ -1055,3 +1055,11 @@ deploy/profile-share/data/
 /types/export-import.js
 
 /js/views-router.js
+
+/js/light-env.js
+/js/light-page-view.js
+/js/client-list-form.js
+/js/notes.js
+/js/nutrition-history.js
+/types/light-env-view.js
+/types/light-page-view.js

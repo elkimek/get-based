@@ -1,4 +1,3 @@
-// @ts-check
 // client-list-form.js — Create/edit form owner for the Client List modal
 
 import { state } from './state.js';
@@ -31,92 +30,71 @@ const FORM_ICONS = Object.freeze({
   close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
 });
 
-/**
- * @typedef {{
- *   closeClientList: () => void,
- *   renderClientList: () => void,
- * }} ClientListFormRuntime
- */
 
-/** @type {ClientListFormRuntime} */
-const clientListFormRuntime = {
+interface ClientListFormCalls { closeClientList: () => unknown; renderClientList: () => unknown }
+export type ClientListFormSnapshot = { [Key in keyof ClientListFormCalls]: unknown };
+interface CachedLatitudeReader { lat?: unknown; latitude?: unknown }
+
+const clientListFormRuntime: ClientListFormCalls = {
   closeClientList: () => {},
   renderClientList: () => {},
 };
 
-/** @param {Partial<ClientListFormRuntime>} [runtime] */
-export function configureClientListFormRuntime(runtime = {}) {
+export function configureClientListFormRuntime(runtime: unknown = {}): ClientListFormSnapshot {
   const previous = { ...clientListFormRuntime };
   Object.assign(clientListFormRuntime, runtime);
   return previous;
 }
 
-/** @type {string | null} */
-let editingId = null;
-/** @type {string | null | undefined} */
-let pendingAvatar;
-/** @type {ReturnType<typeof setTimeout> | null} */
-let latitudeTimer = null;
+let editingId: string | null = null;
+let pendingAvatar: string | null | undefined;
+let latitudeTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function resetClientListFormState() {
   editingId = null;
   pendingAvatar = undefined;
 }
 
-function _clActionAttrs(action, attrs = {}) {
+function _clActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   return Object.entries({ 'data-cl-action': action, ...attrs })
     .filter(([, value]) => value !== undefined && value !== null)
     .map(([name, value]) => `${name}="${escapeAttr(String(value))}"`)
     .join(' ');
 }
 
-function _clInputAttrs(action) {
+function _clInputAttrs(action: unknown) {
   return `data-cl-input-action="${escapeAttr(action)}"`;
 }
 
-function _clChangeAttrs(action) {
+function _clChangeAttrs(action: unknown) {
   return `data-cl-change-action="${escapeAttr(action)}"`;
 }
 
-function _clKeyAttrs(action) {
+function _clKeyAttrs(action: unknown) {
   return `data-cl-key-action="${escapeAttr(action)}"`;
 }
 
-/**
- * @param {string} id
- * @returns {HTMLInputElement | null}
- */
-function _clInput(id) {
+function _clInput(id: string) {
   const el = document.getElementById(id);
   return el instanceof HTMLInputElement ? el : null;
 }
 
-/**
- * @param {string} id
- * @returns {HTMLTextAreaElement | null}
- */
-function _clTextarea(id) {
+function _clTextarea(id: string) {
   const el = document.getElementById(id);
   return el instanceof HTMLTextAreaElement ? el : null;
 }
 
-/**
- * @param {string} id
- * @returns {HTMLSelectElement | null}
- */
-function _clSelectElement(id) {
+function _clSelectElement(id: string) {
   const el = document.getElementById(id);
   return el instanceof HTMLSelectElement ? el : null;
 }
 
-/** @param {Element} pill */
-function _clTagText(pill) {
+function _clTagText(pill: Element) {
   return pill.firstChild?.textContent?.trim() || '';
 }
 
-/** @param {File} file */
-function _resizeAvatar(file) {
-  return new Promise((resolve, reject) => {
+function _resizeAvatar(file: File) {
+  return new Promise<string>((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       const size = 80;
@@ -139,12 +117,11 @@ function _resizeAvatar(file) {
   });
 }
 
-function _isSafeAvatarSrc(src) {
+function _isSafeAvatarSrc(src: unknown) {
   return typeof src === 'string' && src.startsWith('data:image/');
 }
 
-/** @param {string} [profileId] */
-export function openClientForm(profileId) {
+export function openClientForm(profileId?: string) {
   editingId = profileId || null;
   pendingAvatar = undefined;
   const modal = document.getElementById('client-list-modal');
@@ -167,7 +144,7 @@ export function openClientForm(profileId) {
   const heightDisplay = heightValue ? _clFormatHeightInput(heightValue, heightUnit) : '';
 
   const avatarColor = getAvatarColor(profile ? profile.id : 'new');
-  const avatarInitial = (name || '?')[0].toUpperCase();
+  const avatarInitial = (name || '?')[0]!.toUpperCase();
   const avatarPreview = avatar && _isSafeAvatarSrc(avatar)
     ? `<img class="cl-avatar-preview-img" id="cl-avatar-img" src="${escapeAttr(avatar)}" alt="">`
     : `<span class="cl-avatar-preview-initial" id="cl-avatar-img" style="background:${avatarColor}">${escapeHTML(avatarInitial)}</span>`;
@@ -320,8 +297,7 @@ export function openClientForm(profileId) {
   });
 }
 
-/** @param {Event} event */
-function _clGoToHealthMetrics(event) {
+function _clGoToHealthMetrics(event: Event) {
   event.preventDefault();
   clientListFormRuntime.closeClientList();
   navigateClientListRoute('dashboard');
@@ -330,8 +306,7 @@ function _clGoToHealthMetrics(event) {
   });
 }
 
-/** @param {SubmitEvent | Event} event */
-async function _clSaveForm(event) {
+async function _clSaveForm(event: Event) {
   event.preventDefault();
   const name = (_clInput('cl-name')?.value || '').trim();
   if (!name) return;
@@ -344,7 +319,7 @@ async function _clSaveForm(event) {
   const statusRadio = document.querySelector('input[name="cl-status"]:checked');
   const status = statusRadio instanceof HTMLInputElement ? statusRadio.value : 'active';
 
-  const tags = [];
+  const tags: string[] = [];
   document.querySelectorAll('#cl-tags-wrap .cl-tag-pill').forEach(pill => {
     const text = _clTagText(pill);
     if (text && !tags.includes(text)) tags.push(text);
@@ -354,7 +329,7 @@ async function _clSaveForm(event) {
   const heightUnit = _clInput('cl-height-unit')?.value || 'cm';
   const height = heightRaw ? (heightUnit === 'in' ? Math.round(heightRaw * 2.54 * 10) / 10 : Math.round(heightRaw)) : null;
 
-  const avatarUpdate = {};
+  const avatarUpdate: { avatar?: string | null } = {};
   if (pendingAvatar !== undefined) avatarUpdate.avatar = pendingAvatar;
 
   try {
@@ -395,8 +370,7 @@ async function _clHaplogroupChanged() {
   if (label) label.textContent = mitochondrial?.coupling?.shortLabel || '';
 }
 
-/** @param {HTMLInputElement} input */
-async function _clAvatarChanged(input) {
+async function _clAvatarChanged(input: HTMLInputElement) {
   const file = input.files?.[0];
   if (!file) return;
   try {
@@ -429,29 +403,27 @@ function _clRemoveAvatar() {
   if (container) {
     const color = getAvatarColor(editingId || 'new');
     const nameInput = _clInput('cl-name');
-    const initial = ((nameInput?.value || '?')[0]).toUpperCase();
+    const initial = ((nameInput?.value || '?')[0]!).toUpperCase();
     container.innerHTML = `<span class="cl-avatar-preview-initial" id="cl-avatar-img" style="background:${color}">${escapeHTML(initial)}</span><span class="cl-avatar-edit-icon">${FORM_ICONS.camera}</span>`;
   }
   document.querySelector('.cl-avatar-remove')?.remove();
 }
 
-/** @param {string} sex */
-function _clSetSex(sex) {
+function _clSetSex(sex: string) {
   document.querySelectorAll('#cl-sex-toggle .sex-toggle-btn').forEach(button => {
     if (button instanceof HTMLElement) button.classList.toggle('active', button.dataset.sex === sex);
   });
 }
 
-/** @param {HTMLElement} element */
-function _clShowLat(element, latitude, suffix) {
+function _clShowLat(element: HTMLElement, latitude: number, suffix: unknown) {
   const band = latitudeToBand(latitude);
   element.style.color = 'var(--green)';
   element.textContent = '\u2713 ' + Math.abs(Math.round(latitude)) + '\u00b0' + (latitude >= 0 ? 'N' : 'S') + ' \u2014 ' + LATITUDE_BANDS[band] + (suffix || '');
 }
 
-function _clCachedLatitude(value) {
+function _clCachedLatitude(value: unknown) {
   if (Number.isFinite(value)) return Number(value);
-  const latitude = Number(value?.lat ?? value?.latitude);
+  const latitude = Number((value as CachedLatitudeReader | null | undefined)?.lat ?? (value as CachedLatitudeReader | null | undefined)?.latitude);
   return Number.isFinite(latitude) ? latitude : null;
 }
 
@@ -519,15 +491,14 @@ function _clUpdateLat() {
   }, 1500);
 }
 
-/** @param {KeyboardEvent} event */
-function _clTagKeydown(event) {
+function _clTagKeydown(event: KeyboardEvent) {
   if (event.key !== 'Enter') return;
   event.preventDefault();
   const input = event.target;
   if (!(input instanceof HTMLInputElement)) return;
   const value = input.value.trim();
   if (!value) return;
-  const existing = [];
+  const existing: string[] = [];
   document.querySelectorAll('#cl-tags-wrap .cl-tag-pill').forEach(pill => {
     existing.push(_clTagText(pill).toLowerCase());
   });
@@ -544,8 +515,7 @@ function _clTagKeydown(event) {
   input.value = '';
 }
 
-/** @param {Element} button */
-function _clRemoveTag(button) {
+function _clRemoveTag(button: Element) {
   button.parentElement?.remove();
 }
 
@@ -577,11 +547,7 @@ function _clUpdateBMI() {
   }
 }
 
-/**
- * @param {number} heightCm
- * @param {string} unit
- */
-function _clFormatHeightInput(heightCm, unit) {
+function _clFormatHeightInput(heightCm: number, unit: string) {
   return unit === 'in' ? (heightCm / 2.54).toFixed(1) : String(Math.round(heightCm));
 }
 
@@ -605,18 +571,12 @@ function _clHeightUnitChanged() {
   _clUpdateBMI();
 }
 
-/** @param {string} id */
-function _clickFileInput(id) {
+function _clickFileInput(id: string) {
   const input = document.getElementById(id);
   if (input instanceof HTMLInputElement) input.click();
 }
 
-/**
- * @param {string} action
- * @param {HTMLElement} actionElement
- * @param {Event} event
- */
-export function handleClientFormClick(action, actionElement, event) {
+export function handleClientFormClick(action: string, actionElement: HTMLElement, event: Event) {
   if (action === 'back-to-list') _clBackToList();
   else if (action === 'choose-avatar') _clickFileInput('cl-avatar-input');
   else if (action === 'remove-avatar') _clRemoveAvatar();
@@ -628,19 +588,14 @@ export function handleClientFormClick(action, actionElement, event) {
   return true;
 }
 
-/** @param {string} action */
-export function handleClientFormInput(action) {
+export function handleClientFormInput(action: string) {
   if (action === 'update-lat') _clUpdateLat();
   else if (action === 'update-bmi') _clUpdateBMI();
   else return false;
   return true;
 }
 
-/**
- * @param {string} action
- * @param {HTMLElement} element
- */
-export function handleClientFormChange(action, element) {
+export function handleClientFormChange(action: string, element: HTMLElement) {
   if (action === 'avatar-changed' && element instanceof HTMLInputElement) {
     _clAvatarChanged(element);
   } else if (action === 'haplogroup-changed') {
@@ -651,21 +606,13 @@ export function handleClientFormChange(action, element) {
   return true;
 }
 
-/**
- * @param {string} action
- * @param {SubmitEvent | Event} event
- */
-export function handleClientFormSubmit(action, event) {
+export function handleClientFormSubmit(action: string, event: Event) {
   if (action !== 'save-form') return false;
   void _clSaveForm(event);
   return true;
 }
 
-/**
- * @param {string} action
- * @param {KeyboardEvent} event
- */
-export function handleClientFormKeydown(action, event) {
+export function handleClientFormKeydown(action: string, event: KeyboardEvent) {
   if (action === 'tag-input') {
     _clTagKeydown(event);
     return true;

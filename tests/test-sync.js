@@ -152,7 +152,7 @@ await import('../js/settings.js');
   const lightSessionsSrc = await fetchWithRetry('js/light-sessions-view.js');
   const lightEnvSrc = await fetchWithRetry('js/light-env.js');
   const supplementsSrc = await fetchWithRetry('js/supplements.js');
-  const notesSrc = await fetchWithRetry('js/notes.js');
+  const notesSrc = (await fetchWithRetry('js/notes.js')).replace(/\s+/g, ' ');
   const contextCardLifestyleEditorsSrc = [
     await fetchWithRetry('js/context-card-lifestyle-editors-impl.js'),
     await fetchWithRetry('js/context-card-lifestyle-special-editors.js'),

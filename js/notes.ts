@@ -1,4 +1,3 @@
-// @ts-check
 // notes.js — Standalone note editor
 import { state } from './state.js';
 import { bindDetailModalSyncRefresh, escapeAttr, escapeHTML, showNotification, showConfirmDialog } from './utils.js';
@@ -18,9 +17,14 @@ import {
   rememberNoteModalTriggerRuntime,
 } from './notes-runtime.js';
 
+import type { NormalizedProfileData } from '../types/app-state.js';
+interface NoteSession { profile: typeof state.currentProfile; data: NormalizedProfileData; note: unknown; fingerprint: string | undefined }
+interface NoteReader { date?: unknown; text?: unknown }
+interface NoteTarget { closest(selector: string): HTMLElement | null }
+
 let _noteActionDelegatesInstalled = false;
-let noteEditorSession = null;
-const pendingNoteWrites = new WeakSet();
+let noteEditorSession: NoteSession | null = null;
+const pendingNoteWrites = new WeakSet<object>();
 
 /**
  * Persist an isolated mutation. The data layer merges it against the latest
@@ -30,7 +34,7 @@ const pendingNoteWrites = new WeakSet();
  * @param {import('../types/app-state.js').NormalizedProfileData} data
  * @param {(draft: import('../types/app-state.js').NormalizedProfileData) => void} mutate
  */
-async function persistNoteMutation(profile, data, mutate) {
+async function persistNoteMutation(profile: string, data: NormalizedProfileData, mutate: (draft: NormalizedProfileData) => void) {
   if (pendingNoteWrites.has(data)) return false;
   pendingNoteWrites.add(data);
   try {
@@ -45,7 +49,7 @@ function currentEditorIndex() {
   const session = noteEditorSession;
   if (!session || session.profile !== state.currentProfile || session.data !== state.importedData) return undefined;
   if (!session.note) return null;
-  const index = (state.importedData.notes || []).indexOf(session.note);
+  const index = ((state.importedData.notes || []) as unknown[]).indexOf(session.note);
   return index >= 0 && JSON.stringify(session.note) === session.fingerprint ? index : undefined;
 }
 
@@ -56,25 +60,25 @@ function notifyStaleNote() {
 const NOTE_ACTION_ATTR = 'data-note-action';
 const NOTE_ACTION_SELECTOR = `[${NOTE_ACTION_ATTR}]`;
 
-function noteActionAttrs(action, attrs = {}) {
+function noteActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   return camelCaseActionAttributes(NOTE_ACTION_ATTR, "note", action, attrs);
 }
 
-function closestNoteAction(target) {
+function closestNoteAction(target: unknown) {
   return /** @type {HTMLElement | null} */ (
-    target && typeof target.closest === 'function'
-      ? target.closest(NOTE_ACTION_SELECTOR)
+    target && typeof (target as NoteTarget).closest === 'function'
+      ? (target as NoteTarget).closest(NOTE_ACTION_SELECTOR)
       : null
   );
 }
 
-function parseNoteIndex(actionEl) {
+function parseNoteIndex(actionEl: HTMLElement) {
   if (!actionEl.dataset.noteIndex) return null;
   const idx = Number.parseInt(actionEl.dataset.noteIndex, 10);
   return Number.isInteger(idx) ? idx : null;
 }
 
-function handleNoteActionClick(event) {
+function handleNoteActionClick(event: Event) {
   const actionEl = closestNoteAction(event.target);
   if (!actionEl) return;
   const action = actionEl.getAttribute(NOTE_ACTION_ATTR);
@@ -92,10 +96,10 @@ function handleNoteActionClick(event) {
   event.preventDefault();
 }
 
-export function installNoteActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+export function installNoteActionDelegates(root: unknown = typeof document !== 'undefined' ? document : null) {
   if (!root || _noteActionDelegatesInstalled) return;
   _noteActionDelegatesInstalled = true;
-  root.addEventListener('click', handleNoteActionClick);
+  (root as Pick<EventTarget, 'addEventListener'>).addEventListener('click', handleNoteActionClick);
 }
 
 function refreshOpenNoteEditorOnSync() {
@@ -108,21 +112,17 @@ if (typeof window !== 'undefined') {
   installNoteActionDelegates();
 }
 
-/**
- * @param {string | null | undefined} [date]
- * @param {number | null | undefined} [existingIdx]
- */
-export function openNoteEditor(date, existingIdx) {
+export function openNoteEditor(date?: unknown, existingIdx?: unknown) {
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   if (!modal || !overlay) return;
   const wasOpen = overlay.classList.contains('show');
   const isEditing = existingIdx !== undefined && existingIdx !== null;
-  const existing = isEditing ? (state.importedData.notes || [])[existingIdx] : null;
+  const existing = isEditing ? ((state.importedData.notes || []) as unknown[])[existingIdx as number] : null;
   if (isEditing && !existing) return;
   noteEditorSession = { profile: state.currentProfile, data: state.importedData, note: existing, fingerprint: JSON.stringify(existing) };
-  const defaultDate = existing ? existing.date : (date || new Date().toISOString().slice(0, 10));
-  const currentText = existing ? existing.text : '';
+  const defaultDate = existing ? (existing as NoteReader).date : (date || new Date().toISOString().slice(0, 10));
+  const currentText = existing ? (existing as NoteReader).text : '';
   const title = isEditing ? 'Edit Note' : 'Add Note';
   modal.innerHTML = `<button type="button" class="modal-close" ${noteActionAttrs('close')}>&times;</button>
     <h3>${title}</h3>
@@ -140,17 +140,16 @@ export function openNoteEditor(date, existingIdx) {
   modal.dataset.syncRefreshKind = 'note';
   modal.dataset.syncRefreshMode = isEditing ? 'edit' : 'add';
   modal.dataset.syncRefreshIndex = isEditing ? String(existingIdx) : '';
-  modal.dataset.syncRefreshDate = defaultDate || '';
+  modal.dataset.syncRefreshDate = (defaultDate || '') as string;
   if (!wasOpen) rememberNoteModalTriggerRuntime();
   openModalOverlay(overlay, { initialFocus: '#note-textarea', focusDelay: 50 });
 }
 
-/** @param {number | null | undefined} idx */
-export async function saveNote(idx) {
+export async function saveNote(idx: number | null | undefined) {
   idx = currentEditorIndex();
   if (idx === undefined) { notifyStaleNote(); return false; }
-  const dateInput = /** @type {HTMLInputElement | null} */ (document.getElementById('note-date-input'));
-  const ta = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('note-textarea'));
+  const dateInput = (document.getElementById('note-date-input') as HTMLInputElement | null);
+  const ta = (document.getElementById('note-textarea') as HTMLTextAreaElement | null);
   const date = dateInput ? dateInput.value : '';
   const text = ta ? ta.value.trim() : '';
   if (!date) { showNotification('Please select a date', 'error'); return false; }
@@ -167,29 +166,28 @@ export async function saveNote(idx) {
   if (!saved) return false;
   if (profile !== state.currentProfile || data !== state.importedData || session !== noteEditorSession || ta !== document.getElementById('note-textarea')) return true;
   closeNoteModalRuntime();
-  const activeNav = /** @type {HTMLElement | null} */ (document.querySelector(".nav-item.active"));
+  const activeNav = (document.querySelector(".nav-item.active") as HTMLElement | null);
   navigateAfterNoteChangeRuntime(activeNav?.dataset.category ?? "dashboard");
   showNotification('Note saved', 'success');
   return true;
 }
 
-/** @param {number} idx */
-export async function deleteNote(idx) {
+export async function deleteNote(idx: unknown) {
   const data = state.importedData;
   const profile = state.currentProfile;
-  const note = data.notes?.[idx];
+  const note = (data.notes as unknown[] | null | undefined)?.[idx as number];
   if (!note) return false;
   const fingerprint = JSON.stringify(note);
   const session = noteEditorSession;
   const modalContent = document.getElementById('detail-modal')?.firstElementChild;
   if (await showConfirmDialog("Delete this note? This can't be undone.")) {
-    const currentIndex = (data.notes || []).indexOf(note);
+    const currentIndex = ((data.notes || []) as unknown[]).indexOf(note);
     if (state.currentProfile !== profile || state.importedData !== data || currentIndex < 0 || JSON.stringify(note) !== fingerprint) { notifyStaleNote(); return false; }
     const saved = await persistNoteMutation(profile, data, draft => { deleteImportedArrayItem(draft, 'notes', currentIndex); });
     if (!saved) return false;
     if (profile !== state.currentProfile || data !== state.importedData || session !== noteEditorSession || modalContent !== document.getElementById('detail-modal')?.firstElementChild) return true;
     closeNoteModalRuntime();
-    const activeNav = /** @type {HTMLElement | null} */ (document.querySelector(".nav-item.active"));
+    const activeNav = (document.querySelector(".nav-item.active") as HTMLElement | null);
     navigateAfterNoteChangeRuntime(activeNav?.dataset.category ?? "dashboard");
     showNotification('Note deleted', 'info');
     return true;
