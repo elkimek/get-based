@@ -1011,3 +1011,9 @@ deploy/profile-share/data/
 /js/wearables-manual-detail.js
 
 /js/light-conditions-now.js
+
+/js/demo-biology-data.js
+
+/js/shell-actions.js
+
+/js/wearables-detail-modal.js

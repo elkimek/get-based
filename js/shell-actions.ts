@@ -1,5 +1,4 @@
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
-// @ts-check
 // shell-actions.js - delegated actions for static index.html controls
 
 import { handleImportStatusClick, isImportRunning } from './pdf-import-progress.js';
@@ -7,17 +6,41 @@ import { openFeedbackModal } from './feedback.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { openChatContextModalRuntime } from './chat-runtime.js';
 
+
+// Private invocation views describe only operations performed here. Injected
+// getter values remain opaque in public snapshots; these views do not validate them.
+type ShellNoArgAction = () => unknown;
+type ShellImportCalls = { handleImportStatusClick: ShellNoArgAction; isImportRunning: ShellNoArgAction };
+type ShellFeedbackCalls = { openFeedbackModal: ShellNoArgAction };
+type ShellProfileShareCalls = { openProfileShareModal: (profileId?: unknown) => unknown };
+type ShellNavCalls = { closeMobileSidebar: ShellNoArgAction; toggleMobileSidebar: ShellNoArgAction };
+type ShellChatActionCalls = {
+  closeChatPanel: ShellNoArgAction; clearChatHistory: ShellNoArgAction;
+  handleChatKeydown: (event: KeyboardEvent) => unknown; sendChatMessage: ShellNoArgAction;
+  setChatBackendFromUI: (backend: string) => unknown; setChatPersonality: (personality: string) => unknown;
+  setChatWebSearchEnabled: (enabled: boolean) => unknown; startDiscussion: ShellNoArgAction;
+  summarizeThread: ShellNoArgAction; toggleChatPanel: ShellNoArgAction; toggleChatFullscreen: ShellNoArgAction;
+  togglePersonalityBar: ShellNoArgAction; toggleVoiceRecording: ShellNoArgAction;
+};
+type ShellChatThreadCalls = {
+  createThreadProject: ShellNoArgAction; createNewThread: ShellNoArgAction;
+  filterThreadList: (value: string) => unknown; setChatThreadSort: (value: string) => unknown;
+  toggleThreadRail: ShellNoArgAction;
+};
+type ShellSnapshot<Calls> = { [Key in keyof Calls]: unknown };
+type ShellRuntimeConfigurator = <Calls extends object>(current: Calls, updates: unknown, fields: ReadonlyArray<keyof Calls>) => ShellSnapshot<Calls>;
+
 let shellDelegatesInstalled = false;
-const shellImportDeps = { handleImportStatusClick, isImportRunning };
-const shellFeedbackDeps = { openFeedbackModal };
-const shellProfileShareDeps = {
+const shellImportDeps: ShellImportCalls = { handleImportStatusClick, isImportRunning };
+const shellFeedbackDeps: ShellFeedbackCalls = { openFeedbackModal };
+const shellProfileShareDeps: ShellProfileShareCalls = {
   openProfileShareModal: (_profileId) => {},
 };
-const shellNavDeps = {
+const shellNavDeps: ShellNavCalls = {
   closeMobileSidebar: () => {},
   toggleMobileSidebar: () => {},
 };
-const shellChatActionDeps = {
+const shellChatActionDeps: ShellChatActionCalls = {
   closeChatPanel: () => {},
   clearChatHistory: () => {},
   handleChatKeydown: (_event) => {},
@@ -32,7 +55,7 @@ const shellChatActionDeps = {
   togglePersonalityBar: () => {},
   toggleVoiceRecording: () => {},
 };
-const shellChatThreadDeps = {
+const shellChatThreadDeps: ShellChatThreadCalls = {
   createThreadProject: () => {},
   createNewThread: () => {},
   filterThreadList: (_value) => {},
@@ -40,59 +63,57 @@ const shellChatThreadDeps = {
   toggleThreadRail: () => {},
 };
 
-export function configureShellImportDeps(deps = {}) {
-  return configureRuntimeFunctions(shellImportDeps, deps, ["handleImportStatusClick","isImportRunning"]);
+export function configureShellImportDeps(deps: unknown = {}): ShellSnapshot<ShellImportCalls> {
+  return (configureRuntimeFunctions as ShellRuntimeConfigurator)(shellImportDeps, deps, ["handleImportStatusClick","isImportRunning"]);
 }
 
-export function configureShellFeedbackDeps(deps = {}) {
-  return configureRuntimeFunctions(shellFeedbackDeps, deps, ["openFeedbackModal"]);
+export function configureShellFeedbackDeps(deps: unknown = {}): ShellSnapshot<ShellFeedbackCalls> {
+  return (configureRuntimeFunctions as ShellRuntimeConfigurator)(shellFeedbackDeps, deps, ["openFeedbackModal"]);
 }
 
-export function configureShellProfileShareDeps(deps = {}) {
-  return configureRuntimeFunctions(shellProfileShareDeps, deps, ["openProfileShareModal"]);
+export function configureShellProfileShareDeps(deps: unknown = {}): ShellSnapshot<ShellProfileShareCalls> {
+  return (configureRuntimeFunctions as ShellRuntimeConfigurator)(shellProfileShareDeps, deps, ["openProfileShareModal"]);
 }
 
-/** @param {Partial<typeof shellNavDeps>} [deps] */
-export function configureShellNavDeps(deps = {}) {
-  return configureRuntimeFunctions(shellNavDeps, deps, ["closeMobileSidebar","toggleMobileSidebar"]);
+export function configureShellNavDeps(deps: unknown = {}): ShellSnapshot<ShellNavCalls> {
+  return (configureRuntimeFunctions as ShellRuntimeConfigurator)(shellNavDeps, deps, ["closeMobileSidebar","toggleMobileSidebar"]);
 }
 
-/** @param {Partial<typeof shellChatActionDeps>} [deps] */
-export function configureShellChatActionDeps(deps = {}) {
+export function configureShellChatActionDeps(deps: unknown = {}): ShellSnapshot<ShellChatActionCalls> {
   const previous = { ...shellChatActionDeps };
   for (const name of Object.keys(shellChatActionDeps)) {
-    const key = /** @type {keyof typeof shellChatActionDeps} */ (name);
-    const callback = deps[key];
-    if (typeof callback === 'function') shellChatActionDeps[key] = callback;
+    const key = name as keyof ShellChatActionCalls;
+    const callback = (deps as ShellSnapshot<ShellChatActionCalls>)[key];
+    if (typeof callback === 'function') (shellChatActionDeps as ShellSnapshot<ShellChatActionCalls>)[key] = callback;
   }
   return previous;
 }
 
-export function configureShellChatThreadDeps(deps = {}) {
-  return configureRuntimeFunctions(shellChatThreadDeps, deps, ["createThreadProject","createNewThread","filterThreadList","setChatThreadSort","toggleThreadRail"]);
+export function configureShellChatThreadDeps(deps: unknown = {}): ShellSnapshot<ShellChatThreadCalls> {
+  return (configureRuntimeFunctions as ShellRuntimeConfigurator)(shellChatThreadDeps, deps, ["createThreadProject","createNewThread","filterThreadList","setChatThreadSort","toggleThreadRail"]);
 }
 
 function shellRuntime() {
-  return /** @type {Record<string, any>} */ (globalThis);
+  return globalThis as unknown as Record<string, unknown>;
 }
 
-function callShellRuntime(name, ...args) {
+function callShellRuntime(name: string, ...args: unknown[]) {
   const fn = getSettingsModuleFunction(name) || shellRuntime()[name];
-  if (typeof fn === 'function') fn(...args);
+  if (typeof fn === 'function') (fn as (...args: unknown[]) => unknown)(...args);
 }
 
-function closestAction(event, selector) {
+function closestAction(event: Event, selector: string) {
   const target = event.target;
   if (!(target instanceof Element)) return null;
-  return target.closest(selector);
+  return target.closest(selector) as HTMLElement | null;
 }
 
-function clickFileInput(id) {
+function clickFileInput(id: string) {
   const input = document.getElementById(id);
   if (input instanceof HTMLInputElement) input.click();
 }
 
-function runShellAction(action) {
+function runShellAction(action: string) {
   if (action === 'toggle-mobile-sidebar') {
     shellNavDeps.toggleMobileSidebar();
     return true;
@@ -125,7 +146,7 @@ function runShellAction(action) {
   return false;
 }
 
-function runChatAction(action, actionEl) {
+function runChatAction(action: string | undefined, actionEl: HTMLElement) {
   const closeComposerMenu = () => actionEl.closest('details')?.removeAttribute('open');
   if (action === 'toggle-panel') {
     shellChatActionDeps.toggleChatPanel();
@@ -182,7 +203,7 @@ function runChatAction(action, actionEl) {
   return false;
 }
 
-function handleShellClick(event) {
+function handleShellClick(event: Event) {
   const actionEl = closestAction(event, '[data-shell-action], [data-chat-action]');
   if (!actionEl) return;
 
@@ -196,7 +217,7 @@ function handleShellClick(event) {
   if (handled) event.preventDefault();
 }
 
-function handleShellInput(event) {
+function handleShellInput(event: Event) {
   const input = event.target;
   if (!(input instanceof HTMLInputElement)) return;
   if (input.dataset.chatInputAction === 'filter-thread-list') {
@@ -204,7 +225,7 @@ function handleShellInput(event) {
   }
 }
 
-function handleShellChange(event) {
+function handleShellChange(event: Event) {
   const input = event.target;
   if (!(input instanceof HTMLInputElement) && !(input instanceof HTMLSelectElement)) return;
   if (input.dataset.chatChangeAction === 'set-websearch' && input instanceof HTMLInputElement) {
@@ -216,7 +237,7 @@ function handleShellChange(event) {
   }
 }
 
-function handleShellKeydown(event) {
+function handleShellKeydown(event: KeyboardEvent) {
   const actionEl = closestAction(event, '[data-chat-key-action]');
   if (!actionEl) return;
 

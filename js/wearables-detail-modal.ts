@@ -1,4 +1,3 @@
-// @ts-check
 
 import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, showNotification } from './utils.js';
@@ -37,6 +36,37 @@ import {
   saveManualEntryFromDetail,
 } from './wearables-manual-detail.js';
 
+import type { CanonicalWearableMetric } from './wearable-adapters.js';
+import type { StoredWearableRow } from './wearable-storage-types.js';
+import type { WearableMetricSummary } from './wearables-summary-model.js';
+
+interface WearableSeriesPoint { date: StoredWearableRow['date']; v: number }
+interface ManualDetailPoint extends Pick<StoredWearableRow, 'date'> {
+  v: unknown; pairedV: unknown; tags: unknown; note: unknown;
+}
+export interface WearableDetailOptions { fromRangeToggle?: unknown }
+// Private consumed operations describe the original unchecked summary readers;
+// restored storage is not normalized or validated by this module.
+type DetailMetricReader = WearableMetricSummary;
+interface DetailHtmlOptions {
+  allZeroActivity?: unknown; rangeKey?: unknown; rangeStartDate?: unknown;
+  pairedMetric?: DetailMetricReader | null | undefined;
+  pairedSeries?: readonly WearableSeriesPoint[];
+  pairedMetricId?: string | null; chartSampleCount?: number;
+  manualChartSampleCount?: unknown;
+}
+interface WearableChartDataset {
+  type?: 'scatter'; label: string; data: Array<{x: string | undefined; y: unknown}>;
+  _kind: 'primary' | 'baseline' | 'manual'; borderColor: string; backgroundColor: string;
+  borderWidth?: number; borderDash?: number[]; pointRadius: number | number[];
+  pointBackgroundColor?: string[]; pointBorderColor?: string[];
+  pointHoverRadius: number | number[]; tension?: number; spanGaps?: boolean; showLine?: boolean;
+  segment?: { borderDash: (ctx: {p1DataIndex: number}) => number[] | undefined;
+    borderColor: (ctx: {p1DataIndex: number}) => string | undefined };
+}
+interface ChartTitleItem { raw?: {x?: unknown} | null; label?: unknown }
+interface ChartLabelContext { dataset: {label?: unknown; _kind?: unknown}; parsed: {y?: unknown}; dataIndex: number }
+
 export {
   closeManualAddFromDetail,
   deleteManualEntryFromDetail,
@@ -52,7 +82,7 @@ const WEARABLE_DETAIL_RANGES = [
 const WEARABLE_ALL_HISTORY_START_DATE = '1970-01-01';
 const WEARABLE_DETAIL_RANGE_KEY = 'wearable-detail-range';
 
-export function wearableActionAttrs(action, attrs = {}) {
+export function wearableActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   return actionAttributes("wearable", action, attrs);
 }
 
@@ -62,9 +92,9 @@ function getWearableDetailRange() {
   return '90d';
 }
 
-export function setWearableDetailRange(metricId, rangeKey) {
+export function setWearableDetailRange(metricId: string, rangeKey: unknown) {
   if (!WEARABLE_DETAIL_RANGES.some(r => r.key === rangeKey)) return;
-  localStorage.setItem(WEARABLE_DETAIL_RANGE_KEY, rangeKey);
+  localStorage.setItem(WEARABLE_DETAIL_RANGE_KEY, rangeKey as string);
   openWearableDetail(metricId, { fromRangeToggle: true });
 }
 
@@ -72,7 +102,7 @@ export function setWearableDetailRange(metricId, rangeKey) {
 // land mismatched data in the shared detail modal.
 let _detailOp = 0;
 
-export async function openWearableDetail(metricId, opts = {}) {
+export async function openWearableDetail(metricId: string, opts: WearableDetailOptions = {}) {
   const op = ++_detailOp;
   const summary = state.importedData?.wearableSummary;
   const normalizedMetricId = metricId === 'bp_diastolic' && summary?.metrics?.bp_systolic
@@ -88,7 +118,7 @@ export async function openWearableDetail(metricId, opts = {}) {
   if (!opts.fromRangeToggle) rememberWearableDetailModalTriggerRuntime();
 
   const rangeKey = getWearableDetailRange();
-  const rangeDef = WEARABLE_DETAIL_RANGES.find(r => r.key === rangeKey) || WEARABLE_DETAIL_RANGES[0];
+  const rangeDef = WEARABLE_DETAIL_RANGES.find(r => r.key === rangeKey) || WEARABLE_DETAIL_RANGES[0]!;
   const profileId = getActiveProfileId();
   const endDate = isoDay();
   let startDate;
@@ -100,8 +130,8 @@ export async function openWearableDetail(metricId, opts = {}) {
     startDate = isoDay(start);
   }
 
-  let rows = [];
-  let pairedRows = [];
+  let rows: Awaited<ReturnType<typeof getDailyRange>> = [];
+  let pairedRows: Awaited<ReturnType<typeof getDailyRange>> = [];
   const isBloodPressureDetail = normalizedMetricId === 'bp_systolic';
   const pairedMetricId = isBloodPressureDetail ? 'bp_diastolic' : null;
   const pairedMetric = pairedMetricId ? summary?.metrics?.[pairedMetricId] : null;
@@ -118,20 +148,20 @@ export async function openWearableDetail(metricId, opts = {}) {
   }
   if (op !== _detailOp) return;
 
-  const series = rows
+  const series = (rows
     .map(r => ({ date: r.date, v: r[normalizedMetricId] }))
     .filter(p => isMetricValueMeaningful(normalizedMetricId, p.v))
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const pairedSeries = pairedMetricId ? pairedRows
+    .sort((a, b) => a.date.localeCompare(b.date))) as WearableSeriesPoint[];
+  const pairedSeries = (pairedMetricId ? pairedRows
     .map(r => ({ date: r.date, v: r[pairedMetricId] }))
     .filter(p => isMetricValueMeaningful(pairedMetricId, p.v))
-    .sort((a, b) => a.date.localeCompare(b.date)) : [];
+    .sort((a, b) => a.date.localeCompare(b.date)) : []) as WearableSeriesPoint[];
 
   const allZeroActivity = normalizedMetricId === 'activity_score'
     && series.length > 0
     && series.every(p => p.v === 0);
 
-  let manualRows = [];
+  let manualRows: Awaited<ReturnType<typeof getDailyRange>> = [];
   if (MANUAL_METRICS.includes(normalizedMetricId)) {
     try {
       manualRows = await getDailyRange(profileId, 'manual', WEARABLE_ALL_HISTORY_START_DATE, endDate);
@@ -202,31 +232,31 @@ export async function openWearableDetail(metricId, opts = {}) {
   }
 }
 
-let _modalTrapHandler = null;
+let _modalTrapHandler: ((e: KeyboardEvent) => void) | null = null;
 
 export function _uninstallWearableModalFocusTrap() {
   if (_modalTrapHandler) {
-    document.removeEventListener('keydown', _modalTrapHandler, true);
+    document.removeEventListener('keydown', _modalTrapHandler!, true);
     _modalTrapHandler = null;
   }
 }
 
-function _installWearableModalFocusTrap(modal) {
+function _installWearableModalFocusTrap(modal: HTMLElement) {
   _uninstallWearableModalFocusTrap();
   _modalTrapHandler = (e) => {
     if (e.key !== 'Tab') return;
     const overlay = document.getElementById('modal-overlay');
     if (!overlay?.classList?.contains('show')) {
-      document.removeEventListener('keydown', _modalTrapHandler, true);
+      document.removeEventListener('keydown', _modalTrapHandler!, true);
       _modalTrapHandler = null;
       return;
     }
-    const focusable = modal.querySelectorAll(
+    const focusable = modal.querySelectorAll<HTMLElement>(
       'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
     );
     if (focusable.length === 0) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
+    const first = focusable[0]!;
+    const last = focusable[focusable.length - 1]!;
     const active = document.activeElement;
     if (e.shiftKey && active === first) {
       e.preventDefault();
@@ -239,7 +269,7 @@ function _installWearableModalFocusTrap(modal) {
   document.addEventListener('keydown', _modalTrapHandler, true);
 }
 
-function buildManualEntriesSection(metricId, manualEntries, primarySource) {
+function buildManualEntriesSection(metricId: string, manualEntries: readonly ManualDetailPoint[], primarySource: unknown) {
   if (!MANUAL_METRICS.includes(metricId)) return '';
   if (manualEntries.length === 0) {
     if (primarySource && primarySource !== 'manual') {
@@ -263,19 +293,19 @@ function buildManualEntriesSection(metricId, manualEntries, primarySource) {
   const unit = wearableDisplayUnit(metricId, canonicalUnit, state.unitSystem);
   const metricLabel = canon?.label || metricId;
   const isBloodPressure = metricId === 'bp_systolic';
-  const formatEntryValue = (e) => {
+  const formatEntryValue = (e: ManualDetailPoint) => {
     if (isBloodPressure) {
       const sys = isMetricValueMeaningful('bp_systolic', e.v)
-        ? formatWearableMetricValue(metricId, e.v, canonicalUnit, state.unitSystem)
+        ? formatWearableMetricValue(metricId, e.v as number | null | undefined, canonicalUnit, state.unitSystem)
         : '—';
       const dia = isMetricValueMeaningful('bp_diastolic', e.pairedV)
-        ? formatWearableMetricValue(metricId, e.pairedV, canonicalUnit, state.unitSystem)
+        ? formatWearableMetricValue(metricId, e.pairedV as number | null | undefined, canonicalUnit, state.unitSystem)
         : '—';
       return `${sys}/${dia}`;
     }
-    return formatWearableMetricValue(metricId, e.v, canonicalUnit, state.unitSystem);
+    return formatWearableMetricValue(metricId, e.v as number | null | undefined, canonicalUnit, state.unitSystem);
   };
-  const formatSpokenDate = (iso) => {
+  const formatSpokenDate = (iso: string) => {
     try {
       const d = new Date(iso + 'T00:00:00');
       return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
@@ -310,14 +340,14 @@ function buildManualEntriesSection(metricId, manualEntries, primarySource) {
   </section>`;
 }
 
-function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [], opts = {}) {
-  const adapter = adapterById(m.primarySource);
+function buildWearableDetailHtml(canon: CanonicalWearableMetric, m: DetailMetricReader, series: readonly WearableSeriesPoint[], metricId: string, manualEntries: readonly ManualDetailPoint[] = [], opts: DetailHtmlOptions = {}) {
+  const adapter = adapterById(m.primarySource)!;
   const sourceName = adapter?.displayName || m.primarySource;
   const canonicalUnit = canon.unit || '';
   const unit = wearableDisplayUnit(metricId, canonicalUnit, state.unitSystem);
   const unitSpaced = unit ? ' ' + escapeHTML(unit) : '';
   const subLabel = canon.sub ? ` <span style="opacity:0.6;font-size:0.7em;margin-left:6px;font-weight:normal">${escapeHTML(canon.sub)}</span>` : '';
-  const formatV = v => formatWearableMetricValue(metricId, v, canonicalUnit, state.unitSystem);
+  const formatV = (v: unknown) => (formatWearableMetricValue as (metricId: string, value: unknown, canonicalUnit: string, unitSystem: string) => string)(metricId, v, canonicalUnit, state.unitSystem);
 
   const trendWord = m.trend30d === 'declining' ? 'declining'
                    : m.trend30d === 'rising' ? 'rising'
@@ -327,7 +357,7 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
   const suppressDelta = !m.baseline || !isFinite(m.baseline)
                      || metricId === 'steps'
                      || (m.latest === 0 && Math.abs(m.baseline) > 0.5);
-  let deltaStr = null;
+  let deltaStr: string | null = null;
   if (!suppressDelta && m.latest != null && isFinite(m.latest)) {
     if (canon?.sub === 'Δ') {
       const diff = m.latest - m.baseline;
@@ -341,7 +371,7 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
   }
 
   const DAY_COMPANION = { hrv_rmssd: 'hrv_day', rhr: 'hr_day' };
-  const companionId = DAY_COMPANION[metricId];
+  const companionId = (DAY_COMPANION as Record<string, unknown>)[metricId] as string | undefined;
   const companion = companionId ? state.importedData?.wearableSummary?.metrics?.[companionId] : null;
   const companionLabel = metricId === 'hrv_rmssd' ? 'Daytime HRV'
                        : metricId === 'rhr'       ? 'Daytime HR'
@@ -349,15 +379,15 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
   const companionUnitSpaced = companion ? unitSpaced : '';
 
   const rangeKey = opts.rangeKey || '90d';
-  const rangeDef = WEARABLE_DETAIL_RANGES.find(r => r.key === rangeKey) || WEARABLE_DETAIL_RANGES[0];
+  const rangeDef = WEARABLE_DETAIL_RANGES.find(r => r.key === rangeKey) || WEARABLE_DETAIL_RANGES[0]!;
   const rangeStartDate = typeof opts.rangeStartDate === 'string' ? opts.rangeStartDate : WEARABLE_ALL_HISTORY_START_DATE;
-  const pairedMetric = metricId === 'bp_systolic' ? opts.pairedMetric : null;
+  const pairedMetric = (metricId === 'bp_systolic' ? opts.pairedMetric : null) as DetailMetricReader;
   const pairedSeries = Array.isArray(opts.pairedSeries) ? opts.pairedSeries : [];
   const chartSampleCount = Number.isFinite(opts.chartSampleCount)
     ? opts.chartSampleCount
     : Math.max(series.length, pairedSeries.length);
   const pairedUnitSpaced = unitSpaced;
-  const formatPaired = (sys, dia, includeUnit = true) => {
+  const formatPaired = (sys: unknown, dia: unknown, includeUnit = true) => {
     const sysText = isMetricValueMeaningful('bp_systolic', sys) ? formatV(sys) : '—';
     const diaText = isMetricValueMeaningful('bp_diastolic', dia) ? formatV(dia) : '—';
     return `${sysText}/${diaText}${includeUnit ? pairedUnitSpaced : ''}`;
@@ -365,7 +395,7 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
   const latestPairedReading = (() => {
     if (!pairedMetric) return null;
     const diastolicByDate = new Map(pairedSeries.map(p => [p.date, p.v]));
-    const candidates = [];
+    const candidates: Array<{date: string; sys: unknown; dia: unknown}> = [];
     for (const point of series) {
       const dia = diastolicByDate.get(point.date);
       if (isMetricValueMeaningful('bp_systolic', point.v) && isMetricValueMeaningful('bp_diastolic', dia)) {
@@ -500,7 +530,7 @@ function buildWearableDetailHtml(canon, m, series, metricId, manualEntries = [],
     ${emfSleepHint}`;
 }
 
-function _buildEMFSleepHint(metricId, m) {
+function _buildEMFSleepHint(metricId: string, m: DetailMetricReader) {
   const SLEEP_METRICS = new Set(['sleep_score', 'sleep_efficiency', 'hrv_rmssd']);
   if (!SLEEP_METRICS.has(metricId)) return '';
   const sources = state.importedData?.wearableSummary?.sources;
@@ -513,18 +543,18 @@ function _buildEMFSleepHint(metricId, m) {
   if (!regressing) return '';
   const assessments = state.importedData?.emfAssessment?.assessments || [];
   if (assessments.length) {
-    const latest = assessments.reduce((a, b) => (a.date > b.date ? a : b));
+    const latest = assessments.reduce((a: {date: string}, b: {date: string}) => (a.date > b.date ? a : b));
     const ageDays = (Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86400000;
     if (ageDays < 120) return '';
   }
   return `<div class="wearable-detail-emf-hint"><span aria-hidden="true">💡</span> Sleep regressing? Sometimes it's the room. <a href="#" ${wearableActionAttrs('open-emf-assessment')} data-umami-event="emf-nudge-wearable-sleep">Check your EMF environment →</a></div>`;
 }
 
-function renderWearableChart(canvas, canon, m, series, manualSeries = []) {
+function renderWearableChart(canvas: HTMLCanvasElement, canon: CanonicalWearableMetric, m: DetailMetricReader, series: readonly WearableSeriesPoint[], manualSeries: readonly ManualDetailPoint[] = []) {
   if (!hasWearableDetailChartRuntime() || !isChartDateAdapterReady()) {
     ensureChartJs().then(() => {
       const currentCanvas = document.getElementById(canvas.id);
-      if (currentCanvas) renderWearableChart(currentCanvas, canon, m, series, manualSeries);
+      if (currentCanvas) renderWearableChart(currentCanvas as HTMLCanvasElement, canon, m, series, manualSeries);
     }).catch(() => {});
     return;
   }
@@ -541,25 +571,25 @@ function renderWearableChart(canvas, canon, m, series, manualSeries = []) {
     : [];
   const isCumulative = CUMULATIVE_METRICS.has(canon.id);
   const todayISO = isoDay();
-  const isPartialIdx = (idx) => isCumulative && series[idx]?.date === todayISO;
+  const isPartialIdx = (idx: number) => isCumulative && series[idx]?.date === todayISO;
   const partialColor = '#f59e0b';
   const primaryAdapter = adapterById(m.primarySource);
   const primaryLabel = primaryAdapter?.displayName || canon.label;
 
   const yValues = baselineIsFinite ? [...values, m.baseline] : values;
-  const ymin = Math.min(...yValues);
-  const ymax = Math.max(...yValues);
+  const ymin = Math.min(...(yValues as number[]));
+  const ymax = Math.max(...(yValues as number[]));
   const pad = Math.max((ymax - ymin) * 0.08, 0.5);
 
   const canonicalUnit = canon.unit || '';
   const unit = wearableDisplayUnit(canon.id, canonicalUnit, state.unitSystem);
-  const formatV = v => formatWearableMetricValue(canon.id, v, canonicalUnit, state.unitSystem);
-  const titleForPoint = (items) => {
+  const formatV = (v: unknown) => (formatWearableMetricValue as (metricId: string, value: unknown, canonicalUnit: string, unitSystem: string) => string)(canon.id, v, canonicalUnit, state.unitSystem);
+  const titleForPoint = (items: readonly ChartTitleItem[] | null | undefined) => {
     const rawX = items?.[0]?.raw?.x;
     if (typeof rawX === 'string') return shortDate(rawX);
     return items?.[0]?.label || '';
   };
-  const datasets = [];
+  const datasets: WearableChartDataset[] = [];
   if (primaryData.length > 0) {
     datasets.push({
       label: primaryLabel,
@@ -622,7 +652,7 @@ function renderWearableChart(canvas, canon, m, series, manualSeries = []) {
           bodyColor: tc.tooltipBody, borderColor: tc.tooltipBorder, borderWidth: 1,
           callbacks: {
             title: titleForPoint,
-            label: (c) => {
+            label: (c: ChartLabelContext) => {
               const base = `${c.dataset.label}: ${formatV(c.parsed.y)}${unit ? ' ' + unit : ''}`;
               if (c.dataset._kind === 'manual') return `${base}  (manual entry)`;
               return (c.dataset._kind === 'primary' && isPartialIdx(c.dataIndex))
@@ -645,7 +675,7 @@ function renderWearableChart(canvas, canon, m, series, manualSeries = []) {
             color: tc.tickColor,
             font: { size: 10 },
             callback: canon.id === 'weight'
-              ? value => formatV(Number(value))
+              ? (value: unknown) => formatV(Number(value))
               : formatChartTickValue,
           },
           grid: { color: tc.gridColor },

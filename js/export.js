@@ -562,14 +562,14 @@ export async function loadDemoData(sex = 'male') {
     const demoJson = prepareDemoBiologyData(JSON.parse(await blob.text()), sex);
     addDemoNutrition(demoJson, sex);
     const demoImportFile = new File([JSON.stringify(demoJson)], file, { type: 'application/json' });
-    if (demoJson?.focusCard?.text) {
+    if ((/** @type {{ text?: unknown } | null | undefined} */ (demoJson?.focusCard))?.text) {
       // Focus card cache ships without a fingerprint — loadFocusCard
       // treats that as a hand-authored prefill and never auto-refreshes
       // against a live provider. Manual ↻ clears the cache.
       localStorage.setItem(profileStorageKey(profileId, 'focusCard'),
-        JSON.stringify({ text: demoJson.focusCard.text }));
+        JSON.stringify({ text: (/** @type {{ text: unknown }} */ (demoJson.focusCard)).text }));
     }
-    if (demoJson?.contextHealth?.dots || demoJson?.entries?.length) {
+    if ((/** @type {{ dots?: unknown } | null | undefined} */ (demoJson?.contextHealth))?.dots || demoJson?.entries?.length) {
       try {
         const { getCardFingerprint } = await import('./context-cards.js');
         // Compute fingerprints against the demo JSON directly — passing
@@ -597,13 +597,13 @@ export async function loadDemoData(sex = 'male') {
         _ctxData.entries = [];
         for (const entry of _ctxSourceEntries) {
           if (!entry.date || !entry.markers) continue;
-          const existing = findOrCreateLabEntry(_ctxData, entry.date, { now: _ctxImportTs });
+          const existing = (/** @type {(data: { entries: unknown[], [key: string]: unknown }, date: unknown, options: Parameters<typeof findOrCreateLabEntry>[2]) => NonNullable<Parameters<typeof setLabEntryMarker>[0]>} */ (findOrCreateLabEntry))(_ctxData, entry.date, { now: _ctxImportTs });
           for (const [key, value] of Object.entries(entry.markers)) {
             setLabEntryMarker(existing, key, value, { now: _ctxImportTs });
           }
         }
-        try { migrateProfileData(_ctxData); } catch (_) {}
-        if (demoJson?.contextHealth?.dots) {
+        try { (/** @type {(data: Record<string, unknown>) => unknown} */ (migrateProfileData))(_ctxData); } catch (_) {}
+        if ((/** @type {{ dots?: unknown } | null | undefined} */ (demoJson?.contextHealth))?.dots) {
           const ctx = {
             importedData: _ctxData,
             profileSex: sex,
@@ -615,10 +615,10 @@ export async function loadDemoData(sex = 'male') {
           const cardSummaries = {};
           const fingerprints = {};
           const sources = {};
-          for (const k of Object.keys(demoJson.contextHealth.dots)) {
-            dots[k] = demoJson.contextHealth.dots[k];
-            summaries[k] = demoJson.contextHealth.summaries?.[k] || '';
-            cardSummaries[k] = demoJson.contextHealth.cardSummaries?.[k] || '';
+          for (const k of Object.keys((/** @type {{ dots: Record<string, unknown> }} */ (demoJson.contextHealth)).dots)) {
+            dots[k] = (/** @type {{ dots: Record<string, unknown> }} */ (demoJson.contextHealth)).dots[k];
+            summaries[k] = (/** @type {{ summaries?: Record<string, unknown> | null }} */ (demoJson.contextHealth)).summaries?.[k] || '';
+            cardSummaries[k] = (/** @type {{ cardSummaries?: Record<string, unknown> | null }} */ (demoJson.contextHealth)).cardSummaries?.[k] || '';
             sources[k] = 'demo';
             try { fingerprints[k] = getCardFingerprint(k, ctx); } catch (_) {}
           }

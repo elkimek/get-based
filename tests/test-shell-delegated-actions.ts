@@ -4,6 +4,7 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static shell delegated-action source guards.
 
 import fs from 'fs';
+import { readAuthoredRepositorySource } from './helpers/repository-source.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -30,7 +31,7 @@ const appLightSunSrc = fs.readFileSync(path.join(root, 'js/app-light-sun-modules
 const lightSunLoaderSrc = fs.readFileSync(path.join(root, 'js/light-sun-loader.js'), 'utf8');
 const mainSrc = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
 const notesRuntimeSrc = fs.readFileSync(path.join(root, 'js/notes-runtime.js'), 'utf8');
-const shellSrc = fs.readFileSync(path.join(root, 'js/shell-actions.js'), 'utf8');
+const shellSrc = readAuthoredRepositorySource('js/shell-actions.js', 'utf8');
 const syncPullSrc = fs.readFileSync(path.join(root, 'js/sync-pull.js'), 'utf8');
 const wearableDetailRuntimeSrc = fs.readFileSync(path.join(root, 'js/wearables-detail-runtime.js'), 'utf8');
 const wearablesRuntimeSrc = fs.readFileSync(path.join(root, 'js/wearables-runtime.js'), 'utf8');
