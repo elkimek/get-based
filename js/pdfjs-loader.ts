@@ -42,3 +42,72 @@ export async function getPdfDocument(input: PdfDocumentInput, extraOpts: Record<
     : { data: input, ...extraOpts, isEvalSupported: false };
   return pdfjs.getDocument(opts).promise;
 }
+
+export async function readFileArrayBuffer(file: File): Promise<ArrayBuffer> {
+  try {
+    return await file.arrayBuffer();
+  } catch (firstError) {
+    if (typeof FileReader === 'undefined') throw firstError;
+    return new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (reader.result instanceof ArrayBuffer) resolve(reader.result);
+        else reject(firstError);
+      };
+      reader.onerror = () => reject(reader.error || firstError);
+      reader.onabort = () => reject(firstError);
+      reader.readAsArrayBuffer(file);
+    });
+  }
+}
+
+// Shared async forwarding boundary: preserve the PDF facade's Promise adoption.
+const extractPdfTextFromFile = extractPDFText;
+export const extractPDFTextFacade = async function extractPDFText(file: File) {
+  return extractPdfTextFromFile(file);
+};
+
+export async function extractPDFText(file: File) {
+  const arrayBuffer = await readFileArrayBuffer(file);
+  const pdf = await getPdfDocument({ data: arrayBuffer });
+  let allItems: Array<{ text: string; x: number; y: number; page: number }> = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    for (const item of textContent.items) {
+      const text = item.str?.trim();
+      if (text) {
+        const transform = item.transform || [];
+        allItems.push({ text, x: Math.round(Number(transform[4]) || 0), y: Math.round(Number(transform[5]) || 0), page: i });
+      }
+    }
+  }
+  // Page-aware row grouping (same logic as old parser - robust geometric approach)
+  const sorted = [...allItems].sort((a, b) => {
+    if (a.page !== b.page) return a.page - b.page;
+    const dy = b.y - a.y;
+    return Math.abs(dy) > 3 ? dy : a.x - b.x;
+  });
+  if (sorted.length === 0) return '';
+  let text = '';
+  let currentPage = sorted[0]!.page;
+  text += `=== Page ${currentPage} ===\n`;
+  let currentRow = [sorted[0]!];
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i]!.page !== currentPage) {
+      text += currentRow.sort((a, b) => a.x - b.x).map(r => r.text).join('  ') + '\n';
+      currentPage = sorted[i]!.page;
+      text += `\n=== Page ${currentPage} ===\n`;
+      currentRow = [sorted[i]!];
+    } else if (Math.abs(sorted[i]!.y - currentRow[0]!.y) < 3) {
+      currentRow.push(sorted[i]!);
+    } else {
+      text += currentRow.sort((a, b) => a.x - b.x).map(r => r.text).join('  ') + '\n';
+      currentRow = [sorted[i]!];
+    }
+  }
+  if (currentRow.length > 0) {
+    text += currentRow.sort((a, b) => a.x - b.x).map(r => r.text).join('  ') + '\n';
+  }
+  return text;
+}

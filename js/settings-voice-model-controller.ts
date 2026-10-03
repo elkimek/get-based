@@ -1,4 +1,6 @@
-// @ts-check
+import type { VoiceKind, VoiceReply } from '../types/voice-local.js';
+type ModelOperation = { id: number; model: string; backend: string };
+
 // settings-voice-model-controller.js — local model UI state and actions.
 
 import { getErrorMessage } from './caught-error.js';
@@ -18,22 +20,20 @@ import {
 } from './voice-model-catalog.js';
 import { getVoiceSettings } from './voice-settings-storage.js';
 
-/** @typedef {{ id: number, model: string, backend: string }} ModelOperation */
-/** @type {{ stt: ModelOperation | null, tts: ModelOperation | null }} */
-const activeModelOperations = { stt: null, tts: null };
+const activeModelOperations: Record<VoiceKind, ModelOperation | null> = { stt: null, tts: null };
 let nextOperationId = 1;
 
-function currentModel(kind) {
+function currentModel(kind: VoiceKind) {
   const settings = getVoiceSettings();
   return kind === 'tts' ? settings.localTtsModel : settings.localSttModel;
 }
 
-function selectedBackend(kind) {
+function selectedBackend(kind: VoiceKind) {
   const settings = getVoiceSettings();
   return kind === 'tts' ? settings.localTtsBackend : settings.localSttBackend;
 }
 
-export function localModelUiStatus(kind, modelId) {
+export function localModelUiStatus(kind: VoiceKind, modelId: string) {
   const backend = selectedBackend(kind);
   if (!isLocalVoiceModelReady(kind, modelId, backend)) {
     const status = getLocalVoiceModelStatus(kind, modelId);
@@ -46,7 +46,7 @@ export function localModelUiStatus(kind, modelId) {
   return localModelStatusText(getLocalVoiceModelStatus(kind, modelId), kind);
 }
 
-function setActionBusy(button, busy, label = 'Working…') {
+export function setActionBusy(button: Element | null | undefined, busy: boolean, label = 'Working…') {
   if (!(button instanceof HTMLButtonElement)) return;
   if (busy) {
     button.dataset.previousLabel = button.textContent || '';
@@ -59,7 +59,7 @@ function setActionBusy(button, busy, label = 'Working…') {
   }
 }
 
-function setModelControlsBusy(panel, kind, busy) {
+function setModelControlsBusy(panel: HTMLElement, kind: VoiceKind, busy: boolean) {
   const prefix = kind === 'tts' ? 'localTts' : 'localStt';
   for (const setting of [`${prefix}Model`, `${prefix}Backend`]) {
     const control = panel.querySelector(`[data-voice-setting="${setting}"]`);
@@ -67,7 +67,7 @@ function setModelControlsBusy(panel, kind, busy) {
   }
 }
 
-function beginModelOperation(kind, model, backend) {
+function beginModelOperation(kind: VoiceKind, model: string, backend: string) {
   if (activeModelOperations[kind]) return null;
   const operation = {
     id: nextOperationId++,
@@ -78,17 +78,17 @@ function beginModelOperation(kind, model, backend) {
   return operation;
 }
 
-function isActiveModelOperation(kind, operation) {
+function isActiveModelOperation(kind: VoiceKind, operation: ModelOperation) {
   return activeModelOperations[kind] === operation;
 }
 
-function isSelectedModelOperation(kind, operation) {
+function isSelectedModelOperation(kind: VoiceKind, operation: ModelOperation) {
   return isActiveModelOperation(kind, operation)
     && currentModel(kind) === operation.model
     && selectedBackend(kind) === operation.backend;
 }
 
-function updateModelStatus(panel, kind, text, state = '') {
+function updateModelStatus(panel: HTMLElement, kind: VoiceKind, text: string, state = '') {
   const status = panel.querySelector(`[data-voice-model-status="${kind}"]`);
   if (!(status instanceof HTMLElement)) return;
   status.textContent = text;
@@ -96,7 +96,7 @@ function updateModelStatus(panel, kind, text, state = '') {
   status.removeAttribute('title');
 }
 
-export function updateModelActions(panel, kind, modelId) {
+export function updateModelActions(panel: HTMLElement, kind: VoiceKind, modelId: string) {
   const ready = isLocalVoiceModelReady(kind, modelId, selectedBackend(kind));
   const busy = !!activeModelOperations[kind];
   const download = panel.querySelector(
@@ -112,10 +112,10 @@ export function updateModelActions(panel, kind, modelId) {
   if (remove instanceof HTMLButtonElement) remove.disabled = busy || !ready;
 }
 
-export function refreshLocalModelDetails(panel, kind) {
+export function refreshLocalModelDetails(panel: HTMLElement, kind: VoiceKind) {
   const modelId = currentModel(kind);
   const models = kind === 'tts' ? LOCAL_TTS_MODELS : LOCAL_STT_MODELS;
-  const model = models.find(item => item.id === modelId) || models[0];
+  const model = models.find(item => item.id === modelId) || models[0]!;
   const row = panel.querySelector(`[data-voice-model-kind="${kind}"]`);
   if (!(row instanceof HTMLElement)) return;
   const title = row.querySelector('.settings-copy-title');
@@ -136,7 +136,18 @@ export function refreshLocalModelDetails(panel, kind) {
   updateModelActions(panel, kind, model.id);
 }
 
-async function installModel(panel, button) {
+function finishModelOperation(kind: VoiceKind, operation: ModelOperation, panel: HTMLElement, model: string, button: HTMLButtonElement) {
+  if (isActiveModelOperation(kind, operation)) {
+    const selectionChanged = !isSelectedModelOperation(kind, operation);
+    activeModelOperations[kind] = null;
+    setActionBusy(button, false);
+    setModelControlsBusy(panel, kind, false);
+    if (selectionChanged) refreshLocalModelDetails(panel, kind);
+    else updateModelActions(panel, kind, model);
+  }
+}
+
+async function installModel(panel: HTMLElement, button: HTMLButtonElement) {
   const kind = button.dataset.kind === 'tts' ? 'tts' : 'stt';
   const model = currentModel(kind);
   const backend = selectedBackend(kind);
@@ -194,18 +205,11 @@ async function installModel(panel, button) {
     }
     showNotification(message, 'error', 6000);
   } finally {
-    if (isActiveModelOperation(kind, operation)) {
-      const selectionChanged = !isSelectedModelOperation(kind, operation);
-      activeModelOperations[kind] = null;
-      setActionBusy(button, false);
-      setModelControlsBusy(panel, kind, false);
-      if (selectionChanged) refreshLocalModelDetails(panel, kind);
-      else updateModelActions(panel, kind, model);
-    }
+    finishModelOperation(kind, operation, panel, model, button);
   }
 }
 
-async function removeModel(panel, button) {
+async function removeModel(panel: HTMLElement, button: HTMLButtonElement) {
   const kind = button.dataset.kind === 'tts' ? 'tts' : 'stt';
   const model = currentModel(kind);
   const backend = selectedBackend(kind);
@@ -224,18 +228,11 @@ async function removeModel(panel, button) {
   } catch (error) {
     showNotification(getErrorMessage(error, 'Could not remove the model cache'), 'error');
   } finally {
-    if (isActiveModelOperation(kind, operation)) {
-      const selectionChanged = !isSelectedModelOperation(kind, operation);
-      activeModelOperations[kind] = null;
-      setActionBusy(button, false);
-      setModelControlsBusy(panel, kind, false);
-      if (selectionChanged) refreshLocalModelDetails(panel, kind);
-      else updateModelActions(panel, kind, model);
-    }
+    finishModelOperation(kind, operation, panel, model, button);
   }
 }
 
-export async function handleLocalModelAction(panel, button) {
+export async function handleLocalModelAction(panel: HTMLElement, button: HTMLButtonElement) {
   if (button.dataset.voiceAction === 'install-model') {
     await installModel(panel, button);
     return true;
@@ -247,8 +244,8 @@ export async function handleLocalModelAction(panel, button) {
   return false;
 }
 
-export function handleLocalModelProgress(event, panel) {
-  const detail = event instanceof CustomEvent ? event.detail : null;
+export function handleLocalModelProgress(event: Event, panel: HTMLElement) {
+  const detail = event instanceof CustomEvent ? event.detail as Pick<VoiceReply, 'kind' | 'model' | 'backend' | 'progress'> | null | undefined : null;
   const progress = detail?.progress || {};
   const kind = detail?.kind === 'tts' ? 'tts' : 'stt';
   const operation = activeModelOperations[kind];
@@ -276,8 +273,8 @@ export function handleLocalModelProgress(event, panel) {
     : 'Preparing model runtime…';
 }
 
-export async function verifyRenderedLocalModels(panel) {
-  for (const kind of /** @type {Array<import('../types/voice-local.js').VoiceKind>} */ (['stt', 'tts'])) {
+export async function verifyRenderedLocalModels(panel: HTMLElement) {
+  for (const kind of (['stt', 'tts'] as VoiceKind[])) {
     const model = currentModel(kind);
     if (!isLocalVoiceModelReady(kind, model, selectedBackend(kind))) continue;
     const ready = await verifyLocalVoiceModelReady(kind, model, selectedBackend(kind));

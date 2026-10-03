@@ -562,11 +562,11 @@ test('PDF import runtime handlers cover AI parse fallback text and image routes'
 });
 
 test('PDF import scanned PDF dialog covers image mode choices', async ({ page }) => {
-  await page.route('**/js/pdfjs-loader.js', route => route.fulfill({
+  await page.route('**/vendor/pdf.min.mjs', route => route.fulfill({
     contentType: 'text/javascript',
     body: `
       export function loadPdfJs() { return Promise.resolve({}); }
-      export async function getPdfDocument() {
+      async function getPdfDocument() {
         return {
           numPages: 1,
           async getPage() {
@@ -578,6 +578,8 @@ test('PDF import scanned PDF dialog covers image mode choices', async ({ page })
           },
         };
       }
+      export const GlobalWorkerOptions = {};
+      export function getDocument() { return { promise: getPdfDocument() }; }
     `,
   }));
   await page.goto('/app', { waitUntil: 'load' });

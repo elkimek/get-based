@@ -1,8 +1,16 @@
-// @ts-check
+import type { VoiceKind } from '../types/voice-local.js';
+import type { VoiceListEntry, VoiceProvider } from '../types/voice-provider.js';
+import type { VoiceCatalogEntry } from './voice-catalog-storage.js';
+type VoiceSettings = ReturnType<typeof getVoiceSettings>;
+type VoiceModelOption = Awaited<ReturnType<VoiceProvider['listModels']>>[number];
+type PpqCatalogContext = { generation: number; language: string };
+type CatalogRequest = { generation: number; controller: AbortController; promise: Promise<VoiceCatalogEntry[]> };
+
 // settings-voice-panel.js — Voice settings actions and hydration.
 
 import { getErrorMessage } from './caught-error.js';
 import {
+  setActionBusy,
   handleLocalModelAction,
   handleLocalModelProgress,
   refreshLocalModelDetails,
@@ -43,15 +51,15 @@ export { renderVoiceSettingsPanel };
 
 let installedProgressListener = false;
 let ppqCatalogGeneration = 0;
-let ppqCatalogRequest = null;
-let openRouterCatalogPromise = null;
-let veniceCatalogPromise = null;
-const openRouterLiveModels = /** @type {{ stt: Array<any>, tts: Array<any> }} */ ({
+let ppqCatalogRequest: CatalogRequest | null = null;
+let openRouterCatalogPromise: Promise<VoiceCatalogEntry[]> | null = null;
+let veniceCatalogPromise: Promise<VoiceCatalogEntry[]> | null = null;
+const openRouterLiveModels: Record<VoiceKind, VoiceModelOption[]> = {
   stt: [],
   tts: [],
-});
+};
 
-function providerOptionsFor(provider, settings) {
+function providerOptionsFor(provider: string, settings: VoiceSettings) {
   return {
     apiKey: getVoiceProviderKey(provider),
     baseUrl: settings.localServerUrl,
@@ -60,20 +68,20 @@ function providerOptionsFor(provider, settings) {
   };
 }
 
-function ppqCatalogContext(providerId, settings) {
+function ppqCatalogContext(providerId: string, settings: VoiceSettings) {
   return providerId === 'ppq'
     ? { generation: ppqCatalogGeneration, language: settings.outputLanguage }
     : null;
 }
 
-function isPpqCatalogContextCurrent(context) {
+function isPpqCatalogContextCurrent(context: PpqCatalogContext | null) {
   if (!context) return true;
   const current = getVoiceSettings();
   return context.generation === ppqCatalogGeneration
     && context.language === current.outputLanguage;
 }
 
-function refreshInputLanguageControl(panel, settings) {
+function refreshInputLanguageControl(panel: HTMLElement, settings: VoiceSettings) {
   const select = panel.querySelector('[data-voice-setting="inputLanguage"]');
   if (!(select instanceof HTMLSelectElement)) return;
   const model = getLocalModel('stt', settings.localSttModel);
@@ -89,7 +97,7 @@ function refreshInputLanguageControl(panel, settings) {
   }
 }
 
-function refreshOutputLanguageControl(panel, settings) {
+function refreshOutputLanguageControl(panel: HTMLElement, settings: VoiceSettings) {
   const select = panel.querySelector('[data-voice-setting="outputLanguage"]');
   if (!(select instanceof HTMLSelectElement)) return;
   const local = resolveVoiceProviderId('tts', settings.outputProvider) === 'browser-local';
@@ -105,7 +113,7 @@ function refreshOutputLanguageControl(panel, settings) {
   }
 }
 
-function refreshVisibility(panel) {
+function refreshVisibility(panel: HTMLElement) {
   const settings = getVoiceSettings();
   const inputProvider = resolveVoiceProviderId('stt', settings.inputProvider);
   const outputProvider = resolveVoiceProviderId('tts', settings.outputProvider);
@@ -148,27 +156,14 @@ function refreshVisibility(panel) {
   if (rate) rate.textContent = `${settings.rate.toFixed(2).replace(/0$/, '')}×`;
 }
 
-function setActionBusy(button, busy, label = 'Working…') {
-  if (!(button instanceof HTMLButtonElement)) return;
-  if (busy) {
-    button.dataset.previousLabel = button.textContent || '';
-    button.textContent = label;
-    button.disabled = true;
-  } else {
-    button.textContent = button.dataset.previousLabel || button.textContent || '';
-    button.disabled = false;
-    delete button.dataset.previousLabel;
-  }
-}
-
-function setTestStatus(panel, provider, text, isError = false) {
+function setTestStatus(panel: HTMLElement, provider: string, text: string, isError = false) {
   const status = panel.querySelector(`[data-voice-test-status="${provider}"]`);
   if (!(status instanceof HTMLElement)) return;
   status.textContent = text;
   status.classList.toggle('error', isError);
 }
 
-async function handleKeyAction(panel, button, clear = false) {
+async function handleKeyAction(panel: HTMLElement, button: HTMLButtonElement, clear = false) {
   const provider = button.dataset.provider || '';
   const input = panel.querySelector(`[data-voice-key-input="${provider}"]`);
   if (!(input instanceof HTMLInputElement)) return;
@@ -197,7 +192,7 @@ async function handleKeyAction(panel, button, clear = false) {
   }
 }
 
-function populateVoiceSelect(select, voices, selectedId) {
+function populateVoiceSelect(select: HTMLSelectElement, voices: readonly VoiceListEntry[], selectedId: unknown) {
   select.replaceChildren();
   for (const voice of voices) {
     const option = document.createElement('option');
@@ -208,28 +203,28 @@ function populateVoiceSelect(select, voices, selectedId) {
   }
 }
 
-function applyVoiceCatalog(panel, providerId, voices, {
+function applyVoiceCatalog(panel: HTMLElement, providerId: string, voices: unknown, {
   catalogId = providerId,
   preferredVoice = '',
 } = {}) {
   const rows = writeVoiceCatalog(catalogId, voices);
   const select = panel.querySelector(`[data-voice-cloud-voices="${providerId}"]`);
   if (!(select instanceof HTMLSelectElement)) return rows;
-  const settingNames = {
+  const settingNames: Record<string, keyof VoiceSettings> = {
     elevenlabs: 'elevenlabsVoice',
     openrouter: 'openRouterVoice',
     ppq: 'ppqVoice',
     venice: 'veniceVoice',
     xai: 'xaiVoice',
   };
-  const settingName = settingNames[providerId];
+  const settingName = settingNames[providerId]!;
   const settings = getVoiceSettings();
   const existing = settings[settingName];
   populateVoiceSelect(select, rows, existing);
   if (rows.length && !rows.some(voice => voice.id === existing)) {
     const replacement = rows.some(voice => voice.id === preferredVoice)
       ? preferredVoice
-      : rows[0].id;
+      : rows[0]!.id;
     setVoiceSetting(settingName, replacement);
     select.value = replacement;
   }
@@ -238,7 +233,7 @@ function applyVoiceCatalog(panel, providerId, voices, {
   return rows;
 }
 
-function populateModelSelect(select, models, selectedId) {
+function populateModelSelect(select: HTMLSelectElement, models: readonly VoiceModelOption[], selectedId: string) {
   select.replaceChildren();
   for (const model of models) {
     const option = document.createElement('option');
@@ -249,7 +244,7 @@ function populateModelSelect(select, models, selectedId) {
   }
 }
 
-function applyOpenRouterModelCatalog(panel, kind, models) {
+function applyOpenRouterModelCatalog(panel: HTMLElement, kind: VoiceKind, models: VoiceModelOption[]) {
   const select = panel.querySelector(`[data-voice-openrouter-model="${kind}"]`);
   const settingName = kind === 'stt' ? 'openRouterSttModel' : 'openRouterTtsModel';
   const existing = getVoiceSettings()[settingName];
@@ -263,7 +258,7 @@ function applyOpenRouterModelCatalog(panel, kind, models) {
   return selectedModel;
 }
 
-function applyOpenRouterVoices(panel, model) {
+function applyOpenRouterVoices(panel: HTMLElement, model: VoiceModelOption | null | undefined) {
   if (!model) return [];
   return applyVoiceCatalog(panel, 'openrouter', voicesForOpenRouterModel(model), {
     catalogId: openRouterVoiceCatalogId(model.id),
@@ -271,13 +266,13 @@ function applyOpenRouterVoices(panel, model) {
   });
 }
 
-function refreshOpenRouterVoicesFromCache(panel) {
+function refreshOpenRouterVoicesFromCache(panel: HTMLElement) {
   const settings = getVoiceSettings();
   const model = openRouterLiveModels.tts.find(row => row.id === settings.openRouterTtsModel);
   return model ? applyOpenRouterVoices(panel, model) : [];
 }
 
-async function hydrateOpenRouterCatalog(panel, { force = false } = {}) {
+async function hydrateOpenRouterCatalog(panel: HTMLElement, { force = false } = {}) {
   const settings = getVoiceSettings();
   const usesStt = resolveVoiceProviderId('stt', settings.inputProvider) === 'openrouter';
   const usesTts = resolveVoiceProviderId('tts', settings.outputProvider) === 'openrouter';
@@ -328,7 +323,7 @@ async function hydrateOpenRouterCatalog(panel, { force = false } = {}) {
   return openRouterCatalogPromise;
 }
 
-async function hydratePpqVoiceCatalog(panel, { force = false } = {}) {
+async function hydratePpqVoiceCatalog(panel: HTMLElement, { force = false } = {}) {
   const settings = getVoiceSettings();
   if (
     resolveVoiceProviderId('tts', settings.outputProvider) !== 'ppq'
@@ -378,7 +373,7 @@ async function hydratePpqVoiceCatalog(panel, { force = false } = {}) {
   return promise;
 }
 
-async function hydrateVeniceVoiceCatalog(panel, { force = false } = {}) {
+async function hydrateVeniceVoiceCatalog(panel: HTMLElement, { force = false } = {}) {
   const settings = getVoiceSettings();
   if (
     resolveVoiceProviderId('tts', settings.outputProvider) !== 'venice'
@@ -409,7 +404,7 @@ async function hydrateVeniceVoiceCatalog(panel, { force = false } = {}) {
   return veniceCatalogPromise;
 }
 
-async function handleTestProvider(panel, button) {
+async function handleTestProvider(panel: HTMLElement, button: HTMLButtonElement) {
   const providerId = button.dataset.provider || 'browser-local';
   const settings = getVoiceSettings();
   const catalogContext = ppqCatalogContext(providerId, settings);
@@ -453,7 +448,7 @@ async function handleTestProvider(panel, button) {
   }
 }
 
-async function handleRefreshVoices(panel, button) {
+async function handleRefreshVoices(panel: HTMLElement, button: HTMLButtonElement) {
   const providerId = button.dataset.provider || '';
   if (!hasVoiceProviderKey(providerId)) {
     showNotification(
@@ -493,7 +488,7 @@ async function handleRefreshVoices(panel, button) {
   }
 }
 
-async function handleVoiceClick(event, panel) {
+async function handleVoiceClick(event: Event, panel: HTMLElement) {
   const target = event.target instanceof Element
     ? event.target.closest('[data-voice-action]')
     : null;
@@ -507,7 +502,7 @@ async function handleVoiceClick(event, panel) {
   if (action === 'refresh-voices') await handleRefreshVoices(panel, target);
 }
 
-function handleVoiceSetting(event, panel) {
+function handleVoiceSetting(event: Event, panel: HTMLElement) {
   const input = event.target;
   if (!(input instanceof HTMLInputElement || input instanceof HTMLSelectElement)) return;
   if (input.matches('[data-voice-shared-provider]')) {
@@ -548,8 +543,7 @@ function handleVoiceSetting(event, panel) {
   }
 }
 
-/** @param {Document | HTMLElement} [root] */
-export function installVoiceSettingsPanel(root = document) {
+export function installVoiceSettingsPanel(root: Document | HTMLElement = document) {
   const panel = root.querySelector?.('[data-tab-panel="voice"]');
   if (!(panel instanceof HTMLElement)) return false;
   if (panel.dataset.voiceDelegates !== '1') {

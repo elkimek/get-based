@@ -46,7 +46,7 @@ import {
 import { normalizeSpeechText, splitSpeechText } from '../js/voice-text.js';
 
 afterEach(() => {
-  for (const key of Object.values(VOICE_STORAGE_KEYS)) localStorage.removeItem(key);
+  for (const key of (Object.values(VOICE_STORAGE_KEYS) as string[])) localStorage.removeItem(key);
   localStorage.removeItem('labcharts-ai-provider');
   localStorage.removeItem('labcharts-chat-backend');
   clearKeyCache();

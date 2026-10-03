@@ -548,7 +548,7 @@ export async function handleSnpReportFile(file: File) {
     await loadSNPTable({ forceFresh: true });
     let text = '';
     if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') {
-      const { extractPDFTextFacade: extractPDFText } = await import('./pdf-import-file-utils.js');
+      const { extractPDFTextFacade: extractPDFText } = await import('./pdfjs-loader.js');
       text = await extractPDFText(file);
     } else {
       text = await file.text();

@@ -1,4 +1,9 @@
-// @ts-check
+import type { VoiceKind, VoiceModelStatus } from '../types/voice-local.js';
+import type { getVoiceSettings } from './voice-settings-storage.js';
+type VoiceSettings = ReturnType<typeof getVoiceSettings>;
+interface WebGpuCapability { available: boolean; name: string }
+interface VoiceGpuNavigator { gpu?: { requestAdapter?: (options: { powerPreference: string }) => Promise<{ info?: { description?: unknown; architecture?: unknown; vendor?: unknown } } | null> } }
+
 // settings-voice-hardware.js — shared hardware controls for local voice models.
 
 import { LOCAL_VOICE_BACKENDS } from './voice-model-catalog.js';
@@ -10,20 +15,20 @@ import {
   resolveLocalBackend,
 } from './voice-local-engine.js';
 
-let webGpuCapabilityPromise;
+let webGpuCapabilityPromise: Promise<WebGpuCapability> | undefined;
 
-function selected(value, expected) {
+function selected(value: unknown, expected: unknown) {
   return value === expected ? ' selected' : '';
 }
 
 async function detectWebGpu() {
   const gpu = typeof navigator === 'undefined'
     ? null
-    : /** @type {any} */ (navigator).gpu;
+    : (navigator as Navigator & VoiceGpuNavigator).gpu;
   if (!gpu?.requestAdapter) return { available: false, name: '' };
   try {
     const adapter = await gpu.requestAdapter({ powerPreference: 'high-performance' });
-    const info = adapter?.info || {};
+    const info: { description?: unknown; architecture?: unknown; vendor?: unknown } = adapter?.info || {};
     return {
       available: !!adapter,
       name: String(info.description || info.architecture || info.vendor || ''),
@@ -38,12 +43,12 @@ function getWebGpuCapability() {
   return webGpuCapabilityPromise;
 }
 
-function performanceScore(value) {
-  const realtimeFactor = Number(value?.realtimeFactor);
+function performanceScore(value: unknown) {
+  const realtimeFactor = Number((value as { realtimeFactor?: unknown } | null | undefined)?.realtimeFactor);
   return Number.isFinite(realtimeFactor) ? realtimeFactor : Number(value);
 }
 
-function autoPerformanceText(kind, model, capability) {
+function autoPerformanceText(kind: VoiceKind, model: string, capability: WebGpuCapability) {
   const performance = getLocalVoiceModelStatus(kind, model)?.performance || {};
   const cpu = performanceScore(performance.wasm);
   const gpu = performanceScore(performance.webgpu);
@@ -67,7 +72,7 @@ function autoPerformanceText(kind, model, capability) {
   return 'Automatic starts with the main processor. Try the graphics processor once to compare.';
 }
 
-function renderHardwareRow(settings, kind) {
+function renderHardwareRow(settings: VoiceSettings, kind: VoiceKind) {
   const input = kind === 'stt';
   const setting = input ? 'localSttBackend' : 'localTtsBackend';
   const description = input
@@ -94,15 +99,15 @@ function renderHardwareRow(settings, kind) {
     </div>`;
 }
 
-export function renderSttHardwareRow(settings) {
+export function renderSttHardwareRow(settings: VoiceSettings) {
   return renderHardwareRow(settings, 'stt');
 }
 
-export function renderTtsHardwareRow(settings) {
+export function renderTtsHardwareRow(settings: VoiceSettings) {
   return renderHardwareRow(settings, 'tts');
 }
 
-async function refreshHardwareDescription(panel, settings, kind) {
+async function refreshHardwareDescription(panel: HTMLElement, settings: VoiceSettings, kind: VoiceKind) {
   const input = kind === 'stt';
   const setting = input ? 'localSttBackend' : 'localTtsBackend';
   const model = input ? settings.localSttModel : settings.localTtsModel;
@@ -125,7 +130,7 @@ async function refreshHardwareDescription(panel, settings, kind) {
   }
   description.textContent = 'Checking graphics support…';
   const capability = await getWebGpuCapability();
-  const currentValue = panel.querySelector(`[data-voice-setting="${setting}"]`)?.value;
+  const currentValue = panel.querySelector<HTMLSelectElement>(`[data-voice-setting="${setting}"]`)?.value;
   if (currentValue !== settings[setting]) return;
   if (settings[setting] === 'webgpu') {
     description.textContent = capability.available
@@ -140,18 +145,18 @@ async function refreshHardwareDescription(panel, settings, kind) {
   }
 }
 
-export function refreshSttHardwareDescription(panel, settings) {
+export function refreshSttHardwareDescription(panel: HTMLElement, settings: VoiceSettings) {
   return refreshHardwareDescription(panel, settings, 'stt');
 }
 
-export function refreshTtsHardwareDescription(panel, settings) {
+export function refreshTtsHardwareDescription(panel: HTMLElement, settings: VoiceSettings) {
   return refreshHardwareDescription(panel, settings, 'tts');
 }
 
-export function localModelStatusText(status, kind = 'stt') {
+export function localModelStatusText(status: Pick<VoiceModelStatus, 'backend' | 'fallbackReason' | 'lastInferenceMs'> | null | undefined, kind = 'stt') {
   if (!status) return 'Not downloaded yet';
   const timing = Number.isFinite(status.lastInferenceMs)
-    ? ` · last ${kind === 'tts' ? 'speech generation' : 'transcription'} ${(status.lastInferenceMs / 1000).toFixed(1)}s`
+    ? ` · last ${kind === 'tts' ? 'speech generation' : 'transcription'} ${(status.lastInferenceMs! / 1000).toFixed(1)}s`
     : '';
   if (status.backend === 'webgpu') return `Ready to use · Graphics processor${timing}`;
   if (status.backend === 'wasm' && status.fallbackReason) {

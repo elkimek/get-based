@@ -754,3 +754,7 @@ deploy/profile-share/data/
 /js/chat-icons.js
 /js/voice-controller.js
 /js/voice-loader.js
+/js/settings-voice-hardware.js
+/js/settings-voice-model-controller.js
+/js/settings-voice-view.js
+/js/settings-voice-panel.js
