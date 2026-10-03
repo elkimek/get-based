@@ -1017,3 +1017,11 @@ deploy/profile-share/data/
 /js/shell-actions.js
 
 /js/wearables-detail-modal.js
+
+/js/client-list-runtime.js
+
+/js/views-router-runtime.js
+
+/js/wearables-runtime.js
+
+/js/onboarding-view.js

@@ -1,34 +1,41 @@
-// @ts-check
 // views-router-runtime.js - Browser runtime adapters for routing scroll/window hooks.
 
 import { configureRuntimeDependencies } from './runtime-callbacks.js';
 import { syncImportStatusFab } from './pdf-import-progress.js';
 
-const viewsRouterRuntimeDeps = {
-  closeMobileSidebar: /** @type {null | (() => void)} */ (null),
-  navigate: /** @type {null | ((view: string) => void)} */ (null),
+type ViewsRouterCalls = {
+  closeMobileSidebar: (() => unknown) | null;
+  navigate: ((view: string) => unknown) | null;
+  syncImportStatusFab: typeof syncImportStatusFab;
+};
+export type ViewsRouterRuntimeSnapshot = { [Key in keyof ViewsRouterCalls]: unknown };
+interface RuntimeWindowReader extends Record<string, unknown> {
+  document?: { documentElement?: { clientHeight?: unknown } | null; body?: {clientHeight?: unknown} | null } | null;
+  addEventListener?: ((type: string, callback: unknown, options: {passive: boolean; capture: boolean}) => unknown) | null;
+  removeEventListener?: ((type: string, callback: unknown, options: {passive: boolean; capture: boolean}) => unknown) | null;
+}
+type ScrollFunction = (...args: unknown[]) => unknown;
+const viewsRouterRuntimeDeps: ViewsRouterCalls = {
+  closeMobileSidebar: (null),
+  navigate: (null),
   syncImportStatusFab,
 };
 
-export function configureViewsRouterRuntimeDeps(deps = {}) {
-  return configureRuntimeDependencies(viewsRouterRuntimeDeps, deps, ['closeMobileSidebar', 'navigate']);
+export function configureViewsRouterRuntimeDeps(deps: unknown = {}): ViewsRouterRuntimeSnapshot {
+  return configureRuntimeDependencies(viewsRouterRuntimeDeps, deps as Partial<ViewsRouterCalls>, ['closeMobileSidebar', 'navigate']);
 }
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
+    ? (window as unknown as RuntimeWindowReader)
     : null;
 }
 
-/**
- * @param {string} name
- * @returns {Function | null}
- */
-function getRuntimeFunction(name) {
+function getRuntimeFunction(name: string): ScrollFunction | null {
   const runtime = getRuntimeWindow();
   if (!runtime) return null;
   const fn = runtime[name];
-  return typeof fn === 'function' ? fn.bind(runtime) : null;
+  return typeof fn === 'function' ? fn.bind(runtime) as ScrollFunction : null;
 }
 
 export function getViewportScrollPosition() {
@@ -49,13 +56,11 @@ export function syncImportStatusFabFromRuntime() {
   viewsRouterRuntimeDeps.syncImportStatusFab();
 }
 
-/** @param {string} view */
-export function navigateViewportRuntime(view) {
+export function navigateViewportRuntime(view: string) {
   viewsRouterRuntimeDeps.navigate?.(view);
 }
 
-/** @param {() => void} cancel */
-export function addViewportInputCancelListeners(cancel) {
+export function addViewportInputCancelListeners(cancel: unknown) {
   const runtime = getRuntimeWindow();
   if (!runtime || typeof runtime.addEventListener !== 'function') return () => {};
   const inputOpts = { passive: true, capture: true };
@@ -70,8 +75,7 @@ export function addViewportInputCancelListeners(cancel) {
   };
 }
 
-/** @param {{ x?: number, y?: number } | null} pos */
-export function restoreViewportScroll(pos) {
+export function restoreViewportScroll(pos: {x?: unknown; y?: unknown} | null | undefined) {
   const scrollTo = getRuntimeFunction('scrollTo');
   if (!pos || !scrollTo) return;
   try { scrollTo({ left: pos.x || 0, top: pos.y || 0, behavior: 'instant' }); } catch (_) {
@@ -91,8 +95,7 @@ export function getViewportHeight() {
   return 0;
 }
 
-/** @param {number} delta */
-export function scrollViewportBy(delta) {
+export function scrollViewportBy(delta: unknown) {
   const scrollBy = getRuntimeFunction('scrollBy');
   if (!scrollBy) return;
   try { scrollBy({ top: delta, behavior: 'instant' }); } catch (_) {

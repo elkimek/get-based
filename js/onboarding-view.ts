@@ -1,4 +1,3 @@
-// @ts-check
 // onboarding-view.js - Dashboard onboarding and AI connection reminders
 
 import { state } from './state.js';
@@ -16,25 +15,25 @@ import {
   renderOnboardingChatMessagesRuntime,
 } from './onboarding-view-runtime.js';
 
-let _navigate = null;
+let _navigate: unknown = null;
 let _onboardingActionsInstalled = false;
 
 const ONBOARDING_ACTION_ATTR = 'data-onboarding-action';
 const ONBOARDING_ACTION_SELECTOR = `[${ONBOARDING_ACTION_ATTR}]`;
 
-function onboardingActionAttrs(action, attrs = {}) {
+function onboardingActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   return camelCaseActionAttributes(ONBOARDING_ACTION_ATTR, "onboarding", action, attrs);
 }
 
-function closestOnboardingAction(target) {
+function closestOnboardingAction(target: unknown) {
   return /** @type {HTMLElement | null} */ (
-    target && typeof target.closest === 'function'
-      ? target.closest(ONBOARDING_ACTION_SELECTOR)
+    target && typeof (target as { closest?: unknown }).closest === 'function'
+      ? (target as { closest(selector: string): HTMLElement | null }).closest(ONBOARDING_ACTION_SELECTOR)
       : null
   );
 }
 
-function handleOnboardingActionClick(event) {
+function handleOnboardingActionClick(event: MouseEvent) {
   const actionEl = closestOnboardingAction(event.target);
   if (!actionEl) return;
   const action = actionEl.getAttribute(ONBOARDING_ACTION_ATTR);
@@ -66,7 +65,7 @@ export function installOnboardingActionDelegates(root = typeof document !== 'und
 
 installOnboardingActionDelegates();
 
-export function configureOnboardingView(options = {}) {
+export function configureOnboardingView(options: { navigate?: unknown } = {}) {
   _navigate = typeof options.navigate === 'function' ? options.navigate : null;
 }
 
@@ -114,7 +113,7 @@ export function renderOnboardingBanner() {
 }
 
 export function openOnboardingImportFilePicker() {
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('pdf-input'));
+  const input = document.getElementById('pdf-input') as HTMLInputElement | null;
   if (!input) {
     showNotification('Import control is not available on this screen.', 'error');
     return;
@@ -123,7 +122,7 @@ export function openOnboardingImportFilePicker() {
   input.click();
 }
 
-export function completeOnboardingSex(sex) {
+export function completeOnboardingSex(sex: unknown) {
   document.querySelectorAll('.onboarding-sex-btn').forEach(b => b.classList.remove('active'));
   const btns = document.querySelectorAll('.onboarding-sex-btn');
   if (sex === 'male' && btns[0]) btns[0].classList.add('active');
@@ -132,8 +131,8 @@ export function completeOnboardingSex(sex) {
 
 export async function completeOnboardingProfile() {
   const activeSexBtn = document.querySelector('.onboarding-sex-btn.active');
-  const sex = activeSexBtn ? (activeSexBtn.textContent.trim().toLowerCase()) : null;
-  const dobInput = /** @type {HTMLInputElement | null} */ (document.getElementById('onboarding-dob'));
+  const sex = activeSexBtn ? (activeSexBtn.textContent!.trim().toLowerCase()) : null;
+  const dobInput = document.getElementById('onboarding-dob') as HTMLInputElement | null;
   const dob = dobInput ? dobInput.value : null;
   try {
     if (sex && !await setProfileSex(state.currentProfile, sex)) return;
@@ -193,7 +192,7 @@ export function dismissAIReminder() {
   }
 }
 
-export function setOnboardingFocus(mode) {
+export function setOnboardingFocus(mode: unknown) {
   const body = document.body;
   body.classList.remove('cards-focus', 'import-focus');
   if (!mode) return;
