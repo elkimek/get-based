@@ -1,0 +1,165 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
+import { buildProduction, handleBuildLog } from '../scripts/build-production.mjs';
+
+let outputRoot: string | undefined;
+let summary: Awaited<ReturnType<typeof buildProduction>> | undefined;
+const appShellBudget = (JSON.parse as (text: string) => {maximums: {resources: unknown; decodedBytes: unknown}})(
+  await fs.readFile('scripts/app-shell-budget.json', 'utf8'),
+);
+const productionBuildBudget = (JSON.parse as (text: string) => {maximums: {startupDecodedBytes: unknown; outputJavaScriptFiles: unknown; outputDecodedBytes: unknown}})(
+  await fs.readFile('scripts/production-build-budget.json', 'utf8'),
+);
+
+beforeAll(async () => {
+  outputRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'getbased-production-build-test-'));
+  summary = await buildProduction({ outputRoot });
+}, 20_000);
+
+afterAll(async () => {
+  if (outputRoot) await fs.rm(outputRoot, { recursive: true, force: true });
+});
+
+describe('production startup build', () => {
+  it('pins the same build identity into the app and worker without changing the release version', async () => {
+    const version = await fs.readFile(path.join(outputRoot!, 'version.js'), 'utf8');
+    const source = await fs.readFile('version.js', 'utf8');
+    const worker = await readServiceWorkerSource(relative => fs.readFile(path.join(outputRoot!, relative), 'utf8'));
+    const id = version.match(/APP_BUILD_ID = '([a-f0-9]{64})'/)?.[1];
+    expect(id).toBeTruthy();
+    expect(worker).toContain(`const BUILD_ID = '${id}';`);
+    expect(version).toContain(source.trim());
+  });
+  it('changes the worker and app identity for a new commit with the same version', async () => {
+    const nextRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'getbased-next-build-'));
+    const versionBefore = await fs.readFile(path.join(outputRoot!, 'version.js'), 'utf8');
+    try {
+      vi.stubEnv('VERCEL_GIT_COMMIT_SHA', 'test-next-deployed-commit');
+      await buildProduction({ outputRoot: nextRoot });
+      const versionAfter = await fs.readFile(path.join(nextRoot, 'version.js'), 'utf8');
+      expect(versionAfter.match(/APP_VERSION = '[^']+'/)?.[0]).toBe(versionBefore.match(/APP_VERSION = '[^']+'/)?.[0]);
+      expect(versionAfter).not.toBe(versionBefore);
+      const id = versionAfter.match(/APP_BUILD_ID = '([^']+)'/)?.[1];
+      expect(await readServiceWorkerSource(relative => fs.readFile(path.join(nextRoot, relative), 'utf8'))).toContain(`const BUILD_ID = '${id}';`);
+    } finally {
+      vi.unstubAllEnvs();
+      await fs.rm(nextRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps repository HTML pointed at the native development entry', async () => {
+    const sourceIndex = await fs.readFile('index.html', 'utf8');
+    expect(sourceIndex).toContain('<script type="module" src="js/main.js"></script>');
+    expect(sourceIndex).not.toMatch(/<script type="module" src="js\/bundle-main-[^"]+\.js"><\/script>/);
+  });
+
+  it('rejects ineffective dynamic imports instead of shipping misleading lazy boundaries', () => {
+    expect(() => handleBuildLog(
+      'warn',
+      { code: 'INEFFECTIVE_DYNAMIC_IMPORT', message: 'already statically imported' },
+      () => {},
+    )).toThrow(/INEFFECTIVE_DYNAMIC_IMPORT/);
+  });
+
+  it('collapses the static startup graph into one bundle plus its tiny runtime', () => {
+    expect(summary!.startupJavaScriptFiles).toBe(2);
+    expect(summary!.startupDecodedBytes).toBeLessThanOrEqual(
+      (productionBuildBudget.maximums.startupDecodedBytes as number),
+    );
+    expect(summary!.outputJavaScriptFiles).toBeLessThanOrEqual(
+      (productionBuildBudget.maximums.outputJavaScriptFiles as number),
+    );
+    expect(summary!.outputDecodedBytes).toBeLessThanOrEqual(
+      (productionBuildBudget.maximums.outputDecodedBytes as number),
+    );
+    expect(summary!.lazyJavaScriptFiles).toBeGreaterThan(100);
+  });
+
+  it('keeps inbound sync reconciliation out of the startup bundle', async () => {
+    const generatedFiles = await fs.readdir(path.join(outputRoot!, 'js'));
+
+    expect(generatedFiles.some(fileName =>
+      /^bundle-sync-reconciliation-.*\.js$/.test(fileName))).toBe(true);
+  });
+
+  it('points production HTML at the hashed entry while preserving the early welcome paint', async () => {
+    const index = await fs.readFile(path.join(outputRoot!, 'index.html'), 'utf8');
+    expect(index).toContain(`<script type="module" src="js/${summary!.entryFile}"></script>`);
+    expect(index).toContain('<link rel="modulepreload" href="js/bundle-rolldown-runtime-');
+    expect(index).not.toContain('<script type="module" src="js/main.js"></script>');
+    expect(index).toContain('data-prerendered-welcome');
+    expect(index).toContain('data-dashboard-welcome-action="open-chat"');
+    expect(index).toContain('Chat starts with the basics');
+    expect(index).toContain('<script src="js/legal-consent-bootstrap.js"></script>');
+    expect(index).not.toMatch(/<script(?:\s[^>]*)?>\s*[^<]/);
+  });
+
+  it('emits the standalone Linux companion download beside the hosted app', async () => {
+    const companion = await fs.readFile(path.join(outputRoot!, 'getbased-companion.mjs'), 'utf8');
+    expect(companion.startsWith('#!/usr/bin/env node\n')).toBe(true);
+    expect(companion).toContain('getbased-companion install');
+  });
+
+  it('pre-caches every generated lazy chunk for installed offline use', async () => {
+    const serviceWorker = await readServiceWorkerSource(relative => fs.readFile(path.join(outputRoot!, relative), 'utf8'));
+    const serviceWorkerRuntime = await fs.readFile(
+      path.join(outputRoot!, 'service-worker-runtime.js'),
+      'utf8',
+    );
+    const generatedFiles = (await fs.readdir(path.join(outputRoot!, 'js')))
+      .filter(fileName => /^bundle-.*\.js$/.test(fileName));
+
+    expect(generatedFiles).toHaveLength(summary!.outputJavaScriptFiles);
+    for (const fileName of generatedFiles) {
+      expect(serviceWorker).toContain(`'/js/${fileName}',`);
+    }
+    expect(serviceWorker).not.toContain("'/js/main.js',");
+    expect(serviceWorker).not.toContain("'/js/views.js',");
+    expect(serviceWorker).not.toContain("'/js/chat-layout.js',");
+    expect(serviceWorker).not.toContain("'/js/agent-chat-client.js',");
+    expect(serviceWorker).toContain("'/js/theme-bootstrap.js',");
+    expect(serviceWorker).toContain("'/js/extra-theme-bootstrap.js',");
+    expect(serviceWorker).toContain("'/js/analytics-bootstrap.js',");
+    expect(serviceWorker).toContain("'/js/legal-consent-bootstrap.js',");
+    expect(serviceWorker).toContain("'/js/service-worker-update.js',");
+    expect(serviceWorker).toContain("'/js/lens-local-worker.js',");
+    expect(serviceWorker).toContain("'/js/lens-local-utils.js',");
+    expect(serviceWorker).toContain("'/js/lens-local-store.js',");
+    expect(serviceWorker).toContain("'/service-worker-runtime.js',");
+    expect(serviceWorkerRuntime).toContain('installServiceWorkerRuntime');
+    expect(summary!.appShellResources).toBeLessThanOrEqual(
+      (appShellBudget.maximums.resources as number),
+    );
+    expect(summary!.appShellDecodedBytes).toBeLessThanOrEqual(
+      (appShellBudget.maximums.decodedBytes as number),
+    );
+  });
+
+  it('keeps Evolu beside its database worker in production', async () => {
+    const generatedFiles = (await fs.readdir(path.join(outputRoot!, 'js')))
+      .filter(fileName => /^bundle-.*\.js$/.test(fileName));
+    const generatedSource = (await Promise.all(generatedFiles.map(fileName =>
+      fs.readFile(path.join(outputRoot!, 'js', fileName), 'utf8')))).join('\n');
+    const serviceWorker = await readServiceWorkerSource(relative => fs.readFile(path.join(outputRoot!, relative), 'utf8'));
+
+    expect(generatedSource).toContain('../vendor/evolu/evolu-bundle.js');
+    expect(generatedSource).toContain('../vendor/evolu8/evolu-bundle.js');
+    expect(generatedSource).not.toContain('Db.worker.js');
+    expect(serviceWorker).toContain("'/vendor/evolu/evolu-bundle.js',");
+    expect(serviceWorker).toContain("'/vendor/evolu/Db.worker.js',");
+    expect(serviceWorker).toContain("'/vendor/evolu8/evolu-bundle.js',");
+    expect(serviceWorker).toContain("'/vendor/evolu8/Db.worker.js',");
+    expect(serviceWorker).toContain("'/vendor/evolu8/Shared.worker.js',");
+  });
+
+  it('keeps the cold Latin body font from repainting the mobile LCP text', async () => {
+    const fonts = await fs.readFile('vendor/fonts/fonts.css', 'utf8');
+    expect(fonts).toMatch(
+      /font-weight: 400;\s+font-display: optional;\s+src: url\('\.\/inter-400-7\.woff2'\)/,
+    );
+  });
+});

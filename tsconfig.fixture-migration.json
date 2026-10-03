@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.migration.json",
+  "include": [
+    "tests/test-*.ts"
+  ]
+}

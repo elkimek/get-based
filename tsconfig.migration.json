@@ -4,6 +4,21 @@
     "paths": {
       "/js/*": [
         "./js/*"
+      ],
+      "/scripts/*": [
+        "./scripts/*"
+      ],
+      "/tests/*": [
+        "./tests/*"
+      ],
+      "/js/sun-sessions-store.js?recovery-browser": [
+        "./js/sun-sessions-store.ts"
+      ],
+      "/js/sun-active-session.js?recovery-browser": [
+        "./js/sun-active-session.ts"
+      ],
+      "/js/sun-active-session.js?replacement-browser": [
+        "./js/sun-active-session.ts"
       ]
     },
     "module": "NodeNext",
@@ -39,6 +54,7 @@
     "api/**/*.ts",
     "server/**/*.ts",
     "bin/**/*.ts",
+    "tests/fixtures/cashu-browser-durable.ts",
     "tests/helpers/**/*.ts",
     "tests/playwright/coverage-fixture.ts",
     "tests/playwright/browser-script-runner.ts",

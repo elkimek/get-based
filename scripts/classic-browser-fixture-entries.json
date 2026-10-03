@@ -1,0 +1,15 @@
+[
+  "tests/test-silhouette-region-map.ts",
+  "tests/test-silhouette-picker.ts",
+  "tests/test-sun-ui-flow.ts",
+  "tests/test-wearables-ui-flows.ts",
+  "tests/test-lens-local-worker.ts",
+  "tests/test-ui-flows.ts",
+  "tests/test-wearables-dom.ts",
+  "tests/test-chat-panel-ux.ts",
+  "tests/test-a11y-axe.ts",
+  "tests/test-ai-verdict-engine.ts",
+  "tests/test-export-import.ts",
+  "tests/test-mobile.ts",
+  "tests/test-audit-fixes.ts"
+]

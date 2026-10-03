@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 import { sourceCallsNamespacedActionAttributes } from './helpers/native-source-contracts.js';
 import { parseModuleSpecifiers } from '../scripts/architecture-map.mjs';
+import { readAuthoredRepositorySource } from './helpers/repository-source.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const JS_ROOT = path.join(ROOT, 'js');
@@ -133,6 +134,7 @@ const IMPLEMENTATION_OWNED_ACTION_FAMILIES = [
 ];
 
 function source(relativePath: string) {
+  if (relativePath.endsWith('.spec.js')) return readAuthoredRepositorySource(relativePath);
   return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
 }
 

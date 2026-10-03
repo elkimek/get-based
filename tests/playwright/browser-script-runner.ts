@@ -8,6 +8,12 @@ interface FixtureWindow extends Window {
   __testResults?: unknown;
 }
 
+/** Capability installed by runBrowserScript before a classic fixture executes. */
+export type BrowserFixtureHost = Pick<FixtureWindow, 'fetchWithRetry'>;
+declare global {
+  var fetchWithRetry: NonNullable<BrowserFixtureHost['fetchWithRetry']>;
+}
+
 import { expect } from '@playwright/test';
 
 function buildFailureMessage(testPath: string, failures: readonly string[], pageErrors: readonly string[], recentMessages: readonly BrowserMessage[]) {
