@@ -1,3 +1,5 @@
+type FixtureProof = Record<string,unknown>;
+type FixtureFirstArgument<Callable> = Callable extends (first: infer _First,...rest:infer Rest)=>infer Result ? (first:unknown,...rest:Rest)=>Result : never;
 import { routeHtml } from '../helpers/browser-static-routes.js';
 import { installWalletFixtures } from '../helpers/wallet-browser-fixtures.js';
 import { expect, test } from './coverage-fixture.js';
@@ -11,13 +13,13 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
     const { makeTestInvoice, LNURL_METADATA } = await import('/wallet-test-lightning-invoices.js');
     const { validateLightningInvoice } = await import('/js/routstr-validation.js');
     const oldGlobals = {
-      cashuts: window.cashuts,
-      bip39: window.bip39,
+      cashuts: (window as {cashuts?: unknown}).cashuts,
+      bip39: (window as {bip39?: unknown}).bip39,
       fetch: window.fetch,
-      showNotification: window.showNotification,
+      showNotification: (window as unknown as {showNotification:unknown}).showNotification,
     };
-    const notices = [];
-    const proof = (secret, amount, extra = {}) => ({ secret, amount, C: `C-${secret}`, ...extra });
+    const notices: unknown[] = [];
+    const proof = (secret: unknown, amount: unknown, extra: unknown = {}) => ({ secret, amount, C: `C-${secret}`, ...(extra as object) });
     const state = {
       receiveQueue: [
         [proof('rx-token-1', 10)],
@@ -25,21 +27,25 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
         [proof('import-token-1', 3)],
         [proof('rx-token-3', 100)],
       ],
-      instances: [],
-      meltQuotes: new Map(),
+      instances: [] as Wallet[],
+      meltQuotes: new Map<unknown,{quote:string;amount:number;request:unknown;fee_reserve:number;state:string}>(),
       sendId: 0,
       failMelt: false,
-      topupAuth: null,
-      createDepositUrl: null,
-      lnurlAmounts: [],
+      topupAuth: null as unknown,
+      createDepositUrl: null as string | null,
+      lnurlAmounts: [] as number[],
     };
 
-    function sumProofs(proofs = []) {
+    function sumProofs(proofs: FixtureProof[] = []) {
       return proofs.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
     }
 
     class Wallet {
-      constructor(url, opts = {}) {
+      declare url:unknown;
+      declare opts:unknown;
+      declare keyChain:{getKeysets:()=>{id:string}[]};
+      declare counters:{advanceToAtLeast:()=>Promise<void>};
+      constructor(url: unknown, opts: unknown = {}) {
         this.url = url;
         this.opts = opts;
         this.keyChain = { getKeysets: () => [{ id: 'browser-keyset' }] };
@@ -49,7 +55,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
 
       async loadMint() {}
 
-      async groupProofsByState(proofs) {
+      async groupProofsByState(proofs: FixtureProof[]) {
         return {
           unspent: proofs.filter(item => !item.spent && !item.pending),
           spent: proofs.filter(item => item.spent),
@@ -62,67 +68,67 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
           .map(item => ({ ...item }));
       }
 
-      async send(amount, proofs) {
+      async send(amount: unknown, proofs: FixtureProof[]) {
         const total = sumProofs(proofs);
         state.sendId += 1;
         return {
           send: [proof(`send-${amount}-${state.sendId}`, amount)],
-          keep: total > amount ? [proof(`keep-${total - amount}-${state.sendId}`, total - amount)] : [],
+          keep: total > (amount as number) ? [proof(`keep-${total - (amount as number)}-${state.sendId}`, total - (amount as number))] : [],
         };
       }
 
-      async createMintQuoteBolt11(amount) {
-        return { quote: `mint-${amount}`, request: makeTestInvoice(amount), amount, state: 'UNPAID' };
+      async createMintQuoteBolt11(amount: unknown) {
+        return { quote: `mint-${amount}`, request: (makeTestInvoice as FixtureFirstArgument<typeof makeTestInvoice>)(amount), amount, state: 'UNPAID' };
       }
 
-      async checkMintQuoteBolt11(quoteId) {
+      async checkMintQuoteBolt11(quoteId: unknown) {
         if (quoteId === 'mint-unpaid') return { state: 'UNPAID', amount: 0 };
         return { state: 'PAID', amount: Number(String(quoteId).replace(/\D/g, '')) || 0 };
       }
 
-      async mintProofsBolt11(amount, quoteId) {
+      async mintProofsBolt11(amount: unknown, quoteId: unknown) {
         return [proof(`minted-${quoteId}`, amount)];
       }
 
-      async batchRestore(batchSize, gap, start) {
-        return start > 0
+      async batchRestore(_batchSize: unknown, _gap: unknown, start: unknown) {
+        return (start as number) > 0
           ? { proofs: [] }
           : { proofs: [proof('restored-live', 7), proof('restored-spent', 5, { spent: true })] };
       }
 
-      async createMeltQuoteBolt11(invoice) {
+      async createMeltQuoteBolt11(invoice: unknown) {
         const amount = validateLightningInvoice(invoice).msats / 1000;
         const quote = { quote: `quote-${amount}-${state.meltQuotes.size}`, amount, request: invoice, fee_reserve: 5, state: 'UNPAID' };
-        state.meltQuotes.set(quote.quote, quote);
+        state.meltQuotes.set((quote as {quote:unknown}).quote, quote);
         return quote;
       }
 
-      async checkMeltQuoteBolt11(quoteId) {
+      async checkMeltQuoteBolt11(quoteId: unknown) {
         return state.meltQuotes.get(quoteId) || { quote: quoteId, amount: 10, fee_reserve: 5 };
       }
 
-      async meltProofsBolt11(quote) {
+      async meltProofsBolt11(quote: unknown) {
         if (state.failMelt) throw new Error('melt failed');
-        return { change: [proof(`melt-change-${quote.quote}`, 1)] };
+        return { change: [proof(`melt-change-${(quote as {quote:unknown}).quote}`, 1)] };
       }
     }
 
-    window.cashuts = {
+    (window as {cashuts?: unknown}).cashuts = {
       Wallet,
       MintQuoteState: { PAID: 'PAID' },
       sumProofs,
-      getEncodedToken: ({ mint, proofs }) => `cashu:${mint}:${sumProofs(proofs)}:${proofs.map(item => item.secret).join(',')}`,
+      getEncodedToken: ({ mint, proofs }: {mint:unknown;proofs:FixtureProof[]}) => `cashu:${mint}:${sumProofs(proofs)}:${proofs.map(item => item.secret).join(',')}`,
       getTokenMetadata: () => ({ mint: 'https://mint.browser-wallet.test/Bitcoin', unit: 'sat' }),
     };
     const { installDurableBrowserStub } = await import('/wallet-test-cashu-browser-durable.js');
-    const mintStub = installDurableBrowserStub(window.cashuts, () => sumProofs(state.receiveQueue[0] || []));
-    window.bip39 = {
+    const mintStub = installDurableBrowserStub((window as {cashuts?: unknown}).cashuts, () => sumProofs(state.receiveQueue[0] || []));
+    (window as {bip39?: unknown}).bip39 = {
       generateMnemonic: async () => 'abandon ability able about above absent absorb abstract absurd abuse access accident',
-      validateMnemonic: async mnemonic => String(mnemonic).trim().split(/\s+/).length === 12,
+      validateMnemonic: async (mnemonic: unknown) => String(mnemonic).trim().split(/\s+/).length === 12,
       mnemonicToSeed: async () => new Uint8Array(64).buffer,
     };
-    window.showNotification = (message, type) => notices.push({ message, type });
-    window.fetch = async function(url, opts = {}) {
+    (window as unknown as {showNotification:unknown}).showNotification = (message: unknown, type: unknown) => notices.push({ message, type });
+    window.fetch = async function(url: unknown, opts: unknown = {}) {
       const href = String(url);
       if (href === 'https://getbased.test/.well-known/lnurlp/alice') {
         return new Response(JSON.stringify({
@@ -140,7 +146,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
         });
       }
       if (href.startsWith('https://node.wallet-browser.test/v1/balance/topup')) {
-        state.topupAuth = opts.headers?.Authorization || '';
+        state.topupAuth = (opts as {headers?:{Authorization?:unknown}}).headers?.Authorization || '';
         return new Response(JSON.stringify({ detail: [{ msg: 'token rejected' }, { msg: 'mint unavailable' }] }), {
           status: 400,
           headers: { 'Content-Type': 'application/json' },
@@ -157,7 +163,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
     };
 
     async function deleteCashuDb() {
-      await new Promise(resolve => {
+      await new Promise<void>((resolve) => {
         const req = indexedDB.deleteDatabase('getbased-cashu');
         req.onsuccess = () => resolve();
         req.onerror = () => resolve();
@@ -179,11 +185,11 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       getEncryptionEnabled: cryptoStore.getEncryptionEnabled,
       isEncryptedObject: cryptoStore.isEncryptedObject,
     });
-    const wallet = await import(`/js/cashu-wallet.js?cashuWalletCoverage=${Date.now()}`);
+    const wallet = (await import(`/js/cashu-wallet.js?cashuWalletCoverage=${Date.now()}`) as unknown) as Pick<typeof import('../../js/cashu-wallet.js'), "getMintUrl" | "setMintUrl" | "hasWalletSeed" | "generateWalletSeed" | "getWalletMnemonic" | "createFundingInvoice" | "checkFundingStatus" | "receiveToken" | "exportWallet" | "sendAsToken" | "recoverPendingWithdraw" | "clearPendingWithdraw" | "depositToNode" | "recoverPendingDeposit" | "clearPendingDeposit" | "importWallet" | "checkProofStates" | "getMaxWithdrawable" | "withdrawToAddress" | "createWithdrawQuote" | "executeWithdraw" | "getWalletBalance" | "restoreWalletFromSeed" | "getFeePct" | "getFeeBalance" | "retryFeeAutoMelt" | "redeemFees" | "clearWallet" | "destroyWalletDB">;
     const { configureApiProviderStorageRuntimeDeps } = await import('/js/api-provider-storage-runtime.js');
     configureApiProviderStorageRuntimeDeps({ encryptedSetItem: cryptoStore.encryptedSetCredentialItem });
     const { saveRoutstrSessionKey } = await import('/js/routstr-session.js');
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
 
     try {
       outcomes.defaultMint = await wallet.getMintUrl();
@@ -191,7 +197,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
         await wallet.setMintUrl('http://127.0.0.1:3338');
         outcomes.rejectsUnsafeMint = false;
       } catch (error) {
-        outcomes.rejectsUnsafeMint = /public https/i.test(error.message);
+        outcomes.rejectsUnsafeMint = /public https/i.test((error as {message?:unknown}).message as string);
       }
 
       await wallet.setMintUrl('https://mint.browser-wallet.test/Bitcoin');
@@ -217,11 +223,11 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       const exportedBeforeSend = await wallet.exportWallet();
       const sent = await wallet.sendAsToken(4);
       const pendingSentToken = await wallet.recoverPendingWithdraw();
-      outcomes.exportAndSend = exportedBeforeSend.includes('minted-mint-7')
+      outcomes.exportAndSend = (exportedBeforeSend)!.includes('minted-mint-7')
         && sent.amount === 4
         && sent.remaining === 13
         && pendingSentToken === sent.token;
-      mintStub.spendToken(await wallet.recoverPendingWithdraw());
+      (mintStub.spendToken as FixtureFirstArgument<typeof mintStub.spendToken>)(await wallet.recoverPendingWithdraw());
       await wallet.clearPendingWithdraw();
 
       await saveRoutstrSessionKey('sk-existing', 'https://node.wallet-browser.test');
@@ -230,12 +236,12 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
         outcomes.depositFailureRecoverable = false;
       } catch (error) {
         const pending = await wallet.recoverPendingDeposit();
-        outcomes.depositFailureRecoverable = /outcome is unconfirmed/.test(error.message)
+        outcomes.depositFailureRecoverable = /outcome is unconfirmed/.test((error as {message?:unknown}).message as string)
           && state.topupAuth === 'Bearer sk-existing'
-          && pending.includes('send-5');
+          && (pending)!.includes('send-5');
       }
       state.receiveQueue.unshift([proof('deposit-reclaimed', 5)]);
-      await wallet.receiveToken(await wallet.recoverPendingDeposit());
+      await (wallet.receiveToken as FixtureFirstArgument<typeof wallet.receiveToken>)(await wallet.recoverPendingDeposit());
       await wallet.clearPendingDeposit();
       await saveRoutstrSessionKey('', 'https://node.wallet-browser.test');
       outcomes.clearPendingDeposit = await wallet.recoverPendingDeposit() === null;
@@ -243,7 +249,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       await wallet.receiveToken('cashuA-second');
       const created = await wallet.depositToNode('https://node.wallet-browser.test', 4);
       outcomes.depositSuccessClearsPending = created.api_key === 'sk-created'
-        && state.createDepositUrl.endsWith('/v1/balance/create')
+        && (state.createDepositUrl)!.endsWith('/v1/balance/create')
         && await wallet.recoverPendingDeposit() === null;
 
       const imported = await wallet.importWallet('cashuA-import');
@@ -258,9 +264,9 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       const checkedBalance = await wallet.checkProofStates();
       const exportedAfterStateCheck = await wallet.exportWallet();
       outcomes.checkProofStatesPrunesSpentAndKeepsPending = checkedBalance > 0
-        && exportedAfterStateCheck.includes('state-live')
-        && exportedAfterStateCheck.includes('state-pending')
-        && !exportedAfterStateCheck.includes('state-spent');
+        && (exportedAfterStateCheck)!.includes('state-live')
+        && (exportedAfterStateCheck)!.includes('state-pending')
+        && !(exportedAfterStateCheck)!.includes('state-spent');
 
       const max = await wallet.getMaxWithdrawable();
       const addressWithdraw = await wallet.withdrawToAddress('alice@getbased.test', Math.min(max + 2, 20));
@@ -272,14 +278,14 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       const quote = await wallet.createWithdrawQuote(makeTestInvoice(10));
       state.failMelt = true;
       try {
-        await wallet.executeWithdraw(quote.quote);
+        await (wallet.executeWithdraw as FixtureFirstArgument<typeof wallet.executeWithdraw>)((quote as {quote:unknown}).quote);
         outcomes.failedMeltRecoverable = false;
       } catch (error) {
         const pendingWithdraw = await wallet.recoverPendingWithdraw();
-        outcomes.failedMeltRecoverable = /melt failed/.test(error.message)
-          && pendingWithdraw.includes('send-15');
+        outcomes.failedMeltRecoverable = /melt failed/.test((error as {message?:unknown}).message as string)
+          && (pendingWithdraw)!.includes('send-15');
       }
-      mintStub.spendToken(await wallet.recoverPendingWithdraw());
+      (mintStub.spendToken as FixtureFirstArgument<typeof mintStub.spendToken>)(await wallet.recoverPendingWithdraw());
       await wallet.clearPendingWithdraw();
       outcomes.clearPendingWithdraw = await wallet.recoverPendingWithdraw() === null;
       state.failMelt = false;
@@ -288,7 +294,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
       const restore = await wallet.restoreWalletFromSeed(generated.mnemonic);
       outcomes.restoreUsesSeedWithoutDeletingExistingFunds = restore.balance === balanceBeforeRestore + 7
         && restore.restoredCount === 7
-        && state.instances.some(instance => instance.opts?.counterSource);
+        && state.instances.some(instance => (instance.opts as {counterSource?:unknown})?.counterSource);
 
       outcomes.feeEmptyPaths = wallet.getFeePct() === 0
         && await wallet.getFeeBalance() === 0
@@ -297,23 +303,23 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
         await wallet.redeemFees(makeTestInvoice(1));
         outcomes.redeemEmptyFeesRejects = false;
       } catch (error) {
-        outcomes.redeemEmptyFeesRejects = /No fee proofs/.test(error.message);
+        outcomes.redeemEmptyFeesRejects = /No fee proofs/.test((error as {message?:unknown}).message as string);
       }
 
       await wallet.clearWallet();
       outcomes.clearWalletEmpties = await wallet.getWalletBalance() === 0;
       const destroyed = await Promise.race([
         wallet.destroyWalletDB().then(() => true).catch(() => false),
-        new Promise(resolve => setTimeout(() => resolve('timeout'), 500)),
+        new Promise((resolve) => setTimeout(() => resolve('timeout'), 500)),
       ]);
       outcomes.destroyWalletDbInvoked = destroyed === true || destroyed === 'timeout';
       return outcomes;
     } finally {
       await deleteCashuDb();
-      window.cashuts = oldGlobals.cashuts;
-      window.bip39 = oldGlobals.bip39;
+      (window as {cashuts?: unknown}).cashuts = oldGlobals.cashuts;
+      (window as {bip39?: unknown}).bip39 = oldGlobals.bip39;
       window.fetch = oldGlobals.fetch;
-      window.showNotification = oldGlobals.showNotification;
+      (window as unknown as {showNotification:unknown}).showNotification = oldGlobals.showNotification;
       localStorage.removeItem('labcharts-cashu-wallet-mint');
       localStorage.removeItem('labcharts-cashu-wallet-mnemonic');
     }
@@ -347,23 +353,23 @@ test('cashu wallet browser coverage exercises fee proof auto-melt storage', asyn
     const { makeTestInvoice, LNURL_METADATA } = await import('/wallet-test-lightning-invoices.js');
     const { validateLightningInvoice } = await import('/js/routstr-validation.js');
     const oldGlobals = {
-      cashuts: window.cashuts,
-      bip39: window.bip39,
+      cashuts: (window as {cashuts?: unknown}).cashuts,
+      bip39: (window as {bip39?: unknown}).bip39,
       fetch: window.fetch,
-      showNotification: window.showNotification,
+      showNotification: (window as unknown as {showNotification:unknown}).showNotification,
     };
-    const proof = (secret, amount, extra = {}) => ({ secret, amount, C: `C-${secret}`, ...extra });
+    const proof = (secret: unknown, amount: unknown, extra: unknown = {}) => ({ secret, amount, C: `C-${secret}`, ...(extra as object) });
     const state = {
-      meltCalls: [],
-      lnurlAmounts: [],
+      meltCalls: [] as {quote:unknown;amount:number}[],
+      lnurlAmounts: [] as number[],
       receiveQueue: [[proof('fee-token', 240)]],
     };
-    const sumProofs = (proofs = []) => proofs.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
-    const waitFor = async (predicate, label) => {
+    const sumProofs = (proofs: FixtureProof[] = []) => proofs.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, label: string) => {
       for (let i = 0; i < 120; i += 1) {
         const value = await predicate();
         if (value) return value;
-        await new Promise(resolve => setTimeout(resolve, 25));
+        await new Promise((resolve) => setTimeout(resolve, 25));
       }
       throw new Error(`Timed out waiting for ${label}`);
     };
@@ -371,7 +377,7 @@ test('cashu wallet browser coverage exercises fee proof auto-melt storage', asyn
     class Wallet {
       async loadMint() {}
 
-      async groupProofsByState(proofs) {
+      async groupProofsByState(proofs: FixtureProof[]) {
         return { unspent: proofs, spent: [], pending: [] };
       }
 
@@ -380,36 +386,36 @@ test('cashu wallet browser coverage exercises fee proof auto-melt storage', asyn
           .map(item => ({ ...item }));
       }
 
-      async send(amount, proofs) {
+      async send(amount: unknown, proofs: FixtureProof[]) {
         const total = sumProofs(proofs);
         return {
           send: [proof(`fee-send-${amount}`, amount)],
-          keep: total > amount ? [proof(`fee-keep-${total - amount}`, total - amount)] : [],
+          keep: total > (amount as number) ? [proof(`fee-keep-${total - (amount as number)}`, total - (amount as number))] : [],
         };
       }
 
-      async createMeltQuoteBolt11(invoice) {
+      async createMeltQuoteBolt11(invoice: unknown) {
         const amount = validateLightningInvoice(invoice).msats / 1000;
         return { quote: `fee-quote-${amount}`, amount, request: invoice, fee_reserve: 5, state: 'UNPAID' };
       }
 
-      async meltProofsBolt11(quote, proofs) {
+      async meltProofsBolt11(quote: unknown, proofs: FixtureProof[]) {
         state.meltCalls.push({ quote, amount: sumProofs(proofs) });
         return { change: [proof(`fee-change-${state.meltCalls.length}`, 1)] };
       }
     }
 
-    window.cashuts = {
+    (window as {cashuts?: unknown}).cashuts = {
       Wallet,
       sumProofs,
-      getEncodedToken: ({ mint, proofs }) => `cashu:${mint}:${sumProofs(proofs)}:${proofs.map(item => item.secret).join(',')}`,
+      getEncodedToken: ({ mint, proofs }: {mint:unknown;proofs:FixtureProof[]}) => `cashu:${mint}:${sumProofs(proofs)}:${proofs.map(item => item.secret).join(',')}`,
       getTokenMetadata: () => ({ mint: 'https://mint.fee-coverage.test/Bitcoin', unit: 'sat' }),
     };
     const { installDurableBrowserStub } = await import('/wallet-test-cashu-browser-durable.js');
-    installDurableBrowserStub(window.cashuts, () => sumProofs(state.receiveQueue[0] || []));
-    window.bip39 = oldGlobals.bip39 || {};
-    window.showNotification = () => {};
-    window.fetch = async url => {
+    installDurableBrowserStub((window as {cashuts?: unknown}).cashuts, () => sumProofs(state.receiveQueue[0] || []));
+    (window as {bip39?: unknown}).bip39 = oldGlobals.bip39 || {};
+    (window as unknown as {showNotification:unknown}).showNotification = () => {};
+    window.fetch = async (url: unknown) => {
       const href = String(url);
       if (href === 'https://primal.net/.well-known/lnurlp/denimgecko11') {
         return new Response(JSON.stringify({
@@ -430,7 +436,7 @@ test('cashu wallet browser coverage exercises fee proof auto-melt storage', asyn
     };
 
     async function deleteCashuDb() {
-      await new Promise(resolve => {
+      await new Promise<void>((resolve) => {
         const req = indexedDB.deleteDatabase('getbased-cashu');
         req.onsuccess = () => resolve();
         req.onerror = () => resolve();
@@ -439,7 +445,7 @@ test('cashu wallet browser coverage exercises fee proof auto-melt storage', asyn
       });
     }
 
-    let wallet;
+    let wallet: Pick<typeof import('../../js/cashu-wallet.js'),"setMintUrl"|"receiveToken"|"getFeeBalance"|"getWalletBalance"|"getFeePct"> | undefined;
     try {
       await deleteCashuDb();
       const [walletStore, cryptoStore] = await Promise.all([
@@ -454,11 +460,11 @@ test('cashu wallet browser coverage exercises fee proof auto-melt storage', asyn
         getEncryptionEnabled: cryptoStore.getEncryptionEnabled,
         isEncryptedObject: cryptoStore.isEncryptedObject,
       });
-      wallet = await import(`/js/cashu-wallet.js?cashuFeeCoverage=${Date.now()}`);
+      wallet = (await import(`/js/cashu-wallet.js?cashuFeeCoverage=${Date.now()}`) as unknown) as Pick<typeof import('../../js/cashu-wallet.js'),"setMintUrl"|"receiveToken"|"getFeeBalance"|"getWalletBalance"|"getFeePct">;
       await wallet.setMintUrl('https://mint.fee-coverage.test/Bitcoin');
       const received = await wallet.receiveToken('cashuA-fee-token');
       const feeBalance = await waitFor(async () => {
-        const balance = await wallet.getFeeBalance();
+        const balance = await (wallet)!.getFeeBalance();
         return balance === 1 ? balance : null;
       }, 'fee auto-melt change proof');
       const walletBalance = await wallet.getWalletBalance();
@@ -469,16 +475,16 @@ test('cashu wallet browser coverage exercises fee proof auto-melt storage', asyn
         autoMeltRequestedInvoiceForFeeMinusReserve: state.lnurlAmounts.includes(115000),
         autoMeltSavedChangeFeeProof: feeBalance === 1,
         autoMeltCalledMintWithFeeProofs: state.meltCalls.length === 1
-          && state.meltCalls[0].quote.amount === 115
-          && state.meltCalls[0].amount === 120,
+          && (state.meltCalls[0]!.quote as {amount?:unknown}).amount === 115
+          && (state.meltCalls[0])!.amount === 120,
         walletKeepsPostFeeChange: walletBalance === 120,
       };
     } finally {
       await deleteCashuDb();
-      window.cashuts = oldGlobals.cashuts;
-      window.bip39 = oldGlobals.bip39;
+      (window as {cashuts?: unknown}).cashuts = oldGlobals.cashuts;
+      (window as {bip39?: unknown}).bip39 = oldGlobals.bip39;
       window.fetch = oldGlobals.fetch;
-      window.showNotification = oldGlobals.showNotification;
+      (window as unknown as {showNotification:unknown}).showNotification = oldGlobals.showNotification;
       localStorage.removeItem('labcharts-cashu-wallet-mint');
       localStorage.removeItem('labcharts-cashu-wallet-mnemonic');
     }
@@ -494,9 +500,9 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
   await page.goto('/cashu-wallet-panels-blank', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
-    const { makeTestInvoice, LNURL_METADATA } = await import('/wallet-test-lightning-invoices.js');
-    const { validateLightningInvoice } = await import('/js/routstr-validation.js');
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const { makeTestInvoice, LNURL_METADATA: _LNURL_METADATA } = await import('/wallet-test-lightning-invoices.js');
+    const { validateLightningInvoice: _validateLightningInvoice } = await import('/js/routstr-validation.js');
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     const [walletStore, cryptoStore] = await Promise.all([
       import('/js/cashu-wallet-store.js'),
       import('/js/crypto.js'),
@@ -513,7 +519,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
     const previousProviderStorageRuntime = providerStorageRuntime.configureApiProviderStorageRuntimeDeps({
       encryptedSetItem: cryptoStore.encryptedSetItem,
     });
-    const oldGlobals = {};
+    const oldGlobals: Record<string,unknown> = {};
     const globalNames = [
       'cashuGetBalance',
       'cashuCheckProofStates',
@@ -538,23 +544,23 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       'nostrSetSelectedNode',
       'fetch',
     ];
-    for (const name of globalNames) oldGlobals[name] = window[name];
-    const notices = [];
-    const calls = [];
-    const clipboardWrites = [];
-    const oldNotification = window.showNotification;
-    const oldQrcode = window.qrcode;
+    for (const name of globalNames) oldGlobals[name] = (window as unknown as Record<string,unknown>)[name];
+    const notices: unknown[] = [];
+    const calls: unknown[][] = [];
+    const clipboardWrites: unknown[] = [];
+    const oldNotification = (window as unknown as {showNotification:unknown}).showNotification;
+    const oldQrcode = (window as {qrcode?: unknown}).qrcode;
     const hadClipboard = Object.prototype.hasOwnProperty.call(window.navigator, 'clipboard');
     const oldClipboard = window.navigator.clipboard;
-    let currentMint = 'https://mint.current.test/Bitcoin';
-    let panels = null;
+    let currentMint: unknown = 'https://mint.current.test/Bitcoin';
+    let panels: Pick<typeof import('../../js/provider-wallet-panels.js'),"buildRoutstrNodeActions"|"clearRoutstrWalletTimers"|"configureRoutstrWalletPanels"|"configureRoutstrWalletRuntime"|"connectRoutstrNode"|"doRoutstrMintChange"|"doRoutstrNodeDeposit"|"doRoutstrWalletFundCustom"|"doRoutstrWalletReceiveCashu"|"doRoutstrWithdrawQuote"|"recoverPendingWalletFunding"|"refreshCashuWalletBalance"|"routstrWalletActionButtons"|"rsWalletFundCustomInput"|"showRoutstrMintEdit"|"showRoutstrNodePicker"|"showRoutstrWalletFund"|"showRoutstrWithdraw"|"showRoutstrWithdrawLightning"|"showRoutstrWithdrawToken"> | null = null;
     const getMaxWithdrawable = async () => 1234;
 
-    function json(body, status = 200) {
+    function json(body: unknown, status = 200) {
       return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
     }
 
-    async function waitFor(fn, timeout = 1000) {
+    async function waitFor(fn:()=>unknown, timeout = 1000) {
       const start = Date.now();
       while (Date.now() - start < timeout) {
         const value = fn();
@@ -581,58 +587,58 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
     try {
       Object.defineProperty(window.navigator, 'clipboard', {
         configurable: true,
-        value: { writeText: async text => clipboardWrites.push(text) },
+        value: { writeText: async (text: unknown) => clipboardWrites.push(text) },
       });
-      window.showNotification = (message, type) => {
+      (window as unknown as {showNotification:unknown}).showNotification = (message: unknown, type: unknown) => {
         notices.push({ message, type });
       };
-      window.qrcode = function() {
+      (window as {qrcode?: unknown}).qrcode = function() {
         return {
           addData() {},
           make() {},
           createSvgTag() { return '<svg data-testid="qr"></svg>'; },
         };
       };
-      window.cashuGetBalance = async () => 1500;
-      window.cashuCheckProofStates = async () => 1400;
-      window.cashuCreateFundingInvoice = async amount => ({ quote: `quote-${amount}`, invoice: makeTestInvoice(amount) });
-      window.cashuCheckFundingStatus = async quote => ({ paid: quote === 'quote-1000', fee: 0, balance: 1500 });
-      window.cashuRecoverPendingFunding = async () => ({ checked: 1, recovered: 777, pending: 0, failed: 0, balance: 2277, errors: [] });
-      window.cashuReceiveToken = async token => {
+      (window as unknown as {cashuGetBalance:unknown}).cashuGetBalance = async () => 1500;
+      (window as unknown as {cashuCheckProofStates:unknown}).cashuCheckProofStates = async () => 1400;
+      (window as unknown as {cashuCreateFundingInvoice:unknown}).cashuCreateFundingInvoice = async (amount: unknown) => ({ quote: `quote-${amount}`, invoice: (makeTestInvoice as FixtureFirstArgument<typeof makeTestInvoice>)(amount) });
+      (window as unknown as {cashuCheckFundingStatus:unknown}).cashuCheckFundingStatus = async (quote: unknown) => ({ paid: quote === 'quote-1000', fee: 0, balance: 1500 });
+      (window as unknown as {cashuRecoverPendingFunding:unknown}).cashuRecoverPendingFunding = async () => ({ checked: 1, recovered: 777, pending: 0, failed: 0, balance: 2277, errors: [] });
+      (window as unknown as {cashuReceiveToken:unknown}).cashuReceiveToken = async (token: unknown) => {
         if (token === 'cashuAfail') throw new Error('bad token');
         return { received: 321, fee: 0, balance: 1821 };
       };
-      window.cashuGetMintUrl = async () => currentMint;
-      window.cashuSetMintUrl = async url => {
+      (window as unknown as {cashuGetMintUrl:unknown}).cashuGetMintUrl = async () => currentMint;
+      (window as unknown as {cashuSetMintUrl:unknown}).cashuSetMintUrl = async (url: unknown) => {
         currentMint = url;
         calls.push(['setMint', url]);
       };
-      window.cashuDepositToNode = async (nodeUrl, amount, existingKey) => {
+      (window as unknown as {cashuDepositToNode:unknown}).cashuDepositToNode = async (nodeUrl: unknown, amount: unknown, existingKey: unknown) => {
         calls.push(['depositToNode', nodeUrl, amount, existingKey || '']);
-        await (await import('/js/api.js')).saveRoutstrKey('sk-wallet-browser', nodeUrl);
+        await (await import('/js/api.js')).saveRoutstrKey('sk-wallet-browser', nodeUrl as string);
         return { api_key: 'sk-wallet-browser', balance: amount };
       };
-      window.cashuHasWalletSeed = async () => true;
-      window.cashuGenerateWalletSeed = async () => ({
+      (window as unknown as {cashuHasWalletSeed:unknown}).cashuHasWalletSeed = async () => true;
+      (window as unknown as {cashuGenerateWalletSeed:unknown}).cashuGenerateWalletSeed = async () => ({
         mnemonic: 'abandon ability able about above absent absorb abstract absurd abuse access accident',
       });
-      window.cashuExportWallet = async () => 'cashuAbackup';
-      window.cashuSendAsToken = async amount => ({ token: `cashuAsent-${amount}`, amount, remaining: 1500 - amount });
-      window.cashuCreateWithdrawQuote = async invoice => ({ quote: `quote-${invoice}`, amount: 200, fee_reserve: 5 });
-      window.cashuExecuteWithdraw = async quote => { calls.push(['executeWithdraw', quote]); return { paid: true }; };
-      window.cashuWithdrawToAddress = async (address, amount) => { calls.push(['withdrawAddress', address, amount]); return { paid: true, amount }; };
-      window.cashuGetMaxWithdrawable = getMaxWithdrawable;
-      window.cashuGetFeePct = () => 0;
-      window.nostrDiscoverNodes = async () => [
+      (window as unknown as {cashuExportWallet:unknown}).cashuExportWallet = async () => 'cashuAbackup';
+      (window as unknown as {cashuSendAsToken:unknown}).cashuSendAsToken = async (amount: unknown) => ({ token: `cashuAsent-${amount}`, amount, remaining: 1500 - (amount as number) });
+      (window as unknown as {cashuCreateWithdrawQuote:unknown}).cashuCreateWithdrawQuote = async (invoice: unknown) => ({ quote: `quote-${invoice}`, amount: 200, fee_reserve: 5 });
+      (window as unknown as {cashuExecuteWithdraw:unknown}).cashuExecuteWithdraw = async (quote: unknown) => { calls.push(['executeWithdraw', quote]); return { paid: true }; };
+      (window as unknown as {cashuWithdrawToAddress:unknown}).cashuWithdrawToAddress = async (address: unknown, amount: unknown) => { calls.push(['withdrawAddress', address, amount]); return { paid: true, amount }; };
+      (window as unknown as {cashuGetMaxWithdrawable:unknown}).cashuGetMaxWithdrawable = getMaxWithdrawable;
+      (window as unknown as {cashuGetFeePct:unknown}).cashuGetFeePct = () => 0;
+      (window as unknown as {nostrDiscoverNodes:unknown}).nostrDiscoverNodes = async () => [
         { name: 'Offline', urls: ['https://offline.node.test'], modelCount: 0, online: false },
         { name: 'Node One', urls: ['https://node.one.test'], modelCount: 2, online: true, onion: true },
       ];
-      window.nostrGetSelectedNode = () => 'https://node.one.test';
-      window.nostrSetSelectedNode = url => {
-        localStorage.setItem('labcharts-routstr-node', url);
+      (window as unknown as {nostrGetSelectedNode:unknown}).nostrGetSelectedNode = () => 'https://node.one.test';
+      (window as unknown as {nostrSetSelectedNode:unknown}).nostrSetSelectedNode = (url: unknown) => {
+        localStorage.setItem('labcharts-routstr-node', url as string);
         calls.push(['setNode', url]);
       };
-      window.fetch = async url => {
+      window.fetch = async (url: unknown) => {
         const href = String(url);
         if (href === 'https://node.one.test/v1/info') return json({ nuts: {}, mints: ['https://mint.node.test/Bitcoin'] });
         if (href === 'https://node.one.test/v1/models') {
@@ -663,36 +669,36 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       };
 
       const walletRuntimeOverrides = {
-        cashuGetBalance: window.cashuGetBalance,
-        cashuCheckProofStates: window.cashuCheckProofStates,
-        cashuCreateFundingInvoice: window.cashuCreateFundingInvoice,
-        cashuCheckFundingStatus: window.cashuCheckFundingStatus,
-        cashuRecoverPendingFunding: window.cashuRecoverPendingFunding,
-        cashuReceiveToken: window.cashuReceiveToken,
-        cashuGetMintUrl: window.cashuGetMintUrl,
+        cashuGetBalance: (window as unknown as {cashuGetBalance:unknown}).cashuGetBalance,
+        cashuCheckProofStates: (window as unknown as {cashuCheckProofStates:unknown}).cashuCheckProofStates,
+        cashuCreateFundingInvoice: (window as unknown as {cashuCreateFundingInvoice:unknown}).cashuCreateFundingInvoice,
+        cashuCheckFundingStatus: (window as unknown as {cashuCheckFundingStatus:unknown}).cashuCheckFundingStatus,
+        cashuRecoverPendingFunding: (window as unknown as {cashuRecoverPendingFunding:unknown}).cashuRecoverPendingFunding,
+        cashuReceiveToken: (window as unknown as {cashuReceiveToken:unknown}).cashuReceiveToken,
+        cashuGetMintUrl: (window as unknown as {cashuGetMintUrl:unknown}).cashuGetMintUrl,
         cashuGetWalletMints: async () => [{ mint: currentMint, balance: 1500, active: true }],
-        cashuSetMintUrl: window.cashuSetMintUrl,
-        cashuDepositToNode: window.cashuDepositToNode,
-        cashuHasWalletSeed: window.cashuHasWalletSeed,
-        cashuGenerateWalletSeed: window.cashuGenerateWalletSeed,
-        cashuExportWallet: window.cashuExportWallet,
-        cashuSendAsToken: window.cashuSendAsToken,
-        cashuCreateWithdrawQuote: window.cashuCreateWithdrawQuote,
-        cashuExecuteWithdraw: window.cashuExecuteWithdraw,
-        cashuWithdrawToAddress: window.cashuWithdrawToAddress,
+        cashuSetMintUrl: (window as unknown as {cashuSetMintUrl:unknown}).cashuSetMintUrl,
+        cashuDepositToNode: (window as unknown as {cashuDepositToNode:unknown}).cashuDepositToNode,
+        cashuHasWalletSeed: (window as unknown as {cashuHasWalletSeed:unknown}).cashuHasWalletSeed,
+        cashuGenerateWalletSeed: (window as unknown as {cashuGenerateWalletSeed:unknown}).cashuGenerateWalletSeed,
+        cashuExportWallet: (window as unknown as {cashuExportWallet:unknown}).cashuExportWallet,
+        cashuSendAsToken: (window as unknown as {cashuSendAsToken:unknown}).cashuSendAsToken,
+        cashuCreateWithdrawQuote: (window as unknown as {cashuCreateWithdrawQuote:unknown}).cashuCreateWithdrawQuote,
+        cashuExecuteWithdraw: (window as unknown as {cashuExecuteWithdraw:unknown}).cashuExecuteWithdraw,
+        cashuWithdrawToAddress: (window as unknown as {cashuWithdrawToAddress:unknown}).cashuWithdrawToAddress,
         cashuGetMaxWithdrawable: getMaxWithdrawable,
-        cashuGetFeePct: window.cashuGetFeePct,
-        nostrDiscoverNodes: window.nostrDiscoverNodes,
-        nostrGetSelectedNode: window.nostrGetSelectedNode,
-        nostrSetSelectedNode: window.nostrSetSelectedNode,
+        cashuGetFeePct: (window as unknown as {cashuGetFeePct:unknown}).cashuGetFeePct,
+        nostrDiscoverNodes: (window as unknown as {nostrDiscoverNodes:unknown}).nostrDiscoverNodes,
+        nostrGetSelectedNode: (window as unknown as {nostrGetSelectedNode:unknown}).nostrGetSelectedNode,
+        nostrSetSelectedNode: (window as unknown as {nostrSetSelectedNode:unknown}).nostrSetSelectedNode,
       };
-      panels = await import(`/js/provider-wallet-panels.js?walletPanelsCoverage=${Date.now()}`);
+      panels = (await import(`/js/provider-wallet-panels.js?walletPanelsCoverage=${Date.now()}`) as unknown) as Pick<typeof import('../../js/provider-wallet-panels.js'),"buildRoutstrNodeActions"|"clearRoutstrWalletTimers"|"configureRoutstrWalletPanels"|"configureRoutstrWalletRuntime"|"connectRoutstrNode"|"doRoutstrMintChange"|"doRoutstrNodeDeposit"|"doRoutstrWalletFundCustom"|"doRoutstrWalletReceiveCashu"|"doRoutstrWithdrawQuote"|"recoverPendingWalletFunding"|"refreshCashuWalletBalance"|"routstrWalletActionButtons"|"rsWalletFundCustomInput"|"showRoutstrMintEdit"|"showRoutstrNodePicker"|"showRoutstrWalletFund"|"showRoutstrWithdraw"|"showRoutstrWithdrawLightning"|"showRoutstrWithdrawToken">;
       Object.assign(window, walletRuntimeOverrides);
-      window.cashuGetMaxWithdrawable = getMaxWithdrawable;
+      (window as unknown as {cashuGetMaxWithdrawable:unknown}).cashuGetMaxWithdrawable = getMaxWithdrawable;
       panels.configureRoutstrWalletRuntime(walletRuntimeOverrides);
       panels.configureRoutstrWalletPanels({
-        renderAIProviderPanel: provider => `<div id="rendered-panel">${provider}</div><div id="routstr-wallet-balance"></div><div id="routstr-node-balance"></div>`,
-        renderRoutstrModelDropdown: models => calls.push(['renderModels', models.length]),
+        renderAIProviderPanel: (provider: unknown) => `<div id="rendered-panel">${provider}</div><div id="routstr-wallet-balance"></div><div id="routstr-node-balance"></div>`,
+        renderRoutstrModelDropdown: (models: unknown) => calls.push(['renderModels', (models as {length:unknown}).length]),
         initSettingsModelFetch: () => calls.push(['initFetch']),
         returnToChatIfOnboarding: () => calls.push(['returnChat']),
       });
@@ -702,44 +708,44 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       const refreshCashu = document.getElementById('routstr-wallet-balance')?.textContent.includes('1,400');
 
       panels.showRoutstrWalletFund();
-      await waitFor(() => document.getElementById('routstr-wcashu-input'));
+      await waitFor(() => (document.getElementById('routstr-wcashu-input') as HTMLInputElement | null));
       panels.rsWalletFundCustomInput();
-      const customInput = document.getElementById('routstr-wfund-custom');
-      customInput.value = '99';
+      const customInput = (document.getElementById('routstr-wfund-custom') as HTMLInputElement | null);
+      (customInput)!.value = '99';
       panels.doRoutstrWalletFundCustom();
       const customRejectsMinimum = document.getElementById('routstr-wfund-status')?.textContent.includes('Minimum 100');
-      customInput.value = '1000';
-      customInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      (customInput)!.value = '1000';
+      (customInput)!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       await wait(0);
       const fundCreatesInvoice = document.getElementById('routstr-wfund-poll')?.textContent.includes('Waiting for payment');
       await panels.clearRoutstrWalletTimers();
       await panels.recoverPendingWalletFunding();
       const recoversPendingFunding = document.getElementById('routstr-wfund-status')?.textContent.includes('777 sats recovered');
-      window.cashuRecoverPendingFunding = async () => ({ checked: 2, recovered: 500, pending: 0, failed: 1, balance: 2000, errors: [{ message: 'mint timeout' }] });
-      panels.configureRoutstrWalletRuntime({ ...walletRuntimeOverrides, cashuRecoverPendingFunding: window.cashuRecoverPendingFunding });
+      (window as unknown as {cashuRecoverPendingFunding:unknown}).cashuRecoverPendingFunding = async () => ({ checked: 2, recovered: 500, pending: 0, failed: 1, balance: 2000, errors: [{ message: 'mint timeout' }] });
+      panels.configureRoutstrWalletRuntime({ ...walletRuntimeOverrides, cashuRecoverPendingFunding: (window as unknown as {cashuRecoverPendingFunding:unknown}).cashuRecoverPendingFunding });
       await panels.recoverPendingWalletFunding();
       const recoveryShowsMixedOutcome = document.getElementById('routstr-wfund-status')?.textContent.includes('500 sats recovered')
         && document.getElementById('routstr-wfund-status')?.textContent.includes('1 deposit check failed');
-      window.cashuRecoverPendingFunding = async () => ({ checked: 1, recovered: 0, pending: 0, cleared: 1, failed: 0, balance: 2000, errors: [] });
-      panels.configureRoutstrWalletRuntime({ ...walletRuntimeOverrides, cashuRecoverPendingFunding: window.cashuRecoverPendingFunding });
+      (window as unknown as {cashuRecoverPendingFunding:unknown}).cashuRecoverPendingFunding = async () => ({ checked: 1, recovered: 0, pending: 0, cleared: 1, failed: 0, balance: 2000, errors: [] });
+      panels.configureRoutstrWalletRuntime({ ...walletRuntimeOverrides, cashuRecoverPendingFunding: (window as unknown as {cashuRecoverPendingFunding:unknown}).cashuRecoverPendingFunding });
       await panels.recoverPendingWalletFunding();
       const recoveryShowsTerminalCleanup = document.getElementById('routstr-wfund-status')?.textContent.includes('1 completed or expired deposit cleared');
 
-      const tokenInput = document.getElementById('routstr-wcashu-input');
-      tokenInput.value = 'bad';
+      const tokenInput = (document.getElementById('routstr-wcashu-input') as HTMLInputElement | null);
+      (tokenInput)!.value = 'bad';
       await panels.doRoutstrWalletReceiveCashu();
       const receiveRejectsInvalid = document.getElementById('routstr-wfund-status')?.textContent.includes('valid Cashu token');
-      tokenInput.value = 'cashu:cashuAok';
+      (tokenInput)!.value = 'cashu:cashuAok';
       await panels.doRoutstrWalletReceiveCashu();
-      const receiveSuccessClosesFundArea = tokenInput.value === ''
+      const receiveSuccessClosesFundArea = (tokenInput)!.value === ''
         && document.getElementById('routstr-wallet-fund-area')?.style.display === 'none';
 
       await panels.showRoutstrMintEdit();
       await wait(0);
       const mintRendersNodeChoices = document.getElementById('routstr-mint-edit')?.textContent.includes('Also accepted by this node');
-      const setMintLink = document.querySelector('[data-routstr-wallet-action="set-mint-input"][data-mint-url="https://mint.node.test/Bitcoin"]');
+      const setMintLink = document.querySelector<HTMLElement>('[data-routstr-wallet-action="set-mint-input"][data-mint-url="https://mint.node.test/Bitcoin"]');
       setMintLink?.click();
-      const mintInput = document.getElementById('routstr-mint-input');
+      const mintInput = (document.getElementById('routstr-mint-input') as HTMLInputElement | null);
       const mintDelegateSetsInput = mintInput?.value === 'https://mint.node.test/Bitcoin';
       if (mintInput && !mintDelegateSetsInput) mintInput.value = 'https://mint.node.test/Bitcoin';
       await panels.doRoutstrMintChange();
@@ -747,13 +753,13 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       const mintArea = document.getElementById('routstr-mint-edit');
       if (mintArea && mintArea.style.display !== 'none') mintArea.style.display = 'none';
       await panels.showRoutstrMintEdit();
-      let badMintInput = document.getElementById('routstr-mint-input');
+      let badMintInput = (document.getElementById('routstr-mint-input') as HTMLInputElement | null);
       if (!badMintInput && mintArea) {
         mintArea.style.display = 'block';
         mintArea.innerHTML = '<input id="routstr-mint-input"><div id="routstr-mint-status"></div>';
-        badMintInput = document.getElementById('routstr-mint-input');
+        badMintInput = (document.getElementById('routstr-mint-input') as HTMLInputElement | null);
       }
-      badMintInput.value = 'https://mint.bad.test';
+      (badMintInput)!.value = 'https://mint.bad.test';
       await panels.doRoutstrMintChange();
       const mintChangeRejectsInvalidMint = document.getElementById('routstr-mint-status')?.textContent.includes('Not a valid Cashu mint');
 
@@ -761,69 +767,69 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       const nodePickerFiltersOnline = document.getElementById('routstr-node-picker')?.textContent.includes('Node One')
         && !document.getElementById('routstr-node-picker')?.textContent.includes('Offline');
 
-      document.getElementById('routstr-node-actions').innerHTML = panels.buildRoutstrNodeActions('https://node.one.test', true, null);
-      const browseNodeBtn = document.querySelector('[data-node-action="browse"]');
-      const withdrawNodeBtn = document.querySelector('[data-node-action="withdraw"]');
+      (document.getElementById('routstr-node-actions'))!.innerHTML = panels.buildRoutstrNodeActions('https://node.one.test', true, null);
+      const browseNodeBtn = document.querySelector<HTMLElement>('[data-node-action="browse"]');
+      const withdrawNodeBtn = document.querySelector<HTMLElement>('[data-node-action="withdraw"]');
       browseNodeBtn?.click();
       withdrawNodeBtn?.click();
       await wait(0);
       const nodeActionDelegates = !!browseNodeBtn && !!withdrawNodeBtn;
 
-      document.getElementById('routstr-wallet-actions').innerHTML = panels.routstrWalletActionButtons(null);
-      const toggleMenuBtn = document.querySelector('[data-routstr-wallet-action="toggle-wallet-menu"]');
+      (document.getElementById('routstr-wallet-actions'))!.innerHTML = panels.routstrWalletActionButtons(null);
+      const toggleMenuBtn = document.querySelector<HTMLElement>('[data-routstr-wallet-action="toggle-wallet-menu"]');
       toggleMenuBtn?.click();
       const menuToggles = document.getElementById('routstr-wallet-menu')?.style.display === 'block';
-      const backupBtn = document.querySelector('[data-wallet-action="backup"]');
+      const backupBtn = document.querySelector<HTMLElement>('[data-wallet-action="backup"]');
       backupBtn?.click();
       await wait(0);
       const backupCopiesToken = clipboardWrites.includes('cashuAbackup');
 
       await panels.showRoutstrWithdraw();
       await panels.showRoutstrWithdrawLightning();
-      let withdrawInput = document.getElementById('routstr-withdraw-input');
+      let withdrawInput = (document.getElementById('routstr-withdraw-input') as HTMLInputElement | null);
       if (!withdrawInput) {
-        document.getElementById('routstr-wallet-fund-area').innerHTML = '<div id="routstr-withdraw-status"></div>';
+        (document.getElementById('routstr-wallet-fund-area'))!.innerHTML = '<div id="routstr-withdraw-status"></div>';
         panels.showRoutstrWithdrawLightning();
-        withdrawInput = document.getElementById('routstr-withdraw-input');
+        withdrawInput = (document.getElementById('routstr-withdraw-input') as HTMLInputElement | null);
       }
-      withdrawInput.value = 'alice@getbased.test';
-      withdrawInput.dispatchEvent(new Event('input', { bubbles: true }));
+      (withdrawInput)!.value = 'alice@getbased.test';
+      (withdrawInput)!.dispatchEvent(new Event('input', { bubbles: true }));
       const addressShowsAmount = document.getElementById('routstr-withdraw-ln-amount')?.style.display === 'block';
-      let withdrawMaxButton = document.querySelector('[data-routstr-wallet-action="withdraw-max"]');
+      let withdrawMaxButton = document.querySelector<HTMLElement>('[data-routstr-wallet-action="withdraw-max"]');
       if (!withdrawMaxButton) {
         const statusEl = document.getElementById('routstr-withdraw-status');
-        statusEl.insertAdjacentHTML('beforeend', '<input id="routstr-withdraw-amount"><button data-routstr-wallet-action="withdraw-max"></button>');
-        withdrawMaxButton = document.querySelector('[data-routstr-wallet-action="withdraw-max"]');
+        (statusEl)!.insertAdjacentHTML('beforeend', '<input id="routstr-withdraw-amount"><button data-routstr-wallet-action="withdraw-max"></button>');
+        withdrawMaxButton = document.querySelector<HTMLElement>('[data-routstr-wallet-action="withdraw-max"]');
       }
-      withdrawMaxButton.click();
-      await waitFor(() => document.getElementById('routstr-withdraw-amount')?.value === '1234');
-      const withdrawMaxSetsInput = document.getElementById('routstr-withdraw-amount')?.value === '1234';
-      document.getElementById('routstr-withdraw-amount').value = '100';
+      (withdrawMaxButton)!.click();
+      await waitFor(() => (document.getElementById('routstr-withdraw-amount') as HTMLInputElement | null)?.value === '1234');
+      const withdrawMaxSetsInput = (document.getElementById('routstr-withdraw-amount') as HTMLInputElement | null)?.value === '1234';
+      ((document.getElementById('routstr-withdraw-amount') as HTMLInputElement | null))!.value = '100';
       await panels.doRoutstrWithdrawQuote();
       const addressWithdrawCalls = calls.some(item => item[0] === 'withdrawAddress' && item[1] === 'alice@getbased.test' && item[2] === 100);
       panels.showRoutstrWithdrawLightning();
-      const invoiceInput = document.getElementById('routstr-withdraw-input');
-      invoiceInput.value = 'lnbc200';
+      const invoiceInput = (document.getElementById('routstr-withdraw-input') as HTMLInputElement | null);
+      (invoiceInput)!.value = 'lnbc200';
       await panels.doRoutstrWithdrawQuote();
-      const invoiceQuoteRendersConfirm = !!document.querySelector('[data-routstr-wallet-action="withdraw-execute"]');
-      document.querySelector('[data-routstr-wallet-action="withdraw-execute"]')?.click();
+      const invoiceQuoteRendersConfirm = !!document.querySelector<HTMLElement>('[data-routstr-wallet-action="withdraw-execute"]');
+      document.querySelector<HTMLElement>('[data-routstr-wallet-action="withdraw-execute"]')?.click();
       await wait(0);
       const executeWithdrawDelegates = calls.some(item => item[0] === 'executeWithdraw' && item[1] === 'quote-lnbc200');
 
       await panels.showRoutstrWithdrawToken();
-      document.querySelector('[data-routstr-wallet-action="send-token-preset"][data-amount="500"]')?.click();
+      document.querySelector<HTMLElement>('[data-routstr-wallet-action="send-token-preset"][data-amount="500"]')?.click();
       await wait(0);
       const tokenPresetCreatesToken = document.getElementById('routstr-token-result')?.textContent.includes('500 sats');
-      document.querySelector('[data-routstr-wallet-action="select-textarea"]')?.click();
-      document.querySelector('#routstr-token-result [data-routstr-wallet-action="copy-clipboard"]')?.click();
+      document.querySelector<HTMLElement>('[data-routstr-wallet-action="select-textarea"]')?.click();
+      document.querySelector<HTMLElement>('#routstr-token-result [data-routstr-wallet-action="copy-clipboard"]')?.click();
       const copyDelegateWritesToken = clipboardWrites.some(text => String(text).includes('cashuAsent-500'));
 
-      document.getElementById('routstr-wallet-fund-area').innerHTML = '<div id="routstr-wfund-status"></div>';
+      (document.getElementById('routstr-wallet-fund-area'))!.innerHTML = '<div id="routstr-wfund-status"></div>';
       const blurProbe = document.createElement('input');
       blurProbe.id = 'routstr-wfund-custom';
       blurProbe.dataset.routstrWalletBlur = 'wallet-fund-custom';
       blurProbe.value = '750';
-      document.getElementById('routstr-wallet-fund-area').appendChild(blurProbe);
+      (document.getElementById('routstr-wallet-fund-area'))!.appendChild(blurProbe);
       blurProbe.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
       await wait(0);
       const blurDoesNotCreateInvoice = !document.getElementById('routstr-wfund-poll');
@@ -831,7 +837,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       const seed = document.createElement('div');
       seed.dataset.routstrWalletAction = 'toggle-seed-blur';
       seed.style.filter = 'blur(4px)';
-      document.getElementById('routstr-wallet-fund-area').appendChild(seed);
+      (document.getElementById('routstr-wallet-fund-area'))!.appendChild(seed);
       seed.click();
       const seedBlurToggles = seed.style.filter === '';
 
@@ -879,19 +885,19 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       providerStorageRuntime.configureApiProviderStorageRuntimeDeps(previousProviderStorageRuntime);
       cryptoStore.updateKeyCache('labcharts-routstr-key', null);
       root.remove();
-      window.showNotification = oldNotification;
-      window.qrcode = oldQrcode;
-      for (const name of globalNames) window[name] = oldGlobals[name];
+      (window as unknown as {showNotification:unknown}).showNotification = oldNotification;
+      (window as {qrcode?: unknown}).qrcode = oldQrcode;
+      for (const name of globalNames) (window as unknown as Record<string,unknown>)[name] = oldGlobals[name];
       if (hadClipboard) {
         Object.defineProperty(window.navigator, 'clipboard', {
           configurable: true,
           value: oldClipboard,
         });
       } else {
-        delete window.navigator.clipboard;
+        delete (window.navigator as unknown as {clipboard?:unknown}).clipboard;
       }
-      clearTimeout(window._tokenClipTimer);
-      clearTimeout(window._seedClipTimer);
+      clearTimeout((window as unknown as {_tokenClipTimer?:ReturnType<typeof setTimeout>})._tokenClipTimer);
+      clearTimeout((window as unknown as {_seedClipTimer?:ReturnType<typeof setTimeout>})._seedClipTimer);
       localStorage.removeItem('labcharts-routstr-node');
       localStorage.removeItem('labcharts-routstr-key');
       localStorage.removeItem('labcharts-routstr-model');
@@ -913,17 +919,17 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
   await page.goto('/cashu-wallet-delegates-blank', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
-    const { makeTestInvoice, LNURL_METADATA } = await import('/wallet-test-lightning-invoices.js');
-    const { validateLightningInvoice } = await import('/js/routstr-validation.js');
-    const calls = [];
-    const clipboardWrites = [];
+    const { makeTestInvoice: _makeTestInvoice, LNURL_METADATA: _LNURL_METADATA } = await import('/wallet-test-lightning-invoices.js');
+    const { validateLightningInvoice: _validateLightningInvoice } = await import('/js/routstr-validation.js');
+    const calls: unknown[][] = [];
+    const clipboardWrites: unknown[] = [];
     const hadClipboard = Object.prototype.hasOwnProperty.call(window.navigator, 'clipboard');
     const oldClipboard = window.navigator.clipboard;
     Object.defineProperty(window.navigator, 'clipboard', {
       configurable: true,
-      value: { writeText: async text => clipboardWrites.push(text) },
+      value: { writeText: async (text: unknown) => clipboardWrites.push(text) },
     });
-    const cashuReceiveToken = async token => {
+    const cashuReceiveToken = async (token: unknown) => {
       calls.push(['recoverAttempt', token]);
       if (token === 'cashuWithdrawRecover') return { received: 500 };
       throw new Error('recover blocked');
@@ -931,8 +937,8 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
     const cashuClearPendingDeposit = async () => calls.push(['clearPendingDeposit']);
     const cashuClearPendingWithdraw = async () => calls.push(['clearPendingWithdraw']);
     const cashuGetMaxWithdrawable = async () => 888;
-    let walletRuntimeModule;
-    let previousWalletRuntime;
+    let walletRuntimeModule: typeof import('../../js/provider-wallet-runtime.js') | undefined;
+    let previousWalletRuntime: unknown;
 
     const root = document.createElement('div');
     root.id = 'ai-provider-panel';
@@ -988,18 +994,18 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         cashuClearPendingWithdraw,
         cashuGetMaxWithdrawable,
       });
-      const delegates = await import(`/js/provider-wallet-delegates.js?walletDelegateCoverage=${Date.now()}`);
+      const delegates = (await import(`/js/provider-wallet-delegates.js?walletDelegateCoverage=${Date.now()}`) as unknown) as Pick<typeof import('../../js/provider-wallet-delegates.js'), "installRoutstrWalletDelegates">;
       delegates.installRoutstrWalletDelegates({
         reload: () => calls.push(['reload']),
-        doRoutstrWalletFund: amount => calls.push(['fund', amount]),
+        doRoutstrWalletFund: (amount: unknown) => calls.push(['fund', amount]),
         rsWalletFundCustomInput: () => calls.push(['fundCustomInput']),
         recoverPendingWalletFunding: () => calls.push(['recoverFunding']),
         doRoutstrWalletReceiveCashu: () => calls.push(['receiveCashu']),
         doRoutstrWalletFundCustom: () => calls.push(['fundCustom']),
-        connectRoutstrNode: url => calls.push(['connectNode', url]),
-        showRoutstrNodeDeposit: url => calls.push(['showNodeDeposit', url]),
-        doRoutstrNodeDeposit: (url, amount) => calls.push(['depositNode', url, amount]),
-        _setActiveNodeAction: action => calls.push(['activeNode', action]),
+        connectRoutstrNode: (url: unknown) => calls.push(['connectNode', url]),
+        showRoutstrNodeDeposit: (url: unknown) => calls.push(['showNodeDeposit', url]),
+        doRoutstrNodeDeposit: (url: unknown, amount: unknown) => calls.push(['depositNode', url, amount]),
+        _setActiveNodeAction: (action: unknown) => calls.push(['activeNode', action]),
         doRoutstrNodeWithdraw: () => calls.push(['nodeWithdraw']),
         showRoutstrNodePicker: () => calls.push(['nodeBrowse']),
         showRoutstrWalletFund: () => calls.push(['walletFund']),
@@ -1011,8 +1017,8 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         showRoutstrWithdrawLightning: () => calls.push(['withdrawLightning']),
         showRoutstrWithdrawToken: () => calls.push(['withdrawToken']),
         doRoutstrWithdrawQuote: () => calls.push(['withdrawQuote']),
-        doRoutstrSendToken: amount => calls.push(['sendToken', amount]),
-        doRoutstrWithdrawExecute: quoteId => calls.push(['executeWithdraw', quoteId]),
+        doRoutstrSendToken: (amount: unknown) => calls.push(['sendToken', amount]),
+        doRoutstrWithdrawExecute: (quoteId: unknown) => calls.push(['executeWithdraw', quoteId]),
         clearRoutstrNodeSession: () => calls.push(['clearRoutstrNodeSession']),
       });
 
@@ -1048,15 +1054,15 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         'withdraw-execute',
         'seed-blur',
       ]) {
-        document.getElementById(id).click();
+        (document.getElementById(id))!.click();
       }
 
-      document.getElementById('seed-ack').checked = true;
-      document.getElementById('seed-ack').dispatchEvent(new Event('change', { bubbles: true }));
-      document.getElementById('routstr-wfund-custom').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      document.getElementById('routstr-wfund-custom').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      document.getElementById('routstr-wfund-custom').dispatchEvent(new FocusEvent('blur', { bubbles: true }));
-      await new Promise(resolve => setTimeout(resolve, 0));
+      ((document.getElementById('seed-ack') as HTMLInputElement | null))!.checked = true;
+      ((document.getElementById('seed-ack') as HTMLInputElement | null))!.dispatchEvent(new Event('change', { bubbles: true }));
+      ((document.getElementById('routstr-wfund-custom') as HTMLInputElement | null))!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      ((document.getElementById('routstr-wfund-custom') as HTMLInputElement | null))!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      ((document.getElementById('routstr-wfund-custom') as HTMLInputElement | null))!.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       return {
         successfulRecoveryReloads: calls.filter(item => item[0] === 'reload').length === 2,
@@ -1064,19 +1070,19 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         customInput: calls.some(item => item[0] === 'fundCustomInput'),
         recoverFunding: calls.some(item => item[0] === 'recoverFunding'),
         receiveCashu: calls.some(item => item[0] === 'receiveCashu'),
-        copyClipboard: clipboardWrites.includes('cashu-copy') && document.getElementById('copy').textContent === 'Copied',
-        mintInputSet: document.getElementById('routstr-mint-input').value === 'https://mint.delegate.test',
-        mintCanceled: document.getElementById('routstr-mint-edit').style.display === 'none',
+        copyClipboard: clipboardWrites.includes('cashu-copy') && ((document.getElementById('copy') as HTMLButtonElement | null))!.textContent === 'Copied',
+        mintInputSet: ((document.getElementById('routstr-mint-input') as HTMLInputElement | null))!.value === 'https://mint.delegate.test',
+        mintCanceled: (document.getElementById('routstr-mint-edit'))!.style.display === 'none',
         depositInput: calls.some(item => item[0] === 'depositNode' && item[2] === 42),
         depositPreset: calls.some(item => item[0] === 'depositNode' && item[2] === 77)
-          && document.getElementById('routstr-deposit-amount').value === '77',
+          && ((document.getElementById('routstr-deposit-amount') as HTMLInputElement | null))!.value === '77',
         recoverAttempted: calls.some(item => item[0] === 'recoverAttempt' && item[1] === 'cashuArecover'),
         recoverWithdrawPreservesSession: calls.some(item => item[0] === 'recoverAttempt' && item[1] === 'cashuWithdrawRecover')
           && calls.filter(item => item[0] === 'clearPendingWithdraw').length === 1
           && calls.filter(item => item[0] === 'clearRoutstrNodeSession').length === 0,
         nodeActions: ['deposit', 'withdraw', 'browse'].every(action => calls.some(item => item[0] === 'activeNode' && item[1] === action)),
         walletActions: ['walletFund', 'walletWithdraw', 'walletSeed', 'walletBackup'].every(name => calls.some(item => item[0] === name)),
-        seedChangeAndContinue: document.getElementById('routstr-seed-continue').disabled === false
+        seedChangeAndContinue: ((document.getElementById('routstr-seed-continue') as HTMLButtonElement | null))!.disabled === false
           && calls.some(item => item[0] === 'seedContinue'),
         restoreWithdrawAndSend: calls.some(item => item[0] === 'restoreWallet')
           && calls.some(item => item[0] === 'withdrawLightning')
@@ -1085,10 +1091,10 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
           && calls.some(item => item[0] === 'sendToken' && item[1] === 66)
           && calls.some(item => item[0] === 'sendToken' && item[1] === 55)
           && calls.some(item => item[0] === 'executeWithdraw' && item[1] === 'quote-delegate'),
-        withdrawMaxAndKeyBlur: document.getElementById('routstr-withdraw-amount').value === '888'
+        withdrawMaxAndKeyBlur: ((document.getElementById('routstr-withdraw-amount') as HTMLInputElement | null))!.value === '888'
           && calls.filter(item => item[0] === 'fundCustom').length === 1
           && calls.some(item => item[0] === 'walletFund'),
-        seedBlurToggled: document.getElementById('seed-blur').style.filter === '',
+        seedBlurToggled: (document.getElementById('seed-blur'))!.style.filter === '',
       };
     } finally {
       root.remove();
@@ -1101,7 +1107,7 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
           value: oldClipboard,
         });
       } else {
-        delete window.navigator.clipboard;
+        delete (window.navigator as unknown as {clipboard?:unknown}).clipboard;
       }
     }
   });
