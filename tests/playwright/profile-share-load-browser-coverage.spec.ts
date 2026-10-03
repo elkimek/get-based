@@ -1,10 +1,11 @@
+import type { Page } from '@playwright/test';
 import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('profileShareLoadCoverage');
 
-async function openIsolatedShareLoadPage(page) {
+async function openIsolatedShareLoadPage(page: Page) {
   await routeHtml(page, '**/profile-share-load-browser-coverage', `<!doctype html>
       <html>
         <body>
@@ -38,15 +39,15 @@ test('profile share load browser coverage fetches decrypts imports and clears de
   await openIsolatedShareLoadPage(page);
 
   const results = await page.evaluate(async ({ shareUrl }) => {
-    const share = await import(shareUrl);
-    const outcomes = {};
+    const share = (await import(shareUrl) as unknown) as Pick<typeof import('../../js/profile-share.js'), "encryptProfileShareEnvelope" | "openSharedProfileImportModal" | "closeProfileShareModal" | "resetProfileShareDeepLinkState">;
+    const outcomes: Record<string, unknown> = {};
     const originalFetch = window.fetch;
     const originalUrl = `${location.pathname}${location.search}${location.hash}`;
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key!)];
     }));
-    const waitFor = async (predicate, label) => {
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, label: string) => {
       for (let attempt = 0; attempt < 80; attempt += 1) {
         if (predicate()) return true;
         await new Promise(resolve => setTimeout(resolve, 25));
@@ -73,7 +74,7 @@ test('profile share load browser coverage fetches decrypts imports and clears de
         iterations: 100000,
         expiresAt: '2099-01-01T00:00:00.000Z',
       });
-      const fetches = [];
+      const fetches: {href: string;method: string}[] = [];
       window.fetch = async (url, options = {}) => {
         const href = String(url || '');
         fetches.push({ href, method: String(options.method || 'GET').toUpperCase() });
@@ -88,37 +89,37 @@ test('profile share load browser coverage fetches decrypts imports and clears de
 
       history.pushState(null, '', `?share=${id}#share/${id}`);
       share.openSharedProfileImportModal(id);
-      await waitFor(() => !!document.querySelector('[data-profile-share-form="load"]'), 'load form');
+      await waitFor(() => !!document.querySelector<HTMLElement>('[data-profile-share-form="load"]'), 'load form');
       const passwordInput = document.getElementById('profile-share-load-password');
       if (!(passwordInput instanceof HTMLInputElement)) {
         throw new Error('Profile share load password input missing');
       }
       passwordInput.value = password;
-      document.querySelector('[data-profile-share-action="load"]')?.click();
+      document.querySelector<HTMLElement>('[data-profile-share-action="load"]')?.click();
       await waitFor(() => !document.getElementById('profile-share-overlay'), 'load modal closed after import');
 
-      const imported = window.__profileShareImports?.[0];
+      const imported = (window as unknown as {__profileShareImports?: {name?:unknown;type?:unknown;payload?:unknown}[]}).__profileShareImports?.[0];
       const shareFetch = fetches.find(({ href }) => href === `/api/share?id=${encodeURIComponent(id)}`);
       outcomes.fetchesEnvelopeByShareId =
         shareFetch?.method === 'GET';
       outcomes.decryptsAndImportsSharedProfile =
         imported?.name === 'getbased-shared-profile.json'
         && imported.type === 'application/json'
-        && imported.payload.profile.name === 'Loaded Share Profile'
-        && imported.payload.entries[0].markers.metabolic.glucose === 5.2
-        && imported.payload.notes[0].text === 'shared note';
+        && (imported.payload as {profile: {name?: unknown}}).profile.name === 'Loaded Share Profile'
+        && (imported.payload as {entries: {markers: {metabolic: {glucose?: unknown}}}[]}).entries[0]!.markers.metabolic.glucose === 5.2
+        && (imported.payload as {notes: {text?: unknown}[]}).notes[0]!.text === 'shared note';
       outcomes.clearShareHashRemovesHashAndQuery =
         location.hash === ''
         && !new URL(location.href).searchParams.has('share');
       outcomes.successNotificationMentionsImportedProfile =
-        Array.from(document.querySelectorAll('.notification-toast'))
+        Array.from(document.querySelectorAll<HTMLElement>('.notification-toast'))
           .some(el => (el.textContent || '').includes('Imported shared profile "Loaded Share Profile"'));
     } finally {
       share.closeProfileShareModal();
       share.resetProfileShareDeepLinkState();
       window.fetch = originalFetch;
       history.replaceState(null, '', originalUrl);
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);
@@ -159,11 +160,11 @@ test('encrypted profile loading preserves a complete ongoing ingredient regimen 
     const { state } = await import('/js/state.js');
     const { prepareTherapyHistory, therapyExposure } = await import('/js/therapy-correlations.js');
     const record = state.importedData.supplements.find(s => s.id === 'sm_shared_regimen');
-    const h = prepareTherapyHistory(record, '2026-09-28');
+    const h = prepareTherapyHistory(record!, '2026-09-28');
     return { record, exposure: therapyExposure(h, '2026-09-28'), current: h.currentDoses[0] };
   });
   expect(result.record).toMatchObject(source);
-  expect(result.record.periods).toEqual(source.periods);
+  expect(result.record!.periods).toEqual(source.periods);
   expect(result.current).toMatchObject({ value: 500, confirmedSince: '2026-03-24' });
   expect(result.exposure).toMatchObject({ value: 500, usage: 1 });
 });
@@ -175,7 +176,7 @@ test('regimen import offers keep or replace without guessing from device clocks'
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     state.currentProfile = 'regimen-conflict-test';
-    state.importedData = { entries: [], supplements: [{ id: 'tmg', name: 'TMG', startDate: '2026-03-24', updatedAt: 200,
+    (state as {importedData: unknown}).importedData = { entries: [], supplements: [{ id: 'tmg', name: 'TMG', startDate: '2026-03-24', updatedAt: 200,
       ingredients: [{ name: 'TMG', amount: '500 mg' }], sourceUrl: 'https://example.test/tmg',
       periods: [{ start: '2026-03-24', end: null, dose: '500 mg', schedule: { mode: 'daily' } }] }] };
   });
@@ -189,8 +190,8 @@ test('regimen import offers keep or replace without guessing from device clocks'
     await expect(page.getByRole('alertdialog', { name: 'Conflicting regimens' })).toContainText('remove omitted fields');
     await page.getByRole('button', { name: replace ? 'Use imported' : 'Keep saved', exact: true }).click();
     const record = await importing;
-    expect(record.periods[0].dose).toBe(replace ? '2000 mg' : '500 mg');
-    expect(record.sourceUrl).toBe(replace ? undefined : 'https://example.test/tmg');
-    expect(Boolean(record.ingredients)).toBe(!replace);
+    expect(record!.periods![0]!.dose).toBe(replace ? '2000 mg' : '500 mg');
+    expect(record!.sourceUrl).toBe(replace ? undefined : 'https://example.test/tmg');
+    expect(Boolean(record!.ingredients)).toBe(!replace);
   }
 });

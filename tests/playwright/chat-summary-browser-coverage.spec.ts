@@ -1,10 +1,11 @@
+import type { Page } from '@playwright/test';
 import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('chatSummaryCoverage');
 
-async function openIsolatedSummaryPage(page) {
+async function openIsolatedSummaryPage(page: Page) {
   await routeHtml(page, '**/chat-summary-browser-coverage', '<!doctype html><html><head><title>Chat summary coverage</title></head><body></body></html>');
   await routeJavaScript(page, '**/js/api.js*', `
       export function hasAIProvider() { return true; }
@@ -56,10 +57,10 @@ test('chat summary browser coverage streams saves refreshes and closes summaries
   const results = await page.evaluate(async ({ summariesUrl }) => {
     const [{ state }, summaries] = await Promise.all([
       import('/js/state.js'),
-      import(summariesUrl),
+      (import(summariesUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-summaries.js'), "summarizeThread" | "renderSavedSummaries" | "closeSummaryModal" | "viewSavedSummary" | "copySummary">>,
     ]);
-    const outcomes = {};
-    const waitUntil = async (predicate, label) => {
+    const outcomes: Record<string, unknown> = {};
+    const waitUntil = async (predicate: () => unknown | Promise<unknown>, label: string) => {
       for (let i = 0; i < 50; i += 1) {
         if (predicate()) return true;
         await new Promise(resolve => setTimeout(resolve, 20));
@@ -68,7 +69,7 @@ test('chat summary browser coverage streams saves refreshes and closes summaries
     };
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key!)];
     }));
     const original = {
       currentProfile: state.currentProfile,
@@ -81,12 +82,12 @@ test('chat summary browser coverage streams saves refreshes and closes summaries
     try {
       document.body.innerHTML = '<div id="chat-saved-summaries"></div><div id="chat-thread-list"></div>';
       const profileId = 'chat-summary-browser-coverage';
-      window.__summaryApiCalls = [];
-      window.__summaryDataSaves = 0;
-      window.__summaryThreadIndexSaves = 0;
-      window.__summaryThreadListRenders = 0;
+      (window as unknown as {__summaryApiCalls?: {system: string;messages: {content: string}[];signalPresent: boolean}[]}).__summaryApiCalls = [];
+      (window as unknown as {__summaryDataSaves?: number}).__summaryDataSaves = 0;
+      (window as unknown as {__summaryThreadIndexSaves?: number}).__summaryThreadIndexSaves = 0;
+      (window as unknown as {__summaryThreadListRenders?: number}).__summaryThreadListRenders = 0;
       state.currentProfile = profileId;
-      state.importedData = { entries: [], chatSummaries: [] };
+      (state as {importedData: unknown}).importedData = { entries: [], chatSummaries: [] };
       state.chatThreads = [{
         id: 'summary-thread',
         name: 'Generated Summary Thread',
@@ -95,7 +96,7 @@ test('chat summary browser coverage streams saves refreshes and closes summaries
         messageCount: 4,
       }];
       state.currentThreadId = 'summary-thread';
-      state.chatHistory = [
+      (state as {chatHistory: unknown}).chatHistory = [
         { role: 'user', content: 'Please summarize my ferritin trend.' },
         { role: 'assistant', personalityName: 'Analyst', content: 'Ferritin rose from 22 to 47.' },
         { role: 'user', content: [{ type: 'text', text: 'Also mention vitamin D.' }] },
@@ -108,7 +109,7 @@ test('chat summary browser coverage streams saves refreshes and closes summaries
         'generated summary save'
       );
       const generatedThread = state.chatThreads.find(t => t.id === 'summary-thread');
-      const saved = state.importedData.chatSummaries?.[0];
+      const saved: {id?: unknown;threadId?: unknown;attribution?: unknown;content?: unknown} | undefined = state.importedData.chatSummaries?.[0];
       const overlay = document.getElementById('summary-modal-overlay');
       const modalBody = document.getElementById('summary-modal-body');
       outcomes.generatedSummarySavedToThreadAndProfile =
@@ -116,19 +117,19 @@ test('chat summary browser coverage streams saves refreshes and closes summaries
         && generatedThread.summaryModel === 'Summary Coverage Model'
         && generatedThread.summaryCost?.inputTokens === 64
         && saved?.threadId === 'summary-thread'
-        && saved.attribution === 'AI-generated'
+        && saved!.attribution === 'AI-generated'
         && overlay?.querySelector('.chat-provider-attribution')?.textContent === 'AI-generated'
-        && saved.content.includes('Retest vitamin D')
-        && overlay?.dataset.syncRefreshSummaryId === saved.id
+        && (saved!.content as {includes(value: string): unknown}).includes('Retest vitamin D')
+        && overlay?.dataset.syncRefreshSummaryId === saved!.id
         && modalBody?.textContent.includes('Retest vitamin D') === true;
       outcomes.generateSummaryUsedPromptAndRenderedSideEffects =
-        window.__summaryApiCalls?.length === 1
-        && window.__summaryApiCalls[0].system.includes('concise medical note-taker')
-        && window.__summaryApiCalls[0].messages[0].content.includes('Summarize this conversation transcript')
-        && window.__summaryApiCalls[0].signalPresent === true
-        && window.__summaryThreadIndexSaves === 1
-        && window.__summaryDataSaves === 1
-        && window.__summaryThreadListRenders === 1;
+        (window as unknown as {__summaryApiCalls?: {system: string;messages: {content: string}[];signalPresent: boolean}[]}).__summaryApiCalls?.length === 1
+        && (window as unknown as {__summaryApiCalls?: {system: string;messages: {content: string}[];signalPresent: boolean}[]}).__summaryApiCalls![0]!.system.includes('concise medical note-taker')
+        && (window as unknown as {__summaryApiCalls?: {system: string;messages: {content: string}[];signalPresent: boolean}[]}).__summaryApiCalls![0]!.messages[0]!.content.includes('Summarize this conversation transcript')
+        && (window as unknown as {__summaryApiCalls?: {system: string;messages: {content: string}[];signalPresent: boolean}[]}).__summaryApiCalls![0]!.signalPresent === true
+        && (window as unknown as {__summaryThreadIndexSaves?: number}).__summaryThreadIndexSaves === 1
+        && (window as unknown as {__summaryDataSaves?: number}).__summaryDataSaves === 1
+        && (window as unknown as {__summaryThreadListRenders?: number}).__summaryThreadListRenders === 1;
 
       summaries.renderSavedSummaries();
       outcomes.generatedSummaryRendersInSavedList =
@@ -138,22 +139,22 @@ test('chat summary browser coverage streams saves refreshes and closes summaries
       outcomes.exportedCloseHidesModal =
         document.getElementById('summary-modal-overlay')?.classList.contains('show') === false;
 
-      saved.attribution = 'Written with Grok';
-      generatedThread.summaryAttribution = 'Written with Grok';
+      saved!.attribution = 'Written with Grok';
+      generatedThread!.summaryAttribution = 'Written with Grok';
       let copiedSummary = '';
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
-        value: { writeText: async text => { copiedSummary = text; } },
+        value: { writeText: async (text: string) => { copiedSummary = text; } },
       });
-      saved.attribution = '<script>untrusted attribution</script>';
-      summaries.viewSavedSummary(saved.id);
+      saved!.attribution = '<script>untrusted attribution</script>';
+      summaries.viewSavedSummary(saved!.id);
       summaries.copySummary();
       await Promise.resolve();
       outcomes.untrustedSummaryAttributionUsesSafeGenericLabel =
-        document.querySelector('#summary-modal-overlay .chat-provider-attribution')?.textContent === 'AI-generated'
+        document.querySelector<HTMLElement>('#summary-modal-overlay .chat-provider-attribution')?.textContent === 'AI-generated'
         && copiedSummary.endsWith('\n\nAI-generated');
-      saved.attribution = 'Written with Grok';
-      summaries.viewSavedSummary(saved.id);
+      saved!.attribution = 'Written with Grok';
+      summaries.viewSavedSummary(saved!.id);
       await waitUntil(
         () => document.getElementById('summary-modal-overlay')?.classList.contains('show') === true,
         'saved summary modal reopen'
@@ -165,14 +166,14 @@ test('chat summary browser coverage streams saves refreshes and closes summaries
         document.getElementById('summary-modal-overlay')?.textContent.includes('Written with Grok') === true
         && copiedSummary.endsWith('Written with Grok');
       if (reopenedBody) reopenedBody.scrollTop = 11;
-      saved.content = '## Key Findings\nSynced summary content.';
+      saved!.content = '## Key Findings\nSynced summary content.';
       window.dispatchEvent(new Event('labcharts-sync-applied'));
       await waitUntil(
         () => document.getElementById('summary-modal-body')?.textContent.includes('Synced summary content') === true,
         'summary sync refresh'
       );
       outcomes.syncRefreshUsesSummaryIdDataset =
-        document.getElementById('summary-modal-overlay')?.dataset.syncRefreshSummaryId === saved.id
+        document.getElementById('summary-modal-overlay')?.dataset.syncRefreshSummaryId === saved!.id
         && document.getElementById('summary-modal-body')?.textContent.includes('Synced summary content') === true;
 
       state.importedData.chatSummaries = [];
@@ -185,7 +186,7 @@ test('chat summary browser coverage streams saves refreshes and closes summaries
         document.getElementById('summary-modal-overlay')?.classList.contains('show') === false;
     } finally {
       state.currentProfile = original.currentProfile;
-      state.importedData = original.importedData;
+      (state as {importedData: unknown}).importedData = original.importedData;
       state.chatThreads = original.chatThreads;
       state.currentThreadId = original.currentThreadId;
       state.chatHistory = original.chatHistory;

@@ -20,18 +20,18 @@ test('a biometric row and its connection stay with the origin after a switch dur
     IDBObjectStore.prototype.get = function (...args) {
       const request = get.apply(this, args);
       if (Array.isArray(args[0]) && args[0][0] === 'manual' && args[0][1] === day) {
-        request.addEventListener('success', () => { switched = true; state.currentProfile = 'destination'; state.importedData = destination; }, { once: true });
+        request.addEventListener('success', () => { switched = true; state.currentProfile = 'destination'; (state as {importedData: unknown}).importedData = destination; }, { once: true });
       }
       return request;
     };
     try { await logManualMetric(profile, 'weight', { date: day, value: 80 }); }
     finally { IDBObjectStore.prototype.get = get; }
-    const saved = JSON.parse(await encryptedGetItem(profileStorageKey(profile, 'imported')));
+    const saved = (JSON.parse((await encryptedGetItem(profileStorageKey(profile, 'imported')))!) as {wearableConnections?: {manual?: unknown}});
     return { switched, row: await getDaily(profile, 'manual', day), connected: !!saved.wearableConnections?.manual, destination };
   });
   expect(result.switched).toBe(true);
   expect(result.row).toMatchObject({ weight: 80 });
-  expect(result.row.rhr).toBeUndefined();
+  expect(result.row!.rhr).toBeUndefined();
   expect(result.connected).toBe(true);
   expect(result.destination).toEqual({ entries: [], contextNotes: 'Destination', manualMetricTombstones: {} });
 });
@@ -57,8 +57,8 @@ test('an aborted deletion-intent commit preserves wearable readings and the live
       if (args[1] === key) request.addEventListener('success', () => this.transaction.abort(), { once: true });
       return request;
     };
-    let error = '';
-    try { await deleteAllManualMetrics(profile); } catch (e) { error = e.message; }
+    let error: unknown = '';
+    try { await deleteAllManualMetrics(profile); } catch (e) { error = (e as {message?: unknown}).message; }
     finally { IDBObjectStore.prototype.put = put; }
     return { error, row: await getDaily(profile, 'manual', '2026-09-21'), liveUnchanged: before === JSON.stringify(state.importedData), diskUnchanged: diskBefore === await encryptedGetItem(key) };
   });
@@ -98,26 +98,26 @@ test('two tabs serialize manual row writes through the same profile lock', async
     const { state } = await import('/js/state.js');
     const { encryptedGetItem } = await import('/js/crypto.js');
     state.currentProfile = profile;
-    state.importedData = JSON.parse(await encryptedGetItem(`labcharts-${profile}-imported`));
+    (state as {importedData: unknown}).importedData = (JSON.parse((await encryptedGetItem(`labcharts-${profile}-imported`))!) as unknown);
     if (!state.importedData) throw new Error('Shared profile not loaded');
   }, profile);
   const lockName = `getbased-manual-rows:${profile}`;
   await page.evaluate(lockName => {
-    window.manualTestLockHeld = false;
+    (window as unknown as {manualTestLockHeld?: boolean}).manualTestLockHeld = false;
     navigator.locks.request(lockName, async () => {
-      window.manualTestLockHeld = true;
-      await new Promise(resolve => { window.releaseManualTestLock = resolve; });
+      (window as unknown as {manualTestLockHeld?: boolean}).manualTestLockHeld = true;
+      await new Promise<void>(resolve => { (window as unknown as {releaseManualTestLock?: () => void}).releaseManualTestLock = resolve; });
     });
   }, lockName);
-  await page.waitForFunction(() => window.manualTestLockHeld);
+  await page.waitForFunction(() => (window as unknown as {manualTestLockHeld?: boolean}).manualTestLockHeld);
   const writes = [
     page.evaluate(async profile => (await import('/js/wearables-manual.js')).logManualMetric(profile, 'weight', { date: '2026-09-19', value: 82 }), profile),
     second.evaluate(async profile => (await import('/js/wearables-manual.js')).logManualBP(profile, { date: '2026-09-19', systolic: 118, diastolic: 76 }), profile),
   ];
   try {
-    await expect.poll(() => page.evaluate(async lockName => (await navigator.locks.query()).pending.filter(lock => lock.name === lockName).length, lockName)).toBe(2);
+    await expect.poll(() => page.evaluate(async lockName => (await navigator.locks.query()).pending!.filter(lock => lock.name === lockName).length, lockName)).toBe(2);
   } finally {
-    await page.evaluate(() => window.releaseManualTestLock());
+    await page.evaluate(() => (window as unknown as {releaseManualTestLock?: () => void}).releaseManualTestLock!());
     await Promise.all(writes);
   }
   const row = await page.evaluate(async profile => (await import('/js/wearables-store.js')).getDaily(profile, 'manual', '2026-09-19'), profile);
@@ -135,19 +135,19 @@ test('raw backup restoration and a manual edit share the row lock', async ({ pag
   const key = `getbased-manual-rows:${profile}`;
   await page.evaluate(key => {
     navigator.locks.request(key, async () => {
-      window.restoreRowLockHeld = true;
-      await new Promise(resolve => { window.releaseRestoreRowLock = resolve; });
+      (window as unknown as {restoreRowLockHeld?: boolean}).restoreRowLockHeld = true;
+      await new Promise<void>(resolve => { (window as unknown as {releaseRestoreRowLock?: () => void}).releaseRestoreRowLock = resolve; });
     });
   }, key);
-  await page.waitForFunction(() => window.restoreRowLockHeld);
+  await page.waitForFunction(() => (window as unknown as {restoreRowLockHeld?: boolean}).restoreRowLockHeld);
   const restore = page.evaluate(async profile => (await import('/js/wearables-store.js')).upsertDailyBatchRaw(profile, [{ source: 'manual', date: '2026-09-18', rhr: 64 }]), profile);
   try {
-    await expect.poll(() => page.evaluate(async key => (await navigator.locks.query()).pending.filter(lock => lock.name === key).length, key)).toBe(1);
+    await expect.poll(() => page.evaluate(async key => (await navigator.locks.query()).pending!.filter(lock => lock.name === key).length, key)).toBe(1);
     const edit = page.evaluate(async profile => (await import('/js/wearables-manual.js')).logManualMetric(profile, 'weight', { date: '2026-09-18', value: 80 }), profile);
     // The module queue keeps the edit behind the queued restore in this tab.
-    await page.evaluate(() => window.releaseRestoreRowLock());
+    await page.evaluate(() => (window as unknown as {releaseRestoreRowLock?: () => void}).releaseRestoreRowLock!());
     await Promise.all([restore, edit]);
-  } finally { await page.evaluate(() => window.releaseRestoreRowLock()); }
+  } finally { await page.evaluate(() => (window as unknown as {releaseRestoreRowLock?: () => void}).releaseRestoreRowLock!()); }
   const row = await page.evaluate(async profile => (await import('/js/wearables-store.js')).getDaily(profile, 'manual', '2026-09-18'), profile);
   expect(row).toMatchObject({ rhr: 64, weight: 80 });
 });
@@ -174,9 +174,9 @@ test('migration retry after an aborted metadata commit preserves newer manual re
       if (args[1] === key) request.addEventListener('success', () => { aborted += 1; this.transaction.abort(); }, { once: true });
       return request;
     };
-    let failure = '';
+    let failure: unknown = '';
     try { await migrateBiometricsToManual(profile, legacy); }
-    catch (error) { failure = error.message; }
+    catch (error) { failure = (error as {message?: unknown}).message; }
     finally { IDBObjectStore.prototype.put = put; }
     const flagAfterFailure = await getMeta(profile, 'biometrics-migrated-v1');
     await logManualMetric(profile, 'weight', { date: day, value: 82, note: 'Newer manual reading' });

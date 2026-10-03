@@ -3,7 +3,7 @@ import { expect, test } from './coverage-fixture.js';
 
 test.setTimeout(30_000);
 
-const moduleUrl = path => `${path}?modalLifecycleCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?modalLifecycleCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   status: 200, body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
@@ -13,19 +13,19 @@ test('modal lifecycle browser coverage handles backdrop focus trap and scroll lo
   await openBlankPage(page, '/modal-lifecycle-coverage');
 
   const outcomes = await page.evaluate(async ({ modalUrl, reloadedModalUrl }) => {
-    const modalLifecycle = await import(modalUrl);
-    const reloadedModalLifecycle = await import(reloadedModalUrl);
-    const waitUntil = async (predicate, label) => {
+    const modalLifecycle = (await import(modalUrl) as unknown) as Pick<typeof import('../../js/modal-lifecycle.js'), "wireBackdropClose" | "_wireBackdropClose" | "openModalOverlay" | "closeModalOverlay" | "openAppendedModalOverlay" | "removeModalOverlay" | "trapModalFocus">;
+    const reloadedModalLifecycle = (await import(reloadedModalUrl) as unknown) as Pick<typeof import('../../js/modal-lifecycle.js'), "trapModalFocus">;
+    const waitUntil = async (predicate: () => unknown | Promise<unknown>, label: string) => {
       for (let attempt = 0; attempt < 60; attempt += 1) {
         if (predicate()) return true;
         await new Promise(resolve => setTimeout(resolve, 10));
       }
       throw new Error(`Timed out waiting for ${label}`);
     };
-    const click = target => target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-    const mouseDown = target => target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    const click = (target: EventTarget) => target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    const mouseDown = (target: EventTarget) => target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
     const originalOverflow = document.body.style.overflow;
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
 
     try {
       document.body.innerHTML = '<button id="before-modal">Before modal</button><main id="fixture"></main>';
@@ -38,9 +38,9 @@ test('modal lifecycle browser coverage handles backdrop focus trap and scroll lo
       let backdropCloseCount = 0;
       modalLifecycle.wireBackdropClose(backdropOverlay, () => { backdropCloseCount += 1; });
       const insideModal = backdropOverlay.querySelector('.modal');
-      mouseDown(insideModal);
+      mouseDown(insideModal!);
       click(backdropOverlay);
-      click(insideModal);
+      click(insideModal!);
       mouseDown(backdropOverlay);
       click(backdropOverlay);
       outcomes.backdropCloseIgnoresInsidePressAndClosesOverlayClick = backdropCloseCount === 1;
@@ -120,7 +120,7 @@ test('modal lifecycle browser coverage handles backdrop focus trap and scroll lo
       appendedOpener.remove();
 
       const beforeModal = document.getElementById('before-modal');
-      beforeModal.focus();
+      beforeModal!.focus();
       const overlayA = document.createElement('div');
       overlayA.className = 'modal-overlay';
       overlayA.innerHTML = `
@@ -197,7 +197,7 @@ test('modal lifecycle browser coverage handles backdrop focus trap and scroll lo
       return outcomes;
     } finally {
       document.body.style.overflow = originalOverflow;
-      document.querySelectorAll('.modal-overlay').forEach(overlay => overlay.remove());
+      document.querySelectorAll<HTMLElement>('.modal-overlay').forEach(overlay => overlay.remove());
     }
   }, {
     modalUrl: moduleUrl('/js/modal-lifecycle.js'),

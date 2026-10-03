@@ -3,7 +3,7 @@ import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('appleHealthCoverage');
 
-function expectAll(results) {
+function expectAll(results: Record<string, unknown>) {
   for (const [name, passed] of Object.entries(results)) {
     expect.soft(passed, name).toBe(true);
   }
@@ -16,28 +16,28 @@ test('Apple Health browser coverage parses streams and imports XML and ZIP files
   const results = await page.evaluate(async ({ appleUrl }) => {
     const [{ state }, apple, store] = await Promise.all([
       import('/js/state.js'),
-      import(appleUrl),
+      (import(appleUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/wearables-apple-health.js'), "parseAppleHealthXml" | "parseAppleHealthBlob" | "importAppleHealthFile">>,
       import('/js/wearables-store.js'),
     ]);
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const clone = (value: unknown) : unknown => value == null ? value : (JSON.parse(JSON.stringify(value)) as unknown);
     const saved = {
       currentProfile: state.currentProfile,
       importedData: clone(state.importedData),
       profiles: clone(state.profiles),
-      jszip: window.JSZip,
+      jszip: (window as unknown as {JSZip?: unknown}).JSZip,
       hadJSZip: Object.prototype.hasOwnProperty.call(window, 'JSZip'),
     };
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key!)];
     }));
     const profileId = `apple-health-browser-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const results = {};
-    const blobProgress = [];
-    const importProgress = [];
-    const zipProgress = [];
+    const results: Record<string, unknown> = {};
+    const blobProgress: Parameters<NonNullable<Parameters<typeof apple.parseAppleHealthBlob>[1]>>[0][] = [];
+    const importProgress: Parameters<NonNullable<Parameters<typeof apple.importAppleHealthFile>[1]>>[0][] = [];
+    const zipProgress: Parameters<NonNullable<Parameters<typeof apple.importAppleHealthFile>[1]>>[0][] = [];
     const invalidErrors = [];
-    const isoDayOffset = offset => {
+    const isoDayOffset = (offset: number) => {
       const date = new Date();
       date.setUTCDate(date.getUTCDate() + offset);
       return date.toISOString().slice(0, 10);
@@ -81,7 +81,7 @@ test('Apple Health browser coverage parses streams and imports XML and ZIP files
       await store.deleteWearablesDB(profileId).catch(() => {});
       localStorage.setItem('labcharts-active-profile', profileId);
       state.currentProfile = profileId;
-      state.importedData = {
+      (state as {importedData: unknown}).importedData = {
         entries: [],
         wearableConnections: {},
         wearableSummary: null,
@@ -113,21 +113,21 @@ test('Apple Health browser coverage parses streams and imports XML and ZIP files
 
       const blobRows = await apple.parseAppleHealthBlob(new Blob([richXml], { type: 'application/xml' }), evt => blobProgress.push(evt));
       results.blobParserMatchesXmlParser = JSON.stringify(blobRows) === JSON.stringify(parsedRows);
-      results.blobParserReportsProgress = blobProgress.some(evt => evt.stage === 'parsing' && evt.pct >= 40);
+      results.blobParserReportsProgress = blobProgress.some(evt => evt.stage === 'parsing' && evt.pct! >= 40);
 
       try {
         await apple.importAppleHealthFile(new File(['not apple'], 'notes.txt', { type: 'text/plain' }));
       } catch (error) {
-        invalidErrors.push(error?.message || String(error));
+        invalidErrors.push((error as {message?: unknown} | null)?.message || String(error));
       }
-      results.importRejectsUnknownFileTypes = invalidErrors.some(message => message.includes('Unrecognised file type'));
+      results.importRejectsUnknownFileTypes = invalidErrors.some(message => (message as {includes(value: string): unknown}).includes('Unrecognised file type'));
 
       const xmlResult = await apple.importAppleHealthFile(
         new File([richXml], 'export.xml', { type: 'application/xml' }),
         evt => importProgress.push(evt)
       );
       const importedRows = await store.getDailyRange(profileId, 'apple_health', dayOneDate, dayTwoDate);
-      const importMeta = await store.getMeta(profileId, 'last-sync:apple_health');
+      const importMeta = await store.getMeta<{rows?: unknown;startDate?: unknown;endDate?: unknown}>(profileId, 'last-sync:apple_health');
       results.xmlImportReturnsDateRange = xmlResult.rows === 2
         && xmlResult.startDate === dayOneDate
         && xmlResult.endDate === dayTwoDate;
@@ -141,14 +141,14 @@ test('Apple Health browser coverage parses streams and imports XML and ZIP files
       results.xmlImportReportsAllStages = ['reading', 'parsing', 'writing', 'summarising', 'done']
         .every(stage => importProgress.some(evt => evt.stage === stage));
 
-      window.JSZip = {
-        loadAsync: async (_file, options = {}) => {
+      (window as unknown as {JSZip?: unknown}).JSZip = {
+        loadAsync: async (_file: unknown, options: {onUpdate?: (event: {percent: number}) => unknown} = {}) => {
           options.onUpdate?.({ percent: 25 });
           options.onUpdate?.({ percent: 100 });
           return {
             files: {
               'apple_health_export/export.xml': {
-                async: async type => {
+                async: async (type: string) => {
                   if (type !== 'blob') throw new Error(`unexpected zip async type ${type}`);
                   return new Blob([zipXml], { type: 'application/xml' });
                 },
@@ -169,7 +169,7 @@ test('Apple Health browser coverage parses streams and imports XML and ZIP files
         && state.importedData.wearableConnections.apple_health?.fileName === 'export.zip'
         && zipProgress.some(evt => evt.stage === 'unzipping');
 
-      window.JSZip = {
+      (window as unknown as {JSZip?: unknown}).JSZip = {
         loadAsync: async () => ({
           files: {
             'apple_health_export/other.xml': {},
@@ -180,19 +180,19 @@ test('Apple Health browser coverage parses streams and imports XML and ZIP files
       try {
         await apple.importAppleHealthFile(new File(['fake'], 'missing-export.zip', { type: 'application/zip' }));
       } catch (error) {
-        invalidErrors.push(error?.message || String(error));
+        invalidErrors.push((error as {message?: unknown} | null)?.message || String(error));
       }
       results.zipImportExplainsMissingExportXml = invalidErrors.some(message =>
-        message.includes('export.xml not found in ZIP')
-        && message.includes('apple_health_export/other.xml')
+        (message as {includes(value: string): unknown}).includes('export.xml not found in ZIP')
+        && (message as {includes(value: string): unknown}).includes('apple_health_export/other.xml')
       );
     } finally {
       await store.deleteWearablesDB(profileId).catch(() => {});
       state.currentProfile = saved.currentProfile;
-      state.importedData = saved.importedData;
-      state.profiles = saved.profiles;
-      if (saved.hadJSZip) window.JSZip = saved.jszip;
-      else delete window.JSZip;
+      (state as {importedData: unknown}).importedData = saved.importedData;
+      (state as {profiles: unknown}).profiles = saved.profiles;
+      if (saved.hadJSZip) (window as unknown as {JSZip?: unknown}).JSZip = saved.jszip;
+      else delete (window as unknown as {JSZip?: unknown}).JSZip;
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);

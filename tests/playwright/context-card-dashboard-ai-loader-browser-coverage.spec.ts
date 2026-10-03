@@ -45,7 +45,7 @@ test.beforeEach(async ({ page }) => {
 
 test('dashboard AI modal loader stays cold, single-flights, and applies stored configuration', async ({ page }) => {
   await page.goto('/dashboard-ai-loader-coverage');
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/context-card-dashboard-ai-impl.js*', async route => {
     implementationRequests.push(route.request().url());
     await new Promise(resolve => setTimeout(resolve, 25));
@@ -56,8 +56,8 @@ test('dashboard AI modal loader stays cold, single-flights, and applies stored c
   });
 
   const outcomes = await page.evaluate(async url => {
-    const facade = await import(url);
-    const callbackCalls = [];
+    const facade = (await import(url) as unknown) as Pick<typeof import('../../js/context-card-dashboard-ai.js'), "configureDashboardAISyncSetup" | "configureDashboardAIDataProtectionDeps" | "isDashboardAIModuleLoaded" | "renderDataProtectionCta" | "loadDashboardAIModule" | "openDataProtectionPicker" | "openContextModal" | "openPersonalizeAIPicker" | "triggerDNAFilePicker">;
+    const callbackCalls: string[] = [];
     facade.configureDashboardAISyncSetup(() => callbackCalls.push('sync'));
     facade.configureDashboardAIDataProtectionDeps({
       pickFolderForBackup: () => callbackCalls.push('backup'),
@@ -70,8 +70,8 @@ test('dashboard AI modal loader stays cold, single-flights, and applies stored c
       backup: false,
       backupSupported: true,
     });
-    const first = facade.loadDashboardAIModule();
-    const second = facade.loadDashboardAIModule();
+    const first = (facade.loadDashboardAIModule as (...args: Parameters<typeof facade.loadDashboardAIModule>) => Promise<unknown>)();
+    const second = (facade.loadDashboardAIModule as (...args: Parameters<typeof facade.loadDashboardAIModule>) => Promise<unknown>)();
     const sharedPromise = first === second;
     await Promise.all([first, second]);
     return {
@@ -84,7 +84,7 @@ test('dashboard AI modal loader stays cold, single-flights, and applies stored c
       personalize: facade.openPersonalizeAIPicker(),
       dna: facade.triggerDNAFilePicker(),
       callbackCalls,
-      implementationCalls: window.__dashboardAILoaderCalls || [],
+      implementationCalls: (window as unknown as {__dashboardAILoaderCalls?: unknown[][]}).__dashboardAILoaderCalls || [],
     };
   }, facadeUrl());
 
@@ -112,7 +112,7 @@ test('dashboard AI modal loader stays cold, single-flights, and applies stored c
 
 test('first cold dashboard CTA click loads and runs its delegated action', async ({ page }) => {
   await page.goto('/dashboard-ai-loader-coverage');
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/context-card-dashboard-ai-impl.js*', route => {
     implementationRequests.push(route.request().url());
     return route.fulfill({
@@ -122,37 +122,37 @@ test('first cold dashboard CTA click loads and runs its delegated action', async
   });
 
   const loadedBeforeClick = await page.evaluate(async url => {
-    const facade = await import(url);
+    const facade = (await import(url) as unknown) as Pick<typeof import('../../js/context-card-dashboard-ai.js'), "configureDashboardAISyncSetup" | "configureDashboardAIDataProtectionDeps" | "isDashboardAIModuleLoaded" | "renderDataProtectionCta" | "loadDashboardAIModule" | "openDataProtectionPicker" | "openContextModal" | "openPersonalizeAIPicker" | "triggerDNAFilePicker">;
     facade.configureDashboardAISyncSetup(() => {
-      window.__dashboardAIFirstClickCallbacks ||= [];
-      window.__dashboardAIFirstClickCallbacks.push('sync');
+      (window as unknown as {__dashboardAIFirstClickCallbacks?: string[]}).__dashboardAIFirstClickCallbacks ||= [];
+      (window as unknown as {__dashboardAIFirstClickCallbacks?: string[]}).__dashboardAIFirstClickCallbacks!.push('sync');
     });
     facade.configureDashboardAIDataProtectionDeps({
       pickFolderForBackup: () => {
-        window.__dashboardAIFirstClickCallbacks ||= [];
-        window.__dashboardAIFirstClickCallbacks.push('backup');
+        (window as unknown as {__dashboardAIFirstClickCallbacks?: string[]}).__dashboardAIFirstClickCallbacks ||= [];
+        (window as unknown as {__dashboardAIFirstClickCallbacks?: string[]}).__dashboardAIFirstClickCallbacks!.push('backup');
       },
       showEnableEncryptionModal: () => {
-        window.__dashboardAIFirstClickCallbacks ||= [];
-        window.__dashboardAIFirstClickCallbacks.push('encryption');
+        (window as unknown as {__dashboardAIFirstClickCallbacks?: string[]}).__dashboardAIFirstClickCallbacks ||= [];
+        (window as unknown as {__dashboardAIFirstClickCallbacks?: string[]}).__dashboardAIFirstClickCallbacks!.push('encryption');
       },
     });
     const fixture = document.getElementById('fixture');
-    fixture.innerHTML = facade.renderDataProtectionCta({
+    fixture!.innerHTML = facade.renderDataProtectionCta({
       encryption: false,
       sync: false,
       backup: false,
       backupSupported: true,
     });
     const loaded = facade.isDashboardAIModuleLoaded();
-    fixture.querySelector('[data-dashboard-ai-action="open-data-protection-picker"]').click();
+    fixture!.querySelector<HTMLElement>('[data-dashboard-ai-action="open-data-protection-picker"]')!.click();
     return loaded;
   }, facadeUrl());
 
   expect(loadedBeforeClick).toBe(false);
   await expect.poll(() => page.evaluate(() => ({
-    calls: window.__dashboardAILoaderCalls || [],
-    callbacks: window.__dashboardAIFirstClickCallbacks || [],
+    calls: (window as unknown as {__dashboardAILoaderCalls?: unknown[][]}).__dashboardAILoaderCalls || [],
+    callbacks: (window as unknown as {__dashboardAIFirstClickCallbacks?: string[]}).__dashboardAIFirstClickCallbacks || [],
   }))).toEqual({
     calls: [
       ['configure-sync'],
@@ -166,7 +166,7 @@ test('first cold dashboard CTA click loads and runs its delegated action', async
 
 test('dashboard AI modal loader retries with a fixed URL and reports the first failure', async ({ page }) => {
   await page.goto('/dashboard-ai-loader-coverage');
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/context-card-dashboard-ai-impl.js*', async route => {
     const url = route.request().url();
     implementationRequests.push(url);
@@ -181,9 +181,9 @@ test('dashboard AI modal loader retries with a fixed URL and reports the first f
   });
 
   const outcomes = await page.evaluate(async url => {
-    const facade = await import(url);
+    const facade = (await import(url) as unknown) as Pick<typeof import('../../js/context-card-dashboard-ai.js'), "configureDashboardAISyncSetup" | "configureDashboardAIDataProtectionDeps" | "isDashboardAIModuleLoaded" | "renderDataProtectionCta" | "loadDashboardAIModule" | "openDataProtectionPicker" | "openContextModal" | "openPersonalizeAIPicker" | "triggerDNAFilePicker">;
     const first = await facade.openContextModal();
-    const notification = document.querySelector('#notification-container')?.textContent || '';
+    const notification = document.querySelector<HTMLElement>('#notification-container')?.textContent || '';
     const second = await facade.openContextModal();
     return {
       first,
@@ -194,8 +194,8 @@ test('dashboard AI modal loader retries with a fixed URL and reports the first f
   }, facadeUrl());
 
   expect(implementationRequests).toHaveLength(2);
-  expect(new URL(implementationRequests[0]).search).toBe('');
-  expect(new URL(implementationRequests[1]).search).toBe('?lazy-retry=1');
+  expect(new URL(implementationRequests[0]!).search).toBe('');
+  expect(new URL(implementationRequests[1]!).search).toBe('?lazy-retry=1');
   expect(outcomes).toEqual({
     first: false,
     second: 'context',

@@ -35,7 +35,7 @@ test('Profile Sharing loader caches initialization and preserves lazy actions', 
   });
   await openBlankPage(page, '/profile-share-loader-cache-coverage');
 
-  const results = await page.evaluate(async () => {
+  const results: Record<string, unknown> = await page.evaluate(async () => {
     const loader = await import('/js/profile-share-loader.js');
     const startsUnloaded = loader.isProfileShareModuleLoaded() === false;
     const [first, second] = await Promise.all([
@@ -49,10 +49,10 @@ test('Profile Sharing loader caches initialization and preserves lazy actions', 
       concurrentCallsShareModuleNamespace: first === second,
       laterCallsReuseModuleNamespace: first === third,
       loadedStateFlipsAfterInitialization: loader.isProfileShareModuleLoaded() === true,
-      lazyModuleEvaluatesOnce: globalThis.__profileShareModuleEvalCount === 1,
+      lazyModuleEvaluatesOnce: (globalThis as unknown as {__profileShareModuleEvalCount?: number}).__profileShareModuleEvalCount === 1,
       wrapperForwardsRequestedProfile:
         openedProfile === 'profile-lazy'
-        && globalThis.__openedProfileShares?.join(',') === 'profile-lazy',
+        && (globalThis as unknown as {__openedProfileShares?: string[]}).__openedProfileShares?.join(',') === 'profile-lazy',
     };
   });
   results.lazyModuleRequestedOnce = profileShareRequests === 1;
@@ -75,7 +75,7 @@ test('Profile Sharing loader retries direct loads after a failed import', async 
   });
   await openBlankPage(page, '/profile-share-loader-retry-coverage');
 
-  const results = await page.evaluate(async () => {
+  const results: Record<string, unknown> = await page.evaluate(async () => {
     const loader = await import('/js/profile-share-loader.js');
     let firstRejected = false;
     try {
@@ -86,7 +86,7 @@ test('Profile Sharing loader retries direct loads after a failed import', async 
     const retried = await loader.loadProfileShareModule();
     return {
       firstRejected,
-      retrySucceeds: retried.openProfileShareModal('profile-retry') === 'profile-retry',
+      retrySucceeds: (retried.openProfileShareModal as (...args: Parameters<typeof retried.openProfileShareModal>) => unknown)('profile-retry') === 'profile-retry',
       loadedAfterRetry: loader.isProfileShareModuleLoaded() === true,
     };
   });
@@ -124,7 +124,7 @@ test('Profile Sharing loader detects startup and hash deep links without eager l
   });
   await openBlankPage(page, '/profile-share-loader-deep-link-coverage');
 
-  const results = await page.evaluate(async () => {
+  const results: Record<string, unknown> = await page.evaluate(async () => {
     const loader = await import('/js/profile-share-loader.js');
     const validId = 'abcdefghijklmnopqrstuvwx';
     const noLinkStaysLazy = await loader.handleProfileShareLoaderDeepLink() === false
@@ -154,10 +154,10 @@ test('Profile Sharing loader detects startup and hash deep links without eager l
 
     history.pushState(null, '', `#share/${validId}`);
     window.dispatchEvent(new HashChangeEvent('hashchange'));
-    for (let attempt = 0; attempt < 40 && !globalThis.__handledProfileShareDeepLinks; attempt += 1) {
+    for (let attempt = 0; attempt < 40 && !(globalThis as unknown as {__handledProfileShareDeepLinks?: number}).__handledProfileShareDeepLinks; attempt += 1) {
       await new Promise(resolve => setTimeout(resolve, 25));
     }
-    const firstHandleCount = globalThis.__handledProfileShareDeepLinks || 0;
+    const firstHandleCount = (globalThis as unknown as {__handledProfileShareDeepLinks?: number}).__handledProfileShareDeepLinks || 0;
     const duplicateInitRejected = loader.initProfileShareLoaderLinks() === false;
     history.replaceState(null, '', location.pathname);
 

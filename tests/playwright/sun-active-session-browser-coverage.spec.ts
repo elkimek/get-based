@@ -12,27 +12,27 @@ test('sun active session covers default dependencies and live ticker card branch
   const results = await page.evaluate(async ({ activeUrl }) => {
     const [{ state }, active] = await Promise.all([
       import('/js/state.js'),
-      import(activeUrl),
+      (import(activeUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sun-active-session.js'), "configureSunActiveSession" | "openStartSunSessionDialog" | "quickLogSunSession" | "resetSunActiveSessionState" | "setSunLiveState" | "ensureActiveTicker">>,
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const saved = {
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      importedData: (JSON.parse(JSON.stringify(state.importedData || {})) as unknown),
       currentView: state.currentView,
     };
-    const waitFor = async predicate => {
+    const waitFor = async (predicate: () => unknown | Promise<unknown>) => {
       for (let i = 0; i < 40; i += 1) {
         if (predicate()) return true;
         await new Promise(resolve => setTimeout(resolve, 0));
       }
       return false;
     };
-    const toasts = () => Array.from(document.querySelectorAll('.notification-toast')).map(el => el.textContent || '');
-    const clickRegion = (overlay, region = 'face') => {
-      overlay?.querySelector(`[data-region="${region}"]`)?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const toasts = () => Array.from(document.querySelectorAll<HTMLElement>('.notification-toast')).map(el => el.textContent || '');
+    const clickRegion = (overlay: Element | null | undefined, region = 'face') => {
+      overlay?.querySelector<HTMLElement>(`[data-region="${region}"]`)?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     };
 
     try {
-      state.importedData = {
+      (state as {importedData: unknown}).importedData = {
         ...state.importedData,
         sunDefaults: {},
       };
@@ -43,11 +43,11 @@ test('sun active session covers default dependencies and live ticker card branch
       const blockedStart = await active.openStartSunSessionDialog();
       outcomes.unconfirmedFitzpatrickBlocksNewSunSession = blockedStart === false
         && setupOpenCount === 1
-        && !document.querySelector('.sun-start-modal')
-        && toasts().some(text => text.includes('Confirm your Fitzpatrick skin type'));
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+        && !document.querySelector<HTMLElement>('.sun-start-modal')
+        && toasts().some((text: string) => text.includes('Confirm your Fitzpatrick skin type'));
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
 
-      state.importedData = {
+      (state as {importedData: unknown}).importedData = {
         ...state.importedData,
         genetics: { snps: [] },
         sunDefaults: { fitzpatrick: 'I', photosensitiveMeds: 'severe' },
@@ -58,16 +58,16 @@ test('sun active session covers default dependencies and live ticker card branch
       const broadLocationStart = await active.openStartSunSessionDialog();
       outcomes.countryLevelLocationCannotMasqueradeAsLiveUvSafety = broadLocationStart === false
         && setupOpenCount === 2
-        && toasts().some(text => text.includes('country-level location is too broad'));
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+        && toasts().some((text: string) => text.includes('country-level location is too broad'));
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
       active.configureSunActiveSession({
         getSunCoords: () => ({ lat: 50.08, lon: 14.43, source: 'home-postal' }),
       });
 
       await active.quickLogSunSession();
-      const defaultOverlay = document.querySelector('.sun-start-modal')?.closest('.modal-overlay');
-      defaultOverlay?.querySelector('#start-confirm')?.click();
-      outcomes.defaultStartDialogUsesGetActiveAndEmptyRegionFallbacks = defaultOverlay?.querySelector('#sun-start-hint')?.textContent.includes('Tap at least one region');
+      const defaultOverlay = document.querySelector<HTMLElement>('.sun-start-modal')?.closest('.modal-overlay');
+      defaultOverlay?.querySelector<HTMLElement>('#start-confirm')?.click();
+      outcomes.defaultStartDialogUsesGetActiveAndEmptyRegionFallbacks = defaultOverlay?.querySelector<HTMLElement>('#sun-start-hint')?.textContent.includes('Tap at least one region');
       defaultOverlay?.remove();
 
       active.configureSunActiveSession({
@@ -75,15 +75,15 @@ test('sun active session covers default dependencies and live ticker card branch
         fetchAtmosphere: async () => ({ uvIndex: 9.1, ozoneDU: 285, cloudCover: 15, source: 'manual' }),
       });
       await active.openStartSunSessionDialog();
-      await waitFor(() => document.querySelector('#sun-start-uvi-banner')?.hidden === false);
-      const startOverlay = document.querySelector('.sun-start-modal')?.closest('.modal-overlay');
-      const preflightText = startOverlay?.querySelector('#sun-start-uvi-banner')?.textContent || '';
+      await waitFor(() => document.querySelector<HTMLElement>('#sun-start-uvi-banner')?.hidden === false);
+      const startOverlay = document.querySelector<HTMLElement>('.sun-start-modal')?.closest('.modal-overlay');
+      const preflightText = startOverlay?.querySelector<HTMLElement>('#sun-start-uvi-banner')?.textContent || '';
       clickRegion(startOverlay);
-      startOverlay?.querySelector('#start-confirm')?.click();
-      await waitFor(() => !document.body.contains(startOverlay));
+      startOverlay?.querySelector<HTMLElement>('#start-confirm')?.click();
+      await waitFor(() => !document.body.contains(startOverlay!));
       outcomes.defaultStartSessionUsesPreflightAndStartFallbacks = preflightText.includes('Very high UV')
-        && toasts().some(text => text.includes('high UV 9.1') && text.includes('severe photosensitivity caution'));
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+        && toasts().some((text: string) => text.includes('high UV 9.1') && text.includes('severe photosensitivity caution'));
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
       active.resetSunActiveSessionState();
 
       const stoppingSession = {
@@ -103,9 +103,9 @@ test('sun active session covers default dependencies and live ticker card branch
         getSunCoords: () => ({ lat: 49.2, lon: 16.6, source: 'profile' }),
       });
       await active.quickLogSunSession();
-      outcomes.defaultStopPathUsesStopSaveHydrateAndRefreshFallbacks = stoppingSession.location?.source === 'profile'
-        && toasts().some(text => text.includes('negligible modeled vitamin-D-effective UVB') && text.includes('generic glass model'));
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      outcomes.defaultStopPathUsesStopSaveHydrateAndRefreshFallbacks = (stoppingSession as typeof stoppingSession & {location?: {source?: unknown}}).location?.source === 'profile'
+        && toasts().some((text: string) => text.includes('negligible modeled vitamin-D-effective UVB') && text.includes('generic glass model'));
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
       active.resetSunActiveSessionState();
 
       const tickerSession = {
@@ -158,11 +158,11 @@ test('sun active session covers default dependencies and live ticker card branch
         && card.textContent.includes('cool down')
         && card.textContent.includes('ocular actinic UV')
         && elapsed.textContent !== 'old elapsed'
-        && toasts().some(text => text.includes('MED ='))
-        && toasts().some(text => text.includes('Ocular actinic UV'));
+        && toasts().some((text: string) => text.includes('MED ='))
+        && toasts().some((text: string) => text.includes('Ocular actinic UV'));
       outcomes.liveChannelRefreshCalled = outcomes.liveChannelRefreshCalled === true;
     } finally {
-      state.importedData = saved.importedData;
+      (state as {importedData: unknown}).importedData = saved.importedData;
       state.currentView = saved.currentView;
       active.resetSunActiveSessionState();
       active.configureSunActiveSession({
@@ -173,9 +173,9 @@ test('sun active session covers default dependencies and live ticker card branch
         hydrateSession: async () => null,
         getSunCoords: () => null,
         saveImportedData: async () => {},
-        applyAtmOverrides: atm => atm,
+        applyAtmOverrides: (atm: unknown) => atm,
         refreshSurfaces: () => {},
-        normalizePSMTier: raw => raw || 'none',
+        normalizePSMTier: (raw: unknown) => raw || 'none',
         photosensitiveMedScale: () => 1,
         eyeModes: [],
         lensTints: [],
@@ -188,14 +188,14 @@ test('sun active session covers default dependencies and live ticker card branch
         fractionOfMED: () => 0,
         solarZenithAngle: () => 90,
         interpolateAtmosphere: () => null,
-        vitaminDIU: (channelAu, _fitzpatrick = 'III', _uvi = null, rotatedSides = false) => channelAu * 60 * (rotatedSides ? 2 : 1),
+        vitaminDIU: (channelAu: number, _fitzpatrick = 'III', _uvi = null, rotatedSides = false) => channelAu * 60 * (rotatedSides ? 2 : 1),
         vitaminDIUPerSession: null,
-        skinTypeToFitzpatrick: skinType => (String(skinType || '').match(/^(I{1,3}|IV|VI?)\b/) || [])[1] || null,
+        skinTypeToFitzpatrick: (skinType: unknown) => (String(skinType || '').match(/^(I{1,3}|IV|VI?)\b/) || [])[1] || null,
         renderLightChannelsLive: () => {},
         renderLightTodayStrip: () => '',
         openLightSetup: () => {},
       });
-      document.querySelectorAll('.modal-overlay,.notification-container,.notification-toast,[data-id="ticker-session"],[data-live-elapsed-for="ticker-session"]').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.modal-overlay,.notification-container,.notification-toast,[data-id="ticker-session"],[data-live-elapsed-for="ticker-session"]').forEach(el => el.remove());
     }
 
     return outcomes;

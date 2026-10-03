@@ -1,7 +1,7 @@
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = (path) => `${path}?chatNudgeBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?chatNudgeBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   path: "/chat-nudge-browser-coverage", status: 200, body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
@@ -13,9 +13,9 @@ test('chat nudge browser coverage handles badge storage dismissal and staged upd
   const results = await page.evaluate(async ({ nudgeUrl }) => {
     const [{ state }, nudge] = await Promise.all([
       import('/js/state.js'),
-      import(nudgeUrl),
+      (import(nudgeUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-nudge.js'), "setChatNudge" | "dismissCurrentChatNudge" | "updateChatNudge">>,
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const fixture = document.getElementById('fixture');
     const keys = [
       'labcharts-ai-paused',
@@ -33,18 +33,18 @@ test('chat nudge browser coverage handles badge storage dismissal and staged upd
         profileSex: state.profileSex,
         importedData: state.importedData,
       },
-      storage: Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)])),
+      storage: Object.fromEntries(keys.map((key: string) => [key, localStorage.getItem(key)])),
     };
-    const restoreStoredValue = (key, value) => {
+    const restoreStoredValue = (key: string, value: string | null) => {
       if (value == null) localStorage.removeItem(key);
       else localStorage.setItem(key, value);
     };
     const setupFab = () => {
-      fixture.innerHTML = '<button id="chat-fab" type="button"></button>';
+      fixture!.innerHTML = '<button id="chat-fab" type="button"></button>';
       return document.getElementById('chat-fab');
     };
     const nudgeStage = () => localStorage.getItem('labcharts-chat-nudge');
-    const dismissedStage = profileId => localStorage.getItem(`labcharts-chat-nudge-dismissed-${profileId}`);
+    const dismissedStage = (profileId: string) => localStorage.getItem(`labcharts-chat-nudge-dismissed-${profileId}`);
     const fabHasNudge = () => {
       const fab = document.getElementById('chat-fab');
       return !!fab?.classList.contains('chat-fab-nudge') && !!fab.querySelector('.chat-fab-badge');
@@ -55,26 +55,26 @@ test('chat nudge browser coverage handles badge storage dismissal and staged upd
       state.currentProfile = 'chat-nudge-test';
       state.profiles = [{ id: 'chat-nudge-test', name: 'Test Person' }];
       state.profileSex = 'female';
-      state.importedData = { entries: [] };
+      (state as {importedData: unknown}).importedData = { entries: [] };
 
-      fixture.innerHTML = '';
+      fixture!.innerHTML = '';
       nudge.setChatNudge('api');
       outcomes.setChatNudgeNoOpsWhenFabIsMissing =
         nudgeStage() == null
-        && document.querySelector('.chat-fab-badge') == null;
+        && document.querySelector<HTMLElement>('.chat-fab-badge') == null;
 
       const fab = setupFab();
       nudge.setChatNudge('api');
       nudge.setChatNudge('data');
       outcomes.setChatNudgeCreatesOneBadgeClassAndUpdatesStoredStage =
         fabHasNudge()
-        && fab.querySelectorAll('.chat-fab-badge').length === 1
+        && fab!.querySelectorAll('.chat-fab-badge').length === 1
         && nudgeStage() === 'data';
 
       nudge.setChatNudge(null);
       outcomes.setChatNudgeNullClearsBadgeClassAndStorage =
-        !fab.classList.contains('chat-fab-nudge')
-        && fab.querySelector('.chat-fab-badge') == null
+        !fab!.classList.contains('chat-fab-nudge')
+        && fab!.querySelector('.chat-fab-badge') == null
         && nudgeStage() == null;
 
       nudge.setChatNudge('profile');
@@ -94,7 +94,7 @@ test('chat nudge browser coverage handles badge storage dismissal and staged upd
       state.currentProfile = 'no-profile';
       state.profiles = [{ id: 'no-profile', name: 'Default' }];
       state.profileSex = null;
-      state.importedData = { entries: [] };
+      (state as {importedData: unknown}).importedData = { entries: [] };
       localStorage.setItem('labcharts-chat-nudge-dismissed-no-profile', 'profile');
       nudge.updateChatNudge();
       outcomes.updateChatNudgeAlwaysShowsProfileStageUntilProfileIsComplete =
@@ -104,7 +104,7 @@ test('chat nudge browser coverage handles badge storage dismissal and staged upd
       state.currentProfile = 'named-profile';
       state.profiles = [{ id: 'named-profile', name: 'Named Client' }];
       state.profileSex = 'male';
-      state.importedData = { entries: [] };
+      (state as {importedData: unknown}).importedData = { entries: [] };
       localStorage.setItem('labcharts-ai-paused', 'true');
       localStorage.removeItem('labcharts-chat-nudge-dismissed-named-profile');
       nudge.updateChatNudge();
@@ -119,7 +119,7 @@ test('chat nudge browser coverage handles badge storage dismissal and staged upd
       localStorage.setItem('labcharts-ai-paused', 'false');
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.removeItem('labcharts-chat-nudge-dismissed-named-profile');
-      state.importedData = { entries: [] };
+      (state as {importedData: unknown}).importedData = { entries: [] };
       nudge.updateChatNudge();
       const dataStageShown = nudgeStage() === 'data' && fabHasNudge();
       localStorage.setItem('labcharts-chat-nudge-dismissed-named-profile', 'data');
@@ -131,7 +131,7 @@ test('chat nudge browser coverage handles badge storage dismissal and staged upd
 
       localStorage.removeItem('labcharts-chat-nudge-dismissed-named-profile');
       localStorage.removeItem('labcharts-onboard-context-cards-skipped-named-profile');
-      state.importedData = {
+      (state as {importedData: unknown}).importedData = {
         entries: [{ date: '2026-06-11', markers: {} }],
         diagnoses: { text: 'low ferritin' },
         diet: { notes: '' },
@@ -156,7 +156,7 @@ test('chat nudge browser coverage handles badge storage dismissal and staged upd
 
       localStorage.removeItem('labcharts-chat-nudge-dismissed-named-profile');
       localStorage.removeItem('labcharts-onboard-context-cards-skipped-named-profile');
-      state.importedData = {
+      (state as {importedData: unknown}).importedData = {
         entries: [{ date: '2026-06-11', markers: {} }],
         diagnoses: { text: 'low ferritin' },
         diet: { notes: 'high protein' },
@@ -173,7 +173,7 @@ test('chat nudge browser coverage handles badge storage dismissal and staged upd
       state.currentProfile = saved.state.currentProfile;
       state.profiles = saved.state.profiles;
       state.profileSex = saved.state.profileSex;
-      state.importedData = saved.state.importedData;
+      (state as {importedData: unknown}).importedData = saved.state.importedData;
       for (const [key, value] of Object.entries(saved.storage)) restoreStoredValue(key, value);
     }
 

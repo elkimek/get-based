@@ -41,10 +41,10 @@ test('long prompts grow across the full composer and drafts follow their convers
   await input.fill(longPrompt);
 
   const layout = await page.evaluate(() => {
-    const inputEl = document.getElementById('chat-input');
-    const toolbar = document.querySelector('.chat-composer-toolbar');
-    const area = document.querySelector('.chat-input-area');
-    const rect = element => element?.getBoundingClientRect();
+    const inputEl = (document.getElementById('chat-input') as HTMLTextAreaElement | null);
+    const toolbar = document.querySelector<HTMLElement>('.chat-composer-toolbar');
+    const area = document.querySelector<HTMLElement>('.chat-input-area');
+    const rect = (element: Element | null) => element?.getBoundingClientRect();
     return {
       input: rect(inputEl),
       toolbar: rect(toolbar),
@@ -59,7 +59,7 @@ test('long prompts grow across the full composer and drafts follow their convers
   expect(layout.input?.height).toBeLessThanOrEqual(180);
   expect(layout.toolbar?.width).toBe(layout.input?.width);
   expect(layout.area?.bottom).toBeLessThanOrEqual(844);
-  expect(layout.scrollHeight).toBeGreaterThanOrEqual(layout.input.height);
+  expect(layout.scrollHeight).toBeGreaterThanOrEqual(layout.input!.height);
   expect(layout.overflowY).toBe('auto');
   await expect(send).toBeEnabled();
   await expect(input).not.toHaveAttribute('aria-describedby');
@@ -91,13 +91,13 @@ test('long prompts grow across the full composer and drafts follow their convers
       state.currentThreadId = 'draft-a';
       composer.setChatInputValue('First conversation draft');
       await threads.switchToThread('draft-b');
-      const secondStartsEmpty = document.getElementById('chat-input')?.value === '';
+      const secondStartsEmpty = (document.getElementById('chat-input') as HTMLTextAreaElement | null)?.value === '';
       composer.setChatInputValue('Second conversation draft');
       await threads.switchToThread('draft-a');
-      const firstRestored = document.getElementById('chat-input')?.value === 'First conversation draft';
+      const firstRestored = (document.getElementById('chat-input') as HTMLTextAreaElement | null)?.value === 'First conversation draft';
 
       let prevented = false;
-      chatSend.handleChatKeydown({
+      (chatSend.handleChatKeydown as unknown as (event: Pick<KeyboardEvent, 'key' | 'shiftKey' | 'isComposing' | 'keyCode' | 'preventDefault'>) => ReturnType<typeof chatSend.handleChatKeydown>)({
         key: 'Enter',
         shiftKey: false,
         isComposing: true,
@@ -109,7 +109,7 @@ test('long prompts grow across the full composer and drafts follow their convers
         firstRestored,
         composingEnterIsNotIntercepted: prevented === false,
         conversationIsLog: document.getElementById('chat-messages')?.getAttribute('role') === 'log',
-        messagesAreLabelledArticles: [...document.querySelectorAll('.chat-msg')].every(message =>
+        messagesAreLabelledArticles: [...document.querySelectorAll<HTMLElement>('.chat-msg')].every(message =>
           message.getAttribute('role') === 'article' && !!message.getAttribute('aria-label')
         ),
       };
@@ -140,8 +140,8 @@ test('jump to latest preserves reading position and announces new response conte
     }));
     render.renderChatMessages();
     const messages = document.getElementById('chat-messages');
-    messages.scrollTop = 0;
-    messages.dispatchEvent(new Event('scroll'));
+    messages!.scrollTop = 0;
+    messages!.dispatchEvent(new Event('scroll'));
   });
 
   const jump = page.locator('#chat-jump-latest');
@@ -150,23 +150,23 @@ test('jump to latest preserves reading position and announces new response conte
 
   await page.evaluate(async () => {
     const scroll = await import('/js/chat-scroll.js');
-    scroll.notifyChatContentAdded(document.getElementById('chat-messages'));
+    scroll.notifyChatContentAdded(document.getElementById('chat-messages')!);
   });
   await expect(jump).toContainText('New response');
   await expect(jump).toHaveAttribute('aria-label', /New response available/);
 
   const placement = await page.evaluate(() => {
     const buttonRect = document.getElementById('chat-jump-latest')?.getBoundingClientRect();
-    const composerRect = document.querySelector('.chat-input-area')?.getBoundingClientRect();
+    const composerRect = document.querySelector<HTMLElement>('.chat-input-area')?.getBoundingClientRect();
     return { buttonBottom: buttonRect?.bottom, composerTop: composerRect?.top };
   });
-  expect(placement.buttonBottom).toBeLessThan(placement.composerTop);
+  expect(placement.buttonBottom).toBeLessThan(placement.composerTop!);
 
   await jump.click();
   await expect(jump).toBeHidden();
   await expect.poll(() => page.evaluate(() => {
     const messages = document.getElementById('chat-messages');
-    return messages.scrollHeight - messages.scrollTop - messages.clientHeight;
+    return messages!.scrollHeight - messages!.scrollTop - messages!.clientHeight;
   })).toBeLessThan(80);
 });
 
@@ -185,19 +185,19 @@ test('device-local drafts are encrypted and can be cold-loaded without entering 
     state.currentProfile = profileId;
     state.currentThreadId = threadId;
     localStorage.setItem('labcharts-encryption-enabled', 'true');
-    window.__WEARABLES_TEST = true;
+    (window as unknown as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST = true;
     await cryptoStore._setTestSessionKey('DraftEncryptionPass1!');
     composer.setChatInputValue(draftText);
     await new Promise(resolve => setTimeout(resolve, 360));
     const key = `labcharts-${profileId}-chatDraft_${threadId}`;
     const raw = localStorage.getItem(key);
-    const coldStore = await import(`/js/chat-draft-storage.js?cold=${Date.now()}`);
+    const coldStore = (await import(`/js/chat-draft-storage.js?cold=${Date.now()}`) as unknown) as Pick<typeof import('../../js/chat-draft-storage.js'), "loadChatDraft">;
     const coldLoaded = await coldStore.loadChatDraft(profileId, threadId);
     const syncPayload = await collectors.collectChatData(profileId);
     await composer.clearChatDraft();
     await cryptoStore._setTestSessionKey(null);
     localStorage.removeItem('labcharts-encryption-enabled');
-    delete window.__WEARABLES_TEST;
+    delete (window as unknown as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST;
     return {
       raw,
       coldLoaded,

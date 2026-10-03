@@ -1,10 +1,11 @@
+import type { Page } from '@playwright/test';
 import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('lensLocalParsersCoverage');
 
-async function openParserCoveragePage(page) {
+async function openParserCoveragePage(page: Page) {
   await routeHtml(page, '**/lens-local-parsers-browser-coverage', '<!doctype html><html><head><title>Lens parser coverage</title></head><body></body></html>');
   await routeJavaScript(page, '**/js/pdfjs-loader.js', `
       export async function getPdfDocument({ data }) {
@@ -74,26 +75,26 @@ test('lens local parsers browser coverage extracts text docx pdf and zip entries
   await openParserCoveragePage(page);
 
   const { outcomes, errors } = await page.evaluate(async ({ parserUrl }) => {
-    const parsers = await import(parserUrl);
-    const outcomes = {};
-    const errors = [];
-    const warnings = [];
+    const parsers = (await import(parserUrl) as unknown) as Pick<typeof import('../../js/lens-local-parsers.js'), "extractFromFile">;
+    const outcomes: Record<string, unknown> = {};
+    const errors: string[] = [];
+    const warnings: string[] = [];
     const originalWarn = console.warn;
     console.warn = (...args) => {
       warnings.push(args.map(String).join(' '));
       originalWarn(...args);
     };
 
-    const runScenario = async (name, scenario) => {
+    const runScenario = async (name: string, scenario: () => unknown | Promise<unknown>) => {
       try {
         outcomes[name] = await scenario();
       } catch (error) {
         outcomes[name] = false;
-        errors.push(`${name}: ${error?.message || String(error)}`);
+        errors.push(`${name}: ${(error as {message?: unknown} | null)?.message || String(error)}`);
       }
     };
 
-    const captureWarnings = async scenario => {
+    const captureWarnings = async <Value>(scenario: () => Value | Promise<Value>) => {
       const start = warnings.length;
       const value = await scenario();
       return {
@@ -109,14 +110,14 @@ test('lens local parsers browser coverage extracts text docx pdf and zip entries
           type: 'text/markdown',
         }));
         return markdown.length === 1
-          && markdown[0].name === 'Notes.MARKDOWN'
-          && markdown[0].text === markdownText;
+          && markdown[0]!.name === 'Notes.MARKDOWN'
+          && markdown[0]!.text === markdownText;
       });
 
       await runScenario('csvExtractsAsRawText', async () => {
         const csvText = 'a,b\n1,2';
         const csv = await parsers.extractFromFile(new File([csvText], 'labs.csv', { type: 'text/csv' }));
-        return csv.length === 1 && csv[0].text === csvText;
+        return csv.length === 1 && csv[0]!.text === csvText;
       });
 
       await runScenario('unsupportedExtensionReturnsEmptyAndWarns', async () => {
@@ -135,9 +136,9 @@ test('lens local parsers browser coverage extracts text docx pdf and zip entries
           type: 'application/pdf',
         }));
         return pdf.length === 1
-          && pdf[0].text.includes('PDF page-1 alpha')
-          && pdf[0].text.includes('PDF page-2 omega')
-          && pdf[0].text.includes('\n\n');
+          && pdf[0]!.text.includes('PDF page-1 alpha')
+          && pdf[0]!.text.includes('PDF page-2 omega')
+          && pdf[0]!.text.includes('\n\n');
       });
 
       await runScenario('docxLoadsMammothOnceAndExtractsText', async () => {
@@ -149,11 +150,11 @@ test('lens local parsers browser coverage extracts text docx pdf and zip entries
         }));
         return docxA[0]?.text === 'DOCX text bytes=4'
           && docxB[0]?.text === 'DOCX text bytes=2'
-          && window.__mammothLoadCount === 1;
+          && (window as unknown as {__mammothLoadCount?: number}).__mammothLoadCount === 1;
       });
 
-      let zip = [];
-      let zipWarnings = [];
+      let zip: Awaited<ReturnType<typeof parsers.extractFromFile>> = [];
+      let zipWarnings: string[] = [];
       await runScenario('zipExtractsArchiveEntries', async () => {
         const captured = await captureWarnings(() => (
           parsers.extractFromFile(new File([new Uint8Array([80, 75])], 'archive.zip', {
@@ -171,13 +172,13 @@ test('lens local parsers browser coverage extracts text docx pdf and zip entries
           return zipNames.includes('archive.zip::folder/readme.MD')
             && zipNames.includes('archive.zip::folder/manual.pdf')
             && zipNames.includes('archive.zip::folder/report.docx')
-            && !zipNames.some(name => name.includes('image.png'));
+            && !zipNames.some((name: string) => name.includes('image.png'));
         });
         await runScenario('zipEntryFailureIsSkippedWithWarning', async () => (
           zip.length === 3
             && zipWarnings.some(line => line.includes('zip entry failed: folder/broken.pdf'))
         ));
-        await runScenario('zipLoadsJsZipOnce', async () => window.__jszipLoadCount === 1);
+        await runScenario('zipLoadsJsZipOnce', async () => (window as unknown as {__jszipLoadCount?: number}).__jszipLoadCount === 1);
       }
     } finally {
       console.warn = originalWarn;

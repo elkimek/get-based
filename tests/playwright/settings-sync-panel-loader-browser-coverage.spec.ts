@@ -51,7 +51,7 @@ test.beforeEach(async ({ page }) => {
 
 test('Settings sync panel stays cold, single-flights, and applies stored configuration', async ({ page }) => {
   await page.goto('/settings-sync-panel-loader-coverage');
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/settings-sync-panel-impl.js*', async route => {
     implementationRequests.push(route.request().url());
     await new Promise(resolve => setTimeout(resolve, 25));
@@ -62,20 +62,20 @@ test('Settings sync panel stays cold, single-flights, and applies stored configu
   });
 
   const outcomes = await page.evaluate(async url => {
-    const facade = await import(url);
-    const callbackCalls = [];
+    const facade = (await import(url) as unknown) as Pick<typeof import('../../js/settings-sync-panel.js'), "configureSettingsSyncPanelDeps" | "isSettingsSyncPanelLoaded" | "closeSyncSetup" | "closeRestoreMnemonicDialog" | "loadSettingsSyncPanelModule" | "renderSyncSection" | "renderMessengerSection" | "showSyncSetupModal" | "hydrateSettingsSyncPanel">;
+    const callbackCalls: string[] = [];
     facade.configureSettingsSyncPanelDeps({
-      applyPendingTombstone: id => callbackCalls.push(`apply:${id}`),
+      applyPendingTombstone: (id: string) => callbackCalls.push(`apply:${id}`),
       listPendingTombstones: () => callbackCalls.push('list'),
       pushContextToGateway: () => callbackCalls.push('push'),
-      rejectPendingTombstone: id => callbackCalls.push(`reject:${id}`),
+      rejectPendingTombstone: (id: string) => callbackCalls.push(`reject:${id}`),
       updateSyncIndicator: () => callbackCalls.push('indicator'),
     });
     const cold = !facade.isSettingsSyncPanelLoaded();
     const coldCloseSync = facade.closeSyncSetup();
     const coldCloseRestore = facade.closeRestoreMnemonicDialog();
-    const first = facade.loadSettingsSyncPanelModule();
-    const second = facade.loadSettingsSyncPanelModule();
+    const first = (facade.loadSettingsSyncPanelModule as (...args: Parameters<typeof facade.loadSettingsSyncPanelModule>) => Promise<unknown>)();
+    const second = (facade.loadSettingsSyncPanelModule as (...args: Parameters<typeof facade.loadSettingsSyncPanelModule>) => Promise<unknown>)();
     const sharedPromise = first === second;
     await Promise.all([first, second]);
     return {
@@ -84,14 +84,14 @@ test('Settings sync panel stays cold, single-flights, and applies stored configu
       coldCloseRestore,
       sharedPromise,
       loaded: facade.isSettingsSyncPanelLoaded(),
-      syncMarkup: facade.renderSyncSection(),
-      messengerMarkup: facade.renderMessengerSection(),
+      syncMarkup: (facade.renderSyncSection as (...args: Parameters<typeof facade.renderSyncSection>) => unknown)(),
+      messengerMarkup: (facade.renderMessengerSection as (...args: Parameters<typeof facade.renderMessengerSection>) => unknown)(),
       shown: facade.showSyncSetupModal(),
       closedSync: facade.closeSyncSetup(),
       closedRestore: facade.closeRestoreMnemonicDialog(),
       hydrated: facade.hydrateSettingsSyncPanel(),
       callbackCalls,
-      implementationCalls: window.__settingsSyncPanelLoaderCalls || [],
+      implementationCalls: (window as unknown as {__settingsSyncPanelLoaderCalls?: unknown[][]}).__settingsSyncPanelLoaderCalls || [],
     };
   }, facadeUrl());
 
@@ -133,14 +133,14 @@ test('cold Settings placeholders hydrate into interactive sync and Agent Access 
       <section id="sync-section"></section>
       <section id="messenger-section"></section>
     `);
-    const facade = await import(url);
+    const facade = (await import(url) as unknown) as Pick<typeof import('../../js/settings-sync-panel.js'), "configureSettingsSyncPanelDeps" | "isSettingsSyncPanelLoaded" | "closeSyncSetup" | "closeRestoreMnemonicDialog" | "loadSettingsSyncPanelModule" | "renderSyncSection" | "renderMessengerSection" | "showSyncSetupModal" | "hydrateSettingsSyncPanel">;
     const syncSection = document.getElementById('sync-section');
     const messengerSection = document.getElementById('messenger-section');
-    syncSection.innerHTML = facade.renderSyncSection();
-    messengerSection.innerHTML = facade.renderMessengerSection();
+    (syncSection! as {innerHTML: unknown}).innerHTML = (facade.renderSyncSection as (...args: Parameters<typeof facade.renderSyncSection>) => unknown)();
+    (messengerSection! as {innerHTML: unknown}).innerHTML = (facade.renderMessengerSection as (...args: Parameters<typeof facade.renderMessengerSection>) => unknown)();
     const cold = {
-      sync: syncSection.textContent,
-      messenger: messengerSection.textContent,
+      sync: syncSection!.textContent,
+      messenger: messengerSection!.textContent,
     };
 
     await facade.hydrateSettingsSyncPanel();
@@ -148,11 +148,11 @@ test('cold Settings placeholders hydrate into interactive sync and Agent Access 
     return {
       cold,
       hydrated: {
-        sync: syncSection.textContent,
-        messenger: messengerSection.textContent,
+        sync: syncSection!.textContent,
+        messenger: messengerSection!.textContent,
       },
-      placeholdersRemaining: document.querySelectorAll('[data-settings-sync-placeholder]').length,
-      implementationCalls: window.__settingsSyncPanelLoaderCalls || [],
+      placeholdersRemaining: document.querySelectorAll<HTMLElement>('[data-settings-sync-placeholder]').length,
+      implementationCalls: (window as unknown as {__settingsSyncPanelLoaderCalls?: unknown[][]}).__settingsSyncPanelLoaderCalls || [],
     };
   }, facadeUrl());
 
@@ -177,7 +177,7 @@ test('cold Settings placeholders hydrate into interactive sync and Agent Access 
 
 test('Settings sync panel retries with a fixed URL and reports the first failure', async ({ page }) => {
   await page.goto('/settings-sync-panel-loader-coverage');
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/settings-sync-panel-impl.js*', async route => {
     const url = route.request().url();
     implementationRequests.push(url);
@@ -192,9 +192,9 @@ test('Settings sync panel retries with a fixed URL and reports the first failure
   });
 
   const outcomes = await page.evaluate(async url => {
-    const facade = await import(url);
+    const facade = (await import(url) as unknown) as Pick<typeof import('../../js/settings-sync-panel.js'), "configureSettingsSyncPanelDeps" | "isSettingsSyncPanelLoaded" | "closeSyncSetup" | "closeRestoreMnemonicDialog" | "loadSettingsSyncPanelModule" | "renderSyncSection" | "renderMessengerSection" | "showSyncSetupModal" | "hydrateSettingsSyncPanel">;
     const first = await facade.showSyncSetupModal();
-    const notification = document.querySelector('#notification-container')?.textContent || '';
+    const notification = document.querySelector<HTMLElement>('#notification-container')?.textContent || '';
     const second = await facade.showSyncSetupModal();
     return {
       first,
@@ -205,8 +205,8 @@ test('Settings sync panel retries with a fixed URL and reports the first failure
   }, facadeUrl());
 
   expect(implementationRequests).toHaveLength(2);
-  expect(new URL(implementationRequests[0]).search).toBe('');
-  expect(new URL(implementationRequests[1]).search).toBe('?lazy-retry=1');
+  expect(new URL(implementationRequests[0]!).search).toBe('');
+  expect(new URL(implementationRequests[1]!).search).toBe('?lazy-retry=1');
   expect(outcomes).toEqual({
     first: false,
     second: 'shown',

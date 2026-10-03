@@ -2,7 +2,7 @@ import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = (path) => `${path}?sunSessionActionsCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?sunSessionActionsCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   path: "/sun-session-actions-coverage", body: '<!doctype html><html><body><main id="fixture"></main><section id="outside"></section></body></html>',
@@ -14,23 +14,23 @@ test('sun session action delegates route clicks keyboard and modal actions in br
   await openBlankPage(page);
 
   const outcomes = await page.evaluate(async ({ actionsUrl }) => {
-    const actionsModule = await import(actionsUrl);
+    const actionsModule = (await import(actionsUrl) as unknown) as Pick<typeof import('../../js/sun-session-actions.js'), "sunSessionActionAttrs" | "installSunSessionActionDelegates">;
     const root = document.getElementById('fixture');
     const outside = document.getElementById('outside');
-    const outcomes = {};
-    const calls = [];
-    const push = (...args) => calls.push(args);
-    const byId = id => document.getElementById(id);
-    const click = id => {
+    const outcomes: Record<string, unknown> = {};
+    const calls: unknown[][] = [];
+    const push = (...args: unknown[]) => calls.push(args);
+    const byId = (id: string) => document.getElementById(id);
+    const click = (id: string) => {
       const event = new MouseEvent('click', { bubbles: true, cancelable: true });
-      return byId(id).dispatchEvent(event);
+      return byId(id)!.dispatchEvent(event);
     };
-    const keydown = (id, key) => {
+    const keydown = (id: string, key: string) => {
       const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
-      return byId(id).dispatchEvent(event);
+      return byId(id)!.dispatchEvent(event);
     };
-    const called = (name, predicate = () => true) => calls.some(call => call[0] === name && predicate(call));
-    const callCount = name => calls.filter(call => call[0] === name).length;
+    const called = (name: string, predicate: (call: unknown[]) => unknown = () => true) => calls.some(call => call[0] === name && predicate(call));
+    const callCount = (name: string) => calls.filter(call => call[0] === name).length;
 
     const detailAttrs = actionsModule.sunSessionActionAttrs('open-detail', {
       id: 'sun-1',
@@ -42,7 +42,7 @@ test('sun session action delegates route clicks keyboard and modal actions in br
       closeModal: true,
     });
 
-    root.innerHTML = `
+    root!.innerHTML = `
       <div id="open-detail" role="button" tabindex="0" ${detailAttrs}>Open</div>
       <button id="delete-session" ${closeDeleteAttrs}>Delete</button>
       <button id="quick-log" ${actionsModule.sunSessionActionAttrs('quick-log-sun')}>Quick</button>
@@ -77,23 +77,23 @@ test('sun session action delegates route clicks keyboard and modal actions in br
       </div>
       <div id="keyboard-close" role="button" tabindex="0" ${actionsModule.sunSessionActionAttrs('close-modal')}>Keyboard close</div>
     `;
-    outside.innerHTML = `<button id="outside-detail" ${actionsModule.sunSessionActionAttrs('open-detail', { id: 'outside' })}>Outside</button>`;
+    outside!.innerHTML = `<button id="outside-detail" ${actionsModule.sunSessionActionAttrs('open-detail', { id: 'outside' })}>Outside</button>`;
 
     document.addEventListener('click', () => push('document-click'));
     document.addEventListener('keydown', () => push('document-keydown'));
     const delegateActions = {
-      openSunSessionDetail: id => push('openSunSessionDetail', id),
-      deleteSunSession: id => push('deleteSunSession', id),
-      editSunSessionDuration: id => push('editSunSessionDuration', id),
+      openSunSessionDetail: (id: string) => push('openSunSessionDetail', id),
+      deleteSunSession: (id: string) => push('deleteSunSession', id),
+      editSunSessionDuration: (id: string) => push('editSunSessionDuration', id),
       quickLogSunSession: () => push('quickLogSunSession'),
-      pauseSunSession: id => push('pauseSunSession', id),
-      resumeSunSession: id => push('resumeSunSession', id),
-      flipSidesMidSession: id => push('flipSidesMidSession', id),
-      changeCoverageMidSession: id => push('changeCoverageMidSession', id),
-      applySunscreenMidSession: id => push('applySunscreenMidSession', id),
+      pauseSunSession: (id: string) => push('pauseSunSession', id),
+      resumeSunSession: (id: string) => push('resumeSunSession', id),
+      flipSidesMidSession: (id: string) => push('flipSidesMidSession', id),
+      changeCoverageMidSession: (id: string) => push('changeCoverageMidSession', id),
+      applySunscreenMidSession: (id: string) => push('applySunscreenMidSession', id),
       setOzoneOverrideMidSession: () => push('setOzoneOverrideMidSession'),
-      forgotStopPrompt: id => push('_forgotStopPrompt', id),
-      openChannelOnLightPage: channel => push('_openChannelOnLightPage', channel),
+      forgotStopPrompt: (id: string) => push('_forgotStopPrompt', id),
+      openChannelOnLightPage: (channel: string) => push('_openChannelOnLightPage', channel),
     };
     actionsModule.installSunSessionActionDelegates(delegateActions, root);
     actionsModule.installSunSessionActionDelegates(delegateActions, root);
@@ -145,15 +145,15 @@ test('sun session action delegates route clicks keyboard and modal actions in br
       && called('deleteSunSession', call => call[1] === 'sun-3');
 
     click('toggle-chips');
-    const expandedOnce = byId('chips').classList.contains('sun-chips-expanded');
-    const expandedAria = byId('toggle-chips').getAttribute('aria-expanded') === 'true'
-      && byId('toggle-chips').getAttribute('aria-label') === 'Show fewer light channels';
-    const otherExpandedOnce = byId('other-chips').classList.contains('sun-chips-expanded');
+    const expandedOnce = byId('chips')!.classList.contains('sun-chips-expanded');
+    const expandedAria = byId('toggle-chips')!.getAttribute('aria-expanded') === 'true'
+      && byId('toggle-chips')!.getAttribute('aria-label') === 'Show fewer light channels';
+    const otherExpandedOnce = byId('other-chips')!.classList.contains('sun-chips-expanded');
     click('toggle-chips');
-    const collapsedAgain = !byId('chips').classList.contains('sun-chips-expanded');
-    const collapsedAria = byId('toggle-chips').getAttribute('aria-expanded') === 'false'
-      && byId('toggle-chips').getAttribute('aria-label') === 'Show 3 additional light channels';
-    const otherCollapsedAgain = !byId('other-chips').classList.contains('sun-chips-expanded');
+    const collapsedAgain = !byId('chips')!.classList.contains('sun-chips-expanded');
+    const collapsedAria = byId('toggle-chips')!.getAttribute('aria-expanded') === 'false'
+      && byId('toggle-chips')!.getAttribute('aria-label') === 'Show 3 additional light channels';
+    const otherCollapsedAgain = !byId('other-chips')!.classList.contains('sun-chips-expanded');
     outcomes.toggleChipsOnlyChangesOwningChipContainer =
       expandedOnce && expandedAria && !otherExpandedOnce && collapsedAgain && collapsedAria && otherCollapsedAgain;
 
@@ -169,7 +169,7 @@ test('sun session action delegates route clicks keyboard and modal actions in br
       !called('openSunSessionDetail', call => call[1] === 'outside')
       && callCount('document-click') === 1;
 
-    root.insertAdjacentHTML('beforeend', `
+    root!.insertAdjacentHTML('beforeend', `
       <div id="keyboard-channel-overlay" class="modal-overlay">
         <div id="keyboard-channel" role="button" tabindex="0" ${actionsModule.sunSessionActionAttrs('open-channel', { channel: 'vitamin_d' })}>Keyboard channel</div>
       </div>
@@ -183,7 +183,7 @@ test('sun session action delegates route clicks keyboard and modal actions in br
     const channelEnterAllowed = keydown('keyboard-channel', 'Enter');
     const docKeysAfterAllowed = callCount('document-keydown');
     keydown('keyboard-close', 'Enter');
-    byId('nested-input').focus();
+    byId('nested-input')!.focus();
     keydown('nested-input', 'Enter');
     outcomes.keyboardRoutesAllowedRoleButtonsAndIgnoresOtherTargets =
       detailEnterAllowed === false

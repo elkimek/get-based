@@ -1,7 +1,7 @@
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = path => `${path}?syncDeltaObservabilityCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?syncDeltaObservabilityCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   status: 200, body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
@@ -11,8 +11,8 @@ test('sync delta observability browser coverage handles snapshot storage gates',
   await openBlankPage(page, '/sync-delta-snapshot-coverage');
 
   const results = await page.evaluate(async ({ snapshotUrl }) => {
-    const snapshot = await import(snapshotUrl);
-    const outcomes = {};
+    const snapshot = (await import(snapshotUrl) as unknown) as Pick<typeof import('../../js/sync-delta-snapshot.js'), "_readDeltaSnapshot" | "_writeDeltaSnapshot" | "clearDeltaSnapshot">;
+    const outcomes: Record<string, unknown> = {};
     const profileId = `snapshot-profile-${Date.now()}`;
     const arrayName = 'entries';
     const snapshotKey = `labcharts-${profileId}-delta-${arrayName}`;
@@ -77,11 +77,11 @@ test('sync delta observability browser coverage handles pull snapshots telemetry
   const results = await page.evaluate(async ({ observabilityUrl }) => {
     // The facade re-exports stable-url modules; import those same URLs to assert the shared browser module instances.
     const [observability, pullSnapshot, context] = await Promise.all([
-      import(observabilityUrl),
+      (import(observabilityUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-delta-observability.js'), "resetPullDeltaSnapshot" | "recordPullDeltaSurface" | "configureSyncDeltaObservability" | "getDeltaCutoverReadiness" | "resetDeltaTelemetry" | "getDeltaTelemetry" | "_recordPushTelemetry">>,
       import('/js/sync-delta-pull-snapshot.js'),
       import('/js/sync-delta-observability-context.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const profileId = `telemetry-profile-${Date.now()}`;
     const telemetryKey = `labcharts-${profileId}-delta-telemetry`;
     const originalTelemetry = localStorage.getItem(telemetryKey);
@@ -98,10 +98,10 @@ test('sync delta observability browser coverage handles pull snapshots telemetry
       const otherPull = pullSnapshot.getPullDeltaSnapshot('other-profile');
 
       outcomes.pullSnapshotRecordsMatchingProfile = matchingPull.mergedAt > 0
-        && matchingPull.perArray.entries.live === 2
-        && matchingPull.perArray.entries.tombstones === 1
-        && matchingPull.perArray.notes.live === 0
-        && matchingPull.perArray.notes.tombstones === 0;
+        && matchingPull.perArray.entries!.live === 2
+        && matchingPull.perArray.entries!.tombstones === 1
+        && matchingPull.perArray.notes!.live === 0
+        && matchingPull.perArray.notes!.tombstones === 0;
       outcomes.pullSnapshotIgnoresInvalidArrayName =
         !Object.prototype.hasOwnProperty.call(matchingPull.perArray, '');
       outcomes.pullSnapshotReturnsEmptyForOtherProfile = Object.keys(otherPull.perArray).length === 0
@@ -142,17 +142,17 @@ test('sync delta observability browser coverage handles pull snapshots telemetry
 
       outcomes.telemetryRejectsEmptyProfileInputs = resetMissing === false
         && noProfileTelemetry === null;
-      outcomes.telemetryAggregatesSummary = telemetry.summary.count === 1
-        && telemetry.summary.totalBlobBytes === 1000
-        && telemetry.summary.totalDeltaBytes === 6
-        && telemetry.summary.totalOps === 4
-        && telemetry.summary.ratio === 0.006;
-      outcomes.telemetryRecordsPerArrayBreakdown = telemetry.pushes[0].perArray.entries.ins === 1
-        && telemetry.pushes[0].perArray.entries.upd === 1
-        && telemetry.pushes[0].perArray.entries.tom === 1
-        && telemetry.pushes[0].perArray.entries.bytes === 6
-        && telemetry.pushes[0].perArray.notes.bytes === 0;
-      outcomes.telemetryIncludesPullSnapshot = telemetry.pull.perArray.entries.live === 2;
+      outcomes.telemetryAggregatesSummary = telemetry!.summary.count === 1
+        && telemetry!.summary.totalBlobBytes === 1000
+        && telemetry!.summary.totalDeltaBytes === 6
+        && telemetry!.summary.totalOps === 4
+        && telemetry!.summary.ratio === 0.006;
+      outcomes.telemetryRecordsPerArrayBreakdown = telemetry!.pushes[0]!.perArray.entries!.ins === 1
+        && telemetry!.pushes[0]!.perArray.entries!.upd === 1
+        && telemetry!.pushes[0]!.perArray.entries!.tom === 1
+        && telemetry!.pushes[0]!.perArray.entries!.bytes === 6
+        && telemetry!.pushes[0]!.perArray.notes!.bytes === 0;
+      outcomes.telemetryIncludesPullSnapshot = telemetry!.pull.perArray.entries!.live === 2;
 
       observability.resetDeltaTelemetry(profileId);
       for (let i = 0; i < 55; i += 1) {
@@ -162,16 +162,16 @@ test('sync delta observability browser coverage handles pull snapshots telemetry
       }
       const cappedTelemetry = observability.getDeltaTelemetry(profileId);
       outcomes.telemetryCapsHistoryToLastFiftyPushes =
-        cappedTelemetry.summary.count === 50
-        && cappedTelemetry.pushes.length === 50
-        && cappedTelemetry.pushes[0].blobBytes === 105
-        && cappedTelemetry.pushes[49].blobBytes === 154
-        && cappedTelemetry.summary.totalOps === 50;
+        cappedTelemetry!.summary.count === 50
+        && cappedTelemetry!.pushes.length === 50
+        && cappedTelemetry!.pushes[0]!.blobBytes === 105
+        && cappedTelemetry!.pushes[49]!.blobBytes === 154
+        && cappedTelemetry!.summary.totalOps === 50;
 
       const resetExisting = observability.resetDeltaTelemetry(profileId);
       outcomes.telemetryResetClearsProfileKey =
         resetExisting === true
-        && observability.getDeltaTelemetry(profileId).summary.count === 0
+        && observability.getDeltaTelemetry(profileId)!.summary.count === 0
         && localStorage.getItem(telemetryKey) === null;
     } finally {
       if (originalTelemetry == null) localStorage.removeItem(telemetryKey);

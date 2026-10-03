@@ -59,7 +59,7 @@ test('Chat lazy facade preserves every public action before and after first load
   });
 
   const outcomes = await page.evaluate(async url => {
-    const loader = await import(url);
+    const loader = (await import(url) as unknown) as Pick<typeof import('../../js/chat-loader.js'), "closeChatPanel" | "closeSummaryModal" | "isChatStreaming" | "ensureActiveThreadIfLoaded" | "loadChatHistoryIfLoaded" | "loadChatThreadsIfLoaded" | "renderThreadListIfLoaded" | "onContextCardSavedIfLoaded" | "updateChatContextStatusIfLoaded" | "updateChatHeaderModelIfLoaded" | "configureChatLoader" | "loadChatModule" | "openChatPanel" | "toggleChatPanel" | "createNewThread" | "createThreadProject" | "clearChatHistory" | "filterThreadList" | "sendChatMessage" | "setChatPersonality" | "setChatWebSearchEnabled" | "startDiscussion" | "summarizeThread" | "setChatThreadSort" | "toggleChatFullscreen" | "togglePersonalityBar" | "toggleThreadRail" | "useChatPrompt" | "askAIAboutCorrelations" | "askAIAboutMarker" | "handleChatKeydown" | "isChatModuleLoaded">;
     const coldFallbacks = [
       loader.closeChatPanel(),
       loader.closeSummaryModal(),
@@ -127,19 +127,19 @@ test('Chat lazy facade preserves every public action before and after first load
     });
 
     return {
-      startsCold: coldFallbacks.every(value => value === false),
+      startsCold: coldFallbacks.every((value: unknown) => value === false),
       sharedModule: first === second,
       loaded: loader.isChatModuleLoaded(),
-      configKeys: window.__chatFacadeConfigKeys,
-      lazyResultNames: lazyResults.map(result => result.name),
+      configKeys: (window as unknown as {__chatFacadeConfigKeys?: string[]}).__chatFacadeConfigKeys,
+      lazyResultNames: lazyResults.map(result => (result as {name?: unknown}).name),
       loadedResultNames: loadedResults.map(result => (
-        typeof result === 'boolean' ? 'isChatStreaming' : result.name
+        typeof result === 'boolean' ? 'isChatStreaming' : (result as {name?: unknown}).name
       )),
       ignoredKey,
       ignoredShiftEnter,
-      handledEnterName: handledEnter.name,
+      handledEnterName: (handledEnter as {name?: unknown}).name,
       enterPrevented,
-      calls: window.__chatFacadeCalls,
+      calls: (window as unknown as {__chatFacadeCalls?: unknown[][]}).__chatFacadeCalls,
     };
   }, chatLoaderUrl());
 
@@ -190,5 +190,5 @@ test('Chat lazy facade preserves every public action before and after first load
     handledEnterName: 'sendChatMessage',
     enterPrevented: true,
   });
-  expect(outcomes.calls.map(call => call[0])).toContain('sendChatMessage');
+  expect(outcomes.calls!.map(call => call[0])).toContain('sendChatMessage');
 });

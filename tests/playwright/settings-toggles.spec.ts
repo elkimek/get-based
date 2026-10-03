@@ -1,8 +1,9 @@
+import type { Page } from '@playwright/test';
 import { expect, test } from './coverage-fixture.js';
 
 const SHOW_CLASS_TOKEN = /(^|\s)show(\s|$)/;
 
-async function preparePage(page) {
+async function preparePage(page: Page) {
   await page.addInitScript(() => {
     const profileId = localStorage.getItem('labcharts-active-profile') || 'default';
     localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
@@ -17,7 +18,7 @@ async function preparePage(page) {
     });
   });
   await page.evaluate(() => {
-    window.endTour?.();
+    (window as unknown as {endTour?: () => unknown}).endTour?.();
     document.getElementById('tour-overlay')?.remove();
     document.getElementById('tour-spotlight')?.remove();
     document.getElementById('tour-tooltip')?.remove();
@@ -34,7 +35,7 @@ test('Settings display toggles persist through delegated slider actions', async 
     localStorage.removeItem('labcharts-debug');
     (await import('/js/theme.js')).setTheme('cyberterm');
     settings.configureSettingsRuntime({
-      navigate: view => { document.body.dataset.settingsNavigate = view; },
+      navigate: (view: string) => { document.body.dataset.settingsNavigate = view; },
     });
     settings.openSettingsModal('display');
   });
@@ -92,7 +93,7 @@ test('Settings Review & Edit loads the complete import modal presentation', asyn
 
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
-    state.importedData = {
+    (state as {importedData: unknown}).importedData = {
       ...state.importedData,
       entries: [{
         date: '2026-08-08',
@@ -172,7 +173,7 @@ test('Tweaks panel toggles sunset and CRT effects with theme gating', async ({ p
   const crtInput = page.locator('#tweaks-crt-effects');
   await expect(crtInput).toBeDisabled();
   await page.evaluate(() => {
-    document.querySelector('#tweaks-crt-effects + .toggle-slider')?.click();
+    document.querySelector<HTMLElement>('#tweaks-crt-effects + .toggle-slider')?.click();
   });
 
   await expect.poll(async () => page.evaluate(() => ({

@@ -31,7 +31,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('lifestyle editor loader stays cold, shares its first load, and applies stored configuration', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/context-card-lifestyle-editors-impl.js*', async route => {
     implementationRequests.push(route.request().url());
     await new Promise(resolve => setTimeout(resolve, 25));
@@ -42,19 +42,19 @@ test('lifestyle editor loader stays cold, shares its first load, and applies sto
   });
 
   const outcomes = await page.evaluate(async url => {
-    const facade = await import(url);
-    const callbackCalls = [];
+    const facade = (await import(url) as unknown) as Pick<typeof import('../../js/context-card-lifestyle-editors.js'), "configureLifestyleContextEditors" | "isLifestyleContextEditorsLoaded" | "closeHealthGoals" | "loadLifestyleContextEditors" | "openDietEditor" | "renderDietContaminantsBadge">;
+    const callbackCalls: unknown[][] = [];
     facade.configureLifestyleContextEditors({
       recordChange: field => callbackCalls.push(['record', field]),
       saveAndRefresh: (message, field) => callbackCalls.push(['save', message, field]),
     });
     const cold = !facade.isLifestyleContextEditorsLoaded();
-    const coldClose = facade.closeHealthGoals();
-    const first = facade.loadLifestyleContextEditors();
-    const second = facade.loadLifestyleContextEditors();
+    const coldClose = (facade.closeHealthGoals as (...args: Parameters<typeof facade.closeHealthGoals>) => unknown)();
+    const first = (facade.loadLifestyleContextEditors as (...args: Parameters<typeof facade.loadLifestyleContextEditors>) => Promise<unknown>)();
+    const second = (facade.loadLifestyleContextEditors as (...args: Parameters<typeof facade.loadLifestyleContextEditors>) => Promise<unknown>)();
     const sharedPromise = first === second;
     await Promise.all([first, second]);
-    const opened = facade.openDietEditor('configured');
+    const opened = (facade.openDietEditor as (...args: [...Parameters<typeof facade.openDietEditor>, value: unknown]) => unknown)('configured');
     return {
       cold,
       coldClose,
@@ -62,7 +62,7 @@ test('lifestyle editor loader stays cold, shares its first load, and applies sto
       loaded: facade.isLifestyleContextEditorsLoaded(),
       opened,
       callbackCalls,
-      implementationCalls: window.__lifestyleEditorLoaderCalls || [],
+      implementationCalls: (window as unknown as {__lifestyleEditorLoaderCalls?: unknown[][]}).__lifestyleEditorLoaderCalls || [],
     };
   }, facadeUrl());
 
@@ -85,7 +85,7 @@ test('lifestyle editor loader stays cold, shares its first load, and applies sto
 });
 
 test('first cold contaminant badge click bypasses its parent and opens through the loader', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/context-card-lifestyle-editors-impl.js*', async route => {
     implementationRequests.push(route.request().url());
     await route.fulfill({
@@ -96,7 +96,7 @@ test('first cold contaminant badge click bypasses its parent and opens through t
 
   const outcomes = await page.evaluate(async url => {
     const [facade, { state }] = await Promise.all([
-      import(url),
+      (import(url) as Promise<unknown>) as Promise<Pick<typeof import('../../js/context-card-lifestyle-editors.js'), "configureLifestyleContextEditors" | "isLifestyleContextEditorsLoaded" | "closeHealthGoals" | "loadLifestyleContextEditors" | "openDietEditor" | "renderDietContaminantsBadge">>,
       import('/js/state.js'),
     ]);
     const previousDiet = state.importedData.diet;
@@ -111,14 +111,14 @@ test('first cold contaminant badge click bypasses its parent and opens through t
       const card = document.createElement('div');
       card.addEventListener('click', () => { parentClicks += 1; });
       card.innerHTML = facade.renderDietContaminantsBadge();
-      document.getElementById('fixture').append(card);
-      card.querySelector('.diet-contaminants').click();
-      await facade.loadLifestyleContextEditors();
+      document.getElementById('fixture')!.append(card);
+      card.querySelector<HTMLElement>('.diet-contaminants')!.click();
+      await (facade.loadLifestyleContextEditors as (...args: Parameters<typeof facade.loadLifestyleContextEditors>) => Promise<unknown>)();
       await Promise.resolve();
       return {
         parentClicks,
         loaded: facade.isLifestyleContextEditorsLoaded(),
-        implementationCalls: window.__lifestyleEditorLoaderCalls || [],
+        implementationCalls: (window as unknown as {__lifestyleEditorLoaderCalls?: unknown[][]}).__lifestyleEditorLoaderCalls || [],
       };
     } finally {
       state.importedData.diet = previousDiet;
@@ -137,7 +137,7 @@ test('first cold contaminant badge click bypasses its parent and opens through t
 });
 
 test('lifestyle editor action contains a failed load and retries with the fixed URL', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/context-card-lifestyle-editors-impl.js*', async route => {
     const url = route.request().url();
     implementationRequests.push(url);
@@ -156,23 +156,23 @@ test('lifestyle editor action contains a failed load and retries with the fixed 
   });
 
   const outcomes = await page.evaluate(async url => {
-    const facade = await import(url);
-    const first = await facade.openDietEditor('failed-first');
+    const facade = (await import(url) as unknown) as Pick<typeof import('../../js/context-card-lifestyle-editors.js'), "configureLifestyleContextEditors" | "isLifestyleContextEditorsLoaded" | "closeHealthGoals" | "loadLifestyleContextEditors" | "openDietEditor" | "renderDietContaminantsBadge">;
+    const first = await (facade.openDietEditor as (...args: [...Parameters<typeof facade.openDietEditor>, value: unknown]) => unknown)('failed-first');
     const unloadedAfterFailure = !facade.isLifestyleContextEditorsLoaded();
-    const second = await facade.openDietEditor('retry');
+    const second = await (facade.openDietEditor as (...args: [...Parameters<typeof facade.openDietEditor>, value: unknown]) => unknown)('retry');
     return {
       first,
       unloadedAfterFailure,
       second,
       loadedAfterRetry: facade.isLifestyleContextEditorsLoaded(),
-      implementationCalls: window.__lifestyleEditorLoaderCalls || [],
+      implementationCalls: (window as unknown as {__lifestyleEditorLoaderCalls?: unknown[][]}).__lifestyleEditorLoaderCalls || [],
       notification: document.body.textContent,
     };
   }, facadeUrl());
 
   expect(implementationRequests).toHaveLength(2);
-  expect(new URL(implementationRequests[0]).search).toBe('');
-  expect(new URL(implementationRequests[1]).searchParams.get('lazy-retry')).toBe('1');
+  expect(new URL(implementationRequests[0]!).search).toBe('');
+  expect(new URL(implementationRequests[1]!).searchParams.get('lazy-retry')).toBe('1');
   expect(outcomes).toMatchObject({
     first: false,
     unloadedAfterFailure: true,

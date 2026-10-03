@@ -1,9 +1,10 @@
+import type { Page } from '@playwright/test';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 import fs from 'fs';
 
-const moduleUrl = path => `${path}?syncEnvironmentCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?syncEnvironmentCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const syncEnvironmentSource = fs.readFileSync(new URL('../../js/sync-environment.js', import.meta.url), 'utf8');
 const utilsRuntimeSource = fs.readFileSync(new URL('../../js/utils-runtime.js', import.meta.url), 'utf8');
 
@@ -11,7 +12,7 @@ const openBlankPage = createBlankPage({
   status: 200, body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
 });
 
-async function openOnionPage(page) {
+async function openOnionPage(page: Page) {
   await routeHtml(page, '**/sync-environment-onion-coverage', '<!doctype html><html><body><main id="fixture"></main></body></html>', 200);
   await page.route('**/js/sync-environment.js*', route => route.fulfill({
     status: 200,
@@ -30,7 +31,7 @@ test('sync environment browser coverage handles relay storage probes and capabil
   await openBlankPage(page, '/sync-environment-coverage');
 
   const outcomes = await page.evaluate(async ({ environmentUrl }) => {
-    const env = await import(environmentUrl);
+    const env = (await import(environmentUrl) as unknown) as Pick<typeof import('../../js/sync-environment.js'), "getSyncRelay" | "setSyncRelay" | "checkRelayConnection" | "getSyncBlocker">;
     const relayKey = 'labcharts-sync-relay';
     const originalRelay = localStorage.getItem(relayKey);
     const OriginalWebSocket = window.WebSocket;
@@ -39,21 +40,21 @@ test('sync environment browser coverage handles relay storage probes and capabil
       storage: Object.getOwnPropertyDescriptor(navigator, 'storage'),
     };
     const originalCryptoDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
-    const websocketEvents = [];
-    const outcomes = {};
+    const websocketEvents: unknown[][] = [];
+    const outcomes: Record<string, unknown> = {};
 
-    const setNavigatorValue = (key, value) => {
+    const setNavigatorValue = (key: 'locks' | 'storage', value: unknown) => {
       Object.defineProperty(navigator, key, {
         configurable: true,
         value,
       });
     };
-    const restoreNavigatorValue = key => {
+    const restoreNavigatorValue = (key: 'locks' | 'storage') => {
       const descriptor = originalNavigatorDescriptors[key];
       if (descriptor) Object.defineProperty(navigator, key, descriptor);
-      else delete navigator[key];
+      else delete (navigator as unknown as {locks?: unknown;storage?: unknown})[key];
     };
-    const setCryptoValue = value => {
+    const setCryptoValue = (value: unknown) => {
       Object.defineProperty(globalThis, 'crypto', {
         configurable: true,
         value,
@@ -61,7 +62,7 @@ test('sync environment browser coverage handles relay storage probes and capabil
     };
     const restoreCryptoValue = () => {
       if (originalCryptoDescriptor) Object.defineProperty(globalThis, 'crypto', originalCryptoDescriptor);
-      else delete globalThis.crypto;
+      else delete (globalThis as {crypto?: unknown}).crypto;
     };
 
     try {
@@ -72,10 +73,10 @@ test('sync environment browser coverage handles relay storage probes and capabil
       outcomes.setSyncRelayPersistsCustomValue = localStorage.getItem(relayKey) === 'wss://relay.example.test';
       outcomes.customRelayOverridesDefaultRelay = env.getSyncRelay() === 'wss://relay.example.test';
 
-      window.WebSocket = class {
-        constructor(url) {
+      (window as {WebSocket: unknown}).WebSocket = class {
+        constructor(url: unknown) {
           websocketEvents.push(['open-url', url]);
-          setTimeout(() => this.onopen?.({ type: 'open' }), 0);
+          setTimeout(() => (this as {onopen?: (event: {type: string}) => unknown}).onopen?.({ type: 'open' }), 0);
         }
         close() {
           websocketEvents.push(['open-close']);
@@ -83,10 +84,10 @@ test('sync environment browser coverage handles relay storage probes and capabil
       };
       const openResult = await env.checkRelayConnection(50);
 
-      window.WebSocket = class {
-        constructor(url) {
+      (window as {WebSocket: unknown}).WebSocket = class {
+        constructor(url: unknown) {
           websocketEvents.push(['error-url', url]);
-          setTimeout(() => this.onerror?.({ type: 'error' }), 0);
+          setTimeout(() => (this as {onerror?: (event: {type: string}) => unknown}).onerror?.({ type: 'error' }), 0);
         }
         close() {
           websocketEvents.push(['error-close']);
@@ -94,8 +95,8 @@ test('sync environment browser coverage handles relay storage probes and capabil
       };
       const errorResult = await env.checkRelayConnection(50);
 
-      window.WebSocket = class {
-        constructor(url) {
+      (window as {WebSocket: unknown}).WebSocket = class {
+        constructor(url: unknown) {
           websocketEvents.push(['timeout-url', url]);
         }
         close() {
@@ -104,7 +105,7 @@ test('sync environment browser coverage handles relay storage probes and capabil
       };
       const timeoutResult = await env.checkRelayConnection(5);
 
-      window.WebSocket = class {
+      (window as {WebSocket: unknown}).WebSocket = class {
         constructor() {
           throw new Error('socket constructor failed');
         }
@@ -144,14 +145,14 @@ test('sync environment browser coverage handles relay storage probes and capabil
       const missingCrypto = env.getSyncBlocker();
 
       outcomes.syncBlockerReturnsNullWhenCapabilitiesExist = supported === null;
-      outcomes.syncBlockerReportsMissingWebLocks = missingLocks.startsWith('navigator.locks not available');
-      outcomes.syncBlockerReportsMissingStorageManager = missingStorage.startsWith('navigator.storage not available');
-      outcomes.syncBlockerReportsMissingOpfs = missingOpfs.startsWith('OPFS');
-      outcomes.syncBlockerReportsMissingWebCrypto = missingCrypto.startsWith('crypto.subtle');
+      outcomes.syncBlockerReportsMissingWebLocks = missingLocks!.startsWith('navigator.locks not available');
+      outcomes.syncBlockerReportsMissingStorageManager = missingStorage!.startsWith('navigator.storage not available');
+      outcomes.syncBlockerReportsMissingOpfs = missingOpfs!.startsWith('OPFS');
+      outcomes.syncBlockerReportsMissingWebCrypto = missingCrypto!.startsWith('crypto.subtle');
 
       return outcomes;
     } finally {
-      window.WebSocket = OriginalWebSocket;
+      (window as {WebSocket: unknown}).WebSocket = OriginalWebSocket;
       restoreNavigatorValue('locks');
       restoreNavigatorValue('storage');
       restoreCryptoValue();
@@ -171,7 +172,7 @@ test('sync environment browser coverage prefers onion relay on onion origins', a
   await openOnionPage(page);
 
   const outcomes = await page.evaluate(async ({ environmentUrl }) => {
-    const env = await import(environmentUrl);
+    const env = (await import(environmentUrl) as unknown) as Pick<typeof import('../../js/sync-environment.js'), "getSyncRelay" | "setSyncRelay" | "checkRelayConnection" | "getSyncBlocker">;
     localStorage.setItem('labcharts-sync-relay', 'wss://relay.example.test');
     return {
       testPageUsesOnionHostname: window.location.hostname === 'relay-check.onion',

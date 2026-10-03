@@ -1,7 +1,7 @@
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = (path) => `${path}?mobileDashboardCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?mobileDashboardCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   path: "/mobile-dashboard-browser-coverage", body: '<!doctype html><html><head></head><body><main id="main-content"></main><input id="sidebar-search"></body></html>',
@@ -11,32 +11,32 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ mobileDashboardUrl }) => {
-    const calls = [];
-    const mediaListeners = [];
+    const calls: unknown[][] = [];
+    const mediaListeners: ((event: {matches: boolean}) => unknown)[] = [];
     const saved = {
       matchMedia: window.matchMedia,
       scrollTo: window.scrollTo,
     };
 
-    window.matchMedia = query => ({
+    (window as {matchMedia: unknown}).matchMedia = (query: string) => ({
       media: query,
       matches: true,
       onchange: null,
-      addEventListener: (type, callback) => {
+      addEventListener: (type: string, callback: (event: {matches: boolean}) => unknown) => {
         if (type === 'change') mediaListeners.push(callback);
       },
       removeEventListener: () => {},
-      addListener: callback => mediaListeners.push(callback),
+      addListener: (callback: (event: {matches: boolean}) => unknown) => mediaListeners.push(callback),
       removeListener: () => {},
       dispatchEvent: () => false,
     });
-    window.scrollTo = (...args) => calls.push(['scrollTo', ...args]);
+    (window as {scrollTo: unknown}).scrollTo = (...args: unknown[]) => calls.push(['scrollTo', ...args]);
 
     const [{ state }, mobileDashboard] = await Promise.all([
       import('/js/state.js'),
-      import(mobileDashboardUrl),
+      (import(mobileDashboardUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/mobile-dashboard.js'), "configureMobileDashboardView" | "isMobileDashboardViewport" | "getMobileWearablePriority" | "renderMobileDashboard" | "mobileDashboardSetTab" | "openMobileDashboardSearch" | "mobileDashboardJump">>,
     ]);
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const clone = (value: unknown) : unknown => value == null ? value : (JSON.parse(JSON.stringify(value)) as unknown);
     const originalState = {
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
@@ -45,8 +45,8 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
     };
     const profilesStorage = localStorage.getItem('labcharts-profiles');
     const activeProfile = localStorage.getItem('labcharts-active-profile');
-    const outcomes = {};
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const outcomes: Record<string, unknown> = {};
+    const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
     const mobileData = {
       dates: ['2026-01-01', '2026-02-01'],
@@ -71,7 +71,7 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
       localStorage.setItem('labcharts-profiles', JSON.stringify([{ id: 'mobile-profile', name: 'Mobile Tester' }]));
       localStorage.setItem('labcharts-active-profile', 'mobile-profile');
       state.currentProfile = 'mobile-profile';
-      state.importedData = {
+      (state as {importedData: unknown}).importedData = {
         ...state.importedData,
         entries: [],
         notes: [],
@@ -87,14 +87,14 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
         },
       };
       mobileDashboard.configureMobileDashboardView({
-        navigate: route => calls.push(['navigate', route]),
+        navigate: (route: string) => calls.push(['navigate', route]),
         toggleMobileSidebar: () => calls.push(['toggleMobileSidebar']),
         loadContextCardTips: () => calls.push(['loadContextCardTips']),
         loadCatalog: async () => {
           calls.push(['loadCatalog']);
           return { catalog: true };
         },
-        cacheCatalog: catalog => calls.push(['cacheCatalog', catalog?.catalog === true]),
+        cacheCatalog: (catalog: {catalog?: unknown} | null) => calls.push(['cacheCatalog', catalog?.catalog === true]),
       });
 
       outcomes.breakpointListenerWasRegistered = mediaListeners.length > 0
@@ -143,19 +143,19 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
         && !secondRenderHtml.includes('No widgets are visible.');
 
       mobileDashboard.mobileDashboardSetTab('labs');
-      const activeLabs = document.querySelector('.m-tab[data-tab="labs"]');
-      const activeDashboard = document.querySelector('.m-tab[data-tab="dashboard"]');
+      const activeLabs = document.querySelector<HTMLElement>('.m-tab[data-tab="labs"]');
+      const activeDashboard = document.querySelector<HTMLElement>('.m-tab[data-tab="dashboard"]');
       outcomes.mobileDashboardSetTabUpdatesActiveState = activeLabs?.classList.contains('active') === true
         && activeLabs?.getAttribute('aria-current') === 'page'
         && activeDashboard?.getAttribute('aria-current') === 'false';
 
-      document.querySelector('.m-tab[data-tab="light"]')?.click();
-      const activeLight = document.querySelector('.m-tab[data-tab="light"]');
+      document.querySelector<HTMLElement>('.m-tab[data-tab="light"]')?.click();
+      const activeLight = document.querySelector<HTMLElement>('.m-tab[data-tab="light"]');
       outcomes.mobileDashboardTabsUseDelegatedActions = activeLight?.classList.contains('active') === true
         && activeLight?.getAttribute('data-mobile-dashboard-action') === 'navigate-tab'
         && activeLight?.getAttribute('data-mobile-dashboard-route') === 'light'
         && calls.some(call => call[0] === 'navigate' && call[1] === 'light')
-        && !document.querySelector('.m-tab[data-tab="light"]')?.hasAttribute('onclick')
+        && !document.querySelector<HTMLElement>('.m-tab[data-tab="light"]')?.hasAttribute('onclick')
         && !firstRenderHtml.includes('onclick=');
 
       mobileDashboard.openMobileDashboardSearch();
@@ -169,19 +169,19 @@ test('mobile dashboard browser coverage exercises defaults breakpoint search and
       outcomes.mobileDashboardJumpNormalizesRoutesAndTabs = calls.some(call => call[0] === 'navigate' && call[1] === 'body')
         && calls.some(call => call[0] === 'navigate' && call[1] === 'recommendations')
         && calls.some(call => call[0] === 'navigate' && call[1] === 'dashboard')
-        && document.querySelector('.m-tab[data-tab="dashboard"]')?.classList.contains('active') === true;
+        && document.querySelector<HTMLElement>('.m-tab[data-tab="dashboard"]')?.classList.contains('active') === true;
     } finally {
-      state.importedData = originalState.importedData;
+      (state as {importedData: unknown}).importedData = originalState.importedData;
       state.currentProfile = originalState.currentProfile;
       state.currentView = originalState.currentView;
-      state.markerRegistry = originalState.markerRegistry;
+      (state as {markerRegistry: unknown}).markerRegistry = originalState.markerRegistry;
       if (profilesStorage == null) localStorage.removeItem('labcharts-profiles');
       else localStorage.setItem('labcharts-profiles', profilesStorage);
       if (activeProfile == null) localStorage.removeItem('labcharts-active-profile');
       else localStorage.setItem('labcharts-active-profile', activeProfile);
-      window.matchMedia = saved.matchMedia;
-      if (saved.scrollTo) window.scrollTo = saved.scrollTo;
-      else delete window.scrollTo;
+      (window as {matchMedia: unknown}).matchMedia = saved.matchMedia;
+      if (saved.scrollTo) (window as {scrollTo: unknown}).scrollTo = saved.scrollTo;
+      else delete (window as unknown as {scrollTo?: unknown}).scrollTo;
       mobileDashboard.configureMobileDashboardView({
         navigate: () => {},
         toggleMobileSidebar: () => {},
