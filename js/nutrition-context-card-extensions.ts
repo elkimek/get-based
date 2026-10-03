@@ -1,4 +1,3 @@
-// @ts-check
 // nutrition-context-card-extensions.js — lightweight Diet and Light card links.
 
 import { state } from './state.js';
@@ -6,12 +5,33 @@ import { getNutritionContextDays, isNutritionContextEnabled } from './lab-contex
 import { doesNutritionContextOverrideTypicalMeals } from './context-card-summaries.js';
 import { escapeHTML } from './utils.js';
 
-export function renderNutritionDietExtension(actionAttributes) {
-  const summary = state.nutritionSummary;
+type NutritionActionAttributes = (action: 'open-nutrition', options: { surface: 'meals' | 'timing' }) => string;
+interface NutritionCardWindow {
+  loggedDays?: unknown;
+  foodMeals?: unknown;
+  meals?: unknown;
+  timing?: {
+    mealsWithTiming?: unknown;
+    averageFirstMealLocalTime?: unknown;
+    averageLastMealLocalTime?: unknown;
+    sleepRelative?: {
+      averageLastMealToSleepMinutes?: unknown;
+      averageWakeToFirstMealMinutes?: unknown;
+    } | null;
+  } | null;
+}
+interface NutritionCardSummary {
+  totalMeals?: unknown;
+  windows?: { d7?: NutritionCardWindow | null } | null;
+}
+
+
+export function renderNutritionDietExtension(actionAttributes: NutritionActionAttributes) {
+  const summary = state.nutritionSummary as NutritionCardSummary | null;
   const period = summary?.windows?.d7;
   const logged = period?.loggedDays || 0;
   const foodMeals = period?.foodMeals ?? period?.meals ?? 0;
-  const hasDetailedMeals = summary?.totalMeals > 0;
+  const hasDetailedMeals = (summary?.totalMeals as number) > 0;
   const overridesTypicalMeals = doesNutritionContextOverrideTypicalMeals(summary);
   const title = overridesTypicalMeals ? 'Detailed meal log active' : 'Meals & Nutrition';
   let detail = 'Add variable meals and photo estimates';
@@ -27,15 +47,15 @@ export function renderNutritionDietExtension(actionAttributes) {
   return `<button type="button" class="diet-nutrition-extension" ${actionAttributes('open-nutrition', { surface: 'meals' })}><span class="diet-nutrition-extension-title">${title}</span><span>${escapeHTML(detail)}</span><span aria-hidden="true">→</span></button>`;
 }
 
-export function renderNutritionCircadianExtension(actionAttributes) {
-  const period = state.nutritionSummary?.windows?.d7;
+export function renderNutritionCircadianExtension(actionAttributes: NutritionActionAttributes) {
+  const period = (state.nutritionSummary as NutritionCardSummary | null)?.windows?.d7;
   const timing = period?.timing;
   if (!period?.meals || !timing?.mealsWithTiming) return '';
   const first = timing.averageFirstMealLocalTime || '';
   const last = timing.averageLastMealLocalTime || '';
   const beforeSleep = timing.sleepRelative?.averageLastMealToSleepMinutes;
   const afterWake = timing.sleepRelative?.averageWakeToFirstMealMinutes;
-  const duration = minutes => {
+  const duration = (minutes: unknown) => {
     const value = Number(minutes);
     if (!Number.isFinite(value)) return '';
     return `${Math.floor(value / 60)}h ${Math.round(value % 60)}m`;

@@ -1,4 +1,3 @@
-// @ts-check
 // chat-thread-search.js — chat thread rail message search and highlighting
 
 import { state } from './state.js';
@@ -6,41 +5,48 @@ import { encryptedGetItem, getEncryptionEnabled } from './crypto.js';
 import { escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
 import { preferredChatScrollBehavior } from './chat-scroll.js';
+import type { ChatThread } from '../types/chat-data.js';
+import type { PromptDialogOptions } from './utils.js';
 
-/** @type {{
- *   getChatThreadKey: (threadId: string) => string,
- *   renderThreadList: (filter?: string) => void,
- *   revealMessage: (index: number) => boolean,
- *   switchToThread: (threadId: string) => Promise<void>,
- * }} */
-const threadSearchCallbacks = {
+interface ThreadSearchCallbacks {
+  getChatThreadKey: (threadId: string) => string; renderThreadList: (filter?: string) => void;
+  revealMessage: (index: number) => boolean; switchToThread: (threadId: string) => Promise<void>;
+}
+interface ThreadProjectCallbacks {
+  createNewThread: (options: { projectName: string }) => ChatThread | null;
+  renderThreadList: () => void; saveChatThreadIndex: () => boolean | Promise<boolean>;
+  showPromptDialog: (message: string, options: PromptDialogOptions) => Promise<unknown>;
+}
+interface SearchMessage { content: string; role?: unknown; [key: string]: unknown }
+interface SearchResult { threadId: string; threadName: string; msgIndex: number; role: unknown; pre: string; match: string; post: string; contentPrefix: string }
+type ProjectSnapshot = Pick<ChatThread, 'id' | 'updatedAt'> & { projectName: ChatThread['projectName'] };
+export interface ThreadMetadataReader { updatedAt?: unknown; createdAt?: unknown; messagesUpdatedAt?: unknown }
+
+const threadSearchCallbacks: ThreadSearchCallbacks = {
   getChatThreadKey: () => '',
   renderThreadList: () => {},
   revealMessage: () => false,
   switchToThread: async () => {},
 };
 
-/** @type {ReturnType<typeof setTimeout> | null} */
-let _threadSearchTimer = null;
-/** @type {{ profileId: string | null, threads: Map<string, any[]> } | null} */
-let _threadContentCache = null; // { profileId, threads: Map<threadId, messages[]> }
+let _threadSearchTimer: ReturnType<typeof setTimeout> | null = null;
+let _threadContentCache: { profileId: string | null; threads: Map<string, SearchMessage[]> } | null = null; // { profileId, threads: Map<threadId, messages[]> }
 let searchRevision = 0;
 
 const SEARCH_RESULT_LIMIT = 30;
 
-/** @param {Partial<typeof threadSearchCallbacks>} [callbacks] */
-export function configureChatThreadSearch(callbacks = {}) {
+export function configureChatThreadSearch(callbacks: Partial<ThreadSearchCallbacks> = {}) {
   Object.assign(threadSearchCallbacks, callbacks);
 }
 
-const threadProjectCallbacks = {
+const threadProjectCallbacks: ThreadProjectCallbacks = {
   createNewThread: _options => null,
   renderThreadList: () => {},
   saveChatThreadIndex: async () => false,
   showPromptDialog: async (_message, _options) => null,
 };
 
-export function configureChatThreadProjects(callbacks = {}) {
+export function configureChatThreadProjects(callbacks: Partial<ThreadProjectCallbacks> = {}) {
   Object.assign(threadProjectCallbacks, callbacks);
 }
 
@@ -60,7 +66,7 @@ export async function createThreadProject() {
   return projectName ? threadProjectCallbacks.createNewThread({ projectName }) : null;
 }
 
-function restoreProjectMutation(snapshots) {
+function restoreProjectMutation(snapshots: ProjectSnapshot[]) {
   for (const snapshot of snapshots) {
     const thread = state.chatThreads.find(item => item.id === snapshot.id);
     if (!thread) continue;
@@ -70,13 +76,13 @@ function restoreProjectMutation(snapshots) {
   }
 }
 
-function projectSnapshots(threads) {
+function projectSnapshots(threads: ChatThread[]) {
   return threads.map(thread => ({
     id: thread.id, projectName: thread.projectName, updatedAt: thread.updatedAt,
   }));
 }
 
-export async function renameThreadProject(currentName, nextName) {
+export async function renameThreadProject(currentName: unknown, nextName: unknown) {
   const profile = state.currentProfile;
   const current = String(currentName || '').trim();
   const next = String(nextName || '').trim().slice(0, 60);
@@ -102,7 +108,7 @@ export async function renameThreadProject(currentName, nextName) {
   return saved;
 }
 
-export async function renameThreadProjectPrompt(projectName) {
+export async function renameThreadProjectPrompt(projectName: unknown) {
   const profile = state.currentProfile;
   const current = String(projectName || '').trim();
   if (!current) return false;
@@ -113,7 +119,7 @@ export async function renameThreadProjectPrompt(projectName) {
   return name && profile === state.currentProfile ? renameThreadProject(current, name) : false;
 }
 
-export async function deleteThreadProject(projectName) {
+export async function deleteThreadProject(projectName: unknown) {
   const profile = state.currentProfile;
   const current = String(projectName || '').trim();
   const affected = state.chatThreads.filter(thread => thread.projectName === current);
@@ -132,7 +138,7 @@ export async function deleteThreadProject(projectName) {
   return saved;
 }
 
-export async function deleteThreadProjectPrompt(projectName) {
+export async function deleteThreadProjectPrompt(projectName: unknown) {
   const profile = state.currentProfile;
   const current = String(projectName || '').trim();
   const count = state.chatThreads.filter(thread => thread.projectName === current).length;
@@ -145,12 +151,12 @@ export async function deleteThreadProjectPrompt(projectName) {
 }
 
 // Freeze the legacy body's clock before any metadata-only edit advances it.
-export function markThreadMetadataChanged(thread, updatedAt = new Date().toISOString()) {
+export function markThreadMetadataChanged(thread: ThreadMetadataReader, updatedAt = new Date().toISOString()) {
   thread.messagesUpdatedAt ||= thread.updatedAt || thread.createdAt || updatedAt;
   thread.updatedAt = updatedAt;
 }
 
-export function toggleThreadPinned(threadId) {
+export function toggleThreadPinned(threadId: unknown) {
   const thread = state.chatThreads.find(item => item.id === threadId);
   if (!thread) return false;
   thread.pinned = thread.pinned !== true;
@@ -160,7 +166,7 @@ export function toggleThreadPinned(threadId) {
   return thread.pinned;
 }
 
-export async function moveThreadToProject(threadId, nextProjectName) {
+export async function moveThreadToProject(threadId: unknown, nextProjectName: unknown) {
   const profile = state.currentProfile;
   const thread = state.chatThreads.find(item => item.id === threadId);
   if (!thread) return false;
@@ -186,7 +192,7 @@ export async function moveThreadToProject(threadId, nextProjectName) {
   return saved;
 }
 
-async function getThreadMessages(threadId) {
+async function getThreadMessages(threadId: string) {
   // Invalidate cache on profile switch
   if (!_threadContentCache || _threadContentCache.profileId !== state.currentProfile) {
     _threadContentCache = { profileId: state.currentProfile, threads: new Map() };
@@ -197,8 +203,8 @@ async function getThreadMessages(threadId) {
     const key = threadSearchCallbacks.getChatThreadKey(threadId);
     const raw = getEncryptionEnabled() ? await encryptedGetItem(key) : localStorage.getItem(key);
     if (cache !== _threadContentCache || cache.profileId !== state.currentProfile) return [];
-    const messages = raw ? JSON.parse(raw) : [];
-    const valid = Array.isArray(messages) ? messages.filter(message => message && typeof message.content === 'string') : [];
+    const messages: unknown = raw ? JSON.parse(raw) : [];
+    const valid = Array.isArray(messages) ? messages.filter((message: unknown) => message && typeof (message as { content?: unknown }).content === 'string') as SearchMessage[] : [];
     cache.threads.set(threadId, valid);
     return valid;
   } catch { return []; }
@@ -207,13 +213,13 @@ async function getThreadMessages(threadId) {
 // Invalidate cache when messages change
 export function invalidateThreadContentCache() { _threadContentCache = null; searchRevision += 1; }
 
-export function filterThreadList(value) {
+export function filterThreadList(value: string | null | undefined) {
   const revision = ++searchRevision;
   if (_threadSearchTimer !== null) clearTimeout(_threadSearchTimer);
   _threadSearchTimer = null;
   if (!value || !value.trim()) {
     // Clear highlights when search is cleared
-    document.querySelectorAll('.chat-search-mark').forEach(m => m.replaceWith(m.textContent));
+    document.querySelectorAll('.chat-search-mark').forEach(m => m.replaceWith(m.textContent!));
     document.querySelectorAll('.chat-msg-highlight').forEach(m => m.classList.remove('chat-msg-highlight'));
     threadSearchCallbacks.renderThreadList();
     return;
@@ -226,20 +232,20 @@ export function filterThreadList(value) {
   _threadSearchTimer = setTimeout(() => searchThreadContent(value.trim(), revision), 250);
 }
 
-async function searchThreadContent(query, revision) {
+async function searchThreadContent(query: string, revision?: number) {
   const profile = state.currentProfile;
   const isCurrent = () => profile === state.currentProfile && revision === searchRevision;
   const q = query.toLowerCase();
-  const results = [];
+  const results: SearchResult[] = [];
   let scannedThreads = 0;
   for (const t of state.chatThreads) {
-    const input = /** @type {HTMLInputElement | null} */ (document.getElementById('chat-thread-search'));
+    const input = (document.getElementById('chat-thread-search') as HTMLInputElement | null);
     if (!input || input.value.trim().toLowerCase() !== q) return;
     const messages = await getThreadMessages(t.id);
     if (!isCurrent()) return;
     scannedThreads += 1;
     for (let i = 0; i < messages.length; i++) {
-      const m = messages[i];
+      const m = messages[i]!;
       if (!m.content) continue;
       const idx = m.content.toLowerCase().indexOf(q);
       if (idx === -1) continue;
@@ -258,18 +264,18 @@ async function searchThreadContent(query, revision) {
     if (progress) progress.textContent = `Searching messages… ${scannedThreads}/${state.chatThreads.length}`;
   }
   // Re-check input hasn't changed
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('chat-thread-search'));
+  const input = (document.getElementById('chat-thread-search') as HTMLInputElement | null);
   if (!isCurrent() || !input || input.value.trim().toLowerCase() !== q) return;
   showSearchResults(results);
 }
 
-function showSearchResults(results) {
+function showSearchResults(results: SearchResult[]) {
   const list = document.getElementById('chat-thread-list');
   if (!list) return;
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('chat-thread-search'));
+  const input = (document.getElementById('chat-thread-search') as HTMLInputElement | null);
   const query = input?.value?.trim() || '';
   threadSearchCallbacks.renderThreadList(query);
-  const hasNameMatches = !list.textContent.includes('No matching');
+  const hasNameMatches = !list.textContent!.includes('No matching');
   const nameResults = hasNameMatches
     ? `<div class="chat-search-results-label">Conversations</div>${list.innerHTML}`
     : '';
@@ -293,8 +299,8 @@ function showSearchResults(results) {
     }).join('') + truncated;
 }
 
-export async function jumpToSearchResult(threadId, msgIndex, contentPrefix) {
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('chat-thread-search'));
+export async function jumpToSearchResult(threadId: string, msgIndex: number, contentPrefix: unknown) {
+  const input = (document.getElementById('chat-thread-search') as HTMLInputElement | null);
   const query = input?.value?.trim() || '';
   // Switch to thread (re-renders messages if different thread)
   if (state.currentThreadId !== threadId) {
@@ -308,7 +314,7 @@ export async function jumpToSearchResult(threadId, msgIndex, contentPrefix) {
     let msgEl = document.getElementById('chat-msg-' + msgIndex);
     // Verify we're highlighting the right message (index may have shifted)
     if (msgEl && contentPrefix && state.chatHistory[msgIndex]) {
-      const actual = (state.chatHistory[msgIndex].content || '').slice(0, 50);
+      const actual = (state.chatHistory[msgIndex]!.content || '').slice(0, 50);
       if (actual !== contentPrefix) {
         // Index shifted — find the right message
         const correctIdx = state.chatHistory.findIndex(m => m.content && m.content.slice(0, 50) === contentPrefix);
@@ -321,7 +327,7 @@ export async function jumpToSearchResult(threadId, msgIndex, contentPrefix) {
     }
     if (!msgEl) return;
     // Remove stale marks from previous search
-    document.querySelectorAll('.chat-search-mark').forEach(m => m.replaceWith(m.textContent));
+    document.querySelectorAll('.chat-search-mark').forEach(m => m.replaceWith(m.textContent!));
     document.querySelectorAll('.chat-msg-highlight').forEach(m => m.classList.remove('chat-msg-highlight'));
     if (query) highlightInMessage(msgEl, query);
     const mark = msgEl.querySelector('.chat-search-mark');
@@ -330,19 +336,19 @@ export async function jumpToSearchResult(threadId, msgIndex, contentPrefix) {
   });
 }
 
-function highlightInMessage(el, query) {
+function highlightInMessage(el: Element, query: string) {
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
   const q = query.toLowerCase();
   const qLen = query.length;
-  const nodes = [];
+  const nodes: Node[] = [];
   while (walker.nextNode()) nodes.push(walker.currentNode);
   for (let i = nodes.length - 1; i >= 0; i--) {
-    const node = nodes[i];
+    const node = nodes[i]!;
     const text = node.textContent;
     if (!text) continue;
     const lower = text.toLowerCase();
     // Find all match positions in this node (reverse order)
-    const positions = [];
+    const positions: number[] = [];
     let pos = 0;
     while ((pos = lower.indexOf(q, pos)) !== -1) {
       positions.push(pos);
@@ -354,7 +360,7 @@ function highlightInMessage(el, query) {
     if (!parent) continue;
     let remainder = node;
     for (let j = positions.length - 1; j >= 0; j--) {
-      const idx = positions[j];
+      const idx = positions[j]!;
       const current = remainder.textContent || '';
       const before = current.slice(0, idx);
       const match = current.slice(idx, idx + qLen);

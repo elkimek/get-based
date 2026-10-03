@@ -857,3 +857,13 @@ deploy/profile-share/data/
 /js/nutrition-analysis.js
 
 /js/pdf-import-file-handlers.js
+
+/js/chat-system-prompt.js
+
+/js/chat-thread-search.js
+
+/js/light-conditions-renderer.js
+
+/js/nutrition-context-card-extensions.js
+
+/js/nutrition-request-lifecycle.js

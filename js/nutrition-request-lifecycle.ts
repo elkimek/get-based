@@ -1,4 +1,3 @@
-// @ts-check
 // Long-running meal requests and their background modal workspace.
 
 import { analyzeMealPhoto, mealAnalysisFiles } from './nutrition-analysis.js';
@@ -7,15 +6,38 @@ import { openModalOverlay } from './modal-lifecycle.js';
 import { state } from './state.js';
 import { showNotification } from './utils.js';
 
-let activeAnalysisController = null;
-const activeComparisonControllers = new Set();
+type MealAnalysisOptions = NonNullable<Parameters<typeof analyzeMealPhoto>[1]>;
+export type NutritionAnalysisResult = Awaited<ReturnType<typeof analyzeMealPhoto>>;
+export interface NutritionRequestLifecycleDependencies {
+  selectedPhotos: () => Parameters<typeof mealAnalysisFiles>[0];
+  getExistingImages: () => Parameters<typeof mealAnalysisFiles>[1];
+  getAnalysisKind: () => MealAnalysisOptions['analysisKind'];
+  getConsumption: () => { amount: MealAnalysisOptions['consumedAmount']; unit: MealAnalysisOptions['consumedUnit'] };
+  getUserContext: () => unknown;
+  getCorrectionContext: () => unknown;
+  applyAnalysis: (result: NutritionAnalysisResult) => unknown;
+  focusReview: () => unknown;
+  setStatus: (text: string, tone?: string) => unknown;
+  startProgress: (button: HTMLButtonElement | null, label: string) => unknown;
+  updateProgress: (id: unknown, phase: number, label: string) => unknown;
+  finishProgress: (id: unknown, completed: boolean, button: HTMLButtonElement | null) => unknown;
+  isAnalysisRunning: () => unknown;
+  isComparisonRunning: () => unknown;
+  hasPendingAnalysis: () => unknown;
+}
+export interface NutritionMealAnalysisRequestOptions {
+  correctedMealName?: MealAnalysisOptions['correctedMealName'];
+  previousMealName?: MealAnalysisOptions['previousMealName'];
+  button?: HTMLButtonElement | null;
+}
+
+let activeAnalysisController: AbortController | null = null;
+const activeComparisonControllers = new Set<AbortController>();
 let backgroundNutritionSession = false;
 let backgroundNutritionProfileId = '';
-let backgroundNutritionProfileData = null;
-/** @type {{host: HTMLElement, modalClassName: string, scrollTop: number}|null} */
-let backgroundNutritionWorkspace = null;
-/** @type {any} */
-let requestDeps = {
+let backgroundNutritionProfileData: typeof state.importedData | null = null;
+let backgroundNutritionWorkspace: { host: HTMLElement; modalClassName: string; scrollTop: number } | null = null;
+let requestDeps: NutritionRequestLifecycleDependencies = {
   selectedPhotos: () => [],
   getExistingImages: () => [],
   getAnalysisKind: () => 'meal-photo',
@@ -33,7 +55,7 @@ let requestDeps = {
   hasPendingAnalysis: () => false,
 };
 
-export function configureNutritionRequestLifecycle(deps = {}) {
+export function configureNutritionRequestLifecycle(deps: Partial<NutritionRequestLifecycleDependencies> = {}) {
   requestDeps = { ...requestDeps, ...deps };
 }
 
@@ -58,11 +80,11 @@ export function startNutritionComparisonRequest() {
   return controller;
 }
 
-export function isNutritionComparisonRequestActive(controller) {
+export function isNutritionComparisonRequestActive(controller: AbortController) {
   return activeComparisonControllers.has(controller);
 }
 
-export function finishNutritionComparisonRequest(controller) {
+export function finishNutritionComparisonRequest(controller: AbortController) {
   activeComparisonControllers.delete(controller);
   updateBackgroundDismissalState();
 }
@@ -83,7 +105,7 @@ function parkNutritionWorkspace() {
   return true;
 }
 
-function restoreBackgroundNutritionWorkspace(modal) {
+function restoreBackgroundNutritionWorkspace(modal: Element) {
   if (!backgroundNutritionWorkspace) return false;
   const { host, modalClassName, scrollTop } = backgroundNutritionWorkspace;
   modal.replaceChildren(...Array.from(host.childNodes));
@@ -108,7 +130,7 @@ export function isNutritionBackgroundSession() {
   return backgroundNutritionSession;
 }
 
-export function resumeNutritionBackgroundSession(modal, overlay) {
+export function resumeNutritionBackgroundSession(modal: Element, overlay: Element) {
   if (backgroundNutritionSession && (backgroundNutritionProfileId !== state.currentProfile || backgroundNutritionProfileData !== state.importedData)) {
     resetNutritionRequestLifecycle();
     showNotification('The background meal request was closed because the active profile changed.', 'info');
@@ -144,15 +166,14 @@ export function resetNutritionRequestLifecycle() {
   document.getElementById('modal-overlay')?.removeAttribute('data-modal-background-dismissible');
 }
 
-/** @param {{correctedMealName?: string, previousMealName?: string, button?: HTMLButtonElement | null}} [options] */
-export async function runNutritionMealAnalysis({ correctedMealName = '', previousMealName = '', button = null } = {}) {
+export async function runNutritionMealAnalysis({ correctedMealName = '', previousMealName = '', button = null }: NutritionMealAnalysisRequestOptions = {}) {
   const profileId = state.currentProfile;
   const profileData = state.importedData;
   const controller = startNutritionAnalysisRequest();
   const isCurrent = () => !controller.signal.aborted
     && activeAnalysisController === controller
     && profileId === state.currentProfile && profileData === state.importedData;
-  let progressId = '';
+  let progressId: unknown = '';
   let completed = false;
   try {
     const analysisKind = requestDeps.getAnalysisKind();

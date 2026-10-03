@@ -1,4 +1,3 @@
-// @ts-check
 // light-conditions-renderer.js — Current-conditions presentation owner.
 
 import { escapeAttr, escapeHTML } from './utils.js';
@@ -20,14 +19,31 @@ import {
   SMOG_HINT,
 } from './light-conditions-interpretation.js';
 
-function conditionsTooltipAttr(text, opts = {}) {
+import type { AtmosphereSnapshot, AirQualityReadings } from './sun-uvdata-atmosphere.js';
+import type { SolarCoordinates } from './light-conditions-interpretation.js';
+
+type RawAtmosphereFields = 'uvIndex' | 'uvClearSky' | 'ozoneDU' | 'cloudCover' | 'validAt' | 'fetchedAt' | 'source' | '_offline' | '_stale';
+export type ConditionsAirQuality = { [Field in keyof AirQualityReadings]?: unknown };
+export type ConditionsAtmosphere = { [Field in RawAtmosphereFields]?: unknown } & {
+  daily?: { [Field in keyof NonNullable<AtmosphereSnapshot['daily']>]?: unknown } | null;
+  hourly?: { utcOffsetSeconds?: unknown } | null;
+  airQuality?: ConditionsAirQuality | null;
+};
+type SunEventKind = 'sunrise' | 'first-uva' | 'peak' | 'last-uva' | 'sunset';
+interface SunRailEvent {
+  icon: string; label: string; ts: number; tooltip: string;
+  kind?: SunEventKind; isNow?: boolean; peak?: boolean; uvaEvent?: boolean;
+}
+type SunEvent = SunRailEvent & { kind: SunEventKind };
+
+function conditionsTooltipAttr(text: unknown, opts: { focusable?: boolean } = {}) {
   if (!text) return '';
   return ` data-conditions-tooltip="${escapeAttr(text)}"${opts.focusable ? ' tabindex="0"' : ''}`;
 }
 
-function sourceAttributionHTML(source, fallbackLabel) {
+function sourceAttributionHTML(source: unknown, fallbackLabel: unknown) {
   const value = String(source || '');
-  const links = [];
+  const links: string[] = [];
   if (value.includes('cams')) {
     links.push('<a class="conditions-now-attribution" href="https://atmosphere.copernicus.eu/" target="_blank" rel="noopener">CAMS</a>');
   }
@@ -40,27 +56,27 @@ function sourceAttributionHTML(source, fallbackLabel) {
   return links.length ? links.join(' + ') : escapeHTML(fallbackLabel);
 }
 
-export function renderConditionsHTML(atm, coords, variant, offline = false) {
-  const uvi = atm.uvIndex != null ? Math.round(atm.uvIndex * 10) / 10 : null;
-  const uviClear = atm.uvClearSky != null ? Math.round(atm.uvClearSky * 10) / 10 : null;
+export function renderConditionsHTML(atm: ConditionsAtmosphere, coords: SolarCoordinates | null | undefined, variant: string, offline = false) {
+  const uvi = atm.uvIndex != null ? Math.round((atm.uvIndex as number) * 10) / 10 : null;
+  const uviClear = atm.uvClearSky != null ? Math.round((atm.uvClearSky as number) * 10) / 10 : null;
   // Stratospheric ozone (DU) — only available with CAMS/selfhost. Free
   // Open-Meteo can't deliver it, so the cell typically falls back to the
   // surface-ozone AQ reading further down.
-  const ozone = atm.ozoneDU != null ? Math.round(atm.ozoneDU) : null;
-  const surfaceOzone = atm.airQuality?.surfaceOzoneUgM3 != null ? Math.round(atm.airQuality.surfaceOzoneUgM3) : null;
-  const cloud = atm.cloudCover != null ? Math.round(atm.cloudCover) : null;
+  const ozone = atm.ozoneDU != null ? Math.round(atm.ozoneDU as number) : null;
+  const surfaceOzone = atm.airQuality?.surfaceOzoneUgM3 != null ? Math.round(atm.airQuality.surfaceOzoneUgM3 as number) : null;
+  const cloud = atm.cloudCover != null ? Math.round(atm.cloudCover as number) : null;
 
   // Sanity-check the data — UVI shouldn't exist when sun is below horizon,
   // shouldn't exceed ~16 anywhere on Earth, etc. Flag suspicious responses
   // so the user knows when the upstream looks off.
-  const sanityWarnings = _sanityCheckAtmosphere(atm, coords);
+  const sanityWarnings = (_sanityCheckAtmosphere as unknown as (atm: ConditionsAtmosphere, coords: SolarCoordinates | null | undefined) => ReturnType<typeof _sanityCheckAtmosphere>)(atm, coords);
   const uviWarnings = sanityWarnings.filter(warning => warning.startsWith('UVI'));
   const uviReliable = uviWarnings.length === 0;
-  const sourceLabel = _humanProviderLabel(atm.source);
+  const sourceLabel = (_humanProviderLabel as (source: unknown) => ReturnType<typeof _humanProviderLabel>)(atm.source);
   const validAt = Number.isFinite(atm.validAt) ? atm.validAt : atm.fetchedAt;
-  const validAgoMin = validAt ? Math.max(0, Math.round((Date.now() - validAt) / 60000)) : null;
-  const fetchedAgoMin = atm.fetchedAt ? Math.max(0, Math.round((Date.now() - atm.fetchedAt) / 60000)) : null;
-  const elapsedLabel = minutes => minutes == null ? 'unknown'
+  const validAgoMin = validAt ? Math.max(0, Math.round((Date.now() - (validAt as number)) / 60000)) : null;
+  const fetchedAgoMin = atm.fetchedAt ? Math.max(0, Math.round((Date.now() - (atm.fetchedAt as number)) / 60000)) : null;
+  const elapsedLabel = (minutes: number | null) => minutes == null ? 'unknown'
     : minutes < 1 ? 'just now'
     : minutes < 60 ? `${minutes} min ago`
     : `${Math.round(minutes / 60)}h ago`;
@@ -82,9 +98,9 @@ export function renderConditionsHTML(atm, coords, variant, offline = false) {
   const uviLabel = _uviConditionLabel(uvi);
   const peakAt = atm.daily?.peakAt;
   const peakUvi = atm.daily?.uvIndexMax;
-  const peakIsNow = peakAt && uvi != null && peakUvi != null && uvi >= peakUvi - 0.3;
+  const peakIsNow = peakAt && uvi != null && peakUvi != null && uvi >= (peakUvi as number) - 0.3;
   const peakChip = peakAt && peakUvi != null && !peakIsNow
-    ? `peak ${_fmtTime(peakAt)} · UVI ${peakUvi.toFixed(1)}`
+    ? `peak ${_fmtTime(peakAt as string)} · UVI ${(peakUvi as number).toFixed(1)}`
     : (peakIsNow ? 'at today\'s peak' : '');
   const cloudWord = _cloudNarrative(cloud);
   const cloudChip = cloudWord
@@ -93,9 +109,9 @@ export function renderConditionsHTML(atm, coords, variant, offline = false) {
        : cloudWord)
     : '';
   const eaqi = atm.airQuality?.european_aqi ?? null;
-  const aqAgg = _aggregateAQ(atm.airQuality, eaqi);
+  const aqAgg = (_aggregateAQ as unknown as (airQuality: ConditionsAirQuality | null | undefined, fallbackEaqi: unknown) => ReturnType<typeof _aggregateAQ>)(atm.airQuality, eaqi);
   const ozoneEaqi = atm.airQuality?.european_aqi_ozone ?? null;
-  const ozoneCategory = _europeanAQCategory(ozoneEaqi);
+  const ozoneCategory = (_europeanAQCategory as (index: unknown) => ReturnType<typeof _europeanAQCategory>)(ozoneEaqi);
 
   // Build today's chronological sun-event rail with a current-time marker.
   const sunrise = atm.daily?.sunrise;
@@ -106,18 +122,18 @@ export function renderConditionsHTML(atm, coords, variant, offline = false) {
   const peakAtMs = parseProviderTimeMs(peakAt, locationOffsetSeconds);
   const uvaAnchor = Number.isFinite(sunriseMs) ? new Date(sunriseMs) : new Date();
   const { firstUVA, lastUVA } = _computeUvaWindow(coords, uvaAnchor, locationOffsetSeconds);
-  const events = [];
+  const events: SunEvent[] = [];
   if (sunrise) {
     events.push({
       icon: '🌅',
-      label: _fmtTime(sunrise),
+      label: _fmtTime(sunrise as string),
       ts: sunriseMs,
       kind: 'sunrise',
       tooltip: 'Geometric sunrise — the solar disk crosses the horizon and the direct spectrum begins its transition from twilight.',
     });
   }
-  const localHHMM = date => {
-    const pad = value => String(value).padStart(2, '0');
+  const localHHMM = (date: Date) => {
+    const pad = (value: number) => String(value).padStart(2, '0');
     const shifted = new Date(date.getTime() + locationOffsetSeconds * 1000);
     return `${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}`;
   };
@@ -134,7 +150,7 @@ export function renderConditionsHTML(atm, coords, variant, offline = false) {
   if (peakAt) {
     events.push({
       icon: '☀',
-      label: `${_fmtTime(peakAt)}${peakUvi != null ? ` · UVI ${peakUvi.toFixed(1)}` : ''}`,
+      label: `${_fmtTime(peakAt as string)}${peakUvi != null ? ` · UVI ${(peakUvi as number).toFixed(1)}` : ''}`,
       ts: peakAtMs,
       peak: true,
       kind: 'peak',
@@ -154,7 +170,7 @@ export function renderConditionsHTML(atm, coords, variant, offline = false) {
   if (sunset) {
     events.push({
       icon: '🌇',
-      label: _fmtTime(sunset),
+      label: _fmtTime(sunset as string),
       ts: sunsetMs,
       kind: 'sunset',
       tooltip: 'Geometric sunset — the solar disk drops below the horizon. Low diffuse twilight, including small UV-A contributions, can persist after this moment.',
@@ -183,16 +199,15 @@ export function renderConditionsHTML(atm, coords, variant, offline = false) {
       ? `Current time marker — ${_fmtMinutes(minsToNext)} until ${nextEventLabel}.`
       : 'Current time marker — all tracked sun events for today have passed.',
   };
-  /** @type {Array<{ icon: string, label: string, ts: number, tooltip: string, kind?: string, isNow?: boolean, peak?: boolean, uvaEvent?: boolean }>} */
-  const eventsWithNow = [...events, nowEvent].sort((a, b) => a.ts - b.ts);
-  const eventRailLabel = event => ({
+  const eventsWithNow: SunRailEvent[] = [...events, nowEvent].sort((a, b) => a.ts - b.ts);
+  const eventRailLabel = (event: SunRailEvent) => ({
     sunrise: 'Sunrise',
     'first-uva': 'UV-A on',
     peak: 'Peak',
     'last-uva': 'UV-A off',
     sunset: 'Sunset',
-  })[event.kind] || (event.isNow ? 'Now' : 'Event');
-  const eventRailTime = event => {
+  })[event.kind!] || (event.isNow ? 'Now' : 'Event');
+  const eventRailTime = (event: SunRailEvent) => {
     if (event.isNow) return event.label.replace(/^now(?: · )?/, '') || 'current';
     if (event.kind === 'first-uva' || event.kind === 'last-uva') return event.label.split(' · ')[0];
     return event.label;
@@ -232,7 +247,7 @@ export function renderConditionsHTML(atm, coords, variant, offline = false) {
     return `<div class="conditions-now-row">
       ${uvi != null ? `<span class="conditions-now-pill${uviReliable ? ` conditions-uvi-${uviCls}` : ' is-unreliable'}"${conditionsTooltipAttr('WHO UV index — erythema-weighted UV level', { focusable: true })}>UVI <strong>${uvi}</strong></span>` : ''}
       ${aqAgg ? `<span class="conditions-now-pill conditions-aq-${aqAgg.cls}"${conditionsTooltipAttr('Provider-computed European Air Quality Index', { focusable: true })}>AQ ${escapeHTML(aqAgg.label)}</span>` : ''}
-      ${peakAt && !peakIsNow ? `<span class="conditions-now-pill"${conditionsTooltipAttr(`UV index peaks today at ${_fmtTime(peakAt)} · UVI ${peakUvi != null ? peakUvi.toFixed(1) : '—'}`, { focusable: true })}>peak ${_fmtTime(peakAt)}</span>` : ''}
+      ${peakAt && !peakIsNow ? `<span class="conditions-now-pill"${conditionsTooltipAttr(`UV index peaks today at ${_fmtTime(peakAt as string)} · UVI ${peakUvi != null ? (peakUvi as number).toFixed(1) : '—'}`, { focusable: true })}>peak ${_fmtTime(peakAt as string)}</span>` : ''}
       <span class="conditions-now-source-compact ${sourceStatusClass}"${conditionsTooltipAttr(`${sourceStatusLabel}; model valid ${freshnessLabel}`)}>
         <span class="conditions-now-source-dot"></span>${sourceHTML}
       </span>
@@ -251,7 +266,7 @@ export function renderConditionsHTML(atm, coords, variant, offline = false) {
     ? (ozoneCategory?.label || `${surfaceOzone} µg/m³`)
     : (ozone != null ? String(ozone) : '—');
   const ozoneSub = showSurfaceOzone
-    ? (ozoneCategory ? `O₃ ${surfaceOzone} µg/m³ · EU index ${Math.round(ozoneEaqi)}` : 'current O₃ concentration')
+    ? (ozoneCategory ? `O₃ ${surfaceOzone} µg/m³ · EU index ${Math.round(ozoneEaqi as number)}` : 'current O₃ concentration')
     : (ozone != null ? 'DU · UV model input' : '');
   const airQualityTip = 'Provider-computed European Air Quality Index. The overall category and pollutant components use their specified averaging windows; raw current concentrations are context only.';
   return `<div class="conditions-now-grid">
