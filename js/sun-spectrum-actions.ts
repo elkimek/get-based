@@ -1,9 +1,13 @@
-// @ts-check
 // sun-spectrum-actions.js — Biological action-spectrum weighting curves.
+
+// Gaussian proxy shared by the modeled optical action curves.
+function gaussianWeight(nm: number, center: number, sigma: number) {
+  return Math.exp(-Math.pow(nm - center, 2) / (2 * sigma * sigma));
+}
 
 // Erythemal action spectrum — McKinlay-Diffey 1987 (CIE Journal 6:17),
 // codified as CIE S 007 / ISO 17166:1999. Peaks at 297nm, drops sharply.
-export function erythemalAt(nm) {
+export function erythemalAt(nm: number) {
   if (nm < 250) return 0;
   if (nm <= 298) return 1.0;
   if (nm <= 328) return Math.pow(10, 0.094 * (298 - nm));
@@ -17,16 +21,16 @@ export function erythemalAt(nm) {
 // with this weighting. ICNIRP supplies formulas for 210–400 nm; the short-wave
 // anchors cover 180–210 nm. Our solar/device grid starts at 280 nm, but keeping
 // the whole published domain makes this helper independently auditable.
-const ACTINIC_UV_SHORT_TABLE = [
+const ACTINIC_UV_SHORT_TABLE: Array<[number, number]> = [
   [180, 0.012], [190, 0.019], [200, 0.030], [205, 0.051], [210, 0.075],
 ];
 
-export function actinicUVAt(nm) {
+export function actinicUVAt(nm: number) {
   if (!Number.isFinite(nm) || nm < 180 || nm > 400) return 0;
   if (nm < 210) {
     for (let i = 0; i < ACTINIC_UV_SHORT_TABLE.length - 1; i++) {
-      const [n1, v1] = ACTINIC_UV_SHORT_TABLE[i];
-      const [n2, v2] = ACTINIC_UV_SHORT_TABLE[i + 1];
+      const [n1, v1] = ACTINIC_UV_SHORT_TABLE[i]!;
+      const [n2, v2] = ACTINIC_UV_SHORT_TABLE[i + 1]!;
       if (nm < n1 || nm > n2) continue;
       const t = (nm - n1) / (n2 - n1);
       return v1 + t * (v2 - v1);
@@ -38,7 +42,7 @@ export function actinicUVAt(nm) {
 }
 
 // CIE 174:2006 previtamin-D3 action spectrum — peaks at 297nm.
-export function vitaminDAt(nm) {
+export function vitaminDAt(nm: number) {
   if (nm < 252 || nm > 330) return 0;
   if (nm <= 297) return Math.pow(10, -0.25 * (297 - nm));
   if (nm <= 330) return Math.pow(10, -0.13 * (nm - 297));
@@ -48,55 +52,58 @@ export function vitaminDAt(nm) {
 // Melanopic sensitivity proxy. This remains a smooth approximation for the
 // exploratory channel and must not be presented as a calibrated CIE S 026
 // measurement; official M-EDI output additionally requires a measured SPD.
-export function melanopicAt(nm) {
+export function melanopicAt(nm: number) {
   if (nm < 380 || nm > 720) return 0;
   const sigma = 50;
-  return Math.exp(-Math.pow(nm - 490, 2) / (2 * sigma * sigma));
+  return gaussianWeight(nm, 490, sigma);
 }
 
 // OPN5 violet — dual peak ~380nm + ~471nm (Buhr 2019).
-export function opn5At(nm) {
+export function opn5At(nm: number) {
   if (nm < 320 || nm > 540) return 0;
-  const a = Math.exp(-Math.pow(nm - 380, 2) / (2 * 25 * 25));
-  const b = 0.7 * Math.exp(-Math.pow(nm - 471, 2) / (2 * 30 * 30));
+  const a = gaussianWeight(nm, 380, 25);
+  const b = 0.7 * gaussianWeight(nm, 471, 30);
   return Math.max(a, b);
 }
 
 // CCO red+NIR (Karu 1999) — broad, peaks at 620, 670, 760, 830nm.
-export function ccoAt(nm) {
+// Immutable model data shared across wavelength evaluations.
+const CCO_PEAKS: ReadonlyArray<{ readonly c: number; readonly w: number; readonly h: number }> = [
+  { c: 620, w: 18, h: 0.5 },
+  { c: 670, w: 22, h: 0.9 },
+  { c: 760, w: 30, h: 0.7 },
+  { c: 830, w: 38, h: 1.0 },
+];
+
+export function ccoAt(nm: number) {
   if (nm < 580 || nm > 1100) return 0;
-  const peaks = [
-    { c: 620, w: 18, h: 0.5 },
-    { c: 670, w: 22, h: 0.9 },
-    { c: 760, w: 30, h: 0.7 },
-    { c: 830, w: 38, h: 1.0 },
-  ];
+  const peaks = CCO_PEAKS;
   let sum = 0;
   for (const peak of peaks) {
-    sum += peak.h * Math.exp(-Math.pow(nm - peak.c, 2) / (2 * peak.w * peak.w));
+    sum += peak.h * gaussianWeight(nm, peak.c, peak.w);
   }
   return Math.min(1, sum);
 }
 
 // NO release in skin (Liu 2014) — UVA peak ~330-360nm.
-export function noReleaseAt(nm) {
+export function noReleaseAt(nm: number) {
   if (nm < 300 || nm > 410) return 0;
-  return Math.exp(-Math.pow(nm - 345, 2) / (2 * 25 * 25));
+  return gaussianWeight(nm, 345, 25);
 }
 
 // NIR-solar broadband model (600-1400nm optical tissue window).
-export function nirSolarAt(nm) {
+export function nirSolarAt(nm: number) {
   if (nm < 600 || nm > 1400) return 0;
-  return 0.5 + 0.5 * Math.exp(-Math.pow(nm - 900, 2) / (2 * 200 * 200));
+  return 0.5 + 0.5 * gaussianWeight(nm, 900, 200);
 }
 
 // PBM bands — narrowband artificial sources only.
-export function pbmRedAt(nm) {
+export function pbmRedAt(nm: number) {
   if (nm < 600 || nm > 700) return 0;
-  return Math.exp(-Math.pow(nm - 660, 2) / (2 * 15 * 15));
+  return gaussianWeight(nm, 660, 15);
 }
 
-export function pbmNirAt(nm) {
+export function pbmNirAt(nm: number) {
   if (nm < 700 || nm > 1100) return 0;
-  return Math.exp(-Math.pow(nm - 850, 2) / (2 * 25 * 25));
+  return gaussianWeight(nm, 850, 25);
 }

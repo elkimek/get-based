@@ -1,8 +1,19 @@
-// @ts-check
+export interface SpectralDistribution { wavelengths: number[]; irradiance: number[] }
+interface SpectrumDeviceMode { id?: string; default?: unknown; groups?: string[] | null }
+interface SpectrumChannelGroup { id?: string; peaks?: number[] | null }
+interface SpectrumCouplingRule { if?: string; requires?: string[] | null; reason?: string }
+export interface SpectralDevice {
+  peakWavelengths?: number[] | null | undefined; peakShares?: number[] | null | undefined;
+  mwPerCm2At15cm?: unknown; type?: unknown; peakShareBasis?: unknown;
+  modes?: SpectrumDeviceMode[] | null | undefined;
+  channelGroups?: SpectrumChannelGroup[] | null | undefined;
+  coupling?: Array<SpectrumCouplingRule | null> | null | undefined;
+}
+
 // sun-spectrum-device.js — Spectral grid, optical modifiers, and device-mode physics.
 
 export const SPECTRUM_WAVELENGTHS = (() => {
-  const wavelengths = [];
+  const wavelengths: number[] = [];
   for (let nm = 280; nm <= 2500; nm += 5) wavelengths.push(nm);
   return wavelengths;
 })();
@@ -10,7 +21,7 @@ export const SPECTRUM_WAVELENGTHS = (() => {
 // Standard clear soda-lime window glass transmission. Approximates Pilkington
 // optical-data datasheets: total UVB block, partial UVA, mostly clear visible,
 // tapering NIR. Single-pane; double glazing is not modeled.
-export function glassTransmission(nm) {
+export function glassTransmission(nm: number) {
   if (nm < 320) return 0.0;
   if (nm < 340) return 0.05;
   if (nm < 380) return 0.4;
@@ -22,7 +33,7 @@ export function glassTransmission(nm) {
 
 // Per-band Gaussian sigma for LED/tube emission. UV emitters are narrower
 // than the typical 25–35nm FWHM red/NIR LED band.
-function peakSigmaForWavelength(nm) {
+function peakSigmaForWavelength(nm: number) {
   if (nm < 320) return 4.3;
   if (nm < 410) return 5.9;
   if (nm < 500) return 8.5;
@@ -32,8 +43,8 @@ function peakSigmaForWavelength(nm) {
 // Heuristic peak shares for devices that declare wavelengths but no explicit
 // power split. Hybrid panels reserve most power for red/NIR, while pure UV
 // devices assign their rated output to UV and blue bands.
-export function heuristicPeakShares(peaks, deviceType) {
-  const bandOf = nm => {
+export function heuristicPeakShares(peaks: number[], deviceType: unknown) {
+  const bandOf = (nm: number) => {
     if (nm < 320) return 'uvb';
     if (nm < 410) return 'uva';
     if (nm < 500) return 'blue';
@@ -58,7 +69,7 @@ export function heuristicPeakShares(peaks, deviceType) {
   } else {
     bandWeights = { uvb: 0.20, uva: 0.20, blue: 0.20, red: 0.20, nir: 0.20 };
   }
-  const bandCount = {};
+  const bandCount: Record<string, number> = {};
   for (const band of bands) bandCount[band] = (bandCount[band] || 0) + 1;
   const rawShares = bands.map(
     band => (bandWeights[band] || 0) / (bandCount[band] || 1),
@@ -72,7 +83,7 @@ export function heuristicPeakShares(peaks, deviceType) {
 // Synthesize a sparse spectrum from declared device peaks and total irradiance.
 // Each peak becomes a band-appropriate Gaussian whose integral matches its
 // share of the device rating.
-export function synthesizeDeviceSpectrum(device) {
+export function synthesizeDeviceSpectrum(device: SpectralDevice | null | undefined) {
   if (!device) {
     return {
       wavelengths: SPECTRUM_WAVELENGTHS,
@@ -89,7 +100,7 @@ export function synthesizeDeviceSpectrum(device) {
   }
   const rawShares = Array.isArray(device.peakShares)
       && device.peakShares.length === peaks.length
-    ? device.peakShares.map(share => Math.max(0, Number(share) || 0))
+    ? device.peakShares!.map(share => Math.max(0, Number(share) || 0))
     : null;
   let shares;
   if (rawShares) {
@@ -103,17 +114,17 @@ export function synthesizeDeviceSpectrum(device) {
 
   const irradiance = SPECTRUM_WAVELENGTHS.map(() => 0);
   for (let peakIndex = 0; peakIndex < peaks.length; peakIndex++) {
-    const peak = peaks[peakIndex];
+    const peak = peaks[peakIndex]!;
     if (!Number.isFinite(peak)) continue;
-    const peakWm2 = shares[peakIndex] * totalWm2;
+    const peakWm2 = shares[peakIndex]! * totalWm2;
     const sigma = peakSigmaForWavelength(peak);
     const normalization = 1 / (sigma * Math.sqrt(2 * Math.PI));
     for (let index = 0; index < SPECTRUM_WAVELENGTHS.length; index++) {
-      const nm = SPECTRUM_WAVELENGTHS[index];
+      const nm = SPECTRUM_WAVELENGTHS[index]!;
       const gaussian = Math.exp(
         -Math.pow(nm - peak, 2) / (2 * sigma * sigma),
       ) * normalization;
-      irradiance[index] += peakWm2 * gaussian;
+      irradiance[index]! += peakWm2 * gaussian;
     }
   }
   return { wavelengths: SPECTRUM_WAVELENGTHS, irradiance };
@@ -124,7 +135,7 @@ export function synthesizeDeviceSpectrum(device) {
 // vary too much to grant the full laboratory extension in a burn calculator.
 // sqrt(SPF) is used as a bounded effective-protection proxy, with weaker UVA
 // protection. It intentionally errs toward *more* transmitted UV.
-export function sunscreenTransmission(nm, spf) {
+export function sunscreenTransmission(nm: number, spf: unknown) {
   const normalizedSpf = Number(spf) || 0;
   if (normalizedSpf <= 1) return 1.0;
   const typicalUseSpf = Math.sqrt(normalizedSpf);
@@ -136,7 +147,7 @@ export function sunscreenTransmission(nm, spf) {
 
 // Build the effective firing subset for a named device mode while preserving
 // the full-device power distribution.
-export function effectiveDeviceForMode(device, modeId) {
+export function effectiveDeviceForMode<T extends SpectralDevice | null | undefined>(device: T, modeId?: string | null) {
   if (!device || !Array.isArray(device.peakWavelengths)
       || device.peakWavelengths.length === 0) {
     return device;
@@ -160,18 +171,18 @@ export function effectiveDeviceForMode(device, modeId) {
       && device.peakShares.some(share => Number(share) > 0);
   const allShares = declaredPeakShares
     ? (() => {
-      const sum = device.peakShares.reduce((total, share) => total + share, 0);
+      const sum = device.peakShares!.reduce((total, share) => total + share, 0);
       return sum > 0
-        ? device.peakShares.map(share => share / sum)
+        ? device.peakShares!.map(share => share / sum)
         : heuristicPeakShares(allPeaks, device.type);
     })()
     : heuristicPeakShares(allPeaks, device.type);
-  const firingPeaks = [];
-  const firingSharesRaw = [];
+  const firingPeaks: number[] = [];
+  const firingSharesRaw: number[] = [];
   for (let index = 0; index < allPeaks.length; index++) {
-    if (firingPeakSet.has(allPeaks[index])) {
-      firingPeaks.push(allPeaks[index]);
-      firingSharesRaw.push(allShares[index]);
+    if (firingPeakSet.has(allPeaks[index]!)) {
+      firingPeaks.push(allPeaks[index]!);
+      firingSharesRaw.push(allShares[index]!);
     }
   }
   if (firingPeaks.length === 0) return device;
@@ -191,7 +202,7 @@ export function effectiveDeviceForMode(device, modeId) {
 }
 
 // Validate a device-mode pair against coupling requirements.
-export function validateModeCoupling(device, modeId) {
+export function validateModeCoupling(device: SpectralDevice | null | undefined, modeId?: string | null) {
   if (!device || !Array.isArray(device.coupling) || device.coupling.length === 0) {
     return { ok: true };
   }

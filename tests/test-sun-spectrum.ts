@@ -40,8 +40,8 @@ console.log('1. Spectrum reconstruction');
 const noon = reconstructSpectrum({ zenithDeg: 30, ozoneDU: 300, altitudeM: 0, cloudCover: 0 });
 assert('Returns wavelengths array', Array.isArray(noon.wavelengths) && noon.wavelengths.length > 0);
 assert('Returns irradiance array', Array.isArray(noon.irradiance) && noon.irradiance.length === noon.wavelengths.length);
-assert('Spectrum spans 280–2500nm', noon.wavelengths[0] === 280 && noon.wavelengths[noon.wavelengths.length - 1] === 2500);
-assert('5nm resolution', noon.wavelengths[1] - noon.wavelengths[0] === 5);
+assert('Spectrum spans 280–2500nm', noon.wavelengths[0]! === 280 && noon.wavelengths[noon.wavelengths.length - 1]! === 2500);
+assert('5nm resolution', noon.wavelengths[1]! - noon.wavelengths[0]! === 5);
 assert('Irradiance positive at midday', noon.irradiance.some(v => v > 0));
 
 const night = reconstructSpectrum({ zenithDeg: 100, ozoneDU: 300 });
@@ -50,13 +50,13 @@ assert('Sun below horizon → zero irradiance', night.irradiance.every(v => v ==
 const calibratedUvi = 6.5;
 const calibrated = reconstructSpectrum({ zenithDeg: 30, ozoneDU: 300, targetUVI: calibratedUvi });
 const calibratedWeightedUv = calibrated.wavelengths.reduce((sum, nm, i) =>
-  sum + (nm <= 400 ? calibrated.irradiance[i] * erythemalAt(nm) * 5 : 0), 0);
+  sum + (nm <= 400 ? calibrated.irradiance[i]! * erythemalAt(nm) * 5 : 0), 0);
 assert('Fetched/manual UVI calibrates the reconstructed CIE-erythemal UV integral',
   Math.abs(calibratedWeightedUv / 0.025 - calibratedUvi) < 0.01,
   `integrated UVI=${(calibratedWeightedUv / 0.025).toFixed(3)}`);
 const idx500 = noon.wavelengths.indexOf(500);
 assert('UVI calibration changes UV only, not the modeled visible spectrum',
-  Math.abs(calibrated.irradiance[idx500] - noon.irradiance[idx500]) < 1e-12);
+  Math.abs(calibrated.irradiance[idx500]! - noon.irradiance[idx500]!) < 1e-12);
 
 // ─── 2. Atmospheric attenuation ─────────────────────────────────────
 console.log('\n2. Atmospheric attenuation');
@@ -65,8 +65,8 @@ const highSun = reconstructSpectrum({ zenithDeg: 30, ozoneDU: 300 });
 const lowSun = reconstructSpectrum({ zenithDeg: 75, ozoneDU: 300 });
 const idx_300nm = highSun.wavelengths.indexOf(300);
 assert('Low sun → less UVB than high sun',
-  lowSun.irradiance[idx_300nm] < highSun.irradiance[idx_300nm],
-  `high=${highSun.irradiance[idx_300nm].toFixed(4)} vs low=${lowSun.irradiance[idx_300nm].toFixed(4)}`);
+  lowSun.irradiance[idx_300nm]! < highSun.irradiance[idx_300nm]!,
+  `high=${highSun.irradiance[idx_300nm]!.toFixed(4)} vs low=${lowSun.irradiance[idx_300nm]!.toFixed(4)}`);
 
 const veryLowSun = reconstructSpectrum({ zenithDeg: 80, ozoneDU: 300 });
 const v176Equivalent_at80 = (() => {
@@ -74,14 +74,14 @@ const v176Equivalent_at80 = (() => {
   const am = 1 / Math.max(cosZ, 0.001);
   const amScale = Math.min(Math.sqrt(am), 3);
   const diffuseFrac = 0.55;
-  return veryLowSun.irradiance[idx_300nm] * (1 + diffuseFrac) / (1 + diffuseFrac * amScale);
+  return veryLowSun.irradiance[idx_300nm]! * (1 + diffuseFrac) / (1 + diffuseFrac * amScale);
 })();
 assert('v1.7.7 airMass-scaled diffuse boosts UVB at zenith=80° vs constant-fraction baseline',
-  veryLowSun.irradiance[idx_300nm] > v176Equivalent_at80,
-  `boosted=${veryLowSun.irradiance[idx_300nm].toFixed(6)} vs equiv=${v176Equivalent_at80.toFixed(6)}`);
+  veryLowSun.irradiance[idx_300nm]! > v176Equivalent_at80,
+  `boosted=${veryLowSun.irradiance[idx_300nm]!.toFixed(6)} vs equiv=${v176Equivalent_at80.toFixed(6)}`);
 assert('Extreme-zenith UVB still below high-sun UVB (no runaway scaling)',
-  veryLowSun.irradiance[idx_300nm] < highSun.irradiance[idx_300nm],
-  `extreme=${veryLowSun.irradiance[idx_300nm].toFixed(6)} vs high=${highSun.irradiance[idx_300nm].toFixed(6)}`);
+  veryLowSun.irradiance[idx_300nm]! < highSun.irradiance[idx_300nm]!,
+  `extreme=${veryLowSun.irradiance[idx_300nm]!.toFixed(6)} vs high=${highSun.irradiance[idx_300nm]!.toFixed(6)}`);
 const nearHorizon = reconstructSpectrum({ zenithDeg: 84, ozoneDU: 300 });
 assert('Near-horizon irradiance is finite + non-negative (airMass cap)',
   nearHorizon.irradiance.every(v => Number.isFinite(v) && v >= 0));
@@ -89,19 +89,19 @@ assert('Near-horizon irradiance is finite + non-negative (airMass cap)',
 const lowO3 = reconstructSpectrum({ zenithDeg: 30, ozoneDU: 250 });
 const highO3 = reconstructSpectrum({ zenithDeg: 30, ozoneDU: 400 });
 assert('More ozone → less UVB',
-  highO3.irradiance[idx_300nm] < lowO3.irradiance[idx_300nm],
-  `low=${lowO3.irradiance[idx_300nm].toFixed(4)} vs high=${highO3.irradiance[idx_300nm].toFixed(4)}`);
+  highO3.irradiance[idx_300nm]! < lowO3.irradiance[idx_300nm]!,
+  `low=${lowO3.irradiance[idx_300nm]!.toFixed(4)} vs high=${highO3.irradiance[idx_300nm]!.toFixed(4)}`);
 
 const clear = reconstructSpectrum({ zenithDeg: 30, cloudCover: 0 });
 const overcast = reconstructSpectrum({ zenithDeg: 30, cloudCover: 1 });
 const idx_500nm = clear.wavelengths.indexOf(500);
 assert('Overcast reduces visible irradiance',
-  overcast.irradiance[idx_500nm] < clear.irradiance[idx_500nm] * 0.5);
+  overcast.irradiance[idx_500nm]! < clear.irradiance[idx_500nm]! * 0.5);
 
 const sea = reconstructSpectrum({ zenithDeg: 30, altitudeM: 0 });
 const mountain = reconstructSpectrum({ zenithDeg: 30, altitudeM: 3000 });
 assert('Higher altitude → more UVB',
-  mountain.irradiance[idx_300nm] > sea.irradiance[idx_300nm]);
+  mountain.irradiance[idx_300nm]! > sea.irradiance[idx_300nm]!);
 
 // ─── 3. Channel dose calculation ────────────────────────────────────
 console.log('\n3. Channel dose calculation');
@@ -349,9 +349,9 @@ const idx311 = sperti.wavelengths.indexOf(310);
 const idx400 = sperti.wavelengths.indexOf(400);
 const idx850 = sperti.wavelengths.indexOf(850);
 assert('Sperti single-peak: irradiance peaks near 311 nm',
-  sperti.irradiance[idx311] > sperti.irradiance[idx400] * 100);
+  sperti.irradiance[idx311]! > sperti.irradiance[idx400]! * 100);
 assert('Sperti single-peak: zero NIR contribution',
-  sperti.irradiance[idx850] < sperti.irradiance[idx311] * 1e-6);
+  sperti.irradiance[idx850]! < sperti.irradiance[idx311]! * 1e-6);
 
 const maxiUVB = synthesizeDeviceSpectrum({
   peakWavelengths: [295, 380, 480, 630, 670, 760, 810, 830, 850],
@@ -362,11 +362,11 @@ const idx480 = maxiUVB.wavelengths.indexOf(480);
 const idx660 = maxiUVB.wavelengths.indexOf(660);
 const idx820 = maxiUVB.wavelengths.indexOf(820);
 assert('Maxi UVB: irradiance non-zero at every declared peak',
-  maxiUVB.irradiance[idx295] > 0 && maxiUVB.irradiance[idx480] > 0 &&
-  maxiUVB.irradiance[idx660] > 0 && maxiUVB.irradiance[idx820] > 0);
+  maxiUVB.irradiance[idx295]! > 0 && maxiUVB.irradiance[idx480]! > 0 &&
+  maxiUVB.irradiance[idx660]! > 0 && maxiUVB.irradiance[idx820]! > 0);
 assert('Maxi UVB: gaps between bands are quiet (e.g. 580 nm)',
-  maxiUVB.irradiance[maxiUVB.wavelengths.indexOf(580)] <
-  Math.max(maxiUVB.irradiance[idx480], maxiUVB.irradiance[idx660]) * 0.5);
+  maxiUVB.irradiance[maxiUVB.wavelengths.indexOf(580)]! <
+  Math.max(maxiUVB.irradiance[idx480]!, maxiUVB.irradiance[idx660]!) * 0.5);
 const totalIntegrated = maxiUVB.irradiance.reduce((a, b) => a + b * 5, 0);
 assert('Maxi UVB: integrated irradiance ≈ device rating (1200 W/m²)',
   totalIntegrated > 900 && totalIntegrated < 1500,
@@ -576,7 +576,7 @@ assert('CALIBRATION GATE: Maxi UVB 6min/60cm/37% lands in 3k–7k IU',
 
 // ─── 11. Heuristic peakShares (hybrid vs pure) ──────────────────────
 console.log('\n11. Heuristic peakShares');
-const dosesAt = (sp) => computeChannelDoses({
+const dosesAt = (sp: ReturnType<typeof reconstructSpectrum>) => computeChannelDoses({
   spectrum: sp, durationMin: 5, bodyExposureFraction: 0.4,
   eyeExposure: { mode: 'direct', durationSec: 300 },
 });
@@ -619,9 +619,9 @@ assert('Explicit peakShares override the type-aware heuristic',
 // ─── 12. Absolute magnitudes (regression guard) ─────────────────────
 console.log('\n12. Absolute magnitudes (regression guard)');
 const noonRef = reconstructSpectrum({ zenithDeg: 30, ozoneDU: 300, altitudeM: 0, cloudCover: 0 });
-const irrAt = (target) => {
+const irrAt = (target: number) => {
   const idx = noonRef.wavelengths.indexOf(target);
-  return idx >= 0 ? noonRef.irradiance[idx] : 0;
+  return idx >= 0 ? noonRef.irradiance[idx]! : 0;
 };
 const i305 = irrAt(305);
 const i400 = irrAt(400);

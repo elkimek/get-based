@@ -1,4 +1,13 @@
-// @ts-check
+import type { SpectralDistribution } from './sun-spectrum-device.js';
+export interface SpectrumEyeExposure { mode?: string; durationSec?: number; lensTint?: string }
+export interface SpectrumBodyModifiers { glassBetween?: boolean; sunscreenSPF?: number | null }
+interface SpectrumReconstruction { zenithDeg?: number | null; ozoneDU?: number; altitudeM?: number; cloudCover?: number; aod?: number | null; targetUVI?: number | null }
+interface SpectrumDoseOptions {
+  spectrum?: SpectralDistribution | null; durationMin?: number; bodyExposureFraction?: number;
+  eyeExposure?: SpectrumEyeExposure | null; bodyModifiers?: SpectrumBodyModifiers | null; skinIrradianceMultiplier?: number;
+}
+interface SpectrumGenetics { snps?: Record<string, string | { genotype?: string; gene?: string } | null | undefined> | null }
+
 // sun-spectrum.js — Clear-sky spectral reconstruction + action-spectrum convolution
 //
 // Reconstructs solar spectral irradiance at the user's location/time using a
@@ -59,7 +68,8 @@ export {
   validateModeCoupling,
 } from './sun-spectrum-device.js';
 
-const CHANNELS = [
+export type SpectrumChannelKey = 'vitamin_d' | 'pomc' | 'no_cv' | 'violet_eye' | 'circadian' | 'nir_solar' | 'pbm_red' | 'pbm_nir';
+const CHANNELS: Array<{ id: number; key: SpectrumChannelKey; fn: (nm: number) => number; label: string }> = [
   { id: 1, key: 'vitamin_d',  fn: vitaminDAt,   label: 'Vit D synthesis' },
   { id: 2, key: 'pomc',       fn: erythemalAt,  label: 'POMC / melanocortin' },
   { id: 3, key: 'no_cv',      fn: noReleaseAt,  label: 'NO / cardiovascular' },
@@ -83,10 +93,7 @@ const CHANNELS = [
 // For each wavelength, computes extraterrestrial × Rayleigh × ozone absorption
 // × aerosol attenuation × cloud transmission. This is a heavily simplified
 // Bird-Riordan-derived model for relative trends, not validated radiometry.
-/**
- * @param {{ zenithDeg?: number | null, ozoneDU?: number, altitudeM?: number, cloudCover?: number, aod?: number | null, targetUVI?: number | null }} [opts]
- */
-export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, cloudCover = 0, aod = null, targetUVI = null } = {}) {
+export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, cloudCover = 0, aod = null, targetUVI = null }: SpectrumReconstruction = {}) {
   if (zenithDeg == null || zenithDeg >= 90) {
     return { wavelengths: WAVELENGTHS, irradiance: WAVELENGTHS.map(() => 0) };
   }
@@ -182,31 +189,34 @@ export function reconstructSpectrum({ zenithDeg, ozoneDU = 300, altitudeM = 0, c
   if (typeof targetUVI === 'number' && Number.isFinite(targetUVI) && targetUVI >= 0) {
     const dlambda = 5;
     const modeled = irradiance.reduce((sum, value, index) => {
-      const nm = WAVELENGTHS[index];
+      const nm = WAVELENGTHS[index]!;
       return nm <= 400 ? sum + value * erythemalAt(nm) * dlambda : sum;
     }, 0);
     const target = targetUVI * 0.025;
     const uvScale = modeled > 0 ? Math.max(0, target / modeled) : 0;
-    irradiance = irradiance.map((value, index) => WAVELENGTHS[index] <= 400 ? value * uvScale : value);
+    irradiance = irradiance.map((value, index) => WAVELENGTHS[index]! <= 400 ? value * uvScale : value);
   }
   return { wavelengths: WAVELENGTHS, irradiance };
 }
 
 // Extraterrestrial spectral irradiance (W/m²/nm) — coarse fit to ASTM E490
-function extraterrestrialIrradiance(nm) {
+// Immutable model data shared across wavelength evaluations.
+const EXTRATERRESTRIAL_POINTS: readonly (readonly [number, number])[] = [
+  [280, 0.082], [300, 0.541], [320, 0.815], [340, 1.057], [360, 1.080],
+  [380, 1.146], [400, 1.486], [420, 1.700], [450, 2.066], [500, 1.929],
+  [550, 1.812], [600, 1.694], [650, 1.515], [700, 1.350], [800, 1.054],
+  [900, 0.807], [1000, 0.620], [1200, 0.380], [1500, 0.205],
+  [2000, 0.103], [2500, 0.038],
+];
+
+function extraterrestrialIrradiance(nm: number) {
   // Hardcoded sample points + linear interpolation
-  const points = [
-    [280, 0.082], [300, 0.541], [320, 0.815], [340, 1.057], [360, 1.080],
-    [380, 1.146], [400, 1.486], [420, 1.700], [450, 2.066], [500, 1.929],
-    [550, 1.812], [600, 1.694], [650, 1.515], [700, 1.350], [800, 1.054],
-    [900, 0.807], [1000, 0.620], [1200, 0.380], [1500, 0.205],
-    [2000, 0.103], [2500, 0.038],
-  ];
-  if (nm <= points[0][0]) return points[0][1];
-  if (nm >= points[points.length - 1][0]) return points[points.length - 1][1];
+  const points = EXTRATERRESTRIAL_POINTS;
+  if (nm <= points[0]![0]) return points[0]![1];
+  if (nm >= points[points.length - 1]![0]) return points[points.length - 1]![1];
   for (let i = 0; i < points.length - 1; i++) {
-    const [n1, v1] = points[i];
-    const [n2, v2] = points[i + 1];
+    const [n1, v1] = points[i]!;
+    const [n2, v2] = points[i + 1]!;
     if (nm >= n1 && nm <= n2) {
       const t = (nm - n1) / (n2 - n1);
       return v1 + t * (v2 - v1);
@@ -228,7 +238,7 @@ function extraterrestrialIrradiance(nm) {
 // synthesis estimates wildly high at low UVI (the user reported
 // 962 IU at UVI 2.25 / 38% body / Type III; published TUV/NIWA
 // reference puts that scenario at ~140 IU).
-const O3_XSEC_TABLE = [
+const O3_XSEC_TABLE: Array<[number, number]> = [
   [240, 9.45e-18],
   [250, 1.10e-17],   // Hartley band peak
   [260, 4.50e-18],
@@ -255,12 +265,12 @@ const O3_AVOGADRO_DU = 2.69e19; // (1 DU = 2.69e16 mol/cm²) × (1000 — see be
 // (1000 normalization preserves the existing call-site formula —
 // `tauO3 = ozoneAbsorption(nm) * (ozoneDU / 1000)` — without
 // rewriting consumers.)
-function ozoneAbsorption(nm) {
+function ozoneAbsorption(nm: number) {
   if (nm < 600) {
-    if (nm <= O3_XSEC_TABLE[0][0]) {
-      return O3_XSEC_TABLE[0][1] * O3_AVOGADRO_DU;
+    if (nm <= O3_XSEC_TABLE[0]![0]) {
+      return O3_XSEC_TABLE[0]![1] * O3_AVOGADRO_DU;
     }
-    const last = O3_XSEC_TABLE[O3_XSEC_TABLE.length - 1];
+    const last = O3_XSEC_TABLE[O3_XSEC_TABLE.length - 1]!;
     if (nm >= last[0]) {
       // Above 350 nm: very weak ozone absorption (Huggins tail), use a
       // small constant. Matches typical UV-A behaviour where ozone is
@@ -269,8 +279,8 @@ function ozoneAbsorption(nm) {
     }
     // Log-space linear interpolation across the table
     for (let i = 0; i < O3_XSEC_TABLE.length - 1; i++) {
-      const [n1, s1] = O3_XSEC_TABLE[i];
-      const [n2, s2] = O3_XSEC_TABLE[i + 1];
+      const [n1, s1] = O3_XSEC_TABLE[i]!;
+      const [n2, s2] = O3_XSEC_TABLE[i + 1]!;
       if (nm >= n1 && nm < n2) {
         const t = (nm - n1) / (n2 - n1);
         const logSigma = Math.log10(s1) + t * (Math.log10(s2) - Math.log10(s1));
@@ -307,20 +317,8 @@ function ozoneAbsorption(nm) {
 //     Eye-side glass/lens attenuation lives in eyeMultiplier and is unaffected.
 // Output: { vitamin_d, pomc, no_cv, violet_eye, circadian, nir_solar, pbm_red, pbm_nir }
 //   Each in arbitrary "channel-au" units. Intended for relative comparison.
-/**
- * @param {{
- *   spectrum?: { wavelengths: number[], irradiance: number[] } | null,
- *   durationMin?: number,
- *   bodyExposureFraction?: number,
- *   eyeExposure?: { mode?: string, durationSec?: number, lensTint?: string } | null,
- *   bodyModifiers?: { glassBetween?: boolean, sunscreenSPF?: number | null } | null,
- *   skinIrradianceMultiplier?: number
- * }} [opts]
- * @returns {Record<string, number>}
- */
-export function computeChannelDoses({ spectrum, durationMin = 0, bodyExposureFraction = 1, eyeExposure = null, bodyModifiers = null, skinIrradianceMultiplier = 1 } = {}) {
-  /** @type {Record<string, number>} */
-  const result = {};
+export function computeChannelDoses({ spectrum, durationMin = 0, bodyExposureFraction = 1, eyeExposure = null, bodyModifiers = null, skinIrradianceMultiplier = 1 }: SpectrumDoseOptions = {}) {
+  const result = {} as Record<SpectrumChannelKey, number>;
   if (!spectrum || !Array.isArray(spectrum.irradiance) || durationMin <= 0) {
     for (const ch of CHANNELS) result[ch.key] = 0;
     return result;
@@ -342,8 +340,8 @@ export function computeChannelDoses({ spectrum, durationMin = 0, bodyExposureFra
     const isEyeChannel = ['circadian', 'violet_eye'].includes(ch.key);
     let sum = 0;
     for (let i = 0; i < spectrum.irradiance.length; i++) {
-      const nm = spectrum.wavelengths[i];
-      const E = spectrum.irradiance[i];
+      const nm = spectrum.wavelengths[i]!;
+      const E = spectrum.irradiance[i]!;
       const w = ch.fn(nm);
       if (w <= 0) continue;
       let bandT = 1;
@@ -368,7 +366,7 @@ export function computeChannelDoses({ spectrum, durationMin = 0, bodyExposureFra
 }
 
 // Eye-mode → spectrum-pass multiplier for circadian/violet channels
-function eyeMultiplier(eyeExposure) {
+function eyeMultiplier(eyeExposure: SpectrumEyeExposure | null) {
   if (!eyeExposure) return 0; // no eye exposure logged → no eye-channel dose
   const mode = eyeExposure.mode || 'indoor';
   const lensTint = eyeExposure.lensTint || 'clear';
@@ -404,15 +402,15 @@ const MED_BY_FITZPATRICK = { I: 2, II: 2.5, III: 3, IV: 4.5, V: 6, VI: 10 };
 // amount, coverage, water/sweat loss, reapplication, or UVA protection. It may
 // still attenuate the wellness channel estimates in computeChannelDoses(), but
 // it must never extend the app's displayed time-to-MED.
-export function erythemalSED({ spectrum, durationMin = 0, bodyExposureFraction = 1, bodyModifiers = /** @type {{ glassBetween?: boolean, sunscreenSPF?: number } | null} */ (null), skinIrradianceMultiplier = 1 }) {
+export function erythemalSED({ spectrum, durationMin = 0, bodyExposureFraction = 1, bodyModifiers = (null), skinIrradianceMultiplier = 1 }: SpectrumDoseOptions) {
   if (!spectrum || durationMin <= 0 || !(Number(bodyExposureFraction) > 0)) return 0;
   const seconds = durationMin * 60;
   const dlambda = 5;
   const glassBetween = !!bodyModifiers?.glassBetween;
   let irradiance_E = 0;
   for (let i = 0; i < spectrum.irradiance.length; i++) {
-    const nm = spectrum.wavelengths[i];
-    const E = spectrum.irradiance[i];
+    const nm = spectrum.wavelengths[i]!;
+    const E = spectrum.irradiance[i]!;
     const w = erythemalAt(nm);
     if (w <= 0) continue;
     let bandT = 1;
@@ -431,8 +429,8 @@ export function erythemalSED({ spectrum, durationMin = 0, bodyExposureFraction =
 // turn a generic medicine tier into a defensible MED reduction. The optional
 // numeric medScale remains for explicit, caller-supplied calibrated inputs;
 // legacy `photosensitive: true` no longer invents a 2.5x multiplier.
-export function fractionOfMED({ sed, fitzpatrick = 'III', photosensitive: _photosensitive = false, medScale }) {
-  const baseMED = MED_BY_FITZPATRICK[fitzpatrick] ?? MED_BY_FITZPATRICK.III;
+export function fractionOfMED({ sed, fitzpatrick = 'III', photosensitive: _photosensitive = false, medScale }: { sed: number; fitzpatrick?: string; photosensitive?: unknown; medScale?: unknown }) {
+  const baseMED = MED_BY_FITZPATRICK[fitzpatrick as keyof typeof MED_BY_FITZPATRICK] ?? MED_BY_FITZPATRICK.III;
   const scale = typeof medScale === 'number' && Number.isFinite(medScale) && medScale > 0
     ? medScale
     : 1.0;
@@ -527,21 +525,21 @@ const _VITD_GENETIC_EFFECTS = {
 // audit. Returns { mult: 1.0, contributors: [] } when genetics
 // is unavailable, so existing callers degrade gracefully. Callers
 // that want to surface "why" should read `contributors`.
-export function geneticVitaminDMultiplier(genetics) {
+export function geneticVitaminDMultiplier(genetics: SpectrumGenetics | null | undefined) {
   if (!genetics || typeof genetics !== 'object') return { mult: 1.0, contributors: [] };
   const snps = genetics.snps;
   if (!snps || typeof snps !== 'object') return { mult: 1.0, contributors: [] };
   let mult = 1.0;
-  const contributors = [];
+  const contributors: Array<{ rsId: string; gene: string; genotype: string; multiplier: number }> = [];
   for (const [rsId, table] of Object.entries(_VITD_GENETIC_EFFECTS)) {
     const entry = snps[rsId];
     if (!entry) continue;
     const gt = typeof entry === 'string' ? entry : entry.genotype;
     if (!gt) continue;
-    const m = table[gt];
+    const m = table[gt as keyof typeof table];
     if (m == null || m === 1.0) continue;
     mult *= m;
-    contributors.push({ rsId, gene: entry.gene || rsId, genotype: gt, multiplier: m });
+    contributors.push({ rsId, gene: (entry as { gene?: string }).gene || rsId, genotype: gt, multiplier: m });
   }
   return { mult, contributors };
 }
@@ -549,7 +547,7 @@ export function geneticVitaminDMultiplier(genetics) {
 // `rotatedSides` and `genetics` remain accepted for storage/API compatibility,
 // but are not applied. Rotation is represented by timed exposure segments;
 // serum-associated genetic variants do not establish a skin-synthesis factor.
-export function vitaminDIU(channelAu, fitzpatrick = 'III', uvi = /** @type {number | null} */ (null), rotatedSides = false, genetics = /** @type {Record<string, any> | null} */ (null)) {
+export function vitaminDIU(channelAu: number, fitzpatrick = 'III', uvi: number | null = null, rotatedSides = false, genetics: unknown = null) {
   return Math.min(vitaminDIURaw(channelAu, fitzpatrick, uvi, rotatedSides, genetics), VITD_SATURATION_IU);
 }
 
@@ -567,7 +565,7 @@ export function vitaminDIU(channelAu, fitzpatrick = 'III', uvi = /** @type {numb
 // `bodyFraction` (0–1) — exposed skin fraction for THIS session.
 // Required for the per-session cap to fire; absent/zero falls back to
 // the daily cap (legacy behavior).
-export function vitaminDIUPerSession(channelAu, fitzpatrick = 'III', uvi = /** @type {number | null} */ (null), rotatedSides = false, genetics = /** @type {Record<string, any> | null} */ (null), bodyFraction = /** @type {number | null} */ (null)) {
+export function vitaminDIUPerSession(channelAu: number, fitzpatrick = 'III', uvi: number | null = null, rotatedSides = false, genetics: unknown = null, bodyFraction: number | null = null) {
   const raw = vitaminDIURaw(channelAu, fitzpatrick, uvi, rotatedSides, genetics);
   if (raw <= 0) return 0;
   const perSessionCap = (typeof bodyFraction === 'number' && Number.isFinite(bodyFraction) && bodyFraction > 0)
@@ -588,9 +586,9 @@ export function vitaminDIUPerSession(channelAu, fitzpatrick = 'III', uvi = /** @
 //
 // Single-session render paths still call vitaminDIU() (capped) — for
 // one session the cap is the right ceiling.
-export function vitaminDIURaw(channelAu, fitzpatrick = 'III', _uvi = /** @type {number | null} */ (null), _rotatedSides = false, _genetics = /** @type {Record<string, any> | null} */ (null)) {
+export function vitaminDIURaw(channelAu: number, fitzpatrick = 'III', _uvi: number | null = null, _rotatedSides = false, _genetics: unknown = null) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return 0;
-  const skinScale = VITD_FITZPATRICK_SCALE[fitzpatrick] ?? VITD_FITZPATRICK_SCALE.III;
+  const skinScale = VITD_FITZPATRICK_SCALE[fitzpatrick as keyof typeof VITD_FITZPATRICK_SCALE] ?? VITD_FITZPATRICK_SCALE.III;
   // The spectral integral has already accounted for the UVB available at
   // this time and place. Applying a second UVI cliff creates a non-physical
   // zero. Rotation likewise changes which patch is exposed, not the area
@@ -615,7 +613,7 @@ export const VITD_DAILY_SATURATION_IU = VITD_SATURATION_IU;
 // `zenith` (degrees) tightens the heuristic band when supplied.
 //
 // Returns { central, low, high } in IU.
-export function vitaminDIURange(channelAu, fitzpatrick = 'III', uvi = /** @type {number | null} */ (null), zenith = /** @type {number | null} */ (null), rotatedSides = false) {
+export function vitaminDIURange(channelAu: number, fitzpatrick = 'III', uvi: number | null = null, zenith: number | null = null, rotatedSides = false) {
   const central = vitaminDIU(channelAu, fitzpatrick, uvi, rotatedSides);
   if (central === 0) return { central: 0, low: 0, high: 0 };
   // The returned band includes both optical-model error and the much larger
@@ -641,7 +639,7 @@ export function vitaminDIURange(channelAu, fitzpatrick = 'III', uvi = /** @type 
 // nir_solar channel. channel-au is local J/m² × actionWeight;
 // dividing by 10,000 converts m² → cm². Matches the dose unit
 // printed on commercial therapy-panel datasheets (Joovv, Mito Red etc.).
-export function pbmJoulesPerCm2(channelAu) {
+export function pbmJoulesPerCm2(channelAu: number) {
   if (!Number.isFinite(channelAu) || channelAu <= 0) return 0;
   return channelAu / 10000;
 }
@@ -653,7 +651,7 @@ export function pbmJoulesPerCm2(channelAu) {
 // instantaneous melanopic irradiance, then divide by D65 melanopic radiant
 // efficacy (1.3262 mW/lm). Because melanopicAt() is still a smooth proxy,
 // callers must label this as estimated, not a calibrated CIE measurement.
-export function circadianMelanopicLux(channelAu, durationMin) {
+export function circadianMelanopicLux(channelAu: number, durationMin: number) {
   if (!Number.isFinite(channelAu) || channelAu <= 0 || durationMin <= 0) return 0;
   const seconds = durationMin * 60;
   const melanopic_W_per_m2 = channelAu / seconds; // average over the session
@@ -676,7 +674,7 @@ export function circadianMelanopicLux(channelAu, durationMin) {
 // accumulate 4-5 J/m² actinic UV. Linear ramp 85° → 80° avoids a
 // hard cliff — full yield once the sun is more than 10° above the
 // horizon. Pass `null` (or omit) to skip the gate.
-export function ocularActinicUVdose({ spectrum, eyeExposure, zenithDeg = /** @type {number | null} */ (null), glassBetween = false }) {
+export function ocularActinicUVdose({ spectrum, eyeExposure, zenithDeg = null, glassBetween = false }: { spectrum?: SpectralDistribution | null; eyeExposure?: SpectrumEyeExposure | null; zenithDeg?: number | null; glassBetween?: boolean }) {
   if (!spectrum || !eyeExposure) return 0;
   const mode = eyeExposure.mode || 'indoor';
   if (mode !== 'direct' && mode !== 'glass-window') return 0;
@@ -692,12 +690,12 @@ export function ocularActinicUVdose({ spectrum, eyeExposure, zenithDeg = /** @ty
   const dlambda = 5;
   let actinic_irradiance = 0;
   for (let i = 0; i < spectrum.irradiance.length; i++) {
-    const nm = spectrum.wavelengths[i];
+    const nm = spectrum.wavelengths[i]!;
     if (nm > 400) break;
     const w = actinicUVAt(nm);
     if (w <= 0) continue;
     const transmission = throughGlass ? glassTransmission(nm) : 1;
-    actinic_irradiance += spectrum.irradiance[i] * w * dlambda * transmission;
+    actinic_irradiance += spectrum.irradiance[i]! * w * dlambda * transmission;
   }
   return actinic_irradiance * seconds * elevationGate;
 }
