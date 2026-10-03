@@ -1,7 +1,7 @@
-import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 // test-mobile.js — Browser-based verification of mobile responsiveness fixes
 // Run: fetch('tests/test-mobile.js').then(r=>r.text()).then(s=>Function(s)())
 return (async function() {
+  const { readServiceWorkerSource } = await import('/scripts/service-worker-source.js');
   let passed = 0, failed = 0;
   const results = [];
 

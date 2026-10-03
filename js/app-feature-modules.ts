@@ -1,4 +1,3 @@
-// @ts-check
 // app-feature-modules.js - startup-loaded feature module groups with window exports
 
 import './app-foundation-modules.js';

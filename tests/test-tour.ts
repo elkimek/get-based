@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { hasDirectStartupImports } from './helpers/startup-composition.js';
 import { readRepositorySource } from './helpers/repository-source.js';
 import { sourceFunctionHasStatement, sourceFunctionHasEventListenerStatement } from './helpers/native-source-contracts.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
@@ -172,7 +173,7 @@ const appFeatureModulesSrc = read('js/app-feature-modules.js');
 const appUiShellModulesSrc = read('js/app-ui-shell-modules.js');
 const appEventsSrc = read('js/app-event-listeners.js');
 
-assert('main.js imports app-feature-modules.js', mainSrc.includes("import './app-feature-modules.js'"));
+assert('main.js imports every startup module in order', hasDirectStartupImports(mainSrc));
 assert('app-feature-modules.js delegates UI shell modules', appFeatureModulesSrc.includes("import './app-ui-shell-modules.js'"));
 assert('app-ui-shell-modules.js imports tour.js', appUiShellModulesSrc.includes("import './tour.js'"));
 assert('app-event-listeners.js Escape checks #tour-overlay', appEventsSrc.includes('tour-overlay'));

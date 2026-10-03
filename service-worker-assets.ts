@@ -526,6 +526,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/sync-relay-health.js',
   '/js/sync-state.js',
   '/js/adapters.js',
+  '/js/specialty-marker-catalog.js',
   '/js/supplement-warnings.js',
   '/js/food-contaminants.js',
   '/js/cashu-wallet.js',

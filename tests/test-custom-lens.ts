@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { hasDirectStartupImports } from './helpers/startup-composition.js';
 import { sourceFunctionHasCatchStatement, sourceFunctionHasStatement } from './helpers/native-source-contracts.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-custom-lens.ts — Custom Knowledge Source (Lens Corpus). Source
@@ -374,7 +375,7 @@ const mainSrc = read('js/main.js');
 const appFeatureModulesSrc = read('js/app-feature-modules.js');
 const appAiInteractionModulesSrc = read('js/app-ai-interaction-modules.js');
 const chatLoaderSrc = read('js/chat-loader.js');
-assert("main.js imports './app-feature-modules.js'", mainSrc.includes("import './app-feature-modules.js'"));
+assert("main.js imports every startup module in order", hasDirectStartupImports(mainSrc));
 assert("app-feature-modules.js leaves Chat out of the startup graph", !appFeatureModulesSrc.includes("import './app-ai-interaction-modules.js'"));
 assert("chat-loader.js lazily imports './app-ai-interaction-modules.js'",
   chatLoaderSrc.includes("import('./app-ai-interaction-modules.js')")

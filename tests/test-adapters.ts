@@ -26,7 +26,7 @@ const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== Adapter Registry Tests ===\n');
 
-const adaptersSrc = read('js/adapters.js');
+const adaptersSrc = read('js/adapters.js') + read('js/specialty-marker-catalog.js');
 const schemaSrc = read('js/schema.js');
 const normalizationSrc = read('js/pdf-import-marker-normalization.js');
 const organicNormalizationSrc = read('js/pdf-import-organic-acid-normalization.js');

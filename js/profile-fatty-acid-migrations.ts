@@ -1,7 +1,7 @@
 import type { ProfileMarkerData, ProfileMarkerMetadata, ProfileImportMarker } from './profile-marker-alias-migrations.js';
 // profile-fatty-acid-migrations.js - Snapshot-backed product fatty-acid metadata repairs.
 
-import { SPECIALTY_MARKER_DEFS } from './adapters.js';
+import { SPECIALTY_MARKER_DEFS } from './specialty-marker-catalog.js';
 
 function productFattyAcidKeyParts(key: unknown) {
   if (!key || typeof key !== 'string') return null;

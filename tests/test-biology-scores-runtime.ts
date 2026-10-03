@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import type { getActiveData } from '../js/data.js';
 import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Biology Scores runtime adapter behavior.
@@ -45,16 +46,20 @@ function restoreRuntime() {
 }
 
 try {
-  const calls = [];
+  const calls: unknown[][] = [];
   const activeData = { dates: ['2026-06-01'], categories: {} };
-  const browserRuntime = {
-    navigate(route) { calls.push(['navigate', route, this === browserRuntime]); },
-    openChatPanel(prompt) { calls.push(['chat', prompt, this === browserRuntime]); },
-    useChatPrompt(prompt) { calls.push(['prompt', prompt, this === browserRuntime]); },
-    showNotification(message, type) { calls.push(['notification', message, type, this === browserRuntime]); },
+  const browserRuntime: {
+    navigate(route: string): void; openChatPanel?: (prompt?: string) => void; useChatPrompt(prompt: string): void;
+    showNotification(message: unknown, type?: string): void; getActiveData?: () => typeof activeData;
+    showDetailModal(markerId: string): void; setTimeout(callback: () => void, delay: number): number;
+  } = {
+    navigate(route: string) { calls.push(['navigate', route, this === browserRuntime]); },
+    openChatPanel(prompt?: string) { calls.push(['chat', prompt, this === browserRuntime]); },
+    useChatPrompt(prompt: string) { calls.push(['prompt', prompt, this === browserRuntime]); },
+    showNotification(message: unknown, type?: string) { calls.push(['notification', message, type, this === browserRuntime]); },
     getActiveData() { calls.push(['data', this === browserRuntime]); return activeData; },
-    showDetailModal(markerId) { calls.push(['detail', markerId, this === browserRuntime]); },
-    setTimeout(callback, delay) {
+    showDetailModal(markerId: string) { calls.push(['detail', markerId, this === browserRuntime]); },
+    setTimeout(callback: () => void, delay: number) {
       calls.push(['timeout', delay, this === browserRuntime]);
       callback();
       return 42;
@@ -62,9 +67,9 @@ try {
   };
   setRuntimeValue('window', browserRuntime);
   configureBiologyScoresRuntimeDeps({
-    getActiveData: browserRuntime.getActiveData.bind(browserRuntime),
+    getActiveData: browserRuntime.getActiveData!.bind(browserRuntime) as typeof getActiveData,
     navigate: browserRuntime.navigate.bind(browserRuntime),
-    openChatPanel: browserRuntime.openChatPanel.bind(browserRuntime),
+    openChatPanel: browserRuntime.openChatPanel!.bind(browserRuntime),
     showDetailModal: browserRuntime.showDetailModal.bind(browserRuntime),
     showNotification: browserRuntime.showNotification.bind(browserRuntime),
     useChatPrompt: browserRuntime.useChatPrompt.bind(browserRuntime),
@@ -119,7 +124,7 @@ try {
       hasBiologyScoresAIProvider() === false &&
       Object.keys(getBiologyScoresActiveData()).length === 0);
 
-  delete globalThis.window;
+  delete (globalThis as { window?: Window }).window;
   assert('biology runtime adapter no-ops without a browser window',
     !canOpenBiologyScoresChatPanel() &&
       openBiologyScoreMarkerDetail('biochemistry_glucose') === false &&
@@ -131,14 +136,15 @@ try {
 
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
 try {
-  delete globalThis.window;
+  delete (globalThis as { window?: Window }).window;
+  // @ts-expect-error TypeScript resolves only the query-free source path.
   await import('../js/biology-scores-runtime.js?no-window-probe');
   assert('biology runtime imports without a browser window', true);
 } catch (error) {
-  assert('biology runtime imports without a browser window', false, error?.message || String(error));
+  assert('biology runtime imports without a browser window', false, (error as { message?: string } | null | undefined)?.message || String(error));
 } finally {
   if (savedWindow) Object.defineProperty(globalThis, 'window', savedWindow);
-  else delete globalThis.window;
+  else delete (globalThis as { window?: Window }).window;
 }
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);

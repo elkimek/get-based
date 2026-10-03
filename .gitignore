@@ -758,3 +758,15 @@ deploy/profile-share/data/
 /js/settings-voice-model-controller.js
 /js/settings-voice-view.js
 /js/settings-voice-panel.js
+/js/biology-score-iron.js
+/js/biology-score-blood-flow.js
+/js/biology-score-thyroid.js
+/js/biology-score-coherence.js
+/js/biology-score-methodology.js
+/js/biology-scores-runtime.js
+/js/specialty-marker-catalog.js
+/js/app-foundation-modules.js
+/js/app-ui-shell-modules.js
+/js/app-feature-modules.js
+
+/tests/helpers/startup-composition.js

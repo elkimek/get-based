@@ -23,7 +23,7 @@ const { assert, results: legacyAssertions } = createLegacyAssertions();
 console.log('=== Specialty Marker Refactor Tests ===\n');
 
 const schemaSrc = read('js/schema.js');
-const adaptersSrc = read('js/adapters.js');
+const adaptersSrc = read('js/adapters.js') + read('js/specialty-marker-catalog.js');
 const organicNormalizationSrc = read('js/pdf-import-organic-acid-normalization.js');
 const profileSrc = read('js/profile.js');
 const profileDataMigrationsSrc = read('js/profile-data-migrations.js');
@@ -137,7 +137,7 @@ const pdfImportNormalizationSrc = read('js/pdf-import-marker-normalization.js');
 
   assert('profile migration owner imports standard and specialty markers',
     profileDataMigrationsSrc.includes("import { MARKER_SCHEMA } from './schema.js'")
-      && profileDataMigrationsSrc.includes("import { SPECIALTY_MARKER_DEFS } from './adapters.js'")
+      && profileDataMigrationsSrc.includes("import { SPECIALTY_MARKER_DEFS } from './specialty-marker-catalog.js'")
       && profileSrc.includes("from './profile-data-migrations.js'"));
   assert('Migration scans entry markers', profileDataMigrationsSrc.includes('SPECIALTY_MARKER_DEFS[key]'));
   assert('Migration writes to customMarkers', profileDataMigrationsSrc.includes('data.customMarkers[key]'));

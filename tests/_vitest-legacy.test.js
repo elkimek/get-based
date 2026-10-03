@@ -179,7 +179,7 @@ const LEGACY_TESTS = [
   './test-context-card-lifestyle-runtime.ts',
   './test-import-drop-zone-runtime.ts',
   './test-sync-diagnose-runtime.ts',
-  './test-biology-scores-runtime.js',
+  './test-biology-scores-runtime.ts',
   './test-wearables-detail-runtime.js',
   './test-wearables-auth-runtime.js',
   './test-wearables-runtime.js',

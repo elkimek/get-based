@@ -238,3 +238,15 @@ export function coreScoreDrivers(score: Pick<ScoreResult, 'available'>) {
     .map(item => ({ item, impact: (100 - item.partial!) * (item.effectiveWeight ?? item.weight ?? 0) }))
     .sort((a, b) => b.impact - a.impact);
 }
+
+export function computeIronHandling(data: ScoringData | null | undefined, def: ScoreDefinition, options: ScoreOptions = {}) {
+  return computeWeightedComposite(data, def, options);
+}
+
+export function computeBloodFlowSignals(data: ScoringData | null | undefined, def: ScoreDefinition, options: ScoreOptions = {}) {
+  return computeWeightedComposite(data, def, options);
+}
+
+export function computeThyroidCoherence(data: ScoringData | null | undefined, def: ScoreDefinition, options: ScoreOptions = {}) {
+  return computeWeightedComposite(data, def, options);
+}

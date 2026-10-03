@@ -8,7 +8,7 @@ import {
   normalizeClinicalUnit,
   normalizeToSI,
 } from './schema.js';
-import { SPECIALTY_MARKER_DEFS } from './adapters.js';
+import { SPECIALTY_MARKER_DEFS } from './specialty-marker-catalog.js';
 import { renameLabEntryMarker } from './lab-entry.js';
 import {
   normalizeProfileMarkerLabel as _normalizeProfileMarkerLabel,

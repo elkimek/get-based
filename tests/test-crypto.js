@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { hasDirectStartupImports } from './helpers/startup-composition.js';
 import { dataModuleSource } from './helpers/data-module-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createSourceFetch } from './helpers/source-fetch.js';
@@ -571,7 +572,7 @@ try {
   const src = await fetchWithRetry('js/main.js');
   const orchestratorSrc = await fetchWithRetry('js/startup-orchestrator.js');
   const foundationSrc = await fetchWithRetry('js/startup-foundation.js');
-  assert('main.js imports app-feature-modules.js', src.includes("import './app-feature-modules.js'"));
+  assert('main.js imports every startup module in order', hasDirectStartupImports(src));
   assert('main.js starts the startup orchestrator', src.includes("from './startup-orchestrator.js'") && src.includes('startApp()'));
   assert('startup-orchestrator.js registers DOMContentLoaded', orchestratorSrc.includes("document.addEventListener('DOMContentLoaded'"));
   assert('startup-orchestrator.js catches startup failures', orchestratorSrc.includes('runStartupSequence().catch(handleStartupSequenceError)'));

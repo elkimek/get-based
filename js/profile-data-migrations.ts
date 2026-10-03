@@ -1,6 +1,6 @@
 // profile-data-migrations.js — Deterministic imported profile-data upgrades.
 
-import { SPECIALTY_MARKER_DEFS } from './adapters.js';
+import { SPECIALTY_MARKER_DEFS } from './specialty-marker-catalog.js';
 import { normalizeContextSourceSettings } from './context-source-registry.js';
 import { migrateCustomMarkerIdentities } from './custom-marker-identity.js';
 import { migrateMarkerPlacements } from './marker-placement.js';

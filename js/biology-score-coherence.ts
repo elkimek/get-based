@@ -1,4 +1,11 @@
-// @ts-check
+import type { ScoringData, ScorePart, ScoreResult } from './biology-score-types.js';
+
+interface CoherenceComponent extends ScoreResult {
+  id: string; title?: string; available: ScorePart[]; coherenceDomain?: string; coherenceWeight?: number;
+  rawScore?: number | null | undefined; recencyStatus?: string; attention?: string | undefined;
+  scoreConfidence?: string; scoreConfidenceWarning?: string;
+}
+
 // biology-score-coherence.js — Biological Coherence aggregator.
 
 import { applyScoreConfidence, applyScoreRecency, resolveCoverageLabel, resolveScoreTone } from './biology-score-engine.js';
@@ -35,39 +42,45 @@ const COHERENCE_DOMAIN_WEIGHTS = {
   hormones: 0.95,
 };
 
-/**
- * @param {any} data
- * @param {any} def
- * @param {any[]} scoreDefinitions
- * @param {(data: any, defs: any[]) => any[]} computeComponents
- */
-export function computeBiologicalCoherence(data, def, scoreDefinitions, computeComponents) {
+interface CoherenceDomain extends ScorePart { domainCoverage: number; primaryScoreId: string; contributorIds: string[] }
+interface MissingCoherenceDomain { key: string; label: string; weight: number; core: boolean; primaryScoreId: string; unavailableReason: string }
+interface OverviewMembership { id: string; title: string; domain: string; included: boolean; optional: boolean; label: string }
+type RecencyAwareScore = ReturnType<typeof applyScoreRecency<ScoreResult>>;
+type CoherenceOverview<Definition> = Definition & Omit<ReturnType<typeof applyScoreConfidence<RecencyAwareScore>>, 'available' | 'missing'> & {
+  contextLimited: boolean; attention: string; algorithmVersion: string; methodology: string;
+  score: number | null; anchorWarning: string; tone: string | null;
+  coverage: number; coverageLabel: string; presentationDates: Array<string | undefined>;
+  available: CoherenceDomain[]; missing: MissingCoherenceDomain[]; flags: string[];
+  historicalSnapshot?: CoherenceOverview<Definition>; membership?: OverviewMembership[];
+};
+
+export function computeBiologicalCoherence<Definition extends { id: string; panelTier?: string }, Component extends CoherenceComponent>(data: ScoringData | null | undefined, def: Definition, scoreDefinitions: Definition[], computeComponents: (data: ScoringData | null | undefined, defs: Definition[]) => Component[]): CoherenceOverview<Definition> {
   const componentDefs = scoreDefinitions.filter((scoreDef) =>
     scoreDef.id !== def.id && scoreDef.panelTier !== 'extended'
   );
   const componentScores = computeComponents(data, componentDefs);
-  const domainBuckets = new Map();
+  const domainBuckets = new Map<string, Array<{ score: Component; weight: number }>>();
   for (const score of componentScores) {
     const domain = score.coherenceDomain || 'metabolic';
     const weight = score.coherenceWeight || 1;
     if (!domainBuckets.has(domain)) domainBuckets.set(domain, []);
-    domainBuckets.get(domain).push({ score, weight });
+    domainBuckets.get(domain)!.push({ score, weight });
   }
 
-  const available = [];
-  const missing = [];
-  const collectionInputs = [];
+  const available: CoherenceDomain[] = [];
+  const missing: MissingCoherenceDomain[] = [];
+  const collectionInputs: ScorePart[] = [];
   let totalDomainWeight = 0;
   let availableDomainWeight = 0;
   let scoreSum = 0;
   for (const [domain, items] of domainBuckets.entries()) {
-    const domainWeight = COHERENCE_DOMAIN_WEIGHTS[/** @type {keyof typeof COHERENCE_DOMAIN_WEIGHTS} */ (domain)] || 1;
-    const label = COHERENCE_DOMAIN_LABELS[/** @type {keyof typeof COHERENCE_DOMAIN_LABELS} */ (domain)] || domain;
+    const domainWeight = COHERENCE_DOMAIN_WEIGHTS[domain as keyof typeof COHERENCE_DOMAIN_WEIGHTS] || 1;
+    const label = COHERENCE_DOMAIN_LABELS[domain as keyof typeof COHERENCE_DOMAIN_LABELS] || domain;
     totalDomainWeight += domainWeight;
     const live = items.filter(({ score }) => Number.isFinite(score.score));
     if (!live.length) {
-      const source = items[0].score;
-      const historical = items.some(({ score }) => Number.isFinite(score.rawScore) && ['stale', 'mixed-dates'].includes(score.recencyStatus));
+      const source = items[0]!.score;
+      const historical = items.some(({ score }) => Number.isFinite(score.rawScore) && ['stale', 'mixed-dates'].includes(score.recencyStatus!));
       missing.push({ key: domain, label, weight: domainWeight, core: true,
         primaryScoreId: source.id,
         unavailableReason: historical ? 'Older results' : 'Needs inputs',
@@ -76,9 +89,9 @@ export function computeBiologicalCoherence(data, def, scoreDefinitions, computeC
     }
     collectionInputs.push(...live.flatMap(i => i.score.available.filter(marker => marker.core && !marker.profileContextOnly)));
     const liveWeight = live.reduce((sum, item) => sum + item.weight, 0) || 1;
-    const domainScore = Math.round(live.reduce((sum, item) => sum + item.score.score * item.weight, 0) / liveWeight);
+    const domainScore = Math.round(live.reduce((sum, item) => sum + item.score.score! * item.weight, 0) / liveWeight);
     const domainCoverage = live.reduce((sum, item) => sum + (item.score.coverage || 0) * item.weight, 0) / items.reduce((sum, item) => sum + item.weight, 0);
-    const weakest = live.slice().sort((a, b) => a.score.score - b.score.score)[0];
+    const weakest = live.slice().sort((a, b) => a.score.score! - b.score.score!)[0];
     const effectiveDomainWeight = domainWeight;
     availableDomainWeight += effectiveDomainWeight;
     scoreSum += domainScore * effectiveDomainWeight;

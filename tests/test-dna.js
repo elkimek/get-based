@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { hasDirectStartupImports } from './helpers/startup-composition.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-dna.js — DNA adapter: parser, storage, context assembly.
 // Format detection, per-vendor parsers (Ancestry / 23andMe / CSV / MyHeritage
@@ -427,7 +428,7 @@ const mainSrc = await fetchWithRetry('js/main.js');
 const appFeatureModulesSrc = await fetchWithRetry('js/app-feature-modules.js');
 const appHealthDataModulesSrc = await fetchWithRetry('js/app-health-data-modules.js');
 const healthDataLoaderSrc = await fetchWithRetry('js/health-data-loader.js');
-assert('main.js imports app-feature-modules.js', mainSrc.includes("'./app-feature-modules.js'"));
+assert('main.js imports every startup module in order', hasDirectStartupImports(mainSrc));
 assert('app-feature-modules.js lazy-loads health data modules',
   appFeatureModulesSrc.includes("'./health-data-loader.js'")
     && healthDataLoaderSrc.includes("import('./dna.js')"));

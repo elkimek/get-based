@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { hasDirectStartupImports } from './helpers/startup-composition.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
@@ -233,7 +234,7 @@ const _realFetch = globalThis.fetch;
   const appFeatureModulesSrc = await fetchWithRetry('js/app-feature-modules.js');
   const appHealthDataModulesSrc = await fetchWithRetry('js/app-health-data-modules.js');
   const healthDataLoaderSrc = await fetchWithRetry('js/health-data-loader.js');
-  assert('main.js imports app-feature-modules.js', mainSrc.includes("import './app-feature-modules.js'"));
+  assert('main.js imports every startup module in order', hasDirectStartupImports(mainSrc));
   assert('app-feature-modules.js lazy-loads health data modules',
     appFeatureModulesSrc.includes("import './health-data-loader.js'")
       && healthDataLoaderSrc.includes("import('./recommendations.js')"));

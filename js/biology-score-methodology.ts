@@ -1,5 +1,7 @@
+import type { ScorePart, ScoreProfileContext, ScoreResult } from './biology-score-types.js';
+
 // Biology Score interpretation boundaries and reading links. Scores remain exploratory heuristics.
-export const SCORE_METHODS = {
+export const SCORE_METHODS: Record<string, [string, string] | undefined> = {
   metabolicFlexibility: ['Fasting glucose and insulin describe fasting regulation, not a direct measurement of fuel switching. HOMA-IR shares inputs with them; HbA1c can be distorted by iron deficiency or altered red-cell turnover.', 'https://www.niddk.nih.gov/health-information/diagnostic-tests/a1c-test'],
   thyroidCoherence: ['TSH and FT4 form the equally weighted core; FT3 adds active-hormone context. A same-draw FT3/FT4 ratio is descriptive, not a validated conversion-efficiency target. Medication timing, illness and biotin can change the pattern.', 'https://www.thyroid.org/thyroid-function-tests/'],
   cardiovascularLipoprotein: ['This summarizes lipoproteins; it is not a cardiovascular event-risk percentage. ApoB and its ratios overlap. Lp(a), blood pressure, smoking and family history can matter despite a favorable average.', 'https://www.lipid.org/resource/role-of-apolipoprotein-b-in-the-clinical-management-of-cardiovascular-risk-in-adults-an-expert-clinical-consensus-from-the-national-lipid-association/'],
@@ -20,15 +22,15 @@ export const SCORE_METHODS = {
   nerveMuscleSignal: ['CK and B-vitamin markers provide indirect context, not a nerve-function test. Training changes CK; NfL depends on age, kidney function and assay. Interpret urine and serum lactate separately.', 'https://ods.od.nih.gov/factsheets/VitaminB12-HealthProfessional/'],
 };
 
-export function addScoreInterpretation(score) {
+export function addScoreInterpretation<Result extends ScoreResult & { id: string; available: ScorePart[]; profileContext?: ScoreProfileContext; attention?: string | undefined }>(score: Result) {
   const hits = new Map(score.available.map(i => [i.key, i]));
   const flags = [...(score.flags || [])];
-  const patterns = [];
-  const interpretable = hit => hit && !hit.profileContextOnly && hit.referenceDirection != null;
-  const together = (...items) => items.every(interpretable) && items.every(hit => hit.date === items[0].date);
-  const high = hit => interpretable(hit) && hit.referenceDirection === 'above';
-  const low = hit => interpretable(hit) && hit.referenceDirection === 'below';
-  const inRange = hit => interpretable(hit) && hit.referenceDirection === '';
+  const patterns: string[] = [];
+  const interpretable = (hit: ScorePart | undefined) => hit && !hit.profileContextOnly && hit!.referenceDirection != null;
+  const together = (...items: Array<ScorePart | undefined>) => items.every(interpretable) && items.every(hit => hit!.date === items[0]!.date);
+  const high = (hit: ScorePart | undefined) => interpretable(hit) && hit!.referenceDirection === 'above';
+  const low = (hit: ScorePart | undefined) => interpretable(hit) && hit!.referenceDirection === 'below';
+  const inRange = (hit: ScorePart | undefined) => interpretable(hit) && hit!.referenceDirection === '';
   const context = score.profileContext || {};
   if (score.id === 'thyroidCoherence') {
     const tsh = hits.get('tsh'), ft4 = hits.get('ft4');
@@ -45,7 +47,7 @@ export function addScoreInterpretation(score) {
     const alt = hits.get('alt'), ast = hits.get('ast'), alp = hits.get('alp'), ggt = hits.get('ggt'), bilirubin = hits.get('bilirubin');
     if (together(alp, ggt) && high(alp) && inRange(ggt)) patterns.push('ALP is high with GGT in range. The source is uncertain; bone and liver context help distinguish it.');
     if (together(bilirubin, alt, ast, alp, ggt) && high(bilirubin) && [alt, ast, alp, ggt].every(inRange)) patterns.push('Bilirubin is high while the measured liver enzymes are in range. Direct and indirect fractions can clarify this isolated pattern.');
-    if (high(ast) && (context.recentHardTraining || ast.entryContext?.recentHardTraining)) patterns.push('Recent training can contribute to raised AST. CK and collection timing help distinguish muscle from liver context.');
+    if (high(ast) && (context.recentHardTraining || ast!.entryContext?.recentHardTraining)) patterns.push('Recent training can contribute to raised AST. CK and collection timing help distinguish muscle from liver context.');
   }
   if (score.id === 'redoxStress') {
     const crp = score.available.find(hit => hit.coreGroup === 'inflammation' && !hit.profileContextOnly);
@@ -53,14 +55,14 @@ export function addScoreInterpretation(score) {
     if (crp?.dotKey === 'proteins.crp') flags.push('Ordinary CRP anchors the inflammatory signal; hs-CRP can resolve lower concentrations when that specific question matters.');
   }
   const ferritin = hits.get('ferritin');
-  if (score.id === 'ironHandling' && ferritin?.canonicalValue < 30) flags.unshift('Low ferritin pattern: iron stores may be depleted even when hemoglobin is normal.');
-  if (score.id === 'ironHandling' && hits.get('transferrinSat')?.canonicalValue >= 50) flags.unshift('High transferrin saturation: review iron loading and collection context alongside ferritin.');
-  if (ferritin?.canonicalValue > 100 && hits.get('crp')?.canonicalValue > 3) flags.unshift('Inflammation may raise ferritin independently of iron stores.');
+  if (score.id === 'ironHandling' && ferritin?.canonicalValue! < 30) flags.unshift('Low ferritin pattern: iron stores may be depleted even when hemoglobin is normal.');
+  if (score.id === 'ironHandling' && hits.get('transferrinSat')?.canonicalValue! >= 50) flags.unshift('High transferrin saturation: review iron loading and collection context alongside ferritin.');
+  if (ferritin?.canonicalValue! > 100 && hits.get('crp')?.canonicalValue! > 3) flags.unshift('Inflammation may raise ferritin independently of iron stores.');
   const ft3 = hits.get('ft3'), ft4 = hits.get('ft4');
-  const descriptiveRatio = score.id === 'thyroidCoherence' && ft3?.date === ft4?.date && ft4?.canonicalValue > 0
-    ? { label: 'FT3/FT4 (molar ratio)', value: (ft3.canonicalValue / ft4.canonicalValue).toFixed(3), date: ft3.date } : null;
+  const descriptiveRatio = score.id === 'thyroidCoherence' && ft3?.date === ft4?.date && ft4?.canonicalValue! > 0
+    ? { label: 'FT3/FT4 (molar ratio)', value: (ft3!.canonicalValue! / ft4!.canonicalValue!).toFixed(3), date: ft3!.date } : null;
   const method = SCORE_METHODS[score.id];
   const attention = patterns[0] || (flags.length > (score.flags || []).length && flags[0] !== score.flags?.[0] ? flags[0] : score.attention);
-  return { ...score, flags: [...new Set([...patterns, ...flags])], attention, tone: attention && score.score >= 70 ? 'strained' : score.tone,
+  return { ...score, flags: [...new Set([...patterns, ...flags])], attention, tone: attention && score.score! >= 70 ? 'strained' : score.tone,
     descriptiveRatio, methodology: method?.[0] || '', sourceUrl: method?.[1] || '' };
 }

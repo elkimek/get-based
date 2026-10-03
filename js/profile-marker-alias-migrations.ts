@@ -28,7 +28,7 @@ export interface ProfileMarkerData {
 // profile-marker-alias-migrations.js — canonical and named built-in alias repairs
 
 import { BUILTIN_MARKER_DOT_KEY_ALIASES, MARKER_SCHEMA, normalizeClinicalUnit } from './schema.js';
-import { SPECIALTY_MARKER_DEFS } from './adapters.js';
+import { SPECIALTY_MARKER_DEFS } from './specialty-marker-catalog.js';
 import { renameLabEntryMarker } from './lab-entry.js';
 
 export function normalizeProfileMarkerLabel(value: unknown) {

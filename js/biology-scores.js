@@ -8,9 +8,7 @@ import { assessScoreRecency } from './biology-score-dates.js';
 import { getScoreInputs } from './biology-score-contract.js';
 import { addScoreInterpretation } from './biology-score-methodology.js';
 import { getBiologyScoreCopy } from './biology-score-copy.js';
-import { computeBloodFlowSignals } from './biology-score-blood-flow.js';
-import { computeWeightedComposite } from './biology-score-engine.js';
-import { computeIronHandling } from './biology-score-iron.js';
+import { computeWeightedComposite, computeBloodFlowSignals, computeIronHandling, computeThyroidCoherence } from './biology-score-engine.js';
 
 import {
   renderBiologicalCoherenceLensHero as renderBiologicalCoherenceLensHeroImpl,
@@ -26,7 +24,6 @@ import {
 import { getScoreAIMaterialKey, hasCurrentScoreAIAssessment, getScoreAIRequestKey, renderScoreAIAnswer, renderScoreAISummary, writeScoreAIAnswer, writeScoreAIAnswers, retryUnsavedScoreAIAnswers, pendingScoreExplanations, setScoreExplanationError } from './biology-score-sections.js';
 import { TIER1_BIOLOGY_SCORE_DEFINITIONS } from './biology-score-tier1-definitions.js';
 import { TIER2_BIOLOGY_SCORE_DEFINITIONS } from './biology-score-tier2-definitions.js';
-import { computeThyroidCoherence } from './biology-score-thyroid.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { state } from './state.js';
 import { createNewThread } from './chat-loader.js';

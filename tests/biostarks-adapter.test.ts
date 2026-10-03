@@ -11,7 +11,7 @@ it('retains BioStarks adapter and import contracts', () => {
     const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
     const { assert, results: legacyAssertions } = createLegacyAssertions();
     console.log('=== BioStarks Adapter Tests ===\n');
-    const adaptersSrc = read('js/adapters.js');
+    const adaptersSrc = read('js/adapters.js') + read('js/specialty-marker-catalog.js');
     const pdfImportSrc = read('js/pdf-import.js');
     const normalizationSrc = read('js/pdf-import-marker-normalization.js');
     // ═══════════════════════════════════════

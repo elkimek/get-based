@@ -11,6 +11,7 @@
 // Run: fetch('tests/test-audit-fixes.js').then(r=>r.text()).then(s=>Function(s)())
 
 return (async function () {
+  const { hasDirectStartupImports } = await import('/tests/helpers/startup-composition.js');
   let pass = 0, fail = 0;
   function assert(name, cond, detail) {
     if (cond) {
@@ -322,22 +323,22 @@ return (async function () {
   // unhandled-rejection toasts in browsers + leave the UI confused.
   console.log('%c 6. debounce pushProfile .catch() ', 'font-weight:bold;color:#0891b2');
   {
-    const src = await fetchSrc('js/sync-save-hooks.js');
+    const src = await fetchSrc('js/sync-save-hooks-core.js');
     // onDataSaved + onChatSaved route through scheduleProfilePush. The
     // helper owns the retry loop and must still terminate the async push
     // chain with .catch so rejected pushes do not leak as unhandled
     // promise rejections.
     const helper = src.slice(src.indexOf('function scheduleProfilePush'),
-                              src.indexOf('export function onProfileSaved'));
-    const onSaved = src.slice(src.indexOf('export function onDataSaved'),
-                              src.indexOf('export function onChatSaved'));
-    const onChat = src.slice(src.indexOf('export function onChatSaved'),
-                              src.indexOf('export function onChatSaved') + 1500);
+                              src.indexOf('function onProfileSaved'));
+    const onSaved = src.slice(src.indexOf('function onDataSaved'),
+                              src.indexOf('function onChatSaved'));
+    const onChat = src.slice(src.indexOf('function onChatSaved'),
+                              src.indexOf('function onChatSaved') + 1500);
     assert('scheduleProfilePush retries while sync is busy',
-      /!_isEvoluReady\(\)\s*\|\|\s*_isSyncing\(\)/.test(helper)
+      /!\(0, syncSaveHooksDeps\.isEvoluReady\)\(\)\s*\|\|\s*\(0, syncSaveHooksDeps\.isSyncing\)\(\)/.test(helper)
         && /attempt\s*<\s*60/.test(helper));
     assert('scheduleProfilePush catches rejected push',
-      /_pushProfile\(profileId,\s*state\.importedData\)\.catch\(\(\)\s*=>\s*\{\}\)/.test(helper));
+      /\(0, syncSaveHooksDeps\.pushProfile\)\(profileId,\s*state\.importedData\)\.catch\(\(\)\s*=>\s*\{\s*\}\)/.test(helper));
     assert('onDataSaved routes through scheduleProfilePush',
       /scheduleProfilePush\(profileId,\s*data\)/.test(onSaved));
     assert('onChatSaved routes through scheduleProfilePush',
@@ -436,8 +437,8 @@ return (async function () {
     const chatLoader = await fetchSrc('js/chat-loader.js');
     const appUiShellFeatures = await fetchSrc('js/app-ui-shell-modules.js');
     const appShellHooks = await fetchSrc('js/app-shell-hooks.js');
-    assert('main.js delegates feature side-effect imports',
-      /import\s+['"]\.\/app-feature-modules\.js['"]/.test(main));
+    assert('main.js preserves ordered feature side-effect imports',
+      hasDirectStartupImports(main));
     assert('app-feature-modules.js drops device-session-ai-analysis import',
       !/import\s+['"]\.\/device-session-ai-analysis\.js['"]/.test(appFeatures));
     assert('main.js drops device-session-ai-analysis import',
