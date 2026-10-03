@@ -1,10 +1,13 @@
+type QueriedModuleOperations = {_dedupeQueriesForTest: typeof import('../../js/lens.js')._dedupeQueriesForTest; _fuseChunksRRFForTest: typeof import('../../js/lens.js')._fuseChunksRRFForTest; _resetRewriteCache: typeof import('../../js/lens.js')._resetRewriteCache; saveLensConfig: typeof import('../../js/lens.js').saveLensConfig; handleLibraryNew: typeof import('../../js/lens.js').handleLibraryNew};
+
+import type {Page} from '@playwright/test';
 import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('lensHelperCoverage');
 
-async function openIsolatedLensHelperPage(page) {
+async function openIsolatedLensHelperPage(page: Page) {
   await routeHtml(page, '**/lens-helper-browser-coverage', `<!doctype html>
       <html>
         <body>
@@ -23,13 +26,13 @@ test('lens browser coverage exercises helper exports and fallback library prompt
   await openIsolatedLensHelperPage(page);
 
   const results = await page.evaluate(async ({ lensUrl }) => {
-    const lens = await import(lensUrl);
-    const outcomes = {};
+    const lens = (await import(lensUrl) as unknown) as QueriedModuleOperations;
+    const outcomes: Record<string, boolean> = {};
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
       return [key, key == null ? null : localStorage.getItem(key)];
     }));
-    const waitFor = async (predicate, label) => {
+    const waitFor = async (predicate: () => boolean, label: string) => {
       for (let attempt = 0; attempt < 80; attempt += 1) {
         if (predicate()) return true;
         await new Promise(resolve => setTimeout(resolve, 25));
@@ -60,8 +63,8 @@ test('lens browser coverage exercises helper exports and fallback library prompt
       ], 3);
       outcomes.fuseChunksRanksDedupesAndSkipsMalformed =
         fused.length === 2
-        && fused[0].source === 'doc-a.md'
-        && fused[0].text === 'alpha'
+        && fused[0]!.source === 'doc-a.md'
+        && fused[0]!.text === 'alpha'
         && fused[1] === chunkB;
 
       lens._resetRewriteCache();

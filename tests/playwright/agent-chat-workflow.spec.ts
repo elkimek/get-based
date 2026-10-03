@@ -2,8 +2,8 @@ import { expect, test } from './coverage-fixture.js';
 import { AGENT_HOST_CAPABILITY_LIST, AGENT_HOST_PROTOCOL_VERSION } from '../../shared/agent-host-protocol.js';
 
 test('chat sends through the companion, executes a real marker tool, and persists an edited retry after reload', async ({ page }) => {
-  const turns = [];
-  const receipts = [];
+  const turns: {prompt: unknown; tools: {name?: unknown}[]}[] = [];
+  const receipts: {success?: unknown; contentItems: {text: string}[]}[] = [];
   const token = 'synthetic-workflow-token';
   const companion = {
     service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324', token,
@@ -65,10 +65,10 @@ test('chat sends through the companion, executes a real marker tool, and persist
   await expect(page.locator('#chat-messages')).toContainText('Your saved glucose result is 5.8 mmol/l.');
   await expect.poll(() => receipts.length).toBe(1);
   expect(turns).toHaveLength(1);
-  expect(turns[0].prompt).toContain('Read my saved glucose result.');
-  expect(turns[0].tools.some(tool => tool.name === 'getbased_marker_history')).toBe(true);
-  expect(receipts[0].success).toBe(true);
-  const history = JSON.parse(receipts[0].contentItems[0].text);
+  expect(turns[0]!.prompt).toContain('Read my saved glucose result.');
+  expect(turns[0]!.tools.some(tool => tool.name === 'getbased_marker_history')).toBe(true);
+  expect(receipts[0]!.success).toBe(true);
+  const history = JSON.parse(receipts[0]!.contentItems[0]!.text);
   expect(history).toMatchObject({ available: true, values: [{ date: '2026-09-01', value: 5.8, unit: 'mmol/l' }] });
   await expect.poll(() => page.evaluate(async () => (await import('/js/chat-send.js')).isChatStreaming())).toBe(false);
   await page.locator('#chat-msg-0 [data-chat-message-action=edit-user-message]').click();
@@ -77,7 +77,7 @@ test('chat sends through the companion, executes a real marker tool, and persist
   await expect.poll(() => receipts.length).toBe(2);
   await expect.poll(() => page.evaluate(async () => (await import('/js/chat-send.js')).isChatStreaming())).toBe(false);
   expect(turns).toHaveLength(2);
-  expect(turns[1].prompt).toBe('Please read my latest saved glucose.');
+  expect(turns[1]!.prompt).toBe('Please read my latest saved glucose.');
   const threadId = await page.evaluate(async () => (await import('/js/state.js')).state.currentThreadId);
   // The persisted-chat assertion must not start background AI refreshes.
   await page.evaluate(() => localStorage.setItem('labcharts-ai-paused', 'true'));
@@ -85,7 +85,7 @@ test('chat sends through the companion, executes a real marker tool, and persist
   await page.evaluate(async threadId => {
     await (await import('/js/chat-loader.js')).loadChatModule();
     await (await import('/js/chat-panel.js')).openChatPanel();
-    await (await import('/js/chat-threads.js')).switchToThread(threadId);
+    await (await import('/js/chat-threads.js')).switchToThread(threadId!);
   }, threadId);
   await expect(page.locator('#chat-messages')).toContainText('Please read my latest saved glucose.');
   await expect(page.locator('#chat-messages')).not.toContainText('Read my saved glucose result.');

@@ -12,30 +12,30 @@ test('sun correlations browser coverage computes Pearson pairs', async ({ page }
   const outcomes = await page.evaluate(async ({ correlationsUrl }) => {
     const [{ state }, correlations] = await Promise.all([
       import('/js/state.js'),
-      import(correlationsUrl),
+      (import(correlationsUrl) as Promise<unknown>) as Promise<{computeSunCorrelations: typeof import('../../js/sun-correlations.js').computeSunCorrelations}>,
     ]);
-    const clone = value => JSON.parse(JSON.stringify(value ?? {}));
+    const clone = (value: unknown) => JSON.parse(JSON.stringify(value ?? {}));
     const saved = {
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
     };
-    const outcomes = {};
+    const outcomes: Record<string, boolean> = {};
     const now = Date.now();
     const weekMs = 7 * 86400 * 1000;
     const dayMs = 86400 * 1000;
-    const session = (weekOffset, vitaminD) => ({
+    const session = (weekOffset: number, vitaminD: number) => ({
       id: `sun-correlation-${weekOffset}`,
       endedAt: now - weekOffset * weekMs - 5000,
       doses: { vitamin_d: vitaminD },
     });
-    const entry = (weekOffset, vitaminD) => ({
+    const entry = (weekOffset: number, vitaminD: number) => ({
       date: new Date(now - weekOffset * weekMs - dayMs).toISOString().slice(0, 10),
       markers: { 'vitamins.vitaminD': vitaminD },
     });
 
     try {
       state.currentProfile = `sun-correlations-browser-${Date.now()}`;
-      state.importedData = {
+      (state as {importedData: unknown}).importedData = {
         sunSessions: [
           session(0, 8),
           session(1, 7),
@@ -69,7 +69,7 @@ test('sun correlations browser coverage computes Pearson pairs', async ({ page }
         result.weeks === 12
         && typeof result.computedAt === 'number'
         && result.pairs.every((item, index) =>
-          index === 0 || Math.abs(result.pairs[index - 1].r) >= Math.abs(item.r)
+          index === 0 || Math.abs(result.pairs[index - 1]!.r) >= Math.abs(item.r)
         )
         && result.pairs.every(item =>
           typeof item.channel === 'string'
@@ -81,7 +81,7 @@ test('sun correlations browser coverage computes Pearson pairs', async ({ page }
           && item.n >= 4
         );
     } finally {
-      state.importedData = saved.importedData;
+      (state as {importedData: unknown}).importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
     }
 

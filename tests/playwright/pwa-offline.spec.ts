@@ -9,7 +9,7 @@ const TEST_IDENTITY = {
 
 test('installed PWA completes a cache-only cold offline relaunch', async ({ page }, testInfo) => {
   testInfo.setTimeout(120_000);
-  const failedStaticRequests = [];
+  const failedStaticRequests: {url: string; error: string}[] = [];
   let recordFailures = false;
 
   page.on('requestfailed', (request) => {
@@ -78,8 +78,8 @@ test('installed PWA completes a cache-only cold offline relaunch', async ({ page
   await expect.poll(() => page.evaluate(async () => {
     const runtime = await import('/js/sync-runtime.js');
     return {
-      clientVersion: runtime.getSyncEvolu()?.__evoluClientVersion || null,
-      ownerId: runtime.getSyncAppOwner()?.id ? String(runtime.getSyncAppOwner().id) : null,
+      clientVersion: (runtime.getSyncEvolu() as {__evoluClientVersion?: unknown} | null)?.__evoluClientVersion || null,
+      ownerId: runtime.getSyncAppOwner()?.id ? String(runtime.getSyncAppOwner()!.id) : null,
     };
   }), { timeout: 30_000 }).toEqual({ clientVersion: 8, ownerId: TEST_IDENTITY.ownerId });
   await page.waitForTimeout(500);

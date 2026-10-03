@@ -13,7 +13,7 @@ test('the real demo dashboard packs without overlapping cards', async ({ page })
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {
     await (await import('/js/export.js')).loadDemoData('female');
-    window.endTour?.();
+    (window as Window & {endTour?: typeof import('../../js/tour.js').endTour}).endTour?.();
     for (const id of ['tour-overlay', 'tour-spotlight', 'tour-tooltip']) document.getElementById(id)?.remove();
     await (await import('/js/chat-panel.js')).closeChatPanel();
     (await import('/js/views.js')).navigate('dashboard');
@@ -29,8 +29,8 @@ test('the real demo dashboard packs without overlapping cards', async ({ page })
     return { width: r.width, bottom: r.bottom };
   }));
   expect(pair).toHaveLength(2);
-  expect(Math.abs(pair[0].bottom - pair[1].bottom)).toBeLessThanOrEqual(1);
-  expect(pair[0].width).not.toBe(pair[1].width);
+  expect(Math.abs(pair[0]!.bottom - pair[1]!.bottom)).toBeLessThanOrEqual(1);
+  expect(pair[0]!.width).not.toBe(pair[1]!.width);
   await expect(grid.locator('.db-spotlight .db-spark')).toHaveCSS('height', '80px');
   await page.screenshot({ path: '/tmp/getbased-packed-dashboard.png' });
 });
@@ -57,13 +57,13 @@ test('desktop rows adapt widths and heights after content and order changes', as
   }));
   await expect.poll(async () => {
     const [short, tall, wide, filler] = await boxes();
-    return short.right - short.x < tall.right - tall.x && Math.abs(short.bottom - tall.bottom) < 1 && filler.y > wide.y;
+    return short!.right - short!.x < tall!.right - tall!.x && Math.abs(short!.bottom - tall!.bottom) < 1 && filler!.y > wide!.y;
   }).toBe(true);
   expect((await boxes()).map(card => card.id)).toEqual(['short', 'tall', 'wide', 'filler', 'end']);
   await page.locator('#short > div').evaluate(card => { card.textContent = 'New long explanation. '.repeat(120); });
   await expect.poll(async () => {
     const [short, tall] = await boxes();
-    return short.right - short.x > tall.right - tall.x;
+    return short!.right - short!.x > tall!.right - tall!.x;
   }).toBe(true);
   await expect.poll(async () => {
     const all = await boxes();
@@ -71,10 +71,10 @@ test('desktop rows adapt widths and heights after content and order changes', as
   }).toBe(true);
   await grid.evaluate(el => el.classList.add('is-organizing'));
   await expect(grid).toHaveClass(/is-adaptive/);
-  await grid.evaluate(el => el.insertBefore(el.querySelector('#filler'), el.querySelector('#tall')));
+  await grid.evaluate(el => el.insertBefore(el.querySelector('#filler')!, el.querySelector('#tall')));
   await expect.poll(async () => {
     const all = await boxes();
-    return all[0].y === all[1].y && all[1].id === 'filler' && all[2].y > all[1].y;
+    return all[0]!.y === all[1]!.y && all[1]!.id === 'filler' && all[2]!.y > all[1]!.y;
   }).toBe(true);
   await grid.evaluate(el => { el.classList.remove('is-organizing'); el.style.width = '500px'; });
   await expect(grid).not.toHaveClass(/is-adaptive/);

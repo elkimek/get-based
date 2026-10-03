@@ -1,3 +1,5 @@
+type QueriedModuleOperations = {isExportImportModuleLoaded: (...args: Parameters<typeof import('../../js/export.js').isExportImportModuleLoaded>) => boolean; loadExportImportModule: (...args: Parameters<typeof import('../../js/export.js').loadExportImportModule>) => Promise<unknown>; importDataJSON: (...args: Parameters<typeof import('../../js/export.js').importDataJSON>) => Promise<unknown>};
+
 import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -16,7 +18,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('JSON import loader stays cold, shares its first load, and delegates the file', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/export-import.js*', async route => {
     implementationRequests.push(route.request().url());
     await new Promise(resolve => setTimeout(resolve, 25));
@@ -27,7 +29,7 @@ test('JSON import loader stays cold, shares its first load, and delegates the fi
   });
 
   const outcomes = await page.evaluate(async url => {
-    const exportModule = await import(url);
+    const exportModule = (await import(url) as unknown) as QueriedModuleOperations;
     const cold = !exportModule.isExportImportModuleLoaded();
     const first = exportModule.loadExportImportModule();
     const second = exportModule.loadExportImportModule();
@@ -39,7 +41,7 @@ test('JSON import loader stays cold, shares its first load, and delegates the fi
       sharedPromise,
       loaded: exportModule.isExportImportModuleLoaded(),
       result,
-      calls: window.__exportImportLoaderCalls || [],
+      calls: (window as Window & {__exportImportLoaderCalls?: unknown[]}).__exportImportLoaderCalls || [],
     };
   }, exportUrl());
 
@@ -54,7 +56,7 @@ test('JSON import loader stays cold, shares its first load, and delegates the fi
 });
 
 test('JSON import action contains a failed load and retries with the fixed URL', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/export-import.js*', async route => {
     const url = route.request().url();
     implementationRequests.push(url);
@@ -73,7 +75,7 @@ test('JSON import action contains a failed load and retries with the fixed URL',
   });
 
   const outcomes = await page.evaluate(async url => {
-    const exportModule = await import(url);
+    const exportModule = (await import(url) as unknown) as QueriedModuleOperations;
     const first = await exportModule.importDataJSON(new File(['{}'], 'first.json'));
     const unloadedAfterFailure = !exportModule.isExportImportModuleLoaded();
     const second = await exportModule.importDataJSON(new File(['{}'], 'retry.json'));
@@ -82,14 +84,14 @@ test('JSON import action contains a failed load and retries with the fixed URL',
       unloadedAfterFailure,
       second,
       loadedAfterRetry: exportModule.isExportImportModuleLoaded(),
-      calls: window.__exportImportLoaderCalls || [],
+      calls: (window as Window & {__exportImportLoaderCalls?: unknown[]}).__exportImportLoaderCalls || [],
       notification: document.body.textContent,
     };
   }, exportUrl());
 
   expect(implementationRequests).toHaveLength(2);
-  expect(new URL(implementationRequests[0]).search).toBe('');
-  expect(new URL(implementationRequests[1]).searchParams.get('lazy-retry')).toBe('1');
+  expect(new URL(implementationRequests[0]!).search).toBe('');
+  expect(new URL(implementationRequests[1]!).searchParams.get('lazy-retry')).toBe('1');
   expect(outcomes).toMatchObject({
     first: undefined,
     unloadedAfterFailure: true,

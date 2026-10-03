@@ -52,7 +52,7 @@ test('changelog forceShow entries auto-open until the latest version is seen', a
     await maybeShowChangelog();
     const staysClosedAfterLatestSeen = overlay.classList.contains('show') === false;
 
-    localStorage.setItem('labcharts-changelog-seen', window.APP_VERSION);
+    (localStorage as unknown as {setItem(key: string, value: unknown): void}).setItem('labcharts-changelog-seen', (window as Window & {APP_VERSION?: unknown}).APP_VERSION);
     overlay.classList.remove('show');
     await maybeShowChangelog();
     const staysClosedWhenNoForceShowIsNewer = overlay.classList.contains('show') === false;

@@ -19,10 +19,10 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
     const originalSex = state.profileSex;
     const originalDob = state.profileDob;
     const originalView = state.currentView;
-    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
     let renameCategoryKey = '';
     const previousCategoryPageDeps = categoryPageModule.configureCategoryPageViewDeps({
-      renameCategory: key => { renameCategoryKey = key; },
+      renameCategory: (key: string) => { renameCategoryKey = key; },
     });
 
     try {
@@ -38,7 +38,7 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
       viewsModule.showCategory('biochemistry');
       await delay(50);
       const beforeHeading = document.querySelector('.category-header h2')?.textContent || null;
-      const tableBtn = document.querySelector('[data-category-page-action="switch-view"][data-category-page-view="table"]');
+      const tableBtn = document.querySelector<HTMLElement>('[data-category-page-action="switch-view"][data-category-page-view="table"]');
       tableBtn?.click();
       await delay(30);
       const categoryDelegatesSwitchViews =
@@ -46,7 +46,7 @@ test('audit runtime guards no-op on adversarial marker ids', async ({ page }) =>
         && !!document.querySelector('.gb-table-shell-data')
         && !document.querySelector('.view-toggle')?.innerHTML.includes('onclick=');
 
-      document.querySelector('[data-category-page-action="rename-category"]')?.click();
+      document.querySelector<HTMLElement>('[data-category-page-action="rename-category"]')?.click();
       await delay(10);
       const categoryDelegatesRename = renameCategoryKey === 'biochemistry';
 

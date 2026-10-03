@@ -1,3 +1,5 @@
+type QueriedModuleOperations = {isWearablesConnectModuleLoaded: (...args: Parameters<typeof import('../../js/wearables-connect-loader.js').isWearablesConnectModuleLoaded>) => boolean; loadWearablesConnectModule: (...args: Parameters<typeof import('../../js/wearables-connect-loader.js').loadWearablesConnectModule>) => Promise<{initWearableScheduler: (...args: Parameters<typeof import('../../js/wearables-connect.js').initWearableScheduler>) => unknown; handleOAuthCallbackOnLoad: (...args: Parameters<typeof import('../../js/wearables-connect.js').handleOAuthCallbackOnLoad>) => Promise<unknown>}>};
+
 import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -21,7 +23,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('wearable vendor connection code stays cold and single-flights on demand', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/wearables-connect.js*', async route => {
     implementationRequests.push(route.request().url());
     await new Promise(resolve => setTimeout(resolve, 25));
@@ -32,7 +34,7 @@ test('wearable vendor connection code stays cold and single-flights on demand', 
   });
 
   const outcomes = await page.evaluate(async url => {
-    const loader = await import(url);
+    const loader = (await import(url) as unknown) as QueriedModuleOperations;
     const cold = !loader.isWearablesConnectModuleLoaded();
     const first = loader.loadWearablesConnectModule();
     const second = loader.loadWearablesConnectModule();
@@ -43,7 +45,7 @@ test('wearable vendor connection code stays cold and single-flights on demand', 
       cold,
       sharedPromise,
       loaded: loader.isWearablesConnectModuleLoaded(),
-      calls: window.__wearablesConnectLoaderCalls || [],
+      calls: (window as Window & {__wearablesConnectLoaderCalls?: unknown[]}).__wearablesConnectLoaderCalls || [],
     };
   }, loaderUrl());
 
@@ -57,7 +59,7 @@ test('wearable vendor connection code stays cold and single-flights on demand', 
 });
 
 test('wearable connection loader retries a failed module request with a fixed URL', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/wearables-connect.js*', async route => {
     const url = route.request().url();
     implementationRequests.push(url);
@@ -72,7 +74,7 @@ test('wearable connection loader retries a failed module request with a fixed UR
   });
 
   const outcomes = await page.evaluate(async url => {
-    const loader = await import(url);
+    const loader = (await import(url) as unknown) as QueriedModuleOperations;
     let firstRejected = false;
     try {
       await loader.loadWearablesConnectModule();
@@ -88,8 +90,8 @@ test('wearable connection loader retries a failed module request with a fixed UR
   }, loaderUrl());
 
   expect(implementationRequests).toHaveLength(2);
-  expect(new URL(implementationRequests[0]).search).toBe('');
-  expect(new URL(implementationRequests[1]).search).toBe('?lazy-retry=1');
+  expect(new URL(implementationRequests[0]!).search).toBe('');
+  expect(new URL(implementationRequests[1]!).search).toBe('?lazy-retry=1');
   expect(outcomes).toEqual({
     firstRejected: true,
     loaded: true,

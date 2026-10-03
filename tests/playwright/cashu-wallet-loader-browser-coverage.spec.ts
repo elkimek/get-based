@@ -1,3 +1,5 @@
+type QueriedModuleOperations = {isCashuWalletModuleLoaded: (...args: Parameters<typeof import('../../js/export-runtime.js').isCashuWalletModuleLoaded>) => boolean; loadCashuWalletModule: (...args: Parameters<typeof import('../../js/export-runtime.js').loadCashuWalletModule>) => Promise<unknown>; destroyWalletRuntimeDB: (...args: Parameters<typeof import('../../js/export-runtime.js').destroyWalletRuntimeDB>) => Promise<unknown>};
+
 import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -16,7 +18,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('Cashu wallet stays cold, single-flights, and loads for explicit database destruction', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/cashu-wallet.js*', async route => {
     implementationRequests.push(route.request().url());
     await new Promise(resolve => setTimeout(resolve, 25));
@@ -27,7 +29,7 @@ test('Cashu wallet stays cold, single-flights, and loads for explicit database d
   });
 
   const outcomes = await page.evaluate(async url => {
-    const runtime = await import(url);
+    const runtime = (await import(url) as unknown) as QueriedModuleOperations;
     const cold = !runtime.isCashuWalletModuleLoaded();
     const first = runtime.loadCashuWalletModule();
     const second = runtime.loadCashuWalletModule();
@@ -38,7 +40,7 @@ test('Cashu wallet stays cold, single-flights, and loads for explicit database d
       cold,
       sharedPromise,
       loaded: runtime.isCashuWalletModuleLoaded(),
-      calls: window.__cashuWalletLoaderCalls || [],
+      calls: (window as Window & {__cashuWalletLoaderCalls?: unknown[]}).__cashuWalletLoaderCalls || [],
     };
   }, runtimeUrl());
 
@@ -52,7 +54,7 @@ test('Cashu wallet stays cold, single-flights, and loads for explicit database d
 });
 
 test('Cashu wallet database destruction retries with a fixed module URL', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/cashu-wallet.js*', async route => {
     const url = route.request().url();
     implementationRequests.push(url);
@@ -67,7 +69,7 @@ test('Cashu wallet database destruction retries with a fixed module URL', async 
   });
 
   const outcomes = await page.evaluate(async url => {
-    const runtime = await import(url);
+    const runtime = (await import(url) as unknown) as QueriedModuleOperations;
     let firstRejected = false;
     try {
       await runtime.destroyWalletRuntimeDB();
@@ -78,13 +80,13 @@ test('Cashu wallet database destruction retries with a fixed module URL', async 
     return {
       firstRejected,
       loaded: runtime.isCashuWalletModuleLoaded(),
-      calls: window.__cashuWalletLoaderCalls || [],
+      calls: (window as Window & {__cashuWalletLoaderCalls?: unknown[]}).__cashuWalletLoaderCalls || [],
     };
   }, runtimeUrl());
 
   expect(implementationRequests).toHaveLength(2);
-  expect(new URL(implementationRequests[0]).search).toBe('');
-  expect(new URL(implementationRequests[1]).search).toBe('?lazy-retry=1');
+  expect(new URL(implementationRequests[0]!).search).toBe('');
+  expect(new URL(implementationRequests[1]!).search).toBe('?lazy-retry=1');
   expect(outcomes).toEqual({
     firstRejected: true,
     loaded: true,

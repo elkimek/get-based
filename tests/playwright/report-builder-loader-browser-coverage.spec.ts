@@ -1,3 +1,5 @@
+type QueriedModuleOperations = {isReportBuilderModuleLoaded: (...args: Parameters<typeof import('../../js/export.js').isReportBuilderModuleLoaded>) => boolean; loadReportBuilderModule: (...args: Parameters<typeof import('../../js/export.js').loadReportBuilderModule>) => Promise<unknown>; openReportBuilder: (...args: Parameters<typeof import('../../js/export.js').openReportBuilder>) => Promise<unknown>; closeReportBuilder: (...args: Parameters<typeof import('../../js/export.js').closeReportBuilder>) => unknown};
+
 import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -18,7 +20,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('report builder loader stays cold, shares its first load, and delegates open and close', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/export-report-builder.js*', async route => {
     implementationRequests.push(route.request().url());
     await new Promise(resolve => setTimeout(resolve, 25));
@@ -29,7 +31,7 @@ test('report builder loader stays cold, shares its first load, and delegates ope
   });
 
   const outcomes = await page.evaluate(async url => {
-    const exportModule = await import(url);
+    const exportModule = (await import(url) as unknown) as QueriedModuleOperations;
     const cold = !exportModule.isReportBuilderModuleLoaded();
     const coldClose = exportModule.closeReportBuilder();
     const first = exportModule.loadReportBuilderModule();
@@ -45,7 +47,7 @@ test('report builder loader stays cold, shares its first load, and delegates ope
       loaded: exportModule.isReportBuilderModuleLoaded(),
       opened,
       closed,
-      calls: window.__reportBuilderLoaderCalls || [],
+      calls: (window as Window & {__reportBuilderLoaderCalls?: unknown[]}).__reportBuilderLoaderCalls || [],
     };
   }, exportUrl());
 
@@ -62,7 +64,7 @@ test('report builder loader stays cold, shares its first load, and delegates ope
 });
 
 test('report builder open contains a failed load and retries with the fixed URL', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/export-report-builder.js*', async route => {
     const url = route.request().url();
     implementationRequests.push(url);
@@ -81,7 +83,7 @@ test('report builder open contains a failed load and retries with the fixed URL'
   });
 
   const outcomes = await page.evaluate(async url => {
-    const exportModule = await import(url);
+    const exportModule = (await import(url) as unknown) as QueriedModuleOperations;
     const first = await exportModule.openReportBuilder('clinician');
     const unloadedAfterFailure = !exportModule.isReportBuilderModuleLoaded();
     const second = await exportModule.openReportBuilder('personal');
@@ -91,14 +93,14 @@ test('report builder open contains a failed load and retries with the fixed URL'
       unloadedAfterFailure,
       second,
       loadedAfterRetry: exportModule.isReportBuilderModuleLoaded(),
-      calls: window.__reportBuilderLoaderCalls || [],
+      calls: (window as Window & {__reportBuilderLoaderCalls?: unknown[]}).__reportBuilderLoaderCalls || [],
       notification: document.body.textContent,
     };
   }, exportUrl());
 
   expect(implementationRequests).toHaveLength(2);
-  expect(new URL(implementationRequests[0]).search).toBe('');
-  expect(new URL(implementationRequests[1]).searchParams.get('lazy-retry')).toBe('1');
+  expect(new URL(implementationRequests[0]!).search).toBe('');
+  expect(new URL(implementationRequests[1]!).searchParams.get('lazy-retry')).toBe('1');
   expect(outcomes).toMatchObject({
     first: false,
     unloadedAfterFailure: true,

@@ -1,7 +1,7 @@
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = (path) => `${path}?lensWearablesHelperCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?lensWearablesHelperCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   path: "/lens-wearables-helper-coverage", body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
@@ -12,10 +12,10 @@ test('lens and wearables helper coverage exercises chunking math and display for
 
   const results = await page.evaluate(async ({ lensUtilsUrl, wearablesFormattersUrl }) => {
     const [lensUtils, wearablesFormatters] = await Promise.all([
-      import(lensUtilsUrl),
-      import(wearablesFormattersUrl),
+      (import(lensUtilsUrl) as Promise<unknown>) as Promise<{chunkText: typeof import('../../js/lens-local-utils.js').chunkText; cosine: typeof import('../../js/lens-local-utils.js').cosine; mmrSelect: typeof import('../../js/lens-local-utils.js').mmrSelect}>,
+      (import(wearablesFormattersUrl) as Promise<unknown>) as Promise<{formatValue: typeof import('../../js/wearables-formatters.js').formatValue; shortDate: typeof import('../../js/wearables-formatters.js').shortDate}>,
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, boolean> = {};
 
     outcomes.chunkShortTextHonorsMinimumSize = lensUtils.chunkText('short', 800, 50, 50).length === 0
       && lensUtils.chunkText('hello world this is fifty plus characters exactly here', 800, 50, 50)
@@ -24,13 +24,13 @@ test('lens and wearables helper coverage exercises chunking math and display for
     const sentenceText = 'A'.repeat(600) + '. ' + 'B'.repeat(500);
     const sentenceChunks = lensUtils.chunkText(sentenceText, 800, 50, 50);
     outcomes.chunkSnapsToSentenceBoundary = sentenceChunks.length === 2
-      && sentenceChunks[0].endsWith('.')
-      && sentenceChunks[0].length < sentenceText.length;
+      && sentenceChunks[0]!.endsWith('.')
+      && sentenceChunks[0]!.length < sentenceText.length;
 
     const wordChunks = lensUtils.chunkText('word '.repeat(400), 800, 50, 50);
     const tail = wordChunks[0]?.slice(-30) || '';
     outcomes.chunkPreservesOverlapAndProgresses = wordChunks.length > 1
-      && wordChunks[1].includes(tail.slice(5))
+      && wordChunks[1]!.includes(tail.slice(5))
       && wordChunks.every((chunk) => chunk.length >= 50);
 
     outcomes.cosineCoversLengthClampAndSigns = Math.abs(lensUtils.cosine([1, 0, 0], [1, 0, 0]) - 1) < 1e-9
@@ -52,17 +52,17 @@ test('lens and wearables helper coverage exercises chunking math and display for
       { i: 2, score: 0.50 },
       { i: 3, score: 0.10 },
     ];
-    const getVec = (i) => vectors[i];
+    const getVec = (i: number) => vectors[i]!;
     const relevanceOnly = lensUtils.mmrSelect(candidates, 3, 1, getVec);
     const diversityOnly = lensUtils.mmrSelect(candidates, 2, 0, getVec);
     const balanced = lensUtils.mmrSelect(candidates, 3, 0.5, getVec);
     const noSelectionNeeded = lensUtils.mmrSelect(candidates.slice(0, 2), 3, 0.5, getVec);
     outcomes.mmrCoversRelevanceDiversityAndEarlyReturn = relevanceOnly.map((item) => item.i).join(',') === '0,1,4'
       && diversityOnly.map((item) => item.i).join(',') === '0,3'
-      && balanced[0].i === 0
+      && balanced[0]!.i === 0
       && balanced.every((item) => item.i !== 1)
       && noSelectionNeeded.length === 2
-      && noSelectionNeeded[1].i === 1;
+      && noSelectionNeeded[1]!.i === 1;
 
     outcomes.formatValueCoversInvalidIntegerAndDecimalUnits =
       wearablesFormatters.formatValue(null, 'ms') === '\u2014'

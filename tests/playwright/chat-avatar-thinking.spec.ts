@@ -19,7 +19,7 @@ test.beforeEach(async ({ page }) => {
 test('the composer opens AI context before dashboard context hooks are registered', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(async () => {
-    window.endTour?.();
+    (window as Window & {endTour?: typeof import('../../js/tour.js').endTour}).endTour?.();
     for (const id of ['tour-overlay', 'tour-spotlight', 'tour-tooltip']) document.getElementById(id)?.remove();
     await (await import('/js/chat-panel.js')).openChatPanel();
     const runtime = await import('/js/context-cards-runtime.js');
@@ -65,7 +65,7 @@ test('chat shows profile, CLI, and persona identities with rotating pre-token co
     });
     thinking.stopChatThinkingStatus(indicator);
     thinking.startChatThinkingStatus(indicator, { phrases: ['Checking the evidence', 'Connecting the dots'], durations: [500] });
-    container.appendChild(indicator);
+    container!.appendChild(indicator);
     const initialPhrase = indicator.querySelector('.chat-thinking-text')?.textContent;
     await new Promise(resolve => setTimeout(resolve, 550));
     const rotatedPhrase = indicator.querySelector('.chat-thinking-text')?.textContent;
@@ -81,11 +81,11 @@ test('chat shows profile, CLI, and persona identities with rotating pre-token co
       rotatedPhrase,
       dotCount: indicator.querySelectorAll('.chat-thinking-dots i').length,
       indicatorHidden: indicator.getAttribute('aria-hidden'),
-      overflow: container.scrollWidth - container.clientWidth,
-      userMargin: getComputedStyle(user).marginRight,
-      assistantMargin: getComputedStyle(cli).marginLeft,
-      cliTileColor: getComputedStyle(cli, '::before').backgroundColor,
-      personaLabels: [...container.querySelectorAll('.chat-persona-label')].map(label => label.textContent.trim()),
+      overflow: container!.scrollWidth - container!.clientWidth,
+      userMargin: getComputedStyle(user!).marginRight,
+      assistantMargin: getComputedStyle(cli!).marginLeft,
+      cliTileColor: getComputedStyle(cli!, '::before').backgroundColor,
+      personaLabels: [...container!.querySelectorAll('.chat-persona-label')].map(label => label.textContent!.trim()),
     };
   });
 

@@ -1,3 +1,4 @@
+import type {Page} from '@playwright/test';
 import { expect, test } from './coverage-fixture.js';
 
 test.beforeEach(async ({ page }) => {
@@ -8,32 +9,32 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-async function loadDemoAndReadNutrition(page, sex) {
+async function loadDemoAndReadNutrition(page: Page, sex: Parameters<typeof import('../../js/export.js').loadDemoData>[0]) {
   return page.evaluate(async requestedSex => {
     await (await import('/js/export.js')).loadDemoData(requestedSex);
     const { state } = await import('/js/state.js');
     const { listActiveProfileMeals } = await import('/js/nutrition-store.js');
     const meals = await listActiveProfileMeals();
-    const current = state.profiles.find(profile => profile.id === state.currentProfile);
+    const current = state.profiles!.find(profile => profile.id === state.currentProfile);
     return {
       name: current?.name,
       tags: current?.tags || [],
       mealCount: meals.length,
       mealNames: meals.map(meal => meal.name),
-      imageCount: meals.reduce((total, meal) => total + (meal.images?.length || 0), 0),
+      imageCount: meals.reduce((total, meal) => total + ((meal.images as {length?: number} | null | undefined)?.length || 0), 0),
       summaryMeals: state.nutritionSummary?.totalMeals,
       loggedDays: state.nutritionSummary?.windows?.d7?.loggedDays,
       targetNutrients: state.importedData.nutritionTargets?.widgetNutrients || [],
       contextEnabled: state.importedData.contextSourceSettings?.['meals-nutrition'],
       contextDays: state.importedData.nutritionContextDays,
-      demoProfileNames: state.profiles.filter(profile => profile.tags?.includes('demo')).map(profile => profile.name),
+      demoProfileNames: state.profiles!.filter(profile => profile.tags?.includes('demo')).map(profile => profile.name),
     };
   }, sex);
 }
 
 test('Demo Alex and Demo Sarah include current, usable Meal Log histories without provider calls', async ({ page }) => {
   test.setTimeout(60_000);
-  const providerRequests = [];
+  const providerRequests: string[] = [];
   page.on('request', request => {
     if (/api\.(openrouter|venice)\.ai/.test(request.url())) providerRequests.push(request.url());
   });

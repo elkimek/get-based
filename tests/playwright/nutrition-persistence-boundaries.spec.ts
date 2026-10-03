@@ -21,7 +21,7 @@ test('meal proposal rolls back its local cache and live surface when the profile
     };
     const draft = { profileId: state.currentProfile, kind: 'meal', status: 'pending', payload: { name: 'Synthetic lunch', eatenAt: '2026-09-21T12:00:00Z', nutrients: { energyKcal: 500 } } };
     let error = '';
-    try { await applyAgentDraft(draft); } catch (e) { error = e.message; }
+    try { await applyAgentDraft(draft); } catch (e) { error = (e as {message: string}).message; }
     finally { IDBObjectStore.prototype.put = put; }
     const failed = { error, liveCount: (state.importedData.nutritionMeals || []).length, cacheCount: (await listNutritionMeals(state.currentProfile)).length, unchanged: before === await encryptedGetItem(key) };
     const notice = await applyAgentDraft(draft);
@@ -55,7 +55,7 @@ test(`a stale nutrition ${operation} preserves unrelated changes committed by an
     if (operation === 'delete') await deleteActiveProfileMeal(meal.id);
     else if (operation === 'restore') await restoreNutritionArchive(state.currentProfile, { version: 1, meals: [meal] });
     else await saveActiveProfileMeal(meal);
-    return JSON.parse(await encryptedGetItem(profileStorageKey(state.currentProfile, 'imported')));
+    return (JSON.parse as (text: unknown) => Record<string, unknown>)(await encryptedGetItem(profileStorageKey(state.currentProfile, 'imported')));
   }, operation);
   expect(saved.contextNotes).toBe('Committed elsewhere');
   if (operation === 'delete') expect(saved.nutritionMeals || []).toEqual([]);
@@ -84,10 +84,10 @@ test('hydration rebuilds its summary after the canonical meal committed but cach
     try { await nutrition.saveActiveProfileMeal({ id: 'committed-meal', name: 'Committed lunch', eatenAt: new Date().toISOString(), nutrients: { energyKcal: 500 } }); }
     catch { failed = true; }
     finally { IDBObjectStore.prototype.put = put; }
-    const stored = JSON.parse(await encryptedGetItem(profileStorageKey(state.currentProfile, 'imported')));
+    const stored = (JSON.parse as (text: unknown) => Record<string, unknown>)(await encryptedGetItem(profileStorageKey(state.currentProfile, 'imported')));
     nutrition.resetNutritionDB(state.currentProfile);
     const recovered = await nutrition.hydrateNutritionSummary(state.currentProfile);
-    return { failed, initialCount: initial?.totalMeals || 0, storedIds: stored.nutritionMeals.map(meal => meal.id), recoveredCount: recovered?.totalMeals || 0 };
+    return { failed, initialCount: initial?.totalMeals || 0, storedIds: (stored.nutritionMeals as {id?: unknown}[]).map(meal => meal.id), recoveredCount: recovered?.totalMeals || 0 };
   });
   expect(result).toEqual({ failed: true, initialCount: 0, storedIds: ['committed-meal'], recoveredCount: 1 });
 });

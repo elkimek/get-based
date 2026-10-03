@@ -1,3 +1,5 @@
+type QueriedModuleOperations = {formatImageBlock: typeof import('../../js/image-utils.js').formatImageBlock; buildVisionContent: typeof import('../../js/image-utils.js').buildVisionContent; resizeImage: typeof import('../../js/image-utils.js').resizeImage};
+
 import { expect, test } from './coverage-fixture.js';
 
 test('chat image attachment DOM is present and its CSS loads on demand', async ({ page }) => {
@@ -53,8 +55,8 @@ test('image utility content builders format provider-compatible vision messages'
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
-    const imageUtils = await import(`/js/image-utils.js?imageUtilsCoverage=${Date.now()}`);
-    const outcomes = {};
+    const imageUtils = (await import(`/js/image-utils.js?imageUtilsCoverage=${Date.now()}`) as unknown) as QueriedModuleOperations;
+    const outcomes: Record<string, boolean> = {};
     const block = imageUtils.formatImageBlock('abc123', 'image/png', 'ollama');
     const contentWithText = imageUtils.buildVisionContent([block], 'Read the marker table.', 'openrouter');
     const contentWithoutText = imageUtils.buildVisionContent([block], '', 'venice');
@@ -65,8 +67,8 @@ test('image utility content builders format provider-compatible vision messages'
     outcomes.buildVisionContentAppendsTextOnlyWhenProvided =
       contentWithText.length === 2
       && contentWithText[0] === block
-      && contentWithText[1].type === 'text'
-      && contentWithText[1].text === 'Read the marker table.'
+      && contentWithText[1]!.type === 'text'
+      && (contentWithText[1] as {text?: unknown}).text === 'Read the marker table.'
       && contentWithoutText.length === 1
       && contentWithoutText[0] === block;
 
@@ -82,7 +84,7 @@ test('image resizing rejects cleanly when a 2D canvas context is unavailable', a
   await page.goto('/app', { waitUntil: 'load' });
 
   const message = await page.evaluate(async () => {
-    const imageUtils = await import(`/js/image-utils.js?imageUtilsContextGuard=${Date.now()}`);
+    const imageUtils = (await import(`/js/image-utils.js?imageUtilsContextGuard=${Date.now()}`) as unknown) as QueriedModuleOperations;
     const originalGetContext = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = () => null;
     try {

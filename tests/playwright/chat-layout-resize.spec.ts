@@ -44,28 +44,28 @@ test('desktop chat and conversation rail resize independently and persist', asyn
 
   const panelBox = await panelHandle.boundingBox();
   expect(panelBox).toBeTruthy();
-  await page.mouse.move(panelBox.x + panelBox.width / 2, 300);
+  await page.mouse.move(panelBox!.x + panelBox!.width / 2, 300);
   await page.mouse.down();
-  await page.mouse.move(panelBox.x - 80, 300);
-  const livePanelWidth = Math.round((await panel.boundingBox()).width);
+  await page.mouse.move(panelBox!.x - 80, 300);
+  const livePanelWidth = Math.round((await panel.boundingBox())!.width);
   expect(livePanelWidth).toBeGreaterThanOrEqual(895);
   expect(livePanelWidth).toBeLessThanOrEqual(910);
   await expect(main).toHaveCSS('padding-right', `${livePanelWidth + 32}px`);
   await page.mouse.up();
-  const panelWidthAfterDrag = Math.round((await panel.boundingBox()).width);
+  const panelWidthAfterDrag = Math.round((await panel.boundingBox())!.width);
   expect(panelWidthAfterDrag).toBe(livePanelWidth);
   await expect(main).toHaveCSS('padding-right', `${panelWidthAfterDrag + 32}px`);
 
   const railBox = await railHandle.boundingBox();
   expect(railBox).toBeTruthy();
-  await page.mouse.move(railBox.x, 300);
+  await page.mouse.move(railBox!.x, 300);
   await page.mouse.down();
-  await page.mouse.move(railBox.x + 40, 300);
+  await page.mouse.move(railBox!.x + 40, 300);
   await page.mouse.up();
-  const railWidthAfterDrag = Math.round((await rail.boundingBox()).width);
+  const railWidthAfterDrag = Math.round((await rail.boundingBox())!.width);
   expect(railWidthAfterDrag).toBeGreaterThanOrEqual(255);
   expect(railWidthAfterDrag).toBeLessThanOrEqual(265);
-  expect(Math.round((await panel.boundingBox()).width)).toBe(panelWidthAfterDrag);
+  expect(Math.round((await panel.boundingBox())!.width)).toBe(panelWidthAfterDrag);
   await expect(main).toHaveCSS('padding-right', `${panelWidthAfterDrag + 32}px`);
 
   await panelHandle.focus();

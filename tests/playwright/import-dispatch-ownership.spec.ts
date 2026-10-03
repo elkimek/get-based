@@ -7,17 +7,17 @@ for (const route of ['picker', 'lazy-drop', 'loaded-drop']) {
       const pdf = await (await import('/js/import-loader.js')).loadImportUI();
       const { configureDnaModuleBridge } = await import('/js/dna-runtime-bridge.js');
       const { importDispatch } = await import('/js/pdf-import-progress.js');
-      let release, started, classifications = 0;
-      const gate = new Promise(resolve => { release = resolve; });
-      const ready = new Promise(resolve => { started = resolve; });
+      let release: (() => void) | undefined, started: (() => void) | undefined, classifications = 0;
+      const gate = new Promise<void>(resolve => { release = resolve; });
+      const ready = new Promise<void>(resolve => { started = resolve; });
       const previous = configureDnaModuleBridge({
         isDNAFile: () => false,
-        isDNAFileByContent: async () => { classifications++; started(); await gate; return false; },
+        isDNAFileByContent: async () => { classifications++; started!(); await gate; return false; },
       });
       document.getElementById('drop-zone')?.remove();
       const zone = document.createElement('div'); zone.id = 'drop-zone'; document.body.append(zone);
-      const completions = [], add = zone.addEventListener.bind(zone);
-      zone.addEventListener = (name, listener, options) => add(name, name === 'drop'
+      const completions: unknown[] = [], add = zone.addEventListener.bind(zone);
+      (zone as unknown as {addEventListener: (name: string, listener: (event: Event) => unknown, options?: boolean | AddEventListenerOptions) => void}).addEventListener = (name, listener, options) => add(name, name === 'drop'
         ? event => { completions.push(listener(event)); } : listener, options);
       const setup = route === 'lazy-drop' ? (await import('/js/import-drop-zone.js')).setupDropZone : pdf.setupDropZone;
       setup(); setup();
@@ -33,9 +33,9 @@ for (const route of ['picker', 'lazy-drop', 'loaded-drop']) {
         else { drop(); await completions.at(-1); }
         const pending = { classifications, busy: importDispatch.busy };
         (await import('/js/state.js')).state.currentProfile = 'after-overlap';
-        release(); await first;
+        release!(); await first;
         return { pending, busy: importDispatch.busy };
-      } finally { release(); configureDnaModuleBridge(previous); }
+      } finally { release!(); configureDnaModuleBridge(previous); }
     }, { route, overlap });
     expect(result).toEqual({ pending: { classifications: 1, busy: true }, busy: false });
   });
@@ -62,8 +62,8 @@ for (const route of ['picker', 'lazy-drop', 'loaded-drop']) {
           document.getElementById('drop-zone')?.remove();
           const zone = document.createElement('div'); zone.id = 'drop-zone'; document.body.append(zone);
           const add = zone.addEventListener.bind(zone);
-          let completion;
-          zone.addEventListener = (name, listener, options) => add(name, name === 'drop'
+          let completion: unknown;
+          (zone as unknown as {addEventListener: (name: string, listener: (event: Event) => unknown, options?: boolean | AddEventListenerOptions) => void}).addEventListener = (name, listener, options) => add(name, name === 'drop'
             ? event => { completion = listener(event); } : listener, options);
           if (route === 'lazy-drop') (await import('/js/import-drop-zone.js')).setupDropZone();
           else pdf.setupDropZone();

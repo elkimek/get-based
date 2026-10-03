@@ -1,11 +1,13 @@
+type RGB = {r: number; g: number; b: number};
+type RGBA = RGB & {a: number};
 import { expect, test } from './coverage-fixture.js';
 
 const THEMES = ['dark', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer'];
 
-function parseCssColor(value) {
+function parseCssColor(value: unknown) {
   const match = String(value || '').match(/rgba?\(([^)]+)\)/i);
   if (!match) return null;
-  const parts = match[1].split(',').map(part => part.trim());
+  const parts = match[1]!.split(',').map(part => part.trim());
   return {
     r: Number(parts[0]),
     g: Number(parts[1]),
@@ -14,7 +16,7 @@ function parseCssColor(value) {
   };
 }
 
-function compositeOver(color, under) {
+function compositeOver(color: RGBA, under: RGB) {
   const alpha = Number.isFinite(color.a) ? color.a : 1;
   return {
     r: color.r * alpha + under.r * (1 - alpha),
@@ -23,12 +25,12 @@ function compositeOver(color, under) {
   };
 }
 
-function luminance(channel) {
+function luminance(channel: number) {
   const value = channel / 255;
   return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
 }
 
-function contrastRatio(foreground, background) {
+function contrastRatio(foreground: RGB, background: RGB) {
   const fg = 0.2126 * luminance(foreground.r) + 0.7152 * luminance(foreground.g) + 0.0722 * luminance(foreground.b);
   const bg = 0.2126 * luminance(background.r) + 0.7152 * luminance(background.g) + 0.0722 * luminance(background.b);
   const light = Math.max(fg, bg);
@@ -68,8 +70,8 @@ test('dark theme primary dashboard CTA hover text stays readable', async ({ page
     expect(foreground, `${theme} foreground ${styles.color}`).toBeTruthy();
     expect(background, `${theme} background ${styles.backgroundColor}`).toBeTruthy();
 
-    const compositedBackground = compositeOver(background, bodyBackground);
-    const ratio = contrastRatio(foreground, compositedBackground);
+    const compositedBackground = compositeOver(background!, bodyBackground);
+    const ratio = contrastRatio(foreground!, compositedBackground);
     expect(ratio, `${theme} hover contrast ${ratio.toFixed(2)} (${styles.color} on ${styles.backgroundColor})`).toBeGreaterThanOrEqual(4.5);
   }
 });

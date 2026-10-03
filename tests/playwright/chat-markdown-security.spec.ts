@@ -1,3 +1,5 @@
+type QueriedModuleOperations = {renderMarkdown: typeof import('../../js/markdown.js').renderMarkdown};
+
 import { routeHtml } from '../helpers/browser-static-routes.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -6,7 +8,7 @@ test('chat Markdown stays formatted and inert in the browser DOM', async ({ page
   await page.goto('/chat-markdown-security', { waitUntil: 'load' });
 
   const result = await page.evaluate(async () => {
-    const markdown = await import(`/js/markdown.js?chatMarkdownSecurity=${Date.now()}`);
+    const markdown = (await import(`/js/markdown.js?chatMarkdownSecurity=${Date.now()}`) as unknown) as QueriedModuleOperations;
     const fixture = document.getElementById('fixture');
     const source = [
       '# hs-CRP interpretation',
@@ -29,8 +31,8 @@ test('chat Markdown stays formatted and inert in the browser DOM', async ({ page
       '```',
     ].join('\n');
 
-    fixture.innerHTML = markdown.renderMarkdown(source);
-    const elements = [...fixture.querySelectorAll('*')];
+    fixture!.innerHTML = markdown.renderMarkdown(source);
+    const elements = [...fixture!.querySelectorAll('*')];
     const eventAttributes = elements.flatMap(element => [...element.attributes]
       .filter(attribute => attribute.name.startsWith('on'))
       .map(attribute => `${element.tagName}.${attribute.name}`));
@@ -38,36 +40,36 @@ test('chat Markdown stays formatted and inert in the browser DOM', async ({ page
     deep.innerHTML = markdown.renderMarkdown(`${'>'.repeat(12_000)} bounded quote`);
 
     return {
-      text: fixture.textContent,
+      text: fixture!.textContent,
       hasExpectedShapes: Boolean(
-        fixture.querySelector('.chat-h1')
-        && fixture.querySelector('strong')
-        && fixture.querySelector('ul.chat-list')
-        && fixture.querySelector('table.chat-table')
-        && fixture.querySelector('blockquote.chat-blockquote')
-        && fixture.querySelector('pre.chat-code-block code')
+        fixture!.querySelector('.chat-h1')
+        && fixture!.querySelector('strong')
+        && fixture!.querySelector('ul.chat-list')
+        && fixture!.querySelector('table.chat-table')
+        && fixture!.querySelector('blockquote.chat-blockquote')
+        && fixture!.querySelector('pre.chat-code-block code')
       ),
-      dangerousTags: fixture.querySelectorAll('script,img,svg,math,iframe,object,embed,style,form,input').length,
+      dangerousTags: fixture!.querySelectorAll('script,img,svg,math,iframe,object,embed,style,form,input').length,
       eventAttributes,
-      nestedAnchors: fixture.querySelectorAll('a a').length,
-      codeLinks: fixture.querySelectorAll('code a').length,
-      linksContainingCode: fixture.querySelectorAll('a code').length,
-      terminalHref: [...fixture.querySelectorAll('a')]
+      nestedAnchors: fixture!.querySelectorAll('a a').length,
+      codeLinks: fixture!.querySelectorAll('code a').length,
+      linksContainingCode: fixture!.querySelectorAll('a code').length,
+      terminalHref: [...fixture!.querySelectorAll('a')]
         .find(anchor => anchor.textContent === 'https://terminal.example/report?')?.getAttribute('href'),
-      adjacentSourceHref: [...fixture.querySelectorAll('a')]
+      adjacentSourceHref: [...fixture!.querySelectorAll('a')]
         .find(anchor => anchor.textContent === 'https://source.example/report')?.getAttribute('href'),
-      adjacentDetailsHref: [...fixture.querySelectorAll('a')]
+      adjacentDetailsHref: [...fixture!.querySelectorAll('a')]
         .find(anchor => anchor.textContent === 'details')?.getAttribute('href'),
-      adjacentCodeHref: [...fixture.querySelectorAll('a')]
+      adjacentCodeHref: [...fixture!.querySelectorAll('a')]
         .find(anchor => anchor.textContent === 'https://code.example/result')?.getAttribute('href'),
-      blockedHref: [...fixture.querySelectorAll('a')]
+      blockedHref: [...fixture!.querySelectorAll('a')]
         .find(anchor => anchor.textContent === 'blocked')?.getAttribute('href'),
-      protectedRel: [...fixture.querySelectorAll('a')]
+      protectedRel: [...fixture!.querySelectorAll('a')]
         .filter(anchor => anchor.getAttribute('href') !== '#')
         .every(anchor => anchor.rel.includes('noopener') && anchor.rel.includes('noreferrer')),
       deepQuoteCount: deep.querySelectorAll('blockquote').length,
       deepText: deep.textContent,
-      executed: globalThis.__markdownPwned === true,
+      executed: (globalThis as {__markdownPwned?: unknown}).__markdownPwned === true,
     };
   });
 
