@@ -19,6 +19,9 @@
       ],
       "/js/sun-active-session.js?replacement-browser": [
         "./js/sun-active-session.ts"
+      ],
+      "/vendor/routstr-crypto.js": [
+        "./scripts/vendor-entries/routstr-crypto.ts"
       ]
     },
     "module": "NodeNext",

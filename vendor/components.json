@@ -226,6 +226,7 @@
   ],
   "projectFiles": [
     "vendor/bip39-minimal.js",
+    "vendor/bip39-minimal.ts",
     "vendor/chartjs-adapter-native.js",
     "vendor/ehbp-browser.d.ts",
     "vendor/ppq-private-tee.js",

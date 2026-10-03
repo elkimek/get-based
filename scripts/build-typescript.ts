@@ -75,7 +75,7 @@ export function buildTypeScript(rootDir = root): void {
   }
   // Reject accidental module payload before any compilation overwrites an existing URL.
   for (const name of fixtures) fixtureFunction(readFileSync(path.join(rootDir, name), 'utf8'), name, false);
-  for (const config of ['tsconfig.migration.json', 'tsconfig.worker-migration.json', 'tsconfig.bootstrap-migration.json', 'tsconfig.fixture-migration.json']) {
+  for (const config of ['tsconfig.migration.json', 'tsconfig.worker-migration.json', 'tsconfig.fixture-migration.json', 'tsconfig.bootstrap-migration.json']) {
     execFileSync(process.execPath, [
       path.join(rootDir, 'node_modules/typescript/bin/tsc'),
       '-p', path.join(rootDir, config),
@@ -89,7 +89,7 @@ export function buildTypeScript(rootDir = root): void {
   for (const { output, body } of bodies) writeFileSync(output, body);
   // TS7 always emits strict mode. Classic scripts retain their original execution
   // mode; this affects emission only, and every source still passes strict checks.
-  for (const name of ['service-worker', 'service-worker-runtime', 'service-worker-assets', 'version', 'js/theme-bootstrap', 'js/extra-theme-bootstrap', 'js/legal-consent-bootstrap', 'js/analytics-bootstrap', 'js/app-extension-bootstrap']) {
+  for (const name of ['service-worker', 'service-worker-runtime', 'service-worker-assets', 'version', 'js/theme-bootstrap', 'js/extra-theme-bootstrap', 'js/legal-consent-bootstrap', 'js/analytics-bootstrap', 'js/app-extension-bootstrap', 'vendor/bip39-minimal']) {
     const output = path.join(rootDir, name + '.js');
     writeFileSync(output, readFileSync(output, 'utf8').replace(/^"use strict";\r?\n/, ''));
   }
