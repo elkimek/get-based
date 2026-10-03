@@ -1,3 +1,7 @@
+type FixtureSessionRead = Record<string, unknown>;
+type FixtureSunPayloadRead = { startedAt?: unknown; endedAt?: unknown; bodyExposure?: Record<string, unknown>; notes?: unknown; regions?: {includes(value: unknown):unknown}; lensTint?:unknown; glassBetween?:unknown; posture?:unknown; surfaceAlbedo?:unknown; eyeMode?:unknown; rotatedSides?:unknown };
+type FixtureCameraSave = {kind:unknown;value:unknown;meta:unknown};
+type FixtureCameraMetaRead = {roomId?:unknown;extra:{source?:unknown;reason?:unknown;calibrationFactor?:unknown;bandingRatio?:unknown;melanopic?:unknown;pwmActive?:unknown;lockMode?:unknown}};
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -9,11 +13,11 @@ test('sun session UI covers list detail edit delete and past-session save paths'
   const results = await page.evaluate(async ({ sunSessionUiUrl }) => {
     const [{ state }, sunUI] = await Promise.all([
       import('/js/state.js'),
-      import(sunSessionUiUrl),
+      (import(sunSessionUiUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sun-session-ui.js'), "configureSunSessionUI" | "renderSessionsList" | "renderChannelChips" | "openSunSessionDetail" | "openDetailedSessionDialog" | "editSunSessionDuration" | "deleteSunSession">>,
     ]);
-    const outcomes = {};
-    const originalView = state.currentView;
-    let sessions = [
+    const outcomes: Record<string, unknown> = {};
+    const originalView = (state as unknown as {currentView?:unknown}).currentView;
+    let sessions: FixtureSessionRead[] = [
       {
         id: 'sun-ended',
         startedAt: Date.UTC(2026, 5, 7, 9, 0),
@@ -59,11 +63,11 @@ test('sun session UI covers list detail edit delete and past-session save paths'
         doses: { circadian: 10 },
       },
     ];
-    const calls = [];
+    const calls: unknown[][] = [];
 
     try {
       state.currentView = 'light';
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         ...state.importedData,
         sunDefaults: { ...(state.importedData?.sunDefaults || {}), fitzpatrick: 'II', completedAt: Date.now() },
       };
@@ -82,28 +86,28 @@ test('sun session UI covers list detail edit delete and past-session save paths'
       });
       sunUI.configureSunSessionUI({
         getSessions: () => sessions,
-        deleteSession: async id => {
+        deleteSession: async (id: unknown) => {
           calls.push(['delete', id]);
           sessions = sessions.filter(sess => sess.id !== id);
           return true;
         },
-        updateSession: async (id, patch) => {
+        updateSession: async (id: unknown, patch: unknown) => {
           calls.push(['update', id, patch]);
           const sess = sessions.find(item => item.id === id);
           if (sess) Object.assign(sess, patch);
           return sess;
         },
-        logCompletedSession: async opts => {
+        logCompletedSession: async (opts: Record<string, unknown>) => {
           calls.push(['log-completed', opts]);
           sessions.push({ id: 'sun-logged', ...opts, doses: { vitamin_d: 1 } });
           return 'sun-logged';
         },
-        hydrateSession: async id => calls.push(['hydrate', id]),
+        hydrateSession: async (id: unknown) => calls.push(['hydrate', id]),
         getSunCoords: () => ({ lat: 50.08, lon: 14.43, source: 'test' }),
         refreshSurfaces: () => calls.push(['refresh']),
         wireBackdropClose: () => calls.push(['wire-backdrop']),
         trapModalFocus: () => calls.push(['trap-focus']),
-        summarizeBodyExposure: sess => `${sess.bodyExposure?.regions?.length || 0} regions`,
+        summarizeBodyExposure: (sess: unknown) => `${(sess as {bodyExposure?:{regions?:{length?:unknown}}}).bodyExposure?.regions?.length || 0} regions`,
         formatElapsed: () => '13:00:00',
         exposurePresets: [{ key: 'detailed', label: 'Detailed' }, { key: 'face_hands', label: 'Face + hands' }],
         eyeModes: [
@@ -121,13 +125,13 @@ test('sun session UI covers list detail edit delete and past-session save paths'
           pomc: { icon: 'P', label: 'POMC', dailyTarget: 100, what: 'POMC' },
           violet_eye: { icon: 'V', label: 'Violet', dailyTarget: 100, what: 'Violet' },
         },
-        channelTier: value => value >= 100 ? 3 : value > 20 ? 2 : value > 0 ? 1 : 0,
-        tierLabel: tier => ['none', 'low', 'moderate', 'high'][tier] || 'none',
-        formatChannelUnit: (key, value) => `${Math.round(value)} ${key}`,
+        channelTier: (value: number) => value >= 100 ? 3 : value > 20 ? 2 : value > 0 ? 1 : 0,
+        tierLabel: (tier: number) => ['none', 'low', 'moderate', 'high'][tier] || 'none',
+        formatChannelUnit: (key: string, value: number) => `${Math.round(value)} ${key}`,
         tooShortForChannelVerdictMin: 2,
         renderSessionAIInline: () => '<span class="ai-inline-test">AI inline</span>',
         renderSessionAIDetail: () => '<section class="ai-detail-test">AI detail</section>',
-        navigate: route => calls.push(['navigate', route]),
+        navigate: (route: unknown) => calls.push(['navigate', route]),
         solarZenithAngle,
         reconstructSpectrum,
         geneticVitaminDMultiplier,
@@ -139,51 +143,51 @@ test('sun session UI covers list detail edit delete and past-session save paths'
 
       const listHost = document.createElement('div');
       listHost.innerHTML = sunUI.renderSessionsList();
-      const activeRow = listHost.querySelector('[data-id="sun-active"]');
-      const completedRow = listHost.querySelector('[data-id="sun-ended"]');
-      outcomes.sessionListIncludesActiveControls = !!activeRow?.querySelector('[data-sun-session-action="pause-session"]')
-        && !!activeRow?.querySelector('[data-sun-session-action="forgot-stop"]')
-        && !listHost.querySelector('.ai-inline-test')
+      const activeRow = listHost.querySelector<HTMLElement>('[data-id="sun-active"]');
+      const completedRow = listHost.querySelector<HTMLElement>('[data-id="sun-ended"]');
+      outcomes.sessionListIncludesActiveControls = !!activeRow?.querySelector<HTMLElement>('[data-sun-session-action="pause-session"]')
+        && !!activeRow?.querySelector<HTMLElement>('[data-sun-session-action="forgot-stop"]')
+        && !listHost.querySelector<HTMLElement>('.ai-inline-test')
         && completedRow?.classList.contains('light-session-complete')
-        && !completedRow?.querySelector('.sun-channel-chips,.sun-session-delete');
+        && !completedRow?.querySelector<HTMLElement>('.sun-channel-chips,.sun-session-delete');
 
       const chipsHost = document.createElement('div');
-      chipsHost.innerHTML = sunUI.renderChannelChips(sessions[0].doses, sessions[0]);
-      outcomes.channelChipsShowTopChannelsAndMore = !!chipsHost.querySelector('.sun-chip-more')
+      chipsHost.innerHTML = (sunUI.renderChannelChips as (doses:unknown,session:unknown)=>ReturnType<typeof sunUI.renderChannelChips>)((sessions[0])!.doses, sessions[0]);
+      outcomes.channelChipsShowTopChannelsAndMore = !!chipsHost.querySelector<HTMLElement>('.sun-chip-more')
         && chipsHost.textContent.includes('Vitamin D');
 
       sunUI.openSunSessionDetail('sun-ended');
-      const detailOverlay = document.querySelector('.sun-detail-modal')?.closest('.modal-overlay');
+      const detailOverlay = document.querySelector<HTMLElement>('.sun-detail-modal')?.closest('.modal-overlay');
       const detailText = detailOverlay?.textContent || '';
       const detailHtml = detailOverlay?.innerHTML || '';
       outcomes.detailShowsAtmosphereGenesAndModifiers = !!detailOverlay
         && detailText.includes('UV split')
         && detailHtml.includes('GC TT')
         && detailText.includes('Behind glass')
-        && detailOverlay.querySelectorAll('.sun-detail-channel-row').length >= 6
-        && !!detailOverlay.querySelector('.ai-detail-test');
+        && detailOverlay.querySelectorAll<HTMLElement>('.sun-detail-channel-row').length >= 6
+        && !!detailOverlay.querySelector<HTMLElement>('.ai-detail-test');
       detailOverlay?.remove();
 
       sunUI.openDetailedSessionDialog();
-      const detailedOverlay = document.querySelector('.sun-detailed-modal')?.closest('.modal-overlay');
+      const detailedOverlay = document.querySelector<HTMLElement>('.sun-detailed-modal')?.closest('.modal-overlay');
       if (detailedOverlay) {
-        const pad = value => String(value).padStart(2, '0');
-        const localDateTimeValue = date => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        const pad = (value: unknown) => String(value).padStart(2, '0');
+        const localDateTimeValue = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
         const endedAt = new Date(Date.now() - 10 * 60 * 1000);
         const startedAt = new Date(endedAt.getTime() - 20 * 60 * 1000);
-        detailedOverlay.querySelector('#det-started-at').value = localDateTimeValue(startedAt);
-        detailedOverlay.querySelector('#det-ended-at').value = localDateTimeValue(endedAt);
-        detailedOverlay.querySelector('#det-spf').value = '8';
-        detailedOverlay.querySelector('#det-glass').checked = true;
-        detailedOverlay.querySelector('#det-notes').value = 'Backfilled session';
-        detailedOverlay.querySelector('#det-save').click();
-        await new Promise(resolve => setTimeout(resolve, 0));
+        (detailedOverlay.querySelector<HTMLInputElement>('#det-started-at'))!.value = localDateTimeValue(startedAt);
+        (detailedOverlay.querySelector<HTMLInputElement>('#det-ended-at'))!.value = localDateTimeValue(endedAt);
+        (detailedOverlay.querySelector<HTMLInputElement>('#det-spf'))!.value = '8';
+        (detailedOverlay.querySelector<HTMLInputElement>('#det-glass'))!.checked = true;
+        (detailedOverlay.querySelector<HTMLTextAreaElement>('#det-notes'))!.value = 'Backfilled session';
+        (detailedOverlay.querySelector<HTMLElement>('#det-save'))!.click();
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
-      const loggedPastSession = calls.find(call => call[0] === 'log-completed')?.[1] || null;
+      const loggedPastSession = (calls.find(call => call[0] === 'log-completed')?.[1] || null) as FixtureSunPayloadRead | null;
       outcomes.pastSessionSaveLogsPayload = !!loggedPastSession;
       outcomes.pastSessionSaveTimes = Number.isFinite(loggedPastSession?.startedAt)
         && Number.isFinite(loggedPastSession?.endedAt)
-        && loggedPastSession.startedAt < loggedPastSession.endedAt;
+        && (loggedPastSession!.startedAt as number) < (loggedPastSession!.endedAt as number);
       outcomes.pastSessionSaveGlassAndSpf = loggedPastSession?.bodyExposure?.glassBetween === true
         && loggedPastSession?.bodyExposure?.sunscreenSPF === 8;
       outcomes.pastSessionSaveNotes = loggedPastSession?.notes === 'Backfilled session';
@@ -192,11 +196,11 @@ test('sun session UI covers list detail edit delete and past-session save paths'
 
       const editPromise = sunUI.editSunSessionDuration('sun-ended');
       await Promise.resolve();
-      document.getElementById('prompt-dialog-input').value = '42';
-      document.getElementById('prompt-ok').click();
+      ((document.getElementById('prompt-dialog-input') as HTMLInputElement | null))!.value = '42';
+      (document.getElementById('prompt-ok'))!.click();
       await editPromise;
       outcomes.editDurationUpdatesSession = sessions.find(sess => sess.id === 'sun-ended')?.durationMin === 42
-        && calls.some(call => call[0] === 'update' && call[1] === 'sun-ended' && call[2].durationMin === 42);
+        && calls.some(call => call[0] === 'update' && call[1] === 'sun-ended' && (call[2] as {durationMin?:unknown}).durationMin === 42);
 
       const missingEdit = sunUI.editSunSessionDuration('missing-session');
       await missingEdit;
@@ -204,13 +208,13 @@ test('sun session UI covers list detail edit delete and past-session save paths'
 
       const deletePromise = sunUI.deleteSunSession('sun-ended');
       await Promise.resolve();
-      document.getElementById('confirm-ok').click();
+      (document.getElementById('confirm-ok'))!.click();
       await deletePromise;
       outcomes.deleteConfirmsAndRefreshes = !sessions.some(sess => sess.id === 'sun-ended')
         && calls.some(call => call[0] === 'delete' && call[1] === 'sun-ended')
         && calls.some(call => call[0] === 'refresh');
     } finally {
-      state.currentView = originalView;
+      (state as unknown as {currentView?:unknown}).currentView = originalView;
       sunUI.configureSunSessionUI({
         getSessions: () => [],
         deleteSession: async () => false,
@@ -244,7 +248,7 @@ test('sun session UI covers list detail edit delete and past-session save paths'
         pbmJoulesPerCm2: null,
         circadianMelanopicLux: null,
       });
-      document.querySelectorAll('.modal-overlay,.confirm-overlay,.notification-container').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.modal-overlay,.confirm-overlay,.notification-container').forEach(el => el.remove());
     }
 
     return outcomes;
@@ -263,12 +267,12 @@ test('sun active session covers start dialog stop summary and live dose helpers'
   const results = await page.evaluate(async ({ activeUrl, sessionUiUrl }) => {
     const [{ state }, active, sunUI] = await Promise.all([
       import('/js/state.js'),
-      import(activeUrl),
-      import(sessionUiUrl),
+      (import(activeUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sun-active-session.js'), "configureSunActiveSession" | "openStartSunSessionDialog" | "setSunLiveState" | "liveDosesFor" | "commitSunLiveSlice" | "quickLogSunSession" | "_formatElapsed" | "resetSunActiveSessionState">>,
+      (import(sessionUiUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sun-session-ui.js'), "configureSunSessionUI" | "renderSessionsList" | "renderChannelChips" | "openSunSessionDetail" | "openDetailedSessionDialog" | "editSunSessionDuration" | "deleteSunSession">>,
     ]);
-    const outcomes = {};
-    const originalImported = JSON.parse(JSON.stringify(state.importedData || {}));
-    let sessions = [{
+    const outcomes: Record<string, unknown> = {};
+    const originalImported = JSON.parse(JSON.stringify(state.importedData || {})) as unknown;
+    let sessions: FixtureSessionRead[] = [{
       id: 'last-ended',
       startedAt: Date.now() - 3600000,
       endedAt: Date.now() - 1800000,
@@ -278,10 +282,10 @@ test('sun active session covers start dialog stop summary and live dose helpers'
       posture: 'standing',
       surfaceAlbedo: 'grass',
     }];
-    const calls = [];
+    const calls: unknown[][] = [];
 
     try {
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         ...state.importedData,
         sunDefaults: { fitzpatrick: 'II', photosensitiveMeds: 'moderate' },
         lightCircadian: { skinType: 'II - fair' },
@@ -292,15 +296,15 @@ test('sun active session covers start dialog stop summary and live dose helpers'
           vitamin_d: { icon: 'D', label: 'Vitamin D', dailyTarget: 300, what: 'Vitamin D' },
           circadian: { icon: 'C', label: 'Circadian', dailyTarget: 100, what: 'Circadian' },
         },
-        channelTier: value => value > 0 ? 2 : 0,
-        tierLabel: tier => tier ? 'moderate' : 'none',
-        formatChannelUnit: (key, value) => `${Math.round(value)} ${key}`,
+        channelTier: (value: number) => value > 0 ? 2 : 0,
+        tierLabel: (tier: unknown) => tier ? 'moderate' : 'none',
+        formatChannelUnit: (key: string, value: number) => `${Math.round(value)} ${key}`,
         tooShortForChannelVerdictMin: 2,
       });
       active.configureSunActiveSession({
         getSessions: () => sessions,
         getActiveSession: () => sessions.find(sess => !sess.endedAt) || null,
-        startSession: async opts => {
+        startSession: async (opts: Record<string, unknown>) => {
           calls.push(['start', opts]);
           sessions.push({
             id: 'active-sun',
@@ -314,10 +318,10 @@ test('sun active session covers start dialog stop summary and live dose helpers'
           });
           return 'active-sun';
         },
-        stopSession: async id => {
+        stopSession: async (id: unknown) => {
           calls.push(['stop', id]);
           const sess = sessions.find(item => item.id === id);
-          Object.assign(sess, {
+          Object.assign(sess!, {
             endedAt: Date.now(),
             durationMin: 24,
             doses: { vitamin_d: 220 },
@@ -326,13 +330,13 @@ test('sun active session covers start dialog stop summary and live dose helpers'
           });
           return sess;
         },
-        hydrateSession: async id => calls.push(['hydrate', id]),
+        hydrateSession: async (id: unknown) => calls.push(['hydrate', id]),
         getSunCoords: () => ({ lat: 50.08, lon: 14.43, altitudeM: 200 }),
         saveImportedData: async () => calls.push(['save']),
-        applyAtmOverrides: atm => ({ ...atm, uvIndex: atm.uvIndex + 0.1 }),
+        applyAtmOverrides: (atm: Record<string, unknown>) => ({ ...atm, uvIndex: (atm.uvIndex as number) + 0.1 }),
         refreshSurfaces: () => calls.push(['refresh']),
-        normalizePSMTier: raw => raw || 'none',
-        photosensitiveMedScale: tier => tier === 'moderate' ? 0.65 : 1,
+        normalizePSMTier: (raw: unknown) => raw || 'none',
+        photosensitiveMedScale: (tier: unknown) => tier === 'moderate' ? 0.65 : 1,
         eyeModes: [{ key: 'direct', label: 'Eyes uncovered' }, { key: 'sunglasses', label: 'Sunglasses' }],
         lensTints: [{ key: 'clear', label: 'Clear' }, { key: 'amber', label: 'Amber' }],
         postureOptions: [{ key: 'standing', label: 'Standing' }, { key: 'lying', label: 'Lying' }],
@@ -341,11 +345,11 @@ test('sun active session covers start dialog stop summary and live dose helpers'
 
       const fetchAtmosphere = async () => ({ uvIndex: 11.2, cloudCover: 10, ozoneDU: 290, source: 'open_meteo', confidence: 0.9, temperatureC: 34 });
       const reconstructSpectrum = () => ({ wavelengths: [300, 350, 400], irradiance: [1.2, 0.9, 0.4] });
-      const computeChannelDoses = ({ durationMin }) => ({ vitamin_d: 3 * durationMin, circadian: 2 * durationMin });
-      const erythemalSED = ({ durationMin }) => 0.4 * durationMin;
-      const fractionOfMED = ({ sed, medScale }) => sed / (10 * medScale);
+      const computeChannelDoses = ({ durationMin }: {durationMin:number}) => ({ vitamin_d: 3 * durationMin, circadian: 2 * durationMin });
+      const erythemalSED = ({ durationMin }: {durationMin:number}) => 0.4 * durationMin;
+      const fractionOfMED = ({ sed, medScale }: {sed:number;medScale:number}) => sed / (10 * medScale);
       const solarZenithAngle = () => 35;
-      const interpolateAtmosphere = atm => ({ ...atm, uvIndex: atm.uvIndex + 0.2 });
+      const interpolateAtmosphere = (atm: Record<string, unknown>) => ({ ...atm, uvIndex: (atm.uvIndex as number) + 0.2 });
       const vitaminDIU = () => 1300;
       const vitaminDIUPerSession = () => 2600;
       const renderLightChannelsLive = () => calls.push(['render-live']);
@@ -366,29 +370,29 @@ test('sun active session covers start dialog stop summary and live dose helpers'
       });
 
       await active.openStartSunSessionDialog();
-      await new Promise(resolve => setTimeout(resolve, 0));
-      const overlay = document.querySelector('.sun-start-modal')?.closest('.modal-overlay');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const overlay = document.querySelector<HTMLElement>('.sun-start-modal')?.closest('.modal-overlay');
       outcomes.startDialogShowsUvPreflight = !!overlay
-        && overlay.querySelector('#sun-start-uvi-banner')?.hidden === false
+        && overlay.querySelector<HTMLElement>('#sun-start-uvi-banner')?.hidden === false
         && overlay.textContent.includes('Extreme UV');
       outcomes.startDialogPassesSelectedDefaults = false;
       if (overlay) {
-        overlay.querySelector('#start-eye-mode').value = 'direct';
-        overlay.querySelector('#start-lens-tint').value = 'amber';
-        overlay.querySelector('#start-posture').value = 'lying';
-        overlay.querySelector('#start-surface').value = 'sand';
-        overlay.querySelector('#start-glass').checked = true;
-        overlay.querySelector('#start-confirm').click();
+        (overlay.querySelector<HTMLSelectElement>('#start-eye-mode'))!.value = 'direct';
+        (overlay.querySelector<HTMLSelectElement>('#start-lens-tint'))!.value = 'amber';
+        (overlay.querySelector<HTMLSelectElement>('#start-posture'))!.value = 'lying';
+        (overlay.querySelector<HTMLSelectElement>('#start-surface'))!.value = 'sand';
+        (overlay.querySelector<HTMLInputElement>('#start-glass'))!.checked = true;
+        (overlay.querySelector<HTMLElement>('#start-confirm'))!.click();
         await Promise.resolve();
         outcomes.startDialogPassesSelectedDefaults = calls.some(call => call[0] === 'start'
-          && call[1].regions.includes('face')
-          && call[1].lensTint === 'amber'
-          && call[1].glassBetween === true
-          && call[1].posture === 'lying'
-          && call[1].surfaceAlbedo === 'sand'
-          && call[1].eyeMode === 'glass-window'
-          && call[1].rotatedSides === false
-          && !overlay.querySelector('#start-rotated'));
+          && ((call[1] as FixtureSunPayloadRead).regions)!.includes('face')
+          && (call[1] as FixtureSunPayloadRead).lensTint === 'amber'
+          && (call[1] as FixtureSunPayloadRead).glassBetween === true
+          && (call[1] as FixtureSunPayloadRead).posture === 'lying'
+          && (call[1] as FixtureSunPayloadRead).surfaceAlbedo === 'sand'
+          && (call[1] as FixtureSunPayloadRead).eyeMode === 'glass-window'
+          && (call[1] as FixtureSunPayloadRead).rotatedSides === false
+          && !overlay.querySelector<HTMLElement>('#start-rotated'));
       }
 
       active.setSunLiveState('active-sun', {
@@ -407,24 +411,24 @@ test('sun active session covers start dialog stop summary and live dose helpers'
         pending: false,
       });
       const live = active.liveDosesFor(sessions.find(sess => sess.id === 'active-sun'));
-      outcomes.liveDosesIntegrateCurrentSlice = live.doses.vitamin_d > 0
-        && live.doses.pomc === 4
-        && live.medFraction > 0
-        && live.retinalUV > 2;
+      outcomes.liveDosesIntegrateCurrentSlice = (live!.doses.vitamin_d as number) > 0
+        && live!.doses.pomc === 4
+        && (live!.medFraction as number) > 0
+        && (live!.retinalUV as number) > 2;
 
-      sessions.find(sess => sess.id === 'active-sun').paused = true;
+      (sessions.find(sess => sess.id === 'active-sun'))!.paused = true;
       const paused = active.liveDosesFor(sessions.find(sess => sess.id === 'active-sun'));
-      outcomes.pausedLiveDosesUseCommittedValues = paused.paused === true
-        && paused.doses.pomc === 4
-        && paused.retinalUV === 2;
-      sessions.find(sess => sess.id === 'active-sun').paused = false;
+      outcomes.pausedLiveDosesUseCommittedValues = paused!.paused === true
+        && paused!.doses.pomc === 4
+        && paused!.retinalUV === 2;
+      (sessions.find(sess => sess.id === 'active-sun'))!.paused = false;
 
       const activeSession = sessions.find(sess => sess.id === 'active-sun');
       const committedSegment = active.commitSunLiveSlice(activeSession);
       const afterCommit = active.liveDosesFor(activeSession);
-      outcomes.commitSliceAccumulatesDoses = committedSegment?.durationMin > 0
-        && activeSession.exposureSegments?.length === 1
-        && afterCommit.doses.vitamin_d >= live.doses.vitamin_d;
+      outcomes.commitSliceAccumulatesDoses = (committedSegment?.durationMin)! > 0
+        && (activeSession!.exposureSegments as {length?:unknown} | null | undefined)?.length === 1
+        && (afterCommit!.doses.vitamin_d as number) >= (live!.doses.vitamin_d as number);
 
       await active.quickLogSunSession();
       outcomes.quickLogStopsActiveSession = calls.some(call => call[0] === 'stop' && call[1] === 'active-sun')
@@ -434,7 +438,7 @@ test('sun active session covers start dialog stop summary and live dose helpers'
       outcomes.elapsedFormattingCoversHourAndMinute = active._formatElapsed(3723000) === '1:02:03'
         && active._formatElapsed(65000) === '1:05';
     } finally {
-      state.importedData = originalImported;
+      (state as unknown as {importedData:unknown}).importedData = originalImported;
       active.resetSunActiveSessionState();
       active.configureSunActiveSession({
         getSessions: () => [],
@@ -444,9 +448,9 @@ test('sun active session covers start dialog stop summary and live dose helpers'
         hydrateSession: async () => null,
         getSunCoords: () => null,
         saveImportedData: async () => {},
-        applyAtmOverrides: atm => atm,
+        applyAtmOverrides: (atm: unknown) => atm,
         refreshSurfaces: () => {},
-        normalizePSMTier: raw => raw || 'none',
+        normalizePSMTier: (raw: unknown) => raw || 'none',
         photosensitiveMedScale: () => 1,
         eyeModes: [],
         lensTints: [],
@@ -459,12 +463,12 @@ test('sun active session covers start dialog stop summary and live dose helpers'
         fractionOfMED: () => 0,
         solarZenithAngle: () => 90,
         interpolateAtmosphere: () => null,
-        vitaminDIU: (channelAu, _fitzpatrick = 'III', _uvi = null, rotatedSides = false) => channelAu * 60 * (rotatedSides ? 2 : 1),
+        vitaminDIU: (channelAu: number, _fitzpatrick = 'III', _uvi: unknown = null, rotatedSides = false) => channelAu * 60 * (rotatedSides ? 2 : 1),
         vitaminDIUPerSession: null,
         renderLightChannelsLive: () => {},
         renderLightTodayStrip: () => '',
       });
-      document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.modal-overlay,.notification-container').forEach(el => el.remove());
     }
 
     return outcomes;
@@ -482,27 +486,27 @@ test('light camera tool modals cover denied and manual fallback contracts', asyn
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ modalsUrl }) => {
-    const modals = await import(modalsUrl);
-    const outcomes = {};
+    const modals = (await import(modalsUrl) as unknown) as Pick<typeof import('../../js/light-tool-camera-modals.js'), "openLuxMeter" | "openSpectrumClassifier" | "openFlickerDetector" | "closeFlickerDetector" | "openCCTMeter" | "closeCCTMeter" | "openDarknessMeter" | "closeDarknessMeter" | "closeLuxMeter" | "closeSpectrumClassifier" | "closeGlassTransmission" | "openGlassTransmission">;
+    const outcomes: Record<string, unknown> = {};
     const savedMediaDevices = navigator.mediaDevices;
     const hadALS = Object.prototype.hasOwnProperty.call(window, 'AmbientLightSensor');
-    const originalALS = window.AmbientLightSensor;
-    const saved = [];
+    const originalALS = (window as {AmbientLightSensor?: unknown}).AmbientLightSensor;
+    const saved: FixtureCameraSave[] = [];
 
     try {
       Object.defineProperty(navigator, 'mediaDevices', {
         configurable: true,
         value: { getUserMedia: async () => { throw new DOMException('denied', 'NotAllowedError'); } },
       });
-      window.AmbientLightSensor = undefined;
+      (window as {AmbientLightSensor?: unknown}).AmbientLightSensor = undefined;
       const deps = {
-        saveMeasurement: async (kind, value, meta) => {
+        saveMeasurement: async (kind: unknown, value: unknown, meta: unknown) => {
           saved.push({ kind, value, meta });
         },
       };
 
       await modals.openLuxMeter({ roomId: 'bedroom' }, deps);
-      const luxInput = document.getElementById('lux-manual-input');
+      const luxInput = (document.getElementById('lux-manual-input') as HTMLInputElement | null);
       outcomes.luxDeniedShowsManualInput = !!luxInput
         && document.getElementById('lux-source-line')?.textContent.includes('Camera unavailable');
       outcomes.luxManualSavePersistsReading = false;
@@ -513,34 +517,34 @@ test('light camera tool modals cover denied and manual fallback contracts', asyn
         await Promise.resolve();
         outcomes.luxManualSavePersistsReading = saved.some(item => item.kind === 'lux'
           && item.value === 420
-          && item.meta.roomId === 'bedroom'
-          && item.meta.extra.source === 'manual-entry');
+          && (item.meta as FixtureCameraMetaRead).roomId === 'bedroom'
+          && (item.meta as FixtureCameraMetaRead).extra.source === 'manual-entry');
       }
 
       await modals.openSpectrumClassifier({ roomId: 'desk' }, deps);
-      outcomes.spectrumDeniedShowsManualChoices = !!document.querySelector('[data-spec-manual="Warm LED (2700-3000K)"],[data-spec-manual="Warm LED (2700–3000K)"]')
+      outcomes.spectrumDeniedShowsManualChoices = !!document.querySelector<HTMLElement>('[data-spec-manual="Warm LED (2700-3000K)"],[data-spec-manual="Warm LED (2700–3000K)"]')
         && document.getElementById('spec-result')?.textContent.includes('Camera access denied');
-      document.querySelector('[data-spec-manual]')?.click();
-      document.getElementById('spec-save').click();
+      document.querySelector<HTMLElement>('[data-spec-manual]')?.click();
+      (document.getElementById('spec-save'))!.click();
       await Promise.resolve();
       outcomes.spectrumManualSavePersistsSelection = saved.some(item => item.kind === 'spectrum'
-        && item.meta.roomId === 'desk'
-        && item.meta.extra.reason.includes('manual selection'));
+        && (item.meta as FixtureCameraMetaRead).roomId === 'desk'
+        && ((item.meta as FixtureCameraMetaRead).extra.reason as string).includes('manual selection'));
 
       await modals.openFlickerDetector({ roomId: 'office' }, deps);
       outcomes.flickerDeniedExplainsCameraRequirement = document.getElementById('flicker-result')?.textContent.includes('Camera access denied');
-      document.getElementById('flicker-save').click();
+      (document.getElementById('flicker-save'))!.click();
       await Promise.resolve();
       modals.closeFlickerDetector();
 
       await modals.openCCTMeter({ roomId: 'office' }, deps);
       outcomes.cctDeniedSetsCameraDeniedValue = document.getElementById('cct-value')?.textContent === 'Camera denied';
-      document.getElementById('cct-save').click();
+      (document.getElementById('cct-save'))!.click();
       await Promise.resolve();
       modals.closeCCTMeter();
 
       await modals.openDarknessMeter({ roomId: 'bedroom' }, deps);
-      document.getElementById('dark-start').click();
+      (document.getElementById('dark-start'))!.click();
       await Promise.resolve();
       outcomes.darknessDeniedShowsUnavailableMessage = document.getElementById('dark-status')?.textContent.includes('Camera access denied');
       modals.closeDarknessMeter();
@@ -551,8 +555,8 @@ test('light camera tool modals cover denied and manual fallback contracts', asyn
         configurable: true,
         value: savedMediaDevices,
       });
-      if (hadALS) window.AmbientLightSensor = originalALS;
-      else delete window.AmbientLightSensor;
+      if (hadALS) (window as {AmbientLightSensor?: unknown}).AmbientLightSensor = originalALS;
+      else delete (window as {AmbientLightSensor?: unknown}).AmbientLightSensor;
       [
         modals.closeLuxMeter,
         modals.closeSpectrumClassifier,
@@ -563,7 +567,7 @@ test('light camera tool modals cover denied and manual fallback contracts', asyn
       ].forEach(close => {
         try { close(); } catch (_) {}
       });
-      document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.modal-overlay,.notification-container').forEach(el => el.remove());
     }
 
     return outcomes;
@@ -580,9 +584,9 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ modalsUrl }) => {
-    const modals = await import(modalsUrl);
-    const outcomes = {};
-    const savedReadings = [];
+    const modals = (await import(modalsUrl) as unknown) as Pick<typeof import('../../js/light-tool-camera-modals.js'), "openLuxMeter" | "openSpectrumClassifier" | "openFlickerDetector" | "closeFlickerDetector" | "openCCTMeter" | "closeCCTMeter" | "openDarknessMeter" | "closeDarknessMeter" | "closeLuxMeter" | "closeSpectrumClassifier" | "closeGlassTransmission" | "openGlassTransmission">;
+    const outcomes: Record<string, unknown> = {};
+    const savedReadings: FixtureCameraSave[] = [];
     const savedMediaDevices = navigator.mediaDevices;
     const savedPlay = HTMLMediaElement.prototype.play;
     const savedGetContext = HTMLCanvasElement.prototype.getContext;
@@ -590,20 +594,20 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
     const savedCancelRaf = window.cancelAnimationFrame;
     const savedSetTimeout = window.setTimeout;
     const hadALS = Object.prototype.hasOwnProperty.call(window, 'AmbientLightSensor');
-    const originalALS = window.AmbientLightSensor;
-    const streamStops = [];
+    const originalALS = (window as {AmbientLightSensor?: unknown}).AmbientLightSensor;
+    const streamStops: string[] = [];
     let cameraPattern = 'lux';
     let rafId = 0;
-    const rafTimers = new Map();
-    const delay = ms => new Promise(resolve => savedSetTimeout(resolve, ms));
-    const waitFor = async (predicate, attempts = 400) => {
+    const rafTimers = new Map<number, number>();
+    const delay = (ms: number) => new Promise((resolve) => savedSetTimeout(resolve, ms));
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, attempts = 400) => {
       for (let i = 0; i < attempts; i++) {
         if (predicate()) return true;
         await delay(5);
       }
       return false;
     };
-    const makeFrame = (width, height) => {
+    const makeFrame = (width: number, height: number) => {
       const data = new Uint8ClampedArray(width * height * 4);
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
@@ -632,7 +636,7 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       }
       return data;
     };
-    const makeTrack = label => ({
+    const makeTrack = (label: string) => ({
       stop: () => streamStops.push(label),
       getSettings: () => ({
         frameRate: 120,
@@ -648,12 +652,12 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
         iso: { min: 50, max: 800 },
         colorTemperature: { min: 2000, max: 8000 },
       }),
-      applyConstraints: async constraints => {
+      applyConstraints: async (constraints: MediaTrackConstraints) => {
         outcomes.cameraLockRequestsAdvancedConstraints = Array.isArray(constraints?.advanced)
           && constraints.advanced.length > 0;
       },
     });
-    const makeStream = label => {
+    const makeStream = (label: string) => {
       const track = makeTrack(label);
       const stream = new MediaStream();
       Object.defineProperty(stream, 'getTracks', { configurable: true, value: () => [track] });
@@ -661,7 +665,7 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       return stream;
     };
     const deps = {
-      saveMeasurement: async (kind, value, meta) => {
+      saveMeasurement: async (kind: unknown, value: unknown, meta: unknown) => {
         await delay(0);
         savedReadings.push({ kind, value, meta });
       },
@@ -672,19 +676,19 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
         configurable: true,
         value: { getUserMedia: async () => makeStream(cameraPattern) },
       });
-      delete window.AmbientLightSensor;
+      delete (window as {AmbientLightSensor?: unknown}).AmbientLightSensor;
       HTMLMediaElement.prototype.play = async function play() {
         return undefined;
       };
-      HTMLCanvasElement.prototype.getContext = function getContext(type, options) {
-        if (type !== '2d') return savedGetContext.call(this, type, options);
+      (HTMLCanvasElement.prototype as unknown as {getContext:unknown}).getContext = function getContext(this: HTMLCanvasElement, type: string, options: unknown) {
+        if (type !== '2d') return (savedGetContext as (this: HTMLCanvasElement, type: string, options?: unknown) => unknown).call(this, type, options);
         const canvas = this;
         return {
           drawImage: () => {},
           getImageData: () => ({ data: makeFrame(canvas.width, canvas.height) }),
         };
       };
-      window.requestAnimationFrame = callback => {
+      window.requestAnimationFrame = (callback: FrameRequestCallback) => {
         const id = ++rafId;
         const timer = savedSetTimeout(() => {
           rafTimers.delete(id);
@@ -693,7 +697,7 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
         rafTimers.set(id, timer);
         return id;
       };
-      window.cancelAnimationFrame = id => {
+      window.cancelAnimationFrame = (id: number) => {
         const timer = rafTimers.get(id);
         if (timer) clearTimeout(timer);
         rafTimers.delete(id);
@@ -703,7 +707,7 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       localStorage.removeItem('labcharts-lux-calibration');
       await modals.openLuxMeter({ roomId: 'workbench' }, deps);
       const luxReady = await waitFor(() => document.getElementById('lux-value')?.textContent !== '—');
-      const calInput = document.getElementById('lux-cal-reference');
+      const calInput = (document.getElementById('lux-cal-reference') as HTMLInputElement | null);
       if (calInput) calInput.value = '6400';
       document.getElementById('lux-cal-apply')?.click();
       await delay(5);
@@ -712,10 +716,10 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       const luxSaved = savedReadings.find(item => item.kind === 'lux');
       outcomes.luxCameraPathCalibratesAndSaves = luxReady
         && !!luxSaved
-        && luxSaved.meta.roomId === 'workbench'
-        && luxSaved.meta.extra.source === 'camera-estimate'
-        && luxSaved.meta.extra.calibrationFactor >= 1.9
-        && !document.querySelector('[aria-label="Lux meter"]');
+        && (luxSaved.meta as FixtureCameraMetaRead).roomId === 'workbench'
+        && (luxSaved.meta as FixtureCameraMetaRead).extra.source === 'camera-estimate'
+        && ((luxSaved.meta as FixtureCameraMetaRead).extra.calibrationFactor as number) >= 1.9
+        && !document.querySelector<HTMLElement>('[aria-label="Lux meter"]');
 
       cameraPattern = 'flicker';
       await modals.openFlickerDetector({ roomId: 'bench' }, deps);
@@ -725,9 +729,9 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       const flickerSaved = savedReadings.find(item => item.kind === 'flicker');
       outcomes.flickerCameraPathScoresAndSaves = flickerReady
         && !!flickerSaved
-        && flickerSaved.value >= 2
-        && flickerSaved.meta.extra.bandingRatio > 0.1
-        && flickerSaved.meta.roomId === 'bench';
+        && (flickerSaved.value as number) >= 2
+        && ((flickerSaved.meta as FixtureCameraMetaRead).extra.bandingRatio as number) > 0.1
+        && (flickerSaved.meta as FixtureCameraMetaRead).roomId === 'bench';
 
       cameraPattern = 'cct';
       await modals.openCCTMeter({ roomId: 'bench' }, deps);
@@ -737,9 +741,9 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       const cctSaved = savedReadings.find(item => item.kind === 'cct');
       outcomes.cctCameraPathComputesMelanopicPwmAndSaves = cctReady
         && !!cctSaved
-        && cctSaved.value >= 5000
-        && cctSaved.meta.extra.melanopic > 0.5
-        && cctSaved.meta.extra.pwmActive === true;
+        && (cctSaved.value as number) >= 5000
+        && ((cctSaved.meta as FixtureCameraMetaRead).extra.melanopic as number) > 0.5
+        && (cctSaved.meta as FixtureCameraMetaRead).extra.pwmActive === true;
 
       await modals.openGlassTransmission({ roomId: 'window' }, deps);
       cameraPattern = 'glass-inside';
@@ -747,18 +751,18 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       const insideReady = await waitFor(() => document.getElementById('glass-reading-inside')?.textContent.includes('camera level'));
       cameraPattern = 'glass-outside';
       document.getElementById('glass-measure-outside')?.click();
-      const outsideReady = await waitFor(() => document.getElementById('glass-save')?.disabled === false);
-      document.getElementById('glass-save')?.click();
+      const outsideReady = await waitFor(() => (document.getElementById('glass-save') as HTMLButtonElement | null)?.disabled === false);
+      (document.getElementById('glass-save') as HTMLButtonElement | null)?.click();
       await waitFor(() => savedReadings.some(item => item.kind === 'glass-transmission'));
       const glassSaved = savedReadings.find(item => item.kind === 'glass-transmission');
       outcomes.glassCameraPathComputesRatioAndSaves = insideReady
         && outsideReady
         && !!glassSaved
-        && glassSaved.value > 0.35
-        && glassSaved.value < 0.45
-        && glassSaved.meta.extra.lockMode === 'manual'
-        && glassSaved.meta.roomId === 'window';
-      const stopCounts = streamStops.reduce((acc, label) => {
+        && (glassSaved.value as number) > 0.35
+        && (glassSaved.value as number) < 0.45
+        && (glassSaved.meta as FixtureCameraMetaRead).extra.lockMode === 'manual'
+        && (glassSaved.meta as FixtureCameraMetaRead).roomId === 'window';
+      const stopCounts = streamStops.reduce<Record<string, number>>((acc, label) => {
         acc[label] = (acc[label] || 0) + 1;
         return acc;
       }, {});
@@ -777,8 +781,8 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       HTMLCanvasElement.prototype.getContext = savedGetContext;
       window.requestAnimationFrame = savedRaf;
       window.cancelAnimationFrame = savedCancelRaf;
-      if (hadALS) window.AmbientLightSensor = originalALS;
-      else delete window.AmbientLightSensor;
+      if (hadALS) (window as {AmbientLightSensor?: unknown}).AmbientLightSensor = originalALS;
+      else delete (window as {AmbientLightSensor?: unknown}).AmbientLightSensor;
       [
         modals.closeLuxMeter,
         modals.closeFlickerDetector,
@@ -787,7 +791,7 @@ test('light camera tool modals cover mocked camera readings and save paths', asy
       ].forEach(close => {
         try { close(); } catch (_) {}
       });
-      document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.modal-overlay,.notification-container').forEach(el => el.remove());
     }
 
     return outcomes;
@@ -813,35 +817,35 @@ test('light devices cover session detail edit log active card and rendered list 
       blobStorage,
     ] = await Promise.all([
       import('/js/state.js'),
-      import(devicesUrl),
+      (import(devicesUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/light-devices.js'), "configureLightDevices" | "renderDevicesSection" | "installLightDevicesActionDelegates" | "openDeviceSessionDetail" | "editDeviceSessionDuration" | "editDeviceSessionMode" | "openDeviceSessionDialog" | "renderActiveDeviceSessionCard">>,
       import('/js/light-devices-runtime.js'),
       import('/js/recommendations-runtime.js'),
       import('/js/profile.js'),
       import('/js/blob-storage.js'),
     ]);
-    const outcomes = {};
-    const originalImported = JSON.parse(JSON.stringify(state.importedData || {}));
+    const outcomes: Record<string, unknown> = {};
+    const originalImported = JSON.parse(JSON.stringify(state.importedData || {})) as unknown;
     const importedStorageKey = profileStorageKey(state.currentProfile || 'default', 'imported');
     const originalImportedLocalValue = localStorage.getItem(importedStorageKey);
     const originalImportedBlobValue = await blobStorage.getBlob(importedStorageKey);
-    const calls = [];
+    const calls: unknown[][] = [];
     const previousLightDevicesRuntimeDeps = lightDevicesRuntime.configureLightDevicesRuntimeDeps({
       showPromptDialog: async () => '17',
-      channelTier: value => value > 30 ? 3 : value > 10 ? 2 : value > 0 ? 1 : 0,
-      tierLabel: tier => ['none', 'low', 'moderate', 'high'][tier] || 'none',
-      formatChannelUnit: (key, value) => `${Math.round(value)} ${key}`,
+      channelTier: (value: number) => value > 30 ? 3 : value > 10 ? 2 : value > 0 ? 1 : 0,
+      tierLabel: (tier: number) => ['none', 'low', 'moderate', 'high'][tier] || 'none',
+      formatChannelUnit: (key: string, value: number) => `${Math.round(value)} ${key}`,
       channelDisplay: {
         vitamin_d: { icon: 'D', label: 'Vitamin D', what: 'Vitamin D' },
         circadian: { icon: 'C', label: 'Circadian', what: 'Circadian' },
         pbm_red: { icon: 'R', label: 'Red', what: 'Red light' },
         pbm_nir: { icon: 'N', label: 'NIR', what: 'NIR' },
       },
-      navigate: route => calls.push(['navigate', route]),
-      openChannelOnLightPage: channel => calls.push(['open-channel', channel]),
+      navigate: (route: unknown) => calls.push(['navigate', route]),
+      openChannelOnLightPage: (channel: unknown) => calls.push(['open-channel', channel]),
     });
     const previousRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge({
       loadCatalog: async () => ({ items: [] }),
-      renderLightDeviceAffiliateRow: (_catalog, slug) => `<a class="affiliate-test">${slug}</a>`,
+      renderLightDeviceAffiliateRow: (_catalog: unknown, slug: unknown) => `<a class="affiliate-test">${slug}</a>`,
     });
 
     try {
@@ -886,7 +890,7 @@ test('light devices cover session detail edit log active card and rendered list 
         doses: { vitamin_d: 22, circadian: 35, pbm_red: 12 },
         notes: 'Desk panel test',
       };
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         ...state.importedData,
         sunDefaults: { ...(state.importedData?.sunDefaults || {}), fitzpatrick: 'III', completedAt: Date.now() },
         lightDevices: [device],
@@ -902,48 +906,48 @@ test('light devices cover session detail edit log active card and rendered list 
       lightDevices.installLightDevicesActionDelegates(devicesHost);
       outcomes.renderDevicesSectionShowsStatsAndAffiliate = devicesHost.textContent.includes('TestLight Panel 900')
         && devicesHost.textContent.includes('1 session')
-        && !!devicesHost.querySelector('.affiliate-test')
+        && !!devicesHost.querySelector<HTMLElement>('.affiliate-test')
         && devicesHost.textContent.includes('630')
         && devicesHost.textContent.includes('850')
-        && !!devicesHost.querySelector('.light-device-feed-chip');
-      outcomes.renderDevicesSectionUsesDelegatedActions = !!devicesHost.querySelector('[data-light-devices-action="add-device"]')
-        && !!devicesHost.querySelector('[data-light-devices-action="delete-device"][data-light-device-id="dev-panel"]')
-        && !!devicesHost.querySelector('[data-light-devices-action="log-device-session"][data-light-device-id="dev-panel"]')
+        && !!devicesHost.querySelector<HTMLElement>('.light-device-feed-chip');
+      outcomes.renderDevicesSectionUsesDelegatedActions = !!devicesHost.querySelector<HTMLElement>('[data-light-devices-action="add-device"]')
+        && !!devicesHost.querySelector<HTMLElement>('[data-light-devices-action="delete-device"][data-light-device-id="dev-panel"]')
+        && !!devicesHost.querySelector<HTMLElement>('[data-light-devices-action="log-device-session"][data-light-device-id="dev-panel"]')
         && !devicesHost.innerHTML.includes('onclick=');
 
       lightDevices.openDeviceSessionDetail('devsess-one');
-      let detailOverlay = document.querySelector('[data-session-kind="device"]')?.closest('.modal-overlay');
+      let detailOverlay = document.querySelector<HTMLElement>('[data-session-kind="device"]')?.closest('.modal-overlay');
       outcomes.deviceDetailShowsModeBodyChannelsAndAI = !!detailOverlay
         && detailOverlay.textContent.includes('Combo')
         && detailOverlay.textContent.includes('Upper chest')
         && detailOverlay.textContent.includes('Device AI')
-        && detailOverlay.querySelectorAll('.sun-detail-channel-row').length >= 3;
+        && detailOverlay.querySelectorAll<HTMLElement>('.sun-detail-channel-row').length >= 3;
       outcomes.deviceDetailChannelRowsOpenLightPage = false;
       if (detailOverlay) {
-        detailOverlay.querySelector('.sun-detail-channel-row')?.click();
+        detailOverlay.querySelector<HTMLElement>('.sun-detail-channel-row')?.click();
         outcomes.deviceDetailChannelRowsOpenLightPage = calls.some(call => call[0] === 'open-channel' && call[1] === 'vitamin_d');
       }
 
       await lightDevices.editDeviceSessionDuration('devsess-one');
-      outcomes.editDurationUsesPromptAndRecomputes = state.importedData.deviceSessions[0].durationMin === 17
+      outcomes.editDurationUsesPromptAndRecomputes = (((state.importedData as unknown as {deviceSessions?: FixtureSessionRead[]}).deviceSessions)![0])!.durationMin === 17
         && calls.some(call => call[0] === 'navigate' && call[1] === 'light');
 
       await lightDevices.editDeviceSessionMode('devsess-one');
-      const modeOverlay = document.querySelector('[aria-label="Edit session mode"]')?.closest('.modal-overlay');
+      const modeOverlay = document.querySelector<HTMLElement>('[aria-label="Edit session mode"]')?.closest('.modal-overlay');
       if (modeOverlay) {
-        modeOverlay.querySelector('#dev-edit-mode').value = 'red';
-        modeOverlay.querySelector('#dev-edit-mode-save').click();
+        (modeOverlay.querySelector<HTMLSelectElement>('#dev-edit-mode'))!.value = 'red';
+        (modeOverlay.querySelector<HTMLElement>('#dev-edit-mode-save'))!.click();
         await Promise.resolve();
       }
-      outcomes.editModeFiltersAndSavesMode = state.importedData.deviceSessions[0].mode === 'red'
+      outcomes.editModeFiltersAndSavesMode = (((state.importedData as unknown as {deviceSessions?: FixtureSessionRead[]}).deviceSessions)![0])!.mode === 'red'
         && !modeOverlay?.textContent.includes('Blocked');
 
       await lightDevices.openDeviceSessionDialog('dev-panel');
-      const logOverlay = document.querySelector('[aria-label="Log device session"]')?.closest('.modal-overlay');
-      const logDurationInput = logOverlay?.querySelector('#dev-session-duration');
-      const logModeInput = logOverlay?.querySelector('#dev-session-mode');
-      const logAreaHint = logOverlay?.querySelector('#dev-session-area-hint');
-      const logSaveButton = logOverlay?.querySelector('#dev-session-save');
+      const logOverlay = document.querySelector<HTMLElement>('[aria-label="Log device session"]')?.closest('.modal-overlay');
+      const logDurationInput = logOverlay?.querySelector<HTMLInputElement>('#dev-session-duration');
+      const logModeInput = logOverlay?.querySelector<HTMLInputElement>('#dev-session-mode');
+      const logAreaHint = logOverlay?.querySelector<HTMLElement>('#dev-session-area-hint');
+      const logSaveButton = logOverlay?.querySelector<HTMLElement>('#dev-session-save');
       outcomes.logDialogUsesLastSessionDefaults = !!logOverlay
         && logDurationInput?.value === '12'
         && logModeInput?.value === 'combo'
@@ -953,12 +957,12 @@ test('light devices cover session detail edit log active card and rendered list 
         logDurationInput.value = '9';
         logSaveButton.click();
         await Promise.resolve();
-        outcomes.logDialogSavesNewSession = state.importedData.deviceSessions.length === 2
-          && state.importedData.deviceSessions[1].durationMin === 9
-          && state.importedData.deviceSessions[1].bodyAreas.includes('breast-chest');
+        outcomes.logDialogSavesNewSession = ((state.importedData as unknown as {deviceSessions?: FixtureSessionRead[]}).deviceSessions)!.length === 2
+          && (((state.importedData as unknown as {deviceSessions?: FixtureSessionRead[]}).deviceSessions)![1])!.durationMin === 9
+          && ((state.importedData as unknown as {deviceSessions?: FixtureSessionRead[]}).deviceSessions![1]!.bodyAreas as {includes(value:unknown):unknown}).includes('breast-chest');
       }
 
-      state.importedData.deviceSessions.push({
+      ((state.importedData as unknown as {deviceSessions?: FixtureSessionRead[]}).deviceSessions)!.push({
         id: 'devsess-active',
         deviceId: 'dev-panel',
         startedAt: Date.now() - 65000,
@@ -973,7 +977,7 @@ test('light devices cover session detail edit log active card and rendered list 
         && activeHtml.includes('Stop &amp; save')
         && activeHtml.includes('+1 more');
     } finally {
-      state.importedData = originalImported;
+      (state as unknown as {importedData:unknown}).importedData = originalImported;
       if (originalImportedBlobValue == null) await blobStorage.deleteBlob(importedStorageKey);
       else await blobStorage.setBlob(importedStorageKey, originalImportedBlobValue);
       if (originalImportedLocalValue == null) localStorage.removeItem(importedStorageKey);
@@ -981,7 +985,7 @@ test('light devices cover session detail edit log active card and rendered list 
       lightDevices.configureLightDevices({ renderDeviceSessionAIDetail: () => '' });
       lightDevicesRuntime.configureLightDevicesRuntimeDeps(previousLightDevicesRuntimeDeps);
       recommendationRuntime.configureRecommendationModuleBridge(previousRecommendationBridge);
-      document.querySelectorAll('.modal-overlay,.notification-container').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.modal-overlay,.notification-container').forEach(el => el.remove());
     }
 
     return outcomes;
