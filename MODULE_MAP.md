@@ -1733,7 +1733,7 @@ Local development server entry point.
 
 <details><summary><code>dev</code> family — 1 module</summary>
 
-- [`dev-server.js`](dev-server.js) → [`lib/dev-agent-host.ts`](lib/dev-agent-host.ts), [`lib/dev-api-proxy.ts`](lib/dev-api-proxy.ts), [`lib/dev-catalog.ts`](lib/dev-catalog.ts), [`lib/dev-url-fetch.ts`](lib/dev-url-fetch.ts), [`lib/proxy-policy.ts`](lib/proxy-policy.ts)
+- [`dev-server.ts`](dev-server.ts) → [`lib/dev-agent-host.ts`](lib/dev-agent-host.ts), [`lib/dev-api-proxy.ts`](lib/dev-api-proxy.ts), [`lib/dev-catalog.ts`](lib/dev-catalog.ts), [`lib/dev-url-fetch.ts`](lib/dev-url-fetch.ts), [`lib/proxy-policy.ts`](lib/proxy-policy.ts)
 
 </details>
 

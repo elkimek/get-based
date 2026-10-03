@@ -6,6 +6,10 @@
 // Usage: node dev-server.js [port]
 //        SITE_DIR=/path/to/get-based-site node dev-server.js
 
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import type { DevAgentHostController } from './lib/dev-agent-host.js';
+import type { BrowserEnvironment, BrowserOptions, BrowserSpawnOperation, LaunchCandidate, ShareEnvelopeReader, ShareRecord } from './types/dev-server.js';
+
 import http from 'node:http';
 import https from 'node:https';
 import fs from 'node:fs';
@@ -45,11 +49,11 @@ export {
   _runPostDeployHooks,
 };
 
-export function _sendCappedProxyResponse(req, res, proxyRes) {
+export function _sendCappedProxyResponse(req: IncomingMessage, res: ServerResponse, proxyRes: IncomingMessage) {
   return sendCappedProxyResponse(req, res, proxyRes, corsHeaders);
 }
 
-const PORT = parseInt(process.argv[2], 10) || 8000;
+const PORT = parseInt(process.argv[2]!, 10) || 8000;
 // Bind address. Defaults to 127.0.0.1 (loopback only) so the dev server
 // stays off the LAN unless explicitly opted in. Set HOST=0.0.0.0 to expose
 // it to the local network — useful for testing on a phone over Wi-Fi.
@@ -60,12 +64,12 @@ const ROOT = path.dirname(__filename);
 const SITE_DIR = process.env.SITE_DIR || path.join(ROOT, '..', 'get-based-site');
 const SITE_INDEX = path.join(SITE_DIR, 'index.html');
 const hasSite = fs.existsSync(SITE_INDEX);
-let devAgentHost = null;
+let devAgentHost: DevAgentHostController | null = null;
 
 // Auto-load .env.local (gitignored) before anything else reads process.env.
 // Keeps OAuth client secrets out of shell history and out of git. Values
 // already set in the shell environment take precedence — env still wins.
-export function parseEnvLocal(text) {
+export function parseEnvLocal(text: string) {
   // Returns {[name]: value} for well-formed KEY=VALUE lines. Supports:
   //   - leading/trailing whitespace around KEY, =, and VALUE
   //   - full-line comments (line starts with # after whitespace stripping)
@@ -75,17 +79,17 @@ export function parseEnvLocal(text) {
   //   - escape sequences inside quotes (no \n unescaping)
   // Keys must match /^[A-Z_][A-Z0-9_]*$/ — lowercase or numeric-leading keys
   // are treated as malformed and ignored. Return order = insertion order.
-  const out = Object.create(null);
+  const out = Object.create(null) as Record<string, string>;
   for (const raw of text.split('\n')) {
     if (raw.trim().startsWith('#')) continue;
     const m = raw.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
     if (!m) continue;
-    let val = m[2];
+    let val = m[2]!;
     if ((val.startsWith('"') && val.endsWith('"') && val.length >= 2) ||
         (val.startsWith("'") && val.endsWith("'") && val.length >= 2)) {
       val = val.slice(1, -1);
     }
-    out[m[1]] = val;
+    out[m[1]!] = val;
   }
   return out;
 }
@@ -103,7 +107,7 @@ if (fs.existsSync(ENV_LOCAL)) {
 export const _proxyHostBlocked = isProxyHostBlocked;
 export const _isAllowedProxyUrl = isAllowedProxyUrl;
 
-const MIME = {
+const MIME: Record<string, string> = {
   '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript',
   '.mjs': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml',
   '.png': 'image/png', '.ico': 'image/x-icon', '.webp': 'image/webp',
@@ -112,7 +116,7 @@ const MIME = {
   '.webmanifest': 'application/manifest+json',
 };
 
-export function _browserLaunchDisabled(env = process.env) {
+export function _browserLaunchDisabled(env: BrowserEnvironment = process.env) {
   const ci = String(env.CI || '').trim().toLowerCase();
   const openBrowser = String(env.OPEN_BROWSER || '').trim().toLowerCase();
   const browser = String(env.BROWSER || '').trim().toLowerCase();
@@ -121,7 +125,7 @@ export function _browserLaunchDisabled(env = process.env) {
     || ['0', 'false', 'none', 'no', 'off'].includes(browser);
 }
 
-export function _browserLaunchCandidates(env = process.env, platform = process.platform) {
+export function _browserLaunchCandidates(env: BrowserEnvironment = process.env, platform: unknown = process.platform) {
   const requestedBrowser = String(env.BROWSER || '').trim();
   if (requestedBrowser && !['0', 'false', 'none', 'no', 'off'].includes(requestedBrowser.toLowerCase())) {
     return [{ command: requestedBrowser, args: [] }];
@@ -144,12 +148,12 @@ export function _browserLaunchCandidates(env = process.env, platform = process.p
   ];
 }
 
-export function openDevBrowser(url, opts = {}) {
-  const env = opts.env || process.env;
+export function openDevBrowser(url: string, opts: BrowserOptions = {}) {
+  const env = (opts.env || process.env) as BrowserEnvironment;
   if (_browserLaunchDisabled(env)) return false;
 
   const spawnImpl = opts.spawn || spawn;
-  const candidates = opts.candidates || _browserLaunchCandidates(env, opts.platform || process.platform);
+  const candidates = (opts.candidates || _browserLaunchCandidates(env, opts.platform || process.platform)) as LaunchCandidate[];
   let index = 0;
 
   const tryNext = () => {
@@ -160,7 +164,7 @@ export function openDevBrowser(url, opts = {}) {
     }
     let child;
     try {
-      child = spawnImpl(candidate.command, [...candidate.args, url], {
+      child = (spawnImpl as BrowserSpawnOperation)(candidate.command, [...candidate.args, url], {
         detached: true,
         stdio: 'ignore',
       });
@@ -191,7 +195,7 @@ const COMPRESSIBLE_EXTENSIONS = new Set([
   '.html', '.css', '.js', '.mjs', '.json', '.svg', '.txt', '.xml', '.webmanifest',
 ]);
 
-function serveFile(req, res, filePath) {
+function serveFile(req: IncomingMessage, res: ServerResponse, filePath: string) {
   const resolved = path.resolve(filePath);
   fs.readFile(resolved, (err, data) => {
     if (err) { res.writeHead(404); res.end('Not found'); return; }
@@ -216,7 +220,7 @@ function serveFile(req, res, filePath) {
       sendRaw();
       return;
     }
-    const finish = (body, encoding) => {
+    const finish = (body: Uint8Array, encoding: string) => {
       res.writeHead(200, {
         ...headers,
         'Content-Encoding': encoding,
@@ -255,7 +259,7 @@ const ALLOWED_ORIGINS = new Set([
     `http://[::1]:${p}`,
   ]),
 ]);
-export function isSameOrigin(req) {
+export function isSameOrigin(req: Pick<IncomingMessage, 'headers'>) {
   if (req.headers.origin) return ALLOWED_ORIGINS.has(req.headers.origin);
   if (req.headers.referer) {
     try { return ALLOWED_ORIGINS.has(new URL(req.headers.referer).origin); }
@@ -267,13 +271,13 @@ export function isSameOrigin(req) {
 // Loopback check on the actual TCP socket — the only authentication that
 // can't be forged by a LAN peer setting `Origin: http://localhost:PORT`.
 // Used as a hard gate in front of private APIs for every bind address.
-export function _isLoopbackSocket(req) {
+export function _isLoopbackSocket(req: { socket?: { remoteAddress?: unknown } }) {
   const ra = req.socket?.remoteAddress || '';
   // Node reports IPv4 via "::ffff:127.0.0.1" on dual-stack listeners.
   return ra === '127.0.0.1' || ra === '::1' || ra === '::ffff:127.0.0.1';
 }
 
-export function _isPrivateApiPeerAllowed(req, pathname) {
+export function _isPrivateApiPeerAllowed(req: { socket?: { remoteAddress?: unknown } }, pathname: string) {
   if (pathname === '/api/commit') return true;
   return !(pathname.startsWith('/api/') || pathname === '/proxy') || _isLoopbackSocket(req);
 }
@@ -286,7 +290,7 @@ export function _isPrivateApiPeerAllowed(req, pathname) {
 // for security purposes. Used as an escape hatch for tailscale-served
 // phone tabs where the host the user typed isn't in the static
 // ALLOWED_ORIGINS allowlist.
-export function _isHostOriginMatch(req) {
+export function _isHostOriginMatch(req: Pick<IncomingMessage, 'headers'>) {
   const host = req.headers.host;
   const origin = req.headers.origin;
   if (!host || !origin) return false;
@@ -299,40 +303,40 @@ export function _isHostOriginMatch(req) {
 // between `isSameOrigin` (allowlist) and the response header (wildcard) is
 // only safe today because the guard runs first; reflecting keeps the two
 // halves in sync if the guard's pathname check is ever loosened.
-export function corsHeaders(req) {
+export function corsHeaders(req: Pick<IncomingMessage, 'headers'>) {
   const origin = req.headers.origin && ALLOWED_ORIGINS.has(req.headers.origin)
     ? req.headers.origin
     : (req.headers.referer ? (() => { try { return ALLOWED_ORIGINS.has(new URL(req.headers.referer).origin) ? new URL(req.headers.referer).origin : null; } catch { return null; } })() : null);
   return origin ? { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin' } : {};
 }
 
-const PROFILE_SHARE_DEV_STORE = new Map();
+const PROFILE_SHARE_DEV_STORE = new Map<unknown, ShareRecord>();
 const PROFILE_SHARE_ID_RE = /^[A-Za-z0-9_-]{20,80}$/;
 const PROFILE_SHARE_MAX_BYTES = 3_750_000;
 const PROFILE_SHARE_MAX_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const PROFILE_SHARE_MIN_KDF_ITERATIONS = 100_000;
 const PROFILE_SHARE_MANAGE_TOKEN_HASH_RE = /^[a-f0-9]{64}$/;
-export function _sendProfileShareJSON(req, res, status, body) {
+export function _sendProfileShareJSON(req: IncomingMessage, res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...corsHeaders(req) });
   res.end(JSON.stringify(body));
 }
-export function _validateProfileShareEnvelope(envelope) {
+export function _validateProfileShareEnvelope(envelope: unknown) {
   if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) throw new Error('Missing encrypted profile payload.');
-  if (envelope.schema !== 'getbased-profile-share' || envelope.version !== 1) throw new Error('Unsupported encrypted profile payload.');
-  const expiresAt = Date.parse(envelope.expiresAt || '');
+  if ((envelope as ShareEnvelopeReader).schema !== 'getbased-profile-share' || (envelope as ShareEnvelopeReader).version !== 1) throw new Error('Unsupported encrypted profile payload.');
+  const expiresAt = Date.parse(((envelope as ShareEnvelopeReader).expiresAt || '') as string);
   const now = Date.now();
   if (!Number.isFinite(expiresAt) || expiresAt <= now) throw new Error('Share expiry must be in the future.');
   if (expiresAt - now > PROFILE_SHARE_MAX_TTL_MS) throw new Error('Share expiry cannot exceed 30 days.');
-  if (envelope.kdf?.name !== 'PBKDF2' || envelope.kdf?.hash !== 'SHA-256') throw new Error('Unsupported key derivation.');
-  const iterations = Number(envelope.kdf?.iterations);
+  if ((envelope as ShareEnvelopeReader).kdf?.name !== 'PBKDF2' || (envelope as ShareEnvelopeReader).kdf?.hash !== 'SHA-256') throw new Error('Unsupported key derivation.');
+  const iterations = Number((envelope as ShareEnvelopeReader).kdf?.iterations);
   if (!Number.isInteger(iterations) || iterations < PROFILE_SHARE_MIN_KDF_ITERATIONS) throw new Error(`PBKDF2 iterations must be at least ${PROFILE_SHARE_MIN_KDF_ITERATIONS}.`);
-  if (envelope.cipher?.name !== 'AES-GCM') throw new Error('Unsupported cipher.');
-  if (typeof envelope.ciphertext !== 'string' || envelope.ciphertext.length < 16) throw new Error('Encrypted profile payload is empty.');
+  if ((envelope as ShareEnvelopeReader).cipher?.name !== 'AES-GCM') throw new Error('Unsupported cipher.');
+  if (typeof (envelope as ShareEnvelopeReader).ciphertext !== 'string' || ((envelope as ShareEnvelopeReader).ciphertext as string).length < 16) throw new Error('Encrypted profile payload is empty.');
   const sizeBytes = Buffer.byteLength(JSON.stringify(envelope));
   if (sizeBytes > PROFILE_SHARE_MAX_BYTES) throw new Error('Encrypted profile payload is too large for link sharing.');
   return { sizeBytes, expiresAt };
 }
-export function _handleProfileShareDev(req, res, url) {
+export function _handleProfileShareDev(req: IncomingMessage, res: ServerResponse, url: URL) {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, { ...corsHeaders(req), 'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' });
     res.end();
@@ -340,7 +344,7 @@ export function _handleProfileShareDev(req, res, url) {
   }
   if (req.method === 'GET') {
     const id = url.searchParams.get('id') || '';
-    if (!PROFILE_SHARE_ID_RE.test(id)) { _sendProfileShareJSON(req, res, 400, { error: 'Invalid share id.' }); return; }
+    if (!PROFILE_SHARE_ID_RE.test(id as string)) { _sendProfileShareJSON(req, res, 400, { error: 'Invalid share id.' }); return; }
     const record = PROFILE_SHARE_DEV_STORE.get(id);
     if (!record) { _sendProfileShareJSON(req, res, 404, { error: 'Shared profile not found.' }); return; }
     if (Date.parse(record.expiresAt || '') <= Date.now()) {
@@ -353,15 +357,15 @@ export function _handleProfileShareDev(req, res, url) {
   }
   if (req.method === 'DELETE') {
     const id = url.searchParams.get('id') || '';
-    if (!PROFILE_SHARE_ID_RE.test(id)) { _sendProfileShareJSON(req, res, 400, { error: 'Invalid share id.' }); return; }
+    if (!PROFILE_SHARE_ID_RE.test(id as string)) { _sendProfileShareJSON(req, res, 400, { error: 'Invalid share id.' }); return; }
     const record = PROFILE_SHARE_DEV_STORE.get(id);
     if (!record) { _sendProfileShareJSON(req, res, 200, { ok: true, missing: true }); return; }
     let body = '';
     req.on('data', chunk => { body += chunk; });
     req.on('end', () => {
-      let parsed = {};
+      let parsed: unknown = {};
       try { parsed = body ? JSON.parse(body) : {}; } catch {}
-      const manageToken = String(parsed?.manageToken || req.headers['x-profile-share-manage-token'] || '');
+      const manageToken = String((parsed as { manageToken?: unknown } | null)?.manageToken || req.headers['x-profile-share-manage-token'] || '');
       const manageTokenHash = manageToken ? crypto.createHash('sha256').update(manageToken).digest('hex') : '';
       if (record.manageTokenHash && (!manageToken || manageTokenHash !== record.manageTokenHash)) {
         _sendProfileShareJSON(req, res, 403, { error: 'This link can only be stopped from the browser that created it.' });
@@ -392,21 +396,21 @@ export function _handleProfileShareDev(req, res, url) {
   });
   req.on('end', () => {
     if (aborted) return;
-    let parsed;
+    let parsed: unknown;
     try { parsed = JSON.parse(body); } catch { _sendProfileShareJSON(req, res, 400, { error: 'Invalid JSON body.' }); return; }
-    const id = parsed?.id || '';
-    if (!PROFILE_SHARE_ID_RE.test(id)) { _sendProfileShareJSON(req, res, 400, { error: 'Invalid share id.' }); return; }
-    const manageTokenHash = String(parsed?.manageTokenHash || '');
+    const id = (parsed as { id?: unknown } | null)?.id || '';
+    if (!PROFILE_SHARE_ID_RE.test(id as string)) { _sendProfileShareJSON(req, res, 400, { error: 'Invalid share id.' }); return; }
+    const manageTokenHash = String((parsed as { manageTokenHash?: unknown } | null)?.manageTokenHash || '');
     if (!PROFILE_SHARE_MANAGE_TOKEN_HASH_RE.test(manageTokenHash)) { _sendProfileShareJSON(req, res, 400, { error: 'Invalid share management token.' }); return; }
     if (PROFILE_SHARE_DEV_STORE.has(id)) { _sendProfileShareJSON(req, res, 409, { error: 'Share id already exists.' }); return; }
     let normalized;
-    try { normalized = _validateProfileShareEnvelope(parsed.envelope); } catch { _sendProfileShareJSON(req, res, 400, { error: 'Invalid encrypted profile payload.' }); return; }
+    try { normalized = _validateProfileShareEnvelope((parsed as { envelope?: unknown }).envelope); } catch { _sendProfileShareJSON(req, res, 400, { error: 'Invalid encrypted profile payload.' }); return; }
     const record = {
       id,
       createdAt: new Date().toISOString(),
       expiresAt: new Date(normalized.expiresAt).toISOString(),
       manageTokenHash,
-      envelope: parsed.envelope,
+      envelope: (parsed as { envelope?: unknown }).envelope,
     };
     PROFILE_SHARE_DEV_STORE.set(id, record);
     _sendProfileShareJSON(req, res, 201, { id, expiresAt: record.expiresAt, sizeBytes: normalized.sizeBytes });
@@ -414,7 +418,7 @@ export function _handleProfileShareDev(req, res, url) {
 }
 
 const server = http.createServer((req, res) => {
-  const url = new URL(req.url, `http://localhost:${PORT}`);
+  const url = new URL(req.url!, `http://localhost:${PORT}`);
   let pathname = decodeURIComponent(url.pathname);
 
   // Same-origin guard for proxy/API endpoints. Blocks SSRF via forged
@@ -499,7 +503,7 @@ const server = http.createServer((req, res) => {
     const headReq = mod.request(target, { method: 'HEAD', timeout: 6000 }, (headRes) => {
       // Follow one redirect — but re-check the destination through the SSRF
       // guard. An allowlisted host could otherwise 30x to a private IP.
-      if ([301, 302, 307, 308].includes(headRes.statusCode) && headRes.headers.location) {
+      if ([301, 302, 307, 308].includes(headRes.statusCode as number) && headRes.headers.location) {
         const loc = new URL(headRes.headers.location, target).href;
         if (!_isAllowedProxyUrl(loc)) {
           res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
@@ -576,7 +580,7 @@ const server = http.createServer((req, res) => {
     const symlinksOutsideRoot = rel.startsWith('..') || path.isAbsolute(rel);
     if (symlinksOutsideRoot) rel = filePath;
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    let contentHash = null;
+    let contentHash: string | null = null;
     try { contentHash = crypto.createHash('sha256').update(fs.readFileSync(real)).digest('hex'); } catch {}
     // Skip git lookups entirely for symlinks resolving outside the repo —
     // we don't want to expose another repo's HEAD SHA / commit message via
@@ -674,17 +678,17 @@ const server = http.createServer((req, res) => {
     const fetcher = targetUrl.startsWith('https') ? https : http;
     fetcher.get(targetUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (proxyRes) => {
       // Follow redirects — re-check destination through SSRF guard.
-      if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
+      if ((proxyRes.statusCode as number) >= 300 && (proxyRes.statusCode as number) < 400 && proxyRes.headers.location) {
         const redirect = new URL(proxyRes.headers.location, targetUrl).href;
         if (!_isAllowedProxyUrl(redirect)) { res.writeHead(400); res.end('Redirect destination blocked by SSRF guard'); return; }
         const rFetcher = redirect.startsWith('https') ? https : http;
         rFetcher.get(redirect, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (rRes) => {
-          res.writeHead(rRes.statusCode, { 'Content-Type': rRes.headers['content-type'] || 'application/octet-stream', ...corsHeaders(req) });
+          res.writeHead(rRes.statusCode as number, { 'Content-Type': rRes.headers['content-type'] || 'application/octet-stream', ...corsHeaders(req) });
           rRes.pipe(res);
         }).on('error', e => { res.writeHead(502); res.end(e.message); });
         return;
       }
-      res.writeHead(proxyRes.statusCode, { 'Content-Type': proxyRes.headers['content-type'] || 'application/octet-stream', ...corsHeaders(req) });
+      res.writeHead(proxyRes.statusCode as number, { 'Content-Type': proxyRes.headers['content-type'] || 'application/octet-stream', ...corsHeaders(req) });
       proxyRes.pipe(res);
     }).on('error', e => { res.writeHead(502); res.end(e.message); });
     return;
