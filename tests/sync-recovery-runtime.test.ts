@@ -15,7 +15,7 @@ const syncRuntime = vi.hoisted(() => ({
 }));
 
 vi.mock('../js/utils.js', () => ({
-  escapeHTML: value => String(value)
+  escapeHTML: (value: unknown) => String(value)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;'),
@@ -39,12 +39,22 @@ vi.mock('../js/sync-diagnose-runtime.js', () => ({
 }));
 
 const { confirmRotateIdentity } = await import('../js/sync-diagnose-identity-actions.js');
+type DiagnosticInput = Parameters<typeof import('../js/sync-diagnostics-text.js')._evoluDiagnosticsText>[0];
+type TelemetryInput = NonNullable<DiagnosticInput['deltaTelemetry']>;
+type PushInput = TelemetryInput['pushes'][number];
+type ReadinessInput = NonNullable<DiagnosticInput['cutoverReadiness']>;
+type DiagnosticFixture = Omit<DiagnosticInput, 'rows' | 'deltaTelemetry' | 'cutoverReadiness'> & {
+ rowsError: string;
+ rows: Omit<DiagnosticInput['rows'][number], 'syncedAt'>[];
+ deltaTelemetry: Omit<TelemetryInput, 'pushes' | 'pull'> & {pushes: (Omit<PushInput, 'at' | 'perArray'> & {at: string;perArray: Record<string, Pick<PushInput['perArray'][string], 'ins' | 'upd' | 'tom'>>})[];pull: Omit<TelemetryInput['pull'], 'mergedAt'> & {mergedAt: string}};
+ cutoverReadiness: Omit<ReadinessInput, 'surfaces'> & {surfaces: Record<string, Omit<ReadinessInput['surfaces'][string], 'shape'> & {shape: string}>};
+};
 const { _evoluDiagnosticsText } = await import('../js/sync-diagnostics-text.js');
 
-function click(selector) {
-  const element = document.querySelector(selector);
+function click(selector: string) {
+  const element = document.querySelector<HTMLElement>(selector);
   expect(element).not.toBeNull();
-  element.click();
+  element!.click();
   return element;
 }
 
@@ -91,21 +101,21 @@ describe('sync recovery runtime', () => {
     expect(existing.isConnected).toBe(false);
     expect(syncRuntime.closeModalOverlay).toHaveBeenCalledWith(existing);
     expect(document.querySelectorAll('#rotate-words span')).toHaveLength(48);
-    const apply = document.querySelector('#rotate-apply-btn');
-    expect(apply.disabled).toBe(true);
+    const apply = document.querySelector<HTMLButtonElement>('#rotate-apply-btn');
+    expect(apply!.disabled).toBe(true);
 
     click('#rotate-copy-btn');
     await vi.waitFor(() => {
       expect(document.execCommand).toHaveBeenCalledWith('copy');
-      expect(document.querySelector('#rotate-copy-btn').textContent).toBe('✓ Copied');
+      expect(document.querySelector('#rotate-copy-btn')!.textContent).toBe('✓ Copied');
     });
 
-    const saved = document.querySelector('#rotate-saved-check');
-    saved.checked = true;
-    saved.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(apply.disabled).toBe(false);
+    const saved = document.querySelector<HTMLInputElement>('#rotate-saved-check');
+    saved!.checked = true;
+    saved!.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(apply!.disabled).toBe(false);
 
-    apply.click();
+    apply!.click();
     await vi.waitFor(() => expect(syncRuntime.restoreMnemonic).toHaveBeenCalledWith(
       mnemonic,
       { seedLocal: true },
@@ -116,11 +126,11 @@ describe('sync recovery runtime', () => {
       'Sync identity rotated. Enter the new mnemonic on your other devices to keep them syncing.',
       'success',
     );
-    expect(document.querySelector('#rotate-apply-btn')).toBeNull();
+    expect(document.querySelector<HTMLButtonElement>('#rotate-apply-btn')).toBeNull();
   });
 
   it('formats a complete, support-ready diagnostics snapshot without dropping blockers or telemetry', () => {
-    const text = _evoluDiagnosticsText({
+    const text = (_evoluDiagnosticsText as unknown as (diagnostics: DiagnosticFixture) => ReturnType<typeof _evoluDiagnosticsText>)({
       syncEnabled: true,
       relay: 'wss://relay.example',
       ownerId: 'owner-1',
@@ -129,7 +139,7 @@ describe('sync recovery runtime', () => {
       activeImported: { sunSessions: 2, lightDevices: 1 },
       rowParseFailureCount: 1,
       rowsReadFailed: true,
-      rowsError: 'Patient Jane Example payload was malformed',
+      ...{ rowsError: 'Patient Jane Example payload was malformed' },
       rows: [{
         profileId: 'profile-1',
         isDeleted: false,

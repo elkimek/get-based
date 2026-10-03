@@ -29,28 +29,28 @@ describe('stable custom marker identity contract', () => {
     };
     const markerDataBefore = structuredClone({
       entries: profile.entries,
-      refOverrides: profile.refOverrides,
+      refOverrides: (profile as { refOverrides?: Record<string, {refMin?: unknown;refMax?: unknown}> }).refOverrides,
       markerNotes: profile.markerNotes,
       markerLabels: profile.markerLabels,
       manualValues: profile.manualValues,
       markerValueNotes: profile.markerValueNotes,
     });
 
-    migrateProfileData(profile);
-    const markerId = profile.customMarkers[dotKey].markerId;
-    const exchanged = JSON.parse(JSON.stringify(profile));
-    migrateProfileData(exchanged);
+    (migrateProfileData as unknown as (data: typeof profile) => unknown)(profile);
+    const markerId = (profile.customMarkers[dotKey] as { markerId?: unknown }).markerId;
+    const exchanged = JSON.parse(JSON.stringify(profile)) as {customMarkers: Record<string, {markerId?: unknown}>};
+    (migrateProfileData as unknown as (data: typeof exchanged) => unknown)(exchanged);
 
     expect(markerId).toBe(deriveLegacyCustomMarkerId(dotKey));
     expect({
       entries: profile.entries,
-      refOverrides: profile.refOverrides,
+      refOverrides: (profile as { refOverrides?: Record<string, {refMin?: unknown;refMax?: unknown}> }).refOverrides,
       markerNotes: profile.markerNotes,
       markerLabels: profile.markerLabels,
       manualValues: profile.manualValues,
       markerValueNotes: profile.markerValueNotes,
     }).toEqual(markerDataBefore);
-    expect(exchanged.customMarkers[dotKey].markerId).toBe(markerId);
+    expect(exchanged.customMarkers[dotKey]!.markerId).toBe(markerId);
   });
 
   it('preserves a custom reference range when the custom key is adopted as a built-in', () => {
@@ -60,11 +60,11 @@ describe('stable custom marker identity contract', () => {
       customMarkers: { [key]: { name: 'IG %', unit: '%', refMin: 0.1, refMax: 0.9 } },
     };
 
-    migrateProfileData(profile);
+    (migrateProfileData as unknown as (data: typeof profile) => unknown)(profile);
 
     expect(profile.customMarkers[key]).toBeUndefined();
-    expect(profile.entries[0].markers[key]).toBe(0.3);
-    expect(profile.refOverrides?.[key]).toEqual({ refMin: 0.1, refMax: 0.9 });
+    expect(profile.entries[0]!.markers[key]).toBe(0.3);
+    expect((profile as { refOverrides?: Record<string, {refMin?: unknown;refMax?: unknown}> }).refOverrides?.[key]).toEqual({ refMin: 0.1, refMax: 0.9 });
   });
 
   it('keeps an existing override and a non-differing custom range during adoption', () => {
@@ -81,7 +81,7 @@ describe('stable custom marker identity contract', () => {
     migrateProfileData(sameAsStandard);
 
     expect(withOverride.refOverrides[key]).toEqual({ refMin: 0.5, refMax: 3 });
-    expect(sameAsStandard.refOverrides?.[key]).toBeUndefined();
+    expect((sameAsStandard as {refOverrides?: Record<string,unknown>}).refOverrides?.[key]).toBeUndefined();
   });
 
   it.each([false, true])('preserves reference ranges with import snapshot=%s and an optimal-only override', (withSnapshot) => {
@@ -96,16 +96,16 @@ describe('stable custom marker identity contract', () => {
       }] : [],
     };
 
-    migrateProfileData(profile);
+    (migrateProfileData as unknown as (data: typeof profile) => unknown)(profile);
 
     expect(profile.customMarkers[key]).toBeUndefined();
-    expect(profile.entries[0].markers[key]).toBe(1.2);
-    expect(profile.refOverrides[key]).toEqual({
+    expect(profile.entries[0]!.markers[key]).toBe(1.2);
+    expect((profile as { refOverrides?: Record<string, {refMin?: unknown;refMax?: unknown}> }).refOverrides![key]).toEqual({
       optimalMin: 0.1, optimalMax: 0.5, optimalSource: 'manual', refMin: 0.1, refMax: 0.9,
     });
-    if (withSnapshot) expect(profile.importSnapshots[0].markers[0]).toMatchObject({ mappedKey: key, suggestedKey: null, matched: true });
+    if (withSnapshot) expect(profile.importSnapshots[0]!.markers[0]).toMatchObject({ mappedKey: key, suggestedKey: null, matched: true });
     const once = structuredClone(profile);
-    migrateProfileData(profile);
+    (migrateProfileData as unknown as (data: typeof profile) => unknown)(profile);
     expect(profile).toEqual(once);
   });
 
@@ -116,10 +116,10 @@ describe('stable custom marker identity contract', () => {
       customMarkers: { [key]: { name: 'IG %', unit: '%', refMin: 0.1, refMax: 0.9 } },
       importSnapshots: [{ id: 'report-1', date: '2026-07-01', markers: [{ mappedKey: key, value: 1.2, unit: '%' }] }],
     };
-    migrateProfileData(profile);
-    expect(profile.refOverrides[key]).toEqual({ refMin: 0.1, refMax: 0.9 });
+    (migrateProfileData as unknown as (data: typeof profile) => unknown)(profile);
+    expect((profile as { refOverrides?: Record<string, {refMin?: unknown;refMax?: unknown}> }).refOverrides![key]).toEqual({ refMin: 0.1, refMax: 0.9 });
     expect(profile.customMarkers[key]).toBeUndefined();
-    expect(profile.entries[0].markers[key]).toBe(1.2);
+    expect(profile.entries[0]!.markers[key]).toBe(1.2);
   });
 
   it('fills a missing bound without overwriting an explicit null bound or metadata', () => {
@@ -128,23 +128,25 @@ describe('stable custom marker identity contract', () => {
       customMarkers: { [key]: { name: 'IG %', unit: '%', refMin: 0.1, refMax: 0.9 } },
       refOverrides: { [key]: { refMin: null, refSource: 'manual', labRefMax: 0.8 } },
     };
-    migrateProfileData(profile);
-    expect(profile.refOverrides[key]).toEqual({ refMin: null, refMax: 0.9, refSource: 'manual', labRefMax: 0.8 });
+    (migrateProfileData as unknown as (data: typeof profile) => unknown)(profile);
+    expect((profile as { refOverrides?: Record<string, {refMin?: unknown;refMax?: unknown}> }).refOverrides![key]).toEqual({ refMin: null, refMax: 0.9, refSource: 'manual', labRefMax: 0.8 });
   });
 
   it('keeps an open-ended custom range and does not infer zero from blank bounds', () => {
     const key = 'hematology.reticulocytesPct';
     const profile = { customMarkers: { [key]: { name: 'Reticulocytes %', unit: '%', refMin: null, refMax: ' ' } } };
-    migrateProfileData(profile);
-    expect(profile.refOverrides[key]).toEqual({ refMin: null });
+    (migrateProfileData as unknown as (data: typeof profile) => unknown)(profile);
+    expect((profile as { refOverrides?: Record<string, {refMin?: unknown;refMax?: unknown}> }).refOverrides![key]).toEqual({ refMin: null });
   });
 
   it('does not copy incompatible custom units into canonical reference overrides', () => {
     const key = 'hematology.immatureGranulocytesPct';
     const profile = { customMarkers: { [key]: { name: 'IG', unit: '10^9/l', refMin: 0, refMax: 0.1 } } };
-    migrateProfileData(profile);
+    (migrateProfileData as unknown as (data: typeof profile) => unknown)(profile);
     expect(profile.customMarkers[key]).toMatchObject({ unit: '10^9/l', refMax: 0.1 });
-    expect(profile.refOverrides?.[key]).toBeUndefined();
+    expect((profile as { refOverrides?: Record<string, {refMin?: unknown;refMax?: unknown}> }).refOverrides?.[key]).toBeUndefined();
   });
 
 });
+
+export type PreservedOriginalImportSignatures = [typeof createCustomMarkerId, typeof getCustomMarkerDotKey, typeof getCustomMarkerId, typeof migrateCustomMarkerIdentities, typeof resolveCustomMarkerDotKey, typeof mergeImportedData, typeof isCustomMarkerId];

@@ -28,9 +28,9 @@ import { reconcilePulledManualWearables } from '../js/profile-runtime.js';
 import { DELTA_MAPS, _planKeyedMapDelta } from '../js/sync-delta.js';
 
 const PROFILE_ID = 'manual-heart-rate-delete';
-let previousProfile;
-let previousImportedData;
-let previousSummaryDeps;
+let previousProfile: typeof state.currentProfile;
+let previousImportedData: typeof state.importedData;
+let previousSummaryDeps: ReturnType<typeof configureWearableSummary>;
 
 function oldRhrSummary(date = '2026-08-12') {
   return {
@@ -57,7 +57,7 @@ beforeEach(async () => {
   previousImportedData = state.importedData;
   state.currentProfile = PROFILE_ID;
   localStorage.setItem('labcharts-active-profile', PROFILE_ID);
-  state.importedData = {
+  (state as { importedData: unknown }).importedData = {
     entries: [],
     biometrics: {
       weight: [],
@@ -78,7 +78,7 @@ afterEach(async () => {
   configureWearableSummary(previousSummaryDeps);
   await deleteWearablesDB(PROFILE_ID).catch(() => {});
   state.currentProfile = previousProfile;
-  state.importedData = previousImportedData;
+  (state as { importedData: unknown }).importedData = previousImportedData;
   localStorage.clear();
 });
 
@@ -94,8 +94,8 @@ describe('durable manual heart-rate deletion', () => {
     await deleteManualMetric(PROFILE_ID, 'rhr', '2026-08-12');
 
     expect(await getDaily(PROFILE_ID, 'manual', '2026-08-12')).toMatchObject({ weight: 72 });
-    expect((await getDaily(PROFILE_ID, 'manual', '2026-08-12')).rhr).toBeUndefined();
-    expect(state.importedData.biometrics.pulse).toEqual([]);
+    expect((await getDaily(PROFILE_ID, 'manual', '2026-08-12'))!.rhr).toBeUndefined();
+    expect(state.importedData.biometrics!.pulse).toEqual([]);
     expect(isManualMetricTombstoned('rhr', '2026-08-12')).toBe(true);
 
     // Simulate an old peer/local restore putting both historical copies back.
@@ -105,30 +105,30 @@ describe('durable manual heart-rate deletion', () => {
       weight: 72,
       rhr: 61,
     });
-    state.importedData.biometrics.pulse.push({ date: '2026-08-12', value: 61 });
+    state.importedData.biometrics!.pulse!.push({ date: '2026-08-12', value: 61 });
 
     const reconciled = await reconcileManualMetricTombstones(PROFILE_ID);
 
     expect(reconciled).toEqual({ prunedRows: 1, prunedLegacy: 1 });
     expect(await getDaily(PROFILE_ID, 'manual', '2026-08-12')).toMatchObject({ weight: 72 });
-    expect((await getDaily(PROFILE_ID, 'manual', '2026-08-12')).rhr).toBeUndefined();
-    expect(state.importedData.biometrics.pulse).toEqual([]);
+    expect((await getDaily(PROFILE_ID, 'manual', '2026-08-12'))!.rhr).toBeUndefined();
+    expect(state.importedData.biometrics!.pulse).toEqual([]);
   });
 
   it('allows an intentional re-add to clear the synced deletion marker', async () => {
     await upsertDaily(PROFILE_ID, { source: 'manual', date: '2026-08-12', rhr: 61 });
     await deleteManualMetric(PROFILE_ID, 'rhr', '2026-08-12');
-    state.importedData.manualMetricTombstones['rhr.all'] = Date.now();
+    state.importedData.manualMetricTombstones!['rhr.all'] = Date.now();
 
     await logManualMetric(PROFILE_ID, 'rhr', { date: '2026-08-12', value: 64 });
 
     expect(isManualMetricTombstoned('rhr', '2026-08-12')).toBe(false);
-    expect(state.importedData.manualMetricTombstones['rhr.2026-08-12']).toBe(0);
+    expect(state.importedData.manualMetricTombstones!['rhr.2026-08-12']).toBe(0);
     expect(await getDaily(PROFILE_ID, 'manual', '2026-08-12')).toMatchObject({ rhr: 64 });
   });
 
   it('preserves the undeleted legacy BP component for migration', async () => {
-    state.importedData.biometrics.bp = [
+    state.importedData.biometrics!.bp = [
       { date: '2026-08-10', systolic: 120, diastolic: 76 },
       { date: '2026-08-11', systolic: 118, diastolic: 74 },
     ];
@@ -141,7 +141,7 @@ describe('durable manual heart-rate deletion', () => {
       prunedRows: 0,
       prunedLegacy: 2,
     });
-    expect(state.importedData.biometrics.bp).toEqual([
+    expect(state.importedData.biometrics!.bp).toEqual([
       { date: '2026-08-10', diastolic: 76 },
       { date: '2026-08-11', systolic: 118 },
     ]);
@@ -151,22 +151,22 @@ describe('durable manual heart-rate deletion', () => {
     expect(await getDaily(PROFILE_ID, 'manual', '2026-08-10')).toMatchObject({
       bp_diastolic: 76,
     });
-    expect((await getDaily(PROFILE_ID, 'manual', '2026-08-10')).bp_systolic).toBeUndefined();
+    expect((await getDaily(PROFILE_ID, 'manual', '2026-08-10'))!.bp_systolic).toBeUndefined();
     expect(await getDaily(PROFILE_ID, 'manual', '2026-08-11')).toMatchObject({
       bp_systolic: 118,
     });
-    expect((await getDaily(PROFILE_ID, 'manual', '2026-08-11')).bp_diastolic).toBeUndefined();
+    expect((await getDaily(PROFILE_ID, 'manual', '2026-08-11'))!.bp_diastolic).toBeUndefined();
   });
 
   it('deleting one BP metric leaves its legacy counterpart intact', async () => {
-    state.importedData.biometrics.bp = [
+    state.importedData.biometrics!.bp = [
       { date: '2026-08-12', systolic: 121, diastolic: 77 },
     ];
 
     expect(await saveImportedData()).toBe(true);
     await deleteManualMetric(PROFILE_ID, 'bp_systolic', '2026-08-12');
 
-    expect(state.importedData.biometrics.bp).toEqual([
+    expect(state.importedData.biometrics!.bp).toEqual([
       { date: '2026-08-12', diastolic: 77 },
     ]);
   });
@@ -185,7 +185,7 @@ describe('durable manual heart-rate deletion', () => {
     expect(await reconcilePulledManualWearables(PROFILE_ID, merged)).toBe(true);
     expect(state.importedData).toBe(live);
     expect(live.contextNotes).toBe('Unsaved note while receiving a deletion');
-    expect(live.biometrics.pulse).toHaveLength(1);
+    expect(live.biometrics!.pulse).toHaveLength(1);
 
     expect(await getDaily(PROFILE_ID, 'manual', '2026-08-12')).toBeNull();
     expect(merged.biometrics.pulse).toEqual([]);
@@ -232,7 +232,7 @@ describe('durable manual heart-rate deletion', () => {
 
     expect(await getDaily(PROFILE_ID, 'manual', '2026-08-12')).toBeNull();
     expect(await getDaily(PROFILE_ID, 'manual', '2025-01-01')).toBeNull();
-    expect(state.importedData.manualMetricTombstones['rhr.all']).toBeGreaterThan(0);
+    expect(state.importedData.manualMetricTombstones!['rhr.all']).toBeGreaterThan(0);
     expect(state.importedData.wearableConnections.manual).toBeUndefined();
     expect(state.importedData.wearableSummary.metrics).toEqual({});
     expect(state.importedData.wearableSummary.sources).toEqual({});

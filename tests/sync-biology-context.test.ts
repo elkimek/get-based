@@ -32,13 +32,13 @@ describe('Biology Score context sync merge', () => {
     sessionStorage.clear();
     state.currentProfile = 'bio-context-profile';
     localStorage.setItem('labcharts-active-profile', state.currentProfile);
-    state.importedData = null;
+    (state as {importedData: unknown}).importedData = null;
     state.dateRangeFilter = 'all';
   });
 
   it('preserves independently assessed range views when newer remote answers merge', async () => {
-    const answer = (materialFingerprint, updatedAt) => ({ text: materialFingerprint, summary: materialFingerprint, materialFingerprint, updatedAt });
-    state.importedData = { ...createDefaultProfileData(), biologyScoreAI: { redoxStress: answer('optimal', 2000) } };
+    const answer = (materialFingerprint: string, updatedAt: number) => ({ text: materialFingerprint, summary: materialFingerprint, materialFingerprint, updatedAt });
+    (state as { importedData: unknown }).importedData = { ...createDefaultProfileData(), biologyScoreAI: { redoxStress: answer('optimal', 2000) } };
     const remote = { ...createDefaultProfileData(), biologyScoreAI: { redoxStress: answer('reference', 3000) } };
     const result = await mergePulledImportedData(state.currentProfile, remote);
     expect(result.merged.biologyScoreAI.redoxStress.materialFingerprint).toBe('reference');
@@ -61,7 +61,7 @@ describe('Biology Score context sync merge', () => {
       },
     };
 
-    state.importedData = local;
+    (state as { importedData: unknown }).importedData = local;
     const result = await mergePulledImportedData(state.currentProfile, remoteLegacy);
 
     expect(result.merged.biologyScoreContextAI.summary).toBe('Context checked locally');
@@ -90,7 +90,7 @@ describe('Biology Score context sync merge', () => {
       },
     };
 
-    state.importedData = local;
+    (state as { importedData: unknown }).importedData = local;
     const result = await mergePulledImportedData(state.currentProfile, remoteCurrent);
 
     expect(result.merged.biologyScoreContextAI.summary).toBe('Fresh context checked on another device');
@@ -118,7 +118,7 @@ describe('Biology Score context sync merge', () => {
       },
     };
 
-    state.importedData = localLegacy;
+    (state as { importedData: unknown }).importedData = localLegacy;
     const result = await mergePulledImportedData(state.currentProfile, remoteComplete);
 
     expect(result.merged.biologyScoreContextAI.summary).toBe('Older complete context checked on another device');
@@ -144,16 +144,16 @@ describe('Biology Score context sync merge', () => {
       ...createDefaultProfileData(),
       contextSourceSettings: { 'lab-markers': true, 'lab-group-Fatty Acids': false },
     };
-    state.importedData = remote;
-    remote.biologyScoreContextAI = {
+    (state as { importedData: unknown }).importedData = remote;
+    (remote as {biologyScoreContextAI?: unknown}).biologyScoreContextAI = {
       summary: 'Remote context checked with labs enabled',
       suggestions: [],
       updatedAt: 4000,
       range: 'all',
-      fingerprint: buildBiologyScoreContextFingerprint(scoreData),
-      fingerprintsByRange: buildBiologyScoreContextFingerprintsByRange(scoreData),
-      contextSignature: buildBiologyScoreContextMaterialSignature(scoreData),
-      contextSignaturesByRange: buildBiologyScoreContextMaterialSignaturesByRange(scoreData),
+      fingerprint: (buildBiologyScoreContextFingerprint as unknown as (data: typeof scoreData) => ReturnType<typeof buildBiologyScoreContextFingerprint>)(scoreData),
+      fingerprintsByRange: (buildBiologyScoreContextFingerprintsByRange as unknown as (data: typeof scoreData) => ReturnType<typeof buildBiologyScoreContextFingerprintsByRange>)(scoreData),
+      contextSignature: (buildBiologyScoreContextMaterialSignature as unknown as (data: typeof scoreData) => ReturnType<typeof buildBiologyScoreContextMaterialSignature>)(scoreData),
+      contextSignaturesByRange: (buildBiologyScoreContextMaterialSignaturesByRange as unknown as (data: typeof scoreData) => ReturnType<typeof buildBiologyScoreContextMaterialSignaturesByRange>)(scoreData),
       unlockedRanges: ['all', '1y', '6m', '3m'],
     };
 
@@ -162,12 +162,12 @@ describe('Biology Score context sync merge', () => {
       contextSourceSettings: {},
     };
     localStorage.setItem('labcharts-bio-context-profile-ai-ctx-lab-markers', 'off');
-    state.importedData = local;
+    (state as { importedData: unknown }).importedData = local;
     const result = await mergePulledImportedData(state.currentProfile, remote);
-    state.importedData = result.merged;
+    (state as { importedData: unknown }).importedData = result.merged;
 
     expect(result.merged.contextSourceSettings?.['lab-markers']).toBe(true);
     expect(result.merged.contextSourceSettings?.['lab-group-Fatty Acids']).toBe(false);
-    expect(hasBiologyScoreContextReview(scoreData)).toBe(true);
+    expect((hasBiologyScoreContextReview as (data: unknown) => ReturnType<typeof hasBiologyScoreContextReview>)(scoreData)).toBe(true);
   });
 });

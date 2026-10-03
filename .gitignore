@@ -1322,3 +1322,10 @@ deploy/profile-share/data/
 /scripts/vendor-entries/venice-nvidia.js
 /scripts/vendor-entries/zlib-browser-shim.js
 /scripts/vendor-packages/elliptic-verify-only/index.js
+
+/playwright.config.js
+/playwright.evolu8.config.js
+/playwright.firefox.config.js
+/playwright.pwa.config.js
+/vitest.config.js
+/vitest.critical.config.js

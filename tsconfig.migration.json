@@ -24,6 +24,7 @@
     "noEmitOnError": true
   },
   "include": [
+    "*.config.ts",
     "dev-server.ts",
     "js/**/*.ts",
     "lib/**/*.ts",

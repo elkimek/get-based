@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { deriveLegacyCustomMarkerId } from '../js/custom-marker-identity.js';
 
 const runtime = vi.hoisted(() => ({
-  encryptedGetItem: vi.fn(),
+  encryptedGetItem: vi.fn<(key: unknown) => Promise<string | null>>(),
   profiles: [{
     id: 'profile-1',
     name: 'Primary',
@@ -33,7 +33,7 @@ vi.mock('../js/profile.js', () => ({
   createProfile: vi.fn(),
   getProfiles: () => runtime.profiles,
   migrateProfileData: vi.fn(),
-  profileStorageKey: (profileId, suffix) => `labcharts-${profileId}-${suffix}`,
+  profileStorageKey: (profileId: unknown, suffix: unknown) => `labcharts-${profileId}-${suffix}`,
   saveProfiles: vi.fn(),
   switchProfile: vi.fn(),
 }));
@@ -80,7 +80,7 @@ describe('custom marker export boundaries', () => {
             },
           },
           markerPlacements: {
-            [deriveLegacyCustomMarkerId('oatEnergy.acetoaceticAcid')]: {
+            [deriveLegacyCustomMarkerId('oatEnergy.acetoaceticAcid')!]: {
               categoryKey: 'biochemistry',
             },
           },
@@ -94,17 +94,17 @@ describe('custom marker export boundaries', () => {
   });
 
   it('includes migrated ids in client exports used by sharing', async () => {
-    const exported = await buildClientExportObject('profile-1');
+    const exported = await buildClientExportObject('profile-1') as ReturnType<typeof buildClientExportObject> extends Promise<infer R> ? R & { customMarkers: Record<string, unknown>; biologyScoreAI: Record<string, unknown>; entries: {markers: unknown}[] } : never;
 
     expect(exported.customMarkers['oatEnergy.acetoaceticAcid']).toMatchObject({
-      markerId: deriveLegacyCustomMarkerId('oatEnergy.acetoaceticAcid'),
+      markerId: deriveLegacyCustomMarkerId('oatEnergy.acetoaceticAcid')!,
       name: 'Acetoacetic Acid',
       futureField: { preserve: true },
     });
     expect(exported.biologyScoreAI.thyroidCoherence).toEqual({ summary: 'Saved insight.', text: 'Saved detailed explanation.', materialFingerprint: 'marker-evidence', updatedAt: 123 });
-    expect(exported.entries[0].markers).toEqual({ 'oatEnergy.acetoaceticAcid': 12.5 });
+    expect(exported.entries[0]!.markers).toEqual({ 'oatEnergy.acetoaceticAcid': 12.5 });
     expect(exported.markerPlacements).toEqual({
-      [deriveLegacyCustomMarkerId('oatEnergy.acetoaceticAcid')]: {
+      [deriveLegacyCustomMarkerId('oatEnergy.acetoaceticAcid')!]: {
         categoryKey: 'biochemistry',
       },
     });
@@ -114,15 +114,15 @@ describe('custom marker export boundaries', () => {
   });
 
   it('includes the same ids in full database backups', async () => {
-    const bundle = JSON.parse(await buildAllDataBundle());
-    const definition = bundle.profiles[0].data.customMarkers['oatEnergy.acetoaceticAcid'];
+    const bundle = (JSON.parse as (text: unknown) => { profiles: {data:{ customMarkers: Record<string, {markerId: string}>; entries: {markers: unknown}[]; markerPlacements: unknown}}[] })(await buildAllDataBundle());
+    const definition = bundle.profiles[0]!.data.customMarkers['oatEnergy.acetoaceticAcid'];
 
-    expect(definition.markerId)
-      .toBe(deriveLegacyCustomMarkerId('oatEnergy.acetoaceticAcid'));
-    expect(bundle.profiles[0].data.entries[0].markers)
+    expect(definition!.markerId)
+      .toBe(deriveLegacyCustomMarkerId('oatEnergy.acetoaceticAcid')!);
+    expect(bundle.profiles[0]!.data.entries[0]!.markers)
       .toEqual({ 'oatEnergy.acetoaceticAcid': 12.5 });
-    expect(bundle.profiles[0].data.markerPlacements).toEqual({
-      [definition.markerId]: { categoryKey: 'biochemistry' },
+    expect(bundle.profiles[0]!.data.markerPlacements).toEqual({
+      [definition!.markerId]: { categoryKey: 'biochemistry' },
     });
   });
 });

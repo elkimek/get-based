@@ -33,7 +33,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['json-summary', 'json'],
       reportsDirectory: 'tests/.vitest-coverage',
-      all: true,
+      ...{ all: true },
       include: COVERAGE_INCLUDE,
       exclude: [
         '**/node_modules/**',

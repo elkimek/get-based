@@ -2,11 +2,12 @@
 // This supplements the complete CI denominator; it does not replace it.
 import { defineConfig } from 'vitest/config';
 import base from './vitest.config.js';
+import { sourcePath } from './scripts/source-files.js';
 
 export default defineConfig({
   ...base,
   test: {
-    ...base.test,
+    ...base.test!,
     include: [
       'tests/cycle-import-recovery.test.js',
       'tests/cycle-import-preview-recovery.test.js',
@@ -66,9 +67,9 @@ export default defineConfig({
       'tests/service-worker-runtime.test.js',
       'tests/voice-player-failures.test.ts',
       'tests/voice-chat-runtime.test.js',
-    ],
+    ].map(file => sourcePath(file)),
     coverage: {
-      ...base.test.coverage,
+      ...base.test!.coverage!,
       enabled: true,
       include: [
         'js/cycle-import-mutations.js',

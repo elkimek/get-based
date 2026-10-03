@@ -19,7 +19,7 @@ export default defineConfig({
       name: 'chromium-evolu8',
       use: {
         ...devices['Desktop Chrome'],
-        launchOptions: chromiumLaunchOptions,
+        launchOptions: chromiumLaunchOptions!,
       },
     },
     {

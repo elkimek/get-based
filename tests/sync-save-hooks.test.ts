@@ -22,15 +22,15 @@ describe('sync save-hook profile data dependencies', () => {
   it('normalizes explicit fallback data but fails closed for a missing named profile', async () => {
     const fallback = { entries: [] };
     const createDefaultProfileData = vi.fn(() => ({ entries: [], created: true }));
-    const migrateProfileData = vi.fn(data => {
-      data.migrated = true;
+    const migrateProfileData = vi.fn((data: unknown) => {
+      (data as {migrated?: unknown}).migrated = true;
       return data;
     });
     const previous = configureSyncSaveHooks({ createDefaultProfileData, migrateProfileData });
 
     try {
       await expect(readProfileImportedData('fallback-profile', fallback)).resolves.toBe(fallback);
-      expect(fallback.migrated).toBe(true);
+      expect((fallback as {migrated?: unknown}).migrated).toBe(true);
       expect(migrateProfileData).toHaveBeenCalledWith(fallback);
 
       localStorage.removeItem('labcharts-missing-profile-imported');
@@ -66,7 +66,7 @@ describe('sync save-hook profile data dependencies', () => {
     await encryptedRemoveItem(storageKey);
     await encryptedSetItem(storageKey, JSON.stringify(stored));
     state.currentProfile = 'different-active-profile';
-    state.importedData = { entries: [] };
+    (state as { importedData: unknown }).importedData = { entries: [] };
 
     try {
       // The imported blob is intentionally absent from localStorage; it is
@@ -75,7 +75,7 @@ describe('sync save-hook profile data dependencies', () => {
       await expect(readProfileImportedData(profileId)).resolves.toEqual(stored);
     } finally {
       state.currentProfile = previousCurrentProfile;
-      state.importedData = previousImportedData;
+      (state as { importedData: unknown }).importedData = previousImportedData;
       if (previousEncryptionEnabled === null) localStorage.removeItem('labcharts-encryption-enabled');
       else localStorage.setItem('labcharts-encryption-enabled', previousEncryptionEnabled);
       await encryptedRemoveItem(storageKey);
@@ -87,7 +87,7 @@ describe('sync save-hook profile data dependencies', () => {
     const storageKey = profileStorageKey(profileId, 'imported');
     const previousCurrentProfile = state.currentProfile;
     const previousImportedData = state.importedData;
-    const pushProfile = vi.fn(async () => ({}));
+    const pushProfile = vi.fn<(id: string, data: unknown) => Promise<object>>(async () => ({}));
     const previous = configureSyncSaveHooks({
       pushProfile,
       isSyncEnabled: () => true,
@@ -97,7 +97,7 @@ describe('sync save-hook profile data dependencies', () => {
 
     await encryptedRemoveItem(storageKey);
     state.currentProfile = 'different-active-profile';
-    state.importedData = { entries: [] };
+    (state as { importedData: unknown }).importedData = { entries: [] };
 
     try {
       onProfileSaved(profileId);
@@ -106,7 +106,7 @@ describe('sync save-hook profile data dependencies', () => {
     } finally {
       configureSyncSaveHooks(previous);
       state.currentProfile = previousCurrentProfile;
-      state.importedData = previousImportedData;
+      (state as { importedData: unknown }).importedData = previousImportedData;
       localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
       await encryptedRemoveItem(storageKey);
     }
@@ -119,7 +119,7 @@ describe('sync save-hook profile data dependencies', () => {
       const storageKey = profileStorageKey(profileId, 'imported');
       const previousProfile = state.currentProfile;
       const previousData = state.importedData;
-      const pushProfile = vi.fn(async () => ({ ok: true }));
+      const pushProfile = vi.fn<(id: string, data: unknown) => Promise<object>>(async () => ({ ok: true }));
       const previous = configureSyncSaveHooks({
         pushProfile, isSyncConfigured: () => true, isSyncEnabled: () => true,
         isEvoluReady: () => true, isSyncing: () => false,
@@ -128,23 +128,23 @@ describe('sync save-hook profile data dependencies', () => {
       const fresh = { entries: [], notes: [{ id: 'local' }, { id: 'received' }] };
       try {
         state.currentProfile = profileId;
-        state.importedData = { entries: [], notes: [{ id: 'local' }] };
+        (state as { importedData: unknown }).importedData = { entries: [], notes: [{ id: 'local' }] };
         onDataSaved();
         if (switchedProfile) {
           await encryptedSetItem(storageKey, JSON.stringify(fresh));
           state.currentProfile = 'other-profile';
-          state.importedData = { entries: [] };
-        } else state.importedData = fresh;
+          (state as { importedData: unknown }).importedData = { entries: [] };
+        } else (state as { importedData: unknown }).importedData = fresh;
         await vi.advanceTimersByTimeAsync(10_000);
         vi.useRealTimers();
         await vi.waitFor(() => expect(pushProfile).toHaveBeenCalledTimes(1));
-        expect(pushProfile.mock.calls[0][1].notes).toEqual(fresh.notes);
+        expect((pushProfile.mock.calls[0]![1] as {notes?: unknown}).notes).toEqual(fresh.notes);
       } finally {
         clearSyncSaveTimers();
         vi.useRealTimers();
         configureSyncSaveHooks(previous);
         state.currentProfile = previousProfile;
-        state.importedData = previousData;
+        (state as { importedData: unknown }).importedData = previousData;
         localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
         await encryptedRemoveItem(storageKey);
       }
@@ -157,7 +157,7 @@ describe('sync save-hook profile data dependencies', () => {
     const previousProfile = state.currentProfile, previousData = state.importedData;
     const oldData = { entries: [], contextNotes: 'old' };
     const newData = { entries: [], contextNotes: 'newer saved edit' };
-    const pushProfile = vi.fn(async id => {
+    const pushProfile = vi.fn<(id: string, data: unknown) => Promise<object>>(async id => {
       clearSyncProfileDirty(id, getSyncDirtyToken(id));
       return { ok: true };
     });
@@ -165,30 +165,30 @@ describe('sync save-hook profile data dependencies', () => {
       pushProfile, isSyncConfigured: () => true, isSyncEnabled: () => true,
       isEvoluReady: () => true, isSyncing: () => false, getProfiles: () => [{ id: profileId }],
     });
-    let finishRead;
-    const pendingRead = new Promise(resolve => { finishRead = resolve; });
-    const read = vi.spyOn(cryptoStore, 'encryptedGetItem').mockImplementationOnce(() => pendingRead);
+    let finishRead: ((value: string | null) => void) | undefined;
+    const pendingRead = new Promise<string | null>(resolve => { finishRead = resolve; });
+    const read = vi.spyOn(cryptoStore, 'encryptedGetItem').mockImplementationOnce(() => pendingRead!);
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     try {
       state.currentProfile = profileId;
-      state.importedData = oldData;
+      (state as { importedData: unknown }).importedData = oldData;
       onDataSaved();
       state.currentProfile = 'other-profile';
-      state.importedData = { entries: [] };
+      (state as { importedData: unknown }).importedData = { entries: [] };
       await vi.advanceTimersByTimeAsync(10_000);
       expect(read).toHaveBeenCalledWith(storageKey);
       await encryptedSetItem(storageKey, JSON.stringify(newData));
       markSyncProfileDirty(profileId);
-      finishRead(JSON.stringify(oldData));
+      finishRead!(JSON.stringify(oldData));
       vi.useRealTimers();
       await vi.waitFor(() => expect(pushProfile).toHaveBeenCalledOnce());
-      expect(pushProfile.mock.calls[0][1]).toEqual(newData);
+      expect(pushProfile.mock.calls[0]![1]).toEqual(newData);
       expect(getSyncDirtyToken(profileId)).toBeNull();
     } finally {
-      finishRead(JSON.stringify(oldData));
+      finishRead!(JSON.stringify(oldData));
       clearSyncSaveTimers(); vi.useRealTimers(); read.mockRestore();
       configureSyncSaveHooks(previous);
-      state.currentProfile = previousProfile; state.importedData = previousData;
+      state.currentProfile = previousProfile; (state as { importedData: unknown }).importedData = previousData;
       localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
       await encryptedRemoveItem(storageKey);
     }
@@ -197,21 +197,21 @@ describe('sync save-hook profile data dependencies', () => {
   it('does not replay a delayed save after manual sync already committed it', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const previousProfile = state.currentProfile, previousData = state.importedData;
-    const pushProfile = vi.fn(async () => ({ ok: true }));
+    const pushProfile = vi.fn<(id: string, data: unknown) => Promise<object>>(async () => ({ ok: true }));
     const previous = configureSyncSaveHooks({
       pushProfile, isSyncConfigured: () => true, isSyncEnabled: () => true,
       isEvoluReady: () => true, isSyncing: () => false, getProfiles: () => [{ id: 'already-synced' }],
     });
     try {
       state.currentProfile = 'already-synced';
-      state.importedData = { entries: [], contextNotes: 'edited locally' };
+      (state as { importedData: unknown }).importedData = { entries: [], contextNotes: 'edited locally' };
       onDataSaved();
       clearSyncProfileDirty('already-synced', getSyncDirtyToken('already-synced'));
       await vi.advanceTimersByTimeAsync(10_000);
       expect(pushProfile).not.toHaveBeenCalled();
     } finally {
       clearSyncSaveTimers(); vi.useRealTimers(); configureSyncSaveHooks(previous);
-      state.currentProfile = previousProfile; state.importedData = previousData;
+      state.currentProfile = previousProfile; (state as { importedData: unknown }).importedData = previousData;
     }
   });
 
@@ -227,7 +227,7 @@ describe('sync save-hook profile data dependencies', () => {
       isEvoluReady: () => false,
     });
     state.currentProfile = profileId;
-    state.importedData = { entries: [], supplements: [{ id: 'supplement-1' }] };
+    (state as { importedData: unknown }).importedData = { entries: [], supplements: [{ id: 'supplement-1' }] };
 
     try {
       onDataSaved({ immediate: true });
@@ -237,7 +237,7 @@ describe('sync save-hook profile data dependencies', () => {
       configureSyncSaveHooks(previous);
       localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
       state.currentProfile = previousCurrentProfile;
-      state.importedData = previousImportedData;
+      (state as { importedData: unknown }).importedData = previousImportedData;
     }
   });
 
@@ -254,7 +254,7 @@ describe('sync save-hook profile data dependencies', () => {
       getProfiles: () => [{ id: profileId, tags: [] }],
     });
     state.currentProfile = profileId;
-    state.importedData = { entries: [], notes: [{ id: 'newer-local-edit' }] };
+    (state as { importedData: unknown }).importedData = { entries: [], notes: [{ id: 'newer-local-edit' }] };
     markSyncProfileDirty(profileId);
     const dirtyToken = getSyncDirtyToken(profileId);
     localStorage.setItem(`labcharts-tombstone-pending-${profileId}`, JSON.stringify({ source: 'remote' }));
@@ -268,7 +268,7 @@ describe('sync save-hook profile data dependencies', () => {
       localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);
       localStorage.removeItem(`labcharts-tombstone-pending-${profileId}`);
       state.currentProfile = previousCurrentProfile;
-      state.importedData = previousImportedData;
+      (state as { importedData: unknown }).importedData = previousImportedData;
     }
   });
 });
