@@ -55,7 +55,7 @@ console.log('2. Service Worker Registration');
 
 // Original test fetched '/app' (dev-server alias for index.html).
 const indexSrc = read('index.html');
-const serviceWorkerUpdateSrc = read('js/service-worker-update.js');
+const serviceWorkerUpdateSrc = read('js/service-worker-update.js').replace(/}\s+catch\s*{/g, '} catch {');
 assert('index loads service worker update module', indexSrc.includes('src="js/service-worker-update.js"'));
 assert('SW registration uses absolute path', serviceWorkerUpdateSrc.includes("'/service-worker.js'") || serviceWorkerUpdateSrc.includes('"/service-worker.js"'));
 assert('SW registration failures are handled',
@@ -1118,7 +1118,7 @@ const chartsSrc = read('js/charts.js');
 assert('Chart.js pointStyle per status', chartsSrc.includes('ptStyles') && chartsSrc.includes('pointStyle'));
 
 const ctxSrc2 = read('js/context-cards.js');
-const ctxHealthDotsSrc = read('js/context-card-health-dots.js');
+const ctxHealthDotsSrc = read('js/context-card-health-dots.js').replace(/try\s*{\s*return JSON\.parse/g, 'try { return JSON.parse');
 const demoAIConsentSrc = ctxHealthDotsSrc.slice(
   ctxHealthDotsSrc.indexOf('const demoLiveAIConsents'),
   ctxHealthDotsSrc.indexOf('export function applyDotColor'),

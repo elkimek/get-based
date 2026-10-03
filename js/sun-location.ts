@@ -1,4 +1,3 @@
-// @ts-check
 // sun-location.js — Deterministic home coordinates and temporary current location.
 
 import { state } from './state.js';
@@ -20,7 +19,19 @@ import {
 // synthesis below 5° solar elevation is negligible (Webb 2018).
 const BAND_CENTROID_LAT = [15, 32, 45, 55, 65];
 const CURRENT_LOCATION_KEY = 'labcharts-sun-current-location-v1';
-let currentLocationMemory = null;
+interface StoredCurrentLocation {
+  [key: string]: unknown;
+  lat?: unknown;
+  lon?: unknown;
+  expiresAt?: unknown;
+}
+
+interface ValidatedCurrentLocation extends StoredCurrentLocation {
+  lat: number;
+  lon: number;
+}
+
+let currentLocationMemory: StoredCurrentLocation | null = null;
 
 function getSessionStorage() {
   try {
@@ -34,7 +45,7 @@ function readCurrentLocation() {
   let value = currentLocationMemory;
   try {
     const raw = getSessionStorage()?.getItem(CURRENT_LOCATION_KEY);
-    if (raw) value = JSON.parse(raw);
+    if (raw) value = JSON.parse(raw) as StoredCurrentLocation | null;
   } catch {
     // In-memory fallback remains usable when session storage is unavailable.
   }
@@ -44,7 +55,7 @@ function readCurrentLocation() {
     clearCurrentLocation();
     return null;
   }
-  return value;
+  return value as ValidatedCurrentLocation;
 }
 
 function nextLocalMidnight(now = new Date()) {
@@ -53,7 +64,7 @@ function nextLocalMidnight(now = new Date()) {
   return midnight.getTime();
 }
 
-function privacyRound(value, places = 1) {
+function privacyRound(value: unknown, places = 1) {
   const scale = 10 ** places;
   return Math.round(Number(value) * scale) / scale;
 }
@@ -71,13 +82,15 @@ export function getSunCoords() {
 
   // 2. Legacy saved coordinates remain readable for existing profiles. New
   // device-location requests never write to this persistent profile field.
-  const profileLocation = state.importedData?.sunDefaults?.coords;
+  const profileLocation = state.importedData?.sunDefaults?.coords as {
+    lat?: unknown; lon?: unknown; lng?: unknown; altitudeM?: unknown;
+  } | null | undefined;
   const profileLon = Number(profileLocation?.lon ?? profileLocation?.lng);
   if (profileLocation && Number.isFinite(profileLocation.lat) && Number.isFinite(profileLon)) {
     return {
-      lat: profileLocation.lat,
+      lat: profileLocation.lat as number,
       lon: profileLon,
-      altitudeM: Number.isFinite(profileLocation.altitudeM) ? profileLocation.altitudeM : undefined,
+      altitudeM: Number.isFinite(profileLocation.altitudeM) ? profileLocation.altitudeM as number : undefined,
       source: 'profile-precise',
     };
   }

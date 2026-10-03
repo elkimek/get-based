@@ -835,3 +835,15 @@ deploy/profile-share/data/
 /js/light-tool-cct-meter.js
 /js/light-tool-glass-transmission.js
 /js/light-tools-solar-time.js
+
+/js/context-card-health-dots.js
+
+/js/light-tool-camera-modals.js
+
+/js/nutrition-food-data.js
+
+/js/provider-ppq-panels.js
+
+/js/service-worker-update.js
+
+/js/sun-location.js

@@ -1,4 +1,3 @@
-// @ts-check
 // Compatibility facade for lazily loaded camera-backed Light tool workflows.
 
 import { closeCameraTool } from './light-tool-camera-modal-runtime.js';

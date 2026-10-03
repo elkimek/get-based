@@ -1,5 +1,50 @@
-// @ts-check
 // service-worker-update.js - explicit PWA update prompt and SW registration
+
+export interface UpdateWorkerView {
+  state?: ServiceWorker['state'];
+  postMessage?: ServiceWorker['postMessage'];
+  addEventListener?: ServiceWorker['addEventListener'];
+}
+export interface UpdateRegistrationView {
+  waiting?: UpdateWorkerView | null;
+  installing?: UpdateWorkerView | null;
+  update?: () => Promise<unknown>;
+  addEventListener?: ServiceWorkerRegistration['addEventListener'];
+}
+export interface UpdateContainerView {
+  controller?: unknown;
+  register?: (scriptURL: string | URL, options?: RegistrationOptions) => Promise<UpdateRegistrationView>;
+  getRegistrations?: () => Promise<ReadonlyArray<Pick<ServiceWorkerRegistration, 'unregister'>>>;
+  addEventListener?: ServiceWorkerContainer['addEventListener'];
+}
+export interface VersionResponseView { ok?: unknown; text?: () => unknown }
+export type VersionFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<VersionResponseView | null | undefined>;
+export interface UpdateWindowView {
+  APP_BUILD_ID?: unknown;
+  APP_VERSION?: unknown;
+  location?: Pick<Location, 'hostname' | 'search' | 'reload'>;
+  performance?: {
+    getEntriesByType?: (type: string) => unknown[];
+    navigation?: { type?: unknown };
+  };
+  localStorage?: Pick<Storage, 'getItem' | 'setItem'>;
+  fetch?: VersionFetch;
+  document?: Partial<Pick<Document, 'readyState' | 'visibilityState' | 'addEventListener'>>;
+  addEventListener?: Window['addEventListener'];
+  requestIdleCallback?: Window['requestIdleCallback'];
+  setTimeout?: Window['setTimeout'];
+  setInterval?: Window['setInterval'];
+  caches?: CacheStorage;
+}
+export interface UpdateRuntimeOptions {
+  win?: UpdateWindowView | null;
+  serviceWorkerContainer?: UpdateContainerView | null;
+  cacheStorage?: CacheStorage | null;
+}
+interface VersionCheckOptions { force?: boolean; fetchImpl?: VersionFetch }
+interface RegistrationScheduleOptions extends UpdateRuntimeOptions {
+  register?: (options: UpdateRuntimeOptions) => Promise<unknown>;
+}
 
 const UPDATE_BANNER_ID = 'version-update-banner';
 const UPDATE_ACTION_ATTR = 'data-version-update-action';
@@ -10,53 +55,44 @@ const LAST_VERSION_CHECK_KEY = 'labcharts-version-update-last-check';
 const APP_BUILD_RE = /\bAPP_BUILD_ID\s*=\s*(['"])([^'"]+)\1/;
 const APP_VERSION_RE = /\bAPP_VERSION\s*=\s*(['"])([^'"]+)\1/;
 
-let pendingRegistration = null;
-let dismissedWaitingWorker = null;
+let pendingRegistration: UpdateRegistrationView | null = null;
+let dismissedWaitingWorker: UpdateWorkerView | null = null;
 let updateRequested = false;
 let reloadAvailable = false;
 let lastUpdateCheckAt = 0;
 
-/**
- * @returns {(Window & { caches?: CacheStorage }) | null}
- */
-function getDefaultServiceWorkerWindow() {
+function getDefaultServiceWorkerWindow(): UpdateWindowView | null {
   return typeof window !== 'undefined'
-    ? /** @type {Window & { caches?: CacheStorage }} */ (window)
+    ? (window)
     : null;
 }
 
-/**
- * @returns {ServiceWorkerContainer | null}
- */
-function getDefaultServiceWorkerContainer() {
+function getDefaultServiceWorkerContainer(): UpdateContainerView | null | undefined {
   return typeof navigator !== 'undefined' ? navigator.serviceWorker : null;
 }
 
-/**
- * @returns {CacheStorage | null}
- */
 function getDefaultCacheStorage() {
   return getDefaultServiceWorkerWindow()?.caches || null;
 }
 
-export function parseAppVersionScript(source) {
+export function parseAppVersionScript(source: unknown) {
   return String(source || '').match(APP_BUILD_RE)?.[2]
     || String(source || '').match(APP_VERSION_RE)?.[2] || '';
 }
 
-export function isReloadNavigation(win = getDefaultServiceWorkerWindow()) {
-  const navigation = /** @type {PerformanceNavigationTiming | undefined} */ (
+export function isReloadNavigation(win: UpdateWindowView | null = getDefaultServiceWorkerWindow()) {
+  const navigation = (
     win?.performance?.getEntriesByType?.('navigation')?.[0]
-  );
+  ) as { type?: unknown } | null | undefined;
   if (navigation?.type === 'reload') return true;
   return win?.performance?.navigation?.type === 1;
 }
 
-function getCurrentAppVersion(win) {
+function getCurrentAppVersion(win: UpdateWindowView | null) {
   return String(win?.APP_BUILD_ID || win?.APP_VERSION || '').trim();
 }
 
-function getStoredLastCheckAt(win) {
+function getStoredLastCheckAt(win: UpdateWindowView | null) {
   try {
     return Number(win?.localStorage?.getItem(LAST_VERSION_CHECK_KEY)) || 0;
   } catch {
@@ -64,7 +100,7 @@ function getStoredLastCheckAt(win) {
   }
 }
 
-function storeLastCheckAt(win, checkedAt) {
+function storeLastCheckAt(win: UpdateWindowView | null, checkedAt: number) {
   lastUpdateCheckAt = checkedAt;
   try {
     win?.localStorage?.setItem(LAST_VERSION_CHECK_KEY, String(checkedAt));
@@ -72,10 +108,10 @@ function storeLastCheckAt(win, checkedAt) {
 }
 
 let reloadPage = () => {
-  getDefaultServiceWorkerWindow()?.location.reload();
+  getDefaultServiceWorkerWindow()?.location!.reload();
 };
 
-export function isDevServiceWorkerHost(hostname) {
+export function isDevServiceWorkerHost(hostname: string | null | undefined) {
   if (!hostname) return false;
   return hostname === 'localhost'
     || hostname === '127.0.0.1'
@@ -83,20 +119,20 @@ export function isDevServiceWorkerHost(hostname) {
 }
 
 export function shouldRegisterServiceWorker(
-  locationLike = getDefaultServiceWorkerWindow()?.location || null
+  locationLike: Pick<Location, 'hostname' | 'search'> | null = getDefaultServiceWorkerWindow()?.location || null
 ) {
   if (!locationLike) return false;
   return !isDevServiceWorkerHost(locationLike.hostname)
     || DEV_SW_QUERY_RE.test(locationLike.search || '');
 }
 
-function getServiceWorker(registration) {
+function getServiceWorker(registration: UpdateRegistrationView | null | undefined) {
   if (registration?.waiting) return registration.waiting;
   const installingWorker = registration?.installing;
   return installingWorker?.state === 'installed' ? installingWorker : null;
 }
 
-function canPromptForUpdate(registration, serviceWorkerContainer) {
+function canPromptForUpdate(registration: UpdateRegistrationView | null | undefined, serviceWorkerContainer: UpdateContainerView | null | undefined) {
   return !!getServiceWorker(registration) && !!serviceWorkerContainer?.controller;
 }
 
@@ -110,7 +146,7 @@ export function hideVersionUpdateBanner() {
   removeBanner();
 }
 
-export function showVersionUpdateBanner(registration) {
+export function showVersionUpdateBanner(registration?: UpdateRegistrationView | null) {
   const waitingWorker = getServiceWorker(registration);
   const waitingUpdate = !!waitingWorker && waitingWorker !== dismissedWaitingWorker;
   if (!reloadAvailable && !waitingUpdate) return false;
@@ -145,10 +181,10 @@ export function showVersionUpdateBanner(registration) {
   return true;
 }
 
-function renderVersionUpdateBanner(banner) {
+function renderVersionUpdateBanner(banner: HTMLElement) {
   const copy = banner.querySelector('.version-update-copy');
-  const primaryButton = banner.querySelector(`[${UPDATE_ACTION_ATTR}="apply"]`);
-  const dismissButton = banner.querySelector(`[${UPDATE_ACTION_ATTR}="dismiss"]`);
+  const primaryButton = banner.querySelector<HTMLButtonElement>(`[${UPDATE_ACTION_ATTR}="apply"]`);
+  const dismissButton = banner.querySelector<HTMLButtonElement>(`[${UPDATE_ACTION_ATTR}="dismiss"]`);
   if (reloadAvailable) {
     banner.setAttribute('aria-live', 'polite');
     banner.setAttribute('aria-busy', 'false');
@@ -169,7 +205,7 @@ function renderVersionUpdateBanner(banner) {
   banner.setAttribute('aria-label', 'App update available');
 }
 
-function handleVersionUpdateActionClick(event) {
+function handleVersionUpdateActionClick(event: MouseEvent) {
   const target = event.target instanceof Element
     ? event.target.closest(`[${UPDATE_ACTION_ATTR}]`)
     : null;
@@ -188,7 +224,7 @@ function handleVersionUpdateActionClick(event) {
   }
 }
 
-export function applyPendingServiceWorkerUpdate(registration = pendingRegistration) {
+export function applyPendingServiceWorkerUpdate(registration: UpdateRegistrationView | null = pendingRegistration) {
   if (reloadAvailable) {
     hideVersionUpdateBanner();
     reloadPage();
@@ -198,7 +234,7 @@ export function applyPendingServiceWorkerUpdate(registration = pendingRegistrati
   const waitingWorker = getServiceWorker(registration);
   if (waitingWorker) {
     updateRequested = true;
-    waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    waitingWorker.postMessage!({ type: 'SKIP_WAITING' });
     hideVersionUpdateBanner();
     return true;
   }
@@ -207,8 +243,8 @@ export function applyPendingServiceWorkerUpdate(registration = pendingRegistrati
 }
 
 export function watchServiceWorkerRegistration(
-  registration,
-  serviceWorkerContainer = typeof navigator !== 'undefined' ? navigator.serviceWorker : null
+  registration: UpdateRegistrationView | null | undefined,
+  serviceWorkerContainer: UpdateContainerView | null | undefined = typeof navigator !== 'undefined' ? navigator.serviceWorker : null
 ) {
   if (!registration || !serviceWorkerContainer) return;
 
@@ -216,14 +252,14 @@ export function watchServiceWorkerRegistration(
     showVersionUpdateBanner(registration);
   }
 
-  registration.addEventListener('updatefound', () => {
+  registration.addEventListener!('updatefound', () => {
     const installingWorker = registration.installing;
     if (!installingWorker) return;
     // WebKit can claim the first page before delivering the installed event.
     // Decide whether this replaces an existing worker when installation starts.
     const replacesController = !!serviceWorkerContainer.controller;
 
-    installingWorker.addEventListener('statechange', () => {
+    installingWorker.addEventListener!('statechange', () => {
       if (installingWorker.state === 'installed'
           && replacesController
           && canPromptForUpdate(registration, serviceWorkerContainer)) {
@@ -235,17 +271,11 @@ export function watchServiceWorkerRegistration(
   });
 }
 
-/**
- * @param {any} registration
- * @param {any} serviceWorkerContainer
- * @param {any} win
- * @param {{ force?: boolean, fetchImpl?: typeof fetch }} [options]
- */
 export async function checkForAppVersionUpdate(
-  registration,
-  serviceWorkerContainer,
-  win = getDefaultServiceWorkerWindow(),
-  options = {}
+  registration: UpdateRegistrationView | null | undefined,
+  serviceWorkerContainer: UpdateContainerView | null | undefined,
+  win: UpdateWindowView | null = getDefaultServiceWorkerWindow(),
+  options: VersionCheckOptions = {}
 ) {
   const { force = false, fetchImpl } = options;
   if (!win) return false;
@@ -262,7 +292,7 @@ export async function checkForAppVersionUpdate(
       credentials: 'same-origin',
     });
     if (!response?.ok) return false;
-    const remoteVersion = parseAppVersionScript(await response.text());
+    const remoteVersion = parseAppVersionScript(await response.text!());
     const currentVersion = getCurrentAppVersion(win);
     if (!remoteVersion || !currentVersion || remoteVersion === currentVersion) return false;
 
@@ -276,7 +306,7 @@ export async function checkForAppVersionUpdate(
   }
 }
 
-function requestServiceWorkerUpdateForReload(registration, serviceWorkerContainer) {
+function requestServiceWorkerUpdateForReload(registration: UpdateRegistrationView | null | undefined, serviceWorkerContainer: UpdateContainerView | null | undefined) {
   if (!registration?.update) return;
   registration.update().then(() => {
     if (canPromptForUpdate(registration, serviceWorkerContainer)) {
@@ -285,7 +315,7 @@ function requestServiceWorkerUpdateForReload(registration, serviceWorkerContaine
   }).catch(() => {});
 }
 
-function scheduleServiceWorkerUpdateChecks(registration, serviceWorkerContainer, win) {
+function scheduleServiceWorkerUpdateChecks(registration: UpdateRegistrationView | null | undefined, serviceWorkerContainer: UpdateContainerView | null | undefined, win: UpdateWindowView | null) {
   if (!win) return;
 
   const check = (force = false) => {
@@ -308,8 +338,8 @@ function scheduleServiceWorkerUpdateChecks(registration, serviceWorkerContainer,
   win.setInterval?.(() => check(), UPDATE_CHECK_INTERVAL_MS);
 }
 
-async function unregisterDevServiceWorkers(serviceWorkerContainer, cacheStorage) {
-  const registrations = await serviceWorkerContainer.getRegistrations();
+async function unregisterDevServiceWorkers(serviceWorkerContainer: UpdateContainerView, cacheStorage: CacheStorage | null) {
+  const registrations = await serviceWorkerContainer.getRegistrations!();
   let changed = false;
   await Promise.all(registrations.map(async (registration) => {
     changed = true;
@@ -326,22 +356,22 @@ export async function registerServiceWorkerUpdates({
   win = getDefaultServiceWorkerWindow(),
   serviceWorkerContainer = getDefaultServiceWorkerContainer(),
   cacheStorage = getDefaultCacheStorage(),
-} = {}) {
+} : UpdateRuntimeOptions = {}) {
   if (!win || !serviceWorkerContainer) return null;
 
   if (!shouldRegisterServiceWorker(win.location)) {
-    if (isDevServiceWorkerHost(win.location.hostname)) {
+    if (isDevServiceWorkerHost(win.location!.hostname)) {
       unregisterDevServiceWorkers(serviceWorkerContainer, cacheStorage).catch(() => {});
     }
     return null;
   }
 
   try {
-    const registration = await serviceWorkerContainer.register('/service-worker.js', { updateViaCache: 'none' });
-    reloadPage = () => win.location.reload();
+    const registration = await serviceWorkerContainer.register!('/service-worker.js', { updateViaCache: 'none' });
+    reloadPage = () => win.location!.reload();
     let refreshing = false;
     let controller = serviceWorkerContainer.controller;
-    serviceWorkerContainer.addEventListener('controllerchange', () => {
+    serviceWorkerContainer.addEventListener!('controllerchange', () => {
       const nextController = serviceWorkerContainer.controller;
       if (refreshing || !nextController || nextController === controller) return;
       const previousController = controller;
@@ -355,7 +385,7 @@ export async function registerServiceWorkerUpdates({
         return;
       }
       refreshing = true;
-      win.location.reload();
+      win.location!.reload();
     });
     watchServiceWorkerRegistration(registration, serviceWorkerContainer);
     scheduleServiceWorkerUpdateChecks(registration, serviceWorkerContainer, win);
@@ -370,7 +400,7 @@ export function scheduleServiceWorkerRegistration({
   serviceWorkerContainer = getDefaultServiceWorkerContainer(),
   cacheStorage = getDefaultCacheStorage(),
   register = registerServiceWorkerUpdates,
-} = {}) {
+} : RegistrationScheduleOptions = {}) {
   if (!win || !serviceWorkerContainer) return false;
   let registrationStarted = false;
 

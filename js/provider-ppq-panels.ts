@@ -1,4 +1,3 @@
-// @ts-check
 // provider-ppq-panels.js - PPQ account, balance, and top-up panel behavior.
 
 import { getErrorMessage } from './caught-error.js';
@@ -20,14 +19,24 @@ import { renderAIProviderPanel } from './provider-panel-renderers.js';
 import { renderPpqModelDropdown } from './provider-model-controls.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 
-let returnToChatIfOnboarding = function() {};
-/** @type {(provider: string, options?: { endpoint?: string, modelId?: string }) => Promise<boolean>} */
-let requestProviderActivation = async function() { return true; };
-let _ppqCreating = false;
-let _ppqTopupPollTimer = null;
-let _ppqCountdownTimer = null;
+// The built-in coerces raw arguments to text; this local reader annotation adds no runtime binding.
+declare const parseFloat: (value: unknown) => ReturnType<typeof globalThis.parseFloat>;
 
-export function configurePpqPanels(options = {}) {
+export interface PpqPanelConfiguration {
+  returnToChatIfOnboarding?: () => unknown;
+  requestProviderActivation?: (provider: string, options?: { endpoint?: string; modelId?: string }) => Promise<boolean>;
+}
+type PpqActionElement = Pick<HTMLElement, 'dataset'> | null | undefined;
+type PpqBalance = Awaited<ReturnType<typeof getPpqBalance>>;
+type PpqModels = Awaited<ReturnType<typeof fetchPpqModels>>;
+
+let returnToChatIfOnboarding: () => unknown = function() {};
+let requestProviderActivation: NonNullable<PpqPanelConfiguration['requestProviderActivation']> = async function() { return true; };
+let _ppqCreating = false;
+let _ppqTopupPollTimer: ReturnType<typeof setInterval> | null = null;
+let _ppqCountdownTimer: ReturnType<typeof setInterval> | null = null;
+
+export function configurePpqPanels(options: PpqPanelConfiguration = {}) {
   if (typeof options.returnToChatIfOnboarding === 'function') {
     returnToChatIfOnboarding = options.returnToChatIfOnboarding;
   }
@@ -41,13 +50,13 @@ export function clearPpqTopupTimers() {
   if (_ppqCountdownTimer) { clearInterval(_ppqCountdownTimer); _ppqCountdownTimer = null; }
 }
 
-function _setCopiedText(actionEl, fallback = '✓ Copied') {
+function _setCopiedText(actionEl: unknown, fallback = '✓ Copied') {
   if (actionEl instanceof HTMLElement) {
     actionEl.textContent = actionEl.dataset.copiedText || fallback;
   }
 }
 
-async function _copyPanelText(text, actionEl) {
+async function _copyPanelText(text: string, actionEl: unknown) {
   if (!text) return false;
   try {
     await navigator.clipboard.writeText(text);
@@ -59,9 +68,9 @@ async function _copyPanelText(text, actionEl) {
   }
 }
 
-export function copyPpqKeyReveal(actionEl) {
+export function copyPpqKeyReveal(actionEl: PpqActionElement) {
   const text = actionEl?.dataset?.clipboardText || '';
-  const appWindow = /** @type {any} */ (window);
+  const appWindow = window as Window & { _ppqClipTimer?: ReturnType<typeof setTimeout> };
   void _copyPanelText(text, actionEl).then((copied) => {
     if (!copied) return;
     clearTimeout(appWindow._ppqClipTimer);
@@ -69,21 +78,21 @@ export function copyPpqKeyReveal(actionEl) {
   });
 }
 
-export function handleSelectPpqMethod(actionEl) {
+export function handleSelectPpqMethod(actionEl: PpqActionElement) {
   const methodId = actionEl?.dataset?.ppqMethod || '';
   if (methodId) selectPpqMethod(methodId);
 }
 
-export function handlePpqTopupPreset(actionEl) {
+export function handlePpqTopupPreset(actionEl: PpqActionElement) {
   const amount = Number(actionEl?.dataset?.amount);
   if (Number.isFinite(amount)) void doPpqTopup(amount);
 }
 
-export function copyPpqPayment(actionEl) {
+export function copyPpqPayment(actionEl: PpqActionElement) {
   void _copyPanelText(actionEl?.dataset?.clipboardText || '', actionEl);
 }
 
-function _ppqBalanceHtml(balance) {
+function _ppqBalanceHtml(balance: PpqBalance) {
   const v = parseFloat(balance);
   const color = v < 0.10 ? 'var(--red)' : v < 0.50 ? 'var(--yellow, #f0a800)' : 'var(--green)';
   return 'Balance: <span style="color:' + color + '">$' + v.toFixed(2) + '</span>';
@@ -102,7 +111,7 @@ function _rerenderPpqPanelIfPrivateControlsAppeared() {
   return true;
 }
 
-function _renderPpqBalanceValue(balance) {
+function _renderPpqBalanceValue(balance: PpqBalance) {
   const el = document.getElementById('ppq-balance');
   if (el && balance != null) {
     el.innerHTML = _ppqBalanceHtml(balance);
@@ -115,7 +124,7 @@ function _refreshPpqBalanceDisplay() {
   return getPpqBalance().then(_renderPpqBalanceValue);
 }
 
-function _renderPpqModelsAfterFetch(models) {
+function _renderPpqModelsAfterFetch(models: PpqModels) {
   const rerendered = _rerenderPpqPanelIfPrivateControlsAppeared();
   if (models.length) renderPpqModelDropdown(models);
   if (rerendered) _refreshPpqBalanceDisplay();
@@ -132,7 +141,7 @@ export function initSettingsPpqPanel() {
 export async function handleCreatePpqAccount() {
   if (_ppqCreating) return;
   _ppqCreating = true;
-  const createBtn = /** @type {HTMLButtonElement | null} */ (document.querySelector('[data-provider-panel-action="create-ppq-account"]'));
+  const createBtn = (document.querySelector('[data-provider-panel-action="create-ppq-account"]') as HTMLButtonElement | null);
   if (createBtn) { createBtn.disabled = true; createBtn.textContent = 'Creating\u2026'; }
   const status = document.getElementById('ppq-key-status');
   if (status) status.innerHTML = '<span style="color:var(--text-muted)">Creating account\u2026</span>';
@@ -170,8 +179,8 @@ export async function handleCreatePpqAccount() {
 export function dismissPpqKeyReveal() {
   const panel = document.getElementById('ai-provider-panel');
   if (panel) panel.innerHTML = renderAIProviderPanel('ppq');
-  let cachedModels = []; try { cachedModels = JSON.parse(localStorage.getItem('labcharts-ppq-models') || '[]'); } catch(e) {}
-  if (cachedModels.length) renderPpqModelDropdown(cachedModels);
+  let cachedModels: unknown = []; try { cachedModels = JSON.parse(localStorage.getItem('labcharts-ppq-models') || '[]'); } catch(e) {}
+  if ((cachedModels as { length?: unknown }).length) (renderPpqModelDropdown as (models: unknown) => ReturnType<typeof renderPpqModelDropdown>)(cachedModels);
   getPpqBalance().then(function(balance) {
     const el = document.getElementById('ppq-balance');
     if (el && balance != null) el.innerHTML = _ppqBalanceHtml(balance);
@@ -181,8 +190,8 @@ export function dismissPpqKeyReveal() {
 }
 
 export async function handleSavePpqKey() {
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('ppq-key-input'));
-  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('save-ppq-key-btn'));
+  const input = (document.getElementById('ppq-key-input') as HTMLInputElement | null);
+  const btn = (document.getElementById('save-ppq-key-btn') as HTMLButtonElement | null);
   const status = document.getElementById('ppq-key-status');
   if (!input || !btn || !status) return;
   const key = input.value.trim();
@@ -212,9 +221,9 @@ export async function handleSavePpqKey() {
 
 export async function handleRemovePpqKey() {
   const balance = await getPpqBalance();
-  const hasFunds = balance != null && parseFloat(/** @type {string} */ (balance)) > 0;
+  const hasFunds = balance != null && parseFloat(balance) > 0;
   const msg = hasFunds
-    ? `This account has $${parseFloat(/** @type {string} */ (balance)).toFixed(2)} remaining. Removing this key will permanently lose access to those funds unless you\u2019ve saved the key elsewhere.\n\nRemove PPQ key?`
+    ? `This account has $${parseFloat(balance).toFixed(2)} remaining. Removing this key will permanently lose access to those funds unless you\u2019ve saved the key elsewhere.\n\nRemove PPQ key?`
     : 'Remove PPQ key? Make sure you\u2019ve saved it if you want to reuse this account later.';
   if (await showConfirmDialog(msg)) {
     localStorage.removeItem('labcharts-ppq-key');
@@ -259,7 +268,7 @@ const PPQ_METHODS = [
 ];
 let _ppqSelectedMethod = 'btc-lightning';
 
-function _ppqMethodBtn(m, active) {
+function _ppqMethodBtn(m: typeof PPQ_METHODS[number], active: boolean) {
   return `<button class="${active ? 'ppq-method-btn active' : 'ppq-method-btn'}" data-provider-panel-action="select-ppq-method" data-ppq-method="${escapeAttr(m.id)}"><span class="ppq-method-icon">${m.svg}</span><span class="ppq-method-label">${m.label}</span></button>`;
 }
 
@@ -293,8 +302,8 @@ export function showPpqTopup() {
   _renderPpqTopupPicker(area);
 }
 
-function _renderPpqTopupPicker(area) {
-  const method = PPQ_METHODS.find(function(m) { return m.id === _ppqSelectedMethod; }) || PPQ_METHODS[0];
+function _renderPpqTopupPicker(area: HTMLElement) {
+  const method = PPQ_METHODS.find(function(m) { return m.id === _ppqSelectedMethod; }) || PPQ_METHODS[0]!;
   area.innerHTML = `<div style="margin-top:8px;padding:12px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border)">
     <div style="display:flex;gap:6px;margin-bottom:10px">${PPQ_METHODS.map(function(m) { return _ppqMethodBtn(m, m.id === _ppqSelectedMethod); }).join('')}</div>
     <div style="display:flex;gap:6px">${method.amounts.map(function(v) {
@@ -304,7 +313,7 @@ function _renderPpqTopupPicker(area) {
   </div>`;
 }
 
-export function selectPpqMethod(methodId) {
+export function selectPpqMethod(methodId: string) {
   _ppqSelectedMethod = methodId;
   const area = document.getElementById('ppq-topup-area');
   if (area) _renderPpqTopupPicker(area);
@@ -314,7 +323,7 @@ export function ppqShowCustomInput() {
   const slot = document.getElementById('ppq-custom-slot');
   if (!slot) return;
   slot.innerHTML = '<input type="text" inputmode="decimal" id="ppq-custom-amount" class="ppq-amt-btn" style="width:100%;text-align:center;cursor:text" placeholder="$">';
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('ppq-custom-amount'));
+  const input = (document.getElementById('ppq-custom-amount') as HTMLInputElement | null);
   if (input) {
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
@@ -333,11 +342,11 @@ export function ppqShowCustomInput() {
 }
 
 export function doPpqTopupCustom() {
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('ppq-custom-amount'));
+  const input = (document.getElementById('ppq-custom-amount') as HTMLInputElement | null);
   if (!input) return;
   const raw = input.value.replace(/[^0-9.]/g, '');
   const amount = parseFloat(raw);
-  const method = PPQ_METHODS.find(function(m) { return m.id === _ppqSelectedMethod; }) || PPQ_METHODS[0];
+  const method = PPQ_METHODS.find(function(m) { return m.id === _ppqSelectedMethod; }) || PPQ_METHODS[0]!;
   if (isNaN(amount) || amount < method.min) {
     showNotification('Minimum amount is $' + method.min, 'error');
     return;
@@ -345,10 +354,10 @@ export function doPpqTopupCustom() {
   doPpqTopup(amount);
 }
 
-export async function doPpqTopup(amount) {
+export async function doPpqTopup(amount: unknown) {
   const area = document.getElementById('ppq-topup-area');
   if (!area) return;
-  const method = PPQ_METHODS.find(function(m) { return m.id === _ppqSelectedMethod; }) || PPQ_METHODS[0];
+  const method = PPQ_METHODS.find(function(m) { return m.id === _ppqSelectedMethod; }) || PPQ_METHODS[0]!;
   area.innerHTML = '<div style="margin-top:8px;padding:10px 12px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--border);font-size:12px;color:var(--text-muted)">Generating invoice\u2026</div>';
   try {
     const result = await createPpqTopup(amount, _ppqSelectedMethod);
@@ -400,7 +409,7 @@ export async function doPpqTopup(amount) {
       cdEl.textContent = remaining > 0
         ? 'Waiting for payment\u2026 ' + mins + ':' + (secs < 10 ? '0' : '') + secs
         : 'Invoice expired';
-      if (remaining <= 0) clearInterval(_ppqCountdownTimer);
+      if (remaining <= 0) clearInterval(_ppqCountdownTimer!);
     }, 1000);
     _ppqTopupPollTimer = setInterval(async function() {
       try {

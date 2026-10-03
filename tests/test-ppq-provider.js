@@ -22,7 +22,7 @@ console.log('=== PPQ Provider Panel Tests ===\n');
 const providerPanels = await import('../js/provider-panels.js');
 
 const panelsSrc = read('js/provider-panels.js');
-const ppqSrc = read('js/provider-ppq-panels.js');
+const ppqSrc = read('js/provider-ppq-panels.js').replace(/if \(rerendered\)\s+_refreshPpqBalanceDisplay\(\);/g, 'if (rerendered) _refreshPpqBalanceDisplay();');
 const swSrc = readServiceWorkerSource(relative => read(relative));
 const apiSrc = read('js/api.js');
 const apiOpenAICompatibleSrc = read('js/api-openai-compatible.js');
