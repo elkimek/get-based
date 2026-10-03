@@ -320,7 +320,7 @@ export function openDeviceSessionDetail(id) {
     areaLabel = _DEVICE_AREA_LABELS[sess.bodyArea] || sess.bodyArea || '—';
   }
   const emitsUV = sess.safety?.hasUV ?? deviceEmitsUV(device, sess.mode);
-  const isAmbientEyeDevice = ['sad', 'dawn-sim', 'full-spectrum'].includes(device?.type) && !emitsUV;
+  const isAmbientEyeDevice = ['sad', 'dawn-sim', 'full-spectrum'].includes(/** @type {string} */ (device?.type)) && !emitsUV;
   const eyesLabel = emitsUV
     ? (sess.eyesProtected ? 'UV-rated eye protection logged' : '⚠ UV emitted without rated eye protection')
     : isAmbientEyeDevice
@@ -331,7 +331,7 @@ export function openDeviceSessionDetail(id) {
     const uvModeled = (sess.safety.uvDoseStatus === 'modeled' || sess.safety.uvDoseStatus == null)
       && Number.isFinite(sess.safety.erythemalSED);
     const uvSummary = uvModeled
-      ? `Local erythemal dose: ${Number(sess.safety.erythemalSED).toFixed(2)} SED${Number.isFinite(sess.safety.conservativeBaseMedFraction) ? ` · ${Math.round(sess.safety.conservativeBaseMedFraction * 100)}% of a conservative Type I base MED` : ''}${Number(sess.safety.ocularActinicUV) > 0 ? ` · ocular actinic UV: ${Number(sess.safety.ocularActinicUV).toFixed(1)} J/m²` : ''}${Number(sess.safety.ocularUvaJPerM2) > 0 ? ` · ocular UVA: ${Number(sess.safety.ocularUvaJPerM2).toFixed(1)} J/m²` : ''}. This is a model, not a personal threshold.`
+      ? `Local erythemal dose: ${Number(sess.safety.erythemalSED).toFixed(2)} SED${Number.isFinite(sess.safety.conservativeBaseMedFraction) ? ` · ${Math.round(/** @type {number} */ (sess.safety.conservativeBaseMedFraction) * 100)}% of a conservative Type I base MED` : ''}${Number(sess.safety.ocularActinicUV) > 0 ? ` · ocular actinic UV: ${Number(sess.safety.ocularActinicUV).toFixed(1)} J/m²` : ''}${Number(sess.safety.ocularUvaJPerM2) > 0 ? ` · ocular UVA: ${Number(sess.safety.ocularUvaJPerM2).toFixed(1)} J/m²` : ''}. This is a model, not a personal threshold.`
       : 'UV was emitted, but the spectral output, band split, or distance basis is insufficient for a defensible number. Burn dose, ocular dose, and vitamin-D output are not calculated.';
     deviceSafetyHtml = `<div class="light-device-safety ${sess.safety.unsafeEyeExposure ? 'is-over' : ''}">
       <strong>${sess.safety.unsafeEyeExposure ? '⚠ UV eye protection was not recorded' : (uvModeled ? 'UV dose model' : 'UV dose unavailable')}</strong>
@@ -346,7 +346,7 @@ export function openDeviceSessionDetail(id) {
   const hasMelanopic = Number.isFinite(sess.metrics?.melanopicEdiLux);
   const lightMetricHtml = hasPhotopic || hasMelanopic ? `<div class="light-device-safety">
     <strong>Eye-level light metric</strong>
-    <span>${hasPhotopic ? `${Math.round(sess.metrics.photopicLux).toLocaleString()} photopic lux` : ''}${hasPhotopic && hasMelanopic ? ' · ' : ''}${hasMelanopic ? `${Math.round(sess.metrics.melanopicEdiLux).toLocaleString()} lx melanopic EDI${sess.metrics.melanopicStatus === 'device-der' ? ' estimated from the device DER' : ''}` : 'Melanopic EDI unavailable without a measured spectrum or declared melanopic DER'}.</span>
+    <span>${hasPhotopic ? `${Math.round(/** @type {number} */ ((/** @type {NonNullable<import('./light-devices-store.js').DeviceSessionRecord['metrics']>} */ (sess.metrics)).photopicLux)).toLocaleString()} photopic lux` : ''}${hasPhotopic && hasMelanopic ? ' · ' : ''}${hasMelanopic ? `${Math.round(/** @type {number} */ ((/** @type {NonNullable<import('./light-devices-store.js').DeviceSessionRecord['metrics']>} */ (sess.metrics)).melanopicEdiLux)).toLocaleString()} lx melanopic EDI${(/** @type {NonNullable<import('./light-devices-store.js').DeviceSessionRecord['metrics']>} */ (sess.metrics)).melanopicStatus === 'device-der' ? ' estimated from the device DER' : ''}` : 'Melanopic EDI unavailable without a measured spectrum or declared melanopic DER'}.</span>
   </div>` : '';
   // Mode label resolution — surface the human-readable label whenever
   // the device declares modes. Legacy sessions (no `mode` field) and
@@ -371,10 +371,10 @@ export function openDeviceSessionDetail(id) {
     _sessBodyFrac = sess.bodyAreas.reduce((s, k) => s + (_fracByKey[k] || 0), 0) || null;
   }
   const channelRows = sess.doses ? channelOrder
-    .filter(k => sess.doses[k] != null)
+    .filter(k => (/** @type {NonNullable<import('./light-devices-store.js').DeviceSessionRecord['doses']>} */ (sess.doses))[k] != null)
     .map(k => {
       const meta = channelDisplay[k] || {};
-      const v = sess.doses[k] || 0;
+      const v = (/** @type {NonNullable<import('./light-devices-store.js').DeviceSessionRecord['doses']>} */ (sess.doses))[k] || 0;
       const hasSignal = Number.isFinite(v) && v > 0;
       const sessionFitz = sess.fitzpatrick || state.importedData?.sunDefaults?.fitzpatrick || 'III';
       const unitText = formatChannelUnit(k, v, sess.durationMin || 0, sessionFitz, null, null, false, _sessBodyFrac);
@@ -541,7 +541,7 @@ export function renderActiveDeviceSessionCard() {
   }
   const distLine = sess.distanceCm ? `${sess.distanceCm} cm` : '';
   const emitsUV = deviceEmitsUV(device, sess.mode);
-  const isAmbientEyeDevice = ['sad', 'dawn-sim', 'full-spectrum'].includes(device?.type) && !emitsUV;
+  const isAmbientEyeDevice = ['sad', 'dawn-sim', 'full-spectrum'].includes(/** @type {string} */ (device?.type)) && !emitsUV;
   const eyesLine = emitsUV
     ? (sess.eyesProtected ? 'UV goggles confirmed · follow the device timer' : 'UV eye protection missing')
     : isAmbientEyeDevice

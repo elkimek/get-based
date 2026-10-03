@@ -1,10 +1,10 @@
-// @ts-check
 // light-device-session-engine.js — shared dose math for light-device sessions.
 //
 // UI/store modules own dialogs and persistence. This module owns the repeated
 // session calculations: mode resolution, body-area fraction, distance scaling,
 // spectrum synthesis, and SAD-lux fallback.
 
+import type { SpectralDevice, SpectralDistribution } from './sun-spectrum-device.js';
 import { BODY_REGIONS } from './sun-body-silhouette.js';
 import {
   computeChannelDoses as computeSpectrumChannelDoses,
@@ -18,18 +18,38 @@ import {
 
 export const DEVICE_ENGINE_VERSION = 5;
 
-/**
- * @typedef {object} DeviceSessionDoseInput
- * @property {any} [device]
- * @property {number} [durationMin=0]
- * @property {number} [distanceCm]
- * @property {string} [bodyArea]
- * @property {string[]|null} [bodyAreas]
- * @property {boolean} [eyesProtected]
- * @property {string|null} [mode]
- */
+export interface DeviceModel extends SpectralDevice {
+  recommendedDistanceCm?: number | null;
+  irradianceByDistanceCm?: Array<{ distanceCm: number; mwPerCm2: number }> | null;
+  distanceModel?: string | null; lux?: number | null;
+  melanopicDER?: number | null; melanopicEdiLux?: number | null;
+  melanopicBasis?: string | null; irradianceBasis?: string | null;
+}
+interface DeviceSessionDoseInput {
+  device?: DeviceModel | null | undefined; durationMin?: number | undefined;
+  distanceCm?: number | undefined; bodyArea?: string | undefined;
+  bodyAreas?: string[] | null | undefined; eyesProtected?: boolean | undefined;
+  mode?: string | null | undefined;
+}
+interface DeviceEngineDeps {
+  validateModeCoupling: typeof validateDeviceModeCoupling;
+  effectiveDeviceForMode: typeof getEffectiveDeviceForMode;
+  synthesizeDeviceSpectrum: typeof synthesizeSpectrumForDevice;
+  computeChannelDoses(options: Parameters<typeof computeSpectrumChannelDoses>[0]): Record<string, number>;
+  erythemalSED: typeof computeErythemalSED;
+  fractionOfMED: typeof computeFractionOfMED;
+  ocularActinicUVdose: typeof computeOcularActinicUVdose;
+}
+interface DeviceSafety {
+  hasUV: boolean; uvDoseStatus: string;
+  erythemalSED: number | null; conservativeBaseMedFraction: number | null;
+  ocularActinicUV: number | null; ocularUvaJPerM2: number | null; unsafeEyeExposure: boolean;
+}
+interface DeviceMetrics {
+  photopicLux?: number | null; melanopicEdiLux?: number | null; melanopicStatus?: string;
+}
 
-export const DEVICE_BODY_AREA_FRACTIONS = {
+export const DEVICE_BODY_AREA_FRACTIONS: Record<string, number> = {
   face: 0.04,
   arms: 0.10,
   torso: 0.13,
@@ -50,7 +70,7 @@ export const DEVICE_TYPE_CHANNELS = {
   'full-spectrum': ['circadian'],
 };
 
-function _runtimeDeps(deps = {}) {
+function _runtimeDeps(deps: Partial<DeviceEngineDeps> = {}) {
   return {
     validateModeCoupling: deps.validateModeCoupling || validateDeviceModeCoupling,
     effectiveDeviceForMode: deps.effectiveDeviceForMode || getEffectiveDeviceForMode,
@@ -62,15 +82,10 @@ function _runtimeDeps(deps = {}) {
   };
 }
 
-/**
- * @param {any} device
- * @param {string|null} [mode]
- * @param {any} [deps]
- */
-export function resolveDeviceMode(device, mode = null, deps = {}) {
+export function resolveDeviceMode(device: DeviceModel | null | undefined, mode: string | null = null, deps: Partial<DeviceEngineDeps> = {}) {
   if (!Array.isArray(device?.modes) || device.modes.length === 0) return mode ?? null;
   const found = device.modes.find(m => m.id === mode);
-  const defaultMode = device.modes.find(m => m.default) || device.modes[0];
+  const defaultMode = device.modes.find(m => m.default) || device.modes[0]!;
   let resolvedMode = found ? found.id : defaultMode.id;
   const { validateModeCoupling } = _runtimeDeps(deps);
   if (validateModeCoupling) {
@@ -80,20 +95,16 @@ export function resolveDeviceMode(device, mode = null, deps = {}) {
   return resolvedMode;
 }
 
-/**
- * @param {{ bodyAreas?: string[] | null, bodyArea?: string }} [selection]
- * @param {Array<{ key: string, fraction: number }> | null} [bodyRegions]
- */
-export function bodyFractionForDeviceSession({ bodyAreas = null, bodyArea = 'torso' } = {}, bodyRegions = BODY_REGIONS) {
+export function bodyFractionForDeviceSession({ bodyAreas = null, bodyArea = 'torso' }: Pick<DeviceSessionDoseInput, 'bodyAreas' | 'bodyArea'> = {}, bodyRegions: Array<{ key: string; fraction: number }> | null = BODY_REGIONS) {
   if (Array.isArray(bodyAreas) && bodyAreas.length > 0) {
     const fracByKey = Object.fromEntries((bodyRegions || []).map(r => [r.key, r.fraction]));
     const area = bodyAreas.reduce((sum, key) => sum + (fracByKey[key] || 0), 0);
-    return area > 0 ? area : DEVICE_BODY_AREA_FRACTIONS.targeted;
+    return area > 0 ? area : DEVICE_BODY_AREA_FRACTIONS.targeted!;
   }
   return DEVICE_BODY_AREA_FRACTIONS[bodyArea] ?? 0.10;
 }
 
-export function deviceDistanceFactor(device, distanceCm = 15) {
+export function deviceDistanceFactor(device: DeviceModel | null | undefined, distanceCm = 15) {
   const baseRangeCm = device?.recommendedDistanceCm || 15;
   const measuredDistance = Number.isFinite(distanceCm) ? distanceCm : 15;
   const table = Array.isArray(device?.irradianceByDistanceCm)
@@ -102,11 +113,11 @@ export function deviceDistanceFactor(device, distanceCm = 15) {
         .slice().sort((a, b) => a.distanceCm - b.distanceCm)
     : [];
   if (table.length >= 2) {
-    const sample = (cm) => {
-      if (cm <= table[0].distanceCm) return table[0].mwPerCm2;
-      if (cm >= table[table.length - 1].distanceCm) return table[table.length - 1].mwPerCm2;
+    const sample = (cm: number) => {
+      if (cm <= table[0]!.distanceCm) return table[0]!.mwPerCm2;
+      if (cm >= table[table.length - 1]!.distanceCm) return table[table.length - 1]!.mwPerCm2;
       for (let i = 0; i < table.length - 1; i++) {
-        const a = table[i], b = table[i + 1];
+        const a = table[i]!, b = table[i + 1]!;
         if (cm < a.distanceCm || cm > b.distanceCm) continue;
         const t = (cm - a.distanceCm) / (b.distanceCm - a.distanceCm);
         return a.mwPerCm2 + t * (b.mwPerCm2 - a.mwPerCm2);
@@ -115,7 +126,7 @@ export function deviceDistanceFactor(device, distanceCm = 15) {
     };
     const reference = sample(baseRangeCm);
     const actual = sample(Math.max(measuredDistance, 1));
-    if (reference > 0 && actual != null) return Math.max(0, Math.min(5, actual / reference));
+    if (reference! > 0 && actual != null) return Math.max(0, Math.min(5, actual / reference!));
   }
   // Extended panels in their near field do not obey point-source inverse
   // square. Only apply that model when the device explicitly declares it.
@@ -126,13 +137,7 @@ export function deviceDistanceFactor(device, distanceCm = 15) {
   return 1;
 }
 
-/**
- * @param {Record<string, any> | null | undefined} device
- * @param {string | null} [mode]
- * @param {Record<string, any>} [deps]
- * @returns {boolean}
- */
-export function deviceEmitsUV(device, mode = null, deps = {}) {
+export function deviceEmitsUV(device: DeviceModel | null | undefined, mode: string | null = null, deps: Partial<DeviceEngineDeps> = {}) {
   if (!device) return false;
   const { effectiveDeviceForMode } = _runtimeDeps(deps);
   const resolvedMode = resolveDeviceMode(device, mode, deps);
@@ -154,7 +159,7 @@ export function deviceEmitsUV(device, mode = null, deps = {}) {
   return device?.type === 'uvb' || device?.type === 'uva';
 }
 
-function _distanceModelInfo(device, distanceCm) {
+function _distanceModelInfo(device: DeviceModel | null | undefined, distanceCm: number) {
   const referenceCm = Number(device?.recommendedDistanceCm) || 15;
   const actualCm = Number.isFinite(distanceCm) && distanceCm > 0 ? distanceCm : referenceCm;
   const table = Array.isArray(device?.irradianceByDistanceCm)
@@ -163,8 +168,8 @@ function _distanceModelInfo(device, distanceCm) {
         .slice().sort((a, b) => a.distanceCm - b.distanceCm)
     : [];
   if (table.length >= 2) {
-    const min = table[0].distanceCm;
-    const max = table[table.length - 1].distanceCm;
+    const min = table[0]!.distanceCm;
+    const max = table[table.length - 1]!.distanceCm;
     return actualCm < min || actualCm > max
       ? { basis: 'measured-boundary', warning: `Recorded distance is outside the ${min}–${max} cm measured range; the nearest measured value was used without extrapolation.` }
       : { basis: 'measured-table', warning: null };
@@ -179,22 +184,18 @@ function _distanceModelInfo(device, distanceCm) {
   return { basis: 'reference-distance', warning: null };
 }
 
-function _unweightedUvaDose({ spectrum, durationSec = 0 }) {
+function _unweightedUvaDose({ spectrum, durationSec = 0 }: { spectrum?: SpectralDistribution | null; durationSec?: number }) {
   if (!spectrum || durationSec <= 0) return 0;
   const dlambda = 5;
   let uvaIrradiance = 0;
   for (let index = 0; index < spectrum.irradiance.length; index++) {
-    const nm = spectrum.wavelengths[index];
+    const nm = spectrum.wavelengths[index]!;
     if (nm < 315 || nm > 400) continue;
     uvaIrradiance += (Number(spectrum.irradiance[index]) || 0) * dlambda;
   }
   return uvaIrradiance * durationSec;
 }
 
-/**
- * @param {DeviceSessionDoseInput} [input]
- * @param {any} [deps]
- */
 export function computeDeviceSessionDoses({
   device,
   durationMin = 0,
@@ -203,7 +204,7 @@ export function computeDeviceSessionDoses({
   bodyAreas = null,
   eyesProtected = true,
   mode = null,
-} = {}, deps = {}) {
+}: DeviceSessionDoseInput = {}, deps: Partial<DeviceEngineDeps> = {}) {
   const resolvedMode = resolveDeviceMode(device, mode, deps);
   const bodyExposureFraction = bodyFractionForDeviceSession({ bodyAreas, bodyArea });
   const distanceFactor = deviceDistanceFactor(device, distanceCm);
@@ -217,15 +218,15 @@ export function computeDeviceSessionDoses({
     ? effectiveDevice.peakWavelengths.filter(nm => Number.isFinite(nm))
     : [];
   const hasPeaks = effectivePeaks.length > 0;
-  const hasIrradiance = (effectiveDevice?.mwPerCm2At15cm || 0) > 0;
+  const hasIrradiance = ((effectiveDevice?.mwPerCm2At15cm || 0) as number) > 0;
   const hasUV = deviceEmitsUV(device, resolvedMode, deps);
-  const isAmbientEyeDevice = ['sad', 'dawn-sim', 'full-spectrum'].includes(device?.type) && !hasUV;
+  const isAmbientEyeDevice = ['sad', 'dawn-sim', 'full-spectrum'].includes(device?.type as string) && !hasUV;
   // Therapy panels never earn an eye-channel benefit merely because goggles
   // were omitted. Ambient eye-light devices are the only device class whose
   // normal use intentionally places open eyes in the illuminated environment.
   const eyeMode = isAmbientEyeDevice && !eyesProtected ? 'direct' : 'closed-eyes';
-  let doses = {};
-  let safety = {
+  let doses: Record<string, number> = {};
+  let safety: DeviceSafety = {
     hasUV,
     uvDoseStatus: hasUV ? 'unavailable' : 'not-applicable',
     erythemalSED: hasUV ? null : 0,
@@ -234,14 +235,14 @@ export function computeDeviceSessionDoses({
     ocularUvaJPerM2: hasUV ? null : 0,
     unsafeEyeExposure: hasUV && !eyesProtected,
   };
-  const metrics = {};
-  const warnings = [];
+  const metrics: DeviceMetrics = {};
+  const warnings: string[] = [];
   const distanceInfo = _distanceModelInfo(device, distanceCm);
   if (distanceInfo.warning) warnings.push(distanceInfo.warning);
   const sourcePeaks = Array.isArray(device?.peakWavelengths)
     ? device.peakWavelengths.filter(nm => Number.isFinite(nm))
     : [];
-  const sourceHasUV = sourcePeaks.some(nm => nm >= 180 && nm < 400) || ['uvb', 'uva'].includes(device?.type);
+  const sourceHasUV = sourcePeaks.some(nm => nm >= 180 && nm < 400) || ['uvb', 'uva'].includes(device?.type as string);
   const sourceHasNonUV = sourcePeaks.some(nm => nm >= 400);
   const hasDeclaredPeakShares = Array.isArray(device?.peakShares)
     && device.peakShares.length === sourcePeaks.length
@@ -252,7 +253,7 @@ export function computeDeviceSessionDoses({
     && (!(sourceHasUV && sourceHasNonUV) || hasDeclaredPeakShares);
 
   if (synthesizeDeviceSpectrum && computeChannelDoses && hasPeaks && hasIrradiance) {
-    const baseSpec = synthesizeDeviceSpectrum(effectiveDevice);
+    const baseSpec = synthesizeDeviceSpectrum(effectiveDevice!);
     const spectrum = {
       wavelengths: baseSpec.wavelengths,
       irradiance: (baseSpec.irradiance || []).map(v => v * distanceFactor),
@@ -288,7 +289,7 @@ export function computeDeviceSessionDoses({
       uvDoseStatus: uvDoseQuantifiable ? 'modeled' : (hasUV ? 'unavailable' : 'not-applicable'),
       erythemalSED: sed,
       conservativeBaseMedFraction: uvDoseQuantifiable && fractionOfMED
-        ? fractionOfMED({ sed, fitzpatrick: 'I' })
+        ? fractionOfMED({ sed, fitzpatrick: 'I' } as Parameters<typeof computeFractionOfMED>[0])
         : (hasUV ? null : 0),
       ocularActinicUV,
       ocularUvaJPerM2,

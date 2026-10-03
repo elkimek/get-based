@@ -778,3 +778,6 @@ deploy/profile-share/data/
 /js/sun-spectrum.js
 
 /js/sun-sessions-store.js
+
+/js/light-device-session-engine.js
+/js/light-devices-store.js

@@ -1,10 +1,10 @@
-// @ts-check
 // light-devices-store.js - persisted light-device and device-session mutations.
 //
 // UI modules own preset loading, dialogs, rendering, and notifications. This
 // module owns importedData.lightDevices[] / deviceSessions[] writes, dose
 // recompute, sync freshness stamps, and saveImportedData().
 
+import type { DeviceModel } from './light-device-session-engine.js';
 import { state } from './state.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
@@ -18,22 +18,50 @@ import {
 import { createUniqueId } from './unique-id.js';
 import { BODY_REGIONS } from './sun-body-silhouette.js';
 
-/**
- * @typedef {object} LightDevicesStoreDeps
- * @property {(session: any) => void} maybeAnalyzeDeviceSessionAfterFinish
- */
+type ComputedDeviceSession = ReturnType<typeof computeDeviceSessionDoses>;
+export interface LightDeviceRecord extends DeviceModel {
+  type?: string | null | undefined;
+  id: string; presetId?: string | null; brand?: string; model?: string; notes?: string;
+  channels?: string[] | null; catalogSlug?: string | null; specSourceUrl?: string | null;
+  channelGroups?: Array<NonNullable<DeviceModel['channelGroups']>[number] & { label?: string }> | null | undefined;
+  modes?: Array<NonNullable<DeviceModel['modes']>[number] & { label?: string }> | null | undefined;
+  addedAt?: number; updatedAt?: number; specEditedAt?: number;
+  lastSession?: Pick<DeviceSessionRecord, 'durationMin' | 'distanceCm' | 'bodyArea' | 'bodyAreas' | 'eyesProtected' | 'mode'>;
+  [key: string]: unknown;
+}
+export interface DeviceSessionRecord {
+  id: string; deviceId?: string | undefined; startedAt: number; endedAt?: number | null;
+  durationMin?: number | undefined; distanceCm?: number | undefined; bodyArea?: string | undefined; bodyAreas?: string[] | null | undefined;
+  eyesProtected?: boolean | undefined; fitzpatrick?: string | null; mode?: string | null | undefined;
+  deviceSnapshot?: LightDeviceRecord | null; notes?: string; updatedAt?: number;
+  doses?: ComputedDeviceSession['doses'] | null; safety?: ComputedDeviceSession['safety'] | null;
+  metrics?: ComputedDeviceSession['metrics'] | null;
+  calculation?: Partial<ComputedDeviceSession['model']>; calculationStatus?: string;
+  distanceModel?: string; engineVersion?: number; aiAnalysis?: unknown;
+  [key: string]: unknown;
+}
+interface LightDevicesStoreDeps { maybeAnalyzeDeviceSessionAfterFinish(session: DeviceSessionRecord): unknown }
+interface DeviceSessionInput {
+  deviceId?: string; durationMin?: number; distanceCm?: number; bodyArea?: string;
+  bodyAreas?: string[] | null; eyesProtected?: boolean; notes?: string; mode?: string | null;
+}
+type CustomDeviceInput = Partial<Pick<LightDeviceRecord,
+  'brand' | 'model' | 'type' | 'peakWavelengths' | 'peakShares' | 'peakShareBasis'
+  | 'irradianceByDistanceCm' | 'distanceModel' | 'melanopicBasis' | 'irradianceBasis'
+  | 'specSourceUrl' | 'notes' | 'channelGroups' | 'modes' | 'coupling'>> & {
+  mwPerCm2At15cm?: unknown; lux?: unknown; recommendedDistanceCm?: unknown;
+  melanopicDER?: unknown; melanopicEdiLux?: unknown;
+};
 
-/** @type {LightDevicesStoreDeps} */
-const storeDeps = {
+const storeDeps: LightDevicesStoreDeps = {
   maybeAnalyzeDeviceSessionAfterFinish: requestDeviceSessionAnalysis,
 };
 
-/** @param {Partial<LightDevicesStoreDeps>} [deps] */
-export function configureLightDevicesStore(deps = {}) {
+export function configureLightDevicesStore(deps: Partial<LightDevicesStoreDeps> = {}) {
   Object.assign(storeDeps, deps);
 }
 
-function runDeviceSessionAnalysis(session) {
+function runDeviceSessionAnalysis(session: DeviceSessionRecord) {
   try { storeDeps.maybeAnalyzeDeviceSessionAfterFinish(session); } catch (_) {}
 }
 
@@ -41,11 +69,11 @@ const MAX_DEVICE_SESSION_MIN = 600;
 const VALID_BODY_REGIONS = new Set(BODY_REGIONS.map(region => region.key));
 const VALID_BROAD_AREAS = new Set(['targeted', 'face', 'torso', 'arms', 'legs', 'whole-body']);
 
-function safeText(value, maxLength = 120) {
+function safeText(value: unknown, maxLength = 120) {
   return String(value || '').trim().slice(0, maxLength);
 }
 
-function normalizedPeaks(value) {
+function normalizedPeaks(value: unknown) {
   if (!Array.isArray(value)) return [];
   return [...new Set(value
     .map(Number)
@@ -53,15 +81,15 @@ function normalizedPeaks(value) {
     .sort((a, b) => a - b);
 }
 
-function channelsForDevice(type, peaks) {
-  const channels = new Set();
-  const has = (min, max) => peaks.some(nm => nm >= min && nm < max);
+function channelsForDevice(type: unknown, peaks: number[]) {
+  const channels = new Set<string>();
+  const has = (min: number, max: number) => peaks.some(nm => nm >= min && nm < max);
   if (has(280, 320)) channels.add('vitamin_d');
   if (has(280, 400)) channels.add('pomc');
   if (has(315, 410)) channels.add('no_cv');
   if (has(600, 700)) channels.add('pbm_red');
   if (has(700, 1100)) channels.add('pbm_nir');
-  if (['sad', 'dawn-sim', 'full-spectrum'].includes(type)) {
+  if (['sad', 'dawn-sim', 'full-spectrum'].includes(type as string)) {
     channels.add('circadian');
     if (has(400, 500)) channels.add('violet_eye');
   }
@@ -78,22 +106,22 @@ function channelsForDevice(type, peaks) {
   return [...channels];
 }
 
-function normalizedBodyAreas(bodyAreas) {
+function normalizedBodyAreas(bodyAreas: unknown): string[] | null {
   if (!Array.isArray(bodyAreas)) return null;
   return [...new Set(bodyAreas.filter(key => VALID_BODY_REGIONS.has(key)))];
 }
 
-function validDuration(value) {
+function validDuration(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) && number >= 0 && number <= MAX_DEVICE_SESSION_MIN ? number : null;
 }
 
-function validDistance(value) {
+function validDistance(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) && number >= 1 && number <= 1000 ? number : null;
 }
 
-function cloneValue(value) {
+function cloneValue<T>(value: T): T {
   if (value == null || typeof value !== 'object') return value;
   return JSON.parse(JSON.stringify(value));
 }
@@ -107,9 +135,9 @@ const DEVICE_MODEL_FIELDS = [
   'channelGroups', 'modes', 'coupling', 'catalogSlug',
 ];
 
-function deviceSnapshot(device) {
+function deviceSnapshot(device: LightDeviceRecord | null | undefined) {
   if (!device) return null;
-  const snapshot = {
+  const snapshot: LightDeviceRecord = {
     id: device.id,
     brand: device.brand || '',
     model: device.model || '',
@@ -119,13 +147,25 @@ function deviceSnapshot(device) {
   return snapshot;
 }
 
-function sessionDevice(sess) {
+function sessionDevice(sess: DeviceSessionRecord) {
   return getDevices().find(device => device.id === sess?.deviceId)
     || sess?.deviceSnapshot
     || null;
 }
 
-function applyComputedSessionFields(sess, computed) {
+function computeRecordedSessionDoses(device: LightDeviceRecord, sess: DeviceSessionRecord, durationMin: number | undefined) {
+  return computeDeviceSessionDoses({
+    device,
+    durationMin,
+    distanceCm: sess.distanceCm,
+    bodyArea: sess.bodyArea,
+    bodyAreas: sess.bodyAreas,
+    eyesProtected: sess.eyesProtected,
+    mode: sess.mode,
+  });
+}
+
+function applyComputedSessionFields(sess: DeviceSessionRecord, computed: ComputedDeviceSession) {
   sess.mode = computed.mode;
   sess.doses = computed.doses;
   sess.safety = computed.safety;
@@ -137,21 +177,21 @@ function applyComputedSessionFields(sess, computed) {
   delete sess.aiAnalysis;
 }
 
-export function getDevices() {
+export function getDevices(): LightDeviceRecord[] {
   if (!state.importedData) return [];
   if (!Array.isArray(state.importedData.lightDevices)) state.importedData.lightDevices = [];
   return state.importedData.lightDevices;
 }
 
-export function getDeviceSessions() {
+export function getDeviceSessions(): DeviceSessionRecord[] {
   if (!state.importedData) return [];
   if (!Array.isArray(state.importedData.deviceSessions)) state.importedData.deviceSessions = [];
   return state.importedData.deviceSessions;
 }
 
-export async function addDeviceFromPresetRecord(preset, overrides = {}, { now = Date.now() } = {}) {
+export async function addDeviceFromPresetRecord(preset: LightDeviceRecord | null | undefined, overrides: Partial<LightDeviceRecord> = {}, { now = Date.now() } = {}) {
   if (!preset) return null;
-  const device = {
+  const device: LightDeviceRecord = {
     id: createUniqueId('dev_'),
     presetId: preset.id,
     brand: safeText(overrides.brand || preset.brand),
@@ -188,10 +228,10 @@ export async function addDeviceFromPresetRecord(preset, overrides = {}, { now = 
   return device;
 }
 
-export async function hydrateDevicesFromPresetRecords(presets) {
+export async function hydrateDevicesFromPresetRecords(presets: readonly LightDeviceRecord[] | null | undefined) {
   if (!Array.isArray(presets) || presets.length === 0) return false;
   if (!state.importedData) return false;
-  const devices = Array.isArray(state.importedData.lightDevices) ? state.importedData.lightDevices : [];
+  const devices: LightDeviceRecord[] = Array.isArray(state.importedData.lightDevices) ? state.importedData.lightDevices : [];
   let dirty = false;
   for (const dev of devices) {
     if (!dev || !dev.presetId) continue;
@@ -216,7 +256,7 @@ export async function hydrateDevicesFromPresetRecords(presets) {
   return dirty;
 }
 
-export async function deleteDevice(id) {
+export async function deleteDevice(id: string) {
   const devs = getDevices();
   const idx = devs.findIndex(d => d.id === id);
   if (idx < 0) return false;
@@ -230,10 +270,7 @@ export async function deleteDevice(id) {
   return true;
 }
 
-/**
- * @param {{deviceId?: string, durationMin?: number, distanceCm?: number, bodyArea?: string, bodyAreas?: string[]|null, eyesProtected?: boolean, notes?: string, mode?: string|null}} [input]
- */
-export async function logDeviceSession({ deviceId, durationMin = 0, distanceCm = 15, bodyArea = 'torso', bodyAreas = null, eyesProtected = true, notes = '', mode = null } = {}) {
+export async function logDeviceSession({ deviceId, durationMin = 0, distanceCm = 15, bodyArea = 'torso', bodyAreas = null, eyesProtected = true, notes = '', mode = null }: DeviceSessionInput = {}) {
   const device = getDevices().find(d => d.id === deviceId);
   if (!device) return null;
   const safeDuration = validDuration(durationMin);
@@ -254,7 +291,7 @@ export async function logDeviceSession({ deviceId, durationMin = 0, distanceCm =
     mode,
   });
 
-  const session = {
+  const session: DeviceSessionRecord = {
     id: createUniqueId('devsess_'),
     deviceId,
     startedAt: now - seconds * 1000,
@@ -286,10 +323,7 @@ export function getActiveDeviceSession() {
   return getDeviceSessions().find(s => !s.endedAt) || null;
 }
 
-/**
- * @param {{deviceId?: string, distanceCm?: number, bodyAreas?: string[]|null, bodyArea?: string, eyesProtected?: boolean, mode?: string|null}} [input]
- */
-export async function startDeviceSession({ deviceId, distanceCm = 15, bodyAreas = null, bodyArea = 'torso', eyesProtected = true, mode = null } = {}) {
+export async function startDeviceSession({ deviceId, distanceCm = 15, bodyAreas = null, bodyArea = 'torso', eyesProtected = true, mode = null }: Omit<DeviceSessionInput, 'durationMin' | 'notes'> = {}) {
   // Reject a second active timer - one session at a time keeps the
   // active-card UI unambiguous and matches sun-session semantics.
   if (getActiveDeviceSession()) return null;
@@ -306,7 +340,7 @@ export async function startDeviceSession({ deviceId, distanceCm = 15, bodyAreas 
   // UV-emitting timer while recording unprotected eyes.
   if (deviceEmitsUV(device, resolvedMode) && !eyesProtected) return null;
   const id = createUniqueId('devsess_');
-  const sess = {
+  const sess: DeviceSessionRecord = {
     id,
     deviceId,
     startedAt: now,
@@ -328,7 +362,7 @@ export async function startDeviceSession({ deviceId, distanceCm = 15, bodyAreas 
   return id;
 }
 
-export async function stopDeviceSession(id) {
+export async function stopDeviceSession(id?: string | null) {
   const sessions = getDeviceSessions();
   const sess = id ? sessions.find(s => s.id === id) : getActiveDeviceSession();
   if (!sess || sess.endedAt) return null;
@@ -337,15 +371,7 @@ export async function stopDeviceSession(id) {
   const liveDevice = getDevices().find(device => device.id === sess.deviceId) || null;
   const device = liveDevice || sess.deviceSnapshot || null;
   if (device) {
-    const computed = computeDeviceSessionDoses({
-      device,
-      durationMin,
-      distanceCm: sess.distanceCm,
-      bodyArea: sess.bodyArea,
-      bodyAreas: sess.bodyAreas,
-      eyesProtected: sess.eyesProtected,
-      mode: sess.mode,
-    });
+    const computed = computeRecordedSessionDoses(device, sess, durationMin);
     applyComputedSessionFields(sess, computed);
   } else {
     sess.doses = null;
@@ -373,17 +399,12 @@ export async function stopDeviceSession(id) {
   return sess;
 }
 
-/**
- * @param {string} id
- * @param {Record<string, any>} [patch]
- */
-export async function updateDeviceSession(id, patch = {}) {
+export async function updateDeviceSession(id: string, patch: Record<string, unknown> = {}) {
   const sessions = getDeviceSessions();
   const sess = sessions.find(s => s.id === id);
   if (!sess) return null;
   const editable = ['durationMin', 'distanceCm', 'bodyArea', 'bodyAreas', 'eyesProtected', 'notes', 'mode'];
-  /** @type {Record<string, any>} */
-  const normalizedPatch = { ...patch };
+  const normalizedPatch: Record<string, unknown> = { ...patch };
   if ('durationMin' in normalizedPatch) {
     const duration = validDuration(normalizedPatch.durationMin);
     if (duration == null) return null;
@@ -399,7 +420,7 @@ export async function updateDeviceSession(id, patch = {}) {
     if (!areas || areas.length === 0) return null;
     normalizedPatch.bodyAreas = areas;
   }
-  if ('bodyArea' in normalizedPatch && !VALID_BROAD_AREAS.has(normalizedPatch.bodyArea)) normalizedPatch.bodyArea = 'targeted';
+  if ('bodyArea' in normalizedPatch && !VALID_BROAD_AREAS.has(normalizedPatch.bodyArea as string)) normalizedPatch.bodyArea = 'targeted';
   if ('eyesProtected' in normalizedPatch) normalizedPatch.eyesProtected = !!normalizedPatch.eyesProtected;
   if ('notes' in normalizedPatch) normalizedPatch.notes = String(normalizedPatch.notes || '').slice(0, 2000);
   let needsRecompute = false;
@@ -409,7 +430,7 @@ export async function updateDeviceSession(id, patch = {}) {
       // detect content change, not just identity.
       if (k === 'bodyAreas') {
         const before = JSON.stringify((sess.bodyAreas || []).slice().sort());
-        const after = JSON.stringify((normalizedPatch.bodyAreas || []).slice().sort());
+        const after = JSON.stringify(((normalizedPatch.bodyAreas || []) as string[]).slice().sort());
         if (before === after) continue;
       }
       // mode patches go through coupling validation; bad input falls back to
@@ -417,7 +438,7 @@ export async function updateDeviceSession(id, patch = {}) {
       if (k === 'mode') {
         const device = sessionDevice(sess);
         if (device && Array.isArray(device.modes) && device.modes.length > 0) {
-          const next = resolveDeviceMode(device, normalizedPatch.mode);
+          const next = resolveDeviceMode(device, normalizedPatch.mode as string | null | undefined);
           if (next === sess.mode) continue;
           sess.mode = next;
           needsRecompute = true;
@@ -431,20 +452,12 @@ export async function updateDeviceSession(id, patch = {}) {
   // Re-derive endedAt + dose if duration changed so stored duration and
   // channel doses cannot drift.
   if (needsRecompute && sess.endedAt && Number.isFinite(sess.durationMin)) {
-    sess.endedAt = sess.startedAt + sess.durationMin * 60 * 1000;
+    sess.endedAt = sess.startedAt + sess.durationMin! * 60 * 1000;
     const liveDevice = getDevices().find(device => device.id === sess.deviceId) || null;
     if (liveDevice) sess.deviceSnapshot = deviceSnapshot(liveDevice);
     const device = liveDevice || sess.deviceSnapshot || null;
     if (device) {
-      const computed = computeDeviceSessionDoses({
-        device,
-        durationMin: sess.durationMin,
-        distanceCm: sess.distanceCm,
-        bodyArea: sess.bodyArea,
-        bodyAreas: sess.bodyAreas,
-        eyesProtected: sess.eyesProtected,
-        mode: sess.mode,
-      });
+      const computed = computeRecordedSessionDoses(device, sess, sess.durationMin);
       applyComputedSessionFields(sess, computed);
     } else {
       sess.doses = null;
@@ -461,7 +474,7 @@ export async function updateDeviceSession(id, patch = {}) {
   return sess;
 }
 
-export async function deleteDeviceSession(id) {
+export async function deleteDeviceSession(id: string) {
   const sessions = getDeviceSessions();
   const idx = sessions.findIndex(s => s.id === id);
   if (idx < 0) return false;
@@ -472,7 +485,7 @@ export async function deleteDeviceSession(id) {
 
 export function rollingDeviceTotals(days = 7) {
   const cutoff = Date.now() - days * 86400 * 1000;
-  const totals = {};
+  const totals: Record<string, number> = {};
   for (const sess of getDeviceSessions()) {
     if (!sess.doses || (sess.endedAt && sess.endedAt < cutoff)) continue;
     for (const [k, v] of Object.entries(sess.doses)) {
@@ -494,15 +507,7 @@ export async function rehydrateStaleDeviceSessions() {
     const device = liveDevice || sess.deviceSnapshot;
     if (!device) continue;
     if (!sess.fitzpatrick) sess.fitzpatrick = state.importedData?.sunDefaults?.fitzpatrick || null;
-    const computed = computeDeviceSessionDoses({
-      device,
-      durationMin: sess.durationMin || 0,
-      distanceCm: sess.distanceCm,
-      bodyArea: sess.bodyArea,
-      bodyAreas: sess.bodyAreas,
-      eyesProtected: sess.eyesProtected,
-      mode: sess.mode,
-    });
+    const computed = computeRecordedSessionDoses(device, sess, sess.durationMin || 0);
     applyComputedSessionFields(sess, computed);
     rehydrated++;
   }
@@ -510,7 +515,7 @@ export async function rehydrateStaleDeviceSessions() {
   return { rehydrated, engineVersion: DEVICE_ENGINE_VERSION };
 }
 
-export async function addCustomDevice(spec) {
+export async function addCustomDevice(spec: CustomDeviceInput | null | undefined) {
   if (!spec || !safeText(spec.brand) || !safeText(spec.model)) return null;
   const now = Date.now();
   const peaks = normalizedPeaks(spec.peakWavelengths);
@@ -531,7 +536,7 @@ export async function addCustomDevice(spec) {
         .map(m => ({
           id: safeText(m.id, 80),
           label: safeText(m.label || m.id, 120),
-          groups: [...new Set(m.groups.filter(gid => validGroupIds.has(gid)))],
+          groups: [...new Set(m.groups!.filter(gid => validGroupIds.has(gid)))],
           ...(m.default === true ? { default: true } : {}),
         }))
         .filter(m => m.groups.length > 0)
@@ -542,7 +547,7 @@ export async function addCustomDevice(spec) {
         && Array.isArray(r.requires) && r.requires.every(req => validGroupIds.has(req))
       )
     : null;
-  const device = {
+  const device: LightDeviceRecord = {
     id: createUniqueId('dev_'),
     presetId: null,
     brand: safeText(spec.brand),
@@ -553,14 +558,14 @@ export async function addCustomDevice(spec) {
       ? spec.peakShares.map(share => Math.max(0, Number(share) || 0))
       : null,
     peakShareBasis: spec.peakShareBasis || null,
-    mwPerCm2At15cm: Number.isFinite(spec.mwPerCm2At15cm) ? spec.mwPerCm2At15cm : null,
-    lux: Number.isFinite(spec.lux) ? spec.lux : null,
-    recommendedDistanceCm: Number.isFinite(spec.recommendedDistanceCm) && spec.recommendedDistanceCm > 0 ? spec.recommendedDistanceCm : 15,
+    mwPerCm2At15cm: Number.isFinite(spec.mwPerCm2At15cm) ? spec.mwPerCm2At15cm as number : null,
+    lux: Number.isFinite(spec.lux) ? spec.lux as number : null,
+    recommendedDistanceCm: Number.isFinite(spec.recommendedDistanceCm) && (spec.recommendedDistanceCm as number) > 0 ? spec.recommendedDistanceCm as number : 15,
     irradianceByDistanceCm: Array.isArray(spec.irradianceByDistanceCm) ? spec.irradianceByDistanceCm : null,
     distanceModel: spec.distanceModel === 'point-source' ? 'point-source' : 'reference-only',
-    melanopicDER: Number.isFinite(spec.melanopicDER) && spec.melanopicDER > 0 ? spec.melanopicDER : null,
-    melanopicEdiLux: Number.isFinite(spec.melanopicEdiLux) && spec.melanopicEdiLux > 0 ? spec.melanopicEdiLux : null,
-    melanopicBasis: spec.melanopicBasis || (Number.isFinite(spec.melanopicEdiLux) && spec.melanopicEdiLux > 0 ? 'user-entered' : null),
+    melanopicDER: Number.isFinite(spec.melanopicDER) && (spec.melanopicDER as number) > 0 ? spec.melanopicDER as number : null,
+    melanopicEdiLux: Number.isFinite(spec.melanopicEdiLux) && (spec.melanopicEdiLux as number) > 0 ? spec.melanopicEdiLux as number : null,
+    melanopicBasis: spec.melanopicBasis || (Number.isFinite(spec.melanopicEdiLux) && (spec.melanopicEdiLux as number) > 0 ? 'user-entered' : null),
     irradianceBasis: spec.irradianceBasis || 'user-entered',
     specSourceUrl: spec.specSourceUrl || null,
     channels: channelsForDevice(spec.type || 'combined', peaks),

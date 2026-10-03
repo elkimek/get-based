@@ -207,7 +207,7 @@ assert('rollingDeviceTotals sums only in-window finite doses',
 
 console.log('%c 3. Boundary ownership ', 'font-weight:bold;color:#f59e0b');
 const uiSrc = read('js/light-devices.js');
-const storeSrc = read('js/light-devices-store.js');
+const storeSrc = read('js/light-devices-store.ts');
 const appLightSunSrc = read('js/app-light-sun-modules.js');
 const aiHooksSrc = read('js/light-sun-ai-hooks.js');
 assert('light-devices imports the store boundary',
