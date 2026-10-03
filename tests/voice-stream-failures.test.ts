@@ -1,12 +1,12 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { VoicePlayer } from '../js/voice-player.js';
 
-const players = [];
+const players: VoicePlayer[] = [];
 afterEach(() => { for (const player of players.splice(0)) player.stop(); vi.useRealTimers(); });
-function fixture({ open = true, appendError, playError, addError, delayedAppend = false } = {}) {
+function fixture({ open = true, appendError, playError, addError, delayedAppend = false }: { open?: boolean; appendError?: Error; playError?: Error; addError?: Error; delayedAppend?: boolean } = {}) {
   const buffer = Object.assign(new EventTarget(), {
     updating: false, abort: vi.fn(),
-    appendBuffer: vi.fn(function () {
+    appendBuffer: vi.fn(function (this: EventTarget & { updating: boolean }) {
       if (appendError) throw appendError;
       this.updating = true;
       if (!delayedAppend) queueMicrotask(() => { this.updating = false; this.dispatchEvent(new Event('updateend')); });
@@ -22,18 +22,18 @@ function fixture({ open = true, appendError, playError, addError, delayedAppend 
   });
   const revoke = vi.fn();
   const player = new VoicePlayer({
-    audioFactory: () => audio, mediaSourceFactory: () => media, isMediaSourceTypeSupported: () => true,
+    audioFactory: () => audio as unknown as HTMLAudioElement, mediaSourceFactory: () => media as unknown as MediaSource, isMediaSourceTypeSupported: () => true,
     createObjectURL: () => 'blob:stream', revokeObjectURL: revoke,
   });
   players.push(player);
   return { player, audio, media, buffer, revoke };
 }
-function provider(chunks = [], closed = true) {
+function provider(chunks: Uint8Array[] = [], closed = true) {
   const cancel = vi.fn();
   const stream = new ReadableStream({ start(controller) { chunks.forEach(chunk => controller.enqueue(chunk)); if (closed) controller.close(); }, cancel });
   return { stream, cancel };
 }
-function clean(f) {
+function clean(f: ReturnType<typeof fixture>) {
   expect(f.revoke).toHaveBeenCalledExactlyOnceWith('blob:stream');
   expect(f.player.audio).toBeNull(); expect(f.player.sourceBuffer).toBeNull();
   expect(f.player.streamReader).toBeNull(); expect(f.player.rejectCurrent).toBeNull();
@@ -87,20 +87,20 @@ it('ignores empty chunks, preserves chunk order and finishes only after audio en
   let finished = false;
   const playback = f.player.playStream(p.stream).then(() => { finished = true; });
   await vi.waitFor(() => expect(f.media.endOfStream).toHaveBeenCalledWith());
-  expect(f.buffer.appendBuffer.mock.calls.map(([bytes]) => [...bytes])).toEqual([[1], [2]]);
+  expect((f.buffer.appendBuffer.mock.calls as unknown as [Uint8Array][]).map(([bytes]) => [...bytes])).toEqual([[1], [2]]);
   expect(finished).toBe(false);
   f.audio.dispatchEvent(new Event('ended')); await playback; clean(f);
 });
 it('settles and releases a MediaSource that never opens', async () => {
   vi.useFakeTimers(); const f = fixture({ open: false }), p = provider();
-  let outcome;
+  let outcome: Error | undefined;
   void f.player.playStream(p.stream).catch(error => { outcome = error; });
   await vi.advanceTimersByTimeAsync(5001);
   expect(outcome?.message).toContain('could not be opened'); clean(f);
 });
 it('times out a stalled provider and cancels its reader', async () => {
   vi.useFakeTimers(); const f = fixture(), p = provider([], false);
-  let outcome;
+  let outcome: Error | undefined;
   void f.player.playStream(p.stream).catch(error => { outcome = error; });
   await vi.advanceTimersByTimeAsync(120001);
   expect(outcome?.message).toContain('stopped responding');
@@ -109,7 +109,7 @@ it('times out a stalled provider and cancels its reader', async () => {
 it('times out a decoder that never emits updateend and removes its listeners', async () => {
   vi.useFakeTimers(); const f = fixture({ delayedAppend: true }), p = provider([new Uint8Array([1])], false);
   const remove = vi.spyOn(f.buffer, 'removeEventListener');
-  let outcome;
+  let outcome: Error | undefined;
   void f.player.playStream(p.stream).catch(error => { outcome = error; });
   await vi.advanceTimersByTimeAsync(120001);
   expect(outcome?.message).toContain('segment stopped responding');

@@ -1,34 +1,45 @@
-// @ts-check
+export interface VoicePlaybackOptions { signal?: AbortSignal | undefined; rate?: number | undefined }
+export interface VoiceStreamPlaybackOptions extends VoicePlaybackOptions { contentType?: string; progressive?: boolean }
+export interface VoicePcmPlaybackOptions extends VoicePlaybackOptions {
+  onPlaybackStart?: (() => void) | undefined; onPlaybackWaiting?: (() => void) | undefined;
+}
+export interface VoicePcmChunk { samples?: Float32Array | ArrayLike<number> | undefined; sampleRate?: number | undefined }
+export interface VoicePlayerOptions {
+  audioFactory?: () => HTMLAudioElement; audioContextFactory?: () => AudioContext | null;
+  mediaSourceFactory?: () => MediaSource | null; isMediaSourceTypeSupported?: (mimeType: string) => boolean;
+  createObjectURL?: (value: Blob | MediaSource) => string; revokeObjectURL?: (url: string) => void;
+  audioUnlockTimeoutMs?: number; pcmStallTimeoutMs?: number;
+}
+type PreparedStream = { audio: HTMLAudioElement; mediaSource: MediaSource; mimeType: string; objectUrl: string; playPromise: Promise<void> };
+
 // voice-player.js — one-at-a-time blob playback with URL and abort cleanup.
 
-/** @param {unknown} [reason] */
-function abortError(reason) {
+function abortError(reason?: unknown) {
   return reason instanceof Error
     ? reason
     : new DOMException('Speech playback stopped', 'AbortError');
 }
 
-function baseMimeType(value) {
-  return String(value || 'audio/mpeg').split(';')[0].trim().toLowerCase();
+function baseMimeType(value: unknown) {
+  return String(value || 'audio/mpeg').split(';')[0]!.trim().toLowerCase();
 }
 
-function waitForPromise(promise, timeoutMs, message) {
-  /** @type {ReturnType<typeof setTimeout> | undefined} */
-  let timeoutId;
-  const timeout = new Promise((_, reject) => {
+function waitForPromise<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
   });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
 }
 
-function readStreamChunk(reader, signal, timeoutMs = 120_000) {
-  return new Promise((resolve, reject) => {
+function readStreamChunk<T>(reader: ReadableStreamDefaultReader<T>, signal: AbortSignal | undefined, timeoutMs = 120_000) {
+  return new Promise<ReadableStreamReadResult<T>>((resolve, reject) => {
     let settled = false;
     const cleanup = () => {
       clearTimeout(timeoutId);
       signal?.removeEventListener('abort', onAbort);
     };
-    const finish = operation => value => {
+    const finish = <V>(operation: (value: V) => void) => (value: V) => {
       if (settled) return;
       settled = true;
       cleanup();
@@ -43,24 +54,23 @@ function readStreamChunk(reader, signal, timeoutMs = 120_000) {
   });
 }
 
-export function trimPcmEdgeSilence(samples, sampleRate, {
+export function trimPcmEdgeSilence(samples: Float32Array, sampleRate: number, {
   threshold = 0.0015,
   keepSeconds = 0.06,
-} = {}) {
+}: { threshold?: number; keepSeconds?: number } = {}) {
   if (!(samples instanceof Float32Array) || !samples.length) return samples;
   let first = 0;
-  while (first < samples.length && Math.abs(samples[first]) < threshold) first += 1;
+  while (first < samples.length && Math.abs(samples[first]!) < threshold) first += 1;
   if (first === samples.length) return samples;
   let last = samples.length - 1;
-  while (last > first && Math.abs(samples[last]) < threshold) last -= 1;
+  while (last > first && Math.abs(samples[last]!) < threshold) last -= 1;
   const keep = Math.max(0, Math.round((Number(sampleRate) || 24_000) * keepSeconds));
   return samples.subarray(Math.max(0, first - keep), Math.min(samples.length, last + keep + 1));
 }
 
-/** @returns {Promise<void>} */
-function waitForMediaSourceOpen(mediaSource, signal) {
+function waitForMediaSourceOpen(mediaSource: MediaSource, signal: AbortSignal | undefined) {
   if (mediaSource.readyState === 'open') return Promise.resolve();
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     const cleanup = () => {
       mediaSource.removeEventListener('sourceopen', onOpen);
       mediaSource.removeEventListener('sourceclose', onClose);
@@ -84,9 +94,8 @@ function waitForMediaSourceOpen(mediaSource, signal) {
   });
 }
 
-/** @returns {Promise<void>} */
-function appendSourceBuffer(sourceBuffer, bytes, signal) {
-  return new Promise((resolve, reject) => {
+function appendSourceBuffer(sourceBuffer: SourceBuffer, bytes: Uint8Array, signal: AbortSignal | undefined) {
+  return new Promise<void>((resolve, reject) => {
     const cleanup = () => {
       sourceBuffer.removeEventListener('updateend', onUpdateEnd);
       sourceBuffer.removeEventListener('error', onError);
@@ -108,7 +117,7 @@ function appendSourceBuffer(sourceBuffer, bytes, signal) {
     sourceBuffer.addEventListener('error', onError, { once: true });
     signal?.addEventListener('abort', onAbort, { once: true });
     try {
-      sourceBuffer.appendBuffer(bytes);
+      sourceBuffer.appendBuffer(bytes as BufferSource);
     } catch (error) {
       cleanup();
       reject(error);
@@ -117,22 +126,32 @@ function appendSourceBuffer(sourceBuffer, bytes, signal) {
 }
 
 export class VoicePlayer {
-  /**
-   * @param {{
-   *   audioFactory?: () => HTMLAudioElement,
-   *   audioContextFactory?: () => AudioContext | null,
-   *   mediaSourceFactory?: () => MediaSource | null,
-   *   isMediaSourceTypeSupported?: (mimeType: string) => boolean,
-   *   createObjectURL?: (blob: Blob) => string,
-   *   revokeObjectURL?: (url: string) => void,
-   *   audioUnlockTimeoutMs?: number,
-   *   pcmStallTimeoutMs?: number,
-   * }} [options]
-   */
-  constructor(options = {}) {
+  declare audioFactory: () => HTMLAudioElement;
+  declare audioContextFactory: () => AudioContext | null;
+  declare mediaSourceFactory: () => MediaSource | null;
+  declare isMediaSourceTypeSupported: (mimeType: string) => boolean;
+  declare createObjectURL: (value: Blob | MediaSource) => string;
+  declare revokeObjectURL: (url: string) => void;
+  declare audioUnlockTimeoutMs: number;
+  declare pcmStallTimeoutMs: number;
+  declare audio: HTMLAudioElement | null;
+  declare audioContext: AudioContext | null;
+  declare audioSource: AudioBufferSourceNode | null;
+  declare mediaSource: MediaSource | null;
+  declare sourceBuffer: SourceBuffer | null;
+  declare streamReader: ReadableStreamDefaultReader<Uint8Array> | ReadableStreamDefaultReader<VoicePcmChunk> | null;
+  declare scheduledAudioSources: Set<AudioBufferSourceNode>;
+  declare preparedStream: PreparedStream | null;
+  declare objectUrl: string;
+  declare playbackActivated: boolean;
+  declare audioUnlockPromise: Promise<void> | null;
+  declare playbackGeneration: number;
+  declare rejectCurrent: ((reason: Error) => void) | null;
+
+  constructor(options: VoicePlayerOptions = {}) {
     this.audioFactory = options.audioFactory || (() => new Audio());
     this.audioContextFactory = options.audioContextFactory || (() => {
-      const AudioContextClass = globalThis.AudioContext || globalThis.webkitAudioContext;
+      const AudioContextClass = globalThis.AudioContext || (globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       return AudioContextClass ? new AudioContextClass() : null;
     });
     this.mediaSourceFactory = options.mediaSourceFactory || (() => (
@@ -145,28 +164,18 @@ export class VoicePlayer {
     this.revokeObjectURL = options.revokeObjectURL || (url => URL.revokeObjectURL(url));
     this.audioUnlockTimeoutMs = Math.max(1000, Number(options.audioUnlockTimeoutMs) || 5000);
     this.pcmStallTimeoutMs = Math.max(1000, Number(options.pcmStallTimeoutMs) || 120_000);
-    /** @type {HTMLAudioElement | null} */
     this.audio = null;
-    /** @type {AudioContext | null} */
     this.audioContext = null;
-    /** @type {AudioBufferSourceNode | null} */
     this.audioSource = null;
-    /** @type {MediaSource | null} */
     this.mediaSource = null;
-    /** @type {SourceBuffer | null} */
     this.sourceBuffer = null;
-    /** @type {ReadableStreamDefaultReader<Uint8Array> | null} */
     this.streamReader = null;
-    /** @type {Set<AudioBufferSourceNode>} */
     this.scheduledAudioSources = new Set();
-    /** @type {{ audio: HTMLAudioElement, mediaSource: MediaSource, mimeType: string, objectUrl: string, playPromise: Promise<any> } | null} */
     this.preparedStream = null;
     this.objectUrl = '';
     this.playbackActivated = false;
-    /** @type {Promise<void> | null} */
     this.audioUnlockPromise = null;
     this.playbackGeneration = 0;
-    /** @type {((reason: Error) => void) | null} */
     this.rejectCurrent = null;
   }
 
@@ -257,7 +266,7 @@ export class VoicePlayer {
       const mediaSource = this.mediaSourceFactory();
       if (!mediaSource) return false;
       const audio = this.audioFactory();
-      const objectUrl = this.createObjectURL(/** @type {any} */ (mediaSource));
+      const objectUrl = this.createObjectURL(mediaSource);
       audio.src = objectUrl;
       audio.playbackRate = Math.max(0.5, Math.min(2, Number(rate) || 1));
       this.audio = audio;
@@ -278,7 +287,7 @@ export class VoicePlayer {
     }
   }
 
-  stop(reason) {
+  stop(reason?: unknown) {
     this.playbackGeneration += 1;
     const reject = this.rejectCurrent;
     this.rejectCurrent = null;
@@ -319,7 +328,7 @@ export class VoicePlayer {
     reject?.(abortError(reason));
   }
 
-  async playWithAudioContext(blob, { signal, rate }) {
+  async playWithAudioContext(blob: Blob, { signal, rate }: VoicePlaybackOptions) {
     const context = this.audioContext;
     if (!context) throw new Error('Web Audio is unavailable.');
     const generation = this.playbackGeneration;
@@ -337,7 +346,7 @@ export class VoicePlayer {
     source.playbackRate.value = Math.max(0.5, Math.min(2, Number(rate) || 1));
     source.connect(context.destination);
     this.audioSource = source;
-    return new Promise((resolve, reject) => {
+    return new Promise<boolean>((resolve, reject) => {
       let settled = false;
       const cleanup = () => {
         if (settled) return;
@@ -371,14 +380,14 @@ export class VoicePlayer {
     });
   }
 
-  playWithHtmlAudio(blob, { signal, rate }) {
+  playWithHtmlAudio(blob: Blob, { signal, rate }: VoicePlaybackOptions) {
     const audio = this.audioFactory();
     const objectUrl = this.createObjectURL(blob);
     this.audio = audio;
     this.objectUrl = objectUrl;
     audio.src = objectUrl;
     audio.playbackRate = Math.max(0.5, Math.min(2, Number(rate) || 1));
-    return new Promise((resolve, reject) => {
+    return new Promise<boolean>((resolve, reject) => {
       let settled = false;
       const cleanup = () => {
         if (settled) return;
@@ -429,23 +438,23 @@ export class VoicePlayer {
     });
   }
 
-  async bufferStream(stream, contentType, signal) {
+  async bufferStream(stream: ReadableStream<Uint8Array>, contentType: string, signal: AbortSignal | undefined) {
     this.stop();
     const generation = this.playbackGeneration;
     const reader = stream.getReader();
     const controller = new AbortController();
     const abort = () => controller.abort(signal?.reason);
-    const stop = reason => controller.abort(reason);
+    const stop = (reason: unknown) => controller.abort(reason);
     this.streamReader = reader;
     this.rejectCurrent = stop;
     signal?.addEventListener('abort', abort, { once: true });
-    const chunks = [];
+    const chunks: Uint8Array<ArrayBuffer>[] = [];
     try {
       while (true) {
         if (signal?.aborted || controller.signal.aborted || generation !== this.playbackGeneration) throw abortError(signal?.reason);
         const { done, value } = await readStreamChunk(reader, controller.signal);
         if (done) break;
-        chunks.push(value);
+        chunks.push(value as Uint8Array<ArrayBuffer>);
       }
       if (controller.signal.aborted || generation !== this.playbackGeneration) throw abortError(signal?.reason);
       return new Blob(chunks, { type: contentType });
@@ -465,36 +474,25 @@ export class VoicePlayer {
    * chunk boundaries and incremental MP3 parsing; unsupported browsers buffer
    * the same stream into a Blob and use the existing Web Audio fallback.
    *
-   * @param {ReadableStream<Uint8Array>} stream
-   * @param {{ contentType?: string, signal?: AbortSignal, rate?: number, progressive?: boolean }} [options]
-   */
-  async playStream(stream, {
+     */
+  async playStream(stream: ReadableStream<Uint8Array>, {
     contentType = 'audio/mpeg',
     signal,
     rate = 1,
     progressive = true,
-  } = {}) {
+  }: VoiceStreamPlaybackOptions = {}) {
     const mimeType = baseMimeType(contentType);
     if (signal?.aborted) throw abortError(signal.reason);
-    if (!progressive || !this.supportsStreaming(mimeType)) {
+    const canStream = progressive && this.supportsStreaming(mimeType);
+    const prepared = canStream && this.preparedStream?.mimeType === mimeType
+      ? this.preparedStream
+      : null;
+    if (!canStream || (!prepared && !this.primeStreamPlayback(mimeType, rate))) {
       const buffering = this.bufferStream(stream, contentType, signal);
       const generation = this.playbackGeneration;
       const blob = await buffering;
       if (generation !== this.playbackGeneration) throw abortError(signal?.reason);
       return this.play(blob, { signal, rate });
-    }
-
-    const prepared = this.preparedStream?.mimeType === mimeType
-      ? this.preparedStream
-      : null;
-    if (!prepared) {
-      if (!this.primeStreamPlayback(mimeType, rate)) {
-        const buffering = this.bufferStream(stream, contentType, signal);
-        const generation = this.playbackGeneration;
-        const blob = await buffering;
-        if (generation !== this.playbackGeneration) throw abortError(signal?.reason);
-        return this.play(blob, { signal, rate });
-      }
     }
     const session = prepared || this.preparedStream;
     if (!session) throw new Error('Streaming audio could not be prepared.');
@@ -506,15 +504,13 @@ export class VoicePlayer {
       playPromise,
     } = session;
 
-    return new Promise((resolve, reject) => {
+    return new Promise<boolean>((resolve, reject) => {
       let settled = false;
       const lifecycle = new AbortController();
       let receivedBytes = 0;
       let readerDone = false;
-      /** @type {ReadableStreamDefaultReader<Uint8Array> | null} */
-      let reader = null;
-      /** @type {SourceBuffer | null} */
-      let sourceBuffer = null;
+        let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+        let sourceBuffer: SourceBuffer | null = null;
       const releaseReader = () => {
         if (!reader) return;
         const activeReader = reader;
@@ -522,7 +518,7 @@ export class VoicePlayer {
         if (this.streamReader === activeReader) this.streamReader = null;
         try { activeReader.releaseLock(); } catch {}
       };
-      const cleanup = reason => {
+      const cleanup = (reason?: unknown) => {
         if (settled) return;
         settled = true;
         lifecycle.abort(reason);
@@ -560,7 +556,7 @@ export class VoicePlayer {
           this.objectUrl = '';
         }
       };
-      const fail = error => {
+      const fail = (error: unknown) => {
         if (settled) return;
         const failure = error instanceof Error
           ? error
@@ -615,20 +611,13 @@ export class VoicePlayer {
   /**
    * Schedule local Float32 PCM chunks as soon as Kokoro emits them.
    *
-   * @param {ReadableStream<{ samples: Float32Array, sampleRate: number }>} stream
-   * @param {{
-   *   signal?: AbortSignal,
-   *   rate?: number,
-   *   onPlaybackStart?: () => void,
-   *   onPlaybackWaiting?: () => void,
-   * }} [options]
-   */
-  async playPcmStream(stream, {
+     */
+  async playPcmStream(stream: ReadableStream<VoicePcmChunk>, {
     signal,
     rate = 1,
     onPlaybackStart,
     onPlaybackWaiting,
-  } = {}) {
+  }: VoicePcmPlaybackOptions = {}) {
     this.stop();
     if (signal?.aborted) throw abortError(signal.reason);
     this.audioContext ||= this.audioContextFactory();
@@ -641,20 +630,19 @@ export class VoicePlayer {
     const internalController = new AbortController();
     const onExternalAbort = () => internalController.abort(signal?.reason);
     signal?.addEventListener('abort', onExternalAbort, { once: true });
-    const stopCurrent = reason => internalController.abort(reason);
+    const stopCurrent = (reason: unknown) => internalController.abort(reason);
     this.rejectCurrent = stopCurrent;
     const reader = stream.getReader();
-    /** @type {any} */ (this.streamReader) = reader;
+    this.streamReader = reader;
     let nextStartTime = context.currentTime + 0.03;
     let receivedSamples = 0;
-    /** @type {Promise<void> | null} */
-    let lastPlayback = null;
+    let lastPlayback: Promise<void> | null = null;
     let playbackStarted = false;
     let streamDone = false;
     let waitingForChunk = false;
-    const sessionSources = new Set();
+    const sessionSources = new Set<AudioBufferSourceNode>();
 
-    const schedule = (samples, sampleRate) => {
+    const schedule = (samples: Float32Array, sampleRate: number) => {
       const buffer = context.createBuffer(1, samples.length, sampleRate);
       buffer.getChannelData(0).set(samples);
       const source = context.createBufferSource();
@@ -666,7 +654,7 @@ export class VoicePlayer {
       const startTime = Math.max(nextStartTime, context.currentTime + 0.02);
       nextStartTime = startTime + buffer.duration / source.playbackRate.value;
       receivedSamples += samples.length;
-      lastPlayback = new Promise(resolve => {
+      lastPlayback = new Promise<void>(resolve => {
         source.onended = () => {
           source.onended = null;
           this.scheduledAudioSources.delete(source);
@@ -713,13 +701,13 @@ export class VoicePlayer {
         throw abortError(internalController.signal.reason);
       }
       // schedule() assigns this promise from a nested callback.
-      const finalPlayback = /** @type {Promise<void> | null} */ (lastPlayback);
+      const finalPlayback = lastPlayback as Promise<void> | null;
       if (!receivedSamples || !finalPlayback) {
         throw new Error('Kokoro returned an empty audio stream.');
       }
       // stop() clears onended handlers, so cancellation must also settle the
       // final wait after the producer has already closed its stream.
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         const signal = internalController.signal;
         const onAbort = () => {
           signal.removeEventListener('abort', onAbort);
@@ -751,13 +739,12 @@ export class VoicePlayer {
     } finally {
       signal?.removeEventListener('abort', onExternalAbort);
       if (this.rejectCurrent === stopCurrent) this.rejectCurrent = null;
-      if (this.streamReader === /** @type {any} */ (reader)) this.streamReader = null;
+      if (this.streamReader === reader) this.streamReader = null;
       try { reader.releaseLock(); } catch {}
     }
   }
 
-  /** @param {Blob} blob @param {{ signal?: AbortSignal, rate?: number }} [options] */
-  play(blob, { signal, rate = 1 } = {}) {
+  play(blob: Blob, { signal, rate = 1 }: VoicePlaybackOptions = {}) {
     this.stop();
     if (signal?.aborted) return Promise.reject(abortError(signal.reason));
     const generation = this.playbackGeneration;

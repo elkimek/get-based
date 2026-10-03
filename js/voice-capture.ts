@@ -1,9 +1,13 @@
-// @ts-check
+export interface VoiceCaptureOptions {
+  mediaDevices?: MediaDevices; MediaRecorderClass?: typeof MediaRecorder;
+  maxDurationMs?: number; onLimit?: () => void;
+}
+
 // voice-capture.js — ephemeral microphone capture with explicit lifecycle cleanup.
 
 const DEFAULT_MAX_DURATION_MS = 5 * 60 * 1000;
 
-function preferredMimeType(MediaRecorderClass) {
+function preferredMimeType(MediaRecorderClass: Pick<typeof MediaRecorder, 'isTypeSupported'> | null | undefined) {
   const candidates = [
     'audio/webm;codecs=opus',
     'audio/ogg;codecs=opus',
@@ -14,33 +18,31 @@ function preferredMimeType(MediaRecorderClass) {
   return candidates.find(type => MediaRecorderClass.isTypeSupported(type)) || '';
 }
 
-function stopTracks(stream) {
+function stopTracks(stream: MediaStream | null) {
   for (const track of stream?.getTracks?.() || []) {
     try { track.stop(); } catch {}
   }
 }
 
 export class VoiceCaptureSession {
-  /**
-   * @param {{
-   *   mediaDevices?: MediaDevices,
-   *   MediaRecorderClass?: typeof MediaRecorder,
-   *   maxDurationMs?: number,
-   *   onLimit?: () => void,
-   * }} [options]
-   */
-  constructor(options = {}) {
+  declare mediaDevices: MediaDevices;
+  declare MediaRecorderClass: typeof MediaRecorder;
+  declare maxDurationMs: number;
+  declare onLimit: () => void;
+  declare stream: MediaStream | null;
+  declare recorder: MediaRecorder | null;
+  declare chunks: Blob[];
+  declare limitTimer: ReturnType<typeof setTimeout> | null;
+  declare cancelled: boolean;
+
+  constructor(options: VoiceCaptureOptions = {}) {
     this.mediaDevices = options.mediaDevices || navigator.mediaDevices;
     this.MediaRecorderClass = options.MediaRecorderClass || globalThis.MediaRecorder;
     this.maxDurationMs = Math.max(1000, Number(options.maxDurationMs) || DEFAULT_MAX_DURATION_MS);
     this.onLimit = typeof options.onLimit === 'function' ? options.onLimit : () => {};
-    /** @type {MediaStream | null} */
     this.stream = null;
-    /** @type {MediaRecorder | null} */
     this.recorder = null;
-    /** @type {Blob[]} */
     this.chunks = [];
-    /** @type {ReturnType<typeof setTimeout> | null} */
     this.limitTimer = null;
     this.cancelled = false;
   }
@@ -83,7 +85,7 @@ export class VoiceCaptureSession {
       this.stream = null;
       return Promise.resolve(new Blob(this.chunks, { type: recorder?.mimeType || 'audio/webm' }));
     }
-    return new Promise((resolve, reject) => {
+    return new Promise<Blob>((resolve, reject) => {
       const cleanup = () => {
         if (this.limitTimer) clearTimeout(this.limitTimer);
         this.limitTimer = null;
@@ -98,7 +100,7 @@ export class VoiceCaptureSession {
       }, { once: true });
       recorder.addEventListener('error', event => {
         cleanup();
-        reject(event.error || new Error('Microphone recording failed.'));
+        reject((event as Event & { error?: unknown }).error || new Error('Microphone recording failed.'));
       }, { once: true });
       try {
         recorder.stop();

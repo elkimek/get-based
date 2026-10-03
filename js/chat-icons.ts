@@ -1,4 +1,3 @@
-// @ts-check
 // chat-icons.js - shared chat SVG icons and icon-button DOM helpers
 
 export const CHAT_ICON_COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
@@ -8,11 +7,11 @@ export const CHAT_ICON_FORK = '<svg viewBox="0 0 24 24" aria-hidden="true"><circ
 export const CHAT_ICON_X = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
 export const CHAT_ICON_VOLUME = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18 6a9 9 0 0 1 0 12"/></svg>';
 
-function createChatIcon(kind) {
+function createChatIcon(kind: string) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('aria-hidden', 'true');
-  const path = (d) => {
+  const path = (d: string) => {
     const el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     el.setAttribute('d', d);
     svg.appendChild(el);
@@ -52,10 +51,9 @@ function createChatIcon(kind) {
   return svg;
 }
 
-export function setIconButtonContent(btn, kind, label = '') {
+export function setIconButtonContent(btn: Element | null | undefined, kind: string, label = '') {
   if (!btn) return;
-  /** @type {Node[]} */
-  const nodes = [createChatIcon(kind)];
+  const nodes: Node[] = [createChatIcon(kind)];
   if (label) {
     const span = document.createElement('span');
     span.textContent = label;

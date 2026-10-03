@@ -56,7 +56,7 @@ export default defineConfig({
       'tests/notes-safety.test.js',
       'tests/voice-local-tts-worker.test.ts',
       'tests/voice-local-stt-worker.test.ts',
-      'tests/voice-stream-failures.test.js',
+      'tests/voice-stream-failures.test.ts',
       'tests/companion-http.test.js',
       'tests/companion-runtime-control.test.js',
       'tests/companion-listener.test.js',
@@ -64,7 +64,7 @@ export default defineConfig({
       'tests/codex-app-server-client.test.js',
       'tests/acp-agent-client.test.js',
       'tests/service-worker-runtime.test.js',
-      'tests/voice-player-failures.test.js',
+      'tests/voice-player-failures.test.ts',
       'tests/voice-chat-runtime.test.js',
     ],
     coverage: {

@@ -9,21 +9,21 @@ class AudioStub extends EventTarget {
   load = vi.fn();
 }
 function fixture() {
-  const audios = [];
+  const audios: AudioStub[] = [];
   const revokeObjectURL = vi.fn();
   const player = new VoicePlayer({
-    audioFactory: () => { const audio = new AudioStub(); audios.push(audio); return audio; },
+    audioFactory: () => { const audio = new AudioStub(); audios.push(audio); return audio as unknown as HTMLAudioElement; },
     createObjectURL: () => `blob:voice-${audios.length}`,
     revokeObjectURL,
   });
   return { player, audios, revokeObjectURL };
 }
-function deferred() {
-  let resolve, reject; const promise = new Promise((done, fail) => { resolve = done; reject = fail; });
+function deferred<T = void>() {
+  let resolve!: (value: T | PromiseLike<T>) => void, reject!: (reason?: unknown) => void; const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail; });
   return { promise, resolve, reject };
 }
 function contextFixture() {
-  const decoding = deferred();
+  const decoding = deferred<unknown>();
   const source = { playbackRate: { value: 1 }, connect: vi.fn(), disconnect: vi.fn(), start: vi.fn(), stop: vi.fn() };
   const context = { state: 'running', destination: {}, decodeAudioData: vi.fn(() => decoding.promise), createBufferSource: vi.fn(() => source) };
   return { decoding, source, context };
@@ -37,7 +37,7 @@ describe('voice playback failure cleanup', () => {
       return Promise.reject(new Error('play blocked'));
     });
     const revoke = vi.fn();
-    const player = new VoicePlayer({ audioFactory: () => audio, createObjectURL: () => 'blob:failed', revokeObjectURL: revoke });
+    const player = new VoicePlayer({ audioFactory: () => audio as unknown as HTMLAudioElement, createObjectURL: () => 'blob:failed', revokeObjectURL: revoke });
     await expect(player.play(new Blob(['audio']))).rejects.toThrow('play blocked');
     expect(revoke).toHaveBeenCalledExactlyOnceWith('blob:failed');
     expect(player.audio).toBeNull();
@@ -51,13 +51,13 @@ describe('voice playback failure cleanup', () => {
     const controller = new AbortController();
     const first = player.play(new Blob(['first']), { signal: controller.signal }).catch(error => error);
     if (event === 'abort') controller.abort();
-    else audios[0].dispatchEvent(new Event('error'));
+    else audios[0]!.dispatchEvent(new Event('error'));
     expect(await first).toBeInstanceOf(Error);
     const second = player.play(new Blob(['second']));
-    audios[0].dispatchEvent(new Event('ended'));
-    audios[0].dispatchEvent(new Event('error'));
-    expect(player.audio).toBe(audios[1]);
-    audios[1].dispatchEvent(new Event('ended'));
+    audios[0]!.dispatchEvent(new Event('ended'));
+    audios[0]!.dispatchEvent(new Event('error'));
+    expect(player.audio).toBe(audios[1]!);
+    audios[1]!.dispatchEvent(new Event('ended'));
     await expect(second).resolves.toBe(true);
     expect(revokeObjectURL.mock.calls).toEqual([['blob:voice-1'], ['blob:voice-2']]);
     expect(player.isPlaying).toBe(false);
@@ -74,7 +74,7 @@ describe('voice playback failure cleanup', () => {
   it.each(['stop', 'replace'])('does not start delayed decoding after %s', async action => {
     const { player, audios } = fixture();
     const { context, decoding, source } = contextFixture();
-    player.audioContext = context;
+    player.audioContext = context as unknown as AudioContext;
     const first = player.play(new Blob(['first'])).catch(error => error);
     await vi.waitFor(() => expect(context.decodeAudioData).toHaveBeenCalledOnce());
     player.stop();
@@ -90,8 +90,8 @@ describe('voice playback failure cleanup', () => {
     expect(result).toMatchObject({ name: 'AbortError' });
     expect(source.start).not.toHaveBeenCalled();
     if (second) {
-      expect(player.audio).toBe(audios[0]);
-      audios[0].dispatchEvent(new Event('ended'));
+      expect(player.audio).toBe(audios[0]!);
+      audios[0]!.dispatchEvent(new Event('ended'));
       await expect(second).resolves.toBe(true);
     }
     player.stop();
@@ -100,7 +100,7 @@ describe('voice playback failure cleanup', () => {
   it('does not fall back to HTML audio when obsolete decoding rejects', async () => {
     const { player, audios } = fixture();
     const { context, decoding } = contextFixture();
-    player.audioContext = context;
+    player.audioContext = context as unknown as AudioContext;
     const first = player.play(new Blob(['old'])).catch(error => error);
     await vi.waitFor(() => expect(context.decodeAudioData).toHaveBeenCalledOnce());
     player.audioContext = null;
@@ -108,8 +108,8 @@ describe('voice playback failure cleanup', () => {
     decoding.reject(new Error('old decoder failed'));
     expect(await first).toMatchObject({ name: 'AbortError' });
     expect(audios).toHaveLength(1);
-    expect(player.audio).toBe(audios[0]);
-    audios[0].dispatchEvent(new Event('ended'));
+    expect(player.audio).toBe(audios[0]!);
+    audios[0]!.dispatchEvent(new Event('ended'));
     await expect(second).resolves.toBe(true);
   });
 
@@ -117,7 +117,7 @@ describe('voice playback failure cleanup', () => {
     const { player, audios } = fixture();
     const { context } = contextFixture();
     const activation = deferred();
-    player.audioContext = context;
+    player.audioContext = context as unknown as AudioContext;
     player.audioUnlockPromise = activation.promise;
     const playback = player.play(new Blob(['audio'])).catch(error => error);
     player.stop(); activation.resolve();
@@ -129,11 +129,11 @@ describe('voice playback failure cleanup', () => {
   it.each(['abort', 'stop'])('settles PCM playback on %s after generation finishes but audio is still playing', async action => {
     const { player } = fixture();
     const { context, source } = contextFixture();
-    context.currentTime = 0;
-    context.createBuffer = (_channels, count, rate) => ({
+    (context as typeof context & { currentTime: number }).currentTime = 0;
+    (context as typeof context & { createBuffer: (channels: number, count: number, rate: number) => { duration: number; getChannelData: () => Float32Array } }).createBuffer = (_channels, count, rate) => ({
       duration: count / rate, getChannelData: () => new Float32Array(count),
     });
-    player.audioContext = context;
+    player.audioContext = context as unknown as AudioContext;
     const controller = new AbortController();
     const stream = new ReadableStream({ start(target) {
       target.enqueue({ samples: new Float32Array([0.5, 0.5]), sampleRate: 24000 });
@@ -169,8 +169,8 @@ describe('voice playback failure cleanup', () => {
     expect(stream.locked).toBe(false);
     expect(audios).toHaveLength(replacement ? 1 : 0);
     if (replacement) {
-      expect(player.audio).toBe(audios[0]);
-      audios[0].dispatchEvent(new Event('ended'));
+      expect(player.audio).toBe(audios[0]!);
+      audios[0]!.dispatchEvent(new Event('ended'));
       await expect(replacement).resolves.toBe(true);
     }
   });
@@ -179,7 +179,7 @@ describe('voice playback failure cleanup', () => {
     const { player } = fixture();
     const { context } = contextFixture();
     const activation = deferred();
-    player.audioContext = context;
+    player.audioContext = context as unknown as AudioContext;
     player.audioUnlockPromise = activation.promise;
     const controller = new AbortController();
     const stream = new ReadableStream();
@@ -201,7 +201,7 @@ describe('voice playback failure cleanup', () => {
     });
     const remove = vi.spyOn(media, 'removeEventListener');
     const player = new VoicePlayer({
-      audioFactory: () => audio, mediaSourceFactory: () => media,
+      audioFactory: () => audio as unknown as HTMLAudioElement, mediaSourceFactory: () => media as unknown as MediaSource,
       isMediaSourceTypeSupported: () => true,
       createObjectURL: () => 'blob:stream', revokeObjectURL: vi.fn(),
     });
@@ -221,12 +221,12 @@ describe('voice playback failure cleanup', () => {
     const { player, audios } = fixture();
     const { context, decoding, source } = contextFixture();
     source.start.mockImplementation(() => { throw new Error('start failed'); });
-    decoding.resolve({}); player.audioContext = context;
+    decoding.resolve({}); player.audioContext = context as unknown as AudioContext;
     const playback = player.play(new Blob(['audio']));
     await vi.waitFor(() => expect(audios).toHaveLength(1));
     expect(source.disconnect).toHaveBeenCalledOnce();
     expect(player.audioSource).toBeNull();
-    audios[0].dispatchEvent(new Event('ended'));
+    audios[0]!.dispatchEvent(new Event('ended'));
     await expect(playback).resolves.toBe(true);
   });
 });

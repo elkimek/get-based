@@ -1,28 +1,17 @@
-// @ts-check
 // voice-loader.js — tiny first-use boundary for microphone and speech features.
 
 import { createRetryingModuleLoader } from './retrying-module-loader.js';
 import { state } from './state.js';
 
-/** @typedef {typeof import('./voice-controller.js')} VoiceModule */
+type VoiceModule = typeof import('./voice-controller.js');
 
-const voiceModuleLoader = createRetryingModuleLoader(
+const voiceModuleLoader = createRetryingModuleLoader<VoiceModule>(
   retry => retry ? loadRetryModule() : import('./voice-controller.js'),
 );
 
 let voiceActivityEpoch = 0;
 
-/**
- * @param {number} messageIndex
- * @returns {{
- *   epoch: number,
- *   message: unknown,
- *   messageIndex: number,
- *   panel: HTMLElement,
- *   threadId: string | null,
- * } | null}
- */
-function captureMessageContext(messageIndex) {
+function captureMessageContext(messageIndex: number) {
   const panel = document.getElementById('chat-panel');
   const message = state.chatHistory[messageIndex];
   if (!panel || !panel.classList.contains('open') || !message) return null;
@@ -35,8 +24,7 @@ function captureMessageContext(messageIndex) {
   };
 }
 
-/** @param {NonNullable<ReturnType<typeof captureMessageContext>>} context */
-function isMessageContextCurrent(context) {
+function isMessageContextCurrent(context: NonNullable<ReturnType<typeof captureMessageContext>>) {
   return context.epoch === voiceActivityEpoch
     && context.panel.isConnected
     && document.getElementById('chat-panel') === context.panel
@@ -45,7 +33,7 @@ function isMessageContextCurrent(context) {
     && state.chatHistory[context.messageIndex] === context.message;
 }
 
-function loadRetryModule() {
+function loadRetryModule(): Promise<VoiceModule> {
   // @ts-expect-error TypeScript resolves only the query-free module URL.
   return import('./voice-controller.js?lazy-retry=1');
 }
@@ -70,8 +58,7 @@ export function toggleVoiceRecording() {
   });
 }
 
-/** @param {number} messageIndex */
-export function toggleMessageSpeech(messageIndex) {
+export function toggleMessageSpeech(messageIndex: number) {
   const context = captureMessageContext(messageIndex);
   if (!context) return Promise.resolve(false);
   return loadVoiceModule().then(module => (
@@ -81,7 +68,7 @@ export function toggleMessageSpeech(messageIndex) {
   ));
 }
 
-export function stopVoiceActivity(options) {
+export function stopVoiceActivity(options?: Parameters<VoiceModule['stopVoiceActivity']>[0]) {
   voiceActivityEpoch += 1;
   return voiceModuleLoader.module?.stopVoiceActivity(options) || false;
 }
@@ -94,7 +81,7 @@ export function restoreVoicePlaybackUi() {
   return voiceModuleLoader.module?.restoreVoicePlaybackUi() || false;
 }
 
-export function maybeAutoReadAssistantMessage(messageIndex) {
+export function maybeAutoReadAssistantMessage(messageIndex: number) {
   try {
     if (localStorage.getItem('labcharts-voice-auto-read') !== 'true') return false;
   } catch {

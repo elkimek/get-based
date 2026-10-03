@@ -1,5 +1,7 @@
-/** @typedef {import('../types/voice-provider.js').VoiceSynthesisResult} VoiceSynthesisResult */
-// @ts-check
+import type { VoiceSynthesisResult } from '../types/voice-provider.js';
+import type { VoiceKind } from '../types/voice-local.js';
+type SpeechButtonMode = 'idle' | 'busy' | 'speaking' | 'waiting';
+
 // voice-controller.js — chat microphone and per-message speech orchestration.
 
 import { state } from './state.js';
@@ -31,36 +33,31 @@ const LOCAL_STT_TIMEOUT_MS = 3 * 60 * 1000;
 // Keep the outer request large to avoid restarting playback between paragraphs.
 const BROWSER_LOCAL_SPEECH_CHUNK_CHARACTERS = 3500;
 const REMOTE_SPEECH_CHUNK_CHARACTERS = 3500;
-/** @type {VoiceCaptureSession | null} */
-let captureSession = null;
+let captureSession: VoiceCaptureSession | null = null;
 let captureState = 'idle';
 let captureStartedAt = 0;
 let capturePrivacyText = '';
-/** @type {ReturnType<typeof setInterval> | null} */
-let captureTicker = null;
-/** @type {AbortController | null} */
-let speechAbortController = null;
+let captureTicker: ReturnType<typeof setInterval> | null = null;
+let speechAbortController: AbortController | null = null;
 let autoReadActivationNoticeShown = false;
-/** @type {number | null} */
-let speakingMessageIndex = null;
-/** @type {'idle' | 'busy' | 'speaking' | 'waiting'} */
-let speechButtonMode = 'idle';
+let speakingMessageIndex: number | null = null;
+let speechButtonMode: SpeechButtonMode = 'idle';
 let voiceActivityEpoch = 0;
 
 function chatVoiceButton() {
-  return /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-voice-btn'));
+  return document.getElementById('chat-voice-btn') as HTMLButtonElement | null;
 }
 
 function chatVoiceStatus() {
   return document.getElementById('chat-voice-status');
 }
 
-function formatElapsed(ms) {
+function formatElapsed(ms: number) {
   const seconds = Math.max(0, Math.floor(ms / 1000));
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-function setCaptureUi(stateName, text = '') {
+function setCaptureUi(stateName: string, text = '') {
   captureState = stateName;
   const button = chatVoiceButton();
   const status = chatVoiceStatus();
@@ -105,7 +102,7 @@ function startCaptureTicker() {
   }, 1000);
 }
 
-function startTranscriptionTicker(local) {
+function startTranscriptionTicker(local: boolean) {
   clearCaptureTicker();
   captureTicker = setInterval(() => {
     if (captureState !== 'transcribing') return;
@@ -117,7 +114,7 @@ function startTranscriptionTicker(local) {
   }, 1000);
 }
 
-async function guideToLocalModelDownload(kind, modelId, { automatic = false } = {}) {
+async function guideToLocalModelDownload(kind: VoiceKind, modelId: string, { automatic = false } = {}) {
   const model = getLocalModel(kind, modelId);
   const purpose = kind === 'tts' ? 'speech playback' : 'voice input';
   const message = `${model.label} must be downloaded for the selected processing mode before ${purpose} can run locally.`;
@@ -142,8 +139,8 @@ async function guideToLocalModelDownload(kind, modelId, { automatic = false } = 
   return false;
 }
 
-function insertTranscript(text) {
-  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
+function insertTranscript(text: unknown) {
+  const input = document.getElementById('chat-input') as HTMLTextAreaElement | null;
   if (!input) throw new Error('Chat composer is unavailable.');
   const transcript = String(text || '').trim();
   if (!transcript) throw new Error('No speech was detected.');
@@ -167,8 +164,7 @@ async function finishVoiceRecording() {
   clearCaptureTicker();
   setCaptureUi('transcribing', 'Preparing transcription… · tap to cancel');
   const controller = new AbortController();
-  /** @type {ReturnType<typeof setTimeout> | null} */
-  let timeoutId = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
   speechAbortController?.abort();
   speechAbortController = controller;
   try {
@@ -197,14 +193,14 @@ async function finishVoiceRecording() {
     if (result.providerId === 'browser-local' && Number.isFinite(result.inferenceMs)) {
       const execution = result.backend === 'webgpu' ? 'GPU' : 'CPU';
       showNotification(
-        `Transcribed in ${(/** @type {number} */ (result.inferenceMs) / 1000).toFixed(1)}s using ${execution}.`,
+        `Transcribed in ${(result.inferenceMs as number / 1000).toFixed(1)}s using ${execution}.`,
         'success',
         4500,
       );
     }
     return true;
   } catch (error) {
-    const caught = /** @type {any} */ (error);
+    const caught = error as { name?: unknown } | null | undefined;
     if (caught?.name === 'AbortError') {
       setCaptureUi('idle', '');
       return false;
@@ -279,7 +275,7 @@ async function startVoiceRecording() {
     startCaptureTicker();
     return true;
   } catch (error) {
-    const caught = /** @type {any} */ (error);
+    const caught = error as { name?: unknown } | null | undefined;
     captureSession = null;
     session.cancel();
     const denied = caught?.name === 'NotAllowedError' || caught?.name === 'SecurityError';
@@ -303,13 +299,13 @@ export function toggleVoiceRecording() {
   return startVoiceRecording();
 }
 
-function speechButton(messageIndex) {
-  return /** @type {HTMLButtonElement | null} */ (
+function speechButton(messageIndex: number) {
+  return (
     document.getElementById(`chat-listen-btn-${messageIndex}`)
-  );
+  ) as HTMLButtonElement | null;
 }
 
-function setSpeechButton(messageIndex, mode) {
+function setSpeechButton(messageIndex: number, mode: SpeechButtonMode) {
   if (speakingMessageIndex === messageIndex || mode === 'idle') speechButtonMode = mode;
   const button = speechButton(messageIndex);
   if (!button) return;
@@ -345,7 +341,7 @@ function stopSpeechPlayback() {
   if (previousIndex !== null) setSpeechButton(previousIndex, 'idle');
 }
 
-export async function readAssistantMessage(messageIndex, { automatic = false } = {}) {
+export async function readAssistantMessage(messageIndex: number, { automatic = false } = {}) {
   const message = state.chatHistory[messageIndex];
   if (!message || message.role !== 'assistant' || message.error) return false;
   if (speakingMessageIndex === messageIndex) {
@@ -439,9 +435,8 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
       controller.abort();
       return false;
     }
-    /** @param {string} chunk */
-    const synthesize = chunk => voice.synthesize(chunk);
-    let pendingSynthesis = synthesize(chunks[0]);
+    const synthesize = (chunk: string) => voice.synthesize(chunk);
+    let pendingSynthesis = synthesize(chunks[0]!);
     for (let index = 0; index < chunks.length; index += 1) {
       const result = await pendingSynthesis;
       if (!isCurrentRequest()) controller.abort();
@@ -460,14 +455,14 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
         throw new Error('The voice model returned empty audio. Try another voice or restart the model.');
       }
       const nextSynthesis = index + 1 < chunks.length
-        ? synthesize(chunks[index + 1])
+        ? synthesize(chunks[index + 1]!)
         : null;
       // Mark an early prefetch failure as observed while preserving the
       // original promise so the loop still reports it after playback.
       if (nextSynthesis) void nextSynthesis.catch(() => undefined);
       try {
         if (hasPcmStream) {
-          await voicePlayer.playPcmStream(/** @type {NonNullable<VoiceSynthesisResult['pcmStream']>} */ (result.pcmStream), {
+          await voicePlayer.playPcmStream(result.pcmStream as NonNullable<VoiceSynthesisResult['pcmStream']>, {
             signal: controller.signal,
             rate: 1,
             onPlaybackStart: () => setSpeechButton(messageIndex, 'speaking'),
@@ -475,7 +470,7 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
           });
         } else if (hasStream) {
           setSpeechButton(messageIndex, 'speaking');
-          await voicePlayer.playStream(/** @type {NonNullable<VoiceSynthesisResult['stream']>} */ (result.stream), {
+          await voicePlayer.playStream(result.stream as NonNullable<VoiceSynthesisResult['stream']>, {
             contentType: result.contentType,
             signal: controller.signal,
             rate: 1,
@@ -483,7 +478,7 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
           });
         } else {
           setSpeechButton(messageIndex, 'speaking');
-          await voicePlayer.play(/** @type {Blob} */ (result.audio), {
+          await voicePlayer.play(result.audio as Blob, {
             signal: controller.signal,
             rate: 1,
           });
@@ -498,7 +493,7 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
     }
     return true;
   } catch (error) {
-    const caught = /** @type {any} */ (error);
+    const caught = error as { name?: unknown } | null | undefined;
     if (caught?.name !== 'AbortError' && !controller.signal.aborted) {
       const detail = getErrorMessage(error, 'Speech generation failed');
       showNotification(detail, 'error', 6000);
@@ -516,7 +511,7 @@ export async function readAssistantMessage(messageIndex, { automatic = false } =
   }
 }
 
-export function toggleMessageSpeech(messageIndex) {
+export function toggleMessageSpeech(messageIndex: number) {
   return readAssistantMessage(messageIndex);
 }
 

@@ -749,3 +749,8 @@ deploy/profile-share/data/
 /js/voice-settings-storage.js
 /js/voice-provider-registry.js
 /js/voice-service.js
+/js/voice-player.js
+/js/voice-capture.js
+/js/chat-icons.js
+/js/voice-controller.js
+/js/voice-loader.js
