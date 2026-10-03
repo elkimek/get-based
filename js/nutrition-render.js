@@ -602,6 +602,7 @@ export function renderComparisonModelPicker(query = '') {
 }
 
 function renderComparisonWorkspace() {
+  /** @param {import('./nutrition-comparison.js').MealComparisonReferenceField} field */
   const renderReferenceField = ([key, label, unit, , step]) => `<label class="nutrition-field"><span>${escapeHTML(label)} <small>${escapeHTML(unit)}</small></span><input data-nutrition-reference="${escapeAttr(key)}" inputmode="decimal" type="number" min="0" step="${escapeAttr(step || '0.1')}"></label>`;
   const primaryFields = MEAL_COMPARISON_REFERENCE_FIELDS
     .filter(([, , , , , group]) => group === 'amount' || group === 'core')

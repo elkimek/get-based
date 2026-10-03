@@ -259,6 +259,7 @@ async function addLightEnvScreenWithDevice(roomId, device) {
   refreshUI();
 }
 
+/** @param {string | null} [roomId] */
 async function addLightEnvScreen(roomId = null) {
   let device = 'phone';
   if (roomId) {

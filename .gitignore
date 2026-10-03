@@ -867,3 +867,11 @@ deploy/profile-share/data/
 /js/nutrition-context-card-extensions.js
 
 /js/nutrition-request-lifecycle.js
+
+/js/app-event-listeners.js
+
+/js/light-env-actions.js
+
+/js/nutrition-comparison.js
+
+/js/supplement-action-delegates.js

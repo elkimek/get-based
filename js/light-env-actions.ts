@@ -1,7 +1,51 @@
-// @ts-check
 // light-env-actions.js - delegated action contract for Light Environment UI.
 
 import { escapeAttr } from './utils.js';
+
+type RoomUpdate = NonNullable<Parameters<typeof import('./light-env-store.js').updateRoom>[1]>;
+type ScreenUpdate = NonNullable<Parameters<typeof import('./light-env-store.js').updateScreen>[1]>;
+export interface LightEnvActions {
+  setLightEnvRoomSourceArchetype?: ((id: string, key: string) => unknown) | null | undefined;
+  setLightEnvRoomDaylightLevel?: ((id: string, key: string) => unknown) | null | undefined;
+  updateLightEnvRoomAndRender?: ((id: string, patch: RoomUpdate) => unknown) | null | undefined;
+  setLightEnvRoomHoursBucket?: ((id: string, key: string) => unknown) | null | undefined;
+  updateLightEnvRoom?: ((id: string, patch: RoomUpdate) => unknown) | null | undefined;
+  setLightEnvRoomEveningBucket?: ((id: string, key: string) => unknown) | null | undefined;
+  setLightEnvTodayActive?: ((kind: string, id: string, active: boolean) => unknown) | null | undefined;
+  toggleLightEnvScreenExpanded?: ((id: string, event: Event) => unknown) | null | undefined;
+  deleteLightEnvScreenConfirm?: ((id: string) => unknown) | null | undefined;
+  setLightEnvScreenHoursBucket?: ((id: string, key: string) => unknown) | null | undefined;
+  setLightEnvScreenEveningBucket?: ((id: string, key: string) => unknown) | null | undefined;
+  updateLightEnvScreenAndRender?: ((id: string, patch: ScreenUpdate) => unknown) | null | undefined;
+  addLightEnvRoomNamed?: ((name: string) => unknown) | null | undefined;
+  addLightEnvRoomCustom?: (() => unknown) | null | undefined;
+  addLightEnvScreenWithDevice?: ((roomId: string | null, device: string) => unknown) | null | undefined;
+  addLightEnvScreen?: ((roomId: string | null) => unknown) | null | undefined;
+  openLightEnvironmentAssessment?: (() => unknown) | null | undefined;
+  saveLightAuditFromUI?: (() => unknown) | null | undefined;
+  closeLightEnvironmentAssessment?: (() => unknown) | null | undefined;
+  toggleLightEnvRoomExpanded?: ((id: string, event: Event) => unknown) | null | undefined;
+  deleteLightEnvRoomConfirm?: ((id: string) => unknown) | null | undefined;
+  openLightEnvTool?: ((tool: string, roomId: string) => unknown) | null | undefined;
+  addLightEnvRoom?: (() => unknown) | null | undefined;
+  toggleLightAudit?: ((id: string) => unknown) | null | undefined;
+  updateLightAuditField?: ((id: string, field: string, value: unknown) => unknown) | null | undefined;
+  deleteLightAuditConfirm?: ((id: string) => unknown) | null | undefined;
+  interpretLightAuditCompare?: ((oldId: string, newId: string) => unknown) | null | undefined;
+  toggleLightAuditCompare?: (() => unknown) | null | undefined;
+  toggleLightAuditHistory?: (() => unknown) | null | undefined;
+  setLightAuditsBlockOpen?: ((open: boolean) => unknown) | null | undefined;
+}
+interface ActionElement {
+  dataset: DOMStringMap;
+  getAttribute: Element['getAttribute'];
+  matches?: Element['matches'];
+  value?: unknown;
+  checked?: unknown;
+  open?: unknown;
+}
+interface ActionTarget { closest?: (selector: string) => ActionElement | null }
+interface ActionRoot { contains?: (element: ActionElement) => boolean }
 
 const lightEnvActionDelegateRoots = new WeakSet();
 const PROPAGATION_STOPPING_CLICK_ACTIONS = new Set([
@@ -22,11 +66,11 @@ const NON_CLICK_ACTIONS = new Set([
   'set-audits-block-open',
 ]);
 
-function dataAttrName(name) {
+function dataAttrName(name: unknown) {
   return String(name).replace(/[A-Z]/g, char => `-${char.toLowerCase()}`);
 }
 
-export function lightEnvActionAttrs(action, attrs = {}) {
+export function lightEnvActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   return [
     `data-light-env-action="${escapeAttr(action)}"`,
     ...Object.entries(attrs)
@@ -36,38 +80,38 @@ export function lightEnvActionAttrs(action, attrs = {}) {
   ].join(' ');
 }
 
-function closestLightEnvAction(event) {
-  const target = event.target;
+function closestLightEnvAction(event: Event) {
+  const target = event.target as ActionTarget | null;
   if (!target || typeof target.closest !== 'function') return null;
   const actionEl = target.closest('[data-light-env-action]');
   if (!actionEl) return null;
-  return typeof event.currentTarget?.contains === 'function' && event.currentTarget.contains(actionEl) ? actionEl : null;
+  return typeof (event.currentTarget as ActionRoot | null)?.contains === 'function' && (event.currentTarget as ActionRoot).contains!(actionEl) ? actionEl : null;
 }
 
-function parseActive(actionEl) {
+function parseActive(actionEl: ActionElement) {
   return actionEl.dataset.lightEnvActive === 'true';
 }
 
-function roomId(actionEl) {
+function roomId(actionEl: ActionElement) {
   return actionEl.dataset.lightEnvRoomId || null;
 }
 
-function actionName(actionEl) {
+function actionName(actionEl: ActionElement) {
   return actionEl.dataset.lightEnvAction || '';
 }
 
-function shouldHandleClick(actionEl) {
+function shouldHandleClick(actionEl: ActionElement | null) {
   return actionEl && !NON_CLICK_ACTIONS.has(actionName(actionEl)) && !actionEl.matches?.('input, select, textarea');
 }
 
-function shouldHandleRoleButtonKeydown(actionEl, event) {
+function shouldHandleRoleButtonKeydown(actionEl: ActionElement | null, event: KeyboardEvent) {
   return actionEl &&
     (event.key === 'Enter' || event.key === ' ') &&
-    !event.target?.closest?.('button, a, input, textarea, select') &&
+    !(event.target as ActionTarget | null)?.closest?.('button, a, input, textarea, select') &&
     actionEl.getAttribute('role') === 'button';
 }
 
-function handleLightEnvAction(actionEl, event, actions) {
+function handleLightEnvAction(actionEl: ActionElement, event: Event, actions: LightEnvActions) {
   const action = actionName(actionEl);
   const id = actionEl.dataset.lightEnvId || '';
   const key = actionEl.dataset.lightEnvKey || '';
@@ -87,7 +131,7 @@ function handleLightEnvAction(actionEl, event, actions) {
   } else if (action === 'set-room-hours-bucket') {
     void actions.setLightEnvRoomHoursBucket?.(id, key);
   } else if (action === 'update-room-hours') {
-    void actions.updateLightEnvRoom?.(id, { hoursOccupiedPerDay: parseFloat(actionEl.value) || 0 });
+    void actions.updateLightEnvRoom?.(id, { hoursOccupiedPerDay: parseFloat(actionEl.value as string) || 0 });
   } else if (action === 'set-room-evening-bucket') {
     void actions.setLightEnvRoomEveningBucket?.(id, key);
   } else if (action === 'set-today-active') {
@@ -148,41 +192,41 @@ function handleLightEnvAction(actionEl, event, actions) {
   }
 }
 
-function handleLightEnvCapturedClick(event, actions) {
+function handleLightEnvCapturedClick(event: Event, actions: LightEnvActions) {
   const actionEl = closestLightEnvAction(event);
   if (!shouldHandleClick(actionEl)) return;
-  if (!PROPAGATION_STOPPING_CLICK_ACTIONS.has(actionName(actionEl))) return;
+  if (!PROPAGATION_STOPPING_CLICK_ACTIONS.has(actionName(actionEl!))) return;
   event.preventDefault();
   event.stopPropagation();
-  handleLightEnvAction(actionEl, event, actions);
+  handleLightEnvAction(actionEl!, event, actions);
 }
 
-function handleLightEnvClick(event, actions) {
+function handleLightEnvClick(event: Event, actions: LightEnvActions) {
   const actionEl = closestLightEnvAction(event);
   if (!shouldHandleClick(actionEl)) return;
-  if (PROPAGATION_STOPPING_CLICK_ACTIONS.has(actionName(actionEl))) return;
+  if (PROPAGATION_STOPPING_CLICK_ACTIONS.has(actionName(actionEl!))) return;
   event.preventDefault();
-  handleLightEnvAction(actionEl, event, actions);
+  handleLightEnvAction(actionEl!, event, actions);
 }
 
-function handleLightEnvCapturedKeydown(event, actions) {
+function handleLightEnvCapturedKeydown(event: KeyboardEvent, actions: LightEnvActions) {
   const actionEl = closestLightEnvAction(event);
   if (!shouldHandleRoleButtonKeydown(actionEl, event)) return;
-  if (!PROPAGATION_STOPPING_KEYDOWN_ACTIONS.has(actionName(actionEl))) return;
+  if (!PROPAGATION_STOPPING_KEYDOWN_ACTIONS.has(actionName(actionEl!))) return;
   event.preventDefault();
   event.stopPropagation();
-  handleLightEnvAction(actionEl, event, actions);
+  handleLightEnvAction(actionEl!, event, actions);
 }
 
-function handleLightEnvKeydown(event, actions) {
+function handleLightEnvKeydown(event: KeyboardEvent, actions: LightEnvActions) {
   const actionEl = closestLightEnvAction(event);
   if (!shouldHandleRoleButtonKeydown(actionEl, event)) return;
-  if (PROPAGATION_STOPPING_KEYDOWN_ACTIONS.has(actionName(actionEl))) return;
+  if (PROPAGATION_STOPPING_KEYDOWN_ACTIONS.has(actionName(actionEl!))) return;
   event.preventDefault();
-  handleLightEnvAction(actionEl, event, actions);
+  handleLightEnvAction(actionEl!, event, actions);
 }
 
-function handleLightEnvChange(event, actions) {
+function handleLightEnvChange(event: Event, actions: LightEnvActions) {
   const actionEl = closestLightEnvAction(event);
   if (!actionEl || !actionEl.matches?.('input, select, textarea')) return;
   if (![
@@ -195,26 +239,26 @@ function handleLightEnvChange(event, actions) {
   handleLightEnvAction(actionEl, event, actions);
 }
 
-function handleLightEnvInput(event, actions) {
+function handleLightEnvInput(event: Event, actions: LightEnvActions) {
   const actionEl = closestLightEnvAction(event);
   if (!actionEl || !actionEl.matches?.('input, textarea')) return;
   if (!['update-room-hours', 'update-room-name'].includes(actionEl.dataset.lightEnvAction || '')) return;
   handleLightEnvAction(actionEl, event, actions);
 }
 
-function handleLightEnvToggle(event, actions) {
+function handleLightEnvToggle(event: Event, actions: LightEnvActions) {
   const actionEl = closestLightEnvAction(event);
   if (!actionEl || actionName(actionEl) !== 'set-audits-block-open') return;
   actions.setLightAuditsBlockOpen?.(!!actionEl.open);
 }
 
-export function installLightEnvActionDelegates(actions = {}, root = (typeof document !== 'undefined' ? document : null)) {
+export function installLightEnvActionDelegates(actions: LightEnvActions = {}, root: Pick<EventTarget, 'addEventListener'> | null = (typeof document !== 'undefined' ? document : null)) {
   if (!root || lightEnvActionDelegateRoots.has(root)) return;
   lightEnvActionDelegateRoots.add(root);
   root.addEventListener('click', event => handleLightEnvCapturedClick(event, actions), true);
   root.addEventListener('click', event => handleLightEnvClick(event, actions));
-  root.addEventListener('keydown', event => handleLightEnvCapturedKeydown(event, actions), true);
-  root.addEventListener('keydown', event => handleLightEnvKeydown(event, actions));
+  root.addEventListener('keydown', event => handleLightEnvCapturedKeydown(event as KeyboardEvent, actions), true);
+  root.addEventListener('keydown', event => handleLightEnvKeydown(event as KeyboardEvent, actions));
   root.addEventListener('change', event => handleLightEnvChange(event, actions));
   root.addEventListener('input', event => handleLightEnvInput(event, actions));
   root.addEventListener('toggle', event => handleLightEnvToggle(event, actions), true);

@@ -1,87 +1,62 @@
-// @ts-check
 // supplement-action-delegates.js - Delegated Supplement editor actions.
+
+export interface SupplementActions {
+  openEditor: (idx?: number) => void;
+  toggleAccordion: (idx: number) => void;
+  toggleAddForm: () => void;
+  closeModal: () => void;
+  askMito: () => void;
+  addIngredient: () => void;
+  removeIngredient: (btn: Element) => void;
+  addQualityTest: () => void;
+  removeQualityTest: (btn: Element) => void;
+  applyIngredientDoseToPeriod: (button: Element) => void;
+  addPeriod: () => void;
+  removePeriod: (btn: Element) => void;
+  fetchUrl: () => Promise<void> | void;
+  triggerLabelPicker: () => void;
+  scanLabel: (input: HTMLInputElement) => Promise<void> | void;
+  save: (idx: number) => void;
+  delete: (idx: number) => Promise<void> | void;
+  pause: (idx: number) => void;
+  end: (idx: number) => void;
+  restart: (idx: number) => void;
+  changeDose: (idx: number) => void;
+  applyImport: () => void;
+  keepSafetyQuality: () => void;
+  discardImport: () => void;
+  refreshImpact: (idx: number) => Promise<void> | void;
+  updateIngredientTotal: (input: Element) => void;
+  updateAllIngredientTotals: () => void;
+  updateIngredientUnit: (input: Element) => void;
+}
 
 const SUPPLEMENT_DELEGATE_ROOTS = '.supp-timeline-section, #detail-modal, .supp-impact-section';
 
-/**
- * @param {string} action
- * @param {string} [extra]
- * @returns {string}
- */
-export function suppActionAttrs(action, extra = '') {
+export function suppActionAttrs(action: string, extra = '') {
   return `data-supp-action="${action}"${extra ? ` ${extra}` : ''}`;
 }
 
-/**
- * @param {EventTarget | null} target
- * @param {string} selector
- * @returns {HTMLElement | null}
- */
-function closestSuppElement(target, selector) {
+function closestSuppElement(target: EventTarget | null, selector: string): HTMLElement | null {
   if (!(target instanceof Element)) return null;
   const el = target.closest(selector);
   if (!(el instanceof HTMLElement)) return null;
   return el.closest(SUPPLEMENT_DELEGATE_ROOTS) ? el : null;
 }
 
-/**
- * @param {HTMLElement} el
- * @returns {number}
- */
-function getSuppActionIndex(el) {
+function getSuppActionIndex(el: HTMLElement): number {
   const idx = Number.parseInt(el.dataset.suppIndex || '', 10);
   return Number.isInteger(idx) ? idx : -1;
 }
 
-/**
- * @param {HTMLElement} actionEl
- * @param {EventTarget | null} target
- * @returns {boolean}
- */
-function hasNestedInteractiveTarget(actionEl, target) {
+function hasNestedInteractiveTarget(actionEl: HTMLElement, target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
   const interactive = target.closest('a, button, input, select, textarea, label');
   return interactive instanceof Element && interactive !== actionEl && actionEl.contains(interactive);
 }
 
-/**
- * @typedef {{
- *   openEditor: (idx?: number) => void,
- *   toggleAccordion: (idx: number) => void,
- *   toggleAddForm: () => void,
- *   closeModal: () => void,
- *   askMito: () => void,
- *   addIngredient: () => void,
- *   removeIngredient: (btn: Element) => void,
- *   addQualityTest: () => void,
- *   removeQualityTest: (btn: Element) => void,
- *   applyIngredientDoseToPeriod: (button: Element) => void,
- *   addPeriod: () => void,
- *   removePeriod: (btn: Element) => void,
- *   fetchUrl: () => Promise<void> | void,
- *   triggerLabelPicker: () => void,
- *   scanLabel: (input: HTMLInputElement) => Promise<void> | void,
- *   save: (idx: number) => void,
- *   delete: (idx: number) => Promise<void> | void,
- *   pause: (idx: number) => void,
- *   end: (idx: number) => void,
- *   restart: (idx: number) => void,
- *   changeDose: (idx: number) => void,
- *   applyImport: () => void,
- *   keepSafetyQuality: () => void,
- *   discardImport: () => void,
- *   refreshImpact: (idx: number) => Promise<void> | void,
- *   updateIngredientTotal: (input: Element) => void,
- *   updateAllIngredientTotals: () => void,
- *   updateIngredientUnit: (input: Element) => void,
- * }} SupplementActions
- */
 
-/**
- * @param {SupplementActions} actions
- * @returns {(event: MouseEvent) => void}
- */
-function makeClickHandler(actions) {
+function makeClickHandler(actions: SupplementActions): (event: MouseEvent) => void {
   return event => {
     const actionEl = closestSuppElement(event.target, '[data-supp-action]');
     if (!actionEl || hasNestedInteractiveTarget(actionEl, event.target)) return;
@@ -166,10 +141,7 @@ function makeClickHandler(actions) {
   };
 }
 
-/**
- * @param {KeyboardEvent} event
- */
-function handleSupplementKeydown(event) {
+function handleSupplementKeydown(event: KeyboardEvent) {
   if (event.key !== 'Enter' && event.key !== ' ') return;
   const actionEl = closestSuppElement(event.target, '[data-supp-action]');
   if (!actionEl || hasNestedInteractiveTarget(actionEl, event.target)) return;
@@ -178,11 +150,7 @@ function handleSupplementKeydown(event) {
   actionEl.click();
 }
 
-/**
- * @param {SupplementActions} actions
- * @returns {(event: InputEvent) => void}
- */
-function makeInputHandler(actions) {
+function makeInputHandler(actions: SupplementActions): (event: Event) => void {
   return event => {
     const input = closestSuppElement(event.target, '.supp-ing-amount, .supp-ing-unit-custom, .supp-ing-times, #supp-times');
     if (!input) return;
@@ -194,11 +162,7 @@ function makeInputHandler(actions) {
   };
 }
 
-/**
- * @param {SupplementActions} actions
- * @returns {(event: Event) => void}
- */
-function makeChangeHandler(actions) {
+function makeChangeHandler(actions: SupplementActions): (event: Event) => void {
   return event => {
     const target = closestSuppElement(event.target, '#supp-label-input, .supp-ing-unit, .supp-period-ingredient-choice');
     if (target instanceof HTMLInputElement) void actions.scanLabel(target);
@@ -208,10 +172,7 @@ function makeChangeHandler(actions) {
 
 let supplementDelegatesBound = false;
 
-/**
- * @param {SupplementActions} actions
- */
-export function initSupplementActionDelegates(actions) {
+export function initSupplementActionDelegates(actions: SupplementActions) {
   if (supplementDelegatesBound || typeof document === 'undefined') return;
   supplementDelegatesBound = true;
   document.addEventListener('click', makeClickHandler(actions));
