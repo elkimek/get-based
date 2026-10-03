@@ -1,3 +1,20 @@
+type SyncE2ERawMerge=(profileId:Parameters<typeof import('../../js/sync-pull-merge.js').mergePulledImportedData>[0], remote:unknown, opts:Parameters<typeof import('../../js/sync-pull-merge.js').mergePulledImportedData>[2])=>ReturnType<typeof import('../../js/sync-pull-merge.js').mergePulledImportedData>;
+type SyncE2ERawRefresh=(options:Omit<NonNullable<Parameters<typeof import('../../js/sync-pull-active-refresh.js').refreshActiveProfileAfterPull>[0]>, 'merged'> & {merged:unknown})=>ReturnType<typeof import('../../js/sync-pull-active-refresh.js').refreshActiveProfileAfterPull>;
+import type {Browser,BrowserContext,Page,TestInfo} from '@playwright/test';
+type SyncE2EGlobals={
+ __syncE2EState:{importedData:unknown};
+ __syncE2EMergePulledImportedData:typeof import('../../js/sync-pull-merge.js').mergePulledImportedData;
+ __syncE2EPersistPulledImportedData:typeof import('../../js/sync-pull-merge.js').persistPulledImportedData;
+ __syncE2ERefreshActiveProfileAfterPull:typeof import('../../js/sync-pull-active-refresh.js').refreshActiveProfileAfterPull;
+ __syncE2EMessenger:Pick<typeof import('../../js/sync-messenger.js'),'disableMessengerTokenLocal'|'isMessengerEnabled'|'getMessengerToken'|'getMessengerContextKey'>;
+ __syncE2EApplyAISettings:typeof import('../../js/sync-apply.js').applyAISettings;
+ __syncE2EApplyChatData:typeof import('../../js/sync-chat-apply.js').applyChatData;
+ __syncE2ECollectChatData:typeof import('../../js/sync-payload-collectors.js').collectChatData;
+ __syncE2EPersonaStorage:Pick<typeof import('../../js/chat-personality-storage.js'),'saveCustomPersonalitiesToStorage'|'loadCustomPersonalitiesFromStorage'|'loadCustomPersonalityTombstones'|'customPersonalityStorageKey'|'customPersonalityTombstoneStorageKey'|'recordCustomPersonalityDeletion'>;
+ __syncE2ECrypto:Pick<typeof import('../../js/crypto.js'),'_setTestSessionKey'>;
+ __syncE2EGetRoutstrKey:typeof import('../../js/api-provider-storage.js').getRoutstrKey;
+ __WEARABLES_TEST?:unknown;
+};
 // Two-device sync E2E regression harness.
 //
 // Uses two isolated browser contexts to model device A and device B. The
@@ -20,8 +37,8 @@ const DEVICE_ID = 'device-e2e-panel';
 const DEVICE_SESSION_ID = 'devsess-e2e-duration';
 const BASE_AT = Date.parse('2026-05-01T08:00:00.000Z');
 
-function clone(value) {
-  return JSON.parse(JSON.stringify(value));
+function clone(value:unknown):unknown {
+  return (JSON.parse as (text:string)=>unknown)(JSON.stringify(value)) as unknown;
 }
 
 function buildImportedData() {
@@ -89,11 +106,11 @@ function buildImportedData() {
   };
 }
 
-async function makeContext(browser) {
+async function makeContext(browser:Browser) {
   return browser.newContext({ serviceWorkers: 'block' });
 }
 
-async function makePage(browser, label, importedData, recordPageError, testInfo) {
+async function makePage(browser:Browser,label:string,importedData:unknown,recordPageError:(label:string,err:Error)=>void,testInfo:TestInfo) {
   const context = await makeContext(browser);
   const page = await context.newPage();
   try {
@@ -148,16 +165,16 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
       `,
     });
     await page.waitForFunction(
-      () => !!window.__syncE2EState && typeof window.__syncE2EMergePulledImportedData === 'function'
-        && typeof window.__syncE2EPersistPulledImportedData === 'function'
-        && typeof window.__syncE2ERefreshActiveProfileAfterPull === 'function'
-        && typeof window.__syncE2EMessenger?.disableMessengerTokenLocal === 'function'
-        && typeof window.__syncE2EApplyAISettings === 'function'
-        && typeof window.__syncE2EApplyChatData === 'function'
-        && typeof window.__syncE2ECollectChatData === 'function'
-        && typeof window.__syncE2EPersonaStorage?.saveCustomPersonalitiesToStorage === 'function'
-        && typeof window.__syncE2ECrypto?._setTestSessionKey === 'function'
-        && typeof window.__syncE2EGetRoutstrKey === 'function',
+      () => !!(window as unknown as SyncE2EGlobals).__syncE2EState && typeof (window as unknown as SyncE2EGlobals).__syncE2EMergePulledImportedData === 'function'
+        && typeof (window as unknown as SyncE2EGlobals).__syncE2EPersistPulledImportedData === 'function'
+        && typeof (window as unknown as SyncE2EGlobals).__syncE2ERefreshActiveProfileAfterPull === 'function'
+        && typeof (window as unknown as SyncE2EGlobals).__syncE2EMessenger?.disableMessengerTokenLocal === 'function'
+        && typeof (window as unknown as SyncE2EGlobals).__syncE2EApplyAISettings === 'function'
+        && typeof (window as unknown as SyncE2EGlobals).__syncE2EApplyChatData === 'function'
+        && typeof (window as unknown as SyncE2EGlobals).__syncE2ECollectChatData === 'function'
+        && typeof (window as unknown as SyncE2EGlobals).__syncE2EPersonaStorage?.saveCustomPersonalitiesToStorage === 'function'
+        && typeof (window as unknown as SyncE2EGlobals).__syncE2ECrypto?._setTestSessionKey === 'function'
+        && typeof (window as unknown as SyncE2EGlobals).__syncE2EGetRoutstrKey === 'function',
       null,
       { timeout: 15000 }
     );
@@ -171,10 +188,10 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
       localStorage.setItem('labcharts-active-profile', profileId);
       state.currentProfile = profileId;
       state.currentView = 'dashboard';
-      state.importedData = JSON.parse(JSON.stringify(imported));
+      (state as {importedData:unknown}).importedData = (JSON.parse as (text:string)=>unknown)(JSON.stringify(imported)) as unknown;
       state.markerRegistry = {};
       state._activeDetailMarkerId = null;
-      document.querySelectorAll('.modal-overlay').forEach(el => {
+      document.querySelectorAll<HTMLElement>('.modal-overlay').forEach(el => {
         if (el.id) el.classList.remove('show');
         else el.remove();
       });
@@ -189,21 +206,21 @@ async function makePage(browser, label, importedData, recordPageError, testInfo)
   }
 }
 
-async function getImportedData(page) {
+async function getImportedData(page:Page) {
   return page.evaluate(() => {
-    const state = window.__syncE2EState;
-    return JSON.parse(JSON.stringify(state.importedData));
+    const state = (window as unknown as SyncE2EGlobals).__syncE2EState;
+    return (JSON.parse as (text:string)=>unknown)(JSON.stringify(state.importedData)) as unknown;
   });
 }
 
-async function pullRemoteImportedData(page, remoteImportedData) {
+async function pullRemoteImportedData(page:Page,remoteImportedData:unknown) {
   return page.evaluate(async ({ profileId, remote }) => {
-    const state = window.__syncE2EState;
-    const result = await window.__syncE2EMergePulledImportedData(profileId, JSON.parse(JSON.stringify(remote)), {
+    const state = (window as unknown as SyncE2EGlobals).__syncE2EState;
+    const result = await ((window as unknown as SyncE2EGlobals).__syncE2EMergePulledImportedData as SyncE2ERawMerge)(profileId, (JSON.parse as (text:string)=>unknown)(JSON.stringify(remote)), {
       debug: () => {},
     });
-    await window.__syncE2EPersistPulledImportedData(result.localKey, profileId, result.merged, Date.now());
-    window.__syncE2ERefreshActiveProfileAfterPull({
+    await (window as unknown as SyncE2EGlobals).__syncE2EPersistPulledImportedData(result.localKey, profileId, result.merged, Date.now());
+    (window as unknown as SyncE2EGlobals).__syncE2ERefreshActiveProfileAfterPull({
       profileId,
       merged: result.merged,
       chatApplied: false,
@@ -215,28 +232,28 @@ async function pullRemoteImportedData(page, remoteImportedData) {
       needsRebroadcast: result.needsRebroadcast,
       remoteBroughtNewRows: result.remoteBroughtNewRows,
       localDataChanged: result.localDataChanged,
-      merged: JSON.parse(JSON.stringify(state.importedData)),
+      merged: (JSON.parse as (text:string)=>unknown)(JSON.stringify(state.importedData)) as unknown,
     };
   }, { profileId: PROFILE_ID, remote: remoteImportedData });
 }
 
-async function applyMergedImportedData(page, mergedImportedData, remoteBroughtNewRows = true) {
+async function applyMergedImportedData(page:Page,mergedImportedData:unknown,remoteBroughtNewRows = true) {
   // Reuse the module installed above; this refresh is synchronous. Avoid a
   // redundant dynamic-import promise being collected by Chromium/CDP in CI.
   return page.evaluate(({ profileId, merged, remoteBroughtNewRows: broughtRows }) => {
-    const state = window.__syncE2EState;
-    window.__syncE2ERefreshActiveProfileAfterPull({
+    const state = (window as unknown as SyncE2EGlobals).__syncE2EState;
+    ((window as unknown as SyncE2EGlobals).__syncE2ERefreshActiveProfileAfterPull as SyncE2ERawRefresh)({
       profileId,
-      merged: JSON.parse(JSON.stringify(merged)),
+      merged: (JSON.parse as (text:string)=>unknown)(JSON.stringify(merged)),
       chatApplied: false,
       remoteBroughtNewRows: broughtRows,
       debug: () => {},
     });
-    return JSON.parse(JSON.stringify(state.importedData));
+    return (JSON.parse as (text:string)=>unknown)(JSON.stringify(state.importedData));
   }, { profileId: PROFILE_ID, merged: mergedImportedData, remoteBroughtNewRows });
 }
 
-async function openMarkerModal(page) {
+async function openMarkerModal(page:Page) {
   await page.evaluate(async ({ markerId }) => {
     const viewsModule = await import('/js/views.js');
     viewsModule.showDetailModal(markerId);
@@ -249,13 +266,13 @@ async function openMarkerModal(page) {
   );
 }
 
-async function editOpenMarkerValue(page, newValue) {
+async function editOpenMarkerValue(page:Page,newValue:number) {
   await page.evaluate(async ({ markerId, date, markerKey, next }) => {
     const [{ state }, viewsModule] = await Promise.all([
       import('/js/state.js'),
       import('/js/views.js'),
     ]);
-    const waitFor = async (fn, timeoutMs = 2500) => {
+    const waitFor = async (fn:()=>unknown, timeoutMs = 2500) => {
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
         if (fn()) return;
@@ -263,19 +280,19 @@ async function editOpenMarkerValue(page, newValue) {
       }
       throw new Error('Timed out waiting for marker edit');
     };
-    const valueEl = Array.from(document.querySelectorAll('#detail-modal .mv-value'))
+    const valueEl = Array.from(document.querySelectorAll<HTMLElement>('#detail-modal .mv-value'))
       .find(el => /\d/.test(el.textContent || ''));
     if (!valueEl) throw new Error('No marker history value element found');
-    const current = parseFloat(valueEl.textContent);
+    const current = parseFloat(valueEl.textContent as string);
     viewsModule.editMarkerValue(markerId, date, current, { target: valueEl });
-    const input = valueEl.querySelector('input.ref-edit-input');
+    const input = valueEl.querySelector<HTMLInputElement>('input.ref-edit-input');
     if (!input) throw new Error('Marker edit input did not render');
     input.value = String(next);
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
     await waitFor(() => {
       const entry = state.importedData.entries?.find(e => e.date === date);
       return entry?.markers?.[markerKey] === next
-        && !document.querySelector('#detail-modal input.ref-edit-input');
+        && !document.querySelector<HTMLInputElement>('#detail-modal input.ref-edit-input');
     });
   }, {
     markerId: MARKER_ID,
@@ -285,10 +302,10 @@ async function editOpenMarkerValue(page, newValue) {
   });
 }
 
-async function clickManualRevertBadge(page) {
+async function clickManualRevertBadge(page:Page) {
   await page.evaluate(async ({ date, markerKey, originalValue }) => {
     const { state } = await import('/js/state.js');
-    const waitFor = async (fn, timeoutMs = 5000) => {
+    const waitFor = async (fn:()=>unknown, timeoutMs = 5000) => {
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
         if (fn()) return;
@@ -297,9 +314,9 @@ async function clickManualRevertBadge(page) {
       throw new Error('Timed out waiting for manual revert');
     };
 
-    const manualRevertBadge = () => Array.from(document.querySelectorAll('#detail-modal .ref-edited-badge'))
+    const manualRevertBadge = () => Array.from(document.querySelectorAll<HTMLElement>('#detail-modal .ref-edited-badge'))
       .find(el => /manual/.test(el.textContent || '') && /\u00d7|x/i.test(el.textContent || ''));
-    const modalShowsOriginalValue = () => Array.from(document.querySelectorAll('#detail-modal .marker-history-row .mv-value'))
+    const modalShowsOriginalValue = () => Array.from(document.querySelectorAll<HTMLElement>('#detail-modal .marker-history-row .mv-value'))
       .some(el => {
         const text = (el.textContent || '').trim();
         return text.startsWith(String(originalValue)) && !/manual/.test(text);
@@ -322,7 +339,7 @@ async function clickManualRevertBadge(page) {
   });
 }
 
-async function markerModalSnapshot(page) {
+async function markerModalSnapshot(page:Page) {
   return page.evaluate(async ({ date, markerKey }) => {
     const { state } = await import('/js/state.js');
     const modal = document.getElementById('detail-modal');
@@ -331,7 +348,7 @@ async function markerModalSnapshot(page) {
       open: !!document.getElementById('modal-overlay')?.classList?.contains('show'),
       modalClass: modal?.className || '',
       text: modal?.textContent || '',
-      badges: Array.from(modal?.querySelectorAll('.ref-edited-badge') || []).map(el => el.textContent.trim()),
+      badges: Array.from(modal?.querySelectorAll<HTMLElement>('.ref-edited-badge') || []).map(el => el.textContent!.trim()),
       marker: entry?.markers?.[markerKey],
       manualValue: state.importedData.manualValues?.[`${markerKey}:${date}`],
     };
@@ -341,55 +358,55 @@ async function markerModalSnapshot(page) {
   });
 }
 
-async function navigateLight(page) {
+async function navigateLight(page:Page) {
   await page.evaluate(async () => (await import('/js/views.js')).navigate('light'));
   await page.waitForFunction(async () => (await import('/js/state.js')).state.currentView === 'light', null, { timeout: 5000 });
 }
 
-async function openSunSessionModal(page) {
+async function openSunSessionModal(page:Page) {
   await navigateLight(page);
   await page.evaluate(async ({ id }) => {
     const { openSunSessionDetail } = await import('/js/sun-session-ui.js');
     openSunSessionDetail(id);
   }, { id: SUN_SESSION_ID });
   await page.waitForFunction(
-    () => document.querySelector('.modal-overlay.show .sun-detail-modal[data-session-kind="sun"]'),
+    () => document.querySelector<HTMLElement>('.modal-overlay.show .sun-detail-modal[data-session-kind="sun"]'),
     null,
     { timeout: 5000 }
   );
 }
 
-async function openDeviceSessionModal(page) {
+async function openDeviceSessionModal(page:Page) {
   await navigateLight(page);
   await page.evaluate(async ({ id }) => {
     const { openDeviceSessionDetail } = await import('/js/light-devices.js');
     openDeviceSessionDetail(id);
   }, { id: DEVICE_SESSION_ID });
   await page.waitForFunction(
-    () => document.querySelector('.modal-overlay.show .sun-detail-modal[data-session-kind="device"]'),
+    () => document.querySelector<HTMLElement>('.modal-overlay.show .sun-detail-modal[data-session-kind="device"]'),
     null,
     { timeout: 5000 }
   );
 }
 
-async function updateSunDuration(page, durationMin) {
+async function updateSunDuration(page:Page,durationMin:number) {
   await page.evaluate(async ({ id, duration }) => {
     const { updateSession } = await import('/js/sun-sessions-store.js');
     await updateSession(id, { durationMin: duration });
   }, { id: SUN_SESSION_ID, duration: durationMin });
 }
 
-async function updateDeviceDuration(page, durationMin) {
+async function updateDeviceDuration(page:Page,durationMin:number) {
   await page.evaluate(async ({ id, duration }) => {
     const { updateDeviceSession } = await import('/js/light-devices-store.js');
     await updateDeviceSession(id, { durationMin: duration });
   }, { id: DEVICE_SESSION_ID, duration: durationMin });
 }
 
-async function sessionModalSnapshot(page, kind) {
+async function sessionModalSnapshot(page:Page,kind:string) {
   return page.evaluate(async ({ kind, sunSessionId, deviceSessionId }) => {
     const { state } = await import('/js/state.js');
-    const modal = document.querySelector(`.modal-overlay.show .sun-detail-modal[data-session-kind="${kind}"]`);
+    const modal = document.querySelector<HTMLElement>(`.modal-overlay.show .sun-detail-modal[data-session-kind="${kind}"]`);
     const source = kind === 'sun'
       ? state.importedData.sunSessions?.find(s => s.id === sunSessionId)
       : state.importedData.deviceSessions?.find(s => s.id === deviceSessionId);
@@ -406,16 +423,16 @@ async function sessionModalSnapshot(page, kind) {
   });
 }
 
-async function closeFloatingModals(page) {
+async function closeFloatingModals(page:Page) {
   await page.evaluate(() => {
-    document.querySelectorAll('.modal-overlay').forEach(el => {
+    document.querySelectorAll<HTMLElement>('.modal-overlay').forEach(el => {
       if (el.id) el.classList.remove('show');
       else el.remove();
     });
   });
 }
 
-async function enableAgentAccessForSync(page) {
+async function enableAgentAccessForSync(page:Page) {
   return page.evaluate(async () => {
     const [{ state }, { saveImportedData }] = await Promise.all([
       import('/js/state.js'),
@@ -437,20 +454,20 @@ async function enableAgentAccessForSync(page) {
     localStorage.removeItem('labcharts-messenger-token');
     localStorage.removeItem('labcharts-agent-context-key');
     await saveImportedData({ immediate: true });
-    return JSON.parse(JSON.stringify(state.importedData));
+    return (JSON.parse as (text:string)=>unknown)(JSON.stringify(state.importedData));
   });
 }
 
-async function agentAccessSnapshot(page) {
+async function agentAccessSnapshot(page:Page) {
   return page.evaluate(async () => {
     const { state } = await import('/js/state.js');
-    const messenger = window.__syncE2EMessenger;
+    const messenger = (window as unknown as SyncE2EGlobals).__syncE2EMessenger;
     if (!messenger) throw new Error('sync-messenger helper module not loaded');
     return {
       enabled: messenger.isMessengerEnabled(),
       token: messenger.getMessengerToken(),
       contextKey: messenger.getMessengerContextKey(),
-      state: JSON.parse(JSON.stringify(state.importedData.agentAccess || null)),
+      state: (JSON.parse as (text:string)=>unknown)(JSON.stringify(state.importedData.agentAccess || null)) as {revokedAt?:unknown}|null,
       seriesDays: state.importedData.agentAccessWearableSeriesDays,
       legacyToken: localStorage.getItem('labcharts-messenger-token'),
       legacyContextKey: localStorage.getItem('labcharts-agent-context-key'),
@@ -458,30 +475,30 @@ async function agentAccessSnapshot(page) {
   });
 }
 
-async function disableAgentAccessForSync(page) {
+async function disableAgentAccessForSync(page:Page) {
   return page.evaluate(async () => {
     const [{ state }, { saveImportedData }] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
     ]);
-    const messenger = window.__syncE2EMessenger;
+    const messenger = (window as unknown as SyncE2EGlobals).__syncE2EMessenger;
     if (!messenger) throw new Error('sync-messenger helper module not loaded');
     const previousToken = messenger.disableMessengerTokenLocal();
     await saveImportedData({ immediate: true });
     return {
       previousToken,
-      imported: JSON.parse(JSON.stringify(state.importedData)),
+      imported: (JSON.parse as (text:string)=>unknown)(JSON.stringify(state.importedData)) as unknown,
     };
   });
 }
 
-async function run(browser, testInfo) {
+async function run(browser:Browser,testInfo:TestInfo) {
   let pass = 0;
   let fail = 0;
-  const failures = [];
-  const contexts = [];
-  const devices = [];
-  function assert(name, condition, detail = '') {
+  const failures: string[] = [];
+  const contexts: BrowserContext[] = [];
+  const devices: Awaited<ReturnType<typeof makePage>>[] = [];
+  function assert(name:string,condition:unknown,detail = '') {
     if (condition) {
       pass++;
       console.log(`  PASS ${name}`);
@@ -492,7 +509,7 @@ async function run(browser, testInfo) {
       console.error(`  FAIL ${msg}`);
     }
   }
-  function recordPageError(label, err) {
+  function recordPageError(label:string,err:Error) {
     failures.push(`${label} page error: ${err.message}`);
     fail++;
     console.error(`  FAIL ${label} page error -- ${err.message}`);
@@ -511,35 +528,35 @@ async function run(browser, testInfo) {
     const { page: pageB } = deviceB;
 
     const routstrSync = await pageB.evaluate(async () => {
-      window.__WEARABLES_TEST = true;
+      (window as unknown as SyncE2EGlobals).__WEARABLES_TEST = true;
       localStorage.setItem('labcharts-encryption-enabled', 'true');
-      await window.__syncE2ECrypto._setTestSessionKey('RoutstrSyncE2EPass1!');
-      await window.__syncE2EApplyAISettings({
+      await (window as unknown as SyncE2EGlobals).__syncE2ECrypto._setTestSessionKey('RoutstrSyncE2EPass1!');
+      await (window as unknown as SyncE2EGlobals).__syncE2EApplyAISettings({
         'labcharts-routstr-key': 'sk-local-zero-balance',
         'labcharts-routstr-node': 'https://node.routstr.e2e/',
         'labcharts-routstr-session-updated-at': '100',
       });
       sessionStorage.setItem('labcharts-ai-settings-local-lock-until', String(Date.now() + 60_000));
-      await window.__syncE2EApplyAISettings({
+      await (window as unknown as SyncE2EGlobals).__syncE2EApplyAISettings({
         'labcharts-routstr-key': 'sk-routstr-two-device',
         'labcharts-routstr-node': 'https://node.routstr.e2e/',
         'labcharts-routstr-session-updated-at': '200',
       });
-      await window.__syncE2EApplyAISettings({
+      await (window as unknown as SyncE2EGlobals).__syncE2EApplyAISettings({
         'labcharts-routstr-key': 'sk-legacy-other-profile',
         'labcharts-routstr-node': 'https://legacy-node.routstr.e2e/',
       });
       const crypto = await import('/js/crypto.js');
       (await import('/js/crypto-key-cache.js')).clearKeyCache();
-      const lockedKey = window.__syncE2EGetRoutstrKey();
-      const persistedSessions = JSON.parse(await crypto.encryptedGetItem('labcharts-routstr-sessions'));
+      const lockedKey = (window as unknown as SyncE2EGlobals).__syncE2EGetRoutstrKey();
+      const persistedSessions = (JSON.parse as (text:string)=>unknown)(await crypto.encryptedGetItem('labcharts-routstr-sessions') as string) as {sessions:Record<string,{key?:unknown}|undefined>};
       await crypto.decryptKeyCache();
       return {
         rawKey: localStorage.getItem('labcharts-routstr-sessions'),
         legacyKey: await crypto.encryptedGetItem('labcharts-routstr-key'),
         lockedKey,
         persistedKey: persistedSessions.sessions['https://node.routstr.e2e']?.key,
-        usableKey: window.__syncE2EGetRoutstrKey(),
+        usableKey: (window as unknown as SyncE2EGlobals).__syncE2EGetRoutstrKey(),
         node: localStorage.getItem('labcharts-routstr-node'),
         updatedAt: localStorage.getItem('labcharts-routstr-session-updated-at'),
       };
@@ -555,18 +572,18 @@ async function run(browser, testInfo) {
         && routstrSync.updatedAt === '200',
       JSON.stringify(routstrSync));
 
-    const savePersonas = (page, personalities) => page.evaluate(async ({ profileId, items }) => {
-      await window.__syncE2EPersonaStorage.saveCustomPersonalitiesToStorage(items, profileId);
+    const savePersonas = (page:Page,personalities:unknown) => page.evaluate(async ({ profileId, items }) => {
+      await (window as unknown as SyncE2EGlobals).__syncE2EPersonaStorage.saveCustomPersonalitiesToStorage(items, profileId);
     }, { profileId: PROFILE_ID, items: personalities });
-    const collectChat = page => page.evaluate(profileId =>
-      window.__syncE2ECollectChatData(profileId), PROFILE_ID);
-    const applyChat = (page, chatData) => page.evaluate(({ profileId, payload }) =>
-      window.__syncE2EApplyChatData(profileId, payload), {
+    const collectChat = (page:Page) => page.evaluate(profileId =>
+      (window as unknown as SyncE2EGlobals).__syncE2ECollectChatData(profileId), PROFILE_ID);
+    const applyChat = (page:Page,chatData:unknown) => page.evaluate(({ profileId, payload }) =>
+      (window as unknown as SyncE2EGlobals).__syncE2EApplyChatData(profileId, payload), {
       profileId: PROFILE_ID,
       payload: chatData,
     });
-    const personaSnapshot = page => page.evaluate(async profileId => {
-      const storage = window.__syncE2EPersonaStorage;
+    const personaSnapshot = (page:Page) => page.evaluate(async profileId => {
+      const storage = (window as unknown as SyncE2EGlobals).__syncE2EPersonaStorage;
       return {
         items: await storage.loadCustomPersonalitiesFromStorage(profileId),
         tombstones: await storage.loadCustomPersonalityTombstones(profileId),
@@ -617,7 +634,7 @@ async function run(browser, testInfo) {
       JSON.stringify({ personasA, personasB }));
 
     await pageB.evaluate(async ({ profileId, personaId, deletedAt }) => {
-      const storage = window.__syncE2EPersonaStorage;
+      const storage = (window as unknown as SyncE2EGlobals).__syncE2EPersonaStorage;
       const items = await storage.loadCustomPersonalitiesFromStorage(profileId);
       await storage.saveCustomPersonalitiesToStorage(items.filter(item => item.id !== personaId), profileId);
       await storage.recordCustomPersonalityDeletion(personaId, profileId, deletedAt);

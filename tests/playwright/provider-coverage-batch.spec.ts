@@ -1,12 +1,12 @@
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = (path) => `${path}?providerCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path:string) => `${path}?providerCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 test('provider panel renderers cover Venice and Local AI markup branches', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ renderersUrl }) => {
-    const renderers = await import(renderersUrl);
+    const renderers = (await import(renderersUrl) as unknown) as Pick<typeof import('../../js/provider-panel-renderers.js'),"renderAIProviderPanel">;
     const crypto = await import('/js/crypto.js');
     const storageKeys = [
       'labcharts-venice-key',
@@ -16,7 +16,7 @@ test('provider panel renderers cover Venice and Local AI markup branches', async
       'labcharts-venice-e2ee-models',
       'labcharts-ollama',
     ];
-    const oldStorage = {};
+    const oldStorage:Record<string,string|null|undefined> = {};
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
     const oldCache = {
       veniceKey: crypto.getCachedKey('labcharts-venice-key'),
@@ -40,21 +40,21 @@ test('provider panel renderers cover Venice and Local AI markup branches', async
 
       fixture.innerHTML = renderers.renderAIProviderPanel('venice');
       document.body.appendChild(fixture);
-      const veniceSelect = fixture.querySelector('#venice-model-select');
-      const veniceE2EERenders = fixture.querySelector('#venice-key-status')?.textContent.includes('Connected')
-        && fixture.querySelector('#venice-key-input')?.value === 'venice-test-key'
+      const veniceSelect = fixture.querySelector<HTMLSelectElement>('#venice-model-select');
+      const veniceE2EERenders = fixture.querySelector<HTMLElement>('#venice-key-status')?.textContent.includes('Connected')
+        && fixture.querySelector<HTMLInputElement>('#venice-key-input')?.value === 'venice-test-key'
         && veniceSelect?.value === 'e2ee-model'
-        && fixture.querySelector('#venice-e2ee-toggle')?.checked === true
-        && fixture.querySelector('#venice-e2ee-indicator')?.style.display === ''
-        && fixture.querySelector('#venice-model-select option[value="e2ee-model"]')?.textContent === 'Secure <Model>'
-        && !!fixture.querySelector('[data-provider-panel-action="remove-venice-key"]');
+        && fixture.querySelector<HTMLInputElement>('#venice-e2ee-toggle')?.checked === true
+        && fixture.querySelector<HTMLElement>('#venice-e2ee-indicator')?.style.display === ''
+        && fixture.querySelector<HTMLOptionElement>('#venice-model-select option[value="e2ee-model"]')?.textContent === 'Secure <Model>'
+        && !!fixture.querySelector<HTMLElement>('[data-provider-panel-action="remove-venice-key"]');
 
       localStorage.setItem('labcharts-venice-e2ee', 'on');
       localStorage.setItem('labcharts-venice-model', 'regular-model');
       localStorage.setItem('labcharts-venice-e2ee-models', '[]');
       fixture.innerHTML = renderers.renderAIProviderPanel('venice');
-      const veniceMissingE2EEDisables = !fixture.querySelector('#venice-e2ee-toggle')
-        && fixture.querySelector('#venice-model-select')?.value === 'regular-model';
+      const veniceMissingE2EEDisables = !fixture.querySelector<HTMLInputElement>('#venice-e2ee-toggle')
+        && fixture.querySelector<HTMLSelectElement>('#venice-model-select')?.value === 'regular-model';
 
       const ollamaConfig = JSON.stringify({
         url: 'https://local.example/v1',
@@ -66,11 +66,11 @@ test('provider panel renderers cover Venice and Local AI markup branches', async
       crypto.updateKeyCache('labcharts-ollama', ollamaConfig);
       // Local AI has no named provider case, so it is rendered through the default fallback.
       fixture.innerHTML = renderers.renderAIProviderPanel('unknown-provider');
-      const localAIRenders = fixture.querySelector('#local-ai-url-input')?.value === 'https://local.example'
-        && fixture.querySelector('#local-ai-apikey-input')?.value === 'local-secret'
-        && fixture.querySelector('#local-ai-status-text')?.textContent === 'Checking connection...'
-        && fixture.querySelector('[data-provider-panel-action="test-ollama-connection"]')?.textContent === 'Test'
-        && fixture.querySelector('#local-ai-model-select')?.dataset.providerPanelChange === 'local-ai-model'
+      const localAIRenders = fixture.querySelector<HTMLInputElement>('#local-ai-url-input')?.value === 'https://local.example'
+        && fixture.querySelector<HTMLInputElement>('#local-ai-apikey-input')?.value === 'local-secret'
+        && fixture.querySelector<HTMLElement>('#local-ai-status-text')?.textContent === 'Checking connection...'
+        && fixture.querySelector<HTMLElement>('[data-provider-panel-action="test-ollama-connection"]')?.textContent === 'Test'
+        && fixture.querySelector<HTMLSelectElement>('#local-ai-model-select')?.dataset.providerPanelChange === 'local-ai-model'
         && fixture.textContent.includes('/v1/chat/completions');
 
       return {
@@ -100,12 +100,12 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ controlsUrl }) => {
-    const controls = await import(controlsUrl);
+    const controls = (await import(controlsUrl) as unknown) as Pick<typeof import('../../js/provider-model-controls.js'),"renderOpenRouterModelDropdown"|"applyCustomOpenRouterModel"|"onOpenRouterDropdownChange"|"renderVeniceModelDropdown"|"toggleVeniceE2EE"|"renderRoutstrModelDropdown"|"renderPpqModelDropdown"|"updatePpqModelPricing"|"renderCustomApiModelDropdown"|"applyCustomApiManualModel">;
     const runtime = await import('/js/provider-model-controls-runtime.js');
     const chatRuntime = await import('/js/chat-runtime.js');
     const delegates = await import('/js/provider-panel-delegates.js');
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+    const wait = (ms:number) => new Promise(resolve => setTimeout(resolve, ms));
+    const jsonResponse = (body:unknown, status = 200) => new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -128,19 +128,19 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       'labcharts-custom-model',
       'labcharts-custom-models',
     ];
-    const oldStorage = {};
+    const oldStorage:Record<string,string|null|undefined> = {};
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
     const oldGlobals = {
       fetch: window.fetch,
       consoleWarn: console.warn,
     };
-    let previousRuntimeDeps = null;
-    let previousChatRuntime = null;
+    let previousRuntimeDeps:ReturnType<typeof runtime.configureProviderModelControlsRuntimeDeps>|null = null;
+    let previousChatRuntime:ReturnType<typeof chatRuntime.configureChatRuntimeCallbacks>|null = null;
 
     let clearCount = 0;
     let headerRefreshes = 0;
     let searchRefreshes = 0;
-    const warnings = [];
+    const warnings:string[] = [];
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
@@ -182,38 +182,38 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'x-ai/grok-4', name: 'Grok 4' },
         { id: 'qwen/qwen3.8-27b', name: 'Qwen3.8 27B' },
       ]);
-      const openRouterRecommendedGroup = document.querySelector('#openrouter-model-select optgroup[label="Recommended"]');
-      const openRouterRecommended = !!openRouterRecommendedGroup?.querySelector('option[value="anthropic/claude-fable-5.1"]')
-        && !!openRouterRecommendedGroup?.querySelector('option[value="anthropic/claude-sonnet-5"]')
-        && !!openRouterRecommendedGroup?.querySelector('option[value="google/gemini-3.8-flash"]')
-        && !!openRouterRecommendedGroup?.querySelector('option[value="z-ai/glm-5.3-flash"]')
-        && !!openRouterRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k3"]')
-        && !openRouterRecommendedGroup?.querySelector('option[value="anthropic/claude-sonnet-4.6"]')
-        && !openRouterRecommendedGroup?.querySelector('option[value="google/gemini-3.7-flash"]')
-        && !openRouterRecommendedGroup?.querySelector('option[value="google/gemini-3.1-pro"]')
-        && !openRouterRecommendedGroup?.querySelector('option[value="z-ai/glm-5.3"]')
-        && !openRouterRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
-        && !openRouterRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.7-code"]')
-        && !openRouterRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.6"]')
-        && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="anthropic/claude-sonnet-4.6"]')
-        && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="google/gemini-3.7-flash"]')
-        && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="google/gemini-3.1-pro"]')
-        && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.3"]')
-        && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.2"]')
-        && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.7-code"]')
-        && !!document.querySelector('#openrouter-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.6"]');
-      const openRouterQwenAvailable = !!document.querySelector(
+      const openRouterRecommendedGroup = document.querySelector<HTMLElement>('#openrouter-model-select optgroup[label="Recommended"]');
+      const openRouterRecommended = !!openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="anthropic/claude-fable-5.1"]')
+        && !!openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="anthropic/claude-sonnet-5"]')
+        && !!openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="google/gemini-3.8-flash"]')
+        && !!openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="z-ai/glm-5.3-flash"]')
+        && !!openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="moonshotai/kimi-k3"]')
+        && !openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="anthropic/claude-sonnet-4.6"]')
+        && !openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="google/gemini-3.7-flash"]')
+        && !openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="google/gemini-3.1-pro"]')
+        && !openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="z-ai/glm-5.3"]')
+        && !openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="z-ai/glm-5.2"]')
+        && !openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="moonshotai/kimi-k2.7-code"]')
+        && !openRouterRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="moonshotai/kimi-k2.6"]')
+        && !!document.querySelector<HTMLElement>('#openrouter-model-select optgroup[label="Other models"] option[value="anthropic/claude-sonnet-4.6"]')
+        && !!document.querySelector<HTMLElement>('#openrouter-model-select optgroup[label="Other models"] option[value="google/gemini-3.7-flash"]')
+        && !!document.querySelector<HTMLElement>('#openrouter-model-select optgroup[label="Other models"] option[value="google/gemini-3.1-pro"]')
+        && !!document.querySelector<HTMLElement>('#openrouter-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.3"]')
+        && !!document.querySelector<HTMLElement>('#openrouter-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.2"]')
+        && !!document.querySelector<HTMLElement>('#openrouter-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.7-code"]')
+        && !!document.querySelector<HTMLElement>('#openrouter-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.6"]');
+      const openRouterQwenAvailable = !!document.querySelector<HTMLElement>(
         '#openrouter-model-select optgroup[label="Other models"] option[value="qwen/qwen3.8-27b"]'
       );
-      const openRouterPricing = (document.getElementById('openrouter-model-pricing')?.textContent || '').includes('$3.00/M in');
+      const openRouterPricing = ((document.getElementById('openrouter-model-pricing') as HTMLElement|null)?.textContent || '').includes('$3.00/M in');
 
       let fetchedPricing = false;
       previousRuntimeDeps = runtime.configureProviderModelControlsRuntimeDeps({
         callClaudeAPI: async () => ({ content: 'ok' }),
         clearE2EESession: () => { clearCount += 1; },
       });
-      window.fetch = async function(url) {
-        const href = typeof url === 'string' ? url : url?.url || '';
+      window.fetch = async function(url:Parameters<typeof fetch>[0]) {
+        const href = typeof url === 'string' ? url : (url as {url?:string})?.url || '';
         if (href === 'https://openrouter.ai/api/v1/models') {
           fetchedPricing = true;
           return jsonResponse({
@@ -227,24 +227,24 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         return oldGlobals.fetch.call(window, url);
       };
       await controls.applyCustomOpenRouterModel('custom/model');
-      const customOpt = document.querySelector('#openrouter-model-select option[value="__custom"]');
+      const customOpt = document.querySelector<HTMLOptionElement>('#openrouter-model-select option[value="__custom"]');
       const openRouterCustomApplied = customOpt?.selected === true
         && localStorage.getItem('labcharts-openrouter-model') === 'custom/model'
-        && document.getElementById('openrouter-model-health')?.title === 'Model responding'
-        && (document.getElementById('openrouter-model-pricing')?.textContent || '').includes('$1.25/M in')
+        && (document.getElementById('openrouter-model-health') as HTMLElement|null)?.title === 'Model responding'
+        && ((document.getElementById('openrouter-model-pricing') as HTMLElement|null)?.textContent || '').includes('$1.25/M in')
         && fetchedPricing;
 
       runtime.configureProviderModelControlsRuntimeDeps({
         callClaudeAPI: async () => { throw new Error('offline model'); },
       });
       await controls.applyCustomOpenRouterModel('bad/model');
-      const openRouterCustomFailure = document.getElementById('openrouter-model-health')?.title === 'offline model'
-        && document.getElementById('openrouter-custom-model')?.style.borderColor === 'var(--red)';
+      const openRouterCustomFailure = (document.getElementById('openrouter-model-health') as HTMLElement|null)?.title === 'offline model'
+        && (document.getElementById('openrouter-custom-model') as HTMLInputElement|null)?.style.borderColor === 'var(--red)';
 
       controls.onOpenRouterDropdownChange('anthropic/claude-sonnet-4.6');
-      const openRouterDropdownReset = !document.querySelector('#openrouter-model-select option[value="__custom"]')
-        && document.getElementById('openrouter-custom-model')?.value === ''
-        && document.getElementById('openrouter-model-health')?.textContent === '';
+      const openRouterDropdownReset = !document.querySelector<HTMLOptionElement>('#openrouter-model-select option[value="__custom"]')
+        && (document.getElementById('openrouter-custom-model') as HTMLInputElement|null)?.value === ''
+        && (document.getElementById('openrouter-model-health') as HTMLElement|null)?.textContent === '';
 
       localStorage.setItem('labcharts-venice-model', 'regular-a');
       localStorage.setItem('labcharts-venice-models', JSON.stringify([{ id: 'regular-a', name: 'Regular A' }]));
@@ -255,16 +255,16 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'gemini-3-7-flash', name: 'Gemini 3.7 Flash' },
         { id: 'gemini-3-8-flash', name: 'Gemini 3.8 Flash' },
       ]);
-      const veniceLatestGeminiRecommended = !!document.querySelector(
+      const veniceLatestGeminiRecommended = !!document.querySelector<HTMLElement>(
         '#venice-model-select optgroup[label="Recommended"] option[value="claude-fable-5-1"]'
       )
-        && !!document.querySelector('#venice-model-select optgroup[label="Recommended"] option[value="gemini-3-8-flash"]')
-        && !document.querySelector('#venice-model-select optgroup[label="Recommended"] option[value="gemini-3-7-flash"]')
-        && !!document.querySelector('#venice-model-select optgroup[label="Other models"] option[value="gemini-3-7-flash"]');
+        && !!document.querySelector<HTMLElement>('#venice-model-select optgroup[label="Recommended"] option[value="gemini-3-8-flash"]')
+        && !document.querySelector<HTMLElement>('#venice-model-select optgroup[label="Recommended"] option[value="gemini-3-7-flash"]')
+        && !!document.querySelector<HTMLElement>('#venice-model-select optgroup[label="Other models"] option[value="gemini-3-7-flash"]');
       controls.toggleVeniceE2EE(true);
       const veniceE2EEEnabled = localStorage.getItem('labcharts-venice-e2ee') === 'on'
         && localStorage.getItem('labcharts-venice-model') === 'e2ee-secure'
-        && document.getElementById('venice-e2ee-indicator')?.style.display === ''
+        && (document.getElementById('venice-e2ee-indicator') as HTMLElement|null)?.style.display === ''
         && headerRefreshes >= 1
         && searchRefreshes >= 1;
       controls.toggleVeniceE2EE(false);
@@ -278,7 +278,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'routstr-b', name: 'Routstr B' },
       ]);
       const routstrFallback = localStorage.getItem('labcharts-routstr-model') === 'routstr-a'
-        && document.getElementById('routstr-model-select')?.value === 'routstr-a';
+        && (document.getElementById('routstr-model-select') as HTMLSelectElement|null)?.value === 'routstr-a';
       controls.renderRoutstrModelDropdown([
         { id: 'anthropic/claude-fable-5.1', name: 'Claude Fable 5.1' },
         { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
@@ -291,22 +291,22 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'moonshotai/kimi-k3', name: 'Kimi K3' },
         { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code' },
       ]);
-      const routstrRecommendedGroup = document.querySelector('#routstr-model-select optgroup[label="Recommended"]');
-      const routstrLatestGrokRecommended = !!routstrRecommendedGroup?.querySelector('option[value="anthropic/claude-fable-5.1"]')
-        && !!routstrRecommendedGroup?.querySelector('option[value="google/gemini-3.8-flash"]')
-        && !!routstrRecommendedGroup?.querySelector('option[value="x-ai/grok-4.3"]')
-        && !!routstrRecommendedGroup?.querySelector('option[value="z-ai/glm-5.3-flash"]')
-        && !!routstrRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k3"]')
-        && !routstrRecommendedGroup?.querySelector('option[value="grok-41-fast"]')
-        && !routstrRecommendedGroup?.querySelector('option[value="google/gemini-3.7-flash"]')
-        && !routstrRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.7-code"]')
-        && !routstrRecommendedGroup?.querySelector('option[value="glm-5.3"]')
-        && !routstrRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
-        && !!document.querySelector('#routstr-model-select optgroup[label="Other models"] option[value="grok-41-fast"]')
-        && !!document.querySelector('#routstr-model-select optgroup[label="Other models"] option[value="google/gemini-3.7-flash"]')
-        && !!document.querySelector('#routstr-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.7-code"]')
-        && !!document.querySelector('#routstr-model-select optgroup[label="Other models"] option[value="glm-5.3"]')
-        && !!document.querySelector('#routstr-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.2"]');
+      const routstrRecommendedGroup = document.querySelector<HTMLElement>('#routstr-model-select optgroup[label="Recommended"]');
+      const routstrLatestGrokRecommended = !!routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="anthropic/claude-fable-5.1"]')
+        && !!routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="google/gemini-3.8-flash"]')
+        && !!routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="x-ai/grok-4.3"]')
+        && !!routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="z-ai/glm-5.3-flash"]')
+        && !!routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="moonshotai/kimi-k3"]')
+        && !routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="grok-41-fast"]')
+        && !routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="google/gemini-3.7-flash"]')
+        && !routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="moonshotai/kimi-k2.7-code"]')
+        && !routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="glm-5.3"]')
+        && !routstrRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="z-ai/glm-5.2"]')
+        && !!document.querySelector<HTMLElement>('#routstr-model-select optgroup[label="Other models"] option[value="grok-41-fast"]')
+        && !!document.querySelector<HTMLElement>('#routstr-model-select optgroup[label="Other models"] option[value="google/gemini-3.7-flash"]')
+        && !!document.querySelector<HTMLElement>('#routstr-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.7-code"]')
+        && !!document.querySelector<HTMLElement>('#routstr-model-select optgroup[label="Other models"] option[value="glm-5.3"]')
+        && !!document.querySelector<HTMLElement>('#routstr-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.2"]');
 
       localStorage.setItem('labcharts-ppq-model', 'ppq-b');
       localStorage.setItem('labcharts-ppq-pricing', JSON.stringify({ 'ppq-b': { input: 0.5, output: 1.5 } }));
@@ -327,29 +327,29 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'grok-4.20', name: 'Grok 4.20' },
         { id: 'x-ai/grok-4.3', name: 'Grok 4.3' },
       ]);
-      const ppqRecommendedGroup = document.querySelector('#ppq-model-select optgroup[label="Recommended"]');
-      const ppqLatestGrokRecommended = !!ppqRecommendedGroup?.querySelector('option[value="claude-fable-5.1"]')
-        && !!ppqRecommendedGroup?.querySelector('option[value="x-ai/grok-4.3"]')
-        && !ppqRecommendedGroup?.querySelector('option[value="grok-4.20"]')
-        && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="grok-4.20"]');
-      const ppqLatestGeminiRecommended = !!ppqRecommendedGroup?.querySelector('option[value="google/gemini-3.8-flash"]')
-        && !ppqRecommendedGroup?.querySelector('option[value="google/gemini-3.7-flash"]')
-        && !ppqRecommendedGroup?.querySelector('option[value="gemini-3-flash-preview"]')
-        && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="google/gemini-3.7-flash"]')
-        && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="gemini-3-flash-preview"]');
-      const ppqLatestGlmKimiRecommended = !!ppqRecommendedGroup?.querySelector('option[value="glm-5.3-flash"]')
-        && !!ppqRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k3"]')
-        && !ppqRecommendedGroup?.querySelector('option[value="glm-5.3"]')
-        && !ppqRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
-        && !ppqRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.7-code"]')
-        && !ppqRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.6"]')
-        && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="glm-5.3"]')
-        && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.2"]')
-        && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.7-code"]')
-        && !!document.querySelector('#ppq-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.6"]');
+      const ppqRecommendedGroup = document.querySelector<HTMLElement>('#ppq-model-select optgroup[label="Recommended"]');
+      const ppqLatestGrokRecommended = !!ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="claude-fable-5.1"]')
+        && !!ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="x-ai/grok-4.3"]')
+        && !ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="grok-4.20"]')
+        && !!document.querySelector<HTMLElement>('#ppq-model-select optgroup[label="Other models"] option[value="grok-4.20"]');
+      const ppqLatestGeminiRecommended = !!ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="google/gemini-3.8-flash"]')
+        && !ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="google/gemini-3.7-flash"]')
+        && !ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="gemini-3-flash-preview"]')
+        && !!document.querySelector<HTMLElement>('#ppq-model-select optgroup[label="Other models"] option[value="google/gemini-3.7-flash"]')
+        && !!document.querySelector<HTMLElement>('#ppq-model-select optgroup[label="Other models"] option[value="gemini-3-flash-preview"]');
+      const ppqLatestGlmKimiRecommended = !!ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="glm-5.3-flash"]')
+        && !!ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="moonshotai/kimi-k3"]')
+        && !ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="glm-5.3"]')
+        && !ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="z-ai/glm-5.2"]')
+        && !ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="moonshotai/kimi-k2.7-code"]')
+        && !ppqRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="moonshotai/kimi-k2.6"]')
+        && !!document.querySelector<HTMLElement>('#ppq-model-select optgroup[label="Other models"] option[value="glm-5.3"]')
+        && !!document.querySelector<HTMLElement>('#ppq-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.2"]')
+        && !!document.querySelector<HTMLElement>('#ppq-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.7-code"]')
+        && !!document.querySelector<HTMLElement>('#ppq-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.6"]');
       controls.updatePpqModelPricing('ppq-b');
-      const ppqModelPricing = document.getElementById('ppq-model-select')?.value === 'ppq-b'
-        && (document.getElementById('ppq-model-pricing')?.textContent || '').includes('$0.50/M in');
+      const ppqModelPricing = (document.getElementById('ppq-model-select') as HTMLSelectElement|null)?.value === 'ppq-b'
+        && ((document.getElementById('ppq-model-pricing') as HTMLElement|null)?.textContent || '').includes('$0.50/M in');
 
       localStorage.setItem('labcharts-custom-model', 'outside-model');
       controls.renderCustomApiModelDropdown([
@@ -364,55 +364,55 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         { id: 'moonshotai/kimi-k2.7-code', name: 'Kimi K2.7 Code' },
         { id: 'moonshotai/kimi-k2.6', name: 'Kimi K2.6' },
       ]);
-      const customRecommendedGroup = document.querySelector('#custom-model-select optgroup[label="Recommended"]');
-      const customGlmKimiRecommended = !!customRecommendedGroup?.querySelector('option[value="claude-fable-5-1"]')
-        && !!customRecommendedGroup?.querySelector('option[value="gemini-3.8-flash"]')
-        && !!customRecommendedGroup?.querySelector('option[value="z-ai/glm-5.3-flash"]')
-        && !!customRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k3"]')
-        && !customRecommendedGroup?.querySelector('option[value="z-ai/glm-5.3"]')
-        && !customRecommendedGroup?.querySelector('option[value="gemini-3.7-flash"]')
-        && !customRecommendedGroup?.querySelector('option[value="z-ai/glm-5.2"]')
-        && !customRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.7-code"]')
-        && !customRecommendedGroup?.querySelector('option[value="moonshotai/kimi-k2.6"]')
-        && !!document.querySelector('#custom-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.3"]')
-        && !!document.querySelector('#custom-model-select optgroup[label="Other models"] option[value="gemini-3.7-flash"]')
-        && !!document.querySelector('#custom-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.2"]')
-        && !!document.querySelector('#custom-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.7-code"]')
-        && !!document.querySelector('#custom-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.6"]');
-      const customModelRenders = document.getElementById('custom-model-select')?.value === '__custom'
-        && document.getElementById('custom-manual-model')?.value === 'outside-model';
-      document.getElementById('custom-manual-model').value = 'manual-model';
+      const customRecommendedGroup = document.querySelector<HTMLElement>('#custom-model-select optgroup[label="Recommended"]');
+      const customGlmKimiRecommended = !!customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="claude-fable-5-1"]')
+        && !!customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="gemini-3.8-flash"]')
+        && !!customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="z-ai/glm-5.3-flash"]')
+        && !!customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="moonshotai/kimi-k3"]')
+        && !customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="z-ai/glm-5.3"]')
+        && !customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="gemini-3.7-flash"]')
+        && !customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="z-ai/glm-5.2"]')
+        && !customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="moonshotai/kimi-k2.7-code"]')
+        && !customRecommendedGroup?.querySelector<HTMLOptionElement>('option[value="moonshotai/kimi-k2.6"]')
+        && !!document.querySelector<HTMLElement>('#custom-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.3"]')
+        && !!document.querySelector<HTMLElement>('#custom-model-select optgroup[label="Other models"] option[value="gemini-3.7-flash"]')
+        && !!document.querySelector<HTMLElement>('#custom-model-select optgroup[label="Other models"] option[value="z-ai/glm-5.2"]')
+        && !!document.querySelector<HTMLElement>('#custom-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.7-code"]')
+        && !!document.querySelector<HTMLElement>('#custom-model-select optgroup[label="Other models"] option[value="moonshotai/kimi-k2.6"]');
+      const customModelRenders = (document.getElementById('custom-model-select') as HTMLSelectElement|null)?.value === '__custom'
+        && (document.getElementById('custom-manual-model') as HTMLInputElement|null)?.value === 'outside-model';
+      (document.getElementById('custom-manual-model') as HTMLInputElement|null)!.value = 'manual-model';
       controls.applyCustomApiManualModel();
       const customManualApplied = localStorage.getItem('labcharts-custom-model') === 'manual-model';
 
       let delegatedClick = 0;
-      let delegatedModel = '';
-      let delegatedPricing = '';
-      let delegatedLocalModel = '';
+      let delegatedModel:unknown = '';
+      let delegatedPricing:unknown = '';
+      let delegatedLocalModel:unknown = '';
       let delegatedAdvisor = 0;
       let delegatedKeyModel = '';
       delegates.installProviderPanelDelegates({
         handleSaveOpenRouterKey: () => { delegatedClick += 1; },
-        setPpqModel: value => { delegatedModel = value; },
-        updatePpqModelPricing: value => { delegatedPricing = value; },
-        setOllamaMainModel: value => { delegatedLocalModel = value; },
+        setPpqModel: (value:unknown) => { delegatedModel = value; },
+        updatePpqModelPricing: (value:unknown) => { delegatedPricing = value; },
+        setOllamaMainModel: (value:unknown) => { delegatedLocalModel = value; },
         refreshModelAdvisor: () => { delegatedAdvisor += 1; },
-        applyCustomApiManualModel: () => { delegatedKeyModel = document.getElementById('delegate-key')?.value || ''; },
+        applyCustomApiManualModel: () => { delegatedKeyModel = (document.getElementById('delegate-key') as HTMLInputElement|null)?.value || ''; },
       });
 
-      const panel = document.getElementById('ai-provider-panel');
-      panel.insertAdjacentHTML('beforeend', `
+      const panel = (document.getElementById('ai-provider-panel') as HTMLElement|null);
+      panel!.insertAdjacentHTML('beforeend', `
         <button id="delegate-save" data-provider-panel-action="save-openrouter-key">Save</button>
         <button id="delegate-unknown" data-provider-panel-action="missing-action">Unknown</button>
         <select id="delegate-ppq" data-provider-panel-change="ppq-model"><option value="delegate-ppq" selected>Delegate PPQ</option></select>
         <select id="delegate-local" data-provider-panel-change="local-ai-model"><option value="local-llm" selected>Local LLM</option></select>
         <input id="delegate-key" data-provider-panel-key="custom-manual-model" value="typed-model">
       `);
-      document.getElementById('delegate-save').click();
-      document.getElementById('delegate-unknown').click();
-      document.getElementById('delegate-ppq').dispatchEvent(new Event('change', { bubbles: true }));
-      document.getElementById('delegate-local').dispatchEvent(new Event('change', { bubbles: true }));
-      document.getElementById('delegate-key').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      (document.getElementById('delegate-save') as HTMLElement|null)!.click();
+      (document.getElementById('delegate-unknown') as HTMLElement|null)!.click();
+      (document.getElementById('delegate-ppq') as HTMLElement|null)!.dispatchEvent(new Event('change', { bubbles: true }));
+      (document.getElementById('delegate-local') as HTMLElement|null)!.dispatchEvent(new Event('change', { bubbles: true }));
+      (document.getElementById('delegate-key') as HTMLInputElement|null)!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       await wait(0);
       const delegatesCovered = delegatedClick === 1
         && delegatedModel === 'delegate-ppq'
@@ -452,8 +452,8 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]);
       }
-      document.getElementById('ai-provider-panel')?.remove();
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      (document.getElementById('ai-provider-panel') as HTMLElement|null)?.remove();
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
     }
   }, { controlsUrl: moduleUrl('/js/provider-model-controls.js') });
 
@@ -466,16 +466,16 @@ test('provider panels cover provider switching key saves balances custom API and
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ panelsUrl }) => {
-    const panels = await import(panelsUrl);
+    const panels = (await import(panelsUrl) as unknown) as Pick<typeof import('../../js/provider-panels.js'),"configureProviderPanelDeps"|"handleRemoveOpenRouterKey"|"switchAIProvider"|"toggleAIPause"|"handleSaveOpenRouterKey"|"refreshOpenRouterBalance"|"handleSaveVeniceKey"|"refreshVeniceBalance"|"handleRemoveVeniceKey"|"handleSaveRoutstrKey"|"handleRemoveRoutstrKey"|"handleSavePpqKey"|"refreshPpqBalance"|"handleSaveCustomApi"|"handleRemoveCustomApi"|"showInsufficientBalanceDialog">;
     const cloudConsent = await import('/js/cloud-ai-consent.js');
     const cryptoStore = await import('/js/crypto.js');
     const nodeSessions = await import('/js/routstr-session.js');
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const jsonResponse = (body, status = 200, headers = {}) => new Response(JSON.stringify(body), {
+    const wait = (ms:number) => new Promise(resolve => setTimeout(resolve, ms));
+    const jsonResponse = (body:unknown, status = 200, headers:Record<string,string> = {}) => new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json', ...headers },
     });
-    const textResponse = (body, status = 200, headers = {}) => new Response(body, { status, headers });
+    const textResponse = (body:BodyInit|null, status = 200, headers:HeadersInit = {}) => new Response(body, { status, headers });
 
     const storageKeys = [
       'labcharts-ai-provider',
@@ -509,7 +509,7 @@ test('provider panels cover provider switching key saves balances custom API and
       'labcharts-custom-models',
       cloudConsent.CLOUD_AI_CONSENT_KEY,
     ];
-    const oldStorage = {};
+    const oldStorage:Record<string,string|null|undefined> = {};
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
     const oldSessionPrevious = sessionStorage.getItem('or_previous_ai_provider');
     const oldGlobals = {
@@ -528,7 +528,7 @@ test('provider panels cover provider switching key saves balances custom API and
       hadProviderBeforeSettings: () => false,
       loadFocusCard: () => { focusLoads += 1; },
       openChatPanel: () => { chatOpened += 1; },
-      openExternal: url => { openedUrl = String(url); return null; },
+      openExternal: (url:unknown) => { openedUrl = String(url); return null; },
       openSettingsModal: () => { settingsOpened += 1; },
     });
 
@@ -556,8 +556,8 @@ test('provider panels cover provider switching key saves balances custom API and
           customScope,
         ].map(scope => [scope, { accepted: true }])),
       }));
-      window.fetch = async function(url, opts = {}) {
-        const href = typeof url === 'string' ? url : url?.url || '';
+      window.fetch = async function(url:Parameters<typeof fetch>[0], opts:RequestInit = {}) {
+        const href = typeof url === 'string' ? url : (url as {url?:string})?.url || '';
         if (href === 'https://openrouter.ai/api/v1/models') {
           return jsonResponse({
             data: [
@@ -606,11 +606,11 @@ test('provider panels cover provider switching key saves balances custom API and
           });
         }
         if (href === '/api/proxy') {
-          const payload = JSON.parse(String(opts.body || '{}'));
-          if (payload.url === 'https://custom.example/v1/models') {
+          const payload = (JSON.parse as (text:unknown)=>unknown)(String(opts.body || '{}'));
+          if ((payload as {url?:unknown}).url === 'https://custom.example/v1/models') {
             return jsonResponse({ data: [{ id: 'z-model', name: 'Z Model' }, { id: 'z-ai/glm-5.2', name: 'GLM 5.2' }, { id: 'openai/gpt-5.5', name: 'GPT 5.5' }, { id: 'a-model', name: 'A Model' }] });
           }
-          if (payload.url === 'https://custom.example/v1/chat/completions') {
+          if ((payload as {url?:unknown}).url === 'https://custom.example/v1/chat/completions') {
             return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
           }
         }
@@ -645,8 +645,8 @@ test('provider panels cover provider switching key saves balances custom API and
       panels.toggleAIPause(true);
       const pauseStoresEnabled = localStorage.getItem('labcharts-ai-paused') === 'false' && focusLoads >= 2;
 
-      const panel = document.getElementById('ai-provider-panel');
-      panel.innerHTML = `
+      const panel = (document.getElementById('ai-provider-panel') as HTMLElement|null);
+      panel!.innerHTML = `
         <input id="openrouter-key-input" value="sk-or-good">
         <button id="save-openrouter-key-btn">Save</button>
         <div id="openrouter-key-status"></div>
@@ -656,11 +656,11 @@ test('provider panels cover provider switching key saves balances custom API and
       await panels.handleSaveOpenRouterKey();
       panels.refreshOpenRouterBalance();
       await wait(50);
-      const openRouterSaveAndBalance = document.getElementById('openrouter-key-status')?.textContent.includes('Connected')
-        && document.getElementById('openrouter-model-select')?.value === 'openai/gpt-6-astra'
-        && (document.getElementById('or-balance')?.textContent || '').includes('$0.75');
+      const openRouterSaveAndBalance = (document.getElementById('openrouter-key-status') as HTMLElement|null)?.textContent.includes('Connected')
+        && (document.getElementById('openrouter-model-select') as HTMLSelectElement|null)?.value === 'openai/gpt-6-astra'
+        && ((document.getElementById('or-balance') as HTMLElement|null)?.textContent || '').includes('$0.75');
 
-      panel.innerHTML = `
+      panel!.innerHTML = `
         <input id="venice-key-input" value="venice-good">
         <button id="save-venice-key-btn">Save</button>
         <div id="venice-key-status"></div>
@@ -670,10 +670,10 @@ test('provider panels cover provider switching key saves balances custom API and
       await panels.handleSaveVeniceKey();
       panels.refreshVeniceBalance();
       await wait(50);
-      const veniceSaveAndBalance = document.getElementById('venice-key-status')?.textContent.includes('Connected')
-        && document.getElementById('venice-model-select')?.value === 'llama-3.3-70b'
-        && (document.getElementById('venice-balance')?.textContent || '').includes('$0.42')
-        && JSON.parse(localStorage.getItem('labcharts-venice-e2ee-models') || '[]').length === 1;
+      const veniceSaveAndBalance = (document.getElementById('venice-key-status') as HTMLElement|null)?.textContent.includes('Connected')
+        && (document.getElementById('venice-model-select') as HTMLSelectElement|null)?.value === 'llama-3.3-70b'
+        && ((document.getElementById('venice-balance') as HTMLElement|null)?.textContent || '').includes('$0.42')
+        && ((JSON.parse as (text:unknown)=>unknown)(localStorage.getItem('labcharts-venice-e2ee-models') || '[]') as {length:unknown}).length === 1;
 
       panels.handleRemoveVeniceKey();
       const veniceRemoveClearsKeyModelsAndE2EE =
@@ -684,7 +684,7 @@ test('provider panels cover provider switching key saves balances custom API and
         && e2eeClears >= 1;
 
       localStorage.setItem('labcharts-routstr-node', 'https://routstr.example');
-      panel.innerHTML = `
+      panel!.innerHTML = `
         <input id="routstr-key-input" value="sk-routstr-good">
         <button id="save-routstr-key-btn">Save</button>
         <div id="routstr-key-status"></div>
@@ -693,13 +693,13 @@ test('provider panels cover provider switching key saves balances custom API and
       await panels.handleSaveRoutstrKey();
       await wait(0);
       const storedRoutstrKey = localStorage.getItem('labcharts-routstr-sessions');
-      const routstrSaveRendersModels = document.getElementById('routstr-key-status')?.textContent.includes('Connected')
+      const routstrSaveRendersModels = (document.getElementById('routstr-key-status') as HTMLElement|null)?.textContent.includes('Connected')
         && storedRoutstrKey?.startsWith('d1:') === true
         && !storedRoutstrKey.includes('sk-routstr-good')
         && nodeSessions.getRoutstrSessionKey() === 'sk-routstr-good'
         && await cryptoStore.encryptedGetItem('labcharts-routstr-key') === ''
-        && document.getElementById('routstr-model-select')?.value === 'claude-sonnet-5'
-        && JSON.parse(localStorage.getItem('labcharts-routstr-vision-models') || '[]').includes('claude-sonnet-4.6');
+        && (document.getElementById('routstr-model-select') as HTMLSelectElement|null)?.value === 'claude-sonnet-5'
+        && ((JSON.parse as (text:unknown)=>unknown)(localStorage.getItem('labcharts-routstr-vision-models') || '[]') as {includes(value:unknown):unknown}).includes('claude-sonnet-4.6');
 
       await nodeSessions.saveRoutstrSessionKey('sk-other-node', 'https://other-node.example');
       await panels.handleRemoveRoutstrKey();
@@ -711,7 +711,7 @@ test('provider panels cover provider switching key saves balances custom API and
         && localStorage.getItem('labcharts-routstr-pricing') === null
         && localStorage.getItem('labcharts-routstr-vision-models') === null;
 
-      panel.innerHTML = `
+      panel!.innerHTML = `
         <input id="ppq-key-input" value="sk-ppq-good">
         <button id="save-ppq-key-btn">Save</button>
         <div id="ppq-key-status"></div>
@@ -721,31 +721,31 @@ test('provider panels cover provider switching key saves balances custom API and
       await panels.handleSavePpqKey();
       await panels.refreshPpqBalance();
       await wait(0);
-      const ppqSaveAndBalance = document.getElementById('ppq-key-status')?.textContent.includes('Connected')
-        && document.getElementById('ppq-model-select')?.value === 'claude-sonnet-5'
-        && (document.getElementById('ppq-balance')?.textContent || '').includes('$0.08');
+      const ppqSaveAndBalance = (document.getElementById('ppq-key-status') as HTMLElement|null)?.textContent.includes('Connected')
+        && (document.getElementById('ppq-model-select') as HTMLSelectElement|null)?.value === 'claude-sonnet-5'
+        && ((document.getElementById('ppq-balance') as HTMLElement|null)?.textContent || '').includes('$0.08');
 
-      panel.innerHTML = `
+      panel!.innerHTML = `
         <input id="custom-url-input" value="https://custom.example/v1/">
         <input id="custom-key-input" value="sk-custom">
       `;
       await panels.handleSaveCustomApi();
       await wait(0);
       const customSaveRendersConnected = localStorage.getItem('labcharts-custom-url') === 'https://custom.example/v1'
-        && document.getElementById('custom-key-status')?.textContent.includes('Connected')
-        && document.getElementById('custom-model-select')?.value === 'openai/gpt-5.5';
+        && (document.getElementById('custom-key-status') as HTMLElement|null)?.textContent.includes('Connected')
+        && (document.getElementById('custom-model-select') as HTMLSelectElement|null)?.value === 'openai/gpt-5.5';
       panels.handleRemoveCustomApi();
       await wait(0);
       const customRemoveRendersDisconnected = !localStorage.getItem('labcharts-custom-url')
-        && document.getElementById('custom-key-status')?.textContent.includes('Not connected');
+        && (document.getElementById('custom-key-status') as HTMLElement|null)?.textContent.includes('Not connected');
 
       panels.showInsufficientBalanceDialog();
-      document.getElementById('or-add-credits').click();
+      (document.getElementById('or-add-credits') as HTMLElement|null)!.click();
       const addCreditsDialog = openedUrl === 'https://openrouter.ai/settings/credits'
-        && !document.getElementById('or-no-balance-overlay')?.classList.contains('show');
+        && !(document.getElementById('or-no-balance-overlay') as HTMLElement|null)?.classList.contains('show');
       panels.showInsufficientBalanceDialog();
-      document.getElementById('or-nb-cancel').click();
-      const cancelBalanceDialog = !document.getElementById('or-no-balance-overlay')?.classList.contains('show');
+      (document.getElementById('or-nb-cancel') as HTMLElement|null)!.click();
+      const cancelBalanceDialog = !(document.getElementById('or-no-balance-overlay') as HTMLElement|null)?.classList.contains('show');
       await wait(325);
       const explicitProviderCallbacksRun = settingsClosed >= 1
         && settingsOpened >= 3
@@ -785,10 +785,10 @@ test('provider panels cover provider switching key saves balances custom API and
       cryptoStore.updateKeyCache('labcharts-custom-key', oldStorage['labcharts-custom-key'] || '');
       if (oldSessionPrevious == null) sessionStorage.removeItem('or_previous_ai_provider');
       else sessionStorage.setItem('or_previous_ai_provider', oldSessionPrevious);
-      document.getElementById('settings-modal')?.remove();
-      document.getElementById('ai-provider-panel')?.remove();
-      document.getElementById('or-no-balance-overlay')?.remove();
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      (document.getElementById('settings-modal') as HTMLElement|null)?.remove();
+      (document.getElementById('ai-provider-panel') as HTMLElement|null)?.remove();
+      (document.getElementById('or-no-balance-overlay') as HTMLElement|null)?.remove();
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
     }
   }, { panelsUrl: moduleUrl('/js/provider-panels.js') });
 
@@ -801,12 +801,12 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ ppqUrl }) => {
-    const ppq = await import(ppqUrl);
+    const ppq = (await import(ppqUrl) as unknown) as Pick<typeof import('../../js/provider-ppq-panels.js'),"copyPpqKeyReveal"|"dismissPpqKeyReveal"|"handleSelectPpqMethod"|"handlePpqTopupPreset"|"ppqShowCustomInput"|"copyPpqPayment"|"cancelPpqTopup"|"handleSavePpqKey"|"handleRemovePpqKey"|"configurePpqPanels"|"handleCreatePpqAccount"|"refreshPpqBalance"|"doPpqTopupCustom"|"doPpqTopup"|"clearPpqTopupTimers">;
     const delegates = await import('/js/provider-panel-delegates.js');
     const cryptoStore = await import('/js/crypto.js');
     const settingsBridge = await import('/js/settings-runtime-bridge.js');
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+    const wait = (ms:number) => new Promise(resolve => setTimeout(resolve, ms));
+    const jsonResponse = (body:unknown, status = 200) => new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -819,7 +819,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       'labcharts-ppq-pricing',
       'labcharts-ppq-vision-models',
     ];
-    const oldStorage = {};
+    const oldStorage:Record<string,string|null|undefined> = {};
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
     const oldGlobals = {
       fetch: window.fetch,
@@ -827,8 +827,8 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       clearInterval: window.clearInterval,
       clipboard: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
     };
-    const intervals = [];
-    const copied = [];
+    const intervals:{id:number;fn:()=>unknown;ms:number;cleared:boolean}[] = [];
+    const copied:string[] = [];
     let nextIntervalId = 1;
     let returnToChatCount = 0;
     let settingsOpened = 0;
@@ -840,17 +840,17 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
       cryptoStore.updateKeyCache('labcharts-ppq-key', '');
-      window.setInterval = (fn, ms) => {
+      (window as unknown as {setInterval:unknown}).setInterval = (fn:()=>unknown, ms:number) => {
         const id = nextIntervalId++;
         intervals.push({ id, fn, ms, cleared: false });
         return id;
       };
-      window.clearInterval = id => {
+      (window as unknown as {clearInterval:unknown}).clearInterval = (id:unknown) => {
         const interval = intervals.find(item => item.id === id);
         if (interval) interval.cleared = true;
       };
-      window.fetch = async function(url) {
-        const href = typeof url === 'string' ? url : url?.url || '';
+      window.fetch = async function(url:Parameters<typeof fetch>[0]) {
+        const href = typeof url === 'string' ? url : (url as {url?:string})?.url || '';
         if (href === 'https://api.ppq.ai/accounts/create') {
           return jsonResponse({ success: true, api_key: 'sk-created', credit_id: 'credit-123' });
         }
@@ -879,7 +879,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       };
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
-        value: { writeText: async text => { copied.push(String(text || '')); } },
+        value: { writeText: async (text:unknown) => { copied.push(String(text || '')); } },
       });
       delegates.installProviderPanelDelegates({
         copyPpqKeyReveal: ppq.copyPpqKeyReveal,
@@ -897,16 +897,16 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
           <div id="ppq-key-status"></div>
         </div>
       `);
-      const panel = document.getElementById('ai-provider-panel');
-      panel.innerHTML = `
+      const panel = (document.getElementById('ai-provider-panel') as HTMLElement|null);
+      panel!.innerHTML = `
         <input id="ppq-key-input" value="sk-ppq-default">
         <button id="save-ppq-key-btn">Save</button>
         <div id="ppq-key-status"></div>
         <div id="ppq-model-area"></div>
       `;
       await ppq.handleSavePpqKey();
-      const defaultSaveUsesNoopReturnCallback = document.getElementById('ppq-key-status')?.textContent.includes('Connected')
-        && document.getElementById('ppq-model-select')?.value === 'claude-sonnet-4.6';
+      const defaultSaveUsesNoopReturnCallback = (document.getElementById('ppq-key-status') as HTMLElement|null)?.textContent.includes('Connected')
+        && (document.getElementById('ppq-model-select') as HTMLSelectElement|null)?.value === 'claude-sonnet-4.6';
 
       localStorage.setItem('labcharts-ppq-key', 'sk-ppq-remove');
       localStorage.setItem('labcharts-ppq-credit-id', 'credit-remove');
@@ -915,11 +915,11 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       localStorage.setItem('labcharts-ppq-pricing', JSON.stringify({ 'claude-sonnet-4.6': { input: 3, output: 15 } }));
       localStorage.setItem('labcharts-ppq-vision-models', JSON.stringify(['claude-sonnet-4.6']));
       const removePromise = ppq.handleRemovePpqKey();
-      for (let i = 0; i < 50 && !document.getElementById('confirm-dialog-overlay')?.classList.contains('show'); i += 1) {
+      for (let i = 0; i < 50 && !(document.getElementById('confirm-dialog-overlay') as HTMLElement|null)?.classList.contains('show'); i += 1) {
         await wait(10);
       }
-      const removeMessage = document.querySelector('#confirm-dialog-overlay .confirm-message')?.textContent || '';
-      document.getElementById('confirm-ok')?.click();
+      const removeMessage = document.querySelector<HTMLElement>('#confirm-dialog-overlay .confirm-message')?.textContent || '';
+      (document.getElementById('confirm-ok') as HTMLElement|null)?.click();
       await removePromise;
       const removePpqKeyClearsFundsWarningAndState = removeMessage.includes('$1.25 remaining')
         && localStorage.getItem('labcharts-ppq-key') === null
@@ -934,79 +934,79 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
         returnToChatIfOnboarding: () => { returnToChatCount += 1; },
       });
 
-      panel.innerHTML = `
+      panel!.innerHTML = `
         <button data-provider-panel-action="create-ppq-account">Create Account (instant, no signup)</button>
         <div id="ppq-key-status"></div>
       `;
 
       await ppq.handleCreatePpqAccount();
-      const revealPanel = document.getElementById('ai-provider-panel');
+      const revealPanel = (document.getElementById('ai-provider-panel') as HTMLElement|null);
       const accountReveal = revealPanel?.textContent.includes('Save your account details')
         && revealPanel?.textContent.includes('credit-123')
-        && !revealPanel.querySelector('[onclick],[onchange],[oninput],[onkeydown],[onblur],[onsubmit]')
-        && !!revealPanel.querySelector('[data-provider-panel-action="copy-ppq-key-reveal"]')
-        && !!revealPanel.querySelector('[data-provider-panel-action="dismiss-ppq-key-reveal"]');
-      revealPanel.querySelector('[data-provider-panel-action="copy-ppq-key-reveal"]')?.click();
+        && !revealPanel.querySelector<HTMLElement>('[onclick],[onchange],[oninput],[onkeydown],[onblur],[onsubmit]')
+        && !!revealPanel.querySelector<HTMLElement>('[data-provider-panel-action="copy-ppq-key-reveal"]')
+        && !!revealPanel.querySelector<HTMLElement>('[data-provider-panel-action="dismiss-ppq-key-reveal"]');
+      revealPanel!.querySelector<HTMLElement>('[data-provider-panel-action="copy-ppq-key-reveal"]')?.click();
       await wait(0);
       const accountRevealCopyDelegates = copied.some(text => text.includes('API Key: sk-created') && text.includes('Credit ID: credit-123'))
-        && revealPanel.querySelector('[data-provider-panel-action="copy-ppq-key-reveal"]')?.textContent.includes('Copied');
-      revealPanel.querySelector('[data-provider-panel-action="dismiss-ppq-key-reveal"]')?.click();
+        && revealPanel!.querySelector<HTMLElement>('[data-provider-panel-action="copy-ppq-key-reveal"]')?.textContent.includes('Copied');
+      revealPanel!.querySelector<HTMLElement>('[data-provider-panel-action="dismiss-ppq-key-reveal"]')?.click();
       await wait(0);
       await ppq.refreshPpqBalance();
       await wait(0);
-      const dismissRerendersTopup = document.getElementById('ppq-topup-area')?.style.display === 'block'
-        && document.getElementById('ppq-topup-toggle')?.textContent === 'Close'
-        && document.getElementById('ppq-balance')?.textContent.includes('$1.25');
+      const dismissRerendersTopup = (document.getElementById('ppq-topup-area') as HTMLElement|null)?.style.display === 'block'
+        && (document.getElementById('ppq-topup-toggle') as HTMLElement|null)?.textContent === 'Close'
+        && (document.getElementById('ppq-balance') as HTMLElement|null)?.textContent.includes('$1.25');
 
-      document.querySelector('[data-provider-panel-action="select-ppq-method"][data-ppq-method="xmr"]')?.click();
+      document.querySelector<HTMLElement>('[data-provider-panel-action="select-ppq-method"][data-ppq-method="xmr"]')?.click();
       await wait(0);
-      const methodSelected = document.querySelector('.ppq-method-btn.active .ppq-method-label')?.textContent === 'Monero'
-        && (document.getElementById('ppq-topup-area')?.textContent || '').includes('min $5');
-      document.querySelector('[data-provider-panel-action="show-ppq-custom-input"]')?.click();
+      const methodSelected = document.querySelector<HTMLElement>('.ppq-method-btn.active .ppq-method-label')?.textContent === 'Monero'
+        && ((document.getElementById('ppq-topup-area') as HTMLElement|null)?.textContent || '').includes('min $5');
+      document.querySelector<HTMLElement>('[data-provider-panel-action="show-ppq-custom-input"]')?.click();
       await wait(0);
-      const customInputRenders = !!document.getElementById('ppq-custom-amount');
-      document.getElementById('ppq-custom-amount').value = '4';
+      const customInputRenders = !!(document.getElementById('ppq-custom-amount') as HTMLInputElement|null);
+      (document.getElementById('ppq-custom-amount') as HTMLInputElement|null)!.value = '4';
       ppq.doPpqTopupCustom();
-      const rejectsLowCustom = [...document.querySelectorAll('.notification-toast')]
+      const rejectsLowCustom = [...document.querySelectorAll<HTMLElement>('.notification-toast')]
         .some(el => el.textContent.includes('Minimum amount is $5'));
 
-      document.getElementById('ppq-custom-amount').value = '6';
+      (document.getElementById('ppq-custom-amount') as HTMLInputElement|null)!.value = '6';
       ppq.doPpqTopupCustom();
       await wait(250);
-      const invoiceRenders = (document.getElementById('ppq-topup-area')?.textContent || '').includes('Monero')
-        && document.querySelector('#ppq-topup-area a[href^="monero:"]') !== null
-        && (document.getElementById('ppq-topup-area')?.textContent || '').includes('Show address');
-      const topupArea = document.getElementById('ppq-topup-area');
-      const invoiceUsesDelegatedActions = !topupArea.querySelector('[onclick],[onchange],[oninput],[onkeydown],[onblur],[onsubmit]')
-        && !!topupArea.querySelector('[data-provider-panel-action="copy-ppq-payment"]')
-        && !!topupArea.querySelector('[data-provider-panel-action="cancel-ppq-topup"]');
-      document.querySelector('#ppq-topup-area [data-provider-panel-action="copy-ppq-payment"]')?.click();
+      const invoiceRenders = ((document.getElementById('ppq-topup-area') as HTMLElement|null)?.textContent || '').includes('Monero')
+        && document.querySelector<HTMLElement>('#ppq-topup-area a[href^="monero:"]') !== null
+        && ((document.getElementById('ppq-topup-area') as HTMLElement|null)?.textContent || '').includes('Show address');
+      const topupArea = (document.getElementById('ppq-topup-area') as HTMLElement|null);
+      const invoiceUsesDelegatedActions = !topupArea!.querySelector<HTMLElement>('[onclick],[onchange],[oninput],[onkeydown],[onblur],[onsubmit]')
+        && !!topupArea!.querySelector<HTMLElement>('[data-provider-panel-action="copy-ppq-payment"]')
+        && !!topupArea!.querySelector<HTMLElement>('[data-provider-panel-action="cancel-ppq-topup"]');
+      document.querySelector<HTMLElement>('#ppq-topup-area [data-provider-panel-action="copy-ppq-payment"]')?.click();
       await wait(0);
       const invoiceCopyDelegates = copied.includes('44AFFq5kSiGBoZ');
       const paidPoll = intervals.find(item => item.ms === 3000 && !item.cleared);
       const paidPollIntervalScheduled = !!paidPoll;
       if (paidPoll) await paidPoll.fn();
-      const paidInvoiceUpdatesBalance = (document.getElementById('ppq-topup-area')?.textContent || '').includes('Payment received')
-        && document.getElementById('ppq-balance')?.textContent.includes('$1.25');
+      const paidInvoiceUpdatesBalance = ((document.getElementById('ppq-topup-area') as HTMLElement|null)?.textContent || '').includes('Payment received')
+        && (document.getElementById('ppq-balance') as HTMLElement|null)?.textContent.includes('$1.25');
 
       createMode = 'expired';
       await ppq.doPpqTopup(2);
       const expiredPoll = [...intervals].reverse().find(item => item.ms === 3000 && !item.cleared);
       const expiredPollIntervalScheduled = !!expiredPoll;
       if (expiredPoll) await expiredPoll.fn();
-      const expiredInvoice = (document.getElementById('ppq-topup-status')?.textContent || '').includes('Invoice expired');
+      const expiredInvoice = ((document.getElementById('ppq-topup-status') as HTMLElement|null)?.textContent || '').includes('Invoice expired');
 
       createMode = 'error';
       await ppq.doPpqTopup(2);
-      const topupError = (document.getElementById('ppq-topup-area')?.textContent || '').includes('bad topup');
+      const topupError = ((document.getElementById('ppq-topup-area') as HTMLElement|null)?.textContent || '').includes('bad topup');
 
       createMode = 'paid';
       await ppq.doPpqTopup(2);
       const cancelPoll = [...intervals].reverse().find(item => item.ms === 3000 && !item.cleared);
       const cancelPollIntervalScheduled = !!cancelPoll;
-      document.querySelector('#ppq-topup-area [data-provider-panel-action="cancel-ppq-topup"]')?.click();
+      document.querySelector<HTMLElement>('#ppq-topup-area [data-provider-panel-action="cancel-ppq-topup"]')?.click();
       await wait(0);
-      const cancelHidesArea = document.getElementById('ppq-topup-area')?.style.display === 'none'
+      const cancelHidesArea = (document.getElementById('ppq-topup-area') as HTMLElement|null)?.style.display === 'none'
         && !!cancelPoll
         && intervals.find(item => item.id === cancelPoll.id)?.cleared === true;
 
@@ -1038,19 +1038,19 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       window.clearInterval = oldGlobals.clearInterval;
       settingsBridge.configureSettingsModuleBridge(previousSettingsBridge);
       if (oldGlobals.clipboard) Object.defineProperty(navigator, 'clipboard', oldGlobals.clipboard);
-      else delete navigator.clipboard;
+      else delete (navigator as unknown as {clipboard?:unknown}).clipboard;
       ppq.configurePpqPanels({ returnToChatIfOnboarding: () => {} });
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]);
       }
       cryptoStore.updateKeyCache('labcharts-ppq-key', oldStorage['labcharts-ppq-key'] || '');
-      document.getElementById('ai-provider-panel')?.remove();
-      document.getElementById('ppq-topup-toggle')?.remove();
-      document.getElementById('ppq-topup-area')?.remove();
-      document.getElementById('ppq-balance')?.remove();
-      document.getElementById('confirm-dialog-overlay')?.remove();
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      (document.getElementById('ai-provider-panel') as HTMLElement|null)?.remove();
+      (document.getElementById('ppq-topup-toggle') as HTMLElement|null)?.remove();
+      (document.getElementById('ppq-topup-area') as HTMLElement|null)?.remove();
+      (document.getElementById('ppq-balance') as HTMLElement|null)?.remove();
+      (document.getElementById('confirm-dialog-overlay') as HTMLElement|null)?.remove();
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
     }
   }, { ppqUrl: moduleUrl('/js/provider-ppq-panels.js') });
 
