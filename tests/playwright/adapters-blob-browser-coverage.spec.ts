@@ -1,7 +1,9 @@
+import type {AdapterParsedMarker} from "../../js/adapters.js";
+type BlobFixtureOperations=Pick<typeof import("../../js/blob-storage.js"),"getBlob"|"setBlob"|"deleteBlob"|"getBlobStorageSize"|"shouldUseBlob">;
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = path => `${path}?adapterBlobCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path:string) => `${path}?adapterBlobCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   status: 200, body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
@@ -11,10 +13,10 @@ test('adapter browser coverage normalizes specialty lab markers through registry
   await openBlankPage(page, '/adapter-browser-coverage');
 
   const results = await page.evaluate(async ({ adaptersUrl, catalogUrl, normalizationUrl }) => {
-    const adapters = await import(adaptersUrl);
-    const catalog = await import(catalogUrl);
-    const normalization = await import(normalizationUrl);
-    const outcomes = {};
+    const adapters = await ((import(adaptersUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/adapters.js"), "getAdapterByTestType" | "getAllAdapterMarkers" | "detectProduct" | "normalizeWithAdapter"> >);
+    const catalog = await ((import(catalogUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/mosaic-oat-catalog.js"), "MOSAIC_OAT_MARKERS" | "MOSAIC_MOAT_MARKERS"> >);
+    const normalization = await ((import(normalizationUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/pdf-import-marker-normalization.js"), "normalizeProductScopedAdapterMarkers" | "normalizeParsedImportMarkers"> >);
+    const outcomes:Record<string,unknown> = {};
 
     const fattyAcids = adapters.getAdapterByTestType('fattyAcids');
     const metabolomix = adapters.getAdapterByTestType('Metabolomix+');
@@ -46,19 +48,19 @@ test('adapter browser coverage normalizes specialty lab markers through registry
     const detectedBiostarks = adapters.detectProduct('plain.pdf', 'Bio Starks dried blood spot report');
     outcomes.detectProductFindsAllSpecialtyAdapters =
       detectedFA?.adapter?.id === 'fattyAcids'
-      && detectedFA.product.prefix === 'spadiaFA'
+      && detectedFA!.product.prefix === 'spadiaFA'
       && detectedMetabolomix?.adapter?.id === 'metabolomix'
-      && detectedMetabolomix.product.prefix === 'metabolomix'
+      && detectedMetabolomix!.product.prefix === 'metabolomix'
       && detectedMosaic?.adapter?.id === 'mosaicOat'
-      && detectedMosaic.product.prefix === 'mosaicOat'
+      && detectedMosaic!.product.prefix === 'mosaicOat'
       && detectedMoat?.adapter?.id === 'mosaicOat'
-      && detectedMoat.product.prefix === 'mosaicMoat'
+      && detectedMoat!.product.prefix === 'mosaicMoat'
       && genericGenova === null
       && unrelated3200 === null
       && detectedBiostarks?.adapter?.id === 'biostarks'
-      && detectedBiostarks.product.prefix === 'biostarks';
+      && detectedBiostarks!.product.prefix === 'biostarks';
 
-    const faMarkers = [
+    const faMarkers:AdapterParsedMarker[] = [
       { rawName: 'DHA', mappedKey: 'fattyAcids.dhaC22_6' },
       { rawName: 'LDL Cholesterol', mappedKey: 'lipids.ldl', suggestedCategoryLabel: 'Fatty Acids' },
       { rawName: 'Custom ratio 1', suggestedCategoryLabel: 'Acme Balance Panel' },
@@ -66,23 +68,23 @@ test('adapter browser coverage normalizes specialty lab markers through registry
     ];
     adapters.normalizeWithAdapter(fattyAcids, faMarkers, 'spadia-results.pdf', '', null);
 
-    const faFallbackMarkers = [{ rawName: 'Alpha One', suggestedCategoryLabel: 'Cell Balance' }];
+    const faFallbackMarkers:AdapterParsedMarker[] = [{ rawName: 'Alpha One', suggestedCategoryLabel: 'Cell Balance' }];
     adapters.normalizeWithAdapter(fattyAcids, faFallbackMarkers, 'unknown-results.pdf', '', null);
 
-    const faDefaultMarkers = [{ rawName: 'No Label Marker' }];
+    const faDefaultMarkers:AdapterParsedMarker[] = [{ rawName: 'No Label Marker' }];
     adapters.normalizeWithAdapter(fattyAcids, faDefaultMarkers, 'unknown-results.pdf', '', null);
 
     outcomes.fattyAcidsNormalizePrefixesNonStandardMarkersAndSkipsSchemaKeys =
-      faMarkers[0].mappedKey === null
-      && faMarkers[0].suggestedKey === 'spadiaFA.dhaC22_6'
-      && faMarkers[0].suggestedGroup === 'Fatty Acids'
-      && faMarkers[1].mappedKey === 'lipids.ldl'
-      && faMarkers[2].suggestedKey === 'spadiaFA.Customratio1'
-      && faMarkers[3].suggestedKey === 'spadiaFA.Unlabeledratio'
-      && faFallbackMarkers[0].suggestedKey === 'cellbalanceFA.AlphaOne'
-      && faDefaultMarkers[0].suggestedKey === 'fattyAcidsTest.NoLabelMarker';
+      faMarkers[0]!.mappedKey === null
+      && faMarkers[0]!.suggestedKey === 'spadiaFA.dhaC22_6'
+      && faMarkers[0]!.suggestedGroup === 'Fatty Acids'
+      && faMarkers[1]!.mappedKey === 'lipids.ldl'
+      && faMarkers[2]!.suggestedKey === 'spadiaFA.Customratio1'
+      && faMarkers[3]!.suggestedKey === 'spadiaFA.Unlabeledratio'
+      && faFallbackMarkers[0]!.suggestedKey === 'cellbalanceFA.AlphaOne'
+      && faDefaultMarkers[0]!.suggestedKey === 'fattyAcidsTest.NoLabelMarker';
 
-    const metabolomixMarkers = [
+    const metabolomixMarkers:AdapterParsedMarker[] = [
       { rawName: 'Omega-3 Index', mappedKey: 'fattyAcids.omega3Index' },
       { rawName: 'Citramalic Acid', mappedKey: 'oatMicrobial.citramalic' },
       { rawName: 'Pyruvic Acid', mappedKey: 'oatMetabolic.pyruvic' },
@@ -92,55 +94,55 @@ test('adapter browser coverage normalizes specialty lab markers through registry
       { rawName: 'Lead', mappedKey: 'toxicElements.lead' },
       { rawName: 'Linoleic Acid', suggestedKey: 'custom.linoleicAcid' },
     ];
-    normalization.normalizeProductScopedAdapterMarkers(metabolomix, metabolomixMarkers, detectedMetabolomix.product, 'Genova Diagnostics');
+    normalization.normalizeProductScopedAdapterMarkers(metabolomix, metabolomixMarkers, detectedMetabolomix!.product, 'Genova Diagnostics');
     outcomes.metabolomixScopesEveryPanelToOfficialProductSections =
-      metabolomixMarkers[0].mappedKey === null
-      && metabolomixMarkers[0].suggestedKey === 'metabolomixFA.omega3Index'
-      && metabolomixMarkers[0].suggestedCategoryLabel === 'Metabolomix+: Essential & Metabolic Fatty Acids'
-      && metabolomixMarkers[1].suggestedKey === 'metabolomixDysbiosis.citramalic'
-      && metabolomixMarkers[2].suggestedKey === 'metabolomixMitochondrial.pyruvic'
-      && metabolomixMarkers[3].suggestedKey === 'metabolomixVitamins.methylmalonic'
-      && metabolomixMarkers[4].suggestedKey === 'metabolomixDetox.pyroglutamic'
-      && metabolomixMarkers[5].suggestedKey === 'metabolomixAminoAcids.arginine'
-      && metabolomixMarkers[6].suggestedKey === 'metabolomixToxicElements.lead'
-      && metabolomixMarkers[7].suggestedKey === 'metabolomixFA.linoleicAcid'
+      metabolomixMarkers[0]!.mappedKey === null
+      && metabolomixMarkers[0]!.suggestedKey === 'metabolomixFA.omega3Index'
+      && metabolomixMarkers[0]!.suggestedCategoryLabel === 'Metabolomix+: Essential & Metabolic Fatty Acids'
+      && metabolomixMarkers[1]!.suggestedKey === 'metabolomixDysbiosis.citramalic'
+      && metabolomixMarkers[2]!.suggestedKey === 'metabolomixMitochondrial.pyruvic'
+      && metabolomixMarkers[3]!.suggestedKey === 'metabolomixVitamins.methylmalonic'
+      && metabolomixMarkers[4]!.suggestedKey === 'metabolomixDetox.pyroglutamic'
+      && metabolomixMarkers[5]!.suggestedKey === 'metabolomixAminoAcids.arginine'
+      && metabolomixMarkers[6]!.suggestedKey === 'metabolomixToxicElements.lead'
+      && metabolomixMarkers[7]!.suggestedKey === 'metabolomixFA.linoleicAcid'
       && metabolomixMarkers.every(marker => marker.suggestedGroup === 'Metabolomix+');
 
-    const mosaicMarkers = [
+    const mosaicMarkers:AdapterParsedMarker[] = [
       { rawName: 'Citramalic Acid', mappedKey: 'oatMicrobial.citramalic' },
       { rawName: 'Pyruvic Acid', mappedKey: 'oatMetabolic.pyruvic' },
       { rawName: 'Homovanillic (HVA)' },
       { rawName: 'Uracil', mappedKey: 'oatNeuro.uracil' },
     ];
-    normalization.normalizeProductScopedAdapterMarkers(mosaicOat, mosaicMarkers, detectedMosaic.product, 'Mosaic Diagnostics');
-    const moatMarkers = [
+    normalization.normalizeProductScopedAdapterMarkers(mosaicOat, mosaicMarkers, detectedMosaic!.product, 'Mosaic Diagnostics');
+    const moatMarkers:AdapterParsedMarker[] = [
       { rawName: 'Citramalic Acid', mappedKey: 'oatMicrobial.citramalic' },
       { rawName: '3-Hydroxy-3-methylglutaric', mappedKey: 'oatNutritional.hmg' },
     ];
-    normalization.normalizeProductScopedAdapterMarkers(mosaicOat, moatMarkers, detectedMoat.product, 'Mosaic MOAT');
+    normalization.normalizeProductScopedAdapterMarkers(mosaicOat, moatMarkers, detectedMoat!.product, 'Mosaic MOAT');
     outcomes.mosaicOatAndMoatUseSeparateProductHistories =
-      mosaicMarkers[0].suggestedKey === 'mosaicOatYeastFungal.citramalic'
-      && mosaicMarkers[0].suggestedCategoryLabel === 'Mosaic OAT: Yeast and Fungal Markers'
-      && mosaicMarkers[1].suggestedKey === 'mosaicOatGlycolytic.pyruvic'
-      && mosaicMarkers[2].suggestedKey === 'mosaicOatNeurotransmitters.hva'
-      && mosaicMarkers[3].suggestedKey === 'mosaicOatPyrimidine.uracil'
-      && moatMarkers[0].suggestedKey === 'mosaicMoat.citramalic'
-      && moatMarkers[0].suggestedCategoryLabel === 'Mosaic MOAT: Yeast and Fungal Markers'
-      && moatMarkers[1].suggestedKey === 'mosaicMoat.hmg'
-      && moatMarkers[1].suggestedCategoryLabel === 'Mosaic MOAT: Additional Indicators'
-      && moatMarkers[0].suggestedGroup === 'Mosaic MOAT';
+      mosaicMarkers[0]!.suggestedKey === 'mosaicOatYeastFungal.citramalic'
+      && mosaicMarkers[0]!.suggestedCategoryLabel === 'Mosaic OAT: Yeast and Fungal Markers'
+      && mosaicMarkers[1]!.suggestedKey === 'mosaicOatGlycolytic.pyruvic'
+      && mosaicMarkers[2]!.suggestedKey === 'mosaicOatNeurotransmitters.hva'
+      && mosaicMarkers[3]!.suggestedKey === 'mosaicOatPyrimidine.uracil'
+      && moatMarkers[0]!.suggestedKey === 'mosaicMoat.citramalic'
+      && moatMarkers[0]!.suggestedCategoryLabel === 'Mosaic MOAT: Yeast and Fungal Markers'
+      && moatMarkers[1]!.suggestedKey === 'mosaicMoat.hmg'
+      && moatMarkers[1]!.suggestedCategoryLabel === 'Mosaic MOAT: Additional Indicators'
+      && moatMarkers[0]!.suggestedGroup === 'Mosaic MOAT';
 
-    const acmeMarkers = [
+    const acmeMarkers:AdapterParsedMarker[] = [
       { rawName: 'Pyruvic Acid', mappedKey: 'oatMetabolic.pyruvic' },
       { rawName: '2-Hydroxy Example' },
       { rawName: '3-Hydroxy Example' },
     ];
     normalization.normalizeProductScopedAdapterMarkers(oat, acmeMarkers, null, 'Acme Functional Lab');
     outcomes.otherOatLabsReceiveStableLabScopedKeys =
-      acmeMarkers[0].suggestedKey === 'acmeFunctionalLabOatMitochondrial.pyruvic'
-      && acmeMarkers[0].suggestedGroup === 'Acme Functional Lab OAT'
-      && acmeMarkers[1].suggestedKey === 'acmeFunctionalLabOatOrganicAcids.n2HydroxyExample'
-      && acmeMarkers[2].suggestedKey === 'acmeFunctionalLabOatOrganicAcids.n3HydroxyExample';
+      acmeMarkers[0]!.suggestedKey === 'acmeFunctionalLabOatMitochondrial.pyruvic'
+      && acmeMarkers[0]!.suggestedGroup === 'Acme Functional Lab OAT'
+      && acmeMarkers[1]!.suggestedKey === 'acmeFunctionalLabOatOrganicAcids.n2HydroxyExample'
+      && acmeMarkers[2]!.suggestedKey === 'acmeFunctionalLabOatOrganicAcids.n3HydroxyExample';
 
     const pipelineMetabolomix = normalization.normalizeParsedImportMarkers({
       testType: 'OAT',
@@ -206,39 +208,39 @@ test('adapter browser coverage normalizes specialty lab markers through registry
       existingKeys: new Set(),
     });
     outcomes.fullPipelineDoesNotAliasProductKeysBackToGenericOat =
-      pipelineMetabolomix.markers[0].mappedKey === null
-      && pipelineMetabolomix.markers[0].suggestedKey === 'metabolomixMitochondrial.pyruvic'
-      && pipelineMosaic.markers[0].matched === true
-      && pipelineMosaic.markers[0].mappedKey === 'mosaicOatGlycolytic.pyruvic'
-      && pipelineOtherOat.markers[0].suggestedKey === 'acmeFunctionalLabOatMitochondrial.pyruvic'
-      && pipelineMetabolomixReimport.markers[0].matched === true
-      && pipelineMetabolomixReimport.markers[0].mappedKey === 'metabolomixMitochondrial.pyruvic'
-      && pipelineMosaicReimport.markers[0].matched === true
-      && pipelineMosaicReimport.markers[0].mappedKey === 'mosaicOatGlycolytic.pyruvic'
-      && pipelineMoatByDeclaredType.markers[0].mappedKey === 'mosaicMoat.hmg'
-      && pipelineBloodMisclassification.markers[0].suggestedKey === 'metabolomixMitochondrial.pyruvic'
-      && pipelineMetabolomix.markers[0].suggestedKey !== pipelineMosaic.markers[0].suggestedKey;
+      pipelineMetabolomix.markers[0]!.mappedKey === null
+      && pipelineMetabolomix.markers[0]!.suggestedKey === 'metabolomixMitochondrial.pyruvic'
+      && pipelineMosaic.markers[0]!.matched === true
+      && pipelineMosaic.markers[0]!.mappedKey === 'mosaicOatGlycolytic.pyruvic'
+      && pipelineOtherOat.markers[0]!.suggestedKey === 'acmeFunctionalLabOatMitochondrial.pyruvic'
+      && pipelineMetabolomixReimport.markers[0]!.matched === true
+      && pipelineMetabolomixReimport.markers[0]!.mappedKey === 'metabolomixMitochondrial.pyruvic'
+      && pipelineMosaicReimport.markers[0]!.matched === true
+      && pipelineMosaicReimport.markers[0]!.mappedKey === 'mosaicOatGlycolytic.pyruvic'
+      && pipelineMoatByDeclaredType.markers[0]!.mappedKey === 'mosaicMoat.hmg'
+      && pipelineBloodMisclassification.markers[0]!.suggestedKey === 'metabolomixMitochondrial.pyruvic'
+      && pipelineMetabolomix.markers[0]!.suggestedKey !== pipelineMosaic.markers[0]!.suggestedKey;
 
-    const biostarksMarkers = [
+    const biostarksMarkers:AdapterParsedMarker[] = [
       { rawName: 'DHA', mappedKey: 'biostarksFA.dha' },
       { rawName: 'Magnesium', mappedKey: 'electrolytes.magnesium', unit: '\u00b5g/gHb' },
       { rawName: 'Vitamin E', mappedKey: null },
       { rawName: 'Glucose', mappedKey: 'biochemistry.glucose', unit: 'mmol/l' },
       { rawName: 'T/C Ratio' },
     ];
-    adapters.normalizeWithAdapter(biostarks, biostarksMarkers, 'biostarks.pdf', '', detectedBiostarks.product);
+    adapters.normalizeWithAdapter(biostarks, biostarksMarkers, 'biostarks.pdf', '', detectedBiostarks!.product);
     outcomes.biostarksNormalizeHandlesExistingKeysMineralUnitsAndAliases =
-      biostarksMarkers[0].mappedKey === 'biostarksFA.dha'
-      && biostarksMarkers[1].mappedKey === null
-      && biostarksMarkers[1].suggestedKey === 'biostarksMineral.magnesium'
-      && biostarksMarkers[1].suggestedGroup === 'BioStarks'
-      && biostarksMarkers[2].suggestedKey === 'biostarksVitamin.vitaminE'
-      && biostarksMarkers[3].mappedKey === 'biochemistry.glucose'
-      && biostarksMarkers[4].suggestedKey === 'biostarksHormone.testCortisolRatio';
+      biostarksMarkers[0]!.mappedKey === 'biostarksFA.dha'
+      && biostarksMarkers[1]!.mappedKey === null
+      && biostarksMarkers[1]!.suggestedKey === 'biostarksMineral.magnesium'
+      && biostarksMarkers[1]!.suggestedGroup === 'BioStarks'
+      && biostarksMarkers[2]!.suggestedKey === 'biostarksVitamin.vitaminE'
+      && biostarksMarkers[3]!.mappedKey === 'biochemistry.glucose'
+      && biostarksMarkers[4]!.suggestedKey === 'biostarksHormone.testCortisolRatio';
 
-    const unchanged = [{ rawName: 'No-op' }];
+    const unchanged:AdapterParsedMarker[] = [{ rawName: 'No-op' }];
     adapters.normalizeWithAdapter(null, unchanged, '', '', null);
-    outcomes.normalizeWithMissingAdapterIsNoop = unchanged[0].suggestedKey === undefined;
+    outcomes.normalizeWithMissingAdapterIsNoop = unchanged[0]!.suggestedKey === undefined;
 
     outcomes.allOutcomesReached = true;
     return outcomes;
@@ -257,8 +259,8 @@ test('blob storage browser coverage exercises size diagnostics and IDB failure r
   await openBlankPage(page, '/blob-storage-browser-coverage');
 
   const results = await page.evaluate(async ({ blobUrl }) => {
-    const blobStorage = await import(blobUrl);
-    const outcomes = {};
+    const blobStorage = await ((import(blobUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/blob-storage.js"), "deleteBlob" | "getBlobStorageSize" | "setBlob" | "getBlob" | "shouldUseBlob"> >);
+    const outcomes:Record<string,unknown> = {};
     const key = `coverage-${Date.now()}-${Math.random().toString(36).slice(2)}-imported`;
     const bufferKey = `${key}-buffer-imported`;
 
@@ -269,7 +271,7 @@ test('blob storage browser coverage exercises size diagnostics and IDB failure r
       await blobStorage.setBlob(key, 'abcdef');
       await blobStorage.setBlob(bufferKey, new Uint8Array([1, 2, 3, 4]).buffer);
       const storedText = await blobStorage.getBlob(key);
-      const storedBuffer = await blobStorage.getBlob(bufferKey);
+      const storedBuffer = await blobStorage.getBlob<unknown>(bufferKey);
       const after = await blobStorage.getBlobStorageSize();
 
       outcomes.realIndexedDBStoresReadsSizesAndDeletes =
@@ -288,18 +290,18 @@ test('blob storage browser coverage exercises size diagnostics and IDB failure r
       await blobStorage.deleteBlob(bufferKey).catch(() => {});
     }
 
-    const withFakeIndexedDB = async (mode, callback) => {
+    const withFakeIndexedDB = async <Result,>(mode:string, callback:(mod:BlobFixtureOperations,warnings:string[])=>Result|Promise<Result>) => {
       const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'indexedDB');
       const originalWarn = console.warn;
-      const warnings = [];
+      const warnings:string[] = [];
       console.warn = (...args) => warnings.push(args.map(String).join(' '));
       const restore = () => {
         console.warn = originalWarn;
         if (originalDescriptor) Object.defineProperty(window, 'indexedDB', originalDescriptor);
-        else delete window.indexedDB;
+        else delete (window as {indexedDB?:unknown}).indexedDB;
       };
-      const failRequest = (label, transaction) => {
-        const request = { error: new Error(label) };
+      const failRequest = (label:string, transaction:{error?:unknown;onerror?:()=>unknown}) => {
+        const request:{error:Error;onerror?:()=>unknown} = { error: new Error(label) };
         queueMicrotask(() => {
           request.onerror?.();
           transaction.error = request.error;
@@ -311,7 +313,7 @@ test('blob storage browser coverage exercises size diagnostics and IDB failure r
         objectStoreNames: { contains: () => true },
         createObjectStore: () => {},
         transaction: () => {
-          const transaction = {
+          const transaction:{error?:unknown;onerror?:()=>unknown;objectStore:()=>{get:()=>ReturnType<typeof failRequest>;put:()=>ReturnType<typeof failRequest>;delete:()=>ReturnType<typeof failRequest>;getAll:()=>ReturnType<typeof failRequest>}} = {
             objectStore: () => ({
               get: () => failRequest('get failed', transaction),
               put: () => failRequest('put failed', transaction),
@@ -324,7 +326,7 @@ test('blob storage browser coverage exercises size diagnostics and IDB failure r
       };
       const fakeIndexedDB = {
         open: () => {
-          const request = {
+          const request:{result:typeof fakeDb;error:Error;onerror?:()=>unknown;onblocked?:()=>unknown;onsuccess?:()=>unknown} = {
             result: fakeDb,
             error: new Error(`${mode} failed`),
           };
@@ -343,15 +345,15 @@ test('blob storage browser coverage exercises size diagnostics and IDB failure r
       });
 
       try {
-        const mod = await import(`/js/blob-storage.js?fakeBlobStorage=${mode}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+        const mod = await ((import(`/js/blob-storage.js?fakeBlobStorage=${mode}-${Date.now()}-${Math.random().toString(36).slice(2)}`) as Promise<unknown>) as Promise<BlobFixtureOperations>);
         return await callback(mod, warnings);
       } finally {
         restore();
       }
     };
 
-    const readError = mod => mod.getBlob('missing').then(
-      () => '', error => String(error?.message || error),
+    const readError = (mod:BlobFixtureOperations) => mod.getBlob('missing').then(
+      () => '', error => String((error as {message?:unknown}|null|undefined)?.message || error),
     );
     const openError = await withFakeIndexedDB('open-error', async mod => ({
       error: await readError(mod),
@@ -367,7 +369,7 @@ test('blob storage browser coverage exercises size diagnostics and IDB failure r
       try {
         await mod.setBlob('broken-imported', 'value');
       } catch (error) {
-        setError = String(error?.message || error);
+        setError = String((error as {message?:unknown}|null|undefined)?.message || error);
       }
       await mod.deleteBlob('broken-imported');
       return {

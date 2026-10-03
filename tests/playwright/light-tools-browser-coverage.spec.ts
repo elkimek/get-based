@@ -1,9 +1,10 @@
+interface ToolFixtureGlobals {AmbientLightSensor?:unknown;_dismissAimingGuide?:unknown}
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('lightToolsCoverage');
 
-function expectAll(results) {
+function expectAll(results:Record<string,unknown>) {
   for (const [name, passed] of Object.entries(results)) {
     expect.soft(passed, name).toBe(true);
   }
@@ -15,10 +16,10 @@ test('light tools browser coverage exercises storage render and modal flows', as
 
   const results = await page.evaluate(async ({ lightToolsUrl, stateUrl }) => {
     const [lightTools, { state }] = await Promise.all([
-      import(lightToolsUrl),
-      import(stateUrl),
+      ((import(lightToolsUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/light-tools.js"), "configureLightTools" | "getMeasurements" | "saveMeasurement" | "getMeasurementsForRoom" | "deleteMeasurement" | "renderLightTools" | "aimingGuideHTML" | "dismissAimingGuide" | "normalizeGoldenHourMinutes" | "openSunriseLogger" | "openLuxMeter" | "closeLuxMeter" | "openFlickerDetector" | "closeFlickerDetector" | "openDarknessMeter" | "closeDarknessMeter" | "openCCTMeter" | "closeCCTMeter" | "openSpectrumClassifier" | "closeSpectrumClassifier" | "openGlassTransmission" | "closeGlassTransmission" | "openEyeLevelAudit" | "closeEyeLevelAudit"> >),
+      ((import(stateUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/state.js"), "state"> >),
     ]);
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const clone = (value:unknown) => value == null ? value : JSON.parse(JSON.stringify(value)) as unknown;
     const saved = {
       importedData: clone(state.importedData),
       currentView: state.currentView,
@@ -32,37 +33,37 @@ test('light tools browser coverage exercises storage render and modal flows', as
       performanceNowDescriptor: Object.getOwnPropertyDescriptor(performance, 'now'),
       performanceNow: performance.now,
       hadAmbientLightSensor: Object.prototype.hasOwnProperty.call(window, 'AmbientLightSensor'),
-      AmbientLightSensor: window.AmbientLightSensor,
+      AmbientLightSensor: (window as unknown as ToolFixtureGlobals).AmbientLightSensor,
     };
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key as string)] as const;
     }));
-    const results = {};
-    const analyzeCalls = [];
-    const spectrumCalls = [];
-    const refreshCalls = [];
-    const navigateCalls = [];
-    const loggedSessions = [];
-    const hydrateCalls = [];
-    let testSunCoords = null;
-    let testSolarZenithAngle = null;
-    let testSessions = [];
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitUntil = async (predicate, timeoutMs = 1000, label = 'browser coverage condition') => {
+    const results:Record<string,unknown> = {};
+    const analyzeCalls:unknown[] = [];
+    const spectrumCalls:{roomId:unknown;value:unknown}[] = [];
+    const refreshCalls:string[] = [];
+    const navigateCalls:unknown[][] = [];
+    const loggedSessions:{eyeExposure?:{durationSec?:unknown};bodyExposure?:{preset?:unknown}}[] = [];
+    const hydrateCalls:unknown[] = [];
+    let testSunCoords:{lat:number;lon:number;source:string}|null = null;
+    let testSolarZenithAngle:((date:Date)=>number)|null = null;
+    let testSessions:{id:string}[] = [];
+    const wait = (ms:number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+    const waitUntil = async (predicate:()=>unknown, timeoutMs = 1000, label = 'browser coverage condition') => {
       const started = Date.now();
       while (!predicate()) {
         if (Date.now() - started > timeoutMs) throw new Error(`Timed out waiting for ${label}`);
         await wait(10);
       }
     };
-    const hasDeleted = id => Array.isArray(state.importedData?._deleted?.lightMeasurements)
+    const hasDeleted = (id:unknown) => Array.isArray(state.importedData?._deleted?.lightMeasurements)
       && state.importedData._deleted.lightMeasurements.includes(id);
 
     try {
       document.querySelectorAll('.modal-overlay.show').forEach(el => el.remove());
       state.currentView = 'light';
-      state.importedData = {
+      (state as {importedData:unknown}).importedData = {
         entries: [],
         lightMeasurements: [
           { id: 'old-lux', tool: 'lux', roomId: 'room-1', value: 100, capturedAt: 1000 },
@@ -79,22 +80,22 @@ test('light tools browser coverage exercises storage render and modal flows', as
         },
       };
       lightTools.configureLightTools({
-        maybeAnalyzeMeasurementAfterSave: entry => analyzeCalls.push(entry.tool),
-        suggestRoomSourceFromSpectrum: async (roomId, value) => {
+        maybeAnalyzeMeasurementAfterSave: (entry:unknown) => analyzeCalls.push((entry as {tool?:unknown}).tool),
+        suggestRoomSourceFromSpectrum: async (roomId:unknown, value:unknown) => {
           spectrumCalls.push({ roomId, value });
         },
         refreshLightEnvironmentAssessment: () => refreshCalls.push('refresh'),
-        navigate: (...args) => navigateCalls.push(args),
+        navigate: (...args:unknown[]) => navigateCalls.push(args),
         getSunCoords: () => testSunCoords,
-        solarZenithAngle: (...args) => testSolarZenithAngle ? testSolarZenithAngle(...args) : null,
+        solarZenithAngle: (...args:[Date]) => testSolarZenithAngle ? testSolarZenithAngle(...args) : null,
         logCompletedSession: async payload => {
-          loggedSessions.push(payload);
+          loggedSessions.push(payload as {eyeExposure?:{durationSec?:unknown};bodyExposure?:{preset?:unknown}});
           return null;
         },
         getSessions: () => testSessions,
-        hydrateSession: async id => hydrateCalls.push(id),
+        hydrateSession: async (id:unknown) => hydrateCalls.push(id),
         getRooms: () => state.importedData?.lightEnvironment?.rooms || [],
-        addRoom: async label => {
+        addRoom: async (label:string) => {
           const id = `test-room-${label.toLowerCase().replace(/\s+/g, '-')}`;
           if (!state.importedData.lightEnvironment) state.importedData.lightEnvironment = { rooms: [], screens: [] };
           state.importedData.lightEnvironment.rooms.push({ id, name: label });
@@ -141,13 +142,13 @@ test('light tools browser coverage exercises storage render and modal flows', as
       await lightTools.saveMeasurement('cct', 2700, { roomId: 'room-2' });
       await wait(80);
       results.navigateSkipsWhileModalOpen = !navigateCalls.some(call => call[0] === 'light'
-        && call[1]?.scrollAnchor === '[data-id="room-2"]');
+        && (call[1] as {scrollAnchor?:unknown}|null|undefined)?.scrollAnchor === '[data-id="room-2"]');
       modalBlocker.remove();
       await lightTools.saveMeasurement('darkness', 0.2, { roomId: 'room-2' });
       await waitUntil(() => navigateCalls.some(call => call[0] === 'light'
-        && call[1]?.scrollAnchor === '[data-id="room-2"]'), 2500, 'room-scoped light navigation');
+        && (call[1] as {scrollAnchor?:unknown}|null|undefined)?.scrollAnchor === '[data-id="room-2"]'), 2500, 'room-scoped light navigation');
       results.navigateUsesRoomScrollAnchor = navigateCalls.some(call => call[0] === 'light'
-        && call[1]?.scrollAnchor === '[data-id="room-2"]');
+        && (call[1] as {scrollAnchor?:unknown}|null|undefined)?.scrollAnchor === '[data-id="room-2"]');
 
       const populatedHtml = lightTools.renderLightTools();
       results.renderShowsMeasuredStatus = populatedHtml.includes('measurements')
@@ -159,13 +160,13 @@ test('light tools browser coverage exercises storage render and modal flows', as
       const guideHost = document.createElement('div');
       guideHost.innerHTML = lightTools.aimingGuideHTML('lux');
       document.body.append(guideHost);
-      const guide = guideHost.querySelector('.tool-aiming-guide');
+      const guide = guideHost.querySelector<HTMLElement>('.tool-aiming-guide');
       lightTools.dismissAimingGuide('lux');
       results.aimingGuideDismissHidesRenderedCard = guide?.style.display === 'none';
       results.aimingGuideDismissPersistsFlag =
         localStorage.getItem('labcharts-aim-guide-lux') === 'dismissed';
       results.aimingGuideDismissSuppressesFutureHtml = lightTools.aimingGuideHTML('lux') === '';
-      results.aimingGuideDismissGlobalRemoved = typeof window._dismissAimingGuide === 'undefined';
+      results.aimingGuideDismissGlobalRemoved = typeof (window as unknown as ToolFixtureGlobals)._dismissAimingGuide === 'undefined';
       let selectorLikeDismissThrew = false;
       try {
         lightTools.dismissAimingGuide('lux"], .tool-aiming-guide');
@@ -177,7 +178,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
       guideHost.remove();
       localStorage.removeItem('labcharts-aim-guide-lux');
       state.importedData.lightMeasurements = [];
-      state.importedData.lightEnvironment.rooms = [];
+      state.importedData.lightEnvironment!.rooms = [];
       const emptyHtml = lightTools.renderLightTools();
       results.renderShowsEmptyStatus = emptyHtml.includes('No measurements yet')
         && emptyHtml.includes('Camera frames stay local')
@@ -207,7 +208,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
       const sunriseNavigateStart = navigateCalls.length;
       lightTools.openSunriseLogger();
       const sunriseOverlay = document.querySelector('[aria-label="Golden hour log"]')?.closest('.modal-overlay');
-      const durationInput = document.getElementById('sunrise-duration');
+      const durationInput = document.getElementById('sunrise-duration') as HTMLInputElement|null;
       if (durationInput) durationInput.value = '500';
       document.getElementById('sunrise-save')?.click();
       await waitUntil(() => navigateCalls.slice(sunriseNavigateStart)
@@ -226,7 +227,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
         timedSunriseText.includes('sunrise') && timedSunriseText.includes('sunset');
       document.querySelector('[aria-label="Golden hour log"]')?.closest('.modal-overlay')?.remove();
 
-      const streamStops = [];
+      const streamStops:string[] = [];
       const makeTrack = () => ({
         stop: () => streamStops.push('stop'),
         getSettings: () => ({
@@ -259,8 +260,8 @@ test('light tools browser coverage exercises storage render and modal flows', as
       HTMLMediaElement.prototype.play = async function play() {
         return undefined;
       };
-      HTMLCanvasElement.prototype.getContext = function getContext(type, options) {
-        if (type !== '2d') return saved.getContext.call(this, type, options);
+      (HTMLCanvasElement.prototype as unknown as {getContext:(this:HTMLCanvasElement,type:string,options?:unknown)=>unknown}).getContext = function getContext(type, options) {
+        if (type !== '2d') return (saved.getContext as unknown as (this:HTMLCanvasElement,type:string,options?:unknown)=>unknown).call(this, type, options);
         const canvas = this;
         return {
           drawImage: () => {},
@@ -276,8 +277,9 @@ test('light tools browser coverage exercises storage render and modal flows', as
           },
         };
       };
-      window.requestAnimationFrame = callback => setTimeout(() => callback(performance.now()), 0);
+      window.requestAnimationFrame = callback => (setTimeout as unknown as (callback:()=>void,delay:number)=>number)(() => callback(performance.now()), 0);
       window.cancelAnimationFrame = id => clearTimeout(id);
+      interface FakeAmbientLightSensor {illuminance:number}
       class FakeAmbientLightSensor extends EventTarget {
         constructor() {
           super();
@@ -288,7 +290,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
         }
         stop() {}
       }
-      window.AmbientLightSensor = FakeAmbientLightSensor;
+      (window as unknown as ToolFixtureGlobals).AmbientLightSensor = FakeAmbientLightSensor;
 
       await lightTools.openLuxMeter({ roomId: 'room-1' });
       await wait(10);
@@ -307,11 +309,11 @@ test('light tools browser coverage exercises storage render and modal flows', as
           return fakeNow;
         },
       });
-      window.setTimeout = (callback, _delay, ...args) => saved.setTimeout.call(window, callback, 0, ...args);
+      (window as unknown as {setTimeout:(callback:TimerHandler,delay?:number,...args:unknown[])=>number}).setTimeout = (callback, _delay, ...args) => (saved.setTimeout as unknown as (this:Window,callback:TimerHandler,delay:number,...args:unknown[])=>number).call(window, callback, 0, ...args);
       await lightTools.openDarknessMeter({ roomId: 'room-2' });
       document.getElementById('dark-start')?.click();
       await waitUntil(() => document.getElementById('dark-start')?.textContent === 'Read again'
-        && document.getElementById('dark-save')?.disabled === false, 1000, 'qualitative darkness result');
+        && (document.getElementById('dark-save') as HTMLButtonElement|null)?.disabled === false, 1000, 'qualitative darkness result');
       results.openDarknessFacadeCreatesAndClosesModal =
         !!document.querySelector('[aria-label="Sleep darkness meter"]');
       lightTools.closeDarknessMeter();
@@ -320,7 +322,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
       if (saved.performanceNowDescriptor) {
         Object.defineProperty(performance, 'now', saved.performanceNowDescriptor);
       } else {
-        try { delete performance.now; } catch (_) {
+        try { delete (performance as unknown as {now?:unknown}).now; } catch (_) {
           Object.defineProperty(performance, 'now', {
             configurable: true,
             value: saved.performanceNow,
@@ -375,7 +377,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
       results.auditCloseRemovesOverlay = !document.querySelector('[aria-label="Home audit"]');
       auditOverlay?.remove();
     } finally {
-      state.importedData = saved.importedData;
+      (state as {importedData:unknown}).importedData = saved.importedData;
       state.currentView = saved.currentView;
       lightTools.configureLightTools({
         maybeAnalyzeMeasurementAfterSave: () => {},
@@ -399,15 +401,15 @@ test('light tools browser coverage exercises storage render and modal flows', as
       if (saved.performanceNowDescriptor) {
         Object.defineProperty(performance, 'now', saved.performanceNowDescriptor);
       } else {
-        try { delete performance.now; } catch (_) {
+        try { delete (performance as unknown as {now?:unknown}).now; } catch (_) {
           Object.defineProperty(performance, 'now', {
             configurable: true,
             value: saved.performanceNow,
           });
         }
       }
-      if (saved.hadAmbientLightSensor) window.AmbientLightSensor = saved.AmbientLightSensor;
-      else delete window.AmbientLightSensor;
+      if (saved.hadAmbientLightSensor) (window as unknown as ToolFixtureGlobals).AmbientLightSensor = saved.AmbientLightSensor;
+      else delete (window as unknown as ToolFixtureGlobals).AmbientLightSensor;
       try {
         Object.defineProperty(navigator, 'mediaDevices', {
           configurable: true,

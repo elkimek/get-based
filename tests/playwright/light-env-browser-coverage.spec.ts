@@ -1,3 +1,5 @@
+import type {Page} from '@playwright/test';
+import type {LightRoom,LightScreen} from '../../js/light-env-model.js';
 import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -9,7 +11,7 @@ function seedCompletedTour() {
 
 const expectAll = createExpectAll(expect, 'collect');
 
-async function waitForInitialView(page) {
+async function waitForInitialView(page:Page) {
   await page.waitForFunction(async () => {
     const { state } = await import('/js/state.js');
     return typeof state.currentView === 'string' && state.currentView.length > 0;
@@ -28,9 +30,9 @@ test('light environment browser coverage handles summary modal prompt and source
       import('/js/light-env.js'),
       import('/js/light-tools.js'),
     ]);
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitUntil = async (predicate, label) => {
+    const clone = (value:unknown) => value == null ? value : JSON.parse(JSON.stringify(value)) as unknown;
+    const wait = (ms:number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+    const waitUntil = async (predicate:()=>unknown, label:string) => {
       for (let i = 0; i < 120; i += 1) {
         if (predicate()) return true;
         await wait(20);
@@ -39,30 +41,30 @@ test('light environment browser coverage handles summary modal prompt and source
     };
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key as string)] as const;
     }));
     const sessionSnapshot = new Map(Array.from({ length: sessionStorage.length }, (_, i) => {
       const key = sessionStorage.key(i);
-      return [key, sessionStorage.getItem(key)];
+      return [key, sessionStorage.getItem(key as string)] as const;
     }));
     const saved = {
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
       currentView: state.currentView,
     };
-    const outcomes = {};
-    const calls = [];
+    const outcomes:Record<string,unknown> = {};
+    const calls:unknown[][] = [];
     const savedLightEnvDeps = lightEnv.configureLightEnv({
       getMeasurementsForRoom: lightTools.getMeasurementsForRoom,
-      navigate: (route, meta) => calls.push(['navigate', route, meta || null]),
+      navigate: (route:unknown, meta:unknown) => calls.push(['navigate', route, meta || null]),
     });
-    const env = () => state.importedData.lightEnvironment;
+    const env = () => state.importedData.lightEnvironment as {rooms:LightRoom[];screens:LightScreen[];burdenAI?:unknown};
     const actions = lightEnv.lightEnvActionHandlers;
 
     try {
       state.currentProfile = 'light-env-browser-coverage';
       state.currentView = 'light';
-      state.importedData = {
+      (state as {importedData:unknown}).importedData = {
         entries: [],
         notes: [],
         supplements: [],
@@ -85,26 +87,26 @@ test('light environment browser coverage handles summary modal prompt and source
       const emptyEmbedded = lightEnv.renderEnvironmentSection({ embedded: true });
       const emptySummary = lightEnv.renderEnvironmentAssessmentSummary();
       outcomes.moduleExportsAndEmptyRenderStates =
-        window.computeIndoorBurden === undefined
-        && window.computeDeficitAxes === undefined
-        && window.computeLightDeficitAxes === undefined
-        && window.addLightEnvRoom === undefined
+        (window as unknown as Record<string,unknown>).computeIndoorBurden === undefined
+        && (window as unknown as Record<string,unknown>).computeDeficitAxes === undefined
+        && (window as unknown as Record<string,unknown>).computeLightDeficitAxes === undefined
+        && (window as unknown as Record<string,unknown>).addLightEnvRoom === undefined
         && typeof actions.addLightEnvRoom === 'function'
-        && window.renderEnvironmentSection === undefined
-        && window.renderEnvironmentAssessmentSummary === undefined
-        && window.openLightEnvironmentAssessment === undefined
-        && window.closeLightEnvironmentAssessment === undefined
-        && window.refreshLightEnvironmentAssessment === undefined
+        && (window as unknown as Record<string,unknown>).renderEnvironmentSection === undefined
+        && (window as unknown as Record<string,unknown>).renderEnvironmentAssessmentSummary === undefined
+        && (window as unknown as Record<string,unknown>).openLightEnvironmentAssessment === undefined
+        && (window as unknown as Record<string,unknown>).closeLightEnvironmentAssessment === undefined
+        && (window as unknown as Record<string,unknown>).refreshLightEnvironmentAssessment === undefined
         && emptyFull.includes('Light environment')
         && emptyFull.includes('Map your bedroom first')
         && !emptyEmbedded.includes('light-env-head')
         && emptySummary.includes('Start assessment');
 
       lightEnv.openLightEnvironmentAssessment();
-      await waitUntil(() => !!document.querySelector('#light-env-assessment-overlay .light-env-assessment-modal'), 'assessment modal open');
+      await waitUntil(() => !!document.querySelector<HTMLElement>('#light-env-assessment-overlay .light-env-assessment-modal'), 'assessment modal open');
       const openTitle = document.getElementById('light-env-assessment-title')?.textContent || '';
       lightEnv.refreshLightEnvironmentAssessment();
-      await waitUntil(() => !!document.querySelector('#light-env-assessment-overlay .light-env-assessment-modal'), 'assessment modal refresh');
+      await waitUntil(() => !!document.querySelector<HTMLElement>('#light-env-assessment-overlay .light-env-assessment-modal'), 'assessment modal refresh');
       lightEnv.closeLightEnvironmentAssessment();
       await waitUntil(() => !document.getElementById('light-env-assessment-overlay'), 'assessment modal close');
       outcomes.modalOpenRefreshAndClose =
@@ -116,34 +118,34 @@ test('light environment browser coverage handles summary modal prompt and source
 
       const customPromise = actions.addLightEnvRoomCustom();
       await waitUntil(() => !!document.getElementById('prompt-dialog-input'), 'custom room prompt');
-      document.getElementById('prompt-dialog-input').value = 'Studio';
-      document.getElementById('prompt-dialog-input').dispatchEvent(new Event('input', { bubbles: true }));
-      document.getElementById('prompt-ok').click();
+      (document.getElementById('prompt-dialog-input') as HTMLInputElement).value = 'Studio';
+      document.getElementById('prompt-dialog-input')!.dispatchEvent(new Event('input', { bubbles: true }));
+      document.getElementById('prompt-ok')!.click();
       await customPromise;
-      const customRoomId = env().rooms[0].id;
+      const customRoomId = env().rooms[0]!.id;
       outcomes.customPromptAddsAndExpandsRoom =
-        env().rooms[0].name === 'Studio'
+        env().rooms[0]!.name === 'Studio'
         && localStorage.getItem('labcharts-light-env-active-room') === customRoomId
-        && calls.some(call => call[0] === 'navigate' && call[1] === 'light');
+        && calls.some(call => call[0]! === 'navigate' && call[1]! === 'light');
 
       await actions.addLightEnvRoom();
       await waitUntil(() => env().rooms.length === 2, 'default room added');
-      const bedroom = env().rooms[1];
+      const bedroom = env().rooms[1]!;
       outcomes.defaultRoomUsesNextAvailableName =
-        bedroom.name === 'Bedroom'
+        bedroom!.name === 'Bedroom'
         && lightEnv.nextDefaultRoomName() === 'Living room'
-        && localStorage.getItem('labcharts-light-env-active-room') === bedroom.id;
+        && localStorage.getItem('labcharts-light-env-active-room') === bedroom!.id;
 
-      await lightEnv.suggestRoomSourceFromSpectrum(bedroom.id, 'Cool LED (4000K+)', { method: 'camera-rgb-proxy' });
-      const cameraSuggestionWasIgnored = bedroom.primarySource === 'unknown';
-      await lightEnv.suggestRoomSourceFromSpectrum(bedroom.id, 'Cool LED (4000K+)', { method: 'manual-classification' });
-      await waitUntil(() => bedroom.primarySource === 'led-cool', 'spectrum source applied');
-      await lightEnv.suggestRoomSourceFromSpectrum(bedroom.id, 'Fluorescent / CFL', { method: 'manual-classification' });
+      await lightEnv.suggestRoomSourceFromSpectrum(bedroom!.id, 'Cool LED (4000K+)', { method: 'camera-rgb-proxy' });
+      const cameraSuggestionWasIgnored = bedroom!.primarySource === 'unknown';
+      await lightEnv.suggestRoomSourceFromSpectrum(bedroom!.id, 'Cool LED (4000K+)', { method: 'manual-classification' });
+      await waitUntil(() => bedroom!.primarySource === 'led-cool', 'spectrum source applied');
+      await lightEnv.suggestRoomSourceFromSpectrum(bedroom!.id, 'Fluorescent / CFL', { method: 'manual-classification' });
       await lightEnv.suggestRoomSourceFromSpectrum('missing-room', 'Warm LED (2700-3000K)', { method: 'manual-classification' });
-      await lightEnv.suggestRoomSourceFromSpectrum(bedroom.id, 'Unknown spectrum label', { method: 'manual-classification' });
+      await lightEnv.suggestRoomSourceFromSpectrum(bedroom!.id, 'Unknown spectrum label', { method: 'manual-classification' });
       outcomes.spectrumSuggestionMapsOnceAndDoesNotOverwrite =
         cameraSuggestionWasIgnored
-        && bedroom.primarySource === 'led-cool'
+        && bedroom!.primarySource === 'led-cool'
         && Array.from(document.querySelectorAll('.notification-toast'))
           .some(el => (el.textContent || '').includes('Auto-set Bedroom'));
 
@@ -156,31 +158,31 @@ test('light environment browser coverage handles summary modal prompt and source
         && mappedSummary.includes('2 active today');
 
       localStorage.removeItem('labcharts-light-env-active-room');
-      env().rooms[0].updatedAt = 100;
-      bedroom.updatedAt = 200;
+      env().rooms[0]!.updatedAt = 100;
+      bedroom!.updatedAt = 200;
       const defaultHost = document.createElement('div');
       defaultHost.innerHTML = lightEnv.renderEnvironmentSection({ embedded: true });
       outcomes.defaultActiveRoomUsesMostRecentlyUpdatedRoom =
-        defaultHost.querySelector(`.light-env-room-disclosure[data-id="${bedroom.id}"]`)?.classList.contains('expanded') === true;
+        defaultHost.querySelector(`.light-env-room-disclosure[data-id="${bedroom!.id}"]`)?.classList.contains('expanded') === true;
 
-      await actions.updateLightEnvRoomAndRender(bedroom.id, { name: 'Bedroom Prime' });
+      await actions.updateLightEnvRoomAndRender(bedroom!.id, { name: 'Bedroom Prime' });
       outcomes.updateRoomAndRenderRefreshesLightUI =
-        env().rooms.find(r => r.id === bedroom.id)?.name === 'Bedroom Prime'
-        && calls.some(call => call[0] === 'navigate' && call[1] === 'light');
+        env().rooms.find(r => r.id === bedroom!.id)?.name === 'Bedroom Prime'
+        && calls.some(call => call[0]! === 'navigate' && call[1]! === 'light');
 
       lightEnv.openLightEnvironmentAssessment();
-      await waitUntil(() => !!document.querySelector('#light-env-assessment-overlay.show .light-env-assessment-modal'), 'assessment modal reopened');
+      await waitUntil(() => !!document.querySelector<HTMLElement>('#light-env-assessment-overlay.show .light-env-assessment-modal'), 'assessment modal reopened');
       await wait(70);
-      const focusedRoomName = document.querySelector('#light-env-assessment-overlay .light-env-room-name-input');
+      const focusedRoomName = document.querySelector<HTMLElement>('#light-env-assessment-overlay .light-env-room-name-input');
       focusedRoomName?.focus();
-      env().rooms.find(r => r.id === bedroom.id).name = 'Synced Bedroom';
+      env().rooms.find(r => r.id === bedroom!.id)!.name = 'Synced Bedroom';
       window.dispatchEvent(new Event('labcharts-sync-applied'));
-      await waitUntil(() => (document.querySelector('#light-env-assessment-overlay .light-env-assessment-modal')?.textContent || '').includes('Synced Bedroom'), 'sync refresh render');
+      await waitUntil(() => (document.querySelector<HTMLElement>('#light-env-assessment-overlay .light-env-assessment-modal')?.textContent || '').includes('Synced Bedroom'), 'sync refresh render');
       await wait(90);
-      const closeButtonAfterSyncRefresh = document.querySelector('#light-env-assessment-overlay .modal-close');
+      const closeButtonAfterSyncRefresh = document.querySelector<HTMLElement>('#light-env-assessment-overlay .modal-close');
       outcomes.syncRefreshRebuildsOpenAssessment =
-        !!document.querySelector('#light-env-assessment-overlay.show .light-env-assessment-modal')
-        && (document.querySelector('#light-env-assessment-overlay .light-env-assessment-modal')?.textContent || '').includes('Synced Bedroom');
+        !!document.querySelector<HTMLElement>('#light-env-assessment-overlay.show .light-env-assessment-modal')
+        && (document.querySelector<HTMLElement>('#light-env-assessment-overlay .light-env-assessment-modal')?.textContent || '').includes('Synced Bedroom');
       outcomes.syncRefreshDoesNotMoveFocusToClose =
         !!focusedRoomName
         && document.activeElement !== closeButtonAfterSyncRefresh;
@@ -188,7 +190,7 @@ test('light environment browser coverage handles summary modal prompt and source
       document.getElementById('light-env-assessment-overlay')?.remove();
       document.getElementById('prompt-dialog-overlay')?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
-      state.importedData = saved.importedData;
+      (state as {importedData:unknown}).importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
       state.currentView = saved.currentView;
       data.invalidateActiveDataCache();
@@ -221,9 +223,9 @@ test('light environment browser coverage handles screens tools and confirm delet
       import('/js/light-env.js'),
       import('/js/light-tools.js'),
     ]);
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitUntil = async (predicate, label) => {
+    const clone = (value:unknown) => value == null ? value : JSON.parse(JSON.stringify(value)) as unknown;
+    const wait = (ms:number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+    const waitUntil = async (predicate:()=>unknown, label:string) => {
       for (let i = 0; i < 120; i += 1) {
         if (predicate()) return true;
         await wait(20);
@@ -232,36 +234,36 @@ test('light environment browser coverage handles screens tools and confirm delet
     };
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key as string)] as const;
     }));
     const sessionSnapshot = new Map(Array.from({ length: sessionStorage.length }, (_, i) => {
       const key = sessionStorage.key(i);
-      return [key, sessionStorage.getItem(key)];
+      return [key, sessionStorage.getItem(key as string)] as const;
     }));
     const saved = {
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
       currentView: state.currentView,
     };
-    const outcomes = {};
-    const calls = [];
+    const outcomes:Record<string,unknown> = {};
+    const calls:unknown[][] = [];
     const savedLightEnvDeps = lightEnv.configureLightEnv({
       getMeasurementsForRoom: lightTools.getMeasurementsForRoom,
-      navigate: (route, meta) => calls.push(['navigate', route, meta || null]),
-      openSpectrumClassifier: opts => calls.push(['spectrum', opts?.roomId || null]),
-      openLuxMeter: opts => calls.push(['lux', opts?.roomId || null]),
-      openFlickerDetector: opts => calls.push(['flicker', opts?.roomId || null]),
-      openCCTMeter: opts => calls.push(['cct', opts?.roomId || null]),
-      openDarknessMeter: opts => calls.push(['darkness', opts?.roomId || null]),
+      navigate: (route:unknown, meta:unknown) => calls.push(['navigate', route, meta || null]),
+      openSpectrumClassifier: (opts:unknown) => calls.push(['spectrum', (opts as {roomId?:unknown}|null|undefined)?.roomId || null]),
+      openLuxMeter: (opts:unknown) => calls.push(['lux', (opts as {roomId?:unknown}|null|undefined)?.roomId || null]),
+      openFlickerDetector: (opts:unknown) => calls.push(['flicker', (opts as {roomId?:unknown}|null|undefined)?.roomId || null]),
+      openCCTMeter: (opts:unknown) => calls.push(['cct', (opts as {roomId?:unknown}|null|undefined)?.roomId || null]),
+      openDarknessMeter: (opts:unknown) => calls.push(['darkness', (opts as {roomId?:unknown}|null|undefined)?.roomId || null]),
     });
-    const env = () => state.importedData.lightEnvironment;
+    const env = () => state.importedData.lightEnvironment as {rooms:LightRoom[];screens:LightScreen[];burdenAI?:unknown};
     const latestScreen = () => env().screens[env().screens.length - 1];
     const actions = lightEnv.lightEnvActionHandlers;
 
     try {
       state.currentProfile = 'light-env-screen-coverage';
       state.currentView = 'light';
-      state.importedData = {
+      (state as {importedData:unknown}).importedData = {
         entries: [],
         notes: [],
         supplements: [],
@@ -294,18 +296,18 @@ test('light environment browser coverage handles screens tools and confirm delet
       await waitUntil(() => env().screens.length === 4, 'invalid-device screen added');
       const fallbackScreen = latestScreen();
       outcomes.screenDefaultsInferRoomAndInvalidDeviceFallbacks =
-        officeScreen.device === 'laptop'
-        && livingScreen.device === 'tv'
-        && bedroomScreen.device === 'phone'
-        && fallbackScreen.device === 'phone'
-        && fallbackScreen.roomId === null;
+        officeScreen!.device === 'laptop'
+        && livingScreen!.device === 'tv'
+        && bedroomScreen!.device === 'phone'
+        && fallbackScreen!.device === 'phone'
+        && fallbackScreen!.roomId === null;
 
-      await actions.updateLightEnvScreen(fallbackScreen.id, { hoursPerDay: 2 });
-      await actions.updateLightEnvScreenAndRender(fallbackScreen.id, { eveningUseAfterSunset: 0.5 });
-      await actions.setLightEnvScreenHoursBucket(fallbackScreen.id, 'most');
-      await actions.setLightEnvScreenEveningBucket(fallbackScreen.id, 'gt3');
-      await actions.setLightEnvTodayActive('screen', fallbackScreen.id, false);
-      localStorage.setItem('labcharts-light-env-active-room', bedroomId);
+      await actions.updateLightEnvScreen(fallbackScreen!.id, { hoursPerDay: 2 });
+      await actions.updateLightEnvScreenAndRender(fallbackScreen!.id, { eveningUseAfterSunset: 0.5 });
+      await actions.setLightEnvScreenHoursBucket(fallbackScreen!.id, 'most');
+      await actions.setLightEnvScreenEveningBucket(fallbackScreen!.id, 'gt3');
+      await actions.setLightEnvTodayActive('screen', fallbackScreen!.id, false);
+      localStorage.setItem('labcharts-light-env-active-room', bedroomId as string);
       state.importedData.lightMeasurements = [
         { id: 'lux-reading', roomId: bedroomId, tool: 'lux', value: 1234, capturedAt: Date.now() },
         { id: 'flicker-reading', roomId: bedroomId, tool: 'flicker', value: 2, capturedAt: Date.now() - 86400000 },
@@ -319,15 +321,15 @@ test('light environment browser coverage handles screens tools and confirm delet
       host.id = 'light-env-browser-host';
       host.innerHTML = lightEnv.renderEnvironmentSection({ embedded: true });
       document.body.appendChild(host);
-      const fallbackCard = host.querySelector(`.light-env-screen-card[data-id="${fallbackScreen.id}"]`);
+      const fallbackCard = host.querySelector<HTMLElement>(`.light-env-screen-card[data-id="${fallbackScreen!.id}"]`);
       outcomes.screenMutationHandlersUpdateAndRender =
-        fallbackScreen.hoursPerDay === 8
-        && fallbackScreen.eveningUseAfterSunset === 4
-        && fallbackScreen.todayOverride?.active === false
+        fallbackScreen!.hoursPerDay === 8
+        && fallbackScreen!.eveningUseAfterSunset === 4
+        && fallbackScreen!.todayOverride?.active === false
         && fallbackCard?.classList.contains('light-env-card-skipped')
         && fallbackCard?.querySelector('[data-light-env-action="set-screen-hours-bucket"][data-light-env-key="most"]')?.getAttribute('aria-pressed') === 'true'
         && fallbackCard?.querySelector('[data-light-env-action="set-screen-evening-bucket"][data-light-env-key="gt3"]')?.getAttribute('aria-pressed') === 'true';
-      const bedroomCardText = host.querySelector(`.light-env-room-disclosure[data-id="${bedroomId}"]`)?.textContent || '';
+      const bedroomCardText = host.querySelector<HTMLElement>(`.light-env-room-disclosure[data-id="${bedroomId}"]`)?.textContent || '';
       outcomes.measurementReadingsRenderAllToolFormats =
         bedroomCardText.includes('1,234 lux (method unknown)')
         && bedroomCardText.includes('clear banding')
@@ -337,46 +339,46 @@ test('light environment browser coverage handles screens tools and confirm delet
         && bedroomCardText.includes('~42% camera-visible comparison')
         && bedroomCardText.includes('2 room snapshots');
       const wasScreenExpanded = fallbackCard?.classList.contains('expanded') === true;
-      actions.toggleLightEnvScreenExpanded(fallbackScreen.id);
+      (actions.toggleLightEnvScreenExpanded as (id:unknown,event?:unknown)=>ReturnType<typeof actions.toggleLightEnvScreenExpanded>)(fallbackScreen!.id);
       const expandedHost = document.createElement('div');
       expandedHost.innerHTML = lightEnv.renderEnvironmentSection({ embedded: true });
       outcomes.screenExpandToggleChangesPortableCardState =
-        expandedHost.querySelector(`.light-env-screen-card[data-id="${fallbackScreen.id}"]`)?.classList.contains('expanded') !== wasScreenExpanded;
+        expandedHost.querySelector(`.light-env-screen-card[data-id="${fallbackScreen!.id}"]`)?.classList.contains('expanded') !== wasScreenExpanded;
       for (const tool of ['spectrum', 'lux', 'flicker', 'cct', 'darkness']) {
-        host.querySelector(`[data-light-env-action="open-tool"][data-light-env-tool="${tool}"]`)?.click();
+        host.querySelector<HTMLElement>(`[data-light-env-action="open-tool"][data-light-env-tool="${tool}"]`)?.click();
       }
       outcomes.delegatedToolButtonsDispatchRoomAwareOpeners =
         ['spectrum', 'lux', 'flicker', 'cct', 'darkness']
-          .every(tool => calls.some(call => call[0] === tool && call[1] === bedroomId));
+          .every(tool => calls.some(call => call[0]! === tool && call[1]! === bedroomId));
 
-      const cancelScreenDelete = actions.deleteLightEnvScreenConfirm(fallbackScreen.id);
+      const cancelScreenDelete = actions.deleteLightEnvScreenConfirm(fallbackScreen!.id);
       await waitUntil(() => !!document.getElementById('confirm-cancel'), 'screen delete cancel dialog');
-      document.getElementById('confirm-cancel').click();
+      document.getElementById('confirm-cancel')!.click();
       await cancelScreenDelete;
-      const screenStillExists = env().screens.some(s => s.id === fallbackScreen.id);
-      const confirmScreenDelete = actions.deleteLightEnvScreenConfirm(fallbackScreen.id);
+      const screenStillExists = env().screens.some(s => s.id === fallbackScreen!.id);
+      const confirmScreenDelete = actions.deleteLightEnvScreenConfirm(fallbackScreen!.id);
       await waitUntil(() => !!document.getElementById('confirm-ok'), 'screen delete confirm dialog');
-      document.getElementById('confirm-ok').click();
+      document.getElementById('confirm-ok')!.click();
       await confirmScreenDelete;
       outcomes.screenDeleteConfirmHonorsCancelAndConfirm =
         screenStillExists
-        && !env().screens.some(s => s.id === fallbackScreen.id);
+        && !env().screens.some(s => s.id === fallbackScreen!.id);
 
       const cancelRoomDelete = actions.deleteLightEnvRoomConfirm(officeId);
       await waitUntil(() => !!document.getElementById('confirm-cancel'), 'room delete cancel dialog');
-      document.getElementById('confirm-cancel').click();
+      document.getElementById('confirm-cancel')!.click();
       await cancelRoomDelete;
       const roomStillExists = env().rooms.some(r => r.id === officeId);
-      const linkedScreenBeforeRoomDelete = env().screens.find(s => s.id === officeScreen.id);
+      const linkedScreenBeforeRoomDelete = env().screens.find(s => s.id === officeScreen!.id);
       const confirmRoomDelete = actions.deleteLightEnvRoomConfirm(officeId);
       await waitUntil(() => !!document.getElementById('confirm-ok'), 'room delete confirm dialog');
-      document.getElementById('confirm-ok').click();
+      document.getElementById('confirm-ok')!.click();
       await confirmRoomDelete;
       outcomes.roomDeleteConfirmRemovesRoomAndUnlinksScreens =
         roomStillExists
         && linkedScreenBeforeRoomDelete?.roomId === null
         && !env().rooms.some(r => r.id === officeId)
-        && env().screens.some(s => s.id === officeScreen.id && s.roomId === null);
+        && env().screens.some(s => s.id === officeScreen!.id && s.roomId === null);
 
       actions.setActiveLightEnvRoom(livingId);
       outcomes.setActiveRoomAndBurdenModuleHelpersRemainUsable =
@@ -385,16 +387,16 @@ test('light environment browser coverage handles screens tools and confirm delet
         && typeof lightEnv.computeRoomSeverity(env().rooms.find(r => r.id === livingId)).tier === 'number'
         && typeof lightEnv.computeIndoorBurden().d2 === 'number'
         && typeof lightEnv.computeDeficitAxes().d3 === 'number'
-        && lightEnv.getScreensForRoom(null).some(s => s.id === officeScreen.id)
-        && lightEnv.getRooms().some(r => r.id === livingId)
-        && window.isLightEnvActiveToday === undefined
-        && window.getScreensForRoom === undefined
-        && window.getRooms === undefined;
+        && lightEnv.getScreensForRoom(null).some(s => s.id === officeScreen!.id)
+        && (lightEnv.getRooms() as {id?:unknown}[]).some(r => r.id === livingId)
+        && (window as unknown as Record<string,unknown>).isLightEnvActiveToday === undefined
+        && (window as unknown as Record<string,unknown>).getScreensForRoom === undefined
+        && (window as unknown as Record<string,unknown>).getRooms === undefined;
 
       const directRoomId = await lightEnv.addRoom('Garage');
       await actions.addLightEnvScreenWithDevice(null, 'tablet');
       await waitUntil(() => env().screens.some(s => s.device === 'tablet'), 'tablet screen added');
-      const directScreenId = latestScreen().id;
+      const directScreenId = latestScreen()!.id;
       const directScreenBeforeDelete = document.createElement('div');
       directScreenBeforeDelete.innerHTML = lightEnv.renderEnvironmentSection({ embedded: true });
       await actions.deleteLightEnvScreen(directScreenId);
@@ -402,7 +404,7 @@ test('light environment browser coverage handles screens tools and confirm delet
       directScreenAfterDelete.innerHTML = lightEnv.renderEnvironmentSection({ embedded: true });
       await actions.addLightEnvScreenWithDevice(null, 'monitor');
       await waitUntil(() => env().screens.some(s => s.device === 'monitor'), 'monitor screen added');
-      const replacementScreenId = latestScreen().id;
+      const replacementScreenId = latestScreen()!.id;
       const directScreenAfterReplacement = document.createElement('div');
       directScreenAfterReplacement.innerHTML = lightEnv.renderEnvironmentSection({ embedded: true });
       await actions.deleteLightEnvRoom(directRoomId);
@@ -416,7 +418,7 @@ test('light environment browser coverage handles screens tools and confirm delet
       document.getElementById('light-env-browser-host')?.remove();
       document.getElementById('confirm-dialog-overlay')?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
-      state.importedData = saved.importedData;
+      (state as {importedData:unknown}).importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
       state.currentView = saved.currentView;
       data.invalidateActiveDataCache();

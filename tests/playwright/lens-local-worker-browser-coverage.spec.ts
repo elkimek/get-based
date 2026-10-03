@@ -1,3 +1,6 @@
+import type {WorkerReply,WorkerRequest} from "../../js/lens-local-protocol.js";
+type WorkerPacket = WorkerReply | {type:"test_ack"};
+type ReplyFor<Type extends string> = Extract<WorkerPacket,{type:Type}>;
 import { expect, test } from './coverage-fixture.js';
 
 const TRANSFORMERS_STUB = `
@@ -20,9 +23,9 @@ test('lens local worker browser coverage exercises mocked protocol and libraries
   await page.goto('/app', { waitUntil: 'load' });
 
   const failures = await page.evaluate(async () => {
-    const failures = [];
-    const events = [];
-    const check = (name, condition, detail = '') => {
+    const failures:unknown[] = [];
+    const events:WorkerPacket[] = [];
+    const check = (name:string, condition:unknown, detail:unknown = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
     };
 
@@ -30,19 +33,19 @@ test('lens local worker browser coverage exercises mocked protocol and libraries
       const root = await navigator.storage.getDirectory();
       await root.removeEntry('lens-local', { recursive: true }).catch(() => {});
     } catch (error) {
-      failures.push(`opfs setup failed: ${error?.message || String(error)}`);
+      failures.push(`opfs setup failed: ${(error as {message?:unknown}|null|undefined)?.message || String(error)}`);
       return failures;
     }
     localStorage.removeItem('labcharts-lens-local-count');
 
     let worker = new Worker('/js/lens-local-worker.js?mock=1&benchmark=1', { type: 'module' });
-    const roundTrip = (msg, expectedType, timeoutMs = 5000) => new Promise((resolve, reject) => {
+    const roundTrip = <Type extends string>(msg:WorkerRequest & {abortAtSaving?:boolean}, expectedType:Type, timeoutMs = 5000) => new Promise<ReplyFor<Type>>((resolve, reject) => {
       const timer = setTimeout(() => {
         worker.removeEventListener('message', onMessage);
         reject(new Error(`worker did not respond with ${expectedType}`));
       }, timeoutMs);
-      const onMessage = (event) => {
-        const data = event.data || {};
+      const onMessage = (event:MessageEvent<WorkerPacket>) => {
+        const data = event.data || {} as Partial<WorkerPacket>;
         events.push(data);
         if (data.type === 'progress') {
           if (data.stage === 'saving') {
@@ -54,19 +57,19 @@ test('lens local worker browser coverage exercises mocked protocol and libraries
         clearTimeout(timer);
         worker.removeEventListener('message', onMessage);
         if (data.type === 'error') reject(new Error(data.message || 'worker error'));
-        else if (data.type === expectedType) resolve(data);
+        else if (data.type === expectedType) resolve(data as ReplyFor<Type>);
         else reject(new Error(`expected ${expectedType}, got ${data.type || 'unknown'}`));
       };
       worker.addEventListener('message', onMessage);
       worker.postMessage(msg);
     });
-    const expectWorkerError = async (msg, pattern) => {
+    const expectWorkerError = async (msg:WorkerRequest, pattern:RegExp) => {
       try {
         await roundTrip(msg, '__not_expected__', 1500);
         return { ok: false, message: 'no error returned' };
       } catch (error) {
-        const message = error?.message || String(error);
-        return { ok: pattern.test(message), message };
+        const message = (error as {message?:unknown}|null|undefined)?.message || String(error);
+        return { ok: pattern.test(message as string), message };
       }
     };
 
@@ -249,7 +252,7 @@ test('lens local worker browser coverage exercises mocked protocol and libraries
 
       await roundTrip({ type: 'clear' }, 'clear_done');
     } catch (error) {
-      failures.push(error?.message || String(error));
+      failures.push((error as {message?:unknown}|null|undefined)?.message || String(error));
     }
 
     return failures;
@@ -271,29 +274,29 @@ test('lens local worker browser coverage exercises production embedder loading w
   await page.goto('/app', { waitUntil: 'load' });
 
   const failures = await page.evaluate(async () => {
-    const failures = [];
-    const check = (name, condition, detail = '') => {
+    const failures:unknown[] = [];
+    const check = (name:string, condition:unknown, detail:unknown = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
     };
-    const checkEqual = (name, actual, expected) => {
+    const checkEqual = (name:string, actual:unknown, expected:unknown) => {
       if (actual !== expected) failures.push(`${name}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
     };
     try {
       const root = await navigator.storage.getDirectory();
       await root.removeEntry('lens-local', { recursive: true }).catch(() => {});
     } catch (error) {
-      failures.push(`opfs setup failed: ${error?.message || String(error)}`);
+      failures.push(`opfs setup failed: ${(error as {message?:unknown}|null|undefined)?.message || String(error)}`);
       return failures;
     }
 
     const worker = new Worker('/js/lens-local-worker.js', { type: 'module' });
-    const roundTrip = (msg, expectedType, timeoutMs = 5000) => new Promise((resolve, reject) => {
+    const roundTrip = <Type extends string>(msg:WorkerRequest & {abortAtSaving?:boolean}, expectedType:Type, timeoutMs = 5000) => new Promise<ReplyFor<Type>>((resolve, reject) => {
       const timer = setTimeout(() => {
         worker.removeEventListener('message', onMessage);
         reject(new Error(`worker did not respond with ${expectedType}`));
       }, timeoutMs);
-      const onMessage = (event) => {
-        const data = event.data || {};
+      const onMessage = (event:MessageEvent<WorkerPacket>) => {
+        const data = event.data || {} as Partial<WorkerPacket>;
         if (data.type === 'progress') {
           if (data.stage === 'saving') worker.postMessage({ type: 'commit_ingest' });
           return;
@@ -301,7 +304,7 @@ test('lens local worker browser coverage exercises production embedder loading w
         clearTimeout(timer);
         worker.removeEventListener('message', onMessage);
         if (data.type === 'error') reject(new Error(data.message || 'worker error'));
-        else if (data.type === expectedType) resolve(data);
+        else if (data.type === expectedType) resolve(data as ReplyFor<Type>);
         else reject(new Error(`expected ${expectedType}, got ${data.type || 'unknown'}`));
       };
       worker.addEventListener('message', onMessage);
@@ -363,7 +366,7 @@ test('lens local worker browser coverage exercises production embedder loading w
 
       await roundTrip({ type: 'clear' }, 'clear_done');
     } catch (error) {
-      failures.push(error?.message || String(error));
+      failures.push((error as {message?:unknown}|null|undefined)?.message || String(error));
     } finally {
       worker.terminate();
       try {

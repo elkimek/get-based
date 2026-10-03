@@ -8,13 +8,13 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
 
   const outcomes = await page.evaluate(async ({ storeUrl }) => {
     const [store, { state }, data] = await Promise.all([
-      import(storeUrl),
+      ((import(storeUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/sun-sessions-store.js"), "configureSunSessionsStore" | "startSession" | "getActiveSession" | "pauseSession" | "resumeSession" | "markSessionRotated" | "setSessionSunscreen" | "setSessionCoverage" | "stopSession" | "hydrateSession" | "getSessions" | "logCompletedSession" | "SUN_ENGINE_VERSION" | "updateSession" | "rehydrateStaleSessions" | "deleteSession" | "resetSunSessionsStoreState"> >),
       import('/js/state.js'),
       import('/js/data.js'),
     ]);
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async (predicate, label) => {
+    const clone = (value:unknown) => value == null ? value : JSON.parse(JSON.stringify(value)) as unknown;
+    const wait = (ms:number) => new Promise(resolve => setTimeout(resolve, ms));
+    const waitFor = async (predicate:()=>unknown, label:string) => {
       for (let i = 0; i < 160; i += 1) {
         if (await predicate()) return true;
         await wait(25);
@@ -24,7 +24,7 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
 
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key as string)] as const;
     }));
     const saved = {
       importedData: clone(state.importedData),
@@ -32,19 +32,19 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
       profiles: clone(state.profiles),
       consoleWarn: console.warn,
     };
-    const results = {};
-    const depCalls = [];
-    const aiCalls = [];
-    const warnings = [];
+    const results:Record<string,unknown> = {};
+    const depCalls:unknown[][] = [];
+    const aiCalls:unknown[] = [];
+    const warnings:string[] = [];
     let fetchCalls = 0;
-    let lastSpectrumArgs = null;
-    let lastDoseArgs = null;
+    let lastSpectrumArgs:unknown = null;
+    let lastDoseArgs:unknown = null;
     let holdAtmosphereFetch = false;
-    let releaseAtmosphereFetch = null;
+    let releaseAtmosphereFetch:(()=>void)|null = null;
 
     try {
       state.currentProfile = 'sun-sessions-store-coverage';
-      state.profiles = [{
+      (state as {profiles:unknown}).profiles = [{
         id: state.currentProfile,
         name: 'Sun Sessions Store Coverage',
         createdAt: Date.now(),
@@ -54,7 +54,7 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
         status: 'active',
         pinned: false,
       }];
-      state.importedData = {
+      (state as {importedData:unknown}).importedData = {
         entries: [],
         notes: [],
         supplements: [],
@@ -74,24 +74,24 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
       data.invalidateActiveDataCache();
 
       store.configureSunSessionsStore({
-        commitCurrentSlice: sess => depCalls.push(['commit', sess.id]),
-        setLiveState: (id, liveState) => depCalls.push([
+        commitCurrentSlice: (sess:unknown) => depCalls.push(['commit', (sess as {id?:unknown}).id]),
+        setLiveState: (id:unknown, liveState:unknown) => depCalls.push([
           'live',
           id,
           liveState && Object.prototype.hasOwnProperty.call(liveState, 'ratePerMin')
-            ? liveState.ratePerMin
+            ? (liveState as {ratePerMin?:unknown}).ratePerMin
             : 'other',
         ]),
-        clearLiveState: id => depCalls.push(['clear', id]),
-        formatElapsed: ms => `elapsed:${Math.round(ms / 1000)}s`,
-        maybeAnalyzeSessionAfterFinish: sess => aiCalls.push(sess.id),
+        clearLiveState: (id:unknown) => depCalls.push(['clear', id]),
+        formatElapsed: (ms:unknown) => `elapsed:${Math.round((ms as number) / 1000)}s`,
+        maybeAnalyzeSessionAfterFinish: (sess:unknown) => aiCalls.push((sess as {id?:unknown}).id),
       });
       console.warn = (...args) => warnings.push(args.map(String).join(' '));
 
       const fetchAtmosphere = async () => {
         fetchCalls += 1;
         if (holdAtmosphereFetch) {
-          await new Promise(resolve => { releaseAtmosphereFetch = resolve; });
+          await new Promise<void>(resolve => { releaseAtmosphereFetch = resolve; });
         }
         return {
           uvIndex: 5,
@@ -100,11 +100,11 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
           airQuality: { aod: 0.15 },
         };
       };
-      const reconstructSpectrum = args => {
+      const reconstructSpectrum = (args:unknown) => {
         lastSpectrumArgs = args;
         return { wavelengths: [300, 305], irradiance: [1, 0.8] };
       };
-      const computeChannelDoses = args => {
+      const computeChannelDoses = (args:unknown) => {
         lastDoseArgs = args;
         return { vitamin_d: 66, circadian: 11 };
       };
@@ -132,11 +132,11 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
         surfaceAlbedo: 'sand',
       });
       const active = store.getActiveSession();
-      active.startedAt = Date.now() - 125000;
+      active!.startedAt = Date.now() - 125000;
       results.startSessionUsesDetailedRegionsAndActiveLookup = active?.id === activeId
         && active.bodyExposure?.preset === 'detailed'
         && active.bodyExposure?.regions?.join(',') === 'face,arms-front'
-        && active.bodyExposure?.fraction > 0.08
+        && (active.bodyExposure?.fraction as number) > 0.08
         && active.eyeExposure?.mode === 'glass-window';
 
       const paused = await store.pauseSession(activeId);
@@ -159,19 +159,19 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
         && spfAfterZero === null
         && invalidSpf === null
         && covered?.bodyExposure?.regions?.join(',') === 'face,arms-front'
-        && depCalls.filter(call => call[0] === 'commit').length >= 3
-        && depCalls.some(call => call[0] === 'live' && call[2] === null);
+        && depCalls.filter(call => call[0]! === 'commit').length >= 3
+        && depCalls.some(call => call[0]! === 'live' && call[2]! === null);
 
       const elapsed = document.createElement('span');
-      elapsed.dataset.liveElapsedFor = activeId;
+      elapsed.dataset.liveElapsedFor = activeId!;
       document.body.appendChild(elapsed);
       const stopped = await store.stopSession(activeId);
       results.stopSessionFreezesLiveElapsedWithoutPrematureAi = stopped?.endedAt
-        && stopped.durationMin > 1
-        && stopped.eyeExposure?.durationSec > 60
+        && (stopped.durationMin as number) > 1
+        && (stopped.eyeExposure?.durationSec as number) > 60
         && !elapsed.hasAttribute('data-live-elapsed-for')
         && elapsed.textContent.startsWith('elapsed:')
-        && depCalls.some(call => call[0] === 'clear' && call[1] === activeId)
+        && depCalls.some(call => call[0]! === 'clear' && call[1]! === activeId)
         && !aiCalls.includes(activeId)
         && stopped.calculationStatus === 'pending';
       elapsed.remove();
@@ -199,13 +199,13 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
       });
       const logged = store.getSessions().find(sess => sess.id === loggedId);
       results.logCompletedSessionAddsDurationWithoutPrematureAi = !!logged
-        && logged.durationMin > 20
+        && (logged.durationMin as number) > 20
         && !aiCalls.includes(loggedId)
-        && logged.calculationStatus === 'pending';
+        && logged!.calculationStatus === 'pending';
 
-      logged.doses = { vitamin_d: 999 };
-      logged.safety = { medFraction: 0.99 };
-      logged.calculationStatus = 'computed';
+      logged!.doses = { vitamin_d: 999 };
+      logged!.safety = { medFraction: 0.99 };
+      logged!.calculationStatus = 'computed';
       holdAtmosphereFetch = true;
       const updatePromise = store.updateSession(loggedId, { durationMin: 20, notes: 'updated note' });
       await waitFor(() => typeof releaseAtmosphereFetch === 'function', 'duration edit pending fetch');
@@ -215,7 +215,7 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
         && pendingEdit.safety == null
         && pendingEdit.atmosphere == null;
       holdAtmosphereFetch = false;
-      releaseAtmosphereFetch?.();
+      (releaseAtmosphereFetch as (()=>void)|null)?.();
       releaseAtmosphereFetch = null;
       await updatePromise;
       await waitFor(() => store.getSessions().find(sess => sess.id === loggedId)?.engineVersion === store.SUN_ENGINE_VERSION, 'duration edit hydration');
@@ -228,12 +228,12 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
         && hydrated?.atmosphere?.cloudCover === 40
         && hydrated?.atmosphere?.ozoneDU === 310
         && hydrated?.atmosphere?._uvOverridden == null
-        && lastSpectrumArgs?.zenithDeg === 35
-        && lastSpectrumArgs?.ozoneDU === 310
-        && lastDoseArgs?.durationMin === 20
-        && lastDoseArgs?.bodyExposureFraction === 0.12
-        && lastDoseArgs?.skinIrradianceMultiplier > 1
-        && lastDoseArgs?.eyeExposure?.mode === 'glass-window'
+        && (lastSpectrumArgs as {zenithDeg?:unknown}|null|undefined)?.zenithDeg === 35
+        && (lastSpectrumArgs as {ozoneDU?:unknown}|null|undefined)?.ozoneDU === 310
+        && (lastDoseArgs as {durationMin?:unknown}|null|undefined)?.durationMin === 20
+        && (lastDoseArgs as {bodyExposureFraction?:unknown}|null|undefined)?.bodyExposureFraction === 0.12
+        && ((lastDoseArgs as {skinIrradianceMultiplier?:unknown}|null|undefined)?.skinIrradianceMultiplier as number) > 1
+        && (lastDoseArgs as {eyeExposure?:{mode?:unknown}}|null|undefined)?.eyeExposure?.mode === 'glass-window'
         && aiCalls.includes(loggedId);
 
       const staleId = await store.logCompletedSession({
@@ -278,14 +278,14 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
       results.deleteSessionRemovesSessionAndClearsLiveState = deleted === true
         && deletedAgain === false
         && !store.getSessions().some(sess => sess.id === loggedId)
-        && depCalls.some(call => call[0] === 'clear' && call[1] === loggedId);
+        && depCalls.some(call => call[0]! === 'clear' && call[1]! === loggedId);
     } finally {
       document.querySelectorAll('[data-live-elapsed-for]').forEach(el => el.remove());
       store.configureSunSessionsStore({
         commitCurrentSlice: () => {},
         setLiveState: () => {},
         clearLiveState: () => {},
-        formatElapsed: ms => `${Math.max(0, Math.floor((ms || 0) / 60000))}m`,
+        formatElapsed: (ms:unknown) => `${Math.max(0, Math.floor(((ms || 0) as number) / 60000))}m`,
         maybeAnalyzeSessionAfterFinish: () => {},
         fetchAtmosphere: async () => null,
         reconstructSpectrum: () => null,
@@ -295,9 +295,9 @@ test('sun sessions store browser coverage exercises lifecycle edits hydration an
         retinalUVdose: () => 0,
         solarZenithAngle: () => 90,
       });
-      state.importedData = saved.importedData;
+      (state as {importedData:unknown}).importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
-      state.profiles = saved.profiles;
+      (state as {profiles:unknown}).profiles = saved.profiles;
       data.invalidateActiveDataCache();
       console.warn = saved.consoleWarn;
       localStorage.clear();
@@ -319,25 +319,25 @@ test('sun sessions store default dependency callbacks preserve lifecycle behavio
 
   const outcomes = await page.evaluate(async ({ storeUrl }) => {
     const [store, { state }, data] = await Promise.all([
-      import(storeUrl),
+      ((import(storeUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/sun-sessions-store.js"), "configureSunSessionsStore" | "startSession" | "getActiveSession" | "pauseSession" | "stopSession"> >),
       import('/js/state.js'),
       import('/js/data.js'),
     ]);
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const clone = (value:unknown) => value == null ? value : JSON.parse(JSON.stringify(value)) as unknown;
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key as string)] as const;
     }));
     const saved = {
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
       profiles: clone(state.profiles),
     };
-    const results = {};
+    const results:Record<string,unknown> = {};
 
     try {
       state.currentProfile = 'sun-session-default-deps';
-      state.profiles = [{
+      (state as {profiles:unknown}).profiles = [{
         id: state.currentProfile,
         name: 'Sun Session Defaults',
         createdAt: Date.now(),
@@ -347,7 +347,7 @@ test('sun sessions store default dependency callbacks preserve lifecycle behavio
         status: 'active',
         pinned: false,
       }];
-      state.importedData = {
+      (state as {importedData:unknown}).importedData = {
         entries: [],
         notes: [],
         supplements: [],
@@ -359,13 +359,13 @@ test('sun sessions store default dependency callbacks preserve lifecycle behavio
         commitCurrentSlice: () => {},
         setLiveState: () => {},
         clearLiveState: () => {},
-        formatElapsed: ms => `${Math.max(0, Math.floor((ms || 0) / 60000))}m`,
+        formatElapsed: (ms:unknown) => `${Math.max(0, Math.floor(((ms || 0) as number) / 60000))}m`,
         maybeAnalyzeSessionAfterFinish: () => {},
       });
 
       const id = await store.startSession({ exposurePreset: 'face_hands' });
       const active = store.getActiveSession();
-      active.startedAt = Date.now() - 135000;
+      active!.startedAt = Date.now() - 135000;
       const paused = await store.pauseSession(id);
       results.defaultPauseDepsAreNoopsButStatePersists =
         paused?.paused === true
@@ -373,14 +373,14 @@ test('sun sessions store default dependency callbacks preserve lifecycle behavio
         && paused.id === id;
 
       const elapsed = document.createElement('span');
-      elapsed.dataset.liveElapsedFor = id;
+      elapsed.dataset.liveElapsedFor = id!;
       document.body.appendChild(elapsed);
       const stopped = await store.stopSession(id);
-      const expectedElapsed = `${Math.max(0, Math.floor((stopped.endedAt - stopped.startedAt) / 60000))}m`;
+      const expectedElapsed = `${Math.max(0, Math.floor(((stopped!.endedAt as number) - stopped!.startedAt) / 60000))}m`;
       results.noopStopDepsFreezeElapsed =
         stopped?.endedAt
-        && stopped.durationMin >= 2
-        && stopped.eyeExposure?.durationSec >= 120
+        && (stopped.durationMin as number) >= 2
+        && (stopped.eyeExposure?.durationSec as number) >= 120
         && !elapsed.hasAttribute('data-live-elapsed-for')
         && elapsed.textContent === expectedElapsed;
       elapsed.remove();
@@ -389,9 +389,9 @@ test('sun sessions store default dependency callbacks preserve lifecycle behavio
       store.configureSunSessionsStore({
         maybeAnalyzeSessionAfterFinish: () => {},
       });
-      state.importedData = saved.importedData;
+      (state as {importedData:unknown}).importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
-      state.profiles = saved.profiles;
+      (state as {profiles:unknown}).profiles = saved.profiles;
       data.invalidateActiveDataCache();
       localStorage.clear();
       for (const [key, value] of storage) {

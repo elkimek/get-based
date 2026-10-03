@@ -1,3 +1,7 @@
+import type {Page} from '@playwright/test';
+interface ZipCreateOperations {file(name:string,data:string):unknown;generateAsync(options:{type:'base64'}):Promise<string>}
+type ZipConstructorOperations = new()=>ZipCreateOperations;
+interface CycleProfileOperations {periods?:{startDate?:unknown;endDate?:unknown;flow?:unknown;source?:unknown}[];coverage?:unknown}
 import { expect, test } from './coverage-fixture.js';
 
 const DRIP_CSV = [
@@ -35,7 +39,7 @@ const APPLE_HEALTH_CYCLE_XML = `<HealthData>
   <Record type="HKCategoryTypeIdentifierMenstrualFlow" value="HKCategoryValueMenstrualFlowHeavy" startDate="2026-03-02 08:00:00 +0000" />
 </HealthData>`;
 
-async function initializeCycleProfile(page, prefix) {
+async function initializeCycleProfile(page:Page, prefix:string) {
   return page.evaluate(async (profilePrefix) => {
     const [{ state }, { createDefaultProfileData }, { deleteCycleDB }] = await Promise.all([
       import('/js/state.js'),
@@ -45,9 +49,9 @@ async function initializeCycleProfile(page, prefix) {
     const id = `${profilePrefix}_${Date.now()}`;
     await deleteCycleDB(id).catch(() => {});
     state.currentProfile = id;
-    state.importedData = createDefaultProfileData();
+    (state as {importedData:unknown}).importedData = createDefaultProfileData();
     state.profileSex = null;
-    state.profiles = [{ id, name: 'Cycle Import Browser', sex: null }];
+    (state as {profiles:unknown}).profiles = [{ id, name: 'Cycle Import Browser', sex: null }];
     localStorage.setItem('labcharts-active-profile', id);
     localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
     localStorage.removeItem('labcharts-encryption-enabled');
@@ -108,12 +112,12 @@ test('Drip CSV import previews, commits, and opens cycle history', async ({ page
     const rows = await cycleStore.getCycleObservationRange(id, 'drip', '2026-04-01', '2026-05-31');
     const result = {
       profileSex: state.profileSex,
-      periods: state.importedData.menstrualCycle?.periods?.map(period => ({
+      periods: (state.importedData.menstrualCycle as CycleProfileOperations|null|undefined)?.periods?.map(period => ({
         startDate: period.startDate,
         endDate: period.endDate,
         flow: period.flow,
       })),
-      coverage: state.importedData.menstrualCycle?.coverage,
+      coverage: (state.importedData.menstrualCycle as CycleProfileOperations|null|undefined)?.coverage,
       rows,
     };
     await cycleStore.deleteCycleDB(id).catch(() => {});
@@ -132,8 +136,8 @@ test('Drip CSV import previews, commits, and opens cycle history', async ({ page
     observationCount: 4,
   });
   expect(stored.rows).toHaveLength(4);
-  expect(stored.rows[0].symptoms).toEqual(['Cramps', 'Fatigue']);
-  expect(stored.rows[2].bleeding.excluded).toBe(true);
+  expect(stored.rows[0]!.symptoms).toEqual(['Cramps', 'Fatigue']);
+  expect((stored.rows[2]!.bleeding as {excluded?:unknown}).excluded).toBe(true);
 });
 
 test('Natural Cycles ZIP import reaches the cycle preview through the file input', async ({ page }) => {
@@ -141,7 +145,7 @@ test('Natural Cycles ZIP import reaches the cycle preview through the file input
   const profileId = await initializeCycleProfile(page, 'natural_cycles_browser');
   await page.addScriptTag({ url: '/vendor/jszip.min.js' });
   const zipBase64 = await page.evaluate(async (csv) => {
-    const zip = new window.JSZip();
+    const zip = new (window as unknown as {JSZip:ZipConstructorOperations}).JSZip();
     zip.file('profile.csv', 'setting,value\nlocale,en');
     zip.file('exports/tracking_data.csv', csv);
     return zip.generateAsync({ type: 'base64' });
@@ -192,7 +196,7 @@ test('cycle import confirms before changing an explicitly male profile', async (
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     state.profileSex = 'male';
-    state.profiles[0].sex = 'male';
+    state.profiles![0]!.sex = 'male';
     localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
   });
   await page.locator('#pdf-input').setInputFiles({
@@ -247,7 +251,7 @@ test('shared Apple Health ZIP import saves wearable metrics before cycle review'
   const profileId = await initializeCycleProfile(page, 'apple_health_shared_import');
   await page.addScriptTag({ url: '/vendor/jszip.min.js' });
   const zipBase64 = await page.evaluate(async xml => {
-    const zip = new window.JSZip();
+    const zip = new (window as unknown as {JSZip:ZipConstructorOperations}).JSZip();
     zip.file('apple_health_export/export.xml', xml);
     return zip.generateAsync({ type: 'base64' });
   }, APPLE_HEALTH_CYCLE_XML);
@@ -288,12 +292,12 @@ test('shared Apple Health ZIP import saves wearable metrics before cycle review'
   await expect(preview).not.toHaveClass(/show/);
   await expect.poll(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
-    return state.importedData.menstrualCycle?.periods?.length || 0;
+    return (state.importedData.menstrualCycle as CycleProfileOperations|null|undefined)?.periods?.length || 0;
   })).toBe(1);
 
   const periods = await page.evaluate(async id => {
     const { state } = await import('/js/state.js');
-    const result = state.importedData.menstrualCycle.periods.map(period => ({
+    const result = (state.importedData.menstrualCycle as {periods:NonNullable<CycleProfileOperations["periods"]>}).periods.map(period => ({
       startDate: period.startDate,
       endDate: period.endDate,
       source: period.source,
@@ -323,9 +327,9 @@ test('Body cycle action opens the contextual cycle picker', async ({ page }, tes
     const id = `cycle_contextual_browser_${Date.now()}`;
     await deleteCycleDB(id).catch(() => {});
     state.currentProfile = id;
-    state.importedData = createDefaultProfileData();
+    (state as {importedData:unknown}).importedData = createDefaultProfileData();
     state.profileSex = 'female';
-    state.profiles = [{ id, name: 'Contextual Cycle Import', sex: 'female' }];
+    (state as {profiles:unknown}).profiles = [{ id, name: 'Contextual Cycle Import', sex: 'female' }];
     localStorage.setItem('labcharts-active-profile', id);
     localStorage.setItem('labcharts-profiles', JSON.stringify(state.profiles));
     localStorage.setItem(`labcharts-${id}-emptyTour`, '1');

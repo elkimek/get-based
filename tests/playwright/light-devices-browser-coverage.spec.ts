@@ -1,3 +1,4 @@
+type LightDeviceFixtureGlobals={endTour?:()=>unknown;getOllamaConfig?:unknown;showConfirmDialog?:unknown};
 import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
@@ -19,7 +20,7 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(() => import('/js/light-devices.js'));
   await page.evaluate(() => {
-    window.endTour?.();
+    (window as unknown as LightDeviceFixtureGlobals).endTour?.();
     document.getElementById('tour-overlay')?.remove();
     document.getElementById('tour-spotlight')?.remove();
     document.getElementById('tour-tooltip')?.remove();
@@ -36,9 +37,9 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       import('/js/light-devices-runtime.js'),
       import('/js/recommendations-runtime.js'),
     ]);
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitUntil = async (predicate, label) => {
+    const clone = (value:unknown) => value == null ? value : JSON.parse(JSON.stringify(value)) as unknown;
+    const wait = (ms:number) => new Promise(resolve => setTimeout(resolve, ms));
+    const waitUntil = async (predicate:()=>unknown, label:string) => {
       for (let i = 0; i < 120; i += 1) {
         if (predicate()) return true;
         await wait(20);
@@ -47,11 +48,11 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
     };
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key as string)] as const;
     }));
     const sessionSnapshot = new Map(Array.from({ length: sessionStorage.length }, (_, i) => {
       const key = sessionStorage.key(i);
-      return [key, sessionStorage.getItem(key)];
+      return [key, sessionStorage.getItem(key as string)] as const;
     }));
     const saved = {
       importedData: clone(state.importedData),
@@ -59,15 +60,15 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       currentView: state.currentView,
       unitSystem: state.unitSystem,
       fetch: window.fetch,
-      getOllamaConfig: window.getOllamaConfig,
-      showConfirmDialog: window.showConfirmDialog,
+      getOllamaConfig: (window as unknown as LightDeviceFixtureGlobals).getOllamaConfig,
+      showConfirmDialog: (window as unknown as LightDeviceFixtureGlobals).showConfirmDialog,
       maybeAnalyzeDeviceSessionAfterFinish: ai.maybeAnalyzeDeviceSessionAfterFinish,
       scrollIntoView: Element.prototype.scrollIntoView,
     };
-    let previousLightDevicesRuntimeDeps = null;
-    let previousRecommendationBridge = null;
-    const outcomes = {};
-    const calls = [];
+    let previousLightDevicesRuntimeDeps:ReturnType<typeof lightDevicesRuntime.configureLightDevicesRuntimeDeps>|null = null;
+    let previousRecommendationBridge:ReturnType<typeof recommendationRuntime.configureRecommendationModuleBridge>|null = null;
+    const outcomes:Record<string,unknown> = {};
+    const calls:unknown[][] = [];
     const preset = {
       id: 'coverage-panel',
       brand: 'CoverageLight',
@@ -98,7 +99,7 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ollama-model', 'llama3.2');
       localStorage.removeItem('labcharts-ai-paused');
-      window.getOllamaConfig = () => ({ url: 'http://localhost:11434', model: 'llama3.2', apiKey: '' });
+      (window as unknown as LightDeviceFixtureGlobals).getOllamaConfig = () => ({ url: 'http://localhost:11434', model: 'llama3.2', apiKey: '' });
       window.fetch = async (url, options = {}) => {
         const urlText = String(url);
         if (urlText === 'data/light-device-presets.json') {
@@ -110,27 +111,27 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
         return saved.fetch(url, options);
       };
       previousLightDevicesRuntimeDeps = lightDevicesRuntime.configureLightDevicesRuntimeDeps({
-        navigate: route => {
+        navigate: (route:string) => {
           calls.push(['navigate', route]);
           state.currentView = route;
         },
       });
-      window.showConfirmDialog = async message => {
+      (window as unknown as LightDeviceFixtureGlobals).showConfirmDialog = async (message:unknown) => {
         calls.push(['confirm', message]);
         return true;
       };
       store.configureLightDevicesStore({
-        maybeAnalyzeDeviceSessionAfterFinish: session => calls.push(['analyze', session.id]),
+        maybeAnalyzeDeviceSessionAfterFinish: (session:Parameters<typeof ai.maybeAnalyzeDeviceSessionAfterFinish>[0]) => calls.push(['analyze', (session as {id?:unknown}).id]),
       });
       previousRecommendationBridge = recommendationRuntime.configureRecommendationModuleBridge({
         loadCatalog: async () => ({ products: [] }),
-        renderLightDeviceAffiliateRow: (_catalog, slug) => `<a class="affiliate-test">${slug}</a>`,
+        renderLightDeviceAffiliateRow: (_catalog:unknown, slug:unknown) => `<a class="affiliate-test">${slug}</a>`,
       });
 
       state.currentProfile = 'light-devices-browser-coverage';
       state.currentView = 'light';
       state.unitSystem = 'EU';
-      state.importedData = {
+      (state as {importedData:unknown}).importedData = {
         entries: [],
         notes: [],
         supplements: [],
@@ -147,7 +148,7 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
       data.invalidateActiveDataCache();
 
       const presetDevice = await store.addDeviceFromPresetRecord(preset, { notes: 'desk panel' }, { now: 1000 });
-      const customDevice = await store.addCustomDevice({
+      const customDevice = await (store.addCustomDevice as (spec:Omit<NonNullable<Parameters<typeof store.addCustomDevice>[0]>,"channelGroups"> & {channelGroups?:unknown})=>ReturnType<typeof store.addCustomDevice>)({
         brand: 'ManualLight',
         model: 'Desk SAD',
         type: 'sad',
@@ -178,40 +179,40 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
         && store.getDevices().length === 2;
 
       const activeId = await store.startDeviceSession({
-        deviceId: presetDevice.id,
+        deviceId: presetDevice!.id,
         distanceCm: 18,
         bodyAreas: ['breast-chest', 'abdomen'],
         bodyArea: 'torso',
         eyesProtected: false,
         mode: 'all',
       });
-      const secondActive = await store.startDeviceSession({ deviceId: presetDevice.id });
+      const secondActive = await store.startDeviceSession({ deviceId: presetDevice!.id });
       const activeSession = store.getActiveDeviceSession();
-      activeSession.startedAt = Date.now() - 125000;
+      activeSession!.startedAt = Date.now() - 125000;
       const activeHost = document.createElement('div');
       activeHost.innerHTML = lightDevices.renderActiveDeviceSessionCard();
       document.body.appendChild(activeHost);
       lightDevices.ensureActiveDeviceTicker();
-      const elapsedText = activeHost.querySelector('[data-live-elapsed-for]')?.textContent || '';
+      const elapsedText = activeHost.querySelector<HTMLElement>('[data-live-elapsed-for]')?.textContent || '';
       outcomes.startDeviceSessionRejectsSecondAndTickerUpdatesCard =
         !!activeId
         && secondActive === null
         && elapsedText.startsWith('2:')
-        && activeHost.textContent.includes('CoverageLight Panel Pro');
+        && activeHost.textContent!.includes('CoverageLight Panel Pro');
 
-      await lightDevices.stopDeviceSessionAndNotify(activeId);
+      await lightDevices.stopDeviceSessionAndNotify(activeId!);
       const stoppedSession = store.getDeviceSessions().find(s => s.id === activeId);
       outcomes.stopDeviceSessionWrapperSavesDosesNotifiesAndNavigates =
         !!stoppedSession?.endedAt
-        && stoppedSession.durationMin > 0
+        && (stoppedSession!.durationMin as number) > 0
         && !!stoppedSession.doses?.pbm_red
-        && calls.some(call => call[0] === 'analyze' && call[1] === activeId)
-        && calls.some(call => call[0] === 'navigate' && call[1] === 'light')
-        && Array.from(document.querySelectorAll('.notification-toast'))
+        && calls.some(call => call[0]! === 'analyze' && call[1]! === activeId)
+        && calls.some(call => call[0]! === 'navigate' && call[1]! === 'light')
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast'))
           .some(el => (el.textContent || '').includes('Saved'));
 
       const logged = await store.logDeviceSession({
-        deviceId: customDevice.id,
+        deviceId: customDevice!.id,
         durationMin: 12,
         distanceCm: 35,
         bodyAreas: ['face'],
@@ -220,39 +221,39 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
         notes: 'desk work',
         mode: 'therapy',
       });
-      const deleteSessionPromise = lightDevices.deleteDeviceSessionWithConfirm(logged.id);
+      const deleteSessionPromise = lightDevices.deleteDeviceSessionWithConfirm(logged!.id);
       await waitUntil(() => !!document.getElementById('confirm-ok'), 'delete session confirm open');
       document.getElementById('confirm-ok')?.click();
       await deleteSessionPromise;
       outcomes.deleteDeviceSessionWrapperConfirmsDeletesAndNavigates =
-        !store.getDeviceSessions().some(s => s.id === logged.id)
-        && calls.filter(call => call[0] === 'navigate' && call[1] === 'light').length >= 2;
+        !store.getDeviceSessions().some(s => s.id === logged!.id)
+        && calls.filter(call => call[0]! === 'navigate' && call[1]! === 'light').length >= 2;
 
-      const deleteDevicePromise = lightDevices.deleteLightDeviceAndRefresh(customDevice.id);
+      const deleteDevicePromise = lightDevices.deleteLightDeviceAndRefresh(customDevice!.id);
       await waitUntil(() => !!document.getElementById('confirm-ok'), 'delete device confirm open');
       document.getElementById('confirm-ok')?.click();
       await deleteDevicePromise;
       outcomes.deleteLightDeviceWrapperRemovesDeviceAndRefreshes =
-        !store.getDevices().some(d => d.id === customDevice.id)
-        && calls.filter(call => call[0] === 'navigate' && call[1] === 'light').length >= 3;
+        !store.getDevices().some(d => d.id === customDevice!.id)
+        && calls.filter(call => call[0]! === 'navigate' && call[1]! === 'light').length >= 3;
 
       state.importedData.lightDevices = [];
       state.importedData.deviceSessions = [];
-      const navBeforePresetAdd = calls.filter(call => call[0] === 'navigate' && call[1] === 'light').length;
+      const navBeforePresetAdd = calls.filter(call => call[0]! === 'navigate' && call[1]! === 'light').length;
       const devicesHost = document.createElement('div');
       devicesHost.innerHTML = await lightDevices.renderDevicesSection();
       document.body.appendChild(devicesHost);
-      devicesHost.querySelector('[data-light-devices-action="add-device"]')?.click();
-      await waitUntil(() => !!document.querySelector('[aria-label="Add light device"]'), 'delegated add device action');
-      const addOverlay = document.querySelector('[aria-label="Add light device"]')?.closest('.modal-overlay');
-      const firstPreset = addOverlay?.querySelector('.light-device-preset-row');
-      const addButton = addOverlay?.querySelector('#add-device-confirm');
+      devicesHost.querySelector<HTMLElement>('[data-light-devices-action="add-device"]')?.click();
+      await waitUntil(() => !!document.querySelector<HTMLElement>('[aria-label="Add light device"]'), 'delegated add device action');
+      const addOverlay = document.querySelector<HTMLElement>('[aria-label="Add light device"]')?.closest<HTMLElement>('.modal-overlay');
+      const firstPreset = addOverlay?.querySelector<HTMLElement>('.light-device-preset-row');
+      const addButton = addOverlay?.querySelector<HTMLElement>('#add-device-confirm');
       firstPreset?.click();
       addButton?.click();
-      await waitUntil(() => store.getDevices().length === 1 && !document.body.contains(addOverlay), 'preset device added from UI');
+      await waitUntil(() => store.getDevices().length === 1 && !document.body.contains(addOverlay as Node|null), 'preset device added from UI');
       outcomes.productionPresetDialogUsesLoadedPresetsAddWrapperAndRefresh =
-        !!store.getDevices()[0]?.presetId
-        && calls.filter(call => call[0] === 'navigate' && call[1] === 'light').length > navBeforePresetAdd;
+        !!store.getDevices()[0]!?.presetId
+        && calls.filter(call => call[0]! === 'navigate' && call[1]! === 'light').length > navBeforePresetAdd;
       devicesHost.remove();
 
       await store.addCustomDevice({
@@ -264,44 +265,44 @@ test('light devices browser coverage handles store mutations UI wrappers and pic
         recommendedDistanceCm: 15,
       });
       lightDevices.quickLogDeviceSession();
-      await waitUntil(() => !!document.querySelector('[aria-label="Pick a device to log a session"]'), 'device picker open');
-      const pickerOverlay = document.querySelector('[aria-label="Pick a device to log a session"]')?.closest('.modal-overlay');
-      const pickerRows = Array.from(pickerOverlay?.querySelectorAll('.light-device-picker-row') || []);
-      pickerRows[0]?.click();
-      await waitUntil(() => !!document.querySelector('[aria-label="Log device session"]'), 'session dialog from picker open');
-      const sessionOverlay = document.querySelector('[aria-label="Log device session"]')?.closest('.modal-overlay');
+      await waitUntil(() => !!document.querySelector<HTMLElement>('[aria-label="Pick a device to log a session"]'), 'device picker open');
+      const pickerOverlay = document.querySelector<HTMLElement>('[aria-label="Pick a device to log a session"]')?.closest<HTMLElement>('.modal-overlay');
+      const pickerRows = Array.from(pickerOverlay?.querySelectorAll<HTMLElement>('.light-device-picker-row') || []);
+      pickerRows[0]!?.click();
+      await waitUntil(() => !!document.querySelector<HTMLElement>('[aria-label="Log device session"]'), 'session dialog from picker open');
+      const sessionOverlay = document.querySelector<HTMLElement>('[aria-label="Log device session"]')?.closest<HTMLElement>('.modal-overlay');
       outcomes.quickLogDeviceSessionOpensPickerAndChosenSessionDialog =
         pickerRows.length === 2
-        && !document.body.contains(pickerOverlay)
+        && !document.body.contains(pickerOverlay as Node|null)
         && !!sessionOverlay
-        && sessionOverlay.textContent.includes('Log session');
+        && sessionOverlay.textContent!.includes('Log session');
       sessionOverlay?.remove();
 
       await lightDevices.openCustomDeviceDialog();
-      const customOverlay = document.querySelector('[aria-label="Add custom light device"]')?.closest('.modal-overlay');
-      const badInput = customOverlay?.querySelector('#custom-dev-image');
+      const customOverlay = document.querySelector<HTMLElement>('[aria-label="Add custom light device"]')?.closest<HTMLElement>('.modal-overlay');
+      const badInput = customOverlay?.querySelector<HTMLElement>('#custom-dev-image');
       Object.defineProperty(badInput, 'files', {
         configurable: true,
         value: [new File(['not an image'], 'device.txt', { type: 'text/plain' })],
       });
-      badInput.dispatchEvent(new Event('change', { bubbles: true }));
+      badInput!.dispatchEvent(new Event('change', { bubbles: true }));
       await wait(0);
       outcomes.customDeviceScanRejectsInvalidFile =
-        Array.from(document.querySelectorAll('.notification-toast'))
+        Array.from(document.querySelectorAll<HTMLElement>('.notification-toast'))
           .some(el => (el.textContent || '').includes('Please select an image'));
     } finally {
-      document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
-      state.importedData = saved.importedData;
+      document.querySelectorAll<HTMLElement>('.modal-overlay').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
+      (state as {importedData:unknown}).importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
       state.currentView = saved.currentView;
       state.unitSystem = saved.unitSystem;
       data.invalidateActiveDataCache();
       window.fetch = saved.fetch;
-      if (saved.getOllamaConfig) window.getOllamaConfig = saved.getOllamaConfig;
-      else delete window.getOllamaConfig;
-      if (saved.showConfirmDialog) window.showConfirmDialog = saved.showConfirmDialog;
-      else delete window.showConfirmDialog;
+      if (saved.getOllamaConfig) (window as unknown as LightDeviceFixtureGlobals).getOllamaConfig = saved.getOllamaConfig;
+      else delete (window as unknown as LightDeviceFixtureGlobals).getOllamaConfig;
+      if (saved.showConfirmDialog) (window as unknown as LightDeviceFixtureGlobals).showConfirmDialog = saved.showConfirmDialog;
+      else delete (window as unknown as LightDeviceFixtureGlobals).showConfirmDialog;
       if (previousLightDevicesRuntimeDeps) {
         lightDevicesRuntime.configureLightDevicesRuntimeDeps(previousLightDevicesRuntimeDeps);
       }
@@ -333,36 +334,36 @@ test('light device setup browser coverage exercises default dependency fallbacks
   await page.goto('/app', { waitUntil: 'load' });
 
   const outcomes = await page.evaluate(async ({ setupUrl }) => {
-    const setup = await import(setupUrl);
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitUntil = async (predicate, label) => {
+    const setup = await ((import(setupUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/light-device-setup-modal.js"), "openAddDeviceDialog" | "configureLightDeviceSetup"> >);
+    const wait = (ms:number) => new Promise(resolve => setTimeout(resolve, ms));
+    const waitUntil = async (predicate:()=>unknown, label:string) => {
       for (let i = 0; i < 120; i += 1) {
         if (predicate()) return true;
         await wait(20);
       }
       throw new Error(`Timed out waiting for ${label}`);
     };
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
 
     try {
       await setup.openAddDeviceDialog();
-      const emptyPresetOverlay = document.querySelector('[aria-label="Add light device"]')?.closest('.modal-overlay');
+      const emptyPresetOverlay = document.querySelector<HTMLElement>('[aria-label="Add light device"]')?.closest<HTMLElement>('.modal-overlay');
       outcomes.defaultLoadPresetsAndWireModalRenderEmptyPicker =
         !!emptyPresetOverlay
-        && emptyPresetOverlay.textContent.includes('Add a light device')
-        && emptyPresetOverlay.querySelectorAll('.light-device-preset-row').length === 0;
+        && emptyPresetOverlay.textContent!.includes('Add a light device')
+        && emptyPresetOverlay.querySelectorAll<HTMLElement>('.light-device-preset-row').length === 0;
 
-      emptyPresetOverlay?.querySelector('#add-device-custom')?.click();
-      await waitUntil(() => !!document.querySelector('[aria-label="Add custom light device"]'), 'custom device fallback overlay');
-      const customOverlay = document.querySelector('[aria-label="Add custom light device"]')?.closest('.modal-overlay');
+      emptyPresetOverlay?.querySelector<HTMLElement>('#add-device-custom')?.click();
+      await waitUntil(() => !!document.querySelector<HTMLElement>('[aria-label="Add custom light device"]'), 'custom device fallback overlay');
+      const customOverlay = document.querySelector<HTMLElement>('[aria-label="Add custom light device"]')?.closest<HTMLElement>('.modal-overlay');
       if (!customOverlay) throw new Error('Custom device fallback overlay missing');
-      customOverlay.querySelector('#custom-dev-brand').value = 'Fallback';
-      customOverlay.querySelector('#custom-dev-model').value = 'Manual';
-      customOverlay.querySelector('#custom-dev-save')?.click();
+      customOverlay.querySelector<HTMLInputElement>('#custom-dev-brand')!.value = 'Fallback';
+      customOverlay.querySelector<HTMLInputElement>('#custom-dev-model')!.value = 'Manual';
+      customOverlay.querySelector<HTMLElement>('#custom-dev-save')?.click();
       await wait(0);
       outcomes.defaultAddCustomDeviceAndRefreshFallbacksAreCallable =
         document.body.contains(customOverlay)
-        && Array.from(document.querySelectorAll('.notification-toast'))
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast'))
           .some(el => (el.textContent || '').includes('could not be added'));
       customOverlay.remove();
 
@@ -380,19 +381,19 @@ test('light device setup browser coverage exercises default dependency fallbacks
         }),
       });
       await setup.openAddDeviceDialog();
-      const presetOverlay = document.querySelector('[aria-label="Add light device"]')?.closest('.modal-overlay');
-      const row = presetOverlay?.querySelector('.light-device-preset-row');
-      const confirm = presetOverlay?.querySelector('#add-device-confirm');
+      const presetOverlay = document.querySelector<HTMLElement>('[aria-label="Add light device"]')?.closest<HTMLElement>('.modal-overlay');
+      const row = presetOverlay?.querySelector<HTMLElement>('.light-device-preset-row');
+      const confirm = presetOverlay?.querySelector<HTMLElement>('#add-device-confirm');
       row?.click();
       confirm?.click();
       await wait(0);
       outcomes.defaultAddDeviceFromPresetFallbackIsCallable =
-        document.body.contains(presetOverlay)
-        && Array.from(document.querySelectorAll('.notification-toast'))
+        document.body.contains(presetOverlay as Node|null)
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast'))
           .filter(el => (el.textContent || '').includes('could not be added')).length >= 2;
     } finally {
-      document.querySelectorAll('.modal-overlay').forEach(el => el.remove());
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.modal-overlay').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
     }
 
     return outcomes;

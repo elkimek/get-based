@@ -1,9 +1,10 @@
+import type {Page} from '@playwright/test';
 import fs from 'node:fs';
 import { expect, test } from './coverage-fixture.js';
 
-const catalog = JSON.parse(fs.readFileSync('data/snp-health.json', 'utf8'));
+const catalog = JSON.parse(fs.readFileSync('data/snp-health.json', 'utf8')) as Record<string,{genotypes:Record<string,unknown>}>;
 
-async function prepareReport(page) {
+async function prepareReport(page:Page) {
   await page.addInitScript(() => {
     for (const profile of ['default', 'synthetic-report']) {
       localStorage.setItem(`labcharts-${profile}-tour`, 'completed');
@@ -16,12 +17,12 @@ async function prepareReport(page) {
     const { state } = await import('/js/state.js');
     const { invalidateActiveDataCache } = await import('/js/data.js');
     state.currentProfile = 'synthetic-report';
-    state.profiles = [{ id: 'synthetic-report', name: 'Synthetic report review', sex: 'female', dob: '1990-01-01' }];
+    (state as {profiles:unknown}).profiles = [{ id: 'synthetic-report', name: 'Synthetic report review', sex: 'female', dob: '1990-01-01' }];
     state.profileSex = 'female';
     state.profileDob = '1990-01-01';
     state.rangeMode = 'reference';
     state.unitSystem = 'EU';
-    state.importedData = {
+    (state as {importedData:unknown}).importedData = {
       entries: [{ date: '2026-01-01', markers: { 'biochemistry.glucose': 5.2 } }, { date: '2026-04-02', markers: { 'biochemistry.glucose': 6.2 } }],
       notes: [{ date: '2026-04-03', text: 'Synthetic follow-up note for layout review.' }],
       supplements: [{ name: 'Synthetic supplement', dosage: '100 mg', type: 'supplement', startDate: '2026-02-01' }],
@@ -114,8 +115,8 @@ test('dense recorded histories remain concise and optional appendices retain ind
     for (let i = 0; i < 90; i++) {
       const date = new Date(Date.UTC(2026, 5, 1 + i, 12));
       const day = date.toISOString().slice(0, 10);
-      for (let j = 0; j < 3; j++) state.importedData.nutritionMeals.push({ id: `meal-${i}-${j}`, localDate: day, name: `Individual meal ${i}-${j}`, reviewed: true, nutrients: { energyKcal: 600, proteinG: 30, carbohydrateG: 60, fatG: 25, fiberG: 8, sodiumMg: 500, calciumMg: 200, ironMg: 4, fluidMl: 300 }, source: { kind: 'manual' } });
-      state.importedData.biometrics.weight.push({ date: day, value: 65 + i / 90, unit: 'kg' });
+      for (let j = 0; j < 3; j++) (state.importedData.nutritionMeals as {push(value:unknown):unknown}).push({ id: `meal-${i}-${j}`, localDate: day, name: `Individual meal ${i}-${j}`, reviewed: true, nutrients: { energyKcal: 600, proteinG: 30, carbohydrateG: 60, fatG: 25, fiberG: 8, sodiumMg: 500, calciumMg: 200, ironMg: 4, fluidMl: 300 }, source: { kind: 'manual' } });
+      state.importedData.biometrics.weight!.push({ date: day, value: 65 + i / 90, unit: 'kg' });
       state.importedData.sunSessions.push({ startedAt: date.getTime(), endedAt: date.getTime() + 900000, durationMin: 15, doses: { nir_solar: 10000 } });
       state.importedData.lightMeasurements.push({ id: `meter-${i}`, roomId: 'bedroom', tool: 'lux', value: 100 + i, capturedAt: date.getTime(), extra: { source: 'meter-entry' } });
     }
@@ -230,7 +231,7 @@ test('environment spot checks print readable labels without missing-baseline pla
   await traits.close();
 });
 
-async function stubReportAI(page, fail = false, delayed = false, provider = 'ollama') {
+async function stubReportAI(page:Page, fail = false, delayed = false, provider = 'ollama') {
   await page.route('**/js/ai-feature-routing.js', async route => {
     const response = await route.fetch();
     const wait = delayed ? "await new Promise(resolve => document.addEventListener('synthetic-report-finish', resolve, { once: true }));" : "await new Promise(resolve => setTimeout(resolve, 100));";
@@ -263,9 +264,9 @@ test('background sync during delayed AI keeps the preview and overview on the sa
     const { refreshActiveProfileAfterPull } = await import('/js/sync-pull-active-refresh.js');
     refreshActiveProfileAfterPull({ profileId: state.currentProfile, merged: structuredClone(state.importedData), localDataChanged: false });
     // A later same-profile update must not leak into a report already sent to AI.
-    state.importedData.nutritionMeals[0].nutrients.energyKcal = 999;
+    (state.importedData.nutritionMeals![0]!.nutrients as {energyKcal:unknown}).energyKcal = 999;
     state.importedData.wearableSummary.metrics.weight.latest = 99;
-    state.importedData.notes[0].text = 'New note after report started';
+    state.importedData.notes[0]!.text = 'New note after report started';
     document.dispatchEvent(new Event('synthetic-report-finish'));
   });
   await expect(popup.locator('.report-ai-summary')).toContainText('Synthetic AI overview');
@@ -337,7 +338,7 @@ test('templates produce distinct reports and clinician keeps normal tumor, bone 
       ['syntheticUrine', 'Urinalysis', 'Normal urine fixture'],
     ]) {
       const id = `${category}.check`;
-      state.importedData.customMarkers[id] = { name, categoryLabel: label, unit: 'u', refMin: 1, refMax: 10 };
+      (state.importedData.customMarkers as Record<string,unknown>)[id] = { name, categoryLabel: label, unit: 'u', refMin: 1, refMax: 10 };
       for (const entry of state.importedData.entries) entry.markers[id] = 2;
     }
     invalidateActiveDataCache();
@@ -396,7 +397,7 @@ for (const decision of ['decline', 'approve', 'change-selection']) {
       await expect(page.locator('[data-report-ai-status]')).toContainText('No report data was sent');
     } else {
       if (decision === 'change-selection') await page.evaluate(() => {
-        document.querySelector('#report-include-ai').click();
+        document.querySelector<HTMLElement>('#report-include-ai')!.click();
       });
       await consent.locator('input[type="checkbox"]').check();
       await consent.locator('[data-ai-processing-action="approve"]').click();

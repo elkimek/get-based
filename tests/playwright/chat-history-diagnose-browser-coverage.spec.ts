@@ -20,7 +20,7 @@ test('chat history browser coverage saves loads clears and updates thread state'
   const results = await page.evaluate(async ({ chatHistoryUrl }) => {
     const [{ state }, chatHistory, threads, profile, cryptoStore, blobStorage, chatRuntime] = await Promise.all([
       import('/js/state.js'),
-      import(chatHistoryUrl),
+      ((import(chatHistoryUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/chat-history.js"), "saveChatHistory" | "getChatStorageKey" | "loadChatHistory" | "canSaveChatHistory" | "clearChatHistory"> >),
       import('/js/chat-threads.js'),
       import('/js/profile.js'),
       import('/js/crypto.js'),
@@ -30,7 +30,7 @@ test('chat history browser coverage saves loads clears and updates thread state'
     const storage = new Map(
       Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
         .filter(key => key !== null)
-        .map(key => [key, localStorage.getItem(key)])
+        .map(key => [key, localStorage.getItem(key)] as const)
     );
     const original = {
       currentProfile: state.currentProfile,
@@ -43,14 +43,14 @@ test('chat history browser coverage saves loads clears and updates thread state'
     };
     const profileId = 'coverage-chat-history-profile';
     const importedKey = profile.profileStorageKey(profileId, 'imported');
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     let renderCalls = 0;
     let discussCalls = 0;
     const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
       renderChatMessages: () => { renderCalls += 1; },
       updateDiscussButton: () => { discussCalls += 1; },
     });
-    const waitFor = async (predicate, label, timeoutMs = 1000) => {
+    const waitFor = async <Value,>(predicate:()=>Value|Promise<Value>, label:string, timeoutMs = 1000) => {
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
         const result = await predicate();
@@ -72,14 +72,14 @@ test('chat history browser coverage saves loads clears and updates thread state'
       state.currentProfile = profileId;
       state.currentChatPersonality = 'default';
       state.currentThreadId = null;
-      state.chatHistory = [{ role: 'user', content: 'orphan message' }];
+      (state as {chatHistory:unknown}).chatHistory = [{ role: 'user', content: 'orphan message' }];
       await chatHistory.saveChatHistory();
       outcomes.saveWithoutThreadIsNoop = !Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i))
         .some(key => key?.includes('-chat-t_'));
 
       const firstUpdatedAt = '2026-06-01T00:00:00.000Z';
       state.currentThreadId = 'thread-a';
-      state.chatThreads = [{
+      (state as {chatThreads:unknown}).chatThreads = [{
         id: 'thread-a',
         name: 'Coverage Thread',
         createdAt: firstUpdatedAt,
@@ -91,29 +91,29 @@ test('chat history browser coverage saves loads clears and updates thread state'
         summaryModel: 'Old Model',
         summaryCost: { inputTokens: 1, outputTokens: 1 },
       }];
-      state.chatHistory = [
+      (state as {chatHistory:unknown}).chatHistory = [
         { role: 'user', content: 'How is ferritin?' },
         { role: 'assistant', personalityName: 'Analyst', content: 'Ferritin is improving.' },
       ];
 
       await chatHistory.saveChatHistory();
       const threadKey = threads.getChatThreadKey('thread-a');
-      const savedMessages = JSON.parse(localStorage.getItem(threadKey) || '[]');
-      const savedThread = state.chatThreads[0];
+      const savedMessages = JSON.parse(localStorage.getItem(threadKey) || '[]') as {content?:unknown}[];
+      const savedThread = state.chatThreads[0]!;
       outcomes.storageKeyUsesActiveProfile = chatHistory.getChatStorageKey() === `labcharts-${profileId}-chat`;
       outcomes.saveWritesThreadMessages = savedMessages.length === 2
-        && savedMessages[1].content === 'Ferritin is improving.';
-      outcomes.saveUpdatesThreadMetadata = savedThread.messageCount === 2
-        && savedThread.updatedAt !== firstUpdatedAt
-        && savedThread.personalityName === 'AI Lab Analyst'
-        && savedThread.personalityIcon === '\uD83D\uDD2C';
-      outcomes.saveRendersThreadList = document.querySelector('.chat-thread-item[data-thread-id="thread-a"]')
-        ?.textContent.includes('2 msgs') === true;
+        && savedMessages[1]!.content === 'Ferritin is improving.';
+      outcomes.saveUpdatesThreadMetadata = savedThread!.messageCount === 2
+        && savedThread!.updatedAt !== firstUpdatedAt
+        && savedThread!.personalityName === 'AI Lab Analyst'
+        && savedThread!.personalityIcon === '\uD83D\uDD2C';
+      outcomes.saveRendersThreadList = document.querySelector<HTMLElement>('.chat-thread-item[data-thread-id="thread-a"]')
+        ?.textContent!.includes('2 msgs') === true;
 
-      state.chatHistory = [{ role: 'user', content: 'stale' }];
+      (state as {chatHistory:unknown}).chatHistory = [{ role: 'user', content: 'stale' }];
       await chatHistory.loadChatHistory();
       outcomes.loadRestoresSavedMessages = state.chatHistory.length === 2
-        && state.chatHistory[0].content === 'How is ferritin?'
+        && state.chatHistory[0]!.content === 'How is ferritin?'
         && renderCalls > 0;
 
       localStorage.setItem(threadKey, '{bad json');
@@ -121,24 +121,24 @@ test('chat history browser coverage saves loads clears and updates thread state'
       outcomes.loadHandlesMalformedStorage = Array.isArray(state.chatHistory)
         && state.chatHistory.length === 0
         && malformedLoad === false;
-      state.chatHistory = [{ role: 'user', content: 'must not replace corrupt storage' }];
+      (state as {chatHistory:unknown}).chatHistory = [{ role: 'user', content: 'must not replace corrupt storage' }];
       outcomes.malformedStorageBlocksOverwrite = await chatHistory.saveChatHistory() === false
         && localStorage.getItem(threadKey) === '{bad json';
 
       localStorage.setItem(threadKey, JSON.stringify([{ role: 'user', content: 'recovered' }]));
       outcomes.validReloadClearsWriteBlock = await chatHistory.loadChatHistory() === true
         && chatHistory.canSaveChatHistory() === true
-        && state.chatHistory[0]?.content === 'recovered';
+        && state.chatHistory[0]!?.content === 'recovered';
 
       state.currentThreadId = '';
-      state.chatHistory = [{ role: 'assistant', content: 'should clear' }];
+      (state as {chatHistory:unknown}).chatHistory = [{ role: 'assistant', content: 'should clear' }];
       await chatHistory.loadChatHistory();
       outcomes.loadWithoutActiveThreadClearsState = state.chatHistory.length === 0;
 
       state.currentThreadId = 'thread-a';
-      state.chatHistory = [{ role: 'user', content: 'clear me' }];
+      (state as {chatHistory:unknown}).chatHistory = [{ role: 'user', content: 'clear me' }];
       localStorage.setItem(threadKey, JSON.stringify(state.chatHistory));
-      state.importedData = {
+      (state as {importedData:unknown}).importedData = {
         entries: [],
         notes: [],
         supplements: [],
@@ -160,35 +160,35 @@ test('chat history browser coverage saves loads clears and updates thread state'
       const persistedImported = await waitFor(async () => {
         const raw = await cryptoStore.encryptedGetItem(importedKey);
         if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        return parsed.chatSummaries?.length === 1 && parsed.chatSummaries[0].id === 'summary-b'
+        const parsed = JSON.parse(raw as string) as {chatSummaries?:{id?:unknown}[]};
+        return parsed.chatSummaries?.length === 1 && parsed.chatSummaries[0]!.id === 'summary-b'
           ? parsed
           : null;
       }, 'persisted chat summary cleanup');
 
       outcomes.clearRemovesThreadMessages = state.chatHistory.length === 0
         && localStorage.getItem(threadKey) === null;
-      outcomes.clearResetsThreadSummary = savedThread.messageCount === 0
+      outcomes.clearResetsThreadSummary = savedThread!.messageCount === 0
         && !('summary' in savedThread)
         && !('summaryDate' in savedThread)
         && !('summaryModel' in savedThread)
         && !('summaryCost' in savedThread)
         && !('summaryAttribution' in savedThread);
       outcomes.clearDeletesOnlyMatchingSavedSummary = state.importedData.chatSummaries.length === 1
-        && state.importedData.chatSummaries[0].id === 'summary-b'
+        && state.importedData.chatSummaries[0]!.id === 'summary-b'
         && persistedImported.chatSummaries?.length === 1
-        && persistedImported.chatSummaries[0].id === 'summary-b';
+        && persistedImported.chatSummaries[0]!.id === 'summary-b';
       outcomes.clearRefreshesUiAndNotifies = renderCalls >= 3
         && discussCalls === 1
-        && document.querySelector('.chat-header-title')?.textContent === 'AI Lab Analyst'
-        && document.getElementById('notification-container')?.textContent.includes('Chat history cleared') === true;
+        && document.querySelector<HTMLElement>('.chat-header-title')?.textContent === 'AI Lab Analyst'
+        && document.getElementById('notification-container')?.textContent!.includes('Chat history cleared') === true;
     } finally {
       state.currentProfile = original.currentProfile;
-      state.chatHistory = original.chatHistory;
-      state.chatThreads = original.chatThreads;
+      (state as {chatHistory:unknown}).chatHistory = original.chatHistory;
+      (state as {chatThreads:unknown}).chatThreads = original.chatThreads;
       state.currentThreadId = original.currentThreadId;
       state.currentChatPersonality = original.currentChatPersonality;
-      state.importedData = original.importedData;
+      (state as {importedData:unknown}).importedData = original.importedData;
       chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       await blobStorage.deleteBlob(importedKey);
       localStorage.clear();
@@ -214,14 +214,14 @@ test('sync diagnose browser coverage renders modal and copy fallbacks', async ({
   const results = await page.evaluate(async ({ diagnoseUrl }) => {
     const [{ state }, diagnoseUi, diagnosticsContext, relayHealth] = await Promise.all([
       import('/js/state.js'),
-      import(diagnoseUrl),
+      ((import(diagnoseUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/sync-diagnose-ui.js"), "showSyncDiagnose" | "configureSyncDiagnoseUI" | "copySyncDiagnose"> >),
       import('/js/sync-diagnostics-context.js'),
       import('/js/sync-relay-health.js'),
     ]);
     const storage = new Map(
       Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
         .filter(key => key !== null)
-        .map(key => [key, localStorage.getItem(key)])
+        .map(key => [key, localStorage.getItem(key)] as const)
     );
     const original = {
       currentProfile: state.currentProfile,
@@ -230,7 +230,7 @@ test('sync diagnose browser coverage renders modal and copy fallbacks', async ({
       execCommand: document.execCommand,
       clipboard: Object.getOwnPropertyDescriptor(navigator, 'clipboard'),
     };
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const owner = {
       id: 'owner-coverage-abcdef123456',
       mnemonic: 'alpha bravo charlie delta',
@@ -255,20 +255,20 @@ test('sync diagnose browser coverage renders modal and copy fallbacks', async ({
       dataJson: '{malformed',
     }];
     const evolu = {
-      getQueryRows(query) {
+      getQueryRows(query:unknown) {
         if (query === 'live-query') return liveRows;
         if (query === 'tombstone-query') return tombstoneRows;
         return [];
       },
     };
     const notificationText = () => document.getElementById('notification-container')?.textContent || '';
-    const setClipboard = value => {
+    const setClipboard = (value:unknown) => {
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
         value,
       });
     };
-    const waitFor = async (predicate, label) => {
+    const waitFor = async (predicate:()=>unknown, label:string) => {
       for (let attempt = 0; attempt < 60; attempt += 1) {
         if (predicate()) return true;
         await new Promise(resolve => setTimeout(resolve, 25));
@@ -280,7 +280,7 @@ test('sync diagnose browser coverage renders modal and copy fallbacks', async ({
       localStorage.clear();
       document.body.innerHTML = '<div id="notification-container"></div>';
       state.currentProfile = 'coverage-sync-profile';
-      state.importedData = {
+      (state as {importedData:unknown}).importedData = {
         ...(state.importedData || {}),
         sunSessions: [{ id: 'local-sun' }],
         lightDevices: [{ id: 'local-device' }],
@@ -301,46 +301,46 @@ test('sync diagnose browser coverage renders modal and copy fallbacks', async ({
       relayHealth.configureRelayHealth({ getAppOwner: () => owner });
       relayHealth.trackPushBytes(4096);
       await diagnoseUi.showSyncDiagnose();
-      const defaultOverlay = document.querySelector('.modal-overlay');
-      outcomes.defaultCutoverRendererUsesOffState = defaultOverlay?.textContent.includes('Lean sync mode') === true
-        && defaultOverlay.textContent.includes('Enable') === true
-        && !defaultOverlay.textContent.includes('ON');
+      const defaultOverlay = document.querySelector<HTMLElement>('.modal-overlay');
+      outcomes.defaultCutoverRendererUsesOffState = defaultOverlay?.textContent!.includes('Lean sync mode') === true
+        && defaultOverlay!.textContent!.includes('Enable') === true
+        && !defaultOverlay!.textContent!.includes('ON');
       defaultOverlay?.remove();
 
       diagnoseUi.configureSyncDiagnoseUI({
-        isPhase2CutoverEnabled: profileId => profileId === 'coverage-sync-profile',
+        isPhase2CutoverEnabled: (profileId:unknown) => profileId === 'coverage-sync-profile',
       });
 
       await diagnoseUi.showSyncDiagnose();
-      const overlay = document.querySelector('.modal-overlay');
-      const copyButton = overlay?.querySelector('button[title^="Copy"]');
-      outcomes.modalRendersDiagnostics = overlay?.textContent.includes('Sync status') === true
-        && overlay.textContent.includes('Technical details')
-        && overlay.textContent.includes('coverage-sync-profile')
-        && overlay.textContent.includes('wss://relay.coverage.example')
-        && overlay.querySelector('.sync-diagnose-technical')?.open === false;
-      outcomes.modalStoresMatchingCopySnapshot = overlay?.dataset.copyText.includes('Sync diagnose @') === true
-        && overlay.dataset.copyText.includes('coverage-sync-profile')
-        && overlay.dataset.copyText.includes('sunSessions=1 lightDevices=1');
-      outcomes.cutoverConfigFlowsIntoModal = overlay?.textContent.includes('Lean sync mode') === true
-        && overlay.textContent.includes('ON') === true
-        && overlay.textContent.includes('Disable') === true;
+      const overlay = document.querySelector<HTMLElement>('.modal-overlay');
+      const copyButton = overlay?.querySelector<HTMLElement>('button[title^="Copy"]');
+      outcomes.modalRendersDiagnostics = overlay?.textContent!.includes('Sync status') === true
+        && overlay!.textContent!.includes('Technical details')
+        && overlay!.textContent!.includes('coverage-sync-profile')
+        && overlay!.textContent!.includes('wss://relay.coverage.example')
+        && overlay!.querySelector<HTMLDetailsElement>('.sync-diagnose-technical')?.open === false;
+      outcomes.modalStoresMatchingCopySnapshot = overlay?.dataset.copyText!.includes('Sync diagnose @') === true
+        && overlay!.dataset.copyText!.includes('coverage-sync-profile')
+        && overlay!.dataset.copyText!.includes('sunSessions=1 lightDevices=1');
+      outcomes.cutoverConfigFlowsIntoModal = overlay?.textContent!.includes('Lean sync mode') === true
+        && overlay!.textContent!.includes('ON') === true
+        && overlay!.textContent!.includes('Disable') === true;
       outcomes.modalUsesDelegatedDiagnoseActions =
-        !overlay.querySelector('[onclick],[onchange],[oninput],[onkeydown],[onsubmit]')
-        && !!overlay.querySelector('[data-sync-diagnose-action="refresh-relay-storage"]')
-        && !!overlay.querySelector('[data-sync-diagnose-action="compact-relay"]')
-        && !overlay.querySelector('[data-sync-diagnose-action="rotate-identity"]')
-        && !!overlay.querySelector('[data-sync-diagnose-action="disable-phase2"]')
-        && !!overlay.querySelector('[data-sync-diagnose-action="copy-snapshot"]')
-        && !overlay.querySelector('[data-sync-diagnose-action="enable-phase2"]')
-        && !overlay.querySelector('[data-sync-diagnose-action="reset-delta-telemetry"]');
+        !overlay!.querySelector<HTMLElement>('[onclick],[onchange],[oninput],[onkeydown],[onsubmit]')
+        && !!overlay!.querySelector<HTMLElement>('[data-sync-diagnose-action="refresh-relay-storage"]')
+        && !!overlay!.querySelector<HTMLElement>('[data-sync-diagnose-action="compact-relay"]')
+        && !overlay!.querySelector<HTMLElement>('[data-sync-diagnose-action="rotate-identity"]')
+        && !!overlay!.querySelector<HTMLElement>('[data-sync-diagnose-action="disable-phase2"]')
+        && !!overlay!.querySelector<HTMLElement>('[data-sync-diagnose-action="copy-snapshot"]')
+        && !overlay!.querySelector<HTMLElement>('[data-sync-diagnose-action="enable-phase2"]')
+        && !overlay!.querySelector<HTMLElement>('[data-sync-diagnose-action="reset-delta-telemetry"]');
 
-      const copied = [];
-      setClipboard({ writeText: async text => { copied.push(text); } });
-      copyButton.click();
+      const copied:unknown[] = [];
+      setClipboard({ writeText: async (text:unknown) => { copied.push(text); } });
+      copyButton!.click();
       await waitFor(() => copied.length === 1, 'delegated diagnose copy');
-      outcomes.clipboardCopyUsesOverlayText = copied[0] === overlay.dataset.copyText
-        && copyButton.textContent === 'Copied';
+      outcomes.clipboardCopyUsesOverlayText = copied[0]! === overlay!.dataset.copyText
+        && copyButton!.textContent === 'Copied';
 
       let fallbackCopied = false;
       setClipboard(undefined);
@@ -348,24 +348,24 @@ test('sync diagnose browser coverage renders modal and copy fallbacks', async ({
         fallbackCopied = command === 'copy';
         return fallbackCopied;
       };
-      copyButton.textContent = 'Copy';
+      copyButton!.textContent = 'Copy';
       await diagnoseUi.copySyncDiagnose(copyButton);
       outcomes.execCommandFallbackCopiesAndCleansUp = fallbackCopied
-        && !document.querySelector('textarea')
-        && copyButton.textContent === 'Copied';
+        && !document.querySelector<HTMLElement>('textarea')
+        && copyButton!.textContent === 'Copied';
 
-      document.getElementById('notification-container').innerHTML = '';
+      document.getElementById('notification-container')!.innerHTML = '';
       setClipboard({ writeText: async () => { throw new Error('denied'); } });
-      copyButton.textContent = 'Copy';
+      copyButton!.textContent = 'Copy';
       await diagnoseUi.copySyncDiagnose(copyButton);
       outcomes.copyFailureShowsNotification = notificationText().includes('Copy failed: denied');
 
-      document.getElementById('notification-container').innerHTML = '';
+      document.getElementById('notification-container')!.innerHTML = '';
       await diagnoseUi.copySyncDiagnose(document.createElement('button'));
       outcomes.emptyCopyShowsNotification = notificationText().includes('Nothing to copy');
 
-      overlay.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      outcomes.overlayClickDismissesModal = document.querySelector('.modal-overlay') === null;
+      overlay!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      outcomes.overlayClickDismissesModal = document.querySelector<HTMLElement>('.modal-overlay') === null;
     } finally {
       diagnosticsContext.configureSyncDiagnosticsContext({
         getEvolu: () => null,
@@ -380,10 +380,10 @@ test('sync diagnose browser coverage renders modal and copy fallbacks', async ({
       diagnoseUi.configureSyncDiagnoseUI({ isPhase2CutoverEnabled: () => false });
       relayHealth.configureRelayHealth({ getAppOwner: () => null, getSyncRelay: () => null });
       state.currentProfile = original.currentProfile;
-      state.importedData = original.importedData;
+      (state as {importedData:unknown}).importedData = original.importedData;
       document.execCommand = original.execCommand;
       if (original.clipboard) Object.defineProperty(navigator, 'clipboard', original.clipboard);
-      else delete navigator.clipboard;
+      else delete (navigator as {clipboard?:unknown}).clipboard;
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);

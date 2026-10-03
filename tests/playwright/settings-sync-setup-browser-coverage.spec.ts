@@ -1,10 +1,11 @@
+type SettingsSyncSetupStub={calls:Record<string,unknown>[];enabled:unknown;mnemonic:unknown;fingerprint?:unknown;restoreResult:unknown;enableResult:unknown;relay?:unknown};
 import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('settingsSyncSetupCoverage');
 
-async function openIsolatedSyncSetupPage(page) {
+async function openIsolatedSyncSetupPage(page:import("@playwright/test").Page) {
   await routeHtml(page, '**/settings-sync-setup-browser-coverage', `<!doctype html>
       <html>
         <head>
@@ -134,23 +135,23 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
 
   const results = await page.evaluate(async ({ syncPanelUrl }) => {
     const mnemonic = Array.from({ length: 24 }, (_, index) => `word${index + 1}`).join(' ');
-    const clipboardWrites = [];
+    const clipboardWrites:string[] = [];
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, key == null ? null : localStorage.getItem(key)];
+      return [key, key == null ? null : localStorage.getItem(key)] as const;
     }));
     const savedClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
-    const waitFor = async (predicate, label) => {
+    const waitFor = async (predicate:()=>unknown, label:string) => {
       for (let attempt = 0; attempt < 80; attempt += 1) {
         if (predicate()) return true;
         await new Promise(resolve => setTimeout(resolve, 25));
       }
       throw new Error(`Timed out waiting for ${label}`);
     };
-    const toasts = () => Array.from(document.querySelectorAll('.notification-toast'))
+    const toasts = () => Array.from(document.querySelectorAll<HTMLElement>('.notification-toast'))
       .map(el => el.textContent || '');
 
-    window.__settingsSyncSetupStub = {
+    (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub = {
       calls: [],
       enabled: false,
       mnemonic,
@@ -163,19 +164,19 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: {
-        writeText: async value => {
+        writeText: async (value:unknown) => {
           clipboardWrites.push(String(value || ''));
         },
       },
     });
 
-    const syncPanel = await import(syncPanelUrl);
+    const syncPanel = await ((import(syncPanelUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/settings-sync-panel.js"), "showSyncSetupModal" | "hydrateSettingsSyncPanel"> & {loadSettingsSyncPanelModule:(...args:Parameters<typeof import("../../js/settings-sync-panel.js").loadSettingsSyncPanelModule>)=>Promise<unknown>;renderSyncSection:(...args:Parameters<typeof import("../../js/settings-sync-panel.js").renderSyncSection>)=>unknown} >);
     await syncPanel.loadSettingsSyncPanelModule();
     const syncSection = document.getElementById('sync-section');
     if (!(syncSection instanceof HTMLElement)) {
       throw new Error('sync-section fixture missing');
     }
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const legacyWindowGlobals = [
       'toggleSync', 'toggleMnemonicVisibility', 'copyMnemonic', 'copySyncIdentityCode',
       'openRestoreMnemonicDialog', 'closeRestoreMnemonicDialog', 'confirmRestoreMnemonic',
@@ -187,9 +188,9 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
     outcomes.legacyWindowFacadeStaysAbsent = legacyWindowGlobals.every(name => !(name in window));
 
     try {
-      syncSection.innerHTML = syncPanel.renderSyncSection();
+      syncSection.innerHTML = syncPanel.renderSyncSection() as string;
       syncPanel.showSyncSetupModal();
-      document.querySelector('[data-sync-setup-action="setup-new"]')?.click();
+      document.querySelector<HTMLElement>('[data-sync-setup-action="setup-new"]')?.click();
       await waitFor(() => !!document.getElementById('sync-setup-ack'), 'new setup mnemonic acknowledgement');
       const ack = document.getElementById('sync-setup-ack');
       const done = document.getElementById('sync-setup-done-btn');
@@ -197,57 +198,57 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
         throw new Error('new setup acknowledgement controls missing');
       }
       outcomes.newSetupGeneratesMnemonicAndRequiresAck =
-        window.__settingsSyncSetupStub.calls.some(call => call.fn === 'enableSync' && call.skipPush === false)
+        (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.calls.some(call => call.fn === 'enableSync' && call.skipPush === false)
         && document.getElementById('sync-setup-new')?.textContent.includes('word24') === true
         && done.disabled === true;
 
       ack.checked = true;
       ack.dispatchEvent(new Event('change', { bubbles: true }));
       outcomes.acknowledgementEnablesDone =
-        done.disabled === false
+        (done.disabled as boolean) === false
         && done.style.opacity === '1'
         && done.style.cursor === 'pointer';
       done.click();
       await waitFor(() => !document.getElementById('sync-setup-overlay')?.classList.contains('show'), 'setup modal closed');
       outcomes.setupDoneRendersEnabledSection =
         syncSection.textContent.includes('Your mnemonic')
-        && window.__settingsSyncSetupStub.calls.some(call => call.fn === 'checkRelayConnection');
+        && (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.calls.some(call => call.fn === 'checkRelayConnection');
 
-      window.__settingsSyncSetupStub.enabled = true;
-      syncSection.innerHTML = syncPanel.renderSyncSection();
+      (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.enabled = true;
+      syncSection.innerHTML = syncPanel.renderSyncSection() as string;
       outcomes.enabledStateExposesRestorePauseAndDisconnectControls =
-        syncSection.querySelector('[data-sync-action="open-restore-dialog"]')?.textContent.includes('Restore / switch identity') === true
-        && syncSection.querySelector('[data-sync-action="pause-sync"]')?.textContent.includes('Pause on this device') === true
-        && syncSection.querySelector('[data-sync-action="disconnect-sync"]')?.textContent.includes('Disconnect & reset sync') === true
+        syncSection.querySelector<HTMLElement>('[data-sync-action="open-restore-dialog"]')?.textContent.includes('Restore / switch identity') === true
+        && syncSection.querySelector<HTMLElement>('[data-sync-action="pause-sync"]')?.textContent.includes('Pause on this device') === true
+        && syncSection.querySelector<HTMLElement>('[data-sync-action="disconnect-sync"]')?.textContent.includes('Disconnect & reset sync') === true
         && syncSection.textContent.includes('relay data are not deleted');
       syncPanel.hydrateSettingsSyncPanel();
       await waitFor(() => document.getElementById('sync-mnemonic')?.dataset.masked === 'true', 'masked mnemonic');
       await waitFor(() => document.getElementById('sync-identity-code')?.textContent === 'A94F-2C71-B803', 'sync identity code');
       outcomes.identityCodeIsProminentAndSafeToCompare =
-        document.querySelector('.sync-identity-card')?.textContent.includes('same 24-word Data Sync identity') === true
-        && document.querySelector('.sync-identity-card')?.textContent.includes('this code doesn’t grant access to your data') === true
+        document.querySelector<HTMLElement>('.sync-identity-card')?.textContent.includes('same 24-word Data Sync identity') === true
+        && document.querySelector<HTMLElement>('.sync-identity-card')?.textContent.includes('this code doesn’t grant access to your data') === true
         && document.getElementById('sync-identity-copy')?.hasAttribute('disabled') === false;
-      document.querySelector('[data-sync-action="copy-identity-code"]')?.click();
+      document.querySelector<HTMLElement>('[data-sync-action="copy-identity-code"]')?.click();
       await waitFor(() => clipboardWrites.includes('A94F-2C71-B803'), 'identity code clipboard write');
       outcomes.copyIdentityCodeWritesNonSecretCode =
         clipboardWrites.includes('A94F-2C71-B803')
         && toasts().some(text => text.includes('Sync identity code copied'));
-      document.querySelector('[data-sync-action="toggle-mnemonic"]')?.click();
+      document.querySelector<HTMLElement>('[data-sync-action="toggle-mnemonic"]')?.click();
       outcomes.toggleMnemonicShowsCachedWords =
         document.getElementById('sync-mnemonic')?.textContent === mnemonic
         && document.getElementById('sync-mnemonic-toggle')?.textContent === 'Hide';
-      document.querySelector('[data-sync-action="copy-mnemonic"]')?.click();
+      document.querySelector<HTMLElement>('[data-sync-action="copy-mnemonic"]')?.click();
       await waitFor(() => clipboardWrites.includes(mnemonic), 'mnemonic clipboard write');
       outcomes.copyMnemonicWritesClipboardAndNotifies =
         clipboardWrites.includes(mnemonic)
         && toasts().some(text => text.includes('Mnemonic copied'));
-      document.querySelector('[data-sync-action="show-sync-diagnose"]')?.click();
-      await waitFor(() => window.__settingsSyncSetupStub.calls.some(call => call.fn === 'showSyncDiagnose'), 'sync diagnostics action');
+      document.querySelector<HTMLElement>('[data-sync-action="show-sync-diagnose"]')?.click();
+      await waitFor(() => (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.calls.some(call => call.fn === 'showSyncDiagnose'), 'sync diagnostics action');
       outcomes.advancedSettingsExposeSyncDiagnostics =
-        window.__settingsSyncSetupStub.calls.some(call => call.fn === 'showSyncDiagnose');
+        (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.calls.some(call => call.fn === 'showSyncDiagnose');
 
       syncPanel.showSyncSetupModal();
-      document.querySelector('[data-sync-setup-action="setup-restore"]')?.click();
+      document.querySelector<HTMLElement>('[data-sync-setup-action="setup-restore"]')?.click();
       const setupRestoreInput = document.getElementById('sync-setup-restore-input');
       const setupRestoreButton = document.getElementById('sync-setup-restore-go');
       const setupRestoreMessage = document.getElementById('sync-setup-restore-msg');
@@ -267,41 +268,41 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
         && setupRestoreInput.autocapitalize === 'none'
         && setupRestoreInput.spellcheck === false;
 
-      window.__settingsSyncSetupStub.enableResult = false;
+      (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.enableResult = false;
       setupRestoreButton.click();
       await waitFor(() => setupRestoreButton.textContent === 'Join & reload', 'failed initialization reset');
       outcomes.setupRestoreSurfacesInitializationFailure =
         setupRestoreMessage?.textContent.includes('Could not join') === true
-        && window.__settingsSyncSetupStub.calls.filter(call => call.fn === 'restoreFromMnemonic').length === 0;
+        && (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.calls.filter(call => call.fn === 'restoreFromMnemonic').length === 0;
 
-      window.__settingsSyncSetupStub.enableResult = true;
-      window.__settingsSyncSetupStub.restoreResult = false;
+      (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.enableResult = true;
+      (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.restoreResult = false;
       setupRestoreButton.click();
-      await waitFor(() => window.__settingsSyncSetupStub.calls
+      await waitFor(() => (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.calls
         .filter(call => call.fn === 'restoreFromMnemonic').length >= 1, 'setup restore call');
       await waitFor(() => setupRestoreButton.textContent === 'Join & reload', 'failed restore reset');
       outcomes.setupRestoreFailureStaysVisibleAndRetryable =
         setupRestoreMessage?.textContent.includes('Could not join') === true
         && setupRestoreButton.disabled === false
-        && !window.__settingsSyncSetupStub.calls.some(call => call.fn === 'disableSync');
+        && !(window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.calls.some(call => call.fn === 'disableSync');
 
-      window.__settingsSyncSetupStub.restoreResult = true;
+      (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.restoreResult = true;
       setupRestoreButton.click();
-      await waitFor(() => window.__settingsSyncSetupStub.calls
+      await waitFor(() => (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.calls
         .filter(call => call.fn === 'restoreFromMnemonic').length >= 2, 'setup restore retry');
       outcomes.setupRestoreEnablesThrowawayIdentityThenRestores =
-        window.__settingsSyncSetupStub.calls.some(call =>
+        (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.calls.some(call =>
           call.fn === 'enableSync' && call.skipPush === true && call.persist === false
         )
-        && window.__settingsSyncSetupStub.calls.some(call => call.fn === 'restoreFromMnemonic' && call.mnemonic === mnemonic)
+        && (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.calls.some(call => call.fn === 'restoreFromMnemonic' && call.mnemonic === mnemonic)
         && setupRestoreButton.textContent === 'Reloading…'
         && setupRestoreMessage?.textContent.includes('Identity accepted') === true;
 
-      window.__settingsSyncSetupStub.restoreResult = false;
-      window.__settingsSyncSetupStub.enabled = true;
+      (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.restoreResult = false;
+      (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.enabled = true;
       document.getElementById('sync-setup-overlay')?.remove();
-      syncSection.innerHTML = syncPanel.renderSyncSection();
-      document.querySelector('[data-sync-action="open-restore-dialog"]')?.click();
+      syncSection.innerHTML = syncPanel.renderSyncSection() as string;
+      document.querySelector<HTMLElement>('[data-sync-action="open-restore-dialog"]')?.click();
       await waitFor(() => !!document.getElementById('sync-restore-dialog-input'), 'restore dialog');
       const dialogInput = document.getElementById('sync-restore-dialog-input');
       const dialogButton = document.getElementById('sync-restore-dialog-go');
@@ -310,11 +311,11 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
       }
       dialogInput.value = mnemonic;
       dialogInput.dispatchEvent(new Event('input', { bubbles: true }));
-      window.__settingsSyncSetupStub.enabled = false;
+      (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.enabled = false;
       dialogButton.click();
       await waitFor(() => dialogButton.textContent === 'Restore & reload', 'restore button reset');
       outcomes.confirmRestoreHandlesFailedRestore =
-        window.__settingsSyncSetupStub.calls
+        (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.calls
           .filter(call => call.fn === 'restoreFromMnemonic' && call.mnemonic === mnemonic).length >= 3
         && dialogButton.disabled === false
         && document.getElementById('sync-restore-dialog-msg')?.textContent.includes('Could not restore') === true
@@ -324,14 +325,14 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
     } finally {
       document.getElementById('sync-setup-overlay')?.remove();
       document.getElementById('sync-restore-overlay')?.remove();
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);
       }
       if (savedClipboard) Object.defineProperty(navigator, 'clipboard', savedClipboard);
-      else delete navigator.clipboard;
-      delete window.__settingsSyncSetupStub;
+      else delete (navigator as {clipboard?:unknown}).clipboard;
+      delete (window as unknown as {__settingsSyncSetupStub?:SettingsSyncSetupStub}).__settingsSyncSetupStub;
     }
 
     return outcomes;
@@ -349,31 +350,31 @@ test('join existing sync modal keeps all actions usable on a narrow phone', asyn
   await openIsolatedSyncSetupPage(page);
 
   const layout = await page.evaluate(async ({ syncPanelUrl }) => {
-    window.__settingsSyncSetupStub = {
+    (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub = {
       calls: [],
       enabled: false,
       enableResult: true,
       restoreResult: true,
       mnemonic: Array.from({ length: 24 }, (_, index) => `word${index + 1}`).join(' '),
     };
-    const syncPanel = await import(syncPanelUrl);
+    const syncPanel = await ((import(syncPanelUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/settings-sync-panel-impl.js"), "showSyncSetupModal"> >);
     syncPanel.showSyncSetupModal();
-    document.querySelector('[data-sync-setup-action="setup-restore"]')?.click();
+    document.querySelector<HTMLElement>('[data-sync-setup-action="setup-restore"]')?.click();
 
-    const dialog = document.querySelector('#sync-setup-overlay .confirm-dialog');
-    const actions = document.querySelector('.sync-setup-restore-actions');
+    const dialog = document.querySelector<HTMLElement>('#sync-setup-overlay .confirm-dialog');
+    const actions = document.querySelector<HTMLElement>('.sync-setup-restore-actions');
     const join = document.getElementById('sync-setup-restore-go');
     const back = document.getElementById('sync-setup-restore-back');
-    const cancel = document.querySelector('.sync-setup-restore-cancel');
-    const rect = element => element?.getBoundingClientRect();
+    const cancel = document.querySelector<HTMLElement>('.sync-setup-restore-cancel');
+    const rect = (element:Element|null) => element?.getBoundingClientRect();
     const dialogRect = rect(dialog);
     const actionsRect = rect(actions);
     const joinRect = rect(join);
     const backRect = rect(back);
     const cancelRect = rect(cancel);
-    const result = {
+    const result:Record<string,unknown> = {
       title: document.getElementById('sync-setup-title')?.textContent,
-      choiceFooterHidden: document.querySelector('.sync-setup-choice-footer')?.hidden === true,
+      choiceFooterHidden: document.querySelector<HTMLElement>('.sync-setup-choice-footer')?.hidden === true,
       usesResponsiveGrid: actions ? getComputedStyle(actions).display === 'grid' : false,
       dialogFitsViewport: !!dialogRect && dialogRect.left >= 0 && dialogRect.right <= innerWidth
         && dialogRect.top >= 0 && dialogRect.bottom <= innerHeight,
@@ -384,13 +385,13 @@ test('join existing sync modal keeps all actions usable on a narrow phone', asyn
         && backRect.top > joinRect.top
         && Math.abs(backRect.top - cancelRect.top) < 1
         && Math.abs(backRect.width - cancelRect.width) < 1
-        && cancelRect.right <= dialogRect.right,
+        && cancelRect.right <= dialogRect!.right,
     };
 
     back?.click();
     result.backRestoresSetup = document.getElementById('sync-setup-title')?.textContent === 'Set up sync'
-      && document.querySelector('.sync-setup-choice-footer')?.hidden === false
-      && getComputedStyle(document.getElementById('sync-setup-choices')).display !== 'none';
+      && document.querySelector<HTMLElement>('.sync-setup-choice-footer')?.hidden === false
+      && getComputedStyle(document.getElementById('sync-setup-choices')!).display !== 'none';
     document.getElementById('sync-setup-overlay')?.remove();
     return result;
   }, {

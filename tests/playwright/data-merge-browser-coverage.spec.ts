@@ -10,8 +10,8 @@ test('data merge browser coverage covers timestamps lab entries and tombstone me
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ dataMergeUrl }) => {
-    const dm = await import(dataMergeUrl);
-    const outcomes = {};
+    const dm = await ((import(dataMergeUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/data-merge.js"), "pickTimestamp" | "compareRecordFreshness" | "pickFresherRecord" | "mergeLabEntry" | "mergeImportedData" | "preserveFreshLocalLabEntries" | "clearTombstone" | "setAt" | "getAt" | "ensureImportedArray" | "appendImportedArrayItem" | "getConfiguredArrayItemId" | "replaceImportedArrayItem" | "deleteImportedArrayItem" | "deleteImportedArrayItems" | "clearImportedArray" | "sortImportedArray" | "trimImportedArray" | "unionById" | "recordTombstone" | "localHasRowsRemoteLacks"> >);
+    const outcomes:Record<string,unknown> = {};
 
     outcomes.pickTimestampRejectsInvalidRecords = dm.pickTimestamp(null) === 0
       && dm.pickTimestamp('bad') === 0;
@@ -67,8 +67,8 @@ test('data merge browser coverage covers timestamps lab entries and tombstone me
       && mergedEntry.deletedMarkers?.['biochemistry.alp'] === 250;
     outcomes.labEntryMergeKeepsFreshMarkerSource = mergedEntry.markerSources?.['biochemistry.glucose']?.file === 'new.pdf';
     outcomes.labEntryMergeUnionsSourceFiles =
-      mergedEntry.sourceFiles.includes('old.pdf')
-      && mergedEntry.sourceFiles.includes('new.pdf')
+      (mergedEntry.sourceFiles as unknown[]).includes('old.pdf')
+      && (mergedEntry.sourceFiles as unknown[]).includes('new.pdf')
       && mergedEntry.sourceFile === 'new.pdf';
 
     const local = {
@@ -130,8 +130,8 @@ test('data merge browser coverage covers timestamps lab entries and tombstone me
       _deleted: { sunSessions: ['remote-deleted'] },
       _deletedAt: { sunSessions: { 'remote-deleted': 400 } },
     };
-    const merged = dm.mergeImportedData(local, remote);
-    const mergedMay = merged.entries.find(entry => entry.date === '2026-05-01');
+    const merged = dm.mergeImportedData<typeof local | typeof remote>(local, remote) as unknown as { entries: { date?:unknown;markers?:Record<string,unknown>;sourceFiles:unknown[] }[]; genetics: {snps:Record<string,unknown>;ancestry?:unknown}; customMarkers:Record<string,unknown>;sunSessions:{id?:unknown;note?:unknown}[];_deleted:Record<string,unknown[]>;lightEnvironment:{rooms:unknown[];screens:unknown[];scalar?:unknown};notes:unknown[];changeHistory:{field?:unknown;snapshot?:unknown}[] };
+    const mergedMay = merged.entries!.find(entry => entry.date === '2026-05-01');
     outcomes.importedDataMergePreservesGeneticsSnpsAndRemoteFields =
       merged.genetics.snps.rsTest === 'AA'
       && merged.genetics.ancestry === 'remote-only';
@@ -139,27 +139,27 @@ test('data merge browser coverage covers timestamps lab entries and tombstone me
       !!merged.customMarkers.localMarker
       && !!merged.customMarkers.remoteMarker;
     outcomes.importedDataMergePicksFreshAndAdditiveSunSessions =
-      merged.sunSessions.find(session => session.id === 's1')?.note === 'local fresh'
-      && merged.sunSessions.some(session => session.id === 's2')
-      && merged.sunSessions.some(session => session.id === 's3');
+      merged.sunSessions!.find(session => session.id === 's1')?.note === 'local fresh'
+      && merged.sunSessions!.some(session => session.id === 's2')
+      && merged.sunSessions!.some(session => session.id === 's3');
     outcomes.importedDataMergeDropsAndPreservesTombstones =
-      !merged.sunSessions.some(session => session.id === 's-deleted')
-      && merged._deleted.sunSessions.includes('s-deleted')
-      && merged._deleted.sunSessions.includes('remote-deleted');
+      !merged.sunSessions!.some(session => session.id === 's-deleted')
+      && merged._deleted.sunSessions!.includes('s-deleted')
+      && merged._deleted.sunSessions!.includes('remote-deleted');
     outcomes.importedDataMergeUnionsNestedLightEnvironment =
       merged.lightEnvironment.rooms.length === 2
       && merged.lightEnvironment.screens.length === 2
       && merged.lightEnvironment.scalar === 'remote';
-    outcomes.importedDataMergeUnionsNaturalKeyNotes = merged.notes.length === 2;
+    outcomes.importedDataMergeUnionsNaturalKeyNotes = merged.notes!.length === 2;
     outcomes.importedDataMergeDedupsCompositeHistory =
       merged.changeHistory.length === 3
       && merged.changeHistory.find(row => row.field === 'stress')?.snapshot === 'local';
     outcomes.importedDataMergeMergesSameDateLabMarkers =
-      mergedMay.markers?.['biochemistry.alp'] === 1.2
-      && mergedMay.markers?.['biochemistry.glucose'] === 4.7;
+      mergedMay!.markers?.['biochemistry.alp'] === 1.2
+      && mergedMay!.markers?.['biochemistry.glucose'] === 4.7;
     outcomes.importedDataMergeUnionsLabSourceFiles =
-      mergedMay.sourceFiles.includes('may.pdf')
-      && mergedMay.sourceFiles.includes('old.pdf');
+      mergedMay!.sourceFiles.includes('may.pdf')
+      && mergedMay!.sourceFiles.includes('old.pdf');
 
     const freshNow = 2_000_000;
     const pulled = {
@@ -176,7 +176,7 @@ test('data merge browser coverage covers timestamps lab entries and tombstone me
     );
     outcomes.freshLocalLabEntriesRestoreMissingRecentEntry =
       preserveChanged === true
-      && pulled.entries.some(entry => entry.date === '2026-06-01');
+      && pulled.entries!.some(entry => entry.date === '2026-06-01');
     outcomes.freshLocalLabEntriesRespectTombstones = blockedByTombstone === false;
     outcomes.freshLocalLabEntriesIgnoreStaleLocalEntry =
       dm.preserveFreshLocalLabEntries({ entries: [] }, { entries: [{ date: '2026-04-01', updatedAt: freshNow - 3 * 60_000 }] }, freshNow) === false;
@@ -185,14 +185,14 @@ test('data merge browser coverage covers timestamps lab entries and tombstone me
       entries: [{ date: '2026-05-01', updatedAt: 1_000, markers: { 'biochemistry.alp': 1.3 } }],
     };
     dm.clearTombstone(reimportedAfterDelete, 'entries', '2026-05-01');
-    const mergedReimport = dm.mergeImportedData(reimportedAfterDelete, {
+    const mergedReimport = dm.mergeImportedData<Parameters<typeof dm.mergeImportedData>[0] & {}>(reimportedAfterDelete, {
       entries: [],
       _deleted: { entries: ['2026-05-01'] },
       _deletedAt: { entries: { '2026-05-01': 500 } },
     });
     outcomes.clearTombstoneKeepsReimportedEntry =
-      mergedReimport.entries.some(entry => entry.date === '2026-05-01')
-      && !mergedReimport._deleted?.entries?.includes('2026-05-01');
+      mergedReimport.entries!.some(entry => entry.date === '2026-05-01')
+      && !(mergedReimport as {_deleted?:{entries?:unknown[]}})._deleted?.entries?.includes('2026-05-01');
     outcomes.clearTombstonePreservesClearMetadata =
       Number.isFinite(mergedReimport._deletedClearedAt?.entries?.['2026-05-01']);
 
@@ -206,8 +206,8 @@ test('data merge browser coverage covers array mutations and rebroadcast predica
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ dataMergeUrl }) => {
-    const dm = await import(dataMergeUrl);
-    const outcomes = {};
+    const dm = await ((import(dataMergeUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/data-merge.js"), "pickTimestamp" | "compareRecordFreshness" | "pickFresherRecord" | "mergeLabEntry" | "mergeImportedData" | "preserveFreshLocalLabEntries" | "clearTombstone" | "setAt" | "getAt" | "ensureImportedArray" | "appendImportedArrayItem" | "getConfiguredArrayItemId" | "replaceImportedArrayItem" | "deleteImportedArrayItem" | "deleteImportedArrayItems" | "clearImportedArray" | "sortImportedArray" | "trimImportedArray" | "unionById" | "recordTombstone" | "localHasRowsRemoteLacks"> >);
+    const outcomes:Record<string,unknown> = {};
 
     const nested = {};
     dm.setAt(nested, 'lightEnvironment.rooms', [{ id: 'room-1' }]);
@@ -220,29 +220,29 @@ test('data merge browser coverage covers array mutations and rebroadcast predica
     outcomes.getAtReturnsUndefinedForNullRoot = dm.getAt(null, 'anything') === undefined;
     outcomes.getAtIgnoresInheritedPath = dm.getAt(Object.create({ lightEnvironment: { rooms: [] } }), 'lightEnvironment.rooms') === undefined;
     outcomes.setAtWritesOwnPathOverInherited = Object.prototype.hasOwnProperty.call(inheritedPath, 'lightEnvironment')
-      && inheritedPath.lightEnvironment.rooms[0].id === 'own-room';
-    outcomes.setAtRejectsPrototypePollution = !({}).polluted;
+      && inheritedPath.lightEnvironment.rooms[0]!.id === 'own-room';
+    outcomes.setAtRejectsPrototypePollution = !({} as {polluted?:unknown}).polluted;
     outcomes.setAtReturnsFalseForFrozenTarget =
       dm.setAt(Object.freeze({}), 'lightEnvironment.rooms', []) === false;
 
-    const idsBlob = {};
+    const idsBlob = {} as {notes:{date?:unknown;text?:unknown}[];_deleted:Record<string,unknown[]>};
     const firstNotes = dm.ensureImportedArray(idsBlob, 'notes');
     dm.appendImportedArrayItem(idsBlob, 'notes', { date: '2026-05-01', text: 'Original note' });
-    const originalNoteId = dm.getConfiguredArrayItemId('notes', idsBlob.notes[0]);
+    const originalNoteId = dm.getConfiguredArrayItemId('notes', idsBlob.notes[0]!);
     const replaceResult = dm.replaceImportedArrayItem(idsBlob, 'notes', 0, { date: '2026-05-01', text: 'Edited note' });
-    const editedNoteId = dm.getConfiguredArrayItemId('notes', idsBlob.notes[0]);
+    const editedNoteId = dm.getConfiguredArrayItemId('notes', idsBlob.notes[0]!);
     const deleteResult = dm.deleteImportedArrayItem(idsBlob, 'notes', 0);
     outcomes.ensureImportedArrayCreatesMissingNaturalArray = Array.isArray(firstNotes);
     outcomes.configuredArrayItemIdResolvesNaturalNoteIds =
       typeof originalNoteId === 'string'
       && typeof editedNoteId === 'string';
     outcomes.replaceImportedArrayItemReturnsPreviousAndNext =
-      replaceResult.previousItem.text === 'Original note'
-      && replaceResult.nextItem.text === 'Edited note';
-    outcomes.replaceImportedArrayItemTombstonesOldNaturalId = idsBlob._deleted.notes.includes(originalNoteId);
+      (replaceResult!.previousItem as {text?:unknown}).text === 'Original note'
+      && replaceResult!.nextItem.text === 'Edited note';
+    outcomes.replaceImportedArrayItemTombstonesOldNaturalId = idsBlob._deleted.notes!.includes(originalNoteId);
     outcomes.deleteImportedArrayItemReturnsAndTombstonesRemovedRow =
-      deleteResult.removedItem.text === 'Edited note'
-      && idsBlob._deleted.notes.includes(editedNoteId);
+      deleteResult!.removedItem.text === 'Edited note'
+      && idsBlob._deleted.notes!.includes(editedNoteId);
     outcomes.configuredArrayItemIdAcceptsSafeFallbackId =
       dm.getConfiguredArrayItemId('unknownPath', { id: 'safe-id' }) === 'safe-id';
     outcomes.configuredArrayItemIdRejectsUnsafeFallbackId =
@@ -270,18 +270,18 @@ test('data merge browser coverage covers array mutations and rebroadcast predica
     outcomes.deleteImportedArrayItemsHandlesDottedPaths =
       removedRooms.length === 1
       && removedMeasurements.length === 1
-      && bulkBlob.lightEnvironment.rooms[0].id === 'r2'
-      && bulkBlob.lightMeasurements[0].id === 'm2';
+      && bulkBlob.lightEnvironment.rooms[0]!.id === 'r2'
+      && bulkBlob.lightMeasurements[0]!.id === 'm2';
     outcomes.deleteImportedArrayItemsTombstonesDottedPathRows =
-      bulkBlob._deleted['lightEnvironment.rooms'].includes('r1')
-      && bulkBlob._deleted.lightMeasurements.includes('m1');
+      (bulkBlob as unknown as {_deleted:Record<string,unknown[]>})._deleted['lightEnvironment.rooms']!.includes('r1')
+      && (bulkBlob as unknown as {_deleted:Record<string,unknown[]>})._deleted.lightMeasurements!.includes('m1');
     outcomes.clearImportedArrayEmptiesAndTombstonesConfiguredRows =
       clearedGoals.length === 2
       && bulkBlob.healthGoals.length === 0
-      && bulkBlob._deleted.healthGoals.length === 2;
-    outcomes.sortImportedArraySortsInPlace = sortedHistory[0].date === '2026-05-01';
+      && (bulkBlob as unknown as {_deleted:Record<string,unknown[]>})._deleted.healthGoals!.length === 2;
+    outcomes.sortImportedArraySortsInPlace = sortedHistory[0]!.date === '2026-05-01';
     outcomes.trimImportedArrayKeepsNewestRows =
-      trimmedOldest[0].date === '2026-05-01'
+      trimmedOldest[0]!.date === '2026-05-01'
       && bulkBlob.changeHistory.length === 2;
     outcomes.trimImportedArrayRejectsInvalidMaxLength = invalidTrim.length === 0;
     outcomes.bulkMutationsReturnEmptyForMissingArrays =
@@ -298,10 +298,10 @@ test('data merge browser coverage covers array mutations and rebroadcast predica
     };
     const removedTail = dm.trimImportedArray(keepFirstBlob, 'notes', 1, { keep: 'first' });
     outcomes.trimKeepFirstRemovesTailRows =
-      keepFirstBlob.notes.length === 1
-      && keepFirstBlob.notes[0].text === 'one'
+      keepFirstBlob.notes!.length === 1
+      && keepFirstBlob.notes[0]!.text === 'one'
       && removedTail.map(note => note.text).join(',') === 'two,three';
-    outcomes.trimKeepFirstTombstonesConfiguredRows = keepFirstBlob._deleted.notes.length === 2;
+    outcomes.trimKeepFirstTombstonesConfiguredRows = (keepFirstBlob as unknown as {_deleted:Record<string,unknown[]>})._deleted.notes!.length === 2;
 
     const union = dm.unionById(
       [{ id: 'a', updatedAt: 10 }, { id: 'b', updatedAt: 20 }, { localOnly: true }],
@@ -316,7 +316,7 @@ test('data merge browser coverage covers array mutations and rebroadcast predica
       union.some(row => row.localOnly)
       && union.some(row => row.remoteOnly);
 
-    const tombBlob = {};
+    const tombBlob = {} as {_deleted:Record<string,unknown[]>;_deletedAt:Record<string,Record<string,unknown>>;_deletedClearedAt:Record<string,Record<string,unknown>>};
     dm.recordTombstone(tombBlob, 'sunSessions', 's1');
     dm.recordTombstone(tombBlob, 'sunSessions', 's1');
     dm.recordTombstone(tombBlob, 'entries', '2026-05-01');
@@ -326,11 +326,11 @@ test('data merge browser coverage covers array mutations and rebroadcast predica
     dm.clearTombstone(null, 'sunSessions', 'ignored');
     dm.clearTombstone(tombBlob, 'sunSessions', '');
     outcomes.recordTombstoneDedupesAndStoresMetadata =
-      tombBlob._deleted.sunSessions.filter(id => id === 's1').length === 1
-      && Number.isFinite(tombBlob._deletedAt.sunSessions.s1);
+      tombBlob._deleted.sunSessions!.filter(id => id === 's1').length === 1
+      && Number.isFinite(tombBlob._deletedAt!.sunSessions!.s1);
     outcomes.clearTombstoneRemovesEntryDeleteAndStoresClearMetadata =
       !tombBlob._deleted.entries
-      && Number.isFinite(tombBlob._deletedClearedAt.entries['2026-05-01']);
+      && Number.isFinite(tombBlob._deletedClearedAt!.entries!['2026-05-01']);
 
     outcomes.localHasRowsRemoteLacksDetectsMissingIdRows =
       dm.localHasRowsRemoteLacks({ sunSessions: [{ id: 'a' }, { id: 'b' }] }, { sunSessions: [{ id: 'a' }] }) === true;

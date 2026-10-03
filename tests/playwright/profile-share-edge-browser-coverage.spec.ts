@@ -1,10 +1,11 @@
+type ProfileShareFixtureGlobals={__profileShareEnvelope?:unknown;__profileShareImportError?:unknown;__profileShareImports?:{name?:unknown;payload:{profile:{name?:unknown};entries:{markers:{metabolic:{glucose?:unknown}}}[]}}[]};
 import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('profileShareEdgeCoverage');
 
-async function openIsolatedProfileSharePage(page) {
+async function openIsolatedProfileSharePage(page:import("@playwright/test").Page) {
   await routeHtml(page, '**/profile-share-edge-browser-coverage', `<!doctype html>
       <html>
         <body>
@@ -45,16 +46,16 @@ test('profile share forms recover from create, load, decrypt, import, and delete
   await openIsolatedProfileSharePage(page);
 
   const results = await page.evaluate(async ({ shareUrl }) => {
-    const share = await import(shareUrl);
-    const outcomes = {};
-    const requests = [];
+    const share = await ((import(shareUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/profile-share.js"), "openProfileShareModal" | "encryptProfileShareEnvelope" | "PROFILE_SHARE_MIN_KDF_ITERATIONS" | "openSharedProfileImportModal" | "closeProfileShareModal"> >);
+    const outcomes:Record<string,unknown> = {};
+    const requests:{href:string;method:string;body:string}[] = [];
     const originalFetch = window.fetch;
     let mode = '';
-    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+    const jsonResponse = (body:unknown, status = 200) => new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json' },
     });
-    const waitFor = async (predicate, label, attempts = 160) => {
+    const waitFor = async (predicate:()=>unknown, label:string, attempts = 160) => {
       for (let attempt = 0; attempt < attempts; attempt += 1) {
         if (predicate()) return;
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -62,7 +63,7 @@ test('profile share forms recover from create, load, decrypt, import, and delete
       throw new Error(`Timed out waiting for ${label}`);
     };
     const statusText = () => document.getElementById('profile-share-status')?.textContent || '';
-    const submit = action => document.querySelector(`[data-profile-share-action="${action}"]`);
+    const submit = (action:string) => document.querySelector<HTMLButtonElement>(`[data-profile-share-action="${action}"]`);
 
     try {
       window.fetch = async (url, options = {}) => {
@@ -74,22 +75,22 @@ test('profile share forms recover from create, load, decrypt, import, and delete
         if (method === 'DELETE') return jsonResponse({ error: 'Could not stop this test link.' }, 503);
         if (mode === 'not-found') return jsonResponse({ error: 'Shared profile link has expired.' }, 410);
         if (mode === 'missing-envelope') return jsonResponse({ id: 'missing-envelope' });
-        return jsonResponse({ envelope: window.__profileShareEnvelope });
+        return jsonResponse({ envelope: (window as unknown as ProfileShareFixtureGlobals).__profileShareEnvelope });
       };
 
       share.openProfileShareModal('default');
-      const createPassword = document.getElementById('profile-share-password');
-      const consent = document.getElementById('profile-share-consent');
-      createPassword.value = 'short';
-      consent.checked = true;
+      const createPassword = (document.getElementById('profile-share-password') as HTMLInputElement|null);
+      const consent = (document.getElementById('profile-share-consent') as HTMLInputElement|null);
+      createPassword!.value = 'short';
+      consent!.checked = true;
       submit('create')?.click();
       await waitFor(() => statusText().includes('at least 12 characters'), 'short-password error');
       outcomes.shortPasswordRecovers = statusText().includes('at least 12 characters')
         && submit('create')?.textContent === 'Create Link'
         && submit('create')?.disabled === false
-        && createPassword.disabled === false;
+        && createPassword!.disabled === false;
 
-      createPassword.value = 'correct-horse-create-1234';
+      createPassword!.value = 'correct-horse-create-1234';
       submit('create')?.click();
       await waitFor(() => statusText().includes('Share service unavailable'), 'create API error');
       outcomes.createFailureRecovers = requests.filter(request => request.method === 'POST').length === 1
@@ -97,10 +98,10 @@ test('profile share forms recover from create, load, decrypt, import, and delete
         && document.getElementById('profile-share-overlay') != null
         && submit('create')?.textContent === 'Create Link'
         && submit('create')?.disabled === false
-        && document.getElementById('profile-share-expires')?.disabled === false;
+        && (document.getElementById('profile-share-expires') as HTMLSelectElement|null)?.disabled === false;
 
       const password = 'correct-horse-load-1234';
-      window.__profileShareEnvelope = await share.encryptProfileShareEnvelope({
+      (window as unknown as ProfileShareFixtureGlobals).__profileShareEnvelope = await share.encryptProfileShareEnvelope({
         version: 2,
         profile: { id: 'shared-profile', name: 'Shared Edge Profile' },
         entries: [{ date: '2026-07-19', markers: {} }],
@@ -112,14 +113,14 @@ test('profile share forms recover from create, load, decrypt, import, and delete
       const shareId = 'edgefailureprofile123456';
       mode = 'not-found';
       share.openSharedProfileImportModal(shareId);
-      const loadPassword = document.getElementById('profile-share-load-password');
-      loadPassword.value = password;
+      const loadPassword = (document.getElementById('profile-share-load-password') as HTMLInputElement|null);
+      loadPassword!.value = password;
       submit('load')?.click();
       await waitFor(() => statusText().includes('expired'), 'expired-link API error');
       outcomes.loadFailureRecovers = statusText().includes('expired')
         && submit('load')?.textContent === 'Load Profile'
         && submit('load')?.disabled === false
-        && loadPassword.disabled === false;
+        && loadPassword!.disabled === false;
 
       mode = 'missing-envelope';
       const getCountBeforeMissing = requests.filter(request => request.method === 'GET').length;
@@ -130,7 +131,7 @@ test('profile share forms recover from create, load, decrypt, import, and delete
         && submit('load')?.disabled === false;
 
       mode = 'envelope';
-      loadPassword.value = 'wrong-password-1234';
+      loadPassword!.value = 'wrong-password-1234';
       const getCountBeforeWrongPassword = requests.filter(request => request.method === 'GET').length;
       submit('load')?.click();
       await waitFor(() => requests.filter(request => request.method === 'GET').length > getCountBeforeWrongPassword
@@ -138,8 +139,8 @@ test('profile share forms recover from create, load, decrypt, import, and delete
       outcomes.wrongPasswordUsesSafeMessage = statusText() === 'Could not unlock shared profile. Check the password and try again.'
         && submit('load')?.disabled === false;
 
-      window.__profileShareImportError = 'Import rejected by fixture.';
-      loadPassword.value = password;
+      (window as unknown as ProfileShareFixtureGlobals).__profileShareImportError = 'Import rejected by fixture.';
+      loadPassword!.value = password;
       const getCountBeforeImportError = requests.filter(request => request.method === 'GET').length;
       submit('load')?.click();
       await waitFor(() => requests.filter(request => request.method === 'GET').length > getCountBeforeImportError
@@ -175,9 +176,9 @@ test('profile share forms recover from create, load, decrypt, import, and delete
       share.closeProfileShareModal();
       window.fetch = originalFetch;
       localStorage.removeItem('getbased-profile-shares-v1');
-      document.querySelectorAll('.notification-toast').forEach(element => element.remove());
-      delete window.__profileShareEnvelope;
-      delete window.__profileShareImportError;
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(element => element.remove());
+      delete (window as unknown as ProfileShareFixtureGlobals).__profileShareEnvelope;
+      delete (window as unknown as ProfileShareFixtureGlobals).__profileShareImportError;
     }
 
     return outcomes;
@@ -192,10 +193,10 @@ test('profile share local records are repaired, capped, scoped, and safe without
   await openIsolatedProfileSharePage(page);
 
   const results = await page.evaluate(async ({ shareUrl }) => {
-    const share = await import(shareUrl);
-    const outcomes = {};
+    const share = await ((import(shareUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/profile-share.js"), "openProfileShareModal" | "closeProfileShareModal"> >);
+    const outcomes:Record<string,unknown> = {};
     const originalFetch = window.fetch;
-    const waitFor = async (predicate, label) => {
+    const waitFor = async (predicate:()=>unknown, label:string) => {
       for (let attempt = 0; attempt < 80; attempt += 1) {
         if (predicate()) return;
         await new Promise(resolve => setTimeout(resolve, 25));
@@ -206,7 +207,7 @@ test('profile share local records are repaired, capped, scoped, and safe without
     try {
       localStorage.setItem('getbased-profile-shares-v1', '{broken-json');
       share.openProfileShareModal('default');
-      outcomes.repairsMalformedStorage = document.querySelector('.profile-share-active-empty') != null
+      outcomes.repairsMalformedStorage = document.querySelector<HTMLElement>('.profile-share-active-empty') != null
         && localStorage.getItem('getbased-profile-shares-v1') === '[]';
       share.closeProfileShareModal();
 
@@ -222,11 +223,11 @@ test('profile share local records are repaired, capped, scoped, and safe without
           expiresAt: '2099-01-01T00:00:00.000Z',
         };
       });
-      records.push({ ...records[0], id: 'invalid' });
-      records.push({ ...records[0], id: 'expiredrecord123456789', expiresAt: '2000-01-01T00:00:00.000Z' });
+      records.push({ ...records[0]!, id: 'invalid' });
+      records.push({ ...records[0]!, id: 'expiredrecord123456789', expiresAt: '2000-01-01T00:00:00.000Z' });
       localStorage.setItem('getbased-profile-shares-v1', JSON.stringify(records));
 
-      let deleteBody = null;
+      let deleteBody:unknown = null;
       window.fetch = async (url, options = {}) => {
         if (String(url || '').startsWith('/api/share') && String(options.method || '').toUpperCase() === 'DELETE') {
           deleteBody = JSON.parse(String(options.body || '{}'));
@@ -238,8 +239,8 @@ test('profile share local records are repaired, capped, scoped, and safe without
       };
 
       share.openProfileShareModal('default');
-      const stored = JSON.parse(localStorage.getItem('getbased-profile-shares-v1') || '[]');
-      const visibleRows = Array.from(document.querySelectorAll('.profile-share-active-row'));
+      const stored = JSON.parse(localStorage.getItem('getbased-profile-shares-v1') || '[]') as Record<string,unknown>[];
+      const visibleRows = Array.from(document.querySelectorAll<HTMLElement>('.profile-share-active-row'));
       outcomes.prunesAndCapsRecordsImmediately = stored.length === 50
         && stored.every(record => record.id !== 'invalid' && record.expiresAt !== '2000-01-01T00:00:00.000Z')
         && visibleRows.length === 25;
@@ -248,10 +249,10 @@ test('profile share local records are repaired, capped, scoped, and safe without
         return record?.profileId === 'default';
       });
 
-      const deleteButton = document.querySelector('[data-profile-share-action="delete-link"]');
+      const deleteButton = document.querySelector<HTMLButtonElement>('[data-profile-share-action="delete-link"]');
       deleteButton?.click();
       await waitFor(() => document.getElementById('profile-share-status')?.dataset.status === 'error', 'missing-token delete error');
-      outcomes.missingManageTokenFailsSafely = deleteBody?.manageToken === ''
+      outcomes.missingManageTokenFailsSafely = (deleteBody as {manageToken?:unknown}|null|undefined)?.manageToken === ''
         && JSON.parse(localStorage.getItem('getbased-profile-shares-v1') || '[]').length === 50
         && deleteButton?.disabled === false
         && deleteButton?.textContent === 'Stop sharing';
@@ -259,7 +260,7 @@ test('profile share local records are repaired, capped, scoped, and safe without
       share.closeProfileShareModal();
       window.fetch = originalFetch;
       localStorage.removeItem('getbased-profile-shares-v1');
-      document.querySelectorAll('.notification-toast').forEach(element => element.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(element => element.remove());
     }
 
     return outcomes;
@@ -274,11 +275,11 @@ test('profile share copy actions fall back when the Clipboard API is unavailable
   await openIsolatedProfileSharePage(page);
 
   const results = await page.evaluate(async ({ shareUrl }) => {
-    const share = await import(shareUrl);
-    const outcomes = {};
+    const share = await ((import(shareUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/profile-share.js"), "openProfileShareModal" | "closeProfileShareModal"> >);
+    const outcomes:Record<string,unknown> = {};
     const descriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
     const originalExecCommand = document.execCommand;
-    const waitFor = async (predicate, label) => {
+    const waitFor = async (predicate:()=>unknown, label:string) => {
       for (let attempt = 0; attempt < 40; attempt += 1) {
         if (predicate()) return;
         await new Promise(resolve => setTimeout(resolve, 25));
@@ -310,26 +311,26 @@ test('profile share copy actions fall back when the Clipboard API is unavailable
       };
 
       share.openProfileShareModal('default');
-      document.querySelector('[aria-label="Copy active link"]')?.click();
+      document.querySelector<HTMLElement>('[aria-label="Copy active link"]')?.click();
       await waitFor(() => calls === 1, 'successful copy fallback');
-      outcomes.rejectedClipboardUsesFallback = Array.from(document.querySelectorAll('.notification-toast'))
+      outcomes.rejectedClipboardUsesFallback = Array.from(document.querySelectorAll<HTMLElement>('.notification-toast'))
         .some(element => element.textContent?.includes('Link copied'))
-        && !document.querySelector('textarea');
+        && !document.querySelector<HTMLElement>('textarea');
 
-      document.querySelectorAll('.notification-toast').forEach(element => element.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(element => element.remove());
       copySucceeds = false;
-      document.querySelector('[aria-label="Copy active link"]')?.click();
+      document.querySelector<HTMLElement>('[aria-label="Copy active link"]')?.click();
       await waitFor(() => calls === 2, 'failed copy fallback');
-      outcomes.failedFallbackGivesManualCopyGuidance = Array.from(document.querySelectorAll('.notification-toast'))
+      outcomes.failedFallbackGivesManualCopyGuidance = Array.from(document.querySelectorAll<HTMLElement>('.notification-toast'))
         .some(element => element.textContent?.includes('Select the field and copy manually'))
-        && !document.querySelector('textarea');
+        && !document.querySelector<HTMLElement>('textarea');
     } finally {
       share.closeProfileShareModal();
       localStorage.removeItem('getbased-profile-shares-v1');
       if (descriptor) Object.defineProperty(navigator, 'clipboard', descriptor);
-      else delete navigator.clipboard;
+      else delete (navigator as {clipboard?:unknown}).clipboard;
       document.execCommand = originalExecCommand;
-      document.querySelectorAll('.notification-toast').forEach(element => element.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(element => element.remove());
     }
 
     return outcomes;
@@ -345,11 +346,11 @@ test('profile share completes a browser-to-dev-server create, load, import, and 
   await openIsolatedProfileSharePage(page);
 
   const results = await page.evaluate(async ({ shareUrl }) => {
-    const share = await import(shareUrl);
-    const outcomes = {};
+    const share = await ((import(shareUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/profile-share.js"), "openProfileShareModal" | "closeProfileShareModal" | "openSharedProfileImportModal"> >);
+    const outcomes:Record<string,unknown> = {};
     const password = 'correct-horse-roundtrip-1234';
-    let cleanup = null;
-    const waitFor = async (predicate, label, attempts = 200) => {
+    let cleanup:Record<string,unknown>|null = null;
+    const waitFor = async (predicate:()=>unknown, label:string, attempts = 200) => {
       for (let attempt = 0; attempt < attempts; attempt += 1) {
         if (predicate()) return;
         await new Promise(resolve => setTimeout(resolve, 50));
@@ -360,49 +361,49 @@ test('profile share completes a browser-to-dev-server create, load, import, and 
     try {
       localStorage.removeItem('getbased-profile-shares-v1');
       share.openProfileShareModal('default');
-      document.getElementById('profile-share-password').value = password;
-      document.getElementById('profile-share-consent').checked = true;
-      document.querySelector('[data-profile-share-action="create"]')?.click();
+      (document.getElementById('profile-share-password') as HTMLInputElement|null)!.value = password;
+      (document.getElementById('profile-share-consent') as HTMLInputElement|null)!.checked = true;
+      document.querySelector<HTMLButtonElement>('[data-profile-share-action="create"]')?.click();
       await waitFor(() => document.getElementById('profile-share-link'), 'real share creation');
 
-      const records = JSON.parse(localStorage.getItem('getbased-profile-shares-v1') || '[]');
-      const record = records[0];
+      const records = JSON.parse(localStorage.getItem('getbased-profile-shares-v1') || '[]') as Record<string,unknown>[];
+      const record = records[0]!;
       cleanup = record;
-      const createdResponse = await fetch(`/api/share?id=${encodeURIComponent(record.id)}`);
-      const createdBody = await createdResponse.json();
+      const createdResponse = await fetch(`/api/share?id=${encodeURIComponent(record!.id as string)}`);
+      const createdBody = await createdResponse.json() as {envelope?:{schema?:unknown}};
       outcomes.realPostPersistsEncryptedEnvelope = createdResponse.status === 200
         && createdBody.envelope?.schema === 'getbased-profile-share'
         && !JSON.stringify(createdBody.envelope).includes('Edge Profile')
         && !JSON.stringify(createdBody.envelope).includes(password);
 
       share.closeProfileShareModal();
-      share.openSharedProfileImportModal(record.id);
-      document.getElementById('profile-share-load-password').value = password;
-      document.querySelector('[data-profile-share-action="load"]')?.click();
+      share.openSharedProfileImportModal(record!.id);
+      (document.getElementById('profile-share-load-password') as HTMLInputElement|null)!.value = password;
+      document.querySelector<HTMLButtonElement>('[data-profile-share-action="load"]')?.click();
       await waitFor(() => !document.getElementById('profile-share-overlay'), 'real share import');
-      outcomes.realGetDecryptsAndImports = window.__profileShareImports?.length === 1
-        && window.__profileShareImports[0].name === 'getbased-shared-profile.json'
-        && window.__profileShareImports[0].payload.profile.name === 'Edge Profile'
-        && window.__profileShareImports[0].payload.entries[0].markers.metabolic.glucose === 5.1;
+      outcomes.realGetDecryptsAndImports = (window as unknown as ProfileShareFixtureGlobals).__profileShareImports?.length === 1
+        && (window as unknown as ProfileShareFixtureGlobals).__profileShareImports![0]!.name === 'getbased-shared-profile.json'
+        && (window as unknown as ProfileShareFixtureGlobals).__profileShareImports![0]!.payload.profile.name === 'Edge Profile'
+        && (window as unknown as ProfileShareFixtureGlobals).__profileShareImports![0]!.payload.entries[0]!.markers.metabolic.glucose === 5.1;
 
       share.openProfileShareModal('default');
-      document.querySelector(`[data-profile-share-record="${record.id}"] [data-profile-share-action="delete-link"]`)?.click();
-      await waitFor(() => document.querySelector('.profile-share-active-empty'), 'real share deletion');
-      const deletedResponse = await fetch(`/api/share?id=${encodeURIComponent(record.id)}`);
+      document.querySelector<HTMLButtonElement>(`[data-profile-share-record="${record.id}"] [data-profile-share-action="delete-link"]`)?.click();
+      await waitFor(() => document.querySelector<HTMLElement>('.profile-share-active-empty'), 'real share deletion');
+      const deletedResponse = await fetch(`/api/share?id=${encodeURIComponent(record.id as string)}`);
       outcomes.realDeleteRemovesRemoteAndLocalRecord = deletedResponse.status === 404
         && JSON.parse(localStorage.getItem('getbased-profile-shares-v1') || '[]').length === 0;
       cleanup = null;
     } finally {
       share.closeProfileShareModal();
       if (cleanup?.id) {
-        await fetch(`/api/share?id=${encodeURIComponent(cleanup.id)}`, {
+        await fetch(`/api/share?id=${encodeURIComponent(cleanup.id as string)}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ manageToken: cleanup.manageToken || '' }),
         }).catch(() => {});
       }
       localStorage.removeItem('getbased-profile-shares-v1');
-      document.querySelectorAll('.notification-toast').forEach(element => element.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(element => element.remove());
     }
 
     return outcomes;

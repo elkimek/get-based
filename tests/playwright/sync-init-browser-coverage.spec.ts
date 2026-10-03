@@ -1,3 +1,5 @@
+type SyncInitFixtureTrace = {rows?:unknown[];createdCount?:unknown;schemaKeys:string[];options:{reloadUrl?:unknown;enableLogging?:unknown;transports?:{url?:unknown}[]};reconciledCount?:number;loadedQueries:unknown[];subscriptions:unknown[];errorSubscriber?:unknown};
+type SyncInitFixtureGlobals={__syncInitTrace:SyncInitFixtureTrace;__syncInitResolveOwner?:(owner:unknown)=>unknown;__syncInitRejectOwner?:(error:unknown)=>unknown;_syncDebug?:{getOwner?:()=>{id?:unknown}|null|undefined;getRows?:()=>{profileId?:unknown}[];evolu?:unknown}};
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -91,7 +93,7 @@ export function createEvolu(deps) {
 `;
 }
 
-async function openSyncInitPage(page, path, bundleBody) {
+async function openSyncInitPage(page:import("@playwright/test").Page, path:string, bundleBody:string) {
   await page.route('**/vendor/evolu/evolu-bundle.js', async route => {
     await route.fulfill({
       status: 200,
@@ -122,17 +124,17 @@ export const evoluWebDeps = {};
 
   const results = await page.evaluate(async ({ initUrl }) => {
     const [init, runtime, settings] = await Promise.all([
-      import(initUrl),
+      ((import(initUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/sync-init.js"), "initSync" | "configureSyncInit"> >),
       import('/js/sync-runtime.js'),
       import('/js/sync-settings-state.js'),
     ]);
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const hadOwnLocks = Object.prototype.hasOwnProperty.call(navigator, 'locks');
     const locksDescriptor = Object.getOwnPropertyDescriptor(navigator, 'locks');
-    const errors = [];
+    const errors:string[] = [];
     const originalError = console.error;
 
-    const setLocks = value => {
+    const setLocks = (value:unknown) => {
       Object.defineProperty(navigator, 'locks', {
         configurable: true,
         value,
@@ -140,7 +142,7 @@ export const evoluWebDeps = {};
     };
     const restoreLocks = () => {
       if (hadOwnLocks && locksDescriptor) Object.defineProperty(navigator, 'locks', locksDescriptor);
-      else delete navigator.locks;
+      else delete (navigator as {locks?:unknown}).locks;
     };
 
     try {
@@ -191,21 +193,21 @@ test('sync init browser coverage creates Evolu runtime subscriptions and debug g
 
   const results = await page.evaluate(async ({ initUrl }) => {
     const [init, runtime, settings, subscriptions, identity] = await Promise.all([
-      import(initUrl),
+      ((import(initUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/sync-init.js"), "initSync" | "configureSyncInit"> >),
       import('/js/sync-runtime.js'),
       import('/js/sync-settings-state.js'),
       import('/js/sync-subscriptions.js'),
       import('/js/sync-identity.js'),
     ]);
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const original = {
-      setTimeout: window.setTimeout,
+      setTimeout: window.setTimeout as (fn:TimerHandler,delay?:number,...args:unknown[])=>number,
       clearTimeout: window.clearTimeout,
       setInterval: window.setInterval,
       clearInterval: window.clearInterval,
     };
-    const intervals = [];
-    const timeouts = [];
+    const intervals:number[] = [];
+    const timeouts:number[] = [];
     const flushMicrotasks = async () => {
       for (let i = 0; i < 5; i += 1) await Promise.resolve();
     };
@@ -217,28 +219,28 @@ test('sync init browser coverage creates Evolu runtime subscriptions and debug g
       localStorage.setItem('labcharts-debug', 'true');
       localStorage.setItem('labcharts-sync-relay', 'wss://relay.example/ws');
       sessionStorage.setItem(identity.RESTORE_NOTICE_KEY, 'join');
-      window.__syncInitTrace = { rows: [{ profileId: 'debug-profile' }] };
+      (window as unknown as {__syncInitTrace:unknown}).__syncInitTrace = { rows: [{ profileId: 'debug-profile' }] };
       init.configureSyncInit({
         reconcileLocalStorageWithEvolu: async () => {
-          window.__syncInitTrace.reconciledCount = (window.__syncInitTrace.reconciledCount || 0) + 1;
+          (window as unknown as SyncInitFixtureGlobals).__syncInitTrace.reconciledCount = ((window as unknown as SyncInitFixtureGlobals).__syncInitTrace.reconciledCount || 0) + 1;
         },
       });
-      window.setTimeout = (fn, delay = 0, ...args) => {
+      (window as unknown as {setTimeout:(fn:TimerHandler,delay?:number,...args:unknown[])=>number}).setTimeout = (fn, delay = 0, ...args) => {
         timeouts.push(delay);
         return original.setTimeout.call(window, fn, delay, ...args);
       };
       window.clearTimeout = id => original.clearTimeout.call(window, id);
-      window.setInterval = (_fn, delay = 0) => {
+      (window as unknown as {setInterval:(fn:TimerHandler,delay?:number)=>number}).setInterval = (_fn, delay = 0) => {
         intervals.push(delay);
         return intervals.length;
       };
       window.clearInterval = () => {};
 
       await init.initSync();
-      const trace = window.__syncInitTrace;
-      const profileQuery = runtime.getSyncProfileQuery();
-      const tombstoneQuery = runtime.getSyncTombstoneQuery();
-      const itemRowQuery = runtime.getSyncItemRowQuery();
+      const trace = (window as unknown as SyncInitFixtureGlobals).__syncInitTrace;
+      const profileQuery = runtime.getSyncProfileQuery() as {table?:unknown}|null|undefined;
+      const tombstoneQuery = runtime.getSyncTombstoneQuery() as {whereArgs?:unknown[][]}|null|undefined;
+      const itemRowQuery = runtime.getSyncItemRowQuery() as {table?:unknown}|null|undefined;
 
       outcomes.waitsToReconcileUntilReady = !trace.reconciledCount;
 
@@ -257,13 +259,13 @@ test('sync init browser coverage creates Evolu runtime subscriptions and debug g
         && itemRowQuery?.table === 'itemRow';
 
       await runtime.getSyncQueryLoadedPromise();
-      window.__syncInitResolveOwner({ id: 'owner-init', mnemonic: 'alpha beta' });
+      (window as unknown as SyncInitFixtureGlobals).__syncInitResolveOwner!({ id: 'owner-init', mnemonic: 'alpha beta' });
       await runtime.getSyncReadyPromise();
       await flushMicrotasks();
 
       outcomes.loadsQueriesAndResolvesOwner =
         trace.loadedQueries.join(',') === '1,2,3'
-        && runtime.getSyncAppOwner()?.id === 'owner-init'
+        && (runtime.getSyncAppOwner() as {id?:unknown}|null|undefined)?.id === 'owner-init'
         && runtime.getSyncAppOwnerError() === null;
 
       outcomes.restoreReloadShowsDurableJoinConfirmation =
@@ -280,15 +282,15 @@ test('sync init browser coverage creates Evolu runtime subscriptions and debug g
         && timeouts.includes(0);
 
       outcomes.exposesDebugHelpersOnlyInDebugMode =
-        window._syncDebug?.getOwner()?.id === 'owner-init'
-        && window._syncDebug?.getRows()?.[0]?.profileId === 'debug-profile'
-        && window._syncDebug?.evolu === runtime.getSyncEvolu();
+        (window as unknown as SyncInitFixtureGlobals)._syncDebug?.getOwner!()?.id === 'owner-init'
+        && (window as unknown as SyncInitFixtureGlobals)._syncDebug?.getRows!()?.[0]?.profileId === 'debug-profile'
+        && (window as unknown as SyncInitFixtureGlobals)._syncDebug?.evolu === runtime.getSyncEvolu();
 
       await init.initSync();
       outcomes.reentrantInitDoesNotCreateSecondEvolu = trace.createdCount === 1;
     } finally {
       subscriptions.clearSyncSubscriptionTimers();
-      window.setTimeout = original.setTimeout;
+      (window as unknown as {setTimeout:(fn:TimerHandler,delay?:number,...args:unknown[])=>number}).setTimeout = original.setTimeout;
       window.clearTimeout = original.clearTimeout;
       window.setInterval = original.setInterval;
       window.clearInterval = original.clearInterval;
@@ -298,10 +300,10 @@ test('sync init browser coverage creates Evolu runtime subscriptions and debug g
       localStorage.removeItem('labcharts-debug');
       localStorage.removeItem('labcharts-sync-relay');
       sessionStorage.removeItem(identity.RESTORE_NOTICE_KEY);
-      delete window._syncDebug;
-      delete window.__syncInitTrace;
-      delete window.__syncInitResolveOwner;
-      delete window.__syncInitRejectOwner;
+      delete (window as unknown as SyncInitFixtureGlobals)._syncDebug;
+      delete (window as unknown as {__syncInitTrace?:unknown}).__syncInitTrace;
+      delete (window as unknown as SyncInitFixtureGlobals).__syncInitResolveOwner;
+      delete (window as unknown as SyncInitFixtureGlobals).__syncInitRejectOwner;
     }
 
     return outcomes;
@@ -323,16 +325,16 @@ test('sync init browser coverage records query and owner initialization failures
 
   const results = await page.evaluate(async ({ initUrl }) => {
     const [init, runtime, settings, subscriptions] = await Promise.all([
-      import(initUrl),
+      ((import(initUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/sync-init.js"), "initSync" | "configureSyncInit"> >),
       import('/js/sync-runtime.js'),
       import('/js/sync-settings-state.js'),
       import('/js/sync-subscriptions.js'),
     ]);
-    const outcomes = {};
-    const warnings = [];
+    const outcomes:Record<string,unknown> = {};
+    const warnings:string[] = [];
     const original = {
       warn: console.warn,
-      setTimeout: window.setTimeout,
+      setTimeout: window.setTimeout as (fn:TimerHandler,delay?:number,...args:unknown[])=>number,
       clearTimeout: window.clearTimeout,
       setInterval: window.setInterval,
       clearInterval: window.clearInterval,
@@ -343,11 +345,11 @@ test('sync init browser coverage records query and owner initialization failures
       runtime.clearSyncRuntimeState();
       subscriptions.clearSyncSubscriptionTimers();
       settings.setSyncEnabled(true, { persist: false });
-      window.setTimeout = (fn, delay = 0, ...args) => {
+      (window as unknown as {setTimeout:(fn:TimerHandler,delay?:number,...args:unknown[])=>number}).setTimeout = (fn, delay = 0, ...args) => {
         return original.setTimeout.call(window, fn, delay, ...args);
       };
       window.clearTimeout = id => original.clearTimeout.call(window, id);
-      window.setInterval = () => 1;
+      (window as unknown as {setInterval:()=>number}).setInterval = () => 1;
       window.clearInterval = () => {};
 
       await init.initSync();
@@ -363,16 +365,16 @@ test('sync init browser coverage records query and owner initialization failures
     } finally {
       subscriptions.clearSyncSubscriptionTimers();
       console.warn = original.warn;
-      window.setTimeout = original.setTimeout;
+      (window as unknown as {setTimeout:(fn:TimerHandler,delay?:number,...args:unknown[])=>number}).setTimeout = original.setTimeout;
       window.clearTimeout = original.clearTimeout;
       window.setInterval = original.setInterval;
       window.clearInterval = original.clearInterval;
       runtime.clearSyncRuntimeState();
       settings.setSyncEnabled(false, { persist: false });
       localStorage.removeItem(settings.SYNC_STORAGE_KEY);
-      delete window.__syncInitTrace;
-      delete window.__syncInitResolveOwner;
-      delete window.__syncInitRejectOwner;
+      delete (window as unknown as {__syncInitTrace?:unknown}).__syncInitTrace;
+      delete (window as unknown as SyncInitFixtureGlobals).__syncInitResolveOwner;
+      delete (window as unknown as SyncInitFixtureGlobals).__syncInitRejectOwner;
     }
 
     return outcomes;

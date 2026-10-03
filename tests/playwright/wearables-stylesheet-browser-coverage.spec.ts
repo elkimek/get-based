@@ -1,9 +1,10 @@
+type WearableFixtureGlobals = {__wearablesModuleEvalCount?:unknown;__openedWearableDetails?:unknown[];__wearablesFocusTrapCleanup?:unknown;__wearablesDetailCalls:unknown[]};
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('wearablesStylesheetCoverage');
 
-async function openWearablesLoaderPage(page, path) {
+async function openWearablesLoaderPage(page:import("@playwright/test").Page, path:string) {
   await page.route(`**${path}`, route => route.fulfill({
     status: 200,
     contentType: 'text/html',
@@ -58,9 +59,9 @@ test('Wearables implementation stays cold and lazy actions single-flight its loa
   await openWearablesLoaderPage(page, '/wearables-module-cache-coverage');
 
   const outcomes = await page.evaluate(async ({ runtimeUrl }) => {
-    const runtime = await import(runtimeUrl);
+    const runtime = await ((import(runtimeUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/wearables-runtime.js"), "configureWearablesRuntime" | "isWearablesModuleLoaded" | "getWearablesModuleFunction" | "loadWearablesModule" | "isWearablesStylesheetLoaded" | "loadWearablesStylesheet" | "loadWearablesStylesheetForAction"> >);
     runtime.configureWearablesRuntime({
-      loadModule: useRetryUrl => useRetryUrl
+      loadModule: (useRetryUrl:boolean) => useRetryUrl
         ? import('/js/wearables.js?lazy-retry=1')
         : import('/js/wearables.js'),
     });
@@ -89,15 +90,15 @@ test('Wearables implementation stays cold and lazy actions single-flight its loa
       concurrentCallsShareModuleNamespace: first === second,
       laterCallsReuseModuleNamespace: first === third,
       loadedStateFlipsAfterInitialization: runtime.isWearablesModuleLoaded() === true,
-      lazyModuleEvaluatesOnce: globalThis.__wearablesModuleEvalCount === 1,
+      lazyModuleEvaluatesOnce: (globalThis as unknown as WearableFixtureGlobals).__wearablesModuleEvalCount === 1,
       actionForwardsMetric:
         opened === 'sleep_score'
-        && globalThis.__openedWearableDetails?.join(',') === 'sleep_score',
+        && (globalThis as unknown as WearableFixtureGlobals).__openedWearableDetails?.join(',') === 'sleep_score',
       remainingActionsDelegate: synced === 'oura' && manualForm === 'weight',
       loadedActionFailureContained: failedAction === false,
       loadedCleanupDelegates:
         cleaned === true
-        && globalThis.__wearablesFocusTrapCleanup === 2,
+        && (globalThis as unknown as WearableFixtureGlobals).__wearablesFocusTrapCleanup === 2,
       loadedCleanupFailureContained: failedCleanup === undefined,
     };
   }, { runtimeUrl: moduleUrl('/js/wearables-runtime.js') });
@@ -109,7 +110,7 @@ test('Wearables implementation stays cold and lazy actions single-flight its loa
 });
 
 test('Wearables implementation retries a failed direct import with a fresh URL', async ({ page }) => {
-  const moduleRequestUrls = [];
+  const moduleRequestUrls:string[] = [];
   await page.route('**/js/wearables.js*', route => {
     moduleRequestUrls.push(route.request().url());
     if (moduleRequestUrls.length === 1) return route.abort('failed');
@@ -122,9 +123,9 @@ test('Wearables implementation retries a failed direct import with a fresh URL',
   await openWearablesLoaderPage(page, '/wearables-module-retry-coverage');
 
   const outcomes = await page.evaluate(async ({ runtimeUrl }) => {
-    const runtime = await import(runtimeUrl);
+    const runtime = await ((import(runtimeUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/wearables-runtime.js"), "configureWearablesRuntime" | "isWearablesModuleLoaded" | "getWearablesModuleFunction" | "loadWearablesModule" | "isWearablesStylesheetLoaded" | "loadWearablesStylesheet" | "loadWearablesStylesheetForAction"> >);
     runtime.configureWearablesRuntime({
-      loadModule: useRetryUrl => useRetryUrl
+      loadModule: (useRetryUrl:boolean) => useRetryUrl
         ? import('/js/wearables.js?lazy-retry=1')
         : import('/js/wearables.js'),
     });
@@ -137,7 +138,7 @@ test('Wearables implementation retries a failed direct import with a fresh URL',
     const retried = await runtime.loadWearablesModule();
     return {
       firstRejected,
-      retrySucceeds: retried.openManualLogForm('weight') === 'weight',
+      retrySucceeds: (retried as {openManualLogForm:(...args:Parameters<typeof import("../../js/wearables.js").openManualLogForm>)=>unknown}).openManualLogForm('weight') === 'weight',
       loadedAfterRetry: runtime.isWearablesModuleLoaded() === true,
     };
   }, { runtimeUrl: moduleUrl('/js/wearables-runtime.js') });
@@ -146,7 +147,7 @@ test('Wearables implementation retries a failed direct import with a fresh URL',
     expect(passed, name).toBe(true);
   }
   expect(moduleRequestUrls).toHaveLength(2);
-  expect(new URL(moduleRequestUrls[1]).searchParams.get('lazy-retry')).toBe('1');
+  expect(new URL(moduleRequestUrls[1]!).searchParams.get('lazy-retry')).toBe('1');
 });
 
 test('Wearables lazy actions contain implementation load failures', async ({ page }) => {
@@ -158,9 +159,9 @@ test('Wearables lazy actions contain implementation load failures', async ({ pag
   await openWearablesLoaderPage(page, '/wearables-module-entry-failure-coverage');
 
   const outcomes = await page.evaluate(async ({ runtimeUrl }) => {
-    const runtime = await import(runtimeUrl);
+    const runtime = await ((import(runtimeUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/wearables-runtime.js"), "configureWearablesRuntime" | "isWearablesModuleLoaded" | "getWearablesModuleFunction" | "loadWearablesModule" | "isWearablesStylesheetLoaded" | "loadWearablesStylesheet" | "loadWearablesStylesheetForAction"> >);
     runtime.configureWearablesRuntime({
-      loadModule: useRetryUrl => useRetryUrl
+      loadModule: (useRetryUrl:boolean) => useRetryUrl
         ? import('/js/wearables.js?lazy-retry=1')
         : import('/js/wearables.js'),
     });
@@ -195,8 +196,8 @@ test('real app shell keeps Wearables implementation cold until its first action'
       startsUnloaded,
       loadedAfterRequest: runtime.isWearablesModuleLoaded() === true,
       implementationOwnsBridge:
-        runtime.getWearablesModuleFunction('openWearableDetail') === module.openWearableDetail
-        && runtime.getWearablesModuleFunction('openManualLogForm') === module.openManualLogForm,
+        runtime.getWearablesModuleFunction('openWearableDetail') === (module as {openWearableDetail?:unknown}).openWearableDetail
+        && runtime.getWearablesModuleFunction('openManualLogForm') === (module as {openManualLogForm?:unknown}).openManualLogForm,
     };
   });
 
@@ -221,21 +222,21 @@ test('Wearables stylesheet loader single-flights and preserves cascade order', a
   await openWearablesLoaderPage(page, '/wearables-stylesheet-cache-coverage');
 
   const outcomes = await page.evaluate(async ({ runtimeUrl }) => {
-    const runtime = await import(runtimeUrl);
+    const runtime = await ((import(runtimeUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/wearables-runtime.js"), "configureWearablesRuntime" | "isWearablesModuleLoaded" | "getWearablesModuleFunction" | "loadWearablesModule" | "isWearablesStylesheetLoaded" | "loadWearablesStylesheet" | "loadWearablesStylesheetForAction"> >);
     const loadedBeforeRequest = runtime.isWearablesStylesheetLoaded();
     const [first, second] = await Promise.all([
       runtime.loadWearablesStylesheet(),
       runtime.loadWearablesStylesheet(),
     ]);
     const third = await runtime.loadWearablesStylesheet();
-    const anchor = document.querySelector('[data-wearables-stylesheet-anchor]');
+    const anchor = document.querySelector<HTMLElement>('[data-wearables-stylesheet-anchor]');
     return {
       loadedBeforeRequest,
       loadedAfterRequest: runtime.isWearablesStylesheetLoaded(),
       concurrentCallsShareTheSameLink: first === second,
       laterCallsReuseTheResolvedLink: first === third,
       oneStylesheetLink:
-        document.querySelectorAll('link[data-wearables-stylesheet]').length === 1,
+        document.querySelectorAll<HTMLLinkElement>('link[data-wearables-stylesheet]').length === 1,
       linkPrecedesAnchor: first.nextElementSibling === anchor,
       lightAnchorFollowsAnchor:
         anchor?.nextElementSibling?.hasAttribute('data-light-sun-stylesheet-anchor') === true,
@@ -255,7 +256,7 @@ test('Wearables stylesheet loader single-flights and preserves cascade order', a
 });
 
 test('Wearables stylesheet failure is contained and retries with a fresh URL', async ({ page }) => {
-  const stylesheetRequests = [];
+  const stylesheetRequests:string[] = [];
   await page.route('**/css/wearables.css*', route => {
     stylesheetRequests.push(route.request().url());
     return route.abort('failed');
@@ -264,7 +265,7 @@ test('Wearables stylesheet failure is contained and retries with a fresh URL', a
 
   const runtimeUrl = moduleUrl('/js/wearables-runtime.js');
   const firstLoaded = await page.evaluate(
-    async ({ runtimeUrl: url }) => (await import(url)).loadWearablesStylesheetForAction(),
+    async ({ runtimeUrl: url }) => (await ((import(url) as Promise<unknown>) as Promise<Pick<typeof import("../../js/wearables-runtime.js"), "configureWearablesRuntime" | "isWearablesModuleLoaded" | "getWearablesModuleFunction" | "loadWearablesModule" | "isWearablesStylesheetLoaded" | "loadWearablesStylesheet" | "loadWearablesStylesheetForAction"> >)).loadWearablesStylesheetForAction(),
     { runtimeUrl },
   );
   expect(firstLoaded).toBe(false);
@@ -273,9 +274,9 @@ test('Wearables stylesheet failure is contained and retries with a fresh URL', a
 
   await page.unroute('**/css/wearables.css*');
   const retry = await page.evaluate(async ({ runtimeUrl: url }) => {
-    const runtime = await import(url);
+    const runtime = await ((import(url) as Promise<unknown>) as Promise<Pick<typeof import("../../js/wearables-runtime.js"), "configureWearablesRuntime" | "isWearablesModuleLoaded" | "getWearablesModuleFunction" | "loadWearablesModule" | "isWearablesStylesheetLoaded" | "loadWearablesStylesheet" | "loadWearablesStylesheetForAction"> >);
     const loaded = await runtime.loadWearablesStylesheetForAction();
-    const link = document.querySelector('link[data-wearables-stylesheet]');
+    const link = document.querySelector<HTMLLinkElement>('link[data-wearables-stylesheet]');
     return {
       loaded,
       href: link?.href || '',
@@ -289,7 +290,7 @@ test('Wearables stylesheet failure is contained and retries with a fresh URL', a
 });
 
 test('Dashboard biometric detail waits for Wearables presentation', async ({ page }) => {
-  let stylesheetRoute;
+  let stylesheetRoute:import("@playwright/test").Route|undefined;
   await page.route('**/css/wearables.css*', route => {
     stylesheetRoute = route;
   });
@@ -300,13 +301,13 @@ test('Dashboard biometric detail waits for Wearables presentation', async ({ pag
       import('/js/dashboard-widget-runtime.js'),
       import('/js/wearables-runtime.js'),
     ]);
-    window.__wearablesDetailCalls = [];
+    (window as unknown as WearableFixtureGlobals).__wearablesDetailCalls = [];
     wearablesRuntime.configureWearablesModuleBridge({
-      openWearableDetail: id => window.__wearablesDetailCalls.push(id),
+      openWearableDetail: (id:unknown) => (window as unknown as WearableFixtureGlobals).__wearablesDetailCalls.push(id),
     });
     return {
       accepted: dashboardRuntime.openDashboardWearableDetail('sleep_score'),
-      callsBeforeStylesheet: [...window.__wearablesDetailCalls],
+      callsBeforeStylesheet: [...(window as unknown as WearableFixtureGlobals).__wearablesDetailCalls],
     };
   });
 
@@ -315,12 +316,12 @@ test('Dashboard biometric detail waits for Wearables presentation', async ({ pag
     callsBeforeStylesheet: [],
   });
   await expect.poll(() => !!stylesheetRoute).toBe(true);
-  await stylesheetRoute.fulfill({
+  await stylesheetRoute!.fulfill({
     status: 200,
     contentType: 'text/css',
     body: '.wearable-detail-stats { display: grid; }',
   });
-  await expect.poll(() => page.evaluate(() => window.__wearablesDetailCalls)).toEqual(['sleep_score']);
+  await expect.poll(() => page.evaluate(() => (window as unknown as WearableFixtureGlobals).__wearablesDetailCalls)).toEqual(['sleep_score']);
 });
 
 test('Dashboard manual biometric card stays styled before Wearables presentation loads', async ({ page }) => {
@@ -338,12 +339,12 @@ test('Dashboard manual biometric card stays styled before Wearables presentation
       </div>
     </div>`;
     document.body.append(host);
-    const card = host.querySelector('.db-biometric-manual-empty');
-    const title = host.querySelector('.wearable-metric-name');
-    const action = host.querySelector('.wearable-empty-cta');
+    const card = host.querySelector<HTMLElement>('.db-biometric-manual-empty');
+    const title = host.querySelector<HTMLElement>('.wearable-metric-name');
+    const action = host.querySelector<HTMLElement>('.wearable-empty-cta');
     return {
       stylesheetAbsent:
-        document.querySelector('link[data-wearables-stylesheet]') === null,
+        document.querySelector<HTMLLinkElement>('link[data-wearables-stylesheet]') === null,
       cardDisplay: card ? getComputedStyle(card).display : '',
       cardBorderStyle: card ? getComputedStyle(card).borderStyle : '',
       cardMinHeight: card ? getComputedStyle(card).minHeight : '',

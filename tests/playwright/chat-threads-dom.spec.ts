@@ -19,27 +19,27 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
     const personalityKey = `labcharts-${profileId}-chatPersonality`;
     const originalStoredPersonality = localStorage.getItem(personalityKey);
     const originalRailState = localStorage.getItem(railKey);
-    let savedThreadDeps = null;
-    const waitFor = async (fn, timeoutMs = 500) => {
+    let savedThreadDeps:ReturnType<typeof chatThreads.configureChatThreadDeps>|null = null;
+    const waitFor = async (fn:()=>unknown, timeoutMs = 500) => {
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
         if (fn()) return true;
-        await new Promise(resolve => setTimeout(resolve, 20));
+        await new Promise<void>(resolve => setTimeout(resolve, 20));
       }
       return false;
     };
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
 
     try {
       const chatPanel = document.getElementById('chat-panel');
       outcomes.threadRailExists = !!rail;
       outcomes.threadListExists = !!document.getElementById('chat-thread-list');
       outcomes.threadSearchExists = !!document.getElementById('chat-thread-search');
-      outcomes.chatPanelConversationExists = !!document.querySelector('.chat-panel-conversation');
-      outcomes.chatRailToggleExists = !!document.querySelector('.chat-rail-toggle');
-      outcomes.chatThreadNewButtonExists = !!document.querySelector('.chat-thread-new-btn');
-      outcomes.chatHeaderLeftExists = !!document.querySelector('.chat-header-left');
-      outcomes.chatPanelIsRow = getComputedStyle(chatPanel).flexDirection === 'row';
+      outcomes.chatPanelConversationExists = !!document.querySelector<HTMLElement>('.chat-panel-conversation');
+      outcomes.chatRailToggleExists = !!document.querySelector<HTMLElement>('.chat-rail-toggle');
+      outcomes.chatThreadNewButtonExists = !!document.querySelector<HTMLElement>('.chat-thread-new-btn');
+      outcomes.chatHeaderLeftExists = !!document.querySelector<HTMLElement>('.chat-header-left');
+      outcomes.chatPanelIsRow = getComputedStyle(chatPanel!).flexDirection === 'row';
       outcomes.chatThreadHelpersStayModuleOnly = [
         'getChatThreadsKey',
         'getChatThreadKey',
@@ -63,7 +63,7 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
         'filterThreadList',
         'jumpToSearchResult',
         'toggleThreadRail',
-      ].every(name => typeof window[name] === 'undefined');
+      ].every(name => typeof (window as unknown as Record<string,unknown>)[name] === 'undefined');
 
       rail?.classList.remove('open');
       localStorage.removeItem(railKey);
@@ -79,15 +79,15 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
         { id: 't_b', name: 'Vitamin D Levels', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 3, personality: 'house' },
         { id: 't_c', name: 'Cholesterol Overview', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), messageCount: 2, personality: 'default' },
       ];
-      state.chatThreads = threadFixtures.map(thread => ({ ...thread }));
+      (state as {chatThreads:unknown}).chatThreads = threadFixtures.map(thread => ({ ...thread }));
       chatThreads.saveChatThreadIndex();
       chatThreads.renderThreadList();
       outcomes.allThreadsRendered = document.querySelectorAll('.chat-thread-item').length === 3;
 
-      const threadItem = document.querySelector('.chat-thread-item[data-thread-id="t_a"]');
-      const threadSwitch = threadItem?.querySelector('.chat-thread-item-main');
-      const renameBtn = document.querySelector('.chat-thread-item[data-thread-id="t_a"] [data-chat-thread-action="rename"]');
-      const deleteBtn = document.querySelector('.chat-thread-item[data-thread-id="t_a"] [data-chat-thread-action="delete"]');
+      const threadItem = document.querySelector<HTMLElement>('.chat-thread-item[data-thread-id="t_a"]');
+      const threadSwitch = threadItem?.querySelector<HTMLElement>('.chat-thread-item-main');
+      const renameBtn = document.querySelector<HTMLElement>('.chat-thread-item[data-thread-id="t_a"] [data-chat-thread-action="rename"]');
+      const deleteBtn = document.querySelector<HTMLElement>('.chat-thread-item[data-thread-id="t_a"] [data-chat-thread-action="delete"]');
       outcomes.threadItemUsesNativeDelegatedSwitch = threadSwitch?.tagName === 'BUTTON'
         && threadSwitch?.getAttribute('data-chat-thread-action') === 'switch'
         && threadSwitch?.getAttribute('aria-current') === 'false'
@@ -122,25 +122,25 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
         && localStorage.getItem(personalityKey) === 'default'
         && stoppedGenerations === 1;
       outcomes.activeThreadIsExposedToAssistiveTechnology =
-        document.querySelector('.chat-thread-item[data-thread-id="t_a"] .chat-thread-item-main')?.getAttribute('aria-current') === 'true';
+        document.querySelector<HTMLElement>('.chat-thread-item[data-thread-id="t_a"] .chat-thread-item-main')?.getAttribute('aria-current') === 'true';
       outcomes.desktopThreadSelectionKeepsSplitRailOpen =
         rail?.classList.contains('open') === true
         && localStorage.getItem(railKey) === 'true';
 
-      document.querySelector('.chat-thread-item[data-thread-id="t_a"] [data-chat-thread-action="rename"]')?.click();
+      document.querySelector<HTMLElement>('.chat-thread-item[data-thread-id="t_a"] [data-chat-thread-action="rename"]')?.click();
       outcomes.renameButtonRenamesThread = await waitFor(() =>
         state.chatThreads.find(thread => thread.id === 't_a')?.name === 'Renamed Thread'
       );
 
-      state.chatThreads.find(thread => thread.id === 't_a').name = 'Thyroid Panel Discussion';
+      state.chatThreads.find(thread => thread.id === 't_a')!.name = 'Thyroid Panel Discussion';
       chatThreads.renderThreadList();
-      document.querySelector('.chat-thread-item[data-thread-id="t_c"] [data-chat-thread-action="delete"]')?.click();
+      document.querySelector<HTMLElement>('.chat-thread-item[data-thread-id="t_c"] [data-chat-thread-action="delete"]')?.click();
       const confirmOk = await waitFor(() => document.getElementById('confirm-ok'));
       document.getElementById('confirm-ok')?.click();
       outcomes.deleteButtonRemovesThread = confirmOk
         && await waitFor(() => !state.chatThreads.some(thread => thread.id === 't_c'));
 
-      state.chatThreads = threadFixtures.map(thread => ({ ...thread }));
+      (state as {chatThreads:unknown}).chatThreads = threadFixtures.map(thread => ({ ...thread }));
       chatThreads.renderThreadList();
       chatThreads.filterThreadList('thyroid');
       outcomes.searchFilterShowsOne = document.querySelectorAll('.chat-thread-item').length === 1;
@@ -148,7 +148,7 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
       outcomes.emptyFilterShowsAll = document.querySelectorAll('.chat-thread-item').length === 3;
       chatThreads.filterThreadList('nonexistent');
       outcomes.noMatchShowsEmptyState = document.querySelectorAll('.chat-thread-item').length === 0
-        && document.querySelector('#chat-thread-list div')?.textContent.includes('No matching') === true;
+        && document.querySelector<HTMLElement>('#chat-thread-list div')?.textContent!.includes('No matching') === true;
       chatThreads.filterThreadList('');
 
       const existingThreadName = state.chatThreads.find(thread => thread.id === 't_b')?.name;
@@ -166,9 +166,9 @@ test('chat thread rail and delegated thread actions work in the live DOM', async
       outcomes.autoNameThreadRenamesOnlyNewConversations =
         state.chatThreads.find(thread => thread.id === 't_b')?.name === existingThreadName
         && state.chatThreads.find(thread => thread.id === 't_new')?.name === expectedAutoName
-        && document.querySelector('.chat-thread-item[data-thread-id="t_new"] .chat-thread-item-name')?.textContent === expectedAutoName;
+        && document.querySelector<HTMLElement>('.chat-thread-item[data-thread-id="t_new"] .chat-thread-item-name')?.textContent === expectedAutoName;
     } finally {
-      state.chatThreads = originalThreads;
+      (state as {chatThreads:unknown}).chatThreads = originalThreads;
       state.currentThreadId = originalThreadId;
       state.currentChatPersonality = originalPersonality;
       if (originalStoredPersonality == null) localStorage.removeItem(personalityKey);
@@ -215,7 +215,7 @@ test('conversation projects, pinning, and sorting persist through the thread ind
       showPromptDialog: async () => promptValue,
     });
     try {
-      state.chatThreads = [
+      (state as {chatThreads:unknown}).chatThreads = [
         { id: 'pinned', name: 'Pinned labs', createdAt: earlier, updatedAt: earlier, messageCount: 2, personality: 'default', pinned: true },
         { id: 'project', name: 'Metabolic review', createdAt: earlier, updatedAt: earlier, messageCount: 3, personality: 'default', projectName: 'Metabolic' },
         { id: 'zulu', name: 'Zulu', createdAt: now, updatedAt: now, messageCount: 1, personality: 'default' },
@@ -223,18 +223,18 @@ test('conversation projects, pinning, and sorting persist through the thread ind
       ];
       state.currentThreadId = 'alpha';
       threads.setChatThreadSort('recent');
-      const recentGroups = [...document.querySelectorAll('.chat-thread-group-label')].map(node => node.textContent.trim());
+      const recentGroups = [...document.querySelectorAll('.chat-thread-group-label')].map(node => node.textContent!.trim());
 
       threads.setChatThreadSort('name');
       const conversationGroup = [...document.querySelectorAll('.chat-thread-group')]
-        .find(group => group.querySelector('.chat-thread-group-label')?.textContent.trim() === 'Conversations');
+        .find(group => group.querySelector('.chat-thread-group-label')?.textContent!.trim() === 'Conversations');
       const alphabetical = [...(conversationGroup?.querySelectorAll('.chat-thread-item-name') || [])]
         .map(node => node.textContent);
 
       const pinned = threads.toggleThreadPinned('zulu') === true
         && state.chatThreads.find(thread => thread.id === 'zulu')?.pinned === true;
       threads.renderThreadList();
-      const menuMove = document.querySelector(
+      const menuMove = document.querySelector<HTMLElement>(
         '.chat-thread-item[data-thread-id="alpha"] [data-chat-thread-action="move-project"][data-project-name="Metabolic"]'
       );
       menuMove?.click();
@@ -259,7 +259,7 @@ test('conversation projects, pinning, and sorting persist through the thread ind
       };
     } finally {
       threads.configureChatThreadDeps(previousDeps);
-      state.chatThreads = originalThreads;
+      (state as {chatThreads:unknown}).chatThreads = originalThreads;
       state.currentThreadId = originalThreadId;
       if (originalSort === null) localStorage.removeItem('labcharts-chat-thread-sort');
       else localStorage.setItem('labcharts-chat-thread-sort', originalSort);
@@ -287,7 +287,7 @@ test('desktop conversations move into projects with drag and drop', async ({ pag
     document.getElementById('tour-overlay')?.remove();
     const snapshot = { chatThreads: state.chatThreads, currentThreadId: state.currentThreadId };
     const now = new Date().toISOString();
-    state.chatThreads = [
+    (state as {chatThreads:unknown}).chatThreads = [
       { id: 'drag-me', name: 'Move me', createdAt: now, updatedAt: now, messageCount: 1, personality: 'default' },
       { id: 'project-home', name: 'Metabolic overview', createdAt: now, updatedAt: now, messageCount: 2, personality: 'default', projectName: 'Metabolic' },
     ];
@@ -309,10 +309,10 @@ test('desktop conversations move into projects with drag and drop', async ({ pag
   const projectBox = await projectTarget.boundingBox();
   expect(sourceBox).not.toBeNull();
   expect(projectBox).not.toBeNull();
-  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+  await page.mouse.move(sourceBox!.x + sourceBox!.width / 2, sourceBox!.y + sourceBox!.height / 2);
   await page.mouse.down();
-  await page.mouse.move(sourceBox.x + sourceBox.width / 2 + 12, sourceBox.y + sourceBox.height / 2 + 4, { steps: 4 });
-  await page.mouse.move(projectBox.x + projectBox.width / 2, projectBox.y + projectBox.height / 2, { steps: 10 });
+  await page.mouse.move(sourceBox!.x + sourceBox!.width / 2 + 12, sourceBox!.y + sourceBox!.height / 2 + 4, { steps: 4 });
+  await page.mouse.move(projectBox!.x + projectBox!.width / 2, projectBox!.y + projectBox!.height / 2, { steps: 10 });
   await page.mouse.up();
   await expect.poll(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
@@ -323,13 +323,13 @@ test('desktop conversations move into projects with drag and drop', async ({ pag
   const movedSource = page.locator('.chat-thread-item[data-thread-id="drag-me"] .chat-thread-item-main');
   const movedSourceBox = await movedSource.boundingBox();
   expect(movedSourceBox).not.toBeNull();
-  await page.mouse.move(movedSourceBox.x + movedSourceBox.width / 2, movedSourceBox.y + movedSourceBox.height / 2);
+  await page.mouse.move(movedSourceBox!.x + movedSourceBox!.width / 2, movedSourceBox!.y + movedSourceBox!.height / 2);
   await page.mouse.down();
-  await page.mouse.move(movedSourceBox.x + movedSourceBox.width / 2 + 12, movedSourceBox.y + movedSourceBox.height / 2 + 4, { steps: 4 });
+  await page.mouse.move(movedSourceBox!.x + movedSourceBox!.width / 2 + 12, movedSourceBox!.y + movedSourceBox!.height / 2 + 4, { steps: 4 });
   await expect(page.locator('.chat-thread-unfiled-drop')).toBeVisible();
   const unfiledBox = await page.locator('.chat-thread-unfiled-drop').boundingBox();
   expect(unfiledBox).not.toBeNull();
-  await page.mouse.move(unfiledBox.x + unfiledBox.width / 2, unfiledBox.y + unfiledBox.height / 2, { steps: 10 });
+  await page.mouse.move(unfiledBox!.x + unfiledBox!.width / 2, unfiledBox!.y + unfiledBox!.height / 2, { steps: 10 });
   await page.mouse.up();
   await expect.poll(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
@@ -356,7 +356,7 @@ test('desktop conversations move into projects with drag and drop', async ({ pag
 
   await page.evaluate(async snapshot => {
     const [{ state }, threads] = await Promise.all([import('/js/state.js'), import('/js/chat-threads.js')]);
-    state.chatThreads = snapshot.chatThreads;
+    (state as {chatThreads:unknown}).chatThreads = snapshot.chatThreads;
     state.currentThreadId = snapshot.currentThreadId;
     threads.renderThreadList();
   }, original);
@@ -374,12 +374,12 @@ test('mobile thread selection and creation return directly to the chat', async (
     const originalThreads = state.chatThreads;
     const originalThreadId = state.currentThreadId;
     const originalRailState = localStorage.getItem(railKey);
-    const outcomes = {};
-    const waitFor = async (fn, timeoutMs = 500) => {
+    const outcomes:Record<string,unknown> = {};
+    const waitFor = async (fn:()=>unknown, timeoutMs = 500) => {
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
         if (fn()) return true;
-        await new Promise(resolve => setTimeout(resolve, 20));
+        await new Promise<void>(resolve => setTimeout(resolve, 20));
       }
       return false;
     };
@@ -397,7 +397,7 @@ test('mobile thread selection and creation return directly to the chat', async (
 
     try {
       const now = new Date().toISOString();
-      state.chatThreads = [
+      (state as {chatThreads:unknown}).chatThreads = [
         { id: 'mobile-a', name: 'First conversation', createdAt: now, updatedAt: now, messageCount: 2, personality: 'default' },
         { id: 'mobile-b', name: 'Second conversation', createdAt: now, updatedAt: now, messageCount: 1, personality: 'default' },
       ];
@@ -406,7 +406,7 @@ test('mobile thread selection and creation return directly to the chat', async (
       rail?.classList.add('open');
       localStorage.setItem(railKey, 'true');
 
-      document.querySelector('.chat-thread-item[data-thread-id="mobile-a"] .chat-thread-item-main')?.click();
+      document.querySelector<HTMLElement>('.chat-thread-item[data-thread-id="mobile-a"] .chat-thread-item-main')?.click();
       outcomes.selectingThreadClosesMobileRail =
         await waitFor(() => state.currentThreadId === 'mobile-a')
         && rail?.classList.contains('open') === false
@@ -414,7 +414,7 @@ test('mobile thread selection and creation return directly to the chat', async (
 
       rail?.classList.add('open');
       localStorage.setItem(railKey, 'true');
-      document.querySelector('.chat-thread-item[data-thread-id="mobile-a"] .chat-thread-item-main')?.click();
+      document.querySelector<HTMLElement>('.chat-thread-item[data-thread-id="mobile-a"] .chat-thread-item-main')?.click();
       outcomes.selectingActiveThreadAlsoClosesMobileRail =
         rail?.classList.contains('open') === false
         && localStorage.getItem(railKey) === 'false';
@@ -427,7 +427,7 @@ test('mobile thread selection and creation return directly to the chat', async (
         && localStorage.getItem(railKey) === 'false';
     } finally {
       chatThreads.configureChatThreadDeps(previousDeps);
-      state.chatThreads = originalThreads;
+      (state as {chatThreads:unknown}).chatThreads = originalThreads;
       state.currentThreadId = originalThreadId;
       if (originalRailState == null) localStorage.removeItem(railKey);
       else localStorage.setItem(railKey, originalRailState);

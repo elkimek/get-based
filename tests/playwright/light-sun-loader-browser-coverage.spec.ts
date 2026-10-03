@@ -1,3 +1,4 @@
+type LightSunFixtureGlobals={__lightSunModuleEvalCount?:unknown;__lightEnvironmentLoaderDepKeys?:unknown[];__deferredSunAnalysisIds?:unknown[];__deferredDeviceAnalysisIds?:unknown[];__lightSunUIEvalCount?:unknown;__lightSunUIRetryEvalCount?:unknown};
 import { routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
@@ -47,7 +48,7 @@ test('Light & Sun module loader caches background initialization without loading
   await openBlankPage(page, '/light-sun-loader-cache-coverage');
 
   const results = await page.evaluate(async ({ loaderUrl }) => {
-    const loader = await import(loaderUrl);
+    const loader = await ((import(loaderUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/light-sun-loader.js"), "renderLoadedLightTodayHero" | "configureLightEnvironmentLoaderDeps" | "isLightSunModulesLoaded" | "isLightSunUILoaded" | "loadLightSunModules"> >);
     const heroBeforeLoad = loader.renderLoadedLightTodayHero();
     loader.configureLightEnvironmentLoaderDeps({
       getMeasurementsForRoom() {},
@@ -56,16 +57,16 @@ test('Light & Sun module loader caches background initialization without loading
     const startsUnloaded = loader.isLightSunModulesLoaded() === false;
     const startsUIUnloaded = loader.isLightSunUILoaded() === false;
     const [first, second] = await Promise.all([
-      loader.loadLightSunModules(),
-      loader.loadLightSunModules(),
+      (loader.loadLightSunModules as (...args:Parameters<typeof loader.loadLightSunModules>)=>Promise<unknown>)(),
+      (loader.loadLightSunModules as (...args:Parameters<typeof loader.loadLightSunModules>)=>Promise<unknown>)(),
     ]);
-    const third = await loader.loadLightSunModules();
+    const third = await (loader.loadLightSunModules as (...args:Parameters<typeof loader.loadLightSunModules>)=>Promise<unknown>)();
     const [{ state }, sunStore, deviceStore] = await Promise.all([
       import('/js/state.js'),
       import('/js/sun-sessions-store.js'),
       import('/js/light-devices-store.js'),
     ]);
-    state.importedData = {
+    (state as {importedData:unknown}).importedData = {
       entries: [],
       healthGoals: [],
       supplements: [],
@@ -100,23 +101,23 @@ test('Light & Sun module loader caches background initialization without loading
         loader.renderLoadedLightTodayHero() === '<section>loaded Light Today hero</section>',
       backgroundLoadLeavesUIUninitialized: loader.isLightSunUILoaded() === false,
       backgroundLoadAddsNoStylesheets:
-        document.querySelectorAll('link[data-light-sun-stylesheet]').length === 0,
+        document.querySelectorAll<HTMLLinkElement>('link[data-light-sun-stylesheet]').length === 0,
       lazyModuleEvaluatesOnce:
-        globalThis.__lightSunModuleEvalCount === 1
-        && first.marker === 'light-sun-ready',
+        (globalThis as unknown as LightSunFixtureGlobals).__lightSunModuleEvalCount === 1
+        && (first as {marker?:unknown}).marker === 'light-sun-ready',
       lightEnvironmentDepsAppliedOnLazyLoad:
-        globalThis.__lightEnvironmentLoaderDepKeys?.join(',') === 'getMeasurementsForRoom,navigate',
+        (globalThis as unknown as LightSunFixtureGlobals).__lightEnvironmentLoaderDepKeys?.join(',') === 'getMeasurementsForRoom,navigate',
       incompleteSunRecordDoesNotRequestAnalysis:
-        !globalThis.__deferredSunAnalysisIds?.length,
+        !(globalThis as unknown as LightSunFixtureGlobals).__deferredSunAnalysisIds?.length,
       deferredDeviceCompletionAnalyzedOnce:
-        globalThis.__deferredDeviceAnalysisIds?.length === 1
-        && globalThis.__deferredDeviceAnalysisIds[0] === deviceSession?.id,
+        (globalThis as unknown as LightSunFixtureGlobals).__deferredDeviceAnalysisIds?.length === 1
+        && (globalThis as unknown as LightSunFixtureGlobals).__deferredDeviceAnalysisIds![0] === deviceSession?.id,
     };
   }, {
     loaderUrl: '/js/light-sun-loader.js',
   });
-  results.lazyModuleRequestedOnce = moduleRequests === 1;
-  results.backgroundLoadMakesNoStylesheetRequests = stylesheetRequests === 0;
+  (results as Record<string,unknown>).lazyModuleRequestedOnce = moduleRequests === 1;
+  (results as Record<string,unknown>).backgroundLoadMakesNoStylesheetRequests = stylesheetRequests === 0;
 
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);
@@ -125,7 +126,7 @@ test('Light & Sun module loader caches background initialization without loading
 
 test('Light & Sun UI loader caches concurrent ordered stylesheet initialization', async ({ page }) => {
   let moduleRequests = 0;
-  const stylesheetRequests = [];
+  const stylesheetRequests:string[] = [];
   await page.route('**/js/app-light-sun-modules.js', route => {
     moduleRequests += 1;
     return route.fulfill({
@@ -148,13 +149,13 @@ test('Light & Sun UI loader caches concurrent ordered stylesheet initialization'
   await openBlankPage(page, '/light-sun-ui-loader-cache-coverage');
 
   const results = await page.evaluate(async ({ loaderUrl }) => {
-    const loader = await import(loaderUrl);
+    const loader = await ((import(loaderUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/light-sun-loader.js"), "loadLightSunUI" | "isLightSunUILoaded" | "isLightSunModulesLoaded"> >);
     const [first, second] = await Promise.all([
-      loader.loadLightSunUI(),
-      loader.loadLightSunUI(),
+      (loader.loadLightSunUI as (...args:Parameters<typeof loader.loadLightSunUI>)=>Promise<unknown>)(),
+      (loader.loadLightSunUI as (...args:Parameters<typeof loader.loadLightSunUI>)=>Promise<unknown>)(),
     ]);
-    const third = await loader.loadLightSunUI();
-    const stylesheetPaths = [...document.querySelectorAll('link[data-light-sun-stylesheet]')]
+    const third = await (loader.loadLightSunUI as (...args:Parameters<typeof loader.loadLightSunUI>)=>Promise<unknown>)();
+    const stylesheetPaths = [...document.querySelectorAll<HTMLLinkElement>('link[data-light-sun-stylesheet]')]
       .map(link => new URL(link.href).pathname);
     return {
       concurrentCallsShareModuleNamespace: first === second,
@@ -162,8 +163,8 @@ test('Light & Sun UI loader caches concurrent ordered stylesheet initialization'
       UIStateFlipsAfterInitialization: loader.isLightSunUILoaded() === true,
       moduleStateAlsoLoaded: loader.isLightSunModulesLoaded() === true,
       moduleEvaluatedOnce:
-        globalThis.__lightSunUIEvalCount === 1
-        && first.marker === 'light-sun-ui-ready',
+        (globalThis as unknown as LightSunFixtureGlobals).__lightSunUIEvalCount === 1
+        && (first as {marker?:unknown}).marker === 'light-sun-ui-ready',
       stylesheetsPreserveCascadeOrder: stylesheetPaths.join(',') === [
         '/css/light-sun.css',
         '/css/light-channels.css',
@@ -177,8 +178,8 @@ test('Light & Sun UI loader caches concurrent ordered stylesheet initialization'
   }, {
     loaderUrl: '/js/light-sun-loader.js',
   });
-  results.lazyModuleRequestedOnce = moduleRequests === 1;
-  results.eachStylesheetRequestedOnce =
+  (results as Record<string,unknown>).lazyModuleRequestedOnce = moduleRequests === 1;
+  (results as Record<string,unknown>).eachStylesheetRequestedOnce =
     stylesheetRequests.length === 7
     && new Set(stylesheetRequests).size === 7;
 
@@ -189,7 +190,7 @@ test('Light & Sun UI loader caches concurrent ordered stylesheet initialization'
 
 test('Light & Sun UI loader retries failed styles without re-evaluating its module', async ({ page }) => {
   let moduleRequests = 0;
-  const stylesheetRequests = [];
+  const stylesheetRequests:string[] = [];
   let failedEnvironmentStylesheet = false;
   await page.route('**/js/app-light-sun-modules.js', route => {
     moduleRequests += 1;
@@ -218,23 +219,23 @@ test('Light & Sun UI loader retries failed styles without re-evaluating its modu
   await openBlankPage(page, '/light-sun-ui-loader-retry-coverage');
 
   const results = await page.evaluate(async ({ loaderUrl }) => {
-    const loader = await import(loaderUrl);
+    const loader = await ((import(loaderUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/light-sun-loader.js"), "loadLightSunUI" | "isLightSunUILoaded"> >);
     let firstRejected = false;
     try {
-      await loader.loadLightSunUI();
+      await (loader.loadLightSunUI as (...args:Parameters<typeof loader.loadLightSunUI>)=>Promise<unknown>)();
     } catch {
       firstRejected = true;
     }
     const linksRemovedAfterFailure =
-      document.querySelectorAll('link[data-light-sun-stylesheet]').length === 0;
-    const retried = await loader.loadLightSunUI();
-    const links = [...document.querySelectorAll('link[data-light-sun-stylesheet]')];
+      document.querySelectorAll<HTMLLinkElement>('link[data-light-sun-stylesheet]').length === 0;
+    const retried = await (loader.loadLightSunUI as (...args:Parameters<typeof loader.loadLightSunUI>)=>Promise<unknown>)();
+    const links = [...document.querySelectorAll<HTMLLinkElement>('link[data-light-sun-stylesheet]')];
     return {
       firstRejected,
       linksRemovedAfterFailure,
-      retrySucceeds: retried.marker === 'light-sun-ui-retried',
+      retrySucceeds: (retried as {marker?:unknown}).marker === 'light-sun-ui-retried',
       UIStateFlipsAfterRetry: loader.isLightSunUILoaded() === true,
-      moduleEvaluatedOnce: globalThis.__lightSunUIRetryEvalCount === 1,
+      moduleEvaluatedOnce: (globalThis as unknown as LightSunFixtureGlobals).__lightSunUIRetryEvalCount === 1,
       retryUsesFixedStylesheetUrls:
         links.length === 7
         && links.every(link => new URL(link.href).searchParams.get('lazy-retry') === '1'),
@@ -242,8 +243,8 @@ test('Light & Sun UI loader retries failed styles without re-evaluating its modu
   }, {
     loaderUrl: '/js/light-sun-loader.js',
   });
-  results.moduleRequestedOnce = moduleRequests === 1;
-  results.twoCompleteStylesheetBatchesRequested =
+  (results as Record<string,unknown>).moduleRequestedOnce = moduleRequests === 1;
+  (results as Record<string,unknown>).twoCompleteStylesheetBatchesRequested =
     stylesheetRequests.length === 14
     && stylesheetRequests.slice(7).every(url => url.endsWith('?lazy-retry=1'));
 
@@ -261,15 +262,15 @@ test('Light & Sun loader clears its cached promise after failure', async ({ page
   await openBlankPage(page, '/light-sun-loader-failure-coverage');
 
   const results = await page.evaluate(async ({ loaderUrl }) => {
-    const loader = await import(loaderUrl);
-    const firstPromise = loader.loadLightSunModules();
+    const loader = await ((import(loaderUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/light-sun-loader.js"), "loadLightSunModules" | "isLightSunModulesLoaded"> >);
+    const firstPromise = (loader.loadLightSunModules as (...args:Parameters<typeof loader.loadLightSunModules>)=>Promise<unknown>)();
     let firstRejected = false;
     try {
       await firstPromise;
     } catch {
       firstRejected = true;
     }
-    const secondPromise = loader.loadLightSunModules();
+    const secondPromise = (loader.loadLightSunModules as (...args:Parameters<typeof loader.loadLightSunModules>)=>Promise<unknown>)();
     let secondRejected = false;
     try {
       await secondPromise;
@@ -281,7 +282,7 @@ test('Light & Sun loader clears its cached promise after failure', async ({ page
       import('/js/sun-sessions-store.js'),
       import('/js/light-devices-store.js'),
     ]);
-    state.importedData = {
+    (state as {importedData:unknown}).importedData = {
       entries: [],
       healthGoals: [],
       supplements: [],
@@ -310,14 +311,14 @@ test('Light & Sun loader clears its cached promise after failure', async ({ page
       failureLeavesLoaderUninitialized: loader.isLightSunModulesLoaded() === false,
       retryUsesAFreshPromise: firstPromise !== secondPromise,
       deferredCompletionFailuresStayContained:
-        state.importedData.sunSessions.length === 1
-        && state.importedData.deviceSessions.length === 1
+        state.importedData.sunSessions!.length === 1
+        && state.importedData.deviceSessions!.length === 1
         && !!deviceSession,
     };
   }, {
     loaderUrl: '/js/light-sun-loader.js',
   });
-  results.failedModuleIsOnlyFetchedOnceByBrowserModuleCache = moduleRequests === 1;
+  (results as Record<string,unknown>).failedModuleIsOnlyFetchedOnceByBrowserModuleCache = moduleRequests === 1;
 
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);
@@ -334,10 +335,10 @@ test('returning-user startup defers Light UI resources until the Light route ope
     '/css/light-tools.css',
     '/css/light-env.css',
   ]);
-  const stylesheetRequests = [];
+  const stylesheetRequests:string[] = [];
   let moduleRequests = 0;
   let lightTodayAIRequests = 0;
-  const privacyModuleRequests = [];
+  const privacyModuleRequests:string[] = [];
   page.on('request', request => {
     const pathname = new URL(request.url()).pathname;
     if (lightStylesheetPaths.has(pathname)) stylesheetRequests.push(pathname);

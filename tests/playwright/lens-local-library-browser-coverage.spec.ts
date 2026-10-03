@@ -1,34 +1,43 @@
+import type {Page} from '@playwright/test';
+import type {WorkerRequest} from '../../js/lens-local-protocol.js';
+import type {IngestProgress} from '../../js/lens-local-ingest.js';
+type FixtureCall = WorkerRequest;
+interface LensFixtureState { docs:{source:unknown;chunks:number}[];chunks:number;dim?:number;model?:string;backend?:string;libraries:{id:string;name:unknown;model:string}[];activeId:string|undefined;models:unknown;embedder:unknown }
+interface FakeWorkerView {options:unknown}
+type FactoryOptions = {state:LensFixtureState;calls:FixtureCall[];statsModel?:string;statsBackend?:string|null};
+type FakeWorkerFactory = (options:FactoryOptions)=>{FakeWorker:new(url:unknown,options:unknown)=>unknown;workers:FakeWorkerView[]};
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('lensLocalLibraryCoverage');
 
-async function installFakeLensWorkerFactory(page) {
+async function installFakeLensWorkerFactory(page:Page) {
   await page.addInitScript(() => {
-    window.__makeLensFakeWorker = ({
+    (window as unknown as {__makeLensFakeWorker:FakeWorkerFactory}).__makeLensFakeWorker = ({
       state,
       calls,
       statsModel = 'static',
       statsBackend = null,
-    }) => {
-      const workers = [];
+    }:FactoryOptions) => {
+      const workers:FakeWorker[] = [];
 
+      interface FakeWorker {url:string;options:unknown;listeners:Record<string,((event:{data:unknown})=>void)[]>}
       class FakeWorker {
-        constructor(url, options) {
+        constructor(url:unknown, options:unknown) {
           this.url = String(url || '');
           this.options = options || {};
           this.listeners = { message: [], error: [] };
           workers.push(this);
         }
 
-        addEventListener(type, fn) {
+        addEventListener(type:string, fn:(event:{data:unknown})=>void) {
           this.listeners[type]?.push(fn);
         }
 
-        postMessage(msg) {
+        postMessage(msg:WorkerRequest) {
           calls.push({ ...msg });
-          const send = data => {
-            for (const fn of this.listeners.message) fn({ data });
+          const send = (data:unknown) => {
+            for (const fn of this.listeners.message!) fn({ data });
           };
           const activeLibrary = () => state.libraries.find(l => l.id === state.activeId) || state.libraries[0];
           switch (msg.type) {
@@ -147,11 +156,11 @@ test('local lens browser API serializes worker document and library operations',
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ lensLocalUrl }) => {
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const originalWorker = window.Worker;
     const savedCount = localStorage.getItem('labcharts-lens-local-count');
-    const calls = [];
-    const progressEvents = [];
+    const calls:FixtureCall[] = [];
+    const progressEvents:(IngestProgress & {type:"progress"})[] = [];
     const state = {
       docs: [{ source: 'seed.md', chunks: 2 }],
       chunks: 2,
@@ -169,12 +178,12 @@ test('local lens browser API serializes worker document and library operations',
       },
       embedder: { tier: 2, msPerEmbed: 18, backend: 'webgpu' },
     };
-    const { FakeWorker, workers } = window.__makeLensFakeWorker({ state, calls });
+    const { FakeWorker, workers } = (window as unknown as {__makeLensFakeWorker:FakeWorkerFactory}).__makeLensFakeWorker({ state, calls });
 
     try {
-      window.Worker = FakeWorker;
+      (window as unknown as {Worker:unknown}).Worker = FakeWorker;
       localStorage.removeItem('labcharts-lens-local-count');
-      const local = await import(lensLocalUrl);
+      const local = await ((import(lensLocalUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/lens-local.js"), "subscribeProgress" | "openLocalLens" | "peekLocalCorpusSize" | "queryLensLocal"> >);
       const unsubscribe = local.subscribeProgress(event => progressEvents.push(event));
       const api = await local.openLocalLens();
       const initialStats = await api.getStats();
@@ -217,7 +226,7 @@ test('local lens browser API serializes worker document and library operations',
         && finalStats.total_chunks === 0
         && localStorage.getItem('labcharts-lens-local-count') === '0';
       outcomes.workerContractUsesModuleWorkerAndAbortSideChannel = calls[0]?.type === 'init'
-        && workers[0]?.options?.type === 'module'
+        && (workers[0]?.options as {type?:unknown}|null|undefined)?.type === 'module'
         && calls.some(call => call.type === 'abort')
         && calls.some(call => call.type === 'create_library' && call.model === 'bge-en');
     } finally {
@@ -239,7 +248,7 @@ test('knowledge base modal covers local document ingest and library controls', a
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ lensUrl }) => {
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const originalWorker = window.Worker;
     const originalSetTimeout = window.setTimeout;
     const navigatorProto = Object.getPrototypeOf(navigator);
@@ -248,8 +257,8 @@ test('knowledge base modal covers local document ingest and library controls', a
       config: localStorage.getItem('labcharts-lens-config'),
       count: localStorage.getItem('labcharts-lens-local-count'),
     };
-    const calls = [];
-    let lens = null;
+    const calls:FixtureCall[] = [];
+    let lens:Pick<typeof import("../../js/lens.js"),"openKnowledgeBaseModal"|"handleLocalLensDeleteDoc"|"closeKnowledgeBaseModal">|null = null;
     const state = {
       docs: [
         { source: 'alpha "quote".md', chunks: 2 },
@@ -270,25 +279,25 @@ test('knowledge base modal covers local document ingest and library controls', a
       // MiniLM timing must not silently auto-select the much heavier base model.
       embedder: { tier: 3, msPerEmbed: 16, backend: 'wasm' },
     };
-    const { FakeWorker } = window.__makeLensFakeWorker({
+    const { FakeWorker } = (window as unknown as {__makeLensFakeWorker:FakeWorkerFactory}).__makeLensFakeWorker({
       state,
       calls,
       statsModel: 'active',
       statsBackend: 'webgpu',
     });
 
-    const waitFor = async (predicate, timeout = 1500) => {
+    const waitFor = async (predicate:()=>unknown, timeout = 1500) => {
       const start = performance.now();
       while (performance.now() - start < timeout) {
         if (predicate()) return true;
-        await new Promise(resolve => originalSetTimeout(resolve, 20));
+        await new Promise<void>(resolve => originalSetTimeout(resolve, 20));
       }
       return false;
     };
 
     try {
-      window.Worker = FakeWorker;
-      window.setTimeout = (fn, ms, ...args) => originalSetTimeout(fn, ms === 3000 ? 1 : ms, ...args);
+      (window as unknown as {Worker:unknown}).Worker = FakeWorker;
+      (window as unknown as {setTimeout:(fn:TimerHandler,ms?:number,...args:unknown[])=>number}).setTimeout = (fn, ms, ...args) => originalSetTimeout(fn, ms === 3000 ? 1 : ms, ...args);
       try {
         Object.defineProperty(navigatorProto, 'storage', {
           configurable: true,
@@ -304,32 +313,32 @@ test('knowledge base modal covers local document ingest and library controls', a
       }));
       localStorage.setItem('labcharts-lens-local-count', '3');
 
-      lens = await import(lensUrl);
+      lens = await ((import(lensUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/lens.js"), "openKnowledgeBaseModal" | "handleLocalLensDeleteDoc" | "closeKnowledgeBaseModal"> >);
       await lens.openKnowledgeBaseModal();
-      const initialRendered = await waitFor(() => document.getElementById('lens-local-doc-list')?.textContent.includes('alpha "quote".md')
-        && document.getElementById('lens-local-stats')?.textContent.includes('3 excerpts from 2 documents')
-        && document.getElementById('lens-library-select')?.textContent.includes('Alpha Papers'));
+      const initialRendered = await waitFor(() => document.getElementById('lens-local-doc-list')?.textContent!.includes('alpha "quote".md')
+        && document.getElementById('lens-local-stats')?.textContent!.includes('3 excerpts from 2 documents')
+        && document.getElementById('lens-library-select')?.textContent!.includes('Alpha Papers'));
       const libraryOptions = [...document.querySelectorAll('#lens-library-select option')].map(option => option.textContent);
       outcomes.modalHydratesLocalStatsDocsAndLibraries = initialRendered
         && libraryOptions.includes('Alpha Papers')
-        && document.querySelector('.kb-doc-delete')?.getAttribute('aria-label') === 'Delete alpha "quote".md'
-        && !document.querySelector('#kb-modal [onclick], #kb-modal [onchange], #kb-modal [oninput]')
-        && document.querySelector('.kb-doc-delete')?.dataset.lensSource === 'alpha "quote".md';
+        && document.querySelector<HTMLElement>('.kb-doc-delete')?.getAttribute('aria-label') === 'Delete alpha "quote".md'
+        && !document.querySelector<HTMLElement>('#kb-modal [onclick], #kb-modal [onchange], #kb-modal [oninput]')
+        && document.querySelector<HTMLElement>('.kb-doc-delete')?.dataset.lensSource === 'alpha "quote".md';
 
       const drop = document.getElementById('lens-local-drop');
       const picker = document.getElementById('lens-local-filepick');
       let pickerClicked = false;
-      picker.click = () => { pickerClicked = true; };
-      drop.click();
-      drop.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      drop.dispatchEvent(new Event('dragenter', { bubbles: true, cancelable: true }));
-      drop.dispatchEvent(new Event('dragleave', { bubbles: true, cancelable: true }));
+      picker!.click = () => { pickerClicked = true; };
+      drop!.click();
+      drop!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      drop!.dispatchEvent(new Event('dragenter', { bubbles: true, cancelable: true }));
+      drop!.dispatchEvent(new Event('dragleave', { bubbles: true, cancelable: true }));
       const dropEvent = new Event('drop', { bubbles: true, cancelable: true });
       Object.defineProperty(dropEvent, 'dataTransfer', {
         value: { files: [new File(['Berberine and glucose notes.'], 'berberine.md', { type: 'text/markdown' })] },
       });
-      drop.dispatchEvent(dropEvent);
-      const ingestFinished = await waitFor(() => document.getElementById('lens-local-doc-list')?.textContent.includes('berberine.md'));
+      drop!.dispatchEvent(dropEvent);
+      const ingestFinished = await waitFor(() => document.getElementById('lens-local-doc-list')?.textContent!.includes('berberine.md'));
       const progressHidden = await waitFor(() => document.getElementById('lens-local-progress-wrap')?.style.display === 'none');
       outcomes.dropKeyboardAndIngestProgressFlow = pickerClicked
         && ingestFinished
@@ -340,52 +349,52 @@ test('knowledge base modal covers local document ingest and library controls', a
       outcomes.emptySourceDeleteGuard = !document.getElementById('confirm-dialog-overlay')?.classList.contains('show')
         && !calls.some(call => call.type === 'delete' && call.source === '');
 
-      document.querySelector('.kb-doc-delete')?.click();
+      document.querySelector<HTMLElement>('.kb-doc-delete')?.click();
       await waitFor(() => document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
       const deletePrompt = document.getElementById('confirm-dialog-overlay')?.textContent || '';
       document.getElementById('confirm-ok')?.click();
-      const deletedRendered = await waitFor(() => !document.getElementById('lens-local-doc-list')?.textContent.includes('alpha "quote".md'));
+      const deletedRendered = await waitFor(() => !document.getElementById('lens-local-doc-list')?.textContent!.includes('alpha "quote".md'));
 
-      document.querySelector('[data-lens-action="clear-local"]')?.click();
+      document.querySelector<HTMLElement>('[data-lens-action="clear-local"]')?.click();
       await waitFor(() => document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
       document.getElementById('confirm-cancel')?.click();
       await waitFor(() => !document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
-      document.querySelector('[data-lens-action="clear-local"]')?.click();
+      document.querySelector<HTMLElement>('[data-lens-action="clear-local"]')?.click();
       await waitFor(() => document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
       document.getElementById('confirm-ok')?.click();
-      const clearedRendered = await waitFor(() => document.getElementById('lens-local-stats')?.textContent.includes('No documents indexed yet'));
+      const clearedRendered = await waitFor(() => document.getElementById('lens-local-stats')?.textContent!.includes('No documents indexed yet'));
       outcomes.deleteAndClearConfirmFlows = deletePrompt.includes('alpha "quote".md')
         && deletedRendered
         && clearedRendered
         && calls.some(call => call.type === 'delete' && call.source === 'alpha "quote".md')
         && calls.filter(call => call.type === 'clear').length === 1;
 
-      document.querySelector('[data-lens-action="new-library"]')?.click();
+      document.querySelector<HTMLElement>('[data-lens-action="new-library"]')?.click();
       await waitFor(() => document.getElementById('lens-library-create-overlay')?.classList.contains('show'));
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       const createDismissedOnly = await waitFor(() => !document.getElementById('lens-library-create-overlay')?.classList.contains('show'))
         && document.getElementById('kb-modal-overlay')?.classList.contains('show');
-      document.querySelector('[data-lens-action="new-library"]')?.click();
+      document.querySelector<HTMLElement>('[data-lens-action="new-library"]')?.click();
       await waitFor(() => document.getElementById('lens-library-create-overlay')?.classList.contains('show'));
-      const recommended = document.querySelector('input[name="lens-create-model"]:checked')?.value;
-      document.getElementById('lens-create-name').value = 'Protocols';
+      const recommended = document.querySelector<HTMLInputElement>('input[name="lens-create-model"]:checked')?.value;
+      (document.getElementById('lens-create-name') as HTMLInputElement).value = 'Protocols';
       document.getElementById('lens-create-ok')?.click();
-      const createdRendered = await waitFor(() => document.getElementById('lens-library-select')?.textContent.includes('Protocols'));
+      const createdRendered = await waitFor(() => document.getElementById('lens-library-select')?.textContent!.includes('Protocols'));
 
-      const librarySelect = document.getElementById('lens-library-select');
+      const librarySelect = document.getElementById('lens-library-select') as HTMLSelectElement;
       librarySelect.value = 'lib-beta';
       librarySelect.dispatchEvent(new Event('change', { bubbles: true }));
       await waitFor(() => calls.some(call => call.type === 'activate_library' && call.libraryId === 'lib-beta'));
-      document.querySelector('[data-lens-action="rename-library"]')?.click();
+      document.querySelector<HTMLElement>('[data-lens-action="rename-library"]')?.click();
       await waitFor(() => document.getElementById('prompt-dialog-overlay')?.classList.contains('show'));
-      document.getElementById('prompt-dialog-input').value = 'Renamed Beta';
+      (document.getElementById('prompt-dialog-input') as HTMLInputElement).value = 'Renamed Beta';
       document.getElementById('prompt-ok')?.click();
-      const renamedRendered = await waitFor(() => document.getElementById('lens-library-select')?.textContent.includes('Renamed Beta'));
+      const renamedRendered = await waitFor(() => document.getElementById('lens-library-select')?.textContent!.includes('Renamed Beta'));
 
-      document.querySelector('[data-lens-action="delete-library"]')?.click();
+      document.querySelector<HTMLElement>('[data-lens-action="delete-library"]')?.click();
       await waitFor(() => document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
       document.getElementById('confirm-ok')?.click();
-      const deletedLibraryRendered = await waitFor(() => !document.getElementById('lens-library-select')?.textContent.includes('Renamed Beta'));
+      const deletedLibraryRendered = await waitFor(() => !document.getElementById('lens-library-select')?.textContent!.includes('Renamed Beta'));
       outcomes.libraryCreateEscapeDismissesOnlyChild = createDismissedOnly;
       outcomes.libraryCreateRecommendsBalancedModel = recommended === 'bge-en';
       outcomes.libraryCreateRendersAndReachesWorker = createdRendered

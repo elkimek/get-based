@@ -1,3 +1,4 @@
+import type {Page} from '@playwright/test';
 import { expect, test } from '@playwright/test';
 
 const runRealModels = process.env.GETBASED_VOICE_REAL_MODELS === '1';
@@ -9,7 +10,7 @@ const ttsModelBackend = process.env.GETBASED_VOICE_TTS_BACKEND || 'auto';
 const mediumModelBackend = process.env.GETBASED_VOICE_MEDIUM_BACKEND || 'auto';
 const largeModelBackend = process.env.GETBASED_VOICE_LARGE_BACKEND || 'webgpu';
 
-async function acknowledgeAiTransparency(page) {
+async function acknowledgeAiTransparency(page:Page) {
   const overlay = page.locator('#ai-transparency-overlay');
   await expect(overlay).toBeVisible({ timeout: 5_000 });
   await overlay.locator('input[type="checkbox"]').check();
@@ -23,7 +24,7 @@ test.describe('Voice real local models', () => {
 
   test('downloads Kokoro and Whisper, then completes a speech round trip', async ({ page }) => {
     test.setTimeout(10 * 60_000);
-    const browserIssues = [];
+    const browserIssues:string[] = [];
 
     page.on('console', message => {
       const row = `[browser:${message.type()}] ${message.text()}`;
@@ -108,9 +109,9 @@ test.describe('Voice real local models', () => {
         rate: 1,
         backend: ttsBackend,
       });
-      const wav = new Uint8Array(await speech.audio.arrayBuffer());
+      const wav = new Uint8Array(await speech.audio!.arrayBuffer());
       const transcript = await browserLocalVoiceProvider.transcribe({
-        audio: speech.audio,
+        audio: speech.audio!,
         modelId: 'onnx-community/whisper-small',
         language: 'en',
         backend: sttBackend,
@@ -128,7 +129,7 @@ test.describe('Voice real local models', () => {
       const { buildActionBar, configureChatMessageActionDeps } = await import('/js/chat-actions.js');
       const { readAssistantMessage } = await import('/js/voice-controller.js');
       configureChatMessageActionDeps({ toggleMessageSpeech: readAssistantMessage });
-      state.chatHistory = [{ role: 'assistant', content: 'Check my iron level.' }];
+      (state as {chatHistory:unknown}).chatHistory = [{ role: 'assistant', content: 'Check my iron level.' }];
       const host = document.createElement('div');
       host.id = 'real-voice-action-host';
       // Keep the fixture's action bar from covering Settings' close button.
@@ -167,7 +168,7 @@ test.describe('Voice real local models', () => {
 
     console.log('[stage] Playing Kokoro through the real chat Web Audio path');
     await page.locator('#settings-modal .modal-close').click({ timeout: 15_000 });
-    await page.locator('#real-voice-action-host').evaluate(element => { element.hidden = false; });
+    await page.locator('#real-voice-action-host').evaluate(element => { (element as HTMLElement).hidden = false; });
     const listenButton = page.locator('#chat-listen-btn-0');
     await listenButton.click({ timeout: 15_000 });
     await expect(listenButton).toHaveAttribute('aria-label', 'Cancel speech preparation');
@@ -191,14 +192,14 @@ test.describe('Voice real local models', () => {
     expect(result.transcript.toLowerCase()).toContain('level');
     expect(result.transcriptInferenceMs).toBeGreaterThan(0);
     expect(result.installedBackend).toBe(result.transcriptBackend);
-    expect(result.installedInferenceMs).toBeCloseTo(result.transcriptInferenceMs, 3);
-    expect(result.installedPerformance[result.transcriptBackend].realtimeFactor).toBeGreaterThan(0);
-    expect(result.installedPerformance[result.transcriptBackend].audioSeconds).toBeGreaterThan(0);
+    expect(result.installedInferenceMs).toBeCloseTo(result.transcriptInferenceMs!, 3);
+    expect((result.installedPerformance[result.transcriptBackend!] as {realtimeFactor?:unknown}).realtimeFactor).toBeGreaterThan(0);
+    expect((result.installedPerformance[result.transcriptBackend!] as {audioSeconds?:unknown}).audioSeconds).toBeGreaterThan(0);
     expect(result.speechBackend).toMatch(/^(webgpu|wasm)$/);
     expect(result.speechBackend).toBe(ttsModelBackend === 'auto' ? 'wasm' : ttsModelBackend);
     expect(result.speechInferenceMs).toBeGreaterThan(0);
     expect(result.speechInstalledBackend).toBe(result.speechBackend);
-    expect(result.speechPerformance[result.speechBackend].realtimeFactor).toBeGreaterThan(0);
+    expect((result.speechPerformance[result.speechBackend!] as {realtimeFactor?:unknown}).realtimeFactor).toBeGreaterThan(0);
     expect(result.transcriptBackend).toMatch(/^(webgpu|wasm)$/);
     if (smallModelBackend !== 'auto') expect(result.transcriptBackend).toBe(smallModelBackend);
     expect(playbackState.contextState).toBe('running');
@@ -220,12 +221,12 @@ test.describe('Voice real local models', () => {
       const { state } = await import('/js/state.js');
       const { buildActionBar, configureChatMessageActionDeps } = await import('/js/chat-actions.js');
       const { readAssistantMessage } = await import('/js/voice-controller.js');
-      await browserLocalVoiceProvider.installModel(
+      await (browserLocalVoiceProvider.installModel as (kind:Parameters<typeof browserLocalVoiceProvider.installModel>[0],model:Parameters<typeof browserLocalVoiceProvider.installModel>[1],signal?:Parameters<typeof browserLocalVoiceProvider.installModel>[2],backend?:Parameters<typeof browserLocalVoiceProvider.installModel>[3])=>ReturnType<typeof browserLocalVoiceProvider.installModel>)(
         'tts',
         'onnx-community/Kokoro-82M-v1.0-ONNX',
       );
       configureChatMessageActionDeps({ toggleMessageSpeech: readAssistantMessage });
-      state.chatHistory = [{
+      (state as {chatHistory:unknown}).chatHistory = [{
         role: 'assistant',
         content: [
           'I would not die because I am software rather than a living organism.',
@@ -277,7 +278,7 @@ test.describe('Voice real local models', () => {
     const metrics = await page.evaluate(async () => {
       const { browserLocalVoiceProvider } = await import('/js/voice-provider-browser-local.js');
       const { normalizeSpeechText } = await import('/js/voice-text.js');
-      await browserLocalVoiceProvider.installModel(
+      await (browserLocalVoiceProvider.installModel as (kind:Parameters<typeof browserLocalVoiceProvider.installModel>[0],model:Parameters<typeof browserLocalVoiceProvider.installModel>[1],signal?:Parameters<typeof browserLocalVoiceProvider.installModel>[2],backend?:Parameters<typeof browserLocalVoiceProvider.installModel>[3])=>ReturnType<typeof browserLocalVoiceProvider.installModel>)(
         'tts',
         'onnx-community/Kokoro-82M-v1.0-ONNX',
       );
@@ -296,14 +297,14 @@ test.describe('Voice real local models', () => {
         rate: 1,
         streaming: true,
       });
-      const reader = result.pcmStream.getReader();
+      const reader = result.pcmStream!.getReader();
       const startedAt = performance.now();
       let playbackCursor = 0;
       let initialDelaySeconds = 0;
       let totalDurationSeconds = 0;
       let maximumUnderrunSeconds = 0;
       let maximumEmbeddedSilenceSeconds = 0;
-      const chunkTimings = [];
+      const chunkTimings:{arrivedAt:number;duration:number;underrun:number}[] = [];
       let chunks = 0;
       while (true) {
         const { done, value } = await reader.read();
@@ -366,7 +367,7 @@ test.describe('Voice real local models', () => {
     const result = await page.evaluate(async () => {
       const { browserLocalVoiceProvider } = await import('/js/voice-provider-browser-local.js');
       try {
-        await browserLocalVoiceProvider.installModel(
+        await (browserLocalVoiceProvider.installModel as (kind:Parameters<typeof browserLocalVoiceProvider.installModel>[0],model:Parameters<typeof browserLocalVoiceProvider.installModel>[1],signal?:Parameters<typeof browserLocalVoiceProvider.installModel>[2],backend?:Parameters<typeof browserLocalVoiceProvider.installModel>[3])=>ReturnType<typeof browserLocalVoiceProvider.installModel>)(
           'tts',
           'onnx-community/Kokoro-82M-v1.0-ONNX',
           undefined,
@@ -374,7 +375,7 @@ test.describe('Voice real local models', () => {
         );
         return { ok: true, message: '' };
       } catch (error) {
-        return { ok: false, message: String(error?.message || error) };
+        return { ok: false, message: String((error as {message?:unknown}|null|undefined)?.message || error) };
       }
     });
     expect(result.ok).toBe(false);
@@ -387,11 +388,11 @@ test.describe('Voice real local models', () => {
     await page.goto('/app', { waitUntil: 'load' });
     const result = await page.evaluate(async backend => {
       const { browserLocalVoiceProvider } = await import('/js/voice-provider-browser-local.js');
-      await browserLocalVoiceProvider.installModel(
+      await (browserLocalVoiceProvider.installModel as (kind:Parameters<typeof browserLocalVoiceProvider.installModel>[0],model:Parameters<typeof browserLocalVoiceProvider.installModel>[1],signal?:Parameters<typeof browserLocalVoiceProvider.installModel>[2],backend?:Parameters<typeof browserLocalVoiceProvider.installModel>[3])=>ReturnType<typeof browserLocalVoiceProvider.installModel>)(
         'tts',
         'onnx-community/Kokoro-82M-v1.0-ONNX',
       );
-      await browserLocalVoiceProvider.installModel(
+      await (browserLocalVoiceProvider.installModel as (kind:Parameters<typeof browserLocalVoiceProvider.installModel>[0],model:Parameters<typeof browserLocalVoiceProvider.installModel>[1],signal?:Parameters<typeof browserLocalVoiceProvider.installModel>[2],backend?:Parameters<typeof browserLocalVoiceProvider.installModel>[3])=>ReturnType<typeof browserLocalVoiceProvider.installModel>)(
         'stt',
         'onnx-community/whisper-medium-ONNX',
         undefined,
@@ -405,7 +406,7 @@ test.describe('Voice real local models', () => {
       });
       const startedAt = performance.now();
       const transcript = await browserLocalVoiceProvider.transcribe({
-        audio: speech.audio,
+        audio: speech.audio!,
         modelId: 'onnx-community/whisper-medium-ONNX',
         language: 'en',
         backend,
@@ -424,11 +425,11 @@ test.describe('Voice real local models', () => {
     await page.goto('/app', { waitUntil: 'load' });
     const result = await page.evaluate(async backend => {
       const { browserLocalVoiceProvider } = await import('/js/voice-provider-browser-local.js');
-      await browserLocalVoiceProvider.installModel(
+      await (browserLocalVoiceProvider.installModel as (kind:Parameters<typeof browserLocalVoiceProvider.installModel>[0],model:Parameters<typeof browserLocalVoiceProvider.installModel>[1],signal?:Parameters<typeof browserLocalVoiceProvider.installModel>[2],backend?:Parameters<typeof browserLocalVoiceProvider.installModel>[3])=>ReturnType<typeof browserLocalVoiceProvider.installModel>)(
         'tts',
         'onnx-community/Kokoro-82M-v1.0-ONNX',
       );
-      await browserLocalVoiceProvider.installModel(
+      await (browserLocalVoiceProvider.installModel as (kind:Parameters<typeof browserLocalVoiceProvider.installModel>[0],model:Parameters<typeof browserLocalVoiceProvider.installModel>[1],signal?:Parameters<typeof browserLocalVoiceProvider.installModel>[2],backend?:Parameters<typeof browserLocalVoiceProvider.installModel>[3])=>ReturnType<typeof browserLocalVoiceProvider.installModel>)(
         'stt',
         'onnx-community/whisper-large-v3-turbo',
         undefined,
@@ -442,7 +443,7 @@ test.describe('Voice real local models', () => {
       });
       const startedAt = performance.now();
       const transcript = await browserLocalVoiceProvider.transcribe({
-        audio: speech.audio,
+        audio: speech.audio!,
         modelId: 'onnx-community/whisper-large-v3-turbo',
         language: 'en',
         backend,

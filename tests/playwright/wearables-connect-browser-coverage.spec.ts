@@ -1,10 +1,11 @@
+import type {Page} from '@playwright/test';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('wearablesConnectCoverage');
 
-async function openBlankPage(page, path) {
+async function openBlankPage(page:Page, path:string) {
   await page.route(`**${path}`, route => route.fulfill({
     contentType: 'text/html',
     body: '<!doctype html><html><body></body></html>',
@@ -17,44 +18,44 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
   await openBlankPage(page, '/wearables-connect-browser-coverage');
 
   const results = await page.evaluate(async ({ connectUrl, storeUrl }) => {
-    const failures = [];
-    const check = (name, condition, detail = '') => {
+    const failures:string[] = [];
+    const check = (name:string, condition:unknown, detail:unknown = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
     };
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
-    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+    const jsonResponse = (body:unknown, status = 200) => new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json' },
     });
     const sleepDay = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
     const { state } = await import('/js/state.js');
-    const connect = await import(connectUrl);
+    const connect = await ((import(connectUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/wearables-connect.js"), "beginConnectOAuth" | "handleOAuthCallbackOnLoad" | "getConnection" | "listConnectedSources" | "incrementalSyncWearable" | "syncNow" | "recoverIfL1Empty" | "disconnectWearable"> >);
     const connectRuntime = await import('/js/wearables-connect-runtime.js');
     const credentialVault = await import('/js/wearables-credential-vault.js');
-    const store = await import(storeUrl);
+    const store = await ((import(storeUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/wearables-store.js"), "clearSource" | "getDailyRange"> >);
     await import('/js/wearable-adapters.js');
 
     const profileId = `wearables-connect-coverage-${Date.now()}`;
     const originalFetch = window.fetch;
     const originalLocationSearch = window.location.search;
-    const navigations = [];
-    const requests = [];
+    const navigations:unknown[] = [];
+    const requests:Record<string,unknown>[] = [];
     let refreshCount = 0;
     const originalConnectRuntimeDeps = connectRuntime.configureWearablesConnectRuntimeDeps({
-      navigate: route => navigations.push(route),
+      navigate: (route:unknown) => navigations.push(route),
     });
 
     localStorage.setItem('labcharts-active-profile', profileId);
     state.currentProfile = profileId;
-    state.profiles = [{ id: profileId, name: 'Wearables coverage', createdAt: Date.now(), lastUpdated: Date.now(), tags: [], notes: '', status: 'active', pinned: false }];
-    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, wearableConnections: {}, wearableSummary: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
+    (state as {profiles:unknown}).profiles = [{ id: profileId, name: 'Wearables coverage', createdAt: Date.now(), lastUpdated: Date.now(), tags: [], notes: '', status: 'active', pinned: false }];
+    (state as {importedData:unknown}).importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, wearableConnections: {}, wearableSummary: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
 
     document.body.innerHTML = '<div id="notification-container"></div>';
     await store.clearSource(profileId, 'oura').catch(() => {});
     await store.clearSource(profileId, 'polar').catch(() => {});
 
-    function bodyForProxy(proxy) {
+    function bodyForProxy(proxy:Record<string,unknown>) {
       if (proxy.oura_token_exchange) {
         return { access_token: 'oura-access-token', refresh_token: 'oura-refresh-token', expires_in: 3600, scope: 'personal daily' };
       }
@@ -72,7 +73,7 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
         return { overrides: { oura: 'override-oura-client', polar: 'override-polar-client' } };
       }
       if (proxy.url) {
-        const url = new URL(proxy.url);
+        const url = new URL(proxy.url as string);
         const path = url.pathname;
         if (path.endsWith('/personal_info')) {
           return { email: 'oura@example.test', age: 42, weight: 72, height: 180, biological_sex: 'female' };
@@ -103,13 +104,13 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
 
     window.fetch = async (url, options = {}) => {
       if (String(url) !== '/api/proxy') return originalFetch(url, options);
-      const proxy = JSON.parse(String(options.body || '{}'));
+      const proxy = JSON.parse(String(options.body || '{}')) as Record<string,unknown>;
       requests.push(proxy);
       return jsonResponse(bodyForProxy(proxy));
     };
 
     async function exerciseDispatchBegins() {
-      const stateKeys = {
+      const stateKeys:Record<string,string> = {
         oura: 'oura-oauth-pending',
         whoop: 'whoop-oauth-pending',
         withings: 'withings-oauth-pending',
@@ -118,11 +119,11 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
         google_health: 'google_health-oauth-pending',
         polar: 'polar-oauth-pending',
       };
-      const outcomes = {};
+      const outcomes:Record<string,unknown> = {};
       for (const id of Object.keys(stateKeys)) {
         const frame = document.createElement('iframe');
-        let timeoutId = null;
-        const loaded = new Promise((resolve, reject) => {
+        let timeoutId:ReturnType<typeof setTimeout>|null = null;
+        const loaded = new Promise<void>((resolve, reject) => {
           frame.onload = () => {
             if (timeoutId != null) clearTimeout(timeoutId);
             resolve();
@@ -137,19 +138,19 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
         document.body.appendChild(frame);
         try {
           await loaded;
-          frame.contentWindow.sessionStorage.removeItem(stateKeys[id]);
-          sessionStorage.removeItem(stateKeys[id]);
-          const frameMod = await frame.contentWindow.eval(`import(${JSON.stringify(`${connectUrl}&frame=${id}`)})`);
-          const redirectUri = `${frame.contentWindow.location.origin}${frame.contentWindow.location.pathname}`;
-          const maybePromise = frameMod.OAUTH_DISPATCH[id].begin({
+          frame.contentWindow!.sessionStorage.removeItem(stateKeys[id]!);
+          sessionStorage.removeItem(stateKeys[id]!);
+          const frameMod = (await (frame.contentWindow as unknown as {eval(source:string):unknown}).eval(`import(${JSON.stringify(`${connectUrl}&frame=${id}`)})`)) as Pick<typeof import("../../js/wearables-connect.js"),"OAUTH_DISPATCH">;
+          const redirectUri = `${frame.contentWindow!.location.origin}${frame.contentWindow!.location.pathname}`;
+          const maybePromise:unknown = frameMod.OAUTH_DISPATCH[id]!.begin({
             clientId: `client-${id}`,
             registeredUris: [redirectUri],
             scopes: ['scope:one'],
             profileId,
           });
-          if (maybePromise?.catch) maybePromise.catch(() => {});
-          const raw = frame.contentWindow.sessionStorage.getItem(stateKeys[id]) || sessionStorage.getItem(stateKeys[id]);
-          const pending = JSON.parse(raw || '{}');
+          if ((maybePromise as {catch?:(handler:()=>void)=>unknown}|null|undefined)?.catch) (maybePromise as {catch:(handler:()=>void)=>unknown}).catch(() => {});
+          const raw = frame.contentWindow!.sessionStorage.getItem(stateKeys[id]!) || sessionStorage.getItem(stateKeys[id]!);
+          const pending = JSON.parse(raw || '{}') as Record<string,unknown>;
           outcomes[id] = pending.clientId === `client-${id}`
             && pending.profileId === profileId
             && pending.redirectUri === redirectUri
@@ -167,11 +168,11 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
       const beginOutcomes = await exerciseDispatchBegins();
       check('all OAuth dispatch begin closures store pending state', Object.values(beginOutcomes).every(Boolean), JSON.stringify(beginOutcomes));
 
-      let unknownError = '';
-      let manualError = '';
-      try { connect.beginConnectOAuth('missing'); } catch (error) { unknownError = error.message; }
-      try { connect.beginConnectOAuth('manual'); } catch (error) { manualError = error.message; }
-      check('beginConnectOAuth validates unknown and non-OAuth adapters', /Unknown adapter/.test(unknownError) && /not OAuth2/.test(manualError));
+      let unknownError:unknown = '';
+      let manualError:unknown = '';
+      try { connect.beginConnectOAuth('missing'); } catch (error) { unknownError = (error as {message?:unknown}).message; }
+      try { connect.beginConnectOAuth('manual'); } catch (error) { manualError = (error as {message?:unknown}).message; }
+      check('beginConnectOAuth validates unknown and non-OAuth adapters', /Unknown adapter/.test(unknownError as string) && /not OAuth2/.test(manualError as string));
 
       sessionStorage.setItem('oura-oauth-pending', JSON.stringify({
         state: 'oura-state-ok',
@@ -191,10 +192,10 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
         && conn?.accessToken == null
         && conn?.hasStoredCredentials === true
         && callbackCredentials?.accessToken === 'oura-access-token'
-        && conn.account?.email === 'oura@example.test');
+        && (conn!.account as {email?:unknown}|null|undefined)?.email === 'oura@example.test');
       check('callback cleans URL and navigates dashboard', window.location.search === '' && navigations.includes('dashboard'));
       check('background backfill writes Oura L1 rows', l1Rows.some(row => row.date === sleepDay && row.hrv_rmssd === 41 && row.rhr === 52 && row.sleep_score === 88));
-      check('listConnectedSources exposes connected Oura source', connect.listConnectedSources().oura?.connectedSince === conn.connectedAt);
+      check('listConnectedSources exposes connected Oura source', connect.listConnectedSources().oura?.connectedSince === conn!.connectedAt);
 
       state.importedData.wearableConnections.oura.expiresAt = 0;
       await connect.incrementalSyncWearable('oura', { force: true });
@@ -203,10 +204,10 @@ test('wearables connect browser coverage drives OAuth callback, backfill, refres
         && refreshedCredentials?.accessToken?.startsWith('oura-refreshed-'));
 
       const syncResult = await connect.syncNow('oura', { force: true });
-      check('syncNow completes source and summary refresh', syncResult.rows >= 1 && state.importedData.wearableSummary?.sources?.oura?.coverageDays >= 1);
+      check('syncNow completes source and summary refresh', (syncResult.rows as number) >= 1 && state.importedData.wearableSummary?.sources?.oura?.coverageDays >= 1);
 
       const recoverWithRows = await connect.recoverIfL1Empty('oura');
-      check('recoverIfL1Empty skips when rows exist', recoverWithRows.skipped === true && recoverWithRows.rows >= 1);
+      check('recoverIfL1Empty skips when rows exist', (recoverWithRows as {skipped?:unknown}).skipped === true && ((recoverWithRows as {rows?:unknown}).rows as number) >= 1);
 
       await connect.disconnectWearable('oura');
       const afterDisconnectRows = await store.getDailyRange(profileId, 'oura', '2026-01-01', '2099-12-31');
@@ -245,40 +246,40 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
   await openBlankPage(page, '/wearables-connect-scheduler-coverage');
 
   const results = await page.evaluate(async ({ connectUrl, storeUrl }) => {
-    const failures = [];
-    const check = (name, condition, detail = '') => {
+    const failures:string[] = [];
+    const check = (name:string, condition:unknown, detail:unknown = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
     };
     const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
-    const jsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+    const jsonResponse = (body:unknown, status = 200) => new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json' },
     });
     const polarDay = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
     const { state } = await import('/js/state.js');
-    const connect = await import(connectUrl);
-    const store = await import(storeUrl);
+    const connect = await ((import(connectUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/wearables-connect.js"), "loadWearableRuntimeConfig" | "syncStaleWearablesNow" | "handleOAuthCallbackOnLoad" | "getConnection" | "recoverIfL1Empty" | "syncNow"> >);
+    const store = await ((import(storeUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/wearables-store.js"), "clearSource" | "getDailyRange"> >);
     const adapters = await import('/js/wearable-adapters.js');
 
     const profileId = `wearables-scheduler-coverage-${Date.now()}`;
     const originalFetch = window.fetch;
-    const requests = [];
+    const requests:Record<string,unknown>[] = [];
     let runtimeConfigCalls = 0;
     let polarRegistrationCalls = 0;
     let polarCommitCalls = 0;
 
     localStorage.setItem('labcharts-active-profile', profileId);
     state.currentProfile = profileId;
-    state.profiles = [{ id: profileId, name: 'Wearables scheduler coverage', createdAt: Date.now(), lastUpdated: Date.now(), tags: [], notes: '', status: 'active', pinned: false }];
-    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, wearableConnections: {}, wearableSummary: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
+    (state as {profiles:unknown}).profiles = [{ id: profileId, name: 'Wearables scheduler coverage', createdAt: Date.now(), lastUpdated: Date.now(), tags: [], notes: '', status: 'active', pinned: false }];
+    (state as {importedData:unknown}).importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, wearableConnections: {}, wearableSummary: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
 
     document.body.innerHTML = '<div id="notification-container"></div>';
     await store.clearSource(profileId, 'polar').catch(() => {});
 
     window.fetch = async (url, options = {}) => {
       if (String(url) !== '/api/proxy') return originalFetch(url, options);
-      const proxy = JSON.parse(String(options.body || '{}'));
+      const proxy = JSON.parse(String(options.body || '{}')) as Record<string,unknown>;
       requests.push(proxy);
       if (proxy.wearable_runtime_config) {
         runtimeConfigCalls += 1;
@@ -292,7 +293,7 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
         return jsonResponse({ access_token: 'polar-access', refresh_token: 'polar-refresh', expires_in: 3600, x_user_id: 'polar-user-7', scope: 'accesslink.read_all' });
       }
       if (proxy.url) {
-        const urlObj = new URL(proxy.url);
+        const urlObj = new URL(proxy.url as string);
         const path = urlObj.pathname;
         if (path.endsWith('/v3/users') && proxy.method === 'POST') {
           polarRegistrationCalls += 1;
@@ -334,13 +335,13 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
         runtimeConfigCalls === 1 && adapters.isOAuthAdapterConfigured('google_health') === false);
       await connect.syncStaleWearablesNow();
       check('scheduler retries runtime config and applies Google Health capability',
-        runtimeConfigCalls === 2 &&
+        (runtimeConfigCalls as number) === 2 &&
         adapters.getOAuthClientId('oura') === 'runtime-oura-client' &&
         adapters.getOAuthClientId('polar') === 'runtime-polar-client' &&
         adapters.getOAuthClientId('google_health') === 'runtime-google-health-client' &&
         adapters.isOAuthAdapterConfigured('google_health') === true);
       await connect.loadWearableRuntimeConfig();
-      check('successful runtime config promise is reused', runtimeConfigCalls === 2);
+      check('successful runtime config promise is reused', (runtimeConfigCalls as number) === 2);
 
       const withingsBaselineClient = adapters.adapterById('withings')?.oauth?.clientId || null;
       adapters.applyOAuthOverrides({ withings: 'browser-withings-client' });
@@ -383,11 +384,11 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
       state.importedData.wearableConnections.polar.lastSyncAt = forcedStaleAt;
       await connect.syncStaleWearablesNow();
       const staleUpdatedAt = connect.getConnection('polar')?.lastSyncAt || 0;
-      check('syncStaleWearablesNow refreshes stale connected sources', staleUpdatedAt > forcedStaleAt);
+      check('syncStaleWearablesNow refreshes stale connected sources', (staleUpdatedAt as number) > forcedStaleAt);
 
       state.importedData.wearableConnections.polar.needsReauth = true;
       const recoverSkipped = await connect.recoverIfL1Empty('polar');
-      check('recoverIfL1Empty skips needs-reauth connections', recoverSkipped.skipped === true && recoverSkipped.reason === 'needs-reauth');
+      check('recoverIfL1Empty skips needs-reauth connections', (recoverSkipped as {skipped?:unknown}).skipped === true && (recoverSkipped as {reason?:unknown}).reason === 'needs-reauth');
       delete state.importedData.wearableConnections.polar.needsReauth;
 
       const savedPolarConnection = { ...state.importedData.wearableConnections.polar };
@@ -397,15 +398,15 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
         expiresAt: Date.now() + 3600000,
         connectedAt: new Date().toISOString(),
       };
-      let ghostError = '';
+      let ghostError:unknown = '';
       try {
         await connect.syncNow('ghost');
       } catch (error) {
-        ghostError = error.message;
+        ghostError = (error as {message?:unknown}).message;
       }
       check(
         'syncNow unknown connected source exercises generic failure branch',
-        /not.*function|cannot read|is not a function|undefined/i.test(ghostError),
+        /not.*function|cannot read|is not a function|undefined/i.test(ghostError as string),
         ghostError
       );
       delete state.importedData.wearableConnections.ghost;
@@ -415,7 +416,7 @@ test('wearables connect browser coverage exercises runtime config, stale sync, P
       try {
         await connect.syncNow('polar');
       } catch (error) {
-        missingUserHandled = error?.code === 'needs-reauth' || /missing userId/.test(error.message);
+        missingUserHandled = (error as {code?:unknown}|null|undefined)?.code === 'needs-reauth' || /missing userId/.test((error as {message?:unknown}).message as string);
       }
       check('syncNow Polar missing user id surfaces needs-reauth path', missingUserHandled);
 

@@ -2,7 +2,7 @@ import { expect, test } from './coverage-fixture.js';
 
 const SHOW_CLASS_TOKEN = /(^|\s)show(\s|$)/;
 
-async function preparePage(page) {
+async function preparePage(page:import("@playwright/test").Page) {
   await page.addInitScript(() => {
     const profileId = localStorage.getItem('labcharts-active-profile') || 'default';
     localStorage.setItem(`labcharts-${profileId}-emptyTour`, 'completed');
@@ -10,7 +10,7 @@ async function preparePage(page) {
   });
   await page.goto('/app', { waitUntil: 'load' });
   await page.evaluate(() => {
-    window.endTour?.();
+    (window as unknown as {endTour?:()=>unknown}).endTour?.();
     document.getElementById('tour-overlay')?.remove();
     document.getElementById('tour-spotlight')?.remove();
     document.getElementById('tour-tooltip')?.remove();
@@ -26,15 +26,15 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
     const benchmarkController = await import('/js/settings-import-benchmark-controller.js');
     const settingsRuntime = await import('/js/settings-runtime.js');
     const themeModule = await import('/js/theme.js');
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async (predicate, label) => {
+    const wait = (ms:number) => new Promise(resolve => setTimeout(resolve, ms));
+    const waitFor = async (predicate:()=>unknown, label:string) => {
       for (let attempt = 0; attempt < 80; attempt += 1) {
         if (predicate()) return true;
         await wait(25);
       }
       throw new Error(`Timed out waiting for ${label}`);
     };
-    const jsonResponse = body => new Response(JSON.stringify(body), {
+    const jsonResponse = (body:unknown) => new Response(JSON.stringify(body), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -59,19 +59,19 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       globalUsage: localStorage.getItem('labcharts-global-usage'),
       debug: localStorage.getItem('labcharts-debug'),
     };
-    const results = {};
-    let meteoConfig = {
+    const results:Record<string,unknown> = {};
+    let meteoConfig:Record<string,unknown> = {
       mode: 'auto',
       selfhostUrl: '',
       selfhostBearer: '',
       privacyRounding: 0.1,
     };
-    const savedMeteoConfigs = [];
-    let originalSettingsRuntimeDeps = null;
+    const savedMeteoConfigs:Record<string,unknown>[] = [];
+    let originalSettingsRuntimeDeps:ReturnType<typeof settingsRuntime.configureSettingsRuntimeDeps>|null = null;
 
     try {
       window.fetch = async url => {
-        const href = typeof url === 'string' ? url : url?.url || '';
+        const href = typeof url === 'string' ? url : (url as Request | undefined)?.url || '';
         if (href.includes('/v1/models')) return jsonResponse({ data: [{ id: 'pii-coverage-model' }] });
         if (href.endsWith('/api/commit')) {
           return jsonResponse({ sha: 'abcdef1234567890abcdef1234567890abcdef12', ref: 'main' });
@@ -85,13 +85,13 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       localStorage.setItem('labcharts-time-format', '24h');
       settingsModule.openSettingsModal('display');
       const modal = document.getElementById('settings-modal');
-      modal.insertAdjacentHTML('beforeend', '<button type="button" class="settings-theme-btn" data-theme-id="glass" data-settings-action="select-theme">Glass</button>');
-      const themeBtn = modal.querySelector('[data-settings-action="select-theme"]');
-      themeBtn.click();
-      results.scheduleThemeChangeMarksControl = themeBtn.classList.contains('active');
+      modal!.insertAdjacentHTML('beforeend', '<button type="button" class="settings-theme-btn" data-theme-id="glass" data-settings-action="select-theme">Glass</button>');
+      const themeBtn = modal!.querySelector<HTMLElement>('[data-settings-action="select-theme"]');
+      themeBtn!.click();
+      results.scheduleThemeChangeMarksControl = themeBtn!.classList.contains('active');
       await waitFor(() => localStorage.getItem('labcharts-theme') === 'glass', 'theme commit');
       results.scheduleThemeChangeCommits = document.documentElement.dataset.theme === 'glass';
-      const timeBtn = modal.querySelector('[data-settings-action="set-time-format"][data-timefmt="12h"]');
+      const timeBtn = modal!.querySelector<HTMLElement>('[data-settings-action="set-time-format"][data-timefmt="12h"]');
       if (!timeBtn) throw new Error('time-format 12h button not found in display panel');
       timeBtn.click();
       results.setTimeFormatFromDisplaySettings = localStorage.getItem('labcharts-time-format') === '12h'
@@ -99,13 +99,13 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
         && themeModule.formatTime('14:05') === '2:05 PM';
 
       settingsModule.openTweaksPanel();
-      const sunsetToggle = document.getElementById('tweaks-sunset-mode');
-      sunsetToggle.checked = true;
-      sunsetToggle.dispatchEvent(new Event('change', { bubbles: true }));
+      const sunsetToggle = (document.getElementById('tweaks-sunset-mode') as HTMLInputElement|null);
+      sunsetToggle!.checked = true;
+      sunsetToggle!.dispatchEvent(new Event('change', { bubbles: true }));
       await wait(0);
       results.handleTweaksChange = localStorage.getItem('labcharts-sunset-mode') === 'true'
         && document.documentElement.dataset.sunsetMode === 'on';
-      document.querySelector('[data-tweaks-action="send-feedback"]').click();
+      document.querySelector<HTMLElement>('[data-tweaks-action="send-feedback"]')!.click();
       results.tweaksFeedbackUsesModuleRuntime = document.getElementById('feedback-modal-overlay')?.classList.contains('show') === true
         && !document.getElementById('tweaks-panel-overlay');
       (await import('/js/feedback.js')).closeFeedbackModal();
@@ -114,31 +114,31 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       localStorage.setItem('labcharts-pii-review', 'true');
       localStorage.setItem('labcharts-ollama-pii-enabled', 'false');
       settingsModule.openSettingsModal('privacy');
-      document.querySelector('[data-settings-action="toggle-privacy-configure"]').click();
+      document.querySelector<HTMLElement>('[data-settings-action="toggle-privacy-configure"]')!.click();
       const privacyBody = document.getElementById('privacy-configure-body');
-      results.togglePrivacyConfigure = privacyBody.style.display === 'block';
+      results.togglePrivacyConfigure = privacyBody!.style.display === 'block';
 
-      const piiToggle = document.getElementById('pii-local-toggle');
-      piiToggle.checked = true;
-      piiToggle.dispatchEvent(new Event('change', { bubbles: true }));
+      const piiToggle = (document.getElementById('pii-local-toggle') as HTMLInputElement|null);
+      piiToggle!.checked = true;
+      piiToggle!.dispatchEvent(new Event('change', { bubbles: true }));
       await waitFor(() => localStorage.getItem('labcharts-ollama-pii-enabled') === 'true', 'PII local toggle');
-      results.toggleOllamaPII = privacyBody.style.display === 'block'
-        && document.getElementById('privacy-status-title').textContent.length > 0;
+      results.toggleOllamaPII = privacyBody!.style.display === 'block'
+        && document.getElementById('privacy-status-title')!.textContent!.length > 0;
 
-      const reviewToggle = document.getElementById('pii-review-toggle');
-      reviewToggle.checked = false;
-      reviewToggle.dispatchEvent(new Event('change', { bubbles: true }));
+      const reviewToggle = (document.getElementById('pii-review-toggle') as HTMLInputElement|null);
+      reviewToggle!.checked = false;
+      reviewToggle!.dispatchEvent(new Event('change', { bubbles: true }));
       await waitFor(() => document.getElementById('confirm-ok'), 'disable review confirm');
-      const restoredWhileConfirmOpen = reviewToggle.checked === true;
-      document.getElementById('confirm-ok').click();
+      const restoredWhileConfirmOpen = (reviewToggle!.checked as boolean) === true;
+      document.getElementById('confirm-ok')!.click();
       await waitFor(() => localStorage.getItem('labcharts-pii-review') === 'false', 'review disable commit');
       results.confirmDisablePIIReview = restoredWhileConfirmOpen
-        && reviewToggle.checked === false
+        && reviewToggle!.checked === false
         && localStorage.getItem('labcharts-pii-review-disable-ack') === '1';
 
       state.currentProfile = profileId;
-      state.profiles = [{ id: profileId, name: 'Coverage profile' }];
-      state.importedData = {
+      (state as {profiles:unknown}).profiles = [{ id: profileId, name: 'Coverage profile' }];
+      (state as {importedData:unknown}).importedData = {
         ...state.importedData,
         importSnapshots: [{
           id: 'benchmark-coverage',
@@ -172,14 +172,14 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       }));
       localStorage.setItem('labcharts-debug', 'false');
       settingsModule.openSettingsModal('ai');
-      results.importBenchmarksVisibleOutsideDebugMode = document.querySelector('[data-settings-action="open-import-benchmarks"]') !== null;
+      results.importBenchmarksVisibleOutsideDebugMode = document.querySelector<HTMLElement>('[data-settings-action="open-import-benchmarks"]') !== null;
       settingsModule.openSettingsModal('display');
-      const debugToggle = document.getElementById('debug-mode-toggle');
-      debugToggle.checked = true;
-      debugToggle.dispatchEvent(new Event('change', { bubbles: true }));
+      const debugToggle = (document.getElementById('debug-mode-toggle') as HTMLInputElement|null);
+      debugToggle!.checked = true;
+      debugToggle!.dispatchEvent(new Event('change', { bubbles: true }));
       settingsModule.openSettingsModal('ai');
-      const benchmarkButton = document.querySelector('[data-settings-action="open-import-benchmarks"]');
-      benchmarkButton.click();
+      const benchmarkButton = document.querySelector<HTMLElement>('[data-settings-action="open-import-benchmarks"]');
+      benchmarkButton!.click();
       const benchmarkOverlay = document.getElementById('import-benchmarks-overlay');
       const benchmarkText = benchmarkOverlay?.textContent || '';
       results.importBenchmarksModalShowsLocalMetrics = benchmarkOverlay?.classList.contains('show') === true
@@ -190,40 +190,40 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
         && benchmarkText.includes('250.0 tok/s')
         && benchmarkText.includes('24')
         && benchmarkText.includes('import complete · retried');
-      benchmarkOverlay.querySelector('[data-import-benchmarks-action="close"]').click();
+      benchmarkOverlay!.querySelector<HTMLElement>('[data-import-benchmarks-action="close"]')!.click();
       results.importBenchmarksModalCloses = document.getElementById('import-benchmarks-overlay') === null;
-      document.querySelector('#ai-usage-section [data-settings-action="reset-profile-usage"]').click();
+      document.querySelector<HTMLElement>('#ai-usage-section [data-settings-action="reset-profile-usage"]')!.click();
       await wait(0);
       results.resetCurrentProfileUsage = localStorage.getItem(usageKey) === null
-        && document.getElementById('ai-usage-section').textContent.includes('0 requests');
+        && document.getElementById('ai-usage-section')!.textContent!.includes('0 requests');
 
       originalSettingsRuntimeDeps = settingsRuntime.configureSettingsRuntimeDeps({
         getMeteoConfig: () => ({ ...meteoConfig }),
-        saveMeteoConfig: cfg => {
+        saveMeteoConfig: (cfg:Record<string,unknown>) => {
           meteoConfig = { ...cfg };
           savedMeteoConfigs.push({ ...cfg });
         },
       });
       document.body.insertAdjacentHTML('beforeend', `<section id="sun-source-fixture">${settingsModule.renderSunDataSourceSettings()}</section>`);
       const sunSection = document.getElementById('sun-data-source-section');
-      const selfhostRadio = sunSection.querySelector('input[value="selfhost"]');
-      selfhostRadio.checked = true;
-      selfhostRadio.dispatchEvent(new Event('change', { bubbles: true }));
+      const selfhostRadio = sunSection!.querySelector<HTMLInputElement>('input[value="selfhost"]');
+      selfhostRadio!.checked = true;
+      selfhostRadio!.dispatchEvent(new Event('change', { bubbles: true }));
       await wait(0);
       results.setMeteoMode = meteoConfig.mode === 'selfhost'
-        && document.getElementById('meteo-selfhost-fields').style.display === '';
+        && document.getElementById('meteo-selfhost-fields')!.style.display === '';
 
-      document.getElementById('meteo-selfhost-url').value = ' https://meteo.example.test ';
-      document.getElementById('meteo-selfhost-url').dispatchEvent(new Event('change', { bubbles: true }));
-      document.getElementById('meteo-selfhost-bearer').value = ' token-123 ';
-      document.getElementById('meteo-selfhost-bearer').dispatchEvent(new Event('change', { bubbles: true }));
+      (document.getElementById('meteo-selfhost-url') as HTMLInputElement|null)!.value = ' https://meteo.example.test ';
+      (document.getElementById('meteo-selfhost-url') as HTMLInputElement|null)!.dispatchEvent(new Event('change', { bubbles: true }));
+      (document.getElementById('meteo-selfhost-bearer') as HTMLInputElement|null)!.value = ' token-123 ';
+      (document.getElementById('meteo-selfhost-bearer') as HTMLInputElement|null)!.dispatchEvent(new Event('change', { bubbles: true }));
       await wait(0);
       results.saveMeteoSelfhost = meteoConfig.selfhostUrl === 'https://meteo.example.test'
         && meteoConfig.selfhostBearer === 'token-123';
 
-      const roundingToggle = document.getElementById('meteo-privacy-rounding');
-      roundingToggle.checked = false;
-      roundingToggle.dispatchEvent(new Event('change', { bubbles: true }));
+      const roundingToggle = (document.getElementById('meteo-privacy-rounding') as HTMLInputElement|null);
+      roundingToggle!.checked = false;
+      roundingToggle!.dispatchEvent(new Event('change', { bubbles: true }));
       await wait(0);
       results.toggleMeteoRounding = meteoConfig.privacyRounding === 0
         && savedMeteoConfigs.some(cfg => cfg.privacyRounding === 0);
@@ -235,9 +235,9 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
         settingsRuntime.configureSettingsRuntimeDeps(originalSettingsRuntimeDeps);
       }
       state.currentProfile = saved.currentProfile;
-      state.profiles = saved.profiles;
-      state.importedData = saved.importedData;
-      const restoreStorage = (key, value) => {
+      (state as {profiles:unknown}).profiles = saved.profiles;
+      (state as {importedData:unknown}).importedData = saved.importedData;
+      const restoreStorage = (key:string, value:string|null|undefined) => {
         if (value == null) localStorage.removeItem(key);
         else localStorage.setItem(key, value);
       };
@@ -256,7 +256,7 @@ test('settings browser coverage exercises delegates for themes tweaks privacy us
       settingsModule.closeTweaksPanel();
       document.getElementById('sun-source-fixture')?.remove();
       document.getElementById('confirm-dialog-overlay')?.remove();
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast')!.forEach(el => el.remove());
       if (saved.theme) themeModule.setTheme(saved.theme);
     }
   });
@@ -275,8 +275,8 @@ test('settings browser coverage renames imported entry dates through the data se
     const dataModule = await import('/js/data.js');
     const reviewRuntime = await import('/js/pdf-import-review-runtime.js');
     const settingsModule = await import('/js/settings.js');
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async (predicate, label) => {
+    const wait = (ms:number) => new Promise(resolve => setTimeout(resolve, ms));
+    const waitFor = async (predicate:()=>unknown, label:string) => {
       for (let attempt = 0; attempt < 80; attempt += 1) {
         if (predicate()) return true;
         await wait(25);
@@ -292,7 +292,7 @@ test('settings browser coverage renames imported entry dates through the data se
       currentView: state.currentView,
       storage: localStorage.getItem(`labcharts-${profileId}-imported`),
     };
-    const calls = [];
+    const calls:unknown[] = [];
     const originalDataContextDeps = dataModule.configureDataContextDependencies({
       invalidateLabContextCache: () => calls.push('invalidateLabContextCache'),
     });
@@ -305,7 +305,7 @@ test('settings browser coverage renames imported entry dates through the data se
     try {
       state.currentProfile = profileId;
       state.currentView = 'dashboard';
-      state.importedData = {
+      (state as {importedData:unknown}).importedData = {
         entries: [{
           date: '2026-02-01',
           markers: { 'biochemistry.glucose': 5.1 },
@@ -321,24 +321,24 @@ test('settings browser coverage renames imported entry dates through the data se
       settingsModule.refreshDataEntriesSection();
 
       const renamePromise = settingsModule.renameImportedEntryDateFromSettings('2026-02-01');
-      await waitFor(() => document.getElementById('prompt-dialog-input'), 'rename prompt');
-      const input = document.getElementById('prompt-dialog-input');
-      input.value = '2026-02-03';
-      document.getElementById('prompt-ok').click();
+      await waitFor(() => (document.getElementById('prompt-dialog-input') as HTMLInputElement|null), 'rename prompt');
+      const input = (document.getElementById('prompt-dialog-input') as HTMLInputElement|null);
+      input!.value = '2026-02-03';
+      document.getElementById('prompt-ok')!.click();
       await renamePromise;
 
       return {
-        entryRenamed: state.importedData.entries[0].date === '2026-02-03',
-        manualValuesMoved: !!state.importedData.manualValues['biochemistry.glucose:2026-02-03']
-          && !state.importedData.manualValues['biochemistry.glucose:2026-02-01'],
-        sectionRefreshed: document.getElementById('data-entries-section').textContent.includes('Feb 3, 2026'),
+        entryRenamed: state.importedData.entries[0]!.date === '2026-02-03',
+        manualValuesMoved: !!state.importedData.manualValues!['biochemistry.glucose:2026-02-03']
+          && !state.importedData.manualValues!['biochemistry.glucose:2026-02-01'],
+        sectionRefreshed: document.getElementById('data-entries-section')!.textContent!.includes('Feb 3, 2026'),
         viewsRefreshed: calls.includes('buildSidebar')
           && calls.includes('updateHeaderDates')
           && calls.includes('navigate:dashboard')
           && calls.includes('invalidateLabContextCache'),
       };
     } finally {
-      state.importedData = saved.importedData;
+      (state as {importedData:unknown}).importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
       state.currentView = saved.currentView;
       dataModule.configureDataContextDependencies(originalDataContextDeps);
@@ -347,7 +347,7 @@ test('settings browser coverage renames imported entry dates through the data se
       else localStorage.setItem(`labcharts-${profileId}-imported`, saved.storage);
       document.getElementById('data-entries-section')?.remove();
       document.getElementById('prompt-dialog-overlay')?.remove();
-      document.querySelectorAll('.notification-toast').forEach(el => el.remove());
+      document.querySelectorAll<HTMLElement>('.notification-toast')!.forEach(el => el.remove());
     }
   });
 
