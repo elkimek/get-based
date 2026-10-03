@@ -3,13 +3,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript-api';
+import { API, DiagnosticCategory, type Diagnostic } from 'typescript/unstable/sync';
 
 // These unchecked views retain the original raw JSON/property/comparison behavior.
 type BaselineReader = { totalDiagnostics: unknown; files: Record<string, unknown> };
 type CurrentReader = { total: unknown; files: Iterable<readonly [string, unknown]> };
-type ProgramOptionsReader = Omit<ts.CreateProgramOptions, 'projectReferences'> & { projectReferences: ts.CreateProgramOptions['projectReferences'] };
-type StrictNullDiagnostics = { configErrors: readonly ts.Diagnostic[]; files: Map<string, number>; total: number; unscoped: ts.Diagnostic[] };
+type StrictNullDiagnostics = { configErrors: readonly Diagnostic[]; files: Map<string, number>; total: number; unscoped: Diagnostic[] };
 
 const SCRIPT_PATH = fileURLToPath(import.meta.url);
 const ROOT = path.resolve(path.dirname(SCRIPT_PATH), '..');
@@ -44,42 +43,54 @@ function findRegressions(current: unknown, baseline: unknown) {
   return regressions;
 }
 
-function collectStrictNullDiagnostics() {
-  const configFile = ts.readConfigFile(CONFIG_PATH, ts.sys.readFile);
-  if (configFile.error) return { configErrors: [configFile.error] };
+/** Preserve the legacy ratchet's two overrides through native config inheritance. */
+function collectStrictNullDiagnostics(configPath = CONFIG_PATH): StrictNullDiagnostics {
+  const config = path.resolve(configPath);
+  const rootDir = path.dirname(config);
+  const overlay = path.join(rootDir, '__getbased_strict_null__.json');
+  const contents = JSON.stringify({ extends: config, compilerOptions: { noEmit: true, strictNullChecks: true } });
+  const api = new API({ cwd: rootDir, fs: {
+    readFile: file => file === overlay ? contents : undefined,
+    fileExists: file => file === overlay ? true : undefined,
+  } });
+  try {
+    const snapshot = api.updateSnapshot({ openProjects: [overlay] });
+    try {
+      const project = snapshot.getProject(overlay);
+      if (!project) throw new Error('Strict-null native project was not created');
+      const configErrors = project.program.getConfigFileParsingDiagnostics();
+      const files = new Map<string, number>();
+      const unscoped: Diagnostic[] = [];
+      if (configErrors.length) return { configErrors, files, total: 0, unscoped };
+      const errors = [
+        ...project.program.getProgramDiagnostics(),
+        ...project.program.getGlobalDiagnostics(),
+        ...project.program.getSyntacticDiagnostics(),
+        ...project.program.getSemanticDiagnostics(),
+      ].filter(diagnostic => diagnostic.category === DiagnosticCategory.Error);
+      // The native API exposes overlapping diagnostic phases. Retain every
+      // distinct error while counting each complete SDK diagnostic once.
+      const distinct = new Map<string, Diagnostic>();
+      for (const diagnostic of errors) distinct.set(JSON.stringify(diagnostic), diagnostic);
+      for (const diagnostic of distinct.values()) {
+        if (!diagnostic.fileName) { unscoped.push(diagnostic); continue; }
+        const file = path.relative(rootDir, diagnostic.fileName).replaceAll(path.sep, '/');
+        files.set(file, (files.get(file) || 0) + 1);
+      }
+      return { configErrors: [], files, total: [...files.values()].reduce((sum, count) => sum + count, 0), unscoped };
+    } finally { snapshot.dispose(); }
+  } finally { api.close(); }
+}
 
-  const config = ts.parseJsonConfigFileContent(
-    configFile.config,
-    ts.sys,
-    ROOT,
-    { noEmit: true, strictNullChecks: true },
-    CONFIG_PATH,
-  );
-  if (config.errors.length > 0) return { configErrors: config.errors };
-
-  const program = (ts.createProgram as (options: ProgramOptionsReader) => ts.Program)({
-    rootNames: config.fileNames,
-    options: config.options,
-    projectReferences: config.projectReferences,
-  });
-  const errors = ts.getPreEmitDiagnostics(program)
-    .filter(diagnostic => diagnostic.category === ts.DiagnosticCategory.Error);
-  const files = new Map<string, number>();
-  const unscoped: ts.Diagnostic[] = [];
-  for (const diagnostic of errors) {
-    if (!diagnostic.file) {
-      unscoped.push(diagnostic);
-      continue;
-    }
-    const file = path.relative(ROOT, diagnostic.file.fileName).replaceAll(path.sep, '/');
-    files.set(file, (files.get(file) || 0) + 1);
+function formatDiagnostics(diagnostics: readonly Diagnostic[]): string {
+  const lines: string[] = [];
+  function append(diagnostic: Diagnostic, depth = 0): void {
+    const location = diagnostic.fileName ? path.relative(ROOT, diagnostic.fileName) + ':' + diagnostic.pos + ': ' : '';
+    lines.push('  '.repeat(depth) + location + 'error TS' + diagnostic.code + ': ' + diagnostic.text);
+    for (const next of diagnostic.messageChain || []) append(next, depth + 1);
   }
-  return {
-    configErrors: [],
-    files,
-    total: [...files.values()].reduce<number>((sum, count) => sum + count, 0),
-    unscoped,
-  };
+  for (const diagnostic of diagnostics) append(diagnostic);
+  return lines.join('\n') + '\n';
 }
 
 function main() {
@@ -100,20 +111,12 @@ function main() {
   const diagnostics = collectStrictNullDiagnostics();
   if (diagnostics.configErrors.length > 0) {
     console.error('Strict-null TypeScript configuration failed:');
-    console.error(ts.formatDiagnostics(diagnostics.configErrors, {
-      getCanonicalFileName: fileName => fileName,
-      getCurrentDirectory: () => ROOT,
-      getNewLine: () => '\n',
-    }));
+    console.error(formatDiagnostics(diagnostics.configErrors));
     process.exit(1);
   }
   if ((diagnostics as StrictNullDiagnostics).unscoped.length > 0) {
     console.error('Strict-null TypeScript run produced unscoped errors:');
-    console.error(ts.formatDiagnostics((diagnostics as StrictNullDiagnostics).unscoped, {
-      getCanonicalFileName: fileName => fileName,
-      getCurrentDirectory: () => ROOT,
-      getNewLine: () => '\n',
-    }));
+    console.error(formatDiagnostics((diagnostics as StrictNullDiagnostics).unscoped));
     process.exit(1);
   }
 
@@ -134,4 +137,4 @@ function main() {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === SCRIPT_PATH) main();
 
-export { findRegressions, validateBaseline };
+export { collectStrictNullDiagnostics, findRegressions, validateBaseline };

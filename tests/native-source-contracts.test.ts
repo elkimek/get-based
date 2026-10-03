@@ -121,3 +121,37 @@ it('owns the event receiver, event type, bound parameter, and synchronous callba
   expect(check("function runTour() { function unrelated() { overlay.addEventListener('click', e => { if (e.target === overlay) endTour(); }); } }")).toBe(false);
   expect(check('function broken(')).toBe(false);
 });
+
+
+it('distinguishes unary and increment operators without losing equivalent parentheses', () => {
+  for (const [expected, changed] of [
+    ['+value', '-value'], ['++value', '--value'], ['value++', 'value--'], ['~value', '!value'],
+  ]) {
+    const source = `function build() { const normalized = ${expected}; }`;
+    expect(sourceFunctionHasInitializer(source, 'build', 'normalized', expected!)).toBe(true);
+    expect(sourceFunctionHasInitializer(source, 'build', 'normalized', `(${expected})`)).toBe(true);
+    expect(sourceFunctionHasInitializer(source.replace(expected!, changed!), 'build', 'normalized', expected!)).toBe(false);
+  }
+  expect(sourceFunctionHasInitializer('function build() { const normalized = value++; }', 'build', 'normalized', '++value')).toBe(false);
+});
+
+it('distinguishes const let and var declarations with identical names and values', () => {
+  for (const keyword of ['const', 'let', 'var']) {
+    const statement = `${keyword} normalized = 1;`;
+    const source = `function build() { ${statement} }`;
+    expect(sourceFunctionHasStatement(source, 'build', statement)).toBe(true);
+    for (const changed of ['const', 'let', 'var'].filter(value => value !== keyword)) {
+      expect(sourceFunctionHasStatement(source.replace(keyword, changed), 'build', statement)).toBe(false);
+    }
+  }
+});
+
+it('keeps operator decisions inside catch and event callback statements', () => {
+  const statement = 'if (++attempt) retry();';
+  const caught = `function build() { try {} catch (error) { ${statement} } }`;
+  expect(sourceFunctionHasCatchStatement(caught, 'build', 'error', statement)).toBe(true);
+  expect(sourceFunctionHasCatchStatement(caught.replace('++attempt', '--attempt'), 'build', 'error', statement)).toBe(false);
+  const listener = `function build() { overlay.addEventListener('click', event => { ${statement} }); }`;
+  expect(sourceFunctionHasEventListenerStatement(listener, 'build', 'overlay', 'click', 'event', statement)).toBe(true);
+  expect(sourceFunctionHasEventListenerStatement(listener.replace('++attempt', '--attempt'), 'build', 'overlay', 'click', 'event', statement)).toBe(false);
+});

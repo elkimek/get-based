@@ -75,7 +75,6 @@
     "elliptic": "file:scripts/vendor-packages/elliptic-verify-only",
     "@scure/base": "2.2.0",
     "@noble/hashes": "2.2.0",
-    "typescript-api": "npm:typescript@6.0.3",
     "@types/node": "26.1.0"
   },
   "dependencies": {

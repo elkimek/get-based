@@ -1,7 +1,8 @@
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript-api';
+import * as ts from 'typescript/unstable/ast';
+import { withParsedSource } from '../scripts/native-typescript-ast.js';
 import { describe, expect, it } from 'vitest';
 import { BRAND_ASSETS } from '../js/brand-assets.js';
 
@@ -29,39 +30,40 @@ function resolveLocalAsset(importerUrl: string, specifier: string) {
 }
 
 function moduleSpecifiers(source: string, fileName = 'module.js') {
-  const specifiers = new Set<string>();
-  const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, false, ts.ScriptKind.JS);
+  return withParsedSource(source, fileName, (sourceFile) => {
+    const specifiers = new Set<string>();
 
-  function addStringLiteral(node: ts.Node | undefined) {
-    if (node && ts.isStringLiteralLike(node)) specifiers.add(node.text);
-  }
-
-  function isImportMetaUrl(node: ts.Node) {
-    return ts.isPropertyAccessExpression(node)
-      && node.name.text === 'url'
-      && ts.isMetaProperty(node.expression)
-      && node.expression.keywordToken === ts.SyntaxKind.ImportKeyword
-      && node.expression.name.text === 'meta';
-  }
-
-  function visit(node: ts.Node) {
-    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
-      addStringLiteral(node.moduleSpecifier);
-    } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
-      addStringLiteral(node.arguments[0]);
-    } else if (
-      ts.isNewExpression(node)
-      && ts.isIdentifier(node.expression)
-      && node.expression.text === 'URL'
-      && node.arguments?.length === 2
-      && isImportMetaUrl(node.arguments[1]!)
-    ) {
-      addStringLiteral(node.arguments[0]);
+    function addStringLiteral(node: ts.Node | undefined) {
+      if (node && ts.isStringLiteralLikeNode(node)) specifiers.add(node.text);
     }
-    ts.forEachChild(node, visit);
-  }
-  visit(sourceFile);
-  return [...specifiers];
+
+    function isImportMetaUrl(node: ts.Node) {
+      return ts.isPropertyAccessExpression(node)
+        && node.name.text === 'url'
+        && ts.isMetaProperty(node.expression)
+        && node.expression.keywordToken === ts.SyntaxKind.ImportKeyword
+        && node.expression.name.text === 'meta';
+    }
+
+    function visit(node: ts.Node) {
+      if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+        addStringLiteral(node.moduleSpecifier);
+      } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+        addStringLiteral(node.arguments[0]);
+      } else if (
+        ts.isNewExpression(node)
+        && ts.isIdentifier(node.expression)
+        && node.expression.text === 'URL'
+        && node.arguments?.length === 2
+        && isImportMetaUrl(node.arguments[1]!)
+      ) {
+        addStringLiteral(node.arguments[0]);
+      }
+      node.forEachChild(visit);
+    }
+    visit(sourceFile);
+    return [...specifiers];
+  });
 }
 
 function moduleDependencies(moduleUrl: string) {

@@ -3,7 +3,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript-api';
+import * as ts from 'typescript/unstable/ast';
+import { withParsedSource, withParsedSources } from './native-typescript-ast.js';
 import { sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
 
 type ImportKind = 'static' | 'dynamic';
@@ -55,22 +56,19 @@ function authoredPath(file: string) {
  * @param {string} fileName
  */
 export function parseModuleSpecifiers(source: string, fileName = 'module.js') {
-  const sourceFile = ts.createSourceFile(
-    fileName,
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    /\.[cm]?ts$/.test(fileName) ? ts.ScriptKind.TS : ts.ScriptKind.JS,
-  );
+  return withParsedSource(source, fileName, moduleSpecifiersFromFile);
+}
+
+function moduleSpecifiersFromFile(sourceFile: ts.SourceFile) {
   const dependencies: Array<{ specifier: string; kind: ImportKind }> = [];
   const nonLiteralDynamicImports: string[] = [];
 
   const addLiteral = (node: ts.Node | undefined, kind: ImportKind) => {
     // These TypeScript/parenthesis wrappers disappear before runtime evaluation.
-    while (node && (ts.isAsExpression(node) || ts.isTypeAssertionExpression(node)
+    while (node && (ts.isAsExpression(node) || ts.isTypeAssertion(node)
       || ts.isSatisfiesExpression(node) || ts.isNonNullExpression(node)
       || ts.isParenthesizedExpression(node))) node = node.expression;
-    if (node && ts.isStringLiteralLike(node)) {
+    if (node && ts.isStringLiteralLikeNode(node)) {
       dependencies.push({ specifier: node.text, kind });
       return true;
     }
@@ -78,7 +76,7 @@ export function parseModuleSpecifiers(source: string, fileName = 'module.js') {
   };
 
   const visit = (node: ts.Node) => {
-    if (ts.isImportDeclaration(node) && !node.importClause?.isTypeOnly) {
+    if (ts.isImportDeclaration(node) && node.importClause?.phaseModifier !== ts.SyntaxKind.TypeKeyword) {
       addLiteral(node.moduleSpecifier, 'static');
     } else if (ts.isExportDeclaration(node) && node.moduleSpecifier && !node.isTypeOnly) {
       addLiteral(node.moduleSpecifier, 'static');
@@ -97,7 +95,7 @@ export function parseModuleSpecifiers(source: string, fileName = 'module.js') {
       });
       if (hasComputedSpecifier) nonLiteralDynamicImports.push(node.getText(sourceFile));
     }
-    ts.forEachChild(node, visit);
+    node.forEachChild(visit);
   };
   visit(sourceFile);
 
@@ -176,10 +174,14 @@ function collectArchitecture(rules: ArchitectureRules): Architecture {
   const computedDynamicImports: ComputedImport[] = [];
   const externalSpecifiers = new Set<string>();
 
+  const parsedSources = absoluteFiles.length ? withParsedSources(
+    new Map(absoluteFiles.map(file => [repoRelative(file), fs.readFileSync(file, 'utf8')])),
+    files => new Map([...files].map(([file, sourceFile]) => [file, moduleSpecifiersFromFile(sourceFile)])),
+  ) : new Map<string, ReturnType<typeof parseModuleSpecifiers>>();
+
   for (const absoluteFile of absoluteFiles) {
     const file = repoRelative(absoluteFile);
-    const source = fs.readFileSync(absoluteFile, 'utf8');
-    const parsed = parseModuleSpecifiers(source, file);
+    const parsed = parsedSources.get(file)!;
     const edgeKinds = new Map<string, ImportKind>();
     const repositoryFiles = new Set<string>();
 

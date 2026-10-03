@@ -5,7 +5,14 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript-api';
+import { createRequire } from 'node:module';
+import { API } from 'typescript/unstable/sync';
+import * as ts from 'typescript/unstable/ast';
+
+// The build runs before emitted siblings exist. Node24 loads this actual owned
+// TypeScript source synchronously; its namespace is checked against that source.
+const { withParsedSource, withParsedSources }: typeof import('./native-typescript-ast.js')
+  = createRequire(import.meta.url)('./native-typescript-ast.ts');
 
 const script = fileURLToPath(import.meta.url);
 const root = path.resolve(path.dirname(script), '..');
@@ -13,42 +20,42 @@ const root = path.resolve(path.dirname(script), '..');
 function isTypeOnlyImport(statement: ts.Statement): boolean {
   if (!ts.isImportDeclaration(statement) || !statement.importClause) return false;
   const clause = statement.importClause;
-  if (clause.isTypeOnly) return true;
+  if (clause.phaseModifier === ts.SyntaxKind.TypeKeyword) return true;
   return !clause.name && !!clause.namedBindings && ts.isNamedImports(clause.namedBindings)
     && clause.namedBindings.elements.length > 0
     && clause.namedBindings.elements.every(binding => binding.isTypeOnly);
 }
 
-function fixtureFunction(source: string, fileName: string, emitted: boolean): ts.FunctionDeclaration {
-  const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.ES2022, true, emitted ? ts.ScriptKind.JS : ts.ScriptKind.TS);
-  let entry: ts.FunctionDeclaration | undefined;
-  let compilerDirective = false;
-  for (const statement of file.statements) {
-    if (!emitted && (isTypeOnlyImport(statement) || ts.isTypeAliasDeclaration(statement) || ts.isInterfaceDeclaration(statement))) continue;
-    if (emitted && !entry && !compilerDirective && ts.isExpressionStatement(statement)
-      && ts.isStringLiteral(statement.expression) && statement.expression.text === 'use strict') {
-      compilerDirective = true;
-      continue;
+function fixtureFunction(source: string, fileName: string, emitted: boolean): { start: number; end: number } {
+  return withParsedSource(source, emitted ? fileName.replace(/\.mts$/, '.mjs').replace(/\.ts$/, '.js') : fileName, (file) => {
+    let entry: ts.FunctionDeclaration | undefined;
+    let compilerDirective = false;
+    for (const statement of file.statements) {
+      if (!emitted && (isTypeOnlyImport(statement) || ts.isTypeAliasDeclaration(statement) || ts.isInterfaceDeclaration(statement))) continue;
+      if (emitted && !entry && !compilerDirective && ts.isExpressionStatement(statement)
+        && ts.isStringLiteral(statement.expression) && statement.expression.text === 'use strict') {
+        compilerDirective = true;
+        continue;
+      }
+      if (!ts.isFunctionDeclaration(statement) || entry || statement.name?.text !== 'runBrowserFixture'
+        || !statement.body || statement.parameters.length || statement.typeParameters?.length || statement.asteriskToken
+        || statement.modifiers?.length !== 1 || statement.modifiers[0]?.kind !== ts.SyntaxKind.ExportKeyword) {
+        throw new Error(`${fileName}: expected only one exported, synchronous runBrowserFixture() and erased types`);
+      }
+      entry = statement;
     }
-    if (!ts.isFunctionDeclaration(statement) || entry || statement.name?.text !== 'runBrowserFixture'
-      || !statement.body || statement.parameters.length || statement.typeParameters?.length || statement.asteriskToken
-      || statement.modifiers?.length !== 1 || statement.modifiers[0]?.kind !== ts.SyntaxKind.ExportKeyword) {
-      throw new Error(`${fileName}: expected only one exported, synchronous runBrowserFixture() and erased types`);
+    if (!entry?.body) throw new Error(`${fileName}: missing runBrowserFixture() body`);
+    if (source[entry.body.getStart(file)] !== '{' || source[entry.body.end - 1] !== '}') {
+      throw new Error(`${fileName}: incomplete runBrowserFixture() body`);
     }
-    entry = statement;
-  }
-  if (!entry?.body) throw new Error(`${fileName}: missing runBrowserFixture() body`);
-  if (source[entry.body.getStart(file)] !== '{' || source[entry.body.end - 1] !== '}') {
-    throw new Error(`${fileName}: incomplete runBrowserFixture() body`);
-  }
-  return entry;
+    return { start: entry.body.getStart(file), end: entry.body.end };
+  });
 }
 
 /** Preserve Function-body directives, synchronous errors and returned promise identity. */
 export function extractClassicBrowserFixtureBody(source: string, fileName = 'browser-fixture.js'): string {
-  const entry = fixtureFunction(source, fileName, true);
-  const body = entry.body!;
-  return source.slice(body.getStart(entry.getSourceFile()) + 1, body.end - 1);
+  const { start, end } = fixtureFunction(source, fileName, true);
+  return source.slice(start + 1, end - 1);
 }
 
 function classicBrowserFixtureEntries(rootDir: string): string[] {
@@ -66,19 +73,28 @@ function classicBrowserFixtureEntries(rootDir: string): string[] {
 
 /** Reduce emitted indentation while preserving literal text and all line boundaries. */
 export function compactRuntimeIndentation(source: string): string {
-  const file = ts.createSourceFile('runtime.js', source, ts.ScriptTarget.ES2022, true, ts.ScriptKind.JS);
+  return withParsedSource(source, 'runtime.js', (file) => compactParsedRuntimeIndentation(source, file));
+}
+
+function compactParsedRuntimeIndentation(source: string, file: ts.SourceFile): string {
   const protectedRanges: Array<{ start: number; end: number }> = [];
   function protect(node: ts.Node): void {
-    if (ts.isStringLiteralLike(node) || ts.isTemplateLiteralToken(node) || ts.isRegularExpressionLiteral(node)) {
+    if (ts.isStringLiteralLikeNode(node) || ts.isTemplateLiteralToken(node) || ts.isRegularExpressionLiteral(node)) {
       protectedRanges.push({ start: node.getStart(file), end: node.end });
     }
-    ts.forEachChild(node, protect);
+    node.forEachChild(protect);
   }
   protect(file);
-  const scanner = ts.createScanner(ts.ScriptTarget.ES2022, false, ts.LanguageVariant.Standard, source);
-  for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan()) {
+  const scanner = ts.createScanner(false, ts.LanguageVariant.Standard, source);
+  for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFile; token = scanner.scan()) {
+    // Raw template text can expose a lone hash after a substitution. The
+    // genuine scanner's explicit rescan advances this otherwise empty token.
+    if (token === ts.SyntaxKind.PrivateIdentifier && scanner.getTokenStart() === scanner.getTokenEnd()) {
+      scanner.reScanHashToken();
+    }
+    if (scanner.getTokenStart() === scanner.getTokenEnd()) throw new Error('Native runtime scanner made no progress');
     if (token === ts.SyntaxKind.SingleLineCommentTrivia || token === ts.SyntaxKind.MultiLineCommentTrivia) {
-      protectedRanges.push({ start: scanner.getTokenPos(), end: scanner.getTextPos() });
+      protectedRanges.push({ start: scanner.getTokenStart(), end: scanner.getTokenEnd() });
     }
   }
   protectedRanges.sort((a, b) => a.start - b.start);
@@ -93,29 +109,39 @@ export function compactRuntimeIndentation(source: string): string {
 export function buildTypeScript(rootDir = root): void {
   const manifest = classicBrowserFixtureEntries(rootDir);
   const fixtures = manifest.filter(name => existsSync(path.join(rootDir, name)));
-  for (const name of readdirSync(path.join(rootDir, 'tests'))) {
-    if (!/^test-.*\.ts$/.test(name)) continue;
-    const file = ts.createSourceFile(name, readFileSync(path.join(rootDir, 'tests', name), 'utf8'), ts.ScriptTarget.ES2022, true);
-    if (file.statements.some(statement => ts.isFunctionDeclaration(statement) && statement.name?.text === 'runBrowserFixture')
-      && !manifest.includes('tests/' + name)) throw new Error(`${name}: classic browser fixture is not registered`);
-  }
+  const testSources = new Map(readdirSync(path.join(rootDir, 'tests'))
+    .filter(name => /^test-.*\.ts$/.test(name))
+    .map(name => [name, readFileSync(path.join(rootDir, 'tests', name), 'utf8')]));
+  if (testSources.size) withParsedSources(testSources, files => {
+    for (const [name, file] of files) {
+      if (file.statements.some(statement => ts.isFunctionDeclaration(statement) && statement.name?.text === 'runBrowserFixture')
+        && !manifest.includes('tests/' + name)) throw new Error(`${name}: classic browser fixture is not registered`);
+    }
+  });
   // Reject accidental module payload before any compilation overwrites an existing URL.
   for (const name of fixtures) fixtureFunction(readFileSync(path.join(rootDir, name), 'utf8'), name, false);
   const outputs = new Set<string>();
-  for (const config of ['tsconfig.migration.json', 'tsconfig.worker-migration.json', 'tsconfig.fixture-migration.json', 'tsconfig.bootstrap-migration.json']) {
-    const configFile = path.join(rootDir, config);
-    const parsed = ts.parseJsonConfigFileContent(ts.readConfigFile(configFile, ts.sys.readFile).config, ts.sys, rootDir);
-    for (const source of parsed.fileNames) {
-      if (/\.(?:ts|mts)$/.test(source) && !source.endsWith('.d.ts')) {
-        outputs.add(source.replace(/\.mts$/, '.mjs').replace(/\.ts$/, '.js'));
+  const api = new API({ cwd: rootDir });
+  try {
+    for (const config of ['tsconfig.migration.json', 'tsconfig.worker-migration.json', 'tsconfig.fixture-migration.json', 'tsconfig.bootstrap-migration.json']) {
+      const configFile = path.join(rootDir, config);
+      for (const source of api.parseConfigFile(configFile).fileNames) {
+        if (/\.(?:ts|mts)$/.test(source) && !source.endsWith('.d.ts')) {
+          outputs.add(source.replace(/\.mts$/, '.mjs').replace(/\.ts$/, '.js'));
+        }
       }
+      execFileSync(process.execPath, [
+        path.join(rootDir, 'node_modules/typescript/bin/tsc'),
+        '-p', configFile,
+      ], { cwd: rootDir, stdio: 'inherit' });
     }
-    execFileSync(process.execPath, [
-      path.join(rootDir, 'node_modules/typescript/bin/tsc'),
-      '-p', path.join(rootDir, config),
-    ], { cwd: rootDir, stdio: 'inherit' });
+  } finally { api.close(); }
+  const runtimeSources = new Map([...outputs].map(output => [output, readFileSync(output, 'utf8')]));
+  if (runtimeSources.size) {
+    const compacted = withParsedSources(runtimeSources, files => new Map([...files].map(([output, file]) =>
+      [output, compactParsedRuntimeIndentation(runtimeSources.get(output)!, file)])));
+    for (const [output, source] of compacted) writeFileSync(output, source);
   }
-  for (const output of outputs) writeFileSync(output, compactRuntimeIndentation(readFileSync(output, 'utf8')));
   // Validate every compiled wrapper before replacing any wrapper with its body.
   const bodies = fixtures.map(name => {
     const output = path.join(rootDir, name.replace(/\.ts$/, '.js'));

@@ -4,7 +4,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript-api';
+import * as ts from 'typescript/unstable/ast';
+import { withParsedSource, withParsedSources } from './native-typescript-ast.js';
 import { runtimePath, sourcePath } from './source-files.js';
 
 type BrowserSuite = 'browser' | 'firefox' | 'pwa';
@@ -28,6 +29,12 @@ const MODEL_SOURCES = new Set(['js/api-models.js', 'js/api-ppq.js', 'js/api-rout
 const MODEL_TESTS = /(?:api-provider|provider-model|provider-coverage|provider-polling|private-tee-provider|chat-model|nutrition-module|nutrition-ai-settings|openrouter-settings|test-openrouter|test-ppq-provider)/;
 
 export function fileReferences(file: string, source: string, knownFiles: Set<string>): Set<string> {
+  // Non-code text used the JavaScript grammar in the original source reader.
+  const syntaxName = /\.[cm]?[jt]s$/.test(file) ? file : `${file}.js`;
+  return withParsedSource(source, syntaxName, parsed => referencesFromFile(file, source, knownFiles, parsed));
+}
+
+function referencesFromFile(file: string, source: string, knownFiles: Set<string>, parsed: ts.SourceFile): Set<string> {
   const refs = new Set<string>();
   const add = (raw: string) => {
     const clean = raw.split(/[?#]/, 1)[0]!;
@@ -39,10 +46,9 @@ export function fileReferences(file: string, source: string, knownFiles: Set<str
       if (candidate !== file && knownFiles.has(candidate)) refs.add(candidate);
     }
   };
-  const parsed = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true,  /\.[cm]?ts$/.test(file) ? ts.ScriptKind.TS : ts.ScriptKind.JS);
   const visit = (node: ts.Node): void => {
-    if (ts.isStringLiteralLike(node)) add(node.text);
-    ts.forEachChild(node, visit);
+    if (ts.isStringLiteralLikeNode(node)) add(node.text);
+    node.forEachChild(visit);
   };
   visit(parsed);
   // Also handle HTML script/link attributes and paths embedded in HTML strings.
@@ -50,12 +56,28 @@ export function fileReferences(file: string, source: string, knownFiles: Set<str
   return refs;
 }
 
+function referencesForSources(sources: Map<string, string>, knownFiles: Set<string>) {
+  const eligible = [...sources].filter(([file]) => SOURCE.test(file));
+  const syntaxSources = new Map(eligible.map(([file, source]) => [
+    /\.[cm]?[jt]s$/.test(file) ? file : `${file}.js`, source,
+  ]));
+  // Preserve independent source reads when a non-code syntax alias collides.
+  if (!eligible.length || syntaxSources.size !== eligible.length) {
+    return new Map(eligible.map(([file, source]) => [file, fileReferences(file, source, knownFiles)]));
+  }
+  return withParsedSources(syntaxSources, parsed => new Map(eligible.map(([file, source]) => {
+    const syntaxName = /\.[cm]?[jt]s$/.test(file) ? file : `${file}.js`;
+    return [file, referencesFromFile(file, source, knownFiles, parsed.get(syntaxName)!)];
+  })));
+}
+
 export function createTestPlan(sources: Map<string, string>, changedFiles: string[]): TestPlan {
   const known = new Set([...sources.keys(), ...changedFiles]);
   const reverse = new Map<string, Set<string>>();
-  for (const [file, source] of sources) {
+  const references = referencesForSources(sources, known);
+  for (const [file] of sources) {
     if (!SOURCE.test(file)) continue;
-    for (const dependency of fileReferences(file, source, known)) {
+    for (const dependency of references.get(file)!) {
       if (!reverse.has(dependency)) reverse.set(dependency, new Set());
       reverse.get(dependency)!.add(file);
     }

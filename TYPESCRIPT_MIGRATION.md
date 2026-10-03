@@ -27,12 +27,13 @@ runtime; focused green tests do not prove repository-wide parity.
 
 ## Source and runtime contract
 
-Migrated modules are authored only as `.ts`. TypeScript 7.0.2 emits ignored `.js`
-siblings at existing public URLs. Import specifiers, worker URLs, service-worker
+Migrated modules are authored as `.ts` or `.mts`. TypeScript 7.0.2 emits ignored
+`.js` or `.mjs` siblings at existing public URLs. Import specifiers, worker URLs, service-worker
 precache paths, server entry points and downstream HTTP contracts therefore stay
-stable. `npm ci` runs the compiler through `prepare`. Development, test and
-production commands also compile before use. Direct Node entry points require
-`npm run typescript:build` after editing TypeScript.
+stable. `npm ci` runs the compiler through `prepare`. The `dev-server`, `test`,
+`production:build` and `production:check` npm commands compile before use. Other
+commands that load emitted files require `npm run typescript:build` after editing
+TypeScript.
 
 `tsconfig.migration.json` enforces strict types, null checks, unchecked indexed
 access, exact optional properties, unused declarations and erasable syntax on
@@ -48,10 +49,10 @@ for both Node and browser collectors, preserving function offsets and including
 never-imported modules without counting TypeScript and output as two modules.
 The generated module map points reviewers to actual TypeScript sources.
 
-The compiler is TypeScript 7. The separately named `typescript-api` dependency is
-TypeScript 6.0.3, temporarily used only by existing AST tools and the original
-JavaScript debt ratchet. Removing that transitional tooling dependency remains
-part of completing the migration; it is not evidence of a fully migrated project.
+The compiler and authored AST tooling use TypeScript 7. Source parsing,
+scanning, printing and diagnostics use its native SDK. AST sessions remain
+scoped to synchronous operations and release their compiler resources afterward.
+The transitional TypeScript 6 API dependency has been removed.
 
 ## Shared contracts
 
@@ -486,8 +487,8 @@ Settings, Wearables and DNA bridge configuration share the existing callback
 module while retaining independent registries, snapshot restoration, own-entry
 enumeration, getter order and null deletion. Settings and DNA bridges are fully
 native TypeScript; DNA's known file classifiers derive their signatures from its
-native filename/content detection module. Other unconverted DNA actions expose
-opaque results at the bridge boundary. The original DNA lookup reads its key
+native filename/content detection module. DNA actions retain opaque results
+at the bridge boundary when their callers do not consume a narrower contract. The original DNA lookup reads its key
 once, while Settings and Wearables retain their original two callable-key reads.
 All executable DNA classifier and bridge operations matched original ASTs;
 279 dispatch/bridge scenarios matched original values, errors and traces.
@@ -510,13 +511,33 @@ remaining operations in the eleven stylesheet consumers. Native DOM assertions
 preserve original errors for malformed/detached controls rather than adding
 behavior-changing fallbacks.
 
-## Remaining work
+## Current state and remaining work
 
-Migrate the remaining browser features, server/API and companion code, remaining workers,
-build tools, test harnesses and test cases; consolidate repeated contracts,
-runtime dependency plumbing, schemas and fixtures; remove transitional JS/type
-infrastructure once all sources are strict TypeScript. Verify persistence,
-cryptography, fund recovery, clinical units, import/export, sync, worker lifetimes,
-provider routing and consent, offline/update behavior, and production budgets
-without changing their public behavior. Update architecture documentation and
-regenerate metadata from sources after each migration group.
+All first-party application, server/API, companion, worker and build-tool runtime
+sources are authored in native TypeScript. The compiler and all eleven AST
+consumers use TypeScript 7; the transitional TypeScript 6 dependency is removed.
+The SDK migration passed all 3,564 existing and added unit cases across 351 files
+with resolution of the removed dependency explicitly rejected. Its build retained
+byte-identical output for 1,049 unaffected runtime and classic-fixture files.
+
+Four authored JavaScript test suites remain:
+
+- `tests/supplement-import-draft.test.js`
+- `tests/test-ai-action-delegates.js`
+- `tests/test-sun-defaults.js`
+- `tests/playwright/crypto-browser-coverage.spec.js`
+
+The three JSDOM suites need the genuine `@types/jsdom` development dependency;
+the declaration-only dependency proposal awaits approval. The crypto suite has a
+reviewed correction that moves a saved dependency snapshot into its owning
+callback, removes an accidental browser-global leak and preserves the original
+setup error. That scope/error correction also awaits approval. Syntax-only
+source-reader adaptations are already authorized and preserve their assertions
+and limits. The migration is not complete until these four suites are ported and
+checked.
+
+Continue change-scoped runtime verification and the existing compiler, quality,
+architecture, persistence, security and production-budget gates. Run the full unit
+suite at substantial tooling milestones and final integration; keep exhaustive
+browser, coverage and real-model matrices in CI. Preserve the original runtime
+URLs and budgets, and report original opt-in skips separately from passing tests.

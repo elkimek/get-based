@@ -1,7 +1,9 @@
 import { expect, it } from 'vitest';
-import ts from 'typescript-api';
+import { API, type Snapshot } from 'typescript/unstable/sync';
+import * as ast from 'typescript/unstable/ast';
+import { withParsedSource } from '../scripts/native-typescript-ast.js';
 import type { ArchitectureRules, CycleBaseline } from '../scripts/architecture-map.mjs';
-import { runtimePath } from '../scripts/source-files.js';
+import { runtimePath, sourcePath } from '../scripts/source-files.js';
 // test-quality-guardrails.js — pin dependency-free quality guardrails.
 
 import fs from 'node:fs';
@@ -12,6 +14,33 @@ interface CompilerConfigView {
   compilerOptions?: Record<string, unknown> & { lib?: string[] }; include?: string[]; extends?: string;
 }
 type ArchitectureRulesView = ArchitectureRules & Required<Pick<ArchitectureRules, 'restrictedImports'>>;
+
+function usesNativeArchitectureParser(source: string) {
+  return withParsedSource(source, 'architecture-map.mts', file => {
+    let sdkImport = false;
+    let helperImport = false;
+    let parserCall = false;
+    function visit(node: ast.Node) {
+      if (ast.isImportDeclaration(node) && ast.isStringLiteralLikeNode(node.moduleSpecifier)
+        && node.importClause?.phaseModifier !== ast.SyntaxKind.TypeKeyword) {
+        const bindings = node.importClause?.namedBindings;
+        const runtimeImport = !node.importClause || !!node.importClause.name
+          || !!bindings && (!ast.isNamedImports(bindings) || bindings.elements.some(binding => !binding.isTypeOnly));
+        if (node.moduleSpecifier.text === 'typescript/unstable/ast' && runtimeImport) sdkImport = true;
+        if (node.moduleSpecifier.text === './native-typescript-ast.js' && bindings && ast.isNamedImports(bindings)) {
+          helperImport ||= bindings.elements.some(binding => !binding.isTypeOnly
+            && (binding.propertyName?.text || binding.name.text) === 'withParsedSources'
+            && binding.name.text === 'withParsedSources');
+        }
+      }
+      if (ast.isCallExpression(node) && ast.isIdentifier(node.expression)
+        && node.expression.text === 'withParsedSources') parserCall = true;
+      node.forEachChild(visit);
+    }
+    visit(file);
+    return sdkImport && helperImport && parserCall;
+  });
+}
 
 it('preserves the quality, architecture and compiler safety contracts', () => {
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -40,7 +69,7 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')) as { scripts?: Record<string, string> };
   const guardrailSrc = fs.readFileSync(path.join(ROOT, 'scripts', 'quality-guardrails.mjs'), 'utf8');
   const baseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'quality-baseline.json'), 'utf8')) as Record<string, number>;
-  const architectureSrc = fs.readFileSync(path.join(ROOT, 'scripts', 'architecture-map.mjs'), 'utf8');
+  const architectureSrc = fs.readFileSync(sourcePath(path.join(ROOT, 'scripts', 'architecture-map.mjs')), 'utf8');
   const architectureRules = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'architecture-rules.json'), 'utf8')) as ArchitectureRulesView;
   const architectureBaseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'architecture-cycle-baseline.json'), 'utf8')) as CycleBaseline;
   const architectureDoc = fs.readFileSync(path.join(ROOT, 'ARCHITECTURE.md'), 'utf8');
@@ -65,9 +94,30 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
     fs.readFileSync(path.join(ROOT, 'tsconfig.service-worker.json'), 'utf8'),
   ) as CompilerConfigView;
   const workerMigrationConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'tsconfig.worker-migration.json'), 'utf8')) as CompilerConfigView;
-  const checkedWorkerProject = ts.parseJsonConfigFileContent(workerMigrationConfig, ts.sys, ROOT);
+  const configPaths = {
+    browser: path.join(ROOT, 'tsconfig.checkjs.json'),
+    worker: path.join(ROOT, 'tsconfig.worker-migration.json'),
+  };
+  const compilerProjects = (() => {
+    const api = new API({ cwd: ROOT, fs: {
+      readFile: file => file === configPaths.browser ? JSON.stringify(checkJsConfig)
+        : file === configPaths.worker ? JSON.stringify(workerMigrationConfig) : undefined,
+    } });
+    let snapshot: Snapshot | undefined;
+    try {
+      const worker = api.parseConfigFile(configPaths.worker);
+      const browser = api.parseConfigFile(configPaths.browser);
+      snapshot = api.updateSnapshot({ openProjects: [configPaths.worker] });
+      const project = snapshot.getProject(configPaths.worker);
+      if (!project) throw new Error('Native worker compiler project was not created');
+      return { worker: { ...worker, errors: project.program.getConfigFileParsingDiagnostics() }, browser };
+    } finally {
+      try { snapshot?.dispose(); } finally { api.close(); }
+    }
+  })();
+  const checkedWorkerProject = compilerProjects.worker;
   const checkedBrowserFiles = new Set([
-    ...ts.parseJsonConfigFileContent(checkJsConfig, ts.sys, ROOT).fileNames,
+    ...compilerProjects.browser.fileNames,
     ...checkedWorkerProject.fileNames,
   ].map(file => runtimePath(path.relative(ROOT, file).replaceAll(path.sep, '/'))));
   const strictNullRatchetSrc = fs.readFileSync(path.join(ROOT, 'scripts', 'strict-null-ratchet.mjs'), 'utf8');
@@ -80,7 +130,7 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
     pkg.scripts?.['architecture:build'] === 'node scripts/architecture-map.mjs --write' &&
       pkg.scripts?.['architecture:check'] === 'node scripts/architecture-map.mjs --check');
   assert('architecture tooling parses ESM with TypeScript and enforces cycle growth',
-    architectureSrc.includes("from 'typescript-api'") &&
+    usesNativeArchitectureParser(architectureSrc) &&
       architectureSrc.includes('stronglyConnectedComponents') &&
       architectureSrc.includes('new modules entered dependency cycles') &&
       architectureSrc.includes('new computed dynamic import cannot be checked statically'));
@@ -235,8 +285,8 @@ it('preserves the quality, architecture and compiler safety contracts', () => {
       checkedWorkerProject.options.strict === true &&
       checkedWorkerProject.options.noUncheckedIndexedAccess === true &&
       checkedWorkerProject.options.exactOptionalPropertyTypes === true &&
-      checkedWorkerProject.options.lib?.includes('lib.webworker.d.ts') &&
-      !checkedWorkerProject.options.lib?.includes('lib.dom.d.ts'));
+      (checkedWorkerProject.options.lib as readonly string[] | undefined)?.includes('lib.webworker.d.ts') &&
+      !(checkedWorkerProject.options.lib as readonly string[] | undefined)?.includes('lib.dom.d.ts'));
   assert('strict-null debt is ratcheted globally and per file',
     pkg.scripts?.['typecheck:strict-null'] === 'node scripts/strict-null-ratchet.mjs' &&
       strictNullRatchetSrc.includes('strictNullChecks: true') &&

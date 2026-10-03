@@ -4,7 +4,8 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript-api';
+import * as ts from 'typescript/unstable/ast';
+import { withParsedSource, withParsedSources } from './native-typescript-ast.js';
 import { sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
 
 export interface DomSink { kind: string; line: number; source: string }
@@ -27,7 +28,7 @@ function propertyName(node: ts.Node) {
   if (
     ts.isElementAccessExpression(node)
     && node.argumentExpression
-    && ts.isStringLiteralLike(node.argumentExpression)
+    && ts.isStringLiteralLikeNode(node.argumentExpression)
   ) {
     return node.argumentExpression.text;
   }
@@ -39,13 +40,10 @@ function normalizedNodeText(node: ts.Node, sourceFile: ts.SourceFile) {
 }
 
 export function scanDomSinks(source: string, fileName = 'source.js') {
-  const sourceFile = ts.createSourceFile(
-    fileName,
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    /\.[cm]?ts$/.test(fileName) ? ts.ScriptKind.TS : ts.ScriptKind.JS,
-  );
+  return withParsedSource(source, fileName, domSinksFromFile);
+}
+
+function domSinksFromFile(sourceFile: ts.SourceFile) {
   const sinks: DomSink[] = [];
 
   function record(kind: string, node: ts.Node) {
@@ -78,7 +76,7 @@ export function scanDomSinks(source: string, fileName = 'source.js') {
         record(`document.${name}`, node);
       }
     }
-    ts.forEachChild(node, visit);
+    node.forEachChild(visit);
   }
 
   visit(sourceFile);
@@ -100,9 +98,13 @@ export function createDomSinkPolicy() {
   const files = listJavaScriptFiles();
   const sinkFiles: Record<string, DomSinkFilePolicy> = {};
   let sinkCount = 0;
+  const parsedSources = files.length ? withParsedSources(
+    new Map(files.map(file => [file, fs.readFileSync(file, 'utf8')])),
+    sources => new Map([...sources].map(([file, sourceFile]) => [file, domSinksFromFile(sourceFile)])),
+  ) : new Map<string, DomSink[]>();
   for (const absolute of files) {
     const relative = runtimePath(path.relative(ROOT, absolute).split(path.sep).join('/'));
-    const sinks = scanDomSinks(fs.readFileSync(absolute, 'utf8'), absolute);
+    const sinks = parsedSources.get(absolute)!;
     if (!sinks.length) continue;
     sinkCount += sinks.length;
     sinkFiles[relative] = {

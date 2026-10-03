@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import ts from 'typescript-api';
+import * as ts from 'typescript/unstable/ast';
+import { withParsedSource } from './native-typescript-ast.js';
 
 type AppShellMetric = 'resources' | 'decodedBytes';
 type RawAppShellMetrics = Partial<Record<AppShellMetric, unknown>>;
@@ -26,52 +27,47 @@ function requirePositiveNumber(value: unknown, label: string) {
 }
 
 export function parseAppShellEntries(source: unknown) {
-  const sourceFile = ts.createSourceFile(
-    'service-worker.js',
-    String(source),
-    ts.ScriptTarget.Latest,
-    false,
-    ts.ScriptKind.JS,
-  );
-  if ((sourceFile as typeof sourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics.length) {
-    throw new Error('Could not parse service-worker.js while reading APP_SHELL.');
-  }
-  const declarations: ts.VariableDeclaration[] = [];
-
-  function visit(node: ts.Node) {
-    if (
-      ts.isVariableDeclaration(node)
-      && ts.isIdentifier(node.name)
-      && node.name.text === 'APP_SHELL'
-    ) {
-      declarations.push(node);
+  return withParsedSource(String(source), 'service-worker.js', (sourceFile) => {
+    if (sourceFile.flags & ts.NodeFlags.ThisNodeOrAnySubNodesHasError) {
+      throw new Error('Could not parse service-worker.js while reading APP_SHELL.');
     }
-    ts.forEachChild(node, visit);
-  }
-  visit(sourceFile);
+    const declarations: ts.VariableDeclaration[] = [];
 
-  if (declarations.length !== 1) {
-    throw new Error(`Expected exactly one APP_SHELL declaration; found ${declarations.length}.`);
-  }
-  const initializer = declarations[0]!.initializer;
-  if (!initializer || !ts.isArrayLiteralExpression(initializer)) {
-    throw new Error('APP_SHELL must be an array literal.');
-  }
+    function visit(node: ts.Node) {
+      if (
+        ts.isVariableDeclaration(node)
+        && ts.isIdentifier(node.name)
+        && node.name.text === 'APP_SHELL'
+      ) {
+        declarations.push(node);
+      }
+      node.forEachChild(visit);
+    }
+    visit(sourceFile);
 
-  const entries = initializer.elements.map((element) => {
-    if (!ts.isStringLiteralLike(element)) {
-      throw new Error('APP_SHELL entries must be static string literals.');
+    if (declarations.length !== 1) {
+      throw new Error(`Expected exactly one APP_SHELL declaration; found ${declarations.length}.`);
     }
-    if (!element.text.startsWith('/')) {
-      throw new Error(`APP_SHELL entry must be root-relative: ${element.text}`);
+    const initializer = declarations[0]!.initializer;
+    if (!initializer || !ts.isArrayLiteralExpression(initializer)) {
+      throw new Error('APP_SHELL must be an array literal.');
     }
-    return element.text;
+
+    const entries = initializer.elements.map((element) => {
+      if (!ts.isStringLiteralLikeNode(element)) {
+        throw new Error('APP_SHELL entries must be static string literals.');
+      }
+      if (!element.text.startsWith('/')) {
+        throw new Error(`APP_SHELL entry must be root-relative: ${element.text}`);
+      }
+      return element.text;
+    });
+    const duplicates = entries.filter((entry, index) => entries.indexOf(entry) !== index);
+    if (duplicates.length) {
+      throw new Error(`APP_SHELL contains duplicate entries: ${[...new Set(duplicates)].join(', ')}`);
+    }
+    return entries;
   });
-  const duplicates = entries.filter((entry, index) => entries.indexOf(entry) !== index);
-  if (duplicates.length) {
-    throw new Error(`APP_SHELL contains duplicate entries: ${[...new Set(duplicates)].join(', ')}`);
-  }
-  return entries;
 }
 
 function relativeAssetPath(entry: string) {

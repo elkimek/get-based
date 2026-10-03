@@ -31,6 +31,9 @@
       ],
       "/wallet-test-lightning-invoices.js": [
         "./tests/fixtures/lightning-invoices.ts"
+      ],
+      "/wallet-test-cashu-browser-durable.js": [
+        "./tests/fixtures/cashu-browser-durable.ts"
       ]
     },
     "module": "NodeNext",

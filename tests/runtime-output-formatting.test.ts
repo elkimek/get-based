@@ -27,4 +27,11 @@ describe('emitted runtime indentation', () => {
     expect(evaluate(compact)).toEqual([null, '[ /]+', 'λ', 2]);
     expect(evaluate(compact)).toEqual(evaluate(source));
   });
+  it('preserves raw hashes and HTML entities after template substitutions', () => {
+    const source = '(() => {\n    const count = 1;\n    return `value ${count} &#129694;\n        #plain /* template text */\n    end`;\n})()';
+    const compact = compactRuntimeIndentation(source);
+    expect(compact).toContain('&#129694;\n        #plain /* template text */');
+    expect(evaluate(compact)).toEqual(evaluate(source));
+  });
+
 });
