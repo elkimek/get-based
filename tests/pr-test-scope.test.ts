@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import { createTestPlan, fileReferences, testCommands } from '../scripts/pr-test-scope.mjs';
 
-const fixture = extra => new Map(Object.entries({
+const fixture = (extra?: Record<string, string>) => new Map(Object.entries({
   'js/leaf.js': 'export const value = 1;',
   'js/consumer.js': "export { value } from './leaf.js';",
   'js/unrelated.js': 'export const other = 2;',

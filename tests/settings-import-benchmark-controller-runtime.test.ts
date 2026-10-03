@@ -2,13 +2,14 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+type SnapshotFixture = {id: string; benchmarkLocked: boolean; benchmarkKind: string; referenceFixtureId?: string; comparable: boolean; input: string; model: string; fileName: string};
 const benchmarkRuntime = vi.hoisted(() => ({
   deleteImportBenchmarks: vi.fn(),
   getSnapshots: vi.fn(),
   runReference: vi.fn(),
   showConfirmDialog: vi.fn(async () => true),
   showNotification: vi.fn(),
-  snapshots: [],
+  snapshots: [] as SnapshotFixture[],
   updateSelection: vi.fn(),
 }));
 
@@ -41,24 +42,24 @@ vi.mock('../js/import-reference-benchmark.js', () => ({
   runBundledImportReferenceBenchmark: benchmarkRuntime.runReference,
 }));
 vi.mock('../js/modal-lifecycle.js', () => ({
-  openAppendedModalOverlay(overlay) {
+  openAppendedModalOverlay(overlay: HTMLElement) {
     document.body.appendChild(overlay);
     overlay.classList.add('show');
   },
-  removeModalOverlay(overlay) {
+  removeModalOverlay(overlay: HTMLElement) {
     overlay.remove();
   },
 }));
 vi.mock('../js/settings-data.js', () => ({
   getImportBenchmarkSnapshots: benchmarkRuntime.getSnapshots,
-  importBenchmarkModelIdentity: snapshot => snapshot.model || '',
-  importBenchmarkStorageId: snapshot => snapshot.id,
-  importBenchmarksUseSameInput: (baseline, candidate) => baseline?.input === candidate?.input,
-  isImportBenchmarkComparable: snapshot => snapshot.comparable !== false,
-  latestCompatibleModelTests: snapshots => snapshots.filter(snapshot => !snapshot.benchmarkLocked).slice(-2),
-  referenceDifferenceLabel: count => count === 1 ? 'difference' : 'differences',
+  importBenchmarkModelIdentity: (snapshot: SnapshotFixture) => snapshot.model || '',
+  importBenchmarkStorageId: (snapshot: SnapshotFixture) => snapshot.id,
+  importBenchmarksUseSameInput: (baseline: SnapshotFixture | undefined, candidate: SnapshotFixture | undefined) => baseline?.input === candidate?.input,
+  isImportBenchmarkComparable: (snapshot: SnapshotFixture) => snapshot.comparable !== false,
+  latestCompatibleModelTests: (snapshots: SnapshotFixture[]) => snapshots.filter((snapshot: SnapshotFixture) => !snapshot.benchmarkLocked).slice(-2),
+  referenceDifferenceLabel: (count: number) => count === 1 ? 'difference' : 'differences',
   renderImportBenchmarksBody: () => benchmarkBody(),
-  renderReferenceDiscrepancyDetails: snapshot => `<strong>${snapshot.fileName}</strong>`,
+  renderReferenceDiscrepancyDetails: (snapshot: SnapshotFixture) => `<strong>${snapshot.fileName}</strong>`,
   updateImportBenchmarkSelection: benchmarkRuntime.updateSelection,
 }));
 vi.mock('../js/utils.js', () => ({
@@ -73,8 +74,8 @@ const {
   renderImportBenchmarksEntrySection,
 } = await import('../js/settings-import-benchmark-controller.js');
 
-function click(selector) {
-  const element = document.querySelector(selector);
+function click(selector: string) {
+  const element = document.querySelector<HTMLElement>(selector)!;
   expect(element).not.toBeNull();
   element.click();
   return element;
@@ -125,13 +126,13 @@ describe('model import benchmark controller runtime', () => {
       },
     ];
     benchmarkRuntime.getSnapshots.mockImplementation(() => benchmarkRuntime.snapshots);
-    benchmarkRuntime.deleteImportBenchmarks.mockImplementation(async ids => {
-      benchmarkRuntime.snapshots = benchmarkRuntime.snapshots.filter(snapshot => !ids.includes(snapshot.id));
+    benchmarkRuntime.deleteImportBenchmarks.mockImplementation(async (ids: string[]) => {
+      benchmarkRuntime.snapshots = benchmarkRuntime.snapshots.filter((snapshot: SnapshotFixture) => !ids.includes(snapshot.id));
       return ids.length;
     });
-    benchmarkRuntime.runReference.mockImplementation(async ({ onProgress }) => {
-      onProgress(45, 'Model is reading report');
-      onProgress(95, 'Checking exact markers');
+    benchmarkRuntime.runReference.mockImplementation(async ({ onProgress }: {onProgress: NonNullable<Parameters<typeof import('../js/import-reference-benchmark.js').runBundledImportReferenceBenchmark>[0]>['onProgress']}) => {
+      onProgress!(45, 'Model is reading report');
+      onProgress!(95, 'Checking exact markers');
       const completed = {
         benchmarkId: 'completed',
         manifest: { id: 'fixture-1' },
@@ -164,19 +165,19 @@ describe('model import benchmark controller runtime', () => {
 
   it('runs, compares, selects, refreshes, and deletes model benchmarks through one modal lifecycle', async () => {
     expect(openImportBenchmarksModal()).toBe(true);
-    const overlay = document.getElementById('import-benchmarks-overlay');
+    const overlay = (document.getElementById('import-benchmarks-overlay') as HTMLElement);
     expect(overlay).not.toBeNull();
     expect(benchmarkRuntime.updateSelection).toHaveBeenCalled();
 
     click('[data-import-benchmark-review="candidate"]');
-    const reviewPanel = document.querySelector('[data-import-benchmark-difference-review]');
+    const reviewPanel = document.querySelector<HTMLElement>('[data-import-benchmark-difference-review]')!;
     expect(reviewPanel.hidden).toBe(false);
     expect(reviewPanel.textContent).toContain('Candidate model');
-    expect(document.querySelector('[data-import-benchmark-review="candidate"]').getAttribute('aria-expanded')).toBe('true');
+    expect(document.querySelector<HTMLElement>('[data-import-benchmark-review="candidate"]')!.getAttribute('aria-expanded')).toBe('true');
     click('[data-import-benchmark-differences-close]');
     expect(reviewPanel.hidden).toBe(true);
 
-    const incompatible = document.querySelector('[data-import-benchmark-select="incompatible"]');
+    const incompatible = document.querySelector<HTMLInputElement>('[data-import-benchmark-select="incompatible"]')!;
     incompatible.checked = true;
     incompatible.click();
     incompatible.checked = true;
@@ -187,7 +188,7 @@ describe('model import benchmark controller runtime', () => {
       'info',
     );
 
-    const candidate = document.querySelector('[data-import-benchmark-select="candidate"]');
+    const candidate = document.querySelector<HTMLInputElement>('[data-import-benchmark-select="candidate"]')!;
     candidate.checked = true;
     candidate.dispatchEvent(new Event('click', { bubbles: true }));
     expect(benchmarkRuntime.updateSelection).toHaveBeenCalled();
@@ -217,6 +218,6 @@ describe('model import benchmark controller runtime', () => {
     expect(entry).toContain('across 3 model setups');
 
     expect(closeImportBenchmarksModal()).toBe(true);
-    expect(document.getElementById('import-benchmarks-overlay')).toBeNull();
+    expect((document.getElementById('import-benchmarks-overlay') as HTMLElement)).toBeNull();
   });
 });

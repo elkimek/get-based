@@ -1,6 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "paths": {
+      "/js/*": [
+        "./js/*"
+      ]
+    },
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "lib": [

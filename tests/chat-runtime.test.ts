@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+type LinkFixture = {rel: string; href: string; dataset: Record<string, string>; isConnected: boolean; sheet: object | null; addEventListener: EventTarget['addEventListener']; dispatchEvent: EventTarget['dispatchEvent']; remove(): void};
+type RoundThreadFixture = {id: string; messageCount: number; updatedAt?: string; discussionEnded?: boolean; messagesUpdatedAt?: unknown};
+type FlowOptions = {abortController?: AbortController | null; pickerSelection?: {allPersonas: {id: string}[]; newPersonas: {id: string}[]; addingToExisting: boolean} | null; discussionState?: {personas: {id: string}[]; originalPersonality: string} | null};
+type MarkerStateFixture = {currentProfile: string; importedData: {entries: unknown[]; supplements: unknown[]; contextSourceSettings?: Record<string, boolean>}; selectedCorrelationSupplements: string[]; correlationView: object; currentThreadId: string; chatThreads: {id: string}[]; chatHistory: unknown[]; markerRegistry: Record<string, unknown>; selectedCorrelationMarkers: string[]};
+
 const MOCK_PATHS = [
   '../js/api.js',
   '../js/state.js',
@@ -48,7 +53,7 @@ afterEach(() => {
   }
 });
 
-async function loadContinuation(callClaudeAPI) {
+async function loadContinuation(callClaudeAPI: unknown) {
   vi.doMock('../js/api.js', () => ({ callClaudeAPI }));
   return import('../js/chat-continuation.js');
 }
@@ -75,7 +80,7 @@ describe('chat continuation runtime behavior', () => {
   });
 
   it('continues truncated responses, streams merged text, and accumulates usage', async () => {
-    const callClaudeAPI = vi.fn()
+    const callClaudeAPI = vi.fn<(input: Parameters<typeof import('../js/api.js').callClaudeAPI>[0]) => Promise<unknown>>()
       .mockResolvedValueOnce({
         text: 'first half ',
         finishReason: 'length',
@@ -104,9 +109,9 @@ describe('chat continuation runtime behavior', () => {
     });
 
     expect(callClaudeAPI).toHaveBeenCalledTimes(2);
-    expect(callClaudeAPI.mock.calls[0][0].reasoningEffort).toBe('high');
-    expect(callClaudeAPI.mock.calls[1][0].reasoningEffort).toBe('high');
-    expect(callClaudeAPI.mock.calls[1][0].messages).toEqual([
+    expect(callClaudeAPI.mock.calls[0]![0].reasoningEffort).toBe('high');
+    expect(callClaudeAPI.mock.calls[1]![0].reasoningEffort).toBe('high');
+    expect(callClaudeAPI.mock.calls[1]![0].messages).toEqual([
       { role: 'user', content: 'question' },
       { role: 'assistant', content: 'first half ' },
       {
@@ -150,7 +155,7 @@ describe('chat discussion callback bridge runtime behavior', () => {
   it('defaults to no-op callbacks and can be configured by chat-send', async () => {
     const callbacks = await import('../js/chat-discussion-callbacks.js');
     expect(callbacks.getChatAbortController()).toBeNull();
-    const defaultTypewriter = callbacks.createDiscussionTypewriter({}, {}, {});
+    const defaultTypewriter = (callbacks.createDiscussionTypewriter as (...args: unknown[]) => ReturnType<typeof callbacks.createDiscussionTypewriter>)({}, {}, {});
     expect(() => {
       defaultTypewriter.update('ignored');
       defaultTypewriter.stop();
@@ -174,8 +179,8 @@ describe('chat discussion callback bridge runtime behavior', () => {
     expect(callbacks.getChatAbortController()).toBe(controller);
     callbacks.setChatAbortController(null);
     callbacks.renderChatMessages();
-    callbacks.setSendButtonMode(btn, 'streaming');
-    expect(callbacks.createDiscussionTypewriter('msg', 'typing', 'container')).toBe(typewriter);
+    (callbacks.setSendButtonMode as (button: unknown, mode: string) => ReturnType<typeof callbacks.setSendButtonMode>)(btn, 'streaming');
+    expect((callbacks.createDiscussionTypewriter as (...args: unknown[]) => ReturnType<typeof callbacks.createDiscussionTypewriter>)('msg', 'typing', 'container')).toBe(typewriter);
     expect(setChatAbortController).toHaveBeenCalledWith(null);
     expect(renderChatMessages).toHaveBeenCalled();
     expect(setSendButtonMode).toHaveBeenCalledWith(btn, 'streaming');
@@ -189,14 +194,14 @@ describe('chat presentation stylesheet runtime behavior', () => {
     const originalQuerySelector = document.querySelector;
     const originalQuerySelectorAll = document.querySelectorAll;
     const originalHeadInsertBefore = document.head.insertBefore;
-    const links = [];
+    const links: LinkFixture[] = [];
     const failOnce = new Set(['onboarding']);
     const anchorParent = {
-      insertBefore(link) {
+      insertBefore(link: LinkFixture) {
         links.push(link);
         link.isConnected = true;
         queueMicrotask(() => {
-          if (failOnce.delete(link.dataset.chatPresentationStylesheet)) {
+          if (failOnce.delete(link.dataset.chatPresentationStylesheet!)) {
             link.dispatchEvent(new Event('error'));
           } else {
             link.sheet = {};
@@ -207,7 +212,7 @@ describe('chat presentation stylesheet runtime behavior', () => {
     };
     const anchor = { parentNode: anchorParent };
 
-    function createLink() {
+    function createLink(): LinkFixture {
       const events = new EventTarget();
       return {
         rel: '',
@@ -225,17 +230,17 @@ describe('chat presentation stylesheet runtime behavior', () => {
       };
     }
 
-    document.createElement = vi.fn(tag => tag === 'link' ? createLink() : originalCreateElement(tag));
-    document.querySelector = vi.fn(selector => {
+    (document as unknown as {createElement: (tag: string) => unknown}).createElement = vi.fn((tag: string) => tag === 'link' ? createLink() : originalCreateElement(tag));
+    (document as unknown as {querySelector: (selector: string) => unknown}).querySelector = vi.fn((selector: string) => {
       if (selector === '[data-chat-presentation-stylesheet-anchor]') return anchor;
       if (selector === '[data-chat-redesign-open-stylesheet-anchor]') return anchor;
       const match = selector.match(/^link\[data-chat-presentation-stylesheet="([^"]+)"\]$/);
       return match ? links.find(link => link.dataset.chatPresentationStylesheet === match[1]) || null : null;
     });
-    document.querySelectorAll = vi.fn(selector => (
+    (document as unknown as {querySelectorAll: (selector: string) => unknown}).querySelectorAll = vi.fn((selector: string) => (
       selector === 'link[rel="stylesheet"][href]' ? links : []
     ));
-    document.head.insertBefore = anchorParent.insertBefore;
+    (document.head as unknown as {insertBefore: typeof anchorParent.insertBefore}).insertBefore = anchorParent.insertBefore;
 
     try {
       const chatPanel = await import('../js/chat-panel.js');
@@ -289,14 +294,14 @@ function installRoundStateMocks() {
           updatedAt: '2026-01-01T00:00:00.000Z',
           discussionEnded: true,
         },
-      ],
+      ] as RoundThreadFixture[],
       chatHistory: [{ role: 'user', content: 'old' }],
     },
-    getChatThreadKey: vi.fn(threadId => `chat-thread:${threadId}`),
+    getChatThreadKey: vi.fn((threadId: unknown) => `chat-thread:${threadId}`),
     invalidateThreadContentCache: vi.fn(),
     renderThreadList: vi.fn(),
     saveChatThreadIndex: vi.fn(),
-    encryptedGetItem: vi.fn(async () => null),
+    encryptedGetItem: vi.fn(async (): Promise<string | null> => null),
     encryptedSetItem: vi.fn(async () => {}),
     saveChatHistory: vi.fn(async () => {}),
   };
@@ -333,7 +338,7 @@ describe('chat discussion round state runtime behavior', () => {
       discussionPersonas: personas,
       discussionOriginalPersonality: 'default',
     });
-    expect(deps.state.chatThreads[1].discussionEnded).toBeUndefined();
+    expect(deps.state.chatThreads[1]!.discussionEnded).toBeUndefined();
     expect(deps.saveChatThreadIndex).toHaveBeenCalledTimes(1);
 
     const renderMessages = vi.fn();
@@ -364,8 +369,8 @@ describe('chat discussion round state runtime behavior', () => {
     expect(deps.invalidateThreadContentCache).toHaveBeenCalled();
     expect(deps.encryptedSetItem).toHaveBeenCalledWith('chat-thread:background-thread', JSON.stringify(backgroundMessages));
     expect(localStorage.getItem('chat-thread:background-thread')).toBeNull();
-    expect(deps.state.chatThreads[1].messageCount).toBe(2);
-    expect(deps.state.chatThreads[1].updatedAt).not.toBe('2026-01-01T00:00:00.000Z');
+    expect(deps.state.chatThreads[1]!.messageCount).toBe(2);
+    expect(deps.state.chatThreads[1]!.updatedAt).not.toBe('2026-01-01T00:00:00.000Z');
     expect(deps.saveChatThreadIndex).toHaveBeenCalledTimes(1);
     expect(deps.renderThreadList).toHaveBeenCalled();
   });
@@ -388,16 +393,16 @@ describe('chat discussion round state runtime behavior', () => {
     const thread = deps.state.chatThreads[1];
     deps.encryptedGetItem.mockResolvedValue(JSON.stringify([{ role: 'assistant', content: 'old reply' }]));
 
-    await mod.saveRoundChatHistory(thread.id, messages);
-    expect(thread.messagesUpdatedAt).toBe(thread.updatedAt);
-    expect(thread.messagesUpdatedAt).not.toBe('2026-01-01T00:00:00.000Z');
+    await mod.saveRoundChatHistory(thread!.id, messages);
+    expect(thread!.messagesUpdatedAt).toBe(thread!.updatedAt);
+    expect(thread!.messagesUpdatedAt).not.toBe('2026-01-01T00:00:00.000Z');
 
-    thread.updatedAt = '2026-09-13T00:00:00.000Z';
-    thread.messagesUpdatedAt = '2026-09-12T00:00:00.000Z';
+    thread!.updatedAt = '2026-09-13T00:00:00.000Z';
+    thread!.messagesUpdatedAt = '2026-09-12T00:00:00.000Z';
     deps.encryptedGetItem.mockResolvedValue(JSON.stringify(messages));
-    await mod.saveRoundChatHistory(thread.id, messages);
-    expect(thread.updatedAt).toBe('2026-09-13T00:00:00.000Z');
-    expect(thread.messagesUpdatedAt).toBe('2026-09-12T00:00:00.000Z');
+    await mod.saveRoundChatHistory(thread!.id, messages);
+    expect(thread!.updatedAt).toBe('2026-09-13T00:00:00.000Z');
+    expect(thread!.messagesUpdatedAt).toBe('2026-09-12T00:00:00.000Z');
   });
 });
 
@@ -411,7 +416,7 @@ function installDiscussionTurnMocks() {
     runDiscussionRound: vi.fn(async () => ({ remainingPersonas: [] })),
     persistDiscussionThreadState: vi.fn(),
     persistDiscussionPendingPersonas: vi.fn(),
-    buildDiscussionJoinMessage: vi.fn(persona => ({
+    buildDiscussionJoinMessage: vi.fn((persona: {name?: unknown; icon?: unknown}) => ({
       joined: true,
       joinName: persona.name,
       joinIcon: persona.icon,
@@ -482,7 +487,7 @@ describe('chat discussion turn runtime behavior', () => {
   });
 });
 
-function installDiscussionFlowMocks({ abortController = null, pickerSelection = null, discussionState = null } = {}) {
+function installDiscussionFlowMocks({ abortController = null, pickerSelection = null, discussionState = null }: FlowOptions = {}) {
   const deps = {
     state: {
       currentThreadId: 'thread-flow',
@@ -536,7 +541,7 @@ describe('chat discussion flow runtime behavior', () => {
     };
     const deps = installDiscussionFlowMocks({ discussionState });
     const composer = { focus: vi.fn() };
-    globalThis.document.getElementById = vi.fn(id => id === 'chat-input' ? composer : null);
+    (globalThis.document as unknown as {getElementById: (id: string) => unknown}).getElementById = vi.fn((id: string) => id === 'chat-input' ? composer : null);
     const flow = await import('../js/chat-discussion-flow.js');
 
     await flow.sendDiscussionUserTurn('follow-up');
@@ -623,20 +628,20 @@ function installRoundRequestMocks({ lens = true, provider = 'venice', e2ee = tru
     queryLensMulti: vi.fn(async () => ({ chunks: [{ id: 'chunk-1' }] })),
     getActivePersonality: vi.fn(() => ({ id: 'analyst', name: 'Analyst', icon: 'A' })),
     getCustomPersonality: vi.fn(() => ({ id: 'custom' })),
-    attachLensSources: vi.fn((message, lensResult) => { message.sourcesAttached = lensResult?.chunks?.length || 0; }),
-    buildChatSystemPrompt: vi.fn(parts => `system:${parts.labContext}:${parts.webHint}`),
+    attachLensSources: vi.fn((message: {sourcesAttached?: number}, lensResult: {chunks?: unknown[]} | null) => { message.sourcesAttached = lensResult?.chunks?.length || 0; }),
+    buildChatSystemPrompt: vi.fn((parts: {labContext?: unknown; webHint?: unknown}) => `system:${parts.labContext}:${parts.webHint}`),
     buildMultiPersonaInstruction: vi.fn(() => 'multi persona'),
     buildPersonalityPrompt: vi.fn(() => 'personality prompt'),
     buildTaggedChatMessages: vi.fn(() => [{ role: 'user', content: 'tagged' }]),
     buildWebSearchHint: vi.fn(() => 'web hint'),
     getChatWebSearchEnabled: vi.fn(() => true),
-    getAssistantExecutionRoute: vi.fn(() => ({ adapter: 'direct' })),
+    getAssistantExecutionRoute: vi.fn((): Record<string, unknown> => ({ adapter: 'direct' })),
     isPersonalAgentTarget: vi.fn(() => false),
     callCodexAgent: vi.fn(),
     callChatAPIWithContinuation: vi.fn(),
-    getAgentModelDisplay: vi.fn(model => `Resolved ${model}`),
+    getAgentModelDisplay: vi.fn((model: unknown) => `Resolved ${model}`),
     getCachedAgentModelCatalog: vi.fn(() => []),
-    mergeAgentContextReceipts: vi.fn((_calls, context) => [...context, { label: 'Tools', detail: 'getbased context read' }]),
+    mergeAgentContextReceipts: vi.fn((_calls: unknown, context: Iterable<unknown>) => [...context, { label: 'Tools', detail: 'getbased context read' }]),
   };
 
   vi.doMock('../js/chat-system-prompt.js', () => ({ CHAT_SYSTEM_PROMPT: 'base system' }));
@@ -731,7 +736,7 @@ describe('chat discussion round request runtime behavior', () => {
   it('builds assistant messages with truncation, search, E2EE, and lens metadata', async () => {
     const deps = installRoundRequestMocks();
     const mod = await import('../js/chat-discussion-round-request.js');
-    const message = mod.buildDiscussionAssistantMessage({
+    const message = (mod.buildDiscussionAssistantMessage as unknown as (input: {fullText: string; request: {e2ee: boolean; context: unknown[]; lensResult: {chunks: {id: string}[]}; modelDisplay: string; modelId: string; personality: {name: string; icon: string}; provider: string; webSearch: boolean}; aiResult: {finishReason: string}; responseTruncated: boolean; attestation: unknown}) => ReturnType<typeof mod.buildDiscussionAssistantMessage>)({
       fullText: 'analysis',
       request: {
         e2ee: true,
@@ -765,9 +770,9 @@ describe('chat discussion round request runtime behavior', () => {
       sourcesAttached: 1,
     });
 
-    mod.trackDiscussionUsage({ provider: 'venice', modelId: 'model-1' }, {});
+    (mod.trackDiscussionUsage as (request: {provider: string; modelId: string}, usage: Parameters<typeof mod.trackDiscussionUsage>[1]) => void)({ provider: 'venice', modelId: 'model-1' }, {});
     expect(deps.trackUsage).not.toHaveBeenCalled();
-    mod.trackDiscussionUsage({ provider: 'venice', modelId: 'model-1' }, { inputTokens: 2, outputTokens: 5 });
+    (mod.trackDiscussionUsage as (request: {provider: string; modelId: string}, usage: Parameters<typeof mod.trackDiscussionUsage>[1]) => void)({ provider: 'venice', modelId: 'model-1' }, { inputTokens: 2, outputTokens: 5 });
     expect(deps.trackUsage).toHaveBeenCalledWith('venice', 'model-1', 2, 5);
   });
 
@@ -828,7 +833,7 @@ describe('chat discussion round request runtime behavior', () => {
 });
 
 function installMarkerPromptMocks() {
-  const state = {
+  const state: MarkerStateFixture = {
     currentProfile: 'profile-test', importedData: { entries: [], supplements: [] }, selectedCorrelationSupplements: [], correlationView: {},
     currentThreadId: 'thread-marker',
     chatThreads: [{ id: 'thread-marker' }],
@@ -838,14 +843,14 @@ function installMarkerPromptMocks() {
   };
   const deps = {
     state,
-    formatValue: vi.fn(value => `v${value}`),
+    formatValue: vi.fn((value: unknown) => `v${value}`),
     getStatus: vi.fn(() => 'optimal'),
     getActiveData: vi.fn(),
     getEffectiveRange: vi.fn(() => ({ min: 1, max: 5 })),
     getEffectiveRangeForDate: vi.fn(() => ({ min: 10, max: 20 })),
     getEffectiveRangeLabelForDate: vi.fn(() => 'Luteal range'),
-    getLatestValueIndex: vi.fn(values => values.length - 1),
-    openChatPanel: vi.fn(async () => {}),
+    getLatestValueIndex: vi.fn((values: unknown[]) => values.length - 1),
+    openChatPanel: vi.fn<(message: string) => Promise<void>>(async () => {}),
     createNewThread: vi.fn(() => { state.currentThreadId = 'thread-new'; }),
     ensureActiveThread: vi.fn(),
     loadChatThreads: vi.fn(),
@@ -910,7 +915,7 @@ describe('chat marker prompt runtime behavior', () => {
     expect(deps.saveChatHistory).toHaveBeenCalled();
     expect(deps.createNewThread).toHaveBeenCalled();
     expect(deps.renameThread).toHaveBeenCalledWith('thread-new', 'Ferritin');
-    const prompt = deps.openChatPanel.mock.calls[0][0];
+    const prompt = deps.openChatPanel.mock.calls[0]![0];
     expect(prompt).toContain('Tell me about my Ferritin results.');
     expect(prompt).toContain('2026-01-01: v100 ng/mL (follicular phase, predicted; ref v20–v100)');
     expect(prompt).toContain('2026-03-01: v150 ng/mL (luteal phase, predicted; ref v40–v160)');
@@ -963,11 +968,11 @@ describe('chat marker prompt runtime behavior', () => {
 
     await vi.waitFor(() => expect(deps.openChatPanel).toHaveBeenCalled());
     expect(deps.renameThread).toHaveBeenCalledWith('thread-marker', 'Biomarker and dose exploration');
-    const prompt = deps.openChatPanel.mock.calls[0][0];
-    const payload = JSON.parse(prompt.slice(prompt.indexOf('{')));
+    const prompt = deps.openChatPanel.mock.calls[0]![0];
+    const payload = (JSON.parse as (text: string) => {markers: {name: unknown; rows: {value: unknown}[]}[]; markerPairs: {n: unknown}[]; lagDays: unknown})(prompt!.slice(prompt!.indexOf('{')));
     expect(payload.markers.map(m => m.name)).toEqual(['Glucose', 'Cortisol']);
-    expect(payload.markers[0].rows.map(r => r.value)).toEqual([88, 92]);
-    expect(payload.markerPairs[0].n).toBe(1);
+    expect(payload.markers[0]!.rows.map(r => r.value)).toEqual([88, 92]);
+    expect(payload.markerPairs[0]!.n).toBe(1);
     expect(payload.lagDays).toBe(0);
     expect(prompt).toContain('Do not infer adherence, daily intake or causality');
     expect(prompt).not.toContain('missing.marker');
@@ -995,7 +1000,7 @@ describe('chat marker prompt runtime behavior', () => {
     expect(deps.openChatPanel).not.toHaveBeenCalled();
   });
 
-  it.each(['loadChatHistory', 'saveChatHistory'])('does not create a thread when permission changes during %s', async operation => {
+  it.each(['loadChatHistory', 'saveChatHistory'] as const)('does not create a thread when permission changes during %s', async operation => {
     const deps = installMarkerPromptMocks();
     deps.state.selectedCorrelationMarkers = ['test.a', 'test.b'];
     deps.state.chatHistory = [{ role: 'user', content: 'Existing conversation' }];

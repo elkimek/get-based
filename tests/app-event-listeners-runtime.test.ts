@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 const shell = vi.hoisted(() => ({
   buildSidebar: vi.fn(),
   endTour: vi.fn(),
-  refreshCallback: null,
+  refreshCallback: null as Parameters<typeof import('../js/data.js').registerRefreshCallback>[0] | null,
   registerRefreshCallback: vi.fn(callback => {
     shell.refreshCallback = callback;
   }),
@@ -19,7 +19,7 @@ vi.mock('../js/tour.js', () => ({ endTour: shell.endTour }));
 
 const appEvents = await import('../js/app-event-listeners.js');
 
-function appendOverlay(id, body = '<div class="modal" role="dialog"></div>') {
+function appendOverlay(id: string, body = '<div class="modal" role="dialog"></div>') {
   const overlay = document.createElement('div');
   overlay.id = id;
   overlay.className = 'modal-overlay show';
@@ -28,7 +28,7 @@ function appendOverlay(id, body = '<div class="modal" role="dialog"></div>') {
   return overlay;
 }
 
-function press(key, options = {}) {
+function press(key: string, options: KeyboardEventInit = {}) {
   const event = new KeyboardEvent('keydown', {
     key,
     bubbles: true,
@@ -72,7 +72,7 @@ describe('app event listener runtime', () => {
       'cloud-ai-consent-overlay',
       '<div class="legal-consent-modal"><label><input type="checkbox">Approve</label></div>',
     );
-    const modal = overlay.querySelector('.legal-consent-modal');
+    const modal = overlay.querySelector<HTMLElement>('.legal-consent-modal')!;
     Object.defineProperties(modal, {
       clientHeight: { configurable: true, value: 400 },
       scrollHeight: { configurable: true, value: 700 },
@@ -80,12 +80,12 @@ describe('app event listener runtime', () => {
     });
 
     const wheel = new WheelEvent('wheel', { deltaY: 100, bubbles: true, cancelable: true });
-    modal.querySelector('input').dispatchEvent(wheel);
+    modal.querySelector<HTMLElement>('input')!.dispatchEvent(wheel);
     expect(wheel.defaultPrevented).toBe(false);
 
     modal.scrollTop = 300;
     const edgeWheel = new WheelEvent('wheel', { deltaY: 100, bubbles: true, cancelable: true });
-    modal.querySelector('input').dispatchEvent(edgeWheel);
+    modal.querySelector<HTMLElement>('input')!.dispatchEvent(edgeWheel);
     expect(edgeWheel.defaultPrevented).toBe(true);
     overlay.remove();
   });
@@ -110,7 +110,7 @@ describe('app event listener runtime', () => {
     wheelOverlay.remove();
 
     const nestedWheelOverlay = appendOverlay('nested-wheel-overlay');
-    const nestedModal = nestedWheelOverlay.querySelector('.modal');
+    const nestedModal = nestedWheelOverlay.querySelector<HTMLElement>('.modal')!;
     Object.defineProperties(nestedModal, {
       clientHeight: { configurable: true, value: 150 },
       scrollHeight: { configurable: true, value: 450 },
@@ -150,7 +150,7 @@ describe('app event listener runtime', () => {
     nestedWheelOverlay.remove();
 
     const modalOverlay = appendOverlay('modal-overlay');
-    const modal = modalOverlay.querySelector('.modal');
+    const modal = modalOverlay.querySelector<HTMLElement>('.modal')!;
     modal.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     modalOverlay.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(actions.closeModal).not.toHaveBeenCalled();
@@ -162,12 +162,12 @@ describe('app event listener runtime', () => {
     protectedModalOverlay.setAttribute('data-modal-dismiss-protected', '');
     protectedModalOverlay.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(actions.closeModal).toHaveBeenCalledOnce();
-    expect(protectedModalOverlay.firstElementChild.classList.contains('modal-nudge')).toBe(true);
+    expect(protectedModalOverlay.firstElementChild!.classList.contains('modal-nudge')).toBe(true);
     press('Escape');
     expect(actions.closeModal).toHaveBeenCalledTimes(2);
     protectedModalOverlay.remove();
 
-    const backdropRoutes = [
+    const backdropRoutes: [string, keyof typeof actions][] = [
       ['light-env-assessment-overlay', 'closeLightEnvironmentAssessment'],
       ['changelog-modal-overlay', 'closeChangelog'],
       ['report-builder-overlay', 'closeReportBuilder'],
@@ -182,7 +182,7 @@ describe('app event listener runtime', () => {
 
     for (const id of ['import-modal-overlay', 'feedback-modal-overlay']) {
       const overlay = appendOverlay(id);
-      const child = overlay.firstElementChild;
+      const child = overlay.firstElementChild!;
       overlay.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       expect(child.classList.contains('modal-nudge')).toBe(true);
       child.dispatchEvent(new Event('animationend'));
@@ -192,8 +192,8 @@ describe('app event listener runtime', () => {
 
     const clientOverlay = appendOverlay('client-list-overlay', '<div class="modal cl-form"></div>');
     clientOverlay.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    expect(clientOverlay.firstElementChild.classList.contains('modal-nudge')).toBe(true);
-    clientOverlay.querySelector('.cl-form').remove();
+    expect(clientOverlay.firstElementChild!.classList.contains('modal-nudge')).toBe(true);
+    clientOverlay.querySelector<HTMLElement>('.cl-form')!.remove();
     clientOverlay.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(actions.closeClientList).toHaveBeenCalled();
     clientOverlay.remove();
@@ -203,7 +203,7 @@ describe('app event listener runtime', () => {
       '<div class="modal"><button class="modal-close">Close feature</button></div>',
     );
     const featureClose = vi.fn(() => featureOverlay.classList.remove('show'));
-    featureOverlay.querySelector('.modal-close').addEventListener('click', featureClose);
+    featureOverlay.querySelector<HTMLElement>('.modal-close')!.addEventListener('click', featureClose);
     featureOverlay.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(featureClose).toHaveBeenCalledOnce();
     featureOverlay.remove();
@@ -213,10 +213,10 @@ describe('app event listener runtime', () => {
       <input id="corr-search">
       <button id="outside-correlation"></button>
     `);
-    document.getElementById('inside-correlation').click();
-    expect(document.getElementById('corr-options').classList.contains('show')).toBe(true);
-    document.getElementById('outside-correlation').click();
-    expect(document.getElementById('corr-options').classList.contains('show')).toBe(false);
+    (document.getElementById('inside-correlation') as HTMLElement).click();
+    expect((document.getElementById('corr-options') as HTMLElement).classList.contains('show')).toBe(true);
+    (document.getElementById('outside-correlation') as HTMLElement).click();
+    expect((document.getElementById('corr-options') as HTMLElement).classList.contains('show')).toBe(false);
 
     const roleButton = document.createElement('div');
     roleButton.setAttribute('role', 'button');
@@ -242,7 +242,7 @@ describe('app event listener runtime', () => {
     expect(shell.endTour).toHaveBeenCalledOnce();
     tour.remove();
 
-    const escapeRoutes = [
+    const escapeRoutes: [string, string, keyof typeof actions][] = [
       ['sidebar-nav', 'mobile-open', 'closeMobileSidebar'],
       ['emf-interp-overlay', 'show', 'closeEMFInterpretation'],
       ['summary-modal-overlay', 'show', 'closeSummaryModal'],
@@ -288,7 +288,7 @@ describe('app event listener runtime', () => {
       '<div class="modal" role="dialog"><button class="modal-close">Close feature</button></div>',
     );
     const namedFeatureClose = vi.fn(() => namedFeatureOverlay.remove());
-    namedFeatureOverlay.querySelector('.modal-close').addEventListener('click', namedFeatureClose);
+    namedFeatureOverlay.querySelector<HTMLElement>('.modal-close')!.addEventListener('click', namedFeatureClose);
     press('Escape');
     expect(namedFeatureClose).toHaveBeenCalledOnce();
 
@@ -301,7 +301,7 @@ describe('app event listener runtime', () => {
     document.body.appendChild(privacyReviewOverlay);
     press('Escape');
     expect(actions.closeModal).toHaveBeenCalledTimes(closeModalCallsBeforePrivacyReview);
-    expect(privacyReviewOverlay.firstElementChild.classList.contains('modal-nudge')).toBe(true);
+    expect(privacyReviewOverlay.firstElementChild!.classList.contains('modal-nudge')).toBe(true);
     privacyReviewOverlay.remove();
     backgroundOverlay.remove();
 
@@ -323,8 +323,8 @@ describe('app event listener runtime', () => {
       'modal-overlay',
       '<div class="modal" role="dialog"><button id="first-focus">First</button><button id="last-focus">Last</button></div>',
     );
-    const first = document.getElementById('first-focus');
-    const last = document.getElementById('last-focus');
+    const first = (document.getElementById('first-focus') as HTMLElement);
+    const last = (document.getElementById('last-focus') as HTMLElement);
     last.focus();
     expect(press('Tab').defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(first);
@@ -336,8 +336,8 @@ describe('app event listener runtime', () => {
       'cloud-ai-consent-overlay',
       '<div role="dialog"><button id="cloud-cancel" data-cloud-ai-consent-action="cancel">Cancel</button><button id="cloud-approve">Approve</button></div>',
     );
-    const cloudCancel = document.getElementById('cloud-cancel');
-    const cloudApprove = document.getElementById('cloud-approve');
+    const cloudCancel = (document.getElementById('cloud-cancel') as HTMLElement);
+    const cloudApprove = (document.getElementById('cloud-approve') as HTMLElement);
     cloudCancel.click = vi.fn();
     cloudApprove.focus();
     expect(press('Tab').defaultPrevented).toBe(true);
@@ -358,7 +358,7 @@ describe('app event listener runtime', () => {
 
     appEvents.registerAppRefreshCallback();
     expect(shell.registerRefreshCallback).toHaveBeenCalledOnce();
-    shell.refreshCallback();
+    shell.refreshCallback!();
     expect(shell.buildSidebar).toHaveBeenCalledOnce();
     expect(actions.navigate).toHaveBeenCalledWith('reports');
     expect(actions.updateChatNudge).toHaveBeenCalledOnce();

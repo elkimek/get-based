@@ -13,16 +13,17 @@ const {
   MockAgent,
   getGlobalDispatcher,
   setGlobalDispatcher,
-} = requireFromBlob('undici');
+} = requireFromBlob('undici') as typeof import('undici');
 
 const API_ORIGIN = 'https://vercel.com';
 const TOKEN = 'vercel_blob_rw_store123_secret';
 const originalDispatcher = getGlobalDispatcher();
-let agent;
-let api;
+type ReplyRequest = Parameters<import('undici/types/mock-interceptor.js').MockInterceptor.MockReplyOptionsCallback>[0];
+let agent: InstanceType<typeof MockAgent>;
+let api: ReturnType<InstanceType<typeof MockAgent>['get']>;
 
-function requestHeaders(options) {
-  return new Headers(options.headers);
+function requestHeaders(options: ReplyRequest | undefined) {
+  return new Headers(options!.headers as HeadersInit);
 }
 
 beforeEach(() => {
@@ -43,7 +44,7 @@ afterAll(() => {
 
 describe('@vercel/blob server SDK contract', () => {
   it('uses the explicit token and maps list timestamps to Date objects', async () => {
-    let request;
+    let request: ReplyRequest | undefined;
     api.intercept({
       method: 'GET',
       path: '/api/blob?limit=2&prefix=proxy-rate%2Fv2%2F',
@@ -76,12 +77,12 @@ describe('@vercel/blob server SDK contract', () => {
     expect(headers.get('authorization')).toBe(`Bearer ${TOKEN}`);
     expect(headers.get('x-vercel-blob-store-id')).toBe('store123');
     expect(headers.get('x-api-version')).toBe('12');
-    expect(page.blobs[0].uploadedAt).toEqual(new Date('2026-08-21T00:00:00.000Z'));
+    expect(page.blobs[0]!.uploadedAt).toEqual(new Date('2026-08-21T00:00:00.000Z'));
   });
 
   it('preserves the private atomic-put and delete request shapes', async () => {
-    let putRequest;
-    let deleteRequest;
+    let putRequest: ReplyRequest | undefined;
+    let deleteRequest: ReplyRequest | undefined;
     api.intercept({
       method: 'PUT',
       path: '/api/blob/?pathname=proxy-rate%2Fv2%2Fmarker.json',

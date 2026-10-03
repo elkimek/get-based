@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { checkAgentHost, controlAgentHost, listAgentExecutionTargets, listAgentModels, streamAgentTurn, uploadAgentImage } from '../js/agent-chat-client.js';
 
-function ndjsonResponse(events) {
+function ndjsonResponse(events: unknown[]) {
   const body = events.map(event => `${JSON.stringify(event)}\n`).join('');
   return new Response(body, { status: 200, headers: { 'Content-Type': 'application/x-ndjson' } });
 }
@@ -53,8 +53,8 @@ describe('agent chat client', () => {
     expect(toolRuntime.execute).toHaveBeenCalledWith({
       tool: 'getbased_section', namespace: null, arguments: { section: 'lipids' },
     });
-    expect(fetchMock.mock.calls[1][0]).toBe('http://127.0.0.1:8324/v1/responses/response-1');
-    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer secret-token');
+    expect((fetchMock.mock.calls as [unknown, {headers: {Authorization: string}; body: string}][])[1]![0]).toBe('http://127.0.0.1:8324/v1/responses/response-1');
+    expect((fetchMock.mock.calls as [unknown, {headers: {Authorization: string}; body: string}][])[1]![1].headers.Authorization).toBe('Bearer secret-token');
   });
 
   it('rejects non-loopback endpoints before sending health data', async () => {
@@ -127,7 +127,7 @@ describe('agent chat client', () => {
       endpoint: 'http://127.0.0.1:8324', token: 'secret-token', agent: 'hermes', target: 'gateway-home',
       prompt: 'Who is there?', tools: [],
     });
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toMatchObject({ agent: 'hermes', target: 'gateway-home' });
+    expect(JSON.parse((fetchMock.mock.calls as [unknown, {headers: {Authorization: string}; body: string}][])[1]![1].body)).toMatchObject({ agent: 'hermes', target: 'gateway-home' });
   });
 
   it('sends authenticated companion controls only to the loopback host', async () => {

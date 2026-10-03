@@ -32,7 +32,7 @@ describe('custom secure fetch request timeout lifecycle', () => {
       { useProxy: false, fetchImpl: compatibleFetch },
     );
 
-    const body = JSON.parse(compatibleFetch.mock.calls[0][1].body);
+    const body = JSON.parse((compatibleFetch.mock.calls as unknown as Parameters<typeof fetch>[])[0]![1]!.body as string);
     expect(body.model).toBe('x-ai/grok-4.6');
     expect(body.temperature).toBe(0);
     expect(body.reasoning_effort).toBe('low');
@@ -54,9 +54,9 @@ describe('custom secure fetch request timeout lifecycle', () => {
       reply: { choices: [{ message: { content: '{"mealName":"Soup"}' }, finish_reason: 'stop' }] },
       options: { messages: [{ role: 'user', content: 'analyze' }], forceNonStream: true, temperature: 0 },
       diagnostics: { temperatureControlFallback: true },
-      assertRequests(bodies) {
+      assertRequests(bodies: Record<string, unknown>[]) {
         expect(bodies).toHaveLength(2);
-        expect(bodies[0].temperature).toBe(0);
+        expect(bodies[0]!.temperature).toBe(0);
         expect(bodies[1]).not.toHaveProperty('temperature');
       },
     },
@@ -67,7 +67,7 @@ describe('custom secure fetch request timeout lifecycle', () => {
       reply: { choices: [{ message: { content: '{"mealName":"Soup"}' }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 5 } },
       options: { messages: [{ role: 'user', content: 'analyze' }], forceNonStream: true, jsonMode: true, jsonSchema: { type: 'object' } },
       diagnostics: { structuredOutputFallback: true },
-      assertRequests(bodies) {
+      assertRequests(bodies: Record<string, unknown>[]) {
         expect(bodies).toHaveLength(2);
         expect(bodies[0]).toHaveProperty('response_format');
         expect(bodies[1]).not.toHaveProperty('response_format');
@@ -80,7 +80,7 @@ describe('custom secure fetch request timeout lifecycle', () => {
       reply: { choices: [{ message: { content: '{"mealName":"Soup"}' }, finish_reason: 'stop' }] },
       options: { messages: [{ role: 'user', content: 'analyze' }], forceNonStream: true, jsonMode: true, jsonSchema: { type: 'object' } },
       diagnostics: { structuredOutputFallback: true },
-      assertRequests(bodies) {
+      assertRequests(bodies: Record<string, unknown>[]) {
         expect(bodies).toHaveLength(2);
         expect(bodies[0]).toHaveProperty('response_format');
         expect(bodies[1]).not.toHaveProperty('response_format');
@@ -89,9 +89,9 @@ describe('custom secure fetch request timeout lifecycle', () => {
   ];
 
   it.each(validationRetries)('$name', async contract => {
-    const bodies = [];
-    const compatibleFetch = vi.fn(async (_url, options) => {
-      bodies.push(JSON.parse(options.body));
+    const bodies: Record<string, unknown>[] = [];
+    const compatibleFetch = vi.fn(async (_url: Parameters<typeof fetch>[0], options: Parameters<typeof fetch>[1]) => {
+      bodies.push(JSON.parse(options!.body as string));
       if (bodies.length === 1) {
         return new Response(JSON.stringify(contract.error), {
           status: 400,
@@ -111,9 +111,9 @@ describe('custom secure fetch request timeout lifecycle', () => {
   it('does not abort a PPQ/Routstr-style decrypted stream after headers arrive', async () => {
     vi.useFakeTimers();
     const encoder = new TextEncoder();
-    let capturedSignal;
-    const secureFetch = vi.fn(async (_url, options) => {
-      capturedSignal = options.signal;
+    let capturedSignal: RequestInit['signal'];
+    const secureFetch = vi.fn(async (_url: Parameters<typeof fetch>[0], options: Parameters<typeof fetch>[1]) => {
+      capturedSignal = options!.signal;
       return new Response(new ReadableStream({
         start(controller) {
           const responseTimer = setTimeout(() => {
@@ -121,9 +121,9 @@ describe('custom secure fetch request timeout lifecycle', () => {
             controller.enqueue(encoder.encode('data: [DONE]\n\n'));
             controller.close();
           }, 1500);
-          options.signal.addEventListener('abort', () => {
+          options!.signal!.addEventListener('abort', () => {
             clearTimeout(responseTimer);
-            controller.error(options.signal.reason);
+            controller.error(options!.signal!.reason);
           }, { once: true });
         },
       }), {
@@ -152,13 +152,13 @@ describe('custom secure fetch request timeout lifecycle', () => {
       text: 'secure stream ok',
       finishReason: 'stop',
     });
-    expect(capturedSignal.aborted).toBe(false);
+    expect(capturedSignal!.aborted).toBe(false);
   });
 
   it('still times out a secure fetch that has not returned response headers', async () => {
     vi.useFakeTimers();
-    const secureFetch = vi.fn(async (_url, options) => new Promise((_resolve, reject) => {
-      options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
+    const secureFetch = vi.fn(async (_url: Parameters<typeof fetch>[0], options: Parameters<typeof fetch>[1]) => new Promise<Response>((_resolve, reject) => {
+      options!.signal!.addEventListener('abort', () => reject(options!.signal!.reason), { once: true });
     }));
     const pending = callOpenAICompatibleAPI(
       'https://private.example.test/v1/chat/completions',
@@ -281,9 +281,9 @@ describe('stream stall guard', () => {
 });
 
 it('honors an explicit feature token ceiling for thinking models without changing chat defaults', async () => {
-  const limits = [];
-  const fetchImpl = async (_url, options) => {
-    limits.push(JSON.parse(options.body).max_tokens);
+  const limits: unknown[] = [];
+  const fetchImpl = async (_url: Parameters<typeof fetch>[0], options: Parameters<typeof fetch>[1]) => {
+    limits.push(JSON.parse(options!.body as string).max_tokens);
     return new Response(JSON.stringify({ choices: [{ message: { content: 'Complete answer' }, finish_reason: 'stop' }] }));
   };
   for (const strictTokenLimit of [true, false]) await callOpenAICompatibleAPI('https://example.test', 'test-key', 'claude-opus-5.5', 'Routstr', { messages: [{ role: 'user', content: 'Explain' }], maxTokens: 900, strictTokenLimit }, {}, { fetchImpl });

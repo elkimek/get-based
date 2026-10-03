@@ -1,27 +1,28 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+type ClientFixture = { options: { baseURL?: unknown }; ready: ReturnType<typeof vi.fn<() => Promise<void>>>; reset: ReturnType<typeof vi.fn<() => void>> };
 
 const secureMocks = vi.hoisted(() => ({
-  clients: [],
+  clients: [] as ClientFixture[],
   verification: { securityVerified: true, hpkePublicKey: 'verified-hpke-key' },
-  decryptResponseWithToken: vi.fn(async response => response),
-  encryptRequestWithContext: vi.fn(async request => ({ request, context: { sender: true } })),
+  decryptResponseWithToken: vi.fn(async (response: Response) => response),
+  encryptRequestWithContext: vi.fn(async (request: Request) => ({ request, context: { sender: true } })),
   extractSessionRecoveryToken: vi.fn(async () => ({ token: true })),
   fromPublicKeyHex: vi.fn(),
 }));
 
 vi.mock('../vendor/tinfoil-browser.js', () => ({
   SecureClient: class SecureClient {
-    constructor(options) {
-      this.options = options;
-      this.ready = vi.fn(async () => {});
-      this.reset = vi.fn();
-      secureMocks.clients.push(this);
+    constructor(options: ClientFixture['options']) {
+      (this as unknown as ClientFixture).options = options;
+      (this as unknown as ClientFixture).ready = vi.fn(async () => {});
+      (this as unknown as ClientFixture).reset = vi.fn();
+      secureMocks.clients.push(this as unknown as ClientFixture);
     }
     getVerificationDocument() {
       return secureMocks.verification;
     }
     getBaseURL() {
-      return this.options.baseURL;
+      return (this as unknown as ClientFixture).options.baseURL;
     }
     getEnclaveURL() {
       return 'https://verified-enclave.example';
@@ -149,8 +150,8 @@ describe('verified Tinfoil EHBP transport', () => {
 
     expect(response.status).toBe(200);
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
-    expect(secureMocks.clients[0].reset).toHaveBeenCalledOnce();
-    expect(secureMocks.clients[0].ready).toHaveBeenCalledTimes(2);
+    expect(secureMocks.clients[0]!.reset).toHaveBeenCalledOnce();
+    expect(secureMocks.clients[0]!.ready).toHaveBeenCalledTimes(2);
   });
 
   it('reloads a custom attestation bundle before retrying a rotated PPQ key', async () => {
@@ -182,7 +183,7 @@ describe('verified Tinfoil EHBP transport', () => {
       'https://api.ppq.ai/private/attestation',
       { cache: 'reload' },
     );
-    expect(secureMocks.clients[0].reset).toHaveBeenCalledOnce();
-    expect(secureMocks.clients[0].ready).toHaveBeenCalledTimes(2);
+    expect(secureMocks.clients[0]!.reset).toHaveBeenCalledOnce();
+    expect(secureMocks.clients[0]!.ready).toHaveBeenCalledTimes(2);
   });
 });

@@ -23,10 +23,10 @@ const ENV_KEYS = [
   'VERCEL',
   'VERCEL_PROJECT_PRODUCTION_URL',
 ];
-let savedEnv;
+let savedEnv: Record<string, string | undefined>;
 
-function proxyRequest(method, body) {
-  return new Request('https://health.example.net/api/proxy', {
+function proxyRequest(method: string, body?: unknown) {
+  return new (Request as new (input: ConstructorParameters<typeof Request>[0], init: Omit<RequestInit, 'body'> & { body?: RequestInit['body'] }) => Request)('https://health.example.net/api/proxy', {
     method,
     headers: {
       origin: 'https://health.example.net',

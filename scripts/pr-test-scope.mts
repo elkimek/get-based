@@ -5,7 +5,7 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript-api';
-import { runtimePath } from './source-files.js';
+import { runtimePath, sourcePath } from './source-files.js';
 
 type BrowserSuite = 'browser' | 'firefox' | 'pwa';
 export interface TestPlan {
@@ -16,7 +16,7 @@ export interface TestPlan {
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LEGACY = 'tests/_vitest-legacy.test.js';
 const SOURCE = /\.(?:[cm]?[jt]s|json|html|css|yml|yaml)$/;
-const isUnit = (file: string) => file.startsWith('tests/') && /\.test\.[jt]s$/.test(file) && file !== LEGACY;
+const isUnit = (file: string) => file.startsWith('tests/') && /\.test\.[jt]s$/.test(file) && runtimePath(file) !== LEGACY;
 const isBrowser = (file: string) => /^tests\/playwright\/.*\.spec\.[jt]s$/.test(file);
 const isFirefox = (file: string) => /^tests\/firefox\/.*\.spec\.[jt]s$/.test(file);
 const isPwa = (file: string) => /^tests\/pwa\/.*\.spec\.[jt]s$/.test(file);
@@ -75,14 +75,15 @@ export function createTestPlan(sources: Map<string, string>, changedFiles: strin
   while (queue.length) {
     for (const consumer of reverse.get(queue.pop()!) || []) {
       // The legacy harness lists every script; select its individual cases below.
-      if (consumer === LEGACY || affected.has(consumer)) continue;
+      if (runtimePath(consumer) === LEGACY || affected.has(consumer)) continue;
       affected.add(consumer);
       queue.push(consumer);
     }
   }
   const all = [...sources.keys()];
-  const legacyScripts = [...fileReferences(LEGACY, sources.get(LEGACY) || '', known)]
-    .filter(file => /^tests\/test-.*\.js$/.test(file));
+  const legacyHarness = all.find(file => runtimePath(file) === LEGACY) || LEGACY;
+  const legacyScripts = [...fileReferences(legacyHarness, sources.get(legacyHarness) || '', known)]
+    .filter(file => /^tests\/test-.*\.[jt]s$/.test(file));
   const reasons: string[] = [];
   const addMatching = (predicate: (file: string) => boolean, reason: string): void => {
     all.filter(predicate).forEach(file => affected.add(file));
@@ -104,14 +105,14 @@ export function createTestPlan(sources: Map<string, string>, changedFiles: strin
     addMatching(isFirefox, 'Firefox harness or shared dependencies changed.');
   }
   if (changedFiles.some(file => file.startsWith('.github/workflows/') || runtimePath(file) === 'scripts/pr-test-scope.mjs')) {
-    affected.add('tests/pr-test-scope.test.js');
+    affected.add(all.find(file => runtimePath(file) === 'tests/pr-test-scope.test.js') || 'tests/pr-test-scope.test.js');
   }
   const select = (predicate: (file: string) => boolean) => all.filter(file => affected.has(file) && predicate(file)).sort();
   const plan: Omit<TestPlan, 'uncovered'> & Partial<Pick<TestPlan, 'uncovered'>> = {
     changedFiles: [...changedFiles].sort(), reasons,
     unit: select(isUnit), legacy: legacyScripts.filter(file => affected.has(file)).sort(),
     browser: select(isBrowser), firefox: select(isFirefox), pwa: select(isPwa),
-    sync: all.some(file => affected.has(file) && (/^tests\/evolu8-browser\//.test(file) || file === 'tests/playwright/sync-relay-transport-e2e.spec.js'))
+    sync: all.some(file => affected.has(file) && (/^tests\/evolu8-browser\//.test(file) || runtimePath(file) === 'tests/playwright/sync-relay-transport-e2e.spec.js'))
       || changedFiles.some(file => /^(package(?:-lock)?\.json|playwright(?:\.evolu8)?\.config\.js|\.github\/workflows\/sync-compat\.yml)$/.test(runtimePath(file))),
   };
   // An unknown runtime change must never silently produce an empty green check.
@@ -125,7 +126,7 @@ export function createTestPlan(sources: Map<string, string>, changedFiles: strin
       const current = pending.pop()!;
       if (selected.has(current)) return false;
       for (const consumer of reverse.get(current) || []) {
-        if (consumer === LEGACY || visited.has(consumer)) continue;
+        if (runtimePath(consumer) === LEGACY || visited.has(consumer)) continue;
         visited.add(consumer);
         pending.push(consumer);
       }
@@ -135,11 +136,16 @@ export function createTestPlan(sources: Map<string, string>, changedFiles: strin
   return plan as TestPlan;
 }
 
-export function testCommands(plan: TestPlan, suite: string | undefined): string[][] {
+export function testCommands(plan: TestPlan, suite: string | undefined, resolvePath: (file: string) => string = file => file): string[][] {
   const commands = [];
   if (suite === 'unit') {
     if (plan.unit.length) commands.push(['vitest', 'run', ...plan.unit]);
-    if (plan.legacy.length) commands.push(['vitest', 'run', LEGACY, '-t', plan.legacy.map(file => `^${escapeRegex(path.posix.basename(file))}$`).join('|')]);
+    if (plan.legacy.length) commands.push(['vitest', 'run', resolvePath(LEGACY), '-t', plan.legacy.map(file => {
+      const name = path.posix.basename(file);
+      return /\.[cm]?ts$/.test(name)
+        ? `^(?:${escapeRegex(name)}|${escapeRegex(path.posix.basename(runtimePath(file)))})$`
+        : `^${escapeRegex(name)}$`;
+    }).join('|')]);
   } else if ((['browser', 'firefox', 'pwa'] as readonly (string | undefined)[]).includes(suite)) {
     if (plan[suite as BrowserSuite].length) commands.push(['playwright', 'test', ...plan[suite as BrowserSuite], ...(suite === 'browser' ? [] : [`--config=playwright.${suite}.config.js`]), '--workers=2']);
   } else throw new Error(`Unknown test suite: ${suite}`);
@@ -159,7 +165,7 @@ function main(): void {
     if (process.env.GITHUB_ACTIONS !== 'true') throw new Error('Automatic test execution is GitHub Actions-only. Run explicit relevant tests locally.');
     const plan = JSON.parse(fs.readFileSync(output, 'utf8')) as TestPlan;
     if (plan.uncovered.length) throw new Error(`Add test scope for: ${plan.uncovered.join(', ')}`);
-    for (const command of testCommands(plan, value('--run'))) {
+    for (const command of testCommands(plan, value('--run'), sourcePath)) {
       console.log(JSON.stringify(command));
       const result = spawnSync('npx', ['--no-install', ...command], { cwd: ROOT, stdio: 'inherit', env: process.env });
       if (result.error) throw result.error;

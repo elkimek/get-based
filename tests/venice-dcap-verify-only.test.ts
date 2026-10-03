@@ -16,7 +16,7 @@ describe('Venice DCAP P-256 verification-only adapter', () => {
     });
     const verifier = new VerifyOnlyEC('p256').keyFromPublic(publicKey);
     const tamperedDigest = Uint8Array.from(digest);
-    tamperedDigest[0] ^= 1;
+    tamperedDigest[0]! ^= 1;
 
     expect(verifier.verify(digest, signature)).toBe(true);
     expect(verifier.verify(tamperedDigest, signature)).toBe(false);
@@ -25,7 +25,7 @@ describe('Venice DCAP P-256 verification-only adapter', () => {
   it('exposes no signing API and rejects unsupported curves', () => {
     const verifier = new VerifyOnlyEC('p256');
 
-    expect(verifier.sign).toBeUndefined();
+    expect((verifier as { sign?: unknown }).sign).toBeUndefined();
     expect(() => new VerifyOnlyEC('secp256k1')).toThrow('Unsupported DCAP curve');
   });
 

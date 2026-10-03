@@ -8,7 +8,7 @@ import { BRAND_ASSETS } from '../js/brand-assets.js';
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const VIRTUAL_APP_SHELL_URLS = new Set(['/app']);
 
-function readRepoFile(url) {
+function readRepoFile(url: string) {
   return readFileSync(path.join(REPO_ROOT, url.replace(/^\//, '')), 'utf8');
 }
 
@@ -17,26 +17,26 @@ function appShellEntries() {
   expect(bootstrap).toContain("importScripts('/service-worker-assets.js');");
   const source = readRepoFile('/service-worker-assets.js');
   const body = source.match(/const APP_SHELL = \[([\s\S]*?)\n\];/)?.[1] || '';
-  return [...body.matchAll(/'([^']+)'\s*,/g)].map((match) => match[1]);
+  return [...body.matchAll(/'([^']+)'\s*,/g)].map((match) => match[1]!);
 }
 
-function resolveLocalAsset(importerUrl, specifier) {
-  const clean = String(specifier || '').split(/[?#]/, 1)[0];
+function resolveLocalAsset(importerUrl: string, specifier: string) {
+  const clean = String(specifier || '').split(/[?#]/, 1)[0]!;
   if (!clean || /^(?:[a-z]+:|\/\/|#)/i.test(clean)) return null;
   if (clean.startsWith('/')) return path.posix.normalize(clean);
   if (!clean.startsWith('.')) return null;
   return path.posix.normalize(path.posix.join(path.posix.dirname(importerUrl), clean));
 }
 
-function moduleSpecifiers(source, fileName = 'module.js') {
-  const specifiers = new Set();
+function moduleSpecifiers(source: string, fileName = 'module.js') {
+  const specifiers = new Set<string>();
   const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, false, ts.ScriptKind.JS);
 
-  function addStringLiteral(node) {
+  function addStringLiteral(node: ts.Node | undefined) {
     if (node && ts.isStringLiteralLike(node)) specifiers.add(node.text);
   }
 
-  function isImportMetaUrl(node) {
+  function isImportMetaUrl(node: ts.Node) {
     return ts.isPropertyAccessExpression(node)
       && node.name.text === 'url'
       && ts.isMetaProperty(node.expression)
@@ -44,7 +44,7 @@ function moduleSpecifiers(source, fileName = 'module.js') {
       && node.expression.name.text === 'meta';
   }
 
-  function visit(node) {
+  function visit(node: ts.Node) {
     if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
       addStringLiteral(node.moduleSpecifier);
     } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
@@ -54,7 +54,7 @@ function moduleSpecifiers(source, fileName = 'module.js') {
       && ts.isIdentifier(node.expression)
       && node.expression.text === 'URL'
       && node.arguments?.length === 2
-      && isImportMetaUrl(node.arguments[1])
+      && isImportMetaUrl(node.arguments[1]!)
     ) {
       addStringLiteral(node.arguments[0]);
     }
@@ -64,20 +64,20 @@ function moduleSpecifiers(source, fileName = 'module.js') {
   return [...specifiers];
 }
 
-function moduleDependencies(moduleUrl) {
+function moduleDependencies(moduleUrl: string) {
   return moduleSpecifiers(readRepoFile(moduleUrl), moduleUrl)
     .map((specifier) => resolveLocalAsset(moduleUrl, specifier))
-    .filter(Boolean);
+    .filter(Boolean) as string[];
 }
 
 function reachableAppModules() {
   const index = readRepoFile('/index.html');
   const entries = [...index.matchAll(/<script\b[^>]*\btype=['"]module['"][^>]*\bsrc=['"]([^'"]+)['"]/g)]
-    .map((match) => path.posix.normalize(`/${match[1].replace(/^\//, '')}`));
-  const reachable = new Set();
-  const missingFiles = [];
+    .map((match) => path.posix.normalize(`/${match[1]!.replace(/^\//, '')}`));
+  const reachable = new Set<string>();
+  const missingFiles: string[] = [];
 
-  function visit(moduleUrl) {
+  function visit(moduleUrl: string) {
     if (reachable.has(moduleUrl)) return;
     reachable.add(moduleUrl);
     const filePath = path.join(REPO_ROOT, moduleUrl.replace(/^\//, ''));
@@ -94,12 +94,12 @@ function reachableAppModules() {
   return { entries, missingFiles, reachable: [...reachable].sort() };
 }
 
-function cssDependencies(cssUrl) {
+function cssDependencies(cssUrl: string) {
   const source = readRepoFile(cssUrl);
-  const dependencies = [];
+  const dependencies: string[] = [];
   const urlPattern = /url\(\s*(?:'([^']+)'|"([^"]+)"|([^)'"\s]+))\s*\)/g;
   for (const match of source.matchAll(urlPattern)) {
-    const specifier = match[1] || match[2] || match[3] || '';
+    const specifier = match[1]! || match[2] || match[3] || '';
     if (specifier.startsWith('data:')) continue;
     const resolved = resolveLocalAsset(cssUrl, specifier);
     if (resolved) dependencies.push(resolved);
@@ -166,7 +166,7 @@ describe('service worker app-shell completeness', () => {
   it('pre-caches provider logos used by offline settings', () => {
     const cached = new Set(appShellEntries());
     const sources = ['/js/settings.js', '/js/cli-agent-brand-assets.js'].map(readRepoFile).join('\n');
-    const logos = [...sources.matchAll(/['"](\/brands\/[^'"\s]+\.svg)['"]/g)].map(match => match[1]);
+    const logos = [...sources.matchAll(/['"](\/brands\/[^'"\s]+\.svg)['"]/g)].map(match => match[1]!);
     logos.push(...Object.values(BRAND_ASSETS).flatMap(Object.values)
       .filter(value => typeof value === 'string' && value.startsWith('/brands/')));
     expect(logos.length).toBeGreaterThan(0);

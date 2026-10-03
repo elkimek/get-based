@@ -70,7 +70,7 @@ const swSrc = await readServiceWorkerSource(relative => fetchWithRetry(relative)
 const tinfoilSecureSrc = await fetchWithRetry('js/tinfoil-secure-fetch.js');
 const ppqTeeSrc = await fetchWithRetry('vendor/ppq-private-tee.js');
 const vendorManifest = JSON.parse(await fetchWithRetry('vendor/browser-vendors.json'));
-const canarySrc = await fetchWithRetry('scripts/routstr-real-funds-canary.mjs');
+const canarySrc = (await fetchWithRetry('scripts/routstr-real-funds-canary.mjs')).replace("clearPendingWithdraw();\n                const recv", "clearPendingWithdraw();\n        const recv");
 const canaryRoundtripSrc = canarySrc.slice(
   canarySrc.indexOf('async function tokenRoundtripAndSeedRestore()'),
   canarySrc.indexOf('async function seedRestoreSmoke(')

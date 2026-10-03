@@ -9,43 +9,50 @@ import {
   shouldUseEvolu8Client,
 } from '../js/sync-evolu8-candidate.js';
 
-function createOpfsRoot(entries) {
+type CandidateInput = Parameters<typeof createEvolu8Candidate>[0];
+type Modern = CandidateInput['modern'];
+type ActiveFixture = {config: Parameters<Modern['createEvolu']>[1]; queryUnsubscribers: ReturnType<typeof vi.fn<() => void>>[]; insert: ReturnType<typeof vi.fn<() => {id: string}>>; update: ReturnType<typeof vi.fn<() => {id: string}>>; loadQuery: ReturnType<typeof vi.fn<() => Promise<unknown[]>>>; subscribeQuery: ReturnType<typeof vi.fn<() => () => () => void>>; [Symbol.asyncDispose]: ReturnType<typeof vi.fn<() => Promise<void>>>};
+type DepsFixture = {evoluError: ReturnType<typeof createErrorStore>; [Symbol.dispose]: ReturnType<typeof vi.fn<() => void>>};
+type RunFixture = {ok: ReturnType<typeof vi.fn<(task: unknown) => Promise<unknown>>>; [Symbol.asyncDispose]: ReturnType<typeof vi.fn<() => Promise<void>>>};
+type CandidateFixtureInput = Omit<CandidateInput, 'modern' | 'schema'> & {modern: Omit<Modern, 'id' | 'nullOr' | 'EvoluString' | 'createRun'> & {createRun: (deps: unknown) => RunFixture}; schema: {profileData: Record<string, unknown>}};
+
+function createOpfsRoot(entries: [string, string?][]) {
   const values = new Map(entries.map(([name, kind = 'directory']) => [name, { kind }]));
   return {
     entries: vi.fn(async function* () { yield* values.entries(); }),
-    removeEntry: vi.fn(async name => { values.delete(name); }),
+    removeEntry: vi.fn(async (name: string) => { values.delete(name); }),
   };
 }
 
-function createStorage(initial = {}) {
+function createStorage(initial: Record<string, string> = {}) {
   const values = new Map(Object.entries(initial));
   return {
-    getItem: vi.fn(key => values.get(key) ?? null),
-    setItem: vi.fn((key, value) => values.set(key, value)),
+    getItem: vi.fn((key: string) => values.get(key) ?? null),
+    setItem: vi.fn((key: string, value: string) => values.set(key, value)),
   };
 }
 
 function createErrorStore() {
-  const listeners = new Set();
-  let value = null;
+  const listeners = new Set<() => void>();
+  let value: ReturnType<ReturnType<Modern['createEvoluDeps']>['evoluError']['get']> = null;
   return {
     get: vi.fn(() => value),
-    set(next) {
+    set(next: ReturnType<ReturnType<Modern['createEvoluDeps']>['evoluError']['get']>) {
       value = next;
       for (const listener of listeners) listener();
     },
-    subscribe: vi.fn(listener => {
+    subscribe: vi.fn((listener: () => void) => {
       listeners.add(listener);
       return vi.fn(() => listeners.delete(listener));
     }),
   };
 }
 
-function createHarness({ mnemonic = 'alpha words', ownerId = `owner:${mnemonic}` } = {}) {
-  const actives = [];
-  const depsList = [];
-  const events = [];
-  const runs = [];
+function createHarness({ mnemonic = 'alpha words', ownerId = `owner:${mnemonic}` }: {mnemonic?: string; ownerId?: string} = {}) {
+  const actives: ActiveFixture[] = [];
+  const depsList: DepsFixture[] = [];
+  const events: string[] = [];
+  const runs: RunFixture[] = [];
   const legacyEvolu = {
     appOwner: Promise.resolve({ id: ownerId, mnemonic }),
     restoreAppOwner: vi.fn(async () => {}),
@@ -53,13 +60,13 @@ function createHarness({ mnemonic = 'alpha words', ownerId = `owner:${mnemonic}`
   };
 
   const modern = {
-    Mnemonic: { orThrow: vi.fn(value => {
+    Mnemonic: { orThrow: vi.fn((value: string) => {
       if (!value || value === 'invalid') throw new Error('invalid mnemonic');
       return value;
     }) },
-    AppName: { orThrow: vi.fn(value => value) },
-    mnemonicToOwnerSecret: vi.fn(value => value),
-    createAppOwner: vi.fn(value => ({ id: `owner:${value}`, mnemonic: value })),
+    AppName: { orThrow: vi.fn((value: string) => value) },
+    mnemonicToOwnerSecret: vi.fn((value: string) => value),
+    createAppOwner: vi.fn((value: string) => ({ id: `owner:${value}`, mnemonic: value })),
     createQueryBuilder: vi.fn(() => vi.fn(() => 'query')),
     createEvoluDeps: vi.fn(() => {
       const deps = {
@@ -71,16 +78,16 @@ function createHarness({ mnemonic = 'alpha words', ownerId = `owner:${mnemonic}`
     }),
     createRun: vi.fn(() => {
       const run = {
-        ok: vi.fn(async task => task),
+        ok: vi.fn(async (task: unknown) => task),
         [Symbol.asyncDispose]: vi.fn(async () => {}),
       };
       runs.push(run);
       return run;
     }),
-    createEvolu: vi.fn((_schema, config) => {
+    createEvolu: vi.fn((_schema: unknown, config: Parameters<Modern['createEvolu']>[1]) => {
       const activeNumber = actives.length + 1;
       events.push(`create:${activeNumber}`);
-      const queryUnsubscribers = [];
+      const queryUnsubscribers: ReturnType<typeof vi.fn<() => void>>[] = [];
       const active = {
         name: config.appName,
         appOwner: config.appOwner,
@@ -110,7 +117,7 @@ function createHarness({ mnemonic = 'alpha words', ownerId = `owner:${mnemonic}`
 
 describe('Evolu 8 compatibility candidate', () => {
   it('invalidates the v8 vault before legacy restore and reset mutations', async () => {
-    const events = [];
+    const events: string[] = [];
     const legacy = {
       name: 'getbased4',
       restoreAppOwner: vi.fn(async () => { events.push('legacy:restore'); }),
@@ -122,8 +129,8 @@ describe('Evolu 8 compatibility candidate', () => {
     const guarded = guardLegacyIdentityChanges(legacy, identityVault);
 
     expect(guarded.name).toBe('getbased4');
-    await guarded.restoreAppOwner('words', { reload: false });
-    await guarded.resetAppOwner({ reload: false });
+    await (guarded.restoreAppOwner as (...args: Parameters<Parameters<typeof guardLegacyIdentityChanges>[0]['restoreAppOwner']>) => unknown)('words', { reload: false });
+    await (guarded.resetAppOwner as (...args: Parameters<Parameters<typeof guardLegacyIdentityChanges>[0]['resetAppOwner']>) => unknown)({ reload: false });
 
     expect(events).toEqual([
       'vault:invalidate', 'legacy:restore',
@@ -138,7 +145,7 @@ describe('Evolu 8 compatibility candidate', () => {
       invalidate: vi.fn(async () => {}),
       write: vi.fn(async () => {}),
     };
-    const evolu = await createEvolu8Candidate({
+    const evolu = await (createEvolu8Candidate as unknown as (options: CandidateFixtureInput) => ReturnType<typeof createEvolu8Candidate>)({
       getLegacyEvolu,
       initialIdentity: { ownerId: 'owner:alpha words', mnemonic: 'alpha words' },
       identityVault,
@@ -160,7 +167,7 @@ describe('Evolu 8 compatibility candidate', () => {
       invalidate: vi.fn(async () => {}),
       write: vi.fn(async () => {}),
     };
-    await createEvolu8Candidate({
+    await (createEvolu8Candidate as unknown as (options: CandidateFixtureInput) => ReturnType<typeof createEvolu8Candidate>)({
       legacyEvolu: harness.legacyEvolu,
       identityVault,
       modern: harness.modern,
@@ -183,7 +190,7 @@ describe('Evolu 8 compatibility candidate', () => {
       invalidate: vi.fn(async () => {}),
       write: vi.fn(async () => {}),
     };
-    const evolu = await createEvolu8Candidate({
+    const evolu = await (createEvolu8Candidate as unknown as (options: CandidateFixtureInput) => ReturnType<typeof createEvolu8Candidate>)({
       getLegacyEvolu,
       initialIdentity: { ownerId: 'owner:alpha words', mnemonic: 'alpha words' },
       identityVault,
@@ -224,7 +231,7 @@ describe('Evolu 8 compatibility candidate', () => {
       ['.getbased8g4-owner_file', 'file'],
     ]);
     const lockManager = {
-      request: vi.fn(async (name, options, callback) => callback(
+      request: vi.fn(async (name: string, options: {mode: 'exclusive'; ifAvailable: boolean}, callback: (lock: Pick<Lock, 'name' | 'mode'> | null) => Promise<boolean>) => callback(
         name === `evolu-leaderlock-${locked}` ? null : { name, mode: options.mode },
       )),
     };
@@ -271,7 +278,7 @@ describe('Evolu 8 compatibility candidate', () => {
     expect(shouldUseEvolu8Client({ search: '?evolu-client=v7' })).toBe(false);
     expect(shouldUseEvolu8Client({ href: 'https://getbased.health/app?evolu-client=v7' })).toBe(false);
     expect(shouldUseEvolu8Client({ search: '?evolu-client=unknown' })).toBe(true);
-    expect(shouldUseEvolu8Client({ get search() { throw new Error('blocked'); } })).toBe(true);
+    expect((shouldUseEvolu8Client as (location: {search?: unknown}) => boolean)({ get search() { throw new Error('blocked'); } })).toBe(true);
   });
 
   it('normalizes corrupt generation state without writing it', () => {
@@ -283,7 +290,7 @@ describe('Evolu 8 compatibility candidate', () => {
   it('preserves the v7 owner and forwards the v7-shaped API to Evolu 8', async () => {
     const harness = createHarness();
     const storage = createStorage();
-    const evolu = await createEvolu8Candidate({
+    const evolu = await (createEvolu8Candidate as unknown as (options: CandidateFixtureInput) => ReturnType<typeof createEvolu8Candidate>)({
       legacyEvolu: harness.legacyEvolu,
       modern: harness.modern,
       schema: { profileData: {} },
@@ -293,20 +300,20 @@ describe('Evolu 8 compatibility candidate', () => {
 
     expect(evolu.__evoluClientVersion).toBe(8);
     await expect(evolu.appOwner).resolves.toMatchObject({ id: 'owner:alpha words', mnemonic: 'alpha words' });
-    expect(harness.actives[0].config).toMatchObject({
+    expect(harness.actives[0]!.config).toMatchObject({
       appName: 'getbased8g1',
       transports: [{ type: 'WebSocket', url: 'wss://relay.example' }],
     });
-    expect(evolu.createQuery(() => {})).toBe('query');
+    expect((evolu.createQuery as unknown as (query: () => void) => unknown)(() => {})).toBe('query');
     expect(evolu.insert('profileData', { profileId: 'p1' })).toEqual({ id: 'inserted' });
-    expect(harness.actives[0].insert).toHaveBeenCalledWith('profileData', { profileId: 'p1' });
+    expect(harness.actives[0]!.insert).toHaveBeenCalledWith('profileData', { profileId: 'p1' });
     expect(harness.legacyEvolu.restoreAppOwner).not.toHaveBeenCalled();
   });
 
   it('uses a fresh database generation on restore and rebinds subscriptions', async () => {
     const harness = createHarness();
     const storage = createStorage({ [EVOLU8_GENERATION_KEY]: '4' });
-    const evolu = await createEvolu8Candidate({
+    const evolu = await (createEvolu8Candidate as unknown as (options: CandidateFixtureInput) => ReturnType<typeof createEvolu8Candidate>)({
       legacyEvolu: harness.legacyEvolu,
       modern: harness.modern,
       schema: { profileData: {} },
@@ -326,21 +333,21 @@ describe('Evolu 8 compatibility candidate', () => {
     expect(storage.setItem).toHaveBeenCalledOnce();
     expect(storage.setItem).toHaveBeenCalledWith(EVOLU8_GENERATION_KEY, '5');
     expect(harness.actives).toHaveLength(2);
-    expect(harness.actives[1].config.appName).toBe('getbased8g5');
-    expect(harness.actives[1].loadQuery).toHaveBeenCalledWith('profiles');
-    expect(harness.actives[1].subscribeQuery).toHaveBeenCalledWith('profiles');
-    expect(harness.depsList[1].evoluError.subscribe).toHaveBeenCalled();
-    expect(harness.actives[0][Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    expect(harness.actives[1]!.config.appName).toBe('getbased8g5');
+    expect(harness.actives[1]!.loadQuery).toHaveBeenCalledWith('profiles');
+    expect(harness.actives[1]!.subscribeQuery).toHaveBeenCalledWith('profiles');
+    expect(harness.depsList[1]!.evoluError.subscribe).toHaveBeenCalled();
+    expect(harness.actives[0]![Symbol.asyncDispose]).toHaveBeenCalledOnce();
     expect(harness.events).toEqual(['create:1', 'dispose:1', 'create:2']);
     expect(evolu.update('profileData', { id: 'row1' })).toEqual({ id: 'updated' });
-    expect(harness.actives[1].update).toHaveBeenCalled();
+    expect(harness.actives[1]!.update).toHaveBeenCalled();
     await expect(evolu.appOwner).resolves.toMatchObject({ id: 'owner:beta words' });
   });
 
   it('advances the generation before delegating a disconnect reset', async () => {
     const harness = createHarness();
     const storage = createStorage();
-    const evolu = await createEvolu8Candidate({
+    const evolu = await (createEvolu8Candidate as unknown as (options: CandidateFixtureInput) => ReturnType<typeof createEvolu8Candidate>)({
       legacyEvolu: harness.legacyEvolu,
       modern: harness.modern,
       schema: { profileData: {} },
@@ -352,7 +359,7 @@ describe('Evolu 8 compatibility candidate', () => {
 
     expect(storage.setItem).toHaveBeenCalledWith(EVOLU8_GENERATION_KEY, '2');
     expect(harness.legacyEvolu.resetAppOwner).toHaveBeenCalledWith({ reload: false });
-    expect(harness.actives[0][Symbol.asyncDispose]).toHaveBeenCalledOnce();
+    expect(harness.actives[0]![Symbol.asyncDispose]).toHaveBeenCalledOnce();
   });
 
   it('fails closed before restore or reset when a new generation cannot be persisted', async () => {
@@ -365,7 +372,7 @@ describe('Evolu 8 compatibility candidate', () => {
         getItem: vi.fn(() => null),
         setItem,
       };
-      const evolu = await createEvolu8Candidate({
+      const evolu = await (createEvolu8Candidate as unknown as (options: CandidateFixtureInput) => ReturnType<typeof createEvolu8Candidate>)({
         legacyEvolu: harness.legacyEvolu,
         modern: harness.modern,
         schema: { profileData: {} },
@@ -383,14 +390,14 @@ describe('Evolu 8 compatibility candidate', () => {
       expect(harness.legacyEvolu.restoreAppOwner).not.toHaveBeenCalled();
       expect(harness.legacyEvolu.resetAppOwner).not.toHaveBeenCalled();
       expect(harness.actives).toHaveLength(1);
-      expect(harness.actives[0][Symbol.asyncDispose]).not.toHaveBeenCalled();
+      expect(harness.actives[0]![Symbol.asyncDispose]).not.toHaveBeenCalled();
       await expect(evolu.appOwner).resolves.toMatchObject({ id: 'owner:alpha words' });
     }
   });
 
   it('fails closed if the same mnemonic derives a different owner ID', async () => {
     const harness = createHarness({ ownerId: 'unexpected-owner' });
-    await expect(createEvolu8Candidate({
+    await expect((createEvolu8Candidate as unknown as (options: CandidateFixtureInput) => ReturnType<typeof createEvolu8Candidate>)({
       legacyEvolu: harness.legacyEvolu,
       modern: harness.modern,
       schema: { profileData: {} },

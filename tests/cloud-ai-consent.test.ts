@@ -37,18 +37,18 @@ function seedTransparency() {
   }));
 }
 
-function decisionControls(overlayId) {
+function decisionControls(overlayId: string) {
   const overlay = document.getElementById(overlayId);
-  const checkbox = overlay?.querySelector('input[type="checkbox"]');
-  const approve = overlay?.querySelector('[data-ai-processing-action="approve"]');
-  const cancel = overlay?.querySelector('[data-ai-processing-action="cancel"]');
+  const checkbox = overlay?.querySelector<HTMLInputElement>('input[type="checkbox"]');
+  const approve = overlay?.querySelector<HTMLButtonElement>('[data-ai-processing-action="approve"]');
+  const cancel = overlay?.querySelector<HTMLButtonElement>('[data-ai-processing-action="cancel"]');
   return { overlay, checkbox, approve, cancel };
 }
 
-function approve(overlayId) {
+function approve(overlayId: string) {
   const controls = decisionControls(overlayId);
-  controls.checkbox.click();
-  controls.approve.click();
+  controls.checkbox!.click();
+  controls.approve!.click();
 }
 
 beforeEach(() => {
@@ -74,22 +74,22 @@ beforeEach(() => {
 afterEach(() => {
   vi.stubGlobal('location', realLocation);
   globalThis.fetch = realFetch;
-  delete globalThis.GETBASED_DEPLOYMENT_CONFIG;
+  delete (globalThis as {GETBASED_DEPLOYMENT_CONFIG?: unknown}).GETBASED_DEPLOYMENT_CONFIG;
 });
 
 describe('AI transparency and route-aware approval', () => {
   it('stores provider-neutral AI transparency separately and discloses automatic requests', async () => {
     const pending = requestAITransparencyAcknowledgement();
     const { overlay, checkbox, approve: approveButton } = decisionControls('ai-transparency-overlay');
-    expect(overlay.textContent).toContain('AI output is generated or altered by AI');
-    expect(overlay.textContent).toContain('automatic insights may make later requests');
-    expect(checkbox.checked).toBe(false);
-    expect(approveButton.disabled).toBe(true);
+    expect(overlay!.textContent).toContain('AI output is generated or altered by AI');
+    expect(overlay!.textContent).toContain('automatic insights may make later requests');
+    expect(checkbox!.checked).toBe(false);
+    expect(approveButton!.disabled).toBe(true);
     approve('ai-transparency-overlay');
     await expect(pending).resolves.toBe(true);
 
     expect(hasAcknowledgedAITransparency()).toBe(true);
-    expect(JSON.parse(localStorage.getItem(AI_TRANSPARENCY_KEY))).toMatchObject({
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem(AI_TRANSPARENCY_KEY))).toMatchObject({
       version: AI_TRANSPARENCY_VERSION,
       acknowledged: true,
     });
@@ -111,10 +111,10 @@ describe('AI transparency and route-aware approval', () => {
     const pending = requestAIProviderActivation('openrouter');
     const { overlay } = decisionControls('cloud-ai-consent-overlay');
     expect(document.getElementById('ai-transparency-overlay')).toBeNull();
-    expect(overlay.textContent).toContain('The connection check succeeded');
-    expect(overlay.textContent).toContain('AI-generated output may be incomplete or inaccurate');
-    expect(overlay.textContent).toContain('automatic AI insight requests');
-    expect(overlay.textContent).toContain('health, genetic, biometric');
+    expect(overlay!.textContent).toContain('The connection check succeeded');
+    expect(overlay!.textContent).toContain('AI-generated output may be incomplete or inaccurate');
+    expect(overlay!.textContent).toContain('automatic AI insight requests');
+    expect(overlay!.textContent).toContain('health, genetic, biometric');
     approve('cloud-ai-consent-overlay');
     await expect(pending).resolves.toBe(true);
 
@@ -133,10 +133,10 @@ describe('AI transparency and route-aware approval', () => {
     const pending = requestAIProviderActivation('ollama');
     const { overlay } = decisionControls('ai-route-confirmation-overlay');
     expect(document.getElementById('ai-transparency-overlay')).toBeNull();
-    expect(overlay.textContent).toContain('The connection check succeeded');
-    expect(overlay.textContent).toContain('192.168.1.44:11434');
-    expect(overlay.textContent).toContain('leave this browser device');
-    expect(overlay.querySelectorAll('a')).toHaveLength(0);
+    expect(overlay!.textContent).toContain('The connection check succeeded');
+    expect(overlay!.textContent).toContain('192.168.1.44:11434');
+    expect(overlay!.textContent).toContain('leave this browser device');
+    expect(overlay!.querySelectorAll('a')).toHaveLength(0);
     expect(localStorage.getItem(CLOUD_AI_CONSENT_KEY)).toBeNull();
     approve('ai-route-confirmation-overlay');
     await expect(pending).resolves.toBe(true);
@@ -179,7 +179,7 @@ describe('AI transparency and route-aware approval', () => {
     expect(details.route).not.toContain('OpenAI');
     expect(details.scope).not.toBe('codex-agent');
     const pending = requestAIProcessingApproval('codex-agent', { kind: 'report', modelId: 'fixture-model' });
-    expect(document.querySelector('#cloud-ai-consent-overlay').textContent).toContain('cannot verify those external settings');
+    expect(document.querySelector('#cloud-ai-consent-overlay')!.textContent).toContain('cannot verify those external settings');
     approve('cloud-ai-consent-overlay');
     expect(await pending).toBe(true);
     expect(hasCloudAIConsent('codex-agent', { modelId: 'fixture-model' })).toBe(true);
@@ -215,12 +215,12 @@ describe('AI transparency and route-aware approval', () => {
     seedTransparency();
     const pending = requestAIProcessingApproval('openrouter');
     const { overlay } = decisionControls('cloud-ai-consent-overlay');
-    const hrefs = [...overlay.querySelectorAll('a')].map(link => link.href);
+    const hrefs = [...overlay!.querySelectorAll('a')].map(link => link.href);
     expect(hrefs).toContain('https://openrouter.ai/privacy');
     expect(hrefs).toContain('https://openrouter.ai/terms');
     expect(hrefs.some(href => href.includes('getbased.health'))).toBe(false);
-    expect(overlay.textContent).not.toContain('agree to OpenRouter');
-    decisionControls('cloud-ai-consent-overlay').cancel.click();
+    expect(overlay!.textContent).not.toContain('agree to OpenRouter');
+    decisionControls('cloud-ai-consent-overlay').cancel!.click();
     await expect(pending).resolves.toBe(false);
   });
 
@@ -234,15 +234,15 @@ describe('AI transparency and route-aware approval', () => {
     seedTransparency();
     const pending = requestAIProcessingApproval('openrouter');
     const { overlay } = decisionControls('cloud-ai-consent-overlay');
-    const hrefs = [...overlay.querySelectorAll('a')].map(link => link.href);
+    const hrefs = [...overlay!.querySelectorAll('a')].map(link => link.href);
     expect(hrefs).toEqual(expect.arrayContaining([
       'https://openrouter.ai/privacy',
       'https://openrouter.ai/terms',
       'https://getbased.health/privacy',
       'https://getbased.health/terms',
     ]));
-    expect(overlay.textContent).toContain('Supplementary getbased policies');
-    decisionControls('cloud-ai-consent-overlay').cancel.click();
+    expect(overlay!.textContent).toContain('Supplementary getbased policies');
+    decisionControls('cloud-ai-consent-overlay').cancel!.click();
     await pending;
   });
 
@@ -252,7 +252,7 @@ describe('AI transparency and route-aware approval', () => {
       origin: 'https://app.getbased.health',
       pathname: '/app',
     });
-    globalThis.GETBASED_DEPLOYMENT_CONFIG = {
+    (globalThis as {GETBASED_DEPLOYMENT_CONFIG?: unknown}).GETBASED_DEPLOYMENT_CONFIG = {
       aiProviders: {
         routstr: {
           label: 'Misleading static Routstr recipient',
@@ -274,20 +274,20 @@ describe('AI transparency and route-aware approval', () => {
 
     const pending = requestAIProcessingApproval('routstr');
     const { overlay } = decisionControls('cloud-ai-consent-overlay');
-    expect(overlay.textContent).toContain('Routstr is a decentralized protocol, not the recipient');
-    expect(overlay.textContent).toContain('node may publish no privacy policy or terms');
-    expect(overlay.textContent).toContain('getbased app policies (these do not govern the selected Routstr node)');
-    expect(overlay.textContent).not.toContain('Misleading static Routstr recipient');
-    expect([...overlay.querySelectorAll('a')].map(link => link.href)).toEqual([
+    expect(overlay!.textContent).toContain('Routstr is a decentralized protocol, not the recipient');
+    expect(overlay!.textContent).toContain('node may publish no privacy policy or terms');
+    expect(overlay!.textContent).toContain('getbased app policies (these do not govern the selected Routstr node)');
+    expect(overlay!.textContent).not.toContain('Misleading static Routstr recipient');
+    expect([...overlay!.querySelectorAll('a')].map(link => link.href)).toEqual([
       'https://getbased.health/privacy',
       'https://getbased.health/terms',
     ]);
-    decisionControls('cloud-ai-consent-overlay').cancel.click();
+    decisionControls('cloud-ai-consent-overlay').cancel!.click();
     await pending;
   });
 
   it('adds a configured independent deployment operator without replacing provider policies', async () => {
-    globalThis.GETBASED_DEPLOYMENT_CONFIG = {
+    (globalThis as {GETBASED_DEPLOYMENT_CONFIG?: unknown}).GETBASED_DEPLOYMENT_CONFIG = {
       operator: {
         name: 'Community Health Cooperative',
         privacyUrl: 'https://health.example/privacy',
@@ -297,14 +297,14 @@ describe('AI transparency and route-aware approval', () => {
     seedTransparency();
     const pending = requestAIProcessingApproval('openrouter');
     const { overlay } = decisionControls('cloud-ai-consent-overlay');
-    expect(overlay.textContent).toContain('Supplementary Community Health Cooperative policies');
-    expect([...overlay.querySelectorAll('a')].map(link => link.href)).toEqual([
+    expect(overlay!.textContent).toContain('Supplementary Community Health Cooperative policies');
+    expect([...overlay!.querySelectorAll('a')].map(link => link.href)).toEqual([
       'https://openrouter.ai/privacy',
       'https://openrouter.ai/terms',
       'https://health.example/privacy',
       'https://health.example/terms',
     ]);
-    decisionControls('cloud-ai-consent-overlay').cancel.click();
+    decisionControls('cloud-ai-consent-overlay').cancel!.click();
     await pending;
   });
 
@@ -313,8 +313,8 @@ describe('AI transparency and route-aware approval', () => {
     setCustomApiUrl('https://inference.example/v1');
     const pending = requestAIProcessingApproval('custom');
     const { overlay } = decisionControls('cloud-ai-consent-overlay');
-    expect(overlay.textContent).toContain('the custom API at https://inference.example');
-    expect([...overlay.querySelectorAll('a')]).toHaveLength(0);
+    expect(overlay!.textContent).toContain('the custom API at https://inference.example');
+    expect([...overlay!.querySelectorAll('a')]).toHaveLength(0);
     approve('cloud-ai-consent-overlay');
     await pending;
     expect(hasCloudAIConsent('custom')).toBe(true);
@@ -324,7 +324,7 @@ describe('AI transparency and route-aware approval', () => {
   });
 
   it('uses deployment-level recipient metadata for a managed custom endpoint', async () => {
-    globalThis.GETBASED_DEPLOYMENT_CONFIG = {
+    (globalThis as {GETBASED_DEPLOYMENT_CONFIG?: unknown}).GETBASED_DEPLOYMENT_CONFIG = {
       aiProviders: {
         custom: {
           label: 'Example Inference Cooperative',
@@ -337,12 +337,12 @@ describe('AI transparency and route-aware approval', () => {
     setCustomApiUrl('https://inference.example/v1');
     const pending = requestAIProcessingApproval('custom');
     const { overlay } = decisionControls('cloud-ai-consent-overlay');
-    expect(overlay.textContent).toContain('Example Inference Cooperative');
-    expect([...overlay.querySelectorAll('a')].map(link => link.href)).toEqual([
+    expect(overlay!.textContent).toContain('Example Inference Cooperative');
+    expect([...overlay!.querySelectorAll('a')].map(link => link.href)).toEqual([
       'https://inference.example/privacy',
       'https://inference.example/terms',
     ]);
-    decisionControls('cloud-ai-consent-overlay').cancel.click();
+    decisionControls('cloud-ai-consent-overlay').cancel!.click();
     await pending;
   });
 
@@ -350,19 +350,19 @@ describe('AI transparency and route-aware approval', () => {
     seedTransparency();
     const pending = requestAIProcessingApproval('ppq', { kind: 'automatic-insight' });
     const { overlay } = decisionControls('cloud-ai-consent-overlay');
-    expect(overlay.textContent).toContain('automatic AI insight after relevant profile or data changes');
-    expect(overlay.textContent).toContain('later requests to the same recipient');
+    expect(overlay!.textContent).toContain('automatic AI insight after relevant profile or data changes');
+    expect(overlay!.textContent).toContain('later requests to the same recipient');
     approve('cloud-ai-consent-overlay');
     await pending;
 
-    const stored = JSON.parse(localStorage.getItem(CLOUD_AI_CONSENT_KEY));
+    const stored = (JSON.parse as (text: unknown) => {version?: unknown;approvals: Record<string, {purpose: string}>})(localStorage.getItem(CLOUD_AI_CONSENT_KEY));
     expect(stored.version).toBe(CLOUD_AI_CONSENT_VERSION);
     expect(stored.approvals.ppq).toMatchObject({
       accepted: true,
       provider: 'ppq',
       recipient: 'PPQ',
     });
-    expect(stored.approvals.ppq.purpose).toContain('automatic insights');
+    expect(stored.approvals.ppq!.purpose).toContain('automatic insights');
     expect(hasCloudAIConsent('openrouter')).toBe(false);
   });
 
@@ -381,9 +381,9 @@ describe('AI transparency and route-aware approval', () => {
 
     const switched = requestAIProviderActivation('ppq');
     const { overlay } = decisionControls('cloud-ai-consent-overlay');
-    expect(overlay.textContent).toContain('PPQ');
-    expect(overlay.textContent).toContain('The connection check succeeded');
-    expect(overlay.textContent).not.toContain('AI-generated output may be incomplete');
+    expect(overlay!.textContent).toContain('PPQ');
+    expect(overlay!.textContent).toContain('The connection check succeeded');
+    expect(overlay!.textContent).not.toContain('AI-generated output may be incomplete');
     approve('cloud-ai-consent-overlay');
     await switched;
 
@@ -398,21 +398,21 @@ describe('AI transparency and route-aware approval', () => {
     const secondOpenRouter = requestAIProviderActivation('openrouter');
 
     let controls = decisionControls('cloud-ai-consent-overlay');
-    expect(controls.overlay.textContent).toContain('OpenRouter');
+    expect(controls.overlay!.textContent).toContain('OpenRouter');
     expect(document.querySelectorAll('.legal-consent-overlay')).toHaveLength(1);
     approve('cloud-ai-consent-overlay');
 
     await expect(Promise.all([firstOpenRouter, secondOpenRouter])).resolves.toEqual([true, true]);
     controls = decisionControls('cloud-ai-consent-overlay');
-    expect(controls.overlay.textContent).toContain('PPQ');
-    expect(controls.overlay.textContent).not.toContain('AI-generated output may be incomplete');
+    expect(controls.overlay!.textContent).toContain('PPQ');
+    expect(controls.overlay!.textContent).not.toContain('AI-generated output may be incomplete');
     expect(document.querySelectorAll('.legal-consent-overlay')).toHaveLength(1);
     approve('cloud-ai-consent-overlay');
 
     await expect(ppq).resolves.toBe(true);
     controls = decisionControls('cloud-ai-consent-overlay');
-    expect(controls.overlay.textContent).toContain('Venice');
-    expect(controls.overlay.textContent).not.toContain('AI-generated output may be incomplete');
+    expect(controls.overlay!.textContent).toContain('Venice');
+    expect(controls.overlay!.textContent).not.toContain('AI-generated output may be incomplete');
     expect(document.querySelectorAll('.legal-consent-overlay')).toHaveLength(1);
     approve('cloud-ai-consent-overlay');
 
@@ -426,7 +426,7 @@ describe('AI transparency and route-aware approval', () => {
   it('does not repeat a declined prompt for concurrent matching requests', async () => {
     const first = requestAIProviderActivation('openrouter');
     const second = requestAIProviderActivation('openrouter');
-    decisionControls('cloud-ai-consent-overlay').cancel.click();
+    decisionControls('cloud-ai-consent-overlay').cancel!.click();
 
     await expect(Promise.all([first, second])).resolves.toEqual([false, false]);
     expect(document.querySelectorAll('.legal-consent-overlay')).toHaveLength(0);
@@ -446,7 +446,7 @@ describe('AI transparency and route-aware approval', () => {
     expect(localStorage.getItem(CLOUD_AI_CONSENT_KEY)).toBeNull();
 
     const retry = requireCloudAIConsent('venice');
-    decisionControls('cloud-ai-consent-overlay').cancel.click();
+    decisionControls('cloud-ai-consent-overlay').cancel!.click();
     await expect(retry).rejects.toMatchObject({ name: 'CloudAIConsentDeclinedError' });
   });
 
@@ -459,7 +459,7 @@ describe('AI transparency and route-aware approval', () => {
       modelId: 'scribe_v2',
     });
     expect(globalThis.fetch).not.toHaveBeenCalled();
-    decisionControls('cloud-ai-consent-overlay').cancel.click();
+    decisionControls('cloud-ai-consent-overlay').cancel!.click();
     await expect(pending).rejects.toThrow('No request was sent');
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
@@ -470,7 +470,7 @@ describe('AI transparency and route-aware approval', () => {
     document.body.appendChild(trigger);
     trigger.focus();
     const pending = requestAIProcessingApproval('openrouter');
-    decisionControls('cloud-ai-consent-overlay').cancel.click();
+    decisionControls('cloud-ai-consent-overlay').cancel!.click();
     await pending;
     expect(document.activeElement).toBe(trigger);
   });

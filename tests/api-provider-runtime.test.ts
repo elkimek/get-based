@@ -1,5 +1,6 @@
 import { jsonResponse } from './helpers/http-responses.js';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import type {Mock} from 'vitest';
 import { createHash } from 'node:crypto';
 
 import { updateKeyCache } from '../js/crypto.js';
@@ -43,11 +44,11 @@ import { configureApiRuntimeCallbacks } from '../js/api-runtime.js';
 
 const realFetch = globalThis.fetch;
 const realLocation = globalThis.location;
-let previousApiRuntimeCallbacks;
+let previousApiRuntimeCallbacks: ReturnType<typeof configureApiRuntimeCallbacks>;
 
 
 
-function sha256Base64Url(value) {
+function sha256Base64Url(value: string) {
   return createHash('sha256').update(value).digest('base64url');
 }
 
@@ -66,14 +67,14 @@ beforeEach(() => {
   sessionStorage.clear();
   clearKeyCaches();
   globalThis.fetch = vi.fn();
-  globalThis.location = { origin: 'https://getbased.test', pathname: '/app' };
+  (globalThis as unknown as {location: {origin: string; pathname: string}}).location = { origin: 'https://getbased.test', pathname: '/app' };
   previousApiRuntimeCallbacks = configureApiRuntimeCallbacks({ showInsufficientBalanceDialog: () => false });
 });
 
 afterEach(() => {
   globalThis.fetch = realFetch;
   if (realLocation) globalThis.location = realLocation;
-  else delete globalThis.location;
+  else delete (globalThis as unknown as {location?: unknown}).location;
   clearKeyCaches();
   configureApiRuntimeCallbacks(previousApiRuntimeCallbacks);
   vi.restoreAllMocks();
@@ -91,13 +92,13 @@ describe('API provider runtime behavior', () => {
     const sol = { id: 'gpt-6-sol', name: 'GPT-6 Sol' };
     const astra = { id: 'gpt-6-astra', name: 'GPT-6 Astra' };
     const nano = { id: 'gpt-5.4-nano', name: 'GPT-5.4 Nano' };
-    fetch.mockResolvedValueOnce(jsonResponse({ data: [nano, sol, { ...astra, enabled: false }] }));
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({ data: [nano, sol, { ...astra, enabled: false }] }));
     const initial = await fetchPpqModels();
     expect(initial.map(model => model.id)).toContain(nano.id);
     expect(selectLatestRecommendedModels('ppq', initial)).toEqual([sol]);
     expect(getPpqModel()).toBe(sol.id);
 
-    fetch.mockResolvedValueOnce(jsonResponse({ data: [nano, sol, astra] }));
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({ data: [nano, sol, astra] }));
     const refreshed = await fetchPpqModels();
     expect(selectLatestRecommendedModels('ppq', refreshed)).toEqual([astra, sol]);
     expect(getPpqModel()).toBe(sol.id);
@@ -108,7 +109,7 @@ describe('API provider runtime behavior', () => {
     for (const fetchModels of [fetchPpqModels, fetchRoutstrModels]) {
       for (const prefix of ['', 'openai/']) {
         const astra = { id: prefix + 'gpt-6-astra', name: 'GPT-6 Astra', enabled: true };
-        fetch.mockResolvedValueOnce(jsonResponse({ data: [astra] }));
+        (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({ data: [astra] }));
         expect(await fetchModels()).toEqual([astra]);
       }
     }
@@ -154,16 +155,16 @@ describe('API provider runtime behavior', () => {
       ['openrouter', fetchOpenRouterModels, ['namespaced']],
       ['ppq', fetchPpqModels, ['bare', 'namespaced']],
       ['routstr', fetchRoutstrModels, ['bare', 'namespaced']],
-    ]) {
-      for (const format of prefixes) {
+    ] as const) {
+      for (const format of prefixes!) {
         localStorage.removeItem(`labcharts-${provider}-model`);
         const sol = { id: (format === 'namespaced' ? 'openai/' : '') + 'gpt-6-sol', enabled: true };
         const opus = { id: (format === 'namespaced' ? 'anthropic/' : '') + 'claude-opus-5.5', enabled: true };
         const oldSol = { id: (format === 'namespaced' ? 'openai/' : '') + 'gpt-5.6-sol', enabled: true };
         const unavailable = { ...opus, id: opus.id + '-20260922', enabled: false };
         const rows = [oldSol, unavailable, sol, opus];
-        fetch.mockResolvedValueOnce(jsonResponse({ data: rows }));
-        const models = await fetchModels();
+        (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({ data: rows }));
+        const models = await fetchModels!();
         expect(models).toEqual(expect.arrayContaining([sol, opus, oldSol]));
         expect(models).not.toContainEqual(unavailable);
         expect(selectLatestRecommendedModels(provider, models).map(model => model.id).sort())
@@ -171,8 +172,8 @@ describe('API provider runtime behavior', () => {
         expect(localStorage.getItem(`labcharts-${provider}-model`)).toBe(sol.id);
 
         localStorage.setItem(`labcharts-${provider}-model`, oldSol.id);
-        fetch.mockResolvedValueOnce(jsonResponse({ data: rows }));
-        await fetchModels();
+        (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({ data: rows }));
+        await fetchModels!();
         expect(localStorage.getItem(`labcharts-${provider}-model`)).toBe(oldSol.id);
       }
     }
@@ -195,16 +196,16 @@ describe('API provider runtime behavior', () => {
 
   it('restores valid regular choices and ignores stale per-mode keys when initializing defaults', async () => {
     localStorage.setItem('labcharts-routstr-node', 'https://node.example.com/');
-    for (const [provider, fetchModels] of [['ppq', fetchPpqModels], ['routstr', fetchRoutstrModels]]) {
+    for (const [provider, fetchModels] of [['ppq', fetchPpqModels], ['routstr', fetchRoutstrModels]] as const) {
       const models = ['claude-sonnet-4.6', 'gpt-6-sol', 'gpt-6-astra'].map(id => ({ id, enabled: true }));
       for (const [saved, expected] of [
         ['removed-model', 'gpt-6-astra'],
         ['gpt-6-sol', 'gpt-6-sol'],
-      ]) {
+      ] as const) {
         localStorage.removeItem(`labcharts-${provider}-model`);
         localStorage.setItem(`labcharts-${provider}-model-regular`, saved);
-        fetch.mockResolvedValueOnce(jsonResponse({ data: models }));
-        await fetchModels();
+        (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({ data: models }));
+        await fetchModels!();
         expect(localStorage.getItem(`labcharts-${provider}-model`)).toBe(expected);
       }
     }
@@ -213,7 +214,7 @@ describe('API provider runtime behavior', () => {
   it('filters OpenRouter models, caches pricing and vision metadata, and fetches fuzzy pricing', async () => {
     const catalogChanged = vi.fn();
     window.addEventListener('labcharts-ai-settings-local-changed', catalogChanged, { once: true });
-    fetch.mockResolvedValueOnce(jsonResponse({
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({
       data: [
         {
           id: 'openai/gpt-6-astra',
@@ -303,7 +304,7 @@ describe('API provider runtime behavior', () => {
       'moonshotai/kimi-k2.7-code',
       'qwen/qwen3.8-27b',
     ]);
-    expect(JSON.parse(localStorage.getItem('labcharts-openrouter-pricing'))).toMatchObject({
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-openrouter-pricing'))).toMatchObject({
       'anthropic/claude-fable-5.1': { input: 10, output: 50 },
       'anthropic/claude-sonnet-4.6': { input: 3, output: 15 },
       'anthropic/claude-sonnet-5': { input: 2, output: 10 },
@@ -313,16 +314,16 @@ describe('API provider runtime behavior', () => {
       'moonshotai/kimi-k3': { input: 3, output: 15 },
       'openai/gpt-6-astra': { input: 5, output: 30 },
     });
-    expect(JSON.parse(localStorage.getItem('labcharts-openrouter-pricing'))['qwen/qwen3.8-27b'].input).toBeCloseTo(0.4);
-    expect(JSON.parse(localStorage.getItem('labcharts-openrouter-pricing'))['qwen/qwen3.8-27b'].output).toBe(3);
-    expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('anthropic/claude-fable-5.1');
-    expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('anthropic/claude-sonnet-4.6');
-    expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('anthropic/claude-sonnet-5');
-    expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('google/gemini-3.5-flash');
-    expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('z-ai/glm-5.3-flash');
-    expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('moonshotai/kimi-k3');
-    expect(JSON.parse(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('qwen/qwen3.8-27b');
-    expect(JSON.parse(localStorage.getItem('labcharts-openrouter-models'))
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-openrouter-pricing'))['qwen/qwen3.8-27b']!.input).toBeCloseTo(0.4);
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-openrouter-pricing'))['qwen/qwen3.8-27b']!.output).toBe(3);
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('anthropic/claude-fable-5.1');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('anthropic/claude-sonnet-4.6');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('anthropic/claude-sonnet-5');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('google/gemini-3.5-flash');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('z-ai/glm-5.3-flash');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('moonshotai/kimi-k3');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-openrouter-vision-models'))).toContain('qwen/qwen3.8-27b');
+    expect((JSON.parse as (text: unknown) => {id?: unknown; reasoning?: unknown}[])(localStorage.getItem('labcharts-openrouter-models'))
       .find(model => model.id === 'google/gemini-3.5-flash')?.reasoning).toMatchObject({ mandatory: true });
     expect(localStorage.getItem('labcharts-openrouter-model')).toBe('openai/gpt-6-astra');
     expect(catalogChanged).toHaveBeenCalled();
@@ -331,14 +332,14 @@ describe('API provider runtime behavior', () => {
 
     localStorage.setItem('labcharts-openrouter-pricing', '{}');
     updateKeyCache('labcharts-openrouter-key', 'sk-or');
-    fetch.mockResolvedValueOnce(jsonResponse({
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({
       data: [
         { id: 'anthropic/claude-sonnet-4.6-20260101', pricing: { prompt: '0.000003', completion: '0.000015' } },
       ],
     }));
 
     await expect(fetchOpenRouterModelPricing('anthropic/claude-sonnet-4.6')).resolves.toEqual({ input: 3, output: 15 });
-    expect(JSON.parse(localStorage.getItem('labcharts-openrouter-pricing'))).toMatchObject({
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-openrouter-pricing'))).toMatchObject({
       'anthropic/claude-sonnet-4.6': { input: 3, output: 15 },
       'anthropic/claude-sonnet-4.6-20260101': { input: 3, output: 15 },
     });
@@ -346,7 +347,7 @@ describe('API provider runtime behavior', () => {
 
   it('filters Routstr and PPQ models and preserves provider-specific pricing semantics', async () => {
     localStorage.setItem('labcharts-routstr-node', 'https://node.example.com/');
-    fetch.mockResolvedValueOnce(jsonResponse({
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({
       data: [
         { id: 'llama-3.1-8b', name: 'Llama', enabled: true, pricing: { prompt: '0.000001', completion: '0.000002' } },
         { id: 'claude-sonnet-4.6', name: 'Claude', enabled: true, pricing: { prompt: '0.000003', completion: '0.000015' }, architecture: { input_modalities: ['text', 'image'] } },
@@ -368,22 +369,22 @@ describe('API provider runtime behavior', () => {
     expect(fetch).toHaveBeenCalledWith('https://node.example.com/v1/models');
     expect(routstrModels.map(m => m.id)).toEqual(['claude-sonnet-4.6', 'claude-sonnet-5', 'anthropic/claude-fable-5.1', 'z-ai/glm-5.3-flash', 'grok-41-fast', 'x-ai/grok-4.3', 'moonshotai/kimi-k3', 'llama-3.1-8b', 'qwen/qwen3.8-27b']);
     expect(localStorage.getItem('labcharts-routstr-model')).toBe('claude-sonnet-5');
-    expect(JSON.parse(localStorage.getItem('labcharts-routstr-pricing'))['claude-sonnet-4.6']).toEqual({ input: 3, output: 15 });
-    expect(JSON.parse(localStorage.getItem('labcharts-routstr-pricing'))['claude-sonnet-5']).toEqual({ input: 2, output: 10 });
-    expect(JSON.parse(localStorage.getItem('labcharts-routstr-pricing'))['anthropic/claude-fable-5.1']).toEqual({ input: 10, output: 50 });
-    expect(JSON.parse(localStorage.getItem('labcharts-routstr-pricing'))['z-ai/glm-5.3-flash']).toEqual({ input: 0.075, output: 0.25 });
-    expect(JSON.parse(localStorage.getItem('labcharts-routstr-pricing'))['x-ai/grok-4.3']).toEqual({ input: 3, output: 15 });
-    expect(JSON.parse(localStorage.getItem('labcharts-routstr-pricing'))['moonshotai/kimi-k3']).toEqual({ input: 3, output: 15 });
-    expect(JSON.parse(localStorage.getItem('labcharts-routstr-pricing'))['qwen/qwen3.8-27b'].input).toBeCloseTo(0.4);
-    expect(JSON.parse(localStorage.getItem('labcharts-routstr-pricing'))['qwen/qwen3.8-27b'].output).toBe(3);
-    expect(JSON.parse(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('claude-sonnet-4.6');
-    expect(JSON.parse(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('claude-sonnet-5');
-    expect(JSON.parse(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('anthropic/claude-fable-5.1');
-    expect(JSON.parse(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('z-ai/glm-5.3-flash');
-    expect(JSON.parse(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('moonshotai/kimi-k3');
-    expect(JSON.parse(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('qwen/qwen3.8-27b');
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-routstr-pricing'))['claude-sonnet-4.6']).toEqual({ input: 3, output: 15 });
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-routstr-pricing'))['claude-sonnet-5']).toEqual({ input: 2, output: 10 });
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-routstr-pricing'))['anthropic/claude-fable-5.1']).toEqual({ input: 10, output: 50 });
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-routstr-pricing'))['z-ai/glm-5.3-flash']).toEqual({ input: 0.075, output: 0.25 });
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-routstr-pricing'))['x-ai/grok-4.3']).toEqual({ input: 3, output: 15 });
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-routstr-pricing'))['moonshotai/kimi-k3']).toEqual({ input: 3, output: 15 });
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-routstr-pricing'))['qwen/qwen3.8-27b']!.input).toBeCloseTo(0.4);
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-routstr-pricing'))['qwen/qwen3.8-27b']!.output).toBe(3);
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('claude-sonnet-4.6');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('claude-sonnet-5');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('anthropic/claude-fable-5.1');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('z-ai/glm-5.3-flash');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('moonshotai/kimi-k3');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-routstr-vision-models'))).toContain('qwen/qwen3.8-27b');
 
-    fetch.mockResolvedValueOnce(jsonResponse({
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({
       data: [
         { id: 'perplexity/sonar', name: 'Sonar', pricing: { input_per_1M_tokens: '2', output_per_1M_tokens: '8' }, architecture: { modality: 'text->text' } },
         { id: 'claude-sonnet-4.6', name: 'Claude', pricing: { input_per_1M_tokens: '3', output_per_1M_tokens: '15' }, architecture: { modality: 'image->text' } },
@@ -404,27 +405,27 @@ describe('API provider runtime behavior', () => {
 
     expect(ppqModels.map(m => m.id)).toEqual(['claude-sonnet-4.6', 'claude-fable-5.1', 'claude-sonnet-5', 'google/gemini-3.5-flash', 'glm-5.3-flash', 'grok-4.20', 'x-ai/grok-4.3', 'moonshotai/kimi-k3', 'moonshotai/kimi-k2.7-code', 'qwen/qwen3.8-27b', 'perplexity/sonar']);
     expect(localStorage.getItem('labcharts-ppq-model')).toBe('claude-sonnet-5');
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-pricing'))['claude-sonnet-4.6']).toEqual({ input: 3, output: 15 });
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-pricing'))['claude-sonnet-5']).toEqual({ input: 2, output: 10 });
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-pricing'))['claude-fable-5.1']).toEqual({ input: 10, output: 50 });
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-pricing'))['google/gemini-3.5-flash']).toEqual({ input: 0.7, output: 3.75 });
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-pricing'))['glm-5.3-flash']).toEqual({ input: 0.08, output: 0.26 });
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-pricing'))['moonshotai/kimi-k2.7-code']).toEqual({ input: 0.56, output: 3.5 });
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-pricing'))['moonshotai/kimi-k3']).toEqual({ input: 3.165, output: 15.825 });
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-pricing'))['qwen/qwen3.8-27b']).toEqual({ input: 0.422, output: 3.165 });
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('claude-sonnet-4.6');
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('claude-sonnet-5');
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('claude-fable-5.1');
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('google/gemini-3.5-flash');
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('glm-5.3-flash');
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('moonshotai/kimi-k3');
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('qwen/qwen3.8-27b');
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['claude-sonnet-4.6']).toEqual({ input: 3, output: 15 });
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['claude-sonnet-5']).toEqual({ input: 2, output: 10 });
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['claude-fable-5.1']).toEqual({ input: 10, output: 50 });
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['google/gemini-3.5-flash']).toEqual({ input: 0.7, output: 3.75 });
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['glm-5.3-flash']).toEqual({ input: 0.08, output: 0.26 });
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['moonshotai/kimi-k2.7-code']).toEqual({ input: 0.56, output: 3.5 });
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['moonshotai/kimi-k3']).toEqual({ input: 3.165, output: 15.825 });
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))['qwen/qwen3.8-27b']).toEqual({ input: 0.422, output: 3.165 });
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('claude-sonnet-4.6');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('claude-sonnet-5');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('claude-fable-5.1');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('google/gemini-3.5-flash');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('glm-5.3-flash');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('moonshotai/kimi-k3');
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-ppq-vision-models'))).toContain('qwen/qwen3.8-27b');
   });
 
   it('uses GPT 5.5 then Claude as fetched defaults and GLM 5.2 for private modes', async () => {
     setCustomApiUrl('https://custom.example/v1');
     updateKeyCache('labcharts-custom-key', 'sk-custom');
-    fetch.mockResolvedValueOnce(jsonResponse({
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({
       data: [
         { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
         {
@@ -438,14 +439,14 @@ describe('API provider runtime behavior', () => {
     }));
     await fetchCustomApiModels('https://custom.example/v1', 'sk-custom');
     expect(getCustomApiModel()).toBe('openai/gpt-5.5');
-    expect(JSON.parse(localStorage.getItem('labcharts-custom-models'))
+    expect((JSON.parse as (text: unknown) => {id?: unknown; reasoning?: unknown}[])(localStorage.getItem('labcharts-custom-models'))
       .find(model => model.id === 'openai/gpt-5.5')).toMatchObject({
       reasoning: { supported_efforts: ['low', 'medium', 'high'], default_effort: 'medium' },
       supported_parameters: ['reasoning'],
     });
 
     setCustomApiModel('');
-    fetch.mockResolvedValueOnce(jsonResponse({
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({
       data: [
         { id: 'model-a', name: 'Model A' },
         { id: 'z-ai/glm-5.2', name: 'GLM 5.2' },
@@ -457,7 +458,7 @@ describe('API provider runtime behavior', () => {
 
     setVeniceE2EE(true);
     setVeniceModel('missing-e2ee-model');
-    fetch.mockResolvedValueOnce(jsonResponse({
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({
       data: [
         { id: 'e2ee-qwen3-5-122b-a10b', name: 'Qwen E2EE', type: 'text', model_spec: { capabilities: { supportsE2EE: true } } },
         { id: 'e2ee-glm-5-2-p', name: 'GLM 5.2 E2EE', type: 'text', model_spec: { capabilities: { supportsE2EE: true } } },
@@ -469,15 +470,15 @@ describe('API provider runtime behavior', () => {
     }));
     await fetchVeniceModels('venice-key');
     expect(getVeniceModel()).toBe('e2ee-glm-5-2-p');
-    expect(JSON.parse(localStorage.getItem('labcharts-venice-vision-models'))).toContain('z-ai-glm-5-3-flash');
-    expect(JSON.parse(localStorage.getItem('labcharts-venice-models')).map(model => model.id)).toEqual(expect.arrayContaining([
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-venice-vision-models'))).toContain('z-ai-glm-5-3-flash');
+    expect((JSON.parse as (text: unknown) => {id?: unknown; reasoning?: unknown}[])(localStorage.getItem('labcharts-venice-models')).map(model => model.id)).toEqual(expect.arrayContaining([
       'qwen3-vl-8b',
       'qwen3-vl-32b',
     ]));
 
     setPpqPrivateMode(true);
     setPpqModel('missing-private-model');
-    fetch.mockResolvedValueOnce(jsonResponse({
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({
       data: [
         { id: 'claude-sonnet-4.6', name: 'Claude', pricing: { input_per_1M_tokens: '3', output_per_1M_tokens: '15' } },
         { id: 'private/kimi-k2-6', name: 'Kimi K2.6 Private', pricing: { input_per_1M_tokens: '1.58', output_per_1M_tokens: '5.51' } },
@@ -492,7 +493,7 @@ describe('API provider runtime behavior', () => {
     setAIProvider('ppq');
     setPpqPrivateMode(true);
     setPpqModel('private/kimi-k3');
-    fetch.mockResolvedValueOnce(jsonResponse({
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({
       data: [
         { id: 'claude-sonnet-5', name: 'Claude Sonnet 5' },
         {
@@ -514,16 +515,16 @@ describe('API provider runtime behavior', () => {
       'private/future-tee-model',
       'private/kimi-k3',
     ]);
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-private-models'))
+    expect((JSON.parse as (text: unknown) => {id?: unknown; reasoning?: unknown}[])(localStorage.getItem('labcharts-ppq-private-models'))
       .map(model => model.id)).toEqual([
       'private/future-tee-model',
       'private/kimi-k3',
     ]);
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-pricing'))).toMatchObject({
+    expect((JSON.parse as (text: unknown) => Record<string, {input?: unknown; output?: unknown}>)(localStorage.getItem('labcharts-ppq-pricing'))).toMatchObject({
       'private/future-tee-model': { input: 1.25, output: 2.5 },
       'private/kimi-k3': { input: 4.22, output: 21.1 },
     });
-    expect(JSON.parse(localStorage.getItem('labcharts-ppq-private-vision-models')))
+    expect((JSON.parse as (text: unknown) => unknown)(localStorage.getItem('labcharts-ppq-private-vision-models')))
       .toContain('private/kimi-k3');
     expect(getPpqModel()).toBe('private/kimi-k3');
     expect(isRecommendedModel('ppq', 'private/kimi-k3')).toBe(true);
@@ -534,7 +535,7 @@ describe('API provider runtime behavior', () => {
   it('validates an explicit unsaved remote Custom API URL directly', async () => {
     setAIProvider('openrouter');
     setCustomApiUrl('http://localhost:11434/v1');
-    fetch
+    (fetch as Mock<typeof realFetch>)
       .mockResolvedValueOnce(jsonResponse({ data: [{ id: 'model-a', name: 'Model A' }] }))
       .mockResolvedValueOnce(jsonResponse({ ok: true }));
 
@@ -551,7 +552,7 @@ describe('API provider runtime behavior', () => {
   });
 
   it('explains when a Custom API does not allow browser-based inference', async () => {
-    fetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    (fetch as Mock<typeof realFetch>).mockRejectedValueOnce(new TypeError('Failed to fetch'));
 
     await expect(validateCustomApiKey('https://blocked.example/v1', 'sk-custom')).resolves.toEqual({
       valid: false,
@@ -564,7 +565,7 @@ describe('API provider runtime behavior', () => {
   });
 
   it('validates provider keys and reads balance endpoints defensively', async () => {
-    fetch
+    (fetch as Mock<typeof realFetch>)
       .mockResolvedValueOnce(new Response('', { status: 401 }))
       .mockResolvedValueOnce(new Response('', { status: 429 }))
       .mockRejectedValueOnce(new TypeError('offline'));
@@ -584,7 +585,7 @@ describe('API provider runtime behavior', () => {
     updateKeyCache('labcharts-venice-key', 'sk-venice');
     updateKeyCache('labcharts-ppq-key', 'sk-ppq');
     localStorage.setItem('labcharts-ppq-credit-id', 'credit-1');
-    fetch
+    (fetch as Mock<typeof realFetch>)
       .mockResolvedValueOnce(jsonResponse({ data: { total_credits: 20, total_usage: 7 } }))
       .mockResolvedValueOnce(new Response('{}', { status: 200, headers: { 'x-venice-balance-diem': '12.5' } }))
       .mockResolvedValueOnce(jsonResponse({ balance: { usd: 4.25 } }));
@@ -605,7 +606,7 @@ describe('API provider runtime behavior', () => {
 
     sessionStorage.setItem('or_pkce_verifier', 'verifier-b');
     sessionStorage.setItem('or_oauth_state', 'state-b');
-    fetch.mockResolvedValueOnce(jsonResponse({ key: 'sk-new' }));
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({ key: 'sk-new' }));
 
     await expect(exchangeOpenRouterCode('code-b', 'state-b')).resolves.toBe('sk-new');
     expect(fetch).toHaveBeenLastCalledWith('https://openrouter.ai/api/v1/auth/keys', expect.objectContaining({
@@ -616,7 +617,7 @@ describe('API provider runtime behavior', () => {
         'X-Title': 'getbased',
       }),
     }));
-    expect(JSON.parse(fetch.mock.calls.at(-1)[1].body)).toEqual({
+    expect((JSON.parse as (text: unknown) => Record<string, unknown>)((fetch as Mock<typeof realFetch>).mock.calls.at(-1)![1]!.body)).toEqual({
       code: 'code-b',
       code_verifier: 'verifier-b',
       code_challenge_method: 'S256',
@@ -626,10 +627,10 @@ describe('API provider runtime behavior', () => {
 
     sessionStorage.setItem('or_pkce_verifier', 'verifier-c');
     sessionStorage.setItem('or_oauth_state', `sha256:${sha256Base64Url('state-c')}`);
-    fetch.mockResolvedValueOnce(jsonResponse({ key: 'sk-hashed' }));
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({ key: 'sk-hashed' }));
 
     await expect(exchangeOpenRouterCode('code-c', 'state-c')).resolves.toBe('sk-hashed');
-    expect(JSON.parse(fetch.mock.calls.at(-1)[1].body)).toEqual({
+    expect((JSON.parse as (text: unknown) => Record<string, unknown>)((fetch as Mock<typeof realFetch>).mock.calls.at(-1)![1]!.body)).toEqual({
       code: 'code-c',
       code_verifier: 'verifier-c',
       code_challenge_method: 'S256',
@@ -641,7 +642,7 @@ describe('API provider runtime behavior', () => {
   it('builds OpenAI-compatible chat bodies and surfaces provider balance failures', async () => {
     updateKeyCache('labcharts-openrouter-key', 'sk-or');
     setOpenRouterModel('openai/gpt-5.5');
-    fetch.mockResolvedValueOnce(jsonResponse({
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({
       choices: [{ message: { content: 'answer' }, finish_reason: 'stop' }],
       usage: { prompt_tokens: 11, completion_tokens: 13 },
     }));
@@ -659,7 +660,7 @@ describe('API provider runtime behavior', () => {
       truncated: false,
     });
 
-    const requestBody = JSON.parse(fetch.mock.calls[0][1].body);
+    const requestBody = (JSON.parse as (text: unknown) => Record<string, unknown>)((fetch as Mock<typeof realFetch>).mock.calls[0]![1]!.body);
     expect(requestBody).toMatchObject({
       model: 'openai/gpt-5.5',
       max_completion_tokens: 42,
@@ -671,7 +672,7 @@ describe('API provider runtime behavior', () => {
     });
     expect(requestBody).not.toHaveProperty('max_tokens');
 
-    fetch.mockResolvedValueOnce(jsonResponse({
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({
       choices: [{ message: { content: '{"mealName":"Salad"}' }, finish_reason: 'stop' }],
       usage: { prompt_tokens: 7, completion_tokens: 4 },
     }));
@@ -687,7 +688,7 @@ describe('API provider runtime behavior', () => {
       forceNonStream: true,
       requestTimeoutMs: 50,
     })).resolves.toMatchObject({ text: '{"mealName":"Salad"}' });
-    const structuredBody = JSON.parse(fetch.mock.calls.at(-1)[1].body);
+    const structuredBody = (JSON.parse as (text: unknown) => Record<string, unknown>)((fetch as Mock<typeof realFetch>).mock.calls.at(-1)![1]!.body);
     expect(structuredBody.provider).toEqual({ require_parameters: true });
     expect(structuredBody.response_format).toMatchObject({
       type: 'json_schema',
@@ -695,7 +696,7 @@ describe('API provider runtime behavior', () => {
     });
 
     const onStream = vi.fn();
-    fetch.mockResolvedValueOnce(jsonResponse({
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({
       choices: [{ message: { content: 'forced json' }, finish_reason: 'stop' }],
       usage: { prompt_tokens: 2, completion_tokens: 3 },
     }));
@@ -710,14 +711,14 @@ describe('API provider runtime behavior', () => {
       finishReason: 'stop',
       truncated: false,
     });
-    const forcedBody = JSON.parse(fetch.mock.calls.at(-1)[1].body);
+    const forcedBody = (JSON.parse as (text: unknown) => Record<string, unknown>)((fetch as Mock<typeof realFetch>).mock.calls.at(-1)![1]!.body);
     expect(forcedBody).not.toHaveProperty('stream');
     expect(forcedBody).not.toHaveProperty('stream_options');
     expect(onStream).not.toHaveBeenCalled();
 
     const showInsufficientBalanceDialog = vi.fn();
     configureApiRuntimeCallbacks({ showInsufficientBalanceDialog });
-    fetch.mockResolvedValueOnce(new Response('{}', { status: 402 }));
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(new Response('{}', { status: 402 }));
     await expect(callOpenRouterAPI({
       messages: [{ role: 'user', content: 'hello again' }],
       requestTimeoutMs: 50,
@@ -735,7 +736,7 @@ describe('API provider runtime behavior', () => {
         mandatory: true,
       },
     }]));
-    fetch.mockResolvedValueOnce(jsonResponse({
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({
       choices: [{ message: { content: 'mandatory answer' }, finish_reason: 'stop' }],
     }));
 
@@ -745,13 +746,13 @@ describe('API provider runtime behavior', () => {
       reasoningEffort: 'none',
       requestTimeoutMs: 50,
     })).resolves.toMatchObject({ text: 'mandatory answer' });
-    expect(JSON.parse(fetch.mock.calls.at(-1)[1].body).reasoning).toEqual({ effort: 'minimal' });
+    expect((JSON.parse as (text: unknown) => Record<string, unknown>)((fetch as Mock<typeof realFetch>).mock.calls.at(-1)![1]!.body).reasoning).toEqual({ effort: 'minimal' });
 
     localStorage.removeItem('labcharts-openrouter-models');
-    fetch.mockResolvedValueOnce(jsonResponse({
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({
       error: { message: 'Reasoning is mandatory for this endpoint and cannot be disabled.' },
     }, { status: 400 }));
-    fetch.mockResolvedValueOnce(jsonResponse({
+    (fetch as Mock<typeof realFetch>).mockResolvedValueOnce(jsonResponse({
       choices: [{ message: { content: 'fallback answer' }, finish_reason: 'stop' }],
     }));
 
@@ -764,9 +765,9 @@ describe('API provider runtime behavior', () => {
       text: 'fallback answer',
       diagnostics: { reasoningControlFallback: true },
     });
-    const staleCacheBodies = fetch.mock.calls.slice(-2)
-      .map(([, init]) => JSON.parse(init.body));
-    expect(staleCacheBodies[0].reasoning).toEqual({ effort: 'none' });
+    const staleCacheBodies = (fetch as Mock<typeof realFetch>).mock.calls.slice(-2)
+      .map(([, init]) => (JSON.parse as (text: unknown) => Record<string, unknown>)(init!.body));
+    expect(staleCacheBodies[0]!.reasoning).toEqual({ effort: 'none' });
     expect(staleCacheBodies[1]).not.toHaveProperty('reasoning');
   });
 

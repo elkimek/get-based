@@ -50,14 +50,14 @@ describe('clear-all profile reset', () => {
 
     expect(marked).toEqual(['profile-a', 'profile-b']);
     for (const profileId of marked) {
-      expect(JSON.parse(localStorage.getItem(`labcharts-profile-delete-intent-${profileId}`)))
+      expect(JSON.parse(localStorage.getItem(`labcharts-profile-delete-intent-${profileId}`)!))
         .toMatchObject({ source: 'clear-all' });
     }
     expect(localStorage.getItem('labcharts-profile-delete-intent-../invalid')).toBeNull();
   });
 
   it('attempts every old relay profile even when one deletion fails', async () => {
-    const deleteProfileFromRelay = vi.fn(async profileId => {
+    const deleteProfileFromRelay = vi.fn(async (profileId: Parameters<NonNullable<Parameters<typeof propagateClearedProfilesToRelay>[1]>>[0]) => {
       if (profileId === 'profile-a') throw new Error('offline');
       return { ok: true };
     });

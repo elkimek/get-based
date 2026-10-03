@@ -1329,3 +1329,5 @@ deploy/profile-share/data/
 /playwright.pwa.config.js
 /vitest.config.js
 /vitest.critical.config.js
+
+/scripts/routstr-real-funds-canary.mjs

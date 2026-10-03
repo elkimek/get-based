@@ -18,7 +18,7 @@ afterEach(() => {
   if (savedWindow) {
     Object.defineProperty(globalThis, 'window', savedWindow);
   } else {
-    delete globalThis.window;
+    delete (globalThis as { window?: unknown }).window;
   }
 });
 
@@ -86,8 +86,9 @@ describe('api provider storage runtime adapter', () => {
 
   it('dispatches the local AI settings change event', () => {
     const dispatchEvent = vi.fn();
+    interface TestCustomEvent { type: string }
     class TestCustomEvent {
-      constructor(type) {
+      constructor(type: string) {
         this.type = type;
       }
     }
@@ -102,7 +103,7 @@ describe('api provider storage runtime adapter', () => {
       refreshWebSearchToggle: null,
       updateChatHeaderModel: null,
     });
-    delete globalThis.window;
+    delete (globalThis as { window?: unknown }).window;
 
     try {
       expect(refreshAIProviderSelectionRuntime()).toBe(false);

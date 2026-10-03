@@ -40,7 +40,8 @@ const { importDispatch } = await import('../js/pdf-import-progress.js');
 
 const { handleImportInputChange } = await import('../js/import-file-input.js');
 
-function importBuckets(overrides = {}) {
+type FileFixture = {name: string; slice: () => {text: () => Promise<string>}};
+function importBuckets(overrides: Partial<{jsonFiles: FileFixture[]; pdfFiles: FileFixture[]; imageFiles: FileFixture[]; dnaFiles: FileFixture[]; textFiles: FileFixture[]; cycleFiles: FileFixture[]; unsupportedCount: number}> = {}) {
   return {
     jsonFiles: [],
     pdfFiles: [],
@@ -53,20 +54,20 @@ function importBuckets(overrides = {}) {
   };
 }
 
-function makeInput(files) {
+function makeInput(files: FileFixture[]) {
   return { files, value: 'selected' };
 }
 
-function makeFile(name, header = '') {
+function makeFile(name: string, header = '') {
   return {
     name,
     slice: () => ({ text: async () => header }),
   };
 }
 
-async function runInput(files) {
+async function runInput(files: FileFixture[]) {
   const target = makeInput(files);
-  await handleImportInputChange({ target });
+  await (handleImportInputChange as unknown as (event: {target: ReturnType<typeof makeInput>}) => ReturnType<typeof handleImportInputChange>)({ target });
   return target;
 }
 
@@ -214,15 +215,15 @@ describe('file selection ownership', () => {
 it.each(['load', 'classify'])('rejects replacement data during %s without a profile switch', async boundary => {
   const { state } = await import('../js/state.js');
   vi.clearAllMocks();
-  state.currentProfile = 'origin'; state.importedData = {};
+  state.currentProfile = 'origin'; (state as unknown as {importedData: unknown}).importedData = {};
   const file = makeFile('cycle.csv');
   mocks.isDropZoneImportRunning.mockReturnValue(false);
   mocks.loadImportUI.mockImplementation(async () => {
-    if (boundary === 'load') state.importedData = {};
+    if (boundary === 'load') (state as unknown as {importedData: unknown}).importedData = {};
     return mocks.importModule;
   });
   mocks.importModule.classifyImportFiles.mockImplementation(async () => {
-    if (boundary === 'classify') state.importedData = {};
+    if (boundary === 'classify') (state as unknown as {importedData: unknown}).importedData = {};
     return importBuckets({ textFiles: [file] });
   });
   await runInput([file]);
@@ -241,23 +242,23 @@ it.each(['success', 'failure'])('preserves a newer file selection after older lo
   });
   mocks.importModule.classifyImportFiles.mockResolvedValue(importBuckets());
   try {
-    await handleImportInputChange({ target });
+    await (handleImportInputChange as unknown as (event: {target: ReturnType<typeof makeInput>}) => ReturnType<typeof handleImportInputChange>)({ target });
     expect(target.value).toBe('new selection');
     if (outcome === 'success') expect(mocks.importModule.classifyImportFiles).toHaveBeenCalledWith([original]);
   } finally { errors.mockRestore(); }
 });
 
 describe('mixed selection boundaries', () => {
-  let state;
+  let state: typeof import('../js/state.js').state;
   beforeEach(async () => {
     ({ state } = await import('../js/state.js'));
-    vi.resetAllMocks(); state.currentProfile = 'origin'; state.importedData = {};
+    vi.resetAllMocks(); state.currentProfile = 'origin'; (state as unknown as {importedData: unknown}).importedData = {};
     mocks.loadImportUI.mockResolvedValue(mocks.importModule);
     mocks.importModule.classifyImportFiles.mockResolvedValue(importBuckets());
   });
   it.each(['profile', 'data'])('rejects DNA header completion after %s replacement', async kind => {
     const file = { name: 'ancestry.txt', slice: () => ({ text: async () => {
-      if (kind === 'profile') state.currentProfile = 'other'; else state.importedData = {};
+      if (kind === 'profile') state.currentProfile = 'other'; else (state as unknown as {importedData: unknown}).importedData = {};
       return '#AncestryDNA';
     } }) };
     mocks.importModule.classifyImportFiles.mockResolvedValue(importBuckets({ dnaFiles: [file] }));
@@ -270,8 +271,8 @@ describe('mixed selection boundaries', () => {
     ['textFiles', 'handleTextFile'], ['imageFiles', 'handleImageFile'],
   ])('stops remaining %s and PDF work after profile navigation', async (bucket, handler) => {
     const files = [makeFile('first'), makeFile('second')], pdf = makeFile('last.pdf');
-    const fn = mocks[handler] || mocks.importModule[handler];
-    fn.mockImplementationOnce(async () => { state.currentProfile = 'other'; });
+    const fn = (mocks as unknown as Record<string, ReturnType<typeof vi.fn<(...args: unknown[]) => unknown>>>)[handler!] || (mocks.importModule as unknown as Record<string, ReturnType<typeof vi.fn<(...args: unknown[]) => unknown>>>)[handler!];
+    fn!.mockImplementationOnce(async () => { state.currentProfile = 'other'; });
     mocks.importModule.classifyImportFiles.mockResolvedValue(importBuckets({ [bucket]: files, pdfFiles: [pdf] }));
     await runInput([...files, pdf]);
     expect(fn).toHaveBeenCalledTimes(1);
@@ -279,7 +280,7 @@ describe('mixed selection boundaries', () => {
   });
   it('allows intentional same-profile JSON data replacement before the next file', async () => {
     const json = makeFile('profile.json'), text = makeFile('cycle.csv');
-    mocks.importDropZoneJSONFile.mockImplementationOnce(async () => { state.importedData = {}; });
+    mocks.importDropZoneJSONFile.mockImplementationOnce(async () => { (state as unknown as {importedData: unknown}).importedData = {}; });
     mocks.importModule.classifyImportFiles.mockResolvedValue(importBuckets({ jsonFiles: [json], textFiles: [text] }));
     await runInput([json, text]);
     expect(mocks.importModule.handleTextFile).toHaveBeenCalledExactlyOnceWith(text);
@@ -288,7 +289,7 @@ describe('mixed selection boundaries', () => {
     const target = makeInput([makeFile('bad.csv')]);
     mocks.importModule.classifyImportFiles.mockResolvedValue(importBuckets({ textFiles: target.files }));
     mocks.importModule.handleTextFile.mockImplementationOnce(async () => { target.value = 'new selection'; throw new Error('read failed'); });
-    await expect(handleImportInputChange({ target })).rejects.toThrow('read failed');
+    await expect((handleImportInputChange as unknown as (event: {target: ReturnType<typeof makeInput>}) => ReturnType<typeof handleImportInputChange>)({ target })).rejects.toThrow('read failed');
     expect(target.value).toBe('new selection');
     expect(importDispatch.busy).toBe(false);
   });
@@ -299,28 +300,28 @@ describe('overlapping picker invocations', () => {
     vi.resetAllMocks();
     mocks.isDropZoneImportRunning.mockImplementation(() => importDispatch.busy);
     const { state } = await import('../js/state.js');
-    state.currentProfile = 'origin'; state.importedData = {};
+    state.currentProfile = 'origin'; (state as unknown as {importedData: unknown}).importedData = {};
     mocks.loadImportUI.mockResolvedValue(mocks.importModule);
-    mocks.importModule.classifyImportFiles.mockImplementation(async files => importBuckets({ textFiles: files }));
+    mocks.importModule.classifyImportFiles.mockImplementation(async (files: FileFixture[]) => importBuckets({ textFiles: files }));
   });
   it.each(['load', 'classify', 'header', 'between-files'])('rejects a second selection during %s and unlocks afterwards', async boundary => {
-    let release, entered;
-    const pending = new Promise(resolve => { release = resolve; });
-    const started = new Promise(resolve => { entered = resolve; });
+    let release: (() => void) | undefined, entered: (() => void) | undefined;
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    const started = new Promise<void>(resolve => { entered = resolve; });
     const older = makeFile('older.csv'), newer = makeFile('newer.csv'), remaining = makeFile('remaining.csv');
-    if (boundary === 'load') mocks.loadImportUI.mockImplementationOnce(async () => { entered(); await pending; return mocks.importModule; });
-    if (boundary === 'classify') mocks.importModule.classifyImportFiles.mockImplementationOnce(async () => { entered(); await pending; return importBuckets({ textFiles: [older] }); });
+    if (boundary === 'load') mocks.loadImportUI.mockImplementationOnce(async () => { entered!(); await pending; return mocks.importModule; });
+    if (boundary === 'classify') mocks.importModule.classifyImportFiles.mockImplementationOnce(async () => { entered!(); await pending; return importBuckets({ textFiles: [older] }); });
     if (boundary === 'header') {
-      older.slice = () => ({ text: async () => { entered(); await pending; return '#AncestryDNA'; } });
+      older.slice = () => ({ text: async () => { entered!(); await pending; return '#AncestryDNA'; } });
       mocks.importModule.classifyImportFiles.mockResolvedValueOnce(importBuckets({ dnaFiles: [older] }));
     }
-    if (boundary === 'between-files') mocks.importModule.handleTextFile.mockImplementationOnce(async () => { entered(); await pending; });
+    if (boundary === 'between-files') mocks.importModule.handleTextFile.mockImplementationOnce(async () => { entered!(); await pending; });
     const oldTask = runInput(boundary === 'between-files' ? [older, remaining] : [older]);
     await started;
     expect(importDispatch.busy).toBe(true);
     expect((await runInput([newer])).value).toBe('');
     expect(mocks.loadImportUI).toHaveBeenCalledTimes(1);
-    release(); await oldTask;
+    release!(); await oldTask;
     expect(importDispatch.busy).toBe(false);
     expect(mocks.importModule.handleTextFile.mock.calls.map(([file]) => file.name))
       .toEqual(boundary === 'between-files' ? ['older.csv', 'remaining.csv'] : boundary === 'header' ? [] : ['older.csv']);

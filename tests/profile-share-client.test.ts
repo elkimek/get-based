@@ -24,12 +24,12 @@ function sampleExport(overrides = {}) {
   };
 }
 
-function replaceGlobal(name, value) {
+function replaceGlobal(name: string, value: unknown) {
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, name);
   Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
   return () => {
     if (descriptor) Object.defineProperty(globalThis, name, descriptor);
-    else delete globalThis[name];
+    else delete (globalThis as unknown as Record<string, unknown>)[name];
   };
 }
 
@@ -105,13 +105,13 @@ describe('profile share client-side validation', () => {
     const after = Date.now();
 
     expect(minimum.kdf.iterations).toBe(PROFILE_SHARE_MIN_KDF_ITERATIONS);
-    expect(Date.parse(minimum.expiresAt)).toBeGreaterThanOrEqual(before + 24 * 60 * 60 * 1000);
-    expect(Date.parse(minimum.expiresAt)).toBeLessThanOrEqual(after + 24 * 60 * 60 * 1000);
+    expect((Date.parse as (value: unknown) => number)(minimum.expiresAt)).toBeGreaterThanOrEqual(before + 24 * 60 * 60 * 1000);
+    expect((Date.parse as (value: unknown) => number)(minimum.expiresAt)).toBeLessThanOrEqual(after + 24 * 60 * 60 * 1000);
     expect(maximum.kdf.iterations).toBe(PROFILE_SHARE_KDF_ITERATIONS);
-    expect(Date.parse(maximum.expiresAt)).toBeGreaterThanOrEqual(
+    expect((Date.parse as (value: unknown) => number)(maximum.expiresAt)).toBeGreaterThanOrEqual(
       before + PROFILE_SHARE_MAX_DAYS * 24 * 60 * 60 * 1000,
     );
-    expect(Date.parse(maximum.expiresAt)).toBeLessThanOrEqual(
+    expect((Date.parse as (value: unknown) => number)(maximum.expiresAt)).toBeLessThanOrEqual(
       after + PROFILE_SHARE_MAX_DAYS * 24 * 60 * 60 * 1000,
     );
   }, 20_000);

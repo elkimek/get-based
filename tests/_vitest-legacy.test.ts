@@ -14,6 +14,8 @@
 
 import { it, expect, beforeEach } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
+import { sourcePath } from '../scripts/source-files.js';
+import { fileURLToPath } from 'node:url';
 
 // Capture the canonical globalThis.fetch at module-load time, BEFORE
 // any LEGACY_TEST has a chance to overwrite it. Some ported tests
@@ -253,14 +255,14 @@ const LEGACY_TESTS = [
 
 for (const path of LEGACY_TESTS) {
   it(path.replace('./', ''), async () => {
-    const fails = [];
+    const fails: string[] = [];
     const origLog = console.log;
     const origError = console.error;
     // Greptile P2.2: tests that buffer results and emit them with
     // `console.log(results.join('\n'))` send one multi-line arg.
     // Split on \n before FAIL-detection so each failing assertion
     // becomes its own entry, not a wedged blob.
-    function capture(args) {
+    function capture(args: readonly unknown[]) {
       const joined = args.map(a => typeof a === 'string' ? a : String(a)).join(' ');
       for (const line of joined.split('\n')) {
         if (line.includes('FAIL:') || line.startsWith('FAIL ')) fails.push(line);
@@ -268,7 +270,7 @@ for (const path of LEGACY_TESTS) {
     }
     console.log = (...args) => { capture(args); origLog(...args); };
     console.error = (...args) => { capture(args); origError(...args); };
-    let importError;
+    let importError: unknown;
     try {
       // NOTE: dynamic-import query-string cache-bust is silently ignored
       // by Vite/Vitest — verified empirically (same module reference
@@ -284,7 +286,7 @@ for (const path of LEGACY_TESTS) {
       // state.js's top-level side effects. Side effects in our legacy
       // files are idempotent, but a contributor writing a new test
       // that depends on freshly-loaded module state should be aware.
-      await import(path);
+      await import(sourcePath(fileURLToPath(new URL(path, import.meta.url))));
     } catch (e) {
       importError = e;
     } finally {
@@ -298,7 +300,7 @@ for (const path of LEGACY_TESTS) {
     // specifics, not just the exit-code message.
     if (importError) {
       if (fails.length > 0) {
-        throw new Error(`${importError.message}\n\nCaptured failures:\n  ${fails.join('\n  ')}`);
+        throw new Error(`${(importError as {message: unknown}).message}\n\nCaptured failures:\n  ${fails.join('\n  ')}`);
       }
       throw importError;
     }

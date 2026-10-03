@@ -132,11 +132,11 @@ const IMPLEMENTATION_OWNED_ACTION_FAMILIES = [
   },
 ];
 
-function source(relativePath) {
+function source(relativePath: string) {
   return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
 }
 
-function walkJavaScript(directory = JS_ROOT) {
+function walkJavaScript(directory = JS_ROOT): string[] {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
     const absolutePath = path.join(directory, entry.name);
     if (entry.isDirectory()) return walkJavaScript(absolutePath);
@@ -144,12 +144,12 @@ function walkJavaScript(directory = JS_ROOT) {
   });
 }
 
-function repoRelative(absolutePath) {
+function repoRelative(absolutePath: string) {
   return path.relative(ROOT, absolutePath).replaceAll(path.sep, '/');
 }
 
-function resolveDynamicTarget(fromFile, specifier) {
-  const cleanSpecifier = specifier.split(/[?#]/, 1)[0];
+function resolveDynamicTarget(fromFile: string, specifier: string) {
+  const cleanSpecifier = specifier.split(/[?#]/, 1)[0]!;
   return repoRelative(path.resolve(path.dirname(fromFile), cleanSpecifier));
 }
 
@@ -188,18 +188,18 @@ describe('lazy UI first-interaction ownership', () => {
       expect(['eager-action', 'eager-delegate', 'load-gated-render', 'route-gated-render'])
         .toContain(boundary.ownership);
 
-      const parsed = parseModuleSpecifiers(source(boundary.loader), boundary.loader);
+      const parsed = parseModuleSpecifiers(source(boundary.loader!), boundary.loader);
       const matchingImports = parsed.dependencies
         .filter(dependency => dependency.kind === 'dynamic')
         .filter(dependency => resolveDynamicTarget(
-          path.join(ROOT, boundary.loader),
+          path.join(ROOT, boundary.loader!),
           dependency.specifier,
         ) === boundary.implementation)
         .map(dependency => dependency.specifier);
 
       expect(matchingImports.some(specifier => specifier.includes('lazy-retry=1'))).toBe(true);
       expect(matchingImports.some(specifier => !specifier.includes('lazy-retry=1'))).toBe(true);
-      expect(source(boundary.coverage)).toContain('test(');
+      expect(source(boundary.coverage!)).toContain('test(');
     },
   );
 

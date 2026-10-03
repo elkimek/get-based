@@ -1,24 +1,30 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type {Mock} from 'vitest';
+
+type RawSupplementFixture = Record<string, unknown> & {id?: unknown};
+type ImportedRichFixture = Record<string, unknown> & {entries: {markers: unknown; sourceFiles?: unknown}[]; sleepRest: {issues?: unknown}; lightCircadian: {practices?: unknown}; menstrualCycle: {periods?: unknown}; emfAssessment: {assessments?: unknown}; biometrics: {weight?: unknown}; lightEnvironment: {rooms?: unknown}; lightDailyVerdicts: Record<string, unknown>; importSnapshots: {id?: unknown}[]};
+type ParsedRestoreFixture = Record<string, unknown> & {entries: {markers: unknown}[]; supplements: RawSupplementFixture[]; diet: {type?: unknown}};
+export type PreservedOriginalSaveParameter = {data: unknown};
 
 const runtime = vi.hoisted(() => ({
   clearDemoLoadingProfile: vi.fn(),
   encryptedGetItem: vi.fn(),
   encryptedSetItem: vi.fn(),
   getEncryptionEnabled: vi.fn(() => false),
-  getProfiles: vi.fn(() => [{ id: 'profile-1', name: 'Primary' }]),
+  getProfiles: vi.fn((): {id: string; name?: string}[] => [{ id: 'profile-1', name: 'Primary' }]),
   refreshImportRuntimeShell: vi.fn(async () => {}),
-  saveImportedData: vi.fn(),
+  saveImportedData: vi.fn<() => Promise<unknown>>(),
   onProfileSaved: vi.fn(),
-  saveImportedDataForProfile: vi.fn(async (profileId, importedData) => {
+  saveImportedDataForProfile: vi.fn<(profileId: string, importedData: unknown, options: {expectedData?: unknown}) => Promise<boolean>>(async (profileId, importedData) => {
     await runtime.encryptedSetItem(`${profileId}:imported`, JSON.stringify(importedData));
     return true;
   }),
   setSelectedNodeUrl: vi.fn(),
   showNotification: vi.fn(),
   showConfirmDialog: vi.fn(async () => true),
-  state: { currentProfile: 'profile-1', importedData: {} },
+  state: { currentProfile: 'profile-1', importedData: {} as Record<string, unknown> },
 }));
 
 vi.mock('../js/state.js', () => ({ state: runtime.state }));
@@ -38,7 +44,7 @@ vi.mock('../js/profile.js', () => ({
   getProfiles: runtime.getProfiles,
   loadProfile: vi.fn(async () => {}),
   migrateProfileData: vi.fn(),
-  profileStorageKey: (id, kind) => `${id}:${kind}`,
+  profileStorageKey: (id: unknown, kind: unknown) => `${id}:${kind}`,
   updateProfileMeta: vi.fn(async () => true),
 }));
 vi.mock('../js/crypto.js', () => ({
@@ -47,27 +53,27 @@ vi.mock('../js/crypto.js', () => ({
   getEncryptionEnabled: runtime.getEncryptionEnabled,
 }));
 vi.mock('../js/data-merge.js', () => ({
-  appendImportedArrayItem(data, field, item) {
+  appendImportedArrayItem(data: Record<string, unknown[]>, field: string, item: unknown) {
     if (!Array.isArray(data[field])) data[field] = [];
-    data[field].push(item);
+    data[field]!.push(item);
   },
   clearTombstone: vi.fn(),
-  ensureImportedArray(data, field) {
+  ensureImportedArray(data: Record<string, unknown[]>, field: string) {
     if (!Array.isArray(data[field])) data[field] = [];
     return data[field];
   },
-  replaceImportedArrayItem(data, field, index, item) {
-    data[field][index] = item;
+  replaceImportedArrayItem(data: Record<string, unknown[]>, field: string, index: number, item: unknown) {
+    data[field]![index] = item;
   },
-  sortImportedArray(data, field, compare) {
-    data[field].sort(compare);
+  sortImportedArray(data: Record<string, unknown[]>, field: string, compare: (a: unknown, b: unknown) => number) {
+    data[field]!.sort(compare);
   },
-  trimImportedArray(data, field, limit) {
-    data[field] = data[field].slice(-limit);
+  trimImportedArray(data: Record<string, unknown[]>, field: string, limit: number) {
+    data[field] = data[field]!.slice(-limit);
   },
 }));
 vi.mock('../js/lab-entry-mutations.js', () => ({
-  findOrCreateLabEntry(data, date) {
+  findOrCreateLabEntry(data: {entries: {date: unknown; markers: Record<string, unknown>}[]}, date: unknown) {
     let entry = data.entries.find(item => item.date === date);
     if (!entry) {
       entry = { date, markers: {} };
@@ -136,25 +142,25 @@ describe('JSON restore runtime', () => {
   });
 
   it('keeps chat restoration bound to the origin when navigation occurs during save', async () => {
-    let release;
+    let release: ((value: unknown) => void) | undefined;
     runtime.saveImportedData.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
     const pending = importDataJSON(new File([JSON.stringify({entries:[],chat:{threads:[],messages:{},personality:'portable'}})], 'origin.json'));
     await vi.waitFor(() => expect(release).toBeTypeOf('function'));
     runtime.state.currentProfile = 'destination';
     runtime.state.importedData = {entries:[],notes:[{text:'Destination'}]};
-    release(true); await pending;
+    release!(true); await pending;
     expect(localStorage.getItem('labcharts-destination-chatPersonality')).toBeNull();
     expect(localStorage.getItem('labcharts-profile-1-chatPersonality')).toBe('portable');
     expect(runtime.refreshImportRuntimeShell).not.toHaveBeenCalled();
   });
   it.each([false, 'reject'])('does not roll back replacement data after a failed save (%s)', async failure => {
-    let release, reject;
+    let release: ((value: unknown) => void) | undefined, reject: ((reason?: unknown) => void) | undefined;
     runtime.saveImportedData.mockImplementationOnce(() => new Promise((resolve, fail) => { release = resolve; reject = fail; }));
     const pending = importDataJSON(new File([JSON.stringify({entries:[{date:'2026-01-10',markers:{glucose:120}}]})], 'failed.json'));
     await vi.waitFor(() => expect(release).toBeTypeOf('function'));
     const replacement = {entries:[],notes:[{text:'Newly loaded data'}]};
     runtime.state.importedData = replacement;
-    if (failure === 'reject') reject(new Error('Storage failed')); else release(false);
+    if (failure === 'reject') reject!(new Error('Storage failed')); else release!(false);
     await pending;
     expect(runtime.state.importedData).toEqual({entries:[],notes:[{text:'Newly loaded data'}]});
     expect(runtime.showNotification.mock.calls.some(([,kind]) => kind === 'success')).toBe(false);
@@ -186,7 +192,7 @@ describe('JSON restore runtime', () => {
     await importDataJSON(new File([JSON.stringify(backup)], 'persona-only.json', { type: 'application/json' }));
 
     expect(localStorage.getItem('labcharts-profile-1-chatPersonality')).toBe('custom_portable');
-    expect(JSON.parse(localStorage.getItem('labcharts-profile-1-chatPersonalityCustom')))
+    expect((JSON.parse as (text: string | null) => unknown)(localStorage.getItem('labcharts-profile-1-chatPersonalityCustom')))
       .toEqual([expect.objectContaining({
         id: 'custom_portable',
         promptText: 'Use a calm systems-thinking style.',
@@ -206,10 +212,10 @@ describe('JSON restore runtime', () => {
       await runtime.encryptedSetItem(`${profileId}:imported`, JSON.stringify(importedData));
       return true;
     });
-    updateProfileMeta.mockImplementationOnce(async () => {
+    (updateProfileMeta as unknown as Mock<() => Promise<boolean>>).mockImplementationOnce(async () => {
       expect(localStorage.getItem('labcharts-profile-delete-intent-profile-1')).toBeNull();
       expect(localStorage.getItem('labcharts-tombstone-pending-profile-1')).toBeNull();
-      expect(JSON.parse(localStorage.getItem('profile-1:imported')).diet.type).toBe('whole-food');
+      expect((JSON.parse as (text: string | null) => ParsedRestoreFixture)(localStorage.getItem('profile-1:imported')).diet.type).toBe('whole-food');
       return true;
     });
     const backup = {
@@ -230,7 +236,7 @@ describe('JSON restore runtime', () => {
       expect.objectContaining({ diet: { type: 'whole-food' } }),
       { forceProfileScope: true, expectedData: null, skipSync: true },
     );
-    expect(JSON.parse(localStorage.getItem('profile-1:imported')))
+    expect((JSON.parse as (text: string | null) => unknown)(localStorage.getItem('profile-1:imported')))
       .toMatchObject({ diet: { type: 'whole-food' } });
   });
 
@@ -243,25 +249,25 @@ describe('JSON restore runtime', () => {
     localStorage.setItem('labcharts-profile-delete-intent-profile-2', '{"at":1}');
     localStorage.setItem('labcharts-tombstone-pending-profile-2', '{"at":2}');
     const latest = structuredClone(before);
-    latest.entries[0].markers.hba1c = 5;
-    latest.supplements[0].dosage = '2000 mg';
+    (latest.entries[0]!.markers as Record<string, unknown>).hba1c = 5;
+    latest.supplements[0]!.dosage = '2000 mg';
     runtime.saveImportedDataForProfile.mockImplementationOnce(async (id, data) => {
       localStorage.setItem(`${id}:imported`, JSON.stringify(data));
       localStorage.setItem('profile-2:imported', JSON.stringify(latest));
       return true;
-    }).mockImplementationOnce(async (id, data, options) => {
+    }).mockImplementationOnce(async (id: string, data: PreservedOriginalSaveParameter['data'], options: {expectedData?: unknown; preservedData?: typeof data}) => {
       expect(options.expectedData).toBe(JSON.stringify(before));
       return localStorage.getItem(`${id}:imported`) === options.expectedData;
     });
     const backup = { type: 'database', profiles: profiles.map(p => ({ ...p,
       data: { entries: [{ date: '2026-01-01', markers: { insulin: 6 } }] } })) };
     await importDataJSON(new File([JSON.stringify(backup)], 'concurrent.json'));
-    const restored = JSON.parse(localStorage.getItem('profile-2:imported'));
-    expect(restored.entries[0].markers).toEqual({ glucose: 90, hba1c: 5 });
+    const restored = (JSON.parse as (text: string | null) => ParsedRestoreFixture)(localStorage.getItem('profile-2:imported'));
+    expect(restored.entries[0]!.markers).toEqual({ glucose: 90, hba1c: 5 });
     expect(restored.supplements).toEqual(latest.supplements);
     const { updateProfileMeta } = await import('../js/profile.js');
     expect(updateProfileMeta).toHaveBeenCalledExactlyOnceWith('profile-1', { name: 'Primary' });
-    expect(runtime.onProfileSaved).toHaveBeenCalledExactlyOnceWith('profile-1', JSON.parse(localStorage.getItem('profile-1:imported')));
+    expect(runtime.onProfileSaved).toHaveBeenCalledExactlyOnceWith('profile-1', (JSON.parse as (text: string | null) => unknown)(localStorage.getItem('profile-1:imported')));
     expect(localStorage.getItem('labcharts-profile-delete-intent-profile-2')).toBe('{"at":1}');
     expect(localStorage.getItem('labcharts-tombstone-pending-profile-2')).toBe('{"at":2}');
     expect(runtime.showNotification).toHaveBeenLastCalledWith(expect.stringContaining('Saved profiles: 1. Import stopped'), 'error');
@@ -280,12 +286,12 @@ describe('JSON restore runtime', () => {
 
   it.each(['reject', 'false'])('queues committed restore data when metadata saving fails (%s)', async failure => {
     const { updateProfileMeta } = await import('../js/profile.js');
-    if (failure === 'reject') updateProfileMeta.mockRejectedValueOnce(new Error('Storage full'));
-    else updateProfileMeta.mockResolvedValueOnce(false);
+    if (failure === 'reject') (updateProfileMeta as unknown as Mock<() => Promise<boolean>>).mockRejectedValueOnce(new Error('Storage full'));
+    else (updateProfileMeta as unknown as Mock<() => Promise<boolean>>).mockResolvedValueOnce(false);
     localStorage.setItem('labcharts-profile-delete-intent-profile-1', '{"at":1}');
     const backup = { type: 'database', profiles: [{ id: 'profile-1', name: 'Renamed', data: { diet: { type: 'restored' } } }] };
     await importDataJSON(new File([JSON.stringify(backup)], 'metadata-failure.json'));
-    const committed = JSON.parse(localStorage.getItem('profile-1:imported'));
+    const committed = (JSON.parse as (text: string | null) => ParsedRestoreFixture)(localStorage.getItem('profile-1:imported'));
     expect(committed.diet.type).toBe('restored');
     expect(runtime.onProfileSaved).toHaveBeenCalledExactlyOnceWith('profile-1', committed);
     expect(localStorage.getItem('labcharts-profile-delete-intent-profile-1')).toBeNull();
@@ -297,7 +303,7 @@ describe('JSON restore runtime', () => {
     localStorage.setItem('profile-1:imported', JSON.stringify({ [field]: { saved: { unit: 'mg' } } }));
     const backup = { type: 'database', profiles: [{ id: 'profile-1', data: { [field]: { saved: { unit: 'g' }, added: { unit: 'mmol/L' } } } }] };
     await importDataJSON(new File([JSON.stringify(backup)], 'definitions.json'));
-    expect(JSON.parse(localStorage.getItem('profile-1:imported'))[field]).toEqual({ saved: { unit: 'mg' }, added: { unit: 'mmol/L' } });
+    expect((JSON.parse as (text: string | null) => Record<string, unknown>)(localStorage.getItem('profile-1:imported'))[field]).toEqual({ saved: { unit: 'mg' }, added: { unit: 'mmol/L' } });
   });
 
   it('restores Biology Score insights from JSON and keeps newer local interpretations', async () => {
@@ -307,8 +313,8 @@ describe('JSON restore runtime', () => {
       metabolicFlexibility: { text: 'Saved full explanation', summary: 'Saved short insight.', materialFingerprint: 'evidence', updatedAt: 30 },
     } };
     await importDataJSON(new File([JSON.stringify(backup)], 'biology.json', { type: 'application/json' }));
-    expect(runtime.state.importedData.biologyScoreAI.thyroidCoherence.text).toBe('New local explanation');
-    expect(runtime.state.importedData.biologyScoreAI.metabolicFlexibility).toEqual(backup.biologyScoreAI.metabolicFlexibility);
+    expect((runtime.state.importedData.biologyScoreAI as Record<string, {text?: unknown}>).thyroidCoherence!.text).toBe('New local explanation');
+    expect((runtime.state.importedData.biologyScoreAI as Record<string, {text?: unknown}>).metabolicFlexibility).toEqual(backup.biologyScoreAI.metabolicFlexibility);
   });
 
   it('merges a rich backup without duplicating same-date or stable-id data', async () => {
@@ -480,14 +486,14 @@ describe('JSON restore runtime', () => {
     );
     await importDataJSON(file);
 
-    const imported = runtime.state.importedData;
+    const imported = runtime.state.importedData as ImportedRichFixture;
     expect(imported.entries).toHaveLength(1);
-    expect(imported.entries[0].markers).toEqual({
+    expect(imported.entries[0]!.markers).toEqual({
       glucose: 90,
       insulin: 5,
       triglycerides: 80,
     });
-    expect(imported.entries[0].sourceFiles).toEqual(['panel-a.pdf', 'panel-b.pdf']);
+    expect(imported.entries[0]!.sourceFiles).toEqual(['panel-a.pdf', 'panel-b.pdf']);
     expect(imported.sleepRest.issues).toEqual(['restless sleep']);
     expect(imported.lightCircadian.practices).toEqual(['blue light blockers']);
     expect(imported.healthGoals).toHaveLength(2);
@@ -522,11 +528,11 @@ describe('JSON restore runtime', () => {
       'snap-existing',
       'snap-new',
     ]);
-    expect(JSON.parse(localStorage.getItem('labcharts-profile-1-chat-threads'))).toHaveLength(2);
-    const restoredMessages = JSON.parse(localStorage.getItem('labcharts-profile-1-chat-t_thread-new'));
-    expect(restoredMessages[0].thumbnails).toEqual([]);
-    expect(restoredMessages[0].imageCount).toBe(0);
-    expect(JSON.parse(localStorage.getItem('labcharts-profile-1-chatPersonalityCustom'))[0])
+    expect((JSON.parse as (text: string | null) => unknown)(localStorage.getItem('labcharts-profile-1-chat-threads'))).toHaveLength(2);
+    const restoredMessages = (JSON.parse as (text: string | null) => Record<string, unknown>[])(localStorage.getItem('labcharts-profile-1-chat-t_thread-new'));
+    expect(restoredMessages[0]!.thumbnails).toEqual([]);
+    expect(restoredMessages[0]!.imageCount).toBe(0);
+    expect((JSON.parse as (text: string | null) => unknown[])(localStorage.getItem('labcharts-profile-1-chatPersonalityCustom'))[0])
       .toMatchObject({
         id: 'custom_coach',
         icon: 'img src=x onerror=window.__chatXss=1',
@@ -549,10 +555,10 @@ describe('JSON restore runtime', () => {
       servingSize: { value: 1, unit: 'scoop' }, importProvenance: { reviewed: true }, futureField: { keep: true },
     };
     await importDataJSON(new File([JSON.stringify({ version: 2, entries: [{ date: '2026-05-22', markers: { 'biochemistry.glucose': 4.56 } }], supplements: [tmg] })], 'regimen.json'));
-    const imported = runtime.state.importedData.supplements.find(s => s.id === tmg.id);
+    const imported = (runtime.state.importedData as {supplements: RawSupplementFixture[]}).supplements.find(s => s.id === tmg.id);
     expect(imported).toEqual(tmg);
     const { prepareTherapyHistory, therapyExposure } = await import('../js/therapy-correlations.js');
-    const history = prepareTherapyHistory(imported, '2026-09-28');
+    const history = (prepareTherapyHistory as (input: unknown, date: Parameters<typeof prepareTherapyHistory>[1]) => ReturnType<typeof prepareTherapyHistory>)(imported, '2026-09-28');
     expect(history.currentDoses[0]).toMatchObject({ value: 500, confirmedSince: '2026-03-24' });
     expect(therapyExposure(history, '2026-09-28')).toMatchObject({ value: 500, usage: 1 });
   });
@@ -560,7 +566,7 @@ describe('JSON restore runtime', () => {
   it.each(['profile', 'database'])('restores updated regimens by stable identity in a %s import', async format => {
     const saved = { id: 'stable-id', name: 'Original', startDate: '2026-01-01', periods: [{ start: '2026-01-01', end: null }] };
     const unrelated = { ...saved, id: 'unrelated', name: 'Keep me' };
-    runtime.state.importedData.supplements = [saved, unrelated];
+    (runtime.state.importedData as {supplements: RawSupplementFixture[]}).supplements = [saved, unrelated];
     localStorage.setItem('profile-1:imported', JSON.stringify(runtime.state.importedData));
     const edited = { ...saved, name: 'Renamed', startDate: '2026-02-01', sourceUrl: 'javascript:alert(1)',
       periods: [{ start: '2026-02-01', end: '2026-03-01', dose: '500 mg' }, { start: '2026-03-02', end: null, dose: '2000 mg' }] };
@@ -568,10 +574,10 @@ describe('JSON restore runtime', () => {
     const data = { entries: [{ date: '2026-05-22', markers: { 'biochemistry.glucose': 4.56 } }], supplements: [edited, added, { ...added, name: 'Latest name' }] };
     const backup = format === 'profile' ? data : { type: 'database', profiles: [{ id: 'profile-1', name: 'Primary', data }] };
     await importDataJSON(new File([JSON.stringify(backup)], 'identities.json'));
-    const records = format === 'profile' ? runtime.state.importedData.supplements : JSON.parse(localStorage.getItem('profile-1:imported')).supplements;
+    const records = format === 'profile' ? (runtime.state.importedData as {supplements: RawSupplementFixture[]}).supplements : (JSON.parse as (text: string | null) => {supplements: RawSupplementFixture[]})(localStorage.getItem('profile-1:imported')).supplements;
     expect(records).toHaveLength(3);
     expect(records[0]).toMatchObject({ id: saved.id, name: edited.name, startDate: edited.startDate, periods: edited.periods });
-    expect(records[0].sourceUrl).toBeUndefined();
+    expect(records[0]!.sourceUrl).toBeUndefined();
     expect(records[1]).toEqual(unrelated);
     expect(records[2]).toMatchObject({ id: 'new-id', name: 'Latest name', periods: edited.periods });
   });
@@ -581,13 +587,13 @@ describe('JSON restore runtime', () => {
       periods: [{ start: '2026-03-24', end: null, dose: '500 mg', schedule: { mode: 'daily' } }],
       ingredients: [{ name: 'TMG', amount: '500 mg' }], schedule: { mode: 'daily' },
       lifecycle: { state: 'active' }, sourceUrl: 'https://example.test/tmg', futureField: { keep: true } };
-    runtime.state.importedData.supplements = [saved];
+    (runtime.state.importedData as {supplements: RawSupplementFixture[]}).supplements = [saved];
     localStorage.setItem('profile-1:imported', JSON.stringify(runtime.state.importedData));
-    async function restore(record) {
+    async function restore(record: unknown) {
       const data = { entries: [{ date: '2026-05-22', markers: { glucose: 90 } }], supplements: [record] };
       const backup = format === 'profile' ? data : { type: 'database', profiles: [{ id: 'profile-1', name: 'Primary', data }] };
       await importDataJSON(new File([JSON.stringify(backup)], 'partial.json'));
-      return format === 'profile' ? runtime.state.importedData.supplements : JSON.parse(localStorage.getItem('profile-1:imported')).supplements;
+      return format === 'profile' ? (runtime.state.importedData as {supplements: RawSupplementFixture[]}).supplements : (JSON.parse as (text: string | null) => {supplements: RawSupplementFixture[]})(localStorage.getItem('profile-1:imported')).supplements;
     }
     const incoming = { id: saved.id, name: 'Updated TMG', startDate: saved.startDate,
       updatedAt: 100, periods: [{ start: saved.startDate, end: null, dose: '2000 mg' }] };
@@ -596,20 +602,20 @@ describe('JSON restore runtime', () => {
     expect(runtime.showConfirmDialog).toHaveBeenCalledWith(expect.stringContaining('remove omitted fields'), expect.objectContaining({ confirmLabel: 'Use imported', cancelLabel: 'Keep saved' }));
     const applied = await restore(incoming);
     expect(applied).toEqual([{ dosage: '', endDate: null, type: 'supplement', note: '', ...incoming }]);
-    expect(applied[0].ingredients).toBeUndefined();
-    expect(applied[0].sourceUrl).toBeUndefined();
+    expect(applied[0]!.ingredients).toBeUndefined();
+    expect(applied[0]!.sourceUrl).toBeUndefined();
     const undated = { id: saved.id, name: incoming.name, startDate: saved.startDate, periods: saved.periods };
-    expect((await restore(undated))[0].periods).toEqual(saved.periods);
+    expect((await restore(undated))[0]!.periods).toEqual(saved.periods);
   });
 
   it('aborts a profile import if data changes while resolving regimen conflicts', async () => {
-    runtime.state.importedData.supplements = [{ id: 'stable', name: 'TMG', startDate: '2026-03-24' }];
+    (runtime.state.importedData as {supplements: RawSupplementFixture[]}).supplements = [{ id: 'stable', name: 'TMG', startDate: '2026-03-24' }];
     runtime.showConfirmDialog.mockImplementationOnce(async () => {
-      runtime.state.importedData.supplements[0].note = 'Concurrent edit';
+      (runtime.state.importedData as {supplements: RawSupplementFixture[]}).supplements[0]!.note = 'Concurrent edit';
       return true;
     });
     await importDataJSON(new File([JSON.stringify({ entries: [], supplements: [{ id: 'stable', name: 'Changed', startDate: '2026-03-24' }] })], 'conflict.json'));
-    expect(runtime.state.importedData.supplements[0]).toMatchObject({ name: 'TMG', note: 'Concurrent edit' });
+    expect((runtime.state.importedData as {supplements: RawSupplementFixture[]}).supplements[0]).toMatchObject({ name: 'TMG', note: 'Concurrent edit' });
     expect(runtime.saveImportedData).not.toHaveBeenCalled();
   });
 
@@ -622,7 +628,7 @@ describe('JSON restore runtime', () => {
     });
     await importDataJSON(new File([JSON.stringify({ type: 'database', profiles: [{ id: 'profile-1', data: { supplements: [{ ...saved.supplements[0], name: 'Changed' }] } }] })], 'bundle.json'));
     expect(runtime.saveImportedDataForProfile).not.toHaveBeenCalled();
-    expect(JSON.parse(localStorage.getItem('profile-1:imported'))).toEqual({ ...saved, note: 'Concurrent edit' });
+    expect((JSON.parse as (text: string | null) => unknown)(localStorage.getItem('profile-1:imported'))).toEqual({ ...saved, note: 'Concurrent edit' });
   });
 
   it('preflights every bundle conflict before saving or updating any profile', async () => {
@@ -641,8 +647,8 @@ describe('JSON restore runtime', () => {
     const { updateProfileMeta, createProfile } = await import('../js/profile.js');
     expect(updateProfileMeta).not.toHaveBeenCalled();
     expect(createProfile).not.toHaveBeenCalled();
-    expect(JSON.parse(localStorage.getItem('profile-1:imported'))).toEqual(first);
-    expect(JSON.parse(localStorage.getItem('profile-2:imported'))).toEqual({ ...second, note: 'Concurrent change' });
+    expect((JSON.parse as (text: string | null) => unknown)(localStorage.getItem('profile-1:imported'))).toEqual(first);
+    expect((JSON.parse as (text: string | null) => unknown)(localStorage.getItem('profile-2:imported'))).toEqual({ ...second, note: 'Concurrent change' });
   });
 
   it('keeps an unlinked daily regimen intact without inventing historical dose dates', async () => {
@@ -651,13 +657,13 @@ describe('JSON restore runtime', () => {
       sourceUrl: 'javascript:alert(1)',
     };
     await importDataJSON(new File([JSON.stringify({ entries: [{ date: '2026-05-22', markers: { 'biochemistry.glucose': 4.56 } }], supplements: [tmg] })], 'unlinked.json'));
-    const imported = runtime.state.importedData.supplements.find(s => s.id === tmg.id);
-    expect(imported.timesPerDay).toBe(1);
-    expect(imported.periods).toEqual(tmg.periods);
-    expect(imported.sourceUrl).toBeUndefined();
+    const imported = (runtime.state.importedData as {supplements: RawSupplementFixture[]}).supplements.find(s => s.id === tmg.id);
+    expect(imported!.timesPerDay).toBe(1);
+    expect(imported!.periods).toEqual(tmg.periods);
+    expect(imported!.sourceUrl).toBeUndefined();
     const { prepareTherapyHistory, therapyExposure } = await import('../js/therapy-correlations.js');
-    const history = prepareTherapyHistory(imported, '2026-09-28');
-    expect(history.currentDoses[0].value).toBe(500);
+    const history = (prepareTherapyHistory as (input: unknown, date: Parameters<typeof prepareTherapyHistory>[1]) => ReturnType<typeof prepareTherapyHistory>)(imported, '2026-09-28');
+    expect(history.currentDoses[0]!.value).toBe(500);
     expect(therapyExposure(history, '2026-09-28').value).toBeNull();
   });
 

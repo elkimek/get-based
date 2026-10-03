@@ -12,7 +12,7 @@ import { clearKeyCache } from '../js/crypto-key-cache.js';
 describe('agent chat settings', () => {
   it('skips a generally current installed host when only the next host supports the requested gateway feature', async () => {
     const caps = ['chat-stream', 'companion-control', 'execution-targets'];
-    const json = payload => new Response(JSON.stringify(payload), { headers: { 'Content-Type': 'application/json' } });
+    const json = (payload: unknown) => new Response(JSON.stringify(payload), { headers: { 'Content-Type': 'application/json' } });
     vi.stubGlobal('fetch', vi.fn(async input => {
       const url = String(input);
       if (url === '/api/local-agents') return json({ agents: [] });
@@ -89,7 +89,7 @@ describe('agent chat settings', () => {
   });
 
   it('continues past an outdated companion when a current one is on the next discovery port', async () => {
-    const discovery = (endpoint, token, protocolVersion, capabilities) => new Response(JSON.stringify({
+    const discovery = (endpoint: string, token: string, protocolVersion: number, capabilities: string[]) => new Response(JSON.stringify({
       service: 'getbased-agent-host', endpoint, token, protocolVersion, capabilities,
       agents: [{ id: 'codex', name: 'Codex CLI', status: 'available', compatible: true }],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } });

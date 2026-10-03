@@ -38,7 +38,7 @@ export async function runBrowserScript(page: Page, testPath: string, options: Br
     if (options.viewport) await page.setViewportSize(options.viewport);
     await page.goto('/app', { waitUntil: 'load' });
     await page.waitForFunction(async () => {
-      const { state } = await (import('/js/state.js' as string) as Promise<typeof import('../../js/state.js')>);
+      const { state } = await import('/js/state.js');
       return state && document.getElementById('main-content');
     }, null, {
       timeout: options.readyTimeout ?? 15_000,

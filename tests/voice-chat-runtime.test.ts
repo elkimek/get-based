@@ -4,6 +4,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type {Mock} from 'vitest';
+import type {VoicePlayerOptions} from '../js/voice-player.js';
+import type {LocalVoiceWorker} from '../js/voice-local-engine.js';
+type VoicePlayerFixtureOptions = Omit<VoicePlayerOptions, 'audioFactory' | 'audioContextFactory' | 'mediaSourceFactory' | 'createObjectURL'> & {audioFactory?: () => FakeAudio; audioContextFactory?: () => FakeAudioContext; mediaSourceFactory?: () => FakeMediaSource; createObjectURL?: (value: Blob) => string};
+type CaptureFixtureOptions = {mediaDevices: {getUserMedia: () => Promise<{getTracks(): {stop(): void}[]}>}; MediaRecorderClass: typeof FakeMediaRecorder; maxDurationMs: number};
+type PendingVoiceFetch = {resolve(value: Response): void; signal: AbortSignal | null | undefined};
+type FakeAudioBuffer = {duration: number; getChannelData(): Float32Array};
 
 import { state } from '../js/state.js';
 import { configureAppExtension } from '../js/app-extension-runtime.js';
@@ -36,7 +43,7 @@ import { VoicePlayer, trimPcmEdgeSilence, voicePlayer } from '../js/voice-player
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const realFetch = globalThis.fetch;
 
-function approveCloudAIProvider(provider) {
+function approveCloudAIProvider(provider: string) {
   localStorage.setItem(AI_TRANSPARENCY_KEY, JSON.stringify({
     version: AI_TRANSPARENCY_VERSION,
     acknowledged: true,
@@ -48,11 +55,13 @@ function approveCloudAIProvider(provider) {
 }
 
 class FakeMediaRecorder extends EventTarget {
-  static isTypeSupported(type) {
+  declare mimeType: string;
+  declare state: string;
+  static isTypeSupported(type: string) {
     return type === 'audio/webm;codecs=opus';
   }
 
-  constructor(_stream, options = {}) {
+  constructor(_stream: unknown, options: {mimeType?: string} = {}) {
     super();
     this.mimeType = options.mimeType || 'audio/webm';
     this.state = 'inactive';
@@ -74,6 +83,9 @@ class FakeMediaRecorder extends EventTarget {
 }
 
 class FakeAudio extends EventTarget {
+  declare paused: boolean;
+  declare src: string;
+  declare playbackRate: number;
   constructor() {
     super();
     this.paused = true;
@@ -95,13 +107,15 @@ class FakeAudio extends EventTarget {
 }
 
 class FakeSourceBuffer extends EventTarget {
+  declare updating: boolean;
+  declare appended: Uint8Array[];
   constructor() {
     super();
     this.updating = false;
     this.appended = [];
   }
 
-  appendBuffer(bytes) {
+  appendBuffer(bytes: ArrayBuffer) {
     this.updating = true;
     this.appended.push(new Uint8Array(bytes));
     queueMicrotask(() => {
@@ -116,6 +130,8 @@ class FakeSourceBuffer extends EventTarget {
 }
 
 class FakeMediaSource extends EventTarget {
+  declare readyState: string;
+  declare sourceBuffer: FakeSourceBuffer;
   constructor() {
     super();
     this.readyState = 'closed';
@@ -137,6 +153,12 @@ class FakeMediaSource extends EventTarget {
 }
 
 class FakeBufferSource {
+  declare buffer: unknown;
+  declare playbackRate: {value: number};
+  declare onended: (() => unknown) | null;
+  declare connected: boolean;
+  declare startTime: number | null;
+  declare finish: (() => unknown) | undefined;
   constructor() {
     this.buffer = null;
     this.playbackRate = { value: 1 };
@@ -148,13 +170,19 @@ class FakeBufferSource {
   connect() { this.connected = true; }
   disconnect() { this.connected = false; }
   stop() {}
-  start(time) {
+  start(time: number) {
     this.startTime = time;
     queueMicrotask(() => this.onended?.());
   }
 }
 
 class FakeAudioContext {
+  declare state: string;
+  declare destination: object;
+  declare source: FakeBufferSource | null;
+  declare sources: FakeBufferSource[];
+  declare currentTime: number;
+  declare createdBuffers: FakeAudioBuffer[];
   constructor() {
     this.state = 'suspended';
     this.destination = {};
@@ -166,7 +194,7 @@ class FakeAudioContext {
 
   async resume() { this.state = 'running'; }
   async decodeAudioData() { return {}; }
-  createBuffer(_channels, length, sampleRate) {
+  createBuffer(_channels: number, length: number, sampleRate: number) {
     const channel = new Float32Array(length);
     const buffer = {
       duration: length / sampleRate,
@@ -199,16 +227,17 @@ class ManualAudioContext extends FakeAudioContext {
 }
 
 class ControlledVoiceWorker extends EventTarget {
+  declare request: Parameters<LocalVoiceWorker['postMessage']>[0] | null;
   constructor() {
     super();
     this.request = null;
   }
 
-  postMessage(request) {
+  postMessage(request: Parameters<LocalVoiceWorker['postMessage']>[0]) {
     this.request = request;
   }
 
-  respond(data) {
+  respond(data: unknown) {
     const event = new Event('message');
     Object.defineProperty(event, 'data', { value: data });
     this.dispatchEvent(event);
@@ -243,7 +272,7 @@ describe('voice capture and playback primitives', () => {
     const stream = {
       getTracks: () => [{ stop: stopTrack }],
     };
-    const session = new VoiceCaptureSession({
+    const session = new (VoiceCaptureSession as unknown as new (options: CaptureFixtureOptions) => VoiceCaptureSession)({
       mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(stream) },
       MediaRecorderClass: FakeMediaRecorder,
       maxDurationMs: 30_000,
@@ -260,7 +289,7 @@ describe('voice capture and playback primitives', () => {
   it('revokes each object URL after playback and rejects stopped playback', async () => {
     const audio = new FakeAudio();
     const revoke = vi.fn();
-    const player = new VoicePlayer({
+    const player = new (VoicePlayer as unknown as new (options: VoicePlayerFixtureOptions) => VoicePlayer)({
       audioFactory: () => audio,
       createObjectURL: () => 'blob:voice',
       revokeObjectURL: revoke,
@@ -271,7 +300,7 @@ describe('voice capture and playback primitives', () => {
     expect(revoke).toHaveBeenCalledWith('blob:voice');
 
     const secondAudio = new FakeAudio();
-    const secondPlayer = new VoicePlayer({
+    const secondPlayer = new (VoicePlayer as unknown as new (options: VoicePlayerFixtureOptions) => VoicePlayer)({
       audioFactory: () => secondAudio,
       createObjectURL: () => 'blob:second',
       revokeObjectURL: revoke,
@@ -283,7 +312,7 @@ describe('voice capture and playback primitives', () => {
 
   it('unlocks Web Audio during the user action and plays after delayed synthesis', async () => {
     const context = new FakeAudioContext();
-    const player = new VoicePlayer({
+    const player = new (VoicePlayer as unknown as new (options: VoicePlayerFixtureOptions) => VoicePlayer)({
       audioContextFactory: () => context,
     });
 
@@ -292,15 +321,15 @@ describe('voice capture and playback primitives', () => {
     await Promise.resolve();
     expect(context.state).toBe('running');
     await expect(player.play(new Blob(['speech']), { rate: 1.2 })).resolves.toBe(true);
-    expect(context.source.playbackRate.value).toBe(1.2);
-    expect(context.source.connected).toBe(false);
+    expect(context.source!.playbackRate.value).toBe(1.2);
+    expect(context.source!.connected).toBe(false);
     expect(player.isPlaying).toBe(false);
   });
 
   it('reports a useful error when the browser rejects audio activation', async () => {
     const context = new FakeAudioContext();
     context.resume = vi.fn().mockRejectedValue(new Error('NotAllowedError'));
-    const player = new VoicePlayer({
+    const player = new (VoicePlayer as unknown as new (options: VoicePlayerFixtureOptions) => VoicePlayer)({
       audioContextFactory: () => context,
     });
 
@@ -316,7 +345,7 @@ describe('voice capture and playback primitives', () => {
 
   it('buffers a provider stream only when MediaSource playback is unavailable', async () => {
     const audio = new FakeAudio();
-    const player = new VoicePlayer({
+    const player = new (VoicePlayer as unknown as new (options: VoicePlayerFixtureOptions) => VoicePlayer)({
       audioFactory: () => audio,
       isMediaSourceTypeSupported: () => false,
       createObjectURL: blob => `blob:stream-${blob.size}`,
@@ -339,7 +368,7 @@ describe('voice capture and playback primitives', () => {
 
   it('buffers automatic provider playback through the user-unlocked audio context', async () => {
     const context = new FakeAudioContext();
-    const player = new VoicePlayer({
+    const player = new (VoicePlayer as unknown as new (options: VoicePlayerFixtureOptions) => VoicePlayer)({
       audioContextFactory: () => context,
       mediaSourceFactory: () => new FakeMediaSource(),
       isMediaSourceTypeSupported: () => true,
@@ -363,15 +392,15 @@ describe('voice capture and playback primitives', () => {
   it('primes media playback and appends provider bytes progressively', async () => {
     const audio = new FakeAudio();
     const mediaSource = new FakeMediaSource();
-    const player = new VoicePlayer({
+    const player = new (VoicePlayer as unknown as new (options: VoicePlayerFixtureOptions) => VoicePlayer)({
       audioFactory: () => audio,
       mediaSourceFactory: () => mediaSource,
       isMediaSourceTypeSupported: type => type === 'audio/mpeg',
       createObjectURL: () => 'blob:media-source',
       revokeObjectURL: vi.fn(),
     });
-    let releaseSecondChunk;
-    const secondChunkReady = new Promise(resolve => { releaseSecondChunk = resolve; });
+    let releaseSecondChunk: (() => void) | undefined;
+    const secondChunkReady = new Promise<void>(resolve => { releaseSecondChunk = resolve; });
     const stream = new ReadableStream({
       async start(controller) {
         controller.enqueue(new Uint8Array([1, 2]));
@@ -387,7 +416,7 @@ describe('voice capture and playback primitives', () => {
     mediaSource.open();
     await vi.waitFor(() => expect(mediaSource.sourceBuffer.appended).toHaveLength(1));
     expect(mediaSource.sourceBuffer.appended[0]).toEqual(new Uint8Array([1, 2]));
-    releaseSecondChunk();
+    releaseSecondChunk!();
     await vi.waitFor(() => expect(mediaSource.sourceBuffer.appended).toHaveLength(2));
     audio.dispatchEvent(new Event('ended'));
 
@@ -404,7 +433,7 @@ describe('voice capture and playback primitives', () => {
     const cancel = vi.fn();
     const revoke = vi.fn();
     const pause = vi.spyOn(audio, 'pause');
-    const player = new VoicePlayer({
+    const player = new (VoicePlayer as unknown as new (options: VoicePlayerFixtureOptions) => VoicePlayer)({
       audioFactory: () => audio,
       mediaSourceFactory: () => mediaSource,
       isMediaSourceTypeSupported: () => true,
@@ -433,7 +462,7 @@ describe('voice capture and playback primitives', () => {
 
   it('schedules local PCM chunks as Kokoro emits them', async () => {
     const context = new FakeAudioContext();
-    const player = new VoicePlayer({
+    const player = new (VoicePlayer as unknown as new (options: VoicePlayerFixtureOptions) => VoicePlayer)({
       audioContextFactory: () => context,
     });
     const stream = new ReadableStream({
@@ -452,7 +481,7 @@ describe('voice capture and playback primitives', () => {
 
     await expect(player.playPcmStream(stream)).resolves.toBe(true);
     expect(context.createdBuffers).toHaveLength(2);
-    expect(context.createdBuffers[0].getChannelData()).toEqual(
+    expect(context.createdBuffers[0]!.getChannelData()).toEqual(
       new Float32Array([0, 0.25, -0.25]),
     );
     expect(player.scheduledAudioSources.size).toBe(0);
@@ -460,10 +489,10 @@ describe('voice capture and playback primitives', () => {
 
   it('starts Kokoro playback immediately after the first chunk', async () => {
     const context = new FakeAudioContext();
-    const player = new VoicePlayer({
+    const player = new (VoicePlayer as unknown as new (options: VoicePlayerFixtureOptions) => VoicePlayer)({
       audioContextFactory: () => context,
     });
-    let streamController;
+    let streamController: ReadableStreamDefaultController<unknown> | undefined;
     const stream = new ReadableStream({
       start(controller) { streamController = controller; },
     });
@@ -472,21 +501,21 @@ describe('voice capture and playback primitives', () => {
     const playback = player.playPcmStream(stream, {
       onPlaybackStart,
     });
-    streamController.enqueue({
+    streamController!.enqueue({
       samples: new Float32Array(8_000).fill(0.1),
       sampleRate: 8_000,
     });
     await vi.waitFor(() => expect(context.createdBuffers).toHaveLength(1));
     expect(onPlaybackStart).toHaveBeenCalledOnce();
-    streamController.close();
+    streamController!.close();
 
     await expect(playback).resolves.toBe(true);
   });
 
   it('reports when local playback underruns and when speech resumes', async () => {
     const context = new ManualAudioContext();
-    const player = new VoicePlayer({ audioContextFactory: () => context });
-    let streamController;
+    const player = new (VoicePlayer as unknown as new (options: VoicePlayerFixtureOptions) => VoicePlayer)({ audioContextFactory: () => context });
+    let streamController: ReadableStreamDefaultController<unknown> | undefined;
     const stream = new ReadableStream({
       start(controller) { streamController = controller; },
     });
@@ -497,18 +526,18 @@ describe('voice capture and playback primitives', () => {
       onPlaybackWaiting,
     });
 
-    streamController.enqueue({ samples: new Float32Array(8_000).fill(0.1), sampleRate: 8_000 });
+    streamController!.enqueue({ samples: new Float32Array(8_000).fill(0.1), sampleRate: 8_000 });
     await vi.waitFor(() => expect(context.sources).toHaveLength(1));
     expect(onPlaybackStart).toHaveBeenCalledOnce();
-    context.sources[0].finish();
+    context.sources[0]!.finish!();
     expect(onPlaybackWaiting).toHaveBeenCalledOnce();
 
-    streamController.enqueue({ samples: new Float32Array(8_000).fill(0.1), sampleRate: 8_000 });
+    streamController!.enqueue({ samples: new Float32Array(8_000).fill(0.1), sampleRate: 8_000 });
     await vi.waitFor(() => expect(context.sources).toHaveLength(2));
     expect(onPlaybackStart).toHaveBeenCalledTimes(2);
-    streamController.close();
+    streamController!.close();
     await Promise.resolve();
-    context.sources[1].finish();
+    context.sources[1]!.finish!();
 
     await expect(playback).resolves.toBe(true);
   });
@@ -574,15 +603,15 @@ describe('voice settings and chat controls', () => {
 
     document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
     installVoiceSettingsPanel(document);
-    const sttModel = document.querySelector('[data-voice-openrouter-model-label="stt"]');
-    const ttsModel = document.querySelector('[data-voice-openrouter-model-label="tts"]');
-    const voice = document.querySelector('[data-voice-cloud-voices="openrouter"]');
+    const sttModel = document.querySelector<HTMLElement>('[data-voice-openrouter-model-label="stt"]');
+    const ttsModel = document.querySelector<HTMLElement>('[data-voice-openrouter-model-label="tts"]');
+    const voice = document.querySelector<HTMLSelectElement>('[data-voice-cloud-voices="openrouter"]');
 
-    await vi.waitFor(() => expect(voice.options).toHaveLength(2));
-    expect(sttModel.textContent).toBe('Whisper Large V3');
-    expect(ttsModel.textContent).toBe('Kokoro 82M');
-    expect(voice.value).toBe('af_heart');
-    expect(voice.options[0].textContent).toBe('Af Heart · en-US · female');
+    await vi.waitFor(() => expect(voice!.options).toHaveLength(2));
+    expect(sttModel!.textContent).toBe('Whisper Large V3');
+    expect(ttsModel!.textContent).toBe('Kokoro 82M');
+    expect(voice!.value).toBe('af_heart');
+    expect(voice!.options[0]!.textContent).toBe('Af Heart · en-US · female');
     expect(document.body.textContent).not.toContain('Grok Voice via OpenRouter');
   });
 
@@ -627,18 +656,18 @@ describe('voice settings and chat controls', () => {
     state.currentThreadId = 'cancellable-voice-test';
     state.chatHistory = [{ role: 'assistant', content: 'A reply that is still preparing.' }];
     document.body.insertAdjacentHTML('beforeend', buildActionBar(0));
-    let requestSignal;
-    globalThis.fetch = vi.fn((_url, options) => new Promise((_resolve, reject) => {
+    let requestSignal: AbortSignal | null | undefined;
+    globalThis.fetch = vi.fn<typeof realFetch>((_url, options) => new Promise<Response>((_resolve, reject) => {
       requestSignal = options?.signal;
       requestSignal?.addEventListener('abort', () => reject(
-        requestSignal.reason || new DOMException('Cancelled', 'AbortError'),
+        requestSignal!.reason || new DOMException('Cancelled', 'AbortError'),
       ), { once: true });
     }));
 
     try {
       const { readAssistantMessage } = await import('../js/voice-controller.js');
       const pending = readAssistantMessage(0);
-      const button = document.getElementById('chat-listen-btn-0');
+      const button = document.getElementById('chat-listen-btn-0') as HTMLButtonElement | null;
       await vi.waitFor(() => expect(button?.textContent).toContain('Preparing'));
       expect(button?.getAttribute('aria-label')).toContain('Cancel');
       await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledOnce());
@@ -688,7 +717,7 @@ describe('voice settings and chat controls', () => {
         contentType: 'audio/mpeg',
         progressive: false,
       }));
-      expect(JSON.parse(globalThis.fetch.mock.calls[0][1].body)).toMatchObject({
+      expect((JSON.parse as (text: unknown) => unknown)((globalThis.fetch as Mock<typeof realFetch>).mock.calls[0]![1]!.body)).toMatchObject({
         model: 'hexgrad/kokoro-82m',
         voice: 'af_heart',
       });
@@ -721,21 +750,21 @@ describe('voice settings and chat controls', () => {
 
     document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
     installVoiceSettingsPanel(document);
-    const row = document.querySelector('[data-voice-visible="output:ppq"]');
-    const select = document.querySelector('[data-voice-cloud-voices="ppq"]');
+    const row = document.querySelector<HTMLElement>('[data-voice-visible="output:ppq"]');
+    const select = document.querySelector<HTMLSelectElement>('[data-voice-cloud-voices="ppq"]');
 
-    await vi.waitFor(() => expect(select.value).toBe('aura-2-thalia-en'));
-    expect(select.options).toHaveLength(1);
-    expect(row.hidden).toBe(false);
-    expect(select.options[0].textContent).toBe('Thalia · en · female');
+    await vi.waitFor(() => expect(select!.value).toBe('aura-2-thalia-en'));
+    expect(select!.options).toHaveLength(1);
+    expect(row!.hidden).toBe(false);
+    expect(select!.options[0]!.textContent).toBe('Thalia · en · female');
     expect(localStorage.getItem('labcharts-ppq-voice')).toBe('aura-2-thalia-en');
   });
 
   it('does not let an older PPQ language request replace the current voice catalogue', async () => {
     localStorage.setItem('labcharts-ai-provider', 'ppq');
     updateKeyCache('labcharts-ppq-key', 'ppq-ai-key');
-    const pending = [];
-    globalThis.fetch = vi.fn((_url, options) => new Promise(resolve => {
+    const pending: PendingVoiceFetch[] = [];
+    globalThis.fetch = vi.fn<typeof realFetch>((_url, options) => new Promise<Response>(resolve => {
       pending.push({ resolve, signal: options?.signal });
     }));
 
@@ -743,13 +772,13 @@ describe('voice settings and chat controls', () => {
     installVoiceSettingsPanel(document);
     await vi.waitFor(() => expect(pending).toHaveLength(1));
 
-    const language = document.querySelector('[data-voice-setting="outputLanguage"]');
-    language.value = 'fr';
-    language.dispatchEvent(new Event('change', { bubbles: true }));
+    const language = document.querySelector<HTMLSelectElement>('[data-voice-setting="outputLanguage"]');
+    language!.value = 'fr';
+    language!.dispatchEvent(new Event('change', { bubbles: true }));
     await vi.waitFor(() => expect(pending).toHaveLength(2));
-    expect(pending[0].signal.aborted).toBe(true);
+    expect(pending[0]!.signal!.aborted).toBe(true);
 
-    pending[1].resolve(new Response(JSON.stringify({
+    pending[1]!.resolve(new Response(JSON.stringify({
       data: [{
         id: 'aura-2-agathe-fr',
         name: 'Agathe',
@@ -758,10 +787,10 @@ describe('voice settings and chat controls', () => {
         gender: 'female',
       }],
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
-    const select = document.querySelector('[data-voice-cloud-voices="ppq"]');
-    await vi.waitFor(() => expect(select.value).toBe('aura-2-agathe-fr'));
+    const select = document.querySelector<HTMLSelectElement>('[data-voice-cloud-voices="ppq"]');
+    await vi.waitFor(() => expect(select!.value).toBe('aura-2-agathe-fr'));
 
-    pending[0].resolve(new Response(JSON.stringify({
+    pending[0]!.resolve(new Response(JSON.stringify({
       data: [{
         id: 'aura-2-thalia-en',
         name: 'Thalia',
@@ -772,8 +801,8 @@ describe('voice settings and chat controls', () => {
     }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
     await new Promise(resolve => setTimeout(resolve, 0));
 
-    expect(select.value).toBe('aura-2-agathe-fr');
-    expect([...select.options].map(option => option.value)).toEqual(['aura-2-agathe-fr']);
+    expect(select!.value).toBe('aura-2-agathe-fr');
+    expect([...select!.options].map(option => option.value)).toEqual(['aura-2-agathe-fr']);
     expect(localStorage.getItem('labcharts-ppq-voice')).toBe('aura-2-agathe-fr');
   });
 
@@ -784,11 +813,11 @@ describe('voice settings and chat controls', () => {
     localStorage.setItem('labcharts-ai-provider', 'ppq');
     if (action === 'test-provider') approveCloudAIProvider('ppq');
     updateKeyCache('labcharts-ppq-key', 'ppq-ai-key');
-    const pending = [];
-    globalThis.fetch = vi.fn((_url, options) => new Promise(resolve => {
+    const pending: PendingVoiceFetch[] = [];
+    globalThis.fetch = vi.fn<typeof realFetch>((_url, options) => new Promise<Response>(resolve => {
       pending.push({ resolve, signal: options?.signal });
     }));
-    const responseFor = (id, name, language) => new Response(JSON.stringify({
+    const responseFor = (id: string, name: string, language: string) => new Response(JSON.stringify({
       data: [{
         id,
         name,
@@ -801,33 +830,33 @@ describe('voice settings and chat controls', () => {
     document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
     installVoiceSettingsPanel(document);
     await vi.waitFor(() => expect(pending).toHaveLength(1));
-    pending[0].resolve(responseFor('aura-2-thalia-en', 'Thalia', 'en'));
-    const select = document.querySelector('[data-voice-cloud-voices="ppq"]');
-    await vi.waitFor(() => expect(select.value).toBe('aura-2-thalia-en'));
+    pending[0]!.resolve(responseFor('aura-2-thalia-en', 'Thalia', 'en'));
+    const select = document.querySelector<HTMLSelectElement>('[data-voice-cloud-voices="ppq"]');
+    await vi.waitFor(() => expect(select!.value).toBe('aura-2-thalia-en'));
 
-    let button = document.querySelector(`[data-voice-action="${action}"][data-provider="ppq"]`);
+    let button = document.querySelector<HTMLButtonElement>(`[data-voice-action="${action}"][data-provider="ppq"]`);
     if (!(button instanceof HTMLButtonElement)) {
       button = document.createElement('button');
       button.type = 'button';
       button.dataset.voiceAction = action;
       button.dataset.provider = 'ppq';
-      document.querySelector('[data-tab-panel="voice"]').appendChild(button);
+      document.querySelector<HTMLElement>('[data-tab-panel="voice"]')!.appendChild(button);
     }
     button.click();
     await vi.waitFor(() => expect(pending).toHaveLength(2));
 
-    const language = document.querySelector('[data-voice-setting="outputLanguage"]');
-    language.value = 'fr';
-    language.dispatchEvent(new Event('change', { bubbles: true }));
+    const language = document.querySelector<HTMLSelectElement>('[data-voice-setting="outputLanguage"]');
+    language!.value = 'fr';
+    language!.dispatchEvent(new Event('change', { bubbles: true }));
     await vi.waitFor(() => expect(pending).toHaveLength(3));
-    pending[2].resolve(responseFor('aura-2-agathe-fr', 'Agathe', 'fr'));
-    await vi.waitFor(() => expect(select.value).toBe('aura-2-agathe-fr'));
+    pending[2]!.resolve(responseFor('aura-2-agathe-fr', 'Agathe', 'fr'));
+    await vi.waitFor(() => expect(select!.value).toBe('aura-2-agathe-fr'));
 
-    pending[1].resolve(responseFor('aura-2-thalia-en', 'Thalia', 'en'));
+    pending[1]!.resolve(responseFor('aura-2-thalia-en', 'Thalia', 'en'));
     await vi.waitFor(() => expect(button.disabled).toBe(false));
 
-    expect(select.value).toBe('aura-2-agathe-fr');
-    expect([...select.options].map(option => option.value)).toEqual(['aura-2-agathe-fr']);
+    expect(select!.value).toBe('aura-2-agathe-fr');
+    expect([...select!.options].map(option => option.value)).toEqual(['aura-2-agathe-fr']);
     expect(localStorage.getItem('labcharts-ppq-voice')).toBe('aura-2-agathe-fr');
   });
 
@@ -848,22 +877,22 @@ describe('voice settings and chat controls', () => {
 
     document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
     installVoiceSettingsPanel(document);
-    const inputRow = document.querySelector('[data-voice-visible="input:venice"]');
-    const outputRows = document.querySelectorAll('[data-voice-visible="output:venice"]');
-    const select = document.querySelector('[data-voice-cloud-voices="venice"]');
+    const inputRow = document.querySelector<HTMLElement>('[data-voice-visible="input:venice"]');
+    const outputRows = document.querySelectorAll<HTMLElement>('[data-voice-visible="output:venice"]');
+    const select = document.querySelector<HTMLSelectElement>('[data-voice-cloud-voices="venice"]');
 
-    await vi.waitFor(() => expect(select.options).toHaveLength(2));
-    expect(inputRow.hidden).toBe(false);
-    expect(inputRow.textContent).toContain('Whisper Large V3');
-    expect(inputRow.textContent).toContain('choose OpenRouter for dictation');
+    await vi.waitFor(() => expect(select!.options).toHaveLength(2));
+    expect(inputRow!.hidden).toBe(false);
+    expect(inputRow!.textContent).toContain('Whisper Large V3');
+    expect(inputRow!.textContent).toContain('choose OpenRouter for dictation');
     expect([...outputRows].every(row => !row.hidden)).toBe(true);
-    expect(select.value).toBe('af_sky');
-    expect(select.options[0].textContent).toBe('Af Sky · en-US · female');
+    expect(select!.value).toBe('af_sky');
+    expect(select!.options[0]!.textContent).toBe('Af Sky · en-US · female');
     expect(document.body.textContent).toContain('Private, zero-retention transcription');
     expect(document.body.textContent).toContain('separate from chat E2EE');
 
-    select.value = 'bm_george';
-    select.dispatchEvent(new Event('change', { bubbles: true }));
+    select!.value = 'bm_george';
+    select!.dispatchEvent(new Event('change', { bubbles: true }));
     expect(localStorage.getItem('labcharts-venice-voice')).toBe('bm_george');
   });
 
@@ -877,43 +906,43 @@ describe('voice settings and chat controls', () => {
   it('links providers by default and reveals independent choices on request', () => {
     document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
     expect(installVoiceSettingsPanel(document)).toBe(true);
-    const panel = document.querySelector('[data-tab-panel="voice"]');
-    const inputProvider = panel.querySelector('[data-voice-setting="inputProvider"]');
-    const outputProvider = panel.querySelector('[data-voice-setting="outputProvider"]');
-    const sharedProvider = panel.querySelector('[data-voice-shared-provider]');
-    const separateProviders = panel.querySelector('[data-voice-setting="providersLinked"]');
+    const panel = document.querySelector<HTMLElement>('[data-tab-panel="voice"]');
+    const inputProvider = panel!.querySelector<HTMLSelectElement>('[data-voice-setting="inputProvider"]');
+    const outputProvider = panel!.querySelector<HTMLSelectElement>('[data-voice-setting="outputProvider"]');
+    const sharedProvider = panel!.querySelector<HTMLSelectElement>('[data-voice-shared-provider]');
+    const separateProviders = panel!.querySelector<HTMLInputElement>('[data-voice-setting="providersLinked"]');
 
-    sharedProvider.value = 'xai';
-    sharedProvider.dispatchEvent(new Event('change', { bubbles: true }));
+    sharedProvider!.value = 'xai';
+    sharedProvider!.dispatchEvent(new Event('change', { bubbles: true }));
     expect(localStorage.getItem('labcharts-voice-input-provider')).toBe('xai');
     expect(localStorage.getItem('labcharts-voice-output-provider')).toBe('xai');
-    separateProviders.checked = true;
-    separateProviders.dispatchEvent(new Event('change', { bubbles: true }));
-    inputProvider.value = 'xai';
-    inputProvider.dispatchEvent(new Event('change', { bubbles: true }));
-    outputProvider.value = 'elevenlabs';
-    outputProvider.dispatchEvent(new Event('change', { bubbles: true }));
+    separateProviders!.checked = true;
+    separateProviders!.dispatchEvent(new Event('change', { bubbles: true }));
+    inputProvider!.value = 'xai';
+    inputProvider!.dispatchEvent(new Event('change', { bubbles: true }));
+    outputProvider!.value = 'elevenlabs';
+    outputProvider!.dispatchEvent(new Event('change', { bubbles: true }));
 
     expect(localStorage.getItem('labcharts-voice-input-provider')).toBe('xai');
     expect(localStorage.getItem('labcharts-voice-output-provider')).toBe('elevenlabs');
     expect(localStorage.getItem('labcharts-voice-providers-linked')).toBe('false');
-    expect(panel.querySelector('[data-voice-visible="output:elevenlabs"]').hidden).toBe(false);
-    expect(panel.textContent).toContain('Use separate STT and TTS services');
-    expect(panel.querySelector(
+    expect(panel!.querySelector<HTMLElement>('[data-voice-visible="output:elevenlabs"]')!.hidden).toBe(false);
+    expect(panel!.textContent).toContain('Use separate STT and TTS services');
+    expect(panel!.querySelector<HTMLButtonElement>(
       '[data-voice-action="install-model"][data-kind="stt"]',
-    ).disabled).toBe(false);
-    expect(panel.querySelector(
+    )!.disabled).toBe(false);
+    expect(panel!.querySelector<HTMLButtonElement>(
       '[data-voice-action="remove-model"][data-kind="stt"]',
-    ).disabled).toBe(true);
-    expect(panel.textContent).toContain('Speech-to-text');
-    expect(panel.textContent).toContain('Text-to-speech');
-    expect(panel.querySelector('.voice-advanced-connections').open).toBe(false);
+    )!.disabled).toBe(true);
+    expect(panel!.textContent).toContain('Speech-to-text');
+    expect(panel!.textContent).toContain('Text-to-speech');
+    expect(panel!.querySelector<HTMLDetailsElement>('.voice-advanced-connections')!.open).toBe(false);
   });
 
   it('keeps Kokoro playback immediate without exposing a buffering preference', () => {
     document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
     installVoiceSettingsPanel(document);
-    expect(document.querySelector('[data-voice-setting="localTtsBuffering"]')).toBeNull();
+    expect(document.querySelector<HTMLSelectElement>('[data-voice-setting="localTtsBuffering"]')).toBeNull();
     expect(getVoiceSettings()).not.toHaveProperty('localTtsBuffering');
     expect(document.body.textContent).not.toContain('Playback buffering');
   });
@@ -931,15 +960,15 @@ describe('voice settings and chat controls', () => {
     );
     document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
     installVoiceSettingsPanel(document);
-    const select = document.querySelector('[data-voice-setting="localTtsBackend"]');
-    select.value = 'webgpu';
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-    const row = document.querySelector('[data-voice-model-kind="tts"]');
-    expect(row.textContent).toContain('GPU weights · about 330 MB');
-    expect(row.textContent).toContain('separate from the 95 MB CPU weights');
-    expect(row.textContent).toContain('GPU weights need a separate download');
-    expect(row.textContent).toContain('CPU weights remain stored');
-    expect(row.querySelector('[data-voice-action="install-model"]').disabled).toBe(false);
+    const select = document.querySelector<HTMLSelectElement>('[data-voice-setting="localTtsBackend"]');
+    select!.value = 'webgpu';
+    select!.dispatchEvent(new Event('change', { bubbles: true }));
+    const row = document.querySelector<HTMLElement>('[data-voice-model-kind="tts"]');
+    expect(row!.textContent).toContain('GPU weights · about 330 MB');
+    expect(row!.textContent).toContain('separate from the 95 MB CPU weights');
+    expect(row!.textContent).toContain('GPU weights need a separate download');
+    expect(row!.textContent).toContain('CPU weights remain stored');
+    expect(row!.querySelector<HTMLButtonElement>('[data-voice-action="install-model"]')!.disabled).toBe(false);
   });
 
   it('reuses one Whisper download when switching between CPU and GPU', () => {
@@ -951,14 +980,14 @@ describe('voice settings and chat controls', () => {
     );
     document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
     installVoiceSettingsPanel(document);
-    const select = document.querySelector('[data-voice-setting="localSttBackend"]');
-    select.value = 'webgpu';
-    select.dispatchEvent(new Event('change', { bubbles: true }));
+    const select = document.querySelector<HTMLSelectElement>('[data-voice-setting="localSttBackend"]');
+    select!.value = 'webgpu';
+    select!.dispatchEvent(new Event('change', { bubbles: true }));
 
-    const row = document.querySelector('[data-voice-model-kind="stt"]');
-    expect(row.textContent).toContain('One shared CPU/GPU file');
-    expect(row.querySelector('[data-voice-action="install-model"]').disabled).toBe(true);
-    expect(row.querySelector('[data-voice-action="install-model"]').textContent).toBe('Ready');
+    const row = document.querySelector<HTMLElement>('[data-voice-model-kind="stt"]');
+    expect(row!.textContent).toContain('One shared CPU/GPU file');
+    expect(row!.querySelector<HTMLButtonElement>('[data-voice-action="install-model"]')!.disabled).toBe(true);
+    expect(row!.querySelector<HTMLButtonElement>('[data-voice-action="install-model"]')!.textContent).toBe('Ready');
   });
 
   it('keeps model progress and completion attached to the selection that started them', async () => {
@@ -967,37 +996,37 @@ describe('voice settings and chat controls', () => {
     try {
       document.body.innerHTML = `<main>${renderVoiceSettingsPanel(true)}</main>`;
       installVoiceSettingsPanel(document);
-      const panel = document.querySelector('[data-tab-panel="voice"]');
-      const modelSelect = panel.querySelector('[data-voice-setting="localSttModel"]');
-      const backendSelect = panel.querySelector('[data-voice-setting="localSttBackend"]');
-      const button = panel.querySelector(
+      const panel = document.querySelector<HTMLElement>('[data-tab-panel="voice"]');
+      const modelSelect = panel!.querySelector<HTMLSelectElement>('[data-voice-setting="localSttModel"]');
+      const backendSelect = panel!.querySelector<HTMLSelectElement>('[data-voice-setting="localSttBackend"]');
+      const button = panel!.querySelector<HTMLButtonElement>(
         '[data-voice-action="install-model"][data-kind="stt"]',
       );
-      button.click();
+      button!.click();
       await vi.waitFor(() => expect(worker.request).not.toBeNull());
-      expect(modelSelect.disabled).toBe(true);
-      expect(backendSelect.disabled).toBe(true);
+      expect(modelSelect!.disabled).toBe(true);
+      expect(backendSelect!.disabled).toBe(true);
 
-      modelSelect.value = 'onnx-community/whisper-large-v3-turbo';
-      modelSelect.dispatchEvent(new Event('change', { bubbles: true }));
-      const progress = panel.querySelector('[data-voice-model-progress="stt"]');
-      expect(progress.hidden).toBe(true);
+      modelSelect!.value = 'onnx-community/whisper-large-v3-turbo';
+      modelSelect!.dispatchEvent(new Event('change', { bubbles: true }));
+      const progress = panel!.querySelector<HTMLElement>('[data-voice-model-progress="stt"]');
+      expect(progress!.hidden).toBe(true);
       worker.respond({
         type: 'progress',
-        id: worker.request.id,
+        id: worker.request!.id,
         progress: { file: 'old-model.onnx' },
       });
-      expect(progress.hidden).toBe(true);
+      expect(progress!.hidden).toBe(true);
 
       worker.respond({
         type: 'ready',
-        id: worker.request.id,
+        id: worker.request!.id,
         backend: 'wasm',
       });
-      await vi.waitFor(() => expect(modelSelect.disabled).toBe(false));
-      const row = panel.querySelector('[data-voice-model-kind="stt"]');
-      expect(row.querySelector('.settings-copy-title').textContent).toContain('Large v3 Turbo');
-      expect(row.querySelector('[data-voice-model-status="stt"]').textContent)
+      await vi.waitFor(() => expect(modelSelect!.disabled).toBe(false));
+      const row = panel!.querySelector<HTMLElement>('[data-voice-model-kind="stt"]');
+      expect(row!.querySelector<HTMLElement>('.settings-copy-title')!.textContent).toContain('Large v3 Turbo');
+      expect(row!.querySelector<HTMLElement>('[data-voice-model-status="stt"]')!.textContent)
         .toBe('Not downloaded yet');
     } finally {
       terminateLocalVoiceWorker('stt');
@@ -1007,9 +1036,9 @@ describe('voice settings and chat controls', () => {
 
   it('renders Listen only on assistant messages and delegates its exact index', () => {
     const original = state.chatHistory;
-    const called = [];
+    const called: unknown[] = [];
     const previousDeps = configureChatMessageActionDeps({
-      toggleMessageSpeech: index => called.push(index),
+      toggleMessageSpeech: (index: unknown) => called.push(index),
     });
     try {
       state.chatHistory = [
@@ -1020,7 +1049,7 @@ describe('voice settings and chat controls', () => {
       document.body.innerHTML = buildActionBar(1);
       const button = document.getElementById('chat-listen-btn-1');
       expect(button?.textContent).toContain('Listen');
-      button.click();
+      button!.click();
       expect(called).toEqual([1]);
     } finally {
       configureChatMessageActionDeps(previousDeps);
@@ -1039,7 +1068,7 @@ describe('voice settings and chat controls', () => {
     try {
       closeChatPanel();
       expect(stopVoiceActivity).toHaveBeenCalledWith({ preservePlayback: true });
-      expect(document.getElementById('chat-panel').classList.contains('open')).toBe(false);
+      expect(document.getElementById('chat-panel')!.classList.contains('open')).toBe(false);
     } finally {
       configureChatPanel(previous);
     }
@@ -1067,56 +1096,56 @@ describe('voice settings and chat controls', () => {
     document.body.innerHTML = buildActionBar(0);
     const audioContext = new ManualAudioContext();
     const previousAudioContext = voicePlayer.audioContext;
-    voicePlayer.audioContext = audioContext;
+    (voicePlayer as unknown as {audioContext: FakeAudioContext | null}).audioContext = audioContext;
     let controller;
 
     try {
       controller = await import('../js/voice-controller.js');
       const reading = controller.readAssistantMessage(0);
-      let button = document.getElementById('chat-listen-btn-0');
+      let button = document.getElementById('chat-listen-btn-0') as HTMLButtonElement | null;
       await vi.waitFor(() => expect(worker.request?.type).toBe('synthesize'));
-      expect(button.classList.contains('busy')).toBe(true);
-      expect(button.textContent).toContain('Preparing…');
-      expect(button.disabled).toBe(false);
-      expect(button.getAttribute('aria-label')).toBe('Cancel speech preparation');
+      expect(button!.classList.contains('busy')).toBe(true);
+      expect(button!.textContent).toContain('Preparing…');
+      expect(button!.disabled).toBe(false);
+      expect(button!.getAttribute('aria-label')).toBe('Cancel speech preparation');
 
       const samples = new Float32Array(8_000).fill(0.1);
       worker.respond({
         type: 'audio-chunk',
-        id: worker.request.id,
+        id: worker.request!.id,
         sampleRate: 8_000,
         samples: samples.buffer,
       });
-      await vi.waitFor(() => expect(button.classList.contains('speaking')).toBe(true));
-      expect(button.textContent).toContain('Stop');
+      await vi.waitFor(() => expect(button!.classList.contains('speaking')).toBe(true));
+      expect(button!.textContent).toContain('Stop');
 
-      audioContext.sources[0].finish();
-      await vi.waitFor(() => expect(button.textContent).toContain('Still generating…'));
-      expect(button.classList.contains('busy')).toBe(true);
-      expect(button.getAttribute('aria-label')).toBe('Cancel speech generation');
+      audioContext.sources[0]!.finish!();
+      await vi.waitFor(() => expect(button!.textContent).toContain('Still generating…'));
+      expect(button!.classList.contains('busy')).toBe(true);
+      expect(button!.getAttribute('aria-label')).toBe('Cancel speech generation');
 
       expect(controller.stopVoiceActivity({ preservePlayback: true })).toBe(true);
-      expect(button.textContent).toContain('Still generating…');
+      expect(button!.textContent).toContain('Still generating…');
 
       document.body.innerHTML = buildActionBar(0);
-      button = document.getElementById('chat-listen-btn-0');
-      expect(button.textContent).toContain('Listen');
+      button = document.getElementById('chat-listen-btn-0') as HTMLButtonElement | null;
+      expect(button!.textContent).toContain('Listen');
       expect(controller.isVoicePlaybackActive()).toBe(true);
       expect(controller.restoreVoicePlaybackUi()).toBe(true);
-      expect(button.textContent).toContain('Still generating…');
-      expect(button.getAttribute('aria-label')).toBe('Cancel speech generation');
+      expect(button!.textContent).toContain('Still generating…');
+      expect(button!.getAttribute('aria-label')).toBe('Cancel speech generation');
 
       const nextSamples = new Float32Array(8_000).fill(0.1);
       worker.respond({
         type: 'audio-chunk',
-        id: worker.request.id,
+        id: worker.request!.id,
         sampleRate: 8_000,
         samples: nextSamples.buffer,
       });
-      await vi.waitFor(() => expect(button.classList.contains('speaking')).toBe(true));
+      await vi.waitFor(() => expect(button!.classList.contains('speaking')).toBe(true));
       worker.respond({
         type: 'audio-done',
-        id: worker.request.id,
+        id: worker.request!.id,
         model,
         backend: 'wasm',
         sampleRate: 8_000,
@@ -1124,10 +1153,10 @@ describe('voice settings and chat controls', () => {
         audioSeconds: 1,
       });
       await vi.waitFor(() => expect(audioContext.sources).toHaveLength(2));
-      audioContext.sources[1].finish();
+      audioContext.sources[1]!.finish!();
 
       await expect(reading).resolves.toBe(true);
-      expect(button.textContent).toContain('Listen');
+      expect(button!.textContent).toContain('Listen');
     } finally {
       controller?.stopVoiceActivity();
       terminateLocalVoiceWorker('tts');

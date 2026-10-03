@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const realWorker = globalThis.Worker;
 
-function makeWorkerHarness(options = {}) {
+type HarnessOptions = {activeId?: string; throwOnMessageType?: string; errorMessageType?: string; errorEventType?: string};
+type WorkerRequestFixture = {type: string; files?: {name: string; text: string}[]; text?: string; topK?: number; source?: string; libraryId?: string; name?: string; model?: string};
+type WorkerEventFixture = {data?: unknown; message?: string};
+
+function makeWorkerHarness(options: HarnessOptions = {}) {
   const state = {
     activeId: options.activeId || 'active-library',
     activeName: 'Active Library',
@@ -13,10 +17,11 @@ function makeWorkerHarness(options = {}) {
     ],
     total: 2,
   };
-  const workers = [];
+  const workers: StubWorker[] = [];
 
+  interface StubWorker {url: string; init: WorkerOptions | undefined; messages: WorkerRequestFixture[]; listeners: Record<'message' | 'error', Set<(event: WorkerEventFixture) => void>>; terminated: boolean; pendingIngest: WorkerRequestFixture | null}
   class StubWorker {
-    constructor(url, init) {
+    constructor(url: string | URL, init?: WorkerOptions) {
       this.url = String(url);
       this.init = init;
       this.messages = [];
@@ -26,15 +31,15 @@ function makeWorkerHarness(options = {}) {
       workers.push(this);
     }
 
-    addEventListener(type, fn) {
+    addEventListener(type: 'message' | 'error', fn: (event: WorkerEventFixture) => void) {
       this.listeners[type]?.add(fn);
     }
 
-    removeEventListener(type, fn) {
+    removeEventListener(type: 'message' | 'error', fn: (event: WorkerEventFixture) => void) {
       this.listeners[type]?.delete(fn);
     }
 
-    postMessage(msg) {
+    postMessage(msg: WorkerRequestFixture) {
       this.messages.push(msg);
       if (options.throwOnMessageType === msg.type) throw new Error(`${msg.type} postMessage blocked`);
       queueMicrotask(() => this.respond(msg));
@@ -44,15 +49,15 @@ function makeWorkerHarness(options = {}) {
       this.terminated = true;
     }
 
-    emitMessage(data) {
+    emitMessage(data: unknown) {
       for (const fn of this.listeners.message) fn({ data });
     }
 
-    emitError(message) {
+    emitError(message: string) {
       for (const fn of this.listeners.error) fn({ message });
     }
 
-    readyPayload(extra = {}) {
+    readyPayload(extra: Record<string, unknown> = {}) {
       return {
         type: 'ready',
         numChunks: state.total,
@@ -67,7 +72,7 @@ function makeWorkerHarness(options = {}) {
       };
     }
 
-    respond(msg) {
+    respond(msg: WorkerRequestFixture) {
       if (options.errorMessageType === msg.type) {
         this.emitMessage({ type: 'error', message: `${msg.type} failed` });
         return;
@@ -82,19 +87,19 @@ function makeWorkerHarness(options = {}) {
           this.emitMessage(this.readyPayload());
           return;
         case 'ingest':
-          this.emitMessage({ type: 'progress', stage: 'embed', index: 1, total: msg.files.length, source: msg.files[0]?.name });
+          this.emitMessage({ type: 'progress', stage: 'embed', index: 1, total: msg.files!.length, source: msg.files![0]?.name });
           this.pendingIngest = msg;
-          this.emitMessage({ type: 'progress', stage: 'saving', total: msg.files.length + 1 });
+          this.emitMessage({ type: 'progress', stage: 'saving', total: msg.files!.length + 1 });
           return;
         case 'commit_ingest': {
           const ingest = this.pendingIngest;
           if (!ingest) return;
           this.pendingIngest = null;
-          state.total += ingest.files.length + 1;
-          state.documents = ingest.files.map(file => ({ source: file.name, chunks: 1 }));
+          state.total += ingest.files!.length + 1;
+          state.documents = ingest.files!.map(file => ({ source: file.name, chunks: 1 }));
           this.emitMessage({
             type: 'ingest_done',
-            stats: { files_seen: ingest.files.length, chunks_indexed: ingest.files.length + 1 },
+            stats: { files_seen: ingest.files!.length, chunks_indexed: ingest.files!.length + 1 },
           });
           return;
         }
@@ -131,7 +136,7 @@ function makeWorkerHarness(options = {}) {
           this.emitMessage({ type: 'libraries_list', libraries: state.libraries, activeId: state.activeId });
           return;
         case 'activate_library':
-          state.activeId = msg.libraryId;
+          state.activeId = msg.libraryId!;
           state.activeName = state.libraries.find(library => library.id === msg.libraryId)?.name || 'Activated';
           state.total = 4;
           state.documents = [{ source: 'activated.md', chunks: 4 }];
@@ -139,15 +144,15 @@ function makeWorkerHarness(options = {}) {
           return;
         case 'create_library': {
           const id = `library-${state.libraries.length + 1}`;
-          const library = { id, name: msg.name, model: msg.model || 'all-minilm' };
+          const library = { id, name: msg.name!, model: msg.model || 'all-minilm' };
           state.libraries.push(library);
           this.emitMessage({ type: 'library_created', id, name: library.name, model: library.model, libraries: state.libraries });
           return;
         }
         case 'rename_library': {
           const library = state.libraries.find(item => item.id === msg.libraryId);
-          if (library) library.name = msg.name;
-          this.emitMessage({ type: 'library_renamed', id: msg.libraryId, name: msg.name, libraries: state.libraries });
+          if (library) library.name = msg.name!;
+          this.emitMessage({ type: 'library_renamed', id: msg.libraryId, name: msg.name!, libraries: state.libraries });
           return;
         }
         case 'delete_library':
@@ -174,10 +179,10 @@ function makeWorkerHarness(options = {}) {
   return { Worker: StubWorker, state, workers };
 }
 
-async function loadLensLocal(options) {
+async function loadLensLocal(options?: HarnessOptions) {
   vi.resetModules();
   const harness = makeWorkerHarness(options);
-  globalThis.Worker = harness.Worker;
+  (globalThis as unknown as {Worker: unknown}).Worker = harness.Worker;
   return { harness, mod: await import('../js/lens-local.js') };
 }
 
@@ -188,7 +193,7 @@ beforeEach(() => {
 
 afterEach(() => {
   if (realWorker) globalThis.Worker = realWorker;
-  else delete globalThis.Worker;
+  else delete (globalThis as {Worker?: unknown}).Worker;
   vi.restoreAllMocks();
 });
 
@@ -218,8 +223,8 @@ describe('lens-local main-thread runtime behavior', () => {
 
     expect(lensAgain).toBe(lens);
     expect(harness.workers).toHaveLength(1);
-    expect(harness.workers[0].url).toContain('lens-local-worker.js');
-    expect(harness.workers[0].init).toEqual({ type: 'module' });
+    expect(harness.workers[0]!.url).toContain('lens-local-worker.js');
+    expect(harness.workers[0]!.init).toEqual({ type: 'module' });
     expect(localStorage.getItem('labcharts-lens-local-count')).toBe('2');
     expect(lens).toMatchObject({
       numChunks: 2,
@@ -236,7 +241,7 @@ describe('lens-local main-thread runtime behavior', () => {
     expect(noisyProgress).toHaveBeenCalledWith(expect.objectContaining({ type: 'progress', source: 'one.md' }));
     expect(progress).toHaveBeenCalledWith(expect.objectContaining({ type: 'progress', source: 'one.md' }));
     expect(progress).toHaveBeenCalledWith(expect.objectContaining({ type: 'progress', stage: 'saving' }));
-    expect(harness.workers[0].messages).toContainEqual({ type: 'commit_ingest' });
+    expect(harness.workers[0]!.messages).toContainEqual({ type: 'commit_ingest' });
     expect(localStorage.getItem('labcharts-lens-local-count')).toBe('5');
 
     unsubscribeNoisy();
@@ -263,7 +268,7 @@ describe('lens-local main-thread runtime behavior', () => {
     expect(localStorage.getItem('labcharts-lens-local-count')).toBe('0');
 
     lens.abort();
-    expect(harness.workers[0].messages.at(-1)).toEqual({ type: 'abort' });
+    expect(harness.workers[0]!.messages.at(-1)).toEqual({ type: 'abort' });
   });
 
   it('wraps library management messages and count refreshes', async () => {
@@ -320,7 +325,7 @@ describe('lens-local main-thread runtime behavior', () => {
       chunks: [],
       sourceName: 'Active Library',
     });
-    expect(harness.workers[0].messages).toEqual(expect.arrayContaining([
+    expect(harness.workers[0]!.messages).toEqual(expect.arrayContaining([
       { type: 'query', text: 'vitamin d', topK: 3 },
       { type: 'list_libraries' },
     ]));
@@ -351,7 +356,7 @@ describe('lens-local main-thread runtime behavior', () => {
     await expect(mod.openLocalLens()).rejects.toThrow('init failed');
     await expect(mod.openLocalLens()).rejects.toThrow('init failed');
     expect(harness.workers).toHaveLength(1);
-    expect(harness.workers[0].messages).toEqual([{ type: 'init' }]);
+    expect(harness.workers[0]!.messages).toEqual([{ type: 'init' }]);
   });
 
   it('rejects queued requests when the worker itself errors', async () => {
