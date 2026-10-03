@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
+import { sourcePath } from '../scripts/source-files.js';
+import { fileURLToPath } from 'node:url';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-light-tools.js — Pure helpers re-exported by light-tools.js:
 // computeRowBanding (flicker FFT), cameraLockStatusLine, saveMeasurement
@@ -46,7 +48,7 @@ const tools = await import('../js/light-tools.js');
       'light-tool-cct-meter.js',
       'light-tool-spectrum-classifier.js',
       'light-tool-glass-transmission.js',
-    ].map(file => fs.readFileSync(new URL(`../js/${file}`, import.meta.url), 'utf8')).join('\n');
+    ].map(file => fs.readFileSync(sourcePath(fileURLToPath(new URL(`../js/${file}`, import.meta.url))), 'utf8')).join('\n');
     const lightSunCss = fs.readFileSync(new URL('../css/light-sun.css', import.meta.url), 'utf8');
     const lightToolCss = fs.readFileSync(new URL('../css/light-tools.css', import.meta.url), 'utf8');
     const cssFiles = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-panel-open.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css', 'css/chat-redesign-open.css'];

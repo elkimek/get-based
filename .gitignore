@@ -827,3 +827,11 @@ deploy/profile-share/data/
 /js/light-screen-ai-analysis.js
 /js/light-sessions-view.js
 /js/sun-onboarding-ai.js
+
+/js/light-tool-lux-meter.js
+/js/light-tool-darkness-meter.js
+/js/light-tool-flicker-detector.js
+/js/light-tool-spectrum-classifier.js
+/js/light-tool-cct-meter.js
+/js/light-tool-glass-transmission.js
+/js/light-tools-solar-time.js

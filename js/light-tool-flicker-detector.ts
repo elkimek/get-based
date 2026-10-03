@@ -1,4 +1,3 @@
-// @ts-check
 // Camera-backed rolling-shutter flicker detector.
 
 import { escapeHTML, queryRequired, showNotification } from './utils.js';
@@ -17,13 +16,22 @@ import {
   lightToolModalActionAttrs,
   registerCameraToolCloser,
 } from './light-tool-camera-modal-runtime.js';
+import type { CameraLockResult } from './light-tool-camera.js';
 
-let flickerState = /** @type {{ running: boolean, stream: MediaStream | null }} */ ({
+interface FrameSample { t: number; v: number }
+interface BandingSample { t: number; banding: number; stripes: number }
+interface FlickerResult {
+  score: number; label: string; bandingRatio: number; stripes: number; frameRatio: number;
+  method: string; exposureLock: string; frameRate: number | null;
+}
+
+
+let flickerState: { running: boolean; stream: MediaStream | null } = ({
   running: false,
   stream: null,
 });
 
-export async function openFlickerDetector(opts = {}, deps = {}) {
+export async function openFlickerDetector(opts: { roomId?: unknown } = {}, deps: Parameters<typeof getSaveMeasurement>[0] = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
@@ -60,9 +68,9 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
   installLightToolModalDelegates(overlay);
   openAppendedModalOverlay(overlay, closeFlickerOverlay);
 
-  let lastResult = null;
-  const resultEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#flicker-result'));
-  const video = /** @type {HTMLVideoElement} */ (queryRequired(overlay, '#flicker-video'));
+  let lastResult: FlickerResult | null = null;
+  const resultEl = (queryRequired<HTMLElement>(overlay, '#flicker-result'));
+  const video = (queryRequired<HTMLVideoElement>(overlay, '#flicker-video'));
   flickerState.running = true;
 
   try {
@@ -89,8 +97,8 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
     canvas.width = 64;
     canvas.height = 48;
     const context = getRequired2DContext(canvas);
-    const frameSamples = [];
-    const bandingSamples = [];
+    const frameSamples: FrameSample[] = [];
+    const bandingSamples: BandingSample[] = [];
     const startTime = performance.now();
     const tick = () => {
       if (!flickerState.running) return;
@@ -110,7 +118,7 @@ export async function openFlickerDetector(opts = {}, deps = {}) {
     resultEl.innerHTML = 'Camera access denied — banding screen unavailable. <br><span style="font-size:11px;color:var(--text-muted)">To re-enable this qualitative camera check, open your browser\'s site settings and allow camera access. Use a purpose-built meter for flicker frequency and modulation.</span>';
   }
 
-  function renderFlicker(frameSamples, bandingSamples, lock) {
+  function renderFlicker(frameSamples: FrameSample[], bandingSamples: BandingSample[], lock: CameraLockResult | null | undefined) {
     const recent = frameSamples.slice(-120);
     if (recent.length < 30) return;
     const values = recent.map(sample => sample.v);

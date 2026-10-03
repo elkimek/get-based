@@ -1,4 +1,3 @@
-// @ts-check
 // Camera-backed warm/cool appearance workflow.
 
 import { queryRequired, showNotification } from './utils.js';
@@ -17,12 +16,12 @@ import {
   registerCameraToolCloser,
 } from './light-tool-camera-modal-runtime.js';
 
-let cctState = /** @type {{ running: boolean, stream: MediaStream | null }} */ ({
+let cctState: { running: boolean; stream: MediaStream | null } = {
   running: false,
   stream: null,
-});
+};
 
-export async function openCCTMeter(opts = {}, deps = {}) {
+export async function openCCTMeter(opts: { roomId?: unknown } = {}, deps: Parameters<typeof getSaveMeasurement>[0] = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
@@ -63,15 +62,15 @@ export async function openCCTMeter(opts = {}, deps = {}) {
   installLightToolModalDelegates(overlay);
   openAppendedModalOverlay(overlay, closeCCTOverlay);
 
-  let currentCCT = null;
-  let currentMelanopic = null;
+  let currentCCT: number | null = null;
+  let currentMelanopic: number | null = null;
   let currentPWMActive = false;
   let measurementConfidence = 0.2;
   let whiteBalanceMode = 'auto';
-  const valueEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#cct-value'));
-  const toneEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#cct-tone'));
-  const coherenceEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#cct-coherence'));
-  const video = /** @type {HTMLVideoElement} */ (queryRequired(overlay, '#cct-video'));
+  const valueEl = queryRequired<HTMLElement>(overlay, '#cct-value');
+  const toneEl = queryRequired<HTMLElement>(overlay, '#cct-tone');
+  const coherenceEl = queryRequired<HTMLElement>(overlay, '#cct-coherence');
+  const video = queryRequired<HTMLVideoElement>(overlay, '#cct-video');
   cctState.running = true;
 
   try {
@@ -97,7 +96,7 @@ export async function openCCTMeter(opts = {}, deps = {}) {
     canvas.width = 64;
     canvas.height = 48;
     const context = getRequired2DContext(canvas);
-    const bandingPeaks = [];
+    const bandingPeaks: number[] = [];
     const tick = () => {
       if (!cctState.running) return;
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -106,9 +105,9 @@ export async function openCCTMeter(opts = {}, deps = {}) {
       let green = 0;
       let blue = 0;
       for (let index = 0; index < data.length; index += 4) {
-        red += data[index];
-        green += data[index + 1];
-        blue += data[index + 2];
+        red += data[index]!;
+        green += data[index + 1]!;
+        blue += data[index + 2]!;
       }
       const pixels = data.length / 4;
       red /= pixels;
@@ -171,7 +170,7 @@ export async function openCCTMeter(opts = {}, deps = {}) {
   });
 }
 
-function cctTone(kelvin) {
+function cctTone(kelvin: number) {
   if (kelvin < 2200) return 'Candle';
   if (kelvin < 3000) return 'Warm white (incandescent / warm LED)';
   if (kelvin < 4000) return 'Soft white';

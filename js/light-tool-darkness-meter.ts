@@ -1,4 +1,3 @@
-// @ts-check
 // Long-exposure sleep-darkness measurement workflow.
 
 import { escapeHTML, queryRequired, showNotification } from './utils.js';
@@ -17,12 +16,20 @@ import {
   registerCameraToolCloser,
 } from './light-tool-camera-modal-runtime.js';
 
-let darknessState = /** @type {{ running: boolean, stream: MediaStream | null }} */ ({
+import type { CameraLockResult } from './light-tool-camera.js';
+export interface DarknessMeterOptions { roomId?: unknown; }
+type MeterDependencies = NonNullable<Parameters<typeof getSaveMeasurement>[0]>;
+interface DarknessCameraResult {
+  method: string; cameraLevel: number; peakCameraLevel: number; meanLuma: number; peakLuma: number;
+  lockMode: CameraLockResult['exposure']; isoLocked: boolean; levelLabel: string; cls: string;
+}
+
+let darknessState: { running: boolean; stream: MediaStream | null } = {
   running: false,
   stream: null,
-});
+};
 
-export async function openDarknessMeter(opts = {}, deps = {}) {
+export async function openDarknessMeter(opts: DarknessMeterOptions = {}, deps: MeterDependencies = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
@@ -69,10 +76,10 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
   installLightToolModalDelegates(overlay);
   openAppendedModalOverlay(overlay, closeDarknessOverlay);
 
-  let result = null;
-  const statusEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#dark-status'));
-  const startBtn = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#dark-start'));
-  const saveBtn = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#dark-save'));
+  let result: DarknessCameraResult | null = null;
+  const statusEl = (queryRequired(overlay, '#dark-status') as HTMLElement);
+  const startBtn = (queryRequired(overlay, '#dark-start') as HTMLButtonElement);
+  const saveBtn = (queryRequired(overlay, '#dark-save') as HTMLButtonElement);
 
   startBtn.addEventListener('click', async () => {
     if (darknessState.stream) {
@@ -104,8 +111,8 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
       canvas.width = 32;
       canvas.height = 24;
       const context = getRequired2DContext(canvas);
-      const lumas = [];
-      const peaks = [];
+      const lumas: number[] = [];
+      const peaks: number[] = [];
       const startTime = performance.now();
       let cancelled = false;
       while (performance.now() - startTime < 30000 && darknessState.running) {
@@ -119,13 +126,13 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
         let sum = 0;
         let max = 0;
         for (let index = 0; index < data.length; index += 4) {
-          const luma = 0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2];
+          const luma = 0.2126 * data[index]! + 0.7152 * data[index + 1]! + 0.0722 * data[index + 2]!;
           sum += luma;
           if (luma > max) max = luma;
         }
         lumas.push(sum / (data.length / 4));
         peaks.push(max);
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise<void>(resolve => setTimeout(resolve, 200));
       }
       if (cancelled || !darknessState.running) return;
       try { stream.getTracks().forEach(track => track.stop()); } catch (error) {}
@@ -137,8 +144,8 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
       const peakLuma = sortedPeaks[Math.floor(sortedPeaks.length * 0.95)] || 0;
       const cameraLevel = Math.min(100, Math.max(0, meanLuma / 255 * 100));
       const peakLevel = Math.min(100, Math.max(0, peakLuma / 255 * 100));
-      let label;
-      let className;
+      let label: string;
+      let className: string;
       if (cameraLevel < 3 && peakLevel < 8) {
         label = 'Very dark camera frame';
         className = 'ok';
@@ -201,7 +208,7 @@ export async function openDarknessMeter(opts = {}, deps = {}) {
   });
 
   queryRequired(overlay, '#dark-meter-save').addEventListener('click', async () => {
-    const input = /** @type {HTMLInputElement} */ (queryRequired(overlay, '#dark-meter-input'));
+    const input = (queryRequired(overlay, '#dark-meter-input') as HTMLInputElement);
     const lux = Number(input.value);
     if (!Number.isFinite(lux) || lux < 0 || lux > 10000) {
       showNotification('Enter a valid lux-meter reading between 0 and 10,000.', 'error');

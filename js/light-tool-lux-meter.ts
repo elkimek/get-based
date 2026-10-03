@@ -1,4 +1,3 @@
-// @ts-check
 // Lux meter camera and AmbientLightSensor workflow.
 
 import { queryRequired, showNotification } from './utils.js';
@@ -13,6 +12,7 @@ import {
   lockCameraForMeasurement,
   saveLuxCalibration,
 } from './light-tool-camera.js';
+import type { AmbientLightSensor } from './utils-runtime.js';
 import { getUtilsRuntimeValue } from './utils-runtime.js';
 import {
   clearCameraToolCloser,
@@ -33,21 +33,28 @@ const LUX_ZONES = [
   { max: Infinity, label: 'Direct sun', color: 'var(--orange)' },
 ];
 
-function luxZone(lux) {
+function luxZone(lux: number) {
   for (const zone of LUX_ZONES) if (lux <= zone.max) return zone;
-  return LUX_ZONES[LUX_ZONES.length - 1];
+  return LUX_ZONES[LUX_ZONES.length - 1]!;
 }
 
-let luxState = /** @type {{ running: boolean, sensor: { stop: () => void } | null, stream: MediaStream | null, video: HTMLVideoElement | null, calibration: number, calibrationConfirmed: boolean }} */ ({
+interface LuxMeterState {
+  running: boolean; sensor: AmbientLightSensor | null; stream: MediaStream | null;
+  video: HTMLVideoElement | null; calibration: number; calibrationConfirmed: boolean;
+}
+export interface LuxMeterOptions { roomId?: unknown; context?: unknown; }
+type MeterDependencies = NonNullable<Parameters<typeof getSaveMeasurement>[0]>;
+
+let luxState: LuxMeterState = {
   running: false,
   sensor: null,
   stream: null,
   video: null,
   calibration: 1,
   calibrationConfirmed: false,
-});
+};
 
-export async function openLuxMeter(opts = {}, deps = {}) {
+export async function openLuxMeter(opts: LuxMeterOptions = {}, deps: MeterDependencies = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
@@ -130,33 +137,33 @@ export async function openLuxMeter(opts = {}, deps = {}) {
   installLightToolModalDelegates(overlay);
   openAppendedModalOverlay(overlay, closeLuxMeterOverlay);
 
-  let currentLux = null;
-  let currentRawLuma = null;
-  const valueEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-value'));
-  const unitEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-unit'));
-  const zoneEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-zone'));
-  const sourceLine = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-source-line'));
-  const liveDial = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-live-dial'));
-  const manualEntry = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-manual-entry'));
-  const manualInput = /** @type {HTMLInputElement} */ (queryRequired(overlay, '#lux-manual-input'));
-  const manualZoneEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-manual-zone'));
-  const alsButton = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#lux-source-als'));
-  const cameraButton = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#lux-source-camera'));
-  const alsDetail = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-source-als-detail'));
-  const cameraDetail = /** @type {HTMLElement} */ (queryRequired(overlay, '#lux-source-camera-detail'));
-  const calCurrentEl = /** @type {HTMLElement | null} */ (queryOptionalLightToolElement(overlay, '#lux-cal-current'));
+  let currentLux: number | null = null;
+  let currentRawLuma: number | null = null;
+  const valueEl = (queryRequired(overlay, '#lux-value') as HTMLElement);
+  const unitEl = (queryRequired(overlay, '#lux-unit') as HTMLElement);
+  const zoneEl = (queryRequired(overlay, '#lux-zone') as HTMLElement);
+  const sourceLine = (queryRequired(overlay, '#lux-source-line') as HTMLElement);
+  const liveDial = (queryRequired(overlay, '#lux-live-dial') as HTMLElement);
+  const manualEntry = (queryRequired(overlay, '#lux-manual-entry') as HTMLElement);
+  const manualInput = (queryRequired(overlay, '#lux-manual-input') as HTMLInputElement);
+  const manualZoneEl = (queryRequired(overlay, '#lux-manual-zone') as HTMLElement);
+  const alsButton = (queryRequired(overlay, '#lux-source-als') as HTMLButtonElement);
+  const cameraButton = (queryRequired(overlay, '#lux-source-camera') as HTMLButtonElement);
+  const alsDetail = (queryRequired(overlay, '#lux-source-als-detail') as HTMLElement);
+  const cameraDetail = (queryRequired(overlay, '#lux-source-camera-detail') as HTMLElement);
+  const calCurrentEl = (queryOptionalLightToolElement(overlay, '#lux-cal-current') as HTMLElement | null);
   luxState.running = true;
   luxState.calibration = loadLuxCalibration();
   luxState.calibrationConfirmed = isLuxCalibrationConfirmed();
   if (calCurrentEl) calCurrentEl.textContent = luxState.calibrationConfirmed ? `${luxState.calibration.toFixed(2)}×` : 'not calibrated';
 
-  let activeSource = /** @type {'als' | 'camera' | 'manual' | null} */ (null);
+  let activeSource: 'als' | 'camera' | 'manual' | null = null;
   let cameraFallbackStarted = false;
   let cameraRun = 0;
   let cameraExposureHeld = false;
-  const calibrationPanel = /** @type {HTMLElement | null} */ (queryOptionalLightToolElement(overlay, '#lux-calibration-panel'));
+  const calibrationPanel = (queryOptionalLightToolElement(overlay, '#lux-calibration-panel') as HTMLElement | null);
 
-  const setActiveSource = (source) => {
+  const setActiveSource = (source: 'als' | 'camera' | 'manual') => {
     activeSource = source;
     const alsActive = source === 'als';
     const cameraActive = source === 'camera';
@@ -234,7 +241,7 @@ export async function openLuxMeter(opts = {}, deps = {}) {
           const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
           let sum = 0;
           for (let index = 0; index < data.length; index += 4) {
-            sum += 0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2];
+            sum += 0.2126 * data[index]! + 0.7152 * data[index + 1]! + 0.0722 * data[index + 2]!;
           }
           const meanLuma = sum / (data.length / 4);
           currentRawLuma = meanLuma;
@@ -336,7 +343,7 @@ export async function openLuxMeter(opts = {}, deps = {}) {
 
   if (!startAmbientSensor()) await startCameraFallback();
 
-  function renderLux(value) {
+  function renderLux(value: number | null) {
     if (value == null) {
       valueEl.textContent = '—';
       zoneEl.textContent = '—';
@@ -349,16 +356,16 @@ export async function openLuxMeter(opts = {}, deps = {}) {
     zoneEl.style.color = zone.color;
   }
 
-  function renderCameraProxy(rawLuma) {
+  function renderCameraProxy(rawLuma: number) {
     valueEl.textContent = `${Math.round(Math.min(100, Math.max(0, rawLuma / 255 * 100)))}%`;
     unitEl.textContent = 'camera level';
     zoneEl.textContent = 'Calibration required for lux';
     zoneEl.style.color = 'var(--text-muted)';
   }
 
-  const calApplyBtn = /** @type {HTMLButtonElement | null} */ (queryOptionalLightToolElement(overlay, '#lux-cal-apply'));
-  const calResetBtn = /** @type {HTMLButtonElement | null} */ (queryOptionalLightToolElement(overlay, '#lux-cal-reset'));
-  const calRefInput = /** @type {HTMLInputElement | null} */ (queryOptionalLightToolElement(overlay, '#lux-cal-reference'));
+  const calApplyBtn = (queryOptionalLightToolElement(overlay, '#lux-cal-apply') as HTMLButtonElement | null);
+  const calResetBtn = (queryOptionalLightToolElement(overlay, '#lux-cal-reset') as HTMLButtonElement | null);
+  const calRefInput = (queryOptionalLightToolElement(overlay, '#lux-cal-reference') as HTMLInputElement | null);
   calApplyBtn?.addEventListener('click', () => {
     if (activeSource !== 'camera') return;
     if (!cameraExposureHeld) {

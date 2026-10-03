@@ -1,4 +1,3 @@
-// @ts-check
 // Two-sample visible-light transmission workflow for windows and glass.
 
 import { queryRequired, showNotification } from './utils.js';
@@ -17,10 +16,9 @@ import {
   registerCameraToolCloser,
 } from './light-tool-camera-modal-runtime.js';
 
-/** @type {{ inside: number | null, outside: number | null }} */
-let glassReadings = { inside: null, outside: null };
+let glassReadings: { inside: number | null; outside: number | null } = { inside: null, outside: null };
 
-export async function openGlassTransmission(opts = {}, deps = {}) {
+export async function openGlassTransmission(opts: { roomId?: unknown } = {}, deps: Parameters<typeof getSaveMeasurement>[0] = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
@@ -51,8 +49,7 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
     </div>
     </div>`;
   let closed = false;
-  /** @type {Set<MediaStream>} */
-  const activeGlassStreams = new Set();
+  const activeGlassStreams = new Set<MediaStream>();
   const closeGlassOverlay = () => {
     if (closed) return;
     closed = true;
@@ -69,11 +66,9 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
 
   glassReadings = { inside: null, outside: null };
 
-  /** @type {import('./light-tool-camera.js').CameraLockResult | null} */
-  let lastGlassLock = null;
-  /** @param {'inside' | 'outside'} which */
-  const measure = async which => {
-    let stream = null;
+  let lastGlassLock: import('./light-tool-camera.js').CameraLockResult | null = null;
+  const measure = async (which: 'inside' | 'outside') => {
+    let stream: MediaStream | null = null;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: 160, height: 120 },
@@ -93,14 +88,14 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
       canvas.width = 32;
       canvas.height = 24;
       const context = getRequired2DContext(canvas);
-      const samples = [];
+      const samples: number[] = [];
       for (let sample = 0; sample < 8; sample++) {
         if (closed) return;
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
         const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
         let sum = 0;
         for (let index = 0; index < data.length; index += 4) {
-          sum += 0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2];
+          sum += 0.2126 * data[index]! + 0.7152 * data[index + 1]! + 0.0722 * data[index + 2]!;
         }
         samples.push(sum / (data.length / 4));
         await new Promise(resolve => setTimeout(resolve, 125));
@@ -135,7 +130,7 @@ export async function openGlassTransmission(opts = {}, deps = {}) {
     queryRequired(overlay, '#glass-result').innerHTML =
       `<strong>Camera-visible response through glass: about ${(transmission * 100).toFixed(0)}% of the direct comparison</strong>` +
       `<br><small>This is not a calibrated visible-transmission value. Scene movement, reflections, exposure, and phone spectral response affect it. <strong>UV or infrared transmission cannot be inferred</strong>; those require wavelength-appropriate meters.</small>${lockNote}`;
-    const glassSave = /** @type {HTMLButtonElement} */ (queryRequired(overlay, '#glass-save'));
+    const glassSave = queryRequired<HTMLButtonElement>(overlay, '#glass-save');
     glassSave.disabled = false;
     glassSave.onclick = async () => {
       await saveMeasurement('glass-transmission', transmission, {

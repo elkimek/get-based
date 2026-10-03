@@ -1,17 +1,19 @@
-// @ts-check
+import type { SunSetupCoords } from './sun-defaults-model.js';
 
-export function computeSunriseSunset(coords, date, solarZenithAngle) {
+type SolarZenithReader = (date: Date, lat: number, lon: number) => unknown;
+
+export function computeSunriseSunset(coords: SunSetupCoords | null | undefined, date: unknown, solarZenithAngle: SolarZenithReader | null | undefined) {
   if (!coords || typeof solarZenithAngle !== 'function') return { sunrise: null, sunset: null };
-  const baseDate = date ? new Date(date) : new Date();
+  const baseDate = date ? new Date(date as string) : new Date();
   const day = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
-  let sunrise = null;
-  let sunset = null;
-  let prevAbove = null;
+  let sunrise: Date | null = null;
+  let sunset: Date | null = null;
+  let prevAbove: boolean | null = null;
   for (let minutes = 0; minutes < 24 * 60; minutes += 5) {
     const time = new Date(day.getTime() + minutes * 60_000);
     const zenith = solarZenithAngle(time, coords.lat, coords.lon);
     if (!Number.isFinite(zenith)) continue;
-    const above = zenith < 90.83;
+    const above = (zenith as number) < 90.83;
     if (prevAbove != null && above !== prevAbove) {
       if (above && !sunrise) sunrise = time;
       else if (!above && !sunset) sunset = time;
@@ -21,7 +23,7 @@ export function computeSunriseSunset(coords, date, solarZenithAngle) {
   return { sunrise, sunset };
 }
 
-export function classifyDayWindow(coords, now, solarZenithAngle) {
+export function classifyDayWindow(coords: SunSetupCoords | null | undefined, now: Date | null | undefined, solarZenithAngle: SolarZenithReader | null | undefined) {
   const time = now || new Date();
   const { sunrise, sunset } = computeSunriseSunset(coords, time, solarZenithAngle);
   if (!sunrise || !sunset) {
@@ -46,13 +48,13 @@ export function classifyDayWindow(coords, now, solarZenithAngle) {
   return { kind: 'night', label: 'Night — sun is below horizon', sunrise, sunset };
 }
 
-export function formatSunClock(date) {
+export function formatSunClock(date: Pick<Date, 'toLocaleTimeString'> | null | undefined) {
   if (!date) return '—';
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-export function normalizeGoldenHourMinutes(value) {
-  const parsed = parseInt(value, 10);
+export function normalizeGoldenHourMinutes(value: unknown) {
+  const parsed = parseInt(value as string, 10);
   if (!Number.isFinite(parsed)) return 15;
   return Math.min(120, Math.max(1, parsed));
 }

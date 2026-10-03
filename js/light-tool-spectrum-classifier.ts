@@ -1,4 +1,3 @@
-// @ts-check
 // Camera-backed RGB pattern and rolling-shutter banding screen.
 
 import { escapeHTML, queryRequired, showNotification } from './utils.js';
@@ -17,13 +16,23 @@ import {
   lightToolModalActionAttrs,
   registerCameraToolCloser,
 } from './light-tool-camera-modal-runtime.js';
+interface SpectrumSample { r: number; g: number; b: number; peakBanding: number; stripes: number }
+interface SpectrumCameraResult {
+  label: string; confidence: number; reason: string; melanopic: number;
+  circadian: 'blue-poor' | 'blue-rich' | 'mixed';
+}
+interface SpectrumManualResult {
+  label: string | null; confidence: number; reason: string; melanopic: null; circadian: 'unknown';
+}
+type SpectrumResult = SpectrumCameraResult | SpectrumManualResult;
 
-let spectrumState = /** @type {{ running: boolean, stream: MediaStream | null }} */ ({
+
+let spectrumState: { running: boolean; stream: MediaStream | null } = ({
   running: false,
   stream: null,
 });
 
-export async function openSpectrumClassifier(opts = {}, deps = {}) {
+export async function openSpectrumClassifier(opts: { roomId?: unknown } = {}, deps: Parameters<typeof getSaveMeasurement>[0] = {}) {
   const saveMeasurement = getSaveMeasurement(deps);
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
@@ -60,9 +69,9 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
   installLightToolModalDelegates(overlay);
   openAppendedModalOverlay(overlay, closeSpectrumOverlay);
 
-  let result = null;
-  const resultEl = /** @type {HTMLElement} */ (queryRequired(overlay, '#spec-result'));
-  const video = /** @type {HTMLVideoElement} */ (queryRequired(overlay, '#spec-video'));
+  let result: SpectrumResult | null = null;
+  const resultEl = (queryRequired<HTMLElement>(overlay, '#spec-result'));
+  const video = (queryRequired<HTMLVideoElement>(overlay, '#spec-video'));
   spectrumState.running = true;
 
   try {
@@ -86,7 +95,7 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
     canvas.width = 64;
     canvas.height = 48;
     const context = getRequired2DContext(canvas);
-    const bandingPeaks = [];
+    const bandingPeaks: number[] = [];
     const tick = () => {
       if (!spectrumState.running) return;
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -95,9 +104,9 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
       let green = 0;
       let blue = 0;
       for (let index = 0; index < data.length; index += 4) {
-        red += data[index];
-        green += data[index + 1];
-        blue += data[index + 2];
+        red += data[index]!;
+        green += data[index + 1]!;
+        blue += data[index + 2]!;
       }
       const pixels = data.length / 4;
       red /= pixels;
@@ -177,7 +186,7 @@ export async function openSpectrumClassifier(opts = {}, deps = {}) {
   });
 }
 
-function classifyLight({ r, g, b, peakBanding, stripes }) {
+function classifyLight({ r, g, b, peakBanding, stripes }: SpectrumSample): SpectrumCameraResult {
   const sum = r + g + b || 1;
   const normalizedRed = r / sum;
   const normalizedGreen = g / sum;
