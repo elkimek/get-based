@@ -1,5 +1,4 @@
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
-// @ts-check
 // Manual-entry form and mutation owner for the wearable detail modal.
 
 import { getErrorMessage } from './caught-error.js';
@@ -28,23 +27,23 @@ import {
 
 const detailDeps = {
   closeDetail: () => {},
-  openDetail: (_metricId) => {},
+  openDetail: (_metricId: string) => {},
 };
 
-export function configureWearableManualDetailDeps(deps = {}) {
-  return configureRuntimeFunctions(detailDeps, deps, ["closeDetail","openDetail"]);
+export function configureWearableManualDetailDeps(deps: unknown = {}) {
+  return configureRuntimeFunctions(detailDeps, deps as Partial<typeof detailDeps>, ["closeDetail","openDetail"]) as { [Key in keyof typeof detailDeps]: unknown };
 }
 
-function actionAttrs(action) {
+function actionAttrs(action: unknown) {
   return `data-wearable-action="${escapeAttr(action)}"`;
 }
 
-function formAttrs(metricId, kind) {
+function formAttrs(metricId: unknown, kind: unknown) {
   return `data-wearable-form="detail-manual-add" data-wearable-metric="${escapeAttr(metricId)}" data-wearable-kind="${escapeAttr(kind)}"`;
 }
 
-export function openManualAddFromDetail(metricId, event) {
-  event?.stopPropagation();
+export function openManualAddFromDetail(metricId: string, event?: unknown) {
+  (event as Pick<Event, 'stopPropagation'> | null | undefined)?.stopPropagation();
   const slot = document.getElementById('wearable-manual-add-slot');
   if (!slot) return;
   const today = isoDay();
@@ -93,15 +92,15 @@ export function closeManualAddFromDetail() {
   if (slot) slot.innerHTML = '';
 }
 
-const manualEntryOps = new Map();
+const manualEntryOps = new Map<string, number>();
 
-function bumpManualEntryOp(metricId) {
+function bumpManualEntryOp(metricId: string) {
   const next = (manualEntryOps.get(metricId) || 0) + 1;
   manualEntryOps.set(metricId, next);
   return next;
 }
 
-export async function saveManualEntryFromDetail(metricId, kind) {
+export async function saveManualEntryFromDetail(metricId: string, kind: unknown) {
   const operation = bumpManualEntryOp(metricId);
   const profileId = getActiveProfileId();
   const date = inputValueById('wlad-date');
@@ -158,7 +157,7 @@ export async function saveManualEntryFromDetail(metricId, kind) {
   }
 }
 
-export async function deleteManualEntryFromDetail(metricId, date) {
+export async function deleteManualEntryFromDetail(metricId: string, date: string) {
   const operation = bumpManualEntryOp(metricId);
   const label = canonicalMetric(metricId)?.label || metricId;
   if (!await confirmWearableDetailActionRuntime(

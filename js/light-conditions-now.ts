@@ -1,4 +1,3 @@
-// @ts-check
 // light-conditions-now.js — Current outdoor conditions widget for Light & Sun
 
 import { getErrorMessage } from './caught-error.js';
@@ -10,15 +9,34 @@ import {
   configureLightConditionsInterpretation,
 } from './light-conditions-interpretation.js';
 import { renderConditionsHTML } from './light-conditions-renderer.js';
+import type { ConditionsAtmosphere } from './light-conditions-renderer.js';
+import type { computeUVConfidence } from './sun-uvdata-atmosphere.js';
+
+export interface ConditionsNowOptions { variant?: unknown; slotId?: unknown }
+type ConditionsDependencyName = 'applyAtmOverrides' | 'computeUVConfidence' | 'fetchAtmosphere' | 'getSunCoords' | 'isDebugMode' | 'purgeMeteoCache' | 'showNotification' | 'solarZenithAngle';
+type RawConditionsDependencies = Record<ConditionsDependencyName, unknown>;
+type ConfidenceInputReader = { [Key in keyof NonNullable<Parameters<typeof computeUVConfidence>[0]>]?: unknown };
+// Private operation views retain the original unchecked numeric/date consumers.
+// Neither configuration snapshots nor cached payloads promise validated values.
+type ConditionsDependencyReader = RawConditionsDependencies & { computeUVConfidence: ((input: ConfidenceInputReader) => ReturnType<typeof computeUVConfidence> | null | undefined) | null | undefined };
+interface CoordinateOperationReader { lat: number; lon: number; source?: unknown }
+interface AtmosphereOperationReader extends ConditionsAtmosphere { _stale?: unknown; _offline?: unknown; _requestCoords?: unknown; _camsMeta?: unknown; confidence?: unknown }
+interface InspectionAtmosphereReader extends Omit<AtmosphereOperationReader, 'validAt' | 'fetchedAt' | 'uvIndex' | 'cloudCover' | 'confidence' | '_requestCoords' | '_camsMeta'> {
+  validAt: string | number; fetchedAt: string | number; uvIndex: number; cloudCover: number; confidence: number | null | undefined;
+  _requestCoords: { lat: number; lon: number; privacyRounded?: unknown }; _camsMeta: { ageSec: number };
+}
+interface ConditionsCacheReader { coordKey: string | null; atm: AtmosphereOperationReader; fetchedAt: number }
+interface ConditionsActionTarget { closest?: ((selector: string) => Element | null) | null }
+interface ConditionsActionRoot { contains?: ((element: Element) => unknown) | null }
+
 
 export { _formatElapsedShort };
 
 const LIGHT_CONDITIONS_ACTION_ATTR = 'data-light-conditions-action';
 const LIGHT_CONDITIONS_ACTION_DELEGATE_KEY = Symbol.for('getbased.lightConditionsActionDelegatesInstalled');
-const lightConditionsActionDelegateRoots = new WeakSet();
-/** @type {Record<string, any>} */
-const lightConditionsDeps = {
-  applyAtmOverrides: atm => atm,
+const lightConditionsActionDelegateRoots = new WeakSet<object>();
+const lightConditionsDeps: ConditionsDependencyReader = {
+  applyAtmOverrides: (atm: unknown) => atm,
   computeUVConfidence: null,
   fetchAtmosphere: null,
   getSunCoords: () => null,
@@ -28,58 +46,58 @@ const lightConditionsDeps = {
   solarZenithAngle: null,
 };
 
-export function configureLightConditionsNow(deps = {}) {
+export function configureLightConditionsNow(deps: unknown = {}): RawConditionsDependencies {
   const previous = { ...lightConditionsDeps };
-  for (const [key, value] of Object.entries(deps || {})) {
+  for (const [key, value] of Object.entries((deps || {}) as object)) {
     if (Object.prototype.hasOwnProperty.call(lightConditionsDeps, key)) {
-      lightConditionsDeps[key] = value;
+      (lightConditionsDeps as RawConditionsDependencies)[key as ConditionsDependencyName] = value;
     } else {
       _debugWarn('[light-conditions-now] ignoring unknown dependency key', key);
     }
   }
   const solarZenithAngle = typeof lightConditionsDeps.solarZenithAngle === 'function'
     ? lightConditionsDeps.solarZenithAngle : null;
-  configureLightConditionsInterpretation({ solarZenithAngle });
+  (configureLightConditionsInterpretation as (deps: { solarZenithAngle: unknown }) => ReturnType<typeof configureLightConditionsInterpretation>)({ solarZenithAngle });
   return previous;
 }
 
-function _debugWarn(...args) {
-  if (typeof lightConditionsDeps.isDebugMode === 'function' && lightConditionsDeps.isDebugMode()) {
+function _debugWarn(...args: unknown[]) {
+  if (typeof lightConditionsDeps.isDebugMode === 'function' && (lightConditionsDeps.isDebugMode as () => unknown)()) {
     console.warn(...args);
   }
 }
 
-function _getSunCoords() {
+function _getSunCoords(): unknown {
   try {
-    return lightConditionsDeps.getSunCoords() || null;
+    return (lightConditionsDeps.getSunCoords as () => unknown)() || null;
   } catch (_) {
     return null;
   }
 }
 
-function _solarZenithAngle(date, coords) {
+function _solarZenithAngle(date: Date, coords: CoordinateOperationReader | null | undefined): unknown {
   if (!coords || typeof lightConditionsDeps.solarZenithAngle !== 'function') return null;
   try {
-    return lightConditionsDeps.solarZenithAngle(date, coords.lat, coords.lon);
+    return (lightConditionsDeps.solarZenithAngle as (date: Date, lat: unknown, lon: unknown) => unknown)(date, coords.lat, coords.lon);
   } catch (_) {
     return null;
   }
 }
 
-function _notify(...args) {
+function _notify(...args: unknown[]) {
   if (typeof lightConditionsDeps.showNotification === 'function') {
-    lightConditionsDeps.showNotification(...args);
+    (lightConditionsDeps.showNotification as (...args: unknown[]) => unknown)(...args);
   }
 }
 
-function closestLightConditionsAction(target) {
-  if (!target || !target.closest) return null;
-  return target.closest(`[${LIGHT_CONDITIONS_ACTION_ATTR}]`);
+function closestLightConditionsAction(target: EventTarget | null) {
+  if (!target || !(target as ConditionsActionTarget).closest) return null;
+  return ((target as ConditionsActionTarget).closest!)( `[${LIGHT_CONDITIONS_ACTION_ATTR}]`);
 }
 
-function handleLightConditionsActionClick(event) {
+function handleLightConditionsActionClick(event: Event) {
   const actionEl = closestLightConditionsAction(event.target);
-  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+  if (!actionEl || !(event.currentTarget as ConditionsActionRoot | null)?.contains?.(actionEl)) return;
   const action = actionEl.getAttribute(LIGHT_CONDITIONS_ACTION_ATTR);
   if (action === 'refresh') {
     _refreshConditionsNow();
@@ -93,17 +111,17 @@ function handleLightConditionsActionClick(event) {
   }
 }
 
-export function installLightConditionsActionDelegates(root = typeof document !== 'undefined' ? document : null) {
-  if (!root || lightConditionsActionDelegateRoots.has(root) || root[LIGHT_CONDITIONS_ACTION_DELEGATE_KEY]) return;
-  lightConditionsActionDelegateRoots.add(root);
+export function installLightConditionsActionDelegates(root: unknown = typeof document !== 'undefined' ? document : null) {
+  if (!root || lightConditionsActionDelegateRoots.has(root as object) || (root as Record<symbol, unknown>)[LIGHT_CONDITIONS_ACTION_DELEGATE_KEY]) return;
+  lightConditionsActionDelegateRoots.add(root as object);
   Object.defineProperty(root, LIGHT_CONDITIONS_ACTION_DELEGATE_KEY, { value: true, configurable: true });
-  root.addEventListener('click', handleLightConditionsActionClick);
+  (root as Pick<Document, 'addEventListener'>).addEventListener('click', handleLightConditionsActionClick);
 }
 
 if (typeof document !== 'undefined') installLightConditionsActionDelegates();
 
-export function renderLightConditionsWidgetBody({ variant = 'full', slotId = '' } = {}) {
-  const conditionsOpts = { variant };
+export function renderLightConditionsWidgetBody({ variant = 'full', slotId = '' }: ConditionsNowOptions = {}) {
+  const conditionsOpts: ConditionsNowOptions = { variant };
   if (slotId) conditionsOpts.slotId = slotId;
   const locationSetup = _getSunCoords() ? '' : `<div class="conditions-now-location-setup">
       <span>To see local conditions, set your country in the profile editor or use your phone location for this session.</span>
@@ -134,34 +152,34 @@ export function renderLightConditionsWidgetBody({ variant = 'full', slotId = '' 
 // Cache is coords-keyed so a profile swap (different country → different
 // coords) doesn't serve another profile/location's UVI/AQ/etc. Provider-side
 // caching still uses the configured privacy-rounded request coordinates.
-let _conditionsCache = null; // { coordKey, atm, fetchedAt }
+let _conditionsCache: ConditionsCacheReader | null = null; // { coordKey, atm, fetchedAt }
 let _conditionsFetchInFlight = false;
 // Per-slot 5min refresh intervals — keyed by deterministic slotId
 // ('cond-now-compact' / 'cond-now-full'). Survives strip re-renders
 // so a single interval handles auto-refresh for the slot's lifetime.
-const _conditionsIntervals = new Map();
+const _conditionsIntervals = new Map<string, ReturnType<typeof setInterval>>();
 
-function _conditionsTooltipAttr(text, opts = {}) {
+function _conditionsTooltipAttr(text: unknown, opts: { focusable?: unknown } = {}) {
   if (!text) return '';
   return ` data-conditions-tooltip="${escapeAttr(text)}"${opts.focusable ? ' tabindex="0"' : ''}`;
 }
 
-function _coordKey(coords) {
+function _coordKey(coords: CoordinateOperationReader | null | undefined) {
   if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lon)) return null;
   return `${coords.lat.toFixed(4)}_${coords.lon.toFixed(4)}`;
 }
 
-export function getCachedConditionsAtmosphere() {
-  const coords = _getSunCoords();
+export function getCachedConditionsAtmosphere(): unknown {
+  const coords = _getSunCoords() as CoordinateOperationReader | null | undefined;
   const key = _coordKey(coords);
   return (_conditionsCache && _conditionsCache.coordKey === key) ? _conditionsCache.atm : null;
 }
 
-function _centerConditionsNowMarker(slotOrId) {
+function _centerConditionsNowMarker(slotOrId: unknown) {
   if (typeof document === 'undefined') return;
-  const slot = typeof slotOrId === 'string' ? document.getElementById(slotOrId) : slotOrId;
-  const scroller = slot?.querySelector?.('.conditions-now-events');
-  const nowMarker = slot?.querySelector?.('.conditions-now-event-now');
+  const slot = (typeof slotOrId === 'string' ? document.getElementById(slotOrId) : slotOrId) as Pick<HTMLElement, 'querySelector'> | null | undefined;
+  const scroller = slot?.querySelector?.<HTMLElement>('.conditions-now-events');
+  const nowMarker = slot?.querySelector?.<HTMLElement>('.conditions-now-event-now');
   if (!scroller || !nowMarker || scroller.scrollWidth <= scroller.clientWidth + 2) return;
   const center = () => {
     const nextLeft = nowMarker.offsetLeft + (nowMarker.offsetWidth / 2) - (scroller.clientWidth / 2);
@@ -171,14 +189,14 @@ function _centerConditionsNowMarker(slotOrId) {
   else setTimeout(center, 0);
 }
 
-export function renderConditionsNow(opts = {}) {
-  const variant = opts.variant || 'full'; // 'full' (Light page) | 'compact' (dashboard)
+export function renderConditionsNow(opts: ConditionsNowOptions = {}) {
+  const variant = (opts.variant || 'full') as string; // 'full' (Light page) | 'compact' (dashboard)
   // Deterministic slotId per variant — pre-2026-05-08 used Date.now()
   // which made the rendered HTML differ on every call, so any caller
   // doing a string-diff (Light Today strip 5s ticker) saw the strip
   // "always different" and re-swapped innerHTML, tearing this slot
   // down + restarting its loading spinner = visible blink.
-  const slotId = opts.slotId || `cond-now-${variant}`;
+  const slotId = (opts.slotId || `cond-now-${variant}`) as string;
   // Schedule the initial fetch + 5min auto-refresh interval only the
   // first time this slot is rendered — subsequent renders (e.g. from
   // _refreshLiveChannelSurfaces) just reuse the existing interval.
@@ -201,7 +219,7 @@ export function renderConditionsNow(opts = {}) {
   // "Loading current conditions…" spinner before the cache resolved
   // ~50ms later, which the user perceived as "conditions not persistent."
   try {
-    const coords = _getSunCoords();
+    const coords = _getSunCoords() as CoordinateOperationReader | null | undefined;
     if (coords && _conditionsCache && _conditionsCache.coordKey === _coordKey(coords)
         && (Date.now() - _conditionsCache.fetchedAt) < 5 * 60 * 1000) {
       setTimeout(() => _centerConditionsNowMarker(slotId), 0);
@@ -219,14 +237,14 @@ export function renderConditionsNow(opts = {}) {
   </div>`;
 }
 
-async function _refreshConditions(slotId, variant, opts = {}) {
+async function _refreshConditions(slotId: string, variant: string, opts: { force?: unknown } = {}) {
   const slot = document.getElementById(slotId);
   if (!slot) return;
   // Clear aria-busy on every exit path — the slot was created with
   // aria-busy="true" so screen readers don't announce intermediate
   // values. Whatever path resolves first must clear it.
   const _resolveBusy = () => slot.setAttribute('aria-busy', 'false');
-  const coords = _getSunCoords();
+  const coords = _getSunCoords() as CoordinateOperationReader | null | undefined;
   if (!coords) {
     _resolveBusy();
     slot.innerHTML = `<div class="conditions-now-msg">Set a country in your profile to see current sun conditions.</div>`;
@@ -266,20 +284,20 @@ async function _refreshConditions(slotId, variant, opts = {}) {
     // For a forced refresh, wipe the localStorage cache for current coords
     // so the providers are actually re-hit (not served from the 1hr TTL).
     if (opts.force) _bustMeteoCacheForCoords(coords);
-    let atm = null, online = true, fetchError = null;
+    let atm: AtmosphereOperationReader | null = null, online = true, fetchError: string | null = null;
     try {
       if (typeof lightConditionsDeps.fetchAtmosphere !== 'function') {
         throw new Error('fetchAtmosphere unavailable');
       }
-      atm = await lightConditionsDeps.fetchAtmosphere({
+      atm = await (lightConditionsDeps.fetchAtmosphere as (input: { lat: unknown; lon: unknown; isoTime: string; noCache: boolean }) => unknown)({
         lat: coords.lat,
         lon: coords.lon,
         isoTime: new Date().toISOString(),
         noCache: !!opts.force, // user-triggered refresh skips both fresh + stale cache
-      });
+      }) as AtmosphereOperationReader | null;
       if (atm?._stale || atm?._offline || /(?:zenith_offline|offline)/.test(String(atm?.source || ''))) online = false;
       if (atm && typeof lightConditionsDeps.applyAtmOverrides === 'function') {
-        atm = lightConditionsDeps.applyAtmOverrides(atm);
+        atm = (lightConditionsDeps.applyAtmOverrides as (atm: unknown) => unknown)(atm) as AtmosphereOperationReader | null;
       }
     } catch (e) {
       online = false;
@@ -326,10 +344,10 @@ async function _refreshConditions(slotId, variant, opts = {}) {
 // next fetch hits the provider chain fresh.
 export function _refreshConditionsNow() {
   if (typeof lightConditionsDeps.purgeMeteoCache === 'function') {
-    try { lightConditionsDeps.purgeMeteoCache(); } catch {}
+    try { (lightConditionsDeps.purgeMeteoCache as () => unknown)(); } catch {}
   }
   document.querySelectorAll('.conditions-now').forEach(el => {
-    const slot = /** @type {HTMLElement} */ (el);
+    const slot = el as HTMLElement;
     const id = slot.id;
     const variant = slot.dataset.variant || 'full';
     if (id) _refreshConditions(id, variant, { force: true });
@@ -340,14 +358,14 @@ export function _refreshConditionsNow() {
 // user can verify what the provider returned, what we parsed, and what the
 // engine will use. Pure inspection — no side effects.
 export function _inspectConditionsNow() {
-  const coords = _getSunCoords();
+  const coords = _getSunCoords() as CoordinateOperationReader | null | undefined;
   const key = _coordKey(coords);
-  const atm = (_conditionsCache && _conditionsCache.coordKey === key) ? _conditionsCache.atm : null;
-  const warnings = atm ? _sanityCheckAtmosphere(atm, coords) : [];
+  const atm = ((_conditionsCache && _conditionsCache.coordKey === key) ? _conditionsCache.atm : null) as InspectionAtmosphereReader;
+  const warnings = atm ? (_sanityCheckAtmosphere as (atm: unknown, coords: unknown) => ReturnType<typeof _sanityCheckAtmosphere>)(atm, coords) : [];
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const closeDialog = () => removeModalOverlay(overlay);
-  const cacheKeys = [];
+  const cacheKeys: string[] = [];
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
@@ -400,7 +418,7 @@ export function _inspectConditionsNow() {
           const pct = Math.round(computed * 100);
           // Tooltip lists the active discounts so the user can see WHY
           // confidence dropped — turns a single number into honest reasoning.
-          const factors = [];
+          const factors: string[] = [];
           const age = atm?._camsMeta?.ageSec;
           if (Number.isFinite(age)) {
             if (age > 86400) factors.push(`stale grid (${Math.round(age/3600)}h old)`);
@@ -460,7 +478,7 @@ export function _inspectConditionsNow() {
   const rawPre = overlay.querySelector('.sun-detail-section pre');
   if (rawPre) {
     rawPre.addEventListener('wheel', (e) => {
-      const wheelEvent = /** @type {WheelEvent} */ (e);
+      const wheelEvent = e as WheelEvent;
       const before = rawPre.scrollTop;
       rawPre.scrollTop = before + wheelEvent.deltaY;
       // Stop the modal from also scrolling on the same wheel tick.
@@ -478,7 +496,7 @@ export function _inspectConditionsNow() {
 // `privacyRounding` config (default 0.1°), so the two never matched
 // and Refresh was a no-op for almost any coord. Wiping all is fine:
 // the cache is small (per-hour buckets), and force-Refresh is rare.
-function _bustMeteoCacheForCoords(_coords) {
+function _bustMeteoCacheForCoords(_coords: unknown) {
   try {
     for (let i = localStorage.length - 1; i >= 0; i--) {
       const k = localStorage.key(i);
