@@ -1,4 +1,3 @@
-// @ts-check
 // app-chat-hooks.js - first-use Chat wiring that must not enter the startup graph.
 
 import { setAIPaused } from './api.js';
@@ -62,22 +61,21 @@ function resumeAI() {
   updateChatInputState();
 }
 
-/** @param {Record<string, any>} [deps] */
-export function configureAppChatHooks(deps = {}) {
-  configureChatOnboardingHostBindings(deps);
+export function configureAppChatHooks(deps: unknown = {}) {
+  (configureChatOnboardingHostBindings as (deps: unknown) => ReturnType<typeof configureChatOnboardingHostBindings>)(deps);
   configureChatEmptyStateDeps({
     closeChatPanel,
-    openChatProviderQuiz: deps.openChatProviderQuiz,
-    setOnboardingFocus: deps.setOnboardingFocus,
+    openChatProviderQuiz: (deps as Record<string, unknown>).openChatProviderQuiz,
+    setOnboardingFocus: (deps as Record<string, unknown>).setOnboardingFocus,
   });
   configureChatPanel({
     isVoicePlaybackActive,
-    refreshMobileDashboardActiveTab: deps.refreshMobileDashboardActiveTab,
+    refreshMobileDashboardActiveTab: (deps as Record<string, unknown>).refreshMobileDashboardActiveTab,
     restoreVoicePlaybackUi,
     stopVoiceActivity,
   });
-  configureChatRuntimeCallbacks({
-    closeModal: deps.closeModal,
+  (configureChatRuntimeCallbacks as (callbacks: Omit<NonNullable<Parameters<typeof configureChatRuntimeCallbacks>[0]>, 'closeModal'> & { closeModal: unknown }) => ReturnType<typeof configureChatRuntimeCallbacks>)({
+    closeModal: (deps as Record<string, unknown>).closeModal,
     isChatStreaming,
     refreshWebSearchToggle: () => {
       refreshWebSearchToggle();

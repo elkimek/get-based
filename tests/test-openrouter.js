@@ -119,7 +119,7 @@ else localStorage.removeItem('labcharts-openrouter-pricing');
 
 // ─── 3. provider panel source inspection (extracted from settings.js) ───
 console.log('\n3. provider panel source inspection');
-const ppSrc = read('js/provider-panels.js');
+const ppSrc = read('js/provider-panels.js').replace(/if \(providerPanelDeps\.hadProviderBeforeSettings\(\)\)\s+return/g, 'if (providerPanelDeps.hadProviderBeforeSettings()) return');
 const providerRenderSrc = read('js/provider-panel-renderers.js');
 const providerModelControlsSrc = read('js/provider-model-controls.js');
 const settingsBridgeSrc = read('js/settings-provider-bridge.js');

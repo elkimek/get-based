@@ -1,4 +1,3 @@
-// @ts-check
 // startup-ui.js - first-render UI bootstrap after profile/OAuth startup
 
 import { applyProfileDisplayState } from './startup-profile.js';
@@ -15,41 +14,44 @@ import { maybeShowAnalyticsConsent } from './utils.js';
 import { getAppVersionRuntime } from './utils-runtime.js';
 import { updateChatNudgeRuntime } from './chat-runtime.js';
 
-const startupUIDeps = {
-  getInitialView: /** @type {() => string} */ (() => 'dashboard'),
-  maybeShowAnalyticsConsent: /** @type {null | typeof maybeShowAnalyticsConsent} */ (maybeShowAnalyticsConsent),
-  navigate: /** @type {(view: string) => void} */ ((_view) => {}),
+type StartupUIDependencies = {[Key in 'getInitialView'|'maybeShowAnalyticsConsent'|'navigate'|'openChatPanel'|'openSettingsModal']:unknown};
+interface StartupUIOperations {getInitialView():unknown;maybeShowAnalyticsConsent?:((()=>unknown)|null);navigate(view:unknown):unknown;openChatPanel():unknown;openSettingsModal(section:unknown):unknown}
+interface StartupGlobalOperations {[key:string]:unknown;addEventListener:typeof globalThis.addEventListener}
+const startupUIDeps: StartupUIDependencies = {
+  getInitialView: (() => 'dashboard'),
+  maybeShowAnalyticsConsent: (maybeShowAnalyticsConsent),
+  navigate: ((_view:unknown) => {}),
   openChatPanel: () => {},
-  openSettingsModal: /** @type {(section?: string) => void} */ ((_section) => {}),
+  openSettingsModal: ((_section?:unknown) => {}),
 };
 
-export function configureStartupUIDeps(deps = {}) {
+export function configureStartupUIDeps(deps: unknown = {}) {
   const previous = { ...startupUIDeps };
-  if (typeof deps.getInitialView === 'function') {
-    startupUIDeps.getInitialView = deps.getInitialView;
+  if (typeof (deps as Record<string,unknown>).getInitialView === 'function') {
+    startupUIDeps.getInitialView = (deps as Record<string,unknown>).getInitialView;
   }
-  if ('maybeShowAnalyticsConsent' in deps) {
-    startupUIDeps.maybeShowAnalyticsConsent = typeof deps.maybeShowAnalyticsConsent === 'function'
-      ? /** @type {typeof maybeShowAnalyticsConsent} */ (deps.maybeShowAnalyticsConsent)
+  if ('maybeShowAnalyticsConsent' in (deps as object)) {
+    startupUIDeps.maybeShowAnalyticsConsent = typeof (deps as Record<string,unknown>).maybeShowAnalyticsConsent === 'function'
+      ? ((deps as Record<string,unknown>).maybeShowAnalyticsConsent)
       : null;
   }
-  if (typeof deps.openChatPanel === 'function') {
-    startupUIDeps.openChatPanel = deps.openChatPanel;
+  if (typeof (deps as Record<string,unknown>).openChatPanel === 'function') {
+    startupUIDeps.openChatPanel = (deps as Record<string,unknown>).openChatPanel;
   }
-  if (typeof deps.navigate === 'function') {
-    startupUIDeps.navigate = deps.navigate;
+  if (typeof (deps as Record<string,unknown>).navigate === 'function') {
+    startupUIDeps.navigate = (deps as Record<string,unknown>).navigate;
   }
-  if (typeof deps.openSettingsModal === 'function') {
-    startupUIDeps.openSettingsModal = deps.openSettingsModal;
+  if (typeof (deps as Record<string,unknown>).openSettingsModal === 'function') {
+    startupUIDeps.openSettingsModal = (deps as Record<string,unknown>).openSettingsModal;
   }
   return previous;
 }
 
 function startupRuntime() {
-  return /** @type {any} */ (globalThis);
+  return globalThis as unknown as StartupGlobalOperations;
 }
 
-function getStartupRuntimeValue(name) {
+function getStartupRuntimeValue(name: string) {
   return startupRuntime()[name];
 }
 
@@ -62,7 +64,7 @@ export function renderStartupUI() {
   populateFooterVersion();
   buildSidebar();
   renderSyncIndicator();
-  startupUIDeps.navigate(startupUIDeps.getInitialView() || 'dashboard');
+  (startupUIDeps as StartupUIOperations).navigate((startupUIDeps as StartupUIOperations).getInitialView() || 'dashboard');
   scheduleDeferredSyncAndCatalogWarmup();
   const legalGateShown = scheduleStartupNudges();
   if (legalGateShown) {
@@ -78,7 +80,7 @@ export function renderStartupUI() {
 function populateFooterVersion() {
   // Populate footer version early (doesn't depend on dashboard render).
   const vTextEl = document.getElementById('app-version-text');
-  if (vTextEl) vTextEl.textContent = getAppVersionRuntime();
+  if (vTextEl) (vTextEl as {textContent:unknown}).textContent = getAppVersionRuntime();
 }
 
 function scheduleDeferredSyncAndCatalogWarmup() {
@@ -103,7 +105,7 @@ function scheduleStartupNudges() {
   // New and tours also stay behind the gate; legal must be the topmost first
   // interaction for new users and stale-version re-consent.
   const showAnalyticsConsent = () => {
-    startupUIDeps.maybeShowAnalyticsConsent?.();
+    (startupUIDeps as StartupUIOperations).maybeShowAnalyticsConsent?.();
   };
   if (legalGateShown) {
     startupRuntime().addEventListener('legal-consent-accepted', () => setTimeout(showAnalyticsConsent, 800), { once: true });
@@ -126,12 +128,12 @@ function scheduleStartupNudges() {
 function openDeferredStartupDestinations() {
   const openSettingsAfterInit = getStartupRuntimeValue('_openSettingsAfterInit');
   if (openSettingsAfterInit) {
-    startupUIDeps.openSettingsModal(openSettingsAfterInit);
+    (startupUIDeps as StartupUIOperations).openSettingsModal(openSettingsAfterInit);
     delete startupRuntime()._openSettingsAfterInit;
   }
   if (getStartupRuntimeValue('_openChatAfterInit')) {
     delete startupRuntime()._openChatAfterInit;
-    setTimeout(() => startupUIDeps.openChatPanel(), 500);
+    setTimeout(() => (startupUIDeps as StartupUIOperations).openChatPanel(), 500);
   }
 }
 

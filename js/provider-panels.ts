@@ -1,6 +1,6 @@
-// @ts-check
 // provider-panels.js - AI provider settings behavior, balance display, key validation, and wallet flows
 
+import type { ProviderPanelOperations, ProviderPanelDependencies, ProviderPanelActionReader, ProviderPanelWalletOperations, ProviderPanelVeniceBalance } from '../types/provider-panels.js';
 import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import {
@@ -78,17 +78,17 @@ import {
   _setActiveNodeAction,
   walletRuntime
 } from './provider-wallet-panels.js';
-function openProviderPanelExternal(...args) {
-  const open = /** @type {any} */ (globalThis).open;
-  return typeof open === 'function' ? open.apply(globalThis, args) : null;
+function openProviderPanelExternal(...args: unknown[]) {
+  const open = (globalThis as { open?: unknown }).open;
+  return typeof open === 'function' ? (open as (...args: unknown[]) => unknown).apply(globalThis, args) : null;
 }
 
 function reloadProviderPanelPage() {
-  const location = /** @type {any} */ (globalThis).location;
-  if (typeof location?.reload === 'function') location.reload();
+  const location = (globalThis as { location?: { reload?: unknown } }).location;
+  if (typeof location?.reload === 'function') (location as { reload(): unknown }).reload();
 }
 
-const providerPanelDeps = {
+const providerPanelDeps: ProviderPanelDependencies = {
   clearE2EESession: clearVeniceE2EESession,
   closeSettingsModal: () => {},
   hadProviderBeforeSettings: () => false,
@@ -100,12 +100,12 @@ const providerPanelDeps = {
   reloadPage: reloadProviderPanelPage,
 };
 
-const providerPanelClipboardTimers = new Map();
+const providerPanelClipboardTimers = new Map<unknown, ReturnType<typeof setTimeout>>();
 
-export function configureProviderPanelDeps(deps = {}) {
+export function configureProviderPanelDeps(deps: unknown = {}) {
   const previous = { ...providerPanelDeps };
   for (const name of Object.keys(providerPanelDeps)) {
-    if (typeof deps[name] === 'function') providerPanelDeps[name] = deps[name];
+    if (typeof (deps as Record<string, unknown>)[name] === 'function') providerPanelDeps[name as keyof ProviderPanelDependencies] = (deps as Record<string, unknown>)[name];
   }
   return previous;
 }
@@ -181,28 +181,28 @@ export {
   doRoutstrWalletRestore
 } from './provider-wallet-panels.js';
 
-async function requestProviderActivation(provider, options = {}) {
+async function requestProviderActivation(provider: unknown, options: NonNullable<Parameters<typeof import('./cloud-ai-consent.js').requestAIProviderActivation>[1]> = {}) {
   const { requestAIProviderActivation } = await import('./cloud-ai-consent.js');
-  return requestAIProviderActivation(provider, options);
+  return (requestAIProviderActivation as (provider: unknown, options: Parameters<typeof requestAIProviderActivation>[1]) => ReturnType<typeof requestAIProviderActivation>)(provider, options);
 }
 
 // ═══════════════════════════════════════════════
 // AI PAUSE / PROVIDER SWITCH
 // ═══════════════════════════════════════════════
-export function toggleAIPause(enabled) {
+export function toggleAIPause(enabled: unknown) {
   setAIPaused(!enabled);
   showNotification(enabled ? 'AI features enabled' : 'AI features paused', 'info');
   // Refresh focus card — show cached content when paused, fetch new when enabled
-  providerPanelDeps.loadFocusCard();
+  (providerPanelDeps as ProviderPanelOperations).loadFocusCard();
 }
 
-export async function switchAIProvider(provider, { previousProvider = getAIProvider() } = {}) {
+export async function switchAIProvider(provider: unknown, { previousProvider = getAIProvider() }: { previousProvider?: unknown } = {}) {
   if (provider === 'openrouter' && previousProvider !== 'openrouter' && !getOpenRouterKey()) {
-    rememberOpenRouterOAuthPreviousProvider(previousProvider);
+    (rememberOpenRouterOAuthPreviousProvider as (provider: unknown) => ReturnType<typeof rememberOpenRouterOAuthPreviousProvider>)(previousProvider);
   } else if (provider !== 'openrouter') {
     clearOpenRouterOAuthSession();
   }
-  setAIProvider(provider);
+  (setAIProvider as (provider: unknown) => ReturnType<typeof setAIProvider>)(provider);
   clearPpqTopupTimers();
   clearRoutstrWalletTimers();
   const panel = document.getElementById('ai-provider-panel');
@@ -210,20 +210,20 @@ export async function switchAIProvider(provider, { previousProvider = getAIProvi
   const modal = document.getElementById('settings-modal');
   if (modal) {
     modal.querySelectorAll('.ai-provider-btn').forEach(btn => {
-      const providerBtn = /** @type {HTMLElement} */ (btn);
+      const providerBtn = /** @type {HTMLElement} */ (btn) as HTMLElement;
       providerBtn.classList.toggle('active', providerBtn.dataset.provider === provider);
     });
   }
   initSettingsOllamaCheck();
   initSettingsModelFetch();
-  if (provider !== previousProvider && provider !== 'ollama' && hasAIProvider(provider)) {
+  if (provider !== previousProvider && provider !== 'ollama' && (hasAIProvider as (provider: unknown) => ReturnType<typeof hasAIProvider>)(provider)) {
     const activated = await requestProviderActivation(provider);
     if (!activated) {
-      setAIProvider(previousProvider);
+      (setAIProvider as (provider: unknown) => ReturnType<typeof setAIProvider>)(previousProvider);
       const restoredPanel = document.getElementById('ai-provider-panel');
       if (restoredPanel) restoredPanel.innerHTML = renderAIProviderPanel(previousProvider);
       modal?.querySelectorAll('.ai-provider-btn').forEach(btn => {
-        const providerBtn = /** @type {HTMLElement} */ (btn);
+        const providerBtn = /** @type {HTMLElement} */ (btn) as HTMLElement;
         providerBtn.classList.toggle('active', providerBtn.dataset.provider === previousProvider);
       });
       showNotification('Provider was not changed because AI activation was not approved.', 'info');
@@ -255,8 +255,8 @@ export function initSettingsModelFetch() {
     fetchVeniceModels(veniceKey).then(function() {
       // After fetch, render the right list based on E2EE state
       const listKey = getVeniceE2EE() ? 'labcharts-venice-e2ee-models' : 'labcharts-venice-models';
-      let models = []; try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch(e) {}
-      if (models.length) renderVeniceModelDropdown(models);
+      let models: unknown = []; try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch(e) {}
+      if ((models as { length: unknown }).length) (renderVeniceModelDropdown as (models: unknown) => ReturnType<typeof renderVeniceModelDropdown>)(models);
     });
     getVeniceBalance().then(function(b) {
       const el = document.getElementById('venice-balance');
@@ -275,17 +275,17 @@ export function initSettingsModelFetch() {
   // Cashu wallet balance + mint label + pending recovery (always, even without node connection)
   if (document.getElementById('routstr-wallet-balance') && typeof walletRuntime.cashuGetBalance === 'function') {
     startRoutstrFundingMonitor();
-    walletRuntime.cashuGetBalance().then(function(bal) {
+    (walletRuntime as unknown as ProviderPanelWalletOperations).cashuGetBalance().then(function(bal) {
       const el = document.getElementById('routstr-wallet-balance');
       if (el) el.textContent = '\u26a1 ' + bal.toLocaleString() + ' sats';
     });
     refreshWalletSeedStatus();
-    if (typeof walletRuntime.cashuGetMintUrl === 'function') Promise.resolve(walletRuntime.cashuGetMintUrl()).then(function(url) {
+    if (typeof walletRuntime.cashuGetMintUrl === 'function') Promise.resolve((walletRuntime as unknown as ProviderPanelWalletOperations).cashuGetMintUrl()).then(function(url) {
       const el = document.getElementById('routstr-mint-label');
-      if (el && url) el.textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+      if (el && url) el.textContent = (url as { replace(pattern: RegExp, value: string): { replace(pattern: RegExp, value: string): unknown } }).replace(/^https?:\/\//, '').replace(/\/$/, '') as string;
     });
     // H6: Check for pending deposit recovery
-    if (typeof walletRuntime.cashuRecoverPendingDeposit === 'function') walletRuntime.cashuRecoverPendingDeposit().then(function(token) {
+    if (typeof walletRuntime.cashuRecoverPendingDeposit === 'function') (walletRuntime as unknown as ProviderPanelWalletOperations).cashuRecoverPendingDeposit().then(function(token) {
       if (!token) return;
       const area = document.getElementById('routstr-wallet-fund-area');
       if (area) {
@@ -300,7 +300,7 @@ export function initSettingsModelFetch() {
           '</div></div>';
       }
     });
-    (/** @type {((...args: Parameters<import('./provider-wallet-runtime.js').ProviderWalletDefaults['cashuGetPendingNodeRefund']>) => Promise<{nodeUrl?: unknown} | null | undefined>) | null | undefined} */ (walletRuntime.cashuGetPendingNodeRefund))?.().then(function(refund) {
+    (walletRuntime.cashuGetPendingNodeRefund as ProviderPanelWalletOperations['cashuGetPendingNodeRefund'])?.().then(function(refund) {
       if (!refund) return;
       const area = document.getElementById('routstr-node-picker');
       if (!area) return;
@@ -308,7 +308,7 @@ export function initSettingsModelFetch() {
       area.innerHTML = '<div>Unfinished node refund: ' + escapeHTML(refund.nodeUrl) + '</div><button class="import-btn import-btn-primary" data-routstr-wallet-action="resume-node-refund" data-node-url="' + escapeAttr(refund.nodeUrl) + '">Check refund recovery</button>';
     }).catch(() => {});
     // Check for pending withdraw recovery
-    if (typeof walletRuntime.cashuRecoverPendingWithdraw === 'function') walletRuntime.cashuRecoverPendingWithdraw().then(function(token) {
+    if (typeof walletRuntime.cashuRecoverPendingWithdraw === 'function') (walletRuntime as unknown as ProviderPanelWalletOperations).cashuRecoverPendingWithdraw().then(function(token) {
       if (!token) return;
       const area = document.getElementById('routstr-wallet-fund-area');
       if (!area || area.style.display === 'block') return; // don't overwrite deposit recovery
@@ -339,29 +339,29 @@ export function initSettingsModelFetch() {
 // ═══════════════════════════════════════════════
 /** After a successful key save, auto-close settings and return to chat if we came from onboarding. */
 function _returnToChatIfOnboarding() {
-  if (providerPanelDeps.hadProviderBeforeSettings()) return; // already had a provider — user is just reconfiguring
-  if (!providerPanelDeps.hasAIProvider()) return;
-  providerPanelDeps.closeSettingsModal();
-  setTimeout(() => providerPanelDeps.openChatPanel(), 300);
+  if ((providerPanelDeps as ProviderPanelOperations).hadProviderBeforeSettings()) return; // already had a provider — user is just reconfiguring
+  if (!(providerPanelDeps as ProviderPanelOperations).hasAIProvider()) return;
+  (providerPanelDeps as ProviderPanelOperations).closeSettingsModal();
+  setTimeout(() => (providerPanelDeps as ProviderPanelOperations).openChatPanel(), 300);
 }
 
-function _setActionText(actionEl) {
+function _setActionText(actionEl: unknown) {
   if (actionEl instanceof HTMLElement) {
     actionEl.textContent = actionEl.dataset.copiedText || '✓ Copied';
   }
 }
 
-function _clipboardTextFromAction(actionEl) {
-  return actionEl?.dataset?.clipboardText || actionEl?.dataset?.token || '';
+function _clipboardTextFromAction(actionEl: unknown) {
+  return (actionEl as ProviderPanelActionReader | null | undefined)?.dataset?.clipboardText || (actionEl as ProviderPanelActionReader | null | undefined)?.dataset?.token || '';
 }
 
-async function _copyProviderPanelText(text, actionEl) {
+async function _copyProviderPanelText(text: unknown, actionEl: unknown) {
   if (!text) return;
   try {
-    await navigator.clipboard.writeText(text);
+    await (navigator.clipboard.writeText as (text: unknown) => Promise<void>)(text);
     _setActionText(actionEl);
-    const timerKey = actionEl?.dataset?.clearTimerKey || '';
-    const clearMs = Number(actionEl?.dataset?.clearClipboardAfter || 0);
+    const timerKey = (actionEl as ProviderPanelActionReader | null | undefined)?.dataset?.clearTimerKey || '';
+    const clearMs = Number((actionEl as ProviderPanelActionReader | null | undefined)?.dataset?.clearClipboardAfter || 0);
     if (timerKey && clearMs > 0) {
       clearTimeout(providerPanelClipboardTimers.get(timerKey));
       const timer = setTimeout(() => {
@@ -375,38 +375,38 @@ async function _copyProviderPanelText(text, actionEl) {
   }
 }
 
-export function copyProviderPanelClipboard(actionEl) {
+export function copyProviderPanelClipboard(actionEl: unknown) {
   void _copyProviderPanelText(_clipboardTextFromAction(actionEl), actionEl);
 }
 
-export function selectProviderPanelText(actionEl) {
-  if (typeof actionEl?.select === 'function') actionEl.select();
+export function selectProviderPanelText(actionEl: unknown) {
+  if (typeof (actionEl as ProviderPanelActionReader | null | undefined)?.select === 'function') (actionEl as { select(): unknown }).select();
 }
 
-async function _recoverPendingToken(actionEl, clearName) {
+async function _recoverPendingToken(actionEl: unknown, clearName: 'cashuClearPendingDeposit' | 'cashuClearPendingWithdraw') {
   const fallbackInput = /** @type {HTMLTextAreaElement | null} */ (
     document.querySelector('#routstr-wallet-fund-area textarea')
-  );
-  const token = actionEl?.dataset?.token || fallbackInput?.value || '';
+  ) as HTMLTextAreaElement | null;
+  const token = (actionEl as ProviderPanelActionReader | null | undefined)?.dataset?.token || fallbackInput?.value || '';
   try {
     const clearPendingToken = walletRuntime[clearName];
     if (typeof walletRuntime.cashuReceiveToken !== 'function' || typeof clearPendingToken !== 'function') {
       throw new Error('Wallet recovery is unavailable');
     }
-    await walletRuntime.cashuReceiveToken(token);
-    await clearPendingToken();
+    await (walletRuntime as unknown as ProviderPanelWalletOperations).cashuReceiveToken(token);
+    await (clearPendingToken as () => unknown)();
     showNotification('Recovered!', 'success');
-    providerPanelDeps.reloadPage();
+    (providerPanelDeps as ProviderPanelOperations).reloadPage();
   } catch (e) {
     showNotification(getErrorMessage(e, String(e)), 'error');
   }
 }
 
-export function recoverPendingDeposit(actionEl) {
+export function recoverPendingDeposit(actionEl: unknown) {
   void _recoverPendingToken(actionEl, 'cashuClearPendingDeposit');
 }
 
-export function recoverPendingWithdraw(actionEl) {
+export function recoverPendingWithdraw(actionEl: unknown) {
   void _recoverPendingToken(actionEl, 'cashuClearPendingWithdraw');
 }
 
@@ -419,9 +419,9 @@ export function acknowledgeRoutstrKey() {
 // ═══════════════════════════════════════════════
 // VENICE HANDLERS
 // ═══════════════════════════════════════════════
-function _veniceBalanceHtml(b) {
+function _veniceBalanceHtml(b: ProviderPanelVeniceBalance) {
   if (b.diem != null) {
-    const v = parseFloat(b.diem); // 1 DIEM = 1 USD
+    const v = (parseFloat as (value: unknown) => number)(b.diem); // 1 DIEM = 1 USD
     const color = v < 0.10 ? 'var(--red)' : v < 0.50 ? 'var(--yellow, #f0a800)' : 'var(--green)';
     return 'Balance: <span style="color:' + color + '">$' + v.toFixed(2) + '</span>';
   }
@@ -437,8 +437,8 @@ export function refreshVeniceBalance() {
 }
 
 export async function handleSaveVeniceKey() {
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('venice-key-input'));
-  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('save-venice-key-btn'));
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('venice-key-input')) as HTMLInputElement | null;
+  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('save-venice-key-btn')) as HTMLButtonElement | null;
   const status = document.getElementById('venice-key-status');
   if (!input || !btn || !status) return;
   const key = input.value.trim();
@@ -457,9 +457,9 @@ export async function handleSaveVeniceKey() {
     await fetchVeniceModels(key);
     // Render the right list based on E2EE state
     const listKey = getVeniceE2EE() ? 'labcharts-venice-e2ee-models' : 'labcharts-venice-models';
-    let models = []; try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch(e) {}
-    if (models.length) {
-      renderVeniceModelDropdown(models);
+    let models: unknown = []; try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch(e) {}
+    if ((models as { length: unknown }).length) {
+      (renderVeniceModelDropdown as (models: unknown) => ReturnType<typeof renderVeniceModelDropdown>)(models);
       status.innerHTML = '<span style="color:var(--green)">&#10003; Connected</span>';
     } else {
       status.innerHTML = '<span style="color:var(--green)">&#10003; Connected</span>';
@@ -482,9 +482,9 @@ export function handleRemoveVeniceKey() {
   localStorage.removeItem('labcharts-venice-e2ee-models');
   localStorage.removeItem('labcharts-venice-model-regular');
   localStorage.removeItem('labcharts-venice-model-e2ee');
-  providerPanelDeps.clearE2EESession();
+  (providerPanelDeps as ProviderPanelOperations).clearE2EESession();
   showNotification('Venice API key removed', 'info');
-  providerPanelDeps.openSettingsModal();
+  (providerPanelDeps as ProviderPanelOperations).openSettingsModal();
 }
 
 
@@ -492,8 +492,8 @@ export function handleRemoveVeniceKey() {
 // OPENROUTER HANDLERS
 // ═══════════════════════════════════════════════
 export async function handleSaveOpenRouterKey() {
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('openrouter-key-input'));
-  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('save-openrouter-key-btn'));
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('openrouter-key-input')) as HTMLInputElement | null;
+  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('save-openrouter-key-btn')) as HTMLButtonElement | null;
   const status = document.getElementById('openrouter-key-status');
   if (!input || !btn || !status) return;
   const key = input.value.trim();
@@ -532,11 +532,11 @@ export function handleRemoveOpenRouterKey() {
   localStorage.removeItem('labcharts-openrouter-model');
   localStorage.removeItem('labcharts-openrouter-pricing');
   showNotification('OpenRouter API key removed', 'info');
-  providerPanelDeps.openSettingsModal();
+  (providerPanelDeps as ProviderPanelOperations).openSettingsModal();
 }
 
-function _orBalanceHtml(remaining) {
-  const v = parseFloat(remaining);
+function _orBalanceHtml(remaining: unknown) {
+  const v = (parseFloat as (value: unknown) => number)(remaining);
   const color = v < 0.10 ? 'var(--red)' : v < 0.50 ? 'var(--yellow, #f0a800)' : 'var(--green)';
   return 'Balance: <span style="color:' + color + '">$' + v.toFixed(2) + '</span>';
 }
@@ -593,7 +593,7 @@ export function showInsufficientBalanceDialog() {
   addCredits.onclick = function() {
     close();
     if (typeof extensionView?.onPrimary === 'function') extensionView.onPrimary();
-    else providerPanelDeps.openExternal('https://openrouter.ai/settings/credits', '_blank', 'noopener');
+    else (providerPanelDeps as ProviderPanelOperations).openExternal('https://openrouter.ai/settings/credits', '_blank', 'noopener');
   };
   cancel.onclick = close;
   overlay.onclick = function(e) { if (e.target === overlay) close(); };
@@ -604,8 +604,8 @@ export function showInsufficientBalanceDialog() {
 
 // ─── Routstr handlers ───
 export async function handleSaveRoutstrKey() {
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('routstr-key-input'));
-  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('save-routstr-key-btn'));
+  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('routstr-key-input')) as HTMLInputElement | null;
+  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('save-routstr-key-btn')) as HTMLButtonElement | null;
   const status = document.getElementById('routstr-key-status');
   if (!input || !btn || !status) return;
   let key = input.value.trim();
@@ -675,13 +675,13 @@ export async function handleRemoveRoutstrKey() {
   catch { showNotification('Could not remove the Routstr key. Try again.', 'error'); return; }
   clearRoutstrModelCaches();
   showNotification('Routstr key removed', 'info');
-  providerPanelDeps.openSettingsModal();
+  (providerPanelDeps as ProviderPanelOperations).openSettingsModal();
 }
 
 // ─── Custom API handlers ───
 export async function handleSaveCustomApi() {
-  const urlInput = /** @type {HTMLInputElement | null} */ (document.getElementById('custom-url-input'));
-  const keyInput = /** @type {HTMLInputElement | null} */ (document.getElementById('custom-key-input'));
+  const urlInput = /** @type {HTMLInputElement | null} */ (document.getElementById('custom-url-input')) as HTMLInputElement | null;
+  const keyInput = /** @type {HTMLInputElement | null} */ (document.getElementById('custom-key-input')) as HTMLInputElement | null;
   if (!urlInput || !keyInput) return;
   const url = urlInput.value.trim().replace(/\/+$/, '');
   const key = keyInput.value.trim();

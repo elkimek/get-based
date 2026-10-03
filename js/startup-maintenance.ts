@@ -1,7 +1,9 @@
-// @ts-check
 // startup-maintenance.js - startup service boot and non-blocking maintenance
 
 import { state } from './state.js';
+import type { WearableConnectionSummary } from './wearables-summary-model.js';
+interface MaintenanceConnectionReader {connectedAt?:unknown;accessToken?:unknown;refreshToken?:unknown;hasStoredCredentials?:unknown;lastSyncAt?:unknown}
+interface SunRehydrationOperation {then(callback:(value:{rehydrated?:unknown}|null|undefined)=>unknown):{catch(handler:()=>void):unknown}}
 import { migrateBiometricsToManual, hasManualData } from './wearables-manual.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { loadWearablesConnectModule } from './wearables-connect-loader.js';
@@ -22,13 +24,13 @@ export function runPostProfileStartupMaintenance() {
 }
 
 function preloadTrackedSupplementWarnings() {
-  if (state.importedData?.supplements?.length) {
+  if ((state.importedData as {supplements?:{length?:unknown}|null}|null|undefined)?.supplements?.length) {
     void preloadMitoCompoundData();
   }
 }
 
 function hasConnectedOAuthWearable() {
-  return Object.values(state.importedData?.wearableConnections || {})
+  return Object.values((state.importedData as {wearableConnections?:Record<string,MaintenanceConnectionReader|null|undefined>}|null|undefined)?.wearableConnections || {})
     .some(connection => Boolean(connection?.connectedAt
       && (connection?.accessToken || connection?.refreshToken || connection?.hasStoredCredentials)));
 }
@@ -50,10 +52,9 @@ function scheduleSunSessionRehydrate() {
   // it doesn't block init; one network call per stale session,
   // serialized inside rehydrateStaleSessions. No-op when everything is
   // already stamped at the current version.
-  if (state.importedData?.sunSessions?.length && hasSunSessionRehydrateRuntime()) {
+  if ((state.importedData as {sunSessions?:{length?:unknown}|null}|null|undefined)?.sunSessions?.length && hasSunSessionRehydrateRuntime()) {
     setTimeout(() => {
-      (/** @type {{ then(callback: (value: { rehydrated?: unknown } | null | undefined) => unknown): { catch(handler: () => void): unknown } }} */
-      (rehydrateStaleSunSessionsRuntime())).then(r => {
+      (rehydrateStaleSunSessionsRuntime() as SunRehydrationOperation).then(r => {
         if (r?.rehydrated) {
           // Surface in debug console only - not worth a user-facing
           // notification for a silent self-heal.
@@ -72,7 +73,7 @@ function hydrateUserLightDevicesFromPresets() {
   // are no-ops once devices carry the fields.
   // Sessions keep a device snapshot, so stale history can still be repaired
   // after the user removes the live device from their library.
-  if (!state.importedData?.lightDevices?.length && !state.importedData?.deviceSessions?.length) return;
+  if (!(state.importedData as {lightDevices?:{length?:unknown}|null}|null|undefined)?.lightDevices?.length && !(state.importedData as {deviceSessions?:{length?:unknown}|null}|null|undefined)?.deviceSessions?.length) return;
   import('./light-devices.js')
     .then(async ({ hydrateDevicesFromPresets, rehydrateStaleDeviceSessions }) => {
       const dirty = await hydrateDevicesFromPresets();
@@ -92,7 +93,7 @@ function migrateLegacyBiometrics() {
   // the wearables meta store so it only runs once per profile. Old biometrics
   // data is preserved; the Edit Client modal keeps writing there during the
   // dual-write transition (cleanup lands in Commit 4).
-  migrateBiometricsToManual(state.currentProfile, state.importedData?.biometrics)
+  (migrateBiometricsToManual as (profileId:Parameters<typeof migrateBiometricsToManual>[0],biometrics:unknown)=>ReturnType<typeof migrateBiometricsToManual>)(state.currentProfile, (state.importedData as {biometrics?:unknown}|null|undefined)?.biometrics)
     .then(async () => {
       // Rebuild the L2 summary on every load that has manual data - covers
       // both the first-run migration AND catching up a stale cached summary
@@ -105,12 +106,10 @@ function migrateLegacyBiometrics() {
     .catch(() => { /* non-fatal; Safari can refuse IDB in some contexts */ });
 }
 
-/** @returns {Record<string, import('./wearables-summary-model.js').WearableConnectionSummary>} */
 function listStoredConnectedSources() {
-  /** @type {Record<string, import('./wearables-summary-model.js').WearableConnectionSummary>} */
-  const out = {};
+  const out: Record<string,WearableConnectionSummary> = {};
   for (const [sourceId, connection] of Object.entries(
-    state.importedData?.wearableConnections || {},
+    (state.importedData as {wearableConnections?:Record<string,MaintenanceConnectionReader|null|undefined>}|null|undefined)?.wearableConnections || {},
   )) {
     if (!connection?.connectedAt) continue;
     out[sourceId] = {

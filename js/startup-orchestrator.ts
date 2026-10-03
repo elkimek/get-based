@@ -1,4 +1,3 @@
-// @ts-check
 // startup-orchestrator.js - app startup wiring and phase ordering
 
 import { initializeStartupFoundation } from './startup-foundation.js';
@@ -39,7 +38,7 @@ async function runStartupSequence() {
   document.documentElement.dataset.appReady = '';
 }
 
-function handleStartupSequenceError(error) {
+function handleStartupSequenceError(error: unknown) {
   console.error('Startup initialization failed', error);
   showNotification('Startup failed. Try reloading the app.', 'error', 6000);
 }

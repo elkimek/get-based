@@ -130,7 +130,7 @@ describe('local agent selection UI', () => {
   });
 
   it('returns chat to direct inference when an API or local-model provider is chosen', () => {
-    const source = read('js/settings-provider-bridge.js');
+    const source = read('js/settings-provider-bridge.js').replace(/if \(changed\)\s+setChatBackend/g, 'if (changed) setChatBackend');
     expect(source).toContain("if (changed) setChatBackend('direct')");
   });
 });

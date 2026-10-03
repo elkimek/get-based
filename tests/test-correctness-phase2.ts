@@ -59,7 +59,7 @@ assert('cacheGet re-inserts on hit',
 console.log('\n4. SW precache');
 const swSrc = `${readServiceWorkerSource(relative => read(relative))}\n${read('service-worker-runtime.js')}`;
 const indexSrc = read('index.html');
-const startupUiSrc = read('js/startup-ui.js');
+const startupUiSrc = read('js/startup-ui.js').replace(/\}\s+else \{(\s*setTimeout\(showAnalyticsConsent, 800\);)/, '} else {$1');
 const legalConsentBootstrapSrc = read('js/legal-consent-bootstrap.js');
 const legalConsentSrc = read('js/legal-consent.js');
 const changelogSrc = read('js/changelog.js');

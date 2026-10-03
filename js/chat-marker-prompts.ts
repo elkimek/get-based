@@ -1,4 +1,3 @@
-// @ts-check
 // chat-marker-prompts.js — marker and correlation prompts that open chat
 
 import { state } from './state.js';
@@ -11,8 +10,17 @@ import { createNewThread, ensureActiveThread, loadChatThreads, renameThread } fr
 import { loadChatHistory, saveChatHistory } from './chat-history.js';
 import { closeChatModalRuntime } from './chat-runtime.js';
 
-/** @param {string} prompt @param {string} threadName @param {{closeModal?: boolean, canOpen?: () => boolean}} [options] */
-async function openSourcePrompt(prompt, threadName, { closeModal = false, canOpen = () => true } = {}) {
+interface MarkerPromptRange {min?:unknown;max?:unknown}
+interface MarkerPromptReader {
+ name?:unknown;unit?:unknown;values:unknown[];singlePoint?:unknown;singleDateLabel?:unknown;
+ phaseLabels?:unknown[]|null;phaseRefRanges?:Array<MarkerPromptRange|null|undefined>|null;
+ phaseDisplayLabels?:unknown[]|null;phaseCycleDays?:unknown[]|null;phaseSources?:unknown[]|null;
+ contextRefRanges?:unknown[]|null;contextOptimalRanges?:unknown[]|null;optimalMin?:unknown;optimalMax?:unknown;rangePolicy?:unknown;
+}
+type PromptRangeReader=(marker:MarkerPromptReader,index:number)=>Omit<ReturnType<typeof getEffectiveRangeForDate>,'min'|'max'|'label'>&MarkerPromptRange&{label:unknown};
+type PromptRangeLabelReader=(marker:MarkerPromptReader,index:number)=>unknown;
+type PromptValueReader=(value:unknown)=>unknown;
+async function openSourcePrompt(prompt:string, threadName:unknown, { closeModal = false, canOpen = () => true }: {closeModal?:unknown;canOpen?:()=>unknown} = {}) {
   const profile = state.currentProfile;
   if (!canOpen()) return;
   if (closeModal) closeChatModalRuntime();
@@ -28,41 +36,41 @@ async function openSourcePrompt(prompt, threadName, { closeModal = false, canOpe
       createNewThread();
     }
   } else ensureActiveThread();
-  renameThread(state.currentThreadId, threadName);
+  (renameThread as (id:Parameters<typeof renameThread>[0], name:unknown)=>ReturnType<typeof renameThread>)(state.currentThreadId, threadName);
   await openChatPanel(prompt);
 }
 
-export function askAIAboutMarker(markerId) {
-  const marker = state.markerRegistry[markerId];
+export function askAIAboutMarker(markerId:unknown) {
+  const marker = (state.markerRegistry as Record<PropertyKey,unknown>)[markerId as PropertyKey] as MarkerPromptReader|null|undefined;
   if (!marker) return;
   const data = getActiveData();
   const dates = marker.singlePoint ? [marker.singleDateLabel || 'N/A'] : data.dates;
   const valuesText = marker.values
     .map((v, i) => {
       if (v === null) return null;
-      let text = `${dates[i]}: ${formatValue(v)} ${marker.unit}`;
+      let text = `${dates[i]}: ${(formatValue as PromptValueReader)(v)} ${marker.unit}`;
       if (marker.phaseLabels && marker.phaseLabels[i]) {
-        const pr = marker.phaseRefRanges[i];
+        const pr = marker.phaseRefRanges![i] as MarkerPromptRange;
         const phaseLabel = marker.phaseDisplayLabels?.[i] || marker.phaseLabels[i];
         const cycleDay = marker.phaseCycleDays?.[i];
         const source = marker.phaseSources?.[i] === 'recorded' ? 'recorded' : 'predicted';
-        text += ` (${phaseLabel} phase${cycleDay ? `, cycle day ${cycleDay}` : ''}, ${source}; ref ${formatValue(pr.min)}\u2013${formatValue(pr.max)})`;
+        text += ` (${phaseLabel} phase${cycleDay ? `, cycle day ${cycleDay}` : ''}, ${source}; ref ${(formatValue as PromptValueReader)(pr.min)}\u2013${(formatValue as PromptValueReader)(pr.max)})`;
       } else if (marker.contextRefRanges?.[i] || marker.contextOptimalRanges?.[i]) {
-        const cr = getEffectiveRangeForDate(marker, i);
-        const label = getEffectiveRangeLabelForDate(marker, i);
+        const cr = (getEffectiveRangeForDate as PromptRangeReader)(marker, i);
+        const label = (getEffectiveRangeLabelForDate as PromptRangeLabelReader)(marker, i);
         const rangeText = cr.min != null || cr.max != null
-          ? `${cr.min != null ? formatValue(cr.min) : '–'}\u2013${cr.max != null ? formatValue(cr.max) : '–'}`
+          ? `${cr.min != null ? (formatValue as PromptValueReader)(cr.min) : '–'}\u2013${cr.max != null ? (formatValue as PromptValueReader)(cr.max) : '–'}`
           : 'not set';
         text += ` (${label}: ${rangeText})`;
       }
       return text;
     })
     .filter(Boolean).join(', ');
-  const latestIdx = getLatestValueIndex(marker.values);
-  const lr = getEffectiveRangeForDate(marker, latestIdx);
-  const latestRangeLabel = getEffectiveRangeLabelForDate(marker, latestIdx);
+  const latestIdx = (getLatestValueIndex as (values:unknown[])=>ReturnType<typeof getLatestValueIndex>)(marker.values);
+  const lr = (getEffectiveRangeForDate as PromptRangeReader)(marker, latestIdx);
+  const latestRangeLabel = (getEffectiveRangeLabelForDate as PromptRangeLabelReader)(marker, latestIdx);
   const status = latestIdx !== -1
-    ? (lr.min != null || lr.max != null ? getStatus(marker.values[latestIdx], lr.min, lr.max) : 'unrated')
+    ? (lr.min != null || lr.max != null ? (getStatus as (value:unknown,min:unknown,max:unknown)=>ReturnType<typeof getStatus>)(marker.values[latestIdx], lr.min, lr.max) : 'unrated')
     : 'no data';
   const latestRangeText = lr.min != null || lr.max != null
     ? `${lr.min != null ? lr.min : '–'}\u2013${lr.max != null ? lr.max : '–'} ${marker.unit}`
@@ -72,8 +80,8 @@ export function askAIAboutMarker(markerId) {
   if (marker.rangePolicy === 'guidance') prompt += ' Note: the displayed band is guidance, not a diagnostic interval; use a report-provided laboratory range when available.';
   const nonNull = marker.values.filter(v => v !== null);
   if (nonNull.length >= 2) {
-    const prev = nonNull[nonNull.length - 2];
-    const last = nonNull[nonNull.length - 1];
+    const prev = nonNull[nonNull.length - 2] as number;
+    const last = nonNull[nonNull.length - 1] as number;
     if (prev !== 0) {
       const pctChange = ((last - prev) / prev * 100).toFixed(1);
       const dir = last > prev ? 'up' : last < prev ? 'down' : 'stable';
@@ -84,7 +92,7 @@ export function askAIAboutMarker(markerId) {
   void openSourcePrompt(prompt, marker.name, { closeModal: true });
 }
 
-function correlationSourcesAllowed(includeTherapies) {
+function correlationSourcesAllowed(includeTherapies:unknown) {
   return isContextSourceEnabled(CONTEXT_SOURCE_IDS.LAB_MARKERS)
     && (!includeTherapies || isContextSourceEnabled(CONTEXT_SOURCE_IDS.SUPPLEMENTS_MEDS));
 }

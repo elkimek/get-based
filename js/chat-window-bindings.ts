@@ -1,4 +1,3 @@
-// @ts-check
 // chat-window-bindings.js — chat callback wiring
 
 import { configureChatThreadDeps } from './chat-threads.js';

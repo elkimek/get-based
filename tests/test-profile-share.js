@@ -21,7 +21,7 @@ console.log('=== Profile Share Tests ===\n');
 const mod = await import('../js/profile-share.js');
 const profileShareSrc = read('js/profile-share.js').replace(/\n}\n(?=function clampExpiryDays\()/g, '\n}\n\n');
 const exportSrc = read('js/export.js');
-const settingsSrc = read('js/settings.js');
+const settingsSrc = read('js/settings.js').replace(/openProfileShareModal: \(\) => \{\s*\}/g, 'openProfileShareModal: () => {}');
 const settingsDataSrc = read('js/settings-data.js');
 const profileShareLoaderSrc = read('js/profile-share-loader.js');
 const appFeatureSrc = read('js/app-feature-modules.js');

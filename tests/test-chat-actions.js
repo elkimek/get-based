@@ -405,7 +405,7 @@ const appChatHooksSrc = read('js/app-chat-hooks.js');
 const appShellHooksSrc = read('js/app-shell-hooks.js');
 const appUiShellModulesSrc = read('js/app-ui-shell-modules.js');
 const chatRenderSrc = read('js/chat-render.js');
-const chatSendSrc = read('js/chat-send.js');
+const chatSendSrc = read('js/chat-send.js').replace(/if \(!state\.currentThreadId\)\s+return;/g, 'if (!state.currentThreadId) return;');
 const labCtxSrc = read('js/lab-context.js');
 assert('lazy chat context summary owns the exact-context receipt',
   !labCtxSrc.includes('getContextSummary')

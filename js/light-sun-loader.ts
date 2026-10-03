@@ -1,4 +1,3 @@
-// @ts-check
 // light-sun-loader.js — lazy initialization for Light & Sun analysis hooks
 
 import { state } from './state.js';
@@ -14,19 +13,18 @@ const LIGHT_SUN_STYLESHEET_URLS = [
   '../css/light-env.css',
 ].map(path => new URL(path, import.meta.url).href);
 
-/** @type {Promise<typeof import('./app-light-sun-modules.js')> | null} */
-let _lightSunModulesLoad = null;
-/** @type {typeof import('./app-light-sun-modules.js') | null} */
-let _lightSunModules = null;
-/** @type {Promise<HTMLLinkElement[]> | null} */
-let _lightSunStylesheetsLoad = null;
-/** @type {Promise<typeof import('./app-light-sun-modules.js')> | null} */
-let _lightSunUILoad = null;
+type LightSunModules = typeof import('./app-light-sun-modules.js');
+type RawConditionsRenderer = (options?: unknown) => ReturnType<LightSunModules['renderLightConditionsWidgetBody']>;
+type RawLiveSessionRenderer = (options?: unknown) => ReturnType<LightSunModules['renderLightLiveSession']>;
+let _lightSunModulesLoad: Promise<LightSunModules> | null = null;
+let _lightSunModules: LightSunModules | null = null;
+let _lightSunStylesheetsLoad: Promise<HTMLLinkElement[]> | null = null;
+let _lightSunUILoad: Promise<LightSunModules> | null = null;
 let _lightSunModulesLoaded = false;
 let _lightSunUILoaded = false;
 let _useLightSunStylesheetRetryUrls = false;
-const _lightEnvironmentLoaderDeps = {};
-const _lightSunShellLoaderDeps = {};
+const _lightEnvironmentLoaderDeps: Record<string, unknown> = {};
+const _lightSunShellLoaderDeps: Record<string, unknown> = {};
 
 configureLightSunAnalysisRuntime({
   analyzeSunSession(session) {
@@ -43,7 +41,7 @@ configureLightSunAnalysisRuntime({
   },
 });
 
-function applyLightEnvironmentLoaderDeps(module) {
+function applyLightEnvironmentLoaderDeps(module: LightSunModules) {
   if (
     Object.keys(_lightEnvironmentLoaderDeps).length > 0
     && typeof module.configureLightEnv === 'function'
@@ -53,7 +51,7 @@ function applyLightEnvironmentLoaderDeps(module) {
   return module;
 }
 
-export function configureLightEnvironmentLoaderDeps(deps = {}) {
+export function configureLightEnvironmentLoaderDeps(deps: unknown = {}) {
   for (const [key, value] of Object.entries(deps || {})) {
     if (typeof value === 'function') _lightEnvironmentLoaderDeps[key] = value;
   }
@@ -62,7 +60,7 @@ export function configureLightEnvironmentLoaderDeps(deps = {}) {
   }
 }
 
-function applyLightSunShellLoaderDeps(module) {
+function applyLightSunShellLoaderDeps(module: LightSunModules) {
   if (
     Object.keys(_lightSunShellLoaderDeps).length > 0
     && typeof module.configureLightSunShell === 'function'
@@ -72,7 +70,7 @@ function applyLightSunShellLoaderDeps(module) {
   return module;
 }
 
-export function configureLightSunShellLoaderDeps(deps = {}) {
+export function configureLightSunShellLoaderDeps(deps: unknown = {}) {
   for (const [key, value] of Object.entries(deps || {})) {
     if (typeof value === 'function') _lightSunShellLoaderDeps[key] = value;
   }
@@ -97,8 +95,8 @@ export function renderLoadedLightTodayHero() {
   return _lightSunModules?.renderLightTodayHero?.() || '';
 }
 
-export function renderLoadedLightConditionsWidgetBody(options) {
-  return _lightSunModules?.renderLightConditionsWidgetBody?.(options) || '';
+export function renderLoadedLightConditionsWidgetBody(options?: unknown) {
+  return (_lightSunModules?.renderLightConditionsWidgetBody as RawConditionsRenderer | undefined)?.(options) || '';
 }
 
 export function renderLoadedDashboardLightChannelPills() {
@@ -109,8 +107,8 @@ export function renderLoadedLightSessionLogActions() {
   return _lightSunModules?.renderLightSessionLogActions?.() || '';
 }
 
-export function renderLoadedLightLiveSession(options) {
-  return _lightSunModules?.renderLightLiveSession?.(options) || '';
+export function renderLoadedLightLiveSession(options?: unknown) {
+  return (_lightSunModules?.renderLightLiveSession as RawLiveSessionRenderer | undefined)?.(options) || '';
 }
 
 export function ensureLoadedActiveDeviceTicker() {
@@ -129,7 +127,7 @@ export function resumeLoadedActiveSunTickerIfNeeded() {
   return loadLightSunModules().then(module => module.resumeActiveTickerIfNeeded?.());
 }
 
-export function getLoadedRollingChannelTotals(days) {
+export function getLoadedRollingChannelTotals(days?: unknown) {
   return _lightSunModules?.rollingChannelTotals?.(days) || null;
 }
 
@@ -149,8 +147,7 @@ export function loadLightSunModulesForPersistedState() {
     : Promise.resolve(null);
 }
 
-/** @returns {Promise<typeof import('./app-light-sun-modules.js')>} */
-export function loadLightSunModules() {
+export function loadLightSunModules(): Promise<LightSunModules> {
   if (!_lightSunModulesLoad) {
     _lightSunModulesLoad = import('./app-light-sun-modules.js')
       .then(module => {
@@ -170,16 +167,14 @@ export function loadLightSunModules() {
   return _lightSunModulesLoad;
 }
 
-/** @param {string} stylesheetUrl */
-function lightSunStylesheetUrl(stylesheetUrl) {
+function lightSunStylesheetUrl(stylesheetUrl: string) {
   if (!_useLightSunStylesheetRetryUrls) return stylesheetUrl;
   const retryUrl = new URL(stylesheetUrl);
   retryUrl.searchParams.set('lazy-retry', '1');
   return retryUrl.href;
 }
 
-/** @returns {Promise<HTMLLinkElement[]>} */
-function loadLightSunStylesheets() {
+function loadLightSunStylesheets(): Promise<HTMLLinkElement[]> {
   if (!_lightSunStylesheetsLoad) {
     if (typeof document === 'undefined') {
       return Promise.reject(new Error('Light & Sun stylesheets require a document'));
@@ -193,7 +188,7 @@ function loadLightSunStylesheets() {
       link.dataset.lightSunStylesheet = String(index);
       return link;
     });
-    const loads = links.map(link => new Promise((resolve, reject) => {
+    const loads = links.map(link => new Promise<HTMLLinkElement>((resolve, reject) => {
       link.addEventListener('load', () => resolve(link), { once: true });
       link.addEventListener('error', () => {
         reject(new Error(`Light & Sun stylesheet could not be loaded: ${link.href}`));
@@ -211,8 +206,7 @@ function loadLightSunStylesheets() {
   return _lightSunStylesheetsLoad;
 }
 
-/** @returns {Promise<typeof import('./app-light-sun-modules.js')>} */
-export function loadLightSunUI() {
+export function loadLightSunUI(): Promise<LightSunModules> {
   if (!_lightSunUILoad) {
     _lightSunUILoad = Promise.all([
       loadLightSunModules(),

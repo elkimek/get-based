@@ -363,7 +363,7 @@ function renderLocalAIProviderPanel() {
   </form>`;
 }
 
-export function renderAIProviderPanel(provider: string) {
+export function renderAIProviderPanel(provider: unknown) {
   if (provider === 'openrouter') return renderOpenRouterProviderPanel();
   if (provider === 'routstr') return renderRoutstrProviderPanel();
   if (provider === 'venice') return renderVeniceProviderPanel();

@@ -1,4 +1,3 @@
-// @ts-check
 // settings-loader.js — lazy initialization and safe entry points for Settings
 
 import { applyAccentOverride } from './theme.js';
@@ -7,21 +6,21 @@ import { configureSettingsModuleBridge } from './settings-runtime-bridge.js';
 import { loadDataProtectionStylesheet } from './modal-lifecycle.js';
 import { loadSettingsSyncPanelModule } from './settings-sync-panel.js';
 
-/** @typedef {typeof import('./settings.js')} SettingsModule */
+type SettingsModule = typeof import('./settings.js');
 
 const SETTINGS_STYLESHEET_URL = new URL('../css/settings.css', import.meta.url).href;
 
 /** @type {Promise<SettingsModule> | null} */
-let _settingsJavaScriptLoad = null;
+let _settingsJavaScriptLoad: Promise<SettingsModule> | null = null;
 /** @type {Promise<SettingsModule> | null} */
-let _settingsModuleLoad = null;
+let _settingsModuleLoad: Promise<SettingsModule> | null = null;
 /** @type {Promise<HTMLLinkElement> | null} */
-let _settingsStylesheetLoad = null;
+let _settingsStylesheetLoad: Promise<HTMLLinkElement> | null = null;
 let _settingsModuleLoaded = false;
 let _useSettingsRetryUrl = false;
 let _useSettingsStylesheetRetryUrl = false;
 /** @type {(module: SettingsModule) => void} */
-let _configureSettingsModule = () => {};
+let _configureSettingsModule: unknown = () => {};
 
 export function isSettingsModuleLoaded() {
   return _settingsModuleLoaded;
@@ -30,19 +29,18 @@ export function isSettingsModuleLoaded() {
 /**
  * @param {{ configureModule?: (module: SettingsModule) => void }} [deps]
  */
-export function configureSettingsLoader(deps = {}) {
+export function configureSettingsLoader(deps: unknown = {}) {
   const previous = { configureModule: _configureSettingsModule };
-  if (typeof deps.configureModule === 'function') {
-    _configureSettingsModule = deps.configureModule;
+  if (typeof (deps as { configureModule?: unknown }).configureModule === 'function') {
+    _configureSettingsModule = (deps as { configureModule?: unknown }).configureModule;
   }
   return previous;
 }
 
 /** @returns {Promise<SettingsModule>} */
 function loadSettingsRetryModule() {
-  // @ts-expect-error The browser accepts a fixed query-string module URL;
-  // TypeScript resolves declarations only for the query-free source path.
-  return import('./settings.js?lazy-retry=1');
+  // The fixed query identifies a retry of this same native module.
+  return import('./settings.js?lazy-retry=1' as './settings.js');
 }
 
 /** @returns {Promise<SettingsModule>} */
@@ -70,9 +68,9 @@ function settingsStylesheetUrl() {
 }
 
 /** @returns {Promise<HTMLLinkElement>} */
-function loadSettingsStylesheet() {
+function loadSettingsStylesheet(): Promise<HTMLLinkElement> {
   if (!_settingsStylesheetLoad) {
-    _settingsStylesheetLoad = new Promise((resolve, reject) => {
+    _settingsStylesheetLoad = new Promise<HTMLLinkElement>((resolve, reject) => {
       if (typeof document === 'undefined') {
         reject(new Error('Settings stylesheet requires a document'));
         return;
@@ -98,7 +96,7 @@ function loadSettingsStylesheet() {
 }
 
 /** @returns {Promise<SettingsModule>} */
-export function loadSettingsModule() {
+export function loadSettingsModule(): Promise<SettingsModule> {
   if (!_settingsModuleLoad) {
     _settingsModuleLoad = Promise.all([
       loadDataProtectionStylesheet(),
@@ -107,7 +105,7 @@ export function loadSettingsModule() {
       loadSettingsSyncPanelModule(),
     ])
       .then(([, module]) => {
-        _configureSettingsModule(module);
+        (_configureSettingsModule as (module: SettingsModule) => unknown)(module);
         _settingsModuleLoaded = true;
         return module;
       })
@@ -123,14 +121,14 @@ export function loadSettingsModule() {
 
 /**
  * @param {keyof SettingsModule} name
- * @param {any[]} args
+ * @param {unknown[]} args
  */
-async function runSettingsAction(name, args) {
+async function runSettingsAction(name: keyof SettingsModule, args: unknown[]): Promise<unknown> {
   try {
     const module = await loadSettingsModule();
     const action = module[name];
     if (typeof action !== 'function') throw new Error(`Settings action ${String(name)} is unavailable`);
-    return Reflect.apply(action, module, args);
+    return (Reflect.apply as (fn: Function, receiver: unknown, args: unknown[]) => unknown)(action, module, args);
   } catch (err) {
     console.error(`Failed to run Settings action ${String(name)}`, err);
     showNotification('Settings could not be loaded. Try again.', 'error');
@@ -143,31 +141,31 @@ async function runSettingsAction(name, args) {
  * Theme refreshes during normal startup must not pull in the Settings graph.
  *
  * @param {keyof SettingsModule} name
- * @param {any[]} args
+ * @param {unknown[]} args
  */
-function runLoadedSettingsAction(name, args) {
+function runLoadedSettingsAction(name: keyof SettingsModule, args: unknown[]) {
   if (!_settingsModuleLoad) return undefined;
   return _settingsModuleLoad
     .then(module => {
       const action = module[name];
-      return typeof action === 'function' ? Reflect.apply(action, module, args) : undefined;
+      return typeof action === 'function' ? (Reflect.apply as (fn: Function, receiver: unknown, args: unknown[]) => unknown)(action, module, args) : undefined;
     })
     .catch(() => undefined);
 }
 
-export function openSettingsModal(...args) {
+export function openSettingsModal(...args: unknown[]) {
   return runSettingsAction('openSettingsModal', args);
 }
 
-export function closeSettingsModal(...args) {
+export function closeSettingsModal(...args: unknown[]) {
   return runSettingsAction('closeSettingsModal', args);
 }
 
-export function openTweaksPanel(...args) {
+export function openTweaksPanel(...args: unknown[]) {
   return runSettingsAction('openTweaksPanel', args);
 }
 
-export function closeTweaksPanel(...args) {
+export function closeTweaksPanel(...args: unknown[]) {
   return runSettingsAction('closeTweaksPanel', args);
 }
 
@@ -178,9 +176,9 @@ function installSettingsLoaderBridge() {
     closeSettingsModal,
     openTweaksPanel,
     closeTweaksPanel,
-    updatePrivacyStatusCard: (...args) => runLoadedSettingsAction('updatePrivacyStatusCard', args),
-    updateSettingsUI: (...args) => runLoadedSettingsAction('updateSettingsUI', args),
-    updateTweaksUI: (...args) => runLoadedSettingsAction('updateTweaksUI', args),
+    updatePrivacyStatusCard: (...args: unknown[]) => runLoadedSettingsAction('updatePrivacyStatusCard', args),
+    updateSettingsUI: (...args: unknown[]) => runLoadedSettingsAction('updateSettingsUI', args),
+    updateTweaksUI: (...args: unknown[]) => runLoadedSettingsAction('updateTweaksUI', args),
   });
 }
 

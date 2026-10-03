@@ -1,4 +1,3 @@
-// @ts-check
 // light-ai-save-hooks.js - wire saved Light/onboarding records to AI analyzers.
 
 import { configureLightEnvAudits } from './light-env-audits.js';

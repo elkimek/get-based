@@ -1490,7 +1490,7 @@ console.log('17s. Encryption Hardening');
 
 // P0-1: profile-switch race in loadProfile refresh
 const profileSrc31 = await fetch('/js/profile.js').then(r => r.text());
-const profileRuntimeSrc31 = await fetch('/js/profile-runtime.js').then(r => r.text());
+const profileRuntimeSrc31 = (await fetch('/js/profile-runtime.js').then(r => r.text())).replace(/if \(!isCurrent\(\)\)\s+return;/g, 'if (!isCurrent()) return;');
 assert('loadProfile refresh aborts when state.currentProfile changes mid-await',
   profileSrc31.includes('refreshProfileWearables(profileId, state.importedData?.biometrics)') &&
   /const isCurrent = \(\) => state\.currentProfile === profileId && state\.importedData === data/.test(profileRuntimeSrc31) &&

@@ -1,4 +1,3 @@
-// @ts-check
 // settings.js — Settings modal (profile, display, AI provider, privacy)
 import { isDebugMode, setDebugMode, setAnalyticsEnabled, showNotification, showConfirmDialog } from './utils.js';
 import { applyAccentOverride, setTimeFormat } from './theme.js';
@@ -87,26 +86,10 @@ import {
   notifyAppExtensionSettings,
   renderAppExtensionSettingsSlot,
 } from './app-extension-runtime.js';
-/** @typedef {Window & typeof globalThis & Record<string, any>} SettingsWindow */
-const settingsWindow = /** @type {SettingsWindow} */ (window);
-/**
- * @typedef {{
- *   clearAllData: () => void,
- *   exportAllDataJSON: () => void,
- *   exportClientJSON: (profileId?: string | null) => void,
- *   getActiveProfileId: () => string | null,
- *   navigate: (view: string) => void,
- *   openFeedbackModal: () => void,
- *   openProfileShareModal: (profileId?: string) => void,
- *   clearDashboardWidgets: () => void,
- *   resetDashboardWidgets: () => void,
- *   toggleDashboardOrganizeMode: (force?: boolean) => void,
- *   refreshMobileDashboardActiveTab: () => void,
- * }} SettingsRuntime
- */
+import type { SettingsOperations, SettingsSnapshot } from '../types/settings.js';
+const settingsWindow = window as unknown as Record<string, unknown>;
 
-/** @type {SettingsRuntime} */
-const settingsRuntime = {
+const settingsRuntime: SettingsSnapshot = {
   clearAllData: () => {},
   exportAllDataJSON: () => {},
   exportClientJSON: () => {},
@@ -120,8 +103,7 @@ const settingsRuntime = {
   refreshMobileDashboardActiveTab: () => {},
 };
 
-/** @param {Partial<SettingsRuntime>} [runtime] */
-export function configureSettingsRuntime(runtime = {}) {
+export function configureSettingsRuntime(runtime: unknown = {}) {
   Object.assign(settingsRuntime, runtime);
 }
 
@@ -148,9 +130,9 @@ export {
 };
 
 // SETTINGS MODAL
-let _activeSettingsTab = 'display';
+let _activeSettingsTab: unknown = 'display';
 
-function requestSettingsScrollFrame(callback) {
+function requestSettingsScrollFrame(callback: () => void) {
   const frame = requestSettingsFrame(callback);
   if (frame === null) {
     setTimeout(callback, 0);
@@ -159,14 +141,14 @@ function requestSettingsScrollFrame(callback) {
 
 settingsWindow.handleThemeChange = scheduleSettingsThemeChange;
 
-function applySettingsToggle(actionEl) {
+function applySettingsToggle(actionEl: HTMLElement) {
   if (actionEl instanceof HTMLInputElement && actionEl.disabled) return false;
 
   const action = actionEl.dataset.settingsAction;
   const checked = actionEl instanceof HTMLInputElement && actionEl.checked;
   if (action === 'set-product-recs') {
     setProductRecsEnabled(checked);
-    settingsRuntime.navigate('dashboard');
+    (settingsRuntime as SettingsOperations).navigate('dashboard');
     return true;
   }
   if (action === 'set-debug-mode') {
@@ -194,7 +176,7 @@ function applySettingsToggle(actionEl) {
   return false;
 }
 
-function isSettingsToggleAction(actionEl) {
+function isSettingsToggleAction(actionEl: HTMLElement) {
   return actionEl.dataset.settingsAction === 'set-product-recs'
     || actionEl.dataset.settingsAction === 'set-debug-mode'
     || actionEl.dataset.settingsAction === 'toggle-ai-pause'
@@ -203,7 +185,7 @@ function isSettingsToggleAction(actionEl) {
     || actionEl.dataset.settingsAction === 'set-analytics';
 }
 
-async function handleSettingsClick(event) {
+async function handleSettingsClick(event: Event) {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
 
@@ -283,7 +265,7 @@ async function handleSettingsClick(event) {
   } else if (action === 'show-cli-agent-provider') {
     event.preventDefault();
     document.querySelectorAll('.ai-provider-btn').forEach(button => {
-      const providerButton = /** @type {HTMLElement} */ (button);
+      const providerButton = /** @type {HTMLElement} */ (button as HTMLElement);
       providerButton.classList.toggle('active', providerButton.dataset.provider === 'cli');
     });
     const panel = document.getElementById('ai-provider-panel');
@@ -358,17 +340,17 @@ async function handleSettingsClick(event) {
     }
   } else if (action === 'export-client') {
     event.preventDefault();
-    settingsRuntime.exportClientJSON(settingsRuntime.getActiveProfileId());
+    (settingsRuntime as SettingsOperations).exportClientJSON((settingsRuntime as SettingsOperations).getActiveProfileId());
   } else if (action === 'share-profile') {
     event.preventDefault();
     closeSettingsModal();
-    setTimeout(() => settingsRuntime.openProfileShareModal(), 120);
+    setTimeout(() => (settingsRuntime as SettingsOperations).openProfileShareModal(), 120);
   } else if (action === 'export-all-clients') {
     event.preventDefault();
-    settingsRuntime.exportAllDataJSON();
+    (settingsRuntime as SettingsOperations).exportAllDataJSON();
   } else if (action === 'clear-all-data') {
     event.preventDefault();
-    settingsRuntime.clearAllData();
+    (settingsRuntime as SettingsOperations).clearAllData();
   } else if (action === 'reset-profile-usage') {
     event.preventDefault();
     resetCurrentProfileUsage();
@@ -389,7 +371,7 @@ function scheduleNutritionAISettingsRefresh() {
   });
 }
 
-function handleSettingsChange(event) {
+function handleSettingsChange(event: Event) {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
   const actionEl = closestSettingsTarget(event, '[data-settings-action]', modal);
@@ -437,7 +419,7 @@ if (typeof globalThis.addEventListener === 'function') {
   globalThis.addEventListener('getbased:chat-backend-changed', scheduleNutritionAISettingsRefresh);
 }
 
-function installSettingsDelegates(modal) {
+function installSettingsDelegates(modal: HTMLElement | null) {
   if (!modal || modal.dataset.delegatedActions === '1') return;
   modal.dataset.delegatedActions = '1';
   modal.addEventListener('click', handleSettingsClick);
@@ -447,7 +429,7 @@ function installSettingsDelegates(modal) {
 
 installSunDataSourceDelegates();
 
-export function openSettingsModal(tab) {
+export function openSettingsModal(tab?: unknown): void | false | Promise<void | false> {
   setSettingsProviderHadProvider(hasAIProvider());
   const overlay = document.getElementById('settings-modal-overlay');
   const modal = document.getElementById('settings-modal');
@@ -627,7 +609,7 @@ export function openSettingsModal(tab) {
     </div>`;
   if (cliAgentActive) {
     modal.querySelectorAll('.ai-provider-btn').forEach(button => {
-      const providerButton = /** @type {HTMLElement} */ (button);
+      const providerButton = /** @type {HTMLElement} */ (button as HTMLElement);
       providerButton.classList.toggle('active', providerButton.dataset.provider === 'cli');
     });
   }
@@ -653,14 +635,14 @@ export function openSettingsModal(tab) {
 function scrollActiveSettingsTabIntoView() {
   requestSettingsScrollFrame(() => {
     const bar = document.querySelector('#settings-modal .settings-tabs-bar');
-    const active = /** @type {HTMLElement | null | undefined} */ (bar?.querySelector('.settings-tab-btn.active'));
+    const active = /** @type {HTMLElement | null | undefined} */ (bar?.querySelector('.settings-tab-btn.active') as HTMLElement | null | undefined);
     if (!bar || !active || settingsMediaMatches('(min-width: 721px)')) return;
     const padding = 12;
     const activeLeft = active.offsetLeft;
     const activeRight = activeLeft + active.offsetWidth;
     const visibleLeft = bar.scrollLeft + padding;
     const visibleRight = bar.scrollLeft + bar.clientWidth - padding;
-    let target = null;
+    let target: number | null = null;
     if (activeLeft < visibleLeft) target = activeLeft - padding;
     if (activeRight > visibleRight) target = activeRight - bar.clientWidth + padding;
     if (target !== null) bar.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
@@ -670,7 +652,7 @@ function scrollActiveSettingsTabIntoView() {
 function loadSettingsCommitHash() {
   const el = document.getElementById('settings-commit-hash');
   if (!el) return;
-  const render = (sha, ref) => {
+  const render = (sha: unknown, ref: unknown) => {
     const e = document.getElementById('settings-commit-hash');
     if (!e) return;
     const fullSha = String(sha || '').trim();
@@ -700,11 +682,11 @@ function loadSettingsCommitHash() {
   // automatic GitHub request from the user's browser when it is unavailable.
   fetch('/api/commit')
     .then(r => r.ok ? r.json() : Promise.reject())
-    .then(({ sha, ref }) => render(sha, ref))
+    .then(({ sha, ref }: { sha?: unknown; ref?: unknown }) => render(sha, ref))
     .catch(() => { const e = document.getElementById('settings-commit-hash'); if (e) e.textContent = ''; });
 }
 
-export function switchSettingsTab(tabId) {
+export function switchSettingsTab(tabId: unknown): void | false | Promise<void | false> {
   // Legacy v1.27 tab id 'integrations' covered both wearables + agent access.
   // v1.30.0 split them. Land on Wearables for the back-compat redirect — most
   // pre-existing deep-links pointed at the wearable adapter rows.
@@ -716,14 +698,14 @@ export function switchSettingsTab(tabId) {
   _activeSettingsTab = tabId;
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
-  const tabButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.settings-tab-btn')));
+  const tabButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.settings-tab-btn')) as HTMLElement[]);
   tabButtons.forEach(btn => {
     const isActive = btn.dataset.tab === tabId;
     btn.classList.toggle('active', isActive);
     btn.setAttribute('aria-selected', String(isActive));
     btn.setAttribute('tabindex', isActive ? '0' : '-1');
   });
-  const tabPanels = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.settings-tab-panel')));
+  const tabPanels = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.settings-tab-panel')) as HTMLElement[]);
   tabPanels.forEach(panel => {
     panel.classList.toggle('active', panel.dataset.tabPanel === tabId);
   });
@@ -760,15 +742,15 @@ export function updateSettingsUI() {
 export function closeSettingsModal() {
   closeModalOverlay('settings-modal-overlay');
   updateChatNudgeRuntime();
-  settingsRuntime.refreshMobileDashboardActiveTab();
+  (settingsRuntime as SettingsOperations).refreshMobileDashboardActiveTab();
   notifyAppExtensionSettings('onClose', { activeTab: _activeSettingsTab, provider: getAIProvider() });
 }
 
 configureSettingsTweaksRuntime({
-  clearDashboardWidgets: () => settingsRuntime.clearDashboardWidgets(),
-  openFeedbackModal: () => settingsRuntime.openFeedbackModal(),
-  resetDashboardWidgets: () => settingsRuntime.resetDashboardWidgets(),
-  toggleDashboardOrganizeMode: force => settingsRuntime.toggleDashboardOrganizeMode(force),
+  clearDashboardWidgets: () => (settingsRuntime as SettingsOperations).clearDashboardWidgets(),
+  openFeedbackModal: () => (settingsRuntime as SettingsOperations).openFeedbackModal(),
+  resetDashboardWidgets: () => (settingsRuntime as SettingsOperations).resetDashboardWidgets(),
+  toggleDashboardOrganizeMode: (force?: boolean) => (settingsRuntime as SettingsOperations).toggleDashboardOrganizeMode(force),
   updateSettingsUI,
 });
 

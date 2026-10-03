@@ -1,4 +1,3 @@
-// @ts-check
 // app-light-sun-modules.js - lazy-loaded Light & Sun analysis and UI hooks
 
 import './sun-uvdata.js';
@@ -79,27 +78,29 @@ export {
   showLight,
 };
 
-/**
- * @param {{
- *   buildSidebar?: (...args: any[]) => any,
- *   navigate?: (...args: any[]) => any,
- *   openClientList?: (...args: any[]) => any,
- *   openProfileLocationEditor?: (...args: any[]) => any,
- * }} [deps]
- */
+type LightSunShellDeps = {
+  buildSidebar?: unknown;
+  navigate?: unknown;
+  openClientList?: unknown;
+  openProfileLocationEditor?: unknown;
+};
+type RawLightToolsConfigurator = (deps: Record<string, unknown>) => ReturnType<typeof configureLightTools>;
+type RawSunDefaultsConfigurator = (deps: Record<string, unknown>) => ReturnType<typeof configureSunDefaultsRuntimeDeps>;
+type RawSunConfigurator = (deps: Record<string, unknown>) => ReturnType<typeof configureSunRuntimeDeps>;
+
 export function configureLightSunShell({
   buildSidebar,
   navigate,
   openClientList,
   openProfileLocationEditor,
-} = {}) {
+}: LightSunShellDeps = {}) {
   configureLightChannelView({ navigate });
   configureLightPageView({ navigate });
-  configureLightTools({ navigate });
+  (configureLightTools as RawLightToolsConfigurator)({ navigate });
   configureLightEnv({ getMeasurementsForRoom, navigate });
   configureSunSessionUI({ navigate });
-  configureSunDefaultsRuntimeDeps({ navigate, openClientList, openProfileLocationEditor });
-  configureSunRuntimeDeps({
+  (configureSunDefaultsRuntimeDeps as RawSunDefaultsConfigurator)({ navigate, openClientList, openProfileLocationEditor });
+  (configureSunRuntimeDeps as RawSunConfigurator)({
     buildSidebar,
     navigate,
     openChannelOnLightPage: _openChannelOnLightPage,

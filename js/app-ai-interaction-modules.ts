@@ -1,4 +1,3 @@
-// @ts-check
 // app-ai-interaction-modules.js - first-use Chat and AI interaction composition
 
 import './chat.js';

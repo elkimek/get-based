@@ -1,4 +1,3 @@
-// @ts-check
 // profile-runtime.js - Browser runtime refresh hooks for profile lifecycle.
 
 import { configureRuntimeDependencies } from './runtime-callbacks.js';
@@ -9,21 +8,11 @@ import {
   isManualMetricTombstoned,
 } from './wearables-manual.js';
 
-/** @typedef {{
- * buildSidebar: () => void,
- * destroyAllCharts: () => void,
- * getInitialView: () => string,
- * hydrateNutritionSummary: (profileId: string) => Promise<unknown>,
- * invalidateLabContextCache: () => void,
- * migrateBiometricsToManual: (profileId: string, biometrics: Record<string, unknown> | null) => Promise<unknown>,
- * navigate: (view: string) => unknown,
- * renderProfileButton: () => void,
- * syncWearableSummary: (profileId: string, sources: Readonly<Record<string, import('./wearables-summary-model.js').WearableConnectionSummary>>) => Promise<unknown>,
- * updateHeaderDates: () => void,
- * updateHeaderRangeToggle: () => void,
- * }} ProfileRefreshDependencies */
-/** @type {ProfileRefreshDependencies} */
-const profileRefreshDeps = {
+type ProfileRefreshDependencies = {[Key in 'buildSidebar'|'destroyAllCharts'|'getInitialView'|'hydrateNutritionSummary'|'invalidateLabContextCache'|'migrateBiometricsToManual'|'navigate'|'renderProfileButton'|'syncWearableSummary'|'updateHeaderDates'|'updateHeaderRangeToggle']:unknown};
+interface ProfileRefreshOperations {buildSidebar():unknown;destroyAllCharts():unknown;getInitialView():unknown;hydrateNutritionSummary(profileId:string):unknown;invalidateLabContextCache():unknown;migrateBiometricsToManual(profileId:string,biometrics:unknown):unknown;navigate(view:unknown):unknown;renderProfileButton():unknown;syncWearableSummary(profileId:string,sources:Parameters<typeof import('./wearables-summary.js').syncWearableSummary>[1]):unknown;updateHeaderDates():unknown;updateHeaderRangeToggle():unknown}
+interface PulledWearableMetric {primarySource?:unknown;latestDate?:unknown}
+interface PulledWearableReader {wearableSummary?:{metrics?:Record<string,PulledWearableMetric|null|undefined>}|null}
+const profileRefreshDeps: ProfileRefreshDependencies = {
   buildSidebar: () => {},
   destroyAllCharts: () => {},
   getInitialView: () => 'dashboard',
@@ -37,20 +26,19 @@ const profileRefreshDeps = {
   updateHeaderRangeToggle: () => {},
 };
 
-/** @param {Partial<ProfileRefreshDependencies>} [deps] */
-export function configureProfileRefreshDeps(deps = {}) {
-  return configureRuntimeDependencies(profileRefreshDeps, deps);
+export function configureProfileRefreshDeps(deps: unknown = {}) {
+  return (configureRuntimeDependencies as (target:ProfileRefreshDependencies,deps:unknown)=>ProfileRefreshDependencies)(profileRefreshDeps, deps);
 }
 
 export function invalidateProfileContextCache() {
-  profileRefreshDeps.invalidateLabContextCache();
+  (profileRefreshDeps as ProfileRefreshOperations).invalidateLabContextCache();
 }
 
-export async function reloadProfileRuntimeShell(profileId) {
+export async function reloadProfileRuntimeShell(profileId: string) {
   const data = state.importedData;
   const isCurrent = () => state.currentProfile === profileId && state.importedData === data;
   if (!isCurrent()) return;
-  try { await profileRefreshDeps.hydrateNutritionSummary(profileId); }
+  try { await (profileRefreshDeps as ProfileRefreshOperations).hydrateNutritionSummary(profileId); }
   catch { if (isCurrent()) state.nutritionSummary = null; }
   if (!isCurrent()) return;
   const chat = isChatModuleLoaded() ? await loadChatModule() : null;
@@ -69,19 +57,19 @@ export async function reloadProfileRuntimeShell(profileId) {
   chat?.updateChatHeaderTitle?.();
   chat?.updatePersonalityBar?.();
   chat?.updateDiscussButton?.();
-  profileRefreshDeps.destroyAllCharts();
-  profileRefreshDeps.buildSidebar();
-  profileRefreshDeps.navigate(profileRefreshDeps.getInitialView() || 'dashboard');
-  profileRefreshDeps.updateHeaderDates();
-  profileRefreshDeps.updateHeaderRangeToggle();
-  profileRefreshDeps.renderProfileButton();
+  (profileRefreshDeps as ProfileRefreshOperations).destroyAllCharts();
+  (profileRefreshDeps as ProfileRefreshOperations).buildSidebar();
+  (profileRefreshDeps as ProfileRefreshOperations).navigate((profileRefreshDeps as ProfileRefreshOperations).getInitialView() || 'dashboard');
+  (profileRefreshDeps as ProfileRefreshOperations).updateHeaderDates();
+  (profileRefreshDeps as ProfileRefreshOperations).updateHeaderRangeToggle();
+  (profileRefreshDeps as ProfileRefreshOperations).renderProfileButton();
 }
 
 // Refresh wearable summary for the freshly-loaded profile so the strip
 // reflects this profile's L1 IDB rather than carrying over stale state from
 // the boot profile. Migration runs first (idempotent per profile), then the
 // summary recomputes from this profile's connected sources.
-export async function refreshProfileWearables(profileId, biometrics) {
+export async function refreshProfileWearables(profileId: string, biometrics: unknown) {
   const data = state.importedData;
   const isCurrent = () => state.currentProfile === profileId && state.importedData === data;
   if (!isCurrent()) return;
@@ -91,11 +79,11 @@ export async function refreshProfileWearables(profileId, biometrics) {
   // prior credential/row purge whose profile save failed.
   try { await connect.recoverPendingWearableDisconnect(profileId, data); } catch {}
   if (!isCurrent()) return;
-  try { await profileRefreshDeps.migrateBiometricsToManual(profileId, biometrics); } catch {}
+  try { await (profileRefreshDeps as ProfileRefreshOperations).migrateBiometricsToManual(profileId, biometrics); } catch {}
   // The user can swap profile A→B during an IDB read. Abort before and after
   // summary persistence so A's metrics can never be saved into B's profile.
   if (!isCurrent()) return;
-  try { await profileRefreshDeps.syncWearableSummary(profileId, connect.listConnectedSources()); } catch {}
+  try { await (profileRefreshDeps as ProfileRefreshOperations).syncWearableSummary(profileId, connect.listConnectedSources()); } catch {}
   if (!isCurrent()) return;
   connect.syncStaleWearablesNow?.().catch(() => {});
 }
@@ -104,17 +92,17 @@ export async function refreshProfileWearables(profileId, biometrics) {
 // the active profile. `merged` is the object that pull will persist, so IDB,
 // legacy biometrics, and the derived wearable summary converge atomically
 // from the user's perspective.
-export async function reconcilePulledManualWearables(profileId, merged) {
+export async function reconcilePulledManualWearables(profileId: unknown, merged: unknown) {
   if (!profileId || profileId !== state.currentProfile || !merged || typeof merged !== 'object') return false;
   // Reconcile the draft without exposing it as live data across an await.
-  const result = await reconcileManualMetricTombstones(profileId, merged);
+  const result = await (reconcileManualMetricTombstones as (profileId:unknown,imported:unknown)=>ReturnType<typeof reconcileManualMetricTombstones>)(profileId, merged);
   if (!result || result.skipped) return false;
   let changed = !!(result.prunedRows || result.prunedLegacy);
   // L1 histories are device-local. A local rebuild cannot replace this shared
   // summary: invalidate only manual latest readings explicitly deleted by pull.
-  for (const [metric, value] of Object.entries(merged.wearableSummary?.metrics || {})) {
-    if (value?.primarySource === 'manual' && isManualMetricTombstoned(metric, value.latestDate, merged)) {
-      delete merged.wearableSummary.metrics[metric];
+  for (const [metric, value] of Object.entries((merged as PulledWearableReader).wearableSummary?.metrics || {})) {
+    if (value?.primarySource === 'manual' && (isManualMetricTombstoned as (metric:Parameters<typeof isManualMetricTombstoned>[0],date:Parameters<typeof isManualMetricTombstoned>[1],imported:unknown)=>ReturnType<typeof isManualMetricTombstoned>)(metric, value.latestDate, merged)) {
+      delete (merged as {wearableSummary:{metrics:Record<string,unknown>}}).wearableSummary.metrics[metric];
       changed = true;
     }
   }
@@ -122,10 +110,10 @@ export async function reconcilePulledManualWearables(profileId, merged) {
 }
 
 export function refreshProfileButton() {
-  profileRefreshDeps.renderProfileButton();
+  (profileRefreshDeps as ProfileRefreshOperations).renderProfileButton();
 }
 
-export function dispatchProfileSwitched(profileId) {
+export function dispatchProfileSwitched(profileId: unknown) {
   if (typeof globalThis.CustomEvent !== 'function') return;
   try {
     globalThis.dispatchEvent(new CustomEvent('labcharts-profile-switched', { detail: { profileId } }));

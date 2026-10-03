@@ -1,4 +1,3 @@
-// @ts-check
 // settings-provider-bridge.js - lazy bridge from Settings to provider panel modules.
 
 import {
@@ -9,24 +8,29 @@ import {
 } from './api.js';
 import { getChatBackend, setChatBackend } from './agent-chat-settings.js';
 
-let _providerPanelsLoad = null;
+type ProviderPanels = typeof import('./provider-panels.js');
+type WalletPanels = typeof import('./provider-wallet-panels.js');
+type BridgeOperations = { closeSettingsModal(): unknown; openSettingsModal(): unknown; refreshNutritionAISettings(): unknown };
+type BridgeSnapshot = { [Key in keyof BridgeOperations]: unknown };
+
+let _providerPanelsLoad: Promise<ProviderPanels> | null = null;
 let settingsHadProvider = false;
 
-const settingsProviderBridgeDeps = {
+const settingsProviderBridgeDeps: BridgeSnapshot = {
   closeSettingsModal: () => {},
   openSettingsModal: () => {},
   refreshNutritionAISettings: () => {},
 };
 
-export function configureSettingsProviderBridgeDeps(deps = {}) {
+export function configureSettingsProviderBridgeDeps(deps: unknown = {}) {
   const previous = { ...settingsProviderBridgeDeps };
   for (const name of Object.keys(settingsProviderBridgeDeps)) {
-    if (typeof deps[name] === 'function') settingsProviderBridgeDeps[name] = deps[name];
+    if (typeof (deps as Record<string, unknown>)[name] === 'function') settingsProviderBridgeDeps[name as keyof BridgeSnapshot] = (deps as Record<string, unknown>)[name];
   }
   return previous;
 }
 
-export function setSettingsProviderHadProvider(value) {
+export function setSettingsProviderHadProvider(value: unknown) {
   settingsHadProvider = value === true;
 }
 
@@ -34,9 +38,9 @@ function loadProviderPanels() {
   if (!_providerPanelsLoad) {
     _providerPanelsLoad = import('./provider-panels.js').then(providerPanels => {
       providerPanels.configureProviderPanelDeps({
-        closeSettingsModal: () => settingsProviderBridgeDeps.closeSettingsModal(),
+        closeSettingsModal: () => (settingsProviderBridgeDeps as BridgeOperations).closeSettingsModal(),
         hadProviderBeforeSettings: () => settingsHadProvider,
-        openSettingsModal: () => settingsProviderBridgeDeps.openSettingsModal(),
+        openSettingsModal: () => (settingsProviderBridgeDeps as BridgeOperations).openSettingsModal(),
       });
       return providerPanels;
     });
@@ -52,14 +56,14 @@ export function renderAIProviderPanelBridge() {
   return '<div class="ai-provider-panel"><div class="ai-provider-desc">Loading provider settings...</div></div>';
 }
 
-function setProviderButtonState(provider) {
-  const buttons = /** @type {HTMLElement[]} */ (Array.from(document.querySelectorAll('.ai-provider-btn')));
+function setProviderButtonState(provider: unknown) {
+  const buttons = /** @type {HTMLElement[]} */ (Array.from(document.querySelectorAll('.ai-provider-btn')) as HTMLElement[]);
   buttons.forEach(btn => {
     btn.classList.toggle('active', btn.dataset.provider === provider);
   });
 }
 
-export function switchAIProviderBridge(provider) {
+export function switchAIProviderBridge(provider: unknown) {
   const previousProvider = getAIProvider();
   if (provider === 'openrouter' && previousProvider !== 'openrouter' && !getOpenRouterKey()) {
     rememberOpenRouterOAuthPreviousProvider(previousProvider);
@@ -73,7 +77,7 @@ export function switchAIProviderBridge(provider) {
     const changed = await providerPanels.switchAIProvider(provider, { previousProvider });
     setProviderButtonState(changed ? provider : previousProvider);
     if (changed) setChatBackend('direct');
-    settingsProviderBridgeDeps.refreshNutritionAISettings();
+    (settingsProviderBridgeDeps as BridgeOperations).refreshNutritionAISettings();
   }).catch(() => {});
 }
 
@@ -83,7 +87,7 @@ if (typeof globalThis.addEventListener === 'function') {
   });
 }
 
-export function toggleAIPauseBridge(enabled) {
+export function toggleAIPauseBridge(enabled: unknown) {
   return loadProviderPanels().then(providerPanels => providerPanels.toggleAIPause(enabled));
 }
 
@@ -99,7 +103,7 @@ export function initSettingsProviderPanels() {
 }
 
 // Load saved funding recovery only for the active direct Routstr provider.
-let walletPanelsLoad = null;
+let walletPanelsLoad: Promise<WalletPanels> | null = null;
 function syncWalletFunding() {
   try {
     if (!walletPanelsLoad) {
@@ -113,6 +117,6 @@ globalThis.addEventListener?.('labcharts-ai-settings-local-changed', syncWalletF
 globalThis.addEventListener?.('labcharts-ai-settings-synced', syncWalletFunding);
 globalThis.addEventListener?.('getbased:chat-backend-changed', syncWalletFunding);
 globalThis.addEventListener?.('storage', event => {
-  if (!event.key || ['labcharts-ai-provider', 'labcharts-chat-backend'].includes(event.key)) syncWalletFunding();
+  if (!(event as Event & { key?: unknown }).key || (['labcharts-ai-provider', 'labcharts-chat-backend'] as readonly unknown[]).includes((event as Event & { key?: unknown }).key)) syncWalletFunding();
 });
 syncWalletFunding();

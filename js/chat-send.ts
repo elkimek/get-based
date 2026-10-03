@@ -1,7 +1,7 @@
-// @ts-check
 // chat-send.js — direct chat send, streaming, stop button, and typewriter state
 
 import { state } from './state.js';
+import type {ActiveChatGenerationUI,ChatSendOptions,ChatSendMessage,TypewriterTarget,VisionMessages,RawImageFormatter,RawVisionBuilder,RawAgentCaller,RawDirectCaller,RawSendError,EMFAssessmentOperations,RawAttachments} from '../types/chat-send.js';
 import { CHAT_SYSTEM_PROMPT } from './chat-system-prompt.js';
 import { calculateCost, formatCost, trackUsage } from './schema.js';
 import { escapeHTML, showNotification } from './utils.js';
@@ -81,13 +81,11 @@ import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
 // ═══════════════════════════════════════════════
-/** @type {AbortController | null} */
-let _chatAbortController = null;
+let _chatAbortController: AbortController|null = null;
 let chatSendRevision = 0;
 let chatSavePending = false;
 
-/** @type {{ container: HTMLElement, typingEl: HTMLElement, aiMsgEl: HTMLElement | null, labelEl: HTMLElement | null, personalityName: string, isCurrent: () => boolean } | null} */
-let _activeChatGenerationUI = null;
+let _activeChatGenerationUI: ActiveChatGenerationUI|null = null;
 
 export function isChatStreaming() {
   if (_activeChatGenerationUI && !_activeChatGenerationUI.isCurrent()) {
@@ -106,7 +104,7 @@ export function getChatAbortController() {
   return _chatAbortController;
 }
 
-export function setChatAbortController(controller) {
+export function setChatAbortController(controller: AbortController|null) {
   _chatAbortController = controller;
 }
 
@@ -120,17 +118,17 @@ export function stopChatGeneration() {
 // duplicating the billable request.
 export function restoreChatGenerationUI() {
   if (!isChatStreaming()) return false;
-  const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
+  const sendBtn = (document.getElementById('chat-send-btn') as HTMLButtonElement|null);
   setSendButtonMode(sendBtn, 'streaming');
 
   const active = _activeChatGenerationUI;
   if (!active) return true; // Discussion rounds own their live message UI.
   if (!active.isCurrent()) return false;
-  const container = /** @type {HTMLElement | null} */ (document.getElementById('chat-messages')) || active.container;
+  const container = (document.getElementById('chat-messages') as HTMLElement|null) || active.container;
   active.container = container;
   if (active.aiMsgEl?.textContent) {
     if (active.labelEl && !active.labelEl.isConnected) container.appendChild(active.labelEl);
-    if (!active.aiMsgEl.isConnected) container.appendChild(active.aiMsgEl);
+    if (!active.aiMsgEl!.isConnected) container.appendChild(active.aiMsgEl);
   } else if (!active.typingEl.isConnected) {
     container.appendChild(active.typingEl);
   }
@@ -142,42 +140,36 @@ export function restoreChatGenerationUI() {
 // ═══════════════════════════════════════════════
 // TYPEWRITER — smooth character trickle for streaming
 // ═══════════════════════════════════════════════
-/**
- * @param {HTMLElement} el
- * @param {HTMLElement} typingEl
- * @param {HTMLElement} container
- */
-export function createTypewriter(el, typingEl, container, isCurrent = () => true) {
-  let target = '';
+export function createTypewriter(el: HTMLElement, typingEl: HTMLElement, container: HTMLElement, isCurrent: ()=>unknown = () => true) {
+  let target: unknown = '';
   let displayed = 0;
-  /** @type {ReturnType<typeof setTimeout> | null} */
-  let timer = null;
+  let timer: ReturnType<typeof setTimeout>|null = null;
 
   function tick() {
     if (!isCurrent()) { timer = null; stopChatThinkingStatus(typingEl); return; }
-    if (displayed >= target.length) { timer = null; return; }
-    const behind = target.length - displayed;
+    if (displayed >= (target as TypewriterTarget).length) { timer = null; return; }
+    const behind = (target as TypewriterTarget).length - displayed;
     const batch = Math.max(1, Math.ceil(behind * 0.3));
-    displayed = Math.min(displayed + batch, target.length);
+    displayed = Math.min(displayed + batch, (target as TypewriterTarget).length);
     stopChatThinkingStatus(typingEl);
     if (typingEl.parentNode) typingEl.remove();
     if (!el.parentNode) container.appendChild(el);
-    el.textContent = target.slice(0, displayed);
+    (el as {textContent:unknown}).textContent = (target as TypewriterTarget).slice(0, displayed);
     notifyChatContentAdded(container);
     timer = setTimeout(tick, 16);
   }
 
   return {
-    update(text) {
+    update(text: unknown) {
       if (!isCurrent()) return;
       target = text;
       if (globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
         if (timer) { clearTimeout(timer); timer = null; }
-        displayed = target.length;
+        displayed = (target as TypewriterTarget).length;
         stopChatThinkingStatus(typingEl);
         if (typingEl.parentNode) typingEl.remove();
         if (!el.parentNode) container.appendChild(el);
-        el.textContent = target;
+        (el as {textContent:unknown}).textContent = target;
         notifyChatContentAdded(container);
         return;
       }
@@ -185,7 +177,7 @@ export function createTypewriter(el, typingEl, container, isCurrent = () => true
     },
     stop() {
       if (timer) { clearTimeout(timer); timer = null; }
-      displayed = target.length;
+      displayed = (target as TypewriterTarget).length;
       stopChatThinkingStatus(typingEl);
     }
   };
@@ -194,8 +186,8 @@ export function createTypewriter(el, typingEl, container, isCurrent = () => true
 // Image-attachment flow (paste/drop/picker handlers, HD-mode toggle,
 // pending-queue, thumbnail generation) lives in chat-images.js.
 export function updateSendButtonState() {
-  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
-  const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
+  const input = (document.getElementById('chat-input') as HTMLTextAreaElement|null);
+  const sendBtn = (document.getElementById('chat-send-btn') as HTMLButtonElement|null);
   if (!sendBtn) return;
   const hasContent = (input && input.value.trim()) || hasPendingAttachments();
   if (input?.disabled && !_chatAbortController) {
@@ -212,13 +204,13 @@ initChatScrollControls();
 // ═══════════════════════════════════════════════
 // SEND BUTTON STATE
 // ═══════════════════════════════════════════════
-export function setSendButtonMode(btn, mode) {
+export function setSendButtonMode(btn: (HTMLElement&{disabled?:boolean})|null|undefined, mode: unknown) {
   if (!btn) return;
   // Editing the latest prompt would replace the response that is currently
   // arriving. Keep the action out of sight until the active request settles,
   // including after a close/reopen cycle.
   document.querySelectorAll('.chat-edit-retry-action').forEach(action => {
-    const button = /** @type {HTMLButtonElement} */ (action);
+    const button = action as HTMLButtonElement;
     button.hidden = mode === 'streaming';
     button.disabled = mode === 'streaming';
   });
@@ -240,8 +232,7 @@ export function setSendButtonMode(btn, mode) {
 // ═══════════════════════════════════════════════
 // SEND MESSAGE
 // ═══════════════════════════════════════════════
-/** @param {{ prepareRetry?: (() => boolean) | null, retry?: { content: string, attachments: any[] } | null }} [options] */
-export async function sendChatMessage({ prepareRetry = null, retry = null } = {}) {
+export async function sendChatMessage({ prepareRetry = null, retry = null }: ChatSendOptions = {}) {
   const useCodexAgent = isCodexChatBackend();
   if (!hasChatResponseBackend()) {
     renderChatMessages(); // Re-render to show setup guide
@@ -259,15 +250,15 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
     return;
   }
 
-  const input = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('chat-input'));
-  const sendBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById('chat-send-btn'));
-  const container = /** @type {HTMLElement | null} */ (document.getElementById('chat-messages'));
+  const input = (document.getElementById('chat-input') as HTMLTextAreaElement|null);
+  const sendBtn = (document.getElementById('chat-send-btn') as HTMLButtonElement|null);
+  const container = (document.getElementById('chat-messages') as HTMLElement|null);
   if (!input || !sendBtn || !container) return;
   const inputValue = input.value;
   const pendingEditText = getPendingChatMessageEditText();
   const isEditedRetry = !retry && pendingEditText != null;
-  const text = (retry?.content ?? pendingEditText ?? input.value).trim();
-  const hasImages = retry ? retry.attachments.length > 0 : !isEditedRetry && hasPendingAttachments();
+  const text = ((retry?.content ?? pendingEditText ?? input.value) as {trim():string}).trim();
+  const hasImages = retry ? (retry.attachments as RawAttachments).length > 0 : !isEditedRetry && hasPendingAttachments();
   if (!text && !hasImages) return;
   const revision = ++chatSendRevision;
   const profile = state.currentProfile;
@@ -292,7 +283,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
     || (useCodexAgent ? _msgAgentId !== getAgentHostAgent() || _msgAgentTarget !== getAgentHostTarget() : _msgProvider !== getAIProvider())) return;
 
   // Capture attachments before clearing (they're ephemeral)
-  const attachments = retry ? retry.attachments : hasImages ? [...getPendingAttachments()] : [];
+  const attachments = retry ? retry.attachments as RawAttachments : hasImages ? [...getPendingAttachments()] : [];
 
   // Ensure we have a thread
   if (!state.currentThreadId) {
@@ -302,7 +293,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
   }
   if (!canSaveChatHistory()) return;
   const previousHistory = state.chatHistory.slice();
-  if (prepareRetry && !prepareRetry()) return;
+  if (prepareRetry && !(prepareRetry as ()=>unknown)()) return;
   const editPreparation = retry ? null : prepareChatMessageEditSend();
   if (editPreparation === false) return;
 
@@ -312,14 +303,14 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
   const isFirstMessage = state.chatHistory.length === 0;
 
   // Add user message — store tiny thumbnails for display, NOT full base64
-  const userMsg = { role: 'user', content: text || '(image)' };
+  const userMsg: ChatSendMessage = { role: 'user', content: text || '(image)' };
   if (hasImages) {
     userMsg.hasImages = true;
     userMsg.imageCount = attachments.length;
     userMsg.thumbnails = attachments.map(a => a.thumbUrl).filter(Boolean);
     rememberMessageAttachments(userMsg, attachments);
   }
-  state.chatHistory.push(userMsg);
+  (state.chatHistory.push as (...messages:unknown[])=>number)(userMsg);
   const sendingHistory = state.chatHistory;
   renderChatMessages();
   let saved = false;
@@ -363,7 +354,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
   // Switch to stop mode
   const controller = new AbortController();
   _chatAbortController = controller;
-  const generationUI = {
+  const generationUI: ActiveChatGenerationUI = {
     container,
     typingEl,
     aiMsgEl: null,
@@ -385,12 +376,12 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
   const _msgAttestation = useCodexAgent ? null : getChatSendProviderAttestation(_msgProvider);
   const webSearchSupported = !useCodexAgent && supportsWebSearch(_msgProvider);
   const webSearchEnabled = getChatWebSearchEnabled() && webSearchSupported;
-  let aiMsgEl = null;
-  let typewriter = null;
+  let aiMsgEl: HTMLDivElement|null = null;
+  let typewriter: ReturnType<typeof createTypewriter>|null = null;
 
   try {
     let labContext = buildChatLabContext(text);
-    let _lensResultForMsg = null;
+    let _lensResultForMsg: Awaited<ReturnType<typeof queryLensMulti>> = null;
     if (hasLens()) {
       const lensResult = await queryLensMulti(text, { signal: _chatAbortController ? _chatAbortController.signal : undefined });
       if (!scopeIsCurrent()) return;
@@ -420,16 +411,15 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
     });
 
     // Send last 30 messages for context — tag messages from other personas
-    /** @type {Array<{role: unknown; content: string | undefined | ReturnType<typeof buildVisionContent>}>} */
-    const apiMessages = buildTaggedChatMessages(state.chatHistory, currentPersonaName);
+    const apiMessages: VisionMessages = buildTaggedChatMessages(state.chatHistory, currentPersonaName);
 
     // Inject vision content into the last user message if images were attached
     if (attachments.length > 0 && apiMessages.length > 0) {
       const lastUserIdx = apiMessages.length - 1;
-      const imageBlocks = attachments.map(att => formatImageBlock(att.base64, att.mediaType, _msgProvider));
+      const imageBlocks = attachments.map(att => (formatImageBlock as RawImageFormatter)(att.base64, att.mediaType, _msgProvider));
       apiMessages[lastUserIdx] = {
         role: 'user',
-        content: (/** @type {(imageBlocks: Parameters<typeof buildVisionContent>[0], text: string | undefined, provider: Parameters<typeof buildVisionContent>[2]) => ReturnType<typeof buildVisionContent>} */ (buildVisionContent))(imageBlocks, /** @type {string | undefined} */ (apiMessages[lastUserIdx].content), _msgProvider)
+        content: (buildVisionContent as RawVisionBuilder)(imageBlocks, (apiMessages[lastUserIdx]!.content as string|undefined), _msgProvider)
       };
     }
 
@@ -463,15 +453,15 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
     typewriter = createTypewriter(aiMsgEl, typingEl, container, scopeIsCurrent);
 
     const getStreamSignal = () => controller.signal;
-    const onStream = streamedText => {
-      if (scopeIsCurrent() && !controller.signal.aborted) typewriter.update(streamedText);
-      else { typewriter.stop(); controller.abort(); }
+    const onStream = (streamedText: string) => {
+      if (scopeIsCurrent() && !controller.signal.aborted) typewriter!.update(streamedText);
+      else { typewriter!.stop(); controller.abort(); }
     };
     let aiResult;
     if (useCodexAgent) {
       const currentThread = state.chatThreads.find(thread => thread.id === state.currentThreadId);
       // The native sender serializes historical roles without validating their values.
-      aiResult = await (/** @type {(options: Omit<Parameters<typeof callCodexAgent>[0], 'history'> & {history?: Array<{role: unknown; content: string}>}) => ReturnType<typeof callCodexAgent>} */ (callCodexAgent))({
+      aiResult = await (callCodexAgent as RawAgentCaller)({
         prompt: text || 'Respond to the attached image.',
         instructions: `${CHAT_SYSTEM_PROMPT}${personalityPrompt}${multiPersonaInstruction}`,
         labContext,
@@ -480,7 +470,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
         threadId: currentThread?.agentThreadId,
         history: apiMessages.slice(0, -1).filter(message => typeof message.content === 'string').map(message => ({
           role: message.role,
-          content: /** @type {string} */ (message.content),
+          content: (message.content as string),
         })),
         images: attachments.map(attachment => ({ base64: attachment.base64, mediaType: attachment.mediaType })),
         signal: getStreamSignal(),
@@ -496,7 +486,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
       const agentToolCalls = Array.isArray(aiResult.toolCalls) ? aiResult.toolCalls : [];
       contextSnapshot = mergeAgentContextReceipts(agentToolCalls, contextSnapshot);
     } else {
-      aiResult = await callChatAPIWithContinuation({
+      aiResult = await (callChatAPIWithContinuation as RawDirectCaller)({
         system: systemPrompt,
         messages: apiMessages,
         maxTokens: CHAT_RESPONSE_MAX_TOKENS,
@@ -510,12 +500,12 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
     if (!scopeIsCurrent()) return;
     controller.signal.throwIfAborted();
     if (useCodexAgent && aiResult.model) {
-      _msgModelId = (/** @type {Awaited<ReturnType<typeof callCodexAgent>>} */ (aiResult)).model;
-      _msgModelDisplay = getAgentModelDisplay((/** @type {Awaited<ReturnType<typeof callCodexAgent>>} */ (aiResult)).model, getCachedAgentModelCatalog(getAgentHostAgent(), _msgAgentTarget));
+      _msgModelId = ((aiResult as Awaited<ReturnType<typeof callCodexAgent>>)).model;
+      _msgModelDisplay = getAgentModelDisplay(((aiResult as Awaited<ReturnType<typeof callCodexAgent>>)).model, getCachedAgentModelCatalog(getAgentHostAgent(), _msgAgentTarget));
     }
     const fullText = aiResult.text;
-    const usage = /** @type {{ inputTokens?: number, outputTokens?: number } | undefined} */ (aiResult.usage);
-    const responseTruncated = isAIResponseTruncated(aiResult);
+    const usage = (aiResult.usage as {inputTokens?:number;outputTokens?:number}|undefined);
+    const responseTruncated = (isAIResponseTruncated as (result:{truncated?:unknown;finishReason?:unknown})=>ReturnType<typeof isAIResponseTruncated>)(aiResult);
 
     // Final render with full markdown
     typewriter.stop();
@@ -536,13 +526,13 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
       const footnote = document.createElement('div');
       footnote.className = 'chat-cost-footnote';
       footnote.innerHTML = `${escapeHTML(_msgModelDisplay)} \u00b7 ${escapeHTML(formatCost(cost))} \u00b7 ${totalTokens.toLocaleString()} tokens${webTag}${e2eeTag}`;
-      aiMsgEl.appendChild(footnote);
+      aiMsgEl!.appendChild(footnote);
     } else if (useCodexAgent) {
       const footnote = document.createElement('div');
       footnote.className = 'chat-cost-footnote';
-      const webTag = (/** @type {Awaited<ReturnType<typeof callCodexAgent>>} */ (aiResult)).webSearches?.length ? ' · 🌐 web' : '';
+      const webTag = ((aiResult as Awaited<ReturnType<typeof callCodexAgent>>)).webSearches?.length ? ' · 🌐 web' : '';
       footnote.textContent = `${_msgModelDisplay} · CLI subscription${webTag}`;
-      aiMsgEl.appendChild(footnote);
+      aiMsgEl!.appendChild(footnote);
     }
 
     const attribution = getAIOutputAttribution({
@@ -557,27 +547,27 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
       const attributionEl = document.createElement('div');
       attributionEl.className = 'chat-provider-attribution';
       attributionEl.textContent = attribution;
-      aiMsgEl.appendChild(attributionEl);
+      aiMsgEl!.appendChild(attributionEl);
     }
 
     // Build assistant message object with context snapshot
-    const assistantMsg = { role: 'assistant', content: fullText, context: contextSnapshot, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay };
+    const assistantMsg: ChatSendMessage = { role: 'assistant', content: fullText, context: contextSnapshot, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay };
     if (useCodexAgent && Array.isArray(aiResult.drafts) && aiResult.drafts.length) assistantMsg.agentDrafts = aiResult.drafts;
     if (responseTruncated) {
       assistantMsg.truncated = true;
       assistantMsg.finishReason = aiResult.finishReason || 'length';
     }
-    if (webSearchEnabled || (useCodexAgent && (/** @type {Awaited<ReturnType<typeof callCodexAgent>>} */ (aiResult)).webSearches?.length)) assistantMsg.webSearch = true;
+    if (webSearchEnabled || (useCodexAgent && ((aiResult as Awaited<ReturnType<typeof callCodexAgent>>)).webSearches?.length)) assistantMsg.webSearch = true;
     if (_msgE2EE) { assistantMsg.e2ee = true; assistantMsg.attestation = getChatSendProviderAttestation(_msgProvider) || _msgAttestation || null; }
     attachLensSources(assistantMsg, _lensResultForMsg);
     if (usage && (usage.inputTokens || usage.outputTokens)) {
       assistantMsg.usage = { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens };
       if (!useCodexAgent) trackUsage(_msgProvider, _msgModelId, usage.inputTokens, usage.outputTokens);
     }
-    state.chatHistory.push(assistantMsg);
+    (state.chatHistory.push as (...messages:unknown[])=>number)(assistantMsg);
 
     // Detect supplement slots from AI text — persist on message for re-rendering
-    const _recSlots = detectChatSendSupplementSlots(fullText);
+    const _recSlots = (detectChatSendSupplementSlots as (...args:Parameters<typeof detectChatSendSupplementSlots>)=>unknown[])(fullText);
     if (_recSlots.length) {
       const disclosure = getRecommendationDisclosureState(state.chatHistory, _recSlots, assistantMsg);
       assistantMsg.recSlots = _recSlots;
@@ -595,7 +585,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
         const userText = state.chatHistory[state.chatHistory.length - 2]?.content || '';
         const turnText = `${userText}\n${fullText}`;
         if (!isChatSendEMFRelevant(turnText)) return;
-        const assessments = state.importedData?.emfAssessment?.assessments || [];
+        const assessments = (state.importedData as {emfAssessment?:{assessments?:EMFAssessmentOperations[]}|null}|null|undefined)?.emfAssessment?.assessments || [];
         if (assessments.length) {
           const latest = assessments.reduce((a, b) => (a.date > b.date ? a : b));
           const ageDays = (Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86400000;
@@ -613,9 +603,9 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
         const hintEl = document.createElement('div');
         hintEl.className = 'chat-emf-hint';
         hintEl.innerHTML = `<span aria-hidden="true">💡</span> Curious about your EMF environment? <a href="#" ${chatMessageActionAttrs('open-emf-assessment')} data-umami-event="emf-nudge-chat">Open the assessment →</a>`;
-        const actionBar = aiMsgEl.querySelector('.chat-action-bar');
-        if (actionBar) aiMsgEl.insertBefore(hintEl, actionBar);
-        else aiMsgEl.appendChild(hintEl);
+        const actionBar = aiMsgEl!.querySelector('.chat-action-bar');
+        if (actionBar) aiMsgEl!.insertBefore(hintEl, actionBar);
+        else aiMsgEl!.appendChild(hintEl);
         assistantMsg.emfHint = true;
         localStorage.setItem(flagKey, String(Date.now()));
       } catch {}
@@ -627,7 +617,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
     if (assistantMsg.lensSources?.length) {
       const lensContainer = document.createElement('div');
       lensContainer.innerHTML = _renderLensSources(assistantMsg.lensSources, assistantMsg.lensSourceName);
-      while (lensContainer.firstChild) aiMsgEl.appendChild(lensContainer.firstChild);
+      while (lensContainer.firstChild) aiMsgEl!.appendChild(lensContainer.firstChild);
     }
 
     // Append action bar
@@ -635,17 +625,17 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
     const actionBarHtml = buildActionBar(msgIndex);
     const actionBarContainer = document.createElement('div');
     actionBarContainer.innerHTML = actionBarHtml;
-    while (actionBarContainer.firstChild) aiMsgEl.appendChild(actionBarContainer.firstChild);
+    while (actionBarContainer.firstChild) aiMsgEl!.appendChild(actionBarContainer.firstChild);
 
     // Async-render supplement recommendations before action bar
     const recommendationRuntime = getChatSendRecommendationRuntime();
     if (_recSlots.length && recommendationRuntime) {
       const { renderRecommendationSectionSync, loadCatalog } = recommendationRuntime;
       loadCatalog().then(catalog => {
-        if (!scopeIsCurrent() || !catalog?.slots || !aiMsgEl.isConnected) return;
+        if (!scopeIsCurrent() || !catalog?.slots || !aiMsgEl!.isConnected) return;
         const sections = _recSlots.map(slot => {
-          const slotLabel = catalog.slots[slot]?.label || slot.split('.').pop();
-          return renderRecommendationSectionSync(slot, { label: slotLabel, maxProducts: 2 });
+          const slotLabel = catalog.slots[slot as string]?.label || (slot as {split(separator:string):string[]}).split('.').pop();
+          return (renderRecommendationSectionSync as (slot:unknown,options:Parameters<typeof renderRecommendationSectionSync>[1])=>ReturnType<typeof renderRecommendationSectionSync>)(slot, { label: slotLabel, maxProducts: 2 });
         }).filter(Boolean);
         if (!sections.length) return;
         const wrapper = document.createElement('details');
@@ -661,13 +651,13 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
         body.innerHTML = sections.join('');
         // Deduplicate disclosure banners
         const banners = body.querySelectorAll('.rec-disclosure-banner');
-        for (let i = 1; i < banners.length; i++) banners[i].remove();
+        for (let i = 1; i < banners.length; i++) banners[i]!.remove();
         // Downgrade per-section headers to subheadings (shared header is the <summary>)
         body.querySelectorAll('.rec-section-header').forEach(h => h.className = 'rec-chat-subheading');
         wrapper.appendChild(body);
-        const actionBar = aiMsgEl.querySelector('.chat-action-bar');
-        if (actionBar) aiMsgEl.insertBefore(wrapper, actionBar);
-        else aiMsgEl.appendChild(wrapper);
+        const actionBar = aiMsgEl!.querySelector('.chat-action-bar');
+        if (actionBar) aiMsgEl!.insertBefore(wrapper, actionBar);
+        else aiMsgEl!.appendChild(wrapper);
         if (assistantMsg.recNew) startRecommendationAttention(wrapper);
         notifyChatContentAdded(container);
       });
@@ -677,7 +667,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
     void maybeAutoReadAssistantMessage(msgIndex);
   } catch (err) {
     if (!scopeIsCurrent()) return;
-    const error = /** @type {any} */ (err);
+    const error = err as RawSendError;
     stopChatThinkingStatus(typingEl);
     if (typingEl.parentNode) typingEl.remove();
 
@@ -691,7 +681,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
         aiMsgEl.style.whiteSpace = '';
         aiMsgEl.innerHTML = renderMarkdown(partialText) + '<div class="chat-stopped-note">[stopped]</div>';
         const personality = getActivePersonality();
-        state.chatHistory.push({ role: 'assistant', content: partialText, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay, stopped: true });
+        (state.chatHistory.push as (...messages:unknown[])=>number)({ role: 'assistant', content: partialText, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay, stopped: true });
         await saveChatHistory();
         if (!scopeIsCurrent()) return;
         renderChatMessages({ preserveScroll: true });
@@ -708,7 +698,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
           ? technicalMessage
           : 'I couldn\'t complete this response. Check your provider connection and try again.';
         const personality = getActivePersonality();
-        state.chatHistory.push({
+        (state.chatHistory.push as (...messages:unknown[])=>number)({
           role: 'assistant',
           content: errorMessage,
           error: true,
@@ -750,7 +740,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null } = {}
   }
 }
 
-export function handleChatKeydown(event) {
+export function handleChatKeydown(event: KeyboardEvent) {
   if (event.isComposing || event.keyCode === 229) return;
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault();
