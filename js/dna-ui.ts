@@ -1,4 +1,17 @@
-// @ts-check
+import type { RelevantSnpFinding } from './dna.js';
+import type { SnpAnnotation, SnpCatalog, SnpCatalogEntry } from './dna-evidence.js';
+import type { GeneticsData, PendingDnaImport, StoredSnpCall } from './dna-runtime.js';
+interface DnaUiDeps {
+  findGenotypeInfo: typeof import('./dna.js').findGenotypeInfo | null;
+  geneticsStalenessHint: ((genetics: GeneticsData) => string | null) | null;
+  getSnpCategoryLabel: (category: unknown) => string; getSnpCategoryLabels: () => Record<string, string>;
+  getSnpTable: () => SnpCatalog | null; handleDNAFile: typeof import('./dna.js').handleDNAFile | null;
+  loadSnpTable: ((options?: Parameters<typeof import('./dna-evidence.js').loadSnpCatalog>[0]) => Promise<SnpCatalog>) | null;
+  resolveAPOE: ((matches: PendingDnaImport['matches']) => string | null) | null; setImportRunning: ((running: boolean) => void) | null;
+}
+interface GeneticsFinding extends RelevantSnpFinding { catalogEntry: SnpCatalogEntry }
+type PreviewFinding = StoredSnpCall & { rsid: string; presentation: ReturnType<typeof snpFindingPresentation>; evidenceProfile: ReturnType<typeof resolveSnpEvidenceProfile> };
+
 // dna-ui.js — Genetics dashboard rendering and autosomal DNA modal owner.
 
 import { state } from './state.js';
@@ -6,7 +19,7 @@ import { escapeAttr, escapeHTML } from './utils.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { dnaActionAttrs } from './dna-actions.js';
 import {
-  clearPendingDnaImport,
+  clearPendingDnaImport, ensureDnaModalOverlay,
   loadGeneticsStylesheetForAction,
   navigateDnaRoute,
   setPendingDnaImport,
@@ -21,8 +34,7 @@ import {
   snpFindingRank,
 } from './dna-evidence.js';
 
-/** @type {Record<string, any>} */
-const dnaUiDeps = {
+const dnaUiDeps: DnaUiDeps = {
   findGenotypeInfo: null,
   geneticsStalenessHint: null,
   getSnpCategoryLabel: category => String(category || 'Other'),
@@ -34,19 +46,19 @@ const dnaUiDeps = {
   setImportRunning: null,
 };
 
-export function configureDnaUi(deps = {}) {
+export function configureDnaUi(deps: Partial<DnaUiDeps> = {}) {
   const previous = { ...dnaUiDeps };
   for (const [key, value] of Object.entries(deps || {})) {
     if (Object.hasOwn(dnaUiDeps, key) && typeof value === 'function') {
-      dnaUiDeps[key] = value;
+      (dnaUiDeps as Record<keyof DnaUiDeps, ((...args: never[]) => unknown) | null>)[key as keyof DnaUiDeps] = value as (...args: never[]) => unknown;
     }
   }
   return previous;
 }
 
 export function renderGeneticsSection() {
-  const genetics = state.importedData.genetics;
-  const hasSnps = genetics && genetics.snps && Object.keys(genetics.snps).length > 0;
+  const genetics = state.importedData.genetics as GeneticsData | null | undefined;
+  const hasSnps = genetics && genetics.snps && Object.keys(genetics.snps!).length > 0;
   const hasMtdna = genetics && genetics.mtdna;
   if (!hasSnps && !hasMtdna) {
     return `<div class="genetics-empty-stub" ${dnaActionAttrs('import-file')} role="button" tabindex="0" aria-label="Add DNA data">
@@ -70,12 +82,12 @@ export function renderGeneticsSection() {
     return '';
   }
 
-  const snpCount = hasSnps ? Object.keys(genetics.snps).length : 0;
+  const snpCount = hasSnps ? Object.keys(genetics.snps!).length : 0;
   const apoe = genetics.apoe;
   const collapsed = localStorage.getItem('labcharts-genetics-collapsed') === '1';
 
-  const byCat = {};
-  const otherByCat = {};
+  const byCat: Record<string, GeneticsFinding[]> = {};
+  const otherByCat: Record<string, GeneticsFinding[]> = {};
   const apoeRsids = new Set(['rs429358', 'rs7412']);
   for (const [rsid, stored] of Object.entries(genetics.snps || {})) {
     if (apoe && apoeRsids.has(rsid)) continue;
@@ -89,7 +101,7 @@ export function renderGeneticsSection() {
     const isPrimary = ['risk', 'protective', 'trait'].includes(presentation.tone);
     const target = isPrimary ? byCat : otherByCat;
     if (!target[cat]) target[cat] = [];
-    target[cat].push({
+    target[cat]!.push({
       rsid,
       gene: stored.gene || entry.gene,
       variant: stored.variant || entry.variant,
@@ -105,13 +117,13 @@ export function renderGeneticsSection() {
     });
   }
 
-  const heaviest = findings => Math.min(...findings.map(finding => finding.rank ?? 999));
+  const heaviest = (findings: readonly GeneticsFinding[]) => Math.min(...findings.map(finding => finding.rank ?? 999));
   const catOrder = Object.entries(byCat).sort(([, a], [, b]) => heaviest(a) - heaviest(b));
   const totalFindings = catOrder.reduce((count, [, findings]) => count + findings.length, 0);
   const otherCatOrder = Object.entries(otherByCat).sort(([, a], [, b]) => heaviest(a) - heaviest(b));
   const otherFindings = otherCatOrder.reduce((count, [, findings]) => count + findings.length, 0);
 
-  const renderAssessment = finding => {
+  const renderAssessment = (finding: SnpAnnotation & { evidenceProfile?: GeneticsFinding['evidenceProfile']; catalogEntry?: SnpCatalogEntry }) => {
     const profile = finding.evidenceProfile || resolveSnpEvidenceProfile(finding.catalogEntry, finding);
     return `<span class="genetics-finding-axes">
       <span class="genetics-axis genetics-axis-evidence genetics-axis-${escapeAttr(profile.evidenceLevel)}" title="${escapeAttr(profile.evidenceDescription)}">Evidence · ${escapeHTML(profile.evidenceShortLabel)}</span>
@@ -120,10 +132,10 @@ export function renderGeneticsSection() {
   };
   const catLabels = dnaUiDeps.getSnpCategoryLabels();
 
-  const metaParts = [];
+  const metaParts: string[] = [];
   if (genetics.source) metaParts.push(escapeHTML(genetics.source));
   if (hasSnps) metaParts.push(`${snpCount} SNPs`);
-  if (hasMtdna) metaParts.push(`mtDNA ${escapeHTML(genetics.mtdna.haplogroup)}`);
+  if (hasMtdna) metaParts.push(`mtDNA ${escapeHTML(genetics.mtdna!.haplogroup)}`);
   if (totalFindings > 0) metaParts.push(`${totalFindings} findings`);
   const latestDate = [genetics.importDate, genetics.mtdna?.importDate].filter(Boolean).sort().pop();
   if (latestDate) metaParts.push(latestDate);
@@ -159,8 +171,8 @@ export function renderGeneticsSection() {
     } : null,
     hasMtdna ? {
       label: 'mtDNA',
-      value: genetics.mtdna.haplogroup,
-      sub: genetics.mtdna.coupling?.shortLabel || 'Maternal lineage',
+      value: genetics.mtdna!.haplogroup,
+      sub: genetics.mtdna!.coupling?.shortLabel || 'Maternal lineage',
     } : null,
   ].filter(card => card !== null);
 
@@ -175,7 +187,7 @@ export function renderGeneticsSection() {
   html += '</div>';
 
   if (hasMtdna) {
-    const mt = genetics.mtdna;
+    const mt = genetics.mtdna!;
     const mismatch = detectMtDNAMismatch(genetics);
     html += `<div class="genetics-mtdna">
       <div class="genetics-mtdna-hg"><span class="genetics-mtdna-label">mtDNA Haplogroup:</span> <strong>${escapeHTML(mt.haplogroup)}</strong></div>`;
@@ -314,12 +326,12 @@ export function toggleGeneticsCollapse() {
   localStorage.setItem('labcharts-genetics-collapsed', isHidden ? '1' : '0');
 }
 
-export function toggleGeneticsExpand(button) {
+export function toggleGeneticsExpand(button: HTMLElement) {
   const container = document.querySelector('.genetics-findings');
   if (!container) return;
   const isExpanded = container.classList.toggle('expanded');
-  if (!button.dataset.label) button.dataset.label = button.textContent;
-  button.textContent = isExpanded ? 'Show less' : button.dataset.label;
+  if (!button.dataset.label) button.dataset.label = button.textContent!;
+  button.textContent = isExpanded ? 'Show less' : button.dataset.label!;
 }
 
 export function reimportDNA() {
@@ -345,12 +357,12 @@ function nudgeDnaModal() {
   dialog.addEventListener('animationend', () => dialog.classList.remove('modal-nudge'), { once: true });
 }
 
-function handleDnaBackdropMouseDown(event) {
+function handleDnaBackdropMouseDown(event: MouseEvent) {
   const target = event.target;
   dnaBackdropMouseDownInside = target instanceof Element && !!target.closest('.modal');
 }
 
-function handleDnaBackdropClick(event) {
+function handleDnaBackdropClick(event: MouseEvent) {
   const target = event.target;
   if (dnaBackdropMouseDownInside) {
     dnaBackdropMouseDownInside = false;
@@ -361,14 +373,14 @@ function handleDnaBackdropClick(event) {
   nudgeDnaModal();
 }
 
-function handleDnaModalEscape(event) {
+function handleDnaModalEscape(event: KeyboardEvent) {
   const overlay = document.getElementById('dna-modal-overlay');
   if (event.key !== 'Escape' || !overlay?.classList.contains('show')) return;
   event.preventDefault();
   closeDNAImportPreview();
 }
 
-function openDnaModalOverlay(overlay, initialFocus) {
+function openDnaModalOverlay(overlay: HTMLElement, initialFocus: string) {
   if (!overlay.dataset.dnaBackdropNudgeWired) {
     overlay.addEventListener('mousedown', handleDnaBackdropMouseDown);
     overlay.addEventListener('click', handleDnaBackdropClick);
@@ -408,19 +420,13 @@ export async function openManualSnpModal() {
       <button type="button" class="import-btn import-btn-secondary" ${dnaActionAttrs('close-preview')}>Cancel</button>
       <button type="button" class="import-btn import-btn-primary" ${dnaActionAttrs('save-manual-snp')}>Save SNPs</button>
     </div>`;
-  let overlay = document.getElementById('dna-modal-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'dna-modal-overlay';
-    overlay.className = 'modal-overlay';
-    document.body.appendChild(overlay);
-  }
+  const overlay = ensureDnaModalOverlay();
   overlay.innerHTML = `<div class="modal dna-preview-modal dna-manual-modal" role="dialog" aria-label="Add SNPs manually">${html}</div>`;
   openDnaModalOverlay(overlay, '#manual-snp-bulk');
   return true;
 }
 
-export function showDNAImportPreview(result) {
+export function showDNAImportPreview(result: PendingDnaImport) {
   setPendingDnaImport(result);
 
   const apoe = dnaUiDeps.resolveAPOE?.(result.matches);
@@ -430,10 +436,10 @@ export function showDNAImportPreview(result) {
     ? `${result.totalLines.toLocaleString()} SNPs scanned · ${rawMatchedCount.toLocaleString()} found in file · ${result.coverage.found} available after preserving ${preservedOverrideCount} curated override${preservedOverrideCount === 1 ? '' : 's'}`
     : `${result.totalLines.toLocaleString()} SNPs scanned · ${result.coverage.found} of ${result.coverage.total} health-relevant SNPs found`;
   const apoeRsids = apoe ? new Set(['rs429358', 'rs7412']) : new Set();
-  const risk = [];
-  const protective = [];
-  const informational = [];
-  const none = [];
+  const risk: PreviewFinding[] = [];
+  const protective: PreviewFinding[] = [];
+  const informational: PreviewFinding[] = [];
+  const none: PreviewFinding[] = [];
   for (const [rsid, match] of Object.entries(result.matches)) {
     if (apoeRsids.has(rsid)) continue;
     const presentation = snpFindingPresentation(match.effect, match.valence);
@@ -450,7 +456,7 @@ export function showDNAImportPreview(result) {
     else none.push(item);
   }
 
-  const renderPreviewAssessment = match => {
+  const renderPreviewAssessment = (match: PreviewFinding) => {
     const profile = match.evidenceProfile;
     return `<div class="dna-preview-assessment">
       <span class="genetics-axis genetics-axis-evidence genetics-axis-${escapeAttr(profile.evidenceLevel)}">Evidence · ${escapeHTML(profile.evidenceShortLabel)}</span>
@@ -458,7 +464,7 @@ export function showDNAImportPreview(result) {
     </div>`;
   };
 
-  function renderGroup(items, label) {
+  function renderGroup(items: PreviewFinding[], label: string) {
     if (items.length === 0) return '';
     return `<div class="dna-preview-group">
       <div class="dna-preview-group-title">${label} (${items.length})</div>
@@ -472,7 +478,7 @@ export function showDNAImportPreview(result) {
     </div>`;
   }
 
-  function renderCollapsedGroup(items, label) {
+  function renderCollapsedGroup(items: PreviewFinding[], label: string) {
     if (items.length === 0) return '';
     return `<div class="dna-preview-group">
       <div class="dna-preview-group-title dna-preview-collapsible" role="button" tabindex="0" ${dnaActionAttrs('toggle-preview-group')}>
@@ -508,13 +514,7 @@ export function showDNAImportPreview(result) {
       <button class="import-btn import-btn-primary" ${dnaActionAttrs('confirm-import')}>Import ${result.coverage.found} SNPs</button>
     </div>`;
 
-  let overlay = document.getElementById('dna-modal-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'dna-modal-overlay';
-    overlay.className = 'modal-overlay';
-    document.body.appendChild(overlay);
-  }
+  const overlay = ensureDnaModalOverlay();
   overlay.innerHTML = `<div class="modal dna-preview-modal" role="dialog">${html}</div>`;
   openDnaModalOverlay(overlay, '.import-btn-primary');
 }

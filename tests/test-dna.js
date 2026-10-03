@@ -582,7 +582,7 @@ assert('DNA preview modal uses shared overlay lifecycle helpers and backdrop nud
       + (dnaMtDnaSrc.match(/closeModalOverlay\('dna-modal-overlay'\)/g) || []).length) === 4);
 assert('DNA import success waits for persistence',
   /async function confirmDNAImport\(\)[\s\S]{0,900}await saveImportedData\(\)/.test(dnaSrc));
-const dnaSaveFailureBlock = (dnaSrc.match(/async function confirmDNAImport\(\)[\s\S]*?if \(!await saveImportedData\(\)\) \{([\s\S]*?)\n  \}/) || [null, ''])[1];
+const dnaSaveFailureBlock = (dnaSrc.match(/async function confirmDNAImport\(\)[\s\S]*?if \(!await saveImportedData\(\)\) \{([\s\S]*?)\n\s*\}/) || [null, ''])[1];
 assert('DNA import save failure resets running flag but keeps preview retryable',
   dnaSaveFailureBlock.includes('_dnaImportRunning = false') &&
   dnaSaveFailureBlock.includes('return;') &&

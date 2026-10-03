@@ -28,7 +28,7 @@ import {
   assessTextQuality as assessImportedTextQuality,
   classifyImportFiles as classifyImportFileBuckets,
   extractPDFImages as extractPdfImagesFromFile,
-  extractPDFText as extractPdfTextFromFile,
+  extractPDFTextFacade as extractPDFText,
   isPdfByMagic as isPdfFileByMagic,
 } from './pdf-import-file-utils.js';
 import { runPreflightChecks } from './pdf-import-preflight.js';
@@ -189,9 +189,7 @@ export function showAINeededDialog(action = 'import') {
 // ═══════════════════════════════════════════════
 // AI-POWERED PDF IMPORT
 // ═══════════════════════════════════════════════
-export async function extractPDFText(file) {
-  return extractPdfTextFromFile(file);
-}
+export { extractPDFText };
 
 /**
  * @param {string} pdfText

@@ -730,3 +730,6 @@ deploy/profile-share/data/
 /js/dna-runtime.js
 /js/dna-mtdna.js
 /js/dna-parser.js
+
+/js/dna.js
+/js/dna-ui.js

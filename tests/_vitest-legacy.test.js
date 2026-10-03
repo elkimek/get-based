@@ -63,7 +63,7 @@ const LEGACY_TESTS = [
   './test-supplement-impact.js',
   // Batch 4 — more pure-logic ports.
   './test-provenance.js',
-  './test-dna-mtdna-subclades.js',
+  './test-dna-mtdna-subclades.ts',
   './test-vendor-personal-info.js',
   './test-normalize-units.js',
   // Batch 5 — module imports + source inspection.

@@ -25,7 +25,7 @@ import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { dnaActionAttrs } from './dna-actions.js';
 import {
   cacheDnaHaplogroupTable,
-  clearPendingMtDnaImport,
+  clearPendingMtDnaImport, ensureDnaModalOverlay,
   getDnaProfileLatitudeBand,
   getPendingMtDnaImport,
   loadGeneticsStylesheetForAction,
@@ -223,13 +223,7 @@ function _showMtDNAPreview(resolved: PendingMtDnaImport['resolved'], coupling: P
     <button class="import-btn import-btn-primary" ${dnaActionAttrs('confirm-mtdna-import')}>Import Haplogroup ${escapeHTML(resolved.haplogroup)}</button>
   </div>`;
 
-  let overlay = document.getElementById('dna-modal-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'dna-modal-overlay';
-    overlay.className = 'modal-overlay';
-    document.body.appendChild(overlay);
-  }
+  const overlay = ensureDnaModalOverlay();
   overlay.innerHTML = `<div class="modal dna-preview-modal" role="dialog">${html}</div>`;
   openModalOverlay(overlay);
 }

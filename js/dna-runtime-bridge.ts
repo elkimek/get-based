@@ -2,10 +2,10 @@
 import { configureModuleBridge } from './runtime-callbacks.js';
 import type { ModuleBridgeFunction } from './runtime-callbacks.js';
 
-type DnaBridgeFunctions = Pick<typeof import('./dna-file-detection.js'),
-  'detectDNAFile' | 'isDNAFile' | 'isDNAFileByContent'> & {
-  buildSnpAIInterpretationPrompt: (rsid: unknown, stored?: unknown, entry?: unknown) => string;
-};
+type DnaModule = typeof import('./dna.js');
+type DnaBridgeFunctions = { [Name in keyof DnaModule as DnaModule[Name] extends (...args: never[]) => unknown ? Name : never]: DnaModule[Name] } & Pick<typeof import('./dna-evidence.js'),
+  'buildSnpAIInterpretationPrompt' | 'dnaStudyReferenceLabel' | 'mtdnaEvidenceIssueUrl' | 'newSnpSuggestionIssueUrl' |
+  'resolveSnpEvidenceProfile' | 'snpEvidenceIssueUrl' | 'snpFindingPresentation' | 'snpFindingRank'>;
 type DnaBridgeFunction<Name extends string> = Name extends keyof DnaBridgeFunctions
   ? DnaBridgeFunctions[Name] : ModuleBridgeFunction;
 

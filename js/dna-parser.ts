@@ -255,7 +255,7 @@ export function parseClinicalSnpReportTextWithTable(text: unknown, snpTable: Snp
   const body = String(text || '').replace(/\u00A0/g, ' ');
   const matches: Record<string, {
     genotype: string; normalizedGenotype: string; gene: SnpCatalogEntry['gene']; variant: SnpCatalogEntry['variant'];
-    category: SnpCatalogEntry['category']; markers: unknown; effect: SnpCatalogEntry['effect']; valence: SnpCatalogEntry['valence'];
+    category: SnpCatalogEntry['category']; markers: NonNullable<SnpCatalogEntry['markers']>; effect: SnpCatalogEntry['effect']; valence: SnpCatalogEntry['valence'];
     evidence: SnpCatalogEntry['evidence']; relevance: SnpCatalogEntry['relevance']; note: SnpCatalogEntry['note'];
     source: { type: string; label: string; fileName: string | null; rawText: string };
   }> = {};

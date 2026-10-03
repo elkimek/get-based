@@ -109,7 +109,7 @@ try {
     handleDNAFile: (file: { name: string }) => calls.push(['handleDNAFile', file.name]),
     HAPLOGROUP_LIST: ['H', 'J'],
   });
-  getDnaModuleFunction('handleDNAFile')?.({ name: 'dna.txt' });
+  getDnaModuleFunction('handleDNAFile')?.({ name: 'dna.txt' } as File);
   assert('DNA module bridge delegates file handling and values',
     calls.some(call => call[0] === 'handleDNAFile' && call[1] === 'dna.txt') &&
       (getDnaModuleValue('HAPLOGROUP_LIST') as string[] | null)?.includes('J'));

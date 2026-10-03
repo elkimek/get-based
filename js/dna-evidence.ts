@@ -3,13 +3,15 @@ import type { GenotypeEntry } from './dna-genotype.js';
 interface EvidenceAnnotation { level?: string | null; claimTypes?: unknown; scope?: unknown; reviewedAt?: unknown }
 interface RelevanceAnnotation { level?: string | null; context?: unknown }
 export interface SnpAnnotation {
-  evidence?: EvidenceAnnotation | null; relevance?: RelevanceAnnotation | null;
+  evidence?: EvidenceAnnotation | null | undefined; relevance?: RelevanceAnnotation | null | undefined;
   gene?: unknown; variant?: unknown; genotype?: unknown; note?: unknown;
-  effect?: string | null; valence?: string | null;
+  effect?: string | null | undefined; valence?: string | null | undefined;
   references?: unknown; category?: unknown; strandNote?: unknown;
   [field: string]: unknown;
 }
-export interface SnpCatalogEntry extends SnpAnnotation, GenotypeEntry<SnpAnnotation> {}
+export interface SnpCatalogEntry extends SnpAnnotation, GenotypeEntry<SnpAnnotation> {
+  category?: string | null; markers?: string[] | null; references?: string[] | null;
+}
 export type SnpCatalog = Record<string, SnpCatalogEntry>;
 
 // dna-evidence.ts — privacy-safe study labels and public catalog feedback links.

@@ -5,10 +5,26 @@ import type { RuntimeDependencyUpdates } from './runtime-callbacks.js';
 import type { SnpCatalog } from './dna-evidence.js';
 import type { HaplogroupTable, PendingMtDnaImport } from './dna-mtdna.js';
 
-type ParsedDnaImport = Awaited<ReturnType<typeof import('./dna-parser.js').parseDNAFileWithTable>>;
-type ClinicalSnpCall = ReturnType<typeof import('./dna-parser.js').parseClinicalSnpReportTextWithTable>['matches'][string];
-export type PendingDnaImport = ParsedDnaImport & {
-  matches: Record<string, ParsedDnaImport['matches'][string] & Partial<Pick<ClinicalSnpCall, 'source' | 'normalizedGenotype'>>>;
+import type { SnpAnnotation } from './dna-evidence.js';
+export interface SnpSource { type?: string | null; label?: string | null; fileName?: string | null; rawText?: string | null; addedAt?: string | null }
+/** Persisted calls may predate the current catalog; consumers retain their original field fallbacks. */
+export interface StoredSnpCall extends SnpAnnotation {
+  genotype?: string | null | undefined; normalizedGenotype?: string | null | undefined; category?: string | null | undefined;
+  markers?: readonly string[] | null; source?: SnpSource | null;
+}
+export interface GeneticsData {
+  snps?: Record<string, StoredSnpCall> | null; apoe?: string | null; source?: string | null; importDate?: string | null;
+  coverage?: { found?: number; total?: number } | null | undefined;
+  effects?: Partial<Record<'significant' | 'moderate' | 'mild' | 'normal', number>>;
+  catalogVersion?: { size: number; hash: string } | null;
+  mtdna?: Partial<PendingMtDnaImport['resolved']> & {
+    coupling?: PendingMtDnaImport['coupling']; origin?: string | null; details?: string | null;
+    source?: string | null; importDate?: string | null; mutations?: string[];
+  } | null;
+}
+export interface DnaProfileData { genetics?: GeneticsData | null }
+export type PendingDnaImport = Omit<Awaited<ReturnType<typeof import('./dna-parser.js').parseDNAFileWithTable>>, 'matches'> & {
+  matches: Record<string, StoredSnpCall>;
   mergeSnps?: boolean; rawMatchedCount?: number; preservedOverrideCount?: number;
 };
 interface DnaRuntimeDeps {
@@ -198,4 +214,16 @@ export function getPendingMtDnaImport() {
 
 export function clearPendingMtDnaImport() {
   getRuntimeWindow()._pendingMtDNA = null;
+}
+
+/** Reuse the DNA overlay, creating its original backdrop only on first use. */
+export function ensureDnaModalOverlay() {
+  let overlay = document.getElementById('dna-modal-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'dna-modal-overlay';
+    overlay.className = 'modal-overlay';
+    document.body.appendChild(overlay);
+  }
+  return overlay;
 }

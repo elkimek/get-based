@@ -13,20 +13,21 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Run: node tests/test-dna-mtdna-subclades.js  (or via npm test)
 
 import './_node-shim.js';
+import type { HaplogroupTable } from '../js/dna-mtdna.js';
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
 
 console.log('=== mtDNA Sub-haplogroup Tests ===\n');
 
-const hapTable = JSON.parse(read('data/haplogroups.json'));
+const hapTable = JSON.parse(read('data/haplogroups.json')) as HaplogroupTable & { _meta: { haplogroupCount: number } };
 const dnaMtDnaSrc = read('js/dna-mtdna.js');
 
   // ═══════════════════════════════════════
@@ -52,8 +53,8 @@ const dnaMtDnaSrc = read('js/dna-mtdna.js');
   console.log('%c 2. Cumulative Mutation Inheritance ', 'font-weight:bold;color:#f59e0b');
 
   for (const sub of subs) {
-    const entry = hapTable.haplogroups[sub];
-    const parent = hapTable.haplogroups[entry.parentHg];
+    const entry = hapTable.haplogroups[sub]!;
+    const parent = hapTable.haplogroups[entry.parentHg!];
     if (!parent) continue;
     const parentMuts = new Set(parent.mutations);
     const childMuts = new Set(entry.mutations);
@@ -134,7 +135,7 @@ const dnaMtDnaSrc = read('js/dna-mtdna.js');
   // ═══════════════════════════════════════
   console.log('%c 5. Part C Cleanup ', 'font-weight:bold;color:#f59e0b');
 
-  const I = hapTable.haplogroups.I;
+  const I = hapTable.haplogroups.I!;
   assert('I haplogroup no longer carries 199C (control-region universal)',
     !I.mutations.includes('199C'));
   assert('I haplogroup no longer carries 204C',
@@ -146,11 +147,11 @@ const dnaMtDnaSrc = read('js/dna-mtdna.js');
   assert('I haplogroup keeps ≥5 diagnostic mutations post-trim',
     I.mutations.length >= 5);
 
-  const B = hapTable.haplogroups.B;
+  const B = hapTable.haplogroups.B!;
   assert('B haplogroup HAPE claim softened (not phrased as "risk factor")',
-    !B.etc.includes('Risk factor for high-altitude pulmonary edema'));
+    !B.etc!.includes('Risk factor for high-altitude pulmonary edema'));
   assert('B haplogroup 9bp-deletion schema-gap documented',
-    /9bp|not yet representable|schema/i.test(B.etc));
+    /9bp|not yet representable|schema/i.test(B.etc!));
 
   // ═══════════════════════════════════════
   // 6. Metadata updated

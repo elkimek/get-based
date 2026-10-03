@@ -28,6 +28,12 @@ async function readFileArrayBuffer(file: File): Promise<ArrayBuffer> {
   }
 }
 
+// Shared async forwarding boundary: preserve the PDF facade's Promise adoption.
+const extractPdfTextFromFile = extractPDFText;
+export const extractPDFTextFacade = async function extractPDFText(file: File) {
+  return extractPdfTextFromFile(file);
+};
+
 export async function extractPDFText(file: File) {
   const arrayBuffer = await readFileArrayBuffer(file);
   const pdf = await getPdfDocument({ data: arrayBuffer });
