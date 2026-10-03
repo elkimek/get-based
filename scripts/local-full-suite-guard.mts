@@ -3,11 +3,11 @@ import { fileURLToPath } from 'node:url';
 
 const OPT_IN_VARIABLE = 'GETBASED_ALLOW_HIGH_WRITE_TESTS';
 
-function isEnabled(value) {
+function isEnabled(value: unknown) {
   return ['1', 'true', 'yes', 'on'].includes(String(value || '').trim().toLowerCase());
 }
 
-export function fullLocalSuiteDecision(env = {}) {
+export function fullLocalSuiteDecision(env: Record<string, unknown> = {}) {
   if (isEnabled(env.CI)) {
     return { allowed: true, source: 'CI' };
   }
@@ -26,10 +26,10 @@ export function fullLocalSuiteDecision(env = {}) {
   };
 }
 
-export function runFullLocalSuiteGuard(env = {}, writeError = message => console.error(message)) {
+export function runFullLocalSuiteGuard(env: Record<string, unknown> = {}, writeError: (message: string) => unknown = message => console.error(message)) {
   const decision = fullLocalSuiteDecision(env);
   if (decision.allowed) return 0;
-  writeError(decision.message);
+  writeError(decision.message!);
   return 2;
 }
 

@@ -2,12 +2,14 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import ts from 'typescript-api';
 
-const METRICS = [
+type AppShellMetric = 'resources' | 'decodedBytes';
+type RawAppShellMetrics = Partial<Record<AppShellMetric, unknown>>;
+const METRICS: ReadonlyArray<readonly [AppShellMetric, string]> = [
   ['resources', 'precache resources'],
   ['decodedBytes', 'precache decoded bytes'],
 ];
 
-function requireNonNegativeNumber(value, label) {
+function requireNonNegativeNumber(value: unknown, label: string) {
   const number = Number(value);
   if (!Number.isFinite(number) || number < 0) {
     throw new Error(`${label} must be a non-negative number.`);
@@ -15,7 +17,7 @@ function requireNonNegativeNumber(value, label) {
   return number;
 }
 
-function requirePositiveNumber(value, label) {
+function requirePositiveNumber(value: unknown, label: string) {
   const number = Number(value);
   if (!Number.isFinite(number) || number <= 0) {
     throw new Error(`${label} must be a number greater than zero.`);
@@ -23,7 +25,7 @@ function requirePositiveNumber(value, label) {
   return number;
 }
 
-export function parseAppShellEntries(source) {
+export function parseAppShellEntries(source: unknown) {
   const sourceFile = ts.createSourceFile(
     'service-worker.js',
     String(source),
@@ -31,12 +33,12 @@ export function parseAppShellEntries(source) {
     false,
     ts.ScriptKind.JS,
   );
-  if (sourceFile.parseDiagnostics.length) {
+  if ((sourceFile as typeof sourceFile & { parseDiagnostics: readonly ts.Diagnostic[] }).parseDiagnostics.length) {
     throw new Error('Could not parse service-worker.js while reading APP_SHELL.');
   }
-  const declarations = [];
+  const declarations: ts.VariableDeclaration[] = [];
 
-  function visit(node) {
+  function visit(node: ts.Node) {
     if (
       ts.isVariableDeclaration(node)
       && ts.isIdentifier(node.name)
@@ -51,7 +53,7 @@ export function parseAppShellEntries(source) {
   if (declarations.length !== 1) {
     throw new Error(`Expected exactly one APP_SHELL declaration; found ${declarations.length}.`);
   }
-  const initializer = declarations[0].initializer;
+  const initializer = declarations[0]!.initializer;
   if (!initializer || !ts.isArrayLiteralExpression(initializer)) {
     throw new Error('APP_SHELL must be an array literal.');
   }
@@ -72,7 +74,7 @@ export function parseAppShellEntries(source) {
   return entries;
 }
 
-function relativeAssetPath(entry) {
+function relativeAssetPath(entry: string) {
   const route = entry === '/app' ? '/index.html' : entry;
   const relative = path.posix.normalize(route).replace(/^\/+/, '');
   if (!relative || relative === '..' || relative.startsWith('../')) {
@@ -81,13 +83,13 @@ function relativeAssetPath(entry) {
   return relative;
 }
 
-async function fileSizeFromRoots(relative, roots) {
+async function fileSizeFromRoots(relative: string, roots: string[]) {
   for (const root of roots) {
     try {
       const stat = await fs.stat(path.join(root, ...relative.split('/')));
       if (stat.isFile()) return stat.size;
     } catch (error) {
-      if (error?.code !== 'ENOENT') throw error;
+      if ((error as { code?: unknown } | null | undefined)?.code !== 'ENOENT') throw error;
     }
   }
   throw new Error(`APP_SHELL asset does not exist: /${relative}`);
@@ -97,7 +99,7 @@ export async function summarizeAppShell({
   serviceWorkerSource,
   artifactRoot,
   sourceRoot = artifactRoot,
-}) {
+}: { serviceWorkerSource: unknown; artifactRoot: string; sourceRoot?: string }) {
   const entries = parseAppShellEntries(serviceWorkerSource);
   const roots = [...new Set([path.resolve(artifactRoot), path.resolve(sourceRoot)])];
   const sizes = await Promise.all(
@@ -109,10 +111,10 @@ export async function summarizeAppShell({
   };
 }
 
-export function enforceAppShellBudget(metrics, budget) {
+export function enforceAppShellBudget(metrics: RawAppShellMetrics | null | undefined, budget: { maximums?: RawAppShellMetrics | null } | null | undefined) {
   const maximums = budget?.maximums;
-  const failures = [];
-  const result = {};
+  const failures: string[] = [];
+  const result: Partial<Record<AppShellMetric, { actual: number; maximum: number; remaining: number }>> = {};
 
   for (const [key, label] of METRICS) {
     const actual = requireNonNegativeNumber(metrics?.[key], `app-shell ${key}`);
@@ -128,12 +130,12 @@ export function enforceAppShellBudget(metrics, budget) {
   if (failures.length) {
     throw new Error(`App-shell budget exceeded: ${failures.join('; ')}.`);
   }
-  return result;
+  return result as Record<AppShellMetric, { actual: number; maximum: number; remaining: number }>;
 }
 
-export function formatAppShellSummary(metrics) {
+export function formatAppShellSummary(metrics: RawAppShellMetrics) {
   return [
     `${metrics.resources} resources`,
-    `${(metrics.decodedBytes / 1024).toFixed(1)} KiB decoded`,
+    `${((metrics.decodedBytes as number) / 1024).toFixed(1)} KiB decoded`,
   ].join(', ');
 }

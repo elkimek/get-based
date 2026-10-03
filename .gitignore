@@ -1265,3 +1265,10 @@ deploy/profile-share/data/
 /types/chat-send.js
 /types/provider-panels.js
 /types/settings.js
+
+/scripts/coverage-source.mjs
+/scripts/coverage-report.mjs
+/scripts/playwright-coverage.mjs
+/scripts/local-full-suite-guard.mjs
+/scripts/app-shell-budget.mjs
+/scripts/cold-load-budget.mjs
