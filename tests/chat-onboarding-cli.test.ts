@@ -11,19 +11,19 @@ afterEach(() => {
 it('puts card payment first and recommends it, with CLI prerequisites and a terminal icon', () => {
   document.body.innerHTML = _renderProviderQuiz('', 'Test');
   const choices = document.querySelectorAll('[data-chat-provider-branch]');
-  expect(choices[0].getAttribute('data-chat-provider-branch')).toBe('card');
+  expect(choices[0]!.getAttribute('data-chat-provider-branch')).toBe('card');
   expect(document.querySelectorAll('.chat-quiz-recommended')).toHaveLength(1);
-  expect(choices[0].textContent).toContain('Recommended');
-  const cli = document.querySelector('[data-chat-provider-branch="cli"]');
+  expect(choices[0]!.textContent).toContain('Recommended');
+  const cli = document.querySelector('[data-chat-provider-branch="cli"]')!;
   expect(cli.textContent).toContain('Requires an installed CLI, sign-in, and getbased Companion');
   expect(cli.querySelector('svg')).not.toBeNull();
 });
 
 it('waits for lazy Settings to render before selecting CLI agents', async () => {
   vi.useFakeTimers();
-  let finishLoading;
+  let finishLoading!: () => void;
   const selected = vi.fn();
-  const opening = new Promise(resolve => { finishLoading = resolve; });
+  const opening = new Promise<void>(resolve => { finishLoading = resolve; });
   const openSettingsModal = vi.fn(() => opening.then(() => {
     const button = document.createElement('button');
     button.dataset.settingsAction = 'show-cli-agent-provider';
@@ -32,7 +32,7 @@ it('waits for lazy Settings to render before selecting CLI agents', async () => 
   }));
   configureChatOnboarding({ openSettingsModal });
   document.body.innerHTML = _renderProviderQuiz('cli', 'Test');
-  document.querySelector('[data-chat-provider="cli"]').click();
+  document.querySelector<HTMLElement>('[data-chat-provider="cli"]')!.click();
   await vi.advanceTimersByTimeAsync(300);
   expect(openSettingsModal).toHaveBeenCalledWith('ai');
   expect(selected).not.toHaveBeenCalled();

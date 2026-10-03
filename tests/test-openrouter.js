@@ -201,7 +201,7 @@ else localStorage.removeItem('labcharts-openrouter-model');
 // ─── 4. chat-send.js source inspection ───
 console.log('\n4. chat-send.js source inspection');
 const chatSendSrc = read('js/chat-send.js');
-const chatOnboardingSrc = read('js/chat-onboarding.js');
+const chatOnboardingSrc = read('js/chat-onboarding.ts');
 assert('chat-send.js uses getActiveModelId for model resolution', chatSendSrc.includes('getActiveModelId'));
 assert('chat-send.js snapshots provider for sends', /const _msgProvider =[^;]+getAIProvider\(\)/.test(chatSendSrc) && chatSendSrc.includes('provider: _msgProvider'));
 

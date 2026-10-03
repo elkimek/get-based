@@ -781,3 +781,5 @@ deploy/profile-share/data/
 
 /js/light-device-session-engine.js
 /js/light-devices-store.js
+
+/js/chat-onboarding.js

@@ -1,6 +1,8 @@
-// @ts-check
 // chat-onboarding.js — Chat-first onboarding handlers and render helpers
 
+import type { ProfileData } from '../types/app-state.js';
+import type { ActiveData } from './data-view-types.js';
+import type { LocationCacheEntry } from './profile.js';
 import { state } from './state.js';
 import { LATITUDE_BANDS } from './constants.js';
 import { escapeAttr, escapeHTML, showNotification } from './utils.js';
@@ -15,25 +17,20 @@ import { isAIPaused } from './api.js';
 import { hasChatResponseBackend } from './chat-backend-selection.js';
 import { handleAppExtensionOnboardingAction, renderAppExtensionOnboardingSlot } from './app-extension-runtime.js';
 
-/** @type {{
- *   closeChatPanel: () => void,
- *   getActiveData: () => any,
- *   navigate: (route: string, data?: any) => void,
- *   openChatProviderQuiz: null | (() => void),
- *   openSettingsModal: (tab?: string) => unknown,
- *   recordChange: (field: string) => void,
- *   renderChatMessages: () => void,
- *   renderMenstrualCycleSection: null | ((data: any, opts?: any) => string),
- *   renderProfileButton: () => void,
- *   renderSupplementsSection: null | (() => string),
- *   sendChatMessage: () => void,
- *   setChatNudge: (mode?: string) => void,
- *   setProfileHeight: null | ((profileId: string, height: number, unit: string) => Promise<boolean> | boolean | void),
- *   startOpenRouterOAuth: () => void,
- *   switchAIProvider: (provider: string) => void,
- *   updateChatNudge: () => void,
- * }} */
-const onboardingCallbacks = {
+interface ChatOnboardingCallbacks {
+  closeChatPanel(): void; getActiveData(): ActiveData | ProfileData | null;
+  navigate(route: string, data?: unknown): void;
+  openChatProviderQuiz: (() => void) | null;
+  openSettingsModal(tab?: string): unknown; recordChange(field: string): void;
+  renderChatMessages(): void;
+  renderMenstrualCycleSection: ((data: ActiveData | ProfileData | null, opts?: { variant?: string; showHeader?: boolean }) => string) | null;
+  renderProfileButton(): void; renderSupplementsSection: (() => string) | null;
+  sendChatMessage(): void; setChatNudge(mode?: string): void;
+  setProfileHeight: ((profileId: string, height: number, unit: string) => Promise<boolean> | boolean | void) | null;
+  startOpenRouterOAuth(): void; switchAIProvider(provider: string): void; updateChatNudge(): void;
+}
+
+const onboardingCallbacks: ChatOnboardingCallbacks = {
   closeChatPanel: () => {},
   getActiveData: () => state.importedData,
   navigate: () => {},
@@ -55,11 +52,11 @@ const onboardingCallbacks = {
 let chatOnboardingDelegatesInstalled = false;
 const CHAT_ONBOARDING_SETTING_PROVIDERS = new Set(['openrouter', 'ollama', 'routstr', 'ppq']);
 
-export function chatOnboardingActionAttrs(action, attrs = {}) {
+export function chatOnboardingActionAttrs(action: string, attrs: Parameters<typeof actionAttributes>[2] = {}) {
   return actionAttributes("chat-onboarding", action, attrs, "chat");
 }
 
-function isChatOnboardingActionScope(actionEl) {
+function isChatOnboardingActionScope(actionEl: Element) {
   return !!actionEl.closest('#chat-panel, .chat-provider-quiz');
 }
 
@@ -71,22 +68,22 @@ function openAiSettings() {
   }, 300);
 }
 
-function openAiProviderSettings(provider) {
+function openAiProviderSettings(provider: string) {
   clearForcedOnboardingStep();
   closeChatPanel();
   setTimeout(async () => {
     await openSettingsModal('ai');
     if (provider === 'cli') {
-      const cliButton = /** @type {HTMLElement | null} */ (document.querySelector('[data-settings-action="show-cli-agent-provider"]'));
+      const cliButton = (document.querySelector('[data-settings-action="show-cli-agent-provider"]') as HTMLElement | null);
       cliButton?.click();
     } else if (CHAT_ONBOARDING_SETTING_PROVIDERS.has(provider)) switchAIProvider(provider);
   }, 300);
 }
 
-async function handleChatOnboardingClick(event) {
+async function handleChatOnboardingClick(event: MouseEvent) {
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
-  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-chat-onboarding-action]'));
+  const actionEl = (target.closest('[data-chat-onboarding-action]') as HTMLElement | null);
   if (!actionEl || !isChatOnboardingActionScope(actionEl)) return;
   const action = actionEl.dataset.chatOnboardingAction || '';
   event.preventDefault();
@@ -128,29 +125,24 @@ function initChatOnboardingDelegates() {
   document.addEventListener('click', handleChatOnboardingClick);
 }
 
-/** @param {Partial<typeof onboardingCallbacks>} [callbacks] */
-export function configureChatOnboarding(callbacks = {}) {
+export function configureChatOnboarding(callbacks: Partial<ChatOnboardingCallbacks> = {}) {
   Object.assign(onboardingCallbacks, callbacks);
 }
 
-/** @param {string} id */
-function textControlById(id) {
-  return /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(id));
+function textControlById(id: string) {
+  return (document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null);
 }
 
-/** @param {string} id */
-function inputById(id) {
-  return /** @type {HTMLInputElement | null} */ (document.getElementById(id));
+function inputById(id: string) {
+  return (document.getElementById(id) as HTMLInputElement | null);
 }
 
-/** @param {string} id */
-function selectById(id) {
-  return /** @type {HTMLSelectElement | null} */ (document.getElementById(id));
+function selectById(id: string) {
+  return (document.getElementById(id) as HTMLSelectElement | null);
 }
 
-/** @param {string} id */
-function buttonById(id) {
-  return /** @type {HTMLButtonElement | null} */ (document.getElementById(id));
+function buttonById(id: string) {
+  return (document.getElementById(id) as HTMLButtonElement | null);
 }
 
 function closeChatPanel() {
@@ -161,7 +153,7 @@ function getActiveData() {
   return onboardingCallbacks.getActiveData?.() || state.importedData;
 }
 
-function navigate(route, data) {
+function navigate(route: string, data?: unknown) {
   onboardingCallbacks.navigate?.(route, data);
 }
 
@@ -171,11 +163,11 @@ function openChatProviderQuiz() {
   return true;
 }
 
-function openSettingsModal(tab) {
+function openSettingsModal(tab?: string) {
   return onboardingCallbacks.openSettingsModal?.(tab);
 }
 
-function recordChange(field) {
+function recordChange(field: string) {
   onboardingCallbacks.recordChange?.(field);
 }
 
@@ -183,7 +175,7 @@ function renderChatMessages() {
   onboardingCallbacks.renderChatMessages?.();
 }
 
-function renderMenstrualCycleSection(data, opts) {
+function renderMenstrualCycleSection(data: ActiveData | ProfileData | null, opts?: { variant?: string; showHeader?: boolean }) {
   return onboardingCallbacks.renderMenstrualCycleSection?.(data, opts) || '';
 }
 
@@ -199,11 +191,11 @@ function sendChatMessage() {
   onboardingCallbacks.sendChatMessage?.();
 }
 
-function setChatNudge(mode) {
+function setChatNudge(mode?: string) {
   onboardingCallbacks.setChatNudge?.(mode);
 }
 
-async function setProfileHeight(profileId, height, unit) {
+async function setProfileHeight(profileId: string, height: number, unit: string) {
   if (!onboardingCallbacks.setProfileHeight) return false;
   return await onboardingCallbacks.setProfileHeight(profileId, height, unit) !== false;
 }
@@ -212,7 +204,7 @@ function startOpenRouterOAuth() {
   onboardingCallbacks.startOpenRouterOAuth?.();
 }
 
-function switchAIProvider(provider) {
+function switchAIProvider(provider: string) {
   onboardingCallbacks.switchAIProvider?.(provider);
 }
 
@@ -228,7 +220,7 @@ function clearForcedOnboardingStep() {
   sessionStorage.removeItem(forcedStepKey());
 }
 
-export function useChatPrompt(text) {
+export function useChatPrompt(text: string) {
   if (!hasChatResponseBackend()) {
     showNotification('Connect an AI provider first — open Settings → AI to set one up.', 'info');
     return;
@@ -286,7 +278,7 @@ export function _updateOnboardNextBtn() {
   btn.disabled = !(name && sex);
 }
 
-export async function setChatProfileSex(sex) {
+export async function setChatProfileSex(sex: string | null) {
   try {
     if (!await setProfileSex(state.currentProfile, sex)) return false;
   } catch {
@@ -301,7 +293,7 @@ export async function setChatProfileSex(sex) {
   return true;
 }
 
-let _chatLocTimer = null;
+let _chatLocTimer: ReturnType<typeof setTimeout> | null = null;
 export function onboardHeightUnitChanged() {
   const input = textControlById('chat-onboard-height');
   const select = selectById('chat-onboard-height-unit');
@@ -328,7 +320,7 @@ export async function saveChatLocation() {
   // send anything to a geocoder; postal refinement happens in Profile.
   const cacheKey = (country + '|').toLowerCase();
   const rawCached = getLocationCache()[cacheKey];
-  const cached = Number.isFinite(rawCached) ? Number(rawCached) : Number((/** @type {import('./profile.js').LocationCacheEntry | undefined} */ (rawCached))?.lat ?? (/** @type {import('./profile.js').LocationCacheEntry | undefined} */ (rawCached))?.latitude);
+  const cached = Number.isFinite(rawCached) ? Number(rawCached) : Number(((rawCached as LocationCacheEntry | undefined))?.lat ?? ((rawCached as LocationCacheEntry | undefined))?.latitude);
   if (Number.isFinite(cached)) {
     const band = latitudeToBand(cached);
     el.style.color = 'var(--green)';
@@ -349,7 +341,7 @@ export async function saveChatLocation() {
   return true;
 }
 
-export async function saveChatProfile(advance) {
+export async function saveChatProfile(advance?: boolean) {
   const nameEl = textControlById('chat-onboard-name');
   const dobEl = textControlById('chat-onboard-dob');
   const name = nameEl?.value?.trim();
@@ -375,12 +367,12 @@ export async function saveChatProfile(advance) {
     const weightRaw = parseFloat(textControlById('chat-onboard-weight')?.value || '');
     const weightUnit = selectById('chat-onboard-weight-unit')?.value || 'kg';
     if (weightRaw) {
-      if (!state.importedData.biometrics) state.importedData.biometrics = { weight: [], bp: [], pulse: [] };
+      if (!state.importedData!.biometrics) state.importedData!.biometrics = { weight: [], bp: [], pulse: [] };
       const today = new Date().toISOString().slice(0, 10);
-      const w = state.importedData.biometrics.weight || [];
-      state.importedData.biometrics.weight = w.filter(e => e.date !== today);
-      state.importedData.biometrics.weight.push({ date: today, value: weightRaw, unit: weightUnit, source: 'manual' });
-      state.importedData.biometrics.weight.sort((a, b) => a.date.localeCompare(b.date));
+      const w = state.importedData!.biometrics.weight || [];
+      state.importedData!.biometrics.weight = w.filter(e => e.date !== today);
+      state.importedData!.biometrics.weight.push({ date: today, value: weightRaw, unit: weightUnit, source: 'manual' });
+      state.importedData!.biometrics.weight.sort((a, b) => a.date.localeCompare(b.date));
       if (!await saveImportedData()) return false;
     }
     if (!await saveChatLocation()) return false;
@@ -421,24 +413,24 @@ export function showCyclePeriodEntry() {
   if (entry) entry.style.display = 'block';
 }
 
-export function saveCycleStatus(status) {
-  if (!state.importedData.menstrualCycle) state.importedData.menstrualCycle = {};
-  state.importedData.menstrualCycle.cycleStatus = status;
-  if (!state.importedData.menstrualCycle.periods) state.importedData.menstrualCycle.periods = [];
+export function saveCycleStatus(status: string) {
+  if (!state.importedData!.menstrualCycle) state.importedData!.menstrualCycle = {};
+  state.importedData!.menstrualCycle.cycleStatus = status;
+  if (!state.importedData!.menstrualCycle.periods) state.importedData!.menstrualCycle.periods = [];
   recordChange('menstrualCycle');
   saveImportedData();
-  const labels = { perimenopause: 'Perimenopause noted', postmenopause: 'Noted — postmenopause', pregnant: 'Noted — pregnant', breastfeeding: 'Noted — breastfeeding', absent: 'Noted — no active cycle' };
+  const labels: Record<string, string> = { perimenopause: 'Perimenopause noted', postmenopause: 'Noted — postmenopause', pregnant: 'Noted — pregnant', breastfeeding: 'Noted — breastfeeding', absent: 'Noted — no active cycle' };
   showNotification(labels[status] || 'Cycle status saved', 'success');
   _refreshDashboardCycle();
   renderChatMessages();
 }
 
-function _inferPeriodDates(startDay, endDay) {
+function _inferPeriodDates(startDay: number, endDay: number) {
   const now = new Date();
   let year = now.getFullYear(), month = now.getMonth();
   if (startDay > now.getDate()) month--;
   if (month < 0) { month = 11; year--; }
-  const pad = n => String(n).padStart(2, '0');
+  const pad = (n: number) => String(n).padStart(2, '0');
   const startDate = `${year}-${pad(month + 1)}-${pad(startDay)}`;
   let eMonth = month, eYear = year;
   if (endDay < startDay) { eMonth++; if (eMonth > 11) { eMonth = 0; eYear++; } }
@@ -459,7 +451,7 @@ export function _updatePeriodBtn() {
     const s = new Date(startDate + 'T00:00:00');
     const e = new Date(endDate + 'T00:00:00');
     const days = Math.max(1, Math.round((e.getTime() - s.getTime()) / 86400000));
-    const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     if (days <= 10) {
       preview.textContent = `→ ${fmt(s)} – ${fmt(e)} (${days} day${days !== 1 ? 's' : ''})`;
       preview.style.color = 'var(--text-muted)';
@@ -478,8 +470,8 @@ export function saveChatPeriod() {
   if (!startDay || !endDay) return;
   const { startDate, endDate } = _inferPeriodDates(startDay, endDay);
   const periodDays = Math.max(1, Math.round((new Date(endDate).getTime() - new Date(startDate).getTime()) / 86400000));
-  if (!state.importedData.menstrualCycle) state.importedData.menstrualCycle = {};
-  const mc = state.importedData.menstrualCycle;
+  if (!state.importedData!.menstrualCycle) state.importedData!.menstrualCycle = {};
+  const mc = state.importedData!.menstrualCycle;
   if (!mc.periods) mc.periods = [];
   mc.periods.push({ startDate, endDate, flow: 'moderate' });
   mc.cycleStatus = 'regular';
@@ -511,8 +503,8 @@ export function addChatSupplement() {
   renderChatMessages();
 }
 
-export function removeChatSupplement(idx) {
-  if (!state.importedData.supplements?.[idx]) return;
+export function removeChatSupplement(idx: number) {
+  if (!state.importedData!.supplements?.[idx]) return;
   deleteImportedArrayItem(state.importedData, 'supplements', idx);
   saveImportedData();
   _refreshDashboardSupps();
@@ -526,7 +518,7 @@ function _refreshDashboardSupps() {
 
 function _refreshDashboardCycle() {
   // Ensure the lifestyle details section is open so the cycle section is visible
-  const details = /** @type {HTMLDetailsElement | null} */ (document.querySelector('.welcome-context-details'));
+  const details = (document.querySelector('.welcome-context-details') as HTMLDetailsElement | null);
   if (details && !details.open) { details.setAttribute('open', ''); sessionStorage.setItem('welcome-details-open', '1'); }
   const el = document.querySelector('.cycle-section');
   if (el && onboardingCallbacks.renderMenstrualCycleSection) {
@@ -542,9 +534,9 @@ function _refreshDashboardCycle() {
   }
 }
 
-function getOnboardingProgressMeta(currentStep) {
+function getOnboardingProgressMeta(currentStep: number) {
   const providerConnected = hasChatResponseBackend();
-  const labels = {
+  const labels: Record<number, string> = {
     1: 'Basics',
     2: 'AI setup',
     3: 'Add-ons',
@@ -554,7 +546,7 @@ function getOnboardingProgressMeta(currentStep) {
     return {
       step: 1,
       total: 3,
-      label: labels[1],
+      label: labels[1]!,
     };
   }
   if (providerConnected && currentStep >= 3) {
@@ -574,7 +566,7 @@ function getOnboardingProgressMeta(currentStep) {
 // Thin progress strip shown at the top of each onboarding chat message.
 // AI-connected users skip the AI setup phase, so the displayed progress is
 // mapped to a 3-step path while navigation still uses the internal 4 routes.
-export function _renderOnboardCrumbs(currentStep) {
+export function _renderOnboardCrumbs(currentStep: number) {
   const progress = getOnboardingProgressMeta(currentStep);
   const dots = Array.from({ length: progress.total }, (_, i) => `<span class="chat-onboard-crumb${i + 1 <= progress.step ? ' active' : ''}"></span>`).join('');
   const previousStep = currentStep === 3 && hasChatResponseBackend() ? 1 : currentStep - 1;
@@ -588,7 +580,7 @@ export function _renderOnboardCrumbs(currentStep) {
 }
 
 // Plain-language provider branches. Session state survives refreshes, while a new session starts at the root.
-export function _renderProviderQuiz(branch, name) {
+export function _renderProviderQuiz(branch: string, name: string) {
   const safeName = escapeHTML(name);
   const extensionQuiz = renderAppExtensionOnboardingSlot('provider-quiz', { actionAttrs: chatOnboardingActionAttrs, branch, name });
   if (extensionQuiz) return extensionQuiz;
@@ -675,7 +667,7 @@ export function _renderProviderQuiz(branch, name) {
     </div></div>`;
 }
 
-export function setProviderQuizBranch(branch) {
+export function setProviderQuizBranch(branch: string) {
   sessionStorage.setItem(`chat-onboard-provider-requested-${state.currentProfile}`, '1');
   sessionStorage.setItem(`chat-onboard-provider-branch-${state.currentProfile}`, branch);
   renderChatMessages();
@@ -708,31 +700,27 @@ export function skipOnboardingExtras() {
   renderChatMessages();
 }
 
-export function skipContextCards() {
+function finishContextCards(completed: boolean) {
   clearForcedOnboardingStep();
   localStorage.setItem(`labcharts-onboard-extras-done-${state.currentProfile}`, '1');
-  localStorage.setItem(`labcharts-onboard-context-cards-skipped-${state.currentProfile}`, '1');
-  localStorage.removeItem(`labcharts-onboard-context-cards-done-${state.currentProfile}`);
+  localStorage.setItem(`labcharts-onboard-context-cards-${completed ? 'done' : 'skipped'}-${state.currentProfile}`, '1');
+  localStorage.removeItem(`labcharts-onboard-context-cards-${completed ? 'skipped' : 'done'}-${state.currentProfile}`);
   sessionStorage.removeItem(`chat-onboard-force-context-cards-${state.currentProfile}`);
   sessionStorage.setItem('welcome-details-open', '1');
   navigate('dashboard');
   updateChatNudge();
   renderChatMessages();
+}
+
+export function skipContextCards() {
+  finishContextCards(false);
 }
 
 export function continueAfterContextCards() {
-  clearForcedOnboardingStep();
-  localStorage.setItem(`labcharts-onboard-extras-done-${state.currentProfile}`, '1');
-  localStorage.setItem(`labcharts-onboard-context-cards-done-${state.currentProfile}`, '1');
-  localStorage.removeItem(`labcharts-onboard-context-cards-skipped-${state.currentProfile}`);
-  sessionStorage.removeItem(`chat-onboard-force-context-cards-${state.currentProfile}`);
-  sessionStorage.setItem('welcome-details-open', '1');
-  navigate('dashboard');
-  updateChatNudge();
-  renderChatMessages();
+  finishContextCards(true);
 }
 
-export function goToOnboardingStep(step) {
+export function goToOnboardingStep(step: number) {
   const target = Number(step);
   if (!Number.isFinite(target)) return;
   const profileId = state.currentProfile;
@@ -770,7 +758,7 @@ export function onContextCardSaved() {
   localStorage.removeItem(`labcharts-onboard-context-cards-skipped-${state.currentProfile}`);
   localStorage.removeItem(`labcharts-onboard-context-cards-done-${state.currentProfile}`);
   const filled = _countFilledCards();
-  const hasData = state.importedData?.entries?.length > 0;
+  const hasData = state.importedData?.entries?.length! > 0;
   if (!hasData) {
     setChatNudge(filled >= 9 ? 'ready' : 'context');
   }
