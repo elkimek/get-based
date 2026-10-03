@@ -358,7 +358,7 @@ function loadPreparedBiologyScoreInsights(profileId, force) {
         automatic: !force,
         shouldContinue: () => state.currentProfile === profileId,
         onBatch: async (group, result) => {
-          const records = group.filter(score => result.answers[score.id]).map(score => ({ score, answer: result.answers[score.id], materialFingerprint: materials.get(score.id) }));
+          const records = group.filter(score => result.answers[score.id]).map(score => ({ score, answer: result.answers[score.id], materialFingerprint: /** @type {string} */ (materials.get(score.id)) }));
           if (records.length) await writeScoreAIAnswers(records, profileId, originData);
           for (const score of group) {
             const keys = assessmentRequestKeys(score, profileId);

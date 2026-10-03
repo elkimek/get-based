@@ -5,7 +5,7 @@ import type { parseAnswer, generationDetails } from './biology-score-ai-protocol
 export interface AIExplanationScore extends CoverageScore, Pick<ScoreResult, 'score' | 'tone' | 'flags'> {
   available: ScorePart[];
   historicalSnapshot?: AIExplanationScore;
-  aiViews?: { score: AIExplanationScore; labels: string[] }[];
+  aiViews?: { score: AIExplanationScore; labels: string[]; material?: string }[];
   rawScore?: number | null; recencyStatus?: string; recencyBadge?: string;
   algorithmVersion?: string; evidence?: string; scoreConfidenceLabel?: string; boundary?: string;
   methodology?: string; panelLabel?: string; scopeLabel?: string; question?: string;

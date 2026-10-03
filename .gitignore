@@ -798,3 +798,6 @@ deploy/profile-share/data/
 
 /js/recommendations.js
 /js/recommendation-actions.js
+
+/js/demo-biology-insights.js
+/js/biology-score-sections.js
