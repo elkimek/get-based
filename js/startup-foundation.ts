@@ -1,4 +1,3 @@
-// @ts-check
 // startup-foundation.js - blocking foundation work before profile startup
 
 import { initEncryption, initBroadcastChannel, initFolderBackup } from './crypto.js';

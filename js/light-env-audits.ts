@@ -1,4 +1,3 @@
-// @ts-check
 // light-env-audits.js — saved Light Environment snapshots and compare UI.
 //
 // The live environment remains owned by light-env.js. This module receives
@@ -24,8 +23,22 @@ import { createUniqueId } from './unique-id.js';
 //     screens: [...deep-copy], measurements: [...last 30d, deep-copy],
 //     createdAt, updatedAt? }
 
-/** @type {{ getEnvironment: AnyFunction, computeRoomSeverity: AnyFunction, refreshLightEnvironmentUI: AnyFunction, hasAIProvider: AnyFunction, maybeAnalyzeAuditAfterSave: AnyFunction, renderAuditAIBlock: AnyFunction, renderAuditAIDot: AnyFunction, openChatPanel: AnyFunction | null }} */
-const auditDeps = {
+import type { LightRoom, LightScreen, LightMeasurement } from './light-env-model.js';
+
+// These private views describe unchecked readers, not normalized persisted DTOs.
+type AuditRoomReader = { [Key in keyof LightRoom]?: unknown };
+type AuditScreenReader = { [Key in keyof LightScreen]?: unknown };
+interface AuditMeasurementReader extends Record<string, unknown> { tool?: unknown; roomId?: unknown; value?: unknown; capturedAt?: unknown; extra?: Record<string, unknown> | null }
+interface AuditReader extends Record<string, unknown> { id?: unknown; date?: unknown; label?: unknown; notes?: unknown; rooms?: AuditRoomReader[] | null; screens?: AuditScreenReader[] | null; measurements?: AuditMeasurementReader[] | null; createdAt?: unknown; updatedAt?: unknown }
+interface EnvironmentReader { rooms?: AuditRoomReader[] | null; screens?: unknown }
+interface SeverityReader { tier: number; color?: unknown; label?: unknown; reason?: unknown }
+interface ArithmeticMeasurementReader extends Omit<AuditMeasurementReader, 'value' | 'extra'> { value: number; extra: { cameraBlueRatioProxy: number; melanopic: number } }
+type AuditDependencyName = 'getEnvironment' | 'computeRoomSeverity' | 'refreshLightEnvironmentUI' | 'hasAIProvider' | 'maybeAnalyzeAuditAfterSave' | 'renderAuditAIBlock' | 'renderAuditAIDot' | 'openChatPanel';
+type AuditDependencies = Record<AuditDependencyName, unknown>;
+interface ComparisonChannel { tool: string; label: string; fmt: (value: unknown, measurement?: AuditMeasurementReader | null) => string; better: string }
+interface ComparisonRow { ch: ComparisonChannel; m1?: AuditMeasurementReader | null | undefined; m2?: AuditMeasurementReader | null | undefined }
+interface KeyedRoom { key: unknown; room: AuditRoomReader }
+const auditDeps: AuditDependencies = {
   getEnvironment: () => state.importedData?.lightEnvironment || null,
   computeRoomSeverity: () => ({
     tier: 0,
@@ -44,30 +57,30 @@ const auditDeps = {
 const LIGHT_AUDITS_ANCHOR = '.light-audits-block';
 const AUDITS_DEFAULT_CAP = 2;
 
-let _expandedAuditId = null;
+let _expandedAuditId: unknown = null;
 let _auditCompareMode = false;
 let _showAllAudits = false;
 let _auditsBlockOpen = false;
 
-export function configureLightEnvAudits(deps = {}) {
+export function configureLightEnvAudits(deps: unknown = {}) {
   const previous = { ...auditDeps };
-  for (const [name, value] of Object.entries(deps || {})) {
+  for (const [name, value] of Object.entries((deps || {}) as object)) {
     if (Object.prototype.hasOwnProperty.call(auditDeps, name) && typeof value === 'function') {
-      auditDeps[name] = value;
+      auditDeps[name as AuditDependencyName] = value;
     }
   }
   return previous;
 }
 
 function getEnvironmentSnapshot() {
-  return auditDeps.getEnvironment();
+  return (auditDeps.getEnvironment as () => unknown)();
 }
 
-function computeRoomSeverity(room, measurements, options = {}) {
-  return auditDeps.computeRoomSeverity(room, measurements, options);
+function computeRoomSeverity(room: AuditRoomReader | null | undefined, measurements: AuditMeasurementReader[], options: { screens?: AuditScreenReader[]; isActiveToday?: () => boolean } = {}) {
+  return (auditDeps.computeRoomSeverity as (room: AuditRoomReader | null | undefined, measurements: AuditMeasurementReader[], options: { screens?: AuditScreenReader[]; isActiveToday?: () => boolean }) => unknown)(room, measurements, options) as SeverityReader;
 }
 
-function computeAuditRoomSeverity(audit, room) {
+function computeAuditRoomSeverity(audit: AuditReader | null | undefined, room: AuditRoomReader | null | undefined) {
   const measurements = (audit?.measurements || []).filter(m => m.roomId === room?.id);
   const screens = (audit?.screens || []).filter(screen => screen?.roomId === room?.id);
   // A saved audit must be interpreted from its own frozen snapshot, not
@@ -75,32 +88,32 @@ function computeAuditRoomSeverity(audit, room) {
   return computeRoomSeverity(room, measurements, { screens, isActiveToday: () => true });
 }
 
-function refreshLightEnvironmentUI(options = {}) {
-  auditDeps.refreshLightEnvironmentUI(options);
+function refreshLightEnvironmentUI(options: { scrollAnchor?: string; fallbackScrollAnchor?: string } = {}) {
+  (auditDeps.refreshLightEnvironmentUI as (options: { scrollAnchor?: string; fallbackScrollAnchor?: string }) => unknown)(options);
 }
 
-function maybeAnalyzeAuditAfterSave(audit) {
-  try { auditDeps.maybeAnalyzeAuditAfterSave(audit); } catch (_) {}
+function maybeAnalyzeAuditAfterSave(audit: unknown) {
+  try { (auditDeps.maybeAnalyzeAuditAfterSave as (audit: unknown) => unknown)(audit); } catch (_) {}
 }
 
-function renderAuditAIBlock(audit) {
-  try { return auditDeps.renderAuditAIBlock(audit) || ''; } catch (_) { return ''; }
+function renderAuditAIBlock(audit: unknown) {
+  try { return (auditDeps.renderAuditAIBlock as (audit: unknown) => unknown)(audit) || ''; } catch (_) { return ''; }
 }
 
-function renderAuditAIDot(audit) {
-  try { return auditDeps.renderAuditAIDot(audit) || ''; } catch (_) { return ''; }
+function renderAuditAIDot(audit: unknown) {
+  try { return (auditDeps.renderAuditAIDot as (audit: unknown) => unknown)(audit) || ''; } catch (_) { return ''; }
 }
 
 function hasAuditAIProvider() {
-  try { return !!auditDeps.hasAIProvider(); } catch (_) { return false; }
+  try { return !!(auditDeps.hasAIProvider as () => unknown)(); } catch (_) { return false; }
 }
 
-function openAuditCompareChat(prompt) {
+function openAuditCompareChat(prompt: string) {
   if (typeof auditDeps.openChatPanel !== 'function') {
     showNotification('Chat panel unavailable on this build.', 'error');
     return;
   }
-  try { auditDeps.openChatPanel(prompt); } catch (_) { showNotification('Chat panel unavailable on this build.', 'error'); }
+  try { (auditDeps.openChatPanel as (prompt: string) => unknown)(prompt); } catch (_) { showNotification('Chat panel unavailable on this build.', 'error'); }
 }
 
 function refreshAuditsUI() {
@@ -108,15 +121,15 @@ function refreshAuditsUI() {
   refreshLightEnvironmentUI({ scrollAnchor: LIGHT_AUDITS_ANCHOR });
 }
 
-function cssAttrSelectorValue(value) {
+function cssAttrSelectorValue(value: unknown) {
   return String(value ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-function lightAuditCardAnchor(id) {
+function lightAuditCardAnchor(id: unknown) {
   return `.light-audit-card[data-id="${cssAttrSelectorValue(id)}"]`;
 }
 
-function refreshAuditCardUI(id) {
+function refreshAuditCardUI(id: unknown) {
   _auditsBlockOpen = true;
   refreshLightEnvironmentUI({
     scrollAnchor: lightAuditCardAnchor(id),
@@ -124,22 +137,22 @@ function refreshAuditCardUI(id) {
   });
 }
 
-export function getLightAudits() {
+export function getLightAudits(): unknown {
   if (!state.importedData) return [];
   if (!Array.isArray(state.importedData.lightAudits)) state.importedData.lightAudits = [];
   return state.importedData.lightAudits;
 }
 
-export async function saveLightAudit(label = '') {
-  const env = getEnvironmentSnapshot();
+export async function saveLightAudit(label: unknown = '') {
+  const env = getEnvironmentSnapshot() as EnvironmentReader | null | undefined;
   if (!env) return null;
-  const audits = getLightAudits();
+  const audits = (getLightAudits() as unknown[]);
   // Snapshot only room-mapped measurements. Unmapped readings do not
   // have enough context to grade or compare an environment change.
   const roomIds = new Set((env.rooms || []).map(r => r.id).filter(Boolean));
-  const measurements = (state.importedData?.lightMeasurements || [])
+  const measurements = ((state.importedData?.lightMeasurements || []) as Array<LightMeasurement & { roomId?: unknown }>)
     .filter(m => m?.roomId && roomIds.has(m.roomId))
-    .map(m => JSON.parse(JSON.stringify(m)));
+    .map(m => JSON.parse(JSON.stringify(m)) as unknown);
   const today = new Date();
   const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const audit = {
@@ -147,8 +160,8 @@ export async function saveLightAudit(label = '') {
     date,
     label: String(label || `Audit ${audits.length + 1}`).replace(/\s+/g, ' ').trim().slice(0, 80),
     notes: '',
-    rooms: JSON.parse(JSON.stringify(env.rooms || [])),
-    screens: JSON.parse(JSON.stringify(env.screens || [])),
+    rooms: JSON.parse(JSON.stringify(env.rooms || [])) as unknown,
+    screens: JSON.parse(JSON.stringify(env.screens || [])) as unknown,
     measurements,
     createdAt: Date.now(),
   };
@@ -163,31 +176,31 @@ export async function saveLightAudit(label = '') {
   return audit;
 }
 
-export async function updateLightAudit(id, patch) {
-  const audits = getLightAudits();
+export async function updateLightAudit(id: unknown, patch: unknown) {
+  const audits = (getLightAudits() as AuditReader[]);
   const a = audits.find(x => x.id === id);
   if (!a) return;
   if (Object.prototype.hasOwnProperty.call(patch || {}, 'label')) {
-    a.label = String(patch.label || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+    a.label = String((patch as { label?: unknown }).label || '').replace(/\s+/g, ' ').trim().slice(0, 80);
   }
   if (Object.prototype.hasOwnProperty.call(patch || {}, 'notes')) {
-    a.notes = String(patch.notes || '').slice(0, 1000);
+    a.notes = String((patch as { notes?: unknown }).notes || '').slice(0, 1000);
   }
   if (Object.prototype.hasOwnProperty.call(patch || {}, 'date')) {
-    const date = String(patch.date || '');
+    const date = String((patch as { date?: unknown }).date || '');
     if (/^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(new Date(`${date}T00:00:00`).getTime())) a.date = date;
   }
   a.updatedAt = Date.now();
   await saveImportedData();
 }
 
-export async function deleteLightAudit(id) {
-  deleteImportedArrayItems(state.importedData, 'lightAudits', a => a.id === id);
+export async function deleteLightAudit(id: unknown) {
+  deleteImportedArrayItems(state.importedData, 'lightAudits', a => (a as AuditReader).id === id);
   await saveImportedData();
 }
 
 // Worst-room-tier rolls up to the audit-level severity badge.
-function computeAuditSeverity(audit) {
+function computeAuditSeverity(audit: AuditReader | null | undefined) {
   const rooms = audit?.rooms || [];
   let worstTier = 0;
   let hasInterpretableRoom = false;
@@ -205,47 +218,47 @@ function computeAuditSeverity(audit) {
 }
 
 // Most-recent measurement of a tool, scoped to a room, inside an audit.
-function latestInAudit(audit, tool, roomId) {
+function latestInAudit(audit: AuditReader | null | undefined, tool: unknown, roomId: unknown) {
   return (audit?.measurements || [])
     .filter(m => m.tool === tool && m.roomId === roomId)
-    .sort((a, b) => (b.capturedAt || 0) - (a.capturedAt || 0))[0];
+    .sort((a, b) => ((b.capturedAt || 0) as number) - ((a.capturedAt || 0) as number))[0];
 }
 
-function fmtAuditDate(d) {
-  return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+function fmtAuditDate(d: unknown) {
+  return new Date((d as string) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function flickerLabel(score) {
-  return ['No banding detected', 'Some banding', 'Clear banding', 'Strong banding'][Math.min(3, Math.max(0, Math.round(score)))] || String(score);
+function flickerLabel(score: unknown) {
+  return ['No banding detected', 'Some banding', 'Clear banding', 'Strong banding'][Math.min(3, Math.max(0, Math.round(score as number)))] || String(score);
 }
 
-function fmtAuditLux(m) {
+function fmtAuditLux(m?: AuditMeasurementReader | null) {
   const value = Math.round(Number(m?.value) || 0);
   if (m?.extra?.source === 'camera-estimate') return `~${value} lux (camera estimate)`;
-  if (['AmbientLightSensor', 'manual-entry', 'meter-entry'].includes(m?.extra?.source)) return `${value} lux`;
+  if (['AmbientLightSensor', 'manual-entry', 'meter-entry'].includes(m?.extra?.source as string)) return `${value} lux`;
   return `${value} lux (method unknown)`;
 }
 
-function fmtAuditDarkness(m) {
+function fmtAuditDarkness(m?: AuditMeasurementReader | null) {
   if (m?.extra?.method === 'camera-relative') return `${m.extra?.levelLabel || 'Qualitative'} camera check`;
   if (m?.extra?.method === 'meter-entry' || m?.extra?.source === 'meter-entry') return `${Number(m?.value || 0).toFixed(2)} lux (meter)`;
   return `${Number(m?.value || 0).toFixed(2)} legacy value (method unknown)`;
 }
 
-function sortAuditsNewestFirst(audits) {
+function sortAuditsNewestFirst(audits: AuditReader[]) {
   return audits.slice().sort((a, b) => {
-    const byDate = (b.date || '').localeCompare(a.date || '');
-    if (byDate) return byDate;
-    return (b.createdAt || 0) - (a.createdAt || 0);
+    const byDate = ((b.date || '') as { localeCompare(other: unknown): unknown }).localeCompare(a.date || '');
+    if (byDate) return byDate as number;
+    return ((b.createdAt || 0) as number) - ((a.createdAt || 0) as number);
   });
 }
 
-function keepAuditVisible(id) {
-  const visibleIds = new Set(sortAuditsNewestFirst(getLightAudits()).slice(0, AUDITS_DEFAULT_CAP).map(a => a.id));
+function keepAuditVisible(id: unknown) {
+  const visibleIds = new Set(sortAuditsNewestFirst((getLightAudits() as AuditReader[])).slice(0, AUDITS_DEFAULT_CAP).map(a => a.id));
   if (!visibleIds.has(id)) _showAllAudits = true;
 }
 
-function renderLightAuditCard(a, expanded) {
+function renderLightAuditCard(a: AuditReader, expanded: unknown) {
   const sev = computeAuditSeverity(a);
   const roomsCount = (a.rooms || []).length;
   const measCount = (a.measurements || []).length;
@@ -270,12 +283,12 @@ function renderLightAuditCard(a, expanded) {
 // Pull the per-channel measurement values for a room inside an audit.
 // Returns null for any tool that has no reading; callers decide whether
 // to render the row at all.
-function _auditRoomChannels(audit, room) {
+function _auditRoomChannels(audit: AuditReader, room: AuditRoomReader) {
   const lux = latestInAudit(audit, 'lux', room.id);
   const dark = latestInAudit(audit, 'darkness', room.id);
   const fli = latestInAudit(audit, 'flicker', room.id);
-  const cct = latestInAudit(audit, 'cct', room.id);
-  const spec = latestInAudit(audit, 'spectrum', room.id);
+  const cct = latestInAudit(audit, 'cct', room.id) as ArithmeticMeasurementReader | undefined;
+  const spec = latestInAudit(audit, 'spectrum', room.id) as ArithmeticMeasurementReader;
   return [
     lux ? { key: 'lux', label: 'Brightness', text: fmtAuditLux(lux) } : null,
     dark ? { key: 'darkness', label: 'Sleep light', text: fmtAuditDarkness(dark) } : null,
@@ -287,7 +300,7 @@ function _auditRoomChannels(audit, room) {
   ].filter(ch => ch !== null);
 }
 
-function renderLightAuditDetail(a) {
+function renderLightAuditDetail(a: AuditReader) {
   let html = `<div class="light-audit-detail">
     <div class="light-audit-meta-row">
       <label class="light-audit-meta-field light-audit-meta-field--date">
@@ -305,7 +318,7 @@ function renderLightAuditDetail(a) {
     html += `<p class="light-audit-empty">No rooms in this audit's snapshot.</p>`;
   } else {
     html += `<div class="light-audit-rooms">`;
-    for (const r of a.rooms) {
+    for (const r of a.rooms!) {
       const sev = computeAuditRoomSeverity(a, r);
       const channels = _auditRoomChannels(a, r);
       html += `<div class="light-audit-room-card">
@@ -340,7 +353,7 @@ function renderLightAuditDetail(a) {
 
 // Compare-view directional arrow + color. `better` says which direction
 // improvement looks like ('lower', 'higher', or 'depends' = neutral).
-function _compareArrow(delta, better) {
+function _compareArrow(delta: number, better: string) {
   const arrow = delta < 0 ? '↓' : delta > 0 ? '↑' : '=';
   let color = 'var(--text-muted)';
   if (better === 'lower') color = delta < 0 ? 'var(--green)' : delta > 0 ? 'var(--red)' : color;
@@ -351,20 +364,20 @@ function _compareArrow(delta, better) {
 // Per-channel metadata for compare. `better` is the improvement direction:
 // darkness/flicker/melanopic down = better (sleep-safer); lux/CCT depend
 // on time-of-day so neutral arrow color (we still show direction).
-const COMPARE_CHANNELS = [
+const COMPARE_CHANNELS: ComparisonChannel[] = [
   { tool: 'lux',      label: 'Brightness', fmt: (_v, m) => fmtAuditLux(m), better: 'depends' },
   { tool: 'darkness', label: 'Sleep light', fmt: (_v, m) => fmtAuditDarkness(m), better: 'depends' },
   { tool: 'flicker',  label: 'Banding', fmt: v => flickerLabel(v), better: 'lower' },
-  { tool: 'cct',      label: 'Warm / cool', fmt: v => `~${Math.round(v / 100) * 100} K`, better: 'depends' },
+  { tool: 'cct',      label: 'Warm / cool', fmt: v => `~${Math.round((v as number) / 100) * 100} K`, better: 'depends' },
 ];
 
 // Serialize an audit pair into a plain-text comparison the AI can
 // reason about. Format mirrors EMF's interpretEMFComparison but stays
 // terse — only rooms with measurements show up, channels are labeled
 // in plain English, deltas are explicit.
-function serializeAuditComparison(a1, a2) {
-  const fmtDate = (d) => new Date(d + 'T00:00:00').toLocaleDateString();
-  const lines = [];
+function serializeAuditComparison(a1: AuditReader, a2: AuditReader) {
+  const fmtDate = (d: unknown) => new Date((d as string) + 'T00:00:00').toLocaleDateString();
+  const lines: string[] = [];
   lines.push(`Light environment audit comparison`);
   lines.push(`Before: ${fmtDate(a1.date)}${a1.label ? ` (${a1.label})` : ''}`);
   lines.push(`After:  ${fmtDate(a2.date)}${a2.label ? ` (${a2.label})` : ''}`);
@@ -380,7 +393,7 @@ function serializeAuditComparison(a1, a2) {
     const r2 = (a2.rooms || []).find(r => r.name === name);
     const sev1 = r1 ? computeAuditRoomSeverity(a1, r1) : null;
     const sev2 = r2 ? computeAuditRoomSeverity(a2, r2) : null;
-    const channels = [];
+    const channels: string[] = [];
     for (const ch of COMPARE_CHANNELS) {
       const m1 = r1 ? latestInAudit(a1, ch.tool, r1.id) : null;
       const m2 = r2 ? latestInAudit(a2, ch.tool, r2.id) : null;
@@ -391,8 +404,8 @@ function serializeAuditComparison(a1, a2) {
     }
     const sp1 = r1 ? latestInAudit(a1, 'spectrum', r1.id) : null;
     const sp2 = r2 ? latestInAudit(a2, 'spectrum', r2.id) : null;
-    const mel1 = sp1?.extra?.cameraBlueRatioProxy ?? sp1?.extra?.melanopic;
-    const mel2 = sp2?.extra?.cameraBlueRatioProxy ?? sp2?.extra?.melanopic;
+    const mel1 = (sp1?.extra?.cameraBlueRatioProxy ?? sp1?.extra?.melanopic) as number | null | undefined;
+    const mel2 = (sp2?.extra?.cameraBlueRatioProxy ?? sp2?.extra?.melanopic) as number | null | undefined;
     if (mel1 != null || mel2 != null) {
       const before = mel1 != null ? `${(mel1 * 100).toFixed(0)}%` : '—';
       const after = mel2 != null ? `${(mel2 * 100).toFixed(0)}%` : '—';
@@ -411,10 +424,10 @@ function serializeAuditComparison(a1, a2) {
   return lines.join('\n').trim();
 }
 
-function renderLightAuditCompare(audits) {
+function renderLightAuditCompare(audits: AuditReader[]) {
   const sorted = sortAuditsNewestFirst(audits);
-  const a2 = sorted[0];        // newer (After)
-  const a1 = sorted[1] || sorted[0]; // older (Before)
+  const a2 = sorted[0]!;        // newer (After)
+  const a1 = (sorted[1] || sorted[0])!; // older (Before)
 
   // Match rooms across both audits by id (rooms deep-copy preserves the
   // live id, so room.id is stable across snapshots). Name was the
@@ -427,7 +440,7 @@ function renderLightAuditCompare(audits) {
   const _ks1 = (a1.rooms || []).map(r => ({ key: r.id || `name:${r.name}`, room: r }));
   const _ks2 = (a2.rooms || []).map(r => ({ key: r.id || `name:${r.name}`, room: r }));
   const roomKeys = [...new Set([..._ks1.map(k => k.key), ..._ks2.map(k => k.key)])];
-  const _findIn = (entries, key) => entries.find(e => e.key === key)?.room || null;
+  const _findIn = (entries: KeyedRoom[], key: unknown) => entries.find(e => e.key === key)?.room || null;
 
   // "Interpret changes" — only when we have an AI provider configured.
   // Opens the chat panel with a pre-filled comparison summary so the
@@ -464,7 +477,7 @@ function renderLightAuditCompare(audits) {
 
     // Build the list of comparable rows — only channels that have data
     // on at least ONE side. A row with both sides null is dropped.
-    const rows = [];
+    const rows: ComparisonRow[] = [];
     for (const ch of COMPARE_CHANNELS) {
       const m1 = r1 ? latestInAudit(a1, ch.tool, r1.id) : null;
       const m2 = r2 ? latestInAudit(a2, ch.tool, r2.id) : null;
@@ -475,8 +488,8 @@ function renderLightAuditCompare(audits) {
     // blue ratios, so prefer the explicit proxy key and label both honestly.
     const sp1 = r1 ? latestInAudit(a1, 'spectrum', r1.id) : null;
     const sp2 = r2 ? latestInAudit(a2, 'spectrum', r2.id) : null;
-    const mel1 = sp1?.extra?.cameraBlueRatioProxy ?? sp1?.extra?.melanopic;
-    const mel2 = sp2?.extra?.cameraBlueRatioProxy ?? sp2?.extra?.melanopic;
+    const mel1 = (sp1?.extra?.cameraBlueRatioProxy ?? sp1?.extra?.melanopic) as number | null | undefined;
+    const mel2 = (sp2?.extra?.cameraBlueRatioProxy ?? sp2?.extra?.melanopic) as number | null | undefined;
     const hasMelanopic = mel1 != null || mel2 != null;
 
     // Skip rooms that have no measurements on either side AND no
@@ -508,7 +521,7 @@ function renderLightAuditCompare(audits) {
       for (const { ch, m1, m2 } of rows) {
         const before = m1 ? ch.fmt(m1.value, m1) : '—';
         const after = m2 ? ch.fmt(m2.value, m2) : '—';
-        const arrow = (m1 && m2) ? _compareArrow((+m2.value) - (+m1.value), ch.better) : '<span class="light-audit-arrow" style="color:var(--text-muted)">→</span>';
+        const arrow = (m1 && m2) ? _compareArrow((+(m2.value as number)) - (+(m1.value as number)), ch.better) : '<span class="light-audit-arrow" style="color:var(--text-muted)">→</span>';
         html += `<div class="light-audit-compare-channel">
           <span class="light-audit-compare-channel-label">${escapeHTML(ch.label)}</span>
           <span class="light-audit-compare-channel-before">${escapeHTML(before)}</span>
@@ -549,7 +562,7 @@ function renderLightAuditCompare(audits) {
 }
 
 export function renderLightAuditsBlock() {
-  const audits = getLightAudits();
+  const audits = (getLightAudits() as AuditReader[]);
   // When two or more audits exist, Compare becomes the primary action.
   // Bumped to import-btn-primary so it is visually weighted ahead of
   // "Save audit".
@@ -598,7 +611,7 @@ export function renderLightAuditsBlock() {
 }
 
 export async function saveLightAuditFromUI() {
-  const defaultLabel = `Audit ${getLightAudits().length + 1}`;
+  const defaultLabel = `Audit ${(getLightAudits() as AuditReader[]).length + 1}`;
   const label = await showPromptDialog('Audit label (e.g. "Pre-mitigation", "After LED swap")', {
     defaultValue: defaultLabel,
     okLabel: 'Save audit',
@@ -616,7 +629,7 @@ export async function saveLightAuditFromUI() {
   }
 }
 
-export function toggleLightAudit(id) {
+export function toggleLightAudit(id: unknown) {
   _expandedAuditId = (_expandedAuditId === id) ? null : id;
   refreshAuditCardUI(id);
 }
@@ -630,31 +643,31 @@ export function toggleLightAuditCompare() {
 export function toggleLightAuditHistory() {
   _showAllAudits = !_showAllAudits;
   if (!_showAllAudits && _expandedAuditId) {
-    const visibleIds = new Set(sortAuditsNewestFirst(getLightAudits()).slice(0, AUDITS_DEFAULT_CAP).map(a => a.id));
+    const visibleIds = new Set(sortAuditsNewestFirst((getLightAudits() as AuditReader[])).slice(0, AUDITS_DEFAULT_CAP).map(a => a.id));
     if (!visibleIds.has(_expandedAuditId)) _expandedAuditId = null;
   }
   refreshAuditsUI();
 }
 
-export function setLightAuditsBlockOpen(open) {
+export function setLightAuditsBlockOpen(open: unknown) {
   _auditsBlockOpen = !!open;
 }
 
-export async function updateLightAuditField(id, field, value) {
-  await updateLightAudit(id, { [field]: value });
+export async function updateLightAuditField(id: unknown, field: unknown, value: unknown) {
+  await updateLightAudit(id, { [field as PropertyKey]: value });
   _expandedAuditId = id;
   keepAuditVisible(id);
   refreshAuditCardUI(id);
 }
 
-export async function deleteLightAuditConfirm(id) {
+export async function deleteLightAuditConfirm(id: unknown) {
   if (await showConfirmDialog('Delete this audit? This cannot be undone.')) {
     const deletingExpandedAudit = _expandedAuditId === id;
     await deleteLightAudit(id);
     _auditsBlockOpen = true;
-    if (getLightAudits().length < 2) _auditCompareMode = false;
+    if ((getLightAudits() as AuditReader[]).length < 2) _auditCompareMode = false;
     if (deletingExpandedAudit) {
-      _expandedAuditId = sortAuditsNewestFirst(getLightAudits())[0]?.id || null;
+      _expandedAuditId = sortAuditsNewestFirst((getLightAudits() as AuditReader[]))[0]?.id || null;
     }
     if (_expandedAuditId) {
       keepAuditVisible(_expandedAuditId);
@@ -665,8 +678,8 @@ export async function deleteLightAuditConfirm(id) {
   }
 }
 
-export function interpretLightAuditCompare(oldId, newId) {
-  const audits = getLightAudits();
+export function interpretLightAuditCompare(oldId: unknown, newId: unknown) {
+  const audits = (getLightAudits() as AuditReader[]);
   const a1 = audits.find(a => a.id === oldId);
   const a2 = audits.find(a => a.id === newId);
   if (!a1 || !a2) {

@@ -1,4 +1,3 @@
-// @ts-check
 // startup-oauth-callbacks.js - startup OAuth callback routing
 
 import { getErrorMessage } from './caught-error.js';
@@ -16,17 +15,24 @@ import {
 import { showNotification as showAppNotification } from './utils.js';
 import { loadWearablesConnectModule } from './wearables-connect-loader.js';
 
-/** @type {{ showNotification: Function | null, showInsufficientBalanceDialog: Function | null }} */
-const startupOAuthCallbackDeps = {
+interface StartupOAuthCallbackDeps { showNotification: unknown; showInsufficientBalanceDialog: unknown }
+interface StartupRuntimeReader {
+  location?: { pathname?: unknown; search?: unknown } | null;
+  sessionStorage: Pick<Storage, 'length' | 'key' | 'getItem'>;
+  history?: { replaceState?: unknown } | null;
+  _openChatAfterInit?: unknown;
+}
+type SearchInput = ConstructorParameters<typeof URLSearchParams>[0];
+const startupOAuthCallbackDeps: StartupOAuthCallbackDeps = {
   showNotification: showAppNotification,
   showInsufficientBalanceDialog: null,
 };
 
-export function configureStartupOAuthCallbackDeps(deps = {}) {
+export function configureStartupOAuthCallbackDeps(deps: { [Key in keyof StartupOAuthCallbackDeps]?: unknown } = {}) {
   const previous = { ...startupOAuthCallbackDeps };
   if ('showNotification' in deps) {
     startupOAuthCallbackDeps.showNotification = typeof deps.showNotification === 'function'
-      ? /** @type {typeof showAppNotification} */ (deps.showNotification)
+      ? deps.showNotification
       : null;
   }
   if ('showInsufficientBalanceDialog' in deps) {
@@ -38,7 +44,7 @@ export function configureStartupOAuthCallbackDeps(deps = {}) {
 }
 
 function startupRuntime() {
-  return /** @type {Record<string, any>} */ (globalThis);
+  return globalThis as unknown as StartupRuntimeReader;
 }
 
 function currentPathname() {
@@ -49,8 +55,8 @@ function currentSearch() {
   return startupRuntime().location?.search || '';
 }
 
-export function hasPendingWearableOAuthCallback(search = currentSearch()) {
-  const returnedState = new URLSearchParams(search).get('state');
+export function hasPendingWearableOAuthCallback(search: unknown = currentSearch()) {
+  const returnedState = new URLSearchParams(search as SearchInput).get('state');
   if (!returnedState) return false;
   try {
     const storage = startupRuntime().sessionStorage;
@@ -60,7 +66,7 @@ export function hasPendingWearableOAuthCallback(search = currentSearch()) {
       const pendingRaw = storage.getItem(key);
       if (!pendingRaw) continue;
       try {
-        if (JSON.parse(pendingRaw).state === returnedState) return true;
+        if ((JSON.parse(pendingRaw) as { state?: unknown }).state === returnedState) return true;
       } catch {}
     }
   } catch {}
@@ -70,19 +76,19 @@ export function hasPendingWearableOAuthCallback(search = currentSearch()) {
 function replaceCurrentUrl() {
   const historyApi = startupRuntime().history;
   if (historyApi && typeof historyApi.replaceState === 'function') {
-    historyApi.replaceState(null, '', currentPathname());
+    (historyApi.replaceState as (data: null, unused: string, url: unknown) => unknown)(null, '', currentPathname());
   }
 }
 
-function showNotification(message, type, duration) {
-  startupOAuthCallbackDeps.showNotification?.(message, type, duration);
+function showNotification(message: Parameters<typeof showAppNotification>[0], type: Parameters<typeof showAppNotification>[1], duration?: Parameters<typeof showAppNotification>[2]) {
+  (startupOAuthCallbackDeps.showNotification as typeof showAppNotification | null | undefined)?.(message, type, duration);
 }
 
 function openChatAfterInit() {
   startupRuntime()._openChatAfterInit = true;
 }
 
-async function handleOpenRouterOAuthCallback(oauthCode, oauthState) {
+async function handleOpenRouterOAuthCallback(oauthCode: unknown, oauthState: unknown) {
   replaceCurrentUrl();
 
   if (typeof oauthCode !== 'string' || !oauthCode) {
@@ -116,7 +122,7 @@ async function handleOpenRouterOAuthCallback(oauthCode, oauthState) {
       const remaining = balance?.remaining;
       const showInsufficientBalanceDialog = startupOAuthCallbackDeps.showInsufficientBalanceDialog;
       if (typeof remaining === 'number' && Number.isFinite(remaining) && remaining <= 0 && typeof showInsufficientBalanceDialog === 'function') {
-        setTimeout(() => showInsufficientBalanceDialog(), 1500);
+        setTimeout(() => (showInsufficientBalanceDialog as () => unknown)(), 1500);
       }
     } catch {}
   } catch (e) {
@@ -126,7 +132,7 @@ async function handleOpenRouterOAuthCallback(oauthCode, oauthState) {
   }
 }
 
-function handleOpenRouterOAuthError(error, description) {
+function handleOpenRouterOAuthError(error: unknown, description: unknown) {
   replaceCurrentUrl();
   restoreOpenRouterOAuthPreviousProvider();
   clearOpenRouterOAuthSession();
@@ -135,13 +141,13 @@ function handleOpenRouterOAuthError(error, description) {
     showNotification('OpenRouter authorization was cancelled', 'info', 4000);
   } else {
     const detail = description || error || 'Authorization failed';
-    showNotification('OpenRouter authorization failed: ' + detail, 'error', 6000);
+    showNotification('OpenRouter authorization failed: ' + (detail as string), 'error', 6000);
   }
 }
 
 export async function handleStartupOAuthCallbacks() {
   const search = currentSearch();
-  const urlParams = new URLSearchParams(search);
+  const urlParams = new URLSearchParams(search as SearchInput);
   // Wearable OAuth2 callbacks must run after profile load so saveConnection
   // writes to the active profile. If handled, skip OpenRouter so the same
   // `?code=` is not processed twice.

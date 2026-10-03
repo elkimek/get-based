@@ -235,14 +235,14 @@ const {
       && contextMerged.ozoneDU === 306
       && contextMerged.cloudCover === 18
       && contextMerged.temperatureC === 20
-      && contextMerged.daily?.sunrise === '2026-05-12T05:10'
-      && contextMerged.daily?.sunset === '2026-05-12T20:35'
-      && contextMerged.daily?.peakAt === '2026-05-12T12:00'
-      && contextMerged.airQuality?.european_aqi === 18
-      && contextMerged.airQuality?.pm25 === 2.4
-      && contextMerged.airQuality?.aod === 0.12
-      && contextMerged.hourly?.uv_index?.[0] === 5.2
-      && contextMerged.hourly?.cloud_cover?.[0] === 18
+      && (contextMerged.daily as { sunrise?: unknown } | null | undefined)?.sunrise === '2026-05-12T05:10'
+      && (contextMerged.daily as { sunset?: unknown } | null | undefined)?.sunset === '2026-05-12T20:35'
+      && (contextMerged.daily as { peakAt?: unknown } | null | undefined)?.peakAt === '2026-05-12T12:00'
+      && (contextMerged.airQuality as { european_aqi?: unknown } | null | undefined)?.european_aqi === 18
+      && (contextMerged.airQuality as { pm25?: unknown } | null | undefined)?.pm25 === 2.4
+      && (contextMerged.airQuality as { aod?: unknown } | null | undefined)?.aod === 0.12
+      && (contextMerged.hourly as { uv_index?: { [index: number]: unknown } | null } | null | undefined)?.uv_index?.[0] === 5.2
+      && (contextMerged.hourly as { cloud_cover?: { [index: number]: unknown } | null } | null | undefined)?.cloud_cover?.[0] === 18
       && contextCalls.some(url => url.includes('api.open-meteo.com'))
       && contextCalls.some(url => url.includes('air-quality-api.open-meteo.com')),
     JSON.stringify(contextMerged));

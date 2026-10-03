@@ -42,7 +42,7 @@ export function isBodyRegionsInAIContext() {
 }
 export function setBodyRegionsInAIContext(on) {
   localStorage.setItem(_bodyRegionsCtxKey(), on ? 'on' : 'off');
-  sunContextDeps.invalidateLabContextCache?.();
+  (/** @type {(() => unknown) | null | undefined} */ (sunContextDeps.invalidateLabContextCache))?.();
 }
 
 // ─── Public API ────────────────────────────────────────────────────────

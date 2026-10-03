@@ -632,7 +632,7 @@ function _summarizeBodyExposure(sess) {
   return 'Body unset';
 }
 
-configureSunSessionsStore({
+(/** @type {(deps: Omit<NonNullable<Parameters<typeof configureSunSessionsStore>[0]>, 'fetchAtmosphere'> & { fetchAtmosphere: typeof fetchAtmosphere }) => ReturnType<typeof configureSunSessionsStore>} */ (configureSunSessionsStore))({
   commitCurrentSlice: _commitCurrentSlice,
   setLiveState: _setLiveState,
   clearLiveState: _clearLiveState,

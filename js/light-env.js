@@ -363,7 +363,7 @@ export function renderEnvironmentAssessmentSummary() {
   const env = getEnvironment();
   const rooms = env?.rooms || [];
   const screens = env?.screens || [];
-  const audits = getLightAudits();
+  const audits = /** @type {{ length: unknown }} */ (getLightAudits());
   const measurements = state.importedData?.lightMeasurements || [];
   const roomIds = new Set(rooms.map(r => r.id).filter(Boolean));
   const mappedMeasurements = measurements.filter(m => m?.roomId && roomIds.has(m.roomId));

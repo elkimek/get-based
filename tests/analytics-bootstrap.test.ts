@@ -7,31 +7,34 @@ const analyticsBootstrap = fs.readFileSync(
   'utf8',
 );
 
+interface AnalyticsScript extends Record<string, unknown> { dataset: Record<string, unknown> }
+interface AnalyticsBootstrapOptions { hostname?: string; protocol?: string; online?: boolean; disabled?: boolean }
+
 function runBootstrap({
   hostname = 'app.getbased.health',
   protocol = 'https:',
   online = true,
   disabled = false,
-} = {}) {
-  const appended = [];
-  let onlineListener = null;
-  let onlineListenerOptions = null;
-  const storage = new Map(
+}: AnalyticsBootstrapOptions = {}) {
+  const appended: AnalyticsScript[] = [];
+  let onlineListener: (() => void) | null = null;
+  let onlineListenerOptions: { once?: unknown } | null = null;
+  const storage = new Map<string, string>(
     disabled ? [['labcharts-analytics-disabled', 'true']] : [],
   );
   const context = {
     document: {
-      createElement: () => ({ dataset: {} }),
+      createElement: (): AnalyticsScript => ({ dataset: {} }),
       head: {
-        appendChild: element => appended.push(element),
+        appendChild: (element: AnalyticsScript) => appended.push(element),
       },
     },
     localStorage: {
-      getItem: key => storage.get(key) || null,
+      getItem: (key: string) => storage.get(key) || null,
     },
     location: { hostname, protocol },
     navigator: { onLine: online },
-    addEventListener: (type, listener, options) => {
+    addEventListener: (type: string, listener: () => void, options: { once?: unknown }) => {
       if (type === 'online') {
         onlineListener = listener;
         onlineListenerOptions = options;
@@ -70,8 +73,8 @@ describe('analytics bootstrap', () => {
   it('pins the executable analytics response so an upstream change fails closed', () => {
     const { appended: [script] } = runBootstrap();
 
-    expect(script.integrity).toMatch(/^sha384-[A-Za-z0-9+/]{64}$/);
-    expect(script.crossOrigin).toBe('anonymous');
+    expect(script!.integrity).toMatch(/^sha384-[A-Za-z0-9+/]{64}$/);
+    expect(script!.crossOrigin).toBe('anonymous');
   });
 
   it.each([
@@ -80,7 +83,7 @@ describe('analytics bootstrap', () => {
     ['Tor', { hostname: 'example.onion' }],
     ['local development', { hostname: 'localhost' }],
     ['explicit opt-out', { disabled: true }],
-  ])('skips analytics for %s', (_label, options) => {
+  ] as const)('skips analytics for %s', (_label, options) => {
     expect(runBootstrap(options).appended).toEqual([]);
   });
 
@@ -92,7 +95,7 @@ describe('analytics bootstrap', () => {
     bootstrap.reconnect();
 
     expect(bootstrap.appended).toHaveLength(1);
-    expect(bootstrap.appended[0].src)
+    expect(bootstrap.appended[0]!.src)
       .toBe('https://umami-iota-olive.vercel.app/script.js');
   });
 });

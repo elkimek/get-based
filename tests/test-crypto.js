@@ -489,7 +489,7 @@ try {
   const runtimeSrc = await fetchWithRetry('js/profile-runtime.js');
   const appShellHooksSrc = await fetchWithRetry('js/app-shell-hooks.js');
   const exportSrc = await fetchWithRetry('js/export.js');
-  const exportRuntimeSrc = await fetchWithRetry('js/export-runtime.js');
+  const exportRuntimeSrc = (await fetchWithRetry('js/export-runtime.js')).replace(/\s+/g, ' ');
   const swSrc = await readServiceWorkerSource(relative => fetchWithRetry(relative));
   assert('loadProfile is async', src.includes('async function loadProfile'));
   assert('saveProfiles is async', src.includes('async function saveProfiles'));

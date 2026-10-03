@@ -1,4 +1,4 @@
-import type { AtmosphereSnapshot } from './sun-uvdata-atmosphere.js';
+import type * as client from './sun-uvdata.js';
 import type * as atmosphere from './sun-uvdata-atmosphere.js';
 
 /** Synchronous settings remain available while the encrypted write is queued. */
@@ -12,11 +12,9 @@ export interface UVDataClient {
   computeUVConfidence: typeof atmosphere.computeUVConfidence;
   nearestHourIndex: typeof atmosphere.nearestHourIndex;
   interpolateAtmosphere: typeof atmosphere.interpolateAtmosphere;
-  initMeteoConfigCache(): Promise<void>;
-  getMeteoConfig(): MeteoConfig;
-  saveMeteoConfig(config: MeteoConfig): Promise<boolean>;
-  fetchAtmosphere(options?: { lat?: number; lon?: number; isoTime?: string; noCache?: boolean }): Promise<
-    AtmosphereSnapshot & { _requestCoords?: { lat: number; lon: number; privacyRounded: boolean } }
-  >;
-  purgeMeteoCache(): void;
+  initMeteoConfigCache: typeof client.initMeteoConfigCache;
+  getMeteoConfig: typeof client.getMeteoConfig;
+  saveMeteoConfig: typeof client.saveMeteoConfig;
+  fetchAtmosphere: typeof client.fetchAtmosphere;
+  purgeMeteoCache: typeof client.purgeMeteoCache;
 }

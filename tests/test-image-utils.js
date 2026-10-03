@@ -140,7 +140,7 @@ assert('Vision models cached in fetchOpenRouterModels', apiModelsSrc.includes('l
 assert('Ollama image normalization', ollamaProviderSrc.includes('ollamaMessage.images = images'));
 
 const chatRenderSrc = await fetchWithRetry('js/chat-render.js');
-const chatSendSrc = await fetchWithRetry('js/chat-send.js');
+const chatSendSrc = (await fetchWithRetry('js/chat-send.js')).replace("(/** @type {(imageBlocks: Parameters<typeof buildVisionContent>[0], text: string | undefined, provider: Parameters<typeof buildVisionContent>[2]) => ReturnType<typeof buildVisionContent>} */ (buildVisionContent))", 'buildVisionContent');
 // Image-attachment flow was extracted to js/chat-images.js in v1.21.9.
 // chat-send.js keeps the image-utils import for send-time helpers
 // (buildVisionContent / formatImageBlock) and consumes the pending

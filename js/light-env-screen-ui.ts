@@ -1,22 +1,30 @@
-// @ts-check
 // light-env-screen-ui.js — screen-card rendering helpers for Light Environment.
 
 import { escapeHTML, escapeAttr } from './utils.js';
 import { lightEnvActionAttrs } from './light-env-actions.js';
 import { SCREEN_DEVICES, computeScreenStatus } from './light-env-model.js';
 import { isActiveToday } from './light-env-store.js';
+import type { LightRoom, LightScreen } from './light-env-model.js';
 
-const SCREEN_DEVICE_ICONS = {
+// Field readers retain unvalidated persisted values and unchecked callback results.
+export type ScreenCardReader = { [Key in keyof LightScreen]?: unknown };
+type ScreenRoomReader = { [Key in keyof Pick<LightRoom, 'id' | 'name'>]?: unknown };
+export interface ScreenCardOptions { expanded?: unknown; rooms?: unknown; renderTodayToggle?: unknown; renderScreenAIBlock?: unknown }
+type TodayToggleRenderer = (kind: 'screen', id: unknown, activeToday: ReturnType<typeof isActiveToday>) => unknown;
+type ScreenAIRenderer = (screen: ScreenCardReader) => unknown;
+
+
+const SCREEN_DEVICE_ICONS: Record<PropertyKey, unknown> = {
   phone: '📱', laptop: '💻', monitor: '🖥', tablet: '📲', tv: '📺',
 };
 
-function screenSummary(s) {
-  const parts = [];
+function screenSummary(s: ScreenCardReader) {
+  const parts: string[] = [];
   const hours = s.hoursPerDay;
-  if (hours != null && hours > 0) parts.push(`${hours} hr/day`);
+  if (hours != null && (hours as number) > 0) parts.push(`${hours} hr/day`);
   const eve = s.eveningUseAfterSunset;
-  if (eve != null && eve > 0) parts.push(`${eve} hr evening`);
-  else if (hours > 0) parts.push('daytime only');
+  if (eve != null && (eve as number) > 0) parts.push(`${eve} hr evening`);
+  else if ((hours as number) > 0) parts.push('daytime only');
   if (s.blueBlockerEnabled) parts.push('blue reduced');
   return parts.join(' · ');
 }
@@ -31,16 +39,16 @@ export const SCREEN_HOURS_BUCKETS = [
   { key: 'most',   label: '6+ hr',   midpoint: 8,   min: 6, max: 24 },
 ];
 
-export function activeScreenHoursBucket(hours) {
-  if (hours == null || isNaN(+hours)) return null;
-  const h = +hours;
+export function activeScreenHoursBucket(hours: unknown) {
+  if (hours == null || isNaN(+(hours as number))) return null;
+  const h = +(hours as number);
   for (const b of SCREEN_HOURS_BUCKETS) if (h >= b.min && h < b.max) return b.key;
   return 'most';
 }
 
-export function activeScreenEveningBucket(eve) {
+export function activeScreenEveningBucket(eve: unknown) {
   if (eve == null) return null;
-  const h = +eve;
+  const h = +(eve as number);
   if (h <= 0) return 'none';
   if (h < 1) return 'lt1';
   if (h < 3) return 'mid';
@@ -50,13 +58,13 @@ export function activeScreenEveningBucket(eve) {
 // Single screen card markup — used both at top level (portable) and
 // nested inside a room card (compact mode). Expansion state stays in
 // light-env.js; this module renders from the supplied context.
-export function renderScreenCard(s, opts = {}) {
-  const status = computeScreenStatus(s);
-  const activeToday = isActiveToday(s);
+export function renderScreenCard(s: ScreenCardReader, opts: ScreenCardOptions = {}) {
+  const status = (computeScreenStatus as (screen: ScreenCardReader) => ReturnType<typeof computeScreenStatus>)(s);
+  const activeToday = (isActiveToday as (screen: ScreenCardReader) => ReturnType<typeof isActiveToday>)(s);
   const expanded = !!opts.expanded;
-  const rooms = Array.isArray(opts.rooms) ? opts.rooms : [];
-  const renderTodayToggle = opts.renderTodayToggle;
-  const deviceIcon = SCREEN_DEVICE_ICONS[s.device] || '📱';
+  const rooms = Array.isArray(opts.rooms) ? opts.rooms as ScreenRoomReader[] : [];
+  const renderTodayToggle = opts.renderTodayToggle as TodayToggleRenderer | null | undefined;
+  const deviceIcon = SCREEN_DEVICE_ICONS[s.device as PropertyKey] || '📱';
   const deviceLabel = (SCREEN_DEVICES.find(d => d.key === s.device)?.label) || 'Device';
   const summary = screenSummary(s);
 
@@ -77,10 +85,10 @@ export function renderScreenCard(s, opts = {}) {
   return html;
 }
 
-function renderScreenExpandedBody(s, rooms, opts = {}) {
+function renderScreenExpandedBody(s: ScreenCardReader, rooms: ScreenRoomReader[], opts: ScreenCardOptions = {}) {
   const hoursActive = activeScreenHoursBucket(s.hoursPerDay);
   const eveActive = activeScreenEveningBucket(s.eveningUseAfterSunset);
-  const renderScreenAIBlock = opts.renderScreenAIBlock;
+  const renderScreenAIBlock = opts.renderScreenAIBlock as ScreenAIRenderer | null | undefined;
 
   const hoursChips = SCREEN_HOURS_BUCKETS.map(b =>
     `<button type="button" class="light-env-chip${hoursActive === b.key ? ' light-env-chip-active' : ''}" aria-pressed="${hoursActive === b.key ? 'true' : 'false'}" ${lightEnvActionAttrs('set-screen-hours-bucket', { id: s.id, key: b.key })}>${escapeHTML(b.label)}</button>`

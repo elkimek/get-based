@@ -1,4 +1,3 @@
-// @ts-check
 // sun-uvdata.js — Multi-source UV/ozone/atmosphere client for Sun Sessions
 import { getErrorName } from './caught-error.js';
 import { getProxyApiUrl } from './proxy-runtime.js';
@@ -27,6 +26,24 @@ export {
   parseProviderTimeMs,
   solarZenithAngle,
 };
+
+import type { MeteoConfigReader } from './sun-uvdata-config.js';
+
+// Cache/JSON values are copied after the original shallow checks, without normalization.
+type RawAtmosphereRecord = Record<string, unknown>;
+export interface AtmosphereRequestCoords { lat: number; lon: number; privacyRounded: boolean }
+export type FetchedAtmosphere = RawAtmosphereRecord & { _requestCoords: AtmosphereRequestCoords };
+export interface FetchAtmosphereOptions { lat?: number; lon?: number; isoTime?: string; noCache?: boolean }
+interface ProviderRequest { lat: number; lon: number; isoTime: string; cfg: MeteoConfigReader }
+type ProviderContext = Partial<MeteoConfigReader> & { lat?: number; lon?: number };
+interface AtmosphereProvider {
+  name: string;
+  available?: ((context: ProviderContext) => unknown) | undefined;
+  fetch: (request: ProviderRequest) => Promise<RawAtmosphereRecord | null>;
+}
+type RawOpenMeteoShaper = (forecast: unknown, airQuality: unknown, time: string, source: string) => RawAtmosphereRecord | null;
+type RawCamsShaper = (response: unknown, time: string, source: string) => RawAtmosphereRecord | null;
+type RawNoaaShaper = (response: unknown) => RawAtmosphereRecord | null;
 
 // Provider priority (each falls through on error):
 //   1. User-configured self-host (CAMS-mirrored or own data)
@@ -59,10 +76,7 @@ const NETWORK_TIMEOUT_MS = 8000;
 //
 // Pass `{ noCache: true }` to bypass both the fresh and stale cache layers
 // for a user-triggered force refresh — guarantees a fresh provider call.
-/**
- * @param {{ lat?: number, lon?: number, isoTime?: string, noCache?: boolean }} [opts]
- */
-export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
+export async function fetchAtmosphere({ lat, lon, isoTime, noCache }: FetchAtmosphereOptions = {}) {
   if (lat == null || lon == null) {
     throw new Error('fetchAtmosphere requires { lat, lon }');
   }
@@ -71,13 +85,13 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
   const { rLat, rLon } = roundCoords(lat, lon, effectiveRounding);
   const time = isoTime || new Date().toISOString();
   const cacheKey = makeCacheKey(rLat, rLon, time);
-  const withRequestMeta = result => result ? Object.assign({}, result, {
+  const withRequestMeta = <Result extends RawAtmosphereRecord | null>(result: Result) => (result ? Object.assign({}, result, {
     _requestCoords: {
       lat: rLat,
       lon: rLon,
       privacyRounded: Number(effectiveRounding) > 0,
     },
-  }) : result;
+  }) : result) as Result extends null ? null : FetchedAtmosphere;
 
   // Fresh cache hit (within TTL) — fast path, no network. Skipped on
   // noCache so user-triggered "force refresh" always reaches the provider.
@@ -90,7 +104,7 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
   const order = providerOrder(cfg, { lat: rLat, lon: rLon });
 
   for (let i = 0; i < order.length; i++) {
-    const provider = order[i];
+    const provider = order[i]!;
     try {
       const result = await provider.fetch({ lat: rLat, lon: rLon, isoTime: time, cfg });
       if (result) {
@@ -101,7 +115,7 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
         if (needsContextFallback && hasFallback) {
           for (let j = i + 1; j < order.length; j++) {
             try {
-              const fallback = await order[j].fetch({ lat: rLat, lon: rLon, isoTime: time, cfg });
+              const fallback = await order[j]!.fetch({ lat: rLat, lon: rLon, isoTime: time, cfg });
               if (fallback) {
                 const merged = mergeAtmosphereContext(result, fallback);
                 const annotated = withRequestMeta(merged);
@@ -128,13 +142,13 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
   if (!noCache) {
     const stale = readStaleCache(rLat, rLon);
     if (stale) {
-      return withRequestMeta(Object.assign({}, stale, { _stale: true, source: stale.source + '_stale' }));
+      return withRequestMeta(Object.assign({}, stale, { _stale: true, source: (stale.source as string) + '_stale' }));
     }
   }
 
   // Final fallback: offline zenith-angle estimate
   const offline = zenithOfflineEstimate({ lat: rLat, lon: rLon, isoTime: time });
-  return withRequestMeta(offline);
+  return withRequestMeta(offline as unknown as RawAtmosphereRecord);
 }
 
 // ─── Providers ─────────────────────────────────────────────────────────
@@ -159,7 +173,7 @@ export async function fetchAtmosphere({ lat, lon, isoTime, noCache } = {}) {
 // and there's no credential to leak).
 //
 // Returns true if the URL is safe to fetch, false otherwise.
-function _isValidSelfhostUrl(raw, withBearer = false) {
+function _isValidSelfhostUrl(raw: unknown, withBearer = false) {
   // Bearer-bearing requests require HTTPS so DNS rebinding to a LAN/metadata
   // IP fails at the TLS layer (rebound host won't have a cert for the
   // original domain). Without a bearer, we still want to refuse ambiguous
@@ -174,21 +188,21 @@ function _isValidSelfhostUrl(raw, withBearer = false) {
 // admin page, a cloud metadata service that returns JSON, etc), this
 // rejects it before we treat the result as authoritative atmosphere
 // data. Fails closed: returns false on any structural mismatch.
-function _looksLikeOpenMeteoResponse(json) {
+function _looksLikeOpenMeteoResponse(json: unknown) {
   if (!json || typeof json !== 'object') return false;
-  const h = json.hourly;
+  const h = (json as { hourly?: unknown }).hourly;
   if (!h || typeof h !== 'object') return false;
   // Must have a time array AND at least one of the requested data series.
-  if (!Array.isArray(h.time) || h.time.length === 0) return false;
+  if (!Array.isArray((h as RawAtmosphereRecord).time) || (h as { time: { length?: unknown } }).time.length === 0) return false;
   const expectedSeries = ['uv_index', 'uv_index_clear_sky', 'cloud_cover', 'temperature_2m'];
-  return expectedSeries.some(k => Array.isArray(h[k]));
+  return expectedSeries.some(k => Array.isArray((h as RawAtmosphereRecord)[k]));
 }
 
 const PROVIDERS = {
   selfhost: {
     name: 'selfhost',
-    available: (cfg) => Boolean(cfg.selfhostUrl) && _isValidSelfhostUrl(cfg.selfhostUrl, Boolean(cfg.selfhostBearer)),
-    fetch: async ({ lat, lon, isoTime, cfg }) => {
+    available: (cfg: ProviderContext) => Boolean(cfg.selfhostUrl) && _isValidSelfhostUrl(cfg.selfhostUrl, Boolean(cfg.selfhostBearer)),
+    fetch: async ({ lat, lon, isoTime, cfg }: ProviderRequest) => {
       const hasBearer = Boolean(cfg.selfhostBearer);
       if (!_isValidSelfhostUrl(cfg.selfhostUrl, hasBearer)) {
         throw new Error(hasBearer
@@ -208,8 +222,8 @@ const PROVIDERS = {
         time: isoTime,
         hourly: 'uv_index,uv_index_clear_sky,ozone,cloud_cover,temperature_2m',
       });
-      const url = `${cfg.selfhostUrl.replace(/\/$/, '')}/uv?${params.toString()}`;
-      const headers = {};
+      const url = `${(cfg.selfhostUrl as { replace(pattern: RegExp, replacement: string): unknown }).replace(/\/$/, '')}/uv?${params.toString()}`;
+      const headers: Record<string, string> = {};
       if (cfg.selfhostBearer) headers.Authorization = `Bearer ${cfg.selfhostBearer}`;
       const json = await fetchJson(url, { headers });
       // v1.7.8 defence-in-depth: validate response shape before trusting
@@ -221,15 +235,15 @@ const PROVIDERS = {
       }
       // Selfhost is expected to return Open-Meteo-shaped JSON. No air-quality
       // companion endpoint contract yet — pass null and the shaper handles it.
-      return json._camsMeta || json._fieldSources
-        ? shapeCamsResponse(json, isoTime, 'selfhost')
-        : shapeOpenMeteoResponse(json, null, isoTime, 'selfhost');
+      return (json as RawAtmosphereRecord)._camsMeta || (json as RawAtmosphereRecord)._fieldSources
+        ? (shapeCamsResponse as unknown as RawCamsShaper)(json, isoTime, 'selfhost')
+        : (shapeOpenMeteoResponse as unknown as RawOpenMeteoShaper)(json, null, isoTime, 'selfhost');
     },
   },
   cams: {
     name: 'cams',
     available: () => true,
-    fetch: async ({ lat, lon, isoTime }) => {
+    fetch: async ({ lat, lon, isoTime }: ProviderRequest) => {
       // Official hosts accept only this fixed operation, re-round coordinates
       // server-side, and POST them to the CAMS-only private relay route.
       // Self-hosted deployments can instead wire their own compatible relay.
@@ -239,23 +253,23 @@ const PROVIDERS = {
         body: JSON.stringify({ meteo: 'cams', latitude: lat, longitude: lon, time: isoTime }),
       };
       const json = await fetchJson(getProxyApiUrl(), options);
-      return shapeCamsResponse(json, isoTime, 'cams');
+      return (shapeCamsResponse as unknown as RawCamsShaper)(json, isoTime, 'cams');
     },
   },
   noaa: {
     name: 'noaa_nws',
-    available: ({ lat, lon }) => isUSCoords(lat, lon),
-    fetch: async ({ lat, lon }) => {
+    available: ({ lat, lon }: ProviderContext) => isUSCoords(lat, lon),
+    fetch: async ({ lat, lon }: ProviderRequest) => {
       // NOAA Air Resources Lab UV index endpoint
       const url = `https://www.cpc.ncep.noaa.gov/products/stratosphere/uv_index/json/uv_${Math.round(lat * 10)}_${Math.round(lon * 10)}.json`;
       const json = await fetchJson(url, {});
-      return shapeNoaaResponse(json);
+      return (shapeNoaaResponse as unknown as RawNoaaShaper)(json);
     },
   },
   openMeteo: {
     name: 'open_meteo',
     available: () => true,
-    fetch: async ({ lat, lon, isoTime }) => {
+    fetch: async ({ lat, lon, isoTime }: ProviderRequest) => {
       // Current and retro-session requests need different endpoints. Asking
       // the live endpoint for a fixed seven-day tail made older sessions snap
       // to whatever boundary hour happened to be returned. Use a bounded
@@ -310,7 +324,7 @@ const PROVIDERS = {
         fetchJson(aqUrl, {}),
       ]);
       if (fcJson.status !== 'fulfilled') return null;
-      return shapeOpenMeteoResponse(
+      return (shapeOpenMeteoResponse as unknown as RawOpenMeteoShaper)(
         fcJson.value,
         aqJson.status === 'fulfilled' ? aqJson.value : null,
         isoTime,
@@ -320,7 +334,7 @@ const PROVIDERS = {
   },
 };
 
-function providerIsAvailable(provider, ctx) {
+function providerIsAvailable(provider: AtmosphereProvider, ctx: ProviderContext) {
   try {
     if (!provider.available) return true;
     const ok = provider.available(ctx);
@@ -345,38 +359,38 @@ function providerIsAvailable(provider, ctx) {
   }
 }
 
-function availableProviders(candidates, ctx) {
+function availableProviders(candidates: AtmosphereProvider[], ctx: ProviderContext) {
   return candidates.filter(provider => providerIsAvailable(provider, ctx));
 }
 
-function hasUsefulProviderValue(value) {
+function hasUsefulProviderValue(value: unknown): boolean {
   if (Array.isArray(value)) return value.some(hasUsefulProviderValue);
   return value != null
     && (typeof value !== 'number' || Number.isFinite(value))
     && (typeof value !== 'string' || value.trim().length > 0);
 }
 
-function mergeUsefulFields(fallback, primary) {
-  const merged = { ...(fallback || {}) };
-  for (const [key, value] of Object.entries(primary || {})) {
+function mergeUsefulFields(fallback: unknown, primary: unknown) {
+  const merged: RawAtmosphereRecord = { ...((fallback || {}) as object) };
+  for (const [key, value] of (Object.entries as (value: unknown) => Array<[string, unknown]>)(primary || {})) {
     if (hasUsefulProviderValue(value)) merged[key] = value;
   }
   return Object.keys(merged).length ? merged : null;
 }
 
 // Overlay CAMS samples on the fallback's complete, location-local time grid.
-function mergeHourlyContext(primary, fallback) {
+function mergeHourlyContext(primary: RawAtmosphereRecord | null | undefined, fallback: RawAtmosphereRecord | null | undefined) {
   const fallbackTimes = fallback?.time;
   const primaryTimes = primary?.time;
   if (!Array.isArray(fallbackTimes) || !fallbackTimes.length) return primary || fallback || null;
   if (!Array.isArray(primaryTimes) || !primaryTimes.length) return fallback;
-  const fallbackOffset = Number(fallback.utcOffsetSeconds) || 0;
-  const primaryOffset = Number(primary.utcOffsetSeconds) || 0;
-  const merged = { ...fallback };
-  for (const [key, values] of Object.entries(primary)) {
+  const fallbackOffset = Number(fallback!.utcOffsetSeconds) || 0;
+  const primaryOffset = Number(primary!.utcOffsetSeconds) || 0;
+  const merged: RawAtmosphereRecord = { ...fallback };
+  for (const [key, values] of Object.entries(primary!)) {
     if (key === 'time' || key === 'utcOffsetSeconds' || !Array.isArray(values)) continue;
     const output = Array.isArray(merged[key])
-      ? merged[key].slice() : Array(fallbackTimes.length).fill(null);
+      ? (merged[key] as unknown[]).slice() : Array(fallbackTimes.length).fill(null);
     for (let i = 0; i < values.length; i++) {
       const value = values[i];
       if (!hasUsefulProviderValue(value)) continue;
@@ -393,29 +407,29 @@ function mergeHourlyContext(primary, fallback) {
   return { ...merged, time: fallbackTimes.slice(), utcOffsetSeconds: fallbackOffset };
 }
 
-function atmosphereNeedsContextFallback(result) {
-  const daily = result?.daily || {};
+function atmosphereNeedsContextFallback(result: RawAtmosphereRecord | null) {
+  const daily = (result?.daily || {}) as RawAtmosphereRecord;
   return String(result?.source || '').includes('cams')
     && [result?.uvIndex, result?.cloudCover, result?.temperatureC,
       daily.sunrise, daily.sunset, daily.peakAt,
-      result?.airQuality?.european_aqi].some(value => !hasUsefulProviderValue(value));
+      (result?.airQuality as RawAtmosphereRecord | null | undefined)?.european_aqi].some(value => !hasUsefulProviderValue(value));
 }
 
-function mergeAtmosphereContext(primary, fallback) {
+function mergeAtmosphereContext(primary: RawAtmosphereRecord | null, fallback: RawAtmosphereRecord | null) {
   const merged = mergeUsefulFields(fallback, primary) || {};
   const source = [...new Set(`${primary?.source || ''}+${fallback?.source || ''}`
     .split('+').filter(Boolean))].join('+');
   return Object.assign(merged, {
     airQuality: mergeUsefulFields(fallback?.airQuality, primary?.airQuality),
     daily: mergeUsefulFields(fallback?.daily, primary?.daily),
-    hourly: mergeHourlyContext(primary?.hourly, fallback?.hourly),
+    hourly: mergeHourlyContext(primary?.hourly as RawAtmosphereRecord | null | undefined, fallback?.hourly as RawAtmosphereRecord | null | undefined),
     source,
-    confidence: Math.min(primary?.confidence ?? 1, fallback?.confidence ?? 1),
+    confidence: Math.min((primary?.confidence ?? 1) as number, (fallback?.confidence ?? 1) as number),
     fetchedAt: Date.now(),
   });
 }
 
-function providerOrder(cfg, coords = {}) {
+function providerOrder(cfg: MeteoConfigReader, coords: { lat?: number; lon?: number } = {}) {
   const ctx = Object.assign({}, cfg, coords);
   // NOAA NWS doesn't allow browser CORS, so it's explicit-only and only useful
   // for non-browser callers. CAMS runs through the deployment-owned fixed
@@ -427,7 +441,7 @@ function providerOrder(cfg, coords = {}) {
   // Auto: an explicit user server first, then the deployment CAMS operation,
   // then browser-direct Open-Meteo. On official hosts the CAMS operation is
   // pinned to the getbased relay and forced to the privacy grid server-side.
-  const order = [];
+  const order: AtmosphereProvider[] = [];
   if (cfg.selfhostUrl) order.push(PROVIDERS.selfhost);
   order.push(PROVIDERS.cams);
   order.push(PROVIDERS.openMeteo);
@@ -436,22 +450,22 @@ function providerOrder(cfg, coords = {}) {
 
 // ─── Helpers ───────────────────────────────────────────────────────────
 
-function roundCoords(lat, lon, precision) {
-  if (!precision || precision <= 0) return { rLat: lat, rLon: lon };
-  const f = 1 / precision;
+function roundCoords(lat: number, lon: number, precision: unknown) {
+  if (!precision || (precision as number) <= 0) return { rLat: lat, rLon: lon };
+  const f = 1 / (precision as number);
   return {
     rLat: Math.round(lat * f) / f,
     rLon: Math.round(lon * f) / f,
   };
 }
 
-function makeCacheKey(lat, lon, isoTime) {
+function makeCacheKey(lat: number, lon: number, isoTime: string) {
   // Bucket by hour
   const hourBucket = isoTime.slice(0, 13); // YYYY-MM-DDTHH
   return `${CACHE_PREFIX}${lat.toFixed(2)}_${lon.toFixed(2)}_${hourBucket}`;
 }
 
-function cacheTtlMs(isoTime) {
+function cacheTtlMs(isoTime: string) {
   const requestMs = Date.parse(isoTime || '');
   if (!Number.isFinite(requestMs)) return 5 * 60 * 1000;
   const ageMs = Date.now() - requestMs;
@@ -460,18 +474,18 @@ function cacheTtlMs(isoTime) {
   return 60 * 60 * 1000;
 }
 
-function readCache(key, isoTime) {
+function readCache(key: string, isoTime: string) {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
-    const obj = JSON.parse(raw);
+    const obj = JSON.parse(raw) as RawAtmosphereRecord;
     if (!obj || !obj.fetchedAt) return null;
-    if (Date.now() - obj.fetchedAt > cacheTtlMs(isoTime)) return null;
+    if (Date.now() - (obj.fetchedAt as number) > cacheTtlMs(isoTime)) return null;
     return obj;
   } catch (e) { return null; }
 }
 
-function cacheMatchesConfig(cached, cfg) {
+function cacheMatchesConfig(cached: RawAtmosphereRecord, cfg: MeteoConfigReader) {
   const source = String(cached?.source || '');
   if (!source) return true;
   if (cfg.mode === 'open-meteo') return source.startsWith('open_meteo');
@@ -487,18 +501,18 @@ function cacheMatchesConfig(cached, cfg) {
 // Walk every cached entry for these coords (any time bucket) and return the
 // most recently fetched one regardless of TTL. Used as the airplane-mode
 // fallback when all network providers fail.
-function readStaleCache(rLat, rLon) {
+function readStaleCache(rLat: number, rLon: number) {
   try {
     const prefix = `${CACHE_PREFIX}${rLat.toFixed(2)}_${rLon.toFixed(2)}_`;
-    let best = null;
+    let best: RawAtmosphereRecord | null = null;
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (!k || !k.startsWith(prefix)) continue;
       try {
         const cached = localStorage.getItem(k);
         if (!cached) continue;
-        const obj = JSON.parse(cached);
-        if (obj && obj.fetchedAt && (!best || obj.fetchedAt > best.fetchedAt)) best = obj;
+        const obj = JSON.parse(cached) as RawAtmosphereRecord;
+        if (obj && obj.fetchedAt && (!best || (obj.fetchedAt as number) > (best.fetchedAt as number))) best = obj;
       } catch (e) {
         if (isSunDebugRuntime()) {
           console.warn('[sun-uvdata] readStaleCache parse failed', k, getErrorName(e) || e);
@@ -518,7 +532,7 @@ function readStaleCache(rLat, rLon) {
 // the marker key is only written once, so subsequent loads are no-ops.
 try {
   if (typeof localStorage !== 'undefined' && !localStorage.getItem('meteo-cache-v5-purged')) {
-    const stale = [];
+    const stale: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (k && k.startsWith('meteo:') && !k.startsWith('meteo:v5:')) stale.push(k);
@@ -532,7 +546,7 @@ try {
   }
 }
 
-function writeCache(key, value) {
+function writeCache(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); }
   catch (e) {
     // Quota or serialization error. Surface in debug mode so the user
@@ -556,7 +570,7 @@ export function purgeMeteoCache() {
   let removed = 0;
   try {
     if (typeof localStorage === 'undefined') return 0;
-    const keys = [];
+    const keys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (k && k.startsWith(CACHE_PREFIX)) keys.push(k);
@@ -581,7 +595,7 @@ export function purgeMeteoCache() {
 // same defence-in-depth — a bad day at Open-Meteo shouldn't OOM the tab.
 const _UV_RESPONSE_CAP_BYTES = 256 * 1024;
 
-async function fetchJson(url, opts = {}) {
+async function fetchJson(url: string, opts: RequestInit = {}): Promise<unknown> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), NETWORK_TIMEOUT_MS);
   try {
@@ -609,12 +623,12 @@ async function fetchJson(url, opts = {}) {
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
-      total += value.byteLength;
+      total += value!.byteLength;
       if (total > _UV_RESPONSE_CAP_BYTES) {
         try { await reader.cancel(); } catch {}
         throw new Error(`Response exceeds ${_UV_RESPONSE_CAP_BYTES} bytes — refusing to trust`);
       }
-      text += decoder.decode(value, { stream: true });
+      text += decoder.decode(value!, { stream: true });
     }
     text += decoder.decode();
     return JSON.parse(text);
@@ -623,11 +637,11 @@ async function fetchJson(url, opts = {}) {
   }
 }
 
-function isUSCoords(lat, lon) {
+function isUSCoords(lat: number | undefined, lon: number | undefined) {
   // Continental US + Alaska + Hawaii rough bounding
-  if (lat >= 24 && lat <= 49.5 && lon >= -125 && lon <= -66) return true;
-  if (lat >= 51 && lat <= 71 && lon >= -180 && lon <= -130) return true; // AK
-  if (lat >= 18 && lat <= 23 && lon >= -161 && lon <= -154) return true; // HI
+  if ((lat as number) >= 24 && (lat as number) <= 49.5 && (lon as number) >= -125 && (lon as number) <= -66) return true;
+  if ((lat as number) >= 51 && (lat as number) <= 71 && (lon as number) >= -180 && (lon as number) <= -130) return true; // AK
+  if ((lat as number) >= 18 && (lat as number) <= 23 && (lon as number) >= -161 && (lon as number) <= -154) return true; // HI
   return false;
 }
 

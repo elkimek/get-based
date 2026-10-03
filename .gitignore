@@ -991,3 +991,17 @@ deploy/profile-share/data/
 /js/analytics-bootstrap.js
 
 /js/app-extension-bootstrap.js
+
+/js/light-env-screen-ui.js
+
+/js/startup-oauth-callbacks.js
+
+/js/startup-maintenance-runtime.js
+
+/js/startup-foundation.js
+
+/js/sun-context-runtime.js
+
+/js/sun-uvdata.js
+
+/js/light-env-audits.js

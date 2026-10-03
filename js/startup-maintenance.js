@@ -52,7 +52,8 @@ function scheduleSunSessionRehydrate() {
   // already stamped at the current version.
   if (state.importedData?.sunSessions?.length && hasSunSessionRehydrateRuntime()) {
     setTimeout(() => {
-      rehydrateStaleSunSessionsRuntime().then(r => {
+      (/** @type {{ then(callback: (value: { rehydrated?: unknown } | null | undefined) => unknown): { catch(handler: () => void): unknown } }} */
+      (rehydrateStaleSunSessionsRuntime())).then(r => {
         if (r?.rehydrated) {
           // Surface in debug console only - not worth a user-facing
           // notification for a silent self-heal.
