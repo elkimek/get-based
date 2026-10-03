@@ -11,7 +11,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
@@ -150,7 +150,7 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
   const bestFor16 = hw.getBestModel(testModels, gpu16);
   assert('Best for 16GB = qwen2.5:14b (recommended + fits)', bestFor16 && bestFor16.name === 'qwen2.5:14b', bestFor16?.name);
 
-  const bestFor4 = hw.getBestModel(testModels, { gpu: { vram: 4, unified: false }, ram: { gb: 8 }, cpuThreads: 4 });
+  const bestFor4 = (hw.getBestModel as <Info extends Parameters<typeof hw.getBestModel>[1]>(models: Parameters<typeof hw.getBestModel>[0], info: Info) => ReturnType<typeof hw.getBestModel>)(testModels, { gpu: { vram: 4, unified: false }, ram: { gb: 8 }, cpuThreads: 4 });
   assert('Best for 4GB = phi3 (only one that fits)', bestFor4 && bestFor4.name === 'phi3:3.5b', bestFor4?.name);
 
   // getUpgradeSuggestion — recommends upgrade when no "recommended" model installed
@@ -219,17 +219,17 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
   const originalLocation = globalThis.location;
   let fetchCalls = 0;
   const makeDot = () => {
-    const dot = { className: '', classes: new Set() };
+    const dot: {className: string;classes: Set<string>;classList?: {add(cls: string): unknown;remove(cls: string): unknown;contains(cls: string): boolean}} = { className: '', classes: new Set<string>() };
     dot.classList = {
-      add: (cls) => dot.classes.add(cls),
-      remove: (cls) => dot.classes.delete(cls),
-      contains: (cls) => dot.classes.has(cls),
+      add: (cls: string) => dot.classes.add(cls),
+      remove: (cls: string) => dot.classes.delete(cls),
+      contains: (cls: string) => dot.classes.has(cls),
     };
     return dot;
   };
 
   try {
-    globalThis.location = { protocol: 'http:' };
+    (globalThis as {location: unknown}).location = { protocol: 'http:' };
     globalThis.fetch = async () => {
       fetchCalls++;
       throw new Error('Malformed Local AI URL should be rejected before fetch');
@@ -237,12 +237,12 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
 
     const mainDot = makeDot();
     const mainText = { textContent: '' };
-    let elements = {
+    let elements: Record<string, {value: string} | ReturnType<typeof makeDot> | {textContent: string}> = {
       'local-ai-url-input': { value: 'htp://localhost:11434' },
       'local-ai-dot': mainDot,
       'local-ai-status-text': mainText,
     };
-    document.getElementById = (id) => elements[id] || null;
+    (document as unknown as {getElementById(id: string): unknown}).getElementById = (id) => elements[id] || null;
     await localAiControls.testOllamaConnection();
     assert('Malformed main Local AI URL shows protocol guidance',
       mainText.textContent === 'Local AI URL must start with http:// or https://',
@@ -304,7 +304,7 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
       piiText.textContent);
 
     let noCorsProbeCalls = 0;
-    globalThis.fetch = async (_url, options = {}) => {
+    (globalThis as {fetch: unknown}).fetch = async (_url: Parameters<typeof originalFetch>[0], options: RequestInit & Record<never, typeof _url> = {}) => {
       fetchCalls++;
       if (options.mode === 'no-cors') {
         noCorsProbeCalls++;
@@ -327,7 +327,7 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
     document.getElementById = originalGetElementById;
     globalThis.fetch = originalFetch;
     if (hadLocation) globalThis.location = originalLocation;
-    else delete globalThis.location;
+    else delete (globalThis as {location?: unknown}).location;
   }
 
   // ═══════════════════════════════════════

@@ -22,7 +22,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
@@ -53,7 +53,7 @@ const personalityExports = [
   'getActivePersonality', 'autoResizePersonaTextarea', 'markPersonalityDirty',
   'snapshotPersonalityClean', 'isOfficialHostedPersonaApp',
   'hasCurrentPersonaAgreement', 'isCustomPersonalityUsable',
-];
+] as const;
 for (const name of personalityExports) {
   assert(`${name} exported`, typeof personalities[name] === 'function');
   assert(`window.${name} stays module-only`, !(name in window));
@@ -98,9 +98,9 @@ const arr = [
 localStorage.setItem(key, JSON.stringify(arr));
 const loaded = personalities.getCustomPersonalities();
 assert('Array: returns 2 items', loaded.length === 2);
-assert('Array: first item name', loaded[0].name === 'Longevity Expert');
-assert('Array: second item name', loaded[1].name === 'Functional Doc');
-assert('Array: IDs preserved', loaded[0].id === 'custom_abc' && loaded[1].id === 'custom_def');
+assert('Array: first item name', loaded[0]!.name === 'Longevity Expert');
+assert('Array: second item name', loaded[1]!.name === 'Functional Doc');
+assert('Array: IDs preserved', loaded[0]!.id === 'custom_abc' && loaded[1]!.id === 'custom_def');
 
 // ── 4. Migration from single object ──
 console.log('4. Migration from single object');
@@ -108,20 +108,20 @@ const singleObj = { name: 'Longevity Expert', icon: '🧠', promptText: 'You are
 localStorage.setItem(key, JSON.stringify(singleObj));
 const migrated = personalities.getCustomPersonalities();
 assert('Single obj: returns array of 1', migrated.length === 1);
-assert('Single obj: id is custom_migrated', migrated[0].id === 'custom_migrated');
-assert('Single obj: name preserved', migrated[0].name === 'Longevity Expert');
-assert('Single obj: promptText preserved', migrated[0].promptText === 'You are a longevity researcher...');
-assert('Single obj: evidenceBased preserved', migrated[0].evidenceBased === true);
+assert('Single obj: id is custom_migrated', migrated[0]!.id === 'custom_migrated');
+assert('Single obj: name preserved', migrated[0]!.name === 'Longevity Expert');
+assert('Single obj: promptText preserved', migrated[0]!.promptText === 'You are a longevity researcher...');
+assert('Single obj: evidenceBased preserved', migrated[0]!.evidenceBased === true);
 
 // ── 5. Migration from legacy string ──
 console.log('5. Migration from legacy string');
 localStorage.setItem(key, 'Speak like a pirate doctor');
 const legacyArr = personalities.getCustomPersonalities();
 assert('Legacy string: returns array of 1', legacyArr.length === 1);
-assert('Legacy string: id is custom_migrated', legacyArr[0].id === 'custom_migrated');
-assert('Legacy string: name is Custom Personality', legacyArr[0].name === 'Custom Personality');
-assert('Legacy string: promptText is the string', legacyArr[0].promptText === 'Speak like a pirate doctor');
-assert('Legacy string: evidenceBased false', legacyArr[0].evidenceBased === false);
+assert('Legacy string: id is custom_migrated', legacyArr[0]!.id === 'custom_migrated');
+assert('Legacy string: name is Custom Personality', legacyArr[0]!.name === 'Custom Personality');
+assert('Legacy string: promptText is the string', legacyArr[0]!.promptText === 'Speak like a pirate doctor');
+assert('Legacy string: evidenceBased false', legacyArr[0]!.evidenceBased === false);
 
 // ── 6. getCustomPersonality compat shim ──
 console.log('6. getCustomPersonality compat shim');
@@ -129,12 +129,12 @@ localStorage.setItem(key, JSON.stringify(arr));
 localStorage.setItem(`labcharts-${profileId}-chatPersonality`, 'custom_def');
 personalities.loadChatPersonality();
 const compat = personalities.getCustomPersonality();
-assert('Compat shim: returns matching custom', compat.id === 'custom_def');
+assert('Compat shim: returns matching custom', (compat as {id?: unknown}).id === 'custom_def');
 assert('Compat shim: name is Functional Doc', compat.name === 'Functional Doc');
 localStorage.setItem(`labcharts-${profileId}-chatPersonality`, 'default');
 personalities.loadChatPersonality();
 const compatFallback = personalities.getCustomPersonality();
-assert('Compat shim: fallback returns first', compatFallback.id === 'custom_abc');
+assert('Compat shim: fallback returns first', (compatFallback as {id?: unknown}).id === 'custom_abc');
 assert('getCustomPersonalityText returns promptText', personalities.getCustomPersonalityText() === 'Expert prompt');
 localStorage.removeItem(key);
 const compatEmpty = personalities.getCustomPersonality();
@@ -144,9 +144,9 @@ assert('Compat shim: empty returns blank', compatEmpty.promptText === '' && comp
 console.log('7. saveCustomPersonalities');
 const testArr = [{ id: 'custom_test1', name: 'Test1', icon: '⚡', promptText: 'p1', evidenceBased: false }];
 await personalities.saveCustomPersonalities(testArr);
-const saved = JSON.parse(localStorage.getItem(key));
+const saved: unknown = JSON.parse(localStorage.getItem(key) as string);
 assert('saveCustomPersonalities writes array', Array.isArray(saved));
-assert('saveCustomPersonalities data correct', saved[0].name === 'Test1');
+assert('saveCustomPersonalities data correct', (saved as {name?: unknown}[])[0]!.name === 'Test1');
 
 // ── 8. getActivePersonality for custom IDs ──
 console.log('8. getActivePersonality for custom IDs');

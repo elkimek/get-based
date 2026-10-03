@@ -1434,3 +1434,12 @@ deploy/profile-share/data/
 /tests/test-wearables-runtime.js
 /tests/test-wearables-settings-runtime.js
 /tests/test-wearables-ui-flows.js
+/tests/test-family-history.js
+/tests/test-hardware.js
+/tests/test-custom-personality.js
+/tests/test-dashboard-knowledge-base.js
+/tests/test-emf.js
+/tests/test-import-chart-data-integrity.js
+/tests/test-dna-illumina-and-valence.js
+/tests/test-changelog.js
+/tests/test-demo.js

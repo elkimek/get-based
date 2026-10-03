@@ -17,10 +17,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 
 let pass = 0, _failCount = 0, _skipCount = 0;
-const assert = (name, condition, detail) => {
+const assert = (name: string, condition: unknown, detail?: unknown) => {
   if (condition) { pass++; console.log(`  PASS: ${name}`); }
   else { _failCount++; console.log(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
 };
@@ -33,7 +33,7 @@ console.log('=== EMF Assessment Tests ===\n');
 // tests would deterministically fail against the stub. Detected via the
 // `_stub: true` marker in data/recommendations.example.json.
 let STUB_CATALOG = false;
-const assertCatalog = (name, condition, detail) => {
+const assertCatalog = (name: string, condition: unknown, detail?: unknown) => {
   if (STUB_CATALOG) {
     _skipCount++;
     console.log(`  SKIP: ${name} (stub catalog)`);
@@ -47,20 +47,20 @@ const { SBM_2015_THRESHOLDS, getEMFSeverity } = await import('../js/schema.js');
 
 // ── SBM-2015 Thresholds Structure ──
 assert('1. SBM_2015_THRESHOLDS exists', typeof SBM_2015_THRESHOLDS === 'object');
-const expectedTypes = ['acElectric', 'acMagnetic', 'rfMicrowave', 'dirtyElectricity', 'dcMagnetic'];
+const expectedTypes = ['acElectric', 'acMagnetic', 'rfMicrowave', 'dirtyElectricity', 'dcMagnetic'] as const;
 assert('2. All 5 measurement types defined', expectedTypes.every(t => SBM_2015_THRESHOLDS[t]));
 
 for (const type of expectedTypes) {
-  const def = SBM_2015_THRESHOLDS[type];
+  const def = SBM_2015_THRESHOLDS[type]!;
   assert(`3. ${type} has name`, typeof def.name === 'string' && def.name.length > 0);
   assert(`4. ${type} has unit`, typeof def.unit === 'string' && def.unit.length > 0);
   assert(`5. ${type} has 4 sleeping tiers`, def.sleeping.length === 4);
-  assert(`6. ${type} sleeping tiers ascending`, def.sleeping[0].max < def.sleeping[1].max && def.sleeping[1].max < def.sleeping[2].max);
-  assert(`7. ${type} last sleeping tier is Infinity`, def.sleeping[3].max === Infinity);
+  assert(`6. ${type} sleeping tiers ascending`, def.sleeping[0]!.max < def.sleeping[1]!.max && def.sleeping[1]!.max < def.sleeping[2]!.max);
+  assert(`7. ${type} last sleeping tier is Infinity`, def.sleeping[3]!.max === Infinity);
   assert(`5b. ${type} has 4 daytime tiers`, def.daytime.length === 4);
-  assert(`6b. ${type} daytime tiers ascending`, def.daytime[0].max < def.daytime[1].max && def.daytime[1].max < def.daytime[2].max);
-  assert(`7b. ${type} last daytime tier is Infinity`, def.daytime[3].max === Infinity);
-  assert(`7c. ${type} daytime thresholds >= sleeping`, def.daytime[0].max >= def.sleeping[0].max);
+  assert(`6b. ${type} daytime tiers ascending`, def.daytime[0]!.max < def.daytime[1]!.max && def.daytime[1]!.max < def.daytime[2]!.max);
+  assert(`7b. ${type} last daytime tier is Infinity`, def.daytime[3]!.max === Infinity);
+  assert(`7c. ${type} daytime thresholds >= sleeping`, def.daytime[0]!.max >= def.sleeping[0]!.max);
 }
 
 // ── getEMFSeverity ──
@@ -69,49 +69,49 @@ assert('9. null value returns null', getEMFSeverity('acElectric', null) === null
 assert('10. unknown type returns null', getEMFSeverity('unknown', 5) === null);
 
 // AC Electric: <1 green, 1-5 yellow, 5-50 orange, >50 red
-assert('11. AC Electric 0.5 = No concern', getEMFSeverity('acElectric', 0.5).color === 'green');
-assert('12. AC Electric 3 = Slight concern', getEMFSeverity('acElectric', 3).color === 'yellow');
-assert('13. AC Electric 25 = Severe concern', getEMFSeverity('acElectric', 25).color === 'orange');
-assert('14. AC Electric 100 = Extreme concern', getEMFSeverity('acElectric', 100).color === 'red');
+assert('11. AC Electric 0.5 = No concern', getEMFSeverity('acElectric', 0.5)!.color === 'green');
+assert('12. AC Electric 3 = Slight concern', getEMFSeverity('acElectric', 3)!.color === 'yellow');
+assert('13. AC Electric 25 = Severe concern', getEMFSeverity('acElectric', 25)!.color === 'orange');
+assert('14. AC Electric 100 = Extreme concern', getEMFSeverity('acElectric', 100)!.color === 'red');
 
 // AC Magnetic: <20 green, 20-100 yellow, 100-500 orange, >500 red
-assert('15. AC Magnetic 10 = No concern', getEMFSeverity('acMagnetic', 10).color === 'green');
-assert('16. AC Magnetic 50 = Slight concern', getEMFSeverity('acMagnetic', 50).color === 'yellow');
-assert('17. AC Magnetic 300 = Severe concern', getEMFSeverity('acMagnetic', 300).color === 'orange');
-assert('18. AC Magnetic 1000 = Extreme concern', getEMFSeverity('acMagnetic', 1000).color === 'red');
+assert('15. AC Magnetic 10 = No concern', getEMFSeverity('acMagnetic', 10)!.color === 'green');
+assert('16. AC Magnetic 50 = Slight concern', getEMFSeverity('acMagnetic', 50)!.color === 'yellow');
+assert('17. AC Magnetic 300 = Severe concern', getEMFSeverity('acMagnetic', 300)!.color === 'orange');
+assert('18. AC Magnetic 1000 = Extreme concern', getEMFSeverity('acMagnetic', 1000)!.color === 'red');
 
 // RF: <0.1 green, 0.1-10 yellow, 10-1000 orange, >1000 red
-assert('19. RF 0.05 = No concern', getEMFSeverity('rfMicrowave', 0.05).color === 'green');
-assert('20. RF 5 = Slight concern', getEMFSeverity('rfMicrowave', 5).color === 'yellow');
-assert('21. RF 500 = Severe concern', getEMFSeverity('rfMicrowave', 500).color === 'orange');
-assert('22. RF 5000 = Extreme concern', getEMFSeverity('rfMicrowave', 5000).color === 'red');
+assert('19. RF 0.05 = No concern', getEMFSeverity('rfMicrowave', 0.05)!.color === 'green');
+assert('20. RF 5 = Slight concern', getEMFSeverity('rfMicrowave', 5)!.color === 'yellow');
+assert('21. RF 500 = Severe concern', getEMFSeverity('rfMicrowave', 500)!.color === 'orange');
+assert('22. RF 5000 = Extreme concern', getEMFSeverity('rfMicrowave', 5000)!.color === 'red');
 
 // Dirty Electricity: <25 green, 25-50 yellow, 50-200 orange, >200 red
-assert('23. DE 10 = No concern', getEMFSeverity('dirtyElectricity', 10).color === 'green');
-assert('24. DE 35 = Slight concern', getEMFSeverity('dirtyElectricity', 35).color === 'yellow');
-assert('25. DE 150 = Severe concern', getEMFSeverity('dirtyElectricity', 150).color === 'orange');
-assert('26. DE 300 = Extreme concern', getEMFSeverity('dirtyElectricity', 300).color === 'red');
+assert('23. DE 10 = No concern', getEMFSeverity('dirtyElectricity', 10)!.color === 'green');
+assert('24. DE 35 = Slight concern', getEMFSeverity('dirtyElectricity', 35)!.color === 'yellow');
+assert('25. DE 150 = Severe concern', getEMFSeverity('dirtyElectricity', 150)!.color === 'orange');
+assert('26. DE 300 = Extreme concern', getEMFSeverity('dirtyElectricity', 300)!.color === 'red');
 
 // DC Magnetic: <1 green, 1-5 yellow, 5-20 orange, >20 red
-assert('27. DC 0.5 = No concern', getEMFSeverity('dcMagnetic', 0.5).color === 'green');
-assert('28. DC 3 = Slight concern', getEMFSeverity('dcMagnetic', 3).color === 'yellow');
-assert('29. DC 10 = Severe concern', getEMFSeverity('dcMagnetic', 10).color === 'orange');
-assert('30. DC 50 = Extreme concern', getEMFSeverity('dcMagnetic', 50).color === 'red');
+assert('27. DC 0.5 = No concern', getEMFSeverity('dcMagnetic', 0.5)!.color === 'green');
+assert('28. DC 3 = Slight concern', getEMFSeverity('dcMagnetic', 3)!.color === 'yellow');
+assert('29. DC 10 = Severe concern', getEMFSeverity('dcMagnetic', 10)!.color === 'orange');
+assert('30. DC 50 = Extreme concern', getEMFSeverity('dcMagnetic', 50)!.color === 'red');
 
 // ── Daytime thresholds (more lenient) ──
-assert('31. AC Electric 2 daytime = No concern', getEMFSeverity('acElectric', 2, false).color === 'green');
-assert('32. AC Electric 2 sleeping = Slight concern', getEMFSeverity('acElectric', 2, true).color === 'yellow');
-assert('33. Default is sleeping', getEMFSeverity('acElectric', 2).color === 'yellow');
+assert('31. AC Electric 2 daytime = No concern', getEMFSeverity('acElectric', 2, false)!.color === 'green');
+assert('32. AC Electric 2 sleeping = Slight concern', getEMFSeverity('acElectric', 2, true)!.color === 'yellow');
+assert('33. Default is sleeping', getEMFSeverity('acElectric', 2)!.color === 'yellow');
 
 // ── Boundary values (exclusive upper) ──
-assert('34. AC Electric exactly 1 = Slight (sleeping)', getEMFSeverity('acElectric', 1).color === 'yellow');
-assert('35. Zero value = No concern', getEMFSeverity('acElectric', 0).color === 'green');
+assert('34. AC Electric exactly 1 = Slight (sleeping)', getEMFSeverity('acElectric', 1)!.color === 'yellow');
+assert('35. Zero value = No concern', getEMFSeverity('acElectric', 0)!.color === 'green');
 
 // ── Severity label strings ──
-assert('35. Green tier label', getEMFSeverity('acElectric', 0).label === 'No concern');
-assert('36. Yellow tier label', getEMFSeverity('acElectric', 1).label === 'Slight concern');
-assert('37. Orange tier label', getEMFSeverity('acElectric', 5).label === 'Severe concern');
-assert('38. Red tier label', getEMFSeverity('acElectric', 50).label === 'Extreme concern');
+assert('35. Green tier label', getEMFSeverity('acElectric', 0)!.label === 'No concern');
+assert('36. Yellow tier label', getEMFSeverity('acElectric', 1)!.label === 'Slight concern');
+assert('37. Orange tier label', getEMFSeverity('acElectric', 5)!.label === 'Severe concern');
+assert('38. Red tier label', getEMFSeverity('acElectric', 50)!.label === 'Extreme concern');
 
 // ── State defaults ──
 const { state } = await import('../js/state.js');
@@ -128,7 +128,7 @@ assert('44. Bedroom in room presets', EMF_ROOM_PRESETS.includes('Bedroom'));
 // ── Module-only lazy runtime sync check ──
 const emfMod = await import('../js/emf.js');
 const emfRuntimeMod = await import('../js/emf-runtime.js');
-const emfWindowFns = ['openEMFAssessmentEditor','addEMFAssessment','toggleEMFAssessment','selectEMFRoom','handleEMFRoomDropdown','addEMFRoom','removeEMFRoom','deleteEMFAssessment','updateEMFField','updateEMFRoom','updateEMFMeasurement','updateEMFMeter','saveEMFExplicit','toggleEMFCompare','interpretEMFAssessment','interpretEMFComparison','closeEMFInterpretation','discussEMFInterpretation','addEMFPhotos','removeEMFPhoto','viewEMFPhoto','handleEMFPDF'];
+const emfWindowFns = ['openEMFAssessmentEditor','addEMFAssessment','toggleEMFAssessment','selectEMFRoom','handleEMFRoomDropdown','addEMFRoom','removeEMFRoom','deleteEMFAssessment','updateEMFField','updateEMFRoom','updateEMFMeasurement','updateEMFMeter','saveEMFExplicit','toggleEMFCompare','interpretEMFAssessment','interpretEMFComparison','closeEMFInterpretation','discussEMFInterpretation','addEMFPhotos','removeEMFPhoto','viewEMFPhoto','handleEMFPDF'] as const;
 const missingExports = emfWindowFns.filter(fn => typeof emfMod[fn] !== 'function');
 assert('45. All former facade functions remain emf.js exports', missingExports.length === 0, missingExports.join(', '));
 assert('45a. EMF runtime exports a lazy module loader', typeof emfRuntimeMod.loadEMFModule === 'function');
@@ -139,7 +139,7 @@ assert('45b. EMF runtime exposes only the lazy cross-module entry points',
 const mainSrc = read('js/main.js');
 const orchestratorSrc = read('js/startup-orchestrator.js');
 assert('45c. startup-orchestrator.js does not import an EMF facade', !orchestratorSrc.includes('emf-facade'));
-assert('45d. former EMF globals are not installed', emfWindowFns.every(fn => typeof window[fn] === 'undefined'));
+assert('45d. former EMF globals are not installed', emfWindowFns.every(fn => typeof (window as unknown as Record<string, unknown>)[fn] === 'undefined'));
 assert('45d2. main.js starts the startup orchestrator', mainSrc.includes('startApp()'));
 assert('45e. main.js no longer owns the EMF function list', !mainSrc.includes('const _emfFns'));
 const navSrc = read('js/nav.js');
@@ -198,24 +198,24 @@ STUB_CATALOG = !!(emfCat && emfCat._stub === true);
 if (STUB_CATALOG) console.log('  [stub catalog detected — catalog-content asserts will skip]');
 assert('51. Unified catalog loads', !!emfCat, 'expected recommendations.json to fetch');
 assertCatalog('52. Catalog has SLT vendor', !!emfCat?.vendors?.slt?.name);
-assertCatalog('53. SLT coupon code is "getbased"', emfCat?.vendors?.slt?.coupon?.code === 'getbased');
-const meters = emfCat?.products?.['_internal.emfMeters'] || [];
+assertCatalog('53. SLT coupon code is "getbased"', (emfCat?.vendors?.slt?.coupon as {code?: unknown} | null | undefined)?.code === 'getbased');
+const meters = (emfCat?.products?.['_internal.emfMeters'] || []) as {name?: unknown;url?: {includes(value: string): unknown} | null | undefined;matchTypes?: string[] | null | undefined}[];
 assertCatalog('54. Catalog has at least 3 meters', Array.isArray(meters) && meters.length >= 3);
-assertCatalog('55. Pro II meter present', meters.some(m => /Pro II/i.test(m.name)));
-assertCatalog('56. EM3 meter present', meters.some(m => /EM3/i.test(m.name)));
-assertCatalog('57. Pro II URL has affiliate ID', meters.find(m => /Pro II/i.test(m.name))?.url?.includes('aff=466'));
-assertCatalog('58. EM3 URL has affiliate ID', meters.find(m => /EM3/i.test(m.name))?.url?.includes('aff=466'));
-assertCatalog('58a. Line EMI meter present (dirty electricity)', meters.some(m => (m.matchTypes || []).includes('dirtyElectricity') && /Line EMI/i.test(m.name)));
-assertCatalog('58b. Line EMI URL has affiliate ID', meters.find(m => /Line EMI/i.test(m.name))?.url?.includes('aff=466'));
+assertCatalog('55. Pro II meter present', meters.some(m => /Pro II/i.test(m.name as string)));
+assertCatalog('56. EM3 meter present', meters.some(m => /EM3/i.test(m.name as string)));
+assertCatalog('57. Pro II URL has affiliate ID', meters.find(m => /Pro II/i.test(m.name as string))?.url?.includes('aff=466'));
+assertCatalog('58. EM3 URL has affiliate ID', meters.find(m => /EM3/i.test(m.name as string))?.url?.includes('aff=466'));
+assertCatalog('58a. Line EMI meter present (dirty electricity)', meters.some(m => (m.matchTypes || []).includes('dirtyElectricity') && /Line EMI/i.test(m.name as string)));
+assertCatalog('58b. Line EMI URL has affiliate ID', meters.find(m => /Line EMI/i.test(m.name as string))?.url?.includes('aff=466'));
 
 // Filter meters by measurement type
 const rfMeters = recsMod.getEMFMeters(emfCat, ['rfMicrowave']);
-assert('59. getEMFMeters filters to RF', rfMeters.length >= 1 && rfMeters.every(m => m.matchTypes.includes('rfMicrowave')));
+assert('59. getEMFMeters filters to RF', rfMeters.length >= 1 && rfMeters.every(m => m.matchTypes!.includes('rfMicrowave')));
 const allMeters = recsMod.getEMFMeters(emfCat, []);
 assertCatalog('60. getEMFMeters returns all when no type filter', allMeters.length === meters.length);
 
 // Mitigation tag → product lookup
-const paintProds = recsMod.getEMFProductsForMitigations(emfCat, ['shielding paint (Yshield)']);
+const paintProds = recsMod.getEMFProductsForMitigations(emfCat, ['shielding paint (Yshield)']) as {url?: {includes(value: string): unknown} | null | undefined}[];
 assert('61. Paint mitigation finds at least one product', paintProds.length >= 1);
 assertCatalog('62. Paint product URL has affiliate ID', paintProds[0]?.url?.includes('aff=466'));
 
@@ -289,9 +289,9 @@ assert('94c. Coupon wrapper announces flash via aria-live', /aria-live="polite"/
 assert('94d. Affiliate links carry aria-label "opens in new tab"', /opens in new tab/.test(couponHtml));
 const hostlistedHtml = recsMod.renderEMFMeterRecs(emfCat);
 assertCatalog('94e. Trusted SLT URL renders as link', hostlistedHtml.includes('safelivingtechnologies.com'));
-const malCat = JSON.parse(JSON.stringify(emfCat));
-malCat.products['_internal.emfMeters'][0].url = 'https://attacker.com/?safelivingtechnologies.com=fake';
-const malHtml = recsMod.renderEMFMeterRecs(malCat);
+const malCat: unknown = JSON.parse(JSON.stringify(emfCat));
+(malCat as {products: Record<string, {url?: unknown}[]>}).products['_internal.emfMeters']![0]!.url = 'https://attacker.com/?safelivingtechnologies.com=fake';
+const malHtml = (recsMod.renderEMFMeterRecs as (catalog: unknown) => ReturnType<typeof recsMod.renderEMFMeterRecs>)(malCat);
 assert('94f. Allowlist blocks attacker.com URL', !malHtml.includes('attacker.com'));
 
 // Umami event tagging — six surfaces, opt-out gate inherited from Settings → Privacy
@@ -322,9 +322,9 @@ const regionalCoupon = {
   SK: { code: 'GBSK10', userDiscount: '10%' },
   EN: { code: 'getbased', userDiscount: '10%' },
 };
-assert('94r. Regional coupon — direct CZ hit', recsMod._resolveCouponForRegion(regionalCoupon, 'CZ').code === 'GBCZ10');
-assert('94s. Regional coupon — multi-region marker decomposes (CZSK → CZ first)', recsMod._resolveCouponForRegion(regionalCoupon, 'CZSK').code === 'GBCZ10');
-assert('94t. Regional coupon — falls back to EN/worldwide', recsMod._resolveCouponForRegion(regionalCoupon, 'DE').code === 'getbased');
+assert('94r. Regional coupon — direct CZ hit', recsMod._resolveCouponForRegion(regionalCoupon, 'CZ')!.code === 'GBCZ10');
+assert('94s. Regional coupon — multi-region marker decomposes (CZSK → CZ first)', recsMod._resolveCouponForRegion(regionalCoupon, 'CZSK')!.code === 'GBCZ10');
+assert('94t. Regional coupon — falls back to EN/worldwide', recsMod._resolveCouponForRegion(regionalCoupon, 'DE')!.code === 'getbased');
 assert('94u. Regional coupon — null/missing returns null', recsMod._resolveCouponForRegion(null, 'CZ') === null);
 assert('94v. Flat homepage string passes through', recsMod._resolveHomepageForRegion('https://x.com?aff=1', 'CZ') === 'https://x.com?aff=1');
 const regionalHomepage = {
@@ -400,7 +400,7 @@ assert('94ag. Array-shaped product URL rejected',
   recsMod._resolveProductUrlForRegion({ url: ['https://x'] }, 'CZ') === null);
 
 // 50-char Umami event cap (was an HTTP 400 bug — caps name to fit Umami's API)
-function _cap(s) { return s.slice(0, 50).replace(/-+$/, ''); }
+function _cap(s: string) { return s.slice(0, 50).replace(/-+$/, ''); }
 assert('94ah. Umami event name capped at 50 chars',
   _cap('rec-vitamins-mitochondriak-infrapanel-mitochondriak-maxi-uvb').length <= 50);
 assert('94ai. Cap trims trailing dash',
@@ -421,14 +421,14 @@ assert('94ao. Change link delegates location editor action', /data-rec-action="e
 
 // Vendor-name rendering in EMF row (was hardcoded to "Safe Living Technologies")
 assertCatalog('94ap. EMF row link copy uses vendor name (not hardcoded)', /View on Safe Living Technologies/.test(discMeterHtml));
-const altCat = JSON.parse(JSON.stringify(emfCat));
-altCat.vendors.testbrand = { name: 'TestBrand', homepage: 'https://testbrand.example/?ref=g', regions: ['INTL'] };
-altCat.products['_internal.emfMeters'].push({
+const altCat: unknown = JSON.parse(JSON.stringify(emfCat));
+(altCat as {vendors: Record<string, unknown>}).vendors.testbrand = { name: 'TestBrand', homepage: 'https://testbrand.example/?ref=g', regions: ['INTL'] };
+(altCat as {products: Record<string, unknown[]>}).products['_internal.emfMeters']!.push({
   type: 'product', key: 'tb-meter', name: 'TB Meter', vendor: 'TestBrand', vendorKey: 'testbrand',
   kind: 'RF', blurb: 'demo', url: 'https://testbrand.example/meter?ref=g',
   affiliateUrl: 'https://testbrand.example/meter?ref=g', regions: ['INTL'],
 });
-const altHtml = recsMod.renderEMFMeterRecs(altCat);
+const altHtml = (recsMod.renderEMFMeterRecs as (catalog: unknown) => ReturnType<typeof recsMod.renderEMFMeterRecs>)(altCat);
 assert('94aq. EMF row link includes non-SLT vendor name', /View on TestBrand/.test(altHtml));
 assert('94ar. Non-SLT vendor URL passes affiliate allowlist (catalog-derived)', altHtml.includes('testbrand.example'));
 

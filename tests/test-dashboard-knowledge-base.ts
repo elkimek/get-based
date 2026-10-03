@@ -41,25 +41,25 @@ const _hadWorker = typeof globalThis.Worker !== 'undefined';
 
 // Snapshot vars are assigned inside the try once `state` is imported;
 // declared here so the finally-scoped restore() can see them.
-let savedCfg = null, savedCount = null, savedLens;
-let _state = null;
+let savedCfg: string | null = null, savedCount: string | null = null, savedLens: unknown;
+let _state: typeof import('../js/state.js')['state'] | null = null;
 const restore = () => {
   if (savedCfg === null) localStorage.removeItem('labcharts-lens-config');
   else localStorage.setItem('labcharts-lens-config', savedCfg);
   if (savedCount === null) localStorage.removeItem('labcharts-lens-local-count');
   else localStorage.setItem('labcharts-lens-local-count', savedCount);
-  if (_state && _state.importedData) _state.importedData.interpretiveLens = savedLens;
+  if (_state && _state.importedData) (_state.importedData as {interpretiveLens: unknown}).interpretiveLens = savedLens;
   // Undo the capability stubs so they don't leak into later legacy tests.
-  if (!_hadNavStorage && globalThis.navigator) delete globalThis.navigator.storage;
-  if (!_hadWorker) delete globalThis.Worker;
+  if (!_hadNavStorage && globalThis.navigator) delete (globalThis.navigator as {storage?: unknown}).storage;
+  if (!_hadWorker) delete (globalThis as {Worker?: unknown}).Worker;
 };
 
 try {
   if (globalThis.navigator && !globalThis.navigator.storage) {
-    globalThis.navigator.storage = {};
+    (globalThis.navigator as {storage: unknown}).storage = {};
   }
   if (typeof globalThis.Worker === 'undefined') {
-    globalThis.Worker = class { constructor() {} postMessage() {} terminate() {} };
+    (globalThis as {Worker: unknown}).Worker = class { constructor() {} postMessage() {} terminate() {} };
   }
 
   const lens = await import('../js/lens.js');
@@ -74,7 +74,7 @@ try {
   savedCount = localStorage.getItem('labcharts-lens-local-count');
   savedLens = state.importedData?.interpretiveLens;
 
-  if (!state.importedData) state.importedData = {};
+  if (!state.importedData) (state as {importedData: unknown}).importedData = {};
 
   // ─── 1. Both unset → only the picker CTA renders ───
   {

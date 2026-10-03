@@ -6,14 +6,22 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Run: node tests/test-demo.js  (or via npm test)
 
 import './_node-shim.js';
+import type { LabEntryDraft } from '../js/lab-entry.js';
+interface DemoRawRead {
+ entries?: LabEntryDraft[];manualValues?: Record<string, unknown>;sunSessions?: {endedAt?: unknown;location?: {label?: unknown}}[];deviceSessions?: unknown[];lightDevices?: unknown[];lightMeasurements?: unknown[];
+ genetics?: {snps?: Record<string, unknown>};contextHealth?: {dots?: Record<string, unknown>};channelMixAI?: unknown;focusCard?: {text?: unknown};
+ diagnoses?: {conditions?: {status?: unknown;name: {includes(value: string): unknown}}[];familyHistory?: unknown[]};diet?: {proteinIntake?: unknown;hydration?: unknown};exercise?: {duration?: unknown;muscleContext?: unknown};sleepRest?: {daytimeSleepiness?: unknown;apneaStatus?: unknown};stress?: {duration?: unknown;trend?: unknown};environment?: {altitude?: unknown};
+ markerNotes?: Record<string, unknown>;markerValueNotes?: Record<string, unknown>;changeHistory?: unknown[];wearableSummary?: {sources?: Record<string, {lastSyncAt?: unknown;connectedSince?: unknown}>;metrics?: Record<string, {latestDate?: unknown}>};sunCorrelations?: {pairs?: unknown[]};sunDefaults?: {coords?: {label?: unknown;lat?: unknown}};menstrualCycle?: {periods?: {startDate: unknown}[]};supplements?: {name?: unknown}[];biologyScoreContextAI?: unknown;
+}
+
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-const readJson = (rel) => JSON.parse(read(rel));
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const readJson = (rel: string): unknown => JSON.parse(read(rel));
 
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
@@ -34,12 +42,12 @@ const contextOptions = await import('../js/constants.js');
 const DEMO_REFERENCE_NOW = Date.parse('2026-08-07T00:00:00.000Z');
 const DAY_MS = 86400000;
 
-function optionValues(name) {
+function optionValues(name: typeof CONTEXT_OPTION_PATHS[number][1]) {
   return new Set((contextOptions[name] || []).map(option => typeof option === 'string' ? option : option.value));
 }
 
-function getPath(obj, pathName) {
-  return pathName.split('.').reduce((value, key) => value?.[key], obj);
+function getPath(obj: unknown, pathName: string) {
+  return pathName.split('.').reduce<unknown>((value, key) => (value as Record<string, unknown> | null | undefined)?.[key], obj);
 }
 
 const CONTEXT_OPTION_PATHS = [
@@ -65,9 +73,9 @@ const CONTEXT_OPTION_PATHS = [
   ['environment.water', 'ENV_WATER'], ['environment.waterConcerns', 'ENV_WATER_CONCERNS'], ['environment.emf', 'ENV_EMF'],
   ['environment.emfMitigation', 'ENV_EMF_MITIGATION'], ['environment.homeLight', 'ENV_HOME_LIGHT'], ['environment.air', 'ENV_AIR'],
   ['environment.toxins', 'ENV_TOXINS'], ['environment.building', 'ENV_BUILDING'],
-];
+] as const;
 
-function invalidContextOptions(demoJson) {
+function invalidContextOptions(demoJson: unknown) {
   return CONTEXT_OPTION_PATHS.flatMap(([pathName, optionsName]) => {
     const raw = getPath(demoJson, pathName);
     const values = Array.isArray(raw) ? raw : raw == null || raw === '' ? [] : [raw];
@@ -145,9 +153,9 @@ function invalidContextOptions(demoJson) {
     const cards = document.querySelectorAll('.demo-card');
     assert('Two .demo-card buttons in DOM', cards.length === 2);
     if (cards.length === 2) {
-      assert('First card onclick has female', cards[0].getAttribute('onclick').includes("'female'"));
-      assert('Second card onclick has male', cards[1].getAttribute('onclick').includes("'male'"));
-      const cardStyle = getComputedStyle(cards[0]);
+      assert('First card onclick has female', cards[0]!.getAttribute('onclick')!.includes("'female'"));
+      assert('Second card onclick has male', cards[1]!.getAttribute('onclick')!.includes("'male'"));
+      const cardStyle = getComputedStyle(cards[0]!);
       assert('Demo card has pointer cursor', cardStyle.cursor === 'pointer');
     }
 
@@ -170,23 +178,23 @@ function invalidContextOptions(demoJson) {
 
   // ── 7. Demo profile feature coverage ──
   console.log('\n7. Demo JSONs — feature coverage + Biology Scores unlock');
-  function importShapeFromDemo(demoJson) {
-    const data = structuredClone(demoJson);
+  function importShapeFromDemo(demoJson: unknown) {
+    const data = structuredClone(demoJson) as DemoRawRead;
     const sourceEntries = Array.isArray(data.entries) ? data.entries : [];
     data.entries = [];
     const now = Date.parse('2026-08-07T00:00:00.000Z');
     for (const entry of sourceEntries) {
       if (!entry.date || !entry.markers) continue;
-      const existing = findOrCreateLabEntry(data, entry.date, { now });
-      if (entry.context) existing.context = { ...(existing.context || {}), ...structuredClone(entry.context) };
+      const existing = (findOrCreateLabEntry as (data: DemoRawRead, date: unknown, options: Parameters<typeof findOrCreateLabEntry>[2]) => LabEntryDraft | null)(data, entry.date, { now });
+      if (entry.context) existing!.context = { ...(existing!.context || {}), ...structuredClone(entry.context) };
       for (const [key, value] of Object.entries(entry.markers)) {
         setLabEntryMarker(existing, key, value, { now });
       }
     }
-    migrateProfileData(data);
+    (migrateProfileData as (data: DemoRawRead) => unknown)(data);
     return data;
   }
-  const snapshot = structuredClone(state.importedData || {});
+  const snapshot: unknown = structuredClone(state.importedData || {});
   const origSex = state.profileSex;
   const origDob = state.profileDob;
   const origRange = state.dateRangeFilter;
@@ -199,7 +207,7 @@ function invalidContextOptions(demoJson) {
       { file: 'data/demo-female.json', sex: 'female', dob: '1991-08-15', label: 'Demo Sarah' },
       { file: 'data/demo-male.json', sex: 'male', dob: '1987-11-22', label: 'Demo Alex' },
     ]) {
-      const demoJson = readJson(demo.file);
+      const demoJson = readJson(demo.file) as DemoRawRead;
       assert(`${demo.label} has manual/body/light/genetics/context demo surfaces`,
         Object.keys(demoJson.manualValues || {}).length >= 16
           && (demoJson.sunSessions || []).length >= 7
@@ -244,8 +252,8 @@ function invalidContextOptions(demoJson) {
       const latestWearableDate = wearableLatestDates.sort().at(-1);
       assert(`${demo.label} wearable timestamps are chronological and recent`,
         !!wearableSource?.lastSyncAt
-          && wearableSource.lastSyncAt >= Date.parse(`${wearableSource.connectedSince}T00:00:00Z`)
-          && wearableSource.lastSyncAt >= Date.parse(`${latestWearableDate}T00:00:00Z`)
+          && (wearableSource.lastSyncAt as number) >= Date.parse(`${wearableSource.connectedSince}T00:00:00Z`)
+          && (wearableSource.lastSyncAt as number) >= Date.parse(`${latestWearableDate}T00:00:00Z`)
           && DEMO_REFERENCE_NOW - Date.parse(`${latestWearableDate}T00:00:00Z`) <= 30 * DAY_MS,
         `connected=${wearableSource?.connectedSince}, latest=${latestWearableDate}, sync=${wearableSource?.lastSyncAt}`);
       const latestSunAt = Math.max(...(demoJson.sunSessions || []).map(session => Number(session.endedAt || 0)));
@@ -261,20 +269,20 @@ function invalidContextOptions(demoJson) {
           const glucose = entry.markers?.['biochemistry.glucose'];
           const insulin = entry.markers?.['diabetes.insulin'];
           const storedHoma = entry.markers?.['diabetes.homaIR'];
-          return Math.abs((glucose * insulin / 22.5) - storedHoma) > 0.015;
+          return Math.abs(((glucose as number) * (insulin as number) / 22.5) - (storedHoma as number)) > 0.015;
         });
         assert('Demo Alex canonical insulin and HOMA-IR are internally consistent',
           badHoma.length === 0,
           badHoma.map(entry => entry.date).join(', '));
         assert('Demo Alex profile and sun setup use the same real-world location',
           demoJson.sunDefaults?.coords?.label === 'Boulder, CO'
-            && demoJson.sunDefaults.coords.lat > 39
-            && demoJson.sunDefaults.coords.lat < 41
+            && (demoJson.sunDefaults.coords.lat as number) > 39
+            && (demoJson.sunDefaults.coords.lat as number) < 41
             && (demoJson.sunSessions || []).every(session => session.location?.label === 'Boulder, CO'));
       } else {
-        const hormoneDraws = Object.fromEntries((demoJson.entries || [])
+        const hormoneDraws = Object.fromEntries<LabEntryDraft>((demoJson.entries || [])
           .filter(entry => Number.isFinite(entry.markers?.['hormones.estradiol']))
-          .map(entry => [entry.date, entry]));
+          .map((entry): [PropertyKey, LabEntryDraft] => [entry.date as PropertyKey, entry]));
         const expectedDrawContext = {
           '2025-04-10': { day: 10, phase: 'follicular', detail: 'late_follicular' },
           '2025-08-05': { day: 11, phase: 'follicular', detail: 'late_follicular' },
@@ -288,7 +296,7 @@ function invalidContextOptions(demoJson) {
             || context?.cyclePhaseDetail !== expected.detail
             || context?.cyclePhaseSource !== 'recorded'
             || context?.fasting !== true
-            || !/^\d{2}:\d{2}$/.test(context?.sampleTime || '');
+            || !/^\d{2}:\d{2}$/.test((context?.sampleTime || '') as string);
         });
         assert('Demo Sarah records collection and cycle context on every hormone draw',
           contextErrors.length === 0,
@@ -296,26 +304,26 @@ function invalidContextOptions(demoJson) {
         const follicularDates = ['2025-04-10', '2025-08-05', '2026-07-18'];
         const implausibleFollicular = follicularDates.filter(date => {
           const markers = hormoneDraws[date]?.markers || {};
-          return markers['hormones.estradiol'] < 46 || markers['hormones.estradiol'] > 609
-            || markers['hormones.progesterone'] < 0.32 || markers['hormones.progesterone'] > 2.86
-            || markers['hormones.lh'] < 2.4 || markers['hormones.lh'] > 12.6
-            || markers['hormones.fsh'] < 3.5 || markers['hormones.fsh'] > 12.5;
+          return (markers['hormones.estradiol'] as number) < 46 || (markers['hormones.estradiol'] as number) > 609
+            || (markers['hormones.progesterone'] as number) < 0.32 || (markers['hormones.progesterone'] as number) > 2.86
+            || (markers['hormones.lh'] as number) < 2.4 || (markers['hormones.lh'] as number) > 12.6
+            || (markers['hormones.fsh'] as number) < 3.5 || (markers['hormones.fsh'] as number) > 12.5;
         });
         const lateLutealMarkers = hormoneDraws['2025-12-15']?.markers || {};
-        const lateLutealPlausible = lateLutealMarkers['hormones.estradiol'] >= 161
-          && lateLutealMarkers['hormones.estradiol'] <= 775
-          && lateLutealMarkers['hormones.progesterone'] >= 5.72
-          && lateLutealMarkers['hormones.progesterone'] <= 76
-          && lateLutealMarkers['hormones.lh'] >= 1
-          && lateLutealMarkers['hormones.lh'] <= 11.4
-          && lateLutealMarkers['hormones.fsh'] >= 1.7
-          && lateLutealMarkers['hormones.fsh'] <= 7.7;
+        const lateLutealPlausible = (lateLutealMarkers['hormones.estradiol'] as number) >= 161
+          && (lateLutealMarkers['hormones.estradiol'] as number) <= 775
+          && (lateLutealMarkers['hormones.progesterone'] as number) >= 5.72
+          && (lateLutealMarkers['hormones.progesterone'] as number) <= 76
+          && (lateLutealMarkers['hormones.lh'] as number) >= 1
+          && (lateLutealMarkers['hormones.lh'] as number) <= 11.4
+          && (lateLutealMarkers['hormones.fsh'] as number) >= 1.7
+          && (lateLutealMarkers['hormones.fsh'] as number) <= 7.7;
         assert('Demo Sarah hormone values are plausible for each recorded draw phase',
           implausibleFollicular.length === 0 && lateLutealPlausible,
           `follicular=${implausibleFollicular.join(', ')}, late luteal=${lateLutealPlausible}`);
-        const periods = [...(demoJson.menstrualCycle?.periods || [])].sort((a, b) => a.startDate.localeCompare(b.startDate));
+        const periods = [...(demoJson.menstrualCycle?.periods || [])].sort((a, b) => (a.startDate as {localeCompare(value: unknown): number}).localeCompare(b.startDate));
         const cadenceErrors = periods.slice(1).filter((period, index) =>
-          (Date.parse(`${period.startDate}T00:00:00Z`) - Date.parse(`${periods[index].startDate}T00:00:00Z`)) / DAY_MS !== 29);
+          (Date.parse(`${period.startDate}T00:00:00Z`) - Date.parse(`${periods[index]!.startDate}T00:00:00Z`)) / DAY_MS !== 29);
         const lastPeriod = periods.at(-1);
         const latestCycleDay = lastPeriod
           ? Math.floor((Date.parse(`${latestLabDate}T00:00:00Z`) - Date.parse(`${lastPeriod.startDate}T00:00:00Z`)) / DAY_MS) + 1
@@ -328,22 +336,22 @@ function invalidContextOptions(demoJson) {
             && (demoJson.diagnoses?.conditions || []).some(condition => condition.name.includes('under evaluation')));
       }
       const imported = importShapeFromDemo(demoJson);
-      state.importedData = imported;
+      (state as {importedData: unknown}).importedData = imported;
       state.profileSex = demo.sex;
       state.profileDob = demo.dob;
       state.dateRangeFilter = 'all';
       invalidateActiveDataCache();
       const activeData = getActiveData();
       if (demo.sex === 'female') {
-        const estradiol = activeData.categories.hormones.markers.estradiol;
+        const estradiol = activeData.categories.hormones!.markers.estradiol;
         const drawIndexes = activeData.dates
           .map((date, index) => ['2025-04-10', '2025-08-05', '2025-12-15', '2026-07-18'].includes(date) ? index : -1)
           .filter(index => index >= 0);
         assert('Demo Sarah import keeps recorded phases and phase-specific hormone ranges',
           drawIndexes.length === 4
-            && drawIndexes.every(index => estradiol.phaseSources?.[index] === 'recorded')
-            && drawIndexes.every(index => estradiol.phaseRefRanges?.[index]),
-          `draw indexes=${drawIndexes.join(', ')}, sources=${estradiol.phaseSources}`);
+            && drawIndexes.every(index => estradiol!.phaseSources?.[index] === 'recorded')
+            && drawIndexes.every(index => estradiol!.phaseRefRanges?.[index]),
+          `draw indexes=${drawIndexes.join(', ')}, sources=${estradiol!.phaseSources}`);
       }
       const scores = computeBiologyScores(activeData).filter(score => score.id !== 'biologicalCoherence');
       const liveScores = scores.filter(score => score.score != null);
@@ -361,9 +369,9 @@ function invalidContextOptions(demoJson) {
         missingCore.join(',') === 'stressResilience:Cortisol',
         `missing core: ${missingCore.join(', ')}`);
       const perfectScores = scores.filter(score => score.score === 100);
-      const scoredCore = score => score.available.filter(item => item.core && !item.profileContextOnly && Number.isFinite(item.partial));
+      const scoredCore = (score: typeof scores[number]) => score.available.filter(item => item.core && !item.profileContextOnly && Number.isFinite(item.partial));
       assert(`${demo.label} awards perfect range fit only when every scored core input fits`,
-        perfectScores.every(score => scoredCore(score).length > 0 && scoredCore(score).every(item => item.partial >= 99.5)),
+        perfectScores.every(score => scoredCore(score).length > 0 && scoredCore(score).every(item => (item.partial as number) >= 99.5)),
         `perfect scores: ${perfectScores.map(score => score.id).join(', ')}`);
       imported.biologyScoreContextAI = {
         summary: 'Demo context checked locally. Biology Scores are unlocked for this sample profile without using an AI provider.',
@@ -374,7 +382,7 @@ function invalidContextOptions(demoJson) {
         range: 'all',
         updatedAt: Date.parse('2026-08-07T00:00:00.000Z'),
       };
-      const badRanges = [];
+      const badRanges: string[] = [];
       for (const range of ['all', '1y', '6m', '3m']) {
         state.dateRangeFilter = range;
         invalidateActiveDataCache();
@@ -387,7 +395,7 @@ function invalidContextOptions(demoJson) {
         `stale ranges: ${badRanges.join(', ')}`);
     }
   } finally {
-    state.importedData = snapshot;
+    (state as {importedData: unknown}).importedData = snapshot;
     state.profileSex = origSex;
     state.profileDob = origDob;
     state.dateRangeFilter = origRange;

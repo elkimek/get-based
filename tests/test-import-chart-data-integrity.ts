@@ -6,9 +6,13 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Run: node tests/test-import-chart-data-integrity.js (or via npm test)
 
 import './_node-shim.js';
+type ChartFixtureCanvas = {id: string;style: object;getContext(): object};
+interface ChartFixtureRead {data?: {datasets?: {data?: unknown[]}[]};options?: {plugins?: {tooltip?: {callbacks?: {label?: (point: {dataset: unknown;parsed: {y: number}}) => unknown}}}}}
+interface ImportChartCase {name: string;key: string;rawValue: Parameters<typeof normalizeToSI>[1];rawUnit: Parameters<typeof normalizeToSI>[2];expectedStored: number;expectedDisplay: string;importContext?: Parameters<typeof normalizeToSI>[3];forbiddenDisplays?: string[]}
+
 
 const savedGetComputedStyle = globalThis.getComputedStyle;
-const chartColorValues = {
+const chartColorValues: Record<string, string> = {
   '--bg-card': '#111111',
   '--text-primary': '#f8fafc',
   '--text-secondary': '#cbd5e1',
@@ -25,14 +29,14 @@ const chartColorValues = {
   '--ref-border': 'rgba(34,197,94,0.35)',
 };
 
-globalThis.getComputedStyle = () => ({
-  getPropertyValue: prop => chartColorValues[prop] || '#000000',
+(globalThis as {getComputedStyle: unknown}).getComputedStyle = () => ({
+  getPropertyValue: (prop: string) => chartColorValues[prop] || '#000000',
 });
 
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
 
-const approx = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
+const approx = (a: unknown, b: number, eps = 1e-6) => Math.abs((a as number) - b) <= eps;
 
 console.log('=== Import to Chart Data Integrity Tests ===\n');
 
@@ -47,30 +51,30 @@ const saved = {
   chartInstances: state.chartInstances,
   markerRegistry: state.markerRegistry,
   rangeMode: state.rangeMode,
-  Chart: window.Chart,
+  Chart: (window as unknown as {Chart?: unknown}).Chart,
 };
 
-const canvases = new Map();
-document.getElementById = id => canvases.get(id) || null;
-window.Chart = class ChartStub {
-  constructor(canvas, config) {
-    this.canvas = canvas;
-    this.config = config;
-    this.data = config.data;
-    this.options = config.options;
+const canvases = new Map<string, ChartFixtureCanvas>();
+(document as unknown as {getElementById(id: string): unknown}).getElementById = id => canvases.get(id) || null;
+(window as unknown as {Chart?: unknown}).Chart = class ChartStub {
+  constructor(canvas: unknown, config: unknown) {
+    (this as {canvas?: unknown}).canvas = canvas;
+    (this as {config?: unknown}).config = config;
+    (this as {data?: unknown}).data = (config as {data: unknown}).data;
+    (this as {options?: unknown}).options = (config as {options: unknown}).options;
   }
   update() {}
   destroy() {}
 };
 
-function schemaMarker(dotKey) {
+function schemaMarker(dotKey: string) {
   const dot = dotKey.indexOf('.');
   const catKey = dotKey.slice(0, dot);
   const markerKey = dotKey.slice(dot + 1);
   return MARKER_SCHEMA[catKey]?.markers?.[markerKey] || null;
 }
 
-function markerFromImport(dotKey, rawValue, rawUnit, importContext = null) {
+function markerFromImport(dotKey: string, rawValue: Parameters<typeof normalizeToSI>[1], rawUnit: Parameters<typeof normalizeToSI>[2], importContext: Parameters<typeof normalizeToSI>[3] = null) {
   const schema = schemaMarker(dotKey);
   const normalized = normalizeToSI(dotKey, rawValue, rawUnit, importContext);
   return {
@@ -79,7 +83,7 @@ function markerFromImport(dotKey, rawValue, rawUnit, importContext = null) {
   };
 }
 
-function assertImportedMarkerCharts(caseDef) {
+function assertImportedMarkerCharts(caseDef: ImportChartCase) {
   const {
     name,
     key,
@@ -123,14 +127,14 @@ function assertImportedMarkerCharts(caseDef) {
   const canvas = { id: `chart-${id}`, style: {}, getContext: () => ({}) };
   canvases.set(`chart-${id}`, canvas);
   createLineChart(id, marker, ['Imported']);
-  const chart = state.chartInstances[id];
+  const chart = (state.chartInstances as Record<string, unknown>)[id] as ChartFixtureRead | null | undefined;
   const chartValue = chart?.data?.datasets?.[0]?.data?.[0];
   assert(`${name}: Chart.js dataset receives canonical value`,
     approx(chartValue, expectedStored),
     `dataset ${chartValue}, expected ${expectedStored}`);
 
   const label = chart?.options?.plugins?.tooltip?.callbacks?.label?.({
-    dataset: chart.data.datasets[0],
+    dataset: chart!.data!.datasets![0],
     parsed: { y: expectedStored },
   });
   assert(`${name}: Chart.js tooltip formats canonical value`,
@@ -265,9 +269,9 @@ try {
   state.chartInstances = saved.chartInstances;
   state.markerRegistry = saved.markerRegistry;
   state.rangeMode = saved.rangeMode;
-  if (saved.Chart === undefined) delete window.Chart;
-  else window.Chart = saved.Chart;
-  if (savedGetComputedStyle === undefined) delete globalThis.getComputedStyle;
+  if (saved.Chart === undefined) delete (window as unknown as {Chart?: unknown}).Chart;
+  else (window as unknown as {Chart?: unknown}).Chart = saved.Chart;
+  if (savedGetComputedStyle === undefined) delete (globalThis as {getComputedStyle?: unknown}).getComputedStyle;
   else globalThis.getComputedStyle = savedGetComputedStyle;
 }
 

@@ -15,13 +15,16 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // fs-backed fetch shim; mutable app data comes from the state module.
 
 import './_node-shim.js';
+// Private reads at the original unchecked JSON boundary; leaves stay opaque.
+interface SnpFixtureRead {gene?: unknown;category?: unknown;strandNote?: unknown;genotypes?: Record<string, {effect?: unknown;valence?: unknown;note?: unknown}> | null | undefined;snpHints?: {GG?: unknown} | null | undefined}
+
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
 
 // fs-backed fetch shim for the source-inspection + JSON reads.
 const _realFetch = globalThis.fetch;
@@ -42,7 +45,7 @@ const { state } = await import('../js/state.js');
 await import('../js/utils.js');
 await import('../js/data.js');
 const dna = await import('../js/dna.js');
-const snpTable = await fetch('data/snp-health.json').then(r => r.json());
+const snpTable = await fetch('data/snp-health.json').then(r => r.json()) as Record<string, SnpFixtureRead>;
 const dnaSrc = await fetch('js/dna.js').then(r => r.text());
 const dnaParserSrc = await fetch('js/dna-parser.js').then(r => r.text());
 
@@ -123,16 +126,16 @@ assert('Illumina: chip-internal ID filtered (1:103380393 not in matches)', !Obje
 // ═══════════════════════════════════════
 console.log('3. CETP TaqIB Strand Fix');
 
-const cetp = snpTable.rs708272;
+const cetp = snpTable.rs708272!;
 assert('rs708272 exists in SNP table', cetp != null);
-assert('rs708272 has GG key (forward strand)', cetp.genotypes.GG != null);
-assert('rs708272 has GA key (forward strand)', cetp.genotypes.GA != null);
-assert('rs708272 has AA key (forward strand)', cetp.genotypes.AA != null);
-assert('rs708272 does NOT have old GT reverse-strand key', cetp.genotypes.GT == null);
-assert('rs708272 does NOT have old TT reverse-strand key', cetp.genotypes.TT == null);
-assert('rs708272 has strandNote acknowledging old G/T notation', /reverse strand|G\/T/i.test(cetp.strandNote || ''));
+assert('rs708272 has GG key (forward strand)', cetp.genotypes!.GG != null);
+assert('rs708272 has GA key (forward strand)', cetp.genotypes!.GA != null);
+assert('rs708272 has AA key (forward strand)', cetp.genotypes!.AA != null);
+assert('rs708272 does NOT have old GT reverse-strand key', cetp.genotypes!.GT == null);
+assert('rs708272 does NOT have old TT reverse-strand key', cetp.genotypes!.TT == null);
+assert('rs708272 has strandNote acknowledging old G/T notation', /reverse strand|G\/T/i.test((cetp.strandNote || '') as string));
 assert('rs708272 is informational because the cited cohort found no MI difference',
-  Object.values(cetp.genotypes).every(info => info.valence === 'informational'));
+  Object.values(cetp.genotypes!).every(info => info.valence === 'informational'));
 
 // ═══════════════════════════════════════
 // 4. Effect-label recalibration (Part B)
@@ -195,7 +198,7 @@ const protective = [
   ['rs11591147', 'TT', 'PCSK9 R46L'],
   ['rs1801282',  'CG', 'PPARG Pro/Ala'],
   ['rs1801282',  'GG', 'PPARG Ala/Ala'],
-];
+] as const;
 for (const [rsid, gen, label] of protective) {
   assert(`${label} (${rsid} ${gen}) marked valence:protective`, snpTable[rsid]?.genotypes?.[gen]?.valence === 'protective');
 }
@@ -215,10 +218,10 @@ console.log('7. Dot Rendering');
 
 // dotFor is a local fn inside renderGeneticsSection — verify behavior by
 // mocking genetics state for known genotypes and inspecting rendered HTML.
-const origGenetics = state.importedData.genetics;
+const origGenetics: unknown = state.importedData.genetics;
 
-function mockAndRender(snps) {
-  state.importedData.genetics = {
+function mockAndRender(snps: Record<string, {genotype: unknown;gene?: unknown;variant?: unknown}>) {
+  (state.importedData as {genetics: unknown}).genetics = {
     source: 'TestSource', importDate: '2026-04-24',
     coverage: { found: Object.keys(snps).length, total: Object.keys(snps).length },
     effects: { significant: 0, moderate: 0, normal: 0 },
@@ -229,7 +232,7 @@ function mockAndRender(snps) {
 
 // Helper: extract just the finding-row HTML (excludes the legend, which always
 // contains every dot character for explanatory purposes).
-const findingRowDots = (html) => {
+const findingRowDots = (html: string) => {
   const rows = html.match(/<div class="genetics-finding-row[^"]*"[^>]*>[\s\S]*?<\/div>/g) || [];
   return rows.join('').match(/[🔴🟡🟠🟢⚪]/g)?.join('') || '';
 };
@@ -263,7 +266,7 @@ html = mockAndRender({ rs601338: { genotype: 'GG', gene: 'FUT2', variant: 'W154X
 assert('None-effect genotype is collapsed with other SNPs', html.includes('genetics-other-snps') && html.includes('reference') && findingRowDots(html).includes('⚪'));
 
 // Restore genetics state
-state.importedData.genetics = origGenetics;
+(state.importedData as {genetics: unknown}).genetics = origGenetics;
 
 // ═══════════════════════════════════════
 // 8. Legend block + catLabels coverage
@@ -271,7 +274,7 @@ state.importedData.genetics = origGenetics;
 console.log('8. Legend & Category Labels');
 
 // Legend renders when there's at least one finding
-state.importedData.genetics = {
+(state.importedData as {genetics: unknown}).genetics = {
   source: 'TestSource', importDate: '2026-04-24',
   coverage: { found: 1, total: 1 }, effects: {},
   snps: { rs1801133: { genotype: 'AA', gene: 'MTHFR', variant: 'C677T' } }
@@ -283,17 +286,17 @@ assert('Legend has "protective association" label', legendHtml.includes('protect
 assert('Legend has "neutral" label', legendHtml.includes('neutral'));
 assert('Finding shows separate evidence and relevance labels',
   legendHtml.includes('Evidence · Strong') && legendHtml.includes('Relevance · Health context'));
-state.importedData.genetics = origGenetics;
+(state.importedData as {genetics: unknown}).genetics = origGenetics;
 
 // Every category used in snp-health.json must have a display label in SNP_CATEGORY_LABELS
 assert('SNP_CATEGORY_LABELS is exposed by dna.js', typeof dna.SNP_CATEGORY_LABELS === 'object');
 const catLabelsKeys = Object.keys(dna.SNP_CATEGORY_LABELS || {});
-const usedCats = new Set();
+const usedCats = new Set<unknown>();
 for (const [rsid, entry] of Object.entries(snpTable)) {
   if (rsid.startsWith('rs') && entry.category) usedCats.add(entry.category);
 }
 for (const cat of usedCats) {
-  assert(`catLabels has display label for "${cat}"`, catLabelsKeys.includes(cat));
+  assert(`catLabels has display label for "${cat}"`, catLabelsKeys.includes(cat as string));
 }
 
 // Specifically the new categories from v1.22.0
@@ -332,12 +335,12 @@ assert('E2E: FUT2 AA matched', e2eResult.matches.rs601338?.genotype === 'AA');
 
 // Now save the parsed result and render the dashboard, asserting the relevant
 // direction dots plus the informational trait and evidence treatment are present.
-const e2eOrig = state.importedData.genetics;
-const e2eState = { source: e2eResult.source, importDate: '2026-04-24', coverage: e2eResult.coverage, effects: {}, snps: {} };
+const e2eOrig: unknown = state.importedData.genetics;
+const e2eState = { source: e2eResult.source, importDate: '2026-04-24', coverage: e2eResult.coverage, effects: {}, snps: {} as Record<string, Pick<Awaited<ReturnType<typeof dna.parseDNAFile>>['matches'][string], 'genotype' | 'gene' | 'variant'>> };
 for (const [rsid, m] of Object.entries(e2eResult.matches)) {
   e2eState.snps[rsid] = { genotype: m.genotype, gene: m.gene, variant: m.variant };
 }
-state.importedData.genetics = e2eState;
+(state.importedData as {genetics: unknown}).genetics = e2eState;
 const e2eHtml = dna.renderGeneticsSection();
 assert('E2E render: green dot present (PCSK9 protective)', e2eHtml.includes('🟢'));
 assert('E2E render: red direction dot present (risk association)', e2eHtml.includes('🔴'));
@@ -347,7 +350,7 @@ assert('E2E render: MTR is presented as an informational trait',
 assert('E2E render: white circle present (FUT2 neutral)', e2eHtml.includes('⚪'));
 assert('E2E render: legend visible', e2eHtml.includes('genetics-legend'));
 assert('E2E render: source name "Illumina GenomeStudio (DNAEra)" visible', e2eHtml.includes('Illumina GenomeStudio'));
-state.importedData.genetics = e2eOrig;
+(state.importedData as {genetics: unknown}).genetics = e2eOrig;
 
 // ═══════════════════════════════════════
 // 10. Evidence/relevance ordering (categories + within-category)
@@ -359,8 +362,8 @@ state.importedData.genetics = e2eOrig;
 // category mild rows must follow moderate rows.
 console.log('10. Evidence & Relevance Ordering');
 
-const sortOrig = state.importedData.genetics;
-state.importedData.genetics = {
+const sortOrig: unknown = state.importedData.genetics;
+(state.importedData as {genetics: unknown}).genetics = {
   source: 'TestSource', importDate: '2026-04-24',
   coverage: { found: 4, total: 4 }, effects: {},
   snps: {
@@ -388,10 +391,12 @@ const mthfrPos = methylationBlock.indexOf('MTHFR');
 const mtrPos   = methylationBlock.indexOf('MTR ');
 assert('Within-category sort: MTHFR risk before MTR informational trait inside methylation', mthfrPos > 0 && mtrPos > mthfrPos);
 
-state.importedData.genetics = sortOrig;
+(state.importedData as {genetics: unknown}).genetics = sortOrig;
 
 // ═══════════════════════════════════════
 // Results
 // ═══════════════════════════════════════
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
 process.exit(legacyAssertions.fail > 0 ? 1 : 0);
+
+export type PreservedOriginalDnaSourceRead = typeof dnaSrc;

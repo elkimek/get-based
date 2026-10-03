@@ -15,8 +15,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-function fetchWithRetry(rel) { return Promise.resolve(read(rel)); }
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+function fetchWithRetry(rel: string) { return Promise.resolve(read(rel)); }
 
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
@@ -118,18 +118,18 @@ console.log('2. Unified Semver Versioning');
 
 const versionMatch = versionSrc.match(/APP_VERSION\s*=\s*'([^']+)'/);
 const appVersion = versionMatch?.[1] || '';
-function semverGte(a, b) {
+function semverGte(a: unknown, b: unknown) {
   const aParts = String(a).split('.').map(Number);
   const bParts = String(b).split('.').map(Number);
   for (let i = 0; i < 3; i++) {
-    const aPart = Number.isFinite(aParts[i]) ? aParts[i] : 0;
-    const bPart = Number.isFinite(bParts[i]) ? bParts[i] : 0;
+    const aPart = Number.isFinite(aParts[i]) ? aParts[i]! : 0;
+    const bPart = Number.isFinite(bParts[i]) ? bParts[i]! : 0;
     if (aPart !== bPart) return aPart > bPart;
   }
   return true;
 }
 assert('version.js sets APP_VERSION', versionMatch !== null, versionMatch ? `'${versionMatch[1]}'` : 'not found');
-assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]), versionMatch ? versionMatch[1] : '');
+assert('APP_VERSION is semver', versionMatch && /^\d+\.\d+\.\d+/.test(versionMatch[1]!), versionMatch ? versionMatch[1] : '');
 const latestChangelogVersion = changelogSrc.match(/version:\s*'([^']+)'/)?.[1] || '';
 assert('APP_VERSION is at least latest changelog entry', appVersion && latestChangelogVersion && semverGte(appVersion, latestChangelogVersion), `${appVersion} < ${latestChangelogVersion}`);
 assert('latest changelog gives a short user-readable Meals & Nutrition overview',
