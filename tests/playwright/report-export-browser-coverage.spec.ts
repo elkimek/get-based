@@ -1,3 +1,6 @@
+type ReportRequestBodyReader={model:unknown;max_tokens:unknown;messages:{role:unknown;content:unknown}[]};
+type ReportRawChatReader={threads?:{id?:unknown}[];messages:Record<string,{content:unknown}[]>;personality?:unknown;customPersonalities?:{id?:unknown}[];customPersonalityDeleted?:Record<string,unknown>};
+type ReportRawExportReader={profile:{name:unknown};entries:{markers?:Record<string,unknown>}[];notes:{text?:unknown}[];contextSourceSettings?:Record<string,unknown>;chat:ReportRawChatReader;type:unknown;profiles:{chat:ReportRawChatReader}[];wallet:{nodeUrl:unknown}};
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -8,22 +11,22 @@ test('report builder modal delegates presets categories AI state and preview exp
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ builderUrl }) => {
-    const builder = await import(builderUrl);
+    const builder = (await import(builderUrl) as unknown) as Pick<typeof import('../../js/export-report-builder.js'),"openReportBuilder"|"closeReportBuilder">;
     const dataModule = await import('/js/data.js');
     const profile = await import('/js/profile.js');
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const originalProfiles = profile.getProfiles();
     if (!Array.isArray(originalProfiles)) {
       throw new Error('Expected getProfiles to return the current profile list.');
     }
     const original = {
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      importedData: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify(state.importedData || {})),
       currentProfile: state.currentProfile,
       profileSex: state.profileSex,
       profileDob: state.profileDob,
       dateRangeFilter: state.dateRangeFilter,
-      profiles: JSON.parse(JSON.stringify(originalProfiles)),
+      profiles: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify(originalProfiles)),
       open: window.open,
       aiProvider: localStorage.getItem('labcharts-ai-provider'),
       aiPaused: localStorage.getItem('labcharts-ai-paused'),
@@ -32,7 +35,7 @@ test('report builder modal delegates presets categories AI state and preview exp
     let capturedReport = '';
     let printHandlerInstalled = false;
     const wait = () => new Promise(resolve => setTimeout(resolve, 30));
-    const waitFor = async predicate => {
+    const waitFor = async (predicate:()=>unknown) => {
       const deadline = Date.now() + 5000;
       while (!predicate()) {
         if (Date.now() >= deadline) throw new Error('Report preview did not finish within 5 seconds');
@@ -40,10 +43,10 @@ test('report builder modal delegates presets categories AI state and preview exp
       }
     };
     const getOverlay = () => document.getElementById('report-builder-overlay');
-    const checkedCategories = overlay => Array.from(overlay.querySelectorAll('input[data-report-category]:checked'))
+    const checkedCategories = (overlay:HTMLElement|null) => Array.from(overlay!.querySelectorAll<HTMLInputElement>('input[data-report-category]:checked'))
       .map(input => input.dataset.reportCategory);
-    const click = selector => getOverlay()?.querySelector(selector)?.click();
-    const toDateString = date => date.toISOString().slice(0, 10);
+    const click = (selector:string) => getOverlay()?.querySelector<HTMLElement>(selector)?.click();
+    const toDateString = (date:Date) => date.toISOString().slice(0, 10);
     const recentDate = new Date();
     recentDate.setDate(recentDate.getDate() - 14);
     const olderDate = new Date();
@@ -56,7 +59,7 @@ test('report builder modal delegates presets categories AI state and preview exp
       state.profileSex = 'male';
       state.profileDob = '1980-01-02';
       state.dateRangeFilter = 'all';
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         entries: [
           {
             date: olderLabDate,
@@ -92,7 +95,7 @@ test('report builder modal delegates presets categories AI state and preview exp
         customMarkers: {},
       };
       dataModule.invalidateActiveDataCache?.();
-      await profile.saveProfiles([{
+      await (profile.saveProfiles as(profiles:unknown)=>ReturnType<typeof profile.saveProfiles>)([{
         id: 'report-export-coverage',
         name: 'Report Coverage',
         sex: 'male',
@@ -106,20 +109,20 @@ test('report builder modal delegates presets categories AI state and preview exp
       localStorage.removeItem('labcharts-openrouter-key');
 
       const popupDocument = document.implementation.createHTMLDocument('Report preview');
-      window.open = () => ({
+      (window as unknown as {open:unknown}).open = () => ({
         closed: false,
         close() { this.closed = true; },
         document: {
           body: popupDocument.body,
           createElement: popupDocument.createElement.bind(popupDocument),
-          write(markup) { capturedReport += markup; },
+          write(markup:unknown) { capturedReport += markup; },
           close() {},
-          querySelector(selector) {
+          querySelector(selector:string) {
             if (selector !== '.report-print-btn') {
               throw new Error(`Unexpected popup querySelector: ${selector}`);
             }
             return {
-              addEventListener(type) {
+              addEventListener(type:unknown) {
                 if (type === 'click') printHandlerInstalled = true;
               },
             };
@@ -133,14 +136,14 @@ test('report builder modal delegates presets categories AI state and preview exp
       let overlay = getOverlay();
       outcomes.opensClinicianBuilder = !!overlay
         && overlay.dataset.reportPreset === 'clinician'
-        && overlay.querySelector('#report-builder-title')?.textContent === 'Create a report'
-        && overlay.querySelector('.report-intro-copy')?.textContent.includes('created locally')
-        && overlay.querySelectorAll('.report-preset-btn').length === 4
-        && overlay.querySelectorAll('input[data-report-section]').length >= 6
-        && overlay.querySelectorAll('input[data-report-category]').length >= 2
+        && overlay.querySelector<HTMLElement>('#report-builder-title')?.textContent === 'Create a report'
+        && overlay.querySelector<HTMLElement>('.report-intro-copy')?.textContent.includes('created locally')
+        && overlay.querySelectorAll<HTMLElement>('.report-preset-btn').length === 4
+        && overlay.querySelectorAll<HTMLInputElement>('input[data-report-section]').length >= 6
+        && overlay.querySelectorAll<HTMLInputElement>('input[data-report-category]').length >= 2
         && checkedCategories(overlay).includes('biochemistry')
-        && overlay.querySelector('[data-report-section-count]')?.textContent === '4 of 9 sections'
-        && overlay.querySelector('[data-report-category-count]')?.textContent === '2 of 2 categories';
+        && overlay.querySelector<HTMLElement>('[data-report-section-count]')?.textContent === '4 of 9 sections'
+        && overlay.querySelector<HTMLElement>('[data-report-category-count]')?.textContent === '2 of 2 categories';
 
       const presetOverlay = overlay;
       click('[data-report-action="set-preset"][data-report-preset="full"]');
@@ -148,60 +151,60 @@ test('report builder modal delegates presets categories AI state and preview exp
       overlay = getOverlay();
       outcomes.presetClickUpdatesInPlace = overlay === presetOverlay
         && overlay?.dataset.reportPreset === 'full'
-        && overlay.querySelector('.report-preset-btn.active')?.textContent.includes('Full health report') === true
-        && overlay.querySelector('#report-date-range')?.value === 'all'
-        && overlay.querySelector('[data-report-section-count]')?.textContent === '9 of 9 sections'
-        && overlay.querySelector('[data-report-category-count]')?.textContent === '2 of 2 categories';
+        && overlay.querySelector<HTMLElement>('.report-preset-btn.active')?.textContent.includes('Full health report') === true
+        && overlay.querySelector<HTMLSelectElement>('#report-date-range')?.value === 'all'
+        && overlay.querySelector<HTMLElement>('[data-report-section-count]')?.textContent === '9 of 9 sections'
+        && overlay.querySelector<HTMLElement>('[data-report-category-count]')?.textContent === '2 of 2 categories';
 
-      const textEl = overlay.querySelector('#report-ai-summary-text');
-      const statusEl = overlay.querySelector('[data-report-ai-status]');
-      textEl.hidden = false;
-      textEl.value = 'Existing generated summary';
-      statusEl.textContent = 'Generated with Test model. Editable before preview.';
-      overlay.querySelector('#report-date-range').value = '6m';
-      overlay.querySelector('#report-date-range').dispatchEvent(new Event('change', { bubbles: true }));
-      outcomes.optionChangeClearsAISummary = textEl.hidden === true
-        && textEl.value === ''
-        && statusEl.textContent.includes('Report options changed');
+      const textEl = overlay!.querySelector<HTMLTextAreaElement>('#report-ai-summary-text');
+      const statusEl = overlay!.querySelector<HTMLElement>('[data-report-ai-status]');
+      textEl!.hidden = false;
+      textEl!.value = 'Existing generated summary';
+      statusEl!.textContent = 'Generated with Test model. Editable before preview.';
+      overlay!.querySelector<HTMLSelectElement>('#report-date-range')!.value = '6m';
+      overlay!.querySelector<HTMLSelectElement>('#report-date-range')!.dispatchEvent(new Event('change', { bubbles: true }));
+      outcomes.optionChangeClearsAISummary = (textEl!.hidden as boolean) === true
+        && textEl!.value === ''
+        && statusEl!.textContent.includes('Report options changed');
 
       click('[data-report-action="generate-ai-summary"]');
       await wait();
-      outcomes.generateWithoutProviderNotifies = Array.from(document.querySelectorAll('.notification-toast.error'))
+      outcomes.generateWithoutProviderNotifies = Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
         .some(toast => toast.textContent.includes('Connect an AI provider'))
-        && statusEl.textContent === 'Overview unavailable. Retry or preview without AI.';
+        && statusEl!.textContent === 'Overview unavailable. Retry or preview without AI.';
 
-      textEl.hidden = false;
-      textEl.value = 'Generated text to clear';
-      statusEl.textContent = 'Generated with Test model. Editable before preview.';
-      const clearAiBtn = overlay.querySelector('[data-report-action="clear-ai-summary"]');
-      clearAiBtn.hidden = false;
-      clearAiBtn.click();
+      textEl!.hidden = false;
+      textEl!.value = 'Generated text to clear';
+      statusEl!.textContent = 'Generated with Test model. Editable before preview.';
+      const clearAiBtn = overlay!.querySelector<HTMLElement>('[data-report-action="clear-ai-summary"]');
+      clearAiBtn!.hidden = false;
+      clearAiBtn!.click();
       await wait();
-      outcomes.clearAISummaryResetsEditor = textEl.hidden === true
-        && textEl.value === ''
-        && statusEl.textContent === 'Not included.'
-        && clearAiBtn.hidden === true;
+      outcomes.clearAISummaryResetsEditor = (textEl!.hidden as boolean) === true
+        && textEl!.value === ''
+        && statusEl!.textContent === 'Not included.'
+        && (clearAiBtn!.hidden as boolean) === true;
 
-      const sectionBoxes = Array.from(overlay.querySelectorAll('input[data-report-section]'));
+      const sectionBoxes = Array.from(overlay!.querySelectorAll<HTMLInputElement>('input[data-report-section]'));
       sectionBoxes.forEach(box => { box.checked = false; });
       click('[data-report-action="generate-ai-summary"]');
       await wait();
-      outcomes.generateRequiresSectionSelection = statusEl.textContent === 'Choose at least one report section.';
+      outcomes.generateRequiresSectionSelection = statusEl!.textContent === 'Choose at least one report section.';
       click('[data-report-action="export"]');
       await wait();
       outcomes.exportRequiresSectionSelection = !!getOverlay()
-        && Array.from(document.querySelectorAll('.notification-toast.error'))
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
           .some(toast => toast.textContent.includes('Choose at least one report section'));
       sectionBoxes.forEach(box => { box.checked = true; });
 
       click('[data-report-action="clear-categories"]');
       await wait();
-      outcomes.categoryCountUpdatesAfterClear = overlay.querySelector('[data-report-category-count]')?.textContent === '0 of 2 categories'
-        && overlay.querySelector('[data-report-selection-summary]')?.textContent.includes('0 lab categories');
+      outcomes.categoryCountUpdatesAfterClear = overlay!.querySelector<HTMLElement>('[data-report-category-count]')?.textContent === '0 of 2 categories'
+        && overlay!.querySelector<HTMLElement>('[data-report-selection-summary]')?.textContent.includes('0 lab categories');
       click('[data-report-action="export"]');
       await wait();
       outcomes.exportRequiresCategoryForLabSections = !!getOverlay()
-        && Array.from(document.querySelectorAll('.notification-toast.error'))
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
           .some(toast => toast.textContent.includes('Choose at least one lab category'));
 
       click('[data-report-action="select-priority-categories"]');
@@ -216,11 +219,11 @@ test('report builder modal delegates presets categories AI state and preview exp
       outcomes.selectAllRestoresCategories = checkedCategories(overlay).includes('biochemistry')
         && checkedCategories(overlay).includes('hematology');
 
-      overlay.querySelector('#report-date-range').value = 'all';
-      overlay.querySelector('#report-date-range').dispatchEvent(new Event('change', { bubbles: true }));
+      overlay!.querySelector<HTMLSelectElement>('#report-date-range')!.value = 'all';
+      overlay!.querySelector<HTMLSelectElement>('#report-date-range')!.dispatchEvent(new Event('change', { bubbles: true }));
       await wait();
       overlay = getOverlay();
-      outcomes.exportRestoresAllDateRange = overlay?.querySelector('#report-date-range')?.value === 'all';
+      outcomes.exportRestoresAllDateRange = overlay?.querySelector<HTMLSelectElement>('#report-date-range')?.value === 'all';
 
       capturedReport = '';
       printHandlerInstalled = false;
@@ -230,8 +233,8 @@ test('report builder modal delegates presets categories AI state and preview exp
         && capturedReport.includes('Report Coverage health report')
         && capturedReport.includes('Report export browser note')
         && capturedReport.includes('Print / Save PDF')
-        && printHandlerInstalled === true
-        && Array.from(document.querySelectorAll('.notification-toast.info'))
+        && (printHandlerInstalled as boolean) === true
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.info'))
           .some(toast => toast.textContent.includes('PDF preview opened'));
 
       builder.openReportBuilder('not-a-real-preset');
@@ -240,13 +243,13 @@ test('report builder modal delegates presets categories AI state and preview exp
       outcomes.invalidPresetFallsBackToClinician = overlay?.dataset.reportPreset === 'clinician';
     } finally {
       builder.closeReportBuilder();
-      state.importedData = original.importedData;
+      (state as unknown as {importedData:unknown}).importedData = original.importedData;
       state.currentProfile = original.currentProfile;
       state.profileSex = original.profileSex;
       state.profileDob = original.profileDob;
       state.dateRangeFilter = original.dateRangeFilter;
       dataModule.invalidateActiveDataCache?.();
-      await profile.saveProfiles(original.profiles);
+      await (profile.saveProfiles as(profiles:unknown)=>ReturnType<typeof profile.saveProfiles>)(original.profiles);
       window.open = original.open;
       if (original.aiProvider == null) localStorage.removeItem('labcharts-ai-provider');
       else localStorage.setItem('labcharts-ai-provider', original.aiProvider);
@@ -278,12 +281,12 @@ test('report lab categories use the modal scroll surface for reliable wheel inpu
     const { endTour } = await import('/js/tour.js');
     endTour({ openEmptyChat: false });
     const [demo, dataModule, exportModule] = await Promise.all([
-      fetch('/data/demo-male.json').then(response => response.json()),
+      fetch('/data/demo-male.json').then(response => (response.json as()=>Promise<unknown>)()),
       import('/js/data.js'),
       import('/js/export.js'),
     ]);
     const { state } = await import('/js/state.js');
-    state.importedData = demo;
+    (state as unknown as {importedData:unknown}).importedData = demo;
     state.profileSex = 'male';
     dataModule.invalidateActiveDataCache?.();
     await exportModule.openReportBuilder('full');
@@ -312,27 +315,27 @@ test('report payload and HTML cover filtered context genetics and supplement bra
 
   const results = await page.evaluate(async ({ reportUrl, htmlUrl }) => {
     const [report, html, profile, dataModule] = await Promise.all([
-      import(reportUrl),
-      import(htmlUrl),
+      (import(reportUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/export-report.js'),"buildPreparedReportPayload"|"getReportHeaderProfile"|"buildReportHeaderFacts"|"generateReportAISummary"|"normalizeReportOptions"|"renderReportAISummarySection">>,
+      (import(htmlUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/export-report-html.js'),"buildReportHTML"|"exportPDFReport">>,
       import('/js/profile.js'),
       import('/js/data.js'),
     ]);
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const originalProfiles = profile.getProfiles();
     const original = {
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      importedData: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify(state.importedData || {})),
       currentProfile: state.currentProfile,
       profileSex: state.profileSex,
       profileDob: state.profileDob,
       dateRangeFilter: state.dateRangeFilter,
       rangeMode: state.rangeMode,
       unitSystem: state.unitSystem,
-      profiles: JSON.parse(JSON.stringify(originalProfiles)),
-      snpTable: window._snpTableCache,
+      profiles: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify(originalProfiles)),
+      snpTable: (window as unknown as {_snpTableCache?:unknown})._snpTableCache,
     };
-    const toDateString = date => date.toISOString().slice(0, 10);
-    const daysAgo = days => {
+    const toDateString = (date:Date) => date.toISOString().slice(0, 10);
+    const daysAgo = (days:number) => {
       const date = new Date();
       date.setDate(date.getDate() - days);
       return toDateString(date);
@@ -349,7 +352,7 @@ test('report payload and HTML cover filtered context genetics and supplement bra
       state.dateRangeFilter = '3m';
       state.rangeMode = 'both';
       state.unitSystem = 'US';
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         entries: [
           {
             date: oldDate,
@@ -445,7 +448,7 @@ test('report payload and HTML cover filtered context genetics and supplement bra
         },
         customMarkers: {},
       };
-      window._snpTableCache = {
+      (window as unknown as {_snpTableCache?:unknown})._snpTableCache = {
         rsCoverage: {
           category: 'methylation',
           genotypes: {
@@ -454,7 +457,7 @@ test('report payload and HTML cover filtered context genetics and supplement bra
         },
       };
       dataModule.invalidateActiveDataCache?.();
-      await profile.saveProfiles([{
+      await (profile.saveProfiles as(profiles:unknown)=>ReturnType<typeof profile.saveProfiles>)([{
         id: 'report-payload-coverage',
         name: 'Payload Coverage',
         sex: 'female',
@@ -483,10 +486,10 @@ test('report payload and HTML cover filtered context genetics and supplement bra
         && !payload.data.dates.includes(oldDate)
         && Object.keys(payload.data.categories).join('|') === 'biochemistry|vitamins'
         && payload.notes.length === 1
-        && payload.notes[0].text.includes('Recent report note')
+        && payload.notes[0]!.text.includes('Recent report note')
         && payload.supps.length === 1
-        && payload.supps[0].name === 'Magnesium Complex'
-        && payload.reportData.labs.dates.join('|') === `${midDate}|${recentDate}`
+        && payload.supps[0]!.name === 'Magnesium Complex'
+        && payload.reportData.labs!.dates.join('|') === `${midDate}|${recentDate}`
         && payload.flags.some(flag => flag.name === 'Glucose');
 
       const contextByTitle = Object.fromEntries(payload.contextSections.map(section => [section.title, section.text]));
@@ -508,14 +511,14 @@ test('report payload and HTML cover filtered context genetics and supplement bra
       const factMap = Object.fromEntries(facts.map(fact => [fact.label, fact.value]));
       outcomes.headerFactsIncludeProfileAndBiometricDetails = factMap.Location === 'Prague, CZ, 11000'
         && factMap.Height === '5 ft 5 in'
-        && factMap.Weight.includes('180 lb')
-        && factMap.BMI.includes('30.0')
-        && factMap['Blood pressure'].includes('116/74')
-        && factMap['Resting pulse'].includes('58 bpm')
-        && factMap['Body fat'].includes('18.5%');
+        && factMap.Weight!.includes('180 lb')
+        && factMap.BMI!.includes('30.0')
+        && factMap['Blood pressure']!.includes('116/74')
+        && factMap['Resting pulse']!.includes('58 bpm')
+        && factMap['Body fat']!.includes('18.5%');
 
-      state.importedData.biometrics.weight = [];
-      state.importedData.wearableSummary.metrics.weight = {
+      state.importedData.biometrics!.weight = [];
+      (state.importedData.wearableSummary as unknown as {metrics:Record<string,unknown>}).metrics.weight = {
         latest: 180 / 2.2046226218,
         latestDate: recentDate,
         primarySource: 'manual',
@@ -535,8 +538,8 @@ test('report payload and HTML cover filtered context genetics and supplement bra
       const wearableContext = wearableWeightPayload.contextSections
         .find(section => section.title === 'Biometrics')?.text || '';
       outcomes.wearableSummaryWeightUsesUSUnitsAndCanonicalBmi =
-        wearableWeightFacts.Weight.includes('180 lb')
-        && wearableWeightFacts.BMI.includes('30.0')
+        wearableWeightFacts.Weight!.includes('180 lb')
+        && wearableWeightFacts.BMI!.includes('30.0')
         && wearableContext.includes('Latest weight: 180 lb');
 
       state.unitSystem = 'EU';
@@ -548,8 +551,8 @@ test('report payload and HTML cover filtered context genetics and supplement bra
         unitLabel: 'SI',
       }).map(fact => [fact.label, fact.value]));
       outcomes.wearableSummaryWeightUsesEuUnitsWithoutChangingBmi =
-        euWeightFacts.Weight.includes('81.6 kg')
-        && euWeightFacts.BMI.includes('30.0');
+        euWeightFacts.Weight!.includes('81.6 kg')
+        && euWeightFacts.BMI!.includes('30.0');
       state.unitSystem = 'US';
 
       const reportHtml = html.buildReportHTML(
@@ -579,16 +582,16 @@ test('report payload and HTML cover filtered context genetics and supplement bra
         && reportHtml.includes('avoid &lt;wheat&gt;')
         && !reportHtml.includes('Hemoglobin');
     } finally {
-      state.importedData = original.importedData;
+      (state as unknown as {importedData:unknown}).importedData = original.importedData;
       state.currentProfile = original.currentProfile;
       state.profileSex = original.profileSex;
       state.profileDob = original.profileDob;
       state.dateRangeFilter = original.dateRangeFilter;
       state.rangeMode = original.rangeMode;
       state.unitSystem = original.unitSystem;
-      window._snpTableCache = original.snpTable;
+      (window as unknown as {_snpTableCache?:unknown})._snpTableCache = original.snpTable;
       dataModule.invalidateActiveDataCache?.();
-      await profile.saveProfiles(original.profiles);
+      await (profile.saveProfiles as(profiles:unknown)=>ReturnType<typeof profile.saveProfiles>)(original.profiles);
     }
 
     return outcomes;
@@ -607,20 +610,20 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ htmlUrl }) => {
-    const html = await import(htmlUrl);
+    const html = (await import(htmlUrl) as unknown) as Pick<typeof import('../../js/export-report-html.js'),"buildReportHTML"|"exportPDFReport">;
     const dataModule = await import('/js/data.js');
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const original = {
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
-      profiles: JSON.parse(JSON.stringify(state.profiles || [])),
+      importedData: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify(state.importedData || {})),
+      profiles: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify(state.profiles || [])),
       currentProfile: state.currentProfile,
       profileSex: state.profileSex,
       profileDob: state.profileDob,
       rangeMode: state.rangeMode,
       unitSystem: state.unitSystem,
       open: window.open,
-      snpTable: window._snpTableCache,
+      snpTable: (window as unknown as {_snpTableCache?:unknown})._snpTableCache,
     };
     const trendMarkers = Object.fromEntries(Array.from({ length: 9 }, (_, index) => [
       `trend${index}`,
@@ -659,7 +662,7 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
 
     try {
       state.currentProfile = 'report-html-renderer-coverage';
-      state.profiles = [{
+      (state as unknown as {profiles:unknown}).profiles = [{
         id: 'report-html-renderer-coverage',
         name: 'Renderer Coverage',
         sex: 'female',
@@ -675,7 +678,7 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
       state.profileDob = '';
       state.rangeMode = 'reference';
       state.unitSystem = 'EU';
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         entries: [],
         notes: [],
         supplements: [],
@@ -687,7 +690,7 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
         },
         customMarkers: {},
       };
-      window._snpTableCache = null;
+      (window as unknown as {_snpTableCache?:unknown})._snpTableCache = null;
       dataModule.invalidateActiveDataCache?.();
 
       const emptyReport = html.buildReportHTML(
@@ -811,15 +814,15 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
         && denseReport.includes('Within Reference Range:</strong>');
 
       let capturedReport = '';
-      let printHandler = null;
-      window.open = () => ({
+      let printHandler:unknown = null;
+      (window as unknown as {open:unknown}).open = () => ({
         document: {
-          write(markup) { capturedReport += markup; },
+          write(markup:unknown) { capturedReport += markup; },
           close() {},
-          querySelector(selector) {
+          querySelector(selector:string) {
             if (selector !== '.report-print-btn') throw new Error(`Unexpected selector: ${selector}`);
             return {
-              addEventListener(type, handler) {
+              addEventListener(type:unknown, handler:unknown) {
                 if (type === 'click') printHandler = handler;
               },
             };
@@ -841,18 +844,18 @@ test('report HTML renderer covers sparse single-date trend and print branches', 
         && capturedReport.includes('Glucose')
         && capturedReport.includes('Print / Save PDF')
         && typeof printHandler === 'function'
-        && Array.from(document.querySelectorAll('.notification-toast.info'))
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.info'))
           .some(toast => toast.textContent.includes('PDF preview opened'));
     } finally {
-      state.importedData = original.importedData;
-      state.profiles = original.profiles;
+      (state as unknown as {importedData:unknown}).importedData = original.importedData;
+      (state as unknown as {profiles:unknown}).profiles = original.profiles;
       state.currentProfile = original.currentProfile;
       state.profileSex = original.profileSex;
       state.profileDob = original.profileDob;
       state.rangeMode = original.rangeMode;
       state.unitSystem = original.unitSystem;
       window.open = original.open;
-      window._snpTableCache = original.snpTable;
+      (window as unknown as {_snpTableCache?:unknown})._snpTableCache = original.snpTable;
       dataModule.invalidateActiveDataCache?.();
     }
 
@@ -871,18 +874,18 @@ test('report AI summary generation covers unavailable success and empty-response
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ reportUrl }) => {
-    const report = await import(reportUrl);
+    const report = (await import(reportUrl) as unknown) as Pick<typeof import('../../js/export-report.js'),"buildPreparedReportPayload"|"getReportHeaderProfile"|"buildReportHeaderFacts"|"generateReportAISummary"|"normalizeReportOptions"|"renderReportAISummarySection">;
     const dataModule = await import('/js/data.js');
     const profile = await import('/js/profile.js');
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const originalProfiles = profile.getProfiles();
     const original = {
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      importedData: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify(state.importedData || {})),
       currentProfile: state.currentProfile,
       profileSex: state.profileSex,
       profileDob: state.profileDob,
-      profiles: JSON.parse(JSON.stringify(originalProfiles)),
+      profiles: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify(originalProfiles)),
       fetch: window.fetch,
       aiProvider: localStorage.getItem('labcharts-ai-provider'),
       aiPaused: localStorage.getItem('labcharts-ai-paused'),
@@ -899,14 +902,14 @@ Key signals:
 Discussion focus:
 1. Confirm fasting status.
 \`\`\``;
-    const requests = [];
+    const requests:{url:string;body:unknown}[] = [];
     let returnEmpty = false;
 
     try {
       state.currentProfile = 'report-ai-coverage';
       state.profileSex = 'male';
       state.profileDob = '1988-02-01';
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         entries: [
           { date: '2026-01-01', markers: { 'biochemistry.glucose': 5.0 } },
           { date: '2026-06-01', markers: { 'biochemistry.glucose': 7.2 } },
@@ -918,7 +921,7 @@ Discussion focus:
         customMarkers: {},
       };
       dataModule.invalidateActiveDataCache?.();
-      await profile.saveProfiles([{
+      await (profile.saveProfiles as(profiles:unknown)=>ReturnType<typeof profile.saveProfiles>)([{
         id: 'report-ai-coverage',
         name: 'Report AI Coverage',
         sex: 'male',
@@ -933,17 +936,17 @@ Discussion focus:
       localStorage.setItem('labcharts-ai-paused', 'true');
       const emptySelection = await report.generateReportAISummary({ dateRange: 'all', sections: [] });
       outcomes.emptySelectionDoesNotGenerate = emptySelection === null
-        && Array.from(document.querySelectorAll('.notification-toast.error'))
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
           .some(toast => toast.textContent.includes('Choose at least one report section'));
       const unavailable = await report.generateReportAISummary({ dateRange: 'all' });
       outcomes.unavailableAIShowsErrorAndReturnsNull = unavailable === null
-        && Array.from(document.querySelectorAll('.notification-toast.error'))
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
           .some(toast => toast.textContent.includes('Connect an AI provider'));
 
-      window.fetch = async (url, init = {}) => {
+      window.fetch = async (url:Parameters<typeof fetch>[0], init:RequestInit = {}) => {
         requests.push({
           url: String(url),
-          body: JSON.parse(String(init.body || '{}')),
+          body: (JSON.parse as(text:unknown)=>unknown)(String(init.body || '{}')),
         });
         return new Response(JSON.stringify({
           choices: [{
@@ -965,22 +968,22 @@ Discussion focus:
         categoryKeys: ['biochemistry'],
       });
       const request = requests[0];
-      const userContext = request.body.messages.find(message => message.role === 'user')?.content || '';
-      outcomes.successfulSummaryUsesLocalAIAndCleanedText = summary.provider === 'ollama'
-        && summary.modelId === 'summary-test-model'
-        && summary.model === 'summary-test-model'
-        && summary.text.startsWith('Patient picture:')
-        && !summary.text.includes('```')
-        && request.url.includes('/v1/chat/completions')
-        && request.body.model === 'summary-test-model'
-        && request.body.max_tokens === 900
-        && request.body.messages.some(message => message.role === 'system' && message.content.includes('You write descriptive personal health overviews'))
-        && userContext.includes('Profile: Report AI Coverage')
-        && userContext.includes('Notable trends:')
-        && userContext.includes('Recent report notes:')
-        && userContext.includes('Vitamin D')
-        && userContext.includes('Prefers concise practitioner reports.')
-        && !userContext.includes('Genetics: APOE');
+      const userContext = (request!.body as ReportRequestBodyReader).messages.find(message => message.role === 'user')?.content as unknown || '';
+      outcomes.successfulSummaryUsesLocalAIAndCleanedText = summary!.provider === 'ollama'
+        && summary!.modelId === 'summary-test-model'
+        && summary!.model === 'summary-test-model'
+        && summary!.text.startsWith('Patient picture:')
+        && !summary!.text.includes('```')
+        && request!.url.includes('/v1/chat/completions')
+        && (request!.body as ReportRequestBodyReader).model === 'summary-test-model'
+        && (request!.body as ReportRequestBodyReader).max_tokens === 900
+        && (request!.body as ReportRequestBodyReader).messages.some(message => message.role === 'system' && (message.content as {includes(value:string):unknown}).includes('You write descriptive personal health overviews'))
+        && (userContext as {includes(value:string):unknown}).includes('Profile: Report AI Coverage')
+        && (userContext as {includes(value:string):unknown}).includes('Notable trends:')
+        && (userContext as {includes(value:string):unknown}).includes('Recent report notes:')
+        && (userContext as {includes(value:string):unknown}).includes('Vitamin D')
+        && (userContext as {includes(value:string):unknown}).includes('Prefers concise practitioner reports.')
+        && !(userContext as {includes(value:string):unknown}).includes('Genetics: APOE');
 
       await report.generateReportAISummary({
         preset: 'personal',
@@ -988,29 +991,29 @@ Discussion focus:
         sections: ['notes'],
         categoryKeys: ['biochemistry'],
       });
-      const notesOnlyContext = requests[1].body.messages.find(message => message.role === 'user')?.content || '';
-      outcomes.summaryHonorsSelectedSections = notesOnlyContext.includes('Recent report notes:')
-        && !notesOnlyContext.includes('Representative latest lab results:')
-        && !notesOnlyContext.includes('Notable trends:')
-        && !notesOnlyContext.includes('Supplements and medications:')
-        && !notesOnlyContext.includes('Profile context:')
-        && !notesOnlyContext.includes('Genetics: APOE');
+      const notesOnlyContext = (requests[1]!.body as ReportRequestBodyReader).messages.find(message => message.role === 'user')?.content as unknown || '';
+      outcomes.summaryHonorsSelectedSections = (notesOnlyContext as {includes(value:string):unknown}).includes('Recent report notes:')
+        && !(notesOnlyContext as {includes(value:string):unknown}).includes('Representative latest lab results:')
+        && !(notesOnlyContext as {includes(value:string):unknown}).includes('Notable trends:')
+        && !(notesOnlyContext as {includes(value:string):unknown}).includes('Supplements and medications:')
+        && !(notesOnlyContext as {includes(value:string):unknown}).includes('Profile context:')
+        && !(notesOnlyContext as {includes(value:string):unknown}).includes('Genetics: APOE');
 
       returnEmpty = true;
       let emptyResponseThrows = false;
       try {
         await report.generateReportAISummary({ dateRange: 'all' });
       } catch (err) {
-        emptyResponseThrows = String(err?.message || err).includes('returned no response content');
+        emptyResponseThrows = String((err as {message?:unknown}|null|undefined)?.message || err).includes('returned no response content');
       }
       outcomes.emptySummaryResponseThrows = emptyResponseThrows;
     } finally {
-      state.importedData = original.importedData;
+      (state as unknown as {importedData:unknown}).importedData = original.importedData;
       state.currentProfile = original.currentProfile;
       state.profileSex = original.profileSex;
       state.profileDob = original.profileDob;
       dataModule.invalidateActiveDataCache?.();
-      await profile.saveProfiles(original.profiles);
+      await (profile.saveProfiles as(profiles:unknown)=>ReturnType<typeof profile.saveProfiles>)(original.profiles);
       window.fetch = original.fetch;
       if (original.aiProvider == null) localStorage.removeItem('labcharts-ai-provider');
       else localStorage.setItem('labcharts-ai-provider', original.aiProvider);
@@ -1035,13 +1038,13 @@ test('report export helpers cover option normalization AI markup and popup block
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ reportUrl, htmlUrl }) => {
-    const report = await import(reportUrl);
-    const html = await import(htmlUrl);
+    const report = (await import(reportUrl) as unknown) as Pick<typeof import('../../js/export-report.js'),"buildPreparedReportPayload"|"getReportHeaderProfile"|"buildReportHeaderFacts"|"generateReportAISummary"|"normalizeReportOptions"|"renderReportAISummarySection">;
+    const html = (await import(htmlUrl) as unknown) as Pick<typeof import('../../js/export-report-html.js'),"buildReportHTML"|"exportPDFReport">;
     const dataModule = await import('/js/data.js');
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const original = {
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      importedData: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify(state.importedData || {})),
       currentProfile: state.currentProfile,
       profileSex: state.profileSex,
       open: window.open,
@@ -1050,7 +1053,7 @@ test('report export helpers cover option normalization AI markup and popup block
     try {
       state.currentProfile = 'report-helper-coverage';
       state.profileSex = 'female';
-      state.importedData = {
+      (state as unknown as {importedData:unknown}).importedData = {
         entries: [{
           date: '2026-05-01',
           markers: { 'vitamins.vitaminD': 42 },
@@ -1071,8 +1074,8 @@ test('report export helpers cover option normalization AI markup and popup block
       outcomes.normalizesExplicitOptions = normalized.preset === 'clinician'
         && normalized.dateRange === 'all'
         && normalized.sections.join('|') === 'summary|notes'
-        && normalized.categoryKeys.join('|') === 'vitamins'
-        && normalized.aiSummary.text.includes('Stable <script>alert(1)</script>')
+        && normalized.categoryKeys!.join('|') === 'vitamins'
+        && normalized.aiSummary!.text.includes('Stable <script>alert(1)</script>')
         && report.normalizeReportOptions({ sections: [] }).sections.length === 0;
 
       const aiMarkup = report.renderReportAISummarySection(normalized.aiSummary);
@@ -1081,20 +1084,20 @@ test('report export helpers cover option normalization AI markup and popup block
         && aiMarkup.includes('<p class="report-ai-subhead">Discussion focus</p>')
         && aiMarkup.includes('Stable &lt;script&gt;alert(1)&lt;/script&gt;')
         && !aiMarkup.includes('Stable <script>alert(1)</script>');
-      const grokMarkup = report.renderReportAISummarySection({ ...normalized.aiSummary, agentId: 'grok' });
+      const grokMarkup = report.renderReportAISummarySection({ ...normalized.aiSummary!, agentId: 'grok' });
       outcomes.grokReportSummaryIsVisiblyAttributed = grokMarkup.includes('<p class="report-ai-attribution">Written with Grok</p>');
 
-      window.open = () => null;
+      (window as unknown as {open:unknown}).open = () => null;
       outcomes.popupBlockedReturnsFalseAndNotifies = await html.exportPDFReport({
         preset: 'personal',
         dateRange: 'all',
         sections: ['categories'],
         categoryKeys: ['vitamins'],
       }) === false
-        && Array.from(document.querySelectorAll('.notification-toast.error'))
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
           .some(toast => toast.textContent.includes('Pop-up blocked'));
     } finally {
-      state.importedData = original.importedData;
+      (state as unknown as {importedData:unknown}).importedData = original.importedData;
       state.currentProfile = original.currentProfile;
       state.profileSex = original.profileSex;
       dataModule.invalidateActiveDataCache?.();
@@ -1118,20 +1121,20 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
 
   const results = await page.evaluate(async ({ exportUrl, profileUrl, cryptoUrl }) => {
     const [exportFacade, profileStore, cryptoStore, dataModule, viewsModule] = await Promise.all([
-      import(exportUrl),
-      import(profileUrl),
-      import(cryptoUrl),
+      (import(exportUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/export.js'),"generateReportAISummary"|"collectReportData"|"buildReportAgentContext"|"exportDataJSON"|"exportClientJSON"|"exportAllDataJSON"|"buildClientExportObject"|"importDataJSON"|"clearAllData">>,
+      (import(profileUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/profile.js'),"getProfiles"|"saveProfiles"|"profileStorageKey">>,
+      (import(cryptoUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/crypto.js'),"encryptedSetItem"|"encryptedGetItem"|"encryptedRemoveItem">>,
       import('/js/data.js'),
       import('/js/views.js'),
     ]);
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes:Record<string,unknown> = {};
     const profileId = 'export-facade-coverage';
     const originalProfiles = profileStore.getProfiles();
     const original = {
-      importedData: JSON.parse(JSON.stringify(state.importedData || {})),
+      importedData: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify(state.importedData || {})),
       currentProfile: state.currentProfile,
-      profiles: JSON.parse(JSON.stringify(originalProfiles)),
+      profiles: (JSON.parse as(text:unknown)=>unknown)(JSON.stringify(originalProfiles)),
       activeProfile: localStorage.getItem('labcharts-active-profile'),
       encryptionEnabled: localStorage.getItem('labcharts-encryption-enabled'),
       aiProvider: localStorage.getItem('labcharts-ai-provider'),
@@ -1143,10 +1146,10 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       createObjectURL: URL.createObjectURL,
       revokeObjectURL: URL.revokeObjectURL,
       anchorClick: HTMLAnchorElement.prototype.click,
-      cashuGetMintUrl: window.cashuGetMintUrl,
-      cashuSetMintUrl: window.cashuSetMintUrl,
+      cashuGetMintUrl: (window as unknown as {cashuGetMintUrl?:unknown}).cashuGetMintUrl,
+      cashuSetMintUrl: (window as unknown as {cashuSetMintUrl?:unknown}).cashuSetMintUrl,
     };
-    const waitFor = async (predicate, label) => {
+    const waitFor = async <T,>(predicate:()=>T, label:string) => {
       for (let i = 0; i < 80; i += 1) {
         const value = predicate();
         if (value) return value;
@@ -1154,9 +1157,9 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       }
       throw new Error(`Timed out waiting for ${label}`);
     };
-    const setOrRemove = (key, value) => {
+    const setOrRemove = (key:string, value:unknown) => {
       if (value == null) localStorage.removeItem(key);
-      else localStorage.setItem(key, value);
+      else (localStorage.setItem as(key:string,value:unknown)=>void)(key, value);
     };
     const profileData = {
       entries: [{
@@ -1180,16 +1183,16 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
         'lab-group-Specialty Panel': true,
       },
     };
-    const downloadRecords = [];
-    const blobTexts = new Map();
-    const revokedUrls = [];
+    const downloadRecords:{download:string;href:string;text?:string|undefined}[] = [];
+    const blobTexts = new Map<string,Promise<string>>();
+    const revokedUrls:string[] = [];
 
     try {
       localStorage.setItem('labcharts-encryption-enabled', 'false');
       state.currentProfile = profileId;
-      state.importedData = JSON.parse(JSON.stringify(profileData));
+      (state as unknown as {importedData:unknown}).importedData = (JSON.parse as(text:unknown)=>unknown)(JSON.stringify(profileData));
       localStorage.setItem('labcharts-active-profile', profileId);
-      await profileStore.saveProfiles([{
+      await (profileStore.saveProfiles as(profiles:unknown)=>ReturnType<typeof profileStore.saveProfiles>)([{
         id: profileId,
         name: 'Export Facade',
         sex: 'female',
@@ -1229,7 +1232,7 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       URL.createObjectURL = blob => {
         objectUrlIndex += 1;
         const url = `blob:export-facade-${objectUrlIndex}`;
-        blobTexts.set(url, blob.text());
+        blobTexts.set(url, (blob as Blob).text());
         return url;
       };
       URL.revokeObjectURL = url => { revokedUrls.push(url); };
@@ -1239,14 +1242,14 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
           href: this.getAttribute('href') || this.href,
         });
       };
-      window.cashuGetMintUrl = async () => 'https://mint.example';
+      (window as unknown as {cashuGetMintUrl?:unknown}).cashuGetMintUrl = async () => 'https://mint.example';
       localStorage.setItem('labcharts-routstr-node', 'https://node.export.test');
 
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem('labcharts-ai-paused', 'true');
       const unavailable = await exportFacade.generateReportAISummary({ dateRange: 'all' });
       outcomes.facadeAISummaryReturnsNullWhenProviderUnavailable = unavailable === null
-        && Array.from(document.querySelectorAll('.notification-toast.error'))
+        && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast.error'))
           .some(toast => toast.textContent.includes('Connect an AI provider'));
 
       dataModule.invalidateActiveDataCache?.();
@@ -1260,11 +1263,11 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       const agentReportContext = exportFacade.buildReportAgentContext(reportOptions);
       outcomes.reportFacadeExposesPortableDataAndAgentProjection = portableReport.schemaVersion === 1
         && portableReport.profile.name === 'Export Facade'
-        && portableReport.labs.categories[0].markers.some(marker => marker.name === 'Glucose')
-        && portableReport.notes[0].text === 'Export facade note'
-        && portableReport.supplements[0].name === 'Zinc'
-        && portableReport.context.raw.sunSessions[0].id === 'sun-export'
-        && JSON.parse(JSON.stringify(portableReport)).labs.summary.markerCount > 0
+        && portableReport.labs!.categories[0]!.markers.some(marker => marker.name === 'Glucose')
+        && portableReport.notes[0]!.text === 'Export facade note'
+        && portableReport.supplements[0]!.name === 'Zinc'
+        && (portableReport.context!.raw.sunSessions as {id?:unknown}[])[0]!.id === 'sun-export'
+        && ((JSON.parse as(text:unknown)=>unknown)(JSON.stringify(portableReport)) as {labs:{summary:{markerCount:number}}}).labs.summary.markerCount > 0
         && agentReportContext.includes('Profile: Export Facade')
         && agentReportContext.includes('Representative latest lab results:')
         && agentReportContext.includes('Export facade note');
@@ -1276,42 +1279,43 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       await Promise.all(downloadRecords.map(async record => {
         record.text = await blobTexts.get(record.href);
       }));
-      const activeClientExport = JSON.parse(downloadRecords[0].text);
-      const chatClientExport = JSON.parse(downloadRecords[1].text);
-      const allDataBundle = JSON.parse(downloadRecords[2].text);
+      const activeClientExport = (JSON.parse as(text:unknown)=>unknown)(downloadRecords[0]!.text);
+      const chatClientExport = (JSON.parse as(text:unknown)=>unknown)(downloadRecords[1]!.text);
+      const allDataBundle = (JSON.parse as(text:unknown)=>unknown)(downloadRecords[2]!.text);
       outcomes.downloadsIncludeActiveClientChatAndNonSecretWalletSettings = downloadRecords.length === 3
-        && downloadRecords[0].download.includes('getbased-export-facade')
-        && activeClientExport.profile.name === 'Export Facade'
-        && activeClientExport.entries[0].markers['biochemistry.glucose'] === 5.8
-        && activeClientExport.contextSourceSettings['lab-group-Fatty Acids'] === false
-        && activeClientExport.contextSourceSettings['lab-group-Specialty Panel'] === true
-        && chatClientExport.chat.threads[0].id === 'thread-one'
-        && chatClientExport.chat.messages['thread-one'][1].content.includes('Glucose')
-        && allDataBundle.type === 'database'
-        && allDataBundle.profiles.length === 1
-        && allDataBundle.profiles[0].chat.threads[0].id === 'thread-one'
-        && allDataBundle.wallet.nodeUrl === 'https://node.export.test'
-        && !Object.prototype.hasOwnProperty.call(allDataBundle.wallet, 'mintUrl')
+        && downloadRecords[0]!.download.includes('getbased-export-facade')
+        && (activeClientExport as ReportRawExportReader).profile.name === 'Export Facade'
+        && (activeClientExport as ReportRawExportReader).entries[0]!.markers!['biochemistry.glucose'] === 5.8
+        && (activeClientExport as ReportRawExportReader).contextSourceSettings!['lab-group-Fatty Acids'] === false
+        && (activeClientExport as ReportRawExportReader).contextSourceSettings!['lab-group-Specialty Panel'] === true
+        && (chatClientExport as ReportRawExportReader).chat.threads![0]!.id === 'thread-one'
+        && ((chatClientExport as ReportRawExportReader).chat.messages['thread-one']![1]!.content as {includes(value:string):unknown}).includes('Glucose')
+        && (allDataBundle as ReportRawExportReader).type === 'database'
+        && (allDataBundle as ReportRawExportReader).profiles.length === 1
+        && (allDataBundle as ReportRawExportReader).profiles[0]!.chat.threads![0]!.id === 'thread-one'
+        && (allDataBundle as ReportRawExportReader).wallet.nodeUrl === 'https://node.export.test'
+        && !Object.prototype.hasOwnProperty.call((allDataBundle as ReportRawExportReader).wallet, 'mintUrl')
         && revokedUrls.length === 3;
 
       const savedThreadIndex = localStorage.getItem(`labcharts-${profileId}-chat-threads`);
       localStorage.removeItem(`labcharts-${profileId}-chat-threads`);
       const personaOnlyExport = await exportFacade.buildClientExportObject(profileId, true);
       outcomes.portableExportIncludesPersonasWithoutConversationThreads =
-        personaOnlyExport.chat?.threads?.length === 0
-        && personaOnlyExport.chat?.personality === 'clinician'
-        && personaOnlyExport.chat?.customPersonalities?.[0]?.id === 'direct'
-        && personaOnlyExport.chat?.customPersonalityDeleted?.custom_retired === 1786183200000;
+        (personaOnlyExport.chat as ReportRawChatReader|null|undefined)?.threads?.length === 0
+        && (personaOnlyExport.chat as ReportRawChatReader|null|undefined)?.personality === 'clinician'
+        && (personaOnlyExport.chat as ReportRawChatReader|null|undefined)?.customPersonalities?.[0]?.id === 'direct'
+        && (personaOnlyExport.chat as ReportRawChatReader|null|undefined)?.customPersonalityDeleted?.custom_retired === 1786183200000;
       if (savedThreadIndex != null) {
         localStorage.setItem(`labcharts-${profileId}-chat-threads`, savedThreadIndex);
       }
 
+      interface ErrorFileReader {onerror?:(event:Event)=>unknown}
       class ErrorFileReader {
         readAsText() {
           setTimeout(() => this.onerror?.(new Event('error')), 0);
         }
       }
-      window.FileReader = ErrorFileReader;
+      (window as unknown as {FileReader:unknown}).FileReader = ErrorFileReader;
       let errorReaderResolved = false;
       await exportFacade.importDataJSON(new File(['{}'], 'reader-error.json', { type: 'application/json' }));
       errorReaderResolved = true;
@@ -1348,24 +1352,24 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       await exportFacade.importDataJSON(new File([JSON.stringify(singleImport)], 'single-client.json', { type: 'application/json' }));
       const singleProfile = profileStore.getProfiles().find(profile => profile.name === 'Imported Facade Client');
       const singleThreads = singleProfile
-        ? JSON.parse(localStorage.getItem(`labcharts-${singleProfile.id}-chat-threads`) || '[]')
+        ? (JSON.parse as(text:unknown)=>unknown)(localStorage.getItem(`labcharts-${singleProfile.id}-chat-threads`) || '[]')
         : [];
       outcomes.singleClientImportCreatesProfileDataAndChat = !!singleProfile
         && state.currentProfile === singleProfile.id
         && state.importedData.entries.some(entry => entry.markers?.['vitamins.vitaminD'] === 44)
         && state.importedData.contextSourceSettings?.['lab-group-Fatty Acids'] === false
         && state.importedData.contextSourceSettings?.['lab-group-Specialty Panel'] === true
-        && singleThreads[0]?.id === 'single-thread'
+        && (singleThreads as {id?:unknown}[])[0]?.id === 'single-thread'
         && localStorage.getItem(`labcharts-${singleProfile.id}-chatPersonality`) === 'coach'
-        && JSON.parse(localStorage.getItem(`labcharts-${singleProfile.id}-chatPersonalityDeleted`) || '{}')
+        && ((JSON.parse as(text:unknown)=>unknown)(localStorage.getItem(`labcharts-${singleProfile.id}-chatPersonalityDeleted`) || '{}') as Record<string,unknown>)
           .custom_imported_retired === 1786186800000;
       outcomes.singleClientImportRefreshesDashboardThroughInjectedShellDeps = state.currentView === 'dashboard';
 
-      let restoredMintUrl = null;
+      let restoredMintUrl:unknown = null;
       Object.defineProperty(window, 'cashuSetMintUrl', {
         configurable: true,
         writable: true,
-        value: async url => { restoredMintUrl = url; },
+        value: async (url:unknown) => { restoredMintUrl = url; },
       });
       const databaseBundle = {
         type: 'database',
@@ -1421,16 +1425,16 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       };
       await exportFacade.importDataJSON(new File([JSON.stringify(databaseBundle)], 'database-bundle.json', { type: 'application/json' }));
       const mergedRaw = await cryptoStore.encryptedGetItem(profileStore.profileStorageKey(profileId, 'imported'));
-      const mergedData = JSON.parse(mergedRaw);
-      const mergedThreads = JSON.parse(localStorage.getItem(`labcharts-${profileId}-chat-threads`) || '[]');
+      const mergedData = (JSON.parse as(text:unknown)=>unknown)(mergedRaw);
+      const mergedThreads = (JSON.parse as(text:unknown)=>unknown)(localStorage.getItem(`labcharts-${profileId}-chat-threads`) || '[]');
       const newBundleProfile = profileStore.getProfiles().find(profile => profile.name === 'Bundle Facade New');
       outcomes.databaseBundleMergesCreatesAndImportsChat = state.currentProfile === profileId
         && profileStore.getProfiles().some(profile => profile.id === profileId && profile.name === 'Export Facade Merged')
-        && mergedData.entries.some(entry => entry.markers?.['hematology.hemoglobin'] === 131)
-        && mergedData.notes.some(note => note.text === 'Merged bundle note')
-        && mergedData.contextSourceSettings?.['lab-group-Fatty Acids'] === true
-        && mergedData.contextSourceSettings?.['lab-group-Specialty Panel'] === false
-        && mergedThreads.some(thread => thread.id === 'bundle-thread')
+        && (mergedData as Pick<ReportRawExportReader,'entries'|'notes'|'contextSourceSettings'>).entries.some(entry => entry.markers?.['hematology.hemoglobin'] === 131)
+        && (mergedData as Pick<ReportRawExportReader,'entries'|'notes'|'contextSourceSettings'>).notes.some(note => note.text === 'Merged bundle note')
+        && (mergedData as Pick<ReportRawExportReader,'entries'|'notes'|'contextSourceSettings'>).contextSourceSettings?.['lab-group-Fatty Acids'] === true
+        && (mergedData as Pick<ReportRawExportReader,'entries'|'notes'|'contextSourceSettings'>).contextSourceSettings?.['lab-group-Specialty Panel'] === false
+        && (mergedThreads as {id?:unknown}[]).some(thread => thread.id === 'bundle-thread')
         && !!newBundleProfile
         && restoredMintUrl === null;
       outcomes.databaseBundleRestoresNodeThroughModuleRuntime = localStorage.getItem('labcharts-routstr-node') === 'https://node.restore.test';
@@ -1448,12 +1452,12 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       URL.createObjectURL = original.createObjectURL;
       URL.revokeObjectURL = original.revokeObjectURL;
       HTMLAnchorElement.prototype.click = original.anchorClick;
-      if (original.cashuGetMintUrl === undefined) delete window.cashuGetMintUrl;
-      else window.cashuGetMintUrl = original.cashuGetMintUrl;
-      if (original.cashuSetMintUrl === undefined) delete window.cashuSetMintUrl;
-      else window.cashuSetMintUrl = original.cashuSetMintUrl;
+      if (original.cashuGetMintUrl === undefined) delete (window as unknown as {cashuGetMintUrl?:unknown}).cashuGetMintUrl;
+      else (window as unknown as {cashuGetMintUrl?:unknown}).cashuGetMintUrl = original.cashuGetMintUrl;
+      if (original.cashuSetMintUrl === undefined) delete (window as unknown as {cashuSetMintUrl?:unknown}).cashuSetMintUrl;
+      else (window as unknown as {cashuSetMintUrl?:unknown}).cashuSetMintUrl = original.cashuSetMintUrl;
 
-      const originalIds = new Set(original.profiles.map(profile => profile.id));
+      const originalIds = new Set((original.profiles as {id:unknown}[]).map(profile => profile.id));
       const touchedIds = new Set([profileId]);
       for (const profile of profileStore.getProfiles()) {
         if (!originalIds.has(profile.id)) touchedIds.add(profile.id);
@@ -1461,12 +1465,12 @@ test('export facade covers JSON downloads imports chat bundle and clear cancel',
       for (const id of touchedIds) {
         await cryptoStore.encryptedRemoveItem(profileStore.profileStorageKey(id, 'imported'));
         for (const key of Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter(Boolean)) {
-          if (key.startsWith(`labcharts-${id}-chat`)) localStorage.removeItem(key);
+          if (key!.startsWith(`labcharts-${id}-chat`)) (localStorage.removeItem as(key:string|null)=>void)(key);
         }
       }
-      state.importedData = original.importedData;
+      (state as unknown as {importedData:unknown}).importedData = original.importedData;
       state.currentProfile = original.currentProfile;
-      await profileStore.saveProfiles(original.profiles);
+      await (profileStore.saveProfiles as(profiles:unknown)=>ReturnType<typeof profileStore.saveProfiles>)(original.profiles);
       dataModule.invalidateActiveDataCache?.();
       setOrRemove('labcharts-active-profile', original.activeProfile);
       setOrRemove('labcharts-encryption-enabled', original.encryptionEnabled);
