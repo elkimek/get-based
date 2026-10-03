@@ -1,4 +1,3 @@
-// @ts-check
 // dashboard-widget-runtime.js - Browser runtime adapters for dashboard widget controls and renderers.
 
 import { configureRuntimeCallbacks } from './runtime-callbacks.js';
@@ -12,44 +11,48 @@ import {
   loadWearablesStylesheetForAction,
 } from './wearables-runtime.js';
 
-const dashboardWidgetRuntimeDeps = {
-  navigate: /** @type {null | ((route: string) => unknown)} */ (null),
-  openChatPanel: /** @type {null | ((prompt?: string) => unknown)} */ (null),
-  showDetailModal: /** @type {null | ((id: string) => unknown)} */ (null),
+type DashboardWidgetCalls = {
+  navigate: ((route: string) => unknown) | null;
+  openChatPanel: ((prompt?: unknown) => unknown) | null;
+  showDetailModal: ((id: string) => unknown) | null;
+};
+export type DashboardWidgetRuntimeSnapshot = { [Key in keyof DashboardWidgetCalls]: unknown };
+interface DashboardWindowReader { innerHeight?: unknown; _snpTableCache?: unknown; _haplogroupTableCache?: unknown }
+const dashboardWidgetRuntimeDeps: DashboardWidgetCalls = {
+  navigate: (null),
+  openChatPanel: (null),
+  showDetailModal: (null),
 };
 
-export function configureDashboardWidgetRuntimeDeps(deps = {}) {
-  return configureRuntimeCallbacks(dashboardWidgetRuntimeDeps, deps, 'inherited');
+export function configureDashboardWidgetRuntimeDeps(deps: unknown = {}): DashboardWidgetRuntimeSnapshot {
+  return configureRuntimeCallbacks(dashboardWidgetRuntimeDeps, deps as Partial<DashboardWidgetCalls>, 'inherited');
 }
 
-/** @type {Record<string, Function | null>} */
-const dashboardNoteActions = {
+const dashboardNoteActions: Record<string, unknown> = {
   openNoteEditor: null,
   deleteNote: null,
 };
 
-/** @param {Record<string, any>} [actions] */
-export function configureDashboardNoteActions(actions = {}) {
+export function configureDashboardNoteActions(actions: unknown = {}) {
   const previous = { ...dashboardNoteActions };
   for (const name of Object.keys(dashboardNoteActions)) {
-    if (name in actions) {
-      dashboardNoteActions[name] = typeof actions[name] === 'function' ? actions[name] : null;
+    if (name in (actions as object)) {
+      dashboardNoteActions[name] = typeof (actions as Record<string, unknown>)[name] === 'function' ? (actions as Record<string, unknown>)[name] : null;
     }
   }
   return previous;
 }
 
-/** @param {string} name */
-function callDashboardNoteAction(name, ...args) {
+function callDashboardNoteAction(name: string, ...args: unknown[]) {
   const action = dashboardNoteActions[name];
   if (typeof action !== 'function') return false;
-  action(...args);
+  (action as (...args: unknown[]) => unknown)(...args);
   return true;
 }
 
 function getRuntimeWindow() {
   return typeof window !== 'undefined'
-    ? /** @type {any} */ (window)
+    ? (window as unknown as DashboardWindowReader)
     : null;
 }
 
@@ -64,35 +67,33 @@ export function openDashboardWearablesSettings() {
   getSettingsModuleFunction('openSettingsModal')?.('wearables');
 }
 
-export function getDashboardLightSessions() {
+export function getDashboardLightSessions(): unknown[] {
   const sessions = state.importedData?.sunSessions;
   return Array.isArray(sessions) ? sessions : [];
 }
 
-export function getDashboardDeviceSessions() {
+export function getDashboardDeviceSessions(): unknown[] {
   const sessions = state.importedData?.deviceSessions;
   return Array.isArray(sessions) ? sessions : [];
 }
 
-export function getDashboardSnpTableCache() {
+export function getDashboardSnpTableCache(): unknown {
   const runtime = getRuntimeWindow();
   if (!runtime) return null;
   return runtime._snpTableCache || null;
 }
 
-export function getDashboardHaplogroupTableCache() {
+export function getDashboardHaplogroupTableCache(): unknown {
   const runtime = getRuntimeWindow();
   if (!runtime) return null;
   return runtime._haplogroupTableCache || null;
 }
 
-/** @param {Element} actionEl */
-export function syncDashboardWearableNow(actionEl) {
+export function syncDashboardWearableNow(actionEl: unknown) {
   getWearablesModuleFunction('syncWearableNow')?.(actionEl);
 }
 
-/** @param {string} id */
-export function openDashboardWearableDetail(id) {
+export function openDashboardWearableDetail(id: string) {
   const openDetail = getWearablesModuleFunction('openWearableDetail');
   if (!openDetail) return false;
   const ownsLazyStylesheet = typeof document !== 'undefined'
@@ -107,11 +108,7 @@ export function openDashboardWearableDetail(id) {
   return true;
 }
 
-/**
- * @param {string} id
- * @param {Event} event
- */
-export function openDashboardManualLogForm(id, event) {
+export function openDashboardManualLogForm(id: string, event: unknown) {
   const openManualLogForm = getWearablesModuleFunction('openManualLogForm');
   if (!openManualLogForm) return;
   const ownsLazyStylesheet = typeof document !== 'undefined'
@@ -125,30 +122,27 @@ export function openDashboardManualLogForm(id, event) {
   }
 }
 
-/** @param {string} id */
-export function openDashboardMarkerDetail(id) {
+export function openDashboardMarkerDetail(id: string) {
   dashboardWidgetRuntimeDeps.showDetailModal?.(id);
 }
 
-/** @param {string} rsid */
-export function askDashboardAIAboutSnp(rsid) {
+export function askDashboardAIAboutSnp(rsid: unknown) {
   const normalizedRsid = String(rsid || '').trim().toLowerCase();
   if (!/^rs\d+$/.test(normalizedRsid)) return false;
   const stored = state.importedData?.genetics?.snps?.[normalizedRsid];
-  const entry = getDashboardSnpTableCache()?.[normalizedRsid];
-  const prompt = getDnaModuleFunction('buildSnpAIInterpretationPrompt')?.(normalizedRsid, stored, entry) || '';
+  const entry = (getDashboardSnpTableCache() as Record<string, unknown> | null)?.[normalizedRsid];
+  const prompt = (getDnaModuleFunction('buildSnpAIInterpretationPrompt') as ((rsid: unknown, stored: unknown, entry: unknown) => unknown) | null)?.(normalizedRsid, stored, entry) || '';
   const openChatPanel = dashboardWidgetRuntimeDeps.openChatPanel;
   if (!prompt || !openChatPanel) return false;
   void Promise.resolve(openChatPanel(prompt)).catch(() => {});
   return true;
 }
 
-/** @param {string} route */
-export function navigateDashboardRoute(route) {
+export function navigateDashboardRoute(route: string) {
   dashboardWidgetRuntimeDeps.navigate?.(route);
 }
 
-export function openDashboardChatPrompt(prompt) {
+export function openDashboardChatPrompt(prompt: unknown) {
   const openChatPanel = dashboardWidgetRuntimeDeps.openChatPanel;
   if (!openChatPanel) return Promise.reject(new Error('Chat is not available.'));
   return Promise.resolve(openChatPanel(prompt));
@@ -158,13 +152,11 @@ export function triggerDashboardDnaPicker() {
   triggerContextCardDNAFilePickerRuntime();
 }
 
-/** @param {number | null} [index] */
-export function openDashboardNoteEditor(index = null) {
-  if (index != null && Number.isInteger(index) && index >= 0) callDashboardNoteAction('openNoteEditor', null, index);
+export function openDashboardNoteEditor(index: unknown = null) {
+  if (index != null && Number.isInteger(index) && (index as number) >= 0) callDashboardNoteAction('openNoteEditor', null, index);
   else callDashboardNoteAction('openNoteEditor');
 }
 
-/** @param {number} index */
-export function deleteDashboardNote(index) {
+export function deleteDashboardNote(index: unknown) {
   callDashboardNoteAction('deleteNote', index);
 }

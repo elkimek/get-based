@@ -544,7 +544,7 @@ export function createDashboardWidgetRenderers(deps) {
         </div>
       </div>`;
     }
-    const apoeProfile = _dashboardGenomeEvidence.resolveSnpEvidenceProfile(snpTable?.rs429358 || snpTable?.rs7412 || {});
+    const apoeProfile = _dashboardGenomeEvidence.resolveSnpEvidenceProfile((/** @type {{ rs429358?: unknown } | null} */ (snpTable))?.rs429358 || (/** @type {{ rs7412?: unknown } | null} */ (snpTable))?.rs7412 || {});
     const findings = Object.entries(snps)
       .map(([rsid, stored]) => {
         const entry = snpTable?.[rsid];

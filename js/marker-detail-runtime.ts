@@ -1,5 +1,4 @@
 import { createRetryingStylesheetLoader } from './retrying-module-loader.js';
-// @ts-check
 // marker-detail-runtime.js - Browser runtime adapters for marker detail modal hooks.
 
 import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
@@ -27,7 +26,7 @@ const markerDetailStylesheetLoadCache = createRetryingStylesheetLoader({
   failedLoad: "Marker Detail stylesheet could not be loaded",
 });
 
-export function setDetailModalShell(...classes) {
+export function setDetailModalShell(...classes: unknown[]) {
   const modal = document.getElementById('detail-modal');
   if (!modal) return null;
   modal.className = ['modal', ...classes.filter(Boolean)].join(' ');
@@ -41,17 +40,11 @@ function markerDetailStylesheetUrl() {
   return retryUrl.href;
 }
 
-/** @returns {Promise<HTMLLinkElement>} */
 export function loadMarkerDetailStylesheet() {
   return markerDetailStylesheetLoadCache.load();
 }
 
-/**
- * @template T
- * @param {() => T} open
- * @returns {Promise<T | false>}
- */
-export function openWithMarkerDetailStylesheet(open) {
+export function openWithMarkerDetailStylesheet<Result>(open: () => Result) {
   return loadMarkerDetailStylesheet()
     .catch(err => {
       console.error('[marker-detail] Could not load stylesheet:', err);
@@ -61,22 +54,18 @@ export function openWithMarkerDetailStylesheet(open) {
     .then(link => link ? open() : false);
 }
 
-/**
- * @typedef {{
- *   askAIAboutMarker: null | ((id?: string) => any),
- *   buildSidebar: null | (() => void),
- *   closeEMFInterpretation: null | (() => any),
- *   isDashboardQuickMarkerPinned: null | ((id?: string) => boolean),
- *   navigate: null | ((category?: string, data?: any) => any),
- *   renameMarker: null | ((id?: string) => any),
- *   revertMarkerName: null | ((id?: string) => any),
- *   showEmojiPicker: null | ((el: Element, callback: (emoji?: string | null) => void, opts?: any) => any),
- *   toggleDashboardQuickMarkerPin: null | ((id?: string) => any),
- * }} MarkerDetailRuntimeDeps
- */
-
-/** @type {MarkerDetailRuntimeDeps} */
-const markerDetailRuntimeDeps = {
+type MarkerIdAction = ((id?: string) => unknown) | null;
+type MarkerDetailCalls = {
+  askAIAboutMarker: MarkerIdAction; buildSidebar: (() => unknown) | null;
+  closeEMFInterpretation: (() => unknown) | null;
+  isDashboardQuickMarkerPinned: MarkerIdAction;
+  navigate: ((category?: string, data?: unknown) => unknown) | null;
+  renameMarker: MarkerIdAction; revertMarkerName: MarkerIdAction;
+  showEmojiPicker: ((el: unknown, callback: (emoji?: string | null) => void, opts?: unknown) => unknown) | null;
+  toggleDashboardQuickMarkerPin: MarkerIdAction;
+};
+export type MarkerDetailRuntimeSnapshot = { [Key in keyof MarkerDetailCalls]: unknown };
+const markerDetailRuntimeDeps: MarkerDetailCalls = {
   askAIAboutMarker: null,
   buildSidebar: null,
   closeEMFInterpretation,
@@ -88,16 +77,11 @@ const markerDetailRuntimeDeps = {
   toggleDashboardQuickMarkerPin: null,
 };
 
-/** @param {Partial<MarkerDetailRuntimeDeps>} [deps] */
-export function configureMarkerDetailRuntime(deps = {}) {
-  return configureValidRuntimeCallbacks(markerDetailRuntimeDeps, deps);
+export function configureMarkerDetailRuntime(deps: unknown = {}): MarkerDetailRuntimeSnapshot {
+  return configureValidRuntimeCallbacks(markerDetailRuntimeDeps, deps as Partial<MarkerDetailCalls>);
 }
 
-/**
- * @param {string | undefined} category
- * @param {any} [data]
- */
-export function navigateMarkerDetailRuntime(category, data) {
+export function navigateMarkerDetailRuntime(category: string | undefined, data?: unknown) {
   markerDetailRuntimeDeps.navigate?.(category, data);
 }
 
@@ -109,11 +93,7 @@ export function buildMarkerDetailSidebarRuntime() {
   }
 }
 
-/**
- * @param {string | undefined} id
- * @returns {boolean}
- */
-export function isDashboardQuickMarkerPinnedRuntime(id) {
+export function isDashboardQuickMarkerPinnedRuntime(id: string | undefined) {
   try {
     return markerDetailRuntimeDeps.isDashboardQuickMarkerPinned?.(id) === true;
   } catch {
@@ -121,40 +101,27 @@ export function isDashboardQuickMarkerPinnedRuntime(id) {
   }
 }
 
-/** @param {string | undefined} id */
-export function toggleDashboardQuickMarkerPinRuntime(id) {
+export function toggleDashboardQuickMarkerPinRuntime(id: string | undefined) {
   markerDetailRuntimeDeps.toggleDashboardQuickMarkerPin?.(id);
 }
 
-/** @param {string | undefined} id */
-export function renameMarkerRuntime(id) {
+export function renameMarkerRuntime(id: string | undefined) {
   markerDetailRuntimeDeps.renameMarker?.(id);
 }
 
-/** @param {string | undefined} id */
-export function revertMarkerNameRuntime(id) {
+export function revertMarkerNameRuntime(id: string | undefined) {
   markerDetailRuntimeDeps.revertMarkerName?.(id);
 }
 
-/** @param {string | undefined} id */
-export function askAIAboutMarkerRuntime(id) {
+export function askAIAboutMarkerRuntime(id: string | undefined) {
   markerDetailRuntimeDeps.askAIAboutMarker?.(id);
 }
 
-/**
- * @param {Element} el
- * @param {(emoji?: string | null) => void} callback
- * @param {any} [opts]
- */
-export function showEmojiPickerRuntime(el, callback, opts) {
+export function showEmojiPickerRuntime(el: unknown, callback: (emoji?: string | null) => void, opts?: unknown) {
   markerDetailRuntimeDeps.showEmojiPicker?.(el, callback, opts);
 }
 
-/**
- * @param {string} dotKey
- * @returns {any[]}
- */
-export function getRelevantSNPsRuntime(dotKey) {
+export function getRelevantSNPsRuntime(dotKey: string): unknown[] {
   try {
     const snps = getDnaModuleFunction('getRelevantSNPs')?.(dotKey);
     return Array.isArray(snps) ? snps : [];
@@ -175,15 +142,10 @@ export function hasRecommendationSectionRendererRuntime() {
   return getRecommendationModuleFunction('renderRecommendationSection') !== null;
 }
 
-/**
- * @param {string} markerKey
- * @param {any} options
- * @returns {Promise<string>}
- */
-export async function renderRecommendationSectionRuntime(markerKey, options) {
+export async function renderRecommendationSectionRuntime(markerKey: string, options: unknown) {
   const renderRecommendations = getRecommendationModuleFunction('renderRecommendationSection');
   if (!renderRecommendations) return '';
-  const html = await renderRecommendations(markerKey, options);
+  const html = await (renderRecommendations as (markerKey: string, options: unknown) => unknown)(markerKey, options);
   return typeof html === 'string' ? html : '';
 }
 

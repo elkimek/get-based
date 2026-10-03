@@ -1035,3 +1035,11 @@ deploy/profile-share/data/
 /js/settings-sync-panel-impl.js
 
 /js/settings-sync-panel.js
+
+/js/chat-message-edit.js
+
+/js/dashboard-widget-runtime.js
+
+/js/marker-detail-runtime.js
+
+/js/wearables-strip-actions.js

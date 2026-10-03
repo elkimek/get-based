@@ -1,5 +1,6 @@
-// @ts-check
 // wearables-strip-actions.js — Wearable strip interaction and manual-log owner.
+
+import type { CanonicalWearableMetricId } from './wearable-adapters.js';
 
 import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, showNotification } from './utils.js';
@@ -34,11 +35,19 @@ import {
   navigateWearables,
 } from './wearables-runtime.js';
 
+interface WearableActionEvent {
+  stopPropagation(): void;
+  target?: { closest?: ((selector: string) => unknown) | null } | null;
+}
+interface WearableSourceEvent { target: Pick<Element, 'getBoundingClientRect'> }
+interface WearableSyncTrigger { classList: Pick<DOMTokenList, 'add' | 'remove'>; disabled?: unknown }
+export interface ManualLogFormOptions { delegated?: unknown }
+
 function rerenderCurrentView() {
   navigateWearables(state.currentView || 'dashboard');
 }
 
-export function resetOpenManualLogForms({ exceptMetricId = '' } = {}) {
+export function resetOpenManualLogForms({ exceptMetricId = '' }: {exceptMetricId?: unknown} = {}) {
   const openForms = Array.from(document.querySelectorAll('.wearable-card-empty .wearable-log-form'));
   const shouldReset = openForms.some(form => {
     const card = form.closest('.wearable-card-empty');
@@ -78,7 +87,7 @@ export function toggleWearableStrip() {
 // Per-metric primary-source override picker. Reads connected sources that
 // actually have data for this metric and lets the user pick one. The summary
 // pipeline respects `state.importedData.wearablePrimaryOverride[metricId]`.
-export async function chooseWearableSource(metricId, event) {
+export async function chooseWearableSource(metricId: string, event: unknown) {
   const canon = canonicalMetric(metricId);
   if (!canon) return;
   const connected = listConnectedSources();
@@ -96,7 +105,7 @@ export async function chooseWearableSource(metricId, event) {
   // no point offering WHOOP as a source for `weight` (it doesn't do scales).
   const eligible = connectedIds.filter(sid => {
     const a = adapterById(sid);
-    return !!a?.metrics?.[metricId];
+    return !!a?.metrics?.[metricId as CanonicalWearableMetricId];
   });
   if (eligible.length < 2) {
     showNotification?.(`Only one connected wearable provides ${canon.label}`, 'info', 2500);
@@ -129,7 +138,7 @@ export async function chooseWearableSource(metricId, event) {
       ${!state.importedData?.wearablePrimaryOverride?.[metricId] ? '<span class="wearable-source-picker-check">✓</span>' : ''}
     </button>
   `;
-  const rect = event.target.getBoundingClientRect();
+  const rect = (event as WearableSourceEvent).target.getBoundingClientRect();
   picker.style.position = 'fixed';
   picker.style.visibility = 'hidden';
   picker.style.top = '0px';
@@ -174,13 +183,13 @@ export async function chooseWearableSource(metricId, event) {
 
   // Dismiss on outside click / Escape.
   setTimeout(() => {
-    const dismiss = (e) => {
-      if (picker.contains(e.target)) return;
+    const dismiss = (e: MouseEvent) => {
+      if (picker.contains(e.target as Node | null)) return;
       picker.remove();
       document.removeEventListener('click', dismiss);
       document.removeEventListener('keydown', onKey);
     };
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       picker.remove();
       document.removeEventListener('keydown', onKey);
@@ -191,7 +200,7 @@ export async function chooseWearableSource(metricId, event) {
   }, 0);
 }
 
-export async function syncWearableNow(triggerEl) {
+export async function syncWearableNow(triggerEl?: unknown) {
   const sources = Object.keys(listConnectedSources());
   if (sources.length === 0) {
     showNotification?.('Connect a wearable in Settings → Wearables first', 'info');
@@ -199,7 +208,7 @@ export async function syncWearableNow(triggerEl) {
   }
   // Spin the inline button icon for the duration of the sync. The button
   // disables itself so a double-click can't kick off concurrent syncs.
-  const btn = triggerEl || document.querySelector('.wearable-strip-sync');
+  const btn = (triggerEl || document.querySelector('.wearable-strip-sync')) as WearableSyncTrigger | null;
   btn?.classList.add('is-syncing');
   if (btn) btn.disabled = true;
   try {
@@ -231,7 +240,7 @@ export function toggleWearableReorder() {
   navigateWearables('dashboard');
 }
 
-export async function moveWearableCard(metricId, delta) {
+export async function moveWearableCard(metricId: string, delta: number) {
   const summary = state.importedData?.wearableSummary;
   if (!summary) return;
   // Rebuild the CURRENT display order the same way renderWearableStrip does,
@@ -243,14 +252,14 @@ export async function moveWearableCard(metricId, delta) {
       const bi = ADAPTERS.findIndex(x => x.id === b);
       return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     });
-  const headerSourceIds = sourceIds.filter(s => (summary.sources[s].coverageDays || 0) > 0);
+  const headerSourceIds = sourceIds.filter(s => (summary.sources[s]!.coverageDays || 0) > 0);
   const baseOrder = metricsForSources(headerSourceIds.length ? headerSourceIds : sourceIds);
   const MANUAL_EMPTY_METRICS_LOCAL = ['weight', 'bp_systolic', 'rhr'];
   // Mirror the strip-render BP merge: dia folds into the sys card and never
   // gets its own reorder slot when both are present.
   const hasSysLocal = !!summary.metrics?.bp_systolic;
-  const display = [];
-  const seen = new Set();
+  const display: string[] = [];
+  const seen = new Set<string>();
   for (const id of baseOrder) {
     if (id === 'bp_diastolic' && hasSysLocal) continue;
     if (summary.metrics?.[id]) { display.push(id); seen.add(id); }
@@ -260,7 +269,7 @@ export async function moveWearableCard(metricId, delta) {
   }
   const savedOrder = Array.isArray(state.importedData?.wearableCardOrder)
     ? state.importedData.wearableCardOrder : [];
-  const ordered = [];
+  const ordered: (string | undefined)[] = [];
   for (const id of savedOrder) if (display.includes(id)) ordered.push(id);
   for (const id of display) if (!ordered.includes(id)) ordered.push(id);
   const idx = ordered.indexOf(metricId);
@@ -276,9 +285,9 @@ export async function moveWearableCard(metricId, delta) {
 }
 
 // Inline manual-log form (Phase 3) — opens from the empty strip cards.
-export function openManualLogForm(metricId, event, opts = {}) {
-  if (!opts.delegated && event?.target?.closest?.('[data-wearable-action]')) return;
-  if (event) event.stopPropagation();
+export function openManualLogForm(metricId: string, event?: unknown, opts: ManualLogFormOptions = {}) {
+  if (!opts.delegated && (event as WearableActionEvent | null | undefined)?.target?.closest?.('[data-wearable-action]')) return;
+  if (event) (event as Pick<Event, 'stopPropagation'>).stopPropagation();
   let card = document.querySelector(`.wearable-card-empty[data-empty-metric="${metricId}"]`);
   if (!card) return;
   // Idempotent: clicks inside the form (e.g. tapping the dia field on the
@@ -337,21 +346,21 @@ export function openManualLogForm(metricId, event, opts = {}) {
   }
   // Focus the first input.
   setTimeout(() => {
-    const firstNumberInput = card.querySelector('input[type="number"]');
+    const firstNumberInput = card!.querySelector('input[type="number"]');
     if (firstNumberInput instanceof HTMLElement) firstNumberInput.focus();
   }, 0);
   // Enter-to-save on the number inputs.
   card.querySelectorAll('input[type="number"]').forEach((el) => {
     el.addEventListener('keydown', (e) => {
-      const keyEvent = /** @type {KeyboardEvent} */ (e);
+      const keyEvent = e as KeyboardEvent;
       if (keyEvent.key === 'Enter') { e.preventDefault(); saveManualLog(metricId === 'bp_systolic' ? 'bp' : metricId, e); }
       if (keyEvent.key === 'Escape') { e.preventDefault(); cancelManualLog(e); }
     });
   });
 }
 
-export async function saveManualLog(kind, event) {
-  if (event) event.stopPropagation();
+export async function saveManualLog(kind: unknown, event?: unknown) {
+  if (event) (event as Pick<Event, 'stopPropagation'>).stopPropagation();
   const profileId = state.currentProfile;
   // Pull any active context chips before the DOM is swapped out by re-render.
   const cardForTags =
@@ -396,8 +405,8 @@ export async function saveManualLog(kind, event) {
   }
 }
 
-export function cancelManualLog(event) {
-  if (event) event.stopPropagation();
+export function cancelManualLog(event?: unknown) {
+  if (event) (event as Pick<Event, 'stopPropagation'>).stopPropagation();
   // Re-render the current dashboard/body surface to restore the empty card.
   rerenderCurrentView();
 }

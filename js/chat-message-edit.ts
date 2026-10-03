@@ -1,4 +1,3 @@
-// @ts-check
 // chat-message-edit.js — latest-turn editing and non-destructive conversation forks.
 
 import {
@@ -12,22 +11,22 @@ import { state } from './state.js';
 import { createForkedThread } from './chat-threads.js';
 import { showNotification } from './utils.js';
 
-/** @type {{ profile: string, threadId: string, messageIndex: number, message: any, submittedValue: string | null } | null} */
-let editSession = null;
+interface ChatEditSession { profile: typeof state.currentProfile; threadId: string; messageIndex: number; message: (typeof state.chatHistory)[number]; submittedValue: string | null }
+let editSession: ChatEditSession | null = null;
 
-const messageEditDeps = {
-  renderChatMessages: /** @type {() => void} */ (() => {}),
-  sendChatMessage: /** @type {() => void | Promise<void>} */ (() => {}),
-  updateChatInputState: /** @type {() => void} */ (() => {}),
+type MessageEditCalls = { renderChatMessages: () => unknown; sendChatMessage: () => unknown; updateChatInputState: () => unknown };
+const messageEditDeps: MessageEditCalls = {
+  renderChatMessages: () => {},
+  sendChatMessage: () => {},
+  updateChatInputState: () => {},
 };
 
-/** @param {Partial<typeof messageEditDeps>} [deps] */
-export function configureChatMessageEditDeps(deps = {}) {
+export function configureChatMessageEditDeps(deps: Record<string, unknown> = {}): { [Key in keyof MessageEditCalls]: unknown } {
   const previous = { ...messageEditDeps };
   for (const name of Object.keys(messageEditDeps)) {
-    const candidate = /** @type {any} */ (deps)[name];
+    const candidate = deps[name];
     if (typeof candidate === 'function') {
-      /** @type {any} */ (messageEditDeps)[name] = candidate;
+      (messageEditDeps as Record<string, unknown>)[name] = candidate;
     }
   }
   return previous;
@@ -41,8 +40,7 @@ export function getLatestUserMessageIndex() {
   return -1;
 }
 
-/** @param {boolean} active */
-function setComposerEditState(active) {
+function setComposerEditState(active: boolean) {
   const area = document.querySelector('.chat-input-area');
   area?.classList.toggle('chat-message-edit-active', active);
   const inputRow = area?.querySelector('.chat-input-row');
@@ -51,15 +49,13 @@ function setComposerEditState(active) {
   messageEditDeps.updateChatInputState();
 }
 
-/** @param {HTMLTextAreaElement} textarea */
-function resizeEditTextarea(textarea) {
+function resizeEditTextarea(textarea: HTMLTextAreaElement) {
   textarea.style.height = 'auto';
   textarea.style.height = `${Math.min(Math.max(textarea.scrollHeight, 72), 240)}px`;
   textarea.classList.toggle('is-scrollable', textarea.scrollHeight > 240);
 }
 
-/** @param {string} [draft] */
-function renderInlineEditor(draft) {
+function renderInlineEditor(draft?: string) {
   if (!editSession) return false;
   const message = state.chatHistory[editSession.messageIndex];
   const bubble = document.getElementById(`chat-msg-${editSession.messageIndex}`);
@@ -106,8 +102,7 @@ function renderInlineEditor(draft) {
   return true;
 }
 
-/** @param {number} messageIndex */
-export function beginChatMessageEdit(messageIndex) {
+export function beginChatMessageEdit(messageIndex: number) {
   if (editSession?.submittedValue != null) return false;
   const message = state.chatHistory[messageIndex];
   if (!message || message.role !== 'user' || !state.currentThreadId) return false;
@@ -153,9 +148,7 @@ export function getPendingChatMessageEditText() {
 
 export async function submitChatMessageEdit() {
   const session = editSession;
-  const textarea = /** @type {HTMLTextAreaElement | null} */ (
-    document.getElementById('chat-message-edit-input')
-  );
+  const textarea = document.getElementById('chat-message-edit-input') as HTMLTextAreaElement | null;
   if (!session || !textarea || session.submittedValue != null) return false;
   const value = textarea.value.trim();
   if (!value) {
@@ -164,9 +157,7 @@ export async function submitChatMessageEdit() {
   }
   session.submittedValue = value;
   textarea.disabled = true;
-  const submit = /** @type {HTMLButtonElement | null} */ (
-    document.querySelector('[data-chat-message-action="submit-message-edit"]')
-  );
+  const submit = document.querySelector('[data-chat-message-action="submit-message-edit"]') as HTMLButtonElement | null;
   if (submit) {
     submit.disabled = true;
     submit.textContent = 'Sending…';
@@ -195,7 +186,7 @@ export async function submitChatMessageEdit() {
  * Called immediately before Send mutates chat history.
  * @returns {{ edited: true, restore: () => void } | null | false}
  */
-export function prepareChatMessageEditSend() {
+export function prepareChatMessageEditSend(): { edited: true; restore: () => void } | null | false {
   const session = editSession;
   if (!session || session.submittedValue == null) return null;
   if (session.profile !== state.currentProfile
@@ -216,8 +207,7 @@ export function prepareChatMessageEditSend() {
   } };
 }
 
-/** @param {number} messageIndex */
-export async function forkChatFromMessage(messageIndex) {
+export async function forkChatFromMessage(messageIndex: number) {
   const profile = state.currentProfile;
   const sourceThreadId = state.currentThreadId;
   const message = state.chatHistory[messageIndex];
