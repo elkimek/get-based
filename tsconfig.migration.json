@@ -22,6 +22,9 @@
       ],
       "/vendor/routstr-crypto.js": [
         "./scripts/vendor-entries/routstr-crypto.ts"
+      ],
+      "/js/wearables.js?lazy-retry=1": [
+        "./js/wearables.ts"
       ]
     },
     "module": "NodeNext",

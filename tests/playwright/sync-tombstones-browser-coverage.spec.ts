@@ -1,0 +1,330 @@
+import { createExpectAll } from '../helpers/browser-outcomes.js';
+import { createModuleUrl } from '../helpers/browser-module-url.js';
+import { expect, test } from './coverage-fixture.js';
+
+const moduleUrl = createModuleUrl('syncTombstonesCoverage');
+
+const expectAll = createExpectAll(expect, 'collect');
+
+test('sync tombstones browser coverage exercises default dependency callbacks', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const outcomes = await page.evaluate(async ({ defaultUrl, syncOffUrl, debugUrl }) => {
+    const outcomes: Record<string, unknown> = {};
+    const syncTsKey = 'labcharts-default-profile-sync-ts';
+    const savedSyncTs = localStorage.getItem(syncTsKey);
+
+    try {
+      const defaults = (await import(defaultUrl) as unknown) as Pick<typeof import('../../js/sync-tombstones.js'), "applyRemoteTombstones" | "deleteProfileFromRelay">;
+      await defaults.applyRemoteTombstones();
+      const defaultDelete = await defaults.deleteProfileFromRelay('default-profile');
+      outcomes.defaultQueriesSkipWithoutConfiguredDeps =
+        defaultDelete.skipped === true
+        && defaultDelete.reason === 'sync-off';
+
+      const syncOff = (await import(syncOffUrl) as unknown) as Pick<typeof import('../../js/sync-tombstones.js'), "configureSyncTombstones" | "deleteProfileFromRelay">;
+      syncOff.configureSyncTombstones({
+        getEvolu: () => ({ getQueryRows: () => [] }),
+        getProfileQuery: () => 'profiles',
+      });
+      const defaultSyncOff = await syncOff.deleteProfileFromRelay('default-profile');
+      outcomes.defaultIsSyncEnabledFalseSkipsRelayDelete =
+        defaultSyncOff.skipped === true
+        && defaultSyncOff.reason === 'sync-off';
+
+      const debugDefault = (await import(debugUrl) as unknown) as Pick<typeof import('../../js/sync-tombstones.js'), "configureSyncTombstones" | "deleteProfileFromRelay">;
+      const relay = {
+        updates: [] as {table:unknown;args:{profileId?:unknown}}[],
+        getQueryRows: () => [{ id: 'row-default-debug', profileId: 'default-profile' }],
+        update(table: unknown, args: {profileId?:unknown;id?:unknown;isDeleted?:unknown}) {
+          this.updates.push({ table, args });
+        },
+      };
+      debugDefault.configureSyncTombstones({
+        getEvolu: () => relay,
+        getProfileQuery: () => 'profiles',
+        isSyncEnabled: () => true,
+      });
+      localStorage.setItem(syncTsKey, 'old');
+      const debugResult = await debugDefault.deleteProfileFromRelay('default-profile');
+      outcomes.defaultDebugCallbackDoesNotBlockSuccessfulDelete =
+        debugResult.ok === true
+        && relay.updates[0]?.table === 'profileData'
+        && relay.updates[0]?.args?.profileId === 'default-profile'
+        && localStorage.getItem(syncTsKey) === null;
+    } finally {
+      if (savedSyncTs == null) localStorage.removeItem(syncTsKey);
+      else localStorage.setItem(syncTsKey, savedSyncTs);
+    }
+
+    return outcomes;
+  }, {
+    defaultUrl: moduleUrl('/js/sync-tombstones.js'),
+    syncOffUrl: moduleUrl('/js/sync-tombstones.js'),
+    debugUrl: moduleUrl('/js/sync-tombstones.js'),
+  });
+
+  expectAll(outcomes);
+});
+
+test('sync tombstones browser coverage exercises relay delete quarantine and pending paths', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const outcomes = await page.evaluate(async ({ tombstonesUrl }) => {
+    const [tombstones, { state }, blobStorage, profileStore, profileStorageCleanup] = await Promise.all([
+      (import(tombstonesUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/sync-tombstones.js'), "configureSyncTombstones" | "deleteProfileFromRelay" | "applyRemoteTombstones" | "listPendingTombstones" | "applyPendingTombstone" | "rejectPendingTombstone">>,
+      import('/js/state.js'),
+      import('/js/blob-storage.js'),
+      import('/js/profile.js'),
+      import('/js/profile-storage-cleanup.js'),
+    ]);
+    const outcomes: Record<string, unknown> = {};
+    const profileIds = ['keep', 'wipe', 'batch-a', 'batch-b', 'rejectme', 'restore-active', 'lastonly'];
+    const saved = {
+      profilesState: state.profiles ? (JSON.parse(JSON.stringify(state.profiles)) as unknown) : state.profiles,
+      importedData: (JSON.parse(JSON.stringify(state.importedData || {})) as unknown),
+      currentProfile: state.currentProfile,
+      activeProfile: localStorage.getItem('labcharts-active-profile'),
+      profiles: localStorage.getItem('labcharts-profiles'),
+      encryptionEnabled: localStorage.getItem('labcharts-encryption-enabled'),
+    };
+    const tombKey = (id: string) => `labcharts-tombstone-pending-${id}`;
+    const profileKey = (id: string, suffix: string) => `labcharts-${id}-${suffix}`;
+    const toasts = () => Array.from(document.querySelectorAll<HTMLElement>('.notification-toast')).map(el => el.textContent || '');
+    const clearToasts = () => document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
+    const setProfiles = (profiles: {id:string;name?:unknown}[], current: string = profiles[0]?.id || 'keep') => {
+      (state as {profiles:unknown}).profiles = profiles;
+      state.currentProfile = current;
+      localStorage.setItem('labcharts-profiles', JSON.stringify(profiles));
+      localStorage.setItem('labcharts-active-profile', current);
+    };
+    const seedResidue = (id: string) => {
+      localStorage.setItem(profileKey(id, 'imported'), JSON.stringify({ entries: [{ date: '2026-06-10', markers: { glucose: 91 } }] }));
+      localStorage.setItem(profileKey(id, 'units'), 'US');
+      localStorage.setItem(profileKey(id, 'showAltUnits'), 'on');
+      localStorage.setItem(`labcharts-${id}-chat`, '[{"role":"user","content":"delete me"}]');
+      localStorage.setItem(`labcharts-${id}-chat-threads`, '[{"id":"one"}]');
+      localStorage.setItem(`labcharts-${id}-chat-t_one`, '[{"role":"assistant","content":"thread"}]');
+      localStorage.setItem(`labcharts-${id}-sync-ts`, 'old');
+    };
+    const makeEvolu = ({ profileRows = [], tombRows = [], throwRows = false }: {profileRows?: unknown[];tombRows?: unknown[];throwRows?:boolean} = {}) => {
+      const calls: {table:unknown;args:{profileId?:unknown;id?:unknown;isDeleted?:unknown}}[] = [];
+      return {
+        calls,
+        getQueryRows(query: string) {
+          if (throwRows) throw new Error('query failed');
+          if (query === 'profiles') return profileRows;
+          if (query === 'tombs') return tombRows;
+          return [];
+        },
+        update(table: unknown, args: {profileId?:unknown;id?:unknown;isDeleted?:unknown}) {
+          calls.push({ table, args });
+        },
+      };
+    };
+    const configure = ({ evolu, syncEnabled = true, pushProfile = async () => {} }: {evolu?: ReturnType<typeof makeEvolu>;syncEnabled?:boolean;pushProfile?:NonNullable<Parameters<typeof tombstones.configureSyncTombstones>[0]>['pushProfile']} = {}) => {
+      (tombstones.configureSyncTombstones as (deps: Omit<NonNullable<Parameters<typeof tombstones.configureSyncTombstones>[0]>, 'getEvolu' | 'saveProfiles'> & {getEvolu?:()=>unknown;saveProfiles?:typeof profileStore.saveProfiles}) => ReturnType<typeof tombstones.configureSyncTombstones>)({
+        getEvolu: () => evolu || null,
+        getProfileQuery: () => 'profiles',
+        getTombstoneQuery: () => 'tombs',
+        isSyncEnabled: () => syncEnabled,
+        pushProfile,
+        debug: () => {},
+        getProfiles: profileStore.getProfiles,
+        saveProfiles: profileStore.saveProfiles,
+        loadProfile: profileStore.loadProfile,
+      });
+    };
+    // Dedicated wearable/cycle database deletion is covered by its own specs.
+    // Stub it here so an unrelated app-startup connection cannot make this
+    // tombstone contract test depend on IndexedDB tab-close timing.
+    const previousCleanupDeps = profileStorageCleanup.configureProfileStorageCleanupDeps({
+      deleteWearablesDB: async () => {},
+      deleteCycleDB: async () => {},
+    });
+
+    try {
+      localStorage.removeItem('labcharts-encryption-enabled');
+      for (const id of profileIds) {
+        localStorage.removeItem(tombKey(id));
+        for (const suffix of ['imported', 'units', 'suppOverlay', 'noteOverlay', 'rangeMode', 'showAltUnits', 'suppImpact']) {
+          localStorage.removeItem(profileKey(id, suffix));
+        }
+        for (const suffix of ['chat', 'chat-threads', 'chat-t_one', 'chatRailOpen', 'chatPersonality', 'chatPersonalityCustom', 'focusCard', 'contextHealth', 'onboarded', 'emptyTour', 'tour', 'cycleTour', 'phaseOverlay', 'sync-ts']) {
+          localStorage.removeItem(`labcharts-${id}-${suffix}`);
+        }
+        await blobStorage.deleteBlob(profileKey(id, 'imported')).catch(() => {});
+      }
+
+      const relay = makeEvolu({ profileRows: [{ id: 'row-wipe', profileId: 'wipe' }] });
+      configure({ evolu: relay, syncEnabled: false });
+      const relaySyncOff = await tombstones.deleteProfileFromRelay('wipe');
+      configure({ evolu: relay, syncEnabled: true });
+      const relayBadId = await tombstones.deleteProfileFromRelay('');
+      const relayNoRow = await tombstones.deleteProfileFromRelay('missing');
+      localStorage.setItem(profileKey('wipe', 'sync-ts'), 'old-sync');
+      const relayOk = await tombstones.deleteProfileFromRelay('wipe');
+      configure({ evolu: makeEvolu({ throwRows: true }), syncEnabled: true });
+      const relayError = await tombstones.deleteProfileFromRelay('wipe');
+      outcomes.deleteProfileFromRelayCoversSkipSuccessAndError =
+        relaySyncOff.reason === 'sync-off'
+        && relayBadId.reason === 'bad-id'
+        && relayNoRow.reason === 'no-row'
+        && relayOk.ok === true
+        && relay.calls[0]?.table === 'profileData'
+        && relay.calls[0]?.args?.id === 'row-wipe'
+        && relay.calls[0]?.args?.profileId === 'wipe'
+        && relay.calls[0]?.args?.isDeleted === 1
+        && localStorage.getItem(profileKey('wipe', 'sync-ts')) === null
+        && relayError.ok === false
+        && (relayError.error)!.includes('query failed');
+
+      setProfiles([{ id: 'keep', name: 'Keep' }, { id: 'wipe', name: 'Wipe' }], 'wipe');
+      seedResidue('wipe');
+      configure({ evolu: makeEvolu({ tombRows: [{ profileId: 'wipe' }] }) });
+      await tombstones.applyRemoteTombstones();
+      outcomes.singleRemoteTombstoneWipesProfileAndResidue =
+        (state.profiles)!.length === 1
+        && (state.profiles)![0].id === 'keep'
+        && !localStorage.getItem(profileKey('wipe', 'units'))
+        && !localStorage.getItem(profileKey('wipe', 'showAltUnits'))
+        && !localStorage.getItem(`labcharts-wipe-chat`)
+        && !localStorage.getItem(`labcharts-wipe-chat-t_one`)
+        && toasts().some(text => text.includes('Profile was deleted on another device'));
+      clearToasts();
+
+      setProfiles([{ id: 'keep', name: 'Keep' }, { id: 'wipe', name: 'Wipe' }], 'keep');
+      configure({ evolu: makeEvolu({ tombRows: [
+        { dataJson: JSON.stringify({ _v: 3, profile: { id: 'wipe' } }) },
+      ] }) });
+      await tombstones.applyRemoteTombstones();
+      outcomes.remoteTombstoneFallsBackToPayloadProfileId = (state.profiles)!.length === 1
+        && (state.profiles)![0].id === 'keep';
+
+      setProfiles([{ id: 'keep', name: 'Keep' }, { id: 'wipe', name: 'Wipe' }], 'keep');
+      configure({ evolu: makeEvolu({ tombRows: [{ profileId: 'keep' }, { profileId: 'wipe' }] }) });
+      await tombstones.applyRemoteTombstones();
+      const allProfilesPending = tombstones.listPendingTombstones().map((p: {id?:unknown}) => p.id).sort();
+      outcomes.allProfilesTombstonedQuarantinesWithoutWiping =
+        (state.profiles)!.length === 2
+        && allProfilesPending.join('|') === 'keep|wipe'
+        && toasts().some(text => text.includes('2 profiles deleted on another device'));
+      localStorage.removeItem(tombKey('keep'));
+      localStorage.removeItem(tombKey('wipe'));
+      clearToasts();
+
+      setProfiles([
+        { id: 'keep', name: 'Keep' },
+        { id: 'batch-a', name: 'Batch A' },
+        { id: 'batch-b', name: 'Batch B' },
+      ], 'keep');
+      configure({ evolu: makeEvolu({ tombRows: [{ profileId: 'batch-a' }, { profileId: 'batch-b' }] }) });
+      await tombstones.applyRemoteTombstones();
+      const pending = tombstones.listPendingTombstones().map((p: {id?:unknown}) => p.id).sort();
+      outcomes.batchTombstonesQuarantineInsteadOfWiping =
+        (state.profiles)!.length === 3
+        && pending.join('|') === 'batch-a|batch-b'
+        && localStorage.getItem(tombKey('batch-a'))?.includes('remote')
+        && toasts().some(text => text.includes('2 profiles deleted on another device'));
+      clearToasts();
+
+      seedResidue('batch-a');
+      const applied = await tombstones.applyPendingTombstone('batch-a');
+      outcomes.applyPendingTombstoneWipesSinglePendingProfile =
+        applied.ok === true
+        && (state.profiles)!.map((p: {id?:unknown}) => p.id).sort().join('|') === 'batch-b|keep'
+        && localStorage.getItem(tombKey('batch-a')) === null
+        && localStorage.getItem(profileKey('batch-a', 'units')) === null
+        && localStorage.getItem(`labcharts-batch-a-chat-t_one`) === null;
+
+      setProfiles([{ id: 'lastonly', name: 'Last Only' }], 'lastonly');
+      localStorage.setItem(tombKey('lastonly'), JSON.stringify({ at: Date.now(), source: 'remote' }));
+      const protectedLast = await tombstones.applyPendingTombstone('lastonly');
+      const replacementProfiles = profileStore.getProfiles();
+      outcomes.applyPendingTombstoneReplacesOnlyProfile = protectedLast.ok === true
+        && replacementProfiles.length === 1
+        && (replacementProfiles[0])!.id !== 'lastonly'
+        && state.currentProfile === (replacementProfiles[0])!.id
+        && localStorage.getItem(tombKey('lastonly')) === null;
+
+      setProfiles([{ id: 'keep', name: 'Keep' }, { id: 'rejectme', name: 'Reject Me' }], 'keep');
+      localStorage.setItem(tombKey('rejectme'), JSON.stringify({ at: Date.now(), source: 'remote' }));
+      configure({ evolu: makeEvolu(), syncEnabled: false });
+      const rejectSyncOff = await tombstones.rejectPendingTombstone('rejectme');
+      configure({ evolu: makeEvolu(), syncEnabled: true });
+      const rejectNoData = await tombstones.rejectPendingTombstone('rejectme');
+      localStorage.setItem(tombKey('rejectme'), JSON.stringify({ at: Date.now(), source: 'remote' }));
+      await blobStorage.setBlob(profileKey('rejectme', 'imported'), '{bad json');
+      const rejectBadJson = await tombstones.rejectPendingTombstone('rejectme');
+      await blobStorage.setBlob(profileKey('rejectme', 'imported'), JSON.stringify({ entries: [{ id: 1 }] }));
+      const pushed: {profileId:string;data:unknown}[] = [];
+      configure({
+        evolu: makeEvolu(),
+        syncEnabled: true,
+        pushProfile: async (profileId: string, data: unknown) => {
+          pushed.push({ profileId, data });
+          return { ok: true };
+        },
+      });
+      const rejectSuccess = await tombstones.rejectPendingTombstone('rejectme');
+      outcomes.rejectPendingTombstoneCoversSyncDataAndPushPaths =
+        rejectSyncOff.reason === 'sync-off'
+        && rejectNoData.reason === 'no-local-data'
+        && rejectBadJson.reason === 'bad-local-json'
+        && rejectSuccess.ok === true
+        && pushed[0]?.profileId === 'rejectme'
+        && (pushed[0]?.data as {entries?: {id?:unknown}[]}|null|undefined)?.entries?.[0]?.id === 1
+        && localStorage.getItem(tombKey('rejectme')) === null;
+
+      setProfiles([{ id: 'restore-active', name: 'Restore Active' }], 'restore-active');
+      (state as {importedData:unknown}).importedData = { entries: [{ id: 'new-unsaved-edit' }] };
+      localStorage.setItem(tombKey('restore-active'), JSON.stringify({ at: Date.now(), source: 'remote' }));
+      await blobStorage.setBlob(
+        profileKey('restore-active', 'imported'),
+        JSON.stringify({ entries: [{ id: 'stale-persisted-edit' }] })
+      );
+      const restoreActive = await tombstones.rejectPendingTombstone('restore-active');
+      outcomes.rejectPendingTombstoneUsesCurrentActiveProfileData =
+        restoreActive.ok === true
+        && pushed[1]?.profileId === 'restore-active'
+        && (pushed[1]?.data as {entries?: {id?:unknown}[]}|null|undefined)?.entries?.[0]?.id === 'new-unsaved-edit'
+        && localStorage.getItem(tombKey('restore-active')) === null;
+    } finally {
+      profileStorageCleanup.configureProfileStorageCleanupDeps(previousCleanupDeps);
+      (tombstones.configureSyncTombstones as (deps: Omit<NonNullable<Parameters<typeof tombstones.configureSyncTombstones>[0]>, 'getEvolu' | 'saveProfiles'> & {getEvolu?:()=>unknown;saveProfiles?:typeof profileStore.saveProfiles}) => ReturnType<typeof tombstones.configureSyncTombstones>)({
+        getEvolu: () => null,
+        getProfileQuery: () => null,
+        getTombstoneQuery: () => null,
+        isSyncEnabled: () => false,
+        pushProfile: async () => {},
+        debug: () => {},
+        getProfiles: () => [],
+        saveProfiles: async () => {},
+        loadProfile: () => {},
+      });
+      (state as {profiles:unknown}).profiles = saved.profilesState;
+      (state as {importedData:unknown}).importedData = saved.importedData;
+      state.currentProfile = saved.currentProfile;
+      if (saved.activeProfile == null) localStorage.removeItem('labcharts-active-profile');
+      else localStorage.setItem('labcharts-active-profile', saved.activeProfile);
+      if (saved.profiles == null) localStorage.removeItem('labcharts-profiles');
+      else localStorage.setItem('labcharts-profiles', saved.profiles);
+      if (saved.encryptionEnabled == null) localStorage.removeItem('labcharts-encryption-enabled');
+      else localStorage.setItem('labcharts-encryption-enabled', saved.encryptionEnabled);
+      for (const id of profileIds) {
+        localStorage.removeItem(tombKey(id));
+        for (const suffix of ['imported', 'units', 'suppOverlay', 'noteOverlay', 'rangeMode', 'showAltUnits', 'suppImpact']) {
+          localStorage.removeItem(profileKey(id, suffix));
+        }
+        for (const suffix of ['chat', 'chat-threads', 'chat-t_one', 'chatRailOpen', 'chatPersonality', 'chatPersonalityCustom', 'focusCard', 'contextHealth', 'onboarded', 'emptyTour', 'tour', 'cycleTour', 'phaseOverlay', 'sync-ts']) {
+          localStorage.removeItem(`labcharts-${id}-${suffix}`);
+        }
+        await blobStorage.deleteBlob(profileKey(id, 'imported')).catch(() => {});
+      }
+      document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
+    }
+    return outcomes;
+  }, { tombstonesUrl: moduleUrl('/js/sync-tombstones.js') });
+
+  expectAll(outcomes);
+});
