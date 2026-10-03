@@ -23,11 +23,18 @@ file covers code ownership and dependency rules that must change with the app.
 
 ## TypeScript migration source contract
 
-Canonical TypeScript modules compile with TypeScript 7 to ignored JavaScript
-siblings at existing runtime URLs. Run `npm run typescript:build` after source
-edits; `npm ci`, normal development/test and production commands compile first.
-Source inventories and this generated module map prefer `.ts`; runtime coverage
-uses emitted JavaScript offsets consistently across Node and browsers. The full
+Canonical `.ts` and `.mts` modules compile with TypeScript 7 to ignored `.js`
+and `.mjs` siblings at existing runtime URLs. Run `npm run typescript:build`
+after source edits. `npm ci` runs it through `prepare`; the `dev-server`, `test`,
+`production:build` and `production:check` npm commands also compile first.
+Source inventories prefer the canonical TypeScript file. Runtime coverage uses
+emitted JavaScript offsets consistently across Node and browsers.
+
+Compiler tooling uses the TypeScript 7 native SDK.
+[`scripts/native-typescript-ast.ts`](scripts/native-typescript-ast.ts) owns scoped
+parsing sessions: consumers inspect real SDK nodes synchronously and return plain
+data, then release the snapshot and compiler process. Production and test
+semantic checks still use the unchanged strict compiler configurations. The full
 migration objective and fixed LOC baseline are in
 [`TYPESCRIPT_MIGRATION.md`](TYPESCRIPT_MIGRATION.md).
 

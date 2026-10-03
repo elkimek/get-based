@@ -137,8 +137,9 @@ try {
 const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
 try {
   delete (globalThis as { window?: Window }).window;
-  // @ts-expect-error TypeScript resolves only the query-free source path.
-  await import('../js/biology-scores-runtime.js?no-window-probe');
+  const probeUrl = '../js/biology-scores-runtime.js?no-window-probe';
+  const probe: Promise<unknown> = import(probeUrl);
+  await probe;
   assert('biology runtime imports without a browser window', true);
 } catch (error) {
   assert('biology runtime imports without a browser window', false, (error as { message?: string } | null | undefined)?.message || String(error));
