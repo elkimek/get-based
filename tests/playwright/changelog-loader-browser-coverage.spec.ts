@@ -25,7 +25,7 @@ test.beforeEach(async ({ page }) => {
 
 test('changelog archive stays cold for first visits and ordinary patch updates, then single-flights', async ({ page }) => {
   await page.goto('/changelog-loader-coverage');
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/changelog-impl.js*', async route => {
     implementationRequests.push(route.request().url());
     await new Promise(resolve => setTimeout(resolve, 25));
@@ -36,8 +36,8 @@ test('changelog archive stays cold for first visits and ordinary patch updates, 
   });
 
   const outcomes = await page.evaluate(async url => {
-    window.APP_VERSION = '1.17.1';
-    const facade = await import(url);
+    (window as unknown as { APP_VERSION: unknown }).APP_VERSION = '1.17.1';
+    const facade = (await import(url) as unknown) as {isChangelogModuleLoaded: typeof import('../../js/changelog.js').isChangelogModuleLoaded; loadChangelogModule: (...args: Parameters<typeof import('../../js/changelog.js').loadChangelogModule>) => Promise<unknown>; closeChangelog: (...args: Parameters<typeof import('../../js/changelog.js').closeChangelog>) => unknown; maybeShowChangelog: (...args: Parameters<typeof import('../../js/changelog.js').maybeShowChangelog>) => unknown; openChangelog: (...args: Parameters<typeof import('../../js/changelog.js').openChangelog>) => unknown};
     localStorage.removeItem('labcharts-changelog-seen');
     const firstVisitResult = facade.maybeShowChangelog();
     const firstVisitSeen = localStorage.getItem('labcharts-changelog-seen');
@@ -59,7 +59,7 @@ test('changelog archive stays cold for first visits and ordinary patch updates, 
       sharedPromise,
       loaded: facade.isChangelogModuleLoaded(),
       opened: facade.openChangelog(true),
-      implementationCalls: window.__changelogLoaderCalls || [],
+      implementationCalls: (window as unknown as { __changelogLoaderCalls: unknown[][] | undefined }).__changelogLoaderCalls || [],
     };
   }, facadeUrl());
 
@@ -79,7 +79,7 @@ test('changelog archive stays cold for first visits and ordinary patch updates, 
 
 test('critical force-show metadata loads the changelog archive', async ({ page }) => {
   await page.goto('/changelog-loader-coverage');
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/changelog-impl.js*', async route => {
     implementationRequests.push(route.request().url());
     await route.fulfill({
@@ -89,14 +89,14 @@ test('critical force-show metadata loads the changelog archive', async ({ page }
   });
 
   const outcomes = await page.evaluate(async url => {
-    window.APP_VERSION = '1.10.381';
+    (window as unknown as { APP_VERSION: unknown }).APP_VERSION = '1.10.381';
     localStorage.setItem('labcharts-changelog-seen', '1.7.0');
-    const facade = await import(url);
+    const facade = (await import(url) as unknown) as {isChangelogModuleLoaded: typeof import('../../js/changelog.js').isChangelogModuleLoaded; loadChangelogModule: (...args: Parameters<typeof import('../../js/changelog.js').loadChangelogModule>) => Promise<unknown>; closeChangelog: (...args: Parameters<typeof import('../../js/changelog.js').closeChangelog>) => unknown; maybeShowChangelog: (...args: Parameters<typeof import('../../js/changelog.js').maybeShowChangelog>) => unknown; openChangelog: (...args: Parameters<typeof import('../../js/changelog.js').openChangelog>) => unknown};
     const opened = await facade.maybeShowChangelog();
     return {
       opened,
       loaded: facade.isChangelogModuleLoaded(),
-      implementationCalls: window.__changelogLoaderCalls || [],
+      implementationCalls: (window as unknown as { __changelogLoaderCalls: unknown[][] | undefined }).__changelogLoaderCalls || [],
     };
   }, facadeUrl());
 
@@ -110,7 +110,7 @@ test('critical force-show metadata loads the changelog archive', async ({ page }
 
 test('changelog loader retries with a fixed URL and reports the first failure', async ({ page }) => {
   await page.goto('/changelog-loader-coverage');
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/changelog-impl.js*', async route => {
     const url = route.request().url();
     implementationRequests.push(url);
@@ -125,10 +125,10 @@ test('changelog loader retries with a fixed URL and reports the first failure', 
   });
 
   const outcomes = await page.evaluate(async url => {
-    window.APP_VERSION = '1.10.381';
-    const facade = await import(url);
+    (window as unknown as { APP_VERSION: unknown }).APP_VERSION = '1.10.381';
+    const facade = (await import(url) as unknown) as {isChangelogModuleLoaded: typeof import('../../js/changelog.js').isChangelogModuleLoaded; loadChangelogModule: (...args: Parameters<typeof import('../../js/changelog.js').loadChangelogModule>) => Promise<unknown>; closeChangelog: (...args: Parameters<typeof import('../../js/changelog.js').closeChangelog>) => unknown; maybeShowChangelog: (...args: Parameters<typeof import('../../js/changelog.js').maybeShowChangelog>) => unknown; openChangelog: (...args: Parameters<typeof import('../../js/changelog.js').openChangelog>) => unknown};
     const first = await facade.openChangelog(true);
-    const notification = document.querySelector('#notification-container')?.textContent || '';
+    const notification = document.querySelector<HTMLElement>('#notification-container')?.textContent || '';
     const second = await facade.openChangelog(false);
     return {
       first,
@@ -139,8 +139,8 @@ test('changelog loader retries with a fixed URL and reports the first failure', 
   }, facadeUrl());
 
   expect(implementationRequests).toHaveLength(2);
-  expect(new URL(implementationRequests[0]).search).toBe('');
-  expect(new URL(implementationRequests[1]).search).toBe('?lazy-retry=1');
+  expect(new URL(implementationRequests[0]!).search).toBe('');
+  expect(new URL(implementationRequests[1]!).search).toBe('?lazy-retry=1');
   expect(outcomes).toEqual({
     first: false,
     second: 'opened:false',

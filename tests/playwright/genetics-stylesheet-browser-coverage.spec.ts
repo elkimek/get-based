@@ -1,10 +1,11 @@
+import type {Page} from '@playwright/test';
 import { routeCss } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('geneticsStylesheetCoverage');
 
-async function openGeneticsLoaderPage(page, path) {
+async function openGeneticsLoaderPage(page: Page, path: string) {
   await page.route(`**${path}`, route => route.fulfill({
     status: 200,
     contentType: 'text/html',
@@ -28,20 +29,20 @@ test('Genetics stylesheet loader single-flights and preserves cascade order', as
   await openGeneticsLoaderPage(page, '/genetics-stylesheet-cache-coverage');
 
   const outcomes = await page.evaluate(async ({ runtimeUrl }) => {
-    const runtime = await import(runtimeUrl);
+    const runtime = (await import(runtimeUrl) as unknown) as Pick<typeof import('../../js/dna-runtime.js'), 'isGeneticsStylesheetLoaded' | 'loadGeneticsStylesheet' | 'loadGeneticsStylesheetForAction'>;
     const loadedBeforeRequest = runtime.isGeneticsStylesheetLoaded();
     const [first, second] = await Promise.all([
       runtime.loadGeneticsStylesheet(),
       runtime.loadGeneticsStylesheet(),
     ]);
     const third = await runtime.loadGeneticsStylesheet();
-    const anchor = document.querySelector('[data-genetics-stylesheet-anchor]');
+    const anchor = document.querySelector<HTMLElement>('[data-genetics-stylesheet-anchor]');
     return {
       loadedBeforeRequest,
       loadedAfterRequest: runtime.isGeneticsStylesheetLoaded(),
       concurrentCallsShareTheSameLink: first === second,
       laterCallsReuseTheResolvedLink: first === third,
-      oneStylesheetLink: document.querySelectorAll('link[data-genetics-stylesheet]').length === 1,
+      oneStylesheetLink: document.querySelectorAll<HTMLElement>('link[data-genetics-stylesheet]').length === 1,
       linkPrecedesAnchor: first.nextElementSibling === anchor,
     };
   }, { runtimeUrl: moduleUrl('/js/dna-runtime.js') });
@@ -61,7 +62,7 @@ test('Genome route contains a stylesheet failure and retries with a fresh URL', 
   // This intentionally performs two lazy route preparations under full-suite
   // coverage instrumentation; allow Playwright's slow-test budget on loaded CI.
   test.slow();
-  const stylesheetRequests = [];
+  const stylesheetRequests: string[] = [];
   await page.route('**/css/genetics.css*', route => {
     stylesheetRequests.push(route.request().url());
     return route.abort('failed');
@@ -83,7 +84,7 @@ test('Genome route contains a stylesheet failure and retries with a fresh URL', 
     return {
       opened,
       status: document.getElementById('main-content')?.textContent || '',
-      links: document.querySelectorAll('link[data-genetics-stylesheet]').length,
+      links: document.querySelectorAll<HTMLElement>('link[data-genetics-stylesheet]').length,
     };
   });
 
@@ -97,7 +98,7 @@ test('Genome route contains a stylesheet failure and retries with a fresh URL', 
   const retryOpen = await page.evaluate(async () => {
     const views = await import('/js/views.js');
     const opened = await views.navigate('genome');
-    const link = document.querySelector('link[data-genetics-stylesheet]');
+    const link = document.querySelector<HTMLLinkElement>('link[data-genetics-stylesheet]');
     return {
       opened,
       workspace: document.getElementById('main-content')?.textContent || '',
@@ -117,12 +118,12 @@ test('DNA modal entry contains a stylesheet failure', async ({ page }) => {
   await openGeneticsLoaderPage(page, '/genetics-stylesheet-action-failure-coverage');
 
   const outcomes = await page.evaluate(async ({ runtimeUrl }) => {
-    const runtime = await import(runtimeUrl);
+    const runtime = (await import(runtimeUrl) as unknown) as Pick<typeof import('../../js/dna-runtime.js'), 'isGeneticsStylesheetLoaded' | 'loadGeneticsStylesheet' | 'loadGeneticsStylesheetForAction'>;
     const loaded = await runtime.loadGeneticsStylesheetForAction();
     return {
       returnsFalse: loaded === false,
       failedLinkWasRemoved:
-        document.querySelectorAll('link[data-genetics-stylesheet]').length === 0,
+        document.querySelectorAll<HTMLElement>('link[data-genetics-stylesheet]').length === 0,
       errorWasExplained:
         document.getElementById('notification-container')?.textContent
           ?.includes('Could not open DNA tools') === true,

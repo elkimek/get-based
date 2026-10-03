@@ -1,18 +1,19 @@
+import type {AddressInfo} from 'node:net';
 import { expect, test } from '@playwright/test';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { createCompanionManagement } from '../../lib/companion-management.js';
 
-let server;
-test.afterEach(async () => { if (server) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); } });
+let server: ReturnType<typeof createServer> | undefined;
+test.afterEach(async () => { if (server) { server.closeAllConnections(); await new Promise(resolve => server!.close(resolve)); } });
 
 for (const width of [760, 360]) {
   test(`Companion controls stay inside hosted Settings at ${width}px`, async ({ page }) => {
     const parent = 'https://app.getbased.health';
 
-    const actions = [];
+    const actions: unknown[] = [];
     let updateAvailable = false, offlineUntil = 0, recoverSameSession = false;
-    const status = { runtimeMode: 'installed', processMode: 'service', companionVersion: '1.3.0', paused: false, restartRequired: false };
+    const status: {runtimeMode: string; processMode: string; companionVersion: string; paused: boolean; restartRequired: boolean; restartStatus?: string} = { runtimeMode: 'installed', processMode: 'service', companionVersion: '1.3.0', paused: false, restartRequired: false };
     const createManagement = () => createCompanionManagement({
       allowParentOrigin: value => value === parent,
       status: () => status,
@@ -47,21 +48,21 @@ for (const width of [760, 360]) {
         res.end(JSON.stringify({ service: 'getbased-agent-host' }));
         return;
       }
-      const chunks = [];
+      const chunks: Uint8Array[] = [];
       for await (const chunk of req) chunks.push(chunk);
       const body = Buffer.concat(chunks).toString();
-      const response = await handle(new Request(`http://${req.headers.host}${req.url}`, {
+      const response = await handle(new (Request as unknown as {new(input: ConstructorParameters<typeof Request>[0], init: {method: unknown; headers: unknown; body?: string}): Request})(`http://${req.headers.host}${req.url}`, {
         method: req.method, headers: req.headers, ...(body ? { body } : {}),
       }));
-      res.writeHead(response.status, Object.fromEntries(response.headers));
-      res.end(await response.text());
+      res.writeHead(response!.status, Object.fromEntries(response!.headers));
+      res.end(await response!.text());
     });
-    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-    const endpoint = `http://127.0.0.1:${server.address().port}`;
+    await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve));
+    const endpoint = `http://127.0.0.1:${(server!.address() as AddressInfo).port}`;
     await page.context().grantPermissions(['local-network-access'], { origin: parent });
     await page.setViewportSize({ width, height: 850 });
     const config = JSON.parse(await readFile(new URL('../../vercel.json', import.meta.url), 'utf8'));
-    const headers = config.routes.find(entry => entry.headers?.['Content-Security-Policy']).headers;
+    const headers = config.routes.find((entry: {headers?: Record<string, string>}) => entry.headers?.['Content-Security-Policy']).headers;
     const css = await readFile(new URL('../../css/settings.css', import.meta.url), 'utf8');
     await page.route(parent + '/companion-settings-test', route => route.fulfill({
       contentType: 'text/html', headers,
@@ -71,7 +72,7 @@ for (const width of [760, 360]) {
     // Capture the embedded panel's size-only message to verify its browser layout.
     await page.addInitScript(() => {
       window.addEventListener('message', event => {
-        const frame = document.querySelector('iframe');
+        const frame = document.querySelector<HTMLIFrameElement>('iframe');
         if (event.source === frame?.contentWindow && event.data?.type === 'getbased-companion-panel-size') {
           frame.style.height = `${event.data.height}px`;
         }
@@ -121,7 +122,7 @@ for (const width of [760, 360]) {
     expect(page.url()).toBe(parent + '/companion-settings-test');
     expect(page.context().pages()).toHaveLength(1);
     const contentFrame = page.frames().find(item => item.url().startsWith(endpoint));
-    expect(await contentFrame.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(await contentFrame!.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: `/tmp/companion-settings-${width}.png` });
   });
 }

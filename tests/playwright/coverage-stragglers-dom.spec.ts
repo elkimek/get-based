@@ -4,22 +4,22 @@ test('coverage straggler browser rails reject and clean up correctly', async ({ 
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async () => {
-    const outcomes = {};
+    const outcomes: Record<string, boolean> = {};
 
     {
-      const { resizeImage } = await import(`/js/image-utils.js?bust=${Date.now()}`);
+      const { resizeImage } = (await import(`/js/image-utils.js?bust=${Date.now()}`) as unknown) as Pick<typeof import('../../js/image-utils.js'), 'resizeImage'>;
       const garbage = new File([new Uint8Array([0x00, 0x01, 0x02, 0x03])], 'not-an-image.png', { type: 'image/png' });
       let rejected = false;
       try {
         await resizeImage(garbage, 64, 0.7);
       } catch (e) {
-        rejected = /Failed to load image/i.test(e.message);
+        rejected = /Failed to load image/i.test((e as {message: string}).message);
       }
       outcomes.imageOnErrorRejects = rejected;
     }
 
     {
-      const utils = await import(`/js/utils.js?bust=${Date.now()}`);
+      const utils = (await import(`/js/utils.js?bust=${Date.now()}`) as unknown) as Pick<typeof import('../../js/utils.js'), 'showConfirmDialog' | 'showPromptDialog'>;
       const promise = utils.showConfirmDialog('probe');
       await new Promise(resolve => setTimeout(resolve, 50));
       const overlay = document.getElementById('confirm-dialog-overlay');
@@ -70,7 +70,7 @@ test('coverage straggler browser rails reject and clean up correctly', async ({ 
     }
 
     {
-      const api = await import(`/js/api.js?bust=${Date.now()}`);
+      const api = (await import(`/js/api.js?bust=${Date.now()}`) as unknown) as Pick<typeof import('../../js/api.js'), 'callClaudeAPI'>;
       const originalFetch = window.fetch;
       const originalProvider = localStorage.getItem('labcharts-ai-provider');
       try {
@@ -98,7 +98,7 @@ test('coverage straggler browser rails reject and clean up correctly', async ({ 
         try {
           await api.callClaudeAPI({
             messages: [{ role: 'user', content: 'probe' }],
-            onStream: full => { streamedText = full; },
+            onStream: (full: string) => { streamedText = full; },
             maxTokens: 16,
           });
         } catch (_) {
@@ -114,11 +114,11 @@ test('coverage straggler browser rails reject and clean up correctly', async ({ 
 
     {
       const originalOpen = indexedDB.open;
-      indexedDB.open = function() {
+      (indexedDB as unknown as {open: (...args: Parameters<IDBFactory['open']>) => unknown}).open = function() {
         const req = Object.assign(new EventTarget(), {
           error: new Error('stubbed open failure'),
           result: null,
-          onerror: null,
+          onerror: null as ((event: {target: unknown}) => unknown) | null,
           onsuccess: null,
           onupgradeneeded: null,
         });
@@ -126,7 +126,7 @@ test('coverage straggler browser rails reject and clean up correctly', async ({ 
         return req;
       };
       try {
-        const cashu = await import(`/js/cashu-wallet.js?bust=${Date.now()}`);
+        const cashu = (await import(`/js/cashu-wallet.js?bust=${Date.now()}`) as unknown) as Pick<typeof import('../../js/cashu-wallet.js'), 'getWalletBalance'>;
         let rejected = false;
         try {
           await cashu.getWalletBalance();

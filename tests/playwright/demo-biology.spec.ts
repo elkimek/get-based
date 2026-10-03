@@ -46,9 +46,9 @@ for (const sex of ['male', 'female']) test(`${sex} demo has explorable Biology S
     (await import('/js/tour.js')).endTour({ openEmptyChat: false });
     await (await import('/js/export.js')).loadDemoData(sex);
     const { configureBiologyScoreAIDeps } = await import('/js/biology-score-ai.js');
-    window.demoBiologyCalls = 0;
+    (window as unknown as { demoBiologyCalls: number }).demoBiologyCalls = 0;
     configureBiologyScoreAIDeps({ hasAIProvider: () => true, isAIPaused: () => false, automaticEnabled: () => true,
-      callClaudeAPI: async () => { window.demoBiologyCalls++; return { text: JSON.stringify({ summary: 'This is a saved test interpretation of the sample markers.', explanation: '## Main signal\nThe supplied markers describe this sample.\n\n## Context\nThis is a test response.\n\n## Next check\nReview the recorded collection context.' }) }; },
+      callClaudeAPI: async () => { (window as unknown as { demoBiologyCalls: number }).demoBiologyCalls++; return { text: JSON.stringify({ summary: 'This is a saved test interpretation of the sample markers.', explanation: '## Main signal\nThe supplied markers describe this sample.\n\n## Context\nThis is a test response.\n\n## Next check\nReview the recorded collection context.' }) }; },
     });
     await (await import('/js/views.js')).navigate('biology-scores');
   }, sex);
@@ -72,14 +72,14 @@ for (const sex of ['male', 'female']) test(`${sex} demo has explorable Biology S
   });
   expect(matrix).toHaveLength(8);
   expect(matrix.every(view => view.scored === 19 && view.stale === 0 && view.draws >= 2)).toBe(true);
-  expect(await page.evaluate(() => window.demoBiologyCalls)).toBe(0);
+  expect(await page.evaluate(() => (window as unknown as { demoBiologyCalls: number }).demoBiologyCalls)).toBe(0);
   for (const viewport of [{ width: 1440, height: 1000 }, { width: 650, height: 844 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
     await page.evaluate(async () => (await import('/js/views.js')).navigate('biology-scores'));
     const layout = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth,
-      cards: [...document.querySelectorAll('.biology-score-compact:not([open])')].filter(el => el.getBoundingClientRect().width).map(el => ({ top: Math.round(el.getBoundingClientRect().top), height: Math.round(el.getBoundingClientRect().height) })),
-      domainClipping: [...document.querySelectorAll('.biology-coherence-domain-row')].filter(el => el.scrollWidth > el.clientWidth + 1).length,
-      clipped: [...document.querySelectorAll('.biology-score-ai-teaser-text')].filter(el => el.getBoundingClientRect().width && el.scrollHeight > el.clientHeight + 2).length,
+      cards: [...document.querySelectorAll<HTMLElement>('.biology-score-compact:not([open])')].filter(el => el.getBoundingClientRect().width).map(el => ({ top: Math.round(el.getBoundingClientRect().top), height: Math.round(el.getBoundingClientRect().height) })),
+      domainClipping: [...document.querySelectorAll<HTMLElement>('.biology-coherence-domain-row')].filter(el => el.scrollWidth > el.clientWidth + 1).length,
+      clipped: [...document.querySelectorAll<HTMLElement>('.biology-score-ai-teaser-text')].filter(el => el.getBoundingClientRect().width && el.scrollHeight > el.clientHeight + 2).length,
     }));
     expect(layout.scroll).toBeLessThanOrEqual(layout.width + 1); expect(layout.clipped).toBe(0); expect(layout.domainClipping).toBe(0);
     if (viewport.width <= 650) {
@@ -105,7 +105,7 @@ for (const sex of ['male', 'female']) test(`${sex} demo has explorable Biology S
   }
   await page.locator('[data-biology-score-ai-summary="metabolicFlexibility"] button').click();
   await expect(page.locator('[data-biology-score-ai-summary="metabolicFlexibility"]')).toContainText('This is a saved test interpretation');
-  expect(await page.evaluate(() => window.demoBiologyCalls)).toBe(1);
+  expect(await page.evaluate(() => (window as unknown as { demoBiologyCalls: number }).demoBiologyCalls)).toBe(1);
   await page.reload();
   await page.evaluate(async () => (await import('/js/views.js')).navigate('biology-scores'));
   await expect(page.locator('[data-biology-score-ai-summary="metabolicFlexibility"]')).toContainText('This is a saved test interpretation');

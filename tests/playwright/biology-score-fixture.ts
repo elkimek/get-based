@@ -1,4 +1,5 @@
-export async function prepareDemoProfile(page) {
+import type {Page} from '@playwright/test';
+export async function prepareDemoProfile(page: Page) {
   // Keep the current July demo draws inside the engine's 180-day freshness
   // window. Otherwise this coverage fixture changes behavior as wall-clock
   // time advances and eventually renders every score as stale.

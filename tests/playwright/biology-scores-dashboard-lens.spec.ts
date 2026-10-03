@@ -38,9 +38,9 @@ test('coherence and sub-score widgets retain the original dashboard theme styles
       await new Promise(requestAnimationFrame);
     }, theme);
     const styles = await page.evaluate(() => {
-      const read = id => {
-        const number = document.querySelector(`[data-widget-id="${id}"] .db-hero-bio-num`);
-        const style = getComputedStyle(number);
+      const read = (id: string) => {
+        const number = document.querySelector<HTMLElement>(`[data-widget-id="${id}"] .db-hero-bio-num`);
+        const style = getComputedStyle(number!);
         return { color: style.color, background: style.backgroundImage, clip: style.backgroundClip, fill: style.webkitTextFillColor, size: style.fontSize, family: style.fontFamily };
       };
       return { age: read('bio-age'), subscore: read('biology-score-metabolicFlexibility'), coherence: read('biology-score-biologicalCoherence') };
@@ -65,7 +65,7 @@ test('dashboard coherence domain row navigates to Biology Scores lens and scroll
   const targetScoreId = await page.evaluate(async () => {
     (await import('/js/views.js')).navigate('dashboard');
     await new Promise(r => setTimeout(r, 300));
-    const row = document.querySelector('[data-widget-id="biology-score-biologicalCoherence"] .bc-micro-domain[data-biology-score-id]');
+    const row = document.querySelector<HTMLElement>('[data-widget-id="biology-score-biologicalCoherence"] .bc-micro-domain[data-biology-score-id]');
     if (!row) throw new Error('No coherence domain row found');
     const id = row.getAttribute('data-biology-score-id');
     row.click();
@@ -73,7 +73,7 @@ test('dashboard coherence domain row navigates to Biology Scores lens and scroll
   });
 
   await page.waitForFunction(
-    id => !!document.querySelector(`#biology-score-${CSS.escape(id)}`),
+    id => !!document.querySelector<HTMLElement>(`#biology-score-${CSS.escape(id!)}`),
     targetScoreId,
   );
   const targetCard = page.locator(`#biology-score-${targetScoreId}`).first();
@@ -84,18 +84,18 @@ test('dashboard individual biology score widget is clickable and navigates to it
   await prepareDemoProfile(page);
 
   await page.evaluate(async () => {
-    const { showDashboardWidget } = await import('/js/dashboard-widgets.js');
-    showDashboardWidget?.('biology-score-metabolicFlexibility', { force: true });
+    const { showDashboardWidget } = (await import('/js/dashboard-widgets.js')) as typeof import('../../js/dashboard-widgets.js') & {showDashboardWidget?: undefined};
+    (showDashboardWidget as ((...args: unknown[]) => unknown) | undefined)?.('biology-score-metabolicFlexibility', { force: true });
     (await import('/js/views.js')).navigate('dashboard');
     await new Promise(r => setTimeout(r, 300));
-    const widget = document.querySelector('[data-widget-id="biology-score-metabolicFlexibility"]');
-    const clickTarget = widget?.querySelector('[data-biology-score-action="jump-to-domain"]');
+    const widget = document.querySelector<HTMLElement>('[data-widget-id="biology-score-metabolicFlexibility"]');
+    const clickTarget = widget?.querySelector<HTMLElement>('[data-biology-score-action="jump-to-domain"]');
     if (!clickTarget) throw new Error('Metabolic widget click target not found');
     clickTarget.click();
   });
 
   await page.waitForFunction(
-    () => !!document.querySelector('#biology-score-metabolicFlexibility'),
+    () => !!document.querySelector<HTMLElement>('#biology-score-metabolicFlexibility'),
   );
   await expect(page.locator('#biology-score-metabolicFlexibility').first()).toBeVisible();
 });
@@ -141,7 +141,7 @@ test('dashboard domain rows without primaryScoreId get no-jump visual cue', asyn
   await expect(allDomainRows.first()).toBeVisible();
 
   const results = await page.evaluate(() => {
-    const rows = Array.from(document.querySelectorAll('[data-widget-id="biology-score-biologicalCoherence"] .bc-micro-domain'));
+    const rows = Array.from(document.querySelectorAll<HTMLElement>('[data-widget-id="biology-score-biologicalCoherence"] .bc-micro-domain'));
     return rows.map(row => ({
       hasJump: row.hasAttribute('data-biology-score-action'),
       hasNoJumpClass: row.classList.contains('bc-micro-domain-no-jump'),
@@ -194,7 +194,7 @@ test('scores stay accessible without AI and mobile details preserve all controls
   await expect(context.locator('[data-biology-context-flag="postmenopause"]')).toHaveCount(0);
   const lowMuscle = context.locator('[data-biology-context-flag="lowMuscleMass"]');
   await lowMuscle.setChecked(true);
-  await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).state.importedData.diagnoses.flags.lowMuscleMass)).toBe(true);
+  await expect.poll(() => page.evaluate(async () => (await import('/js/state.js')).state.importedData!.diagnoses!.flags!.lowMuscleMass)).toBe(true);
 });
 
 
@@ -260,10 +260,10 @@ test('overview colors, readable details and visible planning follow the app tabl
   await prepareDemoProfile(page);
   await page.evaluate(async () => (await import('/js/views.js')).navigate('biology-scores'));
   const colors = await page.locator('.biology-coherence-domain-row').evaluateAll(rows => rows.map(row => ({
-    score: Number(row.querySelector('strong').textContent),
-    color: getComputedStyle(row.querySelector('.biology-domain-meter > span')).backgroundColor,
+    score: Number(row.querySelector('strong')!.textContent),
+    color: getComputedStyle(row.querySelector('.biology-domain-meter > span')!).backgroundColor,
   })));
-  expect(colors.find(row => row.score >= 85).color).not.toBe(colors.find(row => row.score < 35).color);
+  expect(colors.find(row => row.score >= 85)!.color).not.toBe(colors.find(row => row.score < 35)!.color);
   const planning = page.locator('.biology-planning-grid');
   await expect(planning.locator('.biology-planning-card[open]')).toHaveCount(2);
   const panelHeights = await planning.locator('.biology-planning-card').evaluateAll(elements => elements.map(el => Math.round(el.getBoundingClientRect().height)));
@@ -307,17 +307,17 @@ test('opening and closing a score keeps its toggle under the pointer in every gr
       const summary = card.locator(':scope > .biology-score-summary');
       await summary.evaluate(el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
       const before = await summary.boundingBox();
-      const point = { x: before.x + before.width - 40, y: before.y + before.height - 30 };
+      const point = { x: before!.x + before!.width - 40, y: before!.y + before!.height - 30 };
       await page.mouse.click(point.x, point.y);
       await expect(card).toHaveAttribute('open', '');
       const after = await summary.boundingBox();
-      expect(Math.abs(after.x - before.x)).toBeLessThan(2);
-      expect(Math.abs(after.y - before.y)).toBeLessThan(2);
-      expect(Math.abs(after.height - before.height)).toBeLessThan(2);
+      expect(Math.abs(after!.x - before!.x)).toBeLessThan(2);
+      expect(Math.abs(after!.y - before!.y)).toBeLessThan(2);
+      expect(Math.abs(after!.height - before!.height)).toBeLessThan(2);
       const panel = await card.locator('.biology-score-expanded').boundingBox();
       const grid = await card.locator('xpath=ancestor::div[contains(@class, "lens-page-widgets")]').boundingBox();
-      expect(Math.abs(panel.x - grid.x)).toBeLessThan(3);
-      expect(Math.abs(panel.width - grid.width)).toBeLessThan(3);
+      expect(Math.abs(panel!.x - grid!.x)).toBeLessThan(3);
+      expect(Math.abs(panel!.width - grid!.width)).toBeLessThan(3);
       await page.mouse.click(point.x, point.y);
       await expect(card).not.toHaveAttribute('open', '');
       await expect(page.locator('.biology-score-compact[open]')).toHaveCount(0);
@@ -355,7 +355,7 @@ test('card AI explains without expanding or changing the score and supports retr
   await teaser.getByRole('button').click();
   await expect(teaser).toContainText('Your thyroid markers broadly agree');
   await expect(teaser.locator('.biology-score-ai-error')).toBeEmpty();
-  await expect(card.locator('.biology-score-dial-number')).toHaveText(score);
+  await expect(card.locator('.biology-score-dial-number')).toHaveText(score!);
   await expect(card).not.toHaveAttribute('open', '');
   await page.evaluate(async () => (await import('/js/views.js')).navigate('biology-scores'));
   await expect(teaser).toContainText('Your thyroid markers broadly agree');
@@ -392,9 +392,9 @@ test('complete independent AI insights fit equal cards and full rich text is rea
     for (const top of new Set(sizes.map(size => size.top))) expect(new Set(sizes.filter(size => size.top === top).map(size => size.height)).size).toBe(1);
     if (width === 390) {
       const thyroidHeight = await page.locator('#biology-score-thyroidCoherence > .biology-score-summary').evaluate(el => el.getBoundingClientRect().height);
-      expect(thyroidHeight).toBeGreaterThan(sizes[0].height);
+      expect(thyroidHeight).toBeGreaterThan(sizes![0]!.height);
     }
-    const insights = await page.locator('.biology-score-compact .biology-score-ai-teaser-text').evaluateAll(elements => elements.map(el => ({ clamp: getComputedStyle(el).webkitLineClamp, bottom: el.getBoundingClientRect().bottom, boxBottom: el.parentElement.getBoundingClientRect().bottom, text: el.textContent })));
+    const insights = await page.locator('.biology-score-compact .biology-score-ai-teaser-text').evaluateAll(elements => elements.map(el => ({ clamp: getComputedStyle(el).webkitLineClamp, bottom: el.getBoundingClientRect().bottom, boxBottom: el.parentElement!.getBoundingClientRect().bottom, text: el.textContent })));
     for (const insight of insights) {
       expect(insight.clamp).toBe('none');
       expect(insight.bottom).toBeLessThanOrEqual(insight.boxBottom + 1);
@@ -418,7 +418,7 @@ test('complete independent AI insights fit equal cards and full rich text is rea
   await expect(thyroid.locator('.biology-score-ai-answer .chat-h2')).toHaveCount(3);
   const list = thyroid.locator('.biology-score-ai-answer ul');
   expect(await list.evaluate(el => parseFloat(getComputedStyle(el).paddingInlineStart))).toBeGreaterThanOrEqual(24);
-  expect(await list.locator('li').first().evaluate(el => el.getBoundingClientRect().left - el.closest('.biology-score-ai').getBoundingClientRect().left)).toBeGreaterThan(32);
+  expect(await list.locator('li').first().evaluate(el => el.getBoundingClientRect().left - el.closest('.biology-score-ai')!.getBoundingClientRect().left)).toBeGreaterThan(32);
   const answer = thyroid.locator('.biology-score-ai-answer');
   expect(await answer.evaluate(el => getComputedStyle(el).webkitLineClamp)).toBe('none');
   await answer.evaluate(el => el.scrollIntoView({ block: 'end', behavior: 'instant' }));
@@ -466,14 +466,14 @@ test('requested insights survive reload and backups; bulk updates reuse complete
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
   await prepareDemoProfile(page);
-  const calls = [];
-  await page.exposeFunction('recordBiologyAIRequest', ids => calls.push(ids));
+  const calls: string[][] = [];
+  await page.exposeFunction('recordBiologyAIRequest', (ids: string[]) => calls.push(ids));
   const installProvider = async () => page.evaluate(async () => {
-    (await import('/js/biology-score-ai.js')).configureBiologyScoreAIDeps({
+    (await import('/js/biology-score-ai.js')).configureBiologyScoreAIDeps!({
       automaticEnabled: () => false, hasAIProvider: () => true, isAIPaused: () => false,
       callClaudeAPI: async request => {
-        const ids = Object.keys(request.jsonSchema.properties);
-        await globalThis.recordBiologyAIRequest(ids);
+        const ids = (Object.keys as (value: unknown) => string[])(request.jsonSchema!.properties);
+        await (globalThis as unknown as { recordBiologyAIRequest: (ids: string[]) => Promise<unknown> }).recordBiologyAIRequest(ids);
         const answer = { summary: 'The core markers show a mixed pattern. Read them with their collection dates. Additional tests may help clarify the result.', explanation: '## Main signal\nThe supplied core markers determine this score.\n\n## Context\nReview the collection dates and supporting markers.\n\n## Next check\nUse the suggested next check.' };
         return { text: JSON.stringify(ids.includes('summary') ? answer : Object.fromEntries(ids.map(id => [id, answer]))) };
       },
@@ -505,8 +505,8 @@ test('requested insights survive reload and backups; bulk updates reuse complete
     const { state } = await import('/js/state.js');
     const { buildFullBackupSnapshot, parseBackupSnapshot, serializeBackupSnapshot } = await import('/js/backup.js');
     const { buildClientExportObject } = await import('/js/export.js');
-    const snapshot = parseBackupSnapshot(serializeBackupSnapshot(await buildFullBackupSnapshot()));
-    const data = JSON.parse(snapshot.profiles.find(p => p.profileId === state.currentProfile).keys.imported);
+    const snapshot = parseBackupSnapshot(serializeBackupSnapshot(await buildFullBackupSnapshot())!);
+    const data = (JSON.parse as (value: unknown) => Record<string, unknown>)((snapshot as {profiles: {profileId: unknown; keys: {imported: unknown}}[]}).profiles.find(p => p.profileId === state.currentProfile)!.keys.imported);
     const json = await buildClientExportObject(state.currentProfile, false, false);
     state.importedData.biologyScoreAI = {};
     await (await import('/js/data.js')).saveImportedData();
@@ -515,7 +515,7 @@ test('requested insights survive reload and backups; bulk updates reuse complete
   });
   expect(exported.json).toEqual(exported.backup);
   expect(exported.restored).toEqual(exported.backup);
-  expect(Object.keys(exported.json).length).toBeGreaterThan(10);
+  expect((Object.keys as (value: unknown) => string[])(exported.json).length).toBeGreaterThan(10);
   await page.reload({ waitUntil: 'load' });
   await page.waitForFunction(async () => !!(await import('/js/state.js')).state.importedData.biologyScoreAI?.metabolicFlexibility?.summary);
   await installProvider();
@@ -567,12 +567,12 @@ test('processing uses shared gray dots, preserves saved text, and survives navig
       hasAIProvider: () => true, isAIPaused: () => false,
       callClaudeAPI: request => new Promise((resolve, reject) => {
         const answer = { summary: 'The markers broadly agree. Review their collection dates.', explanation: '## Main signal\nThe core markers provide the main signal.\n\n## Context\nThese are saved details.' };
-        globalThis.finishBiologyProcessing = fail => {
+        (globalThis as unknown as { finishBiologyProcessing: (fail: boolean) => void }).finishBiologyProcessing = fail => {
           if (fail) { reject(new Error('Synthetic connection lost. Retry.')); return; }
-          const ids = Object.keys(request.jsonSchema.properties);
+          const ids = (Object.keys as (value: unknown) => string[])(request.jsonSchema!.properties);
           resolve({ text: JSON.stringify(ids.includes('summary') ? answer : Object.fromEntries(ids.map(id => [id, answer]))) });
         };
-        if (globalThis.finishRemainingBiologyBatches) globalThis.finishBiologyProcessing(false);
+        if ((globalThis as unknown as { finishRemainingBiologyBatches: boolean | undefined }).finishRemainingBiologyBatches) (globalThis as unknown as { finishBiologyProcessing: (fail: boolean) => void }).finishBiologyProcessing(false);
       }),
     });
     (await import('/js/views.js')).navigate('biology-scores');
@@ -585,7 +585,7 @@ test('processing uses shared gray dots, preserves saved text, and survives navig
   const originalLabel = await teaser.getByRole('button').textContent();
   await teaser.getByRole('button').click();
   await expect(teaser).toHaveAttribute('aria-busy', 'true');
-  await expect(teaser.getByRole('button')).toHaveText(originalLabel);
+  await expect(teaser.getByRole('button')).toHaveText(originalLabel!);
   await expect(teaser.getByRole('button')).toBeDisabled();
   await expect(teaser.locator('.biology-score-ai-teaser-label')).toHaveText('Assessing');
   const dot = teaser.locator('.ctx-health-dot-shimmer');
@@ -612,17 +612,17 @@ test('processing uses shared gray dots, preserves saved text, and survives navig
   await page.screenshot({ path: '/tmp/biology-processing-desktop.png' });
   await page.emulateMedia({ reducedMotion: 'reduce' });
   expect(await dot.evaluate(el => getComputedStyle(el).animationName)).toBe('none');
-  await page.evaluate(() => globalThis.finishBiologyProcessing(false));
+  await page.evaluate(() => (globalThis as unknown as { finishBiologyProcessing: (fail: boolean) => void }).finishBiologyProcessing(false));
   await expect(teaser).toHaveAttribute('aria-busy', 'false');
   await expect(teaser).toContainText('The markers broadly agree.');
   await expect(teaser.locator('.biology-score-ai-teaser-label')).toBeEmpty();
   await expect(teaser.locator('.ctx-health-dot-shimmer')).toHaveCount(0);
-  await expect(card.locator('.biology-score-dial-number')).toHaveText(number);
+  await expect(card.locator('.biology-score-dial-number')).toHaveText(number!);
   await teaser.getByRole('button').click();
   await expect(teaser).toContainText('The markers broadly agree.');
   await expect(teaser.getByRole('button')).toHaveText('Refresh');
   await expect(card.locator('.biology-score-ai-answer')).toContainText('These are saved details.');
-  await page.evaluate(() => globalThis.finishBiologyProcessing(true));
+  await page.evaluate(() => (globalThis as unknown as { finishBiologyProcessing: (fail: boolean) => void }).finishBiologyProcessing(true));
   await expect(teaser).toHaveAttribute('aria-busy', 'false');
   await expect(teaser.locator('.biology-score-ai-error')).toContainText('Synthetic connection lost');
   await expect(teaser.getByRole('button')).toBeEnabled();
@@ -634,15 +634,15 @@ test('processing uses shared gray dots, preserves saved text, and survives navig
   await page.setViewportSize({ width: 390, height: 900 });
   await overview.scrollIntoViewIfNeeded();
   await page.screenshot({ path: '/tmp/biology-processing-mobile.png' });
-  await page.evaluate(() => { globalThis.finishRemainingBiologyBatches = true; globalThis.finishBiologyProcessing(false); });
+  await page.evaluate(() => { (globalThis as unknown as { finishRemainingBiologyBatches: boolean | undefined }).finishRemainingBiologyBatches = true; (globalThis as unknown as { finishBiologyProcessing: (fail: boolean) => void }).finishBiologyProcessing(false); });
   await expect(page.locator('[data-biology-score-ai-summary][aria-busy="true"]')).toHaveCount(0);
 });
 
 
 test('delayed Light hydration reuses all six saved insights and a single refresh stays current', async ({ page }) => {
   await prepareDemoProfile(page);
-  const calls = [];
-  await page.exposeFunction('recordLightBiologyRequest', ids => calls.push(ids));
+  const calls: string[][] = [];
+  await page.exposeFunction('recordLightBiologyRequest', (ids: string[]) => calls.push(ids));
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
     const { getActiveData } = await import('/js/data.js');
@@ -661,7 +661,7 @@ test('delayed Light hydration reuses all six saved insights and a single refresh
     await (await import('/js/data.js')).saveImportedData();
     // Warm saved context, followed by a cold page before its async hooks arrive.
     configureProfileContextLightDeps({ rollingVitaminDIU: null, rollingChannelTotals: null });
-    const ready = new Promise(resolve => { globalThis.finishLightHydration = () => {
+    const ready = new Promise<void>(resolve => { (globalThis as unknown as { finishLightHydration: () => void }).finishLightHydration = () => {
       configureProfileContextLightDeps({ rollingVitaminDIU: () => 1801, rollingChannelTotals: () => ({ circadian: 250 }) });
       resolve();
     }; });
@@ -669,7 +669,7 @@ test('delayed Light hydration reuses all six saved insights and a single refresh
     (await import('/js/biology-score-ai.js')).configureBiologyScoreAIDeps({
       automaticEnabled: () => true, hasAIProvider: () => true, isAIPaused: () => false,
       callClaudeAPI: async request => {
-        await globalThis.recordLightBiologyRequest(Object.keys(request.jsonSchema.properties));
+        await (globalThis as unknown as { recordLightBiologyRequest: (ids: string[]) => Promise<unknown> }).recordLightBiologyRequest((Object.keys as (value: unknown) => string[])(request.jsonSchema!.properties));
         // Live estimate drifts while the explanation is being produced.
         configureProfileContextLightDeps({ rollingVitaminDIU: () => 1802 });
         return { text: JSON.stringify({ summary: 'Fresh interpretation saved once. The marker evidence is unchanged.', explanation: '## Context\nSmall dose-estimate changes do not change the interpretation.' }) };
@@ -677,12 +677,12 @@ test('delayed Light hydration reuses all six saved insights and a single refresh
     });
     (await import('/js/views.js')).navigate('biology-scores');
     const { loadBiologyScoreInsights } = await import('/js/biology-scores.js');
-    globalThis.biologyReadyCheck = Promise.all([loadBiologyScoreInsights(), loadBiologyScoreInsights()]);
+    (globalThis as unknown as { biologyReadyCheck: Promise<unknown> }).biologyReadyCheck = Promise.all([loadBiologyScoreInsights(), loadBiologyScoreInsights()]);
   });
   // Longer than all three reconciliation timers: readiness, not timing, wins.
   await page.waitForTimeout(1200);
   expect(calls).toHaveLength(0);
-  await page.evaluate(async () => { globalThis.finishLightHydration(); await globalThis.biologyReadyCheck; });
+  await page.evaluate(async () => { (globalThis as unknown as { finishLightHydration: () => void }).finishLightHydration(); await (globalThis as unknown as { biologyReadyCheck: Promise<unknown> }).biologyReadyCheck; });
   const affected = ['cardiovascularLipoprotein', 'redoxStress', 'anabolicRecoverySignal', 'hormoneAxis', 'stressResilience', 'boneMineralSignal'];
   for (const id of affected) {
     const teaser = page.locator(`[data-biology-score-ai-summary="${id}"]`);
@@ -694,7 +694,7 @@ test('delayed Light hydration reuses all six saved insights and a single refresh
   await page.evaluate(async () => {
     const { configureProfileContextLightDeps } = await import('/js/profile-context.js');
     configureProfileContextLightDeps({ rollingVitaminDIU: null, rollingChannelTotals: null });
-    const ready = new Promise(resolve => { globalThis.finishSingleLightHydration = () => {
+    const ready = new Promise<void>(resolve => { (globalThis as unknown as { finishSingleLightHydration: () => void }).finishSingleLightHydration = () => {
       configureProfileContextLightDeps({ rollingVitaminDIU: () => 1801, rollingChannelTotals: () => ({ circadian: 250 }) });
       resolve();
     }; });
@@ -702,7 +702,7 @@ test('delayed Light hydration reuses all six saved insights and a single refresh
   });
   await cardiovascular.getByRole('button').click();
   expect(calls).toHaveLength(0);
-  await page.evaluate(() => globalThis.finishSingleLightHydration());
+  await page.evaluate(() => (globalThis as unknown as { finishSingleLightHydration: () => void }).finishSingleLightHydration());
   await expect(cardiovascular).toContainText('Fresh interpretation saved once.');
   await expect(cardiovascular).not.toContainText('refresh needed');
   await page.evaluate(async () => (await import('/js/biology-scores.js')).loadBiologyScoreInsights());
@@ -740,7 +740,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
       ['context', '.biology-context-review-details'], ['contributors', '#biology-score-membership'],
       ['overview-method', '.biology-coherence-breakdown'], ['overview-insight', '.biology-coherence-interpretation'],
     ]) {
-      const panel = page.locator(selector);
+      const panel = page.locator(selector!);
       await panel.locator(':scope > summary').click();
       await panel.screenshot({ path: `/tmp/biology-audit-${viewport.width}-${name}.png` });
       await panel.locator(':scope > summary').click();
@@ -792,7 +792,7 @@ test('context review failure restores its button and can be retried without movi
   const label = await button.textContent();
   await button.click();
   await expect(button).toBeEnabled();
-  await expect(button).toHaveText(label);
+  await expect(button).toHaveText(label!);
   await expect(page.locator('.biology-score-compact')).toHaveCount(18);
 });
 
@@ -805,7 +805,7 @@ test.describe('Touch Biology Scores', () => {
     const targets = page.locator('.biology-coherence-visual .biology-coherence-domain-row, #biology-score-metabolicFlexibility .biology-score-ai-teaser-action');
     for (const target of await targets.all()) {
       await expect(target).toBeVisible();
-      expect((await target.boundingBox()).height).toBeGreaterThanOrEqual(44);
+      expect((await target.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     }
     await page.locator('#biology-score-metabolicFlexibility > .biology-score-summary').tap();
     await expect(page.locator('#biology-score-metabolicFlexibility')).toHaveAttribute('open', '');
@@ -849,9 +849,9 @@ test('numeric-only overviews keep coverage actionable and optional cards reachab
   const first = baseline.locator('.biology-score-compact').first();
   await first.locator(':scope > .biology-score-summary').click();
   await first.getByRole('button', { name: 'Move page section down' }).click();
-  await expect(baseline.locator('.biology-score-compact').nth(1)).toHaveAttribute('id', original[0]);
+  await expect(baseline.locator('.biology-score-compact').nth(1)).toHaveAttribute('id', original[0]!);
   await page.evaluate(async () => (await import('/js/views.js')).navigate('biology-scores'));
-  await expect(baseline.locator('.biology-score-compact').nth(1)).toHaveAttribute('id', original[0]);
+  await expect(baseline.locator('.biology-score-compact').nth(1)).toHaveAttribute('id', original[0]!);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator('#biology-score-membership > summary').click();
   await expect(page.locator('#biology-score-membership')).toHaveAttribute('open', '');
@@ -876,7 +876,7 @@ test('dashboard biology widgets share the age-style layout without duplicate met
       await expect(widget.locator('.db-hero-bio-num')).toContainText('/100');
       await expect(widget.locator('.biology-score-meta, .db-bio-coherence-ring, .dashboard-widget-description')).toHaveCount(0);
       expect(await widget.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
-      const edges = await widget.evaluate(el => ({ card: el.getBoundingClientRect().left, number: el.querySelector('.db-hero-bio-num').getBoundingClientRect().left }));
+      const edges = await widget.evaluate(el => ({ card: el.getBoundingClientRect().left, number: el.querySelector('.db-hero-bio-num')!.getBoundingClientRect().left }));
       expect(edges.number).toBeGreaterThanOrEqual(edges.card + 8);
       for (const domain of await widget.locator('.bc-micro-domain').all()) await expect(domain).toBeVisible();
       await widget.screenshot({ path: `/tmp/${id}-${width}-aligned.png` });
@@ -890,18 +890,18 @@ test('bounded comparison assessment survives range switching, reload and JSON re
   // Coverage on shared CI runners can exceed a minute in aggregate.
   test.setTimeout(120000);
   await prepareDemoProfile(page);
-  const calls = [];
-  await page.exposeFunction('recordVariantRequest', ids => calls.push(ids));
+  const calls: string[][] = [];
+  await page.exposeFunction('recordVariantRequest', (ids: string[]) => calls.push(ids));
   const install = async (hold = false) => page.evaluate(async hold => {
     let count = 0;
     (await import('/js/biology-score-ai.js')).configureBiologyScoreAIDeps({
       automaticEnabled: () => true, hasAIProvider: () => true, isAIPaused: () => false,
       callClaudeAPI: async request => {
-        if (`User request:\n${request.messages[0].content}`.length > 100000) throw new Error('invalid prompt');
-        const ids = Object.keys(request.jsonSchema.properties);
-        await globalThis.recordVariantRequest(ids);
+        if (`User request:\n${request.messages[0]!.content}`.length > 100000) throw new Error('invalid prompt');
+        const ids = (Object.keys as (value: unknown) => string[])(request.jsonSchema!.properties);
+        await (globalThis as unknown as { recordVariantRequest: (ids: string[]) => Promise<unknown> }).recordVariantRequest(ids);
         count++;
-        if (hold && count === 1) await new Promise(resolve => { globalThis.finishVariantWarmup = resolve; });
+        if (hold && count === 1) await new Promise<void>(resolve => { (globalThis as unknown as { finishVariantWarmup: () => void }).finishVariantWarmup = resolve; });
         const answer = { summary: `Saved interpretation from pass ${count}. Check the collection context.`, explanation: '## Main signal\nThese results use the ranges supplied for this view.\n\n## Context\nCollection dates can affect this pattern.\n\n## Next check\nReview the core markers.' };
         return { text: JSON.stringify(ids.includes('summary') ? answer : Object.fromEntries(ids.map(id => [id, answer]))) };
       },
@@ -925,7 +925,7 @@ test('bounded comparison assessment survives range switching, reload and JSON re
   await install(true);
   await page.evaluate(async () => (await import('/js/views.js')).navigate('biology-scores'));
   const teaser = page.locator('[data-biology-score-ai-summary=redoxStress]');
-  await page.waitForFunction(() => typeof globalThis.finishVariantWarmup === 'function');
+  await page.waitForFunction(() => typeof (globalThis as unknown as { finishVariantWarmup: () => void }).finishVariantWarmup === 'function');
   // Both modes belong to the same in-flight assessment.
   await expect(teaser).toHaveAttribute('aria-busy', 'true');
   await expect(teaser).not.toContainText('refresh needed');
@@ -940,7 +940,7 @@ test('bounded comparison assessment survives range switching, reload and JSON re
   });
   await expect(teaser).toHaveAttribute('aria-busy', 'true');
   await page.evaluate(async () => {
-    globalThis.finishVariantWarmup();
+    (globalThis as unknown as { finishVariantWarmup: () => void }).finishVariantWarmup();
     await (await import('/js/biology-scores.js')).loadBiologyScoreInsights();
   });
   const warmedCalls = calls.length;
@@ -960,7 +960,7 @@ test('bounded comparison assessment survives range switching, reload and JSON re
       (await import('/js/views.js')).navigate('biology-scores');
       await loadBiologyScoreInsights();
       const scores = computeBiologyScores(filterDatesByRange(getActiveData()));
-      results.push({ rangeMode, dateRangeFilter, stale: scores.filter(s => (s.historicalSnapshot || s).available.length && scoreAIAnswerNeedsRefresh(s)).map(s => s.id), summary: readScoreAIAnswer(scores.find(s => s.id === 'redoxStress'))?.summary });
+      results.push({ rangeMode, dateRangeFilter, stale: scores.filter(s => (s.historicalSnapshot || s).available.length && scoreAIAnswerNeedsRefresh(s)).map(s => s.id), summary: readScoreAIAnswer(scores.find(s => s.id === 'redoxStress')!)?.summary });
     }
     return results;
   });
@@ -1005,10 +1005,10 @@ test('legacy Optimal explanations never trigger a paid upgrade when Reference is
     state.importedData.biologyScoreAI = Object.fromEntries(computeBiologyScores(getActiveData()).map(score => [score.id, {
       summary: 'Existing Optimal interpretation.', text: 'This saved explanation used optimal ranges.', materialFingerprint: getScoreAIMaterialKey(score), updatedAt: Date.now(),
     }]));
-    globalThis.legacyUpgradeCalls = 0;
+    (globalThis as unknown as { legacyUpgradeCalls: number }).legacyUpgradeCalls = 0;
     (await import('/js/biology-score-ai.js')).configureBiologyScoreAIDeps({
       automaticEnabled: () => true, hasAIProvider: () => true, isAIPaused: () => false,
-      callClaudeAPI: async () => { globalThis.legacyUpgradeCalls++; throw new Error('No automatic legacy upgrade permitted'); },
+      callClaudeAPI: async () => { (globalThis as unknown as { legacyUpgradeCalls: number }).legacyUpgradeCalls++; throw new Error('No automatic legacy upgrade permitted'); },
     });
     (await import('/js/utils.js')).dismissAnalyticsConsent();
     (await import('/js/views.js')).navigate('biology-scores');
@@ -1020,21 +1020,21 @@ test('legacy Optimal explanations never trigger a paid upgrade when Reference is
     await expect(page.locator('[data-biology-score-ai-summary=redoxStress]')).toContainText('Existing Optimal interpretation.');
     await expect(page.locator('[data-biology-score-ai-summary][aria-busy=true]')).toHaveCount(0);
   }
-  expect(await page.evaluate(() => globalThis.legacyUpgradeCalls)).toBe(0);
+  expect(await page.evaluate(() => (globalThis as unknown as { legacyUpgradeCalls: number }).legacyUpgradeCalls)).toBe(0);
 });
 
 test('large comparison profiles refresh in bounded groups and reuse saved answers after reload', async ({ page }) => {
   test.setTimeout(60000);
   await prepareDemoProfile(page);
-  const requests = [];
-  await page.exposeFunction('recordBoundedRequest', request => requests.push(request));
+  const requests: {chars: number; ids: string[]}[] = [];
+  await page.exposeFunction('recordBoundedRequest', (request: {chars: number; ids: string[]}) => requests.push(request));
   const install = async () => page.evaluate(async () => {
     (await import('/js/biology-score-ai.js')).configureBiologyScoreAIDeps({
       automaticEnabled: () => true, hasAIProvider: () => true, isAIPaused: () => false,
       callClaudeAPI: async options => {
-        const chars = `User request:\n${options.messages[0].content}`.length;
-        const ids = Object.keys(options.jsonSchema.properties);
-        await globalThis.recordBoundedRequest({ chars, ids });
+        const chars = `User request:\n${options.messages[0]!.content}`.length;
+        const ids = (Object.keys as (value: unknown) => string[])(options.jsonSchema!.properties);
+        await (globalThis as unknown as { recordBoundedRequest: (request: {chars: number; ids: string[]}) => Promise<unknown> }).recordBoundedRequest({ chars, ids });
         if (chars > 100000) throw new Error('invalid prompt');
         const answer = { summary: 'Saved complete comparison. Review collection dates.', explanation: '## Main signal\nThese markers describe a range pattern.\n## Context\nDates and ranges differ.\n## Next check\nReview your core panel.' };
         return { text: JSON.stringify(Object.fromEntries(ids.map(id => [id, answer]))) };
@@ -1045,10 +1045,10 @@ test('large comparison profiles refresh in bounded groups and reuse saved answer
     const { state } = await import('/js/state.js');
     const { setProfileSex, setProfileDob } = await import('/js/profile.js');
     await setProfileSex(state.currentProfile, state.profileSex); await setProfileDob(state.currentProfile, state.profileDob);
-    const latest = {};
+    const latest: Record<string, number> = {};
     for (const entry of state.importedData.entries) Object.assign(latest, entry.markers);
-    const entries = ['2025-12-01', '2026-03-01', '2026-07-01'].map(date => ({ date, markers: {}, sampleTime: '08:00', fasting: true }));
-    Object.entries(latest).forEach(([key, value], index) => { entries[index % 3].markers[key] = value; });
+    const entries = ['2025-12-01', '2026-03-01', '2026-07-01'].map(date => ({ date, markers: {} as Record<string, number>, sampleTime: '08:00', fasting: true }));
+    Object.entries(latest).forEach(([key, value], index) => { entries![index % 3]!.markers[key] = value; });
     state.importedData.entries = entries; state.importedData.biologyScoreAI = {};
     state.importedData.sunSessions = []; state.importedData.deviceSessions = []; state.importedData.sunDefaults = { completedAt: Date.now() };
     state.rangeMode = 'optimal'; state.dateRangeFilter = 'all';

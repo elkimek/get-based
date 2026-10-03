@@ -1,7 +1,7 @@
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = (path) => `${path}?commitHashBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?commitHashBrowserCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 const openBlankPage = createBlankPage({
   path: "/commit-hash-browser-coverage", status: 200, body: '<!doctype html><html><head></head><body><main id="fixture"></main></body></html>',
@@ -11,10 +11,10 @@ test('commit hash browser coverage hydrates the same-origin deployment receipt a
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ commitHashUrl }) => {
-    const outcomes = {};
+    const outcomes: Record<string, boolean> = {};
     const originalFetch = window.fetch;
-    const originalVersion = window.APP_VERSION;
-    const waitFor = async (predicate) => {
+    const originalVersion = (window as unknown as { APP_VERSION: unknown }).APP_VERSION;
+    const waitFor = async (predicate: () => boolean) => {
       for (let i = 0; i < 40; i += 1) {
         if (predicate()) return true;
         await new Promise(resolve => setTimeout(resolve, 25));
@@ -27,12 +27,12 @@ test('commit hash browser coverage hydrates the same-origin deployment receipt a
         <span id="app-commit-hash">${commitText}</span>
       `;
     };
-    const importCommitHash = (scenario) => import(`${commitHashUrl}&scenario=${scenario}`);
+    const importCommitHash = (scenario: string) => (import(`${commitHashUrl}&scenario=${scenario}`) as Promise<unknown>) as Promise<Pick<typeof import('../../js/commit-hash.js'), 'loadCommitHash'>>;
 
     try {
-      window.APP_VERSION = 'v-browser-commit';
+      (window as unknown as { APP_VERSION: unknown }).APP_VERSION = 'v-browser-commit';
       resetFooter();
-      const apiCalls = [];
+      const apiCalls: string[] = [];
       window.fetch = async (url) => {
         apiCalls.push(String(url));
         if (String(url).endsWith('/api/commit')) {
@@ -45,14 +45,14 @@ test('commit hash browser coverage hydrates the same-origin deployment receipt a
       };
       const apiModule = await importCommitHash('api-success');
       apiModule.loadCommitHash();
-      const apiRendered = await waitFor(() => !!document.querySelector('#app-commit-hash a'));
+      const apiRendered = await waitFor(() => !!document.querySelector<HTMLElement>('#app-commit-hash a'));
       const apiCommitEl = document.getElementById('app-commit-hash');
       const apiAnchor = apiCommitEl?.querySelector('a');
       outcomes.apiCommitHydratesVersionAndEscapesSha =
         apiRendered
         && document.getElementById('app-version-text')?.textContent === 'v-browser-commit'
         && apiCalls.length === 1
-        && apiCalls[0].endsWith('/api/commit')
+        && apiCalls!![0]!.endsWith('/api/commit')
         && apiCommitEl?.children.length === 1
         && apiCommitEl?.querySelectorAll('a').length === 1
         && !apiCommitEl.querySelector('img')
@@ -67,7 +67,7 @@ test('commit hash browser coverage hydrates the same-origin deployment receipt a
         return new Response('', { status: 500 });
       };
       apiModule.loadCommitHash();
-      const cachedAnchor = document.querySelector('#app-commit-hash a');
+      const cachedAnchor = document.querySelector<HTMLElement>('#app-commit-hash a');
       outcomes.cachedCommitRerendersWithoutRefetch =
         cachedFetchCalls === 0
         && cachedAnchor?.textContent === 'abcdef1'
@@ -88,7 +88,7 @@ test('commit hash browser coverage hydrates the same-origin deployment receipt a
         && missingCommitFetchCalls === 0;
 
       resetFooter('pending');
-      const failureCalls = [];
+      const failureCalls: string[] = [];
       window.fetch = async (url) => {
         failureCalls.push(String(url));
         return new Response('', { status: 500 });
@@ -98,12 +98,12 @@ test('commit hash browser coverage hydrates the same-origin deployment receipt a
       await waitFor(() => failureCalls.length === 1);
       outcomes.fetchFailuresLeaveExistingCommitTextUnchanged =
         failureCalls.length === 1
-        && failureCalls[0].endsWith('/api/commit')
+        && failureCalls!![0]!.endsWith('/api/commit')
         && document.getElementById('app-commit-hash')?.textContent === 'pending';
     } finally {
       window.fetch = originalFetch;
-      if (originalVersion === undefined) delete window.APP_VERSION;
-      else window.APP_VERSION = originalVersion;
+      if (originalVersion === undefined) delete (window as unknown as { APP_VERSION: unknown }).APP_VERSION;
+      else (window as unknown as { APP_VERSION: unknown }).APP_VERSION = originalVersion;
     }
 
     return outcomes;

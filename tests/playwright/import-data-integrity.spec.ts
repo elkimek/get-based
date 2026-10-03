@@ -9,9 +9,9 @@ test('commit rejects duplicate and blank rows, and preserves custom units across
     const commit = await import('/js/pdf-import-commit.js');
     commit.configurePdfImportCommitDeps({ maybeShowEncryptionNudge: () => {} });
     (await import('/js/pdf-import-review-runtime.js')).configurePdfImportReviewRuntimeDeps({ buildSidebar: () => {}, navigate: () => {}, updateHeaderDates: () => {} });
-    state.importedData = { entries: [], customMarkers: {}, importSnapshots: [] };
-    const glucose = value => ({ rawName: 'Glucose', value, unit: 'mmol/l', matched: true, mappedKey: 'biochemistry.glucose' });
-    const run = async (markers, date = '2026-01-01') => {
+    (state as {importedData: unknown}).importedData = { entries: [], customMarkers: {}, importSnapshots: [] };
+    const glucose = (value: number) => ({ rawName: 'Glucose', value, unit: 'mmol/l', matched: true, mappedKey: 'biochemistry.glucose' });
+    const run = async (markers: NonNullable<Parameters<typeof review.showImportPreview>[0]>['markers'], date = '2026-01-01') => {
       review.showImportPreview({ date, fileName: 'synthetic.pdf', markers });
       await commit.confirmImport();
     };
@@ -19,22 +19,22 @@ test('commit rejects duplicate and blank rows, and preserves custom units across
     const duplicateBlocked = state.importedData.entries.length === 0 && !!review.getPendingImport();
     await run([glucose(5)]);
     review.showImportPreview({ date: '2026-01-01', fileName: 'blank.pdf', markers: [glucose(8)] });
-    const input = document.querySelector('.import-value-input');
-    input.value = '';
-    input.dispatchEvent(new Event('change', { bubbles: true }));
+    const input = document.querySelector<HTMLInputElement>('.import-value-input');
+    input!.value = '';
+    input!.dispatchEvent(new Event('change', { bubbles: true }));
     await commit.confirmImport();
-    const blankPreserved = state.importedData.entries[0].markers['biochemistry.glucose'] === 5 && state.importedData.importSnapshots.length === 1;
-    const custom = (value, unit) => ({ rawName: 'Analyte', suggestedName: 'Analyte', suggestedKey: 'auditSpecialty.analyte', suggestedCategoryLabel: 'Specialty', value, unit, matched: false });
+    const blankPreserved = state.importedData.entries!![0]!.markers['biochemistry.glucose'] === 5 && state.importedData.importSnapshots.length === 1;
+    const custom = (value: number, unit: string) => ({ rawName: 'Analyte', suggestedName: 'Analyte', suggestedKey: 'auditSpecialty.analyte', suggestedCategoryLabel: 'Specialty', value, unit, matched: false });
     await run([custom(10, 'mg/l')]);
     await run([custom(1, 'g/l')], '2026-02-01');
     const secondId = state.importedData.importSnapshots.at(-1).id;
-    const marker = data.getActiveData().categories.auditSpecialty.markers.analyte;
-    const units = { unit: marker.unit, values: marker.values };
+    const marker = data.getActiveData().categories!!.auditSpecialty!.markers.analyte;
+    const units = { unit: marker!.unit, values: marker!.values };
     const rawUnits = state.importedData.importSnapshots.at(-1).markers[0].unit;
     await commit.deleteImportSnapshot(secondId);
     await run([custom(2, 'g/l')]);
     await commit.deleteImportSnapshot(state.importedData.importSnapshots.at(-1).id);
-    return { duplicateBlocked, blankPreserved, units, rawUnits, firstAfterDelete: state.importedData.entries[0].markers['auditSpecialty.analyte'] };
+    return { duplicateBlocked, blankPreserved, units, rawUnits, firstAfterDelete: state.importedData.entries!![0]!.markers['auditSpecialty.analyte'] };
   });
   expect(result).toEqual({ duplicateBlocked: true, blankPreserved: true, units: { unit: 'mg/l', values: [10, 1000] }, rawUnits: 'g/l', firstAfterDelete: 10 });
 });
@@ -48,10 +48,10 @@ test('matched custom marker ranges use the saved unit after import and snapshot 
     commit.configurePdfImportCommitDeps({ maybeShowEncryptionNudge: () => {} });
     (await import('/js/pdf-import-review-runtime.js')).configurePdfImportReviewRuntimeDeps({ buildSidebar: () => {}, navigate: () => {}, updateHeaderDates: () => {} });
     const key = 'auditSpecialty.analyte';
-    state.importedData = { entries: [], customMarkers: { [key]: { name: 'Analyte', unit: 'mg/l' } }, importSnapshots: [] };
+    (state as {importedData: unknown}).importedData = { entries: [], customMarkers: { [key]: { name: 'Analyte', unit: 'mg/l' } }, importSnapshots: [] };
     for (const [date, value, unit, refMin, refMax] of [
       ['2026-01-01', 10, 'mg/l', 5, 20], ['2026-02-01', 1, 'g/l', 0.5, 2],
-    ]) {
+    ] as [string, number, string, number, number][]) {
       review.showImportPreview({ date, fileName: 'synthetic.pdf', markers: [{ rawName: 'Analyte', matched: true, mappedKey: key, value, unit, refMin, refMax }] });
       await commit.confirmImport();
     }
@@ -72,7 +72,7 @@ test('client round trip preserves entry metadata and bundle merge retains other 
     const data = await import('/js/data.js');
     const { importDataJSON } = await import('/js/export-import.js');
     const original = { date: '2026-01-01', markers: { 'biochemistry.glucose': 5, 'biochemistry.alt': 0.5 }, context: { sampleTime: '08:00', fasting: true, cyclePhase: 'luteal' }, collectionContextSources: { fasting: { snapshotId: 'report', at: 100 } }, deletedMarkers: { 'biochemistry.ast': 150 } };
-    state.importedData = { entries: [original] };
+    (state as {importedData: unknown}).importedData = { entries: [original] };
     await data.saveImportedData();
     const exported = await (await import('/js/export.js')).buildClientExportObject(state.currentProfile, false, false);
     await importDataJSON(new File([JSON.stringify(exported)], 'synthetic.json'));
@@ -80,11 +80,11 @@ test('client round trip preserves entry metadata and bundle merge retains other 
     await importDataJSON(new File([JSON.stringify({ type: 'database', profiles: [{ id: state.currentProfile, data: { entries: [{ date: original.date, markers: { 'biochemistry.glucose': 6 } }] } }] })], 'bundle.json'));
     return { restored, merged: state.importedData.entries[0] };
   });
-  expect(result.restored.context).toEqual({ sampleTime: '08:00', fasting: true, cyclePhase: 'luteal' });
-  expect(result.restored.collectionContextSources.fasting.snapshotId).toBe('report');
-  expect(result.restored.deletedMarkers).toEqual({ 'biochemistry.ast': 150 });
-  expect(result.merged.markers).toEqual({ 'biochemistry.glucose': 6, 'biochemistry.alt': 0.5 });
-  expect(result.merged.context).toEqual(result.restored.context);
+  expect(result.restored!.context).toEqual({ sampleTime: '08:00', fasting: true, cyclePhase: 'luteal' });
+  expect((result.restored!.collectionContextSources!.fasting as unknown as {snapshotId?: unknown}).snapshotId).toBe('report');
+  expect(result.restored!.deletedMarkers).toEqual({ 'biochemistry.ast': 150 });
+  expect(result.merged!.markers).toEqual({ 'biochemistry.glucose': 6, 'biochemistry.alt': 0.5 });
+  expect(result.merged!.context).toEqual(result.restored!.context);
 });
 
 test('aborted storage transactions reject and failed edits roll back', async ({ page }) => {
@@ -96,7 +96,7 @@ test('aborted storage transactions reject and failed edits roll back', async ({ 
     const { setBlob, getBlob } = await import('/js/blob-storage.js');
     const { profileStorageKey } = await import('/js/profile.js');
     const key = profileStorageKey(state.currentProfile, 'imported');
-    state.importedData = { entries: [{ date: '2026-01-01', markers: { 'biochemistry.glucose': 5 } }] };
+    (state as {importedData: unknown}).importedData = { entries: [{ date: '2026-01-01', markers: { 'biochemistry.glucose': 5 } }] };
     await saveImportedData();
     const original = IDBObjectStore.prototype.put;
     IDBObjectStore.prototype.put = function (...args) {
@@ -109,7 +109,7 @@ test('aborted storage transactions reject and failed edits roll back', async ({ 
       try { await setBlob(key, '{}'); } catch { rejected = true; }
       edited = await editManualMarkerValue({ dotKey: 'biochemistry.glucose', date: '2026-01-01', storedValue: 7 });
     } finally { IDBObjectStore.prototype.put = original; }
-    return { rejected, edited, memory: state.importedData.entries[0].markers['biochemistry.glucose'], disk: JSON.parse(await getBlob(key)).entries[0].markers['biochemistry.glucose'] };
+    return { rejected, edited, memory: state.importedData.entries!![0]!.markers['biochemistry.glucose'], disk: JSON.parse((await getBlob(key)!!)!).entries[0].markers['biochemistry.glucose'] };
   });
   expect(result).toEqual({ rejected: true, edited: null, memory: 5, disk: 5 });
 });
@@ -122,7 +122,7 @@ test('failed profile reads retain data and block saves until a successful retry'
     const { loadProfile, profileStorageKey } = await import('/js/profile.js');
     const id = state.currentProfile;
     const key = profileStorageKey(id, 'imported');
-    state.importedData = { entries: [{ date: '2026-01-01', markers: { 'biochemistry.glucose': 5 } }] };
+    (state as {importedData: unknown}).importedData = { entries: [{ date: '2026-01-01', markers: { 'biochemistry.glucose': 5 } }] };
     await saveImportedData();
     const original = IDBObjectStore.prototype.get;
     IDBObjectStore.prototype.get = function (name) {

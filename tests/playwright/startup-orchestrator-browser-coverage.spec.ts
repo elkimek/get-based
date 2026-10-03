@@ -1,10 +1,11 @@
+import type {Page} from '@playwright/test';
 import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('startupOrchestratorCoverage');
 
-async function openStartupOrchestratorPage(page) {
+async function openStartupOrchestratorPage(page: Page) {
   await routeHtml(page, '**/startup-orchestrator-browser-coverage', '<!doctype html><html><body><main id="fixture"></main></body></html>', 200);
   await routeJavaScript(page, '**/js/startup-foundation.js*', `
       export async function initializeStartupFoundation() {
@@ -67,7 +68,7 @@ test('startup orchestrator browser coverage reports startup sequence failures', 
   await openStartupOrchestratorPage(page);
 
   const results = await page.evaluate(async ({ startupUrl }) => {
-    const waitUntil = async (predicate, label) => {
+    const waitUntil = async (predicate: () => boolean, label: string) => {
       for (let i = 0; i < 50; i += 1) {
         if (predicate()) return true;
         await new Promise(resolve => setTimeout(resolve, 20));
@@ -76,18 +77,18 @@ test('startup orchestrator browser coverage reports startup sequence failures', 
     };
     const [{ state }, startup] = await Promise.all([
       import('/js/state.js'),
-      import(startupUrl),
+      (import(startupUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/startup-orchestrator.js'), "startApp">>,
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, boolean> = {};
     const originalProfile = state.currentProfile;
     const originalConsoleError = console.error;
 
     try {
-      window.__startupCalls = [];
-      window.__startupNotifications = [];
-      window.__startupErrors = [];
+      (window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls = [];
+      (window as unknown as { __startupNotifications: {message: unknown; type: unknown; duration: unknown}[] }).__startupNotifications = [];
+      (window as unknown as { __startupErrors: string[] }).__startupErrors = [];
       console.error = (...args) => {
-        window.__startupErrors.push(args.map(arg => String(arg?.message || arg)).join(' '));
+        (window as unknown as { __startupErrors: string[] }).__startupErrors.push(args.map(arg => String(arg?.message || arg)).join(' '));
       };
       state.currentProfile = 'startup-orchestrator-coverage-profile';
 
@@ -95,29 +96,29 @@ test('startup orchestrator browser coverage reports startup sequence failures', 
       startup.startApp();
       document.dispatchEvent(new Event('DOMContentLoaded'));
       await waitUntil(
-        () => window.__startupNotifications.length === 1,
+        () => (window as unknown as { __startupNotifications: {message: unknown; type: unknown; duration: unknown}[] }).__startupNotifications.length === 1,
         'startup failure notification'
       );
 
       outcomes.startAppInstallsOneSetOfShellHooksWithoutUsageGlobal =
-        !window.__startupCalls.includes('emf')
-        && window.__startupCalls.filter(call => Array.isArray(call) && call[0] === 'sync-lifecycle-deps').length === 1
-        && window.__startupCalls.filter(call => Array.isArray(call) && call[0] === 'sync-modules').length === 1
-        && window.__startupCalls.filter(call => call === 'events').length === 1
-        && window.__startupCalls.filter(call => call === 'refresh').length === 1
+        !(window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.includes('emf')
+        && (window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.filter(call => Array.isArray(call) && call[0] === 'sync-lifecycle-deps').length === 1
+        && (window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.filter(call => Array.isArray(call) && call[0] === 'sync-modules').length === 1
+        && (window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.filter(call => call === 'events').length === 1
+        && (window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.filter(call => call === 'refresh').length === 1
         && !('_getActiveProfileId' in window);
       outcomes.startupFailureStopsLaterPhasesAndReportsError =
-        window.__startupCalls.includes('foundation')
-        && !window.__startupCalls.includes('maintenance')
-        && !window.__startupCalls.includes('profile')
-        && !window.__startupCalls.includes('oauth')
-        && !window.__startupCalls.includes('ui')
-        && window.__startupErrors.some(line => line.includes('Startup initialization failed'))
-        && window.__startupErrors.some(line => line.includes('foundation unavailable'));
+        (window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.includes('foundation')
+        && !(window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.includes('maintenance')
+        && !(window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.includes('profile')
+        && !(window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.includes('oauth')
+        && !(window as unknown as { __startupCalls: (string | unknown[])[] }).__startupCalls.includes('ui')
+        && (window as unknown as { __startupErrors: string[] }).__startupErrors.some(line => line.includes('Startup initialization failed'))
+        && (window as unknown as { __startupErrors: string[] }).__startupErrors.some(line => line.includes('foundation unavailable'));
       outcomes.startupFailureNotificationIsUserFacing =
-        window.__startupNotifications[0].message === 'Startup failed. Try reloading the app.'
-        && window.__startupNotifications[0].type === 'error'
-        && window.__startupNotifications[0].duration === 6000;
+        (window as unknown as { __startupNotifications: {message: unknown; type: unknown; duration: unknown}[] }).__startupNotifications[0]!.message === 'Startup failed. Try reloading the app.'
+        && (window as unknown as { __startupNotifications: {message: unknown; type: unknown; duration: unknown}[] }).__startupNotifications[0]!.type === 'error'
+        && (window as unknown as { __startupNotifications: {message: unknown; type: unknown; duration: unknown}[] }).__startupNotifications[0]!.duration === 6000;
     } finally {
       state.currentProfile = originalProfile;
       console.error = originalConsoleError;

@@ -22,7 +22,7 @@ test('closing and reopening chat preserves an in-flight response', async ({ page
     const panel = document.getElementById('chat-panel');
     const backdrop = document.getElementById('chat-backdrop');
     const messages = document.getElementById('chat-messages');
-    const sendButton = document.getElementById('chat-send-btn');
+    const sendButton = (document.getElementById('chat-send-btn') as HTMLButtonElement);
     const storage = new Map(Array.from({ length: localStorage.length }, (_, index) => {
       const key = localStorage.key(index);
       return [key, key == null ? null : localStorage.getItem(key)];
@@ -71,7 +71,7 @@ test('closing and reopening chat preserves an in-flight response', async ({ page
 
       // The X and Escape routes both call closeChatPanel; exercise both entry
       // points while keeping the same request controller alive.
-      document.querySelector('.chat-close-btn')?.dispatchEvent(
+      document.querySelector<HTMLElement>('.chat-close-btn')?.dispatchEvent(
         new MouseEvent('click', { bubbles: true, cancelable: true }),
       );
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -113,7 +113,7 @@ test('closing and reopening chat preserves an in-flight response', async ({ page
           && sendButton?.getAttribute('aria-label') === 'Stop generating'
           && sendButton.disabled === false,
         retryActionSuppressedWhileResponseActive: (() => {
-          const retry = messages?.querySelector('.chat-edit-retry-action');
+          const retry = messages?.querySelector<HTMLButtonElement>('.chat-edit-retry-action');
           return retry?.hidden === true && retry?.disabled === true;
         })(),
         transcriptRemainsBusy: messages?.getAttribute('aria-busy') === 'true',

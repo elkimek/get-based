@@ -1,3 +1,4 @@
+import type {Page} from '@playwright/test';
 import { expect, test } from './coverage-fixture.js';
 
 const CURRENT_ACCEPTANCE = {
@@ -15,16 +16,16 @@ test.use({
   seedLegalAcceptance: false,
 });
 
-async function holdMainModule(page) {
-  let release;
-  const released = new Promise(resolve => {
+async function holdMainModule(page: Page) {
+  let release: (() => void) | undefined;
+  const released = new Promise<void>(resolve => {
     release = resolve;
   });
   await page.route('**/js/main.js', async route => {
     await released;
     await route.continue();
   });
-  return () => release();
+  return () => release!();
 }
 
 test('fresh visitor can accept the prerendered legal gate before the main module loads', async ({ page }) => {

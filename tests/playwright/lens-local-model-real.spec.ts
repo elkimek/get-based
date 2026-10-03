@@ -1,17 +1,18 @@
+import type {WorkerRequest, WorkerReply, LensQueryChunk} from '../../js/lens-local-protocol.js';
 import { expect, test } from '@playwright/test';
 
 // Opt-in: downloads the real MiniLM weights. Keep traces off for model runs.
 test('real MiniLM indexes, searches and reloads without downloading weights again', async ({ page, context }) => {
   test.skip(process.env.GETBASED_LENS_REAL_MODELS !== '1', 'Set GETBASED_LENS_REAL_MODELS=1 to run real model inference.');
   test.setTimeout(180_000);
-  const issues = [];
+  const issues: string[] = [];
   page.on('pageerror', error => issues.push(error.message));
   await page.goto('/app', { waitUntil: 'load' });
-  const inspect = ingest => page.evaluate(async ingest => {
+  const inspect = (ingest: boolean) => page.evaluate(async ingest => {
     const worker = new Worker('/js/lens-local-worker.js', { type: 'module' });
-    const request = (message, expected) => new Promise((resolve, reject) => {
+    const request = <Expected extends WorkerReply['type']>(message: WorkerRequest, expected: Expected) => new Promise<Extract<WorkerReply, {type: Expected}>>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error(`Worker timed out: ${expected}`)), 120_000);
-      const receive = event => {
+      const receive = (event: MessageEvent<WorkerReply>) => {
         const result = event.data;
         if (result.type === 'progress') {
           if (result.stage === 'saving') worker.postMessage({ type: 'commit_ingest' });
@@ -20,7 +21,7 @@ test('real MiniLM indexes, searches and reloads without downloading weights agai
         if (result.type !== expected && result.type !== 'error') return;
         clearTimeout(timeout);
         worker.removeEventListener('message', receive);
-        if (result.type === 'error') reject(new Error(result.message)); else resolve(result);
+        if (result.type === 'error') reject(new Error(result.message)); else resolve(result as Extract<WorkerReply, {type: Expected}>);
       };
       worker.addEventListener('message', receive);
       worker.onerror = event => reject(new Error(event.message));
@@ -34,7 +35,7 @@ test('real MiniLM indexes, searches and reloads without downloading weights agai
       ] }, 'ingest_done');
       const result = await request({ type: 'query', text: 'How do I grow vegetables in my garden?', topK: 2 }, 'query_result');
       const stats = await request({ type: 'stats' }, 'stats_result');
-      return { backend: ready.embedder.backend, dim: stats.dim, documents: stats.documents.length, chunks: result.chunks };
+      return { backend: ready.embedder!.backend, dim: stats.dim, documents: stats.documents.length, chunks: result.chunks };
     } finally { worker.terminate(); }
   }, ingest);
   const first = await inspect(true);
@@ -42,9 +43,9 @@ test('real MiniLM indexes, searches and reloads without downloading weights agai
   expect(first.backend).toMatch(/^(wasm|webgpu)$/);
   if (process.env.GETBASED_LENS_EXPECT_BACKEND) expect(first.backend).toBe(process.env.GETBASED_LENS_EXPECT_BACKEND);
   expect(first.documents).toBe(2);
-  expect(first.chunks[0].source).toBe('gardening.md');
+  expect(first.chunks[0]!.source).toBe('gardening.md');
   expect(first.chunks.every(chunk => Number.isFinite(chunk.score))).toBe(true);
-  const repeatedDownloads = [];
+  const repeatedDownloads: string[] = [];
   await context.route(/\.onnx(?:[?]|$)/, route => {
     repeatedDownloads.push(route.request().url());
     return route.abort();
@@ -57,11 +58,11 @@ test('real MiniLM indexes, searches and reloads without downloading weights agai
   if (process.env.GETBASED_LENS_EXPECT_BACKEND) expect(restored.backend).toBe(process.env.GETBASED_LENS_EXPECT_BACKEND);
   // A fresh worker can choose a different backend and recompute slightly
   // different query scores. Persisted content and result order must be exact.
-  const identities = chunks => chunks.map(({ score, ...chunk }) => chunk);
+  const identities = (chunks: LensQueryChunk[]) => chunks.map(({ score, ...chunk }) => chunk);
   expect(identities(restored.chunks)).toEqual(identities(first.chunks));
   for (let index = 0; index < first.chunks.length; index++) {
-    expect(Number.isFinite(restored.chunks[index].score)).toBe(true);
-    expect(restored.chunks[index].score).toBeCloseTo(first.chunks[index].score, 2);
+    expect(Number.isFinite(restored.chunks[index]!.score)).toBe(true);
+    expect(restored.chunks[index]!.score).toBeCloseTo(first.chunks[index]!.score, 2);
   }
   expect(repeatedDownloads).toEqual([]);
   expect(issues).toEqual([]);

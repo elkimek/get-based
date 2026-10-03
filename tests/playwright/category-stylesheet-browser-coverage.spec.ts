@@ -1,9 +1,10 @@
+import type {Page} from '@playwright/test';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('categoryStylesheetCoverage');
 
-async function openCategoryLoaderPage(page, path) {
+async function openCategoryLoaderPage(page: Page, path: string) {
   await page.route(`**${path}`, route => route.fulfill({
     status: 200,
     contentType: 'text/html',
@@ -29,21 +30,21 @@ test('Category stylesheet loader single-flights and preserves cascade order', as
   await openCategoryLoaderPage(page, '/category-stylesheet-cache-coverage');
 
   const outcomes = await page.evaluate(async ({ runtimeUrl }) => {
-    const runtime = await import(runtimeUrl);
+    const runtime = (await import(runtimeUrl) as unknown) as Pick<typeof import('../../js/category-page-runtime.js'), 'isCategoryViewsStylesheetLoaded' | 'loadCategoryViewsStylesheet'>;
     const loadedBeforeRequest = runtime.isCategoryViewsStylesheetLoaded();
     const [first, second] = await Promise.all([
       runtime.loadCategoryViewsStylesheet(),
       runtime.loadCategoryViewsStylesheet(),
     ]);
     const third = await runtime.loadCategoryViewsStylesheet();
-    const anchor = document.querySelector('[data-category-views-stylesheet-anchor]');
+    const anchor = document.querySelector<HTMLElement>('[data-category-views-stylesheet-anchor]');
     return {
       loadedBeforeRequest,
       loadedAfterRequest: runtime.isCategoryViewsStylesheetLoaded(),
       concurrentCallsShareTheSameLink: first === second,
       laterCallsReuseTheResolvedLink: first === third,
       oneStylesheetLink:
-        document.querySelectorAll('link[data-category-views-stylesheet]').length === 1,
+        document.querySelectorAll<HTMLElement>('link[data-category-views-stylesheet]').length === 1,
       linkPrecedesAnchor: first.nextElementSibling === anchor,
       contextStylesheetFollowsAnchor:
         anchor?.nextElementSibling?.getAttribute('href') === '/css/context-profile.css',
@@ -63,7 +64,7 @@ test('Category stylesheet loader single-flights and preserves cascade order', as
 });
 
 test('Compare route contains a stylesheet failure and retries with a fresh URL', async ({ page }) => {
-  const stylesheetRequests = [];
+  const stylesheetRequests: string[] = [];
   await page.route('**/css/category-views.css*', route => {
     stylesheetRequests.push(route.request().url());
     return route.abort('failed');
@@ -77,7 +78,7 @@ test('Compare route contains a stylesheet failure and retries with a fresh URL',
     return {
       opened,
       status: document.getElementById('main-content')?.textContent || '',
-      links: document.querySelectorAll('link[data-category-views-stylesheet]').length,
+      links: document.querySelectorAll<HTMLElement>('link[data-category-views-stylesheet]').length,
     };
   });
 
@@ -90,7 +91,7 @@ test('Compare route contains a stylesheet failure and retries with a fresh URL',
   const retryOpen = await page.evaluate(async () => {
     const views = await import('/js/views.js');
     const opened = await views.navigate('compare');
-    const link = document.querySelector('link[data-category-views-stylesheet]');
+    const link = document.querySelector<HTMLLinkElement>('link[data-category-views-stylesheet]');
     return {
       opened,
       workspace: document.getElementById('main-content')?.textContent || '',
@@ -122,7 +123,7 @@ test('Dashboard-owned shared styles remain eager without Category presentation',
     const range = host.querySelector('.range-btn');
     return {
       categoryStylesheetAbsent:
-        document.querySelector('link[data-category-views-stylesheet]') === null,
+        document.querySelector<HTMLLinkElement>('link[data-category-views-stylesheet]') === null,
       greetingMargin: greeting ? getComputedStyle(greeting).marginBottom : '',
       alertDisplay: alert ? getComputedStyle(alert).display : '',
       alertLeftWidth: alert ? getComputedStyle(alert).borderLeftWidth : '',

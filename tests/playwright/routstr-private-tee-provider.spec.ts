@@ -1,15 +1,15 @@
 import { expect, test } from './coverage-fixture.js';
 
-const moduleUrl = (path) => `${path}?routstrPrivateTee=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const moduleUrl = (path: string) => `${path}?routstrPrivateTee=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 test('Routstr Private TEE support appears after discovery and toggles through the live panel', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
   const result = await page.evaluate(async ({ panelsUrl, renderersUrl, settlementUrl, walletRenderersUrl }) => {
-    const panels = await import(panelsUrl);
-    const renderers = await import(renderersUrl);
-    const settlement = await import(settlementUrl);
-    const walletRenderers = await import(walletRenderersUrl);
+    const panels = (await import(panelsUrl) as unknown) as Pick<typeof import('../../js/provider-panels.js'), 'initSettingsModelFetch'>;
+    const renderers = (await import(renderersUrl) as unknown) as Pick<typeof import('../../js/provider-panel-renderers.js'), 'renderAIProviderPanel'>;
+    const settlement = (await import(settlementUrl) as unknown) as Pick<typeof import('../../js/routstr-balance-settlement.js'), 'notifyRoutstrRequestSettled' | 'clearRoutstrBalanceSettlementTimers'>;
+    const walletRenderers = (await import(walletRenderersUrl) as unknown) as Pick<typeof import('../../js/provider-wallet-panel-renderers.js'), 'routstrNodePickerRowHtml'>;
     const cryptoStore = await import('/js/crypto.js');
     const storageKeys = [
       'labcharts-routstr-key',
@@ -22,7 +22,7 @@ test('Routstr Private TEE support appears after discovery and toggles through th
       'labcharts-routstr-pricing',
       'labcharts-routstr-vision-models',
     ];
-    const oldStorage = {};
+    const oldStorage: Record<string, string | null | undefined> = {};
     for (const key of storageKeys) oldStorage[key] = localStorage.getItem(key);
     const oldFetch = window.fetch;
     const oldKey = cryptoStore.getCachedKey('labcharts-routstr-key') || '';
@@ -33,7 +33,7 @@ test('Routstr Private TEE support appears after discovery and toggles through th
       localStorage.setItem('labcharts-routstr-node', 'https://routstr-private.example');
       cryptoStore.updateKeyCache('labcharts-routstr-key', 'sk-routstr-private-test');
       window.fetch = async function(input) {
-        const href = typeof input === 'string' ? input : input?.url || '';
+        const href = typeof input === 'string' ? input : (input as {url?: unknown} | null | undefined)?.url || '';
         if (href === 'https://routstr-private.example/v1/models') {
           return new Response(JSON.stringify({
             data: [
@@ -56,15 +56,15 @@ test('Routstr Private TEE support appears after discovery and toggles through th
       document.getElementById('ai-provider-panel')?.remove();
       document.body.insertAdjacentHTML('beforeend', '<section id="ai-provider-panel"></section>');
       const panel = document.getElementById('ai-provider-panel');
-      panel.innerHTML = renderers.renderAIProviderPanel('routstr');
+      panel!.innerHTML = renderers.renderAIProviderPanel('routstr');
       const beforeHidden = document.getElementById('routstr-private-controls')?.style.display === 'none';
 
       panels.initSettingsModelFetch();
       for (let i = 0; i < 80 && document.getElementById('routstr-private-controls')?.style.display === 'none'; i += 1) {
         await new Promise(resolve => setTimeout(resolve, 25));
       }
-      const toggle = document.getElementById('routstr-private-toggle');
-      toggle.click();
+      const toggle = (document.getElementById('routstr-private-toggle') as HTMLInputElement);
+      toggle!.click();
       await new Promise(resolve => setTimeout(resolve, 25));
 
       const badgeHost = document.createElement('div');
@@ -83,13 +83,13 @@ test('Routstr Private TEE support appears after discovery and toggles through th
       return {
         beforeHidden,
         controlsVisible: document.getElementById('routstr-private-controls')?.style.display === '',
-        toggleChecked: toggle.checked,
+        toggleChecked: toggle!.checked,
         selectedModel: localStorage.getItem('labcharts-routstr-model'),
-        privateModels: JSON.parse(localStorage.getItem('labcharts-routstr-private-models') || '[]').map(model => model.id),
-        regularModels: JSON.parse(localStorage.getItem('labcharts-routstr-models') || '[]').map(model => model.id),
-        modelOptions: Array.from(document.querySelectorAll('#routstr-model-select option')).map(option => option.value),
-        recommendedOptions: Array.from(document.querySelectorAll('#routstr-model-select optgroup[label="Recommended"] option')).map(option => option.value),
-        otherOptions: Array.from(document.querySelectorAll('#routstr-model-select optgroup[label="Other models"] option')).map(option => option.value),
+        privateModels: JSON.parse(localStorage.getItem('labcharts-routstr-private-models') || '[]').map((model: {id?: unknown}) => model.id),
+        regularModels: JSON.parse(localStorage.getItem('labcharts-routstr-models') || '[]').map((model: {id?: unknown}) => model.id),
+        modelOptions: Array.from(document.querySelectorAll<HTMLOptionElement>('#routstr-model-select option')).map(option => option.value),
+        recommendedOptions: Array.from(document.querySelectorAll<HTMLOptionElement>('#routstr-model-select optgroup[label="Recommended"] option')).map(option => option.value),
+        otherOptions: Array.from(document.querySelectorAll<HTMLOptionElement>('#routstr-model-select optgroup[label="Other models"] option')).map(option => option.value),
         indicatorText: document.getElementById('routstr-private-indicator')?.textContent || '',
         balanceText: document.getElementById('routstr-node-balance')?.textContent || '',
         nodeBadgeText: badgeHost.textContent || '',
@@ -101,7 +101,7 @@ test('Routstr Private TEE support appears after discovery and toggles through th
       cryptoStore.updateKeyCache('labcharts-routstr-key', oldKey || null);
       for (const key of storageKeys) {
         if (oldStorage[key] == null) localStorage.removeItem(key);
-        else localStorage.setItem(key, oldStorage[key]);
+        else localStorage.setItem(key, oldStorage[key]!);
       }
       document.getElementById('ai-provider-panel')?.remove();
     }

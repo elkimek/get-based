@@ -1,3 +1,4 @@
+import type {Route} from '@playwright/test';
 import { expect, test } from './coverage-fixture.js';
 
 test('default and light startup stay cold without optional theme presentation', async ({ page }) => {
@@ -39,8 +40,8 @@ test('stored optional theme loads before first paint at the original cascade pos
 
   await page.goto('/app', { waitUntil: 'load' });
   const outcome = await page.evaluate(() => {
-    const link = document.querySelector('link[data-extra-themes-stylesheet]');
-    const anchor = document.querySelector('[data-extra-themes-stylesheet-anchor]');
+    const link = document.querySelector<HTMLLinkElement>('link[data-extra-themes-stylesheet]');
+    const anchor = document.querySelector<HTMLElement>('[data-extra-themes-stylesheet-anchor]');
     return {
       theme: document.documentElement.dataset.theme,
       radius: getComputedStyle(document.documentElement).getPropertyValue('--radius').trim(),
@@ -59,7 +60,7 @@ test('stored optional theme loads before first paint at the original cascade pos
 });
 
 test('optional theme changes single-flight presentation and apply the latest selection', async ({ page }) => {
-  let stylesheetRoute;
+  let stylesheetRoute: Route | undefined;
   let stylesheetRequests = 0;
   await page.route('**/themes-extra.css*', route => {
     stylesheetRequests += 1;
@@ -69,23 +70,23 @@ test('optional theme changes single-flight presentation and apply the latest sel
 
   await page.evaluate(async () => {
     const theme = await import('/js/theme.js');
-    window.__extraThemesReady = Promise.all([
+    (window as unknown as { __extraThemesReady: Promise<unknown> }).__extraThemesReady = Promise.all([
       theme.setTheme('glass'),
       theme.setTheme('cyberterm'),
     ]);
   });
   await expect.poll(() => !!stylesheetRoute).toBe(true);
   await expect(page.locator('link[data-extra-themes-stylesheet]')).toHaveCount(1);
-  await stylesheetRoute.fulfill({
+  await stylesheetRoute!.fulfill({
     status: 200,
     contentType: 'text/css',
     body: '[data-theme="cyberterm"] { --coverage-extra-theme: ready; }',
   });
 
   const outcome = await page.evaluate(async () => {
-    const results = await window.__extraThemesReady;
-    const link = document.querySelector('link[data-extra-themes-stylesheet]');
-    const anchor = document.querySelector('[data-extra-themes-stylesheet-anchor]');
+    const results = await (window as unknown as { __extraThemesReady: Promise<unknown> }).__extraThemesReady;
+    const link = document.querySelector<HTMLLinkElement>('link[data-extra-themes-stylesheet]');
+    const anchor = document.querySelector<HTMLElement>('[data-extra-themes-stylesheet-anchor]');
     return {
       results,
       theme: document.documentElement.dataset.theme,
@@ -106,7 +107,7 @@ test('optional theme changes single-flight presentation and apply the latest sel
 });
 
 test('optional theme load failure restores dark and retries with a fresh URL', async ({ page }) => {
-  const stylesheetRequests = [];
+  const stylesheetRequests: string[] = [];
   await page.route('**/themes-extra.css*', route => {
     stylesheetRequests.push(route.request().url());
     return route.abort('failed');
@@ -125,7 +126,7 @@ test('optional theme load failure restores dark and retries with a fresh URL', a
   await page.unroute('**/themes-extra.css*');
   const retry = await page.evaluate(async () => {
     const loaded = await (await import('/js/theme.js')).setTheme('glass');
-    const link = document.querySelector('link[data-extra-themes-stylesheet]');
+    const link = document.querySelector<HTMLLinkElement>('link[data-extra-themes-stylesheet]');
     return {
       loaded,
       theme: document.documentElement.dataset.theme,

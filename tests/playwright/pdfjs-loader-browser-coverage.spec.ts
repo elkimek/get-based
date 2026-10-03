@@ -1,10 +1,12 @@
+type FixturePdfJs = {GlobalWorkerOptions: {workerSrc?: unknown}; calls: Record<string, unknown>[]};
+import type {Page} from '@playwright/test';
 import { routeHtml } from '../helpers/browser-static-routes.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('pdfjsLoaderCoverage');
 
-async function openBlankPage(page, { workerSrc = '' } = {}) {
+async function openBlankPage(page: Page, { workerSrc = '' } = {}) {
   await routeHtml(page, '**/pdfjs-loader-browser-coverage', '<!doctype html><html><head><title>PDF.js loader coverage</title></head><body></body></html>', 200);
   await page.route('**/vendor/pdf.min.mjs', route => route.fulfill({
     status: 200,
@@ -29,8 +31,8 @@ test('pdfjs loader browser coverage caches module and pins safe document options
   await openBlankPage(page);
 
   const results = await page.evaluate(async ({ loaderUrl }) => {
-    const loader = await import(loaderUrl);
-    const outcomes = {};
+    const loader = (await import(loaderUrl) as unknown) as {loadPdfJs: (...args: Parameters<typeof import('../../js/pdfjs-loader.js').loadPdfJs>) => Promise<FixturePdfJs>; getPdfDocument: (...args: Parameters<typeof import('../../js/pdfjs-loader.js').getPdfDocument>) => Promise<{numPages: number; options: unknown}>};
+    const outcomes: Record<string, boolean> = {};
 
     const firstPdfjs = await loader.loadPdfJs();
     const secondPdfjs = await loader.loadPdfJs();
@@ -47,9 +49,9 @@ test('pdfjs loader browser coverage caches module and pins safe document options
     const bytesOptions = firstPdfjs.calls.at(-1);
     outcomes.getPdfDocumentWrapsBinaryInputAndForcesEvalOff =
       bytesDocument.numPages === 3
-      && bytesOptions.data === bytes
-      && bytesOptions.ownerPassword === 'secret'
-      && bytesOptions.isEvalSupported === false;
+      && bytesOptions!.data === bytes
+      && bytesOptions!.ownerPassword === 'secret'
+      && bytesOptions!.isEvalSupported === false;
 
     const typedBytes = new Uint8Array([37, 80, 68, 70]);
     const typedBytesDocument = await loader.getPdfDocument(typedBytes, {
@@ -59,9 +61,9 @@ test('pdfjs loader browser coverage caches module and pins safe document options
     const typedBytesOptions = firstPdfjs.calls.at(-1);
     outcomes.getPdfDocumentWrapsTypedArrayInputAndForcesEvalOff =
       typedBytesDocument.numPages === 3
-      && typedBytesOptions.data === typedBytes
-      && typedBytesOptions.password === 'typed-secret'
-      && typedBytesOptions.isEvalSupported === false;
+      && typedBytesOptions!.data === typedBytes
+      && typedBytesOptions!.password === 'typed-secret'
+      && typedBytesOptions!.isEvalSupported === false;
 
     const objectDocument = await loader.getPdfDocument({
       url: '/sample.pdf',
@@ -74,10 +76,10 @@ test('pdfjs loader browser coverage caches module and pins safe document options
     const objectOptions = firstPdfjs.calls.at(-1);
     outcomes.getPdfDocumentPreservesObjectInputAndExtraOptions =
       objectDocument.options === objectOptions
-      && objectOptions.url === '/sample.pdf'
-      && objectOptions.disableFontFace === false
-      && objectOptions.verbosity === 0
-      && objectOptions.isEvalSupported === false;
+      && objectOptions!.url === '/sample.pdf'
+      && objectOptions!.disableFontFace === false
+      && objectOptions!.verbosity === 0
+      && objectOptions!.isEvalSupported === false;
 
     outcomes.allOutcomesReached = true;
     return outcomes;
@@ -94,8 +96,8 @@ test('pdfjs loader browser coverage preserves preconfigured worker', async ({ pa
   await openBlankPage(page, { workerSrc: '/custom/pdf.worker.mjs' });
 
   const results = await page.evaluate(async ({ loaderUrl }) => {
-    const loader = await import(loaderUrl);
-    const outcomes = {};
+    const loader = (await import(loaderUrl) as unknown) as {loadPdfJs: (...args: Parameters<typeof import('../../js/pdfjs-loader.js').loadPdfJs>) => Promise<FixturePdfJs>; getPdfDocument: (...args: Parameters<typeof import('../../js/pdfjs-loader.js').getPdfDocument>) => Promise<{numPages: number; options: unknown}>};
+    const outcomes: Record<string, boolean> = {};
 
     const pdfjs = await loader.loadPdfJs();
     outcomes.loadPdfJsKeepsExistingWorkerSrc =

@@ -9,10 +9,10 @@ test('profile browser coverage exercises migration height and latitude helpers',
   const results = await page.evaluate(async ({ profileUrl }) => {
     const [{ state }, profile] = await Promise.all([
       import('/js/state.js'),
-      import(profileUrl),
+      (import(profileUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/profile.js'), "configureProfileDeps" | "detectLatitudeWithAI" | "getLocationCache" | "getProfileHeight" | "migrateProfileData" | "setProfileHeight">>,
     ]);
-    const outcomes = {};
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
+    const outcomes: Record<string, boolean> = {};
+    const clone = (value: unknown) => value == null ? value : JSON.parse(JSON.stringify(value));
     const storageKeys = [
       'labcharts-active-profile',
       'labcharts-location-cache',
@@ -30,7 +30,7 @@ test('profile browser coverage exercises migration height and latitude helpers',
     let latitudeCalls = 0;
 
     try {
-      const migrated = {
+      const migrated: {entries: {date: string; markers: Record<string, number>; markerSources: Record<string, {file: string}>}[]; customMarkers: Record<string, {name: string; unit: string}>; markerLabels: Record<string, string>; manualValues: Record<string, number>; markerValueNotes: Record<string, string>} = {
         entries: [{
           date: '2026-05-01',
           markers: { 'biochemistry.alpUkatL': 1.2 },
@@ -51,10 +51,10 @@ test('profile browser coverage exercises migration height and latitude helpers',
       };
       profile.migrateProfileData(migrated);
       outcomes.migrationRemapsUnitSuffixedMarkerAndMetadata =
-        migrated.entries[0].markers['biochemistry.alp'] === 1.2
-        && migrated.entries[0].markers['biochemistry.alpUkatL'] === undefined
-        && migrated.entries[0].markerSources['biochemistry.alp']?.file === 'fixture.pdf'
-        && migrated.entries[0].markerSources['biochemistry.alpUkatL'] === undefined
+        migrated.entries!![0]!.markers['biochemistry.alp'] === 1.2
+        && migrated.entries!![0]!.markers['biochemistry.alpUkatL'] === undefined
+        && migrated.entries!![0]!.markerSources['biochemistry.alp']?.file === 'fixture.pdf'
+        && migrated.entries!![0]!.markerSources['biochemistry.alpUkatL'] === undefined
         && migrated.customMarkers['biochemistry.alpUkatL'] === undefined
         && migrated.markerLabels['biochemistry.alp'] === 'Fixture ALP'
         && migrated.manualValues['biochemistry.alp:2026-05-01'] === 1.2
@@ -106,11 +106,11 @@ test('profile browser coverage exercises migration height and latitude helpers',
 
       await profile.detectLatitudeWithAI('Argentina', 'C1000');
       await profile.detectLatitudeWithAI('Argentina', 'C1000');
-      const cache = profile.getLocationCache();
+      const cache = profile.getLocationCache() as Record<string, unknown>;
       outcomes.latitudeDetectionCachesAndRendersResult =
         latitudeCalls === 1
-        && cache['argentina|c1000']?.lat === -34.6
-        && cache['argentina|c1000']?.lon === -58.4
+        && (cache['argentina|c1000'] as {lat?: unknown} | null | undefined)?.lat === -34.6
+        && (cache['argentina|c1000'] as {lon?: unknown} | null | undefined)?.lon === -58.4
         && /35.*S/.test(latDisplay.textContent || '')
         && latDisplay.style.color === 'var(--green)';
     } finally {

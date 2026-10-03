@@ -5,8 +5,8 @@ test.beforeEach(async ({ page }) => {
   await page.evaluate(async () => {
     const [{ state }, store] = await Promise.all([import('/js/state.js'), import('/js/sun-sessions-store.js?recovery-browser')]);
     state.currentProfile = 'sun-recovery';
-    state.importedData = { entries: [], sunSessions: [], sunDefaults: { fitzpatrick: 'II' } };
-    store.configureSunSessionsStore({
+    (state as {importedData: unknown}).importedData = { entries: [], sunSessions: [], sunDefaults: { fitzpatrick: 'II' } };
+    (store.configureSunSessionsStore as (deps: Omit<NonNullable<Parameters<typeof store.configureSunSessionsStore>[0]>, 'reconstructSpectrum' | 'computeChannelDoses'> & {reconstructSpectrum?: () => unknown; computeChannelDoses?: (options: {durationMin: number}) => unknown}) => ReturnType<typeof store.configureSunSessionsStore>)({
       fetchAtmosphere: async () => ({ uvIndex: 3 }), reconstructSpectrum: () => ({}),
       computeChannelDoses: ({ durationMin }) => ({ vitamin_d: durationMin }),
       erythemalSED: () => 1, fractionOfMED: () => 0.1, retinalUVdose: () => 2, solarZenithAngle: () => 40,
@@ -26,7 +26,7 @@ test('computed sun session survives real profile persistence and page reload', a
   await page.reload();
   const saved = await page.evaluate(async () => {
     const { encryptedGetItem } = await import('/js/crypto.js');
-    return JSON.parse(await encryptedGetItem('labcharts-sun-recovery-imported')).sunSessions;
+    return JSON.parse((await encryptedGetItem('labcharts-sun-recovery-imported')!!)!).sunSessions;
   });
   expect(saved).toHaveLength(1); expect(saved[0]).toMatchObject({ id, durationMin: 10, doses: { vitamin_d: 10 }, calculationStatus: 'computed' });
 });
@@ -36,16 +36,16 @@ for (const boundary of ['profile switch', 'deletion']) {
     const result = await page.evaluate(async boundary => {
       const [{ state }, store, { encryptedGetItem }] = await Promise.all([import('/js/state.js'), import('/js/sun-sessions-store.js?recovery-browser'), import('/js/crypto.js')]);
       const id = await store.logCompletedSession({ startedAt: Date.now() - 600000, endedAt: Date.now(), durationMin: 10, location: { lat: 50, lon: 14 } });
-      let release, entered;
-      const started = new Promise(resolve => { entered = resolve; });
+      let release: ((value: {uvIndex: number}) => void) | undefined, entered: (() => void) | undefined;
+      const started = new Promise<void>(resolve => { entered = resolve; });
       let analysis = 0;
-      store.configureSunSessionsStore({ fetchAtmosphere: () => { entered(); return new Promise(resolve => { release = resolve; }); }, maybeAnalyzeSessionAfterFinish: () => { analysis++; } });
+      (store.configureSunSessionsStore as (deps: Omit<NonNullable<Parameters<typeof store.configureSunSessionsStore>[0]>, 'reconstructSpectrum' | 'computeChannelDoses'> & {reconstructSpectrum?: () => unknown; computeChannelDoses?: (options: {durationMin: number}) => unknown}) => ReturnType<typeof store.configureSunSessionsStore>)({ fetchAtmosphere: () => { entered!(); return new Promise(resolve => { release = resolve; }); }, maybeAnalyzeSessionAfterFinish: () => { analysis++; } });
       const pending = store.hydrateSession(id); await started;
       if (boundary === 'deletion') await store.deleteSession(id);
-      else { state.currentProfile = 'sun-recovery-other'; state.importedData = { entries: [], sunSessions: [] }; }
-      release({ uvIndex: 99 });
+      else { state.currentProfile = 'sun-recovery-other'; (state as {importedData: unknown}).importedData = { entries: [], sunSessions: [] }; }
+      release!({ uvIndex: 99 });
       const hydrated = await pending;
-      const original = JSON.parse(await encryptedGetItem('labcharts-sun-recovery-imported'));
+      const original = JSON.parse((await encryptedGetItem('labcharts-sun-recovery-imported')!!)!);
       return { hydrated, analysis, sessions: original.sunSessions, other: await encryptedGetItem('labcharts-sun-recovery-other-imported') };
     }, boundary);
     expect(result.hydrated).toBeNull(); expect(result.analysis).toBe(0); expect(result.other).toBeNull();
@@ -58,16 +58,16 @@ test('live runtime reset discards pending weather and a restarted ticker recover
   const result = await page.evaluate(async () => {
     const active = await import('/js/sun-active-session.js?recovery-browser');
     const sess = { id: 'live-recovery', startedAt: Date.now() - 10000, location: { lat: 50, lon: 14 }, bodyExposure: { fraction: 0.1 } };
-    let release, calls = 0;
+    let release: ((value: {uvIndex: number}) => void) | undefined, calls = 0;
     active.configureSunActiveSession({ getSessions: () => [sess], getActiveSession: () => sess,
       fetchAtmosphere: () => { calls++; return calls === 1 ? new Promise(resolve => { release = resolve; }) : Promise.resolve({ uvIndex: 3 }); },
       reconstructSpectrum: () => ({}), computeChannelDoses: () => ({ vitamin_d: 1 }), solarZenithAngle: () => 40,
     });
     try {
-      active.ensureActiveTicker(); active.resetSunActiveSessionState(); release({ uvIndex: 99 }); await Promise.resolve();
+      active.ensureActiveTicker(); active.resetSunActiveSessionState(); release!({ uvIndex: 99 }); await Promise.resolve();
       const stale = active.liveDosesFor(sess);
       active.ensureActiveTicker(); await Promise.resolve();
-      return { stale, current: active.liveDosesFor(sess)?.atm?.uvIndex, calls };
+      return { stale, current: (active.liveDosesFor(sess)?.atm as {uvIndex?: unknown} | null | undefined)?.uvIndex, calls };
     } finally { active.resetSunActiveSessionState(); }
   });
   expect(result).toEqual({ stale: null, current: 3, calls: 2 });
@@ -79,13 +79,13 @@ test('in-place sync adoption cannot be overwritten by older weather', async ({ p
       import('/js/state.js'), import('/js/sun-sessions-store.js?recovery-browser'), import('/js/profile-data-writes.js'), import('/js/data.js'), import('/js/crypto.js'),
     ]);
     const id = await store.logCompletedSession({ startedAt: Date.now() - 600000, endedAt: Date.now(), durationMin: 10, location: { lat: 50, lon: 14 } });
-    const original = store.getSessions()[0]; let release, entered; const started = new Promise(resolve => { entered = resolve; });
-    store.configureSunSessionsStore({ fetchAtmosphere: () => { entered(); return new Promise(resolve => { release = resolve; }); } });
+    const original = store.getSessions()[0]; let release: ((value: {uvIndex: number}) => void) | undefined, entered: (() => void) | undefined; const started = new Promise<void>(resolve => { entered = resolve; });
+    (store.configureSunSessionsStore as (deps: Omit<NonNullable<Parameters<typeof store.configureSunSessionsStore>[0]>, 'reconstructSpectrum' | 'computeChannelDoses'> & {reconstructSpectrum?: () => unknown; computeChannelDoses?: (options: {durationMin: number}) => unknown}) => ReturnType<typeof store.configureSunSessionsStore>)({ fetchAtmosphere: () => { entered!(); return new Promise(resolve => { release = resolve; }); } });
     const pending = store.hydrateSession(id); await started;
-    const incoming = structuredClone(state.importedData); incoming.sunSessions[0].location = { lat: 1, lon: 2 }; incoming.sunSessions[0].updatedAt = Date.now();
+    const incoming = structuredClone(state.importedData); incoming.sunSessions![0].location = { lat: 1, lon: 2 }; incoming.sunSessions![0].updatedAt = Date.now();
     adoptProfileData(state.importedData, incoming); const sameIdentity = original === store.getSessions()[0]; await saveImportedData();
-    release({ uvIndex: 99 }); const stale = await pending;
-    const saved = JSON.parse(await encryptedGetItem('labcharts-sun-recovery-imported')).sunSessions[0];
+    release!({ uvIndex: 99 }); const stale = await pending;
+    const saved = JSON.parse((await encryptedGetItem('labcharts-sun-recovery-imported')!!)!).sunSessions[0];
     return { sameIdentity, stale, location: saved.location, doses: saved.doses };
   });
   expect(result).toEqual({ sameIdentity: true, stale: null, location: { lat: 1, lon: 2 }, doses: null });
@@ -95,7 +95,7 @@ test('a replacement live record obtains weather while its predecessor remains st
   const result = await page.evaluate(async () => {
     const active = await import('/js/sun-active-session.js?replacement-browser');
     let sess = { id: 'replacement', startedAt: Date.now() - 10000, location: { lat: 50, lon: 14 } };
-    let release, calls = 0;
+    let release: ((value: {uvIndex: number}) => void) | undefined, calls = 0;
     active.configureSunActiveSession({ getSessions: () => [sess], getActiveSession: () => sess,
       fetchAtmosphere: () => { calls++; return calls === 1 ? new Promise(resolve => { release = resolve; }) : Promise.resolve({ uvIndex: 3 }); },
       reconstructSpectrum: () => ({}), computeChannelDoses: () => ({ vitamin_d: 1 }), solarZenithAngle: () => 40,
@@ -103,9 +103,9 @@ test('a replacement live record obtains weather while its predecessor remains st
     try {
       active.ensureActiveTicker(); sess = { ...sess, location: { lat: 1, lon: 2 } };
       for (let n = 0; n < 100 && calls < 2; n++) await new Promise(resolve => setTimeout(resolve, 50));
-      const recovered = active.liveDosesFor(sess)?.atm?.uvIndex;
-      release({ uvIndex: 99 }); await Promise.resolve();
-      return { calls, recovered, afterOld: active.liveDosesFor(sess)?.atm?.uvIndex };
+      const recovered = (active.liveDosesFor(sess)?.atm as {uvIndex?: unknown} | null | undefined)?.uvIndex;
+      release!({ uvIndex: 99 }); await Promise.resolve();
+      return { calls, recovered, afterOld: (active.liveDosesFor(sess)?.atm as {uvIndex?: unknown} | null | undefined)?.uvIndex };
     } finally { active.resetSunActiveSessionState(); }
   });
   expect(result).toEqual({ calls: 2, recovered: 3, afterOld: 3 });

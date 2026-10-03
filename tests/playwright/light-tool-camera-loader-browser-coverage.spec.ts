@@ -29,7 +29,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('camera modal loader stays cold, shares its first load, and delegates cleanup only after load', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/light-tool-camera-modals.js*', async route => {
     implementationRequests.push(route.request().url());
     await new Promise(resolve => setTimeout(resolve, 25));
@@ -40,7 +40,7 @@ test('camera modal loader stays cold, shares its first load, and delegates clean
   });
 
   const outcomes = await page.evaluate(async url => {
-    const lightTools = await import(url);
+    const lightTools = (await import(url) as unknown) as {isLightToolCameraModalsLoaded: typeof import('../../js/light-tools.js').isLightToolCameraModalsLoaded; loadLightToolCameraModals: (...args: Parameters<typeof import('../../js/light-tools.js').loadLightToolCameraModals>) => Promise<unknown>; closeLuxMeter: (...args: Parameters<typeof import('../../js/light-tools.js').closeLuxMeter>) => unknown; closeFlickerDetector: (...args: Parameters<typeof import('../../js/light-tools.js').closeFlickerDetector>) => unknown; openLuxMeter: (...args: Parameters<typeof import('../../js/light-tools.js').openLuxMeter>) => Promise<unknown>; openFlickerDetector: (...args: Parameters<typeof import('../../js/light-tools.js').openFlickerDetector>) => Promise<unknown>};
     const cold = !lightTools.isLightToolCameraModalsLoaded();
     lightTools.closeLuxMeter();
     const first = lightTools.loadLightToolCameraModals();
@@ -54,7 +54,7 @@ test('camera modal loader stays cold, shares its first load, and delegates clean
       sharedPromise,
       loaded: lightTools.isLightToolCameraModalsLoaded(),
       opened,
-      calls: window.__lightToolCameraLoaderCalls || [],
+      calls: (window as unknown as { __lightToolCameraLoaderCalls: unknown[][] | undefined }).__lightToolCameraLoaderCalls || [],
     };
   }, lightToolsUrl());
 
@@ -69,7 +69,7 @@ test('camera modal loader stays cold, shares its first load, and delegates clean
 });
 
 test('camera modal action contains a failed load and retries with the fixed URL', async ({ page }) => {
-  const implementationRequests = [];
+  const implementationRequests: string[] = [];
   await page.route('**/js/light-tool-camera-modals.js*', async route => {
     const url = route.request().url();
     implementationRequests.push(url);
@@ -88,7 +88,7 @@ test('camera modal action contains a failed load and retries with the fixed URL'
   });
 
   const outcomes = await page.evaluate(async url => {
-    const lightTools = await import(url);
+    const lightTools = (await import(url) as unknown) as {isLightToolCameraModalsLoaded: typeof import('../../js/light-tools.js').isLightToolCameraModalsLoaded; loadLightToolCameraModals: (...args: Parameters<typeof import('../../js/light-tools.js').loadLightToolCameraModals>) => Promise<unknown>; closeLuxMeter: (...args: Parameters<typeof import('../../js/light-tools.js').closeLuxMeter>) => unknown; closeFlickerDetector: (...args: Parameters<typeof import('../../js/light-tools.js').closeFlickerDetector>) => unknown; openLuxMeter: (...args: Parameters<typeof import('../../js/light-tools.js').openLuxMeter>) => Promise<unknown>; openFlickerDetector: (...args: Parameters<typeof import('../../js/light-tools.js').openFlickerDetector>) => Promise<unknown>};
     lightTools.closeFlickerDetector();
     const first = await lightTools.openFlickerDetector({ roomId: 'failed-first' });
     const unloadedAfterFailure = !lightTools.isLightToolCameraModalsLoaded();
@@ -99,14 +99,14 @@ test('camera modal action contains a failed load and retries with the fixed URL'
       unloadedAfterFailure,
       second,
       loadedAfterRetry: lightTools.isLightToolCameraModalsLoaded(),
-      calls: window.__lightToolCameraLoaderCalls || [],
+      calls: (window as unknown as { __lightToolCameraLoaderCalls: unknown[][] | undefined }).__lightToolCameraLoaderCalls || [],
       notification: document.body.textContent,
     };
   }, lightToolsUrl());
 
   expect(implementationRequests).toHaveLength(2);
-  expect(new URL(implementationRequests[0]).search).toBe('');
-  expect(new URL(implementationRequests[1]).searchParams.get('lazy-retry')).toBe('1');
+  expect(new URL(implementationRequests[0]!).search).toBe('');
+  expect(new URL(implementationRequests[1]!).searchParams.get('lazy-retry')).toBe('1');
   expect(outcomes).toMatchObject({
     first: false,
     unloadedAfterFailure: true,

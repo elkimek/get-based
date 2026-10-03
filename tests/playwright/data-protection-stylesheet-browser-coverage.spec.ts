@@ -1,10 +1,11 @@
+import type {Page} from '@playwright/test';
 import { expect, test } from './coverage-fixture.js';
 
 function moduleUrl() {
   return `/js/modal-lifecycle.js?dataProtectionStylesheetCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-async function openLoaderPage(page, path) {
+async function openLoaderPage(page: Page, path: string) {
   await page.route(`**${path}`, route => route.fulfill({
     status: 200,
     contentType: 'text/html',
@@ -30,21 +31,21 @@ test('data protection stylesheet loader single-flights and preserves cascade ord
   await openLoaderPage(page, '/data-protection-stylesheet-cache-coverage');
 
   const outcomes = await page.evaluate(async ({ runtimeUrl }) => {
-    const runtime = await import(runtimeUrl);
+    const runtime = (await import(runtimeUrl) as unknown) as Pick<typeof import('../../js/modal-lifecycle.js'), 'isDataProtectionStylesheetLoaded' | 'loadDataProtectionStylesheet' | 'loadDataProtectionStylesheetForAction'>;
     const loadedBeforeRequest = runtime.isDataProtectionStylesheetLoaded();
     const [first, second] = await Promise.all([
       runtime.loadDataProtectionStylesheet(),
       runtime.loadDataProtectionStylesheet(),
     ]);
     const third = await runtime.loadDataProtectionStylesheet();
-    const anchor = document.querySelector('[data-data-protection-stylesheet-anchor]');
+    const anchor = document.querySelector<HTMLElement>('[data-data-protection-stylesheet-anchor]');
     return {
       loadedBeforeRequest,
       loadedAfterRequest: runtime.isDataProtectionStylesheetLoaded(),
       concurrentCallsShareTheSameLink: first === second,
       laterCallsReuseTheResolvedLink: first === third,
       oneStylesheetLink:
-        document.querySelectorAll('link[data-data-protection-stylesheet]').length === 1,
+        document.querySelectorAll<HTMLElement>('link[data-data-protection-stylesheet]').length === 1,
       linkPrecedesAnchor: first.nextElementSibling === anchor,
       anchorPreservesCascade:
         anchor?.previousElementSibling === first
@@ -65,7 +66,7 @@ test('data protection stylesheet loader single-flights and preserves cascade ord
 });
 
 test('data protection stylesheet failure is contained and retries with a fresh URL', async ({ page }) => {
-  const stylesheetRequests = [];
+  const stylesheetRequests: string[] = [];
   await page.route('**/css/data-protection.css*', route => {
     stylesheetRequests.push(route.request().url());
     return route.abort('failed');
@@ -74,10 +75,10 @@ test('data protection stylesheet failure is contained and retries with a fresh U
   const runtimeUrl = moduleUrl();
 
   const firstAttempt = await page.evaluate(async ({ runtimeUrl: url }) => {
-    const runtime = await import(url);
+    const runtime = (await import(url) as unknown) as Pick<typeof import('../../js/modal-lifecycle.js'), 'isDataProtectionStylesheetLoaded' | 'loadDataProtectionStylesheet' | 'loadDataProtectionStylesheetForAction'>;
     return {
       loaded: await runtime.loadDataProtectionStylesheetForAction(),
-      links: document.querySelectorAll('link[data-data-protection-stylesheet]').length,
+      links: document.querySelectorAll<HTMLElement>('link[data-data-protection-stylesheet]').length,
     };
   }, { runtimeUrl });
 
@@ -86,7 +87,7 @@ test('data protection stylesheet failure is contained and retries with a fresh U
 
   const encryptedStartup = await page.evaluate(async () => {
     localStorage.setItem('labcharts-encryption-enabled', 'true');
-    const cryptoStore = await import(`/js/crypto.js?stylesheetFailure=${Date.now()}`);
+    const cryptoStore = (await import(`/js/crypto.js?stylesheetFailure=${Date.now()}`) as unknown) as Pick<typeof import('../../js/crypto.js'), 'initEncryption'>;
     void cryptoStore.initEncryption();
     for (let attempt = 0; attempt < 50; attempt += 1) {
       if (document.getElementById('passphrase-overlay')) break;
@@ -95,7 +96,7 @@ test('data protection stylesheet failure is contained and retries with a fresh U
     return {
       unlockStillRenders: !!document.getElementById('passphrase-unlock-btn'),
       failedLinkRemoved:
-        document.querySelectorAll('link[data-data-protection-stylesheet]').length === 0,
+        document.querySelectorAll<HTMLElement>('link[data-data-protection-stylesheet]').length === 0,
     };
   });
   expect(encryptedStartup).toEqual({
@@ -105,9 +106,9 @@ test('data protection stylesheet failure is contained and retries with a fresh U
 
   await page.unroute('**/css/data-protection.css*');
   const retry = await page.evaluate(async ({ runtimeUrl: url }) => {
-    const runtime = await import(url);
+    const runtime = (await import(url) as unknown) as Pick<typeof import('../../js/modal-lifecycle.js'), 'isDataProtectionStylesheetLoaded' | 'loadDataProtectionStylesheet' | 'loadDataProtectionStylesheetForAction'>;
     const loaded = await runtime.loadDataProtectionStylesheetForAction();
-    const link = document.querySelector('link[data-data-protection-stylesheet]');
+    const link = document.querySelector<HTMLLinkElement>('link[data-data-protection-stylesheet]');
     return {
       loaded,
       href: link?.href || '',
