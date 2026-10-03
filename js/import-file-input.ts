@@ -1,4 +1,3 @@
-// @ts-check
 // import-file-input.js - file picker import binding and routing
 
 import { state } from './state.js';
@@ -16,8 +15,7 @@ import {
 
 let importInputBound = false;
 
-/** @param {{ target: { files: File[] | FileList | null, value: string } }} e */
-export async function handleImportInputChange(e) {
+export async function handleImportInputChange(e: { target: { files: File[] | FileList | null; value: string } }) {
   if (isImportRunningRuntime()) {
     e.target.value = '';
     return;
@@ -64,7 +62,7 @@ export async function handleImportInputChange(e) {
     for (const f of textFiles) { if (!ownsSelection()) return; await importMod.handleTextFile(f); }
     for (const f of imageFiles) { if (!ownsSelection()) return; await importMod.handleImageFile(f); }
     if (!ownsSelection()) return;
-    if (pdfFiles.length === 1) await importMod.handlePDFFile(pdfFiles[0]);
+    if (pdfFiles.length === 1) await importMod.handlePDFFile(pdfFiles[0]!);
     else if (pdfFiles.length > 1) await importMod.handleBatchPDFs(pdfFiles);
   } finally { importDispatch.busy = false; }
 }
@@ -73,7 +71,7 @@ export function bindImportFileInput() {
   if (importInputBound) return;
   importInputBound = true;
   document.getElementById("pdf-input")?.addEventListener("change", e => {
-    handleImportInputChange(/** @type {Event & { target: HTMLInputElement }} */ (e)).catch(err => {
+    handleImportInputChange(e as Event & { target: HTMLInputElement }).catch(err => {
       console.error('[import-file-input] import handler failed:', err);
       showImportNotificationRuntime('Import failed - check the file and try again.', 'error');
     });

@@ -1,4 +1,3 @@
-// @ts-check
 // light-sessions-view-hooks.js - wire Light Sessions View callbacks at startup.
 
 import { getSessions } from './sun.js';

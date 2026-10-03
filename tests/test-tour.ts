@@ -188,7 +188,7 @@ assert('Tour Escape check before confirm dialog', tourEscIdx > 0 && tourEscIdx <
 // ═══════════════════════════════════════
 console.log('20. dashboard-page-view.js Auto-Trigger');
 
-const dashboardPageViewSrc = read('js/dashboard-page-view.js');
+const dashboardPageViewSrc = read('js/dashboard-page-view.js').replace(/if \(!document\.body\.classList\.contains\('chat-autostart-reserved'\)\)\s+return;/g, "if (!document.body.classList.contains('chat-autostart-reserved')) return;");
 
 assert('dashboard-page-view.js imports tour starters',
   dashboardPageViewSrc.includes("import { startEmptyTour as defaultStartEmptyTour, startTour as defaultStartTour } from './tour.js'"));

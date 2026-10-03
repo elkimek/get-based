@@ -1,4 +1,3 @@
-// @ts-check
 // compare-correlations.js - Compare Dates and Correlations views
 
 import { state } from './state.js';
@@ -13,69 +12,68 @@ import { hasChartRuntime } from './charts-runtime.js';
 import { prepareCorrelationSelection } from './therapy-correlations.js';
 import { destroyTherapyCorrelationCharts, renderCorrelationWorkspace } from './therapy-correlation-view.js';
 
-/** @type {{ askAIAboutCorrelations: () => void, renderTableColgroup: (cols: string[]) => string, renderScrollableTableShell: (...args: any[]) => string, renderCategoryGlyph: (...args: any[]) => string }} */
-const compareCorrelationDeps = {
+import type {CompareData, CompareMarker, CompareNumericMarker, CompareRange, CompareEvent, CompareDelegateRoot, CompareDependencies, CompareHTMLWriter, CompareDateState} from '../types/compare-correlations.js';
+const compareCorrelationDeps: CompareDependencies = {
   askAIAboutCorrelations: () => {},
   renderTableColgroup: () => '',
-  renderScrollableTableShell: (_kind, _wrapperClass, _tableClass, _colgroup, headHtml, bodyHtml) => '<table>' + headHtml + bodyHtml + '</table>',
-  renderCategoryGlyph: (_categoryKey, label = '') => escapeHTML(label || ''),
+  renderScrollableTableShell: (_kind: unknown, _wrapperClass: unknown, _tableClass: unknown, _colgroup: unknown, headHtml: unknown, bodyHtml: unknown) => '<table>' + headHtml + bodyHtml + '</table>',
+  renderCategoryGlyph: (_categoryKey: unknown, label: unknown = '') => escapeHTML(label || ''),
 };
 
-/** @param {Partial<typeof compareCorrelationDeps>} deps */
-export function configureCompareCorrelationViews(deps = {}) {
+export function configureCompareCorrelationViews(deps: unknown = {}) {
   const previous = { ...compareCorrelationDeps };
   Object.assign(compareCorrelationDeps, deps);
   return previous;
 }
 
-function renderTableColgroup(cols) {
-  return compareCorrelationDeps.renderTableColgroup(cols);
+function renderTableColgroup(cols: Parameters<typeof import("./category-view-renderers.js").renderTableColgroup>[0]) {
+  return (compareCorrelationDeps.renderTableColgroup as (cols: Parameters<typeof import("./category-view-renderers.js").renderTableColgroup>[0]) => unknown)(cols);
 }
 
-function renderScrollableTableShell(...args) {
-  return compareCorrelationDeps.renderScrollableTableShell(...args);
+function renderScrollableTableShell(...args: Parameters<typeof import("./category-view-renderers.js").renderScrollableTableShell>) {
+  return (compareCorrelationDeps.renderScrollableTableShell as (...args: Parameters<typeof import("./category-view-renderers.js").renderScrollableTableShell>) => unknown)(...args);
 }
 
-function renderCategoryGlyph(...args) {
-  return compareCorrelationDeps.renderCategoryGlyph(...args);
+function renderCategoryGlyph(...args: Parameters<typeof import("./category-glyphs.js").renderCategoryGlyph>) {
+  return (compareCorrelationDeps.renderCategoryGlyph as (...args: Parameters<typeof import("./category-glyphs.js").renderCategoryGlyph>) => unknown)(...args);
 }
 
-function dataAttrName(name) {
+function dataAttrName(name: unknown) {
   return String(name).replace(/[A-Z]/g, c => `-${c.toLowerCase()}`);
 }
 
-function compareAttrs(actionAttr, action, attrs = {}) {
+function compareAttrs(actionAttr: string, action: unknown, attrs: unknown = {}) {
   return [
     `${actionAttr}="${escapeAttr(action)}"`,
-    ...Object.entries(attrs)
+    ...Object.entries(attrs as Record<string, unknown>)
       .filter(([, value]) => value !== null && value !== undefined)
       .map(([name, value]) => `data-compare-${escapeAttr(dataAttrName(name))}="${escapeAttr(String(value))}"`),
   ].join(' ');
 }
 
-export function compareActionAttrs(action, attrs = {}) {
+export function compareActionAttrs(action: unknown, attrs: unknown = {}) {
   return compareAttrs('data-compare-action', action, attrs);
 }
 
-function compareChangeAttrs(action, attrs = {}) {
+function compareChangeAttrs(action: unknown, attrs: unknown = {}) {
   return compareAttrs('data-compare-change-action', action, attrs);
 }
 
-function compareInputAttrs(action, attrs = {}) {
+function compareInputAttrs(action: unknown, attrs: unknown = {}) {
   return compareAttrs('data-compare-input-action', action, attrs);
 }
 
-function compareFocusAttrs(action, attrs = {}) {
+function compareFocusAttrs(action: unknown, attrs: unknown = {}) {
   return compareAttrs('data-compare-focus-action', action, attrs);
 }
 
-function closestCompareTarget(event, selector) {
-  const target = event.target;
+function closestCompareTarget(event: CompareEvent, selector: string) {
+  const target = event.target as {closest?: unknown} | null;
   if (!target || typeof target.closest !== 'function') return null;
-  return /** @type {HTMLElement | null} */ (target.closest(selector));
+  return (target.closest as (selector: string) => HTMLElement | null)(selector);
 }
 
-function handleCompareClick(event) {
+function handleCompareClick(event: CompareEvent) {
   const actionEl = closestCompareTarget(event, '[data-compare-action]');
   if (!actionEl) { if (!closestCompareTarget(event, '.corr-dropdown')) closeCorrelationDropdown(); return; }
   const action = actionEl.dataset.compareAction || '';
@@ -103,11 +101,11 @@ function handleCompareClick(event) {
     if (actionEl.dataset.compareKey) void reviewCorrelationTherapy(actionEl.dataset.compareKey);
   } else if (action === 'ask-ai-correlations') {
     event.preventDefault();
-    compareCorrelationDeps.askAIAboutCorrelations();
+    (compareCorrelationDeps.askAIAboutCorrelations as () => unknown)();
   }
 }
 
-function finishCorrelationSearch(option) {
+function finishCorrelationSearch(option: HTMLElement) {
   if (!option.classList.contains('corr-option')) return;
   const search = document.getElementById('corr-search');
   if (!(search instanceof HTMLInputElement)) return;
@@ -117,7 +115,7 @@ function finishCorrelationSearch(option) {
   correlationNotice('Added. Search for another item.', true);
 }
 
-function correlationNotice(text, announceOnly = false) { const el = document.getElementById('corr-selection-status'); if (el) { el.textContent = text; el.classList.toggle('sr-only', announceOnly); } }
+function correlationNotice(text: string, announceOnly = false) { const el = document.getElementById('corr-selection-status'); if (el) { el.textContent = text; el.classList.toggle('sr-only', announceOnly); } }
 function closeCorrelationDropdown() {
   document.getElementById('corr-options')?.classList.remove('show');
   const search = document.getElementById('corr-search');
@@ -125,7 +123,7 @@ function closeCorrelationDropdown() {
   search?.removeAttribute('aria-activedescendant');
 }
 
-async function reviewCorrelationTherapy(id) {
+async function reviewCorrelationTherapy(id: unknown) {
   const profile = state.currentProfile;
   const results = document.getElementById('corr-therapy-results');
   const { openSupplementsEditor } = await import('./supplements.js');
@@ -143,20 +141,20 @@ async function reviewCorrelationTherapy(id) {
   observer.observe(overlay, { attributes: true, attributeFilter: ['class'] });
 }
 
-function handleCompareKeydown(event) {
-  if (event.target.id === 'corr-search') {
-    const search = event.target;
+function handleCompareKeydown(event: CompareEvent) {
+  if ((event.target as HTMLElement).id === 'corr-search') {
+    const search = event.target as HTMLElement;
     if (event.key === 'Escape' || event.key === 'Tab') { closeCorrelationDropdown(); return; }
-    const options = [...document.querySelectorAll('.corr-option')].filter(el => /** @type {HTMLElement} */ (el).style.display !== 'none');
+    const options = [...document.querySelectorAll('.corr-option')].filter(el => (el as HTMLElement).style.display !== 'none');
     const index = options.findIndex(el => el.id === search.getAttribute('aria-activedescendant'));
-    if (['ArrowDown', 'ArrowUp'].includes(event.key)) {
+    if (['ArrowDown', 'ArrowUp'].includes(event.key as string)) {
       event.preventDefault(); showCorrelationDropdown();
       const next = options[index < 0 ? (event.key === 'ArrowDown' ? 0 : options.length - 1) : (index + (event.key === 'ArrowDown' ? 1 : -1) + options.length) % options.length];
       if (next) { search.setAttribute('aria-activedescendant', next.id); next.scrollIntoView({ block: 'nearest' }); }
       options.forEach(el => el.classList.toggle('corr-option-active', el === next));
       return;
     }
-    if (event.key === 'Enter' && index >= 0 && search.getAttribute('aria-expanded') === 'true') { event.preventDefault(); /** @type {HTMLElement} */ (options[index]).click(); return; }
+    if (event.key === 'Enter' && index >= 0 && search.getAttribute('aria-expanded') === 'true') { event.preventDefault(); (options[index] as HTMLElement).click(); return; }
   }
   if (event.key !== 'Enter' && event.key !== ' ') return;
   const actionEl = closestCompareTarget(event, '[data-compare-action]');
@@ -166,7 +164,7 @@ function handleCompareKeydown(event) {
   actionEl.click();
 }
 
-function handleCompareChange(event) {
+function handleCompareChange(event: CompareEvent) {
   const actionEl = closestCompareTarget(event, '[data-compare-change-action]');
   if (!actionEl) return;
   if (actionEl.dataset.compareChangeAction !== 'set-date') return;
@@ -175,21 +173,21 @@ function handleCompareChange(event) {
   else if (actionEl.dataset.compareIndex === '2') setCompareDate2(value);
 }
 
-function handleCompareInput(event) {
+function handleCompareInput(event: CompareEvent) {
   const actionEl = closestCompareTarget(event, '[data-compare-input-action]');
   if (!actionEl || actionEl.dataset.compareInputAction !== 'filter-options') return;
   filterCorrelationOptions();
 }
 
-function handleCompareFocus(event) {
+function handleCompareFocus(event: CompareEvent) {
   const actionEl = closestCompareTarget(event, '[data-compare-focus-action]');
   if (!actionEl || actionEl.dataset.compareFocusAction !== 'show-dropdown') return;
   showCorrelationDropdown();
 }
 
-const compareDelegateRoots = new WeakSet();
+const compareDelegateRoots = new WeakSet<object>();
 
-export function installCompareCorrelationDelegates(root = (typeof document !== 'undefined' ? document : null)) {
+export function installCompareCorrelationDelegates(root: CompareDelegateRoot | null = (typeof document !== 'undefined' ? document : null)) {
   if (!root || typeof root.addEventListener !== 'function' || compareDelegateRoots.has(root)) return;
   compareDelegateRoots.add(root);
   root.addEventListener('click', handleCompareClick);
@@ -200,7 +198,7 @@ export function installCompareCorrelationDelegates(root = (typeof document !== '
 }
 // Compare Dates
 
-export function showCompare(data) {
+export function showCompare(data?: CompareData | null) {
   const main = document.getElementById("main-content");
   if (!main) return;
   if (!data) data = getActiveData();
@@ -212,10 +210,10 @@ export function showCompare(data) {
     main.innerHTML = html;
     return;
   }
-  if (!state.compareDate1 || !data.dates.includes(state.compareDate1)) state.compareDate1 = data.dates[0];
-  if (!state.compareDate2 || !data.dates.includes(state.compareDate2)) state.compareDate2 = data.dates[data.dates.length - 1];
-  const fmtOpt = d => {
-    const label = new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (!state.compareDate1 || !data.dates.includes(state.compareDate1)) (state as CompareDateState).compareDate1 = data.dates[0];
+  if (!state.compareDate2 || !data.dates.includes(state.compareDate2)) (state as CompareDateState).compareDate2 = data.dates[data.dates.length - 1];
+  const fmtOpt = (d: unknown) => {
+    const label = new Date((d as string) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     return `<option value="${d}">${label}</option>`;
   };
   html += `<div class="compare-controls">
@@ -229,22 +227,22 @@ export function showCompare(data) {
 </div>`;
   html += `<div id="compare-results"></div>`;
   main.innerHTML = html;
-  const select1 = /** @type {HTMLSelectElement | null} */ (document.getElementById('compare-select-1'));
-  const select2 = /** @type {HTMLSelectElement | null} */ (document.getElementById('compare-select-2'));
+  const select1 = (document.getElementById('compare-select-1') as HTMLSelectElement | null);
+  const select2 = (document.getElementById('compare-select-2') as HTMLSelectElement | null);
   if (select1) select1.value = state.compareDate1 || '';
   if (select2) select2.value = state.compareDate2 || '';
   updateCompare();
 }
 
-export function setCompareDate1(value) { state.compareDate1 = value; updateCompare(); }
-export function setCompareDate2(value) { state.compareDate2 = value; updateCompare(); }
+export function setCompareDate1(value: unknown) { (state as CompareDateState).compareDate1 = value; updateCompare(); }
+export function setCompareDate2(value: unknown) { (state as CompareDateState).compareDate2 = value; updateCompare(); }
 
 export function updateCompare() {
   const data = getActiveData();
-  const container = document.getElementById('compare-results');
+  const container = document.getElementById('compare-results') as CompareHTMLWriter | null;
   if (!container) return;
-  const idx1 = data.dates.indexOf(/** @type {string} */ (state.compareDate1));
-  const idx2 = data.dates.indexOf(/** @type {string} */ (state.compareDate2));
+  const idx1 = data.dates.indexOf((state.compareDate1 as string));
+  const idx2 = data.dates.indexOf((state.compareDate2 as string));
   if (idx1 === -1 || idx2 === -1) { container.innerHTML = ''; return; }
   container.innerHTML = renderCompareTable(data, idx1, idx2);
 }
@@ -253,14 +251,14 @@ export function swapCompareDates() {
   const tmp = state.compareDate1;
   state.compareDate1 = state.compareDate2;
   state.compareDate2 = tmp;
-  const s1 = /** @type {HTMLSelectElement | null} */ (document.getElementById('compare-select-1'));
-  const s2 = /** @type {HTMLSelectElement | null} */ (document.getElementById('compare-select-2'));
+  const s1 = (document.getElementById('compare-select-1') as HTMLSelectElement | null);
+  const s2 = (document.getElementById('compare-select-2') as HTMLSelectElement | null);
   if (s1) s1.value = state.compareDate1 || '';
   if (s2) s2.value = state.compareDate2 || '';
   updateCompare();
 }
 
-function compareRangeContextSignature(context) {
+function compareRangeContextSignature(context: ReturnType<typeof resolveMarkerRangeContext>) {
   return JSON.stringify(context.displayedRanges.map(range => [
     range.label,
     range.min,
@@ -271,7 +269,7 @@ function compareRangeContextSignature(context) {
   ]));
 }
 
-function renderCompareRangeLines(context) {
+function renderCompareRangeLines(context: ReturnType<typeof resolveMarkerRangeContext>) {
   const showUsedBadge = context.displayedRanges.length > 1;
   return context.displayedRanges.map(range => `
 <span class="compare-range-line${range.usedForStatus ? ' compare-range-line-used' : ''}">
@@ -281,7 +279,7 @@ ${showUsedBadge && range.usedForStatus ? '<span class="compare-range-used">used<
 </span>`).join('');
 }
 
-function renderCompareRangeCell(context1, context2, date1Label, date2Label) {
+function renderCompareRangeCell(context1: ReturnType<typeof resolveMarkerRangeContext>, context2: ReturnType<typeof resolveMarkerRangeContext>, date1Label: unknown, date2Label: unknown) {
   if (compareRangeContextSignature(context1) === compareRangeContextSignature(context2)) {
     return `<div class="compare-range-stack">${renderCompareRangeLines(context1)}</div>`;
   }
@@ -297,7 +295,7 @@ ${renderCompareRangeLines(context2)}
 </div>`;
 }
 
-function normalizedDistanceOutsideRange(value, range) {
+function normalizedDistanceOutsideRange(value: number | null | undefined, range: CompareRange | null | undefined) {
   if (value == null || !Number.isFinite(value)) return null;
   const min = range?.min;
   const max = range?.max;
@@ -309,10 +307,10 @@ function normalizedDistanceOutsideRange(value, range) {
     return 0;
   }
   if (min != null) return value < min ? (min - value) / Math.max(Math.abs(min), 1) : 0;
-  return value > max ? (value - max) / Math.max(Math.abs(max), 1) : 0;
+  return value > max! ? (value - max!) / Math.max(Math.abs(max!), 1) : 0;
 }
 
-function compareDirectionClass(v1, range1, v2, range2) {
+function compareDirectionClass(v1: number | null | undefined, range1: CompareRange, v2: number | null | undefined, range2: CompareRange) {
   const distance1 = normalizedDistanceOutsideRange(v1, range1);
   const distance2 = normalizedDistanceOutsideRange(v2, range2);
   if (distance1 == null || distance2 == null) return 'compare-neutral';
@@ -321,7 +319,7 @@ function compareDirectionClass(v1, range1, v2, range2) {
   return 'compare-neutral';
 }
 
-export function renderCompareTable(data, idx1, idx2) {
+export function renderCompareTable(data: CompareData, idx1: number, idx2: number): unknown {
   const d1Label = data.dateLabels[idx1];
   const d2Label = data.dateLabels[idx2];
   const colgroup = renderTableColgroup([
@@ -339,18 +337,18 @@ export function renderCompareTable(data, idx1, idx2) {
   let bodyHtml = '';
   for (const [catKey, cat] of Object.entries(data.categories)) {
     if (cat.singlePoint) continue;
-    const rows = [];
-    for (const marker of Object.values(cat.markers)) {
-      const v1 = marker.values[idx1];
-      const v2 = marker.values[idx2];
+    const rows: string[] = [];
+    for (const marker of Object.values(cat.markers) as CompareNumericMarker[]) {
+      const v1 = marker.values[idx1] as number | null;
+      const v2 = marker.values[idx2] as number | null;
       if (v1 === null && v2 === null) continue;
-      const mr1 = getEffectiveRangeForDate(marker, idx1);
-      const mr2 = getEffectiveRangeForDate(marker, idx2);
-      const rangeContext1 = resolveMarkerRangeContext(marker, idx1);
-      const rangeContext2 = resolveMarkerRangeContext(marker, idx2);
+      const mr1 = (getEffectiveRangeForDate as (marker: CompareMarker, dateIndex: number) => ReturnType<typeof getEffectiveRangeForDate>)(marker, idx1);
+      const mr2 = (getEffectiveRangeForDate as (marker: CompareMarker, dateIndex: number) => ReturnType<typeof getEffectiveRangeForDate>)(marker, idx2);
+      const rangeContext1 = (resolveMarkerRangeContext as (marker: CompareMarker, dateIndex: number) => ReturnType<typeof resolveMarkerRangeContext>)(marker, idx1);
+      const rangeContext2 = (resolveMarkerRangeContext as (marker: CompareMarker, dateIndex: number) => ReturnType<typeof resolveMarkerRangeContext>)(marker, idx2);
       const s1 = v1 !== null ? getStatus(v1, mr1.min, mr1.max) : 'missing';
       const s2 = v2 !== null ? getStatus(v2, mr2.min, mr2.max) : 'missing';
-      let delta = null, pctChange = null, directionClass = 'compare-neutral';
+      let delta: number | null = null, pctChange: number | null = null, directionClass = 'compare-neutral';
       if (v1 !== null && v2 !== null) {
         delta = v2 - v1;
         pctChange = v1 !== 0 ? (delta / v1) * 100 : null;
@@ -377,12 +375,12 @@ export function renderCompareTable(data, idx1, idx2) {
 
 // Correlations
 
-export function showCorrelations(data) {
+export function showCorrelations(data?: CompareData | null) {
   const main = document.getElementById("main-content");
   if (!main) return;
   if (!data) data = getActiveData();
   const before = JSON.stringify([state.selectedCorrelationMarkers, state.selectedCorrelationSupplements]);
-  state.selectedCorrelationMarkers = state.selectedCorrelationMarkers.filter(key => { const [category, marker] = key.split('.'); return !!data.categories[category]?.markers[marker]; });
+  state.selectedCorrelationMarkers = state.selectedCorrelationMarkers.filter(key => { const [category, marker] = key.split('.') as [string, string]; return !!data.categories[category]?.markers[marker]; });
   state.selectedCorrelationSupplements = state.selectedCorrelationSupplements.filter(id => (state.importedData.supplements || []).some(record => getSupplementRecordId(record) === id));
   if (JSON.stringify([state.selectedCorrelationMarkers, state.selectedCorrelationSupplements]) !== before) void saveCorrelationWorkspace();
   let html = `<div class="category-header"><h2>Correlations</h2>
@@ -400,9 +398,9 @@ ${compareInputAttrs('filter-options')} ${compareFocusAttrs('show-dropdown')}>
 <p class="corr-help" id="corr-selection-status" role="status"></p>
 <details class="corr-presets"><summary>Marker presets</summary><p class="corr-help">Explore related markers already in your data. Replaces markers; keeps treatments.</p><div class="corr-preset-grid">`;
   for (let i = 0; i < CORRELATION_PRESETS.length; i++) {
-    const preset = CORRELATION_PRESETS[i];
+    const preset = CORRELATION_PRESETS[i]!;
     const available = availablePresetMarkers(preset, data).length;
-    const names = preset.markers.map(key => { const [cat, name] = key.split('.'); return MARKER_SCHEMA[cat]?.markers[name]?.name || name; }).join(', ');
+    const names = preset.markers.map(key => { const [cat, name] = key.split('.') as [string, string]; return MARKER_SCHEMA[cat]?.markers[name]?.name || name; }).join(', ');
     html += `<button class="corr-preset-btn" aria-label="${escapeAttr(preset.label)}" ${compareActionAttrs('apply-preset', { index: i })}${available ? '' : ' disabled'}><strong>${escapeHTML(preset.label)}</strong><span>${escapeHTML(names)}</span><small>${available}/${preset.markers.length} available</small></button>`;
   }
   html += `</div></details><p class="corr-help" id="corr-selection-help">Choose two biomarkers, or a biomarker and a treatment.</p></div>`;
@@ -417,7 +415,7 @@ ${compareInputAttrs('filter-options')} ${compareFocusAttrs('show-dropdown')}>
   if (canRenderCorrelation()) renderCorrelationChart();
 }
 
-export function populateCorrelationOptions(data) {
+export function populateCorrelationOptions(data?: CompareData | null) {
   if (!data) data = getActiveData();
   const container = document.getElementById("corr-options");
   if (!container) return;
@@ -457,10 +455,10 @@ export function showCorrelationDropdown() {
 }
 
 export function filterCorrelationOptions() {
-  const searchInput = /** @type {HTMLInputElement | null} */ (document.getElementById("corr-search"));
+  const searchInput = (document.getElementById("corr-search") as HTMLInputElement | null);
   const search = (searchInput?.value || '').toLowerCase();
   document.querySelectorAll(".corr-option").forEach(opt => {
-    const option = /** @type {HTMLElement} */ (opt);
+    const option = (opt as HTMLElement);
     const name = (option.dataset.name || '').toLowerCase();
     const cat = (option.dataset.cat || '').toLowerCase();
     option.style.display = (name.includes(search) || cat.includes(search)) ? '' : 'none';
@@ -470,10 +468,10 @@ export function filterCorrelationOptions() {
   searchInput?.removeAttribute('aria-activedescendant');
   document.querySelectorAll('.corr-option-active').forEach(el => el.classList.remove('corr-option-active'));
   const empty = document.getElementById('corr-no-results');
-  if (empty) empty.hidden = [...document.querySelectorAll('.corr-option')].some(el => /** @type {HTMLElement} */ (el).style.display !== 'none');
+  if (empty) empty.hidden = [...document.querySelectorAll('.corr-option')].some(el => (el as HTMLElement).style.display !== 'none');
 }
 
-export function toggleCorrelationMarker(key) {
+export function toggleCorrelationMarker(key: string) {
   const idx = state.selectedCorrelationMarkers.indexOf(key);
   if (idx !== -1) state.selectedCorrelationMarkers.splice(idx, 1);
   else if (state.selectedCorrelationMarkers.length + state.selectedCorrelationSupplements.length < 8) {
@@ -486,24 +484,24 @@ export function toggleCorrelationMarker(key) {
   renderCorrelationChart();
 }
 
-function availablePresetMarkers(preset, data) {
+function availablePresetMarkers(preset: (typeof CORRELATION_PRESETS)[number], data: CompareData) {
   return preset.markers.filter(key => {
-    const [cat, name] = key.split('.');
+    const [cat, name] = key.split('.') as [string, string];
     const marker = data.categories[cat]?.markers[name];
     return !marker?.singlePoint && marker?.values.some(v => typeof v === 'number' && Number.isFinite(v));
   });
 }
 
-export function applyCorrelationPreset(idx) {
+export function applyCorrelationPreset(idx: number) {
   if (!CORRELATION_PRESETS[idx]) return;
   const data = getActiveData();
-  const available = availablePresetMarkers(CORRELATION_PRESETS[idx], data);
+  const available = availablePresetMarkers(CORRELATION_PRESETS[idx]!, data);
   if (!available.length) { correlationNotice('No markers from this preset are available in your data.'); return; }
   state.selectedCorrelationMarkers = available.slice(0, 8 - state.selectedCorrelationSupplements.length);
   state.correlationView.hidden = (state.correlationView.hidden || []).filter(id => !state.selectedCorrelationMarkers.includes(id));
   state.correlationView.pair = '0';
   delete state.correlationView.pairKey;
-  correlationNotice(`Preset: ${state.selectedCorrelationMarkers.length}/${CORRELATION_PRESETS[idx].markers.length} markers selected. Treatments kept.${available.length > state.selectedCorrelationMarkers.length ? ' Selection limited to 8 items.' : ''}`);
+  correlationNotice(`Preset: ${state.selectedCorrelationMarkers.length}/${CORRELATION_PRESETS[idx]!.markers.length} markers selected. Treatments kept.${available.length > state.selectedCorrelationMarkers.length ? ' Selection limited to 8 items.' : ''}`);
   renderCorrelationChips();
   populateCorrelationOptions();
   closeCorrelationDropdown();
@@ -516,7 +514,7 @@ export function renderCorrelationChips() {
   const data = getActiveData();
   let html = '';
   state.selectedCorrelationMarkers.forEach((key, i) => {
-    const [catKey, markerKey] = key.split('.');
+    const [catKey, markerKey] = key.split('.') as [string, string];
     const marker = data.categories[catKey]?.markers[markerKey];
     if (!marker) return;
     const color = CHIP_COLORS[i % CHIP_COLORS.length];
@@ -535,7 +533,7 @@ function canRenderCorrelation() {
   return state.selectedCorrelationMarkers.length >= 2 || (state.selectedCorrelationMarkers.length >= 1 && state.selectedCorrelationSupplements.length >= 1);
 }
 
-export function toggleCorrelationTherapy(id) {
+export function toggleCorrelationTherapy(id: string) {
   const index = state.selectedCorrelationSupplements.indexOf(id);
   if (index >= 0) state.selectedCorrelationSupplements.splice(index, 1);
   else if (state.selectedCorrelationMarkers.length + state.selectedCorrelationSupplements.length < 8) {
@@ -575,7 +573,7 @@ export function renderCorrelationChart() {
     return;
   }
   const selection = prepareCorrelationSelection(data, state.importedData, state.selectedCorrelationMarkers, state.selectedCorrelationSupplements, 0, state.correlationView);
-  renderCorrelationWorkspace(selection, /** @type {HTMLElement} */ (results), renderCorrelationChart);
+  renderCorrelationWorkspace(selection, (results as HTMLElement), renderCorrelationChart);
   if (focused?.startsWith('corr-')) document.getElementById(focused)?.focus({ preventScroll: true });
 }
 

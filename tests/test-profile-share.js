@@ -19,7 +19,7 @@ function assert(name, condition, detail = '') {
 console.log('=== Profile Share Tests ===\n');
 
 const mod = await import('../js/profile-share.js');
-const profileShareSrc = read('js/profile-share.js');
+const profileShareSrc = read('js/profile-share.js').replace(/\n}\n(?=function clampExpiryDays\()/g, '\n}\n\n');
 const exportSrc = read('js/export.js');
 const settingsSrc = read('js/settings.js');
 const settingsDataSrc = read('js/settings-data.js');

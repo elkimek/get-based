@@ -23,7 +23,7 @@ const CATEGORY_GLYPH_CODES: Readonly<Record<string, string>> = Object.freeze({
   calculatedRatios: 'RT',
 });
 
-export function getCategoryGlyphCode(categoryKey: string, label = ''): string {
+export function getCategoryGlyphCode(categoryKey: string, label: unknown = ''): string {
   if (CATEGORY_GLYPH_CODES[categoryKey]) return CATEGORY_GLYPH_CODES[categoryKey]!;
   const words = String(label || categoryKey || '')
     .replace(/&/g, ' ')
@@ -36,7 +36,7 @@ export function getCategoryGlyphCode(categoryKey: string, label = ''): string {
   return (compact.slice(0, 2) || 'M').toUpperCase();
 }
 
-export function renderCategoryGlyph(categoryKey: string, label: string, { large = false }: { large?: boolean } = {}): string {
+export function renderCategoryGlyph(categoryKey: string, label: unknown, { large = false }: { large?: boolean } = {}): string {
   const code = getCategoryGlyphCode(categoryKey, label);
   return `<span class="category-glyph${large ? ' category-glyph-large' : ''}" aria-hidden="true">${escapeHTML(code)}</span>`;
 }

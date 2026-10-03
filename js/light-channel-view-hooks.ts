@@ -1,4 +1,3 @@
-// @ts-check
 // light-channel-view-hooks.js - wire Light channel feature dependencies at startup.
 
 import {

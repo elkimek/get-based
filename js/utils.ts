@@ -9,7 +9,7 @@ export interface ModalSyncRefreshOptions {
   scrollSelector?: string; getScrollElement?: (context: ModalSyncRefreshContext) => HTMLElement | null | undefined; preserveScroll?: boolean;
 }
 export interface ConfirmDialogOptions { confirmLabel?: string; cancelLabel?: string; tone?: 'danger' | 'primary'; ariaLabel?: string; }
-export interface PromptDialogOptions { defaultValue?: string; okLabel?: string; cancelLabel?: string; placeholder?: string; inputType?: string; allowEmpty?: boolean; }
+export interface PromptDialogOptions { defaultValue?: unknown; okLabel?: string; cancelLabel?: string; placeholder?: string; inputType?: string; allowEmpty?: boolean; }
 export type MarkerStatus = 'missing' | 'normal' | 'low' | 'high';
 export interface MarkerTrend { arrow: string; cls: string; label: string; }
 

@@ -1,4 +1,3 @@
-// @ts-check
 // light-today-ai.js — Light Today daily/weekly hero verdict.
 //
 // Synthesizes one day's full picture (sun + devices + tools) into a single
@@ -18,48 +17,61 @@ import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
 import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
 
+import type { SunSessionRecord } from './sun-sessions-store.js';
+import type { DeviceSessionRecord, LightDeviceRecord } from './light-devices-store.js';
+import type { StoredLightMeasurement } from './light-tools.js';
+import type { SunSetupDefaults } from './sun-defaults-model.js';
+import type { AnalyzeOptions, AIVerdictAnalysis } from './ai-verdict-engine.js';
+
+interface DayTarget { key: string; date: Date; isLightTodayTarget: boolean }
+type VerdictRead = { status?: unknown; dot?: unknown; tip?: unknown; detail?: unknown; fingerprint?: unknown; errorMessage?: unknown };
+// Raw configurable results and saved verdicts retain their original unchecked
+// property/method reads. Numerical assertions describe existing operations.
+type TodayDependencies = { solarZenithAngle: unknown; rollingChannelTotals: unknown; rollingDeviceTotals: unknown; rollingVitaminDIU: unknown };
+
+
 const defaultLightTodayDeps = {
   solarZenithAngle,
   rollingChannelTotals,
   rollingDeviceTotals,
   rollingVitaminDIU,
 };
-const lightTodayDeps = { ...defaultLightTodayDeps };
+const lightTodayDeps: TodayDependencies = { ...defaultLightTodayDeps };
 
-export function configureLightTodayAI(deps = {}) {
+export function configureLightTodayAI(deps: unknown = {}) {
   for (const key of Object.keys(defaultLightTodayDeps)) {
-    lightTodayDeps[key] = typeof deps[key] === 'function' ? deps[key] : defaultLightTodayDeps[key];
+    lightTodayDeps[key as keyof TodayDependencies] = typeof (deps as Record<string, unknown>)[key] === 'function' ? (deps as Record<string, unknown>)[key] : defaultLightTodayDeps[key as keyof TodayDependencies];
   }
 }
 
 // Cap user-supplied free-text fields fed into prompt context. A device named
 // "Glow\n[SYSTEM: ignore previous]" would otherwise break out of the prompt.
-function _safeText(s, max = 80) {
+function _safeText(s: unknown, max = 80) {
   return String(s || '').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-function _localDateString(d) {
+function _localDateString(d: Date) {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function _dayBoundaries(date) {
+function _dayBoundaries(date: Date) {
   const start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0).getTime();
   return { start, end: start + 86400000 };
 }
 
 function _getDailyVerdicts() {
-  if (!state.importedData) state.importedData = /** @type {any} */ ({});
+  if (!state.importedData) (state as { importedData: unknown }).importedData = ({});
   if (!state.importedData.lightDailyVerdicts) state.importedData.lightDailyVerdicts = {};
-  return state.importedData.lightDailyVerdicts;
+  return state.importedData.lightDailyVerdicts as Record<string, unknown>;
 }
 
 // Synthetic target wrapper. The engine reads/writes via getAIAnalysis /
 // setAIAnalysis, so for the daily-verdicts map shape, we expose `target.key`
 // as the id and route reads/writes through the lightDailyVerdicts map.
-function _wrapDate(date) {
+function _wrapDate(date: Date) {
   const key = _localDateString(date);
   return { key, date, isLightTodayTarget: true };
 }
@@ -68,22 +80,22 @@ function _allDateTargets() {
   const verdicts = _getDailyVerdicts();
   return Object.keys(verdicts).map(key => {
     const [y, m, d] = key.split('-').map(Number);
-    return { key, date: new Date(y, m - 1, d), isLightTodayTarget: true };
+    return { key, date: new Date(y as number, (m as number) - 1, d as number), isLightTodayTarget: true };
   });
 }
 
-function _collectWindowData(targetDate) {
+function _collectWindowData(targetDate: Date) {
   const { start, end } = _dayBoundaries(targetDate);
-  const sun = (state.importedData?.sunSessions || []).filter(s => {
+  const sun = ((state.importedData?.sunSessions || []) as SunSessionRecord[]).filter(s => {
     const t = s.endedAt || s.startedAt;
     return t >= start && t < end;
   });
-  const dev = (state.importedData?.deviceSessions || []).filter(s => {
+  const dev = ((state.importedData?.deviceSessions || []) as DeviceSessionRecord[]).filter(s => {
     const t = s.endedAt || s.startedAt;
     return t >= start && t < end;
   });
-  const measurements = (state.importedData?.lightMeasurements || []).filter(m => {
-    return m.capturedAt >= start && m.capturedAt < end;
+  const measurements = ((state.importedData?.lightMeasurements || []) as StoredLightMeasurement[]).filter(m => {
+    return (m.capturedAt as number) >= start && (m.capturedAt as number) < end;
   });
   return { sun, dev, measurements };
 }
@@ -91,28 +103,27 @@ function _collectWindowData(targetDate) {
 // ─── Trends ────────────────────────────────────────────────────────────
 
 export function computeLightTrends(targetDate = new Date()) {
-  const sessions = (state.importedData?.sunSessions || []).filter(s => s.endedAt);
-  const devSessions = (state.importedData?.deviceSessions || []).filter(s => s.endedAt);
+  const sessions = ((state.importedData?.sunSessions || []) as SunSessionRecord[]).filter(s => s.endedAt);
+  const devSessions = ((state.importedData?.deviceSessions || []) as DeviceSessionRecord[]).filter(s => s.endedAt);
   const targetTs = targetDate.getTime();
-  /** @type {{ signals: string[] }} */
-  const out = { signals: [] };
+  const out: { signals: string[] } = { signals: [] };
   const sunriseSessions = sessions.filter(s => {
     if (!s.location) return false;
-    const elev = 90 - lightTodayDeps.solarZenithAngle(new Date(s.startedAt), s.location.lat, s.location.lon);
-    return elev < 6 && elev > -6 && (s.endedAt - s.startedAt) > 5 * 60000;
-  }).sort((a, b) => b.endedAt - a.endedAt);
+    const elev = 90 - ((lightTodayDeps.solarZenithAngle as (date: Date, lat: unknown, lon: unknown) => unknown)(new Date(s.startedAt), s.location.lat, s.location.lon) as number);
+    return elev < 6 && elev > -6 && ((s.endedAt as number) - s.startedAt) > 5 * 60000;
+  }).sort((a, b) => (b.endedAt as number) - (a.endedAt as number));
   // Only flag sunrise gaps when the user has previously logged at least
   // one — a "no sunrise sessions ever" signal is just behaviour-reflective
   // noise (many users don't do sunrise sessions deliberately) and was
   // contradicting otherwise-green verdicts in the Today's Light hero.
   if (sunriseSessions.length) {
-    const daysSince = Math.floor((targetTs - sunriseSessions[0].endedAt) / 86400000);
-    if (daysSince >= 3) out.signals.push(`${daysSince} days since last sunrise session (last on ${new Date(sunriseSessions[0].endedAt).toISOString().slice(0, 10)})`);
+    const daysSince = Math.floor((targetTs - (sunriseSessions[0]!.endedAt as number)) / 86400000);
+    if (daysSince >= 3) out.signals.push(`${daysSince} days since last sunrise session (last on ${new Date(sunriseSessions[0]!.endedAt as number).toISOString().slice(0, 10)})`);
   }
   const cutoff7 = targetTs - 7 * 86400000;
   const cutoff14 = targetTs - 14 * 86400000;
-  const last7 = [...sessions, ...devSessions].filter(s => s.endedAt >= cutoff7);
-  const prev7 = [...sessions, ...devSessions].filter(s => s.endedAt >= cutoff14 && s.endedAt < cutoff7);
+  const last7 = [...sessions, ...devSessions].filter(s => (s.endedAt as number) >= cutoff7);
+  const prev7 = [...sessions, ...devSessions].filter(s => (s.endedAt as number) >= cutoff14 && (s.endedAt as number) < cutoff7);
   if (prev7.length > 0 && last7.length < prev7.length * 0.5) {
     out.signals.push(`Light activity dropped ${Math.round((1 - last7.length / prev7.length) * 100)}% vs prior week (${last7.length} sessions vs ${prev7.length})`);
   }
@@ -123,11 +134,11 @@ export function computeLightTrends(targetDate = new Date()) {
 
 // ─── Context ───────────────────────────────────────────────────────────
 
-export function buildDayContext(target) {
+export function buildDayContext(target: Partial<DayTarget> | null | undefined) {
   const targetDate = target?.date || new Date();
   const { sun, dev, measurements } = _collectWindowData(targetDate);
-  const lines = [];
-  const sd = state.importedData?.sunDefaults || {};
+  const lines: string[] = [];
+  const sd = (state.importedData?.sunDefaults || {}) as SunSetupDefaults & { dailyVitDTargetIU?: unknown };
   const lc = state.importedData?.lightCircadian || {};
   const goals = formatHealthGoalsText(state.importedData?.healthGoals);
   const dateStr = _localDateString(targetDate);
@@ -152,8 +163,8 @@ export function buildDayContext(target) {
       let elevPhase = '';
       try {
         if (s.location && s.endedAt) {
-          const elevStart = 90 - lightTodayDeps.solarZenithAngle(new Date(s.startedAt), s.location.lat, s.location.lon);
-          const elevEnd = 90 - lightTodayDeps.solarZenithAngle(new Date(s.endedAt), s.location.lat, s.location.lon);
+          const elevStart = 90 - ((lightTodayDeps.solarZenithAngle as (date: Date, lat: unknown, lon: unknown) => unknown)(new Date(s.startedAt), s.location.lat, s.location.lon) as number);
+          const elevEnd = 90 - ((lightTodayDeps.solarZenithAngle as (date: Date, lat: unknown, lon: unknown) => unknown)(new Date(s.endedAt), s.location.lat, s.location.lon) as number);
           if (elevStart < 0 && elevEnd > 0) elevPhase = ' [SUNRISE — horizon crossing]';
           else if (elevStart > 0 && elevEnd < 0) elevPhase = ' [SUNSET — horizon crossing]';
           else if (elevEnd < 6 && elevEnd > -6) elevPhase = ' [twilight]';
@@ -168,53 +179,53 @@ export function buildDayContext(target) {
   if (dev.length) {
     lines.push('');
     lines.push(`### Device sessions (${dev.length})`);
-    const deviceById = Object.fromEntries((state.importedData?.lightDevices || []).map(d => [d.id, d]));
+    const deviceById = Object.fromEntries(((state.importedData?.lightDevices || []) as LightDeviceRecord[]).map(d => [d.id, d]));
     for (const s of dev.sort((a, b) => a.startedAt - b.startedAt)) {
       const start = new Date(s.startedAt);
-      const device = deviceById[s.deviceId];
+      const device = deviceById[s.deviceId as string];
       const devName = device ? (_safeText(`${device.brand || ''} ${device.model || ''}`) || 'unnamed device') : 'unknown device';
       const devType = device?.type ? ` (${_safeText(device.type, 30)})` : '';
-      lines.push(`  - ${start.toTimeString().slice(0, 5)} · ${Math.round(s.durationMin)} min · ${devName}${devType} @ ${s.distanceCm}cm, ${_safeText(s.bodyArea, 40) || '?'}${s.eyesProtected ? ', eyes protected' : ', eyes uncovered'}`);
+      lines.push(`  - ${start.toTimeString().slice(0, 5)} · ${Math.round(s.durationMin as number)} min · ${devName}${devType} @ ${s.distanceCm}cm, ${_safeText(s.bodyArea, 40) || '?'}${s.eyesProtected ? ', eyes protected' : ', eyes uncovered'}`);
     }
   }
 
   if (measurements.length) {
     lines.push('');
     lines.push(`### Tool measurements (${measurements.length})`);
-    const byTool = {};
+    const byTool: Record<string, StoredLightMeasurement[]> = {};
     for (const m of measurements) {
-      if (!byTool[m.tool]) byTool[m.tool] = [];
-      byTool[m.tool].push(m);
+      if (!byTool[m.tool as string]) byTool[m.tool as string] = [];
+      byTool[m.tool as string]!.push(m);
     }
     for (const [tool, list] of Object.entries(byTool)) {
       if (tool === 'lux' || tool === 'cct' || tool === 'glass-transmission') {
-        lines.push(`  - ${tool}: ${list.map(m => Math.round(m.value)).join(', ')}`);
+        lines.push(`  - ${tool}: ${list.map(m => Math.round(m.value as number)).join(', ')}`);
       } else if (tool === 'flicker') {
-        lines.push(`  - flicker: scores ${list.map(m => Math.round(m.value)).join(', ')} (0=pristine, 3=severe)`);
+        lines.push(`  - flicker: scores ${list.map(m => Math.round(m.value as number)).join(', ')} (0=pristine, 3=severe)`);
       } else if (tool === 'darkness') {
-        const m = list[0];
-        lines.push(`  - sleep darkness: ${m.extra?.label || ''} (${m.value} lux mean)`);
+        const m = list[0]!;
+        lines.push(`  - sleep darkness: ${(m.extra as { label?: unknown } | null)?.label || ''} (${m.value} lux mean)`);
       } else if (tool === 'spectrum') {
-        const m = list[0];
-        lines.push(`  - spectrum: ${m.value || m.extra?.label}`);
+        const m = list[0]!;
+        lines.push(`  - spectrum: ${m.value || (m.extra as { label?: unknown } | null)?.label}`);
       }
     }
   }
 
-  const sun7 = lightTodayDeps.rollingChannelTotals(7) || {};
-  const dev7 = lightTodayDeps.rollingDeviceTotals(7) || {};
-  const vit7 = lightTodayDeps.rollingVitaminDIU(7);
+  const sun7 = (lightTodayDeps.rollingChannelTotals as (days: number) => Record<string, unknown> | null)(7) || {};
+  const dev7 = (lightTodayDeps.rollingDeviceTotals as (days: number) => Record<string, unknown> | null)(7) || {};
+  const vit7 = (lightTodayDeps.rollingVitaminDIU as (days: number) => unknown)(7);
   lines.push('');
   lines.push('### Last 7 days context');
-  lines.push(`Modeled sunlight vitamin-D comparison: ~${Math.round(vit7)} IU-equivalent (wide uncertainty; not measured synthesis or intake)`);
+  lines.push(`Modeled sunlight vitamin-D comparison: ~${Math.round(vit7 as number)} IU-equivalent (wide uncertainty; not measured synthesis or intake)`);
   // Channel context reports source presence only. It does not merge targeted
   // devices with sunlight or turn an internal normalization into a grade.
   const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
   for (const k of channelOrder) {
-    const sun = /** @type {number} */ (sun7[k] || 0) > 0 ? 'sunlight logged' : 'no sunlight log';
-    const device = (dev7[k] || 0) > 0 ? 'device logged separately' : 'no device log';
-    if (/** @type {number} */ (sun7[k] || 0) <= 0 && (dev7[k] || 0) <= 0) continue;
-    lines.push(`  - ${(CHANNEL_DISPLAY[k]?.label || k)}: ${sun}; ${device}`);
+    const sun = ((sun7[k] || 0) as number) > 0 ? 'sunlight logged' : 'no sunlight log';
+    const device = ((dev7[k] || 0) as number) > 0 ? 'device logged separately' : 'no device log';
+    if (((sun7[k] || 0) as number) <= 0 && ((dev7[k] || 0) as number) <= 0) continue;
+    lines.push(`  - ${((CHANNEL_DISPLAY as Record<string, { label?: unknown }>)[k]?.label || k)}: ${sun}; ${device}`);
   }
 
   lines.push('');
@@ -239,10 +250,10 @@ export function buildDayContext(target) {
 
 // Source-aware framing invalidates older verdicts that graded channel tiers.
 const _dayFingerprintSalt = 'v3-source-signals';
-export function getDayFingerprint(target) {
+export function getDayFingerprint(target: Partial<DayTarget> | null | undefined) {
   const targetDate = target?.date || new Date();
   const { sun, dev, measurements } = _collectWindowData(targetDate);
-  const parts = [_dayFingerprintSalt, _localDateString(targetDate), sun.length, dev.length, measurements.length];
+  const parts: unknown[] = [_dayFingerprintSalt, _localDateString(targetDate), sun.length, dev.length, measurements.length];
   for (const s of sun) parts.push(s.id, s.endedAt || 0, Math.round((s.safety?.medFraction || 0) * 100));
   for (const s of dev) parts.push(s.id, s.endedAt || 0);
   for (const m of measurements) parts.push(m.id);
@@ -275,15 +286,15 @@ const SYSTEM_PROMPT = [
   'No "you should" — be observational. No emoji.',
 ].join('\n');
 
-const engine = createAIVerdict({
+const engine = createAIVerdict<DayTarget>({
   // Synthetic-target shape: target = { key, date, isLightTodayTarget: true }
   getTarget: (key) => {
     const [y, m, d] = String(key).split('-').map(Number);
     if (!y || !m || !d) return null;
-    return _wrapDate(new Date(y, m - 1, d));
+    return _wrapDate(new Date(y as number, (m as number) - 1, d as number));
   },
   getId: (t) => t?.key,
-  getAIAnalysis: (t) => _getDailyVerdicts()[t.key] || null,
+  getAIAnalysis: (t) => (_getDailyVerdicts()[t.key] || null) as AIVerdictAnalysis | null,
   setAIAnalysis: (t, v) => {
     const verdicts = _getDailyVerdicts();
     if (v == null) delete verdicts[t.key];
@@ -303,8 +314,8 @@ const engine = createAIVerdict({
   getAllTargets: _allDateTargets,
 });
 
-export const analyzeDayAI = (date, opts) => engine.analyze(_wrapDate(date || new Date()), opts);
-export async function refreshDayAIAnalysis(dateKey) {
+export const analyzeDayAI = (date?: Date | null, opts?: AnalyzeOptions) => engine.analyze(_wrapDate(date || new Date()), opts) as Promise<unknown>;
+export async function refreshDayAIAnalysis(dateKey?: string | null) {
   if (!dateKey) dateKey = _localDateString(new Date());
   return engine.refresh(dateKey);
 }
@@ -318,7 +329,7 @@ registerAIActionHandler('refresh-day', refreshDayAIAnalysis);
 // retry resets the cached state to ok / new fingerprint, the auto path
 // stays disabled for the rest of this tab session — manual ↻ stays the
 // way to re-fire.
-const _autoFiredKeys = new Set();
+const _autoFiredKeys = new Set<string>();
 
 function renderLightTodayQuestion() {
   return `<section class="light-ai-question">
@@ -331,7 +342,7 @@ function renderLightTodayQuestion() {
   </section>`;
 }
 
-function renderLightAIAnswer(dot, body, action = '') {
+function renderLightAIAnswer(dot: unknown, body: string, action = '') {
   return `<section class="light-ai-answer light-ai-answer-${escapeHTML(dot || 'gray')}">
     <div class="light-ai-answer-head">
       <div><div class="light-ai-kicker">AI answer</div><p>Auto-generated once per day when light data exists. Cached in this profile.</p></div>
@@ -345,7 +356,7 @@ export function renderLightTodayHero() {
   const today = new Date();
   const target = _wrapDate(today);
   const status = engine.getStatus(target);
-  const cached = _getDailyVerdicts()[target.key];
+  const cached = _getDailyVerdicts()[target.key] as VerdictRead;
   // No provider: still render a cached `ok` verdict (pre-populated demo
   // or cross-device-synced from a device that has a key).
   if (!hasAssistantFeatureProvider() && !(cached?.status === 'ok' && cached?.dot)) return '';
@@ -366,9 +377,9 @@ export function renderLightTodayHero() {
   const _stale = !!(cached?.fingerprint && cached.fingerprint !== _currentFp);
   if ((status === 'idle' || _stale) && !_autoFiredKeys.has(target.key)) {
     const hasLightActivity = (() => {
-      const sun = (state.importedData?.sunSessions || []).some(s => s.endedAt);
-      const dev = (state.importedData?.deviceSessions || []).some(s => s.endedAt);
-      const meas = (state.importedData?.lightMeasurements || []).length > 0;
+      const sun = ((state.importedData?.sunSessions || []) as SunSessionRecord[]).some(s => s.endedAt);
+      const dev = ((state.importedData?.deviceSessions || []) as DeviceSessionRecord[]).some(s => s.endedAt);
+      const meas = ((state.importedData?.lightMeasurements || []) as StoredLightMeasurement[]).length > 0;
       return sun || dev || meas;
     })();
     if (hasLightActivity) {
@@ -457,7 +468,7 @@ export function renderLightTodayDashboardChip() {
   const today = new Date();
   const target = _wrapDate(today);
   const status = engine.getStatus(target);
-  const cached = _getDailyVerdicts()[target.key];
+  const cached = _getDailyVerdicts()[target.key] as VerdictRead;
   if (!hasAssistantFeatureProvider() && !(cached?.status === 'ok' && cached?.dot)) return '';
   // Stale-verdict auto-fire — same logic as renderLightTodayHero. The
   // dashboard is what the user sees first, so triggering re-analysis
@@ -468,9 +479,9 @@ export function renderLightTodayDashboardChip() {
   const _stale = !!(cached?.fingerprint && cached.fingerprint !== _currentFp);
   if ((status === 'idle' || _stale) && !_autoFiredKeys.has(target.key)) {
     const hasLightActivity = (() => {
-      const sun = (state.importedData?.sunSessions || []).some(s => s.endedAt);
-      const dev = (state.importedData?.deviceSessions || []).some(s => s.endedAt);
-      const meas = (state.importedData?.lightMeasurements || []).length > 0;
+      const sun = ((state.importedData?.sunSessions || []) as SunSessionRecord[]).some(s => s.endedAt);
+      const dev = ((state.importedData?.deviceSessions || []) as DeviceSessionRecord[]).some(s => s.endedAt);
+      const meas = ((state.importedData?.lightMeasurements || []) as StoredLightMeasurement[]).length > 0;
       return sun || dev || meas;
     })();
     if (hasLightActivity) {

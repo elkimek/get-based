@@ -25,7 +25,7 @@ export interface TherapyExposure {
   daysSinceChange: number | null; key: string; status: string; usage: number | null; ingredient?: string;
 }
 export interface CorrelationMarker extends PlacementViewMarker {
-  name?: string; unit?: string; singlePoint?: unknown; values: unknown[];
+  name?: string | undefined; unit?: string | undefined; singlePoint?: unknown; values: unknown[];
 }
 export interface CorrelationEntry {
   date?: string; id?: unknown; markers?: Record<string, unknown> | null;

@@ -1,4 +1,3 @@
-// @ts-check
 // import-drop-zone.js — shared import drop-zone event binding
 
 import { state } from './state.js';
@@ -74,7 +73,7 @@ export function setupDropZone() {
       for (const f of textFiles) { if (!ownsProfile()) return; await importMod.handleTextFile(f); }
       for (const f of imageFiles) { if (!ownsProfile()) return; await importMod.handleImageFile(f); }
       if (!ownsProfile()) return;
-      if (pdfFiles.length === 1) await importMod.handlePDFFile(pdfFiles[0]);
+      if (pdfFiles.length === 1) await importMod.handlePDFFile(pdfFiles[0]!);
       else if (pdfFiles.length > 1) await importMod.handleBatchPDFs(pdfFiles);
     } finally { importDispatch.busy = false; }
   });

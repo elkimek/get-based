@@ -1,4 +1,3 @@
-// @ts-check
 // dashboard-page-view.js — dashboard route shell and empty-state orchestration
 
 import { state } from './state.js';
@@ -25,21 +24,23 @@ import {
 } from './recommendations-runtime.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 
+import type {DashboardPageData, DashboardPageContext, DashboardPageFactoryOperations, DashboardPageRuntimeInput, DashboardPageRuntimeSnapshot, DashboardPageDelegateRoot} from '../types/dashboard-page-view.js';
+
 let _dashboardWelcomeActionsInstalled = false;
 
-const dashboardPageRuntimeDeps = {
+const dashboardPageRuntimeDeps: DashboardPageRuntimeSnapshot = {
   closeChatPanel: () => {},
   loadDemoData,
-  openChatPanel: /** @type {null | (() => unknown)} */ (null),
+  openChatPanel: null,
 };
 
-export function configureDashboardPageRuntimeDeps(deps = {}) {
+export function configureDashboardPageRuntimeDeps(deps: unknown = {}) {
   const previous = { ...dashboardPageRuntimeDeps };
-  if (typeof deps.closeChatPanel === 'function') dashboardPageRuntimeDeps.closeChatPanel = deps.closeChatPanel;
-  if (typeof deps.loadDemoData === 'function') dashboardPageRuntimeDeps.loadDemoData = deps.loadDemoData;
+  if (typeof (deps as DashboardPageRuntimeInput).closeChatPanel === 'function') dashboardPageRuntimeDeps.closeChatPanel = (deps as DashboardPageRuntimeInput).closeChatPanel;
+  if (typeof (deps as DashboardPageRuntimeInput).loadDemoData === 'function') dashboardPageRuntimeDeps.loadDemoData = (deps as DashboardPageRuntimeInput).loadDemoData;
   if (Object.prototype.hasOwnProperty.call(deps, 'openChatPanel')) {
-    dashboardPageRuntimeDeps.openChatPanel = typeof deps.openChatPanel === 'function'
-      ? deps.openChatPanel
+    dashboardPageRuntimeDeps.openChatPanel = typeof (deps as DashboardPageRuntimeInput).openChatPanel === 'function'
+      ? (deps as DashboardPageRuntimeInput).openChatPanel
       : null;
   }
   return previous;
@@ -49,45 +50,45 @@ const DASHBOARD_WELCOME_ACTION_ATTR = 'data-dashboard-welcome-action';
 const DASHBOARD_WELCOME_ACTION_SELECTOR = `[${DASHBOARD_WELCOME_ACTION_ATTR}]`;
 
 function dashboardPageRuntime() {
-  return /** @type {any} */ (globalThis);
+  return (globalThis as unknown as Record<string, unknown>);
 }
 
-function getDashboardPageRuntimeValue(name) {
+function getDashboardPageRuntimeValue(name: string) {
   return dashboardPageRuntime()[name];
 }
 
-function dashboardWelcomeActionAttrs(action, attrs = {}) {
+function dashboardWelcomeActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   return camelCaseActionAttributes(DASHBOARD_WELCOME_ACTION_ATTR, "dashboard-welcome", action, attrs);
 }
 
-function closestDashboardWelcomeAction(target) {
-  return /** @type {HTMLElement | null} */ (
-    target && typeof target.closest === 'function'
-      ? target.closest(DASHBOARD_WELCOME_ACTION_SELECTOR)
+function closestDashboardWelcomeAction(target: unknown) {
+  return (
+    target && typeof (target as {closest?: unknown}).closest === 'function'
+      ? ((target as {closest(selector: string): HTMLElement | null}).closest(DASHBOARD_WELCOME_ACTION_SELECTOR))
       : null
   );
 }
 
-function handleDashboardWelcomeActionClick(event) {
+function handleDashboardWelcomeActionClick(event: Event) {
   const actionEl = closestDashboardWelcomeAction(event.target);
   if (!actionEl) return;
   const action = actionEl.getAttribute(DASHBOARD_WELCOME_ACTION_ATTR);
   if (action === 'open-chat') {
-    dashboardPageRuntimeDeps.openChatPanel?.();
+    (dashboardPageRuntimeDeps.openChatPanel as (() => unknown) | null | undefined)?.();
   } else if (action === 'open-ai-settings') {
-    dashboardPageRuntimeDeps.closeChatPanel();
+    (dashboardPageRuntimeDeps.closeChatPanel as () => unknown)();
     getSettingsModuleFunction('openSettingsModal')?.('ai');
   } else if (action === 'direct-import') {
     document.getElementById('pdf-input')?.click();
   } else if (action === 'load-demo') {
-    void dashboardPageRuntimeDeps.loadDemoData(actionEl.dataset.dashboardWelcomeDemo || 'female');
+    void (dashboardPageRuntimeDeps.loadDemoData as (...args: Parameters<typeof loadDemoData>) => unknown)(actionEl.dataset.dashboardWelcomeDemo || 'female');
   } else {
     return;
   }
   event.preventDefault();
 }
 
-export function installDashboardWelcomeActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+export function installDashboardWelcomeActionDelegates(root: DashboardPageDelegateRoot | null = typeof document !== 'undefined' ? document : null) {
   if (!root || _dashboardWelcomeActionsInstalled) return;
   _dashboardWelcomeActionsInstalled = true;
   root.addEventListener('click', handleDashboardWelcomeActionClick);
@@ -101,24 +102,24 @@ function getDashboardProfileName() {
   return name === 'there' ? 'Dashboard' : name;
 }
 
-function getDashboardPanelCount(data, markerHasData) {
+function getDashboardPanelCount(data: DashboardPageData, markerHasData: (marker: unknown, index: number, markers: unknown[]) => unknown) {
   return Object.values(data.categories || {}).filter(cat => {
     if (cat.singlePoint && cat.singleDate) return true;
     return Object.values(cat.markers || {}).some(markerHasData);
   }).length;
 }
 
-function getDashboardMonthSpan(data) {
+function getDashboardMonthSpan(data: DashboardPageData) {
   const dates = (data.dates || []).filter(Boolean);
   if (dates.length < 2) return '';
-  const first = new Date(dates[0] + 'T00:00:00');
-  const last = new Date(dates[dates.length - 1] + 'T00:00:00');
+  const first = new Date((dates[0] as string) + 'T00:00:00');
+  const last = new Date((dates[dates.length - 1] as string) + 'T00:00:00');
   if (Number.isNaN(first.getTime()) || Number.isNaN(last.getTime())) return '';
   const months = Math.max(1, Math.round((last.getTime() - first.getTime()) / (1000 * 60 * 60 * 24 * 30.4375)));
   return `${months} month${months === 1 ? '' : 's'}`;
 }
 
-export function createDashboardPageView(deps) {
+export function createDashboardPageView(deps: unknown) {
   const {
     setupDropZone,
     markerHasData,
@@ -137,15 +138,15 @@ export function createDashboardPageView(deps) {
     resumeActiveTickerIfNeeded = () => {},
     startEmptyTour = defaultStartEmptyTour,
     startTour = defaultStartTour,
-  } = deps;
+  } = deps as DashboardPageFactoryOperations;
 
-  function renderDashboardGreeting(ctx, title, visibleCount) {
+  function renderDashboardGreeting(ctx: DashboardPageContext, title: unknown, visibleCount: number) {
     const counts = getMobileDashboardCounts(ctx.data);
     const panelCount = getDashboardPanelCount(ctx.data, markerHasData);
     const span = getDashboardMonthSpan(ctx.data);
     const parts = [
       `${counts.inRange} of ${counts.markerCount || 0} markers in range`,
-      counts.latestDate ? `last draw ${(/** @type {(value: unknown, format: Parameters<typeof formatDate>[1]) => ReturnType<typeof formatDate>} */ (formatDate))(counts.latestDate, 'short')}` : '',
+      counts.latestDate ? `last draw ${(formatDate as (value: unknown, format: Parameters<typeof formatDate>[1]) => ReturnType<typeof formatDate>)(counts.latestDate, 'short')}` : '',
       `${panelCount} panel${panelCount === 1 ? '' : 's'}${span ? ` across ${span}` : ''}`,
       `${visibleCount} widget${visibleCount === 1 ? '' : 's'} active`,
     ].filter(Boolean);
@@ -158,9 +159,9 @@ export function createDashboardPageView(deps) {
     </div>`;
   }
 
-  function renderDashboardWidgets(ctx, title) {
+  function renderDashboardWidgets(ctx: DashboardPageContext, title: unknown) {
     const prefs = getDashboardWidgetPrefs();
-    const visibleEntries = getVisibleDashboardWidgetEntries(ctx, prefs);
+    const visibleEntries = getVisibleDashboardWidgetEntries(ctx, prefs) as unknown[];
     let html = renderDashboardGreeting(ctx, title, visibleEntries.length);
     if (ctx.data.dates.length > 0) html += renderDateRangeFilter({ showScope: true });
     html += `<div class="drop-zone drop-zone-hidden" id="drop-zone"></div>`;
@@ -183,7 +184,7 @@ export function createDashboardPageView(deps) {
     return html;
   }
 
-  function showDashboard(data) {
+  function showDashboard(data?: unknown) {
     const main = document.getElementById("main-content");
     if (!main) return;
     // Resume the live-session ticker if a session was started before this
@@ -196,8 +197,8 @@ export function createDashboardPageView(deps) {
     const wasMobileDashboardActive = document.body.classList.contains('mobile-dashboard-active');
     document.body.classList.remove('mobile-dashboard-active');
     const wearableMetrics = state.importedData?.wearableSummary?.metrics || {};
-    const hasWearableData = Object.values(wearableMetrics).some(metric => metric?.latest != null);
-    const hasData = data.dates.length > 0 || hasWearableData || Number(state.nutritionSummary?.totalMeals || 0) > 0 || Object.values(data.categories).some(c => c.singlePoint && c.singleDate);
+    const hasWearableData = Object.values(wearableMetrics).some(metric => (metric as {latest?: unknown} | null | undefined)?.latest != null);
+    const hasData = (data as DashboardPageData).dates.length > 0 || hasWearableData || Number(state.nutritionSummary?.totalMeals || 0) > 0 || Object.values((data as DashboardPageData).categories).some(c => c.singlePoint && c.singleDate);
 
     // Clear any onboarding focus mode once the user has data — the
     // welcome-hero / context-details targets no longer exist in the
@@ -287,13 +288,13 @@ export function createDashboardPageView(deps) {
       if (shouldAutoStartEmptyTour) setTimeout(() => startEmptyTour(true), 100);
       // Returning desktop visitors get the guided chat setup beside the
       // welcome hero. Mobile keeps the welcome/import controls unobscured.
-      const isDesktopChatOnboardingViewport = getDashboardPageRuntimeValue('innerWidth') > 768;
+      const isDesktopChatOnboardingViewport = (getDashboardPageRuntimeValue('innerWidth') as number) > 768;
       if (!shouldAutoStartEmptyTour && state.chatHistory.length === 0) {
         if (isDesktopChatOnboardingViewport && !document.getElementById('chat-panel')?.classList.contains('open')) {
           document.body.classList.add('chat-autostart-reserved');
         }
         setTimeout(() => {
-          if (!isDesktopChatOnboardingViewport || getDashboardPageRuntimeValue('innerWidth') <= 768) return;
+          if (!isDesktopChatOnboardingViewport || (getDashboardPageRuntimeValue('innerWidth') as number) <= 768) return;
           // Rendering real data or an explicit chat close removes this
           // reservation. Treat that as cancellation so a stale onboarding
           // timer cannot reopen chat after the user has dismissed it.
@@ -303,7 +304,7 @@ export function createDashboardPageView(deps) {
             document.body.classList.remove('chat-autostart-reserved');
             return;
           }
-          if (dashboardPageRuntimeDeps.openChatPanel) dashboardPageRuntimeDeps.openChatPanel();
+          if (dashboardPageRuntimeDeps.openChatPanel) (dashboardPageRuntimeDeps.openChatPanel as () => unknown)();
           else document.body.classList.remove('chat-autostart-reserved');
         }, 800);
       }
@@ -311,12 +312,12 @@ export function createDashboardPageView(deps) {
     }
 
     if (isMobileDashboardViewport()) {
-      renderMobileDashboard(data, { resetScroll: !wasMobileDashboardActive });
+      (renderMobileDashboard as (data: unknown, options: Parameters<typeof renderMobileDashboard>[1]) => ReturnType<typeof renderMobileDashboard>)(data, { resetScroll: !wasMobileDashboardActive });
       return;
     }
 
     // ── Has data: full dashboard, rendered through modular widgets ──
-    const dashboardCtx = buildDashboardWidgetContext(data);
+    const dashboardCtx = buildDashboardWidgetContext(data) as DashboardPageContext;
     const dashboardTitle = 'Dashboard Overview';
     const html = renderDashboardWidgets(dashboardCtx, dashboardTitle);
 
@@ -334,9 +335,9 @@ export function createDashboardPageView(deps) {
     loadContextCardTips();
     loadCommitHash();
     // Preload catalog so rec sections and sorting use it immediately
-    const catalogPromise = getRecommendationModuleFunction('loadCatalog')?.();
-    if (catalogPromise && typeof catalogPromise.then === 'function') {
-      catalogPromise.then(setRecommendationsCatalogCache);
+    const catalogPromise = (getRecommendationModuleFunction('loadCatalog') as (() => unknown) | null | undefined)?.();
+    if (catalogPromise && typeof (catalogPromise as {then?: unknown}).then === 'function') {
+      (catalogPromise as {then(callback: typeof setRecommendationsCatalogCache): unknown}).then(setRecommendationsCatalogCache);
     }
 
     // Auto-trigger guided tour on first populated dashboard visit as a fallback

@@ -1,4 +1,3 @@
-// @ts-check
 // light-devices.js — Light therapy device library + device session logging.
 //
 // Devices users own (Joovv, Sperti, Verilux SAD, dawn simulators, etc.) feed
@@ -17,6 +16,18 @@
 // Schema (already migrated in profile.js):
 //   importedData.lightDevices[]   — user's owned devices
 //   importedData.deviceSessions[] — session log
+
+import type { LightDeviceRecord, DeviceSessionRecord } from './light-devices-store.js';
+import type { LightDeviceSetupDeps } from './light-device-setup-modal.js';
+
+// Private views describe original unchecked operations, including nullable
+// getter rereads after numeric guards; fetched and configured outputs stay opaque.
+type DetailSessionRead = DeviceSessionRecord & {
+  doses: NonNullable<DeviceSessionRecord['doses']>;
+  metrics: { photopicLux: number; melanopicEdiLux: number; melanopicStatus?: unknown };
+  safety: NonNullable<DeviceSessionRecord['safety']> & { conservativeBaseMedFraction: number };
+};
+type ChannelReader = Record<string, { label?: unknown; icon?: unknown }>;
 
 import { bindDetachedModalSyncRefresh, escapeHTML, escapeAttr, showNotification, showConfirmDialog } from './utils.js';
 import { state } from './state.js';
@@ -68,13 +79,13 @@ import {
   safeHttpUrl as _safeHttpUrl,
 } from './light-device-view-formatters.js';
 
-/** @type {{ renderDeviceSessionAIDetail: (sess: any) => string }} */
-const lightDevicesDeps = {
+
+const lightDevicesDeps: { renderDeviceSessionAIDetail: unknown } = {
   renderDeviceSessionAIDetail: () => '',
 };
-const _renderDeviceChannelChips = channelKeys => renderDeviceChannelChips(channelKeys, CHANNEL_DISPLAY);
+const _renderDeviceChannelChips = (channelKeys: unknown) => renderDeviceChannelChips(channelKeys, CHANNEL_DISPLAY);
 
-export function configureLightDevices(deps = {}) {
+export function configureLightDevices(deps: unknown = {}) {
   Object.assign(lightDevicesDeps, deps);
 }
 
@@ -98,19 +109,19 @@ export {
 };
 
 // Preset library is loaded lazily — keeps the JSON out of the boot path.
-let _PRESETS = null;
-let _PRESET_TYPES = null;
+let _PRESETS: unknown = null;
+let _PRESET_TYPES: unknown = null;
 
 // Standard modal-mount pattern shared by every modal opener in this file:
 // wire backdrop-click close, append, then trap focus.
-function _wireModal(overlay, closeFn) {
+function _wireModal(overlay: HTMLElement, closeFn: () => void) {
   if (typeof window === 'undefined') { document.body.appendChild(overlay); return; }
   openAppendedModalOverlay(overlay, closeFn);
 }
 
 configureLightDeviceModalLoader({
   setup: {
-    loadPresets: loadLightDevicePresets,
+    loadPresets: loadLightDevicePresets as LightDeviceSetupDeps['loadPresets'],
     addDeviceFromPreset,
     addCustomDevice,
     wireModal: _wireModal,
@@ -136,7 +147,7 @@ export async function loadLightDevicePresets() {
   try {
     const res = await fetch('data/light-device-presets.json');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
+    const json = await res.json() as { presets?: unknown; _types?: unknown };
     _PRESETS = json.presets || [];
     _PRESET_TYPES = json._types || {};
     return { presets: _PRESETS, types: _PRESET_TYPES };
@@ -147,10 +158,10 @@ export async function loadLightDevicePresets() {
 
 // ─── Public API ────────────────────────────────────────────────────────
 
-export async function addDeviceFromPreset(presetId, overrides = {}) {
+export async function addDeviceFromPreset(presetId: unknown, overrides: unknown = {}): Promise<unknown> {
   const { presets } = await loadLightDevicePresets();
-  const preset = presets.find(p => p.id === presetId);
-  return addDeviceFromPresetRecord(preset, overrides);
+  const preset = (presets as LightDeviceRecord[]).find(p => p.id === presetId);
+  return addDeviceFromPresetRecord(preset, overrides as Parameters<typeof addDeviceFromPresetRecord>[1]);
 }
 
 // Backfill channelGroups / modes / coupling from the preset library onto
@@ -160,7 +171,7 @@ export async function addDeviceFromPreset(presetId, overrides = {}) {
 // without requiring re-add.
 export async function hydrateDevicesFromPresets() {
   const { presets } = await loadLightDevicePresets();
-  return hydrateDevicesFromPresetRecords(presets);
+  return hydrateDevicesFromPresetRecords(presets as Parameters<typeof hydrateDevicesFromPresetRecords>[0]);
 }
 
 // ─── Live device-session timer ─────────────────────────────────────────
@@ -177,7 +188,7 @@ export async function hydrateDevicesFromPresets() {
 // (which recomputes doses through effectiveDeviceForMode), re-renders.
 // Devices without `modes` (or with only one valid mode after coupling
 // filtering) skip the dialog and surface a notice instead.
-export async function editDeviceSessionMode(id) {
+export async function editDeviceSessionMode(id: string) {
   const sess = getDeviceSessions().find(s => s.id === id);
   if (!sess) {
     showNotification('Session not found', 'error');
@@ -236,7 +247,7 @@ export async function editDeviceSessionMode(id) {
 // User-facing edit-duration entry point — same shape as
 // editSunSessionDuration. Prompts for new minutes, validates, calls
 // updateDeviceSession (which recomputes doses + endedAt), re-renders.
-export async function editDeviceSessionDuration(id) {
+export async function editDeviceSessionDuration(id: string) {
   const sess = getDeviceSessions().find(s => s.id === id);
   if (!sess) {
     showNotification('Session not found', 'error');
@@ -245,7 +256,7 @@ export async function editDeviceSessionDuration(id) {
   const current = Math.max(0, Math.round((sess.durationMin || 0) * 10) / 10);
   const raw = await promptLightDeviceSessionDuration(current);
   if (raw === null || raw === undefined) return;
-  const parsed = parseFloat(raw);
+  const parsed = parseFloat(raw as string);
   if (!Number.isFinite(parsed) || parsed < 0 || parsed > 600) {
     showNotification('Enter a duration between 0 and 600 minutes.', 'error');
     return;
@@ -276,23 +287,18 @@ const _DEVICE_AREA_LABELS = {
   'whole-body': 'Whole body',
 };
 
-/**
- * @param {ParentNode} root
- * @param {string} selector
- * @returns {HTMLSelectElement|null}
- */
-function _select(root, selector) {
-  return /** @type {HTMLSelectElement|null} */ (root.querySelector(selector));
+function _select(root: ParentNode, selector: string) {
+  return (root.querySelector(selector) as HTMLSelectElement | null);
 }
 
-export function openDeviceSessionDetail(id) {
+export function openDeviceSessionDetail(id?: string) {
   const sessions = getDeviceSessions();
-  const sess = sessions.find(s => s.id === id);
+  const sess = sessions.find(s => s.id === id) as DetailSessionRead | undefined;
   if (!sess) return;
   const liveDevice = getDevices().find(d => d.id === sess.deviceId) || null;
   const device = liveDevice || sess.deviceSnapshot || null;
-  const { formatChannelUnit } = getLightDeviceChannelHelpers();
-  const channelDisplay = getLightDeviceChannelDisplay(CHANNEL_DISPLAY);
+  const { formatChannelUnit } = getLightDeviceChannelHelpers() as unknown as { formatChannelUnit: (...args: Parameters<typeof import('./sun.js').formatChannelUnit>) => unknown };
+  const channelDisplay = getLightDeviceChannelDisplay(CHANNEL_DISPLAY) as ChannelReader;
   const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye', 'pbm_red', 'pbm_nir'];
 
   const stamp = _localDeviceSessionStamp(sess.startedAt);
@@ -317,10 +323,10 @@ export function openDeviceSessionDetail(id) {
     const labels = sess.bodyAreas.map(k => labelByKey[k] || k).join(', ');
     areaLabel = `${labels} (~${Math.round(totalFrac * 100)}% of skin)`;
   } else {
-    areaLabel = _DEVICE_AREA_LABELS[sess.bodyArea] || sess.bodyArea || '—';
+    areaLabel = (_DEVICE_AREA_LABELS as Record<string, unknown>)[sess.bodyArea as string] || sess.bodyArea || '—';
   }
   const emitsUV = sess.safety?.hasUV ?? deviceEmitsUV(device, sess.mode);
-  const isAmbientEyeDevice = ['sad', 'dawn-sim', 'full-spectrum'].includes(/** @type {string} */ (device?.type)) && !emitsUV;
+  const isAmbientEyeDevice = ['sad', 'dawn-sim', 'full-spectrum'].includes((device?.type as string)) && !emitsUV;
   const eyesLabel = emitsUV
     ? (sess.eyesProtected ? 'UV-rated eye protection logged' : '⚠ UV emitted without rated eye protection')
     : isAmbientEyeDevice
@@ -351,7 +357,7 @@ export function openDeviceSessionDetail(id) {
   // Mode label resolution — surface the human-readable label whenever
   // the device declares modes. Legacy sessions (no `mode` field) and
   // devices without a `modes` array both fall through to null.
-  let modeLabel = null;
+  let modeLabel: unknown = null;
   let canEditMode = false;
   if (device && Array.isArray(device.modes) && device.modes.length > 0) {
     const resolved = device.modes.find(m => m.id === sess.mode)
@@ -365,7 +371,7 @@ export function openDeviceSessionDetail(id) {
   // once outside the channel loop — bodyAreas is the schema, BODY_REGIONS
   // carries the per-region area weights. Falls back to null (legacy
   // daily-cap behavior) when bodyAreas is unset.
-  let _sessBodyFrac = null;
+  let _sessBodyFrac: number | null = null;
   if (Array.isArray(sess.bodyAreas) && sess.bodyAreas.length > 0) {
     const _fracByKey = Object.fromEntries((BODY_REGIONS || []).map(r => [r.key, r.fraction]));
     _sessBodyFrac = sess.bodyAreas.reduce((s, k) => s + (_fracByKey[k] || 0), 0) || null;
@@ -390,7 +396,7 @@ export function openDeviceSessionDetail(id) {
       </div>`;
     }).join('') : '';
   const aiDetailHtml = typeof lightDevicesDeps.renderDeviceSessionAIDetail === 'function'
-    ? lightDevicesDeps.renderDeviceSessionAIDetail(sess)
+    ? (lightDevicesDeps.renderDeviceSessionAIDetail as (session: DeviceSessionRecord) => unknown)(sess)
     : '';
 
   const overlay = document.createElement('div');
@@ -500,7 +506,7 @@ export function openDeviceSessionDetail(id) {
     closeDialog();
     openLightDeviceChannel(channel);
   });
-  bindDetachedModalSyncRefresh({
+  (bindDetachedModalSyncRefresh as (options: Omit<NonNullable<Parameters<typeof bindDetachedModalSyncRefresh>[0]>, 'id'> & { id?: string | undefined }) => ReturnType<typeof bindDetachedModalSyncRefresh>)({
     overlay,
     id,
     opener: openDeviceSessionDetail,
@@ -516,7 +522,7 @@ export function openDeviceSessionDetail(id) {
 // below patches every second — same pattern sun.js uses, so the two
 // surfaces feel consistent.
 
-function _formatElapsedMs(ms) {
+function _formatElapsedMs(ms: number) {
   const total = Math.max(0, Math.floor(ms / 1000));
   const m = Math.floor(total / 60);
   const s = total % 60;
@@ -537,11 +543,11 @@ export function renderActiveDeviceSessionCard() {
     const more = sess.bodyAreas.length > 3 ? ` +${sess.bodyAreas.length - 3} more` : '';
     areaLine = `${labels}${more} · ~${Math.round(totalFrac * 100)}% skin`;
   } else {
-    areaLine = _DEVICE_AREA_LABELS[sess.bodyArea] || sess.bodyArea || '';
+    areaLine = (_DEVICE_AREA_LABELS as Record<string, unknown>)[sess.bodyArea as string] || sess.bodyArea || '';
   }
   const distLine = sess.distanceCm ? `${sess.distanceCm} cm` : '';
   const emitsUV = deviceEmitsUV(device, sess.mode);
-  const isAmbientEyeDevice = ['sad', 'dawn-sim', 'full-spectrum'].includes(/** @type {string} */ (device?.type)) && !emitsUV;
+  const isAmbientEyeDevice = ['sad', 'dawn-sim', 'full-spectrum'].includes((device?.type as string)) && !emitsUV;
   const eyesLine = emitsUV
     ? (sess.eyesProtected ? 'UV goggles confirmed · follow the device timer' : 'UV eye protection missing')
     : isAmbientEyeDevice
@@ -564,7 +570,7 @@ export function renderActiveDeviceSessionCard() {
   </section>`;
 }
 
-let _devActiveTicker = null;
+let _devActiveTicker: ReturnType<typeof setInterval> | null = null;
 function _tickActiveDeviceSession() {
   const sess = getActiveDeviceSession();
   if (!sess) {
@@ -595,21 +601,21 @@ export async function renderDevicesSection() {
   // so each card can render with the human-friendly type label, the
   // type icon, and the "Source on {Vendor}" affiliate link inline.
   // Both fall back gracefully on missing data.
-  let catalog = null;
+  let catalog: unknown = null;
   try {
     catalog = await loadLightDevicesCatalog();
   } catch { /* offline / 404 — page still renders without affiliate row */ }
-  let typesMeta = {};
+  let typesMeta: ChannelReader = {};
   try {
     const presetData = await loadLightDevicePresets();
-    typesMeta = presetData.types || {};
+    typesMeta = (presetData.types || {}) as ChannelReader;
   } catch { /* presets file unreachable; fallback uses raw type strings */ }
 
   // Build per-device usage stats from the session log: count + most
   // recent startedAt. Lets the card show "12 sessions · last 2 days
   // ago" instead of just "added this device, no idea if you ever used
   // it."
-  const statsByDevice = {};
+  const statsByDevice: Record<string, { count: number; lastAt: number }> = {};
   for (const s of allSessions) {
     if (!s.deviceId) continue;
     const acc = statsByDevice[s.deviceId] = statsByDevice[s.deviceId] || { count: 0, lastAt: 0 };
@@ -633,7 +639,7 @@ export async function renderDevicesSection() {
   for (const dev of devices) {
     const slug = dev.catalogSlug || dev.presetId || null;
     const affRow = slug ? renderLightDeviceAffiliateRowRuntime(catalog, slug) : '';
-    const typeMeta = typesMeta[dev.type] || {};
+    const typeMeta = typesMeta[dev.type as string] || {};
     const typeIcon = typeMeta.icon || '🔴';
     const typeLabel = typeMeta.label || dev.type || 'Device';
     const peaks = Array.isArray(dev.peakWavelengths) ? dev.peakWavelengths : [];
@@ -687,11 +693,11 @@ export async function renderDevicesSection() {
 export function quickLogDeviceSession() {
   const devices = getDevices();
   if (devices.length === 0) { openAddDeviceDialog(); return; }
-  if (devices.length === 1) { openDeviceSessionDialog(devices[0].id); return; }
+  if (devices.length === 1) { openDeviceSessionDialog(devices[0]!.id); return; }
   _openDevicePicker(devices);
 }
 
-function _openDevicePicker(devices) {
+function _openDevicePicker(devices: LightDeviceRecord[]) {
   // Most-recently-added first so the user's primary panel is at the top.
   const ordered = devices.slice().sort((a, b) => (b.addedAt || 0) - (a.addedAt || 0));
   const overlay = document.createElement('div');
@@ -730,7 +736,7 @@ function _openDevicePicker(devices) {
   }
 }
 
-export async function deleteDeviceSessionWithConfirm(id) {
+export async function deleteDeviceSessionWithConfirm(id: string) {
   if (!await showConfirmDialog("Delete this device session? This can't be undone.")) return;
   await deleteDeviceSession(id);
   refreshLightDevicesView();
@@ -738,7 +744,7 @@ export async function deleteDeviceSessionWithConfirm(id) {
 
 // ─── UI wrappers ───────────────────────────────────────────────────────
 
-export async function deleteLightDeviceAndRefresh(id) {
+export async function deleteLightDeviceAndRefresh(id: string) {
   const device = getDevices().find(candidate => candidate.id === id);
   if (!device) return;
   const active = getActiveDeviceSession();
@@ -760,7 +766,7 @@ export async function deleteLightDeviceAndRefresh(id) {
   refreshLightDevicesView();
 }
 
-export async function stopDeviceSessionAndNotify(id) {
+export async function stopDeviceSessionAndNotify(id: string) {
   const sess = await stopDeviceSession(id);
   if (sess) {
     const device = getDevices().find(d => d.id === sess.deviceId);

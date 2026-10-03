@@ -1,4 +1,3 @@
-// @ts-check
 // marker-detail-modal.js — lightweight public entry point for marker detail UI
 
 import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
@@ -14,9 +13,9 @@ import {
 import { rememberModalTrigger, restoreModalTrigger } from './modal-trigger-memory.js';
 import { safeMarkerId, showNotification } from './utils.js';
 
-/** @typedef {typeof import('./marker-detail-modal-impl.js')} MarkerDetailModule */
+type MarkerDetailModule = typeof import('./marker-detail-modal-impl.js');
 
-const markerDetailModuleLoader = createRetryingModuleLoader(
+const markerDetailModuleLoader = createRetryingModuleLoader<MarkerDetailModule>(
   retry => retry ? loadMarkerDetailRetryModule() : import('./marker-detail-modal-impl.js'),
   module => {
     module.configureMarkerDetailModal(markerDetailDeps);
@@ -24,8 +23,8 @@ const markerDetailModuleLoader = createRetryingModuleLoader(
   },
 );
 
-/** @type {Record<string, any>} */
-const markerDetailDeps = {};
+
+const markerDetailDeps: Record<string,unknown> = {};
 
 export { loadMarkerDetailStylesheet, rememberModalTrigger };
 
@@ -35,9 +34,7 @@ export function isMarkerDetailModuleLoaded() {
 
 /** @returns {Promise<MarkerDetailModule>} */
 function loadMarkerDetailRetryModule() {
-  // @ts-expect-error The browser accepts a fixed query-string module URL;
-  // TypeScript resolves declarations only for the query-free source path.
-  return import('./marker-detail-modal-impl.js?lazy-retry=1');
+  return import('./marker-detail-modal-impl.js?lazy-retry=1' as './marker-detail-modal-impl.js');
 }
 
 /** @returns {Promise<MarkerDetailModule>} */
@@ -50,15 +47,15 @@ export function loadMarkerDetailModule() {
  * into the eager graph. The latest callbacks are applied when loading wins a
  * race with one or more configure calls.
  *
- * @param {Record<string, any>} [deps]
+ * @param {unknown} [deps]
  */
-export function configureMarkerDetailModal(deps = {}) {
+export function configureMarkerDetailModal(deps: unknown = {}) {
   Object.assign(markerDetailDeps, deps);
   markerDetailModuleLoader.module?.configureMarkerDetailModal(deps);
 }
 
 /** @param {keyof MarkerDetailModule} name @param {unknown} err */
-function reportMarkerDetailActionError(name, err) {
+function reportMarkerDetailActionError(name: keyof MarkerDetailModule, err: unknown) {
   console.error(`[marker-detail] Could not run ${String(name)}:`, err);
   showNotification(
     'Could not open marker details. Reload the app to finish updating, then try again.',
@@ -73,10 +70,10 @@ function reportMarkerDetailActionError(name, err) {
  * before the calling event handler returns.
  *
  * @param {keyof MarkerDetailModule} name
- * @param {any[]} args
+ * @param {unknown[]} args
  */
-function runMarkerDetailAction(name, args) {
-  const run = (/** @type {MarkerDetailModule} */ module) => {
+function runMarkerDetailAction(name: keyof MarkerDetailModule, args: unknown[]): unknown {
+  const run = (module: MarkerDetailModule) => {
     const action = module[name];
     if (typeof action !== 'function') {
       throw new Error(`Marker detail action ${String(name)} is unavailable`);
@@ -86,11 +83,11 @@ function runMarkerDetailAction(name, args) {
   return invokeCachedModule(markerDetailModuleLoader, loadMarkerDetailModule, run, err => reportMarkerDetailActionError(name, err), 'propagate');
 }
 
-export function fetchCustomMarkerDescription(...args) {
+export function fetchCustomMarkerDescription(...args: unknown[]) {
   return runMarkerDetailAction('fetchCustomMarkerDescription', args);
 }
 
-export function showDetailModal(id, opts = {}) {
+export function showDetailModal(id: unknown, opts: unknown = {}) {
   if (!safeMarkerId(id)) return Promise.resolve(false);
   return runMarkerDetailAction('showDetailModal', [id, opts]);
 }
@@ -103,75 +100,75 @@ if (typeof document !== 'undefined') {
   installMarkerDetailActionDelegates({ showDetailModal });
 }
 
-export function editRefRange(...args) {
+export function editRefRange(...args: unknown[]) {
   return runMarkerDetailAction('editRefRange', args);
 }
 
-export function saveRefRange(...args) {
+export function saveRefRange(...args: unknown[]) {
   return runMarkerDetailAction('saveRefRange', args);
 }
 
-export function revertRefRange(...args) {
+export function revertRefRange(...args: unknown[]) {
   return runMarkerDetailAction('revertRefRange', args);
 }
 
-export function openManualEntryForm(...args) {
+export function openManualEntryForm(...args: unknown[]) {
   return runMarkerDetailAction('openManualEntryForm', args);
 }
 
-export function saveManualEntry(...args) {
+export function saveManualEntry(...args: unknown[]) {
   return runMarkerDetailAction('saveManualEntry', args);
 }
 
-export function saveAndAddAnotherManualEntry(...args) {
+export function saveAndAddAnotherManualEntry(...args: unknown[]) {
   return runMarkerDetailAction('saveAndAddAnotherManualEntry', args);
 }
 
-export function openCreateMarkerModal(...args) {
+export function openCreateMarkerModal(...args: unknown[]) {
   return runMarkerDetailAction('openCreateMarkerModal', args);
 }
 
-export function pickNewCatIcon(...args) {
+export function pickNewCatIcon(...args: unknown[]) {
   return runMarkerDetailAction('pickNewCatIcon', args);
 }
 
-export function saveCustomMarker(...args) {
+export function saveCustomMarker(...args: unknown[]) {
   return runMarkerDetailAction('saveCustomMarker', args);
 }
 
-export function deleteMarkerValue(...args) {
+export function deleteMarkerValue(...args: unknown[]) {
   return runMarkerDetailAction('deleteMarkerValue', args);
 }
 
-export function deleteCustomMarker(...args) {
+export function deleteCustomMarker(...args: unknown[]) {
   return runMarkerDetailAction('deleteCustomMarker', args);
 }
 
-export function editMarkerValue(...args) {
+export function editMarkerValue(...args: unknown[]) {
   return runMarkerDetailAction('editMarkerValue', args);
 }
 
-export function revertMarkerValue(...args) {
+export function revertMarkerValue(...args: unknown[]) {
   return runMarkerDetailAction('revertMarkerValue', args);
 }
 
-export function editValueNote(...args) {
+export function editValueNote(...args: unknown[]) {
   return runMarkerDetailAction('editValueNote', args);
 }
 
-export function deleteValueNote(...args) {
+export function deleteValueNote(...args: unknown[]) {
   return runMarkerDetailAction('deleteValueNote', args);
 }
 
-export function toggleMarkerNoteEditor(...args) {
+export function toggleMarkerNoteEditor(...args: unknown[]) {
   return runMarkerDetailAction('toggleMarkerNoteEditor', args);
 }
 
-export function saveMarkerNote(...args) {
+export function saveMarkerNote(...args: unknown[]) {
   return runMarkerDetailAction('saveMarkerNote', args);
 }
 
-export function deleteMarkerNote(...args) {
+export function deleteMarkerNote(...args: unknown[]) {
   return runMarkerDetailAction('deleteMarkerNote', args);
 }
 

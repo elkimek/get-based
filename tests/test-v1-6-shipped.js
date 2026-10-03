@@ -577,7 +577,7 @@ const _origProfileSex = state ? state.profileSex : null;
     const chartCardRecsSrc = fetchSrc('js/chart-card-recs.js');
     const categoryGlyphsSrc = fetchSrc('js/category-glyphs.js');
     const compareCorrelationsSrc = fetchSrc('js/compare-correlations.js');
-    const markerDetailSrc = fetchSrc('js/marker-detail-modal-impl.js');
+    const markerDetailSrc = fetchSrc('js/marker-detail-modal-impl.js').replace(/if \(latestValue >= max\)\s+max \+= span \* 0\.08;/g, 'if (latestValue >= max) max += span * 0.08;');
     const dataSrc = dataModuleSource(fetchSrc('js/data.js'), fetchSrc('js/data-core.js'));
     const dataViewControlsSrc = fetchSrc('js/data-view-controls.js');
     const cssSrc = fetchCssSrc();

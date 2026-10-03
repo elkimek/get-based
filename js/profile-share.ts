@@ -1,4 +1,4 @@
-// @ts-check
+import type { ShareLocation, RawExportOperations, ShareEnvelopeReader, ShareEnvelope, EncryptShareOptions, CreateProfileShareOptions, ShareRecord, RawShareRecord, ShareResultReader, ShareFormTarget, ShareControl, ShareClickTarget, CreatedShareOperations } from '../types/profile-share.js';
 // profile-share.js — encrypted single-profile share links
 
 import { getErrorMessage } from './caught-error.js';
@@ -26,13 +26,9 @@ const OPERATED_PROFILE_SHARE_HOSTS = new Set([
   'get-based.vercel.app',
 ]);
 
-/**
- * @param {Location | { hostname?: string } | null | undefined} [locationLike]
- * @param {string} [shareId]
- */
-export function getProfileShareApiUrl(locationLike = globalThis.location, shareId = '') {
+export function getProfileShareApiUrl(locationLike: ShareLocation | null | undefined = globalThis.location, shareId: unknown = '') {
   const hostname = String(locationLike?.hostname || '').toLowerCase();
-  return OPERATED_PROFILE_SHARE_HOSTS.has(hostname) && OPERATED_PROFILE_SHARE_ID_RE.test(shareId)
+  return OPERATED_PROFILE_SHARE_HOSTS.has(hostname) && OPERATED_PROFILE_SHARE_ID_RE.test(shareId as string)
     ? OPERATED_PROFILE_SHARE_API
     : '/api/share';
 }
@@ -58,13 +54,13 @@ function getCrypto() {
   return c;
 }
 
-function randomBytes(size) {
+function randomBytes(size: number) {
   const bytes = new Uint8Array(size);
   getCrypto().getRandomValues(bytes);
   return bytes;
 }
 
-function bytesToBase64Url(bytes) {
+function bytesToBase64Url(bytes: Uint8Array<ArrayBuffer>) {
   let binary = '';
   for (let i = 0; i < bytes.length; i += 0x8000) {
     binary += String.fromCharCode(...bytes.slice(i, i + 0x8000));
@@ -75,7 +71,7 @@ function bytesToBase64Url(bytes) {
   return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-function base64UrlToBytes(value) {
+function base64UrlToBytes(value: unknown) {
   const normalized = String(value || '').replace(/-/g, '+').replace(/_/g, '/');
   const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
   const binary = typeof atob === 'function'
@@ -99,12 +95,12 @@ function generateProfileShareManageToken() {
   return bytesToBase64Url(randomBytes(24));
 }
 
-async function sha256Hex(value) {
+async function sha256Hex(value: unknown) {
   const digest = await getCrypto().subtle.digest('SHA-256', TEXT_ENCODER.encode(String(value || '')));
   return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-async function deriveShareKey(secret, salt, iterations) {
+async function deriveShareKey(secret: string, salt: Uint8Array<ArrayBuffer>, iterations: number) {
   const c = getCrypto();
   const material = await c.subtle.importKey('raw', TEXT_ENCODER.encode(secret), 'PBKDF2', false, ['deriveKey']);
   return c.subtle.deriveKey(
@@ -116,7 +112,7 @@ async function deriveShareKey(secret, salt, iterations) {
   );
 }
 
-async function compressJsonText(text) {
+async function compressJsonText(text: string) {
   const bytes = TEXT_ENCODER.encode(text);
   if (typeof CompressionStream !== 'function' || typeof Blob !== 'function' || typeof Response !== 'function') {
     return { compression: 'none', bytes };
@@ -126,7 +122,7 @@ async function compressJsonText(text) {
   return { compression: 'gzip', bytes: compressed };
 }
 
-async function decompressJsonBytes(bytes, compression) {
+async function decompressJsonBytes(bytes: Uint8Array<ArrayBuffer>, compression: unknown) {
   if (!compression || compression === 'none') {
     if (bytes.byteLength > PROFILE_SHARE_MAX_DECOMPRESSED_BYTES) throw new Error('Shared profile is too large to import.');
     return TEXT_DECODER.decode(bytes);
@@ -137,7 +133,7 @@ async function decompressJsonBytes(bytes, compression) {
   }
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
   const reader = stream.getReader();
-  const chunks = [];
+  const chunks: Uint8Array<ArrayBuffer>[] = [];
   let totalBytes = 0;
   try {
     while (true) {
@@ -163,57 +159,57 @@ async function decompressJsonBytes(bytes, compression) {
   return TEXT_DECODER.decode(decompressed);
 }
 
-function clampExpiryDays(days) {
+function clampExpiryDays(days: unknown) {
   const parsed = Number(days);
   if (!Number.isFinite(parsed)) return 7;
   return Math.min(PROFILE_SHARE_MAX_DAYS, Math.max(1, Math.round(parsed)));
 }
 
-function isoDaysFromNow(days) {
+function isoDaysFromNow(days: unknown) {
   const expires = new Date(Date.now() + clampExpiryDays(days) * 24 * 60 * 60 * 1000);
   return expires.toISOString();
 }
 
-function validateSharePassword(value) {
+function validateSharePassword(value: unknown) {
   const trimmed = String(value || '').trim();
   if (trimmed.length < 12) throw new Error('Use a password of at least 12 characters.');
   return trimmed;
 }
 
-export function buildProfileShareUrl(id, loc = globalThis.location) {
-  if (!SHARE_ID_RE.test(id)) throw new Error('Invalid share id.');
+export function buildProfileShareUrl(id: unknown, loc: ShareLocation | null | undefined = globalThis.location) {
+  if (!SHARE_ID_RE.test(id as string)) throw new Error('Invalid share id.');
   const base = loc
-    ? new URL(loc.pathname || '/', loc.origin || 'http://localhost')
+    ? new URL((loc.pathname || '/') as string, (loc.origin || 'http://localhost') as string)
     : new URL('/', 'http://localhost');
   base.hash = `share/${id}`;
   return base.toString();
 }
 
-export function parseProfileShareIdFromLocation(loc = globalThis.location) {
+export function parseProfileShareIdFromLocation(loc: ShareLocation | null | undefined = globalThis.location) {
   if (!loc) return '';
   const hash = String(loc.hash || '').replace(/^#\/?/, '');
   let match = /^share\/([A-Za-z0-9_-]{20,80})$/.exec(hash);
-  if (match) return match[1];
+  if (match) return match[1]!;
   match = /^share=([A-Za-z0-9_-]{20,80})$/.exec(hash);
-  if (match) return match[1];
+  if (match) return match[1]!;
   try {
-    const url = new URL(loc.href || String(loc));
+    const url = new URL((loc.href || String(loc)) as string);
     const id = url.searchParams.get('share');
-    return SHARE_ID_RE.test(id || '') ? id : '';
+    return SHARE_ID_RE.test((id || '') as string) ? id : '';
   } catch {
     return '';
   }
 }
 
-function validateClientExportObject(exportObj) {
+function validateClientExportObject(exportObj: unknown) {
   if (!exportObj || typeof exportObj !== 'object') throw new Error('Invalid shared profile.');
-  if (exportObj.version !== 2) throw new Error('Unsupported shared profile version.');
-  if (!exportObj.profile?.name || typeof exportObj.profile.name !== 'string') throw new Error('Shared profile is missing profile metadata.');
-  if (!Array.isArray(exportObj.entries)) throw new Error('Shared profile is missing lab entries.');
+  if ((exportObj as RawExportOperations).version !== 2) throw new Error('Unsupported shared profile version.');
+  if (!(exportObj as RawExportOperations).profile?.name || typeof (exportObj as RawExportOperations).profile.name !== 'string') throw new Error('Shared profile is missing profile metadata.');
+  if (!Array.isArray((exportObj as RawExportOperations).entries)) throw new Error('Shared profile is missing lab entries.');
   return exportObj;
 }
 
-export async function encryptProfileShareEnvelope(exportObj, secret, options = {}) {
+export async function encryptProfileShareEnvelope(exportObj: unknown, secret: unknown, options: EncryptShareOptions = {}): Promise<ShareEnvelope> {
   validateClientExportObject(exportObj);
   const shareSecret = validateSharePassword(secret);
   const c = getCrypto();
@@ -247,22 +243,22 @@ export async function encryptProfileShareEnvelope(exportObj, secret, options = {
   };
 }
 
-export async function decryptProfileShareEnvelope(envelope, secret) {
+export async function decryptProfileShareEnvelope(envelope: unknown, secret: unknown): Promise<unknown> {
   const shareSecret = validateSharePassword(secret);
-  if (!envelope || envelope.schema !== PROFILE_SHARE_SCHEMA || envelope.version !== PROFILE_SHARE_VERSION) {
+  if (!envelope || (envelope as ShareEnvelopeReader).schema !== PROFILE_SHARE_SCHEMA || (envelope as ShareEnvelopeReader).version !== PROFILE_SHARE_VERSION) {
     throw new Error('Invalid shared profile link.');
   }
-  if (Date.parse(envelope.expiresAt || '') <= Date.now()) {
+  if (Date.parse(((envelope as ShareEnvelopeReader).expiresAt || '') as string) <= Date.now()) {
     throw new Error('This shared profile link has expired.');
   }
-  const kdf = envelope.kdf || {};
-  const cipher = envelope.cipher || {};
+  const kdf = ((envelope as ShareEnvelopeReader).kdf || {}) as NonNullable<ShareEnvelopeReader['kdf']>;
+  const cipher = ((envelope as ShareEnvelopeReader).cipher || {}) as NonNullable<ShareEnvelopeReader['cipher']>;
   if (kdf.name !== 'PBKDF2' || kdf.hash !== 'SHA-256' || cipher.name !== 'AES-GCM') {
     throw new Error('Unsupported shared profile encryption.');
   }
   const salt = base64UrlToBytes(kdf.salt);
   const iv = base64UrlToBytes(cipher.iv);
-  const ciphertext = base64UrlToBytes(envelope.ciphertext);
+  const ciphertext = base64UrlToBytes((envelope as ShareEnvelopeReader).ciphertext);
   const iterations = Number(kdf.iterations);
   if (!Number.isInteger(iterations) || iterations < PROFILE_SHARE_MIN_KDF_ITERATIONS) throw new Error('Invalid shared profile encryption settings.');
   const key = await deriveShareKey(shareSecret, salt, iterations);
@@ -272,50 +268,50 @@ export async function decryptProfileShareEnvelope(envelope, secret) {
   } catch {
     throw new Error('Could not decrypt shared profile.');
   }
-  const jsonText = await decompressJsonBytes(plaintextBytes, envelope.compression);
+  const jsonText = await decompressJsonBytes(plaintextBytes, (envelope as ShareEnvelopeReader).compression);
   return validateClientExportObject(JSON.parse(jsonText));
 }
 
-async function postProfileShare(id, envelope, manageTokenHash) {
+async function postProfileShare(id: unknown, envelope: ShareEnvelope, manageTokenHash: string) {
   const response = await fetch(getProfileShareApiUrl(globalThis.location, id), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id, envelope, manageTokenHash }),
   });
-  let body = null;
-  try { body = await response.json(); } catch {}
-  if (!response.ok) throw new Error(body?.error || `Share failed (${response.status})`);
+  let body: { error?: unknown; envelope?: unknown } | null = null;
+  try { body = await response.json() as { error?: unknown; envelope?: unknown } | null; } catch {}
+  if (!response.ok) throw new Error((body?.error || `Share failed (${response.status})`) as string);
   return body || {};
 }
 
-async function fetchProfileShareEnvelope(id) {
-  if (!SHARE_ID_RE.test(id)) throw new Error('Invalid share id.');
+async function fetchProfileShareEnvelope(id: unknown) {
+  if (!SHARE_ID_RE.test(id as string)) throw new Error('Invalid share id.');
   const apiUrl = getProfileShareApiUrl(globalThis.location, id);
-  const response = await fetch(`${apiUrl}?id=${encodeURIComponent(id)}`);
-  let body = null;
-  try { body = await response.json(); } catch {}
-  if (!response.ok) throw new Error(body?.error || `Share could not be loaded (${response.status})`);
+  const response = await fetch(`${apiUrl}?id=${encodeURIComponent(id as string)}`);
+  let body: { error?: unknown; envelope?: unknown } | null = null;
+  try { body = await response.json() as { error?: unknown; envelope?: unknown } | null; } catch {}
+  if (!response.ok) throw new Error((body?.error || `Share could not be loaded (${response.status})`) as string);
   if (!body?.envelope) throw new Error('Shared profile payload is missing.');
   return body.envelope;
 }
 
-async function deleteProfileShareEnvelope(id, manageToken = '') {
-  if (!SHARE_ID_RE.test(id)) throw new Error('Invalid share id.');
+async function deleteProfileShareEnvelope(id: unknown, manageToken: unknown = '') {
+  if (!SHARE_ID_RE.test(id as string)) throw new Error('Invalid share id.');
   const apiUrl = getProfileShareApiUrl(globalThis.location, id);
-  const response = await fetch(`${apiUrl}?id=${encodeURIComponent(id)}`, {
+  const response = await fetch(`${apiUrl}?id=${encodeURIComponent(id as string)}`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ manageToken }),
   });
-  let body = null;
-  try { body = await response.json(); } catch {}
-  if (!response.ok) throw new Error(body?.error || `Could not stop sharing (${response.status})`);
+  let body: { error?: unknown; envelope?: unknown } | null = null;
+  try { body = await response.json() as { error?: unknown; envelope?: unknown } | null; } catch {}
+  if (!response.ok) throw new Error((body?.error || `Could not stop sharing (${response.status})`) as string);
   return body || {};
 }
 
 function readShareRecords() {
   if (typeof localStorage === 'undefined') return [];
-  let parsed = [];
+  let parsed: unknown = [];
   let shouldRewrite = false;
   try {
     parsed = JSON.parse(localStorage.getItem(SHARE_RECORDS_KEY) || '[]');
@@ -328,9 +324,9 @@ function readShareRecords() {
     shouldRewrite = true;
   }
   const now = Date.now();
-  const records = parsed
+  const records = (parsed as RawShareRecord[])
     .filter(record => record && typeof record === 'object')
-    .filter(record => SHARE_ID_RE.test(record.id || '') && Date.parse(record.expiresAt || '') > now)
+    .filter(record => SHARE_ID_RE.test((record.id || '') as string) && Date.parse((record.expiresAt || '') as string) > now)
     .map(record => ({
       id: record.id,
       profileId: String(record.profileId || ''),
@@ -341,44 +337,37 @@ function readShareRecords() {
       expiresAt: String(record.expiresAt || ''),
     }))
     .slice(0, 50);
-  if (shouldRewrite || records.length !== parsed.length) writeShareRecords(records);
+  if (shouldRewrite || records.length !== (parsed as unknown[]).length) writeShareRecords(records);
   return records;
 }
 
-function writeShareRecords(records) {
+function writeShareRecords(records: ShareRecord[]) {
   if (typeof localStorage === 'undefined') return;
   try {
     localStorage.setItem(SHARE_RECORDS_KEY, JSON.stringify(records.slice(0, 50)));
   } catch {}
 }
 
-function saveShareRecord(record) {
-  const records = readShareRecords().filter(item => item.id !== record.id);
+function saveShareRecord(record: ShareRecord) {
+  const records = readShareRecords().filter(item => item.id !== record.id) as ShareRecord[];
   records.unshift(record);
   writeShareRecords(records);
 }
 
-function removeShareRecord(id) {
+function removeShareRecord(id: unknown) {
   writeShareRecords(readShareRecords().filter(record => record.id !== id));
 }
 
-function getShareRecord(id) {
+function getShareRecord(id: unknown) {
   return readShareRecords().find(record => record.id === id) || null;
 }
 
-function getProfileShareRecords(profileId = state.currentProfile) {
+function getProfileShareRecords(profileId: unknown = state.currentProfile) {
   return readShareRecords().filter(record => record.profileId === profileId);
 }
 
-/**
- * @typedef {Object} CreateProfileShareOptions
- * @property {string=} profileId
- * @property {string=} password
- * @property {number|string=} expiresDays
- */
 
-/** @param {CreateProfileShareOptions} [options] */
-export async function createProfileShare({ profileId = state.currentProfile, password, expiresDays = 7 } = {}) {
+export async function createProfileShare({ profileId = state.currentProfile, password, expiresDays = 7 }: CreateProfileShareOptions = {}) {
   const secret = validateSharePassword(password);
   const id = createProfileShareId();
   const manageToken = generateProfileShareManageToken();
@@ -392,13 +381,13 @@ export async function createProfileShare({ profileId = state.currentProfile, pas
     shareUrl: buildProfileShareUrl(id),
     password: secret,
     manageToken,
-    expiresAt: envelope.expiresAt,
-    profileName: exportObj.profile.name,
+    expiresAt: (envelope as ShareEnvelopeReader).expiresAt,
+    profileName: (exportObj as RawExportOperations).profile.name,
     profileId,
   };
 }
 
-async function copyText(value, successMessage) {
+async function copyText(value: string, successMessage: string) {
   if (!value) return;
   try {
     if (navigator.clipboard?.writeText) {
@@ -419,7 +408,7 @@ async function copyText(value, successMessage) {
   showNotification(ok ? successMessage : 'Copy failed. Select the field and copy manually.', ok ? 'success' : 'warning');
 }
 
-function setStatus(text, type = 'info') {
+function setStatus(text: string, type = 'info') {
   const el = document.getElementById('profile-share-status');
   if (!el) return;
   el.textContent = text || '';
@@ -427,16 +416,16 @@ function setStatus(text, type = 'info') {
   el.hidden = !text;
 }
 
-function setBusy(overlay, busy, label = '') {
-  const buttons = overlay?.querySelectorAll('button, input, select');
+function setBusy(overlay: HTMLElement | null, busy: boolean, label = '') {
+  const buttons = overlay?.querySelectorAll<ShareControl>('button, input, select');
   buttons?.forEach(el => {
     if (el.dataset.profileShareAction === 'close' || el.dataset.profileShareAction === 'copy') return;
     el.disabled = !!busy;
   });
-  const submit = overlay?.querySelector('[data-profile-share-action="create"], [data-profile-share-action="load"]');
+  const submit = overlay?.querySelector<HTMLElement>('[data-profile-share-action="create"], [data-profile-share-action="load"]');
   if (submit) {
     if (busy && label) {
-      submit.dataset.originalText = submit.dataset.originalText || submit.textContent;
+      submit.dataset.originalText = submit.dataset.originalText || submit.textContent as string;
       submit.textContent = label;
     } else if (submit.dataset.originalText) {
       submit.textContent = submit.dataset.originalText;
@@ -445,18 +434,18 @@ function setBusy(overlay, busy, label = '') {
   }
 }
 
-function profileNameForShare(profileId = state.currentProfile) {
+function profileNameForShare(profileId: unknown = state.currentProfile) {
   const profile = getProfiles().find(p => p.id === profileId);
   return profile?.name || 'Active profile';
 }
 
-function formatShareExpiry(expiresAt) {
+function formatShareExpiry(expiresAt: string) {
   const date = new Date(expiresAt);
   if (Number.isNaN(date.getTime())) return 'Unknown expiry';
   return date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function renderActiveShareList(profileId = state.currentProfile) {
+function renderActiveShareList(profileId: unknown = state.currentProfile) {
   const records = getProfileShareRecords(profileId);
   const rows = records.length
     ? records.map(record => `
@@ -482,13 +471,13 @@ function renderActiveShareList(profileId = state.currentProfile) {
   `;
 }
 
-function refreshActiveShareList(overlay, profileId = state.currentProfile) {
+function refreshActiveShareList(overlay: HTMLElement | null, profileId: unknown = state.currentProfile) {
   const container = overlay?.querySelector('[data-profile-share-active-list]');
   if (!container) return;
   container.outerHTML = renderActiveShareList(profileId);
 }
 
-function renderCreateShareBody(profileId = state.currentProfile) {
+function renderCreateShareBody(profileId: unknown = state.currentProfile) {
   const secret = generateProfileSharePassword();
   return `
     <div class="gb-form-body profile-share-body">
@@ -528,7 +517,7 @@ function renderCreateShareBody(profileId = state.currentProfile) {
   `;
 }
 
-function renderShareResultBody(result) {
+function renderShareResultBody(result: ShareResultReader) {
   return `
     <div class="gb-form-body profile-share-body">
       <div class="profile-share-intro">
@@ -561,7 +550,7 @@ function renderShareResultBody(result) {
   `;
 }
 
-function renderLoadShareBody(id) {
+function renderLoadShareBody(id: unknown) {
   return `
     <div class="gb-form-body profile-share-body">
       <div class="modal-unit">Enter the password for this shared profile. It will import as a new profile in this browser.</div>
@@ -580,7 +569,7 @@ function renderLoadShareBody(id) {
   `;
 }
 
-function renderProfileShareShell({ title, kicker = 'Share Profile', body }) {
+function renderProfileShareShell({ title, kicker = 'Share Profile', body }: { title: unknown; kicker?: unknown; body: unknown }) {
   closeProfileShareModal();
   const template = document.createElement('template');
   template.innerHTML = `
@@ -603,7 +592,7 @@ function renderProfileShareShell({ title, kicker = 'Share Profile', body }) {
   installProfileShareDelegates(overlay);
 }
 
-export function openProfileShareModal(profileId = state.currentProfile) {
+export function openProfileShareModal(profileId: unknown = state.currentProfile) {
   renderProfileShareShell({
     title: 'Share Profile',
     body: renderCreateShareBody(profileId),
@@ -615,8 +604,8 @@ export function closeProfileShareModal() {
   if (overlay) removeModalOverlay(overlay);
 }
 
-export function openSharedProfileImportModal(id) {
-  if (!SHARE_ID_RE.test(id || '')) return;
+export function openSharedProfileImportModal(id: unknown) {
+  if (!SHARE_ID_RE.test((id || '') as string)) return;
   renderProfileShareShell({
     title: 'Load Shared Profile',
     kicker: 'Encrypted Link',
@@ -624,18 +613,18 @@ export function openSharedProfileImportModal(id) {
   });
 }
 
-async function handleCreateSubmit(form) {
+async function handleCreateSubmit(form: ShareFormTarget) {
   const overlay = document.getElementById(SHARE_OVERLAY_ID);
   if (!overlay) return;
   const profileId = form.dataset.profileId || state.currentProfile;
-  const passwordInput = /** @type {HTMLInputElement | null} */ (form.querySelector('#profile-share-password'));
-  const expiresInput = /** @type {HTMLSelectElement | null} */ (form.querySelector('#profile-share-expires'));
+  const passwordInput = (form.querySelector('#profile-share-password') as HTMLInputElement | null);
+  const expiresInput = (form.querySelector('#profile-share-expires') as HTMLSelectElement | null);
   const password = passwordInput?.value || '';
   const expiresDays = expiresInput?.value || 7;
   try {
     setBusy(overlay, true, 'Creating...');
     setStatus('Encrypting profile and creating link...', 'info');
-    const result = await createProfileShare({ profileId, password, expiresDays });
+    const result = await createProfileShare({ profileId, password, expiresDays }) as CreatedShareOperations;
     saveShareRecord({
       id: result.id,
       profileId: result.profileId,
@@ -657,22 +646,22 @@ async function handleCreateSubmit(form) {
   }
 }
 
-async function handleLoadSubmit(form) {
+async function handleLoadSubmit(form: ShareFormTarget) {
   const overlay = document.getElementById(SHARE_OVERLAY_ID);
   const id = form.dataset.shareId || '';
-  const passwordInput = /** @type {HTMLInputElement | null} */ (form.querySelector('#profile-share-load-password'));
+  const passwordInput = (form.querySelector('#profile-share-load-password') as HTMLInputElement | null);
   const password = passwordInput?.value || '';
   try {
     setBusy(overlay, true, 'Loading...');
     setStatus('Fetching encrypted profile...', 'info');
     const envelope = await fetchProfileShareEnvelope(id);
     setStatus('Decrypting profile...', 'info');
-    const exportObj = await decryptProfileShareEnvelope(envelope, password);
+    const exportObj = await decryptProfileShareEnvelope(envelope, password) as RawExportOperations;
     const json = JSON.stringify(exportObj, null, 2);
     await importDataJSON(new File([json], 'getbased-shared-profile.json', { type: 'application/json' }));
     closeProfileShareModal();
     clearShareHash(id);
-    showNotification(`Imported shared profile "${exportObj.profile.name}"`, 'success');
+    showNotification(`Imported shared profile "${(exportObj as RawExportOperations).profile.name}"`, 'success');
   } catch (err) {
     const message = /decrypt|operation|key|password/i.test(String(getErrorMessage(err, '')))
       ? 'Could not unlock shared profile. Check the password and try again.'
@@ -684,11 +673,11 @@ async function handleLoadSubmit(form) {
   }
 }
 
-async function handleDeleteShare(actionEl) {
+async function handleDeleteShare(actionEl: HTMLButtonElement) {
   const overlay = document.getElementById(SHARE_OVERLAY_ID);
   const id = actionEl.dataset.shareId || '';
   const record = getShareRecord(id);
-  const list = actionEl.closest('[data-profile-share-active-list]');
+  const list = actionEl.closest<HTMLElement>('[data-profile-share-active-list]');
   const profileId = list?.dataset.profileId || state.currentProfile;
   const previousText = actionEl.textContent;
   try {
@@ -707,7 +696,7 @@ async function handleDeleteShare(actionEl) {
   }
 }
 
-function clearShareHash(id) {
+function clearShareHash(id: unknown) {
   if (!globalThis.history?.replaceState || parseProfileShareIdFromLocation() !== id) return;
   const url = new URL(globalThis.location.href);
   url.hash = '';
@@ -715,7 +704,7 @@ function clearShareHash(id) {
   history.replaceState(null, '', url.pathname + url.search + url.hash);
 }
 
-function installProfileShareDelegates(overlay) {
+function installProfileShareDelegates(overlay: HTMLElement | null) {
   if (!overlay || overlay.dataset.profileShareDelegates === '1') return;
   overlay.dataset.profileShareDelegates = '1';
   overlay.addEventListener('click', (event) => {
@@ -723,7 +712,7 @@ function installProfileShareDelegates(overlay) {
       closeProfileShareModal();
       return;
     }
-    const actionEl = event.target.closest('[data-profile-share-action]');
+    const actionEl = (event.target as unknown as ShareClickTarget).closest<HTMLButtonElement>('[data-profile-share-action]');
     if (!actionEl || !overlay.contains(actionEl)) return;
     const action = actionEl.dataset.profileShareAction;
     if (action === 'close') {
@@ -731,18 +720,18 @@ function installProfileShareDelegates(overlay) {
       closeProfileShareModal();
     } else if (action === 'regenerate') {
       event.preventDefault();
-      const input = /** @type {HTMLInputElement | null} */ (document.getElementById('profile-share-password'));
+      const input = (document.getElementById('profile-share-password') as HTMLInputElement | null);
       if (input) input.value = generateProfileSharePassword();
     } else if (action === 'copy') {
       event.preventDefault();
-      const target = /** @type {HTMLInputElement | HTMLTextAreaElement | null} */ (document.getElementById(actionEl.dataset.copyTarget || ''));
+      const target = (document.getElementById(actionEl.dataset.copyTarget || '') as HTMLInputElement | HTMLTextAreaElement | null);
       copyText(actionEl.dataset.copyValue || target?.value || '', actionEl.dataset.copyLabel || 'Copied');
     } else if (action === 'delete-link') {
       event.preventDefault();
       void handleDeleteShare(actionEl);
     } else if (action === 'create' || action === 'load') {
       event.preventDefault();
-      const form = actionEl.closest('[data-profile-share-form]');
+      const form = actionEl.closest<HTMLFormElement>('[data-profile-share-form]');
       if (typeof form?.requestSubmit === 'function') {
         form.requestSubmit();
       } else if (form) {
@@ -751,7 +740,7 @@ function installProfileShareDelegates(overlay) {
     }
   });
   overlay.addEventListener('submit', (event) => {
-    const form = event.target.closest('[data-profile-share-form]');
+    const form = (event.target as unknown as ShareClickTarget).closest<HTMLFormElement>('[data-profile-share-form]');
     if (!form || !overlay.contains(form)) return;
     event.preventDefault();
     if (form.dataset.profileShareForm === 'create') {

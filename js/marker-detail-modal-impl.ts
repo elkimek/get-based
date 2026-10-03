@@ -1,4 +1,4 @@
-// @ts-check
+import type { MarkerModalOptions, MarkerModalCalls, MarkerModalData, MarkerModalRange, MarkerModalPoint, BioInputStatus } from '../types/marker-detail-modal-impl.js';
 // marker-detail-modal-impl.js — Marker detail, manual entry, custom marker, and range modal flows
 
 import { state } from './state.js';
@@ -91,15 +91,7 @@ export {
 };
 export { loadMarkerDetailStylesheet, rememberModalTrigger };
 
-const markerDetailDeps = /** @type {{
-  navigate: (category?: string, data?: any) => any,
-  isDashboardQuickMarkerPinned: (id?: string) => boolean,
-  toggleDashboardQuickMarkerPin: (id?: string) => any,
-  renameMarker: (id?: string) => any,
-  revertMarkerName: (id?: string) => any,
-  askAIAboutMarker: (id?: string) => any,
-  showEmojiPicker: (el: Element, callback: (emoji?: string | null) => void, opts?: any) => any,
-}} */ ({
+const markerDetailDeps: MarkerModalCalls = ({
   navigate: navigateMarkerDetailRuntime,
   isDashboardQuickMarkerPinned: isDashboardQuickMarkerPinnedRuntime,
   toggleDashboardQuickMarkerPin: toggleDashboardQuickMarkerPinRuntime,
@@ -110,35 +102,35 @@ const markerDetailDeps = /** @type {{
 });
 
 /**
- * @param {Partial<typeof markerDetailDeps>} [deps]
+ * @param {unknown} [deps]
  */
-export function configureMarkerDetailModal(deps = {}) {
+export function configureMarkerDetailModal(deps: unknown = {}) {
   Object.assign(markerDetailDeps, deps);
 }
 
 configureMarkerDetailEditing({
-  navigate: (...args) => markerDetailDeps.navigate(...args),
+  navigate: (...args: Parameters<MarkerModalCalls['navigate']>) => markerDetailDeps.navigate(...args),
   buildSidebar: () => buildMarkerDetailSidebarRuntime(),
-  showDetailModal: (...args) => showDetailModal(...args),
-  openManualEntryForm: (id, prefillDate) => id ? openManualEntryForm(id, prefillDate) : false,
+  showDetailModal: (...args: Parameters<typeof showDetailModal>) => showDetailModal(...args),
+  openManualEntryForm: (id?: string, prefillDate?: unknown) => id ? openManualEntryForm(id, prefillDate) : false,
   closeModal: () => closeModal(),
 });
 configureMarkerDetailManualEntry({ showDetailModal });
 configureMarkerDetailCustomMarkers({
   closeModal,
-  navigate: (...args) => markerDetailDeps.navigate(...args),
+  navigate: (...args: Parameters<MarkerModalCalls['navigate']>) => markerDetailDeps.navigate(...args),
   openManualEntryForm,
-  showEmojiPicker: /** @param {Parameters<typeof markerDetailDeps.showEmojiPicker>} args */ (...args) => markerDetailDeps.showEmojiPicker(...args),
+  showEmojiPicker: (...args: Parameters<MarkerModalCalls['showEmojiPicker']>) => markerDetailDeps.showEmojiPicker(...args),
 });
 configureMarkerDetailPlacement({ showDetailModal });
 if (typeof document !== 'undefined') {
   installMarkerDetailActionDelegates({
     closeModal,
-    toggleDashboardQuickMarkerPin: (...args) => markerDetailDeps.toggleDashboardQuickMarkerPin(...args),
+    toggleDashboardQuickMarkerPin: (...args: Parameters<MarkerModalCalls['toggleDashboardQuickMarkerPin']>) => markerDetailDeps.toggleDashboardQuickMarkerPin(...args),
     editRefRange,
     revertRefRange,
-    renameMarker: (...args) => markerDetailDeps.renameMarker(...args),
-    revertMarkerName: (...args) => markerDetailDeps.revertMarkerName(...args),
+    renameMarker: (...args: Parameters<MarkerModalCalls['renameMarker']>) => markerDetailDeps.renameMarker(...args),
+    revertMarkerName: (...args: Parameters<MarkerModalCalls['revertMarkerName']>) => markerDetailDeps.revertMarkerName(...args),
     openMarkerPlacementModal, saveMarkerPlacement, restoreMarkerPlacement,
     editMarkerValue,
     deleteMarkerValue,
@@ -147,7 +139,7 @@ if (typeof document !== 'undefined') {
     deleteValueNote,
     showDetailModal,
     openManualEntryForm,
-    askAIAboutMarker: (...args) => markerDetailDeps.askAIAboutMarker(...args),
+    askAIAboutMarker: (...args: Parameters<MarkerModalCalls['askAIAboutMarker']>) => markerDetailDeps.askAIAboutMarker(...args),
     toggleMarkerNoteEditor,
     saveMarkerNote,
     deleteMarkerNote,
@@ -162,7 +154,7 @@ if (typeof document !== 'undefined') {
 /**
  * @param {{ modal?: HTMLElement | null }} [opts]
  */
-function refreshOpenMarkerDetailModalOnSync({ modal } = {}) {
+function refreshOpenMarkerDetailModalOnSync({ modal }: {modal?:HTMLElement|null} = {}) {
   const id = modal?.dataset?.syncRefreshItemId || state._activeDetailMarkerId;
   if (!id) return;
   showDetailModal(id);
@@ -175,10 +167,10 @@ bindDetailModalSyncRefresh('marker', refreshOpenMarkerDetailModalOnSync);
 const MARKER_HISTORY_DEFAULT_CAP = 3;
 const MARKER_HISTORY_EXPANDED_CAP = 40;
 
-function getManualValueForMarker(dotKey, date) {
+function getManualValueForMarker(dotKey: string, date: unknown) {
   const map = state.importedData.manualValues;
   if (!map || typeof map !== 'object' || !dotKey || !date) return undefined;
-  const key = dotKey + ':' + date;
+  const key = dotKey + ':' + (date as string);
   if (Object.prototype.hasOwnProperty.call(map, key) && map[key] != null && map[key] !== true) return map[key];
   if (Object.prototype.hasOwnProperty.call(map, key)) return map[key];
   return undefined;
@@ -188,21 +180,21 @@ function getManualValueForMarker(dotKey, date) {
 // DETAIL MODAL
 // ═══════════════════════════════════════════════
 
-export function showDetailModal(id, opts = {}) {
+export function showDetailModal(id: unknown, opts: unknown = {}) {
   if (!safeMarkerId(id)) return Promise.resolve(false);
-  return openWithMarkerDetailStylesheet(() => renderDetailModal(id, opts));
+  return openWithMarkerDetailStylesheet(() => renderDetailModal(id as string, opts as MarkerModalOptions));
 }
 
-function renderDetailModal(id, opts = {}) {
+function renderDetailModal(id: string, opts: MarkerModalOptions = {}) {
   // id is interpolated into delegated data-action attributes throughout the
   // modal body. Reject anything outside the strict allowlist so a poisoned
   // customMarker key cannot break attribute context or state lookups.
   if (!safeMarkerId(id)) return false;
-  const data = getActiveData();
+  const data = (getActiveData as () => MarkerModalData)();
   const idx = id.indexOf('_');
   const catKey = id.slice(0, idx), mKey = id.slice(idx + 1);
   let marker = data.categories[catKey]?.markers[mKey];
-  if (marker) state.markerRegistry[id] = marker;
+  if (marker) (state.markerRegistry as Record<string,unknown>)[id] = marker;
   if (!marker) return false;
   // Remember which marker is open so toggleAltUnits can re-render in place.
   state._activeDetailMarkerId = id;
@@ -213,18 +205,18 @@ function renderDetailModal(id, opts = {}) {
   modal.dataset.syncRefreshKind = 'marker';
   modal.dataset.syncRefreshItemId = id;
   const dates = marker.singlePoint ? [marker.singleDateLabel || "N/A"] : data.dateLabels;
-  const r = getEffectiveRange(marker);
-  const modalPoints = /** @type {{v: number, i: number}[]} */ (marker.values.map((v, i) => ({ v, i })).filter(x => x.v !== null && x.v !== undefined));
+  const r = (getEffectiveRange as (marker:unknown)=>MarkerModalRange)(marker);
+  const modalPoints = (marker.values.map((v, i) => ({ v, i })).filter(x => x.v !== null && x.v !== undefined)) as MarkerModalPoint[];
   const showAllHistory = !!opts.showAllHistory;
   const requestedHistoryLimit = Number.isFinite(opts.historyLimit)
-    ? Math.max(MARKER_HISTORY_DEFAULT_CAP, Math.floor(opts.historyLimit))
+    ? Math.max(MARKER_HISTORY_DEFAULT_CAP, Math.floor(opts.historyLimit as number))
     : MARKER_HISTORY_EXPANDED_CAP;
   const expandedHistoryLimit = Math.min(modalPoints.length, requestedHistoryLimit);
   const visibleHistoryPoints = showAllHistory ? modalPoints.slice(-expandedHistoryLimit) : modalPoints.slice(-MARKER_HISTORY_DEFAULT_CAP);
   const hiddenHistoryCount = modalPoints.length - visibleHistoryPoints.length;
   const latestPoint = modalPoints[modalPoints.length - 1] || null;
   const prevPoint = modalPoints.length > 1 ? modalPoints[modalPoints.length - 2] : null;
-  const latestRange = latestPoint ? getEffectiveRangeForDate(marker, latestPoint.i) : r;
+  const latestRange = latestPoint ? (getEffectiveRangeForDate as (marker:unknown,index:number)=>MarkerModalRange)(marker, latestPoint.i) : r;
   const latestHasRange = latestRange.min != null || latestRange.max != null;
   const latestStatus = latestPoint ? (latestHasRange ? getStatus(latestPoint.v, latestRange.min, latestRange.max) : 'unrated') : 'missing';
   const statusText = latestStatus === 'normal' ? 'In range'
@@ -236,22 +228,22 @@ function renderDetailModal(id, opts = {}) {
     ? (((Number(latestPoint.v) - Number(prevPoint.v)) / Number(prevPoint.v)) * 100)
     : null;
   const latestUnit = marker.unit || '';
-  const latestDisplay = latestPoint ? formatValue(latestPoint.v) : '—';
+  const latestDisplay = latestPoint ? (formatValue as (value:unknown)=>unknown)(latestPoint.v) : '—';
   const latestDateLabel = latestPoint ? (dates[latestPoint.i] || 'Latest') : 'No values';
   const latestContextRange = latestPoint ? marker.contextRefRanges?.[latestPoint.i] : null;
   const latestContextOptimalRange = latestPoint ? marker.contextOptimalRanges?.[latestPoint.i] : null;
-  const referenceRange = latestContextRange || { min: marker.refMin, max: marker.refMax };
+  const referenceRange: MarkerModalRange = latestContextRange || { min: marker.refMin, max: marker.refMax };
   const hasReferenceRange = referenceRange.min != null || referenceRange.max != null;
   const referenceMinDisplay = hasReferenceRange && referenceRange.min != null ? formatValue(referenceRange.min) : '—';
   const referenceMaxDisplay = hasReferenceRange && referenceRange.max != null ? formatValue(referenceRange.max) : '—';
   const referenceDisplay = `${referenceMinDisplay}–${referenceMaxDisplay} ${latestUnit}`.trim();
-  const referenceMetaLabel = latestPoint ? getEffectiveRangeLabelForDate(marker, latestPoint.i, 'reference') : (marker.rangePolicy === 'target' ? 'Target' : 'Reference');
-  const optimalRange = latestContextOptimalRange || { min: marker.optimalMin, max: marker.optimalMax };
+  const referenceMetaLabel = latestPoint ? (getEffectiveRangeLabelForDate as (marker:unknown,index:number,type:string)=>string)(marker, latestPoint!.i, 'reference') : (marker.rangePolicy === 'target' ? 'Target' : 'Reference');
+  const optimalRange: MarkerModalRange = latestContextOptimalRange || { min: marker.optimalMin, max: marker.optimalMax };
   const hasOptimalRange = optimalRange.min != null || optimalRange.max != null;
   const optimalDisplay = `${optimalRange.min != null ? formatValue(optimalRange.min) : '—'}–${optimalRange.max != null ? formatValue(optimalRange.max) : '—'} ${latestUnit}`.trim();
-  const optimalMetaLabel = latestContextOptimalRange
-    ? (marker.contextOptimalRangeLabels?.[latestPoint.i] || 'Optimal guidance')
-    : 'Optimal';
+  const optimalMetaLabel = (latestContextOptimalRange
+    ? (marker.contextOptimalRangeLabels?.[latestPoint!.i] || 'Optimal guidance')
+    : 'Optimal') as string;
   const latestPhaseRange = latestPoint ? marker.phaseRefRanges?.[latestPoint.i] : null;
   const hasLatestPhaseRange = latestPhaseRange?.min != null || latestPhaseRange?.max != null;
   const phaseDisplay = `${latestRange.min != null ? formatValue(latestRange.min) : '—'}–${latestRange.max != null ? formatValue(latestRange.max) : '—'} ${latestUnit}`.trim();
@@ -261,7 +253,7 @@ function renderDetailModal(id, opts = {}) {
   let rangeSecondaryLabel = '';
   if (hasLatestPhaseRange) {
     rangeMainDisplay = phaseDisplay;
-    rangeMainLabel = getEffectiveRangeLabelForDate(marker, latestPoint.i, 'reference').toLowerCase();
+    rangeMainLabel = (getEffectiveRangeLabelForDate as (marker:unknown,index:number,type:string)=>string)(marker, latestPoint!.i, 'reference').toLowerCase();
   } else if (state.rangeMode === 'both') {
     if (hasReferenceRange) {
       rangeMainDisplay = referenceDisplay;
@@ -285,8 +277,8 @@ function renderDetailModal(id, opts = {}) {
   } else if (latestContextRange) {
     rangeMainLabel = referenceMetaLabel.toLowerCase();
   }
-  const clampPct = value => Math.max(0, Math.min(100, value));
-  const numericOrNull = value => {
+  const clampPct = (value: number) => Math.max(0, Math.min(100, value));
+  const numericOrNull = (value: unknown) => {
     if (value === null || value === undefined || value === '') return null;
     const n = Number(value);
     return Number.isFinite(n) ? n : null;
@@ -344,11 +336,11 @@ function renderDetailModal(id, opts = {}) {
       <div class="gb-range-band-scale"><span>${escapeHTML(formatValue(min))}</span><span>${escapeHTML(formatValue(max))}</span></div>
     </div>`;
   })();
-  const dotKey = getMarkerStorageDotKey(marker, id);
+  const dotKey = (getMarkerStorageDotKey as (marker:unknown,id:string)=>string|null)(marker, id);
   if (!dotKey) return false;
   let rangeInfo = '';
   const overrides = state.importedData?.refOverrides?.[dotKey] || {};
-  const refEditable = (label, min, max, type) => {
+  const refEditable = (label: string, min: unknown, max: unknown, type: string) => {
     const isEdited = type === 'optimal' ? ('optimalMin' in overrides || 'optimalMax' in overrides) : ('refMin' in overrides || 'refMax' in overrides);
     const source = type === 'optimal' ? overrides.optimalSource : overrides.refSource;
     const badgeLabel = source === 'manual' ? 'edited' : 'lab';
@@ -389,15 +381,15 @@ function renderDetailModal(id, opts = {}) {
   // Dual-unit summary: mirror values and ranges in the most useful alternate
   // unit for the active International, ANZ, or US profile.
   const probe = marker.refMax ?? marker.refMin ?? 1;
-  const altProbe = getAlternateUnitForProfile(dotKey, probe, state.unitSystem);
+  const altProbe = (getAlternateUnitForProfile as (key:string,value:unknown,profile:unknown)=>ReturnType<typeof getAlternateUnitForProfile>)(dotKey, probe, state.unitSystem);
   const hasConv = !!altProbe;
   let altUnitInfo = '';
   if (hasConv && state.showAltUnits) {
     if (altProbe) {
       const altUnit = altProbe.unit;
-      const altRange = (min, max) => {
-        const a = min != null ? getAlternateUnitForProfile(dotKey, min, state.unitSystem)?.value : null;
-        const b = max != null ? getAlternateUnitForProfile(dotKey, max, state.unitSystem)?.value : null;
+      const altRange = (min: unknown, max: unknown) => {
+        const a = min != null ? (getAlternateUnitForProfile as (key:string,value:unknown,profile:unknown)=>ReturnType<typeof getAlternateUnitForProfile>)(dotKey, min, state.unitSystem)?.value : null;
+        const b = max != null ? (getAlternateUnitForProfile as (key:string,value:unknown,profile:unknown)=>ReturnType<typeof getAlternateUnitForProfile>)(dotKey, max, state.unitSystem)?.value : null;
         const dispA = a != null ? formatValue(a) : '–';
         const dispB = b != null ? formatValue(b) : '–';
         return `${dispA} – ${dispB}`;
@@ -453,7 +445,7 @@ function renderDetailModal(id, opts = {}) {
     <div class="modal-values-grid marker-history-list">`;
   for (const point of visibleHistoryPoints) {
     const { v, i } = point;
-    const ri = getEffectiveRangeForDate(marker, i);
+    const ri = (getEffectiveRangeForDate as (marker:unknown,index:number)=>MarkerModalRange)(marker, i);
     const hasPointRange = ri.min != null || ri.max != null;
     const s = hasPointRange ? getStatus(v, ri.min, ri.max) : 'unrated';
     const sl = s==="normal"?"\u2713 In Range":s==="high"?"\u25B2 Above Range":s==="low"?"\u25BC Below Range":s === 'unrated' ? 'No range' : "Unknown";
@@ -463,7 +455,7 @@ function renderDetailModal(id, opts = {}) {
     const actionDate = rawDate == null ? 'null' : rawDate;
     const matchingNote = rawDate && state.importedData.notes ? state.importedData.notes.find(n => n.date === rawDate) : null;
     const noteIcon = matchingNote ? `<button type="button" class="mv-note" ${markerDetailActionAttrs('toggle-history-note')}>Note</button><div class="mv-note-text">${escapeHTML(matchingNote.text)}</div>` : '';
-    const mvKey = dotKey + ':' + rawDate;
+    const mvKey = dotKey + ':' + (rawDate as string);
     const srcEntry = rawDate ? state.importedData.entries?.find(e => e.date === rawDate) : null;
     const src = srcEntry?.markerSources?.[dotKey];
     const { collectionContextHtml, sourceHtml } = buildMarkerHistoryMetadata(srcEntry, src, rawDate);
@@ -509,12 +501,12 @@ function renderDetailModal(id, opts = {}) {
   }
   const nonNull = modalPoints;
   if (nonNull.length >= 2) {
-    const f = nonNull[0], l = nonNull[nonNull.length-1];
+    const f = nonNull[0]!, l = nonNull[nonNull.length-1]!;
     const ch = l.v - f.v, pct = ((ch/f.v)*100).toFixed(1);
     const dir = ch > 0 ? "increased" : ch < 0 ? "decreased" : "unchanged";
     html += `<div class="modal-ref-info"><strong>Trend:</strong> ${dir} by ${Math.abs(ch).toFixed(2)} ${escapeHTML(marker.unit)} (${ch>0?"+":""}${pct}%) from ${dates[f.i]} to ${dates[l.i]}</div>`;
   }
-  const calcInputs = {
+  const calcInputs: Record<string, import('./marker-detail-content.js').BioAgeInput[]> = {
     'calculatedRatios_phenoAge': BIO_AGE_PHENO_INPUTS,
     'calculatedRatios_bortzAge': BIO_AGE_BORTZ_INPUTS,
     'calculatedRatios_biologicalAge': [],
@@ -535,8 +527,8 @@ function renderDetailModal(id, opts = {}) {
   };
   const inputs = calcInputs[dotKey.replace('.', '_')];
   if (inputs) {
-    const issues = [];
-    const activeMarker = (cat, key) => resolveActiveMarkerPath(data.categories, cat, key)?.marker;
+    const issues: string[] = [];
+    const activeMarker = (cat: string, key: string) => (resolveActiveMarkerPath as (categories:unknown,cat:string,key:string)=>{marker: import('../types/marker-detail-modal-impl.js').MarkerModalMarker}|null)(data.categories, cat, key)?.marker;
     // Check for completely missing markers
     const missing = inputs.filter(([cat, key]) => {
       const vals = activeMarker(cat, key)?.values;
@@ -552,7 +544,7 @@ function renderDetailModal(id, opts = {}) {
     const _isBioAgeClock = dotKey === 'calculatedRatios.phenoAge' || dotKey === 'calculatedRatios.bortzAge';
     if (_isBioAgeClock && state.profileDob) {
       // For CRP check: accept either hs-CRP or standard CRP
-      const _hasCRPonDate = (idx) => {
+      const _hasCRPonDate = (idx: number) => {
         const hs = activeMarker('proteins', 'hsCRP')?.values?.[idx];
         const std = activeMarker('proteins', 'crp')?.values?.[idx];
         return hs != null || std != null;
@@ -613,13 +605,13 @@ function renderDetailModal(id, opts = {}) {
     // value from whichever component is non-null, so the modal should not
     // describe that as a generic "Not calculated" error.
     if (dotKey === 'calculatedRatios.biologicalAge') {
-      const refIdx = bioAgeReferenceIndex(data, marker, latestPoint);
+      const refIdx = (bioAgeReferenceIndex as (data:MarkerModalData,marker:unknown,point:MarkerModalPoint|null)=>number)(data, marker, latestPoint);
       const refDate = refIdx >= 0 ? data.dates?.[refIdx] : null;
       const refDateLabel = refIdx >= 0 ? (data.dateLabels?.[refIdx] || refDate || '') : '';
       const pheno = refIdx >= 0 ? activeMarker('calculatedRatios', 'phenoAge')?.values?.[refIdx] : null;
       const bortz = refIdx >= 0 ? activeMarker('calculatedRatios', 'bortzAge')?.values?.[refIdx] : null;
       const age = state.profileDob && refDate
-        ? ((new Date(refDate + 'T00:00:00').getTime() - new Date(state.profileDob + 'T00:00:00').getTime()) / (365.25*24*60*60*1000))
+        ? ((new Date((refDate as string) + 'T00:00:00').getTime() - new Date(state.profileDob + 'T00:00:00').getTime()) / (365.25*24*60*60*1000))
         : null;
       const usableAge = typeof age === 'number' && Number.isFinite(age) && age > 0
         ? age
@@ -632,15 +624,15 @@ function renderDetailModal(id, opts = {}) {
       const profileIssue = state.profileDob && refDate && usableAge == null
         ? 'Date of birth must be before the panel date'
         : null;
-      const phenoStatus = bioAgeInputStatusAtIndex(data, refIdx, BIO_AGE_PHENO_INPUTS, profileRequirement);
-      const bortzStatus = bioAgeInputStatusAtIndex(data, refIdx, BIO_AGE_BORTZ_INPUTS, profileRequirement);
-      const renderInputGrid = (status) => status.map(s => {
+      const phenoStatus = (bioAgeInputStatusAtIndex as (data:unknown,index:number,inputs:Parameters<typeof bioAgeInputStatusAtIndex>[2],profile:BioInputStatus|null)=>BioInputStatus[])(data, refIdx, BIO_AGE_PHENO_INPUTS, profileRequirement);
+      const bortzStatus = (bioAgeInputStatusAtIndex as (data:unknown,index:number,inputs:Parameters<typeof bioAgeInputStatusAtIndex>[2],profile:BioInputStatus|null)=>BioInputStatus[])(data, refIdx, BIO_AGE_BORTZ_INPUTS, profileRequirement);
+      const renderInputGrid = (status: BioInputStatus[]) => status.map(s => {
         const title = s.kind === 'profile'
           ? (s.present ? 'Set in profile' : 'Required in profile')
           : (s.present ? 'In this panel' : 'Missing from this panel');
         return `<span class="bio-age-input ${s.present ? 'is-present' : 'is-missing'}" title="${escapeAttr(title)}">${s.present ? '✓' : '⚠'} ${escapeHTML(s.label)}</span>`;
       }).join('');
-      const componentRow = (name, value, status) => {
+      const componentRow = (name: unknown, value: number | null | undefined, status: BioInputStatus[]) => {
         const missing = status.filter(s => !s.present);
         let header;
         if (value != null) {
@@ -728,7 +720,7 @@ function renderDetailModal(id, opts = {}) {
   setTimeout(() => {
     if (document.getElementById("chart-modal")) {
       if (state.chartInstances["modal"]) { state.chartInstances["modal"].destroy(); delete state.chartInstances["modal"]; }
-      createLineChart("modal", marker, data.dateLabels, data.dates, data.phaseLabels, {
+      (createLineChart as (id:string,marker:unknown,labels:unknown,dates:unknown,phaseLabels:unknown,context:unknown)=>ReturnType<typeof createLineChart>)("modal", marker, data.dateLabels, data.dates, data.phaseLabels, {
         displayLabels: data.phaseDisplayLabels,
         cycleDays: data.phaseCycleDays,
         sources: data.phaseSources,
@@ -741,14 +733,14 @@ function renderDetailModal(id, opts = {}) {
     const descriptionKey = dotKey.replace('.', '_');
     const desc = getMarkerDescription(id) || getMarkerDescription(descriptionKey);
     if (desc) {
-      descEl.textContent = desc;
+      descEl.textContent = desc as string;
       descEl.classList.add('loaded');
     } else if (!marker.desc && hasAssistantFeatureProvider()) {
       descEl.classList.add('loading');
       fetchCustomMarkerDescription(descriptionKey, marker.name, marker.unit).then(text => {
         const el = document.getElementById('marker-desc');
         if (text && el) {
-          el.textContent = /** @type {string} */ (text);
+          el.textContent = (text as string);
           el.classList.remove('loading');
           el.classList.add('loaded');
         } else if (el) {

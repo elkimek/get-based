@@ -1,4 +1,3 @@
-// @ts-check
 // light-page-view-hooks.js - wire Light page feature dependencies at startup.
 
 import {

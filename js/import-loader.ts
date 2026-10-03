@@ -1,4 +1,3 @@
-// @ts-check
 // import-loader.js — shared lazy loaders for heavyweight import flows
 
 import { hasImportReviewDraft } from './import-review-draft.js';
@@ -7,10 +6,8 @@ import { prepareDnaFileImport } from './health-data-loader.js';
 
 const IMPORT_STYLESHEET_URL = new URL('../css/import.css', import.meta.url).href;
 
-/** @type {Promise<typeof import('./pdf-import.js')> | null} */
-let _pdfImportLoad = null;
-/** @type {Promise<HTMLLinkElement> | null} */
-let _importStylesheetLoad = null;
+let _pdfImportLoad: Promise<typeof import('./pdf-import.js')> | null = null;
+let _importStylesheetLoad: Promise<HTMLLinkElement> | null = null;
 let _useImportStylesheetRetryUrl = false;
 
 function importStylesheetUrl() {
@@ -20,8 +17,7 @@ function importStylesheetUrl() {
   return retryUrl.href;
 }
 
-/** @returns {Promise<HTMLLinkElement>} */
-export function loadImportStylesheet() {
+export function loadImportStylesheet(): Promise<HTMLLinkElement> {
   if (!_importStylesheetLoad) {
     if (typeof document === 'undefined') {
       return Promise.reject(new Error('Import stylesheet requires a document'));
@@ -30,7 +26,7 @@ export function loadImportStylesheet() {
     link.rel = 'stylesheet';
     link.href = importStylesheetUrl();
     link.dataset.importStylesheet = '';
-    _importStylesheetLoad = new Promise((resolve, reject) => {
+    _importStylesheetLoad = new Promise<HTMLLinkElement>((resolve, reject) => {
       link.addEventListener('load', () => resolve(link), { once: true });
       link.addEventListener('error', () => {
         reject(new Error('Import stylesheet could not be loaded'));
@@ -48,8 +44,7 @@ export function loadImportStylesheet() {
   return _importStylesheetLoad;
 }
 
-/** @returns {Promise<typeof import('./pdf-import.js')>} */
-export function loadPdfImport() {
+export function loadPdfImport(): Promise<typeof import('./pdf-import.js')> {
   if (!_pdfImportLoad) {
     _pdfImportLoad = Promise.all([
       import('./pdf-import.js'),
@@ -64,8 +59,7 @@ export function loadPdfImport() {
   return _pdfImportLoad;
 }
 
-/** @returns {Promise<typeof import('./pdf-import.js')>} */
-export async function loadImportUI() {
+export async function loadImportUI(): Promise<typeof import('./pdf-import.js')> {
   const [importModule] = await Promise.all([
     loadPdfImport(),
     loadImportStylesheet(),

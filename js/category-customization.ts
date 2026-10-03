@@ -1,4 +1,3 @@
-// @ts-check
 // category-customization.js — category/marker labels and category icon picker
 
 import { state } from './state.js';
@@ -13,34 +12,26 @@ import {
   showCategoryCustomizationPrompt,
 } from './category-customization-runtime.js';
 
-let _navigate = navigateCategoryCustomizationRuntime;
-/** @type {((data?: any) => void) | null} */
-let _buildSidebar = null;
+let _navigate: unknown = navigateCategoryCustomizationRuntime;
+let _buildSidebar: unknown = null;
 
 function getFallbackBuildSidebar() {
   return getCategoryCustomizationBuildSidebar();
 }
 
-/**
- * @param {{ navigate?: (route: string, data?: any) => void, buildSidebar?: (data?: any) => void }} [deps]
- */
-export function configureCategoryCustomization(deps = {}) {
-  if (typeof deps.navigate === 'function') _navigate = deps.navigate;
-  if (typeof deps.buildSidebar === 'function') _buildSidebar = deps.buildSidebar;
+export function configureCategoryCustomization(deps: unknown = {}) {
+  if (typeof (deps as { navigate?: unknown }).navigate === 'function') _navigate = (deps as { navigate?: unknown }).navigate;
+  if (typeof (deps as { buildSidebar?: unknown }).buildSidebar === 'function') _buildSidebar = (deps as { buildSidebar?: unknown }).buildSidebar;
 }
 
-/**
- * @param {string} fallbackRoute
- * @param {{ forceRoute?: string }} [opts]
- */
-function _refreshActiveView(fallbackRoute, opts = {}) {
+function _refreshActiveView(fallbackRoute: string, opts: { forceRoute?: string } = {}) {
   const data = getActiveData();
   const buildSidebar = _buildSidebar || getFallbackBuildSidebar();
-  buildSidebar?.(data);
-  _navigate(opts.forceRoute || state.currentView || fallbackRoute, data);
+  (buildSidebar as ((data: ReturnType<typeof getActiveData>) => unknown) | null)?.(data);
+  (_navigate as typeof navigateCategoryCustomizationRuntime)(opts.forceRoute || state.currentView || fallbackRoute, data);
 }
 
-export async function renameCategory(categoryKey) {
+export async function renameCategory(categoryKey: string) {
   const data = getActiveData();
   const cat = data.categories[categoryKey];
   if (!cat) return;
@@ -65,7 +56,7 @@ export async function renameCategory(categoryKey) {
   showNotification(`Category renamed to "${trimmed}"`, 'info');
 }
 
-export async function renameMarker(id) {
+export async function renameMarker(id: string) {
   const data = getActiveData();
   const idx = id.indexOf('_');
   const catKey = id.slice(0, idx), mKey = id.slice(idx + 1);
@@ -88,7 +79,7 @@ export async function renameMarker(id) {
   showNotification(`Marker renamed to "${trimmed}"`, 'info');
 }
 
-export function revertMarkerName(id) {
+export function revertMarkerName(id: string) {
   const idx = id.indexOf('_');
   const data = getActiveData();
   const marker = data.categories[id.slice(0, idx)]?.markers[id.slice(idx + 1)];
@@ -111,12 +102,7 @@ const EMOJI_CATEGORIES = [
   { id: 'symbols', icon: '\uD83D\uDD36', label: 'Symbols & Colors', emojis: ['\uD83D\uDD36','\uD83D\uDD35','\uD83D\uDFE2','\uD83D\uDFE1','\uD83D\uDFE3','\uD83D\uDD34','\u26AA','\u26AB','\uD83D\uDFE0','\uD83D\uDFE4','\u2728','\uD83D\uDCAB','\u267B\uFE0F','\u269B\uFE0F','\u2699\uFE0F','\u267E\uFE0F','\u2B55','\uD83D\uDD16'] },
 ];
 
-/**
- * @param {Element} anchorEl
- * @param {(emoji: string | null | undefined) => void} callback
- * @param {{ showReset?: boolean }} [opts]
- */
-export function showEmojiPicker(anchorEl, callback, opts = {}) {
+export function showEmojiPicker(anchorEl: Element, callback: (emoji: string | null | undefined) => unknown, opts: { showReset?: boolean } = {}) {
   // Remove existing picker
   document.querySelector('.emoji-picker')?.remove();
   const picker = document.createElement('div');
@@ -128,7 +114,7 @@ export function showEmojiPicker(anchorEl, callback, opts = {}) {
   picker.style.left = Math.min(rect.left, viewport.width - 340) + 'px';
   picker.style.top = Math.min(rect.bottom + 4, viewport.height - 420) + 'px';
 
-  let activeCat = null;
+  let activeCat: string | null | undefined = null;
   let searchTerm = '';
 
   function render() {
@@ -142,7 +128,7 @@ export function showEmojiPicker(anchorEl, callback, opts = {}) {
     }
     html += `</div><div class="emoji-picker-grid">`;
 
-    const items = [];
+    const items: string[] = [];
     for (const cat of EMOJI_CATEGORIES) {
       if (activeCat && activeCat !== cat.id) continue;
       if (searchTerm && !cat.label.toLowerCase().includes(searchTerm.toLowerCase())) continue;
@@ -156,25 +142,25 @@ export function showEmojiPicker(anchorEl, callback, opts = {}) {
     picker.innerHTML = html;
 
     // Bind events
-    const input = /** @type {HTMLInputElement | null} */ (picker.querySelector('input'));
+    const input = (picker.querySelector('input') as HTMLInputElement | null);
     input?.addEventListener('input', e => {
-      const target = /** @type {HTMLInputElement} */ (e.target);
+      const target = (e.target as HTMLInputElement);
       searchTerm = target.value;
       activeCat = null;
       render();
-      const el = /** @type {HTMLInputElement | null} */ (picker.querySelector('input'));
+      const el = (picker.querySelector('input') as HTMLInputElement | null);
       el?.focus();
       el?.setSelectionRange(searchTerm.length, searchTerm.length);
     });
     picker.querySelectorAll('.emoji-picker-cats button').forEach(btn => {
-      const button = /** @type {HTMLElement} */ (btn);
+      const button = (btn as HTMLElement);
       btn.addEventListener('click', () => {
         if (button.dataset.cat === '__reset') { callback(null); picker.remove(); cleanup(); return; }
         activeCat = activeCat === button.dataset.cat ? null : button.dataset.cat; searchTerm = ''; render();
       });
     });
     picker.querySelectorAll('.emoji-picker-grid span[data-emoji]').forEach(span => {
-      const emojiEl = /** @type {HTMLElement} */ (span);
+      const emojiEl = (span as HTMLElement);
       span.addEventListener('click', () => { callback(emojiEl.dataset.emoji); picker.remove(); cleanup(); });
     });
   }
@@ -184,18 +170,16 @@ export function showEmojiPicker(anchorEl, callback, opts = {}) {
   setTimeout(() => picker.querySelector('input')?.focus(), 50);
 
   // Close on outside click
-  /** @param {MouseEvent} e */
-  function onClickOutside(e) {
+  function onClickOutside(e: MouseEvent) {
     if (!(e.target instanceof Node)) return;
     if (!picker.contains(e.target) && e.target !== anchorEl) { picker.remove(); cleanup(); }
   }
-  /** @param {KeyboardEvent} e */
-  function onEsc(e) { if (e.key === 'Escape') { picker.remove(); cleanup(); } }
+  function onEsc(e: KeyboardEvent) { if (e.key === 'Escape') { picker.remove(); cleanup(); } }
   function cleanup() { document.removeEventListener('mousedown', onClickOutside); document.removeEventListener('keydown', onEsc); }
   setTimeout(() => { document.addEventListener('mousedown', onClickOutside); document.addEventListener('keydown', onEsc); }, 10);
 }
 
-export function changeCategoryIcon(categoryKey) {
+export function changeCategoryIcon(categoryKey: string) {
   const data = getActiveData();
   const cat = data.categories[categoryKey];
   if (!cat) return;

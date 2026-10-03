@@ -1,4 +1,3 @@
-// @ts-check
 // chart-card-recs.js - Recommendation badges for marker chart cards
 
 import { showNotification } from './utils.js';
@@ -9,7 +8,7 @@ import { getMarkerStorageDotKey } from './marker-placement.js';
 
 export async function loadChartCardRecs() {
   if (!isRecommendationsProductRecsEnabled()) return;
-  const catalog = await loadRecommendationsCatalogRuntime();
+  const catalog = await loadRecommendationsCatalogRuntime() as {slots?:unknown}|null|undefined;
   if (!catalog || !catalog.slots) return;
 
   const els = document.querySelectorAll('[id^="chart-rec-"]');
@@ -18,7 +17,7 @@ export async function loadChartCardRecs() {
     const id = el.id.replace('chart-rec-', '');
     const slotKey = getMarkerStorageDotKey(state.markerRegistry[id], id);
     if (!slotKey) continue;
-    const slot = catalog.slots[slotKey];
+    const slot = (catalog.slots as Record<string,unknown>)[slotKey];
     if (!slot) continue;
     const badge = document.createElement('button');
     badge.type = 'button';

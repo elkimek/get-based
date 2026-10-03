@@ -1,5 +1,5 @@
+import type { CategoryPageData, CategoryPageCategory, CategoryPageMarker, CategoryPageEntries, CategoryPageDelegateRoot } from '../types/category-page-view.js';
 import { configureValidRuntimeCallbacks } from './runtime-callbacks.js';
-// @ts-check
 // category-page-view.js — category route orchestration and view-mode switching
 
 import { state } from './state.js';
@@ -27,35 +27,35 @@ import {
 } from './category-view-renderers.js';
 import { markerDetailActionAttrs } from './marker-detail-actions.js';
 
-const categoryPageActionDelegateRoots = new WeakSet();
+const categoryPageActionDelegateRoots = new WeakSet<CategoryPageDelegateRoot>();
 
-/** @type {{ renameCategory: null | ((categoryKey: string) => void) }} */
-const categoryPageViewDeps = {
+
+const categoryPageViewDeps: {renameCategory: ((categoryKey:string)=>unknown)|null} = {
   renameCategory: null,
 };
 
-/** @param {Partial<typeof categoryPageViewDeps>} [deps] */
-export function configureCategoryPageViewDeps(deps = {}) {
-  return configureValidRuntimeCallbacks(categoryPageViewDeps, deps, ["renameCategory"]);
+
+export function configureCategoryPageViewDeps(deps:unknown = {}) {
+  return (configureValidRuntimeCallbacks as (current:unknown,updates:unknown,fields:readonly string[])=>{renameCategory:unknown})(categoryPageViewDeps, deps, ["renameCategory"]);
 }
 
 const CATEGORY_PAGE_ACTION_ATTR = 'data-category-page-action';
 const CATEGORY_PAGE_ACTION_SELECTOR = `[${CATEGORY_PAGE_ACTION_ATTR}]`;
 
-function categoryPageActionAttrs(action, attrs = {}) {
+function categoryPageActionAttrs(action:unknown, attrs:Record<string,unknown> = {}) {
   return camelCaseActionAttributes(CATEGORY_PAGE_ACTION_ATTR, "category-page", action, attrs);
 }
 
-function closestCategoryPageAction(target) {
-  return /** @type {HTMLElement | null} */ (
+function closestCategoryPageAction(target:{closest?:unknown}|null|undefined) {
+  return (
     target && typeof target.closest === 'function'
-      ? target.closest(CATEGORY_PAGE_ACTION_SELECTOR)
+      ? (target.closest as (selector:string)=>HTMLElement|null)(CATEGORY_PAGE_ACTION_SELECTOR)
       : null
   );
 }
 
-function handleCategoryPageActionClick(event) {
-  const actionEl = closestCategoryPageAction(event.target);
+function handleCategoryPageActionClick(event:Event) {
+  const actionEl = closestCategoryPageAction(event.target as {closest?:unknown}|null);
   if (!actionEl) return;
   const action = actionEl.getAttribute(CATEGORY_PAGE_ACTION_ATTR);
   const categoryKey = actionEl.dataset.categoryPageCategory || '';
@@ -73,15 +73,15 @@ function handleCategoryPageActionClick(event) {
   event.stopPropagation();
 }
 
-function handleCategoryPageActionKeydown(event) {
+function handleCategoryPageActionKeydown(event:KeyboardEvent) {
   if (event.key !== 'Enter' && event.key !== ' ') return;
-  const actionEl = closestCategoryPageAction(event.target);
+  const actionEl = closestCategoryPageAction(event.target as {closest?:unknown}|null);
   if (!actionEl || actionEl.getAttribute('role') !== 'button') return;
-  if (event.target?.closest?.('button, a, input, textarea, select')) return;
+  if ((event.target as {closest?:(selector:string)=>unknown}|null)?.closest?.('button, a, input, textarea, select')) return;
   handleCategoryPageActionClick(event);
 }
 
-export function installCategoryPageActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+export function installCategoryPageActionDelegates(root: CategoryPageDelegateRoot | null = typeof document !== 'undefined' ? document : null) {
   if (!root || categoryPageActionDelegateRoots.has(root)) return;
   categoryPageActionDelegateRoots.add(root);
   root.addEventListener('click', handleCategoryPageActionClick);
@@ -90,7 +90,7 @@ export function installCategoryPageActionDelegates(root = typeof document !== 'u
 
 if (typeof document !== 'undefined') installCategoryPageActionDelegates();
 
-function markerHasData(m) { return m.values?.some(v => v !== null && v !== undefined) ?? false; }
+function markerHasData(m:CategoryPageMarker|null|undefined) { return m!.values?.some(v => v !== null && v !== undefined) ?? false; }
 
 function selectedRangeLabel() {
   return state.dateRangeFilter === '3m' ? 'the last 3 months'
@@ -99,24 +99,24 @@ function selectedRangeLabel() {
     : 'all time';
 }
 
-function renderNoResultsInRange(cat, categoryKey) {
+function renderNoResultsInRange(cat:CategoryPageCategory, categoryKey:string) {
   return `<div class="empty-state"><div class="empty-state-icon empty-state-icon-category">${renderCategoryGlyph(categoryKey, cat.label, { large: true })}</div>
     <h3>No results in ${escapeHTML(selectedRangeLabel())}</h3>
     <p>This category has older results. Choose a longer range or show the complete history.</p>
     <button type="button" class="range-btn" ${dataActionAttrs('set-date-range', { range: 'all' })}>Show all results</button></div>`;
 }
 
-function renderMarkerDataGapSections(allEntries, rawCat, categoryKey) {
+function renderMarkerDataGapSections(allEntries:CategoryPageEntries, rawCat:CategoryPageCategory|null|undefined, categoryKey:string) {
   const withoutVisibleData = allEntries.filter(([, marker]) => !markerHasData(marker));
   if (!withoutVisibleData.length) return '';
-  const outsideRange = [];
-  const neverRecorded = [];
+  const outsideRange: CategoryPageEntries = [];
+  const neverRecorded: CategoryPageEntries = [];
   for (const entry of withoutVisibleData) {
     const [key] = entry;
     if (state.dateRangeFilter !== 'all' && markerHasData(rawCat?.markers?.[key])) outsideRange.push(entry);
     else neverRecorded.push(entry);
   }
-  const renderSection = (entries, heading, suffix) => {
+  const renderSection = (entries:CategoryPageEntries, heading:unknown, suffix:unknown) => {
     if (!entries.length) return '';
     let html = `<div class="chart-card-gap-section"><p>${escapeHTML(heading)}</p><div class="chart-card-gap-list">`;
     for (const [key, marker] of entries) {
@@ -131,8 +131,8 @@ function renderMarkerDataGapSections(allEntries, rawCat, categoryKey) {
     + renderSection(neverRecorded, 'No data yet', '+ add value');
 }
 
-function sortCategoryChartEntries(entries, categoryKey) {
-  const preserved = state._preserveCategoryCardOrder;
+function sortCategoryChartEntries(entries:CategoryPageEntries, categoryKey:string) {
+  const preserved = state._preserveCategoryCardOrder as {categoryKey?:unknown;markerKeys?:unknown}|null|undefined;
   if (preserved?.categoryKey === categoryKey && Array.isArray(preserved.markerKeys)) {
     const order = new Map(preserved.markerKeys.map((key, index) => [key, index]));
     entries.sort(([ka], [kb]) => (order.get(ka) ?? Number.MAX_SAFE_INTEGER) - (order.get(kb) ?? Number.MAX_SAFE_INTEGER));
@@ -143,22 +143,22 @@ function sortCategoryChartEntries(entries, categoryKey) {
 
   // Default category landing sort: markers with catalog slots first, then
   // by status (out-of-range before normal).
-  const catalogSlots = getCategoryPageCatalogSlots();
-  const hasSlot = (k) => catalogSlots?.[categoryKey + '.' + k] ? 0 : 1;
-  const statusOrder = { high: 0, low: 0, normal: 1, unrated: 2, missing: 3 };
+  const catalogSlots = getCategoryPageCatalogSlots() as Record<string,unknown>|null|undefined;
+  const hasSlot = (k:string) => catalogSlots?.[categoryKey + '.' + k] ? 0 : 1;
+  const statusOrder: Record<string,number> = { high: 0, low: 0, normal: 1, unrated: 2, missing: 3 };
   entries.sort(([ka, a], [kb, b]) => {
     const slotDiff = hasSlot(ka) - hasSlot(kb);
     if (slotDiff !== 0) return slotDiff;
-    const ai = getLatestValueIndex(a.values), bi = getLatestValueIndex(b.values);
-    const ar = ai !== -1 ? getEffectiveRangeForDate(a, ai) : { min: null, max: null };
-    const br = bi !== -1 ? getEffectiveRangeForDate(b, bi) : { min: null, max: null };
-    const as = ai === -1 ? 'missing' : (ar.min == null && ar.max == null) ? 'unrated' : getStatus(a.values[ai], ar.min, ar.max);
-    const bs = bi === -1 ? 'missing' : (br.min == null && br.max == null) ? 'unrated' : getStatus(b.values[bi], br.min, br.max);
+    const ai = (getLatestValueIndex as (values:unknown)=>number)(a.values), bi = (getLatestValueIndex as (values:unknown)=>number)(b.values);
+    const ar = ai !== -1 ? (getEffectiveRangeForDate as (marker:unknown,index:number)=>{min:unknown;max:unknown})(a, ai) : { min: null, max: null };
+    const br = bi !== -1 ? (getEffectiveRangeForDate as (marker:unknown,index:number)=>{min:unknown;max:unknown})(b, bi) : { min: null, max: null };
+    const as = ai === -1 ? 'missing' : (ar.min == null && ar.max == null) ? 'unrated' : (getStatus as (value:unknown,min:unknown,max:unknown)=>ReturnType<typeof getStatus>)(a.values![ai], ar.min, ar.max);
+    const bs = bi === -1 ? 'missing' : (br.min == null && br.max == null) ? 'unrated' : (getStatus as (value:unknown,min:unknown,max:unknown)=>ReturnType<typeof getStatus>)(b.values![bi], br.min, br.max);
     return (statusOrder[as] ?? 3) - (statusOrder[bs] ?? 3);
   });
 }
 
-export function showCategory(categoryKey, preData) {
+export function showCategory(categoryKey:string, preData?:unknown) {
   // categoryKey is interpolated into delegated data attributes below. Reject
   // anything that doesn't match the strict allowlist so a poisoned
   // customMarker key can't break out of the HTML attribute context.
@@ -167,12 +167,12 @@ export function showCategory(categoryKey, preData) {
   if (!main) return;
   // Ensure catalog is preloaded for sorting and rec links
   primeCategoryPageCatalogCache();
-  const rawData = preData || getActiveData();
-  const data = filterDatesByRange(rawData, { fallbackToAll: false });
-  const cat = data.categories[categoryKey];
+  const rawData = (preData || getActiveData()) as CategoryPageData;
+  const data = (filterDatesByRange as (data:unknown,options:Parameters<typeof filterDatesByRange>[1])=>CategoryPageData)(rawData, { fallbackToAll: false });
+  const cat = data.categories[categoryKey] as CategoryPageCategory & {label:{toLowerCase():unknown}};
   const rawCat = rawData.categories[categoryKey];
   const allEntries = Object.entries(cat.markers).filter(([, m]) => !m.hidden);
-  const withData = allEntries.filter(([, m]) => markerHasData(m));
+  const withData = allEntries.filter(([, m]) => markerHasData(m)) as Array<[string, CategoryPageMarker & {values:unknown[]}]>;
   const rawWithData = Object.values(rawCat?.markers || {}).filter(markerHasData).length;
   const countLabel = state.dateRangeFilter !== 'all'
     ? `${withData.length} of ${allEntries.length} biomarkers with results in ${selectedRangeLabel()}`
@@ -224,7 +224,7 @@ export function showCategory(categoryKey, preData) {
   else if (cat.singleDate) { renderFattyAcidsCharts(cat); }
   else {
     for (const [key, marker] of withData) {
-      createLineChart(categoryKey + "_" + key, marker, data.dateLabels, data.dates, data.phaseLabels, {
+      (createLineChart as (id:string,marker:unknown,labels:unknown,dates:unknown,phases:unknown,context:unknown)=>ReturnType<typeof createLineChart>)(categoryKey + "_" + key, marker, data.dateLabels, data.dates, data.phaseLabels, {
         displayLabels: data.phaseDisplayLabels,
         cycleDays: data.phaseCycleDays,
         sources: data.phaseSources,
@@ -234,7 +234,7 @@ export function showCategory(categoryKey, preData) {
   void loadChartCardRecs();
 }
 
-export function switchView(view, categoryKey, btn) {
+export function switchView(view:string, categoryKey:string, btn:Element) {
   // categoryKey reaches delegated data attributes via renderChartCard /
   // renderFattyAcidsView / renderTableView / renderHeatmapView. Same
   // allowlist guard as showCategory.
@@ -251,9 +251,9 @@ export function switchView(view, categoryKey, btn) {
   btn.setAttribute('aria-selected', 'true');
   btn.setAttribute('tabindex', '0');
   destroyAllCharts();
-  const rawData = getActiveData();
-  const data = filterDatesByRange(rawData, { fallbackToAll: false });
-  const cat = data.categories[categoryKey];
+  const rawData = getActiveData() as CategoryPageData;
+  const data = (filterDatesByRange as (data:unknown,options:Parameters<typeof filterDatesByRange>[1])=>CategoryPageData)(rawData, { fallbackToAll: false });
+  const cat = data.categories[categoryKey] as CategoryPageCategory & {label:{toLowerCase():unknown}};
   const rawCat = rawData.categories[categoryKey];
   // Pre-sanitize date labels at the call boundary — CodeQL's taint analysis
   // (js/xss-through-dom) doesn't trace sanitizers across function calls, so
@@ -279,7 +279,7 @@ export function switchView(view, categoryKey, btn) {
     } else {
       // Per-key safety check skips legacy customMarkers with unsafe keys so
       // they never reach inline-onclick handlers in renderChartCard.
-      const withData = Object.entries(cat.markers).filter(([key, m]) => markerHasData(m) && safeMarkerId(key));
+      const withData = Object.entries(cat.markers).filter(([key, m]) => markerHasData(m) && safeMarkerId(key)) as Array<[string, CategoryPageMarker & {values:unknown[]}]>;
       if (withData.length === 0) {
         container.innerHTML = state.dateRangeFilter !== 'all' && categoryHasHistoricalData
           ? renderNoResultsInRange(cat, categoryKey)
@@ -296,7 +296,7 @@ export function switchView(view, categoryKey, btn) {
       html += renderMarkerDataGapSections(allEntries, rawCat, categoryKey);
       container.innerHTML = html;
       for (const [key, marker] of withData) {
-        createLineChart(categoryKey + "_" + key, marker, data.dateLabels, data.dates, data.phaseLabels, {
+        (createLineChart as (id:string,marker:unknown,labels:unknown,dates:unknown,phases:unknown,context:unknown)=>ReturnType<typeof createLineChart>)(categoryKey + "_" + key, marker, data.dateLabels, data.dates, data.phaseLabels, {
           displayLabels: data.phaseDisplayLabels,
           cycleDays: data.phaseCycleDays,
           sources: data.phaseSources,
