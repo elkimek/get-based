@@ -565,9 +565,13 @@ export const allowDashboardWidgetDrop = (...args) => getDashboardView().allowDas
 export const dropDashboardWidget = (...args) => getDashboardView().dropDashboardWidget(...args);
 export const toggleDashboardQuickMarkerPin = (...args) => getDashboardView().toggleDashboardQuickMarkerPin(...args);
 
+/** @param {Parameters<ReturnType<typeof createRecommendationActions>['openRecommendationDetail']>} args */
 export function openRecommendationDetail(...args) { return getRecommendationActions().openRecommendationDetail(...args); }
+/** @param {Parameters<ReturnType<typeof createRecommendationActions>['discussRecommendation']>} args */
 export function discussRecommendation(...args) { return getRecommendationActions().discussRecommendation(...args); }
+/** @param {Parameters<ReturnType<typeof createRecommendationActions>['saveRecommendation']>} args */
 export function saveRecommendation(...args) { return getRecommendationActions().saveRecommendation(...args); }
+/** @param {Parameters<ReturnType<typeof createRecommendationActions>['dismissRecommendation']>} args */
 export function dismissRecommendation(...args) { return getRecommendationActions().dismissRecommendation(...args); }
 
 configureCompareCorrelationViews({

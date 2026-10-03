@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
-// test-dna-recommendations.js — Verify DNA-aware supplement recommendation integration
+// test-dna-recommendations.ts — Verify DNA-aware supplement recommendation integration
 //
-// Run: node tests/test-dna-recommendations.js  (or via npm test)
+// Run: node tests/test-dna-recommendations.ts  (or via npm test)
 
 import './_node-shim.js';
 
@@ -12,8 +12,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-function fetchWithRetry(rel) { return Promise.resolve(read(rel)); }
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+function fetchWithRetry(rel: string) { return Promise.resolve(read(rel)); }
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
 
@@ -29,16 +29,16 @@ const _realFetch = globalThis.fetch;
 globalThis.fetch = createSourceFetch(read, _realFetch);
 
 const recSrc = await fetchWithRetry('js/recommendations.js');
-const dnaSrc = await fetchWithRetry('js/dna.js');
-const ctxSrc = await fetchWithRetry('js/context-cards.js');
+await fetchWithRetry('js/dna.js');
+await fetchWithRetry('js/context-cards.js');
 const cssSrc = [
   await fetchWithRetry('styles.css'),
   await fetchWithRetry('css/context-profile.css'),
   await fetchWithRetry('css/context-editor.css'),
   await fetchWithRetry('css/recommendations.css'),
 ].join('\n');
-const snpData = await fetch('data/snp-health.json').then(r => r.json());
-const catalogData = await fetch('data/recommendations.json').then(r => r.json());
+const snpData = await fetch('data/snp-health.json').then(r => r.json()) as Record<string, import('../js/recommendations-runtime.js').RecommendationSnpEntry & { markers?: string[] | null }>;
+const catalogData = await fetch('data/recommendations.json').then(r => r.json()) as import('../js/recommendations-runtime.js').RecommendationCatalog;
 // Detect the stub fallback (Dependabot / fork PRs without CATALOG_FETCH_TOKEN —
 // see scripts/fetch-catalog.mjs). The stub only contains 3 slots so any test
 // that asserts on real catalog content (B12/folate slot shape, snpHint
@@ -46,7 +46,7 @@ const catalogData = await fetch('data/recommendations.json').then(r => r.json())
 // and report the skip count at the end.
 const STUB_CATALOG = catalogData?._stub === true;
 let skipped = 0;
-function assertCatalog(name, condition, detail) {
+function assertCatalog(name: unknown, condition: unknown, detail?: unknown) {
   if (STUB_CATALOG) { skipped++; console.log(`  SKIP: ${name} (stub catalog)`); return; }
   assert(name, condition, detail);
 }
@@ -133,10 +133,10 @@ assertCatalog('Catalog has vitamins.vitaminB12 slot', !!catalogData.slots?.['vit
 assertCatalog('Catalog has vitamins.folate slot', !!catalogData.slots?.['vitamins.folate']);
 const b12Slot = catalogData.slots?.['vitamins.vitaminB12'];
 const folateSlot = catalogData.slots?.['vitamins.folate'];
-assertCatalog('B12 slot has forms', b12Slot?.forms?.length >= 2);
-assertCatalog('B12 slot has food forms', b12Slot?.foodForms?.length >= 2);
-assertCatalog('Folate slot has forms', folateSlot?.forms?.length >= 2);
-assertCatalog('Folate slot has food forms', folateSlot?.foodForms?.length >= 2);
+assertCatalog('B12 slot has forms', b12Slot?.forms?.length! >= 2);
+assertCatalog('B12 slot has food forms', b12Slot?.foodForms?.length! >= 2);
+assertCatalog('Folate slot has forms', folateSlot?.forms?.length! >= 2);
+assertCatalog('Folate slot has food forms', folateSlot?.foodForms?.length! >= 2);
 
 // ═══════════════════════════════════════
 // 3. recommendations.js — buildDNAHints
@@ -226,7 +226,7 @@ assert('CSS has .ctx-tips-badge', cssSrc.includes('.ctx-tips-badge'));
 console.log('9. Slot Coverage');
 
 let allSlotsExist = true;
-const missingSlots = new Set();
+const missingSlots = new Set<string>();
 for (const [rsid, entry] of Object.entries(snpData)) {
   if (rsid.startsWith('_') || !entry.snpHints) continue;
   for (const [, hint] of Object.entries(entry.snpHints)) {
@@ -243,7 +243,7 @@ assertCatalog('All snpHint slotKeys exist in catalog', allSlotsExist, missingSlo
 // ═══════════════════════════════════════
 console.log('10. Direction Coverage');
 
-const directions = new Set();
+const directions = new Set<string>();
 for (const [rsid, entry] of Object.entries(snpData)) {
   if (rsid.startsWith('_') || !entry.snpHints) continue;
   for (const hint of Object.values(entry.snpHints)) directions.add(hint.direction);

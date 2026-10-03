@@ -3,9 +3,9 @@ import { hasDirectStartupImports } from './helpers/startup-composition.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
-// test-recommendations.js — Verify supplement & lifestyle recommendation module
+// test-recommendations.ts — Verify supplement & lifestyle recommendation module
 //
-// Run: node tests/test-recommendations.js  (or via npm test)
+// Run: node tests/test-recommendations.ts  (or via npm test)
 
 import './_node-shim.js';
 
@@ -14,8 +14,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
-function fetchWithRetry(rel) { return Promise.resolve(read(rel)); }
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel.replace(/^\//, '')), 'utf-8');
+function fetchWithRetry(rel: string) { return Promise.resolve(read(rel)); }
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
 
@@ -44,9 +44,9 @@ const _realFetch = globalThis.fetch;
   const chartCardRecsSrc = await fetchWithRetry('js/chart-card-recs.js');
   const markerDetailSrc = await fetchWithRetry('js/marker-detail-modal-impl.js');
   const dashboardWidgetsSrc = await fetchWithRetry('js/dashboard-widgets.js');
-  const dashboardWidgetRenderersSrc = await fetchWithRetry('js/dashboard-widget-renderers.js');
+  await fetchWithRetry('js/dashboard-widget-renderers.js');
   const dashboardRecommendationWidgetSrc = await fetchWithRetry('js/dashboard-recommendation-widget.js');
-  const contextSrc = await fetchWithRetry('js/context-cards.js');
+  await fetchWithRetry('js/context-cards.js');
   const navSrc = await fetchWithRetry('js/nav.js');
   const lensPagesSrc = await fetchWithRetry('js/lens-pages.js');
   const settingsSrc = await fetchWithRetry('js/settings.js');
@@ -153,7 +153,7 @@ const _realFetch = globalThis.fetch;
     classList: { add: () => {}, contains: () => false },
     querySelector: () => null,
   };
-  document.getElementById = (id) => id === 'detail-modal' ? modalStub : id === 'modal-overlay' ? overlayStub : null;
+  document.getElementById = ((id: string) => id === 'detail-modal' ? modalStub : id === 'modal-overlay' ? overlayStub : null) as unknown as typeof document.getElementById;
   createRecommendationActions({
     getActiveData: () => ({}),
     buildDashboardWidgetContext: () => ({}),
@@ -191,18 +191,6 @@ const _realFetch = globalThis.fetch;
   // 7. getProductsForSlot
   // ═══════════════════════════════════════
   console.log('%c 7. Product Filtering ', 'font-weight:bold;color:#f59e0b');
-
-  // Mock catalog for testing
-  const mockCatalog = {
-    slots: { 'test.marker': { label: 'Test', freeActions: ['Do something free'], forms: ['Form A'] } },
-    products: {
-      'test.marker': [
-        { type: 'supplement', brand: 'A', regions: ['CZ', 'SK'] },
-        { type: 'food', brand: 'B', regions: ['EU'] },
-        { type: 'supplement', brand: 'C', regions: ['CZ'] },
-      ]
-    }
-  };
 
   // getProductsForSlot is exported but not on window — test via recSrc
   assert('getProductsForSlot filters by region via hierarchy chain', recProductsSrc.includes('regionLookupChain(region)'));
@@ -422,7 +410,7 @@ const _realFetch = globalThis.fetch;
   // catalogSlug equal to its id so the device card resolves to the catalog
   // without manual mapping.
   const presetsRes = await fetchWithRetry('data/light-device-presets.json');
-  const presetsData = JSON.parse(presetsRes);
+  const presetsData = JSON.parse(presetsRes) as { presets: Array<Pick<import('../js/light-devices-store.js').LightDeviceRecord, 'id' | 'catalogSlug'> & { brand: string }> };
   const newBrands = ['Mitochondriak', 'Chroma', 'EMR-Tek'];
   for (const p of presetsData.presets) {
     if (!newBrands.includes(p.brand)) continue;
@@ -453,7 +441,7 @@ const _realFetch = globalThis.fetch;
     stubCatalog, 'pbm_red', presetStubs);
   assert('recommendDeviceProductsForChannelDeficit: pbm_red → matching product',
     Array.isArray(pbmRedHits) && pbmRedHits.length === 1 &&
-    pbmRedHits[0].key === 'mitochondriak-maxi-uvb');
+    pbmRedHits[0]!.key === 'mitochondriak-maxi-uvb');
 
   const novelChannel = recommendationsModule.recommendDeviceProductsForChannelDeficit(
     stubCatalog, 'imaginary_channel', presetStubs);

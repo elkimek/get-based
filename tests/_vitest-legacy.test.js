@@ -132,10 +132,10 @@ const LEGACY_TESTS = [
   './test-onboarding-view-runtime.js',
   './test-wearables-connect-runtime.js',
   // Batch 17 — recommendations module.
-  './test-recommendations.js',
+  './test-recommendations.ts',
   // Batch 19 — DNA-aware recommendation integration + image utils
   // (DOM-runtime sections moved to Playwright).
-  './test-dna-recommendations.js',
+  './test-dna-recommendations.ts',
   './test-image-utils.js',
   // Batch 20 — changelog modal source-inspection + hasCardContent
   // (DOM-runtime sections moved to Playwright).

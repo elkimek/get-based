@@ -795,3 +795,6 @@ deploy/profile-share/data/
 /js/recommendations-products.js
 
 /js/nutrition-ai-settings.js
+
+/js/recommendations.js
+/js/recommendation-actions.js

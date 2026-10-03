@@ -1,4 +1,23 @@
-// @ts-check
+import type { GeneticsData } from './dna-runtime.js';
+import type { WearableMetricSummary } from './wearables-summary-model.js';
+import type { RecommendationCatalog, RecommendationSectionOptions } from './recommendations-runtime.js';
+
+export interface RecommendationDNAHint {
+  rsid?: string;
+  gene: unknown;
+  variant?: unknown;
+  genotype: string;
+  direction: string;
+  text: string;
+  ref?: string | undefined;
+  evidenceProfile: ReturnType<typeof resolveSnpEvidenceProfile>;
+}
+type WearableTrendMetric = Pick<Partial<WearableMetricSummary>, 'baseline' | 'baselineP25' | 'baselineP75'> & {
+  rolling?: Partial<WearableMetricSummary['rolling']> | null;
+};
+interface WearableTrendInput { metrics?: Record<string, WearableTrendMetric | null | undefined> | null }
+interface EmfAssessmentSnapshot { assessments?: Array<{ date: string }> | null }
+
 // recommendations.js — Catalog loading, DNA hints, section rendering, and recommendation detectors
 
 import { escapeHTML } from './utils.js';
@@ -77,11 +96,11 @@ export {
 // ═══════════════════════════════════════════════
 // CATALOG CACHE
 // ═══════════════════════════════════════════════
-let _catalog = undefined; // undefined = not loaded, null = load failed
-let _catalogPromise = null; // deduplicates concurrent loads
+let _catalog: RecommendationCatalog | null | undefined = undefined; // undefined = not loaded, null = load failed
+let _catalogPromise: Promise<RecommendationCatalog | null> | null = null; // deduplicates concurrent loads
 let _recommendationDelegatesInstalled = false;
 
-function handleRecommendationSectionGuardClick(event) {
+function handleRecommendationSectionGuardClick(event: MouseEvent) {
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
 
@@ -89,10 +108,10 @@ function handleRecommendationSectionGuardClick(event) {
   if (guardedSection && !target.closest('a,button')) event.stopPropagation();
 }
 
-function handleRecommendationActionClick(event) {
+function handleRecommendationActionClick(event: MouseEvent) {
   const target = event.target instanceof Element ? event.target : null;
   if (!target) return;
-  const actionEl = /** @type {HTMLElement | null} */ (target.closest('[data-rec-action]'));
+  const actionEl = target.closest('[data-rec-action]') as HTMLElement | null;
   if (!actionEl) return;
   const action = actionEl.dataset.recAction || '';
 
@@ -142,7 +161,7 @@ export async function loadCatalog() {
         setRecommendationsCatalogCache(null);
         return null;
       }
-      _catalog = await res.json();
+      _catalog = await res.json() as RecommendationCatalog | null;
       setRecommendationsCatalogCache(_catalog);
       return _catalog;
     } catch {
@@ -173,20 +192,20 @@ export async function loadEMFCatalog() {
 // ═══════════════════════════════════════════════
 // CARD TIPS — lifestyle slots for context cards
 // ═══════════════════════════════════════════════
-const CARD_NAMES = {
+const CARD_NAMES: Readonly<Record<string, string>> = {
   sleepRest: 'Sleep & Rest', lightCircadian: 'Light & Circadian',
   environment: 'Environment', exercise: 'Exercise',
   diet: 'Diet & Digestion', stress: 'Stress'
 };
 
-export function getCardSlotKeys(cardKey) {
+export function getCardSlotKeys(cardKey: string) {
   if (!_catalog || !_catalog.slots) return [];
   const cardName = CARD_NAMES[cardKey];
   if (!cardName) return [];
-  return Object.keys(_catalog.slots).filter(k => _catalog.slots[k].card === cardName);
+  return Object.keys(_catalog.slots).filter(k => _catalog!.slots[k]!.card === cardName);
 }
 
-const CARD_LABELS = {
+const CARD_LABELS: Readonly<Record<string, { emoji: string; label: string }>> = {
   sleepRest: { emoji: '\uD83D\uDE34', label: 'Sleep & Rest' },
   lightCircadian: { emoji: '\u2600\uFE0F', label: 'Light & Circadian' },
   environment: { emoji: '\uD83C\uDF0D', label: 'Environment' },
@@ -195,12 +214,12 @@ const CARD_LABELS = {
   stress: { emoji: '\uD83E\uDDE0', label: 'Stress' }
 };
 
-function _buildCardDNASection(cardKey) {
-  const genetics = state.importedData?.genetics;
+function _buildCardDNASection(cardKey: string) {
+  const genetics = state.importedData?.genetics as GeneticsData | null | undefined;
   if (!genetics || !genetics.snps) return '';
   const snpTable = getRecommendationsSnpTable();
   if (!snpTable) return '';
-  const hints = [];
+  const hints: string[] = [];
   const apoeRsids = new Set(['rs429358', 'rs7412']);
   for (const [rsid, stored] of Object.entries(genetics.snps)) {
     if (genetics.apoe && apoeRsids.has(rsid)) continue;
@@ -223,7 +242,7 @@ function _buildCardDNASection(cardKey) {
   return `<div class="ctx-tip-slot"><div class="ctx-tip-slot-label">Your Genetics</div>${hints.join('')}</div>`;
 }
 
-export function renderCardTipsModal(cardKey) {
+export function renderCardTipsModal(cardKey: string) {
   if (!isProductRecsEnabled() || !_catalog || !_catalog.slots) return '';
   const slotKeys = getCardSlotKeys(cardKey);
   if (!slotKeys.length) return '';
@@ -258,7 +277,7 @@ export function renderCardTipsModal(cardKey) {
 // Single one-line link when no EMF assessment yet, or latest is older
 // than 120d. Empty otherwise so we don't nag users keeping up.
 function _buildEMFNudge() {
-  const assessments = state.importedData?.emfAssessment?.assessments || [];
+  const assessments = (state.importedData?.emfAssessment as EmfAssessmentSnapshot | null | undefined)?.assessments || [];
   if (!assessments.length) {
     return `<div class="ctx-tip-emf-nudge"><span aria-hidden="true">💡</span> Want to measure your home's EMF environment? <a href="#" ${recActionAttrs('open-emf-assessment')} data-umami-event="emf-nudge-env-tips-noassessment">Open the EMF assessment →</a></div>`;
   }
@@ -279,13 +298,13 @@ function _buildEMFNudge() {
 // DNA HINTS — connect genetics to recommendations
 // ═══════════════════════════════════════════════
 
-export function buildDNAHints(slotKey) {
-  const genetics = state.importedData?.genetics;
+export function buildDNAHints(slotKey: string) {
+  const genetics = state.importedData?.genetics as GeneticsData | null | undefined;
   if (!genetics || !genetics.snps) return [];
   const snpTable = getRecommendationsSnpTable();
   if (!snpTable) return [];
 
-  const hints = [];
+  const hints: RecommendationDNAHint[] = [];
 
   // APOE haplotype — special handling
   if (genetics.apoe && slotKey === 'lipids.ldl') {
@@ -331,9 +350,9 @@ export function buildDNAHints(slotKey) {
 // HTML RENDERING
 // ═══════════════════════════════════════════════
 // Sync core — builds HTML from cached catalog, no promises
-function _renderRecSection(slotKey, opts = {}) {
+function _renderRecSection(slotKey: string, opts: RecommendationSectionOptions = {}) {
   const slot = _catalog?.slots?.[slotKey];
-  const hasInlineSNPs = opts.inlineSNPs?.length > 0;
+  const hasInlineSNPs = opts.inlineSNPs?.length! > 0;
   if (!slot && !hasInlineSNPs) return '';
 
   const label = opts.label || 'What can help';
@@ -347,7 +366,7 @@ function _renderRecSection(slotKey, opts = {}) {
   const toolProducts = products.filter(p => p.type === 'product').slice(0, maxProducts);
   const suppProducts = products.filter(p => p.type === 'supplement').slice(0, maxProducts);
   const drugProducts = products.filter(p => p.type === 'drug').slice(0, maxProducts);
-  const otherProducts = products.filter(p => !knownTypes.includes(/** @type {string} */ (p.type))).slice(0, maxProducts);
+  const otherProducts = products.filter(p => !knownTypes.includes(p.type as string)).slice(0, maxProducts);
 
   let inner = '';
 
@@ -458,13 +477,13 @@ function _renderRecSection(slotKey, opts = {}) {
 }
 
 // Sync version — uses cached catalog, returns '' if not loaded yet
-export function renderRecommendationSectionSync(slotKey, opts = {}) {
+export function renderRecommendationSectionSync(slotKey: string, opts: RecommendationSectionOptions = {}) {
   if (!isProductRecsEnabled()) return '';
   return _renderRecSection(slotKey, opts);
 }
 
 // Async version — ensures catalog is loaded first
-export async function renderRecommendationSection(slotKey, opts = {}) {
+export async function renderRecommendationSection(slotKey: string, opts: RecommendationSectionOptions = {}) {
   if (!isProductRecsEnabled()) return '';
   await loadCatalog();
   return _renderRecSection(slotKey, opts);
@@ -475,7 +494,7 @@ export async function renderRecommendationSection(slotKey, opts = {}) {
 // ═══════════════════════════════════════════════
 
 // Extra keywords beyond what the catalog label provides (keyed by label fragment)
-const EXTRA_TERMS = {
+const EXTRA_TERMS: Readonly<Record<string, Array<string | RegExp>>> = {
   'vitamin d': ['vitd', 'd3', 'cholecalciferol', '25-oh'],
   'vitamin b12': ['b12', 'cobalamin', 'methylcobalamin'],
   'vitamin a': ['retinol', 'retinyl'],
@@ -521,10 +540,10 @@ const EXTRA_TERMS = {
   'prolactin': ['hyperprolactinemia', 'dopamine', 'pituitary', 'galactorrhea'],
 };
 
-export function detectSupplementSlots(text) {
+export function detectSupplementSlots(text: string | null | undefined) {
   if (!text || !_catalog || !_catalog.slots) return [];
   const lower = text.toLowerCase();
-  const found = [];
+  const found: string[] = [];
 
   for (const [slotKey, slot] of Object.entries(_catalog.slots)) {
     // Skip lifestyle slots (those have a card property)
@@ -548,7 +567,7 @@ export function detectSupplementSlots(text) {
   }
 
   // Second pass: gene name matching for DNA-aware detection
-  const genetics = state.importedData?.genetics;
+  const genetics = state.importedData?.genetics as GeneticsData | null | undefined;
   const snpTable = genetics?.snps ? getRecommendationsSnpTable() : null;
   if (genetics?.snps && snpTable) {
     for (const [rsid, stored] of Object.entries(genetics.snps)) {
@@ -558,7 +577,7 @@ export function detectSupplementSlots(text) {
       if (!g) continue;
       const hint = findSnpHint(entry, g);
       if (!hint) continue;
-      const geneRe = new RegExp('\\b' + stored.gene.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+      const geneRe = new RegExp('\\b' + (stored.gene as string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
       if (geneRe.test(lower) && !found.includes(hint.slotKey)) {
         // Verify slot exists in catalog
         if (_catalog.slots[hint.slotKey]) found.push(hint.slotKey);
@@ -583,9 +602,9 @@ const _MITIGATION_TEXT_PATTERNS = [
   { tag: 'shielded cables',            re: /\bshielded (?:power |ethernet )?cable/i },
   { tag: 'demand switch (Netzfreischalter)', re: /\b(?:demand switch|netzfreischalter|kill[- ]switch.*bedroom|bedroom circuit (?:cut|disconnect))\b/i },
 ];
-export function detectMitigationsInText(text) {
+export function detectMitigationsInText(text: unknown) {
   if (!text || typeof text !== 'string') return [];
-  const found = [];
+  const found: string[] = [];
   for (const { tag, re } of _MITIGATION_TEXT_PATTERNS) {
     if (re.test(text) && !found.includes(tag)) found.push(tag);
   }
@@ -614,7 +633,7 @@ const _EMF_TERMS = [
   /shielding (?:paint|fabric|canopy)/i,
   /yshield/i, /stetzer/i,
 ];
-export function detectEMFRelevance(text) {
+export function detectEMFRelevance(text: unknown) {
   if (!text || typeof text !== 'string') return false;
   return _EMF_TERMS.some(re => re.test(text));
 }
@@ -626,9 +645,9 @@ export function detectEMFRelevance(text) {
 //
 // Returns [{ slotKey, reason }, ...]. Slot keys must exist in the catalog
 // or callers will skip them.
-export function detectWearableTrendSlots(summary) {
+export function detectWearableTrendSlots(summary: WearableTrendInput | null | undefined) {
   if (!summary?.metrics) return [];
-  const out = [];
+  const out: Array<{ slotKey: string; reason: string }> = [];
   const m = summary.metrics;
 
   // HRV (overnight) ≪ baseline AND below P25 → low recovery / stress signal.
@@ -668,7 +687,7 @@ export function detectWearableTrendSlots(summary) {
   }
 
   // De-dupe by slotKey, keep first reason.
-  const seen = new Set();
+  const seen = new Set<string>();
   return out.filter(o => {
     if (seen.has(o.slotKey)) return false;
     seen.add(o.slotKey);

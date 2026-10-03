@@ -1,6 +1,6 @@
 {
   "_stub": true,
-  "_stubNote": "Minimal stub used when no real catalog is available (fork PRs, Dependabot PRs, anyone without CATALOG_FETCH_TOKEN). Tests that assert on real catalog content (B12/folate slots, EMF mitigation copy, vendor URL routing) detect this marker and skip — see tests/test-dna-recommendations.js and tests/test-emf.js. If you're forking and filling in a real catalog, drop this _stub key once you have content for the slots your tests cover.",
+  "_stubNote": "Minimal stub used when no real catalog is available (fork PRs, Dependabot PRs, anyone without CATALOG_FETCH_TOKEN). Tests that assert on real catalog content (B12/folate slots, EMF mitigation copy, vendor URL routing) detect this marker and skip — see tests/test-dna-recommendations.ts and tests/test-emf.js. If you're forking and filling in a real catalog, drop this _stub key once you have content for the slots your tests cover.",
   "region": "INTL",
   "countries": ["worldwide"],
   "slots": {

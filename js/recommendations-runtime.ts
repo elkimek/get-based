@@ -3,29 +3,35 @@
 import { configureRuntimeDependencies, scheduleRuntimeTask } from './runtime-callbacks.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import type { ProductCatalog } from './recommendations-products.js';
+import type { RelevantSnpFinding } from './dna.js';
+import type { SnpAnnotation } from './dna-evidence.js';
 import type { GenotypeEntry } from './dna-genotype.js';
 
 export interface RecommendationCatalogSlot {
   label?: string;
   card?: string;
   forms?: string[];
+  freeActions?: string[] | null;
+  foodForms?: string[] | null;
+  productForms?: string[] | null;
+  formRefs?: Record<string, string> | null;
   [key: string]: unknown;
 }
 export interface RecommendationCatalog extends ProductCatalog {
   slots: Record<string, RecommendationCatalogSlot>;
   [key: string]: unknown;
 }
+export type RecommendationInlineSnp = SnpAnnotation
+  & Partial<Pick<RelevantSnpFinding, 'rsid' | 'presentation' | 'evidenceProfile'>>
+  & { references?: string[] | null };
 export interface RecommendationSectionOptions {
   label?: string | undefined;
   maxProducts?: number;
+  markerStatus?: unknown;
+  inlineSNPs?: RecommendationInlineSnp[] | null;
   [key: string]: unknown;
 }
-export interface RecommendationGenotypeInfo {
-  effect?: string;
-  note?: string;
-  valence?: string;
-  [key: string]: unknown;
-}
+export type RecommendationGenotypeInfo = SnpAnnotation;
 export interface RecommendationSnpHint {
   slotKey: string;
   direction: string;
@@ -33,23 +39,19 @@ export interface RecommendationSnpHint {
   ref?: string;
   [key: string]: unknown;
 }
-export interface RecommendationSnpEntry extends GenotypeEntry<RecommendationGenotypeInfo, RecommendationSnpHint> {
+export interface RecommendationSnpEntry extends SnpAnnotation, GenotypeEntry<RecommendationGenotypeInfo, RecommendationSnpHint> {
   contextCards?: string[];
   [key: string]: unknown;
 }
 export type RecommendationSnpTable = Record<string, RecommendationSnpEntry>;
-export interface RecommendationModuleAPI {
-  isProductRecsEnabled: () => boolean;
-  loadCatalog: () => Promise<RecommendationCatalog | null>;
-  renderRecommendationSection: (slotKey: string, options?: RecommendationSectionOptions) => Promise<string>;
-  renderRecommendationSectionSync: (slotKey: string, options?: RecommendationSectionOptions) => string;
-  detectSupplementSlots: (text: string) => string[];
-  detectEMFRelevance: (text: string) => boolean;
-  getCardSlotKeys: (cardKey: string) => string[];
-  buildDNAHints: (slotKey: string) => Array<{ gene: string; text: string; [key: string]: unknown }>;
-  renderCardTipsModal: (cardKey: string) => string;
-  renderLightDeviceAffiliateRow: (catalog: RecommendationCatalog, slug: string) => string;
-}
+// The bridge exposes the actual native exports, so signatures have one owner.
+export type RecommendationModuleAPI = Pick<typeof import('./recommendations.js'),
+  | 'isProductRecsEnabled' | 'loadCatalog'
+  | 'renderRecommendationSection' | 'renderRecommendationSectionSync'
+  | 'detectSupplementSlots' | 'detectEMFRelevance'
+  | 'getCardSlotKeys' | 'buildDNAHints' | 'renderCardTipsModal'
+  | 'renderLightDeviceAffiliateRow'
+>;
 export interface RecommendationsRuntimeDeps {
   closeModal: (() => unknown) | null;
   openEMFAssessmentEditor: () => unknown;
