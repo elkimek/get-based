@@ -13,13 +13,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
+const read = (rel: string) => fs.readFileSync(path.join(ROOT, rel), 'utf-8');
 const CSS_FILES = ['styles.css', 'css/cycle.css'];
 const readCycleCss = () => CSS_FILES.map(read).join('\n');
 
 let pass = 0, fail = 0;
-const results = [];
-function assert(name, condition, detail = '') {
+const results: string[] = [];
+function assert(name: string, condition: unknown, detail = '') {
   if (condition) { pass++; results.push(`  PASS: ${name}`); }
   else { fail++; results.push(`  FAIL: ${name}${detail ? ' — ' + detail : ''}`); }
 }
@@ -55,19 +55,19 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   {
     const { state } = await import('../js/state.js');
     const origSex = state.profileSex;
-    const origMC = state.importedData.menstrualCycle;
-    const origEntries = state.importedData.entries;
+    const origMC = state.importedData!.menstrualCycle;
+    const origEntries = state.importedData!.entries;
 
     // Test with female + cycle + entries
     state.profileSex = 'female';
-    state.importedData.menstrualCycle = {
+    state.importedData!.menstrualCycle = {
       cycleLength: 28, periodLength: 5, regularity: 'regular', flow: 'moderate',
       contraceptive: '', conditions: '', periods: [
         { startDate: '2025-01-01', endDate: '2025-01-05', flow: 'moderate', notes: '' },
         { startDate: '2025-01-29', endDate: '2025-02-02', flow: 'moderate', notes: '' }
       ]
     };
-    state.importedData.entries = [
+    state.importedData!.entries = [
       { date: '2025-01-03', markers: { 'biochemistry.glucose': 5.0 } },
       { date: '2025-01-15', markers: { 'biochemistry.glucose': 5.2 } },
       { date: '2025-02-01', markers: { 'biochemistry.glucose': 4.9 } }
@@ -75,10 +75,10 @@ const { phaseBandPlugin } = await import('../js/charts.js');
 
     const data = dataModule.getActiveData();
     assert('data.phaseLabels exists for female+cycle', Array.isArray(data.phaseLabels));
-    assert('data.phaseLabels length matches dates', data.phaseLabels.length === data.dates.length, `${data.phaseLabels?.length} vs ${data.dates.length}`);
-    assert('data.phaseLabels contains menstrual for Jan 3', data.phaseLabels[0] === 'menstrual', `got "${data.phaseLabels?.[0]}"`);
-    assert('data.phaseLabels contains ovulatory for Jan 15', data.phaseLabels[1] === 'ovulatory', `got "${data.phaseLabels?.[1]}"`);
-    assert('data.phaseLabels contains menstrual for Feb 1', data.phaseLabels[2] === 'menstrual', `got "${data.phaseLabels?.[2]}"`);
+    assert('data.phaseLabels length matches dates', data.phaseLabels!.length === data.dates.length, `${data.phaseLabels?.length} vs ${data.dates.length}`);
+    assert('data.phaseLabels contains menstrual for Jan 3', data.phaseLabels![0] === 'menstrual', `got "${data.phaseLabels?.[0]}"`);
+    assert('data.phaseLabels contains ovulatory for Jan 15', data.phaseLabels![1] === 'ovulatory', `got "${data.phaseLabels?.[1]}"`);
+    assert('data.phaseLabels contains menstrual for Feb 1', data.phaseLabels![2] === 'menstrual', `got "${data.phaseLabels?.[2]}"`);
 
     // Test without cycle → no phaseLabels
     state.profileSex = 'male';
@@ -86,8 +86,8 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     assert('data.phaseLabels absent for male', !dataM.phaseLabels);
 
     state.profileSex = origSex;
-    state.importedData.menstrualCycle = origMC;
-    state.importedData.entries = origEntries;
+    state.importedData!.menstrualCycle = origMC;
+    state.importedData!.entries = origEntries;
   }
 
   // ── Section 4: filterDatesByRange preserves phaseLabels ──
@@ -198,7 +198,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     const periResult = cycle.detectPerimenopausePattern(periMC, '1979-01-01'); // ~45-46
     assert('Detects perimenopause for qualifying data', periResult !== null);
     assert('Has indicators array', Array.isArray(periResult?.indicators));
-    assert('Has 2+ indicators', periResult?.indicators?.length >= 2, `got ${periResult?.indicators?.length}: ${periResult?.indicators?.join(', ')}`);
+    assert('Has 2+ indicators', (periResult?.indicators?.length as number) >= 2, `got ${periResult?.indicators?.length}: ${periResult?.indicators?.join(', ')}`);
     assert('Has message string', typeof periResult?.message === 'string');
     assert('Message mentions age', periResult?.message?.includes('age'));
   }
@@ -234,18 +234,18 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     };
     // Build data that has no iron markers → should get info alert
     const { state } = await import('../js/state.js');
-    const origEntries = state.importedData.entries;
-    state.importedData.entries = [{ date: '2025-01-10', markers: { 'biochemistry.glucose': 5.0 } }];
+    const origEntries = state.importedData!.entries;
+    state.importedData!.entries = [{ date: '2025-01-10', markers: { 'biochemistry.glucose': 5.0 } }];
     const data2 = dataModule.getActiveData();
     const alerts2 = cycle.detectCycleIronAlerts(mc2, data2);
     assert('Info alert when no iron panel + heavy flow', alerts2.some(a => a.severity === 'info'), `got ${JSON.stringify(alerts2.map(a=>a.severity))}`);
-    state.importedData.entries = origEntries;
+    state.importedData!.entries = origEntries;
   }
 
   // ── Section 15: Period entry form has symptom tags ──
   console.log('Section 15: Period entry form symptoms');
   {
-    const src = read('js/cycle.js');
+    const src = read('js/cycle.ts');
     assert('Editor has mc-period-symptoms container', src.includes('mc-period-symptoms'));
     assert('Editor uses PERIOD_SYMPTOMS', src.includes('PERIOD_SYMPTOMS'));
     assert('Editor has ctx-tag for symptoms', src.includes('ctx-tag') && src.includes('data-value'));
@@ -254,7 +254,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   // ── Section 16: Symptom tags display in period log ──
   console.log('Section 16: Symptom tags in period log');
   {
-    const src = read('js/cycle.js');
+    const src = read('js/cycle.ts');
     assert('Period log shows period-symptom-tag', src.includes('period-symptom-tag'));
     assert('Checks p.symptoms?.length', src.includes('p.symptoms') && src.includes('symptoms.length'));
   }
@@ -277,7 +277,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   console.log('Section 18: Source inspection');
   {
     const cycleRuntime = await import('../js/cycle-runtime.js');
-    const runtimeCalls = [];
+    const runtimeCalls: string[][] = [];
     const previousCycleRuntime = cycleRuntime.configureCycleRuntimeDeps({
       closeModal: () => runtimeCalls.push(['close']),
       navigate: category => runtimeCalls.push(['navigate', category]),
@@ -324,7 +324,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
     assert('lab-context.js includes IRON/FLOW ALERTS', labCtxSrc.includes('IRON/FLOW ALERTS'));
 
     // cycle.js imports
-    const cycleSrc = read('js/cycle.js');
+    const cycleSrc = read('js/cycle.ts');
     const cycleImportSrc = read('js/cycle-import.js');
     assert('cycle.js imports PERIOD_SYMPTOMS', cycleSrc.includes("import") && cycleSrc.includes('PERIOD_SYMPTOMS'));
     assert('cycle.js imports linearRegression', cycleSrc.includes('linearRegression'));
@@ -354,7 +354,7 @@ const { phaseBandPlugin } = await import('../js/charts.js');
   // ── Section 19: addPeriodEntry collects symptoms ──
   console.log('Section 19: addPeriodEntry collects symptoms');
   {
-    const src = read('js/cycle.js');
+    const src = read('js/cycle.ts');
     assert('addPeriodEntry queries selected ctx-tags', src.includes("mc-period-symptoms") && src.includes('.ctx-tag.active'));
     assert('Period push includes symptoms', src.includes('symptoms, notes'));
   }

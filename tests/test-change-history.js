@@ -205,7 +205,7 @@ const contextCards = await import('../js/context-cards.js');
   assert('saveInterpretiveLens calls recordChange', ctxLifestyleSpecialSrc.includes("recordContextChange('interpretiveLens')"));
   assert('debounceContextNotes calls recordChange', ctxSrc.includes("recordChange('contextNotes')"));
 
-  const cycleSrc = read('js/cycle.js');
+  const cycleSrc = read('js/cycle.ts');
   assert('saveMenstrualCycle records context changes through the runtime callback',
     cycleSrc.includes("recordContextCardChangeRuntime('menstrualCycle')"));
 

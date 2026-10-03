@@ -23,7 +23,7 @@ interface ChatOnboardingCallbacks {
   openChatProviderQuiz: (() => void) | null;
   openSettingsModal(tab?: string): unknown; recordChange(field: string): void;
   renderChatMessages(): void;
-  renderMenstrualCycleSection: ((data: ActiveData | ProfileData | null, opts?: { variant?: string; showHeader?: boolean }) => string) | null;
+  renderMenstrualCycleSection: typeof import('./cycle.js').renderMenstrualCycleSection | null;
   renderProfileButton(): void; renderSupplementsSection: (() => string) | null;
   sendChatMessage(): void; setChatNudge(mode?: string): void;
   setProfileHeight: ((profileId: string, height: number, unit: string) => Promise<boolean> | boolean | void) | null;

@@ -107,7 +107,7 @@ const LEGACY_TESTS = [
   './test-client-list-runtime.js',
   // Batch 11 — cycle + change-history + light-tools + biometrics.
   './test-light-tools.js',
-  './test-cycle-improvements.js',
+  './test-cycle-improvements.ts',
   './test-change-history.js',
   './test-biometrics.js',
   // Batch 12 — sun/light AI-analysis + flow tests.

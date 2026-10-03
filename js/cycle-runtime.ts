@@ -11,23 +11,10 @@ interface CycleRuntimeDeps {
   openEditor: (() => void) | null;
   renderProfileButton: (() => void) | null;
 }
-interface CycleDrawPhase {
-  cycleDay: number | null;
-  phaseName: string;
-  phaseDetailName?: string;
-  basedOnStartDate?: unknown;
-  source?: unknown;
-  confidence?: unknown;
-}
-interface DrawRecommendation { startDate: string; endDate: string; description: string }
-interface CyclePattern { indicators: string[]; age: number; message: string }
-interface CycleIronAlert extends Record<string, unknown> { message: string }
-interface CycleAnalysisBridge {
-  detectCycleIronAlerts: ((...args: unknown[]) => CycleIronAlert[] | null) | null;
-  detectPerimenopausePattern: ((...args: unknown[]) => CyclePattern | null) | null;
-  getBloodDrawPhases: ((...args: [profile?: unknown, dates?: readonly string[] | null, entryContextByDate?: Record<string, unknown>, ...extra: unknown[]]) => Record<string, CycleDrawPhase> | null) | null;
-  getNextBestDrawDate: ((...args: unknown[]) => DrawRecommendation | null) | null;
-}
+type CycleAnalysisBridge = {
+  [K in 'detectCycleIronAlerts' | 'detectPerimenopausePattern' | 'getBloodDrawPhases' | 'getNextBestDrawDate']:
+    typeof import('./cycle.js')[K] | null;
+};
 
 const CYCLE_STYLESHEET_URL = new URL('../css/cycle.css', import.meta.url).href;
 const cycleStylesheetPromiseCache = createRetryingStylesheetLoader({
@@ -69,19 +56,19 @@ export function configureCycleAnalysisBridge(api: Partial<CycleAnalysisBridge> =
   return configureRuntimeCallbacks(cycleAnalysisBridge, api);
 }
 
-export function getCycleBloodDrawPhasesRuntime(...args: Parameters<NonNullable<CycleAnalysisBridge['getBloodDrawPhases']>>): Record<string, CycleDrawPhase> {
+export function getCycleBloodDrawPhasesRuntime(...args: Parameters<NonNullable<CycleAnalysisBridge['getBloodDrawPhases']>>): ReturnType<NonNullable<CycleAnalysisBridge['getBloodDrawPhases']>> {
   return cycleAnalysisBridge.getBloodDrawPhases?.(...args) || {};
 }
 
-export function getCycleNextBestDrawDateRuntime(...args: unknown[]) {
+export function getCycleNextBestDrawDateRuntime(...args: Parameters<NonNullable<CycleAnalysisBridge['getNextBestDrawDate']>>) {
   return cycleAnalysisBridge.getNextBestDrawDate?.(...args) || null;
 }
 
-export function detectCyclePerimenopausePatternRuntime(...args: unknown[]) {
+export function detectCyclePerimenopausePatternRuntime(...args: Parameters<NonNullable<CycleAnalysisBridge['detectPerimenopausePattern']>>) {
   return cycleAnalysisBridge.detectPerimenopausePattern?.(...args) || null;
 }
 
-export function detectCycleIronAlertsRuntime(...args: unknown[]) {
+export function detectCycleIronAlertsRuntime(...args: Parameters<NonNullable<CycleAnalysisBridge['detectCycleIronAlerts']>>) {
   return cycleAnalysisBridge.detectCycleIronAlerts?.(...args) || [];
 }
 

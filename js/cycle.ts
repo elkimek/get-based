@@ -1,4 +1,30 @@
-// @ts-check
+/// <reference lib="es2023.array" />
+import type { ActiveData } from './data-view-types.js';
+import type { CyclePhase, RecordedDrawPhase } from './cycle-draw-phases.js';
+import type { ProfileData } from '../types/app-state.js';
+
+// Persisted scalars remain opaque: the original readers coerce them at use sites.
+interface CyclePeriodInput {
+  startDate: string; endDate?: string | null; flow?: string | null;
+  symptoms?: string[] | null; confidence?: unknown; source?: unknown; notes?: unknown;
+}
+interface CycleProfileInput {
+  periods?: CyclePeriodInput[] | null;
+  cycleLength?: unknown; periodLength?: unknown; cycleStatus?: unknown;
+  regularity?: unknown; flow?: unknown; contraceptive?: unknown; conditions?: unknown;
+}
+interface PredictedCyclePhase {
+  cycleDay: number; phase: CyclePhase; phaseName: string;
+  confidence: unknown; basedOnStartDate: string; source: unknown;
+}
+type BloodDrawPhase = RecordedDrawPhase | (PredictedCyclePhase & { phaseDetailName: string });
+interface CycleIronAlert {
+  marker: string | null; severity: 'critical' | 'warning' | 'info'; message: string;
+  value?: number; unit?: string | undefined;
+}
+interface CycleDisplayAlert { kind?: string; severity: string; title: string; message: string }
+export interface CycleDisplayOptions { variant?: string; showHeader?: boolean }
+
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
 import { PERIOD_SYMPTOMS } from './constants.js';
@@ -23,28 +49,22 @@ const CYCLE_ICONS = {
   warning: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m12 3 10 18H2L12 3Z"></path><path d="M12 9v5M12 17h.01"></path></svg>',
   x: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M18 6 6 18M6 6l12 12"></path></svg>'
 };
-const appWindow = /** @type {Window & typeof globalThis & { __cycleDelegatesBound?: boolean }} */ (
+const appWindow = (
   typeof window !== 'undefined' ? window : {}
-);
+) as Window & typeof globalThis & { __cycleDelegatesBound?: boolean };
 function closeCycleModal() {
   closeCycleModalRuntime();
 }
-function navigateCycleView(category) { navigateCycleViewRuntime(category); }
-function cycleActionAttrs(action, extra = '') {
+function navigateCycleView(category: string) { navigateCycleViewRuntime(category); }
+function cycleActionAttrs(action: string, extra = '') {
   return `data-cycle-action="${action}"${extra ? ` ${extra}` : ''}`;
 }
-/**
- * @param {EventTarget | null} target
- * @param {string} selector
- * @returns {HTMLElement | null}
- */
-function closestCycleElement(target, selector) {
+function closestCycleElement(target: EventTarget | null, selector: string) {
   if (!(target instanceof Element)) return null;
   const el = target.closest(selector);
   return el instanceof HTMLElement ? el : null;
 }
-/** @param {MouseEvent} event */
-function handleCycleClick(event) {
+function handleCycleClick(event: MouseEvent) {
   const actionEl = closestCycleElement(event.target, '[data-cycle-action]');
   if (!actionEl) return;
   switch (actionEl.dataset.cycleAction || '') {
@@ -76,8 +96,7 @@ function handleCycleClick(event) {
       break;
   }
 }
-/** @param {Event} event */
-function handleCycleChange(event) {
+function handleCycleChange(event: Event) {
   const actionEl = closestCycleElement(event.target, '[data-cycle-action="toggle-fields"]');
   if (!actionEl) return;
   _toggleCycleEditorFields();
@@ -90,11 +109,7 @@ function initCycleActionDelegates() {
 }
 initCycleActionDelegates();
 export { calculateCycleStats };
-/**
- * @param {string | null | undefined} id
- * @returns {HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null}
- */
-function getFormField(id) {
+function getFormField(id: string | null | undefined) {
   if (!id) return null;
   const el = document.getElementById(id);
   if (
@@ -106,44 +121,32 @@ function getFormField(id) {
   }
   return null;
 }
-/**
- * @param {string} id
- * @returns {string}
- */
-function getFieldValue(id) {
+function getFieldValue(id: string) {
   return getFormField(id)?.value || '';
 }
-/**
- * @param {Element} el
- * @returns {el is HTMLElement}
- */
-function isHTMLElement(el) {
+function isHTMLElement(el: Element): el is HTMLElement {
   return el instanceof HTMLElement;
 }
-function isActiveCycleStatus(status) {
-  return !status || CYCLE_ACTIVE_STATUSES.has(status);
+function isActiveCycleStatus(status: unknown) {
+  return !status || CYCLE_ACTIVE_STATUSES.has(status as string);
 }
-/**
- * @param {string | null | undefined} dateStr
- * @param {Intl.DateTimeFormatOptions} [opts]
- */
-function fmtCycleDate(dateStr, opts = { month: 'short', day: 'numeric' }) {
+function fmtCycleDate(dateStr: string | null | undefined, opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }) {
   if (!dateStr) return 'No date';
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', opts);
 }
-function flowClass(flow) {
+function flowClass(flow: unknown) {
   if (flow === 'heavy') return 'severity-major';
   if (flow === 'light') return 'severity-minor';
   return 'severity-mild';
 }
-function renderCycleMetaTags(items) {
+function renderCycleMetaTags(items: unknown[]) {
   return items.filter(Boolean).map(item => `<span class="cycle-meta-tag">${escapeHTML(item)}</span>`).join('');
 }
-export function getCyclePhase(dateStr, mc) {
+export function getCyclePhase(dateStr: string, mc: CycleProfileInput | null | undefined): PredictedCyclePhase | null {
   if (!mc || !mc.periods || mc.periods.length === 0) return null;
   const target = new Date(dateStr + 'T00:00:00');
   const sorted = mc.periods.slice().sort((a, b) => b.startDate.localeCompare(a.startDate));
-  let basisPeriod = null;
+  let basisPeriod: CyclePeriodInput | null = null;
   for (const p of sorted) {
     if (new Date(p.startDate + 'T00:00:00') <= target) {
       basisPeriod = p;
@@ -153,11 +156,11 @@ export function getCyclePhase(dateStr, mc) {
   if (!basisPeriod) return null;
   const startDate = new Date(basisPeriod.startDate + 'T00:00:00');
   const cycleDay = Math.floor((target.getTime() - startDate.getTime()) / 86400000) + 1;
-  const cycleLen = mc.cycleLength || 28;
+  const cycleLen = (mc.cycleLength || 28) as number;
   if (cycleDay > cycleLen + 7) return null; // too far from any known period
-  const periodLen = mc.periodLength || 5;
+  const periodLen = (mc.periodLength || 5) as number;
   const ovulationDay = cycleLen - 14;
-  let phase, phaseName;
+  let phase: CyclePhase, phaseName: string;
   if (cycleDay <= periodLen) {
     phase = 'menstrual'; phaseName = 'Menstrual';
   } else if (cycleDay < ovulationDay - 1) {
@@ -178,11 +181,11 @@ export function getCyclePhase(dateStr, mc) {
     source: basisPeriod.source || null,
   };
 }
-export function getNextBestDrawDate(mc) {
+export function getNextBestDrawDate(mc: CycleProfileInput | null | undefined) {
   if (!mc || !mc.periods || mc.periods.length === 0) return null;
   const sorted = mc.periods.slice().sort((a, b) => b.startDate.localeCompare(a.startDate));
-  const lastStart = new Date(sorted[0].startDate + 'T00:00:00');
-  const cycleLen = mc.cycleLength || 28;
+  const lastStart = new Date(sorted[0]!.startDate + 'T00:00:00');
+  const cycleLen = (mc.cycleLength || 28) as number;
   const today = new Date(); today.setHours(0,0,0,0);
   // Find the most recent predicted period start (on or before today)
   let currentPeriodStart = new Date(lastStart.getTime());
@@ -192,7 +195,7 @@ export function getNextBestDrawDate(mc) {
   // Check if today falls within the current cycle's draw window (days 3-5)
   const currentDrawStart = new Date(currentPeriodStart.getTime() + 2 * 86400000);
   const currentDrawEnd = new Date(currentPeriodStart.getTime() + 4 * 86400000);
-  const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   if (today >= currentDrawStart && today <= currentDrawEnd) {
     const dayInCycle = Math.floor((today.getTime() - currentPeriodStart.getTime()) / 86400000) + 1;
     return {
@@ -214,9 +217,9 @@ export function getNextBestDrawDate(mc) {
   };
 }
 
-export function getBloodDrawPhases(mc, dates, entryContextByDate = {}) {
+export function getBloodDrawPhases(mc: CycleProfileInput | null | undefined, dates: readonly string[] | null | undefined, entryContextByDate: Record<string, Record<string, unknown>> = {}) {
   if (!dates) return {};
-  const phases = {};
+  const phases: Record<string, BloodDrawPhase> = {};
   for (const d of dates) {
     const recordedPhase = getRecordedDrawPhase(entryContextByDate[d]);
     if (recordedPhase) {
@@ -229,21 +232,21 @@ export function getBloodDrawPhases(mc, dates, entryContextByDate = {}) {
   return phases;
 }
 
-export function detectPerimenopausePattern(mc, dob) {
+export function detectPerimenopausePattern(mc: CycleProfileInput | null | undefined, dob: string | null | undefined) {
   if (!mc?.periods || mc.periods.length < 4 || !dob) return null;
   const age = (Date.now() - new Date(dob + 'T00:00:00').getTime()) / (365.25 * 24 * 60 * 60 * 1000);
   if (age < 35) return null;
 
   const sorted = mc.periods.slice().sort((a, b) => a.startDate.localeCompare(b.startDate));
-  const intervals = [];
+  const intervals: number[] = [];
   for (let i = 1; i < sorted.length; i++) {
-    const prev = new Date(sorted[i - 1].startDate + 'T00:00:00');
-    const curr = new Date(sorted[i].startDate + 'T00:00:00');
+    const prev = new Date(sorted[i - 1]!.startDate + 'T00:00:00');
+    const curr = new Date(sorted[i]!.startDate + 'T00:00:00');
     intervals.push(Math.round((curr.getTime() - prev.getTime()) / 86400000));
   }
   if (intervals.length < 3) return null;
 
-  const indicators = [];
+  const indicators: string[] = [];
 
   // 1. Lengthening trend: positive slope on cycle lengths
   const reg = linearRegression(intervals);
@@ -255,7 +258,7 @@ export function detectPerimenopausePattern(mc, dob) {
   const mid = Math.floor(intervals.length / 2);
   const firstHalf = intervals.slice(0, mid);
   const secondHalf = intervals.slice(mid);
-  const stdev = arr => { const m = arr.reduce((a, b) => a + b, 0) / arr.length; return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length); };
+  const stdev = (arr: number[]) => { const m = arr.reduce((a, b) => a + b, 0) / arr.length; return Math.sqrt(arr.reduce((s, v) => s + (v - m) ** 2, 0) / arr.length); };
   if (secondHalf.length >= 2 && firstHalf.length >= 2) {
     if (stdev(secondHalf) > stdev(firstHalf) * 1.5) {
       indicators.push('increasing variability');
@@ -300,9 +303,9 @@ export function detectPerimenopausePattern(mc, dob) {
   };
 }
 
-export function detectCycleIronAlerts(mc, data) {
+export function detectCycleIronAlerts(mc: CycleProfileInput | null | undefined, data: Pick<ActiveData, 'categories'>) {
   if (!mc?.periods?.length) return [];
-  const alerts = [];
+  const alerts: CycleIronAlert[] = [];
 
   // Check if any recent periods are heavy flow
   const sorted = mc.periods.slice().sort((a, b) => b.startDate.localeCompare(a.startDate));
@@ -321,12 +324,12 @@ export function detectCycleIronAlerts(mc, data) {
     if (!marker) continue;
     const latestIdx = marker.values.findLastIndex(v => v !== null);
     if (latestIdx === -1) continue;
-    const v = marker.values[latestIdx];
+    const v = marker.values[latestIdx] as number;
     const r = { min: marker.refMin, max: marker.refMax };
     if (r.min == null) continue;
 
     // Alert if low or in bottom 25% of range
-    const threshold = r.min + (r.max - r.min) * 0.25;
+    const threshold = r.min + ((r.max as number) - r.min) * 0.25;
     if (v <= threshold) {
       const severity = v < r.min ? 'critical' : 'warning';
       alerts.push({
@@ -357,19 +360,19 @@ export function detectCycleIronAlerts(mc, data) {
   return alerts;
 }
 
-export function openMenstrualCycleEditor() {
+export function openMenstrualCycleEditor(): void | false | Promise<void | false> {
   if (typeof document !== 'undefined' && document.querySelector('[data-cycle-stylesheet-anchor]') && !isCycleStylesheetLoaded()) {
     return loadCycleStylesheetForAction().then(function openCycleEditorAfterStylesheet(loaded) { return loaded ? openMenstrualCycleEditor() : false; });
   }
   const modal = document.getElementById("detail-modal");
   const overlay = document.getElementById("modal-overlay");
   if (!(modal instanceof HTMLElement)) return false;
-  const mc = state.importedData.menstrualCycle || {};
+  const mc = (state.importedData!.menstrualCycle || {}) as CycleProfileInput;
   const periods = (mc.periods || []).slice().sort(function newestCyclePeriodFirst(a, b) { return b.startDate.localeCompare(a.startDate); });
   const stats = calculateCycleStats(mc.periods);
-  const regLabels = { regular: 'Regular', irregular: 'Irregular', very_irregular: 'Very Irregular' };
+  const regLabels: Record<string, string> = { regular: 'Regular', irregular: 'Irregular', very_irregular: 'Very Irregular' };
   const activeCycle = isActiveCycleStatus(mc.cycleStatus);
-  const flowLabels = { light: 'Light', moderate: 'Moderate', heavy: 'Heavy' };
+  const flowLabels: Record<string, string> = { light: 'Light', moderate: 'Moderate', heavy: 'Heavy' };
   modal.className = 'modal cycle-modal';
   let html = `<div class="gb-modal-head cycle-modal-head">
       <div>
@@ -413,13 +416,13 @@ export function openMenstrualCycleEditor() {
               <span>Regularity</span>
           ${stats.regularity != null
             ? `<div class="mc-auto-value cycle-auto-value" id="mc-regularity-auto" data-value="${stats.regularity}">${regLabels[stats.regularity]}</div>`
-            : `<div class="mc-auto-value cycle-auto-value mc-auto-pending">${regLabels[mc.regularity] || 'Regular'} <span class="mc-auto-hint">default - log 3+ periods to auto-calculate</span></div>`}
+            : `<div class="mc-auto-value cycle-auto-value mc-auto-pending">${regLabels[mc.regularity as string] || 'Regular'} <span class="mc-auto-hint">default - log 3+ periods to auto-calculate</span></div>`}
             </label>
             <label class="cycle-field">
               <span>Typical Flow</span>
           ${stats.flow != null
             ? `<div class="mc-auto-value cycle-auto-value" id="mc-flow-auto" data-value="${stats.flow}">${flowLabels[stats.flow]}</div>`
-            : `<div class="mc-auto-value cycle-auto-value mc-auto-pending">${flowLabels[mc.flow] || 'Moderate'} <span class="mc-auto-hint">default - log 1+ period to auto-calculate</span></div>`}
+            : `<div class="mc-auto-value cycle-auto-value mc-auto-pending">${flowLabels[mc.flow as string] || 'Moderate'} <span class="mc-auto-hint">default - log 1+ period to auto-calculate</span></div>`}
             </label>
           </div>
         </div>
@@ -430,18 +433,18 @@ export function openMenstrualCycleEditor() {
             <option value=""${!mc.contraceptive ? ' selected' : ''}>None</option>
             <optgroup label="Hormonal">
               <option value="OCP"${mc.contraceptive === 'OCP' ? ' selected' : ''}>OCP (birth control pill)</option>
-              <option value="Hormonal IUD (Mirena)"${mc.contraceptive?.includes('Mirena') ? ' selected' : ''}>Hormonal IUD (Mirena/Kyleena)</option>
+              <option value="Hormonal IUD (Mirena)"${(mc.contraceptive as string | null | undefined)?.includes('Mirena') ? ' selected' : ''}>Hormonal IUD (Mirena/Kyleena)</option>
               <option value="Implant"${mc.contraceptive === 'Implant' ? ' selected' : ''}>Implant (Nexplanon)</option>
               <option value="Patch"${mc.contraceptive === 'Patch' ? ' selected' : ''}>Patch</option>
               <option value="Ring"${mc.contraceptive === 'Ring' ? ' selected' : ''}>Ring (NuvaRing)</option>
-              <option value="Depo injection"${mc.contraceptive?.includes('Depo') ? ' selected' : ''}>Depo injection</option>
+              <option value="Depo injection"${(mc.contraceptive as string | null | undefined)?.includes('Depo') ? ' selected' : ''}>Depo injection</option>
             </optgroup>
             <optgroup label="Non-hormonal">
               <option value="Copper IUD"${mc.contraceptive === 'Copper IUD' ? ' selected' : ''}>Copper IUD</option>
               <option value="Barrier"${mc.contraceptive === 'Barrier' ? ' selected' : ''}>Barrier (condom/diaphragm)</option>
               <option value="FAM"${mc.contraceptive === 'FAM' ? ' selected' : ''}>Fertility awareness</option>
             </optgroup>
-            <option value="other"${mc.contraceptive && !['OCP','Hormonal IUD (Mirena)','Implant','Patch','Ring','Depo injection','Copper IUD','Barrier','FAM'].includes(mc.contraceptive) && mc.contraceptive !== '' ? ' selected' : ''}>Other</option>
+            <option value="other"${mc.contraceptive && !['OCP','Hormonal IUD (Mirena)','Implant','Patch','Ring','Depo injection','Copper IUD','Barrier','FAM'].includes(mc.contraceptive as string) && mc.contraceptive !== '' ? ' selected' : ''}>Other</option>
           </select>
           </label>
           <label class="cycle-field">
@@ -472,7 +475,7 @@ export function openMenstrualCycleEditor() {
     html += `</div>`;
   }
   const today = new Date().toISOString().slice(0, 10);
-  const defaultEnd = new Date(Date.now() + ((mc.periodLength || 5) - 1) * 86400000).toISOString().slice(0, 10);
+  const defaultEnd = new Date(Date.now() + (((mc.periodLength || 5) as number) - 1) * 86400000).toISOString().slice(0, 10);
   html += `<div class="cycle-period-add">
         <div class="cycle-form-grid cycle-form-grid-three">
           <label class="cycle-field">
@@ -509,7 +512,7 @@ export function openMenstrualCycleEditor() {
       </section>
     </div>
     <div class="cycle-modal-footer">
-      ${state.importedData.menstrualCycle ? `<button type="button" class="dashboard-action-btn cycle-danger-btn" ${cycleActionAttrs('clear')}>Clear All</button>` : ''}
+      ${state.importedData!.menstrualCycle ? `<button type="button" class="dashboard-action-btn cycle-danger-btn" ${cycleActionAttrs('clear')}>Clear All</button>` : ''}
       <button type="button" class="dashboard-action-btn" ${cycleActionAttrs('close')}>Cancel</button>
       <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" ${cycleActionAttrs('save')}>Save</button>
     </div>`;
@@ -541,7 +544,7 @@ export function saveMenstrualCycle() {
         return;
       }
       mc.periods.push(period);
-      state.importedData.menstrualCycle = upgradeMenstrualCycleProfile(mc, { now: updatedAt });
+      state.importedData!.menstrualCycle = upgradeMenstrualCycleProfile(mc, { now: updatedAt });
     }
   }
   recordContextCardChangeRuntime('menstrualCycle');
@@ -573,7 +576,7 @@ export function _toggleCycleEditorFields() {
   if (periodLog) periodLog.hidden = !isActive;
 }
 
-export function toggleCycleSymptomTag(btn) {
+export function toggleCycleSymptomTag(btn: HTMLElement | null) {
   if (!btn) return;
   const active = btn.classList.toggle('active');
   btn.setAttribute('aria-pressed', active ? 'true' : 'false');
@@ -585,7 +588,7 @@ function getSelectedCycleSymptoms() {
 }
 
 export function syncMenstrualCycleProfileFromForm() {
-  const mc = state.importedData.menstrualCycle || {};
+  const mc = (state.importedData!.menstrualCycle || {}) as CycleProfileInput;
   const cycleLengthAuto = document.getElementById('mc-cycle-length-auto');
   const periodLengthAuto = document.getElementById('mc-period-length-auto');
   const regularityAuto = document.getElementById('mc-regularity-auto');
@@ -599,11 +602,11 @@ export function syncMenstrualCycleProfileFromForm() {
   const contraceptive = getFieldValue('mc-contraceptive');
   const conditions = getFieldValue('mc-conditions').trim();
   const cycleStatus = getFieldValue('mc-cycle-status') || 'regular';
-  const base = state.importedData.menstrualCycle
-    ? { ...state.importedData.menstrualCycle, cycleStatus, cycleLength, periodLength, regularity, flow, contraceptive, conditions }
+  const base = state.importedData!.menstrualCycle
+    ? { ...state.importedData!.menstrualCycle, cycleStatus, cycleLength, periodLength, regularity, flow, contraceptive, conditions }
     : { cycleStatus, cycleLength, periodLength, regularity, flow, contraceptive, conditions, periods: [] };
   const profile = upgradeMenstrualCycleProfile(base);
-  state.importedData.menstrualCycle = profile;
+  state.importedData!.menstrualCycle = profile;
   return profile;
 }
 
@@ -631,26 +634,26 @@ export function addPeriodEntry() {
   const period = createCyclePeriod({ startDate, endDate, flow, symptoms, notes, updatedAt });
   if (!period) { showNotification('Period dates are invalid', 'error'); return; }
   mc.periods.push(period);
-  state.importedData.menstrualCycle = upgradeMenstrualCycleProfile(mc, { now: updatedAt });
+  state.importedData!.menstrualCycle = upgradeMenstrualCycleProfile(mc, { now: updatedAt });
   saveImportedData();
   openMenstrualCycleEditor();
 }
 
-export function deletePeriodEntry(startDate) {
-  if (!state.importedData.menstrualCycle || !state.importedData.menstrualCycle.periods) return;
+export function deletePeriodEntry(startDate: string) {
+  if (!state.importedData!.menstrualCycle || !state.importedData!.menstrualCycle.periods) return;
   const mc = syncMenstrualCycleProfileFromForm();
   if (!mc) return;
   mc.periods = mc.periods.filter(p => p.startDate !== startDate);
-  state.importedData.menstrualCycle = upgradeMenstrualCycleProfile(mc);
+  state.importedData!.menstrualCycle = upgradeMenstrualCycleProfile(mc);
   saveImportedData();
   openMenstrualCycleEditor();
 }
 
-export function renderMenstrualCycleSection(data, opts = {}) {
+export function renderMenstrualCycleSection(data: ActiveData | ProfileData | null, opts: CycleDisplayOptions = {}) {
   const compact = opts?.variant === 'dashboard';
   const showHeader = opts?.showHeader !== false;
-  const mc = state.importedData.menstrualCycle ? upgradeMenstrualCycleProfile(state.importedData.menstrualCycle) : null;
-  const renderAlert = alert => {
+  const mc = state.importedData!.menstrualCycle ? upgradeMenstrualCycleProfile(state.importedData!.menstrualCycle) : null;
+  const renderAlert = (alert: CycleDisplayAlert) => {
     const cls = alert.kind === 'perimenopause'
       ? 'cycle-alert-perimenopause'
       : alert.severity === 'critical'
@@ -690,11 +693,11 @@ export function renderMenstrualCycleSection(data, opts = {}) {
     </button>`;
   } else {
     const regLabel = mc.regularity === 'very_irregular' ? 'very irregular' : mc.regularity || 'regular';
-    const statusLabels = { postmenopause: 'Postmenopause', perimenopause: 'Perimenopause', pregnant: 'Pregnant', breastfeeding: 'Breastfeeding', absent: 'No active cycle' };
+    const statusLabels: Record<string, string> = { postmenopause: 'Postmenopause', perimenopause: 'Perimenopause', pregnant: 'Pregnant', breastfeeding: 'Breastfeeding', absent: 'No active cycle' };
     let summaryPrimary;
-    const summaryMeta = [];
-    if (mc.cycleStatus && mc.cycleStatus !== 'regular' && statusLabels[mc.cycleStatus]) {
-      summaryPrimary = statusLabels[mc.cycleStatus];
+    const summaryMeta: unknown[] = [];
+    if (mc.cycleStatus && mc.cycleStatus !== 'regular' && statusLabels[mc.cycleStatus as string]) {
+      summaryPrimary = statusLabels[mc.cycleStatus as string];
       if (isActiveCycleStatus(mc.cycleStatus)) {
         summaryMeta.push(`${mc.cycleLength || 28}-day cycle`, regLabel, `${mc.flow || 'moderate'} flow`);
       }
@@ -729,8 +732,8 @@ export function renderMenstrualCycleSection(data, opts = {}) {
         </div>
       </div>`;
     }
-    if (isActiveCycle && data?.dates?.length > 0) {
-      const phases = getBloodDrawPhases(mc, data.dates, data.entryContextByDate);
+    if (isActiveCycle && ((data as ActiveData | null)?.dates?.length as number) > 0) {
+      const phases = getBloodDrawPhases(mc, (data as ActiveData).dates, (data as ActiveData).entryContextByDate);
       const phaseDates = Object.entries(phases);
       if (phaseDates.length > 0) {
         html += `<div class="cycle-draw-phases">`;
@@ -762,13 +765,13 @@ export function renderMenstrualCycleSection(data, opts = {}) {
     // Perimenopause pattern detection
     const perimenopause = detectPerimenopausePattern(mc, state.profileDob);
     // Heavy flow + iron alerts
-    const ironAlerts = data ? detectCycleIronAlerts(mc, data) : [];
+    const ironAlerts = data ? detectCycleIronAlerts(mc, data as ActiveData) : [];
     const alerts = [
       perimenopause ? { kind: 'perimenopause', severity: 'warning', title: 'Possible Perimenopause Pattern', message: perimenopause.message } : null,
       ...ironAlerts.map(alert => ({ ...alert, title: alert.marker ? `${alert.marker} + Heavy Flow` : 'Iron Panel Missing' }))
     ].filter(Boolean);
     for (const alert of compact ? alerts.slice(0, 1) : alerts) {
-      html += renderAlert(alert);
+      html += renderAlert(alert!);
     }
   }
   html += `</div>`;

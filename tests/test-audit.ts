@@ -1037,7 +1037,7 @@ assert('Diagnoses editor binds suggestion closer once with delegates',
 // ═══════════════════════════════════════
 console.log('12. Cycle Stats Guard');
 
-const cycleSrc = read('js/cycle.js');
+const cycleSrc = read('js/cycle.ts');
 const cycleSummarySrc = read('js/cycle-summary.js');
 assert('Cycle stats filters periods with endDate', cycleSummarySrc.includes('filter(p => p.endDate)'));
 assert('Period length guards empty array', cycleSummarySrc.includes('if (periodLengths.length > 0)'));
