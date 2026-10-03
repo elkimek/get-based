@@ -12,7 +12,7 @@ test('Light page view delegates session, link, channel, and prompt actions', asy
 
   const results = await page.evaluate(async () => {
     const { configureLightPageView, renderDashboardLightChannelPills, renderLightLiveSession, renderLightSessionLogActions } = await import('/js/light-page-view.js');
-    const calls = [];
+    const calls: unknown[][] = [];
     const host = document.createElement('div');
     const channelDisplay = {
       vitamin_d: { label: 'Vitamin D', icon: 'D', what: 'Vitamin D', dailyTarget: 100 },
@@ -34,12 +34,12 @@ test('Light page view delegates session, link, channel, and prompt actions', asy
         getActiveSession: () => null,
         rollingChannelTotals: () => ({}),
         rollingDeviceTotals: () => ({}),
-        openChannelOnLightPage: channel => calls.push(['open-channel', channel]),
+        openChannelOnLightPage: (channel: unknown) => calls.push(['open-channel', channel]),
         quickLogSunSession: () => calls.push(['quick-log-sun']),
         quickLogDeviceSession: () => calls.push(['quick-log-device']),
         openAddDeviceDialog: () => calls.push(['open-add-device']),
         openDetailedSessionDialog: () => calls.push(['open-detailed-session']),
-        navigate: route => calls.push(['navigate', route]),
+        navigate: (route: unknown) => calls.push(['navigate', route]),
         requestPreciseLocation: () => calls.push(['request-precise-location']),
         openLightEnvironmentAssessment: () => calls.push(['open-light-environment']),
         renderLightTools: () => '<section id="light-tools-expanded-test">Expanded tools</section>',
@@ -57,12 +57,12 @@ test('Light page view delegates session, link, channel, and prompt actions', asy
         <div class="light-widget-prompt light-tools-section-collapsed">Collapsed tools</div>
       `;
 
-      host.querySelector('[data-light-page-action="quick-log-sun"]')?.click();
-      host.querySelector('[data-light-page-action="quick-log-device"]')?.click();
-      host.querySelector('[data-light-page-action="open-add-device"]')?.click();
-      host.querySelector('[data-light-page-action="open-detailed-session"]')?.click();
-      host.querySelector('[data-light-page-action="open-channel"][data-channel]')?.click();
-      host.querySelector('[data-light-page-action="open-light-environment"]')?.click();
+      host.querySelector<HTMLElement>('[data-light-page-action="quick-log-sun"]')?.click();
+      host.querySelector<HTMLElement>('[data-light-page-action="quick-log-device"]')?.click();
+      host.querySelector<HTMLElement>('[data-light-page-action="open-add-device"]')?.click();
+      host.querySelector<HTMLElement>('[data-light-page-action="open-detailed-session"]')?.click();
+      host.querySelector<HTMLElement>('[data-light-page-action="open-channel"][data-channel]')?.click();
+      host.querySelector<HTMLElement>('[data-light-page-action="open-light-environment"]')?.click();
 
       const navLink = host.querySelector('a[data-light-page-action="navigate-light"]');
       const navEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
@@ -71,7 +71,7 @@ test('Light page view delegates session, link, channel, and prompt actions', asy
       const preciseEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
       preciseLink?.dispatchEvent(preciseEvent);
 
-      host.querySelector('[data-light-page-action="expand-light-tools"]')?.click();
+      host.querySelector<HTMLElement>('[data-light-page-action="expand-light-tools"]')?.click();
 
       configureLightPageView({
         getDevices: () => [{ id: 'panel-1' }],
@@ -146,7 +146,7 @@ test('Light live-session renderer shares the full active card with dashboard pla
     };
     lightPage.configureLightPageView({
       getActiveSession: () => activeSun,
-      renderSunSessionRow: session => `<section class="shared-live-card" data-id="${session.id}"><span class="sun-session-vitd">Vitamin D estimate</span></section>`,
+      renderSunSessionRow: (session: unknown) => `<section class="shared-live-card" data-id="${(session as { id?: unknown }).id}"><span class="sun-session-vitd">Vitamin D estimate</span></section>`,
       renderActiveDeviceSessionCard: () => '',
     });
     const pageHtml = lightPage.renderLightLiveSession();
@@ -189,8 +189,8 @@ test('Live sun card keeps vitamin D visible without horizontal overflow at dashb
         circadian: { label: 'Circadian', icon: 'C' },
         nir_solar: { label: 'Near infrared', icon: 'IR' },
       },
-      channelTier: value => value > 0 ? 2 : 0,
-      tierLabel: tier => tier > 0 ? 'building' : 'none',
+      channelTier: (value: unknown) => (value as number) > 0 ? 2 : 0,
+      tierLabel: (tier: unknown) => (tier as number) > 0 ? 'building' : 'none',
       renderSessionAIInline: () => '',
     });
     const sessionHtml = sunUI.renderSunSessionRow({
@@ -209,26 +209,26 @@ test('Live sun card keeps vitamin D visible without horizontal overflow at dashb
     document.body.appendChild(host);
 
     const widths = [1100, 720, 360];
-    const measurements = [];
+    const measurements: { cardFits: boolean; readoutsFit: boolean; vitaminInsideCard: boolean }[] = [];
     for (const width of widths) {
       host.style.width = `${width}px`;
-      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       const card = host.querySelector('.sun-session');
       const readouts = host.querySelector('.sun-session-live-readouts');
       const vitaminD = host.querySelector('.sun-session-vitd');
-      const cardRect = card.getBoundingClientRect();
-      const vitaminRect = vitaminD.getBoundingClientRect();
+      const cardRect = card!.getBoundingClientRect();
+      const vitaminRect = vitaminD!.getBoundingClientRect();
       measurements.push({
-        cardFits: card.scrollWidth <= card.clientWidth + 1,
-        readoutsFit: readouts.scrollWidth <= readouts.clientWidth + 1,
+        cardFits: card!.scrollWidth <= card!.clientWidth + 1,
+        readoutsFit: readouts!.scrollWidth <= readouts!.clientWidth + 1,
         vitaminInsideCard: vitaminRect.left >= cardRect.left - 1 && vitaminRect.right <= cardRect.right + 1,
       });
     }
     const readouts = host.querySelector('.sun-session-live-readouts');
     const result = {
       allDashboardWidthsFit: measurements.every(item => Object.values(item).every(Boolean)),
-      readoutsWrap: getComputedStyle(readouts).flexWrap === 'wrap',
-      vitaminDHasPriority: readouts.firstElementChild?.classList.contains('sun-session-vitd') === true,
+      readoutsWrap: getComputedStyle(readouts!).flexWrap === 'wrap',
+      vitaminDHasPriority: readouts!.firstElementChild?.classList.contains('sun-session-vitd') === true,
       activeCardHasNoDeleteAction: !host.querySelector('.sun-session-delete'),
     };
     host.remove();
@@ -247,40 +247,40 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
   const results = await page.evaluate(async ({ lightPageUrl }) => {
     const [{ state }, lightPage, lightEnv, lightTools, sunDefaults, settingsPrivacy] = await Promise.all([
       import('/js/state.js'),
-      import(lightPageUrl),
+      (import(lightPageUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/light-page-view.js'), "configureLightPageView" | "renderLightLiveSession" | "renderLightTodayStrip" | "showLight">>,
       import('/js/light-env.js'),
       import('/js/light-tools.js'),
       import('/js/sun-defaults.js'),
       import('/js/settings-privacy.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const RealDate = Date;
     const main = document.getElementById('main-content');
-    let renderEnvironmentAssessmentSummary = lightEnv.renderEnvironmentAssessmentSummary;
-    let renderLightTools = lightTools.renderLightTools;
+    let renderEnvironmentAssessmentSummary: (...args: Parameters<typeof lightEnv.renderEnvironmentAssessmentSummary>) => unknown = lightEnv.renderEnvironmentAssessmentSummary;
+    let renderLightTools: (...args: Parameters<typeof lightTools.renderLightTools>) => unknown = lightTools.renderLightTools;
     const saved = {
       importedData: state.importedData,
       mainHTML: main?.innerHTML,
       Date: window.Date,
     };
     let channelDisplay = {};
-    let weeklyChannelTier = () => 0;
-    let channelTier = () => 0;
-    let getSessions = () => [];
-    let getActiveSession = () => null;
-    let getActiveDeviceSession = () => null;
-    let rollingChannelTotals = () => ({});
+    let weeklyChannelTier: (value: unknown) => unknown = () => 0;
+    let channelTier: (value: unknown) => unknown = () => 0;
+    let getSessions: () => unknown = () => [];
+    let getActiveSession: () => unknown = () => null;
+    let getActiveDeviceSession: () => unknown = () => null;
+    let rollingChannelTotals: () => unknown = () => ({});
     let cumulativeMEDToday = () => 0;
     let cumulativeMEDYesterday = () => 0;
     let rollingVitaminDIU = () => 0;
-    let vitaminDBudgetStatus = () => null;
-    let getSunCoords = () => null;
-    let getDevices = () => [];
-    let getDeviceSessions = () => [];
-    let rollingDeviceTotals = () => ({});
-    let renderDevicesSection = () => '';
-    let renderLightTodayDashboardChip = () => '';
-    let renderLightTodayHero = () => '';
+    let vitaminDBudgetStatus: () => unknown = () => null;
+    let getSunCoords: () => unknown = () => null;
+    let getDevices: () => unknown = () => [];
+    let getDeviceSessions: () => unknown = () => [];
+    let rollingDeviceTotals: () => unknown = () => ({});
+    let renderDevicesSection: () => unknown = () => '';
+    let renderLightTodayDashboardChip: () => unknown = () => '';
+    let renderLightTodayHero: () => unknown = () => '';
     let renderSunSetupCard = sunDefaults.renderSetupCard;
     let renderSunDataSourceSettings = settingsPrivacy.renderSunDataSourceSettings;
     const syncLightPageDeps = () => lightPage.configureLightPageView({
@@ -307,11 +307,11 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       renderEnvironmentAssessmentSummary,
       renderLightTools,
     });
-    const setHour = (hour) => {
+    const setHour = (hour: unknown) => {
       const fixed = new RealDate(`2026-06-11T${String(hour).padStart(2, '0')}:15:00`);
       class FixedDate extends RealDate {
-        constructor(...args) {
-          if (args.length) return super(...args);
+        constructor(...args: unknown[]) {
+          if (args.length) return super(...(args as ConstructorParameters<typeof RealDate>)) as unknown as FixedDate;
           return new RealDate(fixed);
         }
 
@@ -319,7 +319,7 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       }
       FixedDate.UTC = RealDate.UTC;
       FixedDate.parse = RealDate.parse;
-      window.Date = FixedDate;
+      (window as { Date: unknown }).Date = FixedDate;
     };
     const channelMeta = {
       vitamin_d: { label: 'Vitamin D', icon: 'D', what: 'Vitamin D', dailyTarget: 100 },
@@ -337,7 +337,7 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
         lightEnvironment: null,
       };
       channelDisplay = channelMeta;
-      weeklyChannelTier = value => value > 100 ? 2 : 0;
+      weeklyChannelTier = (value: unknown) => (value as number) > 100 ? 2 : 0;
       channelTier = weeklyChannelTier;
       rollingChannelTotals = () => ({ vitamin_d: 250, circadian: 40 });
       rollingDeviceTotals = () => ({ nir_solar: 120 });
@@ -453,7 +453,7 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       getDevices = () => [{ id: 'saved-device' }];
       syncLightPageDeps();
       lightPage.showLight(state.importedData);
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       outcomes.lazyWidgetFailuresReplaceLoadingStatesWithoutClaimingDataLoss =
         main?.textContent.includes('Devices could not load') === true
         && main?.textContent.includes('Assessment could not load') === true

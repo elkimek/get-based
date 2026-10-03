@@ -5,7 +5,7 @@ const moduleUrl = createModuleUrl('backupBrowserCoverage');
 
 test('backup browser coverage exercises export import auto backup and folder states', async ({ page }) => {
   let backupCycleRequests = 0;
-  page.on('request', request => {
+  page.on('request', (request) => {
     if (new URL(request.url()).pathname === '/js/backup-cycle.js') {
       backupCycleRequests += 1;
     }
@@ -16,10 +16,10 @@ test('backup browser coverage exercises export import auto backup and folder sta
 
   const results = await page.evaluate(async ({ backupUrl }) => {
     const [backup, blobStorage] = await Promise.all([
-      import(backupUrl),
+      (import(backupUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/backup.js'), "configureBackupRuntimeDeps" | "openBackupDB" | "buildBackupSnapshot" | "serializeBackupSnapshot" | "parseBackupSnapshot" | "buildFullBackupSnapshot" | "exportEncryptedBackup" | "importEncryptedBackup" | "scheduleAutoBackup" | "getAutoBackupSnapshots" | "restoreAutoBackup" | "getFolderBackupState" | "renderFolderBackupSection" | "installBackupActionDelegates" | "removeFolderBackup" | "initFolderBackup" | "reauthorizeFolderBackup">>,
       import('/js/blob-storage.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const profileId = `backup-browser-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const restoredProfileId = `${profileId}-restored`;
     const threadId = 'thread-one';
@@ -39,7 +39,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
       showDirectoryPicker: Object.getOwnPropertyDescriptor(window, 'showDirectoryPicker'),
     };
     const previousBackupRuntimeDeps = backup.configureBackupRuntimeDeps({
-      encryptedGetItem: async key => {
+      encryptedGetItem: async (key: string) => {
         if (key === `labcharts-${profileId}-chat-threads`) {
           return JSON.stringify([{ id: threadId, title: 'Thread', projectName: 'Metabolic project' }]);
         }
@@ -47,8 +47,8 @@ test('backup browser coverage exercises export import auto backup and folder sta
       },
       getEncryptionEnabled: () => true,
     });
-    const delay = ms => new Promise(resolve => originalSetTimeout(resolve, ms));
-    const waitFor = async (predicate, attempts = 100) => {
+    const delay = (ms: number) => new Promise((resolve) => originalSetTimeout(resolve, ms));
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, attempts = 100) => {
       for (let i = 0; i < attempts; i += 1) {
         try {
           if (await predicate()) return true;
@@ -72,8 +72,8 @@ test('backup browser coverage exercises export import auto backup and folder sta
       }
     };
     const captureTimeouts = () => {
-      const timers = [];
-      window.setTimeout = (fn, ms, ...args) => {
+      const timers: { fn: unknown; ms: number; args: unknown[] }[] = [];
+      (window as { setTimeout: unknown }).setTimeout = (fn: unknown, ms: number, ...args: unknown[]) => {
         timers.push({ fn, ms, args });
         return timers.length;
       };
@@ -106,7 +106,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
       }],
       wearableIDB: null,
     };
-    const importBackupFile = payload => new File([JSON.stringify(payload)], 'restore.json', { type: 'application/json' });
+    const importBackupFile = (payload: unknown) => new File([JSON.stringify(payload)], 'restore.json', { type: 'application/json' });
 
     try {
       localStorage.clear();
@@ -148,7 +148,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
           ct: { 0: 3, 1: 4 },
         },
       });
-      const parsedBytes = backup.parseBackupSnapshot(serializedBytes);
+      const parsedBytes = backup.parseBackupSnapshot(serializedBytes!) as { bytes: unknown; encrypted: { iv: unknown; ct: unknown } };
       outcomes.backupSerializationRoundTripsCurrentAndLegacyByteArrays =
         parsedBytes.bytes instanceof Uint8Array
         && parsedBytes.bytes.join(',') === '0,127,255'
@@ -175,12 +175,12 @@ test('backup browser coverage exercises export import auto backup and folder sta
       localStorage.setItem(`labcharts-${profileId}-chat-threads`, JSON.stringify([{ id: threadId, title: 'Thread', projectName: 'Metabolic project' }]));
       localStorage.setItem(`labcharts-${profileId}-chat-t_${threadId}`, JSON.stringify([{ role: 'assistant', content: 'saved thread' }]));
 
-      const downloads = [];
-      URL.createObjectURL = blob => {
-        downloads.push({ blobType: blob.type, blobSize: blob.size });
+      const downloads: { blobType?: string; blobSize?: number; href?: string; download?: string; revoked?: unknown }[] = [];
+      URL.createObjectURL = (blob: Blob | MediaSource) => {
+        downloads.push({ blobType: (blob as Blob).type, blobSize: (blob as Blob).size });
         return 'blob:backup-browser-test';
       };
-      URL.revokeObjectURL = url => downloads.push({ revoked: url });
+      URL.revokeObjectURL = (url: unknown) => downloads.push({ revoked: url });
       HTMLAnchorElement.prototype.click = function click() {
         downloads.push({ href: this.href, download: this.download });
       };
@@ -189,7 +189,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
         d.download?.startsWith('labcharts-backup-') && d.download.endsWith('.json') && d.href === 'blob:backup-browser-test'
       )
         && downloads.some(d => d.revoked === 'blob:backup-browser-test')
-        && downloads.some(d => d.blobType === 'application/json' && d.blobSize > 100)
+        && downloads.some(d => d.blobType === 'application/json' && d.blobSize! > 100)
         && !!localStorage.getItem('labcharts-last-manual-backup')
         && toasts().some(text => text.includes('Backup exported successfully'));
       clearToasts();
@@ -237,13 +237,13 @@ test('backup browser coverage exercises export import auto backup and folder sta
       const autoTimeouts = captureTimeouts();
       backup.scheduleAutoBackup();
       const autoTimer = autoTimeouts.find(t => t.ms === 300000);
-      if (autoTimer) await autoTimer.fn();
+      if (autoTimer) await (autoTimer.fn as () => unknown)();
       restoreTimers();
       const snapshots = await backup.getAutoBackupSnapshots();
       outcomes.scheduleAutoBackupCreatesIndexedDbSnapshot = !!autoTimer
         && snapshots.length === 1
-        && snapshots[0].snapshot?.format === 'labcharts-backup'
-        && localStorage.getItem('labcharts-last-autobackup') === snapshots[0].createdAt;
+        && snapshots[0]!.snapshot?.format === 'labcharts-backup'
+        && localStorage.getItem('labcharts-last-autobackup') === snapshots[0]!.createdAt;
 
       await backup.restoreAutoBackup('__missing__');
       await waitFor(() => toasts().some(text => text.includes('Snapshot not found')));
@@ -254,7 +254,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
       localStorage.removeItem(restoredImportedKey);
       localStorage.setItem('labcharts-profiles', '[]');
       const autoRestoreTimeouts = captureTimeouts();
-      const restoreAuto = backup.restoreAutoBackup(snapshots[0].id);
+      const restoreAuto = backup.restoreAutoBackup(snapshots[0]!.id!);
       await waitFor(() => document.getElementById('confirm-dialog-overlay')?.classList.contains('show'));
       document.getElementById('confirm-ok')?.click();
       await restoreAuto;
@@ -272,18 +272,18 @@ test('backup browser coverage exercises export import auto backup and folder sta
       restoreTimers();
       clearToasts();
 
-      delete window.showDirectoryPicker;
+      delete (window as {showDirectoryPicker?: unknown}).showDirectoryPicker;
       outcomes.folderBackupUnsupportedRendersEmpty = backup.getFolderBackupState().supported === false
         && backup.renderFolderBackupSection() === '';
 
-      const folderWrites = [];
+      const folderWrites: { name: string; content?: unknown; closed?: boolean }[] = [];
       Object.defineProperty(window, 'showDirectoryPicker', {
         configurable: true,
         value: async () => ({
           name: 'Backups',
-          getFileHandle: async name => ({
+          getFileHandle: async (name: string) => ({
             createWritable: async () => ({
-              write: async content => folderWrites.push({ name, content }),
+              write: async (content: unknown) => folderWrites.push({ name, content }),
               close: async () => folderWrites.push({ name, closed: true }),
             }),
           }),
@@ -294,7 +294,7 @@ test('backup browser coverage exercises export import auto backup and folder sta
       folderHost.innerHTML = folderHtml;
       document.body.appendChild(folderHost);
       backup.installBackupActionDelegates(folderHost);
-      folderHost.querySelector('[data-backup-action="pick-folder"]')?.click();
+      folderHost.querySelector<HTMLElement>('[data-backup-action="pick-folder"]')?.click();
       await waitFor(() => toasts().some(text => text.includes('Could not set backup folder')));
       outcomes.folderBackupSupportedPickerAndCloneFailurePath =
         backup.getFolderBackupState().supported === true
@@ -320,13 +320,13 @@ test('backup browser coverage exercises export import auto backup and folder sta
       HTMLAnchorElement.prototype.click = saved.anchorClick;
       backup.configureBackupRuntimeDeps(previousBackupRuntimeDeps);
       if (saved.showDirectoryPicker) Object.defineProperty(window, 'showDirectoryPicker', saved.showDirectoryPicker);
-      else delete window.showDirectoryPicker;
+      else delete (window as {showDirectoryPicker?: unknown}).showDirectoryPicker;
       await blobStorage.deleteBlob(importedKey);
       await blobStorage.deleteBlob(restoredImportedKey);
       await clearBackupStores().catch(() => {});
       localStorage.clear();
       for (const [key, value] of saved.storage) {
-        if (value != null) localStorage.setItem(key, value);
+        if (value != null) localStorage.setItem(key!, value);
       }
       document.querySelectorAll('.notification-container,.notification-toast,#confirm-dialog-overlay').forEach(el => el.remove());
     }
@@ -344,14 +344,14 @@ test('backup browser coverage exercises IDB errors and folder reauthorization', 
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ backupUrl }) => {
-    const backup = await import(backupUrl);
-    const outcomes = {};
+    const backup = (await import(backupUrl) as unknown) as Pick<typeof import('../../js/backup.js'), "configureBackupRuntimeDeps" | "openBackupDB" | "buildBackupSnapshot" | "serializeBackupSnapshot" | "parseBackupSnapshot" | "buildFullBackupSnapshot" | "exportEncryptedBackup" | "importEncryptedBackup" | "scheduleAutoBackup" | "getAutoBackupSnapshots" | "restoreAutoBackup" | "getFolderBackupState" | "renderFolderBackupSection" | "installBackupActionDelegates" | "removeFolderBackup" | "initFolderBackup" | "reauthorizeFolderBackup">;
+    const outcomes: Record<string, unknown> = {};
     const saved = {
       indexedDB: Object.getOwnPropertyDescriptor(window, 'indexedDB'),
       showDirectoryPicker: Object.getOwnPropertyDescriptor(window, 'showDirectoryPicker'),
     };
     const originalSetTimeout = window.setTimeout.bind(window);
-    const delay = ms => new Promise(resolve => originalSetTimeout(resolve, ms));
+    const delay = (ms: number) => new Promise((resolve) => originalSetTimeout(resolve, ms));
     const toasts = () => Array.from(document.querySelectorAll('.notification-toast')).map(el => el.textContent || '');
     const clearToasts = () => document.querySelectorAll('.notification-toast').forEach(el => el.remove());
     let mode = 'open-error';
@@ -367,17 +367,17 @@ test('backup browser coverage exercises IDB errors and folder reauthorization', 
       },
     };
 
-    const requestError = message => {
-      const req = { error: new Error(message), result: undefined, onsuccess: null, onerror: null };
+    const requestError = (message: unknown) => {
+      const req: { error: Error; result: undefined; onsuccess: ((event: { target: unknown }) => unknown) | null; onerror: ((event: { target: unknown }) => unknown) | null } = { error: new Error(message as string), result: undefined, onsuccess: null, onerror: null };
       originalSetTimeout(() => req.onerror?.({ target: req }), 0);
       return req;
     };
-    const successRequest = result => {
-      const req = { error: null, result, onsuccess: null, onerror: null };
+    const successRequest = (result: unknown) => {
+      const req: { error: null; result: unknown; onsuccess: ((event: { target: unknown }) => unknown) | null; onerror: ((event: { target: unknown }) => unknown) | null } = { error: null, result, onsuccess: null, onerror: null };
       originalSetTimeout(() => req.onsuccess?.({ target: req }), 0);
       return req;
     };
-    const makeStore = storeName => ({
+    const makeStore = (storeName: unknown) => ({
       getAll: () => (mode === 'snapshots-getall-error'
         ? requestError('snapshot list failed')
         : successRequest([])),
@@ -400,8 +400,8 @@ test('backup browser coverage exercises IDB errors and folder reauthorization', 
     const fakeDb = {
       objectStoreNames: { contains: () => true },
       createObjectStore: () => ({}),
-      transaction: storeName => {
-        const tx = {
+      transaction: (storeName: unknown) => {
+        const tx: { error: null; objectStore: () => ReturnType<typeof makeStore>; oncomplete: ((event: { target: unknown }) => unknown) | null; onerror: ((event: { target: unknown }) => unknown) | null } = {
           error: null,
           objectStore: () => makeStore(storeName),
           oncomplete: null,
@@ -412,7 +412,7 @@ test('backup browser coverage exercises IDB errors and folder reauthorization', 
       },
     };
     const openSuccess = () => {
-      const req = { error: null, result: fakeDb, onupgradeneeded: null, onsuccess: null, onerror: null };
+      const req: { error: null; result: typeof fakeDb; onupgradeneeded: ((event: { target: unknown }) => unknown) | null; onsuccess: ((event: { target: unknown }) => unknown) | null; onerror: ((event: { target: unknown }) => unknown) | null } = { error: null, result: fakeDb, onupgradeneeded: null, onsuccess: null, onerror: null };
       originalSetTimeout(() => req.onsuccess?.({ target: req }), 0);
       return req;
     };
@@ -431,9 +431,9 @@ test('backup browser coverage exercises IDB errors and folder reauthorization', 
 
       const openError = await backup.openBackupDB().then(
         () => '',
-        error => error?.message || String(error)
+        (error: unknown) => (error as { message?: unknown })?.message || String(error)
       );
-      outcomes.openBackupDBRejectsOpenErrors = openError.includes('backup db open failed');
+      outcomes.openBackupDBRejectsOpenErrors = (openError as { includes(value: string): unknown }).includes('backup db open failed');
 
       mode = 'snapshots-getall-error';
       const snapshots = await backup.getAutoBackupSnapshots();
@@ -443,9 +443,9 @@ test('backup browser coverage exercises IDB errors and folder reauthorization', 
       mode = 'snapshot-get-error';
       const restoreError = await backup.restoreAutoBackup(42).then(
         () => '',
-        error => error?.message || String(error)
+        (error: unknown) => (error as { message?: unknown })?.message || String(error)
       );
-      outcomes.restoreAutoBackupRejectsRequestErrors = restoreError.includes('snapshot get failed');
+      outcomes.restoreAutoBackupRejectsRequestErrors = (restoreError as { includes(value: string): unknown }).includes('snapshot get failed');
 
       mode = 'folder-get-error';
       await backup.initFolderBackup();
@@ -475,9 +475,9 @@ test('backup browser coverage exercises IDB errors and folder reauthorization', 
         && toasts().some(text => text.includes('Could not restore access'));
     } finally {
       if (saved.indexedDB) Object.defineProperty(window, 'indexedDB', saved.indexedDB);
-      else delete window.indexedDB;
+      else delete (window as { indexedDB?: unknown }).indexedDB;
       if (saved.showDirectoryPicker) Object.defineProperty(window, 'showDirectoryPicker', saved.showDirectoryPicker);
-      else delete window.showDirectoryPicker;
+      else delete (window as {showDirectoryPicker?: unknown}).showDirectoryPicker;
       clearToasts();
       document.querySelectorAll('#backup-folder-section').forEach(el => el.remove());
     }

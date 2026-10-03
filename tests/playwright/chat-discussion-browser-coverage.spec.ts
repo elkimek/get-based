@@ -10,18 +10,18 @@ test('chat discussion state reopens ended current thread in browser', async ({ p
   const results = await page.evaluate(async ({ discussionStateUrl }) => {
     const [{ state }, discussionState, chatThreads] = await Promise.all([
       import('/js/state.js'),
-      import(discussionStateUrl),
+      (import(discussionStateUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-discussion-state.js'), "reopenCurrentDiscussionThread">>,
       import('/js/chat-threads.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const profileId = `discussion-reopen-${Date.now()}`;
     const saved = {
       currentProfile: state.currentProfile,
       currentThreadId: state.currentThreadId,
       chatThreads: state.chatThreads,
     };
-    let threadIndexKey = null;
-    let previousIndex = null;
+    let threadIndexKey: string | null = null;
+    let previousIndex: string | null = null;
 
     try {
       state.currentProfile = profileId;
@@ -44,7 +44,7 @@ test('chat discussion state reopens ended current thread in browser', async ({ p
       localStorage.removeItem(threadIndexKey);
 
       const reopened = discussionState.reopenCurrentDiscussionThread();
-      const storedThreads = JSON.parse(localStorage.getItem(threadIndexKey) || '[]');
+      const storedThreads = (JSON.parse as (text: string) => unknown)(localStorage.getItem(threadIndexKey) || '[]') as { id?: unknown; discussionEnded?: unknown }[];
       outcomes.reopenClearsEndedFlagAndPersistsIndex =
         reopened?.id === 'discussion-reopen-thread'
         && !('discussionEnded' in reopened)
@@ -82,12 +82,12 @@ test('chat prompt context attestation and discussion prompt helpers cover browse
 
   const results = await page.evaluate(async ({ promptContextUrl, attestationUrl, promptsUrl, dcapUrl }) => {
     const [promptContext, attestation, prompts, dcap] = await Promise.all([
-      import(promptContextUrl),
-      import(attestationUrl),
-      import(promptsUrl),
-      import(dcapUrl),
+      (import(promptContextUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-prompt-context.js'), "buildPersonalityPrompt" | "buildTaggedChatMessages" | "buildMultiPersonaInstruction" | "buildWebSearchHint" | "buildChatSystemPrompt" | "serializeLensSources" | "attachLensSources">>,
+      (import(attestationUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-attestation.js'), "attestationTooltip" | "e2eeLockHTML" | "e2eeLockFootnote">>,
+      (import(promptsUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-discussion-round-prompts.js'), "hasExistingDiscussionResponses" | "getDiscussionPromptText" | "buildDiscussionAutoMessage" | "buildDiscussionJoinMessage">>,
+      (import(dcapUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../scripts/vendor-entries/venice-dcap.js'), "PHALA_PCCS_URL" | "createDcapVerifier">>,
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
 
     outcomes.dcapVerifierBundleLoadsInBrowser =
       dcap.PHALA_PCCS_URL === 'https://pccs.phala.network'
@@ -98,7 +98,7 @@ test('chat prompt context attestation and discussion prompt helpers cover browse
         { id: 'custom_reviewer' },
         { promptText: 'Challenge weak claims.' }
       ).includes('## Communication Persona\nChallenge weak claims.')
-      && promptContext.buildPersonalityPrompt({ promptAddition: 'Use evidence.' }).includes('## Communication Persona\nUse evidence.')
+      && (promptContext.buildPersonalityPrompt as (personality: Parameters<typeof promptContext.buildPersonalityPrompt>[0], custom?: Parameters<typeof promptContext.buildPersonalityPrompt>[1]) => ReturnType<typeof promptContext.buildPersonalityPrompt>)({ promptAddition: 'Use evidence.' }).includes('## Communication Persona\nUse evidence.')
       && promptContext.buildPersonalityPrompt({ id: 'custom_empty' }, { promptText: '' }) === '';
 
     const roundHistory = [
@@ -111,7 +111,7 @@ test('chat prompt context attestation and discussion prompt helpers cover browse
     outcomes.multiPersonaAndTaggedMessages =
       promptContext.buildMultiPersonaInstruction(roundHistory, 'Protocol Reviewer').includes('Skeptic')
       && tagged.length === 3
-      && tagged[1].content.startsWith('[Response from Skeptic]')
+      && tagged[1]!.content.startsWith('[Response from Skeptic]')
       && tagged.every(message => message.content !== 'hidden join marker');
 
     outcomes.webSearchHintsCoverModes =
@@ -136,17 +136,17 @@ test('chat prompt context attestation and discussion prompt helpers cover browse
         score: index === 1 ? 0.42 : 'bad-score',
       })),
     };
-    const serialized = promptContext.serializeLensSources(lensResult);
-    const message = { role: 'assistant', content: 'Lens answer' };
+    const serialized = promptContext.serializeLensSources(lensResult) as { lensSources: { text: { length: unknown }; score?: unknown }[]; lensSourceName?: unknown } | null;
+    const message: { role: string; content: string; lensSources?: unknown[] } = { role: 'assistant', content: 'Lens answer' };
     const attached = promptContext.attachLensSources(message, lensResult);
     outcomes.lensSourcesAreCappedAndNormalized =
-      serialized.lensSources.length === 10
-      && serialized.lensSources[0].text.length === 1500
-      && serialized.lensSources[1].score === 0.42
-      && serialized.lensSources[2].score === null
-      && serialized.lensSourceName === 'Knowledge Base'
+      serialized!.lensSources.length === 10
+      && serialized!.lensSources[0]!.text.length === 1500
+      && serialized!.lensSources[1]!.score === 0.42
+      && serialized!.lensSources[2]!.score === null
+      && serialized!.lensSourceName === 'Knowledge Base'
       && attached === message
-      && message.lensSources.length === 10
+      && message.lensSources!.length === 10
       && promptContext.serializeLensSources({ chunks: [] }) === null;
 
     const okAttestation = {
@@ -201,7 +201,7 @@ test('E2EE attestation badge reveals verification details on hover and focus', a
   await page.waitForSelector('#chat-input');
 
   await page.evaluate(async ({ attestationUrl }) => {
-    const attestation = await import(attestationUrl);
+    const attestation = (await import(attestationUrl) as unknown) as Pick<typeof import('../../js/chat-attestation.js'), "attestationTooltip" | "e2eeLockHTML" | "e2eeLockFootnote">;
     const host = document.createElement('div');
     host.id = 'attestation-tooltip-coverage';
     host.style.cssText = 'position:fixed;left:160px;top:120px;z-index:1300';
@@ -243,11 +243,11 @@ test('discussion round state persists active and inactive thread histories', asy
 
   const results = await page.evaluate(async ({ roundStateUrl }) => {
     const [roundState, chatThreads, { state }] = await Promise.all([
-      import(roundStateUrl),
+      (import(roundStateUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-discussion-round-state.js'), "renderRoundMessages" | "saveRoundChatHistory">>,
       import('/js/chat-threads.js'),
       import('/js/state.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const profileId = 'discussion-round-state-coverage';
     const saved = {
       currentProfile: state.currentProfile,
@@ -258,7 +258,7 @@ test('discussion round state persists active and inactive thread histories', asy
     };
     const removeProfileChatKeys = () => {
       for (const key of Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter(Boolean)) {
-        if (key.startsWith(`labcharts-${profileId}-chat`)) localStorage.removeItem(key);
+        if (key!.startsWith(`labcharts-${profileId}-chat`)) localStorage.removeItem(key!);
       }
     };
     const initialUpdatedAt = new Date(Date.now() - 86400000).toISOString();
@@ -269,7 +269,7 @@ test('discussion round state persists active and inactive thread histories', asy
       state.currentProfile = profileId;
       state.currentThreadId = 'active-thread';
       state.chatHistory = [{ role: 'user', content: 'before' }];
-      state.chatThreads = [
+      (state as { chatThreads: unknown }).chatThreads = [
         { id: 'active-thread', title: 'Active', messageCount: 1, updatedAt: initialUpdatedAt },
         { id: 'inactive-thread', title: 'Inactive', messageCount: 1, updatedAt: initialUpdatedAt },
       ];
@@ -279,7 +279,7 @@ test('discussion round state persists active and inactive thread histories', asy
       const inactiveMessages = [{ role: 'assistant', content: 'inactive render' }];
       roundState.renderRoundMessages('inactive-thread', inactiveMessages, () => { renderCalls += 1; });
       const inactiveRenderSkipped = renderCalls === 0
-        && state.chatHistory[0].content === 'before';
+        && state.chatHistory[0]!.content === 'before';
       roundState.renderRoundMessages('active-thread', activeMessages, () => { renderCalls += 1; });
       outcomes.renderRoundMessagesOnlyRendersActiveThread = inactiveRenderSkipped
         && renderCalls === 1
@@ -298,13 +298,13 @@ test('discussion round state persists active and inactive thread histories', asy
       const beforeUpdatedAt = state.chatThreads.find(thread => thread.id === 'inactive-thread')?.updatedAt;
       await roundState.saveRoundChatHistory('inactive-thread', inactiveSaveMessages);
       const inactiveThread = state.chatThreads.find(thread => thread.id === 'inactive-thread');
-      const inactiveStored = JSON.parse(localStorage.getItem(chatThreads.getChatThreadKey('inactive-thread')) || '[]');
-      const savedThreadIndex = JSON.parse(localStorage.getItem(chatThreads.getChatThreadsKey()) || '[]');
+      const inactiveStored = (JSON.parse as (text: string) => unknown)(localStorage.getItem(chatThreads.getChatThreadKey('inactive-thread')) || '[]') as { content?: unknown }[];
+      const savedThreadIndex = (JSON.parse as (text: string) => unknown)(localStorage.getItem(chatThreads.getChatThreadsKey()) || '[]') as { id?: unknown; messageCount?: unknown }[];
       outcomes.inactiveRoundSavePersistsThreadAndUpdatesIndex =
         inactiveStored.length === 2
-        && inactiveStored[0].content === 'inactive saved'
-        && inactiveThread.messageCount === 2
-        && inactiveThread.updatedAt !== beforeUpdatedAt
+        && inactiveStored[0]!.content === 'inactive saved'
+        && inactiveThread!.messageCount === 2
+        && inactiveThread!.updatedAt !== beforeUpdatedAt
         && savedThreadIndex.some(thread => thread.id === 'inactive-thread' && thread.messageCount === 2);
     } finally {
       removeProfileChatKeys();
@@ -336,9 +336,9 @@ test('chat discussion request builder covers personality model assistant and usa
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/lab-context.js'),
-      import(requestUrl),
+      (import(requestUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-discussion-round-request.js'), "buildDiscussionRoundRequest" | "buildDiscussionAssistantMessage" | "trackDiscussionUsage">>,
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const storage = new Map(Array.from({ length: localStorage.length }, (_, index) => {
       const key = localStorage.key(index);
       return [key, key ? localStorage.getItem(key) : null];
@@ -398,7 +398,7 @@ test('chat discussion request builder covers personality model assistant and usa
         && request.systemPrompt.includes('Challenge weak claims.')
         && request.systemPrompt.includes('Ferritin')
         && request.systemPrompt.includes('Skeptic')
-        && request.apiMessages.some(message => message.content.includes('[Response from Skeptic]'))
+        && request.apiMessages.some(message => (message.content as { includes(value: string): unknown }).includes('[Response from Skeptic]'))
         && request.webSearch === false
         && request.e2ee === false
         && request.lensResult === null;
@@ -411,7 +411,7 @@ test('chat discussion request builder covers personality model assistant and usa
           e2ee: true,
           lensResult: {
             sourceName: 'Study notes',
-            chunks: [{ text: 'Ferritin responds to repletion.', source: 'note.md', score: 0.9 }],
+            chunks: [{ text: 'Ferritin responds to repletion.', source: 'note.md', score: 0.9 } as { text: string; source: string; score: number }],
           },
         },
         aiResult: { finishReason: 'length' },
@@ -427,7 +427,7 @@ test('chat discussion request builder covers personality model assistant and usa
         && assistant.finishReason === 'length'
         && assistant.webSearch === true
         && assistant.e2ee === true
-        && assistant.attestation?.nonceVerified === true
+        && (assistant.attestation as { nonceVerified?: unknown } | null | undefined)?.nonceVerified === true
         && assistant.lensSources?.[0]?.source === 'note.md'
         && assistant.lensSourceName === 'Study notes';
 
@@ -435,8 +435,8 @@ test('chat discussion request builder covers personality model assistant and usa
       localStorage.removeItem('labcharts-global-usage');
       roundRequest.trackDiscussionUsage(request, { inputTokens: 12, outputTokens: 8 });
       roundRequest.trackDiscussionUsage(request, {});
-      const profileUsage = JSON.parse(localStorage.getItem('labcharts-chat-discussion-coverage-usage') || 'null');
-      const globalUsage = JSON.parse(localStorage.getItem('labcharts-global-usage') || 'null');
+      const profileUsage = (JSON.parse as (text: string) => unknown)(localStorage.getItem('labcharts-chat-discussion-coverage-usage') || 'null') as { totalInputTokens?: unknown; totalOutputTokens?: unknown; requestCount?: unknown } | null;
+      const globalUsage = (JSON.parse as (text: string) => unknown)(localStorage.getItem('labcharts-global-usage') || 'null') as { totalInputTokens?: unknown; requestCount?: unknown } | null;
       outcomes.usageTrackingRecordsNonEmptyUsage =
         profileUsage?.totalInputTokens === 12
         && profileUsage?.totalOutputTokens === 8
@@ -476,10 +476,10 @@ test('chat discussion flow guards and empty rounds cover no-network browser cont
     const [{ state }, callbacks, flow, turns] = await Promise.all([
       import('/js/state.js'),
       import('/js/chat-discussion-callbacks.js'),
-      import(flowUrl),
-      import(turnsUrl),
+      (import(flowUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-discussion-flow.js'), "sendDiscussionUserTurn" | "continueDiscussion" | "startDiscussion" | "startDiscussionFromPicker">>,
+      (import(turnsUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-discussion-turns.js'), "runDiscussionContinuation" | "runDiscussion">>,
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const storage = new Map(Array.from({ length: localStorage.length }, (_, index) => {
       const key = localStorage.key(index);
       return [key, key ? localStorage.getItem(key) : null];
@@ -496,9 +496,9 @@ test('chat discussion flow guards and empty rounds cover no-network browser cont
       discussionOriginalPersonality: state._discussionOriginalPersonality,
       messagesHTML: document.getElementById('chat-messages')?.innerHTML,
     };
-    let currentAbortController = new AbortController();
-    const controllerTransitions = [];
-    const sendButtonModes = [];
+    let currentAbortController: AbortController | null = new AbortController();
+    const controllerTransitions: unknown[] = [];
+    const sendButtonModes: unknown[] = [];
     let renderCalls = 0;
 
     try {
@@ -523,11 +523,11 @@ test('chat discussion flow guards and empty rounds cover no-network browser cont
 
       callbacks.configureChatDiscussion({
         getChatAbortController: () => currentAbortController,
-        setChatAbortController(controller) {
+        setChatAbortController(controller: Parameters<typeof callbacks.setChatAbortController>[0]) {
           currentAbortController = controller;
           controllerTransitions.push(controller ? 'set' : 'clear');
         },
-        setSendButtonMode(_btn, mode) {
+        setSendButtonMode(_btn: unknown, mode: unknown) {
           sendButtonModes.push(mode);
         },
         renderChatMessages() {
@@ -557,8 +557,8 @@ test('chat discussion flow guards and empty rounds cover no-network browser cont
         && sendButtonModes.at(-1) === 'idle';
       outcomes.emptyRoundsPersistDiscussionThread =
         state.currentChatPersonality === 'default'
-        && state.chatThreads[0].discussionOriginalPersonality === 'default'
-        && Array.isArray(state.chatThreads[0].discussionPersonas);
+        && state.chatThreads[0]!.discussionOriginalPersonality === 'default'
+        && Array.isArray(state.chatThreads[0]!.discussionPersonas);
       outcomes.emptyRoundsShowContinuePromptWithoutRenderingMessages =
         document.querySelector('.chat-discussion-mode') !== null
         && renderCalls === 0;
@@ -606,10 +606,10 @@ test('chat marker and correlation prompt handoffs prefill chat threads from brow
     const [{ state }, data, markerPrompts, chatRuntime] = await Promise.all([
       import('/js/state.js'),
       import('/js/data.js'),
-      import(markerPromptsUrl),
+      (import(markerPromptsUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-marker-prompts.js'), "askAIAboutMarker" | "askAIAboutCorrelations">>,
       import('/js/chat-runtime.js'),
     ]);
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const storage = new Map(Array.from({ length: localStorage.length }, (_, index) => {
       const key = localStorage.key(index);
       return [key, key ? localStorage.getItem(key) : null];
@@ -625,17 +625,17 @@ test('chat marker and correlation prompt handoffs prefill chat threads from brow
       chatThreads: state.chatThreads,
       currentThreadId: state.currentThreadId,
       currentChatPersonality: state.currentChatPersonality,
-      inputValue: document.getElementById('chat-input')?.value,
+      inputValue: (document.getElementById('chat-input') as HTMLTextAreaElement | null)?.value,
       panelClass: document.getElementById('chat-panel')?.className,
     };
     let closeCalls = 0;
     const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
       closeModal: () => { closeCalls += 1; },
     });
-    const waitFor = async (predicate) => {
+    const waitFor = async (predicate: () => unknown | Promise<unknown>) => {
       for (let i = 0; i < 60; i += 1) {
         if (predicate()) return true;
-        await new Promise(resolve => setTimeout(resolve, 25));
+        await new Promise((resolve) => setTimeout(resolve, 25));
       }
       return false;
     };
@@ -665,19 +665,19 @@ test('chat marker and correlation prompt handoffs prefill chat threads from brow
       const activeData = data.getActiveData();
       state.markerRegistry = {
         ferritin: {
-          ...activeData.categories.iron.markers.ferritin,
+          ...activeData.categories.iron!.markers.ferritin,
           id: 'ferritin',
         },
       };
-      const input = document.getElementById('chat-input');
-      input.value = '';
+      const input = (document.getElementById('chat-input') as HTMLTextAreaElement | null);
+      input!.value = '';
       markerPrompts.askAIAboutMarker('missing-marker');
-      await new Promise(resolve => setTimeout(resolve, 50));
-      outcomes.missingMarkerIsGuarded = input.value === '';
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      outcomes.missingMarkerIsGuarded = input!.value === '';
 
       markerPrompts.askAIAboutMarker('ferritin');
-      const markerReady = await waitFor(() => input.value.includes('Tell me about my Ferritin results'));
-      const markerPrompt = input.value;
+      const markerReady = await waitFor(() => input!.value.includes('Tell me about my Ferritin results'));
+      const markerPrompt = input!.value;
       outcomes.markerPromptPrefillsChatAndRenamesThread =
         markerReady
         && closeCalls === 1
@@ -688,8 +688,8 @@ test('chat marker and correlation prompt handoffs prefill chat threads from brow
 
       state.selectedCorrelationMarkers = ['iron.ferritin', 'iron.transferrin'];
       markerPrompts.askAIAboutCorrelations();
-      const correlationReady = await waitFor(() => input.value.includes('Explore dose/lab associations'));
-      const correlationPrompt = input.value;
+      const correlationReady = await waitFor(() => input!.value.includes('Explore dose/lab associations'));
+      const correlationPrompt = input!.value;
       outcomes.correlationPromptPrefillsNamesValuesAndThread =
         correlationReady
         && correlationPrompt.includes('Ferritin')
@@ -710,7 +710,7 @@ test('chat marker and correlation prompt handoffs prefill chat threads from brow
       state.currentChatPersonality = original.currentChatPersonality;
       chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
       data.invalidateActiveDataCache();
-      const input = document.getElementById('chat-input');
+      const input = (document.getElementById('chat-input') as HTMLTextAreaElement | null);
       if (input && original.inputValue != null) input.value = original.inputValue;
       const panel = document.getElementById('chat-panel');
       if (panel && original.panelClass != null) panel.className = original.panelClass;

@@ -1,3 +1,4 @@
+type LensRequestFixture = { messages?: { role?: unknown; content?: unknown }[]; query?: unknown; top_k?: unknown };
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -7,22 +8,22 @@ test('hardware browser contract detects GPUs and ranks model options', async ({ 
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ hardwareUrl }) => {
-    const hardware = await import(hardwareUrl);
-    const outcomes = {};
+    const hardware = (await import(hardwareUrl) as unknown) as Pick<typeof import('../../js/hardware.js'), "detectHardware" | "saveHardwareOverride" | "getHardwareOverride" | "assessModel" | "assessFitness" | "getBestModel" | "getUpgradeSuggestion" | "getModelSuggestions">;
+    const outcomes: Record<string, unknown> = {};
     const originalCreateElement = document.createElement.bind(document);
-    const navigatorProto = Object.getPrototypeOf(navigator);
+    const navigatorProto = Object.getPrototypeOf(navigator) as Record<string, unknown>;
     const originalDeviceMemory = Object.getOwnPropertyDescriptor(navigatorProto, 'deviceMemory');
     const originalHardwareConcurrency = Object.getOwnPropertyDescriptor(navigatorProto, 'hardwareConcurrency');
     const savedOverride = localStorage.getItem('labcharts-hw-vram-override');
 
-    const restoreNavigatorProp = (name, descriptor) => {
+    const restoreNavigatorProp = (name: string, descriptor: PropertyDescriptor | undefined) => {
       try {
         if (descriptor) Object.defineProperty(navigatorProto, name, descriptor);
         else delete navigatorProto[name];
       } catch {}
     };
 
-    const setNavigatorProp = (name, value) => {
+    const setNavigatorProp = (name: string, value: unknown) => {
       try {
         Object.defineProperty(navigatorProto, name, {
           configurable: true,
@@ -31,8 +32,8 @@ test('hardware browser contract detects GPUs and ranks model options', async ({ 
       } catch {}
     };
 
-    const stubRenderer = (renderer, opts = {}) => {
-      document.createElement = (tagName, ...args) => {
+    const stubRenderer = (renderer: unknown, opts: { noContext?: unknown; blocked?: unknown } = {}) => {
+      (document as { createElement: unknown }).createElement = (tagName: string, ...args: [options?: ElementCreationOptions]) => {
         if (String(tagName).toLowerCase() !== 'canvas') return originalCreateElement(tagName, ...args);
         return {
           getContext() {
@@ -146,9 +147,9 @@ test('external lens browser contract covers validation fetch cache save and remo
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ lensUrl }) => {
-    const lens = await import(lensUrl);
+    const lens = (await import(lensUrl) as unknown) as Pick<typeof import('../../js/lens.js'), "saveLensKey" | "testLensConnection" | "subscribeLensStatus" | "queryLens" | "queryLensMulti" | "buildLensSnippet" | "clearLensCache" | "getLensStatus" | "isValidLensUrl" | "getLensConfig" | "openKnowledgeBaseModal" | "handleSaveLensConfig" | "getLensKey" | "handleRemoveLens" | "hasLens" | "closeKnowledgeBaseModal" | "loadLensKnowledgeBaseUi" | "renderCustomLensSection" | "getLensSummary">;
     const cryptoStore = await import('/js/crypto.js');
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const originalFetch = window.fetch;
     const saved = {
       config: localStorage.getItem('labcharts-lens-config'),
@@ -158,9 +159,9 @@ test('external lens browser contract covers validation fetch cache save and remo
       aiPaused: localStorage.getItem('labcharts-ai-paused'),
       ollamaModel: localStorage.getItem('labcharts-ollama-model'),
     };
-    const calls = [];
+    const calls: { kind?: string; url: string; auth?: unknown; body: LensRequestFixture; credentials?: RequestCredentials | undefined; redirect?: RequestRedirect | undefined; referrerPolicy?: ReferrerPolicy | undefined }[] = [];
 
-    const setConfig = (partial) => {
+    const setConfig = (partial: unknown) => {
       localStorage.setItem('labcharts-lens-config', JSON.stringify({
         name: 'Research KB',
         url: 'http://127.0.0.1:8322/query',
@@ -169,11 +170,11 @@ test('external lens browser contract covers validation fetch cache save and remo
         testProbe: 'omega 3 index',
         backend: 'external-server',
         multiQuery: true,
-        ...partial,
+        ...(partial as object),
       }));
     };
 
-    const makeJsonResponse = (body, status = 200) => new Response(JSON.stringify(body), {
+    const makeJsonResponse = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
       status,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -186,13 +187,13 @@ test('external lens browser contract covers validation fetch cache save and remo
       setConfig({});
       await lens.saveLensKey('secret-token');
 
-      window.fetch = async (url, opts) => {
+      window.fetch = async (url: RequestInfo | URL, opts?: RequestInit) => {
         const href = String(url);
         if (!opts?.body) {
           if (href.endsWith('/v1/models')) return makeJsonResponse({ data: [{ id: 'lens-rewrite-test-model' }] });
           return makeJsonResponse({ error: 'unsupported' }, 404);
         }
-        const body = JSON.parse(String(opts?.body || '{}'));
+        const body = (JSON.parse as (text: string) => unknown)(String(opts?.body || '{}')) as LensRequestFixture;
         if (Array.isArray(body.messages)) {
           calls.push({ kind: 'rewrite', url: String(url), body });
           return makeJsonResponse({
@@ -211,7 +212,7 @@ test('external lens browser contract covers validation fetch cache save and remo
         calls.push({
           kind: 'rag',
           url: String(url),
-          auth: opts?.headers?.Authorization,
+          auth: (opts?.headers as { Authorization?: unknown } | null | undefined)?.Authorization,
           body,
           credentials: opts?.credentials,
           redirect: opts?.redirect,
@@ -221,7 +222,7 @@ test('external lens browser contract covers validation fetch cache save and remo
           { text: 'Omega-3 index supports membrane health.', source: 'lipids.md' },
           { text: 'Vitamin D pairs with K2 in this protocol.', source: 'd3.md' },
         ];
-        const topK = Number.isFinite(body.top_k) ? Math.max(0, body.top_k) : chunks.length;
+        const topK = Number.isFinite(body.top_k) ? Math.max(0, body.top_k as number) : chunks.length;
         return makeJsonResponse({
           chunks: chunks.slice(0, topK),
         });
@@ -231,16 +232,16 @@ test('external lens browser contract covers validation fetch cache save and remo
       outcomes.connectionUsesSavedProbeAndBearer = connection.ok === true
         && connection.chunkCount === 2
         && connection.firstSource === 'lipids.md'
-        && calls[0].url === 'http://127.0.0.1:8322/query'
-        && calls[0].auth === 'Bearer secret-token'
-        && calls[0].body.query === 'omega 3 index'
-        && calls[0].body.top_k === 4
-        && calls[0].credentials === 'omit'
-        && calls[0].redirect === 'error'
-        && calls[0].referrerPolicy === 'no-referrer';
+        && calls[0]!.url === 'http://127.0.0.1:8322/query'
+        && calls[0]!.auth === 'Bearer secret-token'
+        && calls[0]!.body.query === 'omega 3 index'
+        && calls[0]!.body.top_k === 4
+        && calls[0]!.credentials === 'omit'
+        && calls[0]!.redirect === 'error'
+        && calls[0]!.referrerPolicy === 'no-referrer';
 
-      const statuses = [];
-      const unsubscribe = lens.subscribeLensStatus(status => statuses.push({ ...status }));
+      const statuses: { state?: unknown; lastChunkCount?: unknown; sourceName?: unknown }[] = [];
+      const unsubscribe = lens.subscribeLensStatus((status: unknown) => statuses.push({ ...(status as Record<string, unknown>) }));
       const first = await lens.queryLens('vitamin d protocol', { topK: 2 });
       const second = await lens.queryLens('vitamin d protocol', { topK: 2 });
       const multi = await lens.queryLensMulti('vitamin d inflammation protocol', { topK: 1 });
@@ -253,9 +254,9 @@ test('external lens browser contract covers validation fetch cache save and remo
         && second?.chunks.length === 2
         && multi?.chunks.length === 1
         && rewriteCalls.length === 1
-        && rewriteCalls[0].body.messages.some(msg => msg.role === 'user' && msg.content === 'vitamin d inflammation protocol')
+        && rewriteCalls[0]!.body.messages!.some(msg => msg.role === 'user' && msg.content === 'vitamin d inflammation protocol')
         && ragCalls.length === 6
-        && ragCalls[1].body.top_k === 2
+        && ragCalls[1]!.body.top_k === 2
         && multiRagCalls.every(call => call.body.top_k === 1)
         && multiQueries.length === 4
         && multiQueries.includes('vitamin d inflammation protocol')
@@ -294,23 +295,23 @@ test('external lens browser contract covers validation fetch cache save and remo
 
       setConfig({ name: 'Before Save', url: 'https://kb.example.test/query', enabled: false, topK: 5 });
       await lens.saveLensKey('old-token');
-      window.fetch = async (url, opts) => {
+      window.fetch = async (url: RequestInfo | URL, opts?: RequestInit) => {
         calls.push({
           url: String(url),
-          auth: opts?.headers?.Authorization,
-          body: JSON.parse(String(opts?.body || '{}')),
+          auth: (opts?.headers as { Authorization?: unknown } | null | undefined)?.Authorization,
+          body: (JSON.parse as (text: string) => unknown)(String(opts?.body || '{}')) as LensRequestFixture,
         });
         return makeJsonResponse({ chunks: [] });
       };
 
       await lens.openKnowledgeBaseModal();
-      document.getElementById('lens-name-input').value = 'Saved KB';
-      document.getElementById('lens-url-input').value = 'https://kb.example.test/query///';
-      document.getElementById('lens-key-input').value = 'new-token';
-      document.getElementById('lens-test-probe-input').value = 'berberine glucose';
-      document.getElementById('lens-topk-input').value = '99';
-      document.getElementById('lens-enabled-toggle').checked = true;
-      document.getElementById('lens-multi-query-checkbox').checked = false;
+      (document.getElementById('lens-name-input') as HTMLInputElement | null)!.value = 'Saved KB';
+      (document.getElementById('lens-url-input') as HTMLInputElement | null)!.value = 'https://kb.example.test/query///';
+      (document.getElementById('lens-key-input') as HTMLInputElement | null)!.value = 'new-token';
+      (document.getElementById('lens-test-probe-input') as HTMLInputElement | null)!.value = 'berberine glucose';
+      (document.getElementById('lens-topk-input') as HTMLInputElement | null)!.value = '99';
+      (document.getElementById('lens-enabled-toggle') as HTMLInputElement | null)!.checked = true;
+      (document.getElementById('lens-multi-query-checkbox') as HTMLInputElement | null)!.checked = false;
       const beforeSaveCalls = calls.length;
       await lens.handleSaveLensConfig();
       const savedCfg = lens.getLensConfig();
@@ -322,8 +323,8 @@ test('external lens browser contract covers validation fetch cache save and remo
         && savedCfg.multiQuery === false
         && lens.getLensKey() === 'new-token'
         && calls.length === beforeSaveCalls + 1
-        && calls[calls.length - 1].body.query === 'berberine glucose'
-        && calls[calls.length - 1].body.top_k === 10
+        && calls[calls.length - 1]!.body.query === 'berberine glucose'
+        && calls[calls.length - 1]!.body.top_k === 10
         && document.getElementById('custom-lens-section')?.textContent.includes('Active · Saved KB');
 
       const removePromise = lens.handleRemoveLens();
@@ -367,9 +368,9 @@ test('in-browser lens render covers local panel status and backend switching wit
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ lensUrl }) => {
-    const lens = await import(lensUrl);
+    const lens = (await import(lensUrl) as unknown) as Pick<typeof import('../../js/lens.js'), "saveLensKey" | "testLensConnection" | "subscribeLensStatus" | "queryLens" | "queryLensMulti" | "buildLensSnippet" | "clearLensCache" | "getLensStatus" | "isValidLensUrl" | "getLensConfig" | "openKnowledgeBaseModal" | "handleSaveLensConfig" | "getLensKey" | "handleRemoveLens" | "hasLens" | "closeKnowledgeBaseModal" | "loadLensKnowledgeBaseUi" | "renderCustomLensSection" | "getLensSummary">;
     const cryptoStore = await import('/js/crypto.js');
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const originalRAF = window.requestAnimationFrame;
     const saved = {
       config: localStorage.getItem('labcharts-lens-config'),
@@ -379,7 +380,7 @@ test('in-browser lens render covers local panel status and backend switching wit
       aiPaused: localStorage.getItem('labcharts-ai-paused'),
       openRouterKey: localStorage.getItem('labcharts-openrouter-key'),
     };
-    const navigatorProto = Object.getPrototypeOf(navigator);
+    const navigatorProto = Object.getPrototypeOf(navigator) as Record<string, unknown>;
     const originalStorage = Object.getOwnPropertyDescriptor(navigatorProto, 'storage');
     const section = document.createElement('section');
     section.id = 'custom-lens-section';
@@ -432,7 +433,7 @@ test('in-browser lens render covers local panel status and backend switching wit
         && !!section.querySelector('#lens-enabled-toggle[data-lens-action="toggle-enabled"]')
         && !!section.querySelector('[data-lens-action="save-config"]');
 
-      const enabledToggle = /** @type {HTMLInputElement | null} */ (section.querySelector('#lens-enabled-toggle'));
+      const enabledToggle = /** @type {HTMLInputElement | null} */ (section.querySelector('#lens-enabled-toggle') as HTMLInputElement | null);
       if (enabledToggle) {
         enabledToggle.checked = false;
         enabledToggle.dispatchEvent(new Event('change', { bubbles: true }));
@@ -440,10 +441,10 @@ test('in-browser lens render covers local panel status and backend switching wit
       outcomes.toggleUpdatesConfigAndStatusChipWithoutRerender = lens.getLensConfig().enabled === false
         && document.getElementById('lens-status-chip')?.textContent.includes('Ready, currently off');
 
-      section.querySelector('[data-lens-action="clear-cache"]')?.click();
+      section.querySelector<HTMLElement>('[data-lens-action="clear-cache"]')?.click();
       outcomes.clearCacheKeepsStatusCallable = typeof lens.getLensStatus().state === 'string';
 
-      section.querySelector('[data-lens-action="set-backend"][data-lens-backend="external-server"]')?.click();
+      section.querySelector<HTMLElement>('[data-lens-action="set-backend"][data-lens-backend="external-server"]')?.click();
       const remoteFieldsAfterSwitch = /** @type {HTMLElement | null} */ (section.querySelector('#lens-remote-fields'));
       const localFieldsAfterSwitch = /** @type {HTMLElement | null} */ (section.querySelector('#lens-local-fields'));
       outcomes.backendSwitchRerendersRemoteFieldsAndRemovesLegacyIndicator = lens.getLensConfig().backend === 'external-server'

@@ -1,3 +1,15 @@
+type MedicalControls = {
+  'condition-input': HTMLInputElement;
+  'condition-since': HTMLInputElement;
+  'fh-condition': HTMLInputElement;
+  'fh-age': HTMLInputElement;
+  'fh-note': HTMLInputElement;
+  'fh-relative': HTMLSelectElement;
+  'ctx-note-input': HTMLTextAreaElement;
+  'diagnosis-procedures-input': HTMLTextAreaElement;
+};
+type MedicalControl<Id extends string> = Id extends keyof MedicalControls ? MedicalControls[Id] : HTMLElement;
+
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -9,11 +21,11 @@ test('medical history default dependencies no-op while saving editor state', asy
   const results = await page.evaluate(async ({ editorUrl }) => {
     const [{ state }, editor] = await Promise.all([
       import('/js/state.js'),
-      import(editorUrl),
+      (import(editorUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/context-card-medical-history-editor.js'), "openDiagnosesEditor" | "addCondition" | "saveDiagnoses" | "clearDiagnoses" | "configureMedicalHistoryEditor" | "filterConditionSuggestions" | "selectConditionSuggestion" | "editCondition" | "cancelConditionEdit" | "deleteCondition" | "filterFamilyConditionSuggestions" | "selectFamilyConditionSuggestion" | "addFamilyHistoryEntry" | "editFamilyHistoryEntry" | "cancelFamilyHistoryEdit" | "deleteFamilyHistoryEntry" | "renderDiagnosesModal" | "closeDiagnoses" | "closeSuggestionsOnClickOutside">>,
     ]);
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
-    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async (predicate, attempts = 100) => {
+    const clone = (value: unknown) => value == null ? value : (JSON.parse as (text: string) => unknown)(JSON.stringify(value));
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, attempts = 100) => {
       for (let i = 0; i < attempts; i += 1) {
         try {
           if (await predicate()) return true;
@@ -22,20 +34,20 @@ test('medical history default dependencies no-op while saving editor state', asy
       }
       return false;
     };
-    const byId = id => {
+    const byId = <Id extends string>(id: Id): MedicalControl<Id> => {
       const el = document.getElementById(id);
       if (!el) throw new Error(`Expected #${id} in default medical history editor`);
-      return el;
+      return el as MedicalControl<Id>;
     };
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
       const key = localStorage.key(i);
-      return [key, localStorage.getItem(key)];
+      return [key, localStorage.getItem(key!)];
     }));
     const saved = {
       importedData: clone(state.importedData),
       currentProfile: state.currentProfile,
     };
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
     const overlay = document.createElement('div');
     overlay.id = 'modal-overlay';
     const modal = document.createElement('div');
@@ -45,7 +57,7 @@ test('medical history default dependencies no-op while saving editor state', asy
 
     try {
       state.currentProfile = 'medical-history-default-deps';
-      state.importedData = {
+      (state as { importedData: unknown }).importedData = {
         entries: [],
         notes: [],
         supplements: [],
@@ -93,7 +105,7 @@ test('medical history default dependencies no-op while saving editor state', asy
         !clearCrashed
         && state.importedData.diagnoses === null;
     } finally {
-      state.importedData = saved.importedData;
+      (state as { importedData: unknown }).importedData = saved.importedData;
       state.currentProfile = saved.currentProfile;
       overlay.remove();
       localStorage.clear();
@@ -117,13 +129,13 @@ test('family history DOM handlers round-trip and mutate entries', async ({ page 
     const cards = await import('/js/context-cards.js');
     await (await import('/js/context-card-editor-ui.js')).loadContextEditorStylesheet();
     const { state } = await import('/js/state.js');
-    const outcomes = {};
+    const outcomes: Record<string, unknown> = {};
 
     const originalDiagnoses = state.importedData?.diagnoses;
     state.importedData = state.importedData || {};
     state.importedData.diagnoses = { conditions: [], note: '', familyHistory: [] };
 
-    let detachedModal = null;
+    let detachedModal: HTMLDivElement | null = null;
     if (!document.getElementById('detail-modal')) {
       detachedModal = document.createElement('div');
       detachedModal.id = 'detail-modal';
@@ -131,13 +143,13 @@ test('family history DOM handlers round-trip and mutate entries', async ({ page 
     }
 
     await cards.renderDiagnosesModal(document.getElementById('detail-modal'), state.importedData.diagnoses);
-    const conditionInput = document.getElementById('condition-input');
-    conditionInput.value = 'Alzheimer';
-    conditionInput.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    const conditionInput = (document.getElementById('condition-input') as HTMLInputElement | null);
+    conditionInput!.value = 'Alzheimer';
+    conditionInput!.dispatchEvent(new InputEvent('input', { bubbles: true }));
     const suggestion = document.querySelector('#condition-suggestions .ctx-suggestion-item');
-    suggestion.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-    outcomes.apostropheConditionRoundTrips = conditionInput.value === "Alzheimer's Disease";
-    document.getElementById('detail-modal').innerHTML = '';
+    suggestion!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    outcomes.apostropheConditionRoundTrips = conditionInput!.value === "Alzheimer's Disease";
+    document.getElementById('detail-modal')!.innerHTML = '';
 
     const probe2 = document.createElement('div');
     document.body.appendChild(probe2);
@@ -157,14 +169,14 @@ test('family history DOM handlers round-trip and mutate entries', async ({ page 
         && familyItem?.textContent.includes('on metformin');
 
       cards.editFamilyHistoryEntry(0);
-      outcomes.editFamilyHistoryPrefills = document.getElementById('fh-relative')?.value === 'mother'
-        && document.getElementById('fh-condition')?.value === 'Type 2 Diabetes'
-        && document.getElementById('fh-age')?.value === '45'
-        && document.getElementById('fh-note')?.value === 'on metformin';
-      document.getElementById('fh-relative').value = 'father';
-      document.getElementById('fh-condition').value = 'Heart Attack (MI)';
-      document.getElementById('fh-age').value = '52';
-      document.getElementById('fh-note').value = 'stent';
+      outcomes.editFamilyHistoryPrefills = (document.getElementById('fh-relative') as HTMLSelectElement | null)?.value === 'mother'
+        && (document.getElementById('fh-condition') as HTMLInputElement | null)?.value === 'Type 2 Diabetes'
+        && (document.getElementById('fh-age') as HTMLInputElement | null)?.value === '45'
+        && (document.getElementById('fh-note') as HTMLInputElement | null)?.value === 'on metformin';
+      (document.getElementById('fh-relative') as HTMLSelectElement | null)!.value = 'father';
+      (document.getElementById('fh-condition') as HTMLInputElement | null)!.value = 'Heart Attack (MI)';
+      (document.getElementById('fh-age') as HTMLInputElement | null)!.value = '52';
+      (document.getElementById('fh-note') as HTMLInputElement | null)!.value = 'stent';
       cards.addFamilyHistoryEntry();
       const editedFamily = document.querySelector('#detail-modal .ctx-family-item');
       outcomes.editedFamilyEntryUpdatesInPlace = document.querySelectorAll('#detail-modal .ctx-family-item').length === 1
@@ -173,14 +185,14 @@ test('family history DOM handlers round-trip and mutate entries', async ({ page 
         && editedFamily?.textContent.includes('age 52')
         && editedFamily?.textContent.includes('stent');
 
-      document.getElementById('condition-input').value = 'Hypertension';
-      document.getElementById('condition-since').value = '2020';
+      (document.getElementById('condition-input') as HTMLInputElement | null)!.value = 'Hypertension';
+      (document.getElementById('condition-since') as HTMLInputElement | null)!.value = '2020';
       cards.addCondition();
       cards.editCondition(0);
-      outcomes.editConditionPrefills = document.getElementById('condition-input')?.value === 'Hypertension'
-        && document.getElementById('condition-since')?.value === '2020';
-      document.getElementById('condition-input').value = 'Psoriasis';
-      document.getElementById('condition-since').value = '2022';
+      outcomes.editConditionPrefills = (document.getElementById('condition-input') as HTMLInputElement | null)?.value === 'Hypertension'
+        && (document.getElementById('condition-since') as HTMLInputElement | null)?.value === '2020';
+      (document.getElementById('condition-input') as HTMLInputElement | null)!.value = 'Psoriasis';
+      (document.getElementById('condition-since') as HTMLInputElement | null)!.value = '2022';
       cards.addCondition();
       const editedCondition = document.querySelector('#detail-modal .ctx-condition-item');
       outcomes.editedConditionUpdatesInPlace = document.querySelectorAll('#detail-modal .ctx-condition-item').length === 1
@@ -188,12 +200,12 @@ test('family history DOM handlers round-trip and mutate entries', async ({ page 
         && editedCondition?.textContent.includes('since 2022');
 
       cards.editFamilyHistoryEntry(0);
-      document.getElementById('fh-relative').value = 'maternal_grandmother';
-      document.getElementById('fh-condition').value = "Alzheimer's Disease with early cognitive symptoms";
-      document.getElementById('fh-age').value = '61';
-      document.getElementById('fh-note').value = 'long note that should truncate inline instead of making the saved row tall';
+      (document.getElementById('fh-relative') as HTMLSelectElement | null)!.value = 'maternal_grandmother';
+      (document.getElementById('fh-condition') as HTMLInputElement | null)!.value = "Alzheimer's Disease with early cognitive symptoms";
+      (document.getElementById('fh-age') as HTMLInputElement | null)!.value = '61';
+      (document.getElementById('fh-note') as HTMLInputElement | null)!.value = 'long note that should truncate inline instead of making the saved row tall';
       cards.addFamilyHistoryEntry();
-      await new Promise(resolve => requestAnimationFrame(resolve));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
       const longRow = document.querySelector('#detail-modal .ctx-family-item');
       const longCondition = document.querySelector('#detail-modal .ctx-family-condition');
       const longRelative = document.querySelector('#detail-modal .ctx-family-relative-label');
@@ -207,21 +219,21 @@ test('family history DOM handlers round-trip and mutate entries', async ({ page 
 
       cards.saveDiagnoses();
 
-      document.getElementById('detail-modal').innerHTML = '';
+      document.getElementById('detail-modal')!.innerHTML = '';
       probe2.innerHTML = `
         <select id="fh-relative"><option value="__evil_relative" selected>x</option></select>
         <input id="fh-condition" value="something">
         <input id="fh-age" value="50">
         <input id="fh-note" value="">
         <textarea id="ctx-note-input"></textarea>`;
-      const beforeReject = state.importedData.diagnoses.familyHistory.length;
+      const beforeReject = state.importedData.diagnoses!.familyHistory!.length;
       cards.addFamilyHistoryEntry();
-      outcomes.tamperedRelativeRejected = state.importedData.diagnoses.familyHistory.length === beforeReject;
+      outcomes.tamperedRelativeRejected = state.importedData.diagnoses!.familyHistory!.length === beforeReject;
 
-      const beforeDelete = state.importedData.diagnoses.familyHistory.length;
+      const beforeDelete = state.importedData.diagnoses!.familyHistory!.length;
       cards.deleteFamilyHistoryEntry(0);
       cards.saveDiagnoses();
-      outcomes.deleteFamilyHistoryRemovesByIndex = state.importedData.diagnoses.familyHistory.length === beforeDelete - 1;
+      outcomes.deleteFamilyHistoryRemovesByIndex = state.importedData.diagnoses!.familyHistory!.length === beforeDelete - 1;
     } finally {
       probe2.remove();
       detachedModal?.remove();
@@ -242,11 +254,11 @@ test('medical history editor handlers cover autocomplete save clear and close fl
   const results = await page.evaluate(async ({ editorUrl }) => {
     const [{ state }, editor] = await Promise.all([
       import('/js/state.js'),
-      import(editorUrl),
+      (import(editorUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/context-card-medical-history-editor.js'), "openDiagnosesEditor" | "addCondition" | "saveDiagnoses" | "clearDiagnoses" | "configureMedicalHistoryEditor" | "filterConditionSuggestions" | "selectConditionSuggestion" | "editCondition" | "cancelConditionEdit" | "deleteCondition" | "filterFamilyConditionSuggestions" | "selectFamilyConditionSuggestion" | "addFamilyHistoryEntry" | "editFamilyHistoryEntry" | "cancelFamilyHistoryEdit" | "deleteFamilyHistoryEntry" | "renderDiagnosesModal" | "closeDiagnoses" | "closeSuggestionsOnClickOutside">>,
     ]);
-    const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
-    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async (predicate, attempts = 100) => {
+    const clone = (value: unknown) => value == null ? value : (JSON.parse as (text: string) => unknown)(JSON.stringify(value));
+    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, attempts = 100) => {
       for (let i = 0; i < attempts; i += 1) {
         try {
           if (await predicate()) return true;
@@ -255,18 +267,18 @@ test('medical history editor handlers cover autocomplete save clear and close fl
       }
       return false;
     };
-    const byId = id => {
+    const byId = <Id extends string>(id: Id): MedicalControl<Id> => {
       const el = document.getElementById(id);
       if (!el) throw new Error(`Expected #${id} in medical history editor`);
-      return el;
+      return el as MedicalControl<Id>;
     };
-    const outcomes = {};
-    const calls = [];
+    const outcomes: Record<string, unknown> = {};
+    const calls: unknown[][] = [];
     const saved = {
       importedData: clone(state.importedData),
       profileSex: state.profileSex,
     };
-    let outside = null;
+    let outside: HTMLButtonElement | null = null;
 
     try {
       state.profileSex = 'male';
@@ -302,8 +314,8 @@ test('medical history editor handlers cover autocomplete save clear and close fl
           calls.push(['close']);
           overlay.classList.remove('show');
         },
-        recordChange: field => calls.push(['record', field]),
-        saveAndRefresh: (msg, field) => calls.push(['saveRefresh', msg, field]),
+        recordChange: (field: unknown) => calls.push(['record', field]),
+        saveAndRefresh: (msg: unknown, field: unknown) => calls.push(['saveRefresh', msg, field]),
       });
 
       await editor.openDiagnosesEditor();
@@ -335,17 +347,17 @@ test('medical history editor handlers cover autocomplete save clear and close fl
         && Array.from(byId('fh-relative').options).some(option => option.value === 'paternal_relative');
 
       const conditionInput = byId('condition-input');
-      conditionInput.value = 'endo';
+      conditionInput!.value = 'endo';
       editor.filterConditionSuggestions();
       outcomes.conditionSuggestionsRespectMaleProfile = !byId('condition-suggestions').textContent.includes('Endometriosis');
 
-      conditionInput.value = 'hypertension';
+      conditionInput!.value = 'hypertension';
       editor.filterConditionSuggestions();
       outcomes.conditionSuggestionsSkipExistingConditions = byId('condition-suggestions').children.length === 0;
 
       byId('condition-suggestions').innerHTML = '<div class="ctx-suggestion-item">stale</div>';
       editor.selectConditionSuggestion("Hashimoto's");
-      outcomes.selectConditionSuggestionSetsInputAndClearsMenu = conditionInput.value === "Hashimoto's"
+      outcomes.selectConditionSuggestionSetsInputAndClearsMenu = conditionInput!.value === "Hashimoto's"
         && byId('condition-suggestions').children.length === 0;
 
       byId('condition-suggestions').innerHTML = '<div class="ctx-suggestion-item">condition</div>';
@@ -356,12 +368,12 @@ test('medical history editor handlers cover autocomplete save clear and close fl
 
       byId('condition-input').value = "Hashimoto's";
       byId('condition-since').value = '2021';
-      byId('condition-status').querySelector('[data-context-value="controlled"]')?.click();
+      byId('condition-status').querySelector<HTMLElement>('[data-context-value="controlled"]')?.click();
       byId('diagnosis-procedures-input').value = 'Appendectomy in 2010; thyroid biopsy';
       byId('ctx-note-input').value = 'diagnoses note from add';
       editor.addCondition();
       const addedCondition = document.querySelectorAll('#detail-modal .ctx-condition-item')[1];
-      outcomes.addConditionAppendsAndSyncsNote = state.importedData.diagnoses.conditions.length === 1
+      outcomes.addConditionAppendsAndSyncsNote = state.importedData.diagnoses!.conditions!.length === 1
         && document.querySelectorAll('#detail-modal .ctx-condition-item').length === 2
         && addedCondition?.textContent.includes("Hashimoto's")
         && addedCondition?.textContent.includes('controlled')
@@ -463,14 +475,14 @@ test('medical history editor handlers cover autocomplete save clear and close fl
 
       byId('ctx-note-input').value = 'final saved note';
       editor.saveDiagnoses();
-      outcomes.saveDiagnosesCallsConfiguredRefresh = state.importedData.diagnoses.note === 'final saved note'
-        && state.importedData.diagnoses.conditions.length === 1
-        && state.importedData.diagnoses.conditions[0].name === 'Psoriasis'
-        && state.importedData.diagnoses.conditions[0].severity === 'minor'
-        && state.importedData.diagnoses.conditions[0].status === 'controlled'
-        && state.importedData.diagnoses.proceduresNote === 'Unsaved procedure retained after family cancel'
-        && state.importedData.diagnoses.familyHistory.length === 1
-        && state.importedData.diagnoses.familyHistory[0].relative === 'mother'
+      outcomes.saveDiagnosesCallsConfiguredRefresh = state.importedData.diagnoses!.note === 'final saved note'
+        && state.importedData.diagnoses!.conditions!.length === 1
+        && state.importedData.diagnoses!.conditions![0]!.name === 'Psoriasis'
+        && state.importedData.diagnoses!.conditions![0]!.severity === 'minor'
+        && state.importedData.diagnoses!.conditions![0]!.status === 'controlled'
+        && state.importedData.diagnoses!.proceduresNote === 'Unsaved procedure retained after family cancel'
+        && state.importedData.diagnoses!.familyHistory!.length === 1
+        && state.importedData.diagnoses!.familyHistory![0]!.relative === 'mother'
         && calls.some(call => call[0] === 'saveRefresh' && call[1] === 'Medical history saved' && call[2] === 'diagnoses');
 
       state.importedData.diagnoses = { conditions: [], note: '', familyHistory: [] };
@@ -490,7 +502,7 @@ test('medical history editor handlers cover autocomplete save clear and close fl
         && calls.some(call => call[0] === 'close');
     } finally {
       document.removeEventListener('click', editor.closeSuggestionsOnClickOutside);
-      state.importedData = saved.importedData;
+      (state as { importedData: unknown }).importedData = saved.importedData;
       state.profileSex = saved.profileSex;
       document.getElementById('modal-overlay')?.classList.remove('show');
       const modal = document.getElementById('detail-modal');

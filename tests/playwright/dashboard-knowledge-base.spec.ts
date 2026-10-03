@@ -28,7 +28,7 @@ test('Context hub opens from Personalize AI alias and dismisses', async ({ page 
   await expect(overlay.locator('.context-hub-scroll')).toBeVisible();
   await expect(overlay.locator('.context-hub-actions')).toContainText('Changes save automatically.');
   await expect(overlay.locator('.context-source-section-wide[data-context-section="labs"]')).toHaveCount(1);
-  const sourceSectionOrder = await overlay.locator('[data-context-section]').evaluateAll(sections =>
+  const sourceSectionOrder = await overlay.locator('[data-context-section]').evaluateAll((sections) =>
     sections.map(section => section.getAttribute('data-context-section'))
   );
   expect(sourceSectionOrder).toEqual(['profile', 'genome', 'labs', 'light-sun', 'body']);
@@ -50,13 +50,13 @@ test('Context hub opens from Personalize AI alias and dismisses', async ({ page 
   await expect(overlay).not.toContainText('Protect your data');
   await expect(overlay.locator('#context-hub-close')).toBeVisible();
 
-  const toggleNames = await overlay.locator('[data-context-toggle]').evaluateAll(inputs => inputs.map(input => {
+  const toggleNames = await overlay.locator('[data-context-toggle]').evaluateAll((inputs) => inputs.map(input => {
     const labelIds = (input.getAttribute('aria-labelledby') || '').split(/\s+/).filter(Boolean);
     return labelIds.map(id => document.getElementById(id)?.textContent?.trim() || '').join(' ').trim();
   }));
   expect(toggleNames).toHaveLength(9);
   expect(toggleNames.every(Boolean)).toBe(true);
-  const describedByCounts = await overlay.locator('[data-context-toggle]').evaluateAll(inputs =>
+  const describedByCounts = await overlay.locator('[data-context-toggle]').evaluateAll((inputs) =>
     inputs.map(input => (input.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean).length)
   );
   expect(describedByCounts.every(count => count === 2)).toBe(true);
@@ -66,7 +66,7 @@ test('Context hub opens from Personalize AI alias and dismisses', async ({ page 
   await expect(editorOverlay).toHaveClass(/show/);
   await expect(page.locator('#detail-modal .context-back-btn')).toHaveAttribute('aria-label', 'Back to Context');
   await expect(page.locator('#detail-modal .context-back-btn svg')).toBeVisible();
-  await page.locator('#detail-modal .context-back-btn').evaluate(el => el.click());
+  await page.locator('#detail-modal .context-back-btn').evaluate(el => (el as HTMLElement).click());
   await expect(editorOverlay).not.toHaveClass(/show/);
   await expect(overlay).toHaveClass(/show/);
 
@@ -75,7 +75,7 @@ test('Context hub opens from Personalize AI alias and dismisses', async ({ page 
   await expect(kbOverlay).toHaveClass(/show/);
   await expect(page.locator('#kb-modal .context-back-btn')).toHaveAttribute('aria-label', 'Back to Context');
   await expect(page.locator('#kb-modal .context-back-btn svg')).toBeVisible();
-  await page.locator('#kb-modal .context-back-btn').evaluate(el => el.click());
+  await page.locator('#kb-modal .context-back-btn').evaluate(el => (el as HTMLElement).click());
   await expect(kbOverlay).not.toHaveClass(/show/);
   await expect(overlay).toHaveClass(/show/);
 
@@ -199,7 +199,7 @@ test('Context hub data source toggles control prompt and score context', async (
   });
 
   await overlay.locator('.context-source-row[data-context-group="Fatty Acids"] [data-context-toggle="lab-group"]').evaluate(el => {
-    const input = /** @type {HTMLInputElement} */ (el);
+    const input = /** @type {HTMLInputElement} */ (el as HTMLInputElement);
     input.checked = false;
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
@@ -209,12 +209,12 @@ test('Context hub data source toggles control prompt and score context', async (
   });
 
   await overlay.locator('[data-context-toggle="genome-summary"]').evaluate(el => {
-    const input = /** @type {HTMLInputElement} */ (el);
+    const input = /** @type {HTMLInputElement} */ (el as HTMLInputElement);
     input.checked = false;
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
   await overlay.locator('[data-context-toggle="genome-priority"]').evaluate(el => {
-    const input = /** @type {HTMLInputElement} */ (el);
+    const input = /** @type {HTMLInputElement} */ (el as HTMLInputElement);
     input.checked = false;
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
@@ -224,7 +224,7 @@ test('Context hub data source toggles control prompt and score context', async (
   });
 
   await overlay.locator('[data-context-toggle="light-sun"]').evaluate(el => {
-    const input = /** @type {HTMLInputElement} */ (el);
+    const input = /** @type {HTMLInputElement} */ (el as HTMLInputElement);
     input.checked = false;
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
@@ -235,23 +235,23 @@ test('Context hub data source toggles control prompt and score context', async (
     return { context, receipt: getContextSummary(context) };
   });
   await overlay.locator('[data-context-toggle="body-wearables"]').evaluate(el => {
-    const input = /** @type {HTMLInputElement} */ (el);
+    const input = /** @type {HTMLInputElement} */ (el as HTMLInputElement);
     input.checked = false;
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
   await overlay.locator('[data-context-toggle="body-nutrition"]').evaluate(el => {
-    const input = /** @type {HTMLInputElement} */ (el);
+    const input = /** @type {HTMLInputElement} */ (el as HTMLInputElement);
     input.checked = false;
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
   await expect(overlay.locator('#nutrition-context-days')).toBeDisabled();
   await overlay.locator('[data-context-toggle="genome-lookup"]').evaluate(el => {
-    const input = /** @type {HTMLInputElement} */ (el);
+    const input = /** @type {HTMLInputElement} */ (el as HTMLInputElement);
     input.checked = true;
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
   await overlay.locator('[data-context-toggle="insight-cards"]').evaluate(el => {
-    const input = /** @type {HTMLInputElement} */ (el);
+    const input = /** @type {HTMLInputElement} */ (el as HTMLInputElement);
     input.checked = false;
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
@@ -262,7 +262,7 @@ test('Context hub data source toggles control prompt and score context', async (
   });
 
   await overlay.locator('[data-context-toggle="supplements-meds"]').evaluate(el => {
-    const input = /** @type {HTMLInputElement} */ (el);
+    const input = /** @type {HTMLInputElement} */ (el as HTMLInputElement);
     input.checked = false;
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
@@ -349,7 +349,7 @@ test('Context hub data source toggles control prompt and score context', async (
   expect(result.recentHardTraining).toBe(false);
   expect(labWithoutLight.context).not.toContain('[section:lightCircadian]');
   expect(labWithoutLight.context).not.toContain('[section:sun]');
-  expect(labWithoutLight.receipt.some(area => area.label.startsWith('Light'))).toBe(false);
+  expect(labWithoutLight.receipt.some(area => (area.label as {startsWith(value: string): unknown}).startsWith('Light'))).toBe(false);
   expect(labWithoutLight.receipt.find(area => area.label === 'Meals & Nutrition')?.detail)
     .toBe('90-day context · 2 meals · 2/90 days · aggregate only');
   expect(result.contextReceipt.some(area => area.label === 'Meals & Nutrition')).toBe(false);
@@ -381,7 +381,7 @@ test('chat header shows clickable green AI Context status chip', async ({ page }
   await expect(chip).toHaveAttribute('aria-label', /Click to manage Context/);
   await expect(page.locator('#chat-lens-indicator')).toHaveCount(0);
 
-  await chip.evaluate(el => el.click());
+  await chip.evaluate(el => (el as HTMLElement).click());
   const overlay = page.locator('#context-hub-overlay');
   await expect(overlay).toHaveClass(/show/);
   await expect(overlay).toContainText('Personalize how AI answers');
@@ -446,7 +446,7 @@ test('chat header shows pending KB state when Knowledge Base is enabled but empt
   await expect(chip).toHaveClass(/chat-context-status-pending/);
   await expect(chip).toHaveAttribute('aria-label', /no library is indexed yet/);
 
-  await chip.evaluate(el => el.click());
+  await chip.evaluate(el => (el as HTMLElement).click());
   const overlay = page.locator('#context-hub-overlay');
   await expect(overlay).toHaveClass(/show/);
   await expect(overlay).toContainText('Knowledge Base is enabled, but no documents are indexed yet');
@@ -473,14 +473,14 @@ test('clearing Interpretive Lens immediately clears chat header context chip', a
   await expect(chip).toBeVisible();
   await expect(chip).toContainText('AI Context: Lens');
 
-  await chip.evaluate(el => el.click());
+  await chip.evaluate(el => (el as HTMLElement).click());
   const contextOverlay = page.locator('#context-hub-overlay');
   await expect(contextOverlay).toHaveClass(/show/);
   await contextOverlay.locator('.ai-picker-card[data-pick="lens"]').click();
 
   const editorOverlay = page.locator('#modal-overlay');
   await expect(editorOverlay).toHaveClass(/show/);
-  await page.locator('[data-lifestyle-action="clear-interpretive-lens"]').evaluate(el => el.click());
+  await page.locator('[data-lifestyle-action="clear-interpretive-lens"]').evaluate(el => (el as HTMLElement).click());
 
   await expect(editorOverlay).not.toHaveClass(/show/);
   await expect(chip).toBeHidden();

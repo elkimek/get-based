@@ -12,7 +12,7 @@ import {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const budget = JSON.parse(
   fs.readFileSync(path.join(repoRoot, 'scripts', 'cold-load-budget.json'), 'utf8'),
-);
+) as unknown as NonNullable<Parameters<typeof enforceColdLoadBudget>[1]> & {route?: unknown};
 const port = process.env.PORT || '8000';
 const appOrigin = `http://127.0.0.1:${port}`;
 const mobile = devices['Pixel 5'];
@@ -60,12 +60,12 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
     localStorage.setItem('labcharts-analytics-consent-seen', '1');
   });
 
-  await page.goto(budget.route, { waitUntil: 'networkidle', timeout: 30_000 });
+  await page.goto(budget.route as string, { waitUntil: 'networkidle', timeout: 30_000 });
   await expect(page.locator('#main-content')).toBeVisible();
 
   const entries = await page.evaluate(() => [
-    ...performance.getEntriesByType('navigation'),
-    ...performance.getEntriesByType('resource'),
+    ...(performance.getEntriesByType('navigation') as PerformanceNavigationTiming[]),
+    ...(performance.getEntriesByType('resource') as PerformanceResourceTiming[]),
   ].map(entry => ({
     name: entry.name,
     transferSize: entry.transferSize,
@@ -336,8 +336,8 @@ test('cold mobile app load stays within committed resource budgets', async ({ pa
 });
 
 test('first data-backed Dashboard loads Health and Data once without duplicate mobile tabs', async ({ page }) => {
-  const requestedPaths = [];
-  page.on('request', request => {
+  const requestedPaths: unknown[] = [];
+  page.on('request', (request) => {
     const url = new URL(request.url());
     if (url.origin === appOrigin) requestedPaths.push(url.pathname);
   });
@@ -368,7 +368,7 @@ test('first data-backed Dashboard loads Health and Data once without duplicate m
     localStorage.setItem('labcharts-analytics-consent-seen', '1');
   });
 
-  await page.goto(budget.route, { waitUntil: 'networkidle', timeout: 30_000 });
+  await page.goto(budget.route as string, { waitUntil: 'networkidle', timeout: 30_000 });
   for (const pathname of [
     '/js/context-cards.js',
     '/js/recommendations.js',
@@ -418,8 +418,8 @@ test('first data-backed Dashboard loads Health and Data once without duplicate m
 });
 
 test('first Chat action loads the composition once and opens the panel', async ({ page }) => {
-  const requestedPaths = [];
-  page.on('request', request => {
+  const requestedPaths: unknown[] = [];
+  page.on('request', (request) => {
     const url = new URL(request.url());
     if (url.origin === appOrigin) requestedPaths.push(url.pathname);
   });
@@ -450,7 +450,7 @@ test('first Chat action loads the composition once and opens the panel', async (
     localStorage.setItem('labcharts-analytics-consent-seen', '1');
   });
 
-  await page.goto(budget.route, { waitUntil: 'networkidle', timeout: 30_000 });
+  await page.goto(budget.route as string, { waitUntil: 'networkidle', timeout: 30_000 });
   expect(requestedPaths).not.toContain('/js/app-ai-interaction-modules.js');
 
   await page.getByRole('button', { name: 'Start guided chat' }).click();
@@ -475,8 +475,8 @@ test('first Chat action loads the composition once and opens the panel', async (
 });
 
 test('first Light route loads the feature once and renders end to end', async ({ page }) => {
-  const requestedPaths = [];
-  page.on('request', request => {
+  const requestedPaths: unknown[] = [];
+  page.on('request', (request) => {
     const url = new URL(request.url());
     if (url.origin === appOrigin) requestedPaths.push(url.pathname);
   });
@@ -507,7 +507,7 @@ test('first Light route loads the feature once and renders end to end', async ({
     localStorage.setItem('labcharts-analytics-consent-seen', '1');
   });
 
-  await page.goto(budget.route, { waitUntil: 'networkidle', timeout: 30_000 });
+  await page.goto(budget.route as string, { waitUntil: 'networkidle', timeout: 30_000 });
   expect(requestedPaths).not.toContain('/js/app-light-sun-modules.js');
 
   await page.evaluate(async () => {
@@ -572,7 +572,7 @@ test('startup loads Light presets only when persisted devices need hydration', a
   });
 
   let presetRequests = 0;
-  page.on('request', request => {
+  page.on('request', (request) => {
     if (new URL(request.url()).pathname === '/data/light-device-presets.json') {
       presetRequests += 1;
     }
@@ -581,11 +581,11 @@ test('startup loads Light presets only when persisted devices need hydration', a
 
   await expect.poll(() => page.evaluate(async () => {
     const { state } = await import('/js/state.js');
-    const device = state.importedData.lightDevices
+    const device: {modes?: unknown; channelGroups?: unknown; coupling?: {length?: unknown}} | undefined = (state.importedData.lightDevices! as Array<{id?: unknown; modes?: unknown; channelGroups?: unknown; coupling?: {length?: unknown}}>)
       .find(candidate => candidate.id === 'legacy-maxi-uvb');
     return {
-      modes: device?.modes?.map(mode => mode.id) || [],
-      channelGroups: device?.channelGroups?.map(group => group.id) || [],
+      modes: (device?.modes as Array<{id?: unknown}> | null | undefined)?.map(mode => mode.id) || [],
+      channelGroups: (device?.channelGroups as Array<{id?: unknown}> | null | undefined)?.map(group => group.id) || [],
       coupling: device?.coupling?.length || 0,
     };
   })).toEqual({

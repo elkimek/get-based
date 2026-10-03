@@ -1,3 +1,7 @@
+type MtDnaFixture = NonNullable<NonNullable<Parameters<typeof import('../../js/dna.js').detectMtDNAMismatch>[0]>['mtdna']>;
+type MtDnaMismatchFixture = { mtdna: Omit<MtDnaFixture, 'coupling'> & { coupling: Partial<NonNullable<MtDnaFixture['coupling']>> } };
+import type { DnaProfileData, PendingDnaImport } from '../../js/dna-runtime.js';
+import type { PendingMtDnaImport } from '../../js/dna-mtdna.js';
 import { createBlankPage } from '../helpers/browser-blank-page.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -9,17 +13,17 @@ test('DNA parser browser coverage exercises real File, Worker, and context paths
   await openBlankPage(page, '/dna-parser-browser-coverage');
 
   const results = await page.evaluate(async () => {
-    const failures = [];
-    const check = (name, condition, detail = '') => {
+    const failures: unknown[] = [];
+    const check = (name: string, condition: unknown, detail = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
     };
-    const textFile = (content, name, type = 'text/plain') => new File([content], name, { type });
+    const textFile = (content: BlobPart, name: string, type = 'text/plain') => new File([content], name, { type });
 
     const { state } = await import('/js/state.js');
-    const dna = await import(`/js/dna.js?dnaParserCoverage=${Date.now()}-${Math.random()}`);
+    const dna = (await import(`/js/dna.js?dnaParserCoverage=${Date.now()}-${Math.random()}`) as unknown) as Pick<typeof import('../../js/dna.js'), "detectDNAFile" | "isDNAFile" | "isDNAFileByContent" | "getSnpCategoryLabel" | "parseDNAFile" | "findGenotypeInfo" | "findSnpHint" | "saveGeneticsData" | "buildFullGeneticsContext" | "buildGeneticsContext" | "deleteGeneticsData" | "ensureSNPTable" | "handleDNAFile" | "upsertGeneticsSnp" | "renderGeneticsSection" | "loadHaplogroupTable" | "parseMtDNAMutations" | "resolveHaplogroup" | "detectMtDNAMismatch" | "handleMtDNAFile" | "setManualHaplogroup" | "ensureHaplogroupTable" | "HAPLOGROUP_LIST">;
 
     state.currentProfile = `dna-parser-coverage-${Date.now()}`;
-    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, genetics: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
+    (state as { importedData: unknown }).importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, genetics: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
 
     const annotatedReportCsv =
       'rsID,Gene,Category,Genotype,Zygosity,Risk_Allele,Result,Read_Depth,Annotation,Source\n' +
@@ -99,7 +103,7 @@ i123456\t1\t100\tAA
     try {
       await dna.parseDNAFile(textFile('%PDF-1.4', 'not-dna.txt'));
     } catch (error) {
-      invalidMessage = error.message;
+      invalidMessage = (error as { message: string }).message;
     }
 
     check('ancestry source and matches', ancestry.source === 'AncestryDNA' && ancestry.matches.rs1801133?.genotype === 'GA');
@@ -133,7 +137,7 @@ i123456\t1\t100\tAA
       dna.findGenotypeInfo(palEntry, 'CC')?.effect === 'none' &&
       dna.findGenotypeInfo(palEntry, 'AA') == null);
 
-    const profileData = {};
+    const profileData: DnaProfileData = {};
     dna.saveGeneticsData(profileData, ancestry);
     const fullContext = dna.buildFullGeneticsContext(profileData.genetics);
     const filteredContext = dna.buildGeneticsContext(profileData.genetics, ['coagulation.homocysteine']);
@@ -141,9 +145,9 @@ i123456\t1\t100\tAA
     const emptyContext = dna.buildGeneticsContext(null, []);
     check('saveGeneticsData resolves APOE and effects',
       profileData.genetics?.apoe === '\u03B53/\u03B54' &&
-      profileData.genetics.effects.moderate >= 1 &&
-      profileData.genetics.snps.rs1801133?.category === 'methylation' &&
-      profileData.genetics.catalogVersion?.size > 0);
+      profileData.genetics.effects!.moderate! >= 1 &&
+      profileData.genetics.snps!.rs1801133?.category === 'methylation' &&
+      profileData.genetics.catalogVersion?.size! > 0);
     check('genetics context includes filtered genetics',
       fullContext.startsWith('GENETICS (') &&
       fullContext.includes('APOE: \u03B53/\u03B54') &&
@@ -171,13 +175,13 @@ test('DNA autosomal import UI coverage exercises preview, confirm, render, and d
   await openBlankPage(page, '/dna-autosomal-ui-browser-coverage');
 
   const results = await page.evaluate(async () => {
-    const failures = [];
-    const check = (name, condition, detail = '') => {
+    const failures: unknown[] = [];
+    const check = (name: string, condition: unknown, detail = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
     };
-    const textFile = (content, name, type = 'text/plain') => new File([content], name, { type });
-    const wait = () => new Promise(resolve => setTimeout(resolve, 0));
-    const waitFor = async (predicate) => {
+    const textFile = (content: BlobPart, name: string, type = 'text/plain') => new File([content], name, { type });
+    const wait = () => new Promise((resolve) => setTimeout(resolve, 0));
+    const waitFor = async (predicate: () => unknown | Promise<unknown>) => {
       for (let i = 0; i < 100; i++) {
         if (predicate()) return true;
         await wait();
@@ -186,7 +190,7 @@ test('DNA autosomal import UI coverage exercises preview, confirm, render, and d
     };
 
     const { state } = await import('/js/state.js');
-    const dna = await import(`/js/dna.js?dnaAutosomalCoverage=${Date.now()}-${Math.random()}`);
+    const dna = (await import(`/js/dna.js?dnaAutosomalCoverage=${Date.now()}-${Math.random()}`) as unknown) as Pick<typeof import('../../js/dna.js'), "detectDNAFile" | "isDNAFile" | "isDNAFileByContent" | "getSnpCategoryLabel" | "parseDNAFile" | "findGenotypeInfo" | "findSnpHint" | "saveGeneticsData" | "buildFullGeneticsContext" | "buildGeneticsContext" | "deleteGeneticsData" | "ensureSNPTable" | "handleDNAFile" | "upsertGeneticsSnp" | "renderGeneticsSection" | "loadHaplogroupTable" | "parseMtDNAMutations" | "resolveHaplogroup" | "detectMtDNAMismatch" | "handleMtDNAFile" | "setManualHaplogroup" | "ensureHaplogroupTable" | "HAPLOGROUP_LIST">;
     const dnaRuntime = await import('/js/dna-runtime.js');
     const chatRuntime = await import('/js/chat-runtime.js');
     let importRunning = false;
@@ -194,15 +198,15 @@ test('DNA autosomal import UI coverage exercises preview, confirm, render, and d
 
     const profileId = `dna-autosomal-coverage-${Date.now()}`;
     state.currentProfile = profileId;
-    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, genetics: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
+    (state as { importedData: unknown }).importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, genetics: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
     state.profiles = [{ id: profileId, name: 'DNA coverage', createdAt: Date.now(), lastUpdated: Date.now(), tags: [], notes: '', status: 'active', pinned: false }];
 
     document.body.innerHTML = '<div id="notification-container"></div><div class="chat-onboard-dna"></div><main id="fixture"></main>';
-    const calls = [];
+    const calls: unknown[] = [];
     dnaRuntime.configureDnaRuntimeDeps({
       buildSidebar: () => calls.push('sidebar'),
       isImportRunning: () => importRunning,
-      navigate: route => calls.push(`navigate:${route}`),
+      navigate: (route: unknown) => calls.push(`navigate:${route}`),
     });
     const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
       updateChatNudge: () => calls.push('nudge'),
@@ -237,13 +241,13 @@ rs999999\t1\t100\tAG
     let overlay = document.getElementById('dna-modal-overlay');
     check('valid file reports success and opens DNA preview',
       validImport === true && overlay?.classList.contains('show') === true);
-    check('preview stores pending import', window._pendingDNAImport?.coverage?.found > 0);
+    check('preview stores pending import', (window as { _pendingDNAImport?: PendingDnaImport | null })._pendingDNAImport?.coverage?.found! > 0);
     check('DNA preview uses delegated actions', !overlay?.querySelector('[onclick], [onkeydown]'));
-    overlay?.querySelector('.dna-preview-collapsible')?.click();
+    overlay?.querySelector<HTMLElement>('.dna-preview-collapsible')?.click();
     check('collapsible preview group toggles', overlay?.querySelector('.dna-preview-group.expanded') != null);
-    overlay?.querySelector('[data-dna-action="close-preview"]')?.click();
+    overlay?.querySelector<HTMLElement>('[data-dna-action="close-preview"]')?.click();
     await wait();
-    check('close preview clears pending import', window._pendingDNAImport == null && !overlay?.classList.contains('show'));
+    check('close preview clears pending import', (window as { _pendingDNAImport?: PendingDnaImport | null })._pendingDNAImport == null && !overlay?.classList.contains('show'));
 
     const manualOverride = dna.upsertGeneticsSnp(state.importedData, 'rs1801133', 'CC', {
       type: 'manual',
@@ -259,7 +263,7 @@ rs999999\t1\t100\tAG
       !mthfrPreviewRow.includes('GA') &&
       overlay?.querySelector('.dna-preview-stats')?.textContent.includes('1 curated override'),
       `${mthfrPreviewRow} | ${overlay?.querySelector('.dna-preview-stats')?.textContent || ''}`);
-    overlay?.querySelector('[data-dna-action="confirm-import"]')?.click();
+    overlay?.querySelector<HTMLElement>('[data-dna-action="confirm-import"]')?.click();
     const importFinished = importConfirmReady && await waitFor(() => !overlay?.classList.contains('show') && calls.includes('navigate:dashboard'));
     check('confirmDNAImport preserves an overlapping manual genotype',
       manualOverride.ok === true &&
@@ -276,34 +280,34 @@ rs999999\t1\t100\tAG
       importConfirmation);
 
     const html = dna.renderGeneticsSection();
-    document.getElementById('fixture').innerHTML = html;
+    document.getElementById('fixture')!.innerHTML = html;
     check('renderGeneticsSection returns populated genetics UI',
       document.querySelector('.genetics-section') != null &&
       document.querySelector('.genetics-overview-card')?.textContent.includes('Catalog coverage'));
     check('renderGeneticsSection uses delegated actions', !document.querySelector('.genetics-section')?.querySelector('[onclick], [onkeydown]'));
-    document.querySelector('.section-header')?.click();
+    document.querySelector<HTMLElement>('.section-header')?.click();
     check('toggleGeneticsCollapse hides body', document.querySelector('.genetics-body')?.classList.contains('hidden'));
     document.querySelector('.section-header')?.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
     check('toggleGeneticsCollapse shows body', !document.querySelector('.genetics-body')?.classList.contains('hidden'));
 
     document.querySelector('.genetics-section')?.insertAdjacentHTML('beforeend', '<button id="expand" data-dna-action="toggle-genetics-expand">More</button>');
     document.getElementById('expand')?.click();
-    check('toggleGeneticsExpand expands fixture', document.querySelector('.genetics-findings')?.classList.contains('expanded') && document.getElementById('expand').textContent === 'Show less');
+    check('toggleGeneticsExpand expands fixture', document.querySelector('.genetics-findings')?.classList.contains('expanded') && document.getElementById('expand')!.textContent === 'Show less');
 
     const originalCreateElement = document.createElement.bind(document);
     let clickedSyntheticInput = false;
-    document.createElement = tagName => {
+    document.createElement = (tagName: string) => {
       const el = originalCreateElement(tagName);
       if (String(tagName).toLowerCase() === 'input') {
         el.click = () => { clickedSyntheticInput = true; };
       }
       return el;
     };
-    document.querySelector('[data-dna-action="reimport-dna"]')?.click();
+    document.querySelector<HTMLElement>('[data-dna-action="reimport-dna"]')?.click();
     document.createElement = originalCreateElement;
     check('reimportDNA opens file picker', clickedSyntheticInput);
 
-    document.querySelector('[data-dna-action="delete-dna"]')?.click();
+    document.querySelector<HTMLElement>('[data-dna-action="delete-dna"]')?.click();
     const confirmReady = await waitFor(() => document.getElementById('confirm-ok') != null);
     document.getElementById('confirm-ok')?.click();
     const deleteFinished = confirmReady && await waitFor(() => state.importedData.genetics == null && calls.filter(item => item === 'navigate:dashboard').length >= 2);
@@ -324,13 +328,13 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
   await openBlankPage(page, '/dna-mtdna-browser-coverage');
 
   const results = await page.evaluate(async () => {
-    const failures = [];
-    const check = (name, condition, detail = '') => {
+    const failures: unknown[] = [];
+    const check = (name: string, condition: unknown, detail = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
     };
-    const textFile = (content, name, type = 'text/plain') => new File([content], name, { type });
-    const wait = () => new Promise(resolve => setTimeout(resolve, 0));
-    const waitFor = async (predicate) => {
+    const textFile = (content: BlobPart, name: string, type = 'text/plain') => new File([content], name, { type });
+    const wait = () => new Promise((resolve) => setTimeout(resolve, 0));
+    const waitFor = async (predicate: () => unknown | Promise<unknown>) => {
       for (let i = 0; i < 100; i++) {
         if (predicate()) return true;
         await wait();
@@ -340,21 +344,21 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
 
     const { state } = await import('/js/state.js');
     const [dna, dnaRuntime] = await Promise.all([
-      import(`/js/dna.js?dnaMtdnaCoverage=${Date.now()}-${Math.random()}`),
+      (import(`/js/dna.js?dnaMtdnaCoverage=${Date.now()}-${Math.random()}`) as Promise<unknown>) as Promise<Pick<typeof import('../../js/dna.js'), "detectDNAFile" | "isDNAFile" | "isDNAFileByContent" | "getSnpCategoryLabel" | "parseDNAFile" | "findGenotypeInfo" | "findSnpHint" | "saveGeneticsData" | "buildFullGeneticsContext" | "buildGeneticsContext" | "deleteGeneticsData" | "ensureSNPTable" | "handleDNAFile" | "upsertGeneticsSnp" | "renderGeneticsSection" | "loadHaplogroupTable" | "parseMtDNAMutations" | "resolveHaplogroup" | "detectMtDNAMismatch" | "handleMtDNAFile" | "setManualHaplogroup" | "ensureHaplogroupTable" | "HAPLOGROUP_LIST">>,
       import('/js/dna-runtime.js'),
     ]);
     const previousDnaRuntimeDeps = dnaRuntime.configureDnaRuntimeDeps();
 
     const profileId = `dna-mtdna-coverage-${Date.now()}`;
     state.currentProfile = profileId;
-    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, genetics: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
+    (state as { importedData: unknown }).importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, genetics: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
     state.profiles = [{ id: profileId, name: 'mtDNA coverage', createdAt: Date.now(), lastUpdated: Date.now(), tags: [], notes: '', status: 'active', pinned: false }];
 
     document.body.innerHTML = '<div id="notification-container"></div><main id="fixture"></main>';
-    const calls = [];
+    const calls: unknown[] = [];
     dnaRuntime.configureDnaRuntimeDeps({
       buildSidebar: () => calls.push('sidebar'),
-      navigate: route => calls.push(`navigate:${route}`),
+      navigate: (route: unknown) => calls.push(`navigate:${route}`),
     });
 
     const hapTable = await dna.loadHaplogroupTable();
@@ -367,26 +371,26 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     const resolvedJ = dna.resolveHaplogroup(jMutations, hapTable);
     const resolvedH = dna.resolveHaplogroup(hMutations, hapTable);
     const resolvedDirectH = dna.resolveHaplogroup(directHMutations, hapTable);
-    check('parseMtDNAMutations handles simple and 23andMe rows', jMutations.length === 9 && mt23Mutations.length === 6 && mt23Mutations[0].raw === '295T');
+    check('parseMtDNAMutations handles simple and 23andMe rows', jMutations.length === 9 && mt23Mutations.length === 6 && mt23Mutations[0]!.raw === '295T');
     check('resolveHaplogroup resolves direct, diagnostic H, and H fallback',
       resolvedJ?.haplogroup === 'J' && resolvedDirectH?.haplogroup === 'H' && resolvedH?.haplogroup === 'H');
 
     dnaRuntime.configureDnaRuntimeDeps({ getLatitudeFromLocation: () => '<25\u00B0 latitude (tropical)' });
-    const mismatch = dna.detectMtDNAMismatch({
+    const mismatch = (dna.detectMtDNAMismatch as (genetics: MtDnaMismatchFixture) => ReturnType<typeof dna.detectMtDNAMismatch>)({
       mtdna: {
         haplogroup: 'J',
         coupling: { shortLabel: 'uncoupled', climate: 'Cold (Northern European)', matchedLatBands: [3, 4], implications: 'test implications' },
       },
     });
     dnaRuntime.configureDnaRuntimeDeps({ getLatitudeFromLocation: () => '50-60\u00B0 (northern)' });
-    const matched = dna.detectMtDNAMismatch({
+    const matched = (dna.detectMtDNAMismatch as (genetics: MtDnaMismatchFixture) => ReturnType<typeof dna.detectMtDNAMismatch>)({
       mtdna: {
         haplogroup: 'J',
         coupling: { shortLabel: 'uncoupled', climate: 'Cold (Northern European)', matchedLatBands: [3, 4] },
       },
     });
     dnaRuntime.configureDnaRuntimeDeps({ getLatitudeFromLocation: () => 'unknown' });
-    const invalidBand = dna.detectMtDNAMismatch({ mtdna: { haplogroup: 'J', coupling: { matchedLatBands: [3, 4] } } });
+    const invalidBand = (dna.detectMtDNAMismatch as (genetics: MtDnaMismatchFixture) => ReturnType<typeof dna.detectMtDNAMismatch>)({ mtdna: { haplogroup: 'J', coupling: { matchedLatBands: [3, 4] } } });
     check('detectMtDNAMismatch covers mismatch, match, invalid band', mismatch?.mismatch === true && matched?.mismatch === false && invalidBand === null);
 
     const emptyMtDnaImport = await dna.handleMtDNAFile(textFile('not mtdna', 'empty-mtdna.txt'));
@@ -398,19 +402,19 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     await wait();
     let overlay = document.getElementById('dna-modal-overlay');
     check('handleMtDNAFile reports success and opens preview',
-      validMtDnaImport === true && overlay?.classList.contains('show') === true && window._pendingMtDNA?.resolved?.haplogroup === 'J');
+      validMtDnaImport === true && overlay?.classList.contains('show') === true && (window as { _pendingMtDNA?: PendingMtDnaImport | null })._pendingMtDNA?.resolved?.haplogroup === 'J');
     check('mtDNA preview includes mismatch', overlay?.textContent.includes('Environment mismatch'));
     check('mtDNA preview describes diagnostic marker overlap without a confidence percentage',
       overlay?.textContent.includes('diagnostic markers matched') && !overlay?.querySelector('.mtdna-hg-confidence')?.textContent.includes('%'));
     check('mtDNA preview uses delegated actions', !overlay?.querySelector('[onclick], [onkeydown]'));
-    overlay?.querySelector('[data-dna-action="close-mtdna-preview"]')?.click();
+    overlay?.querySelector<HTMLElement>('[data-dna-action="close-mtdna-preview"]')?.click();
     await wait();
-    check('closeMtDNAPreview clears pending', window._pendingMtDNA == null && !overlay?.classList.contains('show'));
+    check('closeMtDNAPreview clears pending', (window as { _pendingMtDNA?: PendingMtDnaImport | null })._pendingMtDNA == null && !overlay?.classList.contains('show'));
 
     await dna.handleMtDNAFile(textFile(jText, 'genome-mtdna.txt'));
     const mtConfirmReady = await waitFor(() => document.querySelector('[data-dna-action="confirm-mtdna-import"]') != null);
     overlay = document.getElementById('dna-modal-overlay');
-    overlay?.querySelector('[data-dna-action="confirm-mtdna-import"]')?.click();
+    overlay?.querySelector<HTMLElement>('[data-dna-action="confirm-mtdna-import"]')?.click();
     const mtImportFinished = mtConfirmReady && await waitFor(() => state.importedData.genetics?.mtdna?.haplogroup === 'J' && calls.includes('navigate:dashboard'));
     check('confirmMtDNAImport stores mtdna', mtImportFinished);
     check('confirmMtDNAImport retains useful lineage and match detail',
@@ -421,14 +425,14 @@ test('DNA mtDNA browser coverage exercises haplogroup parsing, preview, import, 
     const context = dna.buildGeneticsContext(state.importedData.genetics, null);
     check('mtDNA context includes mismatch detail', context.includes('mtDNA Haplogroup: J') && context.includes('ENVIRONMENT MISMATCH'));
     const rendered = dna.renderGeneticsSection();
-    document.getElementById('fixture').innerHTML = rendered;
+    document.getElementById('fixture')!.innerHTML = rendered;
     check('renderGeneticsSection includes mtDNA card', document.querySelector('.genetics-mtdna-hg')?.textContent.includes('J'));
     check('renderGeneticsSection includes mtDNA lineage details',
       document.querySelector('.genetics-mtdna-facts')?.textContent.includes('Marker match') &&
-      document.querySelector('.genetics-mtdna-detail')?.textContent.length > 0);
+      document.querySelector('.genetics-mtdna-detail')?.textContent!.length! > 0);
     check('mtDNA remove action is a semantic button', document.querySelector('[data-dna-action="delete-mtdna"]')?.tagName === 'BUTTON');
 
-    document.querySelector('[data-dna-action="delete-mtdna"]')?.click();
+    document.querySelector<HTMLElement>('[data-dna-action="delete-mtdna"]')?.click();
     await wait();
     check('deleteMtDNAData removes mtdna only', state.importedData.genetics?.mtdna == null && state.importedData.genetics?.snps != null);
 
@@ -450,12 +454,12 @@ test('DNA genetics renderer covers empty and lazy-catalog branches', async ({ pa
   await openBlankPage(page, '/dna-renderer-browser-coverage');
 
   const results = await page.evaluate(async () => {
-    const failures = [];
-    const check = (name, condition, detail = '') => {
+    const failures: unknown[] = [];
+    const check = (name: string, condition: unknown, detail = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
     };
-    const wait = () => new Promise(resolve => setTimeout(resolve, 0));
-    const waitFor = async (predicate) => {
+    const wait = () => new Promise((resolve) => setTimeout(resolve, 0));
+    const waitFor = async (predicate: () => unknown | Promise<unknown>) => {
       for (let i = 0; i < 100; i++) {
         if (predicate()) return true;
         await wait();
@@ -464,14 +468,14 @@ test('DNA genetics renderer covers empty and lazy-catalog branches', async ({ pa
     };
 
     const { state } = await import('/js/state.js');
-    const dna = await import(`/js/dna.js?dnaRendererCoverage=${Date.now()}-${Math.random()}`);
+    const dna = (await import(`/js/dna.js?dnaRendererCoverage=${Date.now()}-${Math.random()}`) as unknown) as Pick<typeof import('../../js/dna.js'), "detectDNAFile" | "isDNAFile" | "isDNAFileByContent" | "getSnpCategoryLabel" | "parseDNAFile" | "findGenotypeInfo" | "findSnpHint" | "saveGeneticsData" | "buildFullGeneticsContext" | "buildGeneticsContext" | "deleteGeneticsData" | "ensureSNPTable" | "handleDNAFile" | "upsertGeneticsSnp" | "renderGeneticsSection" | "loadHaplogroupTable" | "parseMtDNAMutations" | "resolveHaplogroup" | "detectMtDNAMismatch" | "handleMtDNAFile" | "setManualHaplogroup" | "ensureHaplogroupTable" | "HAPLOGROUP_LIST">;
     const dnaRuntime = await import('/js/dna-runtime.js');
-    const calls = [];
+    const calls: unknown[] = [];
     const previousDnaRuntimeDeps = dnaRuntime.configureDnaRuntimeDeps({
-      navigate: route => calls.push(route),
+      navigate: (route: unknown) => calls.push(route),
     });
 
-    state.importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, genetics: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
+    (state as { importedData: unknown }).importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, genetics: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
     const emptyHtml = dna.renderGeneticsSection();
     check('empty renderer returns delegated upload stub',
       emptyHtml.includes('genetics-empty-stub') &&
@@ -503,15 +507,15 @@ test('Genome lens widget exposes traits, structured mtDNA evidence, and privacy-
   await openBlankPage(page, '/genome-widget-evidence-coverage');
 
   const results = await page.evaluate(async () => {
-    const failures = [];
-    const check = (name, condition, detail = '') => {
+    const failures: unknown[] = [];
+    const check = (name: string, condition: unknown, detail = '') => {
       if (!condition) failures.push(detail ? `${name}: ${detail}` : name);
     };
     const { state } = await import('/js/state.js');
-    const dna = await import(`/js/dna.js?genomeWidgetCoverage=${Date.now()}-${Math.random()}`);
-    const { createDashboardWidgetRenderers } = await import(`/js/dashboard-widget-renderers.js?genomeWidgetCoverage=${Date.now()}-${Math.random()}`);
+    const dna = (await import(`/js/dna.js?genomeWidgetCoverage=${Date.now()}-${Math.random()}`) as unknown) as Pick<typeof import('../../js/dna.js'), "detectDNAFile" | "isDNAFile" | "isDNAFileByContent" | "getSnpCategoryLabel" | "parseDNAFile" | "findGenotypeInfo" | "findSnpHint" | "saveGeneticsData" | "buildFullGeneticsContext" | "buildGeneticsContext" | "deleteGeneticsData" | "ensureSNPTable" | "handleDNAFile" | "upsertGeneticsSnp" | "renderGeneticsSection" | "loadHaplogroupTable" | "parseMtDNAMutations" | "resolveHaplogroup" | "detectMtDNAMismatch" | "handleMtDNAFile" | "setManualHaplogroup" | "ensureHaplogroupTable" | "HAPLOGROUP_LIST">;
+    const { createDashboardWidgetRenderers } = (await import(`/js/dashboard-widget-renderers.js?genomeWidgetCoverage=${Date.now()}-${Math.random()}`) as unknown) as Pick<typeof import('../../js/dashboard-widget-renderers.js'), "createDashboardWidgetRenderers">;
 
-    state.importedData = {
+    (state as { importedData: unknown }).importedData = {
       entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null,
       customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [],
       genetics: {
@@ -565,8 +569,8 @@ test('Genome lens widget exposes traits, structured mtDNA evidence, and privacy-
       document.querySelector('.db-mtdna-study-null') != null &&
       document.querySelector('.db-mtdna-evidence')?.textContent.includes('41701624'));
 
-    const snpCorrection = document.querySelector('[data-snp-evidence="rs4680"] .db-snp-correction-action');
-    const mtCorrection = document.querySelector('.db-mtdna-evidence .db-genome-contribute-link');
+    const snpCorrection = document.querySelector<HTMLAnchorElement>('[data-snp-evidence="rs4680"] .db-snp-correction-action');
+    const mtCorrection = document.querySelector<HTMLAnchorElement>('.db-mtdna-evidence .db-genome-contribute-link');
     const snpBody = snpCorrection ? new URL(snpCorrection.href).searchParams.get('body') || '' : '';
     const mtBody = mtCorrection ? new URL(mtCorrection.href).searchParams.get('body') || '' : '';
     check('correction links disclose public workflow and exclude private calls',

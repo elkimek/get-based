@@ -3,7 +3,7 @@ import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('labContextCoverage');
 
-function isoDaysAgo(daysAgo) {
+function isoDaysAgo(daysAgo: number) {
   const date = new Date();
   date.setUTCDate(date.getUTCDate() - daysAgo);
   return date.toISOString().slice(0, 10);
@@ -15,15 +15,15 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
 
   const results = await page.evaluate(async ({ labContextUrl, recentDates }) => {
     const [labContext, stateModule, dataModule, storeModule, chatPromptContext] = await Promise.all([
-      import(labContextUrl),
+      (import(labContextUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/lab-context.js'), "configureLabContext" | "invalidateLabContextCache" | "setGroupInAIContext" | "isGroupInAIContext" | "setLabMarkersContextEnabled" | "buildLabContext" | "isLabMarkersContextEnabled" | "setWearableContextEnabled" | "isWearableContextEnabled" | "buildWearableSeriesSection" | "getSleepContextMismatch" | "setInsightContextCardsEnabled" | "setSupplementsMedsContextEnabled" | "isInsightContextCardsEnabled" | "isSupplementsMedsContextEnabled" | "setLightSunContextEnabled" | "isLightSunContextEnabled" | "setGeneticsInventoryInAIContext" | "isGeneticsInventoryInAIContext" | "setGeneticsSummaryInAIContext" | "setGeneticsPriorityInAIContext" | "injectLensChunks" | "buildWearableContext" | "setAgentWearableSeriesDays" | "setAgentWearableSeriesEnabled" | "isAgentWearableSeriesEnabled" | "getAgentWearableSeriesDays" | "isGeneticsSummaryInAIContext" | "isGeneticsPriorityInAIContext">>,
       import('/js/state.js'),
       import('/js/data.js'),
       import('/js/wearables-store.js'),
       import('/js/chat-context-summary.js'),
     ]);
     const { state } = stateModule;
-    const outcomes = {};
-    const biologyContextCalls = [];
+    const outcomes: Record<string, unknown> = {};
+    const biologyContextCalls: Array<{ignoreContextToggles?: unknown}> = [];
     const legacyWindowGlobals = [
       'buildLabContext', 'invalidateLabContextCache', 'getContextSummary',
       'isGroupInAIContext', 'setGroupInAIContext',
@@ -53,8 +53,8 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       rangeMode: state.rangeMode,
     };
     const originalLabContextDeps = labContext.configureLabContext({
-      buildBiologyScoresAIContext: (_data, options = {}) => {
-        biologyContextCalls.push({ ignoreContextToggles: options.ignoreContextToggles === true });
+      buildBiologyScoresAIContext: (_data: unknown, options: unknown = {}) => {
+        biologyContextCalls.push({ ignoreContextToggles: (options as {ignoreContextToggles?: unknown}).ignoreContextToggles === true });
         return '[section:biologyScores]\nInjected Biology Scores context\n[/section:biologyScores]\n\n';
       },
       buildSunContext: () => '[section:sun]\nSun context\n[/section:sun]\n\n',
@@ -68,7 +68,7 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       state.profileDob = '1992-02-03';
       state.unitSystem = 'EU';
       state.rangeMode = 'reference';
-      state.importedData = {
+      (state as {importedData: unknown}).importedData = {
         entries: [
           {
             date: recentDates.old,
@@ -254,7 +254,7 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
         && await labContext.buildWearableSeriesSection(7) === '';
       labContext.setWearableContextEnabled(true);
       const wearableOn = labContext.isWearableContextEnabled() === true;
-      outcomes.nullWearableMetricsDoNotCreateFalseSleepMismatch = labContext.getSleepContextMismatch(
+      outcomes.nullWearableMetricsDoNotCreateFalseSleepMismatch = (labContext.getSleepContextMismatch as (sleep: Parameters<typeof labContext.getSleepContextMismatch>[0], metrics: unknown) => ReturnType<typeof labContext.getSleepContextMismatch>)(
         { duration: '7-8h', quality: 'excellent' },
         {
           metrics: {
@@ -424,7 +424,7 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
       const geneticsInventoryOn = labContext.isGeneticsInventoryInAIContext() === true;
       const context = labContext.buildLabContext({ skipGroupFilter: false });
       const collectionContextBlock = context.match(/\[section:labCollectionContext\]([\s\S]*?)\[\/section:labCollectionContext\]/)?.[1] || '';
-      state.importedData.entries[1].context.fasting = false;
+      state.importedData.entries[1]!.context!.fasting = false;
       const contextAfterFastingEdit = labContext.buildLabContext({ skipGroupFilter: false });
       const editedCollectionContextBlock = contextAfterFastingEdit.match(/\[section:labCollectionContext\]([\s\S]*?)\[\/section:labCollectionContext\]/)?.[1] || '';
       const contextHasHfeInventory = ['neutral finding', 'reference finding'].some(label =>
@@ -477,7 +477,7 @@ test('lab context browser coverage exercises toggles lens chunks and wearable co
         && summary.some(area => area.label === 'Light & Sun');
     } finally {
       state.currentProfile = original.currentProfile;
-      state.importedData = original.importedData;
+      (state as {importedData: unknown}).importedData = original.importedData;
       state.profileSex = original.profileSex;
       state.profileDob = original.profileDob;
       state.unitSystem = original.unitSystem;

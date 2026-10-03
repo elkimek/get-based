@@ -18,8 +18,8 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
       import('/js/views.js'),
       import('/js/nav.js'),
     ]);
-    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async (predicate, timeout = 5000) => {
+    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, timeout = 5000) => {
       const started = Date.now();
       while (Date.now() - started < timeout) {
         if (predicate()) return true;
@@ -27,23 +27,23 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
       }
       return false;
     };
-    const originalView = state.currentView;
+    const originalView = (state as unknown as { currentView?: unknown }).currentView;
     const biometricSelectionKey = dashboardWidgetsModule.dashboardBiometricSelectionKey();
     const originalBiometricSelection = localStorage.getItem(biometricSelectionKey);
-    let originalWearableSummary;
-    let originalWearableConnections;
+    let originalWearableSummary: unknown;
+    let originalWearableConnections: unknown;
     let hadWearableSummary = false;
     let hadWearableConnections = false;
-    let bodyActionHost;
-    let previousContextCardsRuntime = null;
-    let previousDashboardNoteActions = null;
-    let previousDashboardWidgetRuntimeDeps = null;
-    let previousWearablesBridge = null;
+    let bodyActionHost: HTMLDivElement | undefined;
+    let previousContextCardsRuntime: ReturnType<typeof contextCardsRuntime.configureContextCardsRuntimeCallbacks> | null = null;
+    let previousDashboardNoteActions: ReturnType<typeof dashboardWidgetRuntime.configureDashboardNoteActions> | null = null;
+    let previousDashboardWidgetRuntimeDeps: ReturnType<typeof dashboardWidgetRuntime.configureDashboardWidgetRuntimeDeps> | null = null;
+    let previousWearablesBridge: ReturnType<typeof wearablesRuntime.configureWearablesModuleBridge> | null = null;
 
     try {
       if (!dataModule.getActiveData()?.dates?.length) {
         const resp = await fetch('data/demo-male.json');
-        state.importedData = await resp.json();
+        (state as { importedData: unknown }).importedData = await (resp.json as () => Promise<unknown>)();
         state.profileSex = 'male';
         state.profileDob = '1987-11-22';
         await dataModule.saveImportedData();
@@ -54,7 +54,7 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
       viewsModule.toggleDashboardOrganizeMode?.(false);
       await viewsModule.navigate('dashboard');
 
-      const customizeBtn = document.querySelector('.dashboard-sticky-actions [data-dashboard-widget-action="toggle-organize"]');
+      const customizeBtn = document.querySelector<HTMLElement>('.dashboard-sticky-actions [data-dashboard-widget-action="toggle-organize"]');
       customizeBtn?.click();
       await delay(100);
 
@@ -66,22 +66,22 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
         '.dashboard-widget[data-widget-id="key-trends"] .db-key-trend-row[onclick]',
       ].join(', '));
 
-      const addBtn = document.querySelector('.dashboard-sticky-actions [data-dashboard-widget-action="open-picker"]');
+      const addBtn = document.querySelector<HTMLElement>('.dashboard-sticky-actions [data-dashboard-widget-action="open-picker"]');
       addBtn?.click();
       await delay(100);
       let overlay = document.getElementById('dashboard-widget-picker-overlay');
       const pickerOpened = !!overlay;
       const pickerHasNoInlineHandlers = !!overlay && !overlay.querySelector('[onclick], [oninput], [ondragstart], [ondragover], [ondrop]');
 
-      overlay?.querySelector('[data-dashboard-widget-action="close-picker"]')?.click();
+      overlay?.querySelector<HTMLElement>('[data-dashboard-widget-action="close-picker"]')?.click();
       await delay(50);
       const pickerCloseRemovesOverlay = !document.getElementById('dashboard-widget-picker-overlay');
 
       viewsModule.openDashboardWidgetPicker?.();
       await delay(100);
       overlay = document.getElementById('dashboard-widget-picker-overlay');
-      const markerSearch = document.getElementById('dashboard-marker-widget-search');
-      const markerOptions = Array.from(document.querySelectorAll('.dashboard-marker-widget-option'));
+      const markerSearch = (document.getElementById('dashboard-marker-widget-search') as HTMLInputElement | null);
+      const markerOptions = Array.from(document.querySelectorAll<HTMLElement>('.dashboard-marker-widget-option'));
       let markerSearchFiltersCards = !!markerSearch;
       if (markerSearch && markerOptions.length) {
         markerSearch.value = 'zzzz-no-marker-match';
@@ -141,47 +141,47 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
         && !biometricWidget.querySelector('.db-biometric-overview-actions [onclick], .db-biometric-overview-grid [onclick], .db-biometric-overview-grid [onkeydown]');
       let syncCalled = false;
       previousWearablesBridge = wearablesRuntime.configureWearablesModuleBridge({
-        syncWearableNow: button => {
-          syncCalled = button?.classList?.contains('db-biometric-sync-btn') === true;
+        syncWearableNow: (button: unknown) => {
+          syncCalled = (button as { classList?: { contains(name: string): unknown } } | null | undefined)?.classList?.contains('db-biometric-sync-btn') === true;
         },
       });
-      const syncBtn = biometricWidget?.querySelector('[data-dashboard-widget-action="sync-biometric-now"]');
+      const syncBtn = biometricWidget?.querySelector<HTMLElement>('[data-dashboard-widget-action="sync-biometric-now"]');
       syncBtn?.click();
       await delay(50);
 
-      biometricWidget?.querySelector('[data-dashboard-widget-action="open-biometric-picker"]')?.click();
+      biometricWidget?.querySelector<HTMLElement>('[data-dashboard-widget-action="open-biometric-picker"]')?.click();
       await delay(100);
       const biometricPickerOpens = !!document.querySelector('.dashboard-biometric-picker');
       viewsModule.closeDashboardWidgetPicker?.();
       await delay(50);
 
-      const bpCard = document.querySelector('.db-biometric-overview-grid [data-dashboard-widget-action="open-biometric-manual-log"][data-dashboard-widget-id="bp_systolic"]');
+      const bpCard = document.querySelector<HTMLElement>('.db-biometric-overview-grid [data-dashboard-widget-action="open-biometric-manual-log"][data-dashboard-widget-id="bp_systolic"]');
       bpCard?.click();
       const manualBpFormOpens = await waitFor(
         () => !!document.getElementById('wl-bp-sys') && !!document.getElementById('wl-bp-dia'),
       );
-      document.querySelector('.db-biometric-overview-grid .wearable-log-cancel')?.click();
+      document.querySelector<HTMLElement>('.db-biometric-overview-grid .wearable-log-cancel')?.click();
       const wearableCancelClosesBpForm = await waitFor(
         () => !document.getElementById('wl-bp-sys')
           && !!document.querySelector('.db-biometric-overview-grid [data-dashboard-widget-action="open-biometric-manual-log"][data-dashboard-widget-id="bp_systolic"]'),
       );
 
-      const removeRhr = document.querySelector('.db-biometric-overview-grid .db-biometric-remove[data-dashboard-widget-action="remove-biometric-metric"][data-dashboard-widget-id="rhr"]');
+      const removeRhr = document.querySelector<HTMLElement>('.db-biometric-overview-grid .db-biometric-remove[data-dashboard-widget-action="remove-biometric-metric"][data-dashboard-widget-id="rhr"]');
       removeRhr?.click();
       await delay(150);
-      const selectedAfterRemove = JSON.parse(localStorage.getItem(biometricSelectionKey) || '[]');
+      const selectedAfterRemove = (JSON.parse as (text: string) => unknown)(localStorage.getItem(biometricSelectionKey) || '[]') as unknown[];
 
-      const bodyActionCalls = [];
+      const bodyActionCalls: unknown[][] = [];
       previousContextCardsRuntime = contextCardsRuntime.configureContextCardsRuntimeCallbacks({
         triggerDNAFilePicker: () => bodyActionCalls.push(['dna']),
       });
       previousDashboardNoteActions = dashboardWidgetRuntime.configureDashboardNoteActions({
-        openNoteEditor: (scope, index) => bodyActionCalls.push(['note', index]),
-        deleteNote: index => bodyActionCalls.push(['delete-note', index]),
+        openNoteEditor: (_scope: unknown, index: unknown) => bodyActionCalls.push(['note', index]),
+        deleteNote: (index: unknown) => bodyActionCalls.push(['delete-note', index]),
       });
       previousDashboardWidgetRuntimeDeps = dashboardWidgetRuntime.configureDashboardWidgetRuntimeDeps({
-        navigate: route => bodyActionCalls.push(['navigate', route]),
-        showDetailModal: id => bodyActionCalls.push(['detail', id]),
+        navigate: (route: unknown) => bodyActionCalls.push(['navigate', route]),
+        showDetailModal: (id: unknown) => bodyActionCalls.push(['detail', id]),
       });
       bodyActionHost = document.createElement('div');
       bodyActionHost.innerHTML = `
@@ -194,11 +194,11 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
         </div>
       `;
       document.body.appendChild(bodyActionHost);
-      bodyActionHost.querySelector('[data-dashboard-widget-action="open-marker-detail"]')?.click();
-      bodyActionHost.querySelector('[data-dashboard-widget-action="navigate"]')?.click();
-      bodyActionHost.querySelector('[data-dashboard-widget-action="trigger-dna-picker"]')?.click();
+      bodyActionHost.querySelector<HTMLElement>('[data-dashboard-widget-action="open-marker-detail"]')?.click();
+      bodyActionHost.querySelector<HTMLElement>('[data-dashboard-widget-action="navigate"]')?.click();
+      bodyActionHost.querySelector<HTMLElement>('[data-dashboard-widget-action="trigger-dna-picker"]')?.click();
       bodyActionHost.querySelector('[data-dashboard-widget-action="open-note-editor"]')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
-      bodyActionHost.querySelector('[data-dashboard-widget-action="delete-note"]')?.click();
+      bodyActionHost.querySelector<HTMLElement>('[data-dashboard-widget-action="delete-note"]')?.click();
       await delay(50);
 
       const organizingWidgets = document.querySelector('.dashboard-widgets.is-organizing');
@@ -247,7 +247,7 @@ test('dashboard widget delegated actions cover organize, picker, biometrics, and
       else if (state.importedData) delete state.importedData.wearableConnections;
       viewsModule.closeDashboardWidgetPicker?.();
       viewsModule.toggleDashboardOrganizeMode?.(false);
-      if (originalView) viewsModule.navigate(originalView);
+      if (originalView) (viewsModule.navigate as (route: unknown) => ReturnType<typeof viewsModule.navigate>)(originalView);
     }
   });
 
@@ -272,8 +272,8 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     const recommendationRuntime = await import('/js/recommendations-runtime.js');
     const settingsRuntimeBridge = await import('/js/settings-runtime-bridge.js');
     const wearablesRuntime = await import('/js/wearables-runtime.js');
-    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async (predicate, timeout = 1500) => {
+    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, timeout = 1500) => {
       const started = Date.now();
       while (Date.now() - started < timeout) {
         if (predicate()) return true;
@@ -281,8 +281,8 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       }
       return false;
     };
-    const calls = [];
-    const demo = await (await fetch('/data/demo-male.json')).json();
+    const calls: unknown[][] = [];
+    const demo: unknown = await (await fetch('/data/demo-male.json')).json();
     const profileId = `dashboard-ui-coverage-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const catalog = {
       slots: {
@@ -301,10 +301,10 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       },
     };
     const savedFns = {
-      detectWearableTrendSlots: window.detectWearableTrendSlots,
-      showDetailModal: window.showDetailModal,
+      detectWearableTrendSlots: (window as { detectWearableTrendSlots?: unknown }).detectWearableTrendSlots,
+      showDetailModal: (window as { showDetailModal?: unknown }).showDetailModal,
     };
-    const hadFns = {};
+    const hadFns: Record<string, boolean> = {};
     for (const name of Object.keys(savedFns)) {
       hadFns[name] = Object.prototype.hasOwnProperty.call(window, name);
     }
@@ -313,14 +313,14 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       profileSex: state.profileSex,
       profileDob: state.profileDob,
       importedData: state.importedData,
-      currentView: state.currentView,
+      currentView: (state as unknown as { currentView?: unknown }).currentView,
     };
     const originalCachedCatalog = recommendationRuntime.getRecommendationsCatalogCache();
-    let previousRecommendationBridge = null;
-    let previousRecommendationRuntime = null;
-    let previousSettingsBridge = null;
-    let previousWearablesBridge = null;
-    let previousDashboardWidgetRuntimeDeps = null;
+    let previousRecommendationBridge: ReturnType<typeof recommendationRuntime.configureRecommendationModuleBridge> | null = null;
+    let previousRecommendationRuntime: ReturnType<typeof recommendationRuntime.configureRecommendationsRuntime> | null = null;
+    let previousSettingsBridge: ReturnType<typeof settingsRuntimeBridge.configureSettingsModuleBridge> | null = null;
+    let previousWearablesBridge: ReturnType<typeof wearablesRuntime.configureWearablesModuleBridge> | null = null;
+    let previousDashboardWidgetRuntimeDeps: ReturnType<typeof dashboardWidgetRuntime.configureDashboardWidgetRuntimeDeps> | null = null;
 
     try {
 
@@ -328,7 +328,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     state.currentProfile = profileId;
     state.profileSex = 'male';
     state.profileDob = '1988-03-14';
-    state.importedData = demo;
+    (state as { importedData: unknown }).importedData = demo;
     state.importedData.notes = [
       { date: '2026-05-03', text: 'Started dashboard coverage note with enough text to render preview state.' },
       { date: '2026-04-01', text: 'Earlier context note.' },
@@ -389,41 +389,41 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
         await delay(10);
         return catalog;
       },
-      renderRecommendationSection: async slotKey => `<div class="rec-detail-coverage">Options for ${slotKey}</div>`,
+      renderRecommendationSection: async (slotKey: unknown) => `<div class="rec-detail-coverage">Options for ${slotKey}</div>`,
     });
     previousRecommendationRuntime = recommendationRuntime.configureRecommendationsRuntime({
-      openChatPanel: prompt => calls.push(['chat', prompt]),
+      openChatPanel: (prompt: unknown) => calls.push(['chat', prompt]),
     });
     recommendationRuntime.setRecommendationsCatalogCache(null);
-    window.detectWearableTrendSlots = () => [{
+    (window as { detectWearableTrendSlots?: unknown }).detectWearableTrendSlots = () => [{
       slotKey: 'body.sleepRecovery',
       reason: 'Resting heart rate is elevated and HRV is below baseline.',
     }];
-    window.showDetailModal = id => calls.push(['detail', id]);
+    (window as { showDetailModal?: unknown }).showDetailModal = (id: unknown) => calls.push(['detail', id]);
     previousSettingsBridge = settingsRuntimeBridge.configureSettingsModuleBridge({
-      openSettingsModal: panel => calls.push(['settings', panel]),
+      openSettingsModal: (panel: unknown) => calls.push(['settings', panel]),
     });
     previousWearablesBridge = wearablesRuntime.configureWearablesModuleBridge({
-      openWearableDetail: id => calls.push(['wearable-detail', id]),
-      openManualLogForm: (id, event) => calls.push(['manual-log', id, event?.type || '']),
-      syncWearableNow: button => calls.push(['sync', button?.classList?.contains('db-biometric-sync-btn') === true]),
+      openWearableDetail: (id: unknown) => calls.push(['wearable-detail', id]),
+      openManualLogForm: (id: unknown, event: unknown) => calls.push(['manual-log', id, (event as { type?: unknown } | null | undefined)?.type || '']),
+      syncWearableNow: (button: unknown) => calls.push(['sync', (button as { classList?: { contains(name: string): unknown } } | null | undefined)?.classList?.contains('db-biometric-sync-btn') === true]),
     });
 
-    const readPrefs = () => JSON.parse(localStorage.getItem(widgetPrefsKey) || '{"order":[],"hidden":[]}');
-    const readJson = key => JSON.parse(localStorage.getItem(key) || '[]');
-    const dashboardWidget = id => document.querySelector(`.dashboard-widget[data-widget-id="${id}"]`);
+    const readPrefs = () => (JSON.parse as (text: string) => unknown)(localStorage.getItem(widgetPrefsKey) || '{"order":[],"hidden":[]}') as { order: unknown[]; hidden: unknown[] };
+    const readJson = (key: string) => (JSON.parse as (text: string) => unknown)(localStorage.getItem(key) || '[]') as unknown[];
+    const dashboardWidget = (id: unknown) => document.querySelector(`.dashboard-widget[data-widget-id="${id}"]`);
 
     viewsModule.navigate('dashboard');
     const recCardsHydrated = await waitFor(() =>
       document.querySelectorAll('.dashboard-widget[data-widget-id="recommendations"] .rec-next-card').length > 0
     );
-    const firstRec = document.querySelector('.dashboard-widget[data-widget-id="recommendations"] .rec-next-card');
+    const firstRec = document.querySelector<HTMLElement>('.dashboard-widget[data-widget-id="recommendations"] .rec-next-card');
     const firstRecId = firstRec?.dataset.recId || '';
-    firstRec?.querySelector('.dashboard-action-btn-primary')?.click();
+    firstRec?.querySelector<HTMLElement>('.dashboard-action-btn-primary')?.click();
     const recDetailModalOpens = await waitFor(() =>
       document.querySelector('#detail-modal.recommendation-detail-modal')?.textContent?.includes('Options for')
     );
-    const firstRecButtons = Array.from(firstRec?.querySelectorAll('.dashboard-action-btn') || []);
+    const firstRecButtons = Array.from(firstRec?.querySelectorAll<HTMLElement>('.dashboard-action-btn') || []);
     firstRecButtons.find(btn => btn.textContent?.trim() === 'Discuss')?.click();
     const discussPromptSent = calls.some(([kind, prompt]) =>
       kind === 'chat' && String(prompt).includes('general-information tip from getbased')
@@ -436,7 +436,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     const recommendationsPageRenders = await waitFor(() =>
       document.querySelectorAll('#recommendations-page .rec-next-card').length > 0
     );
-    const dismissButton = Array.from(document.querySelectorAll('#recommendations-page .rec-next-card .dashboard-action-btn'))
+    const dismissButton = Array.from(document.querySelectorAll<HTMLElement>('#recommendations-page .rec-next-card .dashboard-action-btn'))
       .find(btn => btn.textContent?.trim() === 'Hide');
     dismissButton?.click();
     await delay(100);
@@ -484,17 +484,17 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     const markerWidgetRemovedByHide = !readPrefs().order.includes('marker_lipids_apoB')
       && !readPrefs().hidden.includes('marker_lipids_apoB');
 
-    const lensNavigateCalls = [];
+    const lensNavigateCalls: unknown[] = [];
     let addedFromLens = false;
     let removedFromLens = false;
     try {
       previousDashboardWidgetRuntimeDeps = dashboardWidgetRuntime.configureDashboardWidgetRuntimeDeps({
-        navigate: route => {
+        navigate: (route: unknown) => {
           lensNavigateCalls.push(route);
-          state.currentView = route;
+          (state as unknown as { currentView?: unknown }).currentView = route;
         },
       });
-      state.currentView = 'labs';
+      (state as unknown as { currentView?: unknown }).currentView = 'labs';
       viewsModule.addDashboardWidgetFromLens('alerts');
       addedFromLens = !readPrefs().hidden.includes('alerts')
         && lensNavigateCalls.includes('labs');
@@ -507,7 +507,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
         previousDashboardWidgetRuntimeDeps = null;
       }
     }
-    state.currentView = 'dashboard';
+    (state as unknown as { currentView?: unknown }).currentView = 'dashboard';
     viewsModule.navigate('dashboard');
     await waitFor(() => dashboardWidget('focus') || document.querySelector('.dashboard-widget'));
 
@@ -523,14 +523,14 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     const biometricRemovePersists = !readJson(biometricKey).includes('rhr');
     viewsModule.openDashboardBiometricPicker();
     await waitFor(() => !!document.querySelector('.dashboard-biometric-picker'));
-    const biometricSearch = document.getElementById('dashboard-biometric-widget-search');
+    const biometricSearch = (document.getElementById('dashboard-biometric-widget-search') as HTMLInputElement | null);
     if (biometricSearch) {
       biometricSearch.value = 'zzzz-no-biometric';
       biometricSearch.dispatchEvent(new Event('input', { bubbles: true }));
     }
     await delay(50);
     const biometricFilterShowsEmpty = document.getElementById('dashboard-biometric-widget-empty')?.hidden === false;
-    document.querySelector('[data-dashboard-widget-action="connect-source"]')?.click();
+    document.querySelector<HTMLElement>('[data-dashboard-widget-action="connect-source"]')?.click();
     await delay(50);
     const connectSourceClosesPicker = calls.some(([kind, panel]) => kind === 'settings' && panel === 'wearables')
       && !document.getElementById('dashboard-widget-picker-overlay');
@@ -542,8 +542,8 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
     await waitFor(() => document.querySelector('.dashboard-widgets.is-organizing'));
     const dragEl = document.querySelector('[data-dashboard-widget-drag-id="focus"]');
     const dataTransfer = {
-      value: '',
-      setData(_type, value) { this.value = value; },
+      value: '' as unknown,
+      setData(_type: unknown, value: unknown) { this.value = value; },
       getData() { return this.value; },
       setDragImage() { calls.push(['drag-image']); },
     };
@@ -590,7 +590,7 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       state.profileSex = originalState.profileSex;
       state.profileDob = originalState.profileDob;
       state.importedData = originalState.importedData;
-      state.currentView = originalState.currentView;
+      (state as unknown as { currentView?: unknown }).currentView = originalState.currentView;
       if (previousRecommendationBridge) {
         recommendationRuntime.configureRecommendationModuleBridge(previousRecommendationBridge);
       }
@@ -605,8 +605,8 @@ test('dashboard widget state transitions cover layout, recommendations, and pick
       }
       recommendationRuntime.setRecommendationsCatalogCache(originalCachedCatalog);
       for (const [name, original] of Object.entries(savedFns)) {
-        if (hadFns[name]) window[name] = original;
-        else delete window[name];
+        if (hadFns[name]) (window as unknown as Record<string, unknown>)[name] = original;
+        else delete (window as unknown as Record<string, unknown>)[name];
       }
     }
   });
