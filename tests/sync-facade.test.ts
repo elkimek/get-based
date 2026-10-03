@@ -39,3 +39,22 @@ describe('sync public facade lifecycle composition', () => {
     });
   });
 });
+
+// Facades and direct consumers must share one configuration function/provider state.
+it('retains the original configuration APIs as identical producer exports', async () => {
+  const [planners, plannerContext, observability, observabilityContext, diagnostics, diagnosticsContext] = await Promise.all([
+    import('../js/sync-delta-planners.js'), import('../js/sync-delta-planner-context.js'),
+    import('../js/sync-delta-observability.js'), import('../js/sync-delta-observability-context.js'),
+    import('../js/sync-diagnostics.js'), import('../js/sync-diagnostics-context.js'),
+  ]);
+  for (const [facade, producer, name] of [
+    [planners.configureSyncDeltaPlanners, plannerContext.configureSyncDeltaPlanners, 'configureSyncDeltaPlanners'],
+    [observability.configureSyncDeltaObservability, observabilityContext.configureSyncDeltaObservability, 'configureSyncDeltaObservability'],
+    [diagnostics.configureSyncDiagnostics, diagnosticsContext.configureSyncDiagnostics, 'configureSyncDiagnostics'],
+  ] as const) {
+    expect(facade).toBe(producer);
+    expect(facade.name).toBe(name);
+    expect(facade.length).toBe(0);
+    expect(facade()).toBeUndefined();
+  }
+});

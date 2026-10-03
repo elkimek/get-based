@@ -6,10 +6,8 @@ import type { DeltaPlan, DeltaPlannedOperation } from './sync-delta-row-codec.js
 import {
   _base64ToBytes, _bytesToBase64, _gzipString, _gunzipToStringCapped,
 } from './sync-payload-codec.js';
-import {
-  DELTA_MAP_CONFIG,
-  _djb2, _isAllowlistSafeId, _isProtoPollutionKey,
-} from './sync-delta-registry.js';
+import { DELTA_MAP_CONFIG } from './sync-delta-surface-config.js';
+import { _djb2, _isAllowlistSafeId, _isProtoPollutionKey } from './sync-delta-id.js';
 import { _readDeltaSnapshot } from './sync-delta-snapshot.js';
 import { getPlannerItemRows } from './sync-delta-planner-context.js';
 

@@ -4,19 +4,17 @@ import type { DeltaOperation } from './sync-delta-telemetry.js';
 // sync-delta.js — Evolu per-row delta facade, apply wiring, and compatibility re-exports.
 
 import { getErrorMessage } from './caught-error.js';
-import { configureSyncDeltaObservability } from './sync-delta-observability.js';
+import { configureSyncDeltaObservability } from './sync-delta-observability-context.js';
 import { configureSyncDeltaMerge } from './sync-delta-merge.js';
-import { configureSyncDeltaPlanners } from './sync-delta-planners.js';
+import { configureSyncDeltaPlanners } from './sync-delta-planner-context.js';
 
-export { DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS } from './sync-delta-registry.js';
-export {
-  _planArrayDelta, _planKeyedMapDelta, _planScalarDelta,
-} from './sync-delta-planners.js';
+export { DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS } from './sync-delta-surfaces.js';
+export { _planArrayDelta } from './sync-delta-array-planner.js';
+export { _planKeyedMapDelta } from './sync-delta-map-planner.js';
+export { _planScalarDelta } from './sync-delta-scalar-planner.js';
 export { _writeDeltaSnapshot, clearDeltaSnapshot } from './sync-delta-snapshot.js';
-export {
-  _recordPushTelemetry, getDeltaCutoverReadiness, getDeltaTelemetry,
-  resetDeltaTelemetry,
-} from './sync-delta-observability.js';
+export { _recordPushTelemetry, getDeltaTelemetry, resetDeltaTelemetry } from './sync-delta-telemetry.js';
+export { getDeltaCutoverReadiness } from './sync-delta-readiness.js';
 export { _mergeItemRowsIntoImported } from './sync-delta-merge.js';
 
 const deltaQueryAccess = createDeltaQueryAccess<DeltaMutationClient>();

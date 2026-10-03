@@ -11,11 +11,9 @@ import {
   setAt,
   mergeLabEntry,
 } from './data-merge.js';
-import { recordPullDeltaSurface } from './sync-delta-observability.js';
-import {
-  DELTA_ARRAY_CONFIG,
-  _isAllowlistSafeId,
-} from './sync-delta-registry.js';
+import { recordPullDeltaSurface } from './sync-delta-pull-snapshot.js';
+import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
+import { _isAllowlistSafeId } from './sync-delta-id.js';
 import { decodeRowPayload } from './sync-delta-row-codec.js';
 
 function parseRowSyncedAt(row: DeltaItemRow | null | undefined) {

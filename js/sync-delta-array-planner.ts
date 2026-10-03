@@ -4,10 +4,8 @@ import type { DeltaPlan, DeltaPlannedOperation } from './sync-delta-row-codec.js
 // sync-delta-array-planner.js - Push-side array delta planner.
 
 import { _bytesToBase64, _gzipString } from './sync-payload-codec.js';
-import {
-  DELTA_ARRAY_CONFIG,
-  _djb2, _isAllowlistSafeId,
-} from './sync-delta-registry.js';
+import { DELTA_ARRAY_CONFIG } from './sync-delta-surface-config.js';
+import { _djb2, _isAllowlistSafeId } from './sync-delta-id.js';
 import { _readDeltaSnapshot } from './sync-delta-snapshot.js';
 import { getPlannerItemRows } from './sync-delta-planner-context.js';
 

@@ -16,7 +16,7 @@ import { checkRelayConnection, getSyncRelay } from './sync-environment.js';
 import {
   configureSyncIdentity, resetLocalSyncHistoryForRelayRebuild, restoreFromMnemonic,
 } from './sync-identity.js';
-import { configureSyncDiagnostics } from './sync-diagnostics.js';
+import { configureSyncDiagnostics } from './sync-diagnostics-context.js';
 import { bindSyncUIStatusUpdates, configureSyncUI, initSyncUIDelegates } from './sync-ui.js';
 import { configureSyncDiagnoseUI, showSyncDiagnose } from './sync-diagnose-ui.js';
 import {

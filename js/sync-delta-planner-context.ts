@@ -15,3 +15,7 @@ export function getPlannerItemRows(profileId: unknown, arrayName: string) {
   const allItemRows = (evolu && itemRowQuery) ? (evolu.getQueryRows(itemRowQuery) || []) : [];
   return allItemRows.filter(r => r.profileId === profileId && r.arrayName === arrayName);
 }
+
+export function configureSyncDeltaPlanners({ getEvolu, getItemRowQuery }: DeltaQueryOptions = {}) {
+  configureSyncDeltaPlannerContext({ getEvolu, getItemRowQuery });
+}

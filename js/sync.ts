@@ -35,9 +35,7 @@ import {
   getMnemonic, getMnemonicResolutionError, getSyncIdentityFingerprint,
   restoreFromMnemonic,
 } from './sync-identity.js';
-import {
-  getEvoluDiagnostics,
-} from './sync-diagnostics.js';
+import { getEvoluDiagnostics } from './sync-diagnostics-snapshot.js';
 import {
   copySyncEvents, renderSyncIndicator, toggleSyncDetail, updateSyncIndicator,
 } from './sync-ui.js';

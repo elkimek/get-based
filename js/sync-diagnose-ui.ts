@@ -5,7 +5,8 @@ import type { RelayHealthVerdict } from './sync-relay-health.js';
 
 import { getErrorMessage } from './caught-error.js';
 import { showNotification, isDebugMode } from './utils.js';
-import { _evoluDiagnosticsText, getEvoluDiagnostics } from './sync-diagnostics.js';
+import { _evoluDiagnosticsText } from './sync-diagnostics-text.js';
+import { getEvoluDiagnostics } from './sync-diagnostics-snapshot.js';
 import { getRelayQuotaEstimate, verifyPushLanded } from './sync-relay-health.js';
 import {
   configureSyncDiagnoseActions,

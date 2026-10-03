@@ -311,9 +311,9 @@ await import('../js/settings.js');
     serviceWorkerSrc.includes("'/js/sync-chat-apply.js'"));
   assert('sync-delta.js owns per-row delta facade/apply wiring',
     syncConfigureSrc.includes("from './sync-delta.js'")
-      && syncDeltaSrc.includes("from './sync-delta-planners.js'")
+      && syncDeltaSrc.includes("from './sync-delta-planner-context.js'")
       && syncDeltaSrc.includes("from './sync-delta-snapshot.js'")
-      && syncDeltaSrc.includes("from './sync-delta-observability.js'")
+      && syncDeltaSrc.includes("from './sync-delta-observability-context.js'")
       && syncDeltaSrc.includes("from './sync-delta-merge.js'")
       && syncDeltaSrc.includes('configureSyncDeltaPlanners')
       && syncDeltaSrc.includes('configureSyncDeltaMerge')
@@ -322,7 +322,8 @@ await import('../js/settings.js');
   assert('service worker precaches sync-delta.js',
     serviceWorkerSrc.includes("'/js/sync-delta.js'"));
   assert('sync-delta-planners.js owns push-side delta planner facade',
-    syncDeltaPlannersSrc.includes('export function configureSyncDeltaPlanners')
+    syncDeltaPlannersSrc.includes('export { configureSyncDeltaPlanners }')
+      && syncDeltaPlannerContextSrc.includes('export function configureSyncDeltaPlanners')
       && syncDeltaPlannersSrc.includes("from './sync-delta-planner-context.js'")
       && syncDeltaPlannersSrc.includes("from './sync-delta-array-planner.js'")
       && syncDeltaPlannersSrc.includes("from './sync-delta-map-planner.js'")
@@ -351,7 +352,9 @@ await import('../js/settings.js');
   assert('sync-delta-merge.js owns pull-side itemRow merge overlay',
     syncDeltaMergeSrc.includes('export function configureSyncDeltaMerge')
       && syncDeltaMergeSrc.includes('export async function _mergeItemRowsIntoImported')
-      && syncDeltaMergeSrc.includes("from './sync-delta-merge-shapes.js'")
+      && syncDeltaMergeSrc.includes("from './sync-delta-scalar-merge.js'")
+      && syncDeltaMergeSrc.includes("from './sync-delta-map-merge.js'")
+      && syncDeltaMergeSrc.includes("from './sync-delta-array-merge.js'")
       && syncDeltaMergeSrc.includes('resetPullDeltaSnapshot'));
   assert('service worker precaches sync-delta-merge.js',
     serviceWorkerSrc.includes("'/js/sync-delta-merge.js'"));
@@ -388,7 +391,8 @@ await import('../js/settings.js');
       && serviceWorkerSrc.includes("'/js/sync-delta-surface-config.js'")
       && serviceWorkerSrc.includes("'/js/sync-delta-id.js'"));
   assert('sync-delta-observability.js owns delta observability facade',
-    syncDeltaObservabilitySrc.includes('export function configureSyncDeltaObservability')
+    syncDeltaObservabilitySrc.includes('export { configureSyncDeltaObservability }')
+      && syncDeltaObservabilityContextSrc.includes('export function configureSyncDeltaObservability')
       && syncDeltaObservabilitySrc.includes("from './sync-delta-observability-context.js'")
       && syncDeltaObservabilitySrc.includes("from './sync-delta-pull-snapshot.js'")
       && syncDeltaObservabilitySrc.includes("from './sync-delta-telemetry.js'")
@@ -490,11 +494,12 @@ await import('../js/settings.js');
   assert('service worker precaches sync-identity.js',
     serviceWorkerSrc.includes("'/js/sync-identity.js'"));
   assert('sync-diagnostics.js is the Evolu diagnostics facade',
-    syncSrc.includes("from './sync-diagnostics.js'")
+    syncSrc.includes("from './sync-diagnostics-snapshot.js'")
       && syncDiagnosticsSrc.includes("from './sync-diagnostics-context.js'")
       && syncDiagnosticsSrc.includes("from './sync-diagnostics-snapshot.js'")
       && syncDiagnosticsSrc.includes("from './sync-diagnostics-text.js'")
-      && syncDiagnosticsSrc.includes('export function configureSyncDiagnostics')
+      && syncDiagnosticsSrc.includes('export { configureSyncDiagnostics }')
+      && syncDiagnosticsContextSrc.includes('export function configureSyncDiagnostics')
       && syncDiagnosticsContextSrc.includes('export function configureSyncDiagnosticsContext')
       && syncDiagnosticsContextSrc.includes('getSubscriptionFireCount')
       && syncDiagnosticsContextSrc.includes('isSyncing')

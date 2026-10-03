@@ -2,7 +2,7 @@ import type { DeltaItemRow, DeltaImportedData } from './sync-delta-row-codec.js'
 // sync-delta-scalar-merge.js - Pull-side scalar row overlay helper.
 
 import { setAt } from './data-merge.js';
-import { recordPullDeltaSurface } from './sync-delta-observability.js';
+import { recordPullDeltaSurface } from './sync-delta-pull-snapshot.js';
 import { decodeRowPayload } from './sync-delta-row-codec.js';
 
 export async function mergeScalarRowsIntoImported(

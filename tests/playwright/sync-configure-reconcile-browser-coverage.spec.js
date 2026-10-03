@@ -111,6 +111,15 @@ test('sync configure browser coverage seeds local profiles through identity rest
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBe(true);
   }
+  const intermediaryRequests = await page.evaluate(() => {
+    const facades = new Set([
+      '/js/sync-delta-registry.js', '/js/sync-delta-merge-shapes.js', '/js/sync-delta-planners.js',
+      '/js/sync-delta-observability.js', '/js/sync-diagnostics.js',
+    ]);
+    return performance.getEntriesByType('resource')
+      .map(entry => new URL(entry.name).pathname).filter(name => facades.has(name));
+  });
+  expect(intermediaryRequests).toEqual([]);
 });
 
 test('sync reconcile browser coverage exercises default dependency fallbacks', async ({ page }) => {

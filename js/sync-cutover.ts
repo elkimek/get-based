@@ -5,7 +5,7 @@ import {
   disablePhase2CutoverFlag, enablePhase2CutoverFlag, isPhase2CutoverEnabled,
 } from './sync-delta-snapshot.js';
 import { getDeltaCutoverReadiness } from './sync-delta.js';
-import { DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS } from './sync-delta-registry.js';
+import { DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS } from './sync-delta-surfaces.js';
 import { clearDeltaSnapshot } from './sync-delta-snapshot.js';
 
 export { isPhase2CutoverEnabled };

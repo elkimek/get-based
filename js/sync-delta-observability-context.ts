@@ -50,3 +50,7 @@ export function currentDeltaEvolu() {
 export function currentDeltaItemRowQuery() {
   return observabilityQueryAccess.currentItemRowQuery();
 }
+
+export function configureSyncDeltaObservability({ getEvolu, getItemRowQuery }: DeltaQueryOptions = {}) {
+  configureSyncDeltaObservabilityContext({ getEvolu, getItemRowQuery });
+}

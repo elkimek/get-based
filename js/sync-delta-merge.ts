@@ -3,12 +3,12 @@ import type { DeltaQueryOptions } from './sync-delta-observability-context.js';
 import type { DeltaItemRow, DeltaImportedData } from './sync-delta-row-codec.js';
 // sync-delta-merge.js - Pull-side per-row delta merge overlay.
 
-import { resetPullDeltaSnapshot } from './sync-delta-observability.js';
-import { DELTA_MAPS, DELTA_SCALARS } from './sync-delta-registry.js';
+import { resetPullDeltaSnapshot } from './sync-delta-pull-snapshot.js';
+import { DELTA_MAPS, DELTA_SCALARS } from './sync-delta-surfaces.js';
 import { getAt } from './data-merge.js';
-import {
-  mergeArrayRowsIntoImported, mergeMapRowsIntoImported, mergeScalarRowsIntoImported,
-} from './sync-delta-merge-shapes.js';
+import { mergeArrayRowsIntoImported } from './sync-delta-array-merge.js';
+import { mergeMapRowsIntoImported } from './sync-delta-map-merge.js';
+import { mergeScalarRowsIntoImported } from './sync-delta-scalar-merge.js';
 
 const mergeQueryAccess = createDeltaQueryAccess();
 

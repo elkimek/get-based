@@ -3,7 +3,7 @@
 import type { DeltaItemRow } from './sync-delta-row-codec.js';
 import { state } from './state.js';
 import { getAt } from './data-merge.js';
-import { DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS } from './sync-delta-registry.js';
+import { DELTA_ARRAYS, DELTA_MAPS, DELTA_SCALARS } from './sync-delta-surfaces.js';
 import { currentDeltaEvolu, currentDeltaItemRowQuery } from './sync-delta-observability-context.js';
 
 export interface DeltaSurfaceReadiness {

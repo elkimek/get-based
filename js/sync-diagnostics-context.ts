@@ -77,3 +77,7 @@ export function currentDiagnosticSyncing() {
 export function currentDiagnosticPulling() {
   try { return !!(0, syncDiagnosticsDeps.isPulling)?.(); } catch { return false; }
 }
+
+export function configureSyncDiagnostics(options: RuntimeDependencyUpdates<SyncDiagnosticsDeps> = {}) {
+  configureSyncDiagnosticsContext(options);
+}
