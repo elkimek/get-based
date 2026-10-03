@@ -1,5 +1,4 @@
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
-// @ts-check
 // context-cards.js - dashboard context card module surface and shared lifecycle
 
 import { state } from './state.js';
@@ -59,10 +58,16 @@ import {
   openHealthGoalsEditor,
   openInterpretiveLensEditor,
 } from './context-card-lifestyle-editors.js';
-const contextCardActionDelegateRoots = new WeakSet();
+interface ContextCardDelegateRoot {
+  addEventListener(type: string, listener: (event: Event) => void): unknown;
+}
+interface ContextCardTarget { closest?: unknown }
+interface ContextCardEventRoot { contains?: ((element: HTMLElement) => unknown) | undefined }
+
+const contextCardActionDelegateRoots = new WeakSet<ContextCardDelegateRoot>();
 const CONTEXT_CARD_ACTION_ATTR = 'data-context-card-action';
 const CONTEXT_CARD_ACTION_SELECTOR = `[${CONTEXT_CARD_ACTION_ATTR}]`;
-const contextCardEditorActions = /** @type {Record<string, () => void>} */ ({
+const contextCardEditorActions: Record<string, (() => unknown) | undefined> = ({
   openHealthGoalsEditor,
   openDiagnosesEditor,
   openDietEditor,
@@ -76,11 +81,11 @@ const contextCardEditorActions = /** @type {Record<string, () => void>} */ ({
 function closeContextCardModal() {
   closeContextCardModalRuntime();
 }
-function navigateContextCardView(category) {
+function navigateContextCardView(category: Parameters<typeof navigateContextCardViewRuntime>[0]) {
   navigateContextCardViewRuntime(category);
 }
 function refreshCurrentContextCardView() {
-  const activeNav = /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'));
+  const activeNav = (document.querySelector<HTMLElement>('.nav-item.active'));
   navigateContextCardView(activeNav?.dataset.category || 'dashboard');
 }
 async function openNutritionModule(surface = '') {
@@ -93,22 +98,22 @@ async function openNutritionModule(surface = '') {
   }
   return module.openNutritionModule(navigateContextCardView);
 }
-const contextCardRuntimeDeps = {
+const contextCardRuntimeDeps: { openEMFAssessmentEditor: unknown } = {
   openEMFAssessmentEditor,
 };
 
-export function configureContextCardRuntimeDeps(deps = {}) {
-  return configureRuntimeFunctions(contextCardRuntimeDeps, deps, ["openEMFAssessmentEditor"]);
+export function configureContextCardRuntimeDeps(deps: unknown = {}) {
+  return (configureRuntimeFunctions as (current: typeof contextCardRuntimeDeps, updates: unknown, fields: readonly (keyof typeof contextCardRuntimeDeps)[]) => typeof contextCardRuntimeDeps)(contextCardRuntimeDeps, deps, ["openEMFAssessmentEditor"]);
 }
 
-function contextCardActionAttrs(action, attrs = {}) {
+function contextCardActionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   return camelCaseActionAttributes(CONTEXT_CARD_ACTION_ATTR, "context-card", action, attrs);
 }
 
-function closestContextCardAction(target) {
-  return /** @type {HTMLElement | null} */ (
+function closestContextCardAction(target: ContextCardTarget | null | undefined) {
+  return (
     target && typeof target.closest === 'function'
-      ? target.closest(CONTEXT_CARD_ACTION_SELECTOR)
+      ? (target.closest as (selector: string) => unknown)(CONTEXT_CARD_ACTION_SELECTOR)
       : null
   );
 }
@@ -148,9 +153,9 @@ function disableLiveAIForDemo() {
   showNotification('Live AI disabled. Demo insights will stay precomputed.', 'info');
 }
 
-function handleContextCardClick(event) {
-  const actionEl = closestContextCardAction(event.target);
-  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+function handleContextCardClick(event: Event) {
+  const actionEl = closestContextCardAction(event.target as ContextCardTarget | null) as HTMLElement | null;
+  if (!actionEl || !(event.currentTarget as ContextCardEventRoot | null)?.contains?.(actionEl)) return;
   const action = actionEl.getAttribute(CONTEXT_CARD_ACTION_ATTR);
   if (action === 'refresh-all-health-dots') {
     refreshAllHealthDots();
@@ -173,7 +178,7 @@ function handleContextCardClick(event) {
   } else if (action === 'open-emf-assessment') {
     const returnToEnvironment = actionEl.dataset.contextCardCloseModal === 'true';
     const openAssessment = () => {
-      void contextCardRuntimeDeps.openEMFAssessmentEditor(returnToEnvironment ? {
+      void (contextCardRuntimeDeps.openEMFAssessmentEditor as (...args: Parameters<typeof openEMFAssessmentEditor>) => unknown)(returnToEnvironment ? {
         returnLabel: 'Back to Environment & Exposures',
         onReturn: openEnvironmentEditor,
       } : {});
@@ -193,15 +198,15 @@ function handleContextCardClick(event) {
   event.stopPropagation();
 }
 
-function handleContextCardInput(event) {
-  const actionEl = closestContextCardAction(event.target);
-  if (!actionEl || !event.currentTarget?.contains?.(actionEl)) return;
+function handleContextCardInput(event: Event) {
+  const actionEl = closestContextCardAction(event.target as ContextCardTarget | null) as HTMLElement | null;
+  if (!actionEl || !(event.currentTarget as ContextCardEventRoot | null)?.contains?.(actionEl)) return;
   if (actionEl.getAttribute(CONTEXT_CARD_ACTION_ATTR) === 'context-notes-input') {
     debounceContextNotes();
   }
 }
 
-export function installContextCardActionDelegates(root = typeof document !== 'undefined' ? document : null) {
+export function installContextCardActionDelegates(root: ContextCardDelegateRoot | null = typeof document !== 'undefined' ? document : null) {
   if (!root || contextCardActionDelegateRoots.has(root)) return;
   contextCardActionDelegateRoots.add(root);
   root.addEventListener('click', handleContextCardClick);
@@ -300,7 +305,7 @@ export {
 
 let contextCardRenderSequence = 0;
 
-export function renderProfileContextCards({ embedded = false } = {}) {
+export function renderProfileContextCards({ embedded = false }: { embedded?: unknown } = {}) {
   contextCardRenderSequence += 1;
   const renderId = `ctx-${contextCardRenderSequence}`;
   const sectionTitleId = `${renderId}-section-title`;
@@ -367,7 +372,7 @@ export function renderProfileContextCards({ embedded = false } = {}) {
   }
   html += `</div>`;
   // Additional Notes textarea
-  const notes = state.importedData.contextNotes || '';
+  const notes: unknown = state.importedData.contextNotes || '';
   html += `<div class="ctx-notes-section">
     <div class="ctx-notes-head"><label class="ctx-notes-label" for="ctx-notes-textarea">Additional context</label><span class="ctx-notes-status" id="ctx-notes-status" role="status" aria-live="polite">Saved as you type</span></div>
     <div class="ctx-notes-hint" id="ctx-notes-hint">Anything else that may affect your labs or health patterns.</div>
@@ -376,16 +381,16 @@ export function renderProfileContextCards({ embedded = false } = {}) {
   return html + `</section>`;
 }
 
-let _ctxNotesTimer = null;
-function setContextNotesStatus(text) {
+let _ctxNotesTimer: ReturnType<typeof setTimeout> | null = null;
+function setContextNotesStatus(text: string) {
   const status = document.getElementById('ctx-notes-status');
   if (status) status.textContent = text;
 }
 export function debounceContextNotes() {
-  clearTimeout(_ctxNotesTimer);
+  clearTimeout(_ctxNotesTimer as ReturnType<typeof setTimeout>);
   setContextNotesStatus('Saving\u2026');
   _ctxNotesTimer = setTimeout(() => {
-    const ta = /** @type {HTMLTextAreaElement | null} */ (document.getElementById('ctx-notes-textarea'));
+    const ta = (document.getElementById('ctx-notes-textarea') as HTMLTextAreaElement | null);
     if (ta) {
       state.importedData.contextNotes = ta.value;
       recordChange('contextNotes');
@@ -397,15 +402,15 @@ export function debounceContextNotes() {
 
 // ── AI Health Status Dots ──
 
-export function applyDotColor(key, color) {
+export function applyDotColor(key: Parameters<typeof applyContextHealthDotColor>[0], color: Parameters<typeof applyContextHealthDotColor>[1]) {
   applyContextHealthDotColor(key, color);
 }
 
-export function applyAISummary(key, text, color) {
+export function applyAISummary(key: Parameters<typeof applyContextAISummary>[0], text: Parameters<typeof applyContextAISummary>[1], color: Parameters<typeof applyContextAISummary>[2]) {
   applyContextAISummary(key, text, color);
 }
 
-export function getCardFingerprint(key, ctx) {
+export function getCardFingerprint(key: Parameters<typeof getContextCardFingerprint>[0], ctx?: Parameters<typeof getContextCardFingerprint>[1]) {
   return getContextCardFingerprint(key, ctx);
 }
 
@@ -419,15 +424,15 @@ export function refreshAllHealthDots() {
 
 // ── Change History ──
 
-export function recordChange(field) {
+export function recordChange(field: Parameters<typeof recordContextCardChange>[0]) {
   recordContextCardChange(field);
 }
 
-export function saveAndRefresh(msg, field) {
+export function saveAndRefresh(msg: string, field?: string) {
   if (field) recordChange(field);
   saveImportedData();
   // Preserve details open state across the re-render below
-  const details = /** @type {HTMLDetailsElement | null} */ (document.querySelector('.welcome-context-details'));
+  const details = (document.querySelector<HTMLDetailsElement>('.welcome-context-details'));
   if (details?.open) sessionStorage.setItem('welcome-details-open', '1');
   closeContextCardModal();
   showNotification(msg, 'success');
@@ -437,7 +442,7 @@ export function saveAndRefresh(msg, field) {
   // back to the sender, so a single-tab user would otherwise see no UI
   // update until a reload or navigation. Mirrors the BroadcastChannel
   // handler in crypto.js:initBroadcastChannel. See #123.
-  const activeNav = /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'));
+  const activeNav = (document.querySelector<HTMLElement>('.nav-item.active'));
   navigateContextCardView(activeNav?.dataset.category || 'dashboard');
   // Refresh health dots for the saved card (fingerprint will have changed).
   // Must run after navigate() so the ctx-dot-* elements exist in the new DOM.
@@ -473,7 +478,7 @@ export async function loadContextCardTips() {
 }
 
 // ── Card tips modal ──
-export function openCardTipsModal(cardKey) {
+export function openCardTipsModal(cardKey: string): void | Promise<unknown> | boolean {
   if (!isContextEditorStylesheetLoaded()) {
     return runWithContextEditorStylesheet(() => openCardTipsModal(cardKey));
   }

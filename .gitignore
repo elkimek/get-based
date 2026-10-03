@@ -1114,3 +1114,9 @@ deploy/profile-share/data/
 /types/sun-active-session.js
 
 /types/provider-wallet-panels.js
+
+/js/sun-channel-metrics.js
+
+/js/sun.js
+
+/js/context-cards.js

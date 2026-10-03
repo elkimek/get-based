@@ -211,9 +211,9 @@ export function buildDayContext(target) {
   // devices with sunlight or turn an internal normalization into a grade.
   const channelOrder = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
   for (const k of channelOrder) {
-    const sun = (sun7[k] || 0) > 0 ? 'sunlight logged' : 'no sunlight log';
+    const sun = /** @type {number} */ (sun7[k] || 0) > 0 ? 'sunlight logged' : 'no sunlight log';
     const device = (dev7[k] || 0) > 0 ? 'device logged separately' : 'no device log';
-    if ((sun7[k] || 0) <= 0 && (dev7[k] || 0) <= 0) continue;
+    if (/** @type {number} */ (sun7[k] || 0) <= 0 && (dev7[k] || 0) <= 0) continue;
     lines.push(`  - ${(CHANNEL_DISPLAY[k]?.label || k)}: ${sun}; ${device}`);
   }
 

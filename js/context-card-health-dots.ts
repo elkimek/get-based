@@ -11,14 +11,13 @@ import { getProfiles, profileStorageKey } from './profile.js';
 import { trackUsage } from './schema.js';
 import { hashString, hasCardContent, showNotification } from './utils.js';
 
-import type { LabEntry } from '../types/lab-data.js';
 
 interface ContextHealthDotDependencies {
   buildLabContext: (...args: Parameters<typeof buildLabContext>) => unknown;
   isActiveDemoProfile: () => boolean;
 }
 export interface ContextFingerprintData {
-  entries?: Pick<LabEntry, 'date' | 'markers'>[] | undefined;
+  entries?: { date?: unknown; markers?: unknown }[] | undefined;
   healthGoals?: unknown;
   contextNotes?: unknown;
   interpretiveLens?: unknown;
@@ -223,7 +222,7 @@ export function getCardFingerprint(key: string, ctx?: ContextFingerprintInput) {
   const dob = ctx?.profileDob !== undefined ? ctx.profileDob : state.profileDob;
   const labPart = (data.entries || []).map(e => {
     const m = e.markers || {};
-    return e.date + ':' + hashString(JSON.stringify(m));
+    return (e.date as string) + ':' + hashString(JSON.stringify(m));
   }).join(',');
   const val = key === 'healthGoals'
     ? JSON.stringify(data.healthGoals || [])

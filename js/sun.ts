@@ -1,4 +1,3 @@
-// @ts-check
 // sun.js — Sun Sessions: episodic outdoor light exposure logging.
 // Layer between sun-uvdata.js (atmosphere fetch), sun-spectrum.js (dose
 // computation), and the dashboard / dedicated Light & Sun page.
@@ -108,6 +107,16 @@ import { configureAIVerdictRuntimeDeps } from './ai-verdict-engine-runtime.js';
 import { configureProfileContextLightDeps } from './profile-context.js';
 import { configureSunDefaultsRuntimeDeps } from './sun-defaults-runtime.js';
 import { reopenSunSetup } from './sun-defaults.js';
+import type { SunSessionRecord } from './sun-sessions-store.js';
+
+// Private views for original unchecked reads; stored/live producer leaves
+// remain opaque at public aggregate boundaries.
+type LiveFacadeOperations = Omit<NonNullable<ReturnType<typeof _liveDosesFor>>, 'doses' | 'medFraction'> & {
+  doses: Record<string, number>; medFraction: number;
+};
+type ChannelTargetReader = Partial<Record<PropertyKey, {dailyTarget?: unknown}>>;
+export interface DailyChannelBucket {date: Date; key: string; sun: number; device: number}
+
 export { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette };
 export { renderSessionsList, renderSunSessionRow, openDetailedSessionDialog, openSunSessionDetail };
 export { quickLogSunSession, openStartSunSessionDialog, _wireBackdropClose, trapModalFocus };
@@ -207,10 +216,10 @@ export const CHANNEL_DISPLAY = {
 // Map a raw dose value → qualitative tier 0-4 with plain-English labels.
 // 0 = none, 1 = low, 2 = moderate, 3 = good, 4 = strong.
 // (Saturation flagged separately in AI context — most users don't need it.)
-export function channelTier(value, channelKey) {
-  const target = CHANNEL_DISPLAY[channelKey]?.dailyTarget ?? 1000;
-  if (!Number.isFinite(value) || value <= 0) return 0;
-  const ratio = value / target;
+export function channelTier(value: unknown, channelKey: unknown) {
+  const target = (CHANNEL_DISPLAY as ChannelTargetReader)[channelKey as PropertyKey]?.dailyTarget ?? 1000;
+  if (!Number.isFinite(value) || (value as number) <= 0) return 0;
+  const ratio = (value as number) / (target as number);
   if (ratio < 0.20) return 1;   // low
   if (ratio < 0.55) return 2;   // moderate
   if (ratio < 1.00) return 3;   // good
@@ -223,10 +232,10 @@ export function channelTier(value, channelKey) {
 // with a daily target, so the same number scored "moderate" against daily
 // and "low" against weekly. Use this where the value is a multi-day rollup;
 // use channelTier where the value is a single day or a single session.
-export function weeklyChannelTier(value, channelKey) {
-  const target = (CHANNEL_DISPLAY[channelKey]?.dailyTarget ?? 1000) * 7;
-  if (!Number.isFinite(value) || value <= 0) return 0;
-  const ratio = value / target;
+export function weeklyChannelTier(value: unknown, channelKey: unknown) {
+  const target = (((CHANNEL_DISPLAY as ChannelTargetReader)[channelKey as PropertyKey]?.dailyTarget ?? 1000) as number) * 7;
+  if (!Number.isFinite(value) || (value as number) <= 0) return 0;
+  const ratio = (value as number) / (target as number);
   if (ratio < 0.20) return 1;
   if (ratio < 0.55) return 2;
   if (ratio < 1.00) return 3;
@@ -236,25 +245,25 @@ export function weeklyChannelTier(value, channelKey) {
 const TIER_LABELS = ['none', 'low', 'moderate', 'good', 'strong'];
 const TIER_DOTS = ['○○○○', '●○○○', '●●○○', '●●●○', '●●●●'];
 
-export function tierLabel(tier) { return TIER_LABELS[tier] || 'none'; }
+export function tierLabel(tier: unknown): unknown { return (TIER_LABELS as unknown as Record<PropertyKey, unknown>)[tier as PropertyKey] || 'none'; }
 
 // Channel unit formatting and vitamin-D rollups live in
 // sun-channel-metrics.js so this facade stays focused on session
 // orchestration and legacy public exports.
-export function tierDots(tier) { return TIER_DOTS[tier] || TIER_DOTS[0]; }
+export function tierDots(tier: unknown): unknown { return (TIER_DOTS as unknown as Record<PropertyKey, unknown>)[tier as PropertyKey] || TIER_DOTS[0]; }
 
 // ─── Session lifecycle facade helpers ─────────────────────────────────
 
 // User-facing wrappers — called from inline onclick handlers in
 // renderSunSessionRow's active controls. Both call the surface refresh
 // to update the dashboard strip + Light page state immediately.
-export async function pauseSunSession(id) {
-  await pauseSession(id);
+export async function pauseSunSession(id: unknown) {
+  await pauseSession(id as string);
   showNotification('Session paused — dose accrual frozen until you resume.', 'success', 3500);
   _refreshSurfaces();
 }
-export async function resumeSunSession(id) {
-  await resumeSession(id);
+export async function resumeSunSession(id: unknown) {
+  await resumeSession(id as string);
   showNotification('Session resumed — fresh atmosphere snapshot on the next tick.', 'success', 3500);
   _refreshSurfaces();
 }
@@ -262,14 +271,14 @@ export async function resumeSunSession(id) {
 // Mid-session side-change hook. It commits the prior timed slice and records
 // a history boundary. Rotation never multiplies a dose; if the exposed body
 // regions also change, the separate Coverage control records that change.
-export async function flipSidesMidSession(id) {
+export async function flipSidesMidSession(id: unknown) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || sess.endedAt) return;
   if (sess.bodyExposure?.rotatedSides) {
     showNotification('Side change already recorded. Use Coverage if different skin is exposed now.', 'info', 3500);
     return;
   }
-  const updated = await markSessionRotated(id);
+  const updated = await markSessionRotated(id as string);
   if (!updated) return;
   showNotification('Side change recorded at this time. Dose was not multiplied; update Coverage if different skin is exposed.', 'success', 5000);
   _refreshSurfaces();
@@ -279,7 +288,7 @@ export async function flipSidesMidSession(id) {
 // computed under the OLD SPF, prompts for the new value, then updates
 // the session record. The next tick snapshots a fresh rate with the
 // new SPF baked in via _rateAtInstant's bodyModifiers path.
-export async function applySunscreenMidSession(id) {
+export async function applySunscreenMidSession(id: unknown) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || sess.endedAt) return;
   const cur = sess.bodyExposure?.sunscreenSPF || 0;
@@ -293,7 +302,7 @@ export async function applySunscreenMidSession(id) {
     showNotification('SPF must be 0-100.', 'error', 3000);
     return;
   }
-  const updated = await setSessionSunscreen(id, spf);
+  const updated = await setSessionSunscreen(id as string, spf);
   if (!updated) return;
   showNotification(`SPF updated to ${spf || 'none'} — next dose-rate sample uses the new value.`, 'success', 3500);
   _refreshSurfaces();
@@ -311,7 +320,7 @@ export async function applySunscreenMidSession(id) {
 // 20 min — without this, the saved IU pretends the user kept the
 // original coverage for the whole session. Same for device sessions
 // where you start aimed at the torso and end aimed at the legs.
-export async function changeCoverageMidSession(id) {
+export async function changeCoverageMidSession(id: unknown) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || sess.endedAt) return;
 
@@ -340,7 +349,7 @@ export async function changeCoverageMidSession(id) {
   openAppendedModalOverlay(overlay, closeDialog);
 
   const selected = new Set(currentRegions);
-  const slot = overlay.querySelector('#sun-coverage-silhouette-slot');
+  const slot = overlay.querySelector<Element>('#sun-coverage-silhouette-slot');
   const hint = overlay.querySelector('#sun-coverage-hint');
   const confirmButton = overlay.querySelector('#coverage-confirm');
   if (!hint || !confirmButton) {
@@ -363,12 +372,12 @@ export async function changeCoverageMidSession(id) {
       hint.textContent = `${selected.size} region${selected.size === 1 ? '' : 's'} exposed (${pctLabel}) — ${labels}`;
     }
   };
-  bindBodySilhouette(/** @type {Element} */ (slot), selected, updateHint);
+  bindBodySilhouette(slot!, selected, updateHint);
   updateHint();
 
   confirmButton.addEventListener('click', async () => {
     const regions = Array.from(selected);
-    const updated = await setSessionCoverage(id, regions);
+    const updated = await setSessionCoverage(id as string, regions);
     const fraction = updated?.bodyExposure?.fraction || 0;
     closeDialog();
     if (!updated) return;
@@ -420,7 +429,7 @@ export async function setOzoneOverrideMidSession() {
 // Forgot-to-stop banner action — closes a session that's been running
 // > 12h. Sets endedAt to now (or the previous sunset, whichever is
 // earlier and still after startedAt) so the dose math is bounded.
-export async function _forgotStopPrompt(id) {
+export async function _forgotStopPrompt(id: unknown) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || sess.endedAt) return;
   const hours = ((Date.now() - sess.startedAt) / 3600000).toFixed(1);
@@ -437,10 +446,10 @@ export async function _forgotStopPrompt(id) {
 // ─── Lifelight aggregates ──────────────────────────────────────────────
 
 // Rolling N-day per-channel totals — used by the dashboard strip and AI context.
-export function rollingChannelTotals(days = 7) {
+export function rollingChannelTotals(days: unknown = 7) {
   const now = Date.now();
-  const cutoff = now - days * 86400 * 1000;
-  const totals = {};
+  const cutoff = now - (days as number) * 86400 * 1000;
+  const totals: Record<string, unknown> = {};
   for (const sess of getSessions()) {
     // Include in-progress sessions via live partial doses, but only when
     // the session's startedAt is within the rolling period. A session
@@ -448,10 +457,10 @@ export function rollingChannelTotals(days = 7) {
     // the 7d total.
     if (!sess.endedAt) {
       if ((sess.startedAt || 0) < cutoff) continue;
-      const live = /** @type {(Omit<NonNullable<ReturnType<typeof _liveDosesFor>>, 'doses' | 'medFraction'> & {doses: Record<string, number>; medFraction: number}) | null} */ (_liveDosesFor(sess));
+      const live = _liveDosesFor(sess) as LiveFacadeOperations | null;
       if (live?.doses) {
         for (const [k, v] of Object.entries(live.doses)) {
-          totals[k] = (totals[k] || 0) + (Number.isFinite(v) ? v : 0);
+          totals[k] = ((totals[k] || 0) as number) + (Number.isFinite(v) ? v : 0);
         }
       }
       continue;
@@ -459,7 +468,7 @@ export function rollingChannelTotals(days = 7) {
     if (!sess.doses) continue;
     if (sess.endedAt < cutoff) continue;
     for (const [k, v] of Object.entries(sess.doses)) {
-      totals[k] = (totals[k] || 0) + (Number.isFinite(v) ? v : 0);
+      totals[k] = ((totals[k] || 0) as number) + (Number.isFinite(v) ? v : 0);
     }
   }
   return totals;
@@ -469,18 +478,18 @@ export function rollingChannelTotals(days = 7) {
 // length `days` (oldest → newest), each element { date: 'YYYY-MM-DD',
 // sun: <au>, device: <au> } for the requested channelKey. Today is the
 // last bucket. Used by the weekly bar chart in the channel drill-down.
-export function dailyChannelBreakdown(channelKey, days = 7) {
-  const buckets = [];
+export function dailyChannelBreakdown(channelKey: unknown, days: unknown = 7) {
+  const buckets: DailyChannelBucket[] = [];
   const now = new Date();
-  for (let i = days - 1; i >= 0; i--) {
+  for (let i = (days as number) - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
     buckets.push({ date: d, key: d.toISOString().slice(0, 10), sun: 0, device: 0 });
   }
-  const startOf = (ts) => {
+  const startOf = (ts: number) => {
     const d = new Date(ts);
     return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   };
-  const idxFor = (ts) => {
+  const idxFor = (ts: number) => {
     const day = startOf(ts);
     return buckets.findIndex(b => b.date.getTime() === day);
   };
@@ -492,14 +501,14 @@ export function dailyChannelBreakdown(channelKey, days = 7) {
     if (!sess.endedAt) {
       // In-progress session — pull live partial dose so the chart reflects
       // an active session in progress (matches rollingChannelTotals).
-      const live = /** @type {(Omit<NonNullable<ReturnType<typeof _liveDosesFor>>, 'doses' | 'medFraction'> & {doses: Record<string, number>; medFraction: number}) | null} */ (_liveDosesFor(sess));
-      const v = live?.doses?.[channelKey];
-      if (Number.isFinite(v)) buckets[i].sun += /** @type {number} */ (v);
+      const live = _liveDosesFor(sess) as LiveFacadeOperations | null;
+      const v = live?.doses?.[channelKey as string];
+      if (Number.isFinite(v)) buckets[i]!.sun += (v as number);
       continue;
     }
     if (!sess.doses) continue;
-    const v = sess.doses[channelKey];
-    if (Number.isFinite(v)) buckets[i].sun += v;
+    const v = sess.doses[channelKey as string];
+    if (Number.isFinite(v)) buckets[i]!.sun += v as number;
   }
   const devSessions = getSunDeviceSessionsRuntime();
   for (const ds of devSessions || []) {
@@ -507,8 +516,8 @@ export function dailyChannelBreakdown(channelKey, days = 7) {
     if (!ts || !ds.doses) continue;
     const i = idxFor(ts);
     if (i < 0) continue;
-    const v = ds.doses[channelKey];
-    if (Number.isFinite(v)) buckets[i].device += v;
+    const v = ds.doses[channelKey as string];
+    if (Number.isFinite(v)) buckets[i]!.device += v as number;
   }
   return buckets;
 }
@@ -518,13 +527,13 @@ export function dailyChannelBreakdown(channelKey, days = 7) {
 // Cumulative MED today (for the safety gauge and pre-session warnings).
 // Includes the in-progress session's live partial burn-dose so the gauge
 // fills as you sit in the sun.
-export function cumulativeMEDToday() {
+export function cumulativeMEDToday(): unknown {
   const now = new Date();
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   let total = 0;
   for (const sess of getSessions()) {
     if (!sess.endedAt) {
-      const live = /** @type {(Omit<NonNullable<ReturnType<typeof _liveDosesFor>>, 'doses' | 'medFraction'> & {doses: Record<string, number>; medFraction: number}) | null} */ (_liveDosesFor(sess));
+      const live = _liveDosesFor(sess) as LiveFacadeOperations | null;
       if (live && Number.isFinite(live.medFraction)) total += live.medFraction;
       continue;
     }
@@ -539,7 +548,7 @@ export function cumulativeMEDToday() {
 // a yesterday-MED of 0.9 plus today-MED of 0.5 = ~1.4 cumulative,
 // well into burn territory. Surfaced as a "carry-over" warning chip when
 // yesterday + today exceeds 100%.
-export function cumulativeMEDYesterday() {
+export function cumulativeMEDYesterday(): unknown {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const yStart = todayStart - 86400000;
@@ -550,7 +559,7 @@ export function cumulativeMEDYesterday() {
     if (!sess.endedAt) {
       const startedAt = sess.startedAt || 0;
       if (startedAt < yStart || startedAt >= todayStart) continue;
-      const live = /** @type {(Omit<NonNullable<ReturnType<typeof _liveDosesFor>>, 'doses' | 'medFraction'> & {doses: Record<string, number>; medFraction: number}) | null} */ (_liveDosesFor(sess));
+      const live = _liveDosesFor(sess) as LiveFacadeOperations | null;
       if (!live || !Number.isFinite(live.medFraction)) continue;
       const totalElapsedMs = Date.now() - startedAt;
       const yesterdayMs = Math.max(0, todayStart - startedAt);
@@ -590,9 +599,9 @@ export function cumulativeMEDYesterday() {
 // within that window reset the timer (keeping the latest scrollAnchor).
 // The user sees a slightly delayed "Analyzing..." indicator (acceptable
 // trade for no jump) and the final result with no thrash.
-let _refreshSurfacesTimer = null;
-let _refreshSurfacesPendingAnchor = null;
-function _refreshSurfaces(scrollAnchor) {
+let _refreshSurfacesTimer: ReturnType<typeof setTimeout> | null = null;
+let _refreshSurfacesPendingAnchor: unknown = null;
+function _refreshSurfaces(scrollAnchor?: unknown) {
   // Always keep the most recent anchor — if any caller in the burst
   // requested a specific anchor, use it.
   if (scrollAnchor) _refreshSurfacesPendingAnchor = scrollAnchor;
@@ -608,10 +617,10 @@ function _refreshSurfaces(scrollAnchor) {
     // defaulting to 'dashboard' (which would yank a user mid-init off
     // whatever page they're on per the URL fragment / launcher target).
     const view = state.currentView
-      || /** @type {HTMLElement | null} */ (document.querySelector('.nav-item.active'))?.dataset?.category
+      || document.querySelector<HTMLElement>('.nav-item.active')?.dataset?.category
       || 'dashboard';
     const navOpts = anchor ? { scrollAnchor: anchor } : undefined;
-    navigateSunRuntime(view, navOpts);
+    navigateSunRuntime(view, navOpts as Parameters<typeof navigateSunRuntime>[1]);
     setTimeout(() => _resumeActiveTickerIfNeeded(), 100);
   }, 150);
 }
@@ -619,20 +628,20 @@ function _refreshSurfaces(scrollAnchor) {
 // Compact body-exposure summary for the session-list row. Detailed
 // (region-driven) sessions report region count, not the misleading
 // "Body unset" fallback that the bare preset-label lookup gives.
-function _summarizeBodyExposure(sess) {
+function _summarizeBodyExposure(sess: Pick<SunSessionRecord, 'bodyExposure'> | null | undefined) {
   const presetKey = sess?.bodyExposure?.preset;
   if (presetKey === 'covered') return 'No skin exposed (0%)';
   const presetLabel = EXPOSURE_PRESETS.find(p => p.key === presetKey)?.label;
   if (presetLabel) return presetLabel;
   const regionCount = (sess?.bodyExposure?.regions || []).length;
   if (regionCount > 0) {
-    const fractionPct = Math.round((sess.bodyExposure?.fraction || 0) * 100);
+    const fractionPct = Math.round((sess!.bodyExposure?.fraction || 0) * 100);
     return `${regionCount} region${regionCount === 1 ? '' : 's'} (${fractionPct}%)`;
   }
   return 'Body unset';
 }
 
-(/** @type {(deps: Omit<NonNullable<Parameters<typeof configureSunSessionsStore>[0]>, 'fetchAtmosphere'> & { fetchAtmosphere: typeof fetchAtmosphere }) => ReturnType<typeof configureSunSessionsStore>} */ (configureSunSessionsStore))({
+(configureSunSessionsStore as (deps: Omit<NonNullable<Parameters<typeof configureSunSessionsStore>[0]>, 'fetchAtmosphere'> & { fetchAtmosphere: typeof fetchAtmosphere }) => ReturnType<typeof configureSunSessionsStore>)({
   commitCurrentSlice: _commitCurrentSlice,
   setLiveState: _setLiveState,
   clearLiveState: _clearLiveState,

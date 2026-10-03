@@ -159,7 +159,7 @@ export function getChannelMixFingerprint() {
   const windows = _weeklyWindows();
   const parts = ['weekly-light-pattern-v2'];
   for (const k of Object.keys(_CHANNEL_DEF).sort()) {
-    parts.push(`${k}:sun${(t.sun7[k] || 0) > 0 ? 1 : 0}:dev${(t.dev7[k] || 0) > 0 ? 1 : 0}`);
+    parts.push(`${k}:sun${/** @type {number} */ (t.sun7[k] || 0) > 0 ? 1 : 0}:dev${(t.dev7[k] || 0) > 0 ? 1 : 0}`);
   }
   for (const [source, sessions] of Object.entries(windows)) {
     for (const session of sessions) {
@@ -195,7 +195,7 @@ export function buildChannelMixContext() {
   lines.push('');
   lines.push('### Light-responsive source signals — past 7 days');
   for (const [k, def] of Object.entries(_CHANNEL_DEF)) {
-    const sun = (t.sun7[k] || 0) > 0 ? 'logged' : 'not logged';
+    const sun = /** @type {number} */ (t.sun7[k] || 0) > 0 ? 'logged' : 'not logged';
     const device = (t.dev7[k] || 0) > 0 ? 'logged separately' : 'not logged';
     lines.push(`- ${def.label} (${k}): sunlight ${sun}; device ${device}. Model: ${def.biology}`);
   }
