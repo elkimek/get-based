@@ -33,12 +33,12 @@ describe('CLI agent model catalog cache', () => {
     expect(getCachedAgentModelCatalog('hermes', 'gateway-home')).toEqual([]);
     cacheAgentModelCatalog([{ id: 'personal-model' }], 'hermes', 'gateway-home');
     expect(getCachedAgentModelCatalog('hermes', 'local')).toEqual([]);
-    expect(getCachedAgentModelCatalog('hermes', 'gateway-home')[0].id).toBe('personal-model');
+    expect(getCachedAgentModelCatalog('hermes', 'gateway-home')[0]!.id).toBe('personal-model');
   });
 
   it('does not assume image support when an adapter omits modalities', () => {
     cacheAgentModelCatalog([{ id: 'third-party/text-model' }], 'opencode');
-    expect(getCachedAgentModelCatalog('opencode')[0].inputModalities).toEqual(['text']);
+    expect(getCachedAgentModelCatalog('opencode')[0]!.inputModalities).toEqual(['text']);
   });
 
   it('does not cache models explicitly marked unavailable by an adapter', () => {
@@ -61,9 +61,9 @@ describe('CLI agent model catalog cache', () => {
         { reasoningEffort: 'low' },
       ],
     }], 'grok');
-    expect(model.supportedReasoningEfforts.map(item => item.reasoningEffort))
+    expect(model!.supportedReasoningEfforts.map(item => item.reasoningEffort))
       .toEqual(['low', 'medium', 'high', 'ultra']);
-    expect(getCachedAgentModelCatalog('grok')[0].supportedReasoningEfforts.map(item => item.reasoningEffort))
+    expect(getCachedAgentModelCatalog('grok')[0]!.supportedReasoningEfforts.map(item => item.reasoningEffort))
       .toEqual(['low', 'medium', 'high', 'ultra']);
   });
 
@@ -75,8 +75,8 @@ describe('CLI agent model catalog cache', () => {
     </div>`;
     filterCLIAgentModelOptions('gpt 5.6');
     const options = [...document.querySelectorAll('[data-model-search]')];
-    expect(options[0].hasAttribute('hidden')).toBe(false);
-    expect(options[1].hasAttribute('hidden')).toBe(true);
-    expect(document.getElementById('cli-agent-model-result-count').textContent).toBe('1 model');
+    expect(options[0]!.hasAttribute('hidden')).toBe(false);
+    expect(options[1]!.hasAttribute('hidden')).toBe(true);
+    expect(document.getElementById('cli-agent-model-result-count')!.textContent).toBe('1 model');
   });
 });

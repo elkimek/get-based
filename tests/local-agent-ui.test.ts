@@ -9,11 +9,11 @@ import {
 } from '../js/settings-cli-agent-panel.js';
 import { getCLIAgentBrandAsset, renderCLIAgentBrandIcon } from '../js/cli-agent-brand-assets.js';
 
-const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 describe('local agent selection UI', () => {
   it('places CLI inference in AI providers and keeps connection internals hidden', () => {
-    const source = read('js/settings-cli-agent-panel.js');
+    const source = read('js/settings-cli-agent-panel.ts');
     const settings = read('js/settings.js');
     const agentAccess = read('js/settings-agent-access-panel.js');
     expect(source).toContain('Installed CLIs');
@@ -111,7 +111,7 @@ describe('local agent selection UI', () => {
   });
 
   it('renders Codex model and reasoning controls from the CLI catalog', () => {
-    const source = read('js/settings-cli-agent-panel.js');
+    const source = read('js/settings-cli-agent-panel.ts');
     expect(source).toContain("action: 'set-cli-agent-model'");
     expect(source).toContain("action: 'set-cli-agent-effort'");
     expect(source).toContain('listAgentModels');

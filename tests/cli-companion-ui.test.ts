@@ -7,9 +7,9 @@ describe('CLI companion setup UI', () => {
   it('collapses agent settings without changing the selected provider or controls', () => {
     localStorage.setItem('labcharts-agent-host-agent', 'codex');
     document.body.innerHTML = '<button data-settings-action="toggle-cli-agent-options" aria-expanded="true" aria-controls="cli-agent-options">Codex</button><div id="cli-agent-options"><input value="medium"></div>';
-    const button = document.querySelector('button');
-    const options = document.getElementById('cli-agent-options');
-    const input = options.querySelector('input');
+    const button = document.querySelector('button')!;
+    const options = document.getElementById('cli-agent-options')!;
+    const input = options.querySelector('input')!;
     toggleCLIAgentOptions();
     expect(options.hidden).toBe(true);
     expect(button.getAttribute('aria-expanded')).toBe('false');
@@ -33,7 +33,7 @@ describe('CLI companion setup UI', () => {
 
     await refreshDetectedAgentList();
 
-    const list = document.getElementById('local-agent-list');
+    const list = document.getElementById('local-agent-list')!;
     expect(list.textContent).toContain('Connect your installed CLI agents');
     expect(list.textContent).toContain("curl -fsSL 'http://localhost:3000/getbased-companion.mjs'");
     expect(list.textContent).toContain('getbased-companion.mjs" run');
@@ -49,7 +49,7 @@ describe('CLI companion setup UI', () => {
   });
 
   it('renders direct management controls for a running temporary companion', async () => {
-    vi.stubGlobal('fetch', vi.fn(async input => {
+    vi.stubGlobal('fetch', vi.fn(async (input: unknown) => {
       if (String(input).startsWith('/api/local-agents')) return new Response(JSON.stringify({ agents: [{
         id: 'codex', name: 'Codex CLI', status: 'available', compatible: true,
         endpoint: 'http://127.0.0.1:8324', token: 'installation-token', controlAuthorized: true,
@@ -63,7 +63,7 @@ describe('CLI companion setup UI', () => {
 
     await refreshDetectedAgentList();
 
-    const companion = document.getElementById('local-agent-companion-section');
+    const companion = document.getElementById('local-agent-companion-section')!;
     expect(companion.textContent).toContain('Connected for this terminal session · v1.0.0');
     expect(companion.querySelector('[data-value="pause"]')).not.toBeNull();
     expect(companion.querySelector('[data-value="restart"]')).not.toBeNull();
@@ -74,7 +74,7 @@ describe('CLI companion setup UI', () => {
   });
 
   it('checks an installed companion on first opening without a manual connection check', async () => {
-    vi.stubGlobal('fetch', vi.fn(async input => {
+    vi.stubGlobal('fetch', vi.fn(async (input: unknown) => {
       if (String(input).startsWith('/api/local-agents')) return new Response(JSON.stringify({ agents: [{
         id: 'codex', name: 'Codex CLI', status: 'available', compatible: true,
         endpoint: 'http://127.0.0.1:8324', token: 'installation-token', controlAuthorized: true,
@@ -95,14 +95,14 @@ describe('CLI companion setup UI', () => {
     expect(fetch).toHaveBeenCalledWith('/api/local-agents?refresh=1', expect.any(Object));
     expect(document.querySelector('.local-agent-install-card')).toBeNull();
 
-    const companion = document.getElementById('local-agent-companion-section');
+    const companion = document.getElementById('local-agent-companion-section')!;
     expect(companion.querySelector('[data-value="restart"]')?.textContent).toContain('Reconnect CLIs');
     expect(companion.querySelector('[data-value="restart-companion"]')?.textContent).toContain('Restart companion');
     expect(companion.querySelector('[data-value="update"]')?.textContent).toContain('Check for update');
   });
 
   it.each([['chat-stream'], ['chat-stream', 'companion-control']])('offers recovery when an installed companion lacks service restart (%j)', async (...capabilities) => {
-    vi.stubGlobal('fetch', vi.fn(async input => {
+    vi.stubGlobal('fetch', vi.fn(async (input: unknown) => {
       if (String(input).startsWith('/api/local-agents')) return new Response('{"agents":[]}', { status: 200 });
       return new Response(JSON.stringify({
         service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324', token: '1234567890123456',
@@ -113,7 +113,7 @@ describe('CLI companion setup UI', () => {
 
     await refreshDetectedAgentList();
 
-    const companion = document.getElementById('local-agent-companion-section');
+    const companion = document.getElementById('local-agent-companion-section')!;
     expect(companion.textContent).toContain('Update required');
     expect(companion.textContent).toContain('Restarting the same file will not update it');
     expect(companion.querySelector('[data-settings-action="copy-cli-companion-update"]')).not.toBeNull();
@@ -121,7 +121,7 @@ describe('CLI companion setup UI', () => {
   });
 
   it('shows chat-only lifecycle guidance for discovery, even if an old host advertises controls', async () => {
-    vi.stubGlobal('fetch', vi.fn(async input => {
+    vi.stubGlobal('fetch', vi.fn(async (input: unknown) => {
       if (String(input).startsWith('/api/local-agents')) return new Response('{"agents":[]}');
       return new Response(JSON.stringify({
         service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8324', token: '1234567890123456',
@@ -130,14 +130,14 @@ describe('CLI companion setup UI', () => {
       }));
     }));
     await refreshDetectedAgentList();
-    const companion = document.getElementById('local-agent-companion-section');
+    const companion = document.getElementById('local-agent-companion-section')!;
     expect(companion.textContent).toContain('Connected for chat');
     expect(companion.querySelector('[data-settings-action="control-cli-companion"]')).toBeNull();
     expect(companion.querySelector('[data-settings-action="copy-cli-companion-update"]')).not.toBeNull();
   });
 
   it('links hosted discovery to management on the actual discovered port without sharing credentials', async () => {
-    vi.stubGlobal('fetch', vi.fn(async input => {
+    vi.stubGlobal('fetch', vi.fn(async (input: unknown) => {
       if (String(input).startsWith('/api/local-agents')) return new Response('{"agents":[]}');
       return Response.json({
         service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8325', token: '1234567890123456',
@@ -146,7 +146,7 @@ describe('CLI companion setup UI', () => {
       });
     }));
     await refreshDetectedAgentList();
-    const companion = document.getElementById('local-agent-companion-section');
+    const companion = document.getElementById('local-agent-companion-section')!;
     const link = companion.querySelector('a');
     expect(link?.href).toBe('http://127.0.0.1:8325/manage');
     expect(link?.rel).toContain('noopener');
@@ -157,7 +157,7 @@ describe('CLI companion setup UI', () => {
 
   it.each(['http://localhost:8000', 'http://iobqafpywmncin7m2wpvbemouvulaeb7jnvtvugxnru4gpneushb5jyd.onion', 'https://custom-chat.example'])('uses embedded controls or a local fallback on %s without sharing credentials', async origin => {
     vi.stubGlobal('location', { origin });
-    vi.stubGlobal('fetch', vi.fn(async input => {
+    vi.stubGlobal('fetch', vi.fn(async (input: unknown) => {
       if (String(input).startsWith('/api/local-agents')) return Response.json({ agents: [] });
       return Response.json({
         service: 'getbased-agent-host', endpoint: 'http://127.0.0.1:8325', token: '1234567890123456',
@@ -166,11 +166,11 @@ describe('CLI companion setup UI', () => {
       });
     }));
     await refreshDetectedAgentList();
-    const companion = document.getElementById('local-agent-companion-section');
-    const frame = companion.querySelector('iframe');
+    const companion = document.getElementById('local-agent-companion-section')!;
+    const frame = companion.querySelector('iframe')!;
     if (origin === 'https://custom-chat.example') {
       expect(frame).toBeNull();
-      expect(companion.querySelector('a').href).toBe('http://127.0.0.1:8325/manage');
+      expect(companion.querySelector('a')!.href).toBe('http://127.0.0.1:8325/manage');
       expect(companion.textContent).toContain('from this deployment');
       expect(companion.textContent).not.toContain('Update Companion once');
       return;
@@ -186,7 +186,7 @@ describe('CLI companion setup UI', () => {
 
   it('accepts bounded frame sizing only from its own local management panel', () => {
     document.body.innerHTML = '<iframe class="local-agent-management-frame" src="http://127.0.0.1:8325/manage/embed"></iframe>';
-    const frame = document.querySelector('iframe');
+    const frame = document.querySelector('iframe')!;
     const event = { data: { type: 'getbased-companion-panel-size', height: 340 }, origin: 'http://127.0.0.1:8325', source: frame.contentWindow };
     resizeCLICompanionPanel({ ...event, origin: 'https://attacker.example' });
     resizeCLICompanionPanel({ ...event, source: window });
@@ -199,7 +199,7 @@ describe('CLI companion setup UI', () => {
 
   it('shows a stopped companion state without attempting to load models', async () => {
     localStorage.setItem('labcharts-chat-backend', 'codex');
-    vi.stubGlobal('fetch', vi.fn(async input => {
+    vi.stubGlobal('fetch', vi.fn(async (input: unknown) => {
       if (String(input).startsWith('/api/local-agents')) {
         return new Response(JSON.stringify({ agents: [{
           id: 'codex', name: 'Codex CLI', description: 'OpenAI official CLI',
@@ -211,11 +211,11 @@ describe('CLI companion setup UI', () => {
 
     await refreshDetectedAgentList({ refresh: true });
 
-    const list = document.getElementById('local-agent-list');
+    const list = document.getElementById('local-agent-list')!;
     expect(list.textContent).toContain('Installed · companion not running');
     expect(list.textContent).not.toContain('Loading Codex models');
     expect(list.textContent).not.toContain('Could not load the Codex model catalog');
-    expect(list.querySelector('[data-settings-action="toggle-cli-codex"]')?.disabled).toBe(true);
-    expect(list.querySelector('[data-settings-action="test-cli-codex"]')?.disabled).toBe(true);
+    expect(list.querySelector<HTMLInputElement>('[data-settings-action="toggle-cli-codex"]')?.disabled).toBe(true);
+    expect(list.querySelector<HTMLButtonElement>('[data-settings-action="test-cli-codex"]')?.disabled).toBe(true);
   });
 });

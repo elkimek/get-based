@@ -67,7 +67,7 @@ for (const width of [760, 360]) {
       contentType: 'text/html', headers,
       body: `<html data-theme="light"><style>:root{--border:#d7dce4;--bg-secondary:#f7f8fa}body{margin:16px;font:14px system-ui}.settings-modal{max-width:680px;margin:auto}${css}</style><main class="settings-modal"><h2>AI settings</h2><div class="local-agent-list-kicker">Companion</div><iframe class="local-agent-management-frame" title="Companion controls" sandbox="allow-scripts allow-same-origin" src="${endpoint}/manage/embed?parentOrigin=${encodeURIComponent(parent)}&theme=light"></iframe></main></html>`,
     }));
-    // The host's origin/source validation is covered by cli-companion-ui.test.js.
+    // The host's origin/source validation is covered by cli-companion-ui.test.ts.
     // Capture the embedded panel's size-only message to verify its browser layout.
     await page.addInitScript(() => {
       window.addEventListener('message', event => {

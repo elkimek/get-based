@@ -1,4 +1,15 @@
-// @ts-check
+import type { AgentModel } from './agent-model-catalog.js';
+import type { AgentExecutionTarget } from './agent-chat-client.js';
+import type { DiscoveredAgent } from './agent-host-discovery.js';
+
+type CompanionPlatform = 'linux' | 'macos' | 'windows';
+interface CompanionLocation { origin?: string; hostname?: string }
+interface CompanionNavigator { userAgentData?: { platform?: string }; platform?: string; userAgent?: string }
+interface AgentPickerConfig {
+  id: string; label: string; value: string; options: Array<{ value: string; label: string }>;
+  action: string; disabled?: boolean; searchable?: boolean; placeholder?: string;
+}
+
 // settings-cli-agent-panel.js — Settings → AI → CLI agents rendering/actions.
 
 import { controlAgentHost, listAgentExecutionTargets, listAgentModels } from './agent-chat-client.js';
@@ -20,18 +31,13 @@ import {
 } from './agent-chat-settings.js';
 import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 
-/** @typedef {{reasoningEffort: string, description: string}} AgentReasoningEffort */
-/** @typedef {{id: string, model: string, displayName: string, description?: string, isDefault: boolean, defaultReasoningEffort: string, supportedReasoningEfforts: AgentReasoningEffort[], inputModalities?: string[]}} AgentModel */
-
-/** @type {AgentModel[]} */
-let agentModels = [];
-/** @type {Array<{id: string, label: string, description?: string, kind?: string, status?: string, message?: string, supportsLocalTools?: boolean}>} */
-let agentTargets = [];
+let agentModels: AgentModel[] = [];
+let agentTargets: AgentExecutionTarget[] = [];
 let agentModelsAgentId = '';
 let agentModelsTargetId = '';
 let agentProviderFilter = '';
 let hydratedAgentId = '';
-const collapsedAgentOptions = new Set();
+const collapsedAgentOptions = new Set<string>();
 
 export function toggleCLIAgentOptions() {
   const button = document.querySelector('[data-settings-action="toggle-cli-agent-options"]');
@@ -42,23 +48,20 @@ export function toggleCLIAgentOptions() {
   if (options.hidden) collapsedAgentOptions.add(getAgentHostAgent());
   else collapsedAgentOptions.delete(getAgentHostAgent());
 }
-/** @type {'linux'|'macos'|'windows'|''} */
-let companionPlatformOverride = '';
+let companionPlatformOverride: CompanionPlatform | '' = '';
 
-/** @param {{userAgentData?: {platform?: string}, platform?: string, userAgent?: string}} [navigatorLike] */
-export function detectCompanionPlatform(navigatorLike = globalThis.navigator || {}) {
+export function detectCompanionPlatform(navigatorLike: CompanionNavigator = globalThis.navigator || {}) {
   const value = String(navigatorLike.userAgentData?.platform || navigatorLike.platform || navigatorLike.userAgent || '').toLowerCase();
-  if (value.includes('win')) return /** @type {const} */ ('windows');
-  if (value.includes('mac')) return /** @type {const} */ ('macos');
-  return /** @type {const} */ ('linux');
+  if (value.includes('win')) return ('windows' as const);
+  if (value.includes('mac')) return ('macos' as const);
+  return ('linux' as const);
 }
 
-function getCompanionDownloadOrigin(location = {}) {
+function getCompanionDownloadOrigin(location: CompanionLocation = {}) {
   return String(location.origin ?? globalThis.location?.origin ?? 'https://app.getbased.health').replace(/\/$/, '');
 }
 
-/** @param {'linux'|'macos'|'windows'} platform @param {'run'|'install'|'start'} action @param {{origin?: string}} [location] */
-export function getCompanionCommand(platform, action, location = {}) {
+export function getCompanionCommand(platform: CompanionPlatform, action: 'run' | 'install' | 'start', location: CompanionLocation = {}) {
   const url = `${getCompanionDownloadOrigin(location)}/getbased-companion.mjs`;
   if (platform === 'windows') {
     return `$ErrorActionPreference='Stop'; $p=Join-Path $env:TEMP 'getbased-companion.mjs'; Invoke-WebRequest '${url}' -OutFile $p; node $p ${action}`;
@@ -66,19 +69,11 @@ export function getCompanionCommand(platform, action, location = {}) {
   return `curl -fsSL '${url}' -o "\${TMPDIR:-/tmp}/getbased-companion.mjs" && node "\${TMPDIR:-/tmp}/getbased-companion.mjs" ${action}`;
 }
 
-/**
- * @param {{hostname?: string, origin?: string}} [location]
- */
-export function getLinuxCompanionInstallCommand(location = {}) {
+export function getLinuxCompanionInstallCommand(location: CompanionLocation = {}) {
   return getCompanionCommand('linux', 'install', location);
 }
 
-/**
- * Run the same auditable bundle only for the lifetime of the terminal. Hosted
- * pages download it to the operating system's temporary directory.
- * @param {{hostname?: string, origin?: string}} [location]
- */
-export function getLinuxCompanionRunCommand(location = {}) {
+export function getLinuxCompanionRunCommand(location: CompanionLocation = {}) {
   return getCompanionCommand('linux', 'run', location);
 }
 
@@ -106,10 +101,9 @@ function renderCompanionSetup() {
   </div>`;
 }
 
-/** @param {string} platform */
-export function setCLICompanionPlatform(platform) {
+export function setCLICompanionPlatform(platform: string) {
   if (!['linux', 'macos', 'windows'].includes(platform)) return;
-  companionPlatformOverride = /** @type {'linux'|'macos'|'windows'} */ (platform);
+  companionPlatformOverride = (platform as CompanionPlatform);
   const card = document.querySelector('.local-agent-install-card');
   if (card) card.outerHTML = renderCompanionSetup();
 }
@@ -145,8 +139,7 @@ export async function copyCLICompanionUpdateCommand() {
   }
 }
 
-/** @param {string} agentId */
-export async function copyCLIAgentLoginCommand(agentId) {
+export async function copyCLIAgentLoginCommand(agentId: string) {
   const command = agentId === 'claude' ? 'claude auth login --console' : agentId === 'codex' ? 'codex login' : '';
   if (!command) return;
   try {
@@ -180,21 +173,14 @@ export function renderCLIAgentProviderPanel() {
     </div>`;
 }
 
-/** @param {AgentModel[]} models @param {string} selectedModel */
-function selectedModelEntry(models, selectedModel) {
+function selectedModelEntry(models: AgentModel[], selectedModel: string) {
   return models.find(model => model.id === selectedModel || model.model === selectedModel)
     || models.find(model => model.isDefault)
     || models[0]
     || null;
 }
 
-/**
- * Render an in-page picker instead of a native select. Some Linux/Chromium
- * combinations open a native select beneath the pointer on mouse-down, then
- * immediately choose that option on mouse-up.
- * @param {{id: string, label: string, value: string, options: {value: string, label: string}[], action: string, disabled?: boolean, searchable?: boolean, placeholder?: string}} config
- */
-function renderAgentPicker(config) {
+function renderAgentPicker(config: AgentPickerConfig) {
   const selected = config.options.find(option => option.value === config.value)
     || (!config.value && !config.placeholder ? config.options[0] : null);
   const selectedLabel = selected?.label || config.placeholder || '';
@@ -210,8 +196,7 @@ function renderAgentPicker(config) {
     </details>`;
 }
 
-/** @param {string} agentId @param {AgentModel | null} model */
-export function getCLIAgentModelProvider(agentId, model) {
+export function getCLIAgentModelProvider(agentId: string, model: Pick<Partial<AgentModel>, 'id' | 'model'> | null) {
   const id = String(model?.id || model?.model || '');
   if (agentId === 'opencode' || agentId === 'openclaw') return id.includes('/') ? id.slice(0, id.indexOf('/')) : '';
   if (agentId === 'hermes') {
@@ -224,9 +209,8 @@ export function getCLIAgentModelProvider(agentId, model) {
   return '';
 }
 
-/** @param {string} provider */
-function agentProviderLabel(provider) {
-  const known = {
+function agentProviderLabel(provider: string) {
+  const known: Record<string, string> = {
     opencode: 'OpenCode', openrouter: 'OpenRouter', anthropic: 'Anthropic',
     'openai-codex': 'OpenAI Codex', openai: 'OpenAI', 'custom:ollama': 'Ollama',
     openclaw: 'OpenClaw', 'opencode-free': 'OpenCode Free', 'opencode-zen': 'OpenCode Zen',
@@ -237,8 +221,7 @@ function agentProviderLabel(provider) {
     .map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`).join(' ');
 }
 
-/** @param {string} agentId @param {AgentModel} model */
-function agentModelLabel(agentId, model) {
+function agentModelLabel(agentId: string, model: AgentModel) {
   const provider = getCLIAgentModelProvider(agentId, model);
   let label = model.displayName || model.id || model.model;
   if (provider && label.includes('/')) label = label.slice(label.indexOf('/') + 1);
@@ -248,7 +231,7 @@ function agentModelLabel(agentId, model) {
   return `${label}${isFree && !label.toLowerCase().includes('free') ? ' · Free' : ''}`;
 }
 
-export function filterCLIAgentModelOptions(query) {
+export function filterCLIAgentModelOptions(query: unknown) {
   const root = document.getElementById('cli-agent-model-options');
   if (!root) return;
   const normalized = String(query || '').trim().toLowerCase();
@@ -263,14 +246,13 @@ export function filterCLIAgentModelOptions(query) {
   if (count) count.textContent = `${visible} ${visible === 1 ? 'model' : 'models'}`;
 }
 
-export function setCLIAgentProviderFilter(provider) {
+export function setCLIAgentProviderFilter(provider: unknown) {
   agentProviderFilter = String(provider || '').slice(0, 80);
   const options = document.getElementById('cli-agent-options');
   if (options?.isConnected) showAgentModelControls(options, agentModels);
 }
 
-/** @param {AgentModel[]} models */
-function renderAgentModelControls(models) {
+function renderAgentModelControls(models: AgentModel[]) {
   const agentId = getAgentHostAgent();
   const selectedTarget = getAgentHostTarget(agentId);
   const selectedModel = getAgentHostModel();
@@ -305,7 +287,7 @@ function renderAgentModelControls(models) {
   if (selectedEffort && !efforts.some(item => item.reasoningEffort === selectedEffort)) {
     effortOptions.push({ value: selectedEffort, label: `${selectedEffort} · unavailable` });
   }
-  const agentName = ({ codex: 'Codex CLI', claude: 'Claude Agent', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build', openclaw: 'OpenClaw' })[agentId] || 'the selected CLI';
+  const agentName = ({ codex: 'Codex CLI', claude: 'Claude Agent', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build', openclaw: 'OpenClaw' } as Record<string, string>)[agentId] || 'the selected CLI';
   const reasoningNote = !efforts.length && agentId === 'hermes'
     ? ' Hermes ACP does not expose a separate reasoning control yet, so getbased uses your Hermes setting.' : '';
   const targetOptions = agentTargets.map(target => ({
@@ -329,14 +311,12 @@ function renderAgentModelControls(models) {
   </div>`;
 }
 
-/** @param {HTMLElement} host @param {AgentModel[]} models */
-function showAgentModelControls(host, models) {
+function showAgentModelControls(host: HTMLElement, models: AgentModel[]) {
   host.classList.remove('local-agent-options-loading');
   host.innerHTML = renderAgentModelControls(models);
 }
 
-/** @param {{id: string, name: string, description: string, version: string, status: string, compatible: boolean, message: string, paused?: boolean, runtimeMode?: string, companionVersion?: string}} agent */
-function renderDetectedAgent(agent) {
+function renderDetectedAgent(agent: DiscoveredAgent) {
   const selected = agent.id === getAgentHostAgent() && getChatBackend() === 'codex';
   const isReady = agent.status === 'available';
   const expandable = selected && isReady;
@@ -369,8 +349,7 @@ function renderDetectedAgent(agent) {
     </div>`;
 }
 
-/** @param {{status: string, endpoint?: string, paused?: boolean, runtimeMode?: string, companionVersion?: string, capabilities?: string[], controlAuthorized?: boolean}} agent */
-function renderCompanionControls(agent) {
+function renderCompanionControls(agent: DiscoveredAgent) {
   const paused = agent.status === 'paused' || agent.paused === true;
   const installed = agent.runtimeMode === 'installed';
   const canControl = agent.capabilities?.includes(AGENT_HOST_CAPABILITIES.COMPANION_CONTROL) === true;
@@ -427,8 +406,7 @@ function renderCompanionControls(agent) {
   </div>`;
 }
 
-/** @param {{refresh?: boolean}} [options] */
-export async function refreshDetectedAgentList(options = {}) {
+export async function refreshDetectedAgentList(options: { refresh?: boolean | undefined } = {}) {
   const list = document.getElementById('local-agent-list');
   if (!list) return;
   const companionSection = document.getElementById('local-agent-companion-section');
@@ -452,10 +430,9 @@ export async function refreshDetectedAgentList(options = {}) {
   }
 }
 
-/** @param {string} requestedAction @returns {Promise<Record<string, unknown> | void>} */
-export async function controlCLICompanion(requestedAction) {
+export async function controlCLICompanion(requestedAction: string): Promise<Awaited<ReturnType<typeof controlAgentHost>> | void> {
   if (!['pause', 'resume', 'install', 'restart', 'restart-companion', 'update', 'uninstall'].includes(requestedAction)) return;
-  const action = /** @type {'pause'|'resume'|'install'|'restart'|'restart-companion'|'update'|'uninstall'} */ (requestedAction);
+  const action = (requestedAction as Parameters<typeof controlAgentHost>[0]['action']);
   if (action === 'uninstall' && !await showConfirmDialog(
     'Remove the getbased Companion from automatic startup? The current connection will remain available until this session ends.',
   )) return;
@@ -464,7 +441,7 @@ export async function controlCLICompanion(requestedAction) {
     const companion = agents.find(agent => agent.compatible
       && ['available', 'paused'].includes(agent.status) && agent.endpoint && agent.token);
     if (!companion) throw new Error('The getbased Companion is not running. Use the connection command first.');
-    const result = await controlAgentHost({ endpoint: companion.endpoint, token: companion.token, action });
+    const result = await controlAgentHost({ endpoint: companion.endpoint!, token: companion.token!, action });
     if (action === 'pause') {
       if (getChatBackend() === 'codex') setChatBackend('direct');
       showNotification('Companion paused. getbased switched to direct AI.', 'success');
@@ -564,8 +541,7 @@ export async function testLocalCodex(agentId = getAgentHostAgent()) {
   }
 }
 
-/** @param {boolean} enabled */
-export async function toggleLocalCodex(enabled, agentId = getAgentHostAgent()) {
+export async function toggleLocalCodex(enabled: boolean, agentId = getAgentHostAgent()) {
   agentId ||= getAgentHostAgent();
   if (!enabled) {
     setChatBackend('direct');
@@ -591,8 +567,7 @@ export async function toggleLocalCodex(enabled, agentId = getAgentHostAgent()) {
   await refreshDetectedAgentList();
 }
 
-/** @param {string} model */
-export async function setCLIAgentModel(model) {
+export async function setCLIAgentModel(model: string) {
   const agent = getAgentHostAgent();
   const target = getAgentHostTarget(agent);
   try {
@@ -619,8 +594,7 @@ export async function setCLIAgentModel(model) {
   }
 }
 
-/** @param {string} target */
-export async function setCLIAgentTarget(target) {
+export async function setCLIAgentTarget(target: string) {
   const agent = getAgentHostAgent();
   try {
     await connectDetectedAgent(agent);
@@ -657,8 +631,7 @@ export async function setCLIAgentTarget(target) {
   }
 }
 
-/** @param {string} effort */
-export async function setCLIAgentEffort(effort) {
+export async function setCLIAgentEffort(effort: string) {
   const agent = getAgentHostAgent();
   const target = getAgentHostTarget(agent);
   await saveAgentChatSettings({ effort });
@@ -672,12 +645,11 @@ export async function setCLIAgentEffort(effort) {
   }
 }
 
-/** @param {MessageEvent} event */
-export function resizeCLICompanionPanel(event) {
+export function resizeCLICompanionPanel(event: Pick<MessageEvent<{ type?: unknown; height?: unknown } | null | undefined>, 'data' | 'origin' | 'source'>) {
   if (event.data?.type !== 'getbased-companion-panel-size' || !Number.isFinite(event.data.height)) return;
-  const frame = /** @type {HTMLIFrameElement | null} */ (document.querySelector('.local-agent-management-frame'));
+  const frame = (document.querySelector('.local-agent-management-frame') as HTMLIFrameElement | null);
   if (!frame || event.source !== frame.contentWindow || event.origin !== new URL(frame.src).origin) return;
-  frame.style.height = `${Math.max(64, Math.min(800, Math.ceil(event.data.height)))}px`;
+  frame.style.height = `${Math.max(64, Math.min(800, Math.ceil(event.data.height as number)))}px`;
   const styles = getComputedStyle(frame);
   frame.contentWindow?.postMessage({
     type: 'getbased-companion-panel-theme',

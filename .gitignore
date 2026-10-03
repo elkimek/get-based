@@ -789,3 +789,5 @@ deploy/profile-share/data/
 /js/light-device-setup-modal.js
 /js/light-device-session-modal.js
 /js/light-device-modal-loader.js
+
+/js/settings-cli-agent-panel.js
