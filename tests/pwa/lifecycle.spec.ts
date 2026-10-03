@@ -1,9 +1,10 @@
+import type { Page } from '@playwright/test';
 import { expect, test } from '../playwright/coverage-fixture.js';
 import { startPwaServer } from './app-server.js';
 
 test.use({ serviceWorkers: 'allow' });
 
-async function openInstalledApp(page, origin) {
+async function openInstalledApp(page: Page, origin: string) {
   await page.addInitScript(() => {
     for (const key of ['emptyTour', 'tour']) localStorage.setItem(`labcharts-default-${key}`, 'completed');
     // This is an installed, returning-user scenario. The delayed first-visit
@@ -17,7 +18,7 @@ async function openInstalledApp(page, origin) {
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
   await expect(page.locator('#analytics-consent-banner')).toHaveCount(0);
   await page.evaluate(async () => {
-    window.endTour?.();
+    (window as typeof window & { endTour?: typeof import('../../js/tour.js').endTour }).endTour?.();
     (await import('/js/chat-panel.js')).closeChatPanel();
     (await import('/js/changelog.js')).closeChangelog();
   });
@@ -25,25 +26,25 @@ async function openInstalledApp(page, origin) {
 
 test('installed shell opens lazy features and reloads with the origin disconnected', async ({ page, baseURL, isMobile }) => {
   const server = await startPwaServer(baseURL);
-  const errors = [];
+  const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   try {
     await openInstalledApp(page, server.origin);
     await expect(page.locator('#version-update-banner')).toHaveCount(0);
     const manifest = await page.evaluate(async () => {
-      const url = document.querySelector('link[rel="manifest"]').href;
-      const body = await fetch(url).then(r => r.json());
-      return { ...body, iconsOk: await Promise.all(body.icons.map(icon => fetch(new URL(icon.src, url)).then(r => r.ok))) };
+      const url = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')!.href;
+      const body: unknown = await fetch(url).then(r => r.json());
+      return { ...body as Record<string, unknown>, iconsOk: await Promise.all((body as { icons: { src: string }[] }).icons.map(icon => fetch(new URL(icon.src, url)).then(r => r.ok))) };
     });
     expect(manifest).toMatchObject({ id: '/app', start_url: '/app', display: 'standalone', iconsOk: [true, true, true] });
     await server.disconnect();
     expect(await page.evaluate(() => fetch('/api/offline-proof').then(() => false, () => true))).toBe(true);
-    await page.locator('.settings-btn').evaluate(button => button.click());
+    await page.locator('.settings-btn').evaluate(button => (button as HTMLElement).click());
     await expect(page.locator('#settings-modal-overlay')).toHaveClass(/\bshow\b/);
     await expect(page.locator('#settings-modal .settings-layout')).toHaveCSS('display', isMobile ? 'flex' : 'grid');
     await page.locator('[data-settings-tab="wearables"]').click();
     await expect(page.locator('[data-tab-panel="wearables"]')).toHaveClass(/\bactive\b/);
-    await expect.poll(() => page.evaluate(() => [...document.querySelectorAll('#settings-modal img')]
+    await expect.poll(() => page.evaluate(() => [...document.querySelectorAll<HTMLImageElement>('#settings-modal img')]
       .filter(img => img.loading !== 'lazy' || img.getBoundingClientRect().top < innerHeight)
       .every(img => img.complete && img.naturalWidth > 0))).toBe(true);
     await page.evaluate(async () => {
@@ -81,22 +82,22 @@ test('failed update preserves the installed app; retry updates two tabs without 
     server.state.failPath = '/css/settings.css';
     const failedState = await page.evaluate(async () => {
       const registration = await navigator.serviceWorker.getRegistration();
-      const failed = new Promise(resolve => registration.addEventListener('updatefound', () => {
-        const worker = registration.installing;
-        worker.addEventListener('statechange', () => { if (worker.state === 'redundant') resolve(worker.state); });
+      const failed = new Promise(resolve => registration!.addEventListener('updatefound', () => {
+        const worker = registration!.installing;
+        worker!.addEventListener('statechange', () => { if (worker!.state === 'redundant') resolve(worker!.state); });
       }, { once: true }));
-      await registration.update();
+      await registration!.update();
       return failed;
     });
     expect(failedState).toBe('redundant');
-    expect(await page.evaluate(() => window.APP_BUILD_ID)).toBe('build-a');
+    expect(await page.evaluate(() => (window as typeof window & { APP_BUILD_ID?: unknown }).APP_BUILD_ID)).toBe('build-a');
     expect(await page.evaluate(() => localStorage.getItem('pwa-retained-data'))).toBe('retained');
     await expect(page.locator('#version-update-banner')).toHaveCount(0);
     // Worker state and registration.installing propagate separately across
     // browser processes. Require the slot to clear before triggering retry,
     // using the same lifecycle budget as installation/activation below.
     await expect.poll(() => page.evaluate(async () =>
-      (await navigator.serviceWorker.getRegistration()).installing?.state ?? 'none'
+      (await navigator.serviceWorker.getRegistration())!.installing?.state ?? 'none'
     ), { timeout: 30_000 }).toBe('none');
     server.state.failPath = '';
     server.state.holdPath = '/css/settings.css';
@@ -106,22 +107,22 @@ test('failed update preserves the installed app; retry updates two tabs without 
     });
     await expect.poll(() => server.state.held).toBeGreaterThan(0);
     await expect(page.locator('#version-update-banner')).toHaveCount(0);
-    expect(await page.evaluate(() => window.APP_BUILD_ID)).toBe('build-a');
+    expect(await page.evaluate(() => (window as typeof window & { APP_BUILD_ID?: unknown }).APP_BUILD_ID)).toBe('build-a');
     server.release();
     await expect(page.locator('#version-update-banner')).toBeVisible({ timeout: 30_000 });
     await expect(page.locator('[data-version-update-action="apply"]')).toHaveText('Reload');
     await page.locator('[data-version-update-action="dismiss"]').click();
-    expect(await page.evaluate(() => window.APP_BUILD_ID)).toBe('build-a');
+    expect(await page.evaluate(() => (window as typeof window & { APP_BUILD_ID?: unknown }).APP_BUILD_ID)).toBe('build-a');
     // A later visit offers the still-pending update again.
     await page.reload({ waitUntil: 'networkidle' });
     await expect(page.locator('#version-update-banner')).toBeVisible();
     await server.disconnect(); // Applying an already cached build needs no download.
     await page.locator('[data-version-update-action="apply"]').click();
-    await expect.poll(() => page.evaluate(() => window.APP_BUILD_ID).catch(() => null), { timeout: 30_000 }).toBe('build-b');
+    await expect.poll(() => page.evaluate(() => (window as typeof window & { APP_BUILD_ID?: unknown }).APP_BUILD_ID).catch(() => null), { timeout: 30_000 }).toBe('build-b');
     await expect(other.locator('#version-update-banner')).toContainText('Reload');
-    expect(await other.evaluate(() => window.APP_BUILD_ID)).toBe('build-a');
+    expect(await other.evaluate(() => (window as typeof window & { APP_BUILD_ID?: unknown }).APP_BUILD_ID)).toBe('build-a');
     await other.locator('[data-version-update-action="apply"]').click();
-    await expect.poll(() => other.evaluate(() => window.APP_BUILD_ID).catch(() => null), { timeout: 30_000 }).toBe('build-b');
+    await expect.poll(() => other.evaluate(() => (window as typeof window & { APP_BUILD_ID?: unknown }).APP_BUILD_ID).catch(() => null), { timeout: 30_000 }).toBe('build-b');
     // Build ID is stamped before async profile hydration finishes. Give both
     // offline reloads the same bounded lifecycle budget as worker activation.
     await expect(page.locator('html[data-app-ready]')).toBeAttached({ timeout: 30_000 });

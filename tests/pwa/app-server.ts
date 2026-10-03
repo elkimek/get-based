@@ -1,29 +1,30 @@
+import type { AddressInfo, Socket } from 'node:net';
 import http from 'node:http';
 
 // Give each test an isolated origin and controllable releases without rewriting
 // the checkout or routing through Playwright (which cannot intercept SW updates).
-export async function startPwaServer(upstream) {
+export async function startPwaServer(upstream: string | undefined) {
   const state = { version: '99.0.1', buildId: 'build-a', holdPath: '', held: 0, offline: false, failPath: '', production: true };
-  const sockets = new Set();
-  const heldResponses = [];
+  const sockets = new Set<Socket>();
+  const heldResponses: (() => http.ServerResponse)[] = [];
   const server = http.createServer((req, res) => {
     if (state.offline) { req.socket.destroy(); return; }
-    const pathname = new URL(req.url, 'http://localhost').pathname;
+    const pathname = new URL(req.url!, 'http://localhost').pathname;
     if (pathname === state.failPath) { res.writeHead(503); res.end('Unavailable'); return; }
     if (pathname === '/api/commit') {
       res.setHeader('content-type', 'application/json');
       res.end(JSON.stringify({ cacheKey: `pwa-${state.version}` }));
       return;
     }
-    const target = new URL(req.url, upstream);
+    const target = new URL(req.url!, upstream);
     const hold = pathname === state.holdPath;
     const rewrite = pathname === '/service-worker.js' || pathname === '/version.js';
-    const headers = { ...req.headers, host: target.host };
+    const headers: http.OutgoingHttpHeaders = { ...req.headers, host: target.host };
     if (rewrite) headers['accept-encoding'] = 'identity';
     const outgoing = http.request(target, { method: req.method, headers }, incoming => {
-      const headers = { ...incoming.headers, 'cache-control': 'no-store' };
+      const headers: http.OutgoingHttpHeaders = { ...incoming.headers, 'cache-control': 'no-store' };
       delete headers['content-length'];
-      res.writeHead(incoming.statusCode, headers);
+      res.writeHead(incoming.statusCode!, headers);
       if (rewrite) {
         let source = '';
         incoming.setEncoding('utf8');
@@ -45,12 +46,12 @@ export async function startPwaServer(upstream) {
     req.pipe(outgoing);
   });
   server.on('connection', socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  let closing;
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  let closing: Promise<Error | undefined> | undefined;
   const disconnect = () => {
     if (!closing) {
       state.offline = true;
-      closing = new Promise(resolve => server.close(resolve));
+      closing = new Promise<Error | undefined>(resolve => server.close(resolve));
       for (const socket of sockets) socket.destroy();
     }
     return closing;
@@ -59,7 +60,7 @@ export async function startPwaServer(upstream) {
     state,
     disconnect,
     release() { state.holdPath = ''; for (const resume of heldResponses.splice(0)) resume(); },
-    origin: `http://127.0.0.1:${server.address().port}`,
+    origin: `http://127.0.0.1:${(server.address() as Pick<AddressInfo, 'port'>).port}`,
     close: disconnect,
   };
 }
