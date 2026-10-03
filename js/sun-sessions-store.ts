@@ -1,4 +1,3 @@
-// @ts-check
 // sun-sessions-store.js — persisted Sun session lifecycle, hydration, and safety.
 //
 // This module owns importedData.sunSessions[] CRUD and dose hydration. UI flows
@@ -19,25 +18,61 @@ import {
 } from './sun-session-model.js';
 import { createUniqueId } from './unique-id.js';
 
-/**
- * @typedef {object} SunSessionsStoreDeps
- * @property {(sess: any) => void} commitCurrentSlice
- * @property {(id: any, state: any) => void} setLiveState
- * @property {(id: any) => void} clearLiveState
- * @property {(ms: number) => string} formatElapsed
- * @property {(session: any) => void} maybeAnalyzeSessionAfterFinish
- * @property {(opts: any) => Promise<any>} fetchAtmosphere
- * @property {(opts: any) => any} reconstructSpectrum
- * @property {(opts: any) => any} computeChannelDoses
- * @property {(opts: any) => number} erythemalSED
- * @property {(opts: any) => number} fractionOfMED
- * @property {(opts: any) => number} retinalUVdose
- * @property {(date: Date, lat: number, lon: number) => number} solarZenithAngle
- * @property {(skinType: string) => string | null} skinTypeToFitzpatrick
- */
+import type { AtmosphereSnapshot } from './sun-uvdata-atmosphere.js';
+import type { UVDataClient } from './sun-uvdata-client-types.js';
+import type * as spectrumMath from './sun-spectrum.js';
+import type { SpectrumEyeExposure } from './sun-spectrum.js';
+import type { SpectralDistribution } from './sun-spectrum-device.js';
+import type { SunSessionExposureInput } from './sun-session-model.js';
 
-/** @type {SunSessionsStoreDeps} */
-const storeDeps = {
+// Persisted records remain unvalidated. These are the fields the lifecycle
+// consumes; imported records can omit derived outputs and exposure details.
+type SessionAtmosphere = Partial<AtmosphereSnapshot> & {
+  _uvOverridden?: boolean; _cloudOverridden?: boolean; _ozoneOverridden?: boolean;
+};
+type SessionDoses = Record<string, number>;
+type SessionEyeExposure = { mode?: string; lensTint?: string; durationSec?: number | null };
+interface ExposureSegment {
+  durationMin?: number; sed?: number; ocularActinicUV?: number; retinalUV?: number;
+  doses?: SessionDoses | null; atmosphere?: SessionAtmosphere | null;
+}
+export interface SunSessionRecord extends Omit<SunSessionExposureInput, 'bodyExposure' | 'eyeExposure'> {
+  id: string; startedAt: number; endedAt?: number | null; durationMin?: number;
+  updatedAt?: number; location?: { lat?: number; lon?: number; altitudeM?: number } | null;
+  bodyExposure?: NonNullable<SunSessionExposureInput['bodyExposure']> & { preset?: string; regions?: string[] } | null;
+  eyeExposure?: SessionEyeExposure | null;
+  atmosphere?: SessionAtmosphere | null; doses?: SessionDoses | null;
+  safety?: Partial<ReturnType<typeof sessionSafety>> | null;
+  exposureSegments?: ExposureSegment[]; accumulatedPausedMs?: number;
+  paused?: boolean; pausedAt?: number; engineVersion?: number; calculationStatus?: string;
+  notes?: string; aiAnalysis?: unknown;
+  [key: string]: unknown;
+  _activeRate?: unknown; _activeRatePending?: unknown; _fractionOfMED?: unknown;
+}
+interface SunSessionsStoreDeps {
+  commitCurrentSlice(session: SunSessionRecord): void;
+  setLiveState(id: string, state: { ratePerMin: null }): void;
+  clearLiveState(id: string): void;
+  formatElapsed(ms: number): string;
+  maybeAnalyzeSessionAfterFinish(session: SunSessionRecord): unknown;
+  fetchAtmosphere(options: Parameters<UVDataClient['fetchAtmosphere']>[0]): Promise<SessionAtmosphere | null>;
+  reconstructSpectrum(options: Parameters<typeof spectrumMath.reconstructSpectrum>[0]): SpectralDistribution | null;
+  computeChannelDoses(options: Parameters<typeof spectrumMath.computeChannelDoses>[0]): SessionDoses;
+  erythemalSED: typeof spectrumMath.erythemalSED;
+  fractionOfMED: typeof spectrumMath.fractionOfMED;
+  retinalUVdose: typeof spectrumMath.retinalUVdose;
+  solarZenithAngle: UVDataClient['solarZenithAngle'];
+  skinTypeToFitzpatrick(skinType: string): string | null;
+}
+interface StartSessionOptions {
+  exposurePreset?: string; regions?: string[]; eyeMode?: string; lensTint?: string;
+  glassBetween?: boolean; location?: SunSessionRecord['location']; posture?: string;
+  surfaceAlbedo?: string; rotatedSides?: boolean;
+}
+type SessionCoordinates = { lat?: number | undefined; lon?: number | undefined };
+type SessionPatch = Partial<Pick<SunSessionRecord, 'durationMin' | 'endedAt' | 'notes'>>;
+
+const storeDeps: SunSessionsStoreDeps = {
   commitCurrentSlice: () => {},
   setLiveState: () => {},
   clearLiveState: () => {},
@@ -53,8 +88,7 @@ const storeDeps = {
   skinTypeToFitzpatrick: (skinType) => (String(skinType || '').match(/^(I{1,3}|IV|VI?)\b/) || [])[1] || null,
 };
 
-/** @param {Partial<SunSessionsStoreDeps>} [deps] */
-export function configureSunSessionsStore(deps = {}) {
+export function configureSunSessionsStore(deps: Partial<SunSessionsStoreDeps> = {}) {
   Object.assign(storeDeps, deps);
 }
 
@@ -62,17 +96,17 @@ async function persistSessionChanges() {
   if (await saveImportedData() === false) throw new Error('Sun session could not be saved');
 }
 
-function runSessionAnalysis(session) {
+function runSessionAnalysis(session: SunSessionRecord) {
   try { Promise.resolve(storeDeps.maybeAnalyzeSessionAfterFinish(session)).catch(() => {}); } catch (_) {}
 }
 
-export function getSessions() {
+export function getSessions(): SunSessionRecord[] {
   if (!state.importedData) return [];
   if (!Array.isArray(state.importedData.sunSessions)) state.importedData.sunSessions = [];
   // Strip runtime-only ticker fields that earlier dev builds may have
   // accidentally persisted onto session objects. One-time cleanup on
   // first read; no-op on records written after the fix.
-  for (const sess of state.importedData.sunSessions) {
+  for (const sess of state.importedData.sunSessions as SunSessionRecord[]) {
     if (sess && (sess._activeRate || sess._activeRatePending || sess._fractionOfMED)) {
       delete sess._activeRate;
       delete sess._activeRatePending;
@@ -90,23 +124,10 @@ export function getActiveSession() {
 // Accepts either an `exposurePreset` (legacy 4-preset coarse buckets) or a
 // `regions` array (anatomical-region picker output). Regions take priority
 // when both are supplied — fraction is computed by summing region fractions.
-/**
- * @param {{
- *   exposurePreset?: string,
- *   regions?: string[],
- *   eyeMode?: string,
- *   lensTint?: string,
- *   glassBetween?: boolean,
- *   location?: any,
- *   posture?: string,
- *   surfaceAlbedo?: string,
- *   rotatedSides?: boolean
- * }} [opts]
- */
-export async function startSession({ exposurePreset = 'face_hands', regions, eyeMode = 'direct', lensTint = 'clear', glassBetween = false, location, posture = 'standing', surfaceAlbedo = 'grass', rotatedSides = false } = {}) {
+export async function startSession({ exposurePreset = 'face_hands', regions, eyeMode = 'direct', lensTint = 'clear', glassBetween = false, location, posture = 'standing', surfaceAlbedo = 'grass', rotatedSides = false }: StartSessionOptions = {}) {
   const id = createUniqueId('sun_');
 
-  let preset, fraction, regionsArr;
+  let preset, fraction, regionsArr: string[];
   // If the caller explicitly supplied a regions array, honor it strictly.
   // An empty array means "the user picked nothing" — silently substituting
   // a face_hands preset would record a phantom exposure.
@@ -117,12 +138,12 @@ export async function startSession({ exposurePreset = 'face_hands', regions, eye
     fraction = bodyFractionForRegions(regionsArr);
     preset = { key: 'detailed' };
   } else {
-    preset = EXPOSURE_PRESETS.find(p => p.key === exposurePreset) || EXPOSURE_PRESETS[0];
+    preset = EXPOSURE_PRESETS.find(p => p.key === exposurePreset) || EXPOSURE_PRESETS[0]!;
     fraction = preset.fraction;
     regionsArr = [];
   }
 
-  const session = {
+  const session: SunSessionRecord = {
     id,
     startedAt: Date.now(),
     endedAt: null,
@@ -146,7 +167,7 @@ export async function startSession({ exposurePreset = 'face_hands', regions, eye
 }
 
 // Stop an in-progress session and (optionally) compute doses.
-export async function stopSession(id) {
+export async function stopSession(id: string) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess) return null;
   if (sess.endedAt) {
@@ -156,12 +177,12 @@ export async function stopSession(id) {
   const now = Date.now();
   if (!sess.paused) storeDeps.commitCurrentSlice(sess);
   if (sess.paused && Number.isFinite(sess.pausedAt)) {
-    sess.accumulatedPausedMs = (sess.accumulatedPausedMs || 0) + Math.max(0, now - sess.pausedAt);
+    sess.accumulatedPausedMs = (sess.accumulatedPausedMs || 0) + Math.max(0, now - sess.pausedAt!);
   }
   sess.endedAt = now;
   sess.paused = false;
   delete sess.pausedAt;
-  const activeMs = Math.max(0, (sess.endedAt - sess.startedAt) - (sess.accumulatedPausedMs || 0));
+  const activeMs = Math.max(0, (sess.endedAt! - sess.startedAt) - (sess.accumulatedPausedMs || 0));
   const durationMin = activeMs / 60000;
   sess.durationMin = durationMin;
   sess.calculationStatus = 'pending';
@@ -184,9 +205,9 @@ export async function stopSession(id) {
 }
 
 // Log a completed session in one shot (after-the-fact entry).
-export async function logCompletedSession(payload) {
+export async function logCompletedSession(payload: Partial<SunSessionRecord>) {
   const id = createUniqueId('sun_');
-  const session = Object.assign({
+  const session: SunSessionRecord = Object.assign({
     id,
     startedAt: payload.startedAt || Date.now(),
     endedAt: payload.endedAt || Date.now(),
@@ -200,14 +221,14 @@ export async function logCompletedSession(payload) {
     exposureSegments: payload.exposureSegments || [],
     accumulatedPausedMs: payload.accumulatedPausedMs || 0,
   }, payload);
-  if (!session.durationMin) session.durationMin = Math.max(0, (session.endedAt - session.startedAt) / 60000);
+  if (!session.durationMin) session.durationMin = Math.max(0, (session.endedAt! - session.startedAt) / 60000);
   session.calculationStatus = session.location ? 'pending' : 'needs-location';
   getSessions().push(session);
   await persistSessionChanges();
   return id;
 }
 
-export async function deleteSession(id) {
+export async function deleteSession(id: string) {
   const sessions = getSessions();
   const idx = sessions.findIndex(s => s.id === id);
   if (idx < 0) return false;
@@ -222,7 +243,7 @@ export async function deleteSession(id) {
 // session paused so future ticks contribute zero. Active ticker
 // continues for elapsed display + UI state but stops accruing dose.
 // Idempotent — calling on an already-paused session is a no-op.
-export async function pauseSession(id) {
+export async function pauseSession(id: string) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || sess.endedAt) return null;
   if (sess.paused) return sess;
@@ -239,7 +260,7 @@ export async function pauseSession(id) {
 
 // Resume a paused session — clears paused flag and the ticker re-snapshots
 // with current atmosphere on the next pass. New slice begins from now.
-export async function resumeSession(id) {
+export async function resumeSession(id: string) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || sess.endedAt || !sess.paused) return null;
   const now = Date.now();
@@ -251,14 +272,20 @@ export async function resumeSession(id) {
   return sess;
 }
 
-function markSessionEdited(sess) {
+function resetSessionCalculation(sess: SunSessionRecord) {
+  sess.doses = null;
+  sess.safety = null;
+  sess.atmosphere = null;
+}
+
+function markSessionEdited(sess: SunSessionRecord) {
   sess.updatedAt = Date.now();
 }
 
-function normalizedRegionList(regions) {
+function normalizedRegionList(regions: unknown) {
   if (!Array.isArray(regions)) return [];
   const allowed = new Set(BODY_REGIONS.map(r => r.key));
-  const out = [];
+  const out: string[] = [];
   for (const key of regions) {
     if (typeof key !== 'string' || !allowed.has(key) || out.includes(key)) continue;
     out.push(key);
@@ -266,21 +293,21 @@ function normalizedRegionList(regions) {
   return out;
 }
 
-function bodyFractionForRegions(regions) {
+function bodyFractionForRegions(regions: string[]) {
   return regions.reduce((sum, key) => {
     const r = BODY_REGIONS.find(b => b.key === key);
     return sum + (r?.fraction || 0);
   }, 0);
 }
 
-async function persistExposureEdit(sess) {
+async function persistExposureEdit(sess: SunSessionRecord) {
   markSessionEdited(sess);
   storeDeps.setLiveState(sess.id, { ratePerMin: null });
   await persistSessionChanges();
   return sess;
 }
 
-export async function markSessionRotated(id) {
+export async function markSessionRotated(id: string) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || sess.endedAt) return null;
   if (!sess.bodyExposure) sess.bodyExposure = {};
@@ -290,7 +317,7 @@ export async function markSessionRotated(id) {
   return persistExposureEdit(sess);
 }
 
-export async function setSessionSunscreen(id, spf) {
+export async function setSessionSunscreen(id: string, spf: unknown) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || sess.endedAt) return null;
   const nextSpf = Number(spf);
@@ -301,7 +328,7 @@ export async function setSessionSunscreen(id, spf) {
   return persistExposureEdit(sess);
 }
 
-export async function setSessionCoverage(id, regions) {
+export async function setSessionCoverage(id: string, regions: unknown) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess || sess.endedAt) return null;
   const nextRegions = normalizedRegionList(regions);
@@ -324,7 +351,7 @@ export async function setSessionCoverage(id, regions) {
 // re-derive doses + safety via hydrateSession so the per-channel
 // breakdown reflects the new duration. Doses are downstream of duration,
 // so leaving them stale would silently misrepresent the session.
-export async function updateSession(id, patch) {
+export async function updateSession(id: string, patch: SessionPatch) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess) return null;
   const isCurrent = sessionOwnership(sess);
@@ -336,7 +363,7 @@ export async function updateSession(id, patch) {
   for (const k of Object.keys(patch)) {
     if (!ALLOWED.includes(k)) continue;
     if (k === 'durationMin' || k === 'endedAt') durationChanged = true;
-    sess[k] = patch[k];
+    (sess as Record<string, unknown>)[k] = (patch as Record<string, unknown>)[k];
   }
   // Keep durationMin and endedAt consistent — the consumer of either
   // shouldn't have to compute the other. If only one was patched, derive
@@ -344,7 +371,7 @@ export async function updateSession(id, patch) {
   if (patch.durationMin != null && patch.endedAt == null) {
     sess.endedAt = sess.startedAt + patch.durationMin * 60000;
   } else if (patch.endedAt != null && patch.durationMin == null) {
-    sess.durationMin = Math.max(0, (sess.endedAt - sess.startedAt) / 60000);
+    sess.durationMin = Math.max(0, (sess.endedAt! - sess.startedAt) / 60000);
   }
   if (durationChanged) {
     _hydrateRequests.delete(sess);
@@ -356,9 +383,7 @@ export async function updateSession(id, patch) {
     // Duration is an input to every modeled light and safety value. Never
     // persist the edited time beside estimates derived from the old time,
     // even briefly: the network-backed recalculation may be slow or fail.
-    sess.doses = null;
-    sess.safety = null;
-    sess.atmosphere = null;
+    resetSessionCalculation(sess);
     delete sess.aiAnalysis;
     delete sess.engineVersion;
     sess.calculationStatus = sess.location ? 'pending' : 'needs-location';
@@ -366,7 +391,7 @@ export async function updateSession(id, patch) {
   // Eye-exposure duration mirrors session duration when not explicitly
   // shorter (eye open the whole time vs eyes closed for some interval).
   if (durationChanged && sess.eyeExposure && sess.eyeExposure.durationSec != null) {
-    sess.eyeExposure.durationSec = Math.round(sess.durationMin * 60);
+    sess.eyeExposure.durationSec = Math.round(sess.durationMin! * 60);
   }
   markSessionEdited(sess);
   await persistSessionChanges();
@@ -385,11 +410,11 @@ export async function updateSession(id, patch) {
 }
 
 // Key work by record identity, so a new profile reusing an id cannot inherit it.
-const _hydrateInFlight = new Map();
-const _hydrateRequests = new WeakMap();
+const _hydrateInFlight = new Map<SunSessionRecord, Promise<SunSessionRecord | null>>();
+const _hydrateRequests = new WeakMap<SunSessionRecord, object>();
 let _storeGeneration = 0;
 
-function sessionOwnership(sess) {
+function sessionOwnership(sess: SunSessionRecord) {
   const data = state.importedData;
   const profile = state.currentProfile;
   const generation = _storeGeneration;
@@ -398,7 +423,7 @@ function sessionOwnership(sess) {
     && data?.sunSessions?.includes(sess);
 }
 
-function _runHydrateSession(id, coords, { queueAfterExisting = false, warnContext = 'hydrateSession failed' } = {}) {
+function _runHydrateSession(id: string, coords: SessionCoordinates, { queueAfterExisting = false, warnContext = 'hydrateSession failed' } = {}) {
   const sess = getSessions().find(s => s.id === id);
   if (!sess) return Promise.resolve(null);
   const isCurrent = sessionOwnership(sess);
@@ -468,7 +493,7 @@ export const SUN_ENGINE_VERSION = 9;
 // Override advanced scenario inputs when present in sunDefaults. Manual UVI
 // was retired: old saved `overrides.uvIndex` values are intentionally ignored
 // so a hidden legacy value cannot alter current UV or session dose math.
-export function _applyAtmOverrides(atm) {
+export function _applyAtmOverrides<T extends SessionAtmosphere | null | undefined>(atm: T) {
   if (!atm) return atm;
   const ov = state.importedData?.sunDefaults?.overrides;
   const out = { ...atm };
@@ -479,10 +504,10 @@ export function _applyAtmOverrides(atm) {
   return out;
 }
 
-function sessionSafety(sed, ocularActinicUV, fractionOfMED) {
+function sessionSafety(sed: number, ocularActinicUV: number, fractionOfMED: SunSessionsStoreDeps['fractionOfMED']) {
   const lcSkin = state.importedData?.lightCircadian?.skinType;
   const lcRoman = lcSkin && storeDeps.skinTypeToFitzpatrick(lcSkin);
-  const configuredFitzpatrick = state.importedData?.sunDefaults?.fitzpatrick || lcRoman || null;
+  const configuredFitzpatrick: string | null = state.importedData?.sunDefaults?.fitzpatrick || lcRoman || null;
   const fitzpatrick = configuredFitzpatrick || 'I';
   const psmTier = _normalizePSMTier(state.importedData?.sunDefaults?.photosensitiveMeds);
   const medScale = photosensitiveMedScale(psmTier);
@@ -499,12 +524,12 @@ function sessionSafety(sed, ocularActinicUV, fractionOfMED) {
   };
 }
 
-async function finalizeSegmentedSession(sess, fractionOfMED) {
+async function finalizeSegmentedSession(sess: SunSessionRecord, fractionOfMED: SunSessionsStoreDeps['fractionOfMED']) {
   const segments = Array.isArray(sess.exposureSegments)
     ? sess.exposureSegments.filter(segment => segment && Number(segment.durationMin) > 0)
     : [];
   if (segments.length === 0) return null;
-  const doses = {};
+  const doses: SessionDoses = {};
   let sed = 0;
   let ocularActinicUV = 0;
   let durationMin = 0;
@@ -527,15 +552,14 @@ async function finalizeSegmentedSession(sess, fractionOfMED) {
   return sess;
 }
 
-/** @param {{ lat?: number, lon?: number }} [coords] */
-export async function hydrateSession(id, coords = {}) {
+export async function hydrateSession(id: string, coords: SessionCoordinates = {}) {
   const { lat, lon } = coords;
   const sess = getSessions().find(s => s.id === id);
   if (!sess || !sess.endedAt) return null;
   const ownsSession = sessionOwnership(sess);
   const request = {};
   _hydrateRequests.set(sess, request);
-  let inputKey;
+  let inputKey: string;
   const isCurrent = () => ownsSession() && _hydrateRequests.get(sess) === request
     && sunSessionInputKey(sess, state.importedData) === inputKey;
   const {
@@ -558,9 +582,7 @@ export async function hydrateSession(id, coords = {}) {
   const useLat = lat ?? sess.location?.lat;
   const useLon = lon ?? sess.location?.lon;
   if (useLat == null || useLon == null) {
-    sess.doses = null;
-    sess.safety = null;
-    sess.atmosphere = null;
+    resetSessionCalculation(sess);
     sess.calculationStatus = 'needs-location';
     await persistSessionChanges();
     return null;
@@ -568,15 +590,13 @@ export async function hydrateSession(id, coords = {}) {
   // A hydrate call means the existing derived snapshot is no longer trusted.
   // Hide it while atmosphere + spectrum inputs are recomputed so the UI can
   // never pair a new input with an old dose or burn estimate.
-  sess.doses = null;
-  sess.safety = null;
-  sess.atmosphere = null;
+  resetSessionCalculation(sess);
   sess.calculationStatus = 'pending';
   await persistSessionChanges();
   if (!isCurrent()) return null;
   const altitudeM = sess.location?.altitudeM ?? 0;
   try {
-    const midpoint = new Date((sess.startedAt + sess.endedAt) / 2).toISOString();
+    const midpoint = new Date((sess.startedAt + sess.endedAt!) / 2).toISOString();
     let atm = await fetchAtmosphere({ lat: useLat, lon: useLon, isoTime: midpoint });
     if (!isCurrent()) return null;
     if (!atm) {
@@ -603,14 +623,14 @@ export async function hydrateSession(id, coords = {}) {
     const exposure = sunSessionExposure(sess);
     sess.doses = computeChannelDoses({
       spectrum,
-      durationMin: sess.durationMin,
+      durationMin: sess.durationMin!,
       ...exposure,
-    });
+    } as Parameters<typeof spectrumMath.computeChannelDoses>[0]);
     const sed = erythemalSED({
       spectrum,
-      durationMin: sess.durationMin,
+      durationMin: sess.durationMin!,
       ...exposure,
-    });
+    } as Parameters<typeof spectrumMath.erythemalSED>[0]);
     // Read from one of two places, in priority order:
     //   1. sunDefaults.fitzpatrick (Light setup card)
     //   2. lightCircadian.skinType (Light & Circadian context card)
@@ -618,7 +638,7 @@ export async function hydrateSession(id, coords = {}) {
     // has not configured a skin type. The UI marks this as an assumption.
     const ocularActinicUV = retinalUVdose({
       spectrum,
-      eyeExposure: exposure.eyeExposure,
+      eyeExposure: exposure.eyeExposure as SpectrumEyeExposure | null,
       zenithDeg: zenith,
       glassBetween: exposure.bodyModifiers.glassBetween,
     });
@@ -634,9 +654,7 @@ export async function hydrateSession(id, coords = {}) {
   } catch (e) {
     if (!isCurrent()) return null;
     globalThis.console?.warn?.('hydrateSession failed', e);
-    sess.doses = null;
-    sess.safety = null;
-    sess.atmosphere = null;
+    resetSessionCalculation(sess);
     delete sess.engineVersion;
     sess.calculationStatus = 'calculation-error';
     await persistSessionChanges();
@@ -682,7 +700,7 @@ export async function rehydrateStaleSessions() {
     if (state.importedData !== data || state.currentProfile !== profile || generation !== _storeGeneration) break;
     if (!sessions.includes(s)) continue;
     try {
-      const result = await _runHydrateSession(s.id, { lat: s.location.lat, lon: s.location.lon }, {
+      const result = await _runHydrateSession(s.id, { lat: s.location!.lat, lon: s.location!.lon }, {
         warnContext: `rehydrateStaleSessions: ${s.id}`,
       });
       if (result) ok++;

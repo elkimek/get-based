@@ -101,7 +101,7 @@ const {
     sun.vitaminDBudgetStatus === sunChannelMetrics.vitaminDBudgetStatus);
   {
     const sunSrc = read('js/sun.js');
-    const storeSrc = read('js/sun-sessions-store.js');
+    const storeSrc = read('js/sun-sessions-store.ts');
     assert('mid-session sunSession writes are owned by sun-sessions-store.js',
       !/sess\.bodyExposure\.(?:rotatedSides|sunscreenSPF|regions|fraction|preset)\s*=/.test(sunSrc)
         && storeSrc.includes('export async function markSessionRotated')
@@ -653,7 +653,7 @@ const {
   const metricsSrc = await fs.readFile(new URL('../js/sun-channel-metrics.js', import.meta.url), 'utf8');
   const locationSrc = await fs.readFile(new URL('../js/sun-location.js', import.meta.url), 'utf8');
   const modelSrc = await fs.readFile(new URL('../js/sun-session-model.js', import.meta.url), 'utf8');
-  const storeSrc = await fs.readFile(new URL('../js/sun-sessions-store.js', import.meta.url), 'utf8');
+  const storeSrc = await fs.readFile(new URL('../js/sun-sessions-store.ts', import.meta.url), 'utf8');
   const runtimeSrc = await fs.readFile(new URL('../js/sun-runtime.js', import.meta.url), 'utf8');
   const appLightSunSrc = await fs.readFile(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');
   const aiHooksSrc = await fs.readFile(new URL('../js/light-sun-ai-hooks.js', import.meta.url), 'utf8');
