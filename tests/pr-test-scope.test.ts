@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
-import { createTestPlan, fileReferences, testCommands } from '../scripts/pr-test-scope.mjs';
+import { createTestPlan, fileReferences, testCommands, validationCommands } from '../scripts/pr-test-scope.mjs';
 
 const fixture = (extra?: Record<string, string>) => new Map(Object.entries({
   'js/leaf.js': 'export const value = 1;',
@@ -121,5 +121,90 @@ describe('affected PR test planning', () => {
     expect(workflow).toMatch(/name: Run test suite with coverage ratchet\n\s+if: env.CI_SCOPE_FULL == 'true'\n\s+run: COVERAGE=1 SKIP_TYPECHECK=1 \.\/run-tests.sh/);
     expect(workflow).toMatch(/name: Run affected unit tests\n\s+if: env.CI_SCOPE_FULL != 'true'/);
     expect(release).toMatch(/uses: \.\/\.github\/workflows\/test.yml\n\s+with:\n\s+full_suite: true/);
+  });
+});
+
+
+describe('native tooling and mandatory PR validation', () => {
+  const scopes = [
+    ['scripts/build-browser-vendors.mts', 'vendor:check'],
+    ['scripts/build-evolu8-vendor.mts', 'vendor:evolu8:check'],
+    ['scripts/build-marker-schema.mts', 'marker-schema:check'],
+    ...['cashu', 'ehbp', 'tinfoil', 'venice-e2ee', 'venice-nvidia', 'venice-dcap', 'routstr-crypto', 'zlib-browser-shim'].map(name => [`scripts/vendor-entries/${name}.ts`, 'vendor:check']),
+    ...['evolu8', 'evolu8-db-worker', 'evolu8-shared-worker'].map(name => [`scripts/vendor-entries/${name}.ts`, 'vendor:evolu8:check']),
+  ];
+  it.each(scopes)('requires the real build validation for %s and its deleted runtime alias', (native, check) => {
+    const runtime = native!.replace(/\.mts$/, '.mjs').replace(/\.ts$/, '.js');
+    for (const changed of [native!, runtime]) {
+      const plan = createTestPlan(new Map([[native!, '']]), [changed]);
+      expect(plan.checks).toEqual([check]);
+      expect(validationCommands(plan)).toEqual([['npm', 'run', check]]);
+      expect(plan.uncovered).toEqual([]);
+      expect(testCommands(plan, 'unit')).toEqual([]);
+    }
+  });
+
+  it.each([
+    ['scripts/fetch-catalog.mts', 'tests/project-owned-ci.test.ts'],
+    ['scripts/generate-import-reference-pdf.mts', 'tests/playwright/import-benchmarks.spec.ts'],
+    ['scripts/playwright-coverage.mts', 'tests/coverage-gate.test.ts'],
+    ['scripts/quality-guardrails.mts', 'tests/quality-guardrails.test.ts'],
+    ['scripts/upgrade-demos.mts', 'tests/project-owned-ci.test.ts'],
+  ])('selects the precise artifact contract for %s without selecting unrelated tests', (native, test) => {
+    const sources = new Map([[native!, ''], [test!, ''], ['tests/unrelated.test.ts', '']]);
+    for (const changed of [native!, native!.replace(/\.mts$/, '.mjs')]) {
+      const plan = createTestPlan(sources, [changed]);
+      expect([...plan.unit, ...plan.browser]).toEqual([test]);
+      expect(plan.uncovered).toEqual([]);
+      expect(plan.checks).toEqual([]);
+    }
+  });
+
+  it('follows deleted runtime aliases into their current native owner and actual imported consumers', () => {
+    const plan = createTestPlan(new Map([
+      ['scripts/leaf.mts', 'export const value = 1;'],
+      ['tests/leaf.test.ts', "import { value } from '../scripts/leaf.mts';"],
+    ]), ['scripts/leaf.mjs']);
+    expect(plan.unit).toEqual(['tests/leaf.test.ts']);
+    expect(plan.uncovered).toEqual([]);
+  });
+
+  it('keeps unknown tooling, missing contract tests and untested owned vendor code fail closed', () => {
+    const sources = new Map([
+      ['scripts/fetch-catalog.mts', ''],
+      ['scripts/unmapped.mts', ''],
+      ['scripts/vendor-entries/unmapped.ts', ''],
+      ['vendor/components.json', JSON.stringify({ projectFiles: ['vendor/owned.ts'] })],
+      ['vendor/owned.ts', ''], ['tests/unrelated.test.ts', ''],
+    ]);
+    expect(createTestPlan(sources, ['scripts/fetch-catalog.mts', 'scripts/unmapped.mts', 'scripts/vendor-entries/unmapped.ts', 'vendor/owned.ts', 'tests/unrelated.test.ts']).uncovered)
+      .toEqual(['scripts/fetch-catalog.mts', 'scripts/unmapped.mts', 'scripts/vendor-entries/unmapped.ts', 'vendor/owned.ts']);
+    expect(() => validationCommands({ checks: ['arbitrary-script'] })).toThrow('Unknown mandatory validation');
+  });
+
+  it('deduplicates mandatory checks and propagates helper changes into their generator contracts', () => {
+    const plan = createTestPlan(new Map([
+      ['scripts/helper.ts', ''],
+      ['scripts/build-browser-vendors.mts', "import './helper.js';"],
+      ['scripts/vendor-entries/cashu.ts', ''],
+      ['tests/cashu-vendor-compat.test.ts', ''],
+    ]), ['scripts/helper.ts', 'scripts/build-browser-vendors.mjs', 'scripts/vendor-entries/cashu.ts']);
+    expect(plan.unit).toEqual(['tests/cashu-vendor-compat.test.ts']);
+    expect(plan.checks).toEqual(['vendor:check']);
+    expect(plan.uncovered).toEqual([]);
+    const checksOnly = new Map([['scripts/helper.ts', ''], ['scripts/build-browser-vendors.mts', "import './helper.js';"]]);
+    expect(createTestPlan(checksOnly, ['scripts/helper.ts']).uncovered).toEqual([]);
+    expect(createTestPlan(checksOnly, ['scripts/helper.ts']).checks).toEqual(['vendor:check']);
+  });
+
+  it('uses existing package commands and executes validators directly before the npx test runner in CI only', () => {
+    const pkg: { scripts: Record<string, string> } = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+    expect(pkg.scripts['vendor:check']).toBe('node scripts/build-browser-vendors.mjs --check');
+    expect(pkg.scripts['vendor:evolu8:check']).toBe('node scripts/build-evolu8-vendor.mjs --check');
+    expect(pkg.scripts['marker-schema:check']).toBe('node scripts/build-marker-schema.mjs --check');
+    const source = fs.readFileSync('scripts/pr-test-scope.mts', 'utf8');
+    expect(source.indexOf("process.env.GITHUB_ACTIONS !== 'true'")).toBeLessThan(source.indexOf('for (const command of validationCommands(plan))'));
+    expect(source).toContain('spawnSync(command[0]!, command.slice(1)');
+    expect(source.indexOf('for (const command of validationCommands(plan))')).toBeLessThan(source.indexOf('for (const command of testCommands(plan'));
   });
 });

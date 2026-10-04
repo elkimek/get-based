@@ -694,7 +694,15 @@ All six GitHub workflows retain useful responsibilities: tests, CodeQL,
 supply-chain, sync compatibility, opt-in real models and release evidence.
 Release evidence forces the full test run and verifies model execution instead
 of accepting skips. It also builds and smoke-tests both TypeScript service
-containers with isolated, disposable storage before recording acceptance. Both Docker COPY source closures pass strict compilation
+containers with isolated, disposable storage before recording acceptance.
+PR preflight also maps native tooling and removed runtime aliases to explicit
+artifact contracts and existing vendor/schema reproducibility checks. Unknown
+tooling and uncovered owned vendor sources still fail closed. Isolated catalog
+and demo entrypoint regressions and the actual PDF rendering contract cover the
+previously unmapped producers. A separate synthetic three-page PDF generation
+also passes with the emitted script and real Chromium. The final scope/ownership
+preflight passes 121 focused tests, including 26 new regressions, and strict
+authored-test compilation. Both Docker COPY source closures pass strict compilation
 without relying on ignored emitted files. Docker is unavailable locally, so
 container build/runtime execution for the TypeScript candidate remains
 unverified. Vercel preview packaging now passes on the actual cloud build with
