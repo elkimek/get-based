@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { sourceFunctionHasInitializer } from './helpers/native-source-contracts.js';
 import { hasDirectStartupImports } from './helpers/startup-composition.js';
 import { dataModuleSource } from './helpers/data-module-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
@@ -588,7 +589,11 @@ try {
   const startupSrc = await fetchWithRetry('js/startup-profile.js');
   assert('startup-profile.js exports initializeProfileData', startupSrc.includes('export async function initializeProfileData'));
   assert('startup-profile.js awaits initProfilesCache', startupSrc.includes('await initProfilesCache()'));
-  assert('startup-profile.js awaits encryptedGetItem', startupSrc.includes('await encryptedGetItem'));
+  assert('startup-profile.js awaits encryptedGetItem',
+    startupSrc.includes("from './profile-load-safety.js'")
+      && sourceFunctionHasInitializer(startupSrc, 'initializeProfileData', 'savedImported',
+        "await readProfileForLoad(state.currentProfile, () => encryptedGetItem(profileStorageKey(state.currentProfile, 'imported'), { throwOnDecryptError: true }), showNotification)")
+      && (await fetchWithRetry('js/profile-load-safety.js')).includes('const value = await read()'));
   assert('startup-profile.js migrates legacy imported data through encryptedSetItem', startupSrc.includes('await encryptedSetItem'));
 } catch (e) {
   assert('startup async check', false, (e as {message?: unknown}).message);

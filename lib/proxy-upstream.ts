@@ -29,7 +29,7 @@ function responseTooLargeError() {
 
 function redirectRequestOptions(status: number, options: ProxyRequestOptions): ProxyRequestOptions {
   const method = String(options.method || 'GET').toUpperCase();
-  if (status !== 303 && !((status === 301 || status === 302) && method === 'POST')) {
+  if (method === 'HEAD' || (status !== 303 && !((status === 301 || status === 302) && method === 'POST'))) {
     return options;
   }
   const headers = { ...(options.headers || {}) };
@@ -101,9 +101,10 @@ function createUpstreamLifecycle(externalSignal: AbortSignal | null | undefined)
   };
 }
 
-function bindResponseLifecycle(response: Response, lifecycle: ReturnType<typeof createUpstreamLifecycle>) {
+function bindResponseLifecycle(response: Response, lifecycle: ReturnType<typeof createUpstreamLifecycle>, finalUrl: string) {
   if (!response.body?.getReader || typeof ReadableStream !== 'function') {
     lifecycle.settle();
+    if (response.url !== finalUrl) Object.defineProperty(response, 'url', { value: finalUrl });
     return response;
   }
   const reader = response.body.getReader();
@@ -138,11 +139,13 @@ function bindResponseLifecycle(response: Response, lifecycle: ReturnType<typeof 
       }
     },
   });
-  return new Response(body, {
+  const bounded = new Response(body, {
     status: response.status,
     statusText: response.statusText,
     headers: response.headers,
   });
+  Object.defineProperty(bounded, 'url', { value: finalUrl });
+  return bounded;
 }
 
 // Fetch redirects manually so every destination passes the same SSRF policy.
@@ -174,10 +177,10 @@ export async function fetchWithValidatedRedirects(initialUrl: string | URL, init
       });
 
       if (!PROXY_REDIRECT_STATUSES.has(response.status)) {
-        return bindResponseLifecycle(response, lifecycle);
+        return bindResponseLifecycle(response, lifecycle, url);
       }
       const location = response.headers.get('location');
-      if (!location) return bindResponseLifecycle(response, lifecycle);
+      if (!location) return bindResponseLifecycle(response, lifecycle, url);
       if (redirects >= redirectLimit) {
         await discardResponseBody(response);
         throw proxyRuntimeError('PROXY_REDIRECT_LIMIT', 'Proxy redirect limit exceeded');

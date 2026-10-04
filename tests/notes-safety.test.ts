@@ -191,3 +191,31 @@ it('permits retry after a failed commit without duplicating a new note', async (
   await expect(saveNote(null)).resolves.toBe(true);
   expect(state.importedData.notes.filter(note => note.text === 'Retry me')).toHaveLength(1);
 });
+
+it('commits delegated deletion of the captured note without deleting its neighbor', async () => {
+  mocks.confirm.mockResolvedValue(true); openNoteEditor(null,0);
+  document.querySelector<HTMLElement>('[data-note-action=delete]')!.click();
+  await vi.waitFor(() => expect(mocks.save).toHaveBeenCalledOnce());
+  expect(state.importedData.notes.map(note => note.text)).toEqual(['Second']);
+});
+it('ignores unrelated and unknown delegated actions without saving notes', () => {
+  document.body.click();
+  const button=document.createElement('button');button.dataset.noteAction='unknown';document.body.append(button);button.click();
+  expect(mocks.save).not.toHaveBeenCalled();expect(mocks.close).not.toHaveBeenCalled();
+});
+it('does not open a missing note or an editor without its modal host', () => {
+  openNoteEditor(null,99);expect(document.getElementById('note-textarea')).toBeNull();
+  document.getElementById('detail-modal')!.remove();openNoteEditor('2026-09-01');
+  expect(document.getElementById('note-textarea')).toBeNull();expect(mocks.save).not.toHaveBeenCalled();
+});
+it('does not confirm or persist deletion of a missing note', async () => {
+  expect(await deleteNote(99)).toBe(false);expect(mocks.confirm).not.toHaveBeenCalled();expect(mocks.save).not.toHaveBeenCalled();
+});
+it('keeps a captured draft visible while reporting a synced replacement as stale', () => {
+  openNoteEditor(null,0);
+  (state as {importedData:unknown}).importedData={notes:[{date:'2026-04-01',text:'Replacement'}]};
+  window.dispatchEvent(new CustomEvent('labcharts-sync-applied'));
+  expect((document.getElementById('note-textarea') as HTMLTextAreaElement).value).toBe('First');
+  expect(mocks.notify).toHaveBeenCalledWith(expect.stringContaining('Reopen'), 'info');
+  expect(mocks.save).not.toHaveBeenCalled();
+});

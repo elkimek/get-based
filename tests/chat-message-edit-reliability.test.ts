@@ -128,3 +128,24 @@ it.each(['profile', 'message'])('does not restore a failed edit into a changed %
   });
   await edit.submitChatMessageEdit(); expect(edit.hasPendingChatMessageEdit()).toBe(false);
 });
+
+it('does not edit an assistant-only conversation', () => {
+  state.chatHistory = [{role: 'assistant', content: 'No user turn'}];
+  expect(edit.getLatestUserMessageIndex()).toBe(-1);
+  expect(edit.beginChatMessageEdit(0)).toBe(false);
+  expect(edit.hasPendingChatMessageEdit()).toBe(false);
+});
+it('cancels a pending edit after navigation even when Send does not prepare the old turn', async () => {
+  begin('Preserve destination');
+  m.send.mockImplementationOnce(() => { state.currentThreadId = 'destination'; });
+  expect(await edit.submitChatMessageEdit()).toBe(true);
+  expect(edit.hasPendingChatMessageEdit()).toBe(false);
+  expect(state.chatHistory[2]!.content).toBe('Latest');
+  expect(m.clearDraft).not.toHaveBeenCalled();
+});
+it('keeps an edit active after a same-thread change notification', () => {
+  begin();
+  document.dispatchEvent(new Event('chat-thread-changed'));
+  expect(edit.hasPendingChatMessageEdit()).toBe(true);
+  expect(document.querySelector('.chat-input-row')!.hasAttribute('inert')).toBe(true);
+});

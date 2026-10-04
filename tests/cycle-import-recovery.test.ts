@@ -228,3 +228,52 @@ it.each(deletions)('%s deletion can be retried after failed persistence', async 
   await expect(remove()).resolves.toBe(true);
   expect(runtime[clearKey]).toHaveBeenCalledTimes(1);
 });
+
+it('rejects invalid input before reading or changing any cycle data', async () => {
+  await expect(commitCycleImport(null)).rejects.toThrow('Invalid cycle import');
+  expect(runtime.rows).not.toHaveBeenCalled();
+  expect(runtime.saveMeta).not.toHaveBeenCalled();
+});
+it('does not delete for an absent import or source identifier', async () => {
+  expect(await deleteCycleImportFromProfile(null)).toBe(false);
+  expect(await deleteCycleSourceFromProfile('')).toBe(false);
+  expect(runtime.rows).not.toHaveBeenCalled();
+  expect(runtime.clear).not.toHaveBeenCalled();
+  expect(runtime.clearSource).not.toHaveBeenCalled();
+});
+it('does not persist or delete when the requested import has no metadata or rows', async () => {
+  expect(await deleteCycleImportFromProfile('missing')).toBe(false);
+  expect(runtime.clear).not.toHaveBeenCalled();
+  expect(runtime.save).not.toHaveBeenCalled();
+});
+it.each(['import', 'source'])('deletes raw %s observations even when no cycle profile was loaded', async mode => {
+  delete (runtime.state.importedData as {menstrualCycle?: unknown}).menstrualCycle;
+  runtime.rows.mockResolvedValue([{importId:'new-import',source:'drip',date:'2026-09-01'}]);
+  if (mode === 'import') {
+    expect(await deleteCycleImportFromProfile('new-import')).toBe(true);
+    expect(runtime.clear).toHaveBeenCalledWith('origin', 'new-import');
+  } else {
+    expect(await deleteCycleSourceFromProfile('drip')).toBe(true);
+    expect(runtime.clearSource).toHaveBeenCalledWith('origin', 'drip');
+  }
+  expect(runtime.save).not.toHaveBeenCalled();
+});
+it('derives earliest observation coverage from unsorted stored dates', async () => {
+  runtime.rows.mockResolvedValue([{source:'drip',date:'2026-09-07'},{source:'drip',date:'2026-09-01'}]);
+  await expect(commitCycleImport(parsed)).resolves.toMatchObject({source:'drip'});
+  expect((runtime.state.importedData.menstrualCycle as {coverage?: {sources?: Record<string,{firstDate?:unknown;lastDate?:unknown;observations?:unknown}>}}).coverage?.sources?.drip).toMatchObject({firstDate:'2026-09-01',lastDate:'2026-09-07',observations:2});
+});
+it('restores the former sex and cycle data when a consented import cannot be persisted', async () => {
+  runtime.state.profileSex='male';
+  runtime.save.mockResolvedValueOnce(false);
+  await expect(commitCycleImport(parsed,{allowProfileSexChange:true})).rejects.toThrow('could not be saved');
+  expect(runtime.setSex.mock.calls).toEqual([['origin','female'],['origin','male']]);
+  expect(runtime.state.profileSex).toBe('male');
+  expect(runtime.state.importedData.menstrualCycle.periods).toEqual([]);
+});
+it('rejects an import if its active profile vanished during a consented sex change', async () => {
+  runtime.state.profileSex='male';runtime.setSex.mockResolvedValueOnce(false);
+  await expect(commitCycleImport(parsed,{allowProfileSexChange:true})).rejects.toThrow('active profile no longer exists');
+  expect(runtime.save).not.toHaveBeenCalled();
+  expect(runtime.state.profileSex).toBe('male');
+});

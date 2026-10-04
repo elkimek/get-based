@@ -82,14 +82,14 @@
     "@vercel/blob": "2.8.0",
     "ehbp": "0.3.2",
     "tinfoil": "^1.2.1",
-    "undici": "8.10.0"
+    "undici": "8.10.2"
   },
   "overrides": {
     "@phala/dcap-qvl": {
       "elliptic": "$elliptic"
     },
     "@vercel/blob": {
-      "undici": "6.28.0"
+      "undici": "6.28.1"
     }
   }
 }

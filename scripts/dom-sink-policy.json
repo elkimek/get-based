@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 769,
+  "scannedFiles": 771,
   "sinkCount": 550,
   "files": {
     "js/backup.js": {
@@ -721,7 +721,7 @@
     },
     "js/provider-panels.js": {
       "count": 37,
-      "digest": "fc1cef390c0dae483ab55a2022cdd31f7dd214f8660e1d3bd0677e03f0c5b9f6",
+      "digest": "74f137906e6cea7a3e11204e2e5c26e2c2d3c0745ae28333e8cff087461de941",
       "kinds": {
         "innerHTML": 37
       }
@@ -735,16 +735,23 @@
     },
     "js/provider-wallet-funding-recovery.js": {
       "count": 3,
-      "digest": "321234237958701021a0df9f5eba96237e239abcb469a261dcd0af9dd599c1f6",
+      "digest": "a736bb0fe126fe8df7afcb95f0dba1b413d1b65cf07f2a963df81fa3b22f7e51",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/provider-wallet-panels.js": {
-      "count": 58,
-      "digest": "5bc0e7e853e5e14044a7431e0201b95f673befdbd08c5785d7bccab223a19e70",
+      "count": 56,
+      "digest": "c2dc902b6d8367449eefabb57a185936b3a6b0d6eb543fc284d880a20569fade",
       "kinds": {
-        "innerHTML": 58
+        "innerHTML": 56
+      }
+    },
+    "js/provider-wallet-refund-recovery.js": {
+      "count": 2,
+      "digest": "8a60fa9752a1755e86e2962b07c2b45e540d0ad20886342152d6ac467f1986a3",
+      "kinds": {
+        "innerHTML": 2
       }
     },
     "js/recommendation-actions.js": {

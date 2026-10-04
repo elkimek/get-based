@@ -37,3 +37,12 @@ it('low UV and behind-glass summaries avoid numeric vitamin D claims', () => {
   expect(plainStopSummary({ bodyExposure: { glassBetween: true } }, 10)).toContain('generic glass model');
   expect(plainStopSummary({ atmosphere: { uvIndex: 0 } }, 10)).toContain('UVI 0.0');
 });
+
+it('suppresses fair-skin warnings below the low-UVI threshold', () => {
+  expect(_renderUVIPreflightBanner(4, 'I', 'none', false, () => 1)).toBe('');
+});
+it('keeps medication uncertainty at zero UVI without inventing a burn time', () => {
+  const html = _renderUVIPreflightBanner(0, 'I', 'severe', false, () => 1);
+  expect(html).toContain('drug-specific burn threshold cannot be inferred');
+  expect(html).not.toContain('min to the modeled base MED');
+});

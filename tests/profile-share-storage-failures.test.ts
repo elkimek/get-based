@@ -64,3 +64,59 @@ it('rotates the private rate-limit identifier daily without exposing the subject
  const {store}=fixture();vi.useFakeTimers();vi.setSystemTime(new Date('2026-01-01T12:00:00Z'));const first=store.hashRateLimitSubject('198.51.100.4');
  expect(store.hashRateLimitSubject('198.51.100.4')).toBe(first);vi.setSystemTime(new Date('2026-01-02T12:00:00Z'));expect(store.hashRateLimitSubject('198.51.100.4')).not.toBe(first);expect(first).toMatch(/^[0-9a-f]{64}$/);
 });
+
+
+it('retains the original row after an unexpected SQLite write failure and can retry safely', async () => {
+  const { store, settings } = fixture();
+  await store.put('shares/a', 'original');
+  const database = new DatabaseSync(settings.databasePath);
+  try {
+    database.exec("CREATE TRIGGER reject_update BEFORE UPDATE ON profile_share_objects BEGIN SELECT RAISE(ABORT, 'fixture write denied'); END;");
+    const failure = await store.put('shares/a', 'replacement', { allowOverwrite: true }).catch(error => error as unknown);
+    expect(failure).toBeInstanceOf(Error);
+    expect(failure).not.toBeInstanceOf(ProfileShareStoreConflictError);
+    expect((failure as Error).message).toContain('fixture write denied');
+    expect(await store.get('shares/a')).toBe('original');
+    database.exec('DROP TRIGGER reject_update');
+    await store.put('shares/a', 'replacement', { allowOverwrite: true });
+    expect(await store.get('shares/a')).toBe('replacement');
+  } finally { database.close(); }
+});
+
+it('rejects a capacity-exhausted write before mutating the previous row', async () => {
+  let full = false;
+  const originalPrepare = DatabaseSync.prototype.prepare;
+  const prepare = vi.spyOn(DatabaseSync.prototype, 'prepare').mockImplementation(function(this: DatabaseSync, sql) {
+    const statement = originalPrepare.call(this, sql);
+    if (sql === 'PRAGMA page_count') {
+      const pageSize = Number(originalPrepare.call(this, 'PRAGMA page_size').get()?.page_size);
+      const originalGet = statement.get.bind(statement);
+      vi.spyOn(statement, 'get').mockImplementation(() => full
+        ? { page_count: Math.ceil(67108864 / pageSize) } : originalGet());
+    }
+    return statement;
+  });
+  try {
+    const { store } = fixture();
+    await store.put('shares/a', 'original');
+    full = true;
+    await expect(store.put('shares/a', 'replacement', { allowOverwrite: true })).rejects.toThrow('storage capacity reached');
+    expect(await store.get('shares/a')).toBe('original');
+    full = false;
+    await store.put('shares/a', 'replacement', { allowOverwrite: true });
+    expect(await store.get('shares/a')).toBe('replacement');
+  } finally { prepare.mockRestore(); }
+});
+
+it('fails health checks on reported SQLite corruption and recovers after a clean check', () => {
+  const { store } = fixture();
+  const originalPrepare = DatabaseSync.prototype.prepare;
+  const prepare = vi.spyOn(DatabaseSync.prototype, 'prepare').mockImplementation(function(this: DatabaseSync, sql) {
+    const statement = originalPrepare.call(this, sql);
+    if (sql === 'PRAGMA quick_check') vi.spyOn(statement, 'get').mockReturnValue({ quick_check: 'fixture corruption detected' });
+    return statement;
+  });
+  try { expect(() => store.check()).toThrow('database integrity check failed'); }
+  finally { prepare.mockRestore(); }
+  expect(() => store.check()).not.toThrow();
+});

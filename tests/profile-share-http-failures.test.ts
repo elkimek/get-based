@@ -62,3 +62,28 @@ it('discards a disconnected partial request and remains healthy',async()=>{
  });
  const response=await fetch(f.url+'/health');expect(response.status).toBe(200);expect(handler).not.toHaveBeenCalled();
 });
+
+
+it('preserves multi-value request headers without restoring spoofed identity headers', async () => {
+  let captured: Request | undefined;
+  const f = await fixture(request => { captured = request; return new Response('ok'); });
+  const status = await new Promise<number | undefined>((resolve, reject) => {
+    const request = httpRequest(f.url + '/api/share', { headers: {
+      'set-cookie': ['first=one', 'second=two'], 'x-real-ip': 'spoofed-client',
+    } }, response => { response.resume(); response.on('end', () => resolve(response.statusCode)); });
+    request.on('error', reject); request.end();
+  });
+  expect(status).toBe(200);
+  expect(captured!.headers.get('set-cookie')).toBe('first=one, second=two');
+  expect(captured!.headers.has('x-real-ip')).toBe(false);
+  expect(captured!.headers.get('x-forwarded-for')).toMatch(/127\.0\.0\.1/);
+});
+
+it('terminates an already-started response without appending a private handler error', async () => {
+  const f = await fixture(() => { throw new Error('private handler details'); });
+  const flush = (_request: import('node:http').IncomingMessage, response: import('node:http').ServerResponse) => response.flushHeaders();
+  f.server.on('request', flush);
+  await expect(fetch(f.url + '/api/share').then(response => response.text())).rejects.toThrow();
+  f.server.removeListener('request', flush);
+  expect((await fetch(f.url + '/health')).status).toBe(200);
+});

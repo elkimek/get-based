@@ -168,3 +168,23 @@ describe('ACP agent model catalogs', () => {
     });
   });
 });
+
+it('normalizes grouped models while ignoring null and malformed option containers', () => {
+  expect(normalizeACPModelCatalog({configOptions:[{id:'model',options:[null,{options:[{value:'nested',name:'Nested model'}]}]}]})).toEqual([expect.objectContaining({id:'nested'})]);
+  expect(normalizeACPModelCatalog({configOptions:[{id:'model',options:null}]})).toEqual([]);
+});
+it('evicts all metadata of the oldest tracked session while retaining bounded new sessions', () => {
+  const client=new ACPAgentClient({id:'grok',command:'unused',args:[],cwd:'/tmp'});
+  for(let i=0;i<129;i++) client.rememberSession(`session-${i}`,{configOptions:[{id:'model'}],models:{currentModelId:String(i)}});
+  expect(client.sessions.size).toBe(128);expect(client.sessions.has('session-0')).toBe(false);
+  expect(client.sessionCatalogs.has('session-0')).toBe(false);expect(client.sessionModelStates.has('session-0')).toBe(false);
+  expect(client.sessions.has('session-128')).toBe(true);expect(client.sessionModelStates.get('session-128')).toMatchObject({currentModelId:'128'});
+});
+it('resumes a saved session before considering a new session', async () => {
+  const client=new ACPAgentClient({id:'grok',command:'unused',args:[],cwd:'/tmp'});
+  client.initialize=vi.fn(async()=>({agentCapabilities:{sessionCapabilities:{resume:true}}}));
+  const request=vi.fn(async()=>({configOptions:[{id:'model'}],models:{currentModelId:'original'}}));client.request=request as typeof client.request;
+  await expect(client.ensureSession({requestedSessionId:'saved',mcpServers:[]})).resolves.toMatchObject({sessionId:'saved',modelState:{currentModelId:'original'}});
+  expect(request).toHaveBeenCalledExactlyOnceWith('session/resume',{sessionId:'saved',cwd:'/tmp',mcpServers:[]});
+  expect(client.sessions.has('saved')).toBe(true);
+});

@@ -226,3 +226,10 @@ it('rejects cancellation arriving after exit while reading the result', async ()
   await expect(client.runCommand([], controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
   expect(readdirSync(cwd)).toEqual([]);
 });
+
+it('rejects absent replies and ignores malformed catalog entries', () => {
+  expect(()=>extractOpenClawResult(null)).toThrow('invalid response');
+  expect(normalizeOpenClawModelCatalog(null)).toEqual([]);
+  expect(normalizeOpenClawModelCatalog({models:[{key:'',name:'No model identity'}]})).toEqual([]);
+  expect(extractOpenClawResult({ok:true,status:'ok',payloads:[{text:'first'},{text:''},{text:'second'}]}).text).toBe('first\n\nsecond');
+});

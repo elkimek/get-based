@@ -28,6 +28,7 @@ export default defineConfig({
       'tests/nutrition-storage-boundaries.test.js',
       'tests/nutrition-store.test.js',
       'tests/nutrition-store-save-race.test.js',
+      'tests/nutrition-store-recovery.test.ts',
       'tests/chat-history-reliability.test.js',
       'tests/chat-message-edit-reliability.test.js',
       'tests/chat-retry-reliability.test.js',

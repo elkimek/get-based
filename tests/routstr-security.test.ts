@@ -908,3 +908,42 @@ describe('Routstr security boundaries', () => {
     expect(new Set(nodes.map(n => n.pubkey)).size).toBe(2);
   });
 });
+
+
+describe('node session reset deposit ownership', () => {
+  it.each(['queued','submitted','completed'] as const)('resets another node while preserving its %s deposit and credential across reload', async stage => {
+    const wallet=await funded(1000),origin='https://origin-node.test';
+    const store=await import('../js/cashu-wallet-store.js');
+    const {getArchivedRoutstrSessionKeys}=await import('../js/routstr-session.js');
+    await saveRoutstrSessionKey('sk-origin',origin);await saveRoutstrSessionKey('sk-target',NODE);
+    const deposit={nodeUrl:origin+'/',token:'cashuAorigin-deposit',existingKey:'sk-origin',createdAt:1,submitted:stage!=='queued',completed:stage==='completed'};
+    await store._setMeta('pendingDeposit',deposit);
+    const rows=await readIdbStore('proofs');
+    await wallet.startNewNodeSession(NODE);
+    expect(getRoutstrSessionKey(NODE)).toBe('');expect(getArchivedRoutstrSessionKeys(NODE)).toEqual(['sk-target']);
+    expect(getRoutstrSessionKey(origin)).toBe('sk-origin');expect(getArchivedRoutstrSessionKeys(origin)).toEqual([]);
+    expect(await readIdbMeta('pendingDeposit')).toEqual(deposit);expect(await readIdbStore('proofs')).toEqual(rows);
+    clearKeyCache();await decryptKeyCache();
+    const reloaded=await loadWallet() as SecurityWalletOperations;
+    expect(getRoutstrSessionKey(origin)).toBe('sk-origin');expect(getRoutstrSessionKey(NODE)).toBe('');
+    expect(getArchivedRoutstrSessionKeys(NODE)).toEqual(['sk-target']);expect(await readIdbMeta('pendingDeposit')).toEqual(deposit);
+    expect(await reloaded.getWalletBalance()).toBe(1000);expect(fetch).not.toHaveBeenCalled();
+  });
+  it.each([NODE+'/',NODE.toUpperCase()])('blocks reset for a canonical alias of the same deposit owner: %s', async owner => {
+    const wallet=await funded(),store=await import('../js/cashu-wallet-store.js');
+    const {getArchivedRoutstrSessionKeys}=await import('../js/routstr-session.js');
+    await saveRoutstrSessionKey('sk-target',NODE);const deposit={nodeUrl:owner,token:'cashuApending',existingKey:'sk-target'};
+    await store._setMeta('pendingDeposit',deposit);const rows=await readIdbStore('proofs');
+    await expect(wallet.startNewNodeSession(NODE)).rejects.toThrow('pending deposit');
+    expect(getRoutstrSessionKey(NODE)).toBe('sk-target');expect(getArchivedRoutstrSessionKeys(NODE)).toEqual([]);
+    expect(await readIdbMeta('pendingDeposit')).toEqual(deposit);expect(await readIdbStore('proofs')).toEqual(rows);expect(fetch).not.toHaveBeenCalled();
+  });
+  it.each(['cashuAlegacy',{}, {nodeUrl:42}, {nodeUrl:'http://origin-node.test'}, {nodeUrl:'https://user:secret@origin-node.test'}])('retains ambiguous or malformed deposit ownership without resetting a session: %j', async deposit => {
+    const wallet=await funded(),store=await import('../js/cashu-wallet-store.js');
+    const {getArchivedRoutstrSessionKeys}=await import('../js/routstr-session.js');
+    await saveRoutstrSessionKey('sk-target',NODE);await store._setMeta('pendingDeposit',deposit);
+    await expect(wallet.startNewNodeSession(NODE)).rejects.toThrow('pending deposit');
+    expect(getRoutstrSessionKey(NODE)).toBe('sk-target');expect(getArchivedRoutstrSessionKeys(NODE)).toEqual([]);
+    expect(await readIdbMeta('pendingDeposit')).toEqual(deposit);expect(fetch).not.toHaveBeenCalled();
+  });
+});

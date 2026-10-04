@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 type FixtureMock = ReturnType<typeof vi.fn>;
@@ -100,4 +101,20 @@ it('does not close storage twice when both shutdown signals arrive', async () =>
   m.signals.SIGTERM!();
   expect(m.server.close).toHaveBeenCalledOnce();
   expect(m.store.close).toHaveBeenCalledOnce();
+});
+
+
+it('masks a direct executable startup failure and exits unsuccessfully', async () => {
+  m.listenError = new Error('private bind failure');
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+  const previousArgv = process.argv;
+  process.argv = [previousArgv[0]!, fileURLToPath(new URL('../server/profile-share-server.js', import.meta.url))];
+  try {
+    vi.resetModules();
+    await import('../server/profile-share-server.js');
+    await vi.dynamicImportSettled();
+    expect(stderr).toHaveBeenCalledExactlyOnceWith('Encrypted profile-share service failed to start\n');
+    expect(process.exit).toHaveBeenCalledExactlyOnceWith(1);
+    expect(m.signals).toEqual({});
+  } finally { process.argv = previousArgv; }
 });

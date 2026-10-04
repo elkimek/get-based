@@ -182,6 +182,27 @@ describe('isolated build-tool entrypoint contracts', () => {
     });
   });
 
+  it('validates fetched catalog bytes before replacing the constant output path', () => {
+    withRoot((root, write) => {
+      write('scripts/fetch-catalog.mjs', fs.readFileSync(new URL('../scripts/fetch-catalog.mjs', import.meta.url), 'utf8'));
+      const original = JSON.stringify({ slots: { original: {} }, products: {} });
+      write('data/recommendations.json', original);
+      const env = { ...process.env, CATALOG_FETCH_URL: 'https://catalog-fixture.invalid/source', CATALOG_FETCH_TOKEN: 'synthetic-fixture-token', CATALOG_FETCH_HEADER_NAME: '', CATALOG_FETCH_HEADER_VALUE: '' };
+      const run = (body: string, status = 200) => {
+        const fixture = `globalThis.fetch = async () => new Response(${JSON.stringify(body)}, {status:${status}})`;
+        return spawnSync(process.execPath, ['--import', `data:text/javascript,${encodeURIComponent(fixture)}`, path.join(root, 'scripts/fetch-catalog.mjs')], { env, encoding: 'utf8' });
+      };
+      for (const [body, status] of [['{invalid', 200], ['{"unrelated":"shape"}', 200], ['denied', 403]] as const) {
+        const result = run(body, status);
+        expect(result.status).toBe(1);
+        expect(fs.readFileSync(path.join(root, 'data/recommendations.json'), 'utf8')).toBe(original);
+      }
+      const accepted = JSON.stringify({ slots: {}, products: {}, vendors: {} });
+      expect(run(accepted).status).toBe(0);
+      expect(fs.readFileSync(path.join(root, 'data/recommendations.json'), 'utf8')).toBe(accepted);
+    });
+  });
+
   it('runs the actual demo upgrader on isolated inputs and preserves completed output on a second run', () => {
     withRoot((root, write) => {
       write('scripts/upgrade-demos.mjs', fs.readFileSync(new URL('../scripts/upgrade-demos.mjs', import.meta.url), 'utf8'));

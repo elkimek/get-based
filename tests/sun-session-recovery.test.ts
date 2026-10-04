@@ -262,3 +262,20 @@ it.each(['location', 'durationMin', 'bodyExposure', 'updatedAt', 'sunDefaults'])
   (saveImportedData as unknown as SaveMockFixture).mockClear(); wait.resolve!({ uvIndex: 99 });
   expect(await pending).toBeNull(); expect(deps.computeChannelDoses).not.toHaveBeenCalled(); expect(saveImportedData).not.toHaveBeenCalled();
 });
+
+it('returns no record for missing session stop/edit operations without saving', async () => {
+  expect(await store.stopSession('missing')).toBeNull();expect(await store.updateSession('missing',{notes:'unused'})).toBeNull();
+  expect(saveImportedData).not.toHaveBeenCalled();
+});
+it.each(['rotation','sunscreen','coverage'])('initializes missing exposure for an active %s edit without inventing past dose', async kind => {
+  session.endedAt=null;session.bodyExposure=null;
+  if(kind==='rotation') await store.markSessionRotated(session.id);
+  if(kind==='sunscreen') await store.setSessionSunscreen(session.id,30);
+  if(kind==='coverage') await store.setSessionCoverage(session.id,null);
+  expect(session.bodyExposure).toMatchObject(kind==='rotation'?{rotatedSides:true}:kind==='sunscreen'?{sunscreenSPF:30}:{regions:[],fraction:0,preset:'covered'});
+  expect(deps.commitCurrentSlice).toHaveBeenCalledOnce();expect(deps.computeChannelDoses).not.toHaveBeenCalled();
+});
+it('persists an existing session deletion and refuses a second removal', async () => {
+  expect(await store.deleteSession(session.id)).toBe(true);expect(await store.deleteSession(session.id)).toBe(false);
+  expect(store.getSessions()).toEqual([]);expect(deps.clearLiveState).toHaveBeenCalledExactlyOnceWith(session.id);
+});

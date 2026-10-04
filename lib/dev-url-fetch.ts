@@ -5,6 +5,7 @@ import { isAllowedProxyUrl, PROXY_MAX_RESPONSE_BYTES } from './proxy-policy.js';
 import {
   fetchWithValidatedRedirects,
   readResponseTextWithCap,
+  capReadableStream,
 } from './proxy-upstream.js';
 
 type DevPageRequest = Pick<EventEmitter, 'once' | 'removeListener'>;
@@ -12,7 +13,7 @@ interface DevPageResponse extends DevPageRequest {
   headersSent: boolean;
   destroyed: boolean;
   writeHead: (status: number, headers: Record<string, string>) => unknown;
-  end: (body?: string) => unknown;
+  end: (body?: string | Uint8Array) => unknown;
 }
 
 export function handleDevFetchPage<RequestSource extends DevPageRequest>(
@@ -69,5 +70,71 @@ export function handleDevFetchPage<RequestSource extends DevPageRequest>(
       req.removeListener('aborted', abort);
       res.removeListener('close', abort);
     }
+  })();
+}
+
+// Local HEAD checks and legacy binary fetches use the same DNS-pinned transport
+// as page imports. A syntactically public hostname can resolve to a private IP.
+export function handleDevCheckUrl<RequestSource extends DevPageRequest>(
+  req: RequestSource, res: DevPageResponse, target: string,
+  options: { corsHeaders: (req: RequestSource) => Record<string, string> },
+) {
+  if (!isAllowedProxyUrl(target)) {
+    res.writeHead(400, { 'Content-Type': 'application/json', ...options.corsHeaders(req) });
+    res.end(JSON.stringify({ status: 0, error: 'URL blocked by SSRF guard' }));
+    return;
+  }
+  const controller = new AbortController();
+  const abort = () => controller.abort(new Error('Client disconnected'));
+  req.once('aborted', abort); res.once('close', abort);
+  const timeout = setTimeout(() => controller.abort(new Error('URL check timed out')), 6000);
+  void (async () => {
+    try {
+      const upstream = await fetchWithValidatedRedirects(target, { method: 'HEAD' }, {
+        signal: controller.signal, maxRedirects: 1,
+      });
+      await upstream.body?.cancel?.();
+      if (controller.signal.aborted || res.destroyed) return;
+      const redirected = upstream.url && upstream.url !== new URL(target).href ? upstream.url : undefined;
+      res.writeHead(200, { 'Content-Type': 'application/json', ...options.corsHeaders(req) });
+      res.end(JSON.stringify({ status: upstream.status, ...(redirected ? { redirected } : {}) }));
+    } catch {
+      if (res.headersSent || res.destroyed) return;
+      res.writeHead(200, { 'Content-Type': 'application/json', ...options.corsHeaders(req) });
+      res.end(JSON.stringify({ status: 0, error: 'URL check failed' }));
+    } finally {
+      clearTimeout(timeout); req.removeListener('aborted', abort); res.removeListener('close', abort);
+    }
+  })();
+}
+
+export function handleDevRawProxy<RequestSource extends DevPageRequest>(
+  req: RequestSource, res: DevPageResponse, target: string,
+  options: { corsHeaders: (req: RequestSource) => Record<string, string> },
+) {
+  if (!isAllowedProxyUrl(target)) {
+    res.writeHead(400, options.corsHeaders(req)); res.end('URL blocked by SSRF guard'); return;
+  }
+  const controller = new AbortController();
+  const abort = () => controller.abort(new Error('Client disconnected'));
+  req.once('aborted', abort); res.once('close', abort);
+  void (async () => {
+    try {
+      const upstream = await fetchWithValidatedRedirects(target, {
+        method: 'GET', headers: { 'User-Agent': 'Mozilla/5.0' },
+      }, { signal: controller.signal, maxRedirects: 1 });
+      if (controller.signal.aborted || res.destroyed) { await upstream.body?.cancel(); return; }
+      const body = await new Response(capReadableStream(upstream.body, PROXY_MAX_RESPONSE_BYTES) || null).arrayBuffer();
+      if (controller.signal.aborted || res.destroyed) return;
+      res.writeHead(upstream.status, {
+        'Content-Type': upstream.headers.get('content-type') || 'application/octet-stream', ...options.corsHeaders(req),
+      });
+      res.end(new Uint8Array(body));
+    } catch (error) {
+      if (res.headersSent || res.destroyed) return;
+      const blocked = ['PROXY_REDIRECT_BLOCKED', 'PROXY_DNS_BLOCKED'].includes(errorCode(error));
+      res.writeHead(blocked ? 400 : 502, options.corsHeaders(req));
+      res.end(blocked ? 'URL blocked by SSRF guard' : 'Proxy request failed');
+    } finally { req.removeListener('aborted', abort); res.removeListener('close', abort); }
   })();
 }

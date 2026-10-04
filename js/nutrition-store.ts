@@ -783,7 +783,8 @@ export function deleteActiveProfileMeal(id: unknown) {
     recordTombstone(importedData, 'nutritionMeals', String(id || ''));
     importedData.nutritionMeals = canonicalNutritionMeals(importedData.nutritionMeals)
       .filter(meal => meal.id !== id);
-    const persistedData = await persistAlignedNutritionProfileData(profileId, importedData, baseData);
+    const persistedData = await persistAlignedNutritionProfileData(profileId, importedData, baseData)
+      .catch((error: unknown) => { rollback(); throw error; });
     if (!persistedData) {
       rollback();
       throw new Error('Meal could not be deleted because its cross-device deletion could not be saved.');

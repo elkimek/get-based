@@ -81,3 +81,29 @@ describe('proxy upstream body boundaries', () => {
     expect(JSON.parse(text)).toEqual({ value: '🙂' });
   });
 });
+
+describe('validated upstream response identity', () => {
+  it.each([false, true])('retains the final validated URL for body presence %s', async (hasBody) => {
+    const { fetchWithValidatedRedirects } = await import('../lib/proxy-upstream.js');
+    const fetch = vi.fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 302, headers: { location: '/final' } }))
+      .mockResolvedValueOnce(new Response(hasBody ? 'final bytes' : null, { status: hasBody ? 200 : 204 }));
+    globalThis.fetch = fetch;
+    const response = await fetchWithValidatedRedirects('https://example.com/start');
+    expect(response.url).toBe('https://example.com/final');
+    expect(await response.text()).toBe(hasBody ? 'final bytes' : '');
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps HEAD checks bodyless across a 303 redirect', async () => {
+    const { fetchWithValidatedRedirects } = await import('../lib/proxy-upstream.js');
+    const fetch = vi.fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 303, headers: { location: '/final' } }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    globalThis.fetch = fetch;
+    const response = await fetchWithValidatedRedirects('https://example.com/start', { method: 'HEAD' });
+    expect(fetch.mock.calls.map(([, options]) => options?.method)).toEqual(['HEAD', 'HEAD']);
+    expect(response.url).toBe('https://example.com/final');
+    expect(response.body).toBeNull();
+  });
+});

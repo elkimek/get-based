@@ -598,11 +598,23 @@ reproduced against the original source; two targeted native repeats passed.
 
 ## Pre-release audit — 2026-10-04
 
-The migration remains complete: 1,731 authored TypeScript sources and zero
+The migration remains complete: 1,733 authored TypeScript sources and zero
 first-party JavaScript sources. The later wallet recovery and node-browse cache
 fixes remain part of the candidate. The user completed the manual workflow smoke
 check, including profiles, supplements, DNA, context, provider inference, chat,
 CLI agents, charts, backup/restore, sync and PWA behavior.
+
+The ready-PR review additionally pinned both Undici branches to patched versions
+(8.10.2 and the Blob override 6.28.1), routed local HEAD/binary requests through
+the DNS-pinned transport, retained HEAD across 303 redirects, and restored meal
+state when a deletion save rejects. Greptile identified an unrelated-node
+session-reset blocker; the correction preserves the owning node's pending
+journal, proofs and credentials while allowing a different node to reset.
+Meaningful missing-branch regressions and actual classic-worker coverage
+attribution restore the unchanged critical floors. The DOM inventory retains
+all 550 reviewed sinks and covers the extracted refund renderer with malicious
+value regressions. Three renamed CodeQL baseline findings were independently
+reviewed as false positives; no scanning rules or paths were disabled.
 
 The audit corrected these concrete release and data-safety defects:
 

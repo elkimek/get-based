@@ -119,3 +119,34 @@ it('rejects malformed forwarded origins without invoking the handler', async () 
   const response = await fetch(`http://127.0.0.1:${port}/api/proxy`, { headers: { 'x-forwarded-host': '[' } });
   expect(response.status).toBe(500); expect(handler).not.toHaveBeenCalled();
 });
+
+
+it('loads the real default handler lazily and rejects a hostile origin without contacting an upstream', async () => {
+  const upstream = vi.spyOn(globalThis, 'fetch');
+  const port = await listen(createCompatProxyServer());
+  try {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await fetch(`http://127.0.0.1:${port}/api/proxy`, {
+        method: 'POST', headers: { Origin: 'https://untrusted.example' },
+        body: JSON.stringify({ url: 'https://private-upstream.example' }),
+      });
+      expect(response.status).toBe(403);
+      expect(await response.json()).toEqual({ error: 'Origin not allowed.' });
+    }
+    expect(upstream.mock.calls.map(([url]) => String(url))).toEqual([
+      `http://127.0.0.1:${port}/api/proxy`, `http://127.0.0.1:${port}/api/proxy`,
+    ]);
+  } finally { upstream.mockRestore(); }
+});
+
+it('terminates an already-started response when adapting the handler headers fails', async () => {
+  const server = createCompatProxyServer({ proxyHandler: () => new Response('private response', {
+    headers: { 'X-Private-Header': 'private-value' },
+  }) });
+  const flush = (_request: import('node:http').IncomingMessage, response: import('node:http').ServerResponse) => response.flushHeaders();
+  server.on('request', flush);
+  const port = await listen(server);
+  await expect(fetch(`http://127.0.0.1:${port}/api/proxy`).then(response => response.text())).rejects.toThrow();
+  server.removeListener('request', flush);
+  expect((await fetch(`http://127.0.0.1:${port}/health`)).status).toBe(200);
+});

@@ -121,3 +121,17 @@ describe('nutrition editor draft recovery', () => {
     expect(modal.querySelector('[data-nutrition-action="open-history"]')!).not.toBeNull();
   });
 });
+
+it('ignores non-form draft matches and still preserves the editor DOM', () => {
+  const modal = mount('<div id="nutrition-note">Presentation text</div>');
+  const content = modal.firstChild;
+  expect(suspendNutritionEditor()).toBe(true);
+  expect(suspendedNutritionEditorHasDraft()).toBe(false);
+  expect(restoreSuspendedNutritionEditor()).toBe(true);
+  expect(modal.firstChild).toBe(content);
+});
+it('shows the explicit photo privacy and cloud consent boundary', () => {
+  const modal = mount('<p id="nutrition-privacy-line">Old copy</p>');
+  enhanceNutritionEditorNavigation(modal);
+  expect(document.getElementById('nutrition-privacy-line')!.textContent).toBe('Sent only when you choose Analyze photo. Full-size originals are not saved; resized copies stay with the meal. First cloud use asks for approval.');
+});

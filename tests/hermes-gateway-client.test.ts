@@ -144,3 +144,11 @@ describe('Hermes personal gateway adapter', () => {
     await client.close();
   });
 });
+
+it.each(['invalid URL','ftp://gateway.example','https://user:secret@gateway.example','https://gateway.example?token=secret'])('rejects malformed or credential-bearing gateway URLs before connection: %s', value => {
+  expect(()=>normalizeHermesGatewayBaseUrl(value)).toThrow('gateway URL is invalid');
+});
+
+it('does not expose models lacking provider or model identities', () => {
+  expect(normalizeHermesGatewayModelCatalog({providers:[null,{slug:'blocked',authenticated:false,models:['private']},{models:['hidden']},{slug:'safe',authenticated:true,models:[null,'', 'real']}]})).toEqual([expect.objectContaining({id:'safe:real'})]);
+});

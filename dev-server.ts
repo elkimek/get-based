@@ -11,7 +11,6 @@ import type { DevAgentHostController } from './lib/dev-agent-host.js';
 import type { BrowserEnvironment, BrowserOptions, BrowserSpawnOperation, LaunchCandidate, ShareEnvelopeReader, ShareRecord } from './types/dev-server.js';
 
 import http from 'node:http';
-import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,7 +35,7 @@ import {
   _runPostDeployHooks,
   handleCatalogDeployRequest,
 } from './lib/dev-catalog.js';
-import { handleDevFetchPage } from './lib/dev-url-fetch.js';
+import { handleDevFetchPage, handleDevCheckUrl, handleDevRawProxy } from './lib/dev-url-fetch.js';
 import { startDevAgentHost } from './lib/dev-agent-host.js';
 
 export {
@@ -494,41 +493,7 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/check-url') {
     const target = url.searchParams.get('url');
     if (!target) { res.writeHead(400, { ...corsHeaders(req) }); res.end('{"error":"missing url param"}'); return; }
-    if (!_isAllowedProxyUrl(target)) {
-      res.writeHead(400, { 'Content-Type': 'application/json', ...corsHeaders(req) });
-      res.end(JSON.stringify({ status: 0, error: 'URL blocked by SSRF guard' }));
-      return;
-    }
-    const mod = target.startsWith('https') ? https : http;
-    const headReq = mod.request(target, { method: 'HEAD', timeout: 6000 }, (headRes) => {
-      // Follow one redirect — but re-check the destination through the SSRF
-      // guard. An allowlisted host could otherwise 30x to a private IP.
-      if ([301, 302, 307, 308].includes(headRes.statusCode as number) && headRes.headers.location) {
-        const loc = new URL(headRes.headers.location, target).href;
-        if (!_isAllowedProxyUrl(loc)) {
-          res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
-          res.end(JSON.stringify({ status: 0, error: 'Redirect destination blocked by SSRF guard' }));
-          return;
-        }
-        const mod2 = loc.startsWith('https') ? https : http;
-        mod2.request(loc, { method: 'HEAD', timeout: 6000 }, (r2) => {
-          res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
-          res.end(JSON.stringify({ status: r2.statusCode, redirected: loc }));
-        }).on('error', (e) => {
-          res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
-          res.end(JSON.stringify({ status: 0, error: e.message }));
-        }).end();
-        return;
-      }
-      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
-      res.end(JSON.stringify({ status: headRes.statusCode }));
-    });
-    headReq.on('error', (e) => {
-      res.writeHead(200, { 'Content-Type': 'application/json', ...corsHeaders(req) });
-      res.end(JSON.stringify({ status: 0, error: e.message }));
-    });
-    headReq.on('timeout', () => { headReq.destroy(); });
-    headReq.end();
+    handleDevCheckUrl(req, res, target, { corsHeaders });
     return;
   }
 
@@ -674,23 +639,7 @@ const server = http.createServer((req, res) => {
   if (pathname === '/proxy') {
     const targetUrl = url.searchParams.get('url');
     if (!targetUrl) { res.writeHead(400); res.end('Missing url param'); return; }
-    if (!_isAllowedProxyUrl(targetUrl)) { res.writeHead(400); res.end('URL blocked by SSRF guard'); return; }
-    const fetcher = targetUrl.startsWith('https') ? https : http;
-    fetcher.get(targetUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (proxyRes) => {
-      // Follow redirects — re-check destination through SSRF guard.
-      if ((proxyRes.statusCode as number) >= 300 && (proxyRes.statusCode as number) < 400 && proxyRes.headers.location) {
-        const redirect = new URL(proxyRes.headers.location, targetUrl).href;
-        if (!_isAllowedProxyUrl(redirect)) { res.writeHead(400); res.end('Redirect destination blocked by SSRF guard'); return; }
-        const rFetcher = redirect.startsWith('https') ? https : http;
-        rFetcher.get(redirect, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (rRes) => {
-          res.writeHead(rRes.statusCode as number, { 'Content-Type': rRes.headers['content-type'] || 'application/octet-stream', ...corsHeaders(req) });
-          rRes.pipe(res);
-        }).on('error', e => { res.writeHead(502); res.end(e.message); });
-        return;
-      }
-      res.writeHead(proxyRes.statusCode as number, { 'Content-Type': proxyRes.headers['content-type'] || 'application/octet-stream', ...corsHeaders(req) });
-      proxyRes.pipe(res);
-    }).on('error', e => { res.writeHead(502); res.end(e.message); });
+    handleDevRawProxy(req, res, targetUrl, { corsHeaders });
     return;
   }
 

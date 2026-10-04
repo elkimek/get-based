@@ -183,3 +183,11 @@ describe('profile storage cleanup', () => {
     await expect(listStoredProfileIds(['listed'])).rejects.toThrow('blob enumeration failed');
   });
 });
+
+it('discovers durable orphan profiles when local storage is unavailable', async () => {
+  configureProfileStorageCleanupDeps({getBlobKeys: async () => ['labcharts-durable-imported']});
+  vi.stubGlobal('localStorage', undefined);
+  try {
+    await expect(listStoredProfileIds(['listed'])).resolves.toEqual(['listed', 'durable']);
+  } finally { vi.unstubAllGlobals(); }
+});

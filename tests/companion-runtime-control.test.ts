@@ -248,3 +248,11 @@ describe('companion update failure boundaries', () => {
     expect(appServer.initialize).not.toHaveBeenCalled();
   });
 });
+
+it('refuses updates from a temporary companion without fetching or installing', async () => {
+  const fetchImpl=vi.fn<RuntimeFetch>(),installImpl=vi.fn<InstallImpl>();
+  const controller=createCompanionRuntimeController({appServer:{restart:vi.fn(),initialize:vi.fn()},bundlePath:'/tmp/getbased-companion.mjs',env:{},platform:'linux',fetchImpl,installImpl});
+  await expect(controller.handle('update',{origin:'https://getbased.health'})).rejects.toThrow('Start the companion automatically');
+  expect(fetchImpl).not.toHaveBeenCalled();expect(installImpl).not.toHaveBeenCalled();
+  await expect(controller.handle('uninstall',{origin:'https://getbased.health'})).resolves.toMatchObject({uninstalled:true,runtimeMode:'temporary'});
+});

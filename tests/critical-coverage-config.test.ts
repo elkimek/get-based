@@ -4,7 +4,7 @@ import rawConfig from '../vitest.critical.config.js';
 const config = rawConfig as { test: { include: string[]; coverage: { include: string[]; thresholds: Record<string, { branches: number }> } } };
 
 it('keeps the critical local coverage command bounded to explicit test and source files', () => {
-  expect(config.test.include).toHaveLength(58);
+  expect(config.test.include).toHaveLength(59);
   expect(config.test.include.every(file => file.startsWith('tests/') && /\.test\.[jt]s$/.test(file) && !/[?*]/.test(file))).toBe(true);
   expect(config.test.coverage.include).toHaveLength(32);
   expect(config.test.coverage.include.every(file => /^(?:js\/|lib\/|server\/|service-worker-runtime\.js$)/.test(file) && !/[?*]/.test(file))).toBe(true);

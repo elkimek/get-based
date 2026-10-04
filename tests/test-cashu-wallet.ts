@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { sourceFunctionHasStatement } from './helpers/native-source-contracts.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
@@ -57,6 +58,7 @@ const providerRenderSrc = await fetchWithRetry('js/provider-panel-renderers.js')
 const modelControlsSrc = await fetchWithRetry('js/provider-model-controls.js');
 const providerDelegatesSrc = await fetchWithRetry('js/provider-panel-delegates.js');
 const walletPanelSrc = await fetchWithRetry('js/provider-wallet-panels.js');
+const nodeRefundRecoverySrc = await fetchWithRetry('js/provider-wallet-refund-recovery.js');
 const walletPanelRenderSrc = await fetchWithRetry('js/provider-wallet-panel-renderers.js');
 const walletRuntimeSrc = await fetchWithRetry('js/provider-wallet-runtime.js');
 const providerQrSrc = await fetchWithRetry('js/provider-qr.js');
@@ -185,11 +187,28 @@ assert('Pending deposit saved BEFORE node call',
   depositFnSrc.indexOf("_setMeta('pendingDeposit', pendingDeposit)") < depositFnSrc.indexOf('return submitRoutstrDeposit('));
 assert('Pending deposit cleared after credential storage', nodePaymentsSrc.includes("_setMeta('pendingDeposit', null)"));
 assert('Pending withdraw saved before melt', walletSrc.includes("_setMeta('pendingWithdraw',"));
-const nodeRefundIdx = walletPanelSrc.indexOf('export async function doRoutstrNodeWithdraw');
-const nodeRefundSrc = nodeRefundIdx >= 0 ? walletPanelSrc.slice(nodeRefundIdx) : '';
-assert('Node refund uses its durable payment helper before receiving', nodeRefundSrc.indexOf('cashuRefundNodeToToken(target)') < nodeRefundSrc.indexOf('cashuReceiveToken(token)'));
-assert('Node refund has a separate encrypted journal', nodePaymentsSrc.includes("_setMeta('pendingNodeRefund', result)"));
-assert('Node refund retry retains its origin', nodeRefundSrc.includes('resume-node-refund') && nodeRefundSrc.includes('data-node-url'));
+const nodeRefundHtmlIdx = nodeRefundRecoverySrc.indexOf('export function refundRecoveryHtml');
+const nodeRefundHtmlSrc = nodeRefundHtmlIdx >= 0
+  ? nodeRefundRecoverySrc.slice(nodeRefundHtmlIdx, nodeRefundRecoverySrc.indexOf('export function nodeSessionRejectedHtml', nodeRefundHtmlIdx)) : '';
+const nodeRefundIdx = nodeRefundRecoverySrc.indexOf('export async function withdrawNodeToWallet');
+const nodeRefundSrc = nodeRefundIdx >= 0 ? nodeRefundRecoverySrc.slice(nodeRefundIdx) : '';
+const durableRefundCallIdx = nodeRefundSrc.indexOf('await runtime.cashuRefundNodeToToken(target, recoveryId, recoveryToken, generation)');
+const receiveRefundCallIdx = nodeRefundSrc.indexOf('await runtime.cashuReceiveToken(token)');
+assert('Node refund uses its durable payment helper before receiving',
+  walletPanelSrc.includes("from './provider-wallet-refund-recovery.js'")
+    && sourceFunctionHasStatement(walletPanelSrc, 'doRoutstrNodeWithdraw',
+      'return withdrawNodeToWallet(nodeUrl, recoveryId, recoveryToken, generation, _ensureWalletSeed, _refreshRoutstrWalletBalance, refreshRoutstrBalance);', 'last')
+    && durableRefundCallIdx >= 0 && receiveRefundCallIdx > durableRefundCallIdx);
+assert('Node refund has a separate encrypted journal',
+  nodePaymentsSrc.includes("const scopedKey = 'pendingNodeRefund:' + await _digestStorageKey(String(nodeUrl) + '\\n' + key)")
+    && nodePaymentsSrc.includes("journalKey = scoped || differentSession ? scopedKey : 'pendingNodeRefund'")
+    && nodePaymentsSrc.includes('await _setMeta(journalKey, result)'));
+assert('Node refund retry retains its origin',
+  nodeRefundHtmlSrc.includes('resume-node-refund') && nodeRefundHtmlSrc.includes('data-node-url')
+    && nodeRefundHtmlSrc.includes('escapeAttr(node)') && nodeRefundHtmlSrc.includes('data-recovery-id')
+    && nodeRefundHtmlSrc.includes('data-generation')
+    && nodePaymentsSrc.includes('pending.nodeUrl !== nodeUrl')
+    && nodePaymentsSrc.includes('pending.generation !== generation'));
 assert('Node refund cannot overwrite outgoing recovery', !nodePaymentsSrc.includes("_setMeta('pendingWithdraw'"));
 assert('Pending withdraw cleared after success', walletSrc.includes("_setMeta('pendingWithdraw', null)"));
 assert('Recovery UI shows for pending deposits', ppSrc.includes('Pending deposit recovery'));
@@ -286,7 +305,10 @@ assert('Unseeded device UI explains separate sync and wallet identities',
     && walletPanelRenderSrc.includes('does not copy spendable Cashu proofs')
     && walletPanelRenderSrc.includes('setup-wallet-seed'));
 assert('Node refund is gated before its mutation until the local wallet has a seed',
-  nodeRefundSrc.indexOf('cashuHasWalletSeed') < nodeRefundSrc.indexOf('cashuRefundNodeToToken(target)'));
+  sourceFunctionHasStatement(nodeRefundRecoverySrc, 'withdrawNodeToWallet',
+    'if (!await runtime.cashuHasWalletSeed?.()) { await ensureSeed(() => withdrawNodeToWallet(target, recoveryId, recoveryToken, generation, ensureSeed, refreshWallet, refreshNode)); return; }')
+    && nodeRefundSrc.indexOf('cashuHasWalletSeed') >= 0
+    && durableRefundCallIdx > nodeRefundSrc.indexOf('cashuHasWalletSeed'));
 assert('Wallet mnemonic excluded from generic settings apply', !syncApplySrc.includes("'labcharts-cashu-wallet-mnemonic'"));
 assert('Generic backup excludes wallet identity but keeps node preference',
   !backupSrc.includes("'labcharts-cashu-wallet-mint'") &&

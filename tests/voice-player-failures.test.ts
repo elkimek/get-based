@@ -230,3 +230,32 @@ describe('voice playback failure cleanup', () => {
     await expect(playback).resolves.toBe(true);
   });
 });
+
+it('keeps empty and silent PCM buffers intact rather than inventing speech', async () => {
+  const {trimPcmEdgeSilence}=await import('../js/voice-player.js');
+  const empty=new Float32Array(),silence=new Float32Array(8);
+  expect(trimPcmEdgeSilence(empty,24000)).toBe(empty);expect(trimPcmEdgeSilence(silence,24000)).toBe(silence);
+});
+it('activates an already-running audio context and clears activation when construction fails', async () => {
+  const {context}=contextFixture();const player=new VoicePlayer({audioContextFactory:()=>context as unknown as AudioContext});
+  expect(player.unlock()).toBe(true);await player.audioUnlockPromise;expect(player.hasPlaybackActivation).toBe(true);
+  const failed=new VoicePlayer({audioContextFactory:()=>{throw Error('device unavailable');}});
+  expect(failed.unlock()).toBe(false);expect(failed.hasPlaybackActivation).toBe(false);
+});
+it('reports a browser that stays suspended despite successful resume', async () => {
+  const context={state:'suspended',resume:vi.fn(async()=>{})};const player=new VoicePlayer({audioContextFactory:()=>context as unknown as AudioContext});
+  expect(player.unlock()).toBe(true);await expect(player.audioUnlockPromise).rejects.toThrow('kept audio playback suspended');
+  expect(player.hasPlaybackActivation).toBe(false);
+});
+it('stopping active Web Audio and a pending MediaSource aborts each owned resource once', () => {
+  const {player}=fixture();const source={onended:()=>{},stop:vi.fn(),disconnect:vi.fn()},buffer={updating:true,abort:vi.fn()};
+  player.audioSource=source as unknown as AudioBufferSourceNode;player.sourceBuffer=buffer as unknown as SourceBuffer;
+  player.stop();player.stop();expect(source.onended).toBeNull();expect(source.stop).toHaveBeenCalledOnce();expect(source.disconnect).toHaveBeenCalledOnce();expect(buffer.abort).toHaveBeenCalledOnce();
+  expect(player.audioSource).toBeNull();expect(player.sourceBuffer).toBeNull();
+});
+it('rejects unavailable or still-suspended Web Audio instead of reporting playable audio', async () => {
+  const {player}=fixture();await expect(player.ensureAudioContextReady()).rejects.toThrow('Web Audio is unavailable');
+  await expect(player.playWithAudioContext(new Blob(['audio']),{})).rejects.toThrow('Web Audio is unavailable');
+  player.audioContext={state:'suspended'} as AudioContext;player.audioUnlockPromise=Promise.resolve();
+  await expect(player.ensureAudioContextReady()).rejects.toThrow('Audio playback is blocked');
+});

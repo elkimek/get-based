@@ -43,7 +43,16 @@ export async function verifyNodeDepositSession(nodeUrl: string, key: string) {
 export async function prepareNewNodeSession(nodeUrl: string) {
   nodeUrl = canonicalRoutstrUrl(nodeUrl);
   const deposit = await _getMeta('pendingDeposit');
-  if (deposit) throw new Error('Recover or reconcile the pending deposit before starting a new node session.');
+  let depositNode: string | undefined;
+  if (deposit && typeof deposit === 'object') {
+    const recordedNode = (deposit as { nodeUrl?: unknown }).nodeUrl;
+    if (typeof recordedNode === 'string') {
+      try { depositNode = canonicalRoutstrUrl(recordedNode); } catch {}
+    }
+  }
+  // A reset cannot change the credential needed to finish this node's deposit.
+  // An unrelated, explicitly bound journal and its origin key remain untouched.
+  if (deposit && (!depositNode || depositNode === nodeUrl)) throw new Error('Recover or reconcile the pending deposit before starting a new node session.');
   const key = getRoutstrSessionKey(nodeUrl);
   if (key) await saveRoutstrSessionKey('', nodeUrl, key, true);
 }

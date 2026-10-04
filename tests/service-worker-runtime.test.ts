@@ -454,3 +454,22 @@ describe('service worker runtime cache behavior', () => {
     expect(self.skipWaiting).toHaveBeenCalledTimes(1);
   });
 });
+
+// Failed precaches must report useful diagnostics even for non-Error rejections.
+it.each([['offline string', 'offline string'], [null, 'network error']] as const)('reports a precache rejection %j without losing the failed URL', async (failure, detail) => {
+  const fetchImpl = vi.fn(async (request: string | Request) => {
+    const href = typeof request === 'string' ? request : request.url;
+    if (href === '/api/commit') return jsonResponse({ sha: 'deadbeefcafebabe' });
+    if (href === '/js/main.js') throw failure;
+    return new Response('asset');
+  });
+  const {listeners, matches} = await loadServiceWorker({fetchImpl});
+  const event = makeWaitEvent();
+  listeners.get('install')!(event);
+  await expect(event.done()).rejects.toThrow(`Failed to precache /js/main.js: ${detail}`);
+  const failureError: unknown = await event.done().catch((error: unknown) => error);
+  expect(failureError).toBeInstanceOf(Error);
+  expect((failureError as Error).stack).toContain(new URL('../service-worker-runtime.js', import.meta.url).href);
+  expect(fetchImpl.mock.calls.filter(([request]) => request === '/js/main.js')).toHaveLength(3);
+  expect(matches.has('/styles.css')).toBe(true);
+});

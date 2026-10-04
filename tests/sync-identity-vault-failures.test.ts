@@ -133,3 +133,14 @@ it('does not delete the durable record if locked token invalidation is not retai
  const pending=isolated.invalidate();const outcome=expect(pending).rejects.toThrow('invalidation was not retained');await Promise.resolve();values.set(KEY,'new-token');storage.removeItem.mockImplementation(()=>{});
  acquire!();await outcome;expect(indexedDb.open).not.toHaveBeenCalled();expect(values.get(KEY)).toBe('new-token');
 });
+
+it.each([true,false])('publishes a genuine default commit token only after durable completion (UUID=%s)', async uuid => {
+  const randomUUID=vi.fn(()=> 'generated-default-token');
+  const getRandomValues=vi.fn((array:Uint8Array)=>{array.fill(7);return array;});
+  vi.stubGlobal('crypto',uuid?{randomUUID,getRandomValues}:{getRandomValues});
+  const defaultVault=(createEvolu8IdentityVault as unknown as (options: VaultFixtureOptions)=>ReturnType<typeof createEvolu8IdentityVault>)({storage,indexedDb});
+  const pending=defaultVault.write(identity);await opened();row.onsuccess!();
+  expect(storage.setItem).not.toHaveBeenCalled();await completed();await pending;
+  expect(values.get(KEY)).toBe(uuid?'generated-default-token':'07'.repeat(16));
+  expect(uuid?randomUUID:getRandomValues).toHaveBeenCalledOnce();
+});

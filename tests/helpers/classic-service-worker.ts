@@ -11,8 +11,10 @@ export function executeClassicServiceWorker(runtime: Record<string, unknown>, lo
     });
   }
   const load = (relative: string) => {
-    const source = readFileSync(new URL('../../' + relative, import.meta.url), 'utf8');
-    runInContext(source, context, { filename: relative });
+    const sourceUrl = new URL('../../' + relative, import.meta.url);
+    const source = readFileSync(sourceUrl, 'utf8');
+    // V8 collectors attribute real classic scripts only when their filename is a file URL.
+    runInContext(source, context, { filename: sourceUrl.href });
   };
   context['importScripts'] = (...urls: string[]) => {
     for (const url of urls) {

@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 // @vitest-environment node
 import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -59,4 +60,20 @@ it.each([true, false])('handles parser errors with socket writable=%s', async wr
   state.server!.emit('clientError', new Error('private payload'), socket);
   if (writable) expect(socket.end).toHaveBeenCalledExactlyOnceWith('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n');
   else expect(socket.end).not.toHaveBeenCalled();
+});
+
+
+it('masks a direct executable startup failure and exits unsuccessfully', async () => {
+  state.error = new Error('private bind failure');
+  const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+  const previousArgv = process.argv;
+  process.argv = [previousArgv[0]!, fileURLToPath(new URL('../server/compat-proxy-server.js', import.meta.url))];
+  try {
+    vi.resetModules();
+    await import('../server/compat-proxy-server.js');
+    await vi.dynamicImportSettled();
+    expect(stderr).toHaveBeenCalledExactlyOnceWith('Compatibility relay failed to start\n');
+    expect(process.exit).toHaveBeenCalledExactlyOnceWith(1);
+    expect(state.signals).toEqual({});
+  } finally { process.argv = previousArgv; }
 });

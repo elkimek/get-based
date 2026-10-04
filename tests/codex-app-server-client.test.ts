@@ -79,3 +79,21 @@ describe('CodexAppServerClient', () => {
     await client.close();
   });
 });
+
+it.each([['closed pipe','closed pipe'],[{reason:'opaque'},'Codex app-server request failed.']] as const)('reports raw write failure %j and clears pending requests', async (failure,message) => {
+  const child=fakeChild();vi.spyOn(child.stdin,'write').mockImplementation(()=>{throw failure;});
+  const client=new CodexAppServerClient({spawnImpl:()=>child});
+  await expect(client.request('probe',{})).rejects.toMatchObject({message,code:'write_failed'});
+  expect(client.pending.size).toBe(0);await client.close();
+});
+it('refuses request/reply/notification when no process is available without spawning one', async () => {
+  const spawnImpl=vi.fn(()=>fakeChild());const client=new CodexAppServerClient({spawnImpl});client.start=vi.fn();
+  await expect(client.request('probe')).rejects.toMatchObject({code:'process_unavailable'});
+  expect(()=>client.respond(1,{})).toThrow('unavailable');expect(()=>client.notify('probe')).toThrow('unavailable');
+  expect(spawnImpl).not.toHaveBeenCalled();
+});
+it('writes a server-request reply with the original ID and no notification method', async () => {
+  const child=fakeChild(),writes:string[]=[];child.stdin.on('data',chunk=>writes.push(String(chunk)));
+  const client=new CodexAppServerClient({spawnImpl:()=>child});client.start();client.respond('server-request',{allowed:false});
+  expect(writes.map(value=>JSON.parse(value))).toEqual([{id:'server-request',result:{allowed:false}}]);await client.close();
+});

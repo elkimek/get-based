@@ -181,3 +181,31 @@ it('does not roll back metadata changed by another operation while the index sav
   m.index.mockImplementation(async () => { state.chatThreads[0]!.personality = 'newer'; return false; });
   expect(await saveChatHistory()).toBe(false); expect(state.chatThreads[0]!.personality).toBe('newer'); expect(state.chatThreads[0]!.updatedAt).toBe('old');
 });
+
+it('reports no selected conversation as unsaveable and uses the profile storage key', async () => {
+  const {getChatStorageKey} = await import('../js/chat-history.js');
+  expect(getChatStorageKey()).toBe(`labcharts-${state.currentProfile}-chat`);
+  state.currentThreadId = null;
+  expect(canSaveChatHistory()).toBe(false);
+  expect(m.set).not.toHaveBeenCalled();
+});
+it('protects indexed messages when an encrypted stored history cannot be decrypted', async () => {
+  localStorage.setItem(`${state.currentProfile}:thread`, 'ciphertext');
+  m.get.mockResolvedValueOnce(null);
+  expect(await loadChatHistory()).toBe(false);
+  expect(canSaveChatHistory()).toBe(false);
+  expect(await saveChatHistory()).toBe(false);
+  expect(m.set).not.toHaveBeenCalled();
+});
+it('leaves destination history intact when navigation occurs during clear index persistence', async () => {
+  const gate = deferred();
+  m.index.mockReturnValueOnce(gate.promise);
+  const clearing = clearChatHistory();
+  await vi.waitFor(() => expect(m.index).toHaveBeenCalledOnce());
+  const destination = [{role: 'user', content: 'Destination messages'}];
+  state.currentThreadId = 'destination'; state.chatHistory = destination;
+  gate.resolve!(true);
+  expect(await clearing).toBe(false);
+  expect(state.chatHistory).toBe(destination);
+  expect(m.list).not.toHaveBeenCalled();
+});
