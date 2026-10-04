@@ -593,14 +593,14 @@ async function _importDatabaseBundle(json: ImportBodyOperations) {
     const importData = (bp.data || {}) as ImportedDataOperations;
     if (existing && plans.some(p => p.existing?.id === existing.id)) throw new Error('Duplicate profile in bundle.');
     const key = existing ? profileStorageKey(existing.id, 'imported') : '';
-    const raw = key ? await encryptedGetItem(key) : null;
+    const raw = key ? await encryptedGetItem(key, { throwOnDecryptError: true }) : null;
     let current: ImportedDataOperations;
     try { current = raw ? JSON.parse(raw) : {}; } catch { current = {}; }
     const replaceRegimens = await confirmRegimenImport(current, importData.supplements);
     plans.push({ bp, existing, importData, key, raw, current, replaceRegimens });
   }
   // Resolve every conflict, then validate every snapshot before the first write.
-  for (const p of plans) if (p.key && await encryptedGetItem(p.key) !== p.raw) throw new Error('Profile changed. Retry import.');
+  for (const p of plans) if (p.key && await encryptedGetItem(p.key, { throwOnDecryptError: true }) !== p.raw) throw new Error('Profile changed. Retry import.');
   try {
     for (const { bp, existing, importData, raw, current, replaceRegimens } of plans) {
       if (existing) {

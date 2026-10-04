@@ -133,3 +133,65 @@ test('startup orchestrator browser coverage reports startup sequence failures', 
     expect(passed, name).toBe(true);
   }
 });
+
+test('startup remains ready while older backup and meal database connections block upgrades', async ({ page, context }) => {
+  const olderTab = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await olderTab.goto('/manifest.json');
+    await olderTab.evaluate(async () => {
+      const databases = [
+        { name: 'labcharts-backups', store: 'snapshots', keyPath: 'id', row: { id: 1, value: 'retained backup' } },
+        { name: 'getbased-nutrition-default', store: 'meta', keyPath: 'k', row: { k: 'retained', value: 'retained meal metadata' } },
+      ];
+      const connections = await Promise.all(databases.map(fixture => new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open(fixture.name, 1);
+        request.onupgradeneeded = () => request.result.createObjectStore(fixture.store, { keyPath: fixture.keyPath }).put(fixture.row);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+      })));
+      Object.assign(window, { blockedStartupConnections: connections });
+    });
+    await page.addInitScript(() => {
+      const blocked: string[] = [];
+      Object.assign(window, { blockedStartupNames: blocked });
+      for (const suffix of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${suffix}`, 'completed');
+      localStorage.setItem('labcharts-ai-paused', 'true');
+      localStorage.setItem('labcharts-analytics-consent-seen', '1');
+      const open = indexedDB.open.bind(indexedDB);
+      indexedDB.open = (name, version) => {
+        const request = version === undefined ? open(name) : open(name, version);
+        if (name === 'labcharts-backups' || name === 'getbased-nutrition-default') request.addEventListener('blocked', () => blocked.push(name));
+        return request;
+      };
+    });
+    await page.goto('/app');
+    await expect(page.locator('html[data-app-ready]')).toBeAttached({ timeout: 30_000 });
+    expect(await olderTab.evaluate(() => (window as unknown as { blockedStartupConnections: IDBDatabase[] }).blockedStartupConnections.map(db => db.version))).toEqual([1, 1]);
+    const blocked = await page.evaluate(() => (window as unknown as { blockedStartupNames: string[] }).blockedStartupNames);
+    expect(blocked).toContain('labcharts-backups');
+    expect(blocked).toContain('getbased-nutrition-default');
+    await olderTab.evaluate(() => {
+      for (const db of (window as unknown as { blockedStartupConnections: IDBDatabase[] }).blockedStartupConnections) db.close();
+    });
+    const retained = await page.evaluate(async () => {
+      const read = (name: string, version: number, store: string, key: IDBValidKey): Promise<unknown> => new Promise((resolve, reject) => {
+        const request = indexedDB.open(name, version);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result, row = db.transaction(store).objectStore(store).get(key);
+          row.onerror = () => { db.close(); reject(row.error); };
+          row.onsuccess = () => { db.close(); resolve(row.result as unknown); };
+        };
+      });
+      return {
+        backup: await read('labcharts-backups', 2, 'snapshots', 1),
+        meal: await read('getbased-nutrition-default', 3, 'meta', 'retained'),
+      };
+    });
+    expect(retained.backup).toEqual({ id: 1, value: 'retained backup' });
+    expect(retained.meal).toEqual({ k: 'retained', value: 'retained meal metadata' });
+    expect(errors).toEqual([]);
+  } finally { await olderTab.close(); }
+});

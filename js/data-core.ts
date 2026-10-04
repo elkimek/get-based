@@ -204,7 +204,7 @@ export function createDataCore(ports: DataCorePorts) {
       try {
         if ((0, ports.isProfileReadBlocked)(profileId)) return false;
         const key = (0, ports.profileStorageKey)(profileId, 'imported');
-        const previous = await (0, ports.encryptedGetItem)(key);
+        const previous = await (0, ports.encryptedGetItem)(key, { throwOnDecryptError: true });
         // Explicit restores must retry if their reviewed snapshot changed.
         if (options.expectedData !== undefined && previous !== options.expectedData) throw new ports.ProfileWriteConflict('Stale import');
         const latest = base && previous != null ? JSON.parse(previous) : {};

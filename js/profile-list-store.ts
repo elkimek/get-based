@@ -150,8 +150,8 @@ export function getProfiles(): StoredProfileRecord[] {
 }
 
 export async function initProfilesCache() {
-  const raw = await encryptedGetItem('labcharts-profiles');
-    let profiles: StoredProfileRecord[] = [];
+  const raw = await encryptedGetItem('labcharts-profiles', { throwOnDecryptError: true });
+  let profiles: StoredProfileRecord[] = [];
   try {
     const parsed = raw ? JSON.parse(raw) : [];
     if (Array.isArray(parsed)) profiles = parsed;

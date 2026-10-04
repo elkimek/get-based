@@ -300,12 +300,14 @@ export function initSettingsModelFetch() {
           '</div></div>';
       }
     });
+    const pendingRefundArea = document.getElementById('routstr-node-picker');
     (walletRuntime.cashuGetPendingNodeRefund as ProviderPanelWalletOperations['cashuGetPendingNodeRefund'])?.().then(function(refund) {
       if (!refund) return;
-      const area = document.getElementById('routstr-node-picker');
-      if (!area) return;
+      const area = pendingRefundArea;
+      if (!area || area !== document.getElementById('routstr-node-picker') || area.dataset.mode) return;
+      area.dataset.mode = 'refund-notice';
       area.style.display = 'block';
-      area.innerHTML = '<div>Unfinished node refund: ' + escapeHTML(refund.nodeUrl) + '</div><button class="import-btn import-btn-primary" data-routstr-wallet-action="resume-node-refund" data-node-url="' + escapeAttr(refund.nodeUrl) + '">Check refund recovery</button>';
+      area.innerHTML = '<div>Saved refund for this node: ' + escapeHTML(refund.nodeUrl) + '</div><button class="import-btn import-btn-primary" data-routstr-wallet-action="saved-node-refunds" data-node-url="' + escapeAttr(refund.nodeUrl) + '">Check refund recovery</button>';
     }).catch(() => {});
     // Check for pending withdraw recovery
     if (typeof walletRuntime.cashuRecoverPendingWithdraw === 'function') (walletRuntime as unknown as ProviderPanelWalletOperations).cashuRecoverPendingWithdraw().then(function(token) {

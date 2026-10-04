@@ -16,7 +16,7 @@ interface SeedInput { mintUrl: unknown; proofs?: object[]; pendingQuote?: {quote
 export type CashuStubWallet = ReturnType<typeof installCashuStub>['instances'][number];
 interface FixtureMintReader {restore(request: {outputs: {B_: string}[]}): Promise<{outputs: {B_: string}[]; signatures: (Partial<FixtureSignature> | undefined)[]}>}
 export interface CashuStubSDK {
-  Wallet: {new (url: string, opts?: WalletOptions): CashuStubWallet; prototype: Pick<CashuStubWallet, 'checkMintQuoteBolt11' | 'groupProofsByState' | 'mintProofsBolt11' | 'batchRestore'>};
+  Wallet: {new (url: string, opts?: WalletOptions): CashuStubWallet; prototype: Pick<CashuStubWallet, 'checkMintQuoteBolt11' | 'checkMeltQuoteBolt11' | 'completeSwap' | 'completeMelt' | 'groupProofsByState' | 'mintProofsBolt11' | 'batchRestore'>};
   Mint: {new (): FixtureMintReader; prototype: FixtureMintReader} | undefined;
   OutputData: {serialize(output: FixtureOutput): object; deserialize(output: FixtureOutput): FixtureOutput} | undefined;
   MintQuoteState: { PAID: string; ISSUED: string; EXPIRED: string };

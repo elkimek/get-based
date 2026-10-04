@@ -234,72 +234,90 @@ function queueProfileSync(profileId: string, importedData: ProfileData | null = 
   queueEligibleProfileSync(profileId, getProfiles(), importedData, profileDeps);
 }
 
+let profileLoadGeneration = 0;
+let profileLoadPending = false;
+
 export async function loadProfile(profileId: string) {
-  const savedImported = await readProfileForLoad(profileId, () => encryptedGetItem(profileStorageKey(profileId, 'imported')), profileDeps.showNotification);
-  state.currentProfile = profileId;
-  setActiveProfileId(profileId);
-  await invalidateProfileContextCache();
-  const defaultData = createDefaultProfileData();
-  state.importedData = defaultData;
-  rememberProfileData(defaultData);
-  if (savedImported) {
-    try {
-      const d = JSON.parse(savedImported);
-      if (!d.notes) d.notes = [];
-      if (!d.supplements) d.supplements = [];
-      state.importedData = migrateProfileData(d);
-      rememberProfileData(state.importedData);
-    } catch (e) {
-      // Don't silently substitute defaults — preserve the corrupted bytes so
-      // the user can recover (or we can debug). Same key suffix every time
-      // so a second corruption doesn't shadow the first recoverable copy.
-      // The recovery key is sensitive and blob-backed, so encryptedSetItem
-      // preserves the at-rest guarantee and removes any legacy localStorage
-      // duplicate only after IndexedDB has the canonical copy.
-      let recoverySaved = false;
+  const generation = ++profileLoadGeneration;
+  const isCurrent = () => generation === profileLoadGeneration;
+  profileLoadPending = true;
+  try {
+    const savedImported = await readProfileForLoad(profileId, () => encryptedGetItem(profileStorageKey(profileId, 'imported'), { throwOnDecryptError: true }), (message, severity, duration) => {
+      if (isCurrent()) profileDeps.showNotification(message, severity, duration);
+    });
+    if (!isCurrent()) return;
+    state.currentProfile = profileId;
+    setActiveProfileId(profileId);
+    await invalidateProfileContextCache();
+    if (!isCurrent()) return;
+    const defaultData = createDefaultProfileData();
+    state.importedData = defaultData;
+    rememberProfileData(defaultData);
+    if (savedImported) {
       try {
-        const corruptKey = profileStorageKey(profileId, 'imported-corrupt');
-        const existingRecovery = await encryptedGetItem(corruptKey);
-        if (existingRecovery === null) {
-          if (getEncryptionEnabled() && !isUnlocked()) {
-            throw new Error('Encryption key is locked; refusing a plaintext recovery write.');
+        const d = JSON.parse(savedImported);
+        if (!d.notes) d.notes = [];
+        if (!d.supplements) d.supplements = [];
+        state.importedData = migrateProfileData(d);
+        rememberProfileData(state.importedData);
+      } catch (e) {
+        // Don't silently substitute defaults — preserve the corrupted bytes so
+        // the user can recover (or we can debug). Same key suffix every time
+        // so a second corruption doesn't shadow the first recoverable copy.
+        // The recovery key is sensitive and blob-backed, so encryptedSetItem
+        // preserves the at-rest guarantee and removes any legacy localStorage
+        // duplicate only after IndexedDB has the canonical copy.
+        let recoverySaved = false;
+        try {
+          const corruptKey = profileStorageKey(profileId, 'imported-corrupt');
+          const existingRecovery = await encryptedGetItem(corruptKey);
+          if (existingRecovery === null) {
+            if (getEncryptionEnabled() && !isUnlocked()) {
+              throw new Error('Encryption key is locked; refusing a plaintext recovery write.');
+            }
+            await encryptedSetItem(corruptKey, savedImported);
           }
-          await encryptedSetItem(corruptKey, savedImported);
+          recoverySaved = true;
+        } catch (recoveryError) {
+          console.warn('[profile] Could not preserve corrupt profile bytes:', recoveryError);
         }
-        recoverySaved = true;
-      } catch (recoveryError) {
-        console.warn('[profile] Could not preserve corrupt profile bytes:', recoveryError);
+        if (!isCurrent()) return;
+        profileDeps.showNotification(
+          recoverySaved
+            ? 'Profile data was corrupted and could not be loaded. The original bytes were saved as a recovery copy. Contact support before making more changes.'
+            : 'Profile data was corrupted and could not be loaded, and the recovery copy could not be saved. Contact support before making more changes.',
+          'error',
+          12000,
+        );
       }
-      profileDeps.showNotification(
-        recoverySaved
-          ? 'Profile data was corrupted and could not be loaded. The original bytes were saved as a recovery copy. Contact support before making more changes.'
-          : 'Profile data was corrupted and could not be loaded, and the recovery copy could not be saved. Contact support before making more changes.',
-        'error',
-        12000,
-      );
     }
+    if (!isCurrent()) return;
+    const savedUnits = localStorage.getItem(profileStorageKey(profileId, 'units'));
+    state.unitSystem = normalizeUnitProfile(savedUnits);
+    const savedRange = localStorage.getItem(profileStorageKey(profileId, 'rangeMode'));
+    state.rangeMode = savedRange === 'reference' ? 'reference' : savedRange === 'both' ? 'both' : 'optimal';
+    state.showAltUnits = localStorage.getItem(profileStorageKey(profileId, 'showAltUnits')) === 'on';
+    const savedSuppOverlay = localStorage.getItem(profileStorageKey(profileId, 'suppOverlay'));
+    state.suppOverlayMode = savedSuppOverlay === 'on' ? 'on' : 'off';
+    const savedNoteOverlay = localStorage.getItem(profileStorageKey(profileId, 'noteOverlay'));
+    state.noteOverlayMode = savedNoteOverlay === 'on' ? 'on' : 'off';
+    const savedPhaseOverlay = localStorage.getItem(profileStorageKey(profileId, 'phaseOverlay'));
+    state.phaseOverlayMode = savedPhaseOverlay === 'on' ? 'on' : 'off';
+    state.profileSex = getProfileSex(profileId);
+    state.profileDob = getProfileDob(profileId);
+    resetCorrelationSelection();
+    await restoreCorrelationWorkspace(profileId);
+    if (!isCurrent()) return;
+    state.chatHistory = [];
+    state.chatThreads = [];
+    state.currentThreadId = null;
+    state.markerRegistry = {};
+    await reloadProfileRuntimeShell(profileId);
+    if (!isCurrent()) return;
+    refreshProfileWearables(profileId, state.importedData?.biometrics);
+  } finally {
+    if (isCurrent()) profileLoadPending = false;
   }
-  const savedUnits = localStorage.getItem(profileStorageKey(profileId, 'units'));
-  state.unitSystem = normalizeUnitProfile(savedUnits);
-  const savedRange = localStorage.getItem(profileStorageKey(profileId, 'rangeMode'));
-  state.rangeMode = savedRange === 'reference' ? 'reference' : savedRange === 'both' ? 'both' : 'optimal';
-  state.showAltUnits = localStorage.getItem(profileStorageKey(profileId, 'showAltUnits')) === 'on';
-  const savedSuppOverlay = localStorage.getItem(profileStorageKey(profileId, 'suppOverlay'));
-  state.suppOverlayMode = savedSuppOverlay === 'on' ? 'on' : 'off';
-  const savedNoteOverlay = localStorage.getItem(profileStorageKey(profileId, 'noteOverlay'));
-  state.noteOverlayMode = savedNoteOverlay === 'on' ? 'on' : 'off';
-  const savedPhaseOverlay = localStorage.getItem(profileStorageKey(profileId, 'phaseOverlay'));
-  state.phaseOverlayMode = savedPhaseOverlay === 'on' ? 'on' : 'off';
-  state.profileSex = getProfileSex(profileId);
-  state.profileDob = getProfileDob(profileId);
-  resetCorrelationSelection();
-  await restoreCorrelationWorkspace(profileId);
-  state.chatHistory = [];
-  state.chatThreads = [];
-  state.currentThreadId = null;
-  state.markerRegistry = {};
-  await reloadProfileRuntimeShell(profileId);
-  refreshProfileWearables(profileId, state.importedData?.biometrics);
 }
 
 export async function createProfile(name: string, opts: CreateProfileOptions = {}) {
@@ -411,7 +429,7 @@ export async function deleteProfile(profileId: string, onComplete?: () => void) 
 }
 
 export async function switchProfile(profileId: string) {
-  if (profileId === state.currentProfile) return;
+  if (profileId === state.currentProfile && !profileLoadPending) return;
   // loadProfile is async (encryptedGetItem awaits IDB / OPFS). Earlier
   // draft fired-and-forgot it, leaving switchProfile resolving before
   // state.importedData was actually populated — callers like loadDemoData
@@ -419,12 +437,16 @@ export async function switchProfile(profileId: string) {
   // and end up with the demo data saved to the WRONG profile id, or
   // overwritten when the (delayed) loadProfile finally read the empty
   // localStorage row for the new profile.
-  await loadProfile(profileId);
+  const load = loadProfile(profileId);
+  const generation = profileLoadGeneration;
+  await load;
+  if (generation !== profileLoadGeneration || state.currentProfile !== profileId) return;
   // loadProfile keeps the ordinary app-shell refresh non-blocking, but a
   // caller explicitly awaiting a profile switch needs a stable imported-data
   // snapshot. Otherwise the old background wearable refresh can finish after
   // an immediate import and replace its wearable summary.
   await waitForProfileWearables(profileId);
+  if (generation !== profileLoadGeneration || state.currentProfile !== profileId) return;
   const profiles = getProfiles();
   const p = profiles.find(p => p.id === profileId);
   profileDeps.showNotification(`Switched to ${p ? p.name : 'profile'}`, 'info');

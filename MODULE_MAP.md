@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 829 |
-| Internal import edges | 3556 |
+| Modules | 831 |
+| Internal import edges | 3566 |
 | Dynamic internal edges | 119 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,9 +65,9 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 292 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
+| [`js/utils.ts`](js/utils.ts) | 294 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
 | [`js/state.ts`](js/state.ts) | 202 | [`js/chat-send.ts`](js/chat-send.ts) | 42 |
-| [`js/caught-error.ts`](js/caught-error.ts) | 90 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
+| [`js/caught-error.ts`](js/caught-error.ts) | 91 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 81 | [`js/settings.ts`](js/settings.ts) | 30 |
 | [`js/data.ts`](js/data.ts) | 79 | [`js/pdf-import.ts`](js/pdf-import.ts) | 28 |
 | [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts) | 65 | [`js/sync-configure.ts`](js/sync-configure.ts) | 28 |
@@ -269,14 +269,15 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>cashu</code> family — 6 modules</summary>
+<details><summary><code>cashu</code> family — 7 modules</summary>
 
 - [`js/cashu-funding-coordinator.ts`](js/cashu-funding-coordinator.ts) → no in-scope imports
+- [`js/cashu-wallet-funding-accounting.ts`](js/cashu-wallet-funding-accounting.ts) → [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts), [`js/url-safety.ts`](js/url-safety.ts)
 - [`js/cashu-wallet-runtime-types.ts`](js/cashu-wallet-runtime-types.ts) → no in-scope imports
 - [`js/cashu-wallet-storage-types.ts`](js/cashu-wallet-storage-types.ts) → no in-scope imports
 - [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/cashu-wallet-transfers.ts`](js/cashu-wallet-transfers.ts) → [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/routstr-node-payments.ts`](js/routstr-node-payments.ts), [`js/routstr-session.ts`](js/routstr-session.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts)
-- [`js/cashu-wallet.ts`](js/cashu-wallet.ts) → [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts), [`js/cashu-wallet-transfers.ts`](js/cashu-wallet-transfers.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto.ts`](js/crypto.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/cashu-wallet.ts`](js/cashu-wallet.ts) → [`js/cashu-wallet-funding-accounting.ts`](js/cashu-wallet-funding-accounting.ts), [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts), [`js/cashu-wallet-transfers.ts`](js/cashu-wallet-transfers.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto.ts`](js/crypto.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 
@@ -1026,7 +1027,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>provider</code> family — 16 modules</summary>
+<details><summary><code>provider</code> family — 17 modules</summary>
 
 - [`js/provider-local-ai-controls.ts`](js/provider-local-ai-controls.ts) → [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/hardware.ts`](js/hardware.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/local-ai-lifecycle.ts`](js/local-ai-lifecycle.ts), [`js/local-ai-provider-registry.ts`](js/local-ai-provider-registry.ts), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts), [`js/provider-local-ai-runtime.ts`](js/provider-local-ai-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/provider-local-ai-runtime.ts`](js/provider-local-ai-runtime.ts) → [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts)
@@ -1042,7 +1043,8 @@ Native browser modules shipped with the static application.
 - [`js/provider-wallet-funding-recovery.ts`](js/provider-wallet-funding-recovery.ts) → [`js/cashu-funding-coordinator.ts`](js/cashu-funding-coordinator.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/provider-qr.ts`](js/provider-qr.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/provider-wallet-panel-buttons.ts`](js/provider-wallet-panel-buttons.ts) → [`js/utils.ts`](js/utils.ts)
 - [`js/provider-wallet-panel-renderers.ts`](js/provider-wallet-panel-renderers.ts) → [`js/utils.ts`](js/utils.ts)
-- [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) → [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/provider-wallet-delegates.ts`](js/provider-wallet-delegates.ts), [`js/provider-wallet-funding-recovery.ts`](js/provider-wallet-funding-recovery.ts), [`js/provider-wallet-panel-buttons.ts`](js/provider-wallet-panel-buttons.ts), [`js/provider-wallet-panel-renderers.ts`](js/provider-wallet-panel-renderers.ts), [`js/provider-wallet-runtime.ts`](js/provider-wallet-runtime.ts), [`js/routstr-balance-settlement.ts`](js/routstr-balance-settlement.ts), [`js/routstr-model-cache.ts`](js/routstr-model-cache.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) → [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/provider-wallet-delegates.ts`](js/provider-wallet-delegates.ts), [`js/provider-wallet-funding-recovery.ts`](js/provider-wallet-funding-recovery.ts), [`js/provider-wallet-panel-buttons.ts`](js/provider-wallet-panel-buttons.ts), [`js/provider-wallet-panel-renderers.ts`](js/provider-wallet-panel-renderers.ts), [`js/provider-wallet-refund-recovery.ts`](js/provider-wallet-refund-recovery.ts), [`js/provider-wallet-runtime.ts`](js/provider-wallet-runtime.ts), [`js/routstr-balance-settlement.ts`](js/routstr-balance-settlement.ts), [`js/routstr-model-cache.ts`](js/routstr-model-cache.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/provider-wallet-refund-recovery.ts`](js/provider-wallet-refund-recovery.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/provider-wallet-runtime.ts`](js/provider-wallet-runtime.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/provider-wallet-runtime.ts`](js/provider-wallet-runtime.ts) → [`js/cashu-wallet.ts`](js/cashu-wallet.ts), [`js/nostr-discovery.ts`](js/nostr-discovery.ts)
 
 </details>
@@ -1166,7 +1168,7 @@ Native browser modules shipped with the static application.
 - [`js/startup-maintenance.ts`](js/startup-maintenance.ts) → [`js/light-devices.ts`](js/light-devices.ts) *(dynamic)*, [`js/startup-maintenance-runtime.ts`](js/startup-maintenance-runtime.ts), [`js/state.ts`](js/state.ts), [`js/supplement-warnings.ts`](js/supplement-warnings.ts), [`js/wearables-connect-loader.ts`](js/wearables-connect-loader.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts), [`js/wearables-summary.ts`](js/wearables-summary.ts)
 - [`js/startup-oauth-callbacks.ts`](js/startup-oauth-callbacks.ts) → [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) *(dynamic)*, [`js/utils.ts`](js/utils.ts), [`js/wearables-connect-loader.ts`](js/wearables-connect-loader.ts)
 - [`js/startup-orchestrator.ts`](js/startup-orchestrator.ts) → [`js/app-event-listeners.ts`](js/app-event-listeners.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/startup-foundation.ts`](js/startup-foundation.ts), [`js/startup-maintenance.ts`](js/startup-maintenance.ts), [`js/startup-oauth-callbacks.ts`](js/startup-oauth-callbacks.ts), [`js/startup-profile.ts`](js/startup-profile.ts), [`js/startup-ui.ts`](js/startup-ui.ts), [`js/sync-configure.ts`](js/sync-configure.ts), [`js/sync-lifecycle.ts`](js/sync-lifecycle.ts), [`js/sync.ts`](js/sync.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/startup-profile.ts`](js/startup-profile.ts) → [`js/correlation-workspace-store.ts`](js/correlation-workspace-store.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts)
+- [`js/startup-profile.ts`](js/startup-profile.ts) → [`js/correlation-workspace-store.ts`](js/correlation-workspace-store.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/startup-ui.ts`](js/startup-ui.ts) → [`js/changelog.ts`](js/changelog.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data.ts`](js/data.ts), [`js/health-data-loader.ts`](js/health-data-loader.ts), [`js/import-file-input.ts`](js/import-file-input.ts), [`js/legal-consent.ts`](js/legal-consent.ts), [`js/nav.ts`](js/nav.ts), [`js/startup-profile.ts`](js/startup-profile.ts), [`js/sync.ts`](js/sync.ts), [`js/theme.ts`](js/theme.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>

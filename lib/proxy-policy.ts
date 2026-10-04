@@ -86,6 +86,13 @@ const PROXY_BLOCKED_HEADER_NAMES = new Set([
   'upgrade',
 ]);
 
+function isGetbasedOperatedHostname(value: string) {
+  const hostname = String(value || '').toLowerCase().replace(/\.$/, '');
+  return hostname === 'getbased.health'
+    || hostname.endsWith('.getbased.health')
+    || hostname === 'get-based.vercel.app';
+}
+
 export function isGetbasedOperatedRelayHost(req: ProxyCaller) {
   const productionUrl = typeof process !== 'undefined'
     ? String(process.env?.VERCEL_PROJECT_PRODUCTION_URL || '').toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '')
@@ -93,19 +100,15 @@ export function isGetbasedOperatedRelayHost(req: ProxyCaller) {
   // Vercel supplies this immutable project-level value to production and
   // Preview functions. It distinguishes our Preview URLs from an unrelated
   // self-hoster whose project also happens to be deployed on vercel.app.
-  if (productionUrl === 'get-based.vercel.app') return true;
+  // The system value uses the shortest custom production domain when present.
+  if (isGetbasedOperatedHostname(productionUrl)) return true;
   const hostnames: string[] = [];
   try { hostnames.push(new URL(req.url).hostname); } catch {}
   for (const header of ['host', 'x-forwarded-host']) {
     const value = req.headers.get(header);
     if (value) hostnames.push(String(value).split(',')[0]!.trim().split(':')[0]!);
   }
-  return hostnames.some(value => {
-    const hostname = String(value || '').toLowerCase().replace(/\.$/, '');
-    return hostname === 'getbased.health'
-      || hostname.endsWith('.getbased.health')
-      || hostname === 'get-based.vercel.app';
-  });
+  return hostnames.some(isGetbasedOperatedHostname);
 }
 
 export function isAllowedProxyCallerOrigin(req: ProxyCaller) {

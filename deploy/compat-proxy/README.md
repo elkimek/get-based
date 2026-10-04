@@ -1,6 +1,6 @@
 # Compatibility proxy deployment
 
-This image runs the public core's narrow `api/proxy.js` policy on a
+This image runs the public core's narrow `api/proxy.ts` policy on a
 maintainer-controlled Node server. It is intended for a single-instance VPS
 behind Caddy or another TLS reverse proxy. It does not replace the Evolu relay
 and must run as a separate container.
@@ -17,6 +17,11 @@ the enabled official integrations, and keep the file readable only by the VPS
 administrator. The composed container is read-only, runs as the Node image's
 unprivileged user, binds to host loopback on port 8787, and uses a bounded
 single-process rate limiter.
+
+The Docker build compiles the checked-in TypeScript sources with native
+TypeScript 7 in a separate build stage. The runtime executes the emitted
+JavaScript; ignored outputs from a developer checkout are not required. Compiler
+and test dependencies remain outside the runtime image.
 
 Build and start from the repository root:
 

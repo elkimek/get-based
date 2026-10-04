@@ -1,6 +1,13 @@
 import { readFileSync } from 'node:fs';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../lib/proxy-network.js', () => ({
+  fetchWithPinnedProxyDns: vi.fn(async (..._args: Parameters<typeof import('../lib/proxy-network.js')['fetchWithPinnedProxyDns']>) =>
+    new Response('inert upstream sentinel', { status: 418, headers: { 'content-type': 'text/plain' } })),
+}));
+
+import { fetchWithPinnedProxyDns } from '../lib/proxy-network.js';
 
 import proxyEntrypoint, { handler as proxyHandler } from '../api/proxy.js';
 
@@ -37,6 +44,7 @@ function proxyRequest(method: string, body?: unknown) {
 }
 
 beforeEach(() => {
+  vi.mocked(fetchWithPinnedProxyDns).mockClear();
   savedEnv = Object.fromEntries(ENV_KEYS.map(key => [key, process.env[key]]));
   for (const key of ENV_KEYS) delete process.env[key];
 });
@@ -49,6 +57,14 @@ afterEach(() => {
 });
 
 describe('proxy production entrypoint', () => {
+  it('applies hosted execution limits to the canonical uploaded TypeScript function', () => {
+    const config = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8')) as {
+      functions: Record<string, { maxDuration?: number; supportsCancellation?: boolean }>;
+    };
+    expect(Object.keys(config.functions)).toEqual(['api/proxy.ts']);
+    expect(config.functions['api/proxy.ts']).toEqual({ maxDuration: 190, supportsCancellation: true });
+    expect(readFileSync(new URL('../api/proxy.ts', import.meta.url), 'utf8')).toContain('export');
+  });
   it('uses Vercel Node.js Web-standard fetch handler contract', () => {
     expect(proxyEntrypoint).toEqual({ fetch: proxyHandler });
   });
@@ -122,6 +138,48 @@ describe('proxy production entrypoint', () => {
     const response = await proxyHandler(previewRequest);
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({ code: 'HOSTED_PROXY_OPERATION_BLOCKED' });
+  });
+
+  it.each(['app.getbased.health', 'getbased.health', 'beta.getbased.health', 'https://APP.GETBASED.HEALTH/', 'app.getbased.health.'])
+    ('blocks generic forwarding on official Preview URLs identified by %s without an upstream fetch', async productionUrl => {
+      process.env.VERCEL = '1';
+      process.env.PROXY_ALLOW_INSTANCE_RATE_LIMIT = '1';
+      process.env.VERCEL_PROJECT_PRODUCTION_URL = productionUrl;
+      const response = await proxyHandler(new Request('https://random-preview-owner.vercel.app/api/proxy', {
+        method: 'POST',
+        headers: { origin: 'https://random-preview-owner.vercel.app', 'content-type': 'application/json' },
+        body: JSON.stringify({ url: 'https://openrouter.ai/api/v1/__host_policy_test__', method: 'GET' }),
+      }));
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toMatchObject({ code: 'HOSTED_PROXY_OPERATION_BLOCKED' });
+      expect(fetchWithPinnedProxyDns).not.toHaveBeenCalled();
+    });
+
+  it.each(['unrelated.vercel.app', 'health.example.net', 'app.getbased.health.example', 'notgetbased.health', 'getbased.health.example', 'get-based.vercel.app.example'])
+    ('preserves independent self-hosted forwarding for production identity %s', async productionUrl => {
+      process.env.VERCEL = '1';
+      process.env.VERCEL_PROJECT_PRODUCTION_URL = productionUrl;
+      const response = await proxyHandler(new Request('https://random-self-hosted-preview.vercel.app/api/proxy', {
+        method: 'POST',
+        headers: { origin: 'https://random-self-hosted-preview.vercel.app', 'content-type': 'application/json' },
+        body: JSON.stringify({ url: 'https://openrouter.ai/api/v1/__host_policy_test__', method: 'GET' }),
+      }));
+      expect(response.status).toBe(418);
+      await expect(response.text()).resolves.toBe('inert upstream sentinel');
+      expect(fetchWithPinnedProxyDns).toHaveBeenCalledExactlyOnceWith('https://openrouter.ai/api/v1/__host_policy_test__', expect.objectContaining({ method: 'GET' }));
+    });
+
+  it('keeps official custom-domain previews fail closed when hosted rate-limit storage is absent', async () => {
+    process.env.VERCEL = '1';
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = 'app.getbased.health';
+    const response = await proxyHandler(new Request('https://random-preview-owner.vercel.app/api/proxy', {
+      method: 'POST',
+      headers: { origin: 'https://random-preview-owner.vercel.app', 'content-type': 'application/json' },
+      body: JSON.stringify({ url: 'https://openrouter.ai/api/v1/__host_policy_test__', method: 'GET' }),
+    }));
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({ error: 'Proxy rate limit is not configured for this hosted deployment.' });
+    expect(fetchWithPinnedProxyDns).not.toHaveBeenCalled();
   });
 
   it('loads the real limiter boundary and requires a self-hosted CAMS upstream', async () => {

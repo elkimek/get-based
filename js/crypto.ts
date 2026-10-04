@@ -405,7 +405,7 @@ export async function encryptedSetItem(key: string, value: string) {
   }
 }
 
-export async function encryptedGetItem(key: string) {
+export async function encryptedGetItem(key: string, options: { throwOnDecryptError?: boolean } = {}) {
   let raw;
   if (shouldUseBlob(key)) {
     raw = await getBlob(key);
@@ -429,21 +429,31 @@ export async function encryptedGetItem(key: string) {
     raw = localStorage.getItem(key);
   }
   if (raw == null) return null;
+  if (options.throwOnDecryptError && isEncryptedValue(raw) && !_sessionKey) {
+    throw new Error('Profile storage is locked; unlock encryption before reading.');
+  }
   let plaintext: string | null = raw;
   if (isDeviceCredentialValue(raw)) {
     plaintext = await decryptDeviceCredential(key, raw);
     if (plaintext !== null && isCredentialKey(key)) updateKeyCache(key, plaintext);
   } else if (isEncryptedValue(raw) && _sessionKey) {
     const parsed = parseEncryptedValue(raw);
-    if (!parsed) return raw;
+    if (!parsed) {
+      if (options.throwOnDecryptError) throw new Error('Stored data has an invalid encryption envelope.');
+      return raw;
+    }
     try {
       plaintext = await decrypt(_sessionKey, parsed.iv, parsed.ciphertext);
       if (isCredentialKey(key)) updateKeyCache(key, plaintext);
-    } catch {
+    } catch (error) {
+      if (options.throwOnDecryptError) throw error;
       return null; // wrong key or corrupt
     }
   }
-  if (plaintext === null) return null;
+  if (plaintext === null) {
+    if (options.throwOnDecryptError) throw new Error('Stored data could not be decrypted.');
+    return null;
+  }
 
   if (!key.endsWith('-imported')) return plaintext;
   const hydrated = await transformWhoopStorage(key, plaintext, 'hydrate', isEncryptedValue(raw));

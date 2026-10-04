@@ -10,7 +10,7 @@ type Bip39FixtureGlobal = typeof globalThis & {bip39: Bip39Fixture};
 type StoreReaderInput<Input> = Input extends WalletProof[] ? FixtureProof[] : Input extends ProofCommit ? Omit<Input, 'feeProofs'> & {feeProofs?: FixtureProof[]} : Input;
 type StoreFixtureCall<Func> = Func extends (...args: infer Inputs) => infer Output ? (...args: {[Key in keyof Inputs]: StoreReaderInput<Inputs[Key]>}) => Output : never;
 
-import { IDBFactory } from 'fake-indexeddb';
+import { IDBFactory, IDBObjectStore } from 'fake-indexeddb';
 import { makeTestInvoice, LNURL_METADATA } from './fixtures/lightning-invoices.js';
 import { configureApiProviderStorageRuntimeDeps } from '../js/api-provider-storage-runtime.js';
 import { encryptedSetCredentialItem } from '../js/crypto.js';
@@ -234,6 +234,139 @@ describe('Cashu wallet runtime behavior', () => {
     await wallet.setMintUrl(first);
     await expect(wallet.getWalletBalance()).resolves.toBe(12);
     await expect(wallet.recoverPendingFunding()).resolves.toMatchObject({ checked: 0 });
+  });
+
+  it('funds MiniBits alongside an unresolved Cashu import and checks the saved invoice at MiniBits while Cashu is selected', async () => {
+    const stub = installCashuStub();
+    const wallet = await loadWallet() as CashuWalletOperations;
+    const store = await import('../js/cashu-wallet-store.js');
+    const cashu = 'https://cashu.cz', minibits = 'https://mint.minibits.cash/Bitcoin';
+    await wallet.setMintUrl(cashu);
+    await store._saveProofs([{ ...proof('cashu-balance', 5), id: 'fixture-keyset' }], cashu);
+    await store._saveProofs([{ ...proof('minibits-balance', 2), id: 'fixture-keyset' }], minibits);
+    stub.receiveProofs = [proof('pending-cashu-import', 3)];
+    stub.failReceive = true;
+    await expect(wallet.receiveToken('cashu:https://cashu.cz:3:refund')).rejects.toThrow('receive failed');
+    const [journal] = await store._getMetaEntries('pendingReceive:');
+    const before = await readIdbStore('proofs');
+    await wallet.setMintUrl(minibits);
+    const funding = await wallet.createFundingInvoice(1000);
+    expect(funding.mint).toBe(minibits);
+    expect(await readIdbStore('proofs')).toEqual(before);
+    await wallet.setMintUrl(cashu);
+    const checkedMints: string[] = [];
+    const check = vi.spyOn((globalThis as CashuStubGlobal).cashuts.Wallet.prototype, 'checkMintQuoteBolt11')
+      .mockImplementation(async function(this: import('./helpers/cashu-wallet.js').CashuStubWallet) {
+        checkedMints.push(this.url); return { state: 'PAID', amount: 1000 };
+      });
+    stub.failReceive = false;
+    try {
+      expect(await wallet.checkFundingStatus(funding.quote)).toMatchObject({ paid: true, minted: 1000, balance: 1002 });
+      expect(checkedMints).toEqual([minibits]);
+      expect(await wallet.getMintUrl()).toBe(cashu);
+      expect(await wallet.getLocalWalletBalance()).toBe(5);
+      expect(await store._getMeta(journal!.key)).toEqual(journal!.value);
+      expect(await wallet.getWalletMints()).toEqual(expect.arrayContaining([
+        expect.objectContaining({ mint: cashu, balance: 5 }), expect.objectContaining({ mint: minibits, balance: 1002 }),
+      ]));
+    } finally { check.mockRestore(); }
+  });
+
+  it('receives a new cross-mint token without discarding the unrelated import or node refund', async () => {
+    const stub = installCashuStub();
+    const wallet = await loadWallet() as CashuWalletOperations;
+    const store = await import('../js/cashu-wallet-store.js');
+    await wallet.setMintUrl('https://cashu.cz');
+    stub.failReceive = true;
+    await expect(wallet.receiveToken('cashu:https://cashu.cz:3:old-refund')).rejects.toThrow('receive failed');
+    const [journal] = await store._getMetaEntries('pendingReceive:');
+    const refund = { nodeUrl: 'https://node.test', key: 'sk-original', createdAt: 1, token: 'cashu:https://cashu.cz:3:old-refund' };
+    await store._setMeta('pendingNodeRefund', refund);
+    await wallet.setMintUrl('https://mint.minibits.cash/Bitcoin');
+    stub.failReceive = false; stub.receiveProofs = [proof('cuba-received', 2)];
+    await expect(wallet.receiveToken('cashu:https://mint.cubabitcoin.org:2:new-deposit')).resolves.toMatchObject({ received: 2, balance: 2 });
+    expect(await wallet.getMintUrl()).toBe('https://mint.cubabitcoin.org');
+    expect(await store._getMeta(journal!.key)).toEqual(journal!.value);
+    expect(await store._getMeta('pendingNodeRefund')).toEqual(refund);
+  });
+
+  it('counts old-mint import and invoice reservations while accepting independent new-mint funding only within the global cap', async () => {
+    const wallet = await loadWallet() as CashuWalletOperations;
+    const store = await import('../js/cashu-wallet-store.js');
+    const cashu = 'https://cashu.cz', minibits = 'https://mint.minibits.cash/Bitcoin';
+    await wallet.setMintUrl(cashu);
+    await store._saveProofs([{ ...proof('cashu-large', 20000), id: 'fixture-keyset' }], cashu);
+    await store._saveProofs([{ ...proof('minibits-large', 1000), id: 'fixture-keyset' }], minibits);
+    const journal = { operation: 'receive', mint: cashu, incomingAmount: 2000, outputs: ['retained-exact-output'] };
+    await store._setMeta('pendingReceive:reservation', journal);
+    await store._setMeta(await store._pendingQuoteKey(cashu, 'old-quote'), { mint: cashu, quote: 'old-quote', amount: 1500 });
+    await wallet.setMintUrl(minibits);
+    await expect(wallet.createFundingInvoice(500)).resolves.toMatchObject({ mint: minibits });
+    await expect(wallet.createFundingInvoice(1)).rejects.toThrow('safety cap');
+    await expect(wallet.receiveToken('cashu:https://mint.minibits.cash/Bitcoin:1:new-token')).rejects.toThrow('safety cap');
+    expect(await store._getMeta('pendingReceive:reservation')).toEqual(journal);
+    expect((await store._getMetaEntries('pendingQuote:')).map(item => (item.value as { amount: number }).amount).sort((a, b) => a - b)).toEqual([500, 1500]);
+  });
+
+  it.each([undefined, -10, 0, 1.5])('fails closed on an unknown or invalid import reservation (%s) without discarding recovery', async incomingAmount => {
+    const wallet = await loadWallet() as CashuWalletOperations;
+    const store = await import('../js/cashu-wallet-store.js');
+    const journal = { operation: 'receive', mint: 'https://cashu.cz', incomingAmount };
+    await store._setMeta('pendingReceive:unknown-reservation', journal);
+    await wallet.setMintUrl('https://mint.minibits.cash/Bitcoin');
+    await expect(wallet.createFundingInvoice(1)).rejects.toThrow('safety cap');
+    expect(await store._getMeta('pendingReceive:unknown-reservation')).toEqual(journal);
+    expect(await store._getMetaEntries('pendingQuote:')).toEqual([]);
+  });
+
+  it('reserves legacy incoming input value when its original journal has no incomingAmount', async () => {
+    const wallet = await loadWallet() as CashuWalletOperations;
+    const store = await import('../js/cashu-wallet-store.js');
+    const journal = { operation: 'receive', mint: 'https://cashu.cz', inputs: [proof('legacy-input', 24999)] };
+    await store._setMeta('pendingReceive:legacy-reservation', journal);
+    await wallet.setMintUrl('https://mint.minibits.cash/Bitcoin');
+    await expect(wallet.createFundingInvoice(1)).resolves.toMatchObject({ mint: 'https://mint.minibits.cash/Bitcoin' });
+    await expect(wallet.createFundingInvoice(1)).rejects.toThrow('safety cap');
+    expect(await store._getMeta('pendingReceive:legacy-reservation')).toEqual(journal);
+  });
+
+  it('rejects an ambiguous invoice ID instead of checking it at the selected mint', async () => {
+    const wallet = await loadWallet() as CashuWalletOperations;
+    const store = await import('../js/cashu-wallet-store.js');
+    for (const mint of ['https://cashu.cz', 'https://mint.minibits.cash/Bitcoin']) {
+      await store._setMeta(await store._pendingQuoteKey(mint, 'same-quote'), { mint, quote: 'same-quote', amount: 10 });
+    }
+    const check = vi.spyOn((globalThis as CashuStubGlobal).cashuts.Wallet.prototype, 'checkMintQuoteBolt11');
+    try {
+      await expect(wallet.checkFundingStatus('same-quote')).rejects.toThrow('multiple mints');
+      expect(check).not.toHaveBeenCalled();
+      expect(await store._getMetaEntries('pendingQuote:')).toHaveLength(2);
+    } finally { check.mockRestore(); }
+  });
+
+  it('retains a rejected MiniBits invoice and pauses automatic checks while Cashu is selected', async () => {
+    const wallet = await loadWallet() as CashuWalletOperations;
+    const store = await import('../js/cashu-wallet-store.js');
+    const mint = 'https://mint.minibits.cash/Bitcoin';
+    await wallet.setMintUrl(mint);
+    const funding = await wallet.createFundingInvoice(1000);
+    await wallet.setMintUrl('https://cashu.cz');
+    const pendingKey = await store._pendingQuoteKey(mint, funding.quote);
+    const record = await store._getMeta(pendingKey);
+    const checkedMints: string[] = [];
+    const check = vi.spyOn((globalThis as CashuStubGlobal).cashuts.Wallet.prototype, 'checkMintQuoteBolt11')
+      .mockImplementation(async function(this: import('./helpers/cashu-wallet.js').CashuStubWallet) {
+        checkedMints.push(this.url); throw Object.assign(new Error('Unknown Quote'), { status: 400 });
+      });
+    try {
+      expect(await wallet.recoverPendingFunding()).toMatchObject({ failed: 1,
+        errors: [expect.objectContaining({ mint, message: 'Unknown Quote' })] });
+      expect(await store._getMeta(pendingKey)).toEqual(record);
+      expect(await store._getMeta('fundingPoll:' + pendingKey)).toMatchObject({ paused: true });
+      await wallet.recoverPendingFunding({ automatic: true });
+      expect(checkedMints).toEqual([mint]);
+      expect(await wallet.getMintUrl()).toBe('https://cashu.cz');
+    } finally { check.mockRestore(); }
   });
 
   it('keeps the wallet safety cap and seed replacement guard across inactive mints', async () => {
@@ -640,18 +773,19 @@ describe('Cashu wallet runtime behavior', () => {
     await wallet.setMintUrl('https://mint.getbased.test/Bitcoin');
     await wallet.receiveToken('cashu-token');
 
-    globalThis.fetch = vi.fn().mockResolvedValueOnce(jsonResponse({ balance: 100000 }));
+    globalThis.fetch = vi.fn().mockResolvedValueOnce(jsonResponse({ balance: 0 })).mockResolvedValueOnce(jsonResponse({ balance: 100000 }));
 
     const { saveRoutstrSessionKey } = await import('../js/routstr-session.js');
     await saveRoutstrSessionKey('sk-existing', 'https://node.getbased.test/');
     await expect(wallet.depositToNode('https://node.getbased.test/', 5, 'sk-existing')).resolves.toEqual({ balance: 100000, api_key: 'sk-existing' });
-    expect(fetch).toHaveBeenCalledTimes(1);
-    expect((fetch as Mock<typeof globalThis.fetch>).mock.calls[0]![0]).toBe('https://node.getbased.test/v1/balance/topup');
-    expect((fetch as Mock<typeof globalThis.fetch>).mock.calls[0]![1]).toMatchObject({
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect((fetch as Mock<typeof globalThis.fetch>).mock.calls[0]![0]).toBe('https://node.getbased.test/v1/balance/info');
+    expect((fetch as Mock<typeof globalThis.fetch>).mock.calls[1]![0]).toBe('https://node.getbased.test/v1/balance/topup');
+    expect((fetch as Mock<typeof globalThis.fetch>).mock.calls[1]![1]).toMatchObject({
       method: 'POST',
       headers: { Authorization: 'Bearer sk-existing', 'Content-Type': 'application/json' },
     });
-    expect(JSON.parse((fetch as Mock<typeof globalThis.fetch>).mock.calls[0]![1]!.body as string).cashu_token).toContain('cashu:https://mint.getbased.test/Bitcoin:5:send-5');
+    expect(JSON.parse((fetch as Mock<typeof globalThis.fetch>).mock.calls[1]![1]!.body as string).cashu_token).toContain('cashu:https://mint.getbased.test/Bitcoin:5:send-5');
     await expect(wallet.recoverPendingDeposit()).resolves.toBeNull();
     await expect(wallet.getWalletBalance()).resolves.toBe(5);
   });
@@ -765,14 +899,19 @@ describe('Cashu wallet runtime behavior', () => {
     )).rejects.toThrow('receive failed');
     await expect(wallet.getMintUrl()).resolves.toBe('https://mint.original.test/Bitcoin');
 
+    const store = await import('../js/cashu-wallet-store.js');
+    const [pending] = await store._getMetaEntries('pendingReceive:');
     stub.failReceive = false;
-    await expect(wallet.receiveToken('cashu:https://mint.original.test/Bitcoin:5:local-token')).rejects.toThrow('original mint');
-    await expect(wallet.createFundingInvoice(5)).rejects.toThrow('original mint');
+    stub.receiveProofs = [proof('local-receive', 5)];
+    await wallet.receiveToken('cashu:https://mint.original.test/Bitcoin:5:local-token');
+    await expect(wallet.getLocalWalletBalance()).resolves.toBe(5);
+    await expect(wallet.createFundingInvoice(5)).resolves.toMatchObject({ mint: 'https://mint.original.test/Bitcoin' });
+    expect(await store._getMeta(pending!.key)).toEqual(pending!.value);
     await wallet.receiveToken('cashu:https://mint.other.test/Bitcoin:5:failed-token');
     await expect(wallet.getMintUrl()).resolves.toBe('https://mint.other.test/Bitcoin');
     stub.receiveProofs = [proof('foreign-receive', 5)];
     await wallet.receiveToken('cashu:https://mint.original.test/Bitcoin:5:foreign-token');
-    await expect(wallet.getWalletBalance()).resolves.toBe(5);
+    await expect(wallet.getWalletBalance()).resolves.toBe(10);
     await wallet.setMintUrl('https://mint.other.test/Bitcoin');
     await expect(wallet.getWalletBalance()).resolves.toBe(10);
   });
@@ -906,6 +1045,107 @@ describe('Cashu wallet runtime behavior', () => {
     await expect(reloaded.getWalletBalance()).resolves.toBe(23);
     await expect(readIdbMeta('pendingSwap')).resolves.toBeNull();
     await expect(reloaded.recoverPendingFunding()).resolves.toMatchObject({ checked: 0 });
+  });
+
+  async function interruptedWithdrawal() {
+    const stub = installCashuStub({ durableOps: true });
+    stub.receiveProofs = [proof('mint-switch-source', 100)];
+    const wallet = await loadWallet() as CashuWalletOperations;
+    await wallet.setMintUrl('https://mint.original.test/Bitcoin');
+    await wallet.receiveToken('cashu:https://mint.original.test/Bitcoin:100:mint-switch-source');
+    const quote = await wallet.createWithdrawQuote(makeTestInvoice(10));
+    stub.failMelt = true;
+    await expect(wallet.executeWithdraw(quote.quote)).rejects.toThrow('melt failed');
+    return { stub, quote, pending: await readIdbMeta('pendingWithdraw') };
+  }
+
+  it('reconciles a confirmed withdrawal before switching mints after reload without moving its change', async () => {
+    const { stub, quote } = await interruptedWithdrawal();
+    stub.meltQuotes.set(quote.quote, {
+      ...stub.meltQuotes.get(quote.quote)!, state: 'PAID',
+      change: [{ id: 'keyset-stub', amount: 1 }],
+    });
+    const reloaded = await loadWallet() as CashuWalletOperations;
+    const pay = vi.spyOn((globalThis as CashuStubGlobal).cashuts.Wallet.prototype, 'completeMelt');
+    await expect(reloaded.setMintUrl('https://mint.other.test/Bitcoin')).resolves.toBeUndefined();
+    await expect(reloaded.getMintUrl()).resolves.toBe('https://mint.other.test/Bitcoin');
+    await expect(reloaded.getLocalWalletBalance()).resolves.toBe(0);
+    await expect(readIdbMeta('pendingWithdraw')).resolves.toBeNull();
+    await expect(readIdbMeta('withdrawQuote:' + quote.quote)).resolves.toBeNull();
+    await reloaded.setMintUrl('https://mint.original.test/Bitcoin');
+    await expect(reloaded.getLocalWalletBalance()).resolves.toBe(86);
+    await reloaded.setMintUrl('https://mint.other.test/Bitcoin');
+    await reloaded.setMintUrl('https://mint.original.test/Bitcoin');
+    await expect(reloaded.getLocalWalletBalance()).resolves.toBe(86);
+    expect(pay).not.toHaveBeenCalled();
+    pay.mockRestore();
+  });
+
+  it('rolls back paid withdrawal recovery on a storage failure and safely retries the mint switch', async () => {
+    const { stub, quote, pending } = await interruptedWithdrawal();
+    stub.meltQuotes.set(quote.quote, {
+      ...stub.meltQuotes.get(quote.quote)!, state: 'PAID',
+      change: [{ id: 'keyset-stub', amount: 1 }],
+    });
+    const originalDelete = IDBObjectStore.prototype.delete;
+    const fail = vi.spyOn(IDBObjectStore.prototype, 'delete').mockImplementation(function(this: IDBObjectStore, key) {
+      if (this.name === 'meta' && key === 'pendingWithdraw') throw new Error('Injected metadata commit failure');
+      return originalDelete.call(this, key);
+    });
+    const reloaded = await loadWallet() as CashuWalletOperations;
+    const rowsBefore = await readIdbStore('proofs');
+    const approvedBefore = await readIdbMeta('withdrawQuote:' + quote.quote);
+    try {
+      await expect(reloaded.setMintUrl('https://mint.other.test/Bitcoin')).rejects.toThrow('Unable to verify');
+      await expect(reloaded.getMintUrl()).resolves.toBe('https://mint.original.test/Bitcoin');
+      await expect(readIdbStore('proofs')).resolves.toEqual(rowsBefore);
+      await expect(readIdbMeta('pendingWithdraw')).resolves.toEqual(pending);
+      await expect(readIdbMeta('withdrawQuote:' + quote.quote)).resolves.toEqual(approvedBefore);
+    } finally { fail.mockRestore(); }
+    await reloaded.setMintUrl('https://mint.other.test/Bitcoin');
+    await reloaded.setMintUrl('https://mint.original.test/Bitcoin');
+    await expect(reloaded.getLocalWalletBalance()).resolves.toBe(86);
+    await expect(readIdbMeta('pendingWithdraw')).resolves.toBeNull();
+  });
+
+  it('keeps an unrelated fee payment pending after reconciling a paid withdrawal', async () => {
+    const { stub, quote } = await interruptedWithdrawal();
+    stub.meltQuotes.set(quote.quote, {
+      ...stub.meltQuotes.get(quote.quote)!, state: 'PAID',
+      change: [{ id: 'keyset-stub', amount: 1 }],
+    });
+    const store = await import('../js/cashu-wallet-store.js');
+    const feeRecord = { mint: 'https://mint.original.test/Bitcoin', quoteId: 'unresolved-fee' };
+    await store._setMeta('pendingFeeMelt', feeRecord);
+    const reloaded = await loadWallet() as CashuWalletOperations;
+    await expect(reloaded.setMintUrl('https://mint.other.test/Bitcoin')).rejects.toThrow('fee payment');
+    await expect(reloaded.getMintUrl()).resolves.toBe('https://mint.original.test/Bitcoin');
+    await expect(readIdbMeta('pendingFeeMelt')).resolves.toEqual(feeRecord);
+    await expect(reloaded.getLocalWalletBalance()).resolves.toBe(86);
+    await expect(readIdbMeta('pendingWithdraw')).resolves.toBeNull();
+  });
+
+  it.each(['UNPAID', 'PENDING', 'UNKNOWN'])('preserves an unresolved %s withdrawal and refuses a mint switch after reload', async state => {
+    const { stub, quote, pending } = await interruptedWithdrawal();
+    stub.meltQuotes.set(quote.quote, { ...stub.meltQuotes.get(quote.quote)!, state });
+    const reloaded = await loadWallet() as CashuWalletOperations;
+    await expect(reloaded.setMintUrl('https://mint.other.test/Bitcoin')).rejects.toThrow('pending wallet operation');
+    await expect(reloaded.getMintUrl()).resolves.toBe('https://mint.original.test/Bitcoin');
+    await expect(readIdbMeta('pendingWithdraw')).resolves.toEqual(pending);
+    await expect(reloaded.getLocalWalletBalance()).resolves.toBe(85);
+  });
+
+  it('preserves withdrawal recovery state when the original mint cannot verify payment', async () => {
+    const { pending } = await interruptedWithdrawal();
+    const reloaded = await loadWallet() as CashuWalletOperations;
+    const check = vi.spyOn((globalThis as CashuStubGlobal).cashuts.Wallet.prototype, 'checkMeltQuoteBolt11').mockRejectedValue(new Error('Mint unavailable'));
+    try {
+      await expect(reloaded.setMintUrl('https://mint.other.test/Bitcoin')).rejects.toThrow();
+      expect(check).toHaveBeenCalledTimes(1);
+      await expect(reloaded.getMintUrl()).resolves.toBe('https://mint.original.test/Bitcoin');
+      await expect(readIdbMeta('pendingWithdraw')).resolves.toEqual(pending);
+      await expect(reloaded.getLocalWalletBalance()).resolves.toBe(85);
+    } finally { check.mockRestore(); }
   });
 
   it('reconciles paid melt change from the durable pending withdrawal record', async () => {

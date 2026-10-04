@@ -1,8 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as ts from 'typescript/unstable/ast';
 import { withParsedSource } from './native-typescript-ast.js';
 import { isSourceFile, sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
+import { ownedVendorSources } from './project-owned-vendor.mjs';
 
 export interface CoverageSourceFunction { start: number; end: number; bodyStart: number; bodyEnd: number; nameStart: number | undefined; nameEnd: number | undefined; collectorEnds: number[]; name: string; }
 export interface CoverageFeatureRow { file: string; fnTotal: number; fnCalled: number; total: number; covered: number; }
@@ -11,17 +13,25 @@ export const COVERAGE_ROOTS = ['js', 'api', 'lib', 'server', 'shared', 'bin'];
 export const COVERAGE_FILES = ['dev-server.js', 'service-worker.js', 'service-worker-runtime.js', 'service-worker-assets.js', 'version.js'];
 // Collect executable JS offsets from the same artifacts in Node and browsers.
 // Inventories can separately expose their canonical TypeScript sources.
-export const COVERAGE_INCLUDE = [...COVERAGE_ROOTS.map(root => `${root}/**/*.{js,mjs}`), ...COVERAGE_FILES];
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+export function coverageIncludes(root: string) {
+  return [...COVERAGE_ROOTS.map(directory => `${directory}/**/*.{js,mjs}`), ...COVERAGE_FILES,
+    ...new Set(ownedVendorSources(root).map(runtimePath))];
+}
+export const COVERAGE_INCLUDE = coverageIncludes(ROOT);
+const OWNED_VENDOR_RUNTIME = new Set(COVERAGE_INCLUDE.filter(file => file.startsWith('vendor/')));
 
-export function isProductionSource(file: string) {
+export function isProductionSource(file: string, root = ROOT) {
   return COVERAGE_FILES.includes(file.replace(/\.[cm]?ts$/, '.js'))
-    || (COVERAGE_ROOTS.includes(file.split('/')[0]!) && isSourceFile(file));
+    || (COVERAGE_ROOTS.includes(file.split('/')[0]!) && isSourceFile(file))
+    || (isSourceFile(file) && (root === ROOT ? OWNED_VENDOR_RUNTIME : new Set(ownedVendorSources(root).map(runtimePath))).has(runtimePath(file)));
 }
 
 export function productionSources(root: string, { runtime = false }: { runtime?: boolean } = {}) {
   return [...new Set([
     ...COVERAGE_FILES.map(file => sourcePath(path.join(root, file))).filter(file => fs.existsSync(file)),
     ...COVERAGE_ROOTS.flatMap(directory => walkSourceFiles(path.join(root, directory))),
+    ...ownedVendorSources(root).map(file => path.join(root, file)),
   ])].map(file => {
     const target = runtime ? runtimePath(file) : file;
     if (!fs.existsSync(target)) throw new Error(`Missing emitted runtime ${target}; run npm run typescript:build`);
@@ -90,6 +100,9 @@ const FEATURES: Array<[string, RegExp]> = [
 export function coverageFeature(file: string) {
   if (file.startsWith('service-worker')) return 'PWA runtime';
   if (file.startsWith('shared/')) return 'Shared contracts';
+  if (file === 'vendor/ppq-private-tee.js' || file === 'vendor/ppq-private-tee.ts') return 'Wallet and providers';
+  if (file === 'vendor/bip39-minimal.js' || file === 'vendor/bip39-minimal.ts') return 'Profile and storage';
+  if (file === 'vendor/chartjs-adapter-native.js' || file === 'vendor/chartjs-adapter-native.ts') return 'Labs and markers';
   if (!file.startsWith('js/')) return 'Server and companion';
   return FEATURES.find(([, pattern]) => pattern.test(path.basename(file)))?.[0] || 'Shell and shared browser utilities';
 }

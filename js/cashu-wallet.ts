@@ -4,7 +4,7 @@
 
 
 import type * as Cashu from '@cashu/cashu-ts';
-import type { PendingDeposit, DurableJournal, SwapJournal, PendingTokenView, FundingPoll, WalletProof } from './cashu-wallet-storage-types.js';
+import type { PendingDeposit, DurableJournal, PendingTokenView, FundingPoll, WalletProof } from './cashu-wallet-storage-types.js';
 import type { CashuRuntime, Bip39Runtime, FundingOptions, RecoverFundingOptions, FundingResult, PendingWithdraw } from './cashu-wallet-runtime-types.js';
 
 import { positiveSats, validateLightningInvoice } from './routstr-validation.js';
@@ -50,8 +50,10 @@ import {
   _destroyWalletDBStorage,
   _withMintRequest,
 } from './cashu-wallet-store.js';
+import { _pendingReceiveAmount, _resolveFundingQuoteMint } from './cashu-wallet-funding-accounting.js';
 import {
   _autoMeltFees,
+  _recoverPendingWithdrawUnlocked,
   configureCashuWalletTransferDependencies,
 } from './cashu-wallet-transfers.js';
 
@@ -60,10 +62,12 @@ export {
   refundNodeToToken,
   finishNodeRefund,
   getPendingNodeRefund,
+  getPendingNodeRefunds,
   clearPendingDeposit,
   clearPendingWithdraw,
   createWithdrawQuote,
   depositToNode,
+  startNewNodeSession,
   executeWithdraw,
   getFeeBalance,
   getMaxWithdrawable,
@@ -230,6 +234,12 @@ export async function subscribeFundingQuotes(mint: string, quotes: string[], onU
   } catch (error) { close(); throw error; }
 }
 
+function _isMintBoundReceive(value: unknown) {
+  const record = value && typeof value === 'object' ? value as { operation?: unknown; mint?: unknown } : null;
+  return record?.operation === 'receive' && typeof record.mint === 'string'
+    && isValidExternalUrl(_normalizeMintUrl(record.mint));
+}
+
 /** Select a mint without moving or discarding other mint balances. */
 export async function setMintUrl(url: string) {
   return _withWalletLock(async () => {
@@ -237,12 +247,32 @@ export async function setMintUrl(url: string) {
     const nextMint = _normalizeMintUrl(url);
     const currentMint = await getMintUrl();
     if (nextMint !== currentMint) {
+      // A paid withdrawal can retain its recovery record after a lost response
+      // or local commit failure. Verify it at its original mint under this lock;
+      // reconciliation restores change without submitting another payment.
+      if (await _getMeta('pendingWithdraw')) {
+        try { await _recoverPendingWithdrawUnlocked(); }
+        catch (cause) {
+          throw new Error('Unable to verify the pending withdrawal at its original mint. Retry when the mint is reachable. Existing balances are preserved.', { cause });
+        }
+      }
       const pending = (await _getMetaEntries('pending')).filter(entry => entry.value);
-      if (pending.some(entry => !entry.key.startsWith(PENDING_QUOTE_PREFIX))) {
-        throw new Error('Finish the pending wallet operation before selecting another mint. Existing balances are preserved.');
+      // Preserve node refunds for explicit recovery: choosing a mint neither
+      // retries the node request nor changes the account or saved refund token.
+      // Incoming-token journals recover at their recorded mint; preserve their exact outputs.
+      const blocked = pending.find(entry => !entry.key.startsWith(PENDING_QUOTE_PREFIX)
+        && !entry.key.startsWith('pendingNodeRefund')
+        && !(entry.key.startsWith(PENDING_RECEIVE_PREFIX) && _isMintBoundReceive(entry.value)));
+      if (blocked) {
+        const operationNames: Record<string, string> = {
+          pendingWithdraw: 'withdrawal or outgoing token', pendingFeeMelt: 'fee payment',
+          pendingDeposit: 'node deposit', pendingSwap: 'token swap',
+        };
+        const operation = blocked.key.startsWith(PENDING_RECEIVE_PREFIX) ? 'token import' : operationNames[blocked.key] || 'wallet operation';
+        throw new Error('Finish the pending wallet operation (' + operation + ') before selecting another mint. Existing balances are preserved.');
       }
       // Bind legacy quotes before changing the fallback mint used by old rows.
-      for (const entry of pending) {
+      for (const entry of pending.filter(entry => entry.key.startsWith(PENDING_QUOTE_PREFIX))) {
         const details = _pendingQuoteDetails(entry, currentMint);
         if (!details.quote) throw new Error('A pending invoice needs recovery before selecting another mint.');
         await _setMeta(entry.key, { ...(typeof entry.value === 'object' ? entry.value : {}), ...details });
@@ -373,15 +403,10 @@ export function extractTokenMintUrl(cashuts: Pick<CashuRuntime, 'getTokenMetadat
   return null;
 }
 
+export async function getTokenMintUrl(tokenString: string) { return extractTokenMintUrl(await _cashuLib(), tokenString); }
+
 function _normalizeMintUrlForCompare(url: string) {
   return _normalizeMintUrl(url);
-}
-
-async function _assertNoForeignReceive(mintUrl: string) {
-  const pending = (await _getMetaEntries(PENDING_RECEIVE_PREFIX) as Array<{key: string; value: SwapJournal | null}>);
-  if (pending.some(({ value }) => value && value.mint !== mintUrl)) {
-    throw new Error('Recover the incoming token at its original mint before funding another mint');
-  }
 }
 
 async function _prepareTokenMint(cashuts: CashuRuntime, tokenString: string) {
@@ -389,7 +414,6 @@ async function _prepareTokenMint(cashuts: CashuRuntime, tokenString: string) {
   if (!tokenMint) throw new Error('Cannot determine the Cashu token mint');
   if (!isValidExternalUrl(tokenMint)) throw new Error('Cashu token mint must be public https://');
   const currentMint = await getMintUrl();
-  await _assertNoForeignReceive(tokenMint);
   const changed = _normalizeMintUrlForCompare(tokenMint) !== _normalizeMintUrlForCompare(currentMint);
   if (changed) {
     const [quotes, pendingDeposit, pendingWithdraw, pendingSwap] = await Promise.all([
@@ -406,7 +430,7 @@ async function _prepareTokenMint(cashuts: CashuRuntime, tokenString: string) {
     const pendingWithdrawTokens = [pendingWithdrawRecord?.token, pendingWithdrawRecord?.recoveryToken].filter(Boolean);
     const unrelatedPendingDeposit = pendingDepositTokens.length && !pendingDepositTokens.includes(tokenString);
     const unrelatedPendingWithdraw = pendingWithdrawTokens.length && !pendingWithdrawTokens.includes(tokenString);
-    if (quotes.some(entry => { if (entry.key.startsWith(PENDING_QUOTE_PREFIX)) return false; let value = entry.value; if (typeof value === 'string') { try { value = JSON.parse(value); } catch {} } return value !== tokenString && (value as PendingTokenView)?.incomingToken !== tokenString && (value as PendingTokenView)?.token !== tokenString && (value as PendingTokenView)?.recoveryToken !== tokenString; }) || unrelatedPendingDeposit || unrelatedPendingWithdraw || pendingSwap) {
+    if (quotes.some(entry => { if (entry.key.startsWith(PENDING_QUOTE_PREFIX) || entry.key.startsWith('pendingNodeRefund') || (entry.key.startsWith(PENDING_RECEIVE_PREFIX) && _isMintBoundReceive(entry.value))) return false; let value = entry.value; if (typeof value === 'string') { try { value = JSON.parse(value); } catch {} } return value !== tokenString && (value as PendingTokenView)?.incomingToken !== tokenString && (value as PendingTokenView)?.token !== tokenString && (value as PendingTokenView)?.recoveryToken !== tokenString; }) || unrelatedPendingDeposit || unrelatedPendingWithdraw || pendingSwap) {
       throw new Error('Finish the pending wallet operation before receiving at another mint. Existing balances are preserved.');
     }
     for (const entry of quotes.filter(entry => entry.key.startsWith(PENDING_QUOTE_PREFIX))) {
@@ -428,10 +452,10 @@ export async function restoreWalletFromSeed(mnemonic: string) {
 /** Get wallet balance in sats (prunes spent proofs on first call / after cooldown) */
 export async function getWalletBalance() {
   return _withWalletLock(async () => {
-    try { await _recoverAllPendingOperations(); } catch (e) {
+    const mintUrl = await getMintUrl();
+    try { await _recoverAllPendingOperations(mintUrl); } catch (e) {
       if (isDebugMode()) console.warn('[cashu-wallet] Pending swap recovery deferred:', getErrorMessage(e));
     }
-    const mintUrl = await getMintUrl();
     const proofs = await _pruneSpentProofs(false, mintUrl);
     const cashuts = await _cashuLib();
     return _sumProofsAsNumber(cashuts, proofs);
@@ -458,9 +482,8 @@ export async function createFundingInvoice(amountSats: number) {
   positiveSats(amountSats);
   return _withWalletLock(async () => {
     const mintUrl = await getMintUrl();
-    await _assertNoForeignReceive(mintUrl);
     const currentBal = (await _getWalletMintInventory()).reduce((sum, entry) => sum + entry.balance, 0);
-    const pendingAmount = (await _getMetaEntries('pending')).reduce((sum, entry) => sum + (entry.key.startsWith(PENDING_QUOTE_PREFIX) ? _pendingQuoteDetails(entry, mintUrl).amount : entry.key.startsWith(PENDING_RECEIVE_PREFIX) ? _amountToNumber((entry.value as PendingTokenView)?.incomingAmount) : 0), 0);
+    const pendingAmount = (await _getMetaEntries('pending')).reduce((sum, entry) => sum + (entry.key.startsWith(PENDING_QUOTE_PREFIX) ? _pendingQuoteDetails(entry, mintUrl).amount : entry.key.startsWith(PENDING_RECEIVE_PREFIX) ? _pendingReceiveAmount(entry.value, MAX_WALLET_BALANCE) : 0), 0);
     if (currentBal + pendingAmount + amountSats > MAX_WALLET_BALANCE) throw new Error('Would exceed ' + MAX_WALLET_BALANCE.toLocaleString() + ' sats safety cap. Withdraw some sats first.');
     const wallet = await _getWallet(mintUrl);
     const quote = await wallet.createMintQuoteBolt11(amountSats);
@@ -473,6 +496,7 @@ export async function createFundingInvoice(amountSats: number) {
     });
     return {
       quote: quote.quote,
+      mint: mintUrl,
       invoice: quote.request,
       amount: amountSats,
       state: quote.state
@@ -489,7 +513,7 @@ export async function checkFundingStatus(quoteId: string, quoteMint: string | nu
     const canCheck = () => !options.automatic || !options.shouldContinue || options.shouldContinue();
     if (!canCheck()) return { paid: false, state: 'WAITING' };
     const cashuts = await _cashuLib();
-    const mintUrl = _normalizeMintUrl(quoteMint || await getMintUrl());
+    const mintUrl = _normalizeMintUrl(quoteMint || await _resolveFundingQuoteMint(quoteId, await getMintUrl()));
     if (!isValidExternalUrl(mintUrl)) throw new Error('Invalid pending invoice mint');
     const pollKey = 'fundingPoll:' + await _pendingQuoteKey(mintUrl, quoteId);
     if (options.automatic) {
@@ -690,7 +714,7 @@ async function _receiveTokenUnlocked(tokenString: string, backupRestore = false)
   const currentBal = (await _getWalletMintInventory()).reduce((sum, entry) => sum + entry.balance, 0);
   const reserved = pendingRecords.filter(({ key }) => key !== journalKey).reduce((sum, { key, value }) => {
     if (key.startsWith(PENDING_QUOTE_PREFIX)) return sum + _pendingQuoteDetails({ key, value }, tokenMint).amount;
-    if (key.startsWith(PENDING_RECEIVE_PREFIX)) return sum + _amountToNumber((value as PendingTokenView).incomingAmount);
+    if (key.startsWith(PENDING_RECEIVE_PREFIX)) return sum + _pendingReceiveAmount(value, MAX_WALLET_BALANCE);
     return sum;
   }, 0);
   if (!backupRestore && !isRecovery && currentBal + reserved + incoming > MAX_WALLET_BALANCE) {
@@ -704,7 +728,7 @@ async function _receiveTokenUnlocked(tokenString: string, backupRestore = false)
   for (const { key, value } of pendingRecords) {
     let record = value;
     if (typeof record === 'string') { try { record = JSON.parse(record); } catch {} }
-    if (['pendingDeposit', 'pendingWithdraw', 'pendingNodeRefund'].includes(key) && (record === tokenString || (record as PendingTokenView)?.token === tokenString || (record as PendingTokenView)?.recoveryToken === tokenString)) meta[key] = null;
+    if ((['pendingDeposit', 'pendingWithdraw'].includes(key) || key.startsWith('pendingNodeRefund')) && (record === tokenString || (record as PendingTokenView)?.token === tokenString || (record as PendingTokenView)?.recoveryToken === tokenString)) meta[key] = null;
   }
   await _replaceProofs(prepared.record.localInputs, proofs, tokenMint, { deleteKeys: [journalKey], meta });
   if (changed) { _wallet = null; _mintUrl = null; }

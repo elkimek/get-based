@@ -4,6 +4,7 @@ import {
   refundNodeToToken as cashuRefundNodeToToken,
   finishNodeRefund as cashuFinishNodeRefund,
   getPendingNodeRefund as cashuGetPendingNodeRefund,
+  getPendingNodeRefunds as cashuGetPendingNodeRefunds,
   checkProofStates as cashuCheckProofStates,
   createFundingInvoice as cashuCreateFundingInvoice,
   checkFundingStatus as cashuCheckFundingStatus,
@@ -11,6 +12,8 @@ import {
   recoverPendingWalletOperation as cashuRecoverPendingWalletOperation,
   createWithdrawQuote as cashuCreateWithdrawQuote,
   depositToNode as cashuDepositToNode,
+  startNewNodeSession as cashuStartNewNodeSession,
+  getTokenMintUrl as cashuGetTokenMintUrl,
   executeWithdraw as cashuExecuteWithdraw,
   exportWallet as cashuExportWallet,
   generateWalletSeed as cashuGenerateWalletSeed,
@@ -42,7 +45,7 @@ import {
 } from './nostr-discovery.js';
 
 const walletRuntimeDefaults = {
-  cashuRefundNodeToToken, cashuFinishNodeRefund, cashuGetPendingNodeRefund,
+  cashuRefundNodeToToken, cashuFinishNodeRefund, cashuGetPendingNodeRefund, cashuGetPendingNodeRefunds,
   cashuCheckProofStates,
   cashuCreateFundingInvoice,
   cashuCheckFundingStatus,
@@ -50,6 +53,8 @@ const walletRuntimeDefaults = {
   cashuRecoverPendingWalletOperation,
   cashuCreateWithdrawQuote,
   cashuDepositToNode,
+  cashuStartNewNodeSession,
+  cashuGetTokenMintUrl,
   cashuExecuteWithdraw,
   cashuExportWallet,
   cashuGenerateWalletSeed,

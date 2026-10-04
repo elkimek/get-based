@@ -200,7 +200,7 @@ export async function mergePulledImportedData(profileId: string, importedData: P
   // Capture durable and live baselines before asynchronous row overlays. Read
   // errors must abort rather than letting a pull replace unreadable local data.
   const { stored, live, baseline } = await queueProfileDataWrite(profileId, async () => {
-    const rawStored = await encryptedGetItem(localKey);
+    const rawStored = await encryptedGetItem(localKey, { throwOnDecryptError: true });
     const active = profileId === state.currentProfile;
     return {
       stored: rawStored ? JSON.parse(rawStored) as PulledImportedData : null,
@@ -291,7 +291,7 @@ export async function mergePulledImportedData(profileId: string, importedData: P
 export async function persistPulledImportedData(localKey: string, profileId: string, merged: PulledImportedData, remoteUpdated: number) {
   return queueProfileDataWrite(profileId, async () => {
     const baseline = pullBaselines.get(merged);
-    const raw = await encryptedGetItem(localKey);
+    const raw = await encryptedGetItem(localKey, { throwOnDecryptError: true });
     const latest = raw ? JSON.parse(raw) as PulledImportedData : null;
     // Rebase edits committed while the row overlay was running, under the same
     // lock as ordinary saves. Local changes since the pull began take priority.

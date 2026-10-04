@@ -8,7 +8,7 @@
   "buildCommand": "node scripts/fetch-catalog.mjs && node scripts/build-production.mjs",
   "outputDirectory": ".",
   "functions": {
-    "api/proxy.js": {
+    "api/proxy.ts": {
       "maxDuration": 190,
       "supportsCancellation": true
     }

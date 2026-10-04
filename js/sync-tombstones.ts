@@ -306,7 +306,7 @@ export async function rejectPendingTombstone(profileId: string) {
   if (profileId !== state.currentProfile) {
     const localKey = profileStorageKey(profileId, 'imported');
     // Imported profile blobs are IDB-backed even when encryption is disabled.
-    const raw = await encryptedGetItem(localKey);
+    const raw = await encryptedGetItem(localKey, { throwOnDecryptError: true });
     if (!raw) {
       localStorage.removeItem(TOMBSTONE_QUARANTINE_KEY(profileId));
       return { ok: false, reason: 'no-local-data' };

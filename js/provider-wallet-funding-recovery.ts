@@ -38,22 +38,31 @@ export type FundingInvoice = Pick<Awaited<ReturnType<NativeWallet['createFunding
 export async function recoverPendingWalletFunding(walletRuntime: FundingRecoveryRuntime, refreshBalance: () => unknown) {
   const statusEl = document.getElementById('routstr-wfund-status');
   if (!statusEl) return;
+  let recoveryNote = '';
   const setStatus = (htmlMessage: string, color = 'var(--text-muted)', center = false) => {
-    statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:' + color + (center ? ';text-align:center' : '') + '">' + htmlMessage + '</div>';
+    statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:' + color + (center ? ';text-align:center' : '') + '">' + htmlMessage + (recoveryNote ? '<br><span style="color:var(--text-muted)">' + recoveryNote + '</span>' : '') + '</div>';
   };
   if (typeof walletRuntime.cashuRecoverPendingFunding !== 'function') return setStatus('Pending deposit recovery is unavailable.', 'var(--red)');
-  statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Checking pending Lightning deposits\u2026</div>';
+  statusEl.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Checking pending deposits and token imports\u2026</div>';
   try {
     const operationRecovery = typeof walletRuntime.cashuRecoverPendingWalletOperation === 'function'
       ? await walletRuntime.cashuRecoverPendingWalletOperation()
-      : { recovered: 0 };
+      : { recovered: 0, pending: false, results: [] };
+    const imports = operationRecovery.results?.filter(item => item.pending && item.operation === 'receive') || [];
+    if (imports.length) {
+      const mints = [...new Set(imports.map(item => item.mint).filter((mint): mint is string => typeof mint === 'string'))];
+      const location = mints.length ? ' at ' + mints.slice(0, 3).map(escapeHTML).join(', ') + (mints.length > 3 ? ' and other mints' : '') : '';
+      recoveryNote = 'Token import' + location + ' is still awaiting reconciliation. Saved recovery data is retained.';
+    } else if (operationRecovery.pending) {
+      recoveryNote = 'A wallet operation is still awaiting reconciliation. Saved recovery data is retained.';
+    }
     const result = await walletRuntime.cashuRecoverPendingFunding();
     if (!result.checked && operationRecovery.recovered > 0) {
       setStatus('\u2713 +' + operationRecovery.recovered.toLocaleString() + ' sats recovered from an interrupted wallet operation.', 'var(--green)', true);
       refreshBalance();
       return;
     }
-    if (!result.checked) return setStatus((operationRecovery as {pending?: unknown}).pending ? 'A wallet operation is still awaiting reconciliation. Retry its original token or check again when the mint is reachable.' : 'No pending Lightning deposits found.');
+    if (!result.checked) return setStatus('No pending Lightning deposits found.');
     if (result.recovered > 0) {
       const extra = [
         result.cleared > 0 ? result.cleared + ' completed or expired deposit cleared.' : '',
@@ -64,7 +73,12 @@ export async function recoverPendingWalletFunding(walletRuntime: FundingRecovery
       refreshBalance();
       return;
     }
-    if (result.failed > 0) return setStatus(escapeHTML(result.errors?.[0]?.message || 'Unable to check pending deposit'), 'var(--red)');
+    if (result.failed > 0) {
+      const failures = result.errors?.slice(0, 3).map(error => 'Pending invoice' + (error.mint ? ' at ' + escapeHTML(error.mint) : '')
+        + ': ' + escapeHTML(error.message || 'Unable to check pending deposit') + '. Recovery record retained.').join('<br>');
+      return setStatus((failures || 'Unable to check pending deposit.')
+        + '<br>Pending invoices are checked at their original mints, regardless of the selected mint. Use Check pending deposits to retry.', 'var(--red)');
+    }
     if (result.cleared > 0) return setStatus(result.cleared + ' completed or expired deposit cleared.');
     setStatus('Pending Lightning deposit is not paid yet.');
   } catch (e) {

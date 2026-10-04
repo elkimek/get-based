@@ -24,7 +24,8 @@ historical LOC comparison retains its original scope.
 `npm run migration:check` requires zero authored JavaScript. LOC totals and
 reductions remain informational; the original baseline retains its historical
 30% target, which is no longer a completion requirement. This is a completion
-gate, not an intermediate CI gate. Complete parity additionally requires the entire existing
+gate, enforced unconditionally in test CI now that the migration is complete.
+Complete parity additionally requires the entire existing
 unit, browser, PWA, real-model and deployment verification appropriate to each
 runtime; focused green tests do not prove repository-wide parity.
 
@@ -594,3 +595,134 @@ unit suite at substantial tooling milestones; keep exhaustive browser, coverage
 and real-model matrices in CI. Original opt-in model/provider/hardware skips
 remain separate from passing tests. The PWA two-tab intermittent failure also
 reproduced against the original source; two targeted native repeats passed.
+
+## Pre-release audit — 2026-10-04
+
+The migration remains complete: 1,731 authored TypeScript sources and zero
+first-party JavaScript sources. The later wallet recovery and node-browse cache
+fixes remain part of the candidate. The user completed the manual workflow smoke
+check, including profiles, supplements, DNA, context, provider inference, chat,
+CLI agents, charts, backup/restore, sync and PWA behavior.
+
+The audit corrected these concrete release and data-safety defects:
+
+- Vercel's proxy function configuration now names the canonical `api/proxy.ts`
+  entrypoint, retaining its timeout and cancellation settings. Its previous
+  generated JavaScript name did not match Git deployment sources.
+- Hosted preview classification recognizes the official custom production
+  domain supplied by Vercel, rather than only the older `get-based.vercel.app`
+  alias. An actual preview allowed a harmless generic request to reach an
+  upstream 404 before this fix. The shared official-host predicate now applies
+  the hosted operation restrictions to that preview, while preserving unrelated
+  self-hosted projects and the existing fail-closed rate-limit boundary.
+- The development PWA precache includes both newly extracted wallet modules.
+  The complete local import graph has no missing cached dependencies.
+- Test CI always checks migration completeness before selecting scoped tests.
+  Project-owned vendor sources participate in coverage, scope planning and
+  CodeQL; external vendor bundles retain their exclusions. Coverage includes
+  17 additional owned functions without lowering any floor. A shared manifest
+  reader replaces duplicated ownership validation and fails closed for missing
+  runtime outputs or newly owned sources without test coverage.
+- Profile selection uses load generations so a delayed earlier selection cannot
+  replace the latest selection. Read-failure protection also follows the latest
+  read attempt. Twelve regressions cover the relevant interleavings.
+- Startup, profile loads, save rereads, sync merge/tombstones and database bundle
+  imports reject unreadable encrypted profile data before overwriting it. Saved
+  ciphertext and failed-read protection remain intact until a successful retry.
+  Fourteen tests use real encryption and storage. Credential and backup readers
+  retain their existing contracts.
+- Startup now runs if its entrypoint is invoked after `DOMContentLoaded`, and
+  listens only once when invoked during document loading. Five actual-source
+  regressions cover phase order, duplicate calls/events, readiness and errors.
+  This independently proven defect is distinct from the intermittent PWA case.
+- Backup and meal database opens reject a blocked upgrade instead of holding
+  startup indefinitely behind an older tab. Blocked native opens remain tracked
+  until they actually settle, so hydration retries cannot queue another open
+  behind the uncancellable upgrade. Late successful connections are closed,
+  normal retries resume after the old connection closes, and backup connections
+  close when a newer build requests an upgrade. Five IndexedDB regressions
+  preserve stored records and cover all three hydration retries.
+
+Both profile defects reproduced independently of the TypeScript migration;
+these fixes harden the release candidate rather than claiming migration parity
+alone establishes data safety. The architecture remains modular: 831 modules,
+zero cycles. No framework replacement or infrastructure redesign is indicated
+by the audited evidence.
+
+Final change-scoped integration rechecks passed 496 unit cases across 31 files
+and 24 Chromium cases across nine browser specs. Earlier audit checks also
+passed deployment/server, agents, original legacy assertions, wallet and
+provider actions, dashboards, chat boundaries, browser cache behavior and two
+PWA lifecycle cases covering offline reload and update retry across two tabs.
+All strict application, compatibility, server, worker and native test/compiler
+projects pass, with zero strict-null debt and all 17 quality guardrails passing.
+A final PWA repeat passed offline reload but timed out waiting for startup in
+the second tab after an offline update. The affected case then passed on retry
+and in three diagnostic repeats, with all data-retention assertions intact. The
+failed trace contained only the expected disconnected API request and deliberately
+failed stylesheet requests. The same intermittent case had previously reproduced
+against the original JavaScript source. Its root cause remains unresolved; retry
+success does not close this finding. Both lifecycle cases passed again after
+the independent startup event fix. Retain the intermittent case in release CI
+validation rather than treating the late-start fix as its proven root cause.
+Four further current-startup cases and four differential cases with the original
+DOMContentLoaded listener all passed. A separate blocked IndexedDB upgrade
+reproduced an indefinite startup stall. An initial fix passed the storage
+tests but failed the same scenario in the deployed browser: a second native
+open silently queued behind the rejected first upgrade. The strengthened fix
+retains that native request until it settles, and a persistent browser regression
+keeps both older database connections open through startup before checking
+retained records. The same native browser regression fails with the earlier
+retry handling and passes with the strengthened fix. The focused follow-up
+passes 64 unit/guard tests, two startup browser cases, all 17 quality checks,
+strict compilation and the unchanged affected PWA case. These tests prove the
+blocked-upgrade fix, not the cause of the earlier same-version timeout.
+
+Full coverage and exhaustive browser/model matrices remain CI responsibilities;
+these focused results do not claim a fresh full-suite run.
+
+An isolated Git-source snapshot with the candidate's uncommitted edits passed
+an actual locked offline `npm ci`, native preparation and production bundling.
+The final production artifact uses two startup JS resources at 1,206.7 KiB
+decoded, 165 lazy resources at 5,274.7 KiB and 350 PWA precache resources at
+17,882.3 KiB. Existing budgets and coverage floors remain unchanged. A fresh
+synthetic browser loaded 51 hashed resources and five settings tabs, with no
+runtime errors, broken local resources or mobile overflow. The temporary
+non-Git server's expected `/api/commit` 404 is recorded separately.
+
+All six GitHub workflows retain useful responsibilities: tests, CodeQL,
+supply-chain, sync compatibility, opt-in real models and release evidence.
+Release evidence forces the full test run and verifies model execution instead
+of accepting skips. It also builds and smoke-tests both TypeScript service
+containers with isolated, disposable storage before recording acceptance. Both Docker COPY source closures pass strict compilation
+without relying on ignored emitted files. Docker is unavailable locally, so
+container build/runtime execution for the TypeScript candidate remains
+unverified. Vercel preview packaging now passes on the actual cloud build with
+Node 24 and TypeScript 7.0.2, including all five API functions and the proxy
+function's 190-second timeout. The protected preview passes 14 secret-free API
+checks and a fresh browser smoke with 51 hashed resources, five settings tabs,
+no browser errors or broken app resources, and no mobile overflow. The preview
+records its base commit and dirty-source digest separately; it is not evidence
+for a final committed release revision. Repeated negative share probes reached
+the existing Vercel firewall limit of three POSTs per IP per ten minutes; its
+fixed window was respected rather than bypassed or disabled.
+
+Authenticated VPS inspection confirms both existing proxy and profile-share
+containers are healthy, with zero restarts recorded, unprivileged users,
+read-only root filesystems and loopback-only listeners. Eleven public routing,
+origin and validation probes plus both internal health checks pass. Their core
+handler hashes match the pre-migration JavaScript baseline; the TypeScript
+containers have not been deployed there. Image revision labels and Git metadata
+are absent, so their exact deployed commit is unknown. Twenty-two focused
+frontend-routing, share-transition and API-smoke tests also pass. The Docker
+deployment READMEs now describe compilation from canonical TypeScript sources.
+
+At audit time, `main` protection requires one approving review but has no
+required CI status checks or additional branch rules. Require the applicable
+checks before release; this audit does not change shared repository policy.
+The full release-evidence and sync CI checks on the exact PR revision,
+including actual TypeScript container build/runtime validation, are release
+gates before production promotion. A Vercel preview was
+created for this follow-up; production and VPS services were not redeployed.
+Publishing the migration PR does not promote production or redeploy the VPS.
+The development server remains on port 8000.

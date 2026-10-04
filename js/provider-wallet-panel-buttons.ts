@@ -26,6 +26,7 @@ export function routstrWalletActionButtons(active: unknown) {
   const menuItems = [
     { id: 'seed', label: '\ud83c\udf31 Seed & Restore' },
     { id: 'backup', label: '\ud83d\udce4 Export Token' },
+    { id: 'refunds', label: 'Saved node refunds' },
   ];
   const main = mainBtns.map(b => {
     const isActive = b.id === active;

@@ -62,6 +62,6 @@ export interface FundingPoll extends Record<string, unknown> {
 }
 export interface ApprovedWithdraw { mint: string; invoice: string; amount: number; feeReserve: number }
 export interface FeeMeltJournal { mint: string; quoteId: string; outputs: Cashu.SerializedOutputData[]; inputs: WalletProof[] }
-export interface NodeRefund { nodeUrl: string; key: string; createdAt: number; token?: string }
+export interface NodeRefund { nodeUrl: string; key: string; createdAt: number; token?: string; generation?: string }
 
-export interface RecoveryResult { recovered: number; pending: boolean; notSubmitted?: boolean; error?: string }
+export interface RecoveryResult { recovered: number; pending: boolean; notSubmitted?: boolean; error?: string; operation?: unknown; mint?: unknown }

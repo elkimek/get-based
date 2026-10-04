@@ -2,12 +2,12 @@
 
 
 import type * as Cashu from '@cashu/cashu-ts';
-import type { PendingDeposit, ApprovedWithdraw, FeeMeltJournal, NodeRefund, WalletProof } from './cashu-wallet-storage-types.js';
+import type { PendingDeposit, ApprovedWithdraw, FeeMeltJournal, WalletProof } from './cashu-wallet-storage-types.js';
 import type { CashuRuntime, CashuWalletTransferDeps, PendingWithdraw, MeltQuote } from './cashu-wallet-runtime-types.js';
 
 import { positiveSats, canonicalRoutstrUrl, validateLightningInvoice } from './routstr-validation.js';
 import { getRoutstrSessionKey } from './routstr-session.js';
-import { submitRoutstrDeposit, reconcileRoutstrDeposit, depositExternalTokenToNode, requestNodeRefund, completeNodeRefund } from './routstr-node-payments.js';
+import { submitRoutstrDeposit, reconcileRoutstrDeposit, depositExternalTokenToNode, requestNodeRefund, completeNodeRefund, verifyNodeDepositSession, prepareNewNodeSession, pendingNodeRefundForSession, pendingNodeRefundsForNode } from './routstr-node-payments.js';
 import { getErrorMessage } from './caught-error.js';
 import {
   PENDING_SWAP_KEY,
@@ -135,6 +135,7 @@ export async function depositToNode(nodeUrl: string, amountSats: number, existin
     const cashuts = await _cashuLib();
     const mintUrl = await getMintUrl();
     if ((await _getMeta('pendingDeposit') as PendingDeposit | string | null)) throw new Error('Recover or clear the previous pending deposit first');
+    await verifyNodeDepositSession(nodeUrl, existingKey);
     const proofs = await _pruneSpentProofs(true, mintUrl);
     const total = _sumProofsAsNumber(cashuts, proofs);
     if (total < amountSats) throw new Error('Insufficient wallet balance: ' + total + ' sats, need ' + amountSats);
@@ -186,7 +187,7 @@ export async function recoverPendingWithdraw() {
   return _withWalletLock(() => _recoverPendingWithdrawUnlocked());
 }
 
-async function _recoverPendingWithdrawUnlocked() {
+export async function _recoverPendingWithdrawUnlocked() {
   const raw = (await _getMeta('pendingWithdraw') as string | null);
   if (!raw) return null;
   const pending = JSON.parse(raw) as PendingWithdraw;
@@ -537,10 +538,13 @@ export async function redeemFees(bolt11Invoice: string) {
 export function depositTokenToNode(nodeUrl: string, token: string) {
   return _withWalletLock(() => depositExternalTokenToNode(nodeUrl, token));
 }
-export function refundNodeToToken(nodeUrl: unknown) {
-  return _withWalletLock(async () => { await _ensureNoPendingSwap(); return requestNodeRefund(nodeUrl); });
+export function refundNodeToToken(nodeUrl: unknown, recoveryId?: string, recoveryToken?: string, generation?: string) {
+  return _withWalletLock(async () => { await _ensureNoPendingSwap(); return requestNodeRefund(nodeUrl, recoveryId, recoveryToken, generation); });
 }
 export function finishNodeRefund(token: string) {
   return _withWalletLock(() => completeNodeRefund(token));
 }
-export function getPendingNodeRefund() { return (_getMeta('pendingNodeRefund') as Promise<NodeRefund | null>); }
+export function getPendingNodeRefund() { return pendingNodeRefundForSession(); }
+export function startNewNodeSession(nodeUrl: string) { return _withWalletLock(() => prepareNewNodeSession(nodeUrl)); }
+
+export function getPendingNodeRefunds(nodeUrl?: unknown) { return _withWalletLock(() => pendingNodeRefundsForNode(nodeUrl)); }

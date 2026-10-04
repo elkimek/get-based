@@ -48,6 +48,7 @@ const TOMBSTONE_KEYS = ['_deleted', '_deletedAt', '_deletedClearedAt'] as const;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const dbPromises = new Map<string, Promise<IDBDatabase>>();
+const blockedOpens = new Map<string, Promise<IDBDatabase>>(); // Retain uncancellable native upgrades.
 let nutritionOperationTail: Promise<unknown> = Promise.resolve();
 
 function queueNutritionOperation<T>(operation: () => Promise<T>): Promise<T> {
@@ -116,8 +117,10 @@ function transactionDone(tx: IDBTransaction): Promise<void> {
 export function openNutritionDB(profileId?: unknown) {
   const normalized = normalizeProfileId(profileId);
   const name = databaseName(normalized);
+  if (blockedOpens.has(name)) return blockedOpens.get(name)!;
   if (dbPromises.has(name)) return dbPromises.get(name)!;
   const promise = new Promise<IDBDatabase>((resolve, reject) => {
+    let blocked = false;
     if (typeof indexedDB === 'undefined') {
       reject(new Error('Secure meal storage is unavailable in this browser.'));
       return;
@@ -138,14 +141,19 @@ export function openNutritionDB(profileId?: unknown) {
     };
     request.onsuccess = () => {
       const db = request.result;
+      if (blocked) { db.close(); blockedOpens.delete(name); if (dbPromises.get(name) === promise) dbPromises.delete(name); return; }
       db.onversionchange = () => {
         db.close();
-        resetNutritionDB(normalized);
+        if (dbPromises.get(name) === promise) resetNutritionDB(normalized);
       };
       resolve(db);
     };
+    request.onblocked = () => {
+      blocked = true; blockedOpens.set(name, promise);
+      reject(new Error('Meal storage is blocked by another open tab.'));
+    };
     request.onerror = () => {
-      dbPromises.delete(name);
+      blockedOpens.delete(name); if (dbPromises.get(name) === promise) dbPromises.delete(name);
       reject(request.error || new Error('Secure meal storage could not be opened.'));
     };
   });

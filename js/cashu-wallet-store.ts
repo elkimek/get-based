@@ -477,11 +477,10 @@ export async function _recoverPendingSwapUnlocked(recordKey = PENDING_SWAP_KEY) 
       }
     }
     if (record.operation === 'receive') {
-      // Keep incoming outputs for exact retry/recovery in an independent
-      // journal, without blocking unrelated outgoing wallet funds.
+      // Retain incoming outputs separately for exact retry without blocking outgoing funds.
       if (recordKey === PENDING_SWAP_KEY) {
-        await _setMeta(PENDING_RECEIVE_PREFIX + await _digestStorageKey(JSON.stringify(record.outputs)), record);
-        await _deleteMeta(PENDING_SWAP_KEY);
+        const key = PENDING_RECEIVE_PREFIX + await _digestStorageKey(JSON.stringify(record.outputs));
+        await _replaceProofs([], [], mintUrl, { meta: { [key]: record }, deleteKeys: [PENDING_SWAP_KEY] });
       }
       return { recovered: 0, pending: true };
     }
@@ -513,11 +512,10 @@ export async function _recoverPendingSwapUnlocked(recordKey = PENDING_SWAP_KEY) 
   if (record.version === 1 && record.localInputs?.length) {
     retained = (await wallet.groupProofsByState(record.localInputs)).unspent;
   }
-  // Background recovery restores the original mint's proofs without changing
-  // the wallet the user selected while this operation was pending.
+  // Recovery restores proofs at their original mint and preserves the selected mint.
   const meta: Record<string, null> = {};
   if (record.operation === 'receive' && record.incomingToken) {
-    for (const key of ['pendingDeposit', 'pendingWithdraw', 'pendingNodeRefund']) {
+    for (const key of ['pendingDeposit', 'pendingWithdraw', ...(await _getMetaEntries('pendingNodeRefund')).map(entry => entry.key)]) {
       let pending = await _getMeta(key);
       if (typeof pending === 'string') { try { pending = JSON.parse(pending); } catch {} }
       if (pending === record.incomingToken || (pending as { token?: unknown } | null)?.token === record.incomingToken || (pending as { recoveryToken?: unknown } | null)?.recoveryToken === record.incomingToken) meta[key] = null;
@@ -532,18 +530,40 @@ export async function _recoverPendingSwapUnlocked(recordKey = PENDING_SWAP_KEY) 
   return { recovered: _sumProofsAsNumber(cashuts, recoveredProofs), pending: false };
 }
 
-export async function _recoverAllPendingOperations() {
+export async function _recoverAllPendingOperations(onlyMint?: string) {
   const results: RecoveryResult[] = [];
   const keys = [PENDING_SWAP_KEY, ...(await _getMetaEntries(PENDING_RECEIVE_PREFIX)).map(entry => entry.key)];
   for (const key of keys) {
-    try { results.push(await _recoverPendingSwapUnlocked(key)); }
-    catch (error) { results.push({ recovered: 0, pending: true, error: getErrorMessage(error) }); }
+    let details: Pick<RecoveryResult, 'operation' | 'mint'> = {};
+    try {
+      const record = await _getMeta<unknown>(key);
+      if (record && typeof record === 'object') {
+        const identity = record as { operation?: unknown; mint?: unknown };
+        details = { operation: identity.operation, mint: identity.mint };
+        if (onlyMint && (typeof identity.mint !== 'string' || _normalizeMintUrl(identity.mint) !== onlyMint)) continue;
+      }
+      results.push({ ...await _recoverPendingSwapUnlocked(key), ...details });
+    } catch (error) { results.push({ recovered: 0, pending: true, error: getErrorMessage(error), ...details }); }
   }
   return { recovered: results.reduce((sum, result) => sum + result.recovered, 0), pending: results.some(result => result.pending), results };
 }
 
 export async function _ensureNoPendingSwap() {
-  if (!await _getMeta(PENDING_SWAP_KEY)) return;
+  const record = await _getMeta<DurableJournal>(PENDING_SWAP_KEY);
+  if (!record) return;
+  if (record.operation === 'receive' && [1, 2].includes(record.version) && isValidExternalUrl(record.mint)
+    && typeof record.incomingToken === 'string' && /^cashu[AB]/.test(record.incomingToken)
+    && Array.isArray(record.localInputs) && !record.localInputs.length && Array.isArray(record.outputs) && record.outputs.length) {
+    const cashuts = await storeRuntime.cashuLib();
+    if (!cashuts.OutputData) throw new Error('Cashu runtime cannot preserve this receive journal');
+    record.outputs.forEach(output => cashuts.OutputData.deserialize(output));
+    const key = PENDING_RECEIVE_PREFIX + await _digestStorageKey(JSON.stringify(record.outputs));
+    const existing = await _getMeta(key);
+    if (existing && JSON.stringify(existing) !== JSON.stringify(record)) throw new Error('Receive recovery record changed; both journals retained');
+    // Move the journal atomically without contacting its unrelated mint.
+    await _replaceProofs([], [], record.mint, { meta: { [key]: record }, deleteKeys: [PENDING_SWAP_KEY] });
+    return;
+  }
   await _recoverPendingSwapUnlocked();
   if (await _getMeta(PENDING_SWAP_KEY)) throw new Error('A previous Cashu operation still needs recovery');
 }

@@ -37,7 +37,6 @@ export default defineConfig({
       include: COVERAGE_INCLUDE,
       exclude: [
         '**/node_modules/**',
-        'vendor/**',
         'docs/**',
         'dist-docs/**',
         'tests/**',

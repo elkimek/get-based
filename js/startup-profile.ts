@@ -4,6 +4,8 @@ import { configureRuntimeFunctions } from './runtime-callbacks.js';
 import { state } from './state.js';
 import { restoreCorrelationWorkspace } from './correlation-workspace-store.js';
 import { rememberProfileData } from './profile-data-writes.js';
+import { readProfileForLoad } from './profile-load-safety.js';
+import { showNotification } from './utils.js';
 import {
   saveProfiles,
   getActiveProfileId,
@@ -101,7 +103,9 @@ export async function initializeProfileData() {
   // callbacks persist into state.importedData via saveImportedData, whose
   // storage key depends on state.currentProfile.
   state.currentProfile = getActiveProfileId();
-  const savedImported = await encryptedGetItem(profileStorageKey(state.currentProfile, 'imported'));
+  const savedImported = await readProfileForLoad(state.currentProfile,
+    () => encryptedGetItem(profileStorageKey(state.currentProfile, 'imported'), { throwOnDecryptError: true }),
+    showNotification);
   if (savedImported) {
     try {
       (state as ImportedProfileState).importedData = JSON.parse(savedImported) as unknown;

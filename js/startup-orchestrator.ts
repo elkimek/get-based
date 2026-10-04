@@ -56,7 +56,10 @@ export function startApp() {
   installGlobalEventListeners();
   registerAppRefreshCallback();
 
-  document.addEventListener('DOMContentLoaded', () => {
-    runStartupSequence().catch(handleStartupSequenceError);
-  });
+  const initialize = () => { runStartupSequence().catch(handleStartupSequenceError); };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initialize, { once: true });
+  } else {
+    initialize();
+  }
 }

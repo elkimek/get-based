@@ -465,7 +465,8 @@ let _folderWriteInProgress = false;
 
 export function openBackupDB() {
   if (_dbPromise) return _dbPromise;
-  _dbPromise = new Promise((resolve, reject) => {
+  let blocked = false;
+  const pending = new Promise<IDBDatabase>((resolve, reject) => {
     const req = indexedDB.open(BACKUP_DB_NAME, 2);
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -476,10 +477,18 @@ export function openBackupDB() {
         db.createObjectStore(FOLDER_HANDLE_STORE);
       }
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => { _dbPromise = null; reject(req.error); };
+    req.onsuccess = () => {
+      const db = req.result;
+      if (blocked) { db.close(); if (_dbPromise === pending) _dbPromise = null; return; }
+      db.onversionchange = () => { db.close(); if (_dbPromise === pending) _dbPromise = null; };
+      resolve(db);
+    };
+    req.onblocked = () => { blocked = true; reject(new Error('Backup storage is blocked by another open tab.')); };
+    req.onerror = () => { if (_dbPromise === pending) _dbPromise = null; reject(req.error); };
   });
-  return _dbPromise;
+  _dbPromise = pending;
+  void pending.catch(() => { if (!blocked && _dbPromise === pending) _dbPromise = null; });
+  return pending;
 }
 
 async function performAutoBackup() {

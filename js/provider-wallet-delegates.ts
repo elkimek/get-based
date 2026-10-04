@@ -98,7 +98,10 @@ async function _handleRoutstrWalletClick(event: WalletEventOperations): Promise<
   if (action === 'choose-node-mint') return _call('chooseRoutstrNodeMint', el.dataset.mintUrl || '');
   if (action === 'deposit-node-input') return _call('doRoutstrNodeDeposit', el.dataset.nodeUrl || '', _inputInt('routstr-deposit-amount'));
   if (action === 'deposit-node-preset') return _depositNodePreset(el);
-  if (action === 'resume-node-refund') return _call('doRoutstrNodeWithdraw', el.dataset.nodeUrl);
+  if (action === 'new-node-session') return _call('startNewRoutstrNodeSession', el.dataset.nodeUrl);
+  if (action === 'saved-node-refunds') return _call('showSavedNodeRefunds', el.dataset.nodeUrl);
+  if (action === 'withdraw-current-node') return _call('doRoutstrNodeWithdraw', el.dataset.nodeUrl, '');
+  if (action === 'resume-node-refund') return _call('doRoutstrNodeWithdraw', el.dataset.nodeUrl, el.dataset.recoveryId, el.dataset.token, el.dataset.generation);
   if (action === 'recover-pending-deposit') return _recoverPendingDeposit(el);
   if (action === 'recover-pending-withdraw') return _recoverPendingWithdraw(el);
   if (action === 'node-action') return _runNodeAction(el);
@@ -169,6 +172,7 @@ async function _recoverPendingWithdraw(el: WalletElementOperations) {
 
 function _runNodeAction(el: WalletElementOperations): WalletActionResult {
   const action = el.dataset.nodeAction;
+  if (action === 'refresh') return _call('showRoutstrNodePicker', true);
   _call('_setActiveNodeAction', action);
   if (action === 'deposit') return _call('showRoutstrNodeDeposit', el.dataset.nodeUrl || '');
   if (action === 'withdraw') return _call('doRoutstrNodeWithdraw');
@@ -180,6 +184,7 @@ function _runWalletAction(action: unknown): WalletActionResult {
   if (action === 'deposit') return _call('showRoutstrWalletFund');
   if (action === 'withdraw') return _call('showRoutstrWithdraw');
   if (action === 'seed') return _call('showWalletSeedPhrase');
+  if (action === 'refunds') return _call('showSavedNodeRefunds');
   if (action === 'backup') return _call('showRoutstrWalletBackup');
 }
 

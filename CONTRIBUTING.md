@@ -61,7 +61,7 @@ npm run architecture:check
 - Keep PRs focused. One thing at a time is easier to review.
 - Run change-scoped tests and relevant lightweight gates before opening a PR;
   let GitHub Actions run the exhaustive browser and coverage matrix.
-- If you touch any app file (JS, CSS, HTML, manifest), bump the version in `version.js` — this busts the service worker cache for existing users.
+- Edit canonical `.ts`/`.mts` sources, not generated `.js`/`.mjs` files. PWA cache identity comes from the production commit and deployment ID, so ordinary patches need no version bump. For a versioned release, update `version.ts` and the changelog.
 - Commit the regenerated [`MODULE_MAP.md`](MODULE_MAP.md) when runtime modules or imports change.
 - Update [`ARCHITECTURE.md`](ARCHITECTURE.md) when responsibilities, entry points, major data flows, or allowed dependency directions change.
 

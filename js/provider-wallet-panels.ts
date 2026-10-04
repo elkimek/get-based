@@ -2,6 +2,7 @@ import type { WalletOperations, FundingMonitorReader, FundingRecoveryReader, Inv
 // provider-wallet-panels.js - Routstr/Cashu wallet UI and node funding actions
 
 import { canonicalRoutstrUrl, validateLightningInvoice } from './routstr-validation.js';
+import { nodeSessionRejectedHtml, startNewNodeSessionView, withdrawNodeToWallet, showSavedNodeRefunds } from './provider-wallet-refund-recovery.js';
 import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import { getAIProvider, getRoutstrKey, saveRoutstrKey, touchRoutstrSession, fetchRoutstrModels, getRoutstrBalance } from './api.js';
@@ -195,8 +196,8 @@ export async function doRoutstrWalletFund(amountSats: number) {
   _fundingRequest = (async () => {
     try {
       const mint = await (walletRuntime as WalletOperations).cashuGetMintUrl();
-      const result = await (walletRuntime as WalletOperations).cashuCreateFundingInvoice(amountSats) as Pick<InvoiceOperations, 'invoice' | 'quote'>;
-      _fundingInvoice = { ...result, amount: amountSats, mint };
+      const result = await (walletRuntime as WalletOperations).cashuCreateFundingInvoice(amountSats) as Pick<InvoiceOperations, 'invoice' | 'quote' | 'mint'>;
+      _fundingInvoice = { ...result, amount: amountSats, mint: typeof result.mint === 'string' ? result.mint : mint };
       startRoutstrFundingMonitor({ recheck: true });
       // The quote is durable even if the user navigated away while creating it.
       if (statusEl === document.getElementById('routstr-wfund-status')) {
@@ -311,7 +312,8 @@ export async function doRoutstrMintChange() {
     _setActiveWalletAction(null);
     await _refreshRoutstrWalletBalance();
     const nodePicker = document.getElementById('routstr-node-picker');
-    if (nodePicker) { nodePicker.innerHTML = ''; nodePicker.style.display = 'none'; }
+    const pendingRefund = await (walletRuntime as WalletOperations).cashuGetPendingNodeRefund?.();
+    if (nodePicker && !pendingRefund) { nodePicker.innerHTML = ''; nodePicker.style.display = 'none'; }
     _setActiveNodeAction(null);
     showNotification('Mint selected: ' + url.replace(/^https?:\/\//, ''), 'success');
   } catch (e) {
@@ -334,23 +336,26 @@ export async function showRoutstrWalletBackup() {
   setTimeout(() => _setActiveWalletAction(null), 500);
 }
 
-export async function showRoutstrNodePicker() {
+export async function showRoutstrNodePicker(forceRefresh = false) {
   const area = document.getElementById('routstr-node-picker');
   if (!area) return;
-  if (area.style.display !== 'none' && area.dataset.mode === 'browse') { area.style.display = 'none'; return; }
+  if (!forceRefresh && area.style.display !== 'none' && area.dataset.mode === 'browse') { area.style.display = 'none'; return; }
+  const refresh = '<div style="margin-top:8px"><button class="import-btn import-btn-secondary" data-routstr-wallet-action="node-action" data-node-action="refresh">Refresh nodes</button></div>';
   area.dataset.mode = 'browse';
   area.style.display = 'block';
   area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Searching Nostr relays\u2026</div>';
   try {
-    const allNodes = await (walletRuntime as WalletOperations).nostrDiscoverNodes(true) as NodeCatalogOperations;
+    const allNodes = await (walletRuntime as WalletOperations).nostrDiscoverNodes(forceRefresh) as NodeCatalogOperations;
+    if (document.getElementById('routstr-node-picker') !== area || area.dataset.mode !== 'browse') return;
     const nodes = allNodes.filter(n => n.online);
     if (!nodes.length) {
-      area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">No online nodes found (' + allNodes.length + ' discovered). Try again later.</div>';
+      area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">No online nodes found (' + allNodes.length + ' discovered). Try again later.</div>' + refresh;
       return;
     }
-    area.innerHTML = '<div style="margin-top:8px">' + nodes.map(routstrNodePickerRowHtml).join('') + '</div>';
+    area.innerHTML = '<div style="margin-top:8px">' + nodes.map(routstrNodePickerRowHtml).join('') + '</div>' + refresh;
   } catch (e) {
-    area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
+    if (document.getElementById('routstr-node-picker') !== area || area.dataset.mode !== 'browse') return;
+    area.innerHTML = '<div style="margin-top:8px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>' + refresh;
   }
 }
 
@@ -479,6 +484,11 @@ export async function doRoutstrNodeDeposit(nodeUrl: string, amount: number) {
     _returnToChatIfOnboarding();
   } catch (e) {
     if (statusEl) statusEl.innerHTML = '<div style="font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
+    if ((e as { nodeSessionRejected?: unknown } | null)?.nodeSessionRejected) {
+      if (statusEl) statusEl.innerHTML += nodeSessionRejectedHtml(nodeUrl);
+      _rsConnecting = false;
+      return;
+    }
     _refreshRoutstrWalletBalance();
     if ((walletRuntime as WalletOperations).cashuRecoverPendingDeposit) (walletRuntime as WalletOperations).cashuRecoverPendingDeposit().then(function(token) {
       if (!token) return;
@@ -497,36 +507,12 @@ export async function doRoutstrNodeDeposit(nodeUrl: string, amount: number) {
   _rsConnecting = false;
 }
 
-let _nodeRefundInFlight = false;
-export async function doRoutstrNodeWithdraw(nodeUrl?: unknown) {
-  if (_nodeRefundInFlight) return;
-  const target = typeof nodeUrl === 'string' ? nodeUrl : (walletRuntime as WalletOperations).nostrGetSelectedNode?.();
-  if (!await (walletRuntime as WalletOperations).cashuHasWalletSeed?.()) {
-    await _ensureWalletSeed(() => doRoutstrNodeWithdraw(target));
-    return;
-  }
-  if (_nodeRefundInFlight) return;
-  _nodeRefundInFlight = true;
-  const picker = document.getElementById('routstr-node-picker');
-  if (picker) { picker.style.display = 'block'; picker.textContent = 'Checking node refund…'; }
-  let token: unknown = '';
-  try {
-    const refund = await (walletRuntime as WalletOperations).cashuRefundNodeToToken(target as string) as {token?: unknown};
-    token = refund.token;
-    const result = await (walletRuntime as WalletOperations).cashuReceiveToken(token as string) as {received?: unknown; fee?: unknown};
-    await (walletRuntime as WalletOperations).cashuFinishNodeRefund(token as string);
-    showNotification('Withdrawn ⚡ ' + Number(result.received).toLocaleString() + ' sats to wallet', 'success');
-    if (picker) picker.textContent = 'Node refund received in your wallet.';
-    _refreshRoutstrWalletBalance();
-    refreshRoutstrBalance();
-  } catch (error) {
-    token = token || (error as {recoveryToken?: unknown} | null | undefined)?.recoveryToken || '';
-    if (picker) {
-      picker.innerHTML = '<div class="routstr-wallet-message routstr-wallet-message-error" role="status">' + escapeHTML(getErrorMessage(error)) + '</div>';
-      if (token) picker.innerHTML += '<p class="routstr-wallet-help" id="routstr-refund-token-hint">Keep this refund token until recovery succeeds.</p><textarea class="api-key-input routstr-refund-token" aria-label="Node refund recovery token" aria-describedby="routstr-refund-token-hint" readonly>' + escapeHTML(token) + '</textarea>';
-      picker.innerHTML += '<button class="import-btn import-btn-primary" data-routstr-wallet-action="resume-node-refund" data-node-url="' + escapeAttr(target || '') + '">Retry refund recovery</button>';
-    }
-  } finally { _nodeRefundInFlight = false; }
+export function startNewRoutstrNodeSession(nodeUrl: string) {
+  return startNewNodeSessionView(nodeUrl, node => (walletRuntime as WalletOperations).cashuStartNewNodeSession(node), showRoutstrNodeDeposit);
+}
+
+export function doRoutstrNodeWithdraw(nodeUrl?: unknown, recoveryId?: string, recoveryToken?: string, generation?: string) {
+  return withdrawNodeToWallet(nodeUrl, recoveryId, recoveryToken, generation, _ensureWalletSeed, _refreshRoutstrWalletBalance, refreshRoutstrBalance);
 }
 
 let _walletBalanceRefresh = 0;
@@ -770,6 +756,8 @@ installRoutstrWalletDelegates({
   chooseRoutstrNodeMint,
   doRoutstrNodeDeposit,
   doRoutstrNodeWithdraw,
+  showSavedNodeRefunds,
+  startNewRoutstrNodeSession,
   _setActiveNodeAction,
   walletSeedAcknowledged,
   setupRoutstrWalletSeed,
@@ -783,3 +771,5 @@ installRoutstrWalletDelegates({
   clearRoutstrNodeSession: () => saveRoutstrKey(''),
   doRoutstrWalletRestore
 });
+
+export { showSavedNodeRefunds };

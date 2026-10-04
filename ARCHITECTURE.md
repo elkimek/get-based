@@ -13,7 +13,7 @@ file covers code ownership and dependency rules that must change with the app.
 ## Update contract
 
 - Add, remove, rename, or change imports in `js/`, `api/`, `lib/`, or
-  `dev-server.js`: run
+  `dev-server.ts`: run
   `npm run architecture:build` and commit the generated map.
 - Change a module's responsibility, a major data flow, an entry point, or an
   allowed dependency direction: update this file and the architecture rules.
@@ -29,8 +29,10 @@ after source edits. `npm ci` runs it through `prepare`; the `dev-server`, `test`
 `production:build` and `production:check` npm commands also compile first.
 Source inventories prefer the canonical TypeScript file. Project-owned assets in
 `vendor/components.json` participate in migration completion; external vendor
-bundles remain third-party inputs. Runtime coverage uses emitted JavaScript
-offsets consistently across Node and browsers.
+bundles remain third-party inputs. The same ownership manifest includes executable
+project-owned vendor modules in coverage and affected-test planning. CodeQL excludes
+external bundles precisely so owned vendor sources remain scanned. Runtime coverage
+uses emitted JavaScript offsets consistently across Node and browsers.
 
 Compiler tooling uses the TypeScript 7 native SDK.
 [`scripts/native-typescript-ast.ts`](scripts/native-typescript-ast.ts) owns scoped

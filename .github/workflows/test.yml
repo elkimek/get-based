@@ -47,6 +47,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Require complete authored TypeScript migration
+        run: npm run migration:check
+
       - name: Select affected PR tests
         id: scope
         if: env.CI_SCOPE_FULL != 'true'

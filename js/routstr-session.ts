@@ -1,4 +1,4 @@
-interface RoutstrSession { key: string; updatedAt: number }
+interface RoutstrSession { key: string; updatedAt: number; archivedKeys?: string[] }
 
 // A single encrypted credential value binds each bearer key to its node.
 import { getCachedKey, updateKeyCache } from './crypto-key-cache.js';
@@ -10,16 +10,22 @@ const KEY = ROUTSTR_SESSIONS_KEY;
 const LEGACY_KEY = 'labcharts-routstr-key';
 let writes: Promise<unknown> = Promise.resolve();
 
+function normalizeArchivedKeys(value: unknown, activeKey: string) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((key): key is string => typeof key === 'string' && /^(sk-|cashu)/.test(key) && key !== activeKey))].sort();
+}
+
 export function parseRoutstrSessions(raw: unknown, legacyNode: unknown, legacyClock = 0) {
   const sessions: Record<string, RoutstrSession> = {};
   if (!raw) return sessions;
   try {
     const parsed = JSON.parse(raw as string);
     if (parsed?.version !== 1 || !parsed.sessions || typeof parsed.sessions !== 'object') return sessions;
-    for (const [url, record] of Object.entries(parsed.sessions as Record<string, RoutstrSession>)) {
+    for (const [url, record] of Object.entries(parsed.sessions as Record<string, { key: string; updatedAt: number; archivedKeys?: unknown }>)) {
       if (canonicalRoutstrUrl(url) !== url || typeof record?.key !== 'string' || !Number.isSafeInteger(record.updatedAt) || record.updatedAt < 0) continue;
       if (record.key && !/^(sk-|cashu)/.test(record.key)) continue;
-      sessions[url] = { key: record.key, updatedAt: record.updatedAt };
+      const archivedKeys = normalizeArchivedKeys(record.archivedKeys, record.key);
+      sessions[url] = { key: record.key, updatedAt: record.updatedAt, ...(archivedKeys.length ? { archivedKeys } : {}) };
     }
   } catch {
     if (typeof raw === 'string' && /^(sk-|cashu)/.test(raw) && legacyNode) {
@@ -34,6 +40,12 @@ export function getRoutstrSessionKey(nodeUrl = localStorage.getItem('labcharts-r
     return sessions[canonicalRoutstrUrl(nodeUrl)]?.key || '';
   } catch { return ''; }
 }
+export function getArchivedRoutstrSessionKeys(nodeUrl = localStorage.getItem('labcharts-routstr-node')): string[] {
+  try {
+    const sessions = parseRoutstrSessions(getCachedKey(KEY) || getCachedKey(LEGACY_KEY), localStorage.getItem('labcharts-routstr-node'), Number(localStorage.getItem('labcharts-routstr-session-updated-at')));
+    return sessions[canonicalRoutstrUrl(nodeUrl)]?.archivedKeys || [];
+  } catch { return []; }
+}
 export function encodeMergedRoutstrSessions(localRaw: unknown, localNode: unknown, remoteRaw: unknown, remoteNode: unknown, localClock: number, remoteClock: number) {
   const merged = parseRoutstrSessions(localRaw, localNode, localClock);
   const incoming = parseRoutstrSessions(remoteRaw, remoteNode, remoteClock);
@@ -41,7 +53,10 @@ export function encodeMergedRoutstrSessions(localRaw: unknown, localNode: unknow
     try { incoming[canonicalRoutstrUrl(remoteNode)] = { key: '', updatedAt: Number(remoteClock) || 0 }; } catch {}
   }
   for (const [node, record] of Object.entries(incoming)) {
-    if (!merged[node] || record.updatedAt >= merged[node]!.updatedAt) merged[node] = record;
+    const local = merged[node];
+    const winner = !local || record.updatedAt >= local.updatedAt ? record : local;
+    const archivedKeys = normalizeArchivedKeys([...(local?.archivedKeys || []), ...(record.archivedKeys || [])], winner.key);
+    merged[node] = { key: winner.key, updatedAt: winner.updatedAt, ...(archivedKeys.length ? { archivedKeys } : {}) };
   }
   return JSON.stringify({ version: 1, sessions: merged });
 }
@@ -51,7 +66,7 @@ export function withRoutstrSessionLock<Value>(run: () => Value | PromiseLike<Val
   return result;
 }
 
-export function saveRoutstrSessionKey(key: string, nodeUrl = localStorage.getItem('labcharts-routstr-node'), expectedKey: string | undefined = undefined) {
+export function saveRoutstrSessionKey(key: string, nodeUrl = localStorage.getItem('labcharts-routstr-node'), expectedKey: string | undefined = undefined, archivePrevious = false) {
   const node = canonicalRoutstrUrl(nodeUrl);
   if (key && !/^(sk-|cashu)/.test(key)) throw new Error('Invalid Routstr credential');
   const run = async () => {
@@ -60,7 +75,8 @@ export function saveRoutstrSessionKey(key: string, nodeUrl = localStorage.getIte
     const currentKey = sessions[node]?.key || '';
     if (expectedKey !== undefined && currentKey !== expectedKey && currentKey !== key) throw new Error('Node session changed during this deposit. Both the current session and deposit recovery record have been retained.');
     const updatedAt = Math.max(Date.now(), ...Object.values(sessions).map(record => record.updatedAt + 1));
-    sessions[node] = { key, updatedAt };
+    const archivedKeys = normalizeArchivedKeys([...(sessions[node]?.archivedKeys || []), ...(archivePrevious === true && currentKey ? [currentKey] : [])], key);
+    sessions[node] = { key, updatedAt, ...(archivedKeys.length ? { archivedKeys } : {}) };
     const value = JSON.stringify({ version: 1, sessions });
     await encryptedSetProviderItemRuntime(KEY, value);
     updateKeyCache(KEY, value);

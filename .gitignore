@@ -484,6 +484,8 @@ deploy/profile-share/data/
 /js/lens-cache.js
 
 /js/cashu-wallet-store.js
+/js/cashu-wallet-funding-accounting.js
+/js/provider-wallet-refund-recovery.js
 /js/cashu-wallet-storage-types.js
 
 /js/base64.js
@@ -1494,3 +1496,4 @@ deploy/profile-share/data/
 /vendor/chartjs-adapter-native.js
 /tests/test-ai-action-delegates.js
 /tests/test-sun-defaults.js
+/scripts/project-owned-vendor.mjs

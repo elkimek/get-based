@@ -145,6 +145,7 @@ test('cashu wallet browser coverage exercises storage, mint, deposit, withdraw, 
           headers: { 'Content-Type': 'application/json' },
         });
       }
+      if (href.startsWith('https://node.wallet-browser.test/v1/balance/info')) return new Response(JSON.stringify({ balance: 0 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
       if (href.startsWith('https://node.wallet-browser.test/v1/balance/topup')) {
         state.topupAuth = (opts as {headers?:{Authorization?:unknown}}).headers?.Authorization || '';
         return new Response(JSON.stringify({ detail: [{ msg: 'token rejected' }, { msg: 'mint unavailable' }] }), {
@@ -1115,4 +1116,357 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
   for (const [name, passed] of Object.entries(results)) {
     expect(passed, name).toBeTruthy();
   }
+});
+
+test('mint selection preserves visible node refund recovery without retrying the refund', async ({ page }) => {
+  await routeHtml(page, '**/wallet-mint-refund-recovery', `<!doctype html><html><body>
+    <div id="routstr-mint-edit"><input id="routstr-mint-input" value="https://mint.other.test"><div id="routstr-mint-status"></div></div>
+    <div id="routstr-wallet-balance"></div><div id="routstr-mint-label"></div>
+    <div id="routstr-wallet-fund-area" style="display:none"></div>
+    <div id="routstr-node-picker"><button data-routstr-wallet-action="resume-node-refund" data-node-url="https://node.test">Check refund recovery</button></div>
+  </body></html>`);
+  await page.goto('/wallet-mint-refund-recovery');
+  const result = await page.evaluate(async () => {
+    const panels = await import('/js/' + 'provider-wallet-panels.js') as typeof import('../../js/provider-wallet-panels.js');
+    let selected = 'https://mint.original.test';
+    let refundRequests = 0;
+    panels.configureRoutstrWalletRuntime({
+      cashuHasWalletSeed: async () => true,
+      cashuGetWalletMints: async () => [{ mint: 'https://mint.other.test', balance: 2, feeBalance: 0, active: false }],
+      cashuSetMintUrl: async (mint: string) => { selected = mint; },
+      cashuGetMintUrl: async () => selected,
+      cashuGetBalance: async () => 2,
+      cashuGetPendingNodeRefund: async () => ({ nodeUrl: 'https://node.test', key: 'sk-node', createdAt: 1 }),
+      cashuRefundNodeToToken: async () => { refundRequests++; throw new Error('Unexpected refund request'); },
+    });
+    await panels.doRoutstrMintChange();
+    return { selected, refundRequests, recoveryVisible: document.getElementById('routstr-node-picker')?.style.display !== 'none' };
+  });
+  expect(result).toEqual({ selected: 'https://mint.other.test', refundRequests: 0, recoveryVisible: true });
+  await expect(page.getByRole('button', { name: 'Check refund recovery' })).toBeVisible();
+});
+
+test('native wallet switches mints across reload with saved token import, quote and refund while preserving each mint balance', async ({ page }) => {
+  let externalRequests = 0;
+  await page.route('https://**', async route => { externalRequests++; await route.abort(); });
+  await routeHtml(page, '**/wallet-refund-mint-selection', '<!doctype html><html><body>Isolated wallet recovery fixture</body></html>');
+  await page.goto('/wallet-refund-mint-selection');
+  await page.evaluate(async () => {
+    const store = await import('/js/' + 'cashu-wallet-store.js') as typeof import('../../js/cashu-wallet-store.js');
+    await import('/js/' + 'cashu-wallet.js');
+    await store._setMeta('mintUrl', 'https://cashu.cz');
+    await store._saveProofs([{ id: 'fixture-keyset', secret: 'fixture-cashu-proof', C: 'fixture-signature', amount: 5 }], 'https://cashu.cz');
+    await store._saveProofs([{ id: 'fixture-keyset', secret: 'fixture-minibits-proof', C: 'fixture-signature', amount: 2 }], 'https://mint.minibits.cash/Bitcoin');
+    await store._setMeta('pendingNodeRefund', { nodeUrl: 'https://node.test', key: 'sk-old-account', createdAt: 1 });
+    await store._setMeta('pendingReceive:fixture-import', { version: 2, operation: 'receive', mint: 'https://cashu.cz',
+      createdAt: 1, incomingToken: 'cashuAfixture-refund', localInputs: [], outputs: [{ saved: 'exact-output' }] });
+    await store._setMeta('pendingQuote:fixture-unknown', { mint: 'https://cashu.cz', quote: 'unknown-fixture-quote', amount: 100 });
+    const wallet = await import('/js/' + 'cashu-wallet.js') as typeof import('../../js/cashu-wallet.js');
+    await wallet.setMintUrl('https://mint.minibits.cash/Bitcoin');
+  });
+  await page.reload();
+  const result = await page.evaluate(async () => {
+    const wallet = await import('/js/' + 'cashu-wallet.js') as typeof import('../../js/cashu-wallet.js');
+    const selectedBefore = await wallet.getMintUrl();
+    const balanceBefore = await wallet.getLocalWalletBalance();
+    await wallet.setMintUrl('https://mint.cubabitcoin.org');
+    return { selectedBefore, balanceBefore, selected: await wallet.getMintUrl(), balance: await wallet.getLocalWalletBalance(),
+      pending: await wallet.getPendingNodeRefund(), preservedRefund: await (await import('/js/' + 'cashu-wallet-store.js') as typeof import('../../js/cashu-wallet-store.js'))._getMeta('pendingNodeRefund'), inventory: await wallet.getWalletMints(),
+      journals: await (await import('/js/' + 'cashu-wallet-store.js') as typeof import('../../js/cashu-wallet-store.js'))._getMetaEntries('pending') };
+  });
+  expect(result.selectedBefore).toBe('https://mint.minibits.cash/Bitcoin');
+  expect(result.balanceBefore).toBe(2);
+  expect(result.selected).toBe('https://mint.cubabitcoin.org');
+  expect(result.balance).toBe(0);
+  expect(result.pending).toBeNull();
+  expect(result.preservedRefund).toEqual({ nodeUrl: 'https://node.test', key: 'sk-old-account', createdAt: 1 });
+  expect(result.inventory).toEqual(expect.arrayContaining([
+    expect.objectContaining({ mint: 'https://cashu.cz', balance: 5 }),
+    expect.objectContaining({ mint: 'https://mint.minibits.cash/Bitcoin', balance: 2 }),
+  ]));
+  expect(result.journals).toEqual(expect.arrayContaining([
+    { key: 'pendingReceive:fixture-import', value: { version: 2, operation: 'receive', mint: 'https://cashu.cz',
+      createdAt: 1, incomingToken: 'cashuAfixture-refund', localInputs: [], outputs: [{ saved: 'exact-output' }] } },
+    { key: 'pendingQuote:fixture-unknown', value: { mint: 'https://cashu.cz', quote: 'unknown-fixture-quote', amount: 100 } },
+  ]));
+  expect(externalRequests).toBe(0);
+});
+
+
+test('pending deposit check displays unresolved token import alongside Unknown Quote without disclosing token data', async ({ page }) => {
+  await routeHtml(page, '**/wallet-import-status', '<!doctype html><html><body><div id="routstr-wfund-status"></div></body></html>');
+  await page.goto('/wallet-import-status');
+  const statuses = await page.evaluate(async () => {
+    const recovery = await import('/js/' + 'provider-wallet-funding-recovery.js') as typeof import('../../js/provider-wallet-funding-recovery.js');
+    const statuses: string[] = [];
+    for (const mode of ['unknown', 'none', 'recovered', 'throw'] as const) {
+      await recovery.recoverPendingWalletFunding({
+        cashuRecoverPendingWalletOperation: async () => ({ recovered: mode === 'recovered' ? 2 : 0, pending: true,
+          results: [{ recovered: 0, pending: true, operation: 'receive', mint: 'https://cashu.cz', error: 'private-token-detail' }] }),
+        cashuRecoverPendingFunding: async () => {
+          if (mode === 'throw') throw new Error('Unknown Quote');
+          return { mint: 'https://cashu.cz', checked: mode === 'unknown' ? 1 : 0, recovered: 0, pending: 0, cleared: 0,
+            failed: mode === 'unknown' ? 1 : 0, balance: 5, results: [], pendingQuotes: [],
+            errors: mode === 'unknown' ? [{ mint: 'https://mint.minibits.cash/Bitcoin', quote: 'unknown-fixture-quote', message: 'Unknown Quote', retryAfterMs: 0 }] : [] };
+        },
+      }, () => {});
+      statuses.push(document.getElementById('routstr-wfund-status')!.textContent!);
+    }
+    return statuses;
+  });
+  expect(statuses[0]).toContain('Pending invoice at https://mint.minibits.cash/Bitcoin: Unknown Quote');
+  expect(statuses[0]).toContain('Pending invoices are checked at their original mints');
+  expect(statuses[0]).toContain('Recovery record retained');
+  expect(statuses[1]).toContain('No pending Lightning deposits found');
+  expect(statuses[2]).toContain('2 sats recovered');
+  expect(statuses[3]).toContain('Unknown Quote');
+  for (const status of statuses) {
+    expect(status).toContain('Token import at https://cashu.cz is still awaiting reconciliation');
+    expect(status).toContain('Saved recovery data is retained');
+    expect(status).not.toContain('private-token-detail');
+  }
+});
+
+
+test('Browse reuses discovery across picker replacement and Refresh nodes explicitly requests an update', async ({ page }) => {
+  await routeHtml(page, '**/wallet-node-cache', '<!doctype html><html><body><div id="routstr-node-picker" style="display:none"></div></body></html>');
+  await page.goto('/wallet-node-cache');
+  const result = await page.evaluate(async () => {
+    const panels = await import('/js/' + 'provider-wallet-panels.js') as typeof import('../../js/provider-wallet-panels.js');
+    const requests: boolean[] = [];
+    panels.configureRoutstrWalletRuntime({ nostrDiscoverNodes: async (forceRefresh = false) => {
+      requests.push(forceRefresh);
+      return [{ id: 'fixture-node', pubkey: 'fixture-pubkey', name: forceRefresh ? 'Updated Node' : 'Cached Node', about: '',
+        urls: ['https://node.test'], onion: null, mints: [], version: null, createdAt: 1, online: true,
+        models: [], modelCount: 0 }];
+    } });
+    await panels.showRoutstrNodePicker();
+    const first = document.getElementById('routstr-node-picker')!.textContent;
+    await panels.showRoutstrNodePicker(); // Closing an open picker needs no query.
+    document.getElementById('routstr-node-picker')!.outerHTML = '<div id="routstr-node-picker" style="display:none"></div>';
+    await panels.showRoutstrNodePicker();
+    const reopened = document.getElementById('routstr-node-picker')!.textContent;
+    document.querySelector<HTMLButtonElement>('[data-node-action="refresh"]')!.click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    return { first, reopened, updated: document.getElementById('routstr-node-picker')!.textContent, requests };
+  });
+  expect(result.first).toContain('Cached Node');
+  expect(result.reopened).toContain('Cached Node');
+  expect(result.updated).toContain('Updated Node');
+  expect(result.requests).toEqual([false, false, true]);
+  await expect(page.getByRole('button', { name: 'Refresh nodes' })).toBeVisible();
+});
+
+test('a discovery completing after the picker becomes a deposit view does not overwrite that view', async ({ page }) => {
+  await routeHtml(page, '**/wallet-node-cache-race', '<!doctype html><html><body><div id="routstr-node-picker" style="display:none"></div></body></html>');
+  await page.goto('/wallet-node-cache-race');
+  const result = await page.evaluate(async () => {
+    const panels = await import('/js/' + 'provider-wallet-panels.js') as typeof import('../../js/provider-wallet-panels.js');
+    let finish!: (nodes: import('../../js/nostr-discovery.js').RoutstrNode[]) => void;
+    panels.configureRoutstrWalletRuntime({ nostrDiscoverNodes: () => new Promise<import('../../js/nostr-discovery.js').RoutstrNode[]>(resolve => { finish = resolve; }) });
+    const pending = panels.showRoutstrNodePicker();
+    const area = document.getElementById('routstr-node-picker')!;
+    area.dataset.mode = 'deposit';
+    area.textContent = 'Deposit view';
+    finish([]);
+    await pending;
+    return area.textContent;
+  });
+  expect(result).toBe('Deposit view');
+});
+
+
+test('a funding invoice uses the mint returned by its locked creation even if the earlier UI selection read differs', async ({ page }) => {
+  await routeHtml(page, '**/wallet-funding-mint-binding', '<!doctype html><html><body><div id="routstr-wfund-status"></div></body></html>');
+  await page.goto('/wallet-funding-mint-binding');
+  const result = await page.evaluate(async () => {
+    const panels = await import('/js/' + 'provider-wallet-panels.js') as typeof import('../../js/provider-wallet-panels.js');
+    const { makeTestInvoice } = await import('/wallet-test-lightning-invoices.js');
+    panels.configureRoutstrWalletRuntime({
+      cashuGetMintUrl: async () => 'https://cashu.cz',
+      cashuCreateFundingInvoice: async () => ({ quote: 'minibits-new-quote', invoice: makeTestInvoice(1000), amount: 1000,
+        mint: 'https://mint.minibits.cash/Bitcoin', state: 'UNPAID' }),
+      cashuHasWalletSeed: async () => false,
+    });
+    const created = await panels.doRoutstrWalletFund(1000);
+    const status = document.getElementById('routstr-wfund-status')!;
+    return { created, mint: status.dataset.mint, quote: status.dataset.quote };
+  });
+  expect(result).toEqual({ created: true, mint: 'https://mint.minibits.cash/Bitcoin', quote: 'minibits-new-quote' });
+});
+
+
+test('an old Cashu refund is labeled separately from the selected Cuba mint and a rejected session offers an explicit new session', async ({ page }) => {
+  await routeHtml(page, '**/wallet-node-session-recovery', '<!doctype html><html><body><div id="ai-provider-panel"><div id="routstr-node-picker"></div><div id="routstr-deposit-status"></div><div id="routstr-wallet-fund-area"></div></div></body></html>');
+  await page.goto('/wallet-node-session-recovery');
+  const result = await page.evaluate(async () => {
+    const panels = await import('/js/' + 'provider-wallet-panels.js') as typeof import('../../js/provider-wallet-panels.js');
+    const api = await import('/js/' + 'api.js') as typeof import('../../js/api.js');
+    const node = 'https://node.test';
+    let resets = 0, deposits = 0, imports = 0, refundRequests = 0;
+    const recoveryIds: unknown[] = [];
+    const storageRuntime = await import('/js/' + 'api-provider-storage-runtime.js') as typeof import('../../js/api-provider-storage-runtime.js');
+    const crypto = await import('/js/' + 'crypto.js') as typeof import('../../js/crypto.js');
+    storageRuntime.configureApiProviderStorageRuntimeDeps({ encryptedSetItem: crypto.encryptedSetCredentialItem });
+    await api.saveRoutstrKey('sk-old', node);
+    const oldFetch = window.fetch;
+    window.fetch = async () => new Response(JSON.stringify({ mints: ['https://mint.cubabitcoin.org'] }), { status: 200 });
+    panels.configureRoutstrWalletRuntime({
+      cashuHasWalletSeed: async () => true,
+      cashuGetMintUrl: async () => 'https://mint.cubabitcoin.org',
+      cashuGetBalance: async () => 996,
+      nostrGetSelectedNode: () => node,
+      cashuGetPendingNodeRefunds: async () => [],
+      cashuRefundNodeToToken: async (_node: unknown, id?: string) => { refundRequests++; recoveryIds.push(id); return { token: 'cashuAold-refund', nodeUrl: node, key: 'sk-old', createdAt: 1700000000000, recoveryId: 'pendingNodeRefund', generation: 'old-generation' }; },
+      cashuGetTokenMintUrl: async () => 'https://cashu.cz',
+      cashuReceiveToken: async () => { imports++; throw new Error('Proof already spent'); },
+      cashuDepositToNode: async () => { deposits++; throw Object.assign(new Error('Node session check returned HTTP 401. Wallet funds were not moved.'), { nodeSessionRejected: true }); },
+      cashuStartNewNodeSession: async () => { resets++; },
+    });
+    try {
+      await panels.doRoutstrNodeWithdraw();
+      const refundText = document.getElementById('routstr-node-picker')!.textContent!;
+      const oldRecoveryButton = document.querySelector<HTMLButtonElement>('[data-routstr-wallet-action="resume-node-refund"]')!.cloneNode(true);
+      await panels.doRoutstrNodeDeposit(node, 500);
+      const rejectionText = document.getElementById('routstr-deposit-status')!.textContent!;
+      document.querySelector<HTMLButtonElement>('[data-routstr-wallet-action="new-node-session"]')!.click();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise<void>((resolve, reject) => {
+        if (document.getElementById('routstr-deposit-amount')) { resolve(); return; }
+        const timer = setTimeout(() => { observer.disconnect(); reject(new Error('New-session deposit form did not render: ' + document.getElementById('routstr-node-picker')?.textContent)); }, 2000);
+        const observer = new MutationObserver(() => {
+          if (document.getElementById('routstr-deposit-amount')) { clearTimeout(timer); observer.disconnect(); resolve(); }
+        });
+        observer.observe(document.getElementById('routstr-node-picker')!, { childList: true, subtree: true });
+      });
+      const newDepositForm = !!document.getElementById('routstr-deposit-amount');
+      await api.saveRoutstrKey('sk-new', node);
+      document.getElementById('routstr-node-picker')!.append(oldRecoveryButton);
+      (oldRecoveryButton as HTMLButtonElement).click();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      return { refundText, rejectionText, resets, deposits, imports, refundRequests, recoveryIds, newDepositForm };
+    } finally { window.fetch = oldFetch; }
+  });
+  expect(result.refundText).toContain('Saved refund recovery');
+  expect(result.refundText).toContain('Token mint: https://cashu.cz');
+  expect(result.refundText).toContain('Node: https://node.test');
+  expect(result.refundText).toContain('separate from any later node deposit');
+  expect(result.rejectionText).toContain('Wallet funds were not moved');
+  expect(result.rejectionText).toContain('previous key and recovery records will be preserved');
+  expect(result).toMatchObject({ resets: 1, deposits: 1, imports: 2, refundRequests: 2, recoveryIds: [undefined, 'pendingNodeRefund'], newDepositForm: true });
+});
+
+
+test('saved refund list and failed initial refund retries preserve journal identity after the account changes', async ({ page }) => {
+  await routeHtml(page, '**/wallet-saved-refunds', '<!doctype html><html><body><div id="routstr-node-picker"></div></body></html>');
+  await page.goto('/wallet-saved-refunds');
+  const result = await page.evaluate(async () => {
+    const panels = await import('/js/' + 'provider-wallet-panels.js') as typeof import('../../js/provider-wallet-panels.js');
+    const node = 'https://node.test';
+    const currentId = 'pendingNodeRefund:' + 'a'.repeat(64);
+    let requests = 0;
+    const ids: unknown[] = [];
+    const tokens: unknown[] = [];
+    let saved = [{ nodeUrl: node, recoveryId: 'pendingNodeRefund', generation: 'old-generation', createdAt: 1, token: 'cashuAold' },
+      { nodeUrl: node, recoveryId: currentId, generation: 'current-generation', createdAt: 2, token: 'cashuAcurrent' }];
+    panels.configureRoutstrWalletRuntime({
+      cashuHasWalletSeed: async () => true, nostrGetSelectedNode: () => node,
+      cashuGetPendingNodeRefunds: async () => saved,
+      cashuGetTokenMintUrl: async () => 'https://cashu.cz',
+      cashuRefundNodeToToken: async (_node: unknown, id?: string, token?: string) => {
+        requests++; ids.push(id); tokens.push(token);
+        throw Object.assign(new Error('Node refund returned HTTP 401'), { recoveryId: 'pendingNodeRefund', generation: 'old-generation', nodeUrl: node, createdAt: 1 });
+      },
+    });
+    await panels.showSavedNodeRefunds(node);
+    const listedIds = [...document.querySelectorAll<HTMLButtonElement>('[data-routstr-wallet-action="resume-node-refund"]')].map(button => button.dataset.recoveryId);
+    const noRequestOnList = requests === 0;
+    document.querySelector<HTMLButtonElement>('[data-recovery-id="' + currentId + '"]')!.click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    saved = [];
+    await panels.doRoutstrNodeWithdraw(node, '');
+    const failedRetry = document.querySelector<HTMLButtonElement>('[data-routstr-wallet-action="resume-node-refund"]')!;
+    const failedRecoveryId = failedRetry.dataset.recoveryId;
+    failedRetry.click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    return { listedIds, noRequestOnList, failedRecoveryId, ids, tokens };
+  });
+  expect(result).toEqual({ listedIds: ['pendingNodeRefund', 'pendingNodeRefund:' + 'a'.repeat(64)], noRequestOnList: true,
+    failedRecoveryId: 'pendingNodeRefund', ids: ['pendingNodeRefund:' + 'a'.repeat(64), '', 'pendingNodeRefund'], tokens: ['cashuAcurrent', undefined, ''] });
+});
+
+
+test('a repeated save failure keeps the already-returned refund token visible and retries the same receipt', async ({ page }) => {
+  await routeHtml(page, '**/wallet-refund-save-failure', '<!doctype html><html><body><div id="routstr-node-picker"></div></body></html>');
+  await page.goto('/wallet-refund-save-failure');
+  const result = await page.evaluate(async () => {
+    const panels = await import('/js/' + 'provider-wallet-panels.js') as typeof import('../../js/provider-wallet-panels.js');
+    const supplied: unknown[][] = [];
+    panels.configureRoutstrWalletRuntime({
+      cashuHasWalletSeed: async () => true,
+      cashuRefundNodeToToken: async (...args: unknown[]) => { supplied.push(args); throw new Error('quota full'); },
+    });
+    await panels.doRoutstrNodeWithdraw('https://node.test', 'pendingNodeRefund', 'cashuAreturned', 'original-generation');
+    const firstToken = document.querySelector<HTMLTextAreaElement>('textarea')!.value;
+    document.querySelector<HTMLButtonElement>('[data-routstr-wallet-action="resume-node-refund"]')!.click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    return { firstToken, secondToken: document.querySelector<HTMLTextAreaElement>('textarea')!.value, supplied };
+  });
+  expect(result).toEqual({ firstToken: 'cashuAreturned', secondToken: 'cashuAreturned', supplied: [
+    ['https://node.test', 'pendingNodeRefund', 'cashuAreturned', 'original-generation'],
+    ['https://node.test', 'pendingNodeRefund', 'cashuAreturned', 'original-generation'],
+  ] });
+});
+
+
+test('current node withdrawal remains usable after an error and unrelated saved refunds are opened separately', async ({ page }) => {
+  await routeHtml(page, '**/wallet-unrelated-refund', '<!doctype html><html><body><div id="ai-provider-panel"><div id="routstr-node-actions"></div><div id="routstr-node-picker"></div><div id="routstr-wallet-actions"></div><div id="routstr-wallet-balance"></div></div></body></html>');
+  await page.goto('/wallet-unrelated-refund');
+  await page.evaluate(async () => {
+    const panels = await import('/js/' + 'provider-wallet-panels.js') as typeof import('../../js/provider-wallet-panels.js');
+    const storage = await import('/js/' + 'api-provider-storage-runtime.js') as typeof import('../../js/api-provider-storage-runtime.js');
+    const crypto = await import('/js/' + 'crypto.js') as typeof import('../../js/crypto.js');
+    const api = await import('/js/' + 'api.js') as typeof import('../../js/api.js');
+    storage.configureApiProviderStorageRuntimeDeps({ encryptedSetItem: crypto.encryptedSetCredentialItem });
+    const current = 'https://ai.redshift.com';
+    localStorage.setItem('labcharts-routstr-node', current);
+    await api.saveRoutstrKey('sk-current-redshift', current);
+    const calls: unknown[] = [], receipts: unknown[] = [];
+    Object.assign(window, { refundIsolationCalls: calls, refundIsolationReceipts: receipts });
+    panels.configureRoutstrWalletRuntime({
+      nostrGetSelectedNode: () => current, cashuHasWalletSeed: async () => true,
+      cashuGetMintUrl: async () => 'https://mint.cubabitcoin.org', cashuGetBalance: async () => 5760,
+      cashuGetPendingNodeRefund: async () => null,
+      cashuGetPendingNodeRefunds: async (node?: unknown) => node === undefined ? [{ nodeUrl: 'https://routstr.cypherpunk.today',
+        key: 'sk-old-cypherpunk', token: 'cashuAspent-old', recoveryId: 'pendingNodeRefund', generation: 'old-generation', createdAt: 1 }] : [],
+      cashuGetTokenMintUrl: async (token: string) => token === 'cashuAspent-old' ? 'https://cashu.cz' : 'https://mint.cubabitcoin.org',
+      cashuRefundNodeToToken: async (node: unknown) => {
+        calls.push(node);
+        if (calls.length === 1) throw new Error('Node refund returned HTTP 503');
+        return { nodeUrl: current, token: 'cashuACurrent-cuba', generation: 'current-generation', recoveryId: 'pendingNodeRefund:current', createdAt: 2 };
+      },
+      cashuReceiveToken: async (token: string) => { receipts.push(token); return { received: 5750, fee: 0 }; },
+      cashuFinishNodeRefund: async () => {},
+      nostrDiscoverNodes: async () => [],
+    });
+    const buttons = await import('/js/' + 'provider-wallet-panel-buttons.js') as typeof import('../../js/provider-wallet-panel-buttons.js');
+    document.getElementById('routstr-node-actions')!.innerHTML = buttons.buildRoutstrNodeActions(current, true, null);
+    document.getElementById('routstr-wallet-actions')!.innerHTML = buttons.routstrWalletActionButtons(null);
+  });
+  await page.locator('[data-node-action="withdraw"]').click();
+  await expect(page.locator('#routstr-node-picker')).toContainText('HTTP 503');
+  await page.locator('[data-node-action="browse"]').click();
+  await expect(page.locator('#routstr-node-picker')).toContainText('No online nodes found');
+  await page.locator('[data-node-action="withdraw"]').click();
+  await expect(page.locator('#routstr-node-picker')).toContainText('Node refund received');
+  await expect(page.locator('[data-node-action="withdraw"]')).toBeEnabled();
+  await page.locator('[data-routstr-wallet-action="toggle-wallet-menu"]').click();
+  await page.getByRole('button', { name: 'Saved node refunds', exact: true }).click();
+  await expect(page.locator('#routstr-node-picker')).toContainText('https://routstr.cypherpunk.today');
+  await expect(page.locator('#routstr-node-picker')).toContainText('https://cashu.cz');
+  await page.locator('[data-node-action="withdraw"]').click();
+  await expect(page.locator('#routstr-node-picker')).toContainText('Node refund received');
+  const result = await page.evaluate(() => ({ calls: (window as unknown as { refundIsolationCalls: unknown }).refundIsolationCalls,
+    receipts: (window as unknown as { refundIsolationReceipts: unknown }).refundIsolationReceipts }));
+  expect(result).toEqual({ calls: ['https://ai.redshift.com', 'https://ai.redshift.com', 'https://ai.redshift.com'], receipts: ['cashuACurrent-cuba', 'cashuACurrent-cuba'] });
 });

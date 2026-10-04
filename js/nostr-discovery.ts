@@ -53,6 +53,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 // ═══════════════════════════════════════════════
 let _cachedNodes: RoutstrNode[] | null = null;
 let _cacheTime = 0;
+let _discoveryInFlight: Promise<RoutstrNode[]> | null = null;
 
 // ═══════════════════════════════════════════════
 // RELAY QUERY
@@ -199,6 +200,24 @@ export async function discoverNodes(forceRefresh?: boolean) {
     return _cachedNodes;
   }
 
+  // Reopening Browse while relay/health checks are running shares that work.
+  if (_discoveryInFlight) return _discoveryInFlight;
+  const discovery = _discoverNodes();
+  _discoveryInFlight = discovery;
+  try {
+    const nodes = await discovery;
+    // A cache clear may have started a newer search; do not replace its result.
+    if (_discoveryInFlight === discovery) {
+      _cachedNodes = nodes;
+      _cacheTime = Date.now();
+    }
+    return nodes;
+  } finally {
+    if (_discoveryInFlight === discovery) _discoveryInFlight = null;
+  }
+}
+
+async function _discoverNodes() {
   if (isDebugMode()) console.log('[nostr] Discovering Routstr nodes from', DEFAULT_RELAYS.length, 'relays');
 
   // Query all relays in parallel
@@ -220,9 +239,6 @@ export async function discoverNodes(forceRefresh?: boolean) {
     if (a.online !== b.online) return a.online ? -1 : 1;
     return b.modelCount - a.modelCount;
   });
-
-  _cachedNodes = nodes;
-  _cacheTime = Date.now();
 
   return nodes;
 }
@@ -258,4 +274,5 @@ export function setSelectedNodeUrl(url: string) {
 export function clearNodeCache() {
   _cachedNodes = null;
   _cacheTime = 0;
+  _discoveryInFlight = null;
 }
