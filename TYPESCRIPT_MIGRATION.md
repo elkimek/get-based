@@ -516,8 +516,10 @@ behavior-changing fallbacks.
 
 ## Strict default compiler projects
 
-The editor and compatibility app/server projects now enable strict checking with
-exact optional-property types. Short native source globs replace redundant emitted
+The editor and compatibility app/server projects enable strict checking, checked
+index access and exact optional-property types. Their NodeNext resolution and
+erasable/verbatim module rules match the native compiler projects. Short native
+source globs replace redundant emitted
 file lists while retaining all 779 app, 769 compatibility app and 54 server roots;
 the server selects its canonical `dev-server.ts` owner. All previous compiler
 flags and worker exclusions remain. The five native projects inherit the same

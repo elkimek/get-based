@@ -4,8 +4,8 @@
     "checkJs": false,
     "noEmit": true,
     "target": "ES2022",
-    "module": "Node16",
-    "moduleResolution": "Node16",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "lib": [
       "ES2022",
       "DOM",
@@ -28,7 +28,11 @@
     "strictBuiltinIteratorReturn": true,
     "strictFunctionTypes": true,
     "useUnknownInCatchVariables": true,
-    "exactOptionalPropertyTypes": true
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "noEmitOnError": true
   },
   "include": [
     "types/**/*.d.ts",

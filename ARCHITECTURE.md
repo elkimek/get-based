@@ -37,8 +37,9 @@ Compiler tooling uses the TypeScript 7 native SDK.
 parsing sessions: consumers inspect real SDK nodes synchronously and return plain
 data, then release the snapshot and compiler process. Production and test
 semantic checks use separate strict projects for their actual browser, worker and
-Node environments. The default editor, app and server projects also use strict
-checking with exact optional-property types. Every native project retains the
+Node environments. The default editor, app and server projects use the native
+NodeNext resolution, checked index access, exact optional-property types and
+erasable/verbatim module rules too. Every native project retains the
 previous compiler safety flags. The full
 migration objective and fixed LOC baseline are in
 [`TYPESCRIPT_MIGRATION.md`](TYPESCRIPT_MIGRATION.md).
