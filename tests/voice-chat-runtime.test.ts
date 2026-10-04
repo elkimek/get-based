@@ -216,7 +216,7 @@ class ManualAudioContext extends FakeAudioContext {
     this.sources = [];
   }
 
-  createBufferSource() {
+  override createBufferSource() {
     const source = new FakeBufferSource();
     source.start = () => {};
     source.finish = () => source.onended?.();

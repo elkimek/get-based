@@ -315,7 +315,7 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
           return new RealDate(fixed);
         }
 
-        static now() { return fixed.getTime(); }
+        static override now() { return fixed.getTime(); }
       }
       FixedDate.UTC = RealDate.UTC;
       FixedDate.parse = RealDate.parse;

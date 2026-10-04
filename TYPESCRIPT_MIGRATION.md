@@ -511,6 +511,17 @@ remaining operations in the eleven stylesheet consumers. Native DOM assertions
 preserve original errors for malformed/detached controls rather than adding
 behavior-changing fallbacks.
 
+## Strict default compiler projects
+
+The editor and compatibility app/server projects now enable strict checking with
+exact optional-property types. Short native source globs replace redundant emitted
+file lists while retaining all 779 app, 769 compatibility app and 54 server roots;
+the server selects its canonical `dev-server.ts` owner. All previous compiler
+flags and worker exclusions remain. The five native projects inherit the same
+additional safety checks, with only two erased `override` modifiers needed in test
+doubles. Their complete runtime syntax trees and all 360 assertion trees are
+unchanged. Native builds retain byte-identical output for all 1,059 generated files.
+
 ## Current state and remaining work
 
 All first-party application, server/API, companion, worker and build-tool runtime
@@ -520,7 +531,9 @@ The SDK migration passed all 3,564 existing and added unit cases across 351 file
 with resolution of the removed dependency explicitly rejected. Its build retained
 byte-identical output for 1,049 unaffected runtime and classic-fixture files.
 
-Four authored JavaScript test suites remain:
+The final coverage audit also identified the in-house
+`vendor/chartjs-adapter-native.js` date adapter, which needs a native owner and
+explicit first-party inventory coverage. Four authored JavaScript test suites remain:
 
 - `tests/supplement-import-draft.test.js`
 - `tests/test-ai-action-delegates.js`

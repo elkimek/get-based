@@ -56,7 +56,13 @@
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true,
     "skipLibCheck": true,
-    "noEmitOnError": true
+    "noEmitOnError": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "noImplicitOverride": true,
+    "noUncheckedSideEffectImports": true
   },
   "include": [
     "*.config.ts",

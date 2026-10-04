@@ -1,5 +1,5 @@
 {
-  "description": "checkJs coverage for Node and serverless production modules.",
+  "description": "Strict native TypeScript coverage for Node and serverless production modules.",
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "checkJs": true
@@ -11,6 +11,7 @@
     "lib/**/*.ts",
     "server/**/*.js",
     "server/**/*.ts",
-    "dev-server.js"
+    "dev-server.js",
+    "dev-server.ts"
   ]
 }
