@@ -1,4 +1,7 @@
 import type { EventEmitter } from 'node:events';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 
 import { errorCode } from './error-utils.js';
 import { isAllowedProxyUrl, PROXY_MAX_RESPONSE_BYTES } from './proxy-policy.js';
@@ -109,7 +112,7 @@ export function handleDevCheckUrl<RequestSource extends DevPageRequest>(
 }
 
 export function handleDevRawProxy<RequestSource extends DevPageRequest>(
-  req: RequestSource, res: DevPageResponse, target: string,
+  req: RequestSource, res: DevPageResponse & NodeJS.WritableStream & { destroy: () => unknown }, target: string,
   options: { corsHeaders: (req: RequestSource) => Record<string, string> },
 ) {
   if (!isAllowedProxyUrl(target)) {
@@ -124,14 +127,15 @@ export function handleDevRawProxy<RequestSource extends DevPageRequest>(
         method: 'GET', headers: { 'User-Agent': 'Mozilla/5.0' },
       }, { signal: controller.signal, maxRedirects: 1 });
       if (controller.signal.aborted || res.destroyed) { await upstream.body?.cancel(); return; }
-      const body = await new Response(capReadableStream(upstream.body, PROXY_MAX_RESPONSE_BYTES) || null).arrayBuffer();
-      if (controller.signal.aborted || res.destroyed) return;
+      const body = capReadableStream(upstream.body, PROXY_MAX_RESPONSE_BYTES);
       res.writeHead(upstream.status, {
         'Content-Type': upstream.headers.get('content-type') || 'application/octet-stream', ...options.corsHeaders(req),
       });
-      res.end(new Uint8Array(body));
+      if (!body) { res.end(); return; }
+      await pipeline(Readable.fromWeb(body as NodeReadableStream<Uint8Array>), res, { signal: controller.signal });
     } catch (error) {
-      if (res.headersSent || res.destroyed) return;
+      if (res.destroyed) return;
+      if (res.headersSent) { res.destroy(); return; }
       const blocked = ['PROXY_REDIRECT_BLOCKED', 'PROXY_DNS_BLOCKED'].includes(errorCode(error));
       res.writeHead(blocked ? 400 : 502, options.corsHeaders(req));
       res.end(blocked ? 'URL blocked by SSRF guard' : 'Proxy request failed');
