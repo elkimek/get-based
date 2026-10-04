@@ -527,10 +527,16 @@ Four authored JavaScript test suites remain:
 - `tests/test-sun-defaults.js`
 - `tests/playwright/crypto-browser-coverage.spec.js`
 
-The three JSDOM suites need the genuine `@types/jsdom` development dependency;
-the declaration-only dependency proposal awaits approval. The crypto suite has a
-reviewed correction that moves a saved dependency snapshot into its owning
-callback, removes an accidental browser-global leak and preserves the original
+Native drafts for all three JSDOM suites preserve their original assertions and
+runtime syntax trees. Runtime verification passed all 12 supplement import cases,
+60 AI delegates assertions and 95 Sun defaults assertions. Sun retains its
+original country-band/profile-bootstrap skip. The three scoped native checks
+currently report only the missing genuine JSDOM declaration; rerun strict checks
+against those declarations before integrating the drafts.
+
+The genuine `@types/jsdom` development dependency proposal awaits approval. The
+crypto suite has a reviewed correction that moves a saved dependency snapshot
+into its owning callback, removes an accidental browser-global leak and preserves the original
 setup error. That scope/error correction also awaits approval. Syntax-only
 source-reader adaptations are already authorized and preserve their assertions
 and limits. The migration is not complete until these four suites are ported and
