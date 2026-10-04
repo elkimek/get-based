@@ -12,7 +12,8 @@
     "js/legal-consent-bootstrap.ts",
     "js/analytics-bootstrap.ts",
     "js/app-extension-bootstrap.ts",
-    "vendor/bip39-minimal.ts"
+    "vendor/bip39-minimal.ts",
+    "vendor/chartjs-adapter-native.ts"
   ],
   "exclude": []
 }

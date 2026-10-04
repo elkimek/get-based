@@ -46,7 +46,7 @@ function patternRegex(pattern: string) {
   return new RegExp(`^${escaped.replaceAll('*', '[^/]*')}$`);
 }
 
-function matchingFiles(pattern: string, files: readonly string[]) {
+export function matchingFiles(pattern: string, files: readonly string[]) {
   const regex = patternRegex(pattern);
   return files.filter(file => regex.test(file));
 }

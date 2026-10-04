@@ -150,7 +150,7 @@ export function buildTypeScript(rootDir = root): void {
   for (const { output, body } of bodies) writeFileSync(output, body);
   // TS7 always emits strict mode. Classic scripts retain their original execution
   // mode; this affects emission only, and every source still passes strict checks.
-  for (const name of ['service-worker', 'service-worker-runtime', 'service-worker-assets', 'version', 'js/theme-bootstrap', 'js/extra-theme-bootstrap', 'js/legal-consent-bootstrap', 'js/analytics-bootstrap', 'js/app-extension-bootstrap', 'vendor/bip39-minimal']) {
+  for (const name of ['service-worker', 'service-worker-runtime', 'service-worker-assets', 'version', 'js/theme-bootstrap', 'js/extra-theme-bootstrap', 'js/legal-consent-bootstrap', 'js/analytics-bootstrap', 'js/app-extension-bootstrap', 'vendor/bip39-minimal', 'vendor/chartjs-adapter-native']) {
     const output = path.join(rootDir, name + '.js');
     writeFileSync(output, readFileSync(output, 'utf8').replace(/^"use strict";\r?\n/, ''));
   }

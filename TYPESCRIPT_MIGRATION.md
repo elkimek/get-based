@@ -16,6 +16,9 @@ The baseline is commit `371c00da0195c33f4c1d42e3c63b85c25746b086`.
 runtime, tests, build tools, types, styles, HTML, Python and shell; vendor code,
 external documentation and generated JavaScript siblings are excluded. The same
 scope applies before and after migration, including new helpers and tests.
+Project-owned vendor assets listed in `vendor/components.json` participate in the
+authored-file completion gate; their line totals are reported separately so the
+historical LOC comparison retains its original scope.
 
 `npm run migration:progress` reports current totals and remaining authored JS.
 `npm run migration:check` requires zero authored JavaScript. LOC totals and
@@ -522,18 +525,34 @@ additional safety checks, with only two erased `override` modifiers needed in te
 doubles. Their complete runtime syntax trees and all 360 assertion trees are
 unchanged. Native builds retain byte-identical output for all 1,059 generated files.
 
+## Project-owned vendor sources
+
+The in-house Chart.js date adapter now has the canonical native owner
+`vendor/chartjs-adapter-native.ts`. Its existing classic runtime URL, required
+unbound `Chart` lookup, method receivers, raw date coercions and errors are
+preserved. Strict native checks, 266 original/native comparisons and a real
+Chart.js 4.4.7 Chromium time-axis rendering check passed. Six focused regression
+cases cover dates, malformed values, native date fallback and borrowed receivers.
+
+Migration completion includes explicit first-party vendor ownership from
+`vendor/components.json`, using the existing supply-chain wildcard semantics.
+External bundles and ignored compiler output stay outside the authored inventory;
+both genuinely authored siblings count if Git inventories them. All original
+inventory and compiler-fixture assertions remain.
+
 ## Current state and remaining work
 
 All first-party application, server/API, companion, worker and build-tool runtime
 sources are authored in native TypeScript. The compiler and all eleven AST
 consumers use TypeScript 7; the transitional TypeScript 6 dependency is removed.
-The SDK migration passed all 3,564 existing and added unit cases across 351 files
-with resolution of the removed dependency explicitly rejected. Its build retained
-byte-identical output for 1,049 unaffected runtime and classic-fixture files.
+The latest integration passed all 3,595 existing and added unit cases across 352
+files with resolution of the removed dependency explicitly rejected. Every one of
+the 1,718 tracked native executable sources is loaded by a strict compiler project.
+The two validated checkouts have byte-identical output for all 1,060 generated
+files; 1,056 prior outputs remain unchanged, with only the three reviewed compiler
+and inventory tools changed alongside the newly compiled adapter.
 
-The final coverage audit also identified the in-house
-`vendor/chartjs-adapter-native.js` date adapter, which needs a native owner and
-explicit first-party inventory coverage. Four authored JavaScript test suites remain:
+Four authored JavaScript test suites remain:
 
 - `tests/supplement-import-draft.test.js`
 - `tests/test-ai-action-delegates.js`

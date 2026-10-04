@@ -27,8 +27,10 @@ Canonical `.ts` and `.mts` modules compile with TypeScript 7 to ignored `.js`
 and `.mjs` siblings at existing runtime URLs. Run `npm run typescript:build`
 after source edits. `npm ci` runs it through `prepare`; the `dev-server`, `test`,
 `production:build` and `production:check` npm commands also compile first.
-Source inventories prefer the canonical TypeScript file. Runtime coverage uses
-emitted JavaScript offsets consistently across Node and browsers.
+Source inventories prefer the canonical TypeScript file. Project-owned assets in
+`vendor/components.json` participate in migration completion; external vendor
+bundles remain third-party inputs. Runtime coverage uses emitted JavaScript
+offsets consistently across Node and browsers.
 
 Compiler tooling uses the TypeScript 7 native SDK.
 [`scripts/native-typescript-ast.ts`](scripts/native-typescript-ast.ts) owns scoped

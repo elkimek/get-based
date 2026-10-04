@@ -93,7 +93,7 @@ describe('classic browser fixture body emission', () => {
     const config = { extends: path.join(repo, 'tsconfig.migration.json'), include: ['runtime.ts'], exclude: [] };
     writeFileSync(path.join(directory, 'tsconfig.migration.json'), JSON.stringify(config));
     writeFileSync(path.join(directory, 'runtime.ts'), 'export const ready = true;');
-    const bootstraps = ['service-worker', 'service-worker-runtime', 'service-worker-assets', 'version', 'js/theme-bootstrap', 'js/extra-theme-bootstrap', 'js/legal-consent-bootstrap', 'js/analytics-bootstrap', 'js/app-extension-bootstrap', 'vendor/bip39-minimal'];
+    const bootstraps = ['service-worker', 'service-worker-runtime', 'service-worker-assets', 'version', 'js/theme-bootstrap', 'js/extra-theme-bootstrap', 'js/legal-consent-bootstrap', 'js/analytics-bootstrap', 'js/app-extension-bootstrap', 'vendor/bip39-minimal', 'vendor/chartjs-adapter-native'];
     for (const name of bootstraps) writeFileSync(path.join(directory, name + '.ts'), 'console.log("bootstrap fixture");');
     writeFileSync(path.join(directory, 'tsconfig.worker-migration.json'), JSON.stringify({ extends: './tsconfig.migration.json', include: bootstraps.slice(0, 4).map(name => name + '.ts') }));
     writeFileSync(path.join(directory, 'tsconfig.bootstrap-migration.json'), JSON.stringify({ extends: './tsconfig.migration.json', compilerOptions: JSON.parse(readFileSync(path.join(repo, 'tsconfig.bootstrap-migration.json'), 'utf8')).compilerOptions, include: bootstraps.slice(4).map(name => name + '.ts') }));
