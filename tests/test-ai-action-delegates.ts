@@ -21,7 +21,7 @@ const targetFiles = [
   'js/light-channels-ai-analysis.js',
   'js/light-burden-ai-analysis.js',
   'js/sun-onboarding-ai.js',
-];
+] as const;
 
 const actions = [
   'refresh-sun-session',
@@ -34,7 +34,7 @@ const actions = [
   'refresh-channel-mix',
   'refresh-burden',
   'refresh-onboarding',
-];
+] as const;
 
 const actionOwners = {
   'refresh-sun-session': 'js/sun-ai-analysis.js',
@@ -47,13 +47,13 @@ const actionOwners = {
   'refresh-channel-mix': 'js/light-channels-ai-analysis.js',
   'refresh-burden': 'js/light-burden-ai-analysis.js',
   'refresh-onboarding': 'js/sun-onboarding-ai.js',
-};
+} satisfies Record<typeof actions[number], typeof targetFiles[number]>;
 
 const helperSrc = fs.readFileSync(path.join(root, 'js/ai-action-delegates.js'), 'utf8');
 const sources = Object.fromEntries(targetFiles.map(file => [
   file,
   fs.readFileSync(path.join(root, file), 'utf8'),
-]));
+])) as Record<typeof targetFiles[number], string>;
 const combined = Object.values(sources).join('\n');
 const inlineHandlerRe = /\bon(?:click|keydown|submit|change|input)=/;
 
@@ -97,27 +97,28 @@ for (const action of actions) {
 }
 
 const dom = new JSDOM('<!doctype html><body></body>');
-globalThis.window = dom.window;
+(globalThis as { window?: unknown }).window = dom.window;
 globalThis.document = dom.window.document;
 const { aiActionAttrs, getRegisteredAIActionHandler, registerAIActionHandler } = await import('../js/ai-action-delegates.js');
+type AIActionArguments = Parameters<Parameters<typeof registerAIActionHandler>[1]>;
 
-let dayArgs = null;
-registerAIActionHandler('refresh-day', (...args) => { dayArgs = args; });
+let dayArgs: unknown = null;
+registerAIActionHandler('refresh-day', (...args: AIActionArguments) => { dayArgs = args; });
 document.body.innerHTML = `<button id="day" ${aiActionAttrs('refresh-day')}>Run</button>`;
 document.getElementById('day')?.click();
 assert('delegated click routes action without a target id',
   Array.isArray(dayArgs) && dayArgs.length === 0);
 
-let channelArgs = null;
-registerAIActionHandler('refresh-channel-mix', (...args) => { channelArgs = args; });
+let channelArgs: unknown = null;
+registerAIActionHandler('refresh-channel-mix', (...args: AIActionArguments) => { channelArgs = args; });
 document.body.innerHTML = `<button id="channel" ${aiActionAttrs('refresh-channel-mix')}>Run</button>`;
 document.getElementById('channel')?.click();
 assert('delegated singleton action calls without an empty string argument',
   Array.isArray(channelArgs) && channelArgs.length === 0);
 
-let routedSessionId = '';
+let routedSessionId: AIActionArguments[0] | '' = '';
 let rowOpened = false;
-registerAIActionHandler('refresh-sun-session', id => { routedSessionId = id; });
+registerAIActionHandler('refresh-sun-session', (id: AIActionArguments[0]) => { routedSessionId = id; });
 const row = document.createElement('div');
 row.addEventListener('click', () => { rowOpened = true; });
 row.innerHTML = `<button id="sun" ${aiActionAttrs('refresh-sun-session', 'sun-1', { stopPropagation: true })}>Refresh</button>`;

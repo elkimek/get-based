@@ -40,9 +40,8 @@ TypeScript.
 
 `tsconfig.migration.json` enforces strict types, null checks, unchecked indexed
 access, exact optional properties, unused declarations and erasable syntax on
-migrated code. It never emits on errors. Existing JavaScript checks and the
-zero-debt strict-null ratchet remain active while the rest of the migration is
-in progress. No `any` escape types or diagnostic suppression were introduced in
+migrated code. It never emits on errors. Compatibility checks and the zero-debt strict-null ratchet remain active after
+the migration. No `any` escape types or diagnostic suppression were introduced in
 the migrated modules.
 
 Architecture and source inventories prefer the canonical TypeScript file and
@@ -86,8 +85,8 @@ truthiness, evaluation order, detail coercion and each suite's message separator
 retain their original behavior. The consolidation preserved 6,959 assertion calls.
 
 Authored TypeScript tests are checked with the same strict options through
-`npm run typecheck:migration-tests`. Its no-emit configuration allows imports
-from remaining JavaScript tooling while those tools are being migrated. Runtime
+`npm run typecheck:migration-tests`. Its no-emit configuration retains compatibility with generated JavaScript
+imports; every authored executable source has a native TypeScript owner. Runtime
 implementation checking remains separate and never enables `allowJs`.
 
 Model catalogs, deployment metadata, CLI attribution and child-process lifecycle
@@ -525,7 +524,8 @@ the server selects its canonical `dev-server.ts` owner. All previous compiler
 flags and worker exclusions remain. The five native projects inherit the same
 additional safety checks, with only two erased `override` modifiers needed in test
 doubles. Their complete runtime syntax trees and all 360 assertion trees are
-unchanged. Native builds retain byte-identical output for all 1,059 generated files.
+unchanged. At that checkpoint, native builds retained byte-identical output for all 1,059
+generated files.
 
 ## Project-owned vendor sources
 
@@ -542,48 +542,55 @@ External bundles and ignored compiler output stay outside the authored inventory
 both genuinely authored siblings count if Git inventories them. All original
 inventory and compiler-fixture assertions remain.
 
-## Current state and remaining work
+## Completed migration and verification
 
-All first-party application, server/API, companion, worker and build-tool runtime
-sources are authored in native TypeScript. The compiler and all eleven AST
-consumers use TypeScript 7; the transitional TypeScript 6 dependency is removed.
-The latest integration passed all 3,595 existing and added unit cases across 352
-files with resolution of the removed dependency explicitly rejected. Every one of
-the 1,718 tracked native executable sources is loaded by a strict compiler project.
-The two validated checkouts have byte-identical output for all 1,060 generated
-files; 1,056 prior outputs remain unchanged, with only the three reviewed compiler
-and inventory tools changed alongside the newly compiled adapter.
+All 1,722 first-party executable application, server/API, companion, worker, test
+and build-tool sources are authored in native TypeScript and loaded by genuine
+strict TypeScript 7 projects. The authored inventory contains zero JavaScript,
+including project-owned vendor assets. No executable source is uncovered, no
+tracked emitted sibling remains, and no first-party HTML/SVG inline script was
+left outside the compiler. The compiler and all eleven AST consumers use
+TypeScript 7; the transitional TypeScript 6 dependency is removed.
 
-Four authored JavaScript test suites remain:
+Final integration passed all 3,595 unit cases across 352 files with resolution of
+the removed compiler API explicitly rejected. All application, compatibility,
+server, worker and test compiler gates pass, as do the zero-debt strict-null,
+quality, architecture, vendor, supply-chain and production-budget checks. The
+architecture graph contains 829 modules and zero cycles. Startup remains two JS
+resources at 1,205.4 KiB decoded; lazy output remains 165 resources at 5,263.1 KiB;
+the PWA precache remains 350 resources at 17,870.7 KiB.
 
-- `tests/supplement-import-draft.test.js`
-- `tests/test-ai-action-delegates.js`
-- `tests/test-sun-defaults.js`
-- `tests/playwright/crypto-browser-coverage.spec.js`
+The final JSDOM suites use genuine locked `@types/jsdom` declarations. No runtime
+dependency or existing dependency version changed. Their complete original
+runtime syntax trees and assertions are preserved: all 12 supplement import
+cases, 60 AI delegates assertions and 95 Sun defaults assertions pass. Sun
+retains its original country-band/profile-bootstrap skip. The crypto suite
+passes all three original Chromium cases. Its explicitly approved scope repair
+moves one dependency snapshot declaration into its owning callback, removes an
+accidental browser-global leak and preserves the actual setup error. The rest
+of its runtime syntax tree and every original assertion are preserved.
 
-Native drafts for all three JSDOM suites preserve their original assertions and
-runtime syntax trees. Runtime verification passed all 12 supplement import cases,
-60 AI delegates assertions and 95 Sun defaults assertions. Sun retains its
-original country-band/profile-bootstrap skip. The three scoped native checks
-currently report only the missing genuine JSDOM declaration; rerun strict checks
-against those declarations before integrating the drafts.
+All 1,060 outputs from the pre-final checkpoint retain byte-identical contents;
+the compiler additionally emits the two newly native standalone legacy suites.
+The 1,062 generated runtime files retain their existing URLs. TypeScript owns
+those sources, and emitted siblings are ignored by Git.
 
-The genuine `@types/jsdom` development dependency proposal awaits approval. The
-crypto suite has a reviewed correction that moves a saved dependency snapshot
-into its owning callback, removes an accidental browser-global leak and preserves the original
-setup error. That scope/error correction also awaits approval. Syntax-only
-source-reader adaptations are already authorized and preserve their assertions
-and limits. The migration is not complete until these four suites are ported and
-checked.
+Supply-chain CI watches canonical TypeScript tool and test paths, including its
+compiler inputs. Both independent checkout jobs install locked dependencies and
+run the native compiler through `prepare` before invoking generated CLIs. A fresh
+tracked-source copy passed inventory, SBOM and dependency-snapshot generation
+plus all four focused supply-chain cases using existing dependencies.
 
-Supply-chain CI watches the canonical TypeScript tool and test paths, including
-its compiler inputs. Both independent checkout jobs install locked dependencies
-and run the native compiler through `prepare` before invoking their generated
-CLIs. A fresh tracked-source copy passed inventory, SBOM and dependency-snapshot
-generation plus all four focused supply-chain tests using existing dependencies.
+Measured code totals in the fixed historical scope are 424,637 physical and
+394,219 nonblank lines, compared with 421,094 and 391,896 in the baseline. Native
+contracts add lines overall; reviewed consolidations remove duplicated callback,
+OAuth, stylesheet, browser-fixture and test-reporting logic, and redundant
+compiler lists. No fixed reduction target remains. Project-owned vendor totals
+are reported separately: 240 physical and 225 nonblank lines across nine files.
 
-Continue change-scoped runtime verification and the existing compiler, quality,
-architecture, persistence, security and production-budget gates. Run the full unit
-suite at substantial tooling milestones and final integration; keep exhaustive
-browser, coverage and real-model matrices in CI. Preserve the original runtime
-URLs and budgets, and report original opt-in skips separately from passing tests.
+Continue change-scoped runtime verification and existing compiler, quality,
+architecture, persistence, security and production-budget gates. Run the full
+unit suite at substantial tooling milestones; keep exhaustive browser, coverage
+and real-model matrices in CI. Original opt-in model/provider/hardware skips
+remain separate from passing tests. The PWA two-tab intermittent failure also
+reproduced against the original source; two targeted native repeats passed.

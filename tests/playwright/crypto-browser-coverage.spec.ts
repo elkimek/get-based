@@ -11,25 +11,25 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ cryptoUrl }) => {
-    const cryptoStore = await import(cryptoUrl);
-    const outcomes = {};
-    const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async (predicate, label) => {
+    const cryptoStore = (await import(cryptoUrl) as unknown) as Pick<typeof import('../../js/crypto.js'), "installCryptoActionDelegates" | "isUnlocked" | "getEncryptionEnabled" | "isEncryptedValue" | "updateKeyCache" | "initEncryption" | "getCachedKey" | "encryptedRemoveItem" | "encryptedGetItem" | "encryptedSetItem" | "_setTestSessionKey" | "decryptKeyCache" | "encryptObject" | "decryptObject" | "isEncryptedObject" | "renderEncryptionSection" | "disableEncryption" | "showEnableEncryptionModal" | "changePassphrase" | "configureCryptoProfileDeps" | "initBroadcastChannel" | "broadcastDataChanged" | "maybeShowEncryptionNudge" | "maybeShowBackupNudge" | "openBackupDB" | "renderBackupSection" | "loadBackupSnapshots">;
+    const outcomes: Record<string, unknown> = {};
+    const wait = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, label: string) => {
       for (let attempt = 0; attempt < 100; attempt += 1) {
         if (predicate()) return;
         await wait(50);
       }
       throw new Error(`Timed out waiting for ${label}`);
     };
-    const typeValue = (selector, value) => {
-      const input = document.querySelector(selector);
+    const typeValue = (selector: string, value: HTMLInputElement['value']) => {
+      const input = document.querySelector<HTMLInputElement>(selector);
       if (!input) throw new Error(`Missing input ${selector}`);
       input.value = value;
       input.dispatchEvent(new Event('input', { bubbles: true }));
       input.dispatchEvent(new Event('change', { bubbles: true }));
     };
-    const click = selector => {
-      const el = document.querySelector(selector);
+    const click = (selector: string) => {
+      const el = document.querySelector<HTMLElement>(selector);
       if (!el) throw new Error(`Missing element ${selector}`);
       el.click();
     };
@@ -46,17 +46,16 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
       customPersonaKey,
     ];
     const saved = {
-      wearablesTest: window.__WEARABLES_TEST,
+      wearablesTest: (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST,
       storage: Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)])),
     };
-    let previousCryptoProfileDeps;
 
     try {
       for (const key of keys) localStorage.removeItem(key);
       document.getElementById('passphrase-overlay')?.remove();
       document.body.insertAdjacentHTML('beforeend', '<section id="encryption-section"></section>');
       cryptoStore.installCryptoActionDelegates(document.getElementById('encryption-section'));
-      window.__WEARABLES_TEST = true;
+      (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST = true;
 
       outcomes.startsLocked = cryptoStore.isUnlocked() === false
         && cryptoStore.getEncryptionEnabled() === false
@@ -136,7 +135,7 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
       await cryptoStore.decryptKeyCache();
       outcomes.objectEncryptionAndWrongKey =
         cryptoStore.isEncryptedObject(envelope) === true
-        && plainEnvelope.score === 42
+        && plainEnvelope!.score === 42
         && wrongKeyValue === null
         && cryptoStore.getCachedKey('labcharts-api-key') === null;
 
@@ -151,10 +150,10 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
         name: 'Existing Persona',
         promptText: 'Encrypt this existing persona during migration.',
       }]));
-      document.getElementById('encryption-section').innerHTML = cryptoStore.renderEncryptionSection();
+      document.getElementById('encryption-section')!.innerHTML = cryptoStore.renderEncryptionSection();
       outcomes.renderEncryptionSectionUsesDelegatedActions =
         !!document.querySelector('[data-crypto-action="enable-encryption"]')
-        && !document.getElementById('encryption-section').innerHTML.includes('onclick=');
+        && !document.getElementById('encryption-section')!.innerHTML.includes('onclick=');
       click('[data-crypto-action="enable-encryption"]');
       await waitFor(() => !!document.getElementById('passphrase-set-btn'), 'enable modal');
 
@@ -208,10 +207,10 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
         && document.getElementById('encryption-section')?.textContent.includes('Encryption is OFF') === true
         && document.getElementById('notification-container')?.textContent.includes('Encryption disabled') === true;
     } finally {
-      window.__WEARABLES_TEST = true;
+      (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST = true;
       try { await cryptoStore._setTestSessionKey(null); } catch {}
-      if (saved.wearablesTest === undefined) delete window.__WEARABLES_TEST;
-      else window.__WEARABLES_TEST = saved.wearablesTest;
+      if (saved.wearablesTest === undefined) delete (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST;
+      else (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST = saved.wearablesTest;
       for (const [key, value] of Object.entries(saved.storage)) {
         if (value == null) localStorage.removeItem(key);
         else localStorage.setItem(key, value);
@@ -238,30 +237,30 @@ test('crypto passphrase modals cover unlock forgot and change flows', async ({ p
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ cryptoUrl }) => {
-    const cryptoStore = await import(cryptoUrl);
-    const outcomes = {};
-    const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async (predicate, label) => {
+    const cryptoStore = (await import(cryptoUrl) as unknown) as Pick<typeof import('../../js/crypto.js'), "installCryptoActionDelegates" | "isUnlocked" | "getEncryptionEnabled" | "isEncryptedValue" | "updateKeyCache" | "initEncryption" | "getCachedKey" | "encryptedRemoveItem" | "encryptedGetItem" | "encryptedSetItem" | "_setTestSessionKey" | "decryptKeyCache" | "encryptObject" | "decryptObject" | "isEncryptedObject" | "renderEncryptionSection" | "disableEncryption" | "showEnableEncryptionModal" | "changePassphrase" | "configureCryptoProfileDeps" | "initBroadcastChannel" | "broadcastDataChanged" | "maybeShowEncryptionNudge" | "maybeShowBackupNudge" | "openBackupDB" | "renderBackupSection" | "loadBackupSnapshots">;
+    const outcomes: Record<string, unknown> = {};
+    const wait = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, label: string) => {
       for (let attempt = 0; attempt < 140; attempt += 1) {
         if (predicate()) return;
         await wait(50);
       }
       throw new Error(`Timed out waiting for ${label}`);
     };
-    const typeValue = (selector, value) => {
-      const input = document.querySelector(selector);
+    const typeValue = (selector: string, value: HTMLInputElement['value']) => {
+      const input = document.querySelector<HTMLInputElement>(selector);
       if (!input) throw new Error(`Missing input ${selector}`);
       input.value = value;
       input.dispatchEvent(new Event('input', { bubbles: true }));
       input.dispatchEvent(new Event('change', { bubbles: true }));
     };
-    const pressEnter = selector => {
-      const input = document.querySelector(selector);
+    const pressEnter = (selector: string) => {
+      const input = document.querySelector<HTMLInputElement>(selector);
       if (!input) throw new Error(`Missing input ${selector}`);
       input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     };
-    const click = selector => {
-      const el = document.querySelector(selector);
+    const click = (selector: string) => {
+      const el = document.querySelector<HTMLElement>(selector);
       if (!el) throw new Error(`Missing element ${selector}`);
       el.click();
     };
@@ -286,14 +285,14 @@ test('crypto passphrase modals cover unlock forgot and change flows', async ({ p
       'labcharts-api-key',
     ];
     const saved = {
-      wearablesTest: window.__WEARABLES_TEST,
+      wearablesTest: (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST,
       storage: Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)])),
     };
 
     try {
       for (const key of keys) localStorage.removeItem(key);
       document.getElementById('passphrase-overlay')?.remove();
-      window.__WEARABLES_TEST = true;
+      (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST = true;
       localStorage.setItem('labcharts-profiles', JSON.stringify([profile]));
       localStorage.setItem('labcharts-api-key', 'old-api-secret');
 
@@ -371,10 +370,10 @@ test('crypto passphrase modals cover unlock forgot and change flows', async ({ p
         && await cryptoStore.encryptedGetItem('labcharts-api-key') === 'old-api-secret'
         && document.getElementById('passphrase-overlay')?.style.display === 'none';
     } finally {
-      window.__WEARABLES_TEST = true;
+      (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST = true;
       try { await cryptoStore._setTestSessionKey(null); } catch {}
-      if (saved.wearablesTest === undefined) delete window.__WEARABLES_TEST;
-      else window.__WEARABLES_TEST = saved.wearablesTest;
+      if (saved.wearablesTest === undefined) delete (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST;
+      else (window as {__WEARABLES_TEST?: unknown}).__WEARABLES_TEST = saved.wearablesTest;
       for (const [key, value] of Object.entries(saved.storage)) {
         if (value == null) localStorage.removeItem(key);
         else localStorage.setItem(key, value);
@@ -399,9 +398,9 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
   await page.waitForSelector('#notification-container', { state: 'attached' });
 
   const results = await page.evaluate(async ({ cryptoUrl }) => {
-    const outcomes = {};
-    const wait = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
-    const waitFor = async (predicate, label) => {
+    const outcomes: Record<string, unknown> = {};
+    const wait = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
+    const waitFor = async (predicate: () => unknown | Promise<unknown>, label: string) => {
       for (let attempt = 0; attempt < 100; attempt += 1) {
         if (predicate()) return;
         await wait(50);
@@ -409,15 +408,18 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       throw new Error(`Timed out waiting for ${label}`);
     };
     const originalBroadcastDescriptor = Object.getOwnPropertyDescriptor(window, 'BroadcastChannel');
-    const calls = { migrated: 0, sidebar: 0, navigated: [] };
-    let lastChannel = null;
+    const calls: { migrated: number; sidebar: number; navigated: unknown[] } = { migrated: 0, sidebar: 0, navigated: [] };
+    let lastChannel: unknown = null;
     class FakeBroadcastChannel {
-      constructor(name) {
+      declare name: string;
+      declare messages: unknown[];
+      declare onmessage?: (event: Pick<MessageEvent<unknown>, 'data'>) => unknown;
+      constructor(name: string) {
         this.name = name;
         this.messages = [];
         lastChannel = this;
       }
-      postMessage(message) {
+      postMessage(message: unknown) {
         this.messages.push(message);
       }
       close() {}
@@ -428,7 +430,7 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       value: FakeBroadcastChannel,
     });
 
-    const cryptoStore = await import(cryptoUrl);
+    const cryptoStore = (await import(cryptoUrl) as unknown) as Pick<typeof import('../../js/crypto.js'), "installCryptoActionDelegates" | "isUnlocked" | "getEncryptionEnabled" | "isEncryptedValue" | "updateKeyCache" | "initEncryption" | "getCachedKey" | "encryptedRemoveItem" | "encryptedGetItem" | "encryptedSetItem" | "_setTestSessionKey" | "decryptKeyCache" | "encryptObject" | "decryptObject" | "isEncryptedObject" | "renderEncryptionSection" | "disableEncryption" | "showEnableEncryptionModal" | "changePassphrase" | "configureCryptoProfileDeps" | "initBroadcastChannel" | "broadcastDataChanged" | "maybeShowEncryptionNudge" | "maybeShowBackupNudge" | "openBackupDB" | "renderBackupSection" | "loadBackupSnapshots">;
     const [{ state }, profileModule] = await Promise.all([
       import('/js/state.js'),
       import('/js/profile.js'),
@@ -444,13 +446,14 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       'labcharts-profiles',
       importedKey,
     ];
-    let savedBackupSnapshots = null;
+    let savedBackupSnapshots: unknown[] | null = null;
     const saved = {
       profile: state.currentProfile,
       view: state.currentView,
       importedData: state.importedData,
       storage: Object.fromEntries(keys.map(key => [key, localStorage.getItem(key)])),
     };
+    let previousCryptoProfileDeps: ReturnType<typeof cryptoStore.configureCryptoProfileDeps> | undefined;
 
     try {
       for (const key of keys) localStorage.removeItem(key);
@@ -459,42 +462,42 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       state.currentView = 'settings';
       previousCryptoProfileDeps = cryptoStore.configureCryptoProfileDeps({
         buildSidebar: () => { calls.sidebar += 1; },
-        migrateProfileData: data => {
+        migrateProfileData: (data: unknown) => {
           calls.migrated += 1;
-          data.migratedByTest = true;
+          (data as { migratedByTest?: unknown }).migratedByTest = true;
         },
-        navigate: view => { calls.navigated.push(view); },
+        navigate: (view: unknown) => { calls.navigated.push(view); },
       });
       await cryptoStore.encryptedSetItem(importedKey, JSON.stringify({
         entries: [{ date: '2026-06-09', markers: { metabolic: { glucose: 5.2 } } }],
       }));
 
       cryptoStore.initBroadcastChannel();
-      state.importedData = { entries: [], contextNotes: 'Untracked local draft' };
-      await lastChannel.onmessage({ data: { type: 'data-changed', profileId } });
+      (state as { importedData: unknown }).importedData = { entries: [], contextNotes: 'Untracked local draft' };
+      await (lastChannel as FakeBroadcastChannel).onmessage!({ data: { type: 'data-changed', profileId } });
       outcomes.broadcastPreservesUnknownBaseline = state.importedData.contextNotes === 'Untracked local draft'
         && state.importedData.entries.length === 0 && calls.sidebar === 0;
-      state.importedData = { entries: [] };
+      (state as { importedData: unknown }).importedData = { entries: [] };
       (await import('/js/profile-data-writes.js')).rememberProfileData(state.importedData);
-      await lastChannel.onmessage({ data: { type: 'noop', profileId } });
-      await lastChannel.onmessage({ data: { type: 'data-changed', profileId: `${profileId}-other` } });
-      await lastChannel.onmessage({ data: { type: 'data-changed', profileId } });
+      await (lastChannel as FakeBroadcastChannel).onmessage!({ data: { type: 'noop', profileId } });
+      await (lastChannel as FakeBroadcastChannel).onmessage!({ data: { type: 'data-changed', profileId: `${profileId}-other` } });
+      await (lastChannel as FakeBroadcastChannel).onmessage!({ data: { type: 'data-changed', profileId } });
       cryptoStore.broadcastDataChanged(profileId);
       outcomes.broadcastReloadsCurrentProfile =
-        lastChannel?.name === 'labcharts-sync'
+        (lastChannel as FakeBroadcastChannel | null)?.name === 'labcharts-sync'
         && calls.migrated === 2
         && calls.sidebar === 1
         && calls.navigated[0] === 'settings'
         && state.importedData.entries?.[0]?.date === '2026-06-09'
         && Array.isArray(state.importedData.notes)
         && Array.isArray(state.importedData.supplements)
-        && lastChannel.messages[0]?.profileId === profileId;
+        && ((lastChannel as FakeBroadcastChannel).messages[0] as { profileId?: unknown } | null | undefined)?.profileId === profileId;
 
       localStorage.removeItem('labcharts-encryption-enabled');
       localStorage.removeItem('labcharts-encryption-nudge-dismissed');
       cryptoStore.maybeShowEncryptionNudge();
       await waitFor(() => !!document.getElementById('encryption-nudge-dismiss'), 'encryption nudge');
-      document.getElementById('encryption-nudge-dismiss').click();
+      document.getElementById('encryption-nudge-dismiss')!.click();
       outcomes.encryptionNudgeDismisses =
         localStorage.getItem('labcharts-encryption-nudge-dismissed') === 'true'
         && document.getElementById('passphrase-overlay')?.style.display === 'none';
@@ -502,7 +505,7 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       localStorage.removeItem('labcharts-encryption-nudge-dismissed');
       cryptoStore.maybeShowEncryptionNudge();
       await waitFor(() => !!document.getElementById('encryption-nudge-enable'), 'encryption nudge enable');
-      document.getElementById('encryption-nudge-enable').click();
+      document.getElementById('encryption-nudge-enable')!.click();
       await waitFor(() => !!document.getElementById('passphrase-set-input'), 'enable modal from nudge');
       outcomes.encryptionNudgeOpensEnableModal =
         document.getElementById('passphrase-overlay')?.textContent.includes('Enable Encryption') === true;
@@ -516,13 +519,13 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       document.getElementById('tour-overlay')?.remove();
       cryptoStore.maybeShowBackupNudge();
       await waitFor(() => !!document.getElementById('backup-nudge-snooze'), 'backup nudge');
-      document.getElementById('backup-nudge-snooze').click();
+      document.getElementById('backup-nudge-snooze')!.click();
       outcomes.backupNudgeSnoozes =
         Number(localStorage.getItem('labcharts-backup-nudge-snoozed-until')) > Date.now()
         && document.getElementById('passphrase-overlay')?.style.display === 'none';
 
       const backupDb = await cryptoStore.openBackupDB();
-      savedBackupSnapshots = await new Promise((resolve, reject) => {
+      savedBackupSnapshots = await new Promise<unknown[]>((resolve, reject) => {
         const tx = backupDb.transaction('snapshots', 'readonly');
         const req = tx.objectStore('snapshots').getAll();
         req.onsuccess = () => resolve(req.result || []);
@@ -565,7 +568,7 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       const openedDisplay = document.getElementById('backup-snapshot-list')?.style.display;
       const openedArrow = document.getElementById('backup-snapshots-arrow')?.innerHTML;
       document.getElementById('backup-snapshots-toggle')?.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
-      const restoreBtn = document.querySelector('[data-crypto-action="restore-auto-backup"]');
+      const restoreBtn = document.querySelector<HTMLElement>('[data-crypto-action="restore-auto-backup"]');
       outcomes.snapshotsRenderDelegatedRestoreButton =
         document.querySelectorAll('.backup-snapshot-item').length === 1
         && !!restoreBtn?.dataset.cryptoSnapshotId
@@ -586,7 +589,7 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       if (originalBroadcastDescriptor) {
         Object.defineProperty(window, 'BroadcastChannel', originalBroadcastDescriptor);
       } else {
-        delete window.BroadcastChannel;
+        delete (window as { BroadcastChannel?: unknown }).BroadcastChannel;
       }
       await cryptoStore.encryptedRemoveItem(importedKey);
       if (savedBackupSnapshots) {
@@ -595,7 +598,7 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
           const tx = db.transaction('snapshots', 'readwrite');
           const store = tx.objectStore('snapshots');
           store.clear();
-          for (const snapshot of savedBackupSnapshots) store.put(snapshot);
+          for (const snapshot of savedBackupSnapshots!) store.put(snapshot);
           tx.oncomplete = resolve;
           tx.onerror = () => reject(tx.error);
         });

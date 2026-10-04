@@ -37,7 +37,7 @@ describe('supplement import drafts', () => {
       ],
     });
 
-    expect(draft.ingredients[0].amount).toBe('10 billion CFU');
+    expect(draft.ingredients[0]!.amount).toBe('10 billion CFU');
     expect(issues).toContain('L. reuteri: verify the amount.');
   });
 
@@ -323,7 +323,7 @@ describe('supplement import drafts', () => {
       ingredients: [{ name: 'Zinc', amountValue: 15, amountUnit: 'mg' }],
     }, { kind: 'label photos' });
     photos.draft.source.reviewed = true;
-    photos.draft.source.evidence[0].reviewed = true;
+    photos.draft.source.evidence[0]!.reviewed = true;
     const link = normalizeSupplementImportDraft({
       product: 'Store Listing Name',
       labelDirections: 'Take two capsules',
@@ -334,7 +334,7 @@ describe('supplement import drafts', () => {
 
     expect(combined.draft.product).toBe('Vendor Label Name');
     expect(combined.draft.labelDirections).toBe('Take one capsule');
-    expect(combined.draft.ingredients[0].amount).toBe('15 mg');
+    expect(combined.draft.ingredients[0]!.amount).toBe('15 mg');
     expect(combined.draft.source.reviewed).toBe(false);
     expect(combined.issues).toEqual(expect.arrayContaining([
       expect.stringContaining('Product name differs between sources'),

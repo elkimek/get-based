@@ -1492,3 +1492,5 @@ deploy/profile-share/data/
 /tests/validate-storage-shim-throwing-getters.mjs
 /scripts/native-typescript-ast.js
 /vendor/chartjs-adapter-native.js
+/tests/test-ai-action-delegates.js
+/tests/test-sun-defaults.js

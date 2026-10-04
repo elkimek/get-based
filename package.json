@@ -75,7 +75,8 @@
     "elliptic": "file:scripts/vendor-packages/elliptic-verify-only",
     "@scure/base": "2.2.0",
     "@noble/hashes": "2.2.0",
-    "@types/node": "26.1.0"
+    "@types/node": "26.1.0",
+    "@types/jsdom": "30.0.0"
   },
   "dependencies": {
     "@vercel/blob": "2.8.0",

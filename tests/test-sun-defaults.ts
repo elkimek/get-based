@@ -12,6 +12,12 @@ import fs from 'fs';
 import { JSDOM } from 'jsdom';
 import path from 'path';
 import { fileURLToPath } from 'url';
+// Unvalidated fixture storage and global restoration retain opaque leaves.
+interface SunDefaultsFixtureReader {
+  sunDefaults?: Record<string, unknown> | null | undefined;
+  lightCircadian?: { skinType?: unknown } | null;
+}
+
 
 
 const { assert, results: legacyAssertions } = createLegacyAssertions();
@@ -36,7 +42,7 @@ const aiSaveHooksSrc = fs.readFileSync(path.join(root, 'js/light-ai-save-hooks.j
 const onboardingAiSrc = fs.readFileSync(path.join(root, 'js/sun-onboarding-ai.js'), 'utf8');
 const globalsSrc = fs.readFileSync(path.join(root, 'types/globals.d.ts'), 'utf8');
 const swSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
-const originalDelegateDomGlobals = {
+const originalDelegateDomGlobals: Record<string, unknown> = {
   document: globalThis.document,
   HTMLElement: globalThis.HTMLElement,
   Element: globalThis.Element,
@@ -59,9 +65,9 @@ globalThis.Node = delegateDom.window.Node;
 function restoreDelegateDomGlobals() {
   for (const [key, value] of Object.entries(originalDelegateDomGlobals)) {
     if (value === undefined) {
-      delete globalThis[key];
+      delete (globalThis as unknown as Record<string, unknown>)[key];
     } else {
-      globalThis[key] = value;
+      (globalThis as unknown as Record<string, unknown>)[key] = value;
     }
   }
 }
@@ -137,7 +143,7 @@ installLightSetupDelegates(delegateDom.window.document);
   </div>`;
   document.querySelector('[data-light-setup-step="score"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   assert('delegated setup step click switches panes',
-    document.querySelector('.light-setup-focus-modal')?.dataset.setupStep === 'score' &&
+    document.querySelector<HTMLElement>('.light-setup-focus-modal')?.dataset.setupStep === 'score' &&
     document.querySelector('[data-setup-tab="score"]')?.getAttribute('aria-selected') === 'true' &&
     document.querySelector('[data-setup-pane="core"]')?.hasAttribute('hidden'));
 
@@ -148,7 +154,7 @@ installLightSetupDelegates(delegateDom.window.document);
   </div>`;
   document.querySelector('[data-choice-group="setup-homelight"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   assert('delegated setup choice click updates hidden input and pressed state',
-    document.getElementById('setup-homelight')?.value === 'led-warm' &&
+    (document.getElementById('setup-homelight') as HTMLInputElement | null)?.value === 'led-warm' &&
     document.querySelector('[data-choice-group="setup-homelight"]')?.getAttribute('aria-pressed') === 'true');
 
   document.body.innerHTML = `<div class="light-setup-card">
@@ -159,8 +165,8 @@ installLightSetupDelegates(delegateDom.window.document);
   </div>`;
   document.querySelector('[data-light-setup-skin-idx="4"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
   assert('delegated skin click updates range and active state',
-    document.getElementById('setup-skin-range')?.value === '4' &&
-    document.getElementById('setup-skin-range')?.dataset.set === '1' &&
+    (document.getElementById('setup-skin-range') as HTMLInputElement | null)?.value === '4' &&
+    (document.getElementById('setup-skin-range') as HTMLInputElement | null)?.dataset.set === '1' &&
     document.querySelector('[data-idx="4"]')?.getAttribute('aria-checked') === 'true');
 
   document.body.innerHTML = `<div class="light-setup-card">
@@ -187,8 +193,8 @@ installLightSetupDelegates(delegateDom.window.document);
     FITZPATRICK_OPTIONS.length >= 6, `length=${FITZPATRICK_OPTIONS.length}`);
   const expectedKeys = ['I','II','III','IV','V','VI'];
   for (let i = 0; i < expectedKeys.length; i++) {
-    assert(`Option ${i} key === '${expectedKeys[i]}'`, FITZPATRICK_OPTIONS[i].key === expectedKeys[i]);
-    assert(`Option ${i} has descriptive label`, typeof FITZPATRICK_OPTIONS[i].label === 'string' && FITZPATRICK_OPTIONS[i].label.length > 0);
+    assert(`Option ${i} key === '${expectedKeys[i]}'`, FITZPATRICK_OPTIONS[i]!.key === expectedKeys[i]);
+    assert(`Option ${i} has descriptive label`, typeof FITZPATRICK_OPTIONS[i]!.label === 'string' && FITZPATRICK_OPTIONS[i]!.label.length > 0);
   }
 
   // ─── 2. HOME_LIGHT_OPTIONS / EYEWEAR_OPTIONS shape ───────────────────
@@ -276,25 +282,25 @@ installLightSetupDelegates(delegateDom.window.document);
 
   // Stub a clean importedData with a no-op saveImportedData so we don't
   // hit the real CRDT/IDB save path.
-  state.importedData = { entries: [] };
+  (state as unknown as { importedData: unknown }).importedData = { entries: [] };
   // saveImportedData is imported by sun-defaults from data.js; the real
   // implementation persists. We don't need to mock it — just keep the
   // test profile id constant so artifacts don't accumulate.
 
   const empty = getSunDefaults();
   assert('getSunDefaults seeds importedData.sunDefaults when missing',
-    empty && typeof empty === 'object' && state.importedData.sunDefaults === empty);
+    empty && typeof empty === 'object' && (state as unknown as { importedData: SunDefaultsFixtureReader }).importedData.sunDefaults === empty);
 
   await saveSunDefaults({ fitzpatrick: 'III', homeLight: 'led-warm' });
   const after1 = getSunDefaults();
-  assert('saveSunDefaults patches fitzpatrick', after1.fitzpatrick === 'III');
-  assert('saveSunDefaults patches homeLight', after1.homeLight === 'led-warm');
+  assert('saveSunDefaults patches fitzpatrick', after1!.fitzpatrick === 'III');
+  assert('saveSunDefaults patches homeLight', after1!.homeLight === 'led-warm');
 
   // Patch is additive (preserves earlier fields)
   await saveSunDefaults({ eyewear: 'sunglasses' });
   const after2 = getSunDefaults();
   assert('Subsequent save preserves earlier fitzpatrick',
-    after2.fitzpatrick === 'III' && after2.eyewear === 'sunglasses');
+    after2!.fitzpatrick === 'III' && after2!.eyewear === 'sunglasses');
 
   const setupDom = new JSDOM(`<!doctype html><body>
     <div class="light-setup-card">
@@ -328,22 +334,22 @@ installLightSetupDelegates(delegateDom.window.document);
   assert('collectSunSetupValues blocks visual default skin type until confirmed',
     missingSkin.ok === false && missingSkin.reason === 'skin-type-required');
 
-  state.importedData = { entries: [], sunDefaults: {}, lightCircadian: null };
+  (state as unknown as { importedData: unknown }).importedData = { entries: [], sunDefaults: {}, lightCircadian: null };
   await persistSunSetupValues(collected.values, 1234567890);
   assert('persistSunSetupValues saves defaults and mirrors skin context in one path',
-    state.importedData.sunDefaults.fitzpatrick === 'IV' &&
-    state.importedData.sunDefaults.photosensitiveMeds === 'severe' &&
-    state.importedData.sunDefaults.homeLight === 'led-warm' &&
-    state.importedData.sunDefaults.eyewear === 'sunglasses' &&
-    state.importedData.sunDefaults.ottScore === 2 &&
-    state.importedData.sunDefaults.completedAt === 1234567890 &&
-    state.importedData.lightCircadian?.skinType?.startsWith('IV'));
+    (state as unknown as { importedData: SunDefaultsFixtureReader }).importedData.sunDefaults!.fitzpatrick === 'IV' &&
+    (state as unknown as { importedData: SunDefaultsFixtureReader }).importedData.sunDefaults!.photosensitiveMeds === 'severe' &&
+    (state as unknown as { importedData: SunDefaultsFixtureReader }).importedData.sunDefaults!.homeLight === 'led-warm' &&
+    (state as unknown as { importedData: SunDefaultsFixtureReader }).importedData.sunDefaults!.eyewear === 'sunglasses' &&
+    (state as unknown as { importedData: SunDefaultsFixtureReader }).importedData.sunDefaults!.ottScore === 2 &&
+    (state as unknown as { importedData: SunDefaultsFixtureReader }).importedData.sunDefaults!.completedAt === 1234567890 &&
+    ((state as unknown as { importedData: SunDefaultsFixtureReader }).importedData.lightCircadian?.skinType as { startsWith(prefix: string): unknown } | null | undefined)?.startsWith('IV'));
 
   // ─── 6. isOnboardingComplete gate ─────────────────────────────────────
   console.log('%c 6. Onboarding-complete gate ', 'font-weight:bold;color:#f59e0b');
 
   // Just fitzpatrick set is not enough — needs completedAt
-  state.importedData = { entries: [], sunDefaults: { fitzpatrick: 'III' } };
+  (state as unknown as { importedData: unknown }).importedData = { entries: [], sunDefaults: { fitzpatrick: 'III' } };
   assert('isOnboardingComplete falsy without completedAt',
     !isOnboardingComplete());
 
@@ -357,21 +363,21 @@ installLightSetupDelegates(delegateDom.window.document);
     !isOnboardingComplete());
 
   // Empty importedData → falsy
-  state.importedData = null;
+  (state as unknown as { importedData: unknown }).importedData = null;
   assert('isOnboardingComplete falsy when importedData missing',
     !isOnboardingComplete());
 
   // ─── 7. getSunDefaults handles missing importedData ──────────────────
   console.log('%c 7. Defensive guards ', 'font-weight:bold;color:#f59e0b');
 
-  state.importedData = null;
+  (state as unknown as { importedData: unknown }).importedData = null;
   assert('getSunDefaults() returns null when importedData missing',
     getSunDefaults() === null);
   assert('saveSunDefaults() returns false when importedData missing',
     await saveSunDefaults({ fitzpatrick: 'III' }) === false);
 
   // Restore
-  state.importedData = orig;
+  (state as unknown as { importedData: unknown }).importedData = orig;
 
   // ─── 8. getSunCoords country-band path — SKIPPED in Node ──────────────
   // The country-centroid resolution requires profile state (currentProfile +
@@ -390,9 +396,9 @@ installLightSetupDelegates(delegateDom.window.document);
   const origLoc = getProfileLocation();
   // Ensure we're in country-band mode (no profile-precise coords)
   const stashedSunDefaults = state.importedData?.sunDefaults;
-  if (state.importedData) state.importedData.sunDefaults = null;
+  if (state.importedData) (state as unknown as { importedData: SunDefaultsFixtureReader }).importedData.sunDefaults = null;
 
-  await setProfileLocation(null, 'czech republic', '');
+  await (setProfileLocation as unknown as (profileId: string | null, country: Parameters<typeof setProfileLocation>[1], zip: Parameters<typeof setProfileLocation>[2]) => ReturnType<typeof setProfileLocation>)(null, 'czech republic', '');
   const cz = getSunCoords();
   assert("Czech profile resolves to country-band centroid",
     cz && cz.source === 'country-band', `got ${JSON.stringify(cz)}`);
@@ -406,10 +412,10 @@ installLightSetupDelegates(delegateDom.window.document);
   // identical lon today.
   const cz2 = getSunCoords();
   assert("getSunCoords is pure for the same profile (no tz drift)",
-    cz2 && cz2.lon === cz.lon && cz2.lat === cz.lat);
+    cz2 && cz2.lon === cz!.lon && cz2.lat === cz!.lat);
 
   // Different country → different centroid.
-  await setProfileLocation(null, 'japan', '');
+  await (setProfileLocation as unknown as (profileId: string | null, country: Parameters<typeof setProfileLocation>[1], zip: Parameters<typeof setProfileLocation>[2]) => ReturnType<typeof setProfileLocation>)(null, 'japan', '');
   const jp = getSunCoords();
   assert("Japan resolves to its own centroid (lat ~36, lon ~138)",
     jp && Math.abs(jp.lat - 36.2) < 0.5 && Math.abs(jp.lon - 138.3) < 0.5,
@@ -421,8 +427,8 @@ installLightSetupDelegates(delegateDom.window.document);
   // the code path is a guarded fallback.)
 
   // Restore profile location
-  await setProfileLocation(null, origLoc.country || '', origLoc.zip || '');
-  if (state.importedData) state.importedData.sunDefaults = stashedSunDefaults;
+  await (setProfileLocation as unknown as (profileId: string | null, country: Parameters<typeof setProfileLocation>[1], zip: Parameters<typeof setProfileLocation>[2]) => ReturnType<typeof setProfileLocation>)(null, origLoc.country || '', origLoc.zip || '');
+  if (state.importedData) (state as unknown as { importedData: SunDefaultsFixtureReader }).importedData.sunDefaults = stashedSunDefaults;
   } // end if (!SKIP_SECTION_8)
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
