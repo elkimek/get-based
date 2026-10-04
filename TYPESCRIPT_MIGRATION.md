@@ -576,6 +576,12 @@ source-reader adaptations are already authorized and preserve their assertions
 and limits. The migration is not complete until these four suites are ported and
 checked.
 
+Supply-chain CI watches the canonical TypeScript tool and test paths, including
+its compiler inputs. Both independent checkout jobs install locked dependencies
+and run the native compiler through `prepare` before invoking their generated
+CLIs. A fresh tracked-source copy passed inventory, SBOM and dependency-snapshot
+generation plus all four focused supply-chain tests using existing dependencies.
+
 Continue change-scoped runtime verification and the existing compiler, quality,
 architecture, persistence, security and production-budget gates. Run the full unit
 suite at substantial tooling milestones and final integration; keep exhaustive

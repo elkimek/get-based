@@ -7,8 +7,12 @@ on:
       - ".github/workflows/supply-chain.yml"
       - "package.json"
       - "package-lock.json"
-      - "scripts/supply-chain.mjs"
-      - "tests/supply-chain.test.js"
+      - "scripts/supply-chain.mts"
+      - "scripts/build-typescript.ts"
+      - "scripts/native-typescript-ast.ts"
+      - "scripts/classic-browser-fixture-entries.json"
+      - "tsconfig*.json"
+      - "tests/supply-chain.test.ts"
       - "vendor/**"
   push:
     branches: [main]
@@ -16,8 +20,12 @@ on:
       - ".github/workflows/supply-chain.yml"
       - "package.json"
       - "package-lock.json"
-      - "scripts/supply-chain.mjs"
-      - "tests/supply-chain.test.js"
+      - "scripts/supply-chain.mts"
+      - "scripts/build-typescript.ts"
+      - "scripts/native-typescript-ast.ts"
+      - "scripts/classic-browser-fixture-entries.json"
+      - "tsconfig*.json"
+      - "tests/supply-chain.test.ts"
       - "vendor/**"
   schedule:
     - cron: "23 7 * * 1"
@@ -29,7 +37,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -38,6 +46,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
+
+      - name: Install dependencies and compile native sources
+        run: npm ci
 
       - name: Validate vendored component inventory
         run: npm run supply-chain:check
@@ -57,7 +68,7 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: validate
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     permissions:
       contents: write
 
@@ -67,6 +78,10 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
+          cache: npm
+
+      - name: Install dependencies and compile native sources
+        run: npm ci
 
       - name: Build vendored dependency snapshot
         run: npm run --silent supply-chain:snapshot > "$RUNNER_TEMP/vendor-dependency-snapshot.json"
