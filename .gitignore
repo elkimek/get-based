@@ -1,3 +1,6 @@
+# Local task progress, checkpoints, and audit logs
+/.local-notes/
+
 .claude/
 *.pdf
 !data/import-benchmark-reference-us-v2.pdf

@@ -42,9 +42,9 @@ semantic checks use separate strict projects for their actual browser, worker an
 Node environments. The default editor, app and server projects use the native
 NodeNext resolution, checked index access, exact optional-property types and
 erasable/verbatim module rules too. Every native project retains the
-previous compiler safety flags. The full
-migration objective and fixed LOC baseline are in
-[`TYPESCRIPT_MIGRATION.md`](TYPESCRIPT_MIGRATION.md).
+previous compiler safety flags. The fixed migration baseline is retained in
+[`scripts/typescript-migration-baseline.json`](scripts/typescript-migration-baseline.json);
+the completed migration was merged in [PR #1660](https://github.com/elkimek/get-based/pull/1660).
 
 ## Runtime topology
 
@@ -197,7 +197,8 @@ the higher-layer behavior through a narrow runtime seam.
   `unit-profiles.js` resolves the International, Australia/New Zealand, and US
   display projections over the complete schema; conversion happens only in
   active view data and user input is converted back before persistence. See
-  [`docs/unit-profiles.md`](docs/unit-profiles.md).
+  [the unit-profile implementation](js/unit-profiles.ts) and its
+  [regression tests](tests/unit-profiles.test.ts).
 - Profile writes flow through profile/data persistence helpers so migrations,
   encryption, change history, and sync hooks remain consistent.
 - Secrets and sensitive rows use the existing encryption and IndexedDB paths.

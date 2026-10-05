@@ -64,6 +64,8 @@ npm run architecture:check
 - Edit canonical `.ts`/`.mts` sources, not generated `.js`/`.mjs` files. PWA cache identity comes from the production commit and deployment ID, so ordinary patches need no version bump. For a versioned release, update `version.ts` and the changelog.
 - Commit the regenerated [`MODULE_MAP.md`](MODULE_MAP.md) when runtime modules or imports change.
 - Update [`ARCHITECTURE.md`](ARCHITECTURE.md) when responsibilities, entry points, major data flows, or allowed dependency directions change.
+- Keep maintained feature and testing contracts under `engineering/`. Keep task progress, checkpoints, and audit logs local in `.local-notes/`, which Git ignores.
+- Keep [AGENTS.md](AGENTS.md) concise and limited to stable coding-agent instructions; it is not a task journal.
 
 ---
 
@@ -71,6 +73,8 @@ npm run architecture:check
 
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** — the human-maintained module ownership, dependency, state, storage, and privacy contract.
 - **[MODULE_MAP.md](MODULE_MAP.md)** — generated file-level ESM inventory, coupling hotspots, and current dependency cycles.
+- **[Engineering guidance](engineering/README.md)** — maintained testing and feature contracts.
+- **[AGENTS.md](AGENTS.md)** — stable repository instructions for coding agents.
 - **[Developer docs](https://docs.getbased.health/developers)** — architecture, module reference, data pipeline, storage schema, testing, deployment, and feature internals. Source lives in the separate `getbased-docs` Mintlify repo.
 
 ---
