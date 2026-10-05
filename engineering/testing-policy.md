@@ -21,6 +21,9 @@ PR tests do not ordinarily collect whole-project coverage. Main-branch pushes,
 manual full test runs, and explicit release verification run the complete
 regression suite, critical coverage gates, and combined production measurement.
 A passing selective check is not a new whole-project coverage measurement.
+The [Display pilot workflow](../.github/workflows/display-pilot.yml) provides
+focused acceptance on its isolated branch without invoking the exhaustive suite;
+full regression and combined-coverage requirements for release remain unchanged.
 
 ## Behavioral requirements
 

@@ -100,7 +100,12 @@ is an npm workspace that isolates the checker's supporting TypeScript 6 dependen
 
 The bounded Display pilot has a focused cross-browser acceptance command,
 `npm run test:display-pilot`, covering Chromium, Firefox, desktop WebKit and
-mobile WebKit. The full CI workflow runs it alongside the PWA lifecycle suite.
+mobile WebKit. The [focused pilot workflow](.github/workflows/display-pilot.yml) runs on the
+pilot branch and can be dispatched manually. It checks the affected tooling and
+settings contracts, strict typing, architecture, production budgets, critical
+coverage, and the Display and PWA browser matrices. Its retained JSON evidence
+is scoped to the pilot; it does not measure fresh whole-project combined coverage.
+The full release CI workflow also runs both browser matrices.
 
 PWA Chromium checks use the pinned full browser in its modern headless mode
 (`channel: chromium`), exercising Chrome's normal browser implementation without

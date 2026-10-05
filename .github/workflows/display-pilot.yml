@@ -1,0 +1,69 @@
+name: Display pilot acceptance
+
+# The bounded pilot gets focused branch CI; release verification stays separate.
+on:
+  push:
+    branches: [codex/tailwind-display-pilot]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: display-pilot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install and compile canonical sources
+        run: npm ci
+      - name: Check strict application and test contracts
+        run: |
+          npm run typecheck:migration
+          npm run typecheck:migration-tests
+          npm run migration:check
+      - name: Check architecture, quality and unchanged production budgets
+        run: |
+          npm run architecture:check
+          npm run quality
+          npm run production:check
+      - name: Verify pilot and affected tooling
+        run: |
+          npx vitest run tests/styles-build.test.ts tests/svelte-pilot-build.test.ts tests/architecture-map.test.ts tests/pr-test-scope.test.ts tests/dom-sink-audit.test.ts tests/quality-guardrails.test.ts tests/coverage-source.test.ts tests/coverage-gate.test.ts tests/critical-coverage-config.test.ts tests/unit-profile-active-data.test.ts tests/unit-profile-data.test.ts tests/unit-profiles.test.ts --reporter=default --reporter=json --outputFile=/tmp/display-pilot-unit.json
+          npx vitest run tests/_vitest-legacy.test.ts -t 'test-(changelog|recommendations|settings-delegated-actions|tour)' --reporter=default --reporter=json --outputFile=/tmp/display-pilot-legacy.json
+      - name: Enforce critical behavior coverage
+        run: npm run test:critical-coverage
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Check Display across desktop and mobile engines headlessly
+        run: npm run test:display-pilot -- --reporter=list,json
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: /tmp/display-pilot-browser.json
+      - name: Check PWA offline and update behavior headlessly
+        run: npm run test:pwa -- --reporter=list,json
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: /tmp/display-pilot-pwa.json
+      - name: Record tested revision
+        if: always()
+        run: git rev-parse HEAD > /tmp/display-pilot-revision.txt
+      - name: Retain focused acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: display-pilot-acceptance
+          path: |
+            /tmp/display-pilot-unit.json
+            /tmp/display-pilot-legacy.json
+            /tmp/display-pilot-browser.json
+            /tmp/display-pilot-pwa.json
+            /tmp/display-pilot-revision.txt
+          if-no-files-found: error
+          retention-days: 14
