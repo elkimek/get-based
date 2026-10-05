@@ -31,6 +31,10 @@ tools/
 dev-chrome.sh
 test-screenshots/
 .mcp.json
+# Keep local credentials out of Git; retain blank configuration templates.
+.env
+.env.*
+!.env*.example
 .env.local
 .env.*.local
 deploy/profile-share/.env
