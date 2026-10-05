@@ -25,6 +25,13 @@ The [Display pilot workflow](../.github/workflows/display-pilot.yml) provides
 focused acceptance on its isolated branch without invoking the exhaustive suite;
 full regression and combined-coverage requirements for release remain unchanged.
 
+The [static SvelteKit bridge](static-sveltekit.md) has a local focused acceptance
+command, `npm run test:sveltekit`, covering static aliases, CSP, delegated Display
+preferences, offline first use, cold launch, stored data and explicit worker updates.
+Headless launch environments cannot access the user's desktop session. Historical
+size/cache ceilings are recorded for this local evaluation; quality, compiler and
+coverage safety remain intact. The native production build keeps its budget gates.
+
 ## Behavioral requirements
 
 Preserve independently failing assertions for these workflows:

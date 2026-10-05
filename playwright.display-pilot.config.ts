@@ -11,8 +11,8 @@ export default defineConfig({
   use: sharedUse,
   projects: [
     { name: 'display-chromium', use: { ...devices['Desktop Chrome'], launchOptions: launchOptions! } },
-    { name: 'display-firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'display-webkit', use: { ...devices['Desktop Safari'], launchOptions: webkitExecutable ? { executablePath: webkitExecutable } : {} } },
-    { name: 'display-mobile-webkit', use: { ...devices['iPhone 13'], launchOptions: webkitExecutable ? { executablePath: webkitExecutable } : {} } },
+    { name: 'display-firefox', use: { ...devices['Desktop Firefox'], launchOptions: { env: launchOptions!.env! } } },
+    { name: 'display-webkit', use: { ...devices['Desktop Safari'], launchOptions: { env: launchOptions!.env!, ...(webkitExecutable ? { executablePath: webkitExecutable } : {}) } } },
+    { name: 'display-mobile-webkit', use: { ...devices['iPhone 13'], launchOptions: { env: launchOptions!.env!, ...(webkitExecutable ? { executablePath: webkitExecutable } : {}) } } },
   ],
 });

@@ -60,7 +60,11 @@
     "styles:check": "node scripts/build-styles.mjs --check",
     "svelte:build": "npm run check --workspace @getbased/svelte-tooling && node scripts/build-svelte.mjs",
     "svelte:check": "npm run check --workspace @getbased/svelte-tooling && node scripts/build-svelte.mjs --check",
-    "test:display-pilot": "playwright test --config=playwright.display-pilot.config.js"
+    "test:display-pilot": "playwright test --config=playwright.display-pilot.config.js",
+    "presveltekit:build": "npm run typescript:build",
+    "sveltekit:build": "node scripts/build-sveltekit.mjs",
+    "test:sveltekit": "playwright test --config=playwright.sveltekit.config.js",
+    "pretest:sveltekit": "npm run sveltekit:build"
   },
   "devDependencies": {
     "@cashu/cashu-ts": "4.9.0",
@@ -84,7 +88,8 @@
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
     "venice-e2ee": "https://github.com/elkimek/venice-e2ee/archive/7da6228c0cef3ad516196129eea2f9d64760e6b3.tar.gz",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "magic-string": "0.30.21"
   },
   "dependencies": {
     "@vercel/blob": "2.8.0",

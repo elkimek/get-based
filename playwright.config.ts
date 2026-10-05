@@ -1,4 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
+import path from 'node:path';
+import { headlessBrowserEnvironment } from './scripts/headless-browser-environment.js';
 
 const PORT = process.env.PORT || '8000';
 const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
@@ -18,10 +20,12 @@ export default defineConfig({
   reporter: [['list']],
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
+    headless: true,
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
     serviceWorkers: 'block',
     launchOptions: {
+      env: headlessBrowserEnvironment(path.resolve('.local-notes/headless-runtime')),
       ...(chromiumExecutable ? { executablePath: chromiumExecutable } : {}),
       args: ['--no-sandbox', '--disable-setuid-sandbox', ...webGpuArgs],
     },

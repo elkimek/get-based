@@ -12,6 +12,8 @@
   "include": [
     "js/components/**/*.svelte",
     "js/settings-display-contract.ts",
-    "tooling/svelte/component-contract.ts"
+    "tooling/svelte/component-contract.ts",
+    "js/kit/**/*.svelte",
+    "js/kit/**/*.ts"
   ]
 }

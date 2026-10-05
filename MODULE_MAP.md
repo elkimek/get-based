@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 833 |
-| Internal import edges | 3567 |
-| Dynamic internal edges | 119 |
+| Modules | 837 |
+| Internal import edges | 3568 |
+| Dynamic internal edges | 120 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -99,6 +99,24 @@ These expressions cannot be resolved statically and require manual review when c
 ## browser modules
 
 Native browser modules shipped with the static application.
+
+<details><summary><code>+layout</code> family — 1 module</summary>
+
+- [`js/kit/routes/app/+layout.ts`](js/kit/routes/app/+layout.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>+layout.svelte</code> family — 1 module</summary>
+
+- [`js/kit/routes/app/+layout.svelte`](js/kit/routes/app/+layout.svelte) → [`js/main.ts`](js/main.ts) *(dynamic)*
+
+</details>
+
+<details><summary><code>+page.svelte</code> family — 1 module</summary>
+
+- [`js/kit/routes/app/+page.svelte`](js/kit/routes/app/+page.svelte) → no in-scope imports
+
+</details>
 
 <details><summary><code>action</code> family — 1 module</summary>
 
@@ -657,6 +675,12 @@ Native browser modules shipped with the static application.
 <details><summary><code>hematology</code> family — 1 module</summary>
 
 - [`js/marker-schema/hematology.ts`](js/marker-schema/hematology.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>hooks</code> family — 1 module</summary>
+
+- [`js/kit/hooks.ts`](js/kit/hooks.ts) → no in-scope imports
 
 </details>
 

@@ -75,7 +75,7 @@ runtime into ignored `DisplaySettings.svelte.native.js`, loaded through the exis
 lazy Settings graph. The native offline manifest includes that emitted module;
 the production bundler folds it into existing lazy chunks. Component declarations
 and a checked tooling contract retain the typed adapter boundary. SvelteKit is
-not part of this build; it can consume the authored component directly later.
+not part of the native build. The static Kit build consumes the authored component directly.
 
 TypeScript 7 remains the application compiler and Svelte diagnostics engine.
 The npm workspace `tooling/svelte` isolates TypeScript 6 required by Svelte's
@@ -86,6 +86,27 @@ coverage inventories count each component once at its emitted URL. Component
 source maps separate positively mapped third-party Svelte functions from
 first-party compiled functions. Missing maps fail collection, and unmapped
 functions remain in the first-party denominator and range diagnostics.
+
+## Static SvelteKit bridge
+
+`scripts/build-sveltekit.mts` assembles an opt-in, self-contained static artifact
+with SvelteKit 3 and `adapter-static`. `tooling/svelte` isolates Kit's TypeScript 6
+peer alongside the existing checker; application sources still compile with
+TypeScript 7. The native production command remains independently available.
+
+`index.html` is the canonical shell during incremental migration. Its native
+controls remain outside the Kit route root, and `js/kit/routes/app/+layout.svelte`
+starts the existing services after mount. The Vite graph compiles authored
+Display settings directly and shares one Svelte runtime with Kit. Native CSS,
+worker and computed vendor URLs keep their original module-relative meaning.
+Kit discovers only canonical `.ts` route modules, excluding emitted siblings.
+
+The static assembler externalizes Kit's classic bootstrap to satisfy the existing
+CSP without permitting inline executable scripts. It copies only declared public
+assets, retains `/`, `/index.html`, `/app` and `/app/`, and uses the existing
+manifest identity, root service worker, update consent and storage services.
+Kit worker registration and version polling are disabled. No rendering server is
+part of the output. See [static Kit build and acceptance](engineering/static-sveltekit.md).
 
 ## Runtime topology
 

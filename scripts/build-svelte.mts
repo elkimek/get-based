@@ -9,8 +9,8 @@ import { compile } from 'svelte/compiler';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const COMPONENT = path.join(ROOT, 'js/components/DisplaySettings.svelte');
-export async function buildSvelte({ outputDirectory = path.dirname(COMPONENT), check = false }: {
-  outputDirectory?: string; check?: boolean;
+export async function buildSvelte({ component = COMPONENT, outputDirectory = path.dirname(component), check = false }: {
+  component?: string; outputDirectory?: string; check?: boolean;
 } = {}): Promise<void> {
   const result = await build({
     input: 'getbased:display-entry',
@@ -18,12 +18,16 @@ export async function buildSvelte({ outputDirectory = path.dirname(COMPONENT), c
     platform: 'browser',
     plugins: [{
       name: 'getbased-display-component',
-      resolveId(id) { return id === 'getbased:display-entry' ? id : null; },
+      resolveId(id, importer) {
+        if (id === 'getbased:display-entry') return id;
+        if (importer === component && id.startsWith('.') && id.endsWith('.js')) return { id, external: true };
+        return null;
+      },
       async load(id) {
         if (id === 'getbased:display-entry') {
-          return `export { default } from ${JSON.stringify(COMPONENT)}; export { mount, unmount, flushSync } from 'svelte';`;
+          return `export { default } from ${JSON.stringify(component)}; export { mount, unmount, flushSync } from 'svelte';`;
         }
-        if (id !== COMPONENT) return null;
+        if (id !== component) return null;
         const compiled = compile(await fs.readFile(id, 'utf8'), {
           filename: id, generate: 'client', css: 'external', dev: false,
         });
@@ -34,7 +38,7 @@ export async function buildSvelte({ outputDirectory = path.dirname(COMPONENT), c
         return { code: compiled.js.code, map: compiled.js.map };
       },
     }],
-    output: { dir: outputDirectory, format: 'es', minify: true, sourcemap: true, entryFileNames: 'DisplaySettings.svelte.native.js' },
+    output: { dir: outputDirectory, format: 'es', minify: true, sourcemap: true, entryFileNames: `${path.basename(component)}.native.js` },
   });
   for (const output of result.output) {
     const file = path.join(outputDirectory, output.fileName);
@@ -49,5 +53,7 @@ export async function buildSvelte({ outputDirectory = path.dirname(COMPONENT), c
   }
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  await buildSvelte({ check: process.argv.includes('--check') });
+  for (const component of [COMPONENT, path.join(ROOT, 'js/kit/routes/app/+layout.svelte'), path.join(ROOT, 'js/kit/routes/app/+page.svelte')]) {
+    await buildSvelte({ component, check: process.argv.includes('--check') });
+  }
 }

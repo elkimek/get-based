@@ -14,8 +14,8 @@ export default defineConfig({
   projects: [
     // Full Chromium uses Chrome's browser code path while remaining headless.
     { name: 'pwa-chromium', use: { ...devices['Desktop Chrome'], channel: 'chromium', launchOptions: launchOptions! } },
-    { name: 'pwa-firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'pwa-webkit', use: { ...devices['Desktop Safari'], launchOptions: webkitExecutable ? { executablePath: webkitExecutable } : {} } },
-    { name: 'pwa-mobile-webkit', use: { ...devices['iPhone 13'], launchOptions: webkitExecutable ? { executablePath: webkitExecutable } : {} } },
+    { name: 'pwa-firefox', use: { ...devices['Desktop Firefox'], launchOptions: { env: launchOptions!.env! } } },
+    { name: 'pwa-webkit', use: { ...devices['Desktop Safari'], launchOptions: { env: launchOptions!.env!, ...(webkitExecutable ? { executablePath: webkitExecutable } : {}) } } },
+    { name: 'pwa-mobile-webkit', use: { ...devices['iPhone 13'], launchOptions: { env: launchOptions!.env!, ...(webkitExecutable ? { executablePath: webkitExecutable } : {}) } } },
   ],
 });

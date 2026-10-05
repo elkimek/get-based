@@ -1521,3 +1521,13 @@ deploy/profile-share/data/
 .svelte-check/
 
 /playwright.display-pilot.config.js
+
+# Static SvelteKit build tooling output
+/scripts/build-sveltekit.mjs
+/scripts/sveltekit-contracts.mjs
+/tooling/svelte/*.mjs
+/js/kit/**/*.js
+/playwright.sveltekit.config.js
+/tooling/svelte/.svelte-kit/
+/js/kit/**/*.js.map
+/scripts/headless-browser-environment.js

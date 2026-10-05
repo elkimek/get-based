@@ -124,7 +124,7 @@ function replaceMarkedSection(source: string, startMarker: string, endMarker: st
   return `${before}\n${replacementLines.join('\n')}\n${after}`;
 }
 
-function pruneSourceModuleAppShell(source: string) {
+export function pruneSourceModuleAppShell(source: string) {
   const start = source.indexOf('const APP_SHELL = [');
   const end = source.indexOf('\n];', start);
   if (start < 0 || end < start) throw new Error('Missing or invalid APP_SHELL array');

@@ -110,3 +110,10 @@ The full release CI workflow also runs both browser matrices.
 PWA Chromium checks use the pinned full browser in its modern headless mode
 (`channel: chromium`), exercising Chrome's normal browser implementation without
 opening desktop windows. See [Playwright browser modes](https://playwright.dev/docs/browsers#chromium-new-headless-mode).
+
+The opt-in static SvelteKit bridge is built with `npm run sveltekit:build` and
+verified locally with `npm run test:sveltekit`. It outputs an ignored static
+artifact and does not require GitHub Actions. See
+[static Kit build and acceptance](engineering/static-sveltekit.md) for the
+preserved runtime, PWA and size-measurement contracts. Standard browser checks
+remove access to the user's desktop session in addition to requesting headless mode.
