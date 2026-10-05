@@ -160,24 +160,74 @@ function installServiceWorkerRuntime({
     }
   }
 
+  // Pages can keep an older module graph after another tab accepts an update.
+  // Keep its immutable assets until every live client identifies its build.
+  // Unknown clients include pre-protocol releases and are retained safely.
+  const clientBuilds = new Map<string, string>();
+  let retainedCaches = true;
+  // Only activation can identify retired builds. A cache created later may
+  // belong to the installing/waiting worker and must never be retired here.
+  // After a worker restart, retain safely until the next activation census.
+  let retirementCandidates: Set<string> | null = null;
+  let cleanupPending: Promise<void> | null = null;
+  function cleanupUnusedBuilds(): Promise<void> {
+    if (!retirementCandidates) return Promise.resolve();
+    if (cleanupPending) return cleanupPending;
+    cleanupPending = (async () => {
+      const current = await resolveCacheName();
+      const old = (await caches.keys()).filter(key => retirementCandidates!.has(key) && key !== current);
+      if (!old.length) { retainedCaches = false; return; }
+      const keep = new Set([current]);
+      if (buildId) {
+        const clients = await scope.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        const liveIds = new Set(clients.map(client => client.id));
+        for (const id of clientBuilds.keys()) if (!liveIds.has(id)) clientBuilds.delete(id);
+        let unknown = false;
+        for (const client of clients) {
+          const id = clientBuilds.get(client.id);
+          if (id) keep.add(`labcharts-vbuild-${id}`);
+          else { unknown = true; client.postMessage({ type: 'REQUEST_CLIENT_BUILD_ID' }); }
+        }
+        if (unknown) return;
+      }
+      await Promise.all(old.filter(key => !keep.has(key)).map(key => caches.delete(key)));
+      retainedCaches = old.some(key => keep.has(key));
+    })().finally(() => { cleanupPending = null; });
+    return cleanupPending;
+  }
+
   scope.addEventListener('message', (event) => {
-    if ((event.data as { type?: unknown } | null | undefined)?.type === 'SKIP_WAITING' && isSameOriginMessage(event)) {
-      void scope.skipWaiting();
-    }
+    const data = event.data as { type?: unknown; buildId?: unknown } | null | undefined;
+    const source = event.source;
+    if (data?.type === 'SKIP_WAITING' && isSameOriginMessage(event)) { void scope.skipWaiting(); return; }
+    if (!buildId || data?.type !== 'CLIENT_BUILD_ID' || !isSameOriginMessage(event)
+      || !source || !('id' in source) || typeof source.id !== 'string'
+      || typeof data.buildId !== 'string' || !/^[a-z\d._-]{1,128}$/i.test(data.buildId)) return;
+    clientBuilds.set(source.id, data.buildId);
+    // Messages can arrive during activate's client census. Recheck after that
+    // census rather than reusing a result which saw this client as unknown.
+    event.waitUntil((cleanupPending || Promise.resolve()).then(() => cleanupUnusedBuilds()));
   });
 
-  // Activate: delete old caches (any key that isn't this build's).
   scope.addEventListener('activate', (event) => {
-    event.waitUntil(
-      resolveCacheName().then((name) =>
-        caches.keys().then((keys) =>
-          Promise.all(keys
-            .filter((key) => key.startsWith('labcharts-v') && key !== name)
-            .map((key) => caches.delete(key)))
-        )
-      ).then(() => scope.clients.claim())
-    );
+    event.waitUntil(Promise.all([resolveCacheName(), caches.keys()]).then(([current, keys]) => {
+      retirementCandidates = new Set(keys.filter(key => key.startsWith('labcharts-v') && key !== current));
+      return cleanupUnusedBuilds();
+    }).then(() => scope.clients.claim()));
   });
+
+  async function matchImmutableAsset(request: Request, url: URL) {
+    const current = await matchCurrentCache(request);
+    if (current || !buildId || !retainedCaches
+      || !(/^\/js\/bundle-[a-z\d_-]+\.js$/i.test(url.pathname)
+        || /^\/_app\/immutable\/.+\.(?:js|css)$/.test(url.pathname))) return current;
+    const currentName = await resolveCacheName();
+    for (const key of (await caches.keys()).filter(key => key.startsWith('labcharts-v') && key !== currentName)) {
+      const cached = await (await caches.open(key)).match(request);
+      if (cached) return cached;
+    }
+    return undefined;
+  }
 
   // Fetch: route-based caching strategies.
   scope.addEventListener('fetch', (event) => {
@@ -238,8 +288,9 @@ function installServiceWorkerRuntime({
       return;
     }
 
+    if (buildId && retainedCaches) event.waitUntil(cleanupUnusedBuilds());
     event.respondWith(
-      matchCurrentCache(event.request).then((cached) => cached || fetchAndCache(event.request, event))
+      matchImmutableAsset(event.request, url).then((cached) => cached || fetchAndCache(event.request, event))
     );
   });
 }

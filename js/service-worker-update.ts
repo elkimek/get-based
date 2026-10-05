@@ -369,6 +369,19 @@ export async function registerServiceWorkerUpdates({
   try {
     const registration = await serviceWorkerContainer.register!('/service-worker.js', { updateViaCache: 'none' });
     reloadPage = () => win.location!.reload();
+    const reportClientBuild = () => {
+      const id = typeof win.APP_BUILD_ID === 'string' ? win.APP_BUILD_ID.trim() : '';
+      if (!/^[a-z\d._-]{1,128}$/i.test(id)) return;
+      try {
+        const active = serviceWorkerContainer.controller as UpdateWorkerView | null | undefined;
+        active?.postMessage?.({ type: 'CLIENT_BUILD_ID', buildId: id });
+      } catch { /* Cache retirement is retried on the next message or focus. */ }
+    };
+    serviceWorkerContainer.addEventListener?.('message', (event: MessageEvent<unknown>) => {
+      if ((event.data as { type?: unknown } | null | undefined)?.type === 'REQUEST_CLIENT_BUILD_ID') reportClientBuild();
+    });
+    win.addEventListener?.('focus', reportClientBuild);
+    reportClientBuild();
     let refreshing = false;
     let controller = serviceWorkerContainer.controller;
     serviceWorkerContainer.addEventListener!('controllerchange', () => {
@@ -376,6 +389,7 @@ export async function registerServiceWorkerUpdates({
       if (refreshing || !nextController || nextController === controller) return;
       const previousController = controller;
       controller = nextController;
+      reportClientBuild();
       // A first install claims an already current page. Only replacement of
       // an existing controller is evidence that this page needs a reload.
       if (!previousController && !updateRequested) return;

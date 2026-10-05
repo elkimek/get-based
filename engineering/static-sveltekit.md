@@ -38,10 +38,19 @@ while this bridge is evaluated; building locally does not publish it.
   Kit neither registers a second worker nor polls for independent updates.
 - First feature use and cold launch work offline. Failed updates retain the
   active app. Later defers activation and explicit Reload preserves stored data.
+- Old tabs can load their previous content-hashed modules after a new worker
+  activates. Live clients report their document build, and unused version caches
+  retire after old documents leave or reload; unknown pre-protocol clients keep
+  their assets until they leave. Cleanup only considers versions present at
+  activation, preserving caches prepared by a waiting worker. After a worker
+  restart, old caches stay safe until the next activation census. Mutable assets
+  and API traffic never use the
+  old immutable-asset fallback.
 - Kit's bootstrap runs as an external classic script under the existing CSP.
 
 The focused browser scenarios live in [sveltekit.spec.ts](../tests/pwa/sveltekit.spec.ts).
-Build and desktop-isolation contracts have separate unit tests. These checks do
+Build, desktop-isolation and [client cache retention](../tests/service-worker-client-cache.test.ts)
+contracts have separate unit tests. These checks do
 not constitute complete application regression, hardware/provider acceptance,
 or a fresh combined function-coverage measurement. Owned Kit component emissions
 remain in the existing coverage inventory; no source or compiler safety is waived.

@@ -105,8 +105,10 @@ The static assembler externalizes Kit's classic bootstrap to satisfy the existin
 CSP without permitting inline executable scripts. It copies only declared public
 assets, retains `/`, `/index.html`, `/app` and `/app/`, and uses the existing
 manifest identity, root service worker, update consent and storage services.
-Kit worker registration and version polling are disabled. No rendering server is
-part of the output. See [static Kit build and acceptance](engineering/static-sveltekit.md).
+Kit worker registration and version polling are disabled. Live documents identify
+their build to the worker so previous immutable modules remain available until
+old tabs reload or close; unknown legacy documents retain their caches safely.
+No rendering server is part of the output. See [static Kit build and acceptance](engineering/static-sveltekit.md).
 
 ## Runtime topology
 

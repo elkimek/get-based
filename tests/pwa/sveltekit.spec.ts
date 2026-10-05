@@ -104,6 +104,8 @@ test('failed update retains the app and Later defers activation until explicit o
     await page.locator('#settings-tab-display [data-unit="US"]').click();
     await page.locator('[data-settings-action="close"]').click();
     await page.evaluate(() => localStorage.setItem('kit-update-retained', 'retained'));
+    const other = await context.newPage();
+    await other.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' }); await ready(other);
     server.state.buildId = 'kit-test-b'; server.state.failPath = '/css/settings.css';
     const failed = await page.evaluate(async () => {
       const registration = (await navigator.serviceWorker.getRegistration())!;
@@ -127,7 +129,18 @@ test('failed update retains the app and Later defers activation until explicit o
     await expect.poll(() => identity(page).catch(() => ''), { timeout: 30_000 }).toBe('kit-test-b'); await ready(page); await display(page);
     await expect(page.locator('#settings-tab-display [data-unit="US"]')).toHaveAttribute('aria-pressed', 'true');
     expect(await page.evaluate(() => localStorage.getItem('kit-update-retained'))).toBe('retained');
+    await expect(other.locator('#version-update-banner')).toContainText('Reload');
+    expect(await identity(other)).toBe('kit-test-a');
+    expect(await other.evaluate(async () => {
+      const url = '/js/bundle-legacy-probe-AAA.js';
+      const module: unknown = await import(url);
+      return (module as { legacyProbe?: unknown }).legacyProbe;
+    })).toBe('old-tab-code');
+    expect(await page.evaluate(() => caches.keys())).toContain('labcharts-vbuild-kit-test-a');
+    await other.locator('[data-version-update-action="apply"]').click();
+    await expect.poll(() => identity(other).catch(() => ''), { timeout: 30_000 }).toBe('kit-test-b'); await ready(other); await display(other);
+    await expect(other.locator('#settings-tab-display [data-unit="US"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(async () => { expect(await page.evaluate(() => caches.keys())).toEqual(['labcharts-vbuild-kit-test-b']); }).toPass({ timeout: 10_000 });
-    await noCspErrors(page, errors);
+    await noCspErrors(page, errors); await noCspErrors(other, errors);
   } finally { await server.close(); }
 });

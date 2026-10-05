@@ -413,3 +413,25 @@ describe('service worker update prompt', () => {
     expect(applyPendingServiceWorkerUpdate({ waiting: null })).toBe(false);
   });
 });
+
+
+it('reports the document build to a replacement controller without confusing it with the new worker build', async () => {
+  const oldWorker = { postMessage: vi.fn() }, nextWorker = { postMessage: vi.fn() };
+  let changed: (() => void) | undefined;
+  let requested: ((event: MessageEvent<unknown>) => void) | undefined;
+  const container: UpdateContainerView = { controller: oldWorker,
+    register: vi.fn(async () => ({ waiting: null, addEventListener: vi.fn() })),
+    addEventListener: vi.fn((type: unknown, listener: unknown) => {
+      if (type === 'controllerchange') changed = listener as () => void;
+      if (type === 'message') requested = listener as (event: MessageEvent<unknown>) => void;
+    }) };
+  await serviceWorkerUpdate!.registerServiceWorkerUpdates({
+    win: { APP_BUILD_ID: 'old-document', location: { hostname: 'getbased.health', search: '', reload: vi.fn() } },
+    serviceWorkerContainer: container, cacheStorage: null,
+  });
+  expect(oldWorker.postMessage).toHaveBeenCalledWith({ type: 'CLIENT_BUILD_ID', buildId: 'old-document' });
+  container.controller = nextWorker; changed!();
+  expect(nextWorker.postMessage).toHaveBeenCalledWith({ type: 'CLIENT_BUILD_ID', buildId: 'old-document' });
+  requested!(new MessageEvent('message', { data: { type: 'REQUEST_CLIENT_BUILD_ID' } }));
+  expect(nextWorker.postMessage).toHaveBeenCalledTimes(2);
+});

@@ -16,6 +16,10 @@ export async function startKitServer(artifact: string) {
     try {
       let pathname = new URL(req.url!, 'http://localhost').pathname;
       if (pathname === state.failPath) { res.writeHead(503); res.end('Unavailable'); return; }
+      if (pathname === '/js/bundle-legacy-probe-AAA.js') {
+        if (state.buildId !== 'kit-test-a') { res.writeHead(404); res.end('Removed from the new build'); return; }
+        res.setHeader('Content-Type', 'text/javascript'); res.end('export const legacyProbe = "old-tab-code";'); return;
+      }
       if (pathname === '/api/commit') {
         res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ cacheKey: state.buildId })); return;
       }
@@ -23,7 +27,11 @@ export async function startKitServer(artifact: string) {
       const file = path.resolve(artifact, '.' + pathname);
       if (!file.startsWith(path.resolve(artifact) + path.sep)) throw new Error('Invalid artifact path');
       let body = await fs.readFile(file);
-      if (pathname === '/service-worker.js') body = Buffer.from(body.toString().replace(/const BUILD_ID = '[^']*';/, `const BUILD_ID = '${state.buildId}';`));
+      if (pathname === '/service-worker.js') {
+        let source = body.toString().replace(/const BUILD_ID = '[^']*';/, `const BUILD_ID = '${state.buildId}';`);
+        if (state.buildId === 'kit-test-a') source = source.replace('const APP_SHELL = [', 'const APP_SHELL = [\n  \'/js/bundle-legacy-probe-AAA.js\',');
+        body = Buffer.from(source);
+      }
       if (pathname === '/version.js') body = Buffer.from(body.toString().replace(/self.APP_BUILD_ID = '[^']*';/, `self.APP_BUILD_ID = '${state.buildId}';`));
       res.setHeader('Content-Type', types[path.extname(file)] || 'application/octet-stream');
       res.setHeader('Content-Security-Policy', csp); res.setHeader('Cache-Control', 'no-store'); res.end(body);
