@@ -9,5 +9,6 @@
     "svelte-check": "4.7.6",
     "typescript": "6.0.3",
     "@typescript/native": "npm:typescript@7.0.2"
-  }
+  },
+  "version": "0.0.0"
 }

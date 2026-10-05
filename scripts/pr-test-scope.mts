@@ -36,7 +36,7 @@ const MODEL_TESTS = /(?:api-provider|provider-model|provider-coverage|provider-p
 // generators with a read-only reproducibility check also run it in PR CI.
 interface ToolScope { sources: readonly string[]; tests: readonly string[]; check?: ValidationCheck }
 const TOOL_SCOPES: readonly ToolScope[] = [
-  { sources: ['scripts/build-svelte.mjs', 'scripts/svelte-source.mjs', 'js/components/DisplaySettings.svelte', 'tsconfig.svelte.json', 'tooling/svelte/package.json'], tests: ['tests/svelte-pilot-build.test.ts', 'tests/playwright/settings-display-pilot.spec.ts', 'tests/pwa/settings-display-pilot.spec.ts'] },
+  { sources: ['scripts/build-svelte.mjs', 'scripts/svelte-source.mjs', 'js/components/DisplaySettings.svelte', 'js/components/DisplaySettings.svelte.native.d.ts', 'tsconfig.svelte.json', 'tooling/svelte/package.json'], tests: ['tests/svelte-pilot-build.test.ts', 'tests/playwright/settings-display-pilot.spec.ts', 'tests/pwa/settings-display-pilot.spec.ts'] },
   { sources: ['scripts/build-styles.mjs', 'css/settings-display.tailwind.css', 'css/settings.base.css'], tests: ['tests/styles-build.test.ts', 'tests/playwright/settings-display-pilot.spec.ts'] },
   {
     sources: ['scripts/build-browser-vendors.mjs', ...['cashu', 'ehbp', 'tinfoil', 'venice-e2ee', 'venice-nvidia', 'venice-dcap', 'routstr-crypto', 'zlib-browser-shim'].map(name => `scripts/vendor-entries/${name}.js`)],
