@@ -236,10 +236,9 @@ an HTML file inventory, and a feature summary also shown in the job summary. The
 measure execution, not branch coverage or complete user-workflow coverage; unmatched
 collector ranges are exposed in the JSON for investigation. Keep local verification
 focused on the changed modules; use CI for the complete measurement.
-See [critical-workflow expectations](QUALITY_COVERAGE_POLICY.md) for behavioral
-requirements and the manual-only real-model workflow. The local
-[workflow evidence inventory](QUALITY_WORKFLOW_INVENTORY.md) separates reviewed
-regressions from unmeasured integration and coverage boundaries.
+See [critical-workflow expectations](engineering/testing-policy.md) for behavioral
+requirements and release verification. Task progress, checkpoints, and audit
+logs belong in the ignored `.local-notes/` directory, rather than the repository.
 `npm run test:evolu8-browsers` runs the focused Evolu 8 startup, durable-identity, resource-management-polyfill, and one-tab fallback checks in Chromium, Firefox, and WebKit.
 `npm run test:firefox` runs the focused Firefox critical-flow suite; install its browser binary once with `npx playwright install firefox`.
 `npm run test:pwa` checks offline lazy features, manifest assets, interrupted updates, retry, and two-tab data preservation in Chromium, Firefox, and desktop/mobile WebKit. Install those engines with `npx playwright install --with-deps chromium firefox webkit`. The tests disconnect an isolated local origin, use synthetic profiles, and never modify a deployed application.
@@ -265,8 +264,8 @@ The explicit [release-evidence workflow](.github/workflows/release-evidence.yml)
 runs full regression and both real WASM model scenarios on the selected revision;
 it does not deploy. Sync compatibility has a [separate workflow](.github/workflows/sync-compat.yml).
 Live paid providers, physical hardware and manual acceptance remain separate
-verification. Current migration evidence and outstanding release checks live in
-[the migration and pre-release audit notes](TYPESCRIPT_MIGRATION.md).
+verification. The TypeScript 7 migration was merged in [PR #1660](https://github.com/elkimek/get-based/pull/1660).
+Use GitHub Actions on the selected revision for current release evidence.
 
 PWA updates use a build identity generated from the deployed commit and deployment ID. The builder embeds it in both `version.js` and the service worker; release versions remain for changelogs. Visible apps check every five minutes and on return, download new builds silently into a separate cache, and offer **Reload / Later** only after installation succeeds. Failed downloads keep the current build active. Version 1.19.3 provides the migration signal for older version-based clients; subsequent patches need no version bump.
 
@@ -313,13 +312,14 @@ get-based/
 ├── tests/                          # TypeScript Vitest, legacy and Playwright suites
 ├── vendor/                         # External libraries and declared project-owned sources
 ├── tsconfig*.json                  # Strict app, server, worker and test compiler projects
-├── TYPESCRIPT_MIGRATION.md          # Migration contract, evidence and pre-release audit
+├── engineering/                    # Maintained testing and feature contracts
+├── AGENTS.md                       # Stable instructions for coding agents
 ├── ARCHITECTURE.md                  # Maintained ownership and dependency contract
 ├── MODULE_MAP.md                    # Generated module/import map of canonical sources
 └── .github/workflows/              # CI and release verification
 ```
 
-User and developer documentation live at [docs.getbased.health](https://docs.getbased.health). The app repo keeps only code-adjacent notes and tests.
+User and developer documentation live at [docs.getbased.health](https://docs.getbased.health). The app repo keeps maintained [engineering guidance](engineering/README.md) and tests. Task progress and temporary working notes stay local in the ignored `.local-notes/` directory.
 
 ## Related repos
 

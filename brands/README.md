@@ -2,6 +2,8 @@
 
 Single source of truth for wearable-vendor logos / marks / Connect-button assets. Used by the app (`js/brand-assets.js` registry) and the landing site.
 
+The getbased name, wordmark, colors, and writing conventions are defined in the [brand manual](BRAND.md).
+
 ## Per-vendor structure
 
 ```

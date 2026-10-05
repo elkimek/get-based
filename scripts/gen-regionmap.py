@@ -19,9 +19,11 @@ Changes vs v2:
 from PIL import Image
 import numpy as np
 import os
+from pathlib import Path
 
-MASK = '/home/elkim/Documents/Claude Code/Lab-Charts-sun/er-mask.png'
-OUT  = '/home/elkim/Documents/Claude Code/Lab-Charts-sun/er-regionmap.png'
+REPO_ROOT = Path(__file__).resolve().parents[1]
+MASK = REPO_ROOT / 'er-mask.png'
+OUT = REPO_ROOT / 'er-regionmap.png'
 
 VB_W = 3082.45
 VB_H = 4890.47

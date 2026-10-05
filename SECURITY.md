@@ -10,7 +10,7 @@ I'll acknowledge receipt within 48 hours and aim to release a fix within 7 days 
 
 ## Scope
 
-- Application code (HTML, CSS, JavaScript)
+- Application code (HTML, CSS, TypeScript, and generated JavaScript)
 - Data handling (localStorage, encryption, PII obfuscation)
 - AI API key management
 - Cross-device sync (Evolu relay)
