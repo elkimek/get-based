@@ -23,7 +23,13 @@
       "name": "compat-server",
       "description": "Standalone Node compatibility-relay entry point.",
       "roots": ["server/compat-proxy-server.js"],
-      "mayImport": ["serverless"]
+      "mayImport": ["serverless", "server-routing"]
+    },
+    {
+      "name": "server-routing",
+      "description": "Pure forwarded-origin and integer parsing shared by the standalone HTTP adapters.",
+      "roots": ["lib/node-request-routing.js"],
+      "mayImport": []
     },
     {
       "name": "server-shared",
@@ -41,7 +47,7 @@
       "name": "standalone-server",
       "description": "Operator-deployed profile-share service entry point.",
       "roots": ["server/profile-share-server.js"],
-      "mayImport": ["server-shared"]
+      "mayImport": ["server-shared", "server-routing"]
     },
     {
       "name": "agent-companion",
@@ -58,7 +64,7 @@
     {
       "name": "service-worker",
       "description": "Classic service worker entry point and cache-routing runtime.",
-      "roots": ["service-worker.js", "service-worker-runtime.js"],
+      "roots": ["service-worker.js", "service-worker-runtime.js", "service-worker-assets.js"],
       "mayImport": ["service-worker"]
     }
   ],

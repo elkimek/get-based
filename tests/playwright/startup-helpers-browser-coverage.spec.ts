@@ -1,0 +1,528 @@
+import type {Page} from '@playwright/test';
+interface StartupFixtureGlobals {__startupFoundationCalls:unknown[];__startupProfileCalls:unknown[][];__encryptedReads:unknown[];__encryptedWrites:[unknown,string][];__activeProfileId:unknown;__profileSex:unknown;__profileDob:unknown;__startupProfileState:{currentProfile:unknown;importedData:Record<string,unknown>;unitSystem:unknown;rangeMode:unknown;profileSex:unknown;profileDob:unknown};__startupMaintenanceCalls:unknown[];__startupMaintenanceState:{currentProfile:unknown;importedData:{lightDevices:unknown[];[key:string]:unknown}};__startupUICalls:unknown[];APP_VERSION:unknown;_openSettingsAfterInit?:unknown;_openChatAfterInit?:unknown}
+import { routeHtml } from '../helpers/browser-static-routes.js';
+import { createModuleUrl } from '../helpers/browser-module-url.js';
+import { expect, test } from './coverage-fixture.js';
+
+test.setTimeout(30_000);
+
+const moduleUrl = createModuleUrl('startupHelpersCoverage');
+
+async function openStartupFixture(page:Page, dependencyRoutes:Record<string,string>) {
+  await routeHtml(page, '**/startup-helpers-browser-coverage', '<!doctype html><html><body><main id="fixture"></main></body></html>', 200);
+
+  for (const [glob, body] of Object.entries(dependencyRoutes)) {
+    await page.route(glob, route => route.fulfill({
+      contentType: 'application/javascript',
+      body,
+    }));
+  }
+
+  await page.goto('/startup-helpers-browser-coverage', { waitUntil: 'load' });
+}
+
+function expectOutcomes(outcomes:Record<string,unknown>) {
+  for (const [name, passed] of Object.entries(outcomes)) {
+    expect(passed, name).toBe(true);
+  }
+}
+
+test('startup foundation initializes blocking services in order', async ({ page }) => {
+  await openStartupFixture(page, {
+    '**/js/crypto.js*': `
+      export async function initEncryption() {
+        window.__startupFoundationCalls.push('initEncryption');
+      }
+      export function initBroadcastChannel() {
+        window.__startupFoundationCalls.push('initBroadcastChannel');
+      }
+      export async function initFolderBackup() {
+        window.__startupFoundationCalls.push('initFolderBackup');
+      }
+    `,
+    '**/js/sun-uvdata.js*': `
+      export async function initMeteoConfigCache() {
+        window.__startupFoundationCalls.push('initMeteoConfigCache');
+      }
+    `,
+  });
+
+  const outcomes = await page.evaluate(async ({ foundationUrl }) => {
+    (window as unknown as StartupFixtureGlobals).__startupFoundationCalls = [];
+    const foundation = await ((import(foundationUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/startup-foundation.js"), "initializeStartupFoundation"> >);
+    await foundation.initializeStartupFoundation();
+
+    return {
+      initializesServicesInBlockingOrder: JSON.stringify((window as unknown as StartupFixtureGlobals).__startupFoundationCalls) === JSON.stringify([
+        'initEncryption',
+        'initMeteoConfigCache',
+        'initBroadcastChannel',
+        'initFolderBackup',
+      ]),
+    };
+  }, {
+    foundationUrl: moduleUrl('/js/startup-foundation.js'),
+  });
+
+  expectOutcomes(outcomes);
+});
+
+test('startup profile migrates legacy storage and applies saved display state', async ({ page }) => {
+  await openStartupFixture(page, {
+    '**/js/state.js*': `
+      export const state = window.__startupProfileState;
+    `,
+    '**/js/profile.js*': `
+      export async function saveProfiles(profiles) {
+        window.__startupProfileCalls.push(['saveProfiles', profiles.length, profiles[0]?.id]);
+        localStorage.setItem('labcharts-profiles', JSON.stringify(profiles));
+      }
+      export function getActiveProfileId() {
+        window.__startupProfileCalls.push(['getActiveProfileId']);
+        return window.__activeProfileId || 'default';
+      }
+      export function setActiveProfileId(id) {
+        window.__startupProfileCalls.push(['setActiveProfileId', id]);
+        window.__activeProfileId = id;
+      }
+      export function getProfileSex(profileId) {
+        window.__startupProfileCalls.push(['getProfileSex', profileId]);
+        return window.__profileSex;
+      }
+      export function getProfileDob(profileId) {
+        window.__startupProfileCalls.push(['getProfileDob', profileId]);
+        return window.__profileDob;
+      }
+      export function profileStorageKey(profileId, key) {
+        return 'labcharts-' + profileId + '-' + key;
+      }
+      export function migrateProfileData(importedData) {
+        window.__startupProfileCalls.push(['migrateProfileData', Array.isArray(importedData.notes)]);
+        importedData.migratedByProfileStub = true;
+      }
+      export async function initProfilesCache() {
+        window.__startupProfileCalls.push(['initProfilesCache']);
+      }
+    `,
+    '**/js/crypto.js*': `
+      export function configureCryptoProfileDeps() {}
+      export async function encryptedGetItem(key) {
+        window.__encryptedReads.push(key);
+        return localStorage.getItem(key);
+      }
+      export async function encryptedSetItem(key, value) {
+        window.__encryptedWrites.push([key, value]);
+        localStorage.setItem(key, value);
+      }
+    `,
+    '**/js/data-merge.js*': `
+      export function ensureImportedArray(importedData, key) {
+        window.__startupProfileCalls.push(['ensureImportedArray', key]);
+        if (!Array.isArray(importedData[key])) importedData[key] = [];
+      }
+    `,
+  });
+
+  const outcomes = await page.evaluate(async ({ profileUrl }) => {
+    localStorage.clear();
+    document.body.innerHTML = `
+      <button class="unit-toggle-btn" data-unit="SI"></button>
+      <button class="unit-toggle-btn" data-unit="US"></button>
+      <button class="sex-toggle-btn" data-sex="male"></button>
+      <button class="sex-toggle-btn" data-sex="female"></button>
+      <button class="range-toggle-btn" data-range="optimal"></button>
+      <button class="range-toggle-btn" data-range="both"></button>
+      <input id="dob-input">
+    `;
+    (window as unknown as StartupFixtureGlobals).__startupProfileCalls = [];
+    (window as unknown as StartupFixtureGlobals).__encryptedReads = [];
+    (window as unknown as StartupFixtureGlobals).__encryptedWrites = [];
+    (window as unknown as StartupFixtureGlobals).__activeProfileId = null;
+    (window as unknown as StartupFixtureGlobals).__profileSex = 'female';
+    (window as unknown as StartupFixtureGlobals).__profileDob = '1990-02-03';
+    (window as unknown as StartupFixtureGlobals).__startupProfileState = {
+      currentProfile: '',
+      importedData: {},
+      unitSystem: 'SI',
+      rangeMode: 'optimal',
+      profileSex: null,
+      profileDob: null,
+    };
+    localStorage.setItem('labcharts-imported', JSON.stringify({ entries: [{ date: '2026-06-01' }] }));
+    localStorage.setItem('labcharts-units', 'US');
+    localStorage.setItem('labcharts-default-rangeMode', 'both');
+
+    const profile = await ((import(profileUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/startup-profile.js"), "initializeProfileData" | "applyProfileDisplayState"> >);
+    await profile.initializeProfileData();
+    profile.applyProfileDisplayState();
+
+    const activeUnit = document.querySelector('.unit-toggle-btn[data-unit="US"]');
+    const inactiveUnit = document.querySelector('.unit-toggle-btn[data-unit="SI"]');
+    const activeSex = document.querySelector('.sex-toggle-btn[data-sex="female"]');
+    const activeRange = document.querySelector('.range-toggle-btn[data-range="both"]');
+    const dobInput = document.getElementById('dob-input') as HTMLInputElement|null;
+
+    return {
+      legacyProfileStorageIsCreatedAndOldKeysRemoved:
+        JSON.parse(localStorage.getItem('labcharts-profiles') || '[]')[0]?.id === 'default'
+        && (window as unknown as StartupFixtureGlobals).__activeProfileId === 'default'
+        && localStorage.getItem('labcharts-imported') === null
+        && localStorage.getItem('labcharts-units') === null,
+      legacyImportedDataMovesThroughEncryptedStorage:
+        (window as unknown as StartupFixtureGlobals).__encryptedWrites.some(([key, value]) => key === 'labcharts-default-imported' && value.includes('2026-06-01'))
+        && (window as unknown as StartupFixtureGlobals).__encryptedReads.includes('labcharts-default-imported'),
+      activeProfileDataLoadsAndMigrates:
+        (window as unknown as StartupFixtureGlobals).__startupProfileState.currentProfile === 'default'
+        && Array.isArray((window as unknown as StartupFixtureGlobals).__startupProfileState.importedData.notes)
+        && (window as unknown as StartupFixtureGlobals).__startupProfileState.importedData.migratedByProfileStub === true
+        && (window as unknown as StartupFixtureGlobals).__startupProfileCalls.some(call => call[0] === 'initProfilesCache')
+        && (window as unknown as StartupFixtureGlobals).__startupProfileCalls.some(call => call[0] === 'ensureImportedArray' && call[1] === 'notes'),
+      savedDisplayStateUpdatesStateAndControls:
+        (window as unknown as StartupFixtureGlobals).__startupProfileState.unitSystem === 'US'
+        && (window as unknown as StartupFixtureGlobals).__startupProfileState.rangeMode === 'both'
+        && (window as unknown as StartupFixtureGlobals).__startupProfileState.profileSex === 'female'
+        && (window as unknown as StartupFixtureGlobals).__startupProfileState.profileDob === '1990-02-03'
+        && activeUnit!.classList.contains('active')
+        && !inactiveUnit!.classList.contains('active')
+        && activeSex!.classList.contains('active')
+        && activeRange!.classList.contains('active')
+        && dobInput!.value === '1990-02-03',
+    };
+  }, {
+    profileUrl: moduleUrl('/js/startup-profile.js'),
+  });
+
+  expectOutcomes(outcomes);
+});
+
+test('startup maintenance starts services and runs non-blocking migrations', async ({ page }) => {
+  await openStartupFixture(page, {
+    '**/js/state.js*': `
+      export const state = window.__startupMaintenanceState;
+    `,
+    '**/js/wearables-connect.js*': `
+      export function loadWearableRuntimeConfig() {
+        window.__startupMaintenanceCalls.push('loadWearableRuntimeConfig');
+        return Promise.resolve();
+      }
+      export function initWearableScheduler() {
+        window.__startupMaintenanceCalls.push('initWearableScheduler');
+      }
+    `,
+    '**/js/wearables-manual.js*': `
+      export async function migrateBiometricsToManual(profileId, biometrics) {
+        window.__startupMaintenanceCalls.push(['migrateBiometricsToManual', profileId, biometrics?.weight]);
+      }
+      export async function hasManualData(profileId) {
+        window.__startupMaintenanceCalls.push(['hasManualData', profileId]);
+        return true;
+      }
+    `,
+    '**/js/light-devices.js*': `
+      export async function hydrateDevicesFromPresets() {
+        window.__startupMaintenanceCalls.push('hydrateDevicesFromPresets');
+        return true;
+      }
+      export async function rehydrateStaleDeviceSessions() {
+        window.__startupMaintenanceCalls.push('rehydrateStaleDeviceSessions');
+        return { rehydrated: 0 };
+      }
+    `,
+    '**/js/supplement-warnings.js*': `
+      export async function preloadMitoCompoundData() {
+        window.__startupMaintenanceCalls.push('preloadMitoCompoundData');
+        return [];
+      }
+    `,
+    '**/js/wearables-summary.js*': `
+      export async function syncWearableSummary(profileId, sources) {
+        window.__startupMaintenanceCalls.push(['syncWearableSummary', profileId, sources]);
+      }
+    `,
+  });
+
+  const outcomes = await page.evaluate(async ({ maintenanceUrl }) => {
+    const originalSetTimeout = window.setTimeout;
+    const originalConsoleLog = console.log;
+    const logs:string[] = [];
+    (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls = [];
+    (window as unknown as StartupFixtureGlobals).__startupMaintenanceState = {
+      currentProfile: 'startup-maintenance-profile',
+      importedData: {
+        biometrics: { weight: 70 },
+        supplements: [{ name: 'Metformin' }],
+        lightDevices: [{ id: 'coverage-light-device', presetId: 'coverage-preset' }],
+        sunSessions: [{ id: 'coverage-stale-sun-session', endedAt: 1 }],
+        wearableConnections: {
+          manual: {
+            connectedAt: '2026-07-01T00:00:00.000Z',
+            lastSyncAt: 11,
+          },
+          oura: {
+            accessToken: 'coverage-token',
+            connectedAt: '2026-07-02T00:00:00.000Z',
+            lastSyncAt: 22,
+          },
+        },
+      },
+    };
+    const startupRuntime = await import('/js/startup-maintenance-runtime.js');
+    const previousStartupSunDeps = startupRuntime.configureStartupMaintenanceSunDeps({
+      getSunEngineVersion: () => 'maintenance-test',
+      rehydrateStaleSessions: async () => {
+        (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.push('rehydrateStaleSessions');
+        return { rehydrated: 2 };
+      },
+    });
+
+    (window as unknown as {setTimeout:(callback:(...args:unknown[])=>unknown,delay?:number,...args:unknown[])=>number}).setTimeout = (callback, delay, ...args) => {
+      (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.push(['setTimeout', delay]);
+      callback(...args);
+      return 1;
+    };
+    console.log = (...args) => {
+      logs.push(args.map(arg => String(arg)).join(' '));
+    };
+    const waitUntil = async (predicate:()=>unknown) => {
+      for (let attempt = 0; attempt < 500; attempt += 1) {
+        if (predicate()) return true;
+        await new Promise<void>(resolve => originalSetTimeout(resolve, 10));
+      }
+      return false;
+    };
+
+    try {
+      const maintenance = await ((import(maintenanceUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/startup-maintenance.js"), "runPostProfileStartupMaintenance"> >);
+      maintenance.runPostProfileStartupMaintenance();
+      const maintenanceSettled = await waitUntil(() => (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls
+        .some(call => Array.isArray(call) && call[0] === 'syncWearableSummary')
+        && (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.includes('initWearableScheduler')
+        && (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.includes('hydrateDevicesFromPresets')
+        && logs.some(line => line.includes('[light] hydrated user devices from preset library')));
+      const trackedDeviceHydrationCount = (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls
+        .filter(call => call === 'hydrateDevicesFromPresets').length;
+      (window as unknown as StartupFixtureGlobals).__startupMaintenanceState.importedData.lightDevices = [];
+      maintenance.runPostProfileStartupMaintenance();
+      const emptyDeviceHydrationCount = (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls
+        .filter(call => call === 'hydrateDevicesFromPresets').length;
+
+      return {
+        startupServicesInitializeWearableConfigAndScheduler:
+          (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.includes('loadWearableRuntimeConfig')
+          && (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.includes('initWearableScheduler'),
+        connectedWearableSchedulerStartsAfterProfileLoad:
+          (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.includes('initWearableScheduler'),
+        sunSessionRehydrateIsDeferredAndLogged:
+          (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.some(call => Array.isArray(call) && call[0] === 'setTimeout' && call[1] === 1500)
+          && (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.includes('rehydrateStaleSessions')
+          && logs.some(line => line.includes('[sun] self-healed 2 session(s) under vmaintenance-test')),
+        lightDeviceHydrationRunsAndLogsDirtyState:
+          trackedDeviceHydrationCount === 1
+          && logs.some(line => line.includes('[light] hydrated user devices from preset library')),
+        emptyProfilesSkipLightDevicePresetHydration:
+          emptyDeviceHydrationCount === trackedDeviceHydrationCount,
+        trackedSupplementsPreloadWarningData:
+          (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.includes('preloadMitoCompoundData'),
+        legacyBiometricsMigrationRefreshesManualSummary:
+          maintenanceSettled
+          && (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.some(call => Array.isArray(call)
+            && call[0] === 'migrateBiometricsToManual'
+            && call[1] === 'startup-maintenance-profile'
+            && call[2] === 70)
+          && (window as unknown as StartupFixtureGlobals).__startupMaintenanceCalls.some(call => Array.isArray(call)
+            && call[0] === 'syncWearableSummary'
+            && call[1] === 'startup-maintenance-profile'
+            && JSON.stringify(call[2]) === JSON.stringify({
+              manual: {
+                connectedSince: '2026-07-01T00:00:00.000Z',
+                lastSyncAt: 11,
+              },
+              oura: {
+                connectedSince: '2026-07-02T00:00:00.000Z',
+                lastSyncAt: 22,
+              },
+            })),
+      };
+    } finally {
+      window.setTimeout = originalSetTimeout;
+      console.log = originalConsoleLog;
+      startupRuntime.configureStartupMaintenanceSunDeps(previousStartupSunDeps);
+    }
+  }, {
+    maintenanceUrl: moduleUrl('/js/startup-maintenance.js'),
+  });
+
+  expectOutcomes(outcomes);
+});
+
+test('startup UI renders chrome and schedules deferred startup work', async ({ page }) => {
+  await openStartupFixture(page, {
+    '**/js/startup-profile.js*': `
+      export function applyProfileDisplayState() {
+        window.__startupUICalls.push('applyProfileDisplayState');
+      }
+    `,
+    '**/js/theme.js*': `
+      export function getTheme() {
+        window.__startupUICalls.push('getTheme');
+        return 'glass';
+      }
+      export function setTheme(theme) {
+        window.__startupUICalls.push(['setTheme', theme]);
+      }
+    `,
+    '**/js/data.js*': `
+      export function updateHeaderDates() {
+        window.__startupUICalls.push('updateHeaderDates');
+      }
+      export function updateHeaderRangeToggle() {
+        window.__startupUICalls.push('updateHeaderRangeToggle');
+      }
+    `,
+    '**/js/import-file-input.js*': `
+      export function bindImportFileInput() {
+        window.__startupUICalls.push('bindImportFileInput');
+      }
+    `,
+    '**/js/health-data-loader.js*': `
+      export function ensureDnaTablesForPersistedState() {
+        window.__startupUICalls.push('ensureDnaTablesForPersistedState');
+      }
+    `,
+    '**/js/changelog.js*': `
+      export function maybeShowChangelog() {
+        window.__startupUICalls.push('maybeShowChangelog');
+      }
+    `,
+    '**/js/nav.js*': `
+      export function buildSidebar() {
+        window.__startupUICalls.push('buildSidebar');
+      }
+      export function renderProfileDropdown() {
+        window.__startupUICalls.push('renderProfileDropdown');
+      }
+    `,
+    '**/js/crypto.js*': `
+      export function maybeShowBackupNudge() {
+        window.__startupUICalls.push('maybeShowBackupNudge');
+      }
+    `,
+    '**/js/sync.js*': `
+      export function primeSyncState() {
+        window.__startupUICalls.push('primeSyncState');
+      }
+      export async function initSync() {
+        window.__startupUICalls.push('initSync');
+      }
+      export function renderSyncIndicator() {
+        window.__startupUICalls.push('renderSyncIndicator');
+      }
+    `,
+  });
+
+  const outcomes = await page.evaluate(async ({ startupUiUrl }) => {
+    const chatRuntime = await import('/js/chat-runtime.js');
+    const originalSetTimeout = window.setTimeout;
+    const originalRequestAnimationFrame = window.requestAnimationFrame;
+    (window as unknown as StartupFixtureGlobals).__startupUICalls = [];
+    document.body.innerHTML = `
+      <span id="app-version-text"></span>
+      <div id="passphrase-overlay" style="display: none;"></div>
+    `;
+    (window as unknown as StartupFixtureGlobals).APP_VERSION = 'startup-ui-test-version';
+    const previousChatRuntime = chatRuntime.configureChatRuntimeCallbacks({
+      updateChatNudge: () => (window as unknown as StartupFixtureGlobals).__startupUICalls.push('updateChatNudge'),
+    });
+    (window as unknown as StartupFixtureGlobals)._openSettingsAfterInit = 'display';
+    (window as unknown as StartupFixtureGlobals)._openChatAfterInit = true;
+    window.requestAnimationFrame = callback => {
+      (window as unknown as StartupFixtureGlobals).__startupUICalls.push('requestAnimationFrame');
+      callback(performance.now());
+      return 1;
+    };
+    (window as unknown as {setTimeout:(callback:(...args:unknown[])=>unknown,delay?:number,...args:unknown[])=>number}).setTimeout = (callback, delay, ...args) => {
+      (window as unknown as StartupFixtureGlobals).__startupUICalls.push(['setTimeout', delay]);
+      callback(...args);
+      return 1;
+    };
+
+    const waitUntil = async (predicate:()=>unknown) => {
+      for (let attempt = 0; attempt < 50; attempt += 1) {
+        if (predicate()) return true;
+        await new Promise<void>(resolve => originalSetTimeout(resolve, 10));
+      }
+      return false;
+    };
+
+    try {
+      const startupUi = await ((import(startupUiUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/startup-ui.js"), "configureStartupUIDeps" | "renderStartupUI"> >);
+      startupUi.configureStartupUIDeps({
+        getInitialView: () => 'light',
+        initChatImageHandlers: () => {
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.push('initChatImageHandlers');
+        },
+        maybeShowAnalyticsConsent: () => {
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.push('maybeShowAnalyticsConsent');
+        },
+        navigate: (view:unknown) => {
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.push(['navigate', view]);
+        },
+        openChatPanel: () => {
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.push('openChatPanel');
+        },
+        openSettingsModal: (section:unknown) => {
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.push(['openSettingsModal', section]);
+        },
+        updateAttachButtonVisibility: () => {
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.push('updateAttachButtonVisibility');
+        },
+      });
+      startupUi.renderStartupUI();
+      const deferredWorkCompleted = await waitUntil(() => (window as unknown as StartupFixtureGlobals).__startupUICalls
+        .filter(call => call === 'renderSyncIndicator').length >= 2);
+
+      return {
+        footerVersionRendersFromAppVersion:
+          document.getElementById('app-version-text')?.textContent === 'startup-ui-test-version',
+        firstPaintChromeAndNavigationRun:
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('primeSyncState')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('applyProfileDisplayState')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.some(call => Array.isArray(call) && call[0] === 'setTheme' && call[1] === 'glass')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('buildSidebar')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.some(call => Array.isArray(call) && call[0] === 'navigate' && call[1] === 'light'),
+        deferredSyncAndCatalogWarmupRun:
+          deferredWorkCompleted
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('requestAnimationFrame')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.some(call => Array.isArray(call) && call[0] === 'setTimeout' && call[1] === 0)
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('initSync')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('ensureDnaTablesForPersistedState'),
+        changelogNudgesAndDeferredDestinationsRun:
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('maybeShowChangelog')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('maybeShowAnalyticsConsent')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('maybeShowBackupNudge')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.some(call => Array.isArray(call) && call[0] === 'openSettingsModal' && call[1] === 'display')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('openChatPanel')
+          && !('_openSettingsAfterInit' in window)
+          && !('_openChatAfterInit' in window),
+        chromeRefreshRunsAndChatAttachmentsStayDeferred:
+          (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('updateHeaderDates')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('updateHeaderRangeToggle')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('renderProfileDropdown')
+          && !(window as unknown as StartupFixtureGlobals).__startupUICalls.includes('initChatImageHandlers')
+          && !(window as unknown as StartupFixtureGlobals).__startupUICalls.includes('updateAttachButtonVisibility')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('updateChatNudge')
+          && (window as unknown as StartupFixtureGlobals).__startupUICalls.includes('bindImportFileInput'),
+      };
+    } finally {
+      chatRuntime.configureChatRuntimeCallbacks(previousChatRuntime);
+      window.setTimeout = originalSetTimeout;
+      window.requestAnimationFrame = originalRequestAnimationFrame;
+      delete (window as unknown as StartupFixtureGlobals)._openSettingsAfterInit;
+      delete (window as unknown as StartupFixtureGlobals)._openChatAfterInit;
+    }
+  }, {
+    startupUiUrl: moduleUrl('/js/startup-ui.js'),
+  });
+
+  expectOutcomes(outcomes);
+});

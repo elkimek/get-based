@@ -1,0 +1,174 @@
+// sync-payload-collectors.ts - local settings/chat/display collection for sync payloads.
+
+import { encryptedGetItem } from './crypto.js';
+import { VOICE_SYNC_KEYS } from './voice-settings-schema.js';
+import {
+  getAppExtensionSyncEncryptedStorageKeys,
+  getAppExtensionSyncEncryptedStoragePrefixes,
+  getAppExtensionSyncStorageKeys,
+  getAppExtensionSyncStoragePrefixes,
+} from './app-extension-runtime.js';
+
+// AI settings keys to sync (global, not per-profile)
+export const AI_SETTINGS_KEYS = [
+  'labcharts-ai-provider',
+  'labcharts-openrouter-key',    // OpenRouter key (encrypted)
+  'labcharts-venice-key',        // Venice key (encrypted)
+  'labcharts-routstr-key',       // Legacy credential/tombstone
+  'labcharts-routstr-sessions',  // Node-bound credentials (encrypted)
+  'labcharts-ppq-key',           // PPQ key (encrypted)
+  'labcharts-ppq-credit-id',     // PPQ credit ID (for balance/topup)
+  'labcharts-custom-key',        // Custom API key (encrypted)
+  'labcharts-custom-url',        // Custom API base URL
+  'labcharts-custom-model',      // Custom API selected model
+  'labcharts-custom-models',     // Custom API model list cache
+  'labcharts-ollama',            // Local AI server config (encrypted)
+  'labcharts-openrouter-model',
+  'labcharts-venice-model',
+  'labcharts-routstr-model',
+  'labcharts-ppq-model',
+  'labcharts-venice-e2ee',
+  'labcharts-ollama-model',
+  'labcharts-ollama-pii-url',
+  'labcharts-ollama-pii-key',       // Separate privacy-server API key (encrypted)
+  'labcharts-ollama-pii-model',
+  'labcharts-nutrition-ai-route', // Optional provider/model override for meal photos
+  'labcharts-routstr-node',           // Selected Routstr node
+  'labcharts-routstr-session-updated-at', // LWW clock for shared node session/balance refresh
+  'labcharts-lens-config',            // Custom Knowledge Source config (name, url, enabled, topK)
+  'labcharts-lens-key',               // Custom Knowledge Source API key (encrypted)
+  ...VOICE_SYNC_KEYS,
+];
+
+export const DISPLAY_PREF_SUFFIXES = ['units', 'rangeMode', 'suppOverlay', 'noteOverlay', 'phaseOverlay'];
+
+export function chatDeletedThreadsKey(profileId: string) {
+  return `labcharts-${profileId}-chat-deleted-threads`;
+}
+
+const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+function readChatDeletedThreads(profileId: string): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(chatDeletedThreadsKey(profileId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const out: Record<string, number> = Object.create(null);
+    for (const [threadId, deletedAt] of Object.entries(parsed)) {
+      if (typeof threadId !== 'string' || !threadId) continue;
+      if (CHAT_DELETED_PROTO_KEYS.has(threadId)) continue;
+      const ts = Number(deletedAt);
+      if (Number.isFinite(ts) && ts > 0) out[threadId] = ts;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function parseCustomPersonalities(raw: string | null | undefined): unknown {
+  if (!raw) return undefined;
+  try { return JSON.parse(raw); } catch { return undefined; }
+}
+
+export async function collectAISettings() {
+  const settings: Record<string, string | null> = {};
+  const keys = new Set([
+    ...AI_SETTINGS_KEYS,
+    ...getAppExtensionSyncStorageKeys(),
+    ...getAppExtensionSyncEncryptedStorageKeys(),
+  ]);
+  const prefixes = [...new Set([
+    ...getAppExtensionSyncStoragePrefixes(),
+    ...getAppExtensionSyncEncryptedStoragePrefixes(),
+  ])];
+  if (prefixes.length) {
+    try {
+      for (let index = 0; index < localStorage.length; index++) {
+        const key = localStorage.key(index);
+        if (key && prefixes.some(prefix => key.startsWith(prefix))) keys.add(key);
+      }
+    } catch {}
+  }
+  for (const key of keys) {
+    const val = await encryptedGetItem(key);
+    if (val) settings[key] = val;
+    // An explicitly stored empty value is a durable null tombstone. Missing
+    // settings remain omitted so never-configured providers do not bloat every
+    // profile payload.
+    else if (localStorage.getItem(key) !== null) settings[key] = null;
+  }
+  return settings;
+}
+
+// Per-profile chat keys to sync
+export async function collectChatData(profileId: string) {
+  const threadsKey = `labcharts-${profileId}-chat-threads`;
+  const deletedThreads = readChatDeletedThreads(profileId);
+  const customKey = `labcharts-${profileId}-chatPersonalityCustom`;
+  const customDeletedKey = `labcharts-${profileId}-chatPersonalityDeleted`;
+  const customStored = localStorage.getItem(customKey);
+  const customDeletedStored = localStorage.getItem(customDeletedKey);
+  const customRaw = customStored === null ? null : await encryptedGetItem(customKey);
+  const customDeletedRaw = customDeletedStored === null ? null : await encryptedGetItem(customDeletedKey);
+  const customPersonalities = parseCustomPersonalities(customRaw);
+  const customPersonalityDeleted = parseCustomPersonalities(customDeletedRaw);
+  const personality = localStorage.getItem(`labcharts-${profileId}-chatPersonality`);
+  const hasCustomPersonalityState = customStored !== null || customDeletedStored !== null;
+  const threadsRaw = await encryptedGetItem(threadsKey) || localStorage.getItem(threadsKey);
+  if (!threadsRaw) {
+    return Object.keys(deletedThreads).length > 0 || hasCustomPersonalityState
+      ? {
+          threads: [],
+          messages: {},
+          deletedThreads: Object.keys(deletedThreads).length > 0 ? deletedThreads : undefined,
+          customPersonalities,
+          customPersonalityDeleted,
+          activePersonality: personality || undefined,
+        }
+      : null;
+  }
+  try {
+    const threads = JSON.parse(threadsRaw);
+    if (!Array.isArray(threads)) {
+      return Object.keys(deletedThreads).length > 0
+        ? { threads: [], messages: {}, deletedThreads }
+        : null;
+    }
+    if (threads.length === 0 && Object.keys(deletedThreads).length === 0 && !hasCustomPersonalityState) return null;
+    const messages: Record<string, unknown> = {};
+    for (const t of threads as Array<{ id?: unknown; messageCount?: unknown }>) {
+      const msgKey = `labcharts-${profileId}-chat-t_${t.id}`;
+      const msgRaw = await encryptedGetItem(msgKey) || localStorage.getItem(msgKey);
+      if (!msgRaw) {
+        if ((Number(t.messageCount) || 0) === 0) messages[t.id as string] = [];
+        continue;
+      }
+      // Per-thread try/catch - a single corrupted thread payload must NOT
+      // nuke the entire chat-data collection.
+      try { messages[t.id as string] = JSON.parse(msgRaw); } catch {}
+    }
+    return {
+      threads,
+      messages,
+      deletedThreads: Object.keys(deletedThreads).length > 0 ? deletedThreads : undefined,
+      customPersonalities,
+      customPersonalityDeleted,
+      activePersonality: personality || undefined,
+    };
+  } catch {
+    // An unreadable index must not discard independently durable deletions.
+    return Object.keys(deletedThreads).length > 0
+      ? { threads: [], messages: {}, deletedThreads } : null;
+  }
+}
+
+export function collectDisplayPrefs(profileId: string) {
+  const prefs: Record<string, string> = {};
+  for (const suffix of DISPLAY_PREF_SUFFIXES) {
+    const val = localStorage.getItem(`labcharts-${profileId}-${suffix}`);
+    if (val != null) prefs[suffix] = val;
+  }
+  return Object.keys(prefs).length > 0 ? prefs : undefined;
+}

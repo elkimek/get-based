@@ -226,8 +226,17 @@
   ],
   "projectFiles": [
     "vendor/bip39-minimal.js",
+    "vendor/bip39-minimal.ts",
     "vendor/chartjs-adapter-native.js",
-    "vendor/ppq-private-tee.js"
+    "vendor/chartjs-adapter-native.ts",
+    "vendor/ehbp-browser.d.ts",
+    "vendor/ppq-private-tee.js",
+    "vendor/ppq-private-tee.ts",
+    "vendor/routstr-crypto.d.ts",
+    "vendor/tinfoil-browser.d.ts",
+    "vendor/venice-dcap.d.ts",
+    "vendor/venice-e2ee.d.ts",
+    "vendor/venice-nvidia.d.ts"
   ],
   "metadataFiles": [
     "vendor/browser-vendors.json",

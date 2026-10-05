@@ -1,0 +1,309 @@
+// Vitest entrypoint for legacy node-side test files.
+//
+// Each LEGACY_TEST file was originally written to be runnable via
+// `node tests/foo.js`: it uses a bespoke `assert(name, cond)` pattern,
+// writes pass/fail to console.log, and exits with code 0/1.
+//
+// Rather than rewrite every file to use `it()`/`expect()`, we import
+// each one as a module side effect from inside a single Vitest test.
+// FAIL lines are captured from console.log and re-raised so Vitest
+// surfaces them. `process.exit(0)` is intercepted by the shim in
+// _vitest-setup.js so the suite proceeds to the next file.
+//
+// To add a file to the Vitest suite, append it to LEGACY_TESTS.
+
+import { it, expect, beforeEach } from 'vitest';
+import { IDBFactory } from 'fake-indexeddb';
+import { sourcePath } from '../scripts/source-files.js';
+import { fileURLToPath } from 'node:url';
+
+// Capture the canonical globalThis.fetch at module-load time, BEFORE
+// any LEGACY_TEST has a chance to overwrite it. Some ported tests
+// (test-light-devices, test-calculated-markers, test-data-pipeline)
+// install relative-URL → fs read-through fetch shims for their own
+// runtime needs and don't restore them. Without a beforeEach reset,
+// those shims leaked into every test that ran after them — a latent
+// trap flagged by Greptile in PR #199.
+const _origFetch = globalThis.fetch;
+
+// Reset shared module-level state between legacy tests. localStorage /
+// sessionStorage / fetch / addEventListener listeners are all wired up
+// on globalThis in _vitest-setup.js — if one legacy test sets a key
+// (or overwrites fetch) and the next test reads it, results leak.
+//
+// IndexedDB: fake-indexeddb/auto installs ONE global IDBFactory for the
+// whole worker lifetime, so without a reset, an IDB-backed test (batch
+// 32+: test-wearables, test-blob-storage, …) could read stale databases
+// a prior test wrote. Swapping in a fresh IDBFactory each time gives
+// every legacy test an empty IDB. No-op for the current suite (nothing
+// touches IDB yet) — this just makes the shim ready for the IDB ports.
+beforeEach(() => {
+  if (typeof globalThis.localStorage?.clear === 'function') globalThis.localStorage.clear();
+  if (typeof globalThis.sessionStorage?.clear === 'function') globalThis.sessionStorage.clear();
+  globalThis.fetch = _origFetch;
+  globalThis.indexedDB = new IDBFactory();
+});
+
+const LEGACY_TESTS = [
+  // Pre-existing node-side tests.
+  './test-no-native-dialogs.js',
+  './test-lens-local-utils.js',
+  './test-marker-key-safety.js',
+  './test-dev-server-helpers.js',
+  // Batch 1 — pure-logic ports from browser fixtures.
+  './test-sun-spectrum.ts',
+  './test-lighting-hardware-caveats.ts',
+  './test-markdown.ts',
+  // Batch 2 — incremental ports.
+  './test-data-merge.js',
+  './test-security-phase1.js',
+  './test-correctness-phase2.ts',
+  // Batch 3 — more pure-logic ports.
+  './test-lens-multi-query.ts',
+  './test-adapters.ts',
+  './test-trend-alerts.js',
+  './test-supplement-impact.js',
+  // Batch 4 — more pure-logic ports.
+  './test-provenance.js',
+  './test-dna-mtdna-subclades.ts',
+  './test-vendor-personal-info.js',
+  './test-normalize-units.js',
+  // Batch 5 — module imports + source inspection.
+  './test-pii.ts',
+  './test-schema.js',
+  './test-ai-verdict-engine-instance.ts',
+  './test-phase-ranges.js',
+  // Batch 6 — more module imports + source inspection.
+  './test-prelab.ts',
+  './test-venice-e2ee.js',
+  './test-unit-import.js',
+  // Batch 6b — behavioral coverage for the SECONDARY_UNIT_CONVERSIONS registry
+  // and the expanded normalizeToSI() paths (secondary conv, SI passthrough,
+  // unknown-unit passthrough, urea/BUN edge cases).
+  './test-secondary-unit-conversions.js',
+  './test-pth-marker.js',
+  './test-import-chart-data-integrity.js',
+  // Batch 7 — wearables fetchers + hardware advisor.
+  './test-wearables-fetchers.js',
+  './test-wearables-runtime-config.js',
+  './test-hardware.js',
+  './test-provider-local-ai-runtime.js',
+  './test-pdf-import-review-runtime.ts',
+  // Batch 8 — lens parsers + a11y phase 3 + marker value notes.
+  './test-lens-parsers.js',
+  './test-a11y-phase3.ts',
+  './test-marker-value-notes.js',
+  // Batch 9 — data pipeline + calculated markers (uses state.js + data.js).
+  './test-calculated-markers.js',
+  './test-data-pipeline.js',
+  // Batch 10 — sun + light pure-logic ports.
+  './test-sun-correlations.js',
+  './test-sun-defaults.js',
+  './test-sun-defaults-runtime.ts',
+  './test-sun.js',
+  './test-light-env.js',
+  './test-light-env-store.ts',
+  './test-light-devices-runtime.js',
+  './test-light-devices.js',
+  './test-sun-context.js',
+  './test-client-list-runtime.js',
+  // Batch 11 — cycle + change-history + light-tools + biometrics.
+  './test-light-tools.js',
+  './test-cycle-improvements.ts',
+  './test-change-history.js',
+  './test-biometrics.js',
+  // Batch 12 — sun/light AI-analysis + flow tests.
+  './test-light-tools-flow.js',
+  './test-sun-ai-analysis.js',
+  './test-light-device-ai-analysis.js',
+  './test-light-ai-renders.js',
+  // Batch 13 — source inspection + light module ports.
+  './test-cycle-tour.ts',
+  './test-folder-backup.js',
+  './test-table-heatmap-empty.js',
+  './test-manual-entry-flow.js',
+  // Batch 14 — demo + integration source inspection.
+  './test-demo.js',
+  './test-integration-batch2.js',
+  // Batch 15 — v1.6 regression coverage.
+  './test-v1-6-shipped.js',
+  // Batch 16 — sync + small dashboard tests.
+  './test-dashboard-genetics-empty.js',
+  './test-sync.js',
+  './test-sync-modal-refresh.js',
+  './test-onboarding-view-runtime.js',
+  './test-wearables-connect-runtime.js',
+  // Batch 17 — recommendations module.
+  './test-recommendations.ts',
+  // Batch 19 — DNA-aware recommendation integration + image utils
+  // (DOM-runtime sections moved to Playwright).
+  './test-dna-recommendations.ts',
+  './test-image-utils.js',
+  // Batch 20 — changelog modal source-inspection + hasCardContent
+  // (DOM-runtime sections moved to Playwright).
+  './test-changelog.js',
+  // Batch 21 — OpenRouter integration source-inspection + behavioral
+  // (DOM section moved to Playwright).
+  './test-openrouter.js',
+  // Batch 22 — pre-release audit source-inspection + innerHTML sweep
+  // (section-3b functional guard probes moved to tests/playwright/audit-dom.spec.js).
+  './test-audit.ts',
+  // Batch 23 — custom personality behavioral + source-inspection
+  // (DOM sections 11/12/17/21 moved to tests/playwright/custom-personality-dom.spec.js).
+  './test-custom-personality.js',
+  // Batch 24 — custom API provider behavioral + source-inspection
+  // (DOM sections 13/14 moved to Playwright).
+  './test-custom-api.js',
+  // Batch 25 — custom lens (Knowledge Source) behavioral + source-inspection
+  // (DOM sections 15/16 moved to Playwright).
+  './test-custom-lens.ts',
+  // Batch 26 — EMF assessment (full port, no DOM split — pure-logic +
+  // module imports: SBM-2015 thresholds, severity tiers, affiliate catalog).
+  './test-emf.js',
+  './test-emf-delegated-actions.ts',
+  // Batch 27 — dashboard KB / Personalize-AI CTA HTML-string rendering
+  // (section 5 picker open/dismiss moved to Playwright).
+  './test-dashboard-knowledge-base.js',
+  // Batch 28 — dashboard data-protection CTA HTML-string rendering
+  // (section 6 picker open/dismiss moved to Playwright).
+  './test-dashboard-data-protection.js',
+  // Batch 29 — chat action buttons + context summary source-inspection
+  // (DOM sections 4/10/12 moved to tests/playwright/chat-actions-dom.spec.js).
+  './test-chat-actions.js',
+  // Batch 30 — multi-port: tour source-inspection, chat-threads behavioral,
+  // wearables-bp-merge source-inspection. The wearables-bp live DOM probe
+  // moved to Playwright.
+  './test-tour.ts',
+  './test-settings-runtime.js',
+  './test-settings-delegated-actions.ts',
+  './test-views-router-runtime.js',
+  './test-chat-render-runtime.js',
+  './test-context-card-lifestyle-runtime.ts',
+  './test-import-drop-zone-runtime.ts',
+  './test-sync-diagnose-runtime.ts',
+  './test-biology-scores-runtime.ts',
+  './test-wearables-detail-runtime.js',
+  './test-wearables-auth-runtime.js',
+  './test-wearables-runtime.js',
+  './test-category-page-runtime.js',
+  './test-wearables-settings-runtime.ts',
+  './test-dashboard-widget-runtime.js',
+  './test-marker-detail-runtime.js',
+  './test-shell-delegated-actions.ts',
+  './test-nav-delegated-actions.ts',
+  './test-dashboard-widget-delegated-actions.ts',
+  './test-lens-page-shell-delegated-actions.ts',
+  './test-light-page-view-delegated-actions.ts',
+  './test-light-env-delegated-actions.ts',
+  './test-sun-session-ui-delegated-actions.ts',
+  './test-marker-detail-delegated-actions.ts',
+  './test-wearables-delegated-actions.ts',
+  './test-client-list-delegated-actions.ts',
+  './test-provider-wallet-delegated-actions.ts',
+  './test-provider-panel-renderers-runtime.ts',
+  './test-provider-panel-delegated-actions.ts',
+  './test-chat-empty-state-delegated-actions.ts',
+  './test-modal-lifecycle-integrations.js',
+  './test-chat-threads.js',
+  './test-wearables-bp-merge.js',
+  // Batch 32 — test-wearables (~549 asserts: registry, IDB CRUD via
+  // fake-indexeddb, summary math, write gate, 7 vendor OAuth/PKCE modules,
+  // Apple Health parser, source-inspection sweep). The openWearableDetail
+  // Chart.js modal islands live in Playwright's wearables browser spec.
+  './test-wearables.js',
+  // Batch 33 — the remaining IDB tail, full ports (no DOM): blob-storage
+  // (IDB k/v + localStorage→IDB migration), wearables-manual (manual-source
+  // logging + biometrics migration), wearables-sync-flow (backfill /
+  // incremental / disconnect orchestration with a mocked /api/proxy fetch).
+  './test-blob-storage.js',
+  './test-wearables-manual.js',
+  './test-wearables-sync-flow.js',
+  // Batch 34 — full ports, no DOM: crypto (encryption/backup/cross-tab — IDB
+  // via fake-indexeddb, app module surface loaded for window-export checks),
+  // cashu-wallet (wallet + Nostr discovery + BIP-39 + SSRF wiring; cashu-ts
+  // IIFE loaded via indirect eval, bip39-minimal self-assigns).
+  //
+  // test-ai-verdict-engine.js runs in Playwright's isolated browser context
+  // (tests/playwright/ai-verdict-engine-browser.spec.js). It stays out of
+  // this shared Vitest worker because the engine owns global concurrency-slot
+  // and inflight state also touched by the per-feature AI-verdict tests.
+  './test-crypto.js',
+  './test-cashu-wallet.js',
+  // Batch 35 — DNA adapter + Illumina/valence. parseDNAFile spins a
+  // Blob-backed Worker; the synchronous Worker shim added to _node-shim.js
+  // (+ _vitest-setup.js) runs self-contained pure-JS workers in-process.
+  // renderGeneticsSection returns an HTML string with no DOM dependency.
+  './test-dna-runtime.ts',
+  './test-dna.js',
+  './test-dna-illumina-and-valence.js',
+  // Batch 36 — family-history (source-inspection + getConditionsSummary;
+  // the apostrophe round-trip probe + live add/delete handler test moved to
+  // tests/playwright/family-history-dom.spec.js) and emf-flow (CRUD/state
+  // assertions are pure mutations; render/modal/photo/interpretation paths
+  // are coverage-only behind try/catch + "X ran").
+  './test-family-history.js',
+  './test-emf-flow.js',
+  // Batch 37 — coverage-stragglers stub-based probes (extractDocx, oura
+  // json-catch, reader.onerror, AbortSignal.any polyfill, IDB onerror
+  // rails, dna worker.onerror). The img.onerror / showConfirmDialog /
+  // handleSSELine / cashu _openDB sections need a browser runtime and
+  // moved to tests/playwright/coverage-stragglers-dom.spec.js.
+  './test-coverage-stragglers.js',
+  './test-profile-share.js',
+  './test-biology-scores.js',
+];
+
+for (const path of LEGACY_TESTS) {
+  it(path.replace('./', ''), async () => {
+    const fails: string[] = [];
+    const origLog = console.log;
+    const origError = console.error;
+    // Greptile P2.2: tests that buffer results and emit them with
+    // `console.log(results.join('\n'))` send one multi-line arg.
+    // Split on \n before FAIL-detection so each failing assertion
+    // becomes its own entry, not a wedged blob.
+    function capture(args: readonly unknown[]) {
+      const joined = args.map(a => typeof a === 'string' ? a : String(a)).join(' ');
+      for (const line of joined.split('\n')) {
+        if (line.includes('FAIL:') || line.startsWith('FAIL ')) fails.push(line);
+      }
+    }
+    console.log = (...args) => { capture(args); origLog(...args); };
+    console.error = (...args) => { capture(args); origError(...args); };
+    let importError: unknown;
+    try {
+      // NOTE: dynamic-import query-string cache-bust is silently ignored
+      // by Vite/Vitest — verified empirically (same module reference
+      // returned across two `${path}?t=${Date.now()}` calls). Modules
+      // run once per worker. Watch-mode reruns only re-execute when
+      // Vitest invalidates the module graph via file change. The
+      // legacy tests are idempotent (side effects gated by `if`),
+      // so this hasn't bitten us, but it's worth knowing.
+      //
+      // Greptile P2.3 (watch-mode caveat): Vitest's module cache is
+      // shared across tests in the same worker. If two legacy tests
+      // transitively import e.g. state.js, only the first runs
+      // state.js's top-level side effects. Side effects in our legacy
+      // files are idempotent, but a contributor writing a new test
+      // that depends on freshly-loaded module state should be aware.
+      await import(sourcePath(fileURLToPath(new URL(path, import.meta.url))));
+    } catch (e) {
+      importError = e;
+    } finally {
+      console.log = origLog;
+      console.error = origError;
+    }
+    // Greptile P2.1: when the process.exit shim throws ("Test file
+    // called process.exit(1)"), the structured detail of WHICH
+    // assertion failed is only in the captured FAIL lines. Attach
+    // them to the thrown error so Vitest's reporter shows the
+    // specifics, not just the exit-code message.
+    if (importError) {
+      if (fails.length > 0) {
+        throw new Error(`${(importError as {message: unknown}).message}\n\nCaptured failures:\n  ${fails.join('\n  ')}`);
+      }
+      throw importError;
+    }
+    expect(fails, fails.join('\n  ')).toHaveLength(0);
+  });
+}

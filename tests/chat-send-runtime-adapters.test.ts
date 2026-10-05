@@ -1,0 +1,126 @@
+import { expect, it } from 'vitest';
+import { setRuntimeValue, captureRuntimeGlobals } from './helpers/runtime-globals.js';
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
+// test-chat-send-runtime.js - Chat send browser adapter behavior.
+
+import './_node-shim.js';
+import {
+  detectChatSendSupplementSlots,
+  getChatSendProviderAttestation,
+  getChatSendRecommendationRuntime,
+  isChatSendEMFRelevant,
+  isChatSendProductRecsEnabled,
+} from '../js/chat-send-runtime.js';
+import { configureRecommendationModuleBridge } from '../js/recommendations-runtime.js';
+
+
+it('retains chat-send-runtime adapter behavior', async () => {
+  const { assert, results: legacyAssertions } = createLegacyAssertions(" - ");
+
+  console.log('=== Chat Send Runtime Tests ===\n');
+
+  const runtimeKeys = [
+    'window',
+    '_ppqAttestation',
+    '_routstrAttestation',
+    '_veniceAttestation',
+  ];
+  const restoreRuntime = captureRuntimeGlobals(runtimeKeys);
+
+  try {
+    const calls: string[][] = [];
+    const ppqAttestation = { provider: 'ppq', verified: true };
+    const routstrAttestation = { provider: 'routstr', verified: true };
+    const veniceAttestation = { provider: 'venice', verified: true };
+    setRuntimeValue('_ppqAttestation', ppqAttestation);
+    setRuntimeValue('_routstrAttestation', routstrAttestation);
+    setRuntimeValue('_veniceAttestation', veniceAttestation);
+    const previousRecommendationBridge = configureRecommendationModuleBridge({
+      isProductRecsEnabled: () => {
+        calls.push(['enabled']);
+        return true;
+      },
+      detectSupplementSlots: (text: string) => {
+        calls.push(['slots', text]);
+        return ['magnesium'];
+      },
+      detectEMFRelevance: (text: string) => {
+        calls.push(['emf', text]);
+        return text.includes('WiFi');
+      },
+      renderRecommendationSection: async (slot: string) => `<section>${slot}</section>`,
+      renderRecommendationSectionSync: (slot: string) => `<section>${slot}</section>`,
+      loadCatalog: async () => ({ slots: { magnesium: { label: 'Magnesium' } } }),
+    });
+
+    assert('getChatSendProviderAttestation reads PPQ attestation',
+      getChatSendProviderAttestation('ppq') === ppqAttestation);
+    assert('getChatSendProviderAttestation reads Routstr attestation',
+      getChatSendProviderAttestation('routstr') === routstrAttestation);
+    assert('getChatSendProviderAttestation reads Venice attestation for other providers',
+      getChatSendProviderAttestation('venice') === veniceAttestation);
+    assert('isChatSendProductRecsEnabled delegates runtime flag',
+      isChatSendProductRecsEnabled() === true && calls.some(call => call[0] === 'enabled'));
+    assert('detectChatSendSupplementSlots delegates when product recs are enabled',
+      detectChatSendSupplementSlots('try magnesium').includes('magnesium'));
+    assert('isChatSendEMFRelevant delegates when product recs are enabled',
+      isChatSendEMFRelevant('WiFi in bedroom') === true && isChatSendEMFRelevant('generic fatigue') === false);
+    const recommendationRuntime = getChatSendRecommendationRuntime();
+    assert('getChatSendRecommendationRuntime returns bound renderer functions',
+      typeof recommendationRuntime?.renderRecommendationSection === 'function'
+        && typeof recommendationRuntime.renderRecommendationSectionSync === 'function'
+        && typeof recommendationRuntime.loadCatalog === 'function');
+
+    configureRecommendationModuleBridge({ isProductRecsEnabled: () => false });
+    assert('detectChatSendSupplementSlots returns empty when product recs are disabled',
+      detectChatSendSupplementSlots('try magnesium').length === 0);
+    assert('isChatSendEMFRelevant returns false when product recs are disabled',
+      isChatSendEMFRelevant('WiFi in bedroom') === false);
+
+    configureRecommendationModuleBridge({ renderRecommendationSectionSync: null });
+    assert('getChatSendRecommendationRuntime requires the sync renderer',
+      getChatSendRecommendationRuntime() === null);
+
+    delete (globalThis as { window?: unknown }).window;
+    configureRecommendationModuleBridge({
+      isProductRecsEnabled: null,
+      detectSupplementSlots: null,
+      detectEMFRelevance: null,
+      renderRecommendationSection: null,
+      renderRecommendationSectionSync: null,
+      loadCatalog: null,
+    });
+    assert('runtime adapter no-ops safely when module hooks are missing',
+      getChatSendProviderAttestation('ppq') === undefined
+        && isChatSendProductRecsEnabled() === false
+        && detectChatSendSupplementSlots('try magnesium').length === 0
+        && isChatSendEMFRelevant('WiFi in bedroom') === false
+        && getChatSendRecommendationRuntime() === null);
+    configureRecommendationModuleBridge(previousRecommendationBridge);
+  } finally {
+    configureRecommendationModuleBridge({
+      isProductRecsEnabled: null,
+      detectSupplementSlots: null,
+      detectEMFRelevance: null,
+      renderRecommendationSection: null,
+      renderRecommendationSectionSync: null,
+      loadCatalog: null,
+    });
+    restoreRuntime();
+  }
+
+  const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  try {
+    delete (globalThis as { window?: unknown }).window;
+    await import('../js/chat-send-runtime.js?no-window-probe' as string);
+    assert('chat-send runtime imports without a browser window', true);
+  } catch (error) {
+    assert('chat-send runtime imports without a browser window', false, (error as Error | null | undefined)?.message || String(error));
+  } finally {
+    if (savedWindow) Object.defineProperty(globalThis, 'window', savedWindow);
+    else delete (globalThis as { window?: unknown }).window;
+  }
+
+  console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+  expect(legacyAssertions.fail).toBe(0);
+});

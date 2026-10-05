@@ -34,13 +34,43 @@ jobs:
           # E2EE crypto (crypto.js / venice-e2ee.js), markdown rendering,
           # and PDF/AI input parsing.
           queries: security-extended
-          # Skip vendored libraries (Chart.js, pdf.js, mammoth, JSZip,
+          # Skip external vendored libraries (Chart.js, pdf.js, mammoth, JSZip,
           # cashu-ts, evolu, transformers via CDN, etc.) — findings inside
           # those are upstream, not our code, and produce a flood of noise
-          # on first run. Same for built docs.
+          # on first run. Project-owned vendor TypeScript remains scanned.
+          # Keep these external paths aligned with vendor/components.json.
           config: |
             paths-ignore:
-              - vendor/**
+              - vendor/chart.min.js
+              - vendor/pdf.min.mjs
+              - vendor/pdf.worker.min.mjs
+              - vendor/mammoth.browser.min.js
+              - vendor/jszip.min.js
+              - vendor/cashu-ts.js
+              - vendor/qrcode-generator.js
+              - vendor/venice-e2ee.js
+              - vendor/venice-nvidia.js
+              - vendor/venice-dcap.js
+              - vendor/tinfoil-browser.js
+              - vendor/ehbp-browser.js
+              - vendor/evolu/evolu-bundle.js
+              - vendor/evolu/Db.worker.js
+              - vendor/evolu8/evolu-bundle.js
+              - vendor/evolu8/Db.worker.js
+              - vendor/evolu8/Shared.worker.js
+              - vendor/evolu8/sqlite3-bundler-friendly.mjs
+              - vendor/evolu8/sqlite3-opfs-async-proxy.js
+              - vendor/evolu8/sqlite3-worker1-bundler-friendly.mjs
+              - vendor/evolu8/sqlite3.wasm
+              - vendor/evolu/sqlite3-bundler-friendly.mjs
+              - vendor/evolu/sqlite3-opfs-async-proxy.js
+              - vendor/evolu/sqlite3-worker1-bundler-friendly.mjs
+              - vendor/evolu/sqlite3.wasm
+              - vendor/fonts/inter-*.woff2
+              - vendor/fonts/outfit-*.woff2
+              - vendor/fonts/jetbrains-mono-*.woff2
+              - vendor/fonts/vt323-*.woff2
+              - vendor/routstr-crypto.js
               - node_modules/**
               - brands/**
               # Test fixtures intentionally exercise unsafe patterns

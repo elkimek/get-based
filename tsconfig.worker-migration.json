@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.migration.json",
+  "compilerOptions": {
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "moduleDetection": "legacy",
+    "lib": [
+      "ES2022",
+      "WebWorker"
+    ],
+    "types": []
+  },
+  "include": [
+    "service-worker.ts",
+    "service-worker-runtime.ts",
+    "service-worker-assets.ts",
+    "version.ts",
+    "js/lens-local-worker.ts",
+    "js/voice-local-stt-worker.ts",
+    "js/voice-local-tts-worker.ts"
+  ],
+  "exclude": []
+}

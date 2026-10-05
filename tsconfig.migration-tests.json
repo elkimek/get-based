@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.migration.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true
+  },
+  "include": [
+    "tests/**/*.test.ts",
+    "tests/**/*.spec.ts",
+    "tests/test-*.ts",
+    "tests/verify-modules.ts",
+    "tests/validate-storage-shim-throwing-getters.mts"
+  ]
+}

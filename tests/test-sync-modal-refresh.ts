@@ -1,0 +1,462 @@
+#!/usr/bin/env node
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
+// test-sync-modal-refresh.js — shared sync-applied modal refresh guards.
+//
+// Run: node tests/test-sync-modal-refresh.js
+
+import './_node-shim.js';
+
+const { bindDetailModalSyncRefresh, bindModalSyncRefresh } = await import('../js/utils.js');
+const { state } = await import('../js/state.js');
+const { configureSyncDelta } = await import('../js/sync-delta.js');
+const { mergePulledImportedData } = await import('../js/sync-pull-merge.js');
+const { refreshActiveProfileAfterPull } = await import('../js/sync-pull-active-refresh.js');
+const { configureSyncPullActiveRefreshDeps } = await import('../js/sync-pull-active-refresh-runtime.js');
+const { createNavigate } = await import('../js/views-router.js');
+
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
+
+console.log('=== Sync Modal Refresh Tests ===\n');
+
+const originalGetElementById = document.getElementById;
+const originalBodyContains = document.body?.contains;
+
+// Structural views of the deliberately partial DOM and pull-client fixtures.
+interface FixtureControl { disabled: boolean; tagName: string; type: string; value: string; defaultValue: string }
+interface FixtureModal {
+  dataset?: Record<string, unknown>;
+  querySelectorAll?: () => FixtureControl[];
+  querySelector?: (selector: string) => unknown;
+  scrollTop?: number;
+}
+interface FixtureOverlay extends FixtureModal {
+  dataset: Record<string, unknown>;
+  classList: { contains(value: string): boolean };
+}
+type NativeRefreshContext = import('../js/utils.js').ModalSyncRefreshContext;
+type FixtureRefreshContext = Omit<NativeRefreshContext, 'overlay' | 'modal' | 'itemId'> & {
+  overlay: FixtureOverlay | null; modal: FixtureModal | null; itemId?: unknown;
+};
+type FixtureModalRefresh = (options: Omit<import('../js/utils.js').ModalSyncRefreshOptions, 'overlay' | 'refresh' | 'getItemId'> & {
+  overlay?: FixtureOverlay;
+  refresh?: (context: FixtureRefreshContext) => unknown;
+  getItemId?: (context: FixtureRefreshContext) => unknown;
+}) => ReturnType<typeof bindModalSyncRefresh>;
+type FixtureDetailRefresh = (kind: Parameters<typeof bindDetailModalSyncRefresh>[0], refresh: (context: FixtureRefreshContext) => unknown) => ReturnType<typeof bindDetailModalSyncRefresh>;
+type FixtureDeltaOptions = Omit<NonNullable<Parameters<typeof configureSyncDelta>[0]>, 'getEvolu'> & {
+  getEvolu: () => {getQueryRows: (query?: unknown) => unknown[]} | null;
+};
+type FixtureRemoteMerge = (profile: Parameters<typeof mergePulledImportedData>[0], remote: unknown) => ReturnType<typeof mergePulledImportedData>;
+type FixtureActiveRefresh = (options: Omit<NonNullable<Parameters<typeof refreshActiveProfileAfterPull>[0]>, 'merged'> & {merged: unknown}) => ReturnType<typeof refreshActiveProfileAfterPull>;
+
+function makeOverlay({ open = true, dataset = {}, querySelector = () => null }: {open?: boolean; dataset?: Record<string, unknown>; querySelector?: (selector: string) => unknown} = {}): FixtureOverlay {
+  return {
+    dataset,
+    classList: { contains: (cls: string) => cls === 'show' && open },
+    querySelector,
+  };
+}
+
+function makeModal({ kind = 'note', dirty = false, itemId = null }: {kind?: string; dirty?: boolean; itemId?: string | null} = {}) {
+  const dataset: Record<string, unknown> = { syncRefreshKind: kind };
+  if (itemId) dataset.syncRefreshItemId = itemId;
+  return {
+    dataset,
+    querySelectorAll: () => dirty
+      ? [{ disabled: false, tagName: 'INPUT', type: 'text', value: 'changed', defaultValue: '' }]
+      : [],
+  };
+}
+
+function emitSyncApplied() {
+  (window.dispatchEvent as (event: Pick<Event, 'type'>) => boolean)({ type: 'labcharts-sync-applied' });
+}
+
+try {
+  let body = { scrollTop: 37 };
+  let modal: FixtureModal = {
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === '#summary-modal-body' ? body : null,
+  };
+  let overlay = makeOverlay({
+    dataset: { syncRefreshKind: 'chat-summary', syncRefreshSummaryId: 'summary-1' },
+    querySelector: (selector: string) => selector === '.modal' ? modal : selector === '#summary-modal-body' ? body : null,
+  });
+  (document as {getElementById: unknown}).getElementById = (id: string) => id === 'summary-modal-overlay' ? overlay : null;
+  let overlayRefreshCalls = 0;
+  let overlayRefreshItemId: unknown = '';
+  const detachOverlayRefresh = (bindModalSyncRefresh as unknown as FixtureModalRefresh)({
+    overlayId: 'summary-modal-overlay',
+    modalSelector: '.modal',
+    kind: 'chat-summary',
+    scrollSelector: '#summary-modal-body',
+    getItemId: ({ overlay: activeOverlay }) => activeOverlay!.dataset.syncRefreshSummaryId,
+    refresh: ({ itemId }) => {
+      overlayRefreshCalls++;
+      overlayRefreshItemId = itemId;
+      body = { scrollTop: 0 };
+      modal = {
+        querySelectorAll: () => [],
+        querySelector: (selector: string) => selector === '#summary-modal-body' ? body : null,
+      };
+    },
+  });
+
+  emitSyncApplied();
+  assert('generic modal sync helper refreshes matching open clean modal and restores scroll',
+    overlayRefreshCalls === 1 && overlayRefreshItemId === 'summary-1' && body.scrollTop === 37,
+    JSON.stringify({ overlayRefreshCalls, overlayRefreshItemId, scrollTop: body.scrollTop }));
+
+  body.scrollTop = 50;
+  modal = {
+    querySelectorAll: () => [{ disabled: false, tagName: 'INPUT', type: 'text', value: 'draft', defaultValue: '' }],
+    querySelector: (selector: string) => selector === '#summary-modal-body' ? body : null,
+  };
+  emitSyncApplied();
+  assert('generic modal sync helper skips dirty modal forms',
+    overlayRefreshCalls === 1 && body.scrollTop === 50,
+    JSON.stringify({ overlayRefreshCalls, scrollTop: body.scrollTop }));
+  detachOverlayRefresh();
+
+  let directBody = { scrollTop: 12 };
+  let directModal: FixtureModal = {
+    querySelectorAll: () => [],
+    querySelector: (selector: string) => selector === '.direct-body' ? directBody : null,
+  };
+  const directOverlay = makeOverlay({
+    querySelector: (selector: string) => selector === '.direct-modal' ? directModal : selector === '.direct-body' ? directBody : null,
+  });
+  let directCalls = 0;
+  (document.body as {contains: unknown}).contains = (node: unknown) => node === directOverlay;
+  const detachDirectOverlay = (bindModalSyncRefresh as unknown as FixtureModalRefresh)({
+    overlay: directOverlay,
+    modalSelector: '.direct-modal',
+    scrollSelector: '.direct-body',
+    refresh: () => {
+      directCalls++;
+      directBody = { scrollTop: 0 };
+      directModal = {
+        querySelectorAll: () => [],
+        querySelector: (selector: string) => selector === '.direct-body' ? directBody : null,
+      };
+    },
+  });
+  emitSyncApplied();
+  assert('generic modal sync helper supports detached overlay instances',
+    directCalls === 1 && directBody.scrollTop === 12,
+    JSON.stringify({ directCalls, scrollTop: directBody.scrollTop }));
+  detachDirectOverlay();
+
+  const ghostModal = {
+    querySelectorAll: () => [],
+    querySelector: () => null,
+  };
+  const ghostOverlay = makeOverlay({
+    querySelector: (selector: string) => selector === '.ghost-modal' ? ghostModal : null,
+  });
+  (document.body as {contains: unknown}).contains = (node: unknown) => node !== ghostOverlay;
+  let ghostCalls = 0;
+  const detachGhostOverlay = (bindModalSyncRefresh as unknown as FixtureModalRefresh)({
+    overlay: ghostOverlay,
+    modalSelector: '.ghost-modal',
+    refresh: () => { ghostCalls++; },
+  });
+  emitSyncApplied();
+  emitSyncApplied();
+  assert('generic modal sync helper detaches removed direct overlay instances',
+    ghostCalls === 0,
+    JSON.stringify({ ghostCalls }));
+  detachGhostOverlay();
+} finally {
+  (document as {getElementById: unknown}).getElementById = originalGetElementById;
+  if (originalBodyContains === undefined) delete (document.body as {contains?: unknown}).contains;
+  else (document.body as {contains: unknown}).contains = originalBodyContains;
+}
+
+try {
+  let overlay = makeOverlay();
+  let modal = makeModal();
+  (document as {getElementById: unknown}).getElementById = (id: string) => id === 'modal-overlay' ? overlay : id === 'detail-modal' ? modal : null;
+
+  let calls = 0;
+  let gotModal: FixtureModal | null | undefined = null;
+  let gotOverlay: FixtureOverlay | null | undefined = null;
+  const detach = (bindDetailModalSyncRefresh as FixtureDetailRefresh)('note', ({ overlay: activeOverlay, modal: activeModal }) => {
+    calls++;
+    gotOverlay = activeOverlay;
+    gotModal = activeModal;
+  });
+
+  emitSyncApplied();
+  assert('refresh runs for matching open clean detail modal',
+    calls === 1 && gotOverlay === overlay && gotModal === modal);
+
+  modal = makeModal({ kind: 'supplements' });
+  emitSyncApplied();
+  assert('refresh ignores other modal kinds', calls === 1);
+
+  overlay = makeOverlay({ open: false });
+  modal = makeModal({ kind: 'note' });
+  emitSyncApplied();
+  assert('refresh ignores closed overlay', calls === 1);
+
+  overlay = makeOverlay();
+  modal = makeModal({ kind: 'note', dirty: true });
+  emitSyncApplied();
+  assert('refresh skips dirty forms', calls === 1);
+
+  detach();
+  modal = makeModal({ kind: 'note' });
+  emitSyncApplied();
+  assert('detach unregisters sync listener', calls === 1);
+
+  overlay = makeOverlay();
+  modal = makeModal({ kind: 'marker', itemId: 'hormones_insulin' });
+  let markerCalls = 0;
+  let gotItemId: unknown = null;
+  const detachMarker = (bindDetailModalSyncRefresh as FixtureDetailRefresh)('marker', ({ modal: activeModal }) => {
+    markerCalls++;
+    gotItemId = activeModal!.dataset!.syncRefreshItemId;
+  });
+  emitSyncApplied();
+  assert('refresh exposes detail modal item id to shared callbacks',
+    markerCalls === 1 && gotItemId === 'hormones_insulin');
+  detachMarker();
+} finally {
+  (document as {getElementById: unknown}).getElementById = originalGetElementById;
+}
+
+const originalMergeCurrentProfile = state.currentProfile;
+const originalMergeCurrentView: unknown = state.currentView;
+const originalMergeImportedData = state.importedData;
+
+try {
+  const profileId = 'sync-merge-profile';
+  const rawKey = 'diabetes.insulin:2026-05-01';
+  const itemId = rawKey.replace(/_/g, '__').replace(/:/g, '_');
+  const rows = [{
+    profileId,
+    arrayName: 'manualValues',
+    itemId,
+    payload: JSON.stringify({ k: rawKey, v: 8 }),
+    syncedAt: '2026-05-31T00:00:00.000Z',
+    isDeleted: false,
+  }];
+  (configureSyncDelta as unknown as (options: FixtureDeltaOptions) => ReturnType<typeof configureSyncDelta>)({
+    getEvolu: () => ({ getQueryRows: () => rows }),
+    getItemRowQuery: () => ({}),
+  });
+
+  state.currentProfile = profileId;
+  (state as {importedData: unknown}).importedData = { entries: [], manualValues: {} };
+
+  const firstPull = await (mergePulledImportedData as FixtureRemoteMerge)(profileId, null);
+  assert('pull merge reports v4 per-row overlay as local data change',
+    firstPull.localDataChanged === true && firstPull.merged.manualValues?.[rawKey] === 8);
+  assert('pull merge leaves active manual values untouched before commit',
+    state.importedData.manualValues?.[rawKey] === undefined);
+
+  // Model the active-profile update after the first pull is persisted.
+  // Preparing a merge must not mutate active data as a side effect.
+  (state as {importedData: unknown}).importedData = firstPull.merged;
+  const duplicatePull = await (mergePulledImportedData as FixtureRemoteMerge)(profileId, null);
+  assert('pull merge reports duplicate v4 per-row overlay as no-op',
+    duplicatePull.localDataChanged === false && duplicatePull.merged.manualValues?.[rawKey] === 8);
+
+  (state as {importedData: unknown}).importedData = { entries: [], biologyScoreContextAI: { summary: 'fresh local review', fingerprint: 'local-fp', updatedAt: 2000 } };
+  const staleRemotePull = await (mergePulledImportedData as FixtureRemoteMerge)(profileId, { entries: [], biologyScoreContextAI: { summary: 'stale remote review', fingerprint: 'remote-fp', updatedAt: 1000 } });
+  assert('pull merge preserves fresher local Biology Scores context review over stale remote blob',
+    staleRemotePull.merged.biologyScoreContextAI?.fingerprint === 'local-fp'
+    && staleRemotePull.needsRebroadcast === true);
+
+  (state as {importedData: unknown}).importedData = { entries: [], biologyScoreAI: { thyroidCoherence: { text: '**Fresh** local answer', fingerprint: 'fp-local', updatedAt: 3000 } } };
+  const staleRemoteAnswerPull = await (mergePulledImportedData as FixtureRemoteMerge)(profileId, { entries: [], biologyScoreAI: { thyroidCoherence: { text: 'stale remote answer', fingerprint: 'fp-remote', updatedAt: 1000 } } });
+  assert('pull merge preserves fresher local Biology Score AI answer over stale remote blob',
+    staleRemoteAnswerPull.merged.biologyScoreAI?.thyroidCoherence?.text === '**Fresh** local answer'
+    && staleRemoteAnswerPull.needsRebroadcast === true);
+
+  const staleBiologyRows = [
+    { profileId, arrayName: 'biologyScoreContextAI', itemId: 'biologyScoreContextAI', payload: JSON.stringify({ v: { summary: 'stale row review', fingerprint: 'row-fp', updatedAt: 500 } }), syncedAt: '2026-01-01T00:00:00.000Z', isDeleted: false },
+    { profileId, arrayName: 'biologyScoreAI', itemId: 'thyroidCoherence', payload: JSON.stringify({ k: 'thyroidCoherence', v: { text: 'stale row answer', fingerprint: 'row-answer', updatedAt: 500 } }), syncedAt: '2026-01-01T00:00:00.000Z', isDeleted: false },
+  ];
+  (configureSyncDelta as unknown as (options: FixtureDeltaOptions) => ReturnType<typeof configureSyncDelta>)({
+    getEvolu: () => ({ getQueryRows: () => staleBiologyRows }),
+    getItemRowQuery: () => ({}),
+  });
+  (state as {importedData: unknown}).importedData = {
+    entries: [],
+    biologyScoreContextAI: { summary: 'fresh local review', fingerprint: 'local-row-fp', updatedAt: 2000 },
+    biologyScoreAI: { thyroidCoherence: { text: '**Fresh row** local answer', fingerprint: 'fp-local-row', updatedAt: 3000 } },
+  };
+  const staleRowOverlayPull = await (mergePulledImportedData as FixtureRemoteMerge)(profileId, { entries: [], biologyScoreContextAI: { summary: 'fresh remote blob review', fingerprint: 'remote-newer', updatedAt: 2500 }, biologyScoreAI: { thyroidCoherence: { text: 'fresh remote blob answer', fingerprint: 'remote-answer', updatedAt: 3500 } } });
+  assert('pull merge preserves fresher local Biology Score AI/context over stale delta rows, not only stale blobs',
+    staleRowOverlayPull.merged.biologyScoreContextAI?.fingerprint === 'remote-newer'
+    && staleRowOverlayPull.merged.biologyScoreAI?.thyroidCoherence?.text === 'fresh remote blob answer',
+    JSON.stringify(staleRowOverlayPull.merged));
+
+  (configureSyncDelta as unknown as (options: FixtureDeltaOptions) => ReturnType<typeof configureSyncDelta>)({
+    getEvolu: () => ({ getQueryRows: () => [] }),
+    getItemRowQuery: () => ({}),
+  });
+  const legacyRemote = { entries: [{ date: '2026-01-01', markers: { 'hormones.cPeptide': 1 } }], customMarkers: { 'hormones.cPeptide': { name: 'C-peptide' } } };
+  (state as {importedData: unknown}).importedData = JSON.parse(JSON.stringify(legacyRemote));
+  const legacyFirstPull = await (mergePulledImportedData as FixtureRemoteMerge)(profileId, JSON.parse(JSON.stringify(legacyRemote)));
+  (state as {importedData: unknown}).importedData = legacyFirstPull.merged;
+  const legacyDuplicatePull = await (mergePulledImportedData as FixtureRemoteMerge)(profileId, JSON.parse(JSON.stringify(legacyRemote)));
+  assert('pull merge persists schema migrations before change detection so stale remote rows do not retrigger update toasts',
+    legacyFirstPull.localDataChanged === true
+    && legacyFirstPull.merged.entries?.[0]?.markers?.['diabetes.cPeptide'] === 1
+    && !('hormones.cPeptide' in (legacyFirstPull.merged.entries?.[0]?.markers || {}))
+    && legacyDuplicatePull.localDataChanged === false,
+    JSON.stringify({ firstChanged: legacyFirstPull.localDataChanged, duplicateChanged: legacyDuplicatePull.localDataChanged, merged: legacyDuplicatePull.merged }));
+} finally {
+  (configureSyncDelta as unknown as (options: FixtureDeltaOptions) => ReturnType<typeof configureSyncDelta>)({
+    getEvolu: () => null,
+    getItemRowQuery: () => null,
+  });
+  state.currentProfile = originalMergeCurrentProfile;
+  state.currentView = originalMergeCurrentView;
+  (state as {importedData: unknown}).importedData = originalMergeImportedData;
+}
+
+const originalQuerySelector = document.querySelector;
+const originalCustomEvent = window.CustomEvent;
+const originalRefreshCurrentProfile = state.currentProfile;
+const originalRefreshCurrentView: unknown = state.currentView;
+const originalRefreshImportedData = state.importedData;
+let navigateCount = 0;
+let navigateArgs: Parameters<NonNullable<NonNullable<Parameters<typeof configureSyncPullActiveRefreshDeps>[0]>["navigate"]>> | null = null;
+const previousSyncPullActiveRefreshDeps = configureSyncPullActiveRefreshDeps({
+  buildSidebar: () => {},
+  navigate: (...args) => {
+    navigateCount++;
+    navigateArgs = args;
+  },
+});
+
+try {
+  let toastCount = 0;
+  let syncAppliedCount = 0;
+  const container = {
+    appendChild: () => { toastCount++; },
+  };
+  (document as {getElementById: unknown}).getElementById = (id: string) => id === 'notification-container' ? container : null;
+  (document as {querySelector: unknown}).querySelector = () => null;
+  (window as {CustomEvent: unknown}).CustomEvent = class CustomEvent {
+    declare type: unknown;
+    constructor(type: unknown) { this.type = type; }
+  };
+  const onSyncApplied = () => { syncAppliedCount++; };
+  window.addEventListener('labcharts-sync-applied', onSyncApplied);
+
+  state.currentProfile = 'sync-refresh-profile';
+  state.currentView = 'labs';
+  (state as {importedData: unknown}).importedData = { entries: [] };
+
+  (refreshActiveProfileAfterPull as FixtureActiveRefresh)({
+    profileId: 'sync-refresh-profile',
+    merged: { entries: [] },
+    remoteBroughtNewRows: true,
+    localDataChanged: false,
+  });
+  assert('active refresh skips duplicate no-op pulls even when remote row looked newer',
+    navigateCount === 0 && toastCount === 0 && syncAppliedCount === 0);
+
+  (refreshActiveProfileAfterPull as FixtureActiveRefresh)({
+    profileId: 'sync-refresh-profile',
+    merged: { entries: [{ date: '2026-04-30', markers: { 'biochemistry.glucose': 4 } }] },
+    remoteBroughtNewRows: false,
+    localDataChanged: true,
+    localCommitEcho: true,
+  });
+  assert('active refresh suppresses the remote-update toast for this browser own commit echo',
+    navigateCount === 1 && toastCount === 0 && syncAppliedCount === 1);
+
+  (refreshActiveProfileAfterPull as FixtureActiveRefresh)({
+    profileId: 'sync-refresh-profile',
+    merged: { entries: [{ date: '2026-05-01', markers: { 'biochemistry.glucose': 5 } }] },
+    remoteBroughtNewRows: false,
+    localDataChanged: true,
+  });
+  assert('active refresh still re-renders, notifies, and broadcasts real data changes',
+    navigateCount === 2 && toastCount === 1 && syncAppliedCount === 2);
+
+  (refreshActiveProfileAfterPull as FixtureActiveRefresh)({
+    profileId: 'sync-refresh-profile',
+    merged: { entries: [{ date: '2026-05-01', markers: { 'biochemistry.glucose': 6 } }] },
+    remoteBroughtNewRows: true,
+    localDataChanged: true,
+  });
+  assert('active refresh coalesces duplicate update toasts during bursty pull triggers',
+    navigateCount === 3 && toastCount === 1 && syncAppliedCount === 3);
+
+  (document as {querySelector: unknown}).querySelector = (selector: string) => selector === '.modal-overlay.show, #modal-overlay.show' ? {} : null;
+  (refreshActiveProfileAfterPull as FixtureActiveRefresh)({
+    profileId: 'sync-refresh-profile',
+    merged: { entries: [{ date: '2026-05-01', markers: { 'biochemistry.glucose': 7 } }] },
+    remoteBroughtNewRows: true,
+    localDataChanged: true,
+  });
+  assert('active refresh preserves background scroll when a modal is open',
+    (navigateArgs as Parameters<NonNullable<NonNullable<Parameters<typeof configureSyncPullActiveRefreshDeps>[0]>["navigate"]>> | null)?.[0] === 'labs' && (navigateArgs as Parameters<NonNullable<NonNullable<Parameters<typeof configureSyncPullActiveRefreshDeps>[0]>["navigate"]>> | null)?.[1]?.preserveScroll === true);
+
+  window.removeEventListener('labcharts-sync-applied', onSyncApplied);
+} finally {
+  (document as {getElementById: unknown}).getElementById = originalGetElementById;
+  (document as {querySelector: unknown}).querySelector = originalQuerySelector;
+  configureSyncPullActiveRefreshDeps(previousSyncPullActiveRefreshDeps);
+  (window as {CustomEvent: unknown}).CustomEvent = originalCustomEvent;
+  state.currentProfile = originalRefreshCurrentProfile;
+  state.currentView = originalRefreshCurrentView;
+  (state as {importedData: unknown}).importedData = originalRefreshImportedData;
+}
+
+const originalRouterCurrentProfile = state.currentProfile;
+const originalRouterCurrentView: unknown = state.currentView;
+const originalRouterImportedData = state.importedData;
+const originalScrollTo = window.scrollTo;
+const originalScrollX = Object.getOwnPropertyDescriptor(window, 'scrollX');
+const originalScrollY = Object.getOwnPropertyDescriptor(window, 'scrollY');
+const originalPageXOffset = Object.getOwnPropertyDescriptor(window, 'pageXOffset');
+const originalPageYOffset = Object.getOwnPropertyDescriptor(window, 'pageYOffset');
+try {
+  let scrollCall: ScrollToOptions | null = null;
+  Object.defineProperty(window, 'scrollX', { configurable: true, value: 12 });
+  Object.defineProperty(window, 'scrollY', { configurable: true, value: 345 });
+  Object.defineProperty(window, 'pageXOffset', { configurable: true, value: 12 });
+  Object.defineProperty(window, 'pageYOffset', { configurable: true, value: 345 });
+  (window as {scrollTo: unknown}).scrollTo = (arg: ScrollToOptions) => { scrollCall = arg; };
+  state.currentProfile = 'sync-refresh-profile';
+  state.currentView = 'labs';
+  (state as {importedData: unknown}).importedData = { entries: [] };
+  let routePayload: unknown = 'unset';
+  const navigate = createNavigate({
+    routeHandlers: { labs: (data) => { routePayload = data; } },
+    syncMobileBottomNav: () => {},
+    destroyAllCharts: () => {},
+  });
+  navigate('labs', { preserveScroll: true });
+  assert('router preserveScroll restores the same page scroll position after rerender',
+    (scrollCall as ScrollToOptions | null)?.left === 12 && (scrollCall as ScrollToOptions | null)?.top === 345,
+    JSON.stringify(scrollCall));
+  assert('router preserveScroll option is not passed to page renderers as data',
+    routePayload === undefined,
+    JSON.stringify(routePayload));
+} finally {
+  state.currentProfile = originalRouterCurrentProfile;
+  state.currentView = originalRouterCurrentView;
+  (state as {importedData: unknown}).importedData = originalRouterImportedData;
+  window.scrollTo = originalScrollTo;
+  if (originalScrollX) Object.defineProperty(window, 'scrollX', originalScrollX);
+  else delete (window as { scrollX?: unknown }).scrollX;
+  if (originalScrollY) Object.defineProperty(window, 'scrollY', originalScrollY);
+  else delete (window as { scrollY?: unknown }).scrollY;
+  if (originalPageXOffset) Object.defineProperty(window, 'pageXOffset', originalPageXOffset);
+  else delete (window as { pageXOffset?: unknown }).pageXOffset;
+  if (originalPageYOffset) Object.defineProperty(window, 'pageYOffset', originalPageYOffset);
+  else delete (window as { pageYOffset?: unknown }).pageYOffset;
+}
+
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail ? 1 : 0);

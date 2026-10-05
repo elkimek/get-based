@@ -1,0 +1,77 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
+import { setRuntimeWindow } from './helpers/runtime-globals.js';
+import { readFileSync } from 'node:fs';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import {
+  configureAIVerdictRuntimeDeps,
+  dispatchAIVerdictUpdatedRuntime,
+  getAIVerdictConcurrencyCapRuntime,
+  hasAIVerdictRuntime,
+  isAIVerdictEngineDisabledRuntime,
+  refreshSunSurfacesRuntime,
+} from '../js/ai-verdict-engine-runtime.js';
+
+const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+const originalRuntimeDeps = configureAIVerdictRuntimeDeps();
+
+afterEach(() => {
+  configureAIVerdictRuntimeDeps(originalRuntimeDeps);
+  if (savedWindow) {
+    Object.defineProperty(globalThis, 'window', savedWindow);
+  } else {
+    delete (globalThis as { window?: unknown }).window;
+  }
+});
+
+describe('ai verdict engine runtime adapter', () => {
+  it('reads feature flag and concurrency cap from the browser runtime', () => {
+    setRuntimeWindow({ DISABLE_AI_VERDICTS: true, _aiConcurrencyCap: 5 });
+
+    expect(hasAIVerdictRuntime()).toBe(true);
+    expect(isAIVerdictEngineDisabledRuntime()).toBe(true);
+    expect(getAIVerdictConcurrencyCapRuntime(2)).toBe(5);
+  });
+
+  it('delegates refresh plus update events', () => {
+    const refreshSunSurfaces = vi.fn();
+    const dispatchEvent = vi.fn();
+    class TestCustomEvent {
+      declare type: string;
+      constructor(type: string) {
+        this.type = type;
+      }
+    }
+    const runtime = {
+      CustomEvent: TestCustomEvent,
+      dispatchEvent,
+    };
+    setRuntimeWindow(runtime);
+    configureAIVerdictRuntimeDeps({ refreshSunSurfaces });
+
+    expect(refreshSunSurfacesRuntime('[data-id="session-1"]')).toBe(true);
+    expect(dispatchAIVerdictUpdatedRuntime()).toBe(true);
+    expect(refreshSunSurfaces).toHaveBeenCalledWith('[data-id="session-1"]');
+    expect(dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'labcharts-ai-verdict-updated' }));
+  });
+
+  it('uses safe fallbacks when browser runtime hooks are missing', () => {
+    delete (globalThis as { window?: unknown }).window;
+    configureAIVerdictRuntimeDeps({ refreshSunSurfaces: null });
+
+    expect(hasAIVerdictRuntime()).toBe(false);
+    expect(isAIVerdictEngineDisabledRuntime()).toBe(false);
+    expect(getAIVerdictConcurrencyCapRuntime(2)).toBe(2);
+    expect(refreshSunSurfacesRuntime(null)).toBe(false);
+    expect(dispatchAIVerdictUpdatedRuntime()).toBe(false);
+  });
+
+  it('keeps counted ai verdict browser globals behind the adapter', () => {
+    const engineSrc = readFileSync(new URL('../js/ai-verdict-engine.js', import.meta.url), 'utf8');
+    const swSrc = readServiceWorkerSource(relative => readFileSync(new URL('../' + relative, import.meta.url), 'utf8'));
+
+    expect(engineSrc).toContain("from './ai-verdict-engine-runtime.js'");
+    expect(/\bwindow(?:\.|\s*\[)/.test(engineSrc)).toBe(false);
+    expect(swSrc).toContain("'/js/ai-verdict-engine-runtime.js'");
+  });
+});

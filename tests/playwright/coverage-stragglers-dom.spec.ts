@@ -1,0 +1,148 @@
+import { expect, test } from './coverage-fixture.js';
+
+test('coverage straggler browser rails reject and clean up correctly', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async () => {
+    const outcomes: Record<string, boolean> = {};
+
+    {
+      const { resizeImage } = (await import(`/js/image-utils.js?bust=${Date.now()}`) as unknown) as Pick<typeof import('../../js/image-utils.js'), 'resizeImage'>;
+      const garbage = new File([new Uint8Array([0x00, 0x01, 0x02, 0x03])], 'not-an-image.png', { type: 'image/png' });
+      let rejected = false;
+      try {
+        await resizeImage(garbage, 64, 0.7);
+      } catch (e) {
+        rejected = /Failed to load image/i.test((e as {message: string}).message);
+      }
+      outcomes.imageOnErrorRejects = rejected;
+    }
+
+    {
+      const utils = (await import(`/js/utils.js?bust=${Date.now()}`) as unknown) as Pick<typeof import('../../js/utils.js'), 'showConfirmDialog' | 'showPromptDialog'>;
+      const promise = utils.showConfirmDialog('probe');
+      await new Promise(resolve => setTimeout(resolve, 50));
+      const overlay = document.getElementById('confirm-dialog-overlay');
+      const dialog = overlay?.querySelector('.confirm-dialog');
+      overlay?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      const nudgeApplied = !!dialog?.classList.contains('modal-nudge');
+      dialog?.dispatchEvent(new Event('animationend', { bubbles: true }));
+      const nudgeCleared = !!dialog && !dialog.classList.contains('modal-nudge');
+      document.getElementById('confirm-cancel')?.click();
+      await promise.catch(() => {});
+      outcomes.confirmBackdropNudges = nudgeApplied;
+      outcomes.confirmAnimationEndClearsNudge = nudgeCleared;
+
+      const escapePromise = utils.showConfirmDialog('escape probe');
+      await new Promise(resolve => setTimeout(resolve, 50));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      const escapeResult = await Promise.race([
+        escapePromise,
+        new Promise(resolve => setTimeout(() => resolve('timeout'), 500)),
+      ]);
+      outcomes.confirmEscapeResolvesFalse = escapeResult === false
+        && document.getElementById('confirm-dialog-overlay')?.classList.contains('show') === false;
+
+      const promptPromise = utils.showPromptDialog('prompt escape', { defaultValue: 'abc' });
+      await new Promise(resolve => setTimeout(resolve, 50));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+      const promptResult = await Promise.race([
+        promptPromise,
+        new Promise(resolve => setTimeout(() => resolve('timeout'), 500)),
+      ]);
+      outcomes.promptEscapeResolvesNull = promptResult === null
+        && document.getElementById('prompt-dialog-overlay')?.classList.contains('show') === false;
+    }
+
+    {
+      const appEvents = await import('/js/app-event-listeners.js');
+      const overlay = document.getElementById('feedback-modal-overlay');
+      const modal = overlay?.firstElementChild;
+      appEvents.installGlobalEventListeners();
+      modal?.classList.remove('modal-nudge');
+      overlay?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      const nudgeApplied = modal?.classList.contains('modal-nudge') === true;
+      modal?.dispatchEvent(new Event('animationend', { bubbles: true }));
+      const nudgeCleared = !!modal && !modal.classList.contains('modal-nudge');
+      modal?.classList.remove('modal-nudge');
+      outcomes.appFeedbackBackdropNudges = nudgeApplied;
+      outcomes.appFeedbackAnimationEndClearsNudge = nudgeCleared;
+    }
+
+    {
+      const api = (await import(`/js/api.js?bust=${Date.now()}`) as unknown) as Pick<typeof import('../../js/api.js'), 'callClaudeAPI'>;
+      const originalFetch = window.fetch;
+      const originalProvider = localStorage.getItem('labcharts-ai-provider');
+      try {
+        localStorage.setItem('labcharts-ai-provider', 'ollama');
+        const sseChunks = [
+          'data: {"choices":[{"delta":{"content":"hel"}}]}\n\n',
+          'data: {"choices":[{"delta":{"content":"lo"}}]}\n\n',
+          'data: {"choices":[{"delta":{}}],"usage":{"prompt_tokens":3,"completion_tokens":2}}\n\n',
+          'data: [DONE]\n\n',
+        ];
+        window.fetch = async () => {
+          const stream = new ReadableStream({
+            start(controller) {
+              const enc = new TextEncoder();
+              for (const chunk of sseChunks) controller.enqueue(enc.encode(chunk));
+              controller.close();
+            },
+          });
+          return new Response(stream, {
+            status: 200,
+            headers: { 'content-type': 'text/event-stream' },
+          });
+        };
+        let streamedText = '';
+        try {
+          await api.callClaudeAPI({
+            messages: [{ role: 'user', content: 'probe' }],
+            onStream: (full: string) => { streamedText = full; },
+            maxTokens: 16,
+          });
+        } catch (_) {
+          // Provider-shape variance is tolerated; this probe only needs the streaming rail.
+        }
+        outcomes.sseChunksAccumulated = streamedText.length > 0;
+      } finally {
+        window.fetch = originalFetch;
+        if (originalProvider == null) localStorage.removeItem('labcharts-ai-provider');
+        else localStorage.setItem('labcharts-ai-provider', originalProvider);
+      }
+    }
+
+    {
+      const originalOpen = indexedDB.open;
+      (indexedDB as unknown as {open: (...args: Parameters<IDBFactory['open']>) => unknown}).open = function() {
+        const req = Object.assign(new EventTarget(), {
+          error: new Error('stubbed open failure'),
+          result: null,
+          onerror: null as ((event: {target: unknown}) => unknown) | null,
+          onsuccess: null,
+          onupgradeneeded: null,
+        });
+        Promise.resolve().then(() => req.onerror?.({ target: req }));
+        return req;
+      };
+      try {
+        const cashu = (await import(`/js/cashu-wallet.js?bust=${Date.now()}`) as unknown) as Pick<typeof import('../../js/cashu-wallet.js'), 'getWalletBalance'>;
+        let rejected = false;
+        try {
+          await cashu.getWalletBalance();
+        } catch (_) {
+          rejected = true;
+        }
+        outcomes.cashuOpenDbOnErrorRejects = rejected;
+      } finally {
+        indexedDB.open = originalOpen;
+      }
+    }
+
+    return outcomes;
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});

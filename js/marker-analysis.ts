@@ -1,0 +1,406 @@
+// marker-analysis.js — read-only marker range, status, and trend helpers
+
+import { state } from './state.js';
+import { getStatus, formatValue, linearRegression } from './utils.js';
+import { resolveActiveMarkerPath } from './marker-placement.js';
+
+import type { ActiveMarker, ActiveData, MarkerValues } from './data-view-types.js';
+interface AnalysisRange { min?: number | null | undefined; max?: number | null | undefined; label?: string }
+interface RangeDescriptor { min: number | null; max: number | null; label: string; kind: string; source: string; usedForStatus: boolean }
+interface TrendAlert { id: string; name: string | undefined; category: string; concern: string; spark: string[]; direction: string }
+
+interface FlaggedMarker {
+  categoryKey: string; markerKey: string; id: string;
+  name: ActiveMarker['name']; value: string; rawValue: number;
+  unit: ActiveMarker['unit']; date: string | null; dateIndex: number;
+  markerId: string | null; storageDotKey: string;
+  refMin: ActiveMarker['refMin']; refMax: ActiveMarker['refMax'];
+  optimalMin: ActiveMarker['optimalMin']; optimalMax: ActiveMarker['optimalMax'];
+  effectiveMin: number | null; effectiveMax: number | null;
+  effectiveLabel: string; effectiveKind: string; effectiveSource: string;
+  displayedRanges: RangeDescriptor[]; status: 'high' | 'low';
+}
+
+// Tunables — calibrated against dashboard "needs attention" callouts.
+const TREND_SUDDEN_JUMP_FRAC = 0.25;   // jump > 25% of ref range → sudden change
+const TREND_MIN_NORM_SLOPE = 0.02;     // |normalized slope| floor — below = noise
+const TREND_MIN_R2 = 0.5;              // 4+-point regressions must clear this fit
+const TREND_APPROACH_BAND = 0.15;      // within 15% of an edge → "approaching"
+const KEY_TRENDS_MAX = 8;              // dashboard "Key Trends" cap
+
+function phaseRangeLabel(marker: ActiveMarker, dateIndex: number, range: AnalysisRange) {
+  if (range?.label) return range.label;
+  const phaseLabel = marker.phaseLabels?.[dateIndex];
+  if (!phaseLabel) return 'Phase range';
+  const readable = String(phaseLabel).replace(/[_-]+/g, ' ');
+  return `${readable.charAt(0).toUpperCase()}${readable.slice(1)} range`;
+}
+
+function staticReferenceLabel(marker: ActiveMarker) {
+  if (marker.referenceRangeSource === 'import') return 'Lab reference';
+  if (marker.referenceRangeSource) return 'Custom range';
+  return marker.rangePolicy === 'target' ? 'Target' : 'Reference';
+}
+
+function rangeDescriptor(range: AnalysisRange | null | undefined, label: string, kind: string, source: string): RangeDescriptor {
+  return {
+    min: range?.min ?? null,
+    max: range?.max ?? null,
+    label,
+    kind,
+    source,
+    usedForStatus: false,
+  };
+}
+
+function referenceRangeForDate(marker: ActiveMarker, dateIndex: number) {
+  const phaseRange = dateIndex >= 0 ? marker.phaseRefRanges?.[dateIndex] : null;
+  if (phaseRange) {
+    return rangeDescriptor(
+      phaseRange,
+      phaseRangeLabel(marker, dateIndex, phaseRange),
+      'phase',
+      'phase',
+    );
+  }
+  const contextualRange = dateIndex >= 0 ? marker.contextRefRanges?.[dateIndex] : null;
+  if (contextualRange) {
+    return rangeDescriptor(
+      contextualRange,
+      marker.contextRangeLabels?.[dateIndex] || (marker.rangePolicy === 'target' ? 'Target' : 'Reference'),
+      marker.rangePolicy === 'target' ? 'target' : 'reference',
+      'context',
+    );
+  }
+  return rangeDescriptor(
+    { min: marker.refMin, max: marker.refMax },
+    staticReferenceLabel(marker),
+    marker.rangePolicy === 'target' ? 'target' : 'reference',
+    marker.referenceRangeSource === 'import' ? 'lab' : marker.referenceRangeSource ? 'custom' : 'schema',
+  );
+}
+
+function optimalRangeForDate(marker: ActiveMarker, dateIndex: number) {
+  const contextualRange = dateIndex >= 0 ? marker.contextOptimalRanges?.[dateIndex] : null;
+  if (contextualRange) {
+    return rangeDescriptor(
+      contextualRange,
+      marker.contextOptimalRangeLabels?.[dateIndex] || 'Optimal guidance',
+      'optimal',
+      'context',
+    );
+  }
+  if (marker.optimalMin == null && marker.optimalMax == null) return null;
+  const source = marker.optimalRangeSource;
+  return rangeDescriptor(
+    { min: marker.optimalMin, max: marker.optimalMax },
+    source === 'import' ? 'Lab optimal guidance' : source ? 'Custom optimal guidance' : 'Optimal',
+    'optimal',
+    source === 'import' ? 'lab' : source ? 'custom' : 'schema',
+  );
+}
+
+/**
+ * Resolve the range used to judge a marker and every range that should be
+ * displayed beside it. Renderers consume this single object so status colors,
+ * labels, and numeric bounds cannot silently disagree.
+ */
+export function resolveMarkerRangeContext(marker: ActiveMarker, dateIndex = -1, rangeMode = state.rangeMode) {
+  const mode = rangeMode === 'reference' || rangeMode === 'both' ? rangeMode : 'optimal';
+  const reference = referenceRangeForDate(marker, dateIndex);
+  const optimal = optimalRangeForDate(marker, dateIndex);
+  const phaseIsPrimary = reference.kind === 'phase';
+  const judgingRange = phaseIsPrimary
+    ? reference
+    : (mode === 'optimal' || mode === 'both') && optimal
+      ? optimal
+      : reference;
+  let displayedRanges;
+  if (mode === 'both') {
+    displayedRanges = optimal ? [reference, optimal] : [reference];
+  } else {
+    displayedRanges = [judgingRange];
+  }
+  displayedRanges = displayedRanges.map(range => ({
+    ...range,
+    usedForStatus: range === judgingRange,
+  }));
+  return {
+    judgingRange: { ...judgingRange, usedForStatus: true },
+    displayedRanges,
+  };
+}
+
+export function getEffectiveRange(marker: ActiveMarker, rangeMode = state.rangeMode) {
+  const range = resolveMarkerRangeContext(marker, -1, rangeMode).judgingRange;
+  return { min: range.min, max: range.max };
+}
+
+export function getEffectiveRangeForDate(marker: ActiveMarker, dateIndex: number, rangeMode = state.rangeMode) {
+  const range = resolveMarkerRangeContext(marker, dateIndex, rangeMode).judgingRange;
+  return { min: range.min, max: range.max };
+}
+
+export function getEffectiveRangeLabelForDate(marker: ActiveMarker, dateIndex: number, rangeMode = state.rangeMode) {
+  return resolveMarkerRangeContext(marker, dateIndex, rangeMode).judgingRange.label;
+}
+
+export function formatRangeBounds(range: AnalysisRange | null | undefined) {
+  const min = range?.min;
+  const max = range?.max;
+  if (min == null && max == null) return 'Not set';
+  if (min == null) return `\u2264${formatValue(max)}`;
+  if (max == null) return `\u2265${formatValue(min)}`;
+  return `${formatValue(min)} \u2013 ${formatValue(max)}`;
+}
+
+const GENERIC_CHAT_RANGE = /^(reference|lab reference|custom range|target|optimal( guidance)?|lab optimal guidance|custom optimal guidance)$/i;
+const CHAT_RANGE_ROLE: Record<string, string> = { optimal: 'o', target: 't' };
+const CHAT_RANGE_SOURCE: Record<string, string> = { schema: 'app', context: 'app-context' };
+const CHAT_RANGE_POSITION: Record<string, string> = { normal: 'in', low: 'below' };
+
+export function getMarkerRangesForChat(marker: ActiveMarker, dateIndex: number) {
+  return resolveMarkerRangeContext(marker, dateIndex, 'both').displayedRanges.filter(range =>
+    range.min != null || range.max != null
+      || (range.label && !GENERIC_CHAT_RANGE.test(range.label))
+  );
+}
+
+const chatRangeSignature = (ranges: RangeDescriptor[]) => ranges
+  .map(range => `${range.kind}:${range.source}:${range.label}:${range.min}:${range.max}`).join('|');
+
+function formatChatRanges(ranges: RangeDescriptor[], value: number | null | undefined) {
+  return ranges.map(range => {
+    const label = GENERIC_CHAT_RANGE.test(range.label || '') ? '' : `:${String(range.label).replace(/[\[\]]/g, '')}`;
+    const source = CHAT_RANGE_SOURCE[range.source] || range.source || 'supplied';
+    const status = range.min == null && range.max == null
+      ? 'unrated'
+      : CHAT_RANGE_POSITION[getStatus(value, range.min, range.max)] || 'above';
+    return `${CHAT_RANGE_ROLE[range.kind] || 'r'}[${source}${label}]=${formatRangeBounds(range)} (${status})`;
+  }).join('; ');
+}
+
+/** @param {{ dateLabel?: (date: string) => string }} [options] */
+export function formatMarkerValuesForChat(marker: ActiveMarker, data: Pick<ActiveData, 'dates'>, options: {dateLabel?: (date: string) => string} = {}) {
+  const indices = marker.values.map((value, index) => value == null ? -1 : index).filter(index => index >= 0);
+  if (!indices.length) return '';
+  const latestIndex = indices[indices.length - 1]!;
+  const latestRanges = getMarkerRangesForChat(marker, latestIndex);
+  const latestSignature = chatRangeSignature(latestRanges);
+  const values = indices.map(index => {
+    const value = marker.values[index];
+    const pointDate = marker.singlePoint ? marker.singleDate : data.dates[index];
+    const dateLabel = pointDate && options.dateLabel ? options.dateLabel(pointDate) : pointDate;
+    const ranges = getMarkerRangesForChat(marker, index);
+    const changed = index !== latestIndex && chatRangeSignature(ranges) !== latestSignature;
+    return `${dateLabel || 'date not recorded'}: ${value}${changed ? ` [ranges: ${formatChatRanges(ranges, value)}]` : ''}`;
+  }).join(', ');
+  const unit = marker.unit ? ` ${marker.unit}` : '';
+  const latestText = formatChatRanges(latestRanges, marker.values[latestIndex]);
+  return `${values}${unit}${latestText ? ` (latest ranges: ${latestText})` : ''}`;
+}
+
+export function getPhaseRefEnvelope(marker: ActiveMarker) {
+  if (!marker.phaseRefRanges) return null;
+  let min = Infinity, max = -Infinity;
+  for (const r of marker.phaseRefRanges) {
+    if (!r) continue;
+    if (r.min! < min) min = r.min!;
+    if (r.max! > max) max = r.max!;
+  }
+  return min === Infinity ? null : { min, max };
+}
+
+function contextRangeEnvelope(ranges: NonNullable<ActiveMarker['contextRefRanges']>) {
+  let min = Infinity, max = -Infinity;
+  for (const r of ranges) {
+    if (!r) continue;
+    if (r.min != null && r.min < min) min = r.min;
+    if (r.max != null && r.max > max) max = r.max;
+  }
+  return min === Infinity || max === -Infinity ? null : { min, max };
+}
+
+export function getContextRefEnvelope(marker: ActiveMarker) {
+  if (!marker.contextRefRanges) return null;
+  return contextRangeEnvelope(marker.contextRefRanges);
+}
+
+export function getContextOptimalEnvelope(marker: ActiveMarker) {
+  if (!marker.contextOptimalRanges) return null;
+  return contextRangeEnvelope(marker.contextOptimalRanges);
+}
+
+export function getLatestValueIndex(values: MarkerValues) {
+  for (let i = values.length - 1; i >= 0; i--) if (values[i] !== null && values[i] !== undefined) return i;
+  return -1;
+}
+
+export function countFlagged(markers: ActiveMarker[]) {
+  let c = 0;
+  for (const m of markers) {
+    const i = getLatestValueIndex(m.values);
+    if (i !== -1) {
+      const r = getEffectiveRangeForDate(m, i);
+      if (getStatus(m.values[i], r.min, r.max) !== 'normal') c++;
+    }
+  }
+  return c;
+}
+
+export function getAllFlaggedMarkers(data: ActiveData | null | undefined, rangeMode = state.rangeMode) {
+  if (!data?.categories) return [];
+  const flags: FlaggedMarker[] = [];
+  for (const [ck, cat] of Object.entries(data.categories)) {
+    for (const [k, m] of Object.entries(cat.markers)) {
+      const i = getLatestValueIndex(m.values);
+      if (i !== -1) {
+        const v = m.values[i]!;
+        const rangeContext = resolveMarkerRangeContext(m, i, rangeMode);
+        const r = rangeContext.judgingRange;
+        const s = getStatus(v, r.min, r.max);
+        if (s === 'high' || s === 'low') {
+          flags.push({
+            categoryKey: ck,
+            markerKey: k,
+            id: ck + '_' + k,
+            name: m.name,
+            value: formatValue(v),
+            rawValue: v,
+            unit: m.unit,
+            date: m.singlePoint || cat.singlePoint
+              ? (m.singleDate || cat.singleDate || null)
+              : (data.dates?.[i] || null),
+            dateIndex: i,
+            markerId: m.markerId || null,
+            storageDotKey: m.storageDotKey || `${ck}.${k}`,
+            refMin: m.refMin,
+            refMax: m.refMax,
+            optimalMin: m.optimalMin,
+            optimalMax: m.optimalMax,
+            effectiveMin: r.min,
+            effectiveMax: r.max,
+            effectiveLabel: r.label,
+            effectiveKind: r.kind,
+            effectiveSource: r.source,
+            displayedRanges: rangeContext.displayedRanges,
+            status: s,
+          });
+        }
+      }
+    }
+  }
+  return flags;
+}
+
+export function statusIcon(s: string) {
+  if (s === 'normal') return '\u2713';
+  if (s === 'high') return '\u25B2';
+  if (s === 'low') return '\u25BC';
+  return '';
+}
+
+export function detectTrendAlerts(data: ActiveData) {
+  const alerts: TrendAlert[] = [];
+  for (const [catKey, cat] of Object.entries(data.categories)) {
+    if (cat.singlePoint) continue;
+    for (const [mKey, marker] of Object.entries(cat.markers)) {
+      if (marker.singlePoint) continue;
+      const nonNull = marker.values.map((v, i) => ({ v, i })).filter(x => x.v !== null);
+      if (nonNull.length < 2) continue;
+      const r = getEffectiveRange(marker); // aggregate range for normalization width
+      if (r.min == null || r.max == null) continue;
+      const range = r.max - r.min;
+      if (range <= 0) continue;
+      const id = catKey + '_' + mKey;
+      const latestEntry = nonNull[nonNull.length - 1]!;
+      const latestVal = latestEntry.v!;
+      const lr = getEffectiveRangeForDate(marker, latestEntry.i); // phase-aware range for latest
+      const prevVal = nonNull[nonNull.length - 2]!.v!;
+      const sparkVals = nonNull.slice(-Math.min(5, nonNull.length));
+
+      // Sudden change detection (2+ values)
+      const jump = Math.abs(latestVal - prevVal);
+      if (jump > range * TREND_SUDDEN_JUMP_FRAC) {
+        if (latestVal > lr.max!) {
+          alerts.push({ id, name: marker.name, category: cat.label, concern: 'sudden_high',
+            spark: sparkVals.map(x => formatValue(x.v)), direction: 'rising' });
+          continue;
+        }
+        if (latestVal < lr.min!) {
+          alerts.push({ id, name: marker.name, category: cat.label, concern: 'sudden_low',
+            spark: sparkVals.map(x => formatValue(x.v)), direction: 'falling' });
+          continue;
+        }
+      }
+
+      // Linear regression (3+ values)
+      if (nonNull.length < 3) continue;
+      const vals = nonNull.map(x => x.v);
+      const reg = linearRegression(vals as number[]);
+      const normSlope = reg.slope / range;
+      if (Math.abs(normSlope) < TREND_MIN_NORM_SLOPE) continue;
+      // R-squared filter only for 4+ points (2-3 points inherently have high R²)
+      if (nonNull.length >= 4 && reg.r2 < TREND_MIN_R2) continue;
+      const rising = normSlope > 0;
+      let concern: string | null = null;
+      if (rising && latestVal > lr.max!) concern = 'past_high';
+      else if (!rising && latestVal < lr.min!) concern = 'past_low';
+      else if (rising && latestVal >= lr.max! - range * TREND_APPROACH_BAND) concern = 'approaching_high';
+      else if (!rising && latestVal <= lr.min! + range * TREND_APPROACH_BAND) concern = 'approaching_low';
+      if (!concern) continue;
+      alerts.push({ id, name: marker.name, category: cat.label, concern,
+        spark: sparkVals.map(x => formatValue(x.v)), direction: rising ? 'rising' : 'falling' });
+    }
+  }
+  // Sort: sudden first, then past, then approaching
+  alerts.sort((a, b) => {
+    const priority = (c: string) => c.startsWith('sudden_') ? 0 : c.startsWith('past_') ? 1 : 2;
+    return priority(a.concern) - priority(b.concern);
+  });
+  return alerts;
+}
+
+export function getKeyTrendMarkers(filteredData: ActiveData, profileSex = state.profileSex) {
+  const selected: Array<{cat: string; key: string}> = [];
+  const seen = new Set();
+  const MAX = KEY_TRENDS_MAX;
+
+  function add(cat: string, key: string) {
+    if (selected.length >= MAX) return;
+    const resolved = resolveActiveMarkerPath(filteredData.categories, cat, key);
+    if (!resolved || resolved.category.singlePoint) return;
+    const { categoryKey, marker } = resolved;
+    if (!marker.values?.some(v => v !== null)) return;
+    const id = categoryKey + '_' + key;
+    if (seen.has(id)) return;
+    seen.add(id);
+    selected.push({ cat: categoryKey, key });
+  }
+
+  // Tier 1: Trend alerts (sudden > past > approaching — already sorted)
+  const alerts = detectTrendAlerts(filteredData);
+  for (const a of alerts) {
+    const dot = a.id.indexOf('_');
+    add(a.id.substring(0, dot), a.id.substring(dot + 1));
+  }
+
+  // Tier 2: Flagged (out-of-range) markers
+  const flags = getAllFlaggedMarkers(filteredData);
+  for (const f of flags) {
+    add(f.categoryKey, f.markerKey);
+  }
+
+  // Tier 3: Sex-aware defaults
+  const defaults: Array<[string, string]> = profileSex === 'female'
+    ? [['diabetes','hba1c'],['diabetes','homaIR'],['lipids','ldl'],['vitamins','vitaminD'],
+       ['thyroid','tsh'],['iron','ferritin'],['hormones','estradiol'],['proteins','hsCRP']]
+    : profileSex === 'male'
+    ? [['diabetes','hba1c'],['diabetes','homaIR'],['lipids','ldl'],['vitamins','vitaminD'],
+       ['thyroid','tsh'],['hormones','testosterone'],['proteins','hsCRP'],['biochemistry','ggt']]
+    : [['diabetes','hba1c'],['diabetes','homaIR'],['lipids','ldl'],['vitamins','vitaminD'],
+       ['thyroid','tsh'],['proteins','hsCRP'],['biochemistry','ggt'],['hematology','hemoglobin']];
+  for (const [cat, key] of defaults) add(cat, key);
+
+  return selected;
+}

@@ -1,0 +1,183 @@
+interface ApplyAISettingsOptions { preferRemote?: boolean | undefined }
+
+// sync-apply.ts - apply inbound synced AI settings and display prefs.
+
+import { encodeMergedRoutstrSessions, withRoutstrSessionLock, ROUTSTR_SESSIONS_KEY } from './routstr-session.js';
+import { canonicalRoutstrUrl } from './routstr-validation.js';
+import { encryptedSetItem, encryptedGetItem, updateKeyCache } from './crypto.js';
+import { AI_SETTINGS_KEYS, DISPLAY_PREF_SUFFIXES } from './sync-payload-collectors.js';
+import {
+  getAppExtensionSyncEncryptedStorageKeys,
+  getAppExtensionSyncEncryptedStoragePrefixes,
+  getAppExtensionSyncConflictResolution,
+  getAppExtensionSyncStorageKeys,
+  getAppExtensionSyncStoragePrefixes,
+  notifyAppExtensionSyncSettingsApplied,
+} from './app-extension-runtime.js';
+import { refreshSyncedAIProviderUiRuntime, refreshSyncedRoutstrBalanceRuntime } from './sync-runtime.js';
+import { VOICE_ENCRYPTED_SYNC_KEYS } from './voice-settings-schema.js';
+
+export {
+  applyChatData, getChatDataLocalLockRemainingMs, markChatDataLocal,
+} from './sync-chat-apply.js';
+
+const OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY = 'or_oauth_local_settings_lock_until';
+const OPENROUTER_OAUTH_LOCAL_SETTING_KEYS = new Set(['labcharts-ai-provider', 'labcharts-openrouter-key']);
+const AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY = 'labcharts-ai-settings-local-lock-until';
+const ROUTSTR_SESSION_UPDATED_AT_KEY = 'labcharts-routstr-session-updated-at';
+const ROUTSTR_SESSION_KEYS = new Set(['labcharts-routstr-key', ROUTSTR_SESSIONS_KEY, 'labcharts-routstr-node']);
+
+function hasLocalSettingsLock(storageKey: string) {
+  try {
+    const until = Number(sessionStorage.getItem(storageKey) || '0');
+    return Number.isFinite(until) && Date.now() < until;
+  } catch {
+    return false;
+  }
+}
+
+function hasLocalAISettingsLock() {
+  return hasLocalSettingsLock(AI_SETTINGS_LOCAL_LOCK_UNTIL_KEY);
+}
+
+function shouldKeepLocalOpenRouterOAuthSetting(key: string) {
+  if (!OPENROUTER_OAUTH_LOCAL_SETTING_KEYS.has(key)) return false;
+  return hasLocalSettingsLock(OPENROUTER_OAUTH_LOCAL_SETTINGS_LOCK_UNTIL_KEY);
+}
+
+function shouldKeepLocalAISetting(key: string, recognizedSetting: boolean, preferRemote = false) {
+  if (preferRemote) return false;
+  return shouldKeepLocalOpenRouterOAuthSetting(key)
+    || (recognizedSetting && hasLocalAISettingsLock());
+}
+
+const ENCRYPTED_AI_KEYS = [
+  'labcharts-openrouter-key',
+  'labcharts-venice-key',
+  'labcharts-routstr-key',
+  ROUTSTR_SESSIONS_KEY,
+  'labcharts-ppq-key',
+  'labcharts-ollama',
+  'labcharts-ollama-pii-key',
+  'labcharts-lens-key',
+  'labcharts-custom-key',
+  ...VOICE_ENCRYPTED_SYNC_KEYS,
+];
+
+export function applyAISettings(settings: Record<string, unknown> | null | undefined, options: ApplyAISettingsOptions = {}) {
+  return withRoutstrSessionLock(() => applyAISettingsUnlocked(settings, options));
+}
+async function applyAISettingsUnlocked(settings: Record<string, unknown> | null | undefined, options: ApplyAISettingsOptions) {
+  if (!settings) return;
+  let changed = false;
+  const changedKeys: string[] = [];
+  let routstrSessionChanged = false;
+  const extensionKeys = new Set(getAppExtensionSyncStorageKeys());
+  const extensionPrefixes = getAppExtensionSyncStoragePrefixes();
+  const extensionEncryptedKeys = new Set(getAppExtensionSyncEncryptedStorageKeys());
+  const extensionEncryptedPrefixes = getAppExtensionSyncEncryptedStoragePrefixes();
+  // An edition can identify the keys in a coherent remote access transition
+  // (for example, first subscription activation, withdrawal, or managed-key
+  // rotation). That tuple must cross the short local-edit lock together;
+  // applying only metadata/source while retaining a local BYOK key would
+  // misclassify ownership. Unrelated provider/voice settings stay protected.
+  const extensionConflictResolution = getAppExtensionSyncConflictResolution(settings);
+  const extensionPreferRemoteKeys = new Set(extensionConflictResolution.preferRemoteKeys);
+  const extensionKeepLocalKeys = new Set(extensionConflictResolution.keepLocalKeys);
+  const remoteRoutstrUpdatedAt = Number(settings[ROUTSTR_SESSION_UPDATED_AT_KEY] || 0);
+  const localRoutstrUpdatedAt = Number(localStorage.getItem(ROUTSTR_SESSION_UPDATED_AT_KEY) || 0);
+  const remoteRoutstrIsNewer = Number.isFinite(remoteRoutstrUpdatedAt)
+    && remoteRoutstrUpdatedAt > localRoutstrUpdatedAt;
+  const localRoutstrIsNewer = Number.isFinite(localRoutstrUpdatedAt)
+    && localRoutstrUpdatedAt > remoteRoutstrUpdatedAt;
+  const localNode = localStorage.getItem('labcharts-routstr-node');
+  let localCredential = await encryptedGetItem(ROUTSTR_SESSIONS_KEY) || await encryptedGetItem('labcharts-routstr-key');
+  for (const [key, rawVal] of Object.entries(settings)) {
+    let val = rawVal;
+    const coreSetting = AI_SETTINGS_KEYS.includes(key);
+    const extensionSetting = extensionKeys.has(key)
+      || extensionPrefixes.some(prefix => key.startsWith(prefix))
+      || extensionEncryptedKeys.has(key)
+      || extensionEncryptedPrefixes.some(prefix => key.startsWith(prefix));
+    if (!coreSetting && !extensionSetting) continue;
+    if (val !== null && (typeof val !== 'string' || val.length > 10000)) continue; // sanity check
+    if (extensionKeepLocalKeys.has(key)) continue;
+    const encryptedSetting = ENCRYPTED_AI_KEYS.includes(key)
+      || extensionEncryptedKeys.has(key)
+      || extensionEncryptedPrefixes.some(prefix => key.startsWith(prefix));
+    const routstrSessionKey = ROUTSTR_SESSION_KEYS.has(key) || key === ROUTSTR_SESSION_UPDATED_AT_KEY;
+    // AI settings are global but are carried in every profile row. Once a
+    // clocked Routstr session lands, an older profile row with no clock (0)
+    // must not overwrite it with a legacy/stale key.
+    if (routstrSessionKey && localRoutstrIsNewer && options.preferRemote !== true) continue;
+    const preferRemoteSetting = options.preferRemote === true
+      || extensionPreferRemoteKeys.has(key)
+      || (routstrSessionKey && remoteRoutstrIsNewer);
+    if (shouldKeepLocalAISetting(key, coreSetting || extensionSetting, preferRemoteSetting)) continue;
+    if (key === 'labcharts-routstr-node' && val) { try { val = canonicalRoutstrUrl(val); } catch { continue; } }
+    if (key === 'labcharts-routstr-key' || key === ROUTSTR_SESSIONS_KEY) {
+      if (key === 'labcharts-routstr-key' && Object.hasOwn(settings, ROUTSTR_SESSIONS_KEY)) continue;
+      const bound = encodeMergedRoutstrSessions(localCredential, localNode, val, settings['labcharts-routstr-node'], localRoutstrUpdatedAt, remoteRoutstrUpdatedAt);
+      if (bound === localCredential && !await encryptedGetItem('labcharts-routstr-key')) continue;
+      await encryptedSetItem(ROUTSTR_SESSIONS_KEY, bound);
+      updateKeyCache(ROUTSTR_SESSIONS_KEY, bound);
+      await encryptedSetItem('labcharts-routstr-key', '');
+      updateKeyCache('labcharts-routstr-key', '');
+      localCredential = bound;
+      changed = true; routstrSessionChanged = true;
+      changedKeys.push(ROUTSTR_SESSIONS_KEY, 'labcharts-routstr-key');
+      continue;
+    }
+    if (key === 'labcharts-routstr-node' && /^(sk-|cashu)/.test(localCredential || '')) {
+      // Freeze legacy origin binding before changing the selected node.
+      const bound = encodeMergedRoutstrSessions(localCredential, localNode, null, null, localRoutstrUpdatedAt, 0);
+      await encryptedSetItem(ROUTSTR_SESSIONS_KEY, bound);
+      updateKeyCache(ROUTSTR_SESSIONS_KEY, bound);
+      await encryptedSetItem('labcharts-routstr-key', '');
+      updateKeyCache('labcharts-routstr-key', '');
+      localCredential = bound;
+    }
+    const before = await encryptedGetItem(key);
+    const hasStoredValue = localStorage.getItem(key) !== null;
+    if (val === null ? before === '' && hasStoredValue : before === val) continue;
+    if (val === null) {
+      // Keep an empty stored value so subsequent pushes preserve the deletion
+      // tombstone instead of allowing an older peer to resurrect the key.
+      if (encryptedSetting) {
+        await encryptedSetItem(key, '');
+        updateKeyCache(key, '');
+      } else {
+        localStorage.setItem(key, '');
+      }
+    } else if (encryptedSetting) {
+      await encryptedSetItem(key, val as string);
+      // Provider accessors are synchronous and read the decrypted in-memory
+      // cache. A key pulled after startup must update that cache immediately;
+      // otherwise they receive the on-disk `v1:` ciphertext wrapper until the
+      // next full reload and Routstr appears unsynced on the receiving device.
+      updateKeyCache(key, val as string);
+    } else {
+      localStorage.setItem(key, val as string);
+    }
+    changed = true;
+    changedKeys.push(key);
+    if (routstrSessionKey) routstrSessionChanged = true;
+  }
+  if (changed) {
+    // Same-tab storage writes do not emit storage events. Reconcile consumers
+    // without marking remotely applied settings as a new local edit.
+    globalThis.dispatchEvent?.(new CustomEvent('labcharts-ai-settings-synced'));
+    refreshSyncedAIProviderUiRuntime();
+    notifyAppExtensionSyncSettingsApplied({ settings, changedKeys });
+  }
+  if (routstrSessionChanged) refreshSyncedRoutstrBalanceRuntime();
+}
+
+export function applyDisplayPrefs(profileId: string, prefs: Record<string, string> | null | undefined) {
+  if (!prefs) return;
+  for (const suffix of DISPLAY_PREF_SUFFIXES) {
+    if (suffix in prefs) {
+      localStorage.setItem(`labcharts-${profileId}-${suffix}`, prefs[suffix]!);
+    }
+  }
+}

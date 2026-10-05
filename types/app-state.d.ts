@@ -1,5 +1,7 @@
+import type { StoredChatMessage } from '../js/chat-storage-safety.js';
 import type { HealthGoal, Biometrics, Diagnoses, DietContext, ExerciseContext, SleepContext, StressContext, LoveLifeContext, EnvironmentContext, LightCircadianContext } from './profile-context-data.js';
 import type { ChatMessage, ChatThread } from './chat-data.js';
+import type { StoredNutritionMeal } from '../js/nutrition-sync-sanitize.js';
 import type { NutritionMeal } from './nutrition-data.js';
 import type { LabEntry } from './lab-data.js';
 import type { SupplementRecord } from './supplement-data.js';
@@ -8,10 +10,10 @@ export interface CustomMarkerDefinition {
   markerId?: string;
   name?: string;
   unit?: string;
-  refMin?: number | null;
-  refMax?: number | null;
+  refMin?: number | null | undefined;
+  refMax?: number | null | undefined;
   categoryLabel?: string;
-  icon?: string;
+  icon?: string | undefined;
   group?: string | null;
   [key: string]: any;
 }
@@ -55,7 +57,7 @@ export interface ProfileData {
   contextSourceSettings: Record<string, boolean>;
   nutritionContextDays?: 7 | 30 | 90;
   nutritionTargets?: Record<string, any> | null;
-  nutritionMeals?: NutritionMeal[] | null;
+  nutritionMeals?: Array<NutritionMeal | StoredNutritionMeal> | null;
   changeHistory: any[];
   importSnapshots: any[];
   biometrics?: Biometrics | null;
@@ -101,7 +103,7 @@ export interface AppState {
   profiles: any[] | null;
   profileSex: string | null;
   profileDob: string | null;
-  chatHistory: ChatMessage[];
+  chatHistory: Array<ChatMessage | StoredChatMessage>;
   chatThreads: ChatThread[];
   currentThreadId: string | null;
   currentChatPersonality: string;

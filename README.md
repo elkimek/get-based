@@ -13,9 +13,9 @@ You can use it with no account. Most data lives in your browser by default. Heal
 ## What you can do with it
 
 - **Import lab reports** — drop PDFs, images, spreadsheets, or manually enter values. getbased maps known markers, lets you review values, laboratory ranges, collection time, and fasting status before saving, and keeps reviewable snapshots per file.
-- **Track biomarkers over time** — 197 core markers across 19 categories, plus specialty and custom markers, with charts, tables, heatmaps, lab-first and context-aware ranges, optional evidence-backed optimal ranges, notes, trend flags, and date comparison.
+- **Track biomarkers over time** — 198 built-in markers across 19 categories, plus specialty and custom markers, with charts, tables, heatmaps, lab-first and context-aware ranges, optional evidence-backed optimal ranges, notes, trend flags, and date comparison.
 - **Use calculated markers without duplicates** — supported lab-reported ratios and indices take priority, while deterministic fallbacks cover lipid/metabolic ratios, NLR/PLR/MLR/SII, FIB-4, anion gap, free water deficit, and biological age when their inputs are available.
-- **Explore 18 Biology Scores** — deterministic scores keep affordable core markers central, with optional markers adding context. Biological Coherence brings eligible baseline scores together and shows which contribute or are excluded. Cleaner cards, coverage planning and saved AI explanations help you explore patterns across dates and ranges. Scores support wellness and learning, not diagnosis. [How Biology Scores work](https://docs.getbased.health/guides/biology-scores).
+- **Explore 19 Biology Scores** — deterministic scores keep affordable core markers central, with optional markers adding context. Biological Coherence brings eligible baseline scores together and shows which contribute or are excluded. Cleaner cards, coverage planning and saved AI explanations help you explore patterns across dates and ranges. Scores support wellness and learning, not diagnosis. [How Biology Scores work](https://docs.getbased.health/guides/biology-scores).
 - **Bring in DNA context** — raw DNA imports from common consumer and clinical formats, with curated SNP interpretation, APOE haplotype support, mtDNA haplogroups, and DNA-aware AI context.
 - **Connect wearables and body metrics** — the official app supports Oura, Withings, Polar, existing legacy Fitbit connections, local Apple Health file import, and manual weight, blood pressure, and resting pulse. The hosted cloud integrations use narrowly scoped provider relays; WHOOP, Ultrahuman, and Google Health remain self-host only and use infrastructure controlled by that deployment. Every stored OAuth token is device-key encrypted.
 - **Track light and environment** — sun sessions, UV/atmospheric context, indoor light setup, devices, measurements, EMF assessment, and daily light analysis.
@@ -196,29 +196,40 @@ npm run dev-server
 
 Open `http://localhost:8000/app`. The root URL may serve the sibling `get-based-site` landing page when that repository is present.
 
+Edit the authored `.ts` and `.mts` sources. TypeScript 7 emits ignored JavaScript at the existing runtime URLs. `npm ci`, `npm run dev-server`, and `npm test` compile before use; run `npm run typescript:build` before invoking Node entry points or Playwright directly after editing.
+
 Useful checks:
 
 ```bash
+npm run migration:check
+npm run typecheck:migration
+npm run typecheck:migration-tests
 npm run typecheck
 npm run typecheck:checkjs
+npm run typecheck:server
+npm run typecheck:service-worker
+npm run typecheck:strict-null
 npm run architecture:check
 npm run vendor:check
 npm run supply-chain:check
 npm run sbom
 npm run quality
-npm test -- tests/<relevant-test>.test.js
-npx playwright test tests/playwright/<relevant-spec>.spec.js
+npm test -- tests/<relevant-test>.test.ts
+npx playwright test tests/playwright/<relevant-spec>.spec.ts
 npm run test:evolu8-browsers
 npm run test:firefox
 npm run performance:check
 npm run production:check
 ```
 
-Default to tests related to the current change. GitHub Actions runs the exhaustive browser and combined-coverage matrix so local development does not repeatedly create high volumes of temporary Chromium and V8 coverage data.
-`./run-tests.sh` runs both type checkers, verifies the architecture map, vendored browser assets and their supply-chain inventory, and the static module graph, starts an isolated local server, runs the Node/Vitest tests, checks the dev-server origin guard, and runs every Playwright browser assertion. It is blocked outside CI unless the high-write run is explicitly acknowledged with `GETBASED_ALLOW_HIGH_WRITE_TESTS=1`.
-`COVERAGE=1 ./run-tests.sh` also combines Vitest and Playwright V8 function coverage and enforces the committed ratchet in `scripts/coverage-baseline.json`; CI runs this mode on every change.
+Default to tests related to the current change. Pull requests run affected tests without repository-wide coverage; migration completeness, strict compiler, architecture, quality and production-build gates still run. Pushes to `main`, manual test-workflow runs and explicit release verification run the full regression and combined-coverage matrix in CI. This keeps routine local checks from repeatedly creating large temporary Chromium profiles and V8 coverage data.
+
+`./run-tests.sh` runs the default app, compatibility, server, worker and strict-null checks, verifies the architecture map, vendored assets, supply-chain inventory and static module graph, starts an isolated local server, runs Node/Vitest tests, checks the dev-server origin guard, and runs the full Chromium suite. It is blocked outside CI unless the high-write run is explicitly acknowledged with `GETBASED_ALLOW_HIGH_WRITE_TESTS=1`.
+`COVERAGE=1 ./run-tests.sh` also combines Vitest and Playwright V8 function coverage and enforces the committed ratchet in `scripts/coverage-baseline.json`.
 Coverage includes all first-party browser, server, companion and shared runtime
-sources, including modules that tests never import. Function identities use source
+sources and project-owned executable vendor modules, including modules that tests
+never import. Coverage measures emitted JavaScript; canonical TypeScript sources
+remain the owners for inventory and test selection. Function identities use source
 syntax ranges so same-named methods and anonymous callbacks remain distinct across
 collectors. CI retains a `production-coverage` artifact with commit-attributed JSON,
 an HTML file inventory, and a feature summary also shown in the job summary. These
@@ -233,21 +244,47 @@ regressions from unmeasured integration and coverage boundaries.
 `npm run test:firefox` runs the focused Firefox critical-flow suite; install its browser binary once with `npx playwright install firefox`.
 `npm run test:pwa` checks offline lazy features, manifest assets, interrupted updates, retry, and two-tab data preservation in Chromium, Firefox, and desktop/mobile WebKit. Install those engines with `npx playwright install --with-deps chromium firefox webkit`. The tests disconnect an isolated local origin, use synthetic profiles, and never modify a deployed application.
 `npm run performance:check` runs the focused cold mobile-load check and enforces the committed request-count, compressed-transfer, and decoded-byte ceilings.
-`npm run production:check` builds the deploy artifact in a temporary directory and enforces the production startup, lazy-chunk, and PWA app-shell precache resource/decoded-byte budgets without changing the worktree.
+`npm run production:check` builds the deploy artifact in a temporary directory and enforces the production startup, lazy-chunk, and PWA app-shell precache resource/decoded-byte budgets without rewriting the working app entrypoint or service worker; its npm pre-hook still regenerates ignored TypeScript outputs.
 `npm run sbom` writes a combined CycloneDX inventory for npm and vendored browser components to `artifacts/getbased.cdx.json`.
+
+## Production builds and release verification
+
+`npm run production:check` verifies the deployment build and budgets in a
+temporary directory. `npm run production:build` compiles the TypeScript sources,
+creates hashed startup and lazy JavaScript bundles, emits the companion bundle,
+and rewrites the app entrypoint and PWA precache in the working directory.
+A static deployment must include the emitted runtime files and built assets;
+the unbuilt Git checkout alone is not a browser-ready distribution. Vercel runs
+native preparation during dependency installation and then the configured
+catalog and production build. API function owners are the tracked `api/*.ts`
+entrypoints. Separate service images compile their TypeScript in the build stage;
+see the [compatibility relay](deploy/compat-proxy/README.md) and
+[profile-share service](deploy/profile-share/README.md) deployment guides.
+
+The explicit [release-evidence workflow](.github/workflows/release-evidence.yml)
+runs full regression and both real WASM model scenarios on the selected revision;
+it does not deploy. Sync compatibility has a [separate workflow](.github/workflows/sync-compat.yml).
+Live paid providers, physical hardware and manual acceptance remain separate
+verification. Current migration evidence and outstanding release checks live in
+[the migration and pre-release audit notes](TYPESCRIPT_MIGRATION.md).
+
+PWA updates use a build identity generated from the deployed commit and deployment ID. The builder embeds it in both `version.js` and the service worker; release versions remain for changelogs. Visible apps check every five minutes and on return, download new builds silently into a separate cache, and offer **Reload / Later** only after installation succeeds. Failed downloads keep the current build active. Version 1.19.3 provides the migration signal for older version-based clients; subsequent patches need no version bump.
 
 ## Tech stack
 
-- Native browser ES modules in source; the Vercel build uses Rolldown to collapse
-  the static startup graph while preserving feature-level lazy chunks.
-- Plain HTML/CSS/JS with split modules under `js/` and feature CSS under `css/`.
+- Strict TypeScript 7 for first-party application, API/server, companion, worker,
+  test and build-tool sources. Ignored `.js`/`.mjs` outputs retain existing runtime
+  URLs; external vendored JavaScript remains third-party code.
+- Native browser ES modules; Rolldown bundles the static startup graph for
+  production while preserving feature-level lazy chunks.
+- Plain HTML/CSS with TypeScript modules under `js/` and feature CSS under `css/`.
 - Chart.js for charts.
 - pdf.js for PDF text extraction.
 - transformers.js + OPFS for the in-browser Knowledge Base.
 - transformers.js, quantized Whisper Small/Medium/Large v3 Turbo, and Kokoro for optional in-browser voice.
 - Evolu for optional encrypted CRDT sync.
 - A getbased-operated, SQLite-backed service for opaque encrypted profile shares; a Vercel endpoint for public deployment metadata; and a separately deployed, narrowly scoped compatibility relay for supported wearable providers, NVIDIA attestation, the fixed privacy-rounded CAMS lookup, and credential-free public-page imports. Generic AI, voice, and custom-provider forwarding is rejected on getbased-operated hosts. Self-host-only providers use the deployment owner's OAuth credentials and, only where required, its same-origin proxy.
-- Vitest, TypeScript checkers, quality guardrails, and Playwright for verification.
+- Vitest, strict native TypeScript compiler projects, quality guardrails, and Playwright for verification.
 - PWA install support; core local tracking and cached app data work offline. Integrations, synchronization, sharing, remote Knowledge Bases, and live environmental data require connectivity.
 
 ## Repo structure
@@ -255,24 +292,31 @@ regressions from unmeasured integration and coverage boundaries.
 ```text
 get-based/
 ├── index.html, styles.css, css/     # App shell and feature styles
-├── service-worker.js                # PWA caching, offline shell, and network routing
-├── js/                              # Native ES modules
-│   ├── settings-agent-access-panel.js
-│   ├── sync*.js                     # Optional encrypted sync and Agent Access plumbing
-│   ├── lens*.js                     # Knowledge Base backends and query injection
-│   ├── biology-score*.js            # Biology Scores engine, UI, and AI context
-│   ├── wearables*.js                # Wearable adapters, storage, settings, summaries
-│   └── light*.js / sun*.js          # Light & Sun tools, sessions, environment, AI summaries
-├── api/                             # Vercel/serverless routes
-├── lib/                             # Node-only server policy and transport
-├── data/                            # Curated marker, SNP, lens, and reference data
-├── brands/                          # Product and provider brand assets
-├── scripts/                         # Architecture, vendor, catalog, and maintenance tooling
-├── tests/                           # Vitest and Playwright coverage
-├── vendor/                          # Vendored browser libraries
+├── dev-server.ts                   # Local development server (emits dev-server.js)
+├── version.ts                      # Release version (emits classic version.js)
+├── service-worker*.ts              # PWA caching, offline shell, and network routing
+├── js/                             # Authored TypeScript browser modules
+│   ├── settings-agent-access-panel.ts
+│   ├── sync*.ts                    # Optional encrypted sync and Agent Access plumbing
+│   ├── lens*.ts                    # Knowledge Base backends and query injection
+│   ├── biology-score*.ts           # Biology Scores engine, UI, and AI context
+│   ├── wearables*.ts               # Wearable adapters, storage, settings, summaries
+│   └── light*.ts / sun*.ts         # Light & Sun tools, sessions, environment, AI summaries
+├── api/                            # TypeScript Vercel/serverless entrypoints
+├── server/                         # TypeScript companion, compatibility and share servers
+├── bin/                            # TypeScript companion CLI entrypoint
+├── lib/                            # TypeScript Node/server policy and transport
+├── shared/                         # TypeScript contracts shared by browser and servers
+├── data/                           # Curated marker, SNP, lens, and reference data
+├── brands/                         # Product and provider brand assets
+├── scripts/                        # TypeScript (.ts/.mts) build and maintenance tooling
+├── tests/                          # TypeScript Vitest, legacy and Playwright suites
+├── vendor/                         # External libraries and declared project-owned sources
+├── tsconfig*.json                  # Strict app, server, worker and test compiler projects
+├── TYPESCRIPT_MIGRATION.md          # Migration contract, evidence and pre-release audit
 ├── ARCHITECTURE.md                  # Maintained ownership and dependency contract
-├── MODULE_MAP.md                    # Generated runtime module/import map
-└── .github/workflows/               # CI
+├── MODULE_MAP.md                    # Generated module/import map of canonical sources
+└── .github/workflows/              # CI and release verification
 ```
 
 User and developer documentation live at [docs.getbased.health](https://docs.getbased.health). The app repo keeps only code-adjacent notes and tests.
@@ -303,5 +347,3 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Project board: [planned features](https:
 AGPL-3.0-or-later. See [LICENSE](LICENSE).
 
 If you run a modified version as a network service, AGPLv3 §13 requires you to offer users the corresponding source. Vendored third-party libraries are listed under their own licenses in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
-
-PWA updates use a build identity generated from the deployed commit and deployment ID. The builder embeds it in both `version.js` and the service worker; release versions remain for changelogs. Visible apps check every five minutes and on return, download new builds silently into a separate cache, and offer **Reload / Later** only after installation succeeds. Failed downloads keep the current build active. Version 1.19.3 provides the migration signal for older version-based clients; subsequent patches need no version bump.

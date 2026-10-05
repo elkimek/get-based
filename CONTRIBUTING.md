@@ -9,12 +9,13 @@ Thanks for wanting to help. This is the short version — the in-depth developer
 ```bash
 git clone https://github.com/elkimek/get-based
 cd get-based
-node dev-server.js
+npm ci
+npm run dev-server
 ```
 
-Open `http://localhost:8000`. No install step, no build step — getbased is native ES modules loaded directly by the browser.
+Open `http://localhost:8000/app`. The root URL may serve the sibling `get-based-site` landing page when that repository is present.
 
-Prerequisites: a modern browser (Chrome or Firefox), Node.js for the dev server, and `npm ci` if you want to run the test suite. An AI provider key or a local Ollama instance is optional — only needed for PDF import and chat.
+Prerequisites: a modern browser (Chrome or Firefox) and Node.js 24. `npm ci` installs dependencies and compiles the TypeScript sources; `npm run dev-server` recompiles them before starting the server. Edit the authored `.ts` and `.mts` files. When running a Node entry point or Playwright directly after editing, first run `npm run typescript:build`. An AI provider key or a local Ollama instance is optional — only needed for PDF import and chat.
 
 ---
 
@@ -23,8 +24,10 @@ Prerequisites: a modern browser (Chrome or Firefox), Node.js for the dev server,
 Default to tests related to the files and behavior you changed:
 
 ```bash
-npm test -- tests/<relevant-test>.test.js
-npx playwright test tests/playwright/<relevant-spec>.spec.js
+npm test -- tests/<relevant-test>.test.ts
+npm run typecheck:migration
+npm run typecheck:migration-tests
+npx playwright test tests/playwright/<relevant-spec>.spec.ts
 npx playwright install firefox
 npm run test:firefox
 npm run performance:check
@@ -58,7 +61,7 @@ npm run architecture:check
 - Keep PRs focused. One thing at a time is easier to review.
 - Run change-scoped tests and relevant lightweight gates before opening a PR;
   let GitHub Actions run the exhaustive browser and coverage matrix.
-- If you touch any app file (JS, CSS, HTML, manifest), bump the version in `version.js` — this busts the service worker cache for existing users.
+- Edit canonical `.ts`/`.mts` sources, not generated `.js`/`.mjs` files. PWA cache identity comes from the production commit and deployment ID, so ordinary patches need no version bump. For a versioned release, update `version.ts` and the changelog.
 - Commit the regenerated [`MODULE_MAP.md`](MODULE_MAP.md) when runtime modules or imports change.
 - Update [`ARCHITECTURE.md`](ARCHITECTURE.md) when responsibilities, entry points, major data flows, or allowed dependency directions change.
 

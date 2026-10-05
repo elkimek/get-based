@@ -1,0 +1,217 @@
+// @vitest-environment node
+import type { ChildProcessWithoutNullStreams } from 'node:child_process';
+import type { Mock } from 'vitest';
+type FixtureChild = ChildProcessWithoutNullStreams & {
+  stdin: PassThrough;
+  stdout: PassThrough;
+  stderr: PassThrough;
+  kill: Mock<ChildProcessWithoutNullStreams['kill']>;
+};
+
+import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { CodexAppServerClient } from '../lib/codex-app-server-client.js';
+import { ACPAgentClient } from '../lib/acp-agent-client.js';
+
+function childProcess() {
+  return Object.assign(new EventEmitter(), {
+    stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough(),
+    exitCode: null, signalCode: null, kill: vi.fn(),
+  }) as FixtureChild;
+}
+const clients: (CodexAppServerClient | ACPAgentClient)[] = [];
+afterEach(async () => {
+  for (const client of clients.splice(0)) await client.close();
+  vi.useRealTimers();
+});
+function setup(kind: string, children = [childProcess()]) {
+  const spawnImpl = vi.fn();
+  for (const child of children) spawnImpl.mockReturnValueOnce(child);
+  const client = kind === 'codex'
+    ? new CodexAppServerClient({ spawnImpl, requestTimeoutMs: 100 })
+    : new ACPAgentClient({ id: 'opencode', command: 'opencode', args: ['acp'], cwd: '/tmp', spawnImpl, requestTimeoutMs: 100 });
+  clients.push(client);
+  return { client, child: children[0]!, spawnImpl };
+}
+
+describe.each(['codex', 'acp'])('%s RPC failure boundaries', kind => {
+  it('cleans up pending entries and timers when request serialization fails', async () => {
+    vi.useFakeTimers();
+    const { client, child } = setup(kind);
+    const params: { self?: unknown } = {}; params.self = params;
+    await expect(client.request('ping', params)).rejects.toThrow();
+    expect(client.pending.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(child.stdin.read()).toBeNull();
+  });
+
+  it('cleans up a synchronous stdin failure immediately', async () => {
+    vi.useFakeTimers();
+    const { client, child } = setup(kind);
+    child.stdin.write = vi.fn(() => { throw new Error('broken pipe'); });
+    await expect(client.request('ping', {})).rejects.toThrow('broken pipe');
+    expect(client.pending.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('rejects callback write failures instead of waiting for timeout', async () => {
+    vi.useFakeTimers();
+    const { client, child } = setup(kind);
+    child.stdin.write = vi.fn((_data: unknown, callback: (error: Error) => void) => { callback(new Error('broken pipe')); return false; }) as unknown as typeof child.stdin.write;
+    const pending = client.request('ping', {});
+    const outcome = pending.then(() => 'resolved', error => error.message);
+    await Promise.resolve();
+    expect(client.pending.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(await outcome).toContain('broken pipe');
+  });
+
+  it('handles stdin error events and rejects all pending requests', async () => {
+    const { client, child } = setup(kind);
+    const one = client.request('one', {}).catch(error => error.message);
+    const two = client.request('two', {}).catch(error => error.message);
+    expect(() => child.stdin.emit('error', new Error('pipe closed'))).not.toThrow();
+    expect(await one).toBe('pipe closed');
+    expect(await two).toBe('pipe closed');
+    expect(client.pending.size).toBe(0);
+    expect(client.child).toBeNull();
+  });
+
+  it('expires only the timed-out request and ignores its late reply', async () => {
+    vi.useFakeTimers();
+    const { client, child } = setup(kind);
+    const first = client.request('slow', {}, { timeoutMs: 10 }).catch(error => error.message);
+    const second = client.request('other', {}, { timeoutMs: 100 });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(await first).toContain('timed out');
+    child.stdout.write('{"id":1,"result":"late"}\n');
+    expect(client.pending.size).toBe(1);
+    child.stdout.write('{"id":2,"result":"current"}\n');
+    await expect(second).resolves.toBe('current');
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('rejects in-flight work on process exit and restarts for the next request', async () => {
+    const oldChild = childProcess(), nextChild = childProcess();
+    const { client, spawnImpl } = setup(kind, [oldChild, nextChild]);
+    const stopped = client.request('first', {}).catch(error => error.message);
+    oldChild.emit('exit', 1, null);
+    expect(await stopped).toContain('code 1');
+    const current = client.request('second', {});
+    expect(() => oldChild.stdin.emit('error', new Error('stale pipe'))).not.toThrow();
+    expect(client.child).toBe(nextChild);
+    nextChild.stdout.write('{"id":2,"result":"ok"}\n');
+    await expect(current).resolves.toBe('ok');
+    expect(spawnImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('shares initialization and retries after an RPC error', async () => {
+    const { client, child } = setup(kind);
+    const first = client.initialize();
+    expect(client.initialize()).toBe(first);
+    const failed = first.catch(error => error.message);
+    child.stdout.write('{"id":1,"error":{"code":-32000,"message":"temporarily unavailable"}}\n');
+    expect(await failed).toBe('temporarily unavailable');
+    expect(client.initializePromise).toBeNull();
+    const retry = client.initialize();
+    child.stdout.write('{"id":2,"result":{"protocolVersion":1}}\n');
+    await expect(retry).resolves.toEqual({ protocolVersion: 1 });
+    expect(client.initialize()).toBe(retry);
+    expect(client.pending.size).toBe(0);
+  });
+
+  it('rejects every pending request on close, clears timers and requires an explicit restart', async () => {
+    vi.useFakeTimers();
+    const { client, child } = setup(kind);
+    const one = client.request('one', {}).catch(error => error.message);
+    const two = client.request('two', {}).catch(error => error.message);
+    await client.close();
+    expect(await one).toContain('closed');
+    expect(await two).toContain('closed');
+    expect(client.pending.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(child.kill).toHaveBeenCalledExactlyOnceWith('SIGTERM');
+    expect(() => client.request('later', {})).toThrow('closed');
+    await client.close();
+    expect(child.kill).toHaveBeenCalledOnce();
+  });
+
+  it('ignores a late write callback after a successful response', async () => {
+    const { client, child } = setup(kind);
+    let callback: ((error: Error) => void) | undefined;
+    child.stdin.write = vi.fn((_data: unknown, done: (error: Error) => void) => { callback = done; return true; }) as unknown as typeof child.stdin.write;
+    const request = client.request('ping', {});
+    child.stdout.write('{"id":1,"result":"accepted"}\n');
+    await expect(request).resolves.toBe('accepted');
+    expect(() => callback!(new Error('late failure'))).not.toThrow();
+    expect(client.pending.size).toBe(0);
+  });
+
+  it('reports malformed JSON without consuming a live request', async () => {
+    const { client, child } = setup(kind);
+    const error = vi.fn(); client.on('protocolError', error);
+    const pending = client.request('ping', {});
+    child.stdout.write('not-json\nnull\n[]\n{"id":999,"result":"unrelated"}\n');
+    expect(error).toHaveBeenCalledOnce();
+    expect(client.pending.size).toBe(1);
+    child.stdout.write('{"id":1,"result":"ok"}\n');
+    await expect(pending).resolves.toBe('ok');
+  });
+
+  it('leaves no pending requests when spawning fails and allows retry', async () => {
+    const { client, child, spawnImpl } = setup(kind);
+    spawnImpl.mockReset().mockImplementationOnce(() => { throw new Error('spawn unavailable'); }).mockReturnValue(child);
+    expect(() => client.request('first', {})).toThrow('spawn unavailable');
+    expect(client.child).toBeNull(); expect(client.pending.size).toBe(0);
+    const retry = client.request('retry', {});
+    child.stdout.write('{"id":1,"result":"ok"}\n');
+    await expect(retry).resolves.toBe('ok');
+  });
+  it('rejects process error events and clears all pending timers', async () => {
+    vi.useFakeTimers();
+    const { client, child } = setup(kind);
+    const pending = client.request('ping', {}).catch(error => error);
+    const failure = new Error('process failed');
+    child.emit('error', failure);
+    expect(await pending).toBe(failure);
+    expect(client.pending.size).toBe(0); expect(vi.getTimerCount()).toBe(0);
+  });
+  it('reports signal exits and accepts repeated late exit events harmlessly', async () => {
+    const { client, child } = setup(kind);
+    const pending = client.request('ping', {}).catch(error => error);
+    child.emit('exit', null, 'SIGTERM');
+    expect((await pending as Error).message).toContain('signal SIGTERM');
+    expect(() => child.emit('exit', null, 'SIGTERM')).not.toThrow();
+    expect(client.child).toBeNull();
+  });
+  it('rejects an RPC error without a message using the protocol fallback', async () => {
+    const { client, child } = setup(kind);
+    const pending = client.request('ping', {});
+    child.stdout.write('{"id":1,"error":{}}\n');
+    await expect(pending).rejects.toThrow('request failed');
+    expect(client.pending.size).toBe(0);
+  });
+  it('routes notifications without consuming pending request IDs', async () => {
+    const { client, child } = setup(kind);
+    const notification = vi.fn(); client.on('notification', notification);
+    const pending = client.request('ping', {});
+    child.stdout.write('  \n{"method":7}\n{"method":"progress","params":{"percent":50}}\n');
+    expect(notification).toHaveBeenCalledExactlyOnceWith({ method: 'progress', params: { percent: 50 } });
+    expect(client.pending.size).toBe(1);
+    child.stdout.write('{"id":1,"result":"done"}\n');
+    await expect(pending).resolves.toBe('done');
+  });
+  it('ignores obsolete process output while a replacement request is pending', async () => {
+    const oldChild = childProcess(), nextChild = childProcess();
+    const { client } = setup(kind, [oldChild, nextChild]);
+    const first = client.request('first', {}).catch(error => error);
+    oldChild.emit('exit', 1, null); await first;
+    const second = client.request('second', {});
+    oldChild.stdout.write('{"id":2,"result":"stale"}\n');
+    expect(client.pending.size).toBe(1);
+    nextChild.stdout.write('{"id":2,"result":"current"}\n');
+    await expect(second).resolves.toBe('current');
+  });
+
+});

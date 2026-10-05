@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.migration.json",
+  "include": [
+    "tests/test-*.ts",
+    "tests/verify-modules.ts",
+    "tests/validate-storage-shim-throwing-getters.mts"
+  ]
+}

@@ -1,0 +1,58 @@
+// api-provider-storage-runtime.ts - Browser runtime adapters for persisted provider settings.
+
+import {
+  refreshChatWebSearchToggleRuntime,
+  updateChatHeaderModelRuntime,
+} from './chat-runtime.js';
+
+async function rejectUnconfiguredProviderWrite() {
+  throw new Error('Encrypted provider storage is not configured.');
+}
+
+const apiProviderStorageRuntimeDeps: { encryptedSetItem: (key: string, value: string) => Promise<void> } = {
+  encryptedSetItem: rejectUnconfiguredProviderWrite,
+};
+
+export function configureApiProviderStorageRuntimeDeps(deps: { encryptedSetItem?: ((key: string, value: string) => Promise<void>) | null } = {}) {
+  const previous = { ...apiProviderStorageRuntimeDeps };
+  if (Object.hasOwn(deps, 'encryptedSetItem')) {
+    apiProviderStorageRuntimeDeps.encryptedSetItem = typeof deps.encryptedSetItem === 'function'
+      ? deps.encryptedSetItem
+      : rejectUnconfiguredProviderWrite;
+  }
+  return previous;
+}
+
+export function encryptedSetProviderItemRuntime(key: string, value: string) {
+  return apiProviderStorageRuntimeDeps.encryptedSetItem(key, value);
+}
+
+function getApiProviderStorageRuntime() {
+  return typeof window !== 'undefined'
+    ? (window as Window & typeof globalThis)
+    : null;
+}
+
+export function refreshAIProviderSelectionRuntime() {
+  const headerRefreshed = updateChatHeaderModelRuntime();
+  return refreshChatWebSearchToggleRuntime() || headerRefreshed;
+}
+
+export function dispatchAISettingsLocalChangedRuntime() {
+  const runtime = getApiProviderStorageRuntime();
+  if (!runtime || typeof runtime.dispatchEvent !== 'function' || typeof runtime.CustomEvent !== 'function') return false;
+  try {
+    runtime.dispatchEvent(new runtime.CustomEvent('labcharts-ai-settings-local-changed'));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function touchRoutstrSessionClock() {
+  const stored = Number(localStorage.getItem('labcharts-routstr-session-updated-at') || 0);
+  const previous = Number.isFinite(stored) ? stored : 0;
+  const updatedAt = Math.max(Date.now(), previous + 1);
+  localStorage.setItem('labcharts-routstr-session-updated-at', String(updatedAt));
+  return updatedAt;
+}

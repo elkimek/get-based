@@ -1,0 +1,98 @@
+// provider-wallet-runtime.js - Cashu/Nostr dependencies for Routstr wallet panels
+
+import {
+  refundNodeToToken as cashuRefundNodeToToken,
+  finishNodeRefund as cashuFinishNodeRefund,
+  getPendingNodeRefund as cashuGetPendingNodeRefund,
+  getPendingNodeRefunds as cashuGetPendingNodeRefunds,
+  checkProofStates as cashuCheckProofStates,
+  createFundingInvoice as cashuCreateFundingInvoice,
+  checkFundingStatus as cashuCheckFundingStatus,
+  recoverPendingFunding as cashuRecoverPendingFunding,
+  recoverPendingWalletOperation as cashuRecoverPendingWalletOperation,
+  createWithdrawQuote as cashuCreateWithdrawQuote,
+  depositToNode as cashuDepositToNode,
+  startNewNodeSession as cashuStartNewNodeSession,
+  getTokenMintUrl as cashuGetTokenMintUrl,
+  executeWithdraw as cashuExecuteWithdraw,
+  exportWallet as cashuExportWallet,
+  generateWalletSeed as cashuGenerateWalletSeed,
+  getFeePct as cashuGetFeePct,
+  getMintUrl as cashuGetMintUrl,
+  getWalletMints as cashuGetWalletMints,
+  getMaxWithdrawable as cashuGetMaxWithdrawable,
+  getWalletBalance as cashuGetBalance,
+  getLocalWalletBalance as cashuGetLocalBalance,
+  subscribeFundingQuotes as cashuSubscribeFundingQuotes,
+  getWalletMnemonic as cashuGetWalletMnemonic,
+  hasWalletSeed as cashuHasWalletSeed,
+  importWallet as cashuImportWallet,
+  receiveToken as cashuReceiveToken,
+  recoverPendingDeposit as cashuRecoverPendingDeposit,
+  clearPendingDeposit as cashuClearPendingDeposit,
+  recoverPendingWithdraw as cashuRecoverPendingWithdraw,
+  clearPendingWithdraw as cashuClearPendingWithdraw,
+  restoreWalletFromSeed as cashuRestoreWalletFromSeed,
+  savePendingWithdrawToken as cashuSavePendingWithdrawToken,
+  sendAsToken as cashuSendAsToken,
+  setMintUrl as cashuSetMintUrl,
+  withdrawToAddress as cashuWithdrawToAddress,
+} from './cashu-wallet.js';
+import {
+  discoverNodes as nostrDiscoverNodes,
+  getSelectedNodeUrl as nostrGetSelectedNode,
+  setSelectedNodeUrl as nostrSetSelectedNode,
+} from './nostr-discovery.js';
+
+const walletRuntimeDefaults = {
+  cashuRefundNodeToToken, cashuFinishNodeRefund, cashuGetPendingNodeRefund, cashuGetPendingNodeRefunds,
+  cashuCheckProofStates,
+  cashuCreateFundingInvoice,
+  cashuCheckFundingStatus,
+  cashuRecoverPendingFunding,
+  cashuRecoverPendingWalletOperation,
+  cashuCreateWithdrawQuote,
+  cashuDepositToNode,
+  cashuStartNewNodeSession,
+  cashuGetTokenMintUrl,
+  cashuExecuteWithdraw,
+  cashuExportWallet,
+  cashuGenerateWalletSeed,
+  cashuGetBalance,
+  cashuGetLocalBalance,
+  cashuSubscribeFundingQuotes,
+  cashuGetFeePct,
+  cashuGetMintUrl,
+  cashuGetWalletMints,
+  cashuGetMaxWithdrawable,
+  cashuGetWalletMnemonic,
+  cashuHasWalletSeed,
+  cashuImportWallet,
+  cashuReceiveToken,
+  cashuRecoverPendingDeposit,
+  cashuClearPendingDeposit,
+  cashuRecoverPendingWithdraw,
+  cashuClearPendingWithdraw,
+  cashuRestoreWalletFromSeed,
+  cashuSavePendingWithdrawToken,
+  cashuSendAsToken,
+  cashuSetMintUrl,
+  cashuWithdrawToAddress,
+  nostrDiscoverNodes,
+  nostrGetSelectedNode,
+  nostrSetSelectedNode,
+};
+
+// Defaults are genuine native functions; unchecked overrides make each mutable slot opaque.
+export type ProviderWalletDefaults = typeof walletRuntimeDefaults;
+export type ProviderWalletRuntime = { [Key in keyof ProviderWalletDefaults]: unknown } & Record<PropertyKey, unknown>;
+export const walletRuntime: ProviderWalletRuntime = { ...walletRuntimeDefaults };
+
+export function configureRoutstrWalletRuntime(overrides: unknown = {}) {
+  const previous = { ...walletRuntime };
+  for (const key of Object.keys(walletRuntime)) {
+    if (!Object.prototype.hasOwnProperty.call(walletRuntimeDefaults, key)) delete walletRuntime[key];
+  }
+  Object.assign(walletRuntime, walletRuntimeDefaults, overrides);
+  return previous;
+}

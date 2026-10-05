@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "commit": "371c00da0195c33f4c1d42e3c63b85c25746b086",
+  "scope": "All tracked first-party JS, MJS, TS, CSS, HTML, Python and shell files; excludes vendor, docs and dist-docs. Generated JS beside canonical TS is excluded.",
+  "minimumReduction": 0.3,
+  "totals": {
+    "lines": 421094,
+    "nonblank": 391896
+  },
+  "groups": {
+    "api": {
+      "files": 5,
+      "lines": 1044,
+      "nonblank": 976
+    },
+    "bin": {
+      "files": 1,
+      "lines": 77,
+      "nonblank": 72
+    },
+    "brands": {
+      "files": 1,
+      "lines": 19,
+      "nonblank": 16
+    },
+    "css": {
+      "files": 40,
+      "lines": 27445,
+      "nonblank": 27029
+    },
+    "data": {
+      "files": 1,
+      "lines": 242,
+      "nonblank": 226
+    },
+    "js": {
+      "files": 740,
+      "lines": 173330,
+      "nonblank": 161120
+    },
+    "lib": {
+      "files": 37,
+      "lines": 7857,
+      "nonblank": 7392
+    },
+    "root": {
+      "files": 15,
+      "lines": 4275,
+      "nonblank": 4056
+    },
+    "scripts": {
+      "files": 39,
+      "lines": 5810,
+      "nonblank": 5361
+    },
+    "server": {
+      "files": 3,
+      "lines": 602,
+      "nonblank": 565
+    },
+    "shared": {
+      "files": 2,
+      "lines": 309,
+      "nonblank": 294
+    },
+    "tests": {
+      "files": 734,
+      "lines": 199470,
+      "nonblank": 184196
+    },
+    "types": {
+      "files": 8,
+      "lines": 614,
+      "nonblank": 593
+    }
+  }
+}

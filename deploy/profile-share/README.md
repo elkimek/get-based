@@ -8,6 +8,10 @@ It is deliberately independent from subscription recovery, Evolu, UV data, and
 the wearable compatibility relay. Do not combine their containers, databases,
 credentials, writable volumes, or rollback procedures.
 
+The Docker build compiles the checked-in TypeScript sources with native
+TypeScript 7 in a separate build stage. The runtime executes the emitted
+JavaScript and does not require a compiler or ignored developer outputs.
+
 ## Installation
 
 1. Copy this repository revision to `/opt/getbased-profile-share`.

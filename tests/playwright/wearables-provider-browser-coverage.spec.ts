@@ -1,0 +1,819 @@
+type ProviderProxyFixture={url:unknown;method?:unknown;body?:unknown;headers?:unknown};
+type WearableProfileFixture={wearableConnections?:{whoop?:{account?:{email?:unknown}}};wearableSummary?:{sources?:{whoop?:{coverageDays?:unknown}};metrics?:{readiness_score?:{latest?:unknown}}};wearablePrimaryOverride?:{readiness_score?:unknown};changeHistory?:{source?:unknown}[]};
+
+import { routeHtml } from '../helpers/browser-static-routes.js';
+import { createModuleUrl } from '../helpers/browser-module-url.js';
+import { expect, test } from './coverage-fixture.js';
+
+const moduleUrl = createModuleUrl('wearablesProviderCoverage');
+
+test('Fitbit Ultrahuman and Withings provider fetchers normalize proxy responses', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ adaptersUrl, fitbitUrl, ultrahumanUrl, withingsUrl }) => {
+    const [{ isoDay }, fitbit, ultrahuman, withings] = await Promise.all([
+      ((import(adaptersUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/wearable-adapters.js'),'isoDay'>>),
+      ((import(fitbitUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/wearables-fitbit.js'),'fetchFitbitPersonalInfo'|'fetchFitbitDailyRange'>>),
+      ((import(ultrahumanUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/wearables-ultrahuman.js'),'fetchUltrahumanPersonalInfo'|'fetchUltrahumanDailyRange'>>),
+      ((import(withingsUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/wearables-withings.js'),'withingsErrorMessage'|'fetchWithingsPersonalInfo'|'fetchWithingsDailyRange'>>),
+    ]);
+    const outcomes: Record<string,unknown> = {};
+    const originalFetch = window.fetch;
+    const originalDebug = localStorage.getItem('labcharts-debug');
+    const requests: ProviderProxyFixture[] = [];
+
+    const jsonResponse = (body:unknown,status = 200) => new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const installFetch = (handler:(proxy:ProviderProxyFixture)=>unknown|Promise<unknown>) => {
+      window.fetch = async (url, options = {}) => {
+        const rawBody = String(options.body || '');
+        const proxy = rawBody
+          ? JSON.parse(rawBody) as ProviderProxyFixture
+          : { url: String(url), method: options.method || 'GET', headers: options.headers || {} };
+        requests.push(proxy);
+        const reply = await handler(proxy);
+        if (reply instanceof Response) return reply;
+        return jsonResponse((reply as {body?:unknown}|null|undefined)?.body ?? reply, ((reply as {status?:unknown}|null|undefined)?.status || 200) as number);
+      };
+    };
+
+    try {
+      localStorage.setItem('labcharts-debug', 'true');
+
+      installFetch((proxy) => {
+        const url = new URL(proxy.url as string);
+        const path = url.pathname;
+        if (path.endsWith('/profile.json')) {
+          return { body: { user: { email: 'fitbit@example.test', displayName: 'Fit Bit' } } };
+        }
+        if (path.includes('/hrv/date/')) {
+          return { body: { hrv: [
+            { dateTime: '2026-06-01', value: { deepRmssd: 52, dailyRmssd: 44 } },
+            { dateTime: '2026-06-02', value: { rmssdMilliseconds: 41 } },
+          ] } };
+        }
+        if (path.includes('/activities/heart/date/')) {
+          return { body: { 'activities-heart': [
+            { dateTime: '2026-06-01', value: { restingHeartRate: 55 } },
+          ] } };
+        }
+        if (path.includes('/activities/steps/date/')) {
+          return { body: { 'activities-steps': [
+            { dateTime: '2026-06-01', value: '2500' },
+            { dateTime: '2026-06-02', value: 'not-a-number' },
+          ] } };
+        }
+        if (path.includes('/sleep/date/')) {
+          return { body: { sleep: [
+            { dateOfSleep: '2026-06-01', efficiency: 80, duration: 2000 },
+            { dateOfSleep: '2026-06-01', efficiency: 94, isMainSleep: true, duration: 1000 },
+          ] } };
+        }
+        if (path.includes('/spo2/date/')) {
+          return { status: 500, body: { errors: [{ message: 'spo2 temporarily down' }] } };
+        }
+        if (path.includes('/temp/skin/date/')) {
+          return { body: { tempSkin: [
+            { dateTime: '2026-06-01', value: { nightlyRelative: -0.2 } },
+          ] } };
+        }
+        if (path.includes('/body/log/weight/date/')) {
+          return { body: { weight: [
+            { date: '2026-06-01', weight: 70.1 },
+            { date: '2026-06-01', weight: 70.3 },
+          ] } };
+        }
+        return { status: 404, body: { error: `unhandled Fitbit path ${path}` } };
+      });
+      const fitbitInfo = await fitbit.fetchFitbitPersonalInfo('fitbit-token');
+      const fitbitRows = await fitbit.fetchFitbitDailyRange('fitbit-token', '2026-06-01', '2026-06-02');
+      const fitbitDay = fitbitRows.find(row => row.date === '2026-06-01');
+      outcomes.fitbitNormalizesRange = fitbitInfo.ok === true
+        && fitbitInfo.account!.email === 'fitbit@example.test'
+        && fitbitDay?.hrv_rmssd === 52
+        && fitbitDay?.hrv_day === 44
+        && fitbitDay?.rhr === 55
+        && fitbitDay?.steps === 2500
+        && fitbitDay?.sleep_score === 94
+        && fitbitDay?.spo2_avg === null
+        && fitbitDay?.body_temp_delta === -0.2
+        && fitbitDay?.weight === 70.3
+        && requests.some(req => (req.headers as {Authorization?:unknown}|null|undefined)?.Authorization === 'Bearer fitbit-token');
+      installFetch(() => ({ status: 401, body: { errors: [{ message: 'profile denied' }] } }));
+      const fitbitError = await fitbit.fetchFitbitPersonalInfo('bad-fitbit-token');
+      outcomes.fitbitPersonalInfoError = fitbitError.ok === false
+        && fitbitError.status === 401
+        && fitbitError.error.includes('profile denied');
+
+      installFetch((proxy) => {
+        const url = new URL(proxy.url as string);
+        const path = url.pathname;
+        if (path.endsWith('/user_info')) {
+          return { body: { user: { email: 'uh@example.test', first_name: 'Ultra', last_name: 'Human' } } };
+        }
+        if (path.endsWith('/metrics')) {
+          const day = url.searchParams.get('date');
+          if (day === '2026-06-01') {
+            return { body: { data: { metric_data: {
+              hrv: { sleep: 55, avg: 62 },
+              resting_heart_rate: { sleep: 49, avg: 70 },
+              sleep_index: { score: 88 },
+              recovery_index: { score: 91 },
+              steps: { total: 12345 },
+              temperature: { deviation: -0.1 },
+              glucose: { avg: 102 },
+            } } } };
+          }
+          if (day === '2026-06-02') return { body: { data: { metric_data: {} } } };
+          return { status: 503, body: { message: 'metrics unavailable' } };
+        }
+        return { status: 404, body: { error: `unhandled Ultrahuman path ${path}` } };
+      });
+      const ultrahumanInfo = await ultrahuman.fetchUltrahumanPersonalInfo('uh-token');
+      const ultrahumanRows = await ultrahuman.fetchUltrahumanDailyRange('uh-token', '2026-06-01', '2026-06-03');
+      const ultrahumanDay = ultrahumanRows[0];
+      outcomes.ultrahumanNormalizesRange = ultrahumanInfo.ok === true
+        && ultrahumanInfo.account!.email === 'uh@example.test'
+        && ultrahumanRows.length === 1
+        && ultrahumanDay!.date === '2026-06-01'
+        && ultrahumanDay!.hrv_rmssd === 55
+        && ultrahumanDay!.hrv_day === 62
+        && ultrahumanDay!.rhr === 49
+        && ultrahumanDay!.hr_day === 70
+        && ultrahumanDay!.sleep_score === 88
+        && ultrahumanDay!.readiness_score === 91
+        && ultrahumanDay!.steps === 12345
+        && ultrahumanDay!.body_temp_delta === -0.1
+        && ultrahumanDay!.glucose_avg === 102;
+      installFetch(() => ({ status: 401, body: { message: 'user info denied' } }));
+      const ultrahumanError = await ultrahuman.fetchUltrahumanPersonalInfo('bad-uh-token');
+      outcomes.ultrahumanPersonalInfoError = ultrahumanError.ok === false
+        && ultrahumanError.status === 401
+        && ultrahumanError.error.includes('user info denied');
+
+      outcomes.withingsErrorMapping = withings.withingsErrorMessage(284)!.includes('Token not found')
+        && withings.withingsErrorMessage('not-a-number') === null
+        && withings.withingsErrorMessage(999) === null;
+      const measureEpoch = Math.floor(new Date('2026-06-01T12:00:00Z').getTime() / 1000);
+      const expectedMeasureDay = isoDay(new Date(measureEpoch * 1000));
+      installFetch((proxy) => {
+        const form = new URLSearchParams((proxy.body || '') as string);
+        const action = form.get('action');
+        if (action === 'getmeas' && form.has('startdate') && !form.has('category')) {
+          return { body: { status: 0, body: { updatetime: measureEpoch } } };
+        }
+        if (action === 'getmeas') {
+          return { body: { status: 0, body: { measuregrps: [{
+            date: measureEpoch,
+            measures: [
+              { type: 1, value: 725, unit: -1 },
+              { type: 10, value: 121, unit: 0 },
+              { type: 9, value: 78, unit: 0 },
+              { type: 11, value: 64, unit: 0 },
+              { type: 54, value: 975, unit: -1 },
+              { type: 73, value: 334, unit: -1 },
+              { type: 169, value: 45, unit: 0 },
+              { type: 999, value: 1, unit: 0 },
+            ],
+          }] } } };
+        }
+        if (action === 'getsleepsummary') {
+          return { body: { status: 0, body: { series: [{
+            date: expectedMeasureDay,
+            data: {
+              sleep_score: 87,
+              hr_min: 52,
+              hr_average: 59,
+              rr_average: 14,
+              asleepduration: 7 * 3600,
+              deepsleepduration: 90 * 60,
+              snoring: 120,
+              breathing_disturbances_intensity: 12,
+            },
+          }] } } };
+        }
+        return { body: { status: 233, error: `unhandled Withings action ${action}` } };
+      });
+      const withingsInfo = await withings.fetchWithingsPersonalInfo('withings-token');
+      const withingsRows = await withings.fetchWithingsDailyRange('withings-token', '2026-06-01', '2026-06-02');
+      const withingsDay = withingsRows.find(row => row.date === expectedMeasureDay);
+      outcomes.withingsNormalizesRange = withingsInfo.ok === true
+        && withingsInfo.account!.lastMeasure === expectedMeasureDay
+        && withingsDay?.weight === 72.5
+        && withingsDay?.bp_systolic === 121
+        && withingsDay?.bp_diastolic === 78
+        && withingsDay?.hr_day === 64
+        && withingsDay?.spo2_avg === 97.5
+        && withingsDay?.skin_temp === 33.4
+        && withingsDay?.cardio_fitness === 45
+        && withingsDay?.sleep_score === 87
+        && withingsDay?.rhr === 52
+        && withingsDay?.sleep_total_min === 420
+        && withingsDay?.sleep_deep_min === 90
+        && withingsDay?.sleep_snoring_min === 2
+        && withingsDay?.sleep_breath_disturb === 12;
+      installFetch((proxy) => {
+        const form = new URLSearchParams((proxy.body || '') as string);
+        const action = form.get('action');
+        if (action === 'getmeas') return { status: 502, body: { error: 'measure proxy down' } };
+        return { body: { status: 284, error: 'token missing' } };
+      });
+      const emptyWithingsRows = await withings.fetchWithingsDailyRange('withings-token', '2026-06-01', '2026-06-02');
+      const withingsError = await withings.fetchWithingsPersonalInfo('withings-token');
+      outcomes.withingsErrorPaths = Array.isArray(emptyWithingsRows)
+        && emptyWithingsRows.length === 0
+        && withingsError.ok === false
+        && withingsError.status === 502
+        && withingsError.error.includes('measure proxy down');
+    } finally {
+      window.fetch = originalFetch;
+      if (originalDebug == null) localStorage.removeItem('labcharts-debug');
+      else localStorage.setItem('labcharts-debug', originalDebug);
+    }
+
+    return outcomes;
+  }, {
+    adaptersUrl: moduleUrl('/js/wearable-adapters.js'),
+    fitbitUrl: moduleUrl('/js/wearables-fitbit.js'),
+    ultrahumanUrl: moduleUrl('/js/wearables-ultrahuman.js'),
+    withingsUrl: moduleUrl('/js/wearables-withings.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('Oura and WHOOP provider fetchers collect paginated rows and canonical metrics', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ ouraUrl, whoopUrl }) => {
+    const [oura, whoop] = await Promise.all([
+      ((import(ouraUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/wearables-oura.js'),'fetchOuraPersonalInfo'|'fetchOuraDailyRange'>>),
+      ((import(whoopUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/wearables-whoop.js'),'fetchWhoopPersonalInfo'|'fetchWhoopDailyRange'>>),
+    ]);
+    const outcomes: Record<string,unknown> = {};
+    const originalFetch = window.fetch;
+    const originalDebug = localStorage.getItem('labcharts-debug');
+    const requests: ProviderProxyFixture[] = [];
+
+    const jsonResponse = (body:unknown,status = 200) => new Response(JSON.stringify(body), {
+      status,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const installFetch = (handler:(proxy:ProviderProxyFixture)=>unknown|Promise<unknown>) => {
+      window.fetch = async (_url, options = {}) => {
+        const proxy = JSON.parse(String(options.body || '{}')) as ProviderProxyFixture;
+        requests.push(proxy);
+        const reply = await handler(proxy);
+        if (reply instanceof Response) return reply;
+        return jsonResponse((reply as {body?:unknown}|null|undefined)?.body ?? reply, ((reply as {status?:unknown}|null|undefined)?.status || 200) as number);
+      };
+    };
+
+    try {
+      localStorage.setItem('labcharts-debug', 'true');
+
+      installFetch((proxy) => {
+        const url = new URL(proxy.url as string);
+        const path = url.pathname;
+        if (path.endsWith('/personal_info')) {
+          return { body: {
+            email: 'oura@example.test',
+            age: 40,
+            weight: 72,
+            height: 180,
+            biological_sex: 'male',
+          } };
+        }
+        if (path.endsWith('/sleep')) {
+          return { body: { data: [
+            {
+              day: '2026-01-01',
+              total_sleep_duration: 8 * 3600,
+              average_hrv: 0,
+              hrv: { items: [0, 45, 55] },
+              lowest_heart_rate: 0,
+              heart_rate: { items: [0, 50, 47] },
+            },
+            {
+              day: '2026-01-01',
+              total_sleep_duration: 2 * 3600,
+              average_hrv: 99,
+              lowest_heart_rate: 41,
+            },
+            {
+              day: '2026-01-02',
+              total_sleep_duration: 7 * 3600,
+              average_hrv: 0,
+              hrv: { items: [0] },
+              hrv_samples: [{ value: 30 }, 40, 'bad'],
+              lowest_heart_rate: 0,
+              heart_rate: { items: [0] },
+            },
+          ] } };
+        }
+        if (path.endsWith('/daily_sleep')) {
+          return { body: { data: [
+            { day: '2026-01-01', score: 86 },
+            { day: '2026-01-02', score: 79 },
+          ] } };
+        }
+        if (path.endsWith('/daily_readiness')) {
+          return { body: { data: [
+            { day: '2026-01-01', score: 91, temperature_deviation: -0.2 },
+          ] } };
+        }
+        if (path.endsWith('/daily_spo2')) {
+          return { body: { data: [
+            { day: '2026-01-01', spo2_percentage: { average: 98.2 }, breathing_disturbance_index: 3 },
+            { day: '2026-01-02', spo2_percentage: 97, breathing_disturbance_index: 0 },
+          ] } };
+        }
+        if (path.endsWith('/daily_activity')) {
+          if (url.searchParams.get('next_token') === 'activity-page-2') {
+            return { body: { data: [
+              { day: '2026-01-02', score: 82, steps: 5000 },
+            ] } };
+          }
+          return { body: { data: [
+            { day: '2026-01-01', score: 80, steps: 4000 },
+          ], next_token: 'activity-page-2' } };
+        }
+        if (path.endsWith('/daily_stress')) {
+          return { body: { data: [
+            { day: '2026-01-01', stress_high: 1860 },
+          ] } };
+        }
+        if (path.endsWith('/daily_resilience')) {
+          return { body: { data: [
+            { day: '2026-01-01', level: 'strong' },
+          ] } };
+        }
+        if (path.endsWith('/daily_cardiovascular_age')) {
+          return { body: { data: [
+            { day: '2026-01-01', vascular_age: 39 },
+          ] } };
+        }
+        if (path.endsWith('/vO2_max')) {
+          return { body: { data: [
+            { day: '2026-01-01', vo2_max: { value: 43 } },
+          ] } };
+        }
+        if (path.endsWith('/heartrate')) {
+          if (requests.filter(req => new URL(req.url as string).pathname.endsWith('/heartrate')).length > 1) {
+            return { status: 500, body: { detail: 'heartrate chunk unavailable' } };
+          }
+          return { body: { data: [
+            { timestamp: '2026-01-01T12:00:00Z', source: 'awake', bpm: 80 },
+            { timestamp: '2026-01-01T13:00:00Z', source: 'awake', bpm: 82 },
+            { timestamp: '2026-01-01T02:00:00Z', source: 'sleep', bpm: 48 },
+            { timestamp: '2026-01-01T14:00:00Z', source: 'awake', bpm: 0 },
+          ] } };
+        }
+        return { status: 404, body: { detail: `unhandled Oura path ${path}` } };
+      });
+      const ouraInfo = await oura.fetchOuraPersonalInfo('oura-token');
+      const ouraRows = await oura.fetchOuraDailyRange('oura-token', '2026-01-01', '2026-01-31');
+      const ouraDay1 = ouraRows.find(row => row.date === '2026-01-01');
+      const ouraDay2 = ouraRows.find(row => row.date === '2026-01-02');
+      outcomes.ouraCollectsAndNormalizes = ouraInfo.ok === true
+        && ouraInfo.account!.email === 'oura@example.test'
+        && ouraDay1?.hrv_rmssd === 50
+        && ouraDay1?.rhr === 47
+        && ouraDay1?.hr_day === 81
+        && ouraDay1?.sleep_score === 86
+        && ouraDay1?.readiness_score === 91
+        && ouraDay1?.activity_score === 80
+        && ouraDay1?.steps === 4000
+        && ouraDay1?.stress_high_min === 31
+        && ouraDay1?.resilience_level === 4
+        && ouraDay1?.cardio_age === 39
+        && ouraDay1?.spo2_avg === 98.2
+        && ouraDay1?.sleep_breath_disturb === 3
+        && ouraDay1?.body_temp_delta === -0.2
+        && ouraDay1?.vo2max === 43
+        && ouraDay2?.hrv_rmssd === 35
+        && ouraDay2?.activity_score === 82
+        && requests.some(req => new URL(req.url as string).searchParams.get('next_token') === 'activity-page-2')
+        && requests.filter(req => new URL(req.url as string).pathname.endsWith('/heartrate')).length >= 2;
+      installFetch(() => ({ status: 401, body: { detail: 'oura denied' } }));
+      const ouraError = await oura.fetchOuraPersonalInfo('bad-oura-token');
+      outcomes.ouraPersonalInfoError = ouraError.ok === false
+        && ouraError.status === 401
+        && ouraError.error.includes('oura denied');
+
+      installFetch((proxy) => {
+        const url = new URL(proxy.url as string);
+        const path = url.pathname;
+        if (path.endsWith('/profile/basic')) {
+          return { body: { email: 'whoop@example.test', first_name: 'Who', last_name: 'Op' } };
+        }
+        if (path.endsWith('/cycle')) {
+          if (url.searchParams.get('nextToken') === 'cycle-page-2') {
+            return { body: { records: [
+              { id: 424243, start: '2026-06-02T05:00:00.000Z', score: { strain: 9, average_heart_rate: 70 } },
+            ] } };
+          }
+          return { body: { records: [
+            { id: 424242, start: '2026-06-01T05:00:00.000Z', score: { strain: 12.3, average_heart_rate: 75 } },
+          ], next_token: 'cycle-page-2' } };
+        }
+        if (path.endsWith('/recovery')) {
+          // v2 flat shape: recovery rows carry cycle_id/sleep_id references into
+          // the fetched cycle/sleep collections (IDs synthetic). created_at is
+          // deliberately the following morning — attribution must come from the
+          // cycle join, not the created_at fallback.
+          return { body: { records: [
+            { cycle_id: 424242, sleep_id: null, created_at: '2026-06-02T06:30:00.000Z', score: { hrv_rmssd_milli: 65, resting_heart_rate: 48, recovery_score: 77 } },
+            { cycle_id: 424243, sleep_id: null, created_at: '2026-06-03T06:30:00.000Z', score: { hrv_rmssd_milli: 61, resting_heart_rate: 50, recovery_score: 73 } },
+          ] } };
+        }
+        if (path.endsWith('/activity/sleep')) {
+          return { body: { records: [
+            { start: '2026-06-01T22:00:00.000Z', score: { sleep_performance_percentage: 88 } },
+          ] } };
+        }
+        return { status: 404, body: { message: `unhandled WHOOP path ${path}` } };
+      });
+      const whoopInfo = await whoop.fetchWhoopPersonalInfo('whoop-token');
+      const whoopRows = await whoop.fetchWhoopDailyRange('whoop-token', '2026-06-01', '2026-06-02');
+      const whoopDay1 = whoopRows.find(row => row.date === '2026-06-01');
+      const whoopDay2 = whoopRows.find(row => row.date === '2026-06-02');
+      outcomes.whoopCollectsAndNormalizes = whoopInfo.ok === true
+        && whoopInfo.account!.email === 'whoop@example.test'
+        && whoopDay1?.hrv_rmssd === 65
+        && whoopDay1?.rhr === 48
+        && whoopDay1?.readiness_score === 77
+        && whoopDay1?.strain === 12.3
+        && whoopDay1?.hr_day === 75
+        && whoopDay1?.sleep_score === 88
+        && whoopDay2?.hrv_rmssd === 61
+        && whoopDay2?.strain === 9
+        && requests.some(req => new URL(req.url as string).searchParams.get('nextToken') === 'cycle-page-2');
+      installFetch(() => ({ status: 500, body: { message: 'whoop endpoint down' } }));
+      const emptyWhoopRows = await whoop.fetchWhoopDailyRange('whoop-token', '2026-06-01', '2026-06-02');
+      const whoopError = await whoop.fetchWhoopPersonalInfo('bad-whoop-token');
+      outcomes.whoopErrorPaths = emptyWhoopRows.length === 0
+        && whoopError.ok === false
+        && whoopError.status === 500
+        && whoopError.error.includes('whoop endpoint down');
+    } finally {
+      window.fetch = originalFetch;
+      if (originalDebug == null) localStorage.removeItem('labcharts-debug');
+      else localStorage.setItem('labcharts-debug', originalDebug);
+    }
+
+    return outcomes;
+  }, {
+    ouraUrl: moduleUrl('/js/wearables-oura.js'),
+    whoopUrl: moduleUrl('/js/wearables-whoop.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('WHOOP consent and device-only storage protect rows and derived profile data', async ({ page }) => {
+  await routeHtml(page, '**/whoop-storage-browser-coverage', '<!doctype html><html><body></body></html>');
+  await page.route('**/api/proxy', route => route.fulfill({
+    contentType: 'application/json',
+    body: JSON.stringify({ overrides: { whoop: 'self-host-whoop-client' }, configured: { whoop: true } }),
+  }));
+  await page.goto('/whoop-storage-browser-coverage', { waitUntil: 'load' });
+
+  const result = await page.evaluate(async () => {
+    const { state } = await import('/js/state.js');
+    const { applyOAuthConfigured, applyOAuthOverrides } = await import('/js/wearable-adapters.js');
+    const {
+      renderWearablesSettingsSection,
+      wearableSettingsActionHandlers,
+    } = await import('/js/wearables-settings-panel.js');
+    const settingsRuntime = await import('/js/wearables-settings-runtime.js');
+    const { disconnectWearable } = await import('/js/wearables-connect.js');
+    const cryptoStorage = await import('/js/crypto.js');
+    const {
+      encryptedGetItem,
+      encryptedRemoveItem,
+      encryptedSetItem,
+    } = cryptoStorage;
+    const { getBlob } = await import('/js/blob-storage.js');
+    const { profileStorageKey } = await import('/js/profile-storage-key.js');
+    const {
+      WHOOP_CONNECT_DISCLOSURE,
+      WHOOP_PROFILE_DATA_META,
+    } = await import('/js/wearables-whoop-storage.js');
+    const {
+      deleteWearablesDB,
+      decryptWearableDeviceLocalValue,
+      getDailyRange,
+      getDailyRangeRaw,
+      getMeta,
+      openWearablesDB,
+      upsertDailyBatch,
+    } = await import('/js/wearables-store.js');
+
+    const profileId = `whoop-storage-${Date.now()}-${crypto.randomUUID()}`;
+    const storageKey = profileStorageKey(profileId, 'imported');
+    localStorage.removeItem('labcharts-encryption-enabled');
+    localStorage.setItem('labcharts-active-profile', profileId);
+    state.currentProfile = profileId;
+    (state as {importedData:unknown}).importedData = { entries: [], wearableConnections: {} };
+    applyOAuthOverrides({ whoop: 'self-host-whoop-client' });
+    applyOAuthConfigured({ whoop: true });
+
+    const consentMessages: unknown[] = [];
+    const previousSettingsRuntime = settingsRuntime.configureWearableSettingsRuntimeDeps({
+      showConfirmDialog: async (message:unknown) => {
+        consentMessages.push(message);
+        return false;
+      },
+    });
+    await wearableSettingsActionHandlers.handleWearableConnect('whoop');
+    settingsRuntime.configureWearableSettingsRuntimeDeps(previousSettingsRuntime);
+
+    await upsertDailyBatch(profileId, [{
+      source: 'whoop',
+      date: '2026-08-27',
+      hrv_rmssd: 57,
+      readiness_score: 81,
+    }]);
+    const rawNewRows = await getDailyRangeRaw(profileId, 'whoop', '2026-08-27', '2026-08-27');
+
+    // Simulate a row written by the pre-protection release. Reading it must
+    // preserve its runtime value while upgrading the stored record in place.
+    const db = await openWearablesDB(profileId);
+    await new Promise<Event>((resolve, reject) => {
+      const tx = db.transaction('daily-metrics', 'readwrite');
+      tx.objectStore('daily-metrics').put({
+        source: 'whoop',
+        date: '2026-08-26',
+        importedAt: 1,
+        readiness_score: 74,
+      });
+      tx.objectStore('daily-metrics').put({
+        source: 'whoop',
+        date: '2025-01-01',
+        importedAt: 1,
+        readiness_score: 69,
+      });
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+    const readableNewRows = await getDailyRange(profileId, 'whoop', '2026-08-27', '2026-08-27');
+    const readableLegacyRows = await getDailyRange(profileId, 'whoop', '2026-08-26', '2026-08-26');
+    const rawMigratedRows = await getDailyRangeRaw(profileId, 'whoop', '2026-08-26', '2026-08-26');
+    const rawHistoricalRows = await getDailyRangeRaw(profileId, 'whoop', '2025-01-01', '2025-01-01');
+
+    const imported = {
+      entries: [{ date: '2026-08-01', markers: {} }],
+      wearableConnections: {
+        oura: { connectedAt: '2026-08-01T00:00:00.000Z' },
+        whoop: { connectedAt: '2026-08-02T00:00:00.000Z', account: { email: 'whoop-private@example.test' } },
+      },
+      wearableSummary: {
+        summaryUpdatedAt: '2026-08-28T00:00:00.000Z',
+        sources: { oura: { coverageDays: 2 }, whoop: { coverageDays: 7 } },
+        metrics: {
+          rhr: { primarySource: 'oura', latest: 50 },
+          readiness_score: { primarySource: 'whoop', latest: 81 },
+        },
+      },
+      wearablePrimaryOverride: { readiness_score: 'whoop' },
+      changeHistory: [
+        { ts: 1, type: 'wearable', source: 'oura', message: 'Oura event' },
+        { ts: 2, type: 'wearable', source: 'whoop', message: 'WHOOP readiness changed' },
+      ],
+    };
+    await encryptedSetItem(storageKey, JSON.stringify(imported));
+    const rawProfile = await getBlob(storageKey);
+    const protectedProfile = await getMeta(profileId, WHOOP_PROFILE_DATA_META);
+    const hydratedProfile = JSON.parse(await encryptedGetItem(storageKey) as string) as WearableProfileFixture;
+    const settingsHtml = renderWearablesSettingsSection();
+
+    (window as {__WEARABLES_TEST?:unknown}).__WEARABLES_TEST = true;
+    await cryptoStorage._setTestSessionKey('whoop-storage-passphrase');
+    localStorage.setItem('labcharts-encryption-enabled', 'true');
+    await cryptoStorage._migrateAllStorageForTest('encrypted');
+    const passphraseProtectedProfile = await getBlob(storageKey);
+    const sidecarAfterPassphraseEnable = await getMeta(profileId, WHOOP_PROFILE_DATA_META);
+    const hydratedWithPassphrase = JSON.parse(await encryptedGetItem(storageKey) as string) as WearableProfileFixture;
+
+    await cryptoStorage._migrateAllStorageForTest('plain');
+    localStorage.removeItem('labcharts-encryption-enabled');
+    const deviceProtectedProfileAgain = await getBlob(storageKey);
+    const sidecarAfterPassphraseDisable = await getMeta(profileId, WHOOP_PROFILE_DATA_META);
+    const decryptedSidecarAfterPassphraseDisable = await (decryptWearableDeviceLocalValue as (profileId:Parameters<typeof decryptWearableDeviceLocalValue>[0],envelope:unknown)=>ReturnType<typeof decryptWearableDeviceLocalValue>)(
+      profileId,
+      sidecarAfterPassphraseDisable,
+    );
+    const hydratedAfterPassphraseDisable = JSON.parse(await encryptedGetItem(storageKey) as string) as WearableProfileFixture;
+    await cryptoStorage._setTestSessionKey(null);
+
+    (state as {importedData:unknown}).importedData = structuredClone(hydratedAfterPassphraseDisable);
+    await disconnectWearable('whoop', { deleteData: true });
+    const sidecarAfterDisconnect = await getMeta(profileId, WHOOP_PROFILE_DATA_META);
+    const rowsAfterDisconnect = await getDailyRangeRaw(profileId, 'whoop', '2026-08-01', '2026-08-31');
+    const profileAfterDisconnect = JSON.parse(await encryptedGetItem(storageKey) as string) as WearableProfileFixture;
+
+    await encryptedRemoveItem(storageKey);
+    await deleteWearablesDB(profileId);
+
+    return {
+      consentIsExplicit: consentMessages.length === 1
+        && consentMessages[0] === WHOOP_CONNECT_DISCLOSURE
+        && (consentMessages[0] as {includes(value:string):unknown}).includes('authorize this deployment to access and store')
+        && (consentMessages[0] as {includes(value:string):unknown}).includes('No write access is requested')
+        && !sessionStorage.getItem('whoop-oauth-pending'),
+      privacyCopyNamesWhoop: settingsHtml.includes('WHOOP and Google Health imports are always encrypted on this device'),
+      newRowEncrypted: ((rawNewRows[0] as {_devicePayload?:unknown}|null|undefined)?._devicePayload as {version?:unknown}|null|undefined)?.version === 1
+        && rawNewRows[0]?.readiness_score == null
+        && rawNewRows[0]?.hrv_rmssd == null,
+      newRowReadable: readableNewRows[0]?.hrv_rmssd === 57
+        && readableNewRows[0]?.readiness_score === 81,
+      legacyRowMigrated: readableLegacyRows[0]?.readiness_score === 74
+        && ((rawMigratedRows[0] as {_devicePayload?:unknown}|null|undefined)?._devicePayload as {version?:unknown}|null|undefined)?.version === 1
+        && rawMigratedRows[0]?.readiness_score == null
+        && ((rawHistoricalRows[0] as {_devicePayload?:unknown}|null|undefined)?._devicePayload as {version?:unknown}|null|undefined)?.version === 1
+        && rawHistoricalRows[0]?.readiness_score == null,
+      profileBlobSanitized: typeof rawProfile === 'string'
+        && rawProfile.includes('_deviceProtectedWearableProfile')
+        && rawProfile.includes('"oura"')
+        && !rawProfile.includes('whoop-private@example.test')
+        && !rawProfile.includes('readiness_score')
+        && !rawProfile.includes('WHOOP readiness changed'),
+      profileEnvelopeEncrypted: (protectedProfile as {version?:unknown}|null|undefined)?.version === 1
+        && !JSON.stringify(protectedProfile).includes('whoop-private@example.test')
+        && !JSON.stringify(protectedProfile).includes('readiness_score'),
+      profileHydratesForRuntime: hydratedProfile.wearableConnections?.whoop?.account?.email === 'whoop-private@example.test'
+        && hydratedProfile.wearableSummary?.sources?.whoop?.coverageDays === 7
+        && hydratedProfile.wearableSummary?.metrics?.readiness_score?.latest === 81
+        && hydratedProfile.wearablePrimaryOverride?.readiness_score === 'whoop'
+        && hydratedProfile.changeHistory?.some(event => event.source === 'whoop'),
+      passphraseBlobEncrypted: passphraseProtectedProfile?.startsWith('v1:'),
+      passphraseSidecarRetained: (sidecarAfterPassphraseEnable as {version?:unknown}|null|undefined)?.version === 1,
+      passphraseProfileHydrates: hydratedWithPassphrase.wearableConnections?.whoop?.account?.email === 'whoop-private@example.test',
+      disabledProfileUsesMarker: deviceProtectedProfileAgain?.includes('_deviceProtectedWearableProfile')
+        && !deviceProtectedProfileAgain?.includes('whoop-private@example.test'),
+      disabledSidecarRetained: (sidecarAfterPassphraseDisable as {version?:unknown}|null|undefined)?.version === 1,
+      disabledSidecarDecrypts: (decryptedSidecarAfterPassphraseDisable as {connection?:{account?:{email?:unknown}}}|null|undefined)?.connection?.account?.email === 'whoop-private@example.test',
+      disabledProfileHydrates: hydratedAfterPassphraseDisable.wearableConnections?.whoop?.account?.email === 'whoop-private@example.test',
+      disconnectPurgesProtectedData: sidecarAfterDisconnect == null
+        && rowsAfterDisconnect.length === 0
+        && profileAfterDisconnect.wearableConnections?.whoop == null
+        && profileAfterDisconnect.wearableSummary?.sources?.whoop == null
+        && profileAfterDisconnect.wearableSummary?.metrics?.readiness_score == null
+        && profileAfterDisconnect.wearablePrimaryOverride?.readiness_score == null
+        && !profileAfterDisconnect.changeHistory?.some(event => event.source === 'whoop'),
+    };
+  });
+
+  for (const [name, passed] of Object.entries(result)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('Polar provider fetcher covers registration transactions commits and guards', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' });
+
+  const results = await page.evaluate(async ({ polarUrl }) => {
+    const polar = await ((import(polarUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/wearables-polar.js'),'registerPolarUser'|'fetchPolarPersonalInfo'|'fetchPolarDailyRange'|'commitPolarTransactions'>>);
+    const outcomes: Record<string,unknown> = {};
+    const originalFetch = window.fetch;
+    const originalDebug = localStorage.getItem('labcharts-debug');
+    const requests: ProviderProxyFixture[] = [];
+    let registerConflict = false;
+
+    const textResponse = (body:unknown,status = 200) => new Response(
+      typeof body === 'string' ? body : JSON.stringify(body),
+      { status, headers: { 'Content-Type': 'application/json' } }
+    );
+    const installFetch = (handler:(proxy:ProviderProxyFixture)=>unknown|Promise<unknown>) => {
+      window.fetch = async (_url, options = {}) => {
+        const proxy = JSON.parse(String(options.body || '{}')) as ProviderProxyFixture;
+        requests.push(proxy);
+        const reply = await handler(proxy);
+        if (reply instanceof Response) return reply;
+        return textResponse((reply as {body?:unknown}|null|undefined)?.body ?? reply, ((reply as {status?:unknown}|null|undefined)?.status || 200) as number);
+      };
+    };
+
+    try {
+      localStorage.setItem('labcharts-debug', 'true');
+      installFetch((proxy) => {
+        const url = new URL(proxy.url as string);
+        const path = url.pathname;
+        if (proxy.method === 'POST' && path.endsWith('/v3/users')) {
+          if (registerConflict) return { status: 409, body: { error: 'already registered' } };
+          return { body: { 'polar-user-id': 'polar-user-1' } };
+        }
+        if (proxy.method === 'GET' && path.endsWith('/v3/users/user-1')) {
+          return { body: { 'first-name': 'Polar', 'last-name': 'Tester' } };
+        }
+        if (proxy.method === 'GET' && path.endsWith('/nights/sleep')) {
+          return { body: { nights: [
+            { date: '2026-06-01', 'sleep-score': 82, 'heart-rate-samples': { min: 50 } },
+            { 'calendar-date': '2026-06-03', 'sleep-score': 70, 'heart-rate-samples': { min: 55 } },
+          ] } };
+        }
+        if (proxy.method === 'POST' && path.endsWith('/activity-transactions')) {
+          return { body: {
+            'transaction-id': 'act-1',
+            'activity-log': [
+              'https://www.polaraccesslink.com/v3/users/user-1/activity-transactions/act-1/activities/good',
+              'https://www.polaraccesslink.com/v3/users/user-1/activity-transactions/act-1/activities/bad',
+            ],
+          } };
+        }
+        if (proxy.method === 'GET' && path.endsWith('/activities/good')) {
+          return { body: { date: '2026-05-30', 'active-steps': 777, 'heart-rate': { average: 73 } } };
+        }
+        if (proxy.method === 'GET' && path.endsWith('/activities/bad')) {
+          return { status: 500, body: { error: 'activity item failed' } };
+        }
+        if (proxy.method === 'POST' && path.endsWith('/exercise-transactions')) {
+          return { body: {
+            'transaction-id': 'ex-1',
+            exercises: ['https://www.polaraccesslink.com/v3/users/user-1/exercise-transactions/ex-1/exercises/good'],
+          } };
+        }
+        if (proxy.method === 'GET' && path.endsWith('/exercises/good')) {
+          return { body: {
+            'start-time': '2026-06-02T10:00:00.000Z',
+            'heart-rate-variability-avg': 38,
+            'heart-rate': { average: 90 },
+          } };
+        }
+        if (proxy.method === 'PUT' && path.endsWith('/activity-transactions/act-1')) {
+          return { body: {} };
+        }
+        if (proxy.method === 'PUT' && path.endsWith('/exercise-transactions/ex-1')) {
+          return { status: 500, body: { error: 'commit exercise failed' } };
+        }
+        return { status: 404, body: { error: `unhandled Polar ${proxy.method} ${path}` } };
+      });
+
+      const registered = await polar.registerPolarUser('polar-token', 'member-1');
+      registerConflict = true;
+      const alreadyRegistered = await polar.registerPolarUser('polar-token', 'member-1');
+      const noUserInfo = await (polar.fetchPolarPersonalInfo as (token:Parameters<typeof polar.fetchPolarPersonalInfo>[0], userId?:Parameters<typeof polar.fetchPolarPersonalInfo>[1])=>ReturnType<typeof polar.fetchPolarPersonalInfo>)('polar-token');
+      const info = await polar.fetchPolarPersonalInfo('polar-token', 'user-1');
+      let missingConnectionError:unknown = null;
+      try {
+        await polar.fetchPolarDailyRange('polar-token', '2026-06-01', '2026-06-02');
+      } catch (error) {
+        missingConnectionError = error;
+      }
+      const rows = await polar.fetchPolarDailyRange('polar-token', '2026-06-01', '2026-06-02', { userId: 'user-1' });
+      const activityDay = rows.find(row => row.date === '2026-05-30');
+      const sleepDay = rows.find(row => row.date === '2026-06-01');
+      const exerciseDay = rows.find(row => row.date === '2026-06-02');
+      const pending = rows._polarTransactions;
+      const committed = await polar.commitPolarTransactions('polar-token', pending);
+      const emptyCommit = await polar.commitPolarTransactions('polar-token', []);
+
+      outcomes.polarRegistrationAndInfo = registered.ok === true
+        && registered.alreadyRegistered === false
+        && alreadyRegistered.ok === true
+        && alreadyRegistered.alreadyRegistered === true
+        && noUserInfo.ok === false
+        && noUserInfo.error!.includes('No userId')
+        && info.ok === true
+        && info.account!.userId === 'user-1'
+        && info.account!.firstName === 'Polar';
+      outcomes.polarRangeTransactions = (missingConnectionError as {code?:unknown}|null|undefined)?.code === 'needs-reauth'
+        && rows.length === 3
+        && activityDay?.steps === 777
+        && activityDay?.hr_day === 73
+        && sleepDay?.sleep_score === 82
+        && sleepDay?.rhr === 50
+        && exerciseDay?.hrv_day === 38
+        && exerciseDay?.hr_day === 90
+        && Array.isArray(pending)
+        && pending.length === 2
+        && JSON.stringify(rows).includes('_polarTransactions') === false;
+      outcomes.polarCommits = committed.ok === true
+        && committed.committed === 1
+        && emptyCommit.ok === true
+        && emptyCommit.committed === 0
+        && requests.some(req => req.method === 'PUT' && (req.url as {includes(value:string):unknown}).includes('/activity-transactions/act-1'))
+        && requests.some(req => req.method === 'PUT' && (req.url as {includes(value:string):unknown}).includes('/exercise-transactions/ex-1'));
+    } finally {
+      window.fetch = originalFetch;
+      if (originalDebug == null) localStorage.removeItem('labcharts-debug');
+      else localStorage.setItem('labcharts-debug', originalDebug);
+    }
+
+    return outcomes;
+  }, {
+    polarUrl: moduleUrl('/js/wearables-polar.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});

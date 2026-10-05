@@ -1,0 +1,346 @@
+type ContinuationRequestOperations = {stream?:unknown;max_tokens?:unknown;messages:{role?:unknown;content:string}[]};
+import { createBlankPage } from '../helpers/browser-blank-page.js';
+import { createModuleUrl } from '../helpers/browser-module-url.js';
+import { expect, test } from './coverage-fixture.js';
+
+const moduleUrl = createModuleUrl('nostrChatContinuationCoverage');
+
+const openBlankPage = createBlankPage({
+  path: "/nostr-chat-continuation-browser-coverage", body: '<!doctype html><html><body><main id="fixture"></main></body></html>',
+});
+
+test('nostr discovery browser coverage handles relay parsing cache health and selected node guards', async ({ page }) => {
+  await openBlankPage(page);
+
+  const results = await page.evaluate(async ({ nostrUrl }) => {
+    const nostr = (await import(nostrUrl) as unknown) as Pick<typeof import('../../js/nostr-discovery.js'), "clearNodeCache" | "discoverNodes" | "setSelectedNodeUrl" | "getSelectedNodeUrl">;
+    const { schnorr, sha256 } = await import('/vendor/routstr-crypto.js');
+    const hex = (bytes: Uint8Array) => Array.from(bytes, (byte: number) => byte.toString(16).padStart(2, '0')).join('');
+    const signer = (number: number) => { const key = new Uint8Array(32); key[31] = number; return key; };
+    const nodeId = (number: number, name: string) => `38421:${hex(schnorr.getPublicKey(signer(number)))}:${name}`;
+    const signEvent = (event: {pubkey:string;created_at:number;content:string;tags:string[][]}) => {
+      const key = signer(event.pubkey.startsWith('pub-a') ? 1 : event.pubkey === 'pub-b' ? 2 : 3);
+      const signed = { ...event, kind: 38421, pubkey: hex(schnorr.getPublicKey(key)) };
+      const digest = sha256(new TextEncoder().encode(JSON.stringify([0, signed.pubkey, signed.created_at, signed.kind, signed.tags, signed.content])));
+      return { ...signed, id: hex(digest), sig: hex(schnorr.sign(digest, key)) };
+    };
+    const outcomes: Record<string, unknown> = {};
+    const savedStorage = new Map(Array.from({ length: localStorage.length }, (_: unknown, index: number) => localStorage.key(index))
+      .filter(key => key !== null)
+      .map(key => [key, localStorage.getItem(key)]));
+    const originalWebSocket = window.WebSocket;
+    const originalFetch = window.fetch;
+    const originalWarn = console.warn;
+    const originalDateNow = Date.now;
+
+    let thrownError: unknown = null;
+    const wsInstances: MockWebSocket[] = [];
+    const fetchCalls: string[] = [];
+    const warnings: unknown[] = [];
+
+    interface MockWebSocket {url:string;sent:unknown[];closed:boolean;onclose?:()=>void;onopen?:()=>void;onerror?:(error:Error)=>void;onmessage?:(event:{data:string})=>void}
+    class MockWebSocket {
+      constructor(url: string | URL) {
+        this.url = String(url);
+        this.sent = [];
+        this.closed = false;
+        wsInstances.push(this);
+        setTimeout(() => this.openAndFlush(), 0);
+      }
+
+      send(payload: unknown) {
+        this.sent.push(payload);
+      }
+
+      close() {
+        this.closed = true;
+        this.onclose?.();
+      }
+
+      openAndFlush() {
+        this.onopen?.();
+        if (this.url.includes('relay.routstr.com')) {
+          this.onerror?.(new Error('relay unavailable'));
+          return;
+        }
+
+        let subId = 'unknown';
+        try {
+          subId = (JSON.parse(this.sent[0] as string || '[]') as unknown[])[1] as string || subId;
+        } catch {}
+
+        const emit = (data: unknown[]) => {
+          if (data[0] === 'EVENT') data[2] = signEvent(data[2] as Parameters<typeof signEvent>[0]);
+          this.onmessage?.({ data: JSON.stringify(data) });
+        };
+        if (this.url.includes('damus')) {
+          emit(['EVENT', subId, {
+            pubkey: 'pub-a-old',
+            created_at: 10,
+            content: '{"name":"Old Node"}',
+            tags: [
+              ['d', 'provider-a'],
+              ['u', 'https://older.example'],
+            ],
+          }]);
+          emit(['EOSE', subId]);
+          return;
+        }
+
+        if (this.url.includes('nostr.band')) {
+          emit(['EVENT', subId, {
+            pubkey: 'pub-a-new',
+            created_at: 20,
+            content: '{"name":"Alpha <Node>","about":"Public Routstr node"}',
+            tags: [
+              ['d', 'provider-a'],
+              ['u', 'https://node-a.example/base'],
+              ['u', 'http://127.0.0.1:11434'],
+              ['u', 'http://hidden.onion'],
+              ['mint', 'https://mint.example'],
+              ['version', '2.0.0'],
+            ],
+          }]);
+          emit(['EVENT', subId, {
+            pubkey: 'pub-b',
+            created_at: 15,
+            content: 'not-json',
+            tags: [
+              ['d', 'provider-b'],
+              ['u', 'https://hidden.onion'],
+            ],
+          }]);
+          emit(['EVENT', subId, {
+            pubkey: 'pub-c',
+            created_at: 12,
+            content: '{}',
+            tags: [
+              ['d', 'provider-c'],
+              ['u', 'http://localhost:11434'],
+            ],
+          }]);
+          emit(['EOSE', subId]);
+          return;
+        }
+
+        if (this.url.includes('nos.lol')) {
+          this.onmessage?.({ data: '{bad json' });
+          emit(['EOSE', subId]);
+        }
+      }
+    }
+
+    try {
+      (window as unknown as {WebSocket: unknown}).WebSocket = MockWebSocket;
+      window.fetch = async (url: Parameters<typeof fetch>[0]) => {
+        fetchCalls.push(String(url));
+        if (String(url).includes('node-a.example')) {
+          return new Response(JSON.stringify({
+            data: [
+              { id: 'model-a', name: 'Model A' },
+              { id: 'model-disabled', enabled: false },
+              { id: 'model-b' },
+              { name: 'missing-id' },
+            ],
+          }), { status: 200, headers: { 'content-type': 'application/json' } });
+        }
+        return new Response('offline', { status: 503 });
+      };
+      console.warn = (...args: unknown[]) => warnings.push(args.join(' '));
+
+      nostr.clearNodeCache();
+      const nodes = await nostr.discoverNodes(true);
+      const alpha = nodes.find(node => node.id === nodeId(1, 'provider-a'));
+      const onionUrlSkipped = nodes.find(node => node.id === nodeId(2, 'provider-b'));
+      const noPublicUrl = nodes.find(node => node.id === nodeId(3, 'provider-c'));
+
+      outcomes.discoveryApiStaysModuleOnly = !('nostrDiscoverNodes' in window)
+        && !('nostrGetSelectedNode' in window)
+        && !('nostrSetSelectedNode' in window)
+        && !('nostrClearNodeCache' in window);
+
+      outcomes.relaysSendKindRequestAndResolveOnEose = wsInstances.length === 4
+        && wsInstances.some(ws => {
+          const sent = (JSON.parse(ws.sent[0] as string || '[]') as unknown);
+          return (sent as unknown[])[0] === 'REQ' && (sent as [unknown,unknown,{kinds?:unknown[];limit?:unknown}])[2]?.kinds?.[0] === 38421 && (sent as [unknown,unknown,{kinds?:unknown[];limit?:unknown}])[2]?.limit === 50;
+        });
+
+      outcomes.eventsDeduplicateAndParseMetadata = alpha?.pubkey === hex(schnorr.getPublicKey(signer(1)))
+        && alpha.name === 'Alpha <Node>'
+        && alpha.about === 'Public Routstr node'
+        && alpha.mints[0] === 'https://mint.example'
+        && alpha.version === '2.0.0'
+        && alpha.onion === 'http://hidden.onion'
+        && alpha.urls.length === 1
+        && alpha.urls[0] === 'https://node-a.example/base';
+
+      outcomes.healthCheckMarksOnlineModelsAndSortsFirst = nodes[0]?.id === nodeId(1, 'provider-a')
+        && (alpha)!.online === true
+        && (alpha)!.modelCount === 2
+        && (alpha)!.models.some(model => model.id === 'model-a' && model.name === 'Model A')
+        && (alpha)!.models.some(model => model.id === 'model-b' && model.name === 'model-b')
+        && fetchCalls[0] === 'https://node-a.example/base/v1/models';
+
+      outcomes.healthCheckSkipsUnsafeOrMissingFetchTargets = onionUrlSkipped?.online === false
+        && onionUrlSkipped?.urls[0] === 'https://hidden.onion'
+        && noPublicUrl?.online === false
+        && fetchCalls.length === 1;
+
+      const relayCountAfterFirstDiscovery = wsInstances.length;
+      const cached = await nostr.discoverNodes(false);
+      outcomes.cacheReturnsSameNodesWithoutRelayQueries = cached === nodes
+        && wsInstances.length === relayCountAfterFirstDiscovery;
+
+      const frozenNow = 1_700_000_000_000;
+      Date.now = () => frozenNow;
+      localStorage.setItem('labcharts-routstr-session-updated-at', String(frozenNow + 1));
+      nostr.setSelectedNodeUrl('https://node-a.example/base');
+      nostr.setSelectedNodeUrl('http://127.0.0.1:11434');
+      outcomes.selectedNodePersistsValidAndRejectsPrivateUrl = nostr.getSelectedNodeUrl() === 'https://node-a.example/base'
+        && warnings.some((message: unknown) => (message as {includes(value:string):unknown}).includes('Refusing Routstr node URL'));
+      outcomes.selectedNodeKeepsSessionClockMonotonic = localStorage.getItem('labcharts-routstr-session-updated-at') === String(frozenNow + 2);
+    } catch (error) {
+      thrownError = error;
+    } finally {
+      (window as unknown as {WebSocket: unknown}).WebSocket = originalWebSocket;
+      window.fetch = originalFetch;
+      console.warn = originalWarn;
+      Date.now = originalDateNow;
+      nostr.clearNodeCache();
+      localStorage.clear();
+      for (const [key, value] of savedStorage) {
+        if (value != null) localStorage.setItem(key, value);
+      }
+    }
+
+    if (thrownError) throw thrownError;
+    return outcomes;
+  }, {
+    nostrUrl: moduleUrl('/js/nostr-discovery.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('chat continuation browser coverage handles truncation heuristics streaming continuation and usage merge', async ({ page }) => {
+  await openBlankPage(page);
+
+  const results = await page.evaluate(async ({ continuationUrl }) => {
+    const continuation = (await import(continuationUrl) as unknown) as Pick<typeof import('../../js/chat-continuation.js'), "responseLimitNote" | "isAIResponseTruncated" | "isLikelyIncompleteResponse" | "shouldAutoContinueResponse" | "callChatAPIWithContinuation">;
+    const outcomes: Record<string, unknown> = {};
+    const savedStorage = new Map(Array.from({ length: localStorage.length }, (_: unknown, index: number) => localStorage.key(index))
+      .filter(key => key !== null)
+      .map(key => [key, localStorage.getItem(key)]));
+    const originalFetch = window.fetch;
+    const originalGetOllamaConfig = (window as unknown as {getOllamaConfig?: unknown}).getOllamaConfig;
+
+    let thrownError: unknown = null;
+    const fetchBodies: unknown[] = [];
+    const streamed: unknown[] = [];
+
+    const streamResponse = (events: string[]) => {
+      const encoder = new TextEncoder();
+      return new Response(new ReadableStream({
+        start(controller: ReadableStreamDefaultController<Uint8Array>) {
+          for (const event of events) controller.enqueue(encoder.encode(event));
+          controller.close();
+        },
+      }), {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+      });
+    };
+
+    try {
+      outcomes.limitNoteMarkupIsStable = continuation.responseLimitNote()
+        === '<div class="chat-stopped-note">[output limit reached - ask "continue" to finish]</div>';
+
+      outcomes.truncationReasonVariantsAreDetected =
+        continuation.isAIResponseTruncated({ truncated: true }) === true
+        && continuation.isAIResponseTruncated({ finishReason: 'length' }) === true
+        && continuation.isAIResponseTruncated({ finishReason: 'max_completion_tokens' }) === true
+        && continuation.isAIResponseTruncated({ finishReason: 'provider_token_limit' }) === true
+        && continuation.isAIResponseTruncated({ finishReason: 'stop' }) === false;
+
+      outcomes.incompleteHeuristicsCoverLongTailCases =
+        continuation.isLikelyIncompleteResponse('short and') === false
+        && continuation.isLikelyIncompleteResponse(`${'x'.repeat(520)} and`) === true
+        && continuation.isLikelyIncompleteResponse(`${'x'.repeat(520)}:`) === true
+        && continuation.isLikelyIncompleteResponse(`${'x'.repeat(520)}\n## Next`) === true
+        && continuation.isLikelyIncompleteResponse(`${'x'.repeat(520)}.`) === false
+        && continuation.isLikelyIncompleteResponse(`${'x'.repeat(520)}\n\`\`\``) === false;
+
+      outcomes.shouldAutoContinueCombinesSignals =
+        continuation.shouldAutoContinueResponse({ finishReason: 'max_tokens' }, 'done.') === true
+        && continuation.shouldAutoContinueResponse({ finishReason: 'stop' }, `${'x'.repeat(520)} because`) === true
+        && continuation.shouldAutoContinueResponse({ finishReason: 'stop' }, 'done.') === false;
+
+      // api.js reads this stub for the base URL; getOllamaMainModel reads
+      // localStorage first, so set both to keep the local-provider path stable.
+      (window as unknown as {getOllamaConfig?: unknown}).getOllamaConfig = () => ({ url: 'http://ollama.test', model: 'coverage-model', apiKey: '' });
+      localStorage.setItem('labcharts-ai-provider', 'ollama');
+      localStorage.setItem('labcharts-ollama-model', 'coverage-model');
+
+      window.fetch = async (url: Parameters<typeof fetch>[0], options: typeof url extends Parameters<typeof fetch>[0] ? RequestInit : never = {}) => {
+        fetchBodies.push((JSON.parse(String(options.body || '{}')) as unknown));
+        if (fetchBodies.length === 1) {
+          return streamResponse([
+            'data: {"choices":[{"delta":{"content":"First part "}}]}\n\n',
+            'data: {"choices":[{"delta":{},"finish_reason":"length"}],"usage":{"prompt_tokens":3,"completion_tokens":5}}\n\n',
+            'data: [DONE]\n\n',
+          ]);
+        }
+        return streamResponse([
+          'data: {"choices":[{"delta":{"content":"continued."}}]}\n\n',
+          'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":7,"completion_tokens":11}}\n\n',
+          'data: [DONE]\n\n',
+        ]);
+      };
+
+      const result = await continuation.callChatAPIWithContinuation({
+        system: 'System prompt.',
+        messages: [{ role: 'user', content: 'Tell me more.' }],
+        maxTokens: 12,
+        provider: 'ollama',
+        onStream(fullText: unknown) {
+          streamed.push(fullText);
+        },
+      });
+
+      outcomes.streamingContinuationMergesTextUsageAndPrompts = result.text === 'First part continued.'
+        && result.continued === 1
+        && result.truncated === false
+        && result.usage.inputTokens === 10
+        && result.usage.outputTokens === 16
+        && fetchBodies.length === 2
+        && (fetchBodies[0] as ContinuationRequestOperations).stream === true
+        && (fetchBodies[0] as ContinuationRequestOperations).max_tokens === 12
+        && (fetchBodies[0] as ContinuationRequestOperations).messages.some(message => message.role === 'system' && message.content === 'System prompt.')
+        && (fetchBodies[1] as ContinuationRequestOperations).messages.some(message => message.role === 'assistant' && message.content === 'First part ')
+        && (fetchBodies[1] as ContinuationRequestOperations).messages.some(message => message.role === 'user' && message.content.includes('Continue exactly where you stopped'))
+        && streamed.includes('First part ')
+        && streamed.includes('First part continued.');
+    } catch (error) {
+      thrownError = error;
+    } finally {
+      window.fetch = originalFetch;
+      if (originalGetOllamaConfig) (window as unknown as {getOllamaConfig?: unknown}).getOllamaConfig = originalGetOllamaConfig;
+      else delete (window as unknown as {getOllamaConfig?: unknown}).getOllamaConfig;
+      localStorage.clear();
+      for (const [key, value] of savedStorage) {
+        if (value != null) localStorage.setItem(key, value);
+      }
+    }
+
+    if (thrownError) throw thrownError;
+    return outcomes;
+  }, {
+    continuationUrl: moduleUrl('/js/chat-continuation.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});

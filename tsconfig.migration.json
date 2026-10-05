@@ -1,0 +1,96 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "paths": {
+      "/js/*": [
+        "./js/*"
+      ],
+      "/scripts/*": [
+        "./scripts/*"
+      ],
+      "/tests/*": [
+        "./tests/*"
+      ],
+      "/js/sun-sessions-store.js?recovery-browser": [
+        "./js/sun-sessions-store.ts"
+      ],
+      "/js/sun-active-session.js?recovery-browser": [
+        "./js/sun-active-session.ts"
+      ],
+      "/js/sun-active-session.js?replacement-browser": [
+        "./js/sun-active-session.ts"
+      ],
+      "/vendor/routstr-crypto.js": [
+        "./scripts/vendor-entries/routstr-crypto.ts"
+      ],
+      "/js/wearables.js?lazy-retry=1": [
+        "./js/wearables.ts"
+      ],
+      "/js/voice-loader.js?pending-auto-read-context=1": [
+        "./js/voice-loader.ts"
+      ],
+      "/wallet-test-lightning-invoices.js": [
+        "./tests/fixtures/lightning-invoices.ts"
+      ],
+      "/wallet-test-cashu-browser-durable.js": [
+        "./tests/fixtures/cashu-browser-durable.ts"
+      ]
+    },
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "node"
+    ],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "skipLibCheck": true,
+    "noEmitOnError": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "noImplicitOverride": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": [
+    "*.config.ts",
+    "dev-server.ts",
+    "js/**/*.ts",
+    "lib/**/*.ts",
+    "shared/**/*.ts",
+    "scripts/**/*.ts",
+    "scripts/**/*.mts",
+    "api/**/*.ts",
+    "server/**/*.ts",
+    "bin/**/*.ts",
+    "tests/fixtures/cashu-browser-durable.ts",
+    "tests/helpers/**/*.ts",
+    "tests/playwright/coverage-fixture.ts",
+    "tests/playwright/browser-script-runner.ts",
+    "tests/_node-shim.ts",
+    "tests/_vitest-setup.ts"
+  ],
+  "exclude": [
+    "**/*.d.ts",
+    "js/theme-bootstrap.ts",
+    "js/extra-theme-bootstrap.ts",
+    "js/lens-local-worker.ts",
+    "js/voice-local-stt-worker.ts",
+    "js/voice-local-tts-worker.ts",
+    "js/legal-consent-bootstrap.ts",
+    "js/analytics-bootstrap.ts",
+    "js/app-extension-bootstrap.ts"
+  ]
+}

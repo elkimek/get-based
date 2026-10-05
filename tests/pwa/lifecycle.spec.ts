@@ -1,0 +1,141 @@
+import type { Page } from '@playwright/test';
+import { expect, test } from '../playwright/coverage-fixture.js';
+import { startPwaServer } from './app-server.js';
+
+test.use({ serviceWorkers: 'allow' });
+
+async function openInstalledApp(page: Page, origin: string) {
+  await page.addInitScript(() => {
+    for (const key of ['emptyTour', 'tour']) localStorage.setItem(`labcharts-default-${key}`, 'completed');
+    // This is an installed, returning-user scenario. The delayed first-visit
+    // analytics notice otherwise moves Reload between pointer targeting and click
+    // (observed in the Firefox CI trace), without exercising worker activation.
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
+  });
+  await page.goto(`${origin}/app?dev-sw=1`, { waitUntil: 'networkidle' });
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
+  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+  await expect(page.locator('#analytics-consent-banner')).toHaveCount(0);
+  await page.evaluate(async () => {
+    (window as typeof window & { endTour?: typeof import('../../js/tour.js').endTour }).endTour?.();
+    (await import('/js/chat-panel.js')).closeChatPanel();
+    (await import('/js/changelog.js')).closeChangelog();
+  });
+}
+
+test('installed shell opens lazy features and reloads with the origin disconnected', async ({ page, baseURL, isMobile }) => {
+  const server = await startPwaServer(baseURL);
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await openInstalledApp(page, server.origin);
+    await expect(page.locator('#version-update-banner')).toHaveCount(0);
+    const manifest = await page.evaluate(async () => {
+      const url = document.querySelector<HTMLLinkElement>('link[rel="manifest"]')!.href;
+      const body: unknown = await fetch(url).then(r => r.json());
+      return { ...body as Record<string, unknown>, iconsOk: await Promise.all((body as { icons: { src: string }[] }).icons.map(icon => fetch(new URL(icon.src, url)).then(r => r.ok))) };
+    });
+    expect(manifest).toMatchObject({ id: '/app', start_url: '/app', display: 'standalone', iconsOk: [true, true, true] });
+    await server.disconnect();
+    expect(await page.evaluate(() => fetch('/api/offline-proof').then(() => false, () => true))).toBe(true);
+    await page.locator('.settings-btn').evaluate(button => (button as HTMLElement).click());
+    await expect(page.locator('#settings-modal-overlay')).toHaveClass(/\bshow\b/);
+    await expect(page.locator('#settings-modal .settings-layout')).toHaveCSS('display', isMobile ? 'flex' : 'grid');
+    await page.locator('[data-settings-tab="wearables"]').click();
+    await expect(page.locator('[data-tab-panel="wearables"]')).toHaveClass(/\bactive\b/);
+    await expect.poll(() => page.evaluate(() => [...document.querySelectorAll<HTMLImageElement>('#settings-modal img')]
+      .filter(img => img.loading !== 'lazy' || img.getBoundingClientRect().top < innerHeight)
+      .every(img => img.complete && img.naturalWidth > 0))).toBe(true);
+    await page.evaluate(async () => {
+      (await import('/js/settings-loader.js')).closeSettingsModal();
+      await (await import('/js/views.js')).navigate('light');
+    });
+    await expect(page.locator('.light-page')).toBeVisible();
+    const offlineContext = await page.evaluate(async () => {
+      const { state } = await import('/js/state.js');
+      state.importedData.sunDefaults = { fitzpatrick: 'III' };
+      state.importedData.entries = [{ date: '2026-09-01', markers: { 'vitamins.vitaminD': 75 } }];
+      return (await import('/js/sun-onboarding-ai.js')).buildOnboardingContext();
+    });
+    expect(offlineContext).toContain('Latest 25-OH-D: 75 nmol/l (2026-09-01)');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator('#main-content')).toBeVisible();
+    expect(errors).toEqual([]);
+  } finally { await server.close(); }
+});
+
+test('failed update preserves the installed app; retry updates two tabs without losing local data', async ({ page, context, baseURL }) => {
+  test.setTimeout(120_000);
+  const server = await startPwaServer(baseURL);
+  try {
+    await openInstalledApp(page, server.origin);
+    await page.evaluate(() => localStorage.setItem('pwa-retained-data', 'retained'));
+    await page.evaluate(async () => {
+      const { state } = await import('/js/state.js');
+      state.importedData.entries = [{ date: '2026-09-01', markers: { 'biochemistry.glucose': 5.8 } }];
+      await (await import('/js/data.js')).saveImportedData();
+    });
+    const other = await context.newPage();
+    await openInstalledApp(other, server.origin);
+    server.state.buildId = 'build-b';
+    server.state.failPath = '/css/settings.css';
+    const failedState = await page.evaluate(async () => {
+      const registration = await navigator.serviceWorker.getRegistration();
+      const failed = new Promise(resolve => registration!.addEventListener('updatefound', () => {
+        const worker = registration!.installing;
+        worker!.addEventListener('statechange', () => { if (worker!.state === 'redundant') resolve(worker!.state); });
+      }, { once: true }));
+      await registration!.update();
+      return failed;
+    });
+    expect(failedState).toBe('redundant');
+    expect(await page.evaluate(() => (window as typeof window & { APP_BUILD_ID?: unknown }).APP_BUILD_ID)).toBe('build-a');
+    expect(await page.evaluate(() => localStorage.getItem('pwa-retained-data'))).toBe('retained');
+    await expect(page.locator('#version-update-banner')).toHaveCount(0);
+    // Worker state and registration.installing propagate separately across
+    // browser processes. Require the slot to clear before triggering retry,
+    // using the same lifecycle budget as installation/activation below.
+    await expect.poll(() => page.evaluate(async () =>
+      (await navigator.serviceWorker.getRegistration())!.installing?.state ?? 'none'
+    ), { timeout: 30_000 }).toBe('none');
+    server.state.failPath = '';
+    server.state.holdPath = '/css/settings.css';
+    await page.evaluate(async () => {
+      const updates = await import('/js/service-worker-update.js');
+      await updates.checkForAppVersionUpdate(await navigator.serviceWorker.getRegistration(), navigator.serviceWorker, window, { force: true });
+    });
+    await expect.poll(() => server.state.held).toBeGreaterThan(0);
+    await expect(page.locator('#version-update-banner')).toHaveCount(0);
+    expect(await page.evaluate(() => (window as typeof window & { APP_BUILD_ID?: unknown }).APP_BUILD_ID)).toBe('build-a');
+    server.release();
+    await expect(page.locator('#version-update-banner')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('[data-version-update-action="apply"]')).toHaveText('Reload');
+    await page.locator('[data-version-update-action="dismiss"]').click();
+    expect(await page.evaluate(() => (window as typeof window & { APP_BUILD_ID?: unknown }).APP_BUILD_ID)).toBe('build-a');
+    // A later visit offers the still-pending update again.
+    await page.reload({ waitUntil: 'networkidle' });
+    await expect(page.locator('#version-update-banner')).toBeVisible();
+    await server.disconnect(); // Applying an already cached build needs no download.
+    await page.locator('[data-version-update-action="apply"]').click();
+    await expect.poll(() => page.evaluate(() => (window as typeof window & { APP_BUILD_ID?: unknown }).APP_BUILD_ID).catch(() => null), { timeout: 30_000 }).toBe('build-b');
+    await expect(other.locator('#version-update-banner')).toContainText('Reload');
+    expect(await other.evaluate(() => (window as typeof window & { APP_BUILD_ID?: unknown }).APP_BUILD_ID)).toBe('build-a');
+    await other.locator('[data-version-update-action="apply"]').click();
+    await expect.poll(() => other.evaluate(() => (window as typeof window & { APP_BUILD_ID?: unknown }).APP_BUILD_ID).catch(() => null), { timeout: 30_000 }).toBe('build-b');
+    // Build ID is stamped before async profile hydration finishes. Give both
+    // offline reloads the same bounded lifecycle budget as worker activation.
+    await expect(page.locator('html[data-app-ready]')).toBeAttached({ timeout: 30_000 });
+    await expect(other.locator('html[data-app-ready]')).toBeAttached({ timeout: 30_000 });
+    expect(await page.evaluate(() => localStorage.getItem('pwa-retained-data'))).toBe('retained');
+    expect(await page.evaluate(async () => (await import('/js/state.js')).state.importedData.entries))
+      .toEqual([{ date: '2026-09-01', markers: { 'biochemistry.glucose': 5.8 } }]);
+    expect(await other.evaluate(async () => (await import('/js/state.js')).state.importedData.entries))
+      .toEqual([{ date: '2026-09-01', markers: { 'biochemistry.glucose': 5.8 } }]);
+    // WebKit can transiently reject CacheStorage reads while activation settles.
+    // Retry the read, while still requiring exactly the new build's cache.
+    await expect(async () => {
+      expect(await page.evaluate(() => caches.keys())).toEqual(['labcharts-vbuild-build-b']);
+    }).toPass({ timeout: 5_000 });
+  } finally { await server.close(); }
+});

@@ -1,0 +1,281 @@
+import { createBlankPage } from '../helpers/browser-blank-page.js';
+import { expect, test } from './coverage-fixture.js';
+
+const moduleUrl = (path:string) => `${path}?syncConfigureReconcileCoverage=${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+const openBlankPage = createBlankPage({
+  status: 200, body: '<!doctype html><html><body><div id="notification-container"></div><div id="sync-indicator-slot"></div></body></html>',
+});
+
+test('sync configure browser coverage seeds local profiles through identity restore', async ({ page }) => {
+  await openBlankPage(page, '/sync-configure-seed-browser-coverage');
+
+  const results = await page.evaluate(async ({ configureUrl }) => {
+    const [configure, identity, runtime, actions, stateModule] = await Promise.all([
+      ((import(configureUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/sync-configure.js"), "configureSyncModules"> >),
+      import('/js/sync-identity.js'),
+      import('/js/sync-runtime.js'),
+      import('/js/sync-actions.js'),
+      import('/js/state.js'),
+    ]);
+    const { state } = stateModule;
+    const outcomes:Record<string,unknown> = {};
+    const originalSetTimeout = window.setTimeout;
+    const savedState = {
+      currentProfile: state.currentProfile,
+      importedData: state.importedData,
+      profiles: state.profiles,
+    };
+    const pushes:unknown[][] = [];
+    const restored:unknown[] = [];
+    const scheduledTimers:{delay:number;source:string}[] = [];
+    let thrownError:unknown = null;
+
+    try {
+      runtime.clearSyncRuntimeState();
+      state.currentProfile = 'seed-profile';
+      (state as {importedData:unknown}).importedData = { entries: [{ id: 'marker-1', value: 12 }] };
+      (state as {profiles:unknown}).profiles = [{
+        id: 'seed-profile',
+        name: 'Seed Profile',
+        status: 'active',
+        tags: [],
+        notes: '',
+        createdAt: Date.now(),
+        lastUpdated: Date.now(),
+      }];
+      localStorage.setItem(identity.RESTORE_JOIN_PENDING_KEY, 'stale');
+
+      (configure.configureSyncModules as unknown as (deps:{enableSync?:()=>unknown}) => ReturnType<typeof configure.configureSyncModules>)({
+        enableSync: () => true,
+      });
+      actions.configureSyncActions({
+        pushProfile: async (...args:Parameters<typeof import("../../js/sync-push.js").pushProfile>) => { pushes.push(args); },
+        forcePull: () => {},
+        isSyncEnabled: () => true,
+        isEvoluReady: () => true,
+        isSyncing: () => false,
+      });
+      runtime.setSyncEvolu({
+        restoreAppOwner: async (mnemonic:unknown) => { restored.push(mnemonic); },
+      });
+
+      (window as unknown as {setTimeout:(fn:TimerHandler,delay?:number)=>number}).setTimeout = (fn, delay = 0) => {
+        scheduledTimers.push({ delay, source: String(fn) });
+        return scheduledTimers.length;
+      };
+      const restoredOk = await identity.restoreFromMnemonic('coverage seed mnemonic', { seedLocal: true });
+      const notificationText = document.getElementById('notification-container')?.textContent || '';
+
+      outcomes.restoreReturnsTrue = restoredOk === true;
+      outcomes.restoreUsesRuntimeEvolu = restored[0]! === 'coverage seed mnemonic';
+      outcomes.configureSeedLocalProfilesPushesAllProfiles =
+        pushes.length === 1
+        && pushes[0]![0]! === 'seed-profile'
+        && pushes[0]![1]! === state.importedData
+        && (pushes[0]![2] as {force?:unknown}|null|undefined)?.force === true;
+      outcomes.configureSeedClearsRestoreJoinPending =
+        localStorage.getItem(identity.RESTORE_JOIN_PENDING_KEY) === null;
+      outcomes.configureSeedShowsSuccessNotification =
+        notificationText.includes('seeded this device');
+      outcomes.configureSeedSchedulesReload =
+        scheduledTimers.some(timer => (
+          timer.delay === 500
+          && timer.source.includes('reload.call')
+        ));
+    } catch (error) {
+      thrownError = error;
+    } finally {
+      window.setTimeout = originalSetTimeout;
+      runtime.clearSyncRuntimeState();
+      actions.configureSyncActions({
+        pushProfile: async () => {},
+        forcePull: () => {},
+        isSyncEnabled: () => false,
+        isEvoluReady: () => false,
+        isSyncing: () => false,
+      });
+      state.currentProfile = savedState.currentProfile;
+      (state as {importedData:unknown}).importedData = savedState.importedData;
+      (state as {profiles:unknown}).profiles = savedState.profiles;
+      localStorage.removeItem(identity.RESTORE_JOIN_PENDING_KEY);
+    }
+    if (thrownError) throw thrownError;
+
+    outcomes.allConfigureSeedOutcomesReached = Object.keys(outcomes).length === 6;
+    return outcomes;
+  }, {
+    configureUrl: moduleUrl('/js/sync-configure.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+  const intermediaryRequests = await page.evaluate(() => {
+    const facades = new Set([
+      '/js/sync-delta-registry.js', '/js/sync-delta-merge-shapes.js', '/js/sync-delta-planners.js',
+      '/js/sync-delta-observability.js', '/js/sync-diagnostics.js',
+    ]);
+    return performance.getEntriesByType('resource')
+      .map(entry => new URL(entry.name).pathname).filter(name => facades.has(name));
+  });
+  expect(intermediaryRequests).toEqual([]);
+});
+
+test('sync reconcile browser coverage exercises default dependency fallbacks', async ({ page }) => {
+  await openBlankPage(page, '/sync-reconcile-defaults-browser-coverage');
+
+  const results = await page.evaluate(async ({ reconcileUrl }) => {
+    const [reconcile, payload, identity, syncState, stateModule] = await Promise.all([
+      ((import(reconcileUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/sync-reconcile.js"), "reconcileLocalStorageWithEvolu" | "configureSyncReconcile"> >),
+      import('/js/sync-payload.js'),
+      import('/js/sync-identity.js'),
+      import('/js/sync-state.js'),
+      import('/js/state.js'),
+    ]);
+    const { state } = stateModule;
+    const outcomes:Record<string,unknown> = {};
+    const profileId = 'reconcile-default-profile';
+    const profileQuery = { name: 'profile-query' };
+    const localImported = {
+      lightDevices: [{ id: 'lamp-1', name: 'Local lamp', updatedAt: '2026-06-09T10:00:00.000Z' }],
+    };
+    const remoteImported = {
+      lightDevices: [{ id: 'lamp-1', name: 'Remote lamp', updatedAt: '2026-06-08T10:00:00.000Z' }],
+    };
+    let rows: Awaited<ReturnType<typeof rowFor>>[] = [];
+    const evolu = { getQueryRows: () => rows };
+    const savedState = {
+      currentProfile: state.currentProfile,
+      importedData: state.importedData,
+      profiles: state.profiles,
+    };
+    const savedAiSettings = new Map(payload.AI_SETTINGS_KEYS.map(key => [key, localStorage.getItem(key)] as const));
+    let thrownError:unknown = null;
+
+    const rowFor = async (importedData:Parameters<typeof payload.buildSyncPayload>[1]) => ({
+      profileId,
+      syncedAt: new Date().toISOString(),
+      dataJson: await payload.buildSyncPayload(profileId, importedData),
+    });
+
+    try {
+      for (const key of payload.AI_SETTINGS_KEYS) localStorage.removeItem(key);
+      localStorage.removeItem(identity.RESTORE_JOIN_PENDING_KEY);
+      syncState.resetSyncStatus();
+      state.currentProfile = profileId;
+      (state as {importedData:unknown}).importedData = localImported;
+      (state as {profiles:unknown}).profiles = [{
+        id: profileId,
+        name: 'Reconcile Defaults',
+        status: 'active',
+        tags: [],
+        notes: '',
+        createdAt: Date.now(),
+        lastUpdated: Date.now(),
+      }];
+
+      await reconcile.reconcileLocalStorageWithEvolu();
+      outcomes.defaultGetEvoluSkipsCleanly = true;
+
+      (reconcile.configureSyncReconcile as unknown as (deps:{getEvolu:()=>typeof evolu})=>ReturnType<typeof reconcile.configureSyncReconcile>)({ getEvolu: () => evolu });
+      await reconcile.reconcileLocalStorageWithEvolu();
+      outcomes.defaultProfileQueryAndEnabledSkipCleanly = true;
+
+      reconcile.configureSyncReconcile({
+        getProfileQuery: () => profileQuery,
+        isSyncEnabled: () => true,
+      });
+      rows = [await rowFor(localImported)];
+      await reconcile.reconcileLocalStorageWithEvolu();
+      outcomes.defaultDebugNoopsForMatchingRemote =
+        !syncState.getRecentSyncEvents().some(event => event.kind === 'reconcile');
+
+      rows = [await rowFor(remoteImported)];
+      await reconcile.reconcileLocalStorageWithEvolu();
+      outcomes.defaultPushAttemptedForDivergentRemote =
+        syncState.getRecentSyncEvents().some(event => (
+          event.kind === 'reconcile'
+          && event.text.includes('local has unsynced rows')
+        ));
+    } catch (error) {
+      thrownError = error;
+    } finally {
+      for (const [key, value] of savedAiSettings) {
+        if (value === null) localStorage.removeItem(key);
+        else localStorage.setItem(key, value);
+      }
+      localStorage.removeItem(identity.RESTORE_JOIN_PENDING_KEY);
+      state.currentProfile = savedState.currentProfile;
+      (state as {importedData:unknown}).importedData = savedState.importedData;
+      (state as {profiles:unknown}).profiles = savedState.profiles;
+    }
+    if (thrownError) throw thrownError;
+
+    outcomes.allReconcileDefaultOutcomesReached = Object.keys(outcomes).length === 4;
+    return outcomes;
+  }, {
+    reconcileUrl: moduleUrl('/js/sync-reconcile.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});
+
+test('sync recovery browser coverage exercises default dependency fallbacks', async ({ page }) => {
+  await openBlankPage(page, '/sync-recovery-defaults-browser-coverage');
+
+  const results = await page.evaluate(async ({ recoveryUrl }) => {
+    const recovery = await ((import(recoveryUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/sync-recovery.js"), "bindSyncRecoveryEvents" | "configureSyncRecovery"> >);
+    const outcomes:Record<string,unknown> = {};
+    const originalSetTimeout = window.setTimeout;
+    const scheduled:{fn:TimerHandler;delay:number}[] = [];
+    let thrownError:unknown = null;
+
+    const dispatchPersistedPageshow = () => {
+      const event = new Event('pageshow');
+      Object.defineProperty(event, 'persisted', { value: true });
+      window.dispatchEvent(event);
+    };
+
+    try {
+      recovery.bindSyncRecoveryEvents();
+      dispatchPersistedPageshow();
+      outcomes.defaultEnabledBlocksResumeKick = scheduled.length === 0;
+
+      recovery.configureSyncRecovery({ isSyncEnabled: () => true });
+      dispatchPersistedPageshow();
+      outcomes.defaultReadyBlocksResumeKick = scheduled.length === 0;
+
+      (window as unknown as {setTimeout:(fn:TimerHandler,delay?:number)=>number}).setTimeout = (fn, delay = 0) => {
+        scheduled.push({ fn, delay });
+        return scheduled.length;
+      };
+      recovery.configureSyncRecovery({ isEvoluReady: () => true });
+      dispatchPersistedPageshow();
+      outcomes.defaultDebugPushAndForceScheduleKick =
+        scheduled.length === 1
+        && scheduled[0]!.delay === 100;
+      await (scheduled[0]!.fn as ()=>unknown)();
+
+      window.dispatchEvent(new Event('offline'));
+      window.dispatchEvent(new Event('online'));
+      outcomes.defaultNotifyNoopsForNetworkEvents = true;
+    } catch (error) {
+      thrownError = error;
+    } finally {
+      window.setTimeout = originalSetTimeout;
+    }
+    if (thrownError) throw thrownError;
+
+    outcomes.allRecoveryDefaultOutcomesReached = Object.keys(outcomes).length === 4;
+    return outcomes;
+  }, {
+    recoveryUrl: moduleUrl('/js/sync-recovery.js'),
+  });
+
+  for (const [name, passed] of Object.entries(results)) {
+    expect(passed, name).toBe(true);
+  }
+});

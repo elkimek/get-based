@@ -24,13 +24,123 @@ jobs:
     uses: ./.github/workflows/real-models.yml
     with:
       model: ${{ matrix.model }}
+  docker-runtime-smoke:
+    name: Docker candidate (${{ matrix.service }})
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-release-evidence')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [compat-proxy, profile-share]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Build canonical TypeScript service image
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: docker build --file "deploy/$SERVICE/Dockerfile" --tag "getbased-ci/$SERVICE:$GITHUB_SHA" .
+      - name: Verify isolated unprivileged runtime and safe API guards
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          set -euo pipefail
+          container="getbased-ci-$SERVICE"
+          data_dir=''
+          cleanup() {
+            local smoke_status="$1"
+            trap - EXIT
+            if [[ "$smoke_status" -ne 0 ]]; then
+              docker logs --tail 100 "$container" >&2 || true
+            fi
+            docker rm --force "$container" >/dev/null 2>&1 || true
+            if [[ -n "$data_dir" ]]; then sudo rm -rf -- "$data_dir" || true; fi
+            exit "$smoke_status"
+          }
+          trap 'cleanup "$?"' EXIT
+          args=(--detach --name "$container" --network none --read-only
+            --tmpfs /tmp:rw,nosuid,nodev,size=16m,mode=1777
+            --cap-drop ALL --security-opt no-new-privileges --cpus 1)
+          if [[ "$SERVICE" == compat-proxy ]]; then
+            args+=(--pids-limit 128 --memory 512m
+              --env COMPAT_PROXY_BIND=0.0.0.0 --env COMPAT_PROXY_PORT=8787
+              --env PROXY_RATE_LIMIT_MAX=300 --env PROXY_RATE_LIMIT_WINDOW_MS=60000
+              --env WITHINGS_CLIENT_SECRET=synthetic-ci-value-not-a-provider-credential)
+            port=8787
+          else
+            data_dir=$(mktemp -d "$RUNNER_TEMP/profile-share-smoke.XXXXXX")
+            sudo chown 1000:1000 "$data_dir"
+            sudo chmod 0700 "$data_dir"
+            args+=(--pids-limit 96 --memory 256m
+              --mount "type=bind,src=$data_dir,dst=/data"
+              --env PROFILE_SHARE_BIND=0.0.0.0 --env PROFILE_SHARE_PORT=8790
+              --env PROFILE_SHARE_SQLITE_PATH=/data/profile-shares.sqlite
+              --env PROFILE_SHARE_DATABASE_MAX_BYTES=536870912
+              --env PROFILE_SHARE_RATE_LIMIT_KEY=synthetic-ci-only-disposable-profile-share-key)
+            port=8790
+          fi
+          # No host port or outbound network: probes run inside the container.
+          docker run "${args[@]}" "getbased-ci/$SERVICE:$GITHUB_SHA"
+          [[ $(docker inspect --format '{{.HostConfig.ReadonlyRootfs}} {{.Config.User}} {{.HostConfig.NetworkMode}}' "$container") == 'true node none' ]]
+          ready=false
+          for attempt in {1..30}; do
+            if docker exec "$container" node -e "fetch('http://127.0.0.1:$port/health',{signal:AbortSignal.timeout(2000)}).then(r=>{if(!r.ok)throw Error('health')}).catch(()=>process.exit(1))" >/dev/null 2>&1; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          [[ "$ready" == true ]]
+          docker exec --interactive "$container" node --input-type=module - "$SERVICE" <<'NODE'
+          import assert from 'node:assert/strict';
+          const service = process.argv[2];
+          const proxy = service === 'compat-proxy';
+          const origin = 'https://app.getbased.health';
+          const base = `http://127.0.0.1:${proxy ? 8787 : 8790}`;
+          const route = proxy ? '/api/proxy' : '/api/share';
+          const host = proxy ? 'integrations.getbased.health' : 'shares.getbased.health';
+          const request = (method, body, allowedOrigin = origin, path = route) => fetch(base + path, {
+            method,
+            headers: { Host: host, Origin: allowedOrigin, 'X-Forwarded-Proto': 'https', 'Content-Type': 'application/json' },
+            ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+            signal: AbortSignal.timeout(5000),
+          });
+          const health = await request('GET', undefined, origin, '/health');
+          assert.equal(health.status, 200);
+          assert.deepEqual(await health.json(), { status: 'ok' });
+          const preflight = await request('OPTIONS');
+          assert.equal(preflight.status, 204);
+          assert.equal(preflight.headers.get('access-control-allow-origin'), origin);
+          const denied = await request('POST', {}, 'https://audit.invalid');
+          assert.equal(denied.status, 403);
+          assert.equal(denied.headers.get('access-control-allow-origin'), null);
+          assert.deepEqual(await denied.json(), { error: 'Origin not allowed.' });
+          assert.equal((await request('PUT')).status, 405);
+          assert.equal((await request('GET', undefined, origin, '/not-an-api-route')).status, 404);
+          const malformed = await request('POST', {});
+          assert.equal(malformed.status, 400);
+          assert.equal((await malformed.json()).error, proxy ? 'Proxy request must select exactly one operation' : 'Invalid share id.');
+          if (proxy) {
+            const config = await request('POST', { wearable_runtime_config: true });
+            assert.equal(config.status, 200);
+            assert.equal(config.headers.get('access-control-allow-origin'), origin);
+            const data = await config.json();
+            assert.ok(data.overrides && typeof data.overrides === 'object' && !Array.isArray(data.overrides));
+            const { OFFICIAL_WEARABLE_CLIENT_IDS } = await import('/app/lib/proxy-policy.js');
+            const withings = await request('POST', { withings_token_exchange: { client_id: OFFICIAL_WEARABLE_CLIENT_IDS.withings, redirect_uri: `${origin}/` } });
+            assert.equal(withings.status, 400);
+            assert.equal((await withings.json()).error, 'withings_token_exchange requires code, redirect_uri, client_id');
+            const forwarding = await request('POST', { url: 'https://controlled.invalid/v1/chat/completions', headers: {}, body: '{}' });
+            assert.equal(forwarding.status, 403);
+          }
+          console.log(`${service}: health, isolation, CORS, handled POST validation and safe routing passed.`);
+          NODE
   verified:
-    needs: [regression, real-models]
+    needs: [regression, real-models, docker-runtime-smoke]
     runs-on: ubuntu-latest
     steps:
       - name: Record successful acceptance revision
         env:
           VERIFIED_SHA: ${{ github.sha }}
         run: |
-          echo "Full regression and both real WASM model scenarios passed for $VERIFIED_SHA." >> "$GITHUB_STEP_SUMMARY"
+          echo "Full regression, both real WASM model scenarios, and both isolated Docker runtime smokes passed for $VERIFIED_SHA." >> "$GITHUB_STEP_SUMMARY"
           echo 'Live paid providers, physical hardware, and human acceptance are separate evidence.' >> "$GITHUB_STEP_SUMMARY"

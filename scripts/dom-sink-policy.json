@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every non-generated JavaScript module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 740,
-  "sinkCount": 559,
+  "scannedFiles": 771,
+  "sinkCount": 550,
   "files": {
     "js/backup.js": {
       "count": 1,
@@ -245,10 +245,10 @@
       }
     },
     "js/crypto-ui.js": {
-      "count": 20,
-      "digest": "8b917d29d12c72331c3ef3fa6f754ac0e9465b15cf69a3e8f73084fe657ae69b",
+      "count": 11,
+      "digest": "6be722f8c547ba00feba1778915fe0a0781e1b860ef6ba2ccd25f32b8d8b0c76",
       "kinds": {
-        "innerHTML": 20
+        "innerHTML": 11
       }
     },
     "js/cycle-import.js": {
@@ -323,14 +323,14 @@
     },
     "js/emf-editor.js": {
       "count": 3,
-      "digest": "28098d3ecf8268c5b5ef1452e280494089e3b08474550335751bf167aaf7a1a4",
+      "digest": "5302c4ab0d0a39da9c8ad50208afa2049a5f4efa901522cdb74f8c8d790bdf70",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/emf-interpretation.js": {
       "count": 7,
-      "digest": "2ea961e9b7e17270ccec05289b8cfd79596b2ab3f2fbe338442bef0a24ddd70c",
+      "digest": "d584f5a5a084f9a734353c094763cb699cb9851e5ab697b88450d617ee0c89b2",
       "kinds": {
         "innerHTML": 7
       }
@@ -428,14 +428,14 @@
     },
     "js/light-conditions-now.js": {
       "count": 5,
-      "digest": "aeb6494fb78f3b7d75bd49119cb2d6ac6bdc19864b1632d05e614eb945e515d3",
+      "digest": "4cf2d36cdfca998972d4ff4fb908898f1e851565bbcf6edc732d4dc1c7bf5e75",
       "kinds": {
         "innerHTML": 5
       }
     },
     "js/light-device-session-modal.js": {
       "count": 2,
-      "digest": "c78a7ebe23e085478811575305851154e713f8996ee54a57c28ef0ce62d5462d",
+      "digest": "0645fd625bf2e5a3621a2d78fd71a23e92cfa4753bd44ab1bef31c19d3bac2bd",
       "kinds": {
         "innerHTML": 2
       }
@@ -721,7 +721,7 @@
     },
     "js/provider-panels.js": {
       "count": 37,
-      "digest": "fc1cef390c0dae483ab55a2022cdd31f7dd214f8660e1d3bd0677e03f0c5b9f6",
+      "digest": "74f137906e6cea7a3e11204e2e5c26e2c2d3c0745ae28333e8cff087461de941",
       "kinds": {
         "innerHTML": 37
       }
@@ -735,16 +735,23 @@
     },
     "js/provider-wallet-funding-recovery.js": {
       "count": 3,
-      "digest": "321234237958701021a0df9f5eba96237e239abcb469a261dcd0af9dd599c1f6",
+      "digest": "a736bb0fe126fe8df7afcb95f0dba1b413d1b65cf07f2a963df81fa3b22f7e51",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/provider-wallet-panels.js": {
-      "count": 58,
-      "digest": "5bc0e7e853e5e14044a7431e0201b95f673befdbd08c5785d7bccab223a19e70",
+      "count": 56,
+      "digest": "c2dc902b6d8367449eefabb57a185936b3a6b0d6eb543fc284d880a20569fade",
       "kinds": {
-        "innerHTML": 58
+        "innerHTML": 56
+      }
+    },
+    "js/provider-wallet-refund-recovery.js": {
+      "count": 2,
+      "digest": "8a60fa9752a1755e86e2962b07c2b45e540d0ad20886342152d6ac467f1986a3",
+      "kinds": {
+        "innerHTML": 2
       }
     },
     "js/recommendation-actions.js": {
@@ -866,7 +873,7 @@
     },
     "js/sun-session-ui.js": {
       "count": 2,
-      "digest": "1b1ab1709cfe007c2956f7a0bc104261c808ab34b13a691139319720f32161c4",
+      "digest": "96fcde4d46db57d0cba444cc4228b7a9cfc959970a73461401c28c51a394d8d3",
       "kinds": {
         "innerHTML": 2
       }
@@ -932,7 +939,7 @@
     },
     "js/therapy-correlation-view.js": {
       "count": 5,
-      "digest": "c7f7360bb9a9c1e6f77b89855e2cab323f89c1945f91daa7ebc5cce52c3c91da",
+      "digest": "48dd3017d42cc930b9d2c4776018702b191f08022cd7378050978e076d4f3a6a",
       "kinds": {
         "innerHTML": 5
       }

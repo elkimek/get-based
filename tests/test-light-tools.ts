@@ -1,0 +1,424 @@
+#!/usr/bin/env node
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
+import { sourcePath } from '../scripts/source-files.js';
+import { fileURLToPath } from 'node:url';
+import { createLegacyAssertions } from './helpers/legacy-assertions.js';
+// test-light-tools.js — Pure helpers re-exported by light-tools.js:
+// computeRowBanding (flicker FFT), cameraLockStatusLine, saveMeasurement
+// persistence + spectrum auto-fill, getMeasurementsForRoom, deleteMeasurement.
+//
+// Run: node tests/test-light-tools.js  (or via npm test)
+
+import './_node-shim.js';
+import fs from 'node:fs';
+
+
+const { assert, results: legacyAssertions } = createLegacyAssertions();
+
+console.log('=== Light Tools Tests ===\n');
+
+const { state } = await import('../js/state.js');
+const tools = await import('../js/light-tools.js');
+  const {
+    computeRowBanding,
+    cameraLockStatusLine,
+    configureLightTools,
+    getMeasurements, getMeasurementsForRoom, saveMeasurement, deleteMeasurement,
+    clearLuxCalibration, isLuxCalibrationConfirmed, loadLuxCalibration, lockCameraForMeasurement,
+    normalizeGoldenHourMinutes, saveLuxCalibration,
+    } = tools;
+    const lightToolsSrc = fs.readFileSync(sourcePath(fileURLToPath(new URL('../js/light-tools.js', import.meta.url))), 'utf8').replace("'./light-tool-camera-modals.js?lazy-retry=1' as './light-tool-camera-modals.js'", "'./light-tool-camera-modals.js?lazy-retry=1'");
+    const lightAiSaveHooksSrc = fs.readFileSync(new URL('../js/light-ai-save-hooks.js', import.meta.url), 'utf8');
+    const lightToolsUiHooksSrc = fs.readFileSync(new URL('../js/light-tools-ui-hooks.js', import.meta.url), 'utf8');
+    const appLightSunSrc = fs.readFileSync(new URL('../js/app-light-sun-modules.js', import.meta.url), 'utf8');
+    const appUiShellSrc = fs.readFileSync(new URL('../js/app-ui-shell-modules.js', import.meta.url), 'utf8');
+    const lightEnvSrc = [
+      fs.readFileSync(new URL('../js/light-env.js', import.meta.url), 'utf8'),
+      fs.readFileSync(new URL('../js/light-env-editor.js', import.meta.url), 'utf8'),
+    ].join('\n');
+    const globalsSrc = fs.readFileSync(new URL('../types/globals.d.ts', import.meta.url), 'utf8');
+    const swSrc = readServiceWorkerSource(relative => fs.readFileSync(new URL('../' + relative, import.meta.url), 'utf8'));
+    const lightToolCameraSrc = fs.readFileSync(new URL('../js/light-tool-camera.js', import.meta.url), 'utf8');
+    const lightToolCameraModalsSrc = [
+      'light-tool-camera-modals.js',
+      'light-tool-camera-modal-runtime.js',
+      'light-tool-lux-meter.js',
+      'light-tool-flicker-detector.js',
+      'light-tool-darkness-meter.js',
+      'light-tool-cct-meter.js',
+      'light-tool-spectrum-classifier.js',
+      'light-tool-glass-transmission.js',
+    ].map(file => fs.readFileSync(sourcePath(fileURLToPath(new URL(`../js/${file}`, import.meta.url))), 'utf8')).join('\n');
+    const lightSunCss = fs.readFileSync(new URL('../css/light-sun.css', import.meta.url), 'utf8');
+    const lightToolCss = fs.readFileSync(new URL('../css/light-tools.css', import.meta.url), 'utf8');
+    const cssFiles = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-panel-open.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css', 'css/chat-redesign-open.css'];
+    const stylesSrc = cssFiles.map(rel => fs.readFileSync(new URL('../' + rel, import.meta.url), 'utf8')).join('\n');
+    const appearsBefore = (src: string, needleA: string, needleB: string, from = 0) => {
+      const a = src.indexOf(needleA, from);
+      const b = src.indexOf(needleB, from);
+      return a >= 0 && b >= 0 && a < b;
+    };
+
+  const orig = state.importedData;
+  function reset(seed = {}) {
+    (state as { importedData: unknown }).importedData = Object.assign({ entries: [] }, seed);
+  }
+
+  // ─── 1. computeRowBanding shape ──────────────────────────────────────
+  console.log('%c 1. computeRowBanding shape ', 'font-weight:bold;color:#f59e0b');
+
+  // Build a uniform-grey 16×16 RGBA frame (luma ≈ 128 everywhere).
+  const W = 16, H = 16;
+  const flat = new Uint8ClampedArray(W * H * 4);
+  for (let i = 0; i < flat.length; i += 4) {
+    flat[i] = flat[i + 1] = flat[i + 2] = 128; flat[i + 3] = 255;
+  }
+  const flatRes = computeRowBanding(flat, W, H);
+  assert('Returns frameMean / frameMax / bandingRatio / stripes / rowMeans',
+    Number.isFinite(flatRes.frameMean) &&
+    Number.isFinite(flatRes.frameMax) &&
+    Number.isFinite(flatRes.bandingRatio) &&
+    Number.isInteger(flatRes.stripes) &&
+    flatRes.rowMeans instanceof Float32Array);
+  assert('frameMean ≈ 128 on uniform grey input', Math.abs(flatRes.frameMean - 128) < 1);
+  assert('frameMax ≈ 128 on uniform grey input', Math.abs(flatRes.frameMax - 128) < 1);
+  assert('bandingRatio ≈ 0 on uniform input (no PWM signal)', flatRes.bandingRatio < 0.01);
+  assert('stripes === 0 on uniform input', flatRes.stripes === 0);
+  assert('rowMeans length === H', flatRes.rowMeans.length === H);
+
+  // ─── 2. computeRowBanding detects banding ────────────────────────────
+  console.log('%c 2. computeRowBanding detects PWM banding ', 'font-weight:bold;color:#f59e0b');
+
+  // Frame with alternating bright/dark rows = strong banding signal
+  const bands = new Uint8ClampedArray(W * H * 4);
+  for (let y = 0; y < H; y++) {
+    const v = (y % 2 === 0) ? 200 : 50;
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      bands[i] = bands[i + 1] = bands[i + 2] = v; bands[i + 3] = 255;
+    }
+  }
+  const bandRes = computeRowBanding(bands, W, H);
+  assert('frameMean of alternating rows ≈ 125', Math.abs(bandRes.frameMean - 125) < 5);
+  assert('Strong banding raises bandingRatio significantly (> 0.4)',
+    bandRes.bandingRatio > 0.4, `bandingRatio=${bandRes.bandingRatio.toFixed(3)}`);
+  assert('Stripes counted across the frame (>=4 alternations in 16 rows)',
+    bandRes.stripes >= 4, `stripes=${bandRes.stripes}`);
+
+  // ─── 3. computeRowBanding edge: dark frame (frameMean ≈ 0) ───────────
+  console.log('%c 3. Dark-frame guard ', 'font-weight:bold;color:#f59e0b');
+
+  const dark = new Uint8ClampedArray(W * H * 4);
+  for (let i = 3; i < dark.length; i += 4) dark[i] = 255; // alpha only
+  const darkRes = computeRowBanding(dark, W, H);
+  assert('frameMean === 0 on all-zero frame', darkRes.frameMean === 0);
+  assert('bandingRatio === 0 on all-zero frame (no divide-by-zero)',
+    darkRes.bandingRatio === 0);
+
+  // ─── 4. cameraLockStatusLine ─────────────────────────────────────────
+  console.log('%c 4. cameraLockStatusLine ', 'font-weight:bold;color:#f59e0b');
+
+  assert('null lock → empty string', cameraLockStatusLine(null) === '');
+  assert('undefined lock → empty string', cameraLockStatusLine(undefined) === '');
+
+  const allLocked = cameraLockStatusLine({ exposure: 'manual', whiteBalance: 'manual', focus: 'manual', frameRate: 30 });
+  assert('All-manual reports green check + fps',
+    /✓ camera locked/.test(allLocked) && /30 fps/.test(allLocked));
+
+  const partial = cameraLockStatusLine({ exposure: 'auto', whiteBalance: 'manual', frameRate: 30 });
+  assert('Partial lock surfaces orange warning + which mode',
+    /⚠ camera/.test(partial) && /exposure/.test(partial));
+
+  const allAuto = cameraLockStatusLine({ exposure: 'auto', whiteBalance: 'auto' });
+  assert('All-auto reports both warnings',
+    /exposure/.test(allAuto) && /white-balance/.test(allAuto));
+
+
+// The mock intentionally returns push's number; the camera owner only awaits it.
+type NativeMeasurementTrack = ReturnType<NonNullable<NonNullable<Parameters<typeof lockCameraForMeasurement>[0]>['getVideoTracks']>>[number];
+type FixtureMeasurementTrack = Omit<NativeMeasurementTrack, 'applyConstraints'> & { applyConstraints(...args: Parameters<NativeMeasurementTrack['applyConstraints']>): Promise<unknown> };
+type FixtureMeasurementStream = Omit<NonNullable<Parameters<typeof lockCameraForMeasurement>[0]>, 'getVideoTracks'> & { getVideoTracks?(): FixtureMeasurementTrack[] };
+  const appliedCameraConstraints: Array<Parameters<NativeMeasurementTrack['applyConstraints']>[0]> = [];
+  const cameraTrack = {
+    getSettings: () => ({
+      exposureMode: 'manual',
+      whiteBalanceMode: 'manual',
+      focusMode: 'manual',
+      frameRate: 120,
+    }),
+    getCapabilities: () => ({
+      exposureMode: ['manual'],
+      exposureCompensation: { min: -2, max: 2 },
+      exposureTime: { min: 1, max: 500 },
+      iso: { min: 50, max: 800 },
+      whiteBalanceMode: ['manual'],
+      colorTemperature: { min: 2000, max: 8000 },
+      focusMode: ['manual'],
+    }),
+    applyConstraints: async (constraints: (typeof appliedCameraConstraints)[number]) => appliedCameraConstraints.push(constraints),
+  };
+  const lockedCamera = await (lockCameraForMeasurement as (stream: FixtureMeasurementStream, options?: Parameters<typeof lockCameraForMeasurement>[1]) => ReturnType<typeof lockCameraForMeasurement>)({
+    getVideoTracks: () => [cameraTrack],
+  }, { shortExposure: true });
+  assert('Camera lock result preserves numeric frame-rate, exposure, and ISO metadata',
+    lockedCamera.frameRate === 120 && lockedCamera.exposureTime === 83 && lockedCamera.iso === 100);
+  assert('Short-exposure camera lock sends the matching numeric constraints',
+    appliedCameraConstraints[0]?.advanced?.some(item => item.exposureTime === 83)
+    && appliedCameraConstraints[0]?.advanced?.some(item => item.iso === 100));
+  cameraTrack.applyConstraints = async () => { throw new Error('constraints rejected'); };
+  const rejectedCameraLock = await (lockCameraForMeasurement as (stream: FixtureMeasurementStream, options?: Parameters<typeof lockCameraForMeasurement>[1]) => ReturnType<typeof lockCameraForMeasurement>)({
+    getVideoTracks: () => [cameraTrack],
+  }, { shortExposure: true });
+  assert('Rejected camera constraints return a stable auto-mode result shape',
+    rejectedCameraLock.exposure === 'auto' && rejectedCameraLock.iso === null
+    && rejectedCameraLock.exposureTime === null && rejectedCameraLock.frameRate === 120);
+
+  const savedCalibration = localStorage.getItem('labcharts-lux-calibration');
+  const savedCalibrationConfirmation = localStorage.getItem('labcharts-lux-calibration-confirmed');
+  localStorage.removeItem('labcharts-lux-calibration');
+  localStorage.removeItem('labcharts-lux-calibration-confirmed');
+  assert('Missing lux calibration defaults to 1', loadLuxCalibration() === 1);
+  assert('Missing lux calibration is not marked as confirmed', isLuxCalibrationConfirmed() === false);
+  saveLuxCalibration(1.25);
+  assert('Saved lux calibration round-trips and records explicit confirmation',
+    loadLuxCalibration() === 1.25 && isLuxCalibrationConfirmed() === true);
+  clearLuxCalibration();
+  assert('Clearing lux calibration removes factor and confirmation',
+    loadLuxCalibration() === 1 && isLuxCalibrationConfirmed() === false);
+  localStorage.setItem('labcharts-lux-calibration', 'invalid');
+  assert('Invalid lux calibration defaults to 1', loadLuxCalibration() === 1);
+  if (savedCalibration == null) localStorage.removeItem('labcharts-lux-calibration');
+  else localStorage.setItem('labcharts-lux-calibration', savedCalibration);
+  if (savedCalibrationConfirmation == null) localStorage.removeItem('labcharts-lux-calibration-confirmed');
+  else localStorage.setItem('labcharts-lux-calibration-confirmed', savedCalibrationConfirmation);
+
+  // ─── 5. getMeasurements lazy init + saveMeasurement ─────────────────
+  console.log('%c 5. Measurement persistence ', 'font-weight:bold;color:#f59e0b');
+
+    reset();
+    assert('getMeasurements lazily initializes empty list',
+      Array.isArray(getMeasurements()) && getMeasurements().length === 0);
+
+    reset({
+      lightMeasurements: [
+        { id: 'old-lux', tool: 'lux', roomId: 'r1', value: 100, capturedAt: 1000 },
+        { id: 'new-lux', tool: 'lux', roomId: 'r1', value: 300, capturedAt: 2000 },
+        { id: 'audit-a', tool: 'audit', value: 2, capturedAt: 1000 },
+        { id: 'audit-b', tool: 'audit', value: 3, capturedAt: 2000 },
+      ],
+    });
+    const migrated = getMeasurements();
+    assert('getMeasurements collapses duplicate non-audit room/tool rows',
+      migrated.length === 3 && migrated.some(m => m.id === 'new-lux') && !migrated.some(m => m.id === 'old-lux'));
+    assert('getMeasurements preserves audit walkthrough history during collapse',
+      migrated.filter(m => m.tool === 'audit').length === 2);
+    assert('getMeasurements tombstones collapsed rows for sync',
+      state.importedData._deleted?.lightMeasurements?.includes('old-lux'));
+
+    reset();
+
+  const m1 = await saveMeasurement('lux', 350, { roomId: 'r1', label: 'desk' });
+  assert('saveMeasurement returns a stamped entry',
+    m1 && m1.id && m1.tool === 'lux' && m1.value === 350);
+  assert('Measurement carries capturedAt timestamp',
+    Number.isFinite(m1.capturedAt) && m1.capturedAt > 0);
+  assert('Measurement carries default confidence (0.7)',
+    m1.confidence === 0.7);
+  assert('Measurement carries label + roomId',
+    m1.label === 'desk' && m1.roomId === 'r1');
+  assert('Measurement is in the list after save',
+    getMeasurements().length === 1 &&
+    getMeasurements!()[0]!.id === m1.id);
+
+  await saveMeasurement('flicker', 2, { roomId: 'r1' });
+  await saveMeasurement('cct', 5500, { roomId: 'r2' });
+  await saveMeasurement('lux', 100); // portable / no roomId
+  assert('All four measurements persist', getMeasurements().length === 4);
+
+  // ─── 6. getMeasurementsForRoom ──────────────────────────────────────
+  console.log('%c 6. getMeasurementsForRoom filtering ', 'font-weight:bold;color:#f59e0b');
+
+  const r1 = getMeasurementsForRoom('r1');
+  assert('r1 holds lux + flicker (2 entries)', r1.length === 2);
+  assert('r1 entries carry the right roomId', r1.every(m => m.roomId === 'r1'));
+
+  const r2 = getMeasurementsForRoom('r2');
+  assert('r2 holds the cct entry only', r2.length === 1 && r2![0]!.tool === 'cct');
+
+  assert('null roomId returns [] (no portable bucket via this getter)',
+    getMeasurementsForRoom(null).length === 0);
+
+  // ─── 7. deleteMeasurement ───────────────────────────────────────────
+  console.log('%c 7. deleteMeasurement ', 'font-weight:bold;color:#f59e0b');
+
+  const before = getMeasurements().length;
+  const ok = await deleteMeasurement(m1.id);
+  assert('deleteMeasurement returns true on hit', ok === true);
+  assert('Measurement removed from list', getMeasurements().length === before - 1);
+  assert('deleteMeasurement on unknown id returns false',
+    (await deleteMeasurement('lm_nope')) === false);
+
+  // ─── 8. Spectrum tool auto-fill suggestion fires ─────────────────────
+  console.log('%c 8. Spectrum tool fires suggestRoomSourceFromSpectrum ', 'font-weight:bold;color:#f59e0b');
+
+  // Stub the suggestion through the module dependency seam so we can
+  // confirm the call without touching real light-env state.
+  let suggestionCalls = 0;
+  let lastArgs: { roomId: unknown; value: unknown } | null = null;
+  configureLightTools({
+    suggestRoomSourceFromSpectrum: async (roomId, value) => {
+      suggestionCalls++;
+      lastArgs = { roomId, value };
+    },
+  });
+
+  await saveMeasurement('spectrum', 'fluorescent', { roomId: 'r99' });
+  assert('Spectrum + roomId fires the auto-fill hook exactly once',
+    suggestionCalls === 1);
+  assert('Hook is called with the room + value',
+    lastArgs && (lastArgs as { roomId: unknown; value: unknown }).roomId === 'r99' && (lastArgs as { roomId: unknown; value: unknown }).value === 'fluorescent');
+
+  // No roomId → no hook
+  suggestionCalls = 0;
+  await saveMeasurement('spectrum', 'led-warm', {}); // no roomId
+  assert('Spectrum without roomId does not fire the hook',
+    suggestionCalls === 0);
+
+  // Non-spectrum tool → no hook
+  suggestionCalls = 0;
+  await saveMeasurement('lux', 500, { roomId: 'r99' });
+    assert('Non-spectrum tool does not fire the hook',
+      suggestionCalls === 0);
+    configureLightTools({ suggestRoomSourceFromSpectrum: async () => {} });
+
+    // ─── 9. Golden-hour duration guard ──────────────────────────────────
+    console.log('%c 9. Golden-hour duration clamp ', 'font-weight:bold;color:#f59e0b');
+
+    assert('normalizeGoldenHourMinutes defaults invalid input to 15',
+      normalizeGoldenHourMinutes('nope') === 15);
+    assert('normalizeGoldenHourMinutes clamps below min',
+      normalizeGoldenHourMinutes('-5') === 1);
+    assert('normalizeGoldenHourMinutes clamps above max',
+      normalizeGoldenHourMinutes('500') === 120);
+    assert('normalizeGoldenHourMinutes accepts valid minutes',
+      normalizeGoldenHourMinutes('45') === 45);
+
+    // ─── 10. Camera lifecycle regressions ────────────────────────────────
+    console.log('%c 10. Camera lifecycle source guards ', 'font-weight:bold;color:#f59e0b');
+
+    assert('light-tools.js lazy-loads camera-backed tools through its facade',
+      !lightToolsSrc.includes("from './light-tool-camera-modals.js'") &&
+      lightToolsSrc.includes("import('./light-tool-camera-modals.js')") &&
+      lightToolsSrc.includes("import('./light-tool-camera-modals.js?lazy-retry=1')") &&
+      lightToolsSrc.includes("openLuxMeter = openCameraTool('openLuxMeter')"));
+    assert('light-tools AI save hook routes through startup wiring',
+      lightToolsSrc.includes('export function configureLightTools') &&
+      lightToolsSrc.includes('maybeAnalyzeMeasurementAfterSave: () => {}') &&
+      !lightToolsSrc.includes('window.maybeAnalyzeMeasurementAfterSave') &&
+      lightAiSaveHooksSrc.includes('configureLightTools,') &&
+      lightAiSaveHooksSrc.includes('getMeasurementsForRoom,') &&
+      lightAiSaveHooksSrc.includes("} from './light-tools.js';") &&
+      lightAiSaveHooksSrc.includes("import { maybeAnalyzeMeasurementAfterSave, renderMeasurementAIInline } from './light-tools-ai-analysis.js';") &&
+      lightAiSaveHooksSrc.includes('configureLightTools({') &&
+      lightAiSaveHooksSrc.includes('maybeAnalyzeMeasurementAfterSave') &&
+      appLightSunSrc.includes("import './light-ai-save-hooks.js';"));
+    assert('light-tools runtime callbacks route through startup wiring',
+      !lightToolsSrc.includes('window.suggestRoomSourceFromSpectrum') &&
+      !lightToolsSrc.includes('window.refreshLightEnvironmentAssessment') &&
+      !lightToolsSrc.includes('window.getSunCoords') &&
+      !lightToolsSrc.includes('window.solarZenithAngle') &&
+      !lightToolsSrc.includes('window.logCompletedSession') &&
+      !lightToolsSrc.includes('window.getSessions') &&
+      !lightToolsSrc.includes('window.hydrateSession') &&
+      !lightToolsSrc.includes('window.getRooms') &&
+      !lightToolsSrc.includes('window.addRoom') &&
+      !lightToolsSrc.includes('window.navigate') &&
+      lightEnvSrc.includes('export async function suggestRoomSourceFromSpectrum') &&
+      lightEnvSrc.includes('export function getRooms') &&
+      lightAiSaveHooksSrc.includes("import { addRoom, configureLightEnv, getRooms, refreshLightEnvironmentAssessment, suggestRoomSourceFromSpectrum } from './light-env.js';") &&
+      lightAiSaveHooksSrc.includes("import { getSunCoords } from './sun.js';") &&
+      lightAiSaveHooksSrc.includes("import { getSessions, hydrateSession, logCompletedSession } from './sun-sessions-store.js';") &&
+      lightAiSaveHooksSrc.includes("import { solarZenithAngle } from './sun-uvdata.js';") &&
+      lightAiSaveHooksSrc.includes('suggestRoomSourceFromSpectrum') &&
+      lightAiSaveHooksSrc.includes('refreshLightEnvironmentAssessment') &&
+      lightAiSaveHooksSrc.includes('solarZenithAngle') &&
+      lightToolsUiHooksSrc.includes("import { navigate } from './views.js';") &&
+      lightToolsUiHooksSrc.includes('configureLightTools({ navigate })') &&
+      appLightSunSrc.includes('configureLightTools({ navigate });') &&
+      !appUiShellSrc.includes("import './light-tools-ui-hooks.js';") &&
+      swSrc.includes("'/js/light-tools-ui-hooks.js'"));
+    assert('light-tool-camera.js owns shared camera lock and row-banding helpers',
+      lightToolCameraSrc.includes('export async function lockCameraForMeasurement') &&
+      lightToolCameraSrc.includes('export function computeRowBanding'));
+    assert('Light tool modal close handlers are module exports instead of window globals',
+      lightToolCameraModalsSrc.includes('export function closeLuxMeter()') &&
+      lightToolCameraModalsSrc.includes('export function closeFlickerDetector()') &&
+      lightToolCameraModalsSrc.includes('export function closeDarknessMeter()') &&
+      lightToolCameraModalsSrc.includes('export function closeCCTMeter()') &&
+      lightToolCameraModalsSrc.includes('export function closeSpectrumClassifier()') &&
+      lightToolCameraModalsSrc.includes('export function closeGlassTransmission()') &&
+      lightToolsSrc.includes("closeLuxMeter = closeCameraToolIfLoaded('closeLuxMeter')") &&
+      lightToolsSrc.includes("closeFlickerDetector = closeCameraToolIfLoaded('closeFlickerDetector')") &&
+      lightToolsSrc.includes('export function closeEyeLevelAudit()') &&
+      !lightToolCameraModalsSrc.includes('window._close') &&
+      !lightToolsSrc.includes('window._close') &&
+      !globalsSrc.includes('_closeLuxMeter') &&
+      !globalsSrc.includes('_closeAudit'));
+    assert('Lux assigns close handler before camera fallback can await',
+      appearsBefore(lightToolCameraModalsSrc, 'const closeLuxMeterOverlay =', 'await startCameraFallback();'));
+    assert('Lux AmbientLightSensor error retries the camera fallback',
+      /sensor\.addEventListener\('error'[\s\S]{0,500}startCameraFallback/.test(lightToolCameraModalsSrc));
+    assert('Lux prefers the phone light sensor and exposes a camera source switch',
+      lightToolCameraModalsSrc.includes('id="lux-source-als"') &&
+      lightToolCameraModalsSrc.includes('id="lux-source-camera"') &&
+      appearsBefore(lightToolCameraModalsSrc, 'if (!startAmbientSensor())', 'await startCameraFallback();') &&
+      lightToolCameraModalsSrc.includes("cameraButton.addEventListener('click'") &&
+      lightToolCameraModalsSrc.includes("alsButton.addEventListener('click'"));
+      assert('Flicker assigns close handler before getUserMedia await',
+        appearsBefore(lightToolCameraModalsSrc, 'const closeFlickerOverlay =', 'navigator.mediaDevices.getUserMedia', lightToolCameraModalsSrc.indexOf('export async function openFlickerDetector')));
+      assert('Darkness stops late camera stream if closed after getUserMedia',
+        /export async function openDarknessMeter[\s\S]*const stream = await navigator\.mediaDevices\.getUserMedia[\s\S]*if \(closed\) \{[\s\S]*stream\.getTracks\(\)\.forEach\(\w+ => \w+\.stop\(\)\)/.test(lightToolCameraModalsSrc));
+      assert('CCT assigns close handler before getUserMedia await',
+        appearsBefore(lightToolCameraModalsSrc, 'const closeCCTOverlay =', 'navigator.mediaDevices.getUserMedia', lightToolCameraModalsSrc.indexOf('export async function openCCTMeter')));
+      assert('Spectrum assigns close handler before getUserMedia await',
+        appearsBefore(lightToolCameraModalsSrc, 'const closeSpectrumOverlay =', 'navigator.mediaDevices.getUserMedia', lightToolCameraModalsSrc.indexOf('export async function openSpectrumClassifier')));
+    assert('Glass transmission tracks and stops active streams on close/finally',
+      /activeGlassStreams\.add\(stream\)/.test(lightToolCameraModalsSrc) &&
+      /activeGlassStreams\.delete\(stream\)/.test(lightToolCameraModalsSrc) &&
+      /for \(const stream of activeGlassStreams\)[\s\S]{0,200}getTracks\(\)\.forEach/.test(lightToolCameraModalsSrc));
+    assert('Eye-level audit waits for movement before recording another pause',
+      /waitingForMovement[\s\S]{0,700}pauseDetections\.push[\s\S]{0,250}waitingForMovement\s*=\s*true/.test(lightToolsSrc));
+
+    // ─── 11. Live measurement anti-jitter layout ───────────────────────
+    console.log('%c 11. Live measurement anti-jitter layout ', 'font-weight:bold;color:#f59e0b');
+
+    assert('Light tool overlay is top-anchored so height changes do not recenter',
+      /\.light-tool-overlay\.modal-overlay\.show\s*\{[\s\S]{0,140}align-items:\s*flex-start/.test(stylesSrc));
+    assert('Live light tool video previews reserve aspect-ratio space before camera metadata',
+      /\.light-tool-modal video\s*\{[\s\S]{0,160}aspect-ratio:\s*4\s*\/\s*3/.test(stylesSrc));
+    assert('Lux live number reserves tabular-width space',
+      /\.lux-dial-value\s*\{[\s\S]{0,220}min-width:\s*6ch[\s\S]{0,220}font-variant-numeric:\s*tabular-nums/.test(stylesSrc));
+    assert('Flicker and darkness result boxes reserve stable height',
+      /\.flicker-result,\s*\.dark-status\s*\{[\s\S]{0,260}min-height:\s*74px/.test(stylesSrc));
+    assert('CCT and spectrum live result boxes reserve stable height',
+      /\.cct-result\s*\{[\s\S]{0,160}min-height:\s*116px/.test(stylesSrc) &&
+      /\.spec-result\s*\{[\s\S]{0,220}min-height:\s*140px/.test(stylesSrc));
+    assert('Glass and audit result boxes reserve stable numeric layout',
+      /\.glass-reading\s*\{[\s\S]{0,220}min-width:\s*9ch[\s\S]{0,220}font-variant-numeric:\s*tabular-nums/.test(stylesSrc) &&
+      /\.audit-status\s*\{[\s\S]{0,220}min-height:\s*88px/.test(stylesSrc));
+    assert('Light tools CSS owns tool modal and aiming guide styles',
+      lightToolCss.includes('.light-tool-overlay.modal-overlay.show') &&
+      lightToolCss.includes('.tool-aiming-guide') &&
+      lightToolCss.includes('.lux-dial-value'));
+    assert('Light/Sun CSS no longer owns Light Tools modal styles',
+      !lightSunCss.includes('.light-tool-overlay.modal-overlay.show') &&
+      !lightSunCss.includes('.lux-dial-value') &&
+      !lightSunCss.includes('.tool-aiming-guide'));
+
+  configureLightTools({ suggestRoomSourceFromSpectrum: async () => {} });
+
+  // Restore
+  state.importedData = orig;
+
+console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
+process.exit(legacyAssertions.fail > 0 ? 1 : 0);

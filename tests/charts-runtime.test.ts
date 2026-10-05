@@ -1,0 +1,83 @@
+import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
+import { setRuntimeWindow } from './helpers/runtime-globals.js';
+import { afterEach, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+
+import {
+  createChartRuntime,
+  getChartConstructorRuntime,
+  getChartViewportWidthRuntime,
+  hasChartRuntime,
+  isChartDateAdapterReadyRuntime,
+  markChartDateAdapterReadyRuntime,
+} from '../js/charts-runtime.js';
+
+const savedWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+
+afterEach(() => {
+  if (savedWindow) Object.defineProperty(globalThis, 'window', savedWindow);
+  else delete (globalThis as { window?: unknown }).window;
+});
+
+describe('charts runtime adapter', () => {
+  it('delegates Chart constructor and date-adapter readiness', () => {
+    class ChartStub {
+      declare canvas: unknown;
+      declare config: unknown;
+      constructor(canvas: unknown, config: unknown) {
+        this.canvas = canvas;
+        this.config = config;
+      }
+    }
+    const runtime = { Chart: ChartStub, innerWidth: 640 };
+    const canvas = { id: 'chart-demo' } as HTMLCanvasElement;
+    const config = { type: 'line' };
+    setRuntimeWindow(runtime);
+
+    expect(getChartConstructorRuntime()).toBe(ChartStub);
+    expect(hasChartRuntime()).toBe(true);
+    expect(getChartViewportWidthRuntime()).toBe(640);
+    expect(isChartDateAdapterReadyRuntime()).toBe(false);
+    expect(markChartDateAdapterReadyRuntime()).toBe(true);
+    expect(isChartDateAdapterReadyRuntime()).toBe(true);
+    expect(createChartRuntime(canvas, config)).toMatchObject({ canvas, config });
+  });
+
+  it('uses safe fallbacks when a browser runtime is missing', () => {
+    delete (globalThis as { window?: unknown }).window;
+
+    expect(getChartConstructorRuntime()).toBeNull();
+    expect(hasChartRuntime()).toBe(false);
+    expect(getChartViewportWidthRuntime()).toBe(1024);
+    expect(markChartDateAdapterReadyRuntime()).toBe(false);
+    expect(isChartDateAdapterReadyRuntime()).toBe(false);
+    expect(createChartRuntime({ id: 'chart-demo' } as HTMLCanvasElement, { type: 'line' })).toBeNull();
+  });
+
+  it('keeps charts.js browser globals behind the adapter', () => {
+    const chartsSrc = readFileSync(new URL('../js/charts.js', import.meta.url), 'utf8');
+    const swSrc = readServiceWorkerSource(relative => readFileSync(new URL('../' + relative, import.meta.url), 'utf8'));
+
+    expect(chartsSrc).toContain("from './charts-runtime.js'");
+    expect(/\bwindow(?:\.|\s*\[)/.test(chartsSrc)).toBe(false);
+    expect(swSrc).toContain("'/js/charts-runtime.js'");
+  });
+
+  it('keeps Chart.js construction behind the runtime adapter', () => {
+    const chartConsumers = [
+      readFileSync(new URL('../js/category-view-renderers.js', import.meta.url), 'utf8'),
+      readFileSync(new URL('../js/therapy-correlation-view.js', import.meta.url), 'utf8'),
+      readFileSync(new URL('../js/wearables-bp-detail-chart.js', import.meta.url), 'utf8'),
+    ];
+
+    for (const src of chartConsumers) {
+      expect(src).toContain("from './charts-runtime.js'");
+      expect(src).toContain('createChartRuntime');
+      expect(src).not.toContain('window.Chart');
+    }
+    const controller = readFileSync(new URL('../js/compare-correlations.js', import.meta.url), 'utf8');
+    for (const src of [chartConsumers[0]!, chartConsumers[2]!, controller]) expect(src).toContain('hasChartRuntime');
+    expect(controller).toContain('ensureChartJs');
+    expect(controller).not.toContain('window.Chart');
+  });
+});

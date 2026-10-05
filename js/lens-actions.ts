@@ -1,0 +1,92 @@
+// lens-actions.js - delegated actions for the Knowledge Base settings surface
+
+import { actionAttributes } from './action-attributes.js';
+import { openContextModalRuntime } from './context-cards-runtime.js';
+
+import type { createLensLibraryHandlers } from './lens-library.js';
+type LensActionHandlers = Partial<ReturnType<typeof createLensLibraryHandlers> & {
+  handleLensBackendChange(backend: string): unknown; handleToggleLens(checked: boolean): unknown;
+  openLocalFilePicker(): unknown; handleSaveLensConfig(): unknown; handleClearLensCache(): unknown;
+  handleRemoveLens(): unknown; closeKnowledgeBaseModal(): unknown;
+  handleLocalLensDeleteDoc(source: string): unknown; handleLocalLensClear(): unknown;
+}>;
+
+let lensActionDelegatesInstalled = false;
+let lensActionHandlers: LensActionHandlers = {};
+
+export function lensActionAttrs(action: string, attrs: Record<string, unknown> = {}) {
+  return actionAttributes("lens", action, attrs);
+}
+
+function isLensActionScope(actionEl: HTMLElement) {
+  return !!actionEl.closest('#custom-lens-section, #kb-modal');
+}
+
+function handleLensActionClick(event: MouseEvent) {
+  const target = event.target instanceof Element ? event.target : null;
+  if (!target) return;
+  const actionEl = (target.closest('[data-lens-action]') as HTMLElement | null);
+  if (!actionEl || !isLensActionScope(actionEl)) return;
+
+  const action = actionEl.dataset.lensAction || '';
+  if (action === 'set-backend') {
+    event.preventDefault();
+    lensActionHandlers.handleLensBackendChange?.(actionEl.dataset.lensBackend || 'in-browser');
+  } else if (action === 'new-library') {
+    event.preventDefault();
+    lensActionHandlers.handleLibraryNew?.();
+  } else if (action === 'rename-library') {
+    event.preventDefault();
+    lensActionHandlers.handleLibraryRename?.();
+  } else if (action === 'delete-library') {
+    event.preventDefault();
+    lensActionHandlers.handleLibraryDelete?.();
+  } else if (action === 'open-local-filepick') {
+    event.preventDefault();
+    lensActionHandlers.openLocalFilePicker?.();
+  } else if (action === 'save-config') {
+    event.preventDefault();
+    lensActionHandlers.handleSaveLensConfig?.();
+  } else if (action === 'clear-cache') {
+    event.preventDefault();
+    lensActionHandlers.handleClearLensCache?.();
+  } else if (action === 'remove-lens') {
+    event.preventDefault();
+    lensActionHandlers.handleRemoveLens?.();
+  } else if (action === 'close-kb') {
+    event.preventDefault();
+    lensActionHandlers.closeKnowledgeBaseModal?.();
+  } else if (action === 'open-context') {
+    event.preventDefault();
+    lensActionHandlers.closeKnowledgeBaseModal?.();
+    setTimeout(() => openContextModalRuntime(), 0);
+  } else if (action === 'delete-doc') {
+    event.preventDefault();
+    lensActionHandlers.handleLocalLensDeleteDoc?.(actionEl.dataset.lensSource || '');
+  } else if (action === 'clear-local') {
+    event.preventDefault();
+    lensActionHandlers.handleLocalLensClear?.();
+  }
+}
+
+function handleLensActionChange(event: Event) {
+  const target = event.target instanceof HTMLElement ? event.target : null;
+  if (!target) return;
+  const actionEl = (target.closest('[data-lens-action]') as HTMLElement | null);
+  if (!actionEl || !isLensActionScope(actionEl)) return;
+
+  const action = actionEl.dataset.lensAction || '';
+  if (action === 'toggle-enabled') {
+    lensActionHandlers.handleToggleLens?.(!!(actionEl instanceof HTMLInputElement && actionEl.checked));
+  } else if (action === 'activate-library') {
+    lensActionHandlers.handleLibraryActivate?.(actionEl instanceof HTMLSelectElement ? actionEl.value : '');
+  }
+}
+
+export function initLensActionDelegates(handlers: LensActionHandlers = {}) {
+  lensActionHandlers = { ...lensActionHandlers, ...handlers };
+  if (lensActionDelegatesInstalled || typeof document === 'undefined') return;
+  lensActionDelegatesInstalled = true;
+  document.addEventListener('click', handleLensActionClick);
+  document.addEventListener('change', handleLensActionChange);
+}

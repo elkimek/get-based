@@ -1,0 +1,55 @@
+// Runtime-neutral version and capability contract for the loopback companion.
+
+export const AGENT_HOST_PROTOCOL_VERSION = 5;
+export const GETBASED_COMPANION_VERSION = '1.3.1';
+export const AGENT_HOST_MAX_PROMPT_CHARS = 100_000;
+
+export const AGENT_HOST_CAPABILITIES = Object.freeze({
+  CHAT_STREAM: 'chat-stream',
+  COMPANION_CONTROL: 'companion-control',
+  COMPANION_RESTART: 'companion-restart',
+  COMPANION_MANAGEMENT: 'companion-management',
+  COMPANION_MANAGEMENT_EMBEDDED: 'companion-management-embedded',
+  DYNAMIC_TOOLS: 'dynamic-tools',
+  EXECUTION_TARGETS: 'execution-targets',
+  IMAGE_UPLOAD: 'image-upload',
+  MODEL_CATALOG: 'model-catalog',
+  MULTI_AGENT: 'multi-agent',
+  REASONING_CATALOG: 'reasoning-catalog',
+  STRUCTURED_OUTPUT: 'structured-output',
+  STRUCTURED_HEALTH_TOOLS: 'structured-health-tools',
+  THREAD_HISTORY: 'thread-history',
+  WEB_SEARCH_ACTIVITY: 'web-search-activity',
+});
+
+export const AGENT_HOST_CAPABILITY_LIST = Object.freeze(Object.values(AGENT_HOST_CAPABILITIES));
+
+export function normalizeAgentHostCapabilities(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map(item => String(item || '').trim().slice(0, 80)).filter(Boolean))];
+}
+
+export function agentHostSupportsCapabilities(status: unknown, required: readonly string[] = []): boolean {
+  if (!status || typeof status !== 'object') return required.length === 0;
+  const capabilities = new Set(normalizeAgentHostCapabilities('capabilities' in status ? status.capabilities : undefined));
+  return required.every(capability => capabilities.has(capability));
+}
+
+export function normalizeAgentHostProtocolVersion(value: unknown): number {
+  const version = Number(value);
+  return Number.isInteger(version) && version > 0 ? version : 0;
+}
+
+// Management has a narrower trust boundary than chat: custom chat origins and
+// arbitrary loopback ports must never receive privileged frame access.
+const MANAGEMENT_PARENT_ORIGINS = new Set([
+  'https://getbased.health', 'https://www.getbased.health',
+  'https://app.getbased.health', 'https://beta.getbased.health',
+  'https://get-based.vercel.app', 'https://get-based-managed-subscription-v2.vercel.app',
+  'http://iobqafpywmncin7m2wpvbemouvulaeb7jnvtvugxnru4gpneushb5jyd.onion',
+  'http://127.0.0.1:8000', 'http://localhost:8000',
+]);
+
+export function isAllowedCompanionManagementParent(origin: string): boolean {
+  return MANAGEMENT_PARENT_ORIGINS.has(origin);
+}
