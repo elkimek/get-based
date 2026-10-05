@@ -55,8 +55,31 @@ function svelteMarkupSinks(source: string, fileName: string): DomSink[] {
     if (!value || typeof value !== 'object') return;
     if (Array.isArray(value)) { value.forEach(visit); return; }
     const node = value as Record<string, unknown>;
-    const kind = node.type === 'HtmlTag' ? 'svelte.html'
-      : node.type === 'BindDirective' && node.name === 'innerHTML' ? 'svelte.bind.innerHTML' : null;
+    function record(value: unknown): Record<string, unknown> | null {
+      return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+    }
+    function property(value: unknown): string {
+      const member = record(value);
+      if (member?.type !== 'MemberExpression') return '';
+      const name = record(member.property);
+      return typeof (member.computed ? name?.value : name?.name) === 'string'
+        ? String(member.computed ? name?.value : name?.name) : '';
+    }
+    let kind: string | null = node.type === 'HtmlTag' ? 'svelte.html'
+      : node.type === 'BindDirective' && node.name === 'innerHTML' ? 'svelte.bind.innerHTML'
+        : node.type === 'Attribute' && typeof node.name === 'string' && ASSIGNMENT_SINKS.has(node.name)
+          ? `svelte.attribute.${node.name}` : null;
+    if (node.type === 'AssignmentExpression' && ['=', '+='].includes(String(node.operator))) {
+      const name = property(node.left);
+      if (ASSIGNMENT_SINKS.has(name)) kind = name;
+    }
+    if (node.type === 'CallExpression') {
+      const name = property(node.callee);
+      if (CALL_SINKS.has(name)) kind = name;
+      const object = record(record(node.callee)?.object);
+      if (['write', 'writeln'].includes(name) && (object?.type === 'Identifier' && object.name === 'document'
+        || property(object) === 'document')) kind = `document.${name}`;
+    }
     if (kind) {
       if (typeof node.start !== 'number' || typeof node.end !== 'number') throw new Error(`Missing Svelte HTML offsets: ${fileName}`);
       sinks.push({ kind, line: source.slice(0, node.start).split('\n').length,

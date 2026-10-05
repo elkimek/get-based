@@ -14,9 +14,11 @@ describe('DOM HTML sink audit', () => {
 
   it('audits Svelte script sinks, raw HTML and editable HTML bindings without counting escaped text', () => {
     const source = `<script lang="ts">let value = '<b>unsafe</b>'; node.innerHTML = value;</script>
-      <p>{value}</p>{@html value}<div contenteditable="true" bind:innerHTML={value}></div>`;
+      <p>{value}</p>{@html value}<div contenteditable="true" bind:innerHTML={value}></div>
+      <button onclick={() => { node.innerHTML = value; node.insertAdjacentHTML('beforeend', value); document.write(value); }}>Write</button>
+      <iframe title="Preview" srcdoc={value}></iframe>`;
     const sinks = scanDomSinks(source, 'js/View.svelte');
-    expect(sinks.map(sink => sink.kind)).toEqual(['innerHTML', 'svelte.html', 'svelte.bind.innerHTML']);
+    expect(sinks.map(sink => sink.kind)).toEqual(['innerHTML', 'svelte.html', 'svelte.bind.innerHTML', 'innerHTML', 'insertAdjacentHTML', 'document.write', 'svelte.attribute.srcdoc']);
     expect(sinks[1]!.source).toBe('{@html value}');
     expect(sinks[1]!.line).toBe(2);
   });
