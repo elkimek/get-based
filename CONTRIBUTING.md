@@ -101,3 +101,7 @@ is an npm workspace that isolates the checker's supporting TypeScript 6 dependen
 The bounded Display pilot has a focused cross-browser acceptance command,
 `npm run test:display-pilot`, covering Chromium, Firefox, desktop WebKit and
 mobile WebKit. The full CI workflow runs it alongside the PWA lifecycle suite.
+
+PWA Chromium checks use the pinned full browser in its modern headless mode
+(`channel: chromium`), exercising Chrome's normal browser implementation without
+opening desktop windows. See [Playwright browser modes](https://playwright.dev/docs/browsers#chromium-new-headless-mode).
