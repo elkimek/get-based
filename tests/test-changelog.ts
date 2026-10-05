@@ -37,7 +37,7 @@ const utilsSrc = await fetchWithRetry('js/utils.js');
 const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
 const appEventsSrc = await fetchWithRetry('js/app-event-listeners.js');
 const settingsSrc = await fetchWithRetry('js/settings.js');
-const settingsDisplaySrc = await fetchWithRetry('js/settings-display-panel.js');
+const settingsDisplaySrc = await fetchWithRetry('js/components/DisplaySettings.svelte');
 const swSrc = await readServiceWorkerSource(relative => fetchWithRetry(relative));
 const modalLifecycleSrc = await fetchWithRetry('js/modal-lifecycle.js');
 // Original test fetched '/app' (dev-server alias for index.html); read

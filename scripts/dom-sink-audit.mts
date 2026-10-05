@@ -5,6 +5,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as ts from 'typescript/unstable/ast';
+import { parse } from 'svelte/compiler';
+import { scriptSource, syntaxFile } from './svelte-source.mjs';
 import { withParsedSource, withParsedSources } from './native-typescript-ast.js';
 import { sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
 
@@ -40,7 +42,30 @@ function normalizedNodeText(node: ts.Node, sourceFile: ts.SourceFile) {
 }
 
 export function scanDomSinks(source: string, fileName = 'source.js') {
-  return withParsedSource(source, fileName, domSinksFromFile);
+  return [...withParsedSource(scriptSource(fileName, source), syntaxFile(fileName), domSinksFromFile), ...svelteMarkupSinks(source, fileName)];
+}
+
+// Raw HTML tags and editable HTML bindings bypass Svelte's normal text escaping.
+// Include them in the same reviewed fingerprint policy as imperative DOM sinks.
+function svelteMarkupSinks(source: string, fileName: string): DomSink[] {
+  if (!fileName.endsWith('.svelte')) return [];
+  const sinks: DomSink[] = [];
+  const ast = parse(source, { filename: fileName, modern: true });
+  function visit(value: unknown): void {
+    if (!value || typeof value !== 'object') return;
+    if (Array.isArray(value)) { value.forEach(visit); return; }
+    const node = value as Record<string, unknown>;
+    const kind = node.type === 'HtmlTag' ? 'svelte.html'
+      : node.type === 'BindDirective' && node.name === 'innerHTML' ? 'svelte.bind.innerHTML' : null;
+    if (kind) {
+      if (typeof node.start !== 'number' || typeof node.end !== 'number') throw new Error(`Missing Svelte HTML offsets: ${fileName}`);
+      sinks.push({ kind, line: source.slice(0, node.start).split('\n').length,
+        source: source.slice(node.start, node.end).replace(/\s+/g, ' ').trim() });
+    }
+    Object.values(node).forEach(visit);
+  }
+  visit(ast.fragment);
+  return sinks;
 }
 
 function domSinksFromFile(sourceFile: ts.SourceFile) {
@@ -99,12 +124,12 @@ export function createDomSinkPolicy() {
   const sinkFiles: Record<string, DomSinkFilePolicy> = {};
   let sinkCount = 0;
   const parsedSources = files.length ? withParsedSources(
-    new Map(files.map(file => [file, fs.readFileSync(file, 'utf8')])),
+    new Map(files.map(file => [syntaxFile(file), scriptSource(file, fs.readFileSync(file, 'utf8'))])),
     sources => new Map([...sources].map(([file, sourceFile]) => [file, domSinksFromFile(sourceFile)])),
   ) : new Map<string, DomSink[]>();
   for (const absolute of files) {
     const relative = runtimePath(path.relative(ROOT, absolute).split(path.sep).join('/'));
-    const sinks = parsedSources.get(absolute)!;
+    const sinks = [...parsedSources.get(syntaxFile(absolute))!, ...svelteMarkupSinks(fs.readFileSync(absolute, 'utf8'), absolute)];
     if (!sinks.length) continue;
     sinkCount += sinks.length;
     sinkFiles[relative] = {
@@ -119,7 +144,7 @@ export function createDomSinkPolicy() {
   }
   return {
     schemaVersion: 1,
-    scope: 'Every non-generated JavaScript module under js/',
+    scope: 'Every authored JavaScript, TypeScript and Svelte module under js/',
     reviewRule: 'Any added or modified HTML-writing sink requires security review and a policy refresh.',
     scannedFiles: files.length,
     sinkCount,

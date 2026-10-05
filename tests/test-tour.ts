@@ -214,7 +214,7 @@ assert('startTour called after setupDropZone', setupIdx > 0 && tourIdx > setupId
 console.log('21. Settings — Take a Tour');
 
 const settingsSrc = read('js/settings.js');
-const settingsDisplaySrc = read('js/settings-display-panel.js');
+const settingsDisplaySrc = read('js/components/DisplaySettings.svelte');
 
 assert('Settings has "Guided Tour" button', settingsDisplaySrc.includes('Guided Tour'));
 assert('Settings routes Guided Tour through delegated action',
@@ -224,7 +224,7 @@ assert('settings.js delegated handler calls startGuidedTour(false)',
 assert('settings.js closes modal before tour', settingsSrc.includes('closeSettingsModal()'));
 assert('settings.js uses setTimeout for tour delay',
   /setTimeout\(\(\) => startGuidedTour\(false\), 300\)/.test(settingsSrc));
-assert('Tour button in Display tab panel', /tab-panel="display"[\s\S]*?Guided Tour/s.test(settingsDisplaySrc));
+assert('Tour button in Display tab panel', read('js/settings-display-panel.js').includes('id="settings-tab-display"') && read('js/settings-display-panel.js').includes('mount(DisplaySettings') && settingsDisplaySrc.includes('Guided Tour'));
 
 // ═══════════════════════════════════════
 // 22. service-worker.js

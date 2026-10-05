@@ -50,7 +50,7 @@ const _realFetch = globalThis.fetch;
   const navSrc = await fetchWithRetry('js/nav.js');
   const lensPagesSrc = await fetchWithRetry('js/lens-pages.js');
   const settingsSrc = await fetchWithRetry('js/settings.js');
-  const settingsDisplaySrc = await fetchWithRetry('js/settings-display-panel.js');
+  const settingsDisplaySrc = await fetchWithRetry('js/components/DisplaySettings.svelte');
   const chatSystemPromptSrc = await fetchWithRetry('js/chat-system-prompt.js');
   const swSrc = await readServiceWorkerSource(relative => fetchWithRetry(relative));
 
@@ -298,7 +298,7 @@ const _realFetch = globalThis.fetch;
   // ═══════════════════════════════════════
   console.log('%c 10. Settings Toggle ', 'font-weight:bold;color:#f59e0b');
 
-  assert('Settings has Tips toggle', settingsDisplaySrc.includes('<label class="settings-label">Tips</label>'));
+  assert('Settings has Tips toggle', /<label[^>]*for="settings-product-recs"[^>]*>Tips<\/label>/.test(settingsDisplaySrc));
   assert('Settings has product-recs toggle', settingsDisplaySrc.includes('settings-product-recs'));
   assert('Settings calls setProductRecsEnabled', settingsSrc.includes('setProductRecsEnabled'));
 

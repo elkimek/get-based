@@ -36,8 +36,8 @@ const MODEL_TESTS = /(?:api-provider|provider-model|provider-coverage|provider-p
 // generators with a read-only reproducibility check also run it in PR CI.
 interface ToolScope { sources: readonly string[]; tests: readonly string[]; check?: ValidationCheck }
 const TOOL_SCOPES: readonly ToolScope[] = [
-  { sources: ['scripts/build-svelte.mjs', 'scripts/svelte-source.mjs', 'js/components/DisplaySettings.svelte', 'js/components/DisplaySettings.svelte.native.d.ts', 'tsconfig.svelte.json', 'tooling/svelte/package.json'], tests: ['tests/svelte-pilot-build.test.ts', 'tests/playwright/settings-display-pilot.spec.ts', 'tests/pwa/settings-display-pilot.spec.ts'] },
-  { sources: ['scripts/build-styles.mjs', 'css/settings-display.tailwind.css', 'css/settings.base.css'], tests: ['tests/styles-build.test.ts', 'tests/playwright/settings-display-pilot.spec.ts'] },
+  { sources: ['scripts/build-svelte.mjs', 'scripts/svelte-source.mjs', 'js/components/DisplaySettings.svelte.native.js', 'js/components/DisplaySettings.svelte.native.d.ts', 'tsconfig.svelte.json', 'tooling/svelte/package.json'], tests: ['tests/svelte-pilot-build.test.js', 'tests/playwright/settings-display-pilot.spec.js', 'tests/pwa/settings-display-pilot.spec.js'] },
+  { sources: ['scripts/build-styles.mjs', 'css/settings-display.tailwind.css', 'css/settings.base.css'], tests: ['tests/styles-build.test.js', 'tests/playwright/settings-display-pilot.spec.js'] },
   {
     sources: ['scripts/build-browser-vendors.mjs', ...['cashu', 'ehbp', 'tinfoil', 'venice-e2ee', 'venice-nvidia', 'venice-dcap', 'routstr-crypto', 'zlib-browser-shim'].map(name => `scripts/vendor-entries/${name}.js`)],
     tests: ['tests/cashu-vendor-compat.test.js', 'tests/cashu-durable-vendor.test.js', 'tests/tinfoil-secure-fetch.test.js', 'tests/venice-dcap-verify-only.test.js', 'tests/playwright/ppq-private-tee-provider.spec.js'],

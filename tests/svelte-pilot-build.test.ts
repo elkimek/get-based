@@ -38,6 +38,9 @@ it('includes authored components once in architecture, test planning and runtime
     ['js/settings-display-panel.ts', `import './components/DisplaySettings.svelte.native.js';`],
     ['tests/playwright/settings-display-pilot.spec.ts', `await import('/js/settings-display-panel.js');`],
   ]);
+  const declarationPlan = createTestPlan(sources, [`${component}.native.d.ts`]);
+  expect(declarationPlan.uncovered).toEqual([]);
+  expect(declarationPlan.browser).toContain('tests/playwright/settings-display-pilot.spec.ts');
   expect(createTestPlan(sources, [component]).browser).toContain('tests/playwright/settings-display-pilot.spec.ts');
   const canonical = productionSources(process.cwd()).filter(file => file.includes('DisplaySettings'));
   expect(canonical).toEqual([component]);

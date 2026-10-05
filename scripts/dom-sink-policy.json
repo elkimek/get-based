@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "scope": "Every non-generated JavaScript module under js/",
+  "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 771,
+  "scannedFiles": 773,
   "sinkCount": 550,
   "files": {
     "js/backup.js": {

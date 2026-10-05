@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { getActiveData, invalidateActiveDataCache } from '../js/data.js';
-import { renderDisplaySettingsPanel } from '../js/settings-display-panel.js';
+import { renderDisplaySettingsPanel, mountDisplaySettingsPanel, disposeDisplaySettingsPanel } from '../js/settings-display-panel.js';
 import { state } from '../js/state.js';
 
 const original = {
@@ -14,6 +14,8 @@ const original = {
 };
 
 afterEach(() => {
+  disposeDisplaySettingsPanel();
+  document.body.innerHTML = '';
   Object.assign(state, original);
   invalidateActiveDataCache();
 });
@@ -63,12 +65,16 @@ describe('ANZ unit profile integration', () => {
 
   it('renders all three profiles and explains that the preference is display-only', () => {
     state.unitSystem = 'ANZ';
-    const html = renderDisplaySettingsPanel(true);
+    document.body.innerHTML = renderDisplaySettingsPanel(true);
+    mountDisplaySettingsPanel();
+    const html = document.getElementById('settings-tab-display')!.innerHTML;
     expect(html).toContain('data-unit="EU"');
     expect(html).toContain('data-unit="ANZ"');
     expect(html).toContain('data-unit="US"');
     expect(html).toContain('Australia / NZ');
-    expect(html).toMatch(/unit-toggle-btn active[^>]*data-unit="ANZ"/);
+    const anz = document.querySelector('[data-unit="ANZ"]')!;
+    expect(anz.classList.contains('active')).toBe(true);
+    expect(anz.getAttribute('aria-pressed')).toBe('true');
     expect(html).toContain('Your original data remains unchanged.');
   });
 });

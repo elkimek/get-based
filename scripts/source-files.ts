@@ -18,6 +18,8 @@ export function sourcePath(file: string): string {
 }
 
 export function runtimePath(file: string): string {
+  // Declarations describe a runtime artifact; they are not emitted modules.
+  if (/\.d\.[cm]?ts$/.test(file)) return file;
   if (file.endsWith('.svelte')) return `${file}.native.js`;
   const extension = path.extname(file);
   return JAVASCRIPT_EXTENSION[extension]
