@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SourceMap } from 'node:module';
+import type { SourceMapPayload } from 'node:module';
 import * as ts from 'typescript/unstable/ast';
 import { withParsedSource } from './native-typescript-ast.js';
 import { isSourceFile, sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
@@ -69,6 +71,41 @@ export function sourceFunctions(source: string, file = 'source.js') {
     visit(ast);
     return functions;
   });
+}
+
+/** Keep compiled first-party functions, separating only positively mapped
+ * third-party runtime functions. Missing maps fail closed; unmapped functions
+ * remain in the owned denominator and in the collector's range diagnostics. */
+export function partitionComponentFunctions(source: string, payload: SourceMapPayload) {
+  const functions = sourceFunctions(source);
+  const map = new SourceMap(payload);
+  const starts = [0];
+  for (let offset = 0; offset < source.length; offset++) if (source[offset] === '\n') starts.push(offset + 1);
+  function origin(offset: number): string | undefined {
+    let line = 0;
+    while (starts[line + 1] !== undefined && starts[line + 1]! <= offset) line++;
+    const entry = map.findEntry(line, offset - starts[line]!);
+    return 'originalSource' in entry ? entry.originalSource : undefined;
+  }
+  const thirdParty: CoverageSourceFunction[] = [];
+  const owned: CoverageSourceFunction[] = [];
+  for (const fn of functions) {
+    const origins = [fn.start, fn.bodyStart, fn.end - 1].map(origin);
+    const first = origins[0];
+    if (typeof first === 'string' && first.replaceAll('\\', '/').includes('/node_modules/')
+      && origins.every(value => value === first)) thirdParty.push(fn);
+    else owned.push(fn);
+  }
+  return { owned, thirdParty };
+}
+
+export function productionFunctionIndex(source: string, file: string, root = ROOT) {
+  if (!file.endsWith('.svelte.native.js')) return { owned: sourceFunctions(source, file), thirdParty: [] };
+  const payload: SourceMapPayload = JSON.parse(fs.readFileSync(path.join(root, `${file}.map`), 'utf8'));
+  if (payload.version !== 3 || !Array.isArray(payload.sources) || typeof payload.mappings !== 'string') {
+    throw new Error(`Invalid component source map: ${file}`);
+  }
+  return partitionComponentFunctions(source, payload);
 }
 
 export function matchSourceFunction(functions: readonly CoverageSourceFunction[], start: number, end: number, collector = 'v8') {

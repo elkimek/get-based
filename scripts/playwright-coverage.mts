@@ -12,7 +12,7 @@ import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright';
 import { runBrowserScript } from '../tests/playwright/browser-script-runner.js';
 import { enforceFunctionCoverage, enforceFeatureCoverage, resolveCoverageMinimum } from './coverage-gate.mjs';
-import { isProductionSource, productionSources, sourceFunctions, matchSourceFunction, summarizeFeatures } from './coverage-source.mjs';
+import { isProductionSource, productionSources, productionFunctionIndex, matchSourceFunction, summarizeFeatures } from './coverage-source.mjs';
 import { renderCoverageMarkdown, renderCoverageHtml } from './coverage-report.mjs';
 import {
   coverageEntryMatchesSource,
@@ -33,7 +33,7 @@ interface RawSpan { start?: RawLoc | null; end?: RawLoc | null; }
 interface RawVitestFile { path?: unknown; statementMap?: Record<string, RawSpan>; s?: Record<string, unknown>; fnMap?: Record<string, { name?: unknown; loc?: RawSpan; decl?: RawSpan }>; f?: Record<string, unknown>; }
 interface RawShard { entries?: RawEntry[]; titlePath?: { slice(start: number): unknown[] } | null; title?: unknown; file?: unknown; label?: unknown; }
 interface CoverageRange { start: number; end: number; }
-interface FileMetrics { file: string; total: number; ranges: CoverageRange[]; functionIndex: CoverageSourceFunction[]; functions: Map<string, { name: string; called: boolean }>; unmappedFunctions: Set<string>; sources: Set<string>; }
+interface FileMetrics { file: string; total: number; ranges: CoverageRange[]; functionIndex: CoverageSourceFunction[]; thirdPartyFunctionIndex: CoverageSourceFunction[]; functions: Map<string, { name: string; called: boolean }>; unmappedFunctions: Set<string>; sources: Set<string>; }
 type CoverageModel = Map<string, FileMetrics>;
 type CoverageSummary = ReturnType<typeof summarizeCoverageModel>;
 type BrowserScriptOptions = Parameters<typeof runBrowserScript>[2];
@@ -179,13 +179,14 @@ function locToRange(source: string, loc: RawSpan | null | undefined, offsets = l
 }
 
 function getFileMetrics(model: CoverageModel, file: string, total: unknown = 0, source: string | null = null): FileMetrics {
-  const index = model.has(file) ? null : sourceFunctions(sourceForFile(file), file);
+  const index = model.has(file) ? null : productionFunctionIndex(sourceForFile(file), file, repoRoot);
   const metrics: FileMetrics = model.get(file) || {
     file,
     total: 0,
     ranges: [],
-    functionIndex: index!,
-    functions: new Map(index!.map(fn => [`${fn.start}:${fn.end}`, { name: fn.name, called: false }])),
+    functionIndex: index!.owned,
+    thirdPartyFunctionIndex: index!.thirdParty,
+    functions: new Map(index!.owned.map(fn => [`${fn.start}:${fn.end}`, { name: fn.name, called: false }])),
     unmappedFunctions: new Set<string>(),
     sources: new Set<string>(),
   };
@@ -205,6 +206,7 @@ function addCoveredRanges(metrics: FileMetrics, ranges: readonly RawRange[]) {
 
 function addFunction(metrics: FileMetrics, key: string, name: unknown, called: boolean, collector = 'v8') {
   const [start, end] = key.split(':').map(Number);
+  if (matchSourceFunction(metrics.thirdPartyFunctionIndex, start!, end!, collector)) return;
   const sourceFunction = matchSourceFunction(metrics.functionIndex, start!, end!, collector);
   const targetKey = sourceFunction ? `${sourceFunction.start}:${sourceFunction.end}` : key;
   const existing = metrics.functions.get(targetKey);
@@ -345,6 +347,7 @@ function summarizeCoverageModel(model: CoverageModel) {
       uncalledFns: fns.filter(fn => !fn.called).map(fn => fn.name),
       sources: [...metrics.sources].sort(),
       unmappedCalledFunctions: [...metrics.unmappedFunctions].sort(),
+      thirdPartyFunctions: metrics.thirdPartyFunctionIndex.length,
     };
   });
   rows.sort((a, b) => a.fnPct - b.fnPct || b.fnTotal - a.fnTotal);

@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.migration.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "types": [
+      "svelte",
+      "node"
+    ]
+  },
+  "include": [
+    "js/components/**/*.svelte",
+    "js/settings-display-contract.ts",
+    "tooling/svelte/component-contract.ts"
+  ]
+}

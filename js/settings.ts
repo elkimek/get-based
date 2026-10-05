@@ -24,6 +24,8 @@ import { configureSettingsModuleBridge } from './settings-runtime-bridge.js';
 import { closestSettingsTarget, getSettingsProxyToggle } from './settings-event-target.js';
 import {
   renderDisplaySettingsPanel,
+  mountDisplaySettingsPanel,
+  disposeDisplaySettingsPanel,
   updateDisplaySettingsPanel,
 } from './settings-display-panel.js';
 import {
@@ -452,6 +454,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   const extensionAI = renderAppExtensionSettingsSlot('ai', extensionContext);
   const extensionPanels = renderAppExtensionSettingsSlot('panels', extensionContext);
 
+  disposeDisplaySettingsPanel();
   modal.className = 'modal settings-modal';
   modal.innerHTML = `
     <div class="gb-modal-head settings-modal-head">
@@ -613,6 +616,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
       providerButton.classList.toggle('active', providerButton.dataset.provider === 'cli');
     });
   }
+  mountDisplaySettingsPanel();
   installSettingsDelegates(modal);
   installVoiceSettingsPanel(modal);
   openModalOverlay(overlay);

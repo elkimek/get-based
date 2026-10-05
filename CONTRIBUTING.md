@@ -15,7 +15,7 @@ npm run dev-server
 
 Open `http://localhost:8000/app`. The root URL may serve the sibling `get-based-site` landing page when that repository is present.
 
-Prerequisites: a modern browser (Chrome or Firefox) and Node.js 24. `npm ci` installs dependencies and compiles the TypeScript sources; `npm run dev-server` recompiles them before starting the server. Edit the authored `.ts` and `.mts` files. When running a Node entry point or Playwright directly after editing, first run `npm run typescript:build`. An AI provider key or a local Ollama instance is optional — only needed for PDF import and chat.
+Prerequisites: a modern browser (Chrome or Firefox) and Node.js 24. `npm ci` installs dependencies and compiles the TypeScript sources; `npm run dev-server` recompiles them before starting the server. Edit the authored `.ts` and `.mts` files, or `.svelte` components in the Display pilot. When running a Node entry point or Playwright directly after editing, first run `npm run typescript:build`. An AI provider key or a local Ollama instance is optional — only needed for PDF import and chat.
 
 ---
 
@@ -86,3 +86,18 @@ Check the [project board](https://github.com/users/elkimek/projects/2) for plann
 ## Reporting bugs
 
 Open a GitHub issue or use the feedback button in the app (flag icon in the header). Include browser, OS, and steps to reproduce.
+
+Settings CSS is generated at its existing runtime URL. Edit
+`css/settings.base.css` for legacy Settings styles or
+`css/settings-display.tailwind.css` and `js/components/DisplaySettings.svelte`
+for the Svelte + Tailwind Display pilot. Run `npm run styles:build` after styling edits;
+`npm run styles:check` verifies the bundle. The standard TypeScript build,
+prepare, development, test and production commands also compile these styles
+and the component. `npm run svelte:check` validates authored component types with
+TypeScript 7 and checks emitted output without rewriting it. `tooling/svelte`
+is an npm workspace that isolates the checker's supporting TypeScript 6 dependency;
+`npm ci` installs it along with the application toolchain.
+
+The bounded Display pilot has a focused cross-browser acceptance command,
+`npm run test:display-pilot`, covering Chromium, Firefox, desktop WebKit and
+mobile WebKit. The full CI workflow runs it alongside the PWA lifecycle suite.

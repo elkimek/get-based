@@ -1,0 +1,13 @@
+{
+  "name": "@getbased/svelte-tooling",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "svelte-check --workspace ../.. --tsconfig tsconfig.svelte.json --tsgo --fail-on-warnings"
+  },
+  "devDependencies": {
+    "svelte-check": "4.7.6",
+    "typescript": "6.0.3",
+    "@typescript/native": "npm:typescript@7.0.2"
+  }
+}

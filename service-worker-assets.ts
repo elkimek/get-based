@@ -282,6 +282,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/chat-summaries.js',
   '/js/settings.js',
   '/js/settings-display-panel.js',
+  '/js/components/DisplaySettings.svelte.native.js',
   '/js/settings-event-target.js',
   '/js/settings-loader.js',
   '/js/settings-voice-hardware.js',

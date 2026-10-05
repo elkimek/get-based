@@ -46,6 +46,47 @@ previous compiler safety flags. The fixed migration baseline is retained in
 [`scripts/typescript-migration-baseline.json`](scripts/typescript-migration-baseline.json);
 the completed migration was merged in [PR #1660](https://github.com/elkimek/get-based/pull/1660).
 
+## Styling source contract
+
+Display settings uses a scoped Tailwind CSS pilot alongside the existing native
+styles. `css/settings.base.css` owns the legacy Settings rules;
+`css/settings-display.tailwind.css` owns the pilot's semantic palette aliases,
+source scan, and panel-scoped utilities. `scripts/build-styles.mts` combines them
+into ignored `css/settings.css`, retaining the lazy loader and offline asset URL.
+Do not edit the generated bundle. `npm run typescript:build` also builds styles,
+so existing prepare, development, test and production commands retain their
+source-to-runtime contract. `npm run styles:check` verifies reproducible output.
+
+The pilot omits Preflight, scans only its authored Svelte component,
+and uses prefixed utilities scoped to `#settings-tab-display`. Existing theme
+variables remain the authority for colors, fonts and radii. The unlayered pilot
+utilities follow legacy rules and use panel specificity rather than `!important`.
+
+Display settings is the bounded Svelte 5 pilot. `js/settings-display-panel.ts`
+reads existing service state into typed snapshots and retains its native runtime
+URL; `js/components/DisplaySettings.svelte` owns only the panel contents. Existing
+settings delegates own all mutations and persistence. The adapter unmounts before
+the legacy shell replaces DOM, synchronously flushes mount/refresh for focus and
+receipt rendering, and does not recreate the component on individual actions.
+The legacy shell continues to own tab visibility and modal lifecycle.
+
+`scripts/build-svelte.mts` compiles and bundles the component and its Svelte
+runtime into ignored `DisplaySettings.svelte.native.js`, loaded through the existing
+lazy Settings graph. The native offline manifest includes that emitted module;
+the production bundler folds it into existing lazy chunks. Component declarations
+and a checked tooling contract retain the typed adapter boundary. SvelteKit is
+not part of this build; it can consume the authored component directly later.
+
+TypeScript 7 remains the application compiler and Svelte diagnostics engine.
+The npm workspace `tooling/svelte` isolates TypeScript 6 required by Svelte's
+supporting checker tooling; `svelte-check --tsgo --fail-on-warnings` runs during
+normal builds. `npm run svelte:check` also verifies reproducible emitted output.
+Architecture and affected-test readers include both component script blocks;
+coverage inventories count each component once at its emitted URL. Component
+source maps separate positively mapped third-party Svelte functions from
+first-party compiled functions. Missing maps fail collection, and unmapped
+functions remain in the first-party denominator and range diagnostics.
+
 ## Runtime topology
 
 getbased is a static browser application. Local development loads

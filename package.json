@@ -47,7 +47,7 @@
     "test:routstr-wallet": "PORT=${PORT:-8180} playwright test tests/playwright/routstr-wallet-dom.spec.ts",
     "canary:routstr-real": "node scripts/routstr-real-funds-canary.mjs",
     "test:critical-coverage": "vitest run --config vitest.critical.config.js",
-    "typescript:build": "node scripts/build-typescript.ts",
+    "typescript:build": "node scripts/build-typescript.ts && npm run styles:build && npm run svelte:build",
     "typecheck:migration": "tsc -p tsconfig.migration.json --noEmit",
     "typecheck:migration-tests": "tsc -p tsconfig.migration-tests.json",
     "migration:progress": "node scripts/migration-progress.js",
@@ -55,28 +55,36 @@
     "pretest": "npm run typescript:build",
     "preproduction:build": "npm run typescript:build",
     "preproduction:check": "npm run typescript:build",
-    "prepare": "npm run typescript:build"
+    "prepare": "npm run typescript:build",
+    "styles:build": "node scripts/build-styles.mjs",
+    "styles:check": "node scripts/build-styles.mjs --check",
+    "svelte:build": "npm run check --workspace @getbased/svelte-tooling && node scripts/build-svelte.mjs",
+    "svelte:check": "npm run check --workspace @getbased/svelte-tooling && node scripts/build-svelte.mjs --check",
+    "test:display-pilot": "playwright test --config=playwright.display-pilot.config.js"
   },
   "devDependencies": {
     "@cashu/cashu-ts": "4.9.0",
     "@evolu/common": "8.7.0",
     "@evolu/web": "3.1.0",
     "@noble/curves": "2.2.0",
+    "@noble/hashes": "2.2.0",
     "@phala/dcap-qvl": "0.6.2",
     "@playwright/test": "^1.62.1",
+    "@scure/base": "2.2.0",
+    "@tailwindcss/cli": "4.3.3",
+    "@types/jsdom": "30.0.0",
+    "@types/node": "26.1.0",
     "@vitest/coverage-v8": "^4.1.11",
     "axe-core": "4.13.0",
+    "elliptic": "file:scripts/vendor-packages/elliptic-verify-only",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.0.1",
     "rolldown": "1.2.5",
+    "svelte": "5.57.1",
+    "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
     "venice-e2ee": "https://github.com/elkimek/venice-e2ee/archive/7da6228c0cef3ad516196129eea2f9d64760e6b3.tar.gz",
-    "vitest": "^4.1.11",
-    "elliptic": "file:scripts/vendor-packages/elliptic-verify-only",
-    "@scure/base": "2.2.0",
-    "@noble/hashes": "2.2.0",
-    "@types/node": "26.1.0",
-    "@types/jsdom": "30.0.0"
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "@vercel/blob": "2.8.0",
@@ -91,5 +99,8 @@
     "@vercel/blob": {
       "undici": "6.28.1"
     }
-  }
+  },
+  "workspaces": [
+    "tooling/svelte"
+  ]
 }

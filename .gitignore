@@ -23,7 +23,7 @@ tests/.vitest-coverage/
 tests/.playwright-coverage/
 labcharts-*.json
 test-*.json
-/node_modules
+node_modules/
 dist-docs/
 /docs/
 BingSiteAuth.xml
@@ -1504,3 +1504,20 @@ deploy/profile-share/data/
 /tests/test-ai-action-delegates.js
 /tests/test-sun-defaults.js
 /scripts/project-owned-vendor.mjs
+
+# Settings CSS bundle and its TypeScript build tool
+/css/settings.css
+/scripts/build-styles.mjs
+
+# Generated native-browser Svelte pilot
+/js/components/*.svelte.native.js
+/js/components/*.svelte.native.js.map
+/scripts/build-svelte.mjs
+
+/scripts/svelte-source.mjs
+/js/settings-display-contract.js
+
+# Svelte type-checker cache
+.svelte-check/
+
+/playwright.display-pilot.config.js

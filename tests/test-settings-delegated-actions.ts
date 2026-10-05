@@ -9,7 +9,8 @@ const chatOnboardingHostSrc = readRepositorySource('js/chat-onboarding-host-bind
 const lightPageUIHooksSrc = readRepositorySource('js/light-page-view-ui-hooks.js', 'utf8');
 const loaderSrc = readRepositorySource('js/settings-loader.js', 'utf8');
 const src = readRepositorySource('js/settings.js', 'utf8');
-const displaySrc = readAuthoredRepositorySource('js/settings-display-panel.js', 'utf8');
+const displayAdapterSrc = readAuthoredRepositorySource('js/settings-display-panel.js', 'utf8');
+const displaySrc = readRepositorySource('js/components/DisplaySettings.svelte', 'utf8');
 const eventTargetSrc = readRepositorySource('js/settings-event-target.js', 'utf8');
 const privacySrc = readRepositorySource('js/settings-privacy.js', 'utf8');
 const settingsDataSrc = readRepositorySource('js/settings-data.js', 'utf8');
@@ -54,11 +55,12 @@ assert('Light page owns only the Sun data-source Settings leaf',
     && readRepositorySource('js/light-page-view-hooks.js', 'utf8')
       .includes("from './settings-privacy.js'"));
 
-const displayBlock = matchBlock(
-  'Display tab',
-  /export function renderDisplaySettingsPanel[\s\S]*?\n}\n\nexport function updateDisplaySettingsPanel/,
-  displaySrc,
-);
+const displayBlock = displaySrc;
+assert('Svelte Display ownership brackets legacy shell replacement',
+  src.indexOf('disposeDisplaySettingsPanel();') < src.indexOf('modal.innerHTML =')
+    && src.indexOf('modal.innerHTML =') < src.indexOf('mountDisplaySettingsPanel();')
+    && displayAdapterSrc.includes('DisplaySettings.svelte.native.js'));
+
 const tweaksBlock = matchBlock(
   'Tweaks panel',
   /export function openTweaksPanel\(\) \{[\s\S]*?\n\}/,
@@ -179,9 +181,10 @@ assert('Product recommendations toggle uses configured navigation',
     && !src.includes("from './views-runtime-bridge.js'")
     && /navigate,\s*openFeedbackModal,/.test(appShellHooksSrc));
 assert('Settings version label uses the shared runtime adapter',
-  displaySrc.includes("import { getAppVersionRuntime } from './utils-runtime.js';")
-    && displaySrc.includes('escapeHTML(getAppVersionRuntime())')
-    && !displaySrc.includes('settingsWindow.APP_VERSION'));
+  displayAdapterSrc.includes("import { getAppVersionRuntime } from './utils-runtime.js';")
+    && displayAdapterSrc.includes('version: getAppVersionRuntime()')
+    && displaySrc.includes('{preferences.version}')
+    && !displayAdapterSrc.includes('settingsWindow.APP_VERSION'));
 assert('Delegated settings handler switches AI providers',
   /action === 'switch-ai-provider'[\s\S]*switchAIProviderBridge\(actionEl\.dataset\.provider/.test(src));
 assert('Delegated settings handler updates PII model selection',

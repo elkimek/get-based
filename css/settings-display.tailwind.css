@@ -1,0 +1,22 @@
+/* Display settings pilot. No Preflight or global utility selectors. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@source "../js/components/DisplaySettings.svelte";
+
+/* The existing styles remain unlayered. Scope utilities with the panel ID so
+   they can supersede legacy control rules without !important or a global reset. */
+@custom-variant display (#settings-tab-display &);
+
+@theme inline {
+  --color-surface: var(--bg-card);
+  --color-hover: var(--bg-hover);
+  --color-line: var(--border);
+  --color-ink: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --radius-control: var(--radius-sm);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+}

@@ -128,6 +128,7 @@ export async function initializeProfileData() {
 export function applyProfileDisplayState() {
   const savedUnits = localStorage.getItem(profileStorageKey(state.currentProfile, 'units'));
   state.unitSystem = normalizeUnitProfile(savedUnits);
+  state.showAltUnits = localStorage.getItem(profileStorageKey(state.currentProfile, 'showAltUnits')) === 'on';
 
   const savedRange = localStorage.getItem(profileStorageKey(state.currentProfile, 'rangeMode'));
   state.rangeMode = savedRange === 'reference' ? 'reference' : savedRange === 'both' ? 'both' : 'optimal';

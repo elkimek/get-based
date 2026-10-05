@@ -126,6 +126,10 @@ jobs:
         if: env.CI_SCOPE_FULL == 'true'
         run: npm run test:firefox
 
+      - name: Verify Display pilot across desktop and mobile browser engines
+        if: env.CI_SCOPE_FULL == 'true'
+        run: npm run test:display-pilot
+
       - name: Verify PWA offline and update lifecycle across browser engines
         if: env.CI_SCOPE_FULL == 'true'
         run: npm run test:pwa

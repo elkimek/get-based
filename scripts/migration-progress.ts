@@ -10,7 +10,7 @@ type Counts = { lines: number; nonblank: number };
 type Baseline = { commit: string; totals: Counts };
 const script = fileURLToPath(import.meta.url);
 const root = path.resolve(path.dirname(script), '..');
-const extensions = new Set(['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.css', '.html', '.py', '.sh']);
+const extensions = new Set(['.js', '.mjs', '.cjs', '.ts', '.mts', '.cts', '.svelte', '.css', '.html', '.py', '.sh']);
 
 export function countLines(source: string): Counts {
   const lines = source ? source.replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n') : [];

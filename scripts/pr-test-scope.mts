@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import * as ts from 'typescript/unstable/ast';
 import { withParsedSource, withParsedSources } from './native-typescript-ast.js';
 import { runtimePath, sourcePath } from './source-files.js';
+import { scriptSource, syntaxFile } from './svelte-source.mjs';
 import { projectOwnedVendorSources, readVendorManifest } from './project-owned-vendor.mjs';
 
 type BrowserSuite = 'browser' | 'firefox' | 'pwa';
@@ -18,7 +19,7 @@ export interface TestPlan {
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LEGACY = 'tests/_vitest-legacy.test.js';
-const SOURCE = /\.(?:[cm]?[jt]s|json|html|css|yml|yaml)$/;
+const SOURCE = /\.(?:[cm]?[jt]s|svelte|json|html|css|yml|yaml)$/;
 const isUnit = (file: string) => file.startsWith('tests/') && /\.test\.[jt]s$/.test(file) && runtimePath(file) !== LEGACY;
 const isBrowser = (file: string) => /^tests\/playwright\/.*\.spec\.[jt]s$/.test(file);
 const isFirefox = (file: string) => /^tests\/firefox\/.*\.spec\.[jt]s$/.test(file);
@@ -35,6 +36,8 @@ const MODEL_TESTS = /(?:api-provider|provider-model|provider-coverage|provider-p
 // generators with a read-only reproducibility check also run it in PR CI.
 interface ToolScope { sources: readonly string[]; tests: readonly string[]; check?: ValidationCheck }
 const TOOL_SCOPES: readonly ToolScope[] = [
+  { sources: ['scripts/build-svelte.mjs', 'scripts/svelte-source.mjs', 'js/components/DisplaySettings.svelte', 'tsconfig.svelte.json', 'tooling/svelte/package.json'], tests: ['tests/svelte-pilot-build.test.ts', 'tests/playwright/settings-display-pilot.spec.ts', 'tests/pwa/settings-display-pilot.spec.ts'] },
+  { sources: ['scripts/build-styles.mjs', 'css/settings-display.tailwind.css', 'css/settings.base.css'], tests: ['tests/styles-build.test.ts', 'tests/playwright/settings-display-pilot.spec.ts'] },
   {
     sources: ['scripts/build-browser-vendors.mjs', ...['cashu', 'ehbp', 'tinfoil', 'venice-e2ee', 'venice-nvidia', 'venice-dcap', 'routstr-crypto', 'zlib-browser-shim'].map(name => `scripts/vendor-entries/${name}.js`)],
     tests: ['tests/cashu-vendor-compat.test.js', 'tests/cashu-durable-vendor.test.js', 'tests/tinfoil-secure-fetch.test.js', 'tests/venice-dcap-verify-only.test.js', 'tests/playwright/ppq-private-tee-provider.spec.js'],
@@ -55,8 +58,8 @@ const TOOL_SCOPES: readonly ToolScope[] = [
 
 export function fileReferences(file: string, source: string, knownFiles: Set<string>): Set<string> {
   // Non-code text used the JavaScript grammar in the original source reader.
-  const syntaxName = /\.[cm]?[jt]s$/.test(file) ? file : `${file}.js`;
-  return withParsedSource(source, syntaxName, parsed => referencesFromFile(file, source, knownFiles, parsed));
+  const syntaxName = file.endsWith('.svelte') ? syntaxFile(file) : /\.[cm]?[jt]s$/.test(file) ? file : `${file}.js`;
+  return withParsedSource(scriptSource(file, source), syntaxName, parsed => referencesFromFile(file, source, knownFiles, parsed));
 }
 
 function referencesFromFile(file: string, source: string, knownFiles: Set<string>, parsed: ts.SourceFile): Set<string> {
@@ -67,7 +70,7 @@ function referencesFromFile(file: string, source: string, knownFiles: Set<string
       clean.replace(/^\//, ''),
       path.posix.normalize(path.posix.join(path.posix.dirname(file), clean)),
     ];
-    for (const candidate of candidates.flatMap(candidate => [candidate.replace(/\.mjs$/, '.mts').replace(/\.cjs$/, '.cts').replace(/\.js$/, '.ts'), candidate])) {
+    for (const candidate of candidates.flatMap(candidate => [candidate.endsWith('.svelte.native.js') ? candidate.slice(0, -10) : candidate.replace(/\.mjs$/, '.mts').replace(/\.cjs$/, '.cts').replace(/\.js$/, '.ts'), candidate])) {
       if (candidate !== file && knownFiles.has(candidate)) refs.add(candidate);
     }
   };
@@ -84,14 +87,14 @@ function referencesFromFile(file: string, source: string, knownFiles: Set<string
 function referencesForSources(sources: Map<string, string>, knownFiles: Set<string>) {
   const eligible = [...sources].filter(([file]) => SOURCE.test(file));
   const syntaxSources = new Map(eligible.map(([file, source]) => [
-    /\.[cm]?[jt]s$/.test(file) ? file : `${file}.js`, source,
+    file.endsWith('.svelte') ? syntaxFile(file) : /\.[cm]?[jt]s$/.test(file) ? file : `${file}.js`, scriptSource(file, source),
   ]));
   // Preserve independent source reads when a non-code syntax alias collides.
   if (!eligible.length || syntaxSources.size !== eligible.length) {
     return new Map(eligible.map(([file, source]) => [file, fileReferences(file, source, knownFiles)]));
   }
   return withParsedSources(syntaxSources, parsed => new Map(eligible.map(([file, source]) => {
-    const syntaxName = /\.[cm]?[jt]s$/.test(file) ? file : `${file}.js`;
+    const syntaxName = file.endsWith('.svelte') ? syntaxFile(file) : /\.[cm]?[jt]s$/.test(file) ? file : `${file}.js`;
     return [file, referencesFromFile(file, source, knownFiles, parsed.get(syntaxName)!)];
   })));
 }

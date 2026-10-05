@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stripTypeScriptTypes } from 'node:module';
 import { sourcePath, runtimePath, walkSourceFiles } from './source-files.js';
+import { compile } from 'svelte/compiler';
 
 type QualityBaseline = Record<
   'inlineEventAttributes' | 'windowReferences' | 'windowGlobalAssignments' |
@@ -76,7 +77,7 @@ function readBaseline(): QualityBaseline {
   return JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8')) as QualityBaseline;
 }
 
-function walkFiles(dir: string, extensions = new Set(['.js', '.ts'])): string[] {
+function walkFiles(dir: string, extensions = new Set(['.js', '.ts', '.svelte'])): string[] {
   const files: string[] = [];
   if (!fs.existsSync(dir)) return files;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -103,7 +104,7 @@ function countSourceLines(source: string) {
 }
 
 function collectAppMetrics() {
-  const files = walkFiles(APP_JS_DIR, new Set(['.js', '.ts']));
+  const files = walkFiles(APP_JS_DIR, new Set(['.js', '.ts', '.svelte']));
   let inlineEventAttributes = 0;
   let windowReferences = 0;
   let windowGlobalAssignments = 0;
@@ -154,7 +155,7 @@ function collectAppMetrics() {
 }
 
 function collectTestMetrics() {
-  const files = walkFiles(TEST_JS_DIR, new Set(['.js', '.ts']));
+  const files = walkFiles(TEST_JS_DIR, new Set(['.js', '.ts', '.svelte']));
   let labStateTestFiles = 0;
   for (const file of files) {
     if (repoRel(file) === LAB_STATE_GUARDRAIL_TEST_FILE) continue;
@@ -166,8 +167,8 @@ function collectTestMetrics() {
 
 function collectOversizedProductionFiles() {
   const files = [
-    ...walkFiles(APP_JS_DIR, new Set(['.js', '.ts'])),
-    ...SERVER_JS_DIRS.flatMap(dir => walkFiles(dir, new Set(['.js', '.ts']))),
+    ...walkFiles(APP_JS_DIR, new Set(['.js', '.ts', '.svelte'])),
+    ...SERVER_JS_DIRS.flatMap(dir => walkFiles(dir, new Set(['.js', '.ts', '.svelte']))),
     ...ROOT_PRODUCTION_JS_FILES.map(sourcePath).filter(file => fs.existsSync(file)),
   ];
   return files
@@ -231,7 +232,14 @@ function syntaxCheck(files: string[]) {
   const errors = [];
   for (const file of files) {
     try {
-      if (/\.[cm]?ts$/.test(file)) {
+      if (file.endsWith('.svelte')) {
+        const result = compile(fs.readFileSync(file, 'utf8'), { filename: file, generate: 'client', css: 'external' });
+        if (result.warnings.length) throw new Error(result.warnings.map(warning => warning.message).join('\n'));
+        execFileSync(process.execPath, ['--input-type=module', '--check'], {
+          cwd: ROOT, encoding: 'utf8', input: result.js.code,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+      } else if (/\.[cm]?ts$/.test(file)) {
         execFileSync(process.execPath, ['--input-type=module', '--check'], {
           cwd: ROOT, encoding: 'utf8',
           input: stripTypeScriptTypes(fs.readFileSync(file, 'utf8')),
@@ -249,8 +257,8 @@ function syntaxCheck(files: string[]) {
       errors.push(`${repoRel(file)}${output ? `\n${output}` : ''}`);
     }
   }
-  if (errors.length) fail('all JS/TS source files parse with node --check', errors.slice(0, 5).join('\n\n'));
-  else pass(`all JS/TS source files parse with node --check (${files.length} files)`);
+  if (errors.length) fail('all JS/TS/Svelte sources compile and parse with node --check', errors.slice(0, 5).join('\n\n'));
+  else pass(`all JS/TS/Svelte sources compile and parse with node --check (${files.length} files)`);
 }
 
 function compareBudget(name: string, actual: number, baseline: number) {

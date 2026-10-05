@@ -49,6 +49,13 @@ TypeScript sources, without counting both as separate modules. Function identity
 uses source ranges rather than names. Unmapped collector ranges remain visible;
 do not assign them through broad overlap to improve a result.
 
+Svelte components are inventoried once at their emitted native-browser URL.
+Their generated source maps identify bundled third-party framework functions;
+only positively mapped library functions are separated from the first-party
+function denominator. Missing component maps fail collection, and unmapped
+functions remain visible. Focused component tests do not replace the complete
+combined-coverage gate.
+
 The retained `production-coverage` artifact includes per-file results, feature
 summaries, unmapped ranges, and revision information. The authoritative global
 and feature floors live in [coverage-baseline.json](../scripts/coverage-baseline.json).
