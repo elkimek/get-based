@@ -52,7 +52,9 @@ do not assign them through broad overlap to improve a result.
 Svelte components are inventoried once at their emitted native-browser URL.
 Their generated source maps identify bundled third-party framework functions;
 only positively mapped library functions are separated from the first-party
-function denominator. Missing component maps fail collection, and unmapped
+function denominator. Unit collection keeps these artifacts in the same compiled
+coordinate space as browser collection; external maps remain available to the
+combined collector. Missing component maps fail collection, and unmapped
 functions remain visible. Focused component tests do not replace the complete
 combined-coverage gate.
 

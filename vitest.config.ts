@@ -9,9 +9,21 @@
 // Native *.test.js suites coexist with the legacy script wrapper.
 
 import { defineConfig } from 'vitest/config';
+import fs from 'node:fs';
 import { COVERAGE_INCLUDE } from './scripts/coverage-source.mjs';
 
 export default defineConfig({
+  plugins: [{
+    name: 'getbased-native-component-coverage',
+    enforce: 'pre',
+    // Combined coverage uses compiled function ranges, just like Playwright.
+    // Keep V8/Istanbul in that coordinate space; the collector separately uses
+    // the unchanged external map to identify bundled framework functions.
+    load(id) {
+      if (!id.endsWith('.svelte.native.js')) return null;
+      return { code: fs.readFileSync(id, 'utf8').replace(/\/\/# sourceMappingURL=[^\r\n]*/g, ''), map: null };
+    },
+  }],
   test: {
     environment: 'node',
     include: [

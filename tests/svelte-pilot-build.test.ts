@@ -6,7 +6,7 @@ import { afterAll, beforeAll, expect, it } from 'vitest';
 import { buildSvelte } from '../scripts/build-svelte.mjs';
 import { parseModuleSpecifiers } from '../scripts/architecture-map.mjs';
 import { createTestPlan } from '../scripts/pr-test-scope.mjs';
-import { productionSources, productionFunctionIndex, partitionComponentFunctions } from '../scripts/coverage-source.mjs';
+import { productionSources, productionFunctionIndex, partitionComponentFunctions, matchSourceFunction } from '../scripts/coverage-source.mjs';
 
 let directory: string;
 beforeAll(async () => {
@@ -115,3 +115,40 @@ it('reads both authored component scripts without treating markup or type import
     { specifier: './module.js', kind: 'static' }, { specifier: './instance.js', kind: 'static' },
   ]);
 });
+
+it('merges real unit coverage in native coordinates without counting bundled framework functions', async () => {
+  const reports = path.join(directory, 'unit-coverage');
+  execFileSync(process.execPath, ['node_modules/vitest/vitest.mjs', 'run',
+    'tests/unit-profile-active-data.test.ts', '--coverage', `--coverage.reportsDirectory=${reports}`], {
+    encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 20_000,
+  });
+  const file = 'js/components/DisplaySettings.svelte.native.js';
+  const coverage = JSON.parse(await fs.readFile(path.join(reports, 'coverage-final.json'), 'utf8'));
+  expect(coverage[path.resolve('js/components/DisplaySettings.svelte')]).toBeUndefined();
+  const collected = coverage[path.resolve(file)];
+  expect(collected).toBeDefined();
+  const source = await fs.readFile(file, 'utf8');
+  const index = productionFunctionIndex(source, file);
+  const offsets = [0];
+  for (let i = 0; i < source.length; i++) if (source[i] === '\n') offsets.push(i + 1);
+  const range = (span: { start: { line: number; column: number | null }; end: { line: number; column: number | null } }) => {
+    const start = offsets[span.start.line - 1]! + (span.start.column || 0);
+    const end = offsets[span.end.line - 1]! + (span.end.column || 0);
+    return end > start ? { start, end } : null;
+  };
+  const owned = new Set();
+  const called = new Set();
+  for (const [id, fn] of Object.entries(collected.fnMap) as Array<[string, { loc: Parameters<typeof range>[0]; decl: Parameters<typeof range>[0] }]>) {
+    const span = range(fn.loc) || range(fn.decl)!;
+    const match = matchSourceFunction(index.owned, span.start, span.end, 'istanbul');
+    if (match) {
+      owned.add(match.start);
+      if (collected.f[id] > 0) called.add(match.start);
+    } else {
+      expect(matchSourceFunction(index.thirdParty, span.start, span.end, 'istanbul')).not.toBeNull();
+    }
+  }
+  expect(owned.size).toBe(index.owned.length);
+  expect(called.size).toBe(3);
+  expect(called.size).toBeLessThan(owned.size); // Unit fixture does not call refresh.
+}, 30_000);
