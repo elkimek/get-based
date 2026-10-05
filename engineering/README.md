@@ -11,6 +11,9 @@ live at [docs.getbased.health](https://docs.getbased.health).
 - [Google Health OAuth scope justification](integrations/google-health-scope-justification.md):
   the provider-review explanation for implemented read-only scopes.
 
+A [compatibility link](../google-health-scope-justification.md) at the original
+Google Health document path keeps existing self-hosting guides working.
+
 The [architecture contract](../ARCHITECTURE.md), [generated module map](../MODULE_MAP.md),
 [contributing guide](../CONTRIBUTING.md), and [agent instructions](../AGENTS.md)
 remain at the repository root. Branding lives in the [brand manual](../brands/BRAND.md).
