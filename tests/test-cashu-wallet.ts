@@ -53,6 +53,9 @@ const discoverySrc = await fetchWithRetry('js/nostr-discovery.js');
 const apiRoutstrSrc = await fetchWithRetry('js/api-routstr.js');
 const apiProviderStorageSrc = await fetchWithRetry('js/api-provider-storage.js');
 const ppSrc = await fetchWithRetry('js/provider-panels.js');
+const routstrShellSrc = await fetchWithRetry('js/components/RoutstrSettings.svelte');
+const routstrModelsSrc = await fetchWithRetry('js/components/RoutstrModelSettings.svelte');
+const routstrModelViewSrc = await fetchWithRetry('js/routstr-model-settings-view.js');
 const providerRenderSrc = await fetchWithRetry('js/provider-panel-renderers.js');
 const modelControlsSrc = await fetchWithRetry('js/provider-model-controls.js');
 const providerDelegatesSrc = await fetchWithRetry('js/provider-panel-delegates.js');
@@ -205,8 +208,8 @@ assert('Node refund retry retains its origin privately',
     && nodePaymentsSrc.includes('pending.nodeUrl !== nodeUrl') && nodePaymentsSrc.includes('pending.generation !== generation'));
 assert('Node refund cannot overwrite outgoing recovery', !nodePaymentsSrc.includes("_setMeta('pendingWithdraw'"));
 assert('Pending withdraw cleared after success', walletSrc.includes("_setMeta('pendingWithdraw', null)"));
-assert('Recovery UI shows for pending deposits', ppSrc.includes('Pending deposit recovery'));
-assert('Recovery UI shows for pending withdrawals', ppSrc.includes('Pending withdraw recovery'));
+assert('Recovery UI shows for pending deposits', routstrShellSrc.includes('Pending {kind} recovery') && routstrShellSrc.includes("['deposit', 'withdraw']") && routstrShellSrc.includes('A previous node deposit has an unconfirmed outcome'));
+assert('Recovery UI shows for pending withdrawals', routstrShellSrc.includes('An outgoing transfer needs reconciliation') && routstrShellSrc.includes('actions.reclaimRecovery(kind)'));
 assert('Provider panel recovery uses module-owned receiveToken mint-switch path',
   ppSrc.includes('await walletRuntime.cashuReceiveToken(token)') &&
   !ppSrc.includes("await callProviderPanelRuntime('cashuImportWallet', token)"));
@@ -292,8 +295,8 @@ assert('Node URL in AI_SETTINGS_KEYS', syncPayloadCollectorsSrc.includes("'labch
 assert('Selected Routstr node changes schedule settings sync',
   discoverySrc.includes('dispatchAISettingsLocalChangedRuntime()'));
 assert('Routstr panel distinguishes synced node funds from device-local Cashu funds',
-  providerRenderSrc.includes('24-word Data Sync mnemonic')
-    && providerRenderSrc.includes('12-word recovery seed stay on this device'));
+  routstrShellSrc.includes('24-word Data Sync mnemonic')
+    && routstrShellSrc.includes('12-word recovery seed stay on this device'));
 assert('Unseeded device UI explains separate sync and wallet identities',
   walletSeedComponentSrc.includes("Set up this device's Cashu wallet")
     && walletSeedComponentSrc.includes('does not copy spendable Cashu proofs')
@@ -388,26 +391,26 @@ assert('bip39.mnemonicToSeed exists', typeof (window as typeof window & { bip39?
 // ═══════════════════════════════════════
 console.log('16. Settings UI');
 
-assert('Wallet section in Routstr panel', providerRenderSrc.includes('routstr-wallet-balance'));
-assert('Mint label display', providerRenderSrc.includes('routstr-mint-label'));
+assert('Wallet section in Routstr panel', providerRenderSrc.includes('ROUTSTR_SETTINGS_HOST') && routstrShellSrc.includes('routstr-wallet-balance'));
+assert('Mint label display', routstrShellSrc.includes('routstr-mint-label'));
 assert('provider-panels imports wallet panel module', ppSrc.includes("from './provider-wallet-panels.js'"));
 assert('provider-panels configures wallet callbacks', ppSrc.includes('configureRoutstrWalletPanels({'));
 assert('provider-panels clears extracted wallet timers', ppSrc.includes('clearRoutstrWalletTimers();'));
 assert('provider-panels uses extracted Routstr balance refresh',
-  ppSrc.includes('fetchRoutstrModels().then')
+  ppSrc.includes('fetchRoutstrModels({ isCurrent:')
     && ppSrc.includes('renderRoutstrModelDropdown(models)')
     && ppSrc.includes('refreshRoutstrPrivateControls()')
     && ppSrc.includes('refreshRoutstrBalance()')
     && !ppSrc.includes('_rsBalanceHtml'));
-assert('Routstr panel uses extracted wallet action buttons', providerRenderSrc.includes('routstrWalletActionButtons(null)'));
-assert('Routstr panel uses extracted node action buttons', providerRenderSrc.includes('buildRoutstrNodeActions(nodeUrl, !!currentKey, null)'));
+assert('Routstr shell uses shared wallet actions with scoped callbacks', routstrShellSrc.includes('ROUTSTR_WALLET_ACTIONS') && routstrShellSrc.includes('actions.wallet(action)'));
+assert('Routstr shell uses shared node actions with scoped callbacks', routstrShellSrc.includes('ROUTSTR_NODE_ACTIONS') && routstrShellSrc.includes('actions.node(action.id, shellState.node)'));
 assert('Mint edit UI', walletPanelSrc.includes('showRoutstrMintEdit'));
 assert('Node picker UI', walletPanelSrc.includes('showRoutstrNodePicker'));
 assert('Deposit amount picker', walletNodeComponentSrc.includes('routstr-deposit-amount') && walletPanelSrc.includes('nodes.deposit(amount)'));
 assert('Node withdraw handler', walletPanelSrc.includes('doRoutstrNodeWithdraw'));
 assert('Wallet panel imports Routstr key helpers', walletPanelSrc.includes('getRoutstrKey') && walletPanelSrc.includes('saveRoutstrKey'));
 assert('Funded legacy Routstr sessions bootstrap the shared session clock',
-  walletPanelSrc.includes("b.sats > 0 && !localStorage.getItem('labcharts-routstr-session-updated-at')")
+  walletPanelSrc.includes("balance.sats > 0 && !localStorage.getItem('labcharts-routstr-session-updated-at')")
     && walletPanelSrc.includes('touchRoutstrSession()'));
 assert('Wallet panel keeps mint SSRF guard', walletPanelSrc.includes('isValidExternalUrl'));
 assert('Seed onboarding gate', walletPanelSrc.includes('_ensureWalletSeed'));
@@ -431,12 +434,12 @@ assert('Routstr Tinfoil routing exposes only the required model metadata',
     && apiRoutstrSrc.includes("{ 'X-Routstr-Model': modelId }")
     && apiRoutstrSrc.includes('webSearch: false'));
 assert('Routstr Private TEE toggle and privacy boundary are rendered',
-  providerRenderSrc.includes('routstr-private-toggle')
-    && providerRenderSrc.includes('decrypted only inside a verified Tinfoil TEE')
-    && providerRenderSrc.includes('session, selected model, and billing metadata'));
+  routstrModelsSrc.includes('routstr-private-toggle')
+    && routstrModelsSrc.includes('decrypted only inside a verified Tinfoil TEE')
+    && routstrModelsSrc.includes('session, selected model, and billing metadata'));
 assert('Routstr Private TEE mode is delegated and swaps model catalogs',
   providerDelegatesSrc.includes("'routstr-private-mode': 'toggleRoutstrPrivateMode'")
-    && modelControlsSrc.includes("on ? 'labcharts-routstr-private-models' : 'labcharts-routstr-models'"));
+    && modelControlsSrc.includes('readRoutstrModels(on)') && routstrModelViewSrc.includes("privateMode ? 'labcharts-routstr-private-models' : 'labcharts-routstr-models'"));
 assert('Routstr node picker marks advertised private TEE support',
   nodeRefundRecoverySrc.includes("model.id.startsWith('tinfoil-')")
     && walletNodeComponentSrc.includes('node.privateTee') && walletNodeComponentSrc.includes('Advertises Private TEE'));

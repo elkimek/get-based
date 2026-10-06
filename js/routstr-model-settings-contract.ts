@@ -12,4 +12,3 @@ export interface RoutstrModelSettingsComponentView {
   setMode(mode: ProviderSettingsMode): void;
 }
 export interface RoutstrModelSettingsView extends RoutstrModelSettingsComponentView { isCurrent(): boolean }
-export const ROUTSTR_MODEL_SETTINGS_HOST = '<div data-routstr-model-settings-host></div>';

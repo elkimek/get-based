@@ -1,3 +1,8 @@
+import { getRoutstrSettingsView, mountRoutstrSettings, disposeRoutstrSettings } from './routstr-settings-component.js';
+import { initialRoutstrSettingsState } from './routstr-settings-contract.js';
+import type { RoutstrSettingsView, RoutstrWalletAction, RoutstrNodeAction } from './routstr-settings-contract.js';
+import { createRoutstrSettingsController } from './routstr-settings-controller.js';
+import { discoverRoutstrNodesFromRuntime, getSelectedRoutstrNodeFromRuntime, setSelectedRoutstrNodeFromRuntime } from './provider-panel-renderers-runtime.js';
 import { disposeRoutstrModelSettings } from './routstr-model-settings-component.js';
 import type { WalletOperations, FundingMonitorReader, FundingRecoveryReader, WalletCallbacks, PanelHTMLWriter } from '../types/provider-wallet-panels.js';
 // provider-wallet-panels.js - Routstr/Cashu wallet UI and node funding actions
@@ -37,7 +42,7 @@ export { buildRoutstrNodeActions, routstrWalletActionButtons };
 
 const walletCallbacks: WalletCallbacks = {
   renderAIProviderPanel: null, renderRoutstrModelDropdown: null,
-  initSettingsModelFetch: null, hydrateRoutstrModelSettings: null, requestProviderActivation: null,
+  initSettingsModelFetch: null, hydrateRoutstrSettings: null, hydrateRoutstrModelSettings: null, requestProviderActivation: null,
   returnToChatIfOnboarding: null
 };
 
@@ -71,9 +76,57 @@ function invalidateWalletArea(): void {
   ++walletAreaRevision; seed.reset(); disposeWalletSeed(); disposeWalletFunding(); disposeWalletExport(); disposeWalletWithdraw();
 }
 
-function _rsBalanceHtml(sats: number) {
-  const color = sats < 100 ? 'var(--red)' : sats < 500 ? 'var(--yellow, #f0a800)' : 'var(--green)';
-  return 'Balance: <span style="color:' + color + '">\u26a1 ' + sats.toLocaleString() + ' sats</span>';
+let recoveryClipboardTimer: ReturnType<typeof setTimeout> | null = null;
+const shell = createRoutstrSettingsController({
+  selected: () => getSelectedRoutstrNodeFromRuntime() || '', key: getRoutstrKey, isActive: isRoutstrActive,
+  discover: discoverRoutstrNodesFromRuntime, select: setSelectedRoutstrNodeFromRuntime,
+  recover: kind => kind === 'deposit' ? (walletRuntime as WalletOperations).cashuRecoverPendingDeposit() : (walletRuntime as WalletOperations).cashuRecoverPendingWithdraw(),
+  refund: () => (walletRuntime as WalletOperations).cashuGetPendingNodeRefund(),
+  receive: token => (walletRuntime as WalletOperations).cashuReceiveToken(token),
+  clear: kind => kind === 'deposit' ? (walletRuntime as WalletOperations).cashuClearPendingDeposit() : (walletRuntime as WalletOperations).cashuClearPendingWithdraw(),
+  refreshWallet: () => _refreshRoutstrWalletBalance(), writeClipboard: text => navigator.clipboard.writeText(text),
+  scheduleClear: clear => { if (recoveryClipboardTimer) clearTimeout(recoveryClipboardTimer); recoveryClipboardTimer = setTimeout(clear, 60000); },
+});
+function shellAction(view: RoutstrSettingsView, action: () => unknown): unknown {
+  const account = view.readAccount();
+  if (!view.isCurrent() || !isRoutstrActive() || !account || account.node !== (getSelectedRoutstrNodeFromRuntime() || '') || account.key !== getRoutstrKey()) return;
+  view.closeMenu(); return action();
+}
+function runWalletAction(action: RoutstrWalletAction): unknown {
+  if (action === 'deposit') return showRoutstrWalletFund();
+  if (action === 'withdraw') return showRoutstrWithdraw();
+  if (action === 'seed') return showWalletSeedPhrase();
+  if (action === 'backup') return showRoutstrWalletBackup();
+  return showSavedNodeRefunds();
+}
+function runNodeAction(action: RoutstrNodeAction, node: string): unknown {
+  _setActiveNodeAction(action);
+  if (action === 'deposit') return showRoutstrNodeDeposit(node);
+  if (action === 'withdraw') return doRoutstrNodeWithdraw(node);
+  return showRoutstrNodePicker();
+}
+export function hydrateRoutstrSettings(): void {
+  const host = document.querySelector<HTMLElement>('#ai-provider-panel [data-routstr-settings-host]');
+  if (!host) { disposeRoutstrSettings(); return; }
+  const existing = getRoutstrSettingsView();
+  const node = getSelectedRoutstrNodeFromRuntime() || '', key = getRoutstrKey();
+  const view = mountRoutstrSettings(host, initialRoutstrSettingsState(node, !!key), {
+    wallet: action => shellAction(view, () => runWalletAction(action)), node: (action, node) => shellAction(view, () => runNodeAction(action, node)),
+    mints: () => shellAction(view, showRoutstrMintEdit), refreshWallet: () => shellAction(view, refreshCashuWalletBalance), refreshNode: () => shellAction(view, refreshRoutstrBalance),
+    refunds: node => shellAction(view, () => showSavedNodeRefunds(node)), copyRecovery: kind => shell.copy(view, kind), reclaimRecovery: kind => shell.reclaim(view, kind),
+  }, { node, key });
+  void shell.initialize(view);
+  if (view !== existing) void _refreshRoutstrWalletBalance();
+}
+function writeWalletBalance(el: HTMLElement, text: string): void {
+  const view = getRoutstrSettingsView();
+  if (view && el.closest('[data-routstr-settings-view]')) view.setState({ ...view.getState(), walletBalance: text });
+  else el.textContent = text;
+}
+function writeMintLabel(text: string): void {
+  const view = getRoutstrSettingsView();
+  if (view) view.setState({ ...view.getState(), mint: text });
+  else { const el = document.getElementById('routstr-mint-label'); if (el) el.textContent = text; }
 }
 
 function ownsWalletBalance(el: HTMLElement, request: number): boolean {
@@ -87,7 +140,7 @@ export async function refreshCashuWalletBalance() {
   const el = document.getElementById('routstr-wallet-balance');
   if (!el || !isRoutstrActive()) return;
   const request = ++_walletBalanceRefresh;
-  el.textContent = '\u26a1 verifying...'; refreshWalletSeedStatus();
+  writeWalletBalance(el, '⚡ verifying...'); refreshWalletSeedStatus();
   try {
     const mint = await (walletRuntime as WalletOperations).cashuGetMintUrl();
     if (!ownsWalletBalance(el, request)) return;
@@ -96,7 +149,7 @@ export async function refreshCashuWalletBalance() {
     const selected = await (walletRuntime as WalletOperations).cashuGetMintUrl();
     if (!ownsWalletBalance(el, request)) return;
     if (mint !== selected) { await _refreshRoutstrWalletBalance(true); return; }
-    el.textContent = walletBalanceText(balance);
+    writeWalletBalance(el, walletBalanceText(balance));
   } catch {
     // The selected mint may have changed while a verification waited for the
     // wallet lock. Read its local balance without issuing a new forced check.
@@ -104,21 +157,32 @@ export async function refreshCashuWalletBalance() {
   }
 }
 
-export function refreshRoutstrBalance() {
+let nodeBalanceRequest = 0;
+export function refreshRoutstrBalance(): void {
   const el = document.getElementById('routstr-node-balance') || document.getElementById('routstr-balance');
-  if (el) el.textContent = 'Balance: refreshing...';
-  getRoutstrBalance().then(function(b) {
-    if (el && b) {
-      el.innerHTML = _rsBalanceHtml(b.sats);
-      // Bootstrap pre-clock funded sessions without requiring another real-sats
-      // deposit. A stale zero-balance peer does not claim session freshness.
-      if (b.sats > 0 && !localStorage.getItem('labcharts-routstr-session-updated-at')) touchRoutstrSession();
-    }
-    else if (el) el.textContent = 'Balance: unavailable';
-  });
+  if (!el) return;
+  const view = getRoutstrSettingsView(), node = getSelectedRoutstrNodeFromRuntime(), key = getRoutstrKey(), request = ++nodeBalanceRequest;
+  const provider = getAIProvider(), backend = getChatBackend();
+  const owns = () => request === nodeBalanceRequest && getAIProvider() === provider && getChatBackend() === backend && el.isConnected && document.getElementById(el.id) === el && getSelectedRoutstrNodeFromRuntime() === node && getRoutstrKey() === key && (!view || view.isCurrent());
+  const write = (text: string, tone: 'secondary' | 'success' | 'warning' | 'danger' = 'secondary') => {
+    if (!owns()) return;
+    if (view) view.setState({ ...view.getState(), nodeBalance: { text, tone } });
+    else el.textContent = text;
+  };
+  write('Balance: refreshing...');
+  void getRoutstrBalance().then(balance => {
+    if (!owns()) return;
+    if (!balance || !Number.isSafeInteger(balance.sats) || balance.sats < 0) { write('Balance: unavailable'); return; }
+    write('Balance: ⚡ ' + balance.sats.toLocaleString() + ' sats', balance.sats < 100 ? 'danger' : balance.sats < 500 ? 'warning' : 'success');
+    if (balance.sats > 0 && !localStorage.getItem('labcharts-routstr-session-updated-at')) touchRoutstrSession();
+  }).catch(() => write('Balance: unavailable'));
 }
 
-installRoutstrBalanceSettlementRefresh(refreshRoutstrBalance);
+installRoutstrBalanceSettlementRefresh(refreshRoutstrBalance, status => {
+  const view = getRoutstrSettingsView();
+  if (!view || !view.getState().connected) return false;
+  view.setState({ ...view.getState(), nodeBalance: { text: status, tone: 'secondary' } }); return true;
+}, () => !getRoutstrSettingsView() || isRoutstrActive());
 
 function isRoutstrActive() {
   return getAIProvider() === 'routstr' && getChatBackend() === 'direct';
@@ -162,10 +226,14 @@ export function startRoutstrFundingMonitor(options: Parameters<ReturnType<typeof
   else fundingMonitor.stop();
 }
 for (const event of ['labcharts-ai-settings-local-changed', 'labcharts-ai-settings-synced', 'getbased:chat-backend-changed', 'storage']) {
-  globalThis.addEventListener?.(event, () => startRoutstrFundingMonitor());
+  globalThis.addEventListener?.(event, () => {
+    startRoutstrFundingMonitor();
+    if (isRoutstrActive() && getRoutstrSettingsView()) { hydrateRoutstrSettings(); void _refreshRoutstrWalletBalance(true); }
+  });
 }
 
 export function clearRoutstrWalletTimers() {
+  ++nodeBalanceRequest;
   disposeRoutstrModelSettings();
   ++_walletBalanceRefresh; invalidateWalletArea(); disposeWalletNode();
   const picker = document.getElementById('routstr-node-picker'); if (picker) picker.style.display = 'none';
@@ -173,6 +241,7 @@ export function clearRoutstrWalletTimers() {
   _setActiveWalletAction(null);
   disposeWalletMint(); const mintArea = document.getElementById('routstr-mint-edit'); if (mintArea) mintArea.style.display = 'none';
   clearRoutstrBalanceSettlementTimers();
+  disposeRoutstrSettings();
 }
 
 export function showRoutstrWalletFund() {
@@ -302,8 +371,9 @@ async function activateNode(node: string): Promise<boolean> {
 function replaceRoutstrPanel(panel: HTMLElement): void {
   const html = _renderRoutstrPanel('routstr'); if (!html) return;
   invalidateWalletArea(); disposeWalletMint(); disposeWalletNode();
-  disposeRoutstrModelSettings();
+  disposeRoutstrSettings();
   (panel as unknown as PanelHTMLWriter).innerHTML = html;
+  if (typeof walletCallbacks.hydrateRoutstrSettings === 'function') (walletCallbacks.hydrateRoutstrSettings as () => void)();
   if (typeof walletCallbacks.hydrateRoutstrModelSettings === 'function') (walletCallbacks.hydrateRoutstrModelSettings as () => void)();
 }
 async function selectNode(node: string, current: () => boolean): Promise<void> {
@@ -400,11 +470,10 @@ async function _refreshRoutstrWalletBalance(localOnly = false, failureText = '�
     const currentMint = await (walletRuntime as WalletOperations).cashuGetMintUrl?.();
     if (!ownsWalletBalance(el, request)) return;
     if (mint !== currentMint) return _refreshRoutstrWalletBalance(localOnly);
-    el.textContent = walletBalanceText(balance) + (failureText === '⚡ check failed' ? ' (saved balance; check failed)' : '');
-    const mintEl = document.getElementById('routstr-mint-label');
-    if (mintEl && mint) mintEl.textContent = mint.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    writeWalletBalance(el, walletBalanceText(balance) + (failureText === '⚡ check failed' ? ' (saved balance; check failed)' : ''));
+    if (mint) writeMintLabel(mint.replace(/^https?:\/\//, '').replace(/\/$/, ''));
   } catch {
-    if (ownsWalletBalance(el, request)) el.textContent = failureText;
+    if (ownsWalletBalance(el, request)) writeWalletBalance(el, failureText);
   }
 }
 
@@ -416,16 +485,21 @@ export async function refreshWalletSeedStatus() {
   try {
     const ready = await (walletRuntime as WalletOperations).cashuHasWalletSeed();
     if (revision !== seedStatusRevision || !el.isConnected || document.getElementById('routstr-wallet-device-status') !== el) return;
-    el.textContent = ready ? '12-word wallet seed set up on this device' : 'No 12-word wallet seed on this device';
-    el.style.color = ready ? 'var(--green)' : 'var(--yellow, #f0a800)';
+    const text = ready ? '12-word wallet seed set up on this device' : 'No 12-word wallet seed on this device';
+    const view = getRoutstrSettingsView();
+    if (view) view.setState({ ...view.getState(), seed: { text, tone: ready ? 'success' : 'warning' } });
+    else { el.textContent = text; el.style.color = ready ? 'var(--green)' : 'var(--yellow, #f0a800)'; }
   } catch {
     if (revision !== seedStatusRevision || !el.isConnected || document.getElementById('routstr-wallet-device-status') !== el) return;
-    el.textContent = 'Local wallet setup unavailable';
-    el.style.color = 'var(--red)';
+    const view = getRoutstrSettingsView();
+    if (view) view.setState({ ...view.getState(), seed: { text: 'Local wallet setup unavailable', tone: 'danger' } });
+    else { el.textContent = 'Local wallet setup unavailable'; el.style.color = 'var(--red)'; }
   }
 }
 
 export function _setActiveNodeAction(actionId: unknown) {
+  const view = getRoutstrSettingsView();
+  if (view) { view.setState({ ...view.getState(), nodeAction: actionId === 'deposit' || actionId === 'withdraw' || actionId === 'browse' ? actionId : null }); return; }
   const el = document.getElementById('routstr-node-actions');
   const nodeUrl = (walletRuntime as WalletOperations).nostrGetSelectedNode?.() || '';
   const hasKey = !!getRoutstrKey();
@@ -436,6 +510,8 @@ let _activeWalletAction: unknown = null;
 
 function _setActiveWalletAction(actionId: unknown) {
   _activeWalletAction = actionId;
+  const view = getRoutstrSettingsView();
+  if (view) { view.setState({ ...view.getState(), walletAction: actionId === 'deposit' || actionId === 'withdraw' || actionId === 'seed' || actionId === 'backup' || actionId === 'refunds' ? actionId : null }); return; }
   const el = document.getElementById('routstr-wallet-actions');
   if (el) el.innerHTML = routstrWalletActionButtons(actionId);
 }

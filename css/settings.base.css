@@ -850,29 +850,6 @@
   background: var(--bg-card);
   border-color: var(--border);
 }
-.routstr-wallet-card {
-  font-size: 11px;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-.routstr-wallet-card .import-btn {
-  font-size: 11px;
-  line-height: 1.5;
-  padding: 3px 10px;
-  align-self: center;
-}
-.routstr-wallet-card [data-routstr-wallet-action$="-preset"] { white-space: nowrap; }
-.routstr-wallet-input-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
-.routstr-wallet-card .routstr-wallet-input-row .api-key-input { margin-top: 0; }
-.routstr-wallet-card .api-key-input {
-  min-width: 0;
-  font-size: 11px;
-  line-height: 1.5;
-  padding: 6px 8px;
-}
-.routstr-wallet-message { margin-top: 8px; font-size: 11px; line-height: 1.5; }
-.routstr-wallet-message-error { color: var(--red); }
-.routstr-wallet-help { margin: 4px 0 6px; font-size: 10px; line-height: 1.5; color: var(--text-muted); }
 .settings-modal .settings-links-row {
   padding-top: 8px;
   border-top: 1px solid var(--border);

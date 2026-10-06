@@ -1659,3 +1659,7 @@ deploy/profile-share/data/
 /js/routstr-model-settings-contract.js
 /js/routstr-model-settings-view.js
 /js/routstr-model-settings-component.js
+
+/js/routstr-settings-contract.js
+/js/routstr-settings-component.js
+/js/routstr-settings-controller.js

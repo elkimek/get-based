@@ -12,6 +12,7 @@ test('Routstr Private TEE support appears after discovery and toggles through th
     const walletRenderers = (await import(walletNodeUrl) as unknown) as Pick<typeof import('../../js/wallet-node-component.js'), 'mountWalletNode' | 'disposeWalletNode'>;
     const cryptoStore = await import('/js/crypto.js');
     const storageKeys = [
+      'labcharts-ai-provider', 'labcharts-chat-backend',
       'labcharts-routstr-key',
       'labcharts-routstr-node',
       'labcharts-routstr-model',
@@ -29,6 +30,7 @@ test('Routstr Private TEE support appears after discovery and toggles through th
 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
+      localStorage.setItem('labcharts-ai-provider', 'routstr'); localStorage.setItem('labcharts-chat-backend', 'direct');
       localStorage.setItem('labcharts-routstr-key', 'sk-routstr-private-test');
       localStorage.setItem('labcharts-routstr-node', 'https://routstr-private.example');
       cryptoStore.updateKeyCache('labcharts-routstr-key', 'sk-routstr-private-test');

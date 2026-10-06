@@ -2,27 +2,17 @@ import type { StoredProviderModel } from './api-provider-storage.js';
 
 // provider-panel-renderers.js — AI provider settings panel markup
 
-import { ROUTSTR_MODEL_SETTINGS_HOST } from './routstr-model-settings-contract.js';
+import { ROUTSTR_SETTINGS_HOST } from './routstr-settings-contract.js';
 import { PPQ_SETTINGS_HOST } from './ppq-settings-contract.js';
 import { VENICE_SETTINGS_HOST } from './venice-settings-contract.js';
 import { OPENROUTER_SETTINGS_HOST } from './openrouter-settings-contract.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import {
-  getRoutstrKey,
   getCustomApiUrl, getCustomApiKey, getCustomApiModel,
   renderModelPricingHint, selectLatestRecommendedModels,
   getOllamaConfig, getOllamaMainModel
 } from './api.js';
 import { getLocalAiExecutionLocation } from './local-ai-discovery.js';
-// Preserve wallet startup hooks while consuming its button renderers directly.
-import './provider-wallet-panels.js';
-import { buildRoutstrNodeActions, routstrWalletActionButtons } from './provider-wallet-panel-buttons.js';
-import {
-  discoverRoutstrNodesFromRuntime,
-  getSelectedRoutstrNodeFromRuntime,
-  setSelectedRoutstrNodeFromRuntime,
-} from './provider-panel-renderers-runtime.js';
-
 function readStoredArray(key: string): StoredProviderModel[] {
   try { return JSON.parse(localStorage.getItem(key) || '[]'); }
   catch { return []; }
@@ -49,74 +39,7 @@ export function buildModelOptions<Model extends StoredProviderModel>(provider: s
   return html;
 }
 
-function renderRoutstrProviderPanel() {
-  const currentKey = getRoutstrKey();
-  const nodeUrl = getSelectedRoutstrNodeFromRuntime();
-  const pillStyle = 'font-size:11px;padding:3px 10px;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)';
-  const sectionLabel = 'font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:6px;opacity:0.7';
-  const walletHtml = `<div class="routstr-wallet-card" style="padding:10px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--border);margin-bottom:10px">
-    <div style="${sectionLabel}">\u26a1 Wallet</div>
-    <div style="font-size:10px;color:var(--text-muted);margin:-2px 0 3px">The funded Routstr node session syncs with your 24-word Data Sync mnemonic. Cashu proofs and their separate 12-word recovery seed stay on this device.</div>
-    <div id="routstr-wallet-device-status" style="font-size:10px;color:var(--text-muted);margin-bottom:7px">Checking local wallet setup\u2026</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
-      <div style="font-size:12px;font-weight:600;color:var(--text-primary)"><span id="routstr-wallet-balance">\u26a1 loading...</span> <a href="#" data-provider-panel-action="refresh-cashu-wallet-balance" style="color:var(--accent);font-size:10px;text-decoration:none" title="Verify proofs against mint">\u21bb</a></div>
-      <div id="routstr-wallet-actions" style="display:flex;gap:4px;flex-wrap:wrap">
-        ${routstrWalletActionButtons(null)}
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-      <div style="font-size:10px;color:var(--text-muted)">Mint: <span id="routstr-mint-label" style="font-family:var(--font-mono,monospace);opacity:0.8">loading...</span></div>
-      <button class="import-btn import-btn-secondary" style="${pillStyle}" data-provider-panel-action="show-routstr-mint-edit">Mints &amp; balances</button>
-    </div>
-    <div id="routstr-mint-edit" style="display:none"></div>
-    <div id="routstr-wallet-fund-area" style="display:none"></div>
-  </div>`;
-
-  const discovery = !nodeUrl ? discoverRoutstrNodesFromRuntime() : null;
-  if (discovery) {
-    discovery.then(nodes => {
-      const online = nodes.filter(n => n.online);
-      if (online.length) {
-        const best = online[0]!;
-        const bestUrl = (best.urls && best.urls[0]) || '';
-        if (!bestUrl) return;
-        setSelectedRoutstrNodeFromRuntime(bestUrl);
-        const label = document.getElementById('routstr-node-label');
-        if (label) label.innerHTML = escapeHTML(best.name || bestUrl.replace(/^https?:\/\//, ''));
-        const acts = document.getElementById('routstr-node-actions');
-        if (acts) acts.innerHTML = buildRoutstrNodeActions(bestUrl, false, null);
-      } else {
-        const label = document.getElementById('routstr-node-label');
-        if (label) label.innerHTML = '<span style="color:var(--text-muted)">no nodes online</span>';
-      }
-    }).catch(() => {
-      const label = document.getElementById('routstr-node-label');
-      if (label) label.innerHTML = '<span style="color:var(--text-muted)">discovery failed</span>';
-    });
-  }
-
-  const nodeLabel = nodeUrl ? escapeHTML(nodeUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')) : 'discovering\u2026';
-  const nodeActionsHtml = buildRoutstrNodeActions(nodeUrl, !!currentKey, null);
-  const nodeHtml = `<div class="routstr-wallet-card" style="padding:10px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--border);margin-bottom:10px">
-    <div style="${sectionLabel}">\ud83d\udd17 Node</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px">
-      <div style="font-size:12px;color:var(--text-primary)"><span id="routstr-node-label">${currentKey ? '<span style="color:var(--green)">\u2713 ' + nodeLabel + '</span>' : nodeLabel}</span></div>
-      <div id="routstr-node-actions" style="display:flex;gap:4px;flex-wrap:wrap">
-        ${nodeActionsHtml}
-      </div>
-    </div>
-    ${currentKey ? '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">Session: <span id="routstr-node-balance">\u26a1 loading...</span> <a href="#" data-provider-panel-action="refresh-routstr-balance" style="color:var(--accent);font-size:10px;text-decoration:none">\u21bb</a></div>' : ''}
-    <div id="routstr-node-picker" style="display:none"></div>
-  </div>`;
-
-  return `<form class="ai-provider-panel">
-    <input type="text" name="ai-provider" value="routstr" autocomplete="username" hidden>
-    <div class="ai-provider-desc">Decentralized AI with Bitcoin. Fund your wallet, pick a node, start chatting.</div>
-    ${walletHtml}
-    ${nodeHtml}
-    ${ROUTSTR_MODEL_SETTINGS_HOST}
-  </form>`;
-}
+function renderRoutstrProviderPanel(): string { return ROUTSTR_SETTINGS_HOST; }
 
 function renderVeniceProviderPanel(): string { return VENICE_SETTINGS_HOST; }
 

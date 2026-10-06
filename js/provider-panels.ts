@@ -1,3 +1,4 @@
+import { getRoutstrSettingsView, disposeRoutstrSettings } from './routstr-settings-component.js';
 import { getRoutstrModelSettingsView, disposeRoutstrModelSettings } from './routstr-model-settings-component.js';
 // provider-panels.js - AI provider settings behavior, balance display, key validation, and wallet flows
 
@@ -75,7 +76,7 @@ import {
   showPpqTopup,
 } from './provider-ppq-panels.js';
 import {
-  configureRoutstrWalletPanels,
+  configureRoutstrWalletPanels, hydrateRoutstrSettings,
   clearRoutstrWalletTimers,
   startRoutstrFundingMonitor,
   refreshCashuWalletBalance,
@@ -209,12 +210,14 @@ export function hydrateVeniceSettings(): void {
   if (view !== existing) view.setStoredKey(getVeniceKey());
 }
 export function hydrateOwnedProviderSettings(): void {
+  hydrateRoutstrSettings();
   hydrateOpenRouterSettings();
   hydrateVeniceSettings();
   hydratePpqSettings();
   hydrateRoutstrModelSettings();
 }
 function disposeOwnedProviderSettings(): void {
+  disposeRoutstrSettings();
   disposeRoutstrModelSettings();
   disposeOpenRouterSettings();
   disposeVeniceSettings();
@@ -276,6 +279,7 @@ export async function switchAIProvider(provider: unknown, { previousProvider = g
 // MODEL FETCH / BALANCE INIT
 // ═══════════════════════════════════════════════
 export function initSettingsModelFetch() {
+  hydrateRoutstrSettings();
   hydrateRoutstrModelSettings();
   const orKey = getOpenRouterKey();
   const openRouterView = getOpenRouterSettingsView();
@@ -306,59 +310,7 @@ export function initSettingsModelFetch() {
     });
     refreshRoutstrBalance();
   }
-  // Cashu wallet balance + mint label + pending recovery (always, even without node connection)
-  if (document.getElementById('routstr-wallet-balance') && typeof walletRuntime.cashuGetBalance === 'function') {
-    startRoutstrFundingMonitor();
-    (walletRuntime as unknown as ProviderPanelWalletOperations).cashuGetBalance().then(function(bal) {
-      const el = document.getElementById('routstr-wallet-balance');
-      if (el) el.textContent = '\u26a1 ' + bal.toLocaleString() + ' sats';
-    });
-    refreshWalletSeedStatus();
-    if (typeof walletRuntime.cashuGetMintUrl === 'function') Promise.resolve((walletRuntime as unknown as ProviderPanelWalletOperations).cashuGetMintUrl()).then(function(url) {
-      const el = document.getElementById('routstr-mint-label');
-      if (el && url) el.textContent = (url as { replace(pattern: RegExp, value: string): { replace(pattern: RegExp, value: string): unknown } }).replace(/^https?:\/\//, '').replace(/\/$/, '') as string;
-    });
-    // H6: Check for pending deposit recovery
-    if (typeof walletRuntime.cashuRecoverPendingDeposit === 'function') (walletRuntime as unknown as ProviderPanelWalletOperations).cashuRecoverPendingDeposit().then(function(token) {
-      if (!token) return;
-      const area = document.getElementById('routstr-wallet-fund-area');
-      if (area) {
-        area.style.display = 'block';
-        area.innerHTML = '<div style="margin-top:8px;padding:8px;background:rgba(255,160,0,0.1);border:1px solid var(--yellow, #f0a800);border-radius:6px">' +
-          '<div style="font-size:11px;color:var(--yellow, #f0a800);margin-bottom:4px">\u26a0 Pending deposit recovery</div>' +
-          '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">A previous node deposit has an unconfirmed outcome. This token may be unspent. Reconcile the node account before reclaiming it:</div>' +
-          '<textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:40px;resize:none;user-select:all" readonly data-provider-panel-action="select-provider-panel-text">' + escapeHTML(token) + '</textarea>' +
-          '<div style="display:flex;gap:4px;margin-top:4px">' +
-          '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-provider-panel-action="recover-pending-deposit" data-token="' + escapeAttr(token) + '">Recover to Wallet</button>' +
-          '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" data-provider-panel-action="copy-provider-panel-clipboard" data-clipboard-text="' + escapeAttr(token) + '" data-copied-text="\u2713 Copied">Copy Token</button>' +
-          '</div></div>';
-      }
-    });
-    const pendingRefundArea = document.getElementById('routstr-node-picker');
-    (walletRuntime.cashuGetPendingNodeRefund as ProviderPanelWalletOperations['cashuGetPendingNodeRefund'])?.().then(function(refund) {
-      if (!refund) return;
-      const area = pendingRefundArea;
-      if (!area || area !== document.getElementById('routstr-node-picker') || area.dataset.mode) return;
-      area.dataset.mode = 'refund-notice';
-      area.style.display = 'block';
-      area.innerHTML = '<div>Saved refund for this node: ' + escapeHTML(refund.nodeUrl) + '</div><button class="import-btn import-btn-primary" data-routstr-wallet-action="saved-node-refunds" data-node-url="' + escapeAttr(refund.nodeUrl) + '">Check refund recovery</button>';
-    }).catch(() => {});
-    // Check for pending withdraw recovery
-    if (typeof walletRuntime.cashuRecoverPendingWithdraw === 'function') (walletRuntime as unknown as ProviderPanelWalletOperations).cashuRecoverPendingWithdraw().then(function(token) {
-      if (!token) return;
-      const area = document.getElementById('routstr-wallet-fund-area');
-      if (!area || area.style.display === 'block') return; // don't overwrite deposit recovery
-      area.style.display = 'block';
-      area.innerHTML = '<div style="margin-top:8px;padding:8px;background:rgba(255,160,0,0.1);border:1px solid var(--yellow, #f0a800);border-radius:6px">' +
-        '<div style="font-size:11px;color:var(--yellow, #f0a800);margin-bottom:4px">\u26a0 Pending withdraw recovery</div>' +
-        '<div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">An outgoing transfer needs reconciliation. Check its payment status or contact its recipient before reclaiming this token:</div>' +
-        '<textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:40px;resize:none;user-select:all" readonly data-provider-panel-action="select-provider-panel-text">' + escapeHTML(token) + '</textarea>' +
-        '<div style="display:flex;gap:4px;margin-top:4px">' +
-        '<button class="import-btn import-btn-primary" style="font-size:11px;padding:3px 10px;flex:1" data-provider-panel-action="recover-pending-withdraw" data-token="' + escapeAttr(token) + '">Recover to Wallet</button>' +
-        '<button class="import-btn import-btn-secondary" style="font-size:11px;padding:3px 10px" data-provider-panel-action="copy-provider-panel-clipboard" data-clipboard-text="' + escapeAttr(token) + '" data-copied-text="\u2713 Copied">Copy Token</button>' +
-        '</div></div>';
-    });
-  }
+  if (getRoutstrSettingsView()) { startRoutstrFundingMonitor(); refreshWalletSeedStatus(); }
   initSettingsPpqPanel();
   const customUrl = getCustomApiUrl();
   const customKey = getCustomApiKey();
@@ -722,6 +674,7 @@ configureRoutstrWalletPanels({
   renderAIProviderPanel,
   renderRoutstrModelDropdown,
   initSettingsModelFetch,
+  hydrateRoutstrSettings,
   hydrateRoutstrModelSettings,
   requestProviderActivation,
   returnToChatIfOnboarding: _returnToChatIfOnboarding

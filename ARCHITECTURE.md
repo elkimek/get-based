@@ -263,12 +263,25 @@ web-search/image limits remain visible for known private models. Catalog reads
 reject replaced node, credential, request order or initiating Settings view
 before writing pricing, capabilities, catalogs or selection.
 
-The native wallet header remains facade
-owned until the complete Routstr panel migration; its asynchronous updates are
-scoped to the mounted header, active provider, request and selected mint. The
-lazy Settings provider bridge retains its loaded wallet module for synchronous
-disposal on Settings close or provider switch; private fields scrub immediately
-while accepted domain operations and scheduled clipboard clearing can finish.
+`RoutstrSettings.svelte` owns the wallet/node shell, active actions, keyboard
+menu and separate recovery notices. Stable slots host the existing wallet and
+model components, so balance, seed, model or account refreshes retain focused
+controls and private drafts. Parent disposal scrubs its private ports and
+only its owned children before removing the shell. Credentials and recovery
+tokens never enter display snapshots or action attributes. Compatibility button
+serializers retain published imports using the shell's shared action definitions
+and scoped Tailwind controls; the application uses the owned component.
+
+The renderer now emits only the Routstr host. Discovery belongs to the injected
+shell controller and rejects replies after view, provider, selected node or
+credential changes before persisting a default node. Header balance reads check
+request order, node, credential, provider/backend and originating view. Saved
+deposit/outgoing notices occupy separate sections rather than replacing an open
+wallet operation. Recovery rechecks the exact saved token before accepting a
+receive, single-flights across remounts and awaits domain journal reconciliation.
+Accepted domain work and scheduled clipboard clearing finish after closure;
+retained private DOM fields clear synchronously. The lazy Settings provider
+bridge retains its wallet module for disposal on close or provider switch.
 
 `WalletWithdraw.svelte` owns Lightning invoice/address inputs, fee review, token
 amounts, outgoing token disclosure and recovery. Its controller keeps destinations,

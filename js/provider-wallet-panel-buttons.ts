@@ -1,43 +1,22 @@
-// provider-wallet-panel-buttons.js - Routstr wallet/node action button renderers
-
+// Published HTML compatibility for consumers outside the owned application panel.
+// Action definitions and Tailwind controls are shared with RoutstrSettings.
 import { escapeAttr } from './utils.js';
-
-export function buildRoutstrNodeActions(nodeUrl: unknown, hasKey: unknown, active: unknown) {
-  const _pill = 'font-size:11px;padding:3px 10px;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)';
-  const _activePill = 'font-size:11px;padding:3px 10px';
-  const btns: Array<{ id: string; label: string; nodeUrl?: unknown }> = [];
-  if (nodeUrl) btns.push({ id: 'deposit', label: 'Deposit', nodeUrl });
-  if (hasKey && nodeUrl) btns.push({ id: 'withdraw', label: 'Withdraw' });
-  btns.push({ id: 'browse', label: 'Browse' });
-  return btns.map(b => {
-    const isActive = b.id === active;
-    const nodeAttr = b.nodeUrl ? ` data-node-url="${escapeAttr(b.nodeUrl)}"` : '';
-    return `<button class="import-btn ${isActive ? 'import-btn-primary' : 'import-btn-secondary'}" style="${isActive ? _activePill : _pill}" data-routstr-wallet-action="node-action" data-node-action="${b.id}"${nodeAttr}>${b.label}</button>`;
+import { ROUTSTR_NODE_ACTIONS, ROUTSTR_WALLET_ACTIONS, ROUTSTR_WALLET_MENU } from './routstr-settings-contract.js';
+import { PROVIDER_PRIMARY, PROVIDER_SECONDARY } from './provider-settings-classes.js';
+const buttonClass = (active: boolean) => 'import-btn ' + (active ? 'import-btn-primary ' + PROVIDER_PRIMARY : 'import-btn-secondary ' + PROVIDER_SECONDARY);
+export function buildRoutstrNodeActions(nodeUrl: unknown, hasKey: unknown, active: unknown): string {
+  return ROUTSTR_NODE_ACTIONS.filter(action => action.id === 'browse' || !!nodeUrl && (action.id !== 'withdraw' || !!hasKey)).map(action => {
+    const node = action.id === 'deposit' ? ` data-node-url="${escapeAttr(nodeUrl)}"` : '';
+    return `<button type="button" data-cloud-provider-settings-view class="${buttonClass(action.id === active)}" data-routstr-wallet-action="node-action" data-node-action="${action.id}"${node}>${action.label}</button>`;
   }).join('');
 }
-
-export function routstrWalletActionButtons(active: unknown) {
-  const _pill = 'font-size:11px;padding:3px 10px;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)';
-  const _active = 'font-size:11px;padding:3px 10px';
-  const mainBtns = [
-    { id: 'deposit', label: 'Deposit' },
-    { id: 'withdraw', label: 'Withdraw' },
-  ];
-  const menuItems = [
-    { id: 'seed', label: '\ud83c\udf31 Seed & Restore' },
-    { id: 'backup', label: '\ud83d\udce4 Export Token' },
-    { id: 'refunds', label: 'Saved node refunds' },
-  ];
-  const main = mainBtns.map(b => {
-    const isActive = b.id === active;
-    return `<button class="import-btn ${isActive ? 'import-btn-primary' : 'import-btn-secondary'}" style="${isActive ? _active : _pill}" data-routstr-wallet-action="wallet-action" data-wallet-action="${b.id}">${b.label}</button>`;
-  }).join('');
-  const menuActive = menuItems.some(b => b.id === active);
-  const menu = `<div style="position:relative;display:inline-block">
-    <button class="import-btn ${menuActive ? 'import-btn-primary' : 'import-btn-secondary'}" style="${menuActive ? _active : _pill}" data-routstr-wallet-action="toggle-wallet-menu">\u22ef</button>
-    <div id="routstr-wallet-menu" style="display:none;position:absolute;right:0;top:100%;margin-top:4px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:4px;z-index:10;min-width:120px;box-shadow:var(--shadow-lg)">
-      ${menuItems.map(b => `<button class="import-btn ${b.id === active ? 'import-btn-primary' : 'import-btn-secondary'}" style="font-size:11px;padding:3px 10px;width:100%;text-align:left;margin-bottom:2px;${b.id === active ? '' : 'background:transparent;border-color:transparent;color:var(--text-primary)'}" data-routstr-wallet-action="wallet-action" data-wallet-action="${b.id}">${b.label}</button>`).join('')}
+export function routstrWalletActionButtons(active: unknown): string {
+  const button = (action: { id: string; label: string }, menu = false) => `<button type="button" class="${buttonClass(action.id === active)}${menu ? ' gb:cloud-provider:w-full gb:cloud-provider:text-left' : ''}" data-routstr-wallet-action="wallet-action" data-wallet-action="${action.id}">${action.label}</button>`;
+  return `<div data-cloud-provider-settings-view class="gb:cloud-provider:flex gb:cloud-provider:flex-wrap gb:cloud-provider:gap-2">
+    ${ROUTSTR_WALLET_ACTIONS.map(action => button(action)).join('')}
+    <div class="gb:cloud-provider:relative">
+      <button type="button" class="${buttonClass(ROUTSTR_WALLET_MENU.some(action => action.id === active))}" aria-label="More wallet actions" data-routstr-wallet-action="toggle-wallet-menu">⋯</button>
+      <div id="routstr-wallet-menu" style="display:none" class="gb:cloud-provider:absolute gb:cloud-provider:right-0 gb:cloud-provider:top-full gb:cloud-provider:z-10 gb:cloud-provider:min-w-48 gb:cloud-provider:rounded-control gb:cloud-provider:border gb:cloud-provider:border-line gb:cloud-provider:bg-secondary-surface gb:cloud-provider:p-2">${ROUTSTR_WALLET_MENU.map(action => button(action, true)).join('')}</div>
     </div>
   </div>`;
-  return main + menu;
 }

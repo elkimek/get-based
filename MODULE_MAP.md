@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 950 |
-| Internal import edges | 3742 |
+| Modules | 954 |
+| Internal import edges | 3757 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -70,12 +70,12 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/caught-error.ts`](js/caught-error.ts) | 90 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 81 | [`js/settings.ts`](js/settings.ts) | 36 |
 | [`js/data.ts`](js/data.ts) | 79 | [`js/pdf-import.ts`](js/pdf-import.ts) | 28 |
-| [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts) | 65 | [`js/sync-configure.ts`](js/sync-configure.ts) | 28 |
-| [`js/profile.ts`](js/profile.ts) | 51 | [`js/wearables-connect.ts`](js/wearables-connect.ts) | 28 |
-| [`js/api.ts`](js/api.ts) | 48 | [`js/export.ts`](js/export.ts) | 25 |
-| [`js/schema.ts`](js/schema.ts) | 42 | [`js/lab-context.ts`](js/lab-context.ts) | 24 |
-| [`js/crypto.ts`](js/crypto.ts) | 39 | [`js/provider-panels.ts`](js/provider-panels.ts) | 24 |
-| [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts) | 36 | [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) | 24 |
+| [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts) | 65 | [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) | 28 |
+| [`js/profile.ts`](js/profile.ts) | 51 | [`js/sync-configure.ts`](js/sync-configure.ts) | 28 |
+| [`js/api.ts`](js/api.ts) | 48 | [`js/wearables-connect.ts`](js/wearables-connect.ts) | 28 |
+| [`js/schema.ts`](js/schema.ts) | 42 | [`js/export.ts`](js/export.ts) | 25 |
+| [`js/crypto.ts`](js/crypto.ts) | 39 | [`js/provider-panels.ts`](js/provider-panels.ts) | 25 |
+| [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts) | 36 | [`js/lab-context.ts`](js/lab-context.ts) | 24 |
 | [`js/data-merge.ts`](js/data-merge.ts) | 34 | [`js/views.ts`](js/views.ts) | 22 |
 | [`js/utils-runtime.ts`](js/utils-runtime.ts) | 27 | [`js/chat-render.ts`](js/chat-render.ts) | 20 |
 | [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts) | 25 | [`js/dashboard-view-composition.ts`](js/dashboard-view-composition.ts) | 20 |
@@ -1178,8 +1178,8 @@ Native browser modules shipped with the static application.
 - [`js/provider-model-controls.ts`](js/provider-model-controls.ts) → [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/openrouter-settings-component.ts`](js/openrouter-settings-component.ts), [`js/openrouter-settings-view.ts`](js/openrouter-settings-view.ts), [`js/ppq-settings-component.ts`](js/ppq-settings-component.ts), [`js/ppq-settings-view.ts`](js/ppq-settings-view.ts), [`js/provider-model-controls-runtime.ts`](js/provider-model-controls-runtime.ts), [`js/provider-panel-renderers.ts`](js/provider-panel-renderers.ts), [`js/routstr-model-settings-component.ts`](js/routstr-model-settings-component.ts), [`js/routstr-model-settings-view.ts`](js/routstr-model-settings-view.ts), [`js/utils.ts`](js/utils.ts), [`js/venice-settings-component.ts`](js/venice-settings-component.ts), [`js/venice-settings-view.ts`](js/venice-settings-view.ts)
 - [`js/provider-panel-delegates.ts`](js/provider-panel-delegates.ts) → no in-scope imports
 - [`js/provider-panel-renderers-runtime.ts`](js/provider-panel-renderers-runtime.ts) → [`js/nostr-discovery.ts`](js/nostr-discovery.ts)
-- [`js/provider-panel-renderers.ts`](js/provider-panel-renderers.ts) → [`js/api.ts`](js/api.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/openrouter-settings-contract.ts`](js/openrouter-settings-contract.ts), [`js/ppq-settings-contract.ts`](js/ppq-settings-contract.ts), [`js/provider-panel-renderers-runtime.ts`](js/provider-panel-renderers-runtime.ts), [`js/provider-wallet-panel-buttons.ts`](js/provider-wallet-panel-buttons.ts), [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts), [`js/routstr-model-settings-contract.ts`](js/routstr-model-settings-contract.ts), [`js/utils.ts`](js/utils.ts), [`js/venice-settings-contract.ts`](js/venice-settings-contract.ts)
-- [`js/provider-panels.ts`](js/provider-panels.ts) → [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) *(dynamic)*, [`js/crypto.ts`](js/crypto.ts), [`js/focus-card.ts`](js/focus-card.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/openrouter-key-controller.ts`](js/openrouter-key-controller.ts), [`js/openrouter-settings-component.ts`](js/openrouter-settings-component.ts), [`js/openrouter-settings-view.ts`](js/openrouter-settings-view.ts), [`js/ppq-settings-component.ts`](js/ppq-settings-component.ts), [`js/provider-local-ai-controls.ts`](js/provider-local-ai-controls.ts), [`js/provider-model-controls.ts`](js/provider-model-controls.ts), [`js/provider-panel-delegates.ts`](js/provider-panel-delegates.ts), [`js/provider-panel-renderers.ts`](js/provider-panel-renderers.ts), [`js/provider-ppq-panels.ts`](js/provider-ppq-panels.ts), [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts), [`js/routstr-model-cache.ts`](js/routstr-model-cache.ts), [`js/routstr-model-settings-component.ts`](js/routstr-model-settings-component.ts), [`js/utils.ts`](js/utils.ts), [`js/venice-key-controller.ts`](js/venice-key-controller.ts), [`js/venice-settings-component.ts`](js/venice-settings-component.ts), [`js/venice-settings-view.ts`](js/venice-settings-view.ts)
+- [`js/provider-panel-renderers.ts`](js/provider-panel-renderers.ts) → [`js/api.ts`](js/api.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/openrouter-settings-contract.ts`](js/openrouter-settings-contract.ts), [`js/ppq-settings-contract.ts`](js/ppq-settings-contract.ts), [`js/routstr-settings-contract.ts`](js/routstr-settings-contract.ts), [`js/utils.ts`](js/utils.ts), [`js/venice-settings-contract.ts`](js/venice-settings-contract.ts)
+- [`js/provider-panels.ts`](js/provider-panels.ts) → [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) *(dynamic)*, [`js/crypto.ts`](js/crypto.ts), [`js/focus-card.ts`](js/focus-card.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/openrouter-key-controller.ts`](js/openrouter-key-controller.ts), [`js/openrouter-settings-component.ts`](js/openrouter-settings-component.ts), [`js/openrouter-settings-view.ts`](js/openrouter-settings-view.ts), [`js/ppq-settings-component.ts`](js/ppq-settings-component.ts), [`js/provider-local-ai-controls.ts`](js/provider-local-ai-controls.ts), [`js/provider-model-controls.ts`](js/provider-model-controls.ts), [`js/provider-panel-delegates.ts`](js/provider-panel-delegates.ts), [`js/provider-panel-renderers.ts`](js/provider-panel-renderers.ts), [`js/provider-ppq-panels.ts`](js/provider-ppq-panels.ts), [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts), [`js/routstr-model-cache.ts`](js/routstr-model-cache.ts), [`js/routstr-model-settings-component.ts`](js/routstr-model-settings-component.ts), [`js/routstr-settings-component.ts`](js/routstr-settings-component.ts), [`js/utils.ts`](js/utils.ts), [`js/venice-key-controller.ts`](js/venice-key-controller.ts), [`js/venice-settings-component.ts`](js/venice-settings-component.ts), [`js/venice-settings-view.ts`](js/venice-settings-view.ts)
 - [`js/provider-ppq-panels.ts`](js/provider-ppq-panels.ts) → [`js/api.ts`](js/api.ts), [`js/crypto.ts`](js/crypto.ts), [`js/ppq-account-controller.ts`](js/ppq-account-controller.ts), [`js/ppq-settings-component.ts`](js/ppq-settings-component.ts), [`js/ppq-settings-view.ts`](js/ppq-settings-view.ts), [`js/ppq-topup-controller.ts`](js/ppq-topup-controller.ts), [`js/provider-key-controller.ts`](js/provider-key-controller.ts), [`js/provider-qr.ts`](js/provider-qr.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/provider-qr.ts`](js/provider-qr.ts) → [`js/utils.ts`](js/utils.ts)
 - [`js/provider-settings-classes.ts`](js/provider-settings-classes.ts) → no in-scope imports
@@ -1187,8 +1187,8 @@ Native browser modules shipped with the static application.
 - [`js/provider-settings-models.ts`](js/provider-settings-models.ts) → [`js/api-models.ts`](js/api-models.ts), [`js/schema.ts`](js/schema.ts)
 - [`js/provider-wallet-delegates.ts`](js/provider-wallet-delegates.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/provider-wallet-runtime.ts`](js/provider-wallet-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/provider-wallet-funding-recovery.ts`](js/provider-wallet-funding-recovery.ts) → [`js/cashu-funding-monitor.ts`](js/cashu-funding-monitor.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/provider-qr.ts`](js/provider-qr.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/utils.ts`](js/utils.ts), [`js/wallet-funding-component.ts`](js/wallet-funding-component.ts), [`js/wallet-funding-presentation.ts`](js/wallet-funding-presentation.ts)
-- [`js/provider-wallet-panel-buttons.ts`](js/provider-wallet-panel-buttons.ts) → [`js/utils.ts`](js/utils.ts)
-- [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) → [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/api.ts`](js/api.ts), [`js/provider-wallet-delegates.ts`](js/provider-wallet-delegates.ts), [`js/provider-wallet-funding-recovery.ts`](js/provider-wallet-funding-recovery.ts), [`js/provider-wallet-panel-buttons.ts`](js/provider-wallet-panel-buttons.ts), [`js/provider-wallet-runtime.ts`](js/provider-wallet-runtime.ts), [`js/routstr-balance-settlement.ts`](js/routstr-balance-settlement.ts), [`js/routstr-model-cache.ts`](js/routstr-model-cache.ts), [`js/routstr-model-settings-component.ts`](js/routstr-model-settings-component.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts), [`js/wallet-export-component.ts`](js/wallet-export-component.ts), [`js/wallet-export-controller.ts`](js/wallet-export-controller.ts), [`js/wallet-funding-component.ts`](js/wallet-funding-component.ts), [`js/wallet-funding-controller.ts`](js/wallet-funding-controller.ts), [`js/wallet-mint-component.ts`](js/wallet-mint-component.ts), [`js/wallet-mint-controller.ts`](js/wallet-mint-controller.ts), [`js/wallet-node-component.ts`](js/wallet-node-component.ts), [`js/wallet-node-controller.ts`](js/wallet-node-controller.ts), [`js/wallet-seed-component.ts`](js/wallet-seed-component.ts), [`js/wallet-seed-controller.ts`](js/wallet-seed-controller.ts), [`js/wallet-withdraw-component.ts`](js/wallet-withdraw-component.ts), [`js/wallet-withdraw-controller.ts`](js/wallet-withdraw-controller.ts)
+- [`js/provider-wallet-panel-buttons.ts`](js/provider-wallet-panel-buttons.ts) → [`js/provider-settings-classes.ts`](js/provider-settings-classes.ts), [`js/routstr-settings-contract.ts`](js/routstr-settings-contract.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) → [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/api.ts`](js/api.ts), [`js/provider-panel-renderers-runtime.ts`](js/provider-panel-renderers-runtime.ts), [`js/provider-wallet-delegates.ts`](js/provider-wallet-delegates.ts), [`js/provider-wallet-funding-recovery.ts`](js/provider-wallet-funding-recovery.ts), [`js/provider-wallet-panel-buttons.ts`](js/provider-wallet-panel-buttons.ts), [`js/provider-wallet-runtime.ts`](js/provider-wallet-runtime.ts), [`js/routstr-balance-settlement.ts`](js/routstr-balance-settlement.ts), [`js/routstr-model-cache.ts`](js/routstr-model-cache.ts), [`js/routstr-model-settings-component.ts`](js/routstr-model-settings-component.ts), [`js/routstr-settings-component.ts`](js/routstr-settings-component.ts), [`js/routstr-settings-contract.ts`](js/routstr-settings-contract.ts), [`js/routstr-settings-controller.ts`](js/routstr-settings-controller.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts), [`js/wallet-export-component.ts`](js/wallet-export-component.ts), [`js/wallet-export-controller.ts`](js/wallet-export-controller.ts), [`js/wallet-funding-component.ts`](js/wallet-funding-component.ts), [`js/wallet-funding-controller.ts`](js/wallet-funding-controller.ts), [`js/wallet-mint-component.ts`](js/wallet-mint-component.ts), [`js/wallet-mint-controller.ts`](js/wallet-mint-controller.ts), [`js/wallet-node-component.ts`](js/wallet-node-component.ts), [`js/wallet-node-controller.ts`](js/wallet-node-controller.ts), [`js/wallet-seed-component.ts`](js/wallet-seed-component.ts), [`js/wallet-seed-controller.ts`](js/wallet-seed-controller.ts), [`js/wallet-withdraw-component.ts`](js/wallet-withdraw-component.ts), [`js/wallet-withdraw-controller.ts`](js/wallet-withdraw-controller.ts)
 - [`js/provider-wallet-runtime.ts`](js/provider-wallet-runtime.ts) → [`js/cashu-wallet.ts`](js/cashu-wallet.ts), [`js/nostr-discovery.ts`](js/nostr-discovery.ts)
 
 </details>
@@ -1226,7 +1226,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>routstr</code> family — 8 modules</summary>
+<details><summary><code>routstr</code> family — 11 modules</summary>
 
 - [`js/routstr-balance-settlement.ts`](js/routstr-balance-settlement.ts) → no in-scope imports
 - [`js/routstr-model-cache.ts`](js/routstr-model-cache.ts) → [`js/tinfoil-secure-fetch.ts`](js/tinfoil-secure-fetch.ts) *(dynamic)*
@@ -1235,6 +1235,9 @@ Native browser modules shipped with the static application.
 - [`js/routstr-model-settings-view.ts`](js/routstr-model-settings-view.ts) → [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/provider-settings-models.ts`](js/provider-settings-models.ts)
 - [`js/routstr-node-payments.ts`](js/routstr-node-payments.ts) → [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts), [`js/routstr-session.ts`](js/routstr-session.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts)
 - [`js/routstr-session.ts`](js/routstr-session.ts) → [`js/api-provider-storage-runtime.ts`](js/api-provider-storage-runtime.ts), [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/crypto.ts`](js/crypto.ts), [`js/url-safety.ts`](js/url-safety.ts)
+- [`js/routstr-settings-component.ts`](js/routstr-settings-component.ts) → [`js/components/RoutstrSettings.svelte`](js/components/RoutstrSettings.svelte), [`js/routstr-model-settings-component.ts`](js/routstr-model-settings-component.ts), [`js/wallet-export-component.ts`](js/wallet-export-component.ts), [`js/wallet-funding-component.ts`](js/wallet-funding-component.ts), [`js/wallet-mint-component.ts`](js/wallet-mint-component.ts), [`js/wallet-node-component.ts`](js/wallet-node-component.ts), [`js/wallet-seed-component.ts`](js/wallet-seed-component.ts), [`js/wallet-withdraw-component.ts`](js/wallet-withdraw-component.ts)
+- [`js/routstr-settings-contract.ts`](js/routstr-settings-contract.ts) → no in-scope imports
+- [`js/routstr-settings-controller.ts`](js/routstr-settings-controller.ts) → [`js/url-safety.ts`](js/url-safety.ts)
 - [`js/routstr-validation.ts`](js/routstr-validation.ts) → [`js/url-safety.ts`](js/url-safety.ts)
 
 </details>
@@ -1242,6 +1245,12 @@ Native browser modules shipped with the static application.
 <details><summary><code>RoutstrModelSettings.svelte</code> family — 1 module</summary>
 
 - [`js/components/RoutstrModelSettings.svelte`](js/components/RoutstrModelSettings.svelte) → [`js/components/SettingsToggle.svelte`](js/components/SettingsToggle.svelte), [`js/provider-settings-classes.ts`](js/provider-settings-classes.ts)
+
+</details>
+
+<details><summary><code>RoutstrSettings.svelte</code> family — 1 module</summary>
+
+- [`js/components/RoutstrSettings.svelte`](js/components/RoutstrSettings.svelte) → [`js/provider-settings-classes.ts`](js/provider-settings-classes.ts), [`js/routstr-settings-contract.ts`](js/routstr-settings-contract.ts)
 
 </details>
 
