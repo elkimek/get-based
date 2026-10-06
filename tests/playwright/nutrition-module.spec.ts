@@ -2027,7 +2027,7 @@ test('the meal editor switches visual models directly and returns from AI Settin
   await expect(page.locator('#modal-overlay')).toBeVisible();
   await page.locator('#openrouter-model-select').selectOption('anthropic/claude-opus-5.5');
   await expect(page.locator('[data-settings-action="set-nutrition-ai-route"] option').first()).toHaveText(/^Follow chat assistant — (Anthropic: )?Claude Opus 5\.5$/);
-  await page.locator('#settings-modal .modal-close').click();
+  await page.locator('#settings-modal [data-settings-action="close"]').click();
 
   await expect(page.locator('#settings-modal-overlay')).not.toBeVisible();
   await expect(page.locator('#modal-overlay')).toBeVisible();

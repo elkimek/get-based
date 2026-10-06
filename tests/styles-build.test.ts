@@ -36,6 +36,9 @@ it('preserves legacy Settings CSS and scopes generated utilities without a reset
   const wearables = selectors.filter(selector => selector.includes('.gb\\:wearables'));
   expect(wearables.length).toBeGreaterThan(50);
   expect(wearables.every(selector => selector.startsWith('#wearables-section '))).toBe(true);
+  const mealModels = selectors.filter(selector => selector.includes('.gb\\:meal-model'));
+  expect(mealModels.length).toBeGreaterThan(15);
+  expect(mealModels.every(selector => selector.includes(':is(#nutrition-ai-model-settings,#nutrition-ai-model-settings *)'))).toBe(true);
   expect(utilities).toContain(':checked');
   expect(utilities).toContain('color:var(--warning-ink)');
   expect(selectors).not.toContain('body');

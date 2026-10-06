@@ -84,6 +84,7 @@ import {
   renderVoiceSettingsPanel,
 } from './settings-voice-panel.js';
 import {
+  buildNutritionAISettingsSnapshot,
   renderNutritionAISettings,
   setNutritionAIRouteFromValue,
 } from './nutrition-ai-settings.js';
@@ -93,6 +94,7 @@ import {
   notifyAppExtensionSettings,
   renderAppExtensionSettingsSlot,
 } from './app-extension-runtime.js';
+import { disposeNutritionAISettings, getNutritionAISettingsView, mountNutritionAISettings } from './nutrition-ai-settings-component.js';
 import type { SettingsOperations, SettingsSnapshot } from '../types/settings.js';
 const settingsWindow = window as unknown as Record<string, unknown>;
 
@@ -410,12 +412,7 @@ function handleSettingsChange(event: Event) {
 }
 
 function refreshNutritionAISettingsSection() {
-  const current = document.getElementById('nutrition-ai-model-settings');
-  if (!current) return;
-  const template = document.createElement('template');
-  template.innerHTML = renderNutritionAISettings();
-  const next = template.content.querySelector('#nutrition-ai-model-settings');
-  if (next) current.replaceWith(next);
+  getNutritionAISettingsView()?.refresh(buildNutritionAISettingsSnapshot());
 }
 
 if (typeof globalThis.addEventListener === 'function') {
@@ -458,6 +455,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   const extensionAI = renderAppExtensionSettingsSlot('ai', extensionContext);
   const extensionPanels = renderAppExtensionSettingsSlot('panels', extensionContext);
 
+  disposeNutritionAISettings();
   disposeWearablesSettings();
   disposeSettingsRecords();
   disposeSettingsProtection();
@@ -577,6 +575,8 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   mountDisplaySettingsPanel();
   mountPrivacySettingsPanel();
   mountSettingsRecords();
+  const mealModelHost = modal.querySelector<HTMLElement>('[data-nutrition-ai-settings-host]');
+  if (mealModelHost) mountNutritionAISettings(mealModelHost, buildNutritionAISettingsSnapshot());
   hydrateProtectionSettings();
   installSettingsDelegates(modal);
   installVoiceSettingsPanel(modal);
@@ -706,6 +706,7 @@ export function updateSettingsUI() {
 }
 
 export function closeSettingsModal() {
+  disposeNutritionAISettings();
   disposeWearablesSettings();
   closeModalOverlay('settings-modal-overlay');
   updateChatNudgeRuntime();

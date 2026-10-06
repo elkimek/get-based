@@ -149,6 +149,15 @@ sync replies cannot derive or mark credentials on a replacement profile. Scoped
 Tailwind at the existing lazy Settings CSS URL owns provider rows and import controls;
 shared dashboard/vendor/consent styles retain their existing ownership.
 
+Meal-photo feature-model Settings uses `NutritionAISettings.svelte` with an owned
+lifecycle adapter. `nutrition-ai-settings.ts` retains routing, capability evidence,
+pricing and its public string-host contract, and supplies credential-free typed
+catalog snapshots. Settings mounts/disposes the view and refreshes it in place on
+provider, model, CLI and local catalog changes. The selector and disclosure keep
+their identity and focus through updates; detached/replaced views reject replies.
+Confirmed-image eligibility, automatic fallback and saved-unavailable routes retain
+the existing domain rules. Scoped Tailwind at the lazy Settings CSS URL owns styles.
+
 Agent Access remains behind the lazy Sync facade. `settings-agent-access-panel.ts`
 owns credential generation, clipboard operations, persistence and domain actions;
 `settings-agent-access-contract.ts` supplies readiness/preferences without hidden

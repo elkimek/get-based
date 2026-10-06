@@ -40,3 +40,6 @@
 
 @source "../js/wearables-settings-classes.ts";
 @custom-variant wearables (#wearables-section &);
+
+@source "../js/nutrition-ai-settings-classes.ts";
+@custom-variant meal-model (&:is(#nutrition-ai-model-settings, #nutrition-ai-model-settings *));

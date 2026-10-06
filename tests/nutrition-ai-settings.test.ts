@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 type NutritionTestWindow = Window & {
   _lastOllamaModelDetails?: ReturnType<typeof import('../js/provider-local-ai-runtime.js').getCachedLocalAiModelDetails>['modelDetails'];
   _lastIsOllamaServer?: ReturnType<typeof import('../js/provider-local-ai-runtime.js').getCachedLocalAiModelDetails>['isOllamaServer'];
@@ -18,10 +19,21 @@ import {
   listNutritionVisionModels,
   getNutritionAIRoute,
   hydrateNutritionLocalAICatalog,
-  renderNutritionAISettings,
+  buildNutritionAISettingsSnapshot,
+  renderNutritionAISettings as renderNutritionAISettingsHost,
   setNutritionAIRoute,
   setNutritionAIRouteFromValue,
 } from '../js/nutrition-ai-settings.js';
+
+import { disposeNutritionAISettings, mountNutritionAISettings } from '../js/nutrition-ai-settings-component.js';
+// Existing render assertions exercise the actual owned view, not a duplicate HTML renderer.
+function renderNutritionAISettings(): string {
+  const host = document.createElement('div');
+  host.innerHTML = renderNutritionAISettingsHost();
+  document.body.append(host);
+  mountNutritionAISettings(host.firstElementChild as HTMLElement, buildNutritionAISettingsSnapshot());
+  return host.innerHTML;
+}
 
 beforeEach(() => {
   localStorage.clear();
@@ -42,6 +54,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  disposeNutritionAISettings();
+  document.body.replaceChildren();
   vi.unstubAllGlobals();
 });
 
@@ -383,4 +397,26 @@ describe('meal-photo model routing', () => {
     expect(renderNutritionAISettings()).toContain('Evidence informs ordering only');
     expect(renderNutritionAISettings()).toContain('does not prove accuracy');
   });
+});
+
+
+it('retains a required public mount host and projects no credential or endpoint values', () => {
+  expect(renderNutritionAISettingsHost()).toBe('<div data-nutrition-ai-settings-host></div>');
+  const secret = 'synthetic-unused-credential';
+  updateKeyCache('labcharts-ollama', JSON.stringify({ url: 'http://private-endpoint.test', model: 'qwen-vl-chat', apiKey: secret }));
+  const projected = JSON.stringify(buildNutritionAISettingsSnapshot());
+  expect(projected).not.toContain(secret);
+  expect(projected).not.toContain('private-endpoint.test');
+  expect(projected).toContain('Local AI vision models');
+});
+it('keeps an unavailable dedicated model selected until its confirmed catalog returns', () => {
+  setNutritionAIRoute({ provider: 'ollama', model: 'llava-meal' });
+  (window as NutritionTestWindow)._lastOllamaModelDetails = [{ name: 'qwen-vl-chat', vision: true }];
+  const missing = buildNutritionAISettingsSnapshot();
+  expect(missing.selectedValue).toBe(JSON.stringify({ provider: 'ollama', model: 'llava-meal' }));
+  expect(missing.groups).toContainEqual({ label: 'Saved choice unavailable', options: [{ value: missing.selectedValue, label: 'llava-meal' }] });
+  (window as NutritionTestWindow)._lastOllamaModelDetails!.push({ name: 'llava-meal', vision: true });
+  const recovered = buildNutritionAISettingsSnapshot();
+  expect(recovered.selectedValue).toBe(missing.selectedValue);
+  expect(recovered.groups.some(group => group.label === 'Saved choice unavailable')).toBe(false);
 });

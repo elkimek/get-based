@@ -1594,3 +1594,7 @@ deploy/profile-share/data/
 /js/wearables-settings-component.js
 
 /js/wearables-connection-summaries.js
+
+/js/nutrition-ai-settings-contract.js
+/js/nutrition-ai-settings-classes.js
+/js/nutrition-ai-settings-component.js

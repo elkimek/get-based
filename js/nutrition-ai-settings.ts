@@ -18,7 +18,7 @@ import {
 import { discoverLocalAI } from './local-ai-discovery.js';
 import { cacheLocalAiModelDetails, getCachedLocalAiModelDetails } from './provider-local-ai-runtime.js';
 import { getModelPricing } from './schema.js';
-import { escapeAttr, escapeHTML } from './utils.js';
+import type { NutritionAISettingsSnapshot, NutritionAIOption } from './nutrition-ai-settings-contract.js';
 
 import type { StoredProviderModel } from './api-provider-storage.js';
 
@@ -414,7 +414,12 @@ export function setNutritionAIRouteFromValue(value: string | null | undefined) {
   }
 }
 
-export function renderNutritionAISettings() {
+/** Keep the public string contract; Settings mounts the owned view into this host. */
+export function renderNutritionAISettings(): string {
+  return '<div data-nutrition-ai-settings-host></div>';
+}
+
+export function buildNutritionAISettingsSnapshot(): NutritionAISettingsSnapshot {
   const directProvider = getAIProvider();
   const directProviderDisplay = PROVIDER_LABELS[directProvider] || directProvider;
   const assistant = getAssistantExecutionRoute();
@@ -425,37 +430,28 @@ export function renderNutritionAISettings() {
   const automaticLabel = selection.fallback
     ? `Automatic fallback — ${selection.modelDisplay} via ${selection.providerDisplay}`
     : `Follow chat assistant — ${selection.modelDisplay}`;
-  let options = `<option value=""${saved ? '' : ' selected'}${selection.available ? '' : ' disabled'}>${escapeHTML(automaticLabel)}</option>`;
-  let savedChoiceRendered = false;
+  const groups: { label: string; options: NutritionAIOption[] }[] = [];
 
   if (assistant.adapter === 'codex') {
-    const rows = listCodexExecutionRoutes('image').map(model => {
-      const value = routeValue('codex', model.model);
-      if (value === selectedValue) savedChoiceRendered = true;
-      return `<option value="${escapeAttr(value)}"${value === selectedValue ? ' selected' : ''}>${escapeHTML(model.modelDisplay)} — Uses CLI subscription</option>`;
-    }).join('');
-    if (rows) options += `<optgroup label="CLI agent vision models">${rows}</optgroup>`;
+    const options = listCodexExecutionRoutes('image').map(model => ({
+      value: routeValue('codex', model.model),
+      label: `${model.modelDisplay} — Uses CLI subscription`,
+    }));
+    if (options.length) groups.push({ label: 'CLI agent vision models', options });
   }
-
   if (hasAIProvider(directProvider)) {
-    const models = modelCatalog(directProvider);
-    const rows = models.map(model => {
-      const value = routeValue(directProvider, model.id);
-      if (value === selectedValue) savedChoiceRendered = true;
-      return `<option value="${escapeAttr(value)}"${value === selectedValue ? ' selected' : ''}>${escapeHTML(model.name)} — ${escapeHTML(model.priceLabel)}</option>`;
-    }).join('');
-    if (rows) options += `<optgroup label="${escapeAttr(directProviderDisplay)} vision models">${rows}</optgroup>`;
+    const options = modelCatalog(directProvider).map(model => ({
+      value: routeValue(directProvider, model.id),
+      label: `${model.name} — ${model.priceLabel}`,
+    }));
+    if (options.length) groups.push({ label: `${directProviderDisplay} vision models`, options });
   }
-
+  const savedChoiceRendered = groups.some(group => group.options.some(option => option.value === selectedValue));
   if (saved && !savedChoiceRendered) {
-    options += `<optgroup label="Saved choice unavailable"><option value="${escapeAttr(selectedValue)}" selected>${escapeHTML(modelDisplay(saved.provider, saved.model))}</option></optgroup>`;
+    groups.push({ label: 'Saved choice unavailable', options: [{
+      value: selectedValue,
+      label: modelDisplay(saved.provider, saved.model),
+    }] });
   }
-
-  return `<div class="settings-group-title">Feature models</div>
-    <div class="settings-section" id="nutrition-ai-model-settings">
-      <div class="settings-copy-title">Meal photos and labels</div>
-      <div class="settings-copy-desc">Follow the chat assistant when it supports images, or use the configured feature fallback.</div>
-      <select class="api-key-input" style="margin-top:8px" aria-label="Meal photo and nutrition label model" data-settings-action="set-nutrition-ai-route">${options}</select>
-      <details class="nutrition-ai-model-details"><summary>About this list</summary><div class="settings-copy-desc">Only models with confirmed image input are shown. CLI models use their existing account or configured provider; API and Local models use the configured ${escapeHTML(directProviderDisplay)} route. Evidence informs ordering only and does not prove accuracy. <a href="https://doi.org/10.3390/nu18122017" target="_blank" rel="noopener noreferrer">Claude study ↗</a> · <a href="https://doi.org/10.64898/2026.07.26.740845" target="_blank" rel="noopener noreferrer">Gemini preprint ↗</a></div></details>
-    </div>`;
+  return { selectedValue, automaticLabel, automaticDisabled: !selection.available, providerDisplay: directProviderDisplay, groups };
 }
