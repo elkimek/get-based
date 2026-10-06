@@ -51,7 +51,12 @@ export async function buildSvelteKit({ outputRoot = DEFAULT_OUTPUT, buildTag = '
     const inventory = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], { cwd: ROOT, encoding: 'utf8' }).split('\0');
     const fingerprint = createHash('sha256').update(revision).update(buildTag);
     for (const relative of inventory.filter(file => /\.(?:ts|mts|svelte|css|html|json)$/.test(file)).sort()) {
-      fingerprint.update(relative).update(await fs.readFile(path.join(ROOT, relative)));
+      const source = await fs.readFile(path.join(ROOT, relative)).catch((error: NodeJS.ErrnoException) => {
+        // Git still lists locally deleted tracked inputs during migration.
+        if (error.code === 'ENOENT') return null;
+        throw error;
+      });
+      if (source !== null) fingerprint.update(relative).update(source);
     }
     for (const file of await filesIn(staticRoot)) fingerprint.update(path.relative(staticRoot, file)).update(await fs.readFile(file));
     const buildId = fingerprint.digest('hex');

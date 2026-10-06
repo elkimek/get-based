@@ -492,7 +492,6 @@ deploy/profile-share/data/
 
 /js/cashu-wallet-store.js
 /js/cashu-wallet-funding-accounting.js
-/js/provider-wallet-refund-recovery.js
 /js/cashu-wallet-storage-types.js
 
 /js/base64.js
@@ -901,7 +900,6 @@ deploy/profile-share/data/
 
 /js/provider-wallet-funding-recovery.js
 
-/js/provider-wallet-panel-renderers.js
 
 /js/settings-display-panel.js
 
@@ -1650,3 +1648,10 @@ deploy/profile-share/data/
 /js/wallet-withdraw-component.js
 /js/wallet-withdraw-contract.js
 /js/wallet-withdraw-controller.js
+
+# Generated node account component adapters
+/js/wallet-node-component.js
+/js/wallet-node-contract.js
+/js/wallet-node-controller.js
+
+/tests/wallet-node-owned.test.js

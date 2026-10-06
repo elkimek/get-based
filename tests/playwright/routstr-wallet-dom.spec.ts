@@ -263,7 +263,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
 
       await providerPanels.doRoutstrNodeDeposit(nodeUrl, 500);
       await wait(150);
-      const fundAreaText = document.getElementById('routstr-wallet-fund-area')?.textContent || '';
+      const fundAreaText = document.getElementById('routstr-node-picker')?.textContent || '';
       const depositUsesSessionKey = (depositArgs as {url?:unknown}|null|undefined)?.url === nodeUrl
         && (depositArgs as {amount?:unknown}).amount === 500
         && (depositArgs as {existingKey?:unknown}).existingKey === 'sk-routstr-dom';
@@ -271,7 +271,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       const depositFailureShowsRecovery = fundAreaText.includes('Deposit outcome unconfirmed')
         && fundAreaText.includes('Recover to Wallet')
         && fundAreaText.includes('Copy Token');
-      const recoveryButtonCarriesToken = document.querySelector<HTMLElement>('#routstr-wallet-fund-area [data-token="cashuArecoverytoken"]') !== null;
+      const recoveryTokenIsPrivate = (await import('/js/wallet-node-component.js')).getWalletNodeView()?.readRecovery(0)?.token === 'cashuArecoverytoken' && document.querySelector('#routstr-node-picker [data-token],#routstr-node-picker [data-clipboard-text]') === null;
 
       localStorage.setItem('labcharts-routstr-key', 'sk-routstr-dom');
       cryptoStore.updateKeyCache('labcharts-routstr-key', 'sk-routstr-dom');
@@ -423,7 +423,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         depositUsesSessionKey,
         depositFailureChecksRecovery,
         depositFailureShowsRecovery,
-        recoveryButtonCarriesToken,
+        recoveryTokenIsPrivate,
         refundBlockedUntilSeedAck,
         refundUsesSessionKey,
         refundPersistsTokenBeforeReceive,

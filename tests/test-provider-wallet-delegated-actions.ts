@@ -5,7 +5,7 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Static provider wallet delegated-action source guards.
 
 const walletPanelSrc = readRepositorySource('js/provider-wallet-panels.js', 'utf8');
-const walletPanelRendererSrc = readRepositorySource('js/provider-wallet-panel-renderers.js', 'utf8');
+const walletPanelRendererSrc = readRepositorySource('js/components/WalletNode.svelte', 'utf8');
 const fundingComponentSrc = readRepositorySource('js/components/WalletFunding.svelte', 'utf8');
 const seedComponentSrc = readRepositorySource('js/components/WalletSeed.svelte', 'utf8');
 const walletUiSrc = walletPanelSrc + '\n' + walletPanelRendererSrc;
@@ -17,7 +17,7 @@ const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 console.log('=== Provider Wallet Delegated Actions ===');
 
 assert('provider-wallet-panels.js renders no inline event attributes',
-  !/\bon(?:click|change|input|search|keydown|keyup|submit|blur)=/.test(walletUiSrc));
+  !/\bon(?:click|change|input|search|keydown|keyup|submit|blur)=['\"]/.test(walletUiSrc));
 assert('provider wallet renders delegated action attributes',
   walletUiSrc.includes('data-routstr-wallet-action') &&
     fundingComponentSrc.includes('onkeydown={event =>') && fundingComponentSrc.includes('actions.submitCustom()') &&

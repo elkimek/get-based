@@ -5,11 +5,11 @@ const moduleUrl = (path: string) => `${path}?routstrPrivateTee=${Date.now()}-${M
 test('Routstr Private TEE support appears after discovery and toggles through the live panel', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
 
-  const result = await page.evaluate(async ({ panelsUrl, renderersUrl, settlementUrl, walletRenderersUrl }) => {
+  const result = await page.evaluate(async ({ panelsUrl, renderersUrl, settlementUrl, walletNodeUrl }) => {
     const panels = (await import(panelsUrl) as unknown) as Pick<typeof import('../../js/provider-panels.js'), 'initSettingsModelFetch'>;
     const renderers = (await import(renderersUrl) as unknown) as Pick<typeof import('../../js/provider-panel-renderers.js'), 'renderAIProviderPanel'>;
     const settlement = (await import(settlementUrl) as unknown) as Pick<typeof import('../../js/routstr-balance-settlement.js'), 'notifyRoutstrRequestSettled' | 'clearRoutstrBalanceSettlementTimers'>;
-    const walletRenderers = (await import(walletRenderersUrl) as unknown) as Pick<typeof import('../../js/provider-wallet-panel-renderers.js'), 'routstrNodePickerRowHtml'>;
+    const walletRenderers = (await import(walletNodeUrl) as unknown) as Pick<typeof import('../../js/wallet-node-component.js'), 'mountWalletNode' | 'disposeWalletNode'>;
     const cryptoStore = await import('/js/crypto.js');
     const storageKeys = [
       'labcharts-routstr-key',
@@ -68,12 +68,11 @@ test('Routstr Private TEE support appears after discovery and toggles through th
       await new Promise(resolve => setTimeout(resolve, 25));
 
       const badgeHost = document.createElement('div');
-      badgeHost.innerHTML = walletRenderers.routstrNodePickerRowHtml({
-        urls: ['https://routstr-private.example'],
-        name: 'Privacy Maxi',
-        modelCount: 3,
-        models: [{ id: 'tinfoil-glm-5-2' }],
-      });
+      document.body.append(badgeHost);
+      const badge = walletRenderers.mountWalletNode(badgeHost, { connect: () => {}, refresh: () => {}, chooseMint: () => {}, deposit: () => {}, newSession: () => {}, retry: () => {}, copy: () => {}, reclaim: () => {}, close: () => {} }, 'browse');
+      badge.setState({ ...badge.getState(), phase: 'ready', pending: false, nodes: [{ url: 'https://routstr-private.example', name: 'Privacy Maxi', models: 3, operator: 'operator', privateTee: true, tor: false }] });
+      const nodeBadgeText = badgeHost.textContent || '';
+      walletRenderers.disposeWalletNode(); badgeHost.remove();
       settlement.notifyRoutstrRequestSettled({ failed: true, modelId: 'tinfoil-glm-5-2' });
       const reservationText = document.getElementById('routstr-node-balance')?.textContent || '';
       await new Promise(resolve => setTimeout(resolve, 700));
@@ -92,7 +91,7 @@ test('Routstr Private TEE support appears after discovery and toggles through th
         otherOptions: Array.from(document.querySelectorAll<HTMLOptionElement>('#routstr-model-select optgroup[label="Other models"] option')).map(option => option.value),
         indicatorText: document.getElementById('routstr-private-indicator')?.textContent || '',
         balanceText: document.getElementById('routstr-node-balance')?.textContent || '',
-        nodeBadgeText: badgeHost.textContent || '',
+        nodeBadgeText,
         reservationText,
         settledBalanceText,
       };
@@ -109,7 +108,7 @@ test('Routstr Private TEE support appears after discovery and toggles through th
     panelsUrl: moduleUrl('/js/provider-panels.js'),
     renderersUrl: moduleUrl('/js/provider-panel-renderers.js'),
     settlementUrl: moduleUrl('/js/routstr-balance-settlement.js'),
-    walletRenderersUrl: moduleUrl('/js/provider-wallet-panel-renderers.js'),
+    walletNodeUrl: moduleUrl('/js/wallet-node-component.js'),
   });
 
   expect(result.beforeHidden).toBe(true);

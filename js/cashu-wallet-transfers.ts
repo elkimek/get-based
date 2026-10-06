@@ -87,7 +87,7 @@ function getMintUrl() {
 /** Check the initiating mint inside the wallet lock before any transfer writes. */
 async function transferMint(expectedMint?: string): Promise<string> {
   const mint = await getMintUrl();
-  if (expectedMint !== undefined && _normalizeMintUrl(expectedMint) !== mint) throw new Error('Wallet mint changed. Reopen withdrawal for the selected mint.');
+  if (expectedMint !== undefined && _normalizeMintUrl(expectedMint) !== mint) throw new Error('Wallet mint changed. Reopen the controls for the selected mint.');
   return mint;
 }
 
@@ -132,15 +132,16 @@ function _withModuleFeeLock<Value>(fn: () => Promise<Value>): Promise<Value> {
 
 /** Deposit sats to a Routstr node. Uses topup if session key exists, otherwise creates new.
  *  Returns { api_key, balance } from the node. */
-export async function depositToNode(nodeUrl: string, amountSats: number, existingKey?: string) {
+export async function depositToNode(nodeUrl: string, amountSats: number, existingKey?: string, expectedMint?: string, expectedKey?: string) {
   nodeUrl = canonicalRoutstrUrl(nodeUrl);
   positiveSats(amountSats);
-  if (existingKey && existingKey !== getRoutstrSessionKey(nodeUrl)) throw new Error('Deposit credential does not belong to this node');
+  if ((existingKey && existingKey !== getRoutstrSessionKey(nodeUrl)) || (expectedKey !== undefined && expectedKey !== getRoutstrSessionKey(nodeUrl))) throw new Error('Deposit credential does not belong to this node');
   existingKey = getRoutstrSessionKey(nodeUrl);
   return _withWalletLock(async () => {
+    const mintUrl = await transferMint(expectedMint);
+    if (existingKey !== getRoutstrSessionKey(nodeUrl)) throw new Error('Node session changed before this deposit. Wallet funds were not moved.');
     await _ensureNoPendingSwap();
     const cashuts = await _cashuLib();
-    const mintUrl = await getMintUrl();
     if ((await _getMeta('pendingDeposit') as PendingDeposit | string | null)) throw new Error('Recover or clear the previous pending deposit first');
     await verifyNodeDepositSession(nodeUrl, existingKey);
     const proofs = await _pruneSpentProofs(true, mintUrl);
@@ -175,8 +176,11 @@ export async function depositToNode(nodeUrl: string, amountSats: number, existin
 }
 
 /** Recover a failed deposit. Returns the pending token string or null. */
-export async function recoverPendingDeposit() {
+export async function recoverPendingDeposit(expectedNode?: string) {
+  const node = expectedNode === undefined ? undefined : canonicalRoutstrUrl(expectedNode);
   return _withWalletLock(async () => {
+    const saved = await _getMeta('pendingDeposit') as PendingDeposit | string | null;
+    if (node && saved && (typeof saved === 'string' || saved.nodeUrl !== node)) throw new Error('This recovery belongs to a different or unknown node. Open its original wallet recovery.');
     let pending;
     try { pending = await reconcileRoutstrDeposit(); } catch { pending = (await _getMeta('pendingDeposit') as PendingDeposit | string | null); }
     if (typeof pending === 'string') return pending;
@@ -549,13 +553,13 @@ export async function redeemFees(bolt11Invoice: string) {
 export function depositTokenToNode(nodeUrl: string, token: string) {
   return _withWalletLock(() => depositExternalTokenToNode(nodeUrl, token));
 }
-export function refundNodeToToken(nodeUrl: unknown, recoveryId?: string, recoveryToken?: string, generation?: string) {
-  return _withWalletLock(async () => { await _ensureNoPendingSwap(); return requestNodeRefund(nodeUrl, recoveryId, recoveryToken, generation); });
+export function refundNodeToToken(nodeUrl: unknown, recoveryId?: string, recoveryToken?: string, generation?: string, expectedKey?: string) {
+  return _withWalletLock(async () => { await _ensureNoPendingSwap(); return requestNodeRefund(nodeUrl, recoveryId, recoveryToken, generation, expectedKey); });
 }
 export function finishNodeRefund(token: string) {
   return _withWalletLock(() => completeNodeRefund(token));
 }
 export function getPendingNodeRefund() { return pendingNodeRefundForSession(); }
-export function startNewNodeSession(nodeUrl: string) { return _withWalletLock(() => prepareNewNodeSession(nodeUrl)); }
+export function startNewNodeSession(nodeUrl: string, expectedKey?: string) { return _withWalletLock(() => prepareNewNodeSession(nodeUrl, expectedKey)); }
 
 export function getPendingNodeRefunds(nodeUrl?: unknown) { return _withWalletLock(() => pendingNodeRefundsForNode(nodeUrl)); }

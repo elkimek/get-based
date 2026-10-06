@@ -233,6 +233,23 @@ verification also checks the expected mint under the lock and reports failure
 without representing saved balances as successfully verified. Ordinary balance
 reads retain their offline fallback. `cashu-wallet-mint-requests.ts` owns the
 shared durable mint cooldown used by proof, funding and recovery requests.
+`WalletWithdraw.svelte` owns Lightning quotes, explicit fee approval, outgoing
+Cashu tokens and uncertain-operation recovery. Invoice, quote and token ports
+stay private; initiating mints are checked inside the wallet lock before transfer
+side effects. Closing scrubs fields without cancelling accepted domain writes.
+
+`WalletNode.svelte` owns discovered node cards, accepted-mint review, node deposits,
+explicit session reset and saved refund recovery. Its controller captures the
+originating view, node account and mint before preflight; the domain checks the
+captured session and mint again inside its wallet lock. Saved refunds retain their
+original record generation and account regardless of later sessions. Recovery
+ports keep tokens, credentials and generations out of display state and action
+attributes; scoped callbacks reject retained controls from a replaced component.
+Receipt persistence and token redemption remain in domain services. Accepted
+transactions finish after closure without replacing newer controls, and privately
+held uncommitted receipts remain available through saved recovery. Superseded
+native node/refund rendering and mint chooser CSS have been removed.
+
 The native wallet header remains facade
 owned until the complete Routstr panel migration; its asynchronous updates are
 scoped to the mounted header, active provider, request and selected mint. The

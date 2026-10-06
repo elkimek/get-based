@@ -408,6 +408,39 @@ describe('Routstr security boundaries', () => {
     expect(await readIdbMeta('pendingDeposit')).toBeNull();
     expect(getRoutstrSessionKey(NODE)).toBe('sk-new');
   });
+  it.each(['deposit', 'refund', 'reset'] as const)('rejects a stale captured node session before %s side effects', async action => {
+    const wallet = await funded(1000); await saveRoutstrSessionKey('sk-current', NODE);
+    const store = await import('../js/cashu-wallet-store.js');
+    const previousRefund = { nodeUrl: NODE, key: 'sk-previous', generation: 'previous-generation', createdAt: 1, token: 'cashuAprevious-refund' };
+    await store._setMeta('pendingNodeRefund', previousRefund); const before = await readIdbStore('proofs');
+    const swap = vi.spyOn((globalThis as import('./helpers/cashu-wallet.js').CashuStubGlobal).cashuts.Wallet.prototype, 'completeSwap');
+    const operation = action === 'deposit' ? wallet.depositToNode(NODE, 100, 'sk-stale', MINT, 'sk-stale')
+      : action === 'refund' ? wallet.refundNodeToToken(NODE, undefined, undefined, undefined, 'sk-stale') : wallet.startNewNodeSession(NODE, 'sk-stale');
+    await expect(operation).rejects.toThrow(); expect(fetch).not.toHaveBeenCalled(); expect(swap).not.toHaveBeenCalled();
+    expect(await readIdbStore('proofs')).toEqual(before); expect(await readIdbMeta('pendingDeposit')).toBeNull();
+    expect(await readIdbMeta('pendingNodeRefund')).toEqual(previousRefund); expect(getRoutstrSessionKey(NODE)).toBe('sk-current');
+  });
+  it.each(['mint', 'session'] as const)('checks the captured deposit %s after waiting for the wallet lock', async changed => {
+    const wallet = await funded(1000); await saveRoutstrSessionKey('sk-original', NODE); const before = await readIdbStore('proofs');
+    let release!: () => void; const gate = new Promise<void>(yes => { release = yes; });
+    const check = vi.spyOn((globalThis as import('./helpers/cashu-wallet.js').CashuStubGlobal).cashuts.Wallet.prototype, 'groupProofsByState').mockImplementation(async proofs => { await gate; return { unspent: proofs, spent: [], pending: [] }; });
+    const swap = vi.spyOn((globalThis as import('./helpers/cashu-wallet.js').CashuStubGlobal).cashuts.Wallet.prototype, 'completeSwap');
+    try {
+      const verification = wallet.getWalletBalance(); await vi.waitFor(() => expect(check).toHaveBeenCalled());
+      const switching = changed === 'mint' ? wallet.setMintUrl('https://mint.changed.test', MINT) : saveRoutstrSessionKey('sk-new', NODE);
+      const depositing = wallet.depositToNode(NODE, 100, 'sk-original', MINT, 'sk-original');
+      const handled = Promise.allSettled([switching, depositing]); if (changed === 'session') await switching; release(); await verification; const results = await handled;
+      expect(results.map(result => result.status)).toEqual(['fulfilled', 'rejected']); expect(fetch).not.toHaveBeenCalled(); expect(swap).not.toHaveBeenCalled();
+      expect(await readIdbStore('proofs')).toEqual(before); expect(await readIdbMeta('pendingDeposit')).toBeNull();
+    } finally { release(); check.mockRestore(); }
+  });
+  it.each(['different', 'legacy'] as const)('does not present or reconcile a %s deposit recovery as the current node', async kind => {
+    const wallet = await funded(); const store = await import('../js/cashu-wallet-store.js');
+    const pending = kind === 'legacy' ? 'cashuAlegacy-private' : { nodeUrl: 'https://node.other.test', token: 'cashuAother-private', localCommit: true, candidateKey: 'sk-other', submitted: true };
+    await store._setMeta('pendingDeposit', pending); const before = await readIdbStore('proofs');
+    await expect(wallet.recoverPendingDeposit(NODE)).rejects.toThrow('different or unknown node'); expect(fetch).not.toHaveBeenCalled();
+    expect(await readIdbMeta('pendingDeposit')).toEqual(pending); expect(await readIdbStore('proofs')).toEqual(before);
+  });
   it('allows a top-up of an authenticated node account with a negative finite balance', async () => {
     const wallet = await funded();
     await saveRoutstrSessionKey('sk-overdrawn', NODE);

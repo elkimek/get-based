@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { sourceFunctionHasStatement } from './helpers/native-source-contracts.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createSourceFetch } from './helpers/source-fetch.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
@@ -58,8 +57,8 @@ const providerRenderSrc = await fetchWithRetry('js/provider-panel-renderers.js')
 const modelControlsSrc = await fetchWithRetry('js/provider-model-controls.js');
 const providerDelegatesSrc = await fetchWithRetry('js/provider-panel-delegates.js');
 const walletPanelSrc = await fetchWithRetry('js/provider-wallet-panels.js');
-const nodeRefundRecoverySrc = await fetchWithRetry('js/provider-wallet-refund-recovery.js');
-const walletPanelRenderSrc = await fetchWithRetry('js/provider-wallet-panel-renderers.js');
+const nodeRefundRecoverySrc = await fetchWithRetry('js/wallet-node-controller.js');
+const walletNodeComponentSrc = await fetchWithRetry('js/components/WalletNode.svelte');
 const walletSeedComponentSrc = await fetchWithRetry('js/components/WalletSeed.svelte');
 const walletRuntimeSrc = await fetchWithRetry('js/provider-wallet-runtime.js');
 const providerQrSrc = await fetchWithRetry('js/provider-qr.js');
@@ -188,28 +187,22 @@ assert('Pending deposit saved BEFORE node call',
   depositFnSrc.indexOf("_setMeta('pendingDeposit', pendingDeposit)") < depositFnSrc.indexOf('return submitRoutstrDeposit('));
 assert('Pending deposit cleared after credential storage', nodePaymentsSrc.includes("_setMeta('pendingDeposit', null)"));
 assert('Pending withdraw saved before melt', walletSrc.includes("_setMeta('pendingWithdraw',"));
-const nodeRefundHtmlIdx = nodeRefundRecoverySrc.indexOf('export function refundRecoveryHtml');
-const nodeRefundHtmlSrc = nodeRefundHtmlIdx >= 0
-  ? nodeRefundRecoverySrc.slice(nodeRefundHtmlIdx, nodeRefundRecoverySrc.indexOf('export function nodeSessionRejectedHtml', nodeRefundHtmlIdx)) : '';
-const nodeRefundIdx = nodeRefundRecoverySrc.indexOf('export async function withdrawNodeToWallet');
-const nodeRefundSrc = nodeRefundIdx >= 0 ? nodeRefundRecoverySrc.slice(nodeRefundIdx) : '';
-const durableRefundCallIdx = nodeRefundSrc.indexOf('await runtime.cashuRefundNodeToToken(target, recoveryId, recoveryToken, generation)');
-const receiveRefundCallIdx = nodeRefundSrc.indexOf('await runtime.cashuReceiveToken(token)');
+const nodeRefundSrc = nodeRefundRecoverySrc.slice(nodeRefundRecoverySrc.indexOf('async function withdraw('));
+const durableRefundCallIdx = nodeRefundSrc.indexOf('await deps.refund(node, id, token, generation, expectedKey)');
+const receiveRefundCallIdx = nodeRefundSrc.indexOf('await deps.receive(refund.token)');
 assert('Node refund uses its durable payment helper before receiving',
-  walletPanelSrc.includes("from './provider-wallet-refund-recovery.js'")
-    && sourceFunctionHasStatement(walletPanelSrc, 'doRoutstrNodeWithdraw',
-      'return withdrawNodeToWallet(nodeUrl, recoveryId, recoveryToken, generation, _ensureWalletSeed, _refreshRoutstrWalletBalance, refreshRoutstrBalance);', 'last')
+  walletPanelSrc.includes("from './wallet-node-controller.js'")
+    && walletPanelSrc.includes('nodes.withdraw(')
     && durableRefundCallIdx >= 0 && receiveRefundCallIdx > durableRefundCallIdx);
 assert('Node refund has a separate encrypted journal',
   nodePaymentsSrc.includes("const scopedKey = 'pendingNodeRefund:' + await _digestStorageKey(String(nodeUrl) + '\\n' + key)")
     && nodePaymentsSrc.includes("journalKey = scoped || differentSession ? scopedKey : 'pendingNodeRefund'")
     && nodePaymentsSrc.includes('await _setMeta(journalKey, result)'));
-assert('Node refund retry retains its origin',
-  nodeRefundHtmlSrc.includes('resume-node-refund') && nodeRefundHtmlSrc.includes('data-node-url')
-    && nodeRefundHtmlSrc.includes('escapeAttr(node)') && nodeRefundHtmlSrc.includes('data-recovery-id')
-    && nodeRefundHtmlSrc.includes('data-generation')
-    && nodePaymentsSrc.includes('pending.nodeUrl !== nodeUrl')
-    && nodePaymentsSrc.includes('pending.generation !== generation'));
+assert('Node refund retry retains its origin privately',
+  nodeRefundSrc.includes('view?.readRecovery(index)') && nodeRefundSrc.includes('withdraw(record.node, record.id, record.token, record.generation)')
+    && walletNodeComponentSrc.includes('data-wallet-node-refund-index')
+    && !walletNodeComponentSrc.includes('data-token') && !walletNodeComponentSrc.includes('data-generation')
+    && nodePaymentsSrc.includes('pending.nodeUrl !== nodeUrl') && nodePaymentsSrc.includes('pending.generation !== generation'));
 assert('Node refund cannot overwrite outgoing recovery', !nodePaymentsSrc.includes("_setMeta('pendingWithdraw'"));
 assert('Pending withdraw cleared after success', walletSrc.includes("_setMeta('pendingWithdraw', null)"));
 assert('Recovery UI shows for pending deposits', ppSrc.includes('Pending deposit recovery'));
@@ -306,10 +299,8 @@ assert('Unseeded device UI explains separate sync and wallet identities',
     && walletSeedComponentSrc.includes('does not copy spendable Cashu proofs')
     && walletSeedComponentSrc.includes('setup-wallet-seed'));
 assert('Node refund is gated before its mutation until the local wallet has a seed',
-  sourceFunctionHasStatement(nodeRefundRecoverySrc, 'withdrawNodeToWallet',
-    'if (!await runtime.cashuHasWalletSeed?.()) { await ensureSeed(() => withdrawNodeToWallet(target, recoveryId, recoveryToken, generation, ensureSeed, refreshWallet, refreshNode)); return; }')
-    && nodeRefundSrc.indexOf('cashuHasWalletSeed') >= 0
-    && durableRefundCallIdx > nodeRefundSrc.indexOf('cashuHasWalletSeed'));
+  nodeRefundSrc.includes('if (!await deps.hasSeed())') && nodeRefundSrc.includes('await deps.seed(')
+    && (/if \(!owns\(\)\)\s*(?:\{\s*)?return;/).test(nodeRefundSrc) && durableRefundCallIdx > nodeRefundSrc.indexOf('await deps.hasSeed()'));
 assert('Wallet mnemonic excluded from generic settings apply', !syncApplySrc.includes("'labcharts-cashu-wallet-mnemonic'"));
 assert('Generic backup excludes wallet identity but keeps node preference',
   !backupSrc.includes("'labcharts-cashu-wallet-mint'") &&
@@ -352,7 +343,7 @@ assert('SW caches cashu-wallet-store.js', swSrc.includes('/js/cashu-wallet-store
 assert('SW caches nostr-discovery.js', swSrc.includes('/js/nostr-discovery.js'));
 assert('SW caches provider-wallet-runtime.js', swSrc.includes('/js/provider-wallet-runtime.js'));
 assert('SW caches provider-wallet-panel-buttons.js', swSrc.includes('/js/provider-wallet-panel-buttons.js'));
-assert('SW caches provider-wallet-panel-renderers.js', swSrc.includes('/js/provider-wallet-panel-renderers.js'));
+assert('SW caches the owned node view and its adapter', swSrc.includes('/js/components/WalletNode.svelte.native.js') && swSrc.includes('/js/wallet-node-component.js') && swSrc.includes('/js/wallet-node-controller.js'));
 assert('SW caches provider-wallet-panels.js', swSrc.includes('/js/provider-wallet-panels.js'));
 assert('SW caches provider-wallet-funding-recovery.js', swSrc.includes('/js/provider-wallet-funding-recovery.js'));
 assert('SW caches provider-qr.js', swSrc.includes('/js/provider-qr.js'));
@@ -412,7 +403,7 @@ assert('Routstr panel uses extracted wallet action buttons', providerRenderSrc.i
 assert('Routstr panel uses extracted node action buttons', providerRenderSrc.includes('buildRoutstrNodeActions(nodeUrl, !!currentKey, null)'));
 assert('Mint edit UI', walletPanelSrc.includes('showRoutstrMintEdit'));
 assert('Node picker UI', walletPanelSrc.includes('showRoutstrNodePicker'));
-assert('Deposit amount picker', walletPanelSrc.includes('routstr-deposit-amount'));
+assert('Deposit amount picker', walletNodeComponentSrc.includes('routstr-deposit-amount') && walletPanelSrc.includes('nodes.deposit(amount)'));
 assert('Node withdraw handler', walletPanelSrc.includes('doRoutstrNodeWithdraw'));
 assert('Wallet panel imports Routstr key helpers', walletPanelSrc.includes('getRoutstrKey') && walletPanelSrc.includes('saveRoutstrKey'));
 assert('Funded legacy Routstr sessions bootstrap the shared session clock',
@@ -447,9 +438,8 @@ assert('Routstr Private TEE mode is delegated and swaps model catalogs',
   providerDelegatesSrc.includes("'routstr-private-mode': 'toggleRoutstrPrivateMode'")
     && modelControlsSrc.includes("on ? 'labcharts-routstr-private-models' : 'labcharts-routstr-models'"));
 assert('Routstr node picker marks advertised private TEE support',
-  walletPanelRenderSrc.includes('routstrNodePickerRowHtml')
-    && walletPanelRenderSrc.includes("String(model.id || '').startsWith('tinfoil-')")
-    && walletPanelRenderSrc.includes('Private TEE'));
+  nodeRefundRecoverySrc.includes("model.id.startsWith('tinfoil-')")
+    && walletNodeComponentSrc.includes('node.privateTee') && walletNodeComponentSrc.includes('Advertises Private TEE'));
 assert('Changing Routstr nodes clears node-scoped private model state',
   discoverySrc.includes("from './routstr-model-cache.js'")
     && discoverySrc.includes('clearRoutstrModelCaches()'));

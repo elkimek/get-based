@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { refundRecoveryHtml, nodeSessionRejectedHtml, showSavedNodeRefunds } from '../js/provider-wallet-refund-recovery.js';
+import { mountWalletNode, disposeWalletNode } from '../js/wallet-node-component.js';
 import { recoverPendingWalletFunding } from '../js/provider-wallet-funding-recovery.js';
 import { disposeWalletFunding, mountWalletFunding } from '../js/wallet-funding-component.js';
-import { configureRoutstrWalletRuntime } from '../js/provider-wallet-runtime.js';
 
 const payloads = [
   '</textarea><img src=x onerror="alert(1)">',
@@ -19,30 +18,28 @@ function expectInert(root: ParentNode) {
 }
 
 beforeEach(() => { document.body.replaceChildren(); });
-afterEach(disposeWalletFunding);
+afterEach(() => { disposeWalletFunding(); disposeWalletNode(); });
 
-it.each(payloads)('keeps saved refund text and recovery attributes inert: %s', payload => {
-  const root = document.createElement('div');
-  root.innerHTML = refundRecoveryHtml(new Error(payload), payload, payload, {
-    nodeUrl: payload, mint: payload, recoveryId: payload, generation: payload, createdAt: 1,
-  });
-  expectInert(root);
-  expect(root.querySelector('textarea')!.value).toBe(payload);
-  expect(root.querySelector('[role="status"]')!.textContent).toBe(payload);
-  const button = root.querySelector('button')!;
-  for (const name of ['nodeUrl', 'recoveryId', 'token', 'generation']) {
-    expect(button.dataset[name]).toBe(payload);
-  }
-  expect(root.textContent).toContain('Node: ' + payload);
-  expect(root.textContent).toContain('Token mint: ' + payload);
+function nodeView() {
+  const root = document.createElement('div'); document.body.append(root);
+  const view = mountWalletNode(root, { connect: () => {}, refresh: () => {}, chooseMint: () => {}, deposit: () => {}, newSession: () => {}, retry: () => {}, copy: () => {}, reclaim: () => {}, close: () => {} }, 'refunds');
+  return { root, view };
+}
+it.each(payloads)('keeps private recovery ports and metadata inert: %s', payload => {
+  const { root, view } = nodeView();
+  view.setRecoveries([{ node: payload, mint: payload, token: payload, id: payload, generation: payload, createdAt: 1 }]);
+  view.setState({ ...view.getState(), phase: 'ready', pending: false });
+  expectInert(root); expect(root.querySelector('textarea')!.value).toBe(payload);
+  expect(root.querySelector('[data-token],[data-recovery-id],[data-generation]')).toBeNull();
+  expect(root.textContent).toContain(payload); expect(root.textContent).toContain('Token mint: ' + payload);
+  expect(view.readRecovery(0)).toMatchObject({ token: payload, id: payload, generation: payload });
+  expect(JSON.stringify(view.getState())).not.toContain(payload);
 });
-
-it.each(payloads)('keeps rejected-session node attributes inert: %s', payload => {
-  const root = document.createElement('div');
-  root.innerHTML = nodeSessionRejectedHtml(payload);
-  expectInert(root);
-  expect(root.querySelector('button')!.dataset.nodeUrl).toBe(payload);
-  expect(root.querySelector('button')!.dataset.routstrWalletAction).toBe('new-node-session');
+it.each(payloads)('keeps rejected-session node text inert: %s', payload => {
+  const { root, view } = nodeView();
+  view.setState({ ...view.getState(), mode: 'deposit', node: payload, phase: 'rejected', pending: false });
+  expectInert(root); expect(root.textContent).toContain(payload);
+  expect(root.querySelector('[data-routstr-wallet-action="new-node-session"]')).not.toBeNull();
 });
 
 it.each(payloads)('escapes pending funding mint and error details without exposing token data: %s', async payload => {
@@ -62,21 +59,4 @@ it.each(payloads)('escapes pending funding mint and error details without exposi
   expect(status.textContent).toContain('Pending invoice at ' + payload + ': ' + payload);
   expect(status.textContent).not.toContain('private-token-data');
   expect(refresh).not.toHaveBeenCalled();
-});
-
-it('renders saved refund cards through the actual sink without interpreting stored token metadata', async () => {
-  const payload = payloads[0]!;
-  document.body.innerHTML = '<div id="routstr-node-picker"></div>';
-  const previous = configureRoutstrWalletRuntime({
-    cashuGetPendingNodeRefunds: async () => [{ nodeUrl: payload, token: payload, recoveryId: payload, generation: payload, createdAt: 1 }],
-    cashuGetTokenMintUrl: async () => payload,
-  });
-  try {
-    await showSavedNodeRefunds();
-    const picker = document.getElementById('routstr-node-picker')!;
-    expectInert(picker);
-    expect(picker.querySelector('textarea')!.value).toBe(payload);
-    expect(picker.querySelector('button')!.dataset.recoveryId).toBe(payload);
-    expect(picker.textContent).toContain('Token mint: ' + payload);
-  } finally { configureRoutstrWalletRuntime(previous); }
 });

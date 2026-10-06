@@ -40,8 +40,9 @@ export async function verifyNodeDepositSession(nodeUrl: string, key: string) {
   if (getRoutstrSessionKey(nodeUrl) !== key) throw new Error('Node session changed before this deposit. Wallet funds were not moved.');
 }
 
-export async function prepareNewNodeSession(nodeUrl: string) {
+export async function prepareNewNodeSession(nodeUrl: string, expectedKey?: string) {
   nodeUrl = canonicalRoutstrUrl(nodeUrl);
+  if (expectedKey !== undefined && expectedKey !== getRoutstrSessionKey(nodeUrl)) throw new Error('Node session changed. Reopen the node controls before starting a new session.');
   const deposit = await _getMeta('pendingDeposit');
   let depositNode: string | undefined;
   if (deposit && typeof deposit === 'object') {
@@ -100,9 +101,10 @@ export async function depositExternalTokenToNode(nodeUrl: string, token: string)
   return submitRoutstrDeposit(record);
 }
 
-export async function requestNodeRefund(nodeUrl: unknown, recoveryId?: string, recoveryToken?: string, generation?: string): Promise<NodeRefund & { token: string; recoveryId: string }> {
+export async function requestNodeRefund(nodeUrl: unknown, recoveryId?: string, recoveryToken?: string, generation?: string, expectedKey?: string): Promise<NodeRefund & { token: string; recoveryId: string }> {
   nodeUrl = canonicalRoutstrUrl(nodeUrl);
   let key = getRoutstrSessionKey(nodeUrl as string);
+  if (!recoveryId && expectedKey !== undefined && expectedKey !== key) throw new Error('Node session changed. Reopen the node controls before withdrawing.');
   let journalKey: string;
   let pending: NodeRefund | null;
   if (recoveryId) {
