@@ -263,6 +263,28 @@ web-search/image limits remain visible for known private models. Catalog reads
 reject replaced node, credential, request order or initiating Settings view
 before writing pricing, capabilities, catalogs or selection.
 
+`LocalAiSettings.svelte` owns the Local AI connection fields, status, model
+selection, hardware advice, pull-command copy and VRAM override controls. Its
+private address/key ports retain drafts and focus during catalog/advisor updates
+and scrub on Settings close or provider switch. Checked presentation snapshots
+carry derived location, cloud pricing, model labels and hardware assessments;
+credentials and raw provider metadata stay outside those snapshots.
+
+`local-ai-settings-controller.ts` single-flights explicit connection tests across
+remounts. It captures the draft, stored configuration, selected model, provider,
+chat backend and view before preflight/discovery, same-machine VRAM release and
+endpoint/model activation. It checks ownership again before persistence; failed
+or denied checks preserve the saved connection and selection. Accepted encrypted
+configuration writes can finish after closure without updating a replacement view
+or returning it to Chat. Passive Settings discovery requests no activation and
+rejects stale owners/configurations. Hardware advice also checks request order,
+selected model and manual override after detection. Provider lifecycle services
+retain unload-before-switch semantics; full vision/reasoning/runtime metadata is
+preserved for Chat and Nutrition AI while the advisor uses a checked projection.
+The existing PII connection view and its independently stored key remain separate.
+Native Local AI/advisor markup and advisor CSS are removed; the shared legacy
+status-dot rules still support the public Privacy DOM adapter.
+
 `CustomSettings.svelte` owns OpenAI-compatible endpoint Settings: private URL/key
 fields, validation/removal status, model catalog and manual model selection. Its
 adapter preserves fields and focus during model refreshes, scopes retained

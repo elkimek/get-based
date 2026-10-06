@@ -55,14 +55,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
 
       document.body.insertAdjacentHTML('beforeend', `
         <section id="local-ai-fixture">
-          <input id="local-ai-url-input">
-          <input id="local-ai-apikey-input" value="sk-local">
-          <span id="local-ai-dot" class="local-ai-status-dot"></span>
-          <span id="local-ai-status-text"></span>
-          <div id="local-ai-model-section" style="display:none">
-            <select id="local-ai-model-select"></select>
-          </div>
-          <div id="local-ai-advisor"></div>
+          <div id="local-ai-owned-fixture"></div>
           <input id="pii-local-url-input">
           <input id="pii-local-apikey-input" value="sk-pii-local">
           <span id="pii-local-dot" class="local-ai-status-dot"></span>
@@ -74,6 +67,8 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         </section>
       `);
 
+      (await import('/js/provider-local-ai-controls.js')).hydrateLocalAiSettings(document.getElementById('local-ai-owned-fixture')!);
+      (await import('/js/local-ai-settings-component.js')).getLocalAiSettingsView()!.setConnection({ url: '', apiKey: 'sk-local' });
       const urlInput = (document.getElementById('local-ai-url-input') as HTMLInputElement|null);
       const statusText = (document.getElementById('local-ai-status-text') as HTMLElement|null);
       const dot = (document.getElementById('local-ai-dot') as HTMLElement|null);
@@ -198,7 +193,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         && (document.getElementById('local-ai-advisor') as HTMLElement|null)?.textContent!.includes('loaded now')
         && (document.getElementById('local-ai-advisor') as HTMLElement|null)?.textContent!.includes('available \u2014 loads on first request')
         && !(document.getElementById('local-ai-advisor') as HTMLElement|null)?.textContent!.includes('not loaded');
-      (document.getElementById('local-ai-advisor') as HTMLElement|null)!.innerHTML = '';
+      (await import('/js/local-ai-settings-component.js')).getLocalAiSettingsView()!.setAdvisor(null);
       controls.refreshModelAdvisor();
       for (let i = 0; i < 20 && !(document.getElementById('local-ai-advisor') as HTMLElement|null)?.textContent!.includes('qwen2.5:14b'); i += 1) {
         await wait(10);
@@ -212,6 +207,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
 
       const overrideToggle = document.querySelector<HTMLElement>('[data-local-ai-action="toggle-override"]');
       overrideToggle?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      await wait(0);
       const hardwareOverrideKeyboardToggle = document.querySelector<HTMLElement>('.model-advisor-override-body')?.style.display === 'flex'
         && overrideToggle?.getAttribute('aria-expanded') === 'true';
       (document.getElementById('hw-vram-override-input') as HTMLInputElement|null)!.value = '16';
@@ -242,7 +238,8 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         && providerStorage.getOllamaPIIApiKey() === 'sk-pii-local';
 
       await providerStorage.saveOllamaConfig({ url: 'https://remote.example/v1', model: 'remote-model', mode: 'openai-compatible', apiKey: '' });
-      (document.getElementById('local-ai-model-select') as HTMLSelectElement|null)!.innerHTML = '<option value="remote-small">remote-small</option><option value="remote-huge">remote-huge</option>';
+      const localView = (await import('/js/local-ai-settings-component.js')).getLocalAiSettingsView()!;
+      localView.refresh({ ...localView.getSnapshot(), selectedModel: 'remote-small', models: [{ value: 'remote-small', label: 'remote-small' }, { value: 'remote-huge', label: 'remote-huge' }] });
       await controls.renderModelAdvisor([
         { name: 'remote-small', size: 2000000000, quantLevel: 'Q4', paramSize: '2B' },
         { name: 'remote-huge', size: 30000000000, quantLevel: 'Q4', paramSize: '30B' },
@@ -278,6 +275,7 @@ test('local AI settings controls cover connection, advisor, privacy, and hardwar
         else localStorage.setItem(key, oldStorage[key]!);
       }
       cryptoStore.updateKeyCache('labcharts-ollama', oldStorage['labcharts-ollama'] || '');
+      (await import('/js/local-ai-settings-component.js')).disposeLocalAiSettings();
       (document.getElementById('local-ai-fixture') as HTMLElement|null)?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
     }
@@ -312,12 +310,7 @@ test('switching local backends automatically releases the previous server VRAM f
     try {
       document.body.insertAdjacentHTML('beforeend', `
         <section id="local-ai-switch-fixture">
-          <input id="local-ai-url-input" value="http://10.222.88.195:11434">
-          <input id="local-ai-apikey-input" value="">
-          <span id="local-ai-dot" class="local-ai-status-dot"></span>
-          <span id="local-ai-status-text"></span>
-          <div id="local-ai-model-section" style="display:none"><select id="local-ai-model-select"></select></div>
-          <div id="local-ai-advisor"></div>
+          <div id="local-ai-switch-owned-fixture"></div>
         </section>
       `);
       await providerStorage.saveOllamaConfig({
@@ -329,6 +322,8 @@ test('switching local backends automatically releases the previous server VRAM f
       providerStorage.setOllamaMainModel('qwen/qwen3.6-27b');
       discovery.clearLocalAiDiscovery();
 
+      (await import('/js/provider-local-ai-controls.js')).hydrateLocalAiSettings(document.getElementById('local-ai-switch-owned-fixture')!);
+      (await import('/js/local-ai-settings-component.js')).getLocalAiSettingsView()!.setConnection({ url: 'http://10.222.88.195:11434', apiKey: '' });
       window.fetch = async (url, options = {}) => {
         const href = String(url);
         if (options.method === 'HEAD' && href.endsWith('/v1/models')) return new Response('', { status: 204 });
@@ -373,6 +368,7 @@ test('switching local backends automatically releases the previous server VRAM f
       cryptoStore.updateKeyCache('labcharts-ollama', oldConfig || '');
       if (oldModel == null) localStorage.removeItem('labcharts-ollama-model');
       else localStorage.setItem('labcharts-ollama-model', oldModel);
+      (await import('/js/local-ai-settings-component.js')).disposeLocalAiSettings();
       (document.getElementById('local-ai-switch-fixture') as HTMLElement|null)?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
     }

@@ -71,6 +71,7 @@ test('provider panel renderers cover Venice and Local AI markup branches', async
       // Local AI has no named provider case, so it is rendered through the default fallback.
       (await import('/js/venice-settings-component.js')).disposeVeniceSettings();
       fixture.innerHTML = renderers.renderAIProviderPanel('unknown-provider');
+      (await import('/js/provider-local-ai-controls.js')).hydrateLocalAiSettings(fixture.querySelector<HTMLElement>('[data-local-ai-settings-host]')!);
       const localAIRenders = fixture.querySelector<HTMLInputElement>('#local-ai-url-input')?.value === 'https://local.example'
         && fixture.querySelector<HTMLInputElement>('#local-ai-apikey-input')?.value === 'local-secret'
         && fixture.querySelector<HTMLElement>('#local-ai-status-text')?.textContent === 'Checking connection...'
@@ -93,6 +94,7 @@ test('provider panel renderers cover Venice and Local AI markup branches', async
       if (oldCache.ollama == null) crypto.updateKeyCache('labcharts-ollama', null);
       else crypto.updateKeyCache('labcharts-ollama', oldCache.ollama);
       (await import('/js/venice-settings-component.js')).disposeVeniceSettings();
+      (await import('/js/local-ai-settings-component.js')).disposeLocalAiSettings();
       fixture.remove();
     }
   }, { renderersUrl: moduleUrl('/js/provider-panel-renderers.js') });

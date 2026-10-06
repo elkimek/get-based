@@ -1,3 +1,4 @@
+import { disposeLocalAiSettings } from './local-ai-settings-component.js';
 import { getCustomSettingsView, mountCustomSettings, disposeCustomSettings } from './custom-settings-component.js';
 import { buildCustomSettingsSnapshot, buildCustomModelState } from './custom-settings-view.js';
 import { createCustomSettingsController } from './custom-settings-controller.js';
@@ -41,7 +42,7 @@ import { clearRoutstrModelCaches } from './routstr-model-cache.js';
 import { installProviderPanelDelegates } from './provider-panel-delegates.js';
 import { renderAIProviderPanel } from './provider-panel-renderers.js';
 import {
-  configureLocalAiControls,
+  configureLocalAiControls, hydrateLocalAiSettings,
   initSettingsOllamaCheck,
   refreshModelAdvisor,
   testOllamaConnection,
@@ -212,6 +213,7 @@ export function hydrateVeniceSettings(): void {
   if (view !== existing) view.setStoredKey(getVeniceKey());
 }
 export function hydrateOwnedProviderSettings(): void {
+  hydrateLocalAiSettings();
   hydrateCustomSettings();
   hydrateRoutstrSettings();
   hydrateOpenRouterSettings();
@@ -220,6 +222,7 @@ export function hydrateOwnedProviderSettings(): void {
   hydrateRoutstrModelSettings();
 }
 function disposeOwnedProviderSettings(): void {
+  disposeLocalAiSettings();
   disposeCustomSettings();
   disposeRoutstrSettings();
   disposeRoutstrModelSettings();

@@ -1,3 +1,4 @@
+import { disposeLocalAiSettings } from './local-ai-settings-component.js';
 import { disposeCustomSettings } from './custom-settings-component.js';
 import { disposePpqSettings } from './ppq-settings-component.js';
 // settings-provider-bridge.js - lazy bridge from Settings to provider panel modules.
@@ -31,6 +32,7 @@ function loadWalletPanels(): Promise<WalletPanels> {
 export function disposeSettingsProviderPanels(): void {
   ++providerViewEpoch;
   loadedWalletPanels?.clearRoutstrWalletTimers();
+  disposeLocalAiSettings();
   disposeCustomSettings();
   disposeOpenRouterSettings();
   disposeVeniceSettings();
@@ -97,6 +99,7 @@ export function switchAIProviderBridge(provider: unknown): void {
   else if (provider !== 'openrouter') clearOpenRouterOAuthSession();
   setProviderButtonState(provider);
   loadedWalletPanels?.clearRoutstrWalletTimers();
+  disposeLocalAiSettings();
   disposeCustomSettings();
   disposeOpenRouterSettings();
   disposeVeniceSettings();

@@ -194,17 +194,19 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
   const localAiControlsSrc = read('js/provider-local-ai-controls.js');
   const localAiRuntimeSrc = read('js/provider-local-ai-runtime.js');
   const panelRenderSrc = read('js/provider-panel-renderers.js');
+  const localAiComponentSrc = read('js/components/LocalAiSettings.svelte');
   assert('Provider local AI controls imports hardware.js', localAiControlsSrc.includes("from './hardware.js'"));
   assert('Provider local AI controls imports runtime adapter', localAiControlsSrc.includes("from './provider-local-ai-runtime.js'"));
   assert('Provider local AI runtime owns model details cache', localAiRuntimeSrc.includes('_lastOllamaModelDetails'));
   assert('Provider local AI controls has no direct window refs', !/\bwindow(\.|\s*\[)/.test(localAiControlsSrc));
-  assert('Provider renderer has advisor placeholder', panelRenderSrc.includes('local-ai-advisor'));
+  assert('Provider renderer has advisor placeholder', panelRenderSrc.includes('LOCAL_AI_SETTINGS_HOST') && localAiComponentSrc.includes('local-ai-advisor'));
   assert('Provider local AI controls calls renderModelAdvisor', localAiControlsSrc.includes('renderModelAdvisor'));
   assert('Provider panels exports copyOllamaPullCmd', ppSrc.includes('copyOllamaPullCmd'));
   assert('Provider local AI controls validates base URL before fetch', localAiControlsSrc.includes('normalizeLocalAiBaseUrl'));
   assert('Provider local AI advisor delegates rendered controls without inline handlers',
-    localAiControlsSrc.includes('data-local-ai-action') &&
-      localAiControlsSrc.includes('installLocalAiControlDelegates') &&
+    localAiComponentSrc.includes('data-local-ai-action') &&
+      localAiComponentSrc.includes('actions.applyOverride') &&
+      localAiControlsSrc.includes('mountLocalAiSettings') &&
       !/\bon(?:click|change|input|submit|keydown|keyup)=/.test(localAiControlsSrc));
 
   // ═══════════════════════════════════════
@@ -213,6 +215,18 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
   console.log('%c 9. Local AI URL Validation ', 'font-weight:bold;color:#f59e0b');
 
   const localAiControls = await import('../js/provider-local-ai-controls.js');
+  const { JSDOM } = await import('jsdom');
+  const dom = new JSDOM('<!doctype html><body></body>', { url: 'http://localhost' });
+  const globals = ['window','document','Node','Element','HTMLElement','HTMLInputElement','HTMLMediaElement','HTMLSelectElement','HTMLButtonElement','HTMLOptionElement','SVGElement','Document','Text','Comment','Event','CustomEvent','MutationObserver'];
+  const savedGlobals = new Map(globals.map(name => [name, Object.getOwnPropertyDescriptor(globalThis,name)]));
+  for (const name of globals) Object.defineProperty(globalThis,name,{ configurable: true, writable: true, value: (dom.window as unknown as Record<string,unknown>)[name] });
+  const ownedHost = document.createElement('div'); document.body.appendChild(ownedHost);
+  const localComponent = await import('../js/local-ai-settings-component.js');
+  const prepareMain = (url: string, available: boolean) => {
+    if (!available) { localComponent.disposeLocalAiSettings(); return; }
+    if (!localComponent.getLocalAiSettingsView()) localAiControls.hydrateLocalAiSettings(ownedHost);
+    localComponent.getLocalAiSettingsView()!.setConnection({ url, apiKey: '' });
+  };
   const originalGetElementById = document.getElementById;
   const originalFetch = globalThis.fetch;
   const hadLocation = Object.prototype.hasOwnProperty.call(globalThis, 'location');
@@ -236,13 +250,14 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
     };
 
     const mainDot = makeDot();
-    const mainText = { textContent: '' };
+    const mainText = { get textContent() { return ownedHost.querySelector('#local-ai-status-text')?.textContent || ''; }, set textContent(value: string) { localComponent.getLocalAiSettingsView()?.setStatus('testing',value); } };
     let elements: Record<string, {value: string} | ReturnType<typeof makeDot> | {textContent: string}> = {
       'local-ai-url-input': { value: 'htp://localhost:11434' },
       'local-ai-dot': mainDot,
       'local-ai-status-text': mainText,
     };
     (document as unknown as {getElementById(id: string): unknown}).getElementById = (id) => elements[id] || null;
+    prepareMain((elements['local-ai-url-input'] as { value: string }).value, !!elements['local-ai-dot']);
     await localAiControls.testOllamaConnection();
     assert('Malformed main Local AI URL shows protocol guidance',
       mainText.textContent === 'Local AI URL must start with http:// or https://',
@@ -266,8 +281,9 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
       'local-ai-url-input': { value: 'http://localhost:11434' },
       'local-ai-status-text': mainText,
     };
+    prepareMain((elements['local-ai-url-input'] as { value: string }).value, !!elements['local-ai-dot']);
     await localAiControls.testOllamaConnection();
-    assert('Main Local AI connection fails closed when its status dot is missing', fetchCalls === 0);
+    assert('Main Local AI connection fails closed when its owned view is missing', fetchCalls === 0);
     elements = {
       'pii-local-url-input': { value: 'http://localhost:11434' },
       'pii-local-status-text': piiText,
@@ -286,6 +302,7 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
       'local-ai-status-text': mainText,
     };
     mainText.textContent = '';
+    prepareMain((elements['local-ai-url-input'] as { value: string }).value, !!elements['local-ai-dot']);
     await localAiControls.testOllamaConnection();
     assert('Unreachable main Local AI URL does not show CORS guidance',
       mainText.textContent === 'Not connected \u2014 check URL and ensure your server is running',
@@ -318,13 +335,17 @@ console.log('=== Hardware & Model Advisor Tests ===\n');
       'local-ai-status-text': mainText,
     };
     mainText.textContent = '';
+    prepareMain((elements['local-ai-url-input'] as { value: string }).value, !!elements['local-ai-dot']);
     await localAiControls.testOllamaConnection();
     assert('Reachable server with blocked normal fetch shows CORS guidance',
       mainText.textContent.includes('Blocked by CORS'),
-      mainText.textContent);
+      JSON.stringify({ rendered: mainText.textContent, status: localComponent.getLocalAiSettingsView()?.getStatus(), current: localComponent.getLocalAiSettingsView()?.isCurrent() }));
     assert('CORS classification uses no-cors reachability probe', noCorsProbeCalls === 1, `no-cors calls: ${noCorsProbeCalls}`);
   } finally {
+    localComponent.disposeLocalAiSettings();
     document.getElementById = originalGetElementById;
+    dom.window.close();
+    for (const name of globals) { const previous = savedGlobals.get(name); if (previous) Object.defineProperty(globalThis,name,previous); else Reflect.deleteProperty(globalThis,name); }
     globalThis.fetch = originalFetch;
     if (hadLocation) globalThis.location = originalLocation;
     else delete (globalThis as {location?: unknown}).location;

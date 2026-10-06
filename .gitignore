@@ -1669,3 +1669,9 @@ js/custom-settings-contract.js
 js/custom-settings-component.js
 js/custom-settings-view.js
 js/custom-settings-controller.js
+
+# Owned Local AI settings runtime output
+/js/local-ai-settings-contract.js
+/js/local-ai-settings-component.js
+/js/local-ai-settings-view.js
+/js/local-ai-settings-controller.js
