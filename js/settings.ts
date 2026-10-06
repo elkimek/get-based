@@ -8,6 +8,7 @@ import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel, di
 import { getChatBackend } from './agent-chat-settings.js';
 import { controlCLICompanion, copyCLIAgentLoginCommand, copyCLICompanionRunCommand, copyCLICompanionStartCommand, copyCLICompanionUpdateCommand, refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentEffort, setCLIAgentModel, setCLIAgentProviderFilter, setCLIAgentTarget, setCLICompanionPlatform, testLocalCodex, toggleCLIAgentOptions, toggleLocalCodex } from './settings-cli-agent-panel.js';
 import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
+import { disposeWearablesSettings } from './wearables-settings-component.js';
 import { setProductRecsEnabled } from './recommendations.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
@@ -457,6 +458,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   const extensionAI = renderAppExtensionSettingsSlot('ai', extensionContext);
   const extensionPanels = renderAppExtensionSettingsSlot('panels', extensionContext);
 
+  disposeWearablesSettings();
   disposeSettingsRecords();
   disposeSettingsProtection();
   disposeMessengerSection();
@@ -704,6 +706,7 @@ export function updateSettingsUI() {
 }
 
 export function closeSettingsModal() {
+  disposeWearablesSettings();
   closeModalOverlay('settings-modal-overlay');
   updateChatNudgeRuntime();
   (settingsRuntime as SettingsOperations).refreshMobileDashboardActiveTab();

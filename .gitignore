@@ -1587,3 +1587,10 @@ deploy/profile-share/data/
 /js/sync-dialog-classes.js
 /js/sync-dialog-component.js
 /js/sync-dialog-controller.js
+
+/js/wearables-settings-contract.js
+/js/wearables-settings-view.js
+/js/wearables-settings-classes.js
+/js/wearables-settings-component.js
+
+/js/wearables-connection-summaries.js

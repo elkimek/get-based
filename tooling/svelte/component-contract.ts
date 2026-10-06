@@ -38,3 +38,7 @@ export const syncSettingsCompatible: typeof NativeSyncSettings = SyncSettings;
 import SyncDialog from '../../js/components/SyncDialog.svelte';
 import type NativeSyncDialog from '../../js/components/SyncDialog.svelte.native.js';
 export const syncDialogCompatible: typeof NativeSyncDialog = SyncDialog;
+
+import WearablesSettings from '../../js/components/WearablesSettings.svelte';
+import type NativeWearablesSettings from '../../js/components/WearablesSettings.svelte.native.js';
+export const wearablesSettingsCompatible: typeof NativeWearablesSettings = WearablesSettings;

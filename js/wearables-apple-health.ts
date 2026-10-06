@@ -28,7 +28,7 @@ export { parseAppleHealthBlob, parseAppleHealthXml } from './wearables-apple-hea
 import { upsertDailyBatch, setMeta } from './wearables-store.js';
 import { syncWearableSummary } from './wearables-summary.js';
 import { getActiveProfileId } from './profile.js';
-import { saveImportedData } from './data.js';
+import { saveImportedDataForProfile } from './data.js';
 import { state } from './state.js';
 import { isDebugMode } from './utils.js';
 import {
@@ -47,6 +47,11 @@ import {
 // to a Blob (bytes only, no JS string allocation) and we stream-decode that.
 export async function importAppleHealthFile(file: File | null | undefined, onProgress?: AppleHealthProgressCallback | null, options: AppleHealthImportOptions = {}) {
   if (!file) throw new Error('No file provided');
+  const profileId = getActiveProfileId();
+  const profileData = state.importedData;
+  if (!profileData) throw new Error('No active profile data');
+  const baseData = structuredClone(profileData);
+  const profileCurrent = () => getActiveProfileId() === profileId && state.importedData === profileData;
   onProgress?.({ stage: 'reading', pct: 0 });
 
   const name = (file.name || '').toLowerCase();
@@ -67,7 +72,6 @@ export async function importAppleHealthFile(file: File | null | undefined, onPro
   if (isDebugMode?.()) console.log(`[apple-health] parsed ${rows.length} canonical day rows`);
 
   onProgress?.({ stage: 'writing', pct: 80 });
-  const profileId = getActiveProfileId();
   if (rows.length > 0) await upsertDailyBatch(profileId, rows);
   const startDate = rows[0]?.date || null;
   const endDate = rows[rows.length - 1]?.date || null;
@@ -76,21 +80,21 @@ export async function importAppleHealthFile(file: File | null | undefined, onPro
   onProgress?.({ stage: 'summarising', pct: 95 });
   // Fake a connection record so listConnectedSources picks up apple_health —
   // file-import adapters have no token / expiry, just a connectedAt stamp.
-  if (!state.importedData!.wearableConnections) state.importedData!.wearableConnections = {};
-  state.importedData!.wearableConnections.apple_health = {
+  if (!profileData.wearableConnections) profileData.wearableConnections = {};
+  profileData.wearableConnections.apple_health = {
     source: 'file-import',
     fileName: file.name,
     importedAt: new Date().toISOString(),
-    connectedAt: state.importedData!.wearableConnections.apple_health?.connectedAt || new Date().toISOString(),
+    connectedAt: profileData.wearableConnections.apple_health?.connectedAt || new Date().toISOString(),
     lastSyncAt: Date.now(),
     coverageDays: rows.length,
     needsReauth: false,
   };
-  if (!await saveImportedData()) throw new Error('Apple Health connection could not be saved.');
+  if (!await saveImportedDataForProfile(profileId, profileData, { baseData, forceProfileScope: true, reason: 'apple-health-import' })) throw new Error('Apple Health connection could not be saved.');
 
   // Build the connected-sources map the same way wearables-connect.js does.
   const { listConnectedSources } = await import('./wearables-connect.js');
-  await syncWearableSummary(profileId, listConnectedSources());
+  if (profileCurrent()) await syncWearableSummary(profileId, listConnectedSources());
 
   let cycleImport: Awaited<ReturnType<typeof showAppleHealthCyclePreviewRuntime>> = null;
   let cycleError: string | null = null;
@@ -99,9 +103,10 @@ export async function importAppleHealthFile(file: File | null | undefined, onPro
     const cycleParsed = await parseAppleHealthCycleRuntime(xmlBlob, file.name || 'apple-health-export.xml', () => {
       onProgress?.({ stage: 'parsing-cycle', pct: 96, rows: rows.length, startDate, endDate });
     });
-    if ((cycleParsed as Exclude<typeof cycleParsed, false>)?.observations?.length) {
+    if ((cycleParsed as Exclude<typeof cycleParsed, false>)?.observations?.length && profileCurrent()) {
       onProgress?.({ stage: 'reviewing-cycle', pct: 98, rows: rows.length, startDate, endDate });
       await options.beforeCycleReview?.();
+      if (!profileCurrent()) throw new Error('Profile changed before cycle review. Re-import on the original profile to review cycles.');
       cycleImport = await showAppleHealthCyclePreviewRuntime(cycleParsed as Exclude<typeof cycleParsed, false>);
     }
   } catch (err) {

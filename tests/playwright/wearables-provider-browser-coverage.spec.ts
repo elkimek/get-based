@@ -489,7 +489,7 @@ test('WHOOP consent and device-only storage protect rows and derived profile dat
     const { state } = await import('/js/state.js');
     const { applyOAuthConfigured, applyOAuthOverrides } = await import('/js/wearable-adapters.js');
     const {
-      renderWearablesSettingsSection,
+      renderWearablesSettingsSection, hydrateWearablesSettingsPanel,
       wearableSettingsActionHandlers,
     } = await import('/js/wearables-settings-panel.js');
     const settingsRuntime = await import('/js/wearables-settings-runtime.js');
@@ -593,7 +593,10 @@ test('WHOOP consent and device-only storage protect rows and derived profile dat
     const rawProfile = await getBlob(storageKey);
     const protectedProfile = await getMeta(profileId, WHOOP_PROFILE_DATA_META);
     const hydratedProfile = JSON.parse(await encryptedGetItem(storageKey) as string) as WearableProfileFixture;
-    const settingsHtml = renderWearablesSettingsSection();
+    let ownedHost = document.getElementById('wearables-section');
+    if (!ownedHost) { ownedHost = document.createElement('section'); ownedHost.id = 'wearables-section'; document.body.append(ownedHost); }
+    ownedHost.innerHTML = renderWearablesSettingsSection(); hydrateWearablesSettingsPanel();
+    const settingsHtml = ownedHost.innerHTML;
 
     (window as {__WEARABLES_TEST?:unknown}).__WEARABLES_TEST = true;
     await cryptoStorage._setTestSessionKey('whoop-storage-passphrase');

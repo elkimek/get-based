@@ -133,6 +133,22 @@ runtimes cannot finalize flags, notices or reload. Restore failure logs retain o
 a generic status, with no exception or seed text.
 Scoped Tailwind utilities at the existing lazy Settings CSS URL own panel styles.
 
+Wearables Settings uses `WearablesSettings.svelte` and a single lifecycle adapter.
+`wearables-settings-view.ts` builds explicit provider/account/status/action snapshots;
+credential tokens never enter presentation. `wearables-settings-panel.ts` keeps the
+published string host, action attributes, consent/withdrawal and domain operations.
+Settings close/rebuild disposes the view. Same-profile refresh retains focused controls,
+disclosure choices and import feedback; replaced roots/profiles reject old view replies.
+Manual counts check both operation sequence and profile/view ownership. Pending row
+actions are scoped to their originating profile, and confirmation/OAuth replies cannot
+redirect work to a newly active profile. Apple Health captures its profile and data
+before parsing, persists connection metadata against a baseline for concurrent-write
+merging, and derives summaries or offers cycle review only on that same active owner.
+Queued Google Health disconnect checks the initiating profile after acquiring its lock;
+sync replies cannot derive or mark credentials on a replacement profile. Scoped
+Tailwind at the existing lazy Settings CSS URL owns provider rows and import controls;
+shared dashboard/vendor/consent styles retain their existing ownership.
+
 Agent Access remains behind the lazy Sync facade. `settings-agent-access-panel.ts`
 owns credential generation, clipboard operations, persistence and domain actions;
 `settings-agent-access-contract.ts` supplies readiness/preferences without hidden

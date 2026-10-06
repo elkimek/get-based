@@ -1,4 +1,5 @@
 import type { OAuthBeginOptions, OAuthCallbackResult, OAuthQuery, OAuthError } from './wearable-oauth-types.js';
+import { summarizeWearableConnections } from './wearables-connection-summaries.js';
 import type { WearableAdapter } from './wearable-adapters.js';
 import type { StoredWearableRow } from './wearable-storage-types.js';
 import type { WearableConnectionSummary } from './wearables-summary-model.js';
@@ -116,17 +117,8 @@ export function getConnection(adapterId: string) {
 export function listConnectedSources() { return listConnectedSourcesFor(state.importedData, getActiveProfileId()); }
 
 function listConnectedSourcesFor(importedData: WearableProfileMutation | null | undefined, profileId: string) {
-  const map = getConnections(importedData);
-  const out: Record<string, WearableConnectionSummary> = {};
-  for (const [sid, conn] of Object.entries(map)) {
-    if (conn?.connectedAt && (!usesCredentialVault(sid) || connectionHasCredentials(sid, conn, profileId))) {
-      out[sid] = {
-        connectedSince: conn.connectedAt,
-        lastSyncAt: conn.lastSyncAt || 0,
-      };
-    }
-  }
-  return out;
+  return summarizeWearableConnections(getConnections(importedData), (id, connection) =>
+    !usesCredentialVault(id) || connectionHasCredentials(id, connection, profileId));
 }
 
 function saveConnection(adapterId: string, conn: WearableConnection) {
@@ -597,14 +589,16 @@ export async function incrementalSyncWearable(adapterId: string, { force = false
 
 // Disconnect
 
-export async function disconnectWearable(adapterId: string, options = {}) {
+export async function disconnectWearable(adapterId: string, options: { deleteData?: boolean; expectedProfileId?: string } = {}) {
+  const ownedOptions = { ...options, expectedProfileId: options.expectedProfileId || getActiveProfileId() };
   return adapterId === 'google_health'
-    ? withGoogleHealthLifecycleLock(() => withGoogleHealthRefreshLock(() => disconnectWearableLocked(adapterId, options)))
-    : disconnectWearableLocked(adapterId, options);
+    ? withGoogleHealthLifecycleLock(() => withGoogleHealthRefreshLock(() => disconnectWearableLocked(adapterId, ownedOptions)))
+    : disconnectWearableLocked(adapterId, ownedOptions);
 }
 
-async function disconnectWearableLocked(adapterId: string, { deleteData = true } = {}) {
+async function disconnectWearableLocked(adapterId: string, { deleteData = true, expectedProfileId }: { deleteData?: boolean; expectedProfileId?: string } = {}) {
   const profileId = getActiveProfileId();
+  if (expectedProfileId && profileId !== expectedProfileId) throw new Error('Profile changed before wearable disconnect. Retry on the original profile.');
   // Keep post-await mutations bound to the initiating profile; loadProfile()
   // replaces the global and could otherwise redirect the purge.
   const profileData = state.importedData;
@@ -667,9 +661,11 @@ async function disconnectWearableLocked(adapterId: string, { deleteData = true }
 
 export async function syncNow(adapterId: string, { force = false } = {}) {
   const profileId = getActiveProfileId();
+  const profileData = state.importedData;
+  const profileCurrent = () => getActiveProfileId() === profileId && state.importedData === profileData;
   try {
     const res = await incrementalSyncWearable(adapterId, { force });
-    if ((res as { skipped?: true }).skipped) return res;
+    if ((res as { skipped?: true }).skipped || !profileCurrent()) return res;
     // Manual user-driven syncs pass `force: true` so the L2 gate (which
     // skips writes when the d7 mean / trend / weekly delta haven't moved
     // ≥ 5%) can't make the strip card "stick" on a stale snapshot.
@@ -682,7 +678,7 @@ export async function syncNow(adapterId: string, { force = false } = {}) {
       showNotification?.(`Your ${displayName} connection has expired. Reconnect it in Settings → Wearables.`, 'error', 5000);
     } else if (getErrorStatus(e) === 401 || getErrorStatus(e) === 403) {
       const conn = getConnection(adapterId);
-      if (conn) saveConnection(adapterId, { ...conn, needsReauth: true });
+      if (conn && profileCurrent()) saveConnection(adapterId, { ...conn, needsReauth: true });
       showNotification?.(`${displayName} could not confirm this connection. Reconnect it in Settings → Wearables.`, 'error');
     } else {
       if (isDebugMode?.()) console.warn(`[wearables] syncNow ${adapterId} failed:`, getErrorMessage(e));

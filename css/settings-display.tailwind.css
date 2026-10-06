@@ -37,3 +37,6 @@
 
 @source "../js/sync-dialog-classes.ts";
 @custom-variant sync-dialog (:is(#sync-setup-overlay, #sync-restore-overlay) &);
+
+@source "../js/wearables-settings-classes.ts";
+@custom-variant wearables (#wearables-section &);

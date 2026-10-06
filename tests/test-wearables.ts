@@ -902,16 +902,13 @@ assert('wearable connector passes the initiating profile into OAuth modules',
 // (JSZip functional smoke — needs real browser <script> injection —
 // lives in test-wearables-dom.js. The loadJSZip source-pattern asserts
 // above run in Node.)
-// ── progress-bar markup must render in BOTH row branches ──
-// importAppleHealthFlow queries #apple-health-progress by id; before this
-// fix only the disconnected-state branch of renderRowDetail rendered that
-// element, so re-imports on already-connected rows ran without any UI
-// feedback (the `if (wrap)` / `if (bar)` / `if (text)` guards no-op'd).
-// Pin both branches so a future refactor can't silently drop one again.
-const appleProgressSrc = await fetch('/js/wearables-settings-panel.js').then(r => r.text());
-const progressIdMatches = (appleProgressSrc.match(/id="apple-health-progress"/g) || []).length;
-assert('renderRowDetail renders #apple-health-progress in BOTH connected and disconnected branches',
-  progressIdMatches >= 2);
+// One owned Apple Health branch supplies progress for both connection states.
+const appleProgressSrc = await fetch('/js/components/WearablesSettings.svelte').then(r => r.text());
+assert('Owned Apple Health progress is shared by connected and disconnected branches',
+  appleProgressSrc.includes("{#if row.detail === 'apple'}")
+    && appleProgressSrc.includes('{#if !row.connected}')
+    && /<\/button>\{\/if\}[\s\S]*id="apple-health-progress"/.test(appleProgressSrc)
+    && appleProgressSrc.includes('role="progressbar"'));
 
 // ── streaming-path parity (parseAppleHealthBlob) ──
 // Multi-GB exports hit V8's ~512 MB max-string-length wall when read via
@@ -1540,12 +1537,12 @@ assert('Wearable storage receives crypto providers without a reverse import',
 // ═══════════════════════════════════════
 console.log('17t. Settings Tab Split');
 
-const settingsV30 = await fetch('/js/settings.js').then(r => r.text());
+const settingsV30 = [await fetch('/js/settings.js').then(r => r.text()), await fetch('/js/settings-shell-contract.js').then(r => r.text()), await fetch('/js/components/SettingsShell.svelte').then(r => r.text())].join('\n');
 // Tab buttons
 assert('Settings has a Wearables tab button',
-  /data-tab="wearables"[\s\S]{0,400}Wearables/.test(settingsV30));
+  /id: 'wearables', label: 'Wearables'/.test(settingsV30) && settingsV30.includes('data-tab={tab.id}'));
 assert('Settings has an Agent Access tab button',
-  /data-tab="agent"[\s\S]{0,400}Agent Access/.test(settingsV30));
+  /id: 'agent', label: 'Agent Access'/.test(settingsV30) && settingsV30.includes('data-tab={tab.id}'));
 assert('Old Integrations tab button is gone',
   !/data-tab="integrations"/.test(settingsV30));
 // Tab panels
@@ -1615,13 +1612,13 @@ if (state?.importedData?.wearableSummary) {
 }
 
 // Settings UI is now a select, not a checkbox.
-const settingsSyncPanelV29 = await fetch('/js/settings-sync-panel-impl.js').then(r => r.text());
+const settingsSyncPanelV29 = [await fetch('/js/settings-sync-panel-impl.js').then(r => r.text()), await fetch('/js/components/AgentAccessSettings.svelte').then(r => r.text())].join('\n');
 assert('Settings → Agent Access uses a <select> for the series window',
   /id="agent-wearable-series-select"/.test(settingsSyncPanelV29));
 assert('Settings select dispatches to synced Agent Access scalar through delegated action',
   /data-sync-action="set-agent-wearable-series-days"/.test(settingsSyncPanelV29) &&
   /setAgentAccessWearableSeriesDays\(days\)/.test(settingsSyncPanelV29) &&
-  /saveImportedData\(\{ reason: 'agent-access-series' \}\)/.test(settingsSyncPanelV29) &&
+  settingsSyncPanelV29.includes("mutation.save('agent-access-series')") &&
   !/appWindow\.setAgentWearableSeriesDays/.test(settingsSyncPanelV29));
 assert('Settings select offers Off / 7 / 30 / 90 options',
   /<option value="off"/.test(settingsSyncPanelV29) &&
@@ -1684,7 +1681,7 @@ assert('WHOOP and Google Health raw rows are excluded from profile backups with 
 const credentialVaultSrc = await fetch('/js/wearables-credential-vault.js').then(r => r.text());
 assert('Every OAuth wearable stores tokens in the device-local credential vault',
   /VAULTED_CREDENTIAL_ADAPTERS\s*=\s*new Set\(\[[\s\S]*?'oura'[\s\S]*?'whoop'[\s\S]*?'withings'[\s\S]*?'ultrahuman'[\s\S]*?'fitbit'[\s\S]*?'google_health'[\s\S]*?'polar'/.test(credentialVaultSrc));
-const wearableSettingsPanelSrc = await fetch('/js/wearables-settings-panel.js').then(r => r.text());
+const wearableSettingsPanelSrc = [await fetch('/js/wearables-settings-panel.js').then(r => r.text()), await fetch('/js/components/WearablesSettings.svelte').then(r => r.text())].join('\n');
 const whoopStorageProtection = await import('../js/wearables-whoop-storage.js');
 assert('Wearable settings distinguish always-encrypted restricted imports from other history',
   wearableSettingsPanelSrc.includes('Connection keys plus WHOOP and Google Health imports are always encrypted on this device.')
@@ -1816,7 +1813,7 @@ assert('Strip-header role="button" carries an aria-label distinct from the live 
 // all gone" check below.)
 
 // P2 copy: Settings → Agent Access label includes "and context".
-const settingsSyncPanelSrcP2 = await fetch('/js/settings-sync-panel-impl.js').then(r => r.text());
+const settingsSyncPanelSrcP2 = [await fetch('/js/settings-sync-panel-impl.js').then(r => r.text()), await fetch('/js/components/AgentAccessSettings.svelte').then(r => r.text())].join('\n');
 assert('Settings Agent Access description says "labs and context" (covers wearables + cards too)',
   /Let AI agents query your labs and context/.test(settingsSyncPanelSrcP2));
 
@@ -2006,7 +2003,7 @@ assert('Touch media block extends to .wearable-reorder-arrow (≥44px)',
   /@media\s*\(pointer:\s*coarse\)[\s\S]{0,5000}\.wearable-reorder-arrow[\s\S]{0,200}min-height:\s*44px/.test(cssSrc));
 
 // In-app token-cost copy aligned with measured reality (~400 not ~1500).
-const settingsSyncPanelSrc = await fetch('/js/settings-sync-panel-impl.js').then(r => r.text());
+const settingsSyncPanelSrc = [await fetch('/js/settings-sync-panel-impl.js').then(r => r.text()), await fetch('/js/components/AgentAccessSettings.svelte').then(r => r.text())].join('\n');
 // v1.29.0: tri-state toggle (off / 7 / 30 / 90) — copy now cites all three
 // window sizes with their respective costs.
 assert('Agent series tri-state copy cites the 7/30/90 token costs',
@@ -2390,18 +2387,17 @@ try {
 // The Node shim has no hostname, so use the equivalent maintainer preview
 // escape; localhost visibility itself is covered above with an explicit host.
 localStorage.setItem(escapeKey, 'true');
-const settingsHtml = wearableSettings.renderWearablesSettingsSection();
+const { buildWearablesSettingsSnapshot } = await import('../js/wearables-settings-view.js');
+const settingsSnapshot = buildWearablesSettingsSnapshot(state.currentProfile || 'default', false);
+const settingsRows = settingsSnapshot.groups.flatMap(group => group.rows);
+assert('Settings renderer retains its required mount host', wearableSettings.renderWearablesSettingsSection().includes('data-wearables-view-host'));
 assert('Settings render shows disabled WHOOP setup row on localhost',
-  /data-adapter="whoop"/.test(settingsHtml)
-    && !/aria-label="Connect WHOOP"/.test(settingsHtml));
+  settingsRows.some(row => row.id === 'whoop' && !row.primaryAction && row.detail === 'setup'));
 assert('Settings render shows disabled Ultrahuman setup row on localhost',
-  /data-adapter="ultrahuman"/.test(settingsHtml)
-    && !/aria-label="Connect Ultrahuman"/.test(settingsHtml));
+  settingsRows.some(row => row.id === 'ultrahuman' && !row.primaryAction && row.detail === 'setup'));
 assert('Settings marks experimental self-host setup as required',
-  /Set up on your server/.test(settingsHtml));
-assert('Settings render still shows Oura row',
-  /data-adapter-id="oura"|connectAdapter\('oura'\)|adapter\.id === 'oura'/i.test(settingsHtml) ||
-  /Oura/.test(settingsHtml));
+  settingsRows.some(row => row.status === 'Set up on your server'));
+assert('Settings render still shows Oura row', settingsRows.some(row => row.id === 'oura' && row.name === 'Oura'));
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);
 process.exit(legacyAssertions.fail > 0 ? 1 : 0);

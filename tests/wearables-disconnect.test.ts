@@ -484,4 +484,29 @@ describe('wearable disconnect deletion failures', () => {
     );
     expect(showNotification).not.toHaveBeenCalledWith('Google Health disconnected', 'success');
   });
+  it('rejects a queued Google Health disconnect if its initiating profile changed before the lock opened', async () => {
+    let profileId = 'queued-profile-a';
+    const importedA = { wearableConnections: { google_health: { connectedAt: '2026-08-01', hasStoredCredentials: true } } };
+    const importedB = { wearableConnections: { google_health: { connectedAt: '2026-08-02', hasStoredCredentials: true } } };
+    const fixtureState = { importedData: importedA };
+    const purge = vi.fn(); const save = vi.fn();
+    vi.doMock('../js/state.js', () => ({ state: fixtureState }));
+    vi.doMock('../js/profile.js', () => ({ getActiveProfileId: () => profileId }));
+    vi.doMock('../js/data.js', () => ({ saveImportedData: save, saveImportedDataForProfile: save }));
+    vi.doMock('../js/wearables-store.js', () => ({ clearSource: purge, countSource: vi.fn(), deleteMeta: vi.fn(), getDailyRange: vi.fn(), getMeta: vi.fn(), setMeta: vi.fn(), upsertDailyBatch: vi.fn() }));
+    vi.doMock('../js/wearables-credential-vault.js', () => credentialVaultModule({ deleteWearableCredentials: purge, loadWearableCredentials: vi.fn(), saveWearableCredentials: vi.fn() }));
+    const { withGoogleHealthLifecycleLock } = await import('../js/wearables-google-health-auth.js');
+    const { disconnectWearable } = await import('../js/wearables-connect.js');
+    let release!: () => void; let started = false;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const blocker = withGoogleHealthLifecycleLock(async () => { started = true; await gate; });
+    await vi.waitFor(() => expect(started).toBe(true));
+    const task = disconnectWearable('google_health');
+    const rejection = expect(task).rejects.toThrow('Profile changed before wearable disconnect');
+    profileId = 'queued-profile-b'; fixtureState.importedData = importedB; release();
+    await blocker; await rejection;
+    expect(purge).not.toHaveBeenCalled(); expect(save).not.toHaveBeenCalled();
+    expect(importedA.wearableConnections.google_health).toBeDefined(); expect(importedB.wearableConnections.google_health).toBeDefined();
+  });
+
 });

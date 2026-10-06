@@ -49,6 +49,7 @@ test('wearables settings loads runtime credentials for a fresh unconnected profi
       document.body.insertAdjacentHTML('beforeend', `
         <section id="wearables-section">${settings.renderWearablesSettingsSection()}</section>
       `);
+      settings.hydrateWearablesSettingsPanel();
       const initialRow = document.querySelector('[data-adapter="google_health"]');
       const initiallySelfHostOnly = initialRow?.textContent!.includes('Available when self-hosted');
       const initiallyHasConnect = Boolean(initialRow
@@ -434,6 +435,7 @@ test('wearables settings panel browser coverage deletes manual data after confir
         <section id="wearables-section">${settings.renderWearablesSettingsSection()}</section>
       `);
 
+      settings.hydrateWearablesSettingsPanel();
       document.querySelector('[data-wearable-settings-action="manual-disconnect"]')
         ?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
       await waitUntil(

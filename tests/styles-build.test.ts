@@ -23,7 +23,7 @@ it('preserves legacy Settings CSS and scopes generated utilities without a reset
   expect(source).toContain(base);
   const utilities = source.slice(source.indexOf(base) + base.length);
   const selectors: string[] = [];
-  postcss.parse(utilities).walkRules(rule => { selectors.push(rule.selector); });
+  postcss.parse(utilities).walkRules(rule => { selectors.push(...rule.selectors); });
   const pilot = selectors.filter(selector => selector.includes('.gb\\:display'));
   expect(pilot.length).toBeGreaterThan(30);
   expect(pilot.every(selector => selector.startsWith('#settings-tab-display '))).toBe(true);
@@ -33,6 +33,9 @@ it('preserves legacy Settings CSS and scopes generated utilities without a reset
   const dialogs = selectors.filter(selector => selector.includes('.gb\\:sync-dialog'));
   expect(dialogs.length).toBeGreaterThan(30);
   expect(dialogs.every(selector => selector.startsWith(':is(#sync-setup-overlay,#sync-restore-overlay) '))).toBe(true);
+  const wearables = selectors.filter(selector => selector.includes('.gb\\:wearables'));
+  expect(wearables.length).toBeGreaterThan(50);
+  expect(wearables.every(selector => selector.startsWith('#wearables-section '))).toBe(true);
   expect(utilities).toContain(':checked');
   expect(utilities).toContain('color:var(--warning-ink)');
   expect(selectors).not.toContain('body');
@@ -56,7 +59,7 @@ it('preserves PII base styles and scopes protection dialog utilities without a r
   const source = await fs.readFile(protectionOutputPath,'utf8');
   const base = (await fs.readFile('css/data-protection.base.css','utf8')).trimEnd();
   expect(source).toContain(base); expect(base).not.toContain('.passphrase-dialog');
-  const selectors: string[] = []; postcss.parse(source.slice(source.indexOf(base)+base.length)).walkRules(rule=>{selectors.push(rule.selector);});
+  const selectors: string[] = []; postcss.parse(source.slice(source.indexOf(base)+base.length)).walkRules(rule=>{selectors.push(...rule.selectors);});
   const owned = selectors.filter(selector=>selector.includes('.gb\\:passphrase'));
   expect(owned.length).toBeGreaterThan(30); expect(owned.every(selector=>selector.startsWith('#passphrase-overlay '))).toBe(true);
   expect(selectors).not.toContain('body'); expect(selectors).not.toContain('button,input,optgroup,select,textarea');
