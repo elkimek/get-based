@@ -18,3 +18,11 @@ export const voiceCompatible: typeof NativeVoiceSettings = VoiceSettings;
 import AgentAccessSettings from '../../js/components/AgentAccessSettings.svelte';
 import type NativeAgentAccessSettings from '../../js/components/AgentAccessSettings.svelte.native.js';
 export const agentAccessCompatible: typeof NativeAgentAccessSettings = AgentAccessSettings;
+
+import DataEntriesSettings from '../../js/components/DataEntriesSettings.svelte';
+import type NativeDataEntriesSettings from '../../js/components/DataEntriesSettings.svelte.native.js';
+export const dataEntriesSettingsCompatible: typeof NativeDataEntriesSettings = DataEntriesSettings;
+
+import AIUsageSettings from '../../js/components/AIUsageSettings.svelte';
+import type NativeAIUsageSettings from '../../js/components/AIUsageSettings.svelte.native.js';
+export const aIUsageSettingsCompatible: typeof NativeAIUsageSettings = AIUsageSettings;

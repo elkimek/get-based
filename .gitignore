@@ -1547,3 +1547,8 @@ deploy/profile-share/data/
 /js/settings-agent-access-classes.js
 /js/settings-agent-access-contract.js
 /js/settings-agent-access-component.js
+
+/js/settings-records-classes.js
+/js/settings-records-contract.js
+/js/settings-records-view.js
+/js/settings-records-component.js

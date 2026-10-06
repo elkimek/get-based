@@ -48,12 +48,13 @@ the completed migration was merged in [PR #1660](https://github.com/elkimek/get-
 
 ## Styling source contract
 
-Settings navigation/layout, Display, Privacy, Voice and Agent Access use scoped Tailwind utilities
+Settings navigation/layout, Display, Privacy, Voice, Agent Access, imported records
+and AI usage use scoped Tailwind utilities
 alongside the remaining native feature styles. `css/settings.base.css` owns the
 legacy Settings rules;
 `css/ui-tokens.tailwind.css` owns shared semantic palette, typography and surface
 aliases. `css/settings-display.tailwind.css` owns source scanning and scoped
-Settings/Display/Privacy/Voice/Agent Access utilities. `scripts/build-styles.mts` combines them
+Settings/Display/Privacy/Voice/Agent Access/records utilities. `scripts/build-styles.mts` combines them
 into ignored `css/settings.css`, retaining the lazy loader and offline asset URL.
 Do not edit the generated bundle. `npm run typescript:build` also builds styles,
 so existing prepare, development, test and production commands retain their
@@ -111,6 +112,19 @@ remask credentials; disconnected views receive no updates. `SettingsToggle.svelt
 provides the compact, keyboard-accessible switch without depending on Chat styles.
 The public string renderer returns a component host so existing runtime callers
 retain their contract while Svelte owns its contents.
+
+Imported-data entries and AI usage use `settings-records-view.ts` to derive typed
+presentation snapshots from existing provenance and usage services.
+`DataEntriesSettings.svelte` owns report/manual/legacy rows and their actions;
+`AIUsageSettings.svelte` owns profile/global usage summaries. The controller keeps
+review/delete/export/reset operations. A lifecycle adapter mounts during Settings
+hydration, refreshes without replacing focused controls, and disposes before shell
+replacement. Profile/sync refreshes read current snapshots. Derived HOMA-IR and
+imported edits remain under their report; mixed imported/manual dates stay locked.
+Usage labels select the active record from the canonical profile metadata array.
+Each native component uses its own emitted mount/unmount/flush helpers; the static
+Kit build shares one Svelte runtime across both components. Necessary public
+string-renderer adapters return component hosts without duplicating rendering.
 
 `scripts/build-svelte.mts` discovers authored components and compiles each into
 an ignored `.svelte.native.js` artifact, loaded through the existing lazy feature

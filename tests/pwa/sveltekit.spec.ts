@@ -507,3 +507,98 @@ test('Agent Access hydrates offline with masked persisted credentials, keyboard 
     await noCspErrors(cold, errors);
   } finally { await server.close(); }
 });
+
+test('imported records and usage hydrate offline with provenance, keyboard controls and profile-only reset', async ({ page, context }) => {
+  const server = await startKitServer(artifact); const errors = await prepare(context, page);
+  await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
+  await context.addInitScript(() => {
+    if (!location.protocol.startsWith('http') || localStorage.getItem('kit-records-seeded')) return;
+    localStorage.setItem('kit-records-seeded', '1');
+    localStorage.setItem('labcharts-profiles', JSON.stringify([{ id: 'default', name: 'Synthetic records profile', createdAt: 1 }]));
+    localStorage.setItem('labcharts-active-profile', 'default');
+    localStorage.setItem('labcharts-default-imported', JSON.stringify({
+      entries: [
+        { date: '2026-01-01', markers: { 'biochemistry.glucose': 5, 'biochemistry.alt': 0.5 }, markerSources: { 'biochemistry.glucose': { snapshotId: 'report-1', file: 'Synthetic <lab> & report.pdf' } } },
+        { date: '2025-12-01', markers: { 'biochemistry.alp': 1 }, sourceFile: 'legacy <report>.json' },
+        { date: '2025-11-01', markers: {}, deletedMarkers: { 'biochemistry.glucose': 1 } },
+      ], manualValues: { 'biochemistry.alt:2026-01-01': 0.5 },
+      importSnapshots: [
+        { id: 'report-1', date: '2026-01-01', fileName: 'Synthetic <lab> & report.pdf', type: 'pdf', markerCount: 1, markers: [{ mappedKey: 'biochemistry.glucose', value: 5, unit: 'mmol/l' }], importedAt: 1767225600000, costInfo: { modelId: 'synthetic-model' } },
+        { id: 'report-2', date: '2026-02-01', fileName: 'Another report with a long file name that must stay readable and truncate correctly.pdf', type: 'json', markerCount: 2, markers: [], importedAt: 1769904000000 },
+      ],
+    }));
+    localStorage.setItem('labcharts-default-usage', JSON.stringify({ totalCost: 1.25, requestCount: 3, totalInputTokens: 1200, totalOutputTokens: 300 }));
+    localStorage.setItem('labcharts-global-usage', JSON.stringify({ totalCost: 2.5, requestCount: 5, totalInputTokens: 2000000, totalOutputTokens: 300 }));
+  });
+  try {
+    await page.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' }); await ready(page);
+    server.state.offline = true;
+    await display(page); await page.locator('#settings-nav-data').click();
+    const records = page.locator('#data-entries-section');
+    await expect(records.locator('.imported-entry-snapshot')).toHaveCount(2);
+    await expect(records.locator('.imported-entry')).toHaveCount(4);
+    await expect(records.locator('.ie-file').first()).toHaveText(/Another report/);
+    await expect(records).toContainText('Synthetic <lab> & report.pdf');
+    await expect(records).toContainText('manual markers not tied to an import file');
+    await expect(records).toContainText('legacy markers not tied to an import file · legacy <report>.json');
+    await expect(records).toContainText('Date locked');
+    await expect(records.locator('[data-settings-action="rename-imported-entry"]')).toHaveCount(1);
+    await expect(records.locator('[data-settings-action="rename-imported-entry"]')).toHaveAttribute('data-entry-date', '2025-12-01');
+    await expect(records.locator('[data-settings-action="remove-imported-entry"][data-entry-date="2025-11-01"]')).toHaveCount(0);
+    await expect(records.locator('img, script')).toHaveCount(0);
+    const review = records.locator('[data-settings-action="review-import"]').first();
+    await review.focus(); await review.press('Tab');
+    const remove = records.locator('[data-settings-action="remove-import-snapshot"]').first();
+    await expect(remove).toBeFocused(); await expect(remove).toHaveCSS('outline-width', '2px');
+    for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer']) {
+      await page.locator('#settings-nav-display').click();
+      await page.locator('#settings-tab-display [data-settings-action="open-tweaks"]').click();
+      await page.locator(`[data-tweaks-action="select-theme"][data-theme-id="${theme}"]`).click();
+      await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || 'dark')).toBe(theme);
+      await page.locator('[data-tweaks-action="close"]').click();
+      const closeChat = page.getByRole('button', { name: 'Close chat', exact: true });
+      if (await closeChat.isVisible()) await closeChat.click();
+      await display(page); await page.locator('#settings-nav-data').click();
+      for (const viewport of [{ width: 1280, height: 900 }, { width: 700, height: 900 }, { width: 390, height: 844 }]) {
+        await page.setViewportSize(viewport);
+        expect(await records.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+        const file = records.locator('.ie-file').first(); const bounds = (await records.boundingBox())!; const box = (await file.boundingBox())!;
+        expect(box.x + box.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1);
+      }
+      await records.scrollIntoViewIfNeeded();
+      const violations = await records.evaluate(async element => {
+        const axe = (window as unknown as { axe: typeof import('axe-core') }).axe;
+        const result = await axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } });
+        return result.violations.map(violation => ({ id: violation.id, targets: violation.nodes.map(node => node.target) }));
+      });
+      expect(violations, `${theme} imported records`).toEqual([]);
+      await page.locator('#settings-nav-ai').click();
+      const usage = page.locator('#ai-usage-section');
+      await usage.scrollIntoViewIfNeeded();
+      const usageViolations = await usage.evaluate(async element => {
+        const axe = (window as unknown as { axe: typeof import('axe-core') }).axe;
+        const result = await axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } });
+        return result.violations.map(violation => ({ id: violation.id, targets: violation.nodes.map(node => node.target) }));
+      });
+      expect(usageViolations, `${theme} AI usage`).toEqual([]);
+    }
+    await page.locator('#settings-nav-ai').click();
+    const usage = page.locator('#ai-usage-section');
+    await expect(usage).toContainText('Synthetic records profile');
+    await expect(usage).toContainText('$1.250 · 3 requests · 1.5k tokens');
+    await expect(usage).toContainText('$2.500 · 5 requests · 2.0M tokens');
+    await usage.locator('[data-settings-action="reset-profile-usage"]').click();
+    await expect(usage).toContainText('Free · 0 requests · 0 tokens');
+    await expect(usage).toContainText('$2.500 · 5 requests · 2.0M tokens');
+    await expect(usage.locator('[data-settings-action="reset-profile-usage"]')).toHaveCount(0);
+    await page.close();
+    const cold = await context.newPage(); await cold.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' }); await ready(cold);
+    await display(cold); await cold.locator('#settings-nav-data').click();
+    await expect(cold.locator('#data-entries-section .imported-entry')).toHaveCount(4);
+    await expect(cold.locator('#data-entries-section')).toContainText('Date locked');
+    await cold.locator('#settings-nav-ai').click();
+    await expect(cold.locator('#ai-usage-section')).toContainText('Free · 0 requests · 0 tokens');
+    await expect(cold.locator('#ai-usage-section')).toContainText('$2.500 · 5 requests · 2.0M tokens');
+    await noCspErrors(cold, errors);
+  } finally { await server.close(); }
+});

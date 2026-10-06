@@ -25,3 +25,6 @@
 
 @source "../js/settings-agent-access-classes.ts";
 @custom-variant agent (#settings-tab-agent &);
+
+@source "../js/settings-records-classes.ts";
+@custom-variant records (:is(#data-entries-section, #ai-usage-section) &);

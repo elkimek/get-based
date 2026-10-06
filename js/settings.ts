@@ -19,6 +19,7 @@ import {
   testPIIOllamaConnectionBridge,
   toggleAIPauseBridge,
 } from './settings-provider-bridge.js';
+import { disposeSettingsRecords, mountSettingsRecords } from './settings-records-component.js';
 import { mountSettingsShell, selectSettingsShellTab } from './settings-shell.js';
 import { requestSettingsFrame, settingsMediaMatches } from './settings-runtime.js';
 import { configureSettingsModuleBridge } from './settings-runtime-bridge.js';
@@ -64,6 +65,7 @@ import {
   removeImportedEntryFromSettings,
   renameImportedEntryDateFromSettings,
   renderAIUsageSection,
+  refreshAIUsageSection,
   renderDataEntriesSection,
   resetCurrentProfileUsage,
 } from './settings-data.js';
@@ -157,8 +159,7 @@ function applySettingsToggle(actionEl: HTMLElement) {
   }
   if (action === 'set-debug-mode') {
     setDebugMode(checked);
-    const usageSection = document.getElementById('ai-usage-section');
-    if (usageSection) usageSection.innerHTML = renderAIUsageSection();
+    refreshAIUsageSection();
     return true;
   }
   if (action === 'toggle-ai-pause') {
@@ -456,6 +457,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   const extensionAI = renderAppExtensionSettingsSlot('ai', extensionContext);
   const extensionPanels = renderAppExtensionSettingsSlot('panels', extensionContext);
 
+  disposeSettingsRecords();
   disposeMessengerSection();
   disposeVoiceSettingsPanel();
   disposePrivacySettingsPanel();
@@ -571,6 +573,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   }
   mountDisplaySettingsPanel();
   mountPrivacySettingsPanel();
+  mountSettingsRecords();
   installSettingsDelegates(modal);
   installVoiceSettingsPanel(modal);
   openModalOverlay(overlay);

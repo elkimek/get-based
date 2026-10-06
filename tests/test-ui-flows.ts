@@ -85,7 +85,8 @@ return (async function() {
       }],
       manualValues: {}
     });
-    const entriesHtml = settingsModule.renderDataEntriesSection();
+    settingsModule.openSettingsModal('data');
+    const entriesHtml = document.getElementById('data-entries-section')!.innerHTML;
     assert('Settings Data remove wrapper is callable', typeof settingsModule.removeImportedEntryFromSettings === 'function');
     assert('PDF import remove action is module-only', typeof pdfImport.removeImportedEntry === 'function'
       && !('removeImportedEntry' in window));
@@ -101,6 +102,7 @@ return (async function() {
     assert('Settings Data remove wrapper records sync tombstone',
       S.importedData._deleted?.entries?.includes('2099-12-31'));
   } finally {
+    settingsModule.closeSettingsModal();
     S.importedData = originalImportedData;
     dataModule.saveImportedData();
     navModule.buildSidebar();

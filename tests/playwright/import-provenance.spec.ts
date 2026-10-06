@@ -15,15 +15,21 @@ test('profile load repairs an imported edit and Settings keeps it under its repo
       importSnapshots: [{ id: 'report', date, fileName: 'synthetic-lab.pdf', type: 'pdf', markerCount: 1,
         markers: [{ mappedKey: key, value: 5, unit: 'mmol/l' }] }],
     });
-    const repairedSettings = settings.renderDataEntriesSection();
+    const host = document.createElement('section'); host.id = 'data-entries-section'; document.body.append(host);
+    const render = async () => {
+      host.innerHTML = settings.renderDataEntriesSection();
+      await Promise.resolve();
+      return host.innerHTML;
+    };
+    const repairedSettings = await render();
     await store.editManualMarkerValue({ dotKey: key, date, storedValue: 7, now: 300 });
-    const editedSettings = settings.renderDataEntriesSection();
+    const editedSettings = await render();
     const editedSource = { ...state.importedData.entries[0]!.markerSources![key] };
     await store.revertManualMarkerValue(key, date, { now: 400 });
-    const revertedSettings = settings.renderDataEntriesSection();
+    const revertedSettings = await render();
     const reverted = structuredClone(state.importedData.entries[0]);
     await store.saveManualMarkerValue({ dotKey: 'biochemistry.alt', date, storedValue: 0.5, now: 500 });
-    const mixedSettings = settings.renderDataEntriesSection();
+    const mixedSettings = await render();
     return { repairedSettings, editedSettings, revertedSettings, editedSource, reverted, mixedSettings };
   });
   for (const html of [result.repairedSettings, result.editedSettings, result.revertedSettings]) {

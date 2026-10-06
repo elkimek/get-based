@@ -6,11 +6,6 @@ export interface SettingsBenchmarkReader extends Record<string,unknown> {
   usage?:NumericFields|null|undefined; diagnostics?:NumericFields|null|undefined; runtime?:NumericFields|null|undefined;
 }
 export interface SnapshotOperations extends SettingsBenchmarkReader {markers?:{length:unknown}|null|undefined}
-export interface EntryOperations {
- date:unknown; markers?:Record<string,unknown>|null|undefined; markerSources?:Record<string,{snapshotId?:unknown}|null|undefined>|null|undefined; sourceFile?:unknown;
-}
-/** These private scalar views permit the original arithmetic/method operators without normalizing their raw operands. */
-export interface UsageOperations {totalCost:number;requestCount:number;totalInputTokens:number;totalOutputTokens:number}
 export interface DiscrepancyOperations {
  scope?:unknown; markerName?:unknown; section?:unknown; issues:Array<{label?:unknown;expected?:unknown;actual?:unknown;note?:unknown}|null|undefined>;
 }

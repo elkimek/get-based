@@ -1,12 +1,14 @@
-import type { SettingsBenchmarkReader, EntryOperations, SnapshotOperations, UsageOperations, BenchmarkMetric, DifferenceValue, DiscrepancyOperations, NumericFields, ProviderLabelReader } from '../types/settings-data.js';
+import type { SettingsBenchmarkReader, SnapshotOperations, BenchmarkMetric, DifferenceValue, DiscrepancyOperations, NumericFields, ProviderLabelReader } from '../types/settings-data.js';
 // settings-data.js - Settings data-entry management and AI usage helpers.
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isDebugMode, setPIIReviewEnabled } from './utils.js';
-import { formatCost, getProfileUsage, getGlobalUsage, resetProfileUsage } from './schema.js';
+import { addUtilsRuntimeListener } from './utils-runtime.js';
+import { escapeHTML, escapeAttr, showNotification, showConfirmDialog, isDebugMode, setPIIReviewEnabled, bindSyncAppliedRefresh } from './utils.js';
+import { resetProfileUsage } from './schema.js';
 import { getActiveModelId, getAIProvider } from './api.js';
 import { loadPdfImport } from './import-loader.js';
-import { isSnapshotDerivedHOMAIR } from './lab-entry.js';
+import { refreshDataEntriesView, refreshAIUsageView } from './settings-records-component.js';
+import { formatSettingsTokens as formatTokens } from './settings-records-view.js';
 import {
   getImportBenchmarkProviderLabel,
   getDeletedImportBenchmarkIds,
@@ -19,111 +21,11 @@ import {
   isBundledImportReferenceBenchmarkRunning,
 } from './import-reference-benchmark.js';
 
-export function renderDataEntriesSection() {
-  const snapshots = (state.importedData?.importSnapshots || []) as unknown as SnapshotOperations[];
-  const rawEntries = (state.importedData?.entries || []) as unknown as EntryOperations[];
-  const entries: EntryOperations[] = [];
-  for (const entry of rawEntries) {
-    if (Object.keys(entry?.markers || {}).length > 0) entries.push(entry);
-  }
-  const hasSnapshots = snapshots.length > 0;
-  const hasEntries = entries.length > 0;
-  if (!hasSnapshots && !hasEntries) {
-    return '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">No data yet. Drop a PDF or JSON file on the dashboard, or add values manually.</div>';
-  }
-
-  let html = '';
-
-  if (hasSnapshots) {
-    const sortedSnapshots = [...snapshots].sort((a, b) => ((b.importedAt || 0) as number) - ((a.importedAt || 0) as number));
-    html += '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:8px 0 4px">Imports</div>';
-    for (const snap of sortedSnapshots) {
-      const d = new Date(((snap.date || '') as string) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      const cnt = snap.markerCount || (snap.markers || []).length;
-      const fileName = snap.fileName || 'Unknown file';
-      const typeLabel = snap.type || 'import';
-      const modelLabel = snap.costInfo?.modelId ? `${snap.costInfo.modelId}` : '';
-      const importedLabel = Number.isFinite(snap.importedAt)
-        ? new Date(snap.importedAt as number).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-        : '';
-      const snapId = snap.id;
-      html += `<div class="imported-entry imported-entry-snapshot">
-        <div class="ie-info">
-          <div class="ie-mainline">
-            <span class="ie-date">${d}</span>
-            <span class="ie-count">${cnt} marker${cnt === 1 ? '' : 's'}</span>
-          </div>
-          <div class="ie-meta">
-            <span class="ie-file" title="${escapeAttr(fileName)}">${escapeHTML(fileName)}</span>
-            ${modelLabel ? `<span class="ie-model" title="${escapeAttr(modelLabel)}">${escapeHTML(modelLabel)}</span>` : ''}
-            <span class="ie-type">${escapeHTML(typeLabel)}</span>
-            ${importedLabel ? `<span class="ie-type" title="Imported time">${escapeHTML(importedLabel)}</span>` : ''}
-          </div>
-        </div>
-        <div class="ie-actions">
-          <button class="ie-edit" data-settings-action="review-import" data-snap-id="${escapeAttr(snapId)}" title="Review, edit values/units, and re-import without AI cost">Review & Edit</button>
-          <button class="ie-remove" data-settings-action="remove-import-snapshot" data-snap-id="${escapeAttr(snapId)}">Delete</button>
-        </div>
-      </div>`;
-    }
-  }
-
-  const manualValues = (state.importedData.manualValues || {}) as unknown as Record<string,unknown>;
-  const legacyEntries: Array<{entry:EntryOperations;otherKeys:string[];manualKeys:string[];hasSnapshotMarkers:boolean}> = [];
-  for (const entry of entries) {
-    const entryMarkerKeys = Object.keys(entry.markers || {});
-    const manualKeys = entryMarkerKeys.filter(k => manualValues[k + ':' + entry.date]);
-    const manualNonSnapshotKeys = manualKeys.filter(k => {
-      if ((isSnapshotDerivedHOMAIR as (entry:EntryOperations, key:string)=>ReturnType<typeof isSnapshotDerivedHOMAIR>)(entry, k)) return false;
-      return !entry.markerSources?.[k]?.snapshotId;
-    });
-    const legacyKeys = entryMarkerKeys.filter(k => {
-      if ((isSnapshotDerivedHOMAIR as (entry:EntryOperations, key:string)=>ReturnType<typeof isSnapshotDerivedHOMAIR>)(entry, k)) return false;
-      const src = entry.markerSources?.[k];
-      return !src || !src.snapshotId;
-    });
-    const otherKeys = legacyKeys.length ? legacyKeys : manualNonSnapshotKeys;
-    const hasSnapshotMarkers = entryMarkerKeys.some(k => !!entry.markerSources?.[k]?.snapshotId);
-    if (otherKeys.length > 0) legacyEntries.push({ entry, otherKeys, manualKeys, hasSnapshotMarkers });
-  }
-
-  if (legacyEntries.length > 0) {
-    const sortedLegacy = [...legacyEntries].sort((a, b) => (a.entry.date as {localeCompare(value:unknown):number}).localeCompare(b.entry.date));
-    html += '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 4px">Manual / legacy markers</div>';
-    for (const legacy of sortedLegacy) {
-      const { entry, otherKeys, manualKeys, hasSnapshotMarkers } = legacy;
-      const d = new Date((entry.date as string) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      const cnt = otherKeys.length;
-      const isManual = cnt > 0 && cnt === manualKeys.length;
-      const sourceLabel = isManual
-        ? '<span style="color:var(--accent);margin-left:8px;font-size:11px">manual markers not tied to an import file</span>'
-        : `<span style="color:var(--text-muted);margin-left:8px;font-size:11px">legacy markers not tied to an import file${entry.sourceFile ? ` · ${escapeHTML(entry.sourceFile)}` : ''}</span>`;
-      const dateAttr = escapeAttr(entry.date);
-      const editDateControl = hasSnapshotMarkers
-        ? '<span class="ie-count" title="Date is locked because this date also has AI-imported snapshots">Date locked</span>'
-        : `<button class="ie-edit" data-settings-action="rename-imported-entry" data-entry-date="${dateAttr}">Edit date</button>`;
-      html += `<div class="imported-entry">
-        <div class="ie-info"><div class="ie-mainline"><span class="ie-date">${d}</span><span class="ie-count">${cnt} marker${cnt === 1 ? '' : 's'}</span></div><div class="ie-meta">${sourceLabel}</div></div>
-        <div class="ie-actions">
-          ${editDateControl}
-          <button class="ie-remove" data-settings-action="remove-imported-entry" data-entry-date="${dateAttr}">Remove</button>
-        </div>
-      </div>`;
-    }
-  }
-
-  html += `<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-    <button class="import-btn import-btn-primary" data-settings-action="share-profile">Share Profile</button>
-    <button class="import-btn import-btn-secondary" data-settings-action="export-client" title="Portable JSON including locally stored meal records and resized meal photos">Export Client</button>
-    <button class="import-btn import-btn-secondary" data-settings-action="export-all-clients" title="Full portable backup — all profiles, meal records and resized photos, data, and chat history">Export All Clients</button>
-    <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" data-settings-action="clear-all-data">Clear All Data</button></div>`;
-  return html;
+export function renderDataEntriesSection(): string {
+  queueMicrotask(refreshDataEntriesView);
+  return '<div id="data-entries-content"></div>';
 }
-
-export function refreshDataEntriesSection() {
-  const el = document.getElementById('data-entries-section');
-  if (el) el.innerHTML = renderDataEntriesSection();
-}
+export function refreshDataEntriesSection(): void { refreshDataEntriesView(); }
 
 export async function removeImportedEntryFromSettings(date: unknown) {
   try {
@@ -145,12 +47,6 @@ export async function renameImportedEntryDateFromSettings(date: unknown) {
     if (isDebugMode()) console.error('Rename imported entry failed:', err);
     showNotification('Could not edit the import date. Reload and try again.', 'error');
   }
-}
-
-function formatTokens(n: unknown) {
-  if ((n as number) >= 1_000_000) return ((n as number) / 1_000_000).toFixed(1) + 'M';
-  if ((n as number) >= 1_000) return ((n as number) / 1_000).toFixed(1) + 'k';
-  return String(n);
 }
 
 export function getImportBenchmarkSnapshots(): unknown[] {
@@ -751,25 +647,14 @@ export function updateImportBenchmarkSelection(overlay:Element, snapshots:readon
   }
 }
 
-export function renderAIUsageSection() {
-  const pu = getProfileUsage(state.currentProfile) as unknown as UsageOperations;
-  const gu = getGlobalUsage() as unknown as UsageOperations;
-  const profileName = (state.profiles as unknown as Record<string,{name?:unknown}>|null)?.[state.currentProfile]?.name || 'Current profile';
-  const separator = ' \u00b7 ';
-  let html = '<div style="font-size:13px;color:var(--text-secondary);line-height:2">';
-  html += `<div><strong>${escapeHTML(profileName)}</strong>: ${formatCost(pu.totalCost)}${separator}${pu.requestCount} request${pu.requestCount !== 1 ? 's' : ''}${separator}${formatTokens(pu.totalInputTokens + pu.totalOutputTokens)} tokens</div>`;
-  html += `<div><strong>All profiles</strong>: ${formatCost(gu.totalCost)}${separator}${gu.requestCount} request${gu.requestCount !== 1 ? 's' : ''}${separator}${formatTokens(gu.totalInputTokens + gu.totalOutputTokens)} tokens</div>`;
-  html += '</div>';
-  if (pu.requestCount > 0) {
-    html += `<button class="import-btn import-btn-secondary" style="margin-top:8px;font-size:11px" data-settings-action="reset-profile-usage">Reset profile usage</button>`;
-  }
-  return html;
+export function renderAIUsageSection(): string {
+  queueMicrotask(refreshAIUsageView);
+  return '<div id="ai-usage-content"></div>';
 }
-
-export function resetCurrentProfileUsage() {
+export function refreshAIUsageSection(): void { refreshAIUsageView(); }
+export function resetCurrentProfileUsage(): void {
   resetProfileUsage(state.currentProfile);
-  const el = document.getElementById('ai-usage-section');
-  if (el) el.innerHTML = renderAIUsageSection();
+  refreshAIUsageView();
 }
 
 // Disable confirmation for the PII review toggle. On->off shows a one-time
@@ -795,3 +680,10 @@ export async function confirmDisablePIIReview(checkbox:{checked:unknown}) {
     checkbox.checked = false;
   }
 }
+
+// Mounted records follow the current profile after reload/sync without replacing DOM.
+function refreshSettingsRecordsFromData(): void {
+  refreshDataEntriesView(); refreshAIUsageView();
+}
+addUtilsRuntimeListener('labcharts-profile-switched', refreshSettingsRecordsFromData);
+bindSyncAppliedRefresh(refreshSettingsRecordsFromData);
