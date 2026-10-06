@@ -22,7 +22,9 @@ console.log('=== PPQ Provider Panel Tests ===\n');
 const providerPanels = await import('../js/provider-panels.js');
 
 const panelsSrc = read('js/provider-panels.js');
-const ppqSrc = read('js/provider-ppq-panels.js').replace(/if \(rerendered\)\s+_refreshPpqBalanceDisplay\(\);/g, 'if (rerendered) _refreshPpqBalanceDisplay();');
+const ppqSrc = read('js/provider-ppq-panels.js');
+const topupSrc = read('js/ppq-topup-controller.js');
+const ppqComponentSrc = read('js/components/PpqSettings.svelte');
 const swSrc = readServiceWorkerSource(relative => read(relative));
 const apiSrc = read('js/api.js');
 const apiOpenAICompatibleSrc = read('js/api-openai-compatible.js');
@@ -47,7 +49,7 @@ assert('PPQ module owns key save', ppqSrc.includes('function handleSavePpqKey()'
 assert('PPQ module owns key removal', ppqSrc.includes('function handleRemovePpqKey()'));
 assert('PPQ module owns balance refresh', ppqSrc.includes('function refreshPpqBalance()'));
 assert('PPQ module owns top-up picker', ppqSrc.includes('function showPpqTopup()'));
-assert('PPQ module owns invoice polling', ppqSrc.includes('checkPpqTopupStatus(invoiceId)'));
+assert('PPQ module owns invoice polling', ppqSrc.includes('status: checkPpqTopupStatus') && topupSrc.includes('services.status(invoice.invoice_id') && topupSrc.includes('setInterval(async'));
 assert('PPQ module owns QR generation', ppqSrc.includes('ensureQRCode()'));
 assert('PPQ key removal keeps balance warning', ppqSrc.includes('This account has $') && ppqSrc.includes('showConfirmDialog(msg)'));
 assert('PPQ key removal clears private-mode caches',
@@ -70,11 +72,11 @@ assert('PPQ Private transport uses secure fetch and attestation',
 assert('PPQ private cache is gated on API-listed private entitlement',
   apiPpqSrc.includes('const privateModels = privateFromApi')
     && !apiPpqSrc.includes('privateFromApi.length ? privateFromApi : PPQ_PRIVATE_MODELS'));
-assert('PPQ Private Mode toggle renders in provider panel', rendererSrc.includes('ppq-private-toggle') && rendererSrc.includes('Private TEE Mode'));
+assert('PPQ Private Mode toggle renders in provider panel', rendererSrc.includes('return PPQ_SETTINGS_HOST') && ppqComponentSrc.includes('ppq-private-toggle') && ppqComponentSrc.includes('Private TEE Mode'));
 assert('PPQ Private Mode change is delegated', delegatesSrc.includes("'ppq-private-mode': 'togglePpqPrivateMode'"));
-assert('PPQ model fetch rerenders panel when private controls become available', ppqSrc.includes('_rerenderPpqPanelIfPrivateControlsAppeared') && ppqSrc.includes('fetchPpqModels(ppqKey).then(_renderPpqModelsAfterFetch)'));
-assert('PPQ model fetch rerender only touches the PPQ panel', ppqSrc.includes("panel.querySelector('#ppq-model-area')"));
-assert('PPQ panel rerender refreshes balance on the new DOM', ppqSrc.includes('if (rerendered) _refreshPpqBalanceDisplay();'));
+assert('PPQ model fetch refreshes owned private controls without replacing the panel', ppqSrc.includes('view.refresh(buildPpqSettingsSnapshot())') && !ppqSrc.includes('innerHTML'));
+assert('PPQ catalog updates require the originating view, provider and account', ppqSrc.includes("view?.isCurrent() && getAIProvider() === 'ppq' && accountCurrent()"));
+assert('PPQ owned catalog refresh preserves separately owned balance and credential fields', ppqComponentSrc.includes('snapshot = next') && !ppqComponentSrc.includes('balance = next') && !ppqComponentSrc.includes('key = next'));
 assert('PPQ private transport wrapper exists', read('vendor/ppq-private-tee.js').includes('createPpqPrivateFetch'));
 assert('Tinfoil browser bundle exports SecureClient', typeof tinfoilModule.SecureClient === 'function');
 assert('EHBP browser bundle exports request primitives', typeof ehbpModule.Identity === 'function' && typeof ehbpModule.decryptResponseWithToken === 'function');

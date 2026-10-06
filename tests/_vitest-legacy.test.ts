@@ -201,6 +201,7 @@ const LEGACY_TESTS = [
   './test-client-list-delegated-actions.ts',
   './test-provider-wallet-delegated-actions.ts',
   './test-provider-panel-renderers-runtime.ts',
+  './test-ppq-provider.ts',
   './test-provider-panel-delegated-actions.ts',
   './test-chat-empty-state-delegated-actions.ts',
   './test-modal-lifecycle-integrations.js',

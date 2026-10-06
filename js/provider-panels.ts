@@ -1,6 +1,7 @@
 // provider-panels.js - AI provider settings behavior, balance display, key validation, and wallet flows
 
 import type { ProviderPanelOperations, ProviderPanelDependencies, ProviderPanelActionReader, ProviderPanelWalletOperations } from '../types/provider-panels.js';
+import { disposePpqSettings } from './ppq-settings-component.js';
 import { getVeniceSettingsView, mountVeniceSettings, disposeVeniceSettings } from './venice-settings-component.js';
 import { buildVeniceSettingsSnapshot, veniceBalance } from './venice-settings-view.js';
 import { saveVeniceSettingsKey, isVeniceKeySavePending } from './venice-key-controller.js';
@@ -67,6 +68,7 @@ import {
   handleSavePpqKey,
   handleSelectPpqMethod,
   initSettingsPpqPanel,
+  hydratePpqSettings,
   ppqShowCustomInput,
   refreshPpqBalance,
   showPpqTopup,
@@ -208,10 +210,12 @@ export function hydrateVeniceSettings(): void {
 export function hydrateOwnedProviderSettings(): void {
   hydrateOpenRouterSettings();
   hydrateVeniceSettings();
+  hydratePpqSettings();
 }
 function disposeOwnedProviderSettings(): void {
   disposeOpenRouterSettings();
   disposeVeniceSettings();
+  disposePpqSettings();
 }
 
 // ═══════════════════════════════════════════════

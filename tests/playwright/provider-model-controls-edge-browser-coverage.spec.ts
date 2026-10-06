@@ -52,7 +52,7 @@ test('provider model controls edge coverage handles pricing updates guards and m
           <div id="venice-owned-fixture"></div>
           <div id="openrouter-model-area"></div>
           <div id="routstr-model-area"></div>
-          <div id="ppq-model-area"></div>
+          <div id="ppq-owned-fixture"></div>
           <div id="custom-model-area"></div>
         </section>
       `);
@@ -127,6 +127,7 @@ test('provider model controls edge coverage handles pricing updates guards and m
       localStorage.setItem('labcharts-ppq-pricing', JSON.stringify({
         'ppq-edge': { input: 1.25, output: 2.5 },
       }));
+      (await import('/js/ppq-settings-component.js')).mountPpqSettings(document.getElementById('ppq-owned-fixture')!, (await import('/js/ppq-settings-view.js')).buildPpqSettingsSnapshot());
       controls.renderPpqModelDropdown([{ id: 'ppq-edge', name: 'PPQ Edge' }]);
       controls.updatePpqModelPricing('ppq-edge');
       const ppqPricingUpdatesRenderedHint = (document.getElementById('ppq-model-pricing')?.textContent || '').includes('$1.25/M in');
@@ -170,6 +171,7 @@ test('provider model controls edge coverage handles pricing updates guards and m
         else localStorage.setItem(key, oldStorage[key]!);
       }
       (await import('/js/venice-settings-component.js')).disposeVeniceSettings();
+      (await import('/js/ppq-settings-component.js')).disposePpqSettings();
       document.getElementById('provider-controls-edge-fixture')?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
     }

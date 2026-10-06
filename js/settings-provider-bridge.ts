@@ -1,3 +1,4 @@
+import { disposePpqSettings } from './ppq-settings-component.js';
 // settings-provider-bridge.js - lazy bridge from Settings to provider panel modules.
 
 import {
@@ -22,6 +23,7 @@ export function disposeSettingsProviderPanels(): void {
   ++providerViewEpoch;
   disposeOpenRouterSettings();
   disposeVeniceSettings();
+  disposePpqSettings();
 }
 
 const settingsProviderBridgeDeps: BridgeSnapshot = {
@@ -84,6 +86,7 @@ export function switchAIProviderBridge(provider: unknown): void {
   setProviderButtonState(provider);
   disposeOpenRouterSettings();
   disposeVeniceSettings();
+  disposePpqSettings();
   owner.panel.innerHTML = renderAIProviderPanelBridge();
   void loadProviderPanels().then(async panels => {
     if (!owner.isCurrent()) return;

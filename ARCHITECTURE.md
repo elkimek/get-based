@@ -190,6 +190,27 @@ The full TDX/GPU independence, unverified measurements/response source and
 provider/proxy metadata disclosures remain visible for confirmed encrypted
 models. Transport and attestation verification stay in their domain modules.
 
+PPQ Settings follows the same ownership through `PpqSettings.svelte`, its
+lifecycle adapter and the published `provider-ppq-panels.ts` compatibility
+facade. OpenRouter, Venice and PPQ share checked catalog projection, model
+status types and scoped Tailwind controls. Key validation uses the shared save
+controller; account creation and payment polling use separate controllers with
+captured view, provider, key, credit ID and request identity. Accepted anonymous
+accounts persist even after close, while recovery details appear in private
+component state before persistence, catalog or activation work can fail. They never enter
+nonsecret snapshots or clipboard action attributes. Invoice text and addresses
+also remain in private view ports; only the wallet link and explicit disclosure
+expose the payment text needed by the user. Closing or replacing a view scrubs
+private fields and cancels invoice countdown, polling and delayed onboarding.
+Polling is single-flight; stale invoices, QR results, balance replies and paid
+receipts cannot update another account. Catalog hydration preserves focused
+credential drafts and existing balance elements, eliminating replacement-only
+balance requests. Funded-account removal retains its explicit confirmation and
+checks account ownership again after the decision. Existing private transport,
+API-listed entitlement, vision gates, gift-card link and persistence services
+remain domain-owned. Missing private catalogs retain enabled intent without
+presenting regular models as private or claiming confirmed private capability.
+
 Agent Access remains behind the lazy Sync facade. `settings-agent-access-panel.ts`
 owns credential generation, clipboard operations, persistence and domain actions;
 `settings-agent-access-contract.ts` supplies readiness/preferences without hidden

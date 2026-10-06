@@ -132,9 +132,11 @@ assert('imports getOpenRouterKey', providerUiSrc.includes('getOpenRouterKey'));
 assert('imports saveOpenRouterKey', ppSrc.includes('saveOpenRouterKey'));
 assert('imports getOpenRouterModel', providerUiSrc.includes('getOpenRouterModel'));
 assert('imports setOpenRouterModel', providerModelControlsSrc.includes('setOpenRouterModel'));
+const ownedOpenRouterView = await import('../js/openrouter-settings-view.js');
 assert('owned model display uses its checked catalog and saved ID fallback',
-  openRouterViewSrc.includes('rows.find(model => model.id === modelId)')
-    && openRouterViewSrc.includes('selected?.name || selected?.id || modelId'));
+  ownedOpenRouterView.buildOpenRouterModelState([{ id: 'synthetic', name: 'Visible label' }], 'synthetic').modelDisplay === 'Visible label'
+    && ownedOpenRouterView.buildOpenRouterModelState([], 'saved-model').modelDisplay === 'saved-model'
+    && openRouterViewSrc.includes('readProviderSettingsModels'));
 assert('imports validateOpenRouterKey', ppSrc.includes('validateOpenRouterKey'));
 assert('imports fetchOpenRouterModels', ppSrc.includes('fetchOpenRouterModels'));
 const settingsSrc = read('js/settings.js');
@@ -381,7 +383,7 @@ assert('owned OpenRouter OAuth button uses scoped Tailwind and the delegated act
   openRouterComponentSrc.includes('class={OR_PRIMARY} data-provider-panel-action="start-openrouter-oauth"')
   && providerClassesSrc.includes('gb:cloud-provider:bg-accent') && openRouterClassesSrc.includes('PROVIDER_PRIMARY as OR_PRIMARY')
   && !openRouterComponentSrc.includes('or-oauth-btn'));
-assert('provider renderer renders or-oauth-divider', providerRenderSrc.includes('or-oauth-divider'));
+assert('provider entry retains owned manual-key divider and native wallet dividers remain owned', openRouterComponentSrc.includes('or enter key manually') && read('js/provider-wallet-panel-renderers.ts').includes('or-oauth-divider'));
 assert('OAuth button conditional on disconnected snapshot', /\{#if !snapshot.connected\}[\s\S]*?data-provider-panel-action="start-openrouter-oauth"/.test(openRouterComponentSrc));
 assert('Chat setup guide has or-oauth-btn', chatOnboardingSrc.includes('or-oauth-btn'));
 assert('Chat setup guide has delegated startOpenRouterOAuth action',

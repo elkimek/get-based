@@ -54,3 +54,7 @@ export const openRouterSettingsCompatible: typeof NativeOpenRouterSettings = Ope
 import VeniceSettings from '../../js/components/VeniceSettings.svelte';
 import type NativeVeniceSettings from '../../js/components/VeniceSettings.svelte.native.js';
 export const veniceSettingsCompatible: typeof NativeVeniceSettings = VeniceSettings;
+
+import PpqSettings from '../../js/components/PpqSettings.svelte';
+import type NativePpqSettings from '../../js/components/PpqSettings.svelte.native.js';
+export const ppqSettingsCompatible: typeof NativePpqSettings = PpqSettings;

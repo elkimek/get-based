@@ -155,7 +155,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
           <div id="openrouter-owned-fixture"></div>
           <div id="venice-owned-fixture"></div>
           <div id="routstr-model-area"></div>
-          <div id="ppq-model-area"></div>
+          <div id="ppq-owned-fixture"></div>
           <div id="custom-model-area"></div>
         </section>
       `);
@@ -318,6 +318,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
 
       localStorage.setItem('labcharts-ppq-model', 'ppq-b');
       localStorage.setItem('labcharts-ppq-pricing', JSON.stringify({ 'ppq-b': { input: 0.5, output: 1.5 } }));
+      (await import('/js/ppq-settings-component.js')).mountPpqSettings(document.getElementById('ppq-owned-fixture')!, (await import('/js/ppq-settings-view.js')).buildPpqSettingsSnapshot());
       controls.renderPpqModelDropdown([
         { id: 'ppq-a', name: 'PPQ A' },
         { id: 'ppq-b', name: 'PPQ B' },
@@ -474,7 +475,7 @@ test('provider panels cover provider switching key saves balances custom API and
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ panelsUrl }) => {
-    const panels = (await import(panelsUrl) as unknown) as Pick<typeof import('../../js/provider-panels.js'),"configureProviderPanelDeps"|"handleRemoveOpenRouterKey"|"switchAIProvider"|"toggleAIPause"|"handleSaveOpenRouterKey"|"refreshOpenRouterBalance"|"handleSaveVeniceKey"|"refreshVeniceBalance"|"handleRemoveVeniceKey"|"handleSaveRoutstrKey"|"handleRemoveRoutstrKey"|"handleSavePpqKey"|"refreshPpqBalance"|"handleSaveCustomApi"|"handleRemoveCustomApi"|"showInsufficientBalanceDialog">;
+    const panels = (await import(panelsUrl) as unknown) as Pick<typeof import('../../js/provider-panels.js'),"configureProviderPanelDeps"|"handleRemoveOpenRouterKey"|"switchAIProvider"|"toggleAIPause"|"handleSaveOpenRouterKey"|"refreshOpenRouterBalance"|"handleSaveVeniceKey"|"refreshVeniceBalance"|"handleRemoveVeniceKey"|"handleSaveRoutstrKey"|"handleRemoveRoutstrKey"|"handleSavePpqKey"|"refreshPpqBalance"|"handleSaveCustomApi"|"handleRemoveCustomApi"|"showInsufficientBalanceDialog"|"renderAIProviderPanel"|"hydrateOwnedProviderSettings">;
     const cloudConsent = await import('/js/cloud-ai-consent.js');
     const cryptoStore = await import('/js/crypto.js');
     const nodeSessions = await import('/js/routstr-session.js');
@@ -713,13 +714,10 @@ test('provider panels cover provider switching key saves balances custom API and
         && localStorage.getItem('labcharts-routstr-pricing') === null
         && localStorage.getItem('labcharts-routstr-vision-models') === null;
 
-      panel!.innerHTML = `
-        <input id="ppq-key-input" value="sk-ppq-good">
-        <button id="save-ppq-key-btn">Save</button>
-        <div id="ppq-key-status"></div>
-        <div id="ppq-model-area"></div>
-        <span id="ppq-balance"></span>
-      `;
+      localStorage.setItem('labcharts-ai-provider', 'ppq');
+      panel!.innerHTML = panels.renderAIProviderPanel('ppq');
+      panels.hydrateOwnedProviderSettings();
+      (await import('/js/ppq-settings-component.js')).getPpqSettingsView()!.setStoredKey('sk-ppq-good');
       await panels.handleSavePpqKey();
       await panels.refreshPpqBalance();
       await wait(0);
@@ -803,7 +801,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ ppqUrl }) => {
-    const ppq = (await import(ppqUrl) as unknown) as Pick<typeof import('../../js/provider-ppq-panels.js'),"copyPpqKeyReveal"|"dismissPpqKeyReveal"|"handleSelectPpqMethod"|"handlePpqTopupPreset"|"ppqShowCustomInput"|"copyPpqPayment"|"cancelPpqTopup"|"handleSavePpqKey"|"handleRemovePpqKey"|"configurePpqPanels"|"handleCreatePpqAccount"|"refreshPpqBalance"|"doPpqTopupCustom"|"doPpqTopup"|"clearPpqTopupTimers">;
+    const ppq = (await import(ppqUrl) as unknown) as Pick<typeof import('../../js/provider-ppq-panels.js'),"copyPpqKeyReveal"|"dismissPpqKeyReveal"|"handleSelectPpqMethod"|"handlePpqTopupPreset"|"ppqShowCustomInput"|"copyPpqPayment"|"cancelPpqTopup"|"handleSavePpqKey"|"handleRemovePpqKey"|"configurePpqPanels"|"handleCreatePpqAccount"|"refreshPpqBalance"|"doPpqTopupCustom"|"doPpqTopup"|"clearPpqTopupTimers"|"hydratePpqSettings">;
     const delegates = await import('/js/provider-panel-delegates.js');
     const cryptoStore = await import('/js/crypto.js');
     const settingsBridge = await import('/js/settings-runtime-bridge.js');
@@ -814,6 +812,12 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
     });
 
     const storageKeys = [
+      'labcharts-ai-provider',
+      'labcharts-ppq-private-models',
+      'labcharts-ppq-private-mode',
+      'labcharts-ppq-model-regular',
+      'labcharts-ppq-model-private',
+      'labcharts-ppq-private-vision-models',
       'labcharts-ppq-key',
       'labcharts-ppq-credit-id',
       'labcharts-ppq-model',
@@ -842,6 +846,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
     try {
       for (const key of storageKeys) localStorage.removeItem(key);
       cryptoStore.updateKeyCache('labcharts-ppq-key', '');
+      localStorage.setItem('labcharts-ai-provider', 'ppq');
       (window as unknown as {setInterval:unknown}).setInterval = (fn:()=>unknown, ms:number) => {
         const id = nextIntervalId++;
         intervals.push({ id, fn, ms, cleared: false });
@@ -893,24 +898,18 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
         cancelPpqTopup: ppq.cancelPpqTopup,
       });
 
-      document.body.insertAdjacentHTML('beforeend', `
-        <div id="ai-provider-panel">
-          <button data-provider-panel-action="create-ppq-account">Create Account (instant, no signup)</button>
-          <div id="ppq-key-status"></div>
-        </div>
-      `);
-      const panel = (document.getElementById('ai-provider-panel') as HTMLElement|null);
-      panel!.innerHTML = `
-        <input id="ppq-key-input" value="sk-ppq-default">
-        <button id="save-ppq-key-btn">Save</button>
-        <div id="ppq-key-status"></div>
-        <div id="ppq-model-area"></div>
-      `;
+      document.getElementById('ai-provider-panel')?.remove();
+      document.body.insertAdjacentHTML('beforeend', '<section id="ai-provider-panel"></section>');
+      const panel = document.getElementById('ai-provider-panel')!;
+      panel.innerHTML = (await import('/js/provider-panel-renderers.js')).renderAIProviderPanel('ppq');
+      ppq.hydratePpqSettings();
+      (await import('/js/ppq-settings-component.js')).getPpqSettingsView()!.setStoredKey('sk-ppq-default');
       await ppq.handleSavePpqKey();
       const defaultSaveUsesNoopReturnCallback = (document.getElementById('ppq-key-status') as HTMLElement|null)?.textContent.includes('Connected')
         && (document.getElementById('ppq-model-select') as HTMLSelectElement|null)?.value === 'claude-sonnet-4.6';
 
       localStorage.setItem('labcharts-ppq-key', 'sk-ppq-remove');
+      cryptoStore.updateKeyCache('labcharts-ppq-key', 'sk-ppq-remove');
       localStorage.setItem('labcharts-ppq-credit-id', 'credit-remove');
       localStorage.setItem('labcharts-ppq-model', 'claude-sonnet-4.6');
       localStorage.setItem('labcharts-ppq-models', JSON.stringify([{ id: 'claude-sonnet-4.6', name: 'Claude' }]));
@@ -936,11 +935,9 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
         returnToChatIfOnboarding: () => { returnToChatCount += 1; },
       });
 
-      panel!.innerHTML = `
-        <button data-provider-panel-action="create-ppq-account">Create Account (instant, no signup)</button>
-        <div id="ppq-key-status"></div>
-      `;
-
+      (await import('/js/ppq-settings-component.js')).disposePpqSettings();
+      panel.innerHTML = (await import('/js/provider-panel-renderers.js')).renderAIProviderPanel('ppq');
+      ppq.hydratePpqSettings();
       await ppq.handleCreatePpqAccount();
       const revealPanel = (document.getElementById('ai-provider-panel') as HTMLElement|null);
       const accountReveal = revealPanel?.textContent.includes('Save your account details')
@@ -956,7 +953,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       await wait(0);
       await ppq.refreshPpqBalance();
       await wait(0);
-      const dismissRerendersTopup = (document.getElementById('ppq-topup-area') as HTMLElement|null)?.style.display === 'block'
+      const dismissRerendersTopup = (document.getElementById('ppq-topup-area') as HTMLElement|null)?.hidden === false
         && (document.getElementById('ppq-topup-toggle') as HTMLElement|null)?.textContent === 'Close'
         && (document.getElementById('ppq-balance') as HTMLElement|null)?.textContent.includes('$1.25');
 
@@ -992,23 +989,23 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
         && (document.getElementById('ppq-balance') as HTMLElement|null)?.textContent.includes('$1.25');
 
       createMode = 'expired';
-      await ppq.doPpqTopup(2);
+      await ppq.doPpqTopup(6);
       const expiredPoll = [...intervals].reverse().find(item => item.ms === 3000 && !item.cleared);
       const expiredPollIntervalScheduled = !!expiredPoll;
       if (expiredPoll) await expiredPoll.fn();
       const expiredInvoice = ((document.getElementById('ppq-topup-status') as HTMLElement|null)?.textContent || '').includes('Invoice expired');
 
       createMode = 'error';
-      await ppq.doPpqTopup(2);
-      const topupError = ((document.getElementById('ppq-topup-area') as HTMLElement|null)?.textContent || '').includes('bad topup');
+      await ppq.doPpqTopup(6);
+      const topupError = ((document.getElementById('ppq-topup-area') as HTMLElement|null)?.textContent || '').includes('Could not create this invoice. Please retry.') && !document.getElementById('ppq-topup-area')?.textContent.includes('bad topup');
 
       createMode = 'paid';
-      await ppq.doPpqTopup(2);
+      await ppq.doPpqTopup(6);
       const cancelPoll = [...intervals].reverse().find(item => item.ms === 3000 && !item.cleared);
       const cancelPollIntervalScheduled = !!cancelPoll;
       document.querySelector<HTMLElement>('#ppq-topup-area [data-provider-panel-action="cancel-ppq-topup"]')?.click();
       await wait(0);
-      const cancelHidesArea = (document.getElementById('ppq-topup-area') as HTMLElement|null)?.style.display === 'none'
+      const cancelHidesArea = (document.getElementById('ppq-topup-area') as HTMLElement|null)?.hidden === true
         && !!cancelPoll
         && intervals.find(item => item.id === cancelPoll.id)?.cleared === true;
 
@@ -1035,6 +1032,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
       };
     } finally {
       ppq.clearPpqTopupTimers();
+      (await import('/js/ppq-settings-component.js')).disposePpqSettings();
       window.fetch = oldGlobals.fetch;
       window.setInterval = oldGlobals.setInterval;
       window.clearInterval = oldGlobals.clearInterval;

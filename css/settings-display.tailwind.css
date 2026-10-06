@@ -46,3 +46,5 @@
 
 @source "../js/provider-settings-classes.ts";
 @custom-variant cloud-provider (&:is([data-cloud-provider-settings-view], [data-cloud-provider-settings-view] *));
+
+@source "../js/ppq-topup-classes.ts";

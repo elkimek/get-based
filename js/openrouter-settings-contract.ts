@@ -1,12 +1,6 @@
 // Public display state only; credentials are read from a private live field on submit.
-export type OpenRouterTone = 'secondary' | 'success' | 'warning' | 'danger';
-export interface OpenRouterStatus { text: string; tone: OpenRouterTone }
-export interface OpenRouterModelState {
-  selectedModel: string;
-  modelDisplay: string;
-  groups: readonly { label: string; options: readonly { value: string; label: string }[] }[];
-  pricing: OpenRouterStatus;
-}
+import type { ProviderSettingsStatus as OpenRouterStatus, ProviderSettingsModels as OpenRouterModelState } from './provider-settings-contract.js';
+export type { ProviderSettingsTone as OpenRouterTone, ProviderSettingsStatus as OpenRouterStatus, ProviderSettingsModels as OpenRouterModelState } from './provider-settings-contract.js';
 export interface OpenRouterSettingsSnapshot {
   connected: boolean;
   models: OpenRouterModelState;

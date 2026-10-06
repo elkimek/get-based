@@ -103,7 +103,7 @@ export async function checkPpqTopupStatus(invoiceId: string) {
   return res.json() as Promise<PpqTopupStatus>;
 }
 
-export async function fetchPpqModels(key?: unknown) {
+export async function fetchPpqModels(key?: unknown, options: { isCurrent?: () => boolean } = {}) {
   try {
     const headers: Record<string, string> = {};
     if (key || getPpqKey()) headers['Authorization'] = 'Bearer ' + (key || getPpqKey());
@@ -142,6 +142,9 @@ export async function fetchPpqModels(key?: unknown) {
         }
       }
     }
+    // A Settings request may outlive its account. Reject every stale cache write
+    // while preserving explicit-key callers that do not need an ownership guard.
+    if (options.isCurrent && !options.isCurrent()) return [];
     localStorage.setItem('labcharts-ppq-pricing', JSON.stringify(pricingCache));
     const visionIds = rawModels.filter(function(m) {
       if (!m.id || !m.architecture) return false;

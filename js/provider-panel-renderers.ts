@@ -2,15 +2,15 @@ import type { StoredProviderModel } from './api-provider-storage.js';
 
 // provider-panel-renderers.js — AI provider settings panel markup
 
+import { PPQ_SETTINGS_HOST } from './ppq-settings-contract.js';
 import { VENICE_SETTINGS_HOST } from './venice-settings-contract.js';
 import { OPENROUTER_SETTINGS_HOST } from './openrouter-settings-contract.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import {
   getRoutstrKey, getRoutstrModel,
   isRoutstrPrivateModeActive,
-  getPpqKey, getPpqModel, getPpqPrivateMode, isPpqPrivateModeActive,
   getCustomApiUrl, getCustomApiKey, getCustomApiModel,
-  getRoutstrModelDisplay, getPpqModelDisplay,
+  getRoutstrModelDisplay,
   renderModelPricingHint, selectLatestRecommendedModels,
   getOllamaConfig, getOllamaMainModel
 } from './api.js';
@@ -48,19 +48,6 @@ export function buildModelOptions<Model extends StoredProviderModel>(provider: s
     if (rec.length) html += '</optgroup>';
   }
   return html;
-}
-
-function renderProviderKeyControls(
-  provider: 'ppq', currentKey: unknown, placeholder: string,
-) {
-  return `<div class="api-key-status" id="${provider}-key-status">
-      ${currentKey ? '<span style="color:var(--green)">&#10003; Connected</span>' : '<span style="color:var(--text-muted)">No key set</span>'}
-    </div>
-    <input type="password" class="api-key-input" id="${provider}-key-input" placeholder="${placeholder}" value="${escapeAttr(currentKey)}" autocomplete="new-password">
-    <div style="display:flex;gap:8px;margin-top:12px">
-      <button class="import-btn import-btn-primary" id="save-${provider}-key-btn" data-provider-panel-action="save-${provider}-key">Save & Validate</button>
-      ${currentKey ? `<button class="import-btn import-btn-secondary" data-provider-panel-action="remove-${provider}-key">Remove Key</button>` : ''}
-    </div>`;
 }
 
 function renderRoutstrProviderPanel() {
@@ -159,44 +146,7 @@ function renderRoutstrProviderPanel() {
 
 function renderVeniceProviderPanel(): string { return VENICE_SETTINGS_HOST; }
 
-function renderPpqProviderPanel() {
-  const currentKey = getPpqKey();
-  const ppqModel = getPpqModel();
-  const cachedRegularPpqModels = readStoredArray('labcharts-ppq-models');
-  const cachedPrivatePpqModels = readStoredArray('labcharts-ppq-private-models');
-  const privateOn = getPpqPrivateMode();
-  const cachedPpqModels = privateOn && cachedPrivatePpqModels.length ? cachedPrivatePpqModels : cachedRegularPpqModels;
-  let ppqModelHtml;
-  if (cachedPpqModels.length > 0) {
-    const opts = buildModelOptions('ppq', cachedPpqModels, ppqModel, function(m) { return m.name || m.id; });
-    ppqModelHtml = `<div style="margin-top:12px" id="ppq-model-area">
-      <label style="font-size:12px;color:var(--text-muted)">Model</label>
-      <select class="api-key-input" id="ppq-model-select" style="margin-top:4px" data-provider-panel-change="ppq-model">${opts}</select>
-      <div id="ppq-model-pricing" style="margin-top:4px">${renderModelPricingHint('ppq', ppqModel)}</div>
-    </div>`;
-  } else {
-    ppqModelHtml = `<div style="margin-top:12px;font-size:12px;color:var(--text-muted)" id="ppq-model-area">Model: <span style="color:var(--text-primary)">${escapeHTML(getPpqModelDisplay())}</span>${currentKey ? ' <span style="font-size:11px">(save key to load models)</span>' : ''}</div>`;
-  }
-  const balanceHtml = currentKey ? `<div style="margin-top:8px;display:flex;align-items:center;gap:8px">
-      <div style="font-size:12px;color:var(--text-muted)"><span id="ppq-balance">Balance: loading...</span> <a href="#" data-provider-panel-action="refresh-ppq-balance" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>
-      <button class="import-btn import-btn-secondary" id="ppq-topup-toggle" style="font-size:11px;padding:2px 10px" data-provider-panel-action="show-ppq-topup">Top Up</button>
-    </div>
-    <div id="ppq-topup-area" style="display:none"></div>` : '';
-  return `<form class="ai-provider-panel">
-    <input type="text" name="ai-provider" value="ppq" autocomplete="username" hidden>
-    <div class="ai-provider-desc">Pay-per-query AI aggregator. 300+ models, no subscription, no KYC. Top up with crypto or <a href="https://www.bitrefill.com/gift-cards/ppq-us/" target="_blank" rel="noopener" style="color:var(--accent)">gift cards</a>.</div>
-    ${currentKey ? '' : '<button class="import-btn import-btn-primary" style="width:100%;margin-bottom:8px" data-provider-panel-action="create-ppq-account">Create Account (instant, no signup)</button><div class="or-oauth-divider"><span>or enter existing key</span></div>'}
-    ${renderProviderKeyControls('ppq', currentKey, 'sk-...')}
-    ${balanceHtml}
-    ${ppqModelHtml}
-    ${cachedPrivatePpqModels.length ? `<div style="margin-top:12px;display:flex;align-items:center;gap:8px">
-      <label class="toggle-switch" style="flex-shrink:0"><input type="checkbox" id="ppq-private-toggle" ${privateOn ? 'checked' : ''} data-provider-panel-change="ppq-private-mode"><span class="toggle-slider"></span></label>
-      <span style="font-size:13px">Private TEE Mode</span>
-    </div>
-    <div id="ppq-private-indicator" style="margin-top:6px;font-size:12px;${isPpqPrivateModeActive() ? '' : 'display:none'}"><span style="color:var(--green)">&#128274;</span> Prompts are encrypted in your browser and decrypted only inside a verified PPQ/Tinfoil TEE. Web search is disabled.</div>` : ''}
-    <div class="api-key-notice">Your key is stored locally. No account data is shared with getbased. <a href="https://ppq.ai/invite/8f3017cd" target="_blank" rel="noopener" style="color:var(--accent)">ppq.ai</a></div>
-  </form>`;
-}
+function renderPpqProviderPanel(): string { return PPQ_SETTINGS_HOST; }
 
 // Custom API panel — any OpenAI-compatible endpoint
 function renderCustomProviderPanel() {

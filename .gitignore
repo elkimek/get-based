@@ -1612,3 +1612,14 @@ deploy/profile-share/data/
 /js/venice-settings-view.js
 /js/venice-settings-component.js
 /js/venice-key-controller.js
+
+/js/provider-settings-contract.js
+/js/provider-settings-models.js
+/js/ppq-settings-contract.js
+/js/ppq-settings-view.js
+/js/ppq-payment-methods.js
+/js/ppq-topup-classes.js
+/js/ppq-settings-component.js
+
+/js/ppq-topup-controller.js
+/js/ppq-account-controller.js

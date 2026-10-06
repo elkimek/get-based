@@ -1,13 +1,6 @@
 // Presentation state excludes credentials and raw provider metadata.
-export type VeniceTone = 'secondary' | 'success' | 'warning' | 'danger';
-export interface VeniceStatus { text: string; tone: VeniceTone }
-export interface VeniceModelState {
-  selectedModel: string;
-  modelDisplay: string;
-  groups: readonly { label: string; options: readonly { value: string; label: string }[] }[];
-  pricing: VeniceStatus;
-}
-export interface VeniceModeState { enabled: boolean; available: boolean; active: boolean }
+import type { ProviderSettingsStatus as VeniceStatus, ProviderSettingsModels as VeniceModelState, ProviderSettingsMode as VeniceModeState } from './provider-settings-contract.js';
+export type { ProviderSettingsTone as VeniceTone, ProviderSettingsStatus as VeniceStatus, ProviderSettingsModels as VeniceModelState, ProviderSettingsMode as VeniceModeState } from './provider-settings-contract.js';
 export interface VeniceSettingsSnapshot {
   connected: boolean;
   models: VeniceModelState;

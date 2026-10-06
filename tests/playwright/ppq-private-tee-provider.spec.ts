@@ -8,11 +8,12 @@ test('PPQ Private TEE toggle appears after cold-cache model fetch without provid
   const result = await page.evaluate(async ({ apiUrl, controlsUrl, panelsUrl, renderersUrl }) => {
     const api = (await import(apiUrl) as unknown) as Pick<typeof import('../../js/api.js'), "savePpqKey">;
     const controls = (await import(controlsUrl) as unknown) as Pick<typeof import('../../js/provider-model-controls.js'), "togglePpqPrivateMode">;
-    const panels = (await import(panelsUrl) as unknown) as Pick<typeof import('../../js/provider-ppq-panels.js'), "initSettingsPpqPanel">;
+    const panels = (await import(panelsUrl) as unknown) as Pick<typeof import('../../js/provider-ppq-panels.js'), "initSettingsPpqPanel"|"hydratePpqSettings">;
     const renderers = (await import(renderersUrl) as unknown) as Pick<typeof import('../../js/provider-panel-renderers.js'), "renderAIProviderPanel">;
     const cryptoStore = await import('/js/crypto.js');
 
     const storageKeys = [
+      'labcharts-ai-provider',
       'labcharts-ppq-key',
       'labcharts-ppq-credit-id',
       'labcharts-ppq-model',
@@ -57,13 +58,17 @@ test('PPQ Private TEE toggle appears after cold-cache model fetch without provid
       document.getElementById('ai-provider-panel')?.remove();
       document.body.insertAdjacentHTML('beforeend', '<section id="ai-provider-panel"></section>');
       const panel = document.getElementById('ai-provider-panel');
+      localStorage.setItem('labcharts-ai-provider', 'ppq');
       panel!.innerHTML = renderers.renderAIProviderPanel('ppq');
+      panels.hydratePpqSettings();
 
       const before = {
         hasToggle: !!document.getElementById('ppq-private-toggle'),
         privateCount: (JSON.parse(localStorage.getItem('labcharts-ppq-private-models') || '[]') as {length?: unknown}).length,
       };
 
+      const field = document.getElementById('ppq-key-input') as HTMLInputElement;
+      field.value = 'PRIVATE DRAFT'; field.focus();
       panels.initSettingsPpqPanel();
       for (let i = 0; i < 80 && !document.getElementById('ppq-private-toggle'); i += 1) {
         await new Promise(resolve => setTimeout(resolve, 25));
@@ -87,9 +92,12 @@ test('PPQ Private TEE toggle appears after cold-cache model fetch without provid
           indicatorText: document.getElementById('ppq-private-indicator')?.textContent || '',
           balanceText: document.getElementById('ppq-balance')?.textContent || '',
           balanceCalls,
+          draftPreserved: document.getElementById('ppq-key-input') === field && field.value === 'PRIVATE DRAFT',
+          focusPreserved: document.activeElement === field,
         },
       };
     } finally {
+      (await import('/js/ppq-settings-component.js')).disposePpqSettings();
       window.fetch = oldFetch;
       cryptoStore.updateKeyCache('labcharts-ppq-key', oldKey || null);
       for (const key of storageKeys) {
@@ -108,6 +116,8 @@ test('PPQ Private TEE toggle appears after cold-cache model fetch without provid
   expect(result.before.hasToggle).toBe(false);
   expect(result.before.privateCount).toBe(0);
   expect(result.after.hasToggle).toBe(true);
+  expect(result.after.draftPreserved).toBe(true);
+  expect(result.after.focusPreserved).toBe(true);
   expect(result.after.privateCount).toBe(2);
   expect(result.after.privateModels).toContain('private/kimi-k3');
   expect(result.after.regularCount).toBe(1);
@@ -116,7 +126,9 @@ test('PPQ Private TEE toggle appears after cold-cache model fetch without provid
   expect(result.after.modelOptions).toContain('private/kimi-k3');
   expect(result.after.indicatorText).toContain('Prompts are encrypted in your browser');
   expect(result.after.balanceText).toContain('$1.23');
-  expect(result.after.balanceCalls).toBeGreaterThanOrEqual(2);
+  // Owned catalog hydration keeps the existing balance element, avoiding the
+  // native renderer's second request solely to populate replacement DOM.
+  expect(result.after.balanceCalls).toBe(1);
 });
 
 test('PPQ cold-cache model fetch does not overwrite another active provider panel', async ({ page }) => {
@@ -124,11 +136,12 @@ test('PPQ cold-cache model fetch does not overwrite another active provider pane
 
   const result = await page.evaluate(async ({ apiUrl, panelsUrl, renderersUrl }) => {
     const api = (await import(apiUrl) as unknown) as Pick<typeof import('../../js/api.js'), "savePpqKey">;
-    const panels = (await import(panelsUrl) as unknown) as Pick<typeof import('../../js/provider-ppq-panels.js'), "initSettingsPpqPanel">;
+    const panels = (await import(panelsUrl) as unknown) as Pick<typeof import('../../js/provider-ppq-panels.js'), "initSettingsPpqPanel"|"hydratePpqSettings">;
     const renderers = (await import(renderersUrl) as unknown) as Pick<typeof import('../../js/provider-panel-renderers.js'), "renderAIProviderPanel">;
     const cryptoStore = await import('/js/crypto.js');
 
     const storageKeys = [
+      'labcharts-ai-provider',
       'labcharts-ppq-key',
       'labcharts-ppq-models',
       'labcharts-ppq-private-models',
@@ -169,7 +182,9 @@ test('PPQ cold-cache model fetch does not overwrite another active provider pane
       document.getElementById('ai-provider-panel')?.remove();
       document.body.insertAdjacentHTML('beforeend', '<section id="ai-provider-panel"></section>');
       const panel = document.getElementById('ai-provider-panel');
+      localStorage.setItem('labcharts-ai-provider', 'ppq');
       panel!.innerHTML = renderers.renderAIProviderPanel('ppq');
+      panels.hydratePpqSettings();
 
       panels.initSettingsPpqPanel();
       panel!.innerHTML = '<div id="openrouter-model-area">OpenRouter settings stay here</div>';
@@ -182,6 +197,7 @@ test('PPQ cold-cache model fetch does not overwrite another active provider pane
         html: panel!.innerHTML,
       };
     } finally {
+      (await import('/js/ppq-settings-component.js')).disposePpqSettings();
       window.fetch = oldFetch;
       cryptoStore.updateKeyCache('labcharts-ppq-key', oldKey || null);
       for (const key of storageKeys) {

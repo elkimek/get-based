@@ -1,3 +1,5 @@
+import { getPpqSettingsView } from './ppq-settings-component.js';
+import { buildPpqModelState, buildPpqModeState, readPpqModels, ppqPricing } from './ppq-settings-view.js';
 import type { StoredProviderModel } from './api-provider-storage.js';
 
 // provider-model-controls.js - provider model dropdowns, pricing, and custom model selection.
@@ -177,20 +179,16 @@ export function toggleRoutstrPrivateMode(on: boolean) {
   refreshProviderModelUiRuntime();
 }
 
-export function renderPpqModelDropdown(models: StoredProviderModel[]) {
-  const area = document.getElementById('ppq-model-area');
-  if (!area || !models.length) return;
-  const currentModel = getPpqModel();
-  const opts = buildModelOptions('ppq', models, currentModel, function(m) { return m.name || m.id; });
-  area.innerHTML = '<label style="font-size:12px;color:var(--text-muted)">Model</label>' +
-    '<select class="api-key-input" id="ppq-model-select" style="margin-top:4px" data-provider-panel-change="ppq-model">' + opts + '</select>' +
-    '<div id="ppq-model-pricing" style="margin-top:4px">' + renderModelPricingHint('ppq', currentModel) + '</div>';
+export function renderPpqModelDropdown(models: StoredProviderModel[]): void {
+  if (!models.length) return;
+  const view = getPpqSettingsView();
+  view?.setModels(buildPpqModelState(models));
+  view?.setMode(buildPpqModeState());
 }
 
-export function togglePpqPrivateMode(on: boolean) {
+export function togglePpqPrivateMode(on: boolean): void {
   setPpqPrivateMode(on);
-  const listKey = on ? 'labcharts-ppq-private-models' : 'labcharts-ppq-models';
-  let models: StoredProviderModel[] = []; try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch {}
+  const models = readPpqModels(on);
   if (models.length) {
     const prevKey = on ? 'labcharts-ppq-model-regular' : 'labcharts-ppq-model-private';
     const restoreKey = on ? 'labcharts-ppq-model-private' : 'labcharts-ppq-model-regular';
@@ -198,16 +196,18 @@ export function togglePpqPrivateMode(on: boolean) {
     const restored = localStorage.getItem(restoreKey);
     const newModel = restored && models.some(m => m.id === restored) ? restored : models[0]!.id;
     setPpqModel(newModel);
-    renderPpqModelDropdown(models);
   }
-  const el = document.getElementById('ppq-private-indicator');
-  if (el) el.style.display = on ? '' : 'none';
+  // Missing catalogs retain the user's private-mode intent without presenting
+  // a regular-model list as a private catalog or claiming verified capability.
+  getPpqSettingsView()?.setModels(buildPpqModelState(models));
+  getPpqSettingsView()?.setMode(buildPpqModeState());
   refreshProviderModelUiRuntime();
 }
 
-export function updatePpqModelPricing(modelId: string) {
-  const el = document.getElementById('ppq-model-pricing');
-  if (el) el.innerHTML = renderModelPricingHint('ppq', modelId);
+export function updatePpqModelPricing(modelId: string): void {
+  const view = getPpqSettingsView();
+  if (view) view.setModels({ ...view.getModels(), selectedModel: modelId, pricing: ppqPricing(modelId) });
+  view?.setMode(buildPpqModeState());
 }
 
 export function renderCustomApiModelDropdown(models: StoredProviderModel[]) {
