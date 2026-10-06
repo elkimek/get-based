@@ -550,8 +550,8 @@ export async function redeemFees(bolt11Invoice: string) {
     return { paid: true, amount: invoice.msats / 1000 };
   }));
 }
-export function depositTokenToNode(nodeUrl: string, token: string) {
-  return _withWalletLock(() => depositExternalTokenToNode(nodeUrl, token));
+export function depositTokenToNode(nodeUrl: string, token: string, expectedKey?: string) {
+  return _withWalletLock(() => depositExternalTokenToNode(nodeUrl, token, expectedKey));
 }
 export function refundNodeToToken(nodeUrl: unknown, recoveryId?: string, recoveryToken?: string, generation?: string, expectedKey?: string) {
   return _withWalletLock(async () => { await _ensureNoPendingSwap(); return requestNodeRefund(nodeUrl, recoveryId, recoveryToken, generation, expectedKey); });

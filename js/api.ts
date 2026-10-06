@@ -1,6 +1,6 @@
 // api.js - AI provider facade and call router.
 
-import { getAIProvider } from './api-provider-storage.js';
+import { getAIProvider, getRoutstrKey } from './api-provider-storage.js';
 import type { ProviderRequestOptions } from './api-openai-compatible.js';
 import type { LocalAiRequestOptions } from './api-local.js';
 import { getVeniceE2EESessionRuntime } from './api-runtime.js';
@@ -198,8 +198,9 @@ export async function callRoutstrAPI(...args: Parameters<typeof import('./api-ro
   return (await loadRoutstrApi()).callRoutstrAPI(...args);
 }
 
-export async function createRoutstrAccount(...args: Parameters<typeof import('./api-routstr.js').createRoutstrAccount>) {
-  return (await loadRoutstrApi()).createRoutstrAccount(...args);
+export async function createRoutstrAccount(token: string, node = getRoutstrNodeUrl(), expectedKey = getRoutstrKey(node)) {
+  if (!node) throw new Error('No Routstr node selected. Pick a node in Settings -> Routstr.');
+  return (await loadRoutstrApi()).createRoutstrAccount(token, node, expectedKey);
 }
 
 export async function getRoutstrBalance(...args: Parameters<typeof import('./api-routstr.js').getRoutstrBalance>) {

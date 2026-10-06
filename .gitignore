@@ -1709,3 +1709,5 @@ js/custom-settings-controller.js
 /js/ai-action-dialog-contract.js
 /js/ai-action-dialog-classes.js
 /js/ai-action-dialog-component.js
+
+/js/routstr-account-controller.js

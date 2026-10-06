@@ -1,3 +1,6 @@
+import { createRoutstrAccountController } from './routstr-account-controller.js';
+import { getChatBackend } from './agent-chat-settings.js';
+import { getSelectedRoutstrNodeFromRuntime } from './provider-panel-renderers-runtime.js';
 import { setAiSettingsEnabled } from './ai-settings-actions.js';
 import { getAiSettingsView,setAiSettingsSelection } from './ai-settings-component.js';
 import { disposeLocalAiSettings } from './local-ai-settings-component.js';
@@ -17,7 +20,7 @@ import { getOpenRouterSettingsView, mountOpenRouterSettings, disposeOpenRouterSe
 import { buildOpenRouterSettingsSnapshot, openRouterBalance } from './openrouter-settings-view.js';
 import { saveOpenRouterSettingsKey, isOpenRouterKeySavePending } from './openrouter-key-controller.js';
 import { getErrorMessage } from './caught-error.js';
-import { escapeHTML, escapeAttr, showNotification } from './utils.js';
+import { showNotification } from './utils.js';
 import {
   getAppExtensionAIInsufficientBalanceView,
   hasAppExtensionAIModelSurface,
@@ -393,11 +396,7 @@ export function recoverPendingWithdraw(actionEl: unknown) {
   void _recoverPendingToken(actionEl, 'cashuClearPendingWithdraw');
 }
 
-export function acknowledgeRoutstrKey() {
-  const panel = document.getElementById('ai-provider-panel');
-  if (panel) panel.innerHTML = renderAIProviderPanel('routstr');
-  initSettingsModelFetch();
-}
+export function acknowledgeRoutstrKey(): void { routstrAccount.acknowledge(); }
 
 // ═══════════════════════════════════════════════
 // VENICE HANDLERS
@@ -522,80 +521,19 @@ export function showInsufficientBalanceDialog() {
 // Direct mode removed — wallet-only
 
 // ─── Routstr handlers ───
-export async function handleSaveRoutstrKey() {
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('routstr-key-input')) as HTMLInputElement | null;
-  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('save-routstr-key-btn')) as HTMLButtonElement | null;
-  const status = document.getElementById('routstr-key-status');
-  if (!input || !btn || !status) return;
-  let key = input.value.trim();
-  if (key.startsWith('cashu:')) key = key.slice(6); // strip URI prefix
-  if (!key) { status.innerHTML = '<span style="color:var(--red)">Please enter a key or Cashu token</span>'; return; }
-  btn.disabled = true; btn.textContent = 'Validating...';
-  const result = await validateRoutstrKey(key);
-  if (result.valid) {
-    status.innerHTML = '<span style="color:var(--text-muted)">Key format accepted — waiting for activation…</span>';
-    if (!await requestProviderActivation('routstr')) {
-      status.innerHTML = '<span style="color:var(--text-muted)">Key format accepted — AI not activated</span>';
-      btn.disabled = false; btn.textContent = 'Save & Validate';
-      return;
-    }
-    let finalKey = key;
-    // Convert Cashu token to a session key so Lightning topup works
-    if (key.startsWith('cashu')) {
-      status.innerHTML = '<span style="color:var(--text-muted)">Converting token to session key\u2026</span>';
-      try {
-        const wallet = await createRoutstrAccount(key);
-        if (wallet.api_key) finalKey = wallet.api_key;
-      } catch (e) {
-        status.innerHTML = '<span style="color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</span>';
-        btn.disabled = false; btn.textContent = 'Save & Validate';
-        return;
-      }
-      // The payment layer has already durably saved the node-bound key.
-      await fetchRoutstrModels();
-      const panel = document.getElementById('ai-provider-panel');
-      if (panel) {
-        panel.innerHTML = `<div class="ai-provider-panel">
-          <div style="padding:12px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--accent)">
-            <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:6px">\u26a0 Save your session key</div>
-            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Your Cashu token has been redeemed. This session key is the <strong>only way to access your balance</strong>. It is saved on this device. Keep your own backup as well.</div>
-            <label style="font-size:11px;color:var(--text-muted)">Session Key</label>
-            <div style="font-family:monospace;font-size:11px;word-break:break-all;background:var(--bg-primary);padding:8px;border-radius:6px;border:1px solid var(--border);color:var(--text-primary);user-select:all;cursor:text">${escapeHTML(finalKey)}</div>
-            <div style="display:flex;gap:8px;margin-top:8px">
-              <button class="import-btn import-btn-primary" style="font-size:12px" data-provider-panel-action="copy-provider-panel-clipboard" data-clipboard-text="${escapeAttr(finalKey)}" data-copied-text="\u2713 Copied (clears in 60s)" data-clear-timer-key="_rsClipTimer" data-clear-clipboard-after="60000">Copy Key</button>
-              <button class="import-btn import-btn-secondary" style="font-size:12px" data-provider-panel-action="acknowledge-routstr-key">I\u2019ve saved it</button>
-            </div>
-          </div>
-        </div>`;
-      }
-      btn.disabled = false; btn.textContent = 'Save & Validate';
-      return;
-    }
-    await saveRoutstrKey(finalKey);
-    status.innerHTML = '<span style="color:var(--green)">Connected \u2014 loading models\u2026</span>';
-    const models = await fetchRoutstrModels();
-    if (models.length) {
-      renderRoutstrModelDropdown(models);
-      status.innerHTML = '<span style="color:var(--green)">\u2713 Connected</span>';
-    } else {
-      status.innerHTML = '<span style="color:var(--green)">\u2713 Connected</span>';
-    }
-    if (result.warning) showNotification(result.warning, 'info', 5000);
-    else showNotification('Routstr key saved', 'success');
-    _returnToChatIfOnboarding();
-  } else {
-    status.innerHTML = `<span style="color:var(--red)">${escapeHTML(result.error)}</span>`;
-  }
-  btn.disabled = false; btn.textContent = 'Save & Validate';
-}
-
-export async function handleRemoveRoutstrKey() {
-  try { await saveRoutstrKey(''); }
-  catch { showNotification('Could not remove the Routstr key. Try again.', 'error'); return; }
-  clearRoutstrModelCaches();
-  showNotification('Routstr key removed', 'info');
-  (providerPanelDeps as ProviderPanelOperations).openSettingsModal();
-}
+const routstrAccount = createRoutstrAccountController({
+  view: getRoutstrSettingsView, provider: getAIProvider, backend: getChatBackend,
+  node: () => getSelectedRoutstrNodeFromRuntime() || '', key: getRoutstrKey,
+  validate: validateRoutstrKey, activate: () => requestProviderActivation('routstr'),
+  save: saveRoutstrKey, redeem: createRoutstrAccount,
+  models: async current => { const models = await fetchRoutstrModels({ isCurrent: current }); if (current() && models.length) renderRoutstrModelDropdown(models); },
+  connected: warning => { showNotification(warning || 'Routstr key saved', warning ? 'info' : 'success'); _returnToChatIfOnboarding(); },
+  removed: () => { clearRoutstrModelCaches(); hydrateRoutstrModelSettings(); showNotification('Routstr key removed', 'info'); (providerPanelDeps as ProviderPanelOperations).openSettingsModal(); },
+  writeClipboard: value => navigator.clipboard.writeText(value),
+  scheduleClear: clear => { const name = '_rsClipTimer'; const previous = providerPanelClipboardTimers.get(name); if (previous) clearTimeout(previous); providerPanelClipboardTimers.set(name, setTimeout(clear, 60000)); },
+});
+export function handleSaveRoutstrKey(): Promise<void> { return routstrAccount.save(); }
+export function handleRemoveRoutstrKey(): Promise<void> { return routstrAccount.remove(); }
 
 // Custom API save/remove share one lifecycle across Settings replacements.
 const customSettings = createCustomSettingsController();
@@ -632,6 +570,7 @@ configurePpqPanels({
 });
 
 configureRoutstrWalletPanels({
+  account: { save: handleSaveRoutstrKey, remove: handleRemoveRoutstrKey, copy: () => routstrAccount.copy(), acknowledge: acknowledgeRoutstrKey },
   renderAIProviderPanel,
   renderRoutstrModelDropdown,
   initSettingsModelFetch,

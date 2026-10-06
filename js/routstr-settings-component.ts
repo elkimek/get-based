@@ -30,16 +30,20 @@ export function mountRoutstrSettings(host: HTMLElement, initial: RoutstrSettings
   disposeRoutstrSettings(); host.replaceChildren(); target = host;
   let owned: RoutstrSettingsView | null = null, privateAccount: RoutstrSettingsAccount | null = { ...account };
   const run = (action: () => unknown) => owned?.isCurrent() ? action() : undefined;
-  const scoped: RoutstrSettingsActions = { wallet: action => run(() => actions.wallet(action)), node: (action, node) => run(() => actions.node(action, node)), mints: () => run(actions.mints), refreshWallet: () => run(actions.refreshWallet), refreshNode: () => run(actions.refreshNode), refunds: node => run(() => actions.refunds(node)), copyRecovery: kind => run(() => actions.copyRecovery(kind)), reclaimRecovery: kind => run(() => actions.reclaimRecovery(kind)) };
+  const scoped: RoutstrSettingsActions = { account: actions.account ? { save: () => run(actions.account!.save), remove: () => run(actions.account!.remove), copy: () => run(actions.account!.copy), acknowledge: () => run(actions.account!.acknowledge) } : undefined, wallet: action => run(() => actions.wallet(action)), node: (action, node) => run(() => actions.node(action, node)), mints: () => run(actions.mints), refreshWallet: () => run(actions.refreshWallet), refreshNode: () => run(actions.refreshNode), refunds: node => run(() => actions.refunds(node)), copyRecovery: kind => run(() => actions.copyRecovery(kind)), reclaimRecovery: kind => run(() => actions.reclaimRecovery(kind)) };
   const owner = mount(RoutstrSettings, { target: host, props: { initial, actions: scoped } }); component = owner; flushSync();
   const root = host.querySelector('[data-routstr-settings-view]');
   const isCurrent = () => component === owner && target === host && !!root && host.isConnected && host.contains(root);
   const apply = (action: () => void) => { if (isCurrent()) flushSync(action); };
-  view = { isCurrent, getState: () => owner.getState(), setState: state => apply(() => owner.setState(state)),
+  view = { isCurrent,
+    readCredential: () => isCurrent() ? owner.readCredential() : '', setCredential: value => apply(() => owner.setCredential(value)),
+    getConnection: () => owner.getConnection(), setConnection: state => apply(() => owner.setConnection(state)),
+    showReceipt: account => apply(() => owner.showReceipt(account)), readReceipt: () => isCurrent() ? owner.readReceipt() : null, hideReceipt: () => { const showing = !!owner.readReceipt(); apply(() => owner.hideReceipt()); if (showing && isCurrent()) host.querySelector<HTMLElement>('summary')?.focus(); },
+    getState: () => owner.getState(), setState: state => apply(() => owner.setState(state)),
     showRecovery: (kind, token) => apply(() => owner.showRecovery(kind, token)), readRecovery: kind => isCurrent() ? owner.readRecovery(kind) : '',
     clearPrivateFields: () => { privateAccount = null; owner.clearPrivateFields(); }, closeMenu: () => apply(() => owner.closeMenu()),
     readAccount: () => isCurrent() && privateAccount ? { ...privateAccount } : null,
-    setAccount: (next, label) => apply(() => { privateAccount = { ...next }; owner.setState({ ...owner.getState(), node: next.node, nodeLabel: label || (next.node === owner.getState().node ? owner.getState().nodeLabel : next.node ? next.node.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'discovering…'), connected: !!next.key }); }),
+    setAccount: (next, label) => apply(() => { const receipt = owner.readReceipt(); if (receipt && (receipt.node !== next.node || receipt.key !== next.key)) owner.hideReceipt(); privateAccount = { ...next }; owner.setState({ ...owner.getState(), node: next.node, nodeLabel: label || (next.node === owner.getState().node ? owner.getState().nodeLabel : next.node ? next.node.replace(/^https?:\/\//, '').replace(/\/$/, '') : 'discovering…'), connected: !!next.key }); }),
   }; owned = view; return view;
 }
 export function getRoutstrSettingsView(): RoutstrSettingsView | null { return view?.isCurrent() ? view : null; }

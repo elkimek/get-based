@@ -6,7 +6,7 @@ function deferred<T>() { let resolve!: (value: T) => void; const promise = new P
 function fakeView(node = '') {
   let state = initialRoutstrSettingsState(node, !!node), account = { node, key: node ? 'sk-original' : '' }, current = true;
   const tokens: Record<RoutstrRecoveryKind,string> = { deposit: '', withdraw: '' };
-  const view: RoutstrSettingsView = { isCurrent: () => current, getState: () => state, setState: next => { state = next; },
+  const view: RoutstrSettingsView = { readCredential: () => '', setCredential: () => {}, getConnection: () => ({ pending: false, receipt: false, copied: false, text: '', tone: 'secondary' }), setConnection: () => {}, showReceipt: () => {}, readReceipt: () => null, hideReceipt: () => {}, isCurrent: () => current, getState: () => state, setState: next => { state = next; },
     readAccount: () => account, setAccount: (next, label) => { account = next; state = { ...state, node: next.node, nodeLabel: label || next.node, connected: !!next.key }; },
     showRecovery: (kind, token) => { tokens[kind] = token; state.recoveries[kind].visible = !!token; }, readRecovery: kind => tokens[kind],
     clearPrivateFields: () => { tokens.deposit = ''; tokens.withdraw = ''; }, closeMenu: () => {} };

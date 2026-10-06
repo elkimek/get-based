@@ -14,12 +14,20 @@ export interface RoutstrSettingsState {
   walletAction: RoutstrWalletAction | null; nodeAction: RoutstrNodeAction | null; menuOpen: boolean;
   refundNode: string; recoveries: Record<RoutstrRecoveryKind, RoutstrRecoveryStatus>;
 }
+export interface RoutstrConnectionState extends ProviderSettingsStatus { pending: boolean; receipt: boolean; copied: boolean }
+export interface RoutstrCredentialPorts {
+  readCredential(): string; setCredential(value: string): void;
+  getConnection(): RoutstrConnectionState; setConnection(state: RoutstrConnectionState): void;
+  showReceipt(account: RoutstrSettingsAccount): void; readReceipt(): RoutstrSettingsAccount | null; hideReceipt(): void;
+}
+export interface RoutstrAccountActions { save(): unknown; remove(): unknown; copy(): unknown; acknowledge(): unknown }
 export interface RoutstrSettingsActions {
+  account?: RoutstrAccountActions | undefined;
   wallet(action: RoutstrWalletAction): unknown; node(action: RoutstrNodeAction, node: string): unknown;
   mints(): unknown; refreshWallet(): unknown; refreshNode(): unknown; refunds(node: string): unknown;
   copyRecovery(kind: RoutstrRecoveryKind): unknown; reclaimRecovery(kind: RoutstrRecoveryKind): unknown;
 }
-export interface RoutstrSettingsComponentView {
+export interface RoutstrSettingsComponentView extends RoutstrCredentialPorts {
   getState(): RoutstrSettingsState; setState(state: RoutstrSettingsState): void;
   showRecovery(kind: RoutstrRecoveryKind, token: string): void; readRecovery(kind: RoutstrRecoveryKind): string;
   clearPrivateFields(): void; closeMenu(): void;

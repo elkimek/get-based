@@ -707,13 +707,10 @@ test('provider panels cover provider switching key saves balances custom API and
         && e2eeClears >= 1;
 
       localStorage.setItem('labcharts-routstr-node', 'https://routstr.example');
-      panel!.innerHTML = `
-        <input id="routstr-key-input" value="sk-routstr-good">
-        <button id="save-routstr-key-btn">Save</button>
-        <div id="routstr-key-status"></div>
-        <div data-routstr-model-settings-host></div>
-      `;
-      (await import('/js/provider-model-controls.js')).hydrateRoutstrModelSettings();
+      localStorage.setItem('labcharts-ai-provider', 'routstr');
+      panel!.innerHTML = panels.renderAIProviderPanel('routstr');
+      panels.hydrateOwnedProviderSettings();
+      (await import('/js/routstr-settings-component.js')).getRoutstrSettingsView()!.setCredential('sk-routstr-good');
       await panels.handleSaveRoutstrKey();
       await wait(0);
       const storedRoutstrKey = localStorage.getItem('labcharts-routstr-sessions');

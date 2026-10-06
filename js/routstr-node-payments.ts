@@ -91,10 +91,11 @@ export async function reconcileRoutstrDeposit() {
   }
   return record;
 }
-export async function depositExternalTokenToNode(nodeUrl: string, token: string) {
+export async function depositExternalTokenToNode(nodeUrl: string, token: string, expectedKey?: string) {
   nodeUrl = canonicalRoutstrUrl(nodeUrl);
   if (await _getMeta('pendingDeposit') as PendingDeposit | string | null) throw new Error('Reconcile the previous node deposit before importing another token');
   const existingKey = getRoutstrSessionKey(nodeUrl);
+  if (expectedKey !== undefined && existingKey !== expectedKey) throw new Error('Node session changed before token import. The token was not submitted.');
   await verifyNodeDepositSession(nodeUrl, existingKey);
   const record = { nodeUrl, token, recoveryToken: token, localCommit: true, existingKey, createdAt: Date.now() };
   await _setMeta('pendingDeposit', record);

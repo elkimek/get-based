@@ -599,6 +599,18 @@ describe('Routstr security boundaries', () => {
     expect((fetch as Mock<typeof realFetch>).mock.calls[0]![0]).toBe(NODE + '/v1/balance/info');
     expect(getRoutstrSessionKey(NODE)).toBe(record.candidateKey);
   });
+  it('rejects a captured pasted-token account that changed before the wallet lock without submitting or journaling', async () => {
+    const wallet = await loadWallet() as SecurityWalletOperations;
+    await saveRoutstrSessionKey('sk-replacement', NODE);
+    await expect(wallet.depositTokenToNode(NODE, 'cashuApasted', '')).rejects.toThrow('not submitted');
+    expect(fetch).not.toHaveBeenCalled(); expect(await readIdbMeta('pendingDeposit')).toBeNull(); expect(getRoutstrSessionKey(NODE)).toBe('sk-replacement');
+  });
+  it.each(['facade','adapter'])('captures the %s account destination before lazy loading and retains another selected node', async entry => {
+    const { createRoutstrAccount } = entry === 'facade' ? await import('../js/api.js') : await import('../js/api-routstr.js');
+    globalThis.fetch = vi.fn(async url => { expect(String(url)).toBe(NODE + '/v1/balance/create'); return jsonResponse({ api_key: 'sk-created' }); });
+    const pending = createRoutstrAccount('cashuApasted'); setSelectedNodeUrl('https://replacement.test'); await pending;
+    expect(getRoutstrSessionKey(NODE)).toBe('sk-created'); expect(getRoutstrSessionKey()).toBe(''); expect(await readIdbMeta('pendingDeposit')).toBeNull();
+  });
   it('journals pasted-token account conversion before submitting it', async () => {
     const wallet = await loadWallet() as SecurityWalletOperations;
     globalThis.fetch = vi.fn(async () => { expect(await readIdbMeta('pendingDeposit')).toMatchObject({ token: 'cashuApasted', submitted: true }); throw new Error('offline'); });

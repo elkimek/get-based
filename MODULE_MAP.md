@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 995 |
-| Internal import edges | 3837 |
+| Modules | 996 |
+| Internal import edges | 3841 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -67,9 +67,9 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | --- | ---: | --- | ---: |
 | [`js/utils.ts`](js/utils.ts) | 292 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
 | [`js/state.ts`](js/state.ts) | 203 | [`js/chat-send.ts`](js/chat-send.ts) | 42 |
-| [`js/caught-error.ts`](js/caught-error.ts) | 90 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
+| [`js/caught-error.ts`](js/caught-error.ts) | 91 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 80 | [`js/settings.ts`](js/settings.ts) | 35 |
-| [`js/data.ts`](js/data.ts) | 79 | [`js/provider-panels.ts`](js/provider-panels.ts) | 31 |
+| [`js/data.ts`](js/data.ts) | 79 | [`js/provider-panels.ts`](js/provider-panels.ts) | 34 |
 | [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts) | 65 | [`js/pdf-import.ts`](js/pdf-import.ts) | 28 |
 | [`js/api.ts`](js/api.ts) | 51 | [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) | 28 |
 | [`js/profile.ts`](js/profile.ts) | 51 | [`js/sync-configure.ts`](js/sync-configure.ts) | 28 |
@@ -1259,7 +1259,7 @@ Native browser modules shipped with the static application.
 - [`js/provider-panel-delegates.ts`](js/provider-panel-delegates.ts) → no in-scope imports
 - [`js/provider-panel-renderers-runtime.ts`](js/provider-panel-renderers-runtime.ts) → [`js/nostr-discovery.ts`](js/nostr-discovery.ts)
 - [`js/provider-panel-renderers.ts`](js/provider-panel-renderers.ts) → [`js/api.ts`](js/api.ts), [`js/custom-settings-contract.ts`](js/custom-settings-contract.ts), [`js/local-ai-settings-contract.ts`](js/local-ai-settings-contract.ts), [`js/openrouter-settings-contract.ts`](js/openrouter-settings-contract.ts), [`js/ppq-settings-contract.ts`](js/ppq-settings-contract.ts), [`js/routstr-settings-contract.ts`](js/routstr-settings-contract.ts), [`js/utils.ts`](js/utils.ts), [`js/venice-settings-contract.ts`](js/venice-settings-contract.ts)
-- [`js/provider-panels.ts`](js/provider-panels.ts) → [`js/ai-action-dialog-component.ts`](js/ai-action-dialog-component.ts), [`js/ai-settings-actions.ts`](js/ai-settings-actions.ts), [`js/ai-settings-component.ts`](js/ai-settings-component.ts), [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) *(dynamic)*, [`js/crypto.ts`](js/crypto.ts), [`js/custom-settings-component.ts`](js/custom-settings-component.ts), [`js/custom-settings-controller.ts`](js/custom-settings-controller.ts), [`js/custom-settings-view.ts`](js/custom-settings-view.ts), [`js/focus-card.ts`](js/focus-card.ts), [`js/local-ai-settings-component.ts`](js/local-ai-settings-component.ts), [`js/openrouter-key-controller.ts`](js/openrouter-key-controller.ts), [`js/openrouter-settings-component.ts`](js/openrouter-settings-component.ts), [`js/openrouter-settings-view.ts`](js/openrouter-settings-view.ts), [`js/ppq-settings-component.ts`](js/ppq-settings-component.ts), [`js/provider-local-ai-controls.ts`](js/provider-local-ai-controls.ts), [`js/provider-model-controls.ts`](js/provider-model-controls.ts), [`js/provider-panel-delegates.ts`](js/provider-panel-delegates.ts), [`js/provider-panel-renderers.ts`](js/provider-panel-renderers.ts), [`js/provider-ppq-panels.ts`](js/provider-ppq-panels.ts), [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts), [`js/routstr-model-cache.ts`](js/routstr-model-cache.ts), [`js/routstr-model-settings-component.ts`](js/routstr-model-settings-component.ts), [`js/routstr-settings-component.ts`](js/routstr-settings-component.ts), [`js/utils.ts`](js/utils.ts), [`js/venice-key-controller.ts`](js/venice-key-controller.ts), [`js/venice-settings-component.ts`](js/venice-settings-component.ts), [`js/venice-settings-view.ts`](js/venice-settings-view.ts)
+- [`js/provider-panels.ts`](js/provider-panels.ts) → [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/ai-action-dialog-component.ts`](js/ai-action-dialog-component.ts), [`js/ai-settings-actions.ts`](js/ai-settings-actions.ts), [`js/ai-settings-component.ts`](js/ai-settings-component.ts), [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) *(dynamic)*, [`js/crypto.ts`](js/crypto.ts), [`js/custom-settings-component.ts`](js/custom-settings-component.ts), [`js/custom-settings-controller.ts`](js/custom-settings-controller.ts), [`js/custom-settings-view.ts`](js/custom-settings-view.ts), [`js/focus-card.ts`](js/focus-card.ts), [`js/local-ai-settings-component.ts`](js/local-ai-settings-component.ts), [`js/openrouter-key-controller.ts`](js/openrouter-key-controller.ts), [`js/openrouter-settings-component.ts`](js/openrouter-settings-component.ts), [`js/openrouter-settings-view.ts`](js/openrouter-settings-view.ts), [`js/ppq-settings-component.ts`](js/ppq-settings-component.ts), [`js/provider-local-ai-controls.ts`](js/provider-local-ai-controls.ts), [`js/provider-model-controls.ts`](js/provider-model-controls.ts), [`js/provider-panel-delegates.ts`](js/provider-panel-delegates.ts), [`js/provider-panel-renderers-runtime.ts`](js/provider-panel-renderers-runtime.ts), [`js/provider-panel-renderers.ts`](js/provider-panel-renderers.ts), [`js/provider-ppq-panels.ts`](js/provider-ppq-panels.ts), [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts), [`js/routstr-account-controller.ts`](js/routstr-account-controller.ts), [`js/routstr-model-cache.ts`](js/routstr-model-cache.ts), [`js/routstr-model-settings-component.ts`](js/routstr-model-settings-component.ts), [`js/routstr-settings-component.ts`](js/routstr-settings-component.ts), [`js/utils.ts`](js/utils.ts), [`js/venice-key-controller.ts`](js/venice-key-controller.ts), [`js/venice-settings-component.ts`](js/venice-settings-component.ts), [`js/venice-settings-view.ts`](js/venice-settings-view.ts)
 - [`js/provider-ppq-panels.ts`](js/provider-ppq-panels.ts) → [`js/api.ts`](js/api.ts), [`js/crypto.ts`](js/crypto.ts), [`js/ppq-account-controller.ts`](js/ppq-account-controller.ts), [`js/ppq-settings-component.ts`](js/ppq-settings-component.ts), [`js/ppq-settings-view.ts`](js/ppq-settings-view.ts), [`js/ppq-topup-controller.ts`](js/ppq-topup-controller.ts), [`js/provider-key-controller.ts`](js/provider-key-controller.ts), [`js/provider-qr.ts`](js/provider-qr.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/provider-qr.ts`](js/provider-qr.ts) → [`js/utils.ts`](js/utils.ts)
 - [`js/provider-settings-classes.ts`](js/provider-settings-classes.ts) → no in-scope imports
@@ -1306,8 +1306,9 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>routstr</code> family — 11 modules</summary>
+<details><summary><code>routstr</code> family — 12 modules</summary>
 
+- [`js/routstr-account-controller.ts`](js/routstr-account-controller.ts) → [`js/caught-error.ts`](js/caught-error.ts)
 - [`js/routstr-balance-settlement.ts`](js/routstr-balance-settlement.ts) → no in-scope imports
 - [`js/routstr-model-cache.ts`](js/routstr-model-cache.ts) → [`js/tinfoil-secure-fetch.ts`](js/tinfoil-secure-fetch.ts) *(dynamic)*
 - [`js/routstr-model-settings-component.ts`](js/routstr-model-settings-component.ts) → [`js/components/RoutstrModelSettings.svelte`](js/components/RoutstrModelSettings.svelte)

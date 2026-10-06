@@ -183,9 +183,10 @@ export async function callRoutstrAPI(opts: ProviderRequestOptions) {
   );
 }
 
-export async function createRoutstrAccount(cashuToken: string) {
+export async function createRoutstrAccount(cashuToken: string, nodeUrl = _requireNodeUrl(), expectedKey = getRoutstrKey(nodeUrl)) {
+  // Capture destination and credential before lazy loading or waiting for the wallet lock.
   const { depositTokenToNode } = await import('./cashu-wallet.js');
-  return depositTokenToNode(_requireNodeUrl(), cashuToken);
+  return depositTokenToNode(nodeUrl, cashuToken, expectedKey);
 }
 
 export async function getRoutstrBalance() {

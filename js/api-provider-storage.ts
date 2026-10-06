@@ -277,8 +277,8 @@ export function touchRoutstrSession() {
   touchRoutstrSessionClock();
   markAISettingsLocal();
 }
-export async function saveRoutstrKey(key: string, nodeUrl?: string | null) {
-  await saveRoutstrSessionKey(key, nodeUrl);
+export async function saveRoutstrKey(key: string, nodeUrl?: string | null, expectedKey?: string) {
+  await saveRoutstrSessionKey(key, nodeUrl, expectedKey);
   markAISettingsLocal();
 }
 export function hasRoutstrKey() { return !!getRoutstrKey(); }

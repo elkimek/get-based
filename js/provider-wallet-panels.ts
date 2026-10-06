@@ -111,6 +111,7 @@ export function hydrateRoutstrSettings(): void {
   const existing = getRoutstrSettingsView();
   const node = getSelectedRoutstrNodeFromRuntime() || '', key = getRoutstrKey();
   const view = mountRoutstrSettings(host, initialRoutstrSettingsState(node, !!key), {
+    account: walletCallbacks.account,
     wallet: action => shellAction(view, () => runWalletAction(action)), node: (action, node) => shellAction(view, () => runNodeAction(action, node)),
     mints: () => shellAction(view, showRoutstrMintEdit), refreshWallet: () => shellAction(view, refreshCashuWalletBalance), refreshNode: () => shellAction(view, refreshRoutstrBalance),
     refunds: node => shellAction(view, () => showSavedNodeRefunds(node)), copyRecovery: kind => shell.copy(view, kind), reclaimRecovery: kind => shell.reclaim(view, kind),

@@ -354,6 +354,26 @@ tokens never enter display snapshots or action attributes. Compatibility button
 serializers retain published imports using the shell's shared action definitions
 and scoped Tailwind controls; the application uses the owned component.
 
+Session-key and pasted-token connection use the shell's private credential and
+receipt ports, with `routstr-account-controller.ts` owning validation, activation,
+single-flight writes, receipt acknowledgement and clipboard feedback. Drafts and
+receipt keys never enter display snapshots or HTML attributes; closure scrubs
+retained input/textarea fields. Validation and activation recheck the originating view, provider/backend,
+selected node, credential and draft before accepting a write. Catalog replies
+require that the saved account and originating view still own publication. A successful
+conversion reveals its saved session before catalog work; catalog failure keeps
+that recovery receipt available. Public save/remove/acknowledge handlers forward
+to this owner instead of rebuilding the provider panel.
+
+The existing wallet lock and deposit journal remain the payment boundary.
+`createRoutstrAccount` captures the node and expected credential before its lazy
+import; optional captured arguments preserve existing callers. Pasted-token
+imports reject changed accounts before submission and use the existing
+journal-before-HTTP/validated-key commit. Manual save/remove pass the captured
+credential to encrypted session storage's compare-and-set guard. Accepted writes
+can finish after closure against their original node, while presentation,
+notification and catalog publication require the originating account and view.
+
 The renderer now emits only the Routstr host. Discovery belongs to the injected
 shell controller and rejects replies after view, provider, selected node or
 credential changes before persisting a default node. Header balance reads check

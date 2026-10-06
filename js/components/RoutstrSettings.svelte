@@ -1,12 +1,25 @@
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
   import { ROUTSTR_WALLET_ACTIONS, ROUTSTR_WALLET_MENU, ROUTSTR_NODE_ACTIONS } from '../routstr-settings-contract.js';
-  import type { RoutstrSettingsState, RoutstrSettingsActions, RoutstrRecoveryKind } from '../routstr-settings-contract.js';
+  import type { RoutstrSettingsState, RoutstrSettingsActions, RoutstrRecoveryKind, RoutstrConnectionState, RoutstrSettingsAccount } from '../routstr-settings-contract.js';
   import { PROVIDER_PANEL, PROVIDER_COPY, PROVIDER_NOTICE, PROVIDER_ACTIONS, PROVIDER_PRIMARY, PROVIDER_SECONDARY, PROVIDER_INPUT, PROVIDER_TONES } from '../provider-settings-classes.js';
   let { initial, actions }: { initial: RoutstrSettingsState; actions: RoutstrSettingsActions } = $props();
   let shellState = $state(untrack(() => initial));
   let tokens = $state<Record<RoutstrRecoveryKind, string>>({ deposit: '', withdraw: '' });
   let fields: Partial<Record<RoutstrRecoveryKind, HTMLTextAreaElement>> = {};
+  let credential = $state('');
+  let credentialField: HTMLInputElement | null = $state(null);
+  let receiptField: HTMLTextAreaElement | null = $state(null);
+  let receipt: RoutstrSettingsAccount | null = $state(null);
+  let connectionOpen = $state(false);
+  let connection = $state<RoutstrConnectionState>({ pending: false, receipt: false, copied: false, text: '', tone: 'secondary' });
+  export function readCredential(): string { return credentialField?.value ?? credential; }
+  export function setCredential(value: string): void { credential = value; if (credentialField) credentialField.value = value; }
+  export function getConnection(): RoutstrConnectionState { return connection; }
+  export function setConnection(next: RoutstrConnectionState): void { connection = next; }
+  export function readReceipt(): RoutstrSettingsAccount | null { return receipt ? { ...receipt } : null; }
+  export function hideReceipt(): void { if (receipt) connectionOpen = false; if (receiptField) receiptField.value = ''; receipt = null; connection = { ...connection, receipt: false, copied: false }; }
+  export function showReceipt(account: RoutstrSettingsAccount): void { hideReceipt(); receipt = { ...account }; connectionOpen = true; connection = { ...connection, receipt: true }; }
   let menuButton: HTMLButtonElement | null = $state(null);
   let formRoot: HTMLFormElement | null = $state(null);
   let menuRoot: HTMLDivElement | null = $state(null);
@@ -14,7 +27,7 @@
   export function setState(next: RoutstrSettingsState): void { shellState = next; }
   export function showRecovery(kind: RoutstrRecoveryKind, token: string): void { tokens[kind] = token; if (fields[kind]) fields[kind]!.value = token; shellState = { ...shellState, recoveries: { ...shellState.recoveries, [kind]: { ...shellState.recoveries[kind], visible: !!token } } }; }
   export function readRecovery(kind: RoutstrRecoveryKind): string { return fields[kind]?.value ?? tokens[kind]; }
-  export function clearPrivateFields(): void { tokens = { deposit: '', withdraw: '' }; for (const field of Object.values(fields)) if (field) field.value = ''; }
+  export function clearPrivateFields(): void { setCredential(''); hideReceipt(); tokens = { deposit: '', withdraw: '' }; for (const field of Object.values(fields)) if (field) field.value = ''; }
   export function closeMenu(): void { shellState = { ...shellState, menuOpen: false }; }
   function wallet(action: Parameters<RoutstrSettingsActions['wallet']>[0]): void { closeMenu(); actions.wallet(action); }
   function outside(event: MouseEvent): void { if (shellState.menuOpen && event.target instanceof Node && !menuRoot?.contains(event.target)) closeMenu(); }
@@ -71,6 +84,34 @@
     {#if shellState.connected}<div class={PROVIDER_ACTIONS + ' gb:cloud-provider:border-t gb:cloud-provider:border-line gb:cloud-provider:pt-3'}>Session: <span id="routstr-node-balance" class={PROVIDER_TONES[shellState.nodeBalance.tone]} role="status">{shellState.nodeBalance.text}</span><button type="button" class={PROVIDER_SECONDARY} aria-label="Refresh node balance" data-provider-panel-action="refresh-routstr-balance" onclick={event => { event.stopPropagation(); actions.refreshNode(); }}>↻</button></div>{/if}
     {#if shellState.refundNode}<div class={PROVIDER_NOTICE + ' gb:cloud-provider:break-all'}>Saved refund for this node: {shellState.refundNode}<div class={PROVIDER_ACTIONS + ' gb:cloud-provider:mt-2'}><button type="button" class={PROVIDER_SECONDARY} data-routstr-wallet-action="saved-node-refunds" data-node-url={shellState.refundNode} onclick={event => { event.stopPropagation(); actions.refunds(shellState.refundNode); }}>Check refund recovery</button></div></div>{/if}
     <div id="routstr-node-picker" style="display:none"></div>
+    {#if actions.account}
+      <details class={PROVIDER_NOTICE} bind:open={connectionOpen}>
+        <summary class="gb:cloud-provider:cursor-pointer gb:cloud-provider:min-h-11 gb:cloud-provider:flex gb:cloud-provider:items-center gb:cloud-provider:text-ink gb:cloud-provider:font-semibold">Connect a session key or Cashu token</summary>
+        {#if connection.receipt && receipt}
+          <section aria-label="Routstr session key backup" class="gb:cloud-provider:flex gb:cloud-provider:flex-col gb:cloud-provider:gap-2">
+            <h4 class="gb:cloud-provider:text-sm gb:cloud-provider:m-0 gb:cloud-provider:text-warning-ink">⚠ Save your session key</h4>
+            <p class={PROVIDER_COPY}>Your Cashu token has been redeemed. This session key is the <strong>only way to access your balance</strong>. It is saved on this device. Keep your own backup as well.</p>
+            <label for="routstr-session-key-receipt">Session key</label>
+            <textarea id="routstr-session-key-receipt" bind:this={receiptField} value={receipt.key} readonly rows="3" class={PROVIDER_INPUT + ' gb:cloud-provider:font-mono gb:cloud-provider:text-xs gb:cloud-provider:resize-y'} onfocus={event => event.currentTarget.select()}></textarea>
+            <div class={PROVIDER_ACTIONS}>
+              <button type="button" class={PROVIDER_PRIMARY} onclick={event => { event.stopPropagation(); actions.account?.copy(); }}>{connection.copied ? '✓ Copied (clears in 60s)' : 'Copy Key'}</button>
+              <button type="button" class={PROVIDER_SECONDARY} data-provider-panel-action="acknowledge-routstr-key" onclick={event => { event.stopPropagation(); actions.account?.acknowledge(); }}>I’ve saved it</button>
+            </div>
+          </section>
+        {:else}
+          <div class="gb:cloud-provider:flex gb:cloud-provider:flex-col gb:cloud-provider:gap-2">
+            <label for="routstr-key-input">Session key or Cashu token</label>
+            <input id="routstr-key-input" bind:this={credentialField} type="password" autocomplete="off" spellcheck="false" value={credential} disabled={connection.pending} class={PROVIDER_INPUT} oninput={event => { credential = event.currentTarget.value; }} onkeydown={event => { if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); actions.account?.save(); } }}>
+            <p class={PROVIDER_COPY}>The key or token connects to the node selected above. A token tops up its existing session when connected.</p>
+            <div class={PROVIDER_ACTIONS}>
+              <button id="save-routstr-key-btn" type="button" disabled={connection.pending || !shellState.node} class={PROVIDER_PRIMARY} onclick={event => { event.stopPropagation(); actions.account?.save(); }}>{connection.pending ? 'Connecting…' : 'Save & Validate'}</button>
+              {#if shellState.connected}<button type="button" disabled={connection.pending} class={PROVIDER_SECONDARY} onclick={event => { event.stopPropagation(); actions.account?.remove(); }}>Remove session key</button>{/if}
+            </div>
+          </div>
+        {/if}
+        <div id="routstr-key-status" class={PROVIDER_COPY + ' ' + PROVIDER_TONES[connection.tone]} role="status" aria-live="polite" aria-busy={connection.pending}>{connection.text}</div>
+      </details>
+    {/if}
   </section>
   <div data-routstr-model-settings-host></div>
 </form>
