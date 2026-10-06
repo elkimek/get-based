@@ -48,12 +48,12 @@ the completed migration was merged in [PR #1660](https://github.com/elkimek/get-
 
 ## Styling source contract
 
-Settings navigation/layout, Display, Privacy and Voice use scoped Tailwind utilities
+Settings navigation/layout, Display, Privacy, Voice and Agent Access use scoped Tailwind utilities
 alongside the remaining native feature styles. `css/settings.base.css` owns the
 legacy Settings rules;
 `css/ui-tokens.tailwind.css` owns shared semantic palette, typography and surface
 aliases. `css/settings-display.tailwind.css` owns source scanning and scoped
-Settings/Display/Privacy/Voice utilities. `scripts/build-styles.mts` combines them
+Settings/Display/Privacy/Voice/Agent Access utilities. `scripts/build-styles.mts` combines them
 into ignored `css/settings.css`, retaining the lazy loader and offline asset URL.
 Do not edit the generated bundle. `npm run typescript:build` also builds styles,
 so existing prepare, development, test and production commands retain their
@@ -61,7 +61,7 @@ source-to-runtime contract. `npm run styles:check` verifies reproducible output.
 
 The stylesheet omits Preflight, scans authored components and typed shell
 classes, and uses prefixed utilities scoped to the owning Settings surface.
-Display, Privacy and Voice remain additionally scoped to their panel IDs. Existing theme
+Display, Privacy, Voice and Agent Access remain additionally scoped to their panel IDs. Existing theme
 variables remain the authority for colors, fonts and radii. The unlayered scoped
 utilities follow legacy rules and use panel specificity rather than `!important`.
 
@@ -100,6 +100,17 @@ hydrate independently and stale replies cannot persist voice choices. Model
 operations remain in the controller across remounts, with feedback tied to the
 selected model/backend and readiness verified against cache state. Provider
 keys, catalogues and audio engines retain their domain-service ownership.
+
+Agent Access remains behind the lazy Sync facade. `settings-agent-access-panel.ts`
+owns credential generation, clipboard operations, persistence and domain actions;
+`settings-agent-access-contract.ts` supplies readiness/preferences without hidden
+credential values. `AgentAccessSettings.svelte` owns setup targets, masked/revealed
+credentials and controls. Its adapter mounts during Sync hydration, refreshes
+synchronously and disposes before shell replacement. Owner/profile refreshes
+remask credentials; disconnected views receive no updates. `SettingsToggle.svelte`
+provides the compact, keyboard-accessible switch without depending on Chat styles.
+The public string renderer returns a component host so existing runtime callers
+retain their contract while Svelte owns its contents.
 
 `scripts/build-svelte.mts` discovers authored components and compiles each into
 an ignored `.svelte.native.js` artifact, loaded through the existing lazy feature

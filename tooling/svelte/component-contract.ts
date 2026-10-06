@@ -14,3 +14,7 @@ export const privacyCompatible: typeof NativePrivacySettings = PrivacySettings;
 import VoiceSettings from '../../js/components/VoiceSettings.svelte';
 import type NativeVoiceSettings from '../../js/components/VoiceSettings.svelte.native.js';
 export const voiceCompatible: typeof NativeVoiceSettings = VoiceSettings;
+
+import AgentAccessSettings from '../../js/components/AgentAccessSettings.svelte';
+import type NativeAgentAccessSettings from '../../js/components/AgentAccessSettings.svelte.native.js';
+export const agentAccessCompatible: typeof NativeAgentAccessSettings = AgentAccessSettings;

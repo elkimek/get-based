@@ -136,6 +136,7 @@ await import('../js/settings.js');
     await fetchWithRetry('js/settings-sync-panel.js'),
     await fetchWithRetry('js/settings-sync-panel-impl.js'),
     await fetchWithRetry('js/settings-sync-panel-render.js'),
+    await fetchWithRetry('js/components/AgentAccessSettings.svelte'),
   ].join('\n');
   const settingsSyncRestoreUiSrc = await fetchWithRetry('js/settings-sync-restore-ui.js');
   const dataSrc = dataModuleSource(await fetchWithRetry('js/data.js'), await fetchWithRetry('js/data-core.js'));

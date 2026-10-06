@@ -386,3 +386,124 @@ test('Voice first use, themes, keyboard controls and preferences survive an offl
     await noCspErrors(cold, errors);
   } finally { await server.close(); }
 });
+
+test('Agent Access hydrates offline with masked persisted credentials, keyboard controls and all setup targets', async ({ page, context }) => {
+  const server = await startKitServer(artifact);
+  const errors = await prepare(context, page);
+  await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
+  await context.addInitScript(() => {
+    if (!location.protocol.startsWith('http')) return;
+    if (!localStorage.getItem('kit-agent-seeded')) {
+      localStorage.setItem('kit-agent-seeded', '1');
+      localStorage.setItem('labcharts-messenger-enabled', 'true');
+      localStorage.setItem('labcharts-messenger-token', 'a'.repeat(64));
+      localStorage.setItem('labcharts-agent-context-key', 'b'.repeat(48));
+    }
+    const target = window as Window & { kitAgentClipboard?: string[] };
+    target.kitAgentClipboard = [];
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: {
+      writeText: async (value: string) => { target.kitAgentClipboard!.push(value); },
+    } });
+  });
+  try {
+    await page.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' }); await ready(page);
+    expect(await page.locator('link[data-settings-stylesheet]').count()).toBe(0);
+    server.state.offline = true;
+    await display(page); await page.locator('#settings-nav-agent').click();
+    const panel = page.locator('#settings-tab-agent');
+    const toggle = panel.locator('[data-sync-action="toggle-messenger"]');
+    await expect(toggle).toBeChecked(); await expect(toggle).toBeEnabled();
+    await expect(panel.locator('#messenger-token')).toHaveText('•'.repeat(64));
+    await expect(panel.locator('#messenger-context-key')).toHaveText('•'.repeat(48));
+    expect(await panel.innerHTML()).not.toContain('a'.repeat(64));
+    expect(await panel.innerHTML()).not.toContain('b'.repeat(48));
+    const clients = panel.locator('[name="agent-access-client"]');
+    await expect(clients).toHaveCount(7);
+    await expect(panel.locator('[name="agent-access-client"][value="hermes"]')).toBeChecked();
+    for (const client of ['hermes', 'openclaw', 'claude-code', 'claude-desktop', 'cursor', 'cline', 'codex']) {
+      await panel.locator(`[name="agent-access-client"][value="${client}"]`).check();
+      await panel.locator('[data-sync-action="copy-agent-access-setup-command"]').click();
+      const payload = await page.evaluate(() => {
+        const command = (window as unknown as { kitAgentClipboard: string[] }).kitAgentClipboard.at(-1)!;
+        const encoded = command.match(/gbsetup_v1_([^']+)/)![1]!;
+        return JSON.parse(atob(encoded.replace(/-/g, '+').replace(/_/g, '/'))) as { client: string; token: string; contextKey: string };
+      });
+      expect(payload).toMatchObject({ client, token: 'a'.repeat(64), contextKey: 'b'.repeat(48) });
+    }
+    const setup = panel.locator('[data-sync-action="copy-agent-access-setup-command"]');
+    await setup.focus(); await setup.press('Tab');
+    const showToken = panel.locator('#messenger-token-toggle');
+    await expect(showToken).toBeFocused(); await expect(showToken).toHaveCSS('outline-width', '2px');
+    await showToken.press('Enter');
+    await expect(panel.locator('#messenger-token')).toHaveText('a'.repeat(64));
+    await expect(showToken).toHaveAttribute('aria-label', 'Hide token');
+    await panel.locator('#messenger-context-key-toggle').click();
+    await expect(panel.locator('#messenger-context-key')).toHaveText('b'.repeat(48));
+    await page.evaluate(() => window.dispatchEvent(new Event('labcharts-sync-owner-changed')));
+    await expect(panel.locator('#messenger-token')).toHaveAttribute('data-masked', 'true');
+    await expect(panel.locator('#messenger-context-key')).toHaveAttribute('data-masked', 'true');
+    await expect(panel.locator('[data-sync-action="regenerate-messenger-token"]')).toBeDisabled();
+    await expect(panel.locator('[data-sync-action="regenerate-messenger-context-key"]')).toBeDisabled();
+    await expect(panel.locator('#agent-wearable-series-select')).toBeDisabled();
+    const violations = await panel.evaluate(async element => {
+      const axe = (window as unknown as { axe: typeof import('axe-core') }).axe;
+      const result = await axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } });
+      return result.violations.map(violation => ({ id: violation.id, targets: violation.nodes.map(node => node.target) }));
+    });
+    expect(violations).toEqual([]);
+    for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer']) {
+      await page.locator('#settings-nav-display').click();
+      await page.locator('#settings-tab-display [data-settings-action="open-tweaks"]').click();
+      await page.locator(`[data-tweaks-action="select-theme"][data-theme-id="${theme}"]`).click();
+      await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || 'dark')).toBe(theme);
+      await page.locator('[data-tweaks-action="close"]').click();
+      const closeChat = page.getByRole('button', { name: 'Close chat', exact: true });
+      if (await closeChat.isVisible()) await closeChat.click();
+      await display(page); await page.locator('#settings-nav-agent').click();
+      for (const viewport of [{ width: 1280, height: 900 }, { width: 700, height: 900 }, { width: 390, height: 844 }]) {
+        await page.setViewportSize(viewport);
+        expect(await panel.evaluate(element => {
+          const control = element.querySelector<HTMLSelectElement>('#agent-wearable-series-select')!;
+          const button = element.querySelector<HTMLButtonElement>('[data-sync-action="copy-agent-access-setup-command"]')!;
+          const probe = document.createElement('span');
+          probe.style.backgroundColor = 'var(--select-surface)'; probe.style.color = 'var(--text-primary)';
+          element.append(probe);
+          const actual = getComputedStyle(control); const expected = getComputedStyle(probe);
+          const match = actual.backgroundColor === expected.backgroundColor && actual.color === expected.color;
+          probe.style.backgroundColor = 'var(--accent)'; probe.style.color = 'var(--on-accent)';
+          const primary = getComputedStyle(button);
+          const expectedButton = getComputedStyle(probe);
+          const themedButton = primary.backgroundColor === expectedButton.backgroundColor && primary.color === expectedButton.color;
+          probe.remove();
+          return { match, themedButton, noOverflow: element.scrollWidth <= element.clientWidth };
+        }), `${theme} at ${viewport.width}px`).toMatchObject({ match: true, themedButton: true, noOverflow: true });
+        const box = (await panel.locator('#messenger-token').boundingBox())!; const bounds = (await panel.boundingBox())!;
+        expect(box.x + box.width).toBeLessThanOrEqual(bounds.x + bounds.width + 1);
+      }
+    }
+    await page.close();
+    const cold = await context.newPage(); await cold.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' });
+    await ready(cold);
+    const coldChat = cold.getByRole('button', { name: 'Close chat', exact: true });
+    if (await coldChat.isVisible()) await coldChat.click();
+    await display(cold); await cold.locator('#settings-nav-agent').click();
+    await expect(cold.locator('#messenger-token')).toHaveAttribute('data-masked', 'true');
+    await expect(cold.locator('#messenger-context-key')).toHaveAttribute('data-masked', 'true');
+    const coldToggle = cold.locator('[data-sync-action="toggle-messenger"]');
+    await expect(coldToggle).toBeChecked(); await expect(coldToggle).toBeEnabled();
+    await cold.locator('#settings-nav-agent').focus();
+    await expect(cold.locator('#settings-nav-agent')).toBeFocused();
+    await cold.keyboard.press('Tab');
+    // Firefox includes a scroll container in sequential keyboard navigation.
+    if (await cold.locator('.settings-content').evaluate(element => element === document.activeElement)) await cold.keyboard.press('Tab');
+    await expect(coldToggle).toBeFocused();
+    await expect(coldToggle.locator('..').locator('span')).toHaveCSS('outline-width', '2px');
+    await coldToggle.press('Space');
+    await expect(coldToggle).not.toBeChecked(); await expect(coldToggle).toBeDisabled();
+    await expect(cold.locator('#messenger-token')).toHaveCount(0);
+    await cold.reload({ waitUntil: 'load' }); await ready(cold); await display(cold); await cold.locator('#settings-nav-agent').click();
+    await expect(cold.locator('[data-sync-action="toggle-messenger"]')).not.toBeChecked();
+    await expect(cold.locator('[data-sync-action="toggle-messenger"]')).toBeDisabled();
+    await noCspErrors(cold, errors);
+  } finally { await server.close(); }
+});

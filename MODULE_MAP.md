@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 850 |
-| Internal import edges | 3589 |
+| Modules | 854 |
+| Internal import edges | 3595 |
 | Dynamic internal edges | 120 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -143,6 +143,12 @@ Native browser modules shipped with the static application.
 - [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts) → no in-scope imports
 - [`js/agent-tool-bindings.ts`](js/agent-tool-bindings.ts) → [`js/context-source-registry.ts`](js/context-source-registry.ts), [`js/data.ts`](js/data.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/lab-context-wearables.ts`](js/lab-context-wearables.ts), [`js/lens.ts`](js/lens.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/nutrition-summary.ts`](js/nutrition-summary.ts), [`js/state.ts`](js/state.ts)
 - [`js/agent-tool-runtime.ts`](js/agent-tool-runtime.ts) → [`shared/agent-tool-contract.ts`](shared/agent-tool-contract.ts)
+
+</details>
+
+<details><summary><code>AgentAccessSettings.svelte</code> family — 1 module</summary>
+
+- [`js/components/AgentAccessSettings.svelte`](js/components/AgentAccessSettings.svelte) → [`js/components/SettingsToggle.svelte`](js/components/SettingsToggle.svelte), [`js/settings-agent-access-classes.ts`](js/settings-agent-access-classes.ts), [`js/settings-agent-access-contract.ts`](js/settings-agent-access-contract.ts)
 
 </details>
 
@@ -1153,9 +1159,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>settings</code> family — 31 modules</summary>
+<details><summary><code>settings</code> family — 34 modules</summary>
 
-- [`js/settings-agent-access-panel.ts`](js/settings-agent-access-panel.ts) → [`js/data.ts`](js/data.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/state.ts`](js/state.ts), [`js/sync.ts`](js/sync.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/settings-agent-access-classes.ts`](js/settings-agent-access-classes.ts) → no in-scope imports
+- [`js/settings-agent-access-component.ts`](js/settings-agent-access-component.ts) → [`js/components/AgentAccessSettings.svelte`](js/components/AgentAccessSettings.svelte)
+- [`js/settings-agent-access-contract.ts`](js/settings-agent-access-contract.ts) → no in-scope imports
+- [`js/settings-agent-access-panel.ts`](js/settings-agent-access-panel.ts) → [`js/data.ts`](js/data.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/settings-agent-access-component.ts`](js/settings-agent-access-component.ts), [`js/settings-agent-access-contract.ts`](js/settings-agent-access-contract.ts), [`js/state.ts`](js/state.ts), [`js/sync.ts`](js/sync.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-cli-agent-panel.ts`](js/settings-cli-agent-panel.ts) → [`js/agent-chat-client.ts`](js/agent-chat-client.ts), [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/utils.ts`](js/utils.ts), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
 - [`js/settings-data.ts`](js/settings-data.ts) → [`js/api.ts`](js/api.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/import-reference-benchmark.ts`](js/import-reference-benchmark.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-display-contract.ts`](js/settings-display-contract.ts) → no in-scope imports

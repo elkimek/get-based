@@ -1543,3 +1543,7 @@ deploy/profile-share/data/
 /js/settings-voice-component.js
 /js/settings-voice-contract.js
 /js/settings-voice-view-runtime.js
+
+/js/settings-agent-access-classes.js
+/js/settings-agent-access-contract.js
+/js/settings-agent-access-component.js

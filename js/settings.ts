@@ -4,7 +4,7 @@ import { applyAccentOverride, setTimeFormat } from './theme.js';
 import { switchUnitSystem, toggleAltUnits, switchRangeMode } from './data.js';
 import { getAIProvider, hasAIProvider, isAIPaused, setOllamaPIIModel } from './api.js';
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } from './crypto.js';
-import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel } from './settings-sync-panel.js';
+import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel, disposeMessengerSection } from './settings-sync-panel.js';
 import { getChatBackend } from './agent-chat-settings.js';
 import { controlCLICompanion, copyCLIAgentLoginCommand, copyCLICompanionRunCommand, copyCLICompanionStartCommand, copyCLICompanionUpdateCommand, refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentEffort, setCLIAgentModel, setCLIAgentProviderFilter, setCLIAgentTarget, setCLICompanionPlatform, testLocalCodex, toggleCLIAgentOptions, toggleLocalCodex } from './settings-cli-agent-panel.js';
 import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
@@ -456,6 +456,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   const extensionAI = renderAppExtensionSettingsSlot('ai', extensionContext);
   const extensionPanels = renderAppExtensionSettingsSlot('panels', extensionContext);
 
+  disposeMessengerSection();
   disposeVoiceSettingsPanel();
   disposePrivacySettingsPanel();
   disposeDisplaySettingsPanel();

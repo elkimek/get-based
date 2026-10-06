@@ -494,6 +494,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
       syncState.setSyncEnabled(true);
       localStorage.setItem('labcharts-sync-enabled', 'true');
       messengerSection!.innerHTML = syncPanel.renderMessengerSection();
+      await wait(0);
       const ownerPendingToggle = messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]');
       const ownerPendingDisabled = ownerPendingToggle?.disabled === true;
       syncRuntime.setSyncAppOwner({
@@ -544,6 +545,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         && (document.getElementById('sync-status-text') as HTMLElement|null)?.textContent!.includes('Connected'), 'relay connected status');
 
       messengerSection!.innerHTML = syncPanel.renderMessengerSection();
+      await wait(0);
       messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]')!.checked = true;
       messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]')!.dispatchEvent(new Event('change', { bubbles: true }));
       await waitFor(() => syncMessenger.isMessengerEnabled()
@@ -596,6 +598,7 @@ test('settings sync and agent access delegates cover setup, restore, relay, tomb
         && messengerSection!.textContent!.includes('Context encryption key');
       syncRuntime.setSyncAppOwner(null);
       messengerSection!.innerHTML = syncPanel.renderMessengerSection();
+      await wait(0);
       const ownerLostToggle = messengerSection!.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]');
       const ownerLostCanDisable = ownerLostToggle?.checked === true
         && ownerLostToggle?.disabled === false

@@ -6,7 +6,10 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 const src = readRepositorySource('js/settings-sync-panel-impl.js', 'utf8');
 const renderSrc = readRepositorySource('js/settings-sync-panel-render.js', 'utf8');
 const restoreUiSrc = readRepositorySource('js/settings-sync-restore-ui.js', 'utf8');
-const syncUiSrc = `${src}\n${renderSrc}\n${restoreUiSrc}`;
+const agentComponentSrc = readRepositorySource('js/components/AgentAccessSettings.svelte', 'utf8');
+const toggleSrc = readRepositorySource('js/components/SettingsToggle.svelte', 'utf8');
+const agentContractSrc = readRepositorySource('js/settings-agent-access-contract.js', 'utf8');
+const syncUiSrc = `${src}\n${renderSrc}\n${restoreUiSrc}\n${agentComponentSrc}\n${toggleSrc}`;
 const agentSrc = readRepositorySource('js/settings-agent-access-panel.js', 'utf8');
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
@@ -66,7 +69,10 @@ assert('Click delegate lets state controls reach change/input events',
   'regenerate-messenger-context-key',
   'set-agent-wearable-series-days',
 ].forEach(action => {
-  assert(`Sync action ${action} is rendered`, syncUiSrc.includes(`data-sync-action="${action}"`));
+  assert(`Sync action ${action} is rendered`, syncUiSrc.includes(`data-sync-action="${action}"`)
+    || (action === 'toggle-messenger' && agentComponentSrc.includes('syncAction="toggle-messenger"') && toggleSrc.includes('data-sync-action={syncAction}'))
+    || (agentComponentSrc.includes(`toggleAction: '${action}'`) && agentComponentSrc.includes('data-sync-action={credential.toggleAction}'))
+    || (agentComponentSrc.includes(`copyAction: '${action}'`) && agentComponentSrc.includes('data-sync-action={credential.copyAction}')));
 });
 
 [
@@ -87,9 +93,11 @@ assert('Delegated setup acknowledgment updates Done state',
   /action === 'setup-ack'[\s\S]*updateSyncSetupAck\(actionEl\)/.test(src));
 assert('Delegated Agent Access toggle calls toggleMessenger',
   /action === 'toggle-messenger'[\s\S]*toggleMessenger\(actionEl\.checked\)/.test(src));
-assert('Agent Access toggle uses Settings-owned visible slider styles',
-  /data-sync-action="toggle-messenger"[\s\S]{0,180}class="chat-toggle-slider sync-settings-toggle-slider"/.test(agentSrc)
-    && /class="chat-websearch-toggle-label sync-settings-toggle"/.test(agentSrc));
+assert('Agent Access toggle uses a keyboard-accessible Settings-owned switch',
+  agentComponentSrc.includes('syncAction="toggle-messenger" compact')
+    && agentComponentSrc.includes('import SettingsToggle')
+    && toggleSrc.includes('type="checkbox"') && toggleSrc.includes('gb:settings:peer-focus-visible:outline-2')
+    && !agentComponentSrc.includes('chat-toggle-slider'));
 assert('Agent Access enable checks saveImportedData result before pushing context or success',
   /const saved = await saveImportedData\(\{ reason: 'agent-access-enable' \}\);[\s\S]*if \(saved === false\)\s+throw new Error\('saveImportedData returned false while enabling Agent Access'\);[\s\S]*pushContextToGateway\(\);[\s\S]*showNotification\('Agent Access enabled', 'success'\)/.test(agentSrc));
 assert('Agent Access disable checks saveImportedData result before success',
@@ -99,11 +107,11 @@ assert('Agent Access token regeneration checks saveImportedData result before pu
 assert('Agent Access context-key regeneration checks saveImportedData result before pushing context or success',
   /const saved = await saveImportedData\(\{ reason: 'agent-access-regenerate-context-key' \}\);[\s\S]*if \(saved === false\)\s+throw new Error\('saveImportedData returned false while regenerating Agent Access context key'\);[\s\S]*pushContextToGateway\(\);[\s\S]*showNotification\('Context key regenerated/.test(agentSrc));
 assert('Agent Access renders one-click private bootstrap command instead of making users assemble env vars',
-  /data-sync-action="copy-agent-access-setup-command"/.test(agentSrc)
-    && /agent-access-client-grid/.test(agentSrc)
-    && /name="agent-access-client"/.test(agentSrc)
-    && /id: 'openclaw'/.test(agentSrc)
-    && /id: 'codex'/.test(agentSrc)
+  /data-sync-action="copy-agent-access-setup-command"/.test(agentComponentSrc)
+    && /agent-access-client-grid/.test(agentComponentSrc)
+    && /name="agent-access-client"/.test(agentComponentSrc)
+    && /id: 'openclaw'/.test(agentContractSrc)
+    && /id: 'codex'/.test(agentContractSrc)
     && /buildAgentAccessSetupCommand\(client\)/.test(agentSrc)
     && /gbsetup_v1_/.test(agentSrc)
     && agentSrc.includes('curl -fsSL https://getbased.health/install.sh | bash -s -- connect'));
@@ -114,7 +122,7 @@ assert('Agent Access setup command carries token, context key, and selected clie
     && /normalizeAgentAccessClient\(client\)/.test(agentSrc)
     && /btoa\(JSON\.stringify\(payload\)\)/.test(agentSrc));
 assert('Delegated wearable-series select writes split Agent Access scalar and pushes context only after persisted save',
-  /action === 'set-agent-wearable-series-days'[\s\S]*setAgentAccessWearableSeriesDays\(days\)[\s\S]*const saved = await saveImportedData\(\{ reason: 'agent-access-series' \}\)[\s\S]*if \(saved === false\) throw new Error\('saveImportedData returned false while saving Agent Access wearable-series preference'\)[\s\S]*pushContextToGateway/.test(src)
+  /action === 'set-agent-wearable-series-days'[\s\S]*setAgentAccessWearableSeriesDays\(days\)[\s\S]*const saved = await saveImportedData\(\{ reason: 'agent-access-series' \}\)[\s\S]*if \(saved === false\)\s*throw new Error\('saveImportedData returned false while saving Agent Access wearable-series preference'\)[\s\S]*pushContextToGateway/.test(src)
     && !/set-agent-wearable-series-days'[\s\S]*appWindow\.setAgentWearableSeriesDays/.test(src));
 assert('Legacy Settings sync actions stay module-only',
   !src.includes('Object.assign(window')

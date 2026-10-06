@@ -112,3 +112,8 @@ export function closeRestoreMnemonicDialog() {
 export function hydrateSettingsSyncPanel() {
   return runSettingsSyncPanelAction('hydrateSettingsSyncPanel', []);
 }
+
+// Replacing the Settings shell releases a loaded view without loading sync UI.
+export function disposeMessengerSection(): void {
+  settingsSyncPanelModuleLoader.module?.disposeAgentAccessSection();
+}

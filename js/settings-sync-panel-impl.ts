@@ -44,23 +44,14 @@ import {
   regenerateMessengerToken,
   refreshMessengerSectionForOwnerChange,
   renderMessengerSection,
+  hydrateMessengerSection,
+  disposeAgentAccessSection,
   toggleMessenger,
   toggleMessengerContextKey,
   toggleMessengerToken,
 } from './settings-agent-access-panel.js';
 
-export { closeRestoreMnemonicDialog, renderMessengerSection };
-// Agent Access UI implementation moved to settings-agent-access-panel.js.
-// Facade breadcrumbs kept for source-inspection tests/backward ownership:
-// renderMessengerSection · OpenClaw · GETBASED_AGENT_CONTEXT_KEY · messenger-token · data-masked
-// Extracted markup contract: id="agent-wearable-series-select" data-sync-action="set-agent-wearable-series-days"
-// setAgentAccessWearableSeriesDays(days) · saveImportedData({ reason: 'agent-access-series' })
-// <option value="off" · <option value="7" · <option value="30" · <option value="90"
-// Extracted action contract: data-sync-action="toggle-messenger" data-sync-action="toggle-messenger-token"
-// data-sync-action="toggle-messenger-context-key" data-sync-action="copy-messenger-token"
-// data-sync-action="copy-messenger-context-key" data-sync-action="copy-agent-access-setup-command"
-// data-sync-action="regenerate-messenger-token" data-sync-action="regenerate-messenger-context-key"
-// Copy contract: Let AI agents query your labs and context · ~100 / 400 / 1200 extra tokens for 7 / 30 / 90 days
+export { closeRestoreMnemonicDialog, renderMessengerSection, disposeAgentAccessSection };
 
 function snapshotImportedData() {
   try { return JSON.stringify(state.importedData || {}); } catch { return null; }
@@ -707,6 +698,7 @@ function saveSyncRelay() {
 }
 
 export function hydrateSettingsSyncPanel() {
+  hydrateMessengerSection();
   if (!isSyncEnabled()) return;
   loadMnemonic();
   void loadSyncIdentityFingerprint();

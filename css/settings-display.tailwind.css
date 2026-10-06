@@ -22,3 +22,6 @@
   50% { transform: translateX(90%); }
   100% { transform: translateX(285%); }
 }
+
+@source "../js/settings-agent-access-classes.ts";
+@custom-variant agent (#settings-tab-agent &);
