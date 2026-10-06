@@ -54,6 +54,8 @@ const backupModule = await import('../js/backup.js');
 const backupSrc = read('js/backup.js');
 const cryptoStoreSrc = read('js/crypto.js');
 const cryptoUiSrc = read('js/crypto-ui.js');
+const encryptionViewSrc = read('js/components/EncryptionSettings.svelte');
+const backupViewSrc = read('js/components/BackupSettings.svelte');
 const cycleStoreSrc = read('js/cycle-store.js');
 const profileStorageKeySrc = read('js/profile-storage-key.js');
 
@@ -291,13 +293,13 @@ console.log('9. Security section rendering');
 try {
   const html = cryptoModule.renderEncryptionSection();
   assert('renderEncryptionSection returns HTML', typeof html === 'string' && html.length > 50);
-  assert('Encryption section has status card', html.includes('encryption-status-card'));
-  assert('Encryption section uses delegated actions', html.includes('data-crypto-action=') && !html.includes('onclick='));
+  assert('Encryption section has status card', encryptionViewSrc.includes('encryption-status-card'));
+  assert('Encryption section uses delegated actions', encryptionViewSrc.includes('data-crypto-action=') && !html.includes('onclick='));
   const backupHtml = cryptoModule.renderBackupSection();
   assert('renderBackupSection returns HTML', typeof backupHtml === 'string' && backupHtml.length > 50);
-  assert('Backup section has download button', backupHtml.includes('Download Backup'));
-  assert('Backup section has restore button', backupHtml.includes('Restore Backup'));
-  assert('Backup section uses delegated actions', backupHtml.includes('data-crypto-action=') && !/on(click|change)=/.test(backupHtml));
+  assert('Backup section has download button', backupViewSrc.includes('Download Backup'));
+  assert('Backup section has restore button', backupViewSrc.includes('Restore Backup'));
+  assert('Backup section uses delegated actions', backupViewSrc.includes('data-crypto-action=') && !/on(click|change)=/.test(backupHtml));
 } catch (e) {
   assert('Settings section rendering', false, (e as {message?: unknown}).message);
 }
@@ -317,19 +319,23 @@ console.log('10. Encryption enabled state');
 }
 
 // ═══════════════════════════════════════════════
-// 11. Encryption section reflects state
+// 11. Component state branches retain controls; live states are covered by settings-protection.test.ts
 // ═══════════════════════════════════════════════
 console.log('11. Encryption section reflects state');
 {
   const wasEnabled = localStorage.getItem('labcharts-encryption-enabled');
   localStorage.removeItem('labcharts-encryption-enabled');
-  const offHtml = cryptoModule.renderEncryptionSection();
+  const offHost = cryptoModule.renderEncryptionSection();
+  assert('OFF state retains the mount contract', offHost.includes('data-encryption-settings-root'));
+  const offHtml = encryptionViewSrc.split('{:else}').at(-1)!;
   assert('OFF state shows Enable button', offHtml.includes('Enable Encryption'));
-  assert('OFF state shows encryption-status-off', offHtml.includes('encryption-status-off'));
+  assert('OFF state shows encryption-status-off', encryptionViewSrc.includes('encryption-status-off'));
   assert('OFF state enable button is delegated', offHtml.includes('data-crypto-action="enable-encryption"'));
 
   localStorage.setItem('labcharts-encryption-enabled', 'true');
-  const onHtml = cryptoModule.renderEncryptionSection();
+  const onHost = cryptoModule.renderEncryptionSection();
+  assert('ON state retains the mount contract', onHost === offHost);
+  const onHtml = encryptionViewSrc;
   assert('ON state shows Change Passphrase', onHtml.includes('Change Passphrase'));
   assert('ON state shows Disable Encryption', onHtml.includes('Disable Encryption'));
   assert('ON state shows encryption-status-on', onHtml.includes('encryption-status-on'));
@@ -410,9 +416,9 @@ try {
   assert('CSS has .passphrase-input', cssText.includes('.passphrase-input'));
   assert('CSS has .passphrase-btn', cssText.includes('.passphrase-btn'));
   assert('CSS has .passphrase-btn-primary', cssText.includes('.passphrase-btn-primary'));
-  assert('CSS has .encryption-status-card', cssText.includes('.encryption-status-card'));
-  assert('CSS has .encryption-status-on', cssText.includes('.encryption-status-on'));
-  assert('CSS has .encryption-status-off', cssText.includes('.encryption-status-off'));
+  assert('Svelte owns encryption-status-card styling', encryptionViewSrc.includes('encryption-status-card') && encryptionViewSrc.includes('gb:protection:'));
+  assert('Svelte owns encryption-status-on styling', encryptionViewSrc.includes('encryption-status-on') && encryptionViewSrc.includes('gb:protection:'));
+  assert('Svelte owns encryption-status-off styling', encryptionViewSrc.includes('encryption-status-off') && encryptionViewSrc.includes('gb:protection:'));
 } catch (e) {
   assert('CSS verification', false, (e as {message?: unknown}).message);
 }
@@ -695,11 +701,11 @@ try {
 console.log('24. Backup section auto-backup UI');
 try {
   const html = cryptoModule.renderBackupSection();
-  assert('Backup section has auto-backup status', html.includes('backup-auto-status'));
-  assert('Backup section has snapshot list container', html.includes('backup-snapshot-list'));
+  assert('Backup section has auto-backup status', backupViewSrc.includes('backup-auto-status'));
+  assert('Backup section has snapshot list container', backupViewSrc.includes('backup-snapshot-list'));
   assert('Backup section has delegated snapshot toggle and import',
-    html.includes('data-crypto-action="toggle-backup-snapshots"') &&
-    html.includes('data-crypto-action="import-backup"') &&
+    backupViewSrc.includes('data-crypto-action="toggle-backup-snapshots"') &&
+    backupViewSrc.includes('data-crypto-action="import-backup"') &&
     !/on(click|change)=/.test(html));
 } catch (e) {
   assert('Backup section auto-backup UI', false, (e as {message?: unknown}).message);
@@ -711,11 +717,11 @@ try {
 console.log('25. Auto-backup CSS');
 try {
   const cssText = read('css/data-protection.css');
-  assert('CSS has .backup-auto-status', cssText.includes('.backup-auto-status'));
-  assert('CSS has .backup-snapshot-list', cssText.includes('.backup-snapshot-list'));
-  assert('CSS has .backup-snapshot-item', cssText.includes('.backup-snapshot-item'));
-  assert('CSS has .backup-snapshot-date', cssText.includes('.backup-snapshot-date'));
-  assert('CSS has .backup-snapshot-meta', cssText.includes('.backup-snapshot-meta'));
+  assert('Svelte owns backup-auto-status styling', backupViewSrc.includes('backup-auto-status gb:protection:') && !cssText.includes('.backup-auto-status'));
+  assert('Svelte owns backup-snapshot-list styling', backupViewSrc.includes('backup-snapshot-list gb:protection:') && !cssText.includes('.backup-snapshot-list'));
+  assert('Svelte owns backup-snapshot-item styling', backupViewSrc.includes('backup-snapshot-item gb:protection:') && !cssText.includes('.backup-snapshot-item'));
+  assert('Svelte owns backup-snapshot-date styling', backupViewSrc.includes('backup-snapshot-date gb:protection:') && !cssText.includes('.backup-snapshot-date'));
+  assert('Svelte owns backup-snapshot-meta styling', backupViewSrc.includes('backup-snapshot-meta gb:protection:') && !cssText.includes('.backup-snapshot-meta'));
 } catch (e) {
   assert('CSS auto-backup styles', false, (e as {message?: unknown}).message);
 }

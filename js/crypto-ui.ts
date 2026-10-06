@@ -1,8 +1,10 @@
 // crypto-ui.ts — Encryption dialogs, nudges, delegates, and settings UI owner.
 
 import { getErrorMessage } from './caught-error.js';
-import { escapeHTML, showConfirmDialog, showNotification } from './utils.js';
-import { camelCaseActionAttributes } from './action-attributes.js';
+import { showConfirmDialog, showNotification } from './utils.js';
+import { getBackupSettingsSnapshot, getBackupSnapshotRows } from './settings-protection-view.js';
+import { disposeSettingsProtection, getBackupSettingsView, refreshEncryptionSettings, refreshBackupSettings } from './settings-protection-component.js';
+export { disposeSettingsProtection };
 import {
   isDataProtectionStylesheetLoaded,
   loadDataProtectionStylesheetForAction,
@@ -13,7 +15,6 @@ import {
   getFolderBackupState,
   importEncryptedBackup,
   MAX_SNAPSHOTS,
-  renderFolderBackupSection,
   restoreAutoBackup,
 } from './backup.js';
 
@@ -64,10 +65,6 @@ const CRYPTO_ACTION_DELEGATE_KEY = Symbol.for('getbased.cryptoActionDelegatesIns
 type CryptoDelegateRoot = (Document | HTMLElement) & { [CRYPTO_ACTION_DELEGATE_KEY]?: boolean };
 const CRYPTO_ACTION_ATTR = 'data-crypto-action';
 const CRYPTO_ACTION_SELECTOR = `[${CRYPTO_ACTION_ATTR}]`;
-
-function cryptoActionAttrs(action: string, attrs: Record<string, unknown> = {}) {
-  return camelCaseActionAttributes(CRYPTO_ACTION_ATTR, "crypto", action, attrs);
-}
 
 function closestCryptoAction(target: EventTarget | null) {
   return ((
@@ -141,6 +138,12 @@ export function installCryptoActionDelegates(root: CryptoDelegateRoot | null = t
 if (typeof document !== 'undefined') installCryptoActionDelegates();
 
 let failCount = 0;
+
+function focusInitialPassphraseInput(overlay: HTMLElement, input: HTMLInputElement): void {
+  setTimeout(() => {
+    if (input.isConnected && overlay.style.display !== 'none' && !overlay.contains(document.activeElement)) input.focus();
+  }, 50);
+}
 
 function ensurePassphraseOverlay(): HTMLElement {
   let overlay = document.getElementById('passphrase-overlay');
@@ -259,7 +262,7 @@ function renderPassphraseForm(overlay: HTMLElement, onSuccess: (value?: undefine
     });
   });
 
-  setTimeout(() => input.focus(), 50);
+  focusInitialPassphraseInput(overlay, input);
 }
 
 function validatePassphrase(passphrase: string) {
@@ -364,8 +367,7 @@ export function showEnableEncryptionModal(): void | Promise<void | false> {
       await cryptoUiDeps.migrateEncryptionStorage?.();
       hidePassphraseOverlay(overlay);
       showNotification('Encryption enabled \u2014 keep your passphrase safe', 'success');
-      const section = document.getElementById('encryption-section');
-      if (section) section.innerHTML = renderEncryptionSection();
+      hydrateProtectionSettings();
     } catch (error) {
       errorElement.textContent = 'Encryption failed: ' + getErrorMessage(error);
       button.disabled = false;
@@ -377,7 +379,7 @@ export function showEnableEncryptionModal(): void | Promise<void | false> {
     if (event.key === 'Enter') button.click();
   });
 
-  setTimeout(() => passphraseInput.focus(), 50);
+  focusInitialPassphraseInput(overlay, passphraseInput);
 }
 
 export function maybeShowEncryptionNudge() {
@@ -491,8 +493,7 @@ export async function disableEncryption() {
   try {
     await cryptoUiDeps.disableEncryptionStorage?.();
     showNotification('Encryption disabled', 'info');
-    const section = document.getElementById('encryption-section');
-    if (section) section.innerHTML = renderEncryptionSection();
+    hydrateProtectionSettings();
   } catch (error) {
     showNotification('Failed to disable encryption: ' + getErrorMessage(error), 'error');
   }
@@ -553,90 +554,32 @@ export async function changePassphrase(): Promise<void | false> {
     }
   });
 
-  setTimeout(() => oldInput.focus(), 50);
+  focusInitialPassphraseInput(overlay, oldInput);
 }
 
-export function renderEncryptionSection() {
+export function hydrateProtectionSettings(): void {
   const enabled = cryptoUiDeps.getEncryptionEnabled();
-  if (enabled) {
-    return `<div class="encryption-status-card encryption-status-on">
-      <div class="encryption-status-icon">&#128274;</div>
-      <div class="encryption-status-body">
-        <div class="encryption-status-title">Encryption is ON</div>
-        <div class="encryption-status-detail">Your medical data, chat history, wearable history, and API keys are encrypted with AES-256-GCM. Display preferences remain unencrypted.</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-      <button class="import-btn import-btn-secondary" ${cryptoActionAttrs('change-passphrase')}>Change Passphrase</button>
-      <button class="import-btn import-btn-secondary" ${cryptoActionAttrs('disable-encryption')}>Disable Encryption</button>
-    </div>`;
-  }
-  return `<div class="encryption-status-card encryption-status-off">
-    <div class="encryption-status-icon">&#128275;</div>
-    <div class="encryption-status-body">
-      <div class="encryption-status-title">Encryption is OFF</div>
-      <div class="encryption-status-detail">Profile and health data is stored as plaintext. Saved provider credentials remain encrypted with a device-local key.</div>
-    </div>
-  </div>
-  <button class="import-btn import-btn-primary" style="margin-top:12px" ${cryptoActionAttrs('enable-encryption')}>Enable Encryption</button>`;
+  refreshEncryptionSettings({ enabled });
+  refreshBackupSettings(getBackupSettingsSnapshot(enabled, localStorage.getItem('labcharts-last-autobackup'), getFolderBackupState()));
 }
 
-export function renderBackupSection() {
-  const lastAuto = localStorage.getItem('labcharts-last-autobackup');
-  const autoStatus = lastAuto
-    ? `Last auto-backup: ${new Date(lastAuto).toLocaleString()}`
-    : 'No auto-backups yet';
-  return `<div class="ai-provider-desc" style="margin-bottom:10px">Create a full backup of all profiles, data, and chat history. ${cryptoUiDeps.getEncryptionEnabled() ? 'Backups inherit encryption \u2014 same passphrase required to restore.' : 'Backups are unencrypted and omit provider credentials unless encryption is enabled.'}</div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap">
-    <button class="import-btn import-btn-primary" ${cryptoActionAttrs('export-backup')}>Download Backup</button>
-    <label class="import-btn import-btn-secondary" style="cursor:pointer;display:inline-flex;align-items:center">
-      Restore Backup
-      <input type="file" accept=".json" style="display:none" ${cryptoActionAttrs('import-backup')}>
-    </label>
-  </div>
-  <div class="backup-auto-status">${escapeHTML(autoStatus)}</div>
-  <div class="backup-snapshots-toggle" ${cryptoActionAttrs('toggle-backup-snapshots')} id="backup-snapshots-toggle" role="button" tabindex="0" style="display:none">
-    <span class="privacy-configure-arrow" id="backup-snapshots-arrow">&#9654;</span>
-    Recent snapshots
-  </div>
-  <div class="backup-snapshot-list" id="backup-snapshot-list" style="display:none"></div>
-  <div id="backup-folder-section">${renderFolderBackupSection()}</div>`;
+export function renderEncryptionSection(): string {
+  queueMicrotask(hydrateProtectionSettings);
+  return '<div data-encryption-settings-root data-settings-protection-view="encryption"></div>';
 }
 
-export async function loadBackupSnapshots() {
-  const list = document.getElementById('backup-snapshot-list');
-  const toggle = document.getElementById('backup-snapshots-toggle');
-  if (!list) return;
+export function renderBackupSection(): string {
+  queueMicrotask(hydrateProtectionSettings);
+  return '<div data-backup-settings-root data-settings-protection-view="backup"></div>';
+}
+
+export async function loadBackupSnapshots(): Promise<void> {
+  hydrateProtectionSettings();
+  const view = getBackupSettingsView();
+  if (!view) return;
   const snapshots = await getAutoBackupSnapshots();
-  if (snapshots.length === 0) {
-    if (toggle) toggle.style.display = 'none';
-    list.style.display = 'none';
-    return;
-  }
-  if (toggle) toggle.style.display = '';
-  const shown = snapshots.slice(0, MAX_SNAPSHOTS);
-  list.innerHTML = shown.map(snapshot => {
-    const date = new Date(snapshot.createdAt).toLocaleString();
-    const profileCount = snapshot.snapshot?.profiles ? snapshot.snapshot.profiles.length : '?';
-    const actionAttrs = cryptoActionAttrs('restore-auto-backup', {
-      snapshotId: snapshot.id,
-      snapshotIdType: typeof snapshot.id === 'number' ? 'number' : 'string',
-    });
-    return `<div class="backup-snapshot-item">
-      <div class="backup-snapshot-info">
-        <span class="backup-snapshot-date">${escapeHTML(date)}</span>
-        <span class="backup-snapshot-meta">${profileCount} profile(s)${snapshot.encrypted ? ' \u2022 encrypted' : ''}</span>
-      </div>
-      <button class="import-btn import-btn-secondary" style="padding:4px 10px;font-size:12px" ${actionAttrs}>Restore</button>
-    </div>`;
-  }).join('');
+  if (getBackupSettingsView() !== view) return;
+  view.setSnapshots(getBackupSnapshotRows(snapshots, MAX_SNAPSHOTS));
 }
 
-export function toggleBackupSnapshots() {
-  const list = document.getElementById('backup-snapshot-list');
-  const arrow = document.getElementById('backup-snapshots-arrow');
-  if (!list) return;
-  const open = list.style.display !== 'none';
-  list.style.display = open ? 'none' : 'flex';
-  if (arrow) arrow.innerHTML = open ? '&#9654;' : '&#9660;';
-}
+export function toggleBackupSnapshots(): void { getBackupSettingsView()?.toggleSnapshots(); }

@@ -1,7 +1,7 @@
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // backup.js — Backup/restore, auto-backup (IndexedDB), folder backup (File System Access API)
 import { getErrorMessage, getErrorName } from './caught-error.js';
-import { showNotification, showConfirmDialog, escapeAttr, escapeHTML } from './utils.js';
+import { showNotification, showConfirmDialog } from './utils.js';
 import { profileStorageKey } from './profile-storage-key.js';
 import { getBlob, setBlob, shouldUseBlob } from './blob-storage.js';
 import { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
@@ -9,6 +9,8 @@ import { collectRawChatBackup } from './backup-chat-storage.js';
 import { prepareRestoredProfilesForSync } from './sync-backup-restore-state.js';
 import { getDailyRangeRaw, upsertDailyBatchRaw } from './wearables-store.js';
 import { VOICE_BACKUP_KEYS } from './voice-settings-schema.js';
+import { getFolderBackupSnapshot } from './settings-protection-view.js';
+import { refreshFolderBackupPresentation } from './backup-folder-presentation.js';
 export { parseBackupSnapshot, serializeBackupSnapshot } from './backup-serialization.js';
 
 import type { StoredWearableRow } from './wearable-storage-types.js';
@@ -82,10 +84,6 @@ const backupActionDelegateRoots = new WeakSet();
 const BACKUP_ACTION_DELEGATE_KEY = Symbol.for('getbased.backupActionDelegatesInstalled');
 const BACKUP_ACTION_ATTR = 'data-backup-action';
 const BACKUP_ACTION_SELECTOR = `[${BACKUP_ACTION_ATTR}]`;
-
-function backupActionAttrs(action: string) {
-  return `${BACKUP_ACTION_ATTR}="${escapeAttr(action)}"`;
-}
 
 function closestBackupAction(target: ClosestActionTarget | null) {
   return (target && typeof target.closest === 'function'
@@ -643,6 +641,7 @@ export async function initFolderBackup() {
       document.addEventListener('click', reauth);
       document.addEventListener('keydown', reauth);
     }
+    refreshFolderBackupUI();
   } catch { /* silent — folder may have been deleted */ }
 }
 
@@ -759,33 +758,14 @@ async function writeFolderBackup() {
   }
 }
 
-function refreshFolderBackupUI() {
-  const el = document.getElementById('backup-folder-section');
-  if (el) el.innerHTML = renderFolderBackupSection();
-}
+function refreshFolderBackupUI(): void { refreshFolderBackupPresentation(getFolderBackupSnapshot(getFolderBackupState())); }
 
-export function renderFolderBackupSection() {
+export function renderFolderBackupSection(): string {
   if (!isFolderBackupSupported()) return '';
-  const st = getFolderBackupState();
-  let html = '<div class="backup-folder-section">';
-  html += '<div class="backup-folder-desc">Sync backups to a local folder (Proton Drive, Dropbox, NAS, etc.)</div>';
-  if (!st.folderName) {
-    html += `<button class="import-btn import-btn-secondary" ${backupActionAttrs('pick-folder')}>Set backup folder</button>`;
-  } else if (st.permissionLost) {
-    html += `<div class="backup-folder-status backup-folder-status-warn">Folder: ${escapeHTML(st.folderName)} — access lost</div>`;
-    html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
-    html += `<button class="import-btn import-btn-primary" ${backupActionAttrs('reauthorize-folder')}>Restore access</button>`;
-    html += `<button class="import-btn import-btn-secondary" ${backupActionAttrs('remove-folder')}>Remove</button>`;
-    html += '</div>';
-  } else {
-    const lastLabel = st.lastBackup ? new Date(st.lastBackup).toLocaleString() : 'never';
-    html += `<div class="backup-folder-status backup-folder-status-ok">Folder: ${escapeHTML(st.folderName)}</div>`;
-    html += `<div class="backup-folder-meta">Last folder backup: ${escapeHTML(lastLabel)}</div>`;
-    html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
-    html += `<button class="import-btn import-btn-secondary" ${backupActionAttrs('pick-folder')}>Change folder</button>`;
-    html += `<button class="import-btn import-btn-secondary" ${backupActionAttrs('remove-folder')}>Remove</button>`;
-    html += '</div>';
-  }
-  html += '</div>';
-  return html;
+  queueMicrotask(() => {
+    void import('./backup-folder-component.js').then(refreshFolderBackupUI).catch(error => {
+      showNotification('Folder backup controls could not be loaded: ' + getErrorMessage(error), 'error');
+    });
+  });
+  return '<div data-folder-backup-root></div>';
 }

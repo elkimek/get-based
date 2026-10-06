@@ -28,3 +28,6 @@
 
 @source "../js/settings-records-classes.ts";
 @custom-variant records (:is(#data-entries-section, #ai-usage-section) &);
+
+@source "../js/settings-protection-classes.ts";
+@custom-variant protection (:is(#encryption-section, #backup-section, [data-protection-view], [data-folder-backup-root]) &);

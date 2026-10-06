@@ -149,6 +149,19 @@ Each native component uses its own emitted mount/unmount/flush helpers; the stat
 Kit build shares one Svelte runtime across both components. Necessary public
 string-renderer adapters return component hosts without duplicating rendering.
 
+Security and Backup settings use `settings-protection-view.ts` to derive display
+snapshots without exposing backup payloads, keys or directory handles.
+`EncryptionSettings.svelte`, `BackupSettings.svelte` and
+`FolderBackupSettings.svelte` own status, controls and snapshot summaries.
+`crypto-ui.ts` and `backup.ts` retain encryption, file, restore and folder-permission
+operations through existing delegates. `backup-folder-presentation.ts` publishes
+display-only folder updates without a framework import; the standalone folder
+renderer loads `backup-folder-component.ts` on demand. `settings-protection-component.ts` owns
+mount/disposal and synchronous refresh; asynchronous snapshot reads can update
+only their originating mounted view. Encryption changes refresh both status and
+backup explanations. Snapshot and file-picker controls use native buttons.
+Passphrase dialogs and nudges retain their current presentation ownership.
+
 `scripts/build-svelte.mts` discovers authored components and compiles each into
 an ignored `.svelte.native.js` artifact, loaded through the existing lazy feature
 graph. These artifacts retain source maps for ownership and coverage. The native

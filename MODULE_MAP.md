@@ -9,9 +9,9 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 862 |
-| Internal import edges | 3611 |
-| Dynamic internal edges | 120 |
+| Modules | 871 |
+| Internal import edges | 3624 |
+| Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
 | Largest cyclic component | 0 |
@@ -211,12 +211,20 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>backup</code> family — 4 modules</summary>
+<details><summary><code>backup</code> family — 6 modules</summary>
 
 - [`js/backup-chat-storage.ts`](js/backup-chat-storage.ts) → no in-scope imports
 - [`js/backup-cycle.ts`](js/backup-cycle.ts) → [`js/cycle-store.ts`](js/cycle-store.ts)
+- [`js/backup-folder-component.ts`](js/backup-folder-component.ts) → [`js/backup-folder-presentation.ts`](js/backup-folder-presentation.ts), [`js/components/FolderBackupSettings.svelte`](js/components/FolderBackupSettings.svelte)
+- [`js/backup-folder-presentation.ts`](js/backup-folder-presentation.ts) → no in-scope imports
 - [`js/backup-serialization.ts`](js/backup-serialization.ts) → [`js/base64.ts`](js/base64.ts), [`js/sync-payload-codec.ts`](js/sync-payload-codec.ts)
-- [`js/backup.ts`](js/backup.ts) → [`js/backup-chat-storage.ts`](js/backup-chat-storage.ts), [`js/backup-cycle.ts`](js/backup-cycle.ts) *(dynamic)*, [`js/backup-serialization.ts`](js/backup-serialization.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts), [`js/utils.ts`](js/utils.ts), [`js/voice-settings-schema.ts`](js/voice-settings-schema.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
+- [`js/backup.ts`](js/backup.ts) → [`js/backup-chat-storage.ts`](js/backup-chat-storage.ts), [`js/backup-cycle.ts`](js/backup-cycle.ts) *(dynamic)*, [`js/backup-folder-component.ts`](js/backup-folder-component.ts) *(dynamic)*, [`js/backup-folder-presentation.ts`](js/backup-folder-presentation.ts), [`js/backup-serialization.ts`](js/backup-serialization.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-protection-view.ts`](js/settings-protection-view.ts), [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts), [`js/utils.ts`](js/utils.ts), [`js/voice-settings-schema.ts`](js/voice-settings-schema.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
+
+</details>
+
+<details><summary><code>BackupSettings.svelte</code> family — 1 module</summary>
+
+- [`js/components/BackupSettings.svelte`](js/components/BackupSettings.svelte) → [`js/components/FolderBackupSettings.svelte`](js/components/FolderBackupSettings.svelte), [`js/settings-protection-classes.ts`](js/settings-protection-classes.ts)
 
 </details>
 
@@ -505,7 +513,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>crypto</code> family — 3 modules</summary>
 
 - [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts) → no in-scope imports
-- [`js/crypto-ui.ts`](js/crypto-ui.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/backup.ts`](js/backup.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/data-wipe.ts`](js/data-wipe.ts) *(dynamic)*, [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/crypto-ui.ts`](js/crypto-ui.ts) → [`js/backup.ts`](js/backup.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/data-wipe.ts`](js/data-wipe.ts) *(dynamic)*, [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/settings-protection-component.ts`](js/settings-protection-component.ts), [`js/settings-protection-view.ts`](js/settings-protection-view.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/crypto.ts`](js/crypto.ts) → [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/backup.ts`](js/backup.ts), [`js/base64.ts`](js/base64.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts) *(dynamic)*, [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/crypto-ui.ts`](js/crypto-ui.ts), [`js/cycle-store.ts`](js/cycle-store.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/wearables-credential-vault.ts`](js/wearables-credential-vault.ts) *(dynamic)*, [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-whoop-storage.ts`](js/wearables-whoop-storage.ts) *(dynamic)*
 
 </details>
@@ -637,6 +645,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>EncryptionSettings.svelte</code> family — 1 module</summary>
+
+- [`js/components/EncryptionSettings.svelte`](js/components/EncryptionSettings.svelte) → [`js/settings-protection-classes.ts`](js/settings-protection-classes.ts)
+
+</details>
+
 <details><summary><code>export</code> family — 12 modules</summary>
 
 - [`js/export-import.ts`](js/export-import.ts) → [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/chat-personality-storage.ts`](js/chat-personality-storage.ts), [`js/chat-storage-safety.ts`](js/chat-storage-safety.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/export-runtime.ts`](js/export-runtime.ts), [`js/lab-entry-mutations.ts`](js/lab-entry-mutations.ts), [`js/lab-entry-restore.ts`](js/lab-entry-restore.ts), [`js/nostr-discovery.ts`](js/nostr-discovery.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts) *(dynamic)*, [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/sync-save-hooks.ts`](js/sync-save-hooks.ts), [`js/utils.ts`](js/utils.ts)
@@ -669,6 +683,12 @@ Native browser modules shipped with the static application.
 <details><summary><code>focus</code> family — 1 module</summary>
 
 - [`js/focus-card.ts`](js/focus-card.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/data.ts`](js/data.ts), [`js/lab-context.ts`](js/lab-context.ts), [`js/lens.ts`](js/lens.ts), [`js/markdown.ts`](js/markdown.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/profile.ts`](js/profile.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/supplement-impact.ts`](js/supplement-impact.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>FolderBackupSettings.svelte</code> family — 1 module</summary>
+
+- [`js/components/FolderBackupSettings.svelte`](js/components/FolderBackupSettings.svelte) → [`js/settings-protection-classes.ts`](js/settings-protection-classes.ts)
 
 </details>
 
@@ -1172,7 +1192,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>settings</code> family — 39 modules</summary>
+<details><summary><code>settings</code> family — 43 modules</summary>
 
 - [`js/settings-agent-access-classes.ts`](js/settings-agent-access-classes.ts) → no in-scope imports
 - [`js/settings-agent-access-component.ts`](js/settings-agent-access-component.ts) → [`js/components/AgentAccessSettings.svelte`](js/components/AgentAccessSettings.svelte)
@@ -1190,6 +1210,10 @@ Native browser modules shipped with the static application.
 - [`js/settings-privacy-panel.ts`](js/settings-privacy-panel.ts) → [`js/components/PrivacySettings.svelte`](js/components/PrivacySettings.svelte), [`js/settings-privacy-view.ts`](js/settings-privacy-view.ts), [`js/settings-privacy.ts`](js/settings-privacy.ts)
 - [`js/settings-privacy-view.ts`](js/settings-privacy-view.ts) → no in-scope imports
 - [`js/settings-privacy.ts`](js/settings-privacy.ts) → [`js/api.ts`](js/api.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts), [`js/pii.ts`](js/pii.ts), [`js/settings-privacy-view.ts`](js/settings-privacy-view.ts), [`js/settings-runtime.ts`](js/settings-runtime.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/settings-protection-classes.ts`](js/settings-protection-classes.ts) → no in-scope imports
+- [`js/settings-protection-component.ts`](js/settings-protection-component.ts) → [`js/backup-folder-presentation.ts`](js/backup-folder-presentation.ts), [`js/components/BackupSettings.svelte`](js/components/BackupSettings.svelte), [`js/components/EncryptionSettings.svelte`](js/components/EncryptionSettings.svelte)
+- [`js/settings-protection-contract.ts`](js/settings-protection-contract.ts) → no in-scope imports
+- [`js/settings-protection-view.ts`](js/settings-protection-view.ts) → no in-scope imports
 - [`js/settings-provider-bridge.ts`](js/settings-provider-bridge.ts) → [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/api.ts`](js/api.ts), [`js/provider-panels.ts`](js/provider-panels.ts) *(dynamic)*, [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) *(dynamic)*
 - [`js/settings-records-classes.ts`](js/settings-records-classes.ts) → no in-scope imports
 - [`js/settings-records-component.ts`](js/settings-records-component.ts) → [`js/components/AIUsageSettings.svelte`](js/components/AIUsageSettings.svelte), [`js/components/DataEntriesSettings.svelte`](js/components/DataEntriesSettings.svelte), [`js/settings-records-view.ts`](js/settings-records-view.ts)

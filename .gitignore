@@ -1556,3 +1556,13 @@ deploy/profile-share/data/
 /js/settings-agent-access-mutation.js
 
 /js/agent-access-legacy-source.js
+
+/js/settings-protection-contract.js
+/js/settings-protection-view.js
+/js/settings-protection-classes.js
+/js/settings-protection-component.js
+
+# Emitted folder presentation boundary
+/js/backup-folder-presentation.js
+
+/js/backup-folder-component.js

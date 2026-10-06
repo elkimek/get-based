@@ -4,7 +4,7 @@ import { headlessBrowserEnvironment } from './scripts/headless-browser-environme
 const environment = headlessBrowserEnvironment(path.resolve('.local-notes/headless-runtime'));
 const webkit = process.env.PLAYWRIGHT_WEBKIT_EXECUTABLE;
 export default defineConfig({
-  testDir: './tests/pwa', testMatch: 'sveltekit.spec.ts', workers: 1, fullyParallel: false,
+  testDir: './tests/pwa', testMatch: 'sveltekit*.spec.ts', workers: 1, fullyParallel: false,
   timeout: 90_000, expect: { timeout: 10_000 }, reporter: [['list']],
   outputDir: process.env.PLAYWRIGHT_KIT_OUTPUT_DIR || '/tmp/getbased-sveltekit-results',
   use: { headless: true, serviceWorkers: 'allow', screenshot: 'only-on-failure', trace: 'retain-on-failure' },

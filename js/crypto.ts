@@ -52,6 +52,8 @@ import {
   maybeShowEncryptionNudge,
   renderBackupSection,
   renderEncryptionSection,
+  hydrateProtectionSettings,
+  disposeSettingsProtection,
   showEnableEncryptionModal,
   showPassphraseModal,
   toggleBackupSnapshots,
@@ -67,6 +69,8 @@ export {
   maybeShowEncryptionNudge,
   renderBackupSection,
   renderEncryptionSection,
+  hydrateProtectionSettings,
+  disposeSettingsProtection,
   showEnableEncryptionModal,
   toggleBackupSnapshots,
 };

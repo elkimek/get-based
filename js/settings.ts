@@ -3,7 +3,7 @@ import { isDebugMode, setDebugMode, setAnalyticsEnabled, showNotification, showC
 import { applyAccentOverride, setTimeFormat } from './theme.js';
 import { switchUnitSystem, toggleAltUnits, switchRangeMode } from './data.js';
 import { getAIProvider, hasAIProvider, isAIPaused, setOllamaPIIModel } from './api.js';
-import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots } from './crypto.js';
+import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots, hydrateProtectionSettings, disposeSettingsProtection } from './crypto.js';
 import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel, disposeMessengerSection } from './settings-sync-panel.js';
 import { getChatBackend } from './agent-chat-settings.js';
 import { controlCLICompanion, copyCLIAgentLoginCommand, copyCLICompanionRunCommand, copyCLICompanionStartCommand, copyCLICompanionUpdateCommand, refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentEffort, setCLIAgentModel, setCLIAgentProviderFilter, setCLIAgentTarget, setCLICompanionPlatform, testLocalCodex, toggleCLIAgentOptions, toggleLocalCodex } from './settings-cli-agent-panel.js';
@@ -458,6 +458,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   const extensionPanels = renderAppExtensionSettingsSlot('panels', extensionContext);
 
   disposeSettingsRecords();
+  disposeSettingsProtection();
   disposeMessengerSection();
   disposeVoiceSettingsPanel();
   disposePrivacySettingsPanel();
@@ -574,6 +575,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   mountDisplaySettingsPanel();
   mountPrivacySettingsPanel();
   mountSettingsRecords();
+  hydrateProtectionSettings();
   installSettingsDelegates(modal);
   installVoiceSettingsPanel(modal);
   openModalOverlay(overlay);

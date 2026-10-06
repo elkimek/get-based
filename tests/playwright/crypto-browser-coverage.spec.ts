@@ -151,6 +151,7 @@ test('crypto storage wrappers cover encryption cache blob and enable disable flo
         promptText: 'Encrypt this existing persona during migration.',
       }]));
       document.getElementById('encryption-section')!.innerHTML = cryptoStore.renderEncryptionSection();
+      await waitFor(() => document.querySelector('[data-crypto-action="enable-encryption"]'), 'encryption component mount');
       outcomes.renderEncryptionSectionUsesDelegatedActions =
         !!document.querySelector('[data-crypto-action="enable-encryption"]')
         && !document.getElementById('encryption-section')!.innerHTML.includes('onclick=');
@@ -393,9 +394,15 @@ test('crypto passphrase modals cover unlock forgot and change flows', async ({ p
 });
 
 test('crypto nudges broadcast and backup snapshot browser paths run', async ({ page }, testInfo) => {
+  await page.exposeFunction('pressSnapshotSpace', async () => {
+    await page.locator('#backup-snapshots-toggle').focus();
+    await page.keyboard.press('Space');
+  });
   testInfo.setTimeout(60_000);
   await page.goto('/app', { waitUntil: 'load' });
   await page.waitForSelector('#notification-container', { state: 'attached' });
+
+  await page.evaluate(async () => { await (await import('/js/settings-loader.js')).loadSettingsModule(); });
 
   const results = await page.evaluate(async ({ cryptoUrl }) => {
     const outcomes: Record<string, unknown> = {};
@@ -543,6 +550,7 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       backupHost.innerHTML = cryptoStore.renderBackupSection();
       document.body.appendChild(backupHost);
       cryptoStore.installCryptoActionDelegates(backupHost);
+      await waitFor(() => backupHost.querySelector('[data-crypto-action="export-backup"]'), 'backup component mount');
       outcomes.renderBackupSectionUsesDelegatedActions =
         !!backupHost.querySelector('[data-crypto-action="export-backup"]')
         && !!backupHost.querySelector('[data-crypto-action="import-backup"]')
@@ -550,7 +558,7 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
         && !/on(click|change)=/.test(backupHost.innerHTML);
       await cryptoStore.loadBackupSnapshots();
       outcomes.emptySnapshotsHideList =
-        document.getElementById('backup-snapshot-list')?.style.display === 'none';
+        document.getElementById('backup-snapshot-list')?.hidden === true;
 
       const tx = backupDb.transaction('snapshots', 'readwrite');
       const store = tx.objectStore('snapshots');
@@ -565,9 +573,9 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
       });
       await cryptoStore.loadBackupSnapshots();
       document.getElementById('backup-snapshots-toggle')?.click();
-      const openedDisplay = document.getElementById('backup-snapshot-list')?.style.display;
-      const openedArrow = document.getElementById('backup-snapshots-arrow')?.innerHTML;
-      document.getElementById('backup-snapshots-toggle')?.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+      const openedDisplay = getComputedStyle(document.getElementById('backup-snapshot-list')!).display;
+      const openedArrow = document.getElementById('backup-snapshots-arrow')?.textContent;
+      await (window as unknown as { pressSnapshotSpace(): Promise<void> }).pressSnapshotSpace();
       const restoreBtn = document.querySelector<HTMLElement>('[data-crypto-action="restore-auto-backup"]');
       outcomes.snapshotsRenderDelegatedRestoreButton =
         document.querySelectorAll('.backup-snapshot-item').length === 1
@@ -579,8 +587,8 @@ test('crypto nudges broadcast and backup snapshot browser paths run', async ({ p
         openedDisplay === 'flex'
         && openedArrow === '\u25bc';
       outcomes.snapshotsDelegatedKeyboardToggleCloses =
-        document.getElementById('backup-snapshot-list')?.style.display === 'none'
-        && document.getElementById('backup-snapshots-arrow')?.innerHTML === '\u25b6';
+        document.getElementById('backup-snapshot-list')?.hidden === true
+        && document.getElementById('backup-snapshots-arrow')?.textContent === '\u25b6';
     } finally {
       state.currentProfile = saved.profile;
       state.currentView = saved.view;

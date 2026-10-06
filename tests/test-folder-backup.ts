@@ -73,19 +73,20 @@ const exportModule = await import('../js/export.js');
   }
 
   // ═══════════════════════════════════════════════
-  // 4. renderBackupSection includes folder UI
+  // 4. Folder ownership and capability contract (live states: settings-protection.test.ts)
   // ═══════════════════════════════════════════════
   try {
     const html = cryptoModule.renderBackupSection();
-    assert('renderBackupSection has folder section container', html.includes('backup-folder-section'));
-    // On Chromium, should have folder UI content; on Firefox/Safari, the inner HTML is empty
-    const st = backupModule.getFolderBackupState();
-    if (st.supported) {
-      assert('Folder section has description text', html.includes('backup-folder-desc'));
-      assert('Folder section has delegated set/change button', html.includes('data-backup-action="pick-folder"'));
-      assert('Folder section has no inline click handlers', !html.includes('onclick='));
-    } else {
-      assert('Folder section hidden on unsupported browser', !html.includes('backup-folder-desc'));
+    const view = read('js/components/BackupSettings.svelte');
+    const folder = read('js/components/FolderBackupSettings.svelte');
+    assert('renderBackupSection exposes the owned component mount', html.includes('data-backup-settings-root'));
+    assert('Backup component includes the folder section container', view.includes('id="backup-folder-section"'));
+    assert('Folder component has description text', folder.includes('backup-folder-desc'));
+    assert('Folder component has delegated set/change button', folder.includes('data-backup-action="pick-folder"'));
+    assert('Folder component has no inline click handlers', !folder.includes('onclick='));
+    assert('Folder component gates unsupported browsers', folder.includes('{#if snapshot.supported}'));
+    if (!backupModule.getFolderBackupState().supported) {
+      assert('Standalone folder renderer is empty when unsupported', backupModule.renderFolderBackupSection() === '');
     }
   } catch (e) {
     assert('renderBackupSection folder UI', false, (e as {message?: unknown}).message);
@@ -102,12 +103,14 @@ const exportModule = await import('../js/export.js');
   // ═══════════════════════════════════════════════
   try {
     const cssText = read('/css/data-protection.css');
-    assert('CSS has .backup-folder-section', cssText.includes('.backup-folder-section'));
-    assert('CSS has .backup-folder-desc', cssText.includes('.backup-folder-desc'));
-    assert('CSS has .backup-folder-status', cssText.includes('.backup-folder-status'));
-    assert('CSS has .backup-folder-status-ok', cssText.includes('.backup-folder-status-ok'));
-    assert('CSS has .backup-folder-status-warn', cssText.includes('.backup-folder-status-warn'));
-    assert('CSS has .backup-folder-meta', cssText.includes('.backup-folder-meta'));
+    const folder = read('js/components/FolderBackupSettings.svelte');
+    const classes = read('js/settings-protection-classes.ts');
+    assert('Svelte/Tailwind owns backup-folder-section', (folder + classes).includes('backup-folder-section') && folder.includes('gb:protection:') && !cssText.includes('.backup-folder-section'));
+    assert('Svelte/Tailwind owns backup-folder-desc', (folder + classes).includes('backup-folder-desc') && folder.includes('gb:protection:') && !cssText.includes('.backup-folder-desc'));
+    assert('Svelte/Tailwind owns backup-folder-status', (folder + classes).includes('backup-folder-status') && folder.includes('gb:protection:') && !cssText.includes('.backup-folder-status'));
+    assert('Svelte/Tailwind owns backup-folder-status-ok', (folder + classes).includes('backup-folder-status-ok') && folder.includes('gb:protection:') && !cssText.includes('.backup-folder-status-ok'));
+    assert('Svelte/Tailwind owns backup-folder-status-warn', (folder + classes).includes('backup-folder-status-warn') && folder.includes('gb:protection:') && !cssText.includes('.backup-folder-status-warn'));
+    assert('Svelte/Tailwind owns backup-folder-meta', (folder + classes).includes('backup-folder-meta') && folder.includes('gb:protection:') && !cssText.includes('.backup-folder-meta'));
   } catch (e) {
     assert('CSS folder backup styles', false, (e as {message?: unknown}).message);
   }

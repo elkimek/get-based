@@ -186,48 +186,6 @@
 }
 .passphrase-btn-link:hover { color: var(--text-secondary); }
 
-/* Encryption Status Cards */
-.encryption-status-card {
-  display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px;
-  border-radius: var(--radius-sm); border: 1px solid var(--border);
-}
-.encryption-status-on { border-left: 3px solid var(--green); }
-.encryption-status-off { border-left: 3px solid var(--yellow); }
-.encryption-status-icon { font-size: 24px; flex-shrink: 0; line-height: 1; }
-.encryption-status-body { flex: 1; min-width: 0; }
-.encryption-status-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-.encryption-status-detail { font-size: 12px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
-
-/* Auto-backup snapshot list */
-.backup-auto-status {
-  font-size: 12px; color: var(--text-muted); margin-top: 12px; margin-bottom: 8px;
-}
-.backup-snapshots-toggle {
-  font-size: 13px; color: var(--text-secondary); cursor: pointer; padding: 4px 0;
-  margin-bottom: 6px; user-select: none;
-}
-.backup-snapshots-toggle:hover { color: var(--text-primary); }
-.backup-snapshot-list { display: flex; flex-direction: column; gap: 6px; }
-.backup-snapshot-item {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border);
-  background: var(--bg-card);
-}
-.backup-snapshot-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.backup-snapshot-date { font-size: 13px; color: var(--text-primary); }
-.backup-snapshot-meta { font-size: 11px; color: var(--text-muted); }
-
-/* Folder backup */
-.backup-folder-section { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
-.backup-folder-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5; }
-.backup-folder-status {
-  font-size: 13px; font-weight: 600; margin-bottom: 6px; padding: 6px 10px;
-  border-radius: var(--radius-sm); border-left: 3px solid;
-}
-.backup-folder-status-ok { color: var(--green); border-color: var(--green); background: rgba(34,197,94,0.06); }
-.backup-folder-status-warn { color: var(--yellow); border-color: var(--yellow); background: rgba(234,179,8,0.06); }
-.backup-folder-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
-
 @media (max-width: 768px) {
   .pii-warning-overlay {
     align-items: stretch;
