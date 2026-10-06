@@ -1663,3 +1663,9 @@ deploy/profile-share/data/
 /js/routstr-settings-contract.js
 /js/routstr-settings-component.js
 /js/routstr-settings-controller.js
+
+# Owned Custom API settings runtime output
+js/custom-settings-contract.js
+js/custom-settings-component.js
+js/custom-settings-view.js
+js/custom-settings-controller.js

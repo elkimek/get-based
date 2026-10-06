@@ -263,6 +263,26 @@ web-search/image limits remain visible for known private models. Catalog reads
 reject replaced node, credential, request order or initiating Settings view
 before writing pricing, capabilities, catalogs or selection.
 
+`CustomSettings.svelte` owns OpenAI-compatible endpoint Settings: private URL/key
+fields, validation/removal status, model catalog and manual model selection. Its
+adapter preserves fields and focus during model refreshes, scopes retained
+controls to their originating owner and scrubs private fields on close or provider
+switch. Display snapshots contain only connection status and checked model labels.
+The injected controller captures candidate endpoint/key and stored connection
+before validation and endpoint-specific activation; delayed replies cannot write
+into replacement views/accounts. Accepted encrypted writes finish after closure,
+without initiating follow-up model requests or notifications for stale owners.
+
+Connection publication awaits encrypted credential persistence before publishing
+the endpoint and key cache. Writes serialize; failed endpoint publication restores
+the previous credential. Endpoint changes invalidate catalog/vision caches while
+retaining the user's selected model ID. Removal clears connection/model metadata
+only after credential removal succeeds. Custom catalog requests guard original
+stored endpoint/key, latest request and optional originating view before every
+cache/capability/selection write. Existing no-argument and explicit-endpoint API
+contracts remain; connection probes continue directly from the browser with only
+the fixed compatibility payload, and endpoint-specific consent remains required.
+
 `RoutstrSettings.svelte` owns the wallet/node shell, active actions, keyboard
 menu and separate recovery notices. Stable slots host the existing wallet and
 model components, so balance, seed, model or account refreshes retain focused

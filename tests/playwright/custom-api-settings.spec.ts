@@ -19,8 +19,8 @@ test('custom API provider panel renders from Settings AI', async ({ page }) => {
 
   await expect(page.locator('#custom-url-input')).toHaveCount(1);
   await expect(page.locator('#custom-key-input')).toHaveCount(1);
-  await expect(page.locator('.ai-provider-panel .import-btn-primary')).toHaveCount(1);
-  await expect(page.locator('.ai-provider-panel .ai-provider-desc')).toContainText('OpenAI-compatible');
+  await expect(page.locator('[data-custom-settings-view] [data-provider-panel-action="save-custom-api"]')).toHaveCount(1);
+  await expect(page.locator('[data-custom-settings-view] > p:first-of-type')).toContainText('OpenAI-compatible');
 });
 
 test('lazy provider render follows a provider switch made while loading', async ({ page }) => {
@@ -34,7 +34,9 @@ test('lazy provider render follows a provider switch made while loading', async 
     panel!.id = 'ai-provider-panel';
     panel!.innerHTML = bridge.renderAIProviderPanelBridge();
     document.body.appendChild(panel);
+    const loading = bridge.initSettingsProviderPanels();
     api.setAIProvider('custom');
+    await loading;
   });
 
   await expect(page.locator('#custom-url-input')).toHaveCount(1);

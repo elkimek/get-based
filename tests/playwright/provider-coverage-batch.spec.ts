@@ -128,9 +128,14 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       'labcharts-routstr-model',
       'labcharts-routstr-models',
       'labcharts-routstr-pricing',
+      'labcharts-routstr-node',
+      'labcharts-routstr-model-regular',
+      'labcharts-routstr-private-models',
+      'labcharts-routstr-vision-models',
       'labcharts-ppq-model',
       'labcharts-ppq-models',
       'labcharts-ppq-pricing',
+      'labcharts-ai-provider',
       'labcharts-custom-model',
       'labcharts-custom-models',
     ];
@@ -154,9 +159,9 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         <section id="ai-provider-panel">
           <div id="openrouter-owned-fixture"></div>
           <div id="venice-owned-fixture"></div>
-          <div id="routstr-model-area"></div>
+          <div id="routstr-owned-fixture"></div>
           <div id="ppq-owned-fixture"></div>
-          <div id="custom-model-area"></div>
+          <div id="custom-owned-fixture"></div>
         </section>
       `);
 
@@ -281,12 +286,20 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         && clearCount >= 1;
 
       localStorage.setItem('labcharts-routstr-model', 'missing-model');
-      controls.renderRoutstrModelDropdown([
-        { id: 'routstr-a', name: 'Routstr A' },
-        { id: 'routstr-b', name: 'Routstr B' },
-      ]);
-      const routstrFallback = localStorage.getItem('labcharts-routstr-model') === 'routstr-a'
-        && (document.getElementById('routstr-model-select') as HTMLSelectElement|null)?.value === 'routstr-a';
+      localStorage.setItem('labcharts-routstr-node', 'https://routstr-catalog.example');
+      const catalogFetch = window.fetch;
+      window.fetch = async (url, options) => String(url) === 'https://routstr-catalog.example/v1/models'
+        ? jsonResponse({ data: [
+          { id: 'claude-synthetic-a', name: 'Routstr A', enabled: true },
+          { id: 'claude-synthetic-b', name: 'Routstr B', enabled: true },
+        ] })
+        : catalogFetch.call(window, url, options);
+      const routstrModels = await (await import('/js/api-routstr.js')).fetchRoutstrModels();
+      window.fetch = catalogFetch;
+      (await import('/js/routstr-model-settings-component.js')).mountRoutstrModelSettings(document.getElementById('routstr-owned-fixture')!, (await import('/js/routstr-model-settings-view.js')).buildRoutstrModelSettingsSnapshot());
+      controls.renderRoutstrModelDropdown(routstrModels);
+      const routstrFallback = localStorage.getItem('labcharts-routstr-model') === 'claude-synthetic-a'
+        && (document.getElementById('routstr-model-select') as HTMLSelectElement|null)?.value === 'claude-synthetic-a';
       controls.renderRoutstrModelDropdown([
         { id: 'anthropic/claude-fable-5.1', name: 'Claude Fable 5.1' },
         { id: 'google/gemini-3.7-flash', name: 'Gemini 3.7 Flash' },
@@ -360,6 +373,9 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       const ppqModelPricing = (document.getElementById('ppq-model-select') as HTMLSelectElement|null)?.value === 'ppq-b'
         && ((document.getElementById('ppq-model-pricing') as HTMLElement|null)?.textContent || '').includes('$0.50/M in');
 
+      localStorage.setItem('labcharts-ai-provider', 'custom');
+      const customSettings = await import('/js/custom-settings-component.js');
+      customSettings.mountCustomSettings(document.getElementById('custom-owned-fixture')!, { connected: true, models: (await import('/js/custom-settings-view.js')).buildCustomModelState([], '') }, { save: () => {}, remove: () => {}, select: () => {}, apply: () => {} });
       localStorage.setItem('labcharts-custom-model', 'outside-model');
       controls.renderCustomApiModelDropdown([
         { id: 'model-a', name: 'Model A' },
@@ -461,6 +477,8 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]);
       }
+      (await import('/js/custom-settings-component.js')).disposeCustomSettings();
+      (await import('/js/routstr-model-settings-component.js')).disposeRoutstrModelSettings();
       (document.getElementById('ai-provider-panel') as HTMLElement|null)?.remove();
       document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
     }
@@ -691,8 +709,9 @@ test('provider panels cover provider switching key saves balances custom API and
         <input id="routstr-key-input" value="sk-routstr-good">
         <button id="save-routstr-key-btn">Save</button>
         <div id="routstr-key-status"></div>
-        <div id="routstr-model-area"></div>
+        <div data-routstr-model-settings-host></div>
       `;
+      (await import('/js/provider-model-controls.js')).hydrateRoutstrModelSettings();
       await panels.handleSaveRoutstrKey();
       await wait(0);
       const storedRoutstrKey = localStorage.getItem('labcharts-routstr-sessions');
@@ -725,16 +744,15 @@ test('provider panels cover provider switching key saves balances custom API and
         && (document.getElementById('ppq-model-select') as HTMLSelectElement|null)?.value === 'claude-sonnet-5'
         && ((document.getElementById('ppq-balance') as HTMLElement|null)?.textContent || '').includes('$0.08');
 
-      panel!.innerHTML = `
-        <input id="custom-url-input" value="https://custom.example/v1/">
-        <input id="custom-key-input" value="sk-custom">
-      `;
+      localStorage.setItem('labcharts-ai-provider', 'custom');
+      panel!.innerHTML = panels.renderAIProviderPanel('custom'); panels.hydrateOwnedProviderSettings();
+      (await import('/js/custom-settings-component.js')).getCustomSettingsView()!.setConnection({ url: 'https://custom.example/v1/', key: 'sk-custom' });
       await panels.handleSaveCustomApi();
       await wait(0);
       const customSaveRendersConnected = localStorage.getItem('labcharts-custom-url') === 'https://custom.example/v1'
         && (document.getElementById('custom-key-status') as HTMLElement|null)?.textContent.includes('Connected')
         && (document.getElementById('custom-model-select') as HTMLSelectElement|null)?.value === 'openai/gpt-5.5';
-      panels.handleRemoveCustomApi();
+      await panels.handleRemoveCustomApi();
       await wait(0);
       const customRemoveRendersDisconnected = !localStorage.getItem('labcharts-custom-url')
         && (document.getElementById('custom-key-status') as HTMLElement|null)?.textContent.includes('Not connected');
@@ -786,6 +804,7 @@ test('provider panels cover provider switching key saves balances custom API and
       if (oldSessionPrevious == null) sessionStorage.removeItem('or_previous_ai_provider');
       else sessionStorage.setItem('or_previous_ai_provider', oldSessionPrevious);
       (document.getElementById('settings-modal') as HTMLElement|null)?.remove();
+      (await import('/js/custom-settings-component.js')).disposeCustomSettings();
       (document.getElementById('ai-provider-panel') as HTMLElement|null)?.remove();
       (document.getElementById('or-no-balance-overlay') as HTMLElement|null)?.remove();
       document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());
@@ -1045,6 +1064,7 @@ test('ppq panels cover account reveal topup picker invoice states and cleanup', 
         else localStorage.setItem(key, oldStorage[key]);
       }
       cryptoStore.updateKeyCache('labcharts-ppq-key', oldStorage['labcharts-ppq-key'] || '');
+      (await import('/js/custom-settings-component.js')).disposeCustomSettings();
       (document.getElementById('ai-provider-panel') as HTMLElement|null)?.remove();
       (document.getElementById('ppq-topup-toggle') as HTMLElement|null)?.remove();
       (document.getElementById('ppq-topup-area') as HTMLElement|null)?.remove();

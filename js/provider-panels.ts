@@ -1,3 +1,6 @@
+import { getCustomSettingsView, mountCustomSettings, disposeCustomSettings } from './custom-settings-component.js';
+import { buildCustomSettingsSnapshot, buildCustomModelState } from './custom-settings-view.js';
+import { createCustomSettingsController } from './custom-settings-controller.js';
 import { getRoutstrSettingsView, disposeRoutstrSettings } from './routstr-settings-component.js';
 import { getRoutstrModelSettingsView, disposeRoutstrModelSettings } from './routstr-model-settings-component.js';
 // provider-panels.js - AI provider settings behavior, balance display, key validation, and wallet flows
@@ -26,11 +29,11 @@ import {
   clearVeniceE2EESession, hasAIProvider,
   setAIPaused,
   setCustomApiModel, setOllamaMainModel, setPpqModel,
-  getCustomApiUrl, setCustomApiUrl, getCustomApiKey, saveCustomApiKey,
+  getCustomApiUrl, getCustomApiKey, saveCustomApiConnection,
   fetchCustomApiModels, validateCustomApiKey,
   rememberOpenRouterOAuthPreviousProvider, clearOpenRouterOAuthSession, startOpenRouterOAuth
 } from './api.js';
-import { updateKeyCache, encryptedSetItem } from './crypto.js';
+import { updateKeyCache } from './crypto.js';
 import { openChatPanel } from './chat-loader.js';
 import { loadFocusCard } from './focus-card.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -48,7 +51,6 @@ import {
   applyCustomOpenRouterModel,
   onOpenRouterDropdownChange, onRoutstrModelDropdownChange, onVeniceModelDropdownChange,
   refreshRoutstrPrivateControls, hydrateRoutstrModelSettings,
-  renderCustomApiModelDropdown,
   renderOpenRouterModelDropdown,
   renderRoutstrModelDropdown,
   togglePpqPrivateMode,
@@ -210,6 +212,7 @@ export function hydrateVeniceSettings(): void {
   if (view !== existing) view.setStoredKey(getVeniceKey());
 }
 export function hydrateOwnedProviderSettings(): void {
+  hydrateCustomSettings();
   hydrateRoutstrSettings();
   hydrateOpenRouterSettings();
   hydrateVeniceSettings();
@@ -217,6 +220,7 @@ export function hydrateOwnedProviderSettings(): void {
   hydrateRoutstrModelSettings();
 }
 function disposeOwnedProviderSettings(): void {
+  disposeCustomSettings();
   disposeRoutstrSettings();
   disposeRoutstrModelSettings();
   disposeOpenRouterSettings();
@@ -312,12 +316,10 @@ export function initSettingsModelFetch() {
   }
   if (getRoutstrSettingsView()) { startRoutstrFundingMonitor(); refreshWalletSeedStatus(); }
   initSettingsPpqPanel();
-  const customUrl = getCustomApiUrl();
-  const customKey = getCustomApiKey();
-  if (customUrl && customKey && document.getElementById('custom-model-area')) {
-    fetchCustomApiModels(customUrl, customKey).then(function(models) {
-      if (models.length) renderCustomApiModelDropdown(models);
-    });
+  const customUrl = getCustomApiUrl(), customKey = getCustomApiKey(), customView = getCustomSettingsView();
+  if (customUrl && customKey && customView && getAIProvider() === 'custom') {
+    const current = () => customView.isCurrent() && getAIProvider() === 'custom' && getCustomApiUrl() === customUrl && getCustomApiKey() === customKey;
+    void fetchCustomApiModels(customUrl, customKey, { isCurrent: current }).then(models => { if (current() && models.length) customView.setModels(buildCustomModelState(models)); });
   }
 }
 
@@ -626,38 +628,28 @@ export async function handleRemoveRoutstrKey() {
   (providerPanelDeps as ProviderPanelOperations).openSettingsModal();
 }
 
-// ─── Custom API handlers ───
-export async function handleSaveCustomApi() {
-  const urlInput = /** @type {HTMLInputElement | null} */ (document.getElementById('custom-url-input')) as HTMLInputElement | null;
-  const keyInput = /** @type {HTMLInputElement | null} */ (document.getElementById('custom-key-input')) as HTMLInputElement | null;
-  if (!urlInput || !keyInput) return;
-  const url = urlInput.value.trim().replace(/\/+$/, '');
-  const key = keyInput.value.trim();
-  if (!url) { showNotification('Please enter a base URL', 'error'); return; }
-  if (!key) { showNotification('Please enter an API key', 'error'); return; }
-  const result = await validateCustomApiKey(url, key);
-  if (!result.valid) { showNotification(result.error, 'error'); return; }
-  if (!await requestProviderActivation('custom', { endpoint: url })) {
-    showNotification('Connection verified; AI was not activated.', 'info');
-    return;
-  }
-  setCustomApiUrl(url);
-  await saveCustomApiKey(key);
-  showNotification('Connected', 'success');
-  const models = await fetchCustomApiModels(url, key);
-  // Re-render the full panel to show connected state
-  const panel = document.getElementById('ai-provider-panel');
-  if (panel) panel.innerHTML = renderAIProviderPanel('custom');
-  if (models.length) renderCustomApiModelDropdown(models);
-}
-
-export function handleRemoveCustomApi() {
-  localStorage.removeItem('labcharts-custom-url');
-  localStorage.removeItem('labcharts-custom-model');
-  localStorage.removeItem('labcharts-custom-models');
-  encryptedSetItem('labcharts-custom-key', '').then(function() { updateKeyCache('labcharts-custom-key', ''); });
-  const panel = document.getElementById('ai-provider-panel');
-  if (panel) panel.innerHTML = renderAIProviderPanel('custom');
+// Custom API save/remove share one lifecycle across Settings replacements.
+const customSettings = createCustomSettingsController();
+const customServices = {
+  provider: getAIProvider, url: getCustomApiUrl, key: getCustomApiKey,
+  validate: validateCustomApiKey,
+  activate: (url: string) => requestProviderActivation('custom', { endpoint: url }),
+  persist: saveCustomApiConnection,
+  load: (url: string, key: string, isCurrent: () => boolean) => fetchCustomApiModels(url, key, { isCurrent }),
+  snapshot: buildCustomSettingsSnapshot, notify: showNotification,
+};
+export function handleSaveCustomApi(): Promise<void> { return customSettings.save(getCustomSettingsView(), customServices); }
+export function handleRemoveCustomApi(): Promise<void> { return customSettings.remove(getCustomSettingsView(), customServices); }
+export function hydrateCustomSettings(): void {
+  const host = document.querySelector<HTMLElement>('#ai-provider-panel [data-custom-settings-host]');
+  if (!host) { disposeCustomSettings(); return; }
+  const previous = getCustomSettingsView();
+  const view = mountCustomSettings(host, buildCustomSettingsSnapshot(), {
+    save: handleSaveCustomApi, remove: handleRemoveCustomApi,
+    select: model => { if (!customSettings.isPending() && getAIProvider() === 'custom') { setCustomApiModel(model); view.setModels(buildCustomModelState()); } },
+    apply: () => { if (!customSettings.isPending()) applyCustomApiManualModel(); },
+  });
+  if (view !== previous) view.setConnection({ url: getCustomApiUrl(), key: getCustomApiKey() });
 }
 
 configureLocalAiControls({

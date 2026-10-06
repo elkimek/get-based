@@ -1,3 +1,4 @@
+import { disposeCustomSettings } from './custom-settings-component.js';
 import { disposePpqSettings } from './ppq-settings-component.js';
 // settings-provider-bridge.js - lazy bridge from Settings to provider panel modules.
 
@@ -30,6 +31,7 @@ function loadWalletPanels(): Promise<WalletPanels> {
 export function disposeSettingsProviderPanels(): void {
   ++providerViewEpoch;
   loadedWalletPanels?.clearRoutstrWalletTimers();
+  disposeCustomSettings();
   disposeOpenRouterSettings();
   disposeVeniceSettings();
   disposePpqSettings();
@@ -95,6 +97,7 @@ export function switchAIProviderBridge(provider: unknown): void {
   else if (provider !== 'openrouter') clearOpenRouterOAuthSession();
   setProviderButtonState(provider);
   loadedWalletPanels?.clearRoutstrWalletTimers();
+  disposeCustomSettings();
   disposeOpenRouterSettings();
   disposeVeniceSettings();
   disposePpqSettings();
@@ -125,19 +128,20 @@ export function testPIIOllamaConnectionBridge() {
 
 export async function initSettingsProviderPanels(): Promise<void> {
   const owner = captureProviderView();
-  const provider = getAIProvider();
-  const backend = getChatBackend();
   if (!owner.panel) return;
+  const initialChild = owner.panel.firstElementChild;
+  const ownsLoadingView = () => owner.isCurrent() && owner.panel?.firstElementChild === initialChild;
   try {
     const panels = await loadProviderPanels();
-    if (!owner.isCurrent() || getAIProvider() !== provider || getChatBackend() !== backend) return;
+    if (!ownsLoadingView()) return;
+    const provider = getAIProvider(), backend = getChatBackend();
     if (backend !== 'codex') {
       owner.panel.innerHTML = panels.renderAIProviderPanel(provider);
       panels.hydrateOwnedProviderSettings();
     }
     panels.initSettingsOllamaCheck();
     panels.initSettingsModelFetch();
-  } catch { if (owner.isCurrent()) showProviderLoadFailure(owner.panel); }
+  } catch { if (ownsLoadingView()) showProviderLoadFailure(owner.panel); }
 }
 
 // Load saved funding recovery only for the active direct Routstr provider.

@@ -383,6 +383,30 @@ export function setCustomApiUrl(url: string) {
 }
 export function getCustomApiKey() { return getCachedKey('labcharts-custom-key') || ''; }
 export async function saveCustomApiKey(key: string) { await encryptedSetProviderItemRuntime('labcharts-custom-key', key); updateKeyCache('labcharts-custom-key', key); markAISettingsLocal(); }
+// Publish a coherent endpoint/key cache only after the encrypted write succeeds.
+// Connection writes serialize; failed endpoint storage restores the previous key.
+let customConnectionWrite: Promise<unknown> = Promise.resolve();
+export function saveCustomApiConnection(url: string, key: string): Promise<void> {
+  const operation = customConnectionWrite.then(async () => {
+    const previousKey = getCustomApiKey();
+    await encryptedSetProviderItemRuntime('labcharts-custom-key', key);
+    try {
+      if (url) {
+        const endpointChanged = getCustomApiUrl() !== url;
+        localStorage.setItem('labcharts-custom-url', url);
+        if (endpointChanged) for (const name of ['labcharts-custom-models', 'labcharts-custom-vision-models']) localStorage.removeItem(name);
+      }
+      else for (const name of ['labcharts-custom-url', 'labcharts-custom-model', 'labcharts-custom-models', 'labcharts-custom-vision-models']) localStorage.removeItem(name);
+    } catch (error) {
+      await encryptedSetProviderItemRuntime('labcharts-custom-key', previousKey);
+      throw error;
+    }
+    updateKeyCache('labcharts-custom-key', key);
+    markAISettingsLocal();
+  });
+  customConnectionWrite = operation.catch(() => {});
+  return operation;
+}
 export function hasCustomApiKey() { return !!getCustomApiKey(); }
 export function getCustomApiModel() { return localStorage.getItem('labcharts-custom-model') || ''; }
 export function setCustomApiModel(model: string) { saveSelectedModel('labcharts-custom-model', model); }

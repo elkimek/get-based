@@ -1,3 +1,5 @@
+import { getCustomSettingsView } from './custom-settings-component.js';
+import { buildCustomModelState } from './custom-settings-view.js';
 import { getRoutstrModelSettingsView, mountRoutstrModelSettings, disposeRoutstrModelSettings } from './routstr-model-settings-component.js';
 import { buildRoutstrModelSettingsSnapshot, buildRoutstrModelState, buildRoutstrModeState, readRoutstrModels } from './routstr-model-settings-view.js';
 import { getPpqSettingsView } from './ppq-settings-component.js';
@@ -11,7 +13,7 @@ import { buildVeniceModelState, buildVeniceModeState, readVeniceModels, venicePr
 import { getOpenRouterSettingsView } from './openrouter-settings-component.js';
 import { buildOpenRouterModelState, openRouterPricing } from './openrouter-settings-view.js';
 import { getErrorMessage } from './caught-error.js';
-import { escapeHTML, showNotification } from './utils.js';
+import { showNotification } from './utils.js';
 import {
   fetchOpenRouterModelPricing,
   getCustomApiModel,
@@ -22,7 +24,6 @@ import {
   getRoutstrModel,
   getVeniceE2EE,
   getVeniceModel,
-  renderModelPricingHint,
   setCustomApiModel,
   setOpenRouterModel,
   setPpqModel,
@@ -31,7 +32,6 @@ import {
   setVeniceE2EE,
   setVeniceModel,
 } from './api.js';
-import { buildModelOptions } from './provider-panel-renderers.js';
 import {
   callProviderModelSmokeTestRuntime,
   clearProviderE2EESessionRuntime,
@@ -195,31 +195,18 @@ export function updatePpqModelPricing(modelId: string): void {
   view?.setMode(buildPpqModeState());
 }
 
-export function renderCustomApiModelDropdown(models: StoredProviderModel[]) {
-  const area = document.getElementById('custom-model-area');
-  if (!area) return;
-  const currentModel = getCustomApiModel();
-  const opts = buildModelOptions('custom', models, currentModel, function(m) { return m.name || m.id; });
-  const isCustom = !models.some(m => m.id === currentModel) && currentModel;
-  area.innerHTML = `<label style="font-size:12px;color:var(--text-muted)">Model</label>
-    <select class="api-key-input" id="custom-model-select" style="margin-top:4px" data-provider-panel-change="custom-model">${isCustom ? '<option value="__custom" disabled selected>Using custom model</option>' : ''}${opts}</select>
-    <div style="margin-top:6px;display:flex;align-items:center;gap:8px"><input type="text" id="custom-manual-model" placeholder="Or type any model ID and press Enter" style="font-size:11px;flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-family:monospace${isCustom ? ';border-color:var(--accent)' : ''}" value="${isCustom ? escapeHTML(currentModel) : ''}" data-provider-panel-key="custom-manual-model"></div>
-    <div id="custom-model-pricing" style="margin-top:4px">${renderModelPricingHint('custom', currentModel)}</div>`;
+export function renderCustomApiModelDropdown(models: StoredProviderModel[]): void {
+  getCustomSettingsView()?.setModels(buildCustomModelState(models));
 }
-
-export function updateCustomModelPricing(modelId?: string) {
-  const el = document.getElementById('custom-model-pricing');
-  if (el) el.innerHTML = renderModelPricingHint('custom', modelId || getCustomApiModel());
+export function updateCustomModelPricing(modelId?: string): void {
+  const view = getCustomSettingsView();
+  if (view) view.setModels({ ...view.getModels(), selectedModel: modelId || getCustomApiModel(), pricing: { text: '', tone: 'secondary' } });
 }
-
-export function applyCustomApiManualModel() {
-  const input = (document.getElementById('custom-manual-model') as HTMLInputElement | null);
-  if (!input) return;
-  const model = input.value.trim();
+export function applyCustomApiManualModel(): void {
+  const view = getCustomSettingsView();
+  if (!view || getAIProvider() !== 'custom') return;
+  const model = view.readManualModel().trim();
   if (!model) { showNotification('Enter a model ID', 'error'); return; }
-  setCustomApiModel(model);
-  const select = (document.getElementById('custom-model-select') as HTMLSelectElement | null);
-  if (select) select.value = model;
-  updateCustomModelPricing(model);
+  setCustomApiModel(model); updateCustomModelPricing(model);
   showNotification('Model set to ' + model, 'success');
 }

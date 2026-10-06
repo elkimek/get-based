@@ -134,6 +134,7 @@ export {
   setCustomApiUrl,
   getCustomApiKey,
   saveCustomApiKey,
+  saveCustomApiConnection,
   hasCustomApiKey,
   getCustomApiModel,
   setCustomApiModel,

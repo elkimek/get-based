@@ -41,3 +41,18 @@ it('disposes loaded wallet controls synchronously on Settings close and provider
   switchAIProviderBridge('venice'); expect(state.clearWallet).toHaveBeenCalledTimes(2);
   await vi.waitFor(() => expect(state.switchProvider).toHaveBeenCalledOnce());
 });
+
+it('preserves a newer provider owner mounted inside the same Settings root while initialization loads', async () => {
+  const panel = host(); panel.innerHTML = renderAIProviderPanelBridge();
+  const work = initSettingsProviderPanels();
+  const input = document.createElement('input'); input.type = 'password'; input.value = 'PRIVATE DRAFT';
+  panel.replaceChildren(input); state.provider = 'custom';
+  await work;
+  expect(panel.firstElementChild).toBe(input); expect(input.value).toBe('PRIVATE DRAFT');
+  expect(state.render).not.toHaveBeenCalled(); expect(state.hydrate).not.toHaveBeenCalled(); expect(state.init).not.toHaveBeenCalled();
+});
+it('uses the latest provider when only the stored selection changes while the loading owner remains', async () => {
+  const panel = host(); panel.innerHTML = renderAIProviderPanelBridge();
+  const work = initSettingsProviderPanels(); state.provider = 'venice'; await work;
+  expect(state.render).toHaveBeenCalledWith('venice'); expect(state.hydrate).toHaveBeenCalledOnce(); expect(state.init).toHaveBeenCalledTimes(2);
+});

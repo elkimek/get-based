@@ -24,9 +24,11 @@ test('provider model controls edge coverage handles pricing updates guards and m
       'labcharts-venice-model-e2ee',
       'labcharts-openrouter-model',
       'labcharts-routstr-model',
+      'labcharts-routstr-models',
       'labcharts-routstr-pricing',
       'labcharts-ppq-model',
       'labcharts-ppq-pricing',
+      'labcharts-ai-provider',
       'labcharts-custom-model',
     ];
     const oldStorage: Record<string, string | null | undefined> = {};
@@ -51,9 +53,9 @@ test('provider model controls edge coverage handles pricing updates guards and m
         <section id="provider-controls-edge-fixture">
           <div id="venice-owned-fixture"></div>
           <div id="openrouter-model-area"></div>
-          <div id="routstr-model-area"></div>
+          <div id="routstr-owned-fixture"></div>
           <div id="ppq-owned-fixture"></div>
-          <div id="custom-model-area"></div>
+          <div id="custom-owned-fixture"></div>
         </section>
       `);
 
@@ -116,6 +118,11 @@ test('provider model controls edge coverage handles pricing updates guards and m
         'routstr-b': { input: 0.75, output: 2.25 },
       }));
       localStorage.setItem('labcharts-routstr-model', 'routstr-b');
+      localStorage.setItem('labcharts-routstr-models', JSON.stringify([
+        { id: 'routstr-a', name: 'Routstr A' },
+        { id: 'routstr-b', name: 'Routstr B' },
+      ]));
+      (await import('/js/routstr-model-settings-component.js')).mountRoutstrModelSettings(document.getElementById('routstr-owned-fixture')!, (await import('/js/routstr-model-settings-view.js')).buildRoutstrModelSettingsSnapshot());
       controls.renderRoutstrModelDropdown([
         { id: 'routstr-a', name: 'Routstr A' },
         { id: 'routstr-b', name: 'Routstr B' },
@@ -132,6 +139,9 @@ test('provider model controls edge coverage handles pricing updates guards and m
       controls.updatePpqModelPricing('ppq-edge');
       const ppqPricingUpdatesRenderedHint = (document.getElementById('ppq-model-pricing')?.textContent || '').includes('$1.25/M in');
 
+      localStorage.setItem('labcharts-ai-provider', 'custom');
+      const customSettings = await import('/js/custom-settings-component.js');
+      customSettings.mountCustomSettings(document.getElementById('custom-owned-fixture')!, { connected: true, models: (await import('/js/custom-settings-view.js')).buildCustomModelState([], '') }, { save: () => {}, remove: () => {}, select: () => {}, apply: () => {} });
       localStorage.setItem('labcharts-custom-model', 'known-model');
       controls.renderCustomApiModelDropdown([
         { id: 'known-model', name: 'Known Model' },
@@ -172,6 +182,8 @@ test('provider model controls edge coverage handles pricing updates guards and m
       }
       (await import('/js/venice-settings-component.js')).disposeVeniceSettings();
       (await import('/js/ppq-settings-component.js')).disposePpqSettings();
+      (await import('/js/custom-settings-component.js')).disposeCustomSettings();
+      (await import('/js/routstr-model-settings-component.js')).disposeRoutstrModelSettings();
       document.getElementById('provider-controls-edge-fixture')?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
     }

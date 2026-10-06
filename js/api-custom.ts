@@ -34,7 +34,10 @@ function customBrowserConnectionError(error: unknown) {
   );
 }
 
-export async function fetchCustomApiModels(baseUrl?: string, key?: string) {
+let customCatalogRequest = 0;
+export async function fetchCustomApiModels(baseUrl?: string, key?: string, options: { isCurrent?: () => boolean } = {}) {
+  const originalUrl = getCustomApiUrl(), originalKey = getCustomApiKey(), request = ++customCatalogRequest;
+  const current = () => request === customCatalogRequest && getCustomApiUrl() === originalUrl && getCustomApiKey() === originalKey && (!options.isCurrent || options.isCurrent());
   try {
     const url = (baseUrl || getCustomApiUrl()).replace(/\/+$/, '');
     const k = key || getCustomApiKey();
@@ -61,6 +64,7 @@ export async function fetchCustomApiModels(baseUrl?: string, key?: string) {
         ...(typeof m.defaultReasoningEffort === 'string' ? { defaultReasoningEffort: m.defaultReasoningEffort } : {}),
       };
     }).sort(function(a, b) { return a.name.localeCompare(b.name); });
+    if (!current()) return [];
     const visionIds = models.filter(modelMetadataSupportsVision).map(model => model.id);
     localStorage.setItem('labcharts-custom-vision-models', JSON.stringify(visionIds));
     localStorage.setItem('labcharts-custom-models', JSON.stringify(models));
