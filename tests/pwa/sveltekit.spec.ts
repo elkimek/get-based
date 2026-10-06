@@ -144,3 +144,53 @@ test('failed update retains the app and Later defers activation until explicit o
     await noCspErrors(page, errors); await noCspErrors(other, errors);
   } finally { await server.close(); }
 });
+
+test('Svelte Settings shell preserves all sections, responsive geometry and keyboard navigation', async ({ page, context }) => {
+  const server = await startKitServer(artifact); const errors = await prepare(context, page);
+  await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
+  try {
+    await page.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' }); await ready(page); await display(page);
+    const modal = page.locator('#settings-modal');
+    const tabs = modal.getByRole('tab');
+    await expect(tabs).toHaveCount(7);
+    await expect(modal).toHaveAttribute('aria-labelledby', 'settings-title');
+    const mobile = page.viewportSize()!.width <= 720;
+    await expect(modal.getByRole('tablist')).toHaveAttribute('aria-orientation', mobile ? 'horizontal' : 'vertical');
+    await expect(modal.locator('.settings-layout')).toHaveCSS('display', mobile ? 'flex' : 'grid');
+    for (const [id, label] of [['display', 'Display'], ['ai', 'AI'], ['voice', 'Voice'], ['privacy', 'Privacy'], ['data', 'Data'], ['wearables', 'Wearables'], ['agent', 'Agent Access']] as const) {
+      const tab = tabs.filter({ hasText: label });
+      await tab.click(); await expect(tab).toHaveAttribute('aria-selected', 'true');
+      await expect(tab).toHaveAttribute('tabindex', '0');
+      await expect(modal.locator(`#settings-tab-${id}`)).toBeVisible();
+      await expect(modal.locator('[role="tab"][aria-selected="true"]')).toHaveCount(1);
+    }
+    const first = modal.locator('#settings-nav-display');
+    await first.click(); await first.focus();
+    await first.press(mobile ? 'ArrowRight' : 'ArrowDown');
+    await expect(modal.locator('#settings-nav-ai')).toBeFocused();
+    await expect(modal.locator('#settings-nav-ai')).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('End'); await expect(modal.locator('#settings-nav-agent')).toBeFocused();
+    await page.keyboard.press('Home'); await expect(first).toBeFocused();
+    const input = modal.locator('#debug-mode-toggle');
+    const before = await input.isChecked(); await input.locator('..').click();
+    await modal.getByRole('button', { name: 'Close', exact: true }).click();
+    await expect(page.locator('#settings-modal-overlay')).not.toHaveClass(/show/);
+    // The existing no-provider close workflow may reveal chat onboarding.
+    const closeChat = page.locator('#chat-panel.open [data-chat-action="close-panel"]');
+    if (await closeChat.isVisible()) await closeChat.click();
+    await page.locator('[data-shell-action="open-settings"]').click();
+    await expect(modal.locator('#debug-mode-toggle')).toBeChecked({ checked: !before });
+    await expect(modal.locator('#settings-title')).toHaveCount(1);
+    expect(await modal.locator('.settings-content [data-settings-tab]').evaluateAll(elements => elements.every(element => !element.hasAttribute('aria-selected') && !element.classList.contains('settings-tab-btn')))).toBe(true);
+    const violations = await page.evaluate(async () => {
+      const axe = (window as unknown as { axe: typeof import('axe-core') }).axe;
+      const result = await axe.run({ include: [['.settings-modal-head'], ['.settings-tabs-bar']] }, {
+        runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] },
+      });
+      return result.violations.map(violation => ({ id: violation.id, targets: violation.nodes.map(node => node.target) }));
+    });
+    expect(violations).toEqual([]);
+    await expect.poll(() => modal.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await noCspErrors(page, errors);
+  } finally { await server.close(); }
+});

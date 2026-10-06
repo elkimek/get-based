@@ -1531,3 +1531,6 @@ deploy/profile-share/data/
 /tooling/svelte/.svelte-kit/
 /js/kit/**/*.js.map
 /scripts/headless-browser-environment.js
+
+/js/settings-shell.js
+/js/settings-shell-contract.js

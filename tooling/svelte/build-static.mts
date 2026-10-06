@@ -9,7 +9,6 @@ import { handleBuildLog } from '../../scripts/build-production.mjs';
 
 type StaticKitOptions = { root: string; temporary: string; version: string };
 export function staticKitConfig({ root, temporary, version }: StaticKitOptions) {
-  const componentBridge = path.join(root, 'js/components/DisplaySettings.svelte.native.js');
   return defineConfig({
     root: path.join(root, 'tooling/svelte'),
     resolve: { dedupe: ['svelte'] },
@@ -18,10 +17,10 @@ export function staticKitConfig({ root, temporary, version }: StaticKitOptions) 
       name: 'getbased-native-contracts', enforce: 'pre',
       transform(code, id) { return rewriteNativeAssetBase(code, id.split('?')[0]!, root); },
       load(id) {
-        if (id !== componentBridge) return null;
+        if (!id.startsWith(path.join(root, 'js') + path.sep) || !id.endsWith('.svelte.native.js')) return null;
         // Use the authored component and Kit's shared Svelte runtime, preserving
         // the native adapter contract without bundling Svelte a second time.
-        return `export { default } from ${JSON.stringify(path.join(root, 'js/components/DisplaySettings.svelte'))}; export { mount, unmount, flushSync } from 'svelte';`;
+        return `export { default } from ${JSON.stringify(id.slice(0, -10))}; export { mount, unmount, flushSync } from 'svelte';`;
       },
     }, sveltekit({
       adapter: adapter({ pages: path.join(temporary, 'site'), assets: path.join(temporary, 'site') }),

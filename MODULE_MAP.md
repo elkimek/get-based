@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 837 |
-| Internal import edges | 3568 |
+| Modules | 840 |
+| Internal import edges | 3572 |
 | Dynamic internal edges | 120 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -68,7 +68,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/utils.ts`](js/utils.ts) | 294 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
 | [`js/state.ts`](js/state.ts) | 202 | [`js/chat-send.ts`](js/chat-send.ts) | 42 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 91 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
-| [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 81 | [`js/settings.ts`](js/settings.ts) | 30 |
+| [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 81 | [`js/settings.ts`](js/settings.ts) | 31 |
 | [`js/data.ts`](js/data.ts) | 79 | [`js/pdf-import.ts`](js/pdf-import.ts) | 28 |
 | [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts) | 65 | [`js/sync-configure.ts`](js/sync-configure.ts) | 28 |
 | [`js/profile.ts`](js/profile.ts) | 51 | [`js/wearables-connect.ts`](js/wearables-connect.ts) | 27 |
@@ -1147,7 +1147,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>settings</code> family — 22 modules</summary>
+<details><summary><code>settings</code> family — 24 modules</summary>
 
 - [`js/settings-agent-access-panel.ts`](js/settings-agent-access-panel.ts) → [`js/data.ts`](js/data.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/state.ts`](js/state.ts), [`js/sync.ts`](js/sync.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-cli-agent-panel.ts`](js/settings-cli-agent-panel.ts) → [`js/agent-chat-client.ts`](js/agent-chat-client.ts), [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/utils.ts`](js/utils.ts), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
@@ -1161,6 +1161,8 @@ Native browser modules shipped with the static application.
 - [`js/settings-provider-bridge.ts`](js/settings-provider-bridge.ts) → [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/api.ts`](js/api.ts), [`js/provider-panels.ts`](js/provider-panels.ts) *(dynamic)*, [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) *(dynamic)*
 - [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
 - [`js/settings-runtime.ts`](js/settings-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/sun-uvdata-config.ts`](js/sun-uvdata-config.ts)
+- [`js/settings-shell-contract.ts`](js/settings-shell-contract.ts) → no in-scope imports
+- [`js/settings-shell.ts`](js/settings-shell.ts) → [`js/components/SettingsShell.svelte`](js/components/SettingsShell.svelte), [`js/settings-shell-contract.ts`](js/settings-shell-contract.ts)
 - [`js/settings-sync-panel-impl.ts`](js/settings-sync-panel-impl.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data.ts`](js/data.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/settings-agent-access-panel.ts`](js/settings-agent-access-panel.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/settings-sync-panel-render.ts`](js/settings-sync-panel-render.ts), [`js/settings-sync-restore-ui.ts`](js/settings-sync-restore-ui.ts), [`js/state.ts`](js/state.ts), [`js/sync.ts`](js/sync.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-sync-panel-render.ts`](js/settings-sync-panel-render.ts) → [`js/sync.ts`](js/sync.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts) → [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/settings-sync-panel-impl.ts`](js/settings-sync-panel-impl.ts) *(dynamic)*, [`js/sync.ts`](js/sync.ts), [`js/utils.ts`](js/utils.ts)
@@ -1170,7 +1172,13 @@ Native browser modules shipped with the static application.
 - [`js/settings-voice-model-controller.ts`](js/settings-voice-model-controller.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/settings-voice-hardware.ts`](js/settings-voice-hardware.ts), [`js/utils.ts`](js/utils.ts), [`js/voice-local-engine.ts`](js/voice-local-engine.ts), [`js/voice-model-catalog.ts`](js/voice-model-catalog.ts), [`js/voice-settings-storage.ts`](js/voice-settings-storage.ts)
 - [`js/settings-voice-panel.ts`](js/settings-voice-panel.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) *(dynamic)*, [`js/settings-voice-hardware.ts`](js/settings-voice-hardware.ts), [`js/settings-voice-model-controller.ts`](js/settings-voice-model-controller.ts), [`js/settings-voice-view.ts`](js/settings-voice-view.ts), [`js/utils.ts`](js/utils.ts), [`js/voice-ai-provider.ts`](js/voice-ai-provider.ts), [`js/voice-catalog-storage.ts`](js/voice-catalog-storage.ts), [`js/voice-model-catalog.ts`](js/voice-model-catalog.ts), [`js/voice-openrouter-catalog.ts`](js/voice-openrouter-catalog.ts), [`js/voice-player.ts`](js/voice-player.ts), [`js/voice-provider-registry.ts`](js/voice-provider-registry.ts), [`js/voice-settings-storage.ts`](js/voice-settings-storage.ts)
 - [`js/settings-voice-view.ts`](js/settings-voice-view.ts) → [`js/settings-voice-hardware.ts`](js/settings-voice-hardware.ts), [`js/settings-voice-model-controller.ts`](js/settings-voice-model-controller.ts), [`js/utils.ts`](js/utils.ts), [`js/voice-ai-provider.ts`](js/voice-ai-provider.ts), [`js/voice-catalog-storage.ts`](js/voice-catalog-storage.ts), [`js/voice-local-engine.ts`](js/voice-local-engine.ts), [`js/voice-model-catalog.ts`](js/voice-model-catalog.ts), [`js/voice-openrouter-catalog.ts`](js/voice-openrouter-catalog.ts), [`js/voice-provider-catalog.ts`](js/voice-provider-catalog.ts), [`js/voice-settings-storage.ts`](js/voice-settings-storage.ts)
-- [`js/settings.ts`](js/settings.ts) → [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/changelog.ts`](js/changelog.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data.ts`](js/data.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendations.ts`](js/recommendations.ts), [`js/settings-cli-agent-panel.ts`](js/settings-cli-agent-panel.ts), [`js/settings-data.ts`](js/settings-data.ts), [`js/settings-display-panel.ts`](js/settings-display-panel.ts), [`js/settings-event-target.ts`](js/settings-event-target.ts), [`js/settings-import-benchmark-controller.ts`](js/settings-import-benchmark-controller.ts), [`js/settings-privacy.ts`](js/settings-privacy.ts), [`js/settings-provider-bridge.ts`](js/settings-provider-bridge.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/settings-runtime.ts`](js/settings-runtime.ts), [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts), [`js/settings-tweaks.ts`](js/settings-tweaks.ts), [`js/settings-voice-panel.ts`](js/settings-voice-panel.ts), [`js/theme.ts`](js/theme.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts), [`js/wearables-settings-panel.ts`](js/wearables-settings-panel.ts)
+- [`js/settings.ts`](js/settings.ts) → [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/changelog.ts`](js/changelog.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data.ts`](js/data.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendations.ts`](js/recommendations.ts), [`js/settings-cli-agent-panel.ts`](js/settings-cli-agent-panel.ts), [`js/settings-data.ts`](js/settings-data.ts), [`js/settings-display-panel.ts`](js/settings-display-panel.ts), [`js/settings-event-target.ts`](js/settings-event-target.ts), [`js/settings-import-benchmark-controller.ts`](js/settings-import-benchmark-controller.ts), [`js/settings-privacy.ts`](js/settings-privacy.ts), [`js/settings-provider-bridge.ts`](js/settings-provider-bridge.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/settings-runtime.ts`](js/settings-runtime.ts), [`js/settings-shell.ts`](js/settings-shell.ts), [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts), [`js/settings-tweaks.ts`](js/settings-tweaks.ts), [`js/settings-voice-panel.ts`](js/settings-voice-panel.ts), [`js/theme.ts`](js/theme.ts), [`js/tour.ts`](js/tour.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-runtime.ts`](js/wearables-runtime.ts), [`js/wearables-settings-panel.ts`](js/wearables-settings-panel.ts)
+
+</details>
+
+<details><summary><code>SettingsShell.svelte</code> family — 1 module</summary>
+
+- [`js/components/SettingsShell.svelte`](js/components/SettingsShell.svelte) → [`js/settings-shell-contract.ts`](js/settings-shell-contract.ts)
 
 </details>
 

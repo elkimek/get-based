@@ -116,11 +116,14 @@ console.log('=== Phase 3 A11y Tests ===\n');
     && !importPreflightSrc.includes("We'd love to support"));
 
   // ─── 5. Settings tablist wiring ───
+  const settingsShellSrc = read('/js/components/SettingsShell.svelte');
+  const settingsContractSrc = readAuthoredRepositorySource('js/settings-shell-contract.js');
   assert('settings-tabs-bar has role=tablist',
-    settingsSrc.includes('class="settings-tabs-bar" role="tablist"'));
-  // 7 tabs each with runtime aria-selected expression
-  const ariaSelMatches = (settingsSrc.match(/aria-selected="\$\{_activeSettingsTab/g) || []).length;
-  assert('all 7 settings tabs have runtime aria-selected', ariaSelMatches === 7, `found ${ariaSelMatches}`);
+    settingsShellSrc.includes('settings-tabs-bar') && settingsShellSrc.includes('role="tablist"'));
+  // Each of the seven core definitions uses the component's reactive selection.
+  const ariaSelMatches = (settingsContractSrc.match(/id: '/g) || []).length;
+  assert('all 7 settings tabs have runtime aria-selected', ariaSelMatches === 7 && settingsShellSrc.includes('aria-selected={activeTab === tab.id}')
+    && settingsShellSrc.includes("tabindex={activeTab === tab.id ? 0 : -1}"), `found ${ariaSelMatches}`);
   assert('view-toggle (Charts/Table/Heatmap) is a tablist',
     categoryPageViewSrc.includes('class="view-toggle" role="tablist"'));
 

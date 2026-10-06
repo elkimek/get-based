@@ -48,18 +48,21 @@ the completed migration was merged in [PR #1660](https://github.com/elkimek/get-
 
 ## Styling source contract
 
-Display settings uses a scoped Tailwind CSS pilot alongside the existing native
-styles. `css/settings.base.css` owns the legacy Settings rules;
-`css/settings-display.tailwind.css` owns the pilot's semantic palette aliases,
-source scan, and panel-scoped utilities. `scripts/build-styles.mts` combines them
+Settings navigation/layout and Display settings use scoped Tailwind utilities
+alongside the remaining native feature styles. `css/settings.base.css` owns the
+legacy Settings rules;
+`css/ui-tokens.tailwind.css` owns shared semantic palette, typography and surface
+aliases. `css/settings-display.tailwind.css` owns source scanning and scoped
+Settings/Display utilities. `scripts/build-styles.mts` combines them
 into ignored `css/settings.css`, retaining the lazy loader and offline asset URL.
 Do not edit the generated bundle. `npm run typescript:build` also builds styles,
 so existing prepare, development, test and production commands retain their
 source-to-runtime contract. `npm run styles:check` verifies reproducible output.
 
-The pilot omits Preflight, scans only its authored Svelte component,
-and uses prefixed utilities scoped to `#settings-tab-display`. Existing theme
-variables remain the authority for colors, fonts and radii. The unlayered pilot
+The stylesheet omits Preflight, scans authored components and typed shell
+classes, and uses prefixed utilities scoped to the owning Settings surface.
+Display remains additionally scoped to `#settings-tab-display`. Existing theme
+variables remain the authority for colors, fonts and radii. The unlayered scoped
 utilities follow legacy rules and use panel specificity rather than `!important`.
 
 Display settings is the bounded Svelte 5 pilot. `js/settings-display-panel.ts`
@@ -68,14 +71,22 @@ URL; `js/components/DisplaySettings.svelte` owns only the panel contents. Existi
 settings delegates own all mutations and persistence. The adapter unmounts before
 the legacy shell replaces DOM, synchronously flushes mount/refresh for focus and
 receipt rendering, and does not recreate the component on individual actions.
-The legacy shell continues to own tab visibility and modal lifecycle.
+The Settings controller retains panel visibility, domain actions and modal
+lifecycle. `SettingsShell.svelte` owns its header, layout and reactive core tab
+navigation. `settings-shell.ts` owns component mount/disposal and synchronous
+selection updates. The shell provides keyboard navigation appropriate to its
+responsive tab orientation. Trusted extension slots retain their existing
+contract, and ordinary panel links are not navigation tabs. Legacy panel
+renderers remain an explicit incremental boundary until their components migrate.
 
-`scripts/build-svelte.mts` compiles and bundles the component and its Svelte
-runtime into ignored `DisplaySettings.svelte.native.js`, loaded through the existing
-lazy Settings graph. The native offline manifest includes that emitted module;
+`scripts/build-svelte.mts` discovers authored components and compiles each into
+an ignored `.svelte.native.js` artifact, loaded through the existing lazy feature
+graph. These artifacts retain source maps for ownership and coverage. The native
+offline manifest includes the emitted modules;
 the production bundler folds it into existing lazy chunks. Component declarations
 and a checked tooling contract retain the typed adapter boundary. SvelteKit is
-not part of the native build. The static Kit build consumes the authored component directly.
+not part of the native build. The static Kit build consumes authored components
+directly.
 
 TypeScript 7 remains the application compiler and Svelte diagnostics engine.
 The npm workspace `tooling/svelte` isolates TypeScript 6 required by Svelte's
@@ -97,7 +108,7 @@ TypeScript 7. The native production command remains independently available.
 `index.html` is the canonical shell during incremental migration. Its native
 controls remain outside the Kit route root, and `js/kit/routes/app/+layout.svelte`
 starts the existing services after mount. The Vite graph compiles authored
-Display settings directly and shares one Svelte runtime with Kit. Native CSS,
+components directly and shares one Svelte runtime with Kit. Native CSS,
 worker and computed vendor URLs keep their original module-relative meaning.
 Kit discovers only canonical `.ts` route modules, excluding emitted siblings.
 

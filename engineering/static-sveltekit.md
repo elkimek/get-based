@@ -2,7 +2,7 @@
 
 The static bridge supports incremental Svelte UI migration without a rendering
 backend. It uses SvelteKit 3, Svelte 5 and `adapter-static`; Display settings
-continues to use scoped Tailwind 4. Application compilation and diagnostics use
+and the Settings shell use scoped Tailwind 4. Application compilation and diagnostics use
 TypeScript 7. Supporting Kit/checker peers use TypeScript 6 in `tooling/svelte`.
 
 ## Build locally
@@ -13,8 +13,8 @@ npm run test:sveltekit
 ```
 
 The build writes the complete public artifact to ignored
-`.local-notes/sveltekit-build`. `test:sveltekit` builds it first and runs three
-focused scenarios in Chromium, Firefox, desktop WebKit and mobile WebKit.
+`.local-notes/sveltekit-build`. `test:sveltekit` builds it first and runs focused
+scenarios in Chromium, Firefox, desktop WebKit and mobile WebKit.
 All launches are explicitly headless and disconnected from desktop display,
 compositor, session-bus and activation credentials. WebKit's headless Linux port
 is WPE; a custom executable must not substitute the GTK windowed binary.
@@ -29,7 +29,7 @@ while this bridge is evaluated; building locally does not publish it.
 ## Preserved contracts
 
 - Native shell services initialize once; Kit owns its route DOM and Svelte shares
-  the same runtime with the Display adapter.
+  the same runtime with the component adapters.
 - Settings CSS, worker entry points, computed vendor URLs and delegated preference
   mutations keep their contracts.
 - Manifest `id`, `start_url` and `scope` remain `/app`; `/`, `/index.html` and
@@ -49,6 +49,8 @@ while this bridge is evaluated; building locally does not publish it.
 - Kit's bootstrap runs as an external classic script under the existing CSP.
 
 The focused browser scenarios live in [sveltekit.spec.ts](../tests/pwa/sveltekit.spec.ts).
+The shell scenario verifies all core Settings sections, responsive orientation,
+keyboard selection, retained preference actions and WCAG checks for the shell.
 Build, desktop-isolation and [client cache retention](../tests/service-worker-client-cache.test.ts)
 contracts have separate unit tests. These checks do
 not constitute complete application regression, hardware/provider acceptance,

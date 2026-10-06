@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Bundle the bounded component for native ESM. Domain services stay external;
-// SvelteKit can later consume the same authored .svelte component directly.
+// Compile authored components at stable native URLs for compatibility and
+// coverage. The static Kit build consumes their sources with a shared runtime.
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'rolldown';
+import { walkSourceFiles } from './source-files.js';
 import { compile } from 'svelte/compiler';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -13,28 +14,28 @@ export async function buildSvelte({ component = COMPONENT, outputDirectory = pat
   component?: string; outputDirectory?: string; check?: boolean;
 } = {}): Promise<void> {
   const result = await build({
-    input: 'getbased:display-entry',
+    input: 'getbased:component-entry',
     write: false,
     platform: 'browser',
     plugins: [{
-      name: 'getbased-display-component',
+      name: 'getbased-svelte-component',
       resolveId(id, importer) {
-        if (id === 'getbased:display-entry') return id;
-        if (importer === component && id.startsWith('.') && id.endsWith('.js')) return { id, external: true };
+        if (id === 'getbased:component-entry') return id;
+        if (importer?.endsWith('.svelte') && id.startsWith('.') && id.endsWith('.js')) return { id, external: true };
         return null;
       },
       async load(id) {
-        if (id === 'getbased:display-entry') {
+        if (id === 'getbased:component-entry') {
           return `export { default } from ${JSON.stringify(component)}; export { mount, unmount, flushSync } from 'svelte';`;
         }
-        if (id !== component) return null;
+        if (!id.endsWith('.svelte')) return null;
         const compiled = compile(await fs.readFile(id, 'utf8'), {
           filename: id, generate: 'client', css: 'external', dev: false,
         });
         if (compiled.warnings.length) {
           throw new Error(compiled.warnings.map(warning => `${warning.code}: ${warning.message}`).join('\n'));
         }
-        if (compiled.css?.code) throw new Error('Display styles must use the scoped Tailwind stylesheet');
+        if (compiled.css?.code) throw new Error('Component styles must use the scoped Tailwind stylesheet');
         return { code: compiled.js.code, map: compiled.js.map };
       },
     }],
@@ -53,7 +54,7 @@ export async function buildSvelte({ component = COMPONENT, outputDirectory = pat
   }
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  for (const component of [COMPONENT, path.join(ROOT, 'js/kit/routes/app/+layout.svelte'), path.join(ROOT, 'js/kit/routes/app/+page.svelte')]) {
+  for (const component of [...walkSourceFiles(path.join(ROOT, 'js/components')), ...walkSourceFiles(path.join(ROOT, 'js/kit'))].filter(file => file.endsWith('.svelte'))) {
     await buildSvelte({ component, check: process.argv.includes('--check') });
   }
 }

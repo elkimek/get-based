@@ -19,6 +19,7 @@ import {
   testPIIOllamaConnectionBridge,
   toggleAIPauseBridge,
 } from './settings-provider-bridge.js';
+import { mountSettingsShell, selectSettingsShellTab } from './settings-shell.js';
 import { requestSettingsFrame, settingsMediaMatches } from './settings-runtime.js';
 import { configureSettingsModuleBridge } from './settings-runtime-bridge.js';
 import { closestSettingsTarget, getSettingsProxyToggle } from './settings-event-target.js';
@@ -455,49 +456,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   const extensionPanels = renderAppExtensionSettingsSlot('panels', extensionContext);
 
   disposeDisplaySettingsPanel();
-  modal.className = 'modal settings-modal';
-  modal.innerHTML = `
-    <div class="gb-modal-head settings-modal-head">
-      <div>
-        <div class="gb-modal-title">Settings</div>
-      </div>
-      <button class="modal-close" aria-label="Close" data-settings-action="close">&times;</button>
-    </div>
-
-    <div class="settings-layout">
-    <div class="settings-tabs-bar" role="tablist" aria-label="Settings sections">
-      <button role="tab" aria-selected="${_activeSettingsTab === 'display'}" aria-controls="settings-tab-display" tabindex="${_activeSettingsTab === 'display' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'display' ? ' active' : ''}" data-tab="display" data-settings-tab="display">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-        Display
-      </button>
-      <button role="tab" aria-selected="${_activeSettingsTab === 'ai'}" aria-controls="settings-tab-ai" tabindex="${_activeSettingsTab === 'ai' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'ai' ? ' active' : ''}" data-tab="ai" data-settings-tab="ai">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z"/><circle cx="9" cy="14" r="1"/><circle cx="15" cy="14" r="1"/></svg>
-        AI
-      </button>
-      <button role="tab" aria-selected="${_activeSettingsTab === 'voice'}" aria-controls="settings-tab-voice" tabindex="${_activeSettingsTab === 'voice' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'voice' ? ' active' : ''}" data-tab="voice" data-settings-tab="voice">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8"/></svg>
-        Voice
-      </button>
-      ${extensionTabs}
-      <button role="tab" aria-selected="${_activeSettingsTab === 'privacy'}" aria-controls="settings-tab-privacy" tabindex="${_activeSettingsTab === 'privacy' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'privacy' ? ' active' : ''}" data-tab="privacy" data-settings-tab="privacy">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        Privacy
-      </button>
-      <button role="tab" aria-selected="${_activeSettingsTab === 'data'}" aria-controls="settings-tab-data" tabindex="${_activeSettingsTab === 'data' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'data' ? ' active' : ''}" data-tab="data" data-settings-tab="data">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        Data
-      </button>
-      <button role="tab" aria-selected="${_activeSettingsTab === 'wearables'}" aria-controls="settings-tab-wearables" tabindex="${_activeSettingsTab === 'wearables' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'wearables' ? ' active' : ''}" data-tab="wearables" data-settings-tab="wearables">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="6"/><path d="M12 9v3l2 2"/><path d="M9 2h6M9 22h6"/></svg>
-        Wearables
-      </button>
-      <button role="tab" aria-selected="${_activeSettingsTab === 'agent'}" aria-controls="settings-tab-agent" tabindex="${_activeSettingsTab === 'agent' ? 0 : -1}" class="settings-tab-btn${_activeSettingsTab === 'agent' ? ' active' : ''}" data-tab="agent" data-settings-tab="agent">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="14" r="4"/><path d="m10.5 11 7.5-7.5M17 6l3 3M14 9l3 3"/></svg>
-        Agent Access
-      </button>
-    </div>
-    <div class="settings-content">
-
+  const legacyPanels = `
     ${renderDisplaySettingsPanel(_activeSettingsTab === 'display')}
 
     <!-- AI Tab -->
@@ -608,8 +567,8 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
         ${renderMessengerSection()}
       </div>
     </div>
-    </div>
-    </div>`;
+`;
+  mountSettingsShell(modal, { initialTab: String(_activeSettingsTab), legacyPanels, extensionTabs, onNavigateTab: switchSettingsTab });
   if (cliAgentActive) {
     modal.querySelectorAll('.ai-provider-btn').forEach(button => {
       const providerButton = /** @type {HTMLElement} */ (button as HTMLElement);
@@ -702,7 +661,8 @@ export function switchSettingsTab(tabId: unknown): void | false | Promise<void |
   _activeSettingsTab = tabId;
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
-  const tabButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.settings-tab-btn')) as HTMLElement[]);
+  selectSettingsShellTab(String(tabId));
+  const tabButtons = /** @type {HTMLElement[]} */ (Array.from(modal.querySelectorAll('.settings-tabs-bar [role="tab"]:not([data-settings-shell-tab])')) as HTMLElement[]);
   tabButtons.forEach(btn => {
     const isActive = btn.dataset.tab === tabId;
     btn.classList.toggle('active', isActive);

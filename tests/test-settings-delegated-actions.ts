@@ -10,6 +10,8 @@ const lightPageUIHooksSrc = readRepositorySource('js/light-page-view-ui-hooks.js
 const loaderSrc = readRepositorySource('js/settings-loader.js', 'utf8');
 const src = readRepositorySource('js/settings.js', 'utf8');
 const displayAdapterSrc = readAuthoredRepositorySource('js/settings-display-panel.js', 'utf8');
+const shellSrc = readRepositorySource('js/components/SettingsShell.svelte', 'utf8');
+const shellContractSrc = readAuthoredRepositorySource('js/settings-shell-contract.js', 'utf8');
 const displaySrc = readRepositorySource('js/components/DisplaySettings.svelte', 'utf8');
 const eventTargetSrc = readRepositorySource('js/settings-event-target.js', 'utf8');
 const privacySrc = readRepositorySource('js/settings-privacy.js', 'utf8');
@@ -56,9 +58,9 @@ assert('Light page owns only the Sun data-source Settings leaf',
       .includes("from './settings-privacy.js'"));
 
 const displayBlock = displaySrc;
-assert('Svelte Display ownership brackets legacy shell replacement',
-  src.indexOf('disposeDisplaySettingsPanel();') < src.indexOf('modal.innerHTML =')
-    && src.indexOf('modal.innerHTML =') < src.indexOf('mountDisplaySettingsPanel();')
+assert('Svelte Display ownership brackets Settings shell replacement',
+  src.indexOf('disposeDisplaySettingsPanel();') < src.indexOf('mountSettingsShell(modal,')
+    && src.indexOf('mountSettingsShell(modal,') < src.indexOf('mountDisplaySettingsPanel();')
     && displayAdapterSrc.includes('DisplaySettings.svelte.native.js'));
 
 const tweaksBlock = matchBlock(
@@ -78,7 +80,7 @@ const tweaksLifecycleOpenRe = /openModalOverlay\s*\(\s*overlay\s*,\s*\{[\s\S]*in
 assert('settings.js has no inline event attributes',
   !inlineHandlerRe.test(settingsSurfaceSrc));
 assert('Voice settings use delegated actions with linked and advanced providers',
-  src.includes('data-settings-tab="voice"')
+  shellContractSrc.includes("id: 'voice'") && shellSrc.includes('data-settings-tab={tab.id}')
     && voiceViewSrc.includes('data-voice-shared-provider')
     && voiceViewSrc.includes('data-voice-setting="inputProvider"')
     && voiceViewSrc.includes('data-voice-setting="outputProvider"')
@@ -167,8 +169,8 @@ assert('Settings AI no longer owns context source toggles',
 });
 
 assert('Settings tabs use data-settings-tab',
-  /class="settings-tab-btn[\s\S]*data-settings-tab="display"/.test(src)
-    && /class="settings-tab-btn[\s\S]*data-settings-tab="agent"/.test(src));
+  shellSrc.includes('data-settings-tab={tab.id}') && shellSrc.includes('{#each SETTINGS_TABS as tab')
+    && shellContractSrc.includes("id: 'display'") && shellContractSrc.includes("id: 'agent'"));
 assert('Delegated settings handler switches tabs',
   /closestSettingsTarget\(event, '\[data-settings-tab\]', modal\)[\s\S]*switchSettingsTab/.test(src));
 assert('Delegated tweaks handler closes on backdrop click',
