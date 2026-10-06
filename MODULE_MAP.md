@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 980 |
-| Internal import edges | 3805 |
+| Modules | 991 |
+| Internal import edges | 3832 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -784,8 +784,16 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>import</code> family — 10 modules</summary>
+<details><summary><code>import</code> family — 18 modules</summary>
 
+- [`js/import-benchmark-classes.ts`](js/import-benchmark-classes.ts) → no in-scope imports
+- [`js/import-benchmark-component.ts`](js/import-benchmark-component.ts) → [`js/components/ImportBenchmarkEntry.svelte`](js/components/ImportBenchmarkEntry.svelte), [`js/components/ImportBenchmarks.svelte`](js/components/ImportBenchmarks.svelte)
+- [`js/import-benchmark-contract.ts`](js/import-benchmark-contract.ts) → no in-scope imports
+- [`js/import-benchmark-controller.ts`](js/import-benchmark-controller.ts) → [`js/import-benchmark-data.ts`](js/import-benchmark-data.ts), [`js/import-benchmark-presentation.ts`](js/import-benchmark-presentation.ts)
+- [`js/import-benchmark-data.ts`](js/import-benchmark-data.ts) → [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-reference-benchmark.ts`](js/import-reference-benchmark.ts), [`js/settings-records-view.ts`](js/settings-records-view.ts)
+- [`js/import-benchmark-facade.ts`](js/import-benchmark-facade.ts) → [`js/api.ts`](js/api.ts), [`js/import-benchmark-component.ts`](js/import-benchmark-component.ts), [`js/import-benchmark-data.ts`](js/import-benchmark-data.ts), [`js/import-benchmark-presentation.ts`](js/import-benchmark-presentation.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-reference-benchmark.ts`](js/import-reference-benchmark.ts)
+- [`js/import-benchmark-presentation.ts`](js/import-benchmark-presentation.ts) → [`js/import-benchmark-data.ts`](js/import-benchmark-data.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-reference-benchmark.ts`](js/import-reference-benchmark.ts), [`js/settings-records-view.ts`](js/settings-records-view.ts)
+- [`js/import-benchmark-run.ts`](js/import-benchmark-run.ts) → no in-scope imports
 - [`js/import-benchmarks.ts`](js/import-benchmarks.ts) → [`js/api.ts`](js/api.ts), [`js/data.ts`](js/data.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts)
 - [`js/import-commit-validation.ts`](js/import-commit-validation.ts) → [`js/lab-entry.ts`](js/lab-entry.ts), [`js/pdf-import-unit-conversions.ts`](js/pdf-import-unit-conversions.ts), [`js/schema.ts`](js/schema.ts)
 - [`js/import-drop-zone-runtime.ts`](js/import-drop-zone-runtime.ts) → [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/export-loader.ts`](js/export-loader.ts), [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/utils.ts`](js/utils.ts)
@@ -796,6 +804,18 @@ Native browser modules shipped with the static application.
 - [`js/import-reference-benchmark.ts`](js/import-reference-benchmark.ts) → [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/pdf-import-ai-utils.ts`](js/pdf-import-ai-utils.ts), [`js/pdf-import-marker-mapping.ts`](js/pdf-import-marker-mapping.ts), [`js/schema.ts`](js/schema.ts)
 - [`js/import-review-draft.ts`](js/import-review-draft.ts) → no in-scope imports
 - [`js/import-review-row-actions.ts`](js/import-review-row-actions.ts) → [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>ImportBenchmarkEntry.svelte</code> family — 1 module</summary>
+
+- [`js/components/ImportBenchmarkEntry.svelte`](js/components/ImportBenchmarkEntry.svelte) → [`js/import-benchmark-classes.ts`](js/import-benchmark-classes.ts)
+
+</details>
+
+<details><summary><code>ImportBenchmarks.svelte</code> family — 1 module</summary>
+
+- [`js/components/ImportBenchmarks.svelte`](js/components/ImportBenchmarks.svelte) → [`js/import-benchmark-classes.ts`](js/import-benchmark-classes.ts)
 
 </details>
 
@@ -1330,7 +1350,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>settings</code> family — 47 modules</summary>
+<details><summary><code>settings</code> family — 48 modules</summary>
 
 - [`js/settings-agent-access-classes.ts`](js/settings-agent-access-classes.ts) → no in-scope imports
 - [`js/settings-agent-access-component.ts`](js/settings-agent-access-component.ts) → [`js/components/AgentAccessSettings.svelte`](js/components/AgentAccessSettings.svelte)
@@ -1338,12 +1358,12 @@ Native browser modules shipped with the static application.
 - [`js/settings-agent-access-mutation.ts`](js/settings-agent-access-mutation.ts) → [`js/data.ts`](js/data.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/state.ts`](js/state.ts), [`js/sync-messenger.ts`](js/sync-messenger.ts)
 - [`js/settings-agent-access-panel.ts`](js/settings-agent-access-panel.ts) → [`js/data.ts`](js/data.ts), [`js/settings-agent-access-component.ts`](js/settings-agent-access-component.ts), [`js/settings-agent-access-contract.ts`](js/settings-agent-access-contract.ts), [`js/settings-agent-access-mutation.ts`](js/settings-agent-access-mutation.ts), [`js/state.ts`](js/state.ts), [`js/sync-messenger.ts`](js/sync-messenger.ts), [`js/sync.ts`](js/sync.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-cli-agent-panel.ts`](js/settings-cli-agent-panel.ts) → [`js/agent-chat-client.ts`](js/agent-chat-client.ts), [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/cli-agent-models-component.ts`](js/cli-agent-models-component.ts), [`js/cli-agent-models-presentation.ts`](js/cli-agent-models-presentation.ts), [`js/cli-agent-settings-component.ts`](js/cli-agent-settings-component.ts), [`js/cli-agent-settings-controller.ts`](js/cli-agent-settings-controller.ts), [`js/cli-agent-settings-presentation.ts`](js/cli-agent-settings-presentation.ts), [`js/cli-companion-commands.ts`](js/cli-companion-commands.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/settings-data.ts`](js/settings-data.ts) → [`js/api.ts`](js/api.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/import-reference-benchmark.ts`](js/import-reference-benchmark.ts), [`js/schema.ts`](js/schema.ts), [`js/settings-records-component.ts`](js/settings-records-component.ts), [`js/settings-records-view.ts`](js/settings-records-view.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/settings-data.ts`](js/settings-data.ts) → [`js/import-benchmark-data.ts`](js/import-benchmark-data.ts), [`js/import-benchmark-facade.ts`](js/import-benchmark-facade.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/import-reference-benchmark.ts`](js/import-reference-benchmark.ts), [`js/schema.ts`](js/schema.ts), [`js/settings-records-component.ts`](js/settings-records-component.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-display-contract.ts`](js/settings-display-contract.ts) → no in-scope imports
 - [`js/settings-display-panel.ts`](js/settings-display-panel.ts) → [`js/components/DisplaySettings.svelte`](js/components/DisplaySettings.svelte), [`js/recommendations.ts`](js/recommendations.ts), [`js/state.ts`](js/state.ts), [`js/theme.ts`](js/theme.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-event-target.ts`](js/settings-event-target.ts) → no in-scope imports
-- [`js/settings-import-benchmark-controller.ts`](js/settings-import-benchmark-controller.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-reference-benchmark.ts`](js/import-reference-benchmark.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/settings-data.ts`](js/settings-data.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/settings-loader.ts`](js/settings-loader.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts), [`js/settings.ts`](js/settings.ts) *(dynamic)*, [`js/theme.ts`](js/theme.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/settings-import-benchmark-controller.ts`](js/settings-import-benchmark-controller.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/import-benchmark-component.ts`](js/import-benchmark-component.ts), [`js/import-benchmark-controller.ts`](js/import-benchmark-controller.ts), [`js/import-benchmark-data.ts`](js/import-benchmark-data.ts), [`js/import-benchmark-facade.ts`](js/import-benchmark-facade.ts), [`js/import-benchmark-presentation.ts`](js/import-benchmark-presentation.ts), [`js/import-benchmark-run.ts`](js/import-benchmark-run.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-reference-benchmark.ts`](js/import-reference-benchmark.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/settings-data.ts`](js/settings-data.ts), [`js/settings-styles.ts`](js/settings-styles.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/settings-loader.ts`](js/settings-loader.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/settings-styles.ts`](js/settings-styles.ts), [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts), [`js/settings.ts`](js/settings.ts) *(dynamic)*, [`js/theme.ts`](js/theme.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-privacy-contract.ts`](js/settings-privacy-contract.ts) → no in-scope imports
 - [`js/settings-privacy-panel.ts`](js/settings-privacy-panel.ts) → [`js/components/PrivacySettings.svelte`](js/components/PrivacySettings.svelte), [`js/settings-privacy-view.ts`](js/settings-privacy-view.ts), [`js/settings-privacy.ts`](js/settings-privacy.ts)
 - [`js/settings-privacy-view.ts`](js/settings-privacy-view.ts) → no in-scope imports
@@ -1361,6 +1381,7 @@ Native browser modules shipped with the static application.
 - [`js/settings-runtime.ts`](js/settings-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/sun-uvdata-config.ts`](js/sun-uvdata-config.ts)
 - [`js/settings-shell-contract.ts`](js/settings-shell-contract.ts) → no in-scope imports
 - [`js/settings-shell.ts`](js/settings-shell.ts) → [`js/components/SettingsShell.svelte`](js/components/SettingsShell.svelte), [`js/settings-shell-contract.ts`](js/settings-shell-contract.ts)
+- [`js/settings-styles.ts`](js/settings-styles.ts) → no in-scope imports
 - [`js/settings-sync-classes.ts`](js/settings-sync-classes.ts) → no in-scope imports
 - [`js/settings-sync-component.ts`](js/settings-sync-component.ts) → [`js/components/SyncSettings.svelte`](js/components/SyncSettings.svelte)
 - [`js/settings-sync-contract.ts`](js/settings-sync-contract.ts) → no in-scope imports

@@ -73,6 +73,8 @@ import {
 } from './settings-data.js';
 import {
   openImportBenchmarksModal,
+  disposeImportBenchmarksEntry,
+  isImportBenchmarksEntryCurrent,
   renderImportBenchmarksEntrySection,
 } from './settings-import-benchmark-controller.js';
 import {
@@ -319,10 +321,19 @@ async function handleSettingsClick(event: Event) {
   } else if (action === 'reset-profile-usage') {
     event.preventDefault();
     resetCurrentProfileUsage();
-  } else if (action === 'open-import-benchmarks') {
-    event.preventDefault();
-    openImportBenchmarksModal();
   }
+}
+
+let importBenchmarksEntryRequest = 0;
+async function openImportBenchmarksFromSettings(actionEl: HTMLButtonElement): Promise<void> {
+  const request = ++importBenchmarksEntryRequest;
+  const handled = handleAppExtensionSettingsAction({
+    action: 'open-import-benchmarks', actionEl, activeTab: _activeSettingsTab,
+    openSettingsModal, refreshSettings: () => openSettingsModal(_activeSettingsTab),
+    switchAIProvider: switchAIProviderBridge, switchSettingsTab,
+  });
+  if (handled === true || (handled instanceof Promise && await handled)) return;
+  if (request === importBenchmarksEntryRequest && isImportBenchmarksEntryCurrent(actionEl)) openImportBenchmarksModal();
 }
 
 let nutritionAISettingsRefreshQueued = false;
@@ -420,6 +431,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   const extensionAI = renderAppExtensionSettingsSlot('ai', extensionContext);
   const extensionPanels = renderAppExtensionSettingsSlot('panels', extensionContext);
 
+  disposeImportBenchmarksEntry();
   disposeSettingsProviderPanels();
   disposeNutritionAISettings();
   disposeWearablesSettings();
@@ -442,7 +454,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
       <div class="settings-group-title">Import Benchmarks</div>
 
       <div class="settings-section" id="import-benchmarks-section">
-        ${renderImportBenchmarksEntrySection()}
+        ${renderImportBenchmarksEntrySection(openImportBenchmarksFromSettings)}
       </div>
 
       ${extensionPolicy.hideUsage ? '' : `<div class="settings-group-title">AI Usage</div>
@@ -638,6 +650,7 @@ export function updateSettingsUI() {
 }
 
 export function closeSettingsModal() {
+  disposeImportBenchmarksEntry();
   disposeSettingsProviderPanels();
   disposeNutritionAISettings();
   disposeWearablesSettings();

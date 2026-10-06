@@ -8,7 +8,10 @@ const appAIInteractionSrc = readRepositorySource('js/app-ai-interaction-modules.
 const chatOnboardingHostSrc = readRepositorySource('js/chat-onboarding-host-bindings.js', 'utf8');
 const lightPageUIHooksSrc = readRepositorySource('js/light-page-view-ui-hooks.js', 'utf8');
 const loaderSrc = readRepositorySource('js/settings-loader.js', 'utf8');
+const settingsStylesSrc = readRepositorySource('js/settings-styles.js', 'utf8');
 const src = readRepositorySource('js/settings.js', 'utf8');
+const aiComponentSrc = readRepositorySource('js/components/AiSettings.svelte', 'utf8');
+const providerBridgeSrc = readAuthoredRepositorySource('js/settings-provider-bridge.js', 'utf8');
 const displayAdapterSrc = readAuthoredRepositorySource('js/settings-display-panel.js', 'utf8');
 const shellSrc = readRepositorySource('js/components/SettingsShell.svelte', 'utf8');
 const shellContractSrc = readAuthoredRepositorySource('js/settings-shell-contract.js', 'utf8');
@@ -49,9 +52,11 @@ assert('Settings entry points use the cached lazy loader',
     && loaderSrc.includes("import('./settings.js')")
     && loaderSrc.includes("import('./settings.js?lazy-retry=1')"));
 assert('Settings loader owns the deferred stylesheet boundary',
-  loaderSrc.includes("new URL('../css/settings.css', import.meta.url)")
-    && loaderSrc.includes('data-settings-stylesheet-anchor')
-    && loaderSrc.includes('lazy-retry'));
+  loaderSrc.includes("from './settings-styles.js'")
+    && loaderSrc.includes('loadSettingsStylesheet()')
+    && settingsStylesSrc.includes("new URL('../css/settings.css', import.meta.url)")
+    && settingsStylesSrc.includes('data-settings-stylesheet-anchor')
+    && settingsStylesSrc.includes('lazy-retry'));
 assert('Settings shell control styling remains in the eager shell bundle',
   appShellCss.includes('.settings-btn:hover')
     && !settingsCss.includes('.settings-btn:hover'));
@@ -77,11 +82,15 @@ const renderThemeButtonBlock = matchBlock(
   tweaksSrc,
 );
 
-const inlineHandlerRe = /\bon(?:click|change|input|submit|keydown|keyup)=/;
+// Keep every native inline-handler form forbidden; Svelte expressions compile to listeners.
+const inlineHandlerRe = /\bon(?:click|change|input|submit|keydown|keyup)\s*=/;
+const quotedSvelteHandlerRe = /\bon(?:click|change|input|submit|keydown|keyup)\s*=\s*["']/;
+const nativeSettingsSurfaceSrc = [src, eventTargetSrc, privacySrc, voiceSrc, tweaksSrc].join('\n');
 const tweaksLifecycleOpenRe = /openModalOverlay\s*\(\s*overlay\s*,\s*\{[\s\S]*initialFocus:\s*['"]#tweaks-panel button['"][\s\S]*focusDelay:\s*0[\s\S]*scrollLock:\s*settingsMediaMatches\(['"]\(max-width: 768px\)['"]\)[\s\S]*\}\s*\)/;
 
 assert('settings.js has no inline event attributes',
-  !inlineHandlerRe.test(settingsSurfaceSrc));
+  !inlineHandlerRe.test(nativeSettingsSurfaceSrc)
+    && !quotedSvelteHandlerRe.test(settingsSurfaceSrc));
 assert('Voice settings use delegated actions with linked and advanced providers',
   shellContractSrc.includes("id: 'voice'") && shellSrc.includes('data-settings-tab={tab.id}')
     && voiceComponentSrc.includes('data-voice-shared-provider')
@@ -142,7 +151,7 @@ assert('Tweaks panel uses shared overlay lifecycle helpers',
   'clear-all-data',
   'reset-profile-usage',
 ].forEach(action => {
-  assert(`Settings action ${action} is rendered`, (settingsSurfaceSrc.includes(`data-settings-action="${action}"`) || (privacyComponentSrc.includes(`action="${action}"`) && toggleComponentSrc.includes('data-settings-action={action}'))));
+  assert(`Settings action ${action} is rendered`, (settingsSurfaceSrc.includes(`data-settings-action="${action}"`) || (action === 'switch-ai-provider' && aiComponentSrc.includes("data-settings-action={choice.id === 'cli' ? 'show-cli-agent-provider' : 'switch-ai-provider'}")) || ((privacyComponentSrc.includes(`action="${action}"`) || aiComponentSrc.includes(`action="${action}"`)) && toggleComponentSrc.includes('data-settings-action={action}'))));
 });
 
 assert('Settings AI no longer owns context source toggles',
@@ -190,8 +199,10 @@ assert('Settings version label uses the shared runtime adapter',
     && displayAdapterSrc.includes('version: getAppVersionRuntime()')
     && displaySrc.includes('{preferences.version}')
     && !displayAdapterSrc.includes('settingsWindow.APP_VERSION'));
-assert('Delegated settings handler switches AI providers',
-  /action === 'switch-ai-provider'[\s\S]*switchAIProviderBridge\(actionEl\.dataset\.provider/.test(src));
+assert('Owned AI settings switch providers through the guarded bridge',
+  aiComponentSrc.includes('actions.select(choice.id,event.currentTarget)')
+    && /if \(provider === 'cli'\)\s*showCLIAgentProviderBridge\(\);\s*else\s*switchAIProviderBridge\(provider\);/.test(src)
+    && providerBridgeSrc.includes('panels.switchAIProvider(provider, { previousProvider, isCurrent: owner.isCurrent })'));
 assert('Delegated settings handler updates PII model selection',
   /action === 'set-pii-model'[\s\S]*isPIIEligibleModel\(model\)[\s\S]*setOllamaPIIModel\(model\)/.test(src));
 assert('Sun data-source delegate is installed on document change',

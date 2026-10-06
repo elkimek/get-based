@@ -1,5 +1,6 @@
 // settings-loader.js — lazy initialization and safe entry points for Settings
 
+import { loadSettingsStylesheet } from './settings-styles.js';
 import { applyAccentOverride } from './theme.js';
 import { showNotification } from './utils.js';
 import { configureSettingsModuleBridge } from './settings-runtime-bridge.js';
@@ -8,17 +9,12 @@ import { loadSettingsSyncPanelModule } from './settings-sync-panel.js';
 
 type SettingsModule = typeof import('./settings.js');
 
-const SETTINGS_STYLESHEET_URL = new URL('../css/settings.css', import.meta.url).href;
-
 /** @type {Promise<SettingsModule> | null} */
 let _settingsJavaScriptLoad: Promise<SettingsModule> | null = null;
 /** @type {Promise<SettingsModule> | null} */
 let _settingsModuleLoad: Promise<SettingsModule> | null = null;
-/** @type {Promise<HTMLLinkElement> | null} */
-let _settingsStylesheetLoad: Promise<HTMLLinkElement> | null = null;
 let _settingsModuleLoaded = false;
 let _useSettingsRetryUrl = false;
-let _useSettingsStylesheetRetryUrl = false;
 /** @type {(module: SettingsModule) => void} */
 let _configureSettingsModule: unknown = () => {};
 
@@ -58,41 +54,6 @@ function loadSettingsJavaScript() {
     });
   }
   return _settingsJavaScriptLoad;
-}
-
-function settingsStylesheetUrl() {
-  if (!_useSettingsStylesheetRetryUrl) return SETTINGS_STYLESHEET_URL;
-  const retryUrl = new URL(SETTINGS_STYLESHEET_URL);
-  retryUrl.searchParams.set('lazy-retry', '1');
-  return retryUrl.href;
-}
-
-/** @returns {Promise<HTMLLinkElement>} */
-function loadSettingsStylesheet(): Promise<HTMLLinkElement> {
-  if (!_settingsStylesheetLoad) {
-    _settingsStylesheetLoad = new Promise<HTMLLinkElement>((resolve, reject) => {
-      if (typeof document === 'undefined') {
-        reject(new Error('Settings stylesheet requires a document'));
-        return;
-      }
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = settingsStylesheetUrl();
-      link.dataset.settingsStylesheet = '';
-      link.addEventListener('load', () => resolve(link), { once: true });
-      link.addEventListener('error', () => {
-        link.remove();
-        reject(new Error('Settings stylesheet could not be loaded'));
-      }, { once: true });
-      const anchor = document.querySelector('[data-settings-stylesheet-anchor]');
-      (anchor?.parentNode || document.head).insertBefore(link, anchor || null);
-    }).catch(err => {
-      _settingsStylesheetLoad = null;
-      _useSettingsStylesheetRetryUrl = true;
-      throw err;
-    });
-  }
-  return _settingsStylesheetLoad;
 }
 
 /** @returns {Promise<SettingsModule>} */

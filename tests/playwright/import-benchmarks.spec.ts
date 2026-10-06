@@ -3,7 +3,7 @@ type ReferenceGoldFixtureReader = {
   sourcePath: unknown; fileName: unknown; pageCount?: unknown;
   expected: { date?: unknown; testType?: unknown; markers: { rawName?: unknown; mappedKey?: unknown }[] };
 };
-import type {Page} from '@playwright/test';
+import type {Page, Locator} from '@playwright/test';
 import { expect, test } from './coverage-fixture.js';
 
 test.beforeEach(async ({ page }) => {
@@ -103,7 +103,12 @@ async function preparePage(page: Page) {
   });
 }
 
-test('import benchmarks compare multiple runs and delete diagnostics without deleting health data', async ({ page }) => {
+test('import benchmarks compare multiple runs and delete diagnostics without deleting health data', async ({ page, isMobile }) => {
+  const scroll = async (container: Locator, delta: number) => {
+    // Playwright mobile WebKit has no wheel API; keep the same scroll/sticky assertions.
+    if (isMobile) await container.evaluate((element, top) => element.scrollBy({ top }), delta);
+    else await page.mouse.wheel(0, delta);
+  };
   await preparePage(page);
 
   const entrypoint = page.locator('[data-settings-action="open-import-benchmarks"]');
@@ -146,12 +151,12 @@ test('import benchmarks compare multiple runs and delete diagnostics without del
   await expect(tableHeader).toHaveCSS('position', 'sticky');
   await comparisonScroll.hover();
   const headerTopBefore = await tableHeader.evaluate(element => element.getBoundingClientRect().top);
-  await page.mouse.wheel(0, 700);
+  await scroll(comparisonScroll, 700);
   await expect.poll(() => comparisonScroll.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
   const headerTopAfter = await tableHeader.evaluate(element => element.getBoundingClientRect().top);
   expect(Math.abs(headerTopAfter - headerTopBefore)).toBeLessThanOrEqual(2);
   const comparisonScrollAfterDown = await comparisonScroll.evaluate(element => element.scrollTop);
-  await page.mouse.wheel(0, -700);
+  await scroll(comparisonScroll, -700);
   await expect.poll(() => comparisonScroll.evaluate(element => element.scrollTop)).toBeLessThan(comparisonScrollAfterDown);
 
   const benchmarkBody = overlay.locator('.import-benchmarks-body');
@@ -160,10 +165,10 @@ test('import benchmarks compare multiple runs and delete diagnostics without del
   if (!bodyBox) throw new Error('Benchmark modal body is not visible');
   await page.mouse.move(bodyBox.x + 8, bodyBox.y + (bodyBox.height / 2));
   const scrollBeforeWheel = await benchmarkBody.evaluate(element => element.scrollTop);
-  await page.mouse.wheel(0, 700);
+  await scroll(benchmarkBody, 700);
   await expect.poll(() => benchmarkBody.evaluate(element => element.scrollTop)).toBeGreaterThan(scrollBeforeWheel);
   const scrollAfterDown = await benchmarkBody.evaluate(element => element.scrollTop);
-  await page.mouse.wheel(0, -700);
+  await scroll(benchmarkBody, -700);
   await expect.poll(() => benchmarkBody.evaluate(element => element.scrollTop)).toBeLessThan(scrollAfterDown);
 
   await overlay.locator('[data-import-benchmarks-action="clear-selection"]').click();

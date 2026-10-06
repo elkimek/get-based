@@ -55,3 +55,12 @@
 @custom-variant cli (&:is([data-cli-agent-settings-view], [data-cli-agent-settings-view] *));
 
 @custom-variant ai (&:is([data-ai-settings-view], [data-ai-settings-view] *));
+
+@source '../js/import-benchmark-classes.ts';
+@custom-variant benchmark (&:is(#import-benchmarks-overlay, #import-benchmarks-overlay *, [data-import-benchmarks-view], [data-import-benchmarks-view] *, [data-import-benchmarks-entry], [data-import-benchmarks-entry] *));
+@theme { --animate-benchmark-progress: benchmark-progress-sweep 1.25s ease-in-out infinite; }
+@keyframes benchmark-progress-sweep {
+  0% { transform: translateX(-115%); }
+  50% { transform: translateX(90%); }
+  100% { transform: translateX(280%); }
+}

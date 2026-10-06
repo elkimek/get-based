@@ -1696,3 +1696,12 @@ js/custom-settings-controller.js
 /js/ai-settings-presentation.js
 /js/ai-settings-component.js
 /js/ai-settings-actions.js
+/js/import-benchmark-data.js
+/js/import-benchmark-contract.js
+/js/import-benchmark-presentation.js
+/js/import-benchmark-classes.js
+/js/import-benchmark-component.js
+/js/import-benchmark-controller.js
+/js/import-benchmark-run.js
+/js/import-benchmark-facade.js
+/js/settings-styles.js

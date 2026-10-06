@@ -12,7 +12,7 @@ export async function startKitServer(artifact: string, routes: KitServerRoute[] 
   const state = { buildId: 'kit-test-a', offline: false, failPath: '' };
   const sockets = new Set<Socket>();
   const types: Record<string, string> = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.html': 'text/html',
-    '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.wasm': 'application/wasm', '.woff2': 'font/woff2' };
+    '.json': 'application/json', '.pdf': 'application/pdf', '.png': 'image/png', '.svg': 'image/svg+xml', '.wasm': 'application/wasm', '.woff2': 'font/woff2' };
   const server = http.createServer(async (req, res) => {
     if (state.offline) { req.socket.destroy(); return; }
     try {

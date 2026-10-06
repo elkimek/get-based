@@ -237,7 +237,7 @@ test('Settings lazy entry points contain load failures', async ({ page }) => {
   expect(settingsRequests).toBe(1);
 });
 
-test('returning-user startup defers Settings until a shell action opens it', async ({ page }) => {
+test('returning-user startup defers Settings until a shell action opens it', async ({ page, isMobile }) => {
   let settingsRequests = 0;
   let settingsStylesheetRequests = 0;
   let settingsSyncPanelImplementationRequests = 0;
@@ -275,7 +275,7 @@ test('returning-user startup defers Settings until a shell action opens it', asy
   expect(settingsSyncPanelImplementationRequests).toBe(1);
   await expect(page.locator('link[data-settings-stylesheet]')).toHaveCount(1);
   await expect(page.locator('link[data-data-protection-stylesheet]')).toHaveCount(1);
-  await expect(page.locator('#settings-modal .settings-layout')).toHaveCSS('display', 'grid');
+  await expect(page.locator('#settings-modal .settings-layout')).toHaveCSS('display', isMobile ? 'flex' : 'grid');
   await expect.poll(() => page.evaluate(async () => (
     (await import('/js/settings-loader.js')).isSettingsModuleLoaded()
   ))).toBe(true);
@@ -286,7 +286,7 @@ test('returning-user startup defers Settings until a shell action opens it', asy
   await expect(page.locator('#settings-modal [data-settings-sync-placeholder]')).toHaveCount(0);
   await page.locator('[data-settings-tab="agent"]').click();
   const agentAccessSlider = page.locator(
-    '#messenger-section [data-sync-action="toggle-messenger"] + .sync-settings-toggle-slider',
+    '#messenger-section [data-sync-action="toggle-messenger"] + span[aria-hidden="true"]',
   );
   await expect(agentAccessSlider).toBeVisible();
   await expect(agentAccessSlider).toHaveCSS('width', '32px');

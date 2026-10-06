@@ -447,6 +447,25 @@ Each native component uses its own emitted mount/unmount/flush helpers; the stat
 Kit build shares one Svelte runtime across both components. Necessary public
 string-renderer adapters return component hosts without duplicating rendering.
 
+Import Benchmarks uses `import-benchmark-data.ts` for unchanged report identity,
+numeric normalization and comparison math. `import-benchmark-presentation.ts`
+projects saved runs into typed cards, metric rows and bounded difference lists;
+`ImportBenchmarks.svelte` owns the dialog, selection, disclosures and comparison.
+`ImportBenchmarkEntry.svelte` owns the Settings entry button and forwards the
+actual button to extension hooks. The Settings lifecycle disposes that entry
+before replacement or closure, including pending asynchronous extension replies.
+`import-benchmark-controller.ts` owns selection and confirmation lifetimes;
+`import-benchmark-run.ts` owns accepted background tests independently of a dialog.
+Closing a view unsubscribes its progress clock; accepted model tests still finish
+and persist through the existing reference-benchmark service. Reopened views see
+live progress while retaining their own comparison selection. A delayed deletion
+confirmation cannot authorize a replacement view; accepted storage writes may
+finish after closure. Locked answer keys cannot enter the deletion port.
+`settings-import-benchmark-controller.ts` retains the public modal entry points;
+`import-benchmark-facade.ts` retains public renderer/selection helpers using owned
+Svelte hosts. `settings-styles.ts` shares the existing lazy stylesheet retry and
+cascade contract across Settings and standalone benchmark entry points.
+
 Security and Backup settings use `settings-protection-view.ts` to derive display
 snapshots without exposing backup payloads, keys or directory handles.
 `EncryptionSettings.svelte`, `BackupSettings.svelte` and
