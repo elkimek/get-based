@@ -23,6 +23,7 @@ import { mountSettingsShell, selectSettingsShellTab } from './settings-shell.js'
 import { requestSettingsFrame, settingsMediaMatches } from './settings-runtime.js';
 import { configureSettingsModuleBridge } from './settings-runtime-bridge.js';
 import { closestSettingsTarget, getSettingsProxyToggle } from './settings-event-target.js';
+import { disposeVoiceSettingsPanel } from './settings-voice-component.js';
 import { mountPrivacySettingsPanel, disposePrivacySettingsPanel } from './settings-privacy-panel.js';
 import {
   renderDisplaySettingsPanel,
@@ -455,6 +456,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   const extensionAI = renderAppExtensionSettingsSlot('ai', extensionContext);
   const extensionPanels = renderAppExtensionSettingsSlot('panels', extensionContext);
 
+  disposeVoiceSettingsPanel();
   disposePrivacySettingsPanel();
   disposeDisplaySettingsPanel();
   const legacyPanels = `

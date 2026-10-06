@@ -1538,3 +1538,8 @@ deploy/profile-share/data/
 /js/settings-privacy-contract.js
 /js/settings-privacy-panel.js
 /js/settings-privacy-view.js
+
+/js/settings-voice-classes.js
+/js/settings-voice-component.js
+/js/settings-voice-contract.js
+/js/settings-voice-view-runtime.js

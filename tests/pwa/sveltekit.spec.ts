@@ -298,3 +298,91 @@ test('Privacy provider discovery filters cloud models, persists configuration an
     await noCspErrors(page, errors);
   } finally { await server.close(); }
 });
+
+test('Voice first use, themes, keyboard controls and preferences survive an offline cold launch', async ({ page, context }) => {
+  const server = await startKitServer(artifact);
+  const errors = await prepare(context, page);
+  await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
+  try {
+    await page.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' });
+    await ready(page);
+    expect(await page.locator('link[data-settings-stylesheet]').count()).toBe(0);
+    server.state.offline = true;
+    await display(page);
+    await page.locator('#settings-nav-voice').click();
+    const panel = page.locator('#settings-tab-voice');
+    const linked = panel.locator('#voice-providers-linked');
+    await panel.locator('[data-voice-shared-provider]').selectOption('browser-local');
+    // Enter keyboard modality through real navigation. Programmatic focus after
+    // selectOption does not activate Firefox's :focus-visible heuristic.
+    const sharedProvider = panel.locator('[data-voice-shared-provider]');
+    await sharedProvider.focus();
+    await sharedProvider.press('Tab');
+    await expect(linked).toBeFocused();
+    await linked.press('Space');
+    await expect(linked.locator('..').locator('span')).toHaveCSS('outline-width', '2px');
+    await expect(linked).toBeChecked();
+    await expect(panel.locator('[data-voice-setting="inputProvider"]')).toBeVisible();
+    await panel.locator('[data-voice-setting="localSttModel"]').selectOption('onnx-community/whisper-medium-ONNX');
+    await panel.locator('[data-voice-setting="localSttBackend"]').selectOption('wasm');
+    await panel.locator('[data-voice-setting="localVoice"]').selectOption('bm_george');
+    await panel.locator('#voice-auto-read').focus();
+    await panel.locator('#voice-auto-read').press('Space');
+    await expect(panel.locator('#voice-auto-read')).toBeChecked();
+    await panel.locator('.voice-advanced-connections > summary').click();
+    await panel.locator('[data-voice-connection="local-server"] > summary').click();
+    const key = panel.locator('[data-voice-key-input="local-server"]');
+    await key.fill('unsaved-test-draft');
+    const rate = panel.locator('[data-voice-setting="rate"]');
+    await rate.focus();
+    for (let step = 0; step < 7; step++) await rate.press('ArrowRight');
+    await expect(panel.locator('#voice-rate-value')).toHaveText('1.35×');
+    await expect(key).toHaveValue('unsaved-test-draft');
+    const violations = await panel.evaluate(async element => {
+      const axe = (window as unknown as { axe: typeof import('axe-core') }).axe;
+      const result = await axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } });
+      return result.violations.map(violation => ({ id: violation.id, targets: violation.nodes.map(node => node.target) }));
+    });
+    expect(violations).toEqual([]);
+    for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'synth-sunrise', 'neuromancer']) {
+      await page.locator('#settings-nav-display').click();
+      await page.locator('#settings-tab-display [data-settings-action="open-tweaks"]').click();
+      await page.locator(`[data-tweaks-action="select-theme"][data-theme-id="${theme}"]`).click();
+      await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme || 'dark')).toBe(theme);
+      await page.locator('[data-tweaks-action="close"]').click();
+      const closeChat = page.getByRole('button', { name: 'Close chat', exact: true });
+      if (await closeChat.isVisible()) await closeChat.click();
+      await display(page); await page.locator('#settings-nav-voice').click();
+      await panel.locator('.voice-advanced-connections > summary').click();
+      await panel.locator('[data-voice-connection="local-server"] > summary').click();
+      for (const viewport of [{ width: 1280, height: 900 }, { width: 700, height: 900 }, { width: 390, height: 844 }]) {
+        await page.setViewportSize(viewport);
+        expect(await panel.evaluate(element => {
+          const control = element.querySelector<HTMLSelectElement>('[data-voice-setting="localSttBackend"]')!;
+          const probe = document.createElement('span');
+          probe.style.backgroundColor = 'var(--select-surface)'; probe.style.color = 'var(--text-primary)';
+          probe.style.borderRadius = 'var(--radius-sm)'; element.append(probe);
+          const actual = getComputedStyle(control); const expected = getComputedStyle(probe);
+          const match = actual.backgroundColor === expected.backgroundColor && actual.color === expected.color && actual.borderRadius === expected.borderRadius;
+          probe.remove();
+          return match && element.scrollWidth <= element.clientWidth;
+        })).toBe(true);
+        const fieldBox = (await key.boundingBox())!; const panelBox = (await panel.boundingBox())!;
+        expect(fieldBox.x + fieldBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width + 1);
+      }
+    }
+    await page.close();
+    const cold = await context.newPage();
+    await cold.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' });
+    await ready(cold); await display(cold); await cold.locator('#settings-nav-voice').click();
+    await expect(cold.locator('#voice-providers-linked')).toBeChecked();
+    await expect(cold.locator('#voice-auto-read')).toBeChecked();
+    await expect(cold.locator('[data-voice-setting="localSttModel"]')).toHaveValue('onnx-community/whisper-medium-ONNX');
+    await expect(cold.locator('[data-voice-setting="localSttBackend"]')).toHaveValue('wasm');
+    await expect(cold.locator('[data-voice-setting="localVoice"]')).toHaveValue('bm_george');
+    await expect(cold.locator('[data-voice-setting="rate"]')).toHaveValue('1.35');
+    await expect(cold.locator('[data-voice-key-input="local-server"]')).toHaveValue('');
+    await expect(cold.locator('.voice-task-card')).toHaveCount(2);
+    await noCspErrors(cold, errors);
+  } finally { await server.close(); }
+});

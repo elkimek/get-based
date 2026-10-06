@@ -10,3 +10,7 @@ export const shellCompatible: typeof NativeSettingsShell = SettingsShell;
 import PrivacySettings from '../../js/components/PrivacySettings.svelte';
 import type NativePrivacySettings from '../../js/components/PrivacySettings.svelte.native.js';
 export const privacyCompatible: typeof NativePrivacySettings = PrivacySettings;
+
+import VoiceSettings from '../../js/components/VoiceSettings.svelte';
+import type NativeVoiceSettings from '../../js/components/VoiceSettings.svelte.native.js';
+export const voiceCompatible: typeof NativeVoiceSettings = VoiceSettings;

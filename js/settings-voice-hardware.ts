@@ -1,11 +1,13 @@
 import type { VoiceKind, VoiceModelStatus } from '../types/voice-local.js';
-import type { getVoiceSettings } from './voice-settings-storage.js';
+import { getVoiceSettings } from './voice-settings-storage.js';
 type VoiceSettings = ReturnType<typeof getVoiceSettings>;
 interface WebGpuCapability { available: boolean; name: string }
 interface VoiceGpuNavigator { gpu?: { requestAdapter?: (options: { powerPreference: string }) => Promise<{ info?: { description?: unknown; architecture?: unknown; vendor?: unknown } } | null> } }
 
 // settings-voice-hardware.js — shared hardware controls for local voice models.
 
+import { getVoiceSettingsView } from './settings-voice-view-runtime.js';
+import type { VoiceOption } from './settings-voice-contract.js';
 import { LOCAL_VOICE_BACKENDS } from './voice-model-catalog.js';
 import {
   getLocalVoiceModelStatus,
@@ -16,10 +18,6 @@ import {
 } from './voice-local-engine.js';
 
 let webGpuCapabilityPromise: Promise<WebGpuCapability> | undefined;
-
-function selected(value: unknown, expected: unknown) {
-  return value === expected ? ' selected' : '';
-}
 
 async function detectWebGpu() {
   const gpu = typeof navigator === 'undefined'
@@ -72,76 +70,44 @@ function autoPerformanceText(kind: VoiceKind, model: string, capability: WebGpuC
   return 'Automatic starts with the main processor. Try the graphics processor once to compare.';
 }
 
-function renderHardwareRow(settings: VoiceSettings, kind: VoiceKind) {
-  const input = kind === 'stt';
-  const setting = input ? 'localSttBackend' : 'localTtsBackend';
-  const description = input
-    ? 'data-voice-hardware-description'
-    : 'data-voice-output-hardware-description';
-  return `
-    <div class="settings-section voice-setting-row" data-voice-visible="${input ? 'input' : 'output'}:browser-local">
-      <div class="settings-copy">
-        <div class="settings-copy-title">Processor</div>
-        <div class="settings-copy-desc" ${description}></div>
-      </div>
-      <label class="voice-control">
-        <span class="sr-only">${input ? 'STT' : 'TTS'} processor</span>
-        <select class="api-key-input" data-voice-setting="${setting}">
-          ${LOCAL_VOICE_BACKENDS.map(option => (
-            `<option value="${option.id}"${selected(settings[setting], option.id)}>${
-              option.id === 'webgpu' && isAndroidDevice()
-                ? 'Graphics processor (GPU · experimental)'
-                : option.label
-            }</option>`
-          )).join('')}
-        </select>
-      </label>
-    </div>`;
-}
-
-export function renderSttHardwareRow(settings: VoiceSettings) {
-  return renderHardwareRow(settings, 'stt');
-}
-
-export function renderTtsHardwareRow(settings: VoiceSettings) {
-  return renderHardwareRow(settings, 'tts');
+export function getHardwareOptions(): VoiceOption[] {
+  return LOCAL_VOICE_BACKENDS.map(option => ({ id: option.id, label: option.id === 'webgpu' && isAndroidDevice() ? 'Graphics processor (GPU · experimental)' : option.label }));
 }
 
 async function refreshHardwareDescription(panel: HTMLElement, settings: VoiceSettings, kind: VoiceKind) {
   const input = kind === 'stt';
   const setting = input ? 'localSttBackend' : 'localTtsBackend';
   const model = input ? settings.localSttModel : settings.localTtsModel;
-  const selector = input
-    ? '[data-voice-hardware-description]'
-    : '[data-voice-output-hardware-description]';
-  const description = panel.querySelector(selector);
-  if (!description) return;
+  const view = getVoiceSettingsView(panel);
+  if (!view) return;
+  const describe = (text: string) => view.setHardwareDescription(kind, text);
   if (settings[setting] === 'wasm') {
-    description.textContent = isAndroidDevice()
+    describe(isAndroidDevice()
       ? 'Uses your device’s main processor. This is the stable choice on Android.'
-      : 'Uses your computer’s main processor. This is often fastest on powerful CPUs.';
+      : 'Uses your computer’s main processor. This is often fastest on powerful CPUs.');
     return;
   }
   if (isAndroidDevice()) {
-    description.textContent = settings[setting] === 'webgpu'
+    describe(settings[setting] === 'webgpu'
       ? 'Experimental on Android. Mobile graphics processing may be slower or crash when browser memory is limited.'
-      : 'Automatic uses the main processor on Android for speed and stability.';
+      : 'Automatic uses the main processor on Android for speed and stability.');
     return;
   }
-  description.textContent = 'Checking graphics support…';
+  describe('Checking graphics support…');
   const capability = await getWebGpuCapability();
   const currentValue = panel.querySelector<HTMLSelectElement>(`[data-voice-setting="${setting}"]`)?.value;
-  if (currentValue !== settings[setting]) return;
+  const current = getVoiceSettings();
+  if ((input ? current.localSttModel : current.localTtsModel) !== model || currentValue !== settings[setting] || getVoiceSettingsView(panel) !== view) return;
   if (settings[setting] === 'webgpu') {
-    description.textContent = capability.available
+    describe(capability.available
       ? 'Uses your graphics processor. If it is slow or unreliable, choose Automatic.'
-      : 'Graphics processing is not available in this browser. Choose Automatic or Main processor.';
+      : 'Graphics processing is not available in this browser. Choose Automatic or Main processor.');
   } else {
-    description.textContent = capability.available
+    describe(capability.available
       ? autoPerformanceText(kind, model, capability)
       : isMobileVoiceDevice()
         ? 'Graphics processing is unavailable here. Local voice may be very slow on this mobile device.'
-        : 'Graphics processing is not available in this browser. Automatic will use the main processor.';
+        : 'Graphics processing is not available in this browser. Automatic will use the main processor.');
   }
 }
 

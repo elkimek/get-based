@@ -1,5 +1,8 @@
+import { mountVoiceSettingsPanel } from './settings-voice-component.js';
+import { getVoiceSettingsView } from './settings-voice-view-runtime.js';
+import type { VoiceSettingsView } from './settings-voice-contract.js';
 import type { VoiceKind } from '../types/voice-local.js';
-import type { VoiceListEntry, VoiceProvider } from '../types/voice-provider.js';
+import type { VoiceProvider } from '../types/voice-provider.js';
 import type { VoiceCatalogEntry } from './voice-catalog-storage.js';
 type VoiceSettings = ReturnType<typeof getVoiceSettings>;
 type VoiceModelOption = Awaited<ReturnType<VoiceProvider['listModels']>>[number];
@@ -18,14 +21,12 @@ import {
 } from './settings-voice-model-controller.js';
 import {
   renderVoiceSettingsPanel,
-  voiceOptionLabel,
   voiceProviderKeyStatus,
   voiceProviderLabels,
 } from './settings-voice-view.js';
 import { refreshSttHardwareDescription, refreshTtsHardwareDescription } from './settings-voice-hardware.js';
 import { showNotification } from './utils.js';
 import { readVoiceCatalog, writeVoiceCatalog } from './voice-catalog-storage.js';
-import { getLocalModel } from './voice-model-catalog.js';
 import {
   getOpenRouterDefaultVoice,
   normalizeOpenRouterVoice,
@@ -33,7 +34,6 @@ import {
   voicesForOpenRouterModel,
 } from './voice-openrouter-catalog.js';
 import {
-  getAutomaticVoiceStatus,
   resolveVoiceProviderId,
 } from './voice-ai-provider.js';
 import { voicePlayer } from './voice-player.js';
@@ -52,8 +52,35 @@ export { renderVoiceSettingsPanel };
 let installedProgressListener = false;
 let ppqCatalogGeneration = 0;
 let ppqCatalogRequest: CatalogRequest | null = null;
-let openRouterCatalogPromise: Promise<VoiceCatalogEntry[]> | null = null;
-let veniceCatalogPromise: Promise<VoiceCatalogEntry[]> | null = null;
+type CatalogContext = { view: VoiceSettingsView; fingerprint: string; options: ReturnType<typeof providerOptionsFor>; current(): boolean };
+type PanelCatalogRequest = { context: CatalogContext; promise: Promise<VoiceCatalogEntry[]> };
+const panelCatalogRequests = new WeakMap<HTMLElement, Map<string, PanelCatalogRequest>>();
+let openRouterCatalogueKey = '';
+// Requests belong to one mounted view and one connection/selection snapshot.
+// A remount starts its own hydration; late replies cannot persist stale choices.
+function catalogFingerprint(provider: string): string {
+  const settings = getVoiceSettings();
+  return JSON.stringify([getVoiceProviderKey(provider), settings.localServerUrl, settings.outputLanguage,
+    settings.openRouterTtsModel, resolveVoiceProviderId('stt', settings.inputProvider),
+    resolveVoiceProviderId('tts', settings.outputProvider)]);
+}
+function catalogContext(panel: HTMLElement, provider: string): CatalogContext | null {
+  const view = getVoiceSettingsView(panel);
+  if (!view) return null;
+  const fingerprint = catalogFingerprint(provider);
+  return { view, fingerprint, options: providerOptionsFor(provider, getVoiceSettings()),
+    current: () => getVoiceSettingsView(panel) === view && catalogFingerprint(provider) === fingerprint };
+}
+function pendingCatalog(panel: HTMLElement, provider: string, context: CatalogContext): Promise<VoiceCatalogEntry[]> | null {
+  const request = panelCatalogRequests.get(panel)?.get(provider);
+  return request?.context.fingerprint === context.fingerprint && request.context.current() ? request.promise : null;
+}
+function trackCatalog(panel: HTMLElement, provider: string, context: CatalogContext, promise: Promise<VoiceCatalogEntry[]>): Promise<VoiceCatalogEntry[]> {
+  let requests = panelCatalogRequests.get(panel);
+  if (!requests) { requests = new Map(); panelCatalogRequests.set(panel, requests); }
+  const request = { context, promise }; requests.set(provider, request);
+  return promise.finally(() => { if (requests.get(provider) === request) requests.delete(provider); });
+}
 const openRouterLiveModels: Record<VoiceKind, VoiceModelOption[]> = {
   stt: [],
   tts: [],
@@ -81,93 +108,27 @@ function isPpqCatalogContextCurrent(context: PpqCatalogContext | null) {
     && context.language === current.outputLanguage;
 }
 
-function refreshInputLanguageControl(panel: HTMLElement, settings: VoiceSettings) {
-  const select = panel.querySelector('[data-voice-setting="inputLanguage"]');
-  if (!(select instanceof HTMLSelectElement)) return;
-  const model = getLocalModel('stt', settings.localSttModel);
-  const lockedToEnglish = resolveVoiceProviderId('stt', settings.inputProvider) === 'browser-local'
-    && !model.multilingual;
-  select.disabled = lockedToEnglish;
-  select.value = lockedToEnglish ? 'en' : settings.inputLanguage;
-  const description = panel.querySelector('[data-voice-language-description]');
-  if (description) {
-    description.textContent = lockedToEnglish
-      ? `${model.label} supports English only.`
-      : 'Automatic detection works for most people. Choose a language if words are being misunderstood.';
-  }
-}
-
-function refreshOutputLanguageControl(panel: HTMLElement, settings: VoiceSettings) {
-  const select = panel.querySelector('[data-voice-setting="outputLanguage"]');
-  if (!(select instanceof HTMLSelectElement)) return;
-  const local = resolveVoiceProviderId('tts', settings.outputProvider) === 'browser-local';
-  const row = panel.querySelector('[data-voice-output-language-row]');
-  if (row instanceof HTMLElement) row.hidden = local;
-  select.disabled = local;
-  select.value = local ? 'en' : settings.outputLanguage;
-  const description = panel.querySelector('[data-voice-output-language-description]');
-  if (description) {
-    description.textContent = local
-      ? 'The on-device voices currently read English.'
-      : 'Choose the language used to read assistant replies.';
-  }
-}
-
 function refreshVisibility(panel: HTMLElement) {
+  getVoiceSettingsView(panel)?.refresh();
   const settings = getVoiceSettings();
-  const inputProvider = resolveVoiceProviderId('stt', settings.inputProvider);
-  const outputProvider = resolveVoiceProviderId('tts', settings.outputProvider);
-  for (const element of panel.querySelectorAll('[data-voice-visible]')) {
-    const [direction, provider] = String(
-      element.getAttribute('data-voice-visible') || '',
-    ).split(':');
-    const active = direction === 'input'
-      ? inputProvider === provider
-      : outputProvider === provider;
-    element.toggleAttribute('hidden', !active);
-  }
-  for (const element of panel.querySelectorAll('[data-voice-mode]')) {
-    const mode = element.getAttribute('data-voice-mode');
-    element.toggleAttribute('hidden', mode === 'linked'
-      ? !settings.providersLinked
-      : settings.providersLinked);
-  }
-  const sharedSelect = panel.querySelector('[data-voice-shared-provider]');
-  if (sharedSelect instanceof HTMLSelectElement) sharedSelect.value = settings.inputProvider;
-  const automatic = getAutomaticVoiceStatus();
-  const automaticRow = panel.querySelector('[data-voice-auto-row]');
-  if (automaticRow instanceof HTMLElement) {
-    automaticRow.hidden = settings.inputProvider !== 'auto' && settings.outputProvider !== 'auto';
-  }
-  const automaticStatus = panel.querySelector('[data-voice-auto-status]');
-  if (automaticStatus instanceof HTMLElement) {
-    automaticStatus.textContent = automatic.text;
-    automaticStatus.dataset.state = automatic.state;
-  }
-  const separateToggle = panel.querySelector('[data-voice-setting="providersLinked"]');
-  if (separateToggle instanceof HTMLInputElement) {
-    separateToggle.checked = !settings.providersLinked;
-  }
-  refreshInputLanguageControl(panel, settings);
-  refreshOutputLanguageControl(panel, settings);
   void refreshSttHardwareDescription(panel, settings);
   void refreshTtsHardwareDescription(panel, settings);
-  const rate = panel.querySelector('#voice-rate-value');
-  if (rate) rate.textContent = `${settings.rate.toFixed(2).replace(/0$/, '')}×`;
 }
 
 function setTestStatus(panel: HTMLElement, provider: string, text: string, isError = false) {
-  const status = panel.querySelector(`[data-voice-test-status="${provider}"]`);
-  if (!(status instanceof HTMLElement)) return;
-  status.textContent = text;
-  status.classList.toggle('error', isError);
+  getVoiceSettingsView(panel)?.setTestStatus(provider, text, isError);
+}
+function setCatalogStatus(panel: HTMLElement, provider: string, text: string) {
+  getVoiceSettingsView(panel)?.setCatalogStatus(provider, text);
 }
 
 async function handleKeyAction(panel: HTMLElement, button: HTMLButtonElement, clear = false) {
   const provider = button.dataset.provider || '';
   const input = panel.querySelector(`[data-voice-key-input="${provider}"]`);
   if (!(input instanceof HTMLInputElement)) return;
-  const value = clear ? '' : input.value.trim();
+  const draft = input.value;
+  const view = getVoiceSettingsView(panel);
+  const value = clear ? '' : draft.trim();
   if (!clear && !value) {
     showNotification('Enter an API key first.', 'error');
     input.focus();
@@ -176,9 +137,7 @@ async function handleKeyAction(panel: HTMLElement, button: HTMLButtonElement, cl
   setActionBusy(button, true, clear ? 'Clearing…' : 'Saving…');
   try {
     await saveVoiceProviderKey(provider, value);
-    input.value = value;
-    const status = panel.querySelector(`[data-voice-key-status="${provider}"]`);
-    if (status) status.textContent = voiceProviderKeyStatus(provider, !!value);
+    if (getVoiceSettingsView(panel) === view && input.value === draft) view?.setKey(provider, value, voiceProviderKeyStatus(provider, !!value));
     showNotification(
       value
         ? `${voiceProviderLabels[provider] || provider} key saved.`
@@ -192,24 +151,13 @@ async function handleKeyAction(panel: HTMLElement, button: HTMLButtonElement, cl
   }
 }
 
-function populateVoiceSelect(select: HTMLSelectElement, voices: readonly VoiceListEntry[], selectedId: unknown) {
-  select.replaceChildren();
-  for (const voice of voices) {
-    const option = document.createElement('option');
-    option.value = String(voice.id || '');
-    option.textContent = voiceOptionLabel(voice);
-    option.selected = option.value === selectedId;
-    select.appendChild(option);
-  }
-}
-
 function applyVoiceCatalog(panel: HTMLElement, providerId: string, voices: unknown, {
   catalogId = providerId,
   preferredVoice = '',
 } = {}) {
   const rows = writeVoiceCatalog(catalogId, voices);
-  const select = panel.querySelector(`[data-voice-cloud-voices="${providerId}"]`);
-  if (!(select instanceof HTMLSelectElement)) return rows;
+  const view = getVoiceSettingsView(panel);
+  if (!view) return rows;
   const settingNames: Record<string, keyof VoiceSettings> = {
     elevenlabs: 'elevenlabsVoice',
     openrouter: 'openRouterVoice',
@@ -220,40 +168,25 @@ function applyVoiceCatalog(panel: HTMLElement, providerId: string, voices: unkno
   const settingName = settingNames[providerId]!;
   const settings = getVoiceSettings();
   const existing = settings[settingName];
-  populateVoiceSelect(select, rows, existing);
   if (rows.length && !rows.some(voice => voice.id === existing)) {
     const replacement = rows.some(voice => voice.id === preferredVoice)
       ? preferredVoice
       : rows[0]!.id;
     setVoiceSetting(settingName, replacement);
-    select.value = replacement;
   }
-  const status = panel.querySelector(`[data-voice-catalog-status="${providerId}"]`);
-  if (status) status.textContent = `${rows.length} voice${rows.length === 1 ? '' : 's'} loaded`;
+  view.refresh();
+  view.setCatalogStatus(providerId, `${rows.length} voice${rows.length === 1 ? '' : 's'} loaded`);
   return rows;
 }
 
-function populateModelSelect(select: HTMLSelectElement, models: readonly VoiceModelOption[], selectedId: string) {
-  select.replaceChildren();
-  for (const model of models) {
-    const option = document.createElement('option');
-    option.value = model.id;
-    option.textContent = model.optionLabel || model.label || model.id;
-    option.selected = option.value === selectedId;
-    select.appendChild(option);
-  }
-}
-
 function applyOpenRouterModelCatalog(panel: HTMLElement, kind: VoiceKind, models: VoiceModelOption[]) {
-  const select = panel.querySelector(`[data-voice-openrouter-model="${kind}"]`);
+  if (!getVoiceSettingsView(panel)) return null;
   const settingName = kind === 'stt' ? 'openRouterSttModel' : 'openRouterTtsModel';
   const existing = getVoiceSettings()[settingName];
   const rows = Array.isArray(models) ? models : [];
-  if (select instanceof HTMLSelectElement) populateModelSelect(select, rows, existing);
   const selectedModel = rows.find(model => model.id === existing) || rows[0];
   if (selectedModel && selectedModel.id !== existing) {
     setVoiceSetting(settingName, selectedModel.id);
-    if (select instanceof HTMLSelectElement) select.value = selectedModel.id;
   }
   return selectedModel;
 }
@@ -277,7 +210,9 @@ async function hydrateOpenRouterCatalog(panel: HTMLElement, { force = false } = 
   const usesStt = resolveVoiceProviderId('stt', settings.inputProvider) === 'openrouter';
   const usesTts = resolveVoiceProviderId('tts', settings.outputProvider) === 'openrouter';
   if ((!usesStt && !usesTts) || !hasVoiceProviderKey('openrouter')) return [];
-  if (!force && (!usesStt || openRouterLiveModels.stt.length)
+  const context = catalogContext(panel, 'openrouter');
+  if (!context) return [];
+  if (!force && openRouterCatalogueKey === context.options.apiKey && (!usesStt || openRouterLiveModels.stt.length)
     && (!usesTts || openRouterLiveModels.tts.length)) {
     const selected = usesTts
       ? applyOpenRouterModelCatalog(panel, 'tts', openRouterLiveModels.tts)
@@ -285,17 +220,18 @@ async function hydrateOpenRouterCatalog(panel: HTMLElement, { force = false } = 
     if (usesStt) applyOpenRouterModelCatalog(panel, 'stt', openRouterLiveModels.stt);
     return selected ? applyOpenRouterVoices(panel, selected) : [];
   }
-  if (openRouterCatalogPromise) return openRouterCatalogPromise;
-  const status = panel.querySelector('[data-voice-catalog-status="openrouter"]');
-  if (status) status.textContent = 'Loading models and voices…';
-  openRouterCatalogPromise = loadVoiceProvider('openrouter')
+  const pending = pendingCatalog(panel, 'openrouter', context); if (pending) return pending;
+  setCatalogStatus(panel, 'openrouter', 'Loading models and voices…');
+  const promise = loadVoiceProvider('openrouter')
     .then(async provider => {
       const [sttModels, ttsModels] = await Promise.all([
-        usesStt ? provider.listModels('stt', providerOptionsFor('openrouter', settings)) : [],
-        usesTts ? provider.listModels('tts', providerOptionsFor('openrouter', settings)) : [],
+        usesStt ? provider.listModels('stt', context.options) : [],
+        usesTts ? provider.listModels('tts', context.options) : [],
       ]);
+      if (!context.current()) return [];
       if (usesStt && !sttModels.length) throw new Error('No curated OpenRouter transcription models are currently available.');
       if (usesTts && !ttsModels.length) throw new Error('No curated OpenRouter speech models are currently available.');
+      openRouterCatalogueKey = context.options.apiKey;
       if (usesStt) openRouterLiveModels.stt = sttModels;
       if (usesTts) openRouterLiveModels.tts = ttsModels;
       if (usesStt) applyOpenRouterModelCatalog(panel, 'stt', sttModels);
@@ -303,11 +239,13 @@ async function hydrateOpenRouterCatalog(panel: HTMLElement, { force = false } = 
       return selected ? applyOpenRouterVoices(panel, selected) : [];
     })
     .catch(error => {
-      if (status) status.textContent = getErrorMessage(error, 'Could not load OpenRouter voice options');
+      if (!context.current()) return [];
+      const message = getErrorMessage(error, 'Could not load OpenRouter voice options');
+      setCatalogStatus(panel, 'openrouter', message);
       if (usesTts) {
         const modelId = settings.openRouterTtsModel;
         const fallbackVoices = [getOpenRouterDefaultVoice(modelId)].filter(Boolean);
-        return applyVoiceCatalog(
+        const fallback = applyVoiceCatalog(
           panel,
           'openrouter',
           fallbackVoices.map(voice => normalizeOpenRouterVoice(modelId, voice)),
@@ -316,11 +254,12 @@ async function hydrateOpenRouterCatalog(panel: HTMLElement, { force = false } = 
             preferredVoice: getOpenRouterDefaultVoice(modelId),
           },
         );
+        setCatalogStatus(panel, 'openrouter', message);
+        return fallback;
       }
       return [];
-    })
-    .finally(() => { openRouterCatalogPromise = null; });
-  return openRouterCatalogPromise;
+    });
+  return trackCatalog(panel, 'openrouter', context, promise);
 }
 
 async function hydratePpqVoiceCatalog(panel: HTMLElement, { force = false } = {}) {
@@ -332,27 +271,29 @@ async function hydratePpqVoiceCatalog(panel: HTMLElement, { force = false } = {}
   ) {
     return [];
   }
+  const context = catalogContext(panel, 'ppq');
+  if (!context) return [];
   if (ppqCatalogRequest && !force) return ppqCatalogRequest.promise;
   if (ppqCatalogRequest) ppqCatalogRequest.controller.abort();
   const generation = ++ppqCatalogGeneration;
   const controller = new AbortController();
   const requestedLanguage = settings.outputLanguage;
-  const status = panel.querySelector('[data-voice-catalog-status="ppq"]');
-  if (status) status.textContent = 'Loading voices…';
+  setCatalogStatus(panel, 'ppq', 'Loading voices…');
   const promise = loadVoiceProvider('ppq')
     .then(provider => {
       if (typeof provider.listVoices !== 'function') {
         throw new Error('PPQ does not expose a compatible voice catalogue.');
       }
       return provider.listVoices({
-        ...providerOptionsFor('ppq', settings),
+        ...context.options,
         signal: controller.signal,
       });
     })
     .then(voices => {
       const current = getVoiceSettings();
       if (
-        generation !== ppqCatalogGeneration
+        !context.current()
+        || generation !== ppqCatalogGeneration
         || resolveVoiceProviderId('tts', current.outputProvider) !== 'ppq'
         || current.outputLanguage !== requestedLanguage
       ) {
@@ -362,8 +303,8 @@ async function hydratePpqVoiceCatalog(panel: HTMLElement, { force = false } = {}
       return applyVoiceCatalog(panel, 'ppq', voices);
     })
     .catch(error => {
-      if (generation !== ppqCatalogGeneration || controller.signal.aborted) return [];
-      if (status) status.textContent = getErrorMessage(error, 'Could not load PPQ voices');
+      if (!context.current() || generation !== ppqCatalogGeneration || controller.signal.aborted) return [];
+      setCatalogStatus(panel, 'ppq', getErrorMessage(error, 'Could not load PPQ voices'));
       return [];
     })
     .finally(() => {
@@ -382,39 +323,44 @@ async function hydrateVeniceVoiceCatalog(panel: HTMLElement, { force = false } =
   ) {
     return [];
   }
-  if (veniceCatalogPromise) return veniceCatalogPromise;
-  const status = panel.querySelector('[data-voice-catalog-status="venice"]');
-  if (status) status.textContent = 'Loading private Kokoro voices…';
-  veniceCatalogPromise = loadVoiceProvider('venice')
+  const context = catalogContext(panel, 'venice');
+  if (!context) return [];
+  const pending = pendingCatalog(panel, 'venice', context); if (pending) return pending;
+  setCatalogStatus(panel, 'venice', 'Loading private Kokoro voices…');
+  const promise = loadVoiceProvider('venice')
     .then(provider => {
       if (typeof provider.listVoices !== 'function') {
         throw new Error('Venice does not expose a compatible voice catalogue.');
       }
-      return provider.listVoices(providerOptionsFor('venice', settings));
+      return provider.listVoices(context.options);
     })
     .then(voices => {
+      if (!context.current()) return [];
       if (!voices.length) throw new Error('Venice returned no Kokoro voices.');
       return applyVoiceCatalog(panel, 'venice', voices, { preferredVoice: 'af_sky' });
     })
     .catch(error => {
-      if (status) status.textContent = getErrorMessage(error, 'Could not load Venice voices');
+      if (!context.current()) return [];
+      setCatalogStatus(panel, 'venice', getErrorMessage(error, 'Could not load Venice voices'));
       return [];
-    })
-    .finally(() => { veniceCatalogPromise = null; });
-  return veniceCatalogPromise;
+    });
+  return trackCatalog(panel, 'venice', context, promise);
 }
 
 async function handleTestProvider(panel: HTMLElement, button: HTMLButtonElement) {
   const providerId = button.dataset.provider || 'browser-local';
   const settings = getVoiceSettings();
-  const catalogContext = ppqCatalogContext(providerId, settings);
+  const ppqContext = ppqCatalogContext(providerId, settings);
+  const context = catalogContext(panel, providerId);
+  if (!context) return;
   setActionBusy(button, true, 'Testing…');
   setTestStatus(panel, providerId, 'Connecting…');
   try {
     const provider = await loadVoiceProvider(providerId);
     const result = await provider.testConnection(
-      providerOptionsFor(providerId, settings),
+      context.options,
     );
+    if (!context.current()) return;
     if (['local-server', 'xai', 'elevenlabs', 'openrouter', 'ppq', 'venice'].includes(providerId)) {
       const { requestAIProviderActivation } = await import('./cloud-ai-consent.js');
       const activated = await requestAIProviderActivation(providerId, {
@@ -429,7 +375,7 @@ async function handleTestProvider(panel: HTMLElement, button: HTMLButtonElement)
       Array.isArray(result.voices)
       && result.voices.length
       && ['xai', 'elevenlabs', 'openrouter', 'ppq', 'venice'].includes(providerId)
-      && isPpqCatalogContextCurrent(catalogContext)
+      && context.current() && isPpqCatalogContextCurrent(ppqContext)
     ) {
       applyVoiceCatalog(panel, providerId, result.voices, providerId === 'openrouter'
         ? {
@@ -440,9 +386,9 @@ async function handleTestProvider(panel: HTMLElement, button: HTMLButtonElement)
           ? { preferredVoice: 'af_sky' }
           : {});
     }
-    setTestStatus(panel, providerId, result.message || 'Connected.');
+    if (context.current()) setTestStatus(panel, providerId, result.message || 'Connected.');
   } catch (error) {
-    setTestStatus(panel, providerId, getErrorMessage(error, 'Connection failed'), true);
+    if (context.current()) setTestStatus(panel, providerId, getErrorMessage(error, 'Connection failed'), true);
   } finally {
     setActionBusy(button, false);
   }
@@ -460,7 +406,9 @@ async function handleRefreshVoices(panel: HTMLElement, button: HTMLButtonElement
     return;
   }
   const settings = getVoiceSettings();
-  const catalogContext = ppqCatalogContext(providerId, settings);
+  const ppqContext = ppqCatalogContext(providerId, settings);
+  const context = catalogContext(panel, providerId);
+  if (!context) return;
   setActionBusy(button, true, 'Refreshing…');
   try {
     const provider = await loadVoiceProvider(providerId);
@@ -468,9 +416,9 @@ async function handleRefreshVoices(panel: HTMLElement, button: HTMLButtonElement
       throw new Error(`${voiceProviderLabels[providerId] || providerId} does not expose a voice catalogue.`);
     }
     const voices = await provider.listVoices(
-      providerOptionsFor(providerId, settings),
+      context.options,
     );
-    if (!isPpqCatalogContextCurrent(catalogContext)) return;
+    if (!context.current() || !isPpqCatalogContextCurrent(ppqContext)) return;
     if (!voices.length) throw new Error('The provider returned no voices.');
     applyVoiceCatalog(panel, providerId, voices, providerId === 'openrouter'
       ? {
@@ -546,6 +494,7 @@ function handleVoiceSetting(event: Event, panel: HTMLElement) {
 export function installVoiceSettingsPanel(root: Document | HTMLElement = document) {
   const panel = root.querySelector?.('[data-tab-panel="voice"]');
   if (!(panel instanceof HTMLElement)) return false;
+  mountVoiceSettingsPanel(panel);
   if (panel.dataset.voiceDelegates !== '1') {
     panel.dataset.voiceDelegates = '1';
     panel.addEventListener('click', event => { void handleVoiceClick(event, panel); });

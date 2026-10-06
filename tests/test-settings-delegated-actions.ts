@@ -19,11 +19,12 @@ const toggleComponentSrc = readRepositorySource('js/components/SettingsToggle.sv
 const privacySrc = readRepositorySource('js/settings-privacy.js', 'utf8');
 const settingsDataSrc = readRepositorySource('js/settings-data.js', 'utf8');
 const voiceSrc = readRepositorySource('js/settings-voice-panel.js', 'utf8');
+const voiceComponentSrc = readRepositorySource('js/components/VoiceSettings.svelte', 'utf8');
 const voiceViewSrc = readRepositorySource('js/settings-voice-view.js', 'utf8');
 const tweaksSrc = readAuthoredRepositorySource('js/settings-tweaks.js', 'utf8');
 const appShellCss = readRepositorySource('css/app-shell.css', 'utf8');
 const settingsCss = readRepositorySource('css/settings.css', 'utf8');
-const settingsSurfaceSrc = `${src}\n${displaySrc}\n${eventTargetSrc}\n${privacySrc}\n${privacyComponentSrc}\n${toggleComponentSrc}\n${settingsDataSrc}\n${voiceSrc}\n${tweaksSrc}`;
+const settingsSurfaceSrc = `${src}\n${displaySrc}\n${eventTargetSrc}\n${privacySrc}\n${privacyComponentSrc}\n${toggleComponentSrc}\n${settingsDataSrc}\n${voiceSrc}\n${voiceComponentSrc}\n${tweaksSrc}`;
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
@@ -83,9 +84,9 @@ assert('settings.js has no inline event attributes',
   !inlineHandlerRe.test(settingsSurfaceSrc));
 assert('Voice settings use delegated actions with linked and advanced providers',
   shellContractSrc.includes("id: 'voice'") && shellSrc.includes('data-settings-tab={tab.id}')
-    && voiceViewSrc.includes('data-voice-shared-provider')
-    && voiceViewSrc.includes('data-voice-setting="inputProvider"')
-    && voiceViewSrc.includes('data-voice-setting="outputProvider"')
+    && voiceComponentSrc.includes('data-voice-shared-provider')
+    && voiceViewSrc.includes("setting: 'inputProvider'") && voiceComponentSrc.includes('data-voice-setting={field.setting}')
+    && voiceViewSrc.includes("setting: 'outputProvider'")
     && voiceSrc.includes("panel.addEventListener('click'"));
 assert('Display tab has no inline event attributes',
   displayBlock && !inlineHandlerRe.test(displayBlock));

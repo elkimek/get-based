@@ -41,7 +41,7 @@ import {
 } from '../js/voice-local-engine.js';
 import {
   localModelStatusText,
-  renderSttHardwareRow,
+  getHardwareOptions,
 } from '../js/settings-voice-hardware.js';
 import { normalizeSpeechText, splitSpeechText } from '../js/voice-text.js';
 
@@ -194,9 +194,7 @@ describe('voice settings storage', () => {
       localSttBackend: 'webgpu',
       localTtsBackend: 'webgpu',
     });
-    expect(renderSttHardwareRow(getVoiceSettings())).toContain(
-      'Graphics processor (GPU · experimental)',
-    );
+    expect(getHardwareOptions()).toContainEqual({ id: 'webgpu', label: 'Graphics processor (GPU · experimental)' });
     expect(resolveLocalBackend('auto', {}, { android: true })).toBe('wasm');
   });
 

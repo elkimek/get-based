@@ -1,5 +1,7 @@
 /* Shared semantic aliases; existing theme variables remain authoritative. */
 @theme inline {
+  --color-select-surface: var(--select-surface);
+  --color-select-popup: var(--select-popup-surface);
   --color-success: var(--green);
   --color-warning: var(--yellow);
   --color-danger: var(--red);

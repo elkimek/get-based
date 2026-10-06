@@ -104,7 +104,7 @@ export function getVoiceSettings() {
   const storedOpenRouterTtsModel = storageGet(VOICE_STORAGE_KEYS.openRouterTtsModel);
   const openRouterTtsModel = normalizeOpenRouterVoiceModel('tts', storedOpenRouterTtsModel);
   const storedOpenRouterVoice = storageGet(VOICE_STORAGE_KEYS.openRouterVoice);
-  const openRouterVoice = storedOpenRouterTtsModel !== openRouterTtsModel && storedOpenRouterVoice
+  const openRouterVoice = storedOpenRouterTtsModel && storedOpenRouterTtsModel !== openRouterTtsModel && storedOpenRouterVoice
     ? OPENROUTER_DEFAULT_VOICE
     : storedOpenRouterVoice || OPENROUTER_DEFAULT_VOICE;
   return {
