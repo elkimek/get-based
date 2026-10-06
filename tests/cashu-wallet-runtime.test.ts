@@ -729,6 +729,53 @@ describe('Cashu wallet runtime behavior', () => {
     expect(funding.quote).toBe('mint-200');
   });
 
+  it.each(['quote', 'execute', 'send', 'address', 'maximum'] as const)('rejects a stale initiating mint before %s transfer side effects', async kind => {
+    const wallet = await loadWallet() as CashuWalletOperations;
+    const original = 'https://mint.original.test'; const other = 'https://mint.other.test';
+    await wallet.setMintUrl(original); await wallet.setMintUrl(other);
+    const sdk = (globalThis as CashuStubGlobal).cashuts;
+    const quote = vi.spyOn(sdk.Wallet.prototype, 'createMeltQuoteBolt11');
+    const melt = vi.spyOn(sdk.Wallet.prototype, 'completeMelt');
+    const fetch = vi.spyOn(globalThis, 'fetch');
+    const operation = kind === 'quote' ? wallet.createWithdrawQuote(makeTestInvoice(10), original)
+      : kind === 'execute' ? wallet.executeWithdraw('stale-quote', original)
+      : kind === 'send' ? wallet.sendAsToken(4, original)
+      : kind === 'address' ? wallet.withdrawToAddress('alice@getbased.test', 10, original)
+      : wallet.getMaxWithdrawable(original);
+    await expect(operation).rejects.toThrow('Wallet mint changed');
+    expect(quote).not.toHaveBeenCalled(); expect(melt).not.toHaveBeenCalled(); expect(fetch).not.toHaveBeenCalled();
+    await expect(readIdbMeta('pendingWithdraw')).resolves.toBeNull(); await expect(readIdbMeta('withdrawQuote:stale-quote')).resolves.toBeNull();
+  });
+
+  it('checks initiating mints after queued quote send and payment operations obtain the wallet lock', async () => {
+    const wallet = await loadWallet() as CashuWalletOperations, original = 'https://mint.original.test', other = 'https://mint.other.test';
+    await wallet.setMintUrl(original); await wallet.receiveToken('cashu:' + original + ':10:queued-transfer');
+    let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });
+    const sdk = (globalThis as CashuStubGlobal).cashuts;
+    const check = vi.spyOn(sdk.Wallet.prototype, 'groupProofsByState').mockImplementation(async proofs => { await gate; return { unspent: proofs, spent: [], pending: [] }; });
+    const quoted = vi.spyOn(sdk.Wallet.prototype, 'createMeltQuoteBolt11');
+    try {
+      const held = wallet.checkProofStates(original); await vi.waitFor(() => expect(check).toHaveBeenCalled());
+      const results = Promise.allSettled([wallet.setMintUrl(other), wallet.createWithdrawQuote(makeTestInvoice(4), original), wallet.sendAsToken(4, original), wallet.executeWithdraw('queued-quote', original)]);
+      release(); await held; expect((await results).map(result => result.status)).toEqual(['fulfilled', 'rejected', 'rejected', 'rejected']);
+      expect(quoted).not.toHaveBeenCalled(); await expect(readIdbMeta('pendingWithdraw')).resolves.toBeNull();
+      expect((await wallet.getWalletMints()).find(row => row.mint === original)?.balance).toBe(10);
+    } finally { release(); check.mockRestore(); quoted.mockRestore(); }
+  });
+
+  it('rejects an address withdrawal when mint selection changes during invoice lookup', async () => {
+    const stub = installCashuStub(); const wallet = await loadWallet() as CashuWalletOperations; const original = 'https://mint.getbased.test/Bitcoin'; const other = 'https://mint.other.test';
+    await wallet.setMintUrl(original); stub.receiveProofs = [proof('original-funds', 100)]; await wallet.receiveToken('cashu-token');
+    const sdk = (globalThis as CashuStubGlobal).cashuts; const quote = vi.spyOn(sdk.Wallet.prototype, 'createMeltQuoteBolt11');
+    globalThis.fetch = vi.fn(async url => {
+      if (String(url).includes('/.well-known/lnurlp/alice')) return jsonResponse({ tag: 'payRequest', metadata: LNURL_METADATA, callback: 'https://lnurl.getbased.test/cb', minSendable: 1000, maxSendable: 200000 });
+      await wallet.setMintUrl(other); return jsonResponse({ pr: makeTestInvoice(10) });
+    });
+    await expect(wallet.withdrawToAddress('alice@getbased.test', 10, original)).rejects.toThrow('Wallet mint changed');
+    expect(quote).not.toHaveBeenCalled(); await expect(readIdbMeta('pendingWithdraw')).resolves.toBeNull();
+    const inventory = await wallet.getWalletMints(); expect(inventory.find(row => row.mint === original)?.balance).toBe(100);
+  });
+
   it('auto-reduces lightning-address withdrawals and exposes failed melt recovery', async () => {
     const wallet = await loadWallet() as CashuWalletOperations;
     await wallet.setMintUrl('https://mint.getbased.test/Bitcoin');

@@ -793,28 +793,18 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
 
       await panels.showRoutstrWithdraw();
       await panels.showRoutstrWithdrawLightning();
-      let withdrawInput = (document.getElementById('routstr-withdraw-input') as HTMLInputElement | null);
-      if (!withdrawInput) {
-        (document.getElementById('routstr-wallet-fund-area'))!.innerHTML = '<div id="routstr-withdraw-status"></div>';
-        panels.showRoutstrWithdrawLightning();
-        withdrawInput = (document.getElementById('routstr-withdraw-input') as HTMLInputElement | null);
-      }
-      (withdrawInput)!.value = 'alice@getbased.test';
-      (withdrawInput)!.dispatchEvent(new Event('input', { bubbles: true }));
+      const withdrawInput = (document.getElementById('routstr-withdraw-input') as HTMLInputElement);
+      withdrawInput.value = 'alice@getbased.test';
+      withdrawInput.dispatchEvent(new Event('input', { bubbles: true })); await wait(0);
       const addressShowsAmount = document.getElementById('routstr-withdraw-ln-amount')?.style.display === 'block';
-      let withdrawMaxButton = document.querySelector<HTMLElement>('[data-routstr-wallet-action="withdraw-max"]');
-      if (!withdrawMaxButton) {
-        const statusEl = document.getElementById('routstr-withdraw-status');
-        (statusEl)!.insertAdjacentHTML('beforeend', '<input id="routstr-withdraw-amount"><button data-routstr-wallet-action="withdraw-max"></button>');
-        withdrawMaxButton = document.querySelector<HTMLElement>('[data-routstr-wallet-action="withdraw-max"]');
-      }
+      const withdrawMaxButton = document.querySelector<HTMLElement>('[data-routstr-wallet-action="withdraw-max"]');
       (withdrawMaxButton)!.click();
       await waitFor(() => (document.getElementById('routstr-withdraw-amount') as HTMLInputElement | null)?.value === '1234');
       const withdrawMaxSetsInput = (document.getElementById('routstr-withdraw-amount') as HTMLInputElement | null)?.value === '1234';
       ((document.getElementById('routstr-withdraw-amount') as HTMLInputElement | null))!.value = '100';
       await panels.doRoutstrWithdrawQuote();
       const addressWithdrawCalls = calls.some(item => item[0] === 'withdrawAddress' && item[1] === 'alice@getbased.test' && item[2] === 100);
-      panels.showRoutstrWithdrawLightning();
+      await panels.showRoutstrWithdrawLightning();
       const invoiceInput = (document.getElementById('routstr-withdraw-input') as HTMLInputElement | null);
       (invoiceInput)!.value = 'lnbc200';
       await panels.doRoutstrWithdrawQuote();
@@ -827,8 +817,8 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       document.querySelector<HTMLElement>('[data-routstr-wallet-action="send-token-preset"][data-amount="500"]')?.click();
       await wait(0);
       const tokenPresetCreatesToken = document.getElementById('routstr-token-result')?.textContent.includes('500 sats');
-      document.querySelector<HTMLElement>('[data-routstr-wallet-action="select-textarea"]')?.click();
-      document.querySelector<HTMLElement>('#routstr-token-result [data-routstr-wallet-action="copy-clipboard"]')?.click();
+      document.querySelector<HTMLTextAreaElement>('#routstr-token-result textarea')?.focus();
+      document.querySelector<HTMLElement>('[data-wallet-withdraw-copy]')!.click(); await wait(0);
       const copyDelegateWritesToken = clipboardWrites.some(text => String(text).includes('cashuAsent-500'));
 
       (document.getElementById('routstr-wallet-fund-area'))!.innerHTML = '<div id="routstr-wfund-status"></div>';

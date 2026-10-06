@@ -20,13 +20,12 @@ import { mountWalletMint, getWalletMintView, disposeWalletMint } from './wallet-
 import { createWalletMintController } from './wallet-mint-controller.js';
 import { mountWalletExport, getWalletExportView, disposeWalletExport } from './wallet-export-component.js';
 import { createWalletExportController } from './wallet-export-controller.js';
+import { mountWalletWithdraw, getWalletWithdrawView, disposeWalletWithdraw } from './wallet-withdraw-component.js';
+import { createWalletWithdrawController } from './wallet-withdraw-controller.js';
 import { buildRoutstrNodeActions, routstrWalletActionButtons } from './provider-wallet-panel-buttons.js';
 import {
   routstrNodePickerRowHtml,
   walletMintRowHtml,
-  walletWithdrawHtml,
-  walletWithdrawLightningHtml,
-  walletWithdrawTokenHtml,
 } from './provider-wallet-panel-renderers.js';
 import { clearRoutstrModelCaches } from './routstr-model-cache.js';
 import {
@@ -66,11 +65,12 @@ function _returnToChatIfOnboarding() {
   }
 }
 
+let withdrawClipboardTimer: ReturnType<typeof setTimeout> | null = null;
 let exportClipboardTimer: ReturnType<typeof setTimeout> | null = null;
 let walletAreaRevision = 0;
 let seedClipboardTimer: ReturnType<typeof setTimeout> | null = null;
 function invalidateWalletArea(): void {
-  ++walletAreaRevision; seed.reset(); disposeWalletSeed(); disposeWalletFunding(); disposeWalletExport();
+  ++walletAreaRevision; seed.reset(); disposeWalletSeed(); disposeWalletFunding(); disposeWalletExport(); disposeWalletWithdraw();
 }
 
 function _rsBalanceHtml(sats: number) {
@@ -125,6 +125,23 @@ installRoutstrBalanceSettlementRefresh(refreshRoutstrBalance);
 function isRoutstrActive() {
   return getAIProvider() === 'routstr' && getChatBackend() === 'direct';
 }
+const withdraw = createWalletWithdrawController({
+  view: getWalletWithdrawView, isActive: isRoutstrActive,
+  mint: async () => String(await (walletRuntime as WalletOperations).cashuGetMintUrl()),
+  balance: () => (walletRuntime as WalletOperations).cashuGetBalance(),
+  maximum: mint => (walletRuntime as WalletOperations).cashuGetMaxWithdrawable(mint),
+  quote: (invoice, mint) => (walletRuntime as WalletOperations).cashuCreateWithdrawQuote(invoice, mint),
+  execute: (quote, mint) => (walletRuntime as WalletOperations).cashuExecuteWithdraw(quote, mint),
+  address: (address, amount, mint) => (walletRuntime as WalletOperations).cashuWithdrawToAddress(address, amount, mint),
+  send: (amount, mint) => (walletRuntime as WalletOperations).cashuSendAsToken(amount, mint),
+  recover: () => (walletRuntime as WalletOperations).cashuRecoverPendingWithdraw(),
+  tokenMint: token => (walletRuntime as WalletOperations).cashuGetTokenMintUrl(token),
+  receive: token => (walletRuntime as WalletOperations).cashuReceiveToken(token),
+  clearRecovery: () => (walletRuntime as WalletOperations).cashuClearPendingWithdraw(),
+  writeClipboard: text => navigator.clipboard.writeText(text),
+  scheduleClear: clear => { if (withdrawClipboardTimer) clearTimeout(withdrawClipboardTimer); withdrawClipboardTimer = setTimeout(clear, 60000); },
+  refreshBalance: () => _refreshRoutstrWalletBalance(), notify: showNotification,
+});
 const funding = createWalletFundingController({
   view: getWalletFundingView, isActive: isRoutstrActive,
   mint: async () => String(await (walletRuntime as WalletOperations).cashuGetMintUrl()),
@@ -148,10 +165,6 @@ export function startRoutstrFundingMonitor(options: Parameters<ReturnType<typeof
 }
 for (const event of ['labcharts-ai-settings-local-changed', 'labcharts-ai-settings-synced', 'getbased:chat-backend-changed', 'storage']) {
   globalThis.addEventListener?.(event, () => startRoutstrFundingMonitor());
-}
-
-function _getWalletInput(id: string) {
-  return (document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null);
 }
 
 export function clearRoutstrWalletTimers() {
@@ -534,124 +547,24 @@ export async function showWalletSeedPhrase() {
 }
 
 export async function showRoutstrWithdraw() {
+  const area = document.getElementById('routstr-wallet-fund-area'); if (!area || !isRoutstrActive()) return;
+  const closing = area.style.display !== 'none' && _activeWalletAction === 'withdraw';
   invalidateWalletArea();
-  const area = document.getElementById('routstr-wallet-fund-area');
-  if (!area) return;
-  if (area.style.display !== 'none' && _activeWalletAction === 'withdraw') { area.style.display = 'none'; _setActiveWalletAction(null); return; }
-  _setActiveWalletAction('withdraw');
-  area.style.display = 'block';
-  const revision = walletAreaRevision;
-  const balance = await (walletRuntime as WalletOperations).cashuGetBalance() as number;
-  if (revision !== walletAreaRevision || !area.isConnected || area !== document.getElementById('routstr-wallet-fund-area')) return;
-  area.innerHTML = walletWithdrawHtml(balance);
-}
-
-export function showRoutstrWithdrawLightning() {
-  const statusEl = document.getElementById('routstr-withdraw-status');
-  if (!statusEl) return;
-  statusEl.innerHTML = walletWithdrawLightningHtml();
-  const input = _getWalletInput('routstr-withdraw-input');
-  input?.addEventListener('input', () => {
-    const val = input.value.trim();
-    const needsAmount = val.includes('@') && !val.match(/^ln(bc|tb|bcrt)/);
-    const amount = document.getElementById('routstr-withdraw-ln-amount');
-    if (amount) amount.style.display = needsAmount ? 'block' : 'none';
+  if (closing) { area.style.display = 'none'; _setActiveWalletAction(null); return; }
+  _setActiveWalletAction('withdraw'); area.style.display = 'block';
+  const view = mountWalletWithdraw(area, {
+    lightning: () => withdraw.mode('lightning'), token: () => withdraw.mode('token'), maximum: withdraw.maximum,
+    quote: withdraw.quote, execute: () => withdraw.execute(), send: withdraw.send, copy: withdraw.copy,
+    recover: withdraw.recover, reclaim: withdraw.reclaim,
+    close: () => { if (getWalletWithdrawView() !== view) return; invalidateWalletArea(); area.style.display = 'none'; _setActiveWalletAction(null); },
   });
+  await withdraw.load(view);
 }
-
-export async function showRoutstrWithdrawToken() {
-  const statusEl = document.getElementById('routstr-withdraw-status');
-  if (!statusEl) return;
-  const balance = await (walletRuntime as WalletOperations).cashuGetBalance() as number;
-  const presets = [100, 500, 1000, 2500].filter(v => v <= balance);
-  statusEl.innerHTML = walletWithdrawTokenHtml(balance, presets);
-}
-
-export async function doRoutstrSendToken(amount: number) {
-  const resultEl = document.getElementById('routstr-token-result');
-  if (!resultEl) return;
-  if (!amount || amount < 1 || isNaN(amount)) {
-    resultEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Enter a valid amount</div>';
-    return;
-  }
-  resultEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Creating token\u2026</div>';
-  try {
-    const result = await (walletRuntime as WalletOperations).cashuSendAsToken(amount) as {amount: {toLocaleString(): unknown}; token?: unknown};
-    resultEl.innerHTML = `<div style="margin-top:6px">
-      <div style="font-size:11px;color:var(--green);margin-bottom:4px">\u2713 Token created \u2014 \u26a1 ${result.amount.toLocaleString()} sats</div>
-      <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Copy and share. Sats are deducted from your wallet now.</div>
-      <textarea class="api-key-input" style="font-size:10px;font-family:monospace;height:60px;resize:none;user-select:all" readonly data-routstr-wallet-action="select-textarea">${escapeHTML(result.token)}</textarea>
-      <button class="import-btn import-btn-secondary" style="margin-top:4px;width:100%" data-routstr-wallet-action="copy-clipboard" data-clipboard-text="${escapeAttr(result.token)}" data-copied-text="\u2713 Copied (60s)" data-clear-timer="_tokenClipTimer">Copy Token</button>
-    </div>`;
-    // Rendering/copying is not delivery. Retain the journal until spent or reclaimed.
-    showNotification('\u26a1 ' + result.amount.toLocaleString() + ' sats token ready', 'success');
-    _refreshRoutstrWalletBalance();
-  } catch (e) {
-    resultEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
-  }
-}
-
-export async function doRoutstrWithdrawQuote() {
-  const input = _getWalletInput('routstr-withdraw-input');
-  const statusEl = document.getElementById('routstr-withdraw-status');
-  if (!input || !statusEl) return;
-  const val = input.value.trim();
-  if (!val) {
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Enter a Lightning invoice or address</div>';
-    return;
-  }
-  const isAddress = val.includes('@') && !val.match(/^ln(bc|tb|bcrt)/);
-  if (isAddress) {
-    const amountInput = _getWalletInput('routstr-withdraw-amount');
-    const amount = parseInt(amountInput?.value || '', 10) || 0;
-    if (!amount || amount < 1) {
-      statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Enter an amount in sats</div>';
-      return;
-    }
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Withdrawing to ' + escapeHTML(val) + '\u2026</div>';
-    try {
-      const withdrawal = await (walletRuntime as WalletOperations).cashuWithdrawToAddress(val, amount) as {paid?: unknown; amount: {toLocaleString(): unknown}};
-      if (!withdrawal.paid) throw new Error('Payment is still awaiting confirmation');
-      statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--green)">\u2713 Sent ' + withdrawal.amount.toLocaleString() + ' sats to ' + escapeHTML(val) + '</div>';
-      showNotification('Withdrawal complete', 'success');
-      _refreshRoutstrWalletBalance();
-    } catch (e) {
-      statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
-    }
-    return;
-  }
-  if (!val.match(/^ln(bc|tb|bcrt)/)) {
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Enter a Lightning invoice (lnbc\u2026) or address (user@domain)</div>';
-    return;
-  }
-  statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Checking fee\u2026</div>';
-  try {
-    const quote = await (walletRuntime as WalletOperations).cashuCreateWithdrawQuote(val) as {amount: number; fee_reserve: number; quote?: unknown};
-    statusEl.innerHTML = `<div style="margin-top:6px;padding:8px;background:var(--bg-primary);border-radius:6px;border:1px solid var(--border)">
-      <div style="font-size:11px;color:var(--text-muted)">Amount: <strong>${quote.amount.toLocaleString()} sats</strong></div>
-      <div style="font-size:11px;color:var(--text-muted)">Fee reserve: <strong>${quote.fee_reserve.toLocaleString()} sats</strong></div>
-      <div style="font-size:11px;color:var(--text-muted)">Total: <strong>${(quote.amount + quote.fee_reserve).toLocaleString()} sats</strong></div>
-      <button class="import-btn import-btn-primary" style="margin-top:6px;width:100%" data-routstr-wallet-action="withdraw-execute" data-quote-id="${escapeAttr(quote.quote)}">Confirm Withdraw</button>
-    </div>`;
-  } catch (e) {
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
-  }
-}
-
-export async function doRoutstrWithdrawExecute(quoteId: string) {
-  const statusEl = document.getElementById('routstr-withdraw-status');
-  if (!statusEl) return;
-  statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Withdrawing\u2026</div>';
-  try {
-    const result = await (walletRuntime as WalletOperations).cashuExecuteWithdraw(quoteId) as {paid?: unknown};
-    if (!result.paid) throw new Error('Payment is still awaiting confirmation');
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--green)">\u2713 Withdrawn! Lightning payment sent.</div>';
-    showNotification('Withdrawal complete', 'success');
-    _refreshRoutstrWalletBalance();
-  } catch (e) {
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
-  }
-}
+export function showRoutstrWithdrawLightning() { return withdraw.mode('lightning'); }
+export function showRoutstrWithdrawToken() { return withdraw.mode('token'); }
+export function doRoutstrSendToken(amount: number) { return withdraw.send(amount); }
+export function doRoutstrWithdrawQuote() { return withdraw.quote(); }
+export function doRoutstrWithdrawExecute(quoteId: string) { return withdraw.execute(quoteId); }
 
 export function doRoutstrWalletRestore() { return seed.restore(); }
 

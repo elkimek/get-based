@@ -240,6 +240,18 @@ lazy Settings provider bridge retains its loaded wallet module for synchronous
 disposal on Settings close or provider switch; private fields scrub immediately
 while accepted domain operations and scheduled clipboard clearing can finish.
 
+`WalletWithdraw.svelte` owns Lightning invoice/address inputs, fee review, token
+amounts, outgoing token disclosure and recovery. Its controller keeps destinations,
+quote identifiers and token text in private view ports, binds transactions to the
+initiating mint and prevents duplicate financial operations across remounts. Closing
+scrubs retained DOM fields while accepted domain operations and clipboard clearing
+finish. Quotes and maximum replies check the owner and unchanged draft before
+presentation. Expected-mint checks run inside domain wallet locks before quote,
+send or payment writes; Lightning-address invoice resolution carries that mint
+across its separately locked quote and payment steps. A paid receipt requires an
+explicit confirmed result. Copying or rendering never clears outgoing journals;
+reclamation clears them only through verified domain reconciliation.
+
 `WalletSeed.svelte` owns device setup, acknowledgement, masked/revealed recovery
 words and restoration. `wallet-seed-component.ts` synchronously mounts, updates
 and scrubs its private word/draft ports. Words stay absent from generic snapshots

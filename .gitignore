@@ -1645,3 +1645,8 @@ deploy/profile-share/data/
 /tests/wallet-mint-export-owned.test.js
 
 /js/cashu-wallet-mint-requests.js
+
+# Owned withdrawal TypeScript runtime output
+/js/wallet-withdraw-component.js
+/js/wallet-withdraw-contract.js
+/js/wallet-withdraw-controller.js

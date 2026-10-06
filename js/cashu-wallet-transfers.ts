@@ -84,6 +84,13 @@ function getMintUrl() {
   return cashuWalletTransferDeps.getMintUrl();
 }
 
+/** Check the initiating mint inside the wallet lock before any transfer writes. */
+async function transferMint(expectedMint?: string): Promise<string> {
+  const mint = await getMintUrl();
+  if (expectedMint !== undefined && _normalizeMintUrl(expectedMint) !== mint) throw new Error('Wallet mint changed. Reopen withdrawal for the selected mint.');
+  return mint;
+}
+
 function _getWallet(mintUrl?: string) {
   if (!cashuWalletTransferDeps.getWallet) throw new Error('Cashu transfers require getWallet');
   return cashuWalletTransferDeps.getWallet(mintUrl);
@@ -238,10 +245,10 @@ export async function savePendingWithdrawToken(token: string, source = 'manual')
 
 /** Create a melt quote for paying a Lightning invoice.
  *  Returns { quote, amount, fee_reserve, state } */
-export async function createWithdrawQuote(bolt11Invoice: string) {
+export async function createWithdrawQuote(bolt11Invoice: string, expectedMint?: string) {
   const invoice = validateLightningInvoice(bolt11Invoice);
   return _withWalletLock(async () => {
-    const mintUrl = await getMintUrl();
+    const mintUrl = await transferMint(expectedMint);
     const wallet = await _getWallet(mintUrl);
     const quote = await wallet.createMeltQuoteBolt11(invoice.invoice) as MeltQuote;
     const quoteAmount = _amountToNumber(quote.amount);
@@ -259,11 +266,11 @@ export async function createWithdrawQuote(bolt11Invoice: string) {
 
 /** Execute withdrawal — pays the Lightning invoice from wallet proofs.
  *  Returns { paid, change } */
-export async function executeWithdraw(quoteId: string) {
+export async function executeWithdraw(quoteId: string, expectedMint?: string) {
   return _withWalletLock(async () => {
+    const mintUrl = await transferMint(expectedMint);
     await _ensureNoPendingSwap();
     const cashuts = await _cashuLib();
-    const mintUrl = await getMintUrl();
     if ((await _getMeta('pendingWithdraw') as string | null)) await _recoverPendingWithdrawUnlocked();
     if ((await _getMeta('pendingWithdraw') as string | null)) throw new Error('Recover the previous pending withdrawal first');
     const wallet = await _getWallet(mintUrl);
@@ -327,19 +334,21 @@ export async function executeWithdraw(quoteId: string) {
 /** Withdraw to a Lightning address (user@domain).
  *  Auto-reduces amount if balance can't cover fee reserve.
  *  Returns { paid, amount, balance } */
-export async function withdrawToAddress(address: string, amountSats: number) {
+export async function withdrawToAddress(address: string, amountSats: number, expectedMint?: string) {
   positiveSats(amountSats);
+  const mint = await transferMint(expectedMint);
   const balance = await getWalletBalance();
+  await transferMint(mint);
   // Try full amount first, reduce if fee reserve exceeds balance
   let tryAmount = amountSats;
   for (let attempt = 0; attempt < 3; attempt++) {
     const invoice = await _lnAddressToInvoice(address, tryAmount);
     if (!invoice) throw new Error('Amount out of range for this Lightning address');
-    const quote = await createWithdrawQuote(invoice);
+    const quote = await createWithdrawQuote(invoice, mint);
     if (quote.amount !== tryAmount) throw new Error('Invoice does not match the requested withdrawal amount');
     const needed = quote.amount + quote.fee_reserve;
     if (balance >= needed) {
-      const result = await executeWithdraw(quote.quote);
+      const result = await executeWithdraw(quote.quote, mint);
       return { paid: true, amount: tryAmount, balance: result.change };
     }
     // Reduce by the fee reserve shortfall + small buffer
@@ -351,8 +360,10 @@ export async function withdrawToAddress(address: string, amountSats: number) {
 
 /** Estimate max withdrawable amount (balance minus ~1% fee reserve estimate).
  *  Returns sats. Actual max depends on the specific invoice/route. */
-export async function getMaxWithdrawable() {
+export async function getMaxWithdrawable(expectedMint?: string) {
+  const mint = await transferMint(expectedMint);
   const balance = await getWalletBalance();
+  await transferMint(mint);
   // Lightning fee reserve is typically ~1% but varies. Use conservative 2% estimate.
   return Math.max(0, Math.floor(balance * 0.98) - 2);
 }
@@ -386,12 +397,12 @@ export async function retryFeeAutoMelt(operationMint: string | undefined = undef
 
 /** Send sats from wallet as a Cashu token string.
  *  Returns { token, amount, remaining } */
-export async function sendAsToken(amountSats: number) {
+export async function sendAsToken(amountSats: number, expectedMint?: string) {
   positiveSats(amountSats);
   return _withWalletLock(async () => {
+    const mintUrl = await transferMint(expectedMint);
     await _ensureNoPendingSwap();
     const cashuts = await _cashuLib();
-    const mintUrl = await getMintUrl();
     if ((await _getMeta('pendingWithdraw') as string | null)) await _recoverPendingWithdrawUnlocked();
     if ((await _getMeta('pendingWithdraw') as string | null)) throw new Error('Deliver or recover the previous outgoing token first');
     const proofs = await _pruneSpentProofs(true, mintUrl);

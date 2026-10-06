@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 940 |
-| Internal import edges | 3729 |
+| Modules | 944 |
+| Internal import edges | 3734 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -74,8 +74,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/profile.ts`](js/profile.ts) | 51 | [`js/wearables-connect.ts`](js/wearables-connect.ts) | 28 |
 | [`js/api.ts`](js/api.ts) | 48 | [`js/export.ts`](js/export.ts) | 25 |
 | [`js/schema.ts`](js/schema.ts) | 42 | [`js/lab-context.ts`](js/lab-context.ts) | 24 |
-| [`js/crypto.ts`](js/crypto.ts) | 39 | [`js/provider-panels.ts`](js/provider-panels.ts) | 23 |
-| [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts) | 36 | [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) | 22 |
+| [`js/crypto.ts`](js/crypto.ts) | 39 | [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) | 24 |
+| [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts) | 36 | [`js/provider-panels.ts`](js/provider-panels.ts) | 23 |
 | [`js/data-merge.ts`](js/data-merge.ts) | 34 | [`js/views.ts`](js/views.ts) | 22 |
 | [`js/utils-runtime.ts`](js/utils-runtime.ts) | 27 | [`js/chat-render.ts`](js/chat-render.ts) | 20 |
 | [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts) | 25 | [`js/dashboard-view-composition.ts`](js/dashboard-view-composition.ts) | 20 |
@@ -1189,7 +1189,7 @@ Native browser modules shipped with the static application.
 - [`js/provider-wallet-funding-recovery.ts`](js/provider-wallet-funding-recovery.ts) → [`js/cashu-funding-monitor.ts`](js/cashu-funding-monitor.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/provider-qr.ts`](js/provider-qr.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/utils.ts`](js/utils.ts), [`js/wallet-funding-component.ts`](js/wallet-funding-component.ts), [`js/wallet-funding-presentation.ts`](js/wallet-funding-presentation.ts)
 - [`js/provider-wallet-panel-buttons.ts`](js/provider-wallet-panel-buttons.ts) → [`js/utils.ts`](js/utils.ts)
 - [`js/provider-wallet-panel-renderers.ts`](js/provider-wallet-panel-renderers.ts) → [`js/utils.ts`](js/utils.ts)
-- [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) → [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/provider-wallet-delegates.ts`](js/provider-wallet-delegates.ts), [`js/provider-wallet-funding-recovery.ts`](js/provider-wallet-funding-recovery.ts), [`js/provider-wallet-panel-buttons.ts`](js/provider-wallet-panel-buttons.ts), [`js/provider-wallet-panel-renderers.ts`](js/provider-wallet-panel-renderers.ts), [`js/provider-wallet-refund-recovery.ts`](js/provider-wallet-refund-recovery.ts), [`js/provider-wallet-runtime.ts`](js/provider-wallet-runtime.ts), [`js/routstr-balance-settlement.ts`](js/routstr-balance-settlement.ts), [`js/routstr-model-cache.ts`](js/routstr-model-cache.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts), [`js/wallet-export-component.ts`](js/wallet-export-component.ts), [`js/wallet-export-controller.ts`](js/wallet-export-controller.ts), [`js/wallet-funding-component.ts`](js/wallet-funding-component.ts), [`js/wallet-funding-controller.ts`](js/wallet-funding-controller.ts), [`js/wallet-mint-component.ts`](js/wallet-mint-component.ts), [`js/wallet-mint-controller.ts`](js/wallet-mint-controller.ts), [`js/wallet-seed-component.ts`](js/wallet-seed-component.ts), [`js/wallet-seed-controller.ts`](js/wallet-seed-controller.ts)
+- [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) → [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/api.ts`](js/api.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/provider-wallet-delegates.ts`](js/provider-wallet-delegates.ts), [`js/provider-wallet-funding-recovery.ts`](js/provider-wallet-funding-recovery.ts), [`js/provider-wallet-panel-buttons.ts`](js/provider-wallet-panel-buttons.ts), [`js/provider-wallet-panel-renderers.ts`](js/provider-wallet-panel-renderers.ts), [`js/provider-wallet-refund-recovery.ts`](js/provider-wallet-refund-recovery.ts), [`js/provider-wallet-runtime.ts`](js/provider-wallet-runtime.ts), [`js/routstr-balance-settlement.ts`](js/routstr-balance-settlement.ts), [`js/routstr-model-cache.ts`](js/routstr-model-cache.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts), [`js/wallet-export-component.ts`](js/wallet-export-component.ts), [`js/wallet-export-controller.ts`](js/wallet-export-controller.ts), [`js/wallet-funding-component.ts`](js/wallet-funding-component.ts), [`js/wallet-funding-controller.ts`](js/wallet-funding-controller.ts), [`js/wallet-mint-component.ts`](js/wallet-mint-component.ts), [`js/wallet-mint-controller.ts`](js/wallet-mint-controller.ts), [`js/wallet-seed-component.ts`](js/wallet-seed-component.ts), [`js/wallet-seed-controller.ts`](js/wallet-seed-controller.ts), [`js/wallet-withdraw-component.ts`](js/wallet-withdraw-component.ts), [`js/wallet-withdraw-controller.ts`](js/wallet-withdraw-controller.ts)
 - [`js/provider-wallet-refund-recovery.ts`](js/provider-wallet-refund-recovery.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/provider-wallet-runtime.ts`](js/provider-wallet-runtime.ts), [`js/routstr-validation.ts`](js/routstr-validation.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/provider-wallet-runtime.ts`](js/provider-wallet-runtime.ts) → [`js/cashu-wallet.ts`](js/cashu-wallet.ts), [`js/nostr-discovery.ts`](js/nostr-discovery.ts)
 
@@ -1677,7 +1677,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>wallet</code> family — 13 modules</summary>
+<details><summary><code>wallet</code> family — 16 modules</summary>
 
 - [`js/wallet-export-component.ts`](js/wallet-export-component.ts) → [`js/components/WalletExport.svelte`](js/components/WalletExport.svelte)
 - [`js/wallet-export-contract.ts`](js/wallet-export-contract.ts) → no in-scope imports
@@ -1692,6 +1692,9 @@ Native browser modules shipped with the static application.
 - [`js/wallet-seed-component.ts`](js/wallet-seed-component.ts) → [`js/components/WalletSeed.svelte`](js/components/WalletSeed.svelte)
 - [`js/wallet-seed-contract.ts`](js/wallet-seed-contract.ts) → no in-scope imports
 - [`js/wallet-seed-controller.ts`](js/wallet-seed-controller.ts) → no in-scope imports
+- [`js/wallet-withdraw-component.ts`](js/wallet-withdraw-component.ts) → [`js/components/WalletWithdraw.svelte`](js/components/WalletWithdraw.svelte)
+- [`js/wallet-withdraw-contract.ts`](js/wallet-withdraw-contract.ts) → no in-scope imports
+- [`js/wallet-withdraw-controller.ts`](js/wallet-withdraw-controller.ts) → no in-scope imports
 
 </details>
 
@@ -1716,6 +1719,12 @@ Native browser modules shipped with the static application.
 <details><summary><code>WalletSeed.svelte</code> family — 1 module</summary>
 
 - [`js/components/WalletSeed.svelte`](js/components/WalletSeed.svelte) → [`js/provider-settings-classes.ts`](js/provider-settings-classes.ts), [`js/wallet-seed-contract.ts`](js/wallet-seed-contract.ts)
+
+</details>
+
+<details><summary><code>WalletWithdraw.svelte</code> family — 1 module</summary>
+
+- [`js/components/WalletWithdraw.svelte`](js/components/WalletWithdraw.svelte) → [`js/provider-settings-classes.ts`](js/provider-settings-classes.ts), [`js/wallet-withdraw-contract.ts`](js/wallet-withdraw-contract.ts)
 
 </details>
 

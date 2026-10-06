@@ -1,10 +1,12 @@
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { AddressInfo, Socket } from 'node:net';
 
 /** Serve only the assembled public artifact, with the deployed CSP and isolated releases. */
-export async function startKitServer(artifact: string) {
+export type KitServerRoute = (request: IncomingMessage, response: ServerResponse) => Promise<boolean>;
+export async function startKitServer(artifact: string, routes: KitServerRoute[] = []) {
   const deployment = JSON.parse(await fs.readFile('vercel.json', 'utf8')) as { routes: { headers?: Record<string, string> }[] };
   const csp = deployment.routes.map(route => route.headers?.['Content-Security-Policy']).find(Boolean)!;
   const state = { buildId: 'kit-test-a', offline: false, failPath: '' };
@@ -14,6 +16,7 @@ export async function startKitServer(artifact: string) {
   const server = http.createServer(async (req, res) => {
     if (state.offline) { req.socket.destroy(); return; }
     try {
+      for (const route of routes) if (await route(req, res)) return;
       let pathname = new URL(req.url!, 'http://localhost').pathname;
       if (pathname === state.failPath) { res.writeHead(503); res.end('Unavailable'); return; }
       if (pathname === '/js/bundle-legacy-probe-AAA.js') {
