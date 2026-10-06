@@ -40,12 +40,13 @@ test('provider panel renderers cover Venice and Local AI markup branches', async
 
       fixture.innerHTML = renderers.renderAIProviderPanel('venice');
       document.body.appendChild(fixture);
+      (await import('/js/provider-panels.js')).hydrateVeniceSettings();
       const veniceSelect = fixture.querySelector<HTMLSelectElement>('#venice-model-select');
       const veniceE2EERenders = fixture.querySelector<HTMLElement>('#venice-key-status')?.textContent.includes('Connected')
         && fixture.querySelector<HTMLInputElement>('#venice-key-input')?.value === 'venice-test-key'
         && veniceSelect?.value === 'e2ee-model'
         && fixture.querySelector<HTMLInputElement>('#venice-e2ee-toggle')?.checked === true
-        && fixture.querySelector<HTMLElement>('#venice-e2ee-indicator')?.style.display === ''
+        && fixture.querySelector<HTMLElement>('#venice-e2ee-indicator')?.hidden === false
         && fixture.querySelector<HTMLOptionElement>('#venice-model-select option[value="e2ee-model"]')?.textContent === 'Secure <Model>'
         && !!fixture.querySelector<HTMLElement>('[data-provider-panel-action="remove-venice-key"]');
 
@@ -53,8 +54,11 @@ test('provider panel renderers cover Venice and Local AI markup branches', async
       localStorage.setItem('labcharts-venice-model', 'regular-model');
       localStorage.setItem('labcharts-venice-e2ee-models', '[]');
       fixture.innerHTML = renderers.renderAIProviderPanel('venice');
-      const veniceMissingE2EEDisables = !fixture.querySelector<HTMLInputElement>('#venice-e2ee-toggle')
-        && fixture.querySelector<HTMLSelectElement>('#venice-model-select')?.value === 'regular-model';
+      (await import('/js/provider-panels.js')).hydrateVeniceSettings();
+      const veniceMissingE2EEPreservesPreference = fixture.querySelector<HTMLInputElement>('#venice-e2ee-toggle')?.checked === true
+        && localStorage.getItem('labcharts-venice-e2ee') === 'on'
+        && localStorage.getItem('labcharts-venice-model') === 'regular-model'
+        && fixture.textContent.includes('Encrypted mode remains enabled');
 
       const ollamaConfig = JSON.stringify({
         url: 'https://local.example/v1',
@@ -65,6 +69,7 @@ test('provider panel renderers cover Venice and Local AI markup branches', async
       localStorage.setItem('labcharts-ollama', ollamaConfig);
       crypto.updateKeyCache('labcharts-ollama', ollamaConfig);
       // Local AI has no named provider case, so it is rendered through the default fallback.
+      (await import('/js/venice-settings-component.js')).disposeVeniceSettings();
       fixture.innerHTML = renderers.renderAIProviderPanel('unknown-provider');
       const localAIRenders = fixture.querySelector<HTMLInputElement>('#local-ai-url-input')?.value === 'https://local.example'
         && fixture.querySelector<HTMLInputElement>('#local-ai-apikey-input')?.value === 'local-secret'
@@ -75,7 +80,7 @@ test('provider panel renderers cover Venice and Local AI markup branches', async
 
       return {
         veniceE2EERenders,
-        veniceMissingE2EEDisables,
+        veniceMissingE2EEPreservesPreference,
         localAIRenders,
       };
     } finally {
@@ -87,6 +92,7 @@ test('provider panel renderers cover Venice and Local AI markup branches', async
       else crypto.updateKeyCache('labcharts-venice-key', oldCache.veniceKey);
       if (oldCache.ollama == null) crypto.updateKeyCache('labcharts-ollama', null);
       else crypto.updateKeyCache('labcharts-ollama', oldCache.ollama);
+      (await import('/js/venice-settings-component.js')).disposeVeniceSettings();
       fixture.remove();
     }
   }, { renderersUrl: moduleUrl('/js/provider-panel-renderers.js') });
@@ -147,8 +153,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       document.body.insertAdjacentHTML('beforeend', `
         <section id="ai-provider-panel">
           <div id="openrouter-owned-fixture"></div>
-          <div id="venice-model-area"></div>
-          <div id="venice-e2ee-indicator" style="display:none"></div>
+          <div id="venice-owned-fixture"></div>
           <div id="routstr-model-area"></div>
           <div id="ppq-model-area"></div>
           <div id="custom-model-area"></div>
@@ -251,6 +256,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       localStorage.setItem('labcharts-venice-model', 'regular-a');
       localStorage.setItem('labcharts-venice-models', JSON.stringify([{ id: 'regular-a', name: 'Regular A' }]));
       localStorage.setItem('labcharts-venice-e2ee-models', JSON.stringify([{ id: 'e2ee-secure', name: 'Secure E2EE' }]));
+      (await import('/js/venice-settings-component.js')).mountVeniceSettings(document.getElementById('venice-owned-fixture')!, (await import('/js/venice-settings-view.js')).buildVeniceSettingsSnapshot());
       controls.renderVeniceModelDropdown([
         { id: 'regular-a', name: 'Regular A' },
         { id: 'claude-fable-5-1', name: 'Claude Fable 5.1' },
@@ -266,7 +272,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       controls.toggleVeniceE2EE(true);
       const veniceE2EEEnabled = localStorage.getItem('labcharts-venice-e2ee') === 'on'
         && localStorage.getItem('labcharts-venice-model') === 'e2ee-secure'
-        && (document.getElementById('venice-e2ee-indicator') as HTMLElement|null)?.style.display === ''
+        && (document.getElementById('venice-e2ee-indicator') as HTMLElement|null)?.hidden === false
         && headerRefreshes >= 1
         && searchRefreshes >= 1;
       controls.toggleVeniceE2EE(false);
@@ -659,13 +665,10 @@ test('provider panels cover provider switching key saves balances custom API and
         && (document.getElementById('openrouter-model-select') as HTMLSelectElement|null)?.value === 'openai/gpt-6-astra'
         && ((document.getElementById('or-balance') as HTMLElement|null)?.textContent || '').includes('$0.75');
 
-      panel!.innerHTML = `
-        <input id="venice-key-input" value="venice-good">
-        <button id="save-venice-key-btn">Save</button>
-        <div id="venice-key-status"></div>
-        <div id="venice-model-area"></div>
-        <span id="venice-balance"></span>
-      `;
+      localStorage.setItem('labcharts-ai-provider', 'venice');
+      panel!.innerHTML = (await import('/js/provider-panel-renderers.js')).renderAIProviderPanel('venice');
+      (await import('/js/provider-panels.js')).hydrateOwnedProviderSettings();
+      (await import('/js/venice-settings-component.js')).getVeniceSettingsView()!.setStoredKey('venice-good');
       await panels.handleSaveVeniceKey();
       panels.refreshVeniceBalance();
       await wait(50);

@@ -39,9 +39,9 @@ it('preserves legacy Settings CSS and scopes generated utilities without a reset
   const mealModels = selectors.filter(selector => selector.includes('.gb\\:meal-model'));
   expect(mealModels.length).toBeGreaterThan(15);
   expect(mealModels.every(selector => selector.includes(':is(#nutrition-ai-model-settings,#nutrition-ai-model-settings *)'))).toBe(true);
-  const openRouter = selectors.filter(selector => selector.includes('.gb\\:openrouter'));
-  expect(openRouter.length).toBeGreaterThan(35);
-  expect(openRouter.every(selector => selector.includes(':is([data-openrouter-settings-view],[data-openrouter-settings-view] *)'))).toBe(true);
+  const cloudProviders = selectors.filter(selector => selector.includes('.gb\\:cloud-provider'));
+  expect(cloudProviders.length).toBeGreaterThan(35);
+  expect(cloudProviders.every(selector => selector.includes(':is([data-cloud-provider-settings-view],[data-cloud-provider-settings-view] *)'))).toBe(true);
   expect(utilities).toContain(':checked');
   expect(utilities).toContain('color:var(--warning-ink)');
   expect(selectors).not.toContain('body');

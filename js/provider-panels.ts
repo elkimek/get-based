@@ -1,6 +1,9 @@
 // provider-panels.js - AI provider settings behavior, balance display, key validation, and wallet flows
 
-import type { ProviderPanelOperations, ProviderPanelDependencies, ProviderPanelActionReader, ProviderPanelWalletOperations, ProviderPanelVeniceBalance } from '../types/provider-panels.js';
+import type { ProviderPanelOperations, ProviderPanelDependencies, ProviderPanelActionReader, ProviderPanelWalletOperations } from '../types/provider-panels.js';
+import { getVeniceSettingsView, mountVeniceSettings, disposeVeniceSettings } from './venice-settings-component.js';
+import { buildVeniceSettingsSnapshot, veniceBalance } from './venice-settings-view.js';
+import { saveVeniceSettingsKey, isVeniceKeySavePending } from './venice-key-controller.js';
 import { getOpenRouterSettingsView, mountOpenRouterSettings, disposeOpenRouterSettings } from './openrouter-settings-component.js';
 import { buildOpenRouterSettingsSnapshot, openRouterBalance } from './openrouter-settings-view.js';
 import { saveOpenRouterSettingsKey, isOpenRouterKeySavePending } from './openrouter-key-controller.js';
@@ -20,7 +23,6 @@ import {
   clearVeniceE2EESession, hasAIProvider,
   setAIPaused,
   setCustomApiModel, setOllamaMainModel, setPpqModel,
-  getVeniceE2EE,
   getCustomApiUrl, setCustomApiUrl, getCustomApiKey, saveCustomApiKey,
   fetchCustomApiModels, validateCustomApiKey,
   rememberOpenRouterOAuthPreviousProvider, clearOpenRouterOAuthSession, startOpenRouterOAuth
@@ -46,7 +48,6 @@ import {
   renderCustomApiModelDropdown,
   renderOpenRouterModelDropdown,
   renderRoutstrModelDropdown,
-  renderVeniceModelDropdown,
   togglePpqPrivateMode,
   toggleRoutstrPrivateMode,
   toggleVeniceE2EE,
@@ -197,6 +198,22 @@ export function hydrateOpenRouterSettings(): void {
   if (view !== existing) view.setStoredKey(getOpenRouterKey());
 }
 
+export function hydrateVeniceSettings(): void {
+  const host = document.querySelector<HTMLElement>('[data-venice-settings-host]');
+  if (!host) { disposeVeniceSettings(); return; }
+  const existing = getVeniceSettingsView();
+  const view = mountVeniceSettings(host, buildVeniceSettingsSnapshot());
+  if (view !== existing) view.setStoredKey(getVeniceKey());
+}
+export function hydrateOwnedProviderSettings(): void {
+  hydrateOpenRouterSettings();
+  hydrateVeniceSettings();
+}
+function disposeOwnedProviderSettings(): void {
+  disposeOpenRouterSettings();
+  disposeVeniceSettings();
+}
+
 // ═══════════════════════════════════════════════
 // AI PAUSE / PROVIDER SWITCH
 // ═══════════════════════════════════════════════
@@ -220,7 +237,7 @@ export async function switchAIProvider(provider: unknown, { previousProvider = g
   clearPpqTopupTimers();
   clearRoutstrWalletTimers();
   const panel = document.getElementById('ai-provider-panel');
-  if (panel) { disposeOpenRouterSettings(); panel.innerHTML = renderAIProviderPanel(provider); hydrateOpenRouterSettings(); }
+  if (panel) { disposeOwnedProviderSettings(); panel.innerHTML = renderAIProviderPanel(provider); hydrateOwnedProviderSettings(); }
   const modal = document.getElementById('settings-modal');
   if (modal) {
     modal.querySelectorAll('.ai-provider-btn').forEach(btn => {
@@ -236,7 +253,7 @@ export async function switchAIProvider(provider: unknown, { previousProvider = g
     if (!activated || !isCurrent()) {
       (setAIProvider as (provider: unknown) => ReturnType<typeof setAIProvider>)(previousProvider);
       const restoredPanel = isCurrent() ? document.getElementById('ai-provider-panel') : null;
-      if (restoredPanel) { disposeOpenRouterSettings(); restoredPanel.innerHTML = renderAIProviderPanel(previousProvider); hydrateOpenRouterSettings(); }
+      if (restoredPanel) { disposeOwnedProviderSettings(); restoredPanel.innerHTML = renderAIProviderPanel(previousProvider); hydrateOwnedProviderSettings(); }
       if (isCurrent()) modal?.querySelectorAll('.ai-provider-btn').forEach(btn => {
         const providerBtn = /** @type {HTMLElement} */ (btn) as HTMLElement;
         providerBtn.classList.toggle('active', providerBtn.dataset.provider === previousProvider);
@@ -264,18 +281,12 @@ export function initSettingsModelFetch() {
     void refreshOpenRouterBalance();
   }
   const veniceKey = getVeniceKey();
-  if (veniceKey && document.getElementById('venice-model-area')) {
-    fetchVeniceModels(veniceKey).then(function() {
-      // After fetch, render the right list based on E2EE state
-      const listKey = getVeniceE2EE() ? 'labcharts-venice-e2ee-models' : 'labcharts-venice-models';
-      let models: unknown = []; try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch(e) {}
-      if ((models as { length: unknown }).length) (renderVeniceModelDropdown as (models: unknown) => ReturnType<typeof renderVeniceModelDropdown>)(models);
+  const veniceView = getVeniceSettingsView();
+  if (veniceKey && veniceView && getAIProvider() === 'venice') {
+    fetchVeniceModels(veniceKey, { isCurrent: () => getVeniceKey() === veniceKey }).then(() => {
+      if (veniceView.isCurrent() && getVeniceKey() === veniceKey && getAIProvider() === 'venice') veniceView.refresh(buildVeniceSettingsSnapshot());
     });
-    getVeniceBalance().then(function(b) {
-      const el = document.getElementById('venice-balance');
-      if (el && b) el.innerHTML = _veniceBalanceHtml(b);
-      else if (el) el.textContent = 'Balance: unavailable';
-    });
+    void refreshVeniceBalance();
   }
   const rsKey = getRoutstrKey();
   if (rsKey && document.getElementById('routstr-model-area')) {
@@ -434,60 +445,37 @@ export function acknowledgeRoutstrKey() {
 // ═══════════════════════════════════════════════
 // VENICE HANDLERS
 // ═══════════════════════════════════════════════
-function _veniceBalanceHtml(b: ProviderPanelVeniceBalance) {
-  if (b.diem != null) {
-    const v = (parseFloat as (value: unknown) => number)(b.diem); // 1 DIEM = 1 USD
-    const color = v < 0.10 ? 'var(--red)' : v < 0.50 ? 'var(--yellow, #f0a800)' : 'var(--green)';
-    return 'Balance: <span style="color:' + color + '">$' + v.toFixed(2) + '</span>';
+const veniceBalanceReads = new WeakMap<object, number>();
+export async function refreshVeniceBalance(): Promise<void> {
+  const view = getVeniceSettingsView();
+  if (!view || getAIProvider() !== 'venice') return;
+  const key = getVeniceKey();
+  const sequence = (veniceBalanceReads.get(view) || 0) + 1;
+  veniceBalanceReads.set(view, sequence);
+  const current = () => view.isCurrent() && getAIProvider() === 'venice' && getVeniceKey() === key && veniceBalanceReads.get(view) === sequence;
+  view.setBalance({ text: 'Balance: refreshing...', tone: 'secondary' });
+  try {
+    const balance = await getVeniceBalance();
+    if (current()) view.setBalance(veniceBalance(balance));
+  } catch {
+    if (current()) view.setBalance({ text: 'Balance: unavailable', tone: 'secondary' });
   }
-  return 'Balance: <span style="color:' + (b.canConsume ? 'var(--green)' : 'var(--red)') + '">' + (b.canConsume ? 'Active' : 'No balance') + '</span>';
 }
-export function refreshVeniceBalance() {
-  const el = document.getElementById('venice-balance');
-  if (el) el.textContent = 'Balance: refreshing...';
-  getVeniceBalance().then(function(b) {
-    if (el && b) el.innerHTML = _veniceBalanceHtml(b);
-    else if (el) el.textContent = 'Balance: unavailable';
+export async function handleSaveVeniceKey(): Promise<void> {
+  await saveVeniceSettingsKey(getVeniceSettingsView(), {
+    currentProvider: getAIProvider,
+    currentKey: getVeniceKey,
+    validate: validateVeniceKey,
+    activate: () => requestProviderActivation('venice'),
+    save: saveVeniceKey,
+    loadModels: key => fetchVeniceModels(key, { isCurrent: () => getVeniceKey() === key }),
+    snapshot: buildVeniceSettingsSnapshot,
+    committed: () => { showNotification('Venice API key saved', 'success'); _returnToChatIfOnboarding(); },
   });
 }
 
-export async function handleSaveVeniceKey() {
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('venice-key-input')) as HTMLInputElement | null;
-  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('save-venice-key-btn')) as HTMLButtonElement | null;
-  const status = document.getElementById('venice-key-status');
-  if (!input || !btn || !status) return;
-  const key = input.value.trim();
-  if (!key) { status.innerHTML = '<span style="color:var(--red)">Please enter an API key</span>'; return; }
-  btn.disabled = true; btn.textContent = 'Validating...';
-  const result = await validateVeniceKey(key);
-  if (result.valid) {
-    status.innerHTML = '<span style="color:var(--text-muted)">Connection verified — waiting for activation…</span>';
-    if (!await requestProviderActivation('venice')) {
-      status.innerHTML = '<span style="color:var(--text-muted)">Connection verified — AI not activated</span>';
-      btn.disabled = false; btn.textContent = 'Save & Validate';
-      return;
-    }
-    await saveVeniceKey(key);
-    status.innerHTML = '<span style="color:var(--green)">Connected — loading models…</span>';
-    await fetchVeniceModels(key);
-    // Render the right list based on E2EE state
-    const listKey = getVeniceE2EE() ? 'labcharts-venice-e2ee-models' : 'labcharts-venice-models';
-    let models: unknown = []; try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch(e) {}
-    if ((models as { length: unknown }).length) {
-      (renderVeniceModelDropdown as (models: unknown) => ReturnType<typeof renderVeniceModelDropdown>)(models);
-      status.innerHTML = '<span style="color:var(--green)">&#10003; Connected</span>';
-    } else {
-      status.innerHTML = '<span style="color:var(--green)">&#10003; Connected</span>';
-    }
-    showNotification('Venice API key saved', 'success');
-    _returnToChatIfOnboarding();
-  } else {
-    status.innerHTML = `<span style="color:var(--red)">${escapeHTML(result.error)}</span>`;
-  }
-  btn.disabled = false; btn.textContent = 'Save & Validate';
-}
-
 export function handleRemoveVeniceKey() {
+  if (isVeniceKeySavePending()) return;
   localStorage.removeItem('labcharts-venice-key');
   updateKeyCache('labcharts-venice-key', null);
   localStorage.removeItem('labcharts-venice-models');

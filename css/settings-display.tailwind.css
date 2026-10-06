@@ -44,5 +44,5 @@
 @source "../js/nutrition-ai-settings-classes.ts";
 @custom-variant meal-model (&:is(#nutrition-ai-model-settings, #nutrition-ai-model-settings *));
 
-@source "../js/openrouter-settings-classes.ts";
-@custom-variant openrouter (&:is([data-openrouter-settings-view], [data-openrouter-settings-view] *));
+@source "../js/provider-settings-classes.ts";
+@custom-variant cloud-provider (&:is([data-cloud-provider-settings-view], [data-cloud-provider-settings-view] *));

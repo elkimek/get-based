@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({ provider: 'openrouter', backend: 'direct', render: vi.fn(() => '<div>owned provider</div>'), switchProvider: vi.fn(async () => true), hydrate: vi.fn(), init: vi.fn(), refresh: vi.fn() }));
 vi.mock('../js/api.js', () => ({ getAIProvider: () => state.provider, getOpenRouterKey: () => '', rememberOpenRouterOAuthPreviousProvider: vi.fn(), clearOpenRouterOAuthSession: vi.fn() }));
 vi.mock('../js/agent-chat-settings.js', () => ({ getChatBackend: () => state.backend, setChatBackend: vi.fn((value: string) => { state.backend = value; }) }));
-vi.mock('../js/provider-panels.js', () => ({ configureProviderPanelDeps: vi.fn(), renderAIProviderPanel: state.render, hydrateOpenRouterSettings: state.hydrate, initSettingsOllamaCheck: state.init, initSettingsModelFetch: state.init, switchAIProvider: state.switchProvider }));
+vi.mock('../js/provider-panels.js', () => ({ configureProviderPanelDeps: vi.fn(), renderAIProviderPanel: state.render, hydrateOwnedProviderSettings: state.hydrate, initSettingsOllamaCheck: state.init, initSettingsModelFetch: state.init, switchAIProvider: state.switchProvider }));
 import { configureSettingsProviderBridgeDeps, disposeSettingsProviderPanels, initSettingsProviderPanels, renderAIProviderPanelBridge, switchAIProviderBridge } from '../js/settings-provider-bridge.js';
 import { setChatBackend } from '../js/agent-chat-settings.js';
 function host() { const panel = document.createElement('div'); panel.id = 'ai-provider-panel'; panel.textContent = 'existing'; document.body.append(panel); return panel; }

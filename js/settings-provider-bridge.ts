@@ -6,6 +6,7 @@ import {
   getOpenRouterKey,
   rememberOpenRouterOAuthPreviousProvider,
 } from './api.js';
+import { disposeVeniceSettings } from './venice-settings-component.js';
 import { disposeOpenRouterSettings } from './openrouter-settings-component.js';
 import { getChatBackend, setChatBackend } from './agent-chat-settings.js';
 
@@ -20,6 +21,7 @@ let providerViewEpoch = 0;
 export function disposeSettingsProviderPanels(): void {
   ++providerViewEpoch;
   disposeOpenRouterSettings();
+  disposeVeniceSettings();
 }
 
 const settingsProviderBridgeDeps: BridgeSnapshot = {
@@ -81,6 +83,7 @@ export function switchAIProviderBridge(provider: unknown): void {
   else if (provider !== 'openrouter') clearOpenRouterOAuthSession();
   setProviderButtonState(provider);
   disposeOpenRouterSettings();
+  disposeVeniceSettings();
   owner.panel.innerHTML = renderAIProviderPanelBridge();
   void loadProviderPanels().then(async panels => {
     if (!owner.isCurrent()) return;
@@ -116,7 +119,7 @@ export async function initSettingsProviderPanels(): Promise<void> {
     if (!owner.isCurrent() || getAIProvider() !== provider || getChatBackend() !== backend) return;
     if (backend !== 'codex') {
       owner.panel.innerHTML = panels.renderAIProviderPanel(provider);
-      panels.hydrateOpenRouterSettings();
+      panels.hydrateOwnedProviderSettings();
     }
     panels.initSettingsOllamaCheck();
     panels.initSettingsModelFetch();

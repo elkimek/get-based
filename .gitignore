@@ -1604,3 +1604,11 @@ deploy/profile-share/data/
 /js/openrouter-settings-classes.js
 /js/openrouter-settings-component.js
 /js/openrouter-key-controller.js
+
+/js/provider-key-controller.js
+/js/provider-settings-classes.js
+
+/js/venice-settings-contract.js
+/js/venice-settings-view.js
+/js/venice-settings-component.js
+/js/venice-key-controller.js

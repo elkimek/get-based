@@ -2,17 +2,14 @@ import type { StoredProviderModel } from './api-provider-storage.js';
 
 // provider-panel-renderers.js — AI provider settings panel markup
 
+import { VENICE_SETTINGS_HOST } from './venice-settings-contract.js';
 import { OPENROUTER_SETTINGS_HOST } from './openrouter-settings-contract.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import {
-  getVeniceKey,
-  getVeniceModel,
   getRoutstrKey, getRoutstrModel,
   isRoutstrPrivateModeActive,
   getPpqKey, getPpqModel, getPpqPrivateMode, isPpqPrivateModeActive,
   getCustomApiUrl, getCustomApiKey, getCustomApiModel,
-  getVeniceE2EE, setVeniceE2EE, isVeniceE2EEActive,
-  getVeniceModelDisplay,
   getRoutstrModelDisplay, getPpqModelDisplay,
   renderModelPricingHint, selectLatestRecommendedModels,
   getOllamaConfig, getOllamaMainModel
@@ -54,7 +51,7 @@ export function buildModelOptions<Model extends StoredProviderModel>(provider: s
 }
 
 function renderProviderKeyControls(
-  provider: 'openrouter' | 'venice' | 'ppq', currentKey: unknown, placeholder: string,
+  provider: 'ppq', currentKey: unknown, placeholder: string,
 ) {
   return `<div class="api-key-status" id="${provider}-key-status">
       ${currentKey ? '<span style="color:var(--green)">&#10003; Connected</span>' : '<span style="color:var(--text-muted)">No key set</span>'}
@@ -160,50 +157,7 @@ function renderRoutstrProviderPanel() {
   </form>`;
 }
 
-function renderVeniceProviderPanel() {
-  const currentKey = getVeniceKey();
-  const veniceModel = getVeniceModel();
-  const e2eeOn = getVeniceE2EE();
-  const cachedE2EEModels = readStoredArray('labcharts-venice-e2ee-models');
-  const cachedRegularModels = readStoredArray('labcharts-venice-models');
-  const displayModels = e2eeOn && cachedE2EEModels.length ? cachedE2EEModels : cachedRegularModels;
-  if (e2eeOn && !cachedE2EEModels.length) setVeniceE2EE(false);
-  const hasE2EEModels = cachedE2EEModels.length > 0;
-  let veniceModelHtml;
-  if (displayModels.length > 0) {
-    const opts = buildModelOptions('venice', displayModels, veniceModel, function(m) { return m.name || m.id; });
-    veniceModelHtml = `<div style="margin-top:12px" id="venice-model-area">
-      <label style="font-size:12px;color:var(--text-muted)">Model</label>
-      <select class="api-key-input" id="venice-model-select" style="margin-top:4px" data-provider-panel-change="venice-model">${opts}</select>
-      <div id="venice-model-pricing" style="margin-top:4px">${renderModelPricingHint('venice', veniceModel)}</div>
-    </div>
-    ${hasE2EEModels ? `<div style="margin-top:12px;display:flex;align-items:center;gap:8px">
-      <label class="toggle-switch" style="flex-shrink:0"><input type="checkbox" id="venice-e2ee-toggle" ${getVeniceE2EE() ? 'checked' : ''} data-provider-panel-change="venice-e2ee"><span class="toggle-slider"></span></label>
-      <span style="font-size:13px">Encrypted Mode</span>
-    </div>
-    <div id="venice-e2ee-indicator" style="margin-top:6px;font-size:12px;line-height:1.5;${isVeniceE2EEActive() ? '' : 'display:none'}">
-      <div><strong style="color:#a78bfa">&#128274;&nbsp;TEE + GPU checked</strong> &mdash; Messages are encrypted in your browser and decrypted inside Venice's confidential-computing session. Before connecting, getbased checks both the Intel TDX environment and NVIDIA GPU evidence.</div>
-      <details style="margin-top:6px">
-        <summary style="cursor:pointer;color:var(--accent)">What is checked &mdash; and what is not</summary>
-        <div style="margin-top:6px;padding-left:10px;border-left:2px solid var(--border);color:var(--text-muted)">
-          <div><strong style="color:var(--text-primary)">Checked in your browser</strong><br>Session freshness, encryption-key binding, debug mode, the Intel TDX confidential-computing environment (TEE, verified with DCAP), and NVIDIA's signed GPU result (NRAS).</div>
-          <div style="margin-top:6px"><strong style="color:var(--text-primary)">Important limit</strong><br>The TDX and GPU checks are valid independently, but they do not prove that both are running together. Approved code measurements and the source of each response are not yet independently verified.</div>
-          <div style="margin-top:6px"><strong style="color:var(--text-primary)">Who sees what</strong><br>Venice still sees your API key, model, roles, request settings, timing, sizes, and network metadata. Because NVIDIA does not accept browser POSTs, the deployment proxy relays GPU evidence to NRAS; getbased verifies the signed result in your browser. NVIDIA learns that an attestation was checked. Web search and images are disabled.</div>
-        </div>
-      </details>
-    </div>` : ''}`;
-  } else {
-    veniceModelHtml = `<div style="margin-top:12px;font-size:12px;color:var(--text-muted)" id="venice-model-area">Model: <span style="color:var(--text-primary)">${escapeHTML(getVeniceModelDisplay())}</span>${currentKey ? ' <span style="font-size:11px">(save key to load models)</span>' : ''}</div>`;
-  }
-  return `<form class="ai-provider-panel">
-    <input type="text" name="ai-provider" value="venice" autocomplete="username" hidden>
-    <div class="ai-provider-desc">Hosted Venice models with an optional encrypted-message mode. Requires an API key.</div>
-    ${renderProviderKeyControls('venice', currentKey, 'venice-...')}
-    ${currentKey ? '<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span id="venice-balance">Balance: loading...</span> <a href="#" data-provider-panel-action="refresh-venice-balance" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>' : ''}
-    ${veniceModelHtml}
-    <div class="api-key-notice">Your key is stored locally and sent directly to Venice AI. Requests are handled under Venice's privacy and retention policies; getbased does not independently verify provider-side logging. <a href="https://venice.ai/chat?ref=lZ4P1b" target="_blank" rel="noopener" style="color:var(--accent)">Get an API key</a></div>
-  </form>`;
-}
+function renderVeniceProviderPanel(): string { return VENICE_SETTINGS_HOST; }
 
 function renderPpqProviderPanel() {
   const currentKey = getPpqKey();

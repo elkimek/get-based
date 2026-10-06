@@ -163,13 +163,32 @@ catalog/status snapshots. The published provider renderer returns its mount host
 Private API-key fields pass through a separate live-field port, clear on disposal,
 and never enter display snapshots or serialized markup. Model and pricing refreshes
 retain focused controls and manual-model health. `openrouter-key-controller.ts`
-checks the originating view, provider and credential around validation, consent,
+adapts the shared `provider-key-controller.ts` save lifecycle, which checks the originating view, provider and credential around validation, consent,
 persistence and catalog work; an accepted durable write may finish after close,
 while its presentation replies cannot alter a replacement view. Balance and manual
 model probes also check request order and their initiating credential. Settings'
 lazy provider bridge captures the actual mounted root and invalidates pending
 loads on close, rebuild or CLI replacement. Scoped Tailwind owns this provider's
-controls; other provider panels retain their current ownership until migrated.
+controls through shared `provider-settings-classes.ts`, scoped to each
+`data-cloud-provider-settings-view` root. Other provider panels retain their
+current ownership until migrated.
+
+Venice uses the same provider save lifecycle and shared controls with
+`VeniceSettings.svelte`, `venice-settings-component.ts` and typed nonsecret
+catalog/mode/status snapshots. Existing services retain model ranking, regular
+and encrypted selection slots, pricing, capability gates and attestation. Catalog
+reads reject a replaced initiating credential before writing any cached models,
+capabilities, prices or reconciled selection; balance reads also check view,
+provider, credential and request order. The component retains focused selectors,
+private key drafts and open attestation details through refreshes. A missing or
+malformed encrypted catalog preserves the user's encryption preference and shows
+an unavailable-catalog explanation rather than turning encryption off during
+presentation. Checked-environment copy follows the existing confirmed-model
+capability rule; it does not claim completed attestation for a missing catalog.
+Saved models absent from a catalog remain explicitly selected as unavailable.
+The full TDX/GPU independence, unverified measurements/response source and
+provider/proxy metadata disclosures remain visible for confirmed encrypted
+models. Transport and attestation verification stay in their domain modules.
 
 Agent Access remains behind the lazy Sync facade. `settings-agent-access-panel.ts`
 owns credential generation, clipboard operations, persistence and domain actions;

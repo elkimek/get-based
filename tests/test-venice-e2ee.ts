@@ -416,7 +416,7 @@ try {
 
 // 16. Settings + Chat source checks
 const providerSrc = read('js/provider-panels.js');
-const providerRenderSrc = read('js/provider-panel-renderers.js');
+const providerRenderSrc = read('js/components/VeniceSettings.svelte');
 const providerModelControlsSrc = read('js/provider-model-controls.js');
 assert('provider renderer has venice-e2ee-toggle', providerRenderSrc.includes('venice-e2ee-toggle'));
 assert('provider renderer has venice-e2ee-indicator', providerRenderSrc.includes('venice-e2ee-indicator'));
@@ -424,7 +424,7 @@ assert('provider model controls has toggleVeniceE2EE', providerModelControlsSrc.
 assert('provider model controls has Venice model change handler', providerModelControlsSrc.includes('function onVeniceModelDropdownChange'));
 assert('Venice model dropdown uses delegated change handler',
   providerRenderSrc.includes('data-provider-panel-change="venice-model"') &&
-    providerModelControlsSrc.includes('data-provider-panel-change="venice-model"') &&
+    providerModelControlsSrc.includes('getVeniceSettingsView') && providerModelControlsSrc.includes('view?.setModels(buildVeniceModelState(models))') &&
     providerSrc.includes('onVeniceModelDropdownChange,'));
 const chatSrc = read('js/chat.js');
 const chatSendSrc = read('js/chat-send.js');
@@ -501,7 +501,7 @@ assert('Venice NRAS tooltip reports signed tokens and the co-location limit',
 assert('Venice provider copy leads with a readable summary and keeps technical detail available',
   providerRenderSrc.includes('TEE + GPU checked')
     && providerRenderSrc.includes('Encrypted Mode')
-    && providerRenderSrc.includes('What is checked &mdash; and what is not')
+    && providerRenderSrc.includes('What is checked — and what is not')
     && providerRenderSrc.includes('Checked in your browser')
     && providerRenderSrc.includes('Intel TDX confidential-computing environment (TEE, verified with DCAP)')
     && providerRenderSrc.includes("NVIDIA's signed GPU result (NRAS)")

@@ -50,3 +50,7 @@ export const nutritionAISettingsCompatible: typeof NativeNutritionAISettings = N
 import OpenRouterSettings from '../../js/components/OpenRouterSettings.svelte';
 import type NativeOpenRouterSettings from '../../js/components/OpenRouterSettings.svelte.native.js';
 export const openRouterSettingsCompatible: typeof NativeOpenRouterSettings = OpenRouterSettings;
+
+import VeniceSettings from '../../js/components/VeniceSettings.svelte';
+import type NativeVeniceSettings from '../../js/components/VeniceSettings.svelte.native.js';
+export const veniceSettingsCompatible: typeof NativeVeniceSettings = VeniceSettings;

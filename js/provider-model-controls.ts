@@ -2,6 +2,8 @@ import type { StoredProviderModel } from './api-provider-storage.js';
 
 // provider-model-controls.js - provider model dropdowns, pricing, and custom model selection.
 
+import { getVeniceSettingsView } from './venice-settings-component.js';
+import { buildVeniceModelState, buildVeniceModeState, readVeniceModels, venicePricing } from './venice-settings-view.js';
 import { getOpenRouterSettingsView } from './openrouter-settings-component.js';
 import { buildOpenRouterModelState, openRouterPricing } from './openrouter-settings-view.js';
 import { getErrorMessage } from './caught-error.js';
@@ -33,19 +35,18 @@ import {
   refreshProviderModelUiRuntime,
 } from './provider-model-controls-runtime.js';
 
-export function updateVeniceModelPricing(modelId?: string) {
-  const el = document.getElementById('venice-model-pricing');
-  if (el) el.innerHTML = renderModelPricingHint('venice', modelId || getVeniceModel());
+export function updateVeniceModelPricing(modelId?: string): void {
+  const view = getVeniceSettingsView();
+  const selectedModel = modelId || getVeniceModel();
+  if (!view) return;
+  view.setModels({ ...view.getModels(), selectedModel, pricing: venicePricing(selectedModel) });
+  view.setMode(buildVeniceModeState());
 }
-
-export function renderVeniceModelDropdown(models: StoredProviderModel[]) {
-  const area = document.getElementById('venice-model-area');
-  if (!area || !models.length) return;
-  const currentModel = getVeniceModel();
-  const opts = buildModelOptions('venice', models, currentModel, function(m) { return m.name || m.id; });
-  area.innerHTML = '<label style="font-size:12px;color:var(--text-muted)">Model</label>' +
-    '<select class="api-key-input" id="venice-model-select" style="margin-top:4px" data-provider-panel-change="venice-model">' + opts + '</select>' +
-    '<div id="venice-model-pricing" style="margin-top:4px">' + renderModelPricingHint('venice', currentModel) + '</div>';
+export function renderVeniceModelDropdown(models: StoredProviderModel[]): void {
+  if (!models.length) return;
+  const view = getVeniceSettingsView();
+  view?.setModels(buildVeniceModelState(models));
+  view?.setMode(buildVeniceModeState());
 }
 
 export function onVeniceModelDropdownChange(value: string) {
@@ -60,8 +61,7 @@ export function toggleVeniceE2EE(on: boolean) {
   setVeniceE2EE(on);
   if (!on) clearProviderE2EESessionRuntime();
   // Swap model dropdown to E2EE or regular model list.
-  const listKey = on ? 'labcharts-venice-e2ee-models' : 'labcharts-venice-models';
-  let models: StoredProviderModel[] = []; try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch {}
+  const models = readVeniceModels(on);
   if (models.length) {
     const prevKey = on ? 'labcharts-venice-model-regular' : 'labcharts-venice-model-e2ee';
     const restoreKey = on ? 'labcharts-venice-model-e2ee' : 'labcharts-venice-model-regular';
@@ -71,8 +71,7 @@ export function toggleVeniceE2EE(on: boolean) {
     setVeniceModel(newModel);
     renderVeniceModelDropdown(models);
   }
-  const el = document.getElementById('venice-e2ee-indicator');
-  if (el) el.style.display = on ? '' : 'none';
+  getVeniceSettingsView()?.setMode(buildVeniceModeState());
   refreshProviderModelUiRuntime();
 }
 

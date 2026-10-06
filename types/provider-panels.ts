@@ -28,4 +28,3 @@ export interface ProviderPanelWalletOperations {
   cashuGetPendingNodeRefund?: ((...args: Parameters<ProviderWalletDefaults['cashuGetPendingNodeRefund']>) => Promise<{ nodeUrl?: unknown } | null | undefined>) | null;
   cashuReceiveToken(token: unknown): unknown;
 }
-export interface ProviderPanelVeniceBalance { diem?: unknown; canConsume?: unknown }

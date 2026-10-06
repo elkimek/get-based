@@ -126,6 +126,7 @@ const settingsBridgeSrc = read('js/settings-provider-bridge.js');
 const openRouterViewSrc = read('js/openrouter-settings-view.ts');
 const openRouterComponentSrc = read('js/components/OpenRouterSettings.svelte');
 const openRouterClassesSrc = read('js/openrouter-settings-classes.ts');
+const providerClassesSrc = read('js/provider-settings-classes.ts');
 const providerUiSrc = ppSrc + providerRenderSrc + providerModelControlsSrc;
 assert('imports getOpenRouterKey', providerUiSrc.includes('getOpenRouterKey'));
 assert('imports saveOpenRouterKey', ppSrc.includes('saveOpenRouterKey'));
@@ -378,7 +379,7 @@ assert('CSS: .or-oauth-btn defined', cssSrc.includes('.or-oauth-btn'));
 assert('CSS: .or-oauth-divider defined', cssSrc.includes('.or-oauth-divider'));
 assert('owned OpenRouter OAuth button uses scoped Tailwind and the delegated action',
   openRouterComponentSrc.includes('class={OR_PRIMARY} data-provider-panel-action="start-openrouter-oauth"')
-  && openRouterClassesSrc.includes('gb:openrouter:bg-accent')
+  && providerClassesSrc.includes('gb:cloud-provider:bg-accent') && openRouterClassesSrc.includes('PROVIDER_PRIMARY as OR_PRIMARY')
   && !openRouterComponentSrc.includes('or-oauth-btn'));
 assert('provider renderer renders or-oauth-divider', providerRenderSrc.includes('or-oauth-divider'));
 assert('OAuth button conditional on disconnected snapshot', /\{#if !snapshot.connected\}[\s\S]*?data-provider-panel-action="start-openrouter-oauth"/.test(openRouterComponentSrc));

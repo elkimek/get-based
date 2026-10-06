@@ -49,8 +49,7 @@ test('provider model controls edge coverage handles pricing updates guards and m
 
       document.body.insertAdjacentHTML('beforeend', `
         <section id="provider-controls-edge-fixture">
-          <div id="venice-model-area"></div>
-          <div id="venice-e2ee-indicator" style="display:none"></div>
+          <div id="venice-owned-fixture"></div>
           <div id="openrouter-model-area"></div>
           <div id="routstr-model-area"></div>
           <div id="ppq-model-area"></div>
@@ -65,6 +64,7 @@ test('provider model controls edge coverage handles pricing updates guards and m
       localStorage.setItem('labcharts-venice-model', 'venice-a');
       localStorage.setItem('labcharts-venice-e2ee', 'off');
       controls.updateVeniceModelPricing('missing-before-render');
+      (await import('/js/venice-settings-component.js')).mountVeniceSettings(document.getElementById('venice-owned-fixture')!, (await import('/js/venice-settings-view.js')).buildVeniceSettingsSnapshot());
       controls.renderVeniceModelDropdown([
         { id: 'venice-a', name: 'Venice A' },
         { id: 'venice-b', name: 'Venice B' },
@@ -90,13 +90,17 @@ test('provider model controls edge coverage handles pricing updates guards and m
       ]));
       controls.toggleVeniceE2EE(true);
       const veniceToggleRendersRestoredE2EEList = (document.getElementById('venice-model-select') as (HTMLElement & {value: string}) | null)?.value === 'e2ee-b'
-        && document.getElementById('venice-e2ee-indicator')?.style.display === ''
+        && (document.getElementById('venice-e2ee-indicator') as HTMLElement | null)?.hidden === false
         && headerRefreshes >= 1
         && webSearchRefreshes >= 1;
 
       localStorage.setItem('labcharts-venice-e2ee-models', '{not json');
       controls.toggleVeniceE2EE(true);
-      const veniceToggleHandlesBadModelCache = document.getElementById('venice-e2ee-indicator')?.style.display === '';
+      const veniceToggleHandlesBadModelCache = (document.getElementById('venice-e2ee-indicator') as HTMLElement | null)?.hidden === true
+        && (document.getElementById('venice-e2ee-toggle') as HTMLInputElement | null)?.checked === true
+        && localStorage.getItem('labcharts-venice-e2ee') === 'on'
+        && localStorage.getItem('labcharts-venice-model') === 'e2ee-b'
+        && document.getElementById('venice-owned-fixture')?.textContent?.includes('Encrypted mode remains enabled') === true;
 
       controls.renderOpenRouterModelDropdown([]);
       controls.renderRoutstrModelDropdown([]);
@@ -165,6 +169,7 @@ test('provider model controls edge coverage handles pricing updates guards and m
         if (oldStorage[key] == null) localStorage.removeItem(key);
         else localStorage.setItem(key, oldStorage[key]!);
       }
+      (await import('/js/venice-settings-component.js')).disposeVeniceSettings();
       document.getElementById('provider-controls-edge-fixture')?.remove();
       document.querySelectorAll('.notification-toast').forEach(el => el.remove());
     }
