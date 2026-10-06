@@ -1,4 +1,4 @@
-import { mountCliAgentModels, getCliAgentModelsView, disposeCliAgentModels } from './cli-agent-models-component.js';
+import { mountCliAgentModels, getCliAgentModelsView, disposeCliAgentModels, captureCliAgentModelsLifetime } from './cli-agent-models-component.js';
 import { buildCliAgentModelsSnapshot, selectedModelEntry, getCLIAgentModelProvider } from './cli-agent-models-presentation.js';
 import type { AgentModel } from './agent-model-catalog.js';
 import type { AgentExecutionTarget } from './agent-chat-client.js';
@@ -149,7 +149,8 @@ export async function copyCLIAgentLoginCommand(agentId: string) {
 }
 
 export function renderCLIAgentProviderPanel() {
-  queueMicrotask(() => { void refreshDetectedAgentList({ refresh: true }); });
+  const lifetimeCurrent = captureCliAgentModelsLifetime();
+  queueMicrotask(() => { if (lifetimeCurrent()) void refreshDetectedAgentList({ refresh: true }); });
   return `
     <div class="ai-provider-panel cli-agent-provider-panel" data-ai-provider-mode="cli">
       <div class="local-agent-chat-head">
@@ -295,9 +296,10 @@ export async function refreshDetectedAgentList(options: { refresh?: boolean | un
   const list = document.getElementById('local-agent-list');
   if (!list) return;
   const request = ++discoveryRequest;
-  const current = () => request === discoveryRequest && list.isConnected && document.getElementById('local-agent-list') === list;
+  const current = () => request === discoveryRequest && lifetimeCurrent() && list.isConnected && document.getElementById('local-agent-list') === list;
   const companionSection = document.getElementById('local-agent-companion-section');
   disposeCliAgentModels();
+  const lifetimeCurrent = captureCliAgentModelsLifetime();
   ++modelRequest;
   list.innerHTML = '<div class="local-agent-scan-state"><span class="local-agent-spinner" aria-hidden="true"></span>Scanning this computer…</div>';
   if (companionSection) companionSection.innerHTML = '';

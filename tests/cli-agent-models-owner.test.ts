@@ -11,7 +11,7 @@ vi.mock('../js/agent-chat-settings.js', () => ({
 vi.mock('../js/agent-chat-client.js', () => ({ listAgentModels: state.models, listAgentExecutionTargets: state.targets, controlAgentHost: vi.fn() }));
 vi.mock('../js/agent-model-catalog.js', () => ({ cacheAgentModelCatalog: state.cache }));
 vi.mock('../js/utils.js', () => ({ escapeHTML: (value: unknown) => String(value), escapeAttr: (value: unknown) => String(value), showConfirmDialog: vi.fn(), showNotification: state.notify }));
-import { refreshDetectedAgentList, setCLIAgentModel, setCLIAgentTarget } from '../js/settings-cli-agent-panel.js';
+import { refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentModel, setCLIAgentTarget } from '../js/settings-cli-agent-panel.js';
 import { disposeCliAgentModels, getCliAgentModelsView } from '../js/cli-agent-models-component.js';
 import type { AgentModel } from '../js/agent-model-catalog.js';
 const model = (id: string): AgentModel => ({ id, model: id, displayName: id, isDefault: true, description: '', defaultReasoningEffort: '', supportedReasoningEfforts: [], inputModalities: ['text'] });
@@ -74,4 +74,16 @@ it('rejects a catalog obtained with a replaced companion credential before cachi
   const selecting = setCLIAgentModel('obsolete'); await vi.waitFor(() => expect(state.models).toHaveBeenCalledTimes(2));
   state.token = 'NEW PRIVATE TOKEN'; late.resolve([model('obsolete')]); await selecting;
   expect(state.cache).not.toHaveBeenCalled(); expect(state.save).not.toHaveBeenCalled(); expect(state.model).toBe('first');
+});
+it('does not revive controls when Settings closes during native CLI discovery while its DOM remains attached', async () => {
+  const late = deferred<Array<{ id:string;name:string;compatible:boolean;status:string }>>(); state.discover.mockReturnValueOnce(late.promise);
+  const scanning = refreshDetectedAgentList(); disposeCliAgentModels();
+  late.resolve([{ id:'codex',name:'Codex',compatible:true,status:'available' }]); await scanning;
+  await new Promise(resolve => setTimeout(resolve,0));
+  expect(getCliAgentModelsView()).toBeNull(); expect(state.models).not.toHaveBeenCalled();
+});
+
+it('cancels the initial queued CLI scan when Settings closes before the mount microtask', async () => {
+  document.getElementById('ai-provider-panel')!.innerHTML = renderCLIAgentProviderPanel(); disposeCliAgentModels();
+  await Promise.resolve(); expect(state.discover).not.toHaveBeenCalled(); expect(getCliAgentModelsView()).toBeNull();
 });
