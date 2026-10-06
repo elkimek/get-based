@@ -1,4 +1,4 @@
-import { disposeCliAgentModels } from './cli-agent-models-component.js';
+import { disposeCliAgentSettings } from './cli-agent-settings-component.js';
 import { disposeLocalAiSettings } from './local-ai-settings-component.js';
 import { disposeCustomSettings } from './custom-settings-component.js';
 import { disposePpqSettings } from './ppq-settings-component.js';
@@ -33,7 +33,7 @@ function loadWalletPanels(): Promise<WalletPanels> {
 export function disposeSettingsProviderPanels(): void {
   ++providerViewEpoch;
   loadedWalletPanels?.clearRoutstrWalletTimers();
-  disposeCliAgentModels();
+  disposeCliAgentSettings();
   disposeLocalAiSettings();
   disposeCustomSettings();
   disposeOpenRouterSettings();
@@ -101,7 +101,7 @@ export function switchAIProviderBridge(provider: unknown): void {
   else if (provider !== 'openrouter') clearOpenRouterOAuthSession();
   setProviderButtonState(provider);
   loadedWalletPanels?.clearRoutstrWalletTimers();
-  disposeCliAgentModels();
+  disposeCliAgentSettings();
   disposeLocalAiSettings();
   disposeCustomSettings();
   disposeOpenRouterSettings();

@@ -6,7 +6,7 @@ import { getAIProvider, hasAIProvider, isAIPaused, setOllamaPIIModel } from './a
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots, hydrateProtectionSettings, disposeSettingsProtection } from './crypto.js';
 import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel, disposeMessengerSection } from './settings-sync-panel.js';
 import { getChatBackend } from './agent-chat-settings.js';
-import { controlCLICompanion, copyCLIAgentLoginCommand, copyCLICompanionRunCommand, copyCLICompanionStartCommand, copyCLICompanionUpdateCommand, refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentEffort, setCLIAgentModel, setCLIAgentProviderFilter, setCLIAgentTarget, setCLICompanionPlatform, testLocalCodex, toggleCLIAgentOptions, toggleLocalCodex } from './settings-cli-agent-panel.js';
+import { renderCLIAgentProviderPanel } from './settings-cli-agent-panel.js';
 import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { disposeWearablesSettings } from './wearables-settings-component.js';
 import { setProductRecsEnabled } from './recommendations.js';
@@ -280,34 +280,6 @@ async function handleSettingsClick(event: Event) {
     });
     const panel = document.getElementById('ai-provider-panel');
     if (panel) panel.innerHTML = renderCLIAgentProviderPanel();
-  } else if (action === 'rescan-cli-agents') {
-    event.preventDefault(); void refreshDetectedAgentList({ refresh: true });
-  } else if (action === 'copy-cli-companion-run') {
-    event.preventDefault(); void copyCLICompanionRunCommand();
-  } else if (action === 'copy-cli-companion-start') {
-    event.preventDefault(); void copyCLICompanionStartCommand();
-  } else if (action === 'copy-cli-companion-update') {
-    event.preventDefault(); void copyCLICompanionUpdateCommand();
-  } else if (action === 'copy-cli-agent-login') {
-    event.preventDefault(); void copyCLIAgentLoginCommand(actionEl.dataset.value || '');
-  } else if (action === 'control-cli-companion') {
-    event.preventDefault(); void controlCLICompanion(actionEl.dataset.value || '');
-  } else if (action === 'set-cli-companion-platform') {
-    event.preventDefault(); setCLICompanionPlatform(actionEl.dataset.value || '');
-  } else if (action === 'test-cli-codex') {
-    event.preventDefault();
-    void testLocalCodex(actionEl.dataset.value || '');
-  } else if (action === 'toggle-cli-agent-options') {
-    event.preventDefault(); toggleCLIAgentOptions();
-  } else if (action === 'set-cli-agent-model' || action === 'set-cli-agent-effort') {
-    event.preventDefault();
-    void (action === 'set-cli-agent-model' ? setCLIAgentModel : setCLIAgentEffort)(actionEl.dataset.value || '');
-  } else if (action === 'set-cli-agent-provider-filter') {
-    event.preventDefault();
-    setCLIAgentProviderFilter(actionEl.dataset.value || '');
-  } else if (action === 'set-cli-agent-target') {
-    event.preventDefault();
-    void setCLIAgentTarget(actionEl.dataset.value || 'local');
   } else if (action === 'toggle-privacy-configure') {
     event.preventDefault();
     togglePrivacyConfigure();
@@ -408,8 +380,6 @@ function handleSettingsChange(event: Event) {
   } else if (action === 'set-nutrition-ai-route') {
     setNutritionAIRouteFromValue(actionEl instanceof HTMLSelectElement ? actionEl.value : '');
     showNotification('Meal photo model updated.', 'success');
-  } else if (action === 'toggle-cli-codex' && actionEl instanceof HTMLInputElement) {
-    void toggleLocalCodex(actionEl.checked, actionEl.dataset.agent || '');
   }
 }
 

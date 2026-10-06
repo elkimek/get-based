@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 const state = vi.hoisted(() => ({ agent: 'codex', target: 'local', model: 'first', effort: '', backend: 'codex', token:'PRIVATE TOKEN',
-  connect: vi.fn(async () => {}), models: vi.fn(), targets: vi.fn(), discover: vi.fn(), save: vi.fn(), cache: vi.fn(), notify: vi.fn() }));
+  connect: vi.fn(async (_agent?:string,_options?:{ isCurrent?:() => boolean }) => {}), models: vi.fn(), targets: vi.fn(), discover: vi.fn(), save: vi.fn(), cache: vi.fn(), notify: vi.fn() }));
 vi.mock('../js/agent-chat-settings.js', () => ({
   getAgentHostAgent: () => state.agent, getAgentHostTarget: () => state.target, getAgentHostModel: () => state.model,
   getAgentHostEffort: () => state.effort, getAgentHostEndpoint: () => 'http://127.0.0.1:8324', getAgentHostToken: () => state.token,
@@ -11,7 +11,9 @@ vi.mock('../js/agent-chat-settings.js', () => ({
 vi.mock('../js/agent-chat-client.js', () => ({ listAgentModels: state.models, listAgentExecutionTargets: state.targets, controlAgentHost: vi.fn() }));
 vi.mock('../js/agent-model-catalog.js', () => ({ cacheAgentModelCatalog: state.cache }));
 vi.mock('../js/utils.js', () => ({ escapeHTML: (value: unknown) => String(value), escapeAttr: (value: unknown) => String(value), showConfirmDialog: vi.fn(), showNotification: state.notify }));
-import { refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentModel, setCLIAgentTarget } from '../js/settings-cli-agent-panel.js';
+import { refreshDetectedAgentList, renderCLIAgentProviderPanel, setCLIAgentModel, setCLIAgentTarget, setCLIAgentEffort } from '../js/settings-cli-agent-panel.js';
+import { cliSettingsFixture } from './helpers/cli-settings-fixture.js';
+import { disposeCliAgentSettings } from '../js/cli-agent-settings-component.js';
 import { disposeCliAgentModels, getCliAgentModelsView } from '../js/cli-agent-models-component.js';
 import type { AgentModel } from '../js/agent-model-catalog.js';
 const model = (id: string): AgentModel => ({ id, model: id, displayName: id, isDefault: true, description: '', defaultReasoningEffort: '', supportedReasoningEfforts: [], inputModalities: ['text'] });
@@ -23,9 +25,9 @@ beforeEach(() => {
   state.discover.mockResolvedValue([{ id:'codex', name:'Codex', compatible:true,status:'available' }]);
   state.save.mockImplementation(async (settings: Record<string,string>) => Object.assign(state,settings));
   state.cache.mockImplementation((models: AgentModel[]) => models);
-  document.body.innerHTML = '<main id="ai-provider-panel"><div id="local-agent-list"></div><div id="local-agent-companion-section"></div></main>';
+  cliSettingsFixture([],state.backend);
 });
-afterEach(() => { disposeCliAgentModels(); document.body.replaceChildren(); });
+afterEach(() => { disposeCliAgentSettings(); document.body.replaceChildren(); });
 async function ready() { await refreshDetectedAgentList(); await vi.waitFor(() => expect(document.getElementById('cli-agent-model-summary')?.textContent).toContain('first')); }
 it('rejects an older discovery result before it overwrites a newer model catalog', async () => {
   const late = deferred<AgentModel[]>(); state.models.mockReturnValueOnce(late.promise);
@@ -50,7 +52,7 @@ it('keeps the latest explicit model request when two catalog checks resolve out 
 it('does not replace a remounted view with a late execution-target discovery', async () => {
   await ready(); const late = deferred<Array<{ id:string;label:string }>>(); state.targets.mockReturnValueOnce(late.promise);
   const selecting = setCLIAgentTarget('gateway'); await vi.waitFor(() => expect(state.targets).toHaveBeenCalledTimes(2));
-  const previous = getCliAgentModelsView(); await ready(); expect(previous?.isCurrent()).toBe(false);
+  const previous = getCliAgentModelsView(); disposeCliAgentSettings(); cliSettingsFixture([],state.backend); await ready(); expect(previous?.isCurrent()).toBe(false);
   late.resolve([{ id:'gateway',label:'Obsolete gateway' }]); await selecting;
   expect(state.save).not.toHaveBeenCalled(); expect(state.target).toBe('local');
 });
@@ -77,13 +79,25 @@ it('rejects a catalog obtained with a replaced companion credential before cachi
 });
 it('does not revive controls when Settings closes during native CLI discovery while its DOM remains attached', async () => {
   const late = deferred<Array<{ id:string;name:string;compatible:boolean;status:string }>>(); state.discover.mockReturnValueOnce(late.promise);
-  const scanning = refreshDetectedAgentList(); disposeCliAgentModels();
+  const scanning = refreshDetectedAgentList(); disposeCliAgentSettings();
   late.resolve([{ id:'codex',name:'Codex',compatible:true,status:'available' }]); await scanning;
   await new Promise(resolve => setTimeout(resolve,0));
   expect(getCliAgentModelsView()).toBeNull(); expect(state.models).not.toHaveBeenCalled();
 });
 
 it('cancels the initial queued CLI scan when Settings closes before the mount microtask', async () => {
-  document.getElementById('ai-provider-panel')!.innerHTML = renderCLIAgentProviderPanel(); disposeCliAgentModels();
+  document.getElementById('ai-provider-panel')!.innerHTML = renderCLIAgentProviderPanel(); disposeCliAgentSettings();
   await Promise.resolve(); expect(state.discover).not.toHaveBeenCalled(); expect(getCliAgentModelsView()).toBeNull();
+});
+
+it('rejects programmatic model helpers after teardown even when the Settings DOM remains attached', async () => {
+  await ready(); disposeCliAgentSettings(); state.connect.mockClear(); state.save.mockClear(); state.models.mockClear(); state.targets.mockClear();
+  await setCLIAgentModel('obsolete'); await setCLIAgentTarget('gateway'); await setCLIAgentEffort('obsolete');
+  expect(state.connect).not.toHaveBeenCalled(); expect(state.save).not.toHaveBeenCalled(); expect(state.models).not.toHaveBeenCalled(); expect(state.targets).not.toHaveBeenCalled();
+});
+it('guards model connection publication against a replaced initiating credential', async () => {
+  await ready(); const late=deferred<void>(); let guard:(() => boolean) | undefined;
+  state.connect.mockImplementationOnce(async (_agent?:string,options?:{ isCurrent?:() => boolean }) => { guard=options?.isCurrent; await late.promise; if (!guard?.()) throw new Error('superseded'); });
+  const selecting=setCLIAgentModel('obsolete'); expect(guard?.()).toBe(true); state.token='REPLACEMENT'; expect(guard?.()).toBe(false); late.resolve(); await selecting;
+  expect(state.save).not.toHaveBeenCalled(); expect(state.notify).not.toHaveBeenCalled();
 });

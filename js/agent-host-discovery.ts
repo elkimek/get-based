@@ -14,6 +14,8 @@ export interface AgentDiscoveryOptions {
   requiredAgentId?: string | undefined;
 }
 export interface AgentConnectionOptions {
+  /** Optional initiating-owner guard, checked before publishing a discovered credential. */
+  isCurrent?: (() => boolean) | undefined;
   signal?: AbortSignal | undefined;
   requiredCapabilities?: string[] | undefined;
   requiredTextFeatureTarget?: string | undefined;
@@ -172,12 +174,16 @@ async function requireTextFeatureTarget(candidate: DiscoveredAgent, target: stri
 }
 
 export async function connectAgentHostCandidate(options: AgentConnectionOptions & {candidate: DiscoveredAgent; requiredCapabilities: string[]; attempts: number; normalizeEndpoint: (value: string) => string; onConnected: (settings: {endpoint: string; token: string}) => Promise<unknown>}) {
+  const current = () => options.isCurrent?.() !== false;
+  const obsolete = () => new Error('CLI connection request was superseded.');
+  if (!current()) throw obsolete();
   const endpoint = options.normalizeEndpoint(options.candidate.endpoint);
   if (options.candidate.token.length < 16 || options.candidate.token.length > 256) {
     throw new Error('CLI agent connection is not ready yet.');
   }
   let lastError: unknown = null;
   for (let attempt = 0; attempt < options.attempts; attempt += 1) {
+    if (!current()) throw obsolete();
     try {
       const status = await checkAgentHost({ endpoint, token: options.candidate.token, signal: options.signal });
       if (status?.paused === true || status?.state === 'paused') throw new Error('The getbased Companion is paused. Resume it in AI settings.');
@@ -185,6 +191,7 @@ export async function connectAgentHostCandidate(options: AgentConnectionOptions 
         throw agentHostUpgradeRequiredError(options.requiredCapabilities[0] || 'requested-feature');
       }
       if (options.requiredTextFeatureTarget) await requireTextFeatureTarget({ ...options.candidate, endpoint }, options.requiredTextFeatureTarget, options.signal);
+      if (!current()) throw obsolete();
       await options.onConnected({ endpoint, token: options.candidate.token });
       return normalizeDiscoveredAgent({
         ...options.candidate, ...status, endpoint, token: options.candidate.token,
@@ -192,6 +199,7 @@ export async function connectAgentHostCandidate(options: AgentConnectionOptions 
       });
     } catch (error) {
       lastError = error;
+      if (!current()) throw obsolete();
       if ((error as {code?: unknown} | null | undefined)?.code === 'agent_host_upgrade_required') throw error;
       if (attempt < options.attempts - 1) await new Promise(resolve => setTimeout(resolve, 200));
     }

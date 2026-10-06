@@ -13,12 +13,13 @@ const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.ur
 
 describe('local agent selection UI', () => {
   it('places CLI inference in AI providers and keeps connection internals hidden', () => {
-    const source = read('js/settings-cli-agent-panel.ts');
+    const source = read('js/settings-cli-agent-panel.ts') + read('js/components/CliAgentSettings.svelte') + read('js/cli-companion-commands.ts');
     const settings = read('js/settings.js');
     const agentAccess = read('js/settings-agent-access-panel.js');
     expect(source).toContain('Installed CLIs');
     expect(source).toContain('data-settings-action="rescan-cli-agents"');
-    expect(source).toContain('data-settings-action="toggle-cli-codex"');
+    expect(source).toContain('action="toggle-cli-codex"');
+    expect(read('js/components/SettingsToggle.svelte')).toContain('data-settings-action={action}');
     expect(settings).toContain('data-settings-action="show-cli-agent-provider"');
     expect(settings).toContain('CLI agents');
     expect(source).not.toContain('settings-beta-badge">Experimental');
@@ -26,17 +27,19 @@ describe('local agent selection UI', () => {
     expect(source).not.toContain('id="agent-chat-endpoint"');
     expect(source).not.toContain('id="agent-chat-token"');
     expect(source).not.toContain('Paste the Agent Host pairing token');
-    expect(source).toContain('Local CLI sessions receive health data only through getbased&rsquo;s approved tools');
-    expect(source).toContain('A personal gateway may use tools already configured there under that gateway&rsquo;s own approval policy');
-    expect(source).toContain('it does not receive getbased&rsquo;s local tools');
+    expect(source).toContain('Local CLI sessions receive health data only through getbased’s approved tools');
+    expect(source).toContain('A personal gateway may use tools already configured there under that gateway’s own approval policy');
+    expect(source).toContain('it does not receive getbased’s local tools');
     expect(source).toContain('control-cli-companion');
     expect(source).toContain('copy-cli-companion-run');
     expect(source).toContain('copy-cli-companion-start');
     expect(source).toContain('Connect your installed CLI agents');
     expect(source).toContain('getbased-companion.mjs');
     expect(source).toContain('Review the source on GitHub');
-    expect(settings).toContain('controlCLICompanion');
-    expect(settings).toContain('copyCLICompanionRunCommand');
+    expect(settings).not.toContain('controlCLICompanion');
+    expect(settings).not.toContain('copyCLICompanionRunCommand');
+    expect(source).toContain('cliController.control(action)');
+    expect(source).toContain("cliController.copy('run')");
   });
 
   it('keeps provider selection out of the chat header', () => {

@@ -1680,3 +1680,13 @@ js/custom-settings-controller.js
 /js/cli-agent-models-contract.js
 /js/cli-agent-models-presentation.js
 /js/cli-agent-models-component.js
+
+# Owned CLI provider settings runtime output
+/js/cli-agent-settings-contract.js
+/js/cli-agent-settings-classes.js
+/js/cli-agent-settings-component.js
+/js/cli-agent-settings-presentation.js
+/js/cli-agent-settings-controller.js
+/js/cli-companion-commands.js
+
+/tests/helpers/cli-settings-fixture.js

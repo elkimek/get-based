@@ -50,3 +50,6 @@
 @source "../js/ppq-topup-classes.ts";
 
 @custom-variant cli-model (&:is([data-cli-agent-models-view], [data-cli-agent-models-view] *));
+
+@source '../js/cli-agent-settings-classes.ts';
+@custom-variant cli (&:is([data-cli-agent-settings-view], [data-cli-agent-settings-view] *));

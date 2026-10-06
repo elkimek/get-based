@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 968 |
-| Internal import edges | 3783 |
+| Modules | 975 |
+| Internal import edges | 3794 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -440,18 +440,30 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>cli</code> family — 4 modules</summary>
+<details><summary><code>cli</code> family — 10 modules</summary>
 
 - [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts) → no in-scope imports
 - [`js/cli-agent-models-component.ts`](js/cli-agent-models-component.ts) → [`js/components/CliAgentModels.svelte`](js/components/CliAgentModels.svelte)
 - [`js/cli-agent-models-contract.ts`](js/cli-agent-models-contract.ts) → no in-scope imports
 - [`js/cli-agent-models-presentation.ts`](js/cli-agent-models-presentation.ts) → no in-scope imports
+- [`js/cli-agent-settings-classes.ts`](js/cli-agent-settings-classes.ts) → no in-scope imports
+- [`js/cli-agent-settings-component.ts`](js/cli-agent-settings-component.ts) → [`js/cli-agent-models-component.ts`](js/cli-agent-models-component.ts), [`js/components/CliAgentSettings.svelte`](js/components/CliAgentSettings.svelte)
+- [`js/cli-agent-settings-contract.ts`](js/cli-agent-settings-contract.ts) → no in-scope imports
+- [`js/cli-agent-settings-controller.ts`](js/cli-agent-settings-controller.ts) → [`js/cli-agent-settings-presentation.ts`](js/cli-agent-settings-presentation.ts), [`js/cli-companion-commands.ts`](js/cli-companion-commands.ts)
+- [`js/cli-agent-settings-presentation.ts`](js/cli-agent-settings-presentation.ts) → [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/cli-companion-commands.ts`](js/cli-companion-commands.ts), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
+- [`js/cli-companion-commands.ts`](js/cli-companion-commands.ts) → no in-scope imports
 
 </details>
 
 <details><summary><code>CliAgentModels.svelte</code> family — 1 module</summary>
 
 - [`js/components/CliAgentModels.svelte`](js/components/CliAgentModels.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>CliAgentSettings.svelte</code> family — 1 module</summary>
+
+- [`js/components/CliAgentSettings.svelte`](js/components/CliAgentSettings.svelte) → [`js/cli-agent-settings-classes.ts`](js/cli-agent-settings-classes.ts), [`js/components/SettingsToggle.svelte`](js/components/SettingsToggle.svelte)
 
 </details>
 
@@ -1315,7 +1327,7 @@ Native browser modules shipped with the static application.
 - [`js/settings-agent-access-contract.ts`](js/settings-agent-access-contract.ts) → no in-scope imports
 - [`js/settings-agent-access-mutation.ts`](js/settings-agent-access-mutation.ts) → [`js/data.ts`](js/data.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/state.ts`](js/state.ts), [`js/sync-messenger.ts`](js/sync-messenger.ts)
 - [`js/settings-agent-access-panel.ts`](js/settings-agent-access-panel.ts) → [`js/data.ts`](js/data.ts), [`js/settings-agent-access-component.ts`](js/settings-agent-access-component.ts), [`js/settings-agent-access-contract.ts`](js/settings-agent-access-contract.ts), [`js/settings-agent-access-mutation.ts`](js/settings-agent-access-mutation.ts), [`js/state.ts`](js/state.ts), [`js/sync-messenger.ts`](js/sync-messenger.ts), [`js/sync.ts`](js/sync.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/settings-cli-agent-panel.ts`](js/settings-cli-agent-panel.ts) → [`js/agent-chat-client.ts`](js/agent-chat-client.ts), [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/cli-agent-models-component.ts`](js/cli-agent-models-component.ts), [`js/cli-agent-models-presentation.ts`](js/cli-agent-models-presentation.ts), [`js/utils.ts`](js/utils.ts), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
+- [`js/settings-cli-agent-panel.ts`](js/settings-cli-agent-panel.ts) → [`js/agent-chat-client.ts`](js/agent-chat-client.ts), [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/cli-agent-models-component.ts`](js/cli-agent-models-component.ts), [`js/cli-agent-models-presentation.ts`](js/cli-agent-models-presentation.ts), [`js/cli-agent-settings-component.ts`](js/cli-agent-settings-component.ts), [`js/cli-agent-settings-controller.ts`](js/cli-agent-settings-controller.ts), [`js/cli-agent-settings-presentation.ts`](js/cli-agent-settings-presentation.ts), [`js/cli-companion-commands.ts`](js/cli-companion-commands.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-data.ts`](js/settings-data.ts) → [`js/api.ts`](js/api.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/import-reference-benchmark.ts`](js/import-reference-benchmark.ts), [`js/schema.ts`](js/schema.ts), [`js/settings-records-component.ts`](js/settings-records-component.ts), [`js/settings-records-view.ts`](js/settings-records-view.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-display-contract.ts`](js/settings-display-contract.ts) → no in-scope imports
 - [`js/settings-display-panel.ts`](js/settings-display-panel.ts) → [`js/components/DisplaySettings.svelte`](js/components/DisplaySettings.svelte), [`js/recommendations.ts`](js/recommendations.ts), [`js/state.ts`](js/state.ts), [`js/theme.ts`](js/theme.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
@@ -1330,7 +1342,7 @@ Native browser modules shipped with the static application.
 - [`js/settings-protection-component.ts`](js/settings-protection-component.ts) → [`js/backup-folder-presentation.ts`](js/backup-folder-presentation.ts), [`js/components/BackupSettings.svelte`](js/components/BackupSettings.svelte), [`js/components/EncryptionSettings.svelte`](js/components/EncryptionSettings.svelte)
 - [`js/settings-protection-contract.ts`](js/settings-protection-contract.ts) → no in-scope imports
 - [`js/settings-protection-view.ts`](js/settings-protection-view.ts) → no in-scope imports
-- [`js/settings-provider-bridge.ts`](js/settings-provider-bridge.ts) → [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/api.ts`](js/api.ts), [`js/cli-agent-models-component.ts`](js/cli-agent-models-component.ts), [`js/custom-settings-component.ts`](js/custom-settings-component.ts), [`js/local-ai-settings-component.ts`](js/local-ai-settings-component.ts), [`js/openrouter-settings-component.ts`](js/openrouter-settings-component.ts), [`js/ppq-settings-component.ts`](js/ppq-settings-component.ts), [`js/provider-panels.ts`](js/provider-panels.ts) *(dynamic)*, [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) *(dynamic)*, [`js/venice-settings-component.ts`](js/venice-settings-component.ts)
+- [`js/settings-provider-bridge.ts`](js/settings-provider-bridge.ts) → [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/api.ts`](js/api.ts), [`js/cli-agent-settings-component.ts`](js/cli-agent-settings-component.ts), [`js/custom-settings-component.ts`](js/custom-settings-component.ts), [`js/local-ai-settings-component.ts`](js/local-ai-settings-component.ts), [`js/openrouter-settings-component.ts`](js/openrouter-settings-component.ts), [`js/ppq-settings-component.ts`](js/ppq-settings-component.ts), [`js/provider-panels.ts`](js/provider-panels.ts) *(dynamic)*, [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) *(dynamic)*, [`js/venice-settings-component.ts`](js/venice-settings-component.ts)
 - [`js/settings-records-classes.ts`](js/settings-records-classes.ts) → no in-scope imports
 - [`js/settings-records-component.ts`](js/settings-records-component.ts) → [`js/components/AIUsageSettings.svelte`](js/components/AIUsageSettings.svelte), [`js/components/DataEntriesSettings.svelte`](js/components/DataEntriesSettings.svelte), [`js/settings-records-view.ts`](js/settings-records-view.ts)
 - [`js/settings-records-contract.ts`](js/settings-records-contract.ts) → no in-scope imports

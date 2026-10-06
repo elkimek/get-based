@@ -271,8 +271,24 @@ and rejects retained controls after Settings closes or the provider changes.
 CLI discovery and selection capture the originating owner and request order;
 late catalogs cannot replace newer choices or write into a reopened panel.
 Accepted persistence can finish after closure without updating the next view.
-CLI discovery rows, companion setup/management and the outer provider chooser
-still have separate native owners pending their migration.
+`CliAgentSettings.svelte` owns CLI discovery rows, setup commands, agent toggles,
+login/testing/status, disclosure and companion management. A separate typed
+presentation projects direct, paused, outdated, linked and embedded management
+states without credentials. The lifecycle adapter retains model-slot identity
+across rescans and disposes both owners on close or provider switch. Embedded
+frame sizing accepts only its bound frame's source and loopback origin; URLs
+retain the discovered port and never include credentials.
+
+`cli-agent-settings-controller.ts` keeps a shared single-flight across remounts.
+It captures owner, choices, backend and private connection before actions and
+rechecks the displayed companion's private identity, discovery authority and
+lifecycle before management dispatch. Connection
+publication has an optional initiating-owner guard in the domain service; accepted
+encrypted writes and companion actions finish after close without publishing to a
+new view. An accepted pause returns a still-selected matching host to direct
+inference. Bootstrap commands remain pure in `cli-companion-commands.ts`; the
+published facade preserves runtime imports and helper names. The outer provider
+chooser retains its separate native owner pending migration.
 
 `LocalAiSettings.svelte` owns the Local AI connection fields, status, model
 selection, hardware advice, pull-command copy and VRAM override controls. Its

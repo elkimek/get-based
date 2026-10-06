@@ -1,13 +1,16 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cliSettingsFixture } from './helpers/cli-settings-fixture.js';
+import { disposeCliAgentSettings } from '../js/cli-agent-settings-component.js';
 import { refreshDetectedAgentList, renderCLIAgentProviderPanel, resizeCLICompanionPanel, toggleCLIAgentOptions } from '../js/settings-cli-agent-panel.js';
 
 describe('CLI companion setup UI', () => {
   it('collapses agent settings without changing the selected provider or controls', () => {
     localStorage.setItem('labcharts-agent-host-agent', 'codex');
-    document.body.innerHTML = '<button data-settings-action="toggle-cli-agent-options" aria-expanded="true" aria-controls="cli-agent-options">Codex</button><div id="cli-agent-options"><input value="medium"></div>';
-    const button = document.querySelector('button')!;
+    cliSettingsFixture([{ id:'codex',name:'Codex',compatible:true,status:'available' }],'codex');
+    document.getElementById('cli-agent-options')!.innerHTML = '<input value="medium">';
+    const button = document.querySelector('[data-settings-action="toggle-cli-agent-options"]')!;
     const options = document.getElementById('cli-agent-options')!;
     const input = options.querySelector('input')!;
     toggleCLIAgentOptions();
@@ -21,10 +24,9 @@ describe('CLI companion setup UI', () => {
     expect(input.value).toBe('medium');
   });
   beforeEach(() => {
-    document.body.innerHTML = '<div id="local-agent-list"></div><div id="local-agent-companion-section"></div>';
-    localStorage.clear();
+    localStorage.clear(); cliSettingsFixture();
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => { disposeCliAgentSettings(); document.body.replaceChildren(); vi.unstubAllGlobals(); });
 
   it('uses one bootstrap command before offering in-app installation', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{"error":"not_found"}', {
@@ -87,6 +89,7 @@ describe('CLI companion setup UI', () => {
     }));
 
     document.body.innerHTML = renderCLIAgentProviderPanel();
+    await Promise.resolve();
     expect(document.body.textContent).toContain('Scanning this computer');
     expect(document.querySelector('.local-agent-install-card')).toBeNull();
     await vi.waitFor(() => {
@@ -185,7 +188,8 @@ describe('CLI companion setup UI', () => {
   });
 
   it('accepts bounded frame sizing only from its own local management panel', () => {
-    document.body.innerHTML = '<iframe class="local-agent-management-frame" src="http://127.0.0.1:8325/manage/embed"></iframe>';
+    vi.stubGlobal('location',{ origin:'http://localhost:8000' });
+    cliSettingsFixture([{ id:'codex',compatible:true,status:'available',endpoint:'http://127.0.0.1:8325',capabilities:['companion-control','companion-restart','companion-management-embedded'] }]);
     const frame = document.querySelector('iframe')!;
     const event = { data: { type: 'getbased-companion-panel-size', height: 340 }, origin: 'http://127.0.0.1:8325', source: frame.contentWindow };
     resizeCLICompanionPanel({ ...event, origin: 'https://attacker.example' });

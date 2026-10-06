@@ -191,7 +191,11 @@ export async function discoverLocalChatAgents(options: AgentDiscoveryOptions & {
 }
 
 export async function connectDetectedAgent(agentId = getAgentHostAgent(), options: AgentConnectionOptions = {}) {
+  const current = () => options.isCurrent?.() !== false;
+  const assertCurrent = () => { if (!current()) throw new Error('CLI connection request was superseded.'); };
+  assertCurrent();
   const runtime = await import('./agent-host-discovery.js');
+  assertCurrent();
   const savedToken = getAgentHostToken();
   const requiredCapabilities = runtime.normalizeRequiredCapabilities(options.requiredCapabilities);
   let agents: DiscoveredAgent[] = [];
@@ -209,27 +213,31 @@ export async function connectDetectedAgent(agentId = getAgentHostAgent(), option
   }
   let lastError: unknown = null;
   for (const candidate of candidates) {
+    assertCurrent();
     try {
       return await runtime.connectAgentHostCandidate({
         candidate, requiredCapabilities, requiredTextFeatureTarget: options.requiredTextFeatureTarget, signal: options.signal,
         attempts: candidate.status === 'starting' ? 12 : 1,
         normalizeEndpoint: normalizeAgentHostEndpoint,
-        onConnected: saveAgentChatSettings,
+        onConnected: saveAgentChatSettings,isCurrent:options.isCurrent,
       });
-    } catch (error) { lastError = error; }
+    } catch (error) { assertCurrent(); lastError = error; }
   }
   // A dev server can keep advertising an older child process while a newer
   // standalone companion is already available on the next bounded port.
+  assertCurrent();
   const recovered = await discoverLoopbackAgentHosts({ signal: options.signal, requiredTextFeatureTarget: options.requiredTextFeatureTarget, requiredAgentId: agentId });
+  assertCurrent();
   for (const candidate of recovered.filter(agent => agent.id === agentId && agent.compatible && agent.status !== 'login_required')) {
+    assertCurrent();
     if (candidates.some(existing => existing.endpoint === candidate.endpoint && existing.token === candidate.token)) continue;
     try {
       return await runtime.connectAgentHostCandidate({
         candidate, requiredCapabilities, requiredTextFeatureTarget: options.requiredTextFeatureTarget, signal: options.signal, attempts: 1,
         normalizeEndpoint: normalizeAgentHostEndpoint,
-        onConnected: saveAgentChatSettings,
+        onConnected: saveAgentChatSettings,isCurrent:options.isCurrent,
       });
-    } catch (error) { lastError = error; }
+    } catch (error) { assertCurrent(); lastError = error; }
   }
   const installed = [...agents, ...recovered].find(agent => agent.id === agentId);
   if (installed?.status === 'login_required') throw new Error(installed.message || `${installed.name || agentId} requires sign-in.`);
