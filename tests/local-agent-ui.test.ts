@@ -111,11 +111,11 @@ describe('local agent selection UI', () => {
   });
 
   it('renders Codex model and reasoning controls from the CLI catalog', () => {
-    const source = read('js/settings-cli-agent-panel.ts');
+    const source = read('js/settings-cli-agent-panel.ts') + read('js/cli-agent-models-presentation.ts') + read('js/components/CliAgentModels.svelte');
     expect(source).toContain("action: 'set-cli-agent-model'");
     expect(source).toContain("action: 'set-cli-agent-effort'");
     expect(source).toContain('listAgentModels');
-    expect(source).toContain('class="cli-agent-picker"');
+    expect(source).toContain('class="cli-agent-picker ');
     expect(source).not.toContain('<select id="cli-agent-model"');
     expect(source).not.toContain('<select id="cli-agent-effort"');
     expect(source).toContain("action: 'set-cli-agent-provider-filter'");

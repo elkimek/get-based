@@ -263,6 +263,17 @@ web-search/image limits remain visible for known private models. Catalog reads
 reject replaced node, credential, request order or initiating Settings view
 before writing pricing, capabilities, catalogs or selection.
 
+`CliAgentModels.svelte` owns CLI model, reasoning, provider-catalog and execution
+pickers, including search and keyboard navigation. The presentation module
+projects domain catalogs into labels and selected IDs without connection tokens.
+Its lifecycle adapter refreshes controls in place, preserving search and focus,
+and rejects retained controls after Settings closes or the provider changes.
+CLI discovery and selection capture the originating owner and request order;
+late catalogs cannot replace newer choices or write into a reopened panel.
+Accepted persistence can finish after closure without updating the next view.
+CLI discovery rows, companion setup/management and the outer provider chooser
+still have separate native owners pending their migration.
+
 `LocalAiSettings.svelte` owns the Local AI connection fields, status, model
 selection, hardware advice, pull-command copy and VRAM override controls. Its
 private address/key ports retain drafts and focus during catalog/advisor updates

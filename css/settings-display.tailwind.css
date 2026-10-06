@@ -48,3 +48,5 @@
 @custom-variant cloud-provider (&:is([data-cloud-provider-settings-view], [data-cloud-provider-settings-view] *));
 
 @source "../js/ppq-topup-classes.ts";
+
+@custom-variant cli-model (&:is([data-cli-agent-models-view], [data-cli-agent-models-view] *));

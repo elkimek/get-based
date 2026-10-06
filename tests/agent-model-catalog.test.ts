@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   AGENT_MODEL_CATALOG_AGENT_KEY, AGENT_MODEL_CATALOG_TARGET_KEY, cacheAgentModelCatalog, getCachedAgentModelCatalog,
 } from '../js/agent-model-catalog.js';
+import { mountCliAgentModels, disposeCliAgentModels } from '../js/cli-agent-models-component.js';
 import { filterCLIAgentModelOptions } from '../js/settings-cli-agent-panel.js';
 
 describe('CLI agent model catalog cache', () => {
   beforeEach(() => localStorage.clear());
+  afterEach(() => { disposeCliAgentModels(); document.body.replaceChildren(); });
 
   it('keeps complete multi-provider catalogs up to the companion limit', () => {
     const models = Array.from({ length: 366 }, (_, index) => ({
@@ -68,15 +70,17 @@ describe('CLI agent model catalog cache', () => {
   });
 
   it('filters a large rendered catalog without changing the selected model', () => {
-    document.body.innerHTML = `<div id="cli-agent-model-options">
-      <span id="cli-agent-model-result-count"></span>
-      <button data-model-search="gpt 5.6 sol openrouter/openai/gpt-5.6-sol"></button>
-      <button data-model-search="claude sonnet openrouter/anthropic/claude-sonnet"></button>
-    </div>`;
+    const host = document.createElement('div'); document.body.append(host);
+    localStorage.setItem('labcharts-agent-host-model','openrouter/openai/gpt-5.6-sol');
+    mountCliAgentModels(host,{ context:'opencode:local',providerFilter:'openrouter',note:'',loading:'',error:'',pickers:[{
+      id:'cli-agent-model',label:'Model',value:'openrouter/openai/gpt-5.6-sol',action:'set-cli-agent-model',searchable:true,
+      options:[{ value:'openrouter/openai/gpt-5.6-sol',label:'gpt 5.6 sol' },{ value:'openrouter/anthropic/claude-sonnet',label:'claude sonnet' }],
+    }] },() => { throw new Error('Filtering must not select a model'); });
     filterCLIAgentModelOptions('gpt 5.6');
-    const options = [...document.querySelectorAll('[data-model-search]')];
-    expect(options[0]!.hasAttribute('hidden')).toBe(false);
-    expect(options[1]!.hasAttribute('hidden')).toBe(true);
+    expect(host.querySelector('[data-value="openrouter/openai/gpt-5.6-sol"]')).not.toBeNull();
+    expect(host.querySelector('[data-value="openrouter/anthropic/claude-sonnet"]')).toBeNull();
+    expect(localStorage.getItem('labcharts-agent-host-model')).toBe('openrouter/openai/gpt-5.6-sol');
+    expect(host.querySelector('#cli-agent-model-summary')!.textContent).toContain('gpt 5.6 sol');
     expect(document.getElementById('cli-agent-model-result-count')!.textContent).toBe('1 model');
   });
 });

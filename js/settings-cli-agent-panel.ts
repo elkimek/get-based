@@ -1,3 +1,5 @@
+import { mountCliAgentModels, getCliAgentModelsView, disposeCliAgentModels } from './cli-agent-models-component.js';
+import { buildCliAgentModelsSnapshot, selectedModelEntry, getCLIAgentModelProvider } from './cli-agent-models-presentation.js';
 import type { AgentModel } from './agent-model-catalog.js';
 import type { AgentExecutionTarget } from './agent-chat-client.js';
 import type { DiscoveredAgent } from './agent-host-discovery.js';
@@ -5,11 +7,6 @@ import type { DiscoveredAgent } from './agent-host-discovery.js';
 type CompanionPlatform = 'linux' | 'macos' | 'windows';
 interface CompanionLocation { origin?: string; hostname?: string }
 interface CompanionNavigator { userAgentData?: { platform?: string }; platform?: string; userAgent?: string }
-interface AgentPickerConfig {
-  id: string; label: string; value: string; options: Array<{ value: string; label: string }>;
-  action: string; disabled?: boolean; searchable?: boolean; placeholder?: string;
-}
-
 // settings-cli-agent-panel.js — Settings → AI → CLI agents rendering/actions.
 
 import { controlAgentHost, listAgentExecutionTargets, listAgentModels } from './agent-chat-client.js';
@@ -31,6 +28,9 @@ import {
 } from './agent-chat-settings.js';
 import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
 
+let modelRequest = 0;
+let selectionRequest = 0;
+let discoveryRequest = 0;
 let agentModels: AgentModel[] = [];
 let agentTargets: AgentExecutionTarget[] = [];
 let agentModelsAgentId = '';
@@ -173,147 +173,32 @@ export function renderCLIAgentProviderPanel() {
     </div>`;
 }
 
-function selectedModelEntry(models: AgentModel[], selectedModel: string) {
-  return models.find(model => model.id === selectedModel || model.model === selectedModel)
-    || models.find(model => model.isDefault)
-    || models[0]
-    || null;
-}
-
-function renderAgentPicker(config: AgentPickerConfig) {
-  const selected = config.options.find(option => option.value === config.value)
-    || (!config.value && !config.placeholder ? config.options[0] : null);
-  const selectedLabel = selected?.label || config.placeholder || '';
-  return `<label class="local-agent-option-label" for="${escapeAttr(config.id)}-summary"><span>${escapeHTML(config.label)}</span></label>
-    <details class="cli-agent-picker"${config.disabled ? ' data-disabled="true"' : ''}>
-      <summary id="${escapeAttr(config.id)}-summary" class="cli-agent-picker-summary"${config.disabled ? ' aria-disabled="true" tabindex="-1"' : ''}>
-        <span title="${escapeAttr(selectedLabel)}">${escapeHTML(selectedLabel)}</span><span class="cli-agent-picker-chevron" aria-hidden="true">⌄</span>
-      </summary>
-      <div class="cli-agent-picker-options"${config.searchable ? ' id="cli-agent-model-options"' : ''} role="listbox" aria-label="${escapeAttr(config.label)}">
-        ${config.searchable ? `<div class="cli-agent-picker-search"><input type="search" data-cli-agent-model-search aria-label="Search models" placeholder="Search ${config.options.length} models"><span id="cli-agent-model-result-count">${config.options.length} models</span></div>` : ''}
-        ${config.options.map(option => `<button type="button" role="option" aria-selected="${option.value === config.value}" data-settings-action="${escapeAttr(config.action)}" data-value="${escapeAttr(option.value)}"${config.searchable ? ` data-model-search="${escapeAttr(`${option.label} ${option.value}`.toLowerCase())}"` : ''}><span title="${escapeAttr(option.label)}">${escapeHTML(option.label)}</span>${option.value === config.value ? '<span aria-hidden="true">✓</span>' : ''}</button>`).join('')}
-      </div>
-    </details>`;
-}
-
-export function getCLIAgentModelProvider(agentId: string, model: Pick<Partial<AgentModel>, 'id' | 'model'> | null) {
-  const id = String(model?.id || model?.model || '');
-  if (agentId === 'opencode' || agentId === 'openclaw') return id.includes('/') ? id.slice(0, id.indexOf('/')) : '';
-  if (agentId === 'hermes') {
-    if (id.startsWith('custom:')) {
-      const parts = id.split(':');
-      return parts.length > 2 ? parts.slice(0, 2).join(':') : 'custom';
-    }
-    return id.includes(':') ? id.slice(0, id.indexOf(':')) : '';
-  }
-  return '';
-}
-
-function agentProviderLabel(provider: string) {
-  const known: Record<string, string> = {
-    opencode: 'OpenCode', openrouter: 'OpenRouter', anthropic: 'Anthropic',
-    'openai-codex': 'OpenAI Codex', openai: 'OpenAI', 'custom:ollama': 'Ollama',
-    openclaw: 'OpenClaw', 'opencode-free': 'OpenCode Free', 'opencode-zen': 'OpenCode Zen',
-    ollama: 'Ollama', 'ollama-cloud': 'Ollama Cloud', venice: 'Venice', xai: 'xAI',
-    'custom:openrouter': 'OpenRouter (custom)',
-  };
-  return known[provider] || provider.split(/[-_]/).filter(Boolean)
-    .map(part => `${part.charAt(0).toUpperCase()}${part.slice(1)}`).join(' ');
-}
-
-function agentModelLabel(agentId: string, model: AgentModel) {
-  const provider = getCLIAgentModelProvider(agentId, model);
-  let label = model.displayName || model.id || model.model;
-  if (provider && label.includes('/')) label = label.slice(label.indexOf('/') + 1);
-  if (provider && label.includes(' · ')) label = label.slice(label.indexOf(' · ') + 3);
-  const id = String(model.id || model.model || '').toLowerCase();
-  const isFree = id === 'opencode/big-pickle' || id.endsWith(':free') || /(?:^|[-/])free(?:$|[-/])/.test(id);
-  return `${label}${isFree && !label.toLowerCase().includes('free') ? ' · Free' : ''}`;
-}
+export { getCLIAgentModelProvider } from './cli-agent-models-presentation.js';
 
 export function filterCLIAgentModelOptions(query: unknown) {
-  const root = document.getElementById('cli-agent-model-options');
-  if (!root) return;
-  const normalized = String(query || '').trim().toLowerCase();
-  const options = [...root.querySelectorAll('[data-model-search]')];
-  let visible = 0;
-  for (const option of options) {
-    const matches = !normalized || String(option.getAttribute('data-model-search') || '').includes(normalized);
-    option.toggleAttribute('hidden', !matches);
-    if (matches) visible += 1;
-  }
-  const count = document.getElementById('cli-agent-model-result-count');
-  if (count) count.textContent = `${visible} ${visible === 1 ? 'model' : 'models'}`;
+  getCliAgentModelsView()?.filter(String(query || ''));
 }
 
-export function setCLIAgentProviderFilter(provider: unknown) {
-  agentProviderFilter = String(provider || '').slice(0, 80);
-  const options = document.getElementById('cli-agent-options');
-  if (options?.isConnected) showAgentModelControls(options, agentModels);
+export function setCLIAgentProviderFilter(provider: unknown): void {
+  agentProviderFilter = String(provider || '').slice(0,80);
+  const host = document.getElementById('cli-agent-options');
+  if (host?.isConnected) showAgentModelControls(host, agentModels);
 }
 
-function renderAgentModelControls(models: AgentModel[]) {
-  const agentId = getAgentHostAgent();
-  const selectedTarget = getAgentHostTarget(agentId);
-  const selectedModel = getAgentHostModel();
-  const selectedEffort = getAgentHostEffort();
-  const current = selectedModelEntry(models, selectedModel);
-  const defaultModel = models.find(model => model.isDefault) || models[0] || null;
-  const providers = [...new Set(models.map(model => getCLIAgentModelProvider(agentId, model)).filter(Boolean))];
-  const selectedProvider = getCLIAgentModelProvider(agentId, current || defaultModel);
-  if (!providers.includes(agentProviderFilter)) agentProviderFilter = selectedProvider || providers[0] || '';
-  const visibleModels = agentProviderFilter
-    ? models.filter(model => getCLIAgentModelProvider(agentId, model) === agentProviderFilter)
-    : models;
-  const modelOptions = [
-    ...(!providers.length || getCLIAgentModelProvider(agentId, defaultModel) === agentProviderFilter
-      ? [{ value: '', label: `CLI default${defaultModel ? ` · ${agentModelLabel(agentId, defaultModel)}` : ''}` }]
-      : []),
-    ...visibleModels.map(model => {
-      const value = model.id || model.model;
-      return { value, label: agentModelLabel(agentId, model) || value };
-    }),
-  ];
-  if (selectedModel && !models.some(model => model.id === selectedModel || model.model === selectedModel)) {
-    modelOptions.splice(1, 0, { value: selectedModel, label: `${selectedModel} · unavailable` });
-  }
-  const efforts = current?.supportedReasoningEfforts || [];
-  const defaultEffort = current?.defaultReasoningEffort || '';
-  const effortOptions = [
-    { value: '', label: efforts.length ? `Default${defaultEffort ? ` · ${defaultEffort}` : ''}`
-      : agentId === 'hermes' ? 'Uses Hermes setting' : 'Not offered by this model' },
-    ...efforts.map(item => ({ value: item.reasoningEffort, label: item.reasoningEffort })),
-  ];
-  if (selectedEffort && !efforts.some(item => item.reasoningEffort === selectedEffort)) {
-    effortOptions.push({ value: selectedEffort, label: `${selectedEffort} · unavailable` });
-  }
-  const agentName = ({ codex: 'Codex CLI', claude: 'Claude Agent', opencode: 'OpenCode', hermes: 'Hermes Agent', grok: 'Grok Build', openclaw: 'OpenClaw' } as Record<string, string>)[agentId] || 'the selected CLI';
-  const reasoningNote = !efforts.length && agentId === 'hermes'
-    ? ' Hermes ACP does not expose a separate reasoning control yet, so getbased uses your Hermes setting.' : '';
-  const targetOptions = agentTargets.map(target => ({
-    value: target.id,
-    label: `${target.label}${target.status === 'unavailable' ? ' · offline' : ''}`,
-  }));
-  const selectedTargetEntry = agentTargets.find(target => target.id === selectedTarget);
-  const personalTarget = selectedTargetEntry?.kind === 'gateway';
-  return `<div class="local-agent-options${providers.length > 1 ? ' has-provider' : ''}${targetOptions.length > 1 ? ' has-target' : ''}">
-    ${targetOptions.length > 1 ? `<div class="local-agent-option-field">${renderAgentPicker({ id: 'cli-agent-target', label: 'Execution', value: selectedTarget, options: targetOptions, action: 'set-cli-agent-target' })}</div>` : ''}
-    ${providers.length > 1 ? `<div class="local-agent-option-field">${renderAgentPicker({ id: 'cli-agent-provider', label: 'Provider catalog', value: agentProviderFilter, options: providers.map(provider => ({ value: provider, label: agentProviderLabel(provider) })), action: 'set-cli-agent-provider-filter' })}</div>` : ''}
-    <div class="local-agent-option-field">${renderAgentPicker({
-      id: 'cli-agent-model', label: 'Model', value: selectedModel, options: modelOptions,
-      action: 'set-cli-agent-model', searchable: modelOptions.length > 12,
-      placeholder: agentProviderFilter ? `Choose ${agentProviderLabel(agentProviderFilter)} model` : 'Choose a model',
-    })}</div>
-    <div class="local-agent-option-field">${renderAgentPicker({ id: 'cli-agent-effort', label: 'Reasoning effort', value: selectedEffort, options: effortOptions, action: 'set-cli-agent-effort', disabled: !efforts.length })}</div>
-    <small>${personalTarget
-    ? 'Personal gateway uses that profile&rsquo;s identity, memory, sessions, and configured tools. getbased sends the approved chat context, but its local health-data tools and background feature jobs are not available on this route.'
-    : `Catalog supplied by ${escapeHTML(agentName)}. Your choices apply only to getbased sessions and do not change the CLI&rsquo;s own default settings.${escapeHTML(reasoningNote)}`}</small>
-  </div>`;
+function modelsSnapshot(models: AgentModel[]) {
+  const state = buildCliAgentModelsSnapshot(models, agentTargets, { agent: getAgentHostAgent(), target: getAgentHostTarget(),
+    model: getAgentHostModel(), effort: getAgentHostEffort(), providerFilter: agentProviderFilter });
+  agentProviderFilter = state.providerFilter;
+  return state;
 }
-
-function showAgentModelControls(host: HTMLElement, models: AgentModel[]) {
+function showAgentModelControls(host: HTMLElement, models: AgentModel[], error = '', loading = '') {
   host.classList.remove('local-agent-options-loading');
-  host.innerHTML = renderAgentModelControls(models);
+  return mountCliAgentModels(host, { ...modelsSnapshot(models), error, loading }, (action,value): unknown => {
+    if (action === 'set-cli-agent-provider-filter') return setCLIAgentProviderFilter(value);
+    if (action === 'set-cli-agent-model') return setCLIAgentModel(value);
+    if (action === 'set-cli-agent-target') return setCLIAgentTarget(value);
+    return setCLIAgentEffort(value);
+  });
 }
 
 function renderDetectedAgent(agent: DiscoveredAgent) {
@@ -409,11 +294,16 @@ function renderCompanionControls(agent: DiscoveredAgent) {
 export async function refreshDetectedAgentList(options: { refresh?: boolean | undefined } = {}) {
   const list = document.getElementById('local-agent-list');
   if (!list) return;
+  const request = ++discoveryRequest;
+  const current = () => request === discoveryRequest && list.isConnected && document.getElementById('local-agent-list') === list;
   const companionSection = document.getElementById('local-agent-companion-section');
+  disposeCliAgentModels();
+  ++modelRequest;
   list.innerHTML = '<div class="local-agent-scan-state"><span class="local-agent-spinner" aria-hidden="true"></span>Scanning this computer…</div>';
   if (companionSection) companionSection.innerHTML = '';
   try {
     const agents = await discoverLocalChatAgents({ refresh: options.refresh });
+    if (!current()) return;
     const agentRows = agents.length ? agents.map(renderDetectedAgent).join('') : '';
     const companion = agents.find(agent => agent.id === getAgentHostAgent() && agent.compatible
       && ['available', 'paused', 'login_required'].includes(agent.status))
@@ -425,6 +315,7 @@ export async function refreshDetectedAgentList(options: { refresh?: boolean | un
       void hydrateAgentModelControls();
     }
   } catch (error) {
+    if (!current()) return;
     list.innerHTML = '<div class="local-agent-scan-state local-agent-scan-error">CLI detection is unavailable.</div>';
     console.warn('[agent-chat] CLI detection failed', error);
   }
@@ -464,60 +355,64 @@ export async function controlCLICompanion(requestedAction: string): Promise<Awai
   }
 }
 
+function captureAgentConnection() {
+  const endpoint = getAgentHostEndpoint(), token = getAgentHostToken();
+  return { endpoint, token, isCurrent: () => getAgentHostEndpoint() === endpoint && getAgentHostToken() === token };
+}
+
 async function hydrateAgentModelControls() {
   const options = document.getElementById('cli-agent-options');
   if (!options) return;
+  const request = ++modelRequest;
   const requestedAgent = getAgentHostAgent();
+  const initialTarget = getAgentHostTarget(requestedAgent), initialModel = getAgentHostModel(), initialEffort = getAgentHostEffort(), backend = getChatBackend();
+  if (hydratedAgentId !== requestedAgent) {
+    hydratedAgentId = requestedAgent; agentProviderFilter = ''; agentTargets = [];
+  }
+  const owned = showAgentModelControls(options, [], '', 'Loading CLI model options…');
+  const current = () => request === modelRequest && owned.isCurrent() && getAgentHostAgent() === requestedAgent && getChatBackend() === backend;
+  const unchanged = () => current() && getAgentHostTarget(requestedAgent) === initialTarget && getAgentHostModel() === initialModel && getAgentHostEffort() === initialEffort;
   let requestedTarget = '';
+  let connection: ReturnType<typeof captureAgentConnection> | null = null;
   try {
     const agent = requestedAgent;
-    if (hydratedAgentId !== agent) {
-      hydratedAgentId = agent;
-      agentProviderFilter = '';
-      agentTargets = [];
-    }
     await connectDetectedAgent(agent);
-    if (getAgentHostAgent() !== agent) return;
+    if (!unchanged()) return;
+    connection = captureAgentConnection();
     const targets = await listAgentExecutionTargets({
-      endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent,
+      endpoint: connection.endpoint, token: connection.token, agent,
     });
-    if (getAgentHostAgent() !== agent) return;
+    if (!unchanged() || !connection.isCurrent()) return;
     agentTargets = targets;
     if (!agentTargets.some(target => target.id === getAgentHostTarget(agent))) {
       await saveAgentChatSettings({ target: 'local' });
+      if (!current() || !connection.isCurrent()) return;
     }
     const activeTarget = agentTargets.find(target => target.id === getAgentHostTarget(agent));
     if (activeTarget?.status === 'unavailable') {
       throw new Error(activeTarget.message || 'This personal gateway is currently offline.');
     }
     const selectedModel = getAgentHostModel();
+    const selectedEffort = getAgentHostEffort();
     const target = getAgentHostTarget(agent);
     requestedTarget = target;
     const models = await listAgentModels({
-      endpoint: getAgentHostEndpoint(),
-      token: getAgentHostToken(),
+      endpoint: connection.endpoint,
+      token: connection.token,
       agent,
       target,
       model: selectedModel || undefined,
     });
-    if (!options.isConnected || getAgentHostAgent() !== agent || getAgentHostTarget(agent) !== target) return;
+    if (!current() || !connection.isCurrent() || getAgentHostAgent() !== agent || getAgentHostTarget(agent) !== target || getAgentHostModel() !== selectedModel || getAgentHostEffort() !== selectedEffort) return;
     agentModels = cacheAgentModelCatalog(models, agent, target);
     agentModelsAgentId = agent;
     agentModelsTargetId = target;
     showAgentModelControls(options, agentModels);
   } catch (error) {
-    if (getAgentHostAgent() !== requestedAgent
+    if (!current() || (connection && !connection.isCurrent()) || getAgentHostAgent() !== requestedAgent
       || (requestedTarget && getAgentHostTarget(requestedAgent) !== requestedTarget)) return;
-    if (options.isConnected) {
-      agentModels = [];
-      agentModelsAgentId = '';
-      agentModelsTargetId = '';
-      const message = escapeHTML(error instanceof Error ? error.message : 'Could not load this execution target. Check its connection, then try again.');
-      if (agentTargets.length > 1) {
-        showAgentModelControls(options, []);
-        options.insertAdjacentHTML('beforeend', `<div class="local-agent-scan-state local-agent-scan-error">${message}</div>`);
-      } else options.innerHTML = `<div class="local-agent-scan-state local-agent-scan-error">${message}</div>`;
-    }
+    agentModels = []; agentModelsAgentId = ''; agentModelsTargetId = '';
+    showAgentModelControls(options, [], error instanceof Error ? error.message : 'Could not load this execution target. Check its connection, then try again.');
     console.warn('[agent-chat] CLI model discovery failed', error);
   }
 }
@@ -567,21 +462,38 @@ export async function toggleLocalCodex(enabled: boolean, agentId = getAgentHostA
   await refreshDetectedAgentList();
 }
 
+function captureModelSelection() {
+  const request = ++selectionRequest;
+  ++modelRequest;
+  const owner = getCliAgentModelsView();
+  const panel = document.getElementById('ai-provider-panel');
+  const viewCurrent = () => owner ? owner.isCurrent() : !panel || (panel.isConnected && document.getElementById('ai-provider-panel') === panel);
+  const agent = getAgentHostAgent(), target = getAgentHostTarget(agent), model = getAgentHostModel(), effort = getAgentHostEffort(), backend = getChatBackend();
+  const current = () => request === selectionRequest && viewCurrent() && getAgentHostAgent() === agent && getAgentHostTarget(agent) === target && getChatBackend() === backend;
+  const unchanged = () => current() && getAgentHostModel() === model && getAgentHostEffort() === effort;
+  const currentAfterTarget = (nextTarget: string) => request === selectionRequest && viewCurrent() && getAgentHostAgent() === agent && getAgentHostTarget(agent) === nextTarget && getChatBackend() === backend;
+  return { current, unchanged, currentAfterTarget };
+}
+
 export async function setCLIAgentModel(model: string) {
+  const operation = captureModelSelection();
   const agent = getAgentHostAgent();
   const target = getAgentHostTarget(agent);
+  let connection: ReturnType<typeof captureAgentConnection> | null = null;
   try {
     await connectDetectedAgent(agent);
-    if (getAgentHostAgent() !== agent || getAgentHostTarget(agent) !== target) return;
+    if (!operation.unchanged()) return;
+    connection = captureAgentConnection();
     const models = await listAgentModels({
-      endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent,
+      endpoint: connection.endpoint, token: connection.token, agent,
       target, model: model || undefined,
     });
-    if (getAgentHostAgent() !== agent || getAgentHostTarget(agent) !== target) return;
+    if (!operation.unchanged() || !connection.isCurrent()) return;
     agentModels = cacheAgentModelCatalog(models, agent, target);
     agentModelsAgentId = agent;
     agentModelsTargetId = target;
     await saveAgentChatSettings({ model });
+    if (!operation.current()) return;
     const selected = selectedModelEntry(agentModels, model);
     const provider = getCLIAgentModelProvider(agent, selected);
     if (provider) agentProviderFilter = provider;
@@ -589,23 +501,27 @@ export async function setCLIAgentModel(model: string) {
     const options = document.getElementById('cli-agent-options');
     if (options?.isConnected) showAgentModelControls(options, agentModels);
   } catch (error) {
-    if (getAgentHostAgent() !== agent || getAgentHostTarget(agent) !== target) return;
+    if (!operation.unchanged() || (connection && !connection.isCurrent())) return;
     showNotification(error instanceof Error ? error.message : 'Could not select this CLI model.', 'error', 9000);
   }
 }
 
 export async function setCLIAgentTarget(target: string) {
+  const operation = captureModelSelection();
   const agent = getAgentHostAgent();
+  let connection: ReturnType<typeof captureAgentConnection> | null = null;
   try {
     await connectDetectedAgent(agent);
-    if (getAgentHostAgent() !== agent) return;
+    if (!operation.unchanged()) return;
+    connection = captureAgentConnection();
     const targets = await listAgentExecutionTargets({
-      endpoint: getAgentHostEndpoint(), token: getAgentHostToken(), agent,
+      endpoint: connection.endpoint, token: connection.token, agent,
     });
-    if (getAgentHostAgent() !== agent) return;
+    if (!operation.unchanged() || !connection.isCurrent()) return;
     const selected = targets.find(item => item.id === target);
     if (!selected) throw new Error('This execution target is no longer available.');
     await saveAgentChatSettings({ target });
+    if (!operation.currentAfterTarget(target)) return;
     agentTargets = targets;
     agentModels = [];
     agentModelsAgentId = '';
@@ -613,34 +529,30 @@ export async function setCLIAgentTarget(target: string) {
     agentProviderFilter = '';
     const options = document.getElementById('cli-agent-options');
     if (options?.isConnected) {
-      options.className = 'local-agent-options-loading';
-      options.textContent = selected.status === 'unavailable'
-        ? (selected.message || 'This gateway is currently offline. Start it, then check the connection again.')
-        : 'Loading models for this execution target…';
+      showAgentModelControls(options, [], selected.status === 'unavailable' ? (selected.message || 'This gateway is currently offline. Start it, then check the connection again.') : '',
+        selected.status === 'unavailable' ? '' : 'Loading models for this execution target…');
       if (selected.status !== 'unavailable') void hydrateAgentModelControls();
-      else {
-        showAgentModelControls(options, []);
-        options.insertAdjacentHTML('beforeend', `<div class="local-agent-scan-state local-agent-scan-error">${escapeHTML(selected.message || 'This gateway is currently offline. Start it, then check the connection again.')}</div>`);
-      }
     }
     showNotification(selected.kind === 'gateway'
       ? `Personal agent selected: ${selected.label}` : 'Local CLI execution selected', 'success', 7000);
   } catch (error) {
-    if (getAgentHostAgent() !== agent) return;
+    if (!operation.unchanged() || (connection && !connection.isCurrent())) return;
     showNotification(error instanceof Error ? error.message : 'Could not select this execution target.', 'error', 9000);
   }
 }
 
 export async function setCLIAgentEffort(effort: string) {
+  const operation = captureModelSelection();
   const agent = getAgentHostAgent();
   const target = getAgentHostTarget(agent);
+  if (!operation.unchanged()) return;
   await saveAgentChatSettings({ effort });
+  if (!operation.current()) return;
   showNotification(effort ? `Reasoning set to ${effort}` : 'The agent will use its default reasoning effort', 'success');
   const options = document.getElementById('cli-agent-options');
   if (options?.isConnected && agentModelsAgentId === agent && agentModelsTargetId === target) showAgentModelControls(options, agentModels);
   else if (options?.isConnected) {
-    options.className = 'local-agent-options-loading';
-    options.textContent = 'Refreshing CLI model options…';
+    showAgentModelControls(options, [], '', 'Refreshing CLI model options…');
     void hydrateAgentModelControls();
   }
 }
@@ -660,10 +572,4 @@ export function resizeCLICompanionPanel(event: Pick<MessageEvent<{ type?: unknow
 
 if (typeof document !== 'undefined') {
   document.defaultView?.addEventListener('message', resizeCLICompanionPanel);
-  document.addEventListener('input', event => {
-    const target = event.target;
-    if (target instanceof HTMLInputElement && target.matches('[data-cli-agent-model-search]')) {
-      filterCLIAgentModelOptions(target.value);
-    }
-  });
 }
