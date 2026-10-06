@@ -1,8 +1,9 @@
 // Awaited UI actions own only their Agent Access field changes and originating data.
 import { saveImportedDataForProfile } from './data.js';
 import { state } from './state.js';
+import { profileDataBaseline } from './profile-data-writes.js';
 import type { AgentAccessOperationScope } from './sync-messenger.js';
-import { captureAgentAccessOperationScope } from './sync-messenger.js';
+import { captureAgentAccessOperationScope, isAgentAccessMigrationDirty } from './sync-messenger.js';
 const pending = new WeakSet<object>();
 const fields = ['agentAccess', 'agentAccessWearableSeriesDays'] as const;
 const record = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -42,6 +43,16 @@ export function beginAgentAccessMutation(): AgentAccessMutation | null {
   if (pending.has(origin)) return null;
   const profileId = state.currentProfile;
   const baseData = structuredClone(origin);
+  // A legacy record may still be awaiting its first durable write. Diff these
+  // fields against the persisted baseline so a failed migration cannot make a
+  // later credential save omit the unchanged context key or enabled state.
+  const persistedData = profileDataBaseline(origin);
+  if (isAgentAccessMigrationDirty() && persistedData) {
+    for (const field of fields) {
+      if (persistedData[field] === undefined) delete baseData[field];
+      else baseData[field] = structuredClone(persistedData[field]);
+    }
+  }
   const before = snapshot(origin);
   const scope = captureAgentAccessOperationScope();
   let applied = before;

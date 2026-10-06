@@ -18,6 +18,7 @@ import {
   hasMessengerSyncIdentity,
   isAgentAccessMigrationDirty,
   migrateLocalAgentAccessToProfile,
+  refreshAgentAccessFromSyncedProfile,
   generateMessengerToken,
   generateMessengerContextKey,
   revokeMessengerTokenRemote,
@@ -90,6 +91,7 @@ async function persistMigratedAgentAccessIfNeeded() {
   if (!scope.isCurrent() || JSON.stringify(state.importedData.agentAccess) !== migrated) return;
   clearAgentAccessMigrationDirty();
   clearLegacyAgentAccessSecrets();
+  refreshAgentAccessFromSyncedProfile({ migrateLegacy: false });
 }
 
 function getAgentAccessSnapshot(): AgentAccessSnapshot {

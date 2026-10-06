@@ -7,6 +7,8 @@ import { state } from './state.js';
 import { bindSyncAppliedRefresh } from './utils.js';
 import { addUtilsRuntimeListener } from './utils-runtime.js';
 import { isDemoProfileId } from './profile-sync-policy.js';
+import { MESSENGER_TOKEN_KEY, MESSENGER_ENABLED_KEY, MESSENGER_CONTEXT_KEY_KEY,
+  AGENT_ACCESS_MIGRATION_PROFILE_KEY, retireAgentAccessLegacySource } from './agent-access-legacy-source.js';
 
 export interface AgentAccessRecord extends Record<string, unknown> {
   version?: number;
@@ -26,9 +28,6 @@ interface AgentAccessProfile {
 }
 interface MessengerOwner { id?: unknown; writeKey?: unknown }
 
-const MESSENGER_TOKEN_KEY = 'labcharts-messenger-token';
-const MESSENGER_ENABLED_KEY = 'labcharts-messenger-enabled';
-const MESSENGER_CONTEXT_KEY_KEY = 'labcharts-agent-context-key';
 const AGENT_ACCESS_SYNC_VERSION = 1;
 
 let _getSyncRelay: () => string = () => 'wss://sync.getbased.health';
@@ -42,6 +41,7 @@ let _contextPushTimer: ReturnType<typeof setTimeout> | null = null;
 let _contextPushInFlight = false;
 let _blockedContextPushIdentity = '';
 let agentAccessMigrationDirty = new WeakSet<object>();
+let unclaimedAgentAccessSource = new WeakSet<object>();
 
 function cancelPendingContextPush() {
   if (_contextPushTimer != null) {
@@ -126,6 +126,34 @@ function writeAgentAccess(patch: Partial<AgentAccessRecord>) {
   return next;
 }
 
+function agentAccessProfileId() {
+  return state.currentProfile || (typeof localStorage !== 'undefined' && localStorage.getItem('labcharts-active-profile')) || 'default';
+}
+
+function legacySourceBelongsToCurrentProfile() {
+  try {
+    const owner = localStorage.getItem(AGENT_ACCESS_MIGRATION_PROFILE_KEY);
+    return !owner || owner === agentAccessProfileId();
+  } catch { return false; }
+}
+
+function hasBoundLegacyAgentAccessSource() {
+  try { return localStorage.getItem(AGENT_ACCESS_MIGRATION_PROFILE_KEY) === agentAccessProfileId(); }
+  catch { return false; }
+}
+
+function claimLegacyAgentAccessSource() {
+  try {
+    if (!legacySourceBelongsToCurrentProfile()) return false;
+    const profileId = agentAccessProfileId();
+    localStorage.setItem(AGENT_ACCESS_MIGRATION_PROFILE_KEY, profileId);
+    return localStorage.getItem(AGENT_ACCESS_MIGRATION_PROFILE_KEY) === profileId;
+  } catch {
+    dbg('Agent Access legacy source could not be bound to its profile; migration remains retryable');
+    return false;
+  }
+}
+
 function legacyLocalEnabled() {
   try { return localStorage.getItem(MESSENGER_ENABLED_KEY) === 'true'; } catch { return false; }
 }
@@ -165,6 +193,7 @@ let _lastAgentAccessMigrationSignature: string | null = null;
 export function _resetAgentAccessMigrationStateForTesting() {
   _lastAgentAccessMigrationSignature = null;
   agentAccessMigrationDirty = new WeakSet<object>();
+  unclaimedAgentAccessSource = new WeakSet<object>();
   _contextPushInFlight = false;
   _blockedContextPushIdentity = '';
 }
@@ -178,15 +207,13 @@ export function clearAgentAccessMigrationDirty() {
 }
 
 export function clearLegacyAgentAccessSecrets() {
-  if (typeof localStorage === 'undefined') return;
   try {
-    localStorage.removeItem(MESSENGER_TOKEN_KEY);
-    localStorage.removeItem(MESSENGER_CONTEXT_KEY_KEY);
+    if (retireAgentAccessLegacySource(agentAccessProfileId())) unclaimedAgentAccessSource.delete(state.importedData);
   } catch {}
 }
 
 function agentAccessMigrationSignature(existing: AgentAccessRecord | null, enabled: boolean, token: string | null, legacyContextKey: string | null) {
-  const pid = state.currentProfile || (typeof localStorage !== 'undefined' && localStorage.getItem('labcharts-active-profile')) || 'default';
+  const pid = agentAccessProfileId();
   // Deliberately exclude importedData.agentAccessWearableSeriesDays: that split
   // preference scalar is mirrored by setAgentAccessWearableSeriesDays() and
   // refreshAgentAccessFromSyncedProfile(), so preference-only changes must not
@@ -206,6 +233,10 @@ function agentAccessMigrationSignature(existing: AgentAccessRecord | null, enabl
 
 export function migrateLocalAgentAccessToProfile() {
   const existing = currentAgentAccess();
+  if (!legacySourceBelongsToCurrentProfile()) return existing;
+  // A reload may already contain the committed record, but the source can only
+  // be retired after confirming persistence, never from a presentation refresh.
+  if (existing && hasBoundLegacyAgentAccessSource()) agentAccessMigrationDirty.add(state.importedData);
   const enabled = legacyLocalEnabled();
   const token = legacyLocalToken();
   const legacyContextKey = legacyLocalContextKey();
@@ -260,6 +291,11 @@ export function migrateLocalAgentAccessToProfile() {
     return null;
   }
   if (!state.importedData) ((state as { importedData: AgentAccessProfile | null })).importedData = { entries: [] };
+  if (!claimLegacyAgentAccessSource()) {
+    unclaimedAgentAccessSource.add(state.importedData);
+    return existing;
+  }
+  unclaimedAgentAccessSource.delete(state.importedData);
   ((state.importedData as AgentAccessProfile)).agentAccessWearableSeriesDays = seriesDays;
   const migrated = writeAgentAccess({
     enabled: !!(enabled && token && contextKey),
@@ -275,13 +311,15 @@ export function migrateLocalAgentAccessToProfile() {
 function mirrorAgentAccessToLegacyLocalStorage(aa: AgentAccessRecord | null = currentAgentAccess()) {
   if (!aa || typeof localStorage === 'undefined') return;
   try {
-    if (aa.enabled) localStorage.setItem(MESSENGER_ENABLED_KEY, 'true');
-    else localStorage.setItem(MESSENGER_ENABLED_KEY, 'false');
-    // One-shot legacy migration source only: after Agent Access is represented
-    // inside encrypted profile data, never mirror raw bearer/decryption secrets
-    // back into same-origin localStorage. UI reads credentials from synced
-    // `state.importedData.agentAccess` instead.
-    clearLegacyAgentAccessSecrets();
+    // Keep an existing source intact until the migrated profile is durably
+    // saved. Another profile must neither consume nor retire that source.
+    if (isAgentAccessMigrationDirty() || hasBoundLegacyAgentAccessSource() || unclaimedAgentAccessSource.has(state.importedData)) return;
+    if (legacySourceBelongsToCurrentProfile()) {
+      localStorage.setItem(MESSENGER_ENABLED_KEY, aa.enabled ? 'true' : 'false');
+      clearLegacyAgentAccessSecrets();
+    }
+    // Never write bearer/decryption secrets back into localStorage. This mirror
+    // contains only the toggle and series preference after source retirement.
     const wearableSeriesDays = typeof aa?.wearableSeriesDays === 'number'
       ? normalizeAgentSeriesDays(aa.wearableSeriesDays)
       : currentAgentWearableSeriesDays(aa);

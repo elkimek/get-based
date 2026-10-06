@@ -172,6 +172,7 @@ describe('origin ownership of Agent Access saves', () => {
     expect(saveImportedData).toHaveBeenCalledWith({ reason: 'agent-access-migration' });
     const saved = vi.mocked(saveImportedData).mock.results[0]!.value as Promise<boolean>;
     state.currentProfile = 'other-profile'; state.importedData = { ...original, entries: [], agentAccess: null };
+    localStorage.removeItem('labcharts-agent-access-migration-profile');
     localStorage.setItem('labcharts-messenger-token', 'c'.repeat(64)); localStorage.setItem('labcharts-agent-context-key', 'd'.repeat(48));
     migrateLocalAgentAccessToProfile(); expect(isAgentAccessMigrationDirty()).toBe(true);
     finish(true); await saved;
@@ -185,6 +186,10 @@ describe('origin ownership of Agent Access saves', () => {
     migrateLocalAgentAccessToProfile(); expect(isAgentAccessMigrationDirty()).toBe(true);
     state.currentProfile = 'other-profile'; state.importedData = { ...original, entries: [], agentAccess: null };
     expect(isAgentAccessMigrationDirty()).toBe(false);
+    // The first source belongs to its originating profile, not the new one.
+    expect(migrateLocalAgentAccessToProfile()).toBeNull(); expect(isAgentAccessMigrationDirty()).toBe(false);
+    localStorage.removeItem('labcharts-agent-access-migration-profile');
+    localStorage.setItem('labcharts-messenger-token', 'c'.repeat(64));
     migrateLocalAgentAccessToProfile(); expect(isAgentAccessMigrationDirty()).toBe(true);
     clearAgentAccessMigrationDirty(); expect(isAgentAccessMigrationDirty()).toBe(false);
     state.currentProfile = 'origin-profile'; state.importedData = first; expect(isAgentAccessMigrationDirty()).toBe(true);

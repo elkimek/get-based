@@ -1276,10 +1276,19 @@ describe('synced Agent Access state', () => {
       contextKey: 'gbctx_v1_' + 'M'.repeat(43),
     });
     expect(localStorage.getItem('labcharts-messenger-enabled')).toBe('true');
+    expect(isAgentAccessMigrationDirty()).toBe(true);
+    expect(localStorage.getItem('labcharts-messenger-token')).toBe(state.importedData.agentAccess.token);
+    expect(localStorage.getItem('labcharts-agent-context-key')).toBe(state.importedData.agentAccess.contextKey);
+    expect(localStorage.getItem('labcharts-agent-access-migration-profile')).toBe(PROFILE_ID);
+    // Model the existing save-success acknowledgement before source retirement.
+    clearAgentAccessMigrationDirty();
+    clearLegacyAgentAccessSecrets();
+    refreshAgentAccessFromSyncedProfile();
     expectLegacyAgentCredentialsCleared();
+    expect(localStorage.getItem('labcharts-agent-access-migration-profile')).toBeNull();
   });
 
-  it('clears legacy credential mirrors when setting series migrates Agent Access into profile state', () => {
+  it('retains a recoverable source until setting-series migration is durably saved', () => {
     seedLegacyAgentCredentials('k', 'K');
     state.importedData.agentAccess = null;
 
@@ -1287,7 +1296,16 @@ describe('synced Agent Access state', () => {
     expect(setAgentAccessWearableSeriesDays(45)).toBeNull();
 
     expect(localStorage.getItem('labcharts-messenger-enabled')).toBe('true');
+    expect(isAgentAccessMigrationDirty()).toBe(true);
+    expect(localStorage.getItem('labcharts-messenger-token')).toBe(state.importedData.agentAccess.token);
+    expect(localStorage.getItem('labcharts-agent-context-key')).toBe(state.importedData.agentAccess.contextKey);
+    expect(localStorage.getItem('labcharts-agent-access-migration-profile')).toBe(PROFILE_ID);
+    // Model the existing save-success acknowledgement before source retirement.
+    clearAgentAccessMigrationDirty();
+    clearLegacyAgentAccessSecrets();
+    refreshAgentAccessFromSyncedProfile();
     expectLegacyAgentCredentialsCleared();
+    expect(localStorage.getItem('labcharts-agent-access-migration-profile')).toBeNull();
     expect(state.importedData.agentAccess).toMatchObject({
       enabled: true,
       token: 'k'.repeat(64),

@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 861 |
-| Internal import edges | 3608 |
+| Modules | 862 |
+| Internal import edges | 3611 |
 | Dynamic internal edges | 120 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -130,8 +130,9 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>agent</code> family — 11 modules</summary>
+<details><summary><code>agent</code> family — 12 modules</summary>
 
+- [`js/agent-access-legacy-source.ts`](js/agent-access-legacy-source.ts) → no in-scope imports
 - [`js/agent-chat-backend.ts`](js/agent-chat-backend.ts) → [`js/agent-chat-client.ts`](js/agent-chat-client.ts), [`js/agent-chat-context.ts`](js/agent-chat-context.ts), [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-tool-bindings.ts`](js/agent-tool-bindings.ts), [`js/agent-tool-runtime.ts`](js/agent-tool-runtime.ts), [`js/ai-execution-routing.ts`](js/ai-execution-routing.ts), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
 - [`js/agent-chat-client.ts`](js/agent-chat-client.ts) → [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
 - [`js/agent-chat-context.ts`](js/agent-chat-context.ts) → no in-scope imports
@@ -1068,7 +1069,7 @@ Native browser modules shipped with the static application.
 - [`js/profile-runtime.ts`](js/profile-runtime.ts) → [`js/chat-loader.ts`](js/chat-loader.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/wearables-connect.ts`](js/wearables-connect.ts) *(dynamic)*, [`js/wearables-manual.ts`](js/wearables-manual.ts)
 - [`js/profile-share-loader.ts`](js/profile-share-loader.ts) → [`js/profile-share.ts`](js/profile-share.ts) *(dynamic)*, [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/profile-share.ts`](js/profile-share.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/export.ts`](js/export.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/profile-storage-cleanup.ts`](js/profile-storage-cleanup.ts) → [`js/blob-storage.ts`](js/blob-storage.ts), [`js/crypto.ts`](js/crypto.ts), [`js/cycle-store.ts`](js/cycle-store.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
+- [`js/profile-storage-cleanup.ts`](js/profile-storage-cleanup.ts) → [`js/agent-access-legacy-source.ts`](js/agent-access-legacy-source.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/crypto.ts`](js/crypto.ts), [`js/cycle-store.ts`](js/cycle-store.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/wearables-store.ts`](js/wearables-store.ts)
 - [`js/profile-storage-key.ts`](js/profile-storage-key.ts) → no in-scope imports
 - [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts) → no in-scope imports
 - [`js/profile.ts`](js/profile.ts) → [`js/constants.ts`](js/constants.ts), [`js/correlation-workspace-store.ts`](js/correlation-workspace-store.ts), [`js/crypto.ts`](js/crypto.ts), [`js/profile-data-migrations.ts`](js/profile-data-migrations.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-list-store.ts`](js/profile-list-store.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/profile-storage-cleanup.ts`](js/profile-storage-cleanup.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/url-safety.ts`](js/url-safety.ts), [`js/utils.ts`](js/utils.ts)
@@ -1176,7 +1177,7 @@ Native browser modules shipped with the static application.
 - [`js/settings-agent-access-classes.ts`](js/settings-agent-access-classes.ts) → no in-scope imports
 - [`js/settings-agent-access-component.ts`](js/settings-agent-access-component.ts) → [`js/components/AgentAccessSettings.svelte`](js/components/AgentAccessSettings.svelte)
 - [`js/settings-agent-access-contract.ts`](js/settings-agent-access-contract.ts) → no in-scope imports
-- [`js/settings-agent-access-mutation.ts`](js/settings-agent-access-mutation.ts) → [`js/data.ts`](js/data.ts), [`js/state.ts`](js/state.ts), [`js/sync-messenger.ts`](js/sync-messenger.ts)
+- [`js/settings-agent-access-mutation.ts`](js/settings-agent-access-mutation.ts) → [`js/data.ts`](js/data.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/state.ts`](js/state.ts), [`js/sync-messenger.ts`](js/sync-messenger.ts)
 - [`js/settings-agent-access-panel.ts`](js/settings-agent-access-panel.ts) → [`js/data.ts`](js/data.ts), [`js/settings-agent-access-component.ts`](js/settings-agent-access-component.ts), [`js/settings-agent-access-contract.ts`](js/settings-agent-access-contract.ts), [`js/settings-agent-access-mutation.ts`](js/settings-agent-access-mutation.ts), [`js/state.ts`](js/state.ts), [`js/sync-messenger.ts`](js/sync-messenger.ts), [`js/sync.ts`](js/sync.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-cli-agent-panel.ts`](js/settings-cli-agent-panel.ts) → [`js/agent-chat-client.ts`](js/agent-chat-client.ts), [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/utils.ts`](js/utils.ts), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
 - [`js/settings-data.ts`](js/settings-data.ts) → [`js/api.ts`](js/api.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/import-reference-benchmark.ts`](js/import-reference-benchmark.ts), [`js/schema.ts`](js/schema.ts), [`js/settings-records-component.ts`](js/settings-records-component.ts), [`js/settings-records-view.ts`](js/settings-records-view.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
@@ -1376,7 +1377,7 @@ Native browser modules shipped with the static application.
 - [`js/sync-identity.ts`](js/sync-identity.ts) → [`js/clear-all-profile-reset.ts`](js/clear-all-profile-reset.ts) *(dynamic)*, [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts), [`js/sync-disable-cleanup.ts`](js/sync-disable-cleanup.ts), [`js/sync-runtime.ts`](js/sync-runtime.ts), [`js/sync-settings-state.ts`](js/sync-settings-state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sync-init.ts`](js/sync-init.ts) → [`js/sync-environment.ts`](js/sync-environment.ts), [`js/sync-evolu8-candidate.ts`](js/sync-evolu8-candidate.ts) *(dynamic)*, [`js/sync-identity.ts`](js/sync-identity.ts), [`js/sync-pull-rebroadcast.ts`](js/sync-pull-rebroadcast.ts), [`js/sync-recovery.ts`](js/sync-recovery.ts), [`js/sync-relay-health.ts`](js/sync-relay-health.ts), [`js/sync-runtime.ts`](js/sync-runtime.ts), [`js/sync-schema.ts`](js/sync-schema.ts), [`js/sync-settings-state.ts`](js/sync-settings-state.ts), [`js/sync-subscriptions.ts`](js/sync-subscriptions.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sync-lifecycle.ts`](js/sync-lifecycle.ts) → [`js/sync-actions.ts`](js/sync-actions.ts), [`js/sync-backup-restore-state.ts`](js/sync-backup-restore-state.ts), [`js/sync-disable-cleanup.ts`](js/sync-disable-cleanup.ts), [`js/sync-environment.ts`](js/sync-environment.ts), [`js/sync-init.ts`](js/sync-init.ts), [`js/sync-pull.ts`](js/sync-pull.ts), [`js/sync-runtime.ts`](js/sync-runtime.ts), [`js/sync-save-hooks.ts`](js/sync-save-hooks.ts), [`js/sync-settings-state.ts`](js/sync-settings-state.ts), [`js/sync-state.ts`](js/sync-state.ts), [`js/sync-subscriptions.ts`](js/sync-subscriptions.ts), [`js/sync-ui.ts`](js/sync-ui.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/sync-messenger.ts`](js/sync-messenger.ts) → [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/sync-messenger.ts`](js/sync-messenger.ts) → [`js/agent-access-legacy-source.ts`](js/agent-access-legacy-source.ts), [`js/profile-sync-policy.ts`](js/profile-sync-policy.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sync-origin-state.ts`](js/sync-origin-state.ts) → no in-scope imports
 - [`js/sync-payload-codec.ts`](js/sync-payload-codec.ts) → [`js/base64.ts`](js/base64.ts)
 - [`js/sync-payload-collectors.ts`](js/sync-payload-collectors.ts) → [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/voice-settings-schema.ts`](js/voice-settings-schema.ts)

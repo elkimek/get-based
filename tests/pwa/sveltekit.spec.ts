@@ -606,3 +606,67 @@ test('imported records and usage hydrate offline with provenance, keyboard contr
     await noCspErrors(cold, errors);
   } finally { await server.close(); }
 });
+
+test('Agent Access retries a failed IndexedDB migration after an offline cold launch without losing its legacy source', async ({ page, context }) => {
+  const server = await startKitServer(artifact); const errors = await prepare(context, page);
+  await context.addInitScript(() => {
+    if (!location.protocol.startsWith('http') || localStorage.getItem('kit-recovery-seeded')) return;
+    localStorage.setItem('kit-recovery-seeded', '1');
+    localStorage.setItem('labcharts-default-imported', JSON.stringify({ entries: [], notes: [{ date: '2026-01-01', text: 'Synthetic pre-migration note' }] }));
+  });
+  try {
+    await page.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' }); await ready(page);
+    await page.evaluate(() => {
+      localStorage.setItem('labcharts-messenger-enabled', 'true');
+      localStorage.setItem('labcharts-messenger-token', 'a'.repeat(64));
+      localStorage.setItem('labcharts-agent-context-key', 'gbctx_v1_' + 'B'.repeat(43));
+      localStorage.setItem('labcharts-default-agent-wearable-series', '30');
+      const key = 'labcharts-default-imported'; const put = IDBObjectStore.prototype.put;
+      const target = window as Window & { kitMigrationFailures?: number };
+      target.kitMigrationFailures = 0;
+      IDBObjectStore.prototype.put = function (value, storageKey) {
+        if (this.name === 'kv' && storageKey === key) {
+          target.kitMigrationFailures! += 1;
+          throw new DOMException('Synthetic profile quota failure', 'QuotaExceededError');
+        }
+        return put.call(this, value, storageKey);
+      };
+    });
+    await display(page); await page.locator('#settings-nav-agent').click();
+    await expect.poll(() => page.evaluate(() => (window as Window & { kitMigrationFailures?: number }).kitMigrationFailures)).toBeGreaterThan(0);
+    await expect(page.locator('#messenger-token')).toHaveAttribute('data-masked', 'true');
+    expect(await page.evaluate(() => ({ token: localStorage.getItem('labcharts-messenger-token'),
+      key: localStorage.getItem('labcharts-agent-context-key'), binding: localStorage.getItem('labcharts-agent-access-migration-profile') })))
+      .toEqual({ token: 'a'.repeat(64), key: 'gbctx_v1_' + 'B'.repeat(43), binding: 'default' });
+    const baseline = await page.evaluate(async () => {
+      const open = indexedDB.open('labcharts-blobs', 1);
+      const db = await new Promise<IDBDatabase>((resolve, reject) => { open.onsuccess = () => resolve(open.result); open.onerror = () => reject(open.error); });
+      const request = db.transaction('kv', 'readonly').objectStore('kv').get('labcharts-default-imported');
+      const value = await new Promise<string>((resolve, reject) => { request.onsuccess = () => resolve(request.result as string); request.onerror = () => reject(request.error); }); db.close();
+      return JSON.parse(value) as { notes: unknown[]; agentAccess?: unknown };
+    });
+    expect(baseline.agentAccess ?? null).toBeNull();
+    expect(baseline.notes).toEqual([{ date: '2026-01-01', text: 'Synthetic pre-migration note' }]);
+    server.state.offline = true; await page.close(); const cold = await context.newPage();
+    await cold.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' }); await ready(cold);
+    await display(cold); await cold.locator('#settings-nav-agent').click();
+    await expect(cold.locator('[data-sync-action="toggle-messenger"]')).toBeChecked();
+    await expect(cold.locator('#messenger-token')).toHaveText('•'.repeat(64));
+    await expect(cold.locator('[data-sync-action="set-agent-wearable-series-days"]')).toHaveValue('30');
+    await expect.poll(() => cold.evaluate(() => localStorage.getItem('labcharts-agent-access-migration-profile'))).toBeNull();
+    expect(await cold.evaluate(() => localStorage.getItem('labcharts-messenger-token'))).toBeNull();
+    expect(await cold.evaluate(() => localStorage.getItem('labcharts-agent-context-key'))).toBeNull();
+    const persisted = await cold.evaluate(async () => {
+      const open = indexedDB.open('labcharts-blobs', 1);
+      const db = await new Promise<IDBDatabase>((resolve, reject) => { open.onsuccess = () => resolve(open.result); open.onerror = () => reject(open.error); });
+      const request = db.transaction('kv', 'readonly').objectStore('kv').get('labcharts-default-imported');
+      const value = await new Promise<string>((resolve, reject) => { request.onsuccess = () => resolve(request.result as string); request.onerror = () => reject(request.error); }); db.close();
+      return JSON.parse(value) as { notes: unknown[]; agentAccess: unknown; agentAccessWearableSeriesDays: number };
+    });
+    expect(persisted.agentAccess).toMatchObject({ enabled: true, token: 'a'.repeat(64), contextKey: 'gbctx_v1_' + 'B'.repeat(43) });
+    expect(persisted.agentAccessWearableSeriesDays).toBe(30); expect(persisted.notes).toEqual(baseline.notes);
+    expect(await cold.locator('#settings-tab-agent').innerHTML()).not.toContain('a'.repeat(64));
+    expect(await cold.locator('#settings-tab-agent').innerHTML()).not.toContain('gbctx_v1_' + 'B'.repeat(43));
+    await noCspErrors(cold, errors);
+  } finally { await server.close(); }
+});

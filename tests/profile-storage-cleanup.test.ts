@@ -191,3 +191,34 @@ it('discovers durable orphan profiles when local storage is unavailable', async 
     await expect(listStoredProfileIds(['listed'])).resolves.toEqual(['listed', 'durable']);
   } finally { vi.unstubAllGlobals(); }
 });
+
+function seedAgentSource(profileId: string) {
+  localStorage.setItem('labcharts-agent-access-migration-profile', profileId);
+  localStorage.setItem('labcharts-messenger-token', 'synthetic-old-token');
+  localStorage.setItem('labcharts-agent-context-key', 'synthetic-old-key');
+  localStorage.setItem('labcharts-messenger-enabled', 'true');
+}
+it('retires only the deleted profile bound Agent Access source after successful storage deletion', async () => {
+  seedAgentSource('target');
+  await clearProfileStorage('other');
+  expect(localStorage.getItem('labcharts-messenger-token')).toBe('synthetic-old-token');
+  expect(localStorage.getItem('labcharts-agent-access-migration-profile')).toBe('target');
+  await clearProfileStorage('target');
+  for (const name of ['labcharts-messenger-token', 'labcharts-agent-context-key', 'labcharts-messenger-enabled', 'labcharts-agent-access-migration-profile']) {
+    expect(localStorage.getItem(name)).toBeNull();
+  }
+});
+it.each(['database', 'blob'])('retains the bound Agent Access source when %s deletion fails', async phase => {
+  seedAgentSource('target');
+  configureProfileStorageCleanupDeps(phase === 'database'
+    ? { deleteWearablesDB: async () => { throw new Error('Synthetic blocked database'); } }
+    : { encryptedRemoveItem: async () => { throw new Error('Synthetic blocked blob'); } });
+  await expect(clearProfileStorage('target')).rejects.toThrow('Synthetic blocked');
+  expect(localStorage.getItem('labcharts-messenger-token')).toBe('synthetic-old-token');
+  expect(localStorage.getItem('labcharts-agent-context-key')).toBe('synthetic-old-key');
+  expect(localStorage.getItem('labcharts-agent-access-migration-profile')).toBe('target');
+});
+it('includes a bound Agent Access source in orphan discovery even without a stored profile blob', async () => {
+  seedAgentSource('legacy-only');
+  await expect(listStoredProfileIds(['listed'])).resolves.toEqual(['listed', 'legacy-only']);
+});

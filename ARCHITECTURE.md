@@ -116,14 +116,25 @@ retain their contract while Svelte owns its contents.
 Agent Access saves use `settings-agent-access-mutation.ts` for per-profile action
 ownership. Credential write intent is isolated from live profile state until the
 scoped service save commits, so a concurrent notes save cannot include a provisional
-credential. Failure rolls back only changed credential/preference fields on the
+credential. An uncommitted legacy migration uses the persisted Agent Access field
+baseline; regeneration therefore saves a complete record even when its preceding
+migration write fails. Failure rolls back only changed credential/preference fields on the
 originating object and retains later edits; pending controls cannot copy provisional
 credentials or start an overlapping change. The service supplies an opaque signing
 scope that retains the originating profile, relay and copied owner key privately.
 Remote revocation uses that scope; context preparation checks it again after awaits.
 A relay error after a committed save cannot roll back the stored credentials.
 Legacy migration dirty state belongs to each profile object, and a late completion
-cannot clear another profile's migration or start its persistence.
+cannot clear another profile's migration or start its persistence. The existing
+one-shot localStorage source retains its original values until a successful
+profile save; a non-secret profile binding prevents another profile from consuming
+or deleting it. Failed writes and reloads can retry from that source. Newly generated
+credentials are never mirrored into plaintext. A durably loaded profile's credentials
+or revoke tombstone remain authoritative over a stale source.
+`agent-access-legacy-source.ts` owns the storage names and retirement without a
+Sync or UI dependency. Explicit profile deletion retires only that profile's bound
+source after its databases and canonical blobs have been removed; blocked deletion
+retains the source, and orphan discovery includes its non-secret profile binding.
 
 Imported-data entries and AI usage use `settings-records-view.ts` to derive typed
 presentation snapshots from existing provenance and usage services.

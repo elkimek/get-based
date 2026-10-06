@@ -13,6 +13,7 @@ interface ProfileCleanupDeps {
 import { encryptedRemoveItem } from './crypto.js';
 import { getBlobKeys } from './blob-storage.js';
 import { profileStorageKey } from './profile-storage-key.js';
+import { AGENT_ACCESS_MIGRATION_PROFILE_KEY, MESSENGER_ENABLED_KEY, retireAgentAccessLegacySource } from './agent-access-legacy-source.js';
 import { deleteCycleDB } from './cycle-store.js';
 import { deleteWearablesDB } from './wearables-store.js';
 
@@ -88,6 +89,7 @@ export async function listStoredProfileIds(seedIds: readonly unknown[] = []) {
   const ids = new Set<string>();
   for (const id of seedIds) addProfileId(ids, id);
   for (const key of storageKeys(globalThis.localStorage)) addProfileIdFromBlobKey(ids, key);
+  addProfileId(ids, globalThis.localStorage?.getItem(AGENT_ACCESS_MIGRATION_PROFILE_KEY));
   for (const key of await cleanupDeps.getBlobKeys()) addProfileIdFromBlobKey(ids, key);
   for (const name of await cleanupDeps.getDatabaseNames()) addProfileIdFromDatabaseName(ids, name);
   return [...ids];
@@ -140,4 +142,6 @@ export async function clearProfileStorage(profileId: string) {
   // index cannot be parsed, plus new profile-scoped keys added in the future.
   clearProfileLocalKeys(profileId);
   clearProfileSessionKeys(profileId);
+  if (globalThis.localStorage?.getItem(AGENT_ACCESS_MIGRATION_PROFILE_KEY) === profileId
+      && retireAgentAccessLegacySource(profileId)) localStorage.removeItem(MESSENGER_ENABLED_KEY);
 }
