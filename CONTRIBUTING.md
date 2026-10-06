@@ -90,7 +90,10 @@ Open a GitHub issue or use the feedback button in the app (flag icon in the head
 Settings CSS is generated at its existing runtime URL. Edit
 `css/settings.base.css` for legacy Settings styles or
 `css/settings-display.tailwind.css` and `js/components/DisplaySettings.svelte`
-for the Svelte + Tailwind Display pilot. Run `npm run styles:build` after styling edits;
+for the Svelte + Tailwind Display pilot. Protection dialogs use
+`css/data-protection.base.css`, `css/data-protection.tailwind.css` and
+`js/components/PassphraseDialog.svelte`; `css/data-protection.css` is generated at
+its existing lazy URL. Run `npm run styles:build` after styling edits;
 `npm run styles:check` verifies the bundle. The standard TypeScript build,
 prepare, development, test and production commands also compile these styles
 and the component. `npm run svelte:check` validates authored component types with

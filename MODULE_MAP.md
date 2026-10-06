@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 871 |
-| Internal import edges | 3624 |
+| Modules | 877 |
+| Internal import edges | 3635 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,10 +65,10 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 293 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
+| [`js/utils.ts`](js/utils.ts) | 294 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
 | [`js/state.ts`](js/state.ts) | 203 | [`js/chat-send.ts`](js/chat-send.ts) | 42 |
-| [`js/caught-error.ts`](js/caught-error.ts) | 91 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
-| [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 81 | [`js/settings.ts`](js/settings.ts) | 34 |
+| [`js/caught-error.ts`](js/caught-error.ts) | 92 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
+| [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 82 | [`js/settings.ts`](js/settings.ts) | 34 |
 | [`js/data.ts`](js/data.ts) | 79 | [`js/pdf-import.ts`](js/pdf-import.ts) | 28 |
 | [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts) | 65 | [`js/sync-configure.ts`](js/sync-configure.ts) | 28 |
 | [`js/profile.ts`](js/profile.ts) | 51 | [`js/wearables-connect.ts`](js/wearables-connect.ts) | 27 |
@@ -513,7 +513,7 @@ Native browser modules shipped with the static application.
 <details><summary><code>crypto</code> family — 3 modules</summary>
 
 - [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts) → no in-scope imports
-- [`js/crypto-ui.ts`](js/crypto-ui.ts) → [`js/backup.ts`](js/backup.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/data-wipe.ts`](js/data-wipe.ts) *(dynamic)*, [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/settings-protection-component.ts`](js/settings-protection-component.ts), [`js/settings-protection-view.ts`](js/settings-protection-view.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/crypto-ui.ts`](js/crypto-ui.ts) → [`js/backup.ts`](js/backup.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/passphrase-component.ts`](js/passphrase-component.ts), [`js/passphrase-controller.ts`](js/passphrase-controller.ts), [`js/settings-protection-component.ts`](js/settings-protection-component.ts), [`js/settings-protection-view.ts`](js/settings-protection-view.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/crypto.ts`](js/crypto.ts) → [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/backup.ts`](js/backup.ts), [`js/base64.ts`](js/base64.ts), [`js/blob-storage.ts`](js/blob-storage.ts), [`js/cashu-wallet-store.ts`](js/cashu-wallet-store.ts) *(dynamic)*, [`js/caught-error.ts`](js/caught-error.ts), [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/crypto-ui.ts`](js/crypto-ui.ts), [`js/cycle-store.ts`](js/cycle-store.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-storage-key.ts`](js/profile-storage-key.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/wearables-credential-vault.ts`](js/wearables-credential-vault.ts) *(dynamic)*, [`js/wearables-store.ts`](js/wearables-store.ts), [`js/wearables-whoop-storage.ts`](js/wearables-whoop-storage.ts) *(dynamic)*
 
 </details>
@@ -1025,6 +1025,22 @@ Native browser modules shipped with the static application.
 
 - [`js/onboarding-view-runtime.ts`](js/onboarding-view-runtime.ts) → [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
 - [`js/onboarding-view.ts`](js/onboarding-view.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/data.ts`](js/data.ts), [`js/onboarding-view-runtime.ts`](js/onboarding-view-runtime.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+
+</details>
+
+<details><summary><code>passphrase</code> family — 5 modules</summary>
+
+- [`js/passphrase-classes.ts`](js/passphrase-classes.ts) → no in-scope imports
+- [`js/passphrase-component.ts`](js/passphrase-component.ts) → [`js/components/PassphraseDialog.svelte`](js/components/PassphraseDialog.svelte), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/passphrase-presentation.ts`](js/passphrase-presentation.ts)
+- [`js/passphrase-contract.ts`](js/passphrase-contract.ts) → no in-scope imports
+- [`js/passphrase-controller.ts`](js/passphrase-controller.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data-wipe.ts`](js/data-wipe.ts) *(dynamic)*, [`js/passphrase-component.ts`](js/passphrase-component.ts), [`js/passphrase-presentation.ts`](js/passphrase-presentation.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/passphrase-presentation.ts`](js/passphrase-presentation.ts) → no in-scope imports
+
+</details>
+
+<details><summary><code>PassphraseDialog.svelte</code> family — 1 module</summary>
+
+- [`js/components/PassphraseDialog.svelte`](js/components/PassphraseDialog.svelte) → [`js/passphrase-classes.ts`](js/passphrase-classes.ts), [`js/passphrase-presentation.ts`](js/passphrase-presentation.ts)
 
 </details>
 

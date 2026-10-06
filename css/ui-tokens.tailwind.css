@@ -3,8 +3,10 @@
   --color-select-surface: var(--select-surface);
   --color-select-popup: var(--select-popup-surface);
   --color-success: var(--green);
+  --color-success-ink: var(--success-ink);
   --color-warning: var(--yellow);
   --color-danger: var(--red);
+  --color-on-danger: var(--on-danger);
   --color-accent-fill: var(--accent-fill);
   --color-secondary-surface: var(--bg-secondary);
   --color-dialog-head: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-card));

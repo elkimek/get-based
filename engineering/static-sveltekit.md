@@ -51,6 +51,12 @@ while this bridge is evaluated; building locally does not publish it.
 The focused browser scenarios live in [sveltekit.spec.ts](../tests/pwa/sveltekit.spec.ts).
 The shell scenario verifies all core Settings sections, responsive orientation,
 keyboard selection, retained preference actions and WCAG checks for the shell.
+The [protection scenario](../tests/pwa/sveltekit-protection.spec.ts) covers
+Security and Backup keyboard actions, themes, exported backups and encrypted
+offline cold launch. [Native dialog checks](../tests/playwright/passphrase-dialog.spec.ts)
+cover all six dialog modes, theme contrast, responsive containment, short
+viewports and erasure failure recovery. Mocked erasure checks do not replace
+real IndexedDB deletion verification or installed-PWA acceptance.
 Build, desktop-isolation and [client cache retention](../tests/service-worker-client-cache.test.ts)
 contracts have separate unit tests. These checks do
 not constitute complete application regression, hardware/provider acceptance,

@@ -1566,3 +1566,11 @@ deploy/profile-share/data/
 /js/backup-folder-presentation.js
 
 /js/backup-folder-component.js
+
+# Generated protection stylesheet and dialog runtime modules
+/css/data-protection.css
+/js/passphrase-contract.js
+/js/passphrase-presentation.js
+/js/passphrase-classes.js
+/js/passphrase-component.js
+/js/passphrase-controller.js

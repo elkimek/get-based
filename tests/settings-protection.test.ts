@@ -5,6 +5,7 @@ import { configureCryptoUi, renderEncryptionSection, renderBackupSection, hydrat
 import { disposeSettingsProtection, refreshFolderBackupSettings } from '../js/settings-protection-component.js';
 import { getFolderBackupSnapshot, getBackupSnapshotRows } from '../js/settings-protection-view.js';
 import * as utils from '../js/utils.js';
+import { disposePassphraseDialog } from '../js/passphrase-component.js';
 const mocks = vi.hoisted(() => ({ download: vi.fn(), restore: vi.fn(), import: vi.fn(), snapshots: vi.fn(),
   folder: vi.fn(() => ({ supported: false, folderName: null, permissionLost: false, lastBackup: null })) }));
 vi.mock('../js/backup.js', () => ({ exportEncryptedBackup: mocks.download, importEncryptedBackup: mocks.import,
@@ -16,7 +17,7 @@ beforeEach(() => {
   mocks.restore.mockResolvedValue(undefined); mocks.snapshots.mockResolvedValue([]); mocks.folder.mockReturnValue({ supported: false, folderName: null, permissionLost: false, lastBackup: null });
   previous = configureCryptoUi({ getEncryptionEnabled: () => enabled });
 });
-afterEach(() => { disposeSettingsProtection(); configureCryptoUi(previous); vi.restoreAllMocks(); document.body.replaceChildren(); localStorage.clear(); });
+afterEach(() => { disposePassphraseDialog(); disposeSettingsProtection(); configureCryptoUi(previous); vi.restoreAllMocks(); document.body.replaceChildren(); localStorage.clear(); });
 function render() {
   document.body.innerHTML = `<section id="encryption-section">${renderEncryptionSection()}</section><section id="backup-section">${renderBackupSection()}</section>`;
   hydrateProtectionSettings();

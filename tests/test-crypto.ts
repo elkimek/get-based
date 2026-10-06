@@ -54,6 +54,9 @@ const backupModule = await import('../js/backup.js');
 const backupSrc = read('js/backup.js');
 const cryptoStoreSrc = read('js/crypto.js');
 const cryptoUiSrc = read('js/crypto-ui.js');
+const passphraseViewSrc = read('js/components/PassphraseDialog.svelte');
+const passphraseClassesSrc = read('js/passphrase-classes.ts');
+const passphraseControllerSrc = read('js/passphrase-controller.js');
 const encryptionViewSrc = read('js/components/EncryptionSettings.svelte');
 const backupViewSrc = read('js/components/BackupSettings.svelte');
 const cycleStoreSrc = read('js/cycle-store.js');
@@ -411,11 +414,11 @@ for (const name of ['showNotification', 'showConfirmDialog', 'showPromptDialog',
 console.log('13. Passphrase modal CSS');
 try {
   const cssText = read('css/data-protection.css');
-  assert('CSS has .passphrase-overlay', cssText.includes('.passphrase-overlay'));
-  assert('CSS has .passphrase-dialog', cssText.includes('.passphrase-dialog'));
-  assert('CSS has .passphrase-input', cssText.includes('.passphrase-input'));
-  assert('CSS has .passphrase-btn', cssText.includes('.passphrase-btn'));
-  assert('CSS has .passphrase-btn-primary', cssText.includes('.passphrase-btn-primary'));
+  assert('CSS scopes dialogs to #passphrase-overlay', cssText.includes('#passphrase-overlay'));
+  assert('Owned Tailwind styles cover passphrase-dialog', passphraseViewSrc.includes('passphrase-dialog') && passphraseViewSrc.includes('gb:passphrase:') && cssText.includes('gb\\:passphrase\\:bg-secondary-surface'));
+  assert('Owned Tailwind styles cover passphrase-input', passphraseClassesSrc.includes('passphrase-input') && passphraseClassesSrc.includes('gb:passphrase:') && cssText.includes('gb\\:passphrase\\:w-full'));
+  assert('Owned Tailwind styles cover passphrase-btn', passphraseClassesSrc.includes('passphrase-btn') && passphraseClassesSrc.includes('gb:passphrase:') && cssText.includes('gb\\:passphrase\\:min-h-11'));
+  assert('Owned Tailwind styles cover passphrase-btn-primary', passphraseClassesSrc.includes('passphrase-btn-primary') && passphraseClassesSrc.includes('gb:passphrase:') && cssText.includes('gb\\:passphrase\\:bg-accent'));
   assert('Svelte owns encryption-status-card styling', encryptionViewSrc.includes('encryption-status-card') && encryptionViewSrc.includes('gb:protection:'));
   assert('Svelte owns encryption-status-on styling', encryptionViewSrc.includes('encryption-status-on') && encryptionViewSrc.includes('gb:protection:'));
   assert('Svelte owns encryption-status-off styling', encryptionViewSrc.includes('encryption-status-off') && encryptionViewSrc.includes('gb:protection:'));
@@ -430,7 +433,7 @@ console.log('14. crypto.js source inspection');
 try {
   const src = await fetchWithRetry('js/crypto.js');
   const uiSrc = await fetchWithRetry('js/crypto-ui.js');
-  const surfaceSrc = `${src}\n${uiSrc}`;
+  const surfaceSrc = `${src}\n${uiSrc}\n${passphraseControllerSrc}\n${passphraseViewSrc}`;
   assert('crypto.js uses PBKDF2', src.includes('PBKDF2'));
   assert('crypto.js uses AES-GCM', src.includes('AES-GCM'));
   assert('crypto.js has 600000 iterations', src.includes('600000'));
@@ -440,13 +443,13 @@ try {
   assert('crypto surface has backup format', surfaceSrc.includes('labcharts-backup'));
   assert('crypto.js has v1: prefix', src.includes("'v1:'") || src.includes('`v1:'));
   assert('crypto surface never stores passphrase', !surfaceSrc.match(/localStorage\.setItem\([^)]*passphrase/));
-  assert('Forgot passphrase does NOT use showConfirmDialog', !uiSrc.includes("forgotButton.addEventListener('click', () => {\n    showConfirmDialog"));
-  assert('Forgot passphrase has inline confirm UI', uiSrc.includes('passphrase-forgot-confirm'));
-  assert('Forgot passphrase has Go Back button', uiSrc.includes('passphrase-forgot-cancel'));
-  assert('Forgot passphrase wipes IndexedDB-backed app data', uiSrc.includes("import('./data-wipe.js'") && uiSrc.includes('eraseAllLocalAppData'));
+  assert('Forgot passphrase does NOT use showConfirmDialog', !passphraseControllerSrc.includes('showConfirmDialog'));
+  assert('Forgot passphrase has inline confirm UI', passphraseViewSrc.includes('passphrase-forgot-confirm'));
+  assert('Forgot passphrase has Go Back button', passphraseViewSrc.includes('passphrase-forgot-cancel'));
+  assert('Forgot passphrase wipes IndexedDB-backed app data', passphraseControllerSrc.includes("import('./data-wipe.js'") && passphraseControllerSrc.includes('eraseAllLocalAppData'));
   assert('Forgot passphrase does not reload after an incomplete wipe',
-    /catch \(error\)[\s\S]{0,700}return;\s*\}\s*cryptoUiDeps\.clearEncryptionSession/.test(uiSrc)
-    && !/catch \(error\)[\s\S]{0,700}localStorage\.removeItem/.test(uiSrc));
+    /catch \(error\)[\s\S]{0,700}return;\s*\}\s*services\.clearEncryptionSession/.test(passphraseControllerSrc)
+    && !/catch \(error\)[\s\S]{0,700}localStorage\.removeItem/.test(passphraseControllerSrc));
   const bkSrc0 = await fetchWithRetry('js/backup.js');
   assert('Backup includes encryptionSalt field', bkSrc0.includes('encryptionSalt'));
   assert('Restore sets labcharts-encryption-enabled', bkSrc0.includes("localStorage.setItem('labcharts-encryption-enabled'"));

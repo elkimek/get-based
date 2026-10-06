@@ -126,66 +126,6 @@
   flex: 1 1 auto;
 }
 
-/* Passphrase / Encryption Modal */
-.passphrase-overlay {
-  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.85); z-index: 400; display: none;
-  align-items: center; justify-content: center;
-  backdrop-filter: blur(8px);
-}
-.passphrase-dialog {
-  background: var(--bg-secondary); border-radius: var(--radius);
-  border: 1px solid var(--border); padding: 36px 32px;
-  max-width: 420px; width: 90%; box-shadow: 0 12px 48px rgba(0,0,0,0.5);
-  text-align: center;
-}
-.passphrase-icon { font-size: 48px; margin-bottom: 12px; }
-.passphrase-title {
-  font-size: 20px; font-weight: 700; color: var(--text-primary);
-  font-family: var(--font-display); margin-bottom: 8px;
-}
-.passphrase-desc {
-  font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 20px;
-}
-.passphrase-input {
-  width: 100%; padding: 10px 14px; border-radius: 6px;
-  border: 1px solid var(--border); background: var(--bg-primary);
-  color: var(--text-primary); font-size: 14px; font-family: inherit;
-  margin-bottom: 10px; text-align: center;
-}
-.passphrase-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(99,102,241,0.2); }
-.passphrase-strength { margin-bottom: 10px; }
-.passphrase-strength-bars { display: flex; gap: 4px; margin-bottom: 8px; }
-.passphrase-strength-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--border); transition: background 0.2s; }
-.passphrase-rules { list-style: none; padding: 0; margin: 0; font-size: 12px; color: var(--text-secondary); }
-.passphrase-rules li { padding: 1px 0; }
-.passphrase-rules li::before { content: '\2715'; margin-right: 6px; color: var(--text-secondary); font-size: 10px; }
-.passphrase-rules li.met { color: var(--green); }
-.passphrase-rules li.met::before { content: '\2713'; color: var(--green); }
-.passphrase-error {
-  font-size: 13px; color: var(--red); min-height: 20px; margin-bottom: 8px;
-}
-.passphrase-btn {
-  width: 100%; padding: 10px 20px; border-radius: 6px; border: none;
-  font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
-  transition: all 0.15s; margin-bottom: 6px;
-}
-.passphrase-btn-primary {
-  background: var(--accent-gradient); color: white;
-}
-.passphrase-btn-primary:hover { opacity: 0.9; }
-.passphrase-btn-primary:disabled { opacity: 0.5; cursor: wait; }
-.passphrase-btn-secondary {
-  background: var(--bg-card); color: var(--text-secondary);
-  border: 1px solid var(--border); flex: 1;
-}
-.passphrase-btn-secondary:hover { background: var(--bg-hover); color: var(--text-primary); }
-.passphrase-btn-link {
-  background: none; color: var(--text-muted); font-size: 12px;
-  font-weight: 400; padding: 6px;
-}
-.passphrase-btn-link:hover { color: var(--text-secondary); }
-
 @media (max-width: 768px) {
   .pii-warning-overlay {
     align-items: stretch;

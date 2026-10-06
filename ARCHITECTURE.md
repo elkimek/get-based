@@ -160,7 +160,22 @@ renderer loads `backup-folder-component.ts` on demand. `settings-protection-comp
 mount/disposal and synchronous refresh; asynchronous snapshot reads can update
 only their originating mounted view. Encryption changes refresh both status and
 backup explanations. Snapshot and file-picker controls use native buttons.
-Passphrase dialogs and nudges retain their current presentation ownership.
+`PassphraseDialog.svelte` owns unlock, enable, change, erasure and reminder
+presentation through scoped utilities at the existing lazy data-protection CSS
+URL. `passphrase-component.ts` owns one mounted dialog, synchronous initial focus,
+keyboard containment, scroll lock, secret cleanup and trigger-focus restoration.
+`passphrase-controller.ts` captures typed encryption services for each operation;
+late replies cannot update or close a newer dialog. Presentation snapshots contain
+only non-secret status. Passwords remain in live controls and ephemeral service
+calls. Shared validation rules live in `passphrase-presentation.ts`.
+
+Pending operations reject duplicate submissions. Once encryption initialization
+succeeds, a failed storage migration locks the original credentials and cancellation;
+Retry completes migration with the initialized key. An incomplete erasure neither
+clears the encryption session nor reloads the app. Delayed reminders yield to an
+active protection dialog. Privacy review styles remain in
+`css/data-protection.base.css`; `scripts/build-styles.mts` combines that base with
+`css/data-protection.tailwind.css` into the ignored runtime stylesheet.
 
 `scripts/build-svelte.mts` discovers authored components and compiles each into
 an ignored `.svelte.native.js` artifact, loaded through the existing lazy feature

@@ -25,6 +25,8 @@
   --green: #34d399;
   --green-bg: rgba(52, 211, 153, 0.15);
   --red: #f87171;
+  --on-danger: #030712;
+  --success-ink: var(--green);
   --red-bg: rgba(248, 113, 113, 0.15);
   --yellow: #fbbf24;
   --yellow-bg: rgba(251, 191, 36, 0.15);
@@ -69,6 +71,8 @@
   --green: #059669;
   --green-bg: rgba(5,150,105,0.12);
   --red: #dc2626;
+  --on-danger: #ffffff;
+  --success-ink: #15803d;
   --red-bg: rgba(220,38,38,0.1);
   /* Light-theme yellow darkened from #d97706 (amber-600, ~4.0:1 on
      light bg — fails WCAG AA 4.5:1) to #b45309 (amber-700, ~5.7:1).

@@ -26,3 +26,7 @@ export const dataEntriesSettingsCompatible: typeof NativeDataEntriesSettings = D
 import AIUsageSettings from '../../js/components/AIUsageSettings.svelte';
 import type NativeAIUsageSettings from '../../js/components/AIUsageSettings.svelte.native.js';
 export const aIUsageSettingsCompatible: typeof NativeAIUsageSettings = AIUsageSettings;
+
+import PassphraseDialog from '../../js/components/PassphraseDialog.svelte';
+import type NativePassphraseDialog from '../../js/components/PassphraseDialog.svelte.native.js';
+export const passphraseCompatible: typeof NativePassphraseDialog = PassphraseDialog;

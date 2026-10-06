@@ -1,0 +1,7 @@
+/* Protection dialogs use a scoped utility sheet without Preflight. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+@source "../js/components/PassphraseDialog.svelte";
+@source "../js/passphrase-classes.ts";
+@custom-variant passphrase (#passphrase-overlay &);
