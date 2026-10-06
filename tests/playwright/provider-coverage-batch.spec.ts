@@ -146,7 +146,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       for (const key of storageKeys) localStorage.removeItem(key);
       document.body.insertAdjacentHTML('beforeend', `
         <section id="ai-provider-panel">
-          <div id="openrouter-model-area"></div>
+          <div id="openrouter-owned-fixture"></div>
           <div id="venice-model-area"></div>
           <div id="venice-e2ee-indicator" style="display:none"></div>
           <div id="routstr-model-area"></div>
@@ -165,6 +165,8 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
         'anthropic/claude-sonnet-4.6': { input: 3, output: 15 },
       }));
       localStorage.setItem('labcharts-openrouter-model', 'anthropic/claude-sonnet-4.6');
+      (await import('/js/openrouter-settings-component.js')).mountOpenRouterSettings(document.getElementById('openrouter-owned-fixture')!, (await import('/js/openrouter-settings-view.js')).buildOpenRouterSettingsSnapshot());
+      localStorage.setItem('labcharts-ai-provider', 'openrouter');
       controls.renderOpenRouterModelDropdown([
         { id: 'anthropic/claude-fable-5.1', name: 'Claude Fable 5.1' },
         { id: 'google/gemini-3.5-flash', name: 'Gemini 3.5 Flash' },
@@ -239,7 +241,7 @@ test('provider model controls cover dropdowns custom models and delegates', asyn
       });
       await controls.applyCustomOpenRouterModel('bad/model');
       const openRouterCustomFailure = (document.getElementById('openrouter-model-health') as HTMLElement|null)?.title === 'offline model'
-        && (document.getElementById('openrouter-custom-model') as HTMLInputElement|null)?.style.borderColor === 'var(--red)';
+        && (document.getElementById('openrouter-custom-model') as HTMLInputElement|null)?.dataset.modelCheck === 'error';
 
       controls.onOpenRouterDropdownChange('anthropic/claude-sonnet-4.6');
       const openRouterDropdownReset = !document.querySelector<HTMLOptionElement>('#openrouter-model-select option[value="__custom"]')
@@ -646,13 +648,10 @@ test('provider panels cover provider switching key saves balances custom API and
       const pauseStoresEnabled = localStorage.getItem('labcharts-ai-paused') === 'false' && focusLoads >= 2;
 
       const panel = (document.getElementById('ai-provider-panel') as HTMLElement|null);
-      panel!.innerHTML = `
-        <input id="openrouter-key-input" value="sk-or-good">
-        <button id="save-openrouter-key-btn">Save</button>
-        <div id="openrouter-key-status"></div>
-        <div id="openrouter-model-area"></div>
-        <span id="or-balance"></span>
-      `;
+      localStorage.setItem('labcharts-ai-provider','openrouter');
+      panel!.innerHTML = (await import('/js/provider-panel-renderers.js')).renderAIProviderPanel('openrouter');
+      (await import('/js/provider-panels.js')).hydrateOpenRouterSettings();
+      (await import('/js/openrouter-settings-component.js')).getOpenRouterSettingsView()!.setStoredKey('sk-or-good');
       await panels.handleSaveOpenRouterKey();
       panels.refreshOpenRouterBalance();
       await wait(50);

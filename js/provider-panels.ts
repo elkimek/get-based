@@ -1,6 +1,9 @@
 // provider-panels.js - AI provider settings behavior, balance display, key validation, and wallet flows
 
 import type { ProviderPanelOperations, ProviderPanelDependencies, ProviderPanelActionReader, ProviderPanelWalletOperations, ProviderPanelVeniceBalance } from '../types/provider-panels.js';
+import { getOpenRouterSettingsView, mountOpenRouterSettings, disposeOpenRouterSettings } from './openrouter-settings-component.js';
+import { buildOpenRouterSettingsSnapshot, openRouterBalance } from './openrouter-settings-view.js';
+import { saveOpenRouterSettingsKey, isOpenRouterKeySavePending } from './openrouter-key-controller.js';
 import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, escapeAttr, showNotification } from './utils.js';
 import {
@@ -186,6 +189,14 @@ async function requestProviderActivation(provider: unknown, options: NonNullable
   return (requestAIProviderActivation as (provider: unknown, options: Parameters<typeof requestAIProviderActivation>[1]) => ReturnType<typeof requestAIProviderActivation>)(provider, options);
 }
 
+export function hydrateOpenRouterSettings(): void {
+  const host = document.querySelector<HTMLElement>('[data-openrouter-settings-host]');
+  if (!host) { disposeOpenRouterSettings(); return; }
+  const existing = getOpenRouterSettingsView();
+  const view = mountOpenRouterSettings(host, buildOpenRouterSettingsSnapshot());
+  if (view !== existing) view.setStoredKey(getOpenRouterKey());
+}
+
 // ═══════════════════════════════════════════════
 // AI PAUSE / PROVIDER SWITCH
 // ═══════════════════════════════════════════════
@@ -196,7 +207,10 @@ export function toggleAIPause(enabled: unknown) {
   (providerPanelDeps as ProviderPanelOperations).loadFocusCard();
 }
 
-export async function switchAIProvider(provider: unknown, { previousProvider = getAIProvider() }: { previousProvider?: unknown } = {}) {
+let providerSwitchSequence = 0;
+export async function switchAIProvider(provider: unknown, { previousProvider = getAIProvider(), isCurrent = () => true }: { previousProvider?: unknown; isCurrent?: () => boolean } = {}) {
+  if (!isCurrent()) return false;
+  const sequence = ++providerSwitchSequence;
   if (provider === 'openrouter' && previousProvider !== 'openrouter' && !getOpenRouterKey()) {
     (rememberOpenRouterOAuthPreviousProvider as (provider: unknown) => ReturnType<typeof rememberOpenRouterOAuthPreviousProvider>)(previousProvider);
   } else if (provider !== 'openrouter') {
@@ -206,7 +220,7 @@ export async function switchAIProvider(provider: unknown, { previousProvider = g
   clearPpqTopupTimers();
   clearRoutstrWalletTimers();
   const panel = document.getElementById('ai-provider-panel');
-  if (panel) panel.innerHTML = renderAIProviderPanel(provider);
+  if (panel) { disposeOpenRouterSettings(); panel.innerHTML = renderAIProviderPanel(provider); hydrateOpenRouterSettings(); }
   const modal = document.getElementById('settings-modal');
   if (modal) {
     modal.querySelectorAll('.ai-provider-btn').forEach(btn => {
@@ -218,15 +232,16 @@ export async function switchAIProvider(provider: unknown, { previousProvider = g
   initSettingsModelFetch();
   if (provider !== previousProvider && provider !== 'ollama' && (hasAIProvider as (provider: unknown) => ReturnType<typeof hasAIProvider>)(provider)) {
     const activated = await requestProviderActivation(provider);
-    if (!activated) {
+    if (sequence !== providerSwitchSequence || getAIProvider() !== provider) return false;
+    if (!activated || !isCurrent()) {
       (setAIProvider as (provider: unknown) => ReturnType<typeof setAIProvider>)(previousProvider);
-      const restoredPanel = document.getElementById('ai-provider-panel');
-      if (restoredPanel) restoredPanel.innerHTML = renderAIProviderPanel(previousProvider);
-      modal?.querySelectorAll('.ai-provider-btn').forEach(btn => {
+      const restoredPanel = isCurrent() ? document.getElementById('ai-provider-panel') : null;
+      if (restoredPanel) { disposeOpenRouterSettings(); restoredPanel.innerHTML = renderAIProviderPanel(previousProvider); hydrateOpenRouterSettings(); }
+      if (isCurrent()) modal?.querySelectorAll('.ai-provider-btn').forEach(btn => {
         const providerBtn = /** @type {HTMLElement} */ (btn) as HTMLElement;
         providerBtn.classList.toggle('active', providerBtn.dataset.provider === previousProvider);
       });
-      showNotification('Provider was not changed because AI activation was not approved.', 'info');
+      if (isCurrent()) showNotification('Provider was not changed because AI activation was not approved.', 'info');
       return false;
     }
   }
@@ -238,17 +253,15 @@ export async function switchAIProvider(provider: unknown, { previousProvider = g
 // ═══════════════════════════════════════════════
 export function initSettingsModelFetch() {
   const orKey = getOpenRouterKey();
-  const openRouterModelArea = document.getElementById('openrouter-model-area');
-  if (orKey && (openRouterModelArea || hasAppExtensionAIModelSurface('openrouter'))) {
-    fetchOpenRouterModels(orKey).then(function(models) {
-      if (models.length && openRouterModelArea) renderOpenRouterModelDropdown(models);
+  const openRouterView = getOpenRouterSettingsView();
+  const openRouterExtension = hasAppExtensionAIModelSurface('openrouter');
+  if (orKey && (openRouterView || openRouterExtension)) {
+    fetchOpenRouterModels(orKey).then(models => {
+      if (getOpenRouterKey() !== orKey) return;
+      if (openRouterView?.isCurrent() && models.length) renderOpenRouterModelDropdown(models);
       notifyAppExtensionAIModelsLoaded({ provider: 'openrouter', models });
     });
-    getOpenRouterBalance().then(function(b) {
-      const el = document.getElementById('or-balance');
-      if (el && b) el.innerHTML = _orBalanceHtml(b.remaining);
-      else if (el) el.textContent = 'Balance: unavailable';
-    });
+    void refreshOpenRouterBalance();
   }
   const veniceKey = getVeniceKey();
   if (veniceKey && document.getElementById('venice-model-area')) {
@@ -493,41 +506,22 @@ export function handleRemoveVeniceKey() {
 // ═══════════════════════════════════════════════
 // OPENROUTER HANDLERS
 // ═══════════════════════════════════════════════
-export async function handleSaveOpenRouterKey() {
-  const input = /** @type {HTMLInputElement | null} */ (document.getElementById('openrouter-key-input')) as HTMLInputElement | null;
-  const btn = /** @type {HTMLButtonElement | null} */ (document.getElementById('save-openrouter-key-btn')) as HTMLButtonElement | null;
-  const status = document.getElementById('openrouter-key-status');
-  if (!input || !btn || !status) return;
-  const key = input.value.trim();
-  if (!key) { status.innerHTML = '<span style="color:var(--red)">Please enter an API key</span>'; return; }
-  btn.disabled = true; btn.textContent = 'Validating...';
-  const result = await validateOpenRouterKey(key);
-  if (result.valid) {
-    status.innerHTML = '<span style="color:var(--text-muted)">Connection verified — waiting for activation…</span>';
-    if (!await requestProviderActivation('openrouter')) {
-      status.innerHTML = '<span style="color:var(--text-muted)">Connection verified — AI not activated</span>';
-      btn.disabled = false; btn.textContent = 'Save & Validate';
-      return;
-    }
-    await saveOpenRouterKey(key);
-    clearOpenRouterOAuthSession();
-    status.innerHTML = '<span style="color:var(--green)">Connected — loading models\u2026</span>';
-    const models = await fetchOpenRouterModels(key);
-    if (models.length) {
-      renderOpenRouterModelDropdown(models);
-      status.innerHTML = '<span style="color:var(--green)">&#10003; Connected</span>';
-    } else {
-      status.innerHTML = '<span style="color:var(--green)">&#10003; Connected</span>';
-    }
-    showNotification('OpenRouter API key saved', 'success');
-    _returnToChatIfOnboarding();
-  } else {
-    status.innerHTML = `<span style="color:var(--red)">${escapeHTML(result.error)}</span>`;
-  }
-  btn.disabled = false; btn.textContent = 'Save & Validate';
+export async function handleSaveOpenRouterKey(): Promise<void> {
+  await saveOpenRouterSettingsKey(getOpenRouterSettingsView(), {
+    currentProvider: getAIProvider,
+    currentKey: getOpenRouterKey,
+    validate: validateOpenRouterKey,
+    activate: () => requestProviderActivation('openrouter'),
+    save: saveOpenRouterKey,
+    loadModels: fetchOpenRouterModels,
+    snapshot: buildOpenRouterSettingsSnapshot,
+    clearOAuth: clearOpenRouterOAuthSession,
+    committed: () => { showNotification('OpenRouter API key saved', 'success'); _returnToChatIfOnboarding(); },
+  });
 }
 
 export function handleRemoveOpenRouterKey() {
+  if (isOpenRouterKeySavePending()) return;
   localStorage.removeItem('labcharts-openrouter-key');
   updateKeyCache('labcharts-openrouter-key', null);
   localStorage.removeItem('labcharts-openrouter-models');
@@ -537,18 +531,20 @@ export function handleRemoveOpenRouterKey() {
   (providerPanelDeps as ProviderPanelOperations).openSettingsModal();
 }
 
-function _orBalanceHtml(remaining: unknown) {
-  const v = (parseFloat as (value: unknown) => number)(remaining);
-  const color = v < 0.10 ? 'var(--red)' : v < 0.50 ? 'var(--yellow, #f0a800)' : 'var(--green)';
-  return 'Balance: <span style="color:' + color + '">$' + v.toFixed(2) + '</span>';
-}
-export function refreshOpenRouterBalance() {
-  const el = document.getElementById('or-balance');
-  if (el) el.textContent = 'Balance: refreshing...';
-  getOpenRouterBalance().then(function(b) {
-    if (el && b) el.innerHTML = _orBalanceHtml(b.remaining);
-    else if (el) el.textContent = 'Balance: unavailable';
-  });
+const openRouterBalanceReads = new WeakMap<object, number>();
+export async function refreshOpenRouterBalance(): Promise<void> {
+  const view = getOpenRouterSettingsView();
+  if (!view) return;
+  const key = getOpenRouterKey();
+  const sequence = (openRouterBalanceReads.get(view) || 0) + 1;
+  openRouterBalanceReads.set(view, sequence);
+  view.setBalance({ text: 'Balance: refreshing...', tone: 'secondary' });
+  try {
+    const balance = await getOpenRouterBalance();
+    if (view.isCurrent() && getOpenRouterKey() === key && openRouterBalanceReads.get(view) === sequence) view.setBalance(openRouterBalance(balance?.remaining));
+  } catch {
+    if (view.isCurrent() && getOpenRouterKey() === key && openRouterBalanceReads.get(view) === sequence) view.setBalance({ text: 'Balance: unavailable', tone: 'secondary' });
+  }
 }
 
 // Persistent modal shown when an OpenRouter API call returns 402 (out of

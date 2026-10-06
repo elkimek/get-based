@@ -158,6 +158,19 @@ their identity and focus through updates; detached/replaced views reject replies
 Confirmed-image eligibility, automatic fallback and saved-unavailable routes retain
 the existing domain rules. Scoped Tailwind at the lazy Settings CSS URL owns styles.
 
+OpenRouter Settings uses `OpenRouterSettings.svelte`, a lifecycle adapter and explicit
+catalog/status snapshots. The published provider renderer returns its mount host.
+Private API-key fields pass through a separate live-field port, clear on disposal,
+and never enter display snapshots or serialized markup. Model and pricing refreshes
+retain focused controls and manual-model health. `openrouter-key-controller.ts`
+checks the originating view, provider and credential around validation, consent,
+persistence and catalog work; an accepted durable write may finish after close,
+while its presentation replies cannot alter a replacement view. Balance and manual
+model probes also check request order and their initiating credential. Settings'
+lazy provider bridge captures the actual mounted root and invalidates pending
+loads on close, rebuild or CLI replacement. Scoped Tailwind owns this provider's
+controls; other provider panels retain their current ownership until migrated.
+
 Agent Access remains behind the lazy Sync facade. `settings-agent-access-panel.ts`
 owns credential generation, clipboard operations, persistence and domain actions;
 `settings-agent-access-contract.ts` supplies readiness/preferences without hidden

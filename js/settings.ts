@@ -13,6 +13,7 @@ import { setProductRecsEnabled } from './recommendations.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
   configureSettingsProviderBridgeDeps,
+  disposeSettingsProviderPanels,
   initSettingsProviderPanels,
   renderAIProviderPanelBridge,
   setSettingsProviderHadProvider,
@@ -272,6 +273,7 @@ async function handleSettingsClick(event: Event) {
     switchAIProviderBridge(actionEl.dataset.provider || 'openrouter');
   } else if (action === 'show-cli-agent-provider') {
     event.preventDefault();
+    disposeSettingsProviderPanels();
     document.querySelectorAll('.ai-provider-btn').forEach(button => {
       const providerButton = /** @type {HTMLElement} */ (button as HTMLElement);
       providerButton.classList.toggle('active', providerButton.dataset.provider === 'cli');
@@ -455,6 +457,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   const extensionAI = renderAppExtensionSettingsSlot('ai', extensionContext);
   const extensionPanels = renderAppExtensionSettingsSlot('panels', extensionContext);
 
+  disposeSettingsProviderPanels();
   disposeNutritionAISettings();
   disposeWearablesSettings();
   disposeSettingsRecords();
@@ -706,6 +709,7 @@ export function updateSettingsUI() {
 }
 
 export function closeSettingsModal() {
+  disposeSettingsProviderPanels();
   disposeNutritionAISettings();
   disposeWearablesSettings();
   closeModalOverlay('settings-modal-overlay');

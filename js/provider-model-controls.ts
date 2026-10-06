@@ -2,11 +2,15 @@ import type { StoredProviderModel } from './api-provider-storage.js';
 
 // provider-model-controls.js - provider model dropdowns, pricing, and custom model selection.
 
+import { getOpenRouterSettingsView } from './openrouter-settings-component.js';
+import { buildOpenRouterModelState, openRouterPricing } from './openrouter-settings-view.js';
 import { getErrorMessage } from './caught-error.js';
 import { escapeHTML, showNotification } from './utils.js';
 import {
   fetchOpenRouterModelPricing,
   getCustomApiModel,
+  getAIProvider,
+  getOpenRouterKey,
   getOpenRouterModel,
   getPpqModel,
   getRoutstrModel,
@@ -72,76 +76,48 @@ export function toggleVeniceE2EE(on: boolean) {
   refreshProviderModelUiRuntime();
 }
 
-export function updateOpenRouterModelPricing(modelId?: string) {
-  const el = document.getElementById('openrouter-model-pricing');
-  if (el) el.innerHTML = renderModelPricingHint('openrouter', modelId || getOpenRouterModel());
+export function updateOpenRouterModelPricing(modelId?: string): void {
+  const view = getOpenRouterSettingsView();
+  const selectedModel = modelId || getOpenRouterModel();
+  if (view) view.setModels({ ...view.getModels(), selectedModel, pricing: openRouterPricing(selectedModel) });
 }
-
-export function renderOpenRouterModelDropdown(models: StoredProviderModel[]) {
-  const area = document.getElementById('openrouter-model-area');
-  if (!area || !models.length) return;
-  const currentModel = getOpenRouterModel();
-  const isCustom = !models.some(m => m.id === currentModel);
-  const opts = buildModelOptions('openrouter', models, currentModel, function(m) { return m.name || m.id; });
-  area.innerHTML = '<label style="font-size:12px;color:var(--text-muted)">Model</label>' +
-    '<select class="api-key-input" id="openrouter-model-select" style="margin-top:4px" data-provider-panel-change="openrouter-model">' + opts + '</select>' +
-    '<div style="margin-top:6px;display:flex;align-items:center;gap:8px"><input type="text" class="api-key-input" id="openrouter-custom-model" placeholder="Or enter model ID (e.g. arcee-ai/trinity-large-preview:free)" style="font-size:12px;flex:1' + (isCustom ? ';border-color:var(--accent)' : '') + '" value="' + (isCustom ? escapeHTML(currentModel) : '') + '" data-provider-panel-key="openrouter-custom-model"><span id="openrouter-model-health" style="font-size:16px;min-width:20px;text-align:center"></span></div>' +
-    '<span style="font-size:11px;color:var(--text-muted);margin-top:2px;display:block">Press Enter to apply — checks model connectivity</span>' +
-    '<div id="openrouter-model-pricing" style="margin-top:4px">' + renderModelPricingHint('openrouter', currentModel) + '</div>';
+export function renderOpenRouterModelDropdown(models: StoredProviderModel[]): void {
+  if (!models.length) return;
+  getOpenRouterSettingsView()?.setModels(buildOpenRouterModelState(models));
 }
-
-export async function applyCustomOpenRouterModel(modelId: string) {
+let openRouterModelAttempt = 0;
+export async function applyCustomOpenRouterModel(modelId: string): Promise<void> {
   const id = modelId.trim();
   if (!id) return;
+  const view = getOpenRouterSettingsView();
+  if (!view || getAIProvider() !== 'openrouter') return;
+  const credential = getOpenRouterKey();
   setOpenRouterModel(id);
-  const pricingEl = document.getElementById('openrouter-model-pricing');
-  if (pricingEl) pricingEl.innerHTML = '<span style="font-size:11px;color:var(--text-muted)">Checking pricing\u2026</span>';
-  const select = (document.getElementById('openrouter-model-select') as HTMLSelectElement | null);
-  const input = (document.getElementById('openrouter-custom-model') as HTMLInputElement | null);
-  const inDropdown = select && [...select.options].some(o => o.value === id);
-  if (select) {
-    if (inDropdown) {
-      select.value = id;
-      if (input) { input.value = ''; input.style.borderColor = ''; }
-    } else {
-      let customOpt = (select.querySelector('option[value="__custom"]') as HTMLOptionElement | null);
-      if (!customOpt) {
-        customOpt = document.createElement('option');
-        customOpt.value = '__custom';
-        customOpt.disabled = true;
-        customOpt.textContent = 'Using custom model';
-        select.insertBefore(customOpt, select.firstChild);
-      }
-      customOpt.selected = true;
-    }
-  }
-  const indicator = document.getElementById('openrouter-model-health');
-  if (indicator) { indicator.textContent = '\u23f3'; indicator.title = 'Checking...'; indicator.style.color = 'var(--text-muted)'; }
+  const sequence = ++openRouterModelAttempt;
+  const current = () => !!view?.isCurrent() && sequence === openRouterModelAttempt && getOpenRouterModel() === id && getAIProvider() === 'openrouter' && getOpenRouterKey() === credential;
+  view?.setModels({ ...view.getModels(), selectedModel: id, pricing: { text: 'Checking pricing…', tone: 'secondary' } });
+  view?.setModelCheck('pending', 'Checking...');
   try {
     await callProviderModelSmokeTestRuntime();
-    if (indicator) { indicator.textContent = '\u2713'; indicator.title = 'Model responding'; indicator.style.color = 'var(--green)'; }
-    if (input && !inDropdown) input.style.borderColor = 'var(--green)';
+    if (!current()) return;
+    view!.setModelCheck('success', 'Model responding');
     showNotification('Model set: ' + id, 'info');
     await fetchOpenRouterModelPricing(id);
-    updateOpenRouterModelPricing(id);
-  } catch (e) {
-    if (indicator) { indicator.textContent = '\u2717'; indicator.title = getErrorMessage(e, 'Connection failed'); indicator.style.color = 'var(--red)'; }
-    if (input) input.style.borderColor = 'var(--red)';
-    updateOpenRouterModelPricing(id);
-    showNotification('Model check failed: ' + (getErrorMessage(e, 'unknown error')), 'error');
+    if (!current()) return;
+    view!.setModels({ ...view!.getModels(), selectedModel: id, pricing: openRouterPricing(id) });
+  } catch (error) {
+    if (!current()) return;
+    view!.setModels({ ...view!.getModels(), selectedModel: id, pricing: openRouterPricing(id) });
+    view!.setModelCheck('error', getErrorMessage(error, 'Connection failed'));
+    showNotification('Model check failed: ' + getErrorMessage(error, 'unknown error'), 'error');
   }
 }
-
-export function onOpenRouterDropdownChange(value: string) {
+export function onOpenRouterDropdownChange(value: string): void {
+  ++openRouterModelAttempt;
   setOpenRouterModel(value);
-  updateOpenRouterModelPricing(value);
-  const input = (document.getElementById('openrouter-custom-model') as HTMLInputElement | null);
-  if (input) { input.value = ''; input.style.borderColor = ''; }
-  const health = document.getElementById('openrouter-model-health');
-  if (health) { health.textContent = ''; health.title = ''; }
-  const select = document.getElementById('openrouter-model-select');
-  const customOpt = select?.querySelector('option[value="__custom"]');
-  if (customOpt) customOpt.remove();
+  const view = getOpenRouterSettingsView();
+  if (view) view.setModels({ ...view.getModels(), selectedModel: value, pricing: openRouterPricing(value) });
+  getOpenRouterSettingsView()?.setModelCheck('idle');
 }
 
 export function updateRoutstrModelPricing(modelId?: string) {

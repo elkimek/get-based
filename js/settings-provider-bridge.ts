@@ -6,6 +6,7 @@ import {
   getOpenRouterKey,
   rememberOpenRouterOAuthPreviousProvider,
 } from './api.js';
+import { disposeOpenRouterSettings } from './openrouter-settings-component.js';
 import { getChatBackend, setChatBackend } from './agent-chat-settings.js';
 
 type ProviderPanels = typeof import('./provider-panels.js');
@@ -15,6 +16,11 @@ type BridgeSnapshot = { [Key in keyof BridgeOperations]: unknown };
 
 let _providerPanelsLoad: Promise<ProviderPanels> | null = null;
 let settingsHadProvider = false;
+let providerViewEpoch = 0;
+export function disposeSettingsProviderPanels(): void {
+  ++providerViewEpoch;
+  disposeOpenRouterSettings();
+}
 
 const settingsProviderBridgeDeps: BridgeSnapshot = {
   closeSettingsModal: () => {},
@@ -43,17 +49,21 @@ function loadProviderPanels() {
         openSettingsModal: () => (settingsProviderBridgeDeps as BridgeOperations).openSettingsModal(),
       });
       return providerPanels;
-    });
+    }).catch(error => { _providerPanelsLoad = null; throw error; });
   }
   return _providerPanelsLoad;
 }
 
-export function renderAIProviderPanelBridge() {
-  loadProviderPanels().then(providerPanels => {
-    const panel = document.getElementById('ai-provider-panel');
-    if (panel) panel.innerHTML = providerPanels.renderAIProviderPanel(getAIProvider());
-  }).catch(() => {});
+export function renderAIProviderPanelBridge(): string {
   return '<div class="ai-provider-panel"><div class="ai-provider-desc">Loading provider settings...</div></div>';
+}
+function captureProviderView() {
+  const panel = document.getElementById('ai-provider-panel');
+  const epoch = ++providerViewEpoch;
+  return { panel, isCurrent: () => !!panel && panel.isConnected && panel === document.getElementById('ai-provider-panel') && epoch === providerViewEpoch };
+}
+function showProviderLoadFailure(panel: HTMLElement | null): void {
+  if (panel) panel.innerHTML = '<div class="ai-provider-desc" role="status">Provider settings could not load. Reopen Settings to retry.</div>';
 }
 
 function setProviderButtonState(provider: unknown) {
@@ -63,22 +73,23 @@ function setProviderButtonState(provider: unknown) {
   });
 }
 
-export function switchAIProviderBridge(provider: unknown) {
+export function switchAIProviderBridge(provider: unknown): void {
   const previousProvider = getAIProvider();
-  if (provider === 'openrouter' && previousProvider !== 'openrouter' && !getOpenRouterKey()) {
-    rememberOpenRouterOAuthPreviousProvider(previousProvider);
-  } else if (provider !== 'openrouter') {
-    clearOpenRouterOAuthSession();
-  }
+  const owner = captureProviderView();
+  if (!owner.panel) return;
+  if (provider === 'openrouter' && previousProvider !== 'openrouter' && !getOpenRouterKey()) rememberOpenRouterOAuthPreviousProvider(previousProvider);
+  else if (provider !== 'openrouter') clearOpenRouterOAuthSession();
   setProviderButtonState(provider);
-  const panel = document.getElementById('ai-provider-panel');
-  if (panel) panel.innerHTML = '<div class="ai-provider-panel"><div class="ai-provider-desc">Loading provider settings...</div></div>';
-  loadProviderPanels().then(async providerPanels => {
-    const changed = await providerPanels.switchAIProvider(provider, { previousProvider });
+  disposeOpenRouterSettings();
+  owner.panel.innerHTML = renderAIProviderPanelBridge();
+  void loadProviderPanels().then(async panels => {
+    if (!owner.isCurrent()) return;
+    const changed = await panels.switchAIProvider(provider, { previousProvider, isCurrent: owner.isCurrent });
+    if (!owner.isCurrent()) return;
     setProviderButtonState(changed ? provider : previousProvider);
     if (changed) setChatBackend('direct');
     (settingsProviderBridgeDeps as BridgeOperations).refreshNutritionAISettings();
-  }).catch(() => {});
+  }).catch(() => { if (owner.isCurrent()) showProviderLoadFailure(owner.panel); });
 }
 
 if (typeof globalThis.addEventListener === 'function') {
@@ -95,11 +106,21 @@ export function testPIIOllamaConnectionBridge() {
   return loadProviderPanels().then(providerPanels => providerPanels.testPIIOllamaConnection());
 }
 
-export function initSettingsProviderPanels() {
-  return loadProviderPanels().then(providerPanels => {
-    providerPanels.initSettingsOllamaCheck();
-    providerPanels.initSettingsModelFetch();
-  });
+export async function initSettingsProviderPanels(): Promise<void> {
+  const owner = captureProviderView();
+  const provider = getAIProvider();
+  const backend = getChatBackend();
+  if (!owner.panel) return;
+  try {
+    const panels = await loadProviderPanels();
+    if (!owner.isCurrent() || getAIProvider() !== provider || getChatBackend() !== backend) return;
+    if (backend !== 'codex') {
+      owner.panel.innerHTML = panels.renderAIProviderPanel(provider);
+      panels.hydrateOpenRouterSettings();
+    }
+    panels.initSettingsOllamaCheck();
+    panels.initSettingsModelFetch();
+  } catch { if (owner.isCurrent()) showProviderLoadFailure(owner.panel); }
 }
 
 // Load saved funding recovery only for the active direct Routstr provider.

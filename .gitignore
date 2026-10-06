@@ -1598,3 +1598,9 @@ deploy/profile-share/data/
 /js/nutrition-ai-settings-contract.js
 /js/nutrition-ai-settings-classes.js
 /js/nutrition-ai-settings-component.js
+
+/js/openrouter-settings-contract.js
+/js/openrouter-settings-view.js
+/js/openrouter-settings-classes.js
+/js/openrouter-settings-component.js
+/js/openrouter-key-controller.js

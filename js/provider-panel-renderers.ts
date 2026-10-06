@@ -2,16 +2,17 @@ import type { StoredProviderModel } from './api-provider-storage.js';
 
 // provider-panel-renderers.js — AI provider settings panel markup
 
+import { OPENROUTER_SETTINGS_HOST } from './openrouter-settings-contract.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import {
-  getVeniceKey, getOpenRouterKey,
-  getVeniceModel, getOpenRouterModel,
+  getVeniceKey,
+  getVeniceModel,
   getRoutstrKey, getRoutstrModel,
   isRoutstrPrivateModeActive,
   getPpqKey, getPpqModel, getPpqPrivateMode, isPpqPrivateModeActive,
   getCustomApiUrl, getCustomApiKey, getCustomApiModel,
   getVeniceE2EE, setVeniceE2EE, isVeniceE2EEActive,
-  getVeniceModelDisplay, getOpenRouterModelDisplay,
+  getVeniceModelDisplay,
   getRoutstrModelDisplay, getPpqModelDisplay,
   renderModelPricingHint, selectLatestRecommendedModels,
   getOllamaConfig, getOllamaMainModel
@@ -63,34 +64,6 @@ function renderProviderKeyControls(
       <button class="import-btn import-btn-primary" id="save-${provider}-key-btn" data-provider-panel-action="save-${provider}-key">Save & Validate</button>
       ${currentKey ? `<button class="import-btn import-btn-secondary" data-provider-panel-action="remove-${provider}-key">Remove Key</button>` : ''}
     </div>`;
-}
-
-function renderOpenRouterProviderPanel() {
-  const currentKey = getOpenRouterKey();
-  const orModel = getOpenRouterModel();
-  const cachedORModels = readStoredArray('labcharts-openrouter-models');
-  let orModelHtml;
-  if (cachedORModels.length > 0) {
-    const opts = buildModelOptions('openrouter', cachedORModels, orModel, function(m) { return m.name || m.id; });
-    const isCustom = !cachedORModels.some(m => m.id === orModel);
-    orModelHtml = `<div style="margin-top:12px" id="openrouter-model-area">
-      <label style="font-size:12px;color:var(--text-muted)">Model</label>
-      <select class="api-key-input" id="openrouter-model-select" style="margin-top:4px" data-provider-panel-change="openrouter-model">${isCustom ? '<option value="__custom" disabled selected>Using custom model</option>' : ''}${opts}</select>
-      <div style="margin-top:6px;display:flex;align-items:center;gap:8px"><input type="text" id="openrouter-custom-model" placeholder="Or type any model ID and press Enter" style="font-size:11px;flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text-primary);font-family:monospace${isCustom ? ';border-color:var(--accent)' : ''}" value="${isCustom ? escapeHTML(orModel) : ''}" data-provider-panel-key="openrouter-custom-model"><span id="openrouter-model-health" style="font-size:14px;min-width:18px;text-align:center"></span></div>
-      <div id="openrouter-model-pricing" style="margin-top:4px">${renderModelPricingHint('openrouter', orModel)}</div>
-    </div>`;
-  } else {
-    orModelHtml = `<div style="margin-top:12px;font-size:12px;color:var(--text-muted)" id="openrouter-model-area">Model: <span style="color:var(--text-primary)">${escapeHTML(getOpenRouterModelDisplay())}</span>${currentKey ? ' <span style="font-size:11px">(save key to load models)</span>' : ''}</div>`;
-  }
-  return `<form class="ai-provider-panel">
-    <input type="text" name="ai-provider" value="openrouter" autocomplete="username" hidden>
-    <div class="ai-provider-desc">API marketplace routing to 200+ models (Claude, GPT, Llama, Gemini, and more). Pay-per-use with a single key.</div>
-    ${currentKey ? '' : '<button class="or-oauth-btn" data-provider-panel-action="start-openrouter-oauth">Connect with OpenRouter</button><div class="or-oauth-divider"><span>or enter key manually</span></div>'}
-    ${renderProviderKeyControls('openrouter', currentKey, 'sk-or-...')}
-    ${currentKey ? `<div style="margin-top:8px;font-size:12px;color:var(--text-muted)"><span id="or-balance">Balance: loading...</span> <a href="#" data-provider-panel-action="refresh-openrouter-balance" style="color:var(--accent);font-size:11px;text-decoration:none">\u21bb</a></div>` : ''}
-    ${orModelHtml}
-    <div class="api-key-notice">Your key is stored locally and sent directly to OpenRouter. <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent)">Get an API key</a> &middot; <a href="https://openrouter.ai/settings/credits" target="_blank" rel="noopener" style="color:var(--accent)">Add credits</a></div>
-  </form>`;
 }
 
 function renderRoutstrProviderPanel() {
@@ -364,7 +337,7 @@ function renderLocalAIProviderPanel() {
 }
 
 export function renderAIProviderPanel(provider: unknown) {
-  if (provider === 'openrouter') return renderOpenRouterProviderPanel();
+  if (provider === 'openrouter') return OPENROUTER_SETTINGS_HOST;
   if (provider === 'routstr') return renderRoutstrProviderPanel();
   if (provider === 'venice') return renderVeniceProviderPanel();
   if (provider === 'ppq') return renderPpqProviderPanel();

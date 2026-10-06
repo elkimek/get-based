@@ -26,6 +26,7 @@
   --green-bg: rgba(52, 211, 153, 0.15);
   --red: #f87171;
   --on-danger: #030712;
+  --danger-ink: var(--red);
   --success-ink: var(--green);
   --warning-ink: var(--yellow);
   --red-bg: rgba(248, 113, 113, 0.15);
@@ -73,6 +74,7 @@
   --green-bg: rgba(5,150,105,0.12);
   --red: #dc2626;
   --on-danger: #ffffff;
+  --danger-ink: #b91c1c;
   --success-ink: #166534;
   --warning-ink: #92400e;
   --red-bg: rgba(220,38,38,0.1);

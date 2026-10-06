@@ -46,3 +46,7 @@ export const wearablesSettingsCompatible: typeof NativeWearablesSettings = Weara
 import NutritionAISettings from '../../js/components/NutritionAISettings.svelte';
 import type NativeNutritionAISettings from '../../js/components/NutritionAISettings.svelte.native.js';
 export const nutritionAISettingsCompatible: typeof NativeNutritionAISettings = NutritionAISettings;
+
+import OpenRouterSettings from '../../js/components/OpenRouterSettings.svelte';
+import type NativeOpenRouterSettings from '../../js/components/OpenRouterSettings.svelte.native.js';
+export const openRouterSettingsCompatible: typeof NativeOpenRouterSettings = OpenRouterSettings;
