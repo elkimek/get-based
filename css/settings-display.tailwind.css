@@ -10,3 +10,5 @@
 /* The existing styles remain unlayered. Scope utilities with the panel ID so
    they can supersede legacy control rules without !important or a global reset. */
 @custom-variant display (#settings-tab-display &);
+
+@custom-variant privacy (#settings-tab-privacy &);

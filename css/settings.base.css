@@ -847,8 +847,7 @@
 }
 .settings-modal .ai-provider-btn,
 .settings-modal .imported-entry,
-.settings-modal .local-ai-settings,
-.settings-modal .privacy-status-card {
+.settings-modal .local-ai-settings {
   background: var(--bg-card);
   border-color: var(--border);
 }
@@ -2014,67 +2013,6 @@
 .settings-theme-swatch-glass { background: linear-gradient(135deg, #c986ff 0%, #6ec4ff 100%); border-radius: 12px; }
 .settings-theme-swatch-synth-sunrise { background: linear-gradient(135deg, #ff7a18 0%, #ff2bd6 50%, #7c3aed 100%); border-radius: 2px; }
 .settings-theme-swatch-neuromancer { background: linear-gradient(135deg, #00e5ff 0%, #ff2bd6 100%); border-radius: 0; }
-
-/* Privacy status card and collapsible configure */
-.settings-modal .settings-privacy-section {
-  padding-top: 2px;
-}
-.privacy-overview-row {
-  align-items: flex-start;
-  margin-bottom: 12px;
-}
-.privacy-overview-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
-  border-radius: var(--radius-sm);
-  background: var(--accent-fill);
-  font-size: 15px;
-  line-height: 1;
-  flex: 0 0 auto;
-}
-.privacy-status-card {
-  display: flex; align-items: flex-start; gap: 10px;
-  padding: 10px 14px; border-radius: var(--radius-sm);
-  margin-bottom: 8px; line-height: 1.4;
-}
-.privacy-status-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
-.privacy-status-body { flex: 1; min-width: 0; }
-.privacy-status-title { font-size: 13px; font-weight: 600; }
-.privacy-status-detail { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-.privacy-status-enhanced {
-  background: color-mix(in srgb, var(--green) 8%, transparent); border: 1px solid color-mix(in srgb, var(--green) 25%, transparent);
-}
-.privacy-status-enhanced .privacy-status-title { color: var(--green); }
-.privacy-status-basic {
-  background: color-mix(in srgb, var(--yellow) 8%, transparent); border: 1px solid color-mix(in srgb, var(--yellow) 25%, transparent);
-}
-.privacy-status-basic .privacy-status-title { color: var(--yellow); }
-.privacy-configure-toggle {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12px; color: var(--text-muted); cursor: pointer;
-  margin-top: 12px; padding: 4px 0; user-select: none;
-}
-.privacy-configure-toggle:hover { color: var(--text-secondary); }
-.privacy-configure-arrow { font-size: 9px; transition: transform 0.15s; }
-.privacy-configure-body { padding-top: 8px; }
-.privacy-setting-row {
-  padding-top: 12px;
-  margin-top: 12px;
-  border-top: 1px solid var(--border);
-}
-.privacy-setting-row + .privacy-setting-row {
-  margin-top: 12px;
-}
-.privacy-setting-note {
-  margin-top: 5px;
-  color: var(--text-muted);
-  font-size: 11px;
-  line-height: 1.35;
-}
 
 /* Pending-tombstone confirm UI in Settings Sync. */
 .sync-tombstone-banner {

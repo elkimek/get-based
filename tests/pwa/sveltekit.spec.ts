@@ -194,3 +194,107 @@ test('Svelte Settings shell preserves all sections, responsive geometry and keyb
     await noCspErrors(page, errors);
   } finally { await server.close(); }
 });
+
+
+test('Privacy controls preserve consent separation, review confirmation, drafts and offline preferences', async ({ page, context }) => {
+  const server = await startKitServer(artifact); const errors = await prepare(context, page);
+  await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
+  await context.addInitScript(() => {
+    if (!location.protocol.startsWith('http')) return;
+    // Seed only once so withdrawal/reload checks exercise actual persistence.
+    if (localStorage.getItem('privacy-test-seeded')) return;
+    localStorage.setItem('privacy-test-seeded', '1');
+    localStorage.setItem('labcharts-cloud-ai-consent', JSON.stringify({ version: '2026-08-31', approvals: { test: { accepted: true, recipient: '<remote.example>' } } }));
+    localStorage.setItem('labcharts-ai-route-confirmations', JSON.stringify({ version: '2026-08-31', confirmations: { test: { confirmed: true, endpointOrigin: 'http://lan.example' } } }));
+    localStorage.setItem('labcharts-ai-transparency-acknowledgement', JSON.stringify({ version: '2026-08-31', acknowledged: true }));
+  });
+  try {
+    await page.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' }); await ready(page); await display(page);
+    await page.locator('#settings-nav-privacy').click();
+    const panel = page.locator('#settings-tab-privacy');
+    await expect(panel.locator('#privacy-status-title')).toHaveText('Basic protection');
+    const configure = panel.locator('[data-settings-action="toggle-privacy-configure"]');
+    await configure.focus(); await configure.press('Enter'); await expect(configure).toHaveAttribute('aria-expanded', 'true');
+    await expect(panel.locator('#privacy-configure-body')).toHaveCSS('display', 'block');
+    const url = panel.getByLabel('Server address', { exact: true }); await url.fill('http://unsaved.example');
+    await panel.locator('[data-settings-action="withdraw-cloud-ai-consent"]').click();
+    await expect(panel.locator('[data-settings-action="withdraw-cloud-ai-consent"]')).toBeDisabled();
+    await expect(panel.locator('[data-settings-action="withdraw-ai-route-confirmations"]')).toBeEnabled();
+    expect(await page.evaluate(() => localStorage.getItem('labcharts-cloud-ai-consent'))).toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem('labcharts-ai-route-confirmations'))).not.toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem('labcharts-ai-transparency-acknowledgement'))).not.toBeNull();
+    await expect(url).toHaveValue('http://unsaved.example');
+    await panel.locator('[data-settings-action="withdraw-ai-route-confirmations"]').click();
+    await expect(panel.locator('[data-settings-action="withdraw-ai-route-confirmations"]')).toBeDisabled();
+    expect(await page.evaluate(() => localStorage.getItem('labcharts-ai-route-confirmations'))).toBeNull();
+    const review = panel.locator('#pii-review-toggle');
+    await expect(review).toBeChecked(); await review.locator('..').click();
+    await expect(page.locator('#confirm-dialog-overlay')).toHaveClass(/show/); await expect(review).toBeChecked();
+    await page.locator('#confirm-cancel').click(); await expect(review).toBeChecked();
+    await review.locator('..').click(); await page.locator('#confirm-ok').click(); await expect(review).not.toBeChecked();
+    const analytics = panel.locator('#analytics-toggle'); const before = await analytics.isChecked();
+    await analytics.locator('..').click(); await expect(analytics).toBeChecked({ checked: !before });
+    // A consent refresh must leave the dialog-confirmed review state untouched.
+    await expect(review).not.toBeChecked();
+    const violations = await panel.evaluate(async element => {
+      const axe = (window as unknown as { axe: typeof import('axe-core') }).axe;
+      const result = await axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } });
+      return result.violations.map(violation => ({ id: violation.id, targets: violation.nodes.map(node => node.target) }));
+    });
+    expect(violations).toEqual([]);
+    expect(await panel.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    server.state.offline = true; await page.reload({ waitUntil: 'load' }); await ready(page); await display(page);
+    await page.locator('#settings-nav-privacy').click();
+    await expect(page.locator('#pii-review-toggle')).not.toBeChecked();
+    await expect(page.locator('#analytics-toggle')).toBeChecked({ checked: !before });
+    await expect(page.locator('[data-settings-action="withdraw-cloud-ai-consent"]')).toBeDisabled();
+    await expect(page.locator('[data-settings-action="withdraw-ai-route-confirmations"]')).toBeDisabled();
+    await noCspErrors(page, errors);
+  } finally { await server.close(); }
+});
+
+test('Privacy provider discovery filters cloud models, persists configuration and recovers from invalid endpoints', async ({ page, context }) => {
+  const server = await startKitServer(artifact); const errors = await prepare(context, page);
+  await context.addInitScript(() => {
+    const original = window.fetch.bind(window);
+    window.fetch = async (input, options = {}) => {
+      const href = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (!href.startsWith('http://localhost:11434/')) return original(input, options);
+      if (options.method === 'HEAD') return new Response(null, { status: 204 });
+      const json = (body: unknown) => new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } });
+      if (href.endsWith('/api/v1/models')) return new Response(null, { status: 404 });
+      const models = ['llama3.2', 'qwen2.5:14b', 'kimi-k2.5:cloud', 'nomic-embed-text'];
+      if (href.endsWith('/api/tags')) return json({ models: models.map(name => ({ name })) });
+      if (href.endsWith('/v1/models')) return json({ data: models.map(id => ({ id })) });
+      if (href.endsWith('/api/ps')) return json({ models: [] });
+      return new Response(null, { status: 404 });
+    };
+  });
+  try {
+    await page.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' }); await ready(page); await display(page);
+    await page.locator('#settings-nav-privacy').click();
+    const panel = page.locator('#settings-tab-privacy');
+    await panel.locator('[data-settings-action="toggle-privacy-configure"]').click();
+    await panel.getByLabel('Server address', { exact: true }).fill(' http://localhost:11434/ ');
+    await panel.getByLabel('Privacy server API key', { exact: false }).fill('privacy-test-key');
+    await panel.locator('[data-settings-action="test-pii-ollama"]').click();
+    await expect(panel.locator('#pii-local-status-text')).toContainText('Connection verified');
+    expect(await panel.locator('#pii-model-select option').allTextContents()).toEqual(['llama3.2', 'qwen2.5:14b']);
+    await panel.locator('#pii-model-select').selectOption('qwen2.5:14b');
+    await panel.locator('#pii-local-toggle').locator('..').click();
+    await expect(panel.locator('#privacy-status-title')).toHaveText('Enhanced protection');
+    await expect(panel.locator('#privacy-status-detail')).toContainText('qwen2.5:14b');
+    await page.reload({ waitUntil: 'load' }); await ready(page); await display(page); await page.locator('#settings-nav-privacy').click();
+    await expect(panel.locator('#pii-local-toggle')).toBeChecked();
+    await expect(panel.locator('#privacy-status-title')).toHaveText('Enhanced protection');
+    await panel.locator('[data-settings-action="toggle-privacy-configure"]').click();
+    await expect(panel.getByLabel('Server address', { exact: true })).toHaveValue('http://localhost:11434');
+    await expect(panel.getByLabel('Privacy server API key', { exact: false })).toHaveValue('privacy-test-key');
+    // Verify invalid endpoints surface a recoverable error and clear old options.
+    await panel.getByLabel('Server address', { exact: true }).fill('file:///invalid');
+    await panel.locator('[data-settings-action="test-pii-ollama"]').click();
+    await expect(panel.locator('#pii-local-status-text')).not.toContainText('Connection verified');
+    await expect(panel.locator('#pii-model-dropdown')).toHaveCSS('display', 'none');
+    await noCspErrors(page, errors);
+  } finally { await server.close(); }
+});

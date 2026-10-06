@@ -14,6 +14,8 @@ const shellSrc = readRepositorySource('js/components/SettingsShell.svelte', 'utf
 const shellContractSrc = readAuthoredRepositorySource('js/settings-shell-contract.js', 'utf8');
 const displaySrc = readRepositorySource('js/components/DisplaySettings.svelte', 'utf8');
 const eventTargetSrc = readRepositorySource('js/settings-event-target.js', 'utf8');
+const privacyComponentSrc = readRepositorySource('js/components/PrivacySettings.svelte', 'utf8');
+const toggleComponentSrc = readRepositorySource('js/components/SettingsToggle.svelte', 'utf8');
 const privacySrc = readRepositorySource('js/settings-privacy.js', 'utf8');
 const settingsDataSrc = readRepositorySource('js/settings-data.js', 'utf8');
 const voiceSrc = readRepositorySource('js/settings-voice-panel.js', 'utf8');
@@ -21,7 +23,7 @@ const voiceViewSrc = readRepositorySource('js/settings-voice-view.js', 'utf8');
 const tweaksSrc = readAuthoredRepositorySource('js/settings-tweaks.js', 'utf8');
 const appShellCss = readRepositorySource('css/app-shell.css', 'utf8');
 const settingsCss = readRepositorySource('css/settings.css', 'utf8');
-const settingsSurfaceSrc = `${src}\n${displaySrc}\n${eventTargetSrc}\n${privacySrc}\n${settingsDataSrc}\n${voiceSrc}\n${tweaksSrc}`;
+const settingsSurfaceSrc = `${src}\n${displaySrc}\n${eventTargetSrc}\n${privacySrc}\n${privacyComponentSrc}\n${toggleComponentSrc}\n${settingsDataSrc}\n${voiceSrc}\n${tweaksSrc}`;
 
 const { assert, results: legacyAssertions } = createLegacyAssertions(" -- ");
 
@@ -139,7 +141,7 @@ assert('Tweaks panel uses shared overlay lifecycle helpers',
   'clear-all-data',
   'reset-profile-usage',
 ].forEach(action => {
-  assert(`Settings action ${action} is rendered`, settingsSurfaceSrc.includes(`data-settings-action="${action}"`));
+  assert(`Settings action ${action} is rendered`, (settingsSurfaceSrc.includes(`data-settings-action="${action}"`) || (privacyComponentSrc.includes(`action="${action}"`) && toggleComponentSrc.includes('data-settings-action={action}'))));
 });
 
 assert('Settings AI no longer owns context source toggles',

@@ -101,7 +101,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const utilsSrc = read('/js/utils.js');
   assert('utils.js analytics consent uses product-level wording',
     !utilsSrc.includes('help me improve getbased') && utilsSrc.includes('help improve getbased'));
-  const settingsSrc = `${read('/js/settings.js')}\n${read('/js/settings-privacy.js')}`;
+  const settingsSrc = `${read('/js/settings.js')}\n${read('/js/settings-privacy.js')}\n${read('/js/components/PrivacySettings.svelte')}`;
   assert('settings.js privacy copy identifies Umami without personal framing',
     !settingsSrc.includes('I track cookieless') && settingsSrc.includes('Umami analytics service'));
   assert('onboarding-view.js drops "us show" framing',

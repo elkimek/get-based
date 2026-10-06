@@ -66,6 +66,7 @@ import {
   clearCachedLocalAiModelDetails,
   getCachedLocalAiModelDetails,
   updatePrivacyStatusCardFromRuntime,
+  getPIIConnectionViewFromRuntime,
 } from './provider-local-ai-runtime.js';
 
 let returnToChatIfOnboarding = function() {};
@@ -419,11 +420,16 @@ async function isLikelyCorsBlocked(url: string) {
   }
 }
 
+async function getLocalAiPreflightHelp(error: unknown, url: string): Promise<string | null> {
+  if (!isFetchTransportError(error) || !await isLikelyCorsBlocked(url)) return null;
+  return getLocalAiCorsHelpText(url);
+}
+
 async function handleLocalAiPreflightError(error: unknown, url: string, dot: HTMLElement, text: HTMLElement) {
-  if (!isFetchTransportError(error)) return false;
-  if (!await isLikelyCorsBlocked(url)) return false;
+  const help = await getLocalAiPreflightHelp(error, url);
+  if (!help) return false;
   dot.classList.add('disconnected');
-  text.textContent = getLocalAiCorsHelpText(url);
+  text.textContent = help;
   return true;
 }
 
@@ -553,58 +559,52 @@ export async function testOllamaConnection() {
 
 export async function testPIIOllamaConnection() {
   const generation = ++piiDiscoveryGeneration;
-  const urlInput = (document.getElementById('pii-local-url-input') as HTMLSelectElement | null);
-  const dot = document.getElementById('pii-local-dot');
-  const text = document.getElementById('pii-local-status-text');
-  const piiDropdown = document.getElementById('pii-model-dropdown');
-  const piiSelect = (document.getElementById('pii-model-select') as HTMLSelectElement | null);
-  if (!urlInput || !dot || !text) return;
-  const urlCheck = normalizeLocalAiBaseUrl(urlInput.value);
-  const apiKeyInput = (document.getElementById('pii-local-apikey-input') as HTMLSelectElement | null);
-  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : getOllamaPIIApiKey();
-  text.textContent = 'Testing...';
-  dot.className = 'local-ai-status-dot';
-  if (urlCheck.error) {
-    dot.classList.add('disconnected');
-    text.textContent = urlCheck.error;
-    return;
-  }
+  const urlInput = document.getElementById('pii-local-url-input') as HTMLInputElement | null;
+  const view = getPIIConnectionViewFromRuntime();
+  if (!urlInput || !view) return;
+  const apiKeyInput = document.getElementById('pii-local-apikey-input') as HTMLInputElement | null;
+  const draftUrl = urlInput.value;
+  const draftKey = apiKeyInput?.value ?? getOllamaPIIApiKey();
+  const apiKey = draftKey.trim();
+  const current = () => generation === piiDiscoveryGeneration && view.isCurrent()
+    && urlInput.value === draftUrl && (!apiKeyInput || apiKeyInput.value === draftKey);
+  const failed = (message: string) => view.update({ status: 'disconnected', message, models: [] });
+  view.update({ status: 'testing', message: 'Testing...' });
+  const urlCheck = normalizeLocalAiBaseUrl(draftUrl);
+  if (urlCheck.error) { failed(urlCheck.error); return; }
   const url = urlCheck.url!;
   if (isHttpsToNonLocalhost(url)) {
-    dot.classList.add('disconnected');
-    text.textContent = 'Browser mixed-content rules block this HTTP LAN server. Use HTTPS, localhost, or an encrypted local tunnel.';
+    failed('Browser mixed-content rules block this HTTP LAN server. Use HTTPS, localhost, or an encrypted local tunnel.');
     return;
   }
   try {
     try { await fetch(`${url}/v1/models`, { method: 'HEAD', signal: AbortSignal.timeout(3000), ...(apiKey ? { headers: { Authorization: `Bearer ${apiKey}` } } : {}) }); }
-    catch (preErr) { if (await handleLocalAiPreflightError(preErr, url, dot, text)) return; }
+    catch (preErr) {
+      const help = await getLocalAiPreflightHelp(preErr, url);
+      if (!current()) return;
+      if (help) { failed(help); return; }
+    }
+    if (!current()) return;
     const result = await discoverLocalAI(url, apiKey, { force: true });
-    if (generation !== piiDiscoveryGeneration) return;
+    if (!current()) return;
     if (!result.available) throw new Error(discoveryErrorText(result));
     const models = filterPIIEligibleModels(result.models);
     if (models.length === 0) {
-      dot.classList.add('disconnected');
-      text.textContent = (result.models || []).some(isCloudModel)
+      failed((result.models || []).some(isCloudModel)
         ? 'Connected, but only cloud/embedding models were found. Privacy protection requires an on-device text model.'
-        : 'Connected but no eligible text-generation models were found.';
-      if (piiDropdown) piiDropdown.style.display = 'none';
+        : 'Connected but no eligible text-generation models were found.');
     } else {
-      dot.classList.add('connected');
       setOllamaPIIUrl(url);
       await saveOllamaPIIApiKey(apiKey);
+      if (!current()) return;
       let currentPII = getOllamaPIIModel();
       if (!models.includes(currentPII)) { currentPII = models[0] as string; setOllamaPIIModel(currentPII); }
-      text.textContent = `Connection verified \u2014 ${currentPII}. Turn on the privacy toggle to use it.`;
-      if (piiDropdown && piiSelect) {
-        piiDropdown.style.display = 'block';
-        piiSelect.innerHTML = models.map(m => `<option value="${escapeHTML(m)}" ${m === currentPII ? 'selected' : ''}>${escapeHTML(m)}</option>`).join('');
-      }
+      view.update({ status: 'connected', message: `Connection verified — ${currentPII}. Turn on the privacy toggle to use it.`, models, selectedModel: currentPII });
     }
     updatePrivacyStatusCardFromRuntime();
-  } catch (e) {
-    if (generation !== piiDiscoveryGeneration) return;
-    dot.classList.add('disconnected');
-    text.textContent = getErrorMessage(e, LOCAL_AI_NOT_CONNECTED_TEXT);
+  } catch (error) {
+    if (!current()) return;
+    failed(getErrorMessage(error, LOCAL_AI_NOT_CONNECTED_TEXT));
     updatePrivacyStatusCardFromRuntime();
   }
 }

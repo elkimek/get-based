@@ -1534,3 +1534,7 @@ deploy/profile-share/data/
 
 /js/settings-shell.js
 /js/settings-shell-contract.js
+
+/js/settings-privacy-contract.js
+/js/settings-privacy-panel.js
+/js/settings-privacy-view.js

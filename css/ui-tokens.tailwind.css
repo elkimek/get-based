@@ -1,5 +1,9 @@
 /* Shared semantic aliases; existing theme variables remain authoritative. */
 @theme inline {
+  --color-success: var(--green);
+  --color-warning: var(--yellow);
+  --color-danger: var(--red);
+  --color-accent-fill: var(--accent-fill);
   --color-secondary-surface: var(--bg-secondary);
   --color-dialog-head: color-mix(in srgb, var(--bg-secondary) 92%, var(--bg-card));
   --shadow-dialog: var(--shadow-lg);

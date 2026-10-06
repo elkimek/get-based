@@ -23,6 +23,7 @@ import { mountSettingsShell, selectSettingsShellTab } from './settings-shell.js'
 import { requestSettingsFrame, settingsMediaMatches } from './settings-runtime.js';
 import { configureSettingsModuleBridge } from './settings-runtime-bridge.js';
 import { closestSettingsTarget, getSettingsProxyToggle } from './settings-event-target.js';
+import { mountPrivacySettingsPanel, disposePrivacySettingsPanel } from './settings-privacy-panel.js';
 import {
   renderDisplaySettingsPanel,
   mountDisplaySettingsPanel,
@@ -42,7 +43,6 @@ import {
 } from './settings-tweaks.js';
 import {
   installSunDataSourceDelegates,
-  renderPrivacyAnalyticsSection,
   renderPrivacySection,
   renderSunDataSourceSettings,
   toggleOllamaPII,
@@ -455,6 +455,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
   const extensionAI = renderAppExtensionSettingsSlot('ai', extensionContext);
   const extensionPanels = renderAppExtensionSettingsSlot('panels', extensionContext);
 
+  disposePrivacySettingsPanel();
   disposeDisplaySettingsPanel();
   const legacyPanels = `
     ${renderDisplaySettingsPanel(_activeSettingsTab === 'display')}
@@ -514,17 +515,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
 
     <!-- Privacy Tab -->
     <div class="settings-tab-panel${_activeSettingsTab === 'privacy' ? ' active' : ''}" data-tab-panel="privacy" id="settings-tab-privacy" role="tabpanel" aria-label="Privacy">
-      <div class="settings-group-title">AI Privacy Protection</div>
-
-      <div class="settings-section settings-privacy-section" id="privacy-section">
-        ${renderPrivacySection()}
-      </div>
-
-      <div class="settings-group-title">Anonymous Usage Stats</div>
-
-      <div class="settings-section" id="privacy-analytics-section">
-        ${renderPrivacyAnalyticsSection()}
-      </div>
+      ${renderPrivacySection()}
     </div>
 
     <!-- Data Tab -->
@@ -576,6 +567,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
     });
   }
   mountDisplaySettingsPanel();
+  mountPrivacySettingsPanel();
   installSettingsDelegates(modal);
   installVoiceSettingsPanel(modal);
   openModalOverlay(overlay);
