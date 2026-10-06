@@ -5,6 +5,7 @@
   --color-success: var(--green);
   --color-success-ink: var(--success-ink);
   --color-warning: var(--yellow);
+  --color-warning-ink: var(--warning-ink);
   --color-danger: var(--red);
   --color-on-danger: var(--on-danger);
   --color-accent-fill: var(--accent-fill);

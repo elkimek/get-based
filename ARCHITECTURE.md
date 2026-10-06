@@ -102,6 +102,21 @@ operations remain in the controller across remounts, with feedback tied to the
 selected model/backend and readiness verified against cache state. Provider
 keys, catalogues and audio engines retain their domain-service ownership.
 
+Cross-device Sync settings use `settings-sync-view.ts` for non-secret service
+snapshots and `SyncSettings.svelte` for status, identity comparison, recovery-word
+controls, relay settings and pending deletion review. `settings-sync-component.ts`
+owns one mounted panel, synchronous updates, disposal and secret cleanup. The
+existing string-renderer contract returns its component host. Relay and public
+identity reads bind to the mounted owner and request sequence; relay replies also
+check the originating relay. Identity hashing checks the public owner again after
+its asynchronous digest. A resolving identity cannot copy the preceding code.
+Identity-change and sync-applied events refresh current service snapshots.
+Recovery words stay out of snapshots and are read from the service only for an
+explicit reveal or clipboard action. Refresh and disposal remask them. The
+controller retains Sync lifecycle, clipboard clearing and domain mutations;
+setup/restore dialogs currently retain their existing native implementation.
+Scoped Tailwind utilities at the existing lazy Settings CSS URL own panel styles.
+
 Agent Access remains behind the lazy Sync facade. `settings-agent-access-panel.ts`
 owns credential generation, clipboard operations, persistence and domain actions;
 `settings-agent-access-contract.ts` supplies readiness/preferences without hidden

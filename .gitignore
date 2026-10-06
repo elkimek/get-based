@@ -1574,3 +1574,11 @@ deploy/profile-share/data/
 /js/passphrase-classes.js
 /js/passphrase-component.js
 /js/passphrase-controller.js
+
+# Generated Sync panel runtime
+/js/settings-sync-contract.js
+/js/settings-sync-view.js
+/js/settings-sync-classes.js
+/js/settings-sync-component.js
+
+/tests/helpers/sync-settings-page.js

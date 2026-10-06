@@ -116,4 +116,5 @@ export function hydrateSettingsSyncPanel() {
 // Replacing the Settings shell releases a loaded view without loading sync UI.
 export function disposeMessengerSection(): void {
   settingsSyncPanelModuleLoader.module?.disposeAgentAccessSection();
+  settingsSyncPanelModuleLoader.module?.disposeSyncSection?.();
 }

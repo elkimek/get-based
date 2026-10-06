@@ -1,134 +1,9 @@
 type SettingsSyncSetupStub={calls:Record<string,unknown>[];enabled:unknown;mnemonic:unknown;fingerprint?:unknown;restoreResult:unknown;enableResult:unknown;relay?:unknown};
-import { routeHtml, routeJavaScript } from '../helpers/browser-static-routes.js';
+import { openIsolatedSyncSetupPage } from '../helpers/sync-settings-page.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('settingsSyncSetupCoverage');
-
-async function openIsolatedSyncSetupPage(page:import("@playwright/test").Page) {
-  await routeHtml(page, '**/settings-sync-setup-browser-coverage', `<!doctype html>
-      <html>
-        <head>
-          <link rel="stylesheet" href="/styles.css">
-          <link rel="stylesheet" href="/css/app-shell.css">
-          <link rel="stylesheet" href="/css/modal-shared.css">
-          <link rel="stylesheet" href="/css/settings.css">
-        </head>
-        <body>
-          <div id="notification-container"></div>
-          <section id="sync-section"></section>
-        </body>
-      </html>`, 200);
-  await routeJavaScript(page, '**/js/sync.js*', `
-      const stub = window.__settingsSyncSetupStub;
-      export function isSyncEnabled() { return !!stub.enabled; }
-      export function isSyncConfigured() { return !!stub.enabled || !!stub.paused; }
-      export function isSyncPaused() { return !!stub.paused; }
-      export async function enableSync(options = {}) {
-        stub.calls.push({
-          fn: 'enableSync',
-          skipPush: options.skipPush === true,
-          persist: options.persist !== false,
-        });
-        if (stub.enableResult === false) {
-          stub.enabled = false;
-          return false;
-        }
-        stub.enabled = true;
-        stub.paused = false;
-        return true;
-      }
-      export async function disableSync() {
-        stub.calls.push({ fn: 'disableSync' });
-        stub.enabled = false;
-        stub.paused = false;
-        return true;
-      }
-      export async function pauseSync() {
-        stub.calls.push({ fn: 'pauseSync' });
-        stub.enabled = false;
-        stub.paused = true;
-        return true;
-      }
-      export function getMnemonic() { return stub.mnemonic || null; }
-      export function getMnemonicResolutionError() { return stub.mnemonicError || null; }
-      export async function getSyncIdentityFingerprint() { return stub.fingerprint || null; }
-      export function getSyncBlocker() { return null; }
-      export async function restoreFromMnemonic(mnemonic) {
-        stub.calls.push({ fn: 'restoreFromMnemonic', mnemonic });
-        return stub.restoreResult !== false;
-      }
-      export function getSyncRelay() { return stub.relay || 'wss://relay.example'; }
-      export function setSyncRelay(relay) {
-        stub.calls.push({ fn: 'setSyncRelay', relay });
-        stub.relay = relay;
-      }
-      export function checkRelayConnection() {
-        stub.calls.push({ fn: 'checkRelayConnection' });
-        return true;
-      }
-      export async function applyPendingTombstone(id) {
-        stub.calls.push({ fn: 'applyPendingTombstone', id });
-      }
-      export function listPendingTombstones() { return []; }
-      export async function rejectPendingTombstone(id) {
-        stub.calls.push({ fn: 'rejectPendingTombstone', id });
-      }
-      export function updateSyncIndicator() {
-        stub.calls.push({ fn: 'updateSyncIndicator' });
-      }
-      export function showSyncDiagnose() {
-        stub.calls.push({ fn: 'showSyncDiagnose' });
-      }
-      export function onDataSaved(options = {}) {
-        stub.calls.push({ fn: 'onDataSaved', immediate: options.immediate === true, skipSync: options.skipSync === true });
-      }
-      export function setAgentAccessWearableSeriesDays(days) {
-        stub.calls.push({ fn: 'setAgentAccessWearableSeriesDays', days });
-        stub.wearableSeriesDays = days;
-      }
-      export function getAgentAccessState() {
-        return { enabled: false, token: null, contextKey: null, wearableSeriesDays: stub.wearableSeriesDays || 0 };
-      }
-      export function migrateLocalAgentAccessToProfile() {
-        stub.calls.push({ fn: 'migrateLocalAgentAccessToProfile' });
-        return null;
-      }
-      export function isAgentAccessMigrationDirty() { return false; }
-      export function clearAgentAccessMigrationDirty() {
-        stub.calls.push({ fn: 'clearAgentAccessMigrationDirty' });
-      }
-      export function clearLegacyAgentAccessSecrets() {
-        stub.calls.push({ fn: 'clearLegacyAgentAccessSecrets' });
-      }
-      export function isMessengerEnabled() { return false; }
-      export function getMessengerToken() { return null; }
-      export function getMessengerContextKey() { return null; }
-      export function hasMessengerSyncIdentity() { return true; }
-      export function generateMessengerToken() {
-        stub.calls.push({ fn: 'generateMessengerToken' });
-        return { token: 'token', previousToken: null };
-      }
-      export function generateMessengerContextKey() {
-        stub.calls.push({ fn: 'generateMessengerContextKey' });
-        return 'gbctx_v1_test-context-key';
-      }
-      export function disableMessengerTokenLocal() {
-        stub.calls.push({ fn: 'disableMessengerTokenLocal' });
-        return 'previous-token';
-      }
-      export function revokeMessengerTokenRemote(token) {
-        stub.calls.push({ fn: 'revokeMessengerTokenRemote', token });
-      }
-      export function revokeMessengerToken() {
-        stub.calls.push({ fn: 'revokeMessengerToken' });
-      }
-      export function pushContextToGateway() {
-        stub.calls.push({ fn: 'pushContextToGateway' });
-      }
-    `, 200);
-  await page.goto('/settings-sync-setup-browser-coverage', { waitUntil: 'load' });
-}
 
 test('settings sync setup browser coverage exercises mnemonic setup restore and clipboard flows', async ({ page }) => {
   await openIsolatedSyncSetupPage(page);
@@ -216,6 +91,7 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
 
       (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.enabled = true;
       syncSection.innerHTML = syncPanel.renderSyncSection() as string;
+      await waitFor(() => syncSection.querySelector('[data-sync-settings-view]'), 'owned Sync panel mount');
       outcomes.enabledStateExposesRestorePauseAndDisconnectControls =
         syncSection.querySelector<HTMLElement>('[data-sync-action="open-restore-dialog"]')?.textContent.includes('Restore / switch identity') === true
         && syncSection.querySelector<HTMLElement>('[data-sync-action="pause-sync"]')?.textContent.includes('Pause on this device') === true
@@ -302,6 +178,7 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
       (window as unknown as {__settingsSyncSetupStub:SettingsSyncSetupStub}).__settingsSyncSetupStub.enabled = true;
       document.getElementById('sync-setup-overlay')?.remove();
       syncSection.innerHTML = syncPanel.renderSyncSection() as string;
+      await waitFor(() => syncSection.querySelector('[data-sync-action="open-restore-dialog"]'), 'owned restore action');
       document.querySelector<HTMLElement>('[data-sync-action="open-restore-dialog"]')?.click();
       await waitFor(() => !!document.getElementById('sync-restore-dialog-input'), 'restore dialog');
       const dialogInput = document.getElementById('sync-restore-dialog-input');

@@ -1,7 +1,7 @@
 // settings-sync-panel-impl.js — lazy Cross-device sync and Agent Access settings UI
 
 import { getErrorMessage } from './caught-error.js';
-import { escapeHTML, showNotification } from './utils.js';
+import { escapeHTML, showNotification, bindSyncAppliedRefresh } from './utils.js';
 import {
   isSyncEnabled,
   isSyncPaused,
@@ -14,6 +14,7 @@ import {
   restoreFromMnemonic,
   setSyncRelay,
   checkRelayConnection,
+  getSyncRelay,
   applyPendingTombstone,
   listPendingTombstones,
   pushContextToGateway,
@@ -23,6 +24,10 @@ import {
   updateSyncIndicator,
 } from './sync.js';
 import { renderSyncSectionMarkup } from './settings-sync-panel-render.js';
+import { getSyncSettingsSnapshot } from './settings-sync-view.js';
+import type { PendingTombstoneList } from './settings-sync-view.js';
+import type { SyncSettingsView } from './settings-sync-contract.js';
+import { mountSyncSettings, getSyncSettingsView, disposeSyncSettings } from './settings-sync-component.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import {
   closeRestoreMnemonicDialog,
@@ -33,6 +38,7 @@ import {
   updateSyncSetupRestoreState,
 } from './settings-sync-restore-ui.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
+import { addUtilsRuntimeListener } from './utils-runtime.js';
 import { beginAgentAccessMutation } from './settings-agent-access-mutation.js';
 import {
   copyAgentAccessSetupCommand,
@@ -237,7 +243,8 @@ function installSettingsSyncDelegates() {
 }
 
 export function renderSyncSection() {
-  return (renderSyncSectionMarkup as (list: unknown) => ReturnType<typeof renderSyncSectionMarkup>)(settingsSyncPanelDeps.listPendingTombstones);
+  queueMicrotask(() => hydrateSyncSection());
+  return renderSyncSectionMarkup(settingsSyncPanelDeps.listPendingTombstones as PendingTombstoneList);
 }
 
 let _syncToggling = false;
@@ -267,11 +274,7 @@ async function toggleSync(enabled: boolean) {
       try {
         const resumed = await enableSync();
         if (!resumed) throw new Error('Sync could not resume');
-        const el = document.getElementById('sync-section');
-        if (el) el.innerHTML = renderSyncSection();
-        loadMnemonic();
-        void loadSyncIdentityFingerprint();
-        updateRelayStatus();
+        refreshSyncSection();
       } catch (e) {
         console.error('[sync] resume failed:', e);
         showNotification(`Resume failed: ${getErrorMessage(e, e)}`, 'error');
@@ -286,13 +289,11 @@ async function toggleSync(enabled: boolean) {
     try {
       await pauseSync();
       // Pause is immediate and retains the current identity/runtime.
-      const el = document.getElementById('sync-section');
-      if (el) el.innerHTML = renderSyncSection();
+      refreshSyncSection();
     } catch (e) {
       console.error('[sync] pause failed:', e);
       showNotification(`Pause failed: ${getErrorMessage(e, e)}`, 'error');
-      const el = document.getElementById('sync-section');
-      if (el) el.innerHTML = renderSyncSection();
+      refreshSyncSection();
     } finally {
       _releaseSyncToggle();
     }
@@ -307,18 +308,15 @@ async function disconnectSync() {
   _syncToggling = true;
   _syncToggleWatchdog = setTimeout(_releaseSyncToggle, 60000);
   try {
-    _mnemonicCache = null;
     _identityFingerprintCache = null;
     _mnemonicRetries = 0;
     (clearTimeout as (timer: ReturnType<typeof setTimeout> | null) => void)(_mnemonicRetryTimer);
     await disableSync();
-    const el = document.getElementById('sync-section');
-    if (el) el.innerHTML = renderSyncSection();
+    refreshSyncSection();
   } catch (e) {
     console.error('[sync] disconnect failed:', e);
     showNotification(`Disconnect failed: ${getErrorMessage(e, e)}`, 'error');
-    const el = document.getElementById('sync-section');
-    if (el) el.innerHTML = renderSyncSection();
+    refreshSyncSection();
   } finally {
     _releaseSyncToggle();
   }
@@ -371,7 +369,6 @@ export async function closeSyncSetup() {
     closeModalOverlay('sync-setup-overlay');
     // If sync was started during setup but user cancelled, clean up
     if (isSyncEnabled()) {
-      _mnemonicCache = null;
       _mnemonicRetries = 0;
       (clearTimeout as (timer: ReturnType<typeof setTimeout> | null) => void)(_mnemonicRetryTimer);
       await disableSync();
@@ -380,8 +377,7 @@ export async function closeSyncSetup() {
     console.error('[sync] setup close cleanup failed:', e);
     showNotification(`Sync cleanup failed: ${getErrorMessage(e, e)}`, 'error');
   } finally {
-    const el = document.getElementById('sync-section');
-    if (el) el.innerHTML = renderSyncSection();
+    refreshSyncSection();
     _releaseSyncToggle();
   }
   return true;
@@ -416,7 +412,6 @@ async function syncSetupNew() {
       return;
     }
 
-    _mnemonicCache = mnemonic;
     newEl.innerHTML = `
       <div style="margin-bottom:12px">
         <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Your mnemonic</div>
@@ -448,11 +443,7 @@ function updateSyncSetupAck(ack = document.getElementById('sync-setup-ack')) {
 function syncSetupDone() {
   closeModalOverlay('sync-setup-overlay');
   _releaseSyncToggle();
-  const el = document.getElementById('sync-section');
-  if (el) el.innerHTML = renderSyncSection();
-  loadMnemonic();
-  void loadSyncIdentityFingerprint();
-  updateRelayStatus();
+  refreshSyncSection();
 }
 
 function syncSetupRestore() {
@@ -541,95 +532,87 @@ async function syncSetupDoRestore() {
   }
 }
 
+let relayRequest = 0;
+let identityRequest = 0;
 async function updateRelayStatus() {
-  const dot = document.getElementById('sync-status-dot');
-  const text = document.getElementById('sync-status-text');
-  if (!dot || !text) return;
+  const owner = getSyncSettingsView();
+  if (!owner || !isSyncEnabled()) return;
+  const request = ++relayRequest;
+  const relay = getSyncRelay();
   const connected = await checkRelayConnection();
-  dot.style.background = connected ? '#22c55e' : 'var(--red)';
-  text.textContent = connected ? 'Connected to relay' : 'Relay unreachable';
-  // Keep header indicator in sync
-  (settingsSyncPanelDeps.updateSyncIndicator as (...args: Parameters<typeof updateSyncIndicator>) => unknown)();
+  if (!owner.isCurrent() || !isSyncEnabled() || request !== relayRequest || relay !== getSyncRelay()) return;
+  owner.setRelay(connected);
+  (settingsSyncPanelDeps.updateSyncIndicator as typeof updateSyncIndicator)();
 }
 
 let _mnemonicRetries = 0;
-let _mnemonicCache: ReturnType<typeof getMnemonic> = null;
 let _mnemonicRetryTimer: ReturnType<typeof setTimeout> | null = null;
 let _identityFingerprintCache: Awaited<ReturnType<typeof getSyncIdentityFingerprint>> = null;
-const MNEMONIC_MASK = '\u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022';
-
 async function loadSyncIdentityFingerprint() {
-  const codeEl = document.getElementById('sync-identity-code');
-  const copyBtn = ((document.getElementById('sync-identity-copy')) as HTMLButtonElement | null);
-  if (!codeEl || !isSyncEnabled()) return;
+  const owner = getSyncSettingsView();
+  if (!owner || !isSyncEnabled()) return;
+  const request = ++identityRequest;
+  _identityFingerprintCache = null;
+  owner.setIdentity(null);
   const fingerprint = await getSyncIdentityFingerprint();
-  if (!fingerprint) {
-    codeEl.textContent = getMnemonicResolutionError() ? 'Unavailable' : 'Resolving…';
-    if (copyBtn) copyBtn.disabled = true;
-    return;
-  }
+  if (!owner.isCurrent() || !isSyncEnabled() || request !== identityRequest) return;
   _identityFingerprintCache = fingerprint;
-  codeEl.textContent = fingerprint;
-  if (copyBtn) copyBtn.disabled = false;
+  owner.setIdentity(fingerprint, !!getMnemonicResolutionError());
 }
 
-function loadMnemonic() {
-  (clearTimeout as (timer: ReturnType<typeof setTimeout> | null) => void)(_mnemonicRetryTimer);
-  const el = document.getElementById('sync-mnemonic');
-  if (!el || !isSyncEnabled()) { _mnemonicRetries = 0; return; }
-  const mnemonic = getMnemonic();
-  if (mnemonic) {
-    _mnemonicCache = mnemonic;
-    el.dataset.masked = 'true';
-    el.textContent = MNEMONIC_MASK;
-    el.style.userSelect = 'none';
-    el.style.color = '';
+function loadMnemonic(owner: SyncSettingsView | null = getSyncSettingsView()) {
+  if (_mnemonicRetryTimer) clearTimeout(_mnemonicRetryTimer);
+  _mnemonicRetryTimer = null;
+  if (!owner?.isCurrent() || !isSyncEnabled()) { _mnemonicRetries = 0; return false; }
+  if (getMnemonic()) {
+    owner.setMnemonicStatus(true);
     _mnemonicRetries = 0;
     void loadSyncIdentityFingerprint();
-    return;
+    return true;
   }
-  // Stop polling immediately if Evolu surfaced an actual init error —
-  // no point waiting 30s for a promise that already rejected.
-  const initErr = getMnemonicResolutionError();
-  if (initErr) {
-    el.textContent = `Sync init failed: ${initErr}`;
-    el.style.color = '#fbbf24';
+  const error = getMnemonicResolutionError();
+  if (error) {
+    owner.setMnemonicStatus(false, `Sync init failed: ${error}`, true);
     _mnemonicRetries = 0;
-    return;
-  }
-  if (_mnemonicRetries < 30) {
+  } else if (_mnemonicRetries < 30) {
     _mnemonicRetries++;
-    el.textContent = 'Resolving…';
-    _mnemonicRetryTimer = setTimeout(loadMnemonic, 1000);
+    owner.setMnemonicStatus(false, 'Resolving…');
+    _mnemonicRetryTimer = setTimeout(() => loadMnemonic(owner), 1000);
   } else {
-    el.textContent = 'Could not resolve mnemonic — open the dev console and check for [sync] errors, or try a hard refresh';
-    el.style.color = '#fbbf24';
+    owner.setMnemonicStatus(false, 'Could not resolve mnemonic — open the dev console and check for [sync] errors, or try a hard refresh', true);
     _mnemonicRetries = 0;
   }
+  return false;
 }
 
 function toggleMnemonicVisibility() {
-  const el = document.getElementById('sync-mnemonic');
-  const btn = document.getElementById('sync-mnemonic-toggle');
-  if (!el || !btn || !_mnemonicCache) return;
-  const masked = el.dataset.masked === 'true';
-  if (masked) {
-    el.textContent = _mnemonicCache as string;
-    el.dataset.masked = 'false';
-    el.style.userSelect = 'all';
-    btn.textContent = 'Hide';
-  } else {
-    el.textContent = MNEMONIC_MASK;
-    el.dataset.masked = 'true';
-    el.style.userSelect = 'none';
-    btn.textContent = 'Show';
-  }
+  const mnemonic = getMnemonic();
+  if (isSyncEnabled() && mnemonic) getSyncSettingsView()?.toggleMnemonic(mnemonic);
+}
+
+function hydrateSyncSection(refresh = false) {
+  const host = document.querySelector<HTMLElement>('[data-sync-settings-root]');
+  if (!host) return;
+  mountSyncSettings(host, getSyncSettingsSnapshot(settingsSyncPanelDeps.listPendingTombstones as PendingTombstoneList), refresh);
+  if (!isSyncEnabled()) return;
+  if (!loadMnemonic()) void loadSyncIdentityFingerprint();
+  void updateRelayStatus();
+}
+function refreshSyncSection() { hydrateSyncSection(true); }
+addUtilsRuntimeListener('labcharts-sync-owner-changed', refreshSyncSection);
+bindSyncAppliedRefresh(refreshSyncSection);
+export function disposeSyncSection(): void {
+  if (_mnemonicRetryTimer) clearTimeout(_mnemonicRetryTimer);
+  _mnemonicRetryTimer = null; _mnemonicRetries = 0; _identityFingerprintCache = null;
+  relayRequest++; identityRequest++;
+  disposeSyncSettings();
 }
 
 let _clipboardClearTimer: ReturnType<typeof setTimeout> | null = null;
 function copyMnemonic() {
-  if (!_mnemonicCache) return;
-  (navigator.clipboard.writeText as (value: unknown) => Promise<void>)(_mnemonicCache).then(() => {
+  const mnemonic = isSyncEnabled() ? getMnemonic() : null;
+  if (!mnemonic || !getSyncSettingsView()) return;
+  navigator.clipboard.writeText(mnemonic).then(() => {
     showNotification('Mnemonic copied — clipboard will clear in 60s', 'success');
     (clearTimeout as (timer: ReturnType<typeof setTimeout> | null) => void)(_clipboardClearTimer);
     _clipboardClearTimer = setTimeout(() => {
@@ -641,7 +624,7 @@ function copyMnemonic() {
 }
 
 function copySyncIdentityCode() {
-  if (!_identityFingerprintCache) return;
+  if (!_identityFingerprintCache || !isSyncEnabled() || !getSyncSettingsView()) return;
   navigator.clipboard.writeText(_identityFingerprintCache).then(() => {
     showNotification('Sync identity code copied', 'success');
   }).catch(() => {
@@ -701,10 +684,7 @@ function saveSyncRelay() {
 
 export function hydrateSettingsSyncPanel() {
   hydrateMessengerSection();
-  if (!isSyncEnabled()) return;
-  loadMnemonic();
-  void loadSyncIdentityFingerprint();
-  updateRelayStatus();
+  hydrateSyncSection();
 }
 
 installSettingsSyncDelegates();

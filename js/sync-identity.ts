@@ -123,6 +123,7 @@ export async function getSyncIdentityFingerprint() {
   try {
     const input = new TextEncoder().encode(`getbased-sync-identity-v1:${ownerId}`);
     const digest = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', input));
+    if (String(currentAppOwner()?.id || '') !== ownerId) return null;
     const shortHex = Array.from(digest.slice(0, 6), byte => byte.toString(16).padStart(2, '0'))
       .join('')
       .toUpperCase();

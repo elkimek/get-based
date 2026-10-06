@@ -31,3 +31,6 @@
 
 @source "../js/settings-protection-classes.ts";
 @custom-variant protection (:is(#encryption-section, #backup-section, [data-protection-view], [data-folder-backup-root]) &);
+
+@source "../js/settings-sync-classes.ts";
+@custom-variant sync (#sync-section &);

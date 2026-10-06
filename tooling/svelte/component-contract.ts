@@ -30,3 +30,7 @@ export const aIUsageSettingsCompatible: typeof NativeAIUsageSettings = AIUsageSe
 import PassphraseDialog from '../../js/components/PassphraseDialog.svelte';
 import type NativePassphraseDialog from '../../js/components/PassphraseDialog.svelte.native.js';
 export const passphraseCompatible: typeof NativePassphraseDialog = PassphraseDialog;
+
+import SyncSettings from "../../js/components/SyncSettings.svelte";
+import type NativeSyncSettings from "../../js/components/SyncSettings.svelte.native.js";
+export const syncSettingsCompatible: typeof NativeSyncSettings = SyncSettings;

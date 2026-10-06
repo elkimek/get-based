@@ -137,6 +137,8 @@ await import('../js/settings.js');
     await fetchWithRetry('js/settings-sync-panel-impl.js'),
     await fetchWithRetry('js/settings-sync-panel-render.js'),
     await fetchWithRetry('js/components/AgentAccessSettings.svelte'),
+    await fetchWithRetry('js/components/SyncSettings.svelte'),
+    await fetchWithRetry('js/settings-sync-component.js'),
   ].join('\n');
   const settingsSyncRestoreUiSrc = await fetchWithRetry('js/settings-sync-restore-ui.js');
   const dataSrc = dataModuleSource(await fetchWithRetry('js/data.js'), await fetchWithRetry('js/data-core.js'));
@@ -1650,10 +1652,10 @@ await import('../js/settings.js');
   assert('settings-sync-panel imports sync functions', settingsSyncPanelSrc.includes("from './sync.js'"));
   assert('renderSyncSection exists', settingsSyncPanelSrc.includes('function renderSyncSection'));
   assert('Sync section in Data tab', settingsSrc.includes('Cross-Device Sync'));
-  assert('Connected indicator with green dot', settingsSyncPanelSrc.includes('#22c55e') && settingsSyncPanelSrc.includes('Connected to relay'));
-  assert('Mnemonic display with mask', settingsSyncPanelSrc.includes('sync-mnemonic') && settingsSyncPanelSrc.includes('MNEMONIC_MASK'));
+  assert('Connected indicator with green dot', settingsSyncPanelSrc.includes('gb:sync:bg-success') && settingsSyncPanelSrc.includes('Connected to relay'));
+  assert('Mnemonic display with mask', settingsSyncPanelSrc.includes('sync-mnemonic') && settingsSyncPanelSrc.includes('const mask ='));
   assert('Mnemonic toggle button has id', settingsSyncPanelSrc.includes('sync-mnemonic-toggle'));
-  assert('Mnemonic toggle uses getElementById', settingsSyncPanelSrc.includes("getElementById('sync-mnemonic-toggle')"));
+  assert('Mnemonic toggle uses the current owned view and live service value', settingsSyncPanelSrc.includes('getSyncSettingsView()?.toggleMnemonic(mnemonic)') && settingsSyncPanelSrc.includes('const mnemonic = getMnemonic()') && settingsSyncPanelSrc.includes('export function toggleMnemonic(value: string)'));
   assert('Settings shows a safe Sync identity comparison code',
     settingsSyncPanelSrc.includes('sync-identity-code')
       && settingsSyncPanelSrc.includes('same 24-word Data Sync identity')
