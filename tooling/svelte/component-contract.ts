@@ -62,3 +62,7 @@ export const ppqSettingsCompatible: typeof NativePpqSettings = PpqSettings;
 import WalletFunding from '../../js/components/WalletFunding.svelte';
 import type NativeWalletFunding from '../../js/components/WalletFunding.svelte.native.js';
 export const walletFundingCompatible: typeof NativeWalletFunding = WalletFunding;
+
+import WalletSeed from '../../js/components/WalletSeed.svelte';
+import type NativeWalletSeed from '../../js/components/WalletSeed.svelte.native.js';
+export const walletSeedCompatible: typeof NativeWalletSeed = WalletSeed;

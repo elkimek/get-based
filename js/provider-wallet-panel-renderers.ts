@@ -44,21 +44,6 @@ export function walletMintPickerHtml(currentMint: unknown, savedMints: WalletMin
   </div>`;
 }
 
-export function walletSeedOnboardingHtml(mnemonic: unknown) {
-  return `<div style="padding:12px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--accent);margin-top:8px">
-    <div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:6px">Your wallet seed phrase</div>
-    <div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px">This 12-word phrase is the <strong>only way to recover your wallet</strong>. Write it down and store it somewhere safe.</div>
-    <div id="routstr-seed-phrase" style="font-family:monospace;font-size:12px;word-break:break-word;background:var(--bg-primary);padding:10px;border-radius:6px;border:1px solid var(--border);color:var(--text-primary);filter:blur(4px);cursor:pointer;user-select:all" data-routstr-wallet-action="toggle-seed-blur">${escapeHTML(mnemonic)}</div>
-    <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap">
-      <button class="import-btn import-btn-secondary"  data-routstr-wallet-action="copy-clipboard" data-clipboard-text="${escapeAttr(mnemonic)}" data-copied-text="\u2713 Copied (60s)" data-clear-timer="_seedClipTimer">Copy</button>
-      <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px;cursor:pointer">
-        <input type="checkbox" id="routstr-seed-ack" data-routstr-wallet-change="seed-ack"> I have saved my seed phrase
-      </label>
-    </div>
-    <button class="import-btn import-btn-primary" id="routstr-seed-continue" disabled style="margin-top:8px;width:100%;" data-routstr-wallet-action="seed-ack-continue">Continue</button>
-  </div>`;
-}
-
 export function routstrNodePickerRowHtml(node: RoutstrNodePanelReader) {
   const url = node.urls[0] || '';
   const domain = escapeHTML(url.replace(/^https?:\/\//, '').replace(/\/$/, ''));
@@ -71,35 +56,6 @@ export function routstrNodePickerRowHtml(node: RoutstrNodePanelReader) {
     <div><span style="font-size:12px;font-weight:500">${label}</span>${onion}${privateTee}<br><span style="font-size:10px;color:var(--text-muted)">${domain} \u00b7 ${models}<br>Operator: ${escapeHTML(node.pubkey || 'unknown')}</span></div>
     <button class="import-btn import-btn-primary"  data-routstr-wallet-action="connect-node" data-node-url="${escapeAttr(url)}">Connect</button>
   </div>`;
-}
-
-export function walletSeedManagementHtml(mnemonic: unknown) {
-  return `<div style="margin-top:8px">
-    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Wallet Seed Phrase</div>
-    <div id="wallet-seed-display" style="font-family:monospace;font-size:12px;background:var(--bg-primary);padding:10px;border-radius:6px;border:1px solid var(--border);color:var(--text-primary);filter:blur(4px);cursor:pointer;user-select:all" data-routstr-wallet-action="toggle-seed-blur">${escapeHTML(mnemonic)}</div>
-    <div style="display:flex;gap:4px;margin-top:6px">
-      <button class="import-btn import-btn-secondary"  data-routstr-wallet-action="copy-clipboard" data-clipboard-text="${escapeAttr(mnemonic)}" data-copied-text="\u2713 Copied (60s)" data-clear-timer="_seedClipTimer">Copy Seed</button>
-    </div>
-    <div style="margin-top:10px"><div class="or-oauth-divider"><span>restore from seed</span></div>
-    ${walletSeedRestoreControlsHtml('margin-top:4px')}
-    </div>
-  </div>`;
-}
-
-export function walletSeedMissingHtml() {
-  return `<div style="margin-top:8px">
-    <div style="font-size:12px;color:var(--text-primary);font-weight:600;margin-bottom:6px">Set up this device's Cashu wallet</div>
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px">Your 24-word Data Sync mnemonic restores the Routstr node session, but does not copy spendable Cashu proofs or this separate 12-word recovery seed.</div>
-    <button class="import-btn import-btn-primary" style="width:100%;margin-bottom:10px" data-routstr-wallet-action="setup-wallet-seed">Create a new 12-word seed for this device</button>
-    <div class="or-oauth-divider"><span>or restore this device's wallet</span></div>
-    ${walletSeedRestoreControlsHtml()}
-  </div>`;
-}
-
-function walletSeedRestoreControlsHtml(extraTextareaStyle: unknown = '') {
-  return `<textarea class="api-key-input" id="routstr-restore-seed" placeholder="Enter 12-word seed phrase..." rows="2" style="font-size:11px;font-family:monospace;resize:none;${extraTextareaStyle}"></textarea>
-    <button class="import-btn import-btn-primary" style="margin-top:4px;width:100%" data-routstr-wallet-action="wallet-restore">Restore</button>
-    <div id="routstr-restore-status"></div>`;
 }
 
 export function walletWithdrawHtml(balance: unknown) {

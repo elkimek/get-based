@@ -21,7 +21,6 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
     const apiRuntime = await import('/js/api-runtime.js');
     const apiVenice = await import('/js/api-venice.js');
     const lens = await import('/js/lens.js');
-    const walletRenderers = await import('/js/provider-wallet-panel-renderers.js');
     const { state } = await import('/js/state.js');
     const contextCardsRuntime = await import('/js/context-cards-runtime.js');
     const dnaBridge = await import('/js/dna-runtime-bridge.js');
@@ -240,11 +239,14 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
       outcomes.unknownAiActionHasNoHandler =
         aiActionDelegates.getRegisteredAIActionHandler('coverage-unknown') === null;
       outcomes.emptyVeniceSessionClearsSafely = apiVenice.clearVeniceE2EESession() === false;
-      const seedMarkup = walletRenderers.walletSeedManagementHtml('alpha <coverage>');
-      outcomes.walletSeedManagementEscapesSharedImportButtonMarkup =
-        seedMarkup.includes('class="import-btn import-btn-secondary"')
-        && seedMarkup.includes('alpha &lt;coverage&gt;')
-        && !seedMarkup.includes('alpha <coverage>');
+      const seedOwner = await import('/js/wallet-seed-component.js');
+      const seedHost = document.createElement('div'); document.body.append(seedHost);
+      const seedView = seedOwner.mountWalletSeed(seedHost, { copy: () => {}, create: () => {}, restore: () => {}, continue: () => {} });
+      seedView.setMnemonic('alpha <coverage>'); seedView.setState({ mode: 'manage', pending: false, status: { text: '', tone: 'secondary' } });
+      seedHost.querySelector<HTMLButtonElement>('#wallet-seed-display')!.click();
+      outcomes.walletSeedManagementEscapesSharedImportButtonMarkup = seedHost.innerHTML.includes('alpha &lt;coverage&gt;')
+        && seedHost.textContent!.includes('alpha <coverage>') && !seedHost.querySelector('coverage') && !seedHost.querySelector('[data-clipboard-text]');
+      seedOwner.disposeWalletSeed(); seedHost.remove();
 
       dashboardAi.triggerDNAFilePicker();
       const input = document.getElementById('dna-dashboard-input');

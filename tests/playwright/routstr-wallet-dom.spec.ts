@@ -308,7 +308,7 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       }
       await providerPanels.doRoutstrWalletRestore();
       await wait(50);
-      const restoreUsesNormalizedMnemonic = restoredMnemonic === restoreInput?.value;
+      const restoreUsesNormalizedMnemonic = restoredMnemonic === 'abandon ability able about above absent absorb abstract absurd abuse access accident' && restoreInput?.value === '';
       const restoreReportsBalance = (document.getElementById('routstr-restore-status')?.textContent || '').includes('4,321');
 
       await providerPanels.showRoutstrWalletFund();

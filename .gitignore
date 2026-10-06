@@ -1630,3 +1630,7 @@ deploy/profile-share/data/
 
 /js/wallet-funding-controller.js
 /js/cashu-funding-monitor.js
+
+/js/wallet-seed-contract.js
+/js/wallet-seed-component.js
+/js/wallet-seed-controller.js

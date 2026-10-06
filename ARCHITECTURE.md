@@ -216,8 +216,21 @@ invoice identity, payment text and pasted tokens. Its captured controller owns
 creation, minimum amounts, duplicate clicks and token imports; QR completion
 cannot revive a paid, expired or replaced invoice. The stable wallet facade
 mounts the component in the existing wallet slot and guards seed prerequisites
-against a closed or replaced Settings view. Other wallet states retain their
-existing owners until their migration is verified.
+against a closed or replaced Settings view.
+
+`WalletSeed.svelte` owns device setup, acknowledgement, masked/revealed recovery
+words and restoration. `wallet-seed-component.ts` synchronously mounts, updates
+and scrubs its private word/draft ports. Words stay absent from generic snapshots
+and clipboard/action attributes; masked words are absent from DOM text until an
+explicit reveal. `wallet-seed-controller.ts` captures the initiating owner for
+seed reads, generation, acknowledgement, restoration and copied feedback.
+Continuation requires the originating view's explicit acknowledgement. Duplicate
+generation/restore requests share or defer to the accepted operation. Closing the
+panel suppresses private presentation without cancelling locked domain restoration
+or clipboard clearing. The Cashu domain retains encrypted 12-word seed storage,
+proof journals and protection against replacing a funded seed; 24-word Data Sync
+recovery remains a separate workflow. Other wallet states retain their existing
+owners until their migration is verified.
 
 `cashu-funding-monitor.ts` owns wallet-wide reconciliation, cross-tab leadership,
 notifications, backoff and subscriptions independently of presentation. Closing

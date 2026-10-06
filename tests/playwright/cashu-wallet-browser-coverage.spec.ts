@@ -841,12 +841,15 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       await wait(0);
       const blurDoesNotCreateInvoice = !document.getElementById('routstr-wfund-poll');
 
-      const seed = document.createElement('div');
-      seed.dataset.routstrWalletAction = 'toggle-seed-blur';
-      seed.style.filter = 'blur(4px)';
-      (document.getElementById('routstr-wallet-fund-area'))!.appendChild(seed);
-      seed.click();
-      const seedBlurToggles = seed.style.filter === '';
+      const seedHost = document.getElementById('routstr-wallet-fund-area')!;
+      const seedComponent = await import('/js/wallet-seed-component.js');
+      const seedView = seedComponent.mountWalletSeed(seedHost, { copy: () => {}, create: () => {}, restore: () => {}, continue: () => {} });
+      seedView.setMnemonic('abandon ability able about above absent absorb abstract absurd abuse access accident');
+      seedView.setState({ mode: 'manage', pending: false, status: { text: '', tone: 'secondary' } });
+      const seed = document.getElementById('wallet-seed-display')!;
+      const initiallyMasked = !seed.textContent!.includes('abandon'); seed.click();
+      const seedBlurToggles = initiallyMasked && seed.getAttribute('aria-pressed') === 'true' && seed.textContent!.includes('abandon');
+      seedComponent.disposeWalletSeed();
 
       await panels.connectRoutstrNode('https://node.one.test');
       await panels.doRoutstrNodeDeposit('https://node.one.test', 500);
@@ -904,7 +907,6 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
         delete (window.navigator as unknown as {clipboard?:unknown}).clipboard;
       }
       clearTimeout((window as unknown as {_tokenClipTimer?:ReturnType<typeof setTimeout>})._tokenClipTimer);
-      clearTimeout((window as unknown as {_seedClipTimer?:ReturnType<typeof setTimeout>})._seedClipTimer);
       localStorage.removeItem('labcharts-routstr-node');
       localStorage.removeItem('labcharts-routstr-key');
       localStorage.removeItem('labcharts-routstr-model');
@@ -984,9 +986,7 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         <button id="send-input" data-routstr-wallet-action="send-token-input"></button>
         <button id="send-preset" data-routstr-wallet-action="send-token-preset" data-amount="55"></button>
         <button id="withdraw-execute" data-routstr-wallet-action="withdraw-execute" data-quote-id="quote-delegate"></button>
-        <div id="seed-blur" style="filter:blur(4px)" data-routstr-wallet-action="toggle-seed-blur"></div>
-        <input id="seed-ack" type="checkbox" data-routstr-wallet-change="seed-ack">
-        <button id="routstr-seed-continue" disabled></button>
+        <div id="owned-seed-host"></div>
       </div>
       <div id="routstr-mint-edit" style="display:block"><button id="cancel-mint" data-routstr-wallet-action="cancel-mint"></button></div>
       <div id="routstr-wallet-menu" style="display:block"></div>
@@ -1059,13 +1059,17 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         'send-preset',
         'delegate-textarea',
         'withdraw-execute',
-        'seed-blur',
       ]) {
         (document.getElementById(id))!.click();
       }
 
-      ((document.getElementById('seed-ack') as HTMLInputElement | null))!.checked = true;
-      ((document.getElementById('seed-ack') as HTMLInputElement | null))!.dispatchEvent(new Event('change', { bubbles: true }));
+      const ownedSeed = await import('/js/wallet-seed-component.js');
+      const seedView = ownedSeed.mountWalletSeed(document.getElementById('owned-seed-host')!, { copy: () => {}, create: () => {}, restore: () => {}, continue: () => {} });
+      seedView.setMnemonic('abandon ability able about above absent absorb abstract absurd abuse access accident');
+      seedView.setState({ mode: 'onboarding', pending: false, status: { text: '', tone: 'secondary' } });
+      const seedAck = document.getElementById('routstr-seed-ack') as HTMLInputElement;
+      seedAck.checked = true; seedAck.dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('routstr-seed-phrase')!.click();
       const keyboardView = (await import('/js/wallet-funding-component.js')).mountWalletFunding(document.getElementById('wallet-funding-keyboard-host')!, 0, { submitCustom: () => { calls.push(['fundCustom']); }, cancelCustom: () => { calls.push(['customCanceled']); } });
       keyboardView.setState({ ...keyboardView.getState(), custom: true });
       ((document.getElementById('routstr-wfund-custom') as HTMLInputElement | null))!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
@@ -1103,10 +1107,11 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         withdrawMaxAndKeyBlur: ((document.getElementById('routstr-withdraw-amount') as HTMLInputElement | null))!.value === '888'
           && calls.filter(item => item[0] === 'fundCustom').length === 1
           && calls.filter(item => item[0] === 'customCanceled').length === 1,
-        seedBlurToggled: (document.getElementById('seed-blur'))!.style.filter === '',
+        seedBlurToggled: document.getElementById('routstr-seed-phrase')!.getAttribute('aria-pressed') === 'true',
       };
     } finally {
       (await import('/js/wallet-funding-component.js')).disposeWalletFunding();
+      (await import('/js/wallet-seed-component.js')).disposeWalletSeed();
       root.remove();
       if (walletRuntimeModule && previousWalletRuntime) {
         walletRuntimeModule.configureRoutstrWalletRuntime(previousWalletRuntime);

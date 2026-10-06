@@ -1489,16 +1489,6 @@
   font-family: inherit; cursor: pointer; transition: all 0.2s;
 }
 .or-oauth-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-glow); }
-.or-oauth-divider {
-  display: flex; align-items: center; gap: 12px; margin: 12px 0;
-}
-.or-oauth-divider::before, .or-oauth-divider::after {
-  content: ''; flex: 1; height: 1px; background: var(--border);
-}
-.or-oauth-divider span {
-  font-size: 11px; color: var(--text-muted); white-space: nowrap;
-}
-
 /* Local AI settings in Settings modal */
 .local-ai-settings { margin-top: 4px; }
 .local-ai-status {

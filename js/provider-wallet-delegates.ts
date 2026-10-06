@@ -22,7 +22,6 @@ export function installRoutstrWalletDelegates(actions: unknown = {}) {
   if (routstrWalletDelegatesInstalled || typeof document === 'undefined') return;
   routstrWalletDelegatesInstalled = true;
   document.addEventListener('click', _handleRoutstrWalletClick);
-  document.addEventListener('change', _handleRoutstrWalletChange);
   document.addEventListener('input', event => {
     const input = _closestWalletEl(event, '#routstr-mint-input');
     if (!input) return;
@@ -107,7 +106,6 @@ async function _handleRoutstrWalletClick(event: WalletEventOperations): Promise<
   if (action === 'node-action') return _runNodeAction(el);
   if (action === 'wallet-action') return _runWalletAction(el.dataset.walletAction);
   if (action === 'toggle-wallet-menu') return _toggleWalletMenu();
-  if (action === 'toggle-seed-blur') return _toggleSeedBlur(el);
   if (action === 'seed-ack-continue') return _call('walletSeedAcknowledged');
   if (action === 'setup-wallet-seed') return _call('setupRoutstrWalletSeed');
   if (action === 'wallet-restore') return _call('doRoutstrWalletRestore');
@@ -121,25 +119,15 @@ async function _handleRoutstrWalletClick(event: WalletEventOperations): Promise<
   if (action === 'withdraw-execute') return _call('doRoutstrWithdrawExecute', el.dataset.quoteId || '');
 }
 
-function _handleRoutstrWalletChange(event: WalletEventOperations) {
-  const el = _closestWalletEl(event, '[data-routstr-wallet-change]');
-  if (!el || el.dataset.routstrWalletChange !== 'seed-ack') return;
-  const continueBtn = (document.getElementById('routstr-seed-continue') as HTMLButtonElement | null);
-  const checkbox = (el as WalletElementOperations);
-  if (continueBtn) continueBtn.disabled = !checkbox.checked;
-}
-
 function _hideMintEdit() {
   const area = document.getElementById('routstr-mint-edit');
   if (area) area.style.display = 'none';
 }
-
 function _depositNodePreset(el: WalletElementOperations) {
   const amount = Number(el.dataset.amount);
   _setInputValue('routstr-deposit-amount', amount);
   return _call('doRoutstrNodeDeposit', el.dataset.nodeUrl || '', amount);
 }
-
 async function _recoverPendingDeposit(el: WalletElementOperations) {
   try {
     await (walletRuntime as DelegateWalletOperations).cashuReceiveToken?.(el.dataset.token || '');
@@ -186,9 +174,6 @@ function _toggleWalletMenu() {
   if (menu) menu.style.display = menu.style.display !== 'block' ? 'block' : 'none';
 }
 
-function _toggleSeedBlur(el: WalletElementOperations) {
-  el.style.filter = el.style.filter ? '' : 'blur(4px)';
-}
 
 function _setWithdrawMax(amount: unknown) {
   if (amount != null) _setInputValue('routstr-withdraw-amount', amount);
