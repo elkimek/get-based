@@ -158,6 +158,19 @@ their identity and focus through updates; detached/replaced views reject replies
 Confirmed-image eligibility, automatic fallback and saved-unavailable routes retain
 the existing domain rules. Scoped Tailwind at the lazy Settings CSS URL owns styles.
 
+AI feature enablement and provider selection use `AiSettings.svelte`, typed
+credential-free snapshots and `ai-settings-component.ts`. The parent owns the
+provider buttons, loading/error feedback and pause control. Its stable
+`#ai-provider-panel` slot delegates descendants to provider or CLI adapters;
+parent updates preserve child fields, drafts and focus. The bridge disposes those
+children before closing the parent, checks root/epoch/loading-child identity
+around lazy loads and restores CLI selection when provider consent is declined.
+Pause uses a shared synchronous domain action with persisted-state feedback;
+owned toggles retain their accepted value when persistence fails. Existing
+extension action hooks receive the actual provider button before selection;
+delayed unhandled hooks cannot supersede a later selection or closed view.
+Scoped Tailwind owns the chooser, including container-aware narrow layouts.
+
 OpenRouter Settings uses `OpenRouterSettings.svelte`, a lifecycle adapter and explicit
 catalog/status snapshots. The published provider renderer returns its mount host.
 Private API-key fields pass through a separate live-field port, clear on disposal,

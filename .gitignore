@@ -1690,3 +1690,9 @@ js/custom-settings-controller.js
 /js/cli-companion-commands.js
 
 /tests/helpers/cli-settings-fixture.js
+
+# Owned AI chooser/pause runtime
+/js/ai-settings-contract.js
+/js/ai-settings-presentation.js
+/js/ai-settings-component.js
+/js/ai-settings-actions.js

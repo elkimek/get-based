@@ -53,3 +53,5 @@
 
 @source '../js/cli-agent-settings-classes.ts';
 @custom-variant cli (&:is([data-cli-agent-settings-view], [data-cli-agent-settings-view] *));
+
+@custom-variant ai (&:is([data-ai-settings-view], [data-ai-settings-view] *));

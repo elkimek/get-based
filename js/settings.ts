@@ -2,11 +2,11 @@
 import { isDebugMode, setDebugMode, setAnalyticsEnabled, showNotification, showConfirmDialog } from './utils.js';
 import { applyAccentOverride, setTimeFormat } from './theme.js';
 import { switchUnitSystem, toggleAltUnits, switchRangeMode } from './data.js';
-import { getAIProvider, hasAIProvider, isAIPaused, setOllamaPIIModel } from './api.js';
+import { getAIProvider, hasAIProvider, setOllamaPIIModel } from './api.js';
 import { renderEncryptionSection, renderBackupSection, loadBackupSnapshots, hydrateProtectionSettings, disposeSettingsProtection } from './crypto.js';
 import { renderSyncSection, renderMessengerSection, hydrateSettingsSyncPanel, disposeMessengerSection } from './settings-sync-panel.js';
-import { getChatBackend } from './agent-chat-settings.js';
-import { renderCLIAgentProviderPanel } from './settings-cli-agent-panel.js';
+import { getAiSettingsView } from './ai-settings-component.js';
+import type { AiProviderId } from './ai-settings-contract.js';
 import { renderWearablesSettingsSection } from './wearables-settings-panel.js';
 import { disposeWearablesSettings } from './wearables-settings-component.js';
 import { setProductRecsEnabled } from './recommendations.js';
@@ -15,11 +15,11 @@ import {
   configureSettingsProviderBridgeDeps,
   disposeSettingsProviderPanels,
   initSettingsProviderPanels,
-  renderAIProviderPanelBridge,
+  hydrateAiSettings,
+  showCLIAgentProviderBridge,
   setSettingsProviderHadProvider,
   switchAIProviderBridge,
   testPIIOllamaConnectionBridge,
-  toggleAIPauseBridge,
 } from './settings-provider-bridge.js';
 import { disposeSettingsRecords, mountSettingsRecords } from './settings-records-component.js';
 import { mountSettingsShell, selectSettingsShellTab } from './settings-shell.js';
@@ -166,10 +166,6 @@ function applySettingsToggle(actionEl: HTMLElement) {
     refreshAIUsageSection();
     return true;
   }
-  if (action === 'toggle-ai-pause') {
-    void toggleAIPauseBridge(checked);
-    return true;
-  }
   if (action === 'toggle-pii-local') {
     toggleOllamaPII(checked);
     return true;
@@ -188,7 +184,6 @@ function applySettingsToggle(actionEl: HTMLElement) {
 function isSettingsToggleAction(actionEl: HTMLElement) {
   return actionEl.dataset.settingsAction === 'set-product-recs'
     || actionEl.dataset.settingsAction === 'set-debug-mode'
-    || actionEl.dataset.settingsAction === 'toggle-ai-pause'
     || actionEl.dataset.settingsAction === 'toggle-pii-local'
     || actionEl.dataset.settingsAction === 'toggle-pii-review'
     || actionEl.dataset.settingsAction === 'set-analytics';
@@ -268,18 +263,6 @@ async function handleSettingsClick(event: Event) {
     event.preventDefault();
     closeSettingsModal();
     setTimeout(() => openChangelog(true), 300);
-  } else if (action === 'switch-ai-provider') {
-    event.preventDefault();
-    switchAIProviderBridge(actionEl.dataset.provider || 'openrouter');
-  } else if (action === 'show-cli-agent-provider') {
-    event.preventDefault();
-    disposeSettingsProviderPanels();
-    document.querySelectorAll('.ai-provider-btn').forEach(button => {
-      const providerButton = /** @type {HTMLElement} */ (button as HTMLElement);
-      providerButton.classList.toggle('active', providerButton.dataset.provider === 'cli');
-    });
-    const panel = document.getElementById('ai-provider-panel');
-    if (panel) panel.innerHTML = renderCLIAgentProviderPanel();
   } else if (action === 'toggle-privacy-configure') {
     event.preventDefault();
     togglePrivacyConfigure();
@@ -404,14 +387,24 @@ function installSettingsDelegates(modal: HTMLElement | null) {
 
 installSunDataSourceDelegates();
 
+let aiSelectionRequest = 0;
+async function selectAiProviderFromSettings(provider: AiProviderId, actionEl: HTMLButtonElement): Promise<void> {
+  const owner = getAiSettingsView(), request = ++aiSelectionRequest;
+  const handled = handleAppExtensionSettingsAction({
+    action:provider === 'cli' ? 'show-cli-agent-provider' : 'switch-ai-provider',actionEl,activeTab:_activeSettingsTab,
+    openSettingsModal,refreshSettings:() => openSettingsModal(_activeSettingsTab),switchAIProvider:switchAIProviderBridge,switchSettingsTab,
+  });
+  if (handled === true || (handled instanceof Promise && await handled)) return;
+  if (!owner?.isCurrent() || request !== aiSelectionRequest) return;
+  if (provider === 'cli') showCLIAgentProviderBridge(); else switchAIProviderBridge(provider);
+}
+
 export function openSettingsModal(tab?: unknown): void | false | Promise<void | false> {
   setSettingsProviderHadProvider(hasAIProvider());
   const overlay = document.getElementById('settings-modal-overlay');
   const modal = document.getElementById('settings-modal');
   if (!overlay || !modal) return;
   const provider = getAIProvider();
-  const cliAgentActive = getChatBackend() === 'codex';
-  const directAIActive = !cliAgentActive;
   // Legacy v1.27 tab id 'integrations' — same redirect as switchSettingsTab.
   // Older deep-links / tour steps / external links may still pass it.
   if (tab === 'integrations') tab = 'wearables';
@@ -442,36 +435,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
     <!-- AI Tab -->
     <div class="settings-tab-panel${_activeSettingsTab === 'ai' ? ' active' : ''}" data-tab-panel="ai" id="settings-tab-ai" role="tabpanel" aria-label="AI">
       ${extensionAI}
-      <div class="settings-section">
-        <div class="settings-action-row" style="margin-bottom:12px">
-          <div class="settings-copy">
-            <div class="settings-copy-title">AI features</div>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="ai-pause-toggle" aria-label="AI features" ${isAIPaused() ? '' : 'checked'} data-settings-action="toggle-ai-pause">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-      </div>
-
-      <div id="ai-provider-settings"${extensionPolicy.hideProviderSettings ? ' hidden' : ''}>
-      <div class="settings-group-title">AI providers</div>
-
-      <div class="settings-section" id="ai-provider-advanced-section">
-        <div class="settings-copy-title" style="margin-bottom:10px">Choose how getbased runs AI</div>
-        <div class="ai-model-tip">Use an API provider, a locally served model, or an installed CLI agent with its existing account or configured provider.<br>Stick with the same model across imports to keep marker keys consistent.</div>
-        <div class="ai-provider-toggle">
-          <button class="ai-provider-btn${directAIActive && provider === 'ppq' ? ' active' : ''}" data-provider="ppq" data-settings-action="switch-ai-provider"><img class="ai-provider-logo" src="/brands/ai-provider-ppq.svg" alt=""> PPQ</button>
-          <button class="ai-provider-btn${directAIActive && provider === 'routstr' ? ' active' : ''}" data-provider="routstr" data-settings-action="switch-ai-provider"><img class="ai-provider-logo" src="/brands/ai-provider-routstr.svg" alt=""> Routstr</button>
-          <button class="ai-provider-btn${directAIActive && provider === 'openrouter' ? ' active' : ''}" data-provider="openrouter" data-settings-action="switch-ai-provider"><img class="ai-provider-logo" src="/brands/ai-provider-openrouter.svg" alt=""> OpenRouter</button>
-          <button class="ai-provider-btn${provider === 'venice' ? ' active' : ''}" data-provider="venice" data-settings-action="switch-ai-provider"><img class="ai-provider-logo" src="/brands/ai-provider-venice.svg" alt=""> Venice</button>
-          <button class="ai-provider-btn${provider === 'custom' ? ' active' : ''}" data-provider="custom" data-settings-action="switch-ai-provider"><svg class="ai-provider-logo" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg> Custom</button>
-          <button class="ai-provider-btn${directAIActive && provider === 'ollama' ? ' active' : ''}" data-provider="ollama" data-settings-action="switch-ai-provider"><svg class="ai-provider-logo" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm4 0h-2v-6h2v6zm-3-8c-.55 0-1-.45-1-1V6c0-.55.45-1 1-1s1 .45 1 1v2c0 .55-.45 1-1 1z"/></svg> Local models</button>
-          <button class="ai-provider-btn${cliAgentActive ? ' active' : ''}" data-provider="cli" data-settings-action="show-cli-agent-provider"><svg class="ai-provider-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 7 4 5-4 5"/><path d="M11 17h8"/></svg> CLI agents</button>
-        </div>
-        <div id="ai-provider-panel">${cliAgentActive ? renderCLIAgentProviderPanel() : renderAIProviderPanelBridge()}</div>
-      </div>
-      </div>
+      <div data-ai-settings-host></div>
 
       ${renderNutritionAISettings()}
 
@@ -539,12 +503,7 @@ export function openSettingsModal(tab?: unknown): void | false | Promise<void | 
     </div>
 `;
   mountSettingsShell(modal, { initialTab: String(_activeSettingsTab), legacyPanels, extensionTabs, onNavigateTab: switchSettingsTab });
-  if (cliAgentActive) {
-    modal.querySelectorAll('.ai-provider-btn').forEach(button => {
-      const providerButton = /** @type {HTMLElement} */ (button as HTMLElement);
-      providerButton.classList.toggle('active', providerButton.dataset.provider === 'cli');
-    });
-  }
+  hydrateAiSettings(extensionPolicy.hideProviderSettings === true,selectAiProviderFromSettings);
   mountDisplaySettingsPanel();
   mountPrivacySettingsPanel();
   mountSettingsRecords();

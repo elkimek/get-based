@@ -1,3 +1,5 @@
+import { setAiSettingsEnabled } from './ai-settings-actions.js';
+import { getAiSettingsView,setAiSettingsSelection } from './ai-settings-component.js';
 import { disposeLocalAiSettings } from './local-ai-settings-component.js';
 import { getCustomSettingsView, mountCustomSettings, disposeCustomSettings } from './custom-settings-component.js';
 import { buildCustomSettingsSnapshot, buildCustomModelState } from './custom-settings-view.js';
@@ -28,7 +30,6 @@ import {
   getRoutstrKey, saveRoutstrKey,
   fetchRoutstrModels, validateRoutstrKey, createRoutstrAccount,
   clearVeniceE2EESession, hasAIProvider,
-  setAIPaused,
   setCustomApiModel, setOllamaMainModel, setPpqModel,
   getCustomApiUrl, getCustomApiKey, saveCustomApiConnection,
   fetchCustomApiModels, validateCustomApiKey,
@@ -235,10 +236,7 @@ function disposeOwnedProviderSettings(): void {
 // AI PAUSE / PROVIDER SWITCH
 // ═══════════════════════════════════════════════
 export function toggleAIPause(enabled: unknown) {
-  setAIPaused(!enabled);
-  showNotification(enabled ? 'AI features enabled' : 'AI features paused', 'info');
-  // Refresh focus card — show cached content when paused, fetch new when enabled
-  (providerPanelDeps as ProviderPanelOperations).loadFocusCard();
+  setAiSettingsEnabled(enabled,() => (providerPanelDeps as ProviderPanelOperations).loadFocusCard());
 }
 
 let providerSwitchSequence = 0;
@@ -255,13 +253,8 @@ export async function switchAIProvider(provider: unknown, { previousProvider = g
   clearRoutstrWalletTimers();
   const panel = document.getElementById('ai-provider-panel');
   if (panel) { disposeOwnedProviderSettings(); panel.innerHTML = renderAIProviderPanel(provider); hydrateOwnedProviderSettings(); }
-  const modal = document.getElementById('settings-modal');
-  if (modal) {
-    modal.querySelectorAll('.ai-provider-btn').forEach(btn => {
-      const providerBtn = /** @type {HTMLElement} */ (btn) as HTMLElement;
-      providerBtn.classList.toggle('active', providerBtn.dataset.provider === provider);
-    });
-  }
+  setAiSettingsSelection(provider);
+  getAiSettingsView()?.setProviderStatus('ready');
   initSettingsOllamaCheck();
   initSettingsModelFetch();
   if (provider !== previousProvider && provider !== 'ollama' && (hasAIProvider as (provider: unknown) => ReturnType<typeof hasAIProvider>)(provider)) {
@@ -271,10 +264,7 @@ export async function switchAIProvider(provider: unknown, { previousProvider = g
       (setAIProvider as (provider: unknown) => ReturnType<typeof setAIProvider>)(previousProvider);
       const restoredPanel = isCurrent() ? document.getElementById('ai-provider-panel') : null;
       if (restoredPanel) { disposeOwnedProviderSettings(); restoredPanel.innerHTML = renderAIProviderPanel(previousProvider); hydrateOwnedProviderSettings(); }
-      if (isCurrent()) modal?.querySelectorAll('.ai-provider-btn').forEach(btn => {
-        const providerBtn = /** @type {HTMLElement} */ (btn) as HTMLElement;
-        providerBtn.classList.toggle('active', providerBtn.dataset.provider === previousProvider);
-      });
+      if (isCurrent()) setAiSettingsSelection(previousProvider);
       if (isCurrent()) showNotification('Provider was not changed because AI activation was not approved.', 'info');
       return false;
     }

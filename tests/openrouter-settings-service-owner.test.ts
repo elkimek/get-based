@@ -13,7 +13,7 @@ vi.mock('../js/api.js', async original => ({
 vi.mock('../js/cloud-ai-consent.js', async original => ({ ...await original<typeof import('../js/cloud-ai-consent.js')>(), requestAIProviderActivation: state.consent }));
 import { mountOpenRouterSettings, disposeOpenRouterSettings } from '../js/openrouter-settings-component.js';
 import { buildOpenRouterSettingsSnapshot } from '../js/openrouter-settings-view.js';
-import { refreshOpenRouterBalance, initSettingsModelFetch, switchAIProvider } from '../js/provider-panels.js';
+import { refreshOpenRouterBalance, initSettingsModelFetch, switchAIProvider, toggleAIPause, configureProviderPanelDeps } from '../js/provider-panels.js';
 import { applyCustomOpenRouterModel, onOpenRouterDropdownChange } from '../js/provider-model-controls.js';
 import { configureProviderModelControlsRuntimeDeps } from '../js/provider-model-controls-runtime.js';
 const previous = configureProviderModelControlsRuntimeDeps({ callClaudeAPI: state.smoke });
@@ -73,4 +73,17 @@ it('restores the initiating selection when its view closes during consent withou
   const { target } = host(); const old = deferred<boolean>(); state.consent.mockReturnValueOnce(old.promise); let current = true;
   const work = switchAIProvider('venice', { isCurrent: () => current }); current = false; target.textContent = 'CLI replacement'; old.resolve(true); await work;
   expect(state.provider).toBe('openrouter'); expect(target.textContent).toBe('CLI replacement');
+});
+
+it('retains the public pause helper and its configured focus refresh port', () => {
+  const refresh = vi.fn(), previous = configureProviderPanelDeps({ loadFocusCard: refresh });
+  const stored = localStorage.getItem('labcharts-ai-paused');
+  try {
+    toggleAIPause(false); expect(localStorage.getItem('labcharts-ai-paused')).toBe('true');
+    toggleAIPause(true); expect(localStorage.getItem('labcharts-ai-paused')).toBe('false');
+    expect(refresh).toHaveBeenCalledTimes(2);
+  } finally {
+    configureProviderPanelDeps(previous);
+    if (stored === null) localStorage.removeItem('labcharts-ai-paused'); else localStorage.setItem('labcharts-ai-paused',stored);
+  }
 });

@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   detectCompanionPlatform, getCLIAgentModelProvider, getCompanionCommand, getLinuxCompanionInstallCommand, getLinuxCompanionRunCommand,
 } from '../js/settings-cli-agent-panel.js';
+import { buildAiSettingsSnapshot } from '../js/ai-settings-presentation.js';
 import { getCLIAgentBrandAsset, renderCLIAgentBrandIcon } from '../js/cli-agent-brand-assets.js';
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -20,8 +21,8 @@ describe('local agent selection UI', () => {
     expect(source).toContain('data-settings-action="rescan-cli-agents"');
     expect(source).toContain('action="toggle-cli-codex"');
     expect(read('js/components/SettingsToggle.svelte')).toContain('data-settings-action={action}');
-    expect(settings).toContain('data-settings-action="show-cli-agent-provider"');
-    expect(settings).toContain('CLI agents');
+    expect(read('js/components/AiSettings.svelte')).toContain("choice.id === 'cli' ? 'show-cli-agent-provider' : 'switch-ai-provider'");
+    expect(buildAiSettingsSnapshot({ enabled: true, hideProviders: false, provider: 'openrouter', backend: 'direct' }).choices.find(choice => choice.id === 'cli')?.label).toBe('CLI agents');
     expect(source).not.toContain('settings-beta-badge">Experimental');
     expect(agentAccess).not.toContain('Installed CLIs');
     expect(source).not.toContain('id="agent-chat-endpoint"');
@@ -64,7 +65,7 @@ describe('local agent selection UI', () => {
   });
 
   it('uses current provider identification assets and publishes their provenance', () => {
-    const settings = read('js/settings.js');
+    const choices = buildAiSettingsSnapshot({ enabled: true, hideProviders: false, provider: 'openrouter', backend: 'direct' }).choices;
     const serviceWorker = readServiceWorkerSource(relative => read(relative));
     const expectedHashes = {
       openrouter: '5b49593d44e6aa41011be377e182cd89e57473f1948e0dfb128f99a92adfc68d',
@@ -73,7 +74,7 @@ describe('local agent selection UI', () => {
     };
     for (const [provider, expectedHash] of Object.entries(expectedHashes)) {
       const path = `brands/ai-provider-${provider}.svg`;
-      expect(settings).toContain(`src="/${path}"`);
+      expect(choices.find(choice => choice.id === provider)?.asset).toBe(`/${path}`);
       expect(serviceWorker).toContain(`/${path}`);
       expect(createHash('sha256').update(read(path)).digest('hex')).toBe(expectedHash);
     }
@@ -81,7 +82,7 @@ describe('local agent selection UI', () => {
     const ppqBytes = Buffer.from(ppqSvg.match(/base64,([^\"]+)/)?.[1] || '', 'base64');
     expect(createHash('sha256').update(ppqBytes).digest('hex'))
       .toBe('d1c6cab3f71ed07d4ebf086efbaa2e517dadfd5009a564b15780c4be5cda9de5');
-    expect(settings).toContain('src="/brands/ai-provider-ppq.svg"');
+    expect(choices.find(choice => choice.id === 'ppq')?.asset).toBe('/brands/ai-provider-ppq.svg');
     expect(serviceWorker).toContain('/brands/ai-provider-ppq.svg');
     expect(read('brands/AI_PROVIDERS.md')).toContain('do not imply');
   });
