@@ -250,6 +250,19 @@ transactions finish after closure without replacing newer controls, and privatel
 held uncommitted receipts remain available through saved recovery. Superseded
 native node/refund rendering and mint chooser CSS have been removed.
 
+Routstr model selection and its private-mode disclosure use
+`RoutstrModelSettings.svelte` with checked catalog projection and an owned
+lifecycle adapter. Refreshes preserve selector identity and focus. Presentation
+keeps unavailable saved models explicit; service catalog reconciliation retains
+ownership of default selection. Separate regular/private remembered choices,
+pricing, model ranking and transport capability rules remain in domain services.
+Malformed or wrong-mode cached rows cannot become private options. A missing
+private model preserves the selected private ID and explains the unavailable
+catalog without claiming verified capability. The full node metadata and
+web-search/image limits remain visible for known private models. Catalog reads
+reject replaced node, credential, request order or initiating Settings view
+before writing pricing, capabilities, catalogs or selection.
+
 The native wallet header remains facade
 owned until the complete Routstr panel migration; its asynchronous updates are
 scoped to the mounted header, active provider, request and selected mint. The

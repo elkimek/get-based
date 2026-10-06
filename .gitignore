@@ -1655,3 +1655,7 @@ deploy/profile-share/data/
 /js/wallet-node-controller.js
 
 /tests/wallet-node-owned.test.js
+
+/js/routstr-model-settings-contract.js
+/js/routstr-model-settings-view.js
+/js/routstr-model-settings-component.js

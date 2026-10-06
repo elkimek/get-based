@@ -47,7 +47,11 @@ function privateRequestError(error: unknown, elapsedMs: number, modelId: string)
   return new Error(`${message} ${reservationHint}`);
 }
 
-export async function fetchRoutstrModels() {
+let catalogRequest = 0;
+export async function fetchRoutstrModels({ isCurrent = () => true }: { isCurrent?: () => boolean } = {}) {
+  const request = ++catalogRequest;
+  const selectedNode = getRoutstrNodeUrl(), key = getRoutstrKey();
+  const ownsCatalog = () => request === catalogRequest && getRoutstrNodeUrl() === selectedNode && getRoutstrKey() === key && isCurrent();
   try {
     const nodeUrl = _requireNodeUrl();
     const res = await fetch(nodeUrl + '/v1/models');
@@ -80,6 +84,8 @@ export async function fetchRoutstrModels() {
         };
       }
     }
+    // Reject replaced node/account/view replies before any cache or selection writes.
+    if (!ownsCatalog()) return [];
     localStorage.setItem('labcharts-routstr-pricing', JSON.stringify(pricingCache));
     const visionIds = enabled.filter(function(m) {
       if (!m.id || !m.architecture) return false;

@@ -448,6 +448,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/provider-panels.js', '/js/wallet-funding-component.js',
   '/js/wallet-funding-presentation.js', '/js/wallet-funding-contract.js',
   '/js/components/WalletFunding.svelte.native.js', '/js/wallet-funding-controller.js',
+  '/js/routstr-model-settings-contract.js', '/js/routstr-model-settings-view.js', '/js/routstr-model-settings-component.js', '/js/components/RoutstrModelSettings.svelte.native.js',
   '/js/wallet-node-contract.js', '/js/wallet-node-component.js', '/js/wallet-node-controller.js', '/js/components/WalletNode.svelte.native.js',
   '/js/wallet-mint-contract.js', '/js/wallet-mint-component.js', '/js/wallet-mint-controller.js', '/js/components/WalletMintPicker.svelte.native.js',
   '/js/wallet-export-contract.js', '/js/wallet-export-component.js', '/js/wallet-export-controller.js', '/js/components/WalletExport.svelte.native.js',

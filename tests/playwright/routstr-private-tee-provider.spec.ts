@@ -6,7 +6,7 @@ test('Routstr Private TEE support appears after discovery and toggles through th
   await page.goto('/app', { waitUntil: 'load' });
 
   const result = await page.evaluate(async ({ panelsUrl, renderersUrl, settlementUrl, walletNodeUrl }) => {
-    const panels = (await import(panelsUrl) as unknown) as Pick<typeof import('../../js/provider-panels.js'), 'initSettingsModelFetch'>;
+    const panels = (await import(panelsUrl) as unknown) as Pick<typeof import('../../js/provider-panels.js'), 'initSettingsModelFetch' | 'hydrateOwnedProviderSettings'>;
     const renderers = (await import(renderersUrl) as unknown) as Pick<typeof import('../../js/provider-panel-renderers.js'), 'renderAIProviderPanel'>;
     const settlement = (await import(settlementUrl) as unknown) as Pick<typeof import('../../js/routstr-balance-settlement.js'), 'notifyRoutstrRequestSettled' | 'clearRoutstrBalanceSettlementTimers'>;
     const walletRenderers = (await import(walletNodeUrl) as unknown) as Pick<typeof import('../../js/wallet-node-component.js'), 'mountWalletNode' | 'disposeWalletNode'>;
@@ -57,6 +57,7 @@ test('Routstr Private TEE support appears after discovery and toggles through th
       document.body.insertAdjacentHTML('beforeend', '<section id="ai-provider-panel"></section>');
       const panel = document.getElementById('ai-provider-panel');
       panel!.innerHTML = renderers.renderAIProviderPanel('routstr');
+      panels.hydrateOwnedProviderSettings();
       const beforeHidden = document.getElementById('routstr-private-controls')?.style.display === 'none';
 
       panels.initSettingsModelFetch();

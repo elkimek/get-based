@@ -26,6 +26,7 @@ test('node wallet uses actual static SDK deposits and private refund journals th
     await consent.getByRole('checkbox').check(); await consent.getByRole('button', { name: 'Allow & activate' }).click();
     await expect.poll(() => synthetic.counts().deposits).toBe(1);
     await expect(page.locator('#settings-modal')).not.toBeVisible(); await wallet(page);
+    await expect(page.locator('[data-routstr-model-settings-view]')).toBeVisible(); await expect(page.locator('#routstr-model-select')).toHaveValue('claude-sonnet-4.6');
     await expect(page.locator('#routstr-wallet-balance')).toContainText('8 sats'); await expect(page.locator('#routstr-node-balance')).toContainText('4 sats');
     expect((await records(page)).find(record => record.key === 'pendingDeposit')?.value).toBeFalsy();
     synthetic.failReceive(true); await page.locator('[data-node-action="withdraw"]').click(); await expect(panel).toContainText('Node refund outcome unconfirmed');

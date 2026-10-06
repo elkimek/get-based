@@ -1,3 +1,5 @@
+import { getRoutstrModelSettingsView, mountRoutstrModelSettings, disposeRoutstrModelSettings } from './routstr-model-settings-component.js';
+import { buildRoutstrModelSettingsSnapshot, buildRoutstrModelState, buildRoutstrModeState, readRoutstrModels } from './routstr-model-settings-view.js';
 import { getPpqSettingsView } from './ppq-settings-component.js';
 import { buildPpqModelState, buildPpqModeState, readPpqModels, ppqPricing } from './ppq-settings-view.js';
 import type { StoredProviderModel } from './api-provider-storage.js';
@@ -18,7 +20,6 @@ import {
   getOpenRouterModel,
   getPpqModel,
   getRoutstrModel,
-  isRoutstrPrivateModeActive,
   getVeniceE2EE,
   getVeniceModel,
   renderModelPricingHint,
@@ -121,36 +122,22 @@ export function onOpenRouterDropdownChange(value: string): void {
   getOpenRouterSettingsView()?.setModelCheck('idle');
 }
 
-export function updateRoutstrModelPricing(modelId?: string) {
-  const el = document.getElementById('routstr-model-pricing');
-  if (el) el.innerHTML = renderModelPricingHint('routstr', modelId || getRoutstrModel());
+export function hydrateRoutstrModelSettings(): void {
+  const host = document.querySelector<HTMLElement>('#ai-provider-panel [data-routstr-model-settings-host]');
+  if (!host) { disposeRoutstrModelSettings(); return; }
+  mountRoutstrModelSettings(host, buildRoutstrModelSettingsSnapshot());
 }
-
-export function renderRoutstrModelDropdown(models: StoredProviderModel[]) {
-  const area = document.getElementById('routstr-model-area');
-  if (!area || !models.length) return;
-  let currentModel = getRoutstrModel();
-  const modelIds = models.map(m => m.id);
-  if (currentModel && !modelIds.includes(currentModel)) {
-    currentModel = modelIds[0]!;
-    setRoutstrModel(currentModel);
-  }
-  const opts = buildModelOptions('routstr', models, currentModel, function(m) { return m.name || m.id; });
-  area.innerHTML = '<label style="font-size:12px;color:var(--text-muted)">Model</label>' +
-    '<select class="api-key-input" id="routstr-model-select" style="margin-top:4px" data-provider-panel-change="routstr-model">' + opts + '</select>' +
-    '<div id="routstr-model-pricing" style="margin-top:4px">' + renderModelPricingHint('routstr', currentModel) + '</div>';
+export function updateRoutstrModelPricing(modelId = getRoutstrModel()): void {
+  const view = getRoutstrModelSettingsView();
+  if (view) view.setModels(buildRoutstrModelState(readRoutstrModels(), modelId));
 }
-
-export function refreshRoutstrPrivateControls() {
-  const controls = document.getElementById('routstr-private-controls');
-  if (!controls) return;
-  let privateModels: unknown[] = [];
-  try { privateModels = JSON.parse(localStorage.getItem('labcharts-routstr-private-models') || '[]'); } catch {}
-  controls.style.display = privateModels.length || isRoutstrPrivateModeActive() ? '' : 'none';
-  const toggle = (document.getElementById('routstr-private-toggle') as HTMLInputElement | null);
-  if (toggle) toggle.checked = isRoutstrPrivateModeActive();
-  const indicator = document.getElementById('routstr-private-indicator');
-  if (indicator) indicator.style.display = isRoutstrPrivateModeActive() ? '' : 'none';
+export function renderRoutstrModelDropdown(models: StoredProviderModel[]): void {
+  if (!getRoutstrModelSettingsView()) hydrateRoutstrModelSettings();
+  getRoutstrModelSettingsView()?.setModels(buildRoutstrModelState(models));
+  refreshRoutstrPrivateControls();
+}
+export function refreshRoutstrPrivateControls(): void {
+  getRoutstrModelSettingsView()?.setMode(buildRoutstrModeState());
 }
 
 export function onRoutstrModelDropdownChange(value: string) {
@@ -161,9 +148,7 @@ export function onRoutstrModelDropdownChange(value: string) {
 }
 
 export function toggleRoutstrPrivateMode(on: boolean) {
-  const listKey = on ? 'labcharts-routstr-private-models' : 'labcharts-routstr-models';
-  let models: StoredProviderModel[] = [];
-  try { models = JSON.parse(localStorage.getItem(listKey) || '[]'); } catch {}
+  const models = readRoutstrModels(on);
   if (!models.length) { refreshRoutstrPrivateControls(); return; }
   const previousKey = on ? 'labcharts-routstr-model-regular' : 'labcharts-routstr-model-private';
   const restoreKey = on ? 'labcharts-routstr-model-private' : 'labcharts-routstr-model-regular';

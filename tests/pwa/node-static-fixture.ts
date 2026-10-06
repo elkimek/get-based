@@ -23,7 +23,7 @@ export async function prepareStaticNode(context: BrowserContext) {
     if (!pathname.startsWith('/api/__synthetic-node/')) return synthetic.handleRequest(request, response);
     const path = pathname.slice('/api/__synthetic-node/'.length), key = (request.headers.authorization || '').replace(/^Bearer /, '');
     if (path === 'info') return reply(200, { mints: [mint] });
-    if (path === 'models') return reply(200, { data: [{ id: 'synthetic-model', name: 'Synthetic model', enabled: true }] });
+    if (path === 'models') return reply(200, { data: [{ id: 'claude-sonnet-4.6', name: 'Synthetic Claude model', enabled: true }] });
     if (path === 'balance/info') { const account = accounts.get(key); return account ? reply(200, { balance: account.proofs.reduce((sum, proof) => sum + Number(proof.amount), 0) * 1000 }) : reply(401, { error: 'Unknown synthetic account' }); }
     if (path === 'balance/create' || path === 'balance/topup') {
       const chunks: Buffer[] = []; for await (const chunk of request) chunks.push(Buffer.from(chunk));

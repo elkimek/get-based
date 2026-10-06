@@ -7,5 +7,5 @@ export type FundingMonitorReader = (runtime: WalletOperations, ...args: Paramete
 export type FundingRecoveryReader = (runtime: WalletOperations, ...args: Parameters<typeof recoverPendingWalletFunding> extends [unknown, ...infer Rest] ? Rest : never) => ReturnType<typeof recoverPendingWalletFunding>;
 export interface InvoiceOperations {invoice: unknown; quote: unknown; amount: number; mint: unknown}
 export type InvoiceRendererReader = (invoice: InvoiceOperations) => ReturnType<typeof renderFundingInvoice>;
-export interface WalletCallbacks {renderAIProviderPanel?: unknown; renderRoutstrModelDropdown?: unknown; initSettingsModelFetch?: unknown; requestProviderActivation?: unknown; returnToChatIfOnboarding?: unknown}
+export interface WalletCallbacks {renderAIProviderPanel?: unknown; renderRoutstrModelDropdown?: unknown; initSettingsModelFetch?: unknown; hydrateRoutstrModelSettings?: unknown; requestProviderActivation?: unknown; returnToChatIfOnboarding?: unknown}
 export interface PanelHTMLWriter {innerHTML: unknown}

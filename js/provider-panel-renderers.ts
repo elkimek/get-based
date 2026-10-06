@@ -2,15 +2,14 @@ import type { StoredProviderModel } from './api-provider-storage.js';
 
 // provider-panel-renderers.js — AI provider settings panel markup
 
+import { ROUTSTR_MODEL_SETTINGS_HOST } from './routstr-model-settings-contract.js';
 import { PPQ_SETTINGS_HOST } from './ppq-settings-contract.js';
 import { VENICE_SETTINGS_HOST } from './venice-settings-contract.js';
 import { OPENROUTER_SETTINGS_HOST } from './openrouter-settings-contract.js';
 import { escapeHTML, escapeAttr } from './utils.js';
 import {
-  getRoutstrKey, getRoutstrModel,
-  isRoutstrPrivateModeActive,
+  getRoutstrKey,
   getCustomApiUrl, getCustomApiKey, getCustomApiModel,
-  getRoutstrModelDisplay,
   renderModelPricingHint, selectLatestRecommendedModels,
   getOllamaConfig, getOllamaMainModel
 } from './api.js';
@@ -52,31 +51,7 @@ export function buildModelOptions<Model extends StoredProviderModel>(provider: s
 
 function renderRoutstrProviderPanel() {
   const currentKey = getRoutstrKey();
-  const rsModel = getRoutstrModel();
   const nodeUrl = getSelectedRoutstrNodeFromRuntime();
-  const cachedRSModels = readStoredArray('labcharts-routstr-models');
-  const cachedPrivateRSModels = readStoredArray('labcharts-routstr-private-models');
-  const routstrPrivate = isRoutstrPrivateModeActive();
-  const displayedRSModels = routstrPrivate ? cachedPrivateRSModels : cachedRSModels;
-  let rsModelHtml;
-  if (displayedRSModels.length > 0) {
-    const opts = buildModelOptions('routstr', displayedRSModels, rsModel, function(m) { return m.name || m.id; });
-    rsModelHtml = `<div style="margin-top:12px" id="routstr-model-area">
-      <label style="font-size:12px;color:var(--text-muted)">Model</label>
-      <select class="api-key-input" id="routstr-model-select" style="margin-top:4px" data-provider-panel-change="routstr-model">${opts}</select>
-      <div id="routstr-model-pricing" style="margin-top:4px">${renderModelPricingHint('routstr', rsModel)}</div>
-    </div>`;
-  } else {
-    rsModelHtml = `<div style="margin-top:12px;font-size:12px;color:var(--text-muted)" id="routstr-model-area">Model: <span style="color:var(--text-primary)">${escapeHTML(getRoutstrModelDisplay())}</span>${currentKey ? ' <span style="font-size:11px">(connect to a node to load models)</span>' : ''}</div>`;
-  }
-  const privateControls = `<div id="routstr-private-controls" style="${cachedPrivateRSModels.length || routstrPrivate ? '' : 'display:none;'}margin-top:12px">
-    <div style="display:flex;align-items:center;gap:8px">
-      <label class="toggle-switch" style="flex-shrink:0"><input type="checkbox" id="routstr-private-toggle" ${routstrPrivate ? 'checked' : ''} data-provider-panel-change="routstr-private-mode"><span class="toggle-slider"></span></label>
-      <span style="font-size:13px">Private TEE Mode</span>
-    </div>
-    <div id="routstr-private-indicator" style="margin-top:6px;font-size:12px;${routstrPrivate ? '' : 'display:none'}"><span style="color:var(--green)">&#128274;</span> Prompts and responses are encrypted in your browser and decrypted only inside a verified Tinfoil TEE. The node still sees your session, selected model, and billing metadata. Web search and images are disabled.</div>
-  </div>`;
-
   const pillStyle = 'font-size:11px;padding:3px 10px;background:rgba(99,135,255,0.12);color:var(--accent);border-color:rgba(99,135,255,0.25)';
   const sectionLabel = 'font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:6px;opacity:0.7';
   const walletHtml = `<div class="routstr-wallet-card" style="padding:10px;background:var(--bg-secondary);border-radius:8px;border:1px solid var(--border);margin-bottom:10px">
@@ -139,8 +114,7 @@ function renderRoutstrProviderPanel() {
     <div class="ai-provider-desc">Decentralized AI with Bitcoin. Fund your wallet, pick a node, start chatting.</div>
     ${walletHtml}
     ${nodeHtml}
-    ${rsModelHtml}
-    ${privateControls}
+    ${ROUTSTR_MODEL_SETTINGS_HOST}
   </form>`;
 }
 

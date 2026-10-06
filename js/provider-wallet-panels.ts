@@ -1,3 +1,4 @@
+import { disposeRoutstrModelSettings } from './routstr-model-settings-component.js';
 import type { WalletOperations, FundingMonitorReader, FundingRecoveryReader, WalletCallbacks, PanelHTMLWriter } from '../types/provider-wallet-panels.js';
 // provider-wallet-panels.js - Routstr/Cashu wallet UI and node funding actions
 
@@ -36,7 +37,7 @@ export { buildRoutstrNodeActions, routstrWalletActionButtons };
 
 const walletCallbacks: WalletCallbacks = {
   renderAIProviderPanel: null, renderRoutstrModelDropdown: null,
-  initSettingsModelFetch: null, requestProviderActivation: null,
+  initSettingsModelFetch: null, hydrateRoutstrModelSettings: null, requestProviderActivation: null,
   returnToChatIfOnboarding: null
 };
 
@@ -165,6 +166,7 @@ for (const event of ['labcharts-ai-settings-local-changed', 'labcharts-ai-settin
 }
 
 export function clearRoutstrWalletTimers() {
+  disposeRoutstrModelSettings();
   ++_walletBalanceRefresh; invalidateWalletArea(); disposeWalletNode();
   const picker = document.getElementById('routstr-node-picker'); if (picker) picker.style.display = 'none';
   const area = document.getElementById('routstr-wallet-fund-area'); if (area) area.style.display = 'none';
@@ -300,7 +302,9 @@ async function activateNode(node: string): Promise<boolean> {
 function replaceRoutstrPanel(panel: HTMLElement): void {
   const html = _renderRoutstrPanel('routstr'); if (!html) return;
   invalidateWalletArea(); disposeWalletMint(); disposeWalletNode();
+  disposeRoutstrModelSettings();
   (panel as unknown as PanelHTMLWriter).innerHTML = html;
+  if (typeof walletCallbacks.hydrateRoutstrModelSettings === 'function') (walletCallbacks.hydrateRoutstrModelSettings as () => void)();
 }
 async function selectNode(node: string, current: () => boolean): Promise<void> {
   const panel = document.getElementById('ai-provider-panel');

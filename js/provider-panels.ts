@@ -1,3 +1,4 @@
+import { getRoutstrModelSettingsView, disposeRoutstrModelSettings } from './routstr-model-settings-component.js';
 // provider-panels.js - AI provider settings behavior, balance display, key validation, and wallet flows
 
 import type { ProviderPanelOperations, ProviderPanelDependencies, ProviderPanelActionReader, ProviderPanelWalletOperations } from '../types/provider-panels.js';
@@ -45,7 +46,7 @@ import {
   applyCustomApiManualModel,
   applyCustomOpenRouterModel,
   onOpenRouterDropdownChange, onRoutstrModelDropdownChange, onVeniceModelDropdownChange,
-  refreshRoutstrPrivateControls,
+  refreshRoutstrPrivateControls, hydrateRoutstrModelSettings,
   renderCustomApiModelDropdown,
   renderOpenRouterModelDropdown,
   renderRoutstrModelDropdown,
@@ -211,8 +212,10 @@ export function hydrateOwnedProviderSettings(): void {
   hydrateOpenRouterSettings();
   hydrateVeniceSettings();
   hydratePpqSettings();
+  hydrateRoutstrModelSettings();
 }
 function disposeOwnedProviderSettings(): void {
+  disposeRoutstrModelSettings();
   disposeOpenRouterSettings();
   disposeVeniceSettings();
   disposePpqSettings();
@@ -273,6 +276,7 @@ export async function switchAIProvider(provider: unknown, { previousProvider = g
 // MODEL FETCH / BALANCE INIT
 // ═══════════════════════════════════════════════
 export function initSettingsModelFetch() {
+  hydrateRoutstrModelSettings();
   const orKey = getOpenRouterKey();
   const openRouterView = getOpenRouterSettingsView();
   const openRouterExtension = hasAppExtensionAIModelSurface('openrouter');
@@ -294,7 +298,9 @@ export function initSettingsModelFetch() {
   }
   const rsKey = getRoutstrKey();
   if (rsKey && document.getElementById('routstr-model-area')) {
-    fetchRoutstrModels().then(function(models) {
+    const view = getRoutstrModelSettingsView(), provider = getAIProvider();
+    fetchRoutstrModels({ isCurrent: () => !!view?.isCurrent() && getRoutstrKey() === rsKey && getAIProvider() === provider }).then(function(models) {
+      if (!view?.isCurrent() || getRoutstrKey() !== rsKey) return;
       if (models.length) renderRoutstrModelDropdown(models);
       refreshRoutstrPrivateControls();
     });
@@ -716,6 +722,7 @@ configureRoutstrWalletPanels({
   renderAIProviderPanel,
   renderRoutstrModelDropdown,
   initSettingsModelFetch,
+  hydrateRoutstrModelSettings,
   requestProviderActivation,
   returnToChatIfOnboarding: _returnToChatIfOnboarding
 });
