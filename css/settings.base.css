@@ -931,11 +931,6 @@
 .routstr-mint-choice { flex-shrink: 0; width: 12px; text-align: center; color: var(--accent); font-size: 16px; }
 .routstr-mint-row[aria-pressed="false"] .routstr-mint-choice { visibility: hidden; }
 .routstr-mint-preserved { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 6px; background: var(--bg-primary); }
-.routstr-mint-custom { padding-top: 10px; border-top: 1px solid var(--border); }
-.routstr-mint-custom .api-key-input { min-width: 0; font-size: 11px; font-family: var(--font-mono, monospace); }
-.routstr-mint-actions { display: flex; gap: 6px; }
-.routstr-mint-actions .import-btn { padding: 3px 10px; font-size: 11px; }
-.routstr-mint-actions .import-btn-primary { flex: 1; }
 .settings-modal .settings-links-row {
   padding-top: 8px;
   border-top: 1px solid var(--border);

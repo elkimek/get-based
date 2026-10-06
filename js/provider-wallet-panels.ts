@@ -16,11 +16,14 @@ import type { WalletFundingView } from './wallet-funding-contract.js';
 import { mountWalletSeed, getWalletSeedView, disposeWalletSeed } from './wallet-seed-component.js';
 import { createWalletSeedController } from './wallet-seed-controller.js';
 import type { WalletSeedView } from './wallet-seed-contract.js';
+import { mountWalletMint, getWalletMintView, disposeWalletMint } from './wallet-mint-component.js';
+import { createWalletMintController } from './wallet-mint-controller.js';
+import { mountWalletExport, getWalletExportView, disposeWalletExport } from './wallet-export-component.js';
+import { createWalletExportController } from './wallet-export-controller.js';
 import { buildRoutstrNodeActions, routstrWalletActionButtons } from './provider-wallet-panel-buttons.js';
 import {
   routstrNodePickerRowHtml,
   walletMintRowHtml,
-  walletMintPickerHtml,
   walletWithdrawHtml,
   walletWithdrawLightningHtml,
   walletWithdrawTokenHtml,
@@ -63,10 +66,11 @@ function _returnToChatIfOnboarding() {
   }
 }
 
-let _rsCashuBackupTimer: ReturnType<typeof setTimeout> | null = null;
+let exportClipboardTimer: ReturnType<typeof setTimeout> | null = null;
+let walletAreaRevision = 0;
 let seedClipboardTimer: ReturnType<typeof setTimeout> | null = null;
 function invalidateWalletArea(): void {
-  seed.reset(); disposeWalletSeed(); disposeWalletFunding();
+  ++walletAreaRevision; seed.reset(); disposeWalletSeed(); disposeWalletFunding(); disposeWalletExport();
 }
 
 function _rsBalanceHtml(sats: number) {
@@ -74,16 +78,31 @@ function _rsBalanceHtml(sats: number) {
   return 'Balance: <span style="color:' + color + '">\u26a1 ' + sats.toLocaleString() + ' sats</span>';
 }
 
-export function refreshCashuWalletBalance() {
+function ownsWalletBalance(el: HTMLElement, request: number): boolean {
+  return request === _walletBalanceRefresh && isRoutstrActive() && el.isConnected && document.getElementById('routstr-wallet-balance') === el;
+}
+function walletBalanceText(value: unknown): string {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) throw new Error('Invalid wallet balance');
+  return '\u26a1 ' + value.toLocaleString() + ' sats';
+}
+export async function refreshCashuWalletBalance() {
   const el = document.getElementById('routstr-wallet-balance');
-  if (el) el.textContent = '\u26a1 verifying...';
-  refreshWalletSeedStatus();
-  if ((walletRuntime as WalletOperations).cashuCheckProofStates) {
-    (walletRuntime as WalletOperations).cashuCheckProofStates().then(function(bal: unknown) {
-      if (el) el.textContent = '\u26a1 ' + (bal as {toLocaleString(): unknown}).toLocaleString() + ' sats';
-    }).catch(function() {
-      if (el) el.textContent = '\u26a1 check failed';
-    });
+  if (!el || !isRoutstrActive()) return;
+  const request = ++_walletBalanceRefresh;
+  el.textContent = '\u26a1 verifying...'; refreshWalletSeedStatus();
+  try {
+    const mint = await (walletRuntime as WalletOperations).cashuGetMintUrl();
+    if (!ownsWalletBalance(el, request)) return;
+    if (typeof mint !== 'string' || !isValidExternalUrl(mint)) throw new Error('Invalid wallet mint');
+    const balance = await (walletRuntime as WalletOperations).cashuCheckProofStates(mint);
+    const selected = await (walletRuntime as WalletOperations).cashuGetMintUrl();
+    if (!ownsWalletBalance(el, request)) return;
+    if (mint !== selected) { await _refreshRoutstrWalletBalance(true); return; }
+    el.textContent = walletBalanceText(balance);
+  } catch {
+    // The selected mint may have changed while a verification waited for the
+    // wallet lock. Read its local balance without issuing a new forced check.
+    if (ownsWalletBalance(el, request)) await _refreshRoutstrWalletBalance(true, '⚡ check failed');
   }
 }
 
@@ -136,10 +155,10 @@ function _getWalletInput(id: string) {
 }
 
 export function clearRoutstrWalletTimers() {
-  invalidateWalletArea();
+  ++_walletBalanceRefresh; invalidateWalletArea();
   const area = document.getElementById('routstr-wallet-fund-area'); if (area) area.style.display = 'none';
   _setActiveWalletAction(null);
-  if (_rsCashuBackupTimer) { clearTimeout(_rsCashuBackupTimer as Parameters<typeof clearTimeout>[0]); _rsCashuBackupTimer = null; }
+  disposeWalletMint(); const mintArea = document.getElementById('routstr-mint-edit'); if (mintArea) mintArea.style.display = 'none';
   clearRoutstrBalanceSettlementTimers();
 }
 
@@ -155,6 +174,7 @@ export function showRoutstrWalletFund() {
 async function _renderWalletFundUI() {
   const area = document.getElementById('routstr-wallet-fund-area'); if (!area) return;
   area.style.display = 'block';
+  ++walletAreaRevision; disposeWalletExport();
   const fee = Number((walletRuntime as WalletOperations).cashuGetFeePct?.()) || 0;
   const view = mountWalletFunding(area, fee, {
     submitCustom: () => funding.custom(),
@@ -184,86 +204,65 @@ export async function doRoutstrWalletReceiveCashu() {
   if (view === getWalletFundingView()) await funding.receive(token);
 }
 
-export async function showRoutstrMintEdit() {
-  const area = document.getElementById('routstr-mint-edit');
-  if (!area) return;
-  if (area.style.display !== 'none') { area.style.display = 'none'; return; }
-  const currentMint = await (walletRuntime as WalletOperations).cashuGetMintUrl();
-  const nodeUrl = (walletRuntime as WalletOperations).nostrGetSelectedNode?.() || '';
-  let nodeMints: string[] = [];
-  if (nodeUrl) {
-    try {
-      nodeMints = await getNodeMints(nodeUrl);
-    } catch {}
-  }
-  const savedMints = await (walletRuntime as WalletOperations).cashuGetWalletMints() as MintInventoryOperations;
+const mints = createWalletMintController({
+  view: getWalletMintView, isActive: isRoutstrActive,
+  node: () => String((walletRuntime as WalletOperations).nostrGetSelectedNode?.() || ''),
+  mint: async () => String(await (walletRuntime as WalletOperations).cashuGetMintUrl()),
+  inventory: () => (walletRuntime as WalletOperations).cashuGetWalletMints(), accepted: getNodeMints,
+  checkMint: async mint => {
+    try { const response = await fetch(mint + '/v1/info', { redirect: 'error', signal: AbortSignal.timeout(20000) });
+      if (!response.ok) return 'unreachable'; const info = await response.json() as { nuts?: unknown } | null;
+      return info?.nuts && typeof info.nuts === 'object' ? 'valid' : 'invalid';
+    } catch { return 'unreachable'; }
+  },
+  select: (mint, expectedMint) => (walletRuntime as WalletOperations).cashuSetMintUrl(mint, expectedMint),
+  captureSelection: () => {
+    const area = document.getElementById('routstr-wallet-fund-area'), revision = walletAreaRevision;
+    const picker = document.getElementById('routstr-node-picker'), contents = picker?.firstChild, mode = picker?.dataset.mode;
+    const node = (walletRuntime as WalletOperations).nostrGetSelectedNode?.();
+    return async () => {
+      if (!isRoutstrActive()) return;
+      if (revision === walletAreaRevision && area?.isConnected && document.getElementById('routstr-wallet-fund-area') === area) {
+        invalidateWalletArea(); area.replaceChildren(); area.style.display = 'none'; _setActiveWalletAction(null);
+      }
+      await _refreshRoutstrWalletBalance();
+      const pendingRefund = await (walletRuntime as WalletOperations).cashuGetPendingNodeRefund?.();
+      if (!pendingRefund && isRoutstrActive() && picker?.isConnected && picker === document.getElementById('routstr-node-picker') && picker.firstChild === contents && picker.dataset.mode === mode && node === (walletRuntime as WalletOperations).nostrGetSelectedNode?.()) {
+        picker.replaceChildren(); picker.style.display = 'none'; _setActiveNodeAction(null);
+      }
+    };
+  },
+  close: () => closeWalletMint(), notify: showNotification,
+});
+function closeWalletMint(): void {
+  disposeWalletMint(); const area = document.getElementById('routstr-mint-edit'); if (area) area.style.display = 'none';
+}
+async function openWalletMint(draft?: string): Promise<void> {
+  const area = document.getElementById('routstr-mint-edit'); if (!area) return;
   area.style.display = 'block';
-  area.innerHTML = walletMintPickerHtml(currentMint, savedMints, nodeMints);
+  const view = mountWalletMint(area, { save: () => mints.save(), cancel: closeWalletMint, reload: () => mints.load(view) });
+  if (draft) view.setDraft(draft); await mints.load(view);
+  if (draft && view.isCurrent()) { area.scrollIntoView({ block: 'nearest' }); view.focusSelect(); }
 }
-
-export async function chooseRoutstrNodeMint(mint: string) {
-  const area = document.getElementById('routstr-mint-edit');
-  if (area) area.style.display = 'none';
-  await showRoutstrMintEdit();
-  const input = _getWalletInput('routstr-mint-input');
-  if (input) { input.value = mint; input.dispatchEvent(new Event('input', { bubbles: true })); }
-  area?.scrollIntoView({ block: 'nearest' });
-  (area?.querySelector('[data-routstr-wallet-action="save-mint"]') as HTMLElement | null)?.focus({ preventScroll: true });
+export async function showRoutstrMintEdit() {
+  if (getWalletMintView()) { closeWalletMint(); return; } await openWalletMint();
 }
-
-export async function doRoutstrMintChange() {
-  const input = _getWalletInput('routstr-mint-input');
-  const statusEl = document.getElementById('routstr-mint-status');
-  if (!input || !statusEl) return;
-  const url = input.value.trim().replace(/\/+$/, '');
-  // Mint URL must be public HTTPS - block loopback / RFC1918 / link-local so
-  // a malicious paste can't make the browser probe internal services.
-  if (!url || !isValidExternalUrl(url)) {
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">Enter a valid public mint URL (https://...)</div>';
-    return;
-  }
-  statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--text-muted)">Checking mint\u2026</div>';
-  try {
-    const savedMints = await (walletRuntime as WalletOperations).cashuGetWalletMints() as MintInventoryOperations;
-    // Saved balances and token exports must remain accessible while offline.
-    if (!savedMints.some(entry => entry.mint === url)) {
-      const res = await fetch(url + '/v1/info', { redirect: 'error', signal: AbortSignal.timeout(20000) });
-      if (!res.ok) throw new Error('Mint not reachable');
-      const info = await res.json();
-      if (!info.nuts) throw new Error('Not a valid Cashu mint');
-    }
-    await (walletRuntime as WalletOperations).cashuSetMintUrl(url);
-    const label = document.getElementById('routstr-mint-label');
-    if (label) label.textContent = url.replace(/^https?:\/\//, '');
-    const mintEdit = document.getElementById('routstr-mint-edit'); if (mintEdit) mintEdit.style.display = 'none';
-    invalidateWalletArea();
-    const fundArea = document.getElementById('routstr-wallet-fund-area');
-    if (fundArea) { fundArea.innerHTML = ''; fundArea.style.display = 'none'; }
-    _setActiveWalletAction(null);
-    await _refreshRoutstrWalletBalance();
-    const nodePicker = document.getElementById('routstr-node-picker');
-    const pendingRefund = await (walletRuntime as WalletOperations).cashuGetPendingNodeRefund?.();
-    if (nodePicker && !pendingRefund) { nodePicker.innerHTML = ''; nodePicker.style.display = 'none'; }
-    _setActiveNodeAction(null);
-    showNotification('Mint selected: ' + url.replace(/^https?:\/\//, ''), 'success');
-  } catch (e) {
-    statusEl.innerHTML = '<div style="margin-top:4px;font-size:11px;color:var(--red)">' + escapeHTML(getErrorMessage(e)) + '</div>';
-  }
-}
-
+export async function chooseRoutstrNodeMint(mint: string) { await openWalletMint(mint); }
+export function doRoutstrMintChange() { return mints.save(); }
+const walletExport = createWalletExportController({
+  view: getWalletExportView, isActive: isRoutstrActive,
+  mint: async () => String(await (walletRuntime as WalletOperations).cashuGetMintUrl()),
+  export: mint => (walletRuntime as WalletOperations).cashuExportWallet(mint),
+  writeClipboard: token => navigator.clipboard.writeText(token), notify: showNotification,
+  scheduleClear: clear => { if (exportClipboardTimer) clearTimeout(exportClipboardTimer); exportClipboardTimer = setTimeout(clear, 60000); },
+});
 export async function showRoutstrWalletBackup() {
-  _setActiveWalletAction('backup');
-  try {
-    const token = await (walletRuntime as WalletOperations).cashuExportWallet();
-    if (!token) { showNotification('Wallet is empty', 'info'); _setActiveWalletAction(null); return; }
-    await (navigator.clipboard as {writeText(value: unknown): Promise<void>}).writeText(token);
-    showNotification('Wallet backup copied to clipboard (clears in 60s)', 'success');
-    clearTimeout(_rsCashuBackupTimer as Parameters<typeof clearTimeout>[0]);
-    _rsCashuBackupTimer = setTimeout(() => navigator.clipboard.writeText(''), 60000);
-  } catch (e) {
-    showNotification('Backup failed: ' + getErrorMessage(e), 'error');
-  }
-  setTimeout(() => _setActiveWalletAction(null), 500);
+  invalidateWalletArea(); const area = document.getElementById('routstr-wallet-fund-area'); if (!area) return;
+  _setActiveWalletAction('backup'); area.style.display = 'block';
+  const view = mountWalletExport(area, { prepare: () => walletExport.prepare(view), copy: () => walletExport.copy(), close: () => {
+    if (getWalletExportView() !== view) return; invalidateWalletArea(); area.style.display = 'none'; _setActiveWalletAction(null);
+  } });
+  await walletExport.prepare(view);
 }
 
 export async function showRoutstrNodePicker(forceRefresh = false) {
@@ -447,22 +446,23 @@ export function doRoutstrNodeWithdraw(nodeUrl?: unknown, recoveryId?: string, re
 }
 
 let _walletBalanceRefresh = 0;
-async function _refreshRoutstrWalletBalance(localOnly = false) {
+async function _refreshRoutstrWalletBalance(localOnly = false, failureText = '⚡ balance unavailable') {
   const request = ++_walletBalanceRefresh;
   refreshWalletSeedStatus();
   const el = document.getElementById('routstr-wallet-balance');
-  if (!el) return;
+  if (!el || !isRoutstrActive()) return;
   try {
     const mint = await (walletRuntime as WalletOperations).cashuGetMintUrl?.() as string | null | undefined;
+    if (!ownsWalletBalance(el, request)) return;
     const balance = await (localOnly ? (walletRuntime as WalletOperations).cashuGetLocalBalance() : (walletRuntime as WalletOperations).cashuGetBalance()) as {toLocaleString(): unknown};
     const currentMint = await (walletRuntime as WalletOperations).cashuGetMintUrl?.();
-    if (request !== _walletBalanceRefresh || el !== document.getElementById('routstr-wallet-balance')) return;
+    if (!ownsWalletBalance(el, request)) return;
     if (mint !== currentMint) return _refreshRoutstrWalletBalance(localOnly);
-    el.textContent = '\u26a1 ' + balance.toLocaleString() + ' sats';
+    el.textContent = walletBalanceText(balance) + (failureText === '⚡ check failed' ? ' (saved balance; check failed)' : '');
     const mintEl = document.getElementById('routstr-mint-label');
     if (mintEl && mint) mintEl.textContent = mint.replace(/^https?:\/\//, '').replace(/\/$/, '');
   } catch {
-    if (request === _walletBalanceRefresh) el.textContent = '\u26a1 balance unavailable';
+    if (ownsWalletBalance(el, request)) el.textContent = failureText;
   }
 }
 
@@ -511,7 +511,7 @@ const seed = createWalletSeedController({
 });
 function mountSeedArea(): WalletSeedView | null {
   const area = document.getElementById('routstr-wallet-fund-area'); if (!area) return null;
-  disposeWalletFunding(); disposeWalletSeed(); seed.reset(); area.style.display = 'block';
+  ++walletAreaRevision; disposeWalletExport(); disposeWalletFunding(); disposeWalletSeed(); seed.reset(); area.style.display = 'block';
   return mountWalletSeed(area, { copy: () => seed.copy(), create: setupRoutstrWalletSeed, restore: () => seed.restore(), continue: () => seed.acknowledge() });
 }
 async function _ensureWalletSeed(thenAction: () => unknown): Promise<boolean> {
@@ -540,7 +540,9 @@ export async function showRoutstrWithdraw() {
   if (area.style.display !== 'none' && _activeWalletAction === 'withdraw') { area.style.display = 'none'; _setActiveWalletAction(null); return; }
   _setActiveWalletAction('withdraw');
   area.style.display = 'block';
+  const revision = walletAreaRevision;
   const balance = await (walletRuntime as WalletOperations).cashuGetBalance() as number;
+  if (revision !== walletAreaRevision || !area.isConnected || area !== document.getElementById('routstr-wallet-fund-area')) return;
   area.innerHTML = walletWithdrawHtml(balance);
 }
 

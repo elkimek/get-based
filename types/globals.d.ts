@@ -134,7 +134,6 @@ interface Window {
   _settingsHadProvider?: boolean;
   _veniceAttestation?: any;
   _ppqAttestation?: any;
-  _rsCashuBackupTimer?: ReturnType<typeof setTimeout>;
   _getActiveProfileId?: () => string | null;
   _openChatAfterInit?: boolean;
   _openSettingsAfterInit?: string;

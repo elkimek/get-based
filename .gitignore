@@ -1634,3 +1634,14 @@ deploy/profile-share/data/
 /js/wallet-seed-contract.js
 /js/wallet-seed-component.js
 /js/wallet-seed-controller.js
+
+/js/wallet-mint-contract.js
+/js/wallet-mint-component.js
+/js/wallet-mint-controller.js
+/js/wallet-export-contract.js
+/js/wallet-export-component.js
+/js/wallet-export-controller.js
+
+/tests/wallet-mint-export-owned.test.js
+
+/js/cashu-wallet-mint-requests.js

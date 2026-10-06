@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest';
-const state = vi.hoisted(() => ({ provider: 'openrouter', backend: 'direct', render: vi.fn(() => '<div>owned provider</div>'), switchProvider: vi.fn(async () => true), hydrate: vi.fn(), init: vi.fn(), refresh: vi.fn() }));
+const state = vi.hoisted(() => ({ provider: 'openrouter', backend: 'direct', render: vi.fn(() => '<div>owned provider</div>'), switchProvider: vi.fn(async () => true), hydrate: vi.fn(), init: vi.fn(), refresh: vi.fn(), clearWallet: vi.fn(), monitor: vi.fn() }));
 vi.mock('../js/api.js', () => ({ getAIProvider: () => state.provider, getOpenRouterKey: () => '', rememberOpenRouterOAuthPreviousProvider: vi.fn(), clearOpenRouterOAuthSession: vi.fn() }));
 vi.mock('../js/agent-chat-settings.js', () => ({ getChatBackend: () => state.backend, setChatBackend: vi.fn((value: string) => { state.backend = value; }) }));
 vi.mock('../js/provider-panels.js', () => ({ configureProviderPanelDeps: vi.fn(), renderAIProviderPanel: state.render, hydrateOwnedProviderSettings: state.hydrate, initSettingsOllamaCheck: state.init, initSettingsModelFetch: state.init, switchAIProvider: state.switchProvider }));
+vi.mock('../js/provider-wallet-panels.js', () => ({ clearRoutstrWalletTimers: state.clearWallet, startRoutstrFundingMonitor: state.monitor }));
 import { configureSettingsProviderBridgeDeps, disposeSettingsProviderPanels, initSettingsProviderPanels, renderAIProviderPanelBridge, switchAIProviderBridge } from '../js/settings-provider-bridge.js';
 import { setChatBackend } from '../js/agent-chat-settings.js';
 function host() { const panel = document.createElement('div'); panel.id = 'ai-provider-panel'; panel.textContent = 'existing'; document.body.append(panel); return panel; }
@@ -32,4 +33,11 @@ it('does not change chat backend or refresh a replacement view after delayed pro
   switchAIProviderBridge('venice'); await vi.waitFor(() => expect(state.switchProvider).toHaveBeenCalledOnce());
   disposeSettingsProviderPanels(); state.backend = 'codex'; release(true); await Promise.resolve(); await Promise.resolve();
   expect(setChatBackend).not.toHaveBeenCalled(); expect(state.refresh).not.toHaveBeenCalled(); expect(state.backend).toBe('codex');
+});
+
+it('disposes loaded wallet controls synchronously on Settings close and provider switch', async () => {
+  host(); await initSettingsProviderPanels(); expect(state.clearWallet).not.toHaveBeenCalled();
+  disposeSettingsProviderPanels(); expect(state.clearWallet).toHaveBeenCalledOnce();
+  switchAIProviderBridge('venice'); expect(state.clearWallet).toHaveBeenCalledTimes(2);
+  await vi.waitFor(() => expect(state.switchProvider).toHaveBeenCalledOnce());
 });

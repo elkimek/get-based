@@ -1,5 +1,5 @@
 import { createNewMintKeys } from '@cashu/cashu-ts';
-import type { BrowserContext } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 import { makeTestInvoice } from '../fixtures/lightning-invoices.js';
 const mint = 'https://mint.minibits.cash/Bitcoin';
 export async function prepareStaticWallet(context: BrowserContext, seeded = true): Promise<void> {
@@ -35,4 +35,20 @@ export async function prepareStaticWallet(context: BrowserContext, seeded = true
     localStorage.setItem('labcharts-routstr-node', 'https://synthetic-routstr.test'); localStorage.setItem('labcharts-cashu-wallet-mint', mint);
     if (seeded) localStorage.setItem('labcharts-cashu-wallet-mnemonic', 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about');
   }, { mint, keys: publicKeys, keysetId: synthetic.keysetId, invoice: makeTestInvoice(1000), seeded });
+}
+
+/** Nonspendable stored proofs exercise the real export codec without mint transport. */
+export async function seedStaticWalletMints(page: Page): Promise<string> {
+  const other = 'https://mint.other.test';
+  const synthetic = createNewMintKeys(12, new Uint8Array(32).fill(7), { versionByte: 0 });
+  const C = Buffer.from(synthetic.pubKeys['1']!).toString('hex');
+  await page.evaluate(async ({ mint, other, C, id }) => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => { const req = indexedDB.open('getbased-cashu', 2); req.onupgradeneeded = () => { for (const [store, keyPath] of [['proofs', 'secret'], ['meta', 'key'], ['fee-proofs', 'secret']] as const) if (!req.result.objectStoreNames.contains(store!)) req.result.createObjectStore(store!, { keyPath }); }; req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); });
+      try { await new Promise<void>((resolve, reject) => { const tx = db.transaction(['proofs', 'meta'], 'readwrite');
+        for (const [owner, amounts] of [[mint, [8, 4]], [other, [4, 2, 1]]] as const) for (const amount of amounts) tx.objectStore('proofs').put({ secret: 'SYNTHETIC-' + owner + '-' + amount, amount, C, id, _mint: owner });
+        for (const [key, value] of [['mintUrl', mint], ['walletMints', [mint, other]], ['proofCheckAt:' + mint, Date.now()], ['proofCheckAt:' + other, Date.now()], ['pendingNodeRefund', { nodeUrl: 'https://synthetic-routstr.test', key: 'SYNTHETIC-RECOVERY', token: 'SYNTHETIC-NODE-TOKEN', createdAt: 1 }]]) tx.objectStore('meta').put({ key, value });
+        tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+      }); } finally { db.close(); }
+    }, { mint, other, C, id: synthetic.keysetId });
+  return synthetic.keysetId;
 }

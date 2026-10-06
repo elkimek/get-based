@@ -1134,7 +1134,7 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
 
 test('mint selection preserves visible node refund recovery without retrying the refund', async ({ page }) => {
   await routeHtml(page, '**/wallet-mint-refund-recovery', `<!doctype html><html><body>
-    <div id="routstr-mint-edit"><input id="routstr-mint-input" value="https://mint.other.test"><div id="routstr-mint-status"></div></div>
+    <div id="routstr-mint-edit" style="display:none"></div>
     <div id="routstr-wallet-balance"></div><div id="routstr-mint-label"></div>
     <div id="routstr-wallet-fund-area" style="display:none"></div>
     <div id="routstr-node-picker"><button data-routstr-wallet-action="resume-node-refund" data-node-url="https://node.test">Check refund recovery</button></div>
@@ -1142,6 +1142,7 @@ test('mint selection preserves visible node refund recovery without retrying the
   await page.goto('/wallet-mint-refund-recovery');
   const result = await page.evaluate(async () => {
     const panels = await import('/js/' + 'provider-wallet-panels.js') as typeof import('../../js/provider-wallet-panels.js');
+    localStorage.setItem('labcharts-ai-provider', 'routstr'); localStorage.setItem('labcharts-chat-backend', 'direct');
     let selected = 'https://mint.original.test';
     let refundRequests = 0;
     panels.configureRoutstrWalletRuntime({
@@ -1153,6 +1154,7 @@ test('mint selection preserves visible node refund recovery without retrying the
       cashuGetPendingNodeRefund: async () => ({ nodeUrl: 'https://node.test', key: 'sk-node', createdAt: 1 }),
       cashuRefundNodeToToken: async () => { refundRequests++; throw new Error('Unexpected refund request'); },
     });
+    await panels.showRoutstrMintEdit(); (document.getElementById('routstr-mint-input') as HTMLInputElement).value = 'https://mint.other.test';
     await panels.doRoutstrMintChange();
     return { selected, refundRequests, recoveryVisible: document.getElementById('routstr-node-picker')?.style.display !== 'none' };
   });

@@ -60,6 +60,7 @@ const providerDelegatesSrc = await fetchWithRetry('js/provider-panel-delegates.j
 const walletPanelSrc = await fetchWithRetry('js/provider-wallet-panels.js');
 const nodeRefundRecoverySrc = await fetchWithRetry('js/provider-wallet-refund-recovery.js');
 const walletPanelRenderSrc = await fetchWithRetry('js/provider-wallet-panel-renderers.js');
+const walletSeedComponentSrc = await fetchWithRetry('js/components/WalletSeed.svelte');
 const walletRuntimeSrc = await fetchWithRetry('js/provider-wallet-runtime.js');
 const providerQrSrc = await fetchWithRetry('js/provider-qr.js');
 const syncApplySrc = await fetchWithRetry('js/sync-apply.js');
@@ -301,9 +302,9 @@ assert('Routstr panel distinguishes synced node funds from device-local Cashu fu
   providerRenderSrc.includes('24-word Data Sync mnemonic')
     && providerRenderSrc.includes('12-word recovery seed stay on this device'));
 assert('Unseeded device UI explains separate sync and wallet identities',
-  walletPanelRenderSrc.includes("Set up this device's Cashu wallet")
-    && walletPanelRenderSrc.includes('does not copy spendable Cashu proofs')
-    && walletPanelRenderSrc.includes('setup-wallet-seed'));
+  walletSeedComponentSrc.includes("Set up this device's Cashu wallet")
+    && walletSeedComponentSrc.includes('does not copy spendable Cashu proofs')
+    && walletSeedComponentSrc.includes('setup-wallet-seed'));
 assert('Node refund is gated before its mutation until the local wallet has a seed',
   sourceFunctionHasStatement(nodeRefundRecoverySrc, 'withdrawNodeToWallet',
     'if (!await runtime.cashuHasWalletSeed?.()) { await ensureSeed(() => withdrawNodeToWallet(target, recoveryId, recoveryToken, generation, ensureSeed, refreshWallet, refreshNode)); return; }')
@@ -419,7 +420,7 @@ assert('Funded legacy Routstr sessions bootstrap the shared session clock',
     && walletPanelSrc.includes('touchRoutstrSession()'));
 assert('Wallet panel keeps mint SSRF guard', walletPanelSrc.includes('isValidExternalUrl'));
 assert('Seed onboarding gate', walletPanelSrc.includes('_ensureWalletSeed'));
-assert('Seed acknowledgment checkbox', walletPanelRenderSrc.includes('routstr-seed-ack'));
+assert('Seed acknowledgment checkbox', walletSeedComponentSrc.includes('routstr-seed-ack') && walletSeedComponentSrc.includes('disabled={!acknowledged || seedState.pending}'));
 assert('Wallet action buttons', walletPanelSrc.includes('routstrWalletActionButtons'));
 assert('Wallet panel owns fund timer cleanup', walletPanelSrc.includes('export function clearRoutstrWalletTimers()'));
 assert('Wallet backup (export token)', walletPanelSrc.includes('showRoutstrWalletBackup'));

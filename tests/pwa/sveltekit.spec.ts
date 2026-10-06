@@ -26,7 +26,15 @@ async function ready(page: Page) {
   await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller), { timeout: 30_000 }).toBe(true);
 }
 async function display(page: Page) {
-  await page.locator('[data-shell-action="open-settings"]').click();
+  const settings = page.locator('[data-shell-action="open-settings"]');
+  try { await settings.click({ timeout: 1500 }); }
+  catch (error) {
+    // Returning desktop onboarding can finish while the first click waits.
+    // Dismiss it through its public control, preserving normal click checks.
+    const closeChat = page.getByRole('button', { name: 'Close chat', exact: true });
+    if (!await closeChat.isVisible()) throw error;
+    await closeChat.click(); await settings.click();
+  }
   await page.locator('[data-settings-tab="display"]').click();
   await expect(page.locator('#settings-tab-display [data-unit="US"]')).toBeVisible();
 }

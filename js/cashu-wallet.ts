@@ -241,11 +241,12 @@ function _isMintBoundReceive(value: unknown) {
 }
 
 /** Select a mint without moving or discarding other mint balances. */
-export async function setMintUrl(url: string) {
+export async function setMintUrl(url: string, expectedMint?: string) {
   return _withWalletLock(async () => {
     if (!isValidExternalUrl(url)) throw new Error('Cashu mint URL must be public https://');
     const nextMint = _normalizeMintUrl(url);
     const currentMint = await getMintUrl();
+    if (expectedMint && _normalizeMintUrl(expectedMint) !== currentMint) throw new Error('Wallet mint changed before selection. Reload balances before selecting another mint.');
     if (nextMint !== currentMint) {
       // A paid withdrawal can retain its recovery record after a lost response
       // or local commit failure. Verify it at its original mint under this lock;
@@ -468,10 +469,12 @@ export async function recoverPendingWalletOperation() {
 }
 
 /** Force-check all proof states against mint and return updated balance */
-export async function checkProofStates() {
+export async function checkProofStates(expectedMint?: string) {
   return _withWalletLock(async () => {
+    const mintUrl = await getMintUrl();
+    if (expectedMint && _normalizeMintUrl(expectedMint) !== mintUrl) throw new Error('Wallet mint changed before verification. Refresh the selected mint balance.');
     const cashuts = await _cashuLib();
-    const proofs = await _pruneSpentProofs(true);
+    const proofs = await _pruneSpentProofs(true, mintUrl, true);
     return _sumProofsAsNumber(cashuts, proofs);
   });
 }
@@ -744,13 +747,13 @@ export async function receiveToken(tokenString: string) {
 }
 
 /** Export all proofs as a cashu token string (for backup) */
-export async function exportWallet() {
+export async function exportWallet(expectedMint?: string) {
   return _withWalletLock(async () => {
-    const cashuts = await _cashuLib();
     const mintUrl = await getMintUrl();
+    if (expectedMint && _normalizeMintUrl(expectedMint) !== mintUrl) throw new Error('Wallet mint changed before export. Open Export Token again.');
     const proofs = await _getAllProofs(mintUrl);
     if (!proofs.length) return null;
-    return cashuts.getEncodedToken({ mint: mintUrl, proofs: proofs as Cashu.Proof[] });
+    return (await _cashuLib()).getEncodedToken({ mint: mintUrl, proofs: proofs as Cashu.Proof[] });
   });
 }
 

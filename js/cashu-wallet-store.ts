@@ -1,6 +1,7 @@
 // cashu-wallet-store.ts — Cashu proof, recovery journal, counter, and seed persistence
 
 import { getErrorMessage } from './caught-error.js';
+import { createMintRequestGuard } from './cashu-wallet-mint-requests.js';
 import { isDebugMode } from './utils.js';
 import { isValidExternalUrl } from './url-safety.js';
 
@@ -287,12 +288,15 @@ export async function _replaceProofs(previousProofs: WalletProof[], nextProofs: 
   });
 }
 
-export async function _pruneSpentProofs(force = false, forMint?: string) {
+export async function _pruneSpentProofs(force = false, forMint?: string, requireVerified = false) {
   const now = Date.now();
   const mintUrl = _normalizeMintUrl(forMint || await storeRuntime.getMintUrl());
   const proofs = await _getAllProofs(mintUrl);
   if (!proofs.length) return proofs;
-  if (await _getMeta(PENDING_SWAP_KEY)) return proofs;
+  if (await _getMeta(PENDING_SWAP_KEY)) {
+    if (requireVerified) throw new Error('A pending swap needs recovery before verifying the balance.');
+    return proofs;
+  }
   const checkKey = 'proofCheckAt:' + mintUrl;
   if (!force && now - Math.max(_lastProofChecks.get(mintUrl) || 0, Number(await _getMeta(checkKey)) || 0) < PROOF_CHECK_COOLDOWN) return proofs;
   try {
@@ -310,32 +314,13 @@ export async function _pruneSpentProofs(force = false, forMint?: string) {
     return [...unspent, ...pending];
   } catch (error) {
     if (isDebugMode()) console.warn('[cashu-wallet] Proof state check failed:', getErrorMessage(error));
+    if (requireVerified) throw error;
     return proofs;
   }
 }
 
 /** Shared mint cooldown. Call while holding the wallet lock. */
-export async function _withMintRequest<Result>(mint: string, request: () => Promise<Result>) {
-  const key = 'mintRetryAt:' + _normalizeMintUrl(mint);
-  const until = Number(await _getMeta(key)) || 0;
-  if (until > Date.now()) {
-    const error = Object.assign(new Error('The mint requested a pause. Retrying automatically.'), { status: 429, retryAfterMs: until - Date.now() });
-    throw error;
-  }
-  try { return await request(); }
-  catch (error) {
-    const details = error as { status?: unknown; statusCode?: unknown; retryAfterMs?: unknown; name?: unknown } | null;
-    const status = Number(details?.status ?? details?.statusCode);
-    const retry = Number(details?.retryAfterMs);
-    if (status === 429 || details?.name === 'RateLimitError' || (Number.isFinite(retry) && retry > 0)) {
-      const wait = Math.max(60000, Number.isFinite(retry) ? retry : 0);
-      await _setMeta(key, Math.max(until, Date.now() + wait));
-      // Preserve the actual cooldown, including our conservative default.
-      throw Object.assign(new Error(getErrorMessage(error)), { status: status || 429, retryAfterMs: wait });
-    }
-    throw error;
-  }
-}
+export const _withMintRequest = createMintRequestGuard({ getMeta: _getMeta, setMeta: _setMeta, normalizeMint: _normalizeMintUrl });
 
 export async function _clearAllProofs() {
   const mintUrl = _normalizeMintUrl(await storeRuntime.getMintUrl());

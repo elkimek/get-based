@@ -66,3 +66,11 @@ export const walletFundingCompatible: typeof NativeWalletFunding = WalletFunding
 import WalletSeed from '../../js/components/WalletSeed.svelte';
 import type NativeWalletSeed from '../../js/components/WalletSeed.svelte.native.js';
 export const walletSeedCompatible: typeof NativeWalletSeed = WalletSeed;
+
+import WalletMintPicker from '../../js/components/WalletMintPicker.svelte';
+import type NativeWalletMintPicker from '../../js/components/WalletMintPicker.svelte.native.js';
+export const walletMintPickerCompatible: typeof NativeWalletMintPicker = WalletMintPicker;
+
+import WalletExport from '../../js/components/WalletExport.svelte';
+import type NativeWalletExport from '../../js/components/WalletExport.svelte.native.js';
+export const walletExportCompatible: typeof NativeWalletExport = WalletExport;

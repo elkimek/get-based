@@ -22,14 +22,7 @@ export function installRoutstrWalletDelegates(actions: unknown = {}) {
   if (routstrWalletDelegatesInstalled || typeof document === 'undefined') return;
   routstrWalletDelegatesInstalled = true;
   document.addEventListener('click', _handleRoutstrWalletClick);
-  document.addEventListener('input', event => {
-    const input = _closestWalletEl(event, '#routstr-mint-input');
-    if (!input) return;
-    const mint = input.value.trim().replace(/\/+$/, '');
-    document.querySelectorAll('#routstr-mint-edit .routstr-mint-row').forEach(row => {
-      row.setAttribute('aria-pressed', String(row.getAttribute('data-mint-url') === mint));
-    });
-  });
+
 }
 
 function _call(name: string, ...args: unknown[]): WalletActionResult {

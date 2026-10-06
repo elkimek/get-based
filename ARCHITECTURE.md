@@ -218,6 +218,28 @@ cannot revive a paid, expired or replaced invoice. The stable wallet facade
 mounts the component in the existing wallet slot and guards seed prerequisites
 against a closed or replaced Settings view.
 
+`WalletMintPicker.svelte` owns saved balances, optional node mint hints and
+mint selection. Saved balances render before node discovery and remain usable
+offline. Selection captures the originating view and selected mint; the domain
+checks the expected mint under its existing wallet lock before preserving
+original-mint proofs and recovery journals. Accepted selection completes after
+the picker closes without replacing newer wallet or node recovery controls.
+
+`WalletExport.svelte` uses private token ports and the existing readonly codec.
+Its controller captures the mint for locked export and checks it again before
+copying. Closing scrubs private fields; clipboard clearing survives closure.
+Clipboard failure leaves an accessible manual-copy disclosure. Forced proof
+verification also checks the expected mint under the lock and reports failure
+without representing saved balances as successfully verified. Ordinary balance
+reads retain their offline fallback. `cashu-wallet-mint-requests.ts` owns the
+shared durable mint cooldown used by proof, funding and recovery requests.
+The native wallet header remains facade
+owned until the complete Routstr panel migration; its asynchronous updates are
+scoped to the mounted header, active provider, request and selected mint. The
+lazy Settings provider bridge retains its loaded wallet module for synchronous
+disposal on Settings close or provider switch; private fields scrub immediately
+while accepted domain operations and scheduled clipboard clearing can finish.
+
 `WalletSeed.svelte` owns device setup, acknowledgement, masked/revealed recovery
 words and restoration. `wallet-seed-component.ts` synchronously mounts, updates
 and scrubs its private word/draft ports. Words stay absent from generic snapshots

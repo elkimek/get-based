@@ -19,8 +19,17 @@ type BridgeSnapshot = { [Key in keyof BridgeOperations]: unknown };
 let _providerPanelsLoad: Promise<ProviderPanels> | null = null;
 let settingsHadProvider = false;
 let providerViewEpoch = 0;
+let walletPanelsLoad: Promise<WalletPanels> | null = null;
+let loadedWalletPanels: WalletPanels | null = null;
+function loadWalletPanels(): Promise<WalletPanels> {
+  if (!walletPanelsLoad) walletPanelsLoad = import('./provider-wallet-panels.js').then(panels => {
+    loadedWalletPanels = panels; return panels;
+  }).catch(error => { walletPanelsLoad = null; throw error; });
+  return walletPanelsLoad;
+}
 export function disposeSettingsProviderPanels(): void {
   ++providerViewEpoch;
+  loadedWalletPanels?.clearRoutstrWalletTimers();
   disposeOpenRouterSettings();
   disposeVeniceSettings();
   disposePpqSettings();
@@ -46,7 +55,8 @@ export function setSettingsProviderHadProvider(value: unknown) {
 
 function loadProviderPanels() {
   if (!_providerPanelsLoad) {
-    _providerPanelsLoad = import('./provider-panels.js').then(providerPanels => {
+    _providerPanelsLoad = import('./provider-panels.js').then(async providerPanels => {
+      await loadWalletPanels();
       providerPanels.configureProviderPanelDeps({
         closeSettingsModal: () => (settingsProviderBridgeDeps as BridgeOperations).closeSettingsModal(),
         hadProviderBeforeSettings: () => settingsHadProvider,
@@ -84,6 +94,7 @@ export function switchAIProviderBridge(provider: unknown): void {
   if (provider === 'openrouter' && previousProvider !== 'openrouter' && !getOpenRouterKey()) rememberOpenRouterOAuthPreviousProvider(previousProvider);
   else if (provider !== 'openrouter') clearOpenRouterOAuthSession();
   setProviderButtonState(provider);
+  loadedWalletPanels?.clearRoutstrWalletTimers();
   disposeOpenRouterSettings();
   disposeVeniceSettings();
   disposePpqSettings();
@@ -130,14 +141,12 @@ export async function initSettingsProviderPanels(): Promise<void> {
 }
 
 // Load saved funding recovery only for the active direct Routstr provider.
-let walletPanelsLoad: Promise<WalletPanels> | null = null;
 function syncWalletFunding() {
   try {
     if (!walletPanelsLoad) {
       if (getAIProvider() !== 'routstr' || getChatBackend() !== 'direct' || !localStorage.getItem('labcharts-cashu-wallet-mnemonic')) return;
-      walletPanelsLoad = import('./provider-wallet-panels.js');
     }
-    void walletPanelsLoad.then(panels => panels.startRoutstrFundingMonitor()).catch(() => {});
+    void loadWalletPanels().then(panels => panels.startRoutstrFundingMonitor()).catch(() => {});
   } catch {}
 }
 globalThis.addEventListener?.('labcharts-ai-settings-local-changed', syncWalletFunding);

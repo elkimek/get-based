@@ -1,4 +1,4 @@
-type CashuWalletOperations = Pick<typeof import('../js/cashu-wallet.js'), "checkFundingStatus" | "clearPendingDeposit" | "clearPendingWithdraw" | "createFundingInvoice" | "createWithdrawQuote" | "depositToNode" | "destroyWalletDB" | "executeWithdraw" | "exportWallet" | "generateWalletSeed" | "getFeeBalance" | "getFeePct" | "getLocalWalletBalance" | "getMaxWithdrawable" | "getMintUrl" | "getWalletBalance" | "getWalletMints" | "getWalletMnemonic" | "hasWalletSeed" | "receiveToken" | "recoverPendingDeposit" | "recoverPendingFunding" | "recoverPendingWalletOperation" | "recoverPendingWithdraw" | "redeemFees" | "restoreWalletFromSeed" | "retryFeeAutoMelt" | "savePendingWithdrawToken" | "sendAsToken" | "setMintUrl" | "subscribeFundingQuotes" | "withdrawToAddress">;
+type CashuWalletOperations = Pick<typeof import('../js/cashu-wallet.js'), "checkProofStates" | "checkFundingStatus" | "clearPendingDeposit" | "clearPendingWithdraw" | "createFundingInvoice" | "createWithdrawQuote" | "depositToNode" | "destroyWalletDB" | "executeWithdraw" | "exportWallet" | "generateWalletSeed" | "getFeeBalance" | "getFeePct" | "getLocalWalletBalance" | "getMaxWithdrawable" | "getMintUrl" | "getWalletBalance" | "getWalletMints" | "getWalletMnemonic" | "hasWalletSeed" | "receiveToken" | "recoverPendingDeposit" | "recoverPendingFunding" | "recoverPendingWalletOperation" | "recoverPendingWithdraw" | "redeemFees" | "restoreWalletFromSeed" | "retryFeeAutoMelt" | "savePendingWithdrawToken" | "sendAsToken" | "setMintUrl" | "subscribeFundingQuotes" | "withdrawToAddress">;
 import { proof, AmountStub, installCashuStub, loadWallet, readCashuStore, openCashuTestDB, seedExistingUserCashuState, readIdbMeta, readIdbStore, jsonResponse } from './helpers/cashu-wallet.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
@@ -506,6 +506,50 @@ describe('Cashu wallet runtime behavior', () => {
       mnemonic: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
     });
     expect((globalThis as Bip39FixtureGlobal).bip39.generateMnemonic).toHaveBeenCalledTimes(1);
+  });
+
+  it('guards selected mint operations under the wallet lock without moving funds or deleting recovery records', async () => {
+    const wallet = await loadWallet() as CashuWalletOperations, first = 'https://mint.first.test', second = 'https://mint.second.test';
+    await wallet.setMintUrl(first); await wallet.receiveToken('cashu:' + first + ':10:guarded-funds');
+    const store = await import('../js/cashu-wallet-store.js');
+    await store._setMeta('pendingNodeRefund', { nodeUrl: 'https://node.test', token: 'private recovery' });
+    const before = await readCashuStore('proofs');
+    await expect(wallet.exportWallet(first + '/')).resolves.toContain(first);
+    expect(await readCashuStore('proofs')).toEqual(before);
+    await wallet.setMintUrl(second, first);
+    await expect(wallet.exportWallet(first)).rejects.toThrow('mint changed before export');
+    await expect(wallet.checkProofStates(first)).rejects.toThrow('mint changed before verification');
+    await expect(wallet.setMintUrl(first, first)).rejects.toThrow('mint changed before selection');
+    await expect(wallet.getMintUrl()).resolves.toBe(second);
+    await expect(store._getMeta('pendingNodeRefund')).resolves.toEqual({ nodeUrl: 'https://node.test', token: 'private recovery' });
+    await wallet.setMintUrl(first, second); await expect(wallet.checkProofStates(first)).resolves.toBe(10);
+    expect(await readCashuStore('proofs')).toEqual(before);
+  });
+
+  it('rejects stale expected mints after queued operations acquire the wallet lock', async () => {
+    const wallet = await loadWallet() as CashuWalletOperations, first = 'https://mint.first.test', second = 'https://mint.second.test';
+    await wallet.setMintUrl(first); await wallet.receiveToken('cashu:' + first + ':10:queued-funds');
+    let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });
+    const check = vi.spyOn((globalThis as CashuStubGlobal).cashuts.Wallet.prototype, 'groupProofsByState').mockImplementation(async proofs => { await gate; return { unspent: proofs, spent: [], pending: [] }; });
+    try {
+      const verification = wallet.checkProofStates(first); await vi.waitFor(() => expect(check).toHaveBeenCalled());
+      const switched = wallet.setMintUrl(second, first), exported = wallet.exportWallet(first), selected = wallet.setMintUrl(first, first);
+      // Attach handlers before releasing the lock to retain rejection evidence.
+      const results = Promise.allSettled([switched, exported, selected]); release(); await verification;
+      const settled = await results; expect(settled.map(result => result.status)).toEqual(['fulfilled', 'rejected', 'rejected']);
+      await expect(wallet.getMintUrl()).resolves.toBe(second); await expect(wallet.getWalletMints()).resolves.toEqual(expect.arrayContaining([expect.objectContaining({ mint: first, balance: 10 })]));
+    } finally { release(); check.mockRestore(); }
+  });
+
+  it('reports failed forced verification while preserving offline balances and every proof', async () => {
+    const wallet = await loadWallet() as CashuWalletOperations;
+    await wallet.receiveToken('cashu-token'); const before = await readCashuStore('proofs');
+    const check = vi.spyOn((globalThis as CashuStubGlobal).cashuts.Wallet.prototype, 'groupProofsByState').mockRejectedValue(new Error('mint unavailable'));
+    try {
+      await expect(wallet.checkProofStates(await wallet.getMintUrl())).rejects.toThrow('mint unavailable');
+      await expect(wallet.getLocalWalletBalance()).resolves.toBe(10);
+      expect(await readCashuStore('proofs')).toEqual(before);
+    } finally { check.mockRestore(); }
   });
 
   it('receives, exports, sends, and restores proofs through the wallet store', async () => {
