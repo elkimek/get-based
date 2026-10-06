@@ -2,12 +2,18 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 vi.mock('../js/utils.js', () => ({ escapeHTML: (x: unknown) => x, escapeAttr: (x: unknown) => x, showNotification: vi.fn() }));
 import { createFundingMonitor } from '../js/provider-wallet-funding-recovery.js';
+import { disposeWalletFunding, mountWalletFunding } from '../js/wallet-funding-component.js';
 import { showNotification } from '../js/utils.js';
 type NativeMonitorArguments = Parameters<typeof createFundingMonitor>;
 type FixtureMonitor = (runtime: Omit<NativeMonitorArguments[0], 'cashuRecoverPendingFunding' | 'cashuSubscribeFundingQuotes'> & { cashuRecoverPendingFunding: unknown; cashuSubscribeFundingQuotes?: unknown }, ...callbacks: NativeMonitorArguments extends [unknown, ...infer Rest] ? Rest : never) => ReturnType<typeof createFundingMonitor>;
 let monitor: ReturnType<typeof createFundingMonitor> | undefined;
-beforeEach(() => { vi.useFakeTimers(); vi.clearAllMocks(); document.body.innerHTML = '<div id="routstr-wfund-status" data-quote="new" data-mint="https://mint.test"><a>current QR</a><div id="routstr-wfund-poll"></div></div>'; });
-afterEach(() => { monitor?.stop(); vi.useRealTimers(); });
+beforeEach(() => {
+  vi.useFakeTimers(); vi.clearAllMocks(); document.body.innerHTML = '<div id="funding-host"></div>';
+  const view = mountWalletFunding(document.getElementById('funding-host')!, 0, { submitCustom: () => {}, cancelCustom: () => {} });
+  view.showInvoice({ invoice: 'synthetic-invoice', quote: 'new', mint: 'https://mint.test', amount: 500, qrImage: '' });
+  view.setState({ ...view.getState(), phase: 'invoice', poll: 'Waiting for payment' });
+});
+afterEach(() => { monitor?.stop(); disposeWalletFunding(); vi.useRealTimers(); });
 const result = (extra = {}) => ({ mint: 'https://mint.test', checked: 2, pending: 1, recovered: 0, balance: 0, failed: 0, results: [], ...extra });
 const runtime = (check: unknown) => ({ cashuHasWalletSeed: async () => true, cashuRecoverPendingFunding: check });
 const settle = () => vi.advanceTimersByTimeAsync(0);
@@ -51,7 +57,7 @@ it('automatically credits an older invoice without replacing the newer QR', asyn
   monitor = (createFundingMonitor as FixtureMonitor)(runtime(vi.fn().mockResolvedValue(result({ recovered: 500, balance: 500, results: [{ quote: 'old', paid: true, minted: 500, fee: 0 }, { quote: 'new', paid: false }] }))), refresh);
   monitor.start(); await settle();
   expect(refresh).toHaveBeenCalledWith();
-  expect(document.querySelector('a')!.textContent).toBe('current QR');
+  expect(document.querySelector('a')!.getAttribute('href')).toBe('lightning:synthetic-invoice');
   expect(showNotification).toHaveBeenCalledWith('Wallet funded ⚡ 500 sats', 'success');
 });
 it('continues checking without a deposit panel and resumes persisted invoices on start', async () => {

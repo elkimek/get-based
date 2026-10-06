@@ -571,6 +571,8 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       return fn();
     }
 
+    localStorage.setItem('labcharts-ai-provider', 'routstr');
+    localStorage.setItem('labcharts-chat-backend', 'direct');
     const root = document.createElement('div');
     root.id = 'ai-provider-panel';
     root.innerHTML = `
@@ -720,6 +722,10 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       await wait(0);
       const fundCreatesInvoice = document.getElementById('routstr-wfund-poll')?.textContent.includes('Waiting for payment');
       await panels.clearRoutstrWalletTimers();
+      if ((await import('/js/wallet-funding-component.js')).getWalletFundingView() !== null) throw new Error('Funding view retained after close');
+      document.getElementById('routstr-wallet-fund-area')!.style.display = 'none';
+      panels.showRoutstrWalletFund();
+      await waitFor(() => document.getElementById('routstr-wcashu-input'));
       await panels.recoverPendingWalletFunding();
       const recoversPendingFunding = document.getElementById('routstr-wfund-status')?.textContent.includes('777 sats recovered');
       (window as unknown as {cashuRecoverPendingFunding:unknown}).cashuRecoverPendingFunding = async () => ({ checked: 2, recovered: 500, pending: 0, failed: 1, balance: 2000, errors: [{ message: 'mint timeout' }] });
@@ -947,7 +953,7 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
       <div id="routstr-wallet-fund-area">
         <input id="routstr-deposit-amount" value="42">
         <input id="routstr-token-amount" value="66">
-        <input id="routstr-wfund-custom" value="123" data-routstr-wallet-key="wallet-fund-custom" data-routstr-wallet-blur="wallet-fund-custom">
+        <div id="wallet-funding-keyboard-host"></div>
         <input id="routstr-mint-input">
         <input id="routstr-withdraw-amount">
         <textarea id="delegate-textarea" data-routstr-wallet-action="select-textarea">token</textarea>
@@ -1060,6 +1066,8 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
 
       ((document.getElementById('seed-ack') as HTMLInputElement | null))!.checked = true;
       ((document.getElementById('seed-ack') as HTMLInputElement | null))!.dispatchEvent(new Event('change', { bubbles: true }));
+      const keyboardView = (await import('/js/wallet-funding-component.js')).mountWalletFunding(document.getElementById('wallet-funding-keyboard-host')!, 0, { submitCustom: () => { calls.push(['fundCustom']); }, cancelCustom: () => { calls.push(['customCanceled']); } });
+      keyboardView.setState({ ...keyboardView.getState(), custom: true });
       ((document.getElementById('routstr-wfund-custom') as HTMLInputElement | null))!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       ((document.getElementById('routstr-wfund-custom') as HTMLInputElement | null))!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       ((document.getElementById('routstr-wfund-custom') as HTMLInputElement | null))!.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
@@ -1094,10 +1102,11 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
           && calls.some(item => item[0] === 'executeWithdraw' && item[1] === 'quote-delegate'),
         withdrawMaxAndKeyBlur: ((document.getElementById('routstr-withdraw-amount') as HTMLInputElement | null))!.value === '888'
           && calls.filter(item => item[0] === 'fundCustom').length === 1
-          && calls.some(item => item[0] === 'walletFund'),
+          && calls.filter(item => item[0] === 'customCanceled').length === 1,
         seedBlurToggled: (document.getElementById('seed-blur'))!.style.filter === '',
       };
     } finally {
+      (await import('/js/wallet-funding-component.js')).disposeWalletFunding();
       root.remove();
       if (walletRuntimeModule && previousWalletRuntime) {
         walletRuntimeModule.configureRoutstrWalletRuntime(previousWalletRuntime);
@@ -1194,10 +1203,11 @@ test('native wallet switches mints across reload with saved token import, quote 
 
 
 test('pending deposit check displays unresolved token import alongside Unknown Quote without disclosing token data', async ({ page }) => {
-  await routeHtml(page, '**/wallet-import-status', '<!doctype html><html><body><div id="routstr-wfund-status"></div></body></html>');
+  await routeHtml(page, '**/wallet-import-status', '<!doctype html><html><body><div id="wallet-funding-host"></div></body></html>');
   await page.goto('/wallet-import-status');
   const statuses = await page.evaluate(async () => {
     const recovery = await import('/js/' + 'provider-wallet-funding-recovery.js') as typeof import('../../js/provider-wallet-funding-recovery.js');
+    (await import('/js/wallet-funding-component.js')).mountWalletFunding(document.getElementById('wallet-funding-host')!, 0, { submitCustom: () => {}, cancelCustom: () => {} });
     const statuses: string[] = [];
     for (const mode of ['unknown', 'none', 'recovered', 'throw'] as const) {
       await recovery.recoverPendingWalletFunding({
@@ -1277,7 +1287,7 @@ test('a discovery completing after the picker becomes a deposit view does not ov
 
 
 test('a funding invoice uses the mint returned by its locked creation even if the earlier UI selection read differs', async ({ page }) => {
-  await routeHtml(page, '**/wallet-funding-mint-binding', '<!doctype html><html><body><div id="routstr-wfund-status"></div></body></html>');
+  await routeHtml(page, '**/wallet-funding-mint-binding', '<!doctype html><html><body><div id="wallet-funding-host"></div></body></html>');
   await page.goto('/wallet-funding-mint-binding');
   const result = await page.evaluate(async () => {
     const panels = await import('/js/' + 'provider-wallet-panels.js') as typeof import('../../js/provider-wallet-panels.js');
@@ -1288,9 +1298,12 @@ test('a funding invoice uses the mint returned by its locked creation even if th
         mint: 'https://mint.minibits.cash/Bitcoin', state: 'UNPAID' }),
       cashuHasWalletSeed: async () => false,
     });
+    localStorage.setItem('labcharts-ai-provider', 'routstr');
+    localStorage.setItem('labcharts-chat-backend', 'direct');
+    const view = (await import('/js/wallet-funding-component.js')).mountWalletFunding(document.getElementById('wallet-funding-host')!, 0, { submitCustom: () => {}, cancelCustom: () => {} });
     const created = await panels.doRoutstrWalletFund(1000);
-    const status = document.getElementById('routstr-wfund-status')!;
-    return { created, mint: status.dataset.mint, quote: status.dataset.quote };
+    if (document.querySelector('[data-quote],[data-mint]')) throw new Error('Private invoice identity leaked into attributes');
+    return { created, mint: view.readInvoice()?.mint, quote: view.readInvoice()?.quote };
   });
   expect(result).toEqual({ created: true, mint: 'https://mint.minibits.cash/Bitcoin', quote: 'minibits-new-quote' });
 });

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { refundRecoveryHtml, nodeSessionRejectedHtml, showSavedNodeRefunds } from '../js/provider-wallet-refund-recovery.js';
 import { recoverPendingWalletFunding } from '../js/provider-wallet-funding-recovery.js';
+import { disposeWalletFunding, mountWalletFunding } from '../js/wallet-funding-component.js';
 import { configureRoutstrWalletRuntime } from '../js/provider-wallet-runtime.js';
 
 const payloads = [
@@ -18,6 +19,7 @@ function expectInert(root: ParentNode) {
 }
 
 beforeEach(() => { document.body.replaceChildren(); });
+afterEach(disposeWalletFunding);
 
 it.each(payloads)('keeps saved refund text and recovery attributes inert: %s', payload => {
   const root = document.createElement('div');
@@ -44,7 +46,8 @@ it.each(payloads)('keeps rejected-session node attributes inert: %s', payload =>
 });
 
 it.each(payloads)('escapes pending funding mint and error details without exposing token data: %s', async payload => {
-  document.body.innerHTML = '<div id="routstr-wfund-status"></div>';
+  document.body.innerHTML = '<div id="funding-host"></div>';
+  mountWalletFunding(document.getElementById('funding-host')!, 0, { submitCustom: () => {}, cancelCustom: () => {} });
   const refresh = vi.fn();
   await recoverPendingWalletFunding({
     cashuRecoverPendingWalletOperation: async () => ({ recovered: 0, pending: true,

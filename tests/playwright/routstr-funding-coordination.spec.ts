@@ -36,11 +36,14 @@ test('the vendored Cashu library receives NUT-17 updates and closes its subscrip
 });
 
 test('one tab monitors invoices, shares committed receipts, and hands over when closed', async ({ page, context }, testInfo) => {
-  await context.route('**/funding-monitor-fixture', route => route.fulfill({ contentType: 'text/html', body: '<div id="routstr-wfund-status" data-quote="q1" data-mint="https://mint.test">Invoice QR</div>' }));
+  await context.route('**/funding-monitor-fixture', route => route.fulfill({ contentType: 'text/html', body: '<div id="funding-monitor-host"></div>' }));
   const start = async (tab: Page) => {
     await tab.goto('/funding-monitor-fixture');
     await tab.evaluate(async () => {
       const { createFundingMonitor } = await import('/js/provider-wallet-funding-recovery.js');
+      const view = (await import('/js/wallet-funding-component.js')).mountWalletFunding(document.getElementById('funding-monitor-host')!, 0, { submitCustom: () => {}, cancelCustom: () => {} });
+      view.showInvoice({ invoice: 'synthetic-invoice', quote: 'q1', mint: 'https://mint.test', amount: 12, qrImage: '' });
+      view.setState({ ...view.getState(), phase: 'invoice' });
       (window as unknown as FundingFixtureWindow).__fundingStats = { checks: 0, refreshes: 0, paid: false };
       (window as unknown as FundingFixtureWindow).__fundingMonitor = (createFundingMonitor as (runtime: Omit<Parameters<typeof createFundingMonitor>[0], 'cashuRecoverPendingFunding'> & {cashuRecoverPendingFunding: (...args: Parameters<Parameters<typeof createFundingMonitor>[0]['cashuRecoverPendingFunding']>) => Promise<unknown>}, refreshBalance: Parameters<typeof createFundingMonitor>[1]) => ReturnType<typeof createFundingMonitor>)({
         cashuHasWalletSeed: async () => true,

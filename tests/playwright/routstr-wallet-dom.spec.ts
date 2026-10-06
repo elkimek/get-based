@@ -332,6 +332,9 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
       await wait(50);
       const lightningFundingCreatesInvoice = fundingInvoiceAmount === 1000
         && (document.getElementById('routstr-wfund-status')?.textContent || '').includes('Waiting for payment');
+      const fundingQr = document.querySelector<HTMLImageElement>('[data-wallet-funding-view] img');
+      const lightningFundingQRUsesLocalVendor = !!fundingQr?.complete && fundingQr.naturalWidth > 0 && !!fundingQr.src.startsWith('data:image/svg+xml');
+      const fundingIdentityRemainsPrivate = !document.querySelector('[data-wallet-funding-view] [data-quote],[data-wallet-funding-view] [data-mint],[data-wallet-funding-view] [data-clipboard-text]');
       document.querySelector<HTMLElement>('[data-routstr-wallet-action="recover-wallet-funding"]')!.click();
       await wait(50);
       const pendingFundingRecoveryReportsRecovered = pendingFundingChecked
@@ -437,6 +440,8 @@ test('Routstr wallet DOM flows recover deposits, refunds, and seed onboarding', 
         seedAckEnablesContinue,
         seedAckProceedsToFunding,
         lightningFundingCreatesInvoice,
+        lightningFundingQRUsesLocalVendor,
+        fundingIdentityRemainsPrivate,
         pendingFundingRecoveryReportsRecovered,
         fundingPollUsesQuote,
         terminalFundingInvoicesAreReplaced,

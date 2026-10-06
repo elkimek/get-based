@@ -211,6 +211,23 @@ API-listed entitlement, vision gates, gift-card link and persistence services
 remain domain-owned. Missing private catalogs retain enabled intent without
 presenting regular models as private or claiming confirmed private capability.
 
+Routstr wallet funding uses `WalletFunding.svelte` and private view ports for
+invoice identity, payment text and pasted tokens. Its captured controller owns
+creation, minimum amounts, duplicate clicks and token imports; QR completion
+cannot revive a paid, expired or replaced invoice. The stable wallet facade
+mounts the component in the existing wallet slot and guards seed prerequisites
+against a closed or replaced Settings view. Other wallet states retain their
+existing owners until their migration is verified.
+
+`cashu-funding-monitor.ts` owns wallet-wide reconciliation, cross-tab leadership,
+notifications, backoff and subscriptions independently of presentation. Closing
+the funding view scrubs its private fields without stopping accepted quote
+recovery. Domain quotes retain the mint returned by locked creation, and manual
+and automatic recovery retire matching cached invoices. A cold launch resumes
+from durable wallet records; no invoice or token enters shared UI snapshots or
+clipboard attributes. The existing Cashu SDK, proof journals, mint-specific
+balances, seed encryption and node-session services keep their ownership.
+
 Agent Access remains behind the lazy Sync facade. `settings-agent-access-panel.ts`
 owns credential generation, clipboard operations, persistence and domain actions;
 `settings-agent-access-contract.ts` supplies readiness/preferences without hidden

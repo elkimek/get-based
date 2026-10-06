@@ -22,7 +22,6 @@ export function installRoutstrWalletDelegates(actions: unknown = {}) {
   if (routstrWalletDelegatesInstalled || typeof document === 'undefined') return;
   routstrWalletDelegatesInstalled = true;
   document.addEventListener('click', _handleRoutstrWalletClick);
-  document.addEventListener('keydown', _handleRoutstrWalletKeydown);
   document.addEventListener('change', _handleRoutstrWalletChange);
   document.addEventListener('input', event => {
     const input = _closestWalletEl(event, '#routstr-mint-input');
@@ -86,6 +85,7 @@ async function _handleRoutstrWalletClick(event: WalletEventOperations): Promise<
   if (action === 'fund-wallet-custom-input') return _call('rsWalletFundCustomInput');
   if (action === 'recover-wallet-funding') return _call('recoverPendingWalletFunding');
   if (action === 'receive-wallet-cashu') return _call('doRoutstrWalletReceiveCashu');
+  if (action === 'copy-funding-invoice') return _call('copyRoutstrFundingInvoice');
   if (action === 'copy-clipboard') return _copyClipboard(el);
   if (action === 'set-mint-input') {
     _setInputValue('routstr-mint-input', el.dataset.mintUrl || '');
@@ -119,13 +119,6 @@ async function _handleRoutstrWalletClick(event: WalletEventOperations): Promise<
   if (action === 'send-token-preset') return _sendTokenPreset(el);
   if (action === 'select-textarea' || action === 'select-text') return (el.select as (() => WalletActionResult) | null | undefined)?.();
   if (action === 'withdraw-execute') return _call('doRoutstrWithdrawExecute', el.dataset.quoteId || '');
-}
-
-function _handleRoutstrWalletKeydown(event: WalletEventOperations) {
-  const el = _closestWalletEl(event, '[data-routstr-wallet-key]');
-  if (!el || el.dataset.routstrWalletKey !== 'wallet-fund-custom') return;
-  if (event.key === 'Enter') { event.preventDefault(); _call('doRoutstrWalletFundCustom'); }
-  if (event.key === 'Escape') { event.preventDefault(); _call('showRoutstrWalletFund'); }
 }
 
 function _handleRoutstrWalletChange(event: WalletEventOperations) {

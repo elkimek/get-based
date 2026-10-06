@@ -6,6 +6,7 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 
 const walletPanelSrc = readRepositorySource('js/provider-wallet-panels.js', 'utf8');
 const walletPanelRendererSrc = readRepositorySource('js/provider-wallet-panel-renderers.js', 'utf8');
+const fundingComponentSrc = readRepositorySource('js/components/WalletFunding.svelte', 'utf8');
 const walletUiSrc = walletPanelSrc + '\n' + walletPanelRendererSrc;
 const walletDelegatesSrc = readRepositorySource('js/provider-wallet-delegates.js', 'utf8').replace(/\s+/g, ' ');
 const swSrc = readServiceWorkerSource(relative => readRepositorySource(relative, 'utf8'));
@@ -18,7 +19,7 @@ assert('provider-wallet-panels.js renders no inline event attributes',
   !/\bon(?:click|change|input|search|keydown|keyup|submit|blur)=/.test(walletUiSrc));
 assert('provider wallet renders delegated action attributes',
   walletUiSrc.includes('data-routstr-wallet-action') &&
-    walletUiSrc.includes('data-routstr-wallet-key') &&
+    fundingComponentSrc.includes('onkeydown={event =>') && fundingComponentSrc.includes('actions.submitCustom()') &&
     walletUiSrc.includes('data-routstr-wallet-change'));
 assert('provider wallet panel installs delegates with wallet callbacks',
   walletPanelSrc.includes("import { installRoutstrWalletDelegates } from './provider-wallet-delegates.js'") &&
@@ -28,7 +29,7 @@ assert('provider wallet panel installs delegates with wallet callbacks',
 assert('provider wallet delegates install idempotent listeners',
   walletDelegatesSrc.includes('let routstrWalletDelegatesInstalled = false') &&
     walletDelegatesSrc.includes("document.addEventListener('click', _handleRoutstrWalletClick)") &&
-    walletDelegatesSrc.includes("document.addEventListener('keydown', _handleRoutstrWalletKeydown)") &&
+    fundingComponentSrc.includes("event.key === 'Enter'") && fundingComponentSrc.includes("event.key === 'Escape'") &&
     walletDelegatesSrc.includes("document.addEventListener('change', _handleRoutstrWalletChange)"));
 assert('provider wallet delegates are scoped to wallet surfaces',
   walletDelegatesSrc.includes('WALLET_ROOTS') &&
@@ -42,6 +43,7 @@ assert('service worker precaches provider wallet delegate module',
   'fund-wallet-custom',
   'recover-wallet-funding',
   'receive-wallet-cashu',
+  'copy-funding-invoice',
   'copy-clipboard',
   'set-mint-input',
   'save-mint',

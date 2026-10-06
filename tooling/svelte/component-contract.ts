@@ -58,3 +58,7 @@ export const veniceSettingsCompatible: typeof NativeVeniceSettings = VeniceSetti
 import PpqSettings from '../../js/components/PpqSettings.svelte';
 import type NativePpqSettings from '../../js/components/PpqSettings.svelte.native.js';
 export const ppqSettingsCompatible: typeof NativePpqSettings = PpqSettings;
+
+import WalletFunding from '../../js/components/WalletFunding.svelte';
+import type NativeWalletFunding from '../../js/components/WalletFunding.svelte.native.js';
+export const walletFundingCompatible: typeof NativeWalletFunding = WalletFunding;

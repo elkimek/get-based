@@ -1623,3 +1623,10 @@ deploy/profile-share/data/
 
 /js/ppq-topup-controller.js
 /js/ppq-account-controller.js
+
+/js/wallet-funding-contract.js
+/js/wallet-funding-component.js
+/js/wallet-funding-presentation.js
+
+/js/wallet-funding-controller.js
+/js/cashu-funding-monitor.js
