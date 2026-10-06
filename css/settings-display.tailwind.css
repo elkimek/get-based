@@ -64,3 +64,6 @@
   50% { transform: translateX(90%); }
   100% { transform: translateX(280%); }
 }
+
+@source '../js/ai-action-dialog-classes.ts';
+@custom-variant ai-dialog (&:is([data-ai-action-dialog-overlay], [data-ai-action-dialog-overlay] *));

@@ -55,6 +55,7 @@ const markerDetailSrc = [
   'marker-detail-manual-entry.js',
   'marker-detail-custom-markers.js',
 ].map(file => fs.readFileSync(path.join(root, 'js', file), 'utf8')).join('\n');
+const aiDialogSrc = fs.readFileSync(path.join(root, 'js/ai-action-dialog-component.js'), 'utf8');
 const pdfImportSrc = fs.readFileSync(path.join(root, 'js/pdf-import.js'), 'utf8');
 const pdfImportFileHandlersSrc = fs.readFileSync(path.join(root, 'js/pdf-import-file-handlers.js'), 'utf8');
 const pdfImportPreflightSrc = fs.readFileSync(path.join(root, 'js/pdf-import-preflight.js'), 'utf8');
@@ -67,6 +68,7 @@ const recommendationsSrc = fs.readFileSync(path.join(root, 'js/recommendations.t
 const settingsSrc = fs.readFileSync(path.join(root, 'js/settings.js'), 'utf8');
 const settingsTweaksSrc = fs.readFileSync(path.join(root, 'js/settings-tweaks.js'), 'utf8');
 const settingsSyncPanelSrc = fs.readFileSync(path.join(root, 'js/settings-sync-panel-impl.js'), 'utf8');
+const syncDialogSrc = fs.readFileSync(path.join(root, 'js/sync-dialog-component.js'), 'utf8');
 const settingsSyncRestoreUiSrc = fs.readFileSync(path.join(root, 'js/settings-sync-restore-ui.js'), 'utf8');
 const serviceWorkerSrc = readServiceWorkerSource(relative => fs.readFileSync(path.join(root, relative), 'utf8'));
 const supplementsSrc = fs.readFileSync(path.join(root, 'js/supplements.js'), 'utf8');
@@ -155,10 +157,15 @@ assert('recommendation detail modal opens through shared overlay lifecycle helpe
     recommendationActionsSrc.includes('openModalOverlay(overlay)') &&
     !recommendationActionsSrc.includes('overlay.classList.add("show")'));
 
-assert('OpenRouter balance dialog uses shared overlay lifecycle helpers',
-  providerPanelsSrc.includes("from './modal-lifecycle.js'") &&
-    providerPanelsSrc.includes("openModalOverlay(overlay, { initialFocus: '#or-add-credits', focusDelay: 50 })") &&
-    providerPanelsSrc.includes('closeModalOverlay(overlay)') &&
+assert('OpenRouter balance dialog uses owned presentation and shared overlay lifecycle helpers',
+  providerPanelsSrc.includes("from './ai-action-dialog-component.js'") &&
+    providerPanelsSrc.includes('showAiActionDialog({') &&
+    providerPanelsSrc.includes("overlayId: 'or-no-balance-overlay'") &&
+    aiDialogSrc.includes("from './modal-lifecycle.js'") &&
+    aiDialogSrc.includes('openModalOverlay(host, { autoFocus: false })') &&
+    aiDialogSrc.includes('trapModalFocus(host, { autoFocus: false, onEscape: () => close() })') &&
+    aiDialogSrc.includes('closeModalOverlay(host, { restoreFocus })') &&
+    /if \(focusTimer !== undefined\)\s+clearTimeout\(focusTimer\)/.test(aiDialogSrc) &&
     !providerPanelsSrc.includes("overlay.classList.add('show')") &&
     !providerPanelsSrc.includes("overlay.classList.remove('show')"));
 
@@ -184,15 +191,17 @@ assert('mobile sidebar uses shared scroll lock lifecycle helpers',
     !navSrc.includes("document.body.style.overflow = 'hidden'") &&
     !navSrc.includes("document.body.style.overflow = ''"));
 
-assert('sync setup and restore dialogs use shared lifecycle helpers',
-  settingsSyncPanelSrc.includes("from './modal-lifecycle.js'") &&
-    settingsSyncRestoreUiSrc.includes("from './modal-lifecycle.js'") &&
-    settingsSyncPanelSrc.includes("openModalOverlay(overlay, { initialFocus: '[data-sync-setup-action=\"setup-new\"]', focusDelay: 50 })") &&
-    settingsSyncRestoreUiSrc.includes("openModalOverlay(overlay, { initialFocus: '#sync-restore-dialog-input', focusDelay: 50 })") &&
-    (settingsSyncPanelSrc.match(/closeModalOverlay\('sync-setup-overlay'\)/g) || []).length >= 2 &&
-    settingsSyncRestoreUiSrc.includes("closeModalOverlay('sync-restore-overlay')") &&
-    !`${settingsSyncPanelSrc}\n${settingsSyncRestoreUiSrc}`.includes("overlay.classList.add('show')") &&
-    !`${settingsSyncPanelSrc}\n${settingsSyncRestoreUiSrc}`.includes("overlay.classList.remove('show')"));
+assert('sync setup and restore dialogs use owned presentation and shared lifecycle helpers',
+  settingsSyncPanelSrc.includes("from './settings-sync-restore-ui.js'") &&
+    settingsSyncRestoreUiSrc.includes("from './sync-dialog-component.js'") &&
+    settingsSyncRestoreUiSrc.includes("from './sync-dialog-controller.js'") &&
+    syncDialogSrc.includes("from './modal-lifecycle.js'") &&
+    syncDialogSrc.includes('openModalOverlay(overlay, { autoFocus: false, scrollLock: true })') &&
+    syncDialogSrc.includes('closeModalOverlay(host, { restoreFocus: false })') &&
+    syncDialogSrc.includes('owner.focusFirst()') &&
+    syncDialogSrc.includes('view?.clearSecrets()') &&
+    !`${settingsSyncPanelSrc}\n${settingsSyncRestoreUiSrc}\n${syncDialogSrc}`.includes("overlay.classList.add('show')") &&
+    !`${settingsSyncPanelSrc}\n${settingsSyncRestoreUiSrc}\n${syncDialogSrc}`.includes("overlay.classList.remove('show')"));
 
 assert('global focus trap top-overlay check includes confirm overlays',
   appEventsSrc.includes("const APP_MODAL_OVERLAY_SELECTOR = '.modal-overlay.show,.confirm-overlay.show,.tweaks-overlay.show,[data-modal-focus-trap]'") &&
@@ -388,12 +397,15 @@ assert('report builder, profile share, and dashboard widget picker use shared ov
         !src.includes('?.remove()')));
 
 assert('PDF import dialogs and review modal use shared overlay lifecycle helpers',
-  pdfImportSrc.includes("import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';") &&
+  pdfImportSrc.includes("import { showAiActionDialog } from './ai-action-dialog-component.js';") &&
     pdfImportFileHandlersSrc.includes("import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';") &&
     pdfImportReviewSrc.includes("import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';") &&
-    pdfImportSrc.includes("openModalOverlay(overlay, { initialFocus: '#ai-needed-or', focusDelay: 50 })") &&
+    pdfImportSrc.includes("overlayId: 'ai-needed-overlay'") &&
+    aiDialogSrc.includes("setTimeout(() => { if (isCurrent() && !root.contains(document.activeElement))") &&
+    aiDialogSrc.includes("}, 50)") &&
     pdfImportFileHandlersSrc.includes("openModalOverlay(overlay, { initialFocus: 'button', focusDelay: 50 })") &&
-    (`${pdfImportSrc}\n${pdfImportFileHandlersSrc}`.match(/closeModalOverlay\(overlay\)/g) || []).length >= 2 &&
+    aiDialogSrc.includes("closeModalOverlay(host, { restoreFocus })") &&
+    pdfImportFileHandlersSrc.includes("closeModalOverlay(overlay)") &&
     pdfImportReviewSrc.includes("closeModalOverlay('import-modal-overlay')") &&
     pdfImportReviewSrc.includes('openModalOverlay(overlay)') &&
     [pdfImportSrc, pdfImportFileHandlersSrc, pdfImportReviewSrc].every(src =>

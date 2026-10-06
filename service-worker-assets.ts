@@ -305,6 +305,8 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/import-benchmark-data.js', '/js/import-benchmark-contract.js', '/js/import-benchmark-presentation.js', '/js/import-benchmark-classes.js',
   '/js/import-benchmark-component.js', '/js/import-benchmark-controller.js', '/js/import-benchmark-run.js', '/js/import-benchmark-facade.js', '/js/settings-styles.js',
   '/js/components/ImportBenchmarks.svelte.native.js', '/js/components/ImportBenchmarkEntry.svelte.native.js',
+  '/js/ai-action-dialog-contract.js', '/js/ai-action-dialog-classes.js', '/js/ai-action-dialog-component.js',
+  '/js/components/AiActionDialog.svelte.native.js',
   '/js/settings-import-benchmark-controller.js',
   '/js/settings-provider-bridge.js',
   '/js/settings-runtime.js',

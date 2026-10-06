@@ -310,7 +310,7 @@ function _releaseOverlayScrollLock(overlay: Element): void {
   _releaseModalScrollLock(token);
 }
 
-export function trapModalFocus(overlay: Element, options: ModalFocusTrapOptions = {}): void {
+export function trapModalFocus(overlay: Element, options: ModalFocusTrapOptions = {}): (restoreFocus?: boolean) => void {
   const previouslyFocused = document.activeElement;
   const closeOnEscape = options.closeOnEscape !== false;
   const onEscape = typeof options.onEscape === 'function'
@@ -359,14 +359,15 @@ export function trapModalFocus(overlay: Element, options: ModalFocusTrapOptions 
     }
   };
   document.addEventListener('keydown', onKeydown);
-  const restore = () => {
+  const restore = (restoreFocus = true) => {
     if (teardown) return;
     teardown = true;
+    obs.disconnect();
     document.removeEventListener('keydown', onKeydown);
     overlay.removeAttribute?.('data-modal-focus-trap');
     _releaseModalScrollLock(overlay);
     const previousFocusTarget = (previouslyFocused instanceof HTMLElement ? previouslyFocused : null as HTMLElement | null);
-    if (previousFocusTarget && _isNodeConnected(previousFocusTarget)) {
+    if (restoreFocus && previousFocusTarget && _isNodeConnected(previousFocusTarget)) {
       try { previousFocusTarget.focus(); } catch (e) {}
     }
   };
@@ -377,6 +378,7 @@ export function trapModalFocus(overlay: Element, options: ModalFocusTrapOptions 
     }
   });
   obs.observe(document.body, { childList: true, subtree: true });
+  return restore;
 }
 
 function _isTopmostFocusTrapOverlay(overlay: Element): boolean {

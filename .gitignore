@@ -1705,3 +1705,7 @@ js/custom-settings-controller.js
 /js/import-benchmark-run.js
 /js/import-benchmark-facade.js
 /js/settings-styles.js
+
+/js/ai-action-dialog-contract.js
+/js/ai-action-dialog-classes.js
+/js/ai-action-dialog-component.js

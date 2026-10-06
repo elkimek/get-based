@@ -466,6 +466,20 @@ finish after closure. Locked answer keys cannot enter the deletion port.
 Svelte hosts. `settings-styles.ts` shares the existing lazy stylesheet retry and
 cascade contract across Settings and standalone benchmark entry points.
 
+AI import setup and OpenRouter empty-balance notices share
+[`AiActionDialog.svelte`](js/components/AiActionDialog.svelte) and typed display
+contracts. [`ai-action-dialog-component.ts`](js/ai-action-dialog-component.ts)
+owns each named overlay, captured action ports, delayed focus, backdrop handling
+and stylesheet retry. The existing public provider/import functions retain their
+synchronous controls, contextual copy and extension hooks. An action closes its
+originating view before invoking the existing OAuth, Settings, demo or credits
+service. Retired controls and stylesheet replies cannot act on another notice.
+The owner uses the shared modal lifecycle; `trapModalFocus` returns an optional
+idempotent disposer so retained overlays can release listeners and scroll locks
+without waiting for DOM removal. External removal or hiding also releases the
+owner. Tailwind utilities are scoped to these dialogs independently of Chat;
+Chat onboarding and other confirmation dialogs still own their shared styles.
+
 Security and Backup settings use `settings-protection-view.ts` to derive display
 snapshots without exposing backup payloads, keys or directory handles.
 `EncryptionSettings.svelte`, `BackupSettings.svelte` and

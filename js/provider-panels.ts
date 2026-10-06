@@ -38,7 +38,7 @@ import {
 import { updateKeyCache } from './crypto.js';
 import { openChatPanel } from './chat-loader.js';
 import { loadFocusCard } from './focus-card.js';
-import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
+import { showAiActionDialog } from './ai-action-dialog-component.js';
 import { clearRoutstrModelCaches } from './routstr-model-cache.js';
 import { installProviderPanelDelegates } from './provider-panel-delegates.js';
 import { renderAIProviderPanel } from './provider-panel-renderers.js';
@@ -500,46 +500,22 @@ export async function refreshOpenRouterBalance(): Promise<void> {
 // image-mode imports broke silently, and the privacy story (free
 // providers log + may train on prompts) is bad for medical data.
 export function showInsufficientBalanceDialog() {
-  let overlay = document.getElementById('or-no-balance-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'or-no-balance-overlay';
-    overlay.className = 'confirm-overlay';
-    document.body.appendChild(overlay);
-  }
   const extensionView = getAppExtensionAIInsufficientBalanceView({ provider: 'openrouter' });
-  const title = extensionView?.title || 'Your OpenRouter balance is empty';
-  const description = extensionView?.description || 'Add credits at OpenRouter to keep using AI. $10 covers weeks of typical use — chat, lab interpretation, and PDF imports.';
-  const primaryLabel = extensionView?.primaryLabel || 'Add credits at openrouter.ai';
-  const primaryDescription = extensionView?.primaryDescription || 'Opens in a new tab. Come back to getbased when done — the page picks up automatically.';
-  overlay.innerHTML = '<div class="confirm-dialog ai-needed-dialog" role="dialog" aria-modal="true" aria-label="' + escapeAttr(extensionView?.ariaLabel || 'OpenRouter balance empty') + '" style="max-width:480px">' +
-    '<p class="confirm-message"><strong>' + escapeHTML(title) + '</strong></p>' +
-    '<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px">' + escapeHTML(description) + '</p>' +
-    '<button class="chat-quiz-option chat-quiz-recommended" id="or-add-credits" style="margin-bottom:8px">' +
-      '<span class="chat-quiz-icon" aria-hidden="true">&#128179;</span>' +
-      '<span class="chat-quiz-body"><strong>' + escapeHTML(primaryLabel) + '</strong>' +
-      '<span>' + escapeHTML(primaryDescription) + '</span></span>' +
-      '<span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>' +
-    '</button>' +
-    '<div style="text-align:right;margin-top:14px">' +
-      '<button class="confirm-btn confirm-btn-cancel" id="or-nb-cancel">Not now</button>' +
-    '</div>' +
-  '</div>';
-  openModalOverlay(overlay, { initialFocus: '#or-add-credits', focusDelay: 50 });
-  const close = function() { closeModalOverlay(overlay); };
-  const addCredits = document.getElementById('or-add-credits');
-  const cancel = document.getElementById('or-nb-cancel');
-  if (!(addCredits instanceof HTMLButtonElement) || !(cancel instanceof HTMLButtonElement)) {
-    close();
-    return;
-  }
-  addCredits.onclick = function() {
-    close();
-    if (typeof extensionView?.onPrimary === 'function') extensionView.onPrimary();
-    else (providerPanelDeps as ProviderPanelOperations).openExternal('https://openrouter.ai/settings/credits', '_blank', 'noopener');
-  };
-  cancel.onclick = close;
-  overlay.onclick = function(e) { if (e.target === overlay) close(); };
+  showAiActionDialog({
+    overlayId: 'or-no-balance-overlay',
+    ariaLabel: String(extensionView?.ariaLabel || 'OpenRouter balance empty'),
+    title: String(extensionView?.title || 'Your OpenRouter balance is empty'),
+    description: String(extensionView?.description || 'Add credits at OpenRouter to keep using AI. $10 covers weeks of typical use — chat, lab interpretation, and PDF imports.'),
+    options: [{
+      id: 'or-add-credits', icon: '💳', recommended: true,
+      label: String(extensionView?.primaryLabel || 'Add credits at openrouter.ai'),
+      description: String(extensionView?.primaryDescription || 'Opens in a new tab. Come back to getbased when done — the page picks up automatically.'),
+    }],
+    cancelId: 'or-nb-cancel',
+  }, () => {
+    if (typeof extensionView?.onPrimary === 'function') return extensionView.onPrimary();
+    return (providerPanelDeps as ProviderPanelOperations).openExternal('https://openrouter.ai/settings/credits', '_blank', 'noopener');
+  });
 }
 
 // ─── Routstr mode toggle ───
