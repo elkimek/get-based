@@ -1,97 +1,35 @@
-// settings-sync-restore-ui.js — mnemonic restore progress and validation UI.
+// Public compatibility entrypoints; one typed controller and owned view implement them.
+import { enableSync, disableSync, isSyncEnabled, isSyncConfigured, getMnemonic, getSyncIdentityOwnerId, restoreFromMnemonic } from './sync.js';
+import { showNotification } from './utils.js';
+import { getSyncDialogOwner } from './sync-dialog-component.js';
+import { createSyncDialogController } from './sync-dialog-controller.js';
+const hooks = { refresh: () => {}, release: () => {} };
+export function configureSyncDialogHooks(next: Partial<typeof hooks>): void { Object.assign(hooks, next); }
+const controller = createSyncDialogController({
+  enabled: isSyncEnabled, configured: isSyncConfigured, ownerId: getSyncIdentityOwnerId, mnemonic: getMnemonic,
+  enable: enableSync, disable: disableSync, restore: restoreFromMnemonic,
+  notify: showNotification, refresh: () => hooks.refresh(), release: () => hooks.release(),
+  wait: milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)),
+});
+export function showSyncSetupModal(): void { controller.showSetup(); }
+export async function closeSyncSetup(): Promise<boolean> { return controller.cancelSetup(); }
+export async function syncSetupNew(): Promise<void> { await controller.newIdentity(); }
+export function syncSetupDone(): void { controller.done(); }
+export function syncSetupRestore(): void { controller.joinStep(); }
+export function syncSetupBack(): void { controller.back(); }
+export async function syncSetupDoRestore(): Promise<void> { await controller.join(); }
+export function updateSyncSetupAck(): void { controller.acknowledge(); }
+export function updateSyncSetupRestoreState(_input?: HTMLTextAreaElement | null, _busy?: boolean): void { controller.validate('setup'); }
+export function openRestoreMnemonicDialog(): void { controller.showRestore(); }
+export function closeRestoreMnemonicDialog(): void { controller.closeRestore(); }
+export async function confirmRestoreMnemonic(): Promise<void> { await controller.restore(); }
+export function updateRestoreMnemonicDialogState(_input?: HTMLTextAreaElement | null): void { controller.validate('restore'); }
 
-import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
-
-export function updateSyncSetupRestoreState(
-  input: HTMLTextAreaElement | null = (document.getElementById('sync-setup-restore-input') as HTMLTextAreaElement | null),
-  busy = false,
-) {
-  const msg = document.getElementById('sync-setup-restore-msg');
-  const btn = (document.getElementById('sync-setup-restore-go') as HTMLButtonElement | null);
-  if (!input || busy) return;
-  const raw = (input.value || '').trim();
-  const words = raw ? raw.split(/\s+/) : [];
-  if (msg) {
-    msg.textContent = raw
-      ? (words.length === 24 ? '✓ 24 words detected' : `${words.length} word${words.length === 1 ? '' : 's'} so far — need exactly 24`)
-      : 'Paste the 24 words from the device that already has sync.';
-    msg.style.color = words.length === 24 ? 'var(--green, #22c55e)' : (raw ? '#fbbf24' : 'var(--text-muted)');
-  }
-  if (btn) btn.disabled = words.length !== 24;
+// Retain published progress helpers while the owned component supplies rendering.
+export function setSyncSetupRestoreBusy(busy: boolean, message = ''): void {
+  getSyncDialogOwner('setup')?.patch({ pending: busy, ...(message ? { message, tone: busy ? 'secondary' : 'danger' } : {}) });
 }
-
-export function setSyncSetupRestoreBusy(busy: boolean, message = '') {
-  const restoreEl = document.getElementById('sync-setup-restore');
-  const input = (document.getElementById('sync-setup-restore-input') as HTMLTextAreaElement | null);
-  const msg = document.getElementById('sync-setup-restore-msg');
-  const btn = (document.getElementById('sync-setup-restore-go') as HTMLButtonElement | null);
-  const back = (document.getElementById('sync-setup-restore-back') as HTMLButtonElement | null);
-  const cancelButtons = document.querySelectorAll('#sync-setup-overlay [data-sync-setup-action="setup-cancel"]');
-  if (restoreEl) restoreEl.setAttribute('aria-busy', busy ? 'true' : 'false');
-  if (input) input.disabled = busy;
-  if (btn) {
-    btn.disabled = busy;
-    btn.textContent = busy ? 'Joining…' : 'Join & reload';
-  }
-  if (back) back.disabled = busy;
-  cancelButtons.forEach(cancel => { if (cancel instanceof HTMLButtonElement) cancel.disabled = busy; });
-  if (msg && message) {
-    msg.textContent = message;
-    msg.style.color = busy ? 'var(--text-muted)' : 'var(--red)';
-  }
-}
-
-export function setSyncSetupRestoreReloading() {
-  setSyncSetupRestoreBusy(true, 'Identity accepted. Reloading this device…');
-  const btn = (document.getElementById('sync-setup-restore-go') as HTMLButtonElement | null);
-  if (btn) btn.textContent = 'Reloading…';
-}
-
-export function openRestoreMnemonicDialog() {
-  let overlay = document.getElementById('sync-restore-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'sync-restore-overlay';
-    overlay.className = 'confirm-overlay';
-    document.body.appendChild(overlay);
-  }
-  overlay.innerHTML = `<div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="sync-restore-title" style="max-width:480px">
-    <h3 id="sync-restore-title" style="margin:0 0 6px;font-size:16px;color:var(--text-primary)">Restore from mnemonic</h3>
-    <p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;line-height:1.5">Paste your 24-word seed from another device. This replaces your current sync identity — anything synced under the old identity will no longer reach this device.</p>
-    <textarea id="sync-restore-dialog-input" autofocus aria-label="24-word mnemonic" aria-describedby="sync-restore-dialog-msg" data-sync-action="restore-dialog-input" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" style="font-size:12px;width:100%;height:90px;resize:vertical;border-radius:8px;background:var(--bg-secondary);color:var(--text-primary);border:1px solid var(--border);padding:10px 12px;font-family:var(--font-mono, monospace);box-sizing:border-box" placeholder="word word word word word word word word word word word word word word word word word word word word word word word word"></textarea>
-    <div id="sync-restore-dialog-msg" role="status" aria-live="polite" style="font-size:11px;color:var(--text-muted);margin-top:6px;min-height:14px"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
-      <button class="confirm-btn confirm-btn-cancel" data-sync-action="close-restore-dialog">Cancel</button>
-      <button id="sync-restore-dialog-go" class="import-btn import-btn-primary" style="padding:8px 16px;font-size:13px" data-sync-action="confirm-restore">Restore &amp; reload</button>
-    </div>
-  </div>`;
-  openModalOverlay(overlay, { initialFocus: '#sync-restore-dialog-input', focusDelay: 50 });
-  const input = document.getElementById('sync-restore-dialog-input');
-  updateRestoreMnemonicDialogState(input instanceof HTMLTextAreaElement ? input : null);
-}
-
-export function updateRestoreMnemonicDialogState(
-  input: HTMLTextAreaElement | null = (document.getElementById('sync-restore-dialog-input') as HTMLTextAreaElement | null),
-) {
-  const msg = document.getElementById('sync-restore-dialog-msg');
-  const btn = (document.getElementById('sync-restore-dialog-go') as HTMLButtonElement | null);
-  if (!input) return;
-  const raw = (input.value || '').trim();
-  if (!raw) {
-    if (msg) { msg.textContent = ''; msg.style.color = 'var(--text-muted)'; }
-    if (btn) btn.disabled = true;
-    return;
-  }
-  const words = raw.split(/\s+/);
-  if (words.length === 24) {
-    if (msg) { msg.textContent = '✓ 24 words detected'; msg.style.color = 'var(--green, #22c55e)'; }
-    if (btn) btn.disabled = false;
-  } else {
-    if (msg) { msg.textContent = `${words.length} word${words.length === 1 ? '' : 's'} so far — need exactly 24`; msg.style.color = '#fbbf24'; }
-    if (btn) btn.disabled = true;
-  }
-}
-
-export function closeRestoreMnemonicDialog() {
-  closeModalOverlay('sync-restore-overlay');
+export function setSyncSetupRestoreReloading(): void {
+  const owner = getSyncDialogOwner('setup'); owner?.clearSecrets();
+  owner?.patch({ pending: true, reloading: true, message: 'Identity accepted. Reloading this device…', tone: 'success' });
 }

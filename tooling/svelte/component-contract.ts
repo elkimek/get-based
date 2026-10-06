@@ -34,3 +34,7 @@ export const passphraseCompatible: typeof NativePassphraseDialog = PassphraseDia
 import SyncSettings from "../../js/components/SyncSettings.svelte";
 import type NativeSyncSettings from "../../js/components/SyncSettings.svelte.native.js";
 export const syncSettingsCompatible: typeof NativeSyncSettings = SyncSettings;
+
+import SyncDialog from '../../js/components/SyncDialog.svelte';
+import type NativeSyncDialog from '../../js/components/SyncDialog.svelte.native.js';
+export const syncDialogCompatible: typeof NativeSyncDialog = SyncDialog;

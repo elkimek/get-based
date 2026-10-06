@@ -1582,3 +1582,8 @@ deploy/profile-share/data/
 /js/settings-sync-component.js
 
 /tests/helpers/sync-settings-page.js
+
+/js/sync-dialog-contract.js
+/js/sync-dialog-classes.js
+/js/sync-dialog-component.js
+/js/sync-dialog-controller.js

@@ -34,3 +34,6 @@
 
 @source "../js/settings-sync-classes.ts";
 @custom-variant sync (#sync-section &);
+
+@source "../js/sync-dialog-classes.ts";
+@custom-variant sync-dialog (:is(#sync-setup-overlay, #sync-restore-overlay) &);

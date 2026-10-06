@@ -83,13 +83,24 @@ test('Sync settings mount on offline first use and cold launch without changing 
     }
     if (!missingCapability) {
       await panel.locator('[data-sync-action="setup-restore-direct"]').press('Enter');
-      await expect(page.locator('#sync-setup-restore-input')).toBeVisible();
+      const dialog = page.locator('[data-sync-dialog-view]');
+      await expect(dialog).toBeVisible();
+      await expect(page.locator('#sync-setup-restore-input')).toBeFocused();
       await page.locator('#sync-setup-restore-input').fill('invalid synthetic words');
       await expect(page.locator('#sync-setup-restore-msg')).toContainText('3');
+      await expect(page.locator('#sync-setup-restore-go')).toBeDisabled();
+      await page.locator('#sync-setup-restore-input').fill('synthetic '.repeat(24));
+      await expect(page.locator('#sync-setup-restore-go')).toBeEnabled();
+      const violations = await dialog.evaluate(async element => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(element,
+        { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(violation => ({ id: violation.id, nodes: violation.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) })));
+      expect(violations).toEqual([]);
       await page.locator('[data-sync-setup-action="setup-back"]').click();
       await expect(page.locator('#sync-setup-restore-input')).toBeHidden();
+      await expect(page.locator('#sync-setup-restore-input')).toHaveValue('');
       await page.locator('[data-sync-setup-action="setup-cancel"]').click();
       await expect(page.locator('#sync-setup-overlay')).toBeHidden();
+      await expect(dialog).toHaveCount(0);
+      await expect(page.locator('#sync-setup-restore-input')).toHaveCount(0);
     }
     expect(await page.evaluate(() => Object.fromEntries(Object.entries(localStorage).filter(([key]) => /sync|messenger|agent-access/.test(key))))).toEqual(preferences);
     await page.close(); const cold = await context.newPage();

@@ -79,10 +79,11 @@ test('settings sync setup browser coverage exercises mnemonic setup restore and 
 
       ack.checked = true;
       ack.dispatchEvent(new Event('change', { bubbles: true }));
+      await waitFor(() => getComputedStyle(done).opacity === '1' && getComputedStyle(done).cursor === 'pointer', 'owned acknowledgement styles settled');
       outcomes.acknowledgementEnablesDone =
         (done.disabled as boolean) === false
-        && done.style.opacity === '1'
-        && done.style.cursor === 'pointer';
+        && getComputedStyle(done).opacity === '1'
+        && getComputedStyle(done).cursor === 'pointer';
       done.click();
       await waitFor(() => !document.getElementById('sync-setup-overlay')?.classList.contains('show'), 'setup modal closed');
       outcomes.setupDoneRendersEnabledSection =

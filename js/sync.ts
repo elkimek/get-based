@@ -32,7 +32,7 @@ import {
   checkRelayConnection, getSyncBlocker, getSyncRelay, setSyncRelay,
 } from './sync-environment.js';
 import {
-  getMnemonic, getMnemonicResolutionError, getSyncIdentityFingerprint,
+  getMnemonic, getMnemonicResolutionError, getSyncIdentityFingerprint, getSyncIdentityOwnerId,
   restoreFromMnemonic,
 } from './sync-identity.js';
 import { getEvoluDiagnostics } from './sync-diagnostics-snapshot.js';
@@ -98,7 +98,7 @@ export {
   revokeMessengerTokenRemote, setAgentAccessWearableSeriesDays,
   pushContextToGateway, revokeMessengerToken,
   checkRelayConnection, getSyncBlocker, getSyncRelay, setSyncRelay,
-  getMnemonic, getMnemonicResolutionError, getSyncIdentityFingerprint,
+  getMnemonic, getMnemonicResolutionError, getSyncIdentityFingerprint, getSyncIdentityOwnerId,
   restoreFromMnemonic,
   getEvoluDiagnostics,
   renderSyncIndicator, updateSyncIndicator, toggleSyncDetail, copySyncEvents,

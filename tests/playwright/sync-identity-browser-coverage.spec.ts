@@ -103,9 +103,8 @@ test('sync identity browser coverage handles libraries getters pending restore a
         && await identity.restoreFromMnemonic('missing evolu') === false
         && notifications().includes('Sync is still starting');
 
-      identity.configureSyncIdentity({
-        getEvolu: () => ({ restoreAppOwner: async () => {} }),
-      });
+      const defaultEvolu = { restoreAppOwner: async () => {} };
+      identity.configureSyncIdentity({ getEvolu: () => defaultEvolu });
       clearNotifications();
       scheduledDelays.length = 0;
       const defaultSeedResult = await identity.restoreFromMnemonic('default seed mnemonic', { seedLocal: true });
@@ -243,8 +242,9 @@ test('sync identity browser coverage handles libraries getters pending restore a
       for (const key of identityDeleteKeys) localStorage.removeItem(key);
 
       clearNotifications();
+      const rejectingEvolu = { restoreAppOwner: async () => { throw new Error('bad seed'); } };
       identity.configureSyncIdentity({
-        getEvolu: () => ({ restoreAppOwner: async () => { throw new Error('bad seed'); } }),
+        getEvolu: () => rejectingEvolu,
       });
       const failureResult = await identity.restoreFromMnemonic('bad mnemonic');
       outcomes.restoreFailureNotifiesAndReturnsFalse = failureResult === false

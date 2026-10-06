@@ -114,7 +114,23 @@ Identity-change and sync-applied events refresh current service snapshots.
 Recovery words stay out of snapshots and are read from the service only for an
 explicit reveal or clipboard action. Refresh and disposal remask them. The
 controller retains Sync lifecycle, clipboard clearing and domain mutations;
-setup/restore dialogs currently retain their existing native implementation.
+`SyncDialog.svelte` owns setup choices, generated-word acknowledgement, join and
+restore forms. Its single lifecycle adapter clears private fields/generated words
+on close/replacement, restores focus, contains keyboard navigation and releases
+scroll locks. `sync-dialog-controller.ts` captures typed services for operations;
+`settings-sync-restore-ui.ts` retains the public entrypoints and progress helpers.
+Snapshots carry status only. Exact word counts derive from live fields, and service
+submissions stay ephemeral. Pending joins/restores reject duplicate submission,
+replacement and dismissal; failures remain retryable. Cancellation during generation
+waits for the owned attempt before cleanup. Only a temporary identity created by
+that setup may be disabled, and its public owner ID must still match. A configured
+identity is retained on cancellation. Async join preflight checks the originating
+configured owner; retries may resolve that same owner after an initialization failure.
+Successful restore clears form values and locks the reload phase. Error presentation
+never copies exception text that could include recovery words. The identity service
+checks its captured Evolu runtime after awaited restore/import/seed steps; replaced
+runtimes cannot finalize flags, notices or reload. Restore failure logs retain only
+a generic status, with no exception or seed text.
 Scoped Tailwind utilities at the existing lazy Settings CSS URL own panel styles.
 
 Agent Access remains behind the lazy Sync facade. `settings-agent-access-panel.ts`

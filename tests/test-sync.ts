@@ -139,8 +139,13 @@ await import('../js/settings.js');
     await fetchWithRetry('js/components/AgentAccessSettings.svelte'),
     await fetchWithRetry('js/components/SyncSettings.svelte'),
     await fetchWithRetry('js/settings-sync-component.js'),
+    await fetchWithRetry('js/components/SyncDialog.svelte'),
+    await fetchWithRetry('js/settings-sync-restore-ui.js'),
+    await fetchWithRetry('js/sync-dialog-controller.js'),
+    await fetchWithRetry('js/sync-dialog-classes.js'),
   ].join('\n');
-  const settingsSyncRestoreUiSrc = await fetchWithRetry('js/settings-sync-restore-ui.js');
+  const settingsSyncRestoreUiSrc = [await fetchWithRetry('js/settings-sync-restore-ui.js'), await fetchWithRetry('js/components/SyncDialog.svelte')].join('\n');
+  const syncDialogControllerSrc = await fetchWithRetry('js/sync-dialog-controller.js');
   const dataSrc = dataModuleSource(await fetchWithRetry('js/data.js'), await fetchWithRetry('js/data-core.js'));
   const startupOrchestratorSrc = await fetchWithRetry('js/startup-orchestrator.js');
   const startupUiSrc = await fetchWithRetry('js/startup-ui.js');
@@ -1682,19 +1687,16 @@ await import('../js/settings.js');
   assert('showSyncSetupModal exists', settingsSyncPanelSrc.includes('function showSyncSetupModal'));
   assert('Setup modal has two choices', settingsSyncPanelSrc.includes('New setup') && settingsSyncPanelSrc.includes('Join existing'));
   assert('syncSetupNew generates mnemonic', settingsSyncPanelSrc.includes('async function syncSetupNew') || settingsSyncPanelSrc.includes('syncSetupNew'));
-  assert('syncSetupNew has double-click guard', settingsSyncPanelSrc.includes('_syncSetupInProgress'));
-  assert('syncSetupNew shows mnemonic in cleartext', settingsSyncPanelSrc.includes('escapeHTML(mnemonic)'));
+  assert('syncSetupNew has double-click guard', syncDialogControllerSrc.includes('cannotStart()') && syncDialogControllerSrc.includes('busy = true'));
+  assert('syncSetupNew shows mnemonic in cleartext', settingsSyncPanelSrc.includes('{generatedPhrase}') && !settingsSyncPanelSrc.includes('{@html generatedPhrase}'));
   assert('syncSetupNew requires checkbox acknowledgment', settingsSyncPanelSrc.includes('I have saved my mnemonic'));
-  assert('Done button has disabled styling', settingsSyncPanelSrc.includes("opacity:0.45") || settingsSyncPanelSrc.includes("opacity: 0.45"));
+  assert('Done button has disabled styling', settingsSyncPanelSrc.includes('gb:sync-dialog:disabled:opacity-45') && settingsSyncPanelSrc.includes('disabled={!savedPhrase}'));
   assert('syncSetupRestore shows textarea', settingsSyncPanelSrc.includes('function syncSetupRestore'));
   assert('syncSetupDoRestore validates 24 words', settingsSyncPanelSrc.includes("words.length !== 24"));
-  const syncSetupRestoreFlowSrc = settingsSyncPanelSrc.slice(
-    settingsSyncPanelSrc.indexOf('async function syncSetupDoRestore'),
-    settingsSyncPanelSrc.indexOf('async function updateRelayStatus'),
-  );
+  const syncSetupRestoreFlowSrc = syncDialogControllerSrc.slice(syncDialogControllerSrc.indexOf('async function restoreIdentity'));
   assert('syncSetupDoRestore keeps a failed join visible and retryable',
     syncSetupRestoreFlowSrc.includes('Could not join. Verify all 24 words and try again.')
-      && syncSetupRestoreFlowSrc.includes('setSyncSetupRestoreBusy(false)')
+      && syncSetupRestoreFlowSrc.includes('owner.patch({ pending: false')
       && !syncSetupRestoreFlowSrc.includes('await disableSync()'));
   assert('syncSetupRestore protects mnemonic entry from mobile text mutation',
     settingsSyncPanelSrc.includes('autocapitalize="none"')
@@ -1704,7 +1706,12 @@ await import('../js/settings.js');
   assert('closeSyncSetup disables sync if started', settingsSyncPanelSrc.includes('async function closeSyncSetup') && settingsSyncPanelSrc.includes('disableSync'));
   assert('closeSyncSetup releases _syncToggling', settingsSyncPanelSrc.includes('_syncToggling = false'));
   assert('closeSyncSetup handles cleanup failure before releasing toggle',
-    /export async function closeSyncSetup\(\)[\s\S]{0,500}await disableSync\(\);[\s\S]{0,260}catch \(e\)[\s\S]{0,220}setup close cleanup failed[\s\S]{0,260}finally[\s\S]{0,260}_releaseSyncToggle\(\)/.test(settingsSyncPanelSrc));
+    syncDialogControllerSrc.includes('async function cancelSetup()')
+      && syncDialogControllerSrc.includes('await services.disable()')
+      && syncDialogControllerSrc.includes('Sync cleanup failed')
+      && syncDialogControllerSrc.includes('finally {')
+      && syncDialogControllerSrc.includes('services.release()')
+      && syncDialogControllerSrc.includes('services.ownerId() === session.createdOwnerId'));
   assert('Clipboard auto-clear after 60s', settingsSyncPanelSrc.includes('60000') && settingsSyncPanelSrc.includes("writeText('')"));
   assert('loadMnemonic retry timer is cancellable', settingsSyncPanelSrc.includes('_mnemonicRetryTimer') && settingsSyncPanelSrc.includes('clearTimeout(_mnemonicRetryTimer)'));
   assert('Dynamic relay status indicator', settingsSyncPanelSrc.includes('updateRelayStatus') && settingsSyncPanelSrc.includes('sync-status-dot'));

@@ -46,6 +46,7 @@ export async function openIsolatedSyncSetupPage(page:import("@playwright/test").
         stub.paused = true;
         return true;
       }
+      export function getSyncIdentityOwnerId() { return stub.ownerId || (stub.enabled ? 'synthetic-owner' : null); }
       export function getMnemonic() { return stub.mnemonic || null; }
       export function getMnemonicResolutionError() { return stub.mnemonicError || null; }
       export async function getSyncIdentityFingerprint() { return await (stub.fingerprintPromise || stub.fingerprint || null); }

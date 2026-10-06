@@ -27,9 +27,12 @@ it('preserves legacy Settings CSS and scopes generated utilities without a reset
   const pilot = selectors.filter(selector => selector.includes('.gb\\:display'));
   expect(pilot.length).toBeGreaterThan(30);
   expect(pilot.every(selector => selector.startsWith('#settings-tab-display '))).toBe(true);
-  const sync = selectors.filter(selector => selector.includes('.gb\\:sync'));
+  const sync = selectors.filter(selector => selector.includes('.gb\\:sync\\:'));
   expect(sync.length).toBeGreaterThan(30);
   expect(sync.every(selector => selector.startsWith('#sync-section '))).toBe(true);
+  const dialogs = selectors.filter(selector => selector.includes('.gb\\:sync-dialog'));
+  expect(dialogs.length).toBeGreaterThan(30);
+  expect(dialogs.every(selector => selector.startsWith(':is(#sync-setup-overlay,#sync-restore-overlay) '))).toBe(true);
   expect(utilities).toContain(':checked');
   expect(utilities).toContain('color:var(--warning-ink)');
   expect(selectors).not.toContain('body');

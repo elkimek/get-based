@@ -103,6 +103,12 @@ export async function ensureQRCode() {
   return _qrCodeLoad;
 }
 
+/** Public owner identity for operation guards; never exposes recovery words. */
+export function getSyncIdentityOwnerId(): string | null {
+  const id = currentAppOwner()?.id;
+  return id ? String(id) : null;
+}
+
 export function getMnemonic() {
   const appOwner = currentAppOwner();
   if (!appOwner) return null;
@@ -189,8 +195,11 @@ export async function restoreFromMnemonic(mnemonic: string, options: { seedLocal
     // Keep Evolu 7 from reloading before join/seed finalization. Evolu 8 also
     // accepts this option; GetBased schedules the controlled reload below.
     await evolu.restoreAppOwner(normalizedMnemonic, { reload: false });
+    if (currentEvolu() !== evolu) return false;
     if (identityChanged) {
-      (await import('./clear-all-profile-reset.js')).clearAllProfileSyncDeleteState();
+      const reset = await import('./clear-all-profile-reset.js');
+      if (currentEvolu() !== evolu) return false;
+      reset.clearAllProfileSyncDeleteState();
     }
     // First-time joins initialize Evolu provisionally. Persist sync only once
     // the requested identity has actually been accepted.
@@ -212,6 +221,7 @@ export async function restoreFromMnemonic(mnemonic: string, options: { seedLocal
     if (options?.seedLocal) {
       setRestoreJoinPending(false);
       await _seedLocalProfiles();
+      if (currentEvolu() !== evolu) return false;
       showNotification('Restored mnemonic and seeded this device — reloading…', 'success');
     } else {
       // This device is joining an existing owner. On first pull, old local
@@ -223,9 +233,10 @@ export async function restoreFromMnemonic(mnemonic: string, options: { seedLocal
     // Reload so the app re-initializes from the restored CRDT identity.
     scheduleSyncRuntimeReload(500);
     return true;
-  } catch (e) {
+  } catch {
+    if (currentEvolu() !== evolu) return false;
     clearRestoreNotice();
-    console.error('[sync] Restore failed:', e);
+    console.error('[sync] Restore failed: invalid or unavailable identity');
     showNotification('Invalid mnemonic', 'error');
     return false;
   }
