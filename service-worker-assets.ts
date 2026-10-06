@@ -330,7 +330,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/voice-response-utils.js',
   '/js/voice-service.js',
   '/js/voice-settings-schema.js', '/js/voice-settings-storage.js', '/js/voice-text.js',
-  '/js/settings-agent-access-panel.js',
+  '/js/settings-agent-access-panel.js', '/js/settings-agent-access-mutation.js',
   '/js/settings-records-classes.js', '/js/settings-records-contract.js', '/js/settings-records-view.js', '/js/settings-records-component.js', '/js/components/DataEntriesSettings.svelte.native.js', '/js/components/AIUsageSettings.svelte.native.js',
   '/js/settings-agent-access-classes.js', '/js/settings-agent-access-contract.js', '/js/settings-agent-access-component.js', '/js/components/AgentAccessSettings.svelte.native.js',
   '/js/feedback.js',

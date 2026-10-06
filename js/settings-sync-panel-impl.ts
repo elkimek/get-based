@@ -33,9 +33,7 @@ import {
   updateSyncSetupRestoreState,
 } from './settings-sync-restore-ui.js';
 import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
-import { saveImportedData } from './data.js';
-import { state } from './state.js';
-import { adoptProfileData } from './profile-data-writes.js';
+import { beginAgentAccessMutation } from './settings-agent-access-mutation.js';
 import {
   copyAgentAccessSetupCommand,
   copyMessengerContextKey,
@@ -52,15 +50,6 @@ import {
 } from './settings-agent-access-panel.js';
 
 export { closeRestoreMnemonicDialog, renderMessengerSection, disposeAgentAccessSection };
-
-function snapshotImportedData() {
-  try { return JSON.stringify(state.importedData || {}); } catch { return null; }
-}
-
-function restoreImportedDataSnapshot(snapshot: string | null | undefined) {
-  if (!snapshot) return;
-  try { adoptProfileData(state.importedData, JSON.parse(snapshot)); } catch {}
-}
 
 const settingsSyncPanelDeps: Record<string, unknown> = {
   applyPendingTombstone,
@@ -203,17 +192,30 @@ async function handleSettingsSyncChange(event: Event) {
     void toggleMessenger(actionEl.checked);
   } else if (action === 'set-agent-wearable-series-days' && actionEl instanceof HTMLSelectElement) {
     const days = actionEl.value === 'off' ? 0 : Number(actionEl.value);
-    const rollback = snapshotImportedData();
+    const mutation = beginAgentAccessMutation();
+    if (!mutation) {
+      showNotification('Agent Access change already in progress — wait for it to finish.', 'info');
+      hydrateMessengerSection(true);
+      return;
+    }
     try {
       setAgentAccessWearableSeriesDays(days);
-      const saved = await saveImportedData({ reason: 'agent-access-series' });
+      mutation.captureApplied();
+      hydrateMessengerSection(true);
+      const saved = await mutation.save('agent-access-series');
       if (saved === false) throw new Error('saveImportedData returned false while saving Agent Access wearable-series preference');
-      (settingsSyncPanelDeps.pushContextToGateway as (...args: Parameters<typeof pushContextToGateway>) => unknown)();
+      mutation.confirmPersisted();
+      if (mutation.isCurrent()) (settingsSyncPanelDeps.pushContextToGateway as (...args: Parameters<typeof pushContextToGateway>) => unknown)();
     } catch (err) {
-      restoreImportedDataSnapshot(rollback);
-      console.warn('[agent-access] failed to persist wearable series preference', err);
-      showNotification('Could not save wearable-series preference — try again.', 'error');
-      refreshMessengerSectionForOwnerChange();
+      mutation.rollback();
+      console.warn(mutation.persisted ? '[agent-access] post-save relay update failed' : '[agent-access] failed to persist wearable series preference', err);
+      showNotification(mutation.persisted
+        ? 'Wearable-series preference was saved, but its relay update could not be started. Use Sync now to retry.'
+        : 'Could not save wearable-series preference — try again.', 'error');
+    } finally {
+      mutation.release();
+      if (mutation.scope.isCurrent()) refreshMessengerSectionForOwnerChange();
+      else hydrateMessengerSection(true);
     }
   }
 }

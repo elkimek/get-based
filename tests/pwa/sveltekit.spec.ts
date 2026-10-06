@@ -104,8 +104,10 @@ test('failed update retains the app and Later defers activation until explicit o
     await page.locator('#settings-tab-display [data-unit="US"]').click();
     await page.locator('[data-settings-action="close"]').click();
     await page.evaluate(() => localStorage.setItem('kit-update-retained', 'retained'));
+    expect(await page.evaluate(() => localStorage.getItem('kit-update-retained'))).toBe('retained');
     const other = await context.newPage();
     await other.goto(server.origin + '/app?dev-sw=1', { waitUntil: 'load' }); await ready(other);
+    await expect.poll(() => other.evaluate(() => localStorage.getItem('kit-update-retained'))).toBe('retained');
     server.state.buildId = 'kit-test-b'; server.state.failPath = '/css/settings.css';
     const failed = await page.evaluate(async () => {
       const registration = (await navigator.serviceWorker.getRegistration())!;
@@ -124,6 +126,7 @@ test('failed update retains the app and Later defers activation until explicit o
     await expect(page.locator('#version-update-banner')).toBeVisible({ timeout: 30_000 });
     await page.locator('[data-version-update-action="dismiss"]').click(); expect(await identity(page)).toBe('kit-test-a');
     await page.reload({ waitUntil: 'load' }); await ready(page);
+    expect(await page.evaluate(() => localStorage.getItem('kit-update-retained'))).toBe('retained');
     await expect(page.locator('#version-update-banner')).toBeVisible(); server.state.offline = true;
     await page.locator('[data-version-update-action="apply"]').click();
     await expect.poll(() => identity(page).catch(() => ''), { timeout: 30_000 }).toBe('kit-test-b'); await ready(page); await display(page);
@@ -501,6 +504,7 @@ test('Agent Access hydrates offline with masked persisted credentials, keyboard 
     await coldToggle.press('Space');
     await expect(coldToggle).not.toBeChecked(); await expect(coldToggle).toBeDisabled();
     await expect(cold.locator('#messenger-token')).toHaveCount(0);
+    await expect(cold.locator('[data-agent-access-view]')).toHaveAttribute('aria-busy', 'false');
     await cold.reload({ waitUntil: 'load' }); await ready(cold); await display(cold); await cold.locator('#settings-nav-agent').click();
     await expect(cold.locator('[data-sync-action="toggle-messenger"]')).not.toBeChecked();
     await expect(cold.locator('[data-sync-action="toggle-messenger"]')).toBeDisabled();

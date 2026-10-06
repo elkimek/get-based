@@ -41,7 +41,7 @@ let _getProfiles: () => StoredProfileRecord[] = () => [];
 let _contextPushTimer: ReturnType<typeof setTimeout> | null = null;
 let _contextPushInFlight = false;
 let _blockedContextPushIdentity = '';
-let _agentAccessMigrationDirty = false;
+let agentAccessMigrationDirty = new WeakSet<object>();
 
 function cancelPendingContextPush() {
   if (_contextPushTimer != null) {
@@ -164,17 +164,17 @@ let _lastAgentAccessMigrationSignature: string | null = null;
 
 export function _resetAgentAccessMigrationStateForTesting() {
   _lastAgentAccessMigrationSignature = null;
-  _agentAccessMigrationDirty = false;
+  agentAccessMigrationDirty = new WeakSet<object>();
   _contextPushInFlight = false;
   _blockedContextPushIdentity = '';
 }
 
 export function isAgentAccessMigrationDirty() {
-  return _agentAccessMigrationDirty;
+  return agentAccessMigrationDirty.has(state.importedData);
 }
 
 export function clearAgentAccessMigrationDirty() {
-  _agentAccessMigrationDirty = false;
+  agentAccessMigrationDirty.delete(state.importedData);
 }
 
 export function clearLegacyAgentAccessSecrets() {
@@ -267,7 +267,7 @@ export function migrateLocalAgentAccessToProfile() {
     contextKey: contextKey || null,
     migratedFromLocalStorageAt: nowTs(),
   });
-  _agentAccessMigrationDirty = true;
+  agentAccessMigrationDirty.add(state.importedData);
   _lastAgentAccessMigrationSignature = agentAccessMigrationSignature(migrated, enabled, token, legacyContextKey);
   return migrated;
 }
@@ -478,11 +478,38 @@ export function generateMessengerContextKey() {
   return key;
 }
 
-export function revokeMessengerTokenRemote(token: string | null | undefined) {
+/** An opaque operation scope retains signing material inside the service. */
+export interface AgentAccessOperationScope { isCurrent(): boolean }
+interface AgentAccessOperationOrigin {
+  owner: MessengerOwner | null; profileId: string; relay: string;
+}
+const operationOrigins = new WeakMap<AgentAccessOperationScope, AgentAccessOperationOrigin>();
+export function captureAgentAccessOperationScope(): AgentAccessOperationScope {
+  const activeProfile = state.currentProfile;
+  const profileId = activeProfile || (typeof localStorage !== 'undefined' && localStorage.getItem('labcharts-active-profile')) || 'default';
+  const data = state.importedData;
+  const current = currentAppOwner();
+  const ownerId = ownerIdString(current);
+  const writeKey = ownerWriteKeyBytes(current)?.slice() || null;
+  const relay = currentSyncRelay();
+  const scope = { isCurrent() {
+    const latest = currentAppOwner();
+    const latestKey = ownerWriteKeyBytes(latest);
+    const sameKey = writeKey === null ? latestKey === null
+      : latestKey?.length === writeKey.length && writeKey.every((byte, index) => latestKey[index] === byte);
+    return state.currentProfile === activeProfile && state.importedData === data
+      && ownerIdString(latest) === ownerId && sameKey && currentSyncRelay() === relay;
+  } };
+  operationOrigins.set(scope, { owner: ownerId && writeKey ? { id: ownerId, writeKey } : null,
+    profileId, relay: relay.replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://') });
+  return Object.freeze(scope);
+}
+
+export function revokeMessengerTokenRemote(token: string | null | undefined, scope?: AgentAccessOperationScope) {
   if (!token) return;
-  const owner = currentAppOwner();
-  const relay = currentSyncRelay().replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
-  const profileId = state.currentProfile || (typeof localStorage !== 'undefined' && localStorage.getItem('labcharts-active-profile')) || 'default';
+  const origin = operationOrigins.get(scope || captureAgentAccessOperationScope());
+  if (!origin) throw new Error('Agent Access operation scope is invalid');
+  const { owner, relay, profileId } = origin;
   const relayContext = '';
   const timestamp = Date.now();
   signAgentContextRequest({ owner, token, profileId, relayContext, timestamp })
@@ -559,6 +586,8 @@ export function pushContextToGateway() {
   }
   const contextKey = ensureMessengerContextKey();
   const profileId = state.currentProfile || 'default';
+  const scope = captureAgentAccessOperationScope();
+  const origin = operationOrigins.get(scope)!;
   // Demo profiles are intentionally local-only. Agent Access uses a separate
   // relay endpoint, so the Evolu push guard alone is not sufficient.
   if (isDemoProfileId(profileId, _getProfiles())) return;
@@ -569,7 +598,7 @@ export function pushContextToGateway() {
     _contextPushInFlight = true;
     try {
       const latest = getAgentAccessState();
-      if (state.currentProfile !== profileId
+      if (!scope.isCurrent() || state.currentProfile !== profileId
         || latest.enabled !== true
         || latest.token !== token
         || latest.contextKey !== contextKey) {
@@ -596,17 +625,23 @@ export function pushContextToGateway() {
       // The gateway only needs the active profileId - do not leak the full
       // profile-name list. Profile names can include real names; keep them
       // out of the relay envelope entirely.
-      const relay = currentSyncRelay().replace(/^wss:\/\//, 'https://').replace(/^ws:\/\//, 'http://');
+      const relay = origin.relay;
 
       const relayContext = JSON.stringify({ encryptedContext });
       const timestamp = Date.now();
       const ownerProof = await signAgentContextRequest({
-        owner: currentAppOwner(),
+        owner: origin.owner,
         token,
         profileId,
         relayContext,
         timestamp,
       });
+      const latestBeforeSend = getAgentAccessState();
+      if (!scope.isCurrent() || latestBeforeSend.enabled !== true
+        || latestBeforeSend.token !== token || latestBeforeSend.contextKey !== contextKey) {
+        dbg(`Skipped stale Agent Access context after preparation (profile: ${profileId})`);
+        return;
+      }
       const res = await fetch(`${relay}/api/context`, {
         method: 'POST',
         headers: {

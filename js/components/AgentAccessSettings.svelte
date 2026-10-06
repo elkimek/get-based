@@ -21,13 +21,14 @@
   }
 </script>
 
+<div data-agent-access-view aria-busy={snapshot.pending}>
 <div class="{AGENT_ROW} {snapshot.enabled ? 'gb:agent:mb-4' : 'gb:agent:mb-2'}">
   <div class={AGENT_COPY}>
     <div class={AGENT_TITLE}>Agent Access</div>
     <div class={AGENT_DESCRIPTION}>Let AI agents query your labs and context via MCP, Hermes Agent, or OpenClaw</div>
   </div>
   <SettingsToggle id="agent-access-toggle" label="Toggle Agent Access" checked={snapshot.enabled}
-    disabled={!snapshot.enabled && !(snapshot.syncReady && snapshot.ownerReady)} syncAction="toggle-messenger" compact/>
+    disabled={snapshot.pending || (!snapshot.enabled && !(snapshot.syncReady && snapshot.ownerReady))} syncAction="toggle-messenger" compact/>
 </div>
 
 {#if snapshot.enabled && snapshot.hasToken}
@@ -45,7 +46,7 @@
         {/each}
       </div>
     </div>
-    <button type="button" class={AGENT_SETUP_BUTTON} data-sync-action="copy-agent-access-setup-command" aria-label="Copy selected agent setup command">Copy setup command</button>
+    <button type="button" class={AGENT_SETUP_BUTTON} data-sync-action="copy-agent-access-setup-command" aria-label="Copy selected agent setup command" disabled={snapshot.pending}>Copy setup command</button>
   </div>
 
   {#each [{ kind: 'token' as const, id: 'messenger-token', toggleAction: 'toggle-messenger-token', copyAction: 'copy-messenger-token', title: 'Read-only token', label: 'Agent Access token', mask: 64 }, { kind: 'context-key' as const, id: 'messenger-context-key', toggleAction: 'toggle-messenger-context-key', copyAction: 'copy-messenger-context-key', title: 'Context encryption key', label: 'Agent Context encryption key', mask: 48 }] as credential (credential.kind)}
@@ -56,8 +57,8 @@
         <div class={AGENT_TOKEN_ACTIONS}>
           <button type="button" id="{credential.id}-toggle" class={AGENT_MINI_BUTTON}
             data-sync-action={credential.toggleAction} aria-label="{revealed ? 'Hide' : 'Show'} {credential.kind === 'token' ? 'token' : 'context encryption key'}"
-            aria-controls={credential.id} aria-expanded={revealed}>{revealed ? 'Hide' : 'Show'}</button>
-          <button type="button" class={AGENT_MINI_BUTTON} data-sync-action={credential.copyAction} aria-label="Copy {credential.kind === 'token' ? 'token' : 'context encryption key'}">Copy</button>
+            aria-controls={credential.id} aria-expanded={revealed} disabled={snapshot.pending}>{revealed ? 'Hide' : 'Show'}</button>
+          <button type="button" class={AGENT_MINI_BUTTON} data-sync-action={credential.copyAction} aria-label="Copy {credential.kind === 'token' ? 'token' : 'context encryption key'}" disabled={snapshot.pending}>Copy</button>
         </div>
       </div>
       <div id={credential.id} class="{AGENT_TOKEN_BOX} {revealed ? 'gb:agent:select-all' : 'gb:agent:select-none'}" data-masked={!revealed} role="group" aria-label={credential.label}>
@@ -74,8 +75,8 @@
   {/each}
 
   <div class="gb:agent:grid gb:agent:grid-cols-2 gb:agent:gap-2 gb:agent:mb-4">
-    <button type="button" class={AGENT_FULL_BUTTON} data-sync-action="regenerate-messenger-token" disabled={!snapshot.ownerReady} aria-disabled={!snapshot.ownerReady}>Regenerate token</button>
-    <button type="button" class={AGENT_FULL_BUTTON} data-sync-action="regenerate-messenger-context-key" disabled={!snapshot.ownerReady} aria-disabled={!snapshot.ownerReady}>Regenerate context key</button>
+    <button type="button" class={AGENT_FULL_BUTTON} data-sync-action="regenerate-messenger-token" disabled={snapshot.pending || !snapshot.ownerReady} aria-disabled={snapshot.pending || !snapshot.ownerReady}>Regenerate token</button>
+    <button type="button" class={AGENT_FULL_BUTTON} data-sync-action="regenerate-messenger-context-key" disabled={snapshot.pending || !snapshot.ownerReady} aria-disabled={snapshot.pending || !snapshot.ownerReady}>Regenerate context key</button>
   </div>
   <div class="gb:agent:mt-[18px] gb:agent:pt-3.5 gb:agent:border-0 gb:agent:border-t gb:agent:border-dashed gb:agent:border-line">
     <div class={AGENT_ROW}>
@@ -84,7 +85,7 @@
         <div class={AGENT_DESCRIPTION}>Adds a pivoted daily-values matrix (HRV, RHR, sleep…) so agents can spot trends. ~100 / 400 / 1200 extra tokens for 7 / 30 / 90 days respectively (real-measured at 13 metrics); cached cleanly so the marginal cost per turn is small. Off by default — pick 7 days for cheap follow-ups, 30 for monthly reasoning, 90 for season-spanning analysis.</div>
       </div>
       <select id="agent-wearable-series-select" data-sync-action="set-agent-wearable-series-days" aria-label="Wearable series window pushed to agent"
-        value={snapshot.seriesDays ? String(snapshot.seriesDays) : 'off'} disabled={!snapshot.ownerReady} aria-disabled={!snapshot.ownerReady}
+        value={snapshot.seriesDays ? String(snapshot.seriesDays) : 'off'} disabled={snapshot.pending || !snapshot.ownerReady} aria-disabled={snapshot.pending || !snapshot.ownerReady}
         class="gb:agent:min-w-[90px] gb:agent:px-2.5 gb:agent:py-1.5 gb:agent:border gb:agent:border-line gb:agent:rounded-control gb:agent:bg-select-surface gb:agent:text-ink gb:agent:font-body gb:agent:text-[12px] gb:agent:leading-[normal] gb:agent:focus-visible:outline-2 gb:agent:focus-visible:outline-offset-2 gb:agent:focus-visible:outline-accent">
         <option value="off">Off</option><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option>
       </select>
@@ -97,3 +98,5 @@
 {:else}
   <div class={AGENT_DESCRIPTION}>Let AI agents query your labs — coding agents, messenger bots, or any <a href="https://github.com/elkimek/getbased-agents/tree/main/packages/mcp" target="_blank" rel="noopener" class={AGENT_LINK}>MCP-compatible tool</a>. The relay receives only end-to-end encrypted context; your Agent Access token authorizes relay fetches and your Agent Context key decrypts locally in your self-hosted MCP.</div>
 {/if}
+
+</div>

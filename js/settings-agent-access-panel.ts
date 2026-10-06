@@ -3,7 +3,8 @@
 import { showNotification, bindSyncAppliedRefresh } from './utils.js';
 import { addUtilsRuntimeListener } from './utils-runtime.js';
 import { state } from './state.js';
-import { adoptProfileData } from './profile-data-writes.js';
+import { beginAgentAccessMutation, isAgentAccessMutationPending } from './settings-agent-access-mutation.js';
+import { captureAgentAccessOperationScope } from './sync-messenger.js';
 import {
   clearAgentAccessMigrationDirty,
   clearLegacyAgentAccessSecrets,
@@ -43,15 +44,6 @@ function agentAccessClientMeta(client: unknown) {
   return AGENT_ACCESS_CLIENTS.find(c => c.id === id) || AGENT_ACCESS_CLIENTS[0]!;
 }
 
-function snapshotImportedData() {
-  try { return JSON.stringify(state.importedData || {}); } catch { return null; }
-}
-
-function restoreImportedDataSnapshot(snapshot: string | null) {
-  if (!snapshot) return;
-  try { adoptProfileData(state.importedData, JSON.parse(snapshot)); } catch {}
-}
-
 function syncRelayHttpUrl() {
   let relay = 'https://sync.getbased.health';
   try { relay = getSyncRelay?.() || relay; } catch {}
@@ -88,11 +80,14 @@ function clearClipboardLater(timer: ReturnType<typeof setTimeout> | null, delay 
 
 async function persistMigratedAgentAccessIfNeeded() {
   if (!isAgentAccessMigrationDirty()) return;
+  const scope = captureAgentAccessOperationScope();
+  const migrated = JSON.stringify(state.importedData.agentAccess);
   const saved = await saveImportedData({ reason: 'agent-access-migration' });
   if (saved === false) {
     console.warn('[agent-access] migrated legacy Agent Access but could not persist it yet');
     return;
   }
+  if (!scope.isCurrent() || JSON.stringify(state.importedData.agentAccess) !== migrated) return;
   clearAgentAccessMigrationDirty();
   clearLegacyAgentAccessSecrets();
 }
@@ -100,6 +95,7 @@ async function persistMigratedAgentAccessIfNeeded() {
 function getAgentAccessSnapshot(): AgentAccessSnapshot {
   return {
     enabled: isMessengerEnabled(),
+    pending: isAgentAccessMutationPending(),
     hasToken: !!getMessengerToken(),
     syncReady: isSyncEnabled(),
     ownerReady: hasMessengerSyncIdentity(),
@@ -122,48 +118,61 @@ export function renderMessengerSection(): string {
   return '<div data-agent-access-root></div>';
 }
 
-let _messengerToggling = false;
+function startCredentialMutation() {
+  const mutation = beginAgentAccessMutation();
+  if (!mutation) {
+    showNotification('Agent Access change already in progress — wait for it to finish.', 'info');
+    hydrateMessengerSection(true);
+  }
+  return mutation;
+}
+
 export async function toggleMessenger(enabled: unknown) {
-  if (_messengerToggling) return;
-  _messengerToggling = true;
-  const rollback = snapshotImportedData();
+  const mutation = startCredentialMutation();
+  if (!mutation) return;
   try {
     if (enabled) {
       if (!isSyncEnabled()) {
         showNotification('Enable or restore Cross-device Sync first — Agent Access storage is bound to that Sync identity.', 'error');
-        refreshMessengerSectionForOwnerChange();
         return;
       }
       if (!hasMessengerSyncIdentity()) {
         showNotification('Sync owner is still resolving — wait for Cross-device Sync to finish loading before enabling Agent Access.', 'error');
-        refreshMessengerSectionForOwnerChange();
         return;
       }
       const { previousToken } = generateMessengerToken();
-      const saved = await saveImportedData({ reason: 'agent-access-enable' });
+      mutation.captureApplied();
+      hydrateMessengerSection(true);
+      const saved = await mutation.save('agent-access-enable');
       if (saved === false) throw new Error('saveImportedData returned false while enabling Agent Access');
-      clearLegacyAgentAccessSecrets();
-      if (previousToken) revokeMessengerTokenRemote(previousToken);
-      pushContextToGateway();
+      mutation.confirmPersisted();
+      if (mutation.isCurrent()) clearLegacyAgentAccessSecrets();
+      if (previousToken) revokeMessengerTokenRemote(previousToken, mutation.scope);
+      if (mutation.isCurrent()) pushContextToGateway();
       showNotification('Agent Access enabled', 'success');
     } else {
       const previousToken = disableMessengerTokenLocal();
-      const saved = await saveImportedData({ reason: 'agent-access-disable' });
+      mutation.captureApplied();
+      hydrateMessengerSection(true);
+      const saved = await mutation.save('agent-access-disable');
       if (saved === false) throw new Error('saveImportedData returned false while disabling Agent Access');
-      clearLegacyAgentAccessSecrets();
-      revokeMessengerTokenRemote(previousToken);
+      mutation.confirmPersisted();
+      if (mutation.isCurrent()) clearLegacyAgentAccessSecrets();
+      revokeMessengerTokenRemote(previousToken, mutation.scope);
       showNotification('Agent Access disabled', 'success');
     }
-    refreshMessengerSectionForOwnerChange();
   } catch (err) {
-    restoreImportedDataSnapshot(rollback);
-    console.warn('[agent-access] failed to persist Agent Access toggle', err);
-    showNotification(enabled
+    mutation.rollback();
+    console.warn(mutation.persisted ? '[agent-access] post-save relay update failed' : '[agent-access] failed to persist Agent Access toggle', err);
+    showNotification(mutation.persisted
+      ? 'Agent Access was saved, but its relay update could not be started. Use Sync now to retry.'
+      : enabled
       ? 'Could not save Agent Access token — try enabling again before updating your agent config.'
       : 'Could not save Agent Access disable — try again before removing your agent config.', 'error');
-    refreshMessengerSectionForOwnerChange();
   } finally {
-    _messengerToggling = false;
+    mutation.release();
+    if (mutation.scope.isCurrent()) refreshMessengerSectionForOwnerChange();
+    else hydrateMessengerSection(true);
   }
 }
 
@@ -221,21 +230,29 @@ export async function regenerateMessengerToken() {
     refreshMessengerSectionForOwnerChange();
     return;
   }
-  const rollback = snapshotImportedData();
+  const mutation = startCredentialMutation();
+  if (!mutation) return;
   try {
     const { previousToken } = generateMessengerToken();
-    const saved = await saveImportedData({ reason: 'agent-access-regenerate-token' });
+    mutation.captureApplied();
+    hydrateMessengerSection(true);
+    const saved = await mutation.save('agent-access-regenerate-token');
     if (saved === false) throw new Error('saveImportedData returned false while regenerating Agent Access token');
-    clearLegacyAgentAccessSecrets();
-    if (previousToken) revokeMessengerTokenRemote(previousToken);
-    pushContextToGateway();
+    mutation.confirmPersisted();
+    if (mutation.isCurrent()) clearLegacyAgentAccessSecrets();
+    if (previousToken) revokeMessengerTokenRemote(previousToken, mutation.scope);
+    if (mutation.isCurrent()) pushContextToGateway();
     showNotification('Token regenerated — update GETBASED_TOKEN in your agent config', 'success');
   } catch (err) {
-    restoreImportedDataSnapshot(rollback);
-    console.warn('[agent-access] failed to persist regenerated token', err);
-    showNotification('Could not save regenerated token — try again before updating your agent config.', 'error');
+    mutation.rollback();
+    console.warn(mutation.persisted ? '[agent-access] post-save relay update failed' : '[agent-access] failed to persist regenerated token', err);
+    showNotification(mutation.persisted
+      ? 'Token was saved, but its relay update could not be started. Use Sync now to retry.'
+      : 'Could not save regenerated token — try again before updating your agent config.', 'error');
   } finally {
-    refreshMessengerSectionForOwnerChange();
+    mutation.release();
+    if (mutation.scope.isCurrent()) refreshMessengerSectionForOwnerChange();
+    else hydrateMessengerSection(true);
   }
 }
 
@@ -245,20 +262,28 @@ export async function regenerateMessengerContextKey() {
     refreshMessengerSectionForOwnerChange();
     return;
   }
-  const rollback = snapshotImportedData();
+  const mutation = startCredentialMutation();
+  if (!mutation) return;
   try {
     generateMessengerContextKey();
-    const saved = await saveImportedData({ reason: 'agent-access-regenerate-context-key' });
+    mutation.captureApplied();
+    hydrateMessengerSection(true);
+    const saved = await mutation.save('agent-access-regenerate-context-key');
     if (saved === false) throw new Error('saveImportedData returned false while regenerating Agent Access context key');
-    clearLegacyAgentAccessSecrets();
-    pushContextToGateway();
+    mutation.confirmPersisted();
+    if (mutation.isCurrent()) clearLegacyAgentAccessSecrets();
+    if (mutation.isCurrent()) pushContextToGateway();
     showNotification('Context key regenerated — update GETBASED_AGENT_CONTEXT_KEY in your agent config', 'success');
   } catch (err) {
-    restoreImportedDataSnapshot(rollback);
-    console.warn('[agent-access] failed to persist regenerated context key', err);
-    showNotification('Could not save regenerated context key — try again before updating your agent config.', 'error');
+    mutation.rollback();
+    console.warn(mutation.persisted ? '[agent-access] post-save relay update failed' : '[agent-access] failed to persist regenerated context key', err);
+    showNotification(mutation.persisted
+      ? 'Context key was saved, but its relay update could not be started. Use Sync now to retry.'
+      : 'Could not save regenerated context key — try again before updating your agent config.', 'error');
   } finally {
-    refreshMessengerSectionForOwnerChange();
+    mutation.release();
+    if (mutation.scope.isCurrent()) refreshMessengerSectionForOwnerChange();
+    else hydrateMessengerSection(true);
   }
 }
 

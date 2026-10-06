@@ -113,6 +113,18 @@ provides the compact, keyboard-accessible switch without depending on Chat style
 The public string renderer returns a component host so existing runtime callers
 retain their contract while Svelte owns its contents.
 
+Agent Access saves use `settings-agent-access-mutation.ts` for per-profile action
+ownership. Credential write intent is isolated from live profile state until the
+scoped service save commits, so a concurrent notes save cannot include a provisional
+credential. Failure rolls back only changed credential/preference fields on the
+originating object and retains later edits; pending controls cannot copy provisional
+credentials or start an overlapping change. The service supplies an opaque signing
+scope that retains the originating profile, relay and copied owner key privately.
+Remote revocation uses that scope; context preparation checks it again after awaits.
+A relay error after a committed save cannot roll back the stored credentials.
+Legacy migration dirty state belongs to each profile object, and a late completion
+cannot clear another profile's migration or start its persistence.
+
 Imported-data entries and AI usage use `settings-records-view.ts` to derive typed
 presentation snapshots from existing provenance and usage services.
 `DataEntriesSettings.svelte` owns report/manual/legacy rows and their actions;

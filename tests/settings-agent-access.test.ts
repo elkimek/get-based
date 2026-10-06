@@ -12,7 +12,10 @@ import {
 import { saveImportedData } from '../js/data.js';
 import { pushContextToGateway, revokeMessengerTokenRemote } from '../js/sync.js';
 
-vi.mock('../js/data.js', () => ({ saveImportedData: vi.fn(async () => true) }));
+vi.mock('../js/data.js', () => {
+  const save = vi.fn(async (_options?: { reason?: string }) => true);
+  return { saveImportedData: save, saveImportedDataForProfile: vi.fn(async (_profile: string, _intent: unknown, options: { reason: string }) => save({ reason: options.reason })) };
+});
 vi.mock('../js/sync.js', async importOriginal => ({
   ...await importOriginal<typeof import('../js/sync.js')>(),
   pushContextToGateway: vi.fn(), revokeMessengerTokenRemote: vi.fn(),
@@ -116,6 +119,6 @@ describe('Agent Access component and controller boundary', () => {
     expect(document.querySelector<HTMLInputElement>('[data-sync-action="toggle-messenger"]')!.checked).toBe(true);
     expect(revokeMessengerTokenRemote).not.toHaveBeenCalled();
     await toggleMessenger(false); expect(state.importedData.agentAccess).toMatchObject({ enabled: false, token: null, contextKey: null });
-    expect(revokeMessengerTokenRemote).toHaveBeenCalledWith(token);
+    expect(revokeMessengerTokenRemote).toHaveBeenCalledWith(token, expect.objectContaining({ isCurrent: expect.any(Function) }));
   });
 });

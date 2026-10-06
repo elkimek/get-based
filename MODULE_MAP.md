@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 860 |
-| Internal import edges | 3606 |
+| Modules | 861 |
+| Internal import edges | 3608 |
 | Dynamic internal edges | 120 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1171,12 +1171,13 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>settings</code> family — 38 modules</summary>
+<details><summary><code>settings</code> family — 39 modules</summary>
 
 - [`js/settings-agent-access-classes.ts`](js/settings-agent-access-classes.ts) → no in-scope imports
 - [`js/settings-agent-access-component.ts`](js/settings-agent-access-component.ts) → [`js/components/AgentAccessSettings.svelte`](js/components/AgentAccessSettings.svelte)
 - [`js/settings-agent-access-contract.ts`](js/settings-agent-access-contract.ts) → no in-scope imports
-- [`js/settings-agent-access-panel.ts`](js/settings-agent-access-panel.ts) → [`js/data.ts`](js/data.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/settings-agent-access-component.ts`](js/settings-agent-access-component.ts), [`js/settings-agent-access-contract.ts`](js/settings-agent-access-contract.ts), [`js/state.ts`](js/state.ts), [`js/sync.ts`](js/sync.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/settings-agent-access-mutation.ts`](js/settings-agent-access-mutation.ts) → [`js/data.ts`](js/data.ts), [`js/state.ts`](js/state.ts), [`js/sync-messenger.ts`](js/sync-messenger.ts)
+- [`js/settings-agent-access-panel.ts`](js/settings-agent-access-panel.ts) → [`js/data.ts`](js/data.ts), [`js/settings-agent-access-component.ts`](js/settings-agent-access-component.ts), [`js/settings-agent-access-contract.ts`](js/settings-agent-access-contract.ts), [`js/settings-agent-access-mutation.ts`](js/settings-agent-access-mutation.ts), [`js/state.ts`](js/state.ts), [`js/sync-messenger.ts`](js/sync-messenger.ts), [`js/sync.ts`](js/sync.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-cli-agent-panel.ts`](js/settings-cli-agent-panel.ts) → [`js/agent-chat-client.ts`](js/agent-chat-client.ts), [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/utils.ts`](js/utils.ts), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
 - [`js/settings-data.ts`](js/settings-data.ts) → [`js/api.ts`](js/api.ts), [`js/import-benchmarks.ts`](js/import-benchmarks.ts), [`js/import-loader.ts`](js/import-loader.ts), [`js/import-reference-benchmark.ts`](js/import-reference-benchmark.ts), [`js/schema.ts`](js/schema.ts), [`js/settings-records-component.ts`](js/settings-records-component.ts), [`js/settings-records-view.ts`](js/settings-records-view.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-display-contract.ts`](js/settings-display-contract.ts) → no in-scope imports
@@ -1197,7 +1198,7 @@ Native browser modules shipped with the static application.
 - [`js/settings-runtime.ts`](js/settings-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/sun-uvdata-config.ts`](js/sun-uvdata-config.ts)
 - [`js/settings-shell-contract.ts`](js/settings-shell-contract.ts) → no in-scope imports
 - [`js/settings-shell.ts`](js/settings-shell.ts) → [`js/components/SettingsShell.svelte`](js/components/SettingsShell.svelte), [`js/settings-shell-contract.ts`](js/settings-shell-contract.ts)
-- [`js/settings-sync-panel-impl.ts`](js/settings-sync-panel-impl.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data.ts`](js/data.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/settings-agent-access-panel.ts`](js/settings-agent-access-panel.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/settings-sync-panel-render.ts`](js/settings-sync-panel-render.ts), [`js/settings-sync-restore-ui.ts`](js/settings-sync-restore-ui.ts), [`js/state.ts`](js/state.ts), [`js/sync.ts`](js/sync.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/settings-sync-panel-impl.ts`](js/settings-sync-panel-impl.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/settings-agent-access-mutation.ts`](js/settings-agent-access-mutation.ts), [`js/settings-agent-access-panel.ts`](js/settings-agent-access-panel.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts), [`js/settings-sync-panel-render.ts`](js/settings-sync-panel-render.ts), [`js/settings-sync-restore-ui.ts`](js/settings-sync-restore-ui.ts), [`js/sync.ts`](js/sync.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-sync-panel-render.ts`](js/settings-sync-panel-render.ts) → [`js/sync.ts`](js/sync.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts) → [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/settings-sync-panel-impl.ts`](js/settings-sync-panel-impl.ts) *(dynamic)*, [`js/sync.ts`](js/sync.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/settings-sync-restore-ui.ts`](js/settings-sync-restore-ui.ts) → [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts)

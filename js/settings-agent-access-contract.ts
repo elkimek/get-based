@@ -13,6 +13,7 @@ export type AgentAccessSecret = 'token' | 'context-key';
 /** Presentation receives readiness and preferences, never hidden credentials. */
 export interface AgentAccessSnapshot {
   enabled: boolean;
+  pending: boolean;
   hasToken: boolean;
   syncReady: boolean;
   ownerReady: boolean;

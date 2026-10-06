@@ -445,7 +445,10 @@ await import('../js/settings.js');
     syncConfigureSrc.includes('getAppOwner: getSyncAppOwner')
       && syncMessengerSrc.includes('signAgentContextRequest')
       && syncMessengerSrc.includes('agent-context:${ownerId}:${timestamp}:${tokenHash}:${profileId || \'default\'}:${contextHash}')
-      && syncMessengerSrc.includes('owner: currentAppOwner()')
+      && syncMessengerSrc.includes('owner: origin.owner')
+      && syncMessengerSrc.includes('const scope = captureAgentAccessOperationScope()')
+      && syncMessengerSrc.includes('writeKey = ownerWriteKeyBytes(current)?.slice()')
+      && syncMessengerSrc.includes('if (!scope.isCurrent()')
       && syncMessengerSrc.includes('ownerId: ownerProof.ownerId')
       && syncMessengerSrc.includes('signature: ownerProof.signature'));
   assert('Agent Access context push respects Manage Context source toggles',

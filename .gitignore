@@ -1552,3 +1552,5 @@ deploy/profile-share/data/
 /js/settings-records-contract.js
 /js/settings-records-view.js
 /js/settings-records-component.js
+
+/js/settings-agent-access-mutation.js
