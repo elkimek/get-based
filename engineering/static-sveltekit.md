@@ -133,3 +133,16 @@ verifies orchestration and cached application assets; it does not establish
 model accuracy or actual provider availability. The [native discussion scenarios](../tests/playwright/chat-discussion-owned.spec.ts)
 check additional-perspective and subsequent sequential requests, stale controls,
 literal imported names, keyboard focus, six themes and narrow layouts.
+
+Stored citations and image previews use the same authored Svelte components in
+native transcript HTML and the static Kit artifact. The
+[message-content cold-launch scenario](../tests/pwa/sveltekit-chat-message-content.spec.ts)
+checks literal stored excerpts, keyboard disclosure, a delayed pre-response view
+and a completed fresh response after the application origin becomes unavailable.
+The [stored-image scenario](../tests/pwa/sveltekit-chat-attachments.spec.ts) checks
+safe persisted thumbnails, keyboard-capable lightbox actions and fresh original
+file processing after cold launch. Restored history must be visible before
+processing files so tests do not submit into a conversation being replaced.
+The response transport is a deterministic local-provider fixture; these checks
+establish cached presentation and orchestration, not real-provider availability
+or installed-PWA acceptance.

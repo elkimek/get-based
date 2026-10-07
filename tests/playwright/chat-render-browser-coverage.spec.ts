@@ -44,7 +44,9 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
           '📎 2 excerpts from Private <Vault>'
         && sourceHost.querySelector<HTMLElement>('.chat-lens-source-name')?.textContent === 'report <one>.md'
         && sourceHost.querySelector<HTMLElement>('.chat-lens-source-score')?.textContent === '0.93'
-        && sourceHost.querySelector<HTMLElement>('.chat-lens-source-text')?.innerHTML.includes('Ferritin &lt;low&gt;<br>Line two') === true
+        && sourceHost.querySelector<HTMLElement>('.chat-lens-source-text')?.textContent === 'Ferritin <low>Line two'
+        && sourceHost.querySelectorAll('.chat-lens-source-text br').length === 1
+        && sourceHost.querySelectorAll('.chat-lens-source-text low').length === 0
         && sourceHost.querySelectorAll<HTMLElement>('.chat-lens-source')!.length === 2;
       outcomes.lensSourcesEmptyInputReturnsBlank = chatRender._renderLensSources([], '') === '';
 
@@ -194,7 +196,9 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
         && rendered!.querySelector<HTMLElement>('.chat-action-bar') !== null
         && rendered!.querySelector<HTMLElement>('.chat-lens-sources-summary')?.textContent === '📎 1 excerpt from Knowledge <Base>'
         && rendered!.querySelector<HTMLElement>('.chat-lens-source-score')?.textContent === '0.88'
-        && rendered!.querySelector<HTMLElement>('.chat-lens-source-text')?.innerHTML.includes('Root cause &lt;maybe&gt;<br>Second line') === true;
+        && rendered!.querySelector<HTMLElement>('.chat-lens-source-text')?.textContent === 'Root cause <maybe>Second line'
+        && rendered!.querySelectorAll('.chat-lens-source-text br').length === 1
+        && rendered!.querySelectorAll('.chat-lens-source-text maybe').length === 0;
       rendered!.querySelector<HTMLElement>('.chat-emf-hint a')?.dispatchEvent(new MouseEvent('click', {
         bubbles: true,
         cancelable: true,
@@ -209,8 +213,10 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
 
       const recommendationMessage = state.chatHistory[3];
       const initialDisclosure = rendered!.querySelector<HTMLDetailsElement>('.rec-chat-wrapper');
-      initialDisclosure!.open = false;
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise<void>(resolve => {
+        initialDisclosure!.addEventListener('toggle', () => resolve(), { once: true });
+        initialDisclosure!.open = false;
+      });
       recommendationMessage!.recNew = true;
       chatRender.renderChatMessages();
       const redisplayedDisclosure = rendered!.querySelector<HTMLDetailsElement>('.rec-chat-wrapper');
@@ -218,8 +224,10 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
         && redisplayedDisclosure!.querySelector<HTMLElement>('.rec-chat-new')?.textContent === 'New'
         && redisplayedDisclosure!.classList.contains('rec-chat-unseen')
         && !redisplayedDisclosure!.classList.contains('rec-chat-attention');
-      redisplayedDisclosure!.open = true;
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise<void>(resolve => {
+        redisplayedDisclosure!.addEventListener('toggle', () => resolve(), { once: true });
+        redisplayedDisclosure!.open = true;
+      });
       const seenSummaryStyle = getComputedStyle(redisplayedDisclosure!.querySelector<HTMLElement>('.rec-chat-summary')!);
       outcomes.recommendationChoiceAndDiscoveryStatePersist = showedPersistedNewCue
         && recommendationMessage!.recOpen === true

@@ -18,7 +18,7 @@ import { updateChatInputState } from './chat-panel.js';
 import { updateDiscussButton } from './chat-discussion.js';
 import { renderEmptyChatState } from './chat-empty-state.js';
 import { isChatRenderProductRecsEnabled, renderChatRecommendationSections } from './chat-render-runtime.js';
-import { sanitizeChatThumbnailUrl } from './chat-storage-safety.js';
+import { renderChatCitations, renderChatStoredImages } from './chat-message-content.js';
 import { recommendationSummaryHTML } from './chat-recommendation-disclosure.js';
 import {
   followChatLatest, initChatScrollControls, notifyChatContentAdded,
@@ -36,8 +36,6 @@ import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 
 export { _getNoDataPrompts } from './chat-empty-state.js';
 
-interface LensSourceReader {source?:unknown;score?:unknown;text?:unknown}
-
 function bindRenderedChatContainClicks(container: HTMLElement) {
   container.querySelectorAll('[data-chat-message-action="contain-click"]').forEach(el => {
     el.addEventListener('click', event => event.stopPropagation());
@@ -52,26 +50,7 @@ function bindRenderedChatContainClicks(container: HTMLElement) {
  * default so the chat stays scannable.
  */
 export function _renderLensSources(chunks: unknown, sourceName?: unknown) {
-  if (!Array.isArray(chunks) || chunks.length === 0) return '';
-  const sourceLabel = sourceName ? escapeHTML(sourceName) : 'knowledge base';
-  const items = (chunks as LensSourceReader[]).map((c, i) => {
-    const src = c.source || `excerpt ${i + 1}`;
-    const score = typeof c.score === 'number'
-      ? `<span class="chat-lens-source-score" title="Cosine similarity">${c.score.toFixed(2)}</span>`
-      : '';
-    const text = c.text ? escapeHTML(c.text).replace(/\n/g, '<br>') : '';
-    return `<details class="chat-lens-source" ${chatMessageActionAttrs('contain-click')}>
-      <summary class="chat-lens-source-summary">
-        <span class="chat-lens-source-name">${escapeHTML(src)}</span>
-        ${score}
-      </summary>
-      <div class="chat-lens-source-text">${text}</div>
-    </details>`;
-  }).join('');
-  return `<details class="chat-lens-sources" ${chatMessageActionAttrs('contain-click')}>
-    <summary class="chat-lens-sources-summary">📎 ${chunks.length} excerpt${chunks.length !== 1 ? 's' : ''} from ${sourceLabel}</summary>
-    <div class="chat-lens-sources-body">${items}</div>
-  </details>`;
+  return renderChatCitations(chunks, sourceName);
 }
 
 export function renderChatMessages({ preserveScroll = false }: {preserveScroll?:boolean} = {}) {
@@ -111,22 +90,7 @@ export function renderChatMessages({ preserveScroll = false }: {preserveScroll?:
     if (msg.role === 'assistant') lastPersonaName = msg.personalityName || null;
     const autoClass = msg.auto ? ' chat-msg-auto' : '';
     const stoppedNote = msg.stopped ? '<div class="chat-stopped-note">[stopped]</div>' : '';
-    let imageBadge = '';
-    if (msg.hasImages) {
-      const thumbnails = Array.isArray(msg.thumbnails)
-        ? msg.thumbnails.map(sanitizeChatThumbnailUrl).filter(Boolean)
-        : [];
-      if (thumbnails.length > 0) {
-        imageBadge = '<div class="chat-image-thumbs">' + thumbnails.map(t =>
-          `<img src="${escapeAttr(t)}" class="chat-image-thumb" alt="attached image" ${chatMessageActionAttrs('open-image-lightbox')}>`
-        ).join('') + '</div>';
-      } else {
-        const imageCount = Number.isFinite(Number(msg.imageCount))
-          ? Math.max(0, Math.trunc(Number(msg.imageCount)))
-          : 0;
-        imageBadge = `<div class="chat-image-badge">\uD83D\uDDBC ${imageCount} image${imageCount !== 1 ? 's' : ''} attached</div>`;
-      }
-    }
+    const imageBadge = renderChatStoredImages(msg);
     const messageBody = msg.error
       ? `<span style="color:var(--red)">${escapeHTML(msg.content)}</span>`
       : renderMarkdown(msg.content);

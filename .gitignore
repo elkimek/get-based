@@ -1790,3 +1790,17 @@ js/custom-settings-controller.js
 /js/components/ChatDiscussion.svelte.native.js.map
 
 /tests/helpers/chat-discussion-fixture.js
+
+/js/chat-message-content.js
+/js/chat-message-content-contract.js
+/js/chat-message-content-classes.js
+/js/components/ChatCitations.svelte.native.js
+/js/components/ChatCitations.svelte.native.js.map
+/js/components/ChatCitations.svelte.html.js
+/js/components/ChatCitations.svelte.html.js.map
+/js/components/ChatStoredImages.svelte.native.js
+/js/components/ChatStoredImages.svelte.native.js.map
+/js/components/ChatStoredImages.svelte.html.js
+/js/components/ChatStoredImages.svelte.html.js.map
+/js/components/ChatThinkingStatus.svelte.native.js
+/js/components/ChatThinkingStatus.svelte.native.js.map

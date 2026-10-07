@@ -51,15 +51,3 @@
 [data-chat-model-picker-view] .chat-model-effort-control input[type="range"]::-moz-range-thumb {
   width: 16px; height: 16px; border: 2px solid var(--bg-card); border-radius: 50%; background: var(--text-primary); box-shadow: 0 1px 5px rgba(0,0,0,.35);
 }
-.chat-image-badge {
-  font-size: 11px; color: var(--text-muted); margin-bottom: 4px;
-  font-style: italic;
-}
-.chat-image-thumbs {
-  display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap;
-}
-.chat-image-thumb {
-  width: 64px; height: 64px; object-fit: cover; border-radius: 6px;
-  border: 1px solid var(--border); cursor: pointer; transition: opacity 0.15s;
-}
-.chat-image-thumb:hover { opacity: 0.8; }

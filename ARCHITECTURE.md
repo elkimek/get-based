@@ -908,6 +908,20 @@ The composer owns discussion help associations and photo-action restrictions.
 so availability refreshes cannot overwrite the discussion prompt. Scoped Tailwind
 replaces the picker and continuation CSS; `chat-personality.css` retains its
 stable URL as an empty compatibility stylesheet.
+`ChatCitations.svelte` and `ChatStoredImages.svelte` own the shared citation and
+persisted-image markup. `chat-message-content-contract.ts` projects stored
+records and filters thumbnail URLs; `chat-message-content.ts` preserves existing
+synchronous string-return contracts through compiled Svelte HTML. These semantic
+details and image buttons use the existing message action dispatcher without
+additional event ownership. Image previews support native keyboard activation.
+`ChatThinkingStatus.svelte` owns rotating phrase and dot presentation;
+`chat-thinking-status.ts` retains the element-return and clock APIs, freezes a
+stopped visible view, and disposes removed or retired profile/thread owners.
+A stopped clock does not retain a removed Svelte root. Shared scoped Tailwind
+classes replace the corresponding native citation, image and thinking rules;
+the owned dot animation retains its keyframes and respects reduced motion.
+Outer transcript rendering, action bars and streaming remain in their respective
+services until their presentation ownership is migrated.
 `ChatVoiceButton.svelte` and `ChatVoiceStatus.svelte` own the microphone control
 and live status. `chat-voice-view.ts` publishes typed capture state and backend
 availability, retires composer actions, and cancels capture on owner disposal.

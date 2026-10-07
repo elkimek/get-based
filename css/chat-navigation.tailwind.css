@@ -48,3 +48,9 @@
 
 @source "../js/components/ChatDiscussion.svelte";
 @source "../js/chat-discussion-classes.ts";
+
+@source "../js/components/ChatCitations.svelte";
+@source "../js/components/ChatStoredImages.svelte";
+@source "../js/components/ChatThinkingStatus.svelte";
+@source "../js/chat-message-content-classes.ts";
+@custom-variant message-content (&:is([data-chat-message-content], [data-chat-message-content] *));

@@ -156,7 +156,8 @@ console.log('=== Phase 3 A11y Tests ===\n');
   assert('decorative typing indicators stay silent while one shared status announces response phases',
     chatSendSrc.includes('createChatThinkingIndicator')
     && chatDiscussionRoundViewSrc.includes('createChatThinkingIndicator')
-    && chatThinkingStatusSrc.includes("element.setAttribute('aria-hidden', 'true')")
+    && chatThinkingStatusSrc.includes("components/ChatThinkingStatus.svelte.native.js")
+    && read('/js/components/ChatThinkingStatus.svelte').includes('aria-hidden="true"')
     && chatMarkupSrc.includes('id="chat-stream-status" role="status" aria-live="polite" aria-atomic="true"')
     &&  /if\s*\(status\)\s*status\.textContent = message;/.test(chatStreamStatusSrc));
 
@@ -294,10 +295,14 @@ console.log('=== Phase 3 A11y Tests ===\n');
     '.chat-personality-current-name',
     '.chat-personality-opt-name',
   ];
+  const ownedChatTitle = read('/js/components/ChatHeader.svelte').match(/class="chat-header-title [^"]*"/)?.[0] || '';
+  const ownedChatTitleUsesDisplayFont = ownedChatTitle.includes('gb:header:theme-neuro:[font-family:var(--font-neuromancer-display)]')
+    && ownedChatTitle.includes('gb:header:theme-neuro:[font-size-adjust:0.62]');
   assert('neuromancer VT323 stays scoped to display accents',
     !!neuromancerDisplayToken &&
     !!neuromancerDisplayRule &&
-    neuromancerDisplaySelectors.every(selector => neuromancerDisplayRule[0]!.includes(selector)) &&
+    neuromancerDisplaySelectors.every(selector => selector === '.chat-header-title'
+      ? ownedChatTitleUsesDisplayFont : neuromancerDisplayRule[0]!.includes(selector)) &&
     neuromancerBaseFontSelectors.every(selector => !neuromancerDisplayRule[0]!.includes(selector)) &&
     neuromancerDisplayRule[0]!.includes('font-size-adjust: 0.62') &&
     !/\[data-theme="neuromancer"\]\s+body\s*\{[^}]*VT323/.test(themesSrc));

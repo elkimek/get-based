@@ -22,6 +22,7 @@ test('static owned attachments preserve stored thumbnails and accept fresh origi
   try {
     await page.goto(server.origin + '/app?dev-sw=1'); await ready(page); await open(page);
     const stored = await page.evaluate(() => localStorage.getItem('labcharts-default-chat-t_attachment-thread'));
+    await expect(page.locator('#chat-messages .chat-image-thumb')).toHaveCount(1);
     await page.locator('#chat-image-input').setInputFiles({ name: 'original.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') }); await expect(page.locator('.chat-attach-count')).toHaveText('1/5');
     expect(await page.evaluate(() => localStorage.getItem('labcharts-default-chat-t_attachment-thread'))).toBe(stored);
     await page.locator('#chat-messages .chat-image-thumb').click(); await expect(page.getByRole('dialog', { name: 'Attached image preview' })).toBeVisible(); await page.keyboard.press('Escape'); await expect(page.locator('#chat-panel')).toHaveClass(/open/);
