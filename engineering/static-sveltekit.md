@@ -30,6 +30,9 @@ while this bridge is evaluated; building locally does not publish it.
 
 - Native shell services initialize once; Kit owns its route DOM and Svelte shares
   the same runtime with the component adapters.
+- Synchronous compatibility HTML builds resolve Svelte's server lifecycle
+  exports, including destruction callbacks during rendering. Client components
+  keep browser lifecycle exports; both outputs are reproducible and covered.
 - Chat's initial shell and composer are authored once as shared Svelte
   components. Kit owns them in its `/app` route; the native document contains
   their deterministic build-generated snapshot, hydrated without replacing

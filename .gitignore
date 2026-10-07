@@ -1731,3 +1731,6 @@ js/custom-settings-controller.js
 /js/chat-composer-input-port.js
 /js/chat-shell-component.js
 /scripts/chat-shell-snapshot.mjs
+
+/js/chat-layout-view.js
+/js/chat-layout-classes.js

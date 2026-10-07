@@ -1,19 +1,22 @@
 <script lang="ts">
+  import { flushSync } from 'svelte';
   import ChatComposer from './ChatComposer.svelte';
+  import ChatResizeHandle from './ChatResizeHandle.svelte';
+  import { INITIAL_CHAT_LAYOUT, ownChatLayout, requestChatLayoutSync, type ChatLayoutView } from '../chat-layout-view.js';
+  let layout = $state<ChatLayoutView>({ ...INITIAL_CHAT_LAYOUT });
+  function registerLayout(root: HTMLElement) { return ownChatLayout(root, next => flushSync(() => { layout = next; })); }
 </script>
 <!-- Stable service-owned hosts retain their children while the remaining Chat
      features migrate. This component owns the shell's initial structure. -->
-<div id="chat-shell" style="display:contents">
+<svelte:window onresize={requestChatLayoutSync} />
+<div id="chat-shell" data-chat-layout-view style="display:contents" use:registerLayout>
 <div class="chat-backdrop" id="chat-backdrop"></div>
   <button class="chat-fab" id="chat-fab" data-chat-action="toggle-panel" aria-label="Ask AI" title="Ask AI">
     <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
   </button>
-  <div class="chat-panel" id="chat-panel" role="complementary" aria-label="AI Lab Analyst" aria-hidden="true" inert>
-    <!-- A focusable separator is the keyboard-operated window splitter;
-         Svelte classifies all separators as noninteractive. -->
-    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-    <div class="chat-panel-resize-handle" id="chat-panel-resize-handle" role="separator" aria-label="Resize chat" aria-orientation="vertical" aria-valuemin="420" aria-valuemax="1100" tabindex="0"></div>
-    <div class="chat-thread-rail" id="chat-thread-rail">
+  <div class="chat-panel" id="chat-panel" role="complementary" aria-label="AI Lab Analyst" aria-hidden="true" inert style:--chat-panel-width={layout.desktop ? `${layout.panelWidth}px` : null}>
+    <ChatResizeHandle kind="panel" {layout} />
+    <div class="chat-thread-rail" id="chat-thread-rail" style:--chat-rail-width={layout.desktop ? `${layout.railWidth}px` : null}>
       <div class="chat-thread-rail-header">
         <button class="chat-rail-back" data-chat-action="toggle-thread-rail" aria-label="Close conversations">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
@@ -41,9 +44,7 @@
       <div class="chat-thread-list" id="chat-thread-list" role="region" tabindex="0" aria-label="Conversation list"></div>
       <div id="chat-saved-summaries"></div>
     </div>
-    <!-- Keyboard-operated window splitter, as above. -->
-    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-    <div class="chat-rail-resize-handle" id="chat-rail-resize-handle" role="separator" aria-label="Resize conversation sidebar" aria-orientation="vertical" aria-valuemin="180" aria-valuemax="360" tabindex="0"></div>
+    <ChatResizeHandle kind="rail" {layout} />
     <div class="chat-panel-conversation">
       <div class="chat-header">
         <div class="chat-header-left">

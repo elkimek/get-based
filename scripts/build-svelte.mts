@@ -17,7 +17,9 @@ export async function buildSvelte({ component = COMPONENT, outputDirectory = pat
   const result = await build({
     input: 'getbased:component-entry',
     write: false,
-    platform: 'browser',
+    // HTML rendering needs Svelte's server lifecycle exports, even when the
+    // synchronous result is later used by a browser compatibility adapter.
+    platform: output === 'html' ? 'neutral' : 'browser',
     plugins: [{
       name: 'getbased-svelte-component',
       resolveId(id, importer) {

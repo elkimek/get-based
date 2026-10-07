@@ -91,3 +91,33 @@ test('resize handles stay out of the mobile takeover layout', async ({ page }) =
   await expect(page.locator('#chat-rail-resize-handle')).toBeHidden();
   await expect(page.locator('#chat-panel')).toHaveCSS('width', '390px');
 });
+
+for (const boundary of ['blur','capture','close','fullscreen','rail','mobile'] as const) {
+  test(`owned resize cancels at the ${boundary} boundary`, async ({page}) => {
+    if(boundary==='rail') await page.evaluate(async()=> (await import('/js/chat-threads.js')).toggleThreadRail());
+    // Real pointer coordinates must follow the completed panel slide-in.
+    await expect(page.locator('#chat-panel')).toHaveCSS('transform','matrix(1, 0, 0, 1, 0, 0)');
+    if(boundary==='rail') {
+      await expect(page.locator('#chat-panel')).toHaveCSS('width','820px');
+      await expect(page.locator('#chat-thread-rail')).toHaveCSS('width','220px');
+    }
+    const handle=page.locator(boundary==='rail'?'#chat-rail-resize-handle':'#chat-panel-resize-handle');
+    const box=(await handle.boundingBox())!;
+    await page.mouse.move(box.x+box.width/2,300);await page.mouse.down();
+    await expect(page.locator('body')).toHaveClass(/chat-layout-resizing/);
+    const saved=await page.evaluate(()=>['labcharts-chat-panel-width','labcharts-chat-panel-with-rail-width','labcharts-chat-rail-width'].map(key=>localStorage.getItem(key)));
+    if(boundary==='mobile') await page.setViewportSize({width:390,height:844});
+    else if(boundary==='blur') await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+    else if(boundary==='capture') await handle.dispatchEvent('lostpointercapture');
+    else if(boundary==='rail') await page.evaluate(async()=> (await import('/js/chat-threads.js')).toggleThreadRail());
+    else await page.evaluate(async boundary=>{
+      const panel=await import('/js/chat-panel.js');
+      if(boundary==='close') panel.closeChatPanel();else panel.toggleChatFullscreen();
+    },boundary);
+    await expect(page.locator('body')).not.toHaveClass(/chat-layout-resizing/);
+    if(['fullscreen','rail','mobile'].includes(boundary)) await expect(handle).toBeHidden();
+    if(boundary==='close') await expect(page.locator('#chat-panel')).toHaveAttribute('aria-hidden','true');
+    await page.mouse.move(box.x-50,300);await page.mouse.up();
+    expect(await page.evaluate(()=>['labcharts-chat-panel-width','labcharts-chat-panel-with-rail-width','labcharts-chat-rail-width'].map(key=>localStorage.getItem(key)))).toEqual(saved);
+  });
+}

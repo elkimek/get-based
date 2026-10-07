@@ -894,6 +894,16 @@ including originating input identity and profile/thread checks. Its published
 resize/value helpers keep their existing runtime contract. The input, toolbar,
 send and tool controls use scoped Tailwind classes and shared theme variables;
 dynamic model content, attachments and voice presentation migrate separately.
+`ChatResizeHandle.svelte` owns splitter pointer capture, keyboard resizing and
+reset actions. `chat-layout.ts` reads and persists the existing independent
+panel/rail preferences; its typed view port publishes geometry to the shell.
+The shell renders CSS variables and current ARIA ranges without replacing
+conversation controls. Gesture cancellation follows pointer cancellation,
+capture loss, blur, owner disposal, Chat closure, fullscreen, rail closure and
+mobile resizing. Retired controls cannot change the current preferences.
+Splitter styling is scoped Tailwind; the shared body drag state only disables
+adjacent shell transitions and selects the resize cursor.
+
 The focusable window splitters and scrollable conversation region intentionally
 retain their keyboard semantics; narrowly documented Svelte accessibility
 annotations cover its static noninteractive-role classification, with browser
@@ -901,7 +911,7 @@ keyboard and geometry assertions retained.
 
 `css/chat-panel-open.base.css` owns the remaining outer Chat shell, summary and
 transcript bridge styles. `css/chat-navigation.tailwind.css` scans only the
-navigation and composer components and their shared typed classes, uses semantic theme tokens,
+navigation, composer and splitter components and their shared typed classes, uses semantic theme tokens,
 and omits Preflight. `scripts/build-styles.mts` combines both into ignored
 `css/chat-panel-open.css`, preserving the deferred URL and cascade position.
 The outer Chat rail and transcript styles and dynamic Chat feature surfaces

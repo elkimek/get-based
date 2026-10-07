@@ -8,3 +8,6 @@
 @import "./ui-tokens.tailwind.css";
 @custom-variant thread-nav (&:is([data-chat-thread-navigation-view], [data-chat-thread-navigation-view] *));
 @custom-variant composer (&:is([data-chat-composer-view], [data-chat-composer-view] *));
+@source "../js/components/ChatResizeHandle.svelte";
+@source "../js/chat-layout-classes.ts";
+@custom-variant chat-layout (&:is([data-chat-layout-view], [data-chat-layout-view] *));

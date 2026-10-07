@@ -388,6 +388,7 @@ export function closeChatPanel() {
   stopMobileChatViewportSync();
   const panel = document.getElementById('chat-panel');
   panel?.classList.remove('open');
+  syncChatLayout();
   if (panel) updateChatPanelAccessibility(panel, false);
   document.querySelector('.chat-personality-bar')?.classList.remove('open');
   document.querySelector('.chat-personality-current')?.setAttribute('aria-expanded', 'false');
