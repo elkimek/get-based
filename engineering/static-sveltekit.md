@@ -221,7 +221,7 @@ inside the locked read/merge/write. If saved notes have changed, the UI presents
 the saved text alongside the draft and offers an explicit choice; keeping saved
 notes does not write or discard unrelated edits.
 
-The authored Sleep, Exercise, Stress and Relationships editors use the same live
+The authored Diet, Sleep, Exercise, Stress and Relationships editors use the same live
 Svelte form and typed model/session services in native and static builds. Their
 stable facade and lazy stylesheet URLs are retained in the worker graph. Focused
 [`sveltekit-context-forms.spec.ts`](../tests/pwa/sveltekit-context-forms.spec.ts)

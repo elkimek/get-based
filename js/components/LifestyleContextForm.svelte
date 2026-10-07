@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { lifestyleSectionSummary, toggleLifestyleChoice } from '../context-lifestyle-form-model.js';
+  import { lifestyleMeals, lifestyleSectionSummary, toggleLifestyleChoice } from '../context-lifestyle-form-model.js';
   import type { LifestyleDraft, LifestyleField, LifestyleFormModel } from '../context-lifestyle-form-model.js';
   let { model, initial, hasCurrent, current, save, clear, close }: {
     model: LifestyleFormModel; initial: LifestyleDraft; hasCurrent: boolean; current(): boolean;
@@ -13,6 +13,7 @@
   const focus = 'gb:context-form:focus-visible:outline-2 gb:context-form:focus-visible:outline-accent gb:context-form:focus-visible:outline-offset-2';
   const label = 'gb:context-form:block gb:context-form:mb-2 gb:context-form:text-[11px] gb:context-form:font-semibold gb:context-form:uppercase gb:context-form:tracking-[0.05em] gb:context-form:text-secondary';
   const button = `gb:context-form:min-h-11 gb:context-form:rounded-control gb:context-form:border gb:context-form:border-line gb:context-form:px-3 gb:context-form:py-2 gb:context-form:text-[13px] gb:context-form:font-body gb:context-form:leading-snug gb:context-form:text-left gb:context-form:whitespace-normal gb:context-form:cursor-pointer gb:context-form:disabled:cursor-wait ${focus}`;
+  const input = `gb:context-form:block gb:context-form:w-full gb:context-form:min-w-0 gb:context-form:min-h-11 gb:context-form:box-border gb:context-form:rounded-control gb:context-form:border gb:context-form:border-line gb:context-form:bg-[var(--bg-primary)] gb:context-form:p-2.5 gb:context-form:text-ink gb:context-form:font-body gb:context-form:text-[13px] gb:context-form:max-[720px]:text-base gb:context-form:placeholder:text-secondary gb:context-form:disabled:cursor-not-allowed ${focus}`;
   const surfaceButton = `${button} gb:context-form:bg-surface gb:context-form:text-ink gb:context-form:hover:bg-hover`;
   function selected(field: LifestyleField, value: string): boolean {
     const answer = draft[field.key]; return Array.isArray(answer) ? answer.includes(value) : answer === value;
@@ -42,7 +43,19 @@
     {#each model.sections as section}
       <details class="gb:context-form:my-3.5 gb:context-form:overflow-clip gb:context-form:rounded-[var(--radius-md)] gb:context-form:border gb:context-form:border-line gb:context-form:bg-[color-mix(in_srgb,var(--bg-card)_70%,transparent)]">
         <summary class={`gb:context-form:min-h-14 gb:context-form:px-3.5 gb:context-form:py-[11px] gb:context-form:text-ink gb:context-form:cursor-pointer gb:context-form:hover:bg-hover ${focus}`}><span class="gb:context-form:text-[13px] gb:context-form:font-bold">{section.title}</span><span class="gb:context-form:block gb:context-form:mt-1 gb:context-form:text-[11px] gb:context-form:leading-snug gb:context-form:text-secondary">{lifestyleSectionSummary(section, draft)}</span></summary>
-        <div class="gb:context-form:border-t gb:context-form:border-line gb:context-form:px-3.5 gb:context-form:pt-3.5">{#each section.fields as field}{@render fieldControl(field)}{/each}</div>
+        <div class="gb:context-form:border-t gb:context-form:border-line gb:context-form:px-3.5 gb:context-form:pt-3.5">{#each section.fields as field}{@render fieldControl(field)}{/each}
+          {#if section.meals}
+            {#if section.meals.disabled}
+              <div id="diet-meal-precedence" role="status" class="gb:context-form:grid gb:context-form:gap-1 gb:context-form:mb-3.5 gb:context-form:p-3 gb:context-form:rounded-control gb:context-form:border gb:context-form:border-accent gb:context-form:bg-accent-fill gb:context-form:text-xs gb:context-form:leading-normal gb:context-form:text-secondary"><strong class="gb:context-form:text-[13px] gb:context-form:text-ink">Detailed meal log has priority</strong><span>Saved examples stay here but are not sent to AI while Meals &amp; Nutrition context is active.</span><small class="gb:context-form:text-[11px]">Logs may be partial; unlogged meals stay unknown.</small></div>
+            {/if}
+            {#each lifestyleMeals as meal}
+              <div class="gb:context-form:mb-4 gb:context-form:grid gb:context-form:grid-cols-[110px_minmax(0,1fr)] gb:context-form:gap-2 gb:context-form:max-[480px]:grid-cols-1">
+                <div><label class={label} for={`diet-${meal.key}-time`}>{meal.label} time</label><input type="text" id={`diet-${meal.key}-time`} placeholder={section.meals.timePlaceholder} value={draft[`${meal.key}Time`]} disabled={busy || section.meals.disabled} aria-describedby={section.meals.disabled ? 'diet-meal-precedence' : undefined} class={input} oninput={event => { if (current() && !busy && !section.meals?.disabled) draft[`${meal.key}Time`] = event.currentTarget.value; }} /></div>
+                <div><label class={label} for={`diet-${meal.key}`}>{meal.label}</label><input type="text" id={`diet-${meal.key}`} placeholder={meal.placeholder} value={draft[meal.key]} disabled={busy || section.meals.disabled} aria-describedby={section.meals.disabled ? 'diet-meal-precedence' : undefined} class={input} oninput={event => { if (current() && !busy && !section.meals?.disabled) draft[meal.key] = event.currentTarget.value; }} /></div>
+              </div>
+            {/each}
+          {/if}
+        </div>
       </details>
     {/each}
     <label class={`${label} gb:context-form:mt-4`} for="ctx-note-input">Notes</label>

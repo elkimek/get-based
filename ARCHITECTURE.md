@@ -105,21 +105,24 @@ small helper text stays opaque and status text uses readable theme inks.
 Opening tips resets the reused detail modal layout and accessible name. Close and
 EMF controls use existing recommendation action services, with proper keyboard buttons.
 Insight schedules the same scoped tips loader as Dashboard after inserting its catalog.
-`LifestyleContextForm.svelte` owns the Sleep, Exercise, Stress and Relationships
+`LifestyleContextForm.svelte` owns the Diet, Sleep, Exercise, Stress and Relationships
 forms, their drafts, disclosures, pressed states, notes and keyboard actions.
 `context-lifestyle-form-model.ts` projects the canonical options, wearable mismatch,
-sex-specific concerns and explicit stored field shapes. `context-lifestyle-form-view.ts`
-mounts one live form, captures its profile/view and completion callback, and disposes
-retired controls. Public lifestyle facade URLs remain stable; their delayed opens
-check profile, request order and originating view before dispatch.
+sex-specific concerns, canonical Diet meal times and explicit stored field shapes.
+Diet keeps unit-aware fluid labels separate from saved metric values, retains legacy
+estimates, and preserves typical meal examples while detailed nutrition has priority.
+`context-lifestyle-form-view.ts` mounts one live form, captures its profile/view and completion callback, and disposes
+retired controls and their modal styles/names when another tool takes over. Public
+lifestyle facade URLs remain stable; their delayed opens check profile, request order and originating view before dispatch.
 `context-lifestyle-form-session.ts` records history on an isolated draft and awaits
 profile-scoped storage before adoption or success. The storage transaction checks
 the observed context field inside its existing lock; concurrent edits cannot silently
 overwrite the saved context. Failed drafts stay editable, accepted writes finish on
 their originating profile, and unrelated unsaved fields remain live. Presentation
 callbacks cannot turn a committed write into a failed save. Scoped Tailwind owns
-these forms; their superseded native templates and sleep mismatch rules are removed.
-Diet, Environment, Light/Circadian, medical history, goals, interpretive lens and
+these forms; their superseded native templates, meal styles and sleep mismatch
+rules are removed.
+Environment, Light/Circadian, medical history, goals, interpretive lens and
 nutrition fragments still use existing adapters and remain migration work.
 `context-notes-session.ts` captures accepted text and originating profile/data,
 serializes debounced scoped writes and retains retry drafts through catalog rebuilds

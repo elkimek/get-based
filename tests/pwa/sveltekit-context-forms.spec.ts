@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
-const keys = ['sleepRest', 'exercise', 'stress', 'loveLife'] as const;
+const keys = ['sleepRest', 'exercise', 'stress', 'loveLife', 'diet'] as const;
 async function persisted(page: Page) {
   return page.evaluate(async () => {
     const request = indexedDB.open('labcharts-blobs', 1);
@@ -18,7 +18,7 @@ async function persisted(page: Page) {
         tx.onabort = () => reject(tx.error || new Error('Profile read aborted'));
         tx.onerror = () => reject(tx.error || read.error || new Error('Profile read failed'));
       });
-      return JSON.parse(value) as Record<'sleepRest' | 'exercise' | 'stress' | 'loveLife', { note: string }> & { changeHistory: Array<{ field: string; snapshot: unknown }> };
+      return JSON.parse(value) as Record<'sleepRest' | 'exercise' | 'stress' | 'loveLife' | 'diet', { note: string }> & { changeHistory: Array<{ field: string; snapshot: unknown }> };
     } finally { db.close(); }
   });
 }
@@ -60,6 +60,10 @@ test('static lifestyle editors work on offline first use and preserve committed 
     for (const key of keys) {
       await open(page, key); const modal = page.locator('#detail-modal');
       await expect(modal.getByLabel('Notes', { exact: true })).toHaveCSS('font-size', /^(13|16)px$/);
+      if (key === 'diet') {
+        await modal.locator('summary').filter({ hasText: 'Typical meals' }).click();
+        for (const meal of ['breakfast', 'lunch', 'dinner', 'snacks']) { await modal.locator(`#diet-${meal}`).fill(`Offline ${meal} <example>`); await modal.locator(`#diet-${meal}-time`).fill('8:30 PM'); }
+      }
       await modal.getByLabel('Notes', { exact: true }).fill(`Offline <${key}> & saved`);
       await modal.getByRole('button', { name: 'Save', exact: true }).click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/);
     }
@@ -71,6 +75,10 @@ test('static lifestyle editors work on offline first use and preserve committed 
       for (const key of keys) {
         await open(cold, key); const modal = cold.locator('#detail-modal');
         await expect(modal.getByLabel('Notes', { exact: true })).toHaveValue(`Offline <${key}> & saved`);
+        if (key === 'diet') {
+          await modal.locator('summary').filter({ hasText: 'Typical meals' }).click();
+          for (const meal of ['breakfast', 'lunch', 'dinner', 'snacks']) { await expect(modal.locator(`#diet-${meal}`)).toHaveValue(`Offline ${meal} <example>`); await expect(modal.locator(`#diet-${meal}-time`)).toHaveValue('20:30'); }
+        }
         await expect(modal.getByRole('button', { name: 'Clear', exact: true })).toBeVisible();
         await modal.getByRole('button', { name: 'Cancel', exact: true }).click(); await expect(cold.locator('#modal-overlay')).not.toHaveClass(/show/);
       }

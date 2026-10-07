@@ -1,8 +1,9 @@
 // Typed presentation and serialization for the ordinary lifestyle forms.
 import type { ProfileData } from '../types/app-state.js';
 import * as options from './constants.js';
+import { formatTime, getTimeFormat, parseTimeInput } from './theme.js';
 import { getSleepContextMismatch } from './lab-context-wearables.js';
-export type LifestyleFormKey = 'sleepRest' | 'exercise' | 'stress' | 'loveLife';
+export type LifestyleFormKey = 'sleepRest' | 'exercise' | 'stress' | 'loveLife' | 'diet';
 export type LifestyleDraft = Record<string, string | string[] | null>;
 export interface LifestyleOption {
   value: string;
@@ -19,7 +20,15 @@ export interface LifestyleSection {
   title: string;
   fallback: string;
   fields: LifestyleField[];
+  meals?: { disabled: boolean; timePlaceholder: string };
+  summaryFields?: Array<{ key: string; prefix?: string; suffix?: string; omit?: string }>;
 }
+export const lifestyleMeals = [
+  { key: 'breakfast', label: 'Breakfast', placeholder: 'Breakfast — e.g. eggs, avocado, coffee' },
+  { key: 'lunch', label: 'Lunch', placeholder: 'Lunch — e.g. salad with grilled chicken' },
+  { key: 'dinner', label: 'Dinner', placeholder: 'Dinner — e.g. salmon, rice, vegetables' },
+  { key: 'snacks', label: 'Snacks', placeholder: 'Snacks — e.g. nuts, fruit, dark chocolate' },
+] as const;
 export interface LifestyleFormModel {
   key: LifestyleFormKey;
   title: string;
@@ -39,8 +48,54 @@ const tags = (key: string, id: string, label: string, values: readonly (string |
     value, label: value
   } : value), multiple: true
 });
-export function lifestyleFormModel(key: LifestyleFormKey, data: ProfileData, sex: string | null): LifestyleFormModel {
+export function lifestyleFormModel(key: LifestyleFormKey, data: ProfileData, sex: string | null, preferences: { unitSystem?: string; mealsPaused?: boolean } = {}): LifestyleFormModel {
   switch (key) {
+    case 'diet': {
+      const current = data.diet && typeof data.diet === 'object' ? data.diet : null;
+      const legacy = (values: readonly (string | LifestyleOption)[], selected: string | null | undefined) =>
+        !selected || values.some(value => (typeof value === 'string' ? value : value.value) === selected)
+          ? values : [...values, { value: selected, label: `Previous estimate: ${selected}` }];
+      const usLabels: Record<string, string> = {
+        '<1.5 L/day': '<51 fl oz/day', '1.5–2 L/day': '51–68 fl oz/day',
+        '2–3 L/day': '68–101 fl oz/day', '>3 L/day': '>101 fl oz/day',
+      };
+      const hydration = options.DIET_HYDRATION.map(value => ({ value, label: preferences.unitSystem === 'US' ? usLabels[value] || value : value }));
+      return {
+        key, title: 'Diet & Digestion', message: 'Diet & Digestion', mismatch: null,
+        subtitle: 'Your usual eating pattern and digestive symptoms can help explain lab trends.',
+        fields: [
+          single('type', 'diet-type', 'Diet type', options.DIET_TYPES),
+          single('pattern', 'diet-pattern', 'Eating pattern', options.DIET_PATTERNS),
+          single('proteinIntake', 'diet-protein', 'Protein intake (g/kg/day)', legacy(options.DIET_PROTEIN_INTAKE, current?.proteinIntake)),
+          single('hydration', 'diet-hydration', `Daily fluid intake (${preferences.unitSystem === 'US' ? 'fl oz/day' : 'L/day'})`, legacy(hydration, current?.hydration))
+        ],
+        sections: [
+          { title: 'Intake and recent changes', fallback: 'Optional restrictions, alcohol, caffeine, and recent changes',
+            summaryFields: [{ key: 'restrictions' }, { key: 'alcohol', prefix: 'alcohol: ' }, { key: 'caffeine', prefix: 'caffeine: ' }, { key: 'recentChanges' }], fields: [
+            tags('restrictions', 'diet-restrictions', 'Restrictions', options.DIET_RESTRICTIONS),
+            single('alcohol', 'diet-alcohol', 'Alcohol', options.DIET_ALCOHOL),
+            single('caffeine', 'diet-caffeine', 'Caffeine', options.DIET_CAFFEINE),
+            single('caffeineTiming', 'diet-caffeine-timing', 'Latest caffeine', options.DIET_CAFFEINE_TIMING),
+            tags('recentChanges', 'diet-recent-changes', 'Changes in the past 3 months', options.DIET_RECENT_CHANGES)
+          ] },
+          { title: 'Typical meals', fallback: 'Optional meal timing and examples', fields: [],
+            meals: { disabled: preferences.mealsPaused === true, timePlaceholder: getTimeFormat() === '24h' ? 'HH:MM' : 'H:MM AM' } },
+          { title: 'Digestion details', fallback: 'Optional symptoms and sensitivities',
+            summaryFields: [{ key: 'bowelFrequency' }, { key: 'stoolConsistency' }, { key: 'bloating', suffix: ' bloating', omit: 'none' }, { key: 'gas', suffix: ' gas', omit: 'none' }, { key: 'foodSensitivities' }], fields: [
+            single('bowelFrequency', 'diet-bowel', 'Bowel frequency', options.BOWEL_FREQUENCY),
+            single('stoolConsistency', 'diet-stool', 'Stool consistency', options.STOOL_CONSISTENCY),
+            single('bloating', 'diet-bloating', 'Bloating', options.BLOATING_SEVERITY),
+            single('gas', 'diet-gas', 'Gas', options.GAS_SEVERITY),
+            single('acidReflux', 'diet-reflux', 'Acid reflux', options.ACID_REFLUX),
+            single('burping', 'diet-burping', 'Burping', options.BURPING),
+            single('nausea', 'diet-nausea', 'Nausea', options.NAUSEA),
+            single('appetite', 'diet-appetite', 'Appetite', options.APPETITE),
+            single('abdominalPain', 'diet-abdpain', 'Abdominal pain', options.ABDOMINAL_PAIN),
+            tags('foodSensitivities', 'diet-sensitivities', 'Food sensitivities', options.FOOD_SENSITIVITIES)
+          ] }
+        ]
+      };
+    }
     case 'sleepRest': return {
       key, title: 'Sleep & Rest', message: 'Sleep', subtitle: 'Sleep duration, quality, and routine add useful context to recovery and metabolic markers.',
       mismatch: getSleepContextMismatch(typeof data.sleepRest === 'object' ? data.sleepRest : null, data.wearableSummary)?.reasons.join('. ') || null,
@@ -125,6 +180,12 @@ export function lifestyleDraft(model: LifestyleFormModel, data: ProfileData): Li
     const value = values[field.key];
     draft[field.key] = field.multiple ? field.options.filter(option => Array.isArray(value) && (value.includes(option.value) || value.includes(option.label))).map(option => option.value) : field.options.find(option => option.value === value || option.label === value)?.value || null;
   }
+  if (model.key === 'diet') for (const meal of lifestyleMeals) {
+    const description = values[meal.key];
+    draft[meal.key] = typeof description === 'string' ? description : '';
+    const time = values[`${meal.key}Time`];
+    draft[`${meal.key}Time`] = formatTime(typeof time === 'string' ? time : '');
+  }
   return draft;
 }
 const exclusions = [
@@ -146,7 +207,15 @@ export function toggleLifestyleChoice(field: LifestyleField, draft: LifestyleDra
   draft[field.key] = field.options.filter(option => next.includes(option.value)).map(option => option.value);
 }
 export function lifestyleSectionSummary(section: LifestyleSection, draft: LifestyleDraft): string {
-  const answers = [...new Set(section.fields.flatMap(field => draft[field.key] || []).filter(Boolean))];
+  if (section.meals) {
+    if (section.meals.disabled) return 'Paused — detailed log active';
+    return lifestyleMeals.filter(meal => draft[meal.key]).map(meal => meal.label).join(' · ') || section.fallback;
+  }
+  const summaryFields: NonNullable<LifestyleSection['summaryFields']> = section.summaryFields || section.fields;
+  const answers = [...new Set(summaryFields.flatMap(field => {
+    const answer = draft[field.key], values = Array.isArray(answer) ? answer : answer ? [answer] : [];
+    return values.filter(value => value && value !== field.omit).map(value => `${field.prefix || ''}${value}${field.suffix || ''}`);
+  }))];
   return answers.length ? `${answers.slice(0, 3).join(' · ')}${answers.length > 3 ? ` · +${answers.length - 3} more` : ''}` : section.fallback;
 }
 /** An explicit projection keeps UI-only state out of stored profile data. */
@@ -154,9 +223,21 @@ export function applyLifestyleDraft(data: ProfileData, key: LifestyleFormKey, dr
   const text = (key: string): string => typeof draft?.[key] === 'string' ? draft[key].trim() : '';
   const one = (key: string): string | null => text(key) || null;
   const many = (key: string): string[] => Array.isArray(draft?.[key]) ? [...draft[key]] : [];
-  const empty = draft === null || Object.values(draft).every(value => Array.isArray(value) ? !value.length : !value?.trim());
+  const empty = draft === null || Object.entries(draft).filter(([field]) => key !== 'diet' || !field.endsWith('Time')).every(([, value]) => Array.isArray(value) ? !value.length : !value?.trim());
   const note = text('note');
   switch (key) {
+    case 'diet':
+      data.diet = empty ? null : {
+        type: one('type'), pattern: one('pattern'), proteinIntake: one('proteinIntake'), hydration: one('hydration'),
+        restrictions: many('restrictions'), alcohol: one('alcohol'), caffeine: one('caffeine'), caffeineTiming: one('caffeineTiming'), recentChanges: many('recentChanges'),
+        breakfast: text('breakfast'), breakfastTime: parseTimeInput(text('breakfastTime')),
+        lunch: text('lunch'), lunchTime: parseTimeInput(text('lunchTime')),
+        dinner: text('dinner'), dinnerTime: parseTimeInput(text('dinnerTime')),
+        snacks: text('snacks'), snacksTime: parseTimeInput(text('snacksTime')),
+        bowelFrequency: one('bowelFrequency'), stoolConsistency: one('stoolConsistency'), bloating: one('bloating'), gas: one('gas'),
+        acidReflux: one('acidReflux'), burping: one('burping'), nausea: one('nausea'), appetite: one('appetite'), abdominalPain: one('abdominalPain'), foodSensitivities: many('foodSensitivities'), note
+      };
+      break;
     case 'sleepRest':
       data.sleepRest = empty ? null : {
         duration: one('duration'), quality: one('quality'), issues: many('issues'), daytimeSleepiness: one('daytimeSleepiness'), apneaStatus: one('apneaStatus'), papUse: one('papUse'), naps: one('naps'), schedule: one('schedule'), roomTemp: one('roomTemp'), environment: many('environment'), practices: many('practices'), note

@@ -53,9 +53,9 @@ retry, captured profiles, retired controls and unrelated drafts. The same atomic
 storage suite checks observed context fields and reordered object keys.
 [`context-lifestyle-forms-owned.spec.ts`](../tests/playwright/context-lifestyle-forms-owned.spec.ts)
 checks real field interactions, persistence/history, reopen, clear confirmation,
-profile retirement, actual IndexedDB failure/retry, keyboard controls and shared
-form styles in all six themes at
-narrow/wide widths. Lifestyle loader cases cover retirement and overlapping opens.
+profile retirement, actual IndexedDB failure/retry, keyboard controls, Diet clock/unit
+formats, legacy estimates, nutrition precedence, clean modal handoff to the
+contaminant tool and shared form styles in all six themes at narrow/wide widths. Lifestyle loader cases cover retirement and overlapping opens.
 [`sveltekit-context-forms.spec.ts`](../tests/pwa/sveltekit-context-forms.spec.ts)
 checks the editors through real catalog actions with the assembled static PWA,
 including offline first use, committed history and two cold launches. Its offline

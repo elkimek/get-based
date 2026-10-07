@@ -230,7 +230,8 @@ assert('index defers context editor CSS behind its ordered lazy-load anchor',
   contextEditorAuditSrc.includes('data-context-editor-stylesheet-anchor'));
 assert('context editor and tips actions wait for their presentation',
   read('js/context-card-medical-history-editor-impl.js').includes('runWithContextEditorStylesheet(openDiagnosesEditor)') &&
-  read('js/context-card-lifestyle-editors-impl.js').includes('runWithContextEditorStylesheet(openDietEditor)') &&
+  read('js/context-card-lifestyle-editors-impl.js').includes("openLifestyleForm('diet')") &&
+  read('js/context-lifestyle-form-view.js').includes('runWithContextEditorStylesheet(() =>') &&
   read('js/context-cards.js').includes('runWithContextEditorStylesheet(() => openCardTipsModal(cardKey, ticket, owner))'));
 assert('context editor split preserves shared context controls eagerly',
   read('css/context-profile.css').includes('.ctx-btn-option') &&

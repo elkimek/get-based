@@ -296,6 +296,9 @@ export function showDietContaminantsModal() {
     html += '</div>';
   }
   html += `<div class="contaminant-actions"><button class="import-btn import-btn-primary" ${lifestyleActionAttrs('discuss-diet-contaminants')}>Discuss with AI</button><button class="import-btn import-btn-secondary" ${lifestyleActionAttrs('close-modal')}>Close</button></div><div class="contaminant-attribution">Sources: <a href="https://www.ewg.org/foodnews/" target="_blank" rel="noopener">EWG Shopper's Guide 2025</a> · <a href="https://www.plasticlist.org/report" target="_blank" rel="noopener">PlasticList</a></div>`;
+  modal.className = 'modal';
+  modal.setAttribute('aria-label', 'Food Contaminant Signals');
+  modal.removeAttribute('aria-labelledby');
   modal.innerHTML = html;
   openModalOverlay(overlay);
 }

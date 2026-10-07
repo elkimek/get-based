@@ -5,7 +5,7 @@ import { createDefaultProfileData } from '../js/profile.js';
 import { readProfileForLoad } from '../js/profile-load-safety.js';
 import { rememberProfileData, adoptProfileData, rebaseLiveProfileData } from '../js/profile-data-writes.js';
 import { createLifestyleFormSession } from '../js/context-lifestyle-form-session.js';
-import { lifestyleDraft, lifestyleFields, lifestyleFormModel, applyLifestyleDraft, toggleLifestyleChoice } from '../js/context-lifestyle-form-model.js';
+import { lifestyleDraft, lifestyleFields, lifestyleFormModel, applyLifestyleDraft, toggleLifestyleChoice, lifestyleSectionSummary } from '../js/context-lifestyle-form-model.js';
 import type { ProfileData } from '../types/app-state.js';
 import type { ProfileSaveOptions } from '../js/data-core-types.js';
 const mocks = vi.hoisted(() => ({ save: vi.fn(), contextChanged: vi.fn() }));
@@ -26,7 +26,7 @@ let sequence = 0;
 beforeEach(() => { vi.resetAllMocks(); mocks.save.mockResolvedValue(true); state.currentProfile = `form-origin-${++sequence}`; state.importedData = createDefaultProfileData(); rememberProfileData(state.importedData); });
 afterEach(() => vi.restoreAllMocks());
 function deferred() { let resolve!: (saved: boolean) => void; const promise = new Promise<boolean>(done => { resolve = done; }); return { promise, resolve }; }
-for (const key of ['sleepRest', 'exercise', 'stress', 'loveLife'] as const) {
+for (const key of ['sleepRest', 'exercise', 'stress', 'loveLife', 'diet'] as const) {
   it(`${key} round trips every field, preserves option values and empties to null`, () => {
     const model = lifestyleFormModel(key, state.importedData, 'female'), draft = lifestyleDraft(model, state.importedData);
     for (const field of lifestyleFields(model)) {
@@ -111,4 +111,38 @@ it('does not report a committed write as failed when a presentation hook throws'
   mocks.contextChanged.mockImplementationOnce(() => { throw new Error('Presentation unavailable'); });
   const session = createLifestyleFormSession('stress'); expect(await session.save({ note: 'Committed' })).toBe('saved');
   expect(state.importedData.stress).toMatchObject({ note: 'Committed' }); expect(await session.save({ note: 'Duplicate' })).toBe('busy');
+});
+
+// Meal descriptions and clock display are distinct from the canonical stored times.
+it('preserves every meal, 12h/24h times, legacy estimates and canonical fluid values', () => {
+  localStorage.setItem('labcharts-time-format', '12h');
+  try {
+    state.importedData.diet = { proteinIntake: 'old protein estimate', hydration: 'old fluid estimate', breakfast: 'eggs', breakfastTime: '00:15', lunch: 'salad', lunchTime: '12:00', dinner: 'fish', dinnerTime: '20:30', snacks: 'nuts', snacksTime: '15:45' };
+    const model = lifestyleFormModel('diet', state.importedData, null, { unitSystem: 'US', mealsPaused: true });
+    const draft = lifestyleDraft(model, state.importedData);
+    expect(draft).toMatchObject({ proteinIntake: 'old protein estimate', hydration: 'old fluid estimate', breakfastTime: '12:15 AM', lunchTime: '12:00 PM', dinnerTime: '8:30 PM', snacksTime: '3:45 PM' });
+    const hydration = lifestyleFields(model).find(field => field.key === 'hydration')!;
+    expect(hydration.options).toContainEqual({ value: '2–3 L/day', label: '68–101 fl oz/day' });
+    expect(hydration.options).toContainEqual({ value: 'old fluid estimate', label: 'Previous estimate: old fluid estimate' });
+    expect(lifestyleSectionSummary(model.sections[1]!, draft)).toBe('Paused — detailed log active');
+    expect(model.sections[1]!.meals?.timePlaceholder).toBe('H:MM AM');
+    toggleLifestyleChoice(hydration, draft, '2–3 L/day'); draft.note = '  retained  ';
+    applyLifestyleDraft(state.importedData, 'diet', draft);
+    expect(state.importedData.diet).toMatchObject({ proteinIntake: 'old protein estimate', hydration: '2–3 L/day', breakfast: 'eggs', breakfastTime: '00:15', lunch: 'salad', lunchTime: '12:00', dinner: 'fish', dinnerTime: '20:30', snacks: 'nuts', snacksTime: '15:45', note: 'retained' });
+    localStorage.setItem('labcharts-time-format', '24h');
+    expect(lifestyleDraft(model, state.importedData).dinnerTime).toBe('20:30');
+    expect(lifestyleSectionSummary(lifestyleFormModel('diet', state.importedData, null).sections[1]!, draft)).toBe('Breakfast · Lunch · Dinner · Snacks');
+  } finally { localStorage.removeItem('labcharts-time-format'); }
+});
+it('keeps time-only diet drafts empty and rejects invalid time strings without losing meal descriptions', () => {
+  applyLifestyleDraft(state.importedData, 'diet', { breakfastTime: '7:15 AM' }); expect(state.importedData.diet).toBeNull();
+  applyLifestyleDraft(state.importedData, 'diet', { breakfast: '  eggs  ', breakfastTime: '25:99', dinnerTime: '8PM' });
+  expect(state.importedData.diet).toMatchObject({ breakfast: 'eggs', breakfastTime: '', dinnerTime: '20:00' });
+});
+
+it('retains meaningful Diet disclosure summaries without describing absent symptoms as present', () => {
+  const model = lifestyleFormModel('diet', state.importedData, null);
+  expect(lifestyleSectionSummary(model.sections[0]!, { alcohol: 'rare', caffeine: '1 cup' })).toBe('alcohol: rare · caffeine: 1 cup');
+  expect(lifestyleSectionSummary(model.sections[2]!, { bloating: 'none', gas: 'none', acidReflux: 'never' })).toBe('Optional symptoms and sensitivities');
+  expect(lifestyleSectionSummary(model.sections[2]!, { bloating: 'mild', gas: 'moderate', foodSensitivities: ['dairy'] })).toBe('mild bloating · moderate gas · dairy');
 });

@@ -391,11 +391,12 @@ test('lifestyle context editors cover save clear health goals lens and contamina
         && dietHydration.includes('L/day')
         && modal.querySelector<HTMLElement>('#diet-protein')?.textContent.includes('g/kg/day')
         && modal.querySelector<HTMLElement>('#diet-hydration')?.textContent.includes('L/day');
-      ((document.getElementById('diet-breakfast') as HTMLInputElement | null))!.value = 'strawberries and yogurt';
-      ((document.getElementById('diet-lunch') as HTMLInputElement | null))!.value = 'canned tuna with avocado';
-      ((document.getElementById('ctx-note-input') as HTMLTextAreaElement | null))!.value = 'track digestion';
-      const dietSave = modal.querySelector<HTMLElement>('[data-lifestyle-action="save-diet"]');
+      for (const [id, value] of [['diet-breakfast', 'strawberries and yogurt'], ['diet-lunch', 'canned tuna with avocado'], ['ctx-note-input', 'track digestion']]) {
+        const input = document.getElementById(id!) as HTMLInputElement; input.value = value!; input.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      const dietSave = Array.from(modal.querySelectorAll<HTMLButtonElement>('button')).find(button => button.textContent === 'Save');
       dietSave?.click();
+      for (let attempt = 0; attempt < 250 && overlay.classList.contains('show'); attempt++) await delay(20);
       outcomes.saveDietStoresSelectionsMealsAndNote = (state.importedData as unknown as ContextFixtureRead).diet?.type === dietType
         && (state.importedData as unknown as ContextFixtureRead).diet?.pattern === dietPattern
         && (state.importedData as unknown as ContextFixtureRead).diet?.proteinIntake === dietProtein
@@ -410,7 +411,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       state.unitSystem = 'US';
       await lifestyle.openDietEditor();
       outcomes.dietFluidRangeUsesUSDisplayWithoutChangingStoredCanonicalValue = modal.querySelector<HTMLElement>('#diet-hydration')?.textContent.includes('fl oz/day') === true
-        && modal.querySelector<HTMLElement>('#diet-hydration .ctx-btn-option.active')?.dataset.contextValue === dietHydration
+        && modal.querySelector<HTMLElement>('#diet-hydration [aria-pressed="true"]')?.dataset.contextValue === dietHydration
         && (state.importedData as unknown as ContextFixtureRead).diet?.hydration === dietHydration;
       state.unitSystem = 'EU';
       const contaminantBadge = lifestyle.renderDietContaminantsBadge();
@@ -429,7 +430,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       outcomes.dietContaminantsDiscussesWithAI = calls.some(call => call[0] === 'chat')
         && calls.some(call => call[0] === 'prompt' && (call[1] as string).includes('food contaminants'));
       await lifestyle.openDietEditor();
-      const dietClear = modal.querySelector<HTMLElement>('[data-lifestyle-action="clear-diet"]');
+      const dietClear = Array.from(modal.querySelectorAll<HTMLButtonElement>('button')).find(button => button.textContent === 'Clear');
       dietClear?.click();
       await delay(0);
       outcomes.clearDietRequiresConfirmation = (state.importedData as unknown as ContextFixtureRead).diet !== null
@@ -440,7 +441,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       dietClear?.click();
       await delay(0);
       document.getElementById('confirm-ok')?.click();
-      await delay(0);
+      for (let attempt = 0; attempt < 250 && overlay.classList.contains('show'); attempt++) await delay(20);
       outcomes.clearDietNullsDiet = (state.importedData as unknown as ContextFixtureRead).diet === null && !!dietClear;
 
       (state.importedData as unknown as ContextFixtureRead).sleepRest = { duration: '7-8h', quality: 'excellent', issues: [] };
