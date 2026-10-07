@@ -3,7 +3,7 @@
 import { state } from './state.js';
 import { getNutritionContextDays, isNutritionContextEnabled } from './lab-context-settings.js';
 import { doesNutritionContextOverrideTypicalMeals } from './context-card-summaries.js';
-import { escapeHTML } from './utils.js';
+import { renderHTML } from './components/ContextNutritionLink.svelte.html.js';
 
 type NutritionActionAttributes = (action: 'open-nutrition', options: { surface: 'meals' | 'timing' }) => string;
 interface NutritionCardWindow {
@@ -25,6 +25,13 @@ interface NutritionCardSummary {
   windows?: { d7?: NutritionCardWindow | null } | null;
 }
 
+/** Preserve the trusted internal action-attribute callback at the synchronous HTML boundary.
+ * Svelte owns all markup and escapes summary text; this slot carries only caller-built
+ * delegated-action attributes, as in the original public renderer contract.
+ */
+function renderLink(title: string, detail: string, attributes: string): string {
+  return renderHTML({ title, detail }).replace('data-nutrition-action-slot="open"', () => attributes);
+}
 
 export function renderNutritionDietExtension(actionAttributes: NutritionActionAttributes) {
   const summary = state.nutritionSummary as NutritionCardSummary | null;
@@ -44,7 +51,7 @@ export function renderNutritionDietExtension(actionAttributes: NutritionActionAt
   } else if (overridesTypicalMeals) {
     detail = 'Replaces Typical meals · no entries in 7 days';
   }
-  return `<button type="button" class="diet-nutrition-extension" ${actionAttributes('open-nutrition', { surface: 'meals' })}><span class="diet-nutrition-extension-title">${title}</span><span>${escapeHTML(detail)}</span><span aria-hidden="true">→</span></button>`;
+  return renderLink(title, detail, actionAttributes('open-nutrition', { surface: 'meals' }));
 }
 
 export function renderNutritionCircadianExtension(actionAttributes: NutritionActionAttributes) {
@@ -62,5 +69,5 @@ export function renderNutritionCircadianExtension(actionAttributes: NutritionAct
   };
   const detail = [first && `first ${first}`, last && `last ${last}`, beforeSleep !== null && beforeSleep !== undefined && Number.isFinite(Number(beforeSleep)) && `${duration(beforeSleep)} before sleep`, afterWake !== null && afterWake !== undefined && Number.isFinite(Number(afterWake)) && `${duration(afterWake)} after wake`].filter(Boolean).join(' · ');
   if (!detail) return '';
-  return `<button type="button" class="diet-nutrition-extension" ${actionAttributes('open-nutrition', { surface: 'timing' })}><span class="diet-nutrition-extension-title">Logged meal timing</span><span>7-day average · ${escapeHTML(detail)}</span><span aria-hidden="true">→</span></button>`;
+  return renderLink('Logged meal timing', `7-day average · ${detail}`, actionAttributes('open-nutrition', { surface: 'timing' }));
 }

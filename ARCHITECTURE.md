@@ -76,7 +76,7 @@ and escaped diet/nutrition renderer output; they are included in the DOM sink po
 Scoped utilities in `css/context-catalog.tailwind.css` and
 `context-card-catalog-classes.ts` replace static catalog and Chat overrides.
 `css/context-profile.base.css` retains native editors, chart tips, supplement-impact
-dots and nutrition fragments; the build combines both sources at the unchanged
+dots; the build combines both sources at the unchanged
 context stylesheet URL. The Tailwind source list includes the catalog, notes and
 assessment components explicitly.
 `context-card-status.ts` publishes typed, profile/data-scoped snapshots for indicator,
@@ -214,7 +214,12 @@ before publication. The diagnoses conflict check runs inside the same storage lo
 Accepted writes finish on their original profile after closure; retired controls
 cannot submit new work. The stable Medical History facade and helper URLs remain;
 the native template, suggestion HTML sinks and superseded medical styles are removed.
-Nutrition fragments still use existing adapters and remain migration work.
+`ContextNutritionLink.svelte` owns the Diet and Light card links, escaped summary
+text, keyboard focus and scoped Tailwind. Their synchronous renderer preserves
+its trusted internal delegated-action attribute callback; the authored action slot
+is replaced at that boundary. Summary, timeframe and timing calculations remain
+unchanged. Native extension markup and CSS are removed. The meal editor,
+dashboard and history presentation remain separate nutrition migration work.
 `context-notes-session.ts` captures accepted text and originating profile/data,
 serializes debounced scoped writes and retains retry drafts through catalog rebuilds
 and fresh profile reload objects. Failed idle sessions retain draft text without

@@ -168,7 +168,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/context-cards-runtime.js',
   '/js/context-card-health-dots.js',
   '/js/context-source-registry.js',
-  '/js/context-card-summaries.js', '/js/context-emf-launcher-model.js', '/js/components/ContextEMFLauncher.svelte.html.js', '/js/nutrition-context-card-extensions.js',
+  '/js/context-card-summaries.js', '/js/context-emf-launcher-model.js', '/js/components/ContextEMFLauncher.svelte.html.js', '/js/nutrition-context-card-extensions.js', '/js/components/ContextNutritionLink.svelte.html.js',
   '/js/context-card-editor-ui.js',
   '/js/context-card-dashboard-ai.js',
   '/js/context-card-dashboard-ai-impl.js',

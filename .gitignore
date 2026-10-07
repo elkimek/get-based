@@ -1949,3 +1949,6 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/context-form-classes.js
 
 /tests/helpers/offline-launch-diagnostics.js
+
+/js/components/ContextNutritionLink.svelte.html.js
+/js/components/ContextNutritionLink.svelte.html.js.map

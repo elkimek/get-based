@@ -10,3 +10,6 @@
 
 @source "../js/components/ContextFoodContaminantsBadge.svelte";
 @custom-variant food-badge (&:is([data-food-contaminant-badge], [data-food-contaminant-badge] *));
+
+@source "../js/components/ContextNutritionLink.svelte";
+@custom-variant nutrition-link (&:is([data-nutrition-context-link], [data-nutrition-context-link] *));
