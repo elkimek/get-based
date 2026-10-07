@@ -203,7 +203,7 @@ const contextCards = await import('../js/context-cards.js');
   assert('Medical history draft records when saved', ctxMedicalSrc.includes("saveContextAndRefresh('Medical history saved', 'diagnoses')"));
   assert('addHealthGoal calls recordChange', ctxLifestyleSpecialSrc.includes("recordContextChange('healthGoals')"));
   assert('saveInterpretiveLens calls recordChange', ctxLifestyleSpecialSrc.includes("recordContextChange('interpretiveLens')"));
-  assert('debounceContextNotes calls recordChange', ctxSrc.includes("recordChange('contextNotes')"));
+  assert('Context notes persistence records its captured draft history', read('js/context-notes-session.js').includes("recordContextCardChange('contextNotes', draft)"));
 
   const cycleSrc = read('js/cycle.ts');
   assert('saveMenstrualCycle records context changes through the runtime callback',

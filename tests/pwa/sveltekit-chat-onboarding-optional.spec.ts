@@ -16,7 +16,7 @@ async function openReturningChat(page: Page) {
   if (await page.locator('#chat-fab').isVisible()) await page.locator('#chat-fab').click();
   else await page.getByRole('button', { name: 'Start guided chat', exact: true }).click();
 }
-test('optional onboarding imports real DNA and mtDNA offline on first use and restores both through a cached cold launch', async ({ page, context }) => {
+test('optional onboarding imports real DNA and mtDNA offline on first use and restores notes and both imports through cached cold launches', async ({ page, context }) => {
   test.setTimeout(120000);
   const errors: string[] = [], csp: string[] = [];
   context.on('page', target => target.on('pageerror', error => errors.push(error.message)));
@@ -53,7 +53,7 @@ test('optional onboarding imports real DNA and mtDNA offline on first use and re
     await expect(page.getByRole('button', { name: 'Re-import mtDNA', exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'LivingDNA kit' })).toHaveCount(0);
     await page.close();
-    const cold = await context.newPage(); await cold.goto(server.origin + '/app?dev-sw=1'); await ready(cold);
+    let cold = await context.newPage(); await cold.goto(server.origin + '/app?dev-sw=1'); await ready(cold);
     await openReturningChat(cold);
     await expect(cold.locator('[data-chat-optional-task="genetics"]')).toContainText('1 SNPs · mtDNA H');
     await expect(cold.getByRole('button', { name: 'Re-import DNA', exact: true })).toBeVisible();
@@ -67,6 +67,9 @@ test('optional onboarding imports real DNA and mtDNA offline on first use and re
     await expect(catalog.locator('.context-card-explanation').first()).toBeVisible();
     await catalog.getByRole('textbox', { name: 'Additional context', exact: true }).fill('Offline context <literal> & preserved');
     await expect(catalog.locator('.ctx-notes-status')).toHaveText('Saved');
+    await cold.close(); cold = await context.newPage(); await cold.goto(server.origin + '/app?dev-sw=1'); await ready(cold);
+    await openReturningChat(cold);
+    await expect(cold.locator('.chat-context-cards [data-context-cards-view] textarea')).toHaveValue('Offline context <literal> & preserved');
     await cold.getByRole('button', { name: 'Close chat', exact: true }).click();
     await cold.locator('[data-shell-action="open-settings"]').click(); await cold.locator('#settings-nav-data').click();
     const downloading = cold.waitForEvent('download');

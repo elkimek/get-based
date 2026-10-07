@@ -205,4 +205,6 @@ contract and service delegates remain available. Optional-onboarding acceptance
 opens all nine cards after an offline cold launch, expands an explanation and
 persists literal additional-context notes alongside imported DNA/mtDNA in the
 exported backup. This covers the compatibility presentation; independent catalog
-lifecycles and asynchronous notes-write ownership remain separate work.
+lifecycles and remaining AI/tips slot ownership remain separate work. Notes edits
+retain their originating profile through debounced scoped persistence, expose
+confirmed commit status and preserve failed drafts with an explicit retry.

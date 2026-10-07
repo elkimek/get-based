@@ -25,12 +25,12 @@ interface ContextHistoryEntry { field?: unknown; date?: unknown; snapshot?: unkn
  * Cycle imports and Chat onboarding both persist through this cold-safe path.
  *
  */
-export function recordContextCardChange(field: string) {
+export function recordContextCardChange(field: string, data = state.importedData) {
   const today = new Date().toISOString().slice(0, 10);
-  const current: unknown = state.importedData[field];
+  const current: unknown = data[field];
   const snapshot: unknown = current != null ? JSON.parse(JSON.stringify(current)) : null;
   const snapshotStr = JSON.stringify(snapshot);
-  const history = ensureImportedArray(state.importedData, 'changeHistory') as ContextHistoryEntry[];
+  const history = ensureImportedArray(data, 'changeHistory') as ContextHistoryEntry[];
   let lastIdx = -1;
   for (let i = history.length - 1; i >= 0; i--) {
     if (history[i]!.field === field) {
@@ -42,20 +42,20 @@ export function recordContextCardChange(field: string) {
   const now = Date.now();
   const todayIdx = history.findIndex(entry => entry.field === field && entry.date === today);
   if (todayIdx >= 0) {
-    replaceImportedArrayItem(state.importedData, 'changeHistory', todayIdx, {
+    replaceImportedArrayItem(data, 'changeHistory', todayIdx, {
       ...history[todayIdx],
       snapshot,
       updatedAt: now,
     });
   } else {
-    appendImportedArrayItem(state.importedData, 'changeHistory', {
+    appendImportedArrayItem(data, 'changeHistory', {
       field,
       date: today,
       snapshot,
       updatedAt: now,
     });
   }
-  trimImportedArray(state.importedData, 'changeHistory', 200);
+  trimImportedArray(data, 'changeHistory', 200);
 }
 
 const contextCardsRuntimeCallbacks: ContextCardsCallbacks = {

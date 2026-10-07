@@ -37,8 +37,12 @@ The shared health-context catalog has focused component contracts in
 notes/AI/tips workflows in the context-card Playwright cases, and actual cached
 static-PWA coverage in
 [`sveltekit-chat-onboarding-optional.spec.ts`](../tests/pwa/sveltekit-chat-onboarding-optional.spec.ts).
-These checks preserve the current delegated service contracts; they do not prove
-independent ownership for simultaneous catalogs or failure-safe notes persistence.
+[`context-notes-ownership.test.ts`](../tests/context-notes-ownership.test.ts)
+checks captured-profile writes, commit confirmation, ordered revisions, retry drafts,
+retired controls, missing baselines and failed reads. The actual-storage headless
+[`context-notes-owned.spec.ts`](../tests/playwright/context-notes-owned.spec.ts)
+checks profile changes, simultaneous catalogs and rebuilds. These checks do not prove
+independent authored ownership of the remaining AI/tips slots.
 
 The DOM sink audit compares every discovered HTML-writing operation with its
 committed count and source fingerprint, including raw Svelte HTML. Successful

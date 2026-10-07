@@ -1,3 +1,6 @@
+import { debounceContextNotes } from './context-notes-view.js';
+import { contextNotesPresentation } from './context-notes-session.js';
+export { debounceContextNotes } from './context-notes-view.js';
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
 import { renderHTML as renderContextCatalogHTML } from './components/ContextCardCatalog.svelte.html.js';
 import { projectContextDemoBar } from './context-card-catalog-presentation.js';
@@ -165,6 +168,8 @@ function handleContextCardClick(event: Event) {
     void enableLiveAIForDemo();
   } else if (action === 'disable-demo-live-ai') {
     disableLiveAIForDemo();
+  } else if (action === 'retry-context-notes') {
+    debounceContextNotes(actionEl.closest('[data-context-cards-view]')?.querySelector<HTMLTextAreaElement>('.ctx-notes-textarea') || null);
   } else if (action === 'open-editor') {
     const editor = actionEl.dataset.contextCardEditor || '';
     const runEditor = contextCardEditorActions[editor];
@@ -204,7 +209,7 @@ function handleContextCardInput(event: Event) {
   const actionEl = closestContextCardAction(event.target as ContextCardTarget | null) as HTMLElement | null;
   if (!actionEl || !(event.currentTarget as ContextCardEventRoot | null)?.contains?.(actionEl)) return;
   if (actionEl.getAttribute(CONTEXT_CARD_ACTION_ATTR) === 'context-notes-input') {
-    debounceContextNotes();
+    debounceContextNotes(actionEl as HTMLTextAreaElement);
   }
 }
 
@@ -310,6 +315,7 @@ let contextCardRenderSequence = 0;
 export function renderProfileContextCards({ embedded = false }: { embedded?: unknown } = {}) {
   contextCardRenderSequence += 1;
   const renderId = `ctx-${contextCardRenderSequence}`;
+  const notes = contextNotesPresentation();
   const cardDefs = getContextCardDefs();
   const _ccData = getActiveData();
   const _ccHasLabs = _ccData.dates.length > 0 || Object.values(_ccData.categories).some(c => c.singleDate);
@@ -326,28 +332,10 @@ export function renderProfileContextCards({ embedded = false }: { embedded?: unk
   return renderContextCatalogHTML({ view: {
     renderId, embedded: Boolean(embedded), subtitle: _ccSubtitle, cards, addedCount: cards.filter(card => card.filled).length,
     refresh: hasAssistantFeatureProvider() && (!_demoAIMode.demo || _demoAIMode.live),
-    demo: projectContextDemoBar(_demoAIMode), notes: String(state.importedData.contextNotes || ''),
+    demo: projectContextDemoBar(_demoAIMode), notes: notes.notes, notesTicket: notes.ticket, notesStatus: notes.status,
   } });
 }
 
-let _ctxNotesTimer: ReturnType<typeof setTimeout> | null = null;
-function setContextNotesStatus(text: string) {
-  const status = document.getElementById('ctx-notes-status');
-  if (status) status.textContent = text;
-}
-export function debounceContextNotes() {
-  clearTimeout(_ctxNotesTimer as ReturnType<typeof setTimeout>);
-  setContextNotesStatus('Saving\u2026');
-  _ctxNotesTimer = setTimeout(() => {
-    const ta = (document.getElementById('ctx-notes-textarea') as HTMLTextAreaElement | null);
-    if (ta) {
-      state.importedData.contextNotes = ta.value;
-      recordChange('contextNotes');
-      saveImportedData();
-      setContextNotesStatus('Saved');
-    }
-  }, 500);
-}
 
 // ── AI Health Status Dots ──
 

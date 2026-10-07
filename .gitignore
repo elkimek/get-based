@@ -1894,3 +1894,6 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/components/ContextCardCatalog.svelte.native.js.map
 /js/components/ContextCardCatalog.svelte.html.js
 /js/components/ContextCardCatalog.svelte.html.js.map
+
+/js/context-notes-session.js
+/js/context-notes-view.js

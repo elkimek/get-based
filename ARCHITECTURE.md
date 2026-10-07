@@ -77,9 +77,18 @@ Scoped utilities in `css/context-catalog.tailwind.css` and
 `context-card-catalog-classes.ts` replace static catalog and Chat overrides.
 `css/context-profile.base.css` retains native editors, AI slots, tips and nutrition
 fragments; the build combines both sources at the unchanged context stylesheet URL.
-The existing delegated actions, notes persistence and AI/tips DOM adapters still
-serve the catalog. This presentation boundary does not establish independent
-ownership for simultaneous catalogs or asynchronous notes writes.
+The existing delegated actions and AI/tips DOM adapters still serve the catalog.
+`context-notes-session.ts` captures accepted text and originating profile/data,
+serializes debounced scoped writes and retains retry drafts through catalog rebuilds.
+Known persisted baselines isolate the notes/history mutation from unrelated unsaved
+fields. Missing baselines retain the storage API's explicit restore semantics.
+Successful writes publish status/history only after commit; failed reads block
+writes, failures expose a scoped retry, and retired controls cannot submit new edits.
+Accepted edits finish for their original profile after the view closes or changes.
+`context-notes-view.ts` synchronizes current compatibility catalogs through opaque
+scope tickets; the public no-argument debounce helper retains its contract.
+Independent authored catalog lifecycles, unique slot IDs and AI/tips slot ownership
+remain separate from this persistence service.
 
 Display settings is the bounded Svelte 5 pilot. `js/settings-display-panel.ts`
 reads existing service state into typed snapshots and retains its native runtime
