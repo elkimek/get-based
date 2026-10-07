@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1136 |
-| Internal import edges | 4155 |
+| Modules | 1140 |
+| Internal import edges | 4164 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,8 +65,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 282 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
-| [`js/state.ts`](js/state.ts) | 233 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
+| [`js/utils.ts`](js/utils.ts) | 283 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
+| [`js/state.ts`](js/state.ts) | 234 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 91 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/data.ts`](js/data.ts) | 82 | [`js/settings.ts`](js/settings.ts) | 35 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 81 | [`js/provider-panels.ts`](js/provider-panels.ts) | 34 |
@@ -74,7 +74,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | [`js/api.ts`](js/api.ts) | 52 | [`js/pdf-import.ts`](js/pdf-import.ts) | 28 |
 | [`js/profile.ts`](js/profile.ts) | 51 | [`js/sync-configure.ts`](js/sync-configure.ts) | 28 |
 | [`js/schema.ts`](js/schema.ts) | 41 | [`js/wearables-connect.ts`](js/wearables-connect.ts) | 28 |
-| [`js/crypto.ts`](js/crypto.ts) | 39 | [`js/export.ts`](js/export.ts) | 25 |
+| [`js/crypto.ts`](js/crypto.ts) | 40 | [`js/export.ts`](js/export.ts) | 25 |
 | [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts) | 36 | [`js/context-cards.ts`](js/context-cards.ts) | 24 |
 | [`js/data-merge.ts`](js/data-merge.ts) | 34 | [`js/lab-context.ts`](js/lab-context.ts) | 24 |
 | [`js/utils-runtime.ts`](js/utils-runtime.ts) | 27 | [`js/chat-empty-state.ts`](js/chat-empty-state.ts) | 23 |
@@ -811,9 +811,9 @@ Native browser modules shipped with the static application.
 - [`js/context-card-catalog-classes.ts`](js/context-card-catalog-classes.ts) → no in-scope imports
 - [`js/context-card-catalog-presentation.ts`](js/context-card-catalog-presentation.ts) → no in-scope imports
 - [`js/context-card-dashboard-ai-actions.ts`](js/context-card-dashboard-ai-actions.ts) → [`js/utils.ts`](js/utils.ts)
-- [`js/context-card-dashboard-ai-impl.ts`](js/context-card-dashboard-ai-impl.ts) → [`js/backup.ts`](js/backup.ts), [`js/context-hub-view.ts`](js/context-hub-view.ts), [`js/crypto.ts`](js/crypto.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts), [`js/sync.ts`](js/sync.ts)
+- [`js/context-card-dashboard-ai-impl.ts`](js/context-card-dashboard-ai-impl.ts) → [`js/backup.ts`](js/backup.ts), [`js/context-hub-view.ts`](js/context-hub-view.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data-protection-picker-view.ts`](js/data-protection-picker-view.ts), [`js/dna-runtime-bridge.ts`](js/dna-runtime-bridge.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts)
 - [`js/context-card-dashboard-ai-runtime.ts`](js/context-card-dashboard-ai-runtime.ts) → no in-scope imports
-- [`js/context-card-dashboard-ai.ts`](js/context-card-dashboard-ai.ts) → [`js/backup.ts`](js/backup.ts), [`js/context-card-dashboard-ai-actions.ts`](js/context-card-dashboard-ai-actions.ts), [`js/context-card-dashboard-ai-impl.ts`](js/context-card-dashboard-ai-impl.ts) *(dynamic)*, [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/lens.ts`](js/lens.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts), [`js/state.ts`](js/state.ts), [`js/sync.ts`](js/sync.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/context-card-dashboard-ai.ts`](js/context-card-dashboard-ai.ts) → [`js/backup.ts`](js/backup.ts), [`js/context-card-dashboard-ai-actions.ts`](js/context-card-dashboard-ai-actions.ts), [`js/context-card-dashboard-ai-impl.ts`](js/context-card-dashboard-ai-impl.ts) *(dynamic)*, [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data-protection-status.ts`](js/data-protection-status.ts), [`js/lens.ts`](js/lens.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/context-card-health-dots.ts`](js/context-card-health-dots.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/context-card-status.ts`](js/context-card-status.ts), [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/lab-context.ts`](js/lab-context.ts), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/context-card-lifestyle-editors-impl.ts`](js/context-card-lifestyle-editors-impl.ts) → [`js/context-card-lifestyle-runtime.ts`](js/context-card-lifestyle-runtime.ts), [`js/context-card-lifestyle-special-editors.ts`](js/context-card-lifestyle-special-editors.ts), [`js/context-food-contaminants-badge.ts`](js/context-food-contaminants-badge.ts), [`js/context-lifestyle-form-view.ts`](js/context-lifestyle-form-view.ts)
@@ -969,7 +969,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>data</code> family — 10 modules</summary>
+<details><summary><code>data</code> family — 13 modules</summary>
 
 - [`js/data-calculated-markers.ts`](js/data-calculated-markers.ts) → [`js/marker-context-ranges.ts`](js/marker-context-ranges.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/state.ts`](js/state.ts)
 - [`js/data-core-types.ts`](js/data-core-types.ts) → no in-scope imports
@@ -977,6 +977,9 @@ Native browser modules shipped with the static application.
 - [`js/data-custom-markers.ts`](js/data-custom-markers.ts) → no in-scope imports
 - [`js/data-merge-lab-entries.ts`](js/data-merge-lab-entries.ts) → [`js/lab-entry.ts`](js/lab-entry.ts)
 - [`js/data-merge.ts`](js/data-merge.ts) → [`js/data-merge-lab-entries.ts`](js/data-merge-lab-entries.ts), [`js/lab-entry.ts`](js/lab-entry.ts), [`js/sync-delta-id.ts`](js/sync-delta-id.ts), [`js/sync-delta-surface-config.ts`](js/sync-delta-surface-config.ts)
+- [`js/data-protection-picker-model.ts`](js/data-protection-picker-model.ts) → no in-scope imports
+- [`js/data-protection-picker-view.ts`](js/data-protection-picker-view.ts) → [`js/components/DataProtectionPicker.svelte`](js/components/DataProtectionPicker.svelte), [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/data-protection-picker-model.ts`](js/data-protection-picker-model.ts), [`js/data-protection-status.ts`](js/data-protection-status.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/data-protection-status.ts`](js/data-protection-status.ts) → [`js/backup.ts`](js/backup.ts), [`js/crypto.ts`](js/crypto.ts), [`js/sync.ts`](js/sync.ts)
 - [`js/data-view-controls.ts`](js/data-view-controls.ts) → [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/unit-profiles.ts`](js/unit-profiles.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/data-view-types.ts`](js/data-view-types.ts) → no in-scope imports
 - [`js/data-wipe.ts`](js/data-wipe.ts) → no in-scope imports
@@ -987,6 +990,12 @@ Native browser modules shipped with the static application.
 <details><summary><code>DataEntriesSettings.svelte</code> family — 1 module</summary>
 
 - [`js/components/DataEntriesSettings.svelte`](js/components/DataEntriesSettings.svelte) → [`js/settings-records-classes.ts`](js/settings-records-classes.ts)
+
+</details>
+
+<details><summary><code>DataProtectionPicker.svelte</code> family — 1 module</summary>
+
+- [`js/components/DataProtectionPicker.svelte`](js/components/DataProtectionPicker.svelte) → no in-scope imports
 
 </details>
 

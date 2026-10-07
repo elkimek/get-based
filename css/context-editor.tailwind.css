@@ -18,3 +18,6 @@
 
 @source "../js/components/ContextHub.svelte";
 @custom-variant context-hub (&:is([data-context-hub-view], [data-context-hub-view] *));
+
+@source "../js/components/DataProtectionPicker.svelte";
+@custom-variant protection-picker (&:is([data-data-protection-view], [data-data-protection-view] *));

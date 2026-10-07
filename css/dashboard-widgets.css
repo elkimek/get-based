@@ -222,29 +222,6 @@
 .dashboard-cta-icon { font-size: 15px; line-height: 1; }
 .dashboard-cta-plus { font-weight: 600; opacity: 0.8; }
 
-/* Picker dialogs used by dashboard setup flows. */
-.dashboard-picker-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
-}
-.dashboard-picker-grid { grid-template-columns: 1fr; }
-.dashboard-picker-card {
-  display: flex; flex-direction: column; align-items: flex-start; text-align: left;
-  gap: 6px; padding: 14px;
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-  cursor: pointer; font-family: inherit; color: var(--text-primary);
-  transition: border-color 0.15s, background 0.15s;
-  width: 100%;
-}
-.dashboard-picker-card:hover { border-color: var(--purple); background: var(--bg-hover); }
-.dashboard-picker-card:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
-.dashboard-picker-icon { font-size: 22px; line-height: 1; }
-.dashboard-picker-title { font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
-.dashboard-picker-sub { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
-.dashboard-picker-action { font-size: 12px; color: var(--purple); font-weight: 500; margin-top: 4px; }
-.dashboard-picker-card[data-configured="true"] { opacity: 0.7; cursor: default; }
-.dashboard-picker-card[data-configured="true"]:hover { border-color: var(--border); background: var(--bg-card); }
-.dashboard-picker-card[data-configured="true"] .dashboard-picker-action { color: var(--green); }
-.dashboard-picker-check { color: var(--green); font-weight: 700; }
 @media (max-width: 1100px) {
   .dashboard-widget-half,
   .dashboard-widget-two-third { grid-column: span 12; }

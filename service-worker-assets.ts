@@ -179,7 +179,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/context-lifestyle-form-model.js', '/js/context-lifestyle-form-session.js', '/js/context-lifestyle-form-view.js',
   '/js/context-food-contaminants-model.js', '/js/context-food-contaminants-badge.js', '/js/context-food-contaminants-view.js',
   '/js/components/ContextFoodContaminants.svelte.native.js', '/js/components/ContextFoodContaminantsBadge.svelte.html.js', '/js/components/ContextFoodContaminantsBadge.svelte.native.js',
-  '/js/context-hub-data.js', '/js/context-hub-model.js', '/js/context-hub-session.js', '/js/context-hub-view.js', '/js/components/ContextHub.svelte.native.js',
+  '/js/context-hub-data.js', '/js/context-hub-model.js', '/js/context-hub-session.js', '/js/context-hub-view.js', '/js/components/ContextHub.svelte.native.js', '/js/data-protection-status.js', '/js/data-protection-picker-model.js', '/js/data-protection-picker-view.js', '/js/components/DataProtectionPicker.svelte.native.js',
   '/js/context-form-dialog.js', '/js/context-health-goals-session.js', '/js/context-health-goals-view.js', '/js/components/ContextHealthGoals.svelte.native.js',
   '/js/components/LifestyleContextForm.svelte.native.js', '/js/context-card-lifestyle-special-editors.js',
   '/js/focus-card.js',

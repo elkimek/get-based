@@ -183,7 +183,7 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
       host.querySelector<HTMLElement>('[data-dashboard-ai-action="setup-backup"]')?.click();
       host.querySelector<HTMLElement>('[data-dashboard-ai-action="open-data-protection-picker"]')?.click();
       await dashboardAi.loadDashboardAIModule();
-      await Promise.resolve();
+      for (let attempt = 0; attempt < 200 && !document.querySelector('#data-protection-picker-overlay.show'); attempt++) await new Promise(resolve => savedGlobals.setTimeout.call(window, resolve, 10));
       outcomes.dashboardAiDelegatedCtasRouteClicks =
         calls.includes('encryption')
         && calls.includes('sync')

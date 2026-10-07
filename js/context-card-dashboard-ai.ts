@@ -1,11 +1,11 @@
 // context-card-dashboard-ai.js - cold-safe AI context and data protection facade
 
 import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
-import { getFolderBackupState, pickFolderForBackup } from './backup.js';
-import { getEncryptionEnabled, showEnableEncryptionModal } from './crypto.js';
+import { pickFolderForBackup } from './backup.js';
+import { showEnableEncryptionModal } from './crypto.js';
 import { getLensSummary, openKnowledgeBaseModal } from './lens.js';
 import { state } from './state.js';
-import { isSyncEnabled } from './sync.js';
+import { getDataProtectionStatus } from './data-protection-status.js';
 import { showSyncSetupModal } from './settings-sync-panel.js';
 import { escapeHTML, showNotification } from './utils.js';
 import {
@@ -77,8 +77,15 @@ export function triggerDNAFilePicker() {
   return runDashboardAIAction('triggerDNAFilePicker');
 }
 
+let protectionOpenRequest = 0;
 export function openDataProtectionPicker() {
-  return runDashboardAIAction('openDataProtectionPicker');
+  const ticket = ++protectionOpenRequest, profile = state.currentProfile, origin = state.importedData;
+  const modal = typeof document === 'undefined' ? null : document.getElementById('detail-modal');
+  const content = modal?.firstElementChild, surface = typeof document === 'undefined' ? null : document.getElementById('main-content')?.firstElementChild;
+  return runDashboardAIAction('openDataProtectionPicker', () => ticket === protectionOpenRequest
+    && state.currentProfile === profile && state.importedData === origin
+    && (typeof document === 'undefined' || (document.getElementById('detail-modal') === modal
+      && modal?.firstElementChild === content && document.getElementById('main-content')?.firstElementChild === surface)));
 }
 
 let contextOpenRequest = 0;
@@ -167,22 +174,6 @@ function renderPersonalizeAICta(lensSet: boolean, kbSet: boolean) {
     <span class="dashboard-cta-plus" aria-hidden="true">+</span>
     <span>${escapeHTML(label)}</span>
   </button>`;
-}
-
-function getDataProtectionStatus() {
-  let backupConfigured = false;
-  let backupSupported = true;
-  try {
-    const backupState = getFolderBackupState();
-    backupSupported = !!backupState?.supported;
-    backupConfigured = !!backupState?.folderName;
-  } catch { /* backup not initialised yet */ }
-  return {
-    encryption: !!getEncryptionEnabled(),
-    sync: !!isSyncEnabled(),
-    backup: backupConfigured,
-    backupSupported,
-  };
 }
 
 // Pure render: tests pass explicit state to avoid monkey-patching module-level

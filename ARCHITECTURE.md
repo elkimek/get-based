@@ -193,6 +193,15 @@ the originating profile after the dialog closes; unrelated unsaved fields remain
 live. The public Context/Personalize AI aliases and source-control keys remain
 stable. Scoped Tailwind replaces the overview's native templates, DOM patchers and
 styles; the Knowledge Base and data-protection dialogs retain their own owners.
+`DataProtectionPicker.svelte` owns the setup cards and configured statuses with
+scoped Tailwind at the existing lazy context stylesheet URL.
+`data-protection-status.ts` supplies one capability reader to both the dashboard
+CTA and picker. `data-protection-picker-view.ts` captures the profile, navigation
+surface and setup actions, guards delayed opens, retires stale
+controls, and owns focus trapping, dismissal and scroll restoration. Configured
+cards close without starting setup; unsupported folder backup stays hidden.
+Encryption, sync and folder selection continue through their existing services.
+The native picker template and obsolete dashboard picker styles are removed.
 Medical history and nutrition fragments still use existing adapters and remain
 migration work.
 `context-notes-session.ts` captures accepted text and originating profile/data,

@@ -272,5 +272,15 @@ through two offline cold launches. Headless native checks cover all six themes,
 small and wide layouts, keyboard controls, accessibility, real failed IndexedDB
 writes, peer conflicts and retired controls. Source settings retain their existing
 history contract and do not create personal-fact history events.
+The data-protection picker shares authored `DataProtectionPicker.svelte` markup,
+scoped Tailwind and one capability reader across native and static builds.
+[`sveltekit-data-protection-picker.spec.ts`](../tests/pwa/sveltekit-data-protection-picker.spec.ts)
+loads the owning Insight route, exercises the public delegated entry with the
+origin unavailable, follows real encryption and sync setup dialogs without
+committing setup, and retains the complete profile across two cold launches.
+Headless native checks cover all configured/capability combinations, existing
+callback configuration, six themes, keyboard focus, responsive resizing, failed
+stylesheet retry and retired controls. Folder selection dispatch is checked with
+a callback fixture; no operating-system folder picker is opened.
 This is scoped editor acceptance; final whole-application migration acceptance
 remains required.

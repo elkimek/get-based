@@ -203,3 +203,27 @@ test('dashboard AI modal loader retries with a fixed URL and reports the first f
     notification: '✗ Dashboard context tools could not be loaded. Try again.',
   });
 });
+
+for (const stale of [true, false]) test(`dashboard AI protection loader ${stale ? 'rejects retired profile and dialog ownership' : 'opens only the newest concurrent request'}`, async ({ page }) => {
+  await page.goto('/dashboard-ai-loader-coverage');
+  let release!: () => void, started!: () => void; const held = new Promise<void>(resolve => { release = resolve; }), requested = new Promise<void>(resolve => { started = resolve; });
+  await page.route('**/js/context-card-dashboard-ai-impl.js*', async route => { started(); await held; await route.fulfill({ contentType: 'text/javascript', body: syntheticDashboardAI }); });
+  await page.evaluate(async url => {
+    const facade = await import(url) as typeof import('../../js/context-card-dashboard-ai.js');
+    facade.configureDashboardAISyncSetup(() => {}); facade.configureDashboardAIDataProtectionDeps({ pickFolderForBackup: () => {}, showEnableEncryptionModal: () => {} });
+    Reflect.set(window, 'protectionLoaderFacade', facade);
+    Reflect.set(window, 'protectionFirst', facade.openDataProtectionPicker());
+  }, facadeUrl());
+  await requested;
+  await page.evaluate(async stale => {
+    if (stale) {
+      const { state } = await import('/js/state.js'); state.currentProfile = 'retired-protection-loader-profile';
+      const modal = document.createElement('div'); modal.id = 'detail-modal'; modal.append(document.createTextNode('New dialog')); document.body.append(modal);
+    } else {
+      const facade = Reflect.get(window, 'protectionLoaderFacade') as typeof import('../../js/context-card-dashboard-ai.js'); Reflect.set(window, 'protectionSecond', facade.openDataProtectionPicker());
+    }
+  }, stale);
+  release();
+  const result = await page.evaluate(async () => ({ first: await Reflect.get(window, 'protectionFirst'), second: await Reflect.get(window, 'protectionSecond'), calls: (Reflect.get(window, '__dashboardAILoaderCalls') as string[][] || []).filter(call => call[0] === 'openDataProtectionPicker') }));
+  expect(result.first).toBe(false); expect(result.second).toBe(stale ? undefined : 'protection'); expect(result.calls).toHaveLength(stale ? 0 : 1);
+});

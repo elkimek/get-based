@@ -1937,3 +1937,7 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/context-hub-view.js
 
 /scripts/raw-module-assets.mjs
+
+/js/data-protection-status.js
+/js/data-protection-picker-model.js
+/js/data-protection-picker-view.js
