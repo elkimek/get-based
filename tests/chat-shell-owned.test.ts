@@ -4,6 +4,7 @@ import { renderHTML } from '../js/components/ChatShell.svelte.html.js';
 import { ensureChatShell } from '../js/chat-shell-component.js';
 import { notifyChatComposerInput, registerChatComposerInput } from '../js/chat-composer-input-port.js';
 import { state } from '../js/state.js';
+import { publishChatMessageEditing } from '../js/chat-message-editor-view.js';
 import { configureChatComposer, initChatComposer, restoreChatDraft, setChatInputValue } from '../js/chat-composer.js';
 import { loadChatDraft, rememberChatDraft } from '../js/chat-draft-storage.js';
 import { withChatShellSnapshot } from '../scripts/chat-shell-snapshot.mjs';
@@ -24,6 +25,7 @@ beforeEach(() => {
   vi.clearAllMocks(); vi.mocked(loadChatDraft).mockResolvedValue('');
   state.currentProfile = 'shell-profile'; state.currentThreadId = 'shell-thread';
   document.body.replaceChildren(host());
+  publishChatMessageEditing(false);
 });
 
 it('hydrates the native snapshot once without replacing controls, focus or live feature hosts', () => {
@@ -90,4 +92,17 @@ it('generates only the bounded native shell section and rejects missing or dupli
   expect(withChatShellSnapshot(snapshot, renderHTML())).toBe(snapshot);
   expect(() => withChatShellSnapshot('', renderHTML())).toThrow('one generated Chat shell');
   expect(() => withChatShellSnapshot(source + source, renderHTML())).toThrow('one generated Chat shell');
+});
+
+it('owns composer edit mode without replacing its input or draft', () => {
+  ensureChatShell();
+  const original = input(); original.value = 'Unsent draft';
+  publishChatMessageEditing(true);
+  expect((document.querySelector('.chat-input-row') as HTMLElement & { inert: boolean }).inert).toBe(true);
+  expect(document.querySelector('.chat-input-area')!.classList.contains('chat-message-edit-active')).toBe(true);
+  expect(input()).toBe(original); expect(input().value).toBe('Unsent draft');
+  publishChatMessageEditing(false);
+  expect((document.querySelector('.chat-input-row') as HTMLElement & { inert: boolean }).inert).toBe(false);
+  expect(document.querySelector('.chat-input-area')!.classList.contains('chat-message-edit-active')).toBe(false);
+  expect(input()).toBe(original); expect(input().value).toBe('Unsent draft');
 });

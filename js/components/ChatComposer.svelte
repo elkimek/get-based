@@ -1,5 +1,8 @@
 <script lang="ts">
   import { flushSync } from 'svelte';
+  import { ownChatMessageEditComposer, isChatMessageEditing } from '../chat-message-editor-view.js';
+  let editing = $state(isChatMessageEditing());
+  function registerEditing(root: HTMLElement) { return ownChatMessageEditComposer(root, next => flushSync(() => { editing = next; })); }
   import ChatDiscussion from './ChatDiscussion.svelte';
   import { INITIAL_CHAT_DISCUSSION, ownChatDiscussion, guardDiscussionAction, type ChatDiscussionView } from '../chat-discussion-view.js';
   let discussion = $state.raw<ChatDiscussionView>({ ...INITIAL_CHAT_DISCUSSION });
@@ -29,10 +32,10 @@
     COMPOSER_GROUP, COMPOSER_TOOL_BUTTON, COMPOSER_SEND_BUTTON
   } from '../chat-composer-classes.js';
 </script>
-<div data-chat-composer-view data-chat-attachment-view data-chat-voice-view data-chat-discussion-view bind:this={root} use:registerAttachments use:registerVoice use:registerDiscussion class={COMPOSER_AREA}>
+<div data-chat-composer-view data-chat-attachment-view data-chat-voice-view data-chat-discussion-view bind:this={root} use:registerEditing use:registerAttachments use:registerVoice use:registerDiscussion class={COMPOSER_AREA} class:chat-message-edit-active={editing}>
         <ChatDiscussion view={discussion} {root}/>
         <ChatAttachmentPreview view={attachments} {root}/>
-        <div class={COMPOSER_ROW}>
+        <div class={COMPOSER_ROW} inert={editing}>
           <textarea class={COMPOSER_INPUT} id="chat-input" placeholder={unavailablePlaceholder || (discussion.round ? 'Reply to the discussion…' : 'Ask about your lab results...')} aria-describedby={discussion.round ? 'chat-discussion-composer-help' : undefined} aria-label="Chat message" rows="1" enterkeyhint="send" autocapitalize="sentences" data-chat-key-action="message-input" use:registerInput onpaste={event=>pasteChatAttachments(event.currentTarget,event)} oninput={event => notifyChatComposerInput(event.currentTarget)}></textarea>
           <div class={COMPOSER_TOOLBAR}>
             <div class={"chat-composer-tools " + COMPOSER_GROUP} aria-label="Message tools">

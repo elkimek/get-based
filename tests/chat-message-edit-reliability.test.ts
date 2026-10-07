@@ -7,6 +7,7 @@ vi.mock('../js/chat-threads.js', () => ({ createForkedThread: m.fork }));
 vi.mock('../js/utils.js', () => ({ showNotification: m.notify, escapeAttr: (value: unknown) => String(value) }));
 import { state } from '../js/state.js';
 import * as edit from '../js/chat-message-edit.js';
+import { isChatMessageEditing } from '../js/chat-message-editor-view.js';
 const deferred = () => { let resolve: ((value?: unknown) => void) | undefined; const promise = new Promise<unknown>(r => { resolve = r; }); return { promise, resolve }; };
 beforeEach(() => {
   edit.cancelChatMessageEdit(); vi.resetAllMocks(); m.streaming.mockReturnValue(false); (m.clearDraft.mockResolvedValue as (value?: unknown) => typeof m.clearDraft)();
@@ -32,9 +33,9 @@ it('does not leave a phantom session when the message bubble is absent', () => {
   document.getElementById('chat-msg-2')!.remove(); expect(edit.beginChatMessageEdit(2)).toBe(false); expect(edit.hasPendingChatMessageEdit()).toBe(false);
 });
 it('cancels without changing messages and releases the composer', () => {
-  const original = [...state.chatHistory]; begin(); expect(document.querySelector('.chat-input-row')!.hasAttribute('inert')).toBe(true);
+  const original = [...state.chatHistory]; begin(); expect(isChatMessageEditing()).toBe(true);
   expect(edit.cancelChatMessageEdit()).toBe(true); expect(edit.cancelChatMessageEdit()).toBe(false);
-  expect(state.chatHistory).toEqual(original); expect(document.querySelector('.chat-input-row')!.hasAttribute('inert')).toBe(false);
+  expect(state.chatHistory).toEqual(original); expect(isChatMessageEditing()).toBe(false);
 });
 it('does not submit whitespace-only edits', async () => {
   begin('  '); expect(await edit.submitChatMessageEdit()).toBe(false); expect(m.send).not.toHaveBeenCalled(); expect(edit.hasPendingChatMessageEdit()).toBe(true);
@@ -54,10 +55,11 @@ it('ignores duplicate submit calls while awaiting Send', async () => {
   const first = edit.submitChatMessageEdit(); const second = edit.submitChatMessageEdit(); expect(m.send).toHaveBeenCalledOnce();
   gate.resolve!(); await Promise.all([first, second]);
 });
-it.each(['profile', 'thread', 'new-message', 'replacement'])('does not prepare an old edit after a %s change', async mode => {
+it.each(['profile', 'thread', 'new-message', 'replacement', 'history'])('does not prepare an old edit after a %s change', async mode => {
   begin(); let prepared;
   m.send.mockImplementation(() => {
     if (mode === 'profile') state.currentProfile = 'other';
+    if (mode === 'history') state.chatHistory = [...state.chatHistory];
     if (mode === 'thread') state.currentThreadId = 'other';
     if (mode === 'new-message') state.chatHistory.push({ role: 'user', content: 'New' });
     if (mode === 'replacement') state.chatHistory[2]! = { role: 'user', content: 'Synced replacement' };
@@ -67,7 +69,7 @@ it.each(['profile', 'thread', 'new-message', 'replacement'])('does not prepare a
 });
 it('clears editing when a thread change event arrives', () => {
   begin(); state.currentThreadId = 'other'; document.dispatchEvent(new CustomEvent('chat-thread-changed'));
-  expect(edit.hasPendingChatMessageEdit()).toBe(false); expect(document.querySelector('.chat-input-row')!.hasAttribute('inert')).toBe(false);
+  expect(edit.hasPendingChatMessageEdit()).toBe(false); expect(isChatMessageEditing()).toBe(false);
 });
 it('does not prepare until submitted', () => { begin(); expect(edit.prepareChatMessageEditSend()).toBeNull(); expect(state.chatHistory).toHaveLength(4); });
 it.each(['hidden', 'joined', 'missing', 'streaming', 'threadless'])('does not fork an ineligible %s message', async mode => {
@@ -95,17 +97,17 @@ it.each(['profile', 'thread'])('does not reset the destination composer after a 
   gate.resolve!(); expect(await forking).toBe(false); expect(m.reset).not.toHaveBeenCalled();
 });
 it('Escape cancels the inline editor without sending', () => {
-  begin(); const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+  begin(); const event = new KeyboardEvent('keydown', { bubbles: true, key: 'Escape', cancelable: true });
   (document.getElementById('chat-message-edit-input') as HTMLTextAreaElement).dispatchEvent(event);
   expect(event.defaultPrevented).toBe(true); expect(edit.hasPendingChatMessageEdit()).toBe(false); expect(m.send).not.toHaveBeenCalled();
 });
 it.each(['ctrlKey', 'metaKey'])('%s Enter submits exactly once', async modifier => {
   begin(); const textarea = (document.getElementById('chat-message-edit-input') as HTMLTextAreaElement);
-  textarea.dispatchEvent(new Event('input')); textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', [modifier]: true }));
+  textarea.dispatchEvent(new Event('input', { bubbles: true })); textarea.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', [modifier]: true }));
   await vi.waitFor(() => expect(m.send).toHaveBeenCalledOnce());
 });
 it('ordinary Enter does not submit the editor', () => {
-  begin(); (document.getElementById('chat-message-edit-input') as HTMLTextAreaElement).dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' })); expect(m.send).not.toHaveBeenCalled();
+  begin(); (document.getElementById('chat-message-edit-input') as HTMLTextAreaElement).dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })); expect(m.send).not.toHaveBeenCalled();
 });
 it('does not replace an edit session while its send is pending', async () => {
   begin(); const gate = deferred(); m.send.mockReturnValueOnce(gate.promise); const sending = edit.submitChatMessageEdit();
@@ -147,5 +149,51 @@ it('keeps an edit active after a same-thread change notification', () => {
   begin();
   document.dispatchEvent(new Event('chat-thread-changed'));
   expect(edit.hasPendingChatMessageEdit()).toBe(true);
-  expect(document.querySelector('.chat-input-row')!.hasAttribute('inert')).toBe(true);
+  expect(isChatMessageEditing()).toBe(true);
+});
+
+it.each(['profile', 'thread', 'history', 'message'])('rejects an editor keyboard action after its %s owner changes', async boundary => {
+  begin();
+  const textarea = document.getElementById('chat-message-edit-input') as HTMLTextAreaElement;
+  if (boundary === 'profile') state.currentProfile = 'destination';
+  if (boundary === 'thread') state.currentThreadId = 'destination';
+  if (boundary === 'history') state.chatHistory = [...state.chatHistory];
+  if (boundary === 'message') state.chatHistory[2] = { role: 'user', content: 'Replacement' };
+  textarea.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', ctrlKey: true }));
+  expect(m.send).not.toHaveBeenCalled();
+  expect(await edit.submitChatMessageEdit()).toBe(false);
+  expect(edit.hasPendingChatMessageEdit()).toBe(false);
+});
+
+it('releases a removed editor and cannot dispatch its detached controls', async () => {
+  begin();
+  const textarea = document.getElementById('chat-message-edit-input') as HTMLTextAreaElement;
+  document.getElementById('chat-msg-2')!.remove();
+  await vi.waitFor(() => expect(edit.hasPendingChatMessageEdit()).toBe(false));
+  expect(isChatMessageEditing()).toBe(false);
+  textarea.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', ctrlKey: true }));
+  expect(m.send).not.toHaveBeenCalled();
+});
+
+it('keeps its owned editor stable and disabled while Send is pending', async () => {
+  begin(); const gate = deferred(); m.send.mockReturnValueOnce(gate.promise);
+  const textarea = document.getElementById('chat-message-edit-input') as HTMLTextAreaElement;
+  const submit = document.querySelector('.chat-message-edit-submit') as HTMLButtonElement;
+  const sending = edit.submitChatMessageEdit();
+  expect(textarea.disabled).toBe(true); expect(submit.disabled).toBe(true); expect(submit.textContent).toBe('Sending…');
+  expect(document.getElementById('chat-message-edit-input')).toBe(textarea);
+  gate.resolve!(); await sending;
+  expect((document.getElementById('chat-message-edit-input') as HTMLTextAreaElement).disabled).toBe(false);
+});
+
+it('does not report an old send error or retire an editor in the destination conversation', async () => {
+  begin(); const gate = deferred();
+  m.send.mockReturnValueOnce(gate.promise.then(() => { throw new Error('Old send failed'); }));
+  const sending = edit.submitChatMessageEdit();
+  state.currentProfile = 'destination'; state.currentThreadId = 'destination';
+  state.chatHistory = [...state.chatHistory];
+  document.dispatchEvent(new Event('chat-thread-changed'));
+  begin('Destination revision'); gate.resolve!(); await sending;
+  expect(edit.hasPendingChatMessageEdit()).toBe(true); expect(m.notify).not.toHaveBeenCalled();
+  expect((document.getElementById('chat-message-edit-input') as HTMLTextAreaElement).value).toBe('Destination revision');
 });

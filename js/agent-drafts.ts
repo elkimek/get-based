@@ -12,58 +12,13 @@ import {
   localDateKey,
   SUPPLEMENT_RECORD_VERSION,
 } from './supplement-medication-domain.js';
-import { escapeHTML } from './utils.js';
-import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
 import { resolveAgentMarker } from './agent-tool-bindings.js';
 
+import type { DraftReader } from './agent-draft-presentation.js';
 import type { AgentDraft } from './agent-tool-runtime.js';
-import type { StoredChatMessage } from './chat-storage-safety.js';
-interface DraftReader {
-  status?: unknown; profileId?: unknown; kind?: unknown; payload?: unknown;
-  id?: unknown; summary?: unknown;
-}
-// The cards consume native draft status strings; payload leaves stay unvalidated.
-interface DraftCardReader extends DraftReader {
-  status: NonNullable<StoredChatMessage['agentDrafts']>[number]['status'] | AgentDraft['status'] | 'applying';
-}
 type DraftPayload = Readonly<AgentDraft['payload']>;
 type RawReading<Reading> = { [Key in keyof Reading]?: unknown };
-
-function draftRows(draft: DraftReader | null | undefined) {
-  const payload = (draft?.payload || {}) as DraftPayload;
-  if (draft?.kind === 'note') return [
-    ['Destination', payload.scope === 'marker' ? `Marker · ${payload.marker}` : 'Profile context note'],
-    ['Mode', payload.mode || 'append'],
-    ['Text', payload.text],
-  ];
-  if (draft?.kind === 'meal') return [
-    ['Meal', payload.name], ['Type', payload.mealType], ['When', payload.eatenAt || 'Now'],
-    ...Object.entries(payload.nutrients || {}).map(([key, value]) => [key, String(value)]),
-    ...(payload.note ? [['Note', payload.note]] : []),
-  ];
-  if (draft?.kind === 'biometric') {
-    const value = payload.metric === 'bp'
-      ? `${payload.systolic}/${payload.diastolic}${payload.pulse ? ` · pulse ${payload.pulse}` : ''}`
-      : `${payload.value} ${payload.unit || ''}`.trim();
-    return [['Metric', payload.metric], ['Date', payload.date || 'Today'], ['Value', value], ...(payload.note ? [['Note', payload.note]] : [])];
-  }
-  return [['Type', payload.type], ['Name', payload.name], ['Start', payload.startDate || 'Today'],
-    ...(payload.dosage ? [['Directions', payload.dosage]] : []), ...(payload.note ? [['Note', payload.note]] : [])];
-}
-
-export function renderAgentDraftCards(message: { agentDrafts?: unknown } | null | undefined, messageIndex: unknown) {
-  const drafts = (Array.isArray(message?.agentDrafts) ? message.agentDrafts : []) as DraftCardReader[];
-  if (!drafts.length) return '';
-  return drafts.map(draft => {
-    const status = ['applying', 'applied', 'discarded', 'failed'].includes(draft.status) ? draft.status : 'pending';
-    const rows = draftRows(draft).filter(([, value]) => value !== undefined && value !== null && value !== '');
-    const details = rows.map(([label, value]) => `<div class="chat-agent-draft-row"><span>${escapeHTML(String(label))}</span><strong>${escapeHTML(String(value))}</strong></div>`).join('');
-    const controls = status === 'pending'
-      ? `<div class="chat-agent-draft-controls"><button type="button" class="chat-agent-draft-apply" ${chatMessageActionAttrs('apply-agent-draft', { index: messageIndex, draftId: draft.id })}>Apply</button><button type="button" class="chat-agent-draft-discard" ${chatMessageActionAttrs('discard-agent-draft', { index: messageIndex, draftId: draft.id })}>Discard</button></div>`
-      : `<div class="chat-agent-draft-status chat-agent-draft-status-${status}">${status === 'applying' ? 'Applying…' : status === 'applied' ? 'Applied to getbased' : status === 'discarded' ? 'Discarded' : 'Outcome unconfirmed — check your data before proposing this change again.'}</div>`;
-    return `<section class="chat-agent-draft chat-agent-draft-${status}" aria-label="Agent-proposed change"><div class="chat-agent-draft-heading"><span>Proposed change</span><small>Review required</small></div><p>${escapeHTML(draft.summary || 'Agent proposal')}</p><div class="chat-agent-draft-details">${details}</div>${controls}</section>`;
-  }).join('');
-}
+export { renderAgentDraftCards } from './agent-draft-component.js';
 
 function localMealTime(date: Date) {
   return {

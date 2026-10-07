@@ -39,8 +39,7 @@ body.chat-open .analytics-consent-banner {
 }
 
 .chat-rail-back svg,
-.chat-thread-new-btn svg,
-.chat-action-btn svg {
+.chat-thread-new-btn svg {
   display: block;
   width: 16px;
   height: 16px;
@@ -49,17 +48,6 @@ body.chat-open .analytics-consent-banner {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-.chat-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border-radius: var(--radius-sm);
-}
-.chat-action-btn svg {
-  width: 13px;
-  height: 13px;
 }
 
 .chat-thread-rail {

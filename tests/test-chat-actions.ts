@@ -268,12 +268,12 @@ if (hasState) {
   assert('AI msg with context has context toggle', bar1.includes('chat-context-toggle'), 'contains toggle');
   assert('AI msg context toggle uses delegated action',
     bar1.includes('data-chat-message-action="toggle-context-details"')
-      && bar1.includes('<button type="button" class="chat-context-toggle"')
+      && /<button type="button" class="chat-context-toggle(?:\s|")/.test(bar1)
       && bar1.includes('aria-expanded="false"'),
     'delegated context');
   assert('Context shows area count', bar1.includes('1 area'), 'shows 1 area');
   assert('Context disclosure says provided, not used', bar1.includes('Context provided') && !bar1.includes('Context used'), 'accurate label');
-  assert('Context details are hidden by default', bar1.includes('display:none'), 'hidden');
+  assert('Context details are hidden by default', /style="[^"]*display:\s*none/.test(bar1), 'hidden');
   assert('Context item has checkmark', bar1.includes('✓'), 'has checkmark');
 
   assert('Second AI msg shows 2 areas', bar3.includes('2 areas'), 'shows 2 areas');
@@ -362,7 +362,11 @@ const cssClasses = [
   'chat-toggle-arrow', 'chat-toggle-slider'
 ];
 for (const cls of cssClasses) {
-  assert(`CSS .${cls} defined`, cls === 'chat-toggle-slider' ? read('js/components/ChatHeader.svelte').includes('chat-toggle-slider gb:header:relative') : cssSrc.includes('.' + cls), 'found in owned styling');
+  const ownedActions = read('js/components/ChatMessageActions.svelte') + read('js/chat-message-actions-classes.ts');
+  const defined = cls === 'chat-toggle-slider'
+    ? read('js/components/ChatHeader.svelte').includes('chat-toggle-slider gb:header:relative')
+    : ownedActions.includes(cls + ' gb:message-actions:');
+  assert(`CSS .${cls} defined`, defined, 'found in owned Tailwind styling');
 }
 assert('CSS has shimmer animation', cssSrc.includes('@keyframes shimmer'), 'found');
 assert('CSS .chat-action-btn.active removed', !cssSrc.includes('.chat-action-btn.active'), 'removed');

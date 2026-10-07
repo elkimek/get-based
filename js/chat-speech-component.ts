@@ -2,6 +2,8 @@ import SpeechButton, { hydrate, unmount, flushSync } from './components/ChatSpee
 import { renderHTML } from './components/ChatSpeechButton.svelte.html.js';
 import type { ChatSpeechMode } from './chat-voice-contract.js';
 import { state } from './state.js';
+import { publishOwnedChatSpeech } from './chat-speech-view.js';
+export { configureChatSpeechAction } from './chat-speech-view.js';
 
 interface SpeechEntry {
   component: { setMode(mode: ChatSpeechMode): void; };
@@ -10,11 +12,6 @@ interface SpeechEntry {
 const entries = new Map<HTMLElement, SpeechEntry>();
 const retired = new WeakSet<HTMLElement>();
 let observer: MutationObserver | null = null;
-let act: (index: number) => unknown = () => { };
-
-export function configureChatSpeechAction(next: (index: number) => unknown): void {
-  act = next;
-}
 function sweep(): void {
   for (const [host, entry] of entries) {
     if (entry.current()) continue;
@@ -47,7 +44,7 @@ function adopt(host: HTMLElement): SpeechEntry | null {
   let entry: SpeechEntry;
   const component = hydrate(SpeechButton, {
     target: host,
-    props: { index, act: () => { if (entry.current()) void act(index); } },
+    props: { index },
     recover: false,
   });
   entry = {
@@ -79,6 +76,7 @@ export function renderChatSpeechButton(index: number): string {
   return `<span data-chat-speech-host data-chat-speech-index="${index}" style="display:contents">${renderHTML({ index })}</span>`;
 }
 export function publishChatSpeech(index: number, mode: ChatSpeechMode): boolean {
+  if (publishOwnedChatSpeech(index, mode)) return true;
   const button = document.getElementById(`chat-listen-btn-${index}`);
   const host = button?.closest<HTMLElement>('[data-chat-speech-host]');
   const entry = host ? adopt(host) : null;

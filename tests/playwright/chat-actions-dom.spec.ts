@@ -10,6 +10,7 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
   const results = await page.evaluate(async () => {
     const api = await import('/js/api.js');
     const chatActions = await import('/js/chat-actions.js');
+    const actionsView = await import('/js/chat-message-actions-component.js');
     const chatRender = await import('/js/chat-render.js');
     const { state } = await import('/js/state.js');
     const originalHistory = JSON.parse(JSON.stringify(state.chatHistory || []));
@@ -62,8 +63,9 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
       outcomes.clipboardWriteTextAvailable = typeof navigator.clipboard?.writeText === 'function';
 
       const testDiv = document.createElement('div');
-      testDiv.innerHTML = '<div id="chat-ctx-details-1" style="display:none">content</div><span id="chat-ctx-arrow-1">▸</span>';
+      if (!document.getElementById('chat-ctx-details-1')) testDiv.innerHTML = chatActions.buildActionBar(1);
       document.body.appendChild(testDiv);
+      actionsView.ensureChatMessageActions();
       try {
         chatActions.toggleContextDetails(1);
         const details = document.getElementById('chat-ctx-details-1');
@@ -86,13 +88,13 @@ test('chat action bars, clipboard, and context toggles work in the live DOM', as
       ].every(name => typeof (window as unknown as Record<string,unknown>)[name] === 'undefined');
 
       const keyDiv = document.createElement('div');
-      keyDiv.innerHTML = '<div id="chat-ctx-details-42" style="display:none">content</div>' +
-        '<span id="chat-ctx-arrow-42">▸</span>' +
-        '<div id="chat-ctx-key-42" role="button" tabindex="0" data-chat-message-action="toggle-context-details" data-chat-message-index="42">Context</div>';
+      keyDiv.innerHTML = (document.getElementById('chat-ctx-details-1') ? '' : chatActions.buildActionBar(1)) +
+        '<div id="chat-ctx-key-42" role="button" tabindex="0" data-chat-message-action="toggle-context-details" data-chat-message-index="1">Context</div>';
       document.body.appendChild(keyDiv);
+      actionsView.ensureChatMessageActions();
       try {
         const keyToggle = document.getElementById('chat-ctx-key-42');
-        const details = document.getElementById('chat-ctx-details-42');
+        const details = document.getElementById('chat-ctx-details-1');
         const enterPrevented = keyToggle
           ? !keyToggle.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
           : false;
@@ -193,13 +195,14 @@ test('chat action browser coverage handles copy and regenerate branches', async 
     const timers:{fn:TimerHandler;delay:number}[] = [];
     let previousChatRuntime:ReturnType<typeof chatRuntime.configureChatRuntimeCallbacks>|null = null;
     const flush = () => new Promise(resolve => saved.setTimeout.call(window, resolve, 0));
+    const actionsView = await import('/js/chat-message-actions-component.js');
     const makeButton = (id:string) => {
-      const button = document.createElement('button');
-      button.id = id;
-      button.textContent = 'Copy';
-      document.body.appendChild(button);
-      return button;
+      const fixture = document.createElement('div'); fixture.dataset.copyTestFixture = '';
+      fixture.innerHTML = chatActions.buildActionBar(Number(id.split('-').at(-1)));
+      document.body.appendChild(fixture); actionsView.ensureChatMessageActions();
+      return fixture.querySelector<HTMLButtonElement>(`#${id}`)!;
     };
+
 
     try {
       (window as unknown as {setTimeout:(fn:TimerHandler,delay?:number)=>number}).setTimeout = (fn, delay = 0) => {
@@ -218,12 +221,13 @@ test('chat action browser coverage handles copy and regenerate branches', async 
 
       outcomes.buildActionBarEscapesContextAndAddsLastRegenerate = (() => {
         const html = chatActions.buildActionBar(1);
+        const doc = new DOMParser().parseFromString(html, 'text/html');
         return html.includes('Regenerate')
           && html.includes('data-chat-message-action="copy-message"')
           && html.includes('data-chat-message-index="1"')
           && !html.includes('onclick=')
-          && html.includes('&lt;Labs&gt;')
-          && html.includes('5 &gt; 3')
+          && doc.body.textContent!.includes('<Labs> (5 > 3)')
+          && doc.querySelector('labs, script, [onclick]') === null
           && chatActions.buildActionBar(0) === ''
           && chatActions.buildActionBar(99) === '';
       })();
@@ -241,7 +245,8 @@ test('chat action browser coverage handles copy and regenerate branches', async 
         && timers.some(timer => timer.delay === 1500);
       (timers.pop() as {fn:()=>unknown}|undefined)?.fn();
       outcomes.copyMessageSuccessResetTimerRestoresCopy = successBtn.textContent.includes('Copy');
-      successBtn.remove();
+      successBtn.closest('[data-copy-test-fixture]')!.remove();
+      actionsView.ensureChatMessageActions();
 
       state.chatHistory.push(
         { role: 'assistant', content: 'Provider unavailable', error: true },
@@ -265,7 +270,8 @@ test('chat action browser coverage handles copy and regenerate branches', async 
       chatActions.copyMessage(1);
       await flush();
       outcomes.copyMessageFailureMarksFailed = failBtn.textContent.includes('Failed');
-      failBtn.remove();
+      failBtn.closest('[data-copy-test-fixture]')!.remove();
+      actionsView.ensureChatMessageActions();
 
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
@@ -327,7 +333,8 @@ test('chat action browser coverage handles copy and regenerate branches', async 
         if (saved.threadStorage == null) localStorage.removeItem(saved.threadStorageKey);
         else localStorage.setItem(saved.threadStorageKey, saved.threadStorage);
       }
-      document.querySelectorAll<HTMLElement>('[id^="chat-copy-btn-"]')!.forEach(el => el.remove());
+      document.querySelectorAll('[data-copy-test-fixture]').forEach(el => el.remove());
+      actionsView.ensureChatMessageActions();
       if (input) {
         if (createdInput) input.remove();
         else input.value = originalInputValue;

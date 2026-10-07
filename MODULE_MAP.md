@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1061 |
-| Internal import edges | 3974 |
+| Modules | 1075 |
+| Internal import edges | 3998 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,8 +65,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 287 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
-| [`js/state.ts`](js/state.ts) | 209 | [`js/chat-send.ts`](js/chat-send.ts) | 42 |
+| [`js/utils.ts`](js/utils.ts) | 286 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
+| [`js/state.ts`](js/state.ts) | 213 | [`js/chat-send.ts`](js/chat-send.ts) | 42 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 91 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/data.ts`](js/data.ts) | 79 | [`js/settings.ts`](js/settings.ts) | 35 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 79 | [`js/provider-panels.ts`](js/provider-panels.ts) | 34 |
@@ -130,7 +130,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>agent</code> family — 12 modules</summary>
+<details><summary><code>agent</code> family — 14 modules</summary>
 
 - [`js/agent-access-legacy-source.ts`](js/agent-access-legacy-source.ts) → no in-scope imports
 - [`js/agent-chat-backend.ts`](js/agent-chat-backend.ts) → [`js/agent-chat-client.ts`](js/agent-chat-client.ts), [`js/agent-chat-context.ts`](js/agent-chat-context.ts), [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-tool-bindings.ts`](js/agent-tool-bindings.ts), [`js/agent-tool-runtime.ts`](js/agent-tool-runtime.ts), [`js/ai-execution-routing.ts`](js/ai-execution-routing.ts), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
@@ -138,7 +138,9 @@ Native browser modules shipped with the static application.
 - [`js/agent-chat-context.ts`](js/agent-chat-context.ts) → no in-scope imports
 - [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts) → [`js/agent-host-discovery.ts`](js/agent-host-discovery.ts) *(dynamic)*, [`js/crypto-key-cache.ts`](js/crypto-key-cache.ts), [`js/crypto.ts`](js/crypto.ts)
 - [`js/agent-draft-claims.ts`](js/agent-draft-claims.ts) → [`js/chat-storage-safety.ts`](js/chat-storage-safety.ts), [`js/crypto.ts`](js/crypto.ts)
-- [`js/agent-drafts.ts`](js/agent-drafts.ts) → [`js/agent-tool-bindings.ts`](js/agent-tool-bindings.ts), [`js/chat-message-action-attrs.ts`](js/chat-message-action-attrs.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/marker-detail-store.ts`](js/marker-detail-store.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/utils.ts`](js/utils.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts)
+- [`js/agent-draft-component.ts`](js/agent-draft-component.ts) → [`js/agent-draft-presentation.ts`](js/agent-draft-presentation.ts), [`js/components/ChatAgentDraftCards.svelte`](js/components/ChatAgentDraftCards.svelte)
+- [`js/agent-draft-presentation.ts`](js/agent-draft-presentation.ts) → no in-scope imports
+- [`js/agent-drafts.ts`](js/agent-drafts.ts) → [`js/agent-draft-component.ts`](js/agent-draft-component.ts), [`js/agent-tool-bindings.ts`](js/agent-tool-bindings.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/marker-detail-store.ts`](js/marker-detail-store.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts), [`js/wearables-manual.ts`](js/wearables-manual.ts)
 - [`js/agent-feature-inference.ts`](js/agent-feature-inference.ts) → [`js/agent-chat-client.ts`](js/agent-chat-client.ts), [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) *(dynamic)*, [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
 - [`js/agent-host-discovery.ts`](js/agent-host-discovery.ts) → [`js/agent-chat-client.ts`](js/agent-chat-client.ts), [`shared/agent-host-protocol.ts`](shared/agent-host-protocol.ts)
 - [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts) → no in-scope imports
@@ -387,9 +389,9 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>chat</code> family — 100 modules</summary>
+<details><summary><code>chat</code> family — 108 modules</summary>
 
-- [`js/chat-actions.ts`](js/chat-actions.ts) → [`js/agent-draft-claims.ts`](js/agent-draft-claims.ts), [`js/agent-drafts.ts`](js/agent-drafts.ts), [`js/chat-history.ts`](js/chat-history.ts), [`js/chat-icons.ts`](js/chat-icons.ts), [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-message-action-attrs.ts`](js/chat-message-action-attrs.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/chat-speech-component.ts`](js/chat-speech-component.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/chat-actions.ts`](js/chat-actions.ts) → [`js/agent-draft-claims.ts`](js/agent-draft-claims.ts), [`js/agent-drafts.ts`](js/agent-drafts.ts), [`js/chat-history.ts`](js/chat-history.ts), [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-message-action-attrs.ts`](js/chat-message-action-attrs.ts), [`js/chat-message-actions-component.ts`](js/chat-message-actions-component.ts), [`js/chat-message-actions-view.ts`](js/chat-message-actions-view.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/chat-speech-component.ts`](js/chat-speech-component.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/chat-attachment-classes.ts`](js/chat-attachment-classes.ts) → no in-scope imports
 - [`js/chat-attachment-drafts.ts`](js/chat-attachment-drafts.ts) → no in-scope imports
 - [`js/chat-attachment-view.ts`](js/chat-attachment-view.ts) → no in-scope imports
@@ -434,11 +436,18 @@ Native browser modules shipped with the static application.
 - [`js/chat-loader.ts`](js/chat-loader.ts) → [`js/app-ai-interaction-modules.ts`](js/app-ai-interaction-modules.ts) *(dynamic)*
 - [`js/chat-marker-prompts.ts`](js/chat-marker-prompts.ts) → [`js/chat-history.ts`](js/chat-history.ts), [`js/chat-panel.ts`](js/chat-panel.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/context-source-registry.ts`](js/context-source-registry.ts), [`js/data.ts`](js/data.ts), [`js/marker-analysis.ts`](js/marker-analysis.ts), [`js/state.ts`](js/state.ts), [`js/therapy-correlations.ts`](js/therapy-correlations.ts) *(dynamic)*, [`js/utils.ts`](js/utils.ts)
 - [`js/chat-message-action-attrs.ts`](js/chat-message-action-attrs.ts) → [`js/utils.ts`](js/utils.ts)
+- [`js/chat-message-actions-classes.ts`](js/chat-message-actions-classes.ts) → no in-scope imports
+- [`js/chat-message-actions-component.ts`](js/chat-message-actions-component.ts) → [`js/chat-message-actions-contract.ts`](js/chat-message-actions-contract.ts), [`js/chat-message-actions-view.ts`](js/chat-message-actions-view.ts), [`js/components/ChatMessageActions.svelte`](js/components/ChatMessageActions.svelte), [`js/state.ts`](js/state.ts)
+- [`js/chat-message-actions-contract.ts`](js/chat-message-actions-contract.ts) → [`js/agent-draft-presentation.ts`](js/agent-draft-presentation.ts)
+- [`js/chat-message-actions-view.ts`](js/chat-message-actions-view.ts) → [`js/state.ts`](js/state.ts)
 - [`js/chat-message-avatars.ts`](js/chat-message-avatars.ts) → [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/state.ts`](js/state.ts)
 - [`js/chat-message-content-classes.ts`](js/chat-message-content-classes.ts) → no in-scope imports
 - [`js/chat-message-content-contract.ts`](js/chat-message-content-contract.ts) → [`js/chat-storage-safety.ts`](js/chat-storage-safety.ts)
 - [`js/chat-message-content.ts`](js/chat-message-content.ts) → [`js/chat-message-content-contract.ts`](js/chat-message-content-contract.ts), [`js/components/ChatCitations.svelte`](js/components/ChatCitations.svelte), [`js/components/ChatStoredImages.svelte`](js/components/ChatStoredImages.svelte)
-- [`js/chat-message-edit.ts`](js/chat-message-edit.ts) → [`js/chat-composer.ts`](js/chat-composer.ts), [`js/chat-message-action-attrs.ts`](js/chat-message-action-attrs.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/chat-message-edit.ts`](js/chat-message-edit.ts) → [`js/chat-composer.ts`](js/chat-composer.ts), [`js/chat-message-editor-component.ts`](js/chat-message-editor-component.ts), [`js/chat-message-editor-view.ts`](js/chat-message-editor-view.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/chat-message-editor-classes.ts`](js/chat-message-editor-classes.ts) → no in-scope imports
+- [`js/chat-message-editor-component.ts`](js/chat-message-editor-component.ts) → [`js/components/ChatMessageEditor.svelte`](js/components/ChatMessageEditor.svelte), [`js/state.ts`](js/state.ts)
+- [`js/chat-message-editor-view.ts`](js/chat-message-editor-view.ts) → no in-scope imports
 - [`js/chat-mobile-viewport.ts`](js/chat-mobile-viewport.ts) → no in-scope imports
 - [`js/chat-model-control-state.ts`](js/chat-model-control-state.ts) → [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api.ts`](js/api.ts), [`js/chat-model-preferences.ts`](js/chat-model-preferences.ts), [`js/provider-local-ai-runtime.ts`](js/provider-local-ai-runtime.ts), [`js/reasoning-capabilities.ts`](js/reasoning-capabilities.ts)
 - [`js/chat-model-controls.ts`](js/chat-model-controls.ts) → [`js/agent-chat-client.ts`](js/agent-chat-client.ts), [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/api.ts`](js/api.ts), [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-model-control-state.ts`](js/chat-model-control-state.ts), [`js/chat-model-picker-presentation.ts`](js/chat-model-picker-presentation.ts), [`js/chat-model-picker-view.ts`](js/chat-model-picker-view.ts), [`js/chat-model-preferences.ts`](js/chat-model-preferences.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/provider-local-ai-runtime.ts`](js/provider-local-ai-runtime.ts), [`js/provider-model-controls.ts`](js/provider-model-controls.ts) *(dynamic)*, [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
@@ -472,7 +481,8 @@ Native browser modules shipped with the static application.
 - [`js/chat-send-runtime.ts`](js/chat-send-runtime.ts) → [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts)
 - [`js/chat-send.ts`](js/chat-send.ts) → [`js/agent-chat-backend.ts`](js/agent-chat-backend.ts), [`js/agent-chat-context.ts`](js/agent-chat-context.ts), [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/agent-tool-runtime.ts`](js/agent-tool-runtime.ts), [`js/ai-execution-routing.ts`](js/ai-execution-routing.ts), [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/chat-actions.ts`](js/chat-actions.ts), [`js/chat-attestation.ts`](js/chat-attestation.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/chat-composer.ts`](js/chat-composer.ts), [`js/chat-context-summary.ts`](js/chat-context-summary.ts) *(dynamic)*, [`js/chat-continuation.ts`](js/chat-continuation.ts), [`js/chat-discussion.ts`](js/chat-discussion.ts), [`js/chat-history.ts`](js/chat-history.ts), [`js/chat-icons.ts`](js/chat-icons.ts), [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-message-avatars.ts`](js/chat-message-avatars.ts), [`js/chat-message-edit.ts`](js/chat-message-edit.ts), [`js/chat-model-preferences.ts`](js/chat-model-preferences.ts), [`js/chat-panel.ts`](js/chat-panel.ts), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-prompt-context.ts`](js/chat-prompt-context.ts), [`js/chat-recommendation-disclosure.ts`](js/chat-recommendation-disclosure.ts), [`js/chat-render.ts`](js/chat-render.ts), [`js/chat-scroll.ts`](js/chat-scroll.ts), [`js/chat-send-runtime.ts`](js/chat-send-runtime.ts), [`js/chat-stream-status.ts`](js/chat-stream-status.ts), [`js/chat-system-prompt.ts`](js/chat-system-prompt.ts), [`js/chat-thinking-status.ts`](js/chat-thinking-status.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/cloud-ai-consent.ts`](js/cloud-ai-consent.ts) *(dynamic)*, [`js/image-utils.ts`](js/image-utils.ts), [`js/lab-context.ts`](js/lab-context.ts), [`js/lens.ts`](js/lens.ts), [`js/markdown.ts`](js/markdown.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts), [`js/voice-loader.ts`](js/voice-loader.ts)
 - [`js/chat-shell-component.ts`](js/chat-shell-component.ts) → [`js/components/ChatShell.svelte`](js/components/ChatShell.svelte)
-- [`js/chat-speech-component.ts`](js/chat-speech-component.ts) → [`js/components/ChatSpeechButton.svelte`](js/components/ChatSpeechButton.svelte), [`js/state.ts`](js/state.ts)
+- [`js/chat-speech-component.ts`](js/chat-speech-component.ts) → [`js/chat-speech-view.ts`](js/chat-speech-view.ts), [`js/components/ChatSpeechButton.svelte`](js/components/ChatSpeechButton.svelte), [`js/state.ts`](js/state.ts)
+- [`js/chat-speech-view.ts`](js/chat-speech-view.ts) → [`js/state.ts`](js/state.ts)
 - [`js/chat-storage-safety.ts`](js/chat-storage-safety.ts) → no in-scope imports
 - [`js/chat-stream-status.ts`](js/chat-stream-status.ts) → no in-scope imports
 - [`js/chat-summaries.ts`](js/chat-summaries.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/chat-message-action-attrs.ts`](js/chat-message-action-attrs.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/markdown.ts`](js/markdown.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
@@ -489,6 +499,12 @@ Native browser modules shipped with the static application.
 - [`js/chat-voice-view.ts`](js/chat-voice-view.ts) → [`js/chat-voice-contract.ts`](js/chat-voice-contract.ts)
 - [`js/chat-window-bindings.ts`](js/chat-window-bindings.ts) → [`js/chat-discussion.ts`](js/chat-discussion.ts), [`js/chat-history.ts`](js/chat-history.ts), [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-nudge.ts`](js/chat-nudge.ts), [`js/chat-onboarding.ts`](js/chat-onboarding.ts), [`js/chat-panel.ts`](js/chat-panel.ts), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-render.ts`](js/chat-render.ts), [`js/chat-send.ts`](js/chat-send.ts), [`js/chat-summaries.ts`](js/chat-summaries.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/voice-loader.ts`](js/voice-loader.ts)
 - [`js/chat.ts`](js/chat.ts) → [`js/chat-actions.ts`](js/chat-actions.ts), [`js/chat-discussion.ts`](js/chat-discussion.ts), [`js/chat-history.ts`](js/chat-history.ts), [`js/chat-marker-prompts.ts`](js/chat-marker-prompts.ts), [`js/chat-nudge.ts`](js/chat-nudge.ts), [`js/chat-onboarding.ts`](js/chat-onboarding.ts), [`js/chat-panel.ts`](js/chat-panel.ts), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-render.ts`](js/chat-render.ts), [`js/chat-send.ts`](js/chat-send.ts), [`js/chat-window-bindings.ts`](js/chat-window-bindings.ts)
+
+</details>
+
+<details><summary><code>ChatAgentDraftCards.svelte</code> family — 1 module</summary>
+
+- [`js/components/ChatAgentDraftCards.svelte`](js/components/ChatAgentDraftCards.svelte) → [`js/chat-message-actions-classes.ts`](js/chat-message-actions-classes.ts)
 
 </details>
 
@@ -524,7 +540,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>ChatComposer.svelte</code> family — 1 module</summary>
 
-- [`js/components/ChatComposer.svelte`](js/components/ChatComposer.svelte) → [`js/chat-attachment-view.ts`](js/chat-attachment-view.ts), [`js/chat-composer-classes.ts`](js/chat-composer-classes.ts), [`js/chat-composer-input-port.ts`](js/chat-composer-input-port.ts), [`js/chat-discussion-view.ts`](js/chat-discussion-view.ts), [`js/chat-voice-contract.ts`](js/chat-voice-contract.ts), [`js/chat-voice-view.ts`](js/chat-voice-view.ts), [`js/components/ChatAttachmentMenu.svelte`](js/components/ChatAttachmentMenu.svelte), [`js/components/ChatAttachmentPreview.svelte`](js/components/ChatAttachmentPreview.svelte), [`js/components/ChatDiscussion.svelte`](js/components/ChatDiscussion.svelte), [`js/components/ChatModelPicker.svelte`](js/components/ChatModelPicker.svelte), [`js/components/ChatVoiceButton.svelte`](js/components/ChatVoiceButton.svelte), [`js/components/ChatVoiceStatus.svelte`](js/components/ChatVoiceStatus.svelte)
+- [`js/components/ChatComposer.svelte`](js/components/ChatComposer.svelte) → [`js/chat-attachment-view.ts`](js/chat-attachment-view.ts), [`js/chat-composer-classes.ts`](js/chat-composer-classes.ts), [`js/chat-composer-input-port.ts`](js/chat-composer-input-port.ts), [`js/chat-discussion-view.ts`](js/chat-discussion-view.ts), [`js/chat-message-editor-view.ts`](js/chat-message-editor-view.ts), [`js/chat-voice-contract.ts`](js/chat-voice-contract.ts), [`js/chat-voice-view.ts`](js/chat-voice-view.ts), [`js/components/ChatAttachmentMenu.svelte`](js/components/ChatAttachmentMenu.svelte), [`js/components/ChatAttachmentPreview.svelte`](js/components/ChatAttachmentPreview.svelte), [`js/components/ChatDiscussion.svelte`](js/components/ChatDiscussion.svelte), [`js/components/ChatModelPicker.svelte`](js/components/ChatModelPicker.svelte), [`js/components/ChatVoiceButton.svelte`](js/components/ChatVoiceButton.svelte), [`js/components/ChatVoiceStatus.svelte`](js/components/ChatVoiceStatus.svelte)
 
 </details>
 
@@ -543,6 +559,24 @@ Native browser modules shipped with the static application.
 <details><summary><code>ChatImageLightbox.svelte</code> family — 1 module</summary>
 
 - [`js/components/ChatImageLightbox.svelte`](js/components/ChatImageLightbox.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>ChatMessageActions.svelte</code> family — 1 module</summary>
+
+- [`js/components/ChatMessageActions.svelte`](js/components/ChatMessageActions.svelte) → [`js/chat-message-actions-classes.ts`](js/chat-message-actions-classes.ts), [`js/chat-message-actions-contract.ts`](js/chat-message-actions-contract.ts), [`js/chat-message-actions-view.ts`](js/chat-message-actions-view.ts), [`js/components/ChatAgentDraftCards.svelte`](js/components/ChatAgentDraftCards.svelte), [`js/components/ChatMessageIcon.svelte`](js/components/ChatMessageIcon.svelte), [`js/components/ChatSpeechButton.svelte`](js/components/ChatSpeechButton.svelte)
+
+</details>
+
+<details><summary><code>ChatMessageEditor.svelte</code> family — 1 module</summary>
+
+- [`js/components/ChatMessageEditor.svelte`](js/components/ChatMessageEditor.svelte) → [`js/chat-message-editor-classes.ts`](js/chat-message-editor-classes.ts)
+
+</details>
+
+<details><summary><code>ChatMessageIcon.svelte</code> family — 1 module</summary>
+
+- [`js/components/ChatMessageIcon.svelte`](js/components/ChatMessageIcon.svelte) → [`js/chat-message-actions-classes.ts`](js/chat-message-actions-classes.ts)
 
 </details>
 
@@ -578,7 +612,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>ChatSpeechButton.svelte</code> family — 1 module</summary>
 
-- [`js/components/ChatSpeechButton.svelte`](js/components/ChatSpeechButton.svelte) → [`js/chat-voice-contract.ts`](js/chat-voice-contract.ts)
+- [`js/components/ChatSpeechButton.svelte`](js/components/ChatSpeechButton.svelte) → [`js/chat-speech-view.ts`](js/chat-speech-view.ts), [`js/chat-voice-contract.ts`](js/chat-voice-contract.ts)
 
 </details>
 

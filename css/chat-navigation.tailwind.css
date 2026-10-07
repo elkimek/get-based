@@ -54,3 +54,13 @@
 @source "../js/components/ChatThinkingStatus.svelte";
 @source "../js/chat-message-content-classes.ts";
 @custom-variant message-content (&:is([data-chat-message-content], [data-chat-message-content] *));
+
+@source "../js/components/ChatMessageActions.svelte";
+@source "../js/components/ChatMessageIcon.svelte";
+@source "../js/components/ChatAgentDraftCards.svelte";
+@source "../js/chat-message-actions-classes.ts";
+@custom-variant message-actions (&:is([data-chat-message-actions-view], [data-chat-message-actions-view] *, [data-chat-agent-draft-view], [data-chat-agent-draft-view] *));
+
+@source "../js/components/ChatMessageEditor.svelte";
+@source "../js/chat-message-editor-classes.ts";
+@custom-variant message-edit (&:is(.chat-msg.chat-user[data-chat-message-edit-view], [data-chat-message-edit-view] *));

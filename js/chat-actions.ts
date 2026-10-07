@@ -1,15 +1,10 @@
 // chat-actions.js — message action bar rendering and handlers
 
 import { state } from './state.js';
-import { configureChatSpeechAction, renderChatSpeechButton } from './chat-speech-component.js';
+import { configureChatSpeechAction } from './chat-speech-component.js';
 import { escapeHTML, showNotification } from './utils.js';
-import {
-  CHAT_ICON_COPY,
-  CHAT_ICON_EDIT,
-  CHAT_ICON_FORK,
-  CHAT_ICON_REFRESH,
-  setIconButtonContent,
-} from './chat-icons.js';
+import { renderChatMessageActions, ensureChatMessageActions } from './chat-message-actions-component.js';
+import { captureChatMessageCopyFeedback, isChatMessageActionCurrent, toggleOwnedChatMessageContext } from './chat-message-actions-view.js';
 import { saveChatHistory } from './chat-history.js';
 import {
   CHAT_MESSAGE_ACTION_ATTR,
@@ -20,13 +15,12 @@ import {
 import { getChatRegenerateCallbacks, isChatRuntimeStreaming } from './chat-runtime.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { getMessageAttachments } from './chat-images.js';
-import { applyAgentDraft, renderAgentDraftCards } from './agent-drafts.js';
+import { applyAgentDraft } from './agent-drafts.js';
 import { claimAgentDraft } from './agent-draft-claims.js';
 import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 
 // Configuration snapshots remain opaque; private calls describe the original
 // consumed callback operation and retain raw results/errors and method receivers.
-type ContextRead = Array<{ label: unknown; detail?: unknown }>;
 type ActionTargetRead = { closest?: (selector: string) => HTMLElement | null };
 const chatMessageActionDeps: Record<string, unknown> = {
   closeSummaryModal: (() => {}),
@@ -152,6 +146,7 @@ async function updateAgentDraft(actionEl: HTMLElement, apply: boolean) {
 }
 
 function runChatMessageAction(actionEl: HTMLElement, event: Event) {
+  if (!isChatMessageActionCurrent(actionEl)) return false;
   const action = actionEl.getAttribute(CHAT_MESSAGE_ACTION_ATTR);
 
   if (action === 'contain-click') {
@@ -299,64 +294,8 @@ export function installChatMessageActionDelegates(root: Document | HTMLElement |
 
 installChatMessageActionDelegates();
 
-function buildForkActions(msgIndex: number) {
-  const attrs = chatMessageActionAttrs('fork-message', { index: msgIndex });
-  return `<button class="chat-action-btn chat-fork-action" type="button" ${attrs} title="Continue from this message in a new chat">${CHAT_ICON_FORK}<span>Fork to new chat</span></button>
-    <details class="chat-action-more"><summary title="More message actions" aria-label="More message actions"><span aria-hidden="true">•••</span></summary><div class="chat-action-more-popover"><button type="button" ${attrs}>${CHAT_ICON_FORK}<span>Fork to new chat</span></button></div></details>`;
-}
-
-function latestVisibleUserMessageIndex() {
-  for (let index = state.chatHistory.length - 1; index >= 0; index -= 1) {
-    const message = state.chatHistory[index];
-    if (message?.role === 'user' && !message.hidden && !message.joined) return index;
-  }
-  return -1;
-}
-
-export function buildActionBar(msgIndex: number) {
-  const msg = state.chatHistory[msgIndex] as ((typeof state.chatHistory)[number] & { context?: ContextRead }) | undefined;
-  if (!msg || msg.role !== 'assistant') return '';
-  const isLast = msgIndex === state.chatHistory.length - 1;
-
-  let html = renderAgentDraftCards(msg, msgIndex);
-  html += '<div class="chat-action-bar">';
-  if (isLast && msg.discussionError) {
-    if (msg.discussionPersonaId) {
-      html += `<button class="chat-action-btn" type="button" ${chatMessageActionAttrs('retry-discussion-participant', { personaId: msg.discussionPersonaId })} title="Retry only this participant">${CHAT_ICON_REFRESH}<span>Retry ${escapeHTML(msg.personalityName || 'participant')}</span></button>`;
-    }
-    html += `<button class="chat-action-btn" type="button" ${chatMessageActionAttrs('resume-discussion')} title="Retry every remaining discussion response"><span>Resume round</span></button>`;
-  } else if (isLast && !msg.discussion) {
-    const retry = msg.stopped || msg.error;
-    html += `<button class="chat-action-btn" type="button" ${chatMessageActionAttrs('regenerate-last-message')} title="${retry ? 'Retry response' : 'Regenerate response'}">${CHAT_ICON_REFRESH}<span>${retry ? 'Retry' : 'Regenerate'}</span></button>`;
-  }
-  html += `<button class="chat-action-btn" type="button" ${chatMessageActionAttrs('copy-message', { index: msgIndex })} id="chat-copy-btn-${msgIndex}" title="Copy to clipboard">${CHAT_ICON_COPY}<span>Copy</span></button>`;
-  if (!msg.error) {
-    html += renderChatSpeechButton(msgIndex);
-  }
-  html += buildForkActions(msgIndex);
-  html += '</div>';
-
-  if (msg.context && /** @type {ChatContextDisplay} */ (msg.context).length > 0) {
-    html += `<button type="button" class="chat-context-toggle" aria-expanded="false" aria-controls="chat-ctx-details-${msgIndex}" ${chatMessageActionAttrs('toggle-context-details', { index: msgIndex })}>`;
-    html += `<span class="chat-toggle-arrow" id="chat-ctx-arrow-${msgIndex}">\u25B8</span> Context provided (${/** @type {ChatContextDisplay} */ (msg.context).length} area${/** @type {ChatContextDisplay} */ (msg.context).length !== 1 ? 's' : ''})`;
-    html += '</button>';
-    html += `<div class="chat-context-details" id="chat-ctx-details-${msgIndex}" style="display:none">`;
-    for (const area of /** @type {ChatContextDisplay} */ (msg.context)) {
-      html += `<span class="chat-context-item">\u2713 ${escapeHTML(area.label)}${area.detail ? ' (' + escapeHTML(area.detail) + ')' : ''}</span>`;
-    }
-    html += '</div>';
-  }
-
-  return html;
-}
-
-export function buildUserActionBar(msgIndex: number) {
-  const msg = state.chatHistory[msgIndex];
-  if (!msg || msg.role !== 'user' || msg.hidden) return '';
-  const latestUserIndex = latestVisibleUserMessageIndex();
-  if (msgIndex !== latestUserIndex || msg.hasImages) return '';
-  return `<div class="chat-user-action-bar"><button class="chat-action-btn chat-edit-retry-action" type="button" ${chatMessageActionAttrs('edit-user-message', { index: msgIndex })} title="Edit and resend (replaces the current response)" aria-label="Edit and resend your latest message">${CHAT_ICON_EDIT}</button></div>`;
-}
+export function buildActionBar(msgIndex: number) { return renderChatMessageActions(msgIndex, 'assistant'); }
+export function buildUserActionBar(msgIndex: number) { return renderChatMessageActions(msgIndex, 'user'); }
 
 export function buildForkSourceNotice() {
   const thread = state.chatThreads.find(item => item.id === state.currentThreadId);
@@ -437,38 +376,17 @@ export function regenerateLastMessage() {
 export function copyMessage(msgIndex: number) {
   const msg = state.chatHistory[msgIndex];
   if (!msg || msg.joined) return;
-  const btn = document.getElementById(`chat-copy-btn-${msgIndex}`);
-  if (!navigator.clipboard) {
-    if (btn) {
-      setIconButtonContent(btn, 'x', 'Not supported');
-      setTimeout(() => { setIconButtonContent(btn, 'copy', 'Copy'); }, 1500);
-    }
-    return;
-  }
+  ensureChatMessageActions();
+  const feedback = captureChatMessageCopyFeedback(msgIndex);
+  if (!navigator.clipboard) { feedback('unsupported'); return; }
   const attribution = msg.role === 'assistant' ? getAIOutputAttribution(msg) : '';
   const clipboardText = attribution ? `${msg.content}\n\n${attribution}` : msg.content;
-  navigator.clipboard.writeText(clipboardText).then(() => {
-    if (btn) {
-      setIconButtonContent(btn, 'check', 'Copied');
-      setTimeout(() => { setIconButtonContent(btn, 'copy', 'Copy'); }, 1500);
-    }
-  }).catch(() => {
-    if (btn) {
-      setIconButtonContent(btn, 'x', 'Failed');
-      setTimeout(() => { setIconButtonContent(btn, 'copy', 'Copy'); }, 1500);
-    }
-  });
+  navigator.clipboard.writeText(clipboardText).then(() => { feedback('copied'); }).catch(() => { feedback('failed'); });
 }
 
 export function toggleContextDetails(msgIndex: number) {
-  const details = document.getElementById(`chat-ctx-details-${msgIndex}`);
-  const arrow = document.getElementById(`chat-ctx-arrow-${msgIndex}`);
-  const toggle = document.querySelector(`[data-chat-message-action="toggle-context-details"][data-chat-message-index="${msgIndex}"]`);
-  if (!details) return;
-  const open = details.style.display !== 'none';
-  details.style.display = open ? 'none' : 'flex';
-  if (arrow) arrow.textContent = open ? '\u25B8' : '\u25BE';
-  toggle?.setAttribute('aria-expanded', String(!open));
+  ensureChatMessageActions();
+  return toggleOwnedChatMessageContext(msgIndex);
 }
 
 configureChatSpeechAction(index => (chatMessageActionDeps.toggleMessageSpeech as (index: number) => unknown)(index));

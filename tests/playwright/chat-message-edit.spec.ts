@@ -119,7 +119,12 @@ test('latest-message edit retries in place while a fork starts a linked new chat
     'First question', 'First answer', 'Edited follow-up in this chat', 'Revised answer',
   ]);
 
-  await page.locator('#chat-msg-1 [data-chat-message-action="fork-message"].chat-fork-action').click();
+  const desktopFork = page.locator('#chat-msg-1 [data-chat-message-action="fork-message"].chat-fork-action');
+  if ((page.viewportSize()?.width || 1280) <= 768) {
+    await expect(desktopFork).toBeHidden();
+    await page.locator('#chat-msg-1 .chat-action-more summary').click();
+    await page.locator('#chat-msg-1 .chat-action-more [data-chat-message-action="fork-message"]').click();
+  } else await desktopFork.click();
   await expect(page.locator('.chat-fork-notice')).toContainText('Forked from Source conversation');
   await expect(page.locator('.chat-fork-notice button')).toHaveText('View original');
   await expect(page.locator('#chat-input')).toHaveValue('');

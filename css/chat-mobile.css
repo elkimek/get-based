@@ -4,13 +4,7 @@
 
 @media (max-width: 768px) {
   .chat-thread-rail .chat-thread-search { min-height: 44px; box-sizing: border-box; font-size: 16px; }
-  .chat-action-btn.chat-fork-action { display: none; }
-  .chat-action-bar .chat-action-more { display: block; }
-  .chat-msg.chat-user.chat-msg-editing { width: 100%; max-width: 100%; }
-  .chat-msg.chat-user.chat-msg-editing.chat-avatar-anchor {
-    width: calc(100% - 36px); max-width: calc(100% - 36px);
-  }
-  .chat-message-edit-input { font-size: 16px; }
+
 }
 
 /* ═══ Chat thread rail: back button on mobile overlay ═══ */
@@ -37,11 +31,5 @@
   .chat-project-new-btn { min-width: 44px; min-height: 44px; }
   .chat-rail-back { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 
-  .chat-action-btn,
-
-  .chat-message-edit-controls button,
-  .chat-action-more > summary,
-  .chat-action-more-popover button,
   .chat-history-earlier { min-height: 44px; }
-  .chat-action-btn { padding: 8px 10px; }
 }

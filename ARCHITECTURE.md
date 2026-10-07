@@ -920,8 +920,26 @@ stopped visible view, and disposes removed or retired profile/thread owners.
 A stopped clock does not retain a removed Svelte root. Shared scoped Tailwind
 classes replace the corresponding native citation, image and thinking rules;
 the owned dot animation retains its keyframes and respects reduced motion.
-Outer transcript rendering, action bars and streaming remain in their respective
-services until their presentation ownership is migrated.
+`ChatMessageActions.svelte` owns message action bars and context disclosure;
+`ChatAgentDraftCards.svelte` owns proposed-change review. Their typed projections
+keep literal labels and proposal status separate from domain mutation. Existing
+synchronous action-bar and proposal HTML exports use those same authored views.
+`chat-message-actions-component.ts` hydrates connected compatibility hosts once;
+opaque render tickets prevent old markup from being adopted into another
+profile, thread, history or message. `chat-message-actions-view.ts` owns copy
+feedback, disclosure state and control lifetimes, rejecting late clipboard
+completion and disposing removed views and reset timers. Retry, fork and proposal
+claims retain their existing service dispatchers. The nested speech control uses
+`chat-speech-view.ts`, sharing one owner and state port with standalone speech.
+`ChatMessageEditor.svelte` owns inline edit controls, focus, sizing, keyboard
+shortcuts and busy state. `chat-message-editor-component.ts` attaches it to the
+service-owned message host and retires removed or changed conversation owners.
+`chat-message-edit.ts` retains eligibility, transactional send/rollback and fork
+operations; composer edit state flows through `chat-message-editor-view.ts` to
+`ChatComposer.svelte`, preserving the separate unsent draft and making the row
+inert. Scoped Tailwind replaces native action, proposal, context and editor rules.
+Outer transcript rendering and streaming remain in their respective services
+until their presentation ownership is migrated.
 `ChatVoiceButton.svelte` and `ChatVoiceStatus.svelte` own the microphone control
 and live status. `chat-voice-view.ts` publishes typed capture state and backend
 availability, retires composer actions, and cancels capture on owner disposal.

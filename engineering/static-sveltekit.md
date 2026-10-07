@@ -146,3 +146,15 @@ processing files so tests do not submit into a conversation being replaced.
 The response transport is a deterministic local-provider fixture; these checks
 establish cached presentation and orchestration, not real-provider availability
 or installed-PWA acceptance.
+
+Message actions, context disclosure, proposed-change review and inline editing
+share Svelte views across native and static entries. The
+[offline action scenario](../tests/pwa/sveltekit-chat-message-actions.spec.ts)
+checks stored context and copy, application of a reviewed proposal, cancelled
+editing with a separate composer draft, and a revised response retained through
+two cold launches while the application origin is unavailable. It uses the
+existing services and a synthetic local-provider response; it does not establish
+live-provider availability or installed-PWA acceptance. The
+[headless action and editor scenarios](../tests/playwright/chat-message-actions-owned.spec.ts)
+check literal text, stale clipboard replies, keyboard/focus behavior, mobile
+menus, coarse controls and six themes at desktop and narrow widths.

@@ -31,7 +31,7 @@ export async function buildSvelte({ component = COMPONENT, outputDirectory = pat
       async load(id) {
         if (id === 'getbased:component-entry') {
           if (output === 'html') return `import Component from ${JSON.stringify(component)}; import { render } from 'svelte/server'; export const renderHTML = props => render(Component, { props }).body;`;
-          const hydration = /\/(?:RoutstrActions|ChatShell|ChatSpeechButton)\.svelte$/.test(component) ? ', hydrate' : '';
+          const hydration = /\/(?:RoutstrActions|ChatShell|ChatSpeechButton|ChatMessageActions)\.svelte$/.test(component) ? ', hydrate' : '';
           return `export { default } from ${JSON.stringify(component)}; export { mount, unmount, flushSync${hydration} } from 'svelte';`;
         }
         if (!id.endsWith('.svelte')) return null;
@@ -66,7 +66,7 @@ export async function buildSvelte({ component = COMPONENT, outputDirectory = pat
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   for (const component of [...walkSourceFiles(path.join(ROOT, 'js/components')), ...walkSourceFiles(path.join(ROOT, 'js/kit'))].filter(file => file.endsWith('.svelte'))) {
     await buildSvelte({ component, check: process.argv.includes('--check') });
-    if (/\/(?:RoutstrActions|ChatShell|ChatAttestationBadge|ChatSpeechButton|ChatCitations|ChatStoredImages)\.svelte$/.test(component)) await buildSvelte({ component, output: 'html', check: process.argv.includes('--check') });
+    if (/\/(?:RoutstrActions|ChatShell|ChatAttestationBadge|ChatSpeechButton|ChatCitations|ChatStoredImages|ChatMessageActions|ChatAgentDraftCards)\.svelte$/.test(component)) await buildSvelte({ component, output: 'html', check: process.argv.includes('--check') });
   }
   const { renderHTML } = await import(pathToFileURL(path.join(ROOT, 'js/components/ChatShell.svelte.html.js')).href) as { renderHTML: () => string };
   const indexPath = path.join(ROOT, 'index.html');
