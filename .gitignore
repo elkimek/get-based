@@ -1774,3 +1774,12 @@ js/custom-settings-controller.js
 /tests/playwright/chat-attachments-owned.spec.js
 
 /tests/pwa/sveltekit-chat-attachments.spec.js
+
+# Generated owned Chat voice runtime
+/js/chat-voice-contract.js
+/js/chat-voice-view.js
+/js/chat-speech-component.js
+/tests/chat-voice-owned.test.js
+/tests/playwright/chat-voice-owned.spec.js
+/tests/helpers/chat-voice-fixture.js
+/tests/pwa/sveltekit-chat-voice.spec.js

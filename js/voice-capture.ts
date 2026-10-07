@@ -20,7 +20,7 @@ function preferredMimeType(MediaRecorderClass: Pick<typeof MediaRecorder, 'isTyp
 
 function stopTracks(stream: MediaStream | null) {
   for (const track of stream?.getTracks?.() || []) {
-    try { track.stop(); } catch {}
+    try { track.stop(); } catch { }
   }
 }
 
@@ -34,12 +34,13 @@ export class VoiceCaptureSession {
   declare chunks: Blob[];
   declare limitTimer: ReturnType<typeof setTimeout> | null;
   declare cancelled: boolean;
+  private generation = 0;
 
   constructor(options: VoiceCaptureOptions = {}) {
     this.mediaDevices = options.mediaDevices || navigator.mediaDevices;
     this.MediaRecorderClass = options.MediaRecorderClass || globalThis.MediaRecorder;
     this.maxDurationMs = Math.max(1000, Number(options.maxDurationMs) || DEFAULT_MAX_DURATION_MS);
-    this.onLimit = typeof options.onLimit === 'function' ? options.onLimit : () => {};
+    this.onLimit = typeof options.onLimit === 'function' ? options.onLimit : () => { };
     this.stream = null;
     this.recorder = null;
     this.chunks = [];
@@ -51,6 +52,8 @@ export class VoiceCaptureSession {
     if (!this.mediaDevices?.getUserMedia || !this.MediaRecorderClass) {
       throw new Error('Microphone recording is not supported by this browser.');
     }
+    this.cancel();
+    const generation = this.generation;
     this.cancelled = false;
     this.chunks = [];
     const stream = await this.mediaDevices.getUserMedia({
@@ -61,19 +64,25 @@ export class VoiceCaptureSession {
       },
       video: false,
     });
+    if (this.cancelled || this.generation !== generation) {
+      stopTracks(stream);
+      throw new DOMException('Microphone capture cancelled', 'AbortError');
+    }
     this.stream = stream;
     const mimeType = preferredMimeType(this.MediaRecorderClass);
     try {
       this.recorder = new this.MediaRecorderClass(stream, mimeType ? { mimeType } : undefined);
+      this.recorder.addEventListener('dataavailable', event => {
+        if (!this.cancelled && this.generation === generation && event.data?.size) this.chunks.push(event.data);
+      });
+      this.recorder.start(250);
     } catch (error) {
       stopTracks(stream);
       this.stream = null;
+      this.recorder = null;
       throw error;
     }
-    this.recorder.addEventListener('dataavailable', event => {
-      if (!this.cancelled && event.data?.size) this.chunks.push(event.data);
-    });
-    this.recorder.start(250);
+
     this.limitTimer = setTimeout(() => this.onLimit(), this.maxDurationMs);
     return { mimeType: this.recorder.mimeType || mimeType, startedAt: Date.now() };
   }
@@ -81,6 +90,9 @@ export class VoiceCaptureSession {
   stop() {
     const recorder = this.recorder;
     if (!recorder || recorder.state === 'inactive') {
+      if (this.limitTimer) clearTimeout(this.limitTimer);
+      this.limitTimer = null;
+      this.recorder = null;
       stopTracks(this.stream);
       this.stream = null;
       return Promise.resolve(new Blob(this.chunks, { type: recorder?.mimeType || 'audio/webm' }));
@@ -100,7 +112,7 @@ export class VoiceCaptureSession {
       }, { once: true });
       recorder.addEventListener('error', event => {
         cleanup();
-        reject((event as Event & { error?: unknown }).error || new Error('Microphone recording failed.'));
+        reject((event as Event & { error?: unknown; }).error || new Error('Microphone recording failed.'));
       }, { once: true });
       try {
         recorder.stop();
@@ -112,6 +124,7 @@ export class VoiceCaptureSession {
   }
 
   cancel() {
+    this.generation += 1;
     this.cancelled = true;
     this.chunks = [];
     if (this.limitTimer) clearTimeout(this.limitTimer);
@@ -120,7 +133,7 @@ export class VoiceCaptureSession {
     this.recorder = null;
     try {
       if (recorder && recorder.state !== 'inactive') recorder.stop();
-    } catch {}
+    } catch { }
     stopTracks(this.stream);
     this.stream = null;
   }

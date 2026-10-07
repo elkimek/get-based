@@ -78,30 +78,6 @@
 [data-chat-model-picker-view] .chat-model-effort-control input[type="range"]::-moz-range-thumb {
   width: 16px; height: 16px; border: 2px solid var(--bg-card); border-radius: 50%; background: var(--text-primary); box-shadow: 0 1px 5px rgba(0,0,0,.35);
 }
-.chat-voice-btn.recording {
-  border-color: var(--red);
-  background: color-mix(in srgb, var(--red) 14%, var(--bg-card));
-  color: var(--red);
-  animation: chatVoicePulse 1.4s ease-in-out infinite;
-}
-.chat-voice-btn.busy {
-  cursor: pointer;
-  opacity: .7;
-}
-.chat-voice-status {
-  min-height: 14px;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  line-height: 1.4;
-}
-.chat-voice-status.error {
-  color: var(--red);
-}
-@keyframes chatVoicePulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--red) 26%, transparent); }
-  50% { box-shadow: 0 0 0 5px transparent; }
-}
 .chat-image-badge {
   font-size: 11px; color: var(--text-muted); margin-bottom: 4px;
   font-style: italic;

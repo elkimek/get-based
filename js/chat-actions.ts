@@ -1,13 +1,13 @@
 // chat-actions.js — message action bar rendering and handlers
 
 import { state } from './state.js';
+import { configureChatSpeechAction, renderChatSpeechButton } from './chat-speech-component.js';
 import { escapeHTML, showNotification } from './utils.js';
 import {
   CHAT_ICON_COPY,
   CHAT_ICON_EDIT,
   CHAT_ICON_FORK,
   CHAT_ICON_REFRESH,
-  CHAT_ICON_VOLUME,
   setIconButtonContent,
 } from './chat-icons.js';
 import { saveChatHistory } from './chat-history.js';
@@ -250,7 +250,7 @@ function runChatMessageAction(actionEl: HTMLElement, event: Event) {
 
 function handleChatMessageClick(event: Event) {
   const actionEl = closestChatMessageAction(event.target as ActionTargetRead | null);
-  if (!actionEl) return;
+  if (!actionEl || actionEl.hasAttribute('data-chat-speech-owned')) return;
   runChatMessageAction(actionEl, event);
 }
 
@@ -331,7 +331,7 @@ export function buildActionBar(msgIndex: number) {
   }
   html += `<button class="chat-action-btn" type="button" ${chatMessageActionAttrs('copy-message', { index: msgIndex })} id="chat-copy-btn-${msgIndex}" title="Copy to clipboard">${CHAT_ICON_COPY}<span>Copy</span></button>`;
   if (!msg.error) {
-    html += `<button class="chat-action-btn chat-listen-btn" type="button" ${chatMessageActionAttrs('toggle-message-speech', { index: msgIndex })} id="chat-listen-btn-${msgIndex}" title="Read message aloud" aria-pressed="false">${CHAT_ICON_VOLUME}<span>Listen</span></button>`;
+    html += renderChatSpeechButton(msgIndex);
   }
   html += buildForkActions(msgIndex);
   html += '</div>';
@@ -470,3 +470,5 @@ export function toggleContextDetails(msgIndex: number) {
   if (arrow) arrow.textContent = open ? '\u25B8' : '\u25BE';
   toggle?.setAttribute('aria-expanded', String(!open));
 }
+
+configureChatSpeechAction(index => (chatMessageActionDeps.toggleMessageSpeech as (index: number) => unknown)(index));

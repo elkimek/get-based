@@ -2,6 +2,8 @@
 
 import { createRetryingModuleLoader } from './retrying-module-loader.js';
 import { state } from './state.js';
+import { configureChatVoiceCancellation } from './chat-voice-view.js';
+import { captureChatComposerInput } from './chat-composer-input-port.js';
 
 type VoiceModule = typeof import('./voice-controller.js');
 
@@ -21,6 +23,7 @@ function captureMessageContext(messageIndex: number) {
     messageIndex,
     panel,
     threadId: state.currentThreadId,
+    profile: state.currentProfile,
   };
 }
 
@@ -29,6 +32,7 @@ function isMessageContextCurrent(context: NonNullable<ReturnType<typeof captureM
     && context.panel.isConnected
     && document.getElementById('chat-panel') === context.panel
     && context.panel.classList.contains('open')
+    && state.currentProfile === context.profile
     && state.currentThreadId === context.threadId
     && state.chatHistory[context.messageIndex] === context.message;
 }
@@ -45,9 +49,13 @@ export function loadVoiceModule() {
 export function toggleVoiceRecording() {
   const epoch = voiceActivityEpoch;
   const panel = document.getElementById('chat-panel');
+  const profile = state.currentProfile, thread = state.currentThreadId;
+  const input = document.getElementById('chat-input') as HTMLTextAreaElement | null;
+  const inputCurrent = input ? captureChatComposerInput(input) : () => false;
   return loadVoiceModule().then(module => {
     if (
       epoch !== voiceActivityEpoch
+      || profile !== state.currentProfile || thread !== state.currentThreadId || !inputCurrent()
       || !panel?.isConnected
       || document.getElementById('chat-panel') !== panel
       || !panel.classList.contains('open')
@@ -95,3 +103,5 @@ export function maybeAutoReadAssistantMessage(messageIndex: number) {
       : false
   ));
 }
+
+configureChatVoiceCancellation(() => stopVoiceActivity({ preservePlayback: true }));

@@ -1,3 +1,4 @@
+import { setChatVoiceAvailable } from './chat-voice-view.js';
 import { refreshChatHeaderWebSearch } from './chat-header-presentation.js';
 import { closePersonalityPickerView } from './chat-personality-picker-view.js';
 // chat-panel.js — Chat panel chrome, web-search toggle, and input state
@@ -335,7 +336,6 @@ export async function openChatPanel(prefillMessage?: Parameters<typeof setChatIn
 export function updateChatInputState() {
   const input = document.getElementById('chat-input') as HTMLTextAreaElement|null;
   const sendBtn = document.getElementById('chat-send-btn') as HTMLButtonElement|null;
-  const voiceBtn = document.getElementById('chat-voice-btn') as HTMLButtonElement|null;
   const noAI = !hasChatResponseBackend();
   const blocked = chatThreadInputBlocked;
   if (input) {
@@ -353,7 +353,7 @@ export function updateChatInputState() {
   if (sendBtn) sendBtn.disabled = noAI || blocked;
   // Dictation is routed through getbased's independent voice service. A CLI
   // agent handles the resulting text, but does not need to transport audio.
-  if (voiceBtn) voiceBtn.disabled = noAI || blocked;
+  setChatVoiceAvailable(!noAI && !blocked);
   refreshChatComposer();
   updateWebSearchToggleVisibility();
 }

@@ -1,3 +1,4 @@
+import { configureChatVoiceActions } from './chat-voice-view.js';
 import { configureChatAttachmentContext } from './chat-attachment-view.js';
 import { configureChatHeaderActions } from './chat-header-view.js';
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
@@ -207,7 +208,7 @@ function runChatAction(action: string | undefined, actionEl: HTMLElement) {
 
 function handleShellClick(event: Event) {
   const actionEl = closestAction(event, '[data-shell-action], [data-chat-action]');
-  if (!actionEl || actionEl.closest('[data-chat-personality-view], [data-chat-header-view], [data-chat-owned-attachment-actions]')) return;
+  if (!actionEl || actionEl.closest('[data-chat-personality-view], [data-chat-header-view], [data-chat-owned-attachment-actions], [data-chat-owned-voice]')) return;
 
   const shellAction = actionEl.dataset.shellAction;
   const chatAction = actionEl.dataset.chatAction;
@@ -277,3 +278,5 @@ configureChatHeaderActions({
 });
 
 configureChatAttachmentContext(openChatContextModalRuntime);
+
+configureChatVoiceActions(() => shellChatActionDeps.toggleVoiceRecording());

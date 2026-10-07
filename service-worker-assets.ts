@@ -220,7 +220,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/chat-header-contract.js',
   '/js/chat-header-view.js',
   '/js/chat-attachment-view.js', '/js/chat-attachment-drafts.js', '/js/chat-attachment-classes.js',
-  '/js/chat-image-lightbox-component.js',
+  '/js/chat-image-lightbox-component.js', '/js/chat-voice-contract.js', '/js/chat-voice-view.js', '/js/chat-speech-component.js', '/js/components/ChatSpeechButton.svelte.native.js', '/js/components/ChatSpeechButton.svelte.html.js',
   '/js/components/ChatImageLightbox.svelte.native.js',
   '/js/chat-header-presentation.js',
   '/js/chat-header-classes.js',

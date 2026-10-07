@@ -894,6 +894,25 @@ including originating input identity and profile/thread checks. Its published
 resize/value helpers keep their existing runtime contract. The input, toolbar,
 send and tool controls use scoped Tailwind classes and shared theme variables;
 attachments and voice presentation retain their separate services.
+`ChatVoiceButton.svelte` and `ChatVoiceStatus.svelte` own the microphone control
+and live status. `chat-voice-view.ts` publishes typed capture state and backend
+availability, retires composer actions, and cancels capture on owner disposal.
+The tiny `voice-loader.ts` retains first-use loading and checks the originating
+profile, thread, panel and input before dispatch. `voice-controller.ts` owns
+recording/transcription operations and spoken reply orchestration, independent
+of presentation. Every capture holds its originating input/profile/thread,
+disclosed provider/settings, abort signal and timers; obsolete permission,
+privacy and transcription replies cannot start capture or insert into another
+draft. Capture and playback cancellation remain separate, so closing Chat
+stops dictation while a spoken reply can finish. `voice-capture.ts` releases
+late microphone grants before starting a recorder and cleans up startup failures.
+`ChatSpeechButton.svelte` is the sole Listen/Stop/preparation/waiting view.
+`chat-speech-component.ts` supplies synchronous HTML to existing transcript
+callers, hydrates without replacing buttons, and disposes retired owners. Its
+typed state updates replace native icon, label and class writers. Transcript
+migration can consume the same component; audio engines, provider consent,
+progressive streams and local model services remain outside the component.
+The controls use scoped Tailwind, shared theme tokens and reduced-motion rules.
 `ChatModelPicker.svelte` owns the model menu, search, range preview, selection
 buttons and dismiss/focus behavior. `chat-model-picker-view.ts` binds only the
 current root and releases provider event subscriptions on disposal.

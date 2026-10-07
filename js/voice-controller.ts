@@ -1,12 +1,14 @@
 import type { VoiceSynthesisResult } from '../types/voice-provider.js';
 import type { VoiceKind } from '../types/voice-local.js';
-type SpeechButtonMode = 'idle' | 'busy' | 'speaking' | 'waiting';
+import type { ChatCaptureMode, ChatSpeechMode as SpeechButtonMode } from './chat-voice-contract.js';
+import { publishChatCapture } from './chat-voice-view.js';
+import { captureChatComposerInput } from './chat-composer-input-port.js';
 
 // voice-controller.js — chat microphone and per-message speech orchestration.
 
 import { state } from './state.js';
 import { getErrorMessage } from './caught-error.js';
-import { setIconButtonContent } from './chat-icons.js';
+import { publishChatSpeech } from './chat-speech-component.js';
 import { showNotification } from './utils.js';
 import { VoiceCaptureSession } from './voice-capture.js';
 import { voicePlayer } from './voice-player.js';
@@ -33,85 +35,68 @@ const LOCAL_STT_TIMEOUT_MS = 3 * 60 * 1000;
 // Keep the outer request large to avoid restarting playback between paragraphs.
 const BROWSER_LOCAL_SPEECH_CHUNK_CHARACTERS = 3500;
 const REMOTE_SPEECH_CHUNK_CHARACTERS = 3500;
-let captureSession: VoiceCaptureSession | null = null;
-let captureState = 'idle';
-let captureStartedAt = 0;
-let capturePrivacyText = '';
-let captureTicker: ReturnType<typeof setInterval> | null = null;
+interface CaptureOperation {
+  input: HTMLTextAreaElement;
+  originCurrent(): boolean;
+  settings: ReturnType<typeof getVoiceSettings>;
+  session: VoiceCaptureSession | null;
+  controller: AbortController;
+  startedAt: number;
+  privacy: string;
+  ticker: ReturnType<typeof setInterval> | null;
+  errorTimer: ReturnType<typeof setTimeout> | null;
+}
+let capture: CaptureOperation | null = null;
+let captureState: ChatCaptureMode = 'idle';
 let speechAbortController: AbortController | null = null;
 let autoReadActivationNoticeShown = false;
 let speakingMessageIndex: number | null = null;
 let speechButtonMode: SpeechButtonMode = 'idle';
 let voiceActivityEpoch = 0;
 
-function chatVoiceButton() {
-  return document.getElementById('chat-voice-btn') as HTMLButtonElement | null;
-}
-
-function chatVoiceStatus() {
-  return document.getElementById('chat-voice-status');
-}
-
 function formatElapsed(ms: number) {
   const seconds = Math.max(0, Math.floor(ms / 1000));
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
-
-function setCaptureUi(stateName: string, text = '') {
-  captureState = stateName;
-  const button = chatVoiceButton();
-  const status = chatVoiceStatus();
-  if (button) {
-    const recording = stateName === 'recording';
-    const busy = stateName === 'requesting' || stateName === 'transcribing';
-    const cancellable = stateName === 'transcribing';
-    button.classList.toggle('recording', recording);
-    button.classList.toggle('busy', busy);
-    button.setAttribute('aria-pressed', String(recording));
-    button.setAttribute('aria-label', recording
-      ? 'Stop recording'
-      : cancellable
-        ? 'Cancel transcription'
-        : busy
-          ? 'Processing voice'
-          : 'Speak message');
-    button.title = recording
-      ? 'Stop and transcribe'
-      : cancellable
-        ? 'Cancel transcription'
-        : 'Speak message';
-    button.disabled = stateName === 'requesting';
+function setCaptureUi(mode: ChatCaptureMode, text = '') {
+  captureState = mode;
+  publishChatCapture(mode, text);
+}
+function isCaptureCurrent(operation: CaptureOperation): boolean {
+  return capture === operation && operation.originCurrent();
+}
+function cancelCapture(): void {
+  const previous = capture; capture = null;
+  if (previous) {
+    previous.controller.abort(new DOMException('Voice input cancelled', 'AbortError'));
+    previous.session?.cancel();
+    if (previous.ticker) clearInterval(previous.ticker);
+    if (previous.errorTimer) clearTimeout(previous.errorTimer);
   }
-  if (status) {
-    status.textContent = text;
-    status.toggleAttribute('hidden', !text);
-    status.classList.toggle('error', stateName === 'error');
+  setCaptureUi('idle');
+}
+function captureError(operation: CaptureOperation, message: string): void {
+  if (!isCaptureCurrent(operation)) return;
+  if (operation.ticker) clearInterval(operation.ticker);
+  operation.ticker = null;
+  operation.session?.cancel(); operation.session = null;
+  setCaptureUi('error', message);
+  showNotification(message, 'error', 6000);
+  operation.errorTimer = setTimeout(() => {
+    if (isCaptureCurrent(operation)) cancelCapture();
+  }, 5000);
+}
+function tickCapture(operation: CaptureOperation): void {
+  if (!isCaptureCurrent(operation)) {
+    if (capture === operation) cancelCapture();
+    return;
   }
-}
-
-function clearCaptureTicker() {
-  if (captureTicker) clearInterval(captureTicker);
-  captureTicker = null;
-}
-
-function startCaptureTicker() {
-  clearCaptureTicker();
-  captureTicker = setInterval(() => {
-    if (captureState !== 'recording') return;
-    setCaptureUi('recording', `Listening · ${formatElapsed(Date.now() - captureStartedAt)} · ${capturePrivacyText} · tap to finish`);
-  }, 1000);
-}
-
-function startTranscriptionTicker(local: boolean) {
-  clearCaptureTicker();
-  captureTicker = setInterval(() => {
-    if (captureState !== 'transcribing') return;
-    const elapsed = formatElapsed(Date.now() - captureStartedAt);
-    setCaptureUi(
-      'transcribing',
-      `${local ? 'Transcribing on this device' : 'Transcribing'} · ${elapsed} · tap to cancel`,
-    );
-  }, 1000);
+  if (captureState === 'recording') {
+    setCaptureUi('recording', `Listening · ${formatElapsed(Date.now() - operation.startedAt)} · ${operation.privacy} · tap to finish`);
+  } else if (captureState === 'transcribing') {
+    const local = operation.settings.inputProvider === 'browser-local';
+    setCaptureUi('transcribing', `${local ? 'Transcribing on this device' : 'Transcribing'} · ${formatElapsed(Date.now() - operation.startedAt)} · tap to cancel`);
+  }
 }
 
 async function guideToLocalModelDownload(kind: VoiceKind, modelId: string, { automatic = false } = {}) {
@@ -135,13 +120,11 @@ async function guideToLocalModelDownload(kind: VoiceKind, modelId: string, { aut
       if (button instanceof HTMLButtonElement) button.focus();
       setTimeout(() => row.classList.remove('voice-model-attention'), 3500);
     });
-  } catch {}
+  } catch { }
   return false;
 }
 
-function insertTranscript(text: unknown) {
-  const input = document.getElementById('chat-input') as HTMLTextAreaElement | null;
-  if (!input) throw new Error('Chat composer is unavailable.');
+function insertTranscript(input: HTMLTextAreaElement, text: unknown) {
   const transcript = String(text || '').trim();
   if (!transcript) throw new Error('No speech was detected.');
   const start = Number.isInteger(input.selectionStart) ? input.selectionStart : input.value.length;
@@ -158,144 +141,110 @@ function insertTranscript(text: unknown) {
 }
 
 async function finishVoiceRecording() {
-  const session = captureSession;
-  if (!session || captureState !== 'recording') return false;
-  captureSession = null;
-  clearCaptureTicker();
+  const operation = capture;
+  if (!operation?.session || captureState !== 'recording') return false;
+  if (!isCaptureCurrent(operation)) { cancelCapture(); return false; }
+  const session = operation.session;
   setCaptureUi('transcribing', 'Preparing transcription… · tap to cancel');
-  const controller = new AbortController();
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-  speechAbortController?.abort();
-  speechAbortController = controller;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
   try {
     const audio = await session.stop();
+    operation.session = null;
+    if (!isCaptureCurrent(operation) || operation.controller.signal.aborted) return false;
     if (!audio.size) throw new Error('The recording was empty.');
-    const settings = getVoiceSettings();
-    const local = getVoiceProviderId('stt', settings) === 'browser-local';
-    captureStartedAt = Date.now();
-    setCaptureUi(
-      'transcribing',
-      `${local ? 'Transcribing on this device' : 'Transcribing'} · 0:00 · tap to cancel`,
-    );
-    startTranscriptionTicker(local);
-    if (local) {
-      timeoutId = setTimeout(() => controller.abort(new DOMException(
-        'Local transcription took longer than 3 minutes. Try the graphics processor, a shorter recording, or a hosted service.',
-        'TimeoutError',
-      )), LOCAL_STT_TIMEOUT_MS);
-    }
-    const result = await transcribeVoice(audio, {
-      settings,
-      signal: controller.signal,
-    });
-    insertTranscript(result.text);
-    setCaptureUi('idle', '');
+    const local = operation.settings.inputProvider === 'browser-local';
+    operation.startedAt = Date.now();
+    tickCapture(operation);
+    if (local) timeoutId = setTimeout(() => operation.controller.abort(new DOMException(
+      'Local transcription took longer than 3 minutes. Try the graphics processor, a shorter recording, or a hosted service.', 'TimeoutError',
+    )), LOCAL_STT_TIMEOUT_MS);
+    const result = await transcribeVoice(audio, { settings: operation.settings, signal: operation.controller.signal });
+    if (!isCaptureCurrent(operation)) return false;
+    if (operation.controller.signal.aborted) throw operation.controller.signal.reason;
+    insertTranscript(operation.input, result.text);
+    cancelCapture();
     if (result.providerId === 'browser-local' && Number.isFinite(result.inferenceMs)) {
       const execution = result.backend === 'webgpu' ? 'GPU' : 'CPU';
-      showNotification(
-        `Transcribed in ${(result.inferenceMs as number / 1000).toFixed(1)}s using ${execution}.`,
-        'success',
-        4500,
-      );
+      showNotification(`Transcribed in ${(result.inferenceMs as number / 1000).toFixed(1)}s using ${execution}.`, 'success', 4500);
     }
     return true;
   } catch (error) {
-    const caught = error as { name?: unknown } | null | undefined;
-    if (caught?.name === 'AbortError') {
-      setCaptureUi('idle', '');
-      return false;
-    }
-    const message = getErrorMessage(error, 'Voice transcription failed');
-    setCaptureUi('error', message);
-    showNotification(message, 'error', 6000);
-    setTimeout(() => {
-      if (captureState === 'error') setCaptureUi('idle', '');
-    }, 5000);
+    if (!isCaptureCurrent(operation)) return false;
+    if (error instanceof DOMException && error.name === 'AbortError') cancelCapture();
+    else captureError(operation, getErrorMessage(error, 'Voice transcription failed'));
     return false;
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
-    clearCaptureTicker();
-    if (speechAbortController === controller) speechAbortController = null;
+    // Old results never clear a new recording's ticker or status.
+    if (capture === operation && !operation.originCurrent()) cancelCapture();
   }
 }
 
 async function startVoiceRecording() {
+  cancelCapture();
   voiceActivityEpoch += 1;
-  const activityEpoch = voiceActivityEpoch;
   stopSpeechPlayback();
+  const input = document.getElementById('chat-input') as HTMLTextAreaElement | null;
+  if (!input) return false;
+  const inputCurrent = captureChatComposerInput(input);
+  const profile = state.currentProfile, thread = state.currentThreadId;
   const settings = getVoiceSettings();
   const inputProviderId = getVoiceProviderId('stt', settings);
-  const inputProvider = getVoiceProviderDefinition(inputProviderId);
-  capturePrivacyText = inputProvider.privacy === 'local'
-    ? 'audio stays on this device'
-    : inputProvider.privacy === 'local-network'
-      ? `audio goes to ${inputProvider.label}`
-      : `audio will be sent to ${inputProvider.label}`;
-  if (inputProviderId === 'browser-local') {
-    let modelReady = isLocalVoiceModelReady(
-      'stt',
-      settings.localSttModel,
-      settings.localSttBackend,
-    );
-    if (modelReady) {
-      modelReady = await verifyLocalVoiceModelReady(
-        'stt',
-        settings.localSttModel,
-        settings.localSttBackend,
-      );
-    }
-    if (activityEpoch !== voiceActivityEpoch) return false;
-    if (!modelReady) return guideToLocalModelDownload('stt', settings.localSttModel);
-  }
+  // Resolve linked providers once. Recording and transcription must use the
+  // same disclosed destination even if the AI provider changes meanwhile.
+  settings.inputProvider = inputProviderId;
+  const provider = getVoiceProviderDefinition(inputProviderId);
+  const operation: CaptureOperation = {
+    input, settings, session: null, controller: new AbortController(), startedAt: 0,
+    originCurrent: () => inputCurrent() && profile === state.currentProfile && thread === state.currentThreadId,
+    privacy: provider.privacy === 'local' ? 'audio stays on this device' : provider.privacy === 'local-network' ? `audio goes to ${provider.label}` : `audio will be sent to ${provider.label}`,
+    ticker: null, errorTimer: null,
+  };
+  capture = operation;
+  setCaptureUi('preparing', 'Preparing voice input… · tap to cancel');
+  operation.ticker = setInterval(() => tickCapture(operation), 1000);
   try {
+    if (inputProviderId === 'browser-local') {
+      let modelReady = isLocalVoiceModelReady('stt', settings.localSttModel, settings.localSttBackend);
+      if (modelReady) modelReady = await verifyLocalVoiceModelReady('stt', settings.localSttModel, settings.localSttBackend);
+      if (!isCaptureCurrent(operation)) return false;
+      if (!modelReady) {
+        captureError(operation, 'Download the selected transcription model first');
+        return guideToLocalModelDownload('stt', settings.localSttModel);
+      }
+    }
     await ensureVoiceRequestPrivacy('stt', inputProviderId, settings);
-  } catch (error) {
-    const message = getErrorMessage(error, 'Subscription voice privacy could not be verified');
-    setCaptureUi('error', message);
-    showNotification(message, 'error', 7000);
-    setTimeout(() => {
-      if (captureState === 'error') setCaptureUi('idle', '');
-    }, 5000);
-    return false;
-  }
-  setCaptureUi('requesting', 'Requesting microphone access…');
-  const session = new VoiceCaptureSession({
-    maxDurationMs: MAX_RECORDING_MS,
-    onLimit: () => { void finishVoiceRecording(); },
-  });
-  captureSession = session;
-  try {
+    if (!isCaptureCurrent(operation) || operation.controller.signal.aborted) return false;
+    setCaptureUi('requesting', 'Requesting microphone access… · tap to cancel');
+    const session = new VoiceCaptureSession({
+      maxDurationMs: MAX_RECORDING_MS, onLimit: () => {
+        if (isCaptureCurrent(operation)) void finishVoiceRecording();
+        else if (capture === operation) cancelCapture();
+      }
+    });
+    operation.session = session;
     await session.start();
-    if (captureSession !== session) {
-      session.cancel();
-      return false;
-    }
-    captureStartedAt = Date.now();
-    setCaptureUi('recording', `Listening · 0:00 · ${capturePrivacyText} · tap to finish`);
-    startCaptureTicker();
+    if (!isCaptureCurrent(operation) || operation.controller.signal.aborted) { session.cancel(); return false; }
+    operation.startedAt = Date.now(); tickCapture(operation);
+    setCaptureUi('recording', `Listening · 0:00 · ${operation.privacy} · tap to finish`);
     return true;
   } catch (error) {
-    const caught = error as { name?: unknown } | null | undefined;
-    captureSession = null;
-    session.cancel();
-    const denied = caught?.name === 'NotAllowedError' || caught?.name === 'SecurityError';
-    const message = denied
-      ? 'Microphone access was denied. Allow it in your browser site settings and try again.'
-      : getErrorMessage(error, 'Could not start the microphone');
-    setCaptureUi('error', message);
-    showNotification(message, 'error', 6000);
+    if (!isCaptureCurrent(operation)) return false;
+    if (error instanceof DOMException && error.name === 'AbortError') { cancelCapture(); return false; }
+    const name = (error as { name?: unknown; } | null)?.name;
+    const denied = name === 'NotAllowedError' || name === 'SecurityError';
+    captureError(operation, denied ? 'Microphone access was denied. Allow it in your browser site settings and try again.' : getErrorMessage(error, 'Could not start the microphone'));
     return false;
+  } finally {
+    if (capture === operation && !operation.originCurrent()) cancelCapture();
   }
 }
 
 export function toggleVoiceRecording() {
   if (captureState === 'recording') return finishVoiceRecording();
-  if (captureState === 'transcribing') {
-    speechAbortController?.abort(new DOMException('Voice transcription cancelled', 'AbortError'));
-    setCaptureUi('idle', '');
-    return Promise.resolve(false);
+  if (['preparing', 'requesting', 'transcribing'].includes(captureState)) {
+    cancelCapture(); return Promise.resolve(false);
   }
-  if (captureState === 'requesting') return Promise.resolve(false);
   return startVoiceRecording();
 }
 
@@ -307,29 +256,7 @@ function speechButton(messageIndex: number) {
 
 function setSpeechButton(messageIndex: number, mode: SpeechButtonMode) {
   if (speakingMessageIndex === messageIndex || mode === 'idle') speechButtonMode = mode;
-  const button = speechButton(messageIndex);
-  if (!button) return;
-  button.classList.toggle('speaking', mode === 'speaking');
-  button.classList.toggle('busy', mode === 'busy' || mode === 'waiting');
-  button.setAttribute('aria-pressed', String(mode !== 'idle'));
-  button.disabled = false;
-  if (mode === 'speaking') {
-    setIconButtonContent(button, 'stop', 'Stop');
-    button.setAttribute('aria-label', 'Stop reading');
-    button.title = 'Stop reading';
-  } else if (mode === 'busy') {
-    setIconButtonContent(button, 'loading', 'Preparing…');
-    button.setAttribute('aria-label', 'Cancel speech preparation');
-    button.title = 'Generating speech · tap to cancel';
-  } else if (mode === 'waiting') {
-    setIconButtonContent(button, 'loading', 'Still generating…');
-    button.setAttribute('aria-label', 'Cancel speech generation');
-    button.title = 'Speech generation is still running · tap to cancel';
-  } else {
-    setIconButtonContent(button, 'volume', 'Listen');
-    button.setAttribute('aria-label', 'Read message aloud');
-    button.title = 'Read message aloud';
-  }
+  publishChatSpeech(messageIndex, mode);
 }
 
 function stopSpeechPlayback() {
@@ -351,21 +278,18 @@ export async function readAssistantMessage(messageIndex: number, { automatic = f
   }
   voiceActivityEpoch += 1;
   const activityEpoch = voiceActivityEpoch;
-  const threadId = state.currentThreadId;
+  const threadId = state.currentThreadId, profile = state.currentProfile;
   const isCurrentRequest = () => (
     voiceActivityEpoch === activityEpoch
+    && state.currentProfile === profile
     && state.currentThreadId === threadId
     && state.chatHistory[messageIndex] === message
   );
   stopSpeechPlayback();
-  if (captureState === 'recording') {
-    captureSession?.cancel();
-    captureSession = null;
-    clearCaptureTicker();
-    setCaptureUi('idle', '');
-  }
+  cancelCapture();
   const settings = getVoiceSettings();
   const outputProviderId = getVoiceProviderId('tts', settings);
+  settings.outputProvider = outputProviderId;
   if (outputProviderId === 'browser-local') {
     let modelReady = isLocalVoiceModelReady(
       'tts',
@@ -465,8 +389,8 @@ export async function readAssistantMessage(messageIndex: number, { automatic = f
           await voicePlayer.playPcmStream(result.pcmStream as NonNullable<VoiceSynthesisResult['pcmStream']>, {
             signal: controller.signal,
             rate: 1,
-            onPlaybackStart: () => setSpeechButton(messageIndex, 'speaking'),
-            onPlaybackWaiting: () => setSpeechButton(messageIndex, 'waiting'),
+            onPlaybackStart: () => { if (isCurrentRequest() && !controller.signal.aborted) setSpeechButton(messageIndex, 'speaking'); },
+            onPlaybackWaiting: () => { if (isCurrentRequest() && !controller.signal.aborted) setSpeechButton(messageIndex, 'waiting'); },
           });
         } else if (hasStream) {
           setSpeechButton(messageIndex, 'speaking');
@@ -493,8 +417,8 @@ export async function readAssistantMessage(messageIndex: number, { automatic = f
     }
     return true;
   } catch (error) {
-    const caught = error as { name?: unknown } | null | undefined;
-    if (caught?.name !== 'AbortError' && !controller.signal.aborted) {
+    const caught = error as { name?: unknown; } | null | undefined;
+    if (caught?.name !== 'AbortError' && !controller.signal.aborted && isCurrentRequest()) {
       const detail = getErrorMessage(error, 'Speech generation failed');
       showNotification(detail, 'error', 6000);
     }
@@ -534,14 +458,7 @@ export function stopVoiceActivity({ preservePlayback = false } = {}) {
   const hadActivity = captureState !== 'idle' || speakingMessageIndex !== null;
   const hadCaptureActivity = captureState !== 'idle';
   if (!preservePlayback || hadCaptureActivity) voiceActivityEpoch += 1;
-  if (hadCaptureActivity) {
-    captureSession?.cancel();
-    captureSession = null;
-    clearCaptureTicker();
-    setCaptureUi('idle', '');
-    speechAbortController?.abort();
-    speechAbortController = null;
-  }
+  if (hadCaptureActivity) cancelCapture();
   if (!preservePlayback) stopSpeechPlayback();
   return hadActivity;
 }

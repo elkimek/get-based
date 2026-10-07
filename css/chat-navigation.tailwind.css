@@ -40,3 +40,8 @@
 @source "../js/components/ChatShell.svelte";
 @source "../js/chat-attachment-classes.ts";
 @custom-variant attachment (&:is([data-chat-attachment-view], [data-chat-attachment-view] *, [data-chat-attachment-view-dialog], [data-chat-attachment-view-dialog] *, [data-chat-attachment-drop], [data-chat-attachment-drop] *));
+
+@source "../js/components/ChatVoiceButton.svelte";
+@source "../js/components/ChatVoiceStatus.svelte";
+@source "../js/components/ChatSpeechButton.svelte";
+@custom-variant speech (&:is([data-chat-speech-view]));

@@ -111,3 +111,15 @@ stored transcript. The [native attachment scenarios](../tests/playwright/chat-at
 exercise overlapping reads, draft retirement, original bytes, keyboard removal,
 capability-aware paste, six themes and narrow layouts. Reviewed health-file
 imports and OS portal-drop snapshot timing retain their existing contracts.
+
+Chat microphone/status and per-message speech controls share authored Svelte
+components across the native and static Kit entries. The
+[voice cold-launch scenario](../tests/pwa/sveltekit-chat-voice.spec.ts) checks
+stored reply hydration, Listen/Stop and draft dictation with the assembled
+artifact after the application origin becomes unavailable. Its deterministic
+microphone and compatible-server responses test UI orchestration and cached
+application code; they do not establish real microphone permissions, recognition
+accuracy, model performance or remote-provider availability. The
+[native voice scenarios](../tests/playwright/chat-voice-owned.spec.ts) cover
+late permission/transcription replies, origin retirement, speech cancellation,
+background playback, narrow layouts, themes and reduced motion.
