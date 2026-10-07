@@ -79,7 +79,12 @@ Scoped utilities in `css/context-catalog.tailwind.css` and
 fragments; the build combines both sources at the unchanged context stylesheet URL.
 The existing delegated actions and AI/tips DOM adapters still serve the catalog.
 `context-notes-session.ts` captures accepted text and originating profile/data,
-serializes debounced scoped writes and retains retry drafts through catalog rebuilds.
+serializes debounced scoped writes and retains retry drafts through catalog rebuilds
+and fresh profile reload objects. Failed idle sessions retain draft text without
+retaining the full source profile. The per-profile storage queue checks the observed
+saved notes atomically before merging a draft, including explicit whole-profile
+restores. A conflict exposes the newer saved text; keeping it discards only the
+draft without a storage write, while saving the draft requires an explicit retry.
 Known persisted baselines isolate the notes/history mutation from unrelated unsaved
 fields. Missing baselines retain the storage API's explicit restore semantics.
 Successful writes publish status/history only after commit; failed reads block

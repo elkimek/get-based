@@ -7,6 +7,8 @@ import { rememberProfileData, rebaseLiveProfileData, adoptProfileData } from '..
 import { debounceContextNotes, renderProfileContextCards } from '../js/context-cards.js';
 import type { ProfileData } from '../types/app-state.js';
 import type { ProfileSaveOptions } from '../js/data-core-types.js';
+let profileSequence = 0;
+let originProfile = '', otherProfile = '';
 const mocks = vi.hoisted(() => ({ save: vi.fn(), legacy: vi.fn(), contextChanged: vi.fn() }));
 vi.mock('../js/data.js', async load => ({ ...await load<Record<string, unknown>>(),
   saveImportedData: mocks.legacy,
@@ -33,16 +35,17 @@ const status = (host: HTMLElement) => host.querySelector('.ctx-notes-status')!.t
 function deferred() { let resolve!: (value: boolean) => void; const promise = new Promise<boolean>(done => { resolve = done; }); return { promise, resolve }; }
 beforeEach(() => {
   vi.useFakeTimers(); vi.resetAllMocks(); mocks.save.mockResolvedValue(true); mocks.legacy.mockResolvedValue(true);
-  state.currentProfile = 'notes-origin'; state.importedData = createDefaultProfileData(); rememberProfileData(state.importedData);
+  originProfile = `notes-origin-${++profileSequence}`; otherProfile = `notes-other-${profileSequence}`;
+  state.currentProfile = originProfile; state.importedData = createDefaultProfileData(); rememberProfileData(state.importedData);
   document.body.replaceChildren();
 });
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); document.body.replaceChildren(); });
 describe('context notes origin and persistence', () => {
   it('saves an accepted edit to its original profile after the view and active profile change', async () => {
     const original = render(); edit(original, 'Origin draft'); original.remove();
-    state.currentProfile = 'notes-other'; state.importedData = createDefaultProfileData(); state.importedData.contextNotes = 'Other notes'; rememberProfileData(state.importedData);
+    state.currentProfile = otherProfile; state.importedData = createDefaultProfileData(); state.importedData.contextNotes = 'Other notes'; rememberProfileData(state.importedData);
     const other = render(); await vi.advanceTimersByTimeAsync(500);
-    expect(mocks.save).toHaveBeenCalledWith('notes-origin', expect.objectContaining({ contextNotes: 'Origin draft' }), expect.objectContaining({ forceProfileScope: true }));
+    expect(mocks.save).toHaveBeenCalledWith(originProfile, expect.objectContaining({ contextNotes: 'Origin draft' }), expect.objectContaining({ forceProfileScope: true }));
     expect(state.importedData.contextNotes).toBe('Other notes'); expect(status(other)).toBe('Saved as you type');
     expect(mocks.contextChanged).not.toHaveBeenCalled(); expect(mocks.legacy).not.toHaveBeenCalled();
   });
@@ -69,7 +72,7 @@ describe('context notes origin and persistence', () => {
     expect(state.importedData.contextNotes).toBe('Second catalog'); expect(status(first)).toBe('Saved'); expect(status(second)).toBe('Saved');
   });
   it('rejects detached or retired-profile controls before accepting a new draft', async () => {
-    const original = render(); state.currentProfile = 'notes-other'; state.importedData = createDefaultProfileData(); rememberProfileData(state.importedData);
+    const original = render(); state.currentProfile = otherProfile; state.importedData = createDefaultProfileData(); rememberProfileData(state.importedData);
     edit(original, 'Stale control'); await vi.advanceTimersByTimeAsync(500);
     expect(mocks.save).not.toHaveBeenCalled(); expect(mocks.legacy).not.toHaveBeenCalled(); expect(state.importedData.contextNotes).toBe('');
   });
@@ -87,8 +90,8 @@ describe('context notes origin and persistence', () => {
   });
   it('does not revive old controls when returning to the same profile/data object', async () => {
     const originalData = state.importedData, original = render();
-    state.currentProfile = 'notes-other'; state.importedData = createDefaultProfileData(); render();
-    state.currentProfile = 'notes-origin'; state.importedData = originalData; const returning = render();
+    state.currentProfile = otherProfile; state.importedData = createDefaultProfileData(); render();
+    state.currentProfile = originProfile; state.importedData = originalData; const returning = render();
     edit(original, 'Retired original control'); await vi.advanceTimersByTimeAsync(500); expect(mocks.save).not.toHaveBeenCalled();
     edit(returning, 'Returning profile'); await vi.advanceTimersByTimeAsync(500); expect(state.importedData.contextNotes).toBe('Returning profile');
   });
@@ -99,9 +102,10 @@ describe('context notes origin and persistence', () => {
   });
   it('keeps an accepted draft and its scoped write after same-profile data replacement', async () => {
     const original = render(); edit(original, 'Original accepted draft'); state.importedData = createDefaultProfileData(); state.importedData.contextNotes = 'Reloaded data'; rememberProfileData(state.importedData);
-    original.remove(); const replacement = render(); await vi.advanceTimersByTimeAsync(500);
-    expect(mocks.save.mock.calls[0]![1].contextNotes).toBe('Original accepted draft'); expect(status(replacement)).toBe('Saved as you type');
-    expect(replacement.querySelector('textarea')!.value).toBe('Reloaded data'); expect(mocks.contextChanged).not.toHaveBeenCalled();
+    original.remove(); const replacement = render(); expect(replacement.querySelector('textarea')!.value).toBe('Original accepted draft');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(mocks.save.mock.calls[0]![1].contextNotes).toBe('Original accepted draft'); expect(status(replacement)).toBe('Saved');
+    expect(replacement.querySelector('textarea')!.value).toBe('Original accepted draft'); expect(mocks.contextChanged).toHaveBeenCalledWith(originProfile);
   });
   it('retains retry text when the storage operation throws', async () => {
     mocks.save.mockRejectedValueOnce(new Error('storage unavailable')); const host = render(); edit(host, 'Failed draft'); await vi.advanceTimersByTimeAsync(500);
@@ -109,30 +113,66 @@ describe('context notes origin and persistence', () => {
     edit(host, 'Retry succeeded'); await vi.advanceTimersByTimeAsync(500); expect(status(host)).toBe('Saved'); expect(state.importedData.contextNotes).toBe('Retry succeeded');
   });
   it('blocks writes after a failed profile read while retaining the draft', async () => {
-    const host = render(); await expect(readProfileForLoad('notes-origin', () => { throw new Error('read failed'); }, () => {})).rejects.toThrow('read failed');
+    const host = render(); await expect(readProfileForLoad(originProfile, () => { throw new Error('read failed'); }, () => {})).rejects.toThrow('read failed');
     try {
       edit(host, 'Retained blocked draft'); await vi.advanceTimersByTimeAsync(500);
       expect(mocks.save).not.toHaveBeenCalled(); expect(status(host)).toBe('Not saved — reload profile'); expect(state.importedData.contextNotes).toBe('');
       expect(host.querySelector<HTMLButtonElement>('.ctx-notes-retry')!.hidden).toBe(true);
-    } finally { await readProfileForLoad('notes-origin', () => true, () => {}); }
+    } finally { await readProfileForLoad(originProfile, () => true, () => {}); }
     edit(host, 'Retained blocked draft'); await vi.advanceTimersByTimeAsync(500); expect(state.importedData.contextNotes).toBe('Retained blocked draft');
   });
   it('rechecks a failed read before dispatching an already accepted edit', async () => {
     const host = render(); edit(host, 'Accepted before failed read');
-    await expect(readProfileForLoad('notes-origin', () => { throw new Error('later read failed'); }, () => {})).rejects.toThrow('later read failed');
+    await expect(readProfileForLoad(originProfile, () => { throw new Error('later read failed'); }, () => {})).rejects.toThrow('later read failed');
     try {
       await vi.advanceTimersByTimeAsync(500); expect(mocks.save).not.toHaveBeenCalled(); expect(status(host)).toBe('Not saved — reload profile');
       expect(host.querySelector('textarea')!.value).toBe('Accepted before failed read');
-    } finally { await readProfileForLoad('notes-origin', () => true, () => {}); }
+    } finally { await readProfileForLoad(originProfile, () => true, () => {}); }
   });
   it('advances queued originating-profile writes after switching away', async () => {
     const pending = deferred(); mocks.save.mockReturnValueOnce(pending.promise); const host = render();
     edit(host, 'Original first'); await vi.advanceTimersByTimeAsync(500); edit(host, 'Original second'); await vi.advanceTimersByTimeAsync(500);
-    state.currentProfile = 'notes-other'; state.importedData = createDefaultProfileData(); rememberProfileData(state.importedData); const other = render(); host.remove();
+    state.currentProfile = otherProfile; state.importedData = createDefaultProfileData(); rememberProfileData(state.importedData); const other = render(); host.remove();
     pending.resolve(true); await vi.advanceTimersByTimeAsync(0);
-    expect(mocks.save).toHaveBeenCalledTimes(2); expect(mocks.save.mock.calls[1]![0]).toBe('notes-origin');
+    expect(mocks.save).toHaveBeenCalledTimes(2); expect(mocks.save.mock.calls[1]![0]).toBe(originProfile);
     expect(mocks.save.mock.calls[1]![1].contextNotes).toBe('Original second'); expect(mocks.save.mock.calls[1]![2].baseData.contextNotes).toBe('Original first');
     expect(state.importedData.contextNotes).toBe(''); expect(status(other)).toBe('Saved as you type');
+  });
+  it('recovers a failed draft after a fresh profile load and retries against the reloaded baseline', async () => {
+    mocks.save.mockResolvedValueOnce(false); const original = render(); edit(original, 'Recovered <draft>'); await vi.advanceTimersByTimeAsync(500);
+    original.remove(); state.currentProfile = otherProfile; state.importedData = createDefaultProfileData(); render();
+    state.currentProfile = originProfile; state.importedData = createDefaultProfileData(); rememberProfileData(state.importedData); const reloaded = render();
+    expect(reloaded.querySelector('textarea')!.value).toBe('Recovered <draft>'); expect(status(reloaded)).toContain('Not saved');
+    reloaded.querySelector<HTMLButtonElement>('.ctx-notes-retry')!.click(); await vi.advanceTimersByTimeAsync(500);
+    expect(state.importedData.contextNotes).toBe('Recovered <draft>'); expect(status(reloaded)).toBe('Saved');
+  });
+  it('shows the newer saved note beside a recovered draft and allows keeping the saved value', async () => {
+    mocks.save.mockResolvedValueOnce(false); const original = render(); edit(original, 'Unsaved original'); await vi.advanceTimersByTimeAsync(500); original.remove();
+    state.importedData = createDefaultProfileData(); state.importedData.contextNotes = 'Newer <saved> notes'; rememberProfileData(state.importedData); const reloaded = render();
+    expect(reloaded.querySelector('textarea')!.value).toBe('Unsaved original');
+    expect(reloaded.querySelector('.ctx-notes-conflict-saved')?.textContent).toBe('Newer <saved> notes');
+    reloaded.querySelector<HTMLButtonElement>('.ctx-notes-use-saved')!.click();
+    expect(reloaded.querySelector('textarea')!.value).toBe('Newer <saved> notes'); expect(state.importedData.contextNotes).toBe('Newer <saved> notes'); expect(mocks.save).toHaveBeenCalledTimes(1);
+  });
+  it('retains a pending draft across reload and only then publishes the confirmed result', async () => {
+    const pending = deferred(); mocks.save.mockReturnValueOnce(pending.promise); const original = render(); edit(original, 'Pending recovery'); await vi.advanceTimersByTimeAsync(500); original.remove();
+    state.importedData = createDefaultProfileData(); rememberProfileData(state.importedData); const reloaded = render();
+    expect(reloaded.querySelector('textarea')!.value).toBe('Pending recovery'); expect(status(reloaded)).toBe('Saving…');
+    pending.resolve(true); await vi.advanceTimersByTimeAsync(0); expect(status(reloaded)).toBe('Saved'); expect(state.importedData.contextNotes).toBe('Pending recovery');
+  });
+  it('presents an atomic conflict without reloading and uses its observed text for an explicit retry', async () => {
+    mocks.save.mockImplementationOnce((_profile, _draft, options: ProfileSaveOptions) => { options.onContextNotesConflict?.('Saved elsewhere <literal>'); return false; });
+    const host = render(); edit(host, 'Local pending draft'); await vi.advanceTimersByTimeAsync(500);
+    expect(host.querySelector('.ctx-notes-conflict-saved')!.textContent).toBe('Saved elsewhere <literal>');
+    expect(host.querySelector<HTMLButtonElement>('.ctx-notes-retry')!.textContent).toBe('Save draft instead');
+    host.querySelector<HTMLButtonElement>('.ctx-notes-retry')!.click(); await vi.advanceTimersByTimeAsync(500);
+    expect(mocks.save.mock.calls[1]![2].expectedContextNotes).toBe('Saved elsewhere <literal>'); expect(status(host)).toBe('Saved');
+  });
+  it('uses an observed saved value without a write while preserving unrelated unsaved data', async () => {
+    mocks.save.mockImplementationOnce((_profile, _draft, options: ProfileSaveOptions) => { options.onContextNotesConflict?.('Observed saved note'); return false; });
+    const host = render(); state.importedData.interpretiveLens = 'Unsaved lens'; edit(host, 'Discarded draft'); await vi.advanceTimersByTimeAsync(500);
+    host.querySelector<HTMLButtonElement>('.ctx-notes-use-saved')!.click();
+    expect(state.importedData.contextNotes).toBe('Observed saved note'); expect(state.importedData.interpretiveLens).toBe('Unsaved lens'); expect(mocks.save).toHaveBeenCalledTimes(1);
   });
   it('handles a profile with no known persisted baseline without inventing one', async () => {
     state.importedData = createDefaultProfileData(); const host = render(); edit(host, 'Initial notes'); await vi.advanceTimersByTimeAsync(500);

@@ -1,4 +1,6 @@
 import { expect, test } from './coverage-fixture.js';
+import { createRequire } from 'node:module';
+const axeScriptPath = createRequire(import.meta.url).resolve('axe-core/axe.min.js');
 test('context notes persist to their origin and synchronize current catalogs through actual storage', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
   const results = await page.evaluate(async () => {
@@ -34,4 +36,68 @@ test('context notes persist to their origin and synchronize current catalogs thr
       historyStored: final.changeHistory?.some(entry => entry.field === 'contextNotes' && entry.snapshot === 'Draft survives rerender') };
   });
   expect(results).toEqual({ originStayedScoped: true, viewsSyncImmediately: true, currentStored: 'Current shared draft', draftSurvivedRerender: true, finalStored: 'Draft survives rerender', historyStored: true });
+});
+
+test('context notes recover real storage failures and review conflicting saved text safely', async ({ page }) => {
+  await page.addInitScript({ path: axeScriptPath });
+  await page.goto('/app', { waitUntil: 'load' });
+  const results = await page.evaluate(async () => {
+    const [{ state }, profile, writes, cards, store] = await Promise.all([
+      import('/js/state.js'), import('/js/profile.js'), import('/js/profile-data-writes.js'), import('/js/context-cards.js'), import('/js/crypto.js'),
+    ]);
+    localStorage.setItem('labcharts-ai-paused', 'true');
+    const id = 'context-notes-recovery', key = profile.profileStorageKey(id, 'imported');
+    const read = async () => JSON.parse(await store.encryptedGetItem(key) || '{}') as typeof state.importedData;
+    const waitFor = async (predicate: () => boolean) => {
+      for (let i = 0; i < 100; i++) { if (predicate()) return; await new Promise(done => setTimeout(done, 25)); }
+      throw new Error('Context notes recovery did not settle');
+    };
+    const render = () => { const host = document.createElement('div'); host.innerHTML = cards.renderProfileContextCards(); document.body.append(host); return host; };
+    const input = (host: HTMLElement, value: string) => { const field = host.querySelector<HTMLTextAreaElement>('.ctx-notes-textarea')!; field.value = value; field.dispatchEvent(new InputEvent('input', { bubbles: true })); };
+    const status = (host: HTMLElement) => host.querySelector('.ctx-notes-status')!.textContent;
+    state.currentProfile = id; state.importedData = profile.createDefaultProfileData(); state.importedData.contextNotes = 'Original saved';
+    await store.encryptedSetItem(key, JSON.stringify(state.importedData)); writes.rememberProfileData(state.importedData);
+    const originalPut = IDBObjectStore.prototype.put;
+    let failOnce = true, writesCount = 0;
+    IDBObjectStore.prototype.put = function(value, putKey) {
+      if (putKey === key) {
+        writesCount++;
+        if (failOnce) { failOnce = false; throw new DOMException('Simulated profile storage quota', 'QuotaExceededError'); }
+      }
+      return originalPut.call(this, value, putKey);
+    };
+    try {
+      const original = render(); input(original, 'Recover <literal> & draft'); await waitFor(() => status(original)?.startsWith('Not saved') === true);
+      const failedDidNotWrite = (await read()).contextNotes === 'Original saved';
+      original.remove(); state.importedData = await read(); writes.rememberProfileData(state.importedData); const recovered = render();
+      const recoveredDraft = recovered.querySelector('textarea')!.value;
+      recovered.querySelector<HTMLButtonElement>('.ctx-notes-retry')!.click(); await waitFor(() => status(recovered) === 'Saved');
+      const retryStored = (await read()).contextNotes;
+      input(recovered, 'Local conflicting draft');
+      const peer = await read(); peer.contextNotes = 'Newer saved <literal>'; await store.encryptedSetItem(key, JSON.stringify(peer));
+      await waitFor(() => status(recovered)?.startsWith('Not saved') === true);
+      const conflictVisible = !recovered.querySelector<HTMLElement>('.ctx-notes-conflict')!.hidden
+        && recovered.querySelector('.ctx-notes-conflict-saved')!.textContent === 'Newer saved <literal>';
+      const recovery = recovered.querySelector<HTMLElement>('.ctx-notes-section')!;
+      const accessibility = await (window as unknown as { axe: typeof import('axe-core') }).axe.run(recovery, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } });
+      const recoveryWidth = recovery.getBoundingClientRect().width;
+      const recoveryFits = recoveryWidth > 0 && recovery.scrollWidth <= recovery.clientWidth + 1;
+
+      state.importedData.interpretiveLens = 'Unrelated unsaved lens'; const beforeKeep = writesCount;
+      recovered.querySelector<HTMLButtonElement>('.ctx-notes-use-saved')!.click();
+      const keepingSavedDoesNotWrite = writesCount === beforeKeep && state.importedData.contextNotes === 'Newer saved <literal>'
+        && state.importedData.interpretiveLens === 'Unrelated unsaved lens';
+      input(recovered, 'Explicit replacement draft');
+      const newer = await read(); newer.contextNotes = 'Newest saved'; newer.notes.push({ date: '2026-10-07', text: 'Independent peer note' });
+      await store.encryptedSetItem(key, JSON.stringify(newer)); await waitFor(() => status(recovered)?.startsWith('Not saved') === true);
+      const reobserved = recovered.querySelector('.ctx-notes-conflict-saved')!.textContent;
+      recovered.querySelector<HTMLButtonElement>('.ctx-notes-retry')!.click(); await waitFor(() => status(recovered) === 'Saved');
+      const final = await read();
+      return { failedDidNotWrite, recoveredDraft, retryStored, conflictVisible, keepingSavedDoesNotWrite, reobserved,
+        recoveryFits, accessibility: accessibility.violations.map(item => item.id), finalStored: final.contextNotes, peerPreserved: final.notes.some(note => note.text === 'Independent peer note'),
+        unrelatedUnsavedExcluded: final.interpretiveLens === '' && state.importedData.interpretiveLens === 'Unrelated unsaved lens' };
+    } finally { IDBObjectStore.prototype.put = originalPut; }
+  });
+  expect(results).toEqual({ failedDidNotWrite: true, recoveredDraft: 'Recover <literal> & draft', retryStored: 'Recover <literal> & draft',
+    conflictVisible: true, keepingSavedDoesNotWrite: true, reobserved: 'Newest saved', recoveryFits: true, accessibility: [], finalStored: 'Explicit replacement draft', peerPreserved: true, unrelatedUnsavedExcluded: true });
 });

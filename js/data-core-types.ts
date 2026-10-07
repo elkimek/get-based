@@ -5,6 +5,8 @@ export interface DataContextDependencies { invalidateLabContextCache: (() => voi
 export interface ProfileSaveOptions {
   baseData?: Partial<ImportedDataRecord> | undefined;
   expectedData?: string | null | undefined;
+  expectedContextNotes?: string;
+  onContextNotesConflict?: (saved: string) => void;
   activeSave?: boolean;
   forceProfileScope?: boolean;
   skipSync?: boolean;

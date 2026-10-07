@@ -220,7 +220,14 @@ export function createDataCore(ports: DataCorePorts) {
         const previous = await (0, ports.encryptedGetItem)(key, { throwOnDecryptError: true });
         // Explicit restores must retry if their reviewed snapshot changed.
         if (options.expectedData !== undefined && previous !== options.expectedData) throw new ports.ProfileWriteConflict('Stale import');
-        const latest = base && previous != null ? JSON.parse(previous) : {};
+        const stored = previous != null && (base || options.expectedContextNotes !== undefined) ? JSON.parse(previous) : {};
+        // Notes drafts can outlive a view/profile load. Check their observed
+        // value inside the same locked read/merge/write that commits the edit.
+        if (options.expectedContextNotes !== undefined && String(stored.contextNotes || '') !== options.expectedContextNotes) {
+          try { options.onContextNotesConflict?.(String(stored.contextNotes || '')); } catch { /* Observation cannot bypass the conflict guard. */ }
+          throw new ports.ProfileWriteConflict('Context notes changed since this edit');
+        }
+        const latest = base ? stored : {};
         persisted = base ? (0, ports.mergeProfileMutation)(base, intent, latest) : intent;
         // Concurrent assessments of the same score may cover different views.
         // Merge their records rather than replacing a newly saved variant.

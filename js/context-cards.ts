@@ -1,5 +1,5 @@
 import { debounceContextNotes } from './context-notes-view.js';
-import { contextNotesPresentation } from './context-notes-session.js';
+import { contextNotesPresentation, useSavedContextNotes } from './context-notes-session.js';
 export { debounceContextNotes } from './context-notes-view.js';
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
 import { renderHTML as renderContextCatalogHTML } from './components/ContextCardCatalog.svelte.html.js';
@@ -170,6 +170,8 @@ function handleContextCardClick(event: Event) {
     disableLiveAIForDemo();
   } else if (action === 'retry-context-notes') {
     debounceContextNotes(actionEl.closest('[data-context-cards-view]')?.querySelector<HTMLTextAreaElement>('.ctx-notes-textarea') || null);
+  } else if (action === 'use-saved-context-notes') {
+    useSavedContextNotes(actionEl.closest<HTMLElement>('[data-context-notes-ticket]')?.dataset.contextNotesTicket || '');
   } else if (action === 'open-editor') {
     const editor = actionEl.dataset.contextCardEditor || '';
     const runEditor = contextCardEditorActions[editor];
@@ -332,7 +334,7 @@ export function renderProfileContextCards({ embedded = false }: { embedded?: unk
   return renderContextCatalogHTML({ view: {
     renderId, embedded: Boolean(embedded), subtitle: _ccSubtitle, cards, addedCount: cards.filter(card => card.filled).length,
     refresh: hasAssistantFeatureProvider() && (!_demoAIMode.demo || _demoAIMode.live),
-    demo: projectContextDemoBar(_demoAIMode), notes: notes.notes, notesTicket: notes.ticket, notesStatus: notes.status,
+    demo: projectContextDemoBar(_demoAIMode), notes: notes.notes, notesTicket: notes.ticket, notesStatus: notes.status, notesSaved: notes.saved,
   } });
 }
 

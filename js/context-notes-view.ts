@@ -11,7 +11,16 @@ function render(value: ContextNotesPresentation): void {
     const status = root.querySelector<HTMLElement>('.ctx-notes-status');
     if (status) status.textContent = value.status;
     const retry = root.querySelector<HTMLButtonElement>('.ctx-notes-retry');
-    if (retry) retry.hidden = value.status !== 'Not saved — try again';
+    if (retry) {
+      retry.hidden = value.status !== 'Not saved — try again';
+      retry.textContent = value.saved === null ? 'Retry save' : 'Save draft instead';
+    }
+    const conflict = root.querySelector<HTMLElement>('.ctx-notes-conflict');
+    if (conflict) conflict.hidden = value.saved === null;
+    const saved = root.querySelector<HTMLElement>('.ctx-notes-conflict-saved');
+    if (saved) saved.textContent = value.saved === '' ? 'Saved notes are empty.' : value.saved || '';
+    const keep = root.querySelector<HTMLButtonElement>('.ctx-notes-use-saved');
+    if (keep) keep.disabled = value.status === 'Saving…';
   }
   if (legacy?.ticket === value.ticket && legacy.input.isConnected && legacy.status?.isConnected) legacy.status.textContent = value.status;
 }

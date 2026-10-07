@@ -12,7 +12,7 @@ export interface ContextDemoBar {
 export interface ContextCatalogView {
   renderId: string; embedded: boolean; subtitle: string; cards: ContextCatalogCard[];
   addedCount: number; refresh: boolean; demo: ContextDemoBar | null; notes: string;
-  notesTicket?: string; notesStatus?: string;
+  notesTicket?: string; notesStatus?: string; notesSaved?: string | null;
 }
 /** Copy and consent affordances are a projection; rendering cannot enable inference. */
 export function projectContextDemoBar(mode: DemoContextAIMode): ContextDemoBar | null {

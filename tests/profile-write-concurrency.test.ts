@@ -382,3 +382,38 @@ it('does not turn a committed save into a failure when the context-refresh hook 
   vi.spyOn(sync, 'onDataSaved').mockImplementation(() => { throw new Error('Synthetic gateway failure'); });
   expect(notifyProfileDataContextChanged(profileId)).toBe(false);
 });
+
+
+it('rejects a scoped notes edit if the observed saved text changed, without touching newer data', async () => {
+  const base = structuredClone(state.importedData), draft = structuredClone(base);
+  draft.contextNotes = 'Local pending draft';
+  const peer = structuredClone(base); peer.contextNotes = 'Newer saved note'; peer.notes.push({ date: '2026-10-07', text: 'Unrelated peer addition' });
+  await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  const write = vi.spyOn(crypto, 'encryptedSetItem'), conflict = vi.fn();
+  expect(await saveImportedDataForProfile(profileId, draft, { forceProfileScope: true, baseData: base, expectedContextNotes: 'original', onContextNotesConflict: conflict })).toBe(false);
+  expect(conflict).toHaveBeenCalledWith('Newer saved note');
+  expect(write).not.toHaveBeenCalled(); expect((await read()).contextNotes).toBe('Newer saved note'); expect((await read()).notes).toEqual(peer.notes);
+  expect(state.importedData.contextNotes).toBe('original');
+});
+
+it('allows a guarded notes edit while merging unrelated saved additions', async () => {
+  const base = structuredClone(state.importedData), draft = structuredClone(base); draft.contextNotes = 'Local guarded note';
+  const peer = structuredClone(base); peer.notes.push({ date: '2026-10-07', text: 'Independent saved note' }); await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  expect(await saveImportedDataForProfile(profileId, draft, { forceProfileScope: true, baseData: base, expectedContextNotes: 'original' })).toBe(true);
+  expect((await read()).contextNotes).toBe('Local guarded note'); expect((await read()).notes).toEqual(peer.notes);
+});
+
+it('compares guarded notes inside the write queue after an earlier commit', async () => {
+  const base = structuredClone(state.importedData), first = structuredClone(base), stale = structuredClone(base);
+  first.contextNotes = 'Earlier queued note'; stale.contextNotes = 'Stale queued note';
+  const options = { forceProfileScope: true, baseData: base, expectedContextNotes: 'original' };
+  const one = saveImportedDataForProfile(profileId, first, options), two = saveImportedDataForProfile(profileId, stale, options);
+  expect(await one).toBe(true); expect(await two).toBe(false); expect((await read()).contextNotes).toBe('Earlier queued note');
+});
+
+it('keeps the atomic notes guard effective if a conflict observer throws', async () => {
+  const base = structuredClone(state.importedData), draft = structuredClone(base); draft.contextNotes = 'Local draft';
+  await crypto.encryptedSetItem(key, JSON.stringify({ ...base, contextNotes: 'Saved elsewhere' }));
+  expect(await saveImportedDataForProfile(profileId, draft, { baseData: base, forceProfileScope: true, expectedContextNotes: 'original', onContextNotesConflict: () => { throw new Error('observer failed'); } })).toBe(false);
+  expect((await read()).contextNotes).toBe('Saved elsewhere');
+});
