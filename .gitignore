@@ -1897,3 +1897,8 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 
 /js/context-notes-session.js
 /js/context-notes-view.js
+
+# Shared authored context assessment owners and test fixtures.
+/js/context-card-status.js
+/js/context-card-status-view.js
+/tests/helpers/context-card-status-fixture.js

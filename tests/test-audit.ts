@@ -231,7 +231,7 @@ assert('index defers context editor CSS behind its ordered lazy-load anchor',
 assert('context editor and tips actions wait for their presentation',
   read('js/context-card-medical-history-editor-impl.js').includes('runWithContextEditorStylesheet(openDiagnosesEditor)') &&
   read('js/context-card-lifestyle-editors-impl.js').includes('runWithContextEditorStylesheet(openDietEditor)') &&
-  read('js/context-cards.js').includes('runWithContextEditorStylesheet(() => openCardTipsModal(cardKey))'));
+  read('js/context-cards.js').includes('runWithContextEditorStylesheet(() => openCardTipsModal(cardKey, ticket, owner))'));
 assert('context editor split preserves shared context controls eagerly',
   read('css/context-profile.css').includes('.ctx-btn-option') &&
   read('css/context-profile.css').includes('.ctx-tag') &&
@@ -1125,10 +1125,13 @@ const demoAIConsentSrc = ctxHealthDotsSrc.slice(
   ctxHealthDotsSrc.indexOf('export function applyDotColor'),
 );
 assert('Health dots facade stays in context-cards', ctxSrc2.includes('loadContextHealthDotsImpl'));
-assert('Health dots have title attribute', ctxHealthDotsSrc.includes('dot.title'));
-assert('Health dots have aria-label', ctxHealthDotsSrc.includes("dot.setAttribute('aria-label'"));
+const contextStatusViewSrc = read('js/components/ContextCardStatus.svelte');
+assert('Authored health dots have a text title', contextStatusViewSrc.includes('title={model.visible ? model.label : undefined}'));
+assert('Authored health indicators expose labeled assessment text',
+  contextStatusViewSrc.includes('AI assessment: ${model.label}') && contextStatusViewSrc.includes('ctx-health-label') && contextStatusViewSrc.includes('aria-hidden="true"'));
 assert('AI tips expose a text severity label',
-  ctxHealthDotsSrc.includes('severityLabels') && ctxHealthDotsSrc.includes('dataset.severity'));
+  contextStatusViewSrc.includes('data-severity={model.insight ? model.severity : undefined}')
+    && contextStatusViewSrc.includes('{model.insightLabel} · {model.severity}'));
 assert('AI profile summaries share the cached health-dot batch',
   ctxHealthDotsSrc.includes('cardSummaries') && ctxHealthDotsSrc.includes("summary: '...'"));
 assert('AI profile summaries are constrained to reported facts',

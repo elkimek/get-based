@@ -15,6 +15,7 @@ test('context cards browser coverage exercises notes save dots and tips', async 
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ cardsUrl }) => {
+    const { contextStatusFixture, contextStatusElement } = await import('/tests/helpers/context-card-status-fixture.js');
     const [{ state }, cards, recommendationRuntime, contextCardsRuntime, health, cryptoStore] = await Promise.all([
       import('/js/state.js'),
       (import(cardsUrl) as Promise<unknown>) as Promise<Omit<Pick<typeof import('../../js/context-cards.js'), "applyDotColor" | "applyAISummary" | "refreshAllHealthDots" | "renderProfileContextCards" | "closeHealthGoals" | "saveAndRefresh" | "loadContextCardTips">, 'closeHealthGoals'> & {closeHealthGoals: (...args: Parameters<typeof import('../../js/context-cards.js')['closeHealthGoals']>) => unknown}>,
@@ -76,15 +77,15 @@ test('context cards browser coverage exercises notes save dots and tips', async 
 
       host = document.createElement('div');
       document.body.appendChild(host);
-      host.innerHTML = '<span id="ctx-dot-diet" class="ctx-health-dot"></span><span id="ctx-ai-diet"></span>';
+      contextStatusFixture(host, ['diet']);
 
       cards.applyDotColor('diet', 'red');
       cards.applyAISummary('diet', 'Needs more protein', 'red');
-      outcomes.facadeAppliesDotAndAISummary = document.getElementById('ctx-dot-diet')?.classList.contains('ctx-health-dot-red') === true
-        && document.getElementById('ctx-dot-diet')?.getAttribute('aria-label') === 'Concern'
-        && document.getElementById('ctx-ai-diet')?.classList.contains('ctx-ai-summary-visible') === true
-        && document.getElementById('ctx-ai-diet')?.classList.contains('ctx-ai-summary-red') === true
-        && document.getElementById('ctx-ai-diet')?.textContent.includes('Needs more protein');
+      outcomes.facadeAppliesDotAndAISummary = contextStatusElement('dot', 'diet')?.classList.contains('ctx-health-dot-red') === true
+        && contextStatusElement('health', 'diet')?.getAttribute('aria-label') === 'AI assessment: Concern'
+        && contextStatusElement('ai', 'diet')?.classList.contains('ctx-ai-summary-visible') === true
+        && contextStatusElement('ai', 'diet')?.classList.contains('ctx-ai-summary-red') === true
+        && contextStatusElement('ai', 'diet')?.textContent.includes('Needs more protein');
 
       cards.refreshAllHealthDots();
       outcomes.refreshAllHealthDotsRequiresProviderViaFacade = toasts().some(text => text.includes('Set up an AI provider first'));
@@ -122,17 +123,17 @@ test('context cards browser coverage exercises notes save dots and tips', async 
         && !host.querySelector<HTMLElement>('article.context-card[data-context-card-action="open-editor"]');
       cards.applyDotColor('diet', 'yellow');
       outcomes.profileContextCardsExposeTextForAIAssessment =
-        document.getElementById('ctx-health-diet')?.hidden === false
-        && !!document.getElementById('ctx-health-diet')?.closest('.context-card-title')
-        && document.getElementById('ctx-health-label-diet')?.textContent === 'Caution'
-        && document.getElementById('ctx-dot-diet')?.getAttribute('aria-hidden') === 'true';
+        contextStatusElement('health', 'diet')?.hidden === false
+        && !!contextStatusElement('health', 'diet')?.closest('.context-card-title')
+        && contextStatusElement('health-label', 'diet')?.textContent === 'Caution'
+        && contextStatusElement('dot', 'diet')?.getAttribute('aria-hidden') === 'true';
       cards.applyAISummary('healthGoals', 'Goal aligns with the current profile', 'green');
       cards.applyAISummary('diagnoses', 'History changes how borderline thyroid markers should be read', 'yellow');
       cards.applyAISummary('diet', 'Diet signals may affect nutrient interpretation', 'yellow');
       const firstRowInsightTops = ['healthGoals', 'diagnoses', 'diet']
-        .map(key => document.getElementById(`ctx-ai-${key}`)?.getBoundingClientRect().top || 0);
+        .map(key => contextStatusElement('ai', key)?.getBoundingClientRect().top || 0);
       const firstRowInsightsAlign = Math.max(...firstRowInsightTops) - Math.min(...firstRowInsightTops) < 1;
-      const dietInsight = document.getElementById('ctx-ai-diet');
+      const dietInsight = contextStatusElement('ai', 'diet');
       const dietContaminants = host.querySelector<HTMLElement>('.diet-contaminants');
       const dietPreDividerGap = dietInsight && dietContaminants
         ? dietInsight.getBoundingClientRect().top - dietContaminants.getBoundingClientRect().bottom
@@ -237,7 +238,7 @@ test('context cards browser coverage exercises notes save dots and tips', async 
       });
       host.innerHTML = cards.renderProfileContextCards();
       await cards.loadContextCardTips();
-      const dietBadge = document.querySelector<HTMLElement>('#ctx-tips-diet .ctx-tips-badge');
+      const dietBadge = contextStatusElement('tips', 'diet')?.querySelector<HTMLElement>('.ctx-tips-badge');
       dietBadge?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       await waitFor(() => document.getElementById('modal-overlay')?.classList.contains('show') === true);
       outcomes.cardTipsBadgeLoadsCatalogAndOpensModal = calls.some(call => call[0] === 'catalog')

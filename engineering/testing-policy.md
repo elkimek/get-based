@@ -47,8 +47,18 @@ failures, recovery across fresh profile loads, conflicting saved text and both
 recovery choices. Recovery controls also receive focused accessibility and layout
 checks. Atomic conflict checks and unrelated-field preservation are covered by
 [`profile-write-concurrency.test.ts`](../tests/profile-write-concurrency.test.ts).
-These checks do not prove
-independent authored ownership of the remaining AI/tips slots.
+[`context-card-status-ownership.test.ts`](../tests/context-card-status-ownership.test.ts)
+checks simultaneous authored assessment/tips publication, literal text, unique IDs,
+assessment invalidation after changed facts/notes/demographics,
+rebuilds, subscriptions, profile retirement and delayed/disabled/failed recommendation
+loads. [`context-status-owned.spec.ts`](../tests/playwright/context-status-owned.spec.ts)
+checks actual shared views, themed narrow/wide styles including extracted notes,
+reduced motion, accessibility and keyboard tips across a delayed stylesheet. [`sveltekit-context-status.spec.ts`](../tests/pwa/sveltekit-context-status.spec.ts)
+checks actual static assessment caching and two offline cold launches with literal
+text and no new health inference. Existing
+request/cache browser cases mount the same authored slots rather than fabricated
+global-ID spans. These checks do not prove complete migration of context editors
+and nutrition fragments.
 
 The DOM sink audit compares every discovered HTML-writing operation with its
 committed count and source fingerprint, including raw Svelte HTML. Successful

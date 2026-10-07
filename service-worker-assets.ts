@@ -167,7 +167,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/cycle.js',
   '/js/cycle-draw-phases.js',
   '/js/cycle-runtime.js',
-  '/js/context-cards.js', '/js/context-notes-session.js', '/js/context-notes-view.js', '/js/components/ContextNotes.svelte.native.js', '/js/context-card-catalog-presentation.js', '/js/context-card-catalog-classes.js', '/js/components/ContextCardCatalog.svelte.html.js',
+  '/js/context-cards.js', '/js/context-card-status.js', '/js/context-card-status-view.js', '/js/components/ContextCardStatus.svelte.native.js', '/js/context-notes-session.js', '/js/context-notes-view.js', '/js/components/ContextNotes.svelte.native.js', '/js/context-card-catalog-presentation.js', '/js/context-card-catalog-classes.js', '/js/components/ContextCardCatalog.svelte.html.js',
   '/js/context-cards-runtime.js',
   '/js/context-card-health-dots.js',
   '/js/context-source-registry.js',

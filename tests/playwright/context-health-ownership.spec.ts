@@ -5,6 +5,7 @@ test('context insights reject obsolete transport responses and let edits and ref
   await routeHtml(page, '**/context-insight-owner-fixture', '<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1"><title>Context insight ownership</title></head><body></body></html>');
   await page.goto('/context-insight-owner-fixture');
   const results = await page.evaluate(async () => {
+    const { contextStatusFixture, contextStatusElement } = await import('/tests/helpers/context-card-status-fixture.js');
     const [{ state }, health, profile, crypto] = await Promise.all([
       import('/js/state.js'), import('/js/context-card-health-dots.js'), import('/js/profile.js'), import('/js/crypto.js'),
     ]);
@@ -34,7 +35,7 @@ test('context insights reject obsolete transport responses and let edits and ref
       globalThis.dispatchEvent(new Event('labcharts-profile-switched'));
       state.currentProfile = 'context-owner'; state.importedData = profile.createDefaultProfileData(); state.importedData.diet = { breakfast: 'eggs' };
       state.profileSex = 'female'; state.profileDob = '1990-01-01'; localStorage.removeItem(cacheKey());
-      document.body.innerHTML = '<span id="ctx-dot-diet"></span><span id="ctx-ai-diet"></span><span id="ctx-summary-diet" data-local-summary="Local summary">Local summary</span>';
+      contextStatusFixture(document.body, ['diet']);
     };
     try {
       reset();
@@ -45,16 +46,16 @@ test('context insights reject obsolete transport responses and let edits and ref
       pending[0]!.finish('Obsolete eggs'); await original;
       results.editedContextWinsRegardlessOfResponseOrder = edited !== original
         && JSON.parse(localStorage.getItem(cacheKey())!).cardSummaries.diet === 'Reported oats'
-        && document.getElementById('ctx-summary-diet')?.textContent === 'Reported oats';
+        && contextStatusElement('summary', 'diet')?.textContent === 'Reported oats';
       reset();
       const previousOriginUsage = JSON.parse(localStorage.getItem('labcharts-context-owner-usage') || '{}').requestCount || 0;
       const oldProfile = health.loadContextHealthDots(); await waitRequests(3);
       state.currentProfile = 'replacement'; state.importedData = profile.createDefaultProfileData();
-      document.getElementById('ctx-summary-diet')!.textContent = 'Replacement profile';
+      contextStatusFixture(document.body, ['diet'], () => 'Replacement profile');
       pending[2]!.finish('Obsolete profile'); await oldProfile;
       results.profileReplacementKeepsBothCacheAndNewViewUntouched = localStorage.getItem(cacheKey()) === null
         && localStorage.getItem(profile.profileStorageKey('replacement', 'contextHealth')) === null
-        && document.getElementById('ctx-summary-diet')?.textContent === 'Replacement profile';
+        && contextStatusElement('summary', 'diet')?.textContent === 'Replacement profile';
       results.obsoleteResponseUsageBelongsToItsOriginatingProfile = localStorage.getItem('labcharts-replacement-usage') === null
         && JSON.parse(localStorage.getItem('labcharts-context-owner-usage')!).requestCount === previousOriginUsage + 1;
       reset();
@@ -69,7 +70,7 @@ test('context insights reject obsolete transport responses and let edits and ref
       localStorage.setItem('labcharts-ollama-model', 'changed-model');
       pending[5]!.finish('Obsolete model'); await oldModel;
       results.modelReplacementCannotLabelOldOutputAsCurrent = localStorage.getItem(cacheKey()) === null
-        && document.getElementById('ctx-summary-diet')?.textContent === 'Local summary';
+        && contextStatusElement('summary', 'diet')?.textContent === 'Local summary';
     } finally { window.fetch = originalFetch; }
     return results;
   });

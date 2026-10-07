@@ -422,47 +422,15 @@
   margin-top: 12px; font-size: 11px; color: var(--text-muted); text-align: center;
 }
 .contaminant-attribution a { color: var(--text-muted); text-decoration: underline; }
-/* Health status dots */
-.ctx-health-dot {
+/* Native supplement-impact dots retain their owned presentation until migration. */
+.supp-impact-section .ctx-health-dot {
   width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
   display: inline-block; transition: background 0.3s, box-shadow 0.3s;
 }
-.ctx-health-indicator {
-  display: inline-flex; align-items: center; gap: 5px;
-  color: var(--text-muted); font-size: 11px; font-weight: 650;
-}
-.ctx-health-indicator[hidden] { display: none; }
-.ctx-health-dot-gray { background: var(--text-muted); opacity: 0.4; }
-.ctx-health-dot-green { background: var(--green); box-shadow: 0 0 6px rgba(52, 211, 153, 0.5); }
-.ctx-health-dot-yellow { background: var(--yellow); box-shadow: 0 0 6px rgba(251, 191, 36, 0.5); }
-.ctx-health-dot-red { background: var(--red); box-shadow: 0 0 6px rgba(248, 113, 113, 0.5); }
-/* AI card summary */
-.ctx-ai-summary-slot {
-  max-height: 0; overflow: hidden; margin-top: auto;
-}
-.ctx-ai-summary-slot:has(.ctx-ai-summary-visible) {
-  min-height: 60px; max-height: 60px; box-sizing: border-box;
-  padding-top: 8px; overflow: visible;
-}
-.ctx-ai-summary {
-  font-size: 12px; line-height: 1.45; color: var(--text-muted);
-  overflow: hidden; display: block;
-  max-height: 0; opacity: 0; transition: max-height 0.2s, opacity 0.2s;
-  border-top: 1px solid transparent; padding-top: 0; margin-top: 0;
-}
-.ctx-ai-summary::before {
-  content: attr(data-insight-label) ' · ' attr(data-severity); display: block; margin-bottom: 2px;
-  color: var(--text-muted); font-size: 9px; font-weight: 800;
-  letter-spacing: 0.06em; text-transform: uppercase; font-style: normal;
-}
-.ctx-ai-summary-visible {
-  min-height: 52px; max-height: 52px; box-sizing: border-box; opacity: 1;
-  border-top-color: color-mix(in srgb, var(--border) 82%, transparent);
-  padding-top: 8px; margin-top: 0;
-}
-.ctx-ai-summary-green { color: var(--green); }
-.ctx-ai-summary-yellow { color: var(--yellow); }
-.ctx-ai-summary-red { color: var(--red); }
+.supp-impact-section .ctx-health-dot-gray { background: var(--text-muted); opacity: 0.4; }
+.supp-impact-section .ctx-health-dot-green { background: var(--green); box-shadow: 0 0 6px rgba(52, 211, 153, 0.5); }
+.supp-impact-section .ctx-health-dot-yellow { background: var(--yellow); box-shadow: 0 0 6px rgba(251, 191, 36, 0.5); }
+.supp-impact-section .ctx-health-dot-red { background: var(--red); box-shadow: 0 0 6px rgba(248, 113, 113, 0.5); }
 /* Button-group selector (replaces native <select>) */
 .ctx-btn-group { display: flex; flex-wrap: wrap; gap: 6px; }
 .ctx-btn-option {
@@ -504,15 +472,15 @@
   .ctx-tag { min-height: 44px; }
 }
 
-/* Tips badge on chart cards and context cards */
-.ctx-tips-badge {
+/* Native marker-chart tips; context catalogs own their Tailwind button styles. */
+:where([id^="chart-rec-"]) .ctx-tips-badge {
   font-size: 9px; font-weight: 600; letter-spacing: 0.05em; color: var(--accent);
   padding: 1px 5px; border-radius: 4px; border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
   white-space: nowrap; flex-shrink: 0; cursor: pointer; transition: all 0.15s;
   margin-left: 6px; vertical-align: middle; background: transparent; font-family: inherit; line-height: inherit;
 }
-.ctx-tips-badge:hover { background: color-mix(in srgb, var(--accent) 15%, transparent); border-color: var(--accent); }
-.ctx-tips-badge:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:where([id^="chart-rec-"]) .ctx-tips-badge:hover { background: color-mix(in srgb, var(--accent) 15%, transparent); border-color: var(--accent); }
+:where([id^="chart-rec-"]) .ctx-tips-badge:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .supp-period-ingredient-choice { width: 100%; min-width: 0; grid-column: 1 / -1; padding: 6px; color: var(--text-primary); background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; }
 .supp-period-row > .supp-ingredient-add { grid-column: 1 / 4; font-size: 11px; }

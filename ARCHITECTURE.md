@@ -75,9 +75,24 @@ escaped text interpolation. The two raw HTML slots accept only fixed catalog SVG
 and escaped diet/nutrition renderer output; they are included in the DOM sink policy.
 Scoped utilities in `css/context-catalog.tailwind.css` and
 `context-card-catalog-classes.ts` replace static catalog and Chat overrides.
-`css/context-profile.base.css` retains native editors, AI slots, tips and nutrition
-fragments; the build combines both sources at the unchanged context stylesheet URL.
-The existing delegated actions and AI/tips DOM adapters still serve the catalog.
+`css/context-profile.base.css` retains native editors, chart tips, supplement-impact
+dots and nutrition fragments; the build combines both sources at the unchanged
+context stylesheet URL. The Tailwind source list includes the catalog, notes and
+assessment components explicitly.
+`context-card-status.ts` publishes typed, profile/data-scoped snapshots for indicator,
+reported summary, AI insight and tips slots. `ContextCardStatus.svelte` owns their
+markup, accessible text and Tailwind states; `context-card-status-view.ts` hydrates
+authored boundaries in every current catalog and disposes retired subscriptions.
+Every slot ID includes its catalog render ID. Assessment snapshots carry their
+reported-fact fingerprint and route identity; rebuilding after facts, notes or
+demographics change cannot revive a previous assessment. Health inference, normalization,
+fingerprints, cache and usage remain domain-owned; those services no longer query
+or mutate DOM. Existing public facade setters retain synchronous updates.
+Recommendation loading captures a presentation ticket and bridge identity before
+awaiting its catalog, rejects stale/disabled replies and exposes tips as keyboard
+buttons. Delayed tips stylesheet work checks its captured ticket, original control connection
+and enabled recommendation setting before opening.
+Card editor/explanation actions and nutrition fragments still use existing adapters.
 `context-notes-session.ts` captures accepted text and originating profile/data,
 serializes debounced scoped writes and retains retry drafts through catalog rebuilds
 and fresh profile reload objects. Failed idle sessions retain draft text without
@@ -98,8 +113,8 @@ changes unmount the component and dispose its subscription; opaque scope tickets
 reject retired controls. The public no-argument debounce helper selects a current
 notes owner and retains its contract. The former status/value DOM patcher and
 native notes action delegates are removed.
-Independent authored catalog lifecycles, unique slot IDs and AI/tips slot ownership
-remain separate from this persistence service.
+Remaining card editor/action ownership and nutrition fragments are separate from
+these authored notes and status lifecycles.
 
 Display settings is the bounded Svelte 5 pilot. `js/settings-display-panel.ts`
 reads existing service state into typed snapshots and retains its native runtime

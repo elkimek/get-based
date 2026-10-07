@@ -1,3 +1,5 @@
+import { contextCardStatusTicket, publishContextCardStatus } from './context-card-status.js';
+import { ensureContextCardStatus } from './context-card-status-view.js';
 import { ensureContextNotes } from './context-notes-view.js';
 import { contextNotesPresentation } from './context-notes-session.js';
 export { debounceContextNotes } from './context-notes-view.js';
@@ -36,6 +38,7 @@ import {
   getCardFingerprint as getContextCardFingerprint,
   getDemoContextAIMode,
   loadContextHealthDots as loadContextHealthDotsImpl,
+  prepareContextHealthPresentation,
   refreshAllHealthDots as refreshAllHealthDotsImpl,
 } from './context-card-health-dots.js';
 import {
@@ -168,7 +171,9 @@ function handleContextCardClick(event: Event) {
     void enableLiveAIForDemo();
   } else if (action === 'disable-demo-live-ai') {
     disableLiveAIForDemo();
-
+  } else if (action === 'open-card-tips') {
+    if (actionEl.dataset.contextStatusTicket !== contextCardStatusTicket()) return;
+    void openCardTipsModal(actionEl.dataset.contextCardKey || '', actionEl.dataset.contextStatusTicket, actionEl);
   } else if (action === 'open-editor') {
     const editor = actionEl.dataset.contextCardEditor || '';
     const runEditor = contextCardEditorActions[editor];
@@ -319,9 +324,11 @@ export function renderProfileContextCards({ embedded = false }: { embedded?: unk
     extensions: card.key === 'diet' ? renderDietContaminantsBadge() + renderNutritionDietExtension(contextCardActionAttrs)
       : card.key === 'lightCircadian' ? renderNutritionCircadianExtension(contextCardActionAttrs) : '',
   }));
-  queueMicrotask(ensureContextNotes);
+  prepareContextHealthPresentation();
+  const statusTicket = contextCardStatusTicket();
+  queueMicrotask(() => { ensureContextNotes(); ensureContextCardStatus(); });
   return renderContextCatalogHTML({ view: {
-    renderId, embedded: Boolean(embedded), subtitle: _ccSubtitle, cards, addedCount: cards.filter(card => card.filled).length,
+    renderId, statusTicket, embedded: Boolean(embedded), subtitle: _ccSubtitle, cards, addedCount: cards.filter(card => card.filled).length,
     refresh: hasAssistantFeatureProvider() && (!_demoAIMode.demo || _demoAIMode.live),
     demo: projectContextDemoBar(_demoAIMode), notes: notes.notes, notesTicket: notes.ticket, notesStatus: notes.status, notesSaved: notes.saved,
   } });
@@ -331,10 +338,12 @@ export function renderProfileContextCards({ embedded = false }: { embedded?: unk
 // ── AI Health Status Dots ──
 
 export function applyDotColor(key: Parameters<typeof applyContextHealthDotColor>[0], color: Parameters<typeof applyContextHealthDotColor>[1]) {
+  ensureContextCardStatus();
   applyContextHealthDotColor(key, color);
 }
 
 export function applyAISummary(key: Parameters<typeof applyContextAISummary>[0], text: Parameters<typeof applyContextAISummary>[1], color: Parameters<typeof applyContextAISummary>[2]) {
+  ensureContextCardStatus();
   applyContextAISummary(key, text, color);
 }
 
@@ -389,26 +398,28 @@ export async function loadContextCardTips() {
   const isProductRecsEnabled = getRecommendationModuleFunction('isProductRecsEnabled');
   const loadCatalog = getRecommendationModuleFunction('loadCatalog');
   const getCardSlotKeys = getRecommendationModuleFunction('getCardSlotKeys');
-  if (!isProductRecsEnabled?.() || !loadCatalog || !getCardSlotKeys) return;
-  await loadCatalog();
   const cardKeys = ['sleepRest', 'lightCircadian', 'environment', 'exercise', 'diet', 'stress'];
-  for (const key of cardKeys) {
-    const el = document.getElementById(`ctx-tips-${key}`);
-    if (!el || el.children.length > 0) continue;
-    if (getCardSlotKeys(key).length === 0) continue;
-    const badge = document.createElement('span');
-    badge.className = 'ctx-tips-badge';
-    badge.textContent = 'Tips';
-    badge.title = 'Lifestyle tips for this area';
-    badge.onclick = (e) => { e.stopPropagation(); openCardTipsModal(key); };
-    el.appendChild(badge);
+  if (!isProductRecsEnabled?.() || !loadCatalog || !getCardSlotKeys) {
+    ensureContextCardStatus();
+    for (const key of cardKeys) publishContextCardStatus(key, { tips: false });
+    return;
   }
+  const ticket = contextCardStatusTicket();
+  try { await loadCatalog(); } catch { return; }
+  if (ticket !== contextCardStatusTicket() || !isProductRecsEnabled()
+    || isProductRecsEnabled !== getRecommendationModuleFunction('isProductRecsEnabled')
+    || loadCatalog !== getRecommendationModuleFunction('loadCatalog')
+    || getCardSlotKeys !== getRecommendationModuleFunction('getCardSlotKeys')) return;
+  ensureContextCardStatus();
+  for (const key of cardKeys) publishContextCardStatus(key, { tips: getCardSlotKeys(key).length > 0 }, ticket);
 }
 
 // ── Card tips modal ──
-export function openCardTipsModal(cardKey: string): void | Promise<unknown> | boolean {
+export function openCardTipsModal(cardKey: string, ticket = contextCardStatusTicket(), owner?: HTMLElement): void | Promise<unknown> | boolean {
+  if (ticket !== contextCardStatusTicket() || (owner && (!owner.isConnected
+    || owner.dataset.contextStatusTicket !== ticket || !getRecommendationModuleFunction('isProductRecsEnabled')?.()))) return;
   if (!isContextEditorStylesheetLoaded()) {
-    return runWithContextEditorStylesheet(() => openCardTipsModal(cardKey));
+    return runWithContextEditorStylesheet(() => openCardTipsModal(cardKey, ticket, owner));
   }
   const renderCardTipsModal = getRecommendationModuleFunction('renderCardTipsModal');
   if (!renderCardTipsModal) return;

@@ -1,7 +1,8 @@
 <script lang="ts">
+  import ContextCardStatus from './ContextCardStatus.svelte';
   import ContextNotes from './ContextNotes.svelte';
   import type { ContextCatalogView } from '../context-card-catalog-presentation.js';
-  import { CONTEXT_CARD, CONTEXT_OPEN, CONTEXT_BODY, CONTEXT_ACTION, CONTEXT_INFO, CONTEXT_FOCUS } from '../context-card-catalog-classes.js';
+  import { CONTEXT_CARD, CONTEXT_OPEN, CONTEXT_ACTION, CONTEXT_INFO, CONTEXT_FOCUS } from '../context-card-catalog-classes.js';
   let { view }: { view: ContextCatalogView } = $props();
 </script>
 <section data-context-cards-view data-context-notes-ticket={view.notesTicket} class="profile-context-section gb:context-catalog:[container-type:inline-size] gb:context-catalog:mt-4"
@@ -31,16 +32,16 @@
           <span class="context-card-icon gb:context-catalog:inline-flex gb:context-catalog:items-center gb:context-catalog:justify-center gb:context-catalog:flex-[0_0_18px] gb:context-catalog:size-[18px] gb:context-catalog:text-muted gb:context-catalog:transition-colors gb:context-catalog:duration-150 gb:context-catalog:[&_svg]:block gb:context-catalog:[&_svg]:size-[18px] gb:context-catalog:[&_svg]:stroke-current gb:context-catalog:[.context-card:hover_&]:text-accent gb:context-catalog:[.context-card:has(.context-card-open:focus-visible)_&]:text-accent" aria-hidden="true">{@html card.icon}</span>
           <span class="context-card-title gb:context-catalog:min-w-0 gb:context-catalog:flex-1 gb:context-catalog:inline-flex gb:context-catalog:items-center gb:context-catalog:gap-[7px]">
             <span class="context-card-label gb:context-catalog:min-w-0 gb:context-catalog:font-bold gb:context-catalog:text-ink gb:context-catalog:leading-[1.3] {card.key === 'loveLife' ? 'gb:context-catalog:text-[13px] gb:context-catalog:tracking-[-0.01em] gb:context-catalog:whitespace-nowrap' : 'gb:context-catalog:text-sm'}">{card.label}</span>
-            <span class="ctx-health-indicator gb:context-catalog:flex-[0_0_auto]" id={`ctx-health-${card.key}`} hidden><span class="ctx-health-dot ctx-health-dot-gray" id={`ctx-dot-${card.key}`}></span><span class="ctx-health-label gb:context-catalog:sr-only" id={`ctx-health-label-${card.key}`}>Not assessed</span></span>
+            <span data-context-status-host data-context-status-slot="indicator" data-context-status-key={card.key} data-context-status-label={card.label} data-context-status-render={view.renderId} data-context-status-ticket={view.statusTicket} class="gb:context-catalog:contents"><svelte:boundary><ContextCardStatus slot="indicator" cardKey={card.key} renderId={view.renderId} ticket={view.statusTicket || ''} localSummary={card.summary} cardLabel={card.label} /></svelte:boundary></span>
           </span>
-          <span class="context-card-tips-host gb:context-catalog:relative gb:context-catalog:z-[2]" id={`ctx-tips-${card.key}`}></span>
+          <span data-context-status-host data-context-status-slot="tips" data-context-status-key={card.key} data-context-status-label={card.label} data-context-status-render={view.renderId} data-context-status-ticket={view.statusTicket} class="gb:context-catalog:contents"><svelte:boundary><ContextCardStatus slot="tips" cardKey={card.key} renderId={view.renderId} ticket={view.statusTicket || ''} localSummary={card.summary} cardLabel={card.label} /></svelte:boundary></span>
           <button type="button" class="context-info-icon {CONTEXT_INFO} {CONTEXT_FOCUS}" aria-label={`Why ${card.label} matters`} aria-expanded="false" aria-controls={explanationId} data-context-card-action="toggle-explanation" data-context-card-explanation={explanationId}>i</button>
         </div>
-        {#if card.summary}<div class="context-card-body {CONTEXT_BODY}" id={`ctx-summary-${card.key}`} data-summary-source="local" data-local-summary={card.summary}>{card.summary}</div>
+        {#if card.summary}<div data-context-status-host data-context-status-slot="summary" data-context-status-key={card.key} data-context-status-label={card.label} data-context-status-render={view.renderId} data-context-status-ticket={view.statusTicket} data-context-local-summary={card.summary} class="gb:context-catalog:contents"><svelte:boundary><ContextCardStatus slot="summary" cardKey={card.key} renderId={view.renderId} ticket={view.statusTicket || ''} localSummary={card.summary} cardLabel={card.label} /></svelte:boundary></div>
         {:else}<div class="context-card-placeholder gb:context-catalog:text-[13px] gb:context-catalog:text-secondary gb:context-catalog:leading-[1.5]">{card.placeholder}</div>{/if}
         <div class="context-card-explanation gb:context-catalog:relative gb:context-catalog:z-[2] gb:context-catalog:mt-2.5 gb:context-catalog:pt-2.5 gb:context-catalog:border-t gb:context-catalog:border-line gb:context-catalog:text-secondary gb:context-catalog:text-[12px] gb:context-catalog:leading-[1.5] gb:context-catalog:[&[hidden]]:hidden" id={explanationId} hidden>{card.tooltip}</div>
         {@html card.extensions}
-        <div class="ctx-ai-summary-slot"><div class="ctx-ai-summary" id={`ctx-ai-${card.key}`}></div></div>
+        <div data-context-status-host data-context-status-slot="insight" data-context-status-key={card.key} data-context-status-label={card.label} data-context-status-render={view.renderId} data-context-status-ticket={view.statusTicket} class="gb:context-catalog:contents"><svelte:boundary><ContextCardStatus slot="insight" cardKey={card.key} renderId={view.renderId} ticket={view.statusTicket || ''} localSummary={card.summary} cardLabel={card.label} /></svelte:boundary></div>
       </article>
     {/each}
   </div>

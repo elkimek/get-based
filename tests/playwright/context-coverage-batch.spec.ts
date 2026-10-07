@@ -630,6 +630,7 @@ test('context health dots and focus card cover cache fallback and empty states',
   await page.goto('/app', { waitUntil: 'load' });
 
   const results = await page.evaluate(async ({ healthUrl, focusUrl }) => {
+    const { contextStatusFixture, contextStatusElement } = await import('/tests/helpers/context-card-status-fixture.js');
     const [{ state }, health, focus, summaries, profile, data, labContext, cryptoStore, cloudConsent] = await Promise.all([
       import('/js/state.js'),
       (import(healthUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/context-card-health-dots.js'), "configureContextCardHealthDots" | "getCardFingerprint" | "loadContextHealthDots" | "refreshAllHealthDots" | "getDemoContextAIMode" | "enableDemoContextLiveAI">>,
@@ -683,11 +684,8 @@ test('context health dots and focus card cover cache fallback and empty states',
       };
       data.invalidateActiveDataCache();
       document.body.appendChild(host);
-      host.innerHTML = summaries.CONTEXT_CARD_KEYS.map(key => `
-        <span id="ctx-dot-${key}" class="ctx-health-dot"></span>
-        <span id="ctx-summary-${key}" data-summary-source="local" data-local-summary="${key} local fallback">${key} local fallback</span>
-        <span id="ctx-ai-${key}"></span>
-      `).join('') + '<div id="focus-card-body"></div>';
+      contextStatusFixture(host, summaries.CONTEXT_CARD_KEYS, key => `${key} local fallback`);
+      const focusBody = document.createElement('div'); focusBody.id = 'focus-card-body'; host.append(focusBody);
 
       const healthCacheKey = profile.profileStorageKey(state.currentProfile, 'contextHealth');
       cacheKeys.push(healthCacheKey);
@@ -702,11 +700,11 @@ test('context health dots and focus card cover cache fallback and empty states',
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.removeItem('labcharts-ai-paused');
       await health.loadContextHealthDots();
-      outcomes.healthDotsUseMatchingCache = document.getElementById('ctx-dot-diet')?.classList.contains('ctx-health-dot-yellow') === true
-        && document.getElementById('ctx-summary-diet')?.textContent === 'diet cached profile summary'
-        && document.getElementById('ctx-summary-diet')?.dataset.summarySource === 'ai'
-        && document.getElementById('ctx-ai-diet')?.textContent.includes('diet cached tip')
-        && document.getElementById('ctx-ai-diet')?.classList.contains('ctx-ai-summary-yellow');
+      outcomes.healthDotsUseMatchingCache = contextStatusElement('dot', 'diet')?.classList.contains('ctx-health-dot-yellow') === true
+        && contextStatusElement('summary', 'diet')?.textContent === 'diet cached profile summary'
+        && contextStatusElement('summary', 'diet')?.dataset.summarySource === 'ai'
+        && contextStatusElement('ai', 'diet')?.textContent.includes('diet cached tip')
+        && contextStatusElement('ai', 'diet')?.classList.contains('ctx-ai-summary-yellow');
 
       const fixedDemoHealth = {
         fixedDemo: true,
@@ -737,9 +735,9 @@ test('context health dots and focus card cover cache fallback and empty states',
       outcomes.paidDemoStaysPrecomputedUntilExplicitConsent = demoInferenceCalls === 0
         && localStorage.getItem(healthCacheKey) === JSON.stringify(fixedDemoHealth)
         && health.getDemoContextAIMode().mode === 'paid-off'
-        && document.getElementById('ctx-dot-diet')?.classList.contains('ctx-health-dot-gray') === true
-        && document.getElementById('ctx-summary-diet')?.textContent === 'diet local fallback'
-        && document.getElementById('ctx-ai-diet')?.textContent.includes('not recalculated');
+        && contextStatusElement('dot', 'diet')?.classList.contains('ctx-health-dot-gray') === true
+        && contextStatusElement('summary', 'diet')?.textContent === 'diet local fallback'
+        && contextStatusElement('ai', 'diet')?.textContent.includes('not recalculated');
       localStorage.setItem(cloudConsent.CLOUD_AI_CONSENT_KEY, JSON.stringify({
         version: cloudConsent.CLOUD_AI_CONSENT_VERSION,
         approvals: { openrouter: { accepted: true } },
@@ -769,9 +767,10 @@ test('context health dots and focus card cover cache fallback and empty states',
 
       localStorage.removeItem(healthCacheKey);
       (state as unknown as {importedData:unknown}).importedData = { entries: [], healthGoals: [] };
+      contextStatusFixture(host, summaries.CONTEXT_CARD_KEYS, key => `${key} local fallback`); host.append(focusBody);
       await health.loadContextHealthDots();
       outcomes.healthDotsGrayWhenNoAssessableData = summaries.CONTEXT_CARD_KEYS.every(key =>
-        document.getElementById(`ctx-dot-${key}`)?.classList.contains('ctx-health-dot-gray')
+        contextStatusElement('dot', key)?.classList.contains('ctx-health-dot-gray')
       );
 
       localStorage.setItem(healthCacheKey, JSON.stringify({ dots: { diet: 'red' }, summaries: {}, fingerprints: {} }));
@@ -796,6 +795,7 @@ test('context health dots and focus card cover cache fallback and empty states',
         environment: { setting: 'urban' },
       };
       data.invalidateActiveDataCache();
+      contextStatusFixture(host, summaries.CONTEXT_CARD_KEYS, key => `${key} local fallback`); host.append(focusBody);
       let aiResponse = JSON.stringify({
         healthGoals: { summary: 'Focused on improving sleep quality and consistency.', dot: 'green', tip: 'goals covered' },
         diet: 'yellow',
@@ -832,14 +832,14 @@ test('context health dots and focus card cover cache fallback and empty states',
         && (aiCalls[0]!.body as ContextAIRequestRead).messages.some(msg => msg.role === 'system' && (msg.content as string).includes('"summary"'))
         && (aiCalls[0]!.body as ContextAIRequestRead).messages.some(msg => msg.role === 'system' && (msg.content as string).includes('ONLY the person\'s explicitly reported information'))
         && (aiCalls[0]!.body as ContextAIRequestRead).messages.some(msg => msg.role === 'user' && (msg.content as string).includes('[section:diet]'));
-      outcomes.healthDotsCachesParsedObjectAndStringEntries = document.getElementById('ctx-dot-healthGoals')?.classList.contains('ctx-health-dot-green') === true
-        && document.getElementById('ctx-summary-healthGoals')?.textContent === 'Focused on improving sleep quality and consistency.'
-        && document.getElementById('ctx-summary-healthGoals')?.dataset.summarySource === 'ai'
-        && document.getElementById('ctx-ai-healthGoals')?.textContent.includes('goals covered')
-        && document.getElementById('ctx-dot-diet')?.classList.contains('ctx-health-dot-yellow') === true
-        && document.getElementById('ctx-summary-diet')?.textContent === 'diet local fallback'
-        && document.getElementById('ctx-summary-diet')?.dataset.summarySource === 'local'
-        && document.getElementById('ctx-dot-exercise')?.classList.contains('ctx-health-dot-gray') === true
+      outcomes.healthDotsCachesParsedObjectAndStringEntries = contextStatusElement('dot', 'healthGoals')?.classList.contains('ctx-health-dot-green') === true
+        && contextStatusElement('summary', 'healthGoals')?.textContent === 'Focused on improving sleep quality and consistency.'
+        && contextStatusElement('summary', 'healthGoals')?.dataset.summarySource === 'ai'
+        && contextStatusElement('ai', 'healthGoals')?.textContent.includes('goals covered')
+        && contextStatusElement('dot', 'diet')?.classList.contains('ctx-health-dot-yellow') === true
+        && contextStatusElement('summary', 'diet')?.textContent === 'diet local fallback'
+        && contextStatusElement('summary', 'diet')?.dataset.summarySource === 'local'
+        && contextStatusElement('dot', 'exercise')?.classList.contains('ctx-health-dot-gray') === true
         && parsedHealthCache.dots?.healthGoals === 'green'
         && parsedHealthCache.summaries?.healthGoals === 'goals covered'
         && parsedHealthCache.cardSummaries?.healthGoals === 'Focused on improving sleep quality and consistency.'
@@ -854,7 +854,7 @@ test('context health dots and focus card cover cache fallback and empty states',
       aiCalls.length = 0;
       await health.loadContextHealthDots();
       outcomes.healthDotsGrayAndWritesCacheOnInvalidAIResponse = aiCalls.length === 1
-        && document.getElementById('ctx-dot-healthGoals')?.classList.contains('ctx-health-dot-gray') === true
+        && contextStatusElement('dot', 'healthGoals')?.classList.contains('ctx-health-dot-gray') === true
         && localStorage.getItem(healthCacheKey) !== null;
 
       window.fetch = saved.fetch;

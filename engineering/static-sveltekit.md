@@ -204,8 +204,10 @@ Tailwind styles in dashboard, Insight and Chat. Its existing public string-rende
 contract and service delegates remain available. Optional-onboarding acceptance
 opens all nine cards after an offline cold launch, expands an explanation and
 persists literal additional-context notes alongside imported DNA/mtDNA in the
-exported backup. This covers the compatibility presentation; independent catalog
-lifecycles and remaining AI/tips slot ownership remain separate work. Notes edits
+exported backup. The shared assessment/tips slots use independently hydrated authored boundaries,
+profile/data tickets and unique IDs. Simultaneous catalogs receive the same typed
+updates; removed or replaced profile views cannot receive new assessments or open
+late tips dialogs. Card editors and nutrition fragments remain separate work. Notes edits
 retain their originating profile through debounced scoped persistence, expose
 confirmed commit status through the shared authored `ContextNotes.svelte` component.
 Independent notes boundaries hydrate in place, retain textarea focus, use unique

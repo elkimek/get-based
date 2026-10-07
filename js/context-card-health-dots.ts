@@ -1,3 +1,5 @@
+import { publishContextCardStatus, contextCardStatus, emptyContextCardStatus } from './context-card-status.js';
+import type { ContextCardStatus } from './context-card-status.js';
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // context-card-health-dots.js - AI health-dot scoring for dashboard context cards
 
@@ -159,64 +161,35 @@ export function disableDemoContextLiveAI() {
   return getDemoContextAIMode();
 }
 
-// DOM setters retain their original coercion of raw cache values, including inherited labels.
+// Domain services publish typed snapshots; authored slots own DOM and styling.
+function assessmentIdentity(): string { return JSON.stringify([getAssistantFeatureIdentity(), isAIPaused()]); }
+function assessmentFingerprint(key: string): string | null { try { return getCardFingerprint(key); } catch { return null; } }
+function publishAssessment(key: string, update: Partial<ContextCardStatus>): void {
+  publishContextCardStatus(key, { ...update, assessmentFingerprint: assessmentFingerprint(key), assessmentIdentity: assessmentIdentity() });
+}
+/** A rebuilt view must not revive an assessment of older facts or demographics. */
+export function prepareContextHealthPresentation(): void {
+  const identity = assessmentIdentity();
+  for (const key of CONTEXT_CARD_KEYS) {
+    const current = contextCardStatus(key);
+    if (current.assessmentIdentity !== null && (current.assessmentFingerprint !== assessmentFingerprint(key) || current.assessmentIdentity !== identity)) {
+      publishContextCardStatus(key, { ...emptyContextCardStatus(), tips: current.tips });
+    }
+  }
+}
+const DOT_LABELS: Record<string, unknown> = { green: 'Good', yellow: 'Caution', red: 'Concern', gray: 'Not rated' };
 export function applyDotColor(key: string, color: unknown) {
-  const dot = document.getElementById('ctx-dot-' + key);
-  if (!dot) return;
-  dot.className = 'ctx-health-dot ctx-health-dot-' + color;
-  const dotLabels: Record<string, unknown> = { green: 'Good', yellow: 'Caution', red: 'Concern', gray: 'Not rated' };
-  const label = dotLabels[color as string] || 'Not rated';
-  dot.title = label as string;
-  const indicator = document.getElementById('ctx-health-' + key);
-  const text = document.getElementById('ctx-health-label-' + key);
-  if (indicator) {
-    indicator.hidden = false;
-    indicator.setAttribute('aria-label', `AI assessment: ${label}`);
-    dot.setAttribute('aria-hidden', 'true');
-    dot.removeAttribute('aria-label');
-  } else {
-    dot.removeAttribute('aria-hidden');
-    dot.setAttribute('aria-label', label as string);
-  }
-  if (text) text.textContent = label as string;
+  publishAssessment(key, { color: String(color), label: String(DOT_LABELS[color as string] || 'Not rated'), visible: true, loading: false });
 }
-
 export function applyAISummary(key: string, text: unknown, color: unknown, source: unknown = 'ai') {
-  const el = document.getElementById('ctx-ai-' + key);
-  if (!el) return;
-  el.classList.remove('ctx-ai-summary-green', 'ctx-ai-summary-yellow', 'ctx-ai-summary-red');
-  if (text) {
-    const severityLabels: Record<string, unknown> = { green: 'Good', yellow: 'Caution', red: 'Concern', gray: 'Not rated' };
-    const severity = severityLabels[color as string] || 'Insight';
-    el.textContent = text as string;
-    el.dataset.severity = severity as string;
-    el.dataset.insightLabel = source === 'demo' ? 'Demo insight' : 'AI insight';
-    el.classList.add('ctx-ai-summary-visible');
-    el.setAttribute('aria-label', `${source === 'demo' ? 'Demo insight' : 'AI insight'}, ${severity}: ${text}`);
-    if (color && color !== 'gray') el.classList.add('ctx-ai-summary-' + color);
-  } else {
-    el.textContent = '';
-    delete el.dataset.severity;
-    delete el.dataset.insightLabel;
-    el.classList.remove('ctx-ai-summary-visible');
-    el.removeAttribute('aria-label');
-  }
-  // Recommendations are shown in detail modal and chat, not on dashboard cards.
+  const insight = text ? String(text) : '', severity = String(DOT_LABELS[color as string] || 'Insight');
+  const insightLabel = source === 'demo' ? 'Demo insight' : 'AI insight';
+  publishAssessment(key, { insight, severity, insightLabel, insightColor: color && color !== 'gray' ? String(color) : '',
+    insightAria: `${insightLabel}, ${severity}: ${insight}` });
 }
-
 export function applyAIProfileSummary(key: string, text: unknown, source: unknown = 'ai') {
-  const el = document.getElementById('ctx-summary-' + key);
-  if (!el) return;
   const normalized = typeof text === 'string' ? text.trim() : '';
-  if (normalized) {
-    el.textContent = normalized;
-    el.dataset.summarySource = source as string;
-    return;
-  }
-  if (el.dataset.localSummary !== undefined) {
-    el.textContent = el.dataset.localSummary;
-    el.dataset.summarySource = 'local';
-  }
+  publishAssessment(key, { summary: normalized || null, summarySource: normalized ? String(source) : 'local' });
 }
 
 // Optional ctx allows callers to compute the fingerprint against an explicit
@@ -281,29 +254,13 @@ function markDemoCardsStale(keys: string[]) {
     applyDotColor(key, 'gray');
     applyAIProfileSummary(key, '');
     applyAISummary(key, 'Demo insight not recalculated for current context', 'gray', 'demo');
-    const el = document.getElementById('ctx-ai-' + key);
-    if (el) {
-      el.dataset.severity = 'Not recalculated';
-      el.setAttribute('aria-label', 'Demo insight, not recalculated after context changes');
-    }
+    publishAssessment(key, { severity: 'Not recalculated', insightAria: 'Demo insight, not recalculated after context changes' });
   }
 }
 
 function showStaleCardsLoading(staleKeys: string[]) {
-  for (const k of staleKeys) {
-    const dot = document.getElementById('ctx-dot-' + k);
-    if (dot) dot.classList.add('ctx-health-dot-shimmer');
-    const indicator = document.getElementById('ctx-health-' + k);
-    const label = document.getElementById('ctx-health-label-' + k);
-    if (indicator) indicator.hidden = false;
-    if (label) label.textContent = 'Assessing';
-    applyAIProfileSummary(k, '');
-    const aiEl = document.getElementById('ctx-ai-' + k);
-    if (aiEl) {
-      aiEl.textContent = '';
-      aiEl.classList.remove('ctx-ai-summary-visible');
-    }
-  }
+  for (const key of staleKeys) publishAssessment(key, { visible: true, loading: true, label: 'Assessing',
+    summary: null, summarySource: 'local', insight: '', insightAria: '', severity: '', insightLabel: '', insightColor: '' });
 }
 
 function staleCardsHaveAssessableData(staleKeys: string[]) {
