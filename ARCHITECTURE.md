@@ -884,8 +884,25 @@ after awaiting Settings. Existing synchronous quiz/progress HTML helpers render
 the same authored components. Trusted edition extensions retain the
 `provider-quiz` HTML slot and delegated action contract; legacy quiz CSS is
 restricted to extension-owned markup. First-party setup uses scoped Tailwind.
-The profile form, optional context tasks, context cards and other empty states
-remain distinct presentation boundaries.
+`ChatProfileSetup.svelte` owns the basics form and its drafts, focus, native
+optional disclosure and save status. `chat-profile-setup-component.ts` retains
+that view across repaint and retires it on profile/thread/history/data/root
+replacement. `chat-profile-onboarding.ts` adapts the public helpers and each
+configured module's callbacks to `chat-profile-onboarding-controller.ts`.
+The controller captures values before awaiting writes, serializes saves for the
+originating profile and uses explicit profile IDs and a merge baseline for the
+IndexedDB profile weight write, followed by the existing manual-measurement
+service and summary refresh. This preserves the legacy entry while upserting the
+canonical kilogram row even if the one-time legacy migration already ran. Both
+legacy migration and new measurements share `weightToKilograms`, including the
+form's `lbs` alias. An accepted in-flight write may finish for its original
+profile; retirement prevents later writes, publication and navigation. Failed
+writes keep the form editable, report failure and roll back only the failed
+weight array. Country-only latitude is a local projection without geocoder
+requests or a redundant write when the form mounts. Scoped Tailwind owns the
+form, including narrow-layout overflow prevention and 44px touch controls.
+Shared native input styles remain only for unmigrated cycle/supplement helpers;
+optional context tasks, context cards and other empty states are separate owners.
 
 Conversation navigation has one presentation owner,
 `js/components/ChatThreadNavigation.svelte`. `chat-thread-list-view.ts` preserves
@@ -983,7 +1000,7 @@ orchestration. Neither authors normal message body or footer markup.
 containment. It captures the exact profile/thread/history/message before saving
 visibility changes. Finite attention runs for newly completed recommendations,
 never restored history, and releases its observer/frame/listener on retirement;
-reduced motion suppresses the pulse. Catalog card markup, profile/context
+reduced motion suppresses the pulse. Catalog card markup, optional context
 onboarding and the remaining empty-conversation views are separate migration boundaries.
 Discussion rounds capture profile, thread record and history identity in
 `chat-discussion-origin.ts`. Background rounds may persist to their original

@@ -69,7 +69,7 @@
 @source "../js/components/ChatMessage.svelte";
 @source "../js/components/ChatRecommendations.svelte";
 @source "../js/chat-transcript-classes.ts";
-@custom-variant transcript (&:is([data-chat-transcript-view], [data-chat-transcript-view] *, [data-chat-live-view], [data-chat-live-view] *, [data-chat-provider-setup-view], [data-chat-provider-setup-view] *));
+@custom-variant transcript (&:is([data-chat-transcript-view], [data-chat-transcript-view] *, [data-chat-live-view], [data-chat-live-view] *, [data-chat-provider-setup-view], [data-chat-provider-setup-view] *, [data-chat-profile-setup-view], [data-chat-profile-setup-view] *));
 
 @source "../js/components/ChatLiveMessage.svelte";
 
@@ -78,4 +78,7 @@
 @source "../js/components/ChatProviderQuiz.svelte";
 @source "../js/components/ChatProviderSetup.svelte";
 @source "../js/chat-onboarding-classes.ts";
-@custom-variant onboarding (&:is([data-chat-provider-setup-view], [data-chat-provider-setup-view] *, [data-chat-provider-view], [data-chat-provider-view] *, [data-chat-onboard-progress-view], [data-chat-onboard-progress-view] *));
+@custom-variant onboarding (&:is([data-chat-provider-setup-view], [data-chat-provider-setup-view] *, [data-chat-provider-view], [data-chat-provider-view] *, [data-chat-onboard-progress-view], [data-chat-onboard-progress-view] *, [data-chat-profile-setup-view], [data-chat-profile-setup-view] *));
+
+@source "../js/components/ChatProfileSetup.svelte";
+@source "../js/chat-profile-onboarding-classes.ts";

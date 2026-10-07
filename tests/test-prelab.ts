@@ -25,6 +25,8 @@ const chatSrc = read('js/chat.js');
 const chatPanelSrc = read('js/chat-panel.js');
 const chatOnboardingSrc = read('js/chat-onboarding.js');
 const providerQuizSrc = read('js/components/ChatProviderQuiz.svelte');
+const chatProfileFormSrc = read('js/components/ChatProfileSetup.svelte');
+const chatProfileStylesSrc = read('js/chat-profile-onboarding-classes.ts');
 const chatEmptyStateSrc = read('js/chat-empty-state.js').replace(/if \(hasLabs\)\s+return null;/g, 'if (hasLabs) return null;');
 const chatRenderSrc = read('js/chat-render.js');
 const chatSendSrc = read('js/chat-send.js');
@@ -293,9 +295,9 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
     return providerCheck !== -1 && providerCheck < panelOpen;
   })(), 'openChatPanel should let the panel open without a provider');
 
-  assert('Chat onboarding has profile form', chatEmptyStateSrc.includes('chat-onboard-form') && chatEmptyStateSrc.includes('chat-onboard-name'),
+  assert('Chat onboarding has profile form', chatEmptyStateSrc.includes('renderChatProfileSetup(container,') && chatProfileStylesSrc.includes('chat-onboard-form') && chatProfileFormSrc.includes('chat-onboard-name'),
     'Should show profile setup form for new visitors');
-  assert('Chat onboarding keeps optional profile context collapsed', chatEmptyStateSrc.includes('chat-onboard-more') && chatEmptyStateSrc.includes('Optional body and location context'),
+  assert('Chat onboarding keeps optional profile context collapsed', chatProfileFormSrc.includes('<details class={PROFILE_MORE}>') && !chatProfileFormSrc.includes('<details open') && chatProfileStylesSrc.includes('chat-onboard-more') && chatProfileFormSrc.includes('Optional body and location context'),
     'Optional height/weight/location fields should not crowd the first mobile onboarding step');
   assert('Chat onboarding has compact optional task cards', chatEmptyStateSrc.includes('chat-onboard-task-grid') && chatEmptyStateSrc.includes('chat-onboard-dna'),
     'Optional setup should use compact cards and preserve DNA import update hook');

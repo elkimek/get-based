@@ -30,7 +30,6 @@ body.chat-autostart-reserved.chat-fullscreen .main {
 .settings-theme-btn.active,
 .emf-room-tab.active,
 .cl-tag-chip.active,
-.welcome-sex-btn.active,
 .onboarding-sex-btn.active {
   background: var(--accent);
   border-color: var(--accent);

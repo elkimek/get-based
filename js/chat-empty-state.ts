@@ -3,6 +3,8 @@ import { configureRuntimeFunctions } from './runtime-callbacks.js';
 
 import { state } from './state.js';
 import { disposeChatProviderSetup, renderChatProviderSetup } from './chat-provider-setup-component.js';
+import { disposeChatProfileSetup, renderChatProfileSetup } from './chat-profile-setup-component.js';
+import { projectChatProfileLatitude } from './chat-profile-onboarding.js';
 import { projectOnboardingProgress } from './chat-onboarding-presentation.js';
 import { renderAppExtensionOnboardingSlot } from './app-extension-runtime.js';
 import { isAIPaused } from './api.js';
@@ -22,7 +24,7 @@ import { resumeChatAIRuntime } from './chat-runtime.js';
 import {
   chatOnboardingActionAttrs,
   _countFilledCards, _renderOnboardCrumbs,
-  _updateOnboardNextBtn, onboardHeightUnitChanged,
+  onboardHeightUnitChanged,
   continueAfterContextCards, requestOnboardingLabImportProvider, saveChatLocation, saveChatProfile,
   setChatProfileSex, skipContextCards, skipOnboardingExtras, startOnboardingFileImport, startOnboardingLabImport,
   useChatPrompt,
@@ -87,9 +89,9 @@ function handleChatEmptyClick(event: Event) {
   if (CHAT_EMPTY_STOP_PROPAGATION_ACTIONS.has(action)) event.stopPropagation();
 
   if (action === 'set-profile-sex') {
-    void setChatProfileSex(actionEl.dataset.sex || '');
+    void setChatProfileSex(actionEl.dataset.sex || '', actionEl);
   } else if (action === 'save-profile-advance') {
-    void saveChatProfile(true);
+    void saveChatProfile(true, actionEl);
   } else if (action === 'resume-ai') {
     resumeChatAIRuntime();
   } else if (action === 'skip-extras') {
@@ -139,9 +141,9 @@ function handleChatEmptyChange(event: Event) {
   if (!action) return;
 
   if (action === 'save-profile') {
-    void saveChatProfile();
+    void saveChatProfile(false, actionEl);
   } else if (action === 'height-unit-changed') {
-    onboardHeightUnitChanged();
+    onboardHeightUnitChanged(actionEl);
   } else if (action === 'import-mtdna-file' && actionEl instanceof HTMLInputElement) {
     const file = actionEl.files?.[0];
     if (file) {
@@ -154,7 +156,7 @@ function handleChatEmptyChange(event: Event) {
 function handleChatEmptyInput(event: Event) {
   const actionEl = closestChatEmptyAction(event);
   if (!actionEl) return;
-  if (actionEl.dataset.chatEmptyAction === 'save-location') void saveChatLocation();
+  if (actionEl.dataset.chatEmptyAction === 'save-location') void saveChatLocation(actionEl);
 }
 
 function installChatEmptyStateDelegates(container: HTMLElement|null) {
@@ -197,6 +199,7 @@ export function renderEmptyChatState(container: HTMLElement, panel?: HTMLElement
   const providerStep = context.hasProfile && forcedStep !== 'profile' && !isAIPaused()
     && (forcedStep === 'provider' || (!(!context.hasData && forcedStep === 'extras') && shouldRenderProviderSetup()));
   if (!providerStep) disposeChatProviderSetup();
+  if (forcedStep !== 'profile' && context.hasProfile) disposeChatProfileSetup();
 
   if (forcedStep === 'profile') return renderProfileOnboardingState(container, panel, context);
   if (!context.hasProfile) return renderProfileOnboardingState(container, panel, context);
@@ -258,62 +261,14 @@ function renderProfileOnboardingState(container: HTMLElement, panel: HTMLElement
   const _pH = getChatProfileHeight(state.currentProfile);
   const pHeight = _pH.height ? (_pH.unit === 'in' ? (Number(_pH.height) / 2.54).toFixed(1) : _pH.height) : '';
   const pHeightUnit = _pH.unit || 'cm';
-  container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
-    <div class="chat-msg chat-ai">
-      ${_renderOnboardCrumbs(1)}
-      <p>Hey! 👋 I'll be your AI health analyst — I help you understand blood work, track trends, and spot what matters. First, tell me a bit about yourself:</p>
-      <div class="chat-onboard-form">
-        <div class="chat-onboard-row">
-          <label class="chat-onboard-label" for="chat-onboard-name">Name</label>
-          <input type="text" class="chat-onboard-input" id="chat-onboard-name" placeholder="your name" value="${escapeAttr(pName)}" data-chat-empty-action="save-profile">
-        </div>
-        <div class="chat-onboard-row">
-          <span class="chat-onboard-label" id="chat-onboard-sex-label">Sex</span>
-          <div class="chat-onboard-sex" role="group" aria-labelledby="chat-onboard-sex-label">
-            <button type="button" class="welcome-sex-btn${pSex === 'male' ? ' active' : ''}" data-chat-empty-action="set-profile-sex" data-sex="male">Male</button>
-            <button type="button" class="welcome-sex-btn${pSex === 'female' ? ' active' : ''}" data-chat-empty-action="set-profile-sex" data-sex="female">Female</button>
-          </div>
-        </div>
-        <div class="chat-onboard-row">
-          <label class="chat-onboard-label" for="chat-onboard-dob">Born</label>
-          <input type="date" class="chat-onboard-input" id="chat-onboard-dob" value="${escapeAttr(pDob)}" min="1900-01-01" max="${new Date().toISOString().slice(0, 10)}">
-        </div>
-        <details class="chat-onboard-more">
-          <summary>Optional body and location context</summary>
-          <div class="chat-onboard-more-body">
-            <div class="chat-onboard-row">
-              <label class="chat-onboard-label" for="chat-onboard-height">Height</label>
-              <div class="chat-onboard-input-with-unit">
-                <input type="number" class="chat-onboard-input" id="chat-onboard-height" placeholder="cm" step="0.1" value="${pHeight || ''}">
-                <select class="chat-onboard-input chat-onboard-unit-select" id="chat-onboard-height-unit" aria-label="Height unit" data-chat-empty-action="height-unit-changed">
-                  <option value="cm"${pHeightUnit !== 'in' ? ' selected' : ''}>cm</option>
-                  <option value="in"${pHeightUnit === 'in' ? ' selected' : ''}>in</option>
-                </select>
-              </div>
-            </div>
-            <div class="chat-onboard-row">
-              <label class="chat-onboard-label" for="chat-onboard-weight">Weight</label>
-              <div class="chat-onboard-input-with-unit">
-                <input type="number" class="chat-onboard-input" id="chat-onboard-weight" placeholder="kg" step="0.1">
-                <select class="chat-onboard-input chat-onboard-unit-select" id="chat-onboard-weight-unit" aria-label="Weight unit">
-                  <option value="kg">kg</option>
-                  <option value="lbs">lbs</option>
-                </select>
-              </div>
-            </div>
-            <div class="chat-onboard-row">
-              <label class="chat-onboard-label" for="chat-onboard-country">Location</label>
-              <input type="text" class="chat-onboard-input" id="chat-onboard-country" placeholder="e.g. Germany" value="${escapeAttr(pLoc.country || '')}" data-chat-empty-action="save-location">
-            </div>
-            <div id="chat-onboard-lat" class="chat-onboard-lat"></div>
-            <div class="chat-onboard-help">Latitude affects vitamin D, circadian rhythm, and seasonal health patterns.</div>
-          </div>
-        </details>
-        <button type="button" class="chat-onboard-next" id="chat-onboard-next" data-chat-empty-action="save-profile-advance" disabled>Continue →</button>
-      </div>
-    </div>`;
-  _updateOnboardNextBtn();
-  if (pLoc.country) void saveChatLocation(); // show latitude for pre-filled country
+  renderChatProfileSetup(container, {
+    personalityLabel: `${personality.icon} ${personality.name}`,
+    progress: projectOnboardingProgress(1, hasChatResponseBackend()),
+    name: pName, sex: pSex || null, dob: pDob,
+    height: String(pHeight || ''), heightUnit: pHeightUnit, weight: '', weightUnit: 'kg',
+    country: pLoc.country || '', latitude: projectChatProfileLatitude(pLoc.country || ''),
+    today: new Date().toISOString().slice(0, 10),
+  });
   return true;
 }
 

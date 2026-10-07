@@ -91,13 +91,6 @@
 .welcome-direct-import-btn {
   background: transparent;
 }
-.welcome-sex-btn {
-  padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
-  background: var(--bg-sidebar); border: 1px solid var(--border); color: var(--text-secondary);
-  cursor: pointer; transition: all 0.2s;
-}
-.welcome-sex-btn:hover { border-color: var(--accent); color: var(--text-primary); }
-.welcome-sex-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 /* Onboarding */
 .welcome-demo-section {
   width: 100%;

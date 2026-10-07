@@ -2,21 +2,16 @@
 
 import type { ProfileData } from '../types/app-state.js';
 import type { ActiveData } from './data-view-types.js';
-import type { LocationCacheEntry } from './profile.js';
 import { state } from './state.js';
 import { projectOnboardingProgress } from './chat-onboarding-presentation.js';
 import { renderHTML as renderProgressHTML } from './components/ChatOnboardingProgress.svelte.html.js';
 import { renderHTML as renderProviderHTML } from './components/ChatProviderQuiz.svelte.html.js';
 import { isChatProviderSetupActionCurrent } from './chat-provider-setup-component.js';
-import { LATITUDE_BANDS } from './constants.js';
+import { createChatProfileOnboarding } from './chat-profile-onboarding.js';
 import { showNotification } from './utils.js';
 import { actionAttributes } from './action-attributes.js';
 import { saveImportedData } from './data.js';
 import { appendImportedArrayItem, deleteImportedArrayItem } from './data-merge.js';
-import {
-  getLatitudeFromLocation, getLocationCache, latitudeToBand, renameProfile,
-  setProfileDob, setProfileLocation, setProfileSex,
-} from './profile.js';
 import { isAIPaused } from './api.js';
 import { hasChatResponseBackend } from './chat-backend-selection.js';
 import { handleAppExtensionOnboardingAction, renderAppExtensionOnboardingSlot } from './app-extension-runtime.js';
@@ -282,134 +277,27 @@ export function startOnboardingFileImport() {
   input.click();
 }
 
-export function _updateOnboardNextBtn() {
-  const btn = buttonById('chat-onboard-next');
-  if (!btn) return;
-  const name = textControlById('chat-onboard-name')?.value?.trim();
-  const sex = state.profileSex;
-  btn.disabled = !(name && sex);
-}
-
-export async function setChatProfileSex(sex: string | null) {
-  try {
-    if (!await setProfileSex(state.currentProfile, sex)) return false;
-  } catch {
-    return false;
-  }
-  document.querySelectorAll('.chat-onboard-form .welcome-sex-btn').forEach(b => b.classList.remove('active'));
-  const btns = document.querySelectorAll('.chat-onboard-form .welcome-sex-btn');
-  if (sex === 'male' && btns[0]) btns[0].classList.add('active');
-  if (sex === 'female' && btns[1]) btns[1].classList.add('active');
-  state.profileSex = sex;
-  _updateOnboardNextBtn();
-  return true;
-}
-
-let _chatLocTimer: ReturnType<typeof setTimeout> | null = null;
-export function onboardHeightUnitChanged() {
-  const input = textControlById('chat-onboard-height');
-  const select = selectById('chat-onboard-height-unit');
-  if (!input || !select) return;
-  const val = parseFloat(input.value);
-  if (!val) { input.placeholder = select.value === 'in' ? 'inches' : 'cm'; return; }
-  if (select.value === 'in') { input.value = (val / 2.54).toFixed(1); input.placeholder = 'inches'; }
-  else { input.value = (val * 2.54).toFixed(1); input.placeholder = 'cm'; }
-}
-
-export async function saveChatLocation() {
-  const country = textControlById('chat-onboard-country')?.value?.trim();
-  if (country == null) return false;
-  try {
-    if (!await setProfileLocation(state.currentProfile, country, '')) return false;
-  } catch {
-    return false;
-  }
-  const el = document.getElementById('chat-onboard-lat');
-  if (!el) return true;
-  if (!country) { el.textContent = ''; return true; }
-
-  // Check the legacy/coarse cache first. Country-only onboarding does not
-  // send anything to a geocoder; postal refinement happens in Profile.
-  const cacheKey = (country + '|').toLowerCase();
-  const rawCached = getLocationCache()[cacheKey];
-  const cached = Number.isFinite(rawCached) ? Number(rawCached) : Number(((rawCached as LocationCacheEntry | undefined))?.lat ?? ((rawCached as LocationCacheEntry | undefined))?.latitude);
-  if (Number.isFinite(cached)) {
-    const band = latitudeToBand(cached);
-    el.style.color = 'var(--green)';
-    el.textContent = '\u2713 ' + Math.abs(Math.round(cached)) + '\u00b0' + (cached >= 0 ? 'N' : 'S') + ' \u2014 ' + LATITUDE_BANDS[band];
-    return true;
-  }
-  // Hardcoded fallback
-  const latStr = getLatitudeFromLocation();
-  if (latStr) {
-    el.style.color = 'var(--green)';
-    el.textContent = '\u2713 ' + latStr;
-  } else {
-    el.textContent = '';
-  }
-  // No country-only network lookup: a country band is sufficient here,
-  // and Profile can resolve an optional postal area later.
-  if (_chatLocTimer) clearTimeout(_chatLocTimer);
-  return true;
-}
-
-export async function saveChatProfile(advance?: boolean) {
-  const nameEl = textControlById('chat-onboard-name');
-  const dobEl = textControlById('chat-onboard-dob');
-  const name = nameEl?.value?.trim();
-  const dob = dobEl?.value;
-  try {
-    if (name && !await renameProfile(state.currentProfile, name)) return false;
-    if (dob) {
-      const dobYear = parseInt(dob.slice(0, 4));
-      if (dobYear >= 1900 && dobYear <= new Date().getFullYear()) {
-        if (!await setProfileDob(state.currentProfile, dob)) return false;
-        state.profileDob = dob;
-      }
-      // Silently ignore invalid DOB — user can fix before clicking Continue
-    }
-    // Save height
-    const heightRaw = parseFloat(textControlById('chat-onboard-height')?.value || '');
-    const heightUnit = selectById('chat-onboard-height-unit')?.value || 'cm';
-    if (heightRaw) {
-      const heightCm = heightUnit === 'in' ? Math.round(heightRaw * 2.54 * 10) / 10 : heightRaw;
-      if (!await setProfileHeight(state.currentProfile, heightCm, heightUnit)) return false;
-    }
-    // Save weight as first biometric entry
-    const weightRaw = parseFloat(textControlById('chat-onboard-weight')?.value || '');
-    const weightUnit = selectById('chat-onboard-weight-unit')?.value || 'kg';
-    if (weightRaw) {
-      if (!state.importedData!.biometrics) state.importedData!.biometrics = { weight: [], bp: [], pulse: [] };
-      const today = new Date().toISOString().slice(0, 10);
-      const w = state.importedData!.biometrics.weight || [];
-      state.importedData!.biometrics.weight = w.filter(e => e.date !== today);
-      state.importedData!.biometrics.weight.push({ date: today, value: weightRaw, unit: weightUnit, source: 'manual' });
-      state.importedData!.biometrics.weight.sort((a, b) => a.date.localeCompare(b.date));
-      if (!await saveImportedData()) return false;
-    }
-    if (!await saveChatLocation()) return false;
-  } catch {
-    return false;
-  }
-  renderProfileButton();
-  _updateOnboardNextBtn();
-  if (advance && name && state.profileSex) {
-    const shouldContinueOnboarding = !state.importedData?.entries?.length && !isAIPaused();
-    if (sessionStorage.getItem(forcedStepKey()) === 'profile' && shouldContinueOnboarding) {
+const profileOnboarding = createChatProfileOnboarding({
+  height: setProfileHeight,
+  saved(advance) {
+    renderProfileButton();
+    _updateOnboardNextBtn();
+    if (!advance) return;
+    if (!state.importedData?.entries?.length && !isAIPaused()) {
       goToOnboardingStep(hasChatResponseBackend() ? 3 : 2);
-      return true;
+      return;
     }
-    if (shouldContinueOnboarding) {
-      goToOnboardingStep(hasChatResponseBackend() ? 3 : 2);
-      return true;
-    }
-    // Profile complete — advance to next stage
     clearForcedOnboardingStep();
     updateChatNudge();
     renderChatMessages();
-  }
-  return true;
-}
+  },
+});
+
+export function _updateOnboardNextBtn() { profileOnboarding.updateNext(); }
+export function setChatProfileSex(sex: string | null, source?: Element) { return profileOnboarding.setSex(sex, source); }
+export function onboardHeightUnitChanged(source?: Element) { profileOnboarding.heightUnitChanged(source); }
+export function saveChatLocation(source?: Element) { return profileOnboarding.saveLocation(source); }
+export function saveChatProfile(advance?: boolean, source?: Element) { return profileOnboarding.saveProfile(advance, source); }
 
 export function showCycleNoMensesOptions() {
   const options = document.getElementById('chat-onboard-cycle-options');

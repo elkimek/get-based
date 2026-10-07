@@ -1869,3 +1869,12 @@ js/components/ChatOnboardingProgress.svelte.html.js.map
 js/chat-onboarding-presentation.js
 js/chat-onboarding-classes.js
 js/chat-provider-setup-component.js
+
+# Authored profile onboarding
+js/chat-profile-onboarding.js
+js/chat-profile-onboarding-classes.js
+js/chat-profile-onboarding-contract.js
+js/chat-profile-onboarding-controller.js
+js/chat-profile-setup-component.js
+js/components/ChatProfileSetup.svelte.native.js
+js/components/ChatProfileSetup.svelte.native.js.map

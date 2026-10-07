@@ -1,5 +1,8 @@
 import { createExpectAll } from '../helpers/browser-outcomes.js';
 import { expect, test } from './coverage-fixture.js';
+import { installDiscussionFixture, openDiscussionFixturePanel } from '../helpers/chat-discussion-fixture.js';
+
+test.beforeEach(async ({ context }) => { await installDiscussionFixture(context); });
 
 const expectAll = createExpectAll(expect, 'individual');
 
@@ -183,6 +186,7 @@ test('chat empty-state delegated actions update scoped profile UI', async ({ pag
 
 test('chat onboarding walks connected and disconnected funnels coherently', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await openDiscussionFixturePanel(page);
   await page.waitForSelector('#chat-input');
 
   const results = await page.evaluate(async () => {

@@ -117,3 +117,11 @@ it('preserves a newer reading when retrying migration after metadata commit fail
   expect(stored).toMatchObject({ weight: 82, rhr: 61 });
   expect(mocks.setMeta).toHaveBeenCalledOnce();
 });
+
+it.each(['lb', 'lbs'])('normalizes legacy/onboarding %s weights to kilograms without changing the source entry', async unit => {
+  state.importedData.manualMetricTombstones = {};
+  const legacy = { weight: [{ date: day, value: 150, unit }] };
+  await migrateBiometricsToManual('a', legacy);
+  expect(mocks.batch).toHaveBeenCalledExactlyOnceWith('a', [{ source: 'manual', date: day, weight: expect.closeTo(68.0388555, 6) }]);
+  expect(legacy.weight).toEqual([{ date: day, value: 150, unit }]);
+});

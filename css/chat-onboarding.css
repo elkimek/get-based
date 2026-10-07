@@ -50,76 +50,15 @@
   font-family: inherit;
 }
 .chat-quiz-skip-btn:hover:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) { border-color: var(--accent); color: var(--accent); }
-/* Chat onboarding form */
-.chat-onboard-form { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
-.chat-onboard-row { display: flex; align-items: center; gap: 10px; }
-.chat-onboard-label { font-size: 13px; color: var(--text-secondary); flex: 0 0 58px; }
-.chat-onboard-input {
+/* Remaining cycle/supplement HTML shares these inputs until those owners migrate. */
+.chat-onboard-input:where(:not([data-chat-profile-setup-view] *)) {
   flex: 1; min-width: 0; background: var(--bg-input, var(--bg-sidebar)); border: 1px solid var(--border);
   border-radius: var(--radius); color: var(--text-primary); padding: 7px 10px; font-size: 13px;
   font-family: var(--font-body); transition: border-color 0.2s;
 }
-.chat-onboard-input:focus { border-color: var(--accent); outline: none; }
-select.chat-onboard-input { background: var(--bg-input, var(--bg-sidebar)); color: var(--text-primary); }
-select.chat-onboard-input option { background: var(--select-popup-surface); color: var(--text-primary); }
-/* number-input + unit-select pair (Height, Weight). min-width:0 lets the
-   input shrink past its UA-default min, so the select doesn't push past
-   the chat bubble on narrow viewports. */
-.chat-onboard-input-with-unit { display: flex; gap: 6px; flex: 1; min-width: 0; }
-.chat-onboard-input-with-unit .chat-onboard-input { min-width: 0; }
-select.chat-onboard-unit-select {
-  flex: 0 0 62px; appearance: none; -webkit-appearance: none; -moz-appearance: none;
-  padding-right: 22px; cursor: pointer;
-  background-color: var(--bg-input, var(--bg-sidebar));
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238b8b9a' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: right 8px center;
-}
-select.chat-onboard-unit-select:hover { border-color: var(--accent); }
-.chat-onboard-sex { display: flex; gap: 4px; }
-.chat-onboard-more {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 68%, transparent), color-mix(in srgb, var(--bg-card) 42%, transparent)),
-    var(--bg-primary);
-}
-.chat-onboard-more summary {
-  padding: 10px 12px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 12px;
-  list-style: none;
-}
-.chat-onboard-more summary::-webkit-details-marker { display: none; }
-.chat-onboard-more summary::before {
-  content: '\25B8';
-  display: inline-block;
-  margin-right: 7px;
-  transition: transform 0.15s;
-}
-.chat-onboard-more[open] summary::before { transform: rotate(90deg); }
-.chat-onboard-more-body {
-  display: grid;
-  gap: 9px;
-  padding: 0 12px 12px;
-}
-.chat-onboard-lat {
-  color: var(--text-muted);
-  font-size: 12px;
-  min-height: 16px;
-}
-.chat-onboard-help {
-  color: var(--text-muted);
-  font-size: 11px;
-  line-height: 1.35;
-}
-.chat-onboard-next {
-  align-self: flex-end; padding: 7px 18px; border-radius: 8px; border: none;
-  background: var(--accent-gradient); color: white; font-size: 13px; font-weight: 500;
-  cursor: pointer; margin-top: 4px; transition: opacity 0.2s;
-}
-.chat-onboard-next:disabled { opacity: 0.4; cursor: not-allowed; }
-.chat-onboard-next:not(:disabled):hover { opacity: 0.9; }
+.chat-onboard-input:where(:not([data-chat-profile-setup-view] *)):focus { border-color: var(--accent); outline: none; }
+select.chat-onboard-input:where(:not([data-chat-profile-setup-view] *)) { background: var(--bg-input, var(--bg-sidebar)); color: var(--text-primary); }
+select.chat-onboard-input:where(:not([data-chat-profile-setup-view] *)) option { background: var(--select-popup-surface); color: var(--text-primary); }
 .chat-onboard-actions:where(:not([data-chat-provider-setup-view] *)) { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
 .chat-onboard-actions-row {
   flex-direction: row;
@@ -307,7 +246,7 @@ select.chat-onboard-unit-select:hover { border-color: var(--accent); }
 .chat-onboard-day { width: 48px; text-align: center; -moz-appearance: textfield; }
 .chat-onboard-day::-webkit-inner-spin-button,
 .chat-onboard-day::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-.chat-onboard-cycle-form .chat-onboard-next { align-self: flex-end; }
+.chat-onboard-cycle-form .chat-onboard-next:where(:not([data-chat-profile-setup-view] *)) { align-self: flex-end; }
 .chat-onboard-supps {
   font-size: 12px; color: var(--text-secondary); background: var(--bg-sidebar);
   border-radius: 8px; padding: 10px 12px; margin: 10px 0 0;
@@ -317,7 +256,7 @@ select.chat-onboard-unit-select:hover { border-color: var(--accent); }
 .chat-onboard-supp-form {
   display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
 }
-.chat-onboard-supp-form .chat-onboard-input { min-width: 80px; }
+.chat-onboard-supp-form .chat-onboard-input:where(:not([data-chat-profile-setup-view] *)) { min-width: 80px; }
 .chat-onboard-supp-add {
   width: 32px; height: 32px; border-radius: var(--radius); border: 1px solid var(--accent);
   background: transparent; color: var(--accent); font-size: 18px; cursor: pointer;

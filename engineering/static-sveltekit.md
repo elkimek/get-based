@@ -178,3 +178,14 @@ live-provider availability or installed-PWA acceptance. The
 [headless action and editor scenarios](../tests/playwright/chat-message-actions-owned.spec.ts)
 check literal text, stale clipboard replies, keyboard/focus behavior, mobile
 menus, coarse controls and six themes at desktop and narrow widths.
+
+Profile onboarding uses the same authored `ChatProfileSetup.svelte` in native
+and static entries. The [offline profile scenario](../tests/pwa/sveltekit-chat-onboarding-profile.spec.ts)
+opens the form for the first time after the origin is unavailable, saves all
+basic and optional fields, closes the page and verifies the restored form after
+a cached cold launch. A backup exported through Settings verifies the weight
+stored in the IndexedDB-backed profile blob and its correctly normalized manual
+wearable row. Startup maintenance may advance `lastUpdated`; every other profile
+field remains identical, and that timestamp cannot move backward. It also checks page errors and the
+deployed Content Security Policy; no source-module imports substitute for the
+static bundle or real form actions.

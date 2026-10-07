@@ -414,8 +414,8 @@ export async function migrateBiometricsToManual(profileId: string, biometrics: B
 
   for (const e of weight) {
     if (e?.date && typeof e.value === 'number' && isFinite(e.value)) {
-      // Units in the old store can be 'kg' or 'lb'; canonicalize to kg.
-      const v = e.unit === 'lb' ? e.value / 2.20462 : e.value;
+      // The onboarding form stores 'lbs'; older profile editors store 'lb'.
+      const v = weightToKilograms(e.value, e.unit);
       pushInto(e.date, { weight: v });
     }
   }
