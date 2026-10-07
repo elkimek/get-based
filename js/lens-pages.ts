@@ -6,6 +6,7 @@ import { getActiveData, filterDatesByRange, renderDateRangeFilter } from './data
 import {
   ensureSNPTable,
   loadContextHealthDots,
+  loadContextCardTips,
   renderMenstrualCycleSection,
   renderProfileContextCards,
   renderSupplementsSection,
@@ -302,6 +303,7 @@ export function createLensPageHandlers(deps: unknown) {
     main.innerHTML = html;
     loadFocusCard();
     loadContextHealthDots();
+    void loadContextCardTips();
   }
 
   function renderRecommendationsPageGroups(ctx: unknown, catalog: unknown) {

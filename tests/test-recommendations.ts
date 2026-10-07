@@ -35,7 +35,6 @@ const _realFetch = globalThis.fetch;
   const recRuntimeSrc = await fetchWithRetry('js/recommendations-runtime.js');
   const recRegionSrc = await fetchWithRetry('js/recommendations-region.js');
   const mainSrc = await fetchWithRetry('js/main.js');
-  const chatRenderSrc = await fetchWithRetry('js/chat-render.js');
   const chatSendSrc = await fetchWithRetry('js/chat-send.js');
   const viewsSrc = await fetchWithRetry('js/views.js');
   const recommendationActionsSrc = await fetchWithRetry('js/recommendation-actions.js');
@@ -233,12 +232,14 @@ const _realFetch = globalThis.fetch;
   assert('chat-send.js delegates supplement slot detection through runtime adapter',
     chatSendSrc.includes('detectChatSendSupplementSlots') &&
     chatSendSrc.includes("from './chat-send-runtime.js'"));
-  assert('chat-render.js delegates recommendation rendering through runtime adapter',
-    chatRenderSrc.includes('renderChatRecommendationSections')
-      && chatRenderSrc.includes("from './chat-render-runtime.js'")
-      && !/\bwindow(\.|\s*\[)/.test(chatRenderSrc));
+  const transcriptPresentation = read('/js/chat-transcript-presentation.js');
+  const recommendationsView = read('/js/components/ChatRecommendations.svelte');
+  assert('Chat presentation delegates recommendation rendering through runtime adapter',
+    transcriptPresentation.includes('renderChatRecommendationSections(message.recSlots)')
+      && transcriptPresentation.includes("from './chat-render-runtime.js'")
+      && !/\bwindow(\.|\s*\[)/.test(transcriptPresentation));
   assert('chat-send.js detects recSlots for live rendering', chatSendSrc.includes('_recSlots'));
-  assert('chat-render.js has rec-chat-wrapper class', chatRenderSrc.includes('rec-chat-wrapper'));
+  assert('Authored Chat recommendations retain the disclosure wrapper', recommendationsView.includes('rec-chat-wrapper') && recommendationsView.includes('<details'));
   assert('category-view-renderers.js has chart-rec placeholder in header', categoryViewRenderersSrc.includes('chart-rec-'));
   assert('category-view-renderers.js keeps chart title text separate from tips host', categoryViewRenderersSrc.includes('chart-card-title-text') && categoryViewRenderersSrc.includes('chart-card-tips-host'));
   assert('category-page-view.js imports chart card recommendation module', categoryPageViewSrc.includes("from './chart-card-recs.js'"));

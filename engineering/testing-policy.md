@@ -55,9 +55,17 @@ loads. [`context-status-owned.spec.ts`](../tests/playwright/context-status-owned
 checks actual shared views, themed narrow/wide styles including extracted notes,
 reduced motion, accessibility and keyboard tips across a delayed stylesheet. [`sveltekit-context-status.spec.ts`](../tests/pwa/sveltekit-context-status.spec.ts)
 checks actual static assessment caching and two offline cold launches with literal
-text and no new health inference. Existing
+text and no new health inference. The same static case opens the real catalog tips
+offline on first use and after each cold launch, including lazy CSS and keyboard close. Existing
 request/cache browser cases mount the same authored slots rather than fabricated
-global-ID spans. These checks do not prove complete migration of context editors
+global-ID spans. [`context-card-tips.test.ts`](../tests/context-card-tips.test.ts)
+checks authored dialog projection, SNP filtering, APOE ownership, strand-aware
+lookup, escaped metadata, study-link protocols and assessment reminder boundaries.
+[`context-tips-owned.spec.ts`](../tests/playwright/context-tips-owned.spec.ts) checks
+actual lazy modal rendering, all six themes at narrow/wide widths, accessibility,
+keyboard close/EMF actions and reuse after another editor. Existing recommendation
+browser contracts exercise the same authored tips renderer.
+These checks do not prove complete migration of context editors
 and nutrition fragments.
 
 The DOM sink audit compares every discovered HTML-writing operation with its

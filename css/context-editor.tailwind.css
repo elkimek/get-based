@@ -1,0 +1,6 @@
+/* Lazy context presentation retains the existing stylesheet URL and order. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+@source "../js/components/ContextCardTips.svelte";
+@custom-variant context-tips (&:is([data-context-tips-view], [data-context-tips-view] *));

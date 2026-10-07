@@ -429,7 +429,10 @@ export function openCardTipsModal(cardKey: string, ticket = contextCardStatusTic
   const overlay = document.getElementById('modal-overlay');
   const modal = document.getElementById('detail-modal');
   if (!overlay || !modal) return;
+  modal.className = 'modal';
   modal.innerHTML = html;
+  modal.removeAttribute('aria-labelledby');
+  modal.setAttribute('aria-label', modal.querySelector('[data-context-tips-view] h2')?.textContent?.trim() || 'Context tips');
   openModalOverlay(overlay);
 }
 

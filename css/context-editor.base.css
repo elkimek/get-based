@@ -470,20 +470,6 @@
   }
 }
 
-/* Tips modal */
-.ctx-tips-modal-header { font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; }
-.ctx-tip-slot { margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
-.ctx-tip-slot:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
-.ctx-tip-slot-label { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
-.ctx-tip-tier { margin-bottom: 8px; }
-.ctx-tip-tier:last-child { margin-bottom: 0; }
-.ctx-tip-tier-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); margin-bottom: 4px; }
-.ctx-tip-item { font-size: 13px; line-height: 1.6; color: var(--text-secondary); padding: 2px 0; }
-.ctx-tip-free { color: var(--green); }
-.ctx-tip-free::before { content: '\2192 '; opacity: 0.5; }
-.ctx-tip-form { font-size: 12px; color: var(--text-muted); font-style: italic; margin-top: 2px; }
-.ctx-tip-avoid { color: var(--orange); }
-
 /* Supplement imports share the lazy context editor stylesheet. */
 .supp-import-review {
   margin: 10px 0 14px; padding: 12px; border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));

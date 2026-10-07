@@ -92,6 +92,19 @@ Recommendation loading captures a presentation ticket and bridge identity before
 awaiting its catalog, rejects stale/disabled replies and exposes tips as keyboard
 buttons. Delayed tips stylesheet work checks its captured ticket, original control connection
 and enabled recommendation setting before opening.
+`context-card-tips-presentation.ts` projects card catalog sections, strand-aware
+DNA findings and evidence labels, safe study links and the existing latest-assessment
+EMF reminder rules. `ContextCardTips.svelte` owns escaped dialog markup and scoped
+Tailwind styles. Recommendations retain their public synchronous render contract
+through the compiled authored HTML entry; no native tips template remains.
+`css/context-editor.css` is generated from `context-editor.base.css` and
+`context-editor.tailwind.css` at the existing lazy URL. Its base retains unmigrated
+editors and supplement-import controls; tips no longer depend on native rules.
+Shared `link-ink` utilities use the theme’s readable accent-light text color;
+small helper text stays opaque and status text uses readable theme inks.
+Opening tips resets the reused detail modal layout and accessible name. Close and
+EMF controls use existing recommendation action services, with proper keyboard buttons.
+Insight schedules the same scoped tips loader as Dashboard after inserting its catalog.
 Card editor/explanation actions and nutrition fragments still use existing adapters.
 `context-notes-session.ts` captures accepted text and originating profile/data,
 serializes debounced scoped writes and retains retry drafts through catalog rebuilds

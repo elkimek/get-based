@@ -207,7 +207,10 @@ persists literal additional-context notes alongside imported DNA/mtDNA in the
 exported backup. The shared assessment/tips slots use independently hydrated authored boundaries,
 profile/data tickets and unique IDs. Simultaneous catalogs receive the same typed
 updates; removed or replaced profile views cannot receive new assessments or open
-late tips dialogs. Card editors and nutrition fragments remain separate work. Notes edits
+late tips dialogs. Tips dialogs share typed `context-card-tips-presentation.ts`
+projection and authored `ContextCardTips.svelte` markup with escaped catalog/genetics
+text, safe study links and keyboard close/EMF controls. Their lazy stylesheet keeps
+its original URL and ordering. Card editors and nutrition fragments remain separate work. Notes edits
 retain their originating profile through debounced scoped persistence, expose
 confirmed commit status through the shared authored `ContextNotes.svelte` component.
 Independent notes boundaries hydrate in place, retain textarea focus, use unique

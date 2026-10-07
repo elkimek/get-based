@@ -46,5 +46,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     await buildStyles({ check });
     await buildProtectionStyles({ check });
     await buildChatStyles({ check });
+    await compileStyles('context-editor.base.css', 'context-editor.tailwind.css', path.join(ROOT, 'css/context-editor.css'), check, 'Context editor');
     await compileStyles('context-profile.base.css', 'context-catalog.tailwind.css', path.join(ROOT, 'css/context-profile.css'), check, 'Context catalog');
 }

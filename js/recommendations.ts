@@ -1,3 +1,5 @@
+import { renderHTML as renderContextTipsHTML } from './components/ContextCardTips.svelte.html.js';
+import { contextTipsSlotKeys, projectContextTips } from './context-card-tips-presentation.js';
 import type { GeneticsData } from './dna-runtime.js';
 import type { WearableMetricSummary } from './wearables-summary-model.js';
 import type { RecommendationCatalog, RecommendationSectionOptions } from './recommendations-runtime.js';
@@ -192,106 +194,18 @@ export async function loadEMFCatalog() {
 // ═══════════════════════════════════════════════
 // CARD TIPS — lifestyle slots for context cards
 // ═══════════════════════════════════════════════
-const CARD_NAMES: Readonly<Record<string, string>> = {
-  sleepRest: 'Sleep & Rest', lightCircadian: 'Light & Circadian',
-  environment: 'Environment', exercise: 'Exercise',
-  diet: 'Diet & Digestion', stress: 'Stress'
-};
-
 export function getCardSlotKeys(cardKey: string) {
-  if (!_catalog || !_catalog.slots) return [];
-  const cardName = CARD_NAMES[cardKey];
-  if (!cardName) return [];
-  return Object.keys(_catalog.slots).filter(k => _catalog!.slots[k]!.card === cardName);
-}
-
-const CARD_LABELS: Readonly<Record<string, { emoji: string; label: string }>> = {
-  sleepRest: { emoji: '\uD83D\uDE34', label: 'Sleep & Rest' },
-  lightCircadian: { emoji: '\u2600\uFE0F', label: 'Light & Circadian' },
-  environment: { emoji: '\uD83C\uDF0D', label: 'Environment' },
-  exercise: { emoji: '\uD83C\uDFCB\uFE0F', label: 'Exercise' },
-  diet: { emoji: '\uD83E\uDD57', label: 'Diet & Digestion' },
-  stress: { emoji: '\uD83E\uDDE0', label: 'Stress' }
-};
-
-function _buildCardDNASection(cardKey: string) {
-  const genetics = state.importedData?.genetics as GeneticsData | null | undefined;
-  if (!genetics || !genetics.snps) return '';
-  const snpTable = getRecommendationsSnpTable();
-  if (!snpTable) return '';
-  const hints: string[] = [];
-  const apoeRsids = new Set(['rs429358', 'rs7412']);
-  for (const [rsid, stored] of Object.entries(genetics.snps)) {
-    if (genetics.apoe && apoeRsids.has(rsid)) continue;
-    const entry = snpTable[rsid];
-    if (!entry || !entry.snpHints || !entry.contextCards || !entry.contextCards.includes(cardKey)) continue;
-    const g = stored.genotype;
-    if (!g) continue;
-    const hint = findSnpHint(entry, g);
-    if (!hint) continue;
-    const info = findGenotypeInfo(entry, g);
-    if (info && info.effect === 'none') continue;
-    const isAvoid = hint.direction === 'avoid';
-    const icon = isAvoid ? '\u26A0' : '\u2192';
-    const cls = isAvoid ? ' ctx-tip-avoid' : ' ctx-tip-free';
-    const refLink = hint.ref && /^https?:\/\//.test(hint.ref) ? ` <a href="${escapeHTML(hint.ref)}" target="_blank" rel="noopener" style="font-size:11px;color:var(--accent);opacity:0.6">study</a>` : '';
-    const profile = resolveSnpEvidenceProfile(entry, info);
-    hints.push(`<div class="ctx-tip-item${cls}">${icon} <strong>${escapeHTML(stored.gene)}</strong> ${escapeHTML(g)} \u2014 ${escapeHTML(hint.text)} <span class="rec-dna-evidence">Evidence · ${escapeHTML(profile.evidenceShortLabel)} · ${escapeHTML(profile.relevanceShortLabel)}</span>${refLink}</div>`);
-  }
-  if (!hints.length) return '';
-  return `<div class="ctx-tip-slot"><div class="ctx-tip-slot-label">Your Genetics</div>${hints.join('')}</div>`;
+  return contextTipsSlotKeys(_catalog, cardKey);
 }
 
 export function renderCardTipsModal(cardKey: string) {
-  if (!isProductRecsEnabled() || !_catalog || !_catalog.slots) return '';
-  const slotKeys = getCardSlotKeys(cardKey);
-  if (!slotKeys.length) return '';
-  const cardInfo = CARD_LABELS[cardKey] || { emoji: '', label: cardKey };
-  let items = _buildCardDNASection(cardKey);
-  for (const sk of slotKeys) {
-    const slot = _catalog.slots[sk];
-    if (!slot) continue;
-    const label = escapeHTML(slot.label || sk.split('.').pop());
-    let tips = '';
-    if (slot.freeActions?.length) {
-      tips += `<div class="ctx-tip-tier"><div class="ctx-tip-tier-label">LIFESTYLE IDEAS <span class="rec-tier-hint">general information</span></div>`;
-      tips += slot.freeActions.map(a => `<div class="ctx-tip-item ctx-tip-free">${escapeHTML(a)}</div>`).join('');
-      tips += `</div>`;
-    }
-    if (slot.forms?.length) {
-      tips += `<div class="ctx-tip-tier"><div class="ctx-tip-tier-label">TOOLS & SUPPLEMENTS <span class="rec-tier-hint">options to review</span></div>`;
-      tips += `<div class="ctx-tip-item ctx-tip-form">${slot.forms.map(f => escapeHTML(f)).join(' · ')}</div>`;
-      tips += `</div>`;
-    }
-    if (tips) items += `<div class="ctx-tip-slot"><div class="ctx-tip-slot-label">${label}</div>${tips}</div>`;
-  }
-  if (cardKey === 'environment') items += _buildEMFNudge();
-  if (!items) return '';
-  return `<button type="button" class="modal-close" ${recActionAttrs('close-modal')} aria-label="Close">\u00D7</button>
-    <div class="ctx-tips-modal-header">${cardInfo.emoji} ${escapeHTML(cardInfo.label)} \u2014 Tips</div>
-    <div class="ctx-tips-modal-body">${items}</div>
-    <div class="rec-mini-disclaimer" style="margin-top:12px">General information only — not individualized medical advice or a care plan. Do not start, stop, or change medication or supplements based only on these tips. Discuss relevant options with a qualified healthcare professional.</div>`;
-}
-
-// Quiet, contextual EMF assessment nudge for the Environment card.
-// Single one-line link when no EMF assessment yet, or latest is older
-// than 120d. Empty otherwise so we don't nag users keeping up.
-function _buildEMFNudge() {
-  const assessments = (state.importedData?.emfAssessment as EmfAssessmentSnapshot | null | undefined)?.assessments || [];
-  if (!assessments.length) {
-    return `<div class="ctx-tip-emf-nudge"><span aria-hidden="true">💡</span> Want to measure your home's EMF environment? <a href="#" ${recActionAttrs('open-emf-assessment')} data-umami-event="emf-nudge-env-tips-noassessment">Open the EMF assessment →</a></div>`;
-  }
-  const latest = assessments.reduce((a, b) => (a.date > b.date ? a : b));
-  const ageDays = (Date.now() - new Date(latest.date + 'T00:00:00').getTime()) / 86400000;
-  // 120 days ≈ 4 months — long enough that a re-check is genuinely useful (sources
-  // shift: new neighbor, new appliance, new cell tower), short enough that demo
-  // profiles with semi-fresh assessments still surface the "stale" path.
-  if (ageDays > 120) {
-    const months = Math.round(ageDays / 30);
-    const span = months >= 12 ? 'over a year' : `${months} ${months === 1 ? 'month' : 'months'}`;
-    return `<div class="ctx-tip-emf-nudge"><span aria-hidden="true">💡</span> Your last EMF check was ${span} ago. <a href="#" ${recActionAttrs('open-emf-assessment')} data-umami-event="emf-nudge-env-tips-stale">Re-check the room →</a></div>`;
-  }
-  return '';
+  const view = projectContextTips({
+    cardKey, enabled: isProductRecsEnabled(), catalog: _catalog,
+    genetics: state.importedData?.genetics as GeneticsData | null | undefined,
+    snpTable: getRecommendationsSnpTable(),
+    assessments: (state.importedData?.emfAssessment as EmfAssessmentSnapshot | null | undefined)?.assessments,
+  });
+  return view ? renderContextTipsHTML({ view }) : '';
 }
 
 // ═══════════════════════════════════════════════

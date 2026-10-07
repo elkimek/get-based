@@ -21,6 +21,7 @@
   --color-secondary: var(--text-secondary);
   --color-muted: var(--text-muted);
   --color-accent: var(--accent);
+  --color-link-ink: var(--accent-light, var(--accent));
   --color-on-accent: var(--on-accent);
   --radius-control: var(--radius-sm);
   --font-body: var(--font-body);

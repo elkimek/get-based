@@ -1902,3 +1902,7 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/context-card-status.js
 /js/context-card-status-view.js
 /tests/helpers/context-card-status-fixture.js
+
+# Lazy authored context tips presentation and stylesheet.
+/css/context-editor.css
+/js/context-card-tips-presentation.js

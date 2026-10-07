@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1113 |
-| Internal import edges | 4093 |
+| Modules | 1115 |
+| Internal import edges | 4097 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -806,7 +806,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>context</code> family — 22 modules</summary>
+<details><summary><code>context</code> family — 23 modules</summary>
 
 - [`js/context-card-catalog-classes.ts`](js/context-card-catalog-classes.ts) → no in-scope imports
 - [`js/context-card-catalog-presentation.ts`](js/context-card-catalog-presentation.ts) → no in-scope imports
@@ -825,6 +825,7 @@ Native browser modules shipped with the static application.
 - [`js/context-card-status-view.ts`](js/context-card-status-view.ts) → [`js/components/ContextCardStatus.svelte`](js/components/ContextCardStatus.svelte), [`js/context-card-status.ts`](js/context-card-status.ts)
 - [`js/context-card-status.ts`](js/context-card-status.ts) → [`js/state.ts`](js/state.ts)
 - [`js/context-card-summaries.ts`](js/context-card-summaries.ts) → [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/context-card-tips-presentation.ts`](js/context-card-tips-presentation.ts) → [`js/dna-evidence.ts`](js/dna-evidence.ts), [`js/dna-genotype.ts`](js/dna-genotype.ts)
 - [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts)
 - [`js/context-cards.ts`](js/context-cards.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/components/ContextCardCatalog.svelte`](js/components/ContextCardCatalog.svelte), [`js/context-card-catalog-presentation.ts`](js/context-card-catalog-presentation.ts), [`js/context-card-dashboard-ai.ts`](js/context-card-dashboard-ai.ts), [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/context-card-health-dots.ts`](js/context-card-health-dots.ts), [`js/context-card-lifestyle-editors.ts`](js/context-card-lifestyle-editors.ts), [`js/context-card-medical-history-editor.ts`](js/context-card-medical-history-editor.ts), [`js/context-card-status-view.ts`](js/context-card-status-view.ts), [`js/context-card-status.ts`](js/context-card-status.ts), [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/context-notes-session.ts`](js/context-notes-session.ts), [`js/context-notes-view.ts`](js/context-notes-view.ts), [`js/data.ts`](js/data.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-context-card-extensions.ts`](js/nutrition-context-card-extensions.ts), [`js/nutrition-context.ts`](js/nutrition-context.ts) *(dynamic)*, [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/context-notes-session.ts`](js/context-notes-session.ts) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/data.ts`](js/data.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/state.ts`](js/state.ts)
@@ -842,6 +843,12 @@ Native browser modules shipped with the static application.
 <details><summary><code>ContextCardStatus.svelte</code> family — 1 module</summary>
 
 - [`js/components/ContextCardStatus.svelte`](js/components/ContextCardStatus.svelte) → [`js/context-card-catalog-classes.ts`](js/context-card-catalog-classes.ts), [`js/context-card-status.ts`](js/context-card-status.ts)
+
+</details>
+
+<details><summary><code>ContextCardTips.svelte</code> family — 1 module</summary>
+
+- [`js/components/ContextCardTips.svelte`](js/components/ContextCardTips.svelte) → no in-scope imports
 
 </details>
 
@@ -1615,7 +1622,7 @@ Native browser modules shipped with the static application.
 - [`js/recommendations-products.ts`](js/recommendations-products.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendations-region.ts`](js/recommendations-region.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/recommendations-region.ts`](js/recommendations-region.ts) → no in-scope imports
 - [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts) → [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
-- [`js/recommendations.ts`](js/recommendations.ts) → [`js/dna-evidence.ts`](js/dna-evidence.ts), [`js/dna-genotype.ts`](js/dna-genotype.ts), [`js/recommendations-products.ts`](js/recommendations-products.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/recommendations.ts`](js/recommendations.ts) → [`js/components/ContextCardTips.svelte`](js/components/ContextCardTips.svelte), [`js/context-card-tips-presentation.ts`](js/context-card-tips-presentation.ts), [`js/dna-evidence.ts`](js/dna-evidence.ts), [`js/dna-genotype.ts`](js/dna-genotype.ts), [`js/recommendations-products.ts`](js/recommendations-products.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 

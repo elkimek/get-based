@@ -14,6 +14,18 @@ async function insight(page: Page) {
   if (await menu.isVisible()) await menu.click();
   await link.click(); await expect(page.locator('#main-content [data-context-cards-view]')).toBeVisible();
 }
+async function openCachedTips(page: Page) {
+  const diet = page.locator('#main-content [data-context-card-key="diet"]');
+  await diet.getByRole('button', { name: 'Lifestyle tips for Diet & Digestion' }).click();
+  const modal = page.locator('#detail-modal');
+  await expect(modal.locator('[data-context-tips-view] h2')).toHaveText(/Diet & Digestion — Tips/);
+  await expect(modal).toContainText('Digestive enzyme support');
+  await expect(modal).toContainText('not individualized medical advice or a care plan');
+  await expect(modal.locator('.ctx-tip-slot-label').first()).toHaveCSS('font-size', '13px');
+  await modal.getByRole('button', { name: 'Close', exact: true }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/);
+}
 test('static authored context assessments restore cached literal summaries across offline cold launches without new inference', async ({ page, context }) => {
   test.setTimeout(120000);
   const errors: string[] = [], csp: string[] = [];
@@ -51,7 +63,7 @@ test('static authored context assessments restore cached literal summaries acros
     const cache = await page.evaluate(() => localStorage.getItem('labcharts-default-contextHealth'));
     expect(JSON.parse(cache!)).toMatchObject({ dots: { diet: 'yellow' }, summaries: { diet: 'Literal <tip> & cached' }, cardSummaries: { diet: 'Reported eggs' }, fingerprints: { diet: expect.any(String) } });
     expect(await page.evaluate(() => Number(Reflect.get(window, 'contextHealthRequests')))).toBeGreaterThan(0);
-    server.state.offline = true; await page.close();
+    server.state.offline = true; await openCachedTips(page); await page.close();
     for (let launch = 0; launch < 2; launch++) {
       const cold = await context.newPage(); await cold.goto(server.origin + '/app?dev-sw=1'); await ready(cold); await insight(cold);
       const restored = cold.locator('#main-content [data-context-card-key="diet"]');
@@ -59,6 +71,7 @@ test('static authored context assessments restore cached literal summaries acros
       await expect(restored.locator('.ctx-ai-summary')).toContainText('Literal <tip> & cached');
       await expect(restored.locator('.ctx-health-label')).toHaveText('Caution');
       expect(await restored.locator('tip, img, script').count()).toBe(0);
+      await openCachedTips(cold);
       expect(await cold.evaluate(() => Number(Reflect.get(window, 'contextHealthRequests')))).toBe(0);
       expect(await cold.evaluate(() => localStorage.getItem('labcharts-default-contextHealth'))).toBe(cache);
       await cold.close();

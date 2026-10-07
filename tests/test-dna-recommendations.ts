@@ -185,21 +185,20 @@ assert('detectSupplementSlots verifies slot exists in catalog', recSrc.includes(
 // ═══════════════════════════════════════
 console.log('6. Card DNA Section');
 
-// DNA info is inside the Tips modal via _buildCardDNASection in recommendations.js.
-// (Original Playwright test read recommendations.js a second time here; under
-// Node's module cache the duplicate read is wasteful, so reuse `recSrc` from above.)
-assert('_buildCardDNASection checks contextCards', recSrc.includes('entry.contextCards'));
-assert('_buildCardDNASection checks snpHints', recSrc.includes('!entry.snpHints'));
-assert('_buildCardDNASection skips effect=none', recSrc.includes("effect === 'none'"));
+const tipsProjectionSrc = read('js/context-card-tips-presentation.js');
+const tipsComponentSrc = read('js/components/ContextCardTips.svelte');
+assert('Card DNA projection checks contextCards', tipsProjectionSrc.includes('entry.contextCards'));
+assert('Card DNA projection checks snpHints', tipsProjectionSrc.includes('entry?.snpHints'));
+assert('Card DNA projection skips effect=none', tipsProjectionSrc.includes('effect === "none"') || tipsProjectionSrc.includes("effect === 'none'"));
 
 // ═══════════════════════════════════════
 // 7. Context card Tips badge rendering
 // ═══════════════════════════════════════
 console.log('7. Context Card Tips Badges');
-assert('recommendations.js has _buildCardDNASection', recSrc.includes('function _buildCardDNASection'));
-assert('Card DNA section checks contextCards', recSrc.includes('entry.contextCards'));
-assert('Card DNA section shows gene name', recSrc.includes('stored.gene'));
-assert('Card DNA section shows avoid styling', recSrc.includes('ctx-tip-avoid'));
+assert('Card tips use authored markup from a typed projection', recSrc.includes('projectContextTips') && recSrc.includes('renderContextTipsHTML'));
+assert('Card DNA section checks contextCards', tipsProjectionSrc.includes('entry.contextCards'));
+assert('Card DNA section shows gene name', tipsComponentSrc.includes('{finding.gene}'));
+assert('Card DNA section shows avoid styling', tipsComponentSrc.includes('ctx-tip-avoid') && tipsComponentSrc.includes('text-[var(--orange)]'));
 
 // ═══════════════════════════════════════
 // 8. CSS classes
@@ -211,7 +210,7 @@ assert('CSS has .rec-dna-row', cssSrc.includes('.rec-dna-row'));
 assert('CSS has .rec-dna-avoid', cssSrc.includes('.rec-dna-avoid'));
 assert('CSS has .rec-dna-ref', cssSrc.includes('.rec-dna-ref'));
 assert('CSS has .rec-dna-evidence', cssSrc.includes('.rec-dna-evidence'));
-assert('CSS has .ctx-tip-avoid', cssSrc.includes('.ctx-tip-avoid'));
+assert('Authored avoidance colors are generated from the theme', tipsComponentSrc.includes('text-[var(--orange)]') && cssSrc.includes('color:var(--orange)'));
 assert('CSS has .ctx-tips-badge', cssSrc.includes('.ctx-tips-badge'));
 
 // (The original Playwright test verified `.rec-dna-hints` was actually loaded
