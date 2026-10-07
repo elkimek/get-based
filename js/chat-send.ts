@@ -3,9 +3,8 @@
 import { state } from './state.js';
 import type {ActiveChatGenerationUI,ChatSendOptions,ChatSendMessage,TypewriterTarget,VisionMessages,RawImageFormatter,RawVisionBuilder,RawAgentCaller,RawDirectCaller,RawSendError,EMFAssessmentOperations,RawAttachments} from '../types/chat-send.js';
 import { CHAT_SYSTEM_PROMPT } from './chat-system-prompt.js';
-import { calculateCost, formatCost, trackUsage } from './schema.js';
-import { escapeHTML, showNotification } from './utils.js';
-import { shouldHideAppExtensionAIUsage } from './app-extension-runtime.js';
+import { trackUsage } from './schema.js';
+import { showNotification } from './utils.js';
 import {
   getActiveModelDisplay, getActiveModelId, getAIProvider,
   isPpqPrivateModeActive, isRoutstrPrivateModeActive, isVeniceE2EEActive, supportsWebSearch,
@@ -21,23 +20,22 @@ import {
 import { autoNameThread, createNewThread } from './chat-threads.js';
 import { injectLensChunks } from './lab-context.js';
 import { hasLens, queryLensMulti } from './lens.js';
-import { renderMarkdown } from './markdown.js';
+import { createChatLiveMessage, completeChatLiveMessage, publishChatLiveText } from './chat-live-message-component.js';
+import type { ChatLiveMessageHandle } from './chat-live-message-component.js';
 import { setIconButtonContent } from './chat-icons.js';
-import { _renderLensSources, renderChatMessages } from './chat-render.js';
+import { renderChatMessages } from './chat-render.js';
 import {
   CHAT_RESPONSE_MAX_TOKENS, callChatAPIWithContinuation,
-  isAIResponseTruncated, responseLimitNote,
+  isAIResponseTruncated,
 } from './chat-continuation.js';
 import {
   attachLensSources, buildChatLabContext, buildChatSystemPrompt, buildMultiPersonaInstruction,
   buildPersonalityPrompt, buildTaggedChatMessages, buildWebSearchHint,
 } from './chat-prompt-context.js';
-import { e2eeLockFootnote } from './chat-attestation.js';
 import {
   getActivePersonality, getCustomPersonality, updateChatHeaderTitle,
 } from './chat-personalities.js';
 import { canSaveChatHistory, saveChatHistory } from './chat-history.js';
-import { buildActionBar, chatMessageActionAttrs } from './chat-actions.js';
 import { getChatWebSearchEnabled, isChatThreadInputBlocked } from './chat-panel.js';
 import {
   getCurrentDiscussionState, sendDiscussionUserTurn, updateDiscussButton,
@@ -53,7 +51,7 @@ import {
   initChatScrollControls, notifyChatContentAdded,
 } from './chat-scroll.js';
 import {
-  getRecommendationDisclosureState, recommendationSummaryHTML, startRecommendationAttention,
+  getRecommendationDisclosureState,
 } from './chat-recommendation-disclosure.js';
 import {
   getPendingChatMessageEditText,
@@ -71,12 +69,11 @@ import { isPersonalAgentTarget } from './agent-chat-context.js';
 import { mergeAgentContextReceipts } from './agent-tool-runtime.js';
 import { getDirectChatReasoningEffort } from './chat-model-preferences.js';
 import {
-  applyChatMessageAvatar, shouldShowChatPersonaLabel,
+  shouldShowChatPersonaLabel,
 } from './chat-message-avatars.js';
 import {
   createChatThinkingIndicator, stopChatThinkingStatus,
 } from './chat-thinking-status.js';
-import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
 
 // ═══════════════════════════════════════════════
 // ABORT CONTROLLER (stop streaming)
@@ -92,6 +89,7 @@ export function isChatStreaming() {
     _chatAbortController?.abort();
     stopChatThinkingStatus(_activeChatGenerationUI.typingEl);
     _activeChatGenerationUI.typingEl.remove();
+    _activeChatGenerationUI.dispose();
     _activeChatGenerationUI = null;
     _chatAbortController = null;
     setSendButtonMode(document.getElementById('chat-send-btn'), 'idle');
@@ -126,12 +124,8 @@ export function restoreChatGenerationUI() {
   if (!active.isCurrent()) return false;
   const container = (document.getElementById('chat-messages') as HTMLElement|null) || active.container;
   active.container = container;
-  if (active.aiMsgEl?.textContent) {
-    if (active.labelEl && !active.labelEl.isConnected) container.appendChild(active.labelEl);
-    if (!active.aiMsgEl!.isConnected) container.appendChild(active.aiMsgEl);
-  } else if (!active.typingEl.isConnected) {
-    container.appendChild(active.typingEl);
-  }
+  active.restore(container);
+  if (!active.aiMsgEl?.textContent && !active.typingEl.isConnected) container.appendChild(active.typingEl);
   setChatStreamStatus(`${active.personalityName} is responding.`, { busy: true });
   notifyChatContentAdded(container);
   return true;
@@ -154,7 +148,7 @@ export function createTypewriter(el: HTMLElement, typingEl: HTMLElement, contain
     stopChatThinkingStatus(typingEl);
     if (typingEl.parentNode) typingEl.remove();
     if (!el.parentNode) container.appendChild(el);
-    (el as {textContent:unknown}).textContent = (target as TypewriterTarget).slice(0, displayed);
+    publishChatLiveText(el, (target as TypewriterTarget).slice(0, displayed));
     notifyChatContentAdded(container);
     timer = setTimeout(tick, 16);
   }
@@ -169,7 +163,7 @@ export function createTypewriter(el: HTMLElement, typingEl: HTMLElement, contain
         stopChatThinkingStatus(typingEl);
         if (typingEl.parentNode) typingEl.remove();
         if (!el.parentNode) container.appendChild(el);
-        (el as {textContent:unknown}).textContent = target;
+        publishChatLiveText(el, target);
         notifyChatContentAdded(container);
         return;
       }
@@ -263,7 +257,8 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
   const revision = ++chatSendRevision;
   const profile = state.currentProfile;
   let threadId = state.currentThreadId;
-  const scopeIsCurrent = () => revision === chatSendRevision && profile === state.currentProfile && threadId === state.currentThreadId;
+  let generationHistory: typeof state.chatHistory | null = null;
+  const scopeIsCurrent = () => (!generationHistory || generationHistory === state.chatHistory) && revision === chatSendRevision && profile === state.currentProfile && threadId === state.currentThreadId;
   if (useCodexAgent && hasImages && !getAssistantExecutionRoute().inputModalities?.includes('image')) {
     showNotification('The selected CLI model does not report image support.', 'info');
     return;
@@ -312,6 +307,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
   }
   (state.chatHistory.push as (...messages:unknown[])=>number)(userMsg);
   const sendingHistory = state.chatHistory;
+  generationHistory = sendingHistory;
   renderChatMessages();
   let saved = false;
   chatSavePending = true;
@@ -361,6 +357,8 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     labelEl: null,
     personalityName: getActivePersonality().name,
     isCurrent: scopeIsCurrent,
+    restore: next => liveMessage?.restore(next),
+    dispose: () => liveMessage?.dispose(),
   };
   _activeChatGenerationUI = generationUI;
   setSendButtonMode(sendBtn, 'streaming');
@@ -376,7 +374,8 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
   const _msgAttestation = useCodexAgent ? null : getChatSendProviderAttestation(_msgProvider);
   const webSearchSupported = !useCodexAgent && supportsWebSearch(_msgProvider);
   const webSearchEnabled = getChatWebSearchEnabled() && webSearchSupported;
-  let aiMsgEl: HTMLDivElement|null = null;
+  let aiMsgEl: HTMLElement|null = null;
+  let liveMessage: ChatLiveMessageHandle | null = null;
   let typewriter: ReturnType<typeof createTypewriter>|null = null;
 
   try {
@@ -423,31 +422,12 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
       };
     }
 
-    // Show persona label if personality changed from last AI message
     const lastAiMsg = [...state.chatHistory].reverse().find(m => m.role === 'assistant');
-    if (shouldShowChatPersonaLabel({ personalityName: personality.name })
-      && (!lastAiMsg || lastAiMsg.personalityName !== personality.name)) {
-      const labelEl = document.createElement('div');
-      labelEl.className = 'chat-persona-label';
-      labelEl.textContent = `${personality.icon || ''} ${personality.name}`;
-      container.appendChild(labelEl);
-      if (_activeChatGenerationUI) _activeChatGenerationUI.labelEl = labelEl;
-    }
-
-    // Create AI message placeholder
-    aiMsgEl = document.createElement('div');
-    aiMsgEl.className = 'chat-msg chat-ai';
-    aiMsgEl.setAttribute('role', 'article');
-    aiMsgEl.setAttribute('aria-label', `${personality.name} response`);
-    aiMsgEl.dataset.chatStreaming = 'true';
-    aiMsgEl.style.whiteSpace = 'pre-wrap';
-    applyChatMessageAvatar(aiMsgEl, {
-      role: 'assistant',
-      personalityName: personality.name,
-      personalityIcon: personality.icon,
-      agentId: _msgAgentId,
-    });
-    if (_activeChatGenerationUI) _activeChatGenerationUI.aiMsgEl = aiMsgEl;
+    const label = shouldShowChatPersonaLabel({ personalityName: personality.name }) && (!lastAiMsg || lastAiMsg.personalityName !== personality.name)
+      ? `${personality.icon || ''} ${personality.name}` : null;
+    liveMessage = createChatLiveMessage(container, { personalityName: personality.name, personalityIcon: personality.icon, agentId: _msgAgentId }, scopeIsCurrent, label);
+    aiMsgEl = liveMessage.element;
+    generationUI.aiMsgEl = aiMsgEl;
 
     // Typewriter: trickle buffered text at a steady rate for smooth appearance
     typewriter = createTypewriter(aiMsgEl, typingEl, container, scopeIsCurrent);
@@ -507,48 +487,9 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     const usage = (aiResult.usage as {inputTokens?:number;outputTokens?:number}|undefined);
     const responseTruncated = (isAIResponseTruncated as (result:{truncated?:unknown;finishReason?:unknown})=>ReturnType<typeof isAIResponseTruncated>)(aiResult);
 
-    // Final render with full markdown
     typewriter.stop();
-    aiMsgEl.style.whiteSpace = '';
-    delete aiMsgEl.dataset.chatStreaming;
     stopChatThinkingStatus(typingEl);
-    if (typingEl.parentNode) typingEl.remove();
-    if (!aiMsgEl.parentNode) container.appendChild(aiMsgEl);
-
-    aiMsgEl.innerHTML = renderMarkdown(fullText);
-    if (responseTruncated) aiMsgEl.insertAdjacentHTML('beforeend', responseLimitNote());
-    // Cost footnote
-    if (!useCodexAgent && usage && (usage.inputTokens || usage.outputTokens) && !shouldHideAppExtensionAIUsage(_msgProvider)) {
-      const cost = calculateCost(_msgProvider, _msgModelId, usage.inputTokens, usage.outputTokens);
-      const totalTokens = (usage.inputTokens || 0) + (usage.outputTokens || 0);
-      const webTag = webSearchEnabled ? ' \u00b7 \ud83c\udf10 web' : '';
-      const e2eeTag = _msgE2EE ? e2eeLockFootnote(getChatSendProviderAttestation(_msgProvider)) : '';
-      const footnote = document.createElement('div');
-      footnote.className = 'chat-cost-footnote';
-      footnote.innerHTML = `${escapeHTML(_msgModelDisplay)} \u00b7 ${escapeHTML(formatCost(cost))} \u00b7 ${totalTokens.toLocaleString()} tokens${webTag}${e2eeTag}`;
-      aiMsgEl!.appendChild(footnote);
-    } else if (useCodexAgent) {
-      const footnote = document.createElement('div');
-      footnote.className = 'chat-cost-footnote';
-      const webTag = ((aiResult as Awaited<ReturnType<typeof callCodexAgent>>)).webSearches?.length ? ' · 🌐 web' : '';
-      footnote.textContent = `${_msgModelDisplay} · CLI subscription${webTag}`;
-      aiMsgEl!.appendChild(footnote);
-    }
-
-    const attribution = getAIOutputAttribution({
-      provider: _msgProvider,
-      agentId: _msgAgentId,
-      modelId: _msgModelId,
-      modelDisplay: _msgModelDisplay,
-    });
-    // Match restored transcripts: retain Grok branding, not a generic label on
-    // every reply. First-use AI disclosure and standalone exports are separate.
-    if (attribution === 'Written with Grok') {
-      const attributionEl = document.createElement('div');
-      attributionEl.className = 'chat-provider-attribution';
-      attributionEl.textContent = attribution;
-      aiMsgEl!.appendChild(attributionEl);
-    }
+    typingEl.remove();
 
     // Build assistant message object with context snapshot
     const assistantMsg: ChatSendMessage = { role: 'assistant', content: fullText, context: contextSnapshot, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay };
@@ -596,71 +537,27 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
         const lastShown = parseInt(localStorage.getItem(flagKey) || '0', 10);
         const COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000;
         if (lastShown && (Date.now() - lastShown) < COOLDOWN_MS) return;
-        // Only persist the hint + cooldown once we've actually injected the
-        // DOM node — otherwise a torn-down message (stop, regenerate, error)
-        // would silently consume the 30-day cooldown.
         if (!aiMsgEl?.isConnected) return;
-        const hintEl = document.createElement('div');
-        hintEl.className = 'chat-emf-hint';
-        hintEl.innerHTML = `<span aria-hidden="true">💡</span> Curious about your EMF environment? <a href="#" ${chatMessageActionAttrs('open-emf-assessment')} data-umami-event="emf-nudge-chat">Open the assessment →</a>`;
-        const actionBar = aiMsgEl!.querySelector('.chat-action-bar');
-        if (actionBar) aiMsgEl!.insertBefore(hintEl, actionBar);
-        else aiMsgEl!.appendChild(hintEl);
         assistantMsg.emfHint = true;
-        localStorage.setItem(flagKey, String(Date.now()));
+        completeChatLiveMessage(aiMsgEl, assistantMsg as (typeof state.chatHistory)[number]);
+        if (aiMsgEl.querySelector('.chat-emf-hint')) localStorage.setItem(flagKey, String(Date.now()));
+        else delete assistantMsg.emfHint;
       } catch {}
     })();
 
-    await saveChatHistory(); // persist before any sync-triggered chat reload can repaint older storage
+    completeChatLiveMessage(aiMsgEl, assistantMsg as (typeof state.chatHistory)[number]);
+    await saveChatHistory();
     if (!scopeIsCurrent()) return;
-
-    if (assistantMsg.lensSources?.length) {
-      const lensContainer = document.createElement('div');
-      lensContainer.innerHTML = _renderLensSources(assistantMsg.lensSources, assistantMsg.lensSourceName);
-      while (lensContainer.firstChild) aiMsgEl!.appendChild(lensContainer.firstChild);
-    }
-
-    // Append action bar
+    liveMessage.dispose();
+    renderChatMessages({ preserveScroll: true, attentionMessage: assistantMsg });
     const msgIndex = state.chatHistory.length - 1;
-    const actionBarHtml = buildActionBar(msgIndex);
-    const actionBarContainer = document.createElement('div');
-    actionBarContainer.innerHTML = actionBarHtml;
-    while (actionBarContainer.firstChild) aiMsgEl!.appendChild(actionBarContainer.firstChild);
-
-    // Async-render supplement recommendations before action bar
     const recommendationRuntime = getChatSendRecommendationRuntime();
     if (_recSlots.length && recommendationRuntime) {
-      const { renderRecommendationSectionSync, loadCatalog } = recommendationRuntime;
-      loadCatalog().then(catalog => {
-        if (!scopeIsCurrent() || !catalog?.slots || !aiMsgEl!.isConnected) return;
-        const sections = _recSlots.map(slot => {
-          const slotLabel = catalog.slots[slot as string]?.label || (slot as {split(separator:string):string[]}).split('.').pop();
-          return (renderRecommendationSectionSync as (slot:unknown,options:Parameters<typeof renderRecommendationSectionSync>[1])=>ReturnType<typeof renderRecommendationSectionSync>)(slot, { label: slotLabel, maxProducts: 2 });
-        }).filter(Boolean);
-        if (!sections.length) return;
-        const wrapper = document.createElement('details');
-        wrapper.className = `rec-chat-wrapper${assistantMsg.recNew ? ' rec-chat-unseen' : ''}`;
-        wrapper.open = Boolean(assistantMsg.recOpen);
-        wrapper.setAttribute('data-chat-message-index', String(msgIndex));
-        wrapper.addEventListener('click', e => e.stopPropagation());
-        const summary = document.createElement('summary');
-        summary.className = 'rec-chat-summary';
-        summary.innerHTML = recommendationSummaryHTML(sections.length, Boolean(assistantMsg.recNew));
-        wrapper.appendChild(summary);
-        const body = document.createElement('div');
-        body.innerHTML = sections.join('');
-        // Deduplicate disclosure banners
-        const banners = body.querySelectorAll('.rec-disclosure-banner');
-        for (let i = 1; i < banners.length; i++) banners[i]!.remove();
-        // Downgrade per-section headers to subheadings (shared header is the <summary>)
-        body.querySelectorAll('.rec-section-header').forEach(h => h.className = 'rec-chat-subheading');
-        wrapper.appendChild(body);
-        const actionBar = aiMsgEl!.querySelector('.chat-action-bar');
-        if (actionBar) aiMsgEl!.insertBefore(wrapper, actionBar);
-        else aiMsgEl!.appendChild(wrapper);
-        if (assistantMsg.recNew) startRecommendationAttention(wrapper);
-        notifyChatContentAdded(container);
-      });
+      const messageHistory = state.chatHistory;
+      void recommendationRuntime.loadCatalog().then(() => {
+        if (!scopeIsCurrent() || state.chatHistory !== messageHistory || messageHistory[msgIndex] !== assistantMsg) return;
+        renderChatMessages({ preserveScroll: true, attentionMessage: assistantMsg });
+      }).catch(() => {});
     }
 
     notifyChatContentAdded(container);
@@ -677,9 +574,6 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
       // Read partial text from the DOM (typewriter accumulates into textContent)
       const partialText = aiMsgEl?.textContent?.trim() || '';
       if (partialText && aiMsgEl) {
-        if (!aiMsgEl.parentNode) container.appendChild(aiMsgEl);
-        aiMsgEl.style.whiteSpace = '';
-        aiMsgEl.innerHTML = renderMarkdown(partialText) + '<div class="chat-stopped-note">[stopped]</div>';
         const personality = getActivePersonality();
         (state.chatHistory.push as (...messages:unknown[])=>number)({ role: 'assistant', content: partialText, personalityName: personality.name, personalityIcon: personality.icon, provider: _msgProvider, agentId: _msgAgentId, modelId: _msgModelId, modelDisplay: _msgModelDisplay, stopped: true });
         await saveChatHistory();
@@ -723,6 +617,7 @@ export async function sendChatMessage({ prepareRetry = null, retry = null }: Cha
     typewriter?.stop();
     stopChatThinkingStatus(typingEl);
     typingEl.remove();
+    liveMessage?.dispose();
     if (_activeChatGenerationUI === generationUI) {
       _chatAbortController = null;
       _activeChatGenerationUI = null;

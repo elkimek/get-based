@@ -1,7 +1,6 @@
 <script lang="ts">
   import { EDIT_BUBBLE, EDIT_BUTTON } from '../chat-message-editor-classes.js';
-  let { draft, current, cancel, submit }: { draft: string; current(): boolean; cancel(): void; submit(): void } = $props();
-  let busy = $state(false);
+  let { draft, current, cancel, submit, busy = $bindable(false) }: { draft: string; current(): boolean; cancel(): void; submit(): void; busy?: boolean } = $props();
   export function setBusy(next: boolean): void { busy = next; }
   function decorate(root: HTMLElement) {
     const bubble = root.parentElement!;

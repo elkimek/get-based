@@ -2,8 +2,13 @@
   import type { ChatCitations } from '../chat-message-content-contract.js';
   import { CITATION_SUMMARY } from '../chat-message-content-classes.js';
   let { view }: { view: ChatCitations } = $props();
+  function containClicks(root: HTMLDetailsElement) {
+    const contain = (event: Event) => event.stopPropagation();
+    root.addEventListener('click', contain);
+    return { destroy() { root.removeEventListener('click', contain); } };
+  }
 </script>
-<details class="chat-lens-sources gb:message-content:mt-2 gb:message-content:border-t gb:message-content:border-line gb:message-content:pt-2" data-chat-message-content data-chat-message-action="contain-click">
+<details class="chat-lens-sources gb:message-content:mt-2 gb:message-content:border-t gb:message-content:border-line gb:message-content:pt-2" data-chat-message-content data-chat-message-action="contain-click" use:containClicks>
   <summary class="chat-lens-sources-summary {CITATION_SUMMARY} gb:message-content:py-0.5 gb:message-content:text-[11px] gb:message-content:text-secondary gb:message-content:hover:text-ink gb:message-content:gap-1.5">📎 {view.chunks.length} excerpt{view.chunks.length !== 1 ? 's' : ''} from {view.label}</summary>
   <div class="chat-lens-sources-body gb:message-content:mt-1.5 gb:message-content:pt-1.5 gb:message-content:flex gb:message-content:flex-col gb:message-content:gap-1">
     {#each view.chunks as chunk}

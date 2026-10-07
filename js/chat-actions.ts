@@ -146,6 +146,7 @@ async function updateAgentDraft(actionEl: HTMLElement, apply: boolean) {
 }
 
 function runChatMessageAction(actionEl: HTMLElement, event: Event) {
+  if (!isChatMessageActionCurrent(actionEl)) ensureChatMessageActions();
   if (!isChatMessageActionCurrent(actionEl)) return false;
   const action = actionEl.getAttribute(CHAT_MESSAGE_ACTION_ATTR);
 
@@ -266,7 +267,7 @@ function handleChatMessageKeydown(event: Event & Partial<Pick<KeyboardEvent, 'ke
 
 function handleChatRecommendationToggle(event: Event) {
   const details = event.target;
-  if (!(details instanceof HTMLDetailsElement) || !details.classList.contains('rec-chat-wrapper')) return;
+  if (!(details instanceof HTMLDetailsElement) || !details.classList.contains('rec-chat-wrapper') || details.hasAttribute('data-chat-recommendations-view')) return;
   const index = readMessageIndex(details);
   if (index == null) return;
   const message = state.chatHistory[index];

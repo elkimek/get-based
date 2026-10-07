@@ -29,9 +29,6 @@ body.chat-open .analytics-consent-banner {
   position: relative;
 }
 
-.chat-persona-label {
-  font-family: var(--font-mono);
-}
 
 .chat-thread-new-btn,
 .chat-project-new-btn {
@@ -60,20 +57,20 @@ body.chat-open .analytics-consent-banner {
   padding: 18px;
   gap: 14px;
 }
-.chat-msg {
+.chat-msg:not([data-chat-transcript-message]) {
   max-width: 85%;
   padding: 12px 14px;
   border-radius: var(--radius);
   font-size: 14px;
   line-height: 1.58;
 }
-.chat-msg.chat-ai {
+.chat-msg.chat-ai:not([data-chat-transcript-message]) {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-left: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
   border-bottom-left-radius: var(--radius-sm);
 }
-.chat-msg.chat-user {
+.chat-msg.chat-user:not([data-chat-transcript-message]) {
   color: var(--on-accent);
   border-bottom-right-radius: var(--radius-sm);
 }
@@ -145,7 +142,7 @@ body.chat-open .analytics-consent-banner {
   body.chat-open.chat-fullscreen .main { padding-right: 32px; }
   .chat-messages { padding: 18px; gap: 14px; }
 
-  .chat-msg { font-size: 14px; padding: 12px 14px; }
+  .chat-msg:not([data-chat-transcript-message]) { font-size: 14px; padding: 12px 14px; }
 }
 @media (max-width: 768px) {
   body.chat-open .m-tabbar {
@@ -155,7 +152,7 @@ body.chat-open .analytics-consent-banner {
   body.chat-open.chat-fullscreen .main { padding-right: 0; }
 
   .chat-messages { padding: 14px 12px; }
-  .chat-msg { max-width: 92%; }
+  .chat-msg:not([data-chat-transcript-message]) { max-width: 92%; }
   .chat-msg.chat-ai:has(.chat-onboard-form),
   .chat-msg.chat-ai:has(.chat-quiz-options),
   .chat-msg.chat-ai:has(.chat-onboard-actions) {
@@ -241,18 +238,18 @@ body.chat-open .analytics-consent-banner {
 .chat-panel.chat-panel-fullscreen .chat-messages {
   padding-inline: clamp(18px, 2.5vw, 48px);
 }
-.chat-panel.chat-panel-fullscreen .chat-msg.chat-ai,
+.chat-panel.chat-panel-fullscreen .chat-msg.chat-ai:not([data-chat-transcript-message]),
 .chat-panel.chat-panel-fullscreen .chat-msg.chat-ai:has(.chat-onboard-form),
 .chat-panel.chat-panel-fullscreen .chat-msg.chat-ai:has(.chat-quiz-options),
 .chat-panel.chat-panel-fullscreen .chat-msg.chat-ai:has(.chat-onboard-actions) {
   width: 100% !important;
   max-width: 100%;
 }
-.chat-panel.chat-panel-fullscreen .chat-msg.chat-ai.chat-avatar-anchor {
+.chat-panel.chat-panel-fullscreen .chat-msg.chat-ai.chat-avatar-anchor:not([data-chat-transcript-message]) {
   width: calc(100% - 36px) !important;
   max-width: calc(100% - 36px);
 }
-.chat-panel.chat-panel-fullscreen .chat-msg.chat-user {
+.chat-panel.chat-panel-fullscreen .chat-msg.chat-user:not([data-chat-transcript-message]) {
   max-width: min(100%, 1120px);
 }
 body.chat-open.chat-fullscreen:has(#chat-thread-rail.open) .main {

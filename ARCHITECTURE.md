@@ -912,8 +912,8 @@ stable URL as an empty compatibility stylesheet.
 persisted-image markup. `chat-message-content-contract.ts` projects stored
 records and filters thumbnail URLs; `chat-message-content.ts` preserves existing
 synchronous string-return contracts through compiled Svelte HTML. These semantic
-details and image buttons use the existing message action dispatcher without
-additional event ownership. Image previews support native keyboard activation.
+details contain clicks at their authored component boundary; image buttons use
+the existing message action dispatcher. Image previews support native keyboard activation.
 `ChatThinkingStatus.svelte` owns rotating phrase and dot presentation;
 `chat-thinking-status.ts` retains the element-return and clock APIs, freezes a
 stopped visible view, and disposes removed or retired profile/thread owners.
@@ -932,14 +932,38 @@ completion and disposing removed views and reset timers. Retry, fork and proposa
 claims retain their existing service dispatchers. The nested speech control uses
 `chat-speech-view.ts`, sharing one owner and state port with standalone speech.
 `ChatMessageEditor.svelte` owns inline edit controls, focus, sizing, keyboard
-shortcuts and busy state. `chat-message-editor-component.ts` attaches it to the
-service-owned message host and retires removed or changed conversation owners.
+shortcuts and busy state. `chat-message-editor-component.ts` publishes a conditional editor slot to the
+authored message and retires removed or changed conversation owners. Its public
+compatibility path can still mount into a caller-owned message host.
 `chat-message-edit.ts` retains eligibility, transactional send/rollback and fork
 operations; composer edit state flows through `chat-message-editor-view.ts` to
 `ChatComposer.svelte`, preserving the separate unsent draft and making the row
 inert. Scoped Tailwind replaces native action, proposal, context and editor rules.
-Outer transcript rendering and streaming remain in their respective services
-until their presentation ownership is migrated.
+`ChatTranscript.svelte` owns nonempty restored history, fork notices, history
+window controls and participant labels. `chat-transcript-presentation.ts` projects
+stored messages; only the established sanitized Markdown and trusted catalog
+section renderer supply HTML. `ChatMessage.svelte` composes the shared body,
+attachments, citations, actions, editor, usage and recommendation disclosure.
+Keyed messages preserve controls, open citations, editor drafts and selection
+through same-conversation refreshes. `chat-transcript-component.ts` unmounts
+removed or replaced roots and profile/thread/history owners.
+`ChatLiveMessage.svelte` uses the same message component for normal streaming and
+completion. `chat-live-message-component.ts` provides synchronous typed text,
+completion and reconnect ports; scope checks reject retired generation replies.
+The public typewriter can still receive a caller-owned plain-text host, rendered
+by `ChatStreamingText.svelte` and disposed on retirement or before a compatibility
+caller replaces its contents. `chat-send.ts` keeps provider requests, gates,
+usage, attachments and persistence; `chat-render.ts` keeps range and scroll
+orchestration. Neither authors normal message body or footer markup.
+`ChatRecommendations.svelte` owns disclosure state, new badges and click
+containment. It captures the exact profile/thread/history/message before saving
+visibility changes. Finite attention runs for newly completed recommendations,
+never restored history, and releases its observer/frame/listener on retirement;
+reduced motion suppresses the pulse. Catalog card markup, onboarding and the
+standalone discussion-round renderer remain separate migration boundaries.
+Transcript geometry uses scoped Tailwind. Custom CSS retains the shared
+sanitized Markdown renderer classes and avatar pseudo-elements; legacy bubble
+rules are restricted to the remaining caller-owned hosts.
 `ChatVoiceButton.svelte` and `ChatVoiceStatus.svelte` own the microphone control
 and live status. `chat-voice-view.ts` publishes typed capture state and backend
 availability, retires composer actions, and cancels capture on owner disposal.

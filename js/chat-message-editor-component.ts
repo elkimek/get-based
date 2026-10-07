@@ -1,8 +1,10 @@
 import Editor, { mount, unmount, flushSync } from './components/ChatMessageEditor.svelte.native.js';
 import { state } from './state.js';
 
+export interface ChatMessageEditorView { draft: string; current(): boolean; cancel(): void; submit(): void; }
 interface EditorOwner {
   component: { setBusy(value: boolean): void };
+  dispose(): void;
   current(): boolean;
   retired(): void;
 }
@@ -10,6 +12,11 @@ interface EditorActions {
   cancel(): void;
   submit(): void;
   retired(): void;
+}
+const hosts = new WeakMap<HTMLElement, { show(view: ChatMessageEditorView | null): void; busy(value: boolean): void }>();
+export function ownChatMessageEditorHost(bubble: HTMLElement, show: (view: ChatMessageEditorView | null) => void, busy: (value: boolean) => void): { destroy(): void } {
+  const host = { show, busy }; hosts.set(bubble, host);
+  return { destroy() { hosts.delete(bubble); if (active && !active.current()) disposeChatMessageEditor(); } };
 }
 let active: EditorOwner | null = null;
 let observer: MutationObserver | null = null;
@@ -20,7 +27,7 @@ export function disposeChatMessageEditor(): void {
   observer?.disconnect();
   observer = null;
   if (previous) {
-    void unmount(previous.component);
+    previous.dispose();
     flushSync();
     previous.retired();
   }
@@ -39,13 +46,17 @@ export function renderChatMessageEditor(bubble: HTMLElement, index: number, draf
     && profile === state.currentProfile && thread === state.currentThreadId
     && history === state.chatHistory && message === history[index];
 
-  // The transcript service still owns this host; the editor owns its children.
-  bubble.replaceChildren();
-  const component = mount(Editor, {
-    target: bubble,
-    props: { draft, current, cancel: actions.cancel, submit: actions.submit },
-  });
-  owner = { component, current, retired: actions.retired };
+  const host = hosts.get(bubble);
+  if (host) {
+    owner = { component: { setBusy: host.busy }, current, retired: actions.retired, dispose: () => host.show(null) };
+    active = owner;
+    flushSync(() => host.show({ draft, current, cancel: actions.cancel, submit: actions.submit }));
+  } else {
+    // Public compatibility callers may supply their own service-owned bubble.
+    bubble.replaceChildren();
+    const component = mount(Editor, { target: bubble, props: { draft, current, cancel: actions.cancel, submit: actions.submit } });
+    owner = { component, current, retired: actions.retired, dispose: () => { void unmount(component); } };
+  }
   active = owner;
   flushSync();
   observer = new MutationObserver(() => {

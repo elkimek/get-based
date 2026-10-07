@@ -41,39 +41,29 @@ function firstDisplayCharacter(value: unknown, fallback: string) {
  * overwrite. The article's aria-label already carries the sender identity.
  *
  */
-export function applyChatMessageAvatar(element: HTMLElement, identity: ChatAvatarIdentity) {
-  element.classList.add('chat-avatar-anchor');
-  element.dataset.chatAvatarRole = identity.role;
-  element.dataset.chatAvatarText = '';
-  element.classList.remove('chat-avatar-branded', 'chat-avatar-photo');
-  element.style.removeProperty('--chat-avatar-image');
-  element.style.removeProperty('--chat-avatar-image-size');
-
+export function projectChatMessageAvatar(identity: ChatAvatarIdentity): { text: string; image: string | null; size: string | null; photo: boolean; branded: boolean } {
   if (identity.role === 'user') {
     const profile = getActiveProfile();
-    element.dataset.chatAvatarText = firstDisplayCharacter(profile?.name, 'Y');
-    if (isSafeProfileAvatar(profile?.avatar)) {
-      // CSSOM assignment avoids placing a potentially large data URL into HTML.
-      element.style.setProperty('--chat-avatar-image', `url("${profile.avatar}")`);
-      element.style.setProperty('--chat-avatar-image-size', 'cover');
-      element.classList.add('chat-avatar-photo');
-      element.dataset.chatAvatarText = '';
-    }
-    return element;
+    const image = isSafeProfileAvatar(profile?.avatar) ? String(profile!.avatar) : null;
+    return { text: image ? '' : firstDisplayCharacter(profile?.name, 'Y'), image, size: image ? 'cover' : null, photo: !!image, branded: false };
   }
-
-  const personalityName = String(identity.personalityName || '').trim();
-  const personalityIcon = String(identity.personalityIcon || '').trim();
-  const showPersona = Boolean(personalityIcon && personalityName && personalityName !== DEFAULT_PERSONA_NAME);
-  const agentAsset = getCLIAgentBrandAsset(String(identity.agentId || '').trim());
-  if (agentAsset && !showPersona) {
-    element.style.setProperty('--chat-avatar-image', `url("${agentAsset}")`);
-    element.style.setProperty('--chat-avatar-image-size', '18px');
-    element.classList.add('chat-avatar-branded');
-    return element;
-  }
-
-  element.dataset.chatAvatarText = personalityIcon || '✦';
+  const name = String(identity.personalityName || '').trim();
+  const icon = String(identity.personalityIcon || '').trim();
+  const image = getCLIAgentBrandAsset(String(identity.agentId || '').trim());
+  const branded = !!image && !(icon && name && name !== DEFAULT_PERSONA_NAME);
+  return { text: branded ? '' : icon || '✦', image: branded ? image : null, size: branded ? '18px' : null, photo: false, branded };
+}
+export function applyChatMessageAvatar(element: HTMLElement, identity: ChatAvatarIdentity) {
+  const view = projectChatMessageAvatar(identity);
+  element.classList.add('chat-avatar-anchor');
+  element.dataset.chatAvatarRole = identity.role;
+  element.dataset.chatAvatarText = view.text;
+  element.classList.toggle('chat-avatar-photo', view.photo);
+  element.classList.toggle('chat-avatar-branded', view.branded);
+  if (view.image) element.style.setProperty('--chat-avatar-image', `url("${view.image}")`);
+  else element.style.removeProperty('--chat-avatar-image');
+  if (view.size) element.style.setProperty('--chat-avatar-image-size', view.size);
+  else element.style.removeProperty('--chat-avatar-image-size');
   return element;
 }
 

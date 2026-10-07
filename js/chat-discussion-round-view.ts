@@ -1,5 +1,6 @@
 // chat-discussion-round-view.js - DOM helpers for live discussion round messages
 
+import { disposeChatStreamingText } from './chat-live-message-component.js';
 import { calculateCost, formatCost } from './schema.js';
 import { escapeHTML } from './utils.js';
 import { renderMarkdown } from './markdown.js';
@@ -66,6 +67,7 @@ export function renderFinalDiscussionMessage({
   stopChatThinkingStatus(typingEl);
   if (typingEl.parentNode) typingEl.remove();
   if (!aiMsgEl.parentNode) container.appendChild(aiMsgEl);
+  disposeChatStreamingText(aiMsgEl);
   aiMsgEl.innerHTML = renderMarkdown(fullText);
   if (responseTruncated) aiMsgEl.insertAdjacentHTML('beforeend', responseLimitNote());
   return true;

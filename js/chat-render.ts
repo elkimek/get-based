@@ -1,25 +1,13 @@
 // chat-render.js — chat transcript rendering
 
 import { state } from './state.js';
-import { calculateCost, formatCost } from './schema.js';
-import { escapeAttr, escapeHTML } from './utils.js';
-import { shouldHideAppExtensionAIUsage } from './app-extension-runtime.js';
-import {
-  getAIProvider, getActiveModelDisplay, getActiveModelId,
-} from './api.js';
-import { renderMarkdown } from './markdown.js';
-import {
-  buildActionBar, buildForkSourceNotice, buildUserActionBar, chatMessageActionAttrs,
-} from './chat-actions.js';
-import { responseLimitNote } from './chat-continuation.js';
-import { e2eeLockFootnote } from './chat-attestation.js';
+import { renderChatTranscript, disposeChatTranscript } from './chat-transcript-component.js';
+import { projectChatTranscript } from './chat-transcript-presentation.js';
 import { updateChatHeaderTitle } from './chat-personalities.js';
 import { updateChatInputState } from './chat-panel.js';
 import { updateDiscussButton } from './chat-discussion.js';
 import { renderEmptyChatState } from './chat-empty-state.js';
-import { isChatRenderProductRecsEnabled, renderChatRecommendationSections } from './chat-render-runtime.js';
-import { renderChatCitations, renderChatStoredImages } from './chat-message-content.js';
-import { recommendationSummaryHTML } from './chat-recommendation-disclosure.js';
+import { renderChatCitations } from './chat-message-content.js';
 import {
   followChatLatest, initChatScrollControls, notifyChatContentAdded,
 } from './chat-scroll.js';
@@ -29,18 +17,7 @@ import {
   resetChatRenderWindow,
   revealChatRenderIndex,
 } from './chat-render-range.js';
-import {
-  applyRenderedChatMessageAvatars, shouldShowChatPersonaLabel,
-} from './chat-message-avatars.js';
-import { getAIOutputAttribution } from './cli-agent-brand-assets.js';
-
 export { _getNoDataPrompts } from './chat-empty-state.js';
-
-function bindRenderedChatContainClicks(container: HTMLElement) {
-  container.querySelectorAll('[data-chat-message-action="contain-click"]').forEach(el => {
-    el.addEventListener('click', event => event.stopPropagation());
-  });
-}
 
 /**
  * Render the collapsible "Sources" block under an assistant message.
@@ -53,7 +30,7 @@ export function _renderLensSources(chunks: unknown, sourceName?: unknown) {
   return renderChatCitations(chunks, sourceName);
 }
 
-export function renderChatMessages({ preserveScroll = false }: {preserveScroll?:boolean} = {}) {
+export function renderChatMessages({ preserveScroll = false, attentionMessage }: {preserveScroll?:boolean; attentionMessage?: object} = {}) {
   const container = document.getElementById('chat-messages');
   if (!container) return;
   initChatScrollControls();
@@ -61,6 +38,7 @@ export function renderChatMessages({ preserveScroll = false }: {preserveScroll?:
   panel?.classList.remove('chat-onboarding-active');
 
   if (state.chatHistory.length === 0) {
+    disposeChatTranscript();
     resetChatRenderWindow(state.currentThreadId);
     renderEmptyChatState(container, panel);
     followChatLatest(container, { behavior: 'auto' });
@@ -68,87 +46,7 @@ export function renderChatMessages({ preserveScroll = false }: {preserveScroll?:
     return;
   }
   const renderStart = getChatRenderStart(state.currentThreadId, state.chatHistory.length);
-  let html = buildForkSourceNotice();
-  html += renderStart > 0
-    ? `<div class="chat-history-window"><button type="button" class="chat-history-earlier" ${chatMessageActionAttrs('show-earlier-messages')}>Show earlier messages <span>(${renderStart} remaining)</span></button></div>`
-    : '';
-  let lastPersonaName: string|null = null;
-  for (let i = renderStart; i < state.chatHistory.length; i++) {
-    const msg = state.chatHistory[i]!;
-    const cls = msg.role === 'user' ? 'chat-user' : 'chat-ai';
-    // "Joined" system messages
-    if (msg.joined) {
-      html += `<div class="chat-persona-joined">${escapeHTML(msg.joinIcon || '')} ${escapeHTML(msg.joinName || '')} joined the discussion</div>`;
-      continue;
-    }
-    // Hidden auto messages (instruction sent to API but not shown)
-    if (msg.hidden) continue;
-    // Show persona label when personality changes between AI messages
-    if (msg.role === 'assistant' && shouldShowChatPersonaLabel(msg) && msg.personalityName !== lastPersonaName) {
-      html += `<div class="chat-persona-label">${escapeHTML(msg.personalityIcon || '')} ${escapeHTML(msg.personalityName)}</div>`;
-    }
-    if (msg.role === 'assistant') lastPersonaName = msg.personalityName || null;
-    const autoClass = msg.auto ? ' chat-msg-auto' : '';
-    const stoppedNote = msg.stopped ? '<div class="chat-stopped-note">[stopped]</div>' : '';
-    const imageBadge = renderChatStoredImages(msg);
-    const messageBody = msg.error
-      ? `<span style="color:var(--red)">${escapeHTML(msg.content)}</span>`
-      : renderMarkdown(msg.content);
-    const messageLabel = msg.role === 'user' ? 'You' : msg.personalityName || 'AI response';
-    html += `<div class="chat-msg ${cls}${autoClass}" id="chat-msg-${i}" role="article" aria-label="${escapeAttr(messageLabel)}">${imageBadge}${messageBody}${stoppedNote}`;
-    if (msg.role === 'user') html += buildUserActionBar(i);
-    if (msg.role === 'assistant' && msg.truncated) html += responseLimitNote();
-    if (msg.role === 'assistant') {
-      const usageProvider = msg.provider || (msg.modelId ? (msg.modelId.includes('/') ? 'openrouter' : getAIProvider()) : getAIProvider());
-      if (msg.usage && (msg.usage.inputTokens || msg.usage.outputTokens) && !shouldHideAppExtensionAIUsage(usageProvider)) {
-        const mId = msg.modelId || getActiveModelId();
-        const mProvider = usageProvider;
-        const cost = calculateCost(mProvider, mId, msg.usage.inputTokens, msg.usage.outputTokens);
-        const totalTokens = Math.max(0, Number(msg.usage.inputTokens) || 0)
-          + Math.max(0, Number(msg.usage.outputTokens) || 0);
-        const mName = msg.modelDisplay || getActiveModelDisplay();
-        const webTag = msg.webSearch ? ' \u00b7 \ud83c\udf10 web' : '';
-        const e2eeTag = msg.e2ee ? e2eeLockFootnote(msg.attestation) : '';
-        html += `<div class="chat-cost-footnote">${escapeHTML(mName)} \u00b7 ${escapeHTML(formatCost(cost))} \u00b7 ${totalTokens.toLocaleString()} tokens${webTag}${e2eeTag}</div>`;
-      }
-      const attribution = getAIOutputAttribution(msg);
-      // The chat already identifies the AI interaction. Keep existing Grok
-      // branding without repeating a generic label beneath every reply.
-      // Copy/export paths retain standalone output attribution separately.
-      if (attribution === 'Written with Grok') html += `<div class="chat-provider-attribution">${escapeHTML(attribution)}</div>`;
-      html += buildActionBar(i);
-      // Lens citations — show which excerpts the AI received with this question.
-      // Persisted on the message so re-rendering or switching threads keeps
-      // the sources visible. Collapsed by default to keep the chat scannable;
-      // user can expand any time to verify what grounded the response.
-      if (msg.lensSources?.length) {
-        html += _renderLensSources(msg.lensSources, msg.lensSourceName);
-      }
-      // EMF hint (persisted, single-line link to assessment editor)
-      if (msg.emfHint && isChatRenderProductRecsEnabled()) {
-        html += `<div class="chat-emf-hint"><span aria-hidden="true">💡</span> Curious about your EMF environment? <a href="#" ${chatMessageActionAttrs('open-emf-assessment')} data-umami-event="emf-nudge-chat">Open the assessment →</a></div>`;
-      }
-      // Rec slots (persisted on message, rendered from catalog)
-      if (msg.recSlots?.length) {
-        const recSections = renderChatRecommendationSections(msg.recSlots) as Array<{replace(search: string, replacement: string): unknown}>;
-        if (recSections.length) {
-          const openAttr = msg.recOpen ? ' open' : '';
-          const unseenClass = msg.recNew ? ' rec-chat-unseen' : '';
-          html += `<details class="rec-chat-wrapper${unseenClass}" ${chatMessageActionAttrs('contain-click', { index: i })}${openAttr}><summary class="rec-chat-summary">${recommendationSummaryHTML(recSections.length, Boolean(msg.recNew))}</summary>`;
-          let recBody = recSections.map(s => s.replace('rec-section-header', 'rec-chat-subheading')).join('');
-          // Deduplicate disclosure banners (each renderRecommendationSectionSync prepends one)
-          let bannerCount = 0;
-          recBody = recBody.replace(/<div class="rec-disclosure-banner">[\s\S]*?<\/div>/g, m => ++bannerCount > 1 ? '' : m);
-          html += recBody;
-          html += `</details>`;
-        }
-      }
-    }
-    html += '</div>';
-  }
-  container.innerHTML = html;
-  applyRenderedChatMessageAvatars(container, state.chatHistory, renderStart);
-  bindRenderedChatContainClicks(container);
+  renderChatTranscript(container, projectChatTranscript(renderStart, attentionMessage));
   if (preserveScroll) notifyChatContentAdded(container);
   else followChatLatest(container, { behavior: 'auto' });
   updateDiscussButton();

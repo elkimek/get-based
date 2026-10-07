@@ -8,6 +8,9 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
   await page.waitForSelector('#chat-messages', { state: 'attached' });
 
   const results = await page.evaluate(async ({ chatRenderUrl }) => {
+    // The authored disclosure uses the same lazy styles as the opened Chat panel.
+    const panelStyles = await import('/js/chat-panel.js');
+    await panelStyles.loadChatPresentationStylesheets();
     const [{ state }, chatRender, chatActions, recommendationRuntime, recommendationDisclosure] = await Promise.all([
       import('/js/state.js'),
       ((import(chatRenderUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/chat-render.js"), "_renderLensSources" | "renderChatMessages" | "showEarlierChatMessages" | "revealChatMessage"> >),
@@ -15,7 +18,7 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
       import('/js/recommendations-runtime.js'),
       import('/js/chat-recommendation-disclosure.js'),
     ]);
-    const outcomes:Record<string,unknown> = {};
+    const outcomes:Record<string,unknown> = { chatPresentationStylesheetsLoaded: panelStyles.areChatPresentationStylesheetsLoaded() };
     const messages = document.getElementById('chat-messages');
     const panel = document.getElementById('chat-panel');
     const tinyPng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
@@ -199,7 +202,7 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
         && rendered!.querySelector<HTMLElement>('.chat-lens-source-text')?.textContent === 'Root cause <maybe>Second line'
         && rendered!.querySelectorAll('.chat-lens-source-text br').length === 1
         && rendered!.querySelectorAll('.chat-lens-source-text maybe').length === 0;
-      rendered!.querySelector<HTMLElement>('.chat-emf-hint a')?.dispatchEvent(new MouseEvent('click', {
+      rendered!.querySelector<HTMLElement>('[data-chat-message-action="open-emf-assessment"]')?.dispatchEvent(new MouseEvent('click', {
         bubbles: true,
         cancelable: true,
       }));
@@ -229,6 +232,13 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
         redisplayedDisclosure!.open = true;
       });
       const seenSummaryStyle = getComputedStyle(redisplayedDisclosure!.querySelector<HTMLElement>('.rec-chat-summary')!);
+      outcomes.recommendationPersistedNewCue = showedPersistedNewCue;
+      outcomes.recommendationOpenChoicePersisted = recommendationMessage!.recOpen === true;
+      outcomes.recommendationSeenFlagCleared = recommendationMessage!.recNew === false;
+      outcomes.recommendationSeenBadgeRemoved = redisplayedDisclosure!.querySelector('.rec-chat-new') === null;
+      outcomes.recommendationSeenClassRemoved = !redisplayedDisclosure!.classList.contains('rec-chat-unseen');
+      outcomes.recommendationSeenBorderVisible = seenSummaryStyle.borderTopColor !== 'rgba(0, 0, 0, 0)';
+      outcomes.recommendationSeenBackgroundVisible = seenSummaryStyle.backgroundColor !== 'rgba(0, 0, 0, 0)';
       outcomes.recommendationChoiceAndDiscoveryStatePersist = showedPersistedNewCue
         && recommendationMessage!.recOpen === true
         && recommendationMessage!.recNew === false
@@ -256,14 +266,14 @@ test('chat render browser coverage handles lens sources and rich transcript UI',
       }));
       chatRender.renderChatMessages();
       const initialWindow = [...rendered!.querySelectorAll<HTMLElement>('.chat-msg')];
-      const initialEarlier = rendered!.querySelector<HTMLElement>('.chat-history-earlier');
+      const initialEarlierText = rendered!.querySelector<HTMLElement>('.chat-history-earlier')?.textContent;
       chatRender.showEarlierChatMessages();
       const expandedWindow = [...rendered!.querySelectorAll<HTMLElement>('.chat-msg')];
       chatRender.revealChatMessage(3);
       outcomes.longTranscriptRendersBoundedWindowAndCanRevealHistory =
         initialWindow.length === 120
         && initialWindow[0]?.id === 'chat-msg-140'
-        && initialEarlier?.textContent.includes('140 remaining')
+        && initialEarlierText?.includes('140 remaining')
         && expandedWindow.length === 240
         && expandedWindow[0]?.id === 'chat-msg-20'
         && rendered!.querySelector<HTMLElement>('#chat-msg-3')?.textContent.includes('Windowed message 3');

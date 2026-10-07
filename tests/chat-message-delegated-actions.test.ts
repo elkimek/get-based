@@ -34,9 +34,14 @@ it('retains chat-message delegated-action source contracts', () => {
       && actionsSrc.includes("root.addEventListener('click', handleChatMessageClick)")
       && actionsSrc.includes("root.addEventListener('keydown', handleChatMessageKeydown)")
       && actionsSrc.includes('installChatMessageActionDelegates();'));
-  assert('chat-actions delegates message action bar controls', actionsSrc.includes("chatMessageActionAttrs('regenerate-last-message')")
-      && actionsSrc.includes("chatMessageActionAttrs('copy-message', { index: msgIndex })")
-      && actionsSrc.includes("chatMessageActionAttrs('toggle-context-details', { index: msgIndex })")
+  const messageActions = read('js/components/ChatMessageActions.svelte');
+  const messageContract = read('js/chat-message-actions-contract.ts');
+  assert('chat-actions delegates the shared authored message action bar controls',
+      actionsSrc.includes("renderChatMessageActions(msgIndex, 'assistant')")
+      && messageActions.includes('data-chat-message-action="copy-message"')
+      && messageActions.includes('data-chat-message-action="toggle-context-details"')
+      && messageActions.includes('data-chat-message-action={view.retry.action}')
+      && messageContract.includes("action: 'regenerate-last-message'")
       && actionsSrc.includes("action === 'regenerate-last-message'")
       && actionsSrc.includes("action === 'copy-message'")
       && actionsSrc.includes("action === 'toggle-context-details'"));
@@ -63,12 +68,24 @@ it('retains chat-message delegated-action source contracts', () => {
   assert('chat-actions keyboard activates delegated role button actions', actionsSrc.includes("event.key !== 'Enter' && event.key !== ' '")
       && actionsSrc.includes("actionEl.getAttribute('role') !== 'button'")
       && actionsSrc.includes('runChatMessageAction(actionEl, event)'));
-  assert('chat render uses delegated image emf lens and recommendation actions', renderSrc.includes("chatMessageActionAttrs('open-image-lightbox')")
-      && renderSrc.includes("chatMessageActionAttrs('open-emf-assessment')")
-      && renderSrc.includes("chatMessageActionAttrs('contain-click')")
-      && renderSrc.includes("el.addEventListener('click', event => event.stopPropagation())")
-      && renderSrc.includes('bindRenderedChatContainClicks(container)'));
-  assert('dynamic recommendation wrapper keeps direct containment without dead delegated attr', sendSrc.includes("wrapper.addEventListener('click', e => e.stopPropagation())")
+  const messageView = read('js/components/ChatMessage.svelte');
+  const imagesView = read('js/components/ChatStoredImages.svelte');
+  const citationsView = read('js/components/ChatCitations.svelte');
+  const recommendationsView = read('js/components/ChatRecommendations.svelte');
+  assert('chat render shares authored message controls and direct disclosure containment',
+      renderSrc.includes('renderChatTranscript(container, projectChatTranscript(')
+      && imagesView.includes('data-chat-message-action="open-image-lightbox"')
+      && messageView.includes('data-chat-message-action="open-emf-assessment"')
+      && citationsView.includes('data-chat-message-action="contain-click"')
+      && citationsView.includes('event.stopPropagation()')
+      && citationsView.includes("root.addEventListener('click', contain)")
+      && citationsView.includes("root.removeEventListener('click', contain)"));
+  assert('live completion shares owned recommendations with direct containment and disposal',
+      sendSrc.includes('completeChatLiveMessage(aiMsgEl, assistantMsg')
+      && messageView.includes('<ChatRecommendations ')
+      && recommendationsView.includes('event.stopPropagation()')
+      && recommendationsView.includes("root.addEventListener('click', contain)")
+      && recommendationsView.includes("root.removeEventListener('click', contain)")
       && !sendSrc.includes("wrapper.setAttribute('data-chat-message-action', 'contain-click')"));
   assert('summary list and modal use delegated summary actions', summariesSrc.includes("chatMessageActionAttrs('view-summary', { summaryId: s.id })")
       && summariesSrc.includes("chatMessageActionAttrs('close-summary')")
@@ -76,9 +93,12 @@ it('retains chat-message delegated-action source contracts', () => {
       && summariesSrc.includes("chatMessageActionAttrs('download-summary')")
       && summariesSrc.includes("chatMessageActionAttrs('print-summary')")
       && summariesSrc.includes("chatMessageActionAttrs('delete-summary', { summaryId: thread._savedId })"));
-  assert('discussion mode uses delegated resume and end buttons', discussionUiSrc.includes("chatMessageActionAttrs('resume-discussion')")
-      && discussionUiSrc.includes("chatMessageActionAttrs('end-discussion')")
-      && discussionUiSrc.includes('data-chat-action="start-discussion"'));
+  const discussionView = read('js/components/ChatDiscussion.svelte');
+  assert('discussion mode publishes owned delegated resume and end controls',
+      discussionUiSrc.includes('publishDiscussionRound(chatDiscussionScope(),')
+      && discussionView.includes('data-chat-message-action="resume-discussion"')
+      && discussionView.includes('data-chat-message-action="end-discussion"')
+      && discussionView.includes('data-chat-action="start-discussion"'));
   console.log(`\nChat message delegated actions tests: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed`);
 
   expect(legacyAssertions.fail).toBe(0);

@@ -459,7 +459,11 @@ assert('chat incomplete heuristic does not continue on terminal high/low adjecti
   !chatSrc.includes('low|high') && !chatSrc.includes('high|low') && !chatSendSrc.includes('low|high') && !chatSendSrc.includes('high|low') && !chatContinuationSrc.includes('low|high') && !chatContinuationSrc.includes('high|low'), 'medical adjectives removed from trailing-word fallback');
 assert('chat renders output-limit note', chatContinuationSrc.includes('output limit reached'), 'found');
 assert('chat persists truncated assistant state', chatSendSrc.includes('assistantMsg.truncated = true'), 'found');
-assert('renderChatMessages restores truncated note', chatRenderSrc.includes('msg.truncated') && chatRenderSrc.includes('responseLimitNote()'), 'found');
+assert('shared transcript restores the persisted truncated note',
+  chatRenderSrc.includes('renderChatTranscript(container, projectChatTranscript(')
+    && read('js/chat-transcript-presentation.ts').includes('truncated: !!message.truncated')
+    && read('js/components/ChatMessage.svelte').includes('{#if view.truncated}')
+    && read('js/components/ChatMessage.svelte').includes('[output limit reached - ask "continue" to finish]'), 'found');
 assert('regenerateLastMessage checks streaming state via chat runtime',
   chatActionsSrc.includes('isChatRuntimeStreaming()') &&
     chatRuntimeSrc.includes('chatRuntimeCallbacks.isChatStreaming') &&
@@ -497,7 +501,11 @@ assert('chat-send.js imports continuation helpers', chatSendSrc.includes("from '
 assert('chat-continuation.js exports continuation helper', chatContinuationSrc.includes('export async function callChatAPIWithContinuation'), 'found');
 assert('chat-send.js imports prompt context helpers', chatSendSrc.includes("from './chat-prompt-context.js'"), 'found');
 assert('chat-prompt-context.js exports tagged messages helper', chatPromptContextSrc.includes('export function buildTaggedChatMessages'), 'found');
-assert('chat-send.js imports attestation helpers', chatSendSrc.includes("from './chat-attestation.js'"), 'found');
+assert('chat sender retains the attestation rendering chain through the shared message projector',
+  chatSendSrc.includes('completeChatLiveMessage(aiMsgEl, assistantMsg')
+    && read('js/chat-live-message-component.ts').includes('component.complete(projectChatTranscriptMessage(message, -1))')
+    && read('js/chat-transcript-presentation.ts').includes("from './chat-attestation.js'")
+    && read('js/chat-transcript-presentation.ts').includes('message.e2ee ? e2eeLockFootnote(message.attestation)'), 'found');
 assert('chat-attestation.js exports E2EE lock footnote helper', chatAttestationSrc.includes('export function e2eeLockFootnote'), 'found');
 assert('chat.js imports personality helpers', chatSrc.includes("from './chat-personalities.js'"), 'found');
 assert('chat-personalities.js exports header model helper', chatPersonalitiesSrc.includes('updateChatHeaderModel, updateSummaryButton } from') && read('js/chat-header-presentation.ts').includes('export function updateChatHeaderModel'), 'found');
@@ -525,7 +533,12 @@ assert('chat marker prompts name the target thread from the source',
   chatMarkerPromptsSrc.includes('renameThread(state.currentThreadId, threadName)') &&
     chatMarkerPromptsSrc.includes("openSourcePrompt(prompt, 'Biomarker and dose exploration', { canOpen })"),
   'found');
-assert('renderChatMessages calls buildActionBar', chatRenderSrc.includes('buildActionBar(i)'), 'found');
+assert('restored transcript composes the same authored action bar as the public facade',
+  chatRenderSrc.includes('renderChatTranscript(container, projectChatTranscript(')
+    && read('js/chat-transcript-presentation.ts').includes('actions: projectChatMessageActions(state.chatHistory, index)')
+    && read('js/components/ChatMessage.svelte').includes('<ChatMessageActions view={view.actions}/>')
+    && chatActionsSrc.includes("renderChatMessageActions(msgIndex, 'assistant')")
+    && read('js/chat-message-actions-component.ts').includes('renderHTML({ view })'), 'found');
 assert('API messages tag other personas', chatPromptContextSrc.includes('Response from') && chatPromptContextSrc.includes('personalityName'), 'tags messages from different personas');
 assert('chat.js imports chat panel helpers', chatSrc.includes("from './chat-panel.js'"), 'found');
 assert('chat-panel.js exports open/close helpers', chatPanelSrc.includes('export async function openChatPanel') && chatPanelSrc.includes('export function closeChatPanel'), 'found');

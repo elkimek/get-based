@@ -40,26 +40,36 @@ export function recommendationSummaryHTML(count: unknown, isNew: unknown = false
  * Start the finite attention animation once the newly inserted CTA is
  * actually visible. This is called only for live responses, never restores.
  */
-export function startRecommendationAttention(wrapper: Element) {
-  if (!wrapper.classList.contains('rec-chat-unseen')) return;
+export function startRecommendationAttention(wrapper: Element): () => void {
   const summary = wrapper.querySelector('.rec-chat-summary');
-  if (!summary) return;
-
+  if (!wrapper.classList.contains('rec-chat-unseen') || !summary
+    || globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return () => {};
+  let retired = false;
+  let frame: number | null = null;
+  let observer: IntersectionObserver | null = null;
+  const finish = () => wrapper.classList.remove('rec-chat-attention');
   const start = () => {
-    requestAnimationFrame(() => wrapper.classList.add('rec-chat-attention'));
-    summary.addEventListener('animationend', () => {
-      wrapper.classList.remove('rec-chat-attention');
-    }, { once: true });
+    if (retired || frame !== null) return;
+    frame = requestAnimationFrame(() => {
+      frame = null;
+      if (!retired && wrapper.isConnected) wrapper.classList.add('rec-chat-attention');
+    });
+    summary.addEventListener('animationend', finish, { once: true });
   };
-
-  if (typeof IntersectionObserver !== 'function') {
-    start();
-    return;
+  if (typeof IntersectionObserver !== 'function') start();
+  else {
+    observer = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      observer?.disconnect();
+      start();
+    }, { threshold: 0.5 });
+    observer.observe(wrapper);
   }
-  const observer = new IntersectionObserver(entries => {
-    if (!entries.some(entry => entry.isIntersecting)) return;
-    observer.disconnect();
-    start();
-  }, { threshold: 0.5 });
-  observer.observe(wrapper);
+  return () => {
+    retired = true;
+    observer?.disconnect();
+    if (frame !== null) cancelAnimationFrame(frame);
+    summary.removeEventListener('animationend', finish);
+    finish();
+  };
 }

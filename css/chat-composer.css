@@ -27,14 +27,14 @@
 .chat-jump-latest.has-new-content::after {
   content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
 }
-.chat-msg-auto {
+.chat-msg-auto:not([data-chat-transcript-message]) {
   font-size: 12px !important; color: var(--text-muted) !important;
   font-style: italic; padding: 6px 12px !important;
   background: transparent !important; border: none !important;
   border-left: none !important; max-width: 100% !important;
   align-self: center !important;
 }
-.chat-stopped-note {
+.chat-stopped-note:not(:where([data-chat-transcript-message] *)) {
   font-size: 11px; color: var(--text-muted); font-style: italic; margin-top: 6px;
 }
 /* Browser range pseudo-elements are the owned picker's custom CSS exception. */

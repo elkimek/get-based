@@ -64,3 +64,11 @@
 @source "../js/components/ChatMessageEditor.svelte";
 @source "../js/chat-message-editor-classes.ts";
 @custom-variant message-edit (&:is(.chat-msg.chat-user[data-chat-message-edit-view], [data-chat-message-edit-view] *));
+
+@source "../js/components/ChatTranscript.svelte";
+@source "../js/components/ChatMessage.svelte";
+@source "../js/components/ChatRecommendations.svelte";
+@source "../js/chat-transcript-classes.ts";
+@custom-variant transcript (&:is([data-chat-transcript-view], [data-chat-transcript-view] *, [data-chat-live-view], [data-chat-live-view] *));
+
+@source "../js/components/ChatLiveMessage.svelte";

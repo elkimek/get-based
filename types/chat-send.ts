@@ -3,7 +3,7 @@ import type {buildVisionContent,formatImageBlock} from '../js/image-utils.js';
 import type {callCodexAgent} from '../js/agent-chat-backend.js';
 import type {callChatAPIWithContinuation} from '../js/chat-continuation.js';
 export interface ChatSendOptions {prepareRetry?:unknown;retry?:{content?:unknown;attachments?:unknown}|null}
-export interface ActiveChatGenerationUI {container:HTMLElement;typingEl:HTMLElement;aiMsgEl:HTMLElement|null;labelEl:HTMLElement|null;personalityName:unknown;isCurrent:()=>boolean}
+export interface ActiveChatGenerationUI {container:HTMLElement;typingEl:HTMLElement;aiMsgEl:HTMLElement|null;labelEl:HTMLElement|null;personalityName:unknown;isCurrent:()=>boolean;restore(container:HTMLElement):void;dispose():void}
 export interface TypewriterTarget {length:number;slice(start:number,end:number):unknown}
 export interface ChatSendMessage extends Record<string,unknown> {role:string;content:unknown;context?:unknown;personalityName?:unknown;personalityIcon?:unknown;provider?:unknown;agentId?:unknown;modelId?:unknown;modelDisplay?:unknown;lensSources?:{length?:unknown}|null}
 export type VisionMessages = Array<{role:unknown;content:string|undefined|ReturnType<typeof buildVisionContent>}>;

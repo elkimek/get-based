@@ -6,7 +6,7 @@ test('closing and reopening chat preserves an in-flight response', async ({ page
     localStorage.setItem('labcharts-default-tour', 'completed');
   });
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForSelector('#chat-panel');
+  await page.waitForSelector('#chat-panel', { state: 'attached' });
 
   const outcomes = await page.evaluate(async () => {
     // Load through the production lazy boundary so the shell X/Escape routes
