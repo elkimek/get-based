@@ -1,3 +1,4 @@
+import { state } from './state.js';
 import { createRetryingStylesheetLoader } from './retrying-module-loader.js';
 // dna-runtime.js - Browser runtime adapters for DNA import and shell refresh flows.
 
@@ -192,7 +193,20 @@ export async function confirmDnaDeleteDialog() {
   }
 }
 
+/** File parsing and preview confirmation stay attached to the profile/data that started them. */
+export function captureDnaImportOrigin() {
+  const profileId = state.currentProfile, data = state.importedData;
+  let retired = false;
+  return { profileId, data, current() {
+    if (profileId !== state.currentProfile || data !== state.importedData) retired = true;
+    return !retired;
+  } };
+}
+const pendingOrigins = new WeakMap<object, ReturnType<typeof captureDnaImportOrigin>>();
+export function isPendingDnaImportCurrent(result: object): boolean { return pendingOrigins.get(result)?.current() === true; }
+
 export function setPendingDnaImport(result: PendingDnaImport) {
+  pendingOrigins.set(result, captureDnaImportOrigin());
   getRuntimeWindow()._pendingDNAImport = result;
 }
 
@@ -205,6 +219,7 @@ export function clearPendingDnaImport() {
 }
 
 export function setPendingMtDnaImport(result: PendingMtDnaImport) {
+  pendingOrigins.set(result, captureDnaImportOrigin());
   getRuntimeWindow()._pendingMtDNA = result;
 }
 

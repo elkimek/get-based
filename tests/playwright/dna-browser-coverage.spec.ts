@@ -201,7 +201,11 @@ test('DNA autosomal import UI coverage exercises preview, confirm, render, and d
     (state as { importedData: unknown }).importedData = { entries: [], notes: [], supplements: [], healthGoals: [], diagnoses: null, genetics: null, customMarkers: {}, markerNotes: {}, markerValueNotes: {}, changeHistory: [] };
     state.profiles = [{ id: profileId, name: 'DNA coverage', createdAt: Date.now(), lastUpdated: Date.now(), tags: [], notes: '', status: 'active', pinned: false }];
 
-    document.body.innerHTML = '<div id="notification-container"></div><div class="chat-onboard-dna"></div><main id="fixture"></main>';
+    document.body.innerHTML = '<div id="notification-container"></div><div id="optional-onboarding-fixture"></div><main id="fixture"></main>';
+    const { renderChatOptionalSetup } = await import('/js/chat-optional-setup-component.js');
+    const { projectChatOptionalSetup } = await import('/js/chat-optional-onboarding-presentation.js');
+    state.chatHistory = [];
+    renderChatOptionalSetup(document.getElementById('optional-onboarding-fixture')!, projectChatOptionalSetup(state.importedData, 'female', true, 'DNA coverage'));
     const calls: unknown[] = [];
     dnaRuntime.configureDnaRuntimeDeps({
       buildSidebar: () => calls.push('sidebar'),

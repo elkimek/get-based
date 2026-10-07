@@ -299,7 +299,7 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
     'Should show profile setup form for new visitors');
   assert('Chat onboarding keeps optional profile context collapsed', chatProfileFormSrc.includes('<details class={PROFILE_MORE}>') && !chatProfileFormSrc.includes('<details open') && chatProfileStylesSrc.includes('chat-onboard-more') && chatProfileFormSrc.includes('Optional body and location context'),
     'Optional height/weight/location fields should not crowd the first mobile onboarding step');
-  assert('Chat onboarding has compact optional task cards', chatEmptyStateSrc.includes('chat-onboard-task-grid') && chatEmptyStateSrc.includes('chat-onboard-dna'),
+  assert('Chat onboarding has compact optional task cards', chatEmptyStateSrc.includes('renderChatOptionalSetup') && read('js/components/ChatOptionalSetup.svelte').includes('chat-onboard-dna') && read('js/chat-optional-onboarding-classes.ts').includes('chat-onboard-task-grid'),
     'Optional setup should use compact cards and preserve DNA import update hook');
   assert('Chat onboarding makes AI provider setup explicit', chatEmptyStateSrc.includes('chat-onboard-provider-requested') && !chatEmptyStateSrc.includes('!providerSkipped'),
     'No-provider users should continue into context first unless they ask to connect AI');

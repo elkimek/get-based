@@ -4,6 +4,8 @@ import { configureRuntimeFunctions } from './runtime-callbacks.js';
 import { state } from './state.js';
 import { disposeChatProviderSetup, renderChatProviderSetup } from './chat-provider-setup-component.js';
 import { disposeChatProfileSetup, renderChatProfileSetup } from './chat-profile-setup-component.js';
+import { disposeChatOptionalSetup, renderChatOptionalSetup, isChatOptionalSetupActionCurrent } from './chat-optional-setup-component.js';
+import { projectChatOptionalSetup } from './chat-optional-onboarding-presentation.js';
 import { projectChatProfileLatitude } from './chat-profile-onboarding.js';
 import { projectOnboardingProgress } from './chat-onboarding-presentation.js';
 import { renderAppExtensionOnboardingSlot } from './app-extension-runtime.js';
@@ -15,7 +17,6 @@ import { renderProfileContextCards } from './context-cards.js';
 import { triggerContextCardDNAFilePickerRuntime } from './context-cards-runtime.js';
 import { openMenstrualCycleEditor } from './cycle.js';
 import { openSupplementsEditor } from './supplements.js';
-import { getCurrentSupplements } from './supplement-medication-domain.js';
 import { escapeHTML, escapeAttr, hasCardContent } from './utils.js';
 import { getActivePersonality } from './chat-personalities.js';
 import { getDnaModuleFunction } from './dna-runtime-bridge.js';
@@ -42,12 +43,8 @@ type ChatEmptyStateOperations = {closeChatPanel():unknown;openChatProviderQuiz()
 type ChatEmptyStateDependencies = {[Key in keyof ChatEmptyStateOperations]:unknown};
 type EmptyChatContext = ReturnType<typeof getEmptyChatContext>;
 type PersonaContext = Pick<EmptyChatContext,'personality'|'name'>;
-type ContextGenetics = {snps?:unknown;mtdna?:{haplogroup?:unknown}|null};
 // Private operations at unchecked storage boundaries; these readers do not validate persisted data.
-type EmptyDataOperations = {entries?:{length:number};healthGoals?:{length:number}|null;genetics?:ContextGenetics|null;
-  menstrualCycle?:{periods?:{length:number}|null;cycleLength?:unknown;cycleStatus?:unknown}|null;
-  supplements?:Parameters<typeof getCurrentSupplements>[0]|null;
-  wearableConnections?:Record<string,{accessToken?:unknown;connectedSince?:unknown}|null>|null;[field:string]:unknown};
+type EmptyDataOperations = {entries?:{length:number};healthGoals?:{length:number}|null;[field:string]:unknown};
 const chatEmptyStateDeps: ChatEmptyStateDependencies = {
   closeChatPanel: () => {},
   openChatProviderQuiz: () => {},
@@ -82,7 +79,7 @@ function getChatProfileHeight(profileId: Parameters<typeof getProfileHeight>[0])
 
 function handleChatEmptyClick(event: Event) {
   const actionEl = closestChatEmptyAction(event);
-  if (!actionEl) return;
+  if (!actionEl || !isChatOptionalSetupActionCurrent(actionEl)) return;
   const action = actionEl.dataset.chatEmptyAction;
   if (!action) return;
 
@@ -136,7 +133,7 @@ function handleChatEmptyClick(event: Event) {
 
 function handleChatEmptyChange(event: Event) {
   const actionEl = closestChatEmptyAction(event);
-  if (!actionEl) return;
+  if (!actionEl || !isChatOptionalSetupActionCurrent(actionEl)) return;
   const action = actionEl.dataset.chatEmptyAction;
   if (!action) return;
 
@@ -155,7 +152,7 @@ function handleChatEmptyChange(event: Event) {
 
 function handleChatEmptyInput(event: Event) {
   const actionEl = closestChatEmptyAction(event);
-  if (!actionEl) return;
+  if (!actionEl || !isChatOptionalSetupActionCurrent(actionEl)) return;
   if (actionEl.dataset.chatEmptyAction === 'save-location') void saveChatLocation(actionEl);
 }
 
@@ -198,6 +195,11 @@ export function renderEmptyChatState(container: HTMLElement, panel?: HTMLElement
   const forcedStep = sessionStorage.getItem(`chat-onboard-force-step-${state.currentProfile}`) || '';
   const providerStep = context.hasProfile && forcedStep !== 'profile' && !isAIPaused()
     && (forcedStep === 'provider' || (!(!context.hasData && forcedStep === 'extras') && shouldRenderProviderSetup()));
+  const forceContext = forcedStep === 'cards' || sessionStorage.getItem(`chat-onboard-force-context-cards-${state.currentProfile}`) === '1';
+  const optionalStep = context.hasProfile && !isAIPaused() && !context.hasData && forcedStep !== 'profile'
+    && forcedStep !== 'provider' && (forcedStep === 'extras' || (!providerStep
+      && !localStorage.getItem(`labcharts-onboard-extras-done-${state.currentProfile}`) && !forceContext));
+  if (!optionalStep) disposeChatOptionalSetup();
   if (!providerStep) disposeChatProviderSetup();
   if (forcedStep !== 'profile' && context.hasProfile) disposeChatProfileSetup();
 
@@ -298,123 +300,11 @@ function renderProviderSetupState(container: HTMLElement, panel: HTMLElement|nul
   return true;
 }
 
-function renderAffiliateDnaKitLink(hasSnps: unknown) {
-  if (hasSnps) return '';
-  return `<div class="chat-onboard-affiliate-foot">
-    No DNA file? We recommend a <a href="https://www.dpbolvw.net/q2101xdmjdl0212824AA4024989447" target="_blank" rel="noopener sponsored" class="chat-onboard-affiliate-link">LivingDNA kit</a>.
-  </div>`;
-}
-
 function renderOptionalContextState(container: HTMLElement, panel: HTMLElement|null|undefined, { personality }: Pick<EmptyChatContext,'personality'>) {
   setOnboardingActive(panel);
-  const cards = buildOptionalContextTaskCards();
-  const genetics = (state.importedData as EmptyDataOperations).genetics || {};
-  const hasSnps = Object.keys((genetics.snps || {}) as object).length > 0;
-  container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
-    <div class="chat-msg chat-ai">
-      ${_renderOnboardCrumbs(3)}
-      <p>${hasChatResponseBackend() ? 'Great, we are connected.' : 'Nice. We can collect useful context first and connect AI when optional tips or AI imports need it.'} These optional context pieces make later interpretation more useful. Add any that matter now, or continue to the context cards.</p>
-      <div class="chat-onboard-task-grid">${cards}</div>
-      ${renderAffiliateDnaKitLink(hasSnps)}
-      <div class="chat-onboard-note">You can change all of this later from the dashboard, settings, or client profile.</div>
-      <div class="chat-onboard-actions chat-onboard-actions-row">
-        <button type="button" class="chat-onboard-cta" data-chat-empty-action="skip-extras">Continue to context cards</button>
-      </div>
-    </div>`;
+  renderChatOptionalSetup(container, projectChatOptionalSetup(state.importedData, state.profileSex,
+    hasChatResponseBackend(), `${personality.icon} ${personality.name}`));
   return true;
-}
-
-function buildOptionalContextTaskCards() {
-  const isFemale = state.profileSex === 'female';
-  const mc = (state.importedData as EmptyDataOperations)?.menstrualCycle;
-  const hasCycle = (mc?.periods?.length as number) > 0 || mc?.cycleLength || mc?.cycleStatus;
-  const supps = (state.importedData as EmptyDataOperations).supplements || [];
-  const genetics = (state.importedData as EmptyDataOperations).genetics || {};
-  const hasSnps = Object.keys((genetics.snps || {}) as object).length > 0;
-  const hasMtdna = !!genetics.mtdna;
-  const wearableConns = (state.importedData as EmptyDataOperations)?.wearableConnections || {};
-  const hasWearable = Object.values(wearableConns).some(c => c?.accessToken || c?.connectedSince);
-  const suppSummary = summarizeSupplements(supps);
-  const dnaSummary = summarizeGenetics(genetics, hasSnps, hasMtdna);
-
-  return [
-    isFemale ? renderCycleTask(hasCycle) : '',
-    renderSupplementsTask(supps, suppSummary),
-    renderGeneticsTask(hasSnps, hasMtdna, dnaSummary),
-    hasWearable ? '' : renderWearableTask(),
-  ].filter(Boolean).join('');
-}
-
-function summarizeSupplements(supps: Parameters<typeof getCurrentSupplements>[0]) {
-  const current = getCurrentSupplements(supps);
-  if (current.length) {
-    return current.slice(0, 2).map(s => `${s!.name}${s!.dosage ? ` ${s!.dosage}` : ''}`).join(', ')
-      + (current.length > 2 ? ` +${current.length - 2}` : '')
-      + (supps.length > current.length ? ` · ${supps.length - current.length} in history` : '');
-  }
-  return supps.length
-    ? `No current items · ${supps.length} in history`
-    : 'Add medications or supplements that can shift labs.';
-}
-
-function summarizeGenetics(genetics: ContextGenetics, hasSnps: unknown, hasMtdna: unknown) {
-  return [
-    hasSnps ? `${Object.keys((genetics.snps || {}) as object).length} SNPs` : '',
-    hasMtdna ? `mtDNA ${genetics.mtdna?.haplogroup || ''}`.trim() : '',
-  ].filter(Boolean).join(' · ') || 'Import nuclear DNA (SNPs) or mitochondrial DNA (mtDNA) raw data.';
-}
-
-function renderCycleTask(hasCycle: unknown) {
-  return `<article class="chat-onboard-task${hasCycle ? ' is-complete' : ''}">
-    <span class="chat-onboard-task-icon" aria-hidden="true">◐</span>
-    <span class="chat-onboard-task-body">
-      <strong>Cycle context</strong>
-      <small>${hasCycle ? 'Cycle tracking is already set.' : 'Helps interpret hormones, iron, and inflammation.'}</small>
-    </span>
-    <span class="chat-onboard-mini-actions">
-      <button type="button" class="chat-onboard-mini-btn" data-chat-empty-action="open-cycle-editor">${hasCycle ? 'Edit' : 'Set up'}</button>
-      <button type="button" class="chat-onboard-mini-btn chat-onboard-mini-btn-secondary" data-chat-empty-action="start-file-import">Import</button>
-    </span>
-  </article>`;
-}
-
-function renderSupplementsTask(supps: {length:number}, suppSummary: unknown) {
-  return `<article class="chat-onboard-task${supps.length ? ' is-complete' : ''}">
-    <span class="chat-onboard-task-icon" aria-hidden="true">Rx</span>
-    <span class="chat-onboard-task-body">
-      <strong>Supplements &amp; meds</strong>
-      <small>${escapeHTML(suppSummary)}</small>
-    </span>
-    <button type="button" class="chat-onboard-mini-btn" data-chat-empty-action="open-supplements-editor">${supps.length ? 'Edit' : 'Add'}</button>
-  </article>`;
-}
-
-function renderGeneticsTask(hasSnps: unknown, hasMtdna: unknown, dnaSummary: unknown) {
-  return `<article class="chat-onboard-task chat-onboard-dna${hasSnps || hasMtdna ? ' is-complete' : ''}">
-    <span class="chat-onboard-task-icon" aria-hidden="true">DNA</span>
-    <span class="chat-onboard-task-body">
-      <strong>Genetics</strong>
-      <small>${escapeHTML(dnaSummary)}</small>
-    </span>
-    <span class="chat-onboard-mini-actions">
-      ${!hasSnps ? `<button type="button" class="chat-onboard-mini-btn" data-chat-empty-action="import-dna">Import DNA file</button>` : ''}
-      ${!hasMtdna ? `<button type="button" class="chat-onboard-mini-btn" data-chat-empty-action="import-mtdna">Import mtDNA</button>` : ''}
-      ${hasSnps ? `<button type="button" class="chat-onboard-mini-btn chat-onboard-mini-btn-secondary" data-chat-empty-action="import-dna">Re-import DNA</button>` : ''}
-      ${hasMtdna ? `<button type="button" class="chat-onboard-mini-btn chat-onboard-mini-btn-secondary" data-chat-empty-action="import-mtdna">Re-import mtDNA</button>` : ''}
-      <input type="file" id="mtdna-onboard-input" class="sr-only" accept=".txt,.csv" aria-label="Import mtDNA file" data-chat-empty-action="import-mtdna-file">
-    </span>
-  </article>`;
-}
-
-function renderWearableTask() {
-  return `<article class="chat-onboard-task">
-    <span class="chat-onboard-task-icon" aria-hidden="true">HRV</span>
-    <span class="chat-onboard-task-body">
-      <strong>Wearables</strong>
-      <small>Optional HRV, sleep, recovery, and body composition trends.</small>
-    </span>
-    <button type="button" class="chat-onboard-mini-btn" data-chat-empty-action="open-wearables-settings">Connect</button>
-  </article>`;
 }
 
 function renderFullContextNoDataState(container: HTMLElement, panel: HTMLElement|null|undefined, { personality, name }: PersonaContext) {

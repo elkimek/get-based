@@ -245,7 +245,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/chat-discussion-state.js', '/js/chat-discussion-picker.js',
   '/js/chat-discussion-ui.js', '/js/chat-discussion-view.js', '/js/chat-discussion-classes.js', '/js/components/ChatDiscussion.svelte.native.js',
   '/js/chat-profile-onboarding.js', '/js/chat-profile-onboarding-controller.js', '/js/chat-profile-onboarding-classes.js', '/js/chat-profile-setup-component.js', '/js/components/ChatProfileSetup.svelte.native.js',
-  '/js/chat-onboarding.js', '/js/chat-onboarding-presentation.js', '/js/chat-onboarding-classes.js', '/js/chat-provider-setup-component.js',
+  '/js/chat-optional-onboarding-presentation.js', '/js/chat-optional-onboarding-classes.js', '/js/chat-optional-setup-component.js', '/js/components/ChatOptionalSetup.svelte.native.js', '/js/genetics-import-events.js', '/js/chat-onboarding.js', '/js/chat-onboarding-presentation.js', '/js/chat-onboarding-classes.js', '/js/chat-provider-setup-component.js',
   '/js/components/ChatProviderSetup.svelte.native.js', '/js/components/ChatProviderQuiz.svelte.html.js', '/js/components/ChatOnboardingProgress.svelte.html.js',
   '/js/chat-onboarding-host-bindings.js',
   '/js/chat-loader.js',

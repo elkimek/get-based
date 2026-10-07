@@ -87,6 +87,7 @@ export const {
   invalidateActiveDataCache,
   saveImportedData,
   saveImportedDataForProfile,
+  notifyProfileDataContextChanged,
   getFocusCardFingerprint,
   getActiveData,
   convertDisplayToSI,

@@ -1,3 +1,4 @@
+import { isChatOptionalSetupActionCurrent } from './chat-optional-setup-component.js';
 // chat-onboarding.js — Chat-first onboarding handlers and render helpers
 
 import type { ProfileData } from '../types/app-state.js';
@@ -56,7 +57,7 @@ export function chatOnboardingActionAttrs(action: string, attrs: Parameters<type
 }
 
 function isChatOnboardingActionScope(actionEl: Element) {
-  return !!actionEl.closest('#chat-panel, .chat-provider-quiz') && isChatProviderSetupActionCurrent(actionEl);
+  return !!actionEl.closest('#chat-panel, .chat-provider-quiz') && isChatProviderSetupActionCurrent(actionEl) && isChatOptionalSetupActionCurrent(actionEl);
 }
 
 function openAiSettings(current: () => boolean) {
@@ -91,7 +92,7 @@ async function handleChatOnboardingClick(event: MouseEvent) {
   const thread = state.currentThreadId;
   const history = state.chatHistory;
   const current = () => profile === state.currentProfile && thread === state.currentThreadId
-    && history === state.chatHistory && actionEl.isConnected && isChatProviderSetupActionCurrent(actionEl);
+    && history === state.chatHistory && actionEl.isConnected && isChatProviderSetupActionCurrent(actionEl) && isChatOptionalSetupActionCurrent(actionEl);
   event.preventDefault();
 
   const extensionHandled = handleAppExtensionOnboardingAction({

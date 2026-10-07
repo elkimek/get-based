@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { state } from '../js/state.js';
 import { mergeProfileMutation, rememberProfileData, adoptProfileData } from '../js/profile-data-writes.js';
-import { saveImportedData, saveImportedDataForProfile } from '../js/data.js';
+import { saveImportedData, saveImportedDataForProfile, notifyProfileDataContextChanged, configureDataContextDependencies } from '../js/data.js';
 import { profileStorageKey } from '../js/profile.js';
 import * as crypto from '../js/crypto.js';
 import * as sync from '../js/sync.js';
@@ -364,4 +364,21 @@ it('does not mistake nested object key order after adoption for a concurrent per
   const peer = structuredClone(persisted);
   peer.supplements[0]!.periods[0]!.dose.text = '90 mg/day';
   expect(() => mergeProfileMutation(live, intent, peer)).toThrow(/Concurrent edits/);
+});
+
+it('refreshes scoped committed context for its current profile without scheduling duplicate sync writes', () => {
+  const invalidate = vi.fn(), saved = vi.spyOn(sync, 'onDataSaved').mockImplementation(() => {});
+  const previous = configureDataContextDependencies({ invalidateLabContextCache: invalidate });
+  try {
+    expect(notifyProfileDataContextChanged(profileId)).toBe(true);
+    expect(invalidate).toHaveBeenCalledTimes(1);
+    expect(saved).toHaveBeenCalledExactlyOnceWith({ skipSync: true });
+    state.currentProfile = 'replacement-profile';
+    expect(notifyProfileDataContextChanged(profileId)).toBe(false);
+    expect(invalidate).toHaveBeenCalledTimes(1); expect(saved).toHaveBeenCalledTimes(1);
+  } finally { configureDataContextDependencies(previous); state.currentProfile = profileId; }
+});
+it('does not turn a committed save into a failure when the context-refresh hook throws', () => {
+  vi.spyOn(sync, 'onDataSaved').mockImplementation(() => { throw new Error('Synthetic gateway failure'); });
+  expect(notifyProfileDataContextChanged(profileId)).toBe(false);
 });

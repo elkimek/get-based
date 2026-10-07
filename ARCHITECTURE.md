@@ -902,7 +902,26 @@ weight array. Country-only latitude is a local projection without geocoder
 requests or a redundant write when the form mounts. Scoped Tailwind owns the
 form, including narrow-layout overflow prevention and 44px touch controls.
 Shared native input styles remain only for unmigrated cycle/supplement helpers;
-optional context tasks, context cards and other empty states are separate owners.
+context cards and other empty states are separate owners.
+`ChatOptionalSetup.svelte` owns the add-on task catalog, summaries, DNA import
+confirmation and import/re-import controls. `chat-optional-onboarding-presentation.ts`
+projects cycle visibility, current versus historical therapies, saved SNP findings,
+mtDNA and wearable connection status. `chat-optional-setup-component.ts` retains
+focus across repaint and retires profile/thread/history/data/root owners and removed
+controls. Shared progress and persona components and scoped Tailwind own its layout;
+mobile controls, including Back, provide 44px targets.
+DNA and mtDNA services publish a typed `genetics-import-events.ts` notification
+after persistence instead of replacing the presentation DOM. Parsing and pending
+previews retain their originating profile/data. Confirmation writes a draft through
+explicit profile-scoped storage with the service's recorded baseline, preserving
+curated calls and concurrent profile changes. It publishes to the current owner
+only after a successful save; failed saves keep the preview retryable. A saved
+confirmation survives Chat's history remount only while its saved SNP fingerprint
+still matches. After publishing committed data, `notifyProfileDataContextChanged`
+retains the existing AI context-cache/gateway refresh without scheduling duplicate
+profile sync writes or targeting another profile. A successful
+write already in flight may finish for its original profile without changing a
+replacement profile or opening/closing its presentation.
 
 Conversation navigation has one presentation owner,
 `js/components/ChatThreadNavigation.svelte`. `chat-thread-list-view.ts` preserves

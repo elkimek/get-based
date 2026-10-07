@@ -1,3 +1,4 @@
+import { profileDataBaseline } from './profile-data-writes.js';
 export interface HaplogroupDefinition {
   mutations: string[]; coupling: string; climate: string; origin?: string; etc?: string; parentHg?: string;
 }
@@ -17,14 +18,15 @@ export interface PendingMtDnaImport {
 // dna-mtdna.js - mtDNA haplogroup parsing, preview, persistence, and manual entry.
 
 import { getErrorMessage } from './caught-error.js';
+import { publishGeneticsImport } from './genetics-import-events.js';
 import { state } from './state.js';
 import { HAPLOGROUP_LIST } from './constants.js';
 import { escapeHTML, showNotification } from './utils.js';
-import { saveImportedData } from './data.js';
+import { saveImportedData, saveImportedDataForProfile, notifyProfileDataContextChanged } from './data.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { dnaActionAttrs } from './dna-actions.js';
 import {
-  cacheDnaHaplogroupTable,
+  cacheDnaHaplogroupTable, captureDnaImportOrigin, isPendingDnaImportCurrent,
   clearPendingMtDnaImport, ensureDnaModalOverlay,
   getDnaProfileLatitudeBand,
   getPendingMtDnaImport,
@@ -156,8 +158,9 @@ export function detectMtDNAMismatch(genetics: { mtdna?: { haplogroup?: string; c
 let _mtdnaImportRunning = false;
 
 export async function handleMtDNAFile(file: Pick<File, 'text' | 'name'>) {
+  const origin = captureDnaImportOrigin();
   if (_mtdnaImportRunning) { showNotification('mtDNA import already in progress', 'info'); return false; }
-  if (!await loadGeneticsStylesheetForAction()) return false;
+  if (!await loadGeneticsStylesheetForAction() || !origin.current()) return false;
   _mtdnaImportRunning = true;
   try {
     const text = await file.text();
@@ -165,6 +168,7 @@ export async function handleMtDNAFile(file: Pick<File, 'text' | 'name'>) {
     if (mutations.length === 0) { showNotification('No mtDNA mutations found in this file', 'error'); _mtdnaImportRunning = false; return false; }
 
     const hapTable = await loadHaplogroupTable();
+    if (!origin.current()) { _mtdnaImportRunning = false; return false; }
     const resolved = resolveHaplogroup(mutations, hapTable);
     if (!resolved) { showNotification('Could not determine haplogroup - try a more complete mtDNA export', 'error'); _mtdnaImportRunning = false; return false; }
 
@@ -236,11 +240,15 @@ export function closeMtDNAPreview() {
 export async function confirmMtDNAImport() {
   const pending = getPendingMtDnaImport();
   if (!pending) return;
+  if (!isPendingDnaImportCurrent(pending)) { clearPendingMtDnaImport(); return; }
+  const origin = captureDnaImportOrigin();
+  const baseline = profileDataBaseline(origin.data);
+  const draft = structuredClone(origin.data);
 
-  if (!state.importedData.genetics) {
-    state.importedData.genetics = { source: null, importDate: null, coverage: { found: 0, total: 0 }, effects: {}, snps: {} };
+  if (!draft.genetics) {
+    draft.genetics = { source: null, importDate: null, coverage: { found: 0, total: 0 }, effects: {}, snps: {} };
   }
-  state.importedData.genetics.mtdna = {
+  draft.genetics.mtdna = {
     haplogroup: pending.resolved.haplogroup,
     confidence: pending.resolved.confidence,
     matchedMutations: pending.resolved.matchedMutations,
@@ -261,7 +269,14 @@ export async function confirmMtDNAImport() {
     importDate: new Date().toISOString().slice(0, 10)
   };
 
-  if (!await saveImportedData()) return;
+  if (!await saveImportedDataForProfile(origin.profileId, draft, { forceProfileScope: true, ...(baseline ? { baseData: baseline } : {}) })) return;
+  if (!origin.current() || getPendingMtDnaImport() !== pending) {
+    if (getPendingMtDnaImport() === pending) clearPendingMtDnaImport();
+    return;
+  }
+  if (!baseline) state.importedData = draft;
+  notifyProfileDataContextChanged(origin.profileId);
+  publishGeneticsImport({ profileId: origin.profileId, previousData: origin.data, data: state.importedData, source: pending.source, kind: 'mtdna' });
   closeMtDNAPreview();
   showNotification(`Haplogroup ${pending.resolved.haplogroup} imported`, 'success');
   refreshDnaShell('dashboard');

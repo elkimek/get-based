@@ -166,6 +166,19 @@ export function createDataCore(ports: DataCorePorts) {
     } catch { return failedProfileSave(); }
   }
 
+  /** Scoped commits already schedule profile sync. Refresh current AI context after the caller publishes saved data. */
+  function notifyProfileDataContextChanged(profileId: string): boolean {
+    if (ports.state.currentProfile !== profileId) return false;
+    try {
+      dataContextDeps.invalidateLabContextCache?.();
+      (0, ports.onDataSaved)({ skipSync: true });
+      return true;
+    } catch (error) {
+      if ((0, ports.isDebugMode)()) console.warn('Post-save context refresh failed:', error);
+      return false;
+    }
+  }
+
   // A supplied baseData describes a field mutation against a version read earlier.
   // Without it, scoped callers retain explicit whole-profile restore semantics.
   async function saveImportedDataForProfile(profileId: string | null | undefined, importedData: Partial<ImportedDataRecord> | null | undefined, options: ProfileSaveOptions = {}) {
@@ -702,5 +715,5 @@ export function createDataCore(ports: DataCorePorts) {
 
   (0, ports.configureDataViewCoreDependencies)({ getActiveData, invalidateActiveDataCache });
 
-  return { configureDataContextDependencies, registerRefreshCallback, _runRegisteredRefreshCallback, invalidateActiveDataCache, saveImportedData, saveImportedDataForProfile, getFocusCardFingerprint, getActiveData, convertDisplayToSI, applyUnitConversion, filterDatesByRange, recalculateHOMAIR, getAllFlaggedMarkers };
+  return { configureDataContextDependencies, registerRefreshCallback, _runRegisteredRefreshCallback, invalidateActiveDataCache, saveImportedData, saveImportedDataForProfile, notifyProfileDataContextChanged, getFocusCardFingerprint, getActiveData, convertDisplayToSI, applyUnitConversion, filterDatesByRange, recalculateHOMAIR, getAllFlaggedMarkers };
 }

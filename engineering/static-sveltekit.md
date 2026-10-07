@@ -189,3 +189,12 @@ wearable row. Startup maintenance may advance `lastUpdated`; every other profile
 field remains identical, and that timestamp cannot move backward. It also checks page errors and the
 deployed Content Security Policy; no source-module imports substitute for the
 static bundle or real form actions.
+
+Optional onboarding uses `ChatOptionalSetup.svelte` in both native and static
+entries. The [offline add-ons scenario](../tests/pwa/sveltekit-chat-onboarding-optional.spec.ts)
+opens the tasks for the first time after the origin is disabled, imports actual
+SNP and mtDNA files through their file choosers and confirmation dialogs, then
+cold-launches the cached application and verifies both genomes through a real
+backup export. The [native ownership scenarios](../tests/playwright/chat-onboarding-optional-owned.spec.ts)
+also cover disconnected/connected continuation, retired controls, profile changes
+during parsing and pending confirmation, and theme/layout/accessibility checks.

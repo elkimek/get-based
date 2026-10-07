@@ -1,3 +1,4 @@
+import { profileDataBaseline } from './profile-data-writes.js';
 import type { GenotypeEntry } from './dna-genotype.js';
 import type { SnpAnnotation, SnpCatalog } from './dna-evidence.js';
 import type { DnaProfileData, GeneticsData, PendingDnaImport, SnpSource, StoredSnpCall } from './dna-runtime.js';
@@ -15,8 +16,9 @@ interface ManualSnpRow { rsid: string; genotype: string; note: string; error?: s
 // dna.js — DNA storage, context assembly, and UI orchestration
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
-import { escapeHTML, hashString, showNotification } from './utils.js';
-import { saveImportedData } from './data.js';
+import { hashString, showNotification } from './utils.js';
+import { publishGeneticsImport } from './genetics-import-events.js';
+import { saveImportedData, saveImportedDataForProfile, notifyProfileDataContextChanged } from './data.js';
 import { closeModalOverlay } from './modal-lifecycle.js';
 import { initDnaActionDelegates } from './dna-actions.js';
 import { configureDnaModuleBridge } from './dna-runtime-bridge.js';
@@ -39,7 +41,7 @@ import {
   parseDNAFileWithTable,
 } from './dna-parser.js';
 import {
-  cacheDnaSnpTable, clearPendingDnaImport,
+  cacheDnaSnpTable, clearPendingDnaImport, captureDnaImportOrigin, isPendingDnaImportCurrent,
   confirmDnaDeleteDialog, getPendingDnaImport,
   isDnaLabImportRunning, logDnaDebugError, logDnaDebugWarn,
   loadGeneticsStylesheetForAction,
@@ -540,8 +542,9 @@ export async function importSnpReport() {
 }
 
 export async function handleSnpReportFile(file: File) {
+  const origin = captureDnaImportOrigin();
   if (_dnaImportRunning) { showNotification('DNA import already in progress', 'info'); return false; }
-  if (!await loadGeneticsStylesheetForAction()) return false;
+  if (!await loadGeneticsStylesheetForAction() || !origin.current()) return false;
   _dnaImportRunning = true;
   try {
     showNotification('Reading SNP report...', 'info');
@@ -553,6 +556,7 @@ export async function handleSnpReportFile(file: File) {
     } else {
       text = await file.text();
     }
+    if (!origin.current()) { _dnaImportRunning = false; return false; }
     const result: ReturnType<typeof parseClinicalSnpReportText> & { mergeSnps?: boolean } = parseClinicalSnpReportText(text, { source: file.name, fileName: file.name, type: 'pdf-report' });
     result.mergeSnps = true;
     if (Object.keys(result.matches).length === 0) {
@@ -577,9 +581,10 @@ export async function handleSnpReportFile(file: File) {
 let _dnaImportRunning = false;
 
 export async function handleDNAFile(file: File) {
+  const origin = captureDnaImportOrigin();
   if (_dnaImportRunning) { showNotification('DNA import already in progress', 'info'); return false; }
   if (isDnaLabImportRunning()) { showNotification('Lab import in progress — wait for it to finish', 'info'); return false; }
-  if (!await loadGeneticsStylesheetForAction()) return false;
+  if (!await loadGeneticsStylesheetForAction() || !origin.current()) return false;
   _dnaImportRunning = true;
   try {
     showNotification('Parsing DNA file...', 'info');
@@ -589,7 +594,8 @@ export async function handleDNAFile(file: File) {
       _dnaImportRunning = false;
       return false;
     }
-    const result = prepareRawDnaImportResult(state.importedData, parsedResult);
+    if (!origin.current()) { _dnaImportRunning = false; return false; }
+    const result = prepareRawDnaImportResult(origin.data, parsedResult);
     showDNAImportPreview(result);
     return true;
   } catch (e) {
@@ -603,7 +609,11 @@ export async function handleDNAFile(file: File) {
 export async function confirmDNAImport() {
   const result = getPendingDnaImport();
   if (!result) return;
+  if (!isPendingDnaImportCurrent(result)) { clearPendingDnaImport(); _dnaImportRunning = false; return; }
+  const origin = captureDnaImportOrigin();
+  const profileId = state.currentProfile;
   const originalData = state.importedData;
+  const baseline = profileDataBaseline(originalData);
   const draftData = JSON.parse(JSON.stringify(originalData || {}));
   if (result.mergeSnps) {
     for (const [rsid, snp] of Object.entries(result.matches || {})) {
@@ -611,13 +621,17 @@ export async function confirmDNAImport() {
       if (!saved.ok) { showNotification((saved as Extract<UpsertSnpResult, { ok: false }>).error || `Could not save ${rsid}`, 'error'); _dnaImportRunning = false; return; }
     }
   } else saveGeneticsData(draftData, result);
-  state.importedData = draftData;
-  if (!await saveImportedData()) {
-    state.importedData = originalData; _dnaImportRunning = false;
+  if (!await saveImportedDataForProfile(profileId, draftData, { forceProfileScope: true, ...(baseline ? { baseData: baseline } : {}) })) {
+    _dnaImportRunning = false;
     return;
   }
-  clearPendingDnaImport();
   _dnaImportRunning = false;
+  if (!origin.current() || getPendingDnaImport() !== result) {
+    if (getPendingDnaImport() === result) clearPendingDnaImport();
+    return;
+  }
+  if (!baseline) state.importedData = draftData;
+  clearPendingDnaImport();
   closeModalOverlay('dna-modal-overlay');
 
   // Build the confirmation from the authoritative saved genome. Raw calls
@@ -629,35 +643,9 @@ export async function confirmDNAImport() {
   const savedSnpCount = savedSnpEntries.length;
   showNotification(`Genome updated from ${result.source}: ${savedSnpCount} SNP calls available`, 'success');
 
-  const apoe = genetics?.apoe;
-  const apoeRsids = apoe ? new Set(['rs429358', 'rs7412']) : new Set<string>();
-  const findingCounts: Record<string, number> & Record<'risk' | 'protective' | 'trait' | 'neutral' | 'reference' | 'unclassified', number> = { risk: 0, protective: 0, trait: 0, neutral: 0, reference: 0, unclassified: 0 };
-  for (const [rsid, snp] of savedSnpEntries) {
-    if (apoeRsids.has(rsid)) continue;
-    const tone = snpFindingPresentation(snp.effect, snp.valence).tone;
-    findingCounts[tone] = (findingCounts[tone] || 0) + 1;
-  }
-  const parts: string[] = [];
-  if (apoe) parts.push(`APOE: <strong>${escapeHTML(apoe)}</strong>`);
-  if (findingCounts.risk > 0) parts.push(`\uD83D\uDD34 ${findingCounts.risk} risk association${findingCounts.risk === 1 ? '' : 's'}`);
-  if (findingCounts.protective > 0) parts.push(`\uD83D\uDFE2 ${findingCounts.protective} protective association${findingCounts.protective === 1 ? '' : 's'}`);
-  if (findingCounts.trait > 0) parts.push(`\uD83D\uDD35 ${findingCounts.trait} informational trait${findingCounts.trait === 1 ? '' : 's'}`);
-  const referenceCount = findingCounts.neutral + findingCounts.reference;
-  if (referenceCount > 0) parts.push(`\u26AA ${referenceCount} reference / neutral finding${referenceCount === 1 ? '' : 's'}`);
-  if (findingCounts.unclassified > 0) parts.push(`\u2753 ${findingCounts.unclassified} unclassified finding${findingCounts.unclassified === 1 ? '' : 's'}`);
-
-  // Update chat onboarding — replace DNA upload with confirmation
-  const dnaEl = (document.querySelector('.chat-onboard-dna') as HTMLElement | null);
-  if (dnaEl) {
-    dnaEl.style.borderTop = '1px solid var(--border)';
-    dnaEl.style.paddingTop = '12px';
-    dnaEl.style.marginTop = '12px';
-    dnaEl.innerHTML = `<p style="margin:0 0 6px">\uD83E\uDDEC <strong>${savedSnpCount} SNP call${savedSnpCount === 1 ? '' : 's'} available</strong> after importing ${escapeHTML(result.source)}</p>
-      <div style="font-size:13px;line-height:1.8">${parts.join(' &nbsp;\u00B7&nbsp; ')}</div>
-      <div style="font-size:12px;color:var(--text-muted);margin-top:6px">I'll factor these into all your lab interpretations.</div>`;
-  } else {
-    updateDnaChatNudge();
-  }
+  notifyProfileDataContextChanged(profileId);
+  publishGeneticsImport({ profileId, previousData: originalData, data: state.importedData, source: result.source, kind: 'snps' });
+  updateDnaChatNudge();
 
   // Refresh sidebar (genetics nav count) AND dashboard. Without the
   // explicit buildSidebar call, the nav-count stays at the pre-import

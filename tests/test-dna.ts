@@ -586,14 +586,14 @@ assert('DNA preview modal uses shared overlay lifecycle helpers and backdrop nud
       + (dnaUiSrc.match(/closeModalOverlay\('dna-modal-overlay'\)/g) || []).length
       + (dnaMtDnaSrc.match(/closeModalOverlay\('dna-modal-overlay'\)/g) || []).length) === 4);
 assert('DNA import success waits for persistence',
-  /async function confirmDNAImport\(\)[\s\S]{0,900}await saveImportedData\(\)/.test(dnaSrc));
-const dnaSaveFailureBlock = (dnaSrc.match(/async function confirmDNAImport\(\)[\s\S]*?if \(!await saveImportedData\(\)\) \{([\s\S]*?)\n\s*\}/) || [null, ''])[1];
+  dnaSrc.includes('await saveImportedDataForProfile(profileId, draftData, { forceProfileScope: true, ...(baseline ? { baseData: baseline } : {}) })') && !dnaSrc.slice(dnaSrc.indexOf('export async function confirmDNAImport'), dnaSrc.indexOf('await saveImportedDataForProfile(profileId')).includes('state.importedData = draftData'));
+const dnaSaveFailureBlock = (dnaSrc.match(/async function confirmDNAImport\(\)[\s\S]*?if \(!await saveImportedDataForProfile\([^\n]*\)\) \{([\s\S]*?)\n\s*\}/) || [null, ''])[1];
 assert('DNA import save failure resets running flag but keeps preview retryable',
   dnaSaveFailureBlock.includes('_dnaImportRunning = false') &&
   dnaSaveFailureBlock.includes('return;') &&
   !dnaSaveFailureBlock.includes('_pendingDNAImport = null'));
 assert('mtDNA save paths wait for persistence',
-  /export async function confirmMtDNAImport\(\)[\s\S]{0,1200}await saveImportedData\(\)/.test(dnaMtDnaSrc) &&
+  dnaMtDnaSrc.includes('await saveImportedDataForProfile(origin.profileId, draft, { forceProfileScope: true, ...(baseline ? { baseData: baseline } : {}) })') &&
   /export async function deleteMtDNAData\(\)[\s\S]{0,180}await saveImportedData\(\)/.test(dnaMtDnaSrc));
 assert('DNA reference links use attribute escaping instead of quote-only replacement',
   dnaUiSrc.includes('escapeAttr(primaryRef)') &&

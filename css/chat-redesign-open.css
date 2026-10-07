@@ -111,9 +111,7 @@ body.chat-open .analytics-consent-banner {
     linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 94%, transparent), color-mix(in srgb, var(--bg-secondary) 74%, transparent)),
     var(--bg-primary);
 }
-.chat-panel.chat-onboarding-active .chat-quiz-option:where(:not([data-chat-provider-view], [data-chat-provider-view] *)),
-.chat-panel.chat-onboarding-active .chat-onboard-task,
-.chat-panel.chat-onboarding-active .chat-onboard-mini-btn {
+.chat-panel.chat-onboarding-active .chat-quiz-option:where(:not([data-chat-provider-view], [data-chat-provider-view] *)) {
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 82%, transparent), color-mix(in srgb, var(--bg-secondary) 58%, transparent)),
     var(--bg-primary);
@@ -145,39 +143,7 @@ body.chat-open .analytics-consent-banner {
   .chat-panel.chat-onboarding-active .chat-messages {
     padding-bottom: calc(20px + env(safe-area-inset-bottom));
   }
-  .chat-onboard-task-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 7px;
-  }
-  .chat-onboard-task {
-    grid-template-columns: 30px minmax(0, 1fr);
-    gap: 7px 8px;
-    padding: 10px;
-  }
-  .chat-onboard-task-icon {
-    width: 30px;
-    height: 30px;
-    font-size: 11px;
-  }
-  .chat-onboard-task-body strong {
-    font-size: 12px;
-  }
-  .chat-onboard-task-body small {
-    font-size: 11px;
-  }
-  .chat-onboard-mini-btn {
-    min-height: 30px;
-    padding: 5px 9px;
-  }
-  .chat-onboard-actions-row {
-    flex-direction: column;
-  }
-  .chat-onboard-actions-row .chat-onboard-cta:where(:not([data-chat-provider-setup-view] *)),
-  .chat-onboard-actions-row .chat-prompt-btn {
-    width: 100%;
-    justify-content: center;
-    text-align: center;
-  }
+
   .chat-thread-rail.open {
     position: absolute;
     inset: 0;
@@ -249,10 +215,4 @@ body.chat-open.chat-fullscreen:has(#chat-thread-rail.open) .main {
   body.chat-layout-resizing { cursor: col-resize; user-select: none; }
   body.chat-layout-resizing .chat-panel,
   body.chat-layout-resizing .chat-thread-rail { transition: none !important; }
-}
-@media (max-width: 360px) {
-  .chat-onboard-task-grid {
-    grid-template-columns: 1fr;
-  }
-
 }
