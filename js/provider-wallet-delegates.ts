@@ -3,6 +3,7 @@
 import { getErrorMessage } from './caught-error.js';
 import { showNotification } from './utils.js';
 import { walletRuntime } from './provider-wallet-runtime.js';
+import { configureRoutstrActions } from './routstr-actions-component.js';
 
 import type { ProviderWalletDefaults } from './provider-wallet-runtime.js';
 type WalletActionResult = object | string | number | boolean | bigint | symbol | null | void;
@@ -19,6 +20,7 @@ let walletActions: Record<string, unknown> = { reload: () => globalThis.location
 
 export function installRoutstrWalletDelegates(actions: unknown = {}) {
   Object.assign(walletActions, actions);
+  configureRoutstrActions({ wallet: action => _runWalletAction(action), node: (action, node) => _runNodeActionValue(action, node) });
   if (routstrWalletDelegatesInstalled || typeof document === 'undefined') return;
   routstrWalletDelegatesInstalled = true;
   document.addEventListener('click', _handleRoutstrWalletClick);
@@ -38,11 +40,6 @@ function _targetClosest(event: WalletEventOperations, selector: string) {
 function _closestWalletEl(event: WalletEventOperations, selector: string) {
   const el = _targetClosest(event, selector);
   return el && el.closest(WALLET_ROOTS) ? el : null;
-}
-
-function _hideWalletMenu() {
-  const menu = document.getElementById('routstr-wallet-menu');
-  if (menu) menu.style.display = 'none';
 }
 
 function _setInputValue(id: string, value: unknown) {
@@ -66,7 +63,6 @@ async function _copyClipboard(el: WalletElementOperations) {
 }
 
 async function _handleRoutstrWalletClick(event: WalletEventOperations): Promise<WalletActionResult> {
-  if (!_targetClosest(event, '#routstr-wallet-menu, [data-routstr-wallet-action="toggle-wallet-menu"]')) _hideWalletMenu();
   const el = _closestWalletEl(event, '[data-routstr-wallet-action]');
   if (!el) return;
   if (el.matches('a, button')) event.preventDefault();
@@ -98,7 +94,6 @@ async function _handleRoutstrWalletClick(event: WalletEventOperations): Promise<
   if (action === 'recover-pending-withdraw') return _recoverPendingWithdraw(el);
   if (action === 'node-action') return _runNodeAction(el);
   if (action === 'wallet-action') return _runWalletAction(el.dataset.walletAction);
-  if (action === 'toggle-wallet-menu') return _toggleWalletMenu();
   if (action === 'seed-ack-continue') return _call('walletSeedAcknowledged');
   if (action === 'setup-wallet-seed') return _call('setupRoutstrWalletSeed');
   if (action === 'wallet-restore') return _call('doRoutstrWalletRestore');
@@ -145,28 +140,23 @@ async function _recoverPendingWithdraw(el: WalletElementOperations) {
 }
 
 function _runNodeAction(el: WalletElementOperations): WalletActionResult {
-  const action = el.dataset.nodeAction;
+  return _runNodeActionValue(el.dataset.nodeAction, el.dataset.nodeUrl || '');
+}
+function _runNodeActionValue(action: unknown, node: string): WalletActionResult {
   if (action === 'refresh') return _call('showRoutstrNodePicker', true);
   _call('_setActiveNodeAction', action);
-  if (action === 'deposit') return _call('showRoutstrNodeDeposit', el.dataset.nodeUrl || '');
+  if (action === 'deposit') return _call('showRoutstrNodeDeposit', node);
   if (action === 'withdraw') return _call('doRoutstrNodeWithdraw');
   if (action === 'browse') return _call('showRoutstrNodePicker');
 }
 
 function _runWalletAction(action: unknown): WalletActionResult {
-  _hideWalletMenu();
   if (action === 'deposit') return _call('showRoutstrWalletFund');
   if (action === 'withdraw') return _call('showRoutstrWithdraw');
   if (action === 'seed') return _call('showWalletSeedPhrase');
   if (action === 'refunds') return _call('showSavedNodeRefunds');
   if (action === 'backup') return _call('showRoutstrWalletBackup');
 }
-
-function _toggleWalletMenu() {
-  const menu = document.getElementById('routstr-wallet-menu');
-  if (menu) menu.style.display = menu.style.display !== 'block' ? 'block' : 'none';
-}
-
 
 function _setWithdrawMax(amount: unknown) {
   if (amount != null) _setInputValue('routstr-withdraw-amount', amount);

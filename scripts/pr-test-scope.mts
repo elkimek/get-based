@@ -70,7 +70,7 @@ function referencesFromFile(file: string, source: string, knownFiles: Set<string
       clean.replace(/^\//, ''),
       path.posix.normalize(path.posix.join(path.posix.dirname(file), clean)),
     ];
-    for (const candidate of candidates.flatMap(candidate => [candidate.endsWith('.svelte.native.js') ? candidate.slice(0, -10) : candidate.replace(/\.mjs$/, '.mts').replace(/\.cjs$/, '.cts').replace(/\.js$/, '.ts'), candidate])) {
+    for (const candidate of candidates.flatMap(candidate => [/\.svelte\.(?:native|html)\.js$/.test(candidate) ? candidate.replace(/\.(?:native|html)\.js$/, '') : candidate.replace(/\.mjs$/, '.mts').replace(/\.cjs$/, '.cts').replace(/\.js$/, '.ts'), candidate])) {
       if (candidate !== file && knownFiles.has(candidate)) refs.add(candidate);
     }
   };

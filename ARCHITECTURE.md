@@ -350,9 +350,32 @@ menu and separate recovery notices. Stable slots host the existing wallet and
 model components, so balance, seed, model or account refreshes retain focused
 controls and private drafts. Parent disposal scrubs its private ports and
 only its owned children before removing the shell. Credentials and recovery
-tokens never enter display snapshots or action attributes. Compatibility button
-serializers retain published imports using the shell's shared action definitions
-and scoped Tailwind controls; the application uses the owned component.
+tokens never enter display snapshots or action attributes. `RoutstrActions.svelte`
+is the single authored wallet/node action and menu implementation. The shell
+mounts it directly; published synchronous HTML helpers use its generated
+`.svelte.html.js` serializer and hydrate the existing controls through
+`routstr-actions-component.ts`. Immediate programmatic clicks dispatch once
+before the observer turn, and active updates retain control identity. Detached,
+replaced or disposed owners cannot dispatch; retiring an obsolete ancestor does
+not dispose a newer child owner. Injected domain callbacks preserve the public
+runtime imports without introducing a reverse wallet-panel dependency.
+
+The HTML serializer reads Svelte's synchronous `render(...).body` entirely in
+the browser; it needs no rendering backend. Svelte retains an optional dynamic
+`node:async_hooks` import for its asynchronous renderer, which this entry never
+invokes. Browser acceptance exercises the actual synchronous bundle. The build
+rejects static Node imports and any additional Node dependency; static Kit treats
+both generated component artifacts as compiled JavaScript. Source inventories
+count the authored component once, while runtime coverage accounts for both
+artifacts and separates mapped framework functions using their source maps.
+
+`ProviderStatus.svelte` owns wallet, mint, seed and node status text. The shell
+uses it directly and `provider-status-component.ts` adapts legacy containers,
+preserving public IDs and status root identity across updates. Captured status
+ports reject removed/replaced roots, and passive mint labels avoid announcements.
+Existing request, provider, node, credential and mint guards remain in the domain
+controllers before presentation. Compatibility helpers no longer duplicate
+button markup or mutate menu visibility/status text themselves.
 
 Session-key and pasted-token connection use the shell's private credential and
 receipt ports, with `routstr-account-controller.ts` owning validation, activation,

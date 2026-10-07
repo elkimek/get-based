@@ -7,8 +7,8 @@ const JAVASCRIPT_EXTENSION: Record<string, string> = { '.ts': '.js', '.mts': '.m
 
 /** Resolve an existing runtime URL to its authored source, preferring TS. */
 export function sourcePath(file: string): string {
-  if (file.endsWith('.svelte.native.js')) {
-    const component = file.slice(0, -10);
+  if (/\.svelte\.(?:native|html)\.js$/.test(file)) {
+    const component = file.replace(/\.(?:native|html)\.js$/, '');
     if (fs.existsSync(component)) return component;
   }
   const extension = path.extname(file);

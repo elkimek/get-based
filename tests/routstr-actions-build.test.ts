@@ -1,0 +1,21 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { expect, it } from 'vitest';
+import { buildSvelte } from '../scripts/build-svelte.mjs';
+import { parseModuleSpecifiers } from '../scripts/architecture-map.mjs';
+import { sourcePath, walkSourceFiles } from '../scripts/source-files.js';
+import { productionSources, productionFunctionIndex } from '../scripts/coverage-source.mjs';
+import { createTestPlan } from '../scripts/pr-test-scope.mjs';
+it('reproduces synchronous HTML from the authored component and tracks both runtime artifacts for coverage', async () => {
+  const component = 'js/components/RoutstrActions.svelte', html = component + '.html.js';
+  await buildSvelte({ component: path.resolve(component), output: 'html', check: true });
+  const source = await fs.readFile(html, 'utf8'), dependencies = parseModuleSpecifiers(source).dependencies;
+  expect(dependencies.filter(edge => edge.specifier.startsWith('node:'))).toEqual([{ specifier: 'node:async_hooks', kind: 'dynamic' }]);
+  expect(dependencies.filter(edge => !edge.specifier.startsWith('.') && edge.specifier !== 'node:async_hooks')).toEqual([]);
+  expect(sourcePath(html)).toBe(component); expect(walkSourceFiles('js/components').filter(file => file.includes('RoutstrActions'))).toEqual([component]);
+  expect(productionSources(process.cwd()).filter(file => file.includes('RoutstrActions'))).toEqual([component]);
+  expect(productionSources(process.cwd(), { runtime: true }).filter(file => file.includes('RoutstrActions'))).toEqual([html, component + '.native.js']);
+  const index = productionFunctionIndex(source, html); expect(index.owned.length).toBeGreaterThan(0); expect(index.thirdParty.length).toBeGreaterThan(0);
+  const sources = new Map([[component, await fs.readFile(component, 'utf8')], ['js/provider-wallet-panel-buttons.ts', `import './components/RoutstrActions.svelte.html.js'`], ['tests/routstr-actions-component.test.ts', `import '../js/provider-wallet-panel-buttons.js'`]]);
+  const plan = createTestPlan(sources, [component]); expect(plan.unit).toContain('tests/routstr-actions-component.test.ts'); expect(plan.uncovered).toEqual([]);
+});

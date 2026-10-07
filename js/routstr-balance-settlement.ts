@@ -1,3 +1,4 @@
+import { presentProviderStatus } from './provider-status-component.js';
 // routstr-balance-settlement.js - Refresh visible node balances after billing reservations settle.
 
 const ROUTSTR_REQUEST_SETTLED_EVENT = 'labcharts-routstr-request-settled';
@@ -27,7 +28,7 @@ export function installRoutstrBalanceSettlementRefresh(refresh: () => void, pres
     const owned = present?.(status) || false;
     const el = document.getElementById('routstr-node-balance') || document.getElementById('routstr-balance');
     if (!owned && !el) return;
-    if (!owned && el) el.textContent = status;
+    if (!owned && el) presentProviderStatus(el, { text: status, tone: 'secondary' });
     refreshTimers = BALANCE_REFRESH_DELAYS_MS.map(delay => setTimeout(refresh, delay));
   });
 }

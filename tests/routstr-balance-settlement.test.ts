@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -10,13 +11,13 @@ afterEach(() => {
   clearRoutstrBalanceSettlementTimers();
   vi.useRealTimers();
   vi.restoreAllMocks();
+  document.body.replaceChildren();
 });
 
 describe('Routstr balance settlement refresh', () => {
   it('shows a temporary-reservation state and retries the visible balance on a bounded schedule', () => {
     vi.useFakeTimers();
-    const balance = { textContent: '' };
-    (vi.spyOn(document, 'getElementById').mockImplementation as (implementation: (id: string) => Pick<HTMLElement, 'textContent'> | null) => unknown)(id => id === 'routstr-node-balance' ? balance : null);
+    const balance = document.body.appendChild(document.createElement('span')); balance.id = 'routstr-node-balance';
     const refresh = vi.fn();
     installRoutstrBalanceSettlementRefresh(refresh);
 

@@ -1711,3 +1711,13 @@ js/custom-settings-controller.js
 /js/ai-action-dialog-component.js
 
 /js/routstr-account-controller.js
+
+/js/routstr-actions-contract.js
+
+/js/routstr-actions-component.js
+
+/js/components/*.svelte.html.js
+/js/components/*.svelte.html.js.map
+
+/js/provider-status-contract.js
+/js/provider-status-component.js

@@ -55,7 +55,6 @@ assert('service worker precaches provider wallet delegate module',
   'recover-pending-deposit',
   'node-action',
   'wallet-action',
-  'toggle-wallet-menu',
   'seed-ack-continue',
   'wallet-restore',
   'withdraw-lightning',
@@ -70,6 +69,12 @@ assert('service worker precaches provider wallet delegate module',
 ].forEach(action => {
   assert(`provider wallet action ${action} is handled`, walletDelegatesSrc.includes(`action === '${action}'`));
 });
+
+assert('shared Svelte wallet actions own the menu toggle and delegate domain actions once',
+  readRepositorySource('js/components/RoutstrActions.svelte', 'utf8').includes('data-routstr-wallet-action="toggle-wallet-menu"') &&
+  readRepositorySource('js/components/RoutstrActions.svelte', 'utf8').includes("invoke('menu')") &&
+  walletDelegatesSrc.includes('configureRoutstrActions({ wallet: action => _runWalletAction(action)') &&
+  !walletDelegatesSrc.includes('_toggleWalletMenu') && !walletDelegatesSrc.includes('_hideWalletMenu'));
 
 assert('owned wallet seed reveal is keyboard accessible and keeps words out of delegated attributes',
   seedComponentSrc.includes('aria-pressed={revealed}') && seedComponentSrc.includes('revealed ? words :') &&

@@ -20,9 +20,11 @@ export function staticKitConfig({ root, temporary, version }: StaticKitOptions) 
         if (!id.startsWith(path.join(root, 'js') + path.sep) || !id.endsWith('.svelte.native.js')) return null;
         // Use the authored component and Kit's shared Svelte runtime, preserving
         // the native adapter contract without bundling Svelte a second time.
-        return `export { default } from ${JSON.stringify(id.slice(0, -10))}; export { mount, unmount, flushSync } from 'svelte';`;
+        return `export { default } from ${JSON.stringify(id.slice(0, -10))}; export { mount, unmount, flushSync, hydrate } from 'svelte';`;
       },
     }, sveltekit({
+      // These generated artifacts are already compiled, not authored rune modules.
+      experimental: { compileModule: { exclude: [/\.svelte\.(?:native|html)\.js$/] } },
       adapter: adapter({ pages: path.join(temporary, 'site'), assets: path.join(temporary, 'site') }),
       files: {
         src: path.join(root, 'js/kit'), routes: path.join(root, 'js/kit/routes'),

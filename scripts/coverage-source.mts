@@ -34,8 +34,8 @@ export function productionSources(root: string, { runtime = false }: { runtime?:
     ...COVERAGE_FILES.map(file => sourcePath(path.join(root, file))).filter(file => fs.existsSync(file)),
     ...COVERAGE_ROOTS.flatMap(directory => walkSourceFiles(path.join(root, directory))),
     ...ownedVendorSources(root).map(file => path.join(root, file)),
-  ])].map(file => {
-    const target = runtime ? runtimePath(file) : file;
+  ])].flatMap(file => runtime && file.endsWith('.svelte') && fs.existsSync(`${file}.html.js`)
+    ? [runtimePath(file), `${file}.html.js`] : [runtime ? runtimePath(file) : file]).map(target => {
     if (!fs.existsSync(target)) throw new Error(`Missing emitted runtime ${target}; run npm run typescript:build`);
     return path.relative(root, target).replaceAll(path.sep, '/');
   }).sort();
@@ -100,7 +100,7 @@ export function partitionComponentFunctions(source: string, payload: SourceMapPa
 }
 
 export function productionFunctionIndex(source: string, file: string, root = ROOT) {
-  if (!file.endsWith('.svelte.native.js')) return { owned: sourceFunctions(source, file), thirdParty: [] };
+  if (!/\.svelte\.(?:native|html)\.js$/.test(file)) return { owned: sourceFunctions(source, file), thirdParty: [] };
   const payload: SourceMapPayload = JSON.parse(fs.readFileSync(path.join(root, `${file}.map`), 'utf8'));
   if (payload.version !== 3 || !Array.isArray(payload.sources) || typeof payload.mappings !== 'string') {
     throw new Error(`Invalid component source map: ${file}`);

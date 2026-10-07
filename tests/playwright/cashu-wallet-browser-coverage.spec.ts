@@ -785,7 +785,7 @@ test('routstr wallet panels and delegates cover browser-only actions', async ({ 
       (document.getElementById('routstr-wallet-actions'))!.innerHTML = panels.routstrWalletActionButtons(null);
       const toggleMenuBtn = document.querySelector<HTMLElement>('[data-routstr-wallet-action="toggle-wallet-menu"]');
       toggleMenuBtn?.click();
-      const menuToggles = document.getElementById('routstr-wallet-menu')?.style.display === 'block';
+      const menuToggles = document.getElementById('routstr-wallet-menu')?.hidden === false && toggleMenuBtn?.getAttribute('aria-expanded') === 'true';
       const backupBtn = document.querySelector<HTMLElement>('[data-wallet-action="backup"]');
       backupBtn?.click();
       await wait(0);
@@ -980,7 +980,6 @@ test('routstr wallet delegate coverage handles scoped action variants', async ({
         <div id="owned-seed-host"></div>
       </div>
       <div id="routstr-mint-edit" style="display:block"><button id="cancel-mint" data-routstr-wallet-action="cancel-mint"></button></div>
-      <div id="routstr-wallet-menu" style="display:block"></div>
     `;
     document.body.appendChild(root);
 

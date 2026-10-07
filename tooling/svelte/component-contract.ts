@@ -74,3 +74,11 @@ export const walletMintPickerCompatible: typeof NativeWalletMintPicker = WalletM
 import WalletExport from '../../js/components/WalletExport.svelte';
 import type NativeWalletExport from '../../js/components/WalletExport.svelte.native.js';
 export const walletExportCompatible: typeof NativeWalletExport = WalletExport;
+
+import RoutstrActions from '../../js/components/RoutstrActions.svelte';
+import type NativeRoutstrActions from '../../js/components/RoutstrActions.svelte.native.js';
+export const routstrActionsCompatible: typeof NativeRoutstrActions = RoutstrActions;
+
+import ProviderStatus from '../../js/components/ProviderStatus.svelte';
+import type NativeProviderStatus from '../../js/components/ProviderStatus.svelte.native.js';
+export const providerStatusCompatible: typeof NativeProviderStatus = ProviderStatus;

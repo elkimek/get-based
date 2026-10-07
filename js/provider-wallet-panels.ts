@@ -1,3 +1,4 @@
+import { presentProviderStatus } from './provider-status-component.js';
 import { getRoutstrSettingsView, mountRoutstrSettings, disposeRoutstrSettings } from './routstr-settings-component.js';
 import { initialRoutstrSettingsState } from './routstr-settings-contract.js';
 import type { RoutstrSettingsView, RoutstrWalletAction, RoutstrNodeAction } from './routstr-settings-contract.js';
@@ -27,6 +28,7 @@ import { createWalletExportController } from './wallet-export-controller.js';
 import { mountWalletWithdraw, getWalletWithdrawView, disposeWalletWithdraw } from './wallet-withdraw-component.js';
 import { createWalletWithdrawController } from './wallet-withdraw-controller.js';
 import { buildRoutstrNodeActions, routstrWalletActionButtons } from './provider-wallet-panel-buttons.js';
+import { updateRoutstrActions, routstrActionsState } from './routstr-actions-component.js';
 import { mountWalletNode, getWalletNodeView, disposeWalletNode } from './wallet-node-component.js';
 import { createWalletNodeController } from './wallet-node-controller.js';
 import type { WalletNodeState, WalletNodeView } from './wallet-node-contract.js';
@@ -122,12 +124,12 @@ export function hydrateRoutstrSettings(): void {
 function writeWalletBalance(el: HTMLElement, text: string): void {
   const view = getRoutstrSettingsView();
   if (view && el.closest('[data-routstr-settings-view]')) view.setState({ ...view.getState(), walletBalance: text });
-  else el.textContent = text;
+  else presentProviderStatus(el, { text, tone: 'primary' }, { emphasis: true });
 }
 function writeMintLabel(text: string): void {
   const view = getRoutstrSettingsView();
   if (view) view.setState({ ...view.getState(), mint: text });
-  else { const el = document.getElementById('routstr-mint-label'); if (el) el.textContent = text; }
+  else { const el = document.getElementById('routstr-mint-label'); if (el) presentProviderStatus(el, { text, tone: 'secondary' }, { monospace: true, announce: false }); }
 }
 
 function ownsWalletBalance(el: HTMLElement, request: number): boolean {
@@ -168,7 +170,7 @@ export function refreshRoutstrBalance(): void {
   const write = (text: string, tone: 'secondary' | 'success' | 'warning' | 'danger' = 'secondary') => {
     if (!owns()) return;
     if (view) view.setState({ ...view.getState(), nodeBalance: { text, tone } });
-    else el.textContent = text;
+    else presentProviderStatus(el, { text, tone });
   };
   write('Balance: refreshing...');
   void getRoutstrBalance().then(balance => {
@@ -489,12 +491,12 @@ export async function refreshWalletSeedStatus() {
     const text = ready ? '12-word wallet seed set up on this device' : 'No 12-word wallet seed on this device';
     const view = getRoutstrSettingsView();
     if (view) view.setState({ ...view.getState(), seed: { text, tone: ready ? 'success' : 'warning' } });
-    else { el.textContent = text; el.style.color = ready ? 'var(--green)' : 'var(--yellow, #f0a800)'; }
+    else presentProviderStatus(el, { text, tone: ready ? 'success' : 'warning' });
   } catch {
     if (revision !== seedStatusRevision || !el.isConnected || document.getElementById('routstr-wallet-device-status') !== el) return;
     const view = getRoutstrSettingsView();
     if (view) view.setState({ ...view.getState(), seed: { text: 'Local wallet setup unavailable', tone: 'danger' } });
-    else { el.textContent = 'Local wallet setup unavailable'; el.style.color = 'var(--red)'; }
+    else presentProviderStatus(el, { text: 'Local wallet setup unavailable', tone: 'danger' });
   }
 }
 
@@ -504,7 +506,7 @@ export function _setActiveNodeAction(actionId: unknown) {
   const el = document.getElementById('routstr-node-actions');
   const nodeUrl = (walletRuntime as WalletOperations).nostrGetSelectedNode?.() || '';
   const hasKey = !!getRoutstrKey();
-  if (el) el.innerHTML = buildRoutstrNodeActions(nodeUrl, hasKey, actionId);
+  if (el) updateRoutstrActions(el, routstrActionsState('node', nodeUrl, hasKey, actionId));
 }
 
 let _activeWalletAction: unknown = null;
@@ -514,7 +516,7 @@ function _setActiveWalletAction(actionId: unknown) {
   const view = getRoutstrSettingsView();
   if (view) { view.setState({ ...view.getState(), walletAction: actionId === 'deposit' || actionId === 'withdraw' || actionId === 'seed' || actionId === 'backup' || actionId === 'refunds' ? actionId : null }); return; }
   const el = document.getElementById('routstr-wallet-actions');
-  if (el) el.innerHTML = routstrWalletActionButtons(actionId);
+  if (el) updateRoutstrActions(el, routstrActionsState('wallet', '', false, actionId));
 }
 
 const seed = createWalletSeedController({

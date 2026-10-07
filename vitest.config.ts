@@ -20,7 +20,7 @@ export default defineConfig({
     // Keep V8/Istanbul in that coordinate space; the collector separately uses
     // the unchanged external map to identify bundled framework functions.
     load(id) {
-      if (!id.endsWith('.svelte.native.js')) return null;
+      if (!/\.svelte\.(?:native|html)\.js$/.test(id)) return null;
       return { code: fs.readFileSync(id, 'utf8').replace(/\/\/# sourceMappingURL=[^\r\n]*/g, ''), map: null };
     },
   }],
