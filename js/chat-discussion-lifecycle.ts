@@ -1,6 +1,7 @@
 // chat-discussion-lifecycle.js - cleanup and completion helpers for discussions
 
 import { state } from './state.js';
+import { captureDiscussionOrigin, type DiscussionOrigin } from './chat-discussion-origin.js';
 import {
   getActivePersonality, updateChatHeaderTitle,
 } from './chat-personalities.js';
@@ -31,13 +32,13 @@ export function restoreDiscussionContinuePrompt() {
 
 export function showDiscussContinuePrompt(personas: unknown, originalPersonality: unknown) {
   const thread = getCurrentThread();
+  const origin = captureDiscussionOrigin(thread?.id);
   // The UI checks Array.isArray before reading pending rows; this input stays raw.
   /** @type {(personas: Parameters<typeof showDiscussContinuePromptUI>[0], originalPersonality: Parameters<typeof showDiscussContinuePromptUI>[1], options: Omit<NonNullable<Parameters<typeof showDiscussContinuePromptUI>[2]>, 'pendingPersonas'> & { pendingPersonas?: unknown }) => ReturnType<typeof showDiscussContinuePromptUI>} */
   (showDiscussContinuePromptUI)(personas as DiscussionLifecyclePersona[], originalPersonality, {
     pendingPersonas: thread?.discussionPendingPersonas || [],
     onPersist() {
-      const currentThread = getCurrentThread();
-      if (currentThread) persistDiscussionThreadState(currentThread.id, personas, originalPersonality);
+      if (thread && origin.isActive()) persistDiscussionThreadState(thread.id, personas, originalPersonality, origin);
     },
   });
 }
@@ -74,9 +75,9 @@ export function endDiscussion() {
   document.getElementById('chat-input')?.focus();
 }
 
-export function finishDiscussionRound(personas: unknown, originalPersonality: unknown, threadId: unknown = state.currentThreadId) {
-  persistDiscussionThreadState(threadId, personas, originalPersonality);
-  if (!isRoundThreadActive(threadId)) return;
+export function finishDiscussionRound(personas: unknown, originalPersonality: unknown, threadId: unknown = state.currentThreadId, origin?: DiscussionOrigin) {
+  persistDiscussionThreadState(threadId, personas, originalPersonality, origin);
+  if (!isRoundThreadActive(threadId, origin) || getChatAbortController()) return;
   (state as DiscussionLifecycleState).currentChatPersonality = originalPersonality;
   (localStorage.setItem as (key: string, value: unknown) => void)(`labcharts-${state.currentProfile}-chatPersonality`, originalPersonality);
   const thread = getCurrentThread();

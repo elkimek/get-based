@@ -26,10 +26,10 @@ export async function saveCustomPersonalities(arr: unknown, profileId = state.cu
 }
 
 // Compat shim - returns the custom personality matching current selection, or first, or blank
-export function getCustomPersonality() {
+export function getCustomPersonality(selection = state.currentChatPersonality) {
   const customs = getCustomPersonalities();
-  if (state.currentChatPersonality && state.currentChatPersonality.startsWith('custom_')) {
-    const match = customs.find(p => p.id === state.currentChatPersonality);
+  if (selection && selection.startsWith('custom_')) {
+    const match = customs.find(p => p.id === selection);
     if (match && isCustomPersonalityUsable(match)) return match;
     if (match) return { ...match, promptText: '' };
   }
@@ -38,10 +38,10 @@ export function getCustomPersonality() {
   return { name: 'Custom Personality', icon: '✏️', promptText: '', evidenceBased: false };
 }
 
-export function getActivePersonality() {
-  if (state.currentChatPersonality && state.currentChatPersonality.startsWith('custom_')) {
+export function getActivePersonality(selection = state.currentChatPersonality) {
+  if (selection && selection.startsWith('custom_')) {
     const customs = getCustomPersonalities();
-    const cp = customs.find(p => p.id === state.currentChatPersonality);
+    const cp = customs.find(p => p.id === selection);
     if (cp && isCustomPersonalityUsable(cp)) {
       return {
         id: cp.id,
@@ -53,7 +53,7 @@ export function getActivePersonality() {
       };
     }
   }
-  return CHAT_PERSONALITIES.find(p => p.id === state.currentChatPersonality) || CHAT_PERSONALITIES[0]!;
+  return CHAT_PERSONALITIES.find(p => p.id === selection) || CHAT_PERSONALITIES[0]!;
 }
 
 export function getCustomPersonalityText() {

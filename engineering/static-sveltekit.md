@@ -133,6 +133,14 @@ verifies orchestration and cached application assets; it does not establish
 model accuracy or actual provider availability. The [native discussion scenarios](../tests/playwright/chat-discussion-owned.spec.ts)
 check additional-perspective and subsequent sequential requests, stale controls,
 literal imported names, keyboard focus, six themes and narrow layouts.
+Live and restored discussion replies share `ChatLiveMessage.svelte`,
+`ChatMessage.svelte` and `ChatPersonaLabel.svelte`. The
+[reply lifetime scenarios](../tests/playwright/chat-discussion-live-owned.spec.ts)
+check live-node reconnection, retirement on profile/history/thread replacement,
+newer-request controller isolation, sequential background participant prompts,
+origin-only persistence and public element facades. Both normal and background
+saves use the same transactional encrypted history writer; these checks do not
+establish remote transport availability or OS-installed PWA acceptance.
 
 Stored citations and image previews use the same authored Svelte components in
 native transcript HTML and the static Kit artifact. The

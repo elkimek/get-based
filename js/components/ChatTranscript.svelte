@@ -1,6 +1,6 @@
 <script lang="ts">
   import ChatMessage from './ChatMessage.svelte';
-  import { PERSONA_LABEL } from '../chat-transcript-classes.js';
+  import ChatPersonaLabel from './ChatPersonaLabel.svelte';
   import type { ChatTranscriptView } from '../chat-transcript-presentation.js';
   let view = $state.raw<ChatTranscriptView>({ entries: [], earlier: 0, fork: null });
   export function setView(next: ChatTranscriptView): void { view = next; }
@@ -16,7 +16,7 @@
   {#each view.entries as entry (entry.key)}
     {#if 'joined' in entry}<div class="chat-persona-joined gb:transcript:self-center gb:transcript:text-xs gb:transcript:text-secondary gb:transcript:italic gb:transcript:py-1.5">{entry.joined}</div>
     {:else}
-      {#if entry.persona}<div class={PERSONA_LABEL}>{entry.persona}</div>{/if}
+      {#if entry.persona}<ChatPersonaLabel text={entry.persona}/>{/if}
       <ChatMessage view={entry.message}/>
     {/if}
   {/each}

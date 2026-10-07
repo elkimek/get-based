@@ -13,6 +13,7 @@ vi.mock('../js/chat-summaries.js', () => ({ renderSavedSummaries: vi.fn() }));
 vi.mock('../js/chat-personalities.js', () => ({ getActivePersonality: () => ({ name: 'Helper', icon: 'H' }), updateChatHeaderTitle: vi.fn() }));
 vi.mock('../js/chat-runtime.js', () => ({ renderChatMessagesRuntime: m.render, updateDiscussButtonRuntime: vi.fn() }));
 import { state } from '../js/state.js';
+import { saveRoundChatHistory } from '../js/chat-discussion-round-state.js';
 import { loadChatHistory, saveChatHistory, canSaveChatHistory, clearChatHistory } from '../js/chat-history.js';
 function deferred() { let resolve: ((value?: unknown) => void) | undefined, reject: ((reason?: unknown) => void) | undefined; const promise = new Promise<unknown>((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; }
 let counter = 0;
@@ -208,4 +209,88 @@ it('leaves destination history intact when navigation occurs during clear index 
   expect(await clearing).toBe(false);
   expect(state.chatHistory).toBe(destination);
   expect(m.list).not.toHaveBeenCalled();
+});
+
+function backgroundThread() {
+  const thread = { id: 'background', name: 'Background', createdAt: 'old', updatedAt: 'old', messagesUpdatedAt: 'old', messageCount: 1, personality: 'origin-persona', personalityName: 'Origin', personalityIcon: 'O' };
+  state.chatThreads.push(thread);
+  return thread;
+}
+it('persists background discussion through encryption without replacing destination history or persona', async () => {
+  const thread = backgroundThread();
+  const destination = state.chatHistory;
+  const messages = [{ role: 'user', content: { api_key: 'sensitive-value' } }, { role: 'assistant', content: 'saved' }];
+  expect(await saveRoundChatHistory('background', messages)).toBe(true);
+  expect(m.set).toHaveBeenCalledWith(`${state.currentProfile}:background`, JSON.stringify(messages));
+  expect(localStorage.getItem(`${state.currentProfile}:background`)).toBeNull();
+  expect(state.chatHistory).toBe(destination);
+  expect(thread.messageCount).toBe(2);
+  expect(thread.personality).toBe('origin-persona');
+  expect(thread.personalityName).toBe('Origin');
+  expect(thread.personalityIcon).toBe('O');
+  expect(m.index).toHaveBeenCalledOnce();
+  expect(m.list).toHaveBeenCalledOnce();
+});
+it('advances the background body clock for same-length edits and preserves unchanged save clocks', async () => {
+  const thread = backgroundThread();
+  const messages = [{ role: 'assistant', content: 'edited reply' }];
+  m.get.mockResolvedValue(JSON.stringify([{ role: 'assistant', content: 'old reply' }]));
+  expect(await saveRoundChatHistory(thread.id, messages)).toBe(true);
+  expect(thread.messagesUpdatedAt).toBe(thread.updatedAt);
+  expect(thread.messagesUpdatedAt).not.toBe('old');
+  thread.updatedAt = '2026-09-13T00:00:00.000Z';
+  thread.messagesUpdatedAt = '2026-09-12T00:00:00.000Z';
+  m.get.mockResolvedValue(JSON.stringify(messages));
+  expect(await saveRoundChatHistory(thread.id, messages)).toBe(true);
+  expect(thread.updatedAt).toBe('2026-09-13T00:00:00.000Z');
+  expect(thread.messagesUpdatedAt).toBe('2026-09-12T00:00:00.000Z');
+});
+it('does not start a background write after profile replacement during decryption', async () => {
+  backgroundThread();
+  const gate = deferred(); m.get.mockReturnValueOnce(gate.promise);
+  const saving = saveRoundChatHistory('background', [{ role: 'assistant', content: 'origin reply' }]);
+  state.currentProfile = 'destination';
+  const destination = state.chatHistory;
+  gate.resolve!('[]');
+  expect(await saving).toBe(false);
+  expect(m.set).not.toHaveBeenCalled();
+  expect(m.index).not.toHaveBeenCalled();
+  expect(state.chatHistory).toBe(destination);
+});
+it('restores exact background bytes and metadata when index persistence fails', async () => {
+  const thread = backgroundThread(); const before = { ...thread };
+  const key = `${state.currentProfile}:background`;
+  localStorage.setItem(key, 'encrypted-before');
+  m.set.mockImplementation(async (_key, value) => { localStorage.setItem(key, `encrypted:${value}`); });
+  m.index.mockResolvedValue(false);
+  expect(await saveRoundChatHistory(thread.id, [{ role: 'assistant', content: 'new reply' }])).toBe(false);
+  expect(localStorage.getItem(key)).toBe('encrypted-before');
+  expect(thread).toEqual(before);
+});
+it('serializes background and selected-conversation writes through the same queue', async () => {
+  const thread = backgroundThread(); const gate = deferred(); let durable = '';
+  const messages = [{ role: 'assistant', content: 'first reply' }];
+  m.set.mockImplementationOnce(async (_key, value) => { await gate.promise; durable = value; }).mockImplementation(async (_key, value) => { durable = value; });
+  const first = saveRoundChatHistory(thread.id, messages);
+  await vi.waitFor(() => expect(m.set).toHaveBeenCalledOnce());
+  state.currentThreadId = thread.id; state.chatHistory = messages;
+  messages.push({ role: 'assistant', content: 'second reply' });
+  const second = saveChatHistory();
+  await Promise.resolve(); expect(m.set).toHaveBeenCalledOnce();
+  gate.resolve!(); expect(await first).toBe(true); expect(await second).toBe(true);
+  expect(JSON.parse(durable)).toHaveLength(2);
+  expect(thread.messageCount).toBe(2);
+});
+
+it('does not resurrect a deleted background conversation after pending encryption completes', async () => {
+  const thread = backgroundThread(); const gate = deferred(); const key = `${state.currentProfile}:background`;
+  localStorage.setItem(key, 'encrypted-before');
+  m.set.mockImplementationOnce(async (_key, value) => { await gate.promise; localStorage.setItem(key, `encrypted:${value}`); });
+  const saving = saveRoundChatHistory(thread.id, [{ role: 'assistant', content: 'late reply' }]);
+  await vi.waitFor(() => expect(m.set).toHaveBeenCalled());
+  state.chatThreads = state.chatThreads.filter(item => item.id !== thread.id);
+  localStorage.removeItem(key);
+  gate.resolve!(); expect(await saving).toBe(false);
+  expect(localStorage.getItem(key)).toBeNull();
+  expect(m.index).not.toHaveBeenCalled();
 });

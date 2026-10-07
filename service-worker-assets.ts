@@ -241,7 +241,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/chat-discussion-round-runner.js',
   '/js/chat-discussion-round-prompts.js',
   '/js/chat-discussion-round-request.js',
-  '/js/chat-discussion-round-state.js',
+  '/js/chat-discussion-round-state.js', '/js/chat-discussion-origin.js',
   '/js/chat-discussion-round-view.js',
   '/js/chat-discussion-state.js',
   '/js/chat-discussion-picker.js',

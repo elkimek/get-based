@@ -306,6 +306,7 @@ describe('chat presentation stylesheet runtime behavior', () => {
 function installRoundStateMocks() {
   const deps = {
     state: {
+      currentProfile: 'round-profile',
       currentThreadId: 'active-thread',
       chatThreads: [
         { id: 'active-thread', messageCount: 1 },
@@ -324,7 +325,7 @@ function installRoundStateMocks() {
     saveChatThreadIndex: vi.fn(),
     encryptedGetItem: vi.fn(async (): Promise<string | null> => null),
     encryptedSetItem: vi.fn(async () => {}),
-    saveChatHistory: vi.fn(async () => {}),
+    saveChatHistory: vi.fn(async (_options?: Parameters<typeof import('../js/chat-history.js').saveChatHistory>[0]) => true),
   };
 
   vi.doMock('../js/state.js', () => ({ state: deps.state }));
@@ -372,64 +373,52 @@ describe('chat discussion round state runtime behavior', () => {
     expect(renderMessages).toHaveBeenCalled();
   });
 
-  it('saves active thread history through chat-history and inactive history through the storage wrapper', async () => {
+  it('saves active and background histories through the same transactional writer', async () => {
     const deps = installRoundStateMocks();
     const mod = await import('../js/chat-discussion-round-state.js');
-    const activeMessages = [{ role: 'user', content: 'active' }];
-    const backgroundMessages = [
-      { role: 'user', content: 'background' },
-      { role: 'assistant', content: 'saved' },
-    ];
-
-    await mod.saveRoundChatHistory('active-thread', activeMessages);
-    expect(deps.state.chatHistory).toBe(activeMessages);
-    expect(deps.saveChatHistory).toHaveBeenCalled();
-    expect(deps.invalidateThreadContentCache).not.toHaveBeenCalled();
-
-    await mod.saveRoundChatHistory('background-thread', backgroundMessages);
-    expect(deps.invalidateThreadContentCache).toHaveBeenCalled();
-    expect(deps.encryptedSetItem).toHaveBeenCalledWith('chat-thread:background-thread', JSON.stringify(backgroundMessages));
-    expect(localStorage.getItem('chat-thread:background-thread')).toBeNull();
-    expect(deps.state.chatThreads[1]!.messageCount).toBe(2);
-    expect(deps.state.chatThreads[1]!.updatedAt).not.toBe('2026-01-01T00:00:00.000Z');
-    expect(deps.saveChatThreadIndex).toHaveBeenCalledTimes(1);
-    expect(deps.renderThreadList).toHaveBeenCalled();
-  });
-
-  it('does not bypass the storage wrapper for credential-shaped chat content', async () => {
-    const deps = installRoundStateMocks();
-    const mod = await import('../js/chat-discussion-round-state.js');
-    const messages = [{ role: 'user', content: { api_key: 'sensitive-value' } }];
-
-    await mod.saveRoundChatHistory('background-thread', messages);
-
-    expect(deps.encryptedSetItem).toHaveBeenCalledWith('chat-thread:background-thread', JSON.stringify(messages));
+    const active = [{ role: 'user', content: 'active' }];
+    const background = [{ role: 'user', content: 'background' }, { role: 'assistant', content: 'saved' }];
+    expect(await mod.saveRoundChatHistory('active-thread', active)).toBe(true);
+    expect(deps.state.chatHistory).toBe(active);
+    expect(deps.saveChatHistory).toHaveBeenCalledWith(expect.objectContaining({ threadId: 'active-thread', history: active, preservePersonality: true, current: expect.any(Function) }));
+    expect(await mod.saveRoundChatHistory('background-thread', background)).toBe(true);
+    expect(deps.state.chatHistory).toBe(active);
+    expect(deps.saveChatHistory).toHaveBeenLastCalledWith(expect.objectContaining({ threadId: 'background-thread', history: background, preservePersonality: true, current: expect.any(Function) }));
+    expect(deps.encryptedSetItem).not.toHaveBeenCalled();
     expect(localStorage.getItem('chat-thread:background-thread')).toBeNull();
   });
 
-  it('advances the inactive body clock for same-length edits and preserves it for unchanged saves', async () => {
+  it.each(['profile', 'history', 'thread-record'])('rejects a retired origin after %s replacement, even when the thread ID matches', async replacement => {
     const deps = installRoundStateMocks();
     const mod = await import('../js/chat-discussion-round-state.js');
-    const messages = [{ role: 'assistant', content: 'edited reply' }];
-    const thread = deps.state.chatThreads[1];
-    deps.encryptedGetItem.mockResolvedValue(JSON.stringify([{ role: 'assistant', content: 'old reply' }]));
-
-    await mod.saveRoundChatHistory(thread!.id, messages);
-    expect(thread!.messagesUpdatedAt).toBe(thread!.updatedAt);
-    expect(thread!.messagesUpdatedAt).not.toBe('2026-01-01T00:00:00.000Z');
-
-    thread!.updatedAt = '2026-09-13T00:00:00.000Z';
-    thread!.messagesUpdatedAt = '2026-09-12T00:00:00.000Z';
-    deps.encryptedGetItem.mockResolvedValue(JSON.stringify(messages));
-    await mod.saveRoundChatHistory(thread!.id, messages);
-    expect(thread!.updatedAt).toBe('2026-09-13T00:00:00.000Z');
-    expect(thread!.messagesUpdatedAt).toBe('2026-09-12T00:00:00.000Z');
+    const { captureDiscussionOrigin } = await import('../js/chat-discussion-origin.js');
+    const origin = captureDiscussionOrigin('active-thread');
+    if (replacement === 'profile') deps.state.currentProfile = 'destination';
+    if (replacement === 'history') deps.state.chatHistory = [];
+    if (replacement === 'thread-record') deps.state.chatThreads = [...deps.state.chatThreads.slice(1), { id: 'active-thread', messageCount: 0 }];
+    const render = vi.fn();
+    const destination = deps.state.chatHistory;
+    mod.renderRoundMessages('active-thread', origin.history, render, origin);
+    mod.persistDiscussionThreadState('active-thread', [{ id: 'foreign' }], 'foreign', origin);
+    mod.persistDiscussionPendingPersonas('active-thread', [{ id: 'foreign' }], origin);
+    expect(await mod.saveRoundChatHistory('active-thread', origin.history, origin)).toBe(false);
+    expect(deps.state.chatHistory).toBe(destination);
+    expect(render).not.toHaveBeenCalled();
+    expect(deps.saveChatHistory).not.toHaveBeenCalled();
+    expect(deps.saveChatThreadIndex).not.toHaveBeenCalled();
+    expect(origin.isValid()).toBe(false);
+    deps.state.currentProfile = 'round-profile';
+    deps.state.chatHistory = origin.history as typeof deps.state.chatHistory;
+    expect(origin.isValid()).toBe(false);
   });
+
 });
 
 function installDiscussionTurnMocks() {
   const deps = {
     state: {
+      currentProfile: 'turn-profile',
+      chatThreads: [{ id: 'thread-1' }, { id: 'thread-2' }],
       currentChatPersonality: 'baseline',
       currentThreadId: 'thread-1',
       chatHistory: [],
@@ -475,13 +464,14 @@ describe('chat discussion turn runtime behavior', () => {
       threadId: 'thread-2',
     });
 
-    expect(deps.persistDiscussionThreadState).toHaveBeenCalledWith('thread-2', personas, 'starter');
-    expect(deps.persistDiscussionPendingPersonas).toHaveBeenCalledWith('thread-2', []);
+    expect(deps.persistDiscussionThreadState).toHaveBeenCalledWith('thread-2', personas, 'starter', expect.objectContaining({ profileId: 'turn-profile', threadId: 'thread-2' }));
+    expect(deps.persistDiscussionPendingPersonas).toHaveBeenCalledWith('thread-2', [], expect.objectContaining({ profileId: 'turn-profile', threadId: 'thread-2' }));
     expect(deps.runDiscussionRound).toHaveBeenCalledWith(personas, 'steer this', {
       suppressAutoMsg: true,
       threadId: 'thread-2',
+      origin: expect.objectContaining({ profileId: 'turn-profile', threadId: 'thread-2' }),
     });
-    expect(deps.finishDiscussionRound).toHaveBeenCalledWith(personas, 'starter', 'thread-2');
+    expect(deps.finishDiscussionRound).toHaveBeenCalledWith(personas, 'starter', 'thread-2', expect.objectContaining({ profileId: 'turn-profile', threadId: 'thread-2' }));
   });
 
   it('runs a single joined persona turn and regular full discussion rounds', async () => {
@@ -491,19 +481,21 @@ describe('chat discussion turn runtime behavior', () => {
     const allPersonas = [{ id: 'main', name: 'Main' }, newPersona];
 
     await turns.runSingleDiscussionTurn(newPersona, allPersonas);
-    expect(deps.persistDiscussionThreadState).toHaveBeenCalledWith('thread-1', allPersonas, 'baseline');
+    expect(deps.persistDiscussionThreadState).toHaveBeenCalledWith('thread-1', allPersonas, 'baseline', expect.objectContaining({ profileId: 'turn-profile', threadId: 'thread-1' }));
     expect(deps.state.chatHistory).toEqual([{ joined: true, joinName: 'Reviewer', joinIcon: 'R' }]);
     expect(deps.runDiscussionRound).toHaveBeenCalledWith([newPersona], 'join prompt', {
       hideAutoMsg: true,
       threadId: 'thread-1',
+      origin: expect.objectContaining({ profileId: 'turn-profile', threadId: 'thread-1' }),
     });
-    expect(deps.finishDiscussionRound).toHaveBeenCalledWith(allPersonas, 'baseline', 'thread-1');
+    expect(deps.finishDiscussionRound).toHaveBeenCalledWith(allPersonas, 'baseline', 'thread-1', expect.objectContaining({ profileId: 'turn-profile', threadId: 'thread-1' }));
 
     deps.runDiscussionRound.mockClear();
     await turns.runDiscussion(allPersonas);
     expect(deps.runDiscussionRound).toHaveBeenCalledWith(allPersonas, null, {
       suppressAutoMsg: undefined,
       threadId: 'thread-1',
+      origin: expect.objectContaining({ profileId: 'turn-profile', threadId: 'thread-1' }),
     });
   });
 });

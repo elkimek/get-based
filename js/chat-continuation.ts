@@ -31,7 +31,7 @@ export function responseLimitNote() {
   return '<div class="chat-stopped-note">[output limit reached - ask "continue" to finish]</div>';
 }
 
-export function isAIResponseTruncated(result: ChatResponse | null | undefined) {
+export function isAIResponseTruncated(result: Pick<ChatResponse, 'truncated' | 'finishReason'> | null | undefined) {
   if (result?.truncated) return true;
   const reason = String(result?.finishReason || '').toLowerCase();
   return reason === 'length'

@@ -1849,3 +1849,7 @@ js/chat-transcript-component.js
 js/chat-transcript-classes.js
 
 js/chat-live-message-component.js
+
+js/components/ChatPersonaLabel.svelte.native.js
+js/components/ChatPersonaLabel.svelte.native.js.map
+js/chat-discussion-origin.js

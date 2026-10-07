@@ -29,7 +29,7 @@ import type { DiscussionUsageReader } from './chat-discussion-round-view.js';
 
 export type DiscussionRoundRequest = Awaited<ReturnType<typeof buildDiscussionRoundRequest>>;
 export type DiscussionRoundAssistantResult = Awaited<ReturnType<typeof callDiscussionRoundAssistant>>;
-interface RoundRequestInput { msgText: unknown; roundHistory: readonly PromptHistoryMessage[]; signal?: AbortSignal | undefined }
+interface RoundRequestInput { msgText: unknown; roundHistory: readonly PromptHistoryMessage[]; signal?: AbortSignal | undefined; personalityId?: string }
 interface RoundAssistantInput {
   request: DiscussionRoundRequest;
   thread?: { agentThreadId?: unknown; chatBackend?: unknown; agentModel?: unknown } | null | undefined;
@@ -50,12 +50,13 @@ interface AssistantMessageInput {
 }
 type RoundAIResultReader = { finishReason?: unknown; drafts?: unknown };
 
-export async function buildDiscussionRoundRequest({ msgText, roundHistory, signal }: RoundRequestInput) {
+export async function buildDiscussionRoundRequest({ msgText, roundHistory, signal, personalityId }: RoundRequestInput) {
   signal?.throwIfAborted();
   // Capture the accepted prompt and selection before asynchronous knowledge
   // lookup. Changing the current persona/model must not rewrite this turn.
-  const personality = { ...getActivePersonality() };
-  const personalityPrompt = buildPersonalityPrompt(personality, getCustomPersonality());
+  const personality = { ...(personalityId === undefined ? getActivePersonality() : getActivePersonality(personalityId)) };
+  const custom = personalityId === undefined ? getCustomPersonality() : getCustomPersonality(personalityId);
+  const personalityPrompt = buildPersonalityPrompt(personality, custom);
   const multiPersonaInstruction = buildMultiPersonaInstruction(roundHistory, personality.name);
   const route = getAssistantExecutionRoute();
   const useCodexAgent = route.adapter === 'codex';

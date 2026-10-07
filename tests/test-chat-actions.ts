@@ -595,8 +595,10 @@ assert('chat-discussion-round-runner.js owns per-persona round execution',
   chatDiscussionRoundRunnerSrc.includes('export async function runDiscussionRound') &&
     chatDiscussionRoundRunnerSrc.includes('callDiscussionRoundAssistant') &&
     chatDiscussionRoundRunnerSrc.includes('buildDiscussionRoundRequest') &&
-    chatDiscussionRoundRunnerSrc.includes('renderFinalDiscussionMessage') &&
-    chatDiscussionRoundRunnerSrc.includes('appendDiscussionUsageFootnote') &&
+    chatDiscussionRoundRunnerSrc.includes('buildDiscussionAssistantMessage') &&
+    chatDiscussionRoundRunnerSrc.includes('createChatLiveMessage') &&
+    chatDiscussionRoundRunnerSrc.includes('completeChatLiveMessage(live.element, assistantMsg') &&
+    chatDiscussionRoundRunnerSrc.includes('trackDiscussionUsage(request, aiResult.usage)') &&
     chatDiscussionRoundRunnerSrc.includes('setChatAbortController(null)') &&
     !chatDiscussionSrc.includes('callChatAPIWithContinuation'),
   'found');
@@ -652,28 +654,43 @@ assert('chat-discussion-round-state.js owns thread-bound round persistence',
     chatDiscussionRoundStateSrc.includes('export function renderRoundMessages') &&
     chatDiscussionRoundStateSrc.includes('export async function saveRoundChatHistory'),
   'found');
-assert('chat-discussion-round-view.js owns live discussion round DOM',
+assert('discussion element facade and live rounds share authored Svelte message markup',
   chatDiscussionRoundRunnerSrc.includes("from './chat-discussion-round-view.js'") &&
     chatDiscussionRoundViewSrc.includes('export function createDiscussionTypingIndicator') &&
     chatDiscussionRoundViewSrc.includes('export function appendRoundPersonaLabel') &&
     chatDiscussionRoundViewSrc.includes('export function renderFinalDiscussionMessage') &&
     chatDiscussionRoundViewSrc.includes('export function appendDiscussionUsageFootnote') &&
-    chatDiscussionRoundViewSrc.includes("setAttribute('role', 'article')"),
+    chatDiscussionRoundViewSrc.includes('snapshotChatCompatibilityMessage(message).message') &&
+    read('js/chat-live-message-component.ts').includes('projectChatTranscriptMessage(message, -1)') &&
+    read('js/components/ChatLiveMessage.svelte').includes('<ChatMessage view={view || initial}') &&
+    read('js/components/ChatMessage.svelte').includes('role="article"') &&
+    !chatDiscussionRoundViewSrc.includes('innerHTML') &&
+    !chatDiscussionRoundViewSrc.includes('renderMarkdown'),
   'found');
 assert('chat discussion rounds stay bound to origin thread during streaming',
   chatDiscussionRoundRunnerSrc.includes('const roundThreadId = opts.threadId || state.currentThreadId') &&
-    chatDiscussionRoundRunnerSrc.includes('saveRoundChatHistory(roundThreadId, roundHistory)') &&
-    chatDiscussionTurnsSrc.includes('persistDiscussionThreadState(threadId, allPersonas, originalPersonality)'),
+    chatDiscussionRoundRunnerSrc.includes('saveRoundChatHistory(roundThreadId, roundHistory, origin)') &&
+    chatDiscussionRoundRunnerSrc.includes('origin.isActive() && ownsController()') &&
+    chatDiscussionTurnsSrc.includes('persistDiscussionThreadState(threadId, allPersonas, originalPersonality, origin)') &&
+    read('js/chat-discussion-origin.ts').includes('profileId !== state.currentProfile') &&
+    read('js/chat-discussion-origin.ts').includes('!state.chatThreads.includes(thread)') &&
+    read('js/chat-discussion-origin.ts').includes('history !== state.chatHistory') &&
+    chatDiscussionRoundStateSrc.includes('return saveChatHistory({') &&
+    chatDiscussionRoundStateSrc.includes('current: () => captured.isValid()') &&
+    !chatDiscussionRoundStateSrc.includes('encryptedSetItem'),
   'prevents thread switches mid-stream from dropping the continue prompt');
-assert('chat discussion live stream restores persona label after thread switch',
-  chatDiscussionRoundViewSrc.includes('export function appendRoundPersonaLabel') &&
-    chatDiscussionRoundRunnerSrc.includes('appendRoundPersonaLabel(roundThreadId, container, labelEl);') &&
-    /onStream\(text\)[\s\S]{0,180}appendRoundPersonaLabel\(roundThreadId, container, labelEl\);[\s\S]{0,80}typewriter\.update\(text\)/.test(chatDiscussionRoundRunnerSrc),
-  're-entering the origin thread mid-stream should show whose response is streaming');
-assert('chat-discussion.js typewriter callback degrades safely',
+assert('chat discussion live stream restores the authored persona label and message after repaint',
+  read('js/components/ChatLiveMessage.svelte').includes('<ChatPersonaLabel text={label}/>') &&
+    chatDiscussionRoundRunnerSrc.includes('const release = origin.watch(') &&
+    chatDiscussionRoundRunnerSrc.includes('activeRound.live?.restore(container)') &&
+    /onStream\(text\)[\s\S]{0,180}live\.restore\(container\);\s*typewriter\.update\(text\)/.test(chatDiscussionRoundRunnerSrc),
+  're-entering or repainting the origin thread retains one authored participant label and live message');
+assert('chat-discussion.js typewriter callback degrades safely and forwards lifetime guards',
   !chatDiscussionCallbacksSrc.includes('Chat discussion typewriter callback not configured') &&
-    /function createDiscussionTypewriter[\s\S]{0,180}update\(\)\s*\{\s*\}[\s\S]{0,80}stop\(\)\s*\{\s*\}/.test(chatDiscussionCallbacksSrc),
-  'fallback typewriter should no-op instead of throwing before cleanup');
+    /if \(!discussionCallbacks\.createTypewriter\)[\s\S]{0,90}update\(\)\s*\{\s*\}[\s\S]{0,80}stop\(\)\s*\{\s*\}/.test(chatDiscussionCallbacksSrc) &&
+    chatDiscussionCallbacksSrc.includes('discussionCallbacks.createTypewriter(el, typingEl, container, current)') &&
+    chatDiscussionRoundRunnerSrc.includes('createDiscussionTypewriter(live.element, typingEl, container, ownsView)'),
+  'fallback safely no-ops and real typewriter ticks are bound to the originating view');
 assert('chat.js imports onboarding helpers', chatSrc.includes("from './chat-onboarding.js'"), 'found');
 assert('chat-onboarding.js owns onboarding handlers',
   chatOnboardingSrc.includes('export function startOnboardingLabImport') &&

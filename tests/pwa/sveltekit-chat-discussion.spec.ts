@@ -38,6 +38,10 @@ test('static discussion restores pending participants, resumes offline and retai
     await cold.getByRole('button', { name: 'Close participant picker' }).click();
     await cold.locator('.chat-discussion-resume').click(); await expect(cold.locator('#chat-messages')).toContainText('Synthetic discussion reply.');
     await expect(cold.locator('.chat-discussion-resume')).toHaveCount(0);
+    await expect(cold.locator('#chat-messages .chat-ai[data-chat-transcript-message]')).toHaveCount(2);
+    await expect(cold.locator('#chat-messages .chat-cost-footnote')).toContainText('17 tokens');
+    await expect(cold.locator('#chat-messages [data-chat-persona-label]')).toContainText('Dr. Gregory House');
+    await expect(cold.locator('#chat-messages [data-chat-live-view]')).toHaveCount(0);
     const requests = await cold.evaluate(() => (window as unknown as { discussionRequests: unknown[]; }).discussionRequests);
     expect(requests).toHaveLength(1);
     expect(requests[0]).toMatchObject({ model: 'fixture-model' });
@@ -48,6 +52,9 @@ test('static discussion restores pending participants, resumes offline and retai
     await ended.getByRole('button', { name: 'Start guided chat', exact: true }).click();
     await expect(ended.locator('[data-chat-discussion-view]')).toBeVisible(); await expect(ended.locator('.chat-discussion-mode')).toHaveCount(0);
     await expect(ended.locator('#chat-messages')).toContainText('Stored answer.'); await expect(ended.locator('#chat-messages')).toContainText('Synthetic discussion reply.');
+    await expect(ended.locator('#chat-messages .chat-ai[data-chat-transcript-message]')).toHaveCount(2);
+    await expect(ended.locator('#chat-messages .chat-cost-footnote')).toContainText('17 tokens');
+    await expect(ended.locator('#chat-messages [data-chat-persona-label]')).toContainText('Dr. Gregory House');
     expect(await ended.evaluate(() => localStorage.getItem('labcharts-default-chat-t_discussion-thread'))).toBe(transcript);
     expect(await ended.evaluate(() => JSON.parse(localStorage.getItem('labcharts-default-chat-threads') || '[]').find((thread: { id: string; }) => thread.id === 'discussion-thread').discussionEnded)).toBe(true);
     await ended.screenshot({ path: test.info().outputPath('discussion-static-ended.png') }); expect(errors).toEqual([]);

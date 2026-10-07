@@ -1,47 +1,33 @@
-// chat-discussion-round-runner.js - per-persona discussion round execution
-
+// Sequential discussion requests use one origin lifetime and the shared authored message view.
 import { state } from './state.js';
-import {
-  isAIResponseTruncated,
-} from './chat-continuation.js';
-import {
-  createDiscussionTypewriter, renderChatMessages,
-  setChatAbortController, setSendButtonMode,
-} from './chat-discussion-callbacks.js';
-import {
-  buildDiscussionAutoMessage, getDiscussionPromptText,
-  hasExistingDiscussionResponses,
-} from './chat-discussion-round-prompts.js';
-import {
-  buildDiscussionAssistantMessage, buildDiscussionRoundRequest, callDiscussionRoundAssistant,
-  trackDiscussionUsage,
-} from './chat-discussion-round-request.js';
-import {
-  isRoundThreadActive, renderRoundMessages, saveRoundChatHistory,
-} from './chat-discussion-round-state.js';
-import {
-  appendDiscussionOutputAttribution, appendDiscussionUsageFootnote, appendRoundPersonaLabel, createDiscussionAiMessage,
-  createDiscussionPersonaLabel, createDiscussionTypingIndicator,
-  renderFinalDiscussionMessage,
-} from './chat-discussion-round-view.js';
+import { isAIResponseTruncated } from './chat-continuation.js';
+import { createDiscussionTypewriter, getChatAbortController, renderChatMessages, setChatAbortController, setSendButtonMode } from './chat-discussion-callbacks.js';
+import { buildDiscussionAutoMessage, getDiscussionPromptText, hasExistingDiscussionResponses } from './chat-discussion-round-prompts.js';
+import { buildDiscussionAssistantMessage, buildDiscussionRoundRequest, callDiscussionRoundAssistant, trackDiscussionUsage } from './chat-discussion-round-request.js';
+import { renderRoundMessages, saveRoundChatHistory } from './chat-discussion-round-state.js';
+import { captureDiscussionOrigin, type DiscussionOrigin } from './chat-discussion-origin.js';
+import { createDiscussionTypingIndicator } from './chat-discussion-round-view.js';
+import { createChatLiveMessage, completeChatLiveMessage, type ChatLiveMessageHandle } from './chat-live-message-component.js';
 import { getChatProviderAttestation } from './chat-runtime.js';
 import { notifyChatContentAdded } from './chat-scroll.js';
 import { updateDiscussionProgress } from './chat-discussion-ui.js';
 import { setChatStreamStatus } from './chat-stream-status.js';
 import { stopChatThinkingStatus } from './chat-thinking-status.js';
-
 import type { DiscussionRoundRequest } from './chat-discussion-round-request.js';
 import type { DiscussionTypewriter } from './chat-discussion-callbacks.js';
-import type { PromptHistoryMessage } from './chat-prompt-context.js';
 
+type ChatMessage = (typeof state.chatHistory)[number];
 export interface DiscussionRoundPersona { id?: unknown; name?: unknown; icon?: unknown }
-export interface DiscussionRoundOptions { threadId?: unknown; suppressAutoMsg?: unknown; hideAutoMsg?: unknown }
+export interface DiscussionRoundOptions { threadId?: unknown; suppressAutoMsg?: unknown; hideAutoMsg?: unknown; origin?: DiscussionOrigin }
 export interface DiscussionRoundResult { completedCount: number; outcome: 'unavailable' | 'complete' | 'stopped' | 'error'; remainingPersonas: unknown }
-// These operation views retain the original unvalidated array/property reads.
 interface RoundPersonaOperations { length: number; [index: number]: DiscussionRoundPersona; slice(start: number): unknown }
 interface ActiveDiscussionRound {
-  aiMsgEl: HTMLElement | null; index: number; persona: DiscussionRoundPersona;
-  request: DiscussionRoundRequest | null; typewriter: DiscussionTypewriter | null; typingEl: HTMLElement;
+  index: number;
+  persona: DiscussionRoundPersona;
+  request: DiscussionRoundRequest | null;
+  typewriter: DiscussionTypewriter | null;
+  typingEl: HTMLElement;
+  live: ChatLiveMessageHandle | null;
 }
 
 export async function runDiscussionRound(personas: unknown, steerPrompt: unknown, opts: DiscussionRoundOptions = {}): Promise<DiscussionRoundResult> {
@@ -49,187 +35,148 @@ export async function runDiscussionRound(personas: unknown, steerPrompt: unknown
   const sendBtn = document.getElementById('chat-send-btn');
   if (!container) return { completedCount: 0, outcome: 'unavailable', remainingPersonas: personas };
   const roundThreadId = opts.threadId || state.currentThreadId;
-  const roundHistory = state.chatHistory as Array<PromptHistoryMessage & { discussion?: unknown; discussionError?: unknown; discussionPersonaId?: unknown; personalityIcon?: unknown }>;
-
+  const origin = opts.origin || captureDiscussionOrigin(roundThreadId);
+  const roundHistory = origin.history;
+  if (!origin.isValid()) return { completedCount: 0, outcome: 'stopped', remainingPersonas: personas };
   const controller = new AbortController();
   setChatAbortController(controller);
-  setSendButtonMode(sendBtn, 'streaming');
-
+  const ownsController = () => getChatAbortController() === controller;
+  const ownsView = () => origin.isActive() && ownsController();
+  if (ownsView()) setSendButtonMode(sendBtn, 'streaming');
+  const participants = personas as RoundPersonaOperations;
   const hasExistingDebate = hasExistingDiscussionResponses(roundHistory);
   let activeRound: ActiveDiscussionRound | null = null;
   let completedCount = 0;
   let remainingPersonas: unknown = [];
   let outcome: DiscussionRoundResult['outcome'] = 'complete';
+  const assertOrigin = () => {
+    if (!origin.isValid() || (!ownsController() && !controller.signal.aborted)) {
+      origin.retire();
+      controller.abort();
+    }
+    controller.signal.throwIfAborted();
+  };
+  const release = origin.watch(() => {
+    if (!origin.isValid() || (!ownsController() && !controller.signal.aborted)) {
+      origin.retire();
+      controller.abort();
+      if (ownsController()) {
+        setChatAbortController(null);
+        setSendButtonMode(document.getElementById('chat-send-btn'), 'idle');
+        setChatStreamStatus('', { busy: false });
+      }
+    }
+    if (!ownsView()) {
+      activeRound?.typewriter?.stop();
+      activeRound?.typingEl.remove();
+      activeRound?.live?.detach();
+    } else if (activeRound) {
+      activeRound.live?.restore(container);
+      if (!activeRound.live?.element.textContent && !activeRound.typingEl.isConnected) container.appendChild(activeRound.typingEl);
+    }
+  });
+  const save = () => saveRoundChatHistory(roundThreadId, roundHistory, origin);
+  const render = () => renderRoundMessages(roundThreadId, roundHistory, renderChatMessages, origin);
 
   try {
-    for (let pi = 0; pi < (personas as RoundPersonaOperations).length; pi++) {
-      if (controller.signal.aborted) {
-        outcome = 'stopped';
-        remainingPersonas = (personas as RoundPersonaOperations).slice(pi);
-        break;
+    for (let index = 0; index < participants.length; index++) {
+      assertOrigin();
+      const persona = participants[index]!;
+      if (ownsView()) {
+        updateDiscussionProgress(persona, index, participants.length);
+        setChatStreamStatus(`${persona.name || 'Participant'} is responding, ${index + 1} of ${participants.length}.`, { busy: true });
       }
-      const persona = (personas as RoundPersonaOperations)[pi]!;
-      updateDiscussionProgress(persona, pi, (personas as RoundPersonaOperations).length);
-      setChatStreamStatus(`${persona.name || 'Participant'} is responding, ${pi + 1} of ${(personas as RoundPersonaOperations).length}.`, { busy: true });
-
-      (state as { currentChatPersonality: unknown }).currentChatPersonality = persona.id;
-
-      const msgText = getDiscussionPromptText({
-        hasExistingDebate,
-        personaIndex: pi,
-        steerPrompt,
-      });
+      const msgText = getDiscussionPromptText({ hasExistingDebate, personaIndex: index, steerPrompt });
       if (!opts.suppressAutoMsg) {
-        const autoMsg = buildDiscussionAutoMessage(msgText, { hideAutoMsg: opts.hideAutoMsg });
-        roundHistory.push(autoMsg);
-        renderRoundMessages(roundThreadId, roundHistory, renderChatMessages);
-        await saveRoundChatHistory(roundThreadId, roundHistory);
+        roundHistory.push(buildDiscussionAutoMessage(msgText, { hideAutoMsg: opts.hideAutoMsg }) as ChatMessage);
+        render();
+        if (!await save()) throw new Error('The discussion prompt could not be saved.');
+        assertOrigin();
       }
-
       const typingEl = createDiscussionTypingIndicator(persona);
-      activeRound = { aiMsgEl: null, index: pi, persona, request: null, typewriter: null, typingEl };
-      if (isRoundThreadActive(roundThreadId)) {
-        container.appendChild(typingEl);
-        notifyChatContentAdded(container);
-      }
-
+      activeRound = { index, persona, request: null, typewriter: null, typingEl, live: null };
+      if (ownsView()) { container.appendChild(typingEl); notifyChatContentAdded(container); }
       const request = await buildDiscussionRoundRequest({
-        msgText,
-        roundHistory,
-        signal: controller.signal,
+        msgText, roundHistory, signal: controller.signal,
+        personalityId: typeof persona.id === 'string' ? persona.id : '',
       });
+      assertOrigin();
       activeRound.request = request;
-
-      const labelEl = createDiscussionPersonaLabel(request.personality);
-      appendRoundPersonaLabel(roundThreadId, container, labelEl);
-
-      const aiMsgEl = createDiscussionAiMessage(request.personality);
-
-      const typewriter = createDiscussionTypewriter(aiMsgEl, typingEl, container);
-      activeRound.aiMsgEl = aiMsgEl;
+      const live = createChatLiveMessage(container, {
+        personalityName: request.personality.name,
+        personalityIcon: request.personality.icon,
+        agentId: request.agentId,
+      }, () => origin.isValid() && ownsController(), `${request.personality.icon || ''} ${request.personality.name}`);
+      if (!ownsView()) live.detach();
+      activeRound.live = live;
+      const typewriter = createDiscussionTypewriter(live.element, typingEl, container, ownsView);
       activeRound.typewriter = typewriter;
-
-      const currentThread = state.chatThreads.find(thread => thread.id === roundThreadId);
       const aiResult = await callDiscussionRoundAssistant({
-        request,
-        thread: currentThread,
-        profileId: state.currentProfile || '',
-        signal: controller.signal,
+        request, thread: origin.thread, profileId: origin.profileId || '', signal: controller.signal,
         onStream(text) {
-          if (isRoundThreadActive(roundThreadId)) {
-            appendRoundPersonaLabel(roundThreadId, container, labelEl);
-            typewriter.update(text);
-          }
+          if (ownsView()) { live.restore(container); typewriter.update(text); }
         },
       });
-      const fullText = aiResult.text;
-      const usage = /** @type {{ inputTokens?: number, outputTokens?: number } | undefined} */ (aiResult.usage);
-      const responseTruncated = (isAIResponseTruncated as (result: Pick<NonNullable<Parameters<typeof isAIResponseTruncated>[0]>, 'truncated' | 'finishReason'>) => ReturnType<typeof isAIResponseTruncated>)(aiResult);
-      const attestation = getChatProviderAttestation(request.provider);
-
+      assertOrigin();
       typewriter.stop();
-      renderFinalDiscussionMessage({
-        threadId: roundThreadId,
-        container,
-        labelEl,
-        aiMsgEl,
-        typingEl,
-        fullText,
-        responseTruncated,
-      });
-
-      (appendDiscussionUsageFootnote as (options: Omit<Parameters<typeof appendDiscussionUsageFootnote>[0], 'usage'> & { usage: Parameters<typeof appendDiscussionUsageFootnote>[0]['usage'] }) => ReturnType<typeof appendDiscussionUsageFootnote>)({
-        threadId: roundThreadId,
-        aiMsgEl,
-        provider: request.provider,
-        modelId: request.modelId,
-        modelDisplay: request.modelDisplay,
-        usage,
-        webSearch: request.webSearch,
-        e2ee: request.e2ee,
-        attestation,
-      });
-      appendDiscussionOutputAttribution({
-        threadId: roundThreadId,
-        aiMsgEl,
-        provider: request.provider,
-        agentId: request.agentId,
-        modelId: request.modelId,
-        modelDisplay: request.modelDisplay,
-      });
-
+      stopChatThinkingStatus(typingEl);
+      typingEl.remove();
       const assistantMsg = buildDiscussionAssistantMessage({
-        fullText,
-        request,
-        aiResult,
-        responseTruncated,
-        attestation,
+        fullText: aiResult.text, request, aiResult,
+        responseTruncated: isAIResponseTruncated(aiResult),
+        attestation: getChatProviderAttestation(request.provider),
       });
-      if (usage && (usage.inputTokens || usage.outputTokens)) {
-        assistantMsg.usage = { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens };
-        trackDiscussionUsage(request, usage);
+      if (aiResult.usage && (aiResult.usage.inputTokens || aiResult.usage.outputTokens)) {
+        assistantMsg.usage = { inputTokens: aiResult.usage.inputTokens, outputTokens: aiResult.usage.outputTokens };
+        trackDiscussionUsage(request, aiResult.usage);
       }
-      roundHistory.push(assistantMsg);
-      await saveRoundChatHistory(roundThreadId, roundHistory);
-      renderRoundMessages(roundThreadId, roundHistory, renderChatMessages);
-      completedCount = pi + 1;
+      if (ownsView()) completeChatLiveMessage(live.element, assistantMsg as ChatMessage);
+      roundHistory.push(assistantMsg as ChatMessage);
+      await save();
+      render();
+      live.dispose();
       activeRound = null;
-      if (isRoundThreadActive(roundThreadId)) notifyChatContentAdded(container);
+      completedCount = index + 1;
+      if (ownsView()) notifyChatContentAdded(container);
     }
-  } catch (err) {
-    const error = err as { name?: unknown; _modalShown?: unknown };
-    const interruptedRound = activeRound;
-    interruptedRound?.typewriter?.stop?.();
-    if (interruptedRound?.typingEl) stopChatThinkingStatus(interruptedRound.typingEl);
-    interruptedRound?.typingEl?.remove?.();
-    if (error.name === 'AbortError') {
+  } catch (error) {
+    const failure = error as { name?: unknown; _modalShown?: unknown };
+    const interrupted = activeRound;
+    interrupted?.typewriter?.stop();
+    if (interrupted) { stopChatThinkingStatus(interrupted.typingEl); interrupted.typingEl.remove(); }
+    if (failure?.name === 'AbortError' || !origin.isValid()) {
       outcome = 'stopped';
-      const partialText = interruptedRound?.aiMsgEl?.textContent?.trim() || '';
-      if (partialText && interruptedRound?.request) {
-        const assistantMsg = buildDiscussionAssistantMessage({
-          fullText: partialText,
-          request: interruptedRound.request,
-          aiResult: {},
-          responseTruncated: false,
-          attestation: getChatProviderAttestation(interruptedRound.request.provider),
-        });
-        assistantMsg.stopped = true;
-        roundHistory.push(assistantMsg);
-        completedCount = interruptedRound.index + 1;
-        await saveRoundChatHistory(roundThreadId, roundHistory);
-        renderRoundMessages(roundThreadId, roundHistory, renderChatMessages);
+      const partial = origin.isValid() ? interrupted?.live?.element.textContent?.trim() || '' : '';
+      if (partial && interrupted?.request) {
+        const message = buildDiscussionAssistantMessage({ fullText: partial, request: interrupted.request, aiResult: {}, responseTruncated: false, attestation: getChatProviderAttestation(interrupted.request.provider) });
+        message.stopped = true;
+        roundHistory.push(message as ChatMessage);
+        completedCount = interrupted.index + 1;
+        await save();
+        render();
       }
-      const interruptedIndex = interruptedRound?.index ?? 0;
-      remainingPersonas = (personas as RoundPersonaOperations).slice(partialText ? interruptedIndex + 1 : interruptedIndex);
+      remainingPersonas = participants.slice((interrupted?.index ?? completedCount) + (partial ? 1 : 0));
     } else {
       outcome = 'error';
-      const persona = interruptedRound?.persona || (personas as RoundPersonaOperations)[completedCount];
-      remainingPersonas = (personas as RoundPersonaOperations).slice(interruptedRound?.index ?? completedCount);
-      if (!error?._modalShown) {
-        roundHistory.push({
-          role: 'assistant',
-          content: `Couldn't get ${persona?.name || 'this participant'}'s response. You can retry the remaining round or continue the discussion.`,
-          error: true,
-          discussion: true,
-          discussionError: true,
-          discussionPersonaId: persona?.id,
-          personalityName: persona?.name,
-          personalityIcon: persona?.icon,
-        });
-        await saveRoundChatHistory(roundThreadId, roundHistory);
-        renderRoundMessages(roundThreadId, roundHistory, renderChatMessages);
+      const persona = interrupted?.persona || participants[completedCount];
+      remainingPersonas = participants.slice(interrupted?.index ?? completedCount);
+      if (!failure?._modalShown) {
+        roundHistory.push({ role: 'assistant', content: `Couldn't get ${persona?.name || 'this participant'}'s response. You can retry the remaining round or continue the discussion.`, error: true, discussion: true, discussionError: true, discussionPersonaId: persona?.id, personalityName: persona?.name, personalityIcon: persona?.icon } as ChatMessage);
+        await save();
+        render();
       }
     }
+  } finally {
+    release();
+    activeRound?.live?.dispose();
+    if (ownsController()) {
+      if (origin.isActive()) {
+        updateDiscussionProgress(null, 0, 0);
+        setChatStreamStatus(outcome === 'complete' ? 'Discussion round complete.' : outcome === 'stopped' ? 'Discussion round paused.' : 'Discussion response failed. Retry is available.', { busy: false });
+      } else setChatStreamStatus('', { busy: false });
+      setChatAbortController(null);
+      setSendButtonMode(sendBtn, 'idle');
+    }
   }
-
-  updateDiscussionProgress(null, 0, 0);
-  setChatAbortController(null);
-  setChatStreamStatus(
-    outcome === 'complete' ? 'Discussion round complete.'
-      : outcome === 'stopped' ? 'Discussion round paused.'
-        : 'Discussion response failed. Retry is available.',
-    { busy: false },
-  );
-  setSendButtonMode(sendBtn, 'idle');
   return { completedCount, outcome, remainingPersonas };
 }

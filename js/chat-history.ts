@@ -37,9 +37,9 @@ function notifyChatHistoryBlocked(key: string) {
   showNotification("Can't read this conversation. Saving is paused to protect its messages.", 'error', 7000);
 }
 
-export function canSaveChatHistory() {
-  if (!state.currentThreadId) return false;
-  const key = getChatThreadKey(state.currentThreadId);
+export function canSaveChatHistory(threadId = state.currentThreadId) {
+  if (!threadId) return false;
+  const key = getChatThreadKey(threadId);
   if (clearingHistoryKeys.has(key)) return false;
   if (!blockedChatHistoryKeys.has(key)) return true;
   notifyChatHistoryBlocked(key);
@@ -96,17 +96,29 @@ export async function loadChatHistory() {
   return true;
 }
 
-export async function saveChatHistory() {
-  if (!state.currentThreadId) return false;
-  if (!canSaveChatHistory()) return false;
+export interface ChatHistorySaveOptions {
+  threadId?: typeof state.currentThreadId;
+  history?: typeof state.chatHistory;
+  current?: () => boolean;
+  preservePersonality?: boolean;
+}
+
+/** Normal sends and background discussion rounds share serialization and exact-byte rollback. */
+export async function saveChatHistory(options: ChatHistorySaveOptions = {}) {
+  const threadId = options.threadId === undefined ? state.currentThreadId : options.threadId;
+  if (!threadId || !canSaveChatHistory(threadId)) return false;
+  const profile = state.currentProfile;
+  const history = options.history || state.chatHistory;
+  const key = getChatThreadKey(threadId);
+  const targetThread = state.chatThreads.find(thread => thread.id === threadId);
+  const ownsHistory = options.current || (() => threadId === state.currentThreadId && history === state.chatHistory);
+  const isCurrent = () => profile === state.currentProfile && ownsHistory();
+  if (!isCurrent()) return false;
   invalidateThreadContentCache();
-  const key = getChatThreadKey(state.currentThreadId);
-  const history = state.chatHistory;
   const value = JSON.stringify(history);
   const messageCount = history.length;
   const personality = state.currentChatPersonality;
-  const p = getActivePersonality();
-  const isCurrent = () => key === getChatThreadKey(state.currentThreadId) && history === state.chatHistory;
+  const p = options.preservePersonality ? null : getActivePersonality();
   const previous = pendingHistoryWrites.get(key);
   const saving = (async () => {
     let committed = false;
@@ -126,18 +138,20 @@ export async function saveChatHistory() {
       bodyWritten = true;
       writtenRaw = localStorage.getItem(key);
       if (!isCurrent()) return false;
-      thread = state.chatThreads.find(t => t.id === state.currentThreadId);
+      thread = state.chatThreads.find(t => t.id === threadId);
       if (thread) {
-        const fields = ['updatedAt', 'messagesUpdatedAt', 'messageCount', 'personality', 'personalityName', 'personalityIcon'];
+        const fields = ['updatedAt', 'messagesUpdatedAt', 'messageCount', ...(p ? ['personality', 'personalityName', 'personalityIcon'] : [])];
         for (const field of fields) previousMetadata[field] = thread[field];
         if (previousValue !== value || thread.messageCount !== messageCount) {
           thread.updatedAt = new Date().toISOString();
           thread.messagesUpdatedAt = thread.updatedAt;
         }
         thread.messageCount = messageCount;
-        thread.personality = personality;
-        thread.personalityName = p.name;
-        thread.personalityIcon = p.icon;
+        if (p) {
+          thread.personality = personality;
+          thread.personalityName = p.name;
+          thread.personalityIcon = p.icon;
+        }
         for (const field of fields) writtenMetadata[field] = thread[field];
         const saved = await saveChatThreadIndex();
         if (!saved) return false;
@@ -156,7 +170,8 @@ export async function saveChatHistory() {
         // the currently selected profile/key. The next queued write waits here.
         try {
           if (localStorage.getItem(key) === writtenRaw) {
-            if (previousRaw === null) localStorage.removeItem(key);
+            const deleted = profile === state.currentProfile && targetThread && !state.chatThreads.some(thread => thread.id === threadId);
+            if (previousRaw === null || deleted) localStorage.removeItem(key);
             else localStorage.setItem(key, previousRaw);
           } else throw new Error('Conversation changed during rollback');
         } catch {

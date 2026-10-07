@@ -953,8 +953,9 @@ attachments, citations, actions, editor, usage and recommendation disclosure.
 Keyed messages preserve controls, open citations, editor drafts and selection
 through same-conversation refreshes. `chat-transcript-component.ts` unmounts
 removed or replaced roots and profile/thread/history owners.
-`ChatLiveMessage.svelte` uses the same message component for normal streaming and
-completion. `chat-live-message-component.ts` provides synchronous typed text,
+`ChatLiveMessage.svelte` uses the same message component for normal and discussion
+streaming and completion. `ChatPersonaLabel.svelte` owns shared participant labels.
+`chat-live-message-component.ts` provides synchronous typed text,
 completion and reconnect ports; scope checks reject retired generation replies.
 The public typewriter can still receive a caller-owned plain-text host, rendered
 by `ChatStreamingText.svelte` and disposed on retirement or before a compatibility
@@ -966,7 +967,18 @@ containment. It captures the exact profile/thread/history/message before saving
 visibility changes. Finite attention runs for newly completed recommendations,
 never restored history, and releases its observer/frame/listener on retirement;
 reduced motion suppresses the pulse. Catalog card markup, onboarding and the
-standalone discussion-round renderer remain separate migration boundaries.
+empty-conversation views remain separate migration boundaries.
+Discussion rounds capture profile, thread record and history identity in
+`chat-discussion-origin.ts`. Background rounds may persist to their original
+conversation; profile/history replacement, deletion or a newer controller retires
+the old round. Repainting reconnects its existing authored live view. Request
+preparation takes the participant explicitly rather than changing the selected
+persona. `chat-discussion-round-state.ts` delegates all body persistence to
+`saveChatHistory`, sharing its serialized encrypted writes, exact-byte rollback
+and clear/write ordering. Background saves preserve the conversation's persona;
+late deletion cannot resurrect its stored body. Public round element helpers in
+`chat-discussion-round-view.ts` snapshot the same authored message and label with
+no indexed actions, retaining the element API without duplicating markup.
 Transcript geometry uses scoped Tailwind. Custom CSS retains the shared
 sanitized Markdown renderer classes and avatar pseudo-elements; legacy bubble
 rules are restricted to the remaining caller-owned hosts.

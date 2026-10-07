@@ -40,8 +40,8 @@
   border: 1px solid var(--border); border-bottom-left-radius: 4px;
   border-left: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
 }
-/* Standalone discussion labels remain outside the authored transcript for now. */
-.chat-persona-label:not(:where([data-chat-transcript-view] *, [data-chat-live-view] *)) {
+/* Legacy empty/onboarding labels; discussion and transcript labels use Tailwind. */
+.chat-persona-label:not([data-chat-persona-label]) {
   align-self: flex-start; font-size: 11px; color: var(--text-muted);
   font-weight: 500; padding: 2px 0; margin-top: 4px; font-family: var(--font-mono);
 }

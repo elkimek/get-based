@@ -1,7 +1,7 @@
 // chat-discussion-callbacks.js - shared callback bridge for discussion rounds
 
 interface DiscussionCallbacks {
-  createTypewriter: ((el: HTMLElement, typingEl: HTMLElement, container: HTMLElement) => DiscussionTypewriter) | null;
+  createTypewriter: ((el: HTMLElement, typingEl: HTMLElement, container: HTMLElement, current?: () => boolean) => DiscussionTypewriter) | null;
   getChatAbortController: () => AbortController | null;
   renderChatMessages: (options?: { preserveScroll?: boolean }) => void;
   setChatAbortController: (controller: AbortController | null) => void;
@@ -36,12 +36,14 @@ export function setSendButtonMode(btn: HTMLElement | null, mode: string): void {
   discussionCallbacks.setSendButtonMode?.((btn), mode);
 }
 
-export function createDiscussionTypewriter(el: HTMLElement, typingEl: HTMLElement, container: HTMLElement): DiscussionTypewriter {
+export function createDiscussionTypewriter(el: HTMLElement, typingEl: HTMLElement, container: HTMLElement, current?: () => boolean): DiscussionTypewriter {
   if (!discussionCallbacks.createTypewriter) {
     return {
       update() {},
       stop() {},
     };
   }
-  return discussionCallbacks.createTypewriter(el, typingEl, container);
+  return current
+    ? discussionCallbacks.createTypewriter(el, typingEl, container, current)
+    : discussionCallbacks.createTypewriter(el, typingEl, container);
 }
