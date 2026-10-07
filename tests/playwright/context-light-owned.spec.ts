@@ -81,7 +81,7 @@ test('authored Light setup button opens the actual Light tool and retires unsave
   expect((await stored(page)).lightCircadian.note).toBe('Saved habits');
   await page.getByRole('button', { name: 'Close light setup', exact: true }).click(); await expect(page.locator('.light-setup-focus-modal')).toHaveCount(0);
 });
-for (const retirement of ['profile switch', 'new form', 'native modal']) test(`authored Light setup defers safely after ${retirement}`, async ({ page }) => {
+for (const retirement of ['profile switch', 'new form', 'another dialog']) test(`authored Light setup defers safely after ${retirement}`, async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' }); await seed(page);
   await page.evaluate(() => {
     const original = window.setTimeout.bind(window);
@@ -95,11 +95,11 @@ for (const retirement of ['profile switch', 'new form', 'native modal']) test(`a
   await page.evaluate(async reason => {
     if (reason === 'profile switch') {
       const { state } = await import('/js/state.js'); state.currentProfile = 'other-light-profile'; state.importedData = (await import('/js/profile.js')).createDefaultProfileData(); window.dispatchEvent(new CustomEvent('labcharts-profile-switched'));
-    } else if (reason === 'native modal') await (await import('/js/context-card-lifestyle-editors.js')).openHealthGoalsEditor();
+    } else if (reason === 'another dialog') await (await import('/js/context-card-lifestyle-editors.js')).openHealthGoalsEditor();
     else await (await import('/js/context-card-lifestyle-editors.js')).openStressEditor();
     (Reflect.get(window, 'heldLightSetup') as () => void)();
   }, retirement);
   await expect(page.locator('.light-setup-focus-modal')).toHaveCount(0);
-  if (retirement === 'native modal') await expect(page.locator('#detail-modal').getByRole('heading', { name: 'Health Goals', exact: true })).toBeVisible();
+  if (retirement === 'another dialog') await expect(page.locator('#detail-modal').getByRole('heading', { name: 'Health Goals', exact: true })).toBeVisible();
   if (retirement === 'new form') await expect(page.locator('[data-context-form-view]')).toHaveAttribute('data-context-form-view', 'stress');
 });

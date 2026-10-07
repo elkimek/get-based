@@ -136,8 +136,25 @@ their originating profile, and unrelated unsaved fields remain live. Presentatio
 callbacks cannot turn a committed write into a failed save. Scoped Tailwind owns
 these forms; their superseded native templates, meal styles and sleep mismatch
 rules are removed.
-Medical history, goals, interpretive lens and
-nutrition fragments still use existing adapters and remain migration work.
+`ContextHealthGoals.svelte` owns incremental goal editing, the original eight
+starters, priority sorting and keyboard actions. `health-goals-utils.ts` projects
+literal rows with their original storage indices; legacy object goals are displayed
+without rewriting storage and retain their metadata on the first accepted edit.
+`context-health-goals-view.ts` owns the live dialog, confirmation and retirement.
+Sync refreshes saved rows while preserving the draft input, priority and focus;
+retired row controls and confirmations cannot edit replacement goals or profiles.
+`context-form-dialog.ts` shares modal layout and accessible-name ownership with
+the lifestyle forms, preserving a replacement authored dialog during cleanup.
+`context-health-goals-session.ts` captures each mutation and its originating profile,
+records draft history and awaits the guarded profile transaction before adoption.
+The transaction checks the observed goal array as well as scalar context fields.
+Failed writes retain editable input, and accepted writes finish on their original
+profile after closure. Delete/clear retain tombstones; explicit re-add records a
+restore. Array deletion/restore metadata preserves observed intent order when
+wall-clock timestamps tie or move backwards, so stale peer deletions cannot erase
+an explicitly restored goal.
+Medical history, interpretive lens and nutrition fragments still use existing
+adapters and remain migration work.
 `context-notes-session.ts` captures accepted text and originating profile/data,
 serializes debounced scoped writes and retains retry drafts through catalog rebuilds
 and fresh profile reload objects. Failed idle sessions retain draft text without

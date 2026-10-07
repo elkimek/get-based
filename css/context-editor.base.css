@@ -275,7 +275,6 @@
   }
   .ctx-editor-section > summary { min-height: 56px; }
   .ctx-editor-modal .ctx-add-condition,
-  .ctx-editor-modal .goals-add-row,
   .ctx-editor-modal .ctx-family-add-row {
     flex-direction: column;
     align-items: stretch;

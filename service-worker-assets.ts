@@ -180,6 +180,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/context-card-medical-history-editor-impl.js',
   '/js/context-card-lifestyle-runtime.js', '/js/context-card-lifestyle-editors.js', '/js/context-card-lifestyle-editors-impl.js',
   '/js/context-lifestyle-form-model.js', '/js/context-lifestyle-form-session.js', '/js/context-lifestyle-form-view.js',
+  '/js/context-form-dialog.js', '/js/context-health-goals-session.js', '/js/context-health-goals-view.js', '/js/components/ContextHealthGoals.svelte.native.js',
   '/js/components/LifestyleContextForm.svelte.native.js', '/js/context-card-lifestyle-special-editors.js',
   '/js/focus-card.js',
   '/js/onboarding-view-runtime.js',

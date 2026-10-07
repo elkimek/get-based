@@ -1920,3 +1920,7 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/components/ContextEMFLauncher.svelte.html.js
 /js/components/ContextEMFLauncher.svelte.html.js.map
 /js/context-emf-launcher-model.js
+
+/js/context-form-dialog.js
+/js/context-health-goals-session.js
+/js/context-health-goals-view.js

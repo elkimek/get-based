@@ -1,29 +1,19 @@
-import type { ModalSyncRefreshContext } from './utils.js';
 import type { LifestyleEditorDependencies } from './context-card-editor-ui.js';
 // Light, goals, interpretive-lens, and diet-contaminant lifestyle editors.
 
 import { state } from './state.js';
 import { openLifestyleForm, saveLifestyleForm } from './context-lifestyle-form-view.js';
 import {
-  bindDetailModalSyncRefresh,
-  escapeAttr,
   escapeHTML,
   showNotification,
 } from './utils.js';
 import { saveImportedData } from './data.js';
 import { openModalOverlay } from './modal-lifecycle.js';
-import {
-  appendImportedArrayItem,
-  clearImportedArray,
-  deleteImportedArrayItem,
-} from './data-merge.js';
 import { scanDietForContaminants } from './food-contaminants.js';
-import { sortHealthGoalsByPriority } from './health-goals-utils.js';
 import {
   getTextInput,
   getInputValue,
   lifestyleActionAttrs,
-  getSelectedOption,
   isContextEditorStylesheetLoaded,
   runWithContextEditorStylesheet,
   renderContextEditorModal,
@@ -32,19 +22,6 @@ import {
   closeLifestyleContextModalAndNavigateRuntime,
   updateLifestyleChatHeaderModelRuntime,
 } from './context-card-lifestyle-runtime.js';
-
-const GOAL_PRIORITY_LABELS: Record<string, string> = { major: 'High', mild: 'Medium', minor: 'Low' };
-const HEALTH_GOAL_STARTERS = [
-  'Improve energy',
-  'Sleep better',
-  'Improve metabolic health',
-  'Reduce cardiovascular risk',
-  'Optimize thyroid or hormones',
-  'Correct nutrient deficiencies',
-  'Support liver or kidney health',
-  'Improve training and recovery',
-];
-
 
 let recordContextChange: (field: string) => void = () => {};
 
@@ -63,75 +40,7 @@ export function saveLightCircadian() { return saveLifestyleForm('lightCircadian'
 export function clearLightCircadian() { return saveLifestyleForm('lightCircadian', true); }
 
 // ── Health Goals ──
-
-function refreshOpenHealthGoalsModalOnSync({ modal }: ModalSyncRefreshContext) {
-  renderHealthGoalsModal(modal);
-}
-
-if (typeof window !== 'undefined') {
-  bindDetailModalSyncRefresh('healthGoals', refreshOpenHealthGoalsModalOnSync);
-}
-
-export function openHealthGoalsEditor(): void | Promise<unknown> {
-  if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openHealthGoalsEditor);
-  const modal = document.getElementById('detail-modal');
-  renderHealthGoalsModal(modal);
-  openModalOverlay(document.getElementById('modal-overlay'));
-}
-
-export function renderHealthGoalsModal(modal: HTMLElement | null) {
-  if (modal?.dataset) modal.dataset.syncRefreshKind = 'healthGoals';
-  const goals = state.importedData.healthGoals || [];
-  let html = '';
-  if (goals.length > 0) {
-    html += '<div class="goals-list">';
-    for (const goal of sortHealthGoalsByPriority(goals)) {
-      const originalIndex = goals.indexOf(goal);
-      html += `<div class="goals-list-item"><span class="goals-severity-badge severity-${goal.severity}">${escapeHTML(GOAL_PRIORITY_LABELS[goal.severity as string] || goal.severity || 'Medium')}</span><span class="goals-text">${escapeHTML(goal.text)}</span><button class="goals-delete-btn" ${lifestyleActionAttrs('delete-health-goal', `data-lifestyle-index="${originalIndex}"`)} aria-label="Remove goal" title="Remove goal">&times;</button></div>`;
-    }
-    html += '</div>';
-  }
-  html += `<div class="ctx-field-group"><span class="ctx-field-label" id="goal-starters-label">Common starting points</span><div class="ctx-tags" role="group" aria-labelledby="goal-starters-label">${HEALTH_GOAL_STARTERS.map(goal => `<button type="button" class="ctx-tag" ${lifestyleActionAttrs('suggest-health-goal', `data-lifestyle-value="${escapeAttr(goal)}"`)}>${escapeHTML(goal)}</button>`).join('')}</div></div>
-    <div class="ctx-field-group"><label class="ctx-field-label" for="goal-text-input">Add goal</label><div class="goals-add-row"><input type="text" class="ctx-note-input" id="goal-text-input" placeholder="e.g. Improve insulin sensitivity, Optimize thyroid function" style="flex:1"></div>
-      <div class="goals-add-controls"><div class="goals-priority-field"><span class="ctx-field-label" id="goal-priority-label">Priority</span><div class="ctx-btn-group" id="goal-severity-select" role="group" aria-labelledby="goal-priority-label">
-        <button type="button" class="ctx-btn-option" aria-pressed="false" data-context-value="major" ${lifestyleActionAttrs('select-goal-severity')}>High</button><button type="button" class="ctx-btn-option active" aria-pressed="true" data-context-value="mild" ${lifestyleActionAttrs('select-goal-severity')}>Medium</button><button type="button" class="ctx-btn-option" aria-pressed="false" data-context-value="minor" ${lifestyleActionAttrs('select-goal-severity')}>Low</button>
-      </div></div><button class="import-btn import-btn-primary goals-add-btn" ${lifestyleActionAttrs('add-health-goal')}>Add goal</button></div></div>
-    <div class="ctx-editor-actions"><button class="import-btn import-btn-primary" ${lifestyleActionAttrs('close-health-goals')}>Done</button>${goals.length > 0 ? `<button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red);margin-left:auto" ${lifestyleActionAttrs('clear-health-goals')}>Clear All</button>` : ''}</div>`;
-  renderContextEditorModal(modal, 'Health Goals', 'List things you want to solve or improve. The AI will prioritize analysis around your stated goals.', html);
-  setTimeout(() => getTextInput('goal-text-input')?.focus(), 50);
-}
-
-export function addHealthGoal() {
-  const input = getTextInput('goal-text-input');
-  const severity = getSelectedOption('goal-severity-select') || 'mild';
-  const text = input?.value.trim() || '';
-  if (!text) return;
-  appendImportedArrayItem(state.importedData, 'healthGoals', { text, severity, updatedAt: Date.now() });
-  recordContextChange('healthGoals');
-  saveImportedData();
-  renderHealthGoalsModal(document.getElementById('detail-modal'));
-}
-
-export function deleteHealthGoal(index: number) {
-  if (!state.importedData.healthGoals) return;
-  deleteImportedArrayItem(state.importedData, 'healthGoals', index);
-  recordContextChange('healthGoals');
-  saveImportedData();
-  renderHealthGoalsModal(document.getElementById('detail-modal'));
-}
-
-export function closeHealthGoals() {
-  closeLifestyleContextModalAndNavigateRuntime(getActiveNavCategory());
-  if ((state.importedData.healthGoals || []).length > 0) showNotification('Health goals saved', 'success');
-}
-
-export function clearHealthGoals() {
-  clearImportedArray(state.importedData, 'healthGoals');
-  recordContextChange('healthGoals');
-  saveImportedData();
-  closeLifestyleContextModalAndNavigateRuntime(getActiveNavCategory());
-  showNotification('Health goals cleared', 'info');
-}
+export { openHealthGoalsEditor, renderHealthGoalsModal, addHealthGoal, deleteHealthGoal, closeHealthGoals, clearHealthGoals } from './context-health-goals-view.js';
 
 // ── Interpretive Lens ──
 

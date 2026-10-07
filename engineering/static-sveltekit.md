@@ -231,5 +231,14 @@ Environment also cold-loads the real EMF editor/stylesheet offline, creates an
 assessment and returns to the authored form while preserving quick-exposure values.
 Light/Circadian preserves its stored skin type and opens the actual Light setup
 offline from the authored summary.
+Health Goals uses its authored live Svelte component and captured incremental
+session in both builds. Its stable facade, shared modal shell and lazy stylesheet
+remain in the worker graph. Focused
+[`sveltekit-context-goals.spec.ts`](../tests/pwa/sveltekit-context-goals.spec.ts)
+acceptance opens Goals for the first time while the origin is unavailable, edits
+and removes goals, explicitly restores a deleted goal, cancels clearing, and
+checks committed IndexedDB history and deletion markers through two offline cold
+launches. It uses the real catalog and stored profile without importing pruned
+source module URLs.
 This is scoped editor acceptance; final whole-application migration acceptance
 remains required.

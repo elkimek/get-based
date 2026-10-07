@@ -286,7 +286,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
   const results = await page.evaluate(async ({ lifestyleUrl }) => {
     const [{ state }, lifestyle, lifestyleRuntime] = await Promise.all([
       import('/js/state.js'),
-      (import(lifestyleUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/context-card-lifestyle-editors.js'), "openExerciseEditor" | "openHealthGoalsEditor" | "renderHealthGoalsModal" | "configureLifestyleContextEditors" | "openDietEditor" | "renderDietContaminantsBadge" | "showDietContaminantsModal" | "openSleepRestEditor" | "saveSleepRest" | "clearSleepRest" | "openLightCircadianEditor" | "saveLightCircadian" | "clearLightCircadian" | "saveExercise" | "clearExercise" | "openStressEditor" | "saveStress" | "clearStress" | "openLoveLifeEditor" | "saveLoveLife" | "clearLoveLife" | "openEnvironmentEditor" | "saveEnvironment" | "clearEnvironment" | "openInterpretiveLensEditor" | "addHealthGoal">>,
+      (import(lifestyleUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/context-card-lifestyle-editors.js'), "openExerciseEditor" | "openHealthGoalsEditor" | "renderHealthGoalsModal" | "configureLifestyleContextEditors" | "openDietEditor" | "renderDietContaminantsBadge" | "showDietContaminantsModal" | "openSleepRestEditor" | "saveSleepRest" | "clearSleepRest" | "openLightCircadianEditor" | "saveLightCircadian" | "clearLightCircadian" | "saveExercise" | "clearExercise" | "openStressEditor" | "saveStress" | "clearStress" | "openLoveLifeEditor" | "saveLoveLife" | "clearLoveLife" | "openEnvironmentEditor" | "saveEnvironment" | "clearEnvironment" | "openInterpretiveLensEditor" | "addHealthGoal" | "closeHealthGoals">>,
       import('/js/context-card-lifestyle-runtime.js'),
     ]);
     const data = await import('/js/data.js');
@@ -367,7 +367,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
         { text: 'High priority goal', severity: 'major' },
         { text: 'Medium priority goal', severity: 'mild' },
       ];
-      lifestyle.renderHealthGoalsModal(modal);
+      await lifestyle.renderHealthGoalsModal(modal);
       outcomes.healthGoalsSortHighToLowWithoutMutatingStorage =
         Array.from(modal.querySelectorAll<HTMLElement>('.goals-text')).map(el => el.textContent).join(',') === 'High priority goal,Medium priority goal,Low priority goal'
         && ((state.importedData as unknown as ContextFixtureRead).healthGoals)!.map(goal => goal.text).join(',') === 'Low priority goal,High priority goal,Medium priority goal';
@@ -573,40 +573,33 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       await lifestyle.clearEnvironment();
       outcomes.clearEnvironmentNullsValue = (state.importedData as unknown as ContextFixtureRead).environment === null;
 
+      if (!await data.saveImportedData()) throw new Error('Goals fixture could not be saved');
       await lifestyle.openHealthGoalsEditor();
-      const starter = document.querySelector<HTMLElement>('[data-lifestyle-action="suggest-health-goal"]');
-      starter?.click();
-      outcomes.healthGoalStarterPrefillsEditableGoal = (document.getElementById('goal-text-input') as HTMLInputElement | null)?.value === starter?.dataset.lifestyleValue;
-      const goalPriorityButtons = Array.from(document.querySelectorAll<HTMLElement>('#goal-severity-select .ctx-btn-option'));
-      outcomes.healthGoalPrioritiesUseFriendlyLabelsAndSafeDefault =
-        goalPriorityButtons.map(btn => btn.textContent.trim()).join(',') === 'High,Medium,Low'
-        && goalPriorityButtons[1]?.classList.contains('active') === true
-        && goalPriorityButtons[1]?.dataset.contextValue === 'mild'
-        && Boolean((goalPriorityButtons[0]?.compareDocumentPosition(
-          document.querySelector<HTMLElement>('[data-lifestyle-action="add-health-goal"]')!,
-        ))! & Node.DOCUMENT_POSITION_FOLLOWING);
-      ((document.getElementById('goal-text-input') as HTMLInputElement | null))!.value = 'Improve sleep timing';
-      document.querySelectorAll<HTMLElement>('#goal-severity-select .ctx-btn-option').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll<HTMLElement>('#goal-severity-select .ctx-btn-option')[1]?.click();
-      document.querySelector<HTMLElement>('[data-lifestyle-action="add-health-goal"]')?.click();
-      outcomes.addHealthGoalAppendsSeverity = (state.importedData as unknown as ContextFixtureRead).healthGoals?.[0]?.text === 'Improve sleep timing'
-        && (state.importedData as unknown as ContextFixtureRead).healthGoals?.[0]?.severity === 'mild';
-      document.querySelector<HTMLElement>('[data-lifestyle-action="delete-health-goal"][data-lifestyle-index="0"]')?.click();
-      outcomes.deleteHealthGoalRemovesByIndex = (state.importedData as unknown as ContextFixtureRead).healthGoals?.length === 0;
-      ((document.getElementById('goal-text-input') as HTMLInputElement | null))!.value = 'Reduce eye strain';
-      ((document.getElementById('goal-text-input') as HTMLInputElement | null))!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-      document.querySelector<HTMLElement>('[data-lifestyle-action="close-health-goals"]')?.click();
-      outcomes.closeHealthGoalsClosesAndNavigates = calls.some(call => call[0] === 'close')
-        && calls.some(call => call[0] === 'navigate');
-      await lifestyle.openHealthGoalsEditor();
-      document.querySelector<HTMLElement>('[data-lifestyle-action="clear-health-goals"]')?.click();
+      const starter = Array.from(modal.querySelectorAll<HTMLButtonElement>('[aria-labelledby="goal-starters-label"] button'))[0]; starter?.click();
+      // Authored state updates the bound input during Svelte's next render turn.
       await delay(0);
-      outcomes.clearHealthGoalsRequiresConfirmation = ((state.importedData as unknown as ContextFixtureRead).healthGoals)!.length === 1
-        && document.getElementById('confirm-dialog-overlay')?.classList.contains('show') === true;
+      outcomes.healthGoalStarterPrefillsEditableGoal = (document.getElementById('goal-text-input') as HTMLInputElement | null)?.value === starter?.textContent;
+      const goalPriorityButtons = Array.from(modal.querySelectorAll<HTMLElement>('#goal-severity-select button'));
+      const addButton = Array.from(modal.querySelectorAll<HTMLButtonElement>('button')).find(button => button.textContent === 'Add goal');
+      outcomes.healthGoalPrioritiesUseFriendlyLabelsAndSafeDefault = goalPriorityButtons.map(button => button.textContent.trim()).join(',') === 'High,Medium,Low'
+        && goalPriorityButtons[1]?.getAttribute('aria-pressed') === 'true' && goalPriorityButtons[1]?.dataset.contextValue === 'mild'
+        && Boolean((goalPriorityButtons[0]?.compareDocumentPosition(addButton!))! & Node.DOCUMENT_POSITION_FOLLOWING);
+      const enterGoal = (text: string) => { const input = document.getElementById('goal-text-input') as HTMLInputElement; input.value = text; input.dispatchEvent(new Event('input', { bubbles: true })); };
+      enterGoal('Improve sleep timing'); goalPriorityButtons[1]?.click(); await lifestyle.addHealthGoal();
+      outcomes.addHealthGoalAppendsSeverity = state.importedData.healthGoals[0]?.text === 'Improve sleep timing' && state.importedData.healthGoals[0]?.severity === 'mild';
+      modal.querySelector<HTMLButtonElement>('button[title="Remove goal"]')?.click();
+      for (let attempt = 0; attempt < 250 && state.importedData.healthGoals.length; attempt++) await delay(20);
+      outcomes.deleteHealthGoalRemovesByIndex = state.importedData.healthGoals.length === 0;
+      enterGoal('Reduce eye strain'); document.getElementById('goal-text-input')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      for (let attempt = 0; attempt < 250 && !state.importedData.healthGoals.length; attempt++) await delay(20);
+      lifestyle.closeHealthGoals();
+      outcomes.closeHealthGoalsClosesAndNavigates = calls.some(call => call[0] === 'close') && calls.some(call => call[0] === 'navigate');
+      await lifestyle.openHealthGoalsEditor();
+      Array.from(modal.querySelectorAll<HTMLButtonElement>('button')).find(button => button.textContent === 'Clear All')?.click(); await delay(0);
+      outcomes.clearHealthGoalsRequiresConfirmation = state.importedData.healthGoals.length === 1 && document.getElementById('confirm-dialog-overlay')?.classList.contains('show') === true;
       document.getElementById('confirm-ok')?.click();
-      await delay(0);
-      outcomes.clearHealthGoalsEmptiesArray = Array.isArray((state.importedData as unknown as ContextFixtureRead).healthGoals)
-        && ((state.importedData as unknown as ContextFixtureRead).healthGoals)!.length === 0;
+      for (let attempt = 0; attempt < 250 && overlay.classList.contains('show'); attempt++) await delay(20);
+      outcomes.clearHealthGoalsEmptiesArray = Array.isArray(state.importedData.healthGoals) && state.importedData.healthGoals.length === 0;
 
       await lifestyle.openInterpretiveLensEditor();
       ((document.getElementById('interpretive-lens-textarea') as HTMLTextAreaElement | null))!.value = 'Functional endocrinology';
@@ -617,11 +610,11 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       outcomes.clearInterpretiveLensBlanksText = state.importedData.interpretiveLens === '';
 
       await lifestyle.openHealthGoalsEditor();
-      ((document.getElementById('goal-text-input') as HTMLInputElement | null))!.value = 'Callback coverage goal';
-      lifestyle.addHealthGoal();
+      enterGoal('Callback coverage goal');
+      await lifestyle.addHealthGoal();
       outcomes.configureCallbacksWereUsed = calls.some(call => call[0] === 'commit' && call[1] === 'Sleep saved')
         && state.importedData.changeHistory?.some(change => change.field === 'sleepRest')
-        && calls.some(call => call[0] === 'record' && call[1] === 'healthGoals');
+        && state.importedData.changeHistory?.some(change => change.field === 'healthGoals');
     } finally {
       (state as unknown as {importedData:unknown}).importedData = saved.importedData;
       state.profileSex = saved.profileSex;

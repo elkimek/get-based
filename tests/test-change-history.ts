@@ -202,7 +202,7 @@ const contextCards = await import('../js/context-cards.js');
   console.log('16. Direct Persistence Paths');
 
   assert('Medical history draft records when saved', ctxMedicalSrc.includes("saveContextAndRefresh('Medical history saved', 'diagnoses')"));
-  assert('addHealthGoal calls recordChange', ctxLifestyleSpecialSrc.includes("recordContextChange('healthGoals')"));
+  assert('Goal mutations record captured draft history', read('js/context-health-goals-session.js').includes("recordContextCardChange('healthGoals', draft)"));
   assert('saveInterpretiveLens calls recordChange', ctxLifestyleSpecialSrc.includes("recordContextChange('interpretiveLens')"));
   assert('Context notes persistence records its captured draft history', read('js/context-notes-session.js').includes("recordContextCardChange('contextNotes', draft)"));
 

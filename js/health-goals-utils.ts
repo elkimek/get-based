@@ -30,3 +30,26 @@ export function formatHealthGoalsText(healthGoals: unknown, limit = 3): string {
   }
   return (healthGoals as { goals?: unknown } | null | undefined)?.goals == null ? '' : String((healthGoals as { goals: unknown }).goals).trim();
 }
+
+export const HEALTH_GOAL_STARTERS = [
+  'Improve energy', 'Sleep better', 'Improve metabolic health', 'Reduce cardiovascular risk',
+  'Optimize thyroid or hormones', 'Correct nutrient deficiencies', 'Support liver or kidney health', 'Improve training and recovery'
+] as const;
+export const HEALTH_GOAL_PRIORITIES = [
+  { value: 'major', label: 'High' }, { value: 'mild', label: 'Medium' }, { value: 'minor', label: 'Low' }
+] as const;
+/** Display legacy object goals without rewriting them; an accepted edit retains their metadata. */
+export function healthGoalList(value: unknown): import('../types/profile-context-data.js').HealthGoal[] {
+  if (Array.isArray(value)) return structuredClone(value);
+  const text = formatHealthGoalsText(value, Number.MAX_SAFE_INTEGER);
+  if (!text) return [];
+  const record = value && typeof value === 'object' ? value : {};
+  return [{ ...record, text, severity: 'mild' }];
+}
+export function healthGoalRows(value: unknown) {
+  const goals = healthGoalList(value);
+  const indexed = goals.map((goal, index) => ({ index, text: String(goal?.text ?? ''), severity: String(goal?.severity || 'mild') }));
+  return sortHealthGoalsByPriority(indexed).map(row => ({ ...row,
+    priority: HEALTH_GOAL_PRIORITIES.find(option => option.value === row.severity)?.label || row.severity
+  }));
+}

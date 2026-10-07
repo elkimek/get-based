@@ -37,12 +37,6 @@
 }
 .note-editor:focus { border-color: var(--accent); }
 .note-editor-actions { display: flex; gap: 8px; align-items: center; }
-.goals-list { margin-bottom: 16px; }
-.goals-list-item {
-  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  margin-bottom: 6px; font-size: 13px;
-}
 .goals-severity-badge {
   font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 4px;
   white-space: nowrap; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.3px;
@@ -50,7 +44,6 @@
 .severity-major { background: var(--red-bg); color: var(--red); }
 .severity-mild { background: var(--yellow-bg); color: var(--yellow); }
 .severity-minor { background: var(--green-bg); color: var(--green); }
-.goals-list-item .goals-text { flex: 1; color: var(--text-primary); min-width: 0; }
 .goals-delete-btn {
   background: none; border: none; color: var(--text-muted); font-size: 16px;
   cursor: pointer; padding: 0 4px; line-height: 1; flex-shrink: 0; transition: color 0.15s;
@@ -63,20 +56,6 @@
 }
 .ctx-row-action-btn:hover { background: var(--bg-hover); }
 .ctx-row-edit-btn:hover { color: var(--accent); }
-.goals-add-row {
-  display: flex; gap: 8px; align-items: flex-end;
-}
-.goals-add-controls {
-  display: flex; align-items: flex-end; justify-content: space-between; gap: 14px;
-  margin-top: 12px;
-}
-.goals-priority-field { min-width: 0; }
-.goals-priority-field .ctx-field-label { margin-bottom: 7px; }
-.goals-add-btn { flex: 0 0 auto; }
-@media (max-width: 600px) {
-  .goals-add-controls { align-items: stretch; flex-direction: column; }
-  .goals-add-btn { width: 100%; }
-}
 .supp-timeline-section { margin-bottom: 16px; }
 .supp-timeline-header {
   display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
@@ -338,7 +317,6 @@
   }
 }
 @media (max-width: 600px) {
-  .goals-add-row { flex-wrap: wrap; }
   .supp-timeline-header { align-items: flex-start; gap: 8px; }
   .supp-ingredient-row { display: grid; grid-template-columns: minmax(0, 1fr) 94px 36px; gap: 5px; }
   .supp-ingredient-row .supp-ing-name { grid-column: 1 / -1; width: 100%; min-width: 0; }

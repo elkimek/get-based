@@ -443,3 +443,12 @@ it('snapshots the expected context field before a queued read and rejects change
   expected.value = peer.stress;
   expect(await saving).toBe(false); expect(JSON.parse((await crypto.encryptedGetItem(key))!).stress).toEqual(peer.stress);
 });
+
+it('guards observed goal arrays atomically and retains peer goals without publishing stale removals', async () => {
+  state.importedData.healthGoals = [{ text: 'Original', severity: 'mild' }]; expect(await saveImportedData()).toBe(true);
+  const base = structuredClone(state.importedData), draft = structuredClone(base); draft.healthGoals = [];
+  const peer = structuredClone(base); peer.healthGoals.push({ text: 'Peer goal', severity: 'major' }); await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  const conflict = vi.fn();
+  expect(await saveImportedDataForProfile(profileId, draft, { forceProfileScope: true, baseData: base, expectedContextField: { key: 'healthGoals', value: base.healthGoals }, onContextFieldConflict: conflict })).toBe(false);
+  expect(conflict).toHaveBeenCalledOnce(); expect(JSON.parse((await crypto.encryptedGetItem(key))!).healthGoals).toEqual(peer.healthGoals);
+});

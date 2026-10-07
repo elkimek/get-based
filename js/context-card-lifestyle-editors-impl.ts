@@ -3,10 +3,9 @@ import type { LifestyleEditorDependencies } from './context-card-editor-ui.js';
 // context-card-lifestyle-editors-impl.js - lazy lifestyle context card editor implementation
 
 import { state } from './state.js';
-import { showConfirmDialog } from './utils.js';
 import { scanDietForContaminants } from './food-contaminants.js';
 import { doesNutritionContextOverrideTypicalMeals } from './context-card-summaries.js';
-import { getTextInput, lifestyleActionAttrs, selectCtxOption } from './context-card-editor-ui.js';
+import { lifestyleActionAttrs } from './context-card-editor-ui.js';
 import {
   closeLifestyleContextModalRuntime,
   discussDietContaminantsRuntime,
@@ -36,28 +35,11 @@ export function configureLifestyleContextEditors({ recordChange, saveAndRefresh,
 }
 
 
-async function confirmClearProfileContext(label: string, clearAction: () => unknown) {
-  const confirmed = await showConfirmDialog(
-    `Clear all saved ${label.toLowerCase()} information? This cannot be undone.`,
-    {
-      confirmLabel: 'Clear',
-      ariaLabel: `Clear ${label}`,
-    },
-  );
-  if (confirmed) clearAction();
-  return confirmed;
-}
-
 function closestLifestyleElement(target: EventTarget | null, selector: string) {
   const el = target instanceof Element ? target.closest(selector) : null;
   if (!(el instanceof HTMLElement)) return null;
   if (el.closest('#detail-modal')) return el;
   return el.dataset.lifestyleAction === 'show-diet-contaminants' ? el : null;
-}
-
-function getLifestyleIndex(el: HTMLElement) {
-  const idx = Number.parseInt(el.dataset.lifestyleIndex || '', 10);
-  return Number.isInteger(idx) ? idx : -1;
 }
 
 function discussDietContaminants() {
@@ -68,24 +50,11 @@ function returnToContextModal() {
   returnToLifestyleContextModalRuntime();
 }
 
-function useHealthGoalStarter(text: string) {
-  const input = getTextInput('goal-text-input');
-  if (!input) return;
-  input.value = text;
-  input.focus();
-}
-
 function handleLifestyleContextClick(event: MouseEvent) {
   const actionEl = closestLifestyleElement(event.target, '[data-lifestyle-action]');
   if (!actionEl) return;
   switch (actionEl.dataset.lifestyleAction || '') {
     case 'show-diet-contaminants': event.preventDefault(); event.stopPropagation(); showDietContaminantsModal(); break;
-    case 'delete-health-goal': { const idx = getLifestyleIndex(actionEl); if (idx >= 0) deleteHealthGoal(idx); break; }
-    case 'suggest-health-goal': useHealthGoalStarter(actionEl.dataset.lifestyleValue || ''); break;
-    case 'add-health-goal': addHealthGoal(); break;
-    case 'select-goal-severity': selectCtxOption(actionEl, 'goal-severity-select'); break;
-    case 'close-health-goals': closeHealthGoals(); break;
-    case 'clear-health-goals': void confirmClearProfileContext('Health Goals', clearHealthGoals); break;
     case 'save-interpretive-lens': saveInterpretiveLens(); break;
     case 'clear-interpretive-lens': clearInterpretiveLens(); break;
     case 'back-to-context': returnToContextModal(); break;
@@ -103,8 +72,6 @@ function handleLifestyleContextKeydown(event: KeyboardEvent) {
     showDietContaminantsModal();
     return;
   }
-  const goalInput = closestLifestyleElement(event.target, '#goal-text-input');
-  if (goalInput && event.key === 'Enter') { event.preventDefault(); addHealthGoal(); }
 }
 
 function initLifestyleContextDelegates() {
