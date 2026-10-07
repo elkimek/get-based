@@ -175,6 +175,24 @@ off the original prompt, checking the captured profile, thread, history and call
 ownership at each boundary. Retired controls cannot dispatch into another conversation.
 Scoped Tailwind owns both views; duplicate native badge/dialog templates and
 superseded contaminant styles are removed. The scanner and source data remain domain services.
+`ContextHub.svelte` owns the Context overview's grounding navigation, source
+controls, nutrition window and accessible autosave/retry status. Its pure
+`context-hub-model.ts` preserves the source ordering, descriptions, availability
+and summary metrics; `context-hub-data.ts` reads the existing domain services.
+`context-hub-view.ts` owns the captured profile and overlay, preserves focus during
+updates and retires stale controls after closure, replacement or profile changes.
+`context-hub-session.ts` commits normalized source settings and nutrition windows
+through the existing guarded profile transaction before publishing them. Legacy
+source choices migrate durably on open. The source registry resolves this tab's
+loaded profile before the shared selection, so another tab cannot redirect its
+preference reads or migration. Light and wearable settings retain their
+score-context mirrors. Failed writes keep the local intent for explicit retry;
+peer conflicts expose newer committed settings without overwriting them. Optional
+localStorage mirrors cannot silence a committed update. Accepted writes finish on
+the originating profile after the dialog closes; unrelated unsaved fields remain
+live. The public Context/Personalize AI aliases and source-control keys remain
+stable. Scoped Tailwind replaces the overview's native templates, DOM patchers and
+styles; the Knowledge Base and data-protection dialogs retain their own owners.
 Medical history and nutrition fragments still use existing adapters and remain
 migration work.
 `context-notes-session.ts` captures accepted text and originating profile/data,

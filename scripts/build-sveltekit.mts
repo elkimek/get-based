@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { buildStaticKit } from '../tooling/svelte/build-static.mjs';
 import { buildCompanionBundle } from './build-companion-bundle.mjs';
-import { pruneSourceModuleAppShell } from './build-production.mjs';
+import { pruneSourceModuleAppShell, productionRawModuleAssets } from './build-production.mjs';
 import { inlineServiceWorkerAssets } from './service-worker-source.js';
 import { parseAppShellEntries, summarizeAppShell } from './app-shell-budget.mjs';
 import { staticKitTemplate, externalizeKitBootstrap } from './sveltekit-contracts.mjs';
@@ -35,7 +35,7 @@ export async function buildSvelteKit({ outputRoot = DEFAULT_OUTPUT, buildTag = '
       fs.readFile(path.join(ROOT, 'index.html'), 'utf8'), fs.readFile(path.join(ROOT, 'service-worker.js'), 'utf8'),
       fs.readFile(path.join(ROOT, 'service-worker-assets.js'), 'utf8'),
     ]);
-    const baseWorker = pruneSourceModuleAppShell(inlineServiceWorkerAssets(worker, workerAssets))
+    const baseWorker = pruneSourceModuleAppShell(inlineServiceWorkerAssets(worker, workerAssets), await productionRawModuleAssets())
       .replace(/\s*'\/service-worker-assets\.js',/, '');
     const rawUrls = parseAppShellEntries(baseWorker);
     for (const url of rawUrls) {

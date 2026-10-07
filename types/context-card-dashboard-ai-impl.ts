@@ -1,4 +1,3 @@
-import type { getLensSummary } from '../js/lens.js';
 export interface LabSourceGroup { name: unknown; count: number; products: unknown[]; sections: unknown[] }
 export interface LabSourceStats { coreMarkers: number; totalMarkers: number; groups: LabSourceGroup[] }
 export interface ContextImportMarker { mappedKey?: unknown; suggestedKey?: unknown; suggestedCategoryLabel?: unknown }
@@ -13,23 +12,7 @@ export interface ContextImportedReader extends Record<string, unknown> {
  sunDefaults?: { completedAt?: unknown } | null;
  interpretiveLens?: unknown;
 }
-export interface ContextSourceToggle {
- key: string; toggleKey?: string; title: unknown; description: unknown; status: unknown; checked: boolean;
- disabled?: boolean; attrs?: Record<string, unknown>; child?: boolean; affects?: readonly unknown[]; controlHtml?: string;
-}
-export interface ContextSourceSummary {
- insightOn: boolean; hasInsight: boolean; supplementsOn: boolean; hasSupplements: boolean;
- labStats: LabSourceStats; labOn: boolean; genomeSummaryOn: boolean; genomePriorityOn: boolean;
- genomeOn: boolean; hasGenomeSummary: boolean; hasGenome: boolean; lightOn: boolean; bodyOn: boolean;
- hasBody: boolean; nutritionOn: boolean; hasNutrition: boolean;
-}
-export interface AnswerGroundingReader {
- lensSet: boolean; kbSet: boolean; kbEnabled: boolean; kbSummary: ReturnType<typeof getLensSummary> | null; check: string;
-}
 export interface ContextActiveCategoryReader {
  group?: unknown; label?: unknown;
  markers?: Record<string, import('../js/data-view-types.js').ActiveMarker>;
 }
-export type LabGroupRenderOperations = Omit<LabSourceGroup, 'name'> & {
- name: { toLowerCase(): { replace(pattern: RegExp, replacement: string): unknown } };
-};

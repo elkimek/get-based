@@ -22,8 +22,16 @@ test('header owns actions once, keyboard switch, menu focus and layout state', a
     const shell = await import('/js/shell-actions.js'); shell.configureShellChatActionDeps({ summarizeThread: () => { document.body.dataset.headerSummaryCalls = String(Number(document.body.dataset.headerSummaryCalls || 0) + 1); } });
   });
   await page.locator('.chat-summary-btn').click(); await expect(page.locator('body')).toHaveAttribute('data-header-summary-calls', '1');
-  const checkbox = page.locator('#chat-websearch-checkbox'); await checkbox.focus(); await page.keyboard.press('Space');
-  await expect(checkbox).toBeChecked(); await expect.poll(() => page.evaluate(() => localStorage.getItem('labcharts-chat-websearch'))).toBe('on');
+  const checkbox = page.locator('#chat-websearch-checkbox'), slider = page.locator('.chat-toggle-slider');
+  const offColor = await slider.evaluate(element => getComputedStyle(element).backgroundColor);
+  const thumbOffset = () => slider.evaluate(element => { const offset = getComputedStyle(element, '::before').translate; return offset === 'none' ? 0 : parseFloat(offset); });
+  await expect.poll(thumbOffset).toBe(0);
+  // Leave pointer modality from the preceding summary click before checking keyboard focus.
+  await page.keyboard.press('Tab'); await checkbox.focus(); await page.keyboard.press('Space');
+  await expect(checkbox).toBeFocused(); await expect(slider).toHaveCSS('outline-width', '2px');
+  await expect(checkbox).toBeChecked(); await expect.poll(thumbOffset).toBe(12);
+  expect(await slider.evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe(offColor);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('labcharts-chat-websearch'))).toBe('on');
   await page.locator('.chat-more-menu > summary').click(); await expect(page.locator('.chat-more-menu')).toHaveAttribute('open', '');
   await page.keyboard.press('Escape'); await expect(page.locator('.chat-more-menu')).not.toHaveAttribute('open', ''); await expect(page.locator('.chat-more-menu > summary')).toBeFocused(); await expect(page.locator('#chat-panel')).toHaveClass(/open/);
   await page.locator('.chat-more-menu > summary').click();

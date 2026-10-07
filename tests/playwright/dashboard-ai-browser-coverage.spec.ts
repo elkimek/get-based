@@ -192,7 +192,7 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
       document.querySelector<HTMLElement>('#data-protection-picker-overlay')?.remove();
 
       const clickPickerCard = async (openPicker: () => unknown, selector: string) => {
-        openPicker();
+        await openPicker();
         await Promise.resolve();
         const overlay = document.querySelector<HTMLElement>('.confirm-overlay.show');
         overlay?.querySelector<HTMLElement>(selector)?.click();
@@ -220,7 +220,8 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
       lens.closeKnowledgeBaseModal();
       outcomes.pickersScheduleFocusTimers = timers.some(delay => delay === 50);
 
-      dashboardAi.openContextModal();
+      await dashboardAi.openContextModal();
+      for (let attempt = 0; attempt < 200 && document.querySelector('[data-context-hub-view]')?.getAttribute('data-context-save-state') !== 'idle'; attempt++) await new Promise(resolve => savedGlobals.setTimeout.call(window, resolve, 10));
       const contextToggle = /** @type {HTMLInputElement | null} */ (
         document.querySelector<HTMLElement>('#context-hub-overlay [data-context-toggle]')
       );
@@ -228,6 +229,7 @@ test('dashboard AI browser coverage exercises CTA rendering picker routing and D
         (contextToggle as HTMLInputElement).checked = !(contextToggle as HTMLInputElement).checked;
         contextToggle.dispatchEvent(new Event('change', { bubbles: true }));
       }
+      for (let attempt = 0; attempt < 200 && document.querySelector('[data-context-hub-view]')?.getAttribute('data-context-save-state') !== 'idle'; attempt++) await new Promise(resolve => savedGlobals.setTimeout.call(window, resolve, 10));
       outcomes.contextToggleUsesConfiguredModuleCallback = calls.includes('context-status')
         && !('updateChatContextStatus' in window);
       document.querySelector<HTMLElement>('#context-hub-overlay')?.remove();

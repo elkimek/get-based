@@ -253,5 +253,24 @@ launches, preserves original signal/source groups and keyboard controls, and
 checks that the complete committed profile remains unchanged. Native headless
 checks separately exercise the actual Chat opening with a captured prompt port,
 without sending a model request, and reject retired profile/dialog handoffs.
+Both static and native production assembly retain the transitive emitted import
+graph of raw Knowledge Base and voice workers. Dependencies are discovered from
+runtime ESM syntax and checked against the declared worker shell; missing emitted
+modules or undeclared assets fail the build. This keeps independently loaded
+workers usable offline when their implementation is split into new modules.
+Tailwind's relationship markers use the prefix alone (`gb:peer` and `gb:group`);
+component scope belongs on the consuming utilities. Switch acceptance checks the
+rendered thumb, track color and keyboard focus alongside checked state. Context
+source controls and Chat web search exercise these visible states headlessly.
+The Context overview uses its authored Svelte component, typed projection and
+captured autosave session in both builds, with the same lazy stylesheet URL.
+[`sveltekit-context-hub.spec.ts`](../tests/pwa/sveltekit-context-hub.spec.ts)
+opens it through real navigation while the origin is unavailable, migrates legacy
+source choices, saves canonical flags and the nutrition window, follows Lens and
+Knowledge Base Back navigation, and verifies the complete committed profile
+through two offline cold launches. Headless native checks cover all six themes,
+small and wide layouts, keyboard controls, accessibility, real failed IndexedDB
+writes, peer conflicts and retired controls. Source settings retain their existing
+history contract and do not create personal-fact history events.
 This is scoped editor acceptance; final whole-application migration acceptance
 remains required.

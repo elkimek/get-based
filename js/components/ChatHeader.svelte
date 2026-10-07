@@ -36,7 +36,7 @@
         </svg>
       </span>
       <span class="chat-toggle-text gb:header:max-[768px]:hidden">Web</span>
-      <input type="checkbox" class="gb:header:peer gb:header:sr-only" id="chat-websearch-checkbox" aria-label="Toggle web search" data-chat-change-action="set-websearch" checked={view.webSearchEnabled} onchange={event=>chatHeaderActions(root)?.webSearch(event.currentTarget.checked)}/>
+      <input type="checkbox" class="gb:peer gb:header:sr-only" id="chat-websearch-checkbox" aria-label="Toggle web search" data-chat-change-action="set-websearch" checked={view.webSearchEnabled} onchange={event=>chatHeaderActions(root)?.webSearch(event.currentTarget.checked)}/>
       <span class="chat-toggle-slider gb:header:relative gb:header:w-7 gb:header:h-4 gb:header:rounded-full gb:header:bg-line gb:header:peer-checked:bg-accent gb:header:peer-focus-visible:outline-2 gb:header:peer-focus-visible:outline-accent gb:header:peer-focus-visible:outline-offset-2 gb:header:before:content-[''] gb:header:before:absolute gb:header:before:left-0.5 gb:header:before:top-0.5 gb:header:before:size-3 gb:header:before:rounded-full gb:header:before:bg-secondary-surface gb:header:before:transition-transform gb:header:peer-checked:before:translate-x-3" aria-hidden="true">
       </span>
     </label>

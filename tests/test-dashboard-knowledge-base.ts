@@ -64,7 +64,11 @@ try {
 
   const lens = await import('../js/lens.js');
   const cards = await import('../js/context-cards.js');
-  const dashboardAISrc = fs.readFileSync(new URL('../js/context-card-dashboard-ai-impl.js', import.meta.url), 'utf8');
+  const dashboardAISrc = readAuthoredRepositorySource('js/context-card-dashboard-ai-impl.js', 'utf8');
+  const contextHubDataSrc = readAuthoredRepositorySource('js/context-hub-data.js', 'utf8');
+  const contextHubModelSrc = readAuthoredRepositorySource('js/context-hub-model.js', 'utf8');
+  const contextHubViewSrc = readAuthoredRepositorySource('js/context-hub-view.js', 'utf8');
+  const contextHubComponentSrc = fs.readFileSync('js/components/ContextHub.svelte', 'utf8');
   const { state } = await import('../js/state.js');
   _state = state;
 
@@ -234,25 +238,27 @@ try {
     assert('saveLensKey refreshes chat header after external KB key cache updates',
       /export\s+async\s+function\s+saveLensKey[\s\S]*updateKeyCache\(SECRET_KEY, key\)[\s\S]*updateChatHeaderModelRuntime\(\)/.test(lensSrc));
     assert('Context hub owns optional AI data-source controls',
-      dashboardAISrc.includes('renderContextSourceControls')
-      && dashboardAISrc.includes('renderContextSourceSummary')
-      && dashboardAISrc.includes('context-source-affects')
-      && dashboardAISrc.includes('context-grounding-panel')
-      && dashboardAISrc.includes('getImportSnapshotProductLabel')
-      && dashboardAISrc.includes('hasInsightContextData')
-      && dashboardAISrc.includes("key: 'insight-cards'")
-      && dashboardAISrc.includes('hasSupplementsMedsData')
-      && dashboardAISrc.includes("key: 'supplements-meds'")
-      && dashboardAISrc.includes("key: 'lab-markers'")
-      && dashboardAISrc.includes("toggleKey: 'lab-group'")
-      && dashboardAISrc.includes('labStats.groups.map((group, index)')
-      && dashboardAISrc.includes('key: `lab-group-${index}-${group.name')
-      && dashboardAISrc.includes("key: 'genome-summary'")
-      && dashboardAISrc.includes("key: 'genome-priority'")
-      && dashboardAISrc.includes("key: 'light-sun'")
-      && dashboardAISrc.includes("key: 'body-wearables'")
-      && dashboardAISrc.includes("key: 'genome-lookup'")
-      && !dashboardAISrc.includes("key: 'body-regions'"));
+      dashboardAISrc.includes('openContextHub as openContextModal')
+      && contextHubViewSrc.includes('projectContextHub(readContextHubSnapshot())')
+      && contextHubViewSrc.includes('createContextHubSession()')
+      && contextHubModelSrc.includes('contextSourceMetrics')
+      && contextHubComponentSrc.includes('context-source-affects')
+      && contextHubComponentSrc.includes('context-grounding-panel')
+      && contextHubDataSrc.includes('getImportSnapshotProductLabel')
+      && contextHubDataSrc.includes('hasInsightContextData')
+      && contextHubModelSrc.includes("key: 'insight-cards'")
+      && contextHubDataSrc.includes('hasSupplementsMedsData')
+      && contextHubModelSrc.includes("key: 'supplements-meds'")
+      && contextHubModelSrc.includes("key: 'lab-markers'")
+      && contextHubModelSrc.includes("toggleKey: 'lab-group'")
+      && contextHubModelSrc.includes('labStats.groups.map((group, index)')
+      && contextHubModelSrc.includes('key: `lab-group-${index}-${group.name')
+      && contextHubModelSrc.includes("key: 'genome-summary'")
+      && contextHubModelSrc.includes("key: 'genome-priority'")
+      && contextHubModelSrc.includes("key: 'light-sun'")
+      && contextHubModelSrc.includes("key: 'body-wearables'")
+      && contextHubModelSrc.includes("key: 'genome-lookup'")
+      && !contextHubModelSrc.includes("key: 'body-regions'"));
   }
 
   // ─── 7. renderKnowledgeBaseSection still empty when not configured ───

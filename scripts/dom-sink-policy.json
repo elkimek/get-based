@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 1071,
-  "sinkCount": 329,
+  "scannedFiles": 1076,
+  "sinkCount": 326,
   "files": {
     "js/biology-scores.js": {
       "count": 1,
@@ -128,11 +128,10 @@
       }
     },
     "js/context-card-dashboard-ai-impl.js": {
-      "count": 4,
-      "digest": "2b4f9cb99bf338849d301ea6dee7efcfe79f09c161d3cf23334812239fe4db21",
+      "count": 1,
+      "digest": "964edc865c68ad14f0dc10f82d62be13d07822b41fd675d004241d926475e81e",
       "kinds": {
-        "innerHTML": 2,
-        "outerHTML": 2
+        "innerHTML": 1
       }
     },
     "js/context-card-editor-ui.js": {

@@ -15,3 +15,6 @@
 @custom-variant context-emf (&:is([data-context-emf-launcher], [data-context-emf-launcher] *));
 
 @source "../js/components/ContextFoodContaminants.svelte";
+
+@source "../js/components/ContextHub.svelte";
+@custom-variant context-hub (&:is([data-context-hub-view], [data-context-hub-view] *));

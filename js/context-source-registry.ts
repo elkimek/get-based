@@ -147,6 +147,8 @@ function getStorage() {
 }
 
 function getActiveProfileId() {
+  // Another tab can change the shared selection without switching this view.
+  if (state.currentProfile) return state.currentProfile;
   const storage = getStorage();
   try { return storage?.getItem('labcharts-active-profile') || 'default'; }
   catch { return 'default'; }

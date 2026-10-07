@@ -16,6 +16,7 @@ import {
 } from './app-shell-budget.mjs';
 import { buildCompanionBundle } from './build-companion-bundle.mjs';
 import { inlineServiceWorkerAssets } from './service-worker-source.js';
+import { collectRawModuleAssets } from './raw-module-assets.mjs';
 
 export interface ProductionBuildSummary {
   entryFile: string; startupJavaScriptFiles: number; startupDecodedBytes: number;
@@ -34,7 +35,7 @@ const INDEX_SCRIPT_START = '  <!-- PRODUCTION_MAIN_SCRIPT_START -->';
 const INDEX_SCRIPT_END = '  <!-- PRODUCTION_MAIN_SCRIPT_END -->';
 const SW_BUNDLES_START = '  // PRODUCTION_BUNDLE_ASSETS_START';
 const SW_BUNDLES_END = '  // PRODUCTION_BUNDLE_ASSETS_END';
-const PRODUCTION_RAW_JS_ASSETS = new Set([
+const PRODUCTION_RAW_MODULE_ROOTS = new Set([
   '/js/theme-bootstrap.js',
   '/js/extra-theme-bootstrap.js',
   '/js/analytics-bootstrap.js',
@@ -43,8 +44,6 @@ const PRODUCTION_RAW_JS_ASSETS = new Set([
   '/js/lens-local-worker.js',
   '/js/voice-local-stt-worker.js',
   '/js/voice-local-tts-worker.js',
-  '/js/lens-local-utils.js',
-  '/js/lens-local-store.js',
 ]);
 const FATAL_BUILD_WARNINGS = new Set(['INEFFECTIVE_DYNAMIC_IMPORT']);
 const LAZY_SYNC_CHUNK_MODULES = new Set([
@@ -124,13 +123,21 @@ function replaceMarkedSection(source: string, startMarker: string, endMarker: st
   return `${before}\n${replacementLines.join('\n')}\n${after}`;
 }
 
-export function pruneSourceModuleAppShell(source: string) {
+export async function productionRawModuleAssets() {
+  return collectRawModuleAssets(PRODUCTION_RAW_MODULE_ROOTS, url => fs.readFile(path.join(ROOT, url.slice(1)), 'utf8'));
+}
+
+export function pruneSourceModuleAppShell(source: string, rawAssets: ReadonlySet<string>) {
   const start = source.indexOf('const APP_SHELL = [');
   const end = source.indexOf('\n];', start);
   if (start < 0 || end < start) throw new Error('Missing or invalid APP_SHELL array');
+  const declared = new Set([...source.slice(start, end).matchAll(/'(\/[^']+)'/g)].map(match => match[1]!));
+  for (const url of rawAssets) {
+    if (!declared.has(url)) throw new Error(`Raw module asset is missing from APP_SHELL: ${url}`);
+  }
   const appShell = source.slice(start, end).replace(
     /\s*'(\/js\/[^']+\.js)',/g,
-    (entry, url) => (PRODUCTION_RAW_JS_ASSETS.has(url) ? entry : ''),
+    (entry, url) => (rawAssets.has(url) ? entry : ''),
   );
   return `${source.slice(0, start)}${appShell}${source.slice(end)}`;
 }
@@ -265,7 +272,7 @@ export async function buildProduction({ outputRoot = ROOT }: {outputRoot?: strin
     .map(chunk => `  '/js/${chunk.fileName}',`)
     .sort();
   const builtServiceWorker = replaceMarkedSection(
-    pruneSourceModuleAppShell(inlineServiceWorkerAssets(serviceWorkerSource, serviceWorkerAssetsSource))
+    pruneSourceModuleAppShell(inlineServiceWorkerAssets(serviceWorkerSource, serviceWorkerAssetsSource), await productionRawModuleAssets())
       .replace(/\s*'\/service-worker-assets\.js',/, '')
       .replace(/const BUILD_ID = '[^']*';/, `const BUILD_ID = '${buildId}';`),
     SW_BUNDLES_START,
