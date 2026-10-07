@@ -1783,3 +1783,10 @@ js/custom-settings-controller.js
 /tests/playwright/chat-voice-owned.spec.js
 /tests/helpers/chat-voice-fixture.js
 /tests/pwa/sveltekit-chat-voice.spec.js
+
+/js/chat-discussion-view.js
+/js/chat-discussion-classes.js
+/js/components/ChatDiscussion.svelte.native.js
+/js/components/ChatDiscussion.svelte.native.js.map
+
+/tests/helpers/chat-discussion-fixture.js

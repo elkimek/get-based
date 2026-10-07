@@ -30,3 +30,13 @@ export function ownChatComposerInput(input: HTMLTextAreaElement, handler: () => 
 export function notifyChatComposerInput(input: HTMLTextAreaElement): void {
   if (isChatComposerInputCurrent(input)) handlers.get(input)?.();
 }
+
+/** The component is the sole placeholder writer, including discussion and backend availability. */
+let placeholderOwner: { input: HTMLTextAreaElement; render(value: string | null): void; } | null = null;
+export function ownChatComposerPlaceholder(input: HTMLTextAreaElement, render: (value: string | null) => void): { destroy(): void; } {
+  const entry = { input, render }; placeholderOwner = entry;
+  return { destroy() { if (placeholderOwner === entry) placeholderOwner = null; } };
+}
+export function publishChatComposerPlaceholder(value: string | null): void {
+  if (placeholderOwner && isChatComposerInputCurrent(placeholderOwner.input)) placeholderOwner.render(value);
+}

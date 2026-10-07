@@ -51,6 +51,8 @@ const {
 } = await import('../js/chat-discussion-round-prompts.js');
 const { readDiscussPersonaPickerSelection } = await import('../js/chat-discussion-ui.js');
 
+const { ownChatDiscussion, publishDiscussionPicker } = await import('../js/chat-discussion-view.js');
+const { chatDiscussionScope } = await import('../js/chat-discussion-picker.js');
 const hasState = S && typeof S === 'object';
 assert('state module export exists', hasState, hasState ? 'found' : 'not found');
 
@@ -68,10 +70,12 @@ assert('window.readAloud removed', typeof (window as {readAloud?: unknown}).read
 // ─── Section 1a: Discuss Button UI ───
 console.log('Section 1a: Discuss button UI');
 if (hasState) {
-  const origGetElementById = document.getElementById;
+  const originalQuery = document.querySelector;
+  const root = { isConnected: true, ownerDocument: document } as HTMLElement;
+  document.querySelector = ((selector: string) => selector === '[data-chat-discussion-view]' ? root : originalQuery.call(document, selector)) as typeof document.querySelector;
   const origHistory = S.chatHistory;
   const btn = { style: {} as {display?: unknown;opacity?: unknown}, title: '', setAttribute() {} };
-  (document as {getElementById: unknown}).getElementById = (id: string) => (id === 'chat-discuss-btn' ? btn : origGetElementById.call(document, id));
+  const owner = ownChatDiscussion(root, view => { btn.style.display = view.visible ? 'flex' : 'none'; btn.style.opacity = view.dim ? '0.5' : '1'; btn.title = view.active ? 'Add a discussion participant' : 'Start a discussion'; });
 
   S.chatHistory = [{ role: 'user', content: 'No assistant yet' }];
   updateDiscussButton();
@@ -90,7 +94,7 @@ if (hasState) {
   assert('Discuss button remains available for multiple perspectives', btn.style.opacity === '1' && btn.title.includes('Start a discussion'), btn.title);
 
   (S as {chatHistory: unknown}).chatHistory = origHistory;
-  document.getElementById = origGetElementById;
+  owner.destroy(); document.querySelector = originalQuery;
 } else {
   console.warn('Skipping Discuss button UI tests — state module not available');
 }
@@ -99,20 +103,15 @@ if (hasState) {
 console.log('Section 1b: Discuss picker selection');
 {
   const origQuerySelector = document.querySelector;
-  const makeInput = (id: string, name = id, icon = id[0]!.toUpperCase()) => ({
-    value: id,
-    dataset: { name, icon },
-  });
+  const root = { isConnected: true, ownerDocument: document } as HTMLElement;
+  document.querySelector = ((selector: string) => selector === '[data-chat-discussion-view]' ? root : origQuerySelector.call(document, selector)) as typeof document.querySelector;
+  const owner = ownChatDiscussion(root, () => {});
+  const makeInput = (id: string, name = id, icon = id[0]!.toUpperCase()) => ({ id, name, icon });
   const withPicker = <Result>(locked: ReturnType<typeof makeInput>[], checked: ReturnType<typeof makeInput>[], fn: () => Result) => {
-    const picker = {
-      dataset: { existingDiscussion: locked.length ? 'true' : 'false' },
-      querySelectorAll(selector: string) {
-        if (selector === 'input[data-locked="1"]') return locked;
-        if (selector === 'input:checked:not([data-locked="1"])') return checked;
-        return [];
-      },
-    };
-    (document as {querySelector: unknown}).querySelector = (selector: string) => (selector === '.discuss-persona-picker' ? picker : origQuerySelector.call(document, selector));
+    publishDiscussionPicker(chatDiscussionScope(), {
+      options: [...locked.map(persona => ({ ...persona, locked: true })), ...checked.map(persona => ({ ...persona, locked: false }))],
+      selected: checked.map(persona => persona.id), addingToExisting: locked.length > 0,
+    });
     return fn();
   };
 
@@ -142,7 +141,7 @@ console.log('Section 1b: Discuss picker selection');
     }),
     'one added persona');
 
-  document.querySelector = origQuerySelector;
+  owner.destroy(); document.querySelector = origQuerySelector;
 }
 
 // ─── Section 1c: Discussion Thread Lifecycle State ───
@@ -607,12 +606,14 @@ assert('chat-discussion-ui.js owns discussion button and continuation controls',
     !chatDiscussionSrc.includes("querySelector('.discuss-persona-picker')") &&
     !chatDiscussionSrc.includes('export function updateDiscussButton'),
   'found');
-assert('chat-discussion-picker.js owns discussion picker DOM and selection',
+assert('Svelte owns discussion picker rendering and selection through its public facade',
   chatDiscussionPickerSrc.includes('export function removeDiscussPersonaPicker') &&
     chatDiscussionPickerSrc.includes('export function readDiscussPersonaPickerSelection') &&
     chatDiscussionPickerSrc.includes('export function showDiscussPersonaPicker') &&
-    chatDiscussionPickerSrc.includes('const addingToExisting = existingDiscussion') &&
-    chatDiscussionPickerSrc.includes('checkedCount !== maxNewSelections') &&
+    chatDiscussionPickerSrc.includes('publishDiscussionPicker(chatDiscussionScope()') &&
+    read('js/chat-discussion-view.ts').includes('picker.selected.length !== discussionPickerLimit(picker)') &&
+    read('js/components/ChatDiscussion.svelte').includes('disabled={count !== limit}') &&
+    !chatDiscussionPickerSrc.includes('innerHTML') &&
     !chatDiscussionUiSrc.includes("querySelector('.discuss-persona-picker')"),
   'found');
 assert('Discuss button does not duplicate inline Continue',

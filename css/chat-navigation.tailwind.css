@@ -45,3 +45,6 @@
 @source "../js/components/ChatVoiceStatus.svelte";
 @source "../js/components/ChatSpeechButton.svelte";
 @custom-variant speech (&:is([data-chat-speech-view]));
+
+@source "../js/components/ChatDiscussion.svelte";
+@source "../js/chat-discussion-classes.ts";

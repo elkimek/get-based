@@ -245,7 +245,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/chat-discussion-round-view.js',
   '/js/chat-discussion-state.js',
   '/js/chat-discussion-picker.js',
-  '/js/chat-discussion-ui.js',
+  '/js/chat-discussion-ui.js', '/js/chat-discussion-view.js', '/js/chat-discussion-classes.js', '/js/components/ChatDiscussion.svelte.native.js',
   '/js/chat-onboarding.js',
   '/js/chat-onboarding-host-bindings.js',
   '/js/chat-loader.js',

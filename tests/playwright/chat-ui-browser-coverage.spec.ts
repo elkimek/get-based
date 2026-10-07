@@ -473,7 +473,7 @@ test('chat panel browser coverage toggles web search and panel chrome', async ({
       outcomes.webSearchTogglePersistsOnAndShowsForProvider =
         chatPanel.getChatWebSearchEnabled() === true
         && localStorage.getItem('labcharts-chat-websearch') === 'on'
-        && label?.style.display === '';
+        && label?.hidden === false;
 
       chatPanel.setChatWebSearchEnabled(false);
       outcomes.webSearchTogglePersistsOff =
@@ -482,7 +482,7 @@ test('chat panel browser coverage toggles web search and panel chrome', async ({
 
       localStorage.setItem('labcharts-ai-provider', 'custom');
       chatPanel.refreshWebSearchToggle();
-      outcomes.webSearchToggleHidesForUnsupportedProvider = label?.style.display === 'none';
+      outcomes.webSearchToggleHidesForUnsupportedProvider = label?.hidden === true;
 
       localStorage.setItem('labcharts-ai-provider', 'ollama');
       localStorage.setItem(threadIndexKey, '{bad json');
@@ -779,7 +779,6 @@ test('chat discussion picker lifecycle and resume binding cover browser state pa
       currentThreadId: state.currentThreadId,
       currentChatPersonality: state.currentChatPersonality,
       messagesHTML: document.getElementById('chat-messages')?.innerHTML,
-      inputHTML: document.querySelector('.chat-input-area')?.innerHTML,
     };
     const personas = CHAT_PERSONALITIES.slice(0, 2).map(p => ({ id: p.id, name: p.name, icon: p.icon }));
 
@@ -863,12 +862,10 @@ test('chat discussion picker lifecycle and resume binding cover browser state pa
       (state as {chatThreads: unknown}).chatThreads = original.chatThreads;
       state.currentThreadId = original.currentThreadId;
       state.currentChatPersonality = original.currentChatPersonality;
-      document.querySelector('.discuss-persona-picker')?.remove();
-      document.querySelector('.chat-discussion-mode')?.remove();
+      picker.removeDiscussPersonaPicker();
+      lifecycle.cleanupDiscussionState();
       const messages = document.getElementById('chat-messages');
       if (messages && original.messagesHTML != null) messages.innerHTML = original.messagesHTML;
-      const inputArea = document.querySelector('.chat-input-area');
-      if (inputArea && original.inputHTML != null) inputArea.innerHTML = original.inputHTML;
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);

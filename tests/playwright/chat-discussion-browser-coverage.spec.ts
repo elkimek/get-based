@@ -1,3 +1,4 @@
+import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -238,7 +239,9 @@ test('E2EE attestation badge reveals verification details on hover and focus', a
 });
 
 test('discussion round state persists active and inactive thread histories', async ({ page }) => {
+  await installDiscussionFixture(page.context());
   await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => { await (await import('/js/chat-loader.js')).openChatPanel(); const { state } = await import('/js/state.js'); state.chatHistory = [{ role: 'assistant', content: 'Discussion fixture' }]; (await import('/js/chat-render.js')).renderChatMessages(); });
   await page.waitForSelector('#chat-input');
 
   const results = await page.evaluate(async ({ roundStateUrl }) => {
@@ -469,7 +472,9 @@ test('chat discussion request builder covers personality model assistant and usa
 });
 
 test('chat discussion flow guards and empty rounds cover no-network browser controls', async ({ page }) => {
+  await installDiscussionFixture(page.context());
   await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => { await (await import('/js/chat-loader.js')).openChatPanel(); const { state } = await import('/js/state.js'); state.chatHistory = [{ role: 'assistant', content: 'Discussion fixture' }]; (await import('/js/chat-render.js')).renderChatMessages(); });
   await page.waitForSelector('#chat-input');
 
   const results = await page.evaluate(async ({ flowUrl, turnsUrl }) => {

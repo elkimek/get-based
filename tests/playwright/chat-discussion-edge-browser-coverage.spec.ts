@@ -1,3 +1,4 @@
+import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
@@ -76,7 +77,9 @@ test('chat discussion callbacks cover default and configured bridge paths', asyn
 });
 
 test('chat discussion turns cover single-turn join and error cleanup paths', async ({ page }) => {
+  await installDiscussionFixture(page.context());
   await page.goto('/app', { waitUntil: 'load' });
+  await page.evaluate(async () => { await (await import('/js/chat-loader.js')).openChatPanel(); const { state } = await import('/js/state.js'); state.chatHistory = [{ role: 'assistant', content: 'Discussion fixture' }]; (await import('/js/chat-render.js')).renderChatMessages(); });
   await page.waitForSelector('#chat-send-btn');
 
   const results = await page.evaluate(async ({ turnsUrl }) => {
@@ -193,7 +196,7 @@ test('chat discussion turns cover single-turn join and error cleanup paths', asy
       (state as {chatHistory:unknown}).chatHistory = original.chatHistory;
       (state as {chatThreads:unknown}).chatThreads = original.chatThreads;
       if (messages && original.messagesHTML != null) messages.innerHTML = original.messagesHTML;
-      document.querySelector('.chat-discussion-mode')?.remove();
+      (await import('/js/chat-discussion-ui.js')).removeDiscussContinuePrompt();
       localStorage.clear();
       for (const [key, value] of storage) {
         if (key && value != null) localStorage.setItem(key, value);

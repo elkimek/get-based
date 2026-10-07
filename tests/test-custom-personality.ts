@@ -252,9 +252,9 @@ assert('getThreadPersonaCount exported', typeof chatDiscussion.getThreadPersonaC
 console.log('22. Discuss button CSS');
 assert('Owned discuss control uses shared styled tool button', read('js/components/ChatComposer.svelte').includes('class={"chat-discuss-btn " + COMPOSER_TOOL_BUTTON}') && read('js/chat-composer-classes.js').includes('COMPOSER_TOOL_BUTTON =') && read('js/chat-composer-classes.js').includes('gb:composer:pointer-coarse:size-11'));
 assert('CSS has .chat-msg-auto', css.includes('.chat-msg-auto'));
-assert('CSS has persistent discussion mode', css.includes('.chat-discussion-mode'));
-assert('CSS has discussion participants', css.includes('.chat-discussion-participants'));
-assert('CSS has discussion progress', css.includes('.chat-discussion-progress'));
+assert('CSS has persistent discussion mode', read('js/components/ChatDiscussion.svelte').includes('chat-discussion-mode'));
+assert('CSS has discussion participants', read('js/components/ChatDiscussion.svelte').includes('chat-discussion-participants'));
+assert('CSS has discussion progress', read('js/components/ChatDiscussion.svelte').includes('chat-discussion-progress'));
 
 // ── 23. getThreadPersonaCount source ──
 console.log('23. getThreadPersonaCount');
@@ -306,7 +306,7 @@ assert('endDiscussion restores personality', endSrc.includes('currentChatPersona
 // ── 27. Single-composer discussion ──
 console.log('27. Single-composer discussion');
 assert('legacy steer input CSS removed', !css.includes('.chat-discuss-steer'));
-assert('discussion uses main-composer mode bar', css.includes('.chat-discussion-mode-actions'));
+assert('discussion uses main-composer mode bar', read('js/components/ChatDiscussion.svelte').includes('chat-discussion-mode-actions'));
 
 // ── Restore ──
 if (origVal !== null) localStorage.setItem(key, origVal);

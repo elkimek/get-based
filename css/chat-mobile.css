@@ -38,7 +38,7 @@
   .chat-rail-back { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
 
   .chat-action-btn,
-  .chat-discussion-mode-actions button,
+
   .chat-message-edit-controls button,
   .chat-action-more > summary,
   .chat-action-more-popover button,

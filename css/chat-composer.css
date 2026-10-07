@@ -37,33 +37,6 @@
 .chat-stopped-note {
   font-size: 11px; color: var(--text-muted); font-style: italic; margin-top: 6px;
 }
-.chat-discussion-mode {
-  display: flex; flex-direction: column; gap: 6px; padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
-  border-radius: 10px; background: color-mix(in srgb, var(--accent) 8%, var(--bg-card));
-}
-.chat-discussion-mode-main {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
-}
-.chat-discussion-mode-copy { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.chat-discussion-mode-copy strong { color: var(--text-primary); font-size: 12px; }
-.chat-discussion-participants { display: flex; flex-wrap: wrap; gap: 4px; }
-.chat-discussion-participants span {
-  padding: 2px 7px; border-radius: 999px; background: var(--bg-hover);
-  color: var(--text-secondary); font-size: 10px; white-space: nowrap;
-}
-.chat-discussion-mode-actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
-.chat-discussion-mode-actions button {
-  min-height: 30px; padding: 4px 9px; border: 1px solid var(--border); border-radius: 7px;
-  background: var(--bg-card); color: var(--text-secondary); font: inherit; font-size: 10px;
-  cursor: pointer;
-}
-.chat-discussion-mode-actions button:hover { border-color: var(--accent); color: var(--text-primary); }
-.chat-discussion-mode-actions .chat-discussion-resume { border-color: var(--accent); color: var(--accent); }
-.chat-discussion-mode-actions .chat-discussion-pause { border-color: var(--red); color: var(--red); }
-.chat-discussion-expectation,
-.chat-discussion-progress { color: var(--text-muted); font-size: 10px; line-height: 1.4; }
-.chat-discussion-progress { color: var(--accent); font-weight: 600; }
 /* Browser range pseudo-elements are the owned picker's custom CSS exception. */
 [data-chat-model-picker-view] .chat-model-effort-control input[type="range"]::-webkit-slider-runnable-track {
   height: 7px; border-radius: 999px;
@@ -90,6 +63,3 @@
   border: 1px solid var(--border); cursor: pointer; transition: opacity 0.15s;
 }
 .chat-image-thumb:hover { opacity: 0.8; }
-@media (pointer: coarse) {
-  .chat-discussion-mode-actions button { min-height: 44px; }
-}

@@ -123,3 +123,13 @@ accuracy, model performance or remote-provider availability. The
 [native voice scenarios](../tests/playwright/chat-voice-owned.spec.ts) cover
 late permission/transcription replies, origin retirement, speech cancellation,
 background playback, narrow layouts, themes and reduced motion.
+
+Discussion selection and continuation controls share `ChatDiscussion.svelte`
+across native and static entries. The [static discussion scenario](../tests/pwa/sveltekit-chat-discussion.spec.ts)
+checks restored pending participants, participant locking, a resumed response,
+explicit ending and retained transcript/ended state through cold launches while
+the application origin is unavailable. Its synthetic local-provider response
+verifies orchestration and cached application assets; it does not establish
+model accuracy or actual provider availability. The [native discussion scenarios](../tests/playwright/chat-discussion-owned.spec.ts)
+check additional-perspective and subsequent sequential requests, stale controls,
+literal imported names, keyboard focus, six themes and narrow layouts.

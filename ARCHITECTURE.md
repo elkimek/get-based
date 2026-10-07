@@ -894,6 +894,20 @@ including originating input identity and profile/thread checks. Its published
 resize/value helpers keep their existing runtime contract. The input, toolbar,
 send and tool controls use scoped Tailwind classes and shared theme variables;
 attachments and voice presentation retain their separate services.
+`ChatDiscussion.svelte` owns participant selection and the active discussion bar,
+including usage disclosures, pause/resume/end controls, literal participant text,
+keyboard dismissal and focus restoration. `chat-discussion-view.ts` holds a
+composer-lifetime presentation port and selection model. Selection and delegated
+actions reject retired composer/profile/thread controls; `chat-discussion-picker.ts`
+and `chat-discussion-ui.ts` preserve public runtime entry points while publishing
+values rather than authoring markup. Existing shell/message action delegates
+remain the single discussion action dispatchers. Round execution, provider requests
+and thread persistence stay in the discussion services, outside the component.
+The composer owns discussion help associations and photo-action restrictions.
+`chat-composer-input-port.ts` also publishes backend-unavailable placeholders,
+so availability refreshes cannot overwrite the discussion prompt. Scoped Tailwind
+replaces the picker and continuation CSS; `chat-personality.css` retains its
+stable URL as an empty compatibility stylesheet.
 `ChatVoiceButton.svelte` and `ChatVoiceStatus.svelte` own the microphone control
 and live status. `chat-voice-view.ts` publishes typed capture state and backend
 availability, retires composer actions, and cancels capture on owner disposal.

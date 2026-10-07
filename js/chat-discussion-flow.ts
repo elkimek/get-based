@@ -82,6 +82,7 @@ export async function startDiscussion() {
 }
 
 export async function startDiscussionFromPicker() {
+  if (getChatAbortController()) return;
   const selection = readDiscussPersonaPickerSelection();
   if (!selection) return;
   const { allPersonas, newPersonas } = selection;

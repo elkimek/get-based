@@ -1,3 +1,4 @@
+import { publishChatComposerPlaceholder } from './chat-composer-input-port.js';
 import { setChatVoiceAvailable } from './chat-voice-view.js';
 import { refreshChatHeaderWebSearch } from './chat-header-presentation.js';
 import { closePersonalityPickerView } from './chat-personality-picker-view.js';
@@ -340,7 +341,7 @@ export function updateChatInputState() {
   const blocked = chatThreadInputBlocked;
   if (input) {
     input.disabled = noAI || blocked;
-    input.placeholder = blocked
+    publishChatComposerPlaceholder(blocked
       ? 'Conversations are paused to protect saved chats'
       : noAI
         ? (isAIPaused()
@@ -348,7 +349,7 @@ export function updateChatInputState() {
           : isCodexChatBackend()
           ? 'Codex is unavailable on this computer'
           : 'Connect an AI provider in Settings to chat')
-        : 'Ask about your lab results...';
+        : null);
   }
   if (sendBtn) sendBtn.disabled = noAI || blocked;
   // Dictation is routed through getbased's independent voice service. A CLI
