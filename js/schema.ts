@@ -444,14 +444,15 @@ export function formatCost(usd: number) {
 // ── AI Usage Tracking ──────────────────────────────
 const _emptyUsage = () => ({ totalCost: 0, totalInputTokens: 0, totalOutputTokens: 0, requestCount: 0 });
 
-export function trackUsage(provider: string, modelId: string | null | undefined, inputTokens: number | null | undefined, outputTokens: number | null | undefined) {
+export function trackUsage(provider: string, modelId: string | null | undefined, inputTokens: number | null | undefined, outputTokens: number | null | undefined, profileId = state.currentProfile) {
   try {
     const cost = calculateCost(provider, modelId, inputTokens || 0, outputTokens || 0);
     const inp = inputTokens || 0, out = outputTokens || 0;
     if (inp === 0 && out === 0) return;
 
     // Per-profile
-    const pid = state.currentProfile || 'default';
+    // Async callers may supply their originating profile without switching live state.
+    const pid = profileId || 'default';
     const pKey = `labcharts-${pid}-usage`;
     const pu = (JSON.parse(localStorage.getItem(pKey) || 'null') as ModelUsage | null) || _emptyUsage();
     pu.totalCost += cost; pu.totalInputTokens += inp; pu.totalOutputTokens += out; pu.requestCount++;

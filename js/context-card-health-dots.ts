@@ -94,10 +94,15 @@ function clearDemoLiveAIConsent() {
 
 function clearAllDemoLiveAIConsent() {
   demoLiveAIConsents.clear();
+  contextHealthLoads.clear();
 }
 
 if (typeof globalThis.addEventListener === 'function') {
   globalThis.addEventListener('labcharts-ai-settings-local-changed', clearAllDemoLiveAIConsent);
+  for (const event of ['labcharts-profile-switched', 'labcharts-ai-settings-synced',
+    'getbased:chat-backend-changed', 'getbased:agent-host-settings-changed', 'getbased:chat-model-selection-changed']) {
+    globalThis.addEventListener(event, () => contextHealthLoads.clear());
+  }
 }
 
 export function getDemoContextAIMode(): DemoContextAIMode {
@@ -150,6 +155,7 @@ export function enableDemoContextLiveAI() {
 
 export function disableDemoContextLiveAI() {
   clearDemoLiveAIConsent();
+  contextHealthLoads.delete(state.currentProfile);
   return getDemoContextAIMode();
 }
 
@@ -375,9 +381,48 @@ function parseHealthDotsResponse(text: string): Record<string, unknown> | null {
   try { return JSON.parse(jsonMatch[0]!) as Record<string, unknown> | null; } catch(e) { return null; }
 }
 
-async function loadContextHealthDotsOnce() {
+interface HealthRequest {
+  profileId: string;
+  data: typeof state.importedData;
+  sex: typeof state.profileSex;
+  dob: typeof state.profileDob;
+  identity: ReturnType<typeof getAssistantFeatureIdentity>;
+  fingerprints: Record<string, string | null>;
+  context?: { keys: string[]; text: string };
+}
+interface HealthLoad { request: HealthRequest; pending?: Promise<void> }
+const contextHealthLoads = new Map<string, HealthLoad>();
+
+function safeFingerprint(key: string): string | null {
+  try { return getCardFingerprint(key); } catch { return null; }
+}
+function captureHealthRequest(): HealthRequest {
+  return {
+    profileId: state.currentProfile, data: state.importedData, sex: state.profileSex, dob: state.profileDob,
+    identity: getAssistantFeatureIdentity(),
+    fingerprints: Object.fromEntries(CONTEXT_CARD_KEYS.map(key => [key, safeFingerprint(key)])),
+  };
+}
+// A request belongs to its inputs and profile session, not to whichever card
+// happens to be in the DOM when the provider responds. Compare the projected
+// context too: source settings and wearable/nutrition inputs exceed card fields.
+function isHealthRequestCurrent(request: HealthRequest): boolean {
+  if (contextHealthLoads.get(request.profileId)?.request !== request
+    || state.currentProfile !== request.profileId || state.importedData !== request.data
+    || state.profileSex !== request.sex || state.profileDob !== request.dob
+    || JSON.stringify(getAssistantFeatureIdentity()) !== JSON.stringify(request.identity)
+    || !hasAssistantFeatureProvider()) return false;
+  const mode = getDemoContextAIMode();
+  if (mode.demo && !mode.live) return false;
+  if (CONTEXT_CARD_KEYS.some(key => request.fingerprints[key] === null || safeFingerprint(key) !== request.fingerprints[key])) return false;
+  try {
+    return !request.context || buildContextForStaleKeys(CONTEXT_CARD_KEYS, request.context.keys) === request.context.text;
+  } catch { return false; }
+}
+
+async function loadContextHealthDotsOnce(request: HealthRequest) {
   const keys = CONTEXT_CARD_KEYS;
-  const cacheKey = profileStorageKey(state.currentProfile, 'contextHealth');
+  const cacheKey = profileStorageKey(request.profileId, 'contextHealth');
   const cached = readHealthCache(cacheKey);
   const demoMode = getDemoContextAIMode();
   const staleKeys = findStaleKeys(keys, cached, demoMode.demo ? 'demo' : 'ai');
@@ -398,11 +443,12 @@ async function loadContextHealthDotsOnce() {
   }
 
   const ctx = buildContextForStaleKeys(keys, staleKeys);
-  if (!ctx) {
+  if (typeof ctx !== 'string' || !ctx) {
     applyGrayDots(staleKeys);
     return;
   }
   const prompt = buildHealthDotsPrompt(staleKeys);
+  request.context = { keys: staleKeys, text: ctx };
 
   try {
     const result = await callAssistantFeatureAI({
@@ -414,11 +460,12 @@ async function loadContextHealthDotsOnce() {
     const text = (result && typeof result === 'object')
       ? (result.text || '')
       : (typeof result === 'string' ? result : '');
-    if (result && typeof result === 'object' && result.usage && !getAssistantFeatureIdentity().subscription) {
-      const identity = getAssistantFeatureIdentity();
-      trackUsage(identity.provider, identity.modelId, (result.usage.inputTokens || 0) as Parameters<typeof trackUsage>[2], (result.usage.outputTokens || 0) as Parameters<typeof trackUsage>[3]);
+    if (result && typeof result === 'object' && result.usage && !request.identity.subscription) {
+      const identity = request.identity;
+      trackUsage(identity.provider, identity.modelId, (result.usage.inputTokens || 0) as Parameters<typeof trackUsage>[2], (result.usage.outputTokens || 0) as Parameters<typeof trackUsage>[3], request.profileId);
     }
 
+    if (!isHealthRequestCurrent(request)) return;
     const parsed = parseHealthDotsResponse(text as string);
     if (!parsed) {
       applyGrayDots(staleKeys);
@@ -436,25 +483,25 @@ async function loadContextHealthDotsOnce() {
       cached.dots[k] = color;
       cached.summaries[k] = tip;
       cached.cardSummaries[k] = profileSummary;
-      cached.fingerprints[k] = getCardFingerprint(k);
+      cached.fingerprints[k] = request.fingerprints[k];
       cached.sources[k] = 'ai';
     }
     writeHealthCache(cacheKey, cached);
   } catch(e) {
-    applyGrayDots(staleKeys);
+    if (isHealthRequestCurrent(request)) applyGrayDots(staleKeys);
   }
 }
-
-const contextHealthLoads = new Map<string, Promise<void>>();
 
 export function loadContextHealthDots() {
   const profileId = state.currentProfile;
   const inFlight = contextHealthLoads.get(profileId);
-  if (inFlight) return inFlight;
-  const pending = loadContextHealthDotsOnce().finally(() => {
-    if (contextHealthLoads.get(profileId) === pending) contextHealthLoads.delete(profileId);
+  if (inFlight?.pending && isHealthRequestCurrent(inFlight.request)) return inFlight.pending;
+  const load: HealthLoad = { request: captureHealthRequest() };
+  contextHealthLoads.set(profileId, load);
+  const pending = loadContextHealthDotsOnce(load.request).finally(() => {
+    if (contextHealthLoads.get(profileId) === load) contextHealthLoads.delete(profileId);
   });
-  contextHealthLoads.set(profileId, pending);
+  load.pending = pending;
   return pending;
 }
 
@@ -470,6 +517,7 @@ export function refreshAllHealthDots() {
     return;
   }
   try { localStorage.removeItem(cacheKey); } catch(e) {}
+  contextHealthLoads.delete(state.currentProfile);
   loadContextHealthDots();
   showNotification('Refreshing all insights...', 'info');
 }

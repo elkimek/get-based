@@ -903,6 +903,18 @@ requests or a redundant write when the form mounts. Scoped Tailwind owns the
 form, including narrow-layout overflow prevention and 44px touch controls.
 Shared native input styles remain only for unmigrated cycle/supplement helpers;
 context cards and other empty states are separate owners.
+`context-card-health-dots.ts` owns context-insight request identity independently
+of card DOM lifetime. It captures the profile/data object, demographics, assistant
+route, card fingerprints and projected request context. Matching callers share
+one pending request; edits or explicit refreshes replace it. Profile switches,
+AI settings or companion-route changes and revoked demo consent retire pending
+ownership. Late
+success, parse failure or provider failure cannot overwrite a replacement view
+or cache, and cache fingerprints describe the assessed inputs. Usage remains
+attributed to the dispatched provider/model and originating profile even when
+presentation expires;
+subscription requests stay outside the direct-provider ledger. Shared card
+rendering and editor migration remain separate presentation work.
 `ChatOptionalSetup.svelte` owns the add-on task catalog, summaries, DNA import
 confirmation and import/re-import controls. `chat-optional-onboarding-presentation.ts`
 projects cycle visibility, current versus historical therapies, saved SNP findings,

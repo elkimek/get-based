@@ -103,7 +103,6 @@ test('context cards browser coverage exercises notes save dots and tips', async 
       outcomes.loveLifeAndRelationshipsStaysAUnifiedCardTitle = !!loveLifeLabel
         && getComputedStyle(loveLifeLabel).whiteSpace === 'nowrap'
         && loveLifeLabel.getBoundingClientRect().height <= loveLifeLineHeight * 1.1;
-      host.style.width = '';
       const infoButton = host.querySelector<HTMLElement>('[data-context-card-action="toggle-explanation"]');
       const explanation = infoButton?.getAttribute('aria-controls')
         ? document.getElementById(infoButton.getAttribute('aria-controls')!)
@@ -142,6 +141,9 @@ test('context cards browser coverage exercises notes save dots and tips', async 
         && dietInsight?.dataset.severity === 'Caution'
         && dietPreDividerGap >= 7
         && !!dietContaminants?.querySelector<HTMLElement>('svg');
+      // This assertion compares a three-column row; restore the real viewport
+      // layout before the accessibility and remaining interaction checks.
+      host.style.width = '';
       const accessibility = await (window as unknown as {axe: typeof import('axe-core')}).axe.run(host, {
         runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa'] },
       });
