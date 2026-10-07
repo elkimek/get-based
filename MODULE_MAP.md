@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1109 |
-| Internal import edges | 4080 |
+| Modules | 1110 |
+| Internal import edges | 4084 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -826,14 +826,20 @@ Native browser modules shipped with the static application.
 - [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts)
 - [`js/context-cards.ts`](js/context-cards.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/components/ContextCardCatalog.svelte`](js/components/ContextCardCatalog.svelte), [`js/context-card-catalog-presentation.ts`](js/context-card-catalog-presentation.ts), [`js/context-card-dashboard-ai.ts`](js/context-card-dashboard-ai.ts), [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/context-card-health-dots.ts`](js/context-card-health-dots.ts), [`js/context-card-lifestyle-editors.ts`](js/context-card-lifestyle-editors.ts), [`js/context-card-medical-history-editor.ts`](js/context-card-medical-history-editor.ts), [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/context-notes-session.ts`](js/context-notes-session.ts), [`js/context-notes-view.ts`](js/context-notes-view.ts), [`js/data.ts`](js/data.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-context-card-extensions.ts`](js/nutrition-context-card-extensions.ts), [`js/nutrition-context.ts`](js/nutrition-context.ts) *(dynamic)*, [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/context-notes-session.ts`](js/context-notes-session.ts) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/data.ts`](js/data.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/state.ts`](js/state.ts)
-- [`js/context-notes-view.ts`](js/context-notes-view.ts) → [`js/context-notes-session.ts`](js/context-notes-session.ts)
+- [`js/context-notes-view.ts`](js/context-notes-view.ts) → [`js/components/ContextNotes.svelte`](js/components/ContextNotes.svelte), [`js/context-notes-session.ts`](js/context-notes-session.ts)
 - [`js/context-source-registry.ts`](js/context-source-registry.ts) → [`js/state.ts`](js/state.ts)
 
 </details>
 
 <details><summary><code>ContextCardCatalog.svelte</code> family — 1 module</summary>
 
-- [`js/components/ContextCardCatalog.svelte`](js/components/ContextCardCatalog.svelte) → [`js/context-card-catalog-classes.ts`](js/context-card-catalog-classes.ts)
+- [`js/components/ContextCardCatalog.svelte`](js/components/ContextCardCatalog.svelte) → [`js/components/ContextNotes.svelte`](js/components/ContextNotes.svelte), [`js/context-card-catalog-classes.ts`](js/context-card-catalog-classes.ts)
+
+</details>
+
+<details><summary><code>ContextNotes.svelte</code> family — 1 module</summary>
+
+- [`js/components/ContextNotes.svelte`](js/components/ContextNotes.svelte) → [`js/context-card-catalog-classes.ts`](js/context-card-catalog-classes.ts), [`js/context-notes-session.ts`](js/context-notes-session.ts)
 
 </details>
 

@@ -1,5 +1,5 @@
-import { debounceContextNotes } from './context-notes-view.js';
-import { contextNotesPresentation, useSavedContextNotes } from './context-notes-session.js';
+import { ensureContextNotes } from './context-notes-view.js';
+import { contextNotesPresentation } from './context-notes-session.js';
 export { debounceContextNotes } from './context-notes-view.js';
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
 import { renderHTML as renderContextCatalogHTML } from './components/ContextCardCatalog.svelte.html.js';
@@ -168,10 +168,7 @@ function handleContextCardClick(event: Event) {
     void enableLiveAIForDemo();
   } else if (action === 'disable-demo-live-ai') {
     disableLiveAIForDemo();
-  } else if (action === 'retry-context-notes') {
-    debounceContextNotes(actionEl.closest('[data-context-cards-view]')?.querySelector<HTMLTextAreaElement>('.ctx-notes-textarea') || null);
-  } else if (action === 'use-saved-context-notes') {
-    useSavedContextNotes(actionEl.closest<HTMLElement>('[data-context-notes-ticket]')?.dataset.contextNotesTicket || '');
+
   } else if (action === 'open-editor') {
     const editor = actionEl.dataset.contextCardEditor || '';
     const runEditor = contextCardEditorActions[editor];
@@ -207,19 +204,10 @@ function handleContextCardClick(event: Event) {
   event.stopPropagation();
 }
 
-function handleContextCardInput(event: Event) {
-  const actionEl = closestContextCardAction(event.target as ContextCardTarget | null) as HTMLElement | null;
-  if (!actionEl || !(event.currentTarget as ContextCardEventRoot | null)?.contains?.(actionEl)) return;
-  if (actionEl.getAttribute(CONTEXT_CARD_ACTION_ATTR) === 'context-notes-input') {
-    debounceContextNotes(actionEl as HTMLTextAreaElement);
-  }
-}
-
 export function installContextCardActionDelegates(root: ContextCardDelegateRoot | null = typeof document !== 'undefined' ? document : null) {
   if (!root || contextCardActionDelegateRoots.has(root)) return;
   contextCardActionDelegateRoots.add(root);
   root.addEventListener('click', handleContextCardClick);
-  root.addEventListener('input', handleContextCardInput);
 }
 
 if (typeof document !== 'undefined') installContextCardActionDelegates();
@@ -331,6 +319,7 @@ export function renderProfileContextCards({ embedded = false }: { embedded?: unk
     extensions: card.key === 'diet' ? renderDietContaminantsBadge() + renderNutritionDietExtension(contextCardActionAttrs)
       : card.key === 'lightCircadian' ? renderNutritionCircadianExtension(contextCardActionAttrs) : '',
   }));
+  queueMicrotask(ensureContextNotes);
   return renderContextCatalogHTML({ view: {
     renderId, embedded: Boolean(embedded), subtitle: _ccSubtitle, cards, addedCount: cards.filter(card => card.filled).length,
     refresh: hasAssistantFeatureProvider() && (!_demoAIMode.demo || _demoAIMode.live),

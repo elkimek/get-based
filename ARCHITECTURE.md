@@ -90,8 +90,14 @@ fields. Missing baselines retain the storage API's explicit restore semantics.
 Successful writes publish status/history only after commit; failed reads block
 writes, failures expose a scoped retry, and retired controls cannot submit new edits.
 Accepted edits finish for their original profile after the view closes or changes.
-`context-notes-view.ts` synchronizes current compatibility catalogs through opaque
-scope tickets; the public no-argument debounce helper retains its contract.
+`ContextNotes.svelte` owns input, retry, saved-text review and live commit status.
+Each notes instance has unique label/hint IDs. An authored Svelte boundary lets
+`context-notes-view.ts` hydrate that child in existing synchronous catalog consumers
+without replacing its textarea or the surrounding AI/tips slots. Removal and profile
+changes unmount the component and dispose its subscription; opaque scope tickets
+reject retired controls. The public no-argument debounce helper selects a current
+notes owner and retains its contract. The former status/value DOM patcher and
+native notes action delegates are removed.
 Independent authored catalog lifecycles, unique slot IDs and AI/tips slot ownership
 remain separate from this persistence service.
 

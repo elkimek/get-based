@@ -25,17 +25,21 @@ test('context notes persist to their origin and synchronize current catalogs thr
     await store.encryptedSetItem(key(other), JSON.stringify(state.importedData)); data.invalidateActiveDataCache();
     const first = render(); await waitFor(async () => (await read(origin)).contextNotes === 'Origin <literal> & saved');
     const originStayedScoped = state.importedData.contextNotes === 'Other profile' && (await read(other)).contextNotes === 'Other profile' && status(first) === 'Saved as you type';
-    const second = render(); input(second, 'Current shared draft');
+    const second = render();
+    const field = second.querySelector<HTMLTextAreaElement>('textarea')!; field.focus(); field.setSelectionRange(0, 0);
+    const uniqueLabels = first.querySelector('textarea')!.id !== field.id && second.querySelector<HTMLLabelElement>('label')!.htmlFor === field.id;
+    input(second, 'Current shared draft');
+    const ownsOriginalInput = second.querySelector('textarea') === field && document.activeElement === field;
     const viewsSyncImmediately = first.querySelector('textarea')!.value === 'Current shared draft' && status(first) === 'Saving…';
     await waitFor(() => status(first) === 'Saved' && status(second) === 'Saved');
     const committed = await read(other);
     input(second, 'Draft survives rerender'); first.remove(); second.remove(); const replacement = render();
     const draftSurvivedRerender = replacement.querySelector('textarea')!.value === 'Draft survives rerender';
     await waitFor(() => status(replacement) === 'Saved'); const final = await read(other);
-    return { originStayedScoped, viewsSyncImmediately, currentStored: committed.contextNotes, draftSurvivedRerender, finalStored: final.contextNotes,
+    return { originStayedScoped, viewsSyncImmediately, uniqueLabels, ownsOriginalInput, currentStored: committed.contextNotes, draftSurvivedRerender, finalStored: final.contextNotes,
       historyStored: final.changeHistory?.some(entry => entry.field === 'contextNotes' && entry.snapshot === 'Draft survives rerender') };
   });
-  expect(results).toEqual({ originStayedScoped: true, viewsSyncImmediately: true, currentStored: 'Current shared draft', draftSurvivedRerender: true, finalStored: 'Draft survives rerender', historyStored: true });
+  expect(results).toEqual({ originStayedScoped: true, viewsSyncImmediately: true, uniqueLabels: true, ownsOriginalInput: true, currentStored: 'Current shared draft', draftSurvivedRerender: true, finalStored: 'Draft survives rerender', historyStored: true });
 });
 
 test('context notes recover real storage failures and review conflicting saved text safely', async ({ page }) => {

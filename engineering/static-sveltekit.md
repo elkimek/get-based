@@ -207,7 +207,10 @@ persists literal additional-context notes alongside imported DNA/mtDNA in the
 exported backup. This covers the compatibility presentation; independent catalog
 lifecycles and remaining AI/tips slot ownership remain separate work. Notes edits
 retain their originating profile through debounced scoped persistence, expose
-confirmed commit status and preserve failed drafts across fresh profile reloads
+confirmed commit status through the shared authored `ContextNotes.svelte` component.
+Independent notes boundaries hydrate in place, retain textarea focus, use unique
+label/hint relationships and dispose subscriptions on removal/profile changes.
+Failed drafts survive fresh profile reloads
 with an explicit retry. The storage queue checks the previously observed notes
 inside the locked read/merge/write. If saved notes have changed, the UI presents
 the saved text alongside the draft and offers an explicit choice; keeping saved

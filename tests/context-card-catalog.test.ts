@@ -45,6 +45,12 @@ describe('authored shared context catalog', () => {
   it('keeps embedded headings, refresh availability and per-render explanation relationships', () => {
     const first = view(), second = { ...view(), renderId: 'other', embedded: true, refresh: false };
     const host = document.createElement('div'); host.innerHTML = renderHTML({ view: first }) + renderHTML({ view: second });
+    const fields = [...host.querySelectorAll<HTMLTextAreaElement>('.ctx-notes-textarea')];
+    expect(new Set(fields.map(field => field.id)).size).toBe(2);
+    for (const field of fields) {
+      expect(host.querySelector<HTMLLabelElement>(`label[for="${field.id}"]`)?.textContent).toBe('Additional context');
+      expect(host.querySelector(`#${field.getAttribute('aria-describedby')}`)?.textContent).toContain('Anything else');
+    }
     expect(host.querySelectorAll('.context-section-title')).toHaveLength(1);
     expect(host.querySelectorAll('[aria-label="Your health context"]')).toHaveLength(1);
     expect(host.querySelectorAll('[data-context-card-action="refresh-all-health-dots"]')).toHaveLength(1);

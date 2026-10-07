@@ -236,7 +236,7 @@ assert('context editor split preserves shared context controls eagerly',
   read('css/context-profile.css').includes('.ctx-btn-option') &&
   read('css/context-profile.css').includes('.ctx-tag') &&
   read('js/components/ContextCardCatalog.svelte').includes('context-info-icon {CONTEXT_INFO}') &&
-  read('js/components/ContextCardCatalog.svelte').includes('ctx-notes-textarea gb:context-catalog:'));
+  read('js/components/ContextNotes.svelte').includes('ctx-notes-textarea gb:context-catalog:'));
 assert('SW APP_SHELL includes context editor CSS bundle', swAuditSrc.includes("'/css/context-editor.css'"));
 const dnaRuntimeAuditSrc = read('js/dna-runtime.js');
 assert('index defers genetics CSS behind its ordered lazy-load anchor',

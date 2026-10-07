@@ -93,7 +93,7 @@ test('context cards browser coverage exercises notes save dots and tips', async 
       host.innerHTML = cards.renderProfileContextCards();
       outcomes.profileContextCardsUseDelegatedActions =
         !!host.querySelector<HTMLElement>('[data-context-card-action="refresh-all-health-dots"], [data-context-card-action="open-editor"]')
-        && !!host.querySelector<HTMLTextAreaElement>('#ctx-notes-textarea[data-context-card-action="context-notes-input"]')
+        && !!host.querySelector<HTMLTextAreaElement>('.ctx-notes-textarea')
         && !host.innerHTML.includes('onclick=')
         && !host.innerHTML.includes('oninput=');
       host.style.width = '860px';
@@ -114,7 +114,8 @@ test('context cards browser coverage exercises notes save dots and tips', async 
         && host.querySelectorAll<HTMLElement>('button.context-card-open[data-context-card-action="open-editor"]').length === 9
         && host.querySelectorAll<HTMLElement>('.context-card-icon svg').length === 9
         && host.querySelector<HTMLElement>('button.context-card-open')?.getAttribute('aria-label')?.includes('Health Goals')
-        && host.querySelector<HTMLLabelElement>('label[for="ctx-notes-textarea"]')?.textContent!.includes('Additional context')
+        && host.querySelector<HTMLLabelElement>('.ctx-notes-label')?.htmlFor === host.querySelector<HTMLTextAreaElement>('.ctx-notes-textarea')?.id
+        && host.querySelector<HTMLLabelElement>('.ctx-notes-label')?.textContent!.includes('Additional context')
         && infoButton?.getAttribute('aria-expanded') === 'true'
         && explanation?.hidden === false
         && !host.querySelector<HTMLElement>('.context-card-state, .diagnoses-edit-btn')
@@ -190,15 +191,15 @@ test('context cards browser coverage exercises notes save dots and tips', async 
         () => document.getElementById('detail-modal')?.getAttribute('aria-label') === 'Health Goals',
       );
       cards.closeHealthGoals();
-      const notes = document.getElementById('ctx-notes-textarea');
+      const notes = host.querySelector<HTMLTextAreaElement>('.ctx-notes-textarea');
       (notes as HTMLTextAreaElement).value = 'Extra context for AI';
       (notes)!.dispatchEvent(new InputEvent('input', { bubbles: true }));
-      outcomes.contextNotesShowsSavingState = document.getElementById('ctx-notes-status')?.textContent === 'Saving\u2026';
+      outcomes.contextNotesShowsSavingState = host.querySelector('.ctx-notes-status')?.textContent === 'Saving\u2026';
       await waitFor(() => state.importedData.contextNotes === 'Extra context for AI'
         && (state.importedData.changeHistory || []).some((entry: {field?:unknown}) => entry.field === 'contextNotes'));
       outcomes.delegatedContextNotesPersistsAndRecordsChange = state.importedData.contextNotes === 'Extra context for AI'
         && (state.importedData.changeHistory || []).some((entry: {field?:unknown}) => entry.field === 'contextNotes')
-        && document.getElementById('ctx-notes-status')?.textContent === 'Saved';
+        && host.querySelector('.ctx-notes-status')?.textContent === 'Saved';
 
       details = document.createElement('details');
       details.className = 'welcome-context-details';

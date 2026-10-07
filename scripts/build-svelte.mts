@@ -31,7 +31,7 @@ export async function buildSvelte({ component = COMPONENT, outputDirectory = pat
       async load(id) {
         if (id === 'getbased:component-entry') {
           if (output === 'html') return `import Component from ${JSON.stringify(component)}; import { render } from 'svelte/server'; export const renderHTML = props => render(Component, { props }).body;`;
-          const hydration = /\/(?:RoutstrActions|ChatShell|ChatSpeechButton|ChatMessageActions)\.svelte$/.test(component) ? ', hydrate' : '';
+          const hydration = /\/(?:RoutstrActions|ChatShell|ChatSpeechButton|ChatMessageActions|ContextNotes)\.svelte$/.test(component) ? ', hydrate' : '';
           return `export { default } from ${JSON.stringify(component)}; export { mount, unmount, flushSync${hydration} } from 'svelte';`;
         }
         if (!id.endsWith('.svelte')) return null;

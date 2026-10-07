@@ -64,7 +64,6 @@ try {
 
   const lens = await import('../js/lens.js');
   const cards = await import('../js/context-cards.js');
-  const contextCardsSrc = fs.readFileSync(new URL('../js/context-cards.js', import.meta.url), 'utf8');
   const dashboardAISrc = fs.readFileSync(new URL('../js/context-card-dashboard-ai-impl.js', import.meta.url), 'utf8');
   const { state } = await import('../js/state.js');
   _state = state;
@@ -183,9 +182,9 @@ try {
       && !/data-dashboard-ai-action="(open-data-protection-picker|enable-encryption|setup-sync|setup-backup)"/.test(html));
     assert('Profile Context still renders the personal context cards',
       /Your health context/.test(html) && /profile-context-cards/.test(html));
-    assert('Profile Context renderer does not prepend the Interpretive Lens surface',
-      /export function renderProfileContextCards\([^\n]*\) \{[\s\S]{0,3200}Your health context/.test(contextCardsSrc)
-      && !/export function renderProfileContextCards\([^\n]*\) \{[\s\S]{0,2200}renderInterpretiveLensSection\(\)/.test(contextCardsSrc));
+    assert('Profile Context heading precedes person-fact cards without an Interpretive Lens surface',
+      html.indexOf('Your health context') < html.indexOf('profile-context-cards')
+      && !html.includes('lens-section'));
   }
 
   // Section 5b (picker open/dismiss — live DOM) lives in

@@ -41,7 +41,8 @@ static-PWA coverage in
 checks captured-profile writes, commit confirmation, ordered revisions, retry drafts,
 retired controls, missing baselines and failed reads. The actual-storage headless
 [`context-notes-owned.spec.ts`](../tests/playwright/context-notes-owned.spec.ts)
-checks profile changes, simultaneous catalogs, rebuilds, actual IndexedDB write
+checks profile changes, simultaneous authored catalogs, unique labels, textarea
+identity/focus preservation during hydration and updates, rebuilds, actual IndexedDB write
 failures, recovery across fresh profile loads, conflicting saved text and both
 recovery choices. Recovery controls also receive focused accessibility and layout
 checks. Atomic conflict checks and unrelated-field preservation are covered by
