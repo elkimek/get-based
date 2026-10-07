@@ -212,12 +212,13 @@ test('chat discussion turns cover single-turn join and error cleanup paths', asy
 
 test('chat thread search default callbacks cover no-op filter and jump paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForSelector('#chat-thread-search');
+  await page.waitForSelector('#chat-thread-search', { state: 'attached' });
 
   const results = await page.evaluate(async ({ threadSearchUrl }) => {
-    const [{ state }, threadSearch] = await Promise.all([
+    const [{ state }, threadSearch, navigation] = await Promise.all([
       import('/js/state.js'),
-      ((import(threadSearchUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/chat-thread-search.js"), "filterThreadList" | "invalidateThreadContentCache" | "jumpToSearchResult"> >),
+      ((import(threadSearchUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/chat-thread-search.js"), "configureChatThreadSearch" | "filterThreadList" | "invalidateThreadContentCache" | "jumpToSearchResult"> >),
+      import('/js/chat-thread-list-view.js'),
     ]);
     const input = document.getElementById('chat-thread-search') as HTMLInputElement|null;
     const list = document.getElementById('chat-thread-list');
@@ -237,8 +238,8 @@ test('chat thread search default callbacks cover no-op filter and jump paths', a
       state.currentProfile = 'chat-search-default-profile';
       state.currentThreadId = 'default-thread-a';
       (state as {chatThreads:unknown}).chatThreads = [
-        { id: 'default-thread-a', name: 'Default A' },
-        { id: 'default-thread-b', name: 'Default B' },
+        { id: 'default-thread-a', name: 'Default A', createdAt: '2026-10-07T12:00:00Z', updatedAt: '2026-10-07T12:00:00Z', messageCount: 1 },
+        { id: 'default-thread-b', name: 'Default B', createdAt: '2026-10-07T12:00:00Z', updatedAt: '2026-10-07T12:00:00Z', messageCount: 1 },
       ];
       (state as {chatHistory:unknown}).chatHistory = [
         { role: 'user', content: 'Needle default message for no-op switch coverage' },
@@ -247,6 +248,11 @@ test('chat thread search default callbacks cover no-op filter and jump paths', a
         messages.innerHTML = '<div id="chat-msg-0" class="chat-msg"><span>Needle default message for no-op switch coverage</span></div>';
       }
 
+      // The presentation owner is real; key and switch callbacks stay default.
+      threadSearch.configureChatThreadSearch({
+        renderThreadList: filter => navigation.renderChatThreadList('recent', filter),
+      });
+      navigation.renderChatThreadList('recent');
       const staleMark = document.createElement('mark');
       staleMark.className = 'chat-search-mark';
       staleMark.textContent = 'old';
@@ -303,12 +309,13 @@ test('chat thread search default callbacks cover no-op filter and jump paths', a
 
 test('chat thread search covers stale results limits and shifted highlight branches', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForSelector('#chat-thread-search');
+  await page.waitForSelector('#chat-thread-search', { state: 'attached' });
 
   const results = await page.evaluate(async ({ threadSearchUrl }) => {
-    const [{ state }, threadSearch] = await Promise.all([
+    const [{ state }, threadSearch, navigation] = await Promise.all([
       import('/js/state.js'),
       ((import(threadSearchUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/chat-thread-search.js"), "configureChatThreadSearch" | "filterThreadList" | "invalidateThreadContentCache" | "jumpToSearchResult"> >),
+      import('/js/chat-thread-list-view.js'),
     ]);
     const outcomes:Record<string,unknown> = {};
     const storage = new Map(Array.from({ length: localStorage.length }, (_, index) => {
@@ -342,6 +349,7 @@ test('chat thread search covers stale results limits and shifted highlight branc
       (state as {chatThreads:unknown}).chatThreads = Array.from({ length: 35 }, (_, index) => ({
         id: `thread-${index}`,
         name: `Thread ${index}`,
+        createdAt: '2026-10-07T12:00:00Z', updatedAt: '2026-10-07T12:00:00Z', messageCount: 1,
       }));
       (state as {chatHistory:unknown}).chatHistory = [
         { role: 'user', content: 'First message without the target' },
@@ -361,7 +369,15 @@ test('chat thread search covers stale results limits and shifted highlight branc
         getChatThreadKey: threadId => `chat-search-edge-${threadId}`,
         renderThreadList(filter) {
           renderCalls.push(filter || '');
-          if (list) list.innerHTML = `<div class="thread-filter">${filter || ''}</div>`;
+          navigation.renderChatThreadList('recent', filter);
+          // Retain an independent observer for the original stale-render check.
+          if (list) {
+            list.querySelector('.thread-filter')?.remove();
+            const probe = document.createElement('div');
+            probe.className = 'thread-filter';
+            probe.textContent = filter || '';
+            list.appendChild(probe);
+          }
         },
         async switchToThread(threadId) {
           state.currentThreadId = threadId;
@@ -369,6 +385,7 @@ test('chat thread search covers stale results limits and shifted highlight branc
         },
       });
 
+      navigation.renderChatThreadList('recent');
       input!.value = 'needle';
       threadSearch.filterThreadList('needle');
       input!.value = 'changed-before-debounce';

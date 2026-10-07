@@ -275,6 +275,7 @@ test('desktop conversations move into projects with drag and drop', async ({ pag
   await page.addInitScript(() => {
     localStorage.setItem('labcharts-default-emptyTour', 'completed');
     localStorage.setItem('labcharts-default-tour', 'completed');
+    localStorage.setItem('labcharts-analytics-consent-seen', '1');
   });
   await page.goto('/app', { waitUntil: 'load' });
   const original = await page.evaluate(async () => {
@@ -290,6 +291,8 @@ test('desktop conversations move into projects with drag and drop', async ({ pag
     (state as {chatThreads:unknown}).chatThreads = [
       { id: 'drag-me', name: 'Move me', createdAt: now, updatedAt: now, messageCount: 1, personality: 'default' },
       { id: 'project-home', name: 'Metabolic overview', createdAt: now, updatedAt: now, messageCount: 2, personality: 'default', projectName: 'Metabolic' },
+      // Keep the removal target usable even when the conversation list scrolls.
+      ...Array.from({ length: 20 }, (_, index) => ({ id: `extra-${index}`, name: `Other conversation ${index}`, createdAt: now, updatedAt: now, messageCount: 1, personality: 'default' })),
     ];
     state.currentThreadId = 'drag-me';
     threads.renderThreadList();
@@ -327,6 +330,7 @@ test('desktop conversations move into projects with drag and drop', async ({ pag
   await page.mouse.down();
   await page.mouse.move(movedSourceBox!.x + movedSourceBox!.width / 2 + 12, movedSourceBox!.y + movedSourceBox!.height / 2 + 4, { steps: 4 });
   await expect(page.locator('.chat-thread-unfiled-drop')).toBeVisible();
+  await expect(page.locator('.chat-thread-unfiled-drop')).toBeInViewport();
   const unfiledBox = await page.locator('.chat-thread-unfiled-drop').boundingBox();
   expect(unfiledBox).not.toBeNull();
   await page.mouse.move(unfiledBox!.x + unfiledBox!.width / 2, unfiledBox!.y + unfiledBox!.height / 2, { steps: 10 });

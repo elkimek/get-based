@@ -282,12 +282,13 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
 
 test('chat thread search covers message results clearing and jump highlighting', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForSelector('#chat-thread-search');
+  await page.waitForSelector('#chat-thread-search', { state: 'attached' });
 
   const results = await page.evaluate(async ({ threadSearchUrl }) => {
-    const [{ state }, threadSearch] = await Promise.all([
+    const [{ state }, threadSearch, navigation] = await Promise.all([
       import('/js/state.js'),
       (import(threadSearchUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-thread-search.js'), "configureChatThreadSearch" | "filterThreadList" | "jumpToSearchResult" | "invalidateThreadContentCache">>,
+      import('/js/chat-thread-list-view.js'),
     ]);
     const outcomes: Record<string, unknown> = {};
     const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
@@ -324,8 +325,8 @@ test('chat thread search covers message results clearing and jump highlighting',
     try {
       state.currentProfile = 'chat-search-profile';
       (state as {chatThreads: unknown}).chatThreads = [
-        { id: 'thread_a', name: 'Ferritin <Plan>' },
-        { id: 'thread_b', name: 'Sleep Notes' },
+        { id: 'thread_a', name: 'Ferritin <Plan>', createdAt: '2026-10-07T12:00:00Z', updatedAt: '2026-10-07T12:00:00Z', messageCount: 2 },
+        { id: 'thread_b', name: 'Sleep Notes', createdAt: '2026-10-07T12:00:00Z', updatedAt: '2026-10-07T12:00:00Z', messageCount: 1 },
       ];
       state.currentThreadId = 'thread_b';
       (state as {chatHistory: unknown}).chatHistory = messagesByThread.thread_b;
@@ -338,14 +339,7 @@ test('chat thread search covers message results clearing and jump highlighting',
         getChatThreadKey: (threadId: unknown) => `chat-search-${threadId}`,
         renderThreadList(filter: unknown) {
           renderCalls.push(filter || '');
-          const list = document.getElementById('chat-thread-list');
-          if (!list) return;
-          const visible = state.chatThreads.filter(thread =>
-            !filter || thread.name.toLowerCase().includes(String(filter).toLowerCase())
-          );
-          list.innerHTML = visible.length
-            ? visible.map(thread => `<div class="chat-thread-item">${thread.name}</div>`).join('')
-            : '<div>No matching threads</div>';
+          navigation.renderChatThreadList('recent', String(filter || ''));
         },
         async switchToThread(threadId: unknown) {
           (state as {currentThreadId: unknown}).currentThreadId = threadId;
@@ -354,6 +348,7 @@ test('chat thread search covers message results clearing and jump highlighting',
         },
       });
 
+      navigation.renderChatThreadList('recent');
       const input = (document.getElementById('chat-thread-search') as HTMLInputElement | null);
       input!.value = 'ferritin';
       threadSearch.filterThreadList('ferritin');

@@ -20,4 +20,3 @@ export interface ChatThreadDependencyMethods {
 }
 /** Object.assign accepts raw replacements, including explicit undefined. */
 export type ChatThreadDependencyRegistry = { [Key in keyof ChatThreadDependencyMethods]: unknown };
-export interface PendingThreadDrag { threadId: string; item: Element; source: Element; pointerId: number; startX: number; startY: number }

@@ -863,6 +863,28 @@ cache-busted for group retry, a shared HTML anchor preserves their original
 order before redesign overrides, and the service worker keeps the deferred
 modules and stylesheets precached for offline first use.
 
+Conversation navigation has one presentation owner,
+`js/components/ChatThreadNavigation.svelte`. `chat-thread-list-view.ts` preserves
+the published renderer boundary and projects current profile, sort and thread
+metadata through `chat-thread-navigation-presentation.ts`. The component owns
+grouped/pinned/project rows, menus, desktop pointer dragging, search progress and
+results. `chat-thread-navigation-component.ts` provides synchronous typed view
+ports and rejects actions or replies from detached, replaced or retired profile
+owners. Reconfiguration updates the existing action port without replacing
+focused controls. Thread CRUD, encrypted persistence and project rollback remain
+in `chat-threads.ts` and `chat-thread-search.ts`; message search captures profile,
+query, input, thread inventory and view lifetime before reading stored content.
+Result content prefixes stay in bound callbacks, and animation-frame jumps check
+their accepted destination before touching the transcript.
+
+`css/chat-panel-open.base.css` owns the remaining outer Chat shell, summary and
+transcript bridge styles. `css/chat-navigation.tailwind.css` scans only the
+navigation component and its shared typed classes, uses semantic theme tokens,
+and omits Preflight. `scripts/build-styles.mts` combines both into ignored
+`css/chat-panel-open.css`, preserving the deferred URL and cascade position.
+The outer Chat rail, transcript, composer and other Chat feature surfaces retain
+their separate presentation ownership; navigation does not own their lifecycle.
+
 Voice preserves this Chat boundary. `voice-loader.js` is a small first-use
 facade; microphone capture, playback, settings resolution, and provider
 selection load only when dictation, Listen, or enabled auto-read is used.

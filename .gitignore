@@ -1721,3 +1721,9 @@ js/custom-settings-controller.js
 
 /js/provider-status-contract.js
 /js/provider-status-component.js
+
+/css/chat-panel-open.css
+/js/chat-thread-navigation-contract.js
+/js/chat-thread-navigation-component.js
+/js/chat-thread-navigation-presentation.js
+/js/chat-thread-navigation-classes.js

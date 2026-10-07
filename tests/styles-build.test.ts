@@ -3,17 +3,20 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, expect, it } from 'vitest';
 import postcss from 'postcss';
-import { buildStyles, buildProtectionStyles } from '../scripts/build-styles.mjs';
+import { buildStyles, buildProtectionStyles, buildChatStyles } from '../scripts/build-styles.mjs';
 
 let directory: string;
 let outputPath: string;
 let protectionOutputPath: string;
+let chatOutputPath: string;
 beforeAll(async () => {
   directory = await fs.mkdtemp(path.join(os.tmpdir(), 'getbased-style-test-'));
   outputPath = path.join(directory, 'settings.css');
   await buildStyles({ outputPath });
   protectionOutputPath = path.join(directory,'data-protection.css');
   await buildProtectionStyles({ outputPath:protectionOutputPath });
+  chatOutputPath = path.join(directory, 'chat-panel-open.css');
+  await buildChatStyles({ outputPath: chatOutputPath });
 });
 afterAll(async () => { await fs.rm(directory, { recursive: true, force: true }); });
 
@@ -77,4 +80,24 @@ it('rebuilds protection CSS deterministically and rejects stale output without o
   await fs.writeFile(protectionOutputPath,source+'/* stale */');
   await expect(buildProtectionStyles({outputPath:protectionOutputPath,check:true})).rejects.toThrow('Data protection CSS is stale');
   expect(await fs.readFile(protectionOutputPath,'utf8')).toBe(source+'/* stale */');
+});
+
+it('retains the lazy Chat stylesheet URL, scopes navigation utilities and rejects stale output', async () => {
+  const source = await fs.readFile(chatOutputPath, 'utf8');
+  const base = (await fs.readFile('css/chat-panel-open.base.css', 'utf8')).trimEnd();
+  expect(source).toContain(base);
+  expect(base).not.toMatch(/\.chat-thread-item(?:\s|\{|:|\.)/);
+  const utilities = source.slice(source.indexOf(base) + base.length);
+  const selectors: string[] = [];
+  postcss.parse(utilities).walkRules(rule => { selectors.push(...rule.selectors); });
+  const owned = selectors.filter(selector => selector.includes('.gb\\:thread-nav'));
+  expect(owned.length).toBeGreaterThan(40);
+  expect(owned.every(selector => selector.includes(':is([data-chat-thread-navigation-view],[data-chat-thread-navigation-view] *)'))).toBe(true);
+  expect(selectors).not.toContain('body');
+  expect(utilities).not.toContain('!important');
+  expect(utilities.replace(/\s+/g, '')).toContain('min-height:calc(var(--gb-spacing)*11)');
+  await buildChatStyles({ outputPath: chatOutputPath, check: true });
+  await fs.writeFile(chatOutputPath, source + '/* stale */');
+  await expect(buildChatStyles({ outputPath: chatOutputPath, check: true })).rejects.toThrow('Chat CSS is stale');
+  expect(await fs.readFile(chatOutputPath, 'utf8')).toBe(source + '/* stale */');
 });

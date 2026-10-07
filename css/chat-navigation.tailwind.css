@@ -1,0 +1,7 @@
+/* Lazy Chat navigation utilities; no global reset. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@source "../js/components/ChatThreadNavigation.svelte";
+@source "../js/chat-thread-navigation-classes.ts";
+@import "./ui-tokens.tailwind.css";
+@custom-variant thread-nav (&:is([data-chat-thread-navigation-view], [data-chat-thread-navigation-view] *));

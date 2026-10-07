@@ -1,13 +1,13 @@
 // chat-threads.js — Conversation-thread management for the chat panel
 import { state } from './state.js';
 import type { ChatThread } from '../types/chat-data.js';
-import type { ChatThreadDependencyMethods, ChatThreadDependencyRegistry, PendingThreadDrag } from '../types/chat-threads.js';
+import type { ChatThreadDependencyMethods, ChatThreadDependencyRegistry } from '../types/chat-threads.js';
 import { showNotification, showConfirmDialog, showPromptDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItems } from './data-merge.js';
 import { onChatSaved } from './sync.js';
 import { chatDeletedThreadsKey } from './sync-payload-collectors.js';
-import { renderChatThreadList } from './chat-thread-list-view.js';
+import { renderChatThreadList, configureThreadNavigationActions } from './chat-thread-list-view.js';
 import { encryptedGetItem, encryptedSetItem } from './crypto.js';
 import {
   configureChatThreadProjects, configureChatThreadSearch, createThreadProject,
@@ -29,10 +29,6 @@ export {
 
 const MOBILE_THREAD_RAIL_QUERY = '(max-width: 768px)';
 const CHAT_DELETED_PROTO_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
-let chatThreadDelegatesInstalled = false;
-let draggedThreadId = '';
-let pendingThreadDrag: PendingThreadDrag | null = null;
-let suppressThreadClick = false;
 let blockedThreadIndexKey: string | null = null;
 let blockedThreadIndexNoticeShown = false;
 let threadLoadRevision = 0;
@@ -494,155 +490,15 @@ function closeThreadRailAfterMobileSelection() {
   return true;
 }
 
-function closestThreadAction(event: Event) {
-  const target = event.target;
-  if (typeof Element === 'undefined' || !(target instanceof Element)) return null;
-  return target.closest('[data-chat-thread-action]') as HTMLElement | null;
-}
-
-function getThreadActionId(actionEl: HTMLElement) {
-  const threadEl = actionEl.closest('[data-thread-id]') as HTMLElement | null;
-  return actionEl.dataset.threadId || threadEl?.dataset.threadId || '';
-}
-
-function handleThreadActionClick(event: Event) {
-  if (suppressThreadClick) {
-    event.preventDefault();
-    event.stopPropagation();
-    return;
-  }
-  const actionEl = closestThreadAction(event);
-  const target = event.target;
-  document.querySelectorAll('.chat-thread-item-menu[open]').forEach(menu => {
-    if (!(target instanceof Node) || !menu.contains(target)) menu.removeAttribute('open');
+export function installChatThreadDelegates(): void {
+  configureThreadNavigationActions({
+    switch: switchToThread, pin: toggleThreadPinned, rename: renameThreadPrompt, delete: deleteThread,
+    move: moveThreadToProject, renameProject: renameThreadProjectPrompt, deleteProject: deleteThreadProjectPrompt,
+    jump: result => {
+      closeThreadRailAfterMobileSelection();
+      return jumpToSearchResult(result.threadId, result.msgIndex, result.contentPrefix);
+    },
   });
-  document.querySelectorAll('.chat-project-menu[open]').forEach(menu => {
-    if (!(target instanceof Node) || !menu.contains(target)) menu.removeAttribute('open');
-  });
-  const projectActionEl = target instanceof Element ? target.closest('[data-chat-project-action]') : null;
-  const list = document.getElementById('chat-thread-list');
-  if (projectActionEl && list?.contains(projectActionEl)) {
-    event.preventDefault();
-    projectActionEl.closest('details')?.removeAttribute('open');
-    const projectAction = projectActionEl.getAttribute('data-chat-project-action');
-    const projectName = projectActionEl.getAttribute('data-project-name') || '';
-    if (projectAction === 'rename') void renameThreadProjectPrompt(projectName);
-    else if (projectAction === 'delete') void deleteThreadProjectPrompt(projectName);
-    return;
-  }
-  if (!actionEl) return;
-  if (!list || !list.contains(actionEl)) return;
-
-  const action = actionEl.dataset.chatThreadAction;
-  const threadId = getThreadActionId(actionEl);
-  if (!action || !threadId) return;
-  actionEl.closest('details')?.removeAttribute('open');
-
-  if (action === 'switch') {
-    event.preventDefault();
-    switchToThread(threadId);
-  } else if (action === 'rename') {
-    event.preventDefault();
-    renameThreadPrompt(threadId);
-  } else if (action === 'delete') {
-    event.preventDefault();
-    deleteThread(threadId);
-  } else if (action === 'pin') {
-    event.preventDefault();
-    toggleThreadPinned(threadId);
-  } else if (action === 'move-project') {
-    event.preventDefault();
-    void moveThreadToProject(threadId, actionEl.dataset.projectName || '');
-  }
-}
-
-function clearThreadDragState() {
-  draggedThreadId = '';
-  pendingThreadDrag = null;
-  document.body?.classList.remove('is-chat-thread-pointer-dragging');
-  document.getElementById('chat-thread-list')?.classList.remove('is-thread-dragging');
-  document.querySelectorAll('[data-chat-project-drop].is-drop-target').forEach(target => target.classList.remove('is-drop-target'));
-  document.querySelectorAll('.chat-thread-item.is-dragging').forEach(item => {
-    item.classList.remove('is-dragging');
-    item.setAttribute('aria-grabbed', 'false');
-  });
-}
-
-function beginThreadPointerDrag() {
-  if (!pendingThreadDrag || draggedThreadId) return;
-  draggedThreadId = pendingThreadDrag.threadId;
-  pendingThreadDrag.item.classList.add('is-dragging');
-  pendingThreadDrag.item.setAttribute('aria-grabbed', 'true');
-  document.body?.classList.add('is-chat-thread-pointer-dragging');
-  document.getElementById('chat-thread-list')?.classList.add('is-thread-dragging');
-}
-
-function projectDropTargetAt(clientX: number, clientY: number) {
-  const hit = document.elementFromPoint(clientX, clientY);
-  return hit instanceof Element ? hit.closest('[data-chat-project-drop]') : null;
-}
-
-function highlightProjectDropTarget(target: Element | null) {
-  document.querySelectorAll('[data-chat-project-drop].is-drop-target').forEach(item => {
-    if (item !== target) item.classList.remove('is-drop-target');
-  });
-  target?.classList.add('is-drop-target');
-}
-
-function handleThreadPointerDown(event: PointerEvent) {
-  if (event.button !== 0 || event.isPrimary === false || event.pointerType === 'touch') return;
-  const isMobile = typeof matchMedia === 'function' && matchMedia(MOBILE_THREAD_RAIL_QUERY).matches;
-  if (isMobile) return;
-  const target = event.target instanceof Element ? event.target.closest('.chat-thread-item-main') : null;
-  const item = target?.closest('.chat-thread-item');
-  if (!target || !item) return;
-  const threadId = item.getAttribute('data-thread-id') || '';
-  if (!threadId) return;
-  pendingThreadDrag = { threadId, item, source: target, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY };
-}
-
-function handleThreadPointerMove(event: PointerEvent) {
-  if (!pendingThreadDrag || pendingThreadDrag.pointerId !== event.pointerId) return;
-  if (!draggedThreadId) {
-    const distance = Math.hypot(event.clientX - pendingThreadDrag.startX, event.clientY - pendingThreadDrag.startY);
-    if (distance < 6) return;
-    beginThreadPointerDrag();
-    try { pendingThreadDrag.source.setPointerCapture(event.pointerId); } catch {}
-  }
-  event.preventDefault();
-  globalThis.getSelection?.()?.removeAllRanges();
-  highlightProjectDropTarget(projectDropTargetAt(event.clientX, event.clientY));
-}
-
-function handleThreadPointerUp(event: PointerEvent) {
-  if (!pendingThreadDrag || pendingThreadDrag.pointerId !== event.pointerId) return;
-  const didDrag = !!draggedThreadId;
-  const threadId = draggedThreadId;
-  const target = didDrag ? projectDropTargetAt(event.clientX, event.clientY) : null;
-  try { pendingThreadDrag.source.releasePointerCapture(event.pointerId); } catch {}
-  const projectName = target?.getAttribute('data-chat-project-drop') || '';
-  clearThreadDragState();
-  if (!didDrag) return;
-  event.preventDefault();
-  suppressThreadClick = true;
-  setTimeout(() => { suppressThreadClick = false; }, 0);
-  if (target) void moveThreadToProject(threadId, projectName);
-}
-
-function handleThreadPointerCancel(event: PointerEvent) {
-  if (pendingThreadDrag?.pointerId !== event.pointerId) return;
-  clearThreadDragState();
-}
-
-export function installChatThreadDelegates() {
-  if (chatThreadDelegatesInstalled || typeof document === 'undefined') return;
-  chatThreadDelegatesInstalled = true;
-  document.addEventListener('click', handleThreadActionClick);
-  document.addEventListener('pointerdown', handleThreadPointerDown);
-  document.addEventListener('pointermove', handleThreadPointerMove, { passive: false });
-  document.addEventListener('pointerup', handleThreadPointerUp);
-  document.addEventListener('pointercancel', handleThreadPointerCancel);
-  globalThis.addEventListener?.('blur', clearThreadDragState);
 }
 
 export function renderThreadList(filter?: string) {

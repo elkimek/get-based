@@ -82,3 +82,7 @@ export const routstrActionsCompatible: typeof NativeRoutstrActions = RoutstrActi
 import ProviderStatus from '../../js/components/ProviderStatus.svelte';
 import type NativeProviderStatus from '../../js/components/ProviderStatus.svelte.native.js';
 export const providerStatusCompatible: typeof NativeProviderStatus = ProviderStatus;
+
+import ChatThreadNavigation from '../../js/components/ChatThreadNavigation.svelte';
+import type NativeChatThreadNavigation from '../../js/components/ChatThreadNavigation.svelte.native.js';
+export const chatThreadNavigationCompatible: typeof NativeChatThreadNavigation = ChatThreadNavigation;

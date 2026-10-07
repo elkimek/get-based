@@ -72,7 +72,6 @@ body.chat-open .analytics-consent-banner {
 .chat-close-btn,
 .chat-thread-new-btn,
 .chat-project-new-btn,
-.chat-thread-item-action,
 .chat-context-menu-toggle,
 .chat-model-menu-toggle,
 .chat-voice-btn,
@@ -92,7 +91,6 @@ body.chat-open .analytics-consent-banner {
 .chat-rail-back svg,
 .chat-rail-toggle svg,
 .chat-thread-new-btn svg,
-.chat-thread-item-action svg,
 .chat-fullscreen-btn svg,
 .chat-close-btn svg,
 .chat-discuss-btn svg,
@@ -137,9 +135,6 @@ body.chat-open .analytics-consent-banner {
 }
 .chat-thread-rail.open {
   width: var(--chat-rail-width, 220px);
-}
-.chat-thread-item {
-  border-radius: var(--radius-sm);
 }
 .chat-personality-bar {
   background: var(--bg-secondary);
@@ -404,19 +399,6 @@ body.chat-open .analytics-consent-banner {
   }
   .chat-thread-list {
     padding: 0 12px 16px;
-  }
-  .chat-thread-item {
-    min-height: 64px;
-    padding: 0;
-    margin-bottom: 8px;
-  }
-  .chat-thread-item-main {
-    min-height: 64px;
-    padding: 12px 58px 12px 14px;
-  }
-  .chat-thread-item-action {
-    width: 34px;
-    height: 34px;
   }
   .chat-personality-options {
     left: 8px;

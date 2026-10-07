@@ -38,8 +38,12 @@ export async function buildStyles({ outputPath = OUTPUT, check = false }: StyleO
 export async function buildProtectionStyles({ outputPath = path.join(ROOT, 'css/data-protection.css'), check = false }: StyleOptions = {}): Promise<void> {
     await compileStyles('data-protection.base.css', 'data-protection.tailwind.css', outputPath, check, 'Data protection');
 }
+export async function buildChatStyles({ outputPath = path.join(ROOT, 'css/chat-panel-open.css'), check = false }: StyleOptions = {}): Promise<void> {
+    await compileStyles('chat-panel-open.base.css', 'chat-navigation.tailwind.css', outputPath, check, 'Chat');
+}
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
     const check = process.argv.includes('--check');
     await buildStyles({ check });
     await buildProtectionStyles({ check });
+    await buildChatStyles({ check });
 }

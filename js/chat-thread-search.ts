@@ -2,8 +2,10 @@
 
 import { state } from './state.js';
 import { encryptedGetItem, getEncryptionEnabled } from './crypto.js';
-import { escapeHTML, showConfirmDialog, showNotification } from './utils.js';
-import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
+import { showConfirmDialog, showNotification } from './utils.js';
+import { getChatThreadNavigationView } from './chat-thread-navigation-component.js';
+import { threadProjectNames } from './chat-thread-navigation-presentation.js';
+import type { ChatThreadNavigationView, ChatThreadSearchResult } from './chat-thread-navigation-contract.js';
 import { preferredChatScrollBehavior } from './chat-scroll.js';
 import type { ChatThread } from '../types/chat-data.js';
 import type { PromptDialogOptions } from './utils.js';
@@ -18,7 +20,6 @@ interface ThreadProjectCallbacks {
   showPromptDialog: (message: string, options: PromptDialogOptions) => Promise<unknown>;
 }
 interface SearchMessage { content: string; role?: unknown; [key: string]: unknown }
-interface SearchResult { threadId: string; threadName: string; msgIndex: number; role: unknown; pre: string; match: string; post: string; contentPrefix: string }
 type ProjectSnapshot = Pick<ChatThread, 'id' | 'updatedAt'> & { projectName: ChatThread['projectName'] };
 export interface ThreadMetadataReader { updatedAt?: unknown; createdAt?: unknown; messagesUpdatedAt?: unknown }
 
@@ -32,6 +33,8 @@ const threadSearchCallbacks: ThreadSearchCallbacks = {
 let _threadSearchTimer: ReturnType<typeof setTimeout> | null = null;
 let _threadContentCache: { profileId: string | null; threads: Map<string, SearchMessage[]> } | null = null; // { profileId, threads: Map<threadId, messages[]> }
 let searchRevision = 0;
+// Saving the departing thread invalidates reads, but must not cancel its jump.
+let jumpRevision = 0;
 
 const SEARCH_RESULT_LIMIT = 30;
 
@@ -51,8 +54,7 @@ export function configureChatThreadProjects(callbacks: Partial<ThreadProjectCall
 }
 
 export function getThreadProjectNames() {
-  return [...new Set(state.chatThreads.map(thread => String(thread.projectName || '').trim()).filter(Boolean))]
-    .sort((a, b) => a.localeCompare(b));
+  return threadProjectNames(state.chatThreads);
 }
 
 export async function createThreadProject() {
@@ -211,10 +213,18 @@ async function getThreadMessages(threadId: string) {
 }
 
 // Invalidate cache when messages change
-export function invalidateThreadContentCache() { _threadContentCache = null; searchRevision += 1; }
+export function invalidateThreadContentCache() {
+  _threadContentCache = null;
+  searchRevision += 1;
+  // An invalidated read cannot finish its progress or keep obsolete snippets.
+  getChatThreadNavigationView()?.setSearch({ phase: 'idle', progress: '', results: [], truncated: false });
+}
 
 export function filterThreadList(value: string | null | undefined) {
   const revision = ++searchRevision;
+  jumpRevision += 1;
+  const input = document.getElementById('chat-thread-search') as HTMLInputElement | null;
+  if (input && input.value !== (value ?? '')) input.value = value ?? '';
   if (_threadSearchTimer !== null) clearTimeout(_threadSearchTimer);
   _threadSearchTimer = null;
   if (!value || !value.trim()) {
@@ -226,19 +236,24 @@ export function filterThreadList(value: string | null | undefined) {
   }
   // Instant: filter thread names
   threadSearchCallbacks.renderThreadList(value);
-  const list = document.getElementById('chat-thread-list');
-  if (list) list.insertAdjacentHTML('beforeend', '<div class="chat-search-progress" role="status">Searching messages…</div>');
+  const view = getChatThreadNavigationView();
+  view?.setSearch({ phase: 'pending', progress: 'Searching messages…', results: [], truncated: false });
   // Debounced: search message content
-  _threadSearchTimer = setTimeout(() => searchThreadContent(value.trim(), revision), 250);
+  _threadSearchTimer = setTimeout(() => { _threadSearchTimer = null; void searchThreadContent(value.trim(), revision, view); }, 250);
 }
 
-async function searchThreadContent(query: string, revision?: number) {
+async function searchThreadContent(query: string, revision = ++searchRevision, view: ChatThreadNavigationView | null = getChatThreadNavigationView()) {
   const profile = state.currentProfile;
-  const isCurrent = () => profile === state.currentProfile && revision === searchRevision;
+  const input = document.getElementById('chat-thread-search') as HTMLInputElement | null;
+  const threads = state.chatThreads.slice();
+  const isCurrent = () => profile === state.currentProfile && revision === searchRevision && !!view?.isCurrent()
+    && document.getElementById('chat-thread-search') === input && input?.value.trim().toLowerCase() === query.toLowerCase()
+    && threads.every(thread => state.chatThreads.includes(thread));
+  if (!isCurrent()) return;
   const q = query.toLowerCase();
-  const results: SearchResult[] = [];
+  const results: ChatThreadSearchResult[] = [];
   let scannedThreads = 0;
-  for (const t of state.chatThreads) {
+  for (const t of threads) {
     const input = (document.getElementById('chat-thread-search') as HTMLInputElement | null);
     if (!input || input.value.trim().toLowerCase() !== q) return;
     const messages = await getThreadMessages(t.id);
@@ -260,57 +275,32 @@ async function searchThreadContent(query: string, revision?: number) {
       if (results.length > SEARCH_RESULT_LIMIT) break;
     }
     if (results.length > SEARCH_RESULT_LIMIT) break;
-    const progress = document.querySelector('.chat-search-progress');
-    if (progress) progress.textContent = `Searching messages… ${scannedThreads}/${state.chatThreads.length}`;
+    view?.setSearch({ phase: 'pending', progress: `Searching messages… ${scannedThreads}/${threads.length}`, results: [], truncated: false });
   }
-  // Re-check input hasn't changed
-  const input = (document.getElementById('chat-thread-search') as HTMLInputElement | null);
-  if (!isCurrent() || !input || input.value.trim().toLowerCase() !== q) return;
-  showSearchResults(results);
-}
-
-function showSearchResults(results: SearchResult[]) {
-  const list = document.getElementById('chat-thread-list');
-  if (!list) return;
-  const input = (document.getElementById('chat-thread-search') as HTMLInputElement | null);
-  const query = input?.value?.trim() || '';
-  threadSearchCallbacks.renderThreadList(query);
-  const hasNameMatches = !list.textContent!.includes('No matching');
-  const nameResults = hasNameMatches
-    ? `<div class="chat-search-results-label">Conversations</div>${list.innerHTML}`
-    : '';
-  if (results.length === 0 && !hasNameMatches) {
-    list.innerHTML = '<div class="chat-search-empty">No matches in conversations or messages</div>';
-    return;
-  }
-  if (results.length === 0) {
-    list.innerHTML = nameResults;
-    return;
-  }
-  const visibleResults = results.slice(0, SEARCH_RESULT_LIMIT);
-  const truncated = results.length > SEARCH_RESULT_LIMIT ? `<div style="padding:6px 10px;font-size:10px;color:var(--text-muted);text-align:center">Showing first ${SEARCH_RESULT_LIMIT} matches</div>` : '';
-  list.innerHTML = nameResults + `<div class="chat-search-results-label">Messages</div>` +
-    visibleResults.map(r => {
-      const icon = r.role === 'user' ? '\uD83D\uDCDD' : '\uD83E\uDD16';
-      return `<button type="button" class="chat-search-result" ${chatMessageActionAttrs('jump-search-result', { threadId: r.threadId, index: r.msgIndex, prefix: r.contentPrefix })}>
-        <span class="chat-search-result-thread">${escapeHTML(r.threadName)}</span>
-        <span class="chat-search-result-snippet">${icon} ${escapeHTML(r.pre)}<mark>${escapeHTML(r.match)}</mark>${escapeHTML(r.post)}</span>
-      </button>`;
-    }).join('') + truncated;
+  if (!isCurrent()) return;
+  view?.setSearch({ phase: 'done', progress: '', results: results.slice(0, SEARCH_RESULT_LIMIT), truncated: results.length > SEARCH_RESULT_LIMIT });
 }
 
 export async function jumpToSearchResult(threadId: string, msgIndex: number, contentPrefix: unknown) {
   const input = (document.getElementById('chat-thread-search') as HTMLInputElement | null);
   const query = input?.value?.trim() || '';
-  // Switch to thread (re-renders messages if different thread)
-  if (state.currentThreadId !== threadId) {
-    await threadSearchCallbacks.switchToThread(threadId);
-    // Restore search results after thread switch re-rendered the list
-    if (query) searchThreadContent(query);
-  }
+  const profile = state.currentProfile, revision = ++jumpRevision, view = getChatThreadNavigationView();
+  const contextIsCurrent = () => profile === state.currentProfile && revision === jumpRevision
+    && (!view || view.isCurrent()) && document.getElementById('chat-thread-search') === input && (input?.value?.trim() || '') === query;
+  if (state.currentThreadId !== threadId) await threadSearchCallbacks.switchToThread(threadId);
+  if (!contextIsCurrent()) return;
+  // The switch may save messages and invalidate cached reads. Refresh with the
+  // current read revision while retaining this jump's independent ownership.
+  if (query) void searchThreadContent(query, searchRevision, view);
+  // Capture the destination accepted by the switch callback, including a no-op
+  // callback. Later navigation must not highlight another conversation.
+  const destination = state.currentThreadId;
+  const isCurrent = () => contextIsCurrent() && state.currentThreadId === destination;
+  if (!isCurrent()) return;
   threadSearchCallbacks.revealMessage(msgIndex);
   // Wait for DOM to settle after potential re-render
   requestAnimationFrame(() => {
+    if (!isCurrent()) return;
     let msgEl = document.getElementById('chat-msg-' + msgIndex);
     // Verify we're highlighting the right message (index may have shifted)
     if (msgEl && contentPrefix && state.chatHistory[msgIndex]) {
