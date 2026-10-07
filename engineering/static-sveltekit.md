@@ -100,3 +100,14 @@ stored perspectives/summaries, persisted attestation receipts and their stated
 limits, web-search preference, fullscreen restoration and menu focus using the assembled artifact after its origin becomes unavailable.
 Attestation badges share authored Svelte markup with transcript HTML callers;
 verification remains in provider services and display retains its stated limits.
+
+The shared attachment controls, previews, drop feedback and lightbox use Svelte
+and scoped Tailwind in both entries. The
+[attachment cold-launch scenario](../tests/pwa/sveltekit-chat-attachments.spec.ts)
+checks retained history thumbnails and fresh local image selection with the
+assembled artifact while its origin is unavailable. Queued originals remain
+in memory and disappear on reload; attachment selection does not rewrite the
+stored transcript. The [native attachment scenarios](../tests/playwright/chat-attachments-owned.spec.ts)
+exercise overlapping reads, draft retirement, original bytes, keyboard removal,
+capability-aware paste, six themes and narrow layouts. Reviewed health-file
+imports and OS portal-drop snapshot timing retain their existing contracts.

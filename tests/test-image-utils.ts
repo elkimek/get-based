@@ -189,10 +189,12 @@ const cssSrc = [
   await fetchWithRetry('css/chat-redesign.css'),
   await fetchWithRetry('css/chat-redesign-open.css'),
 ].join('\n');
-assert('.chat-context-menu-toggle style exists in CSS bundle', cssSrc.includes('.chat-context-menu-toggle'));
-assert('.chat-attach-preview style exists in CSS bundle', cssSrc.includes('.chat-attach-preview'));
-assert('.chat-attach-thumb style exists in CSS bundle', cssSrc.includes('.chat-attach-thumb'));
-assert('.chat-attach-remove style exists in CSS bundle', cssSrc.includes('.chat-attach-remove'));
+const attachmentClasses = await fetchWithRetry('js/chat-attachment-classes.js');
+const composerMenu = await fetchWithRetry('js/components/ChatAttachmentMenu.svelte');
+assert('.chat-context-menu-toggle style exists in CSS bundle', composerMenu.includes('chat-context-menu-toggle {COMPOSER_TOOL_BUTTON}') && cssSrc.includes('gb\\:composer'));
+assert('.chat-attach-preview style exists in CSS bundle', attachmentClasses.includes('chat-attach-preview gb:attachment:') && cssSrc.includes('gb\\:attachment'));
+assert('.chat-attach-thumb style exists in CSS bundle', attachmentClasses.includes('chat-attach-thumb gb:attachment:') && cssSrc.includes('gb\\:attachment'));
+assert('.chat-attach-remove style exists in CSS bundle', attachmentClasses.includes('chat-attach-remove gb:attachment:') && cssSrc.includes('gb\\:attachment'));
 assert('.chat-image-badge style exists in CSS bundle', cssSrc.includes('.chat-image-badge'));
 assert('.chat-drop-active style exists in CSS bundle', cssSrc.includes('.chat-drop-active'));
 

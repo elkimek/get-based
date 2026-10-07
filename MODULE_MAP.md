@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1039 |
-| Internal import edges | 3930 |
+| Modules | 1046 |
+| Internal import edges | 3945 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -387,9 +387,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>chat</code> family — 88 modules</summary>
+<details><summary><code>chat</code> family — 92 modules</summary>
 
 - [`js/chat-actions.ts`](js/chat-actions.ts) → [`js/agent-draft-claims.ts`](js/agent-draft-claims.ts), [`js/agent-drafts.ts`](js/agent-drafts.ts), [`js/chat-history.ts`](js/chat-history.ts), [`js/chat-icons.ts`](js/chat-icons.ts), [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-message-action-attrs.ts`](js/chat-message-action-attrs.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/chat-attachment-classes.ts`](js/chat-attachment-classes.ts) → no in-scope imports
+- [`js/chat-attachment-drafts.ts`](js/chat-attachment-drafts.ts) → no in-scope imports
+- [`js/chat-attachment-view.ts`](js/chat-attachment-view.ts) → no in-scope imports
 - [`js/chat-attestation-component.ts`](js/chat-attestation-component.ts) → [`js/components/ChatAttestationTooltip.svelte`](js/components/ChatAttestationTooltip.svelte)
 - [`js/chat-attestation-presentation.ts`](js/chat-attestation-presentation.ts) → no in-scope imports
 - [`js/chat-attestation.ts`](js/chat-attestation.ts) → [`js/chat-attestation-component.ts`](js/chat-attestation-component.ts), [`js/chat-attestation-presentation.ts`](js/chat-attestation-presentation.ts), [`js/components/ChatAttestationBadge.svelte`](js/components/ChatAttestationBadge.svelte)
@@ -421,7 +424,8 @@ Native browser modules shipped with the static application.
 - [`js/chat-header-view.ts`](js/chat-header-view.ts) → no in-scope imports
 - [`js/chat-history.ts`](js/chat-history.ts) → [`js/chat-header-view.ts`](js/chat-header-view.ts), [`js/chat-personalities.ts`](js/chat-personalities.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/chat-storage-safety.ts`](js/chat-storage-safety.ts), [`js/chat-summaries.ts`](js/chat-summaries.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/chat-icons.ts`](js/chat-icons.ts) → no in-scope imports
-- [`js/chat-images.ts`](js/chat-images.ts) → [`js/ai-execution-routing.ts`](js/ai-execution-routing.ts), [`js/api.ts`](js/api.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/chat-message-action-attrs.ts`](js/chat-message-action-attrs.ts), [`js/image-utils.ts`](js/image-utils.ts), [`js/import-file-input.ts`](js/import-file-input.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/chat-image-lightbox-component.ts`](js/chat-image-lightbox-component.ts) → [`js/chat-attachment-view.ts`](js/chat-attachment-view.ts), [`js/components/ChatImageLightbox.svelte`](js/components/ChatImageLightbox.svelte), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts)
+- [`js/chat-images.ts`](js/chat-images.ts) → [`js/ai-execution-routing.ts`](js/ai-execution-routing.ts), [`js/api.ts`](js/api.ts), [`js/chat-attachment-drafts.ts`](js/chat-attachment-drafts.ts), [`js/chat-attachment-view.ts`](js/chat-attachment-view.ts), [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/chat-image-lightbox-component.ts`](js/chat-image-lightbox-component.ts), [`js/image-utils.ts`](js/image-utils.ts), [`js/import-file-input.ts`](js/import-file-input.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/chat-layout-classes.ts`](js/chat-layout-classes.ts) → no in-scope imports
 - [`js/chat-layout-view.ts`](js/chat-layout-view.ts) → no in-scope imports
 - [`js/chat-layout.ts`](js/chat-layout.ts) → [`js/chat-layout-view.ts`](js/chat-layout-view.ts)
@@ -480,6 +484,18 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>ChatAttachmentMenu.svelte</code> family — 1 module</summary>
+
+- [`js/components/ChatAttachmentMenu.svelte`](js/components/ChatAttachmentMenu.svelte) → [`js/chat-attachment-classes.ts`](js/chat-attachment-classes.ts), [`js/chat-attachment-view.ts`](js/chat-attachment-view.ts), [`js/chat-composer-classes.ts`](js/chat-composer-classes.ts)
+
+</details>
+
+<details><summary><code>ChatAttachmentPreview.svelte</code> family — 1 module</summary>
+
+- [`js/components/ChatAttachmentPreview.svelte`](js/components/ChatAttachmentPreview.svelte) → [`js/chat-attachment-classes.ts`](js/chat-attachment-classes.ts), [`js/chat-attachment-view.ts`](js/chat-attachment-view.ts)
+
+</details>
+
 <details><summary><code>ChatAttestationBadge.svelte</code> family — 1 module</summary>
 
 - [`js/components/ChatAttestationBadge.svelte`](js/components/ChatAttestationBadge.svelte) → [`js/chat-attestation-presentation.ts`](js/chat-attestation-presentation.ts)
@@ -494,13 +510,19 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>ChatComposer.svelte</code> family — 1 module</summary>
 
-- [`js/components/ChatComposer.svelte`](js/components/ChatComposer.svelte) → [`js/chat-composer-classes.ts`](js/chat-composer-classes.ts), [`js/chat-composer-input-port.ts`](js/chat-composer-input-port.ts), [`js/components/ChatModelPicker.svelte`](js/components/ChatModelPicker.svelte)
+- [`js/components/ChatComposer.svelte`](js/components/ChatComposer.svelte) → [`js/chat-attachment-view.ts`](js/chat-attachment-view.ts), [`js/chat-composer-classes.ts`](js/chat-composer-classes.ts), [`js/chat-composer-input-port.ts`](js/chat-composer-input-port.ts), [`js/components/ChatAttachmentMenu.svelte`](js/components/ChatAttachmentMenu.svelte), [`js/components/ChatAttachmentPreview.svelte`](js/components/ChatAttachmentPreview.svelte), [`js/components/ChatModelPicker.svelte`](js/components/ChatModelPicker.svelte)
 
 </details>
 
 <details><summary><code>ChatHeader.svelte</code> family — 1 module</summary>
 
 - [`js/components/ChatHeader.svelte`](js/components/ChatHeader.svelte) → [`js/chat-header-classes.ts`](js/chat-header-classes.ts), [`js/chat-header-contract.ts`](js/chat-header-contract.ts), [`js/chat-header-view.ts`](js/chat-header-view.ts), [`js/components/ChatAttestationBadge.svelte`](js/components/ChatAttestationBadge.svelte)
+
+</details>
+
+<details><summary><code>ChatImageLightbox.svelte</code> family — 1 module</summary>
+
+- [`js/components/ChatImageLightbox.svelte`](js/components/ChatImageLightbox.svelte) → no in-scope imports
 
 </details>
 
@@ -530,7 +552,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>ChatShell.svelte</code> family — 1 module</summary>
 
-- [`js/components/ChatShell.svelte`](js/components/ChatShell.svelte) → [`js/chat-layout-view.ts`](js/chat-layout-view.ts), [`js/components/ChatComposer.svelte`](js/components/ChatComposer.svelte), [`js/components/ChatHeader.svelte`](js/components/ChatHeader.svelte), [`js/components/ChatPersonalityPicker.svelte`](js/components/ChatPersonalityPicker.svelte), [`js/components/ChatResizeHandle.svelte`](js/components/ChatResizeHandle.svelte)
+- [`js/components/ChatShell.svelte`](js/components/ChatShell.svelte) → [`js/chat-attachment-classes.ts`](js/chat-attachment-classes.ts), [`js/chat-attachment-view.ts`](js/chat-attachment-view.ts), [`js/chat-layout-view.ts`](js/chat-layout-view.ts), [`js/components/ChatComposer.svelte`](js/components/ChatComposer.svelte), [`js/components/ChatHeader.svelte`](js/components/ChatHeader.svelte), [`js/components/ChatPersonalityPicker.svelte`](js/components/ChatPersonalityPicker.svelte), [`js/components/ChatResizeHandle.svelte`](js/components/ChatResizeHandle.svelte)
 
 </details>
 
@@ -1530,7 +1552,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>shell</code> family — 1 module</summary>
 
-- [`js/shell-actions.ts`](js/shell-actions.ts) → [`js/chat-header-view.ts`](js/chat-header-view.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/feedback.ts`](js/feedback.ts), [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts)
+- [`js/shell-actions.ts`](js/shell-actions.ts) → [`js/chat-attachment-view.ts`](js/chat-attachment-view.ts), [`js/chat-header-view.ts`](js/chat-header-view.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/feedback.ts`](js/feedback.ts), [`js/pdf-import-progress.ts`](js/pdf-import-progress.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/settings-runtime-bridge.ts`](js/settings-runtime-bridge.ts)
 
 </details>
 

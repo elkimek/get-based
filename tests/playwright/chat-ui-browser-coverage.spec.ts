@@ -5,7 +5,10 @@ const moduleUrl = createModuleUrl('chatUiCoverage');
 
 test('chat image attachments cover previews handlers and lightbox controls', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForSelector('#chat-input');
+  await page.waitForSelector('html[data-app-ready]');
+  await page.waitForSelector('#chat-input', {state:'attached'});
+
+  await page.evaluate(async () => { await (await import('/js/chat-loader.js')).openChatPanel(); });
 
   const results = await page.evaluate(async ({ chatImagesUrl }) => {
     const [chatImages, { state }] = await Promise.all([
@@ -64,7 +67,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
         'initChatImageHandlers',
       ].every(name => typeof (window as unknown as Record<string, unknown>)[name] === 'undefined');
 
-      outcomes.structuredComposerMenuExposesOriginalPhotoPicker = attachBtn?.style.display === 'flex'
+      outcomes.structuredComposerMenuExposesOriginalPhotoPicker = !!attachBtn && getComputedStyle(attachBtn).display === 'flex'
         && photoAction?.hidden === false
         && input?.getAttribute('accept')?.includes('image/') === true
         && input?.getAttribute('accept')?.includes('.pdf') === false
@@ -75,7 +78,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       await chatImages.addImageAttachment(makeImage('tiny <lab>.png'));
       outcomes.addImageCreatesPreview = chatImages.getPendingAttachments().length === 1
         && chatImages.hasPendingAttachments() === true
-        && preview?.style.display === 'flex'
+        && !!preview && getComputedStyle(preview).display === 'flex'
         && preview?.querySelector('.chat-attach-count')?.textContent === '1/5'
         && preview?.querySelector('img')?.getAttribute('alt') === 'tiny <lab>.png'
         && chatImages.getPendingAttachments()[0]?.base64 === btoa(String.fromCharCode(...pngBytes));
@@ -85,7 +88,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       state.currentThreadId = 'attachment-other-thread';
       chatImages.refreshAttachmentDraft();
       const otherThreadStartsEmpty = chatImages.getPendingAttachments().length === 0
-        && preview?.style.display === 'none';
+        && preview?.hidden === true;
       state.currentThreadId = originalThreadId;
       chatImages.refreshAttachmentDraft();
       outcomes.attachmentsAreScopedPerThread = otherThreadStartsEmpty
@@ -97,7 +100,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
 
       chatImages.removeImageAttachment(0);
       outcomes.removeImageClearsPreview = chatImages.getPendingAttachments().length === 0
-        && preview?.style.display === 'none';
+        && preview?.hidden === true;
       outcomes.attachmentChangesRefreshSendButtonThroughConfiguredCallback = sendButtonRefreshes >= 2
         && typeof (window as {updateSendButtonState?:unknown}).updateSendButtonState === 'undefined';
       chatImages.configureChatImages({ updateSendButtonState: undefined });
@@ -242,7 +245,7 @@ test('chat image attachments cover previews handlers and lightbox controls', asy
       const lightbox = document.querySelector('.chat-lightbox');
       outcomes.lightboxOpens = lightbox?.getAttribute('role') === 'dialog'
         && lightbox?.getAttribute('aria-modal') === 'true'
-        && !!lightbox.querySelector('img[alt="Attached image preview"]')
+        && !!lightbox.querySelector('img[alt="Attachment preview"]')
         && document.activeElement === lightbox.querySelector('.chat-lightbox-close');
       lightbox?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       outcomes.lightboxClickCloses = !document.querySelector('.chat-lightbox');

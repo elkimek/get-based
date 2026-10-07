@@ -1,4 +1,9 @@
 <script lang="ts">
+  import { dropChatAttachments } from '../chat-attachment-view.js';
+  import { ATTACHMENT_DROP } from '../chat-attachment-classes.js';
+  let dropActive = $state(false);
+  function dragOver(event: DragEvent) { if (Array.from(event.dataTransfer?.types || []).includes('Files')) { event.preventDefault(); event.stopPropagation(); if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'; flushSync(() => { dropActive = true; }); } }
+  function drop(event: DragEvent) { if (event.defaultPrevented) return; event.preventDefault(); event.stopPropagation(); flushSync(() => { dropActive = false; }); if (event.dataTransfer) dropChatAttachments(event.currentTarget as HTMLElement, event.dataTransfer); }
   import ChatHeader from './ChatHeader.svelte';
   import { flushSync } from 'svelte';
   import ChatPersonalityPicker from './ChatPersonalityPicker.svelte';
@@ -47,7 +52,8 @@
       <div id="chat-saved-summaries"></div>
     </div>
     <ChatResizeHandle kind="rail" {layout} />
-    <div class="chat-panel-conversation">
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="chat-panel-conversation gb:attachment:[&.chat-drop-active]:outline-2 gb:attachment:[&.chat-drop-active]:outline-dashed gb:attachment:[&.chat-drop-active]:outline-accent gb:attachment:[&.chat-drop-active]:-outline-offset-[5px]" data-chat-attachment-drop class:chat-drop-active={dropActive} ondragover={dragOver} ondragleave={event=>{if(!(event.relatedTarget instanceof Node)||!event.currentTarget.contains(event.relatedTarget))flushSync(()=>{dropActive=false;});}} ondrop={drop}>
       <ChatHeader {layout} />
       <ChatPersonalityPicker />
       <div class="chat-messages" id="chat-messages" role="log" aria-live="off" aria-busy="false" aria-label="Conversation"></div>
@@ -59,6 +65,10 @@
         </button>
       </div>
       <ChatComposer />
+      <div class={ATTACHMENT_DROP} id="chat-drop-overlay" aria-hidden="true" hidden={!dropActive}>
+        <strong class="gb:attachment:text-base">Drop files here</strong>
+        <span class="gb:attachment:max-w-[340px] gb:attachment:text-secondary gb:attachment:text-[13px] gb:attachment:leading-[1.45]">Images attach to your message. Reports and health-data files open import review.</span>
+      </div>
     </div>
   </div>
 </div>

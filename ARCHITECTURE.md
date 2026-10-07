@@ -884,8 +884,8 @@ query, input, thread inventory and view lifetime before reading stored content.
 Result content prefixes stay in bound callbacks, and animation-frame jumps check
 their accepted destination before touching the transcript.
 
-The shared Chat shell keeps stable transcript, attachment
-and summary hosts while those features retain their own services. Hydration
+The shared Chat shell keeps stable transcript and summary hosts while those
+features retain their own services. Attachment presentation is Svelte-owned. Hydration
 does not rerender those live hosts on reopen. `ChatComposer.svelte` owns initial
 composer controls and input events; `chat-composer-input-port.ts` connects a
 current input to the draft service without installing native input listeners.
@@ -1105,3 +1105,22 @@ existing theme variables and contrast-adjusted status colors. The model picker
 owns backend availability presentation; obsolete header selector/dot writers are
 removed. Transcript rendering and summary dialogs remain separate services until
 their migration.
+
+`ChatAttachmentPreview.svelte` and `ChatAttachmentMenu.svelte` own ephemeral
+image previews, removal, picker inputs and the composer tools disclosure.
+`ChatShell.svelte` owns conversation drop events and feedback; `ChatComposer.svelte`
+owns paste events. `chat-attachment-view.ts` connects the current component root
+to processing callbacks, subscribes to capability changes only during its
+lifetime, and projects literal names and supported image URLs. The shared
+lightbox component uses `chat-image-lightbox-component.ts` for modal focus,
+scroll locks and teardown, including external host removal.
+
+`chat-images.ts` retains image decoding, original bytes, thumbnail generation,
+health-file import routing and the public runtime API. OS drop handles are
+acquired synchronously before awaiting snapshots. `chat-attachment-drafts.ts`
+owns in-memory profile/thread queues and reservations: concurrent reads count
+against both limits, retired drafts cannot be revived, and submitted objects
+are consumed without losing later additions or valid in-flight reads. Reads
+also validate the originating component, conversation and model route before
+committing. Original images remain ephemeral; only existing history thumbnails
+are persisted. These services do not require a rendering backend.

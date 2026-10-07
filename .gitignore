@@ -1764,3 +1764,13 @@ js/custom-settings-controller.js
 /tests/chat-header-owned.test.js
 /tests/playwright/chat-header-owned.spec.js
 /tests/pwa/sveltekit-chat-header.spec.js
+
+# Generated owned Chat attachments runtime
+/js/chat-attachment-view.js
+/js/chat-attachment-drafts.js
+/js/chat-attachment-classes.js
+/js/chat-image-lightbox-component.js
+/tests/chat-attachments-owned.test.js
+/tests/playwright/chat-attachments-owned.spec.js
+
+/tests/pwa/sveltekit-chat-attachments.spec.js

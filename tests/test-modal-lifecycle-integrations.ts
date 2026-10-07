@@ -140,12 +140,14 @@ assert('chat summary modal participates in global keyboard modal handling',
   appEventsSrc.includes("['summary-modal-overlay', 'closeSummaryModal']") &&
     appEventsSrc.includes('runAppEventListener(actionName, action)'));
 
+const lightboxComponentSrc = fs.readFileSync(path.join(root, 'js/chat-image-lightbox-component.ts'), 'utf8');
 assert('chat image lightbox uses shared overlay lifecycle helpers',
-  chatImagesSrc.includes("import { openModalOverlay, removeModalOverlay } from './modal-lifecycle.js';") &&
-    chatImagesSrc.includes("overlay.className = 'chat-lightbox'") &&
-    chatImagesSrc.includes('openModalOverlay(overlay)') &&
-    chatImagesSrc.includes('removeModalOverlay(overlay)') &&
-    !chatImagesSrc.includes('overlay.remove()'));
+  chatImagesSrc.includes("import { openChatImageLightbox }") &&
+    lightboxComponentSrc.includes('openModalOverlay(overlay,') &&
+    lightboxComponentSrc.includes('closeModalOverlay(overlay,') &&
+    lightboxComponentSrc.includes('trapModalFocus(overlay,') &&
+    lightboxComponentSrc.includes('releaseFocus?.(restoreFocus)'));
+
 
 assert('card tips modal closes through shared detail modal close path',
   recommendationsSrc.includes("recActionAttrs('close-modal')") &&

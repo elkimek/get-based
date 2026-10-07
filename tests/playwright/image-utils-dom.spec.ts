@@ -13,7 +13,7 @@ test('chat image attachment DOM is present and its CSS loads on demand', async (
   await expect(page.locator('#chat-hd-btn')).toHaveCount(0);
   await expect(page.locator('#chat-composer-hint')).toHaveCount(0);
   await expect(page.locator('[data-chat-action="import-health-file"]')).toHaveCount(1);
-  await expect(page.locator('[data-chat-action="open-chat-context"]')).toHaveCount(1);
+  await expect(page.locator('[data-chat-composer-view] [data-chat-action="open-chat-context"]')).toHaveCount(1);
   await expect(page.locator('#chat-model-menu-toggle')).toHaveCount(1);
   expect(await page.evaluate(() => {
     const model = document.getElementById('chat-model-menu');
@@ -23,14 +23,7 @@ test('chat image attachment DOM is present and its CSS loads on demand', async (
 
   const loadedRules = await page.evaluate(async () => {
     await (await import('/js/chat-panel.js')).loadChatPresentationStylesheets();
-    const selectors = [
-      '.chat-context-menu-toggle',
-      '.chat-attach-preview',
-      '.chat-attach-thumb',
-      '.chat-attach-remove',
-      '.chat-image-badge',
-      '.chat-drop-active',
-    ];
+    const selectors = ['.chat-image-badge', '.chat-drop-active'];
     const cssText = [...document.styleSheets].map((sheet) => {
       try {
         return [...sheet.cssRules].map((rule) => rule.cssText).join('\n');
@@ -41,14 +34,20 @@ test('chat image attachment DOM is present and its CSS loads on demand', async (
     return Object.fromEntries(selectors.map((selector) => [selector, cssText.includes(selector)]));
   });
 
-  expect(loadedRules).toEqual({
-    '.chat-context-menu-toggle': true,
-    '.chat-attach-preview': true,
-    '.chat-attach-thumb': true,
-    '.chat-attach-remove': true,
-    '.chat-image-badge': true,
-    '.chat-drop-active': true,
+  expect(loadedRules).toEqual({ '.chat-image-badge': true, '.chat-drop-active': true });
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
+  await page.evaluate(async () => {
+    await (await import('/js/chat-loader.js')).openChatPanel();
+    const {state}=await import('/js/state.js');state.chatHistory=[{role:'user',content:'Attachment CSS fixture'}];
+    (await import('/js/chat-render.js')).renderChatMessages();
+    const images=await import('/js/chat-images.js');
+    images.getPendingAttachments().push({name:'fixture.png',previewUrl:'data:image/png;base64,abc'});images.refreshAttachmentDraft();
   });
+  const computed=await page.evaluate(()=>Object.fromEntries(['chat-attach-btn','chat-attach-preview'].map(id=>[id,getComputedStyle(document.getElementById(id)!).display])));
+  expect(computed).toEqual({'chat-attach-btn':'flex','chat-attach-preview':'flex'});
+  expect(await page.locator('.chat-attach-thumb').evaluate(element=>getComputedStyle(element).width)).toMatch(/^(56|68)px$/);
+  expect(await page.locator('.chat-attach-remove').evaluate(element=>getComputedStyle(element).opacity)).toBe('1');
+
 });
 
 test('image utility content builders format provider-compatible vision messages', async ({ page }) => {

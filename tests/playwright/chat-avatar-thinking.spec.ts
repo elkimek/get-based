@@ -22,11 +22,13 @@ test('the composer opens AI context before dashboard context hooks are registere
     (window as Window & {endTour?: typeof import('../../js/tour.js').endTour}).endTour?.();
     for (const id of ['tour-overlay', 'tour-spotlight', 'tour-tooltip']) document.getElementById(id)?.remove();
     await (await import('/js/chat-panel.js')).openChatPanel();
+    (await import('/js/state.js')).state.chatHistory = [{ role: 'user', content: 'Context menu fixture' }];
+    (await import('/js/chat-render.js')).renderChatMessages();
     const runtime = await import('/js/context-cards-runtime.js');
     runtime.configureContextCardsRuntimeCallbacks({ openContextModal: null });
   });
   await page.locator('#chat-attach-btn').click();
-  await page.locator('[data-chat-action="open-chat-context"]').click();
+  await page.locator('[data-chat-composer-view] [data-chat-action="open-chat-context"]').click();
   await expect(page.locator('#context-hub-overlay')).toBeVisible();
 });
 

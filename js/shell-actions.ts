@@ -1,3 +1,4 @@
+import { configureChatAttachmentContext } from './chat-attachment-view.js';
 import { configureChatHeaderActions } from './chat-header-view.js';
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // shell-actions.js - delegated actions for static index.html controls
@@ -206,7 +207,7 @@ function runChatAction(action: string | undefined, actionEl: HTMLElement) {
 
 function handleShellClick(event: Event) {
   const actionEl = closestAction(event, '[data-shell-action], [data-chat-action]');
-  if (!actionEl || actionEl.closest('[data-chat-personality-view], [data-chat-header-view]')) return;
+  if (!actionEl || actionEl.closest('[data-chat-personality-view], [data-chat-header-view], [data-chat-owned-attachment-actions]')) return;
 
   const shellAction = actionEl.dataset.shellAction;
   const chatAction = actionEl.dataset.chatAction;
@@ -274,3 +275,5 @@ configureChatHeaderActions({
   },
   webSearch: enabled => shellChatActionDeps.setChatWebSearchEnabled(enabled),
 });
+
+configureChatAttachmentContext(openChatContextModalRuntime);
