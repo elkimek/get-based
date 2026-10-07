@@ -202,6 +202,7 @@ export function createDataCore(ports: DataCorePorts) {
 
   function persistProfileSnapshot(profileId: string, source: ImportedDataRecord, options: ProfileSaveOptions) {
     const intent = structuredClone(source);
+    const expectedField = options.expectedContextField ? structuredClone(options.expectedContextField) : undefined;
     const previousSave = options.activeSave && pendingProfileSaves.get(source);
     const snapshot: ProfileSaveSnapshot = { baseline: options.baseData, base: options.baseData ? structuredClone(options.baseData) : null, intent, committed: false, profileId };
     if (options.activeSave) pendingProfileSaves.set(source, snapshot);
@@ -220,12 +221,16 @@ export function createDataCore(ports: DataCorePorts) {
         const previous = await (0, ports.encryptedGetItem)(key, { throwOnDecryptError: true });
         // Explicit restores must retry if their reviewed snapshot changed.
         if (options.expectedData !== undefined && previous !== options.expectedData) throw new ports.ProfileWriteConflict('Stale import');
-        const stored = previous != null && (base || options.expectedContextNotes !== undefined) ? JSON.parse(previous) : {};
+        const stored = previous != null && (base || options.expectedContextNotes !== undefined || expectedField !== undefined) ? JSON.parse(previous) : {};
         // Notes drafts can outlive a view/profile load. Check their observed
         // value inside the same locked read/merge/write that commits the edit.
         if (options.expectedContextNotes !== undefined && String(stored.contextNotes || '') !== options.expectedContextNotes) {
           try { options.onContextNotesConflict?.(String(stored.contextNotes || '')); } catch { /* Observation cannot bypass the conflict guard. */ }
           throw new ports.ProfileWriteConflict('Context notes changed since this edit');
+        }
+        if (expectedField && !ports.profileDataValuesEqual(stored[expectedField.key] ?? null, expectedField.value)) {
+          try { options.onContextFieldConflict?.(); } catch { /* Observation cannot bypass the guard. */ }
+          throw new ports.ProfileWriteConflict('Context field changed since this edit');
         }
         const latest = base ? stored : {};
         persisted = base ? (0, ports.mergeProfileMutation)(base, intent, latest) : intent;

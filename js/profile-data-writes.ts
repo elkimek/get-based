@@ -12,7 +12,8 @@ const object = (value: unknown): value is Record<string, unknown> => value !== n
 // Compare JSON values, not that incidental order, when detecting concurrent edits.
 const canonicalJSON = (value: unknown) => JSON.stringify(value, (_key, item: unknown) => object(item)
   ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
-const equal = (a: unknown, b: unknown) => canonicalJSON(a) === canonicalJSON(b);
+export const profileDataValuesEqual = (a: unknown, b: unknown) => canonicalJSON(a) === canonicalJSON(b);
+const equal = profileDataValuesEqual;
 export class ProfileWriteConflict extends Error {}
 
 export function rememberProfileData(data: unknown, persisted: unknown = data) {

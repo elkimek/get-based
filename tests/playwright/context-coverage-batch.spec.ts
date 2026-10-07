@@ -289,6 +289,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       (import(lifestyleUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/context-card-lifestyle-editors.js'), "openExerciseEditor" | "openHealthGoalsEditor" | "renderHealthGoalsModal" | "configureLifestyleContextEditors" | "openDietEditor" | "renderDietContaminantsBadge" | "showDietContaminantsModal" | "openSleepRestEditor" | "saveSleepRest" | "clearSleepRest" | "openLightCircadianEditor" | "saveLightCircadian" | "clearLightCircadian" | "saveExercise" | "clearExercise" | "openStressEditor" | "saveStress" | "clearStress" | "openLoveLifeEditor" | "saveLoveLife" | "clearLoveLife" | "openEnvironmentEditor" | "saveEnvironment" | "clearEnvironment" | "openInterpretiveLensEditor" | "addHealthGoal">>,
       import('/js/context-card-lifestyle-runtime.js'),
     ]);
+    const data = await import('/js/data.js');
     const outcomes: Record<string, unknown> = {};
     const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     const clone = (value: unknown) => value == null ? value : JSON.parse(JSON.stringify(value)) as unknown;
@@ -309,14 +310,14 @@ test('lifestyle context editors cover save clear health goals lens and contamina
     const controlOutcomeName = (kind: unknown, id: unknown, index: number) =>
       `${kind}_${id}_${index}_renders`.replace(/[^a-zA-Z0-9_]/g, '_');
     const setOption = (id: unknown, index = 0) => {
-      const btn = document.querySelectorAll<HTMLElement>(`#${id} .ctx-btn-option`)[index];
+      const btn = document.querySelectorAll<HTMLElement>(`#${id} button[data-context-value]`)[index];
       const label = btn?.textContent?.trim() || '';
       outcomes[controlOutcomeName('option', id, index)] = !!btn && !!label;
       btn?.click();
       return btn?.dataset.contextValue || label;
     };
     const setTag = (id: unknown, index = 0) => {
-      const btn = document.querySelectorAll<HTMLElement>(`#${id} .ctx-tag`)[index];
+      const btn = document.querySelectorAll<HTMLElement>(`#${id} button[data-context-value]`)[index];
       const label = btn?.textContent?.trim() || '';
       outcomes[controlOutcomeName('tag', id, index)] = !!btn && !!label;
       btn?.click();
@@ -340,10 +341,12 @@ test('lifestyle context editors cover save clear health goals lens and contamina
         interpretiveLens: '',
         emfAssessment: { assessments: [] },
       };
+      if (!await data.saveImportedData()) throw new Error('Fixture profile could not be saved');
       await lifestyle.openExerciseEditor();
       const defaultExerciseFrequency = setOption('exercise-freq');
-      const defaultExerciseSave = modal.querySelector<HTMLElement>('[data-lifestyle-action="save-exercise"]');
+      const defaultExerciseSave = Array.from(modal.querySelectorAll<HTMLButtonElement>('button')).find(button => button.textContent === 'Save');
       defaultExerciseSave?.click();
+      for (let attempt = 0; attempt < 250 && overlay.classList.contains('show'); attempt++) await delay(20);
       outcomes.defaultSaveContextAndRefreshStoresAndNotifies = (state.importedData as unknown as ContextFixtureRead).exercise?.frequency === defaultExerciseFrequency
         && Array.from(document.querySelectorAll<HTMLElement>('.notification-toast')).some(el => el.textContent.includes('Exercise saved'))
         && !!defaultExerciseSave;
@@ -373,6 +376,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       lifestyle.configureLifestyleContextEditors({
         recordChange: (field: unknown) => calls.push(['record', field]),
         saveAndRefresh: (msg: unknown, field: unknown) => calls.push(['save', msg, field || '']),
+        afterCommit: (msg: string) => { calls.push(['commit', msg]); },
       });
 
       await lifestyle.openDietEditor();
@@ -446,6 +450,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
           sleep_score: { rolling: { d7: 61 } },
         },
       };
+      if (!await data.saveImportedData()) throw new Error('Fixture profile could not be saved');
       await lifestyle.openSleepRestEditor();
       outcomes.sleepEditorFlagsStrongProfileTrackedMismatch = modal.querySelector<HTMLElement>('.ctx-data-mismatch')?.textContent.includes('Profile and tracked sleep differ') === true
         && modal.querySelector<HTMLElement>('.ctx-data-mismatch')?.textContent.includes('5.3h') === true
@@ -456,14 +461,16 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       const apneaStatus = setOption('sleep-apnea-status', 2);
       const papUse = setOption('sleep-pap-use', 1);
       ((document.getElementById('ctx-note-input') as HTMLTextAreaElement | null))!.value = 'cool room';
-      lifestyle.saveSleepRest();
+      document.getElementById('ctx-note-input')!.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      await lifestyle.saveSleepRest();
       outcomes.saveSleepRestStoresSelections = (state.importedData as unknown as ContextFixtureRead).sleepRest?.duration === sleepDuration
         && ((state.importedData as unknown as ContextFixtureRead).sleepRest?.issues as {includes(value:unknown):unknown} | null | undefined)?.includes(sleepIssue)
         && (state.importedData as unknown as ContextFixtureRead).sleepRest?.daytimeSleepiness === daytimeSleepiness
         && (state.importedData as unknown as ContextFixtureRead).sleepRest?.apneaStatus === apneaStatus
         && (state.importedData as unknown as ContextFixtureRead).sleepRest?.papUse === papUse
         && (state.importedData as unknown as ContextFixtureRead).sleepRest?.note === 'cool room';
-      lifestyle.clearSleepRest();
+      await lifestyle.openSleepRestEditor();
+      await lifestyle.clearSleepRest();
       outcomes.clearSleepRestNullsSleep = (state.importedData as unknown as ContextFixtureRead).sleepRest === null;
       delete (state.importedData as unknown as ContextFixtureRead).wearableSummary;
 
@@ -493,13 +500,14 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       const exerciseDuration = setOption('exercise-duration', 1);
       const exerciseMuscle = setOption('exercise-muscle', 2);
       const exerciseLimitation = setTag('exercise-limitations');
-      lifestyle.saveExercise();
+      await lifestyle.saveExercise();
       outcomes.saveExerciseStoresFrequencyAndType = (state.importedData as unknown as ContextFixtureRead).exercise?.frequency === exerciseFrequency
         && ((state.importedData as unknown as ContextFixtureRead).exercise?.types as {includes(value:unknown):unknown} | null | undefined)?.includes(exerciseType)
         && (state.importedData as unknown as ContextFixtureRead).exercise?.duration === exerciseDuration
         && (state.importedData as unknown as ContextFixtureRead).exercise?.muscleContext === exerciseMuscle
         && ((state.importedData as unknown as ContextFixtureRead).exercise?.limitations as {includes(value:unknown):unknown} | null | undefined)?.includes(exerciseLimitation);
-      lifestyle.clearExercise();
+      await lifestyle.openExerciseEditor();
+      await lifestyle.clearExercise();
       outcomes.clearExerciseNullsExercise = (state.importedData as unknown as ContextFixtureRead).exercise === null;
 
       await lifestyle.openStressEditor();
@@ -508,12 +516,13 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       const stressDuration = setOption('stress-duration', 2);
       const stressSource = setTag('stress-sources');
       const stressTrend = setOption('stress-trend', 2);
-      lifestyle.saveStress();
+      await lifestyle.saveStress();
       outcomes.saveStressStoresLevelAndSource = (state.importedData as unknown as ContextFixtureRead).stress?.level === stressLevel
         && (state.importedData as unknown as ContextFixtureRead).stress?.duration === stressDuration
         && (state.importedData as unknown as ContextFixtureRead).stress?.trend === stressTrend
         && ((state.importedData as unknown as ContextFixtureRead).stress?.sources as {includes(value:unknown):unknown} | null | undefined)?.includes(stressSource);
-      lifestyle.clearStress();
+      await lifestyle.openStressEditor();
+      await lifestyle.clearStress();
       outcomes.clearStressNullsStress = (state.importedData as unknown as ContextFixtureRead).stress === null;
 
       await lifestyle.openLoveLifeEditor();
@@ -523,12 +532,13 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       const libidoChange = setOption('love-libido-change', 2);
       const reproductiveGoal = setTag('love-reproductive-goals');
       const loveConcern = setTag('love-concerns');
-      lifestyle.saveLoveLife();
+      await lifestyle.saveLoveLife();
       outcomes.saveLoveLifeStoresStatusAndConcern = (state.importedData as unknown as ContextFixtureRead).loveLife?.status === loveStatus
         && (state.importedData as unknown as ContextFixtureRead).loveLife?.libidoChange === libidoChange
         && ((state.importedData as unknown as ContextFixtureRead).loveLife?.reproductiveGoals as {includes(value:unknown):unknown} | null | undefined)?.includes(reproductiveGoal)
         && ((state.importedData as unknown as ContextFixtureRead).loveLife?.concerns as {includes(value:unknown):unknown} | null | undefined)?.includes(loveConcern);
-      lifestyle.clearLoveLife();
+      await lifestyle.openLoveLifeEditor();
+      await lifestyle.clearLoveLife();
       outcomes.clearLoveLifeNullsValue = (state.importedData as unknown as ContextFixtureRead).loveLife === null;
 
       await lifestyle.openEnvironmentEditor();
@@ -604,14 +614,15 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       await lifestyle.openHealthGoalsEditor();
       ((document.getElementById('goal-text-input') as HTMLInputElement | null))!.value = 'Callback coverage goal';
       lifestyle.addHealthGoal();
-      outcomes.configureCallbacksWereUsed = calls.some(call => call[0] === 'save' && call[2] === 'sleepRest')
+      outcomes.configureCallbacksWereUsed = calls.some(call => call[0] === 'commit' && call[1] === 'Sleep saved')
+        && state.importedData.changeHistory?.some(change => change.field === 'sleepRest')
         && calls.some(call => call[0] === 'record' && call[1] === 'healthGoals');
     } finally {
       (state as unknown as {importedData:unknown}).importedData = saved.importedData;
       state.profileSex = saved.profileSex;
       state.unitSystem = saved.unitSystem;
       lifestyleRuntime.configureContextCardLifestyleRuntimeDeps(previousLifestyleRuntimeDeps);
-      lifestyle.configureLifestyleContextEditors({ recordChange: () => {}, saveAndRefresh: () => {} });
+      lifestyle.configureLifestyleContextEditors({ recordChange: () => {}, saveAndRefresh: () => {}, afterCommit: () => {} });
       overlay.classList.remove('show');
       modal.innerHTML = '';
       document.querySelectorAll<HTMLElement>('.notification-toast').forEach(el => el.remove());

@@ -1,4 +1,4 @@
-import type { SleepContext } from '../types/profile-context-data.js';
+import { openLifestyleForm, saveLifestyleForm, configureLifestyleFormView } from './context-lifestyle-form-view.js';
 import type { LifestyleEditorDependencies } from './context-card-editor-ui.js';
 // context-card-lifestyle-editors-impl.js - lazy lifestyle context card editor implementation
 
@@ -23,38 +23,6 @@ import {
   APPETITE,
   ABDOMINAL_PAIN,
   FOOD_SENSITIVITIES,
-  EXERCISE_FREQ,
-  EXERCISE_TYPES,
-  EXERCISE_INTENSITY,
-  DAILY_MOVEMENT,
-  EXERCISE_DURATION,
-  EXERCISE_MUSCLE_CONTEXT,
-  EXERCISE_LIMITATIONS,
-  SLEEP_DURATIONS,
-  SLEEP_QUALITY,
-  SLEEP_SCHEDULE,
-  SLEEP_ROOM_TEMP,
-  SLEEP_ISSUES,
-  SLEEP_DAYTIME_SLEEPINESS,
-  SLEEP_APNEA_STATUS,
-  SLEEP_PAP_USE,
-  SLEEP_NAPS,
-  SLEEP_ENVIRONMENT,
-  SLEEP_PRACTICES,
-  STRESS_LEVELS,
-  STRESS_SOURCES,
-  STRESS_MGMT,
-  STRESS_DURATION,
-  STRESS_TREND,
-  LOVE_STATUS,
-  LOVE_SATISFACTION,
-  LOVE_LIBIDO,
-  LOVE_LIBIDO_CHANGE,
-  LOVE_FREQUENCY,
-  LOVE_ORGASM,
-  LOVE_RELATIONSHIP,
-  LOVE_CONCERNS,
-  LOVE_REPRODUCTIVE_GOALS,
   ENV_SETTING,
   ENV_CLIMATE,
   ENV_ALTITUDE,
@@ -74,7 +42,6 @@ import { formatTime, getTimeFormat, parseTimeInput } from './theme.js';
 import { saveImportedData } from './data.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { scanDietForContaminants } from './food-contaminants.js';
-import { getSleepContextMismatch } from './lab-context-wearables.js';
 import { reopenSunSetup } from './sun-defaults.js';
 import {
   doesNutritionContextOverrideTypicalMeals,
@@ -130,7 +97,8 @@ let saveContextAndRefresh: (msg: string, field?: string) => void = (msg, field) 
 };
 
 
-export function configureLifestyleContextEditors({ recordChange, saveAndRefresh }: LifestyleEditorDependencies = {}) {
+export function configureLifestyleContextEditors({ recordChange, saveAndRefresh, afterCommit }: LifestyleEditorDependencies = {}) {
+  configureLifestyleFormView(afterCommit);
   if (typeof recordChange === 'function') recordContextChange = recordChange;
   if (typeof saveAndRefresh === 'function') saveContextAndRefresh = saveAndRefresh;
   configureLifestyleSpecialEditors({ recordChange, saveAndRefresh });
@@ -156,12 +124,6 @@ function hydrationIntakeOptions() {
   }));
 }
 
-
-function renderSleepMismatch(current: SleepContext) {
-  const mismatch = getSleepContextMismatch(current, state.importedData.wearableSummary);
-  if (!mismatch) return '';
-  return `<div class="ctx-data-mismatch" role="status"><strong>Profile and tracked sleep differ</strong><span>${escapeHTML(mismatch.reasons.join('. '))}.</span><small>Both are kept. Recent device data can differ from your usual experience or have incomplete coverage.</small></div>`;
-}
 
 async function confirmClearProfileContext(label: string, clearAction: () => unknown) {
   const confirmed = await showConfirmDialog(
@@ -389,221 +351,33 @@ export function clearDiet() {
 // SLEEP & REST
 // ═══════════════════════════════════════════════
 
-export function openSleepRestEditor(): void | Promise<unknown> { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openSleepRestEditor);
-  const modal = document.getElementById("detail-modal");
-  const overlay = document.getElementById("modal-overlay");
-  const current = state.importedData.sleepRest || { duration: null, quality: null, daytimeSleepiness: null, apneaStatus: null, papUse: null, naps: null, schedule: null, roomTemp: null, issues: [], environment: [], practices: [], note: '' };
-  renderContextEditorModal(modal, 'Sleep & Rest', 'Sleep duration, quality, and routine add useful context to recovery and metabolic markers.', `
-    ${renderSleepMismatch(current)}
-    ${renderSelectField('Duration', 'sleep-duration', SLEEP_DURATIONS, current.duration)}
-    ${renderSelectField('Quality', 'sleep-quality', SLEEP_QUALITY, current.quality)}
-    ${renderTagsField('Sleep issues', 'sleep-issues', SLEEP_ISSUES, current.issues)}
-    ${renderSelectField('Daytime sleepiness', 'sleep-daytime', SLEEP_DAYTIME_SLEEPINESS, current.daytimeSleepiness)}
-    ${renderContextEditorSection('Sleep breathing and daytime rest', summarizeSection([
-      current.apneaStatus && `apnea: ${current.apneaStatus}`,
-      current.papUse,
-      current.naps && `naps: ${current.naps}`,
-    ], 'Optional apnea, treatment, and naps'), `
-      ${renderSelectField('Sleep apnea status', 'sleep-apnea-status', SLEEP_APNEA_STATUS, current.apneaStatus)}
-      ${renderSelectField('PAP / CPAP use', 'sleep-pap-use', SLEEP_PAP_USE, current.papUse)}
-      ${renderSelectField('Naps', 'sleep-naps', SLEEP_NAPS, current.naps)}
-    `)}
-    ${renderContextEditorSection('Environment and routine', summarizeSection([
-      current.schedule,
-      current.roomTemp,
-      current.environment,
-      current.practices,
-    ], 'Optional schedule, room, and sleep practices'), `
-      ${renderSelectField('Schedule', 'sleep-schedule', SLEEP_SCHEDULE, current.schedule)}
-      ${renderSelectField('Room temperature', 'sleep-temp', SLEEP_ROOM_TEMP, current.roomTemp)}
-      ${renderTagsField('Sleep environment', 'sleep-env', SLEEP_ENVIRONMENT, current.environment)}
-      ${renderTagsField('Sleep practices', 'sleep-practices', SLEEP_PRACTICES, current.practices)}
-    `)}
-    ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.sleepRest != null, lifestyleActionAttrs('save-sleep-rest'), lifestyleActionAttrs('clear-sleep-rest'))}`);
-  openModalOverlay(overlay);
-}
-
-export function saveSleepRest() {
-  const duration = getSelectedOption('sleep-duration');
-  const quality = getSelectedOption('sleep-quality');
-  const daytimeSleepiness = getSelectedOption('sleep-daytime');
-  const apneaStatus = getSelectedOption('sleep-apnea-status');
-  const papUse = getSelectedOption('sleep-pap-use');
-  const naps = getSelectedOption('sleep-naps');
-  const schedule = getSelectedOption('sleep-schedule');
-  const roomTemp = getSelectedOption('sleep-temp');
-  const issues = getSelectedTags('sleep-issues');
-  const environment = getSelectedTags('sleep-env');
-  const practices = getSelectedTags('sleep-practices');
-  const note = getInputValue('ctx-note-input');
-  if (!duration && !quality && !daytimeSleepiness && !apneaStatus && !papUse && !naps && !schedule && !roomTemp && issues.length === 0 && environment.length === 0 && practices.length === 0 && !note.trim()) {
-    state.importedData.sleepRest = null;
-  } else {
-    state.importedData.sleepRest = { duration, quality, daytimeSleepiness, apneaStatus, papUse, naps, schedule, roomTemp, issues, environment, practices, note: note.trim() };
-  }
-  saveContextAndRefresh('Sleep saved', 'sleepRest');
-}
-
-export function clearSleepRest() {
-  state.importedData.sleepRest = null;
-  saveContextAndRefresh('Sleep cleared', 'sleepRest');
-}
+export function openSleepRestEditor() { return openLifestyleForm('sleepRest'); }
+export function saveSleepRest() { return saveLifestyleForm('sleepRest'); }
+export function clearSleepRest() { return saveLifestyleForm('sleepRest', true); }
 
 // ═══════════════════════════════════════════════
 // EXERCISE
 // ═══════════════════════════════════════════════
 
-export function openExerciseEditor(): void | Promise<unknown> { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openExerciseEditor);
-  const modal = document.getElementById("detail-modal");
-  const overlay = document.getElementById("modal-overlay");
-  const current = state.importedData.exercise || { frequency: null, types: [], intensity: null, duration: null, dailyMovement: null, muscleContext: null, limitations: [], note: '' };
-  renderContextEditorModal(modal, 'Exercise', 'Your routine can affect recovery, inflammation, and several lab markers.', `
-    ${renderSelectField('Frequency', 'exercise-freq', EXERCISE_FREQ, current.frequency)}
-    ${renderTagsField('Types', 'exercise-types', EXERCISE_TYPES, current.types)}
-    ${renderSelectField('Intensity', 'exercise-intensity', EXERCISE_INTENSITY, current.intensity)}
-    ${renderContextEditorSection('Training details', summarizeSection([
-      current.duration && `${current.duration} sessions`,
-      current.dailyMovement,
-      current.muscleContext,
-      current.limitations,
-    ], 'Optional duration, movement, muscle, and recovery context'), `
-      ${renderSelectField('Typical session duration', 'exercise-duration', EXERCISE_DURATION, current.duration)}
-      ${renderSelectField('Daily movement', 'exercise-movement', DAILY_MOVEMENT, current.dailyMovement)}
-      ${renderSelectField('Muscle context', 'exercise-muscle', EXERCISE_MUSCLE_CONTEXT, current.muscleContext)}
-      ${renderTagsField('Limitations and recovery', 'exercise-limitations', EXERCISE_LIMITATIONS, current.limitations)}
-    `)}
-    ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.exercise != null, lifestyleActionAttrs('save-exercise'), lifestyleActionAttrs('clear-exercise'))}`);
-  openModalOverlay(overlay);
-}
-
-export function saveExercise() {
-  const frequency = getSelectedOption('exercise-freq');
-  const types = getSelectedTags('exercise-types');
-  const intensity = getSelectedOption('exercise-intensity');
-  const duration = getSelectedOption('exercise-duration');
-  const dailyMovement = getSelectedOption('exercise-movement');
-  const muscleContext = getSelectedOption('exercise-muscle');
-  const limitations = getSelectedTags('exercise-limitations');
-  const note = getInputValue('ctx-note-input');
-  if (!frequency && types.length === 0 && !intensity && !duration && !dailyMovement && !muscleContext && limitations.length === 0 && !note.trim()) {
-    state.importedData.exercise = null;
-  } else {
-    state.importedData.exercise = { frequency, types, intensity, duration, dailyMovement, muscleContext, limitations, note: note.trim() };
-  }
-  saveContextAndRefresh('Exercise saved', 'exercise');
-}
-
-export function clearExercise() {
-  state.importedData.exercise = null;
-  saveContextAndRefresh('Exercise cleared', 'exercise');
-}
+export function openExerciseEditor() { return openLifestyleForm('exercise'); }
+export function saveExercise() { return saveLifestyleForm('exercise'); }
+export function clearExercise() { return saveLifestyleForm('exercise', true); }
 
 // ═══════════════════════════════════════════════
 // STRESS
 // ═══════════════════════════════════════════════
 
-export function openStressEditor(): void | Promise<unknown> { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openStressEditor);
-  const modal = document.getElementById("detail-modal");
-  const overlay = document.getElementById("modal-overlay");
-  const current = state.importedData.stress || { level: null, duration: null, trend: null, sources: [], management: [], note: '' };
-  renderContextEditorModal(modal, 'Stress', 'Add only the stress patterns that feel relevant to your health context.', `
-    ${renderSelectField('Stress level', 'stress-level', STRESS_LEVELS, current.level)}
-    ${renderSelectField('Duration', 'stress-duration', STRESS_DURATION, current.duration)}
-    ${renderContextEditorSection('Sources and response', summarizeSection([
-      current.sources,
-      current.trend && `trend: ${current.trend}`,
-      current.management,
-    ], 'Optional sources, trend, and stress management'), `
-      ${renderTagsField('Sources', 'stress-sources', STRESS_SOURCES, current.sources)}
-      ${renderSelectField('Current trend', 'stress-trend', STRESS_TREND, current.trend)}
-      ${renderTagsField('Stress management (what helps)', 'stress-mgmt', STRESS_MGMT, current.management)}
-    `)}
-    ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.stress != null, lifestyleActionAttrs('save-stress'), lifestyleActionAttrs('clear-stress'))}`);
-  openModalOverlay(overlay);
-}
-
-export function saveStress() {
-  const level = getSelectedOption('stress-level');
-  const duration = getSelectedOption('stress-duration');
-  const trend = getSelectedOption('stress-trend');
-  const sources = getSelectedTags('stress-sources');
-  const management = getSelectedTags('stress-mgmt');
-  const note = getInputValue('ctx-note-input');
-  if (!level && !duration && !trend && sources.length === 0 && management.length === 0 && !note.trim()) {
-    state.importedData.stress = null;
-  } else {
-    state.importedData.stress = { level, duration, trend, sources, management, note: note.trim() };
-  }
-  saveContextAndRefresh('Stress profile saved', 'stress');
-}
-
-export function clearStress() {
-  state.importedData.stress = null;
-  saveContextAndRefresh('Stress profile cleared', 'stress');
-}
+export function openStressEditor() { return openLifestyleForm('stress'); }
+export function saveStress() { return saveLifestyleForm('stress'); }
+export function clearStress() { return saveLifestyleForm('stress', true); }
 
 // ═══════════════════════════════════════════════
 // LOVE LIFE
 // ═══════════════════════════════════════════════
 
-export function openLoveLifeEditor(): void | Promise<unknown> { if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openLoveLifeEditor);
-  const modal = document.getElementById("detail-modal");
-  const overlay = document.getElementById("modal-overlay");
-  const current = state.importedData.loveLife || { status: null, satisfaction: null, relationship: null, libido: null, libidoChange: null, frequency: null, orgasm: null, reproductiveGoals: [], concerns: [], note: '' };
-  renderContextEditorModal(modal, 'Love Life & Relationships', 'Private and optional. Share only what feels relevant to your health context.', `
-    ${renderSelectField('Relationship status', 'love-status', LOVE_STATUS, current.status)}
-    ${renderSelectField('Relationship quality', 'love-relationship', LOVE_RELATIONSHIP, current.relationship)}
-    ${renderSelectField('Overall satisfaction', 'love-satisfaction', LOVE_SATISFACTION, current.satisfaction)}
-    ${renderContextEditorSection('Sexual health details', summarizeSection([
-      current.libido ? `${current.libido} libido` : '',
-      current.libidoChange && `libido ${current.libidoChange}`,
-      current.frequency,
-      current.orgasm ? `orgasm: ${current.orgasm}` : '',
-      current.reproductiveGoals,
-      current.concerns,
-    ], 'Private and optional'), `
-      ${renderSelectField('Libido', 'love-libido', LOVE_LIBIDO, current.libido)}
-      ${renderSelectField('Change from usual', 'love-libido-change', LOVE_LIBIDO_CHANGE, current.libidoChange)}
-      ${renderSelectField('Sexual frequency', 'love-frequency', LOVE_FREQUENCY, current.frequency)}
-      ${renderSelectField('Orgasm', 'love-orgasm', LOVE_ORGASM, current.orgasm)}
-      ${renderTagsField('Reproductive goals', 'love-reproductive-goals', LOVE_REPRODUCTIVE_GOALS, current.reproductiveGoals)}
-      ${renderTagsField('Concerns', 'love-concerns', LOVE_CONCERNS.filter(c => {
-        if (state.profileSex === 'female' && c === 'erectile issues') return false;
-        if (state.profileSex === 'male' && c === 'vaginal dryness') return false;
-        return true;
-      }), current.concerns)}
-    `)}
-    ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.loveLife != null, lifestyleActionAttrs('save-love-life'), lifestyleActionAttrs('clear-love-life'))}`);
-  openModalOverlay(overlay);
-}
-
-export function saveLoveLife() {
-  const status = getSelectedOption('love-status');
-  const relationship = getSelectedOption('love-relationship');
-  const satisfaction = getSelectedOption('love-satisfaction');
-  const libido = getSelectedOption('love-libido');
-  const libidoChange = getSelectedOption('love-libido-change');
-  const frequency = getSelectedOption('love-frequency');
-  const orgasm = getSelectedOption('love-orgasm');
-  const reproductiveGoals = getSelectedTags('love-reproductive-goals');
-  const concerns = getSelectedTags('love-concerns');
-  const note = getInputValue('ctx-note-input');
-  if (!status && !relationship && !satisfaction && !libido && !libidoChange && !frequency && !orgasm && reproductiveGoals.length === 0 && concerns.length === 0 && !note.trim()) {
-    state.importedData.loveLife = null;
-  } else {
-    state.importedData.loveLife = { status, relationship, satisfaction, libido, libidoChange, frequency, orgasm, reproductiveGoals, concerns, note: note.trim() };
-  }
-  saveContextAndRefresh('Love life saved', 'loveLife');
-}
-
-export function clearLoveLife() {
-  state.importedData.loveLife = null;
-  saveContextAndRefresh('Love life cleared', 'loveLife');
-}
+export function openLoveLifeEditor() { return openLifestyleForm('loveLife'); }
+export function saveLoveLife() { return saveLifestyleForm('loveLife'); }
+export function clearLoveLife() { return saveLifestyleForm('loveLife', true); }
 
 // ═══════════════════════════════════════════════
 // ENVIRONMENT

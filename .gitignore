@@ -1906,3 +1906,10 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 # Lazy authored context tips presentation and stylesheet.
 /css/context-editor.css
 /js/context-card-tips-presentation.js
+
+# Authored lifestyle form runtime output
+/js/context-lifestyle-form-model.js
+/js/context-lifestyle-form-session.js
+/js/context-lifestyle-form-view.js
+/js/components/LifestyleContextForm.svelte.native.js
+/js/components/LifestyleContextForm.svelte.native.js.map

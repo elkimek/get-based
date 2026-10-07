@@ -47,6 +47,19 @@ failures, recovery across fresh profile loads, conflicting saved text and both
 recovery choices. Recovery controls also receive focused accessibility and layout
 checks. Atomic conflict checks and unrelated-field preservation are covered by
 [`profile-write-concurrency.test.ts`](../tests/profile-write-concurrency.test.ts).
+[`context-lifestyle-form-ownership.test.ts`](../tests/context-lifestyle-form-ownership.test.ts)
+checks authored lifestyle fields, canonical values, empty contexts, commit confirmation,
+retry, captured profiles, retired controls and unrelated drafts. The same atomic
+storage suite checks observed context fields and reordered object keys.
+[`context-lifestyle-forms-owned.spec.ts`](../tests/playwright/context-lifestyle-forms-owned.spec.ts)
+checks real field interactions, persistence/history, reopen, clear confirmation,
+profile retirement, actual IndexedDB failure/retry, keyboard controls and shared
+form styles in all six themes at
+narrow/wide widths. Lifestyle loader cases cover retirement and overlapping opens.
+[`sveltekit-context-forms.spec.ts`](../tests/pwa/sveltekit-context-forms.spec.ts)
+checks the editors through real catalog actions with the assembled static PWA,
+including offline first use, committed history and two cold launches. Its offline
+boundary drops origin-server connections while the real worker/cache serves the app.
 [`context-card-status-ownership.test.ts`](../tests/context-card-status-ownership.test.ts)
 checks simultaneous authored assessment/tips publication, literal text, unique IDs,
 assessment invalidation after changed facts/notes/demographics,

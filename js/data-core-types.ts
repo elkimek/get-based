@@ -6,6 +6,8 @@ export interface ProfileSaveOptions {
   baseData?: Partial<ImportedDataRecord> | undefined;
   expectedData?: string | null | undefined;
   expectedContextNotes?: string;
+  expectedContextField?: { key: 'sleepRest' | 'exercise' | 'stress' | 'loveLife'; value: unknown };
+  onContextFieldConflict?: () => void;
   onContextNotesConflict?: (saved: string) => void;
   activeSave?: boolean;
   forceProfileScope?: boolean;
@@ -32,6 +34,7 @@ export interface DrawPhase { cycleDay: number | null; phase: string; phaseName: 
 export type Guidance = {min?: number | null | undefined; max?: number | null | undefined; label: string} | null;
 
 export interface DataCorePorts {
+  readonly profileDataValuesEqual: typeof import('./profile-data-writes.js').profileDataValuesEqual;
   readonly queueProfileDataWrite: typeof import('./profile-data-writes.js').queueProfileDataWrite;
   readonly profileDataBaseline: typeof import('./profile-data-writes.js').profileDataBaseline;
   readonly rememberProfileData: typeof import('./profile-data-writes.js').rememberProfileData;

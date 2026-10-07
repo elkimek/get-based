@@ -417,3 +417,29 @@ it('keeps the atomic notes guard effective if a conflict observer throws', async
   expect(await saveImportedDataForProfile(profileId, draft, { baseData: base, forceProfileScope: true, expectedContextNotes: 'original', onContextNotesConflict: () => { throw new Error('observer failed'); } })).toBe(false);
   expect((await read()).contextNotes).toBe('Saved elsewhere');
 });
+
+for (const field of ['sleepRest', 'exercise', 'stress', 'loveLife'] as const) it(`guards stale ${field} form writes inside the locked storage transaction`, async () => {
+  const base = structuredClone(state.importedData), draft = structuredClone(base);
+  draft[field] = { note: 'Stale local draft' };
+  const peer = structuredClone(base); peer[field] = { note: 'Saved by another tab' };
+  await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  const conflict = vi.fn();
+  expect(await saveImportedDataForProfile(profileId, draft, { forceProfileScope: true, baseData: base, expectedContextField: { key: field, value: base[field] ?? null }, onContextFieldConflict: conflict })).toBe(false);
+  expect(conflict).toHaveBeenCalledOnce(); expect(JSON.parse((await crypto.encryptedGetItem(key))!)[field]).toEqual(peer[field]);
+});
+it('accepts equal reordered context objects and merges unrelated peer data', async () => {
+  state.importedData.stress = { level: 'moderate', duration: 'weeks', note: 'Existing' }; expect(await saveImportedData()).toBe(true);
+  const base = structuredClone(state.importedData), draft = structuredClone(base); draft.stress = { ...draft.stress as object, note: 'Changed' };
+  const peer = structuredClone(base); peer.stress = { note: 'Existing', duration: 'weeks', level: 'moderate' }; peer.contextNotes = 'Other tab notes';
+  await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  expect(await saveImportedDataForProfile(profileId, draft, { forceProfileScope: true, baseData: base, expectedContextField: { key: 'stress', value: base.stress } })).toBe(true);
+  const stored = JSON.parse((await crypto.encryptedGetItem(key))!); expect(stored.contextNotes).toBe('Other tab notes'); expect(stored.stress.note).toBe('Changed');
+});
+it('snapshots the expected context field before a queued read and rejects changes even if the observer throws', async () => {
+  const base = structuredClone(state.importedData), draft = structuredClone(base); draft.stress = { note: 'Local' };
+  const peer = structuredClone(base); peer.stress = { note: 'Peer' }; await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  const expected = { key: 'stress' as const, value: null as unknown };
+  const saving = saveImportedDataForProfile(profileId, draft, { forceProfileScope: true, baseData: base, expectedContextField: expected, onContextFieldConflict: () => { throw new Error('Observer failed'); } });
+  expected.value = peer.stress;
+  expect(await saving).toBe(false); expect(JSON.parse((await crypto.encryptedGetItem(key))!).stress).toEqual(peer.stress);
+});

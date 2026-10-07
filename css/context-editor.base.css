@@ -17,20 +17,6 @@
   font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--text-muted); margin-bottom: 8px; display: block;
 }
-.ctx-data-mismatch {
-  display: grid;
-  gap: 4px;
-  margin-bottom: 16px;
-  padding: 11px 12px;
-  border: 1px solid color-mix(in srgb, var(--orange, #d9903d) 52%, var(--border));
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--orange, #d9903d) 8%, var(--bg-card));
-  color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 1.4;
-}
-.ctx-data-mismatch strong { color: var(--text-primary); font-size: 13px; }
-.ctx-data-mismatch small { color: var(--text-muted); font-size: 11px; }
 .ctx-context-precedence {
   display: grid;
   gap: 4px;

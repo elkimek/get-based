@@ -37,9 +37,10 @@ export function loadLifestyleContextEditors() {
 }
 
 
-export function configureLifestyleContextEditors({ recordChange, saveAndRefresh }: LifestyleEditorDependencies = {}) {
+export function configureLifestyleContextEditors({ recordChange, saveAndRefresh, afterCommit }: LifestyleEditorDependencies = {}) {
 
   const update: typeof lifestyleContextEditorDeps = {};
+  if (typeof afterCommit === 'function') { lifestyleContextEditorDeps.afterCommit = afterCommit; update.afterCommit = afterCommit; }
   if (typeof recordChange === 'function') {
     lifestyleContextEditorDeps.recordChange = recordChange;
     update.recordChange = recordChange;
@@ -67,8 +68,16 @@ export function renderDietContaminantsBadge() {
 }
 
 
+let openRequest = 0;
+if (typeof globalThis.addEventListener === 'function') globalThis.addEventListener('labcharts-profile-switched', () => { ++openRequest; });
+
 function runLifestyleContextEditorAction(name: keyof LifestyleContextEditorsModule, args: unknown[], shouldLoad: boolean = true) {
+  const opening = name.startsWith('open');
+  const origin = state.importedData, profile = state.currentProfile, request = opening ? ++openRequest : openRequest;
+  const surface = typeof document === 'undefined' ? undefined : document.getElementById('main-content')?.firstElementChild;
   const run = (module: LifestyleContextEditorsModule): unknown => {
+    if (opening && (request !== openRequest || origin !== state.importedData || profile !== state.currentProfile
+      || (typeof document !== 'undefined' && document.getElementById('main-content')?.firstElementChild !== surface))) return undefined;
     const action = module[name];
     if (typeof action !== 'function') {
       throw new Error(`Lifestyle context editor action ${String(name)} is unavailable`);

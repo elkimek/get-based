@@ -185,3 +185,31 @@ test('lifestyle editor action contains a failed load and retries with the fixed 
   ]);
   expect(outcomes.notification).toContain('Context editor could not be loaded. Try again.');
 });
+
+test('lifestyle editor loader retires delayed open requests after profile switches', async ({ page }) => {
+  let release!: () => void, requested = false;
+  const held = new Promise<void>(done => { release = done; });
+  await page.route('**/js/context-card-lifestyle-editors-impl.js*', async route => { requested = true; await held; await route.fulfill({ contentType: 'text/javascript', body: syntheticLifestyleEditors }); });
+  await page.evaluate(async url => {
+    const facade = await import(url), { state } = await import('/js/state.js');
+    Reflect.set(window, 'pendingLifestyleOpen', facade.openDietEditor('retired'));
+    const profile = state.currentProfile; state.currentProfile = 'temporary-profile';
+    window.dispatchEvent(new CustomEvent('labcharts-profile-switched')); state.currentProfile = profile;
+  }, facadeUrl());
+  await expect.poll(() => requested).toBe(true); release();
+  const calls = await page.evaluate(async () => { await Reflect.get(window, 'pendingLifestyleOpen'); return Reflect.get(window, '__lifestyleEditorLoaderCalls'); });
+  expect(calls).toEqual([['configure', '']]);
+});
+
+test('lifestyle editor loader opens only the latest of overlapping requests', async ({ page }) => {
+  let release!: () => void, requested = false;
+  const held = new Promise<void>(done => { release = done; });
+  await page.route('**/js/context-card-lifestyle-editors-impl.js*', async route => { requested = true; await held; await route.fulfill({ contentType: 'text/javascript', body: syntheticLifestyleEditors }); });
+  await page.evaluate(async url => {
+    const facade = await import(url);
+    Reflect.set(window, 'pendingLifestyleOpen', Promise.all([facade.openDietEditor('older'), facade.openDietEditor('latest')]));
+  }, facadeUrl());
+  await expect.poll(() => requested).toBe(true); release();
+  const calls = await page.evaluate(async () => { await Reflect.get(window, 'pendingLifestyleOpen'); return Reflect.get(window, '__lifestyleEditorLoaderCalls'); });
+  expect(calls).toEqual([['configure', ''], ['openDietEditor', 'latest']]);
+});

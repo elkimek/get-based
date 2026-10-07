@@ -1,0 +1,82 @@
+import path from 'node:path';
+import { expect, test, type Page } from '@playwright/test';
+import { startKitServer } from './kit-server.js';
+import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
+const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
+const keys = ['sleepRest', 'exercise', 'stress', 'loveLife'] as const;
+async function persisted(page: Page) {
+  return page.evaluate(async () => {
+    const request = indexedDB.open('labcharts-blobs', 1);
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
+    });
+    try {
+      const tx = db.transaction('kv', 'readonly');
+      const read = tx.objectStore('kv').get('labcharts-default-imported');
+      const value = await new Promise<string>((resolve, reject) => {
+        tx.oncomplete = () => typeof read.result === 'string' ? resolve(read.result) : reject(new Error('Committed profile is missing'));
+        tx.onabort = () => reject(tx.error || new Error('Profile read aborted'));
+        tx.onerror = () => reject(tx.error || read.error || new Error('Profile read failed'));
+      });
+      return JSON.parse(value) as Record<'sleepRest' | 'exercise' | 'stress' | 'loveLife', { note: string }> & { changeHistory: Array<{ field: string; snapshot: unknown }> };
+    } finally { db.close(); }
+  });
+}
+async function ready(page: Page) {
+  await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({ timeout: 30000 });
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => true));
+  await expect.poll(() => page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+}
+async function insight(page: Page) {
+  const menu = page.getByRole('button', { name: 'Menu', exact: true }); if (await menu.isVisible()) await menu.click();
+  await page.locator('.nav-item[data-category="insight"]').click();
+  await expect(page.locator('#main-content [data-context-cards-view]')).toBeVisible();
+}
+async function open(page: Page, key: string) {
+  const button = page.locator(`#main-content [data-context-card-key="${key}"] [data-context-card-action="open-editor"]`);
+  await button.focus(); await page.keyboard.press('Enter');
+  await expect(page.locator('[data-context-form-view]')).toHaveAttribute('data-context-form-view', key);
+}
+test('static lifestyle editors work on offline first use and preserve committed fields through two cold launches', async ({ page, context }) => {
+  test.setTimeout(120000); await installDiscussionFixture(context);
+  await context.addInitScript(() => {
+    if (!['http:', 'https:'].includes(location.protocol)) return;
+    localStorage.setItem('labcharts-ai-paused', 'true');
+    if (!localStorage.getItem('context-forms-seeded')) {
+      localStorage.setItem('context-forms-seeded', '1');
+      // Start with the canonical empty meal list, avoiding unrelated legacy null-to-list normalization on reload.
+      localStorage.setItem('labcharts-default-imported', JSON.stringify({ entries: [], notes: [], nutritionMeals: [] }));
+    }
+  });
+  const errors: string[] = [], csp: string[] = [];
+  context.on('page', target => target.on('pageerror', error => errors.push(error.message))); page.on('pageerror', error => errors.push(error.message));
+  await context.exposeBinding('contextFormCsp', (_, directive: string) => { csp.push(directive); });
+  await context.addInitScript(() => document.addEventListener('securitypolicyviolation', event => { void (window as unknown as { contextFormCsp(value: string): Promise<void> }).contextFormCsp(event.violatedDirective); }));
+  const server = await startKitServer(artifact);
+  try {
+    await page.goto(server.origin + '/app?dev-sw=1'); await ready(page); await insight(page);
+    await expect(page.locator('link[data-context-editor-stylesheet]')).toHaveCount(0);
+    server.state.offline = true;
+    for (const key of keys) {
+      await open(page, key); const modal = page.locator('#detail-modal');
+      await expect(modal.getByLabel('Notes', { exact: true })).toHaveCSS('font-size', /^(13|16)px$/);
+      await modal.getByLabel('Notes', { exact: true }).fill(`Offline <${key}> & saved`);
+      await modal.getByRole('button', { name: 'Save', exact: true }).click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/);
+    }
+    const saved = await persisted(page);
+    for (const key of keys) { expect(saved[key].note).toBe(`Offline <${key}> & saved`); expect(saved.changeHistory.find(item => item.field === key)?.snapshot).toEqual(saved[key]); }
+    await page.close();
+    for (let launch = 0; launch < 2; launch++) {
+      const cold = await context.newPage(); await cold.goto(server.origin + '/app?dev-sw=1'); await ready(cold); await insight(cold);
+      for (const key of keys) {
+        await open(cold, key); const modal = cold.locator('#detail-modal');
+        await expect(modal.getByLabel('Notes', { exact: true })).toHaveValue(`Offline <${key}> & saved`);
+        await expect(modal.getByRole('button', { name: 'Clear', exact: true })).toBeVisible();
+        await modal.getByRole('button', { name: 'Cancel', exact: true }).click(); await expect(cold.locator('#modal-overlay')).not.toHaveClass(/show/);
+      }
+      expect(await persisted(cold)).toEqual(saved);
+      await cold.close();
+    }
+    expect(errors).toEqual([]); expect(csp).toEqual([]);
+  } finally { await server.close(); }
+});

@@ -368,6 +368,10 @@ export function recordChange(field: Parameters<typeof recordContextCardChange>[0
 export function saveAndRefresh(msg: string, field?: string) {
   if (field) recordChange(field);
   saveImportedData();
+  refreshAfterContextCommit(msg);
+}
+
+function refreshAfterContextCommit(msg: string) {
   // Preserve details open state across the re-render below
   const details = (document.querySelector<HTMLDetailsElement>('.welcome-context-details'));
   if (details?.open) sessionStorage.setItem('welcome-details-open', '1');
@@ -391,7 +395,7 @@ configureMedicalHistoryEditor({
   recordChange,
   saveAndRefresh,
 });
-configureLifestyleContextEditors({ recordChange, saveAndRefresh });
+configureLifestyleContextEditors({ recordChange, saveAndRefresh, afterCommit: refreshAfterContextCommit });
 
 // ── Card tips badges (async — waits for catalog) ──
 export async function loadContextCardTips() {

@@ -253,6 +253,7 @@ export function contextEditorActions(hasCurrent: unknown, saveActionAttrs: strin
 
 /** Shared field access and summaries for the lifestyle editor family. */
 export interface LifestyleEditorDependencies {
+  afterCommit?: ((msg: string) => void) | undefined;
   recordChange?: ((field: string) => void) | undefined;
   saveAndRefresh?: ((msg: string, field?: string) => void) | undefined;
 }
