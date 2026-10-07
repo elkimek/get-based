@@ -240,12 +240,12 @@ export function createSyncSaveHooks({
     pushContextToGateway();
   }
 
-  function onChatSaved(options: { customPersonality?: unknown } = {}) {
+  function onChatSaved(options: { customPersonality?: unknown; profileId?: string | null } = {}) {
     if (options.customPersonality) markCustomPersonalityDataLocal();
     else markChatDataLocal();
     if (!(0, syncSaveHooksDeps.isSyncConfigured)()) return;
-    const profileId = state.currentProfile;
-    const data = state.importedData;
+    const profileId = options.profileId === undefined ? state.currentProfile : options.profileId;
+    const data = profileId === state.currentProfile ? state.importedData : null;
     if (!profileId) return;
     if (isProfileSyncBlocked(profileId)) return;
     markSyncProfileDirty(profileId);
@@ -253,9 +253,10 @@ export function createSyncSaveHooks({
     if (!(0, syncSaveHooksDeps.isEvoluReady)()) return;
     const prev = _chatSyncTimers.get(profileId);
     if (prev) clearTimeout(prev);
-    const timer = setTimeout(() => {
-      _chatSyncTimers.delete(profileId);
-      scheduleProfilePush(profileId, data);
+    const timer = setTimeout(async () => {
+      if (_chatSyncTimers.get(profileId) === timer) _chatSyncTimers.delete(profileId);
+      const latest = await readProfileImportedData(profileId, data);
+      scheduleProfilePush(profileId, latest);
     }, 10000);
     _chatSyncTimers.set(profileId, timer);
   }

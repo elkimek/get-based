@@ -759,7 +759,6 @@
 [data-theme="glass"] .chat-panel,
 [data-theme="glass"] .chat-panel-conversation,
 [data-theme="glass"] .chat-header,
-[data-theme="glass"] .chat-personality-bar,
 [data-theme="glass"] .chat-input-area {
   background: color-mix(in srgb, var(--bg-secondary) 84%, transparent);
   backdrop-filter: blur(30px) saturate(160%);
@@ -769,65 +768,6 @@
 [data-theme="glass"] .chat-input,
 [data-theme="glass"] .chat-thread-rail {
   background: color-mix(in srgb, var(--bg-card) 82%, transparent);
-}
-
-[data-theme="glass"] .chat-personality-options {
-  background: rgba(24, 18, 48, 0.96);
-  border-color: rgba(255, 255, 255, 0.22);
-  box-shadow:
-    0 26px 70px -26px rgba(0, 0, 0, 0.88),
-    0 0 0 1px rgba(201, 134, 255, 0.16);
-  backdrop-filter: blur(28px) saturate(150%);
-  -webkit-backdrop-filter: blur(28px) saturate(150%);
-}
-
-[data-theme="synth-sunrise"] .chat-personality-options {
-  background: rgba(13, 5, 36, 0.97);
-  border-color: rgba(255, 43, 214, 0.46);
-  box-shadow:
-    0 26px 72px -26px rgba(0, 0, 0, 0.9),
-    0 0 34px -14px rgba(255, 43, 214, 0.65);
-}
-
-[data-theme="neuromancer"] .chat-personality-options {
-  background: rgba(5, 6, 8, 0.97);
-  border-color: rgba(0, 229, 255, 0.4);
-  box-shadow:
-    0 28px 72px -28px rgba(0, 0, 0, 0.92),
-    0 0 36px -16px rgba(0, 229, 255, 0.62);
-}
-
-[data-theme="glass"] .chat-personality-opt,
-[data-theme="synth-sunrise"] .chat-personality-opt,
-[data-theme="neuromancer"] .chat-personality-opt,
-[data-theme="glass"] .chat-personality-add-btn,
-[data-theme="synth-sunrise"] .chat-personality-add-btn,
-[data-theme="neuromancer"] .chat-personality-add-btn {
-  background: rgba(5, 6, 12, 0.36);
-}
-
-[data-theme="glass"] .chat-personality-opt:hover,
-[data-theme="synth-sunrise"] .chat-personality-opt:hover,
-[data-theme="neuromancer"] .chat-personality-opt:hover,
-[data-theme="glass"] .chat-personality-add-btn:hover,
-[data-theme="synth-sunrise"] .chat-personality-add-btn:hover,
-[data-theme="neuromancer"] .chat-personality-add-btn:hover {
-  background: color-mix(in srgb, var(--accent) 18%, rgba(5, 6, 12, 0.88));
-}
-
-[data-theme="glass"] .chat-personality-opt.active,
-[data-theme="synth-sunrise"] .chat-personality-opt.active,
-[data-theme="neuromancer"] .chat-personality-opt.active {
-  background: color-mix(in srgb, var(--accent) 24%, rgba(5, 6, 12, 0.92));
-}
-
-[data-theme="glass"] .chat-personality-custom-name-input,
-[data-theme="glass"] .chat-personality-custom-textarea,
-[data-theme="synth-sunrise"] .chat-personality-custom-name-input,
-[data-theme="synth-sunrise"] .chat-personality-custom-textarea,
-[data-theme="neuromancer"] .chat-personality-custom-name-input,
-[data-theme="neuromancer"] .chat-personality-custom-textarea {
-  background: rgba(5, 6, 12, 0.72);
 }
 
 [data-theme="glass"] .client-list-modal,

@@ -1,3 +1,4 @@
+import { closePersonalityPickerView } from './chat-personality-picker-view.js';
 // chat-threads.js — Conversation-thread management for the chat panel
 import { state } from './state.js';
 import type { ChatThread } from '../types/chat-data.js';
@@ -510,8 +511,7 @@ export function toggleThreadRail() {
   if (!rail) return;
   const isOpen = rail.classList.toggle('open');
   if (isOpen) {
-    document.querySelector('.chat-personality-bar')?.classList.remove('open');
-    document.querySelector('.chat-personality-current')?.setAttribute('aria-expanded', 'false');
+    closePersonalityPickerView();
     document.querySelector('.discuss-persona-picker')?.remove();
   }
   document.querySelector('.chat-rail-toggle')?.setAttribute('aria-expanded', String(isOpen));

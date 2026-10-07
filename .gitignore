@@ -1740,3 +1740,16 @@ js/custom-settings-controller.js
 /js/chat-model-picker-view.js
 /js/chat-model-picker-presentation.js
 /js/chat-model-picker-classes.js
+
+# Generated persona UI runtime modules
+/js/chat-personality-picker-view.js
+/js/chat-personality-classes.js
+/js/chat-persona-editor-contract.js
+/js/chat-persona-editor-component.js
+/js/chat-personality-models.js
+/js/chat-personality-policy.js
+/js/chat-personality-editing.js
+
+/tests/chat-personality-storage-order.test.js
+/tests/playwright/chat-personality-owned.spec.js
+/tests/pwa/sveltekit-chat-personality.spec.js

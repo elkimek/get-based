@@ -7,7 +7,7 @@ interface ProviderAttestationValues {
 export interface ChatRuntimeCallbacks {
   closeModal: (() => unknown) | null;
   isChatStreaming: (() => unknown) | null;
-  onChatSaved: ((event: { customPersonality: boolean }) => unknown) | null;
+  onChatSaved: ((event: { customPersonality: boolean; profileId?: string | null }) => unknown) | null;
   openContextModal: (() => unknown) | null;
   refreshWebSearchToggle: (() => unknown) | null;
   renderChatMessages: (() => unknown) | null;
@@ -72,8 +72,8 @@ export function renderChatMessagesRuntime() {
   callChatRuntimeCallback('renderChatMessages');
 }
 
-export function notifyCustomPersonalitySavedRuntime() {
-  chatRuntimeCallbacks.onChatSaved?.({ customPersonality: true });
+export function notifyCustomPersonalitySavedRuntime(profileId?: string | null) {
+  chatRuntimeCallbacks.onChatSaved?.({ customPersonality: true, ...(profileId !== undefined ? {profileId} : {}) });
 }
 
 export function resumeChatAIRuntime() {

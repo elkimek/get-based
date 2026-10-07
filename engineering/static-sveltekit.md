@@ -83,3 +83,11 @@ Historical size/cache ceilings are measurements during local Kit evaluation.
 The native build still enforces its committed budgets; its limits and the
 quality/coverage floors are unchanged. Evaluate cold loads and offline cache
 cost before setting budgets for the consolidated build or promoting it.
+
+The shared Chat personality picker and editor retain custom instructions through
+cached first use, offline cold launch and encryption unlock. Their focused
+[static scenario](../tests/pwa/sveltekit-chat-personality.spec.ts) uses real saved
+personas and the assembled artifact, then edits those instructions while the
+origin is unavailable. Native [persona workflows](../tests/playwright/custom-personality-dom.spec.ts)
+cover hosted-use assent, generation and encrypted cross-device application.
+These focused checks do not replace the final whole-application release matrix.

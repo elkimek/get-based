@@ -1,3 +1,4 @@
+import { closePersonalityPickerView } from './chat-personality-picker-view.js';
 // chat-discussion-picker.js - persona picker controls for multi-persona discussions
 
 import { state } from './state.js';
@@ -53,8 +54,7 @@ export function showDiscussPersonaPicker() {
   const container = document.querySelector('.chat-input-area');
   if (!container) return;
 
-  document.querySelector('.chat-personality-bar')?.classList.remove('open');
-  document.querySelector('.chat-personality-current')?.setAttribute('aria-expanded', 'false');
+  closePersonalityPickerView();
   document.getElementById('chat-thread-rail')?.classList.remove('open');
   document.querySelector('.chat-rail-toggle')?.setAttribute('aria-expanded', 'false');
 

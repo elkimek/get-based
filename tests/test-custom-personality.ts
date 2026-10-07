@@ -235,7 +235,7 @@ const chatWindowBindingsSrc = read('js/chat-window-bindings.js');
 const chatDiscussionSrc = read('js/chat-discussion.js');
 const chatDiscussionFlowSrc = read('js/chat-discussion-flow.js');
 const chatDiscussionStateSrc = read('js/chat-discussion-state.js');
-assert('CSS has .chat-send-btn.streaming', css.includes('.chat-send-btn.streaming'));
+assert('Owned send control retains streaming danger styling', read('js/chat-composer-classes.js').includes('gb:composer:[&.streaming]:bg-danger') && read('js/chat-composer-classes.js').includes('gb:composer:[&.streaming]:text-on-danger'));
 assert('CSS has .chat-stopped-note', css.includes('.chat-stopped-note'));
 
 // ── 20. Discuss button exports ──
@@ -250,7 +250,7 @@ assert('getThreadPersonaCount exported', typeof chatDiscussion.getThreadPersonaC
 
 // ── 22. Discuss button CSS ──
 console.log('22. Discuss button CSS');
-assert('CSS has .chat-discuss-btn', css.includes('.chat-discuss-btn'));
+assert('Owned discuss control uses shared styled tool button', read('js/components/ChatComposer.svelte').includes('class={"chat-discuss-btn " + COMPOSER_TOOL_BUTTON}') && read('js/chat-composer-classes.js').includes('COMPOSER_TOOL_BUTTON =') && read('js/chat-composer-classes.js').includes('gb:composer:pointer-coarse:size-11'));
 assert('CSS has .chat-msg-auto', css.includes('.chat-msg-auto'));
 assert('CSS has persistent discussion mode', css.includes('.chat-discussion-mode'));
 assert('CSS has discussion participants', css.includes('.chat-discussion-participants'));

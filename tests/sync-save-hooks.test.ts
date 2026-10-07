@@ -7,6 +7,7 @@ import { state } from '../js/state.js';
 import {
   clearSyncSaveTimers,
   configureSyncSaveHooks,
+  onChatSaved,
   onDataSaved,
   onProfileSaved,
   readProfileImportedData,
@@ -17,6 +18,26 @@ describe('sync save-hook profile data dependencies', () => {
   afterEach(() => {
     clearSyncSaveTimers();
     vi.restoreAllMocks();
+  });
+
+  it('marks and pushes the originating persona profile after a save finishes in another profile', async () => {
+    const profileId='persona-save-origin', key=profileStorageKey(profileId,'imported');
+    const previousProfile=state.currentProfile, previousData=state.importedData;
+    const pushProfile=vi.fn<(id:string,data:unknown)=>Promise<object>>(async()=>({}));
+    const previous=configureSyncSaveHooks({pushProfile,isSyncConfigured:()=>true,isSyncEnabled:()=>true,isEvoluReady:()=>true,isSyncing:()=>false,getProfiles:()=>[{id:profileId},{id:'persona-save-current'}]});
+    vi.useFakeTimers({toFake:['setTimeout','clearTimeout']});
+    try {
+      await encryptedSetItem(key,JSON.stringify({entries:[],contextNotes:'Original profile data'}));
+      state.currentProfile='persona-save-current';(state as {importedData:unknown}).importedData={entries:[],contextNotes:'Other profile data'};
+      onChatSaved({customPersonality:true,profileId});
+      expect(getSyncDirtyToken(profileId)).not.toBeNull();expect(getSyncDirtyToken('persona-save-current')).toBeNull();
+      await vi.advanceTimersByTimeAsync(10_000);vi.useRealTimers();
+      await vi.waitFor(()=>expect(pushProfile).toHaveBeenCalledOnce());
+      expect(pushProfile).toHaveBeenCalledWith(profileId,expect.objectContaining({contextNotes:'Original profile data'}));
+    } finally {
+      clearSyncSaveTimers();vi.useRealTimers();configureSyncSaveHooks(previous);state.currentProfile=previousProfile;(state as {importedData:unknown}).importedData=previousData;
+      localStorage.removeItem(`labcharts-${profileId}-sync-dirty`);await encryptedRemoveItem(key);
+    }
   });
 
   it('normalizes explicit fallback data but fails closed for a missing named profile', async () => {

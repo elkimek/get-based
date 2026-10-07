@@ -1,5 +1,6 @@
 <script lang="ts">
   import { flushSync } from 'svelte';
+  import ChatPersonalityPicker from './ChatPersonalityPicker.svelte';
   import ChatComposer from './ChatComposer.svelte';
   import ChatResizeHandle from './ChatResizeHandle.svelte';
   import { INITIAL_CHAT_LAYOUT, ownChatLayout, requestChatLayoutSync, type ChatLayoutView } from '../chat-layout-view.js';
@@ -79,33 +80,7 @@
           </button>
         </div>
       </div>
-      <div class="chat-personality-bar">
-        <button type="button" class="chat-personality-current" aria-expanded="false" aria-controls="chat-personality-options" data-chat-action="toggle-personality">
-          <span class="chat-personality-current-icon">&#128300;</span>
-          <span class="chat-personality-current-name">AI Lab Analyst</span>
-          <span class="chat-personality-current-arrow">&#9662;</span>
-        </button>
-        <div class="chat-personality-options" id="chat-personality-options" role="group" aria-label="Chat personality">
-          <button class="chat-personality-opt active" data-personality="default" data-chat-action="set-personality">
-            <span class="chat-personality-opt-icon">&#128300;</span>
-            <div class="chat-personality-opt-info">
-              <span class="chat-personality-opt-name">AI Lab Analyst</span>
-              <span class="chat-personality-opt-desc">Neutral, professional analysis</span>
-            </div>
-            <span class="chat-personality-opt-check">&#10003;</span>
-          </button>
-          <div class="chat-personality-divider">Fictional Characters</div>
-          <button class="chat-personality-opt" data-personality="house" data-chat-action="set-personality">
-            <span class="chat-personality-opt-icon">&#129455;</span>
-            <div class="chat-personality-opt-info">
-              <span class="chat-personality-opt-name">Dr. Gregory House</span>
-              <span class="chat-personality-opt-desc">Sarcastic, brilliant, blunt</span>
-            </div>
-            <span class="chat-personality-opt-check">&#10003;</span>
-          </button>
-          <div id="chat-personality-custom-section"></div>
-        </div>
-      </div>
+      <ChatPersonalityPicker />
       <div class="chat-messages" id="chat-messages" role="log" aria-live="off" aria-busy="false" aria-label="Conversation"></div>
       <span class="sr-only" id="chat-stream-status" role="status" aria-live="polite" aria-atomic="true"></span>
       <div class="chat-scroll-control">

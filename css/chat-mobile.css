@@ -42,7 +42,6 @@
   .chat-more-menu > summary { min-width: 44px; min-height: 44px; padding: 6px 10px; }
   .chat-clear-btn,
   .chat-websearch-toggle-label { min-height: 44px; }
-  .chat-personality-bar .chat-personality-current { min-height: 44px; }
   .chat-action-btn,
   .chat-discussion-mode-actions button,
   .chat-message-edit-controls button,

@@ -1,3 +1,4 @@
+import { closePersonalityPickerView } from './chat-personality-picker-view.js';
 // chat-panel.js — Chat panel chrome, web-search toggle, and input state
 
 import { isAIPaused, supportsWebSearch } from './api.js';
@@ -390,8 +391,7 @@ export function closeChatPanel() {
   panel?.classList.remove('open');
   syncChatLayout();
   if (panel) updateChatPanelAccessibility(panel, false);
-  document.querySelector('.chat-personality-bar')?.classList.remove('open');
-  document.querySelector('.chat-personality-current')?.setAttribute('aria-expanded', 'false');
+  closePersonalityPickerView();
   document.querySelector('.discuss-persona-picker')?.remove();
   document.getElementById('chat-backdrop')?.classList.remove('open');
   // body.style.overflow no longer set on open (so nothing to restore)

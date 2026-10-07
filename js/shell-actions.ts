@@ -205,7 +205,7 @@ function runChatAction(action: string | undefined, actionEl: HTMLElement) {
 
 function handleShellClick(event: Event) {
   const actionEl = closestAction(event, '[data-shell-action], [data-chat-action]');
-  if (!actionEl) return;
+  if (!actionEl || actionEl.closest('[data-chat-personality-view]')) return;
 
   const shellAction = actionEl.dataset.shellAction;
   const chatAction = actionEl.dataset.chatAction;

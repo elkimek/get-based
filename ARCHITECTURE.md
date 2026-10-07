@@ -884,7 +884,7 @@ query, input, thread inventory and view lifetime before reading stored content.
 Result content prefixes stay in bound callbacks, and animation-frame jumps check
 their accepted destination before touching the transcript.
 
-The shared Chat shell keeps stable transcript, personality, model, attachment
+The shared Chat shell keeps stable transcript, attachment
 and summary hosts while those features retain their own services. Hydration
 does not rerender those live hosts on reopen. `ChatComposer.svelte` owns initial
 composer controls and input events; `chat-composer-input-port.ts` connects a
@@ -906,6 +906,22 @@ Late catalog replies cannot publish across those boundaries, and the latest mode
 choice wins. Negotiated CLI connection settings are adopted only by the current
 request. The picker uses scoped Tailwind; browser-specific range track/thumb
 pseudo-elements remain a narrowly owned custom CSS exception.
+`ChatPersonalityPicker.svelte` owns builtin/custom options, literal labels,
+CRUD controls, dismissal and return focus. `chat-personality-picker-view.ts`
+binds the current root; actions capture the rendered profile, thread and version.
+`ChatPersonalityEditor.svelte` owns the editor structure and input events, with
+its modal adapter explicitly releasing focus traps, listeners, timers and scroll
+locks before returning focus. Editor-origin click paths cannot dismiss the
+picker reopened by cancellation. Scoped Tailwind replaces persona native CSS.
+`chat-personality-policy.ts` owns hosted-use consent; `chat-personality-models.ts`
+owns metadata/selection reads and encrypted save integration. The editor workflow
+in `chat-personality-editing.ts` guards profile/thread/editor identity and draft
+revisions across confirmation, streaming, generation and persistence. Accepted
+writes stay with their original profile; edits made during a save remain dirty.
+Storage serializes writes per profile and preserves newer optimistic catalogs
+across older replies. Sync notifications include the originating profile and
+load its durable data when it is inactive. `chat-personalities.ts` retains public
+compatibility exports, selection integration and the remaining header status.
 `ChatResizeHandle.svelte` owns splitter pointer capture, keyboard resizing and
 reset actions. `chat-layout.ts` reads and persists the existing independent
 panel/rail preferences; its typed view port publishes geometry to the shell.

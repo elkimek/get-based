@@ -108,7 +108,7 @@ test('custom personality DOM renders editor controls and delegated discuss actio
         && textarea?.value === 'Expert prompt';
 
       const bar = document.querySelector('.chat-personality-bar');
-      bar?.classList.add('open');
+      chatPersonalities.togglePersonalityBar();
       section?.querySelectorAll<HTMLElement>('.chat-personality-edit')[1]?.click();
       await Promise.resolve();
       outcomes.editInactiveClosesPickerAndKeepsDialog = bar?.classList.contains('open') === false
@@ -118,28 +118,18 @@ test('custom personality DOM renders editor controls and delegated discuss actio
         && document.querySelector<HTMLTextAreaElement>('.chat-personality-custom-textarea')?.value === 'Functional prompt';
 
       await (await import('/js/chat-panel.js')).loadChatPresentationStylesheets();
-      const selectors = new Set<string>();
-      for (const sheet of Array.from(document.styleSheets)) {
-        try {
-          for (const rule of sheet.cssRules || []) {
-            if ((rule as CSSRule & Partial<Pick<CSSStyleRule, 'selectorText'>>).selectorText) selectors.add((rule as CSSRule & Partial<Pick<CSSStyleRule, 'selectorText'>>).selectorText!);
-          }
-        } catch (_) {}
-      }
-      const hasSelectorContaining = (needle: string) => Array.from(selectors).some(selector => selector.includes(needle));
-      outcomes.cssSelectorsExist = [
-        '.chat-personality-delete',
-        '.chat-personality-add-btn',
-        '.chat-personality-opt-wrapper',
-        '.chat-personality-editor.modal',
-        '.chat-personality-editor-body',
-        '.chat-personality-custom-header',
-        '.chat-personality-custom-name-input',
-        '.chat-personality-generate-btn',
-        '.chat-personality-custom-footer',
-        '.chat-personality-agreement',
-        '.chat-personality-custom-save:disabled',
-      ].every(hasSelectorContaining);
+      const style = (selector: string) => getComputedStyle(document.querySelector(selector)!);
+      // Assert applied layout and interactive styling rather than the legacy
+      // selector spelling: scoped Tailwind utilities now own these rules.
+      outcomes.cssSelectorsExist = style('.chat-personality-editor').display === 'flex'
+        && style('.chat-personality-editor').flexDirection === 'column'
+        && style('.chat-personality-editor-body').overflowY === 'auto'
+        && style('.chat-personality-custom-header').display === 'flex'
+        && style('.chat-personality-custom-name-input').boxSizing === 'border-box'
+        && style('.chat-personality-custom-textarea').resize === 'vertical'
+        && style('.chat-personality-custom-footer').display === 'flex'
+        && Number(style('.chat-personality-custom-save').minHeight.replace('px','')) >= 38
+        && style('.chat-personality-custom-save').opacity === '0.4';
 
       chatPersonalities.startNewCustomPersonality();
       const saveBtn2 = document.querySelector<HTMLButtonElement>('.chat-personality-custom-save');
@@ -581,7 +571,7 @@ test('custom personality generator fills prompt and preserves selected custom te
   const results = await page.evaluate(async ({ personalityUrl }) => {
     const [{ state }, personalities] = await Promise.all([
       import('/js/state.js'),
-      (import(personalityUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-personalities.js'), "getCustomPersonalityText" | "generateCustomPersonality">>,
+      (import(personalityUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/chat-personalities.js'), "getCustomPersonalityText" | "generateCustomPersonality" | "startNewCustomPersonality">>,
     ]);
     const storage = new Map(Array.from({ length: localStorage.length }, (_, index) => {
       const key = localStorage.key(index);
@@ -605,12 +595,8 @@ test('custom personality generator fills prompt and preserves selected custom te
       outcomes.customPersonalityTextReturnsSelectedPrompt =
         personalities.getCustomPersonalityText() === 'Selected prompt';
 
-      document.body.innerHTML = `
-        <input id="chat-personality-custom-name" value="Cold Exposure Coach">
-        <textarea class="chat-personality-custom-textarea"></textarea>
-        <button id="chat-personality-generate-btn">Generate</button>
-        <button class="chat-personality-custom-save" disabled>Save</button>
-      `;
+      personalities.startNewCustomPersonality();
+      (document.getElementById('chat-personality-custom-name') as HTMLInputElement).value = 'Cold Exposure Coach';
       await personalities.generateCustomPersonality();
       const textarea = document.querySelector<HTMLTextAreaElement>('.chat-personality-custom-textarea');
       const generateButton = (document.getElementById('chat-personality-generate-btn') as HTMLButtonElement | null);

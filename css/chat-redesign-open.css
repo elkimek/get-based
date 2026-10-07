@@ -43,7 +43,6 @@ body.chat-open .analytics-consent-banner {
   letter-spacing: 0;
 }
 .chat-header-model,
-.chat-personality-current-name,
 .chat-persona-label {
   font-family: var(--font-mono);
 }
@@ -90,8 +89,6 @@ body.chat-open .analytics-consent-banner {
 .chat-fullscreen-btn svg,
 .chat-close-btn svg,
 .chat-action-btn svg,
-.chat-personality-edit svg,
-.chat-personality-delete svg,
 .chat-toggle-icon svg {
   display: block;
   width: 16px;
@@ -125,46 +122,6 @@ body.chat-open .analytics-consent-banner {
 }
 .chat-thread-rail.open {
   width: var(--chat-rail-width, 220px);
-}
-.chat-personality-bar {
-  background: var(--bg-secondary);
-  position: relative;
-  z-index: 4;
-}
-.chat-personality-current {
-  padding: 8px 18px;
-  min-height: 37px;
-  box-sizing: border-box;
-}
-.chat-personality-options {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 10px;
-  right: 10px;
-  z-index: 8;
-  max-height: min(420px, calc(100vh - 188px));
-  overflow: auto;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg-card);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
-}
-.chat-personality-bar.open .chat-personality-options {
-  display: block;
-}
-.chat-personality-opt {
-  min-height: 46px;
-  border-radius: var(--radius-sm);
-}
-.chat-personality-divider {
-  padding: 10px 14px 6px;
-  border-top: 1px solid var(--border);
-  margin-top: 8px;
-}
-.chat-personality-add-btn {
-  min-height: 44px;
-  border-radius: var(--radius-sm);
 }
 .chat-messages {
   padding: 18px;
@@ -255,7 +212,6 @@ body.chat-open .analytics-consent-banner {
   body.chat-open.chat-fullscreen .main { padding-right: 32px; }
   .chat-messages { padding: 18px; gap: 14px; }
   .chat-header { padding: 14px 18px; }
-  .chat-personality-current { padding: 8px 18px; }
   .chat-msg { font-size: 14px; padding: 12px 14px; }
 }
 @media (max-width: 768px) {
@@ -365,11 +321,7 @@ body.chat-open .analytics-consent-banner {
   .chat-thread-list {
     padding: 0 12px 16px;
   }
-  .chat-personality-options {
-    left: 8px;
-    right: 8px;
-    max-height: min(420px, calc(100dvh - 178px));
-  }
+
 }
 .chat-panel.chat-panel-fullscreen,
 .chat-panel.chat-panel-fullscreen:has(.chat-thread-rail.open) {

@@ -14,3 +14,13 @@
 @source "../js/components/ChatModelPicker.svelte";
 @source "../js/chat-model-picker-classes.ts";
 @custom-variant model-picker (&:is([data-chat-model-picker-view], [data-chat-model-picker-view] *));
+
+@source "../js/components/ChatPersonalityPicker.svelte";
+@source "../js/components/ChatPersonalityEditor.svelte";
+@source "../js/chat-personality-classes.ts";
+@custom-variant persona (&:is([data-chat-personality-view], [data-chat-personality-view] *, [data-chat-persona-editor-view], [data-chat-persona-editor-view] *));
+
+@custom-variant theme-glass (&:where([data-theme="glass"], [data-theme="glass"] *));
+@custom-variant theme-synth (&:where([data-theme="synth-sunrise"], [data-theme="synth-sunrise"] *));
+@custom-variant theme-neuro (&:where([data-theme="neuromancer"], [data-theme="neuromancer"] *));
+@custom-variant theme-decorative (&:where([data-theme="glass"], [data-theme="glass"] *, [data-theme="synth-sunrise"], [data-theme="synth-sunrise"] *, [data-theme="neuromancer"], [data-theme="neuromancer"] *));
