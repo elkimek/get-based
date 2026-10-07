@@ -1,8 +1,10 @@
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
+import { renderHTML as renderContextCatalogHTML } from './components/ContextCardCatalog.svelte.html.js';
+import { projectContextDemoBar } from './context-card-catalog-presentation.js';
 // context-cards.js - dashboard context card module surface and shared lifecycle
 
 import { state } from './state.js';
-import { escapeAttr, escapeHTML, showConfirmDialog, showNotification } from './utils.js';
+import { showConfirmDialog, showNotification } from './utils.js';
 import { camelCaseActionAttributes } from './action-attributes.js';
 import { saveImportedData, getActiveData } from './data.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
@@ -308,9 +310,7 @@ let contextCardRenderSequence = 0;
 export function renderProfileContextCards({ embedded = false }: { embedded?: unknown } = {}) {
   contextCardRenderSequence += 1;
   const renderId = `ctx-${contextCardRenderSequence}`;
-  const sectionTitleId = `${renderId}-section-title`;
   const cardDefs = getContextCardDefs();
-  const addedCount = cardDefs.filter(c => isContextFilled(c.key)).length;
   const _ccData = getActiveData();
   const _ccHasLabs = _ccData.dates.length > 0 || Object.values(_ccData.categories).some(c => c.singleDate);
   const _ccMissingDemo = (!state.profileSex || !state.profileDob);
@@ -319,66 +319,15 @@ export function renderProfileContextCards({ embedded = false }: { embedded?: unk
     : 'Add only what is relevant, then use Chat to plan which labs may be useful for you.';
   if (_ccMissingDemo) _ccSubtitle += ' Age and sex in Settings also shape interpretation.';
   const _demoAIMode = getDemoContextAIMode();
-  const _refreshBtn = hasAssistantFeatureProvider() && (!_demoAIMode.demo || _demoAIMode.live) ? `<button type="button" class="ctx-refresh-all-btn" ${contextCardActionAttrs('refresh-all-health-dots')} aria-label="Refresh AI context insights"><span class="ctx-refresh-all-icon" aria-hidden="true">&#x21bb;</span><span class="ctx-refresh-all-label">Refresh insights</span></button>` : '';
-  let html = `<section class="profile-context-section" ${embedded ? 'aria-label="Your health context"' : `aria-labelledby="${sectionTitleId}"`}>
-    <div class="context-section-header">
-      <div class="context-section-intro">
-        ${embedded ? '' : `<div class="context-section-title" id="${sectionTitleId}">Your health context</div>`}
-        <div class="context-section-subtitle">${escapeHTML(_ccSubtitle)}</div>
-      </div>
-      <div class="context-section-tools">
-        <span class="context-progress-text" aria-label="${addedCount} of ${cardDefs.length} context areas added">${addedCount} of ${cardDefs.length} added</span>
-        ${_refreshBtn}
-      </div>
-    </div>`;
-  if (_demoAIMode.demo) {
-    if (_demoAIMode.mode === 'local-live') {
-      html += `<div class="demo-context-ai-bar demo-context-ai-local" role="group" aria-label="Demo AI status"><div class="demo-context-ai-copy"><span class="demo-context-ai-title">Local AI active</span>Edited cards update automatically with ${escapeHTML(_demoAIMode.modelLabel)}. No paid-provider token charges.</div></div>`;
-    } else if (_demoAIMode.mode === 'paid-live') {
-      html += `<div class="demo-context-ai-bar demo-context-ai-paid-live" role="group" aria-label="Demo AI status"><div class="demo-context-ai-copy"><span class="demo-context-ai-title">Live AI enabled</span>${escapeHTML(_demoAIMode.providerLabel)} · ${escapeHTML(_demoAIMode.modelLabel)}. Context edits may use paid tokens.</div><button type="button" class="demo-context-ai-action" ${contextCardActionAttrs('disable-demo-live-ai')}>Turn off</button></div>`;
-    } else if (_demoAIMode.mode === 'paid-off') {
-      html += `<div class="demo-context-ai-bar demo-context-ai-paid-off" role="group" aria-label="Demo AI status"><div class="demo-context-ai-copy"><span class="demo-context-ai-title">Precomputed demo insights</span>Live AI is off to prevent unexpected ${escapeHTML(_demoAIMode.providerLabel)} charges.</div><button type="button" class="demo-context-ai-action" ${contextCardActionAttrs('enable-demo-live-ai')}>Enable live AI</button></div>`;
-    } else if (_demoAIMode.mode === 'paused') {
-      html += `<div class="demo-context-ai-bar demo-context-ai-precomputed" role="group" aria-label="Demo AI status"><div class="demo-context-ai-copy"><span class="demo-context-ai-title">Precomputed demo insights</span>AI is paused. Browsing and editing use no inference.</div></div>`;
-    } else {
-      html += `<div class="demo-context-ai-bar demo-context-ai-precomputed" role="group" aria-label="Demo AI status"><div class="demo-context-ai-copy"><span class="demo-context-ai-title">Precomputed demo insights</span>Browsing and editing use no AI inference. Connect a provider to recalculate changed cards.</div></div>`;
-    }
-  }
-  html += `<div class="profile-context-cards">`;
-  for (const c of cardDefs) {
-    const filled = isContextFilled(c.key);
-    const summary = c.summaryFn();
-    const explanationId = `${renderId}-explanation-${c.key}`;
-    html += `<article class="context-card${filled ? ' context-card-added' : ' context-card-empty'}" data-context-card-key="${escapeAttr(c.key)}">
-      <button type="button" class="context-card-open" aria-label="${filled ? 'Edit' : 'Add'} ${escapeHTML(c.label)}" ${contextCardActionAttrs('open-editor', { editor: c.editor })}></button>
-      <div class="context-card-header">
-        <span class="context-card-icon" aria-hidden="true">${c.icon}</span>
-        <span class="context-card-title">
-          <span class="context-card-label">${escapeHTML(c.label)}</span>
-          <span class="ctx-health-indicator" id="ctx-health-${c.key}" hidden><span class="ctx-health-dot ctx-health-dot-gray" id="ctx-dot-${c.key}"></span><span class="ctx-health-label" id="ctx-health-label-${c.key}">Not assessed</span></span>
-        </span>
-        <span class="context-card-tips-host" id="ctx-tips-${c.key}"></span>
-        <button type="button" class="context-info-icon" aria-label="Why ${escapeHTML(c.label)} matters" aria-expanded="false" aria-controls="${explanationId}" ${contextCardActionAttrs('toggle-explanation', { explanation: explanationId })}>i</button>
-      </div>
-      ${summary
-        ? `<div class="context-card-body" id="ctx-summary-${c.key}" data-summary-source="local" data-local-summary="${escapeAttr(summary)}">${escapeHTML(summary)}</div>`
-        : `<div class="context-card-placeholder">${escapeHTML(c.placeholder)}</div>`}
-      <div class="context-card-explanation" id="${explanationId}" hidden>${escapeHTML(c.tooltip)}</div>
-      ${c.key === 'diet' ? renderDietContaminantsBadge() : ''}
-      ${c.key === 'diet' ? renderNutritionDietExtension(contextCardActionAttrs) : ''}
-      ${c.key === 'lightCircadian' ? renderNutritionCircadianExtension(contextCardActionAttrs) : ''}
-      <div class="ctx-ai-summary-slot"><div class="ctx-ai-summary" id="ctx-ai-${c.key}"></div></div>
-    </article>`;
-  }
-  html += `</div>`;
-  // Additional Notes textarea
-  const notes: unknown = state.importedData.contextNotes || '';
-  html += `<div class="ctx-notes-section">
-    <div class="ctx-notes-head"><label class="ctx-notes-label" for="ctx-notes-textarea">Additional context</label><span class="ctx-notes-status" id="ctx-notes-status" role="status" aria-live="polite">Saved as you type</span></div>
-    <div class="ctx-notes-hint" id="ctx-notes-hint">Anything else that may affect your labs or health patterns.</div>
-    <textarea class="ctx-notes-textarea" id="ctx-notes-textarea" aria-describedby="ctx-notes-hint" placeholder="For example: shift work, a recent illness, or an upcoming treatment change" ${contextCardActionAttrs('context-notes-input')}>${escapeHTML(notes)}</textarea>
-  </div>`;
-  return html + `</section>`;
+  const cards = cardDefs.map(({ summaryFn, ...card }) => ({ ...card, filled: isContextFilled(card.key), summary: summaryFn(),
+    extensions: card.key === 'diet' ? renderDietContaminantsBadge() + renderNutritionDietExtension(contextCardActionAttrs)
+      : card.key === 'lightCircadian' ? renderNutritionCircadianExtension(contextCardActionAttrs) : '',
+  }));
+  return renderContextCatalogHTML({ view: {
+    renderId, embedded: Boolean(embedded), subtitle: _ccSubtitle, cards, addedCount: cards.filter(card => card.filled).length,
+    refresh: hasAssistantFeatureProvider() && (!_demoAIMode.demo || _demoAIMode.live),
+    demo: projectContextDemoBar(_demoAIMode), notes: String(state.importedData.contextNotes || ''),
+  } });
 }
 
 let _ctxNotesTimer: ReturnType<typeof setTimeout> | null = null;

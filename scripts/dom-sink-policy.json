@@ -2,16 +2,9 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 773,
-  "sinkCount": 550,
+  "scannedFiles": 1047,
+  "sinkCount": 331,
   "files": {
-    "js/backup.js": {
-      "count": 1,
-      "digest": "5fcefb641662198138438fcdaa6cf6f263c141925406dde1cfb30b3c1f57674f",
-      "kinds": {
-        "innerHTML": 1
-      }
-    },
     "js/biology-scores.js": {
       "count": 1,
       "digest": "3b6634d0f70bf7fb29792e9954a2583f1a90cb82aca19eb1779b1a84f408a354",
@@ -40,61 +33,11 @@
         "innerHTML": 1
       }
     },
-    "js/chat-context-status.js": {
-      "count": 1,
-      "digest": "b4754dc784d565c8d4b2f631d1b51d81ab52806480de27420aad3b64e7064c52",
-      "kinds": {
-        "innerHTML": 1
-      }
-    },
-    "js/chat-discussion-picker.js": {
-      "count": 1,
-      "digest": "23dfeedd784e7326500086f1b44dcc9360eb5042753ead6bf07194cb7aa31103",
-      "kinds": {
-        "innerHTML": 1
-      }
-    },
-    "js/chat-discussion-round-view.js": {
-      "count": 4,
-      "digest": "37d2eeda166fcdf2780bbd8438e9ae702ebebfe45d0fd9604700714625d1b684",
-      "kinds": {
-        "innerHTML": 3,
-        "insertAdjacentHTML": 1
-      }
-    },
-    "js/chat-discussion-ui.js": {
-      "count": 1,
-      "digest": "42e0ee63ef56491423df281875462819e0c587b50c019187d8ebf67aeb863a7e",
-      "kinds": {
-        "innerHTML": 1
-      }
-    },
     "js/chat-empty-state.js": {
-      "count": 11,
-      "digest": "61eac9e1697ff14ede4200217e96937c009f517c048ec02d8cde6fb05aaca09e",
+      "count": 7,
+      "digest": "eb4e0769c787ab6d61e9c3ff7cfc290661d2c1a019c4d2640a6194f1f23a1df2",
       "kinds": {
-        "innerHTML": 11
-      }
-    },
-    "js/chat-images.js": {
-      "count": 2,
-      "digest": "c12b98988e7d36c5ebe9b95287b12939dc69742269b5db2c7d3e078baaf76a59",
-      "kinds": {
-        "innerHTML": 2
-      }
-    },
-    "js/chat-message-edit.js": {
-      "count": 1,
-      "digest": "4cf5c9ecee8d08738fdd49efc45630795a9e552d69132578037986d53f25d575",
-      "kinds": {
-        "innerHTML": 1
-      }
-    },
-    "js/chat-model-controls.js": {
-      "count": 1,
-      "digest": "b2bad668a80fd7ac26b311032608b63b513d3306141091cb203934b3eff83066",
-      "kinds": {
-        "innerHTML": 1
+        "innerHTML": 7
       }
     },
     "js/chat-onboarding.js": {
@@ -105,63 +48,12 @@
         "outerHTML": 2
       }
     },
-    "js/chat-personalities.js": {
-      "count": 2,
-      "digest": "cb1249687da3e435647ed4604fe5d026dff27f1e391c1acd55c095cddea58ec5",
-      "kinds": {
-        "innerHTML": 2
-      }
-    },
-    "js/chat-personality-editor.js": {
-      "count": 1,
-      "digest": "404e2b8ed72d00b4e67928917d5d655c70e5a33760783ea20c33f8b997a3bc53",
-      "kinds": {
-        "innerHTML": 1
-      }
-    },
-    "js/chat-render.js": {
-      "count": 1,
-      "digest": "69d0ae46fd037ba1cb04210e31c53159f2fa2349bbf5c273f1dcbb886d09e5c3",
-      "kinds": {
-        "innerHTML": 1
-      }
-    },
-    "js/chat-send.js": {
-      "count": 9,
-      "digest": "f51f50f13f08c852ffba2e7ea4f2aff3443c167c218ea467bfedf93dee99be12",
-      "kinds": {
-        "innerHTML": 8,
-        "insertAdjacentHTML": 1
-      }
-    },
     "js/chat-summaries.js": {
       "count": 5,
       "digest": "d3e500a3d10f2132c9d0ab906893f50f7779714b0ea3ee82fcdf895da5c1941c",
       "kinds": {
         "document.write": 1,
         "innerHTML": 4
-      }
-    },
-    "js/chat-thinking-status.js": {
-      "count": 1,
-      "digest": "5ff0882cb0f5c0b5b35868c37c10bc1d495775b9f348d18ffed60717710039f0",
-      "kinds": {
-        "innerHTML": 1
-      }
-    },
-    "js/chat-thread-list-view.js": {
-      "count": 3,
-      "digest": "f5af3f36256ed36a8c35834312c8e9f88c51dbb68662532f4e9445ed86a5a9b0",
-      "kinds": {
-        "innerHTML": 3
-      }
-    },
-    "js/chat-thread-search.js": {
-      "count": 4,
-      "digest": "e93383238e02473b805c4dc0a894f80ea570bc281275547cd1881e8f0c89701d",
-      "kinds": {
-        "innerHTML": 3,
-        "insertAdjacentHTML": 1
       }
     },
     "js/client-list-form.js": {
@@ -198,6 +90,41 @@
       "kinds": {
         "innerHTML": 9,
         "insertAdjacentHTML": 1
+      }
+    },
+    "js/components/ChatMessage.svelte.native.js": {
+      "count": 2,
+      "digest": "ccbf8eb7ea9ae6d5d73c72a85968879144553757631df83639e098acf29de9bd",
+      "kinds": {
+        "svelte.html": 2
+      }
+    },
+    "js/components/ChatProviderSetup.svelte.native.js": {
+      "count": 1,
+      "digest": "9c37f8b90908cb4669ac25f1f75b89dedb5fd0bcad5e1a3f2c650a5f4a524db2",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ChatRecommendations.svelte.native.js": {
+      "count": 1,
+      "digest": "7173ce5a97da1b8a46394a3ef3a7a9844ad54333a39cd4b24114f4aeeda42655",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ContextCardCatalog.svelte.native.js": {
+      "count": 2,
+      "digest": "e1ce59482ade23a0497aefc91eba249670add42df58a7fc0f2430ca530740fb6",
+      "kinds": {
+        "svelte.html": 2
+      }
+    },
+    "js/components/SettingsShell.svelte.native.js": {
+      "count": 2,
+      "digest": "059d3a250f052384afc70a32a3f4b417618ce45b3075d2b37c1d00f8ec07e704",
+      "kinds": {
+        "svelte.html": 2
       }
     },
     "js/context-card-dashboard-ai-impl.js": {
@@ -242,13 +169,6 @@
       "digest": "fe841c598e2b255d41cc4696ba0cdcaa3c98f5353f15a3cc2b63f10cc5eef1bb",
       "kinds": {
         "innerHTML": 1
-      }
-    },
-    "js/crypto-ui.js": {
-      "count": 11,
-      "digest": "6be722f8c547ba00feba1778915fe0a0781e1b860ef6ba2ccd25f32b8d8b0c76",
-      "kinds": {
-        "innerHTML": 11
       }
     },
     "js/cycle-import.js": {
@@ -312,13 +232,6 @@
       "digest": "a54306fb368b46ef207b030f57c136a4b3772d26d119063fe8f89fcee63d1f6f",
       "kinds": {
         "innerHTML": 2
-      }
-    },
-    "js/dna.js": {
-      "count": 1,
-      "digest": "28ae5423534cfbd950d177d54cb1b00913ec70dfb54fe2b9f6c2b0afbaac25c4",
-      "kinds": {
-        "innerHTML": 1
       }
     },
     "js/emf-editor.js": {
@@ -676,13 +589,6 @@
         "innerHTML": 13
       }
     },
-    "js/pdf-import.js": {
-      "count": 1,
-      "digest": "6237fd7f2e8322a2109993d2044655989a4e6c09e927598aff56f25cef7834be",
-      "kinds": {
-        "innerHTML": 1
-      }
-    },
     "js/pii-review.js": {
       "count": 5,
       "digest": "82f297031de29e1981d24ad042bdcd91e9a77573db9080506d844d08156e7d0a",
@@ -698,60 +604,18 @@
         "outerHTML": 2
       }
     },
-    "js/provider-local-ai-controls.js": {
-      "count": 4,
-      "digest": "2ff47e931d98db2992d0642145537605bd58eb1da7d035249f8df2c84aadd163",
-      "kinds": {
-        "innerHTML": 4
-      }
-    },
-    "js/provider-model-controls.js": {
-      "count": 11,
-      "digest": "4fad5fbaef102afa00cc3070fc40e103de3fce1ecf82321e97e79e8238854b21",
-      "kinds": {
-        "innerHTML": 11
-      }
-    },
-    "js/provider-panel-renderers.js": {
-      "count": 4,
-      "digest": "40efe7a45cf010f013b9d68285be1d61bd09e5e37438f9112f6f1d501e40abcd",
-      "kinds": {
-        "innerHTML": 4
-      }
-    },
     "js/provider-panels.js": {
-      "count": 37,
-      "digest": "74f137906e6cea7a3e11204e2e5c26e2c2d3c0745ae28333e8cff087461de941",
+      "count": 2,
+      "digest": "f8a6d29c2daaf04f4c4b9548937b58174d08fce0ca1e7262776f3056116815fd",
       "kinds": {
-        "innerHTML": 37
-      }
-    },
-    "js/provider-ppq-panels.js": {
-      "count": 22,
-      "digest": "1ee46c114d857bd8fe76e1b05ad7b81dd0075737837dd3d29f6c2be06377dadd",
-      "kinds": {
-        "innerHTML": 22
-      }
-    },
-    "js/provider-wallet-funding-recovery.js": {
-      "count": 3,
-      "digest": "a736bb0fe126fe8df7afcb95f0dba1b413d1b65cf07f2a963df81fa3b22f7e51",
-      "kinds": {
-        "innerHTML": 3
+        "innerHTML": 2
       }
     },
     "js/provider-wallet-panels.js": {
-      "count": 56,
-      "digest": "c2dc902b6d8367449eefabb57a185936b3a6b0d6eb543fc284d880a20569fade",
+      "count": 1,
+      "digest": "5a8807a2623ea0ebee9b009078420e625d9356228805bef46ad344c5f46283ab",
       "kinds": {
-        "innerHTML": 56
-      }
-    },
-    "js/provider-wallet-refund-recovery.js": {
-      "count": 2,
-      "digest": "8a60fa9752a1755e86e2962b07c2b45e540d0ad20886342152d6ac467f1986a3",
-      "kinds": {
-        "innerHTML": 2
+        "innerHTML": 1
       }
     },
     "js/recommendation-actions.js": {
@@ -768,55 +632,11 @@
         "innerHTML": 3
       }
     },
-    "js/settings-agent-access-panel.js": {
-      "count": 1,
-      "digest": "3362c117c723cfb73f4c2107f2409e3b0dd05096b79a1ae4e4ef814213f6c9e9",
-      "kinds": {
-        "innerHTML": 1
-      }
-    },
-    "js/settings-cli-agent-panel.js": {
-      "count": 10,
-      "digest": "88812696f7f9aeeb09b49751b9af9dfa9fcceea9fe65e4c26907f866bb4e45f3",
-      "kinds": {
-        "innerHTML": 7,
-        "insertAdjacentHTML": 2,
-        "outerHTML": 1
-      }
-    },
-    "js/settings-data.js": {
-      "count": 3,
-      "digest": "6828d0c5034277ab64ece7e590c3cd064c5612d700c3578455cb3fc8630bdb42",
-      "kinds": {
-        "innerHTML": 3
-      }
-    },
-    "js/settings-import-benchmark-controller.js": {
-      "count": 5,
-      "digest": "059741dbbd6fb178daebdde06a1021637d0505fe0df48e58e7466e1b37c12fc5",
-      "kinds": {
-        "innerHTML": 5
-      }
-    },
-    "js/settings-privacy.js": {
-      "count": 7,
-      "digest": "4d7ca23154bd7bd5821cbba802ede0006806e348389daef29a13e5294c6804ea",
-      "kinds": {
-        "innerHTML": 7
-      }
-    },
     "js/settings-provider-bridge.js": {
-      "count": 2,
-      "digest": "9528c17cc8a39fcce0662c0eea6086f6f46ecb939446c25836a2957da5810a53",
+      "count": 4,
+      "digest": "d3ee35699cb044e0b84059fb7dccd128beeee1cf9841c845e914550ffb849cc8",
       "kinds": {
-        "innerHTML": 2
-      }
-    },
-    "js/settings-sync-panel-impl.js": {
-      "count": 11,
-      "digest": "62df70a537c761259e15709f5a86f0bdc5d2d7fb594b28b8e7ca0fdb7fd394b1",
-      "kinds": {
-        "innerHTML": 11
+        "innerHTML": 4
       }
     },
     "js/settings-sync-panel.js": {
@@ -826,25 +646,11 @@
         "innerHTML": 2
       }
     },
-    "js/settings-sync-restore-ui.js": {
-      "count": 1,
-      "digest": "e48ce39b90c18ab76221daf781b2aa73b25b166d37982a4a2d8c8d10ded7d549",
-      "kinds": {
-        "innerHTML": 1
-      }
-    },
     "js/settings-tweaks.js": {
       "count": 1,
       "digest": "c4a7ccd84475c90eec60f3b62a351432808cb83b16583bc1528ce3cf98d97b7f",
       "kinds": {
         "insertAdjacentHTML": 1
-      }
-    },
-    "js/settings.js": {
-      "count": 4,
-      "digest": "fcb2e24d2dbc76ecb4023e13c49d1678dd5e649fde7d974a11693404a51fdf1f",
-      "kinds": {
-        "innerHTML": 4
       }
     },
     "js/sun-active-session.js": {
@@ -975,13 +781,6 @@
     "js/wearables-settings-groups.js": {
       "count": 1,
       "digest": "298dd96e5d37b058e91b65c1c9f16083a73ba35b818e166ec53ede091dfe65ef",
-      "kinds": {
-        "innerHTML": 1
-      }
-    },
-    "js/wearables-settings-panel.js": {
-      "count": 1,
-      "digest": "d9c87da97408f639a438ea6692471b4cc2076590fc62daf4d8e157065b6746a9",
       "kinds": {
         "innerHTML": 1
       }

@@ -168,32 +168,6 @@ select.chat-onboard-input:where(:not([data-chat-profile-setup-view] *)) option {
 .chat-context-cards {
   margin-top: 14px;
 }
-.chat-context-cards .context-section-title {
-  display: block;
-  margin-bottom: 8px;
-  letter-spacing: 0.04em;
-}
-.chat-context-cards .context-section-subtitle {
-  margin-bottom: 10px;
-}
-.chat-context-cards .profile-context-cards {
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin-bottom: 0;
-}
-.chat-panel-fullscreen .chat-context-cards .profile-context-cards {
-  grid-template-columns: 1fr;
-}
-@container (min-width: 580px) {
-  .chat-panel-fullscreen .chat-context-cards .profile-context-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-@container (min-width: 860px) {
-  .chat-panel-fullscreen .chat-context-cards .profile-context-cards {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
 
 @media (max-width: 420px) {
   .chat-onboard-primary-actions {

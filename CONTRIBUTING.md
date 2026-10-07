@@ -93,7 +93,12 @@ Settings CSS is generated at its existing runtime URL. Edit
 for the Svelte + Tailwind Display pilot. Protection dialogs use
 `css/data-protection.base.css`, `css/data-protection.tailwind.css` and
 `js/components/PassphraseDialog.svelte`; `css/data-protection.css` is generated at
-its existing lazy URL. Run `npm run styles:build` after styling edits;
+its existing lazy URL. The shared health-context catalog is authored in
+`js/components/ContextCardCatalog.svelte`; edit `css/context-catalog.tailwind.css`
+and `js/context-card-catalog-classes.ts` for its scoped utilities.
+`css/context-profile.base.css` retains the remaining context/editor styles;
+`css/context-profile.css` is generated at its existing eager URL.
+Run `npm run styles:build` after styling edits;
 `npm run styles:check` verifies the bundle. The standard TypeScript build,
 prepare, development, test and production commands also compile these styles
 and the component. `npm run svelte:check` validates authored component types with

@@ -60,6 +60,13 @@ test('optional onboarding imports real DNA and mtDNA offline on first use and re
     await expect(cold.getByRole('button', { name: 'Re-import mtDNA', exact: true })).toBeVisible();
     await cold.getByRole('button', { name: 'Continue to context cards', exact: true }).click();
     await expect(cold.getByRole('group', { name: 'Onboarding step 3 of 3: Context' })).toBeVisible();
+    const catalog = cold.locator('.chat-context-cards [data-context-cards-view]');
+    await expect(catalog).toBeVisible(); await expect(catalog.locator('article.context-card')).toHaveCount(9);
+    const info = catalog.getByRole('button', { name: 'Why Health Goals matters', exact: true });
+    await info.click(); await expect(info).toHaveAttribute('aria-expanded', 'true');
+    await expect(catalog.locator('.context-card-explanation').first()).toBeVisible();
+    await catalog.getByRole('textbox', { name: 'Additional context', exact: true }).fill('Offline context <literal> & preserved');
+    await expect(catalog.locator('.ctx-notes-status')).toHaveText('Saved');
     await cold.getByRole('button', { name: 'Close chat', exact: true }).click();
     await cold.locator('[data-shell-action="open-settings"]').click(); await cold.locator('#settings-nav-data').click();
     const downloading = cold.waitForEvent('download');
@@ -68,6 +75,7 @@ test('optional onboarding imports real DNA and mtDNA offline on first use and re
     expect(backup).toMatchObject({ format: 'labcharts-backup', encrypted: false });
     const stored = backup.profiles.find(profile => profile.keys.imported)!;
     const data = JSON.parse(stored.keys.imported!) as ProfileData;
+    expect(data.contextNotes).toBe('Offline context <literal> & preserved');
     expect(data.genetics.snps.rs1801133).toMatchObject({ genotype: 'GA' });
     expect(data.genetics.source).toBe('AncestryDNA');
     expect(data.genetics.mtdna).toMatchObject({ haplogroup: 'H', source: 'mtDNA (Living DNA)', mutations: ['263G', '750G', '1438G', '4769G', '8860G', '15326G'] });

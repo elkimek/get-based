@@ -66,6 +66,21 @@ Display, Privacy, Voice and Agent Access remain additionally scoped to their pan
 variables remain the authority for colors, fonts and radii. The unlayered scoped
 utilities follow legacy rules and use panel specificity rather than `!important`.
 
+The shared health-context catalog is authored in `ContextCardCatalog.svelte`.
+`context-card-catalog-presentation.ts` defines its typed view and projects demo
+consent copy without inference side effects. `context-cards.ts` preserves the
+synchronous HTML contract for dashboard, Insight and Chat consumers through the
+compiled Svelte HTML entry. Profile labels, summaries, explanations and notes use
+escaped text interpolation. The two raw HTML slots accept only fixed catalog SVG
+and escaped diet/nutrition renderer output; they are included in the DOM sink policy.
+Scoped utilities in `css/context-catalog.tailwind.css` and
+`context-card-catalog-classes.ts` replace static catalog and Chat overrides.
+`css/context-profile.base.css` retains native editors, AI slots, tips and nutrition
+fragments; the build combines both sources at the unchanged context stylesheet URL.
+The existing delegated actions, notes persistence and AI/tips DOM adapters still
+serve the catalog. This presentation boundary does not establish independent
+ownership for simultaneous catalogs or asynchronous notes writes.
+
 Display settings is the bounded Svelte 5 pilot. `js/settings-display-panel.ts`
 reads existing service state into typed snapshots and retains its native runtime
 URL; `js/components/DisplaySettings.svelte` owns only the panel contents. Existing

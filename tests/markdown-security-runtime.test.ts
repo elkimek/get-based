@@ -175,20 +175,40 @@ describe('Markdown renderer DOM security boundary', () => {
 });
 
 describe('AI Markdown rendering paths', () => {
-  it('keeps chat streaming text inert and routes final and restored model text through renderMarkdown', () => {
-    const sources = Object.fromEntries([
-      'chat-send.js',
-      'chat-render.js',
-      'chat-discussion-round-view.js',
-      'chat-summaries.js',
-    ].map(name => [name, fs.readFileSync(path.join(ROOT, 'js', name), 'utf8')]));
+  it('keeps chat streaming text inert and routes final and restored model text through renderMarkdown', async () => {
+    const source = (name: string) => fs.readFileSync(path.join(ROOT, 'js', name), 'utf8');
+    expect(source('chat-send.js')).toContain('publishChatLiveText(el,');
+    expect(source('chat-send.js')).toContain('completeChatLiveMessage(aiMsgEl,');
+    expect(source('chat-render.js')).toContain('renderChatTranscript(container, projectChatTranscript(');
+    expect(source('chat-discussion-round-view.js')).toContain('snapshotChatCompatibilityMessage(message)');
+    expect(source('chat-summaries.js')).toContain('body.innerHTML = renderMarkdown(partial)');
 
-    expect(sources['chat-send.js']).toContain('el.textContent = target.slice(0, displayed)');
-    expect(sources['chat-send.js']).toContain('el.textContent = target');
-    expect(sources['chat-send.js']).toContain('aiMsgEl.innerHTML = renderMarkdown(fullText)');
-    expect(sources['chat-render.js']).toContain('renderMarkdown(msg.content)');
-    expect(sources['chat-discussion-round-view.js']).toContain('aiMsgEl.innerHTML = renderMarkdown(fullText)');
-    expect(sources['chat-summaries.js']).toContain('body.innerHTML = renderMarkdown(partial)');
+    const live = await import('../js/chat-live-message-component.js');
+    const transcript = await import('../js/chat-transcript-component.js');
+    const { projectChatTranscriptMessage } = await import('../js/chat-transcript-presentation.js');
+    const host = document.createElement('main');
+    const restored = document.createElement('main');
+    document.body.append(host, restored);
+    const message = { role: 'assistant' as const, content: '**Safe emphasis**\n\n<img src=x onerror=alert(1)>\n\n[bad](javascript:alert(1))' };
+    const handle = live.createChatLiveMessage(host, {}, () => true);
+    try {
+      live.publishChatLiveText(handle.element, message.content.slice(0, 35));
+      expect(handle.element.textContent).toBe(message.content.slice(0, 35));
+      expect(handle.element.querySelector('strong, img')).toBeNull();
+      live.publishChatLiveText(handle.element, message.content);
+      expect(handle.element.textContent).toBe(message.content);
+      expect(handle.element.querySelector('strong, img')).toBeNull();
+      expect(live.completeChatLiveMessage(handle.element, message)).toBe(true);
+      transcript.renderChatTranscript(restored, { entries: [{ key: message, persona: null, message: projectChatTranscriptMessage(message, -1) }], earlier: 0, fork: null });
+      const discussion = live.snapshotChatCompatibilityMessage(message).message;
+      for (const root of [handle.element, restored, discussion]) {
+        expect(root.querySelector('strong')?.textContent).toBe('Safe emphasis');
+        expect(root.querySelector('img, script, svg, [onerror], a[href^="javascript:"]')).toBeNull();
+        expect(root.textContent).toContain('<img src=x onerror=alert(1)>');
+      }
+    } finally {
+      handle.dispose(); transcript.disposeChatTranscript(); host.remove(); restored.remove();
+    }
   });
 
   it('routes Biology Score and EMF model output through the same renderer', () => {

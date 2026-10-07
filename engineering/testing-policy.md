@@ -32,6 +32,21 @@ Headless launch environments cannot access the user's desktop session. Historica
 size/cache ceilings are recorded for this local evaluation; quality, compiler and
 coverage safety remain intact. The native production build keeps its budget gates.
 
+The shared health-context catalog has focused component contracts in
+[`context-card-catalog.test.ts`](../tests/context-card-catalog.test.ts), native
+notes/AI/tips workflows in the context-card Playwright cases, and actual cached
+static-PWA coverage in
+[`sveltekit-chat-onboarding-optional.spec.ts`](../tests/pwa/sveltekit-chat-onboarding-optional.spec.ts).
+These checks preserve the current delegated service contracts; they do not prove
+independent ownership for simultaneous catalogs or failure-safe notes persistence.
+
+The DOM sink audit compares every discovered HTML-writing operation with its
+committed count and source fingerprint, including raw Svelte HTML. Successful
+migration removes native sinks, so security acceptance uses exact discovery and
+fingerprint agreement rather than a historical minimum number of unsafe operations.
+The scanner tests also reject omitted/stale entries, modified fingerprints and
+changed discovery totals. A policy refresh requires review of the changed sinks.
+
 ## Behavioral requirements
 
 Preserve independently failing assertions for these workflows:

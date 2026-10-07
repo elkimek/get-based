@@ -18,6 +18,7 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 
 import './_node-shim.js';
 import { walkSourceFiles } from '../scripts/source-files.js';
+import { auditDomSinks } from '../scripts/dom-sink-audit.mjs';
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -234,8 +235,8 @@ assert('context editor and tips actions wait for their presentation',
 assert('context editor split preserves shared context controls eagerly',
   read('css/context-profile.css').includes('.ctx-btn-option') &&
   read('css/context-profile.css').includes('.ctx-tag') &&
-  read('css/context-profile.css').includes('.context-info-icon') &&
-  read('css/context-profile.css').includes('.ctx-notes-textarea'));
+  read('js/components/ContextCardCatalog.svelte').includes('context-info-icon {CONTEXT_INFO}') &&
+  read('js/components/ContextCardCatalog.svelte').includes('ctx-notes-textarea gb:context-catalog:'));
 assert('SW APP_SHELL includes context editor CSS bundle', swAuditSrc.includes("'/css/context-editor.css'"));
 const dnaRuntimeAuditSrc = read('js/dna-runtime.js');
 assert('index defers genetics CSS behind its ordered lazy-load anchor',
@@ -682,7 +683,7 @@ assert(
 );
 assert(
   `${_domSinkPolicy.sinkCount} HTML-writing sinks retain committed reviewed fingerprints`,
-  _domSinkPolicy.sinkCount > 400
+  auditDomSinks(_domSinkPolicy).ok
     && _domSinkAuditSource.includes('export function auditDomSinks')
     && _domSinkAuditSource.includes('expected.count !== actual.count || expected.digest !== actual.digest'),
 );

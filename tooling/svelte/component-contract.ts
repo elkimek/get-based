@@ -90,3 +90,7 @@ export const chatThreadNavigationCompatible: typeof NativeChatThreadNavigation =
 import ChatShell from '../../js/components/ChatShell.svelte';
 import type NativeChatShell from '../../js/components/ChatShell.svelte.native.js';
 export const chatShellCompatible: typeof NativeChatShell = ChatShell;
+
+import ContextCardCatalog from '../../js/components/ContextCardCatalog.svelte';
+import type NativeContextCardCatalog from '../../js/components/ContextCardCatalog.svelte.native.js';
+export const contextCardCatalogCompatible: typeof NativeContextCardCatalog = ContextCardCatalog;

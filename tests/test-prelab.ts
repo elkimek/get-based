@@ -141,7 +141,8 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
   // ═══════════════════════════════════════
   console.log('%c 4. Dashboard Nudge Subtitle ', 'font-weight:bold;color:#f59e0b');
 
-  const ccSrc = read('js/context-cards.js');
+  const catalogSrc = read('js/components/ContextCardCatalog.svelte');
+  const ccSrc = read('js/context-cards.js') + '\n' + catalogSrc;
   const healthDotsSrc = read('js/context-card-health-dots.js');
   const ctxEditorSrc = read('js/context-card-editor-ui.js');
   const lifestyleEditorSrc = read('js/context-card-lifestyle-editors-impl.js');
@@ -170,17 +171,18 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
 
   // CSS check
   const cssSrc = readCssBundle();
-  assert('.context-section-subtitle in CSS', cssSrc.includes('.context-section-subtitle'),
+  assert('.context-section-subtitle uses scoped styling', catalogSrc.includes('context-section-subtitle gb:context-catalog:'),
     'CSS should define the subtitle class');
-  assert('Subtitle font-size 13px', cssSrc.includes('.context-section-subtitle') && cssSrc.includes('font-size: 13px'),
+  assert('Subtitle font-size 13px', /context-section-subtitle[^\n]*gb:context-catalog:text-\[13px\]/.test(catalogSrc),
     'Subtitle should be 13px');
   assert('Profile context grid is container-aware',
-    cssSrc.includes('container-type: inline-size')
-      && cssSrc.includes('@container (min-width: 580px)')
-      && cssSrc.includes('@container (min-width: 860px)'),
+    catalogSrc.includes('[container-type:inline-size]')
+      && catalogSrc.includes('@min-[580px]:grid-cols-2')
+      && catalogSrc.includes('@min-[860px]:grid-cols-3'),
     'Context cards should move between one, two, and three columns based on their widget width');
   assert('Context card labels remain readable instead of truncating',
-    cssSrc.includes('.context-card-label')
+    catalogSrc.includes('context-card-label')
+      && !/context-card-label[^\n]*(?:truncate|text-ellipsis)/.test(catalogSrc)
       && !/\.context-card-label\s*{[^}]*text-overflow:\s*ellipsis/.test(cssSrc),
     'Card labels should wrap when needed instead of hiding their meaning');
   assert('Context editors use redesigned modal shell', (ccSrc + ctxEditorSrc).includes("modal gb-form-modal ctx-editor-modal") && ctxEditorSrc.includes('gb-modal-head ctx-editor-head'),

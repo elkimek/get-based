@@ -1885,3 +1885,12 @@ js/chat-optional-setup-component.js
 js/genetics-import-events.js
 js/components/ChatOptionalSetup.svelte.native.js
 js/components/ChatOptionalSetup.svelte.native.js.map
+
+# Shared context catalog stylesheet is generated from its authored base and Tailwind.
+/css/context-profile.css
+/js/context-card-catalog-presentation.js
+/js/context-card-catalog-classes.js
+/js/components/ContextCardCatalog.svelte.native.js
+/js/components/ContextCardCatalog.svelte.native.js.map
+/js/components/ContextCardCatalog.svelte.html.js
+/js/components/ContextCardCatalog.svelte.html.js.map

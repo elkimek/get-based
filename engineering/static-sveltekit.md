@@ -198,3 +198,11 @@ cold-launches the cached application and verifies both genomes through a real
 backup export. The [native ownership scenarios](../tests/playwright/chat-onboarding-optional-owned.spec.ts)
 also cover disconnected/connected continuation, retired controls, profile changes
 during parsing and pending confirmation, and theme/layout/accessibility checks.
+
+The shared health-context catalog uses the same authored Svelte HTML and scoped
+Tailwind styles in dashboard, Insight and Chat. Its existing public string-render
+contract and service delegates remain available. Optional-onboarding acceptance
+opens all nine cards after an offline cold launch, expands an explanation and
+persists literal additional-context notes alongside imported DNA/mtDNA in the
+exported backup. This covers the compatibility presentation; independent catalog
+lifecycles and asynchronous notes-write ownership remain separate work.
