@@ -202,8 +202,19 @@ controls, and owns focus trapping, dismissal and scroll restoration. Configured
 cards close without starting setup; unsupported folder backup stays hidden.
 Encryption, sync and folder selection continue through their existing services.
 The native picker template and obsolete dashboard picker styles are removed.
-Medical history and nutrition fragments still use existing adapters and remain
-migration work.
+`ContextMedicalHistory.svelte` owns the Medical History draft, condition and family
+rows, procedures, flags and notes. `context-medical-history-model.ts` preserves
+stored metadata, relative ordering and condition suggestions. The shared
+`ContextConditionInput.svelte` supports keyboard and pointer suggestions with
+combobox semantics. `context-medical-history-view.ts` captures the modal and
+profile, guards cold opens and confirmations, and retains failed/conflicted drafts.
+The Medical History and lifestyle sessions share `context-field-session.ts`,
+which records isolated history and commits through the guarded profile transaction
+before publication. The diagnoses conflict check runs inside the same storage lock.
+Accepted writes finish on their original profile after closure; retired controls
+cannot submit new work. The stable Medical History facade and helper URLs remain;
+the native template, suggestion HTML sinks and superseded medical styles are removed.
+Nutrition fragments still use existing adapters and remain migration work.
 `context-notes-session.ts` captures accepted text and originating profile/data,
 serializes debounced scoped writes and retains retry drafts through catalog rebuilds
 and fresh profile reload objects. Failed idle sessions retain draft text without

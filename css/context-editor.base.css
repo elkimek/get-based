@@ -2,17 +2,6 @@
 
 /* Context editor field groups */
 .ctx-field-group { margin-bottom: 16px; }
-.ctx-flag-list { display: grid; gap: 8px; }
-.ctx-checkbox-row {
-  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start;
-  padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
-  background: var(--bg-card); color: var(--text-primary); cursor: pointer;
-}
-.ctx-checkbox-row:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); background: var(--bg-hover); }
-.ctx-checkbox-row input { margin-top: 2px; accent-color: var(--accent); }
-.ctx-checkbox-row span { display: grid; gap: 3px; min-width: 0; }
-.ctx-checkbox-row strong { font-size: 13px; font-weight: 650; }
-.ctx-checkbox-row small { color: var(--text-secondary); font-size: 12px; line-height: 1.35; }
 .ctx-field-label {
   font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--text-muted); margin-bottom: 8px; display: block;
@@ -66,108 +55,6 @@
   border-top: 1px solid var(--border);
 }
 .ctx-editor-section-body > .ctx-field-group:last-child { margin-bottom: 14px; }
-/* Read-only Light lens setup mirror inside the Light & Circadian editor. */
-/* Autocomplete suggestions */
-.ctx-autocomplete-wrapper { position: relative; flex: 1; }
-.ctx-suggestions {
-  position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
-  background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  max-height: 200px; overflow-y: auto; box-shadow: var(--shadow-lg);
-}
-.ctx-suggestion-item {
-  padding: 8px 14px; font-size: 13px; color: var(--text-secondary); cursor: pointer;
-  transition: all 0.1s;
-}
-.ctx-suggestion-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-
-/* Condition list in editor */
-.ctx-conditions-list { margin-bottom: 16px; }
-.ctx-condition-item {
-  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  margin-bottom: 6px; font-size: 13px; transition: border-color 0.15s; flex-wrap: nowrap;
-}
-.ctx-condition-item:hover,
-.ctx-condition-item.is-editing { border-color: var(--text-muted); }
-.ctx-condition-name {
-  color: var(--text-primary); flex: 1; min-width: 0; font-weight: 500;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.ctx-condition-since { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
-.ctx-condition-actions { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
-.ctx-add-condition {
-  display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px;
-}
-.ctx-add-condition .supp-form-field { flex: 1; min-width: 120px; }
-.ctx-condition-impact .ctx-field-label { margin-bottom: 7px; }
-
-/* Family history subsection */
-.ctx-family-history {
-  margin-top: 18px;
-}
-.ctx-family-head {
-  display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;
-}
-.ctx-family-count {
-  font-size: 11px; color: var(--text-muted); font-weight: 500;
-  background: var(--bg-tertiary, rgba(128,128,128,0.08));
-  padding: 1px 7px; border-radius: 8px; min-width: 16px; text-align: center;
-}
-.ctx-family-count:empty { display: none; }
-.ctx-family-list {
-  display: flex; flex-direction: column; gap: 4px; margin: 10px 0 14px;
-}
-.ctx-family-item {
-  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm);
-  font-size: 13px; flex-wrap: nowrap; transition: border-color 0.15s;
-}
-.ctx-family-item:hover,
-.ctx-family-item.is-editing { border-color: var(--text-muted); }
-.ctx-family-main {
-  display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; flex-wrap: nowrap;
-}
-.ctx-family-relative {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 12px; color: var(--text-secondary);
-  background: var(--bg-tertiary, rgba(128,128,128,0.08));
-  padding: 2px 8px; border-radius: 10px; white-space: nowrap;
-  flex: 0 1 190px; max-width: 38%; min-width: 88px; overflow: hidden;
-}
-.ctx-family-relative-label { display: block; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.ctx-family-condition {
-  color: var(--text-primary); font-weight: 500; flex: 1 1 180px; min-width: 80px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.ctx-family-age {
-  font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums;
-  white-space: nowrap; flex-shrink: 0;
-}
-.ctx-family-note {
-  font-size: 12px; color: var(--text-muted); font-style: italic;
-  flex: 0 1 220px; max-width: 32%; min-width: 0; line-height: 1.35;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.ctx-family-actions { display: inline-flex; align-items: center; gap: 2px; flex-shrink: 0; }
-.ctx-family-add { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-.ctx-family-add-row {
-  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
-}
-.ctx-family-select { max-width: 200px; flex-shrink: 0; }
-.ctx-family-condition-wrap { flex: 1; min-width: 200px; }
-.ctx-family-age-input { width: 130px; flex-shrink: 0; }
-.ctx-family-note-input { flex: 1; min-width: 180px; }
-@media (max-width: 600px) {
-  .ctx-family-select, .ctx-family-condition-wrap,
-  .ctx-family-age-input, .ctx-family-note-input { width: 100%; max-width: none; }
-  .ctx-family-add-row .import-btn { width: 100%; }
-  .ctx-family-item { align-items: flex-start; }
-  .ctx-family-main { flex-wrap: wrap; }
-  .ctx-family-relative,
-  .ctx-family-condition,
-  .ctx-family-note { flex-basis: 100%; max-width: none; }
-}
-
 /* Context editor note input */
 .ctx-note-input {
   width: 100%; padding: 10px 14px; border-radius: var(--radius-sm);
@@ -274,14 +161,7 @@
     text-align: left;
   }
   .ctx-editor-section > summary { min-height: 56px; }
-  .ctx-editor-modal .ctx-add-condition,
-  .ctx-editor-modal .ctx-family-add-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .ctx-editor-modal #condition-since {
-    width: 100% !important;
-  }
+
 }
 
 /* Supplement imports share the lazy context editor stylesheet. */

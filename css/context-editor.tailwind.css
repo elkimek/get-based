@@ -21,3 +21,7 @@
 
 @source "../js/components/DataProtectionPicker.svelte";
 @custom-variant protection-picker (&:is([data-data-protection-view], [data-data-protection-view] *));
+
+@source "../js/context-form-classes.ts";
+@source "../js/components/ContextMedicalHistory.svelte";
+@source "../js/components/ContextConditionInput.svelte";

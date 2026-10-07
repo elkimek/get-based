@@ -394,6 +394,7 @@ configureMedicalHistoryEditor({
   close: closeContextCardModal,
   recordChange,
   saveAndRefresh,
+  afterCommit: refreshAfterContextCommit,
 });
 configureLifestyleContextEditors({ recordChange, saveAndRefresh, afterCommit: refreshAfterContextCommit });
 

@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 1080,
-  "sinkCount": 325,
+  "scannedFiles": 1087,
+  "sinkCount": 317,
   "files": {
     "js/biology-scores.js": {
       "count": 1,
@@ -132,20 +132,6 @@
       "digest": "7a470e267803dcbe1373fddf2d54fe3c35a2a2c5da313ae99fd8e8d32916e0ff",
       "kinds": {
         "innerHTML": 1
-      }
-    },
-    "js/context-card-medical-history-editor-impl.js": {
-      "count": 6,
-      "digest": "0398b14bdffd818a7cf9797c81a3f3aaa8ca947f4b102d0f7252a264b5783610",
-      "kinds": {
-        "innerHTML": 6
-      }
-    },
-    "js/context-card-medical-history-editor.js": {
-      "count": 2,
-      "digest": "7d89b7de74d99b863a1d452da4f123aaa340cbff43a7be717f3160f205bdbdbf",
-      "kinds": {
-        "innerHTML": 2
       }
     },
     "js/context-cards.js": {

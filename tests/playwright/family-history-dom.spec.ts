@@ -1,519 +1,98 @@
-type MedicalControls = {
-  'condition-input': HTMLInputElement;
-  'condition-since': HTMLInputElement;
-  'fh-condition': HTMLInputElement;
-  'fh-age': HTMLInputElement;
-  'fh-note': HTMLInputElement;
-  'fh-relative': HTMLSelectElement;
-  'ctx-note-input': HTMLTextAreaElement;
-  'diagnosis-procedures-input': HTMLTextAreaElement;
-};
-type MedicalControl<Id extends string> = Id extends keyof MedicalControls ? MedicalControls[Id] : HTMLElement;
-
-import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
-
-const moduleUrl = createModuleUrl('medicalHistoryCoverage');
-
-test('medical history default dependencies no-op while saving editor state', async ({ page }) => {
-  await page.goto('/js/context-card-medical-history-editor.js', { waitUntil: 'load' });
-
-  const results = await page.evaluate(async ({ editorUrl }) => {
-    const [{ state }, editor] = await Promise.all([
-      import('/js/state.js'),
-      (import(editorUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/context-card-medical-history-editor.js'), "openDiagnosesEditor" | "addCondition" | "saveDiagnoses" | "clearDiagnoses" | "configureMedicalHistoryEditor" | "filterConditionSuggestions" | "selectConditionSuggestion" | "editCondition" | "cancelConditionEdit" | "deleteCondition" | "filterFamilyConditionSuggestions" | "selectFamilyConditionSuggestion" | "addFamilyHistoryEntry" | "editFamilyHistoryEntry" | "cancelFamilyHistoryEdit" | "deleteFamilyHistoryEntry" | "renderDiagnosesModal" | "closeDiagnoses" | "closeSuggestionsOnClickOutside">>,
-    ]);
-    const clone = (value: unknown) => value == null ? value : (JSON.parse as (text: string) => unknown)(JSON.stringify(value));
-    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-    const waitFor = async (predicate: () => unknown | Promise<unknown>, attempts = 100) => {
-      for (let i = 0; i < attempts; i += 1) {
-        try {
-          if (await predicate()) return true;
-        } catch {}
-        await wait(10);
-      }
-      return false;
-    };
-    const byId = <Id extends string>(id: Id): MedicalControl<Id> => {
-      const el = document.getElementById(id);
-      if (!el) throw new Error(`Expected #${id} in default medical history editor`);
-      return el as MedicalControl<Id>;
-    };
-    const storage = new Map(Array.from({ length: localStorage.length }, (_, i) => {
-      const key = localStorage.key(i);
-      return [key, localStorage.getItem(key!)];
-    }));
-    const saved = {
-      importedData: clone(state.importedData),
-      currentProfile: state.currentProfile,
-    };
-    const outcomes: Record<string, unknown> = {};
-    const overlay = document.createElement('div');
-    overlay.id = 'modal-overlay';
-    const modal = document.createElement('div');
-    modal.id = 'detail-modal';
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-
-    try {
-      state.currentProfile = 'medical-history-default-deps';
-      (state as { importedData: unknown }).importedData = {
-        entries: [],
-        notes: [],
-        supplements: [],
-        healthGoals: [],
-        diagnoses: { conditions: [], note: '', familyHistory: [] },
-        customMarkers: {},
-        markerNotes: {},
-        markerValueNotes: {},
-        changeHistory: [],
-      };
-
-      await editor.openDiagnosesEditor();
-      const controlsReady = await waitFor(() => [
-        'condition-input',
-        'condition-since',
-        'ctx-note-input',
-      ].every(id => document.getElementById(id)));
-      if (!controlsReady) throw new Error('Default medical history controls did not render');
-      byId('condition-input').value = 'Migraine';
-      byId('condition-since').value = '2020';
-      byId('ctx-note-input').value = 'default note';
-      let addCrashed = false;
-      try { editor.addCondition(); }
-      catch (_) { addCrashed = true; }
-      outcomes.defaultRecordChangeNoopAllowsConditionAdd =
-        !addCrashed
-        && state.importedData.diagnoses?.conditions?.length === 0
-        && document.querySelector('#detail-modal .ctx-condition-item')?.textContent.includes('Migraine')
-        && byId('ctx-note-input').value === 'default note';
-
-      byId('ctx-note-input').value = 'saved with default callback';
-      let saveCrashed = false;
-      try { editor.saveDiagnoses(); }
-      catch (_) { saveCrashed = true; }
-      outcomes.defaultSaveAndRefreshNoopAllowsSave =
-        !saveCrashed
-        && state.importedData.diagnoses?.conditions?.[0]?.name === 'Migraine'
-        && state.importedData.diagnoses?.conditions?.[0]?.since === '2020'
-        && state.importedData.diagnoses?.note === 'saved with default callback';
-
-      let clearCrashed = false;
-      try { editor.clearDiagnoses(); }
-      catch (_) { clearCrashed = true; }
-      outcomes.defaultSaveAndRefreshNoopAllowsClear =
-        !clearCrashed
-        && state.importedData.diagnoses === null;
-    } finally {
-      (state as { importedData: unknown }).importedData = saved.importedData;
-      state.currentProfile = saved.currentProfile;
-      overlay.remove();
-      localStorage.clear();
-      for (const [key, value] of storage) {
-        if (key && value != null) localStorage.setItem(key, value);
-      }
-    }
-
-    return outcomes;
-  }, { editorUrl: moduleUrl('/js/context-card-medical-history-editor.js') });
-
-  for (const [name, passed] of Object.entries(results)) {
-    expect(passed, name).toBe(true);
-  }
-});
-
-test('family history DOM handlers round-trip and mutate entries', async ({ page }) => {
-  await page.goto('/app', { waitUntil: 'load' });
-
-  const results = await page.evaluate(async () => {
-    const cards = await import('/js/context-cards.js');
-    await (await import('/js/context-card-editor-ui.js')).loadContextEditorStylesheet();
-    const { state } = await import('/js/state.js');
-    const outcomes: Record<string, unknown> = {};
-
-    const originalDiagnoses = state.importedData?.diagnoses;
-    state.importedData = state.importedData || {};
-    state.importedData.diagnoses = { conditions: [], note: '', familyHistory: [] };
-
-    let detachedModal: HTMLDivElement | null = null;
-    if (!document.getElementById('detail-modal')) {
-      detachedModal = document.createElement('div');
-      detachedModal.id = 'detail-modal';
-      document.body.appendChild(detachedModal);
-    }
-
-    await cards.renderDiagnosesModal(document.getElementById('detail-modal'), state.importedData.diagnoses);
-    const conditionInput = (document.getElementById('condition-input') as HTMLInputElement | null);
-    conditionInput!.value = 'Alzheimer';
-    conditionInput!.dispatchEvent(new InputEvent('input', { bubbles: true }));
-    const suggestion = document.querySelector('#condition-suggestions .ctx-suggestion-item');
-    suggestion!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-    outcomes.apostropheConditionRoundTrips = conditionInput!.value === "Alzheimer's Disease";
-    document.getElementById('detail-modal')!.innerHTML = '';
-
-    const probe2 = document.createElement('div');
-    document.body.appendChild(probe2);
-    try {
-      probe2.innerHTML = `
-        <select id="fh-relative"><option value="mother" selected>Mother</option></select>
-        <input id="fh-condition" value="Type 2 Diabetes">
-        <input id="fh-age" value="45">
-        <input id="fh-note" value="on metformin">
-        <textarea id="ctx-note-input"></textarea>`;
-      cards.addFamilyHistoryEntry();
-      const familyItem = document.querySelector('#detail-modal .ctx-family-item');
-      outcomes.addFamilyHistoryEntryPushesOne = document.querySelectorAll('#detail-modal .ctx-family-item').length === 1;
-      outcomes.addedEntryFieldsMatch = familyItem?.textContent.includes('Mother')
-        && familyItem?.textContent.includes('Type 2 Diabetes')
-        && familyItem?.textContent.includes('age 45')
-        && familyItem?.textContent.includes('on metformin');
-
-      cards.editFamilyHistoryEntry(0);
-      outcomes.editFamilyHistoryPrefills = (document.getElementById('fh-relative') as HTMLSelectElement | null)?.value === 'mother'
-        && (document.getElementById('fh-condition') as HTMLInputElement | null)?.value === 'Type 2 Diabetes'
-        && (document.getElementById('fh-age') as HTMLInputElement | null)?.value === '45'
-        && (document.getElementById('fh-note') as HTMLInputElement | null)?.value === 'on metformin';
-      (document.getElementById('fh-relative') as HTMLSelectElement | null)!.value = 'father';
-      (document.getElementById('fh-condition') as HTMLInputElement | null)!.value = 'Heart Attack (MI)';
-      (document.getElementById('fh-age') as HTMLInputElement | null)!.value = '52';
-      (document.getElementById('fh-note') as HTMLInputElement | null)!.value = 'stent';
-      cards.addFamilyHistoryEntry();
-      const editedFamily = document.querySelector('#detail-modal .ctx-family-item');
-      outcomes.editedFamilyEntryUpdatesInPlace = document.querySelectorAll('#detail-modal .ctx-family-item').length === 1
-        && editedFamily?.textContent.includes('Father')
-        && editedFamily?.textContent.includes('Heart Attack (MI)')
-        && editedFamily?.textContent.includes('age 52')
-        && editedFamily?.textContent.includes('stent');
-
-      (document.getElementById('condition-input') as HTMLInputElement | null)!.value = 'Hypertension';
-      (document.getElementById('condition-since') as HTMLInputElement | null)!.value = '2020';
-      cards.addCondition();
-      cards.editCondition(0);
-      outcomes.editConditionPrefills = (document.getElementById('condition-input') as HTMLInputElement | null)?.value === 'Hypertension'
-        && (document.getElementById('condition-since') as HTMLInputElement | null)?.value === '2020';
-      (document.getElementById('condition-input') as HTMLInputElement | null)!.value = 'Psoriasis';
-      (document.getElementById('condition-since') as HTMLInputElement | null)!.value = '2022';
-      cards.addCondition();
-      const editedCondition = document.querySelector('#detail-modal .ctx-condition-item');
-      outcomes.editedConditionUpdatesInPlace = document.querySelectorAll('#detail-modal .ctx-condition-item').length === 1
-        && editedCondition?.textContent.includes('Psoriasis')
-        && editedCondition?.textContent.includes('since 2022');
-
-      cards.editFamilyHistoryEntry(0);
-      (document.getElementById('fh-relative') as HTMLSelectElement | null)!.value = 'maternal_grandmother';
-      (document.getElementById('fh-condition') as HTMLInputElement | null)!.value = "Alzheimer's Disease with early cognitive symptoms";
-      (document.getElementById('fh-age') as HTMLInputElement | null)!.value = '61';
-      (document.getElementById('fh-note') as HTMLInputElement | null)!.value = 'long note that should truncate inline instead of making the saved row tall';
-      cards.addFamilyHistoryEntry();
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-      const longRow = document.querySelector('#detail-modal .ctx-family-item');
-      const longCondition = document.querySelector('#detail-modal .ctx-family-condition');
-      const longRelative = document.querySelector('#detail-modal .ctx-family-relative-label');
-      const rowHeight = longRow?.getBoundingClientRect().height || 0;
-      outcomes.longFamilyRowStaysCompact = window.innerWidth < 600 || rowHeight <= 52;
-      outcomes.longFamilyRowTextEllipsizes = !!longCondition
-        && getComputedStyle(longCondition).whiteSpace === 'nowrap'
-        && getComputedStyle(longCondition).textOverflow === 'ellipsis'
-        && !!longRelative
-        && getComputedStyle(longRelative).textOverflow === 'ellipsis';
-
-      cards.saveDiagnoses();
-
-      document.getElementById('detail-modal')!.innerHTML = '';
-      probe2.innerHTML = `
-        <select id="fh-relative"><option value="__evil_relative" selected>x</option></select>
-        <input id="fh-condition" value="something">
-        <input id="fh-age" value="50">
-        <input id="fh-note" value="">
-        <textarea id="ctx-note-input"></textarea>`;
-      const beforeReject = state.importedData.diagnoses!.familyHistory!.length;
-      cards.addFamilyHistoryEntry();
-      outcomes.tamperedRelativeRejected = state.importedData.diagnoses!.familyHistory!.length === beforeReject;
-
-      const beforeDelete = state.importedData.diagnoses!.familyHistory!.length;
-      cards.deleteFamilyHistoryEntry(0);
-      cards.saveDiagnoses();
-      outcomes.deleteFamilyHistoryRemovesByIndex = state.importedData.diagnoses!.familyHistory!.length === beforeDelete - 1;
-    } finally {
-      probe2.remove();
-      detachedModal?.remove();
-      state.importedData.diagnoses = originalDiagnoses;
-    }
-
-    return outcomes;
+import type { Page } from '@playwright/test';
+import { createRequire } from 'node:module';
+const axePath = createRequire(import.meta.url).resolve('axe-core/axe.min.js');
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    for (const key of ['tour', 'emptyTour']) localStorage.setItem(`labcharts-default-${key}`, 'completed');
+    localStorage.setItem('labcharts-encryption-nudge-dismissed', 'true'); localStorage.setItem('labcharts-ai-paused', 'true');
   });
-
-  for (const [name, passed] of Object.entries(results)) {
-    expect(passed, name).toBe(true);
-  }
 });
-
-test('medical history editor handlers cover autocomplete save clear and close flows', async ({ page }) => {
-  await page.goto('/js/context-card-medical-history-editor.js', { waitUntil: 'load' });
-
-  const results = await page.evaluate(async ({ editorUrl }) => {
-    const [{ state }, editor] = await Promise.all([
-      import('/js/state.js'),
-      (import(editorUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/context-card-medical-history-editor.js'), "openDiagnosesEditor" | "addCondition" | "saveDiagnoses" | "clearDiagnoses" | "configureMedicalHistoryEditor" | "filterConditionSuggestions" | "selectConditionSuggestion" | "editCondition" | "cancelConditionEdit" | "deleteCondition" | "filterFamilyConditionSuggestions" | "selectFamilyConditionSuggestion" | "addFamilyHistoryEntry" | "editFamilyHistoryEntry" | "cancelFamilyHistoryEdit" | "deleteFamilyHistoryEntry" | "renderDiagnosesModal" | "closeDiagnoses" | "closeSuggestionsOnClickOutside">>,
-    ]);
-    const clone = (value: unknown) => value == null ? value : (JSON.parse as (text: string) => unknown)(JSON.stringify(value));
-    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-    const waitFor = async (predicate: () => unknown | Promise<unknown>, attempts = 100) => {
-      for (let i = 0; i < attempts; i += 1) {
-        try {
-          if (await predicate()) return true;
-        } catch {}
-        await delay(10);
-      }
-      return false;
-    };
-    const byId = <Id extends string>(id: Id): MedicalControl<Id> => {
-      const el = document.getElementById(id);
-      if (!el) throw new Error(`Expected #${id} in medical history editor`);
-      return el as MedicalControl<Id>;
-    };
-    const outcomes: Record<string, unknown> = {};
-    const calls: unknown[][] = [];
-    const saved = {
-      importedData: clone(state.importedData),
-      profileSex: state.profileSex,
-    };
-    let outside: HTMLButtonElement | null = null;
-
-    try {
-      state.profileSex = 'male';
-      state.importedData = {
-        ...state.importedData,
-        diagnoses: {
-          conditions: [{ name: 'Hypertension', severity: 'mild', since: '2019' }],
-          proceduresNote: 'Appendectomy in 2010',
-          note: 'baseline note',
-          familyHistory: [{ relative: 'father', condition: 'Heart Attack (MI)', onsetAge: 52, note: 'stent' }],
-        },
-      };
-
-      let overlay = document.getElementById('modal-overlay');
-      if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.id = 'modal-overlay';
-        document.body.appendChild(overlay);
-      }
-      let modal = document.getElementById('detail-modal');
-      if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'detail-modal';
-        overlay.appendChild(modal);
-      }
-      outside = document.createElement('button');
-      outside.id = 'medical-history-outside';
-      outside.textContent = 'outside';
-      document.body.appendChild(outside);
-
-      editor.configureMedicalHistoryEditor({
-        close: () => {
-          calls.push(['close']);
-          overlay.classList.remove('show');
-        },
-        recordChange: (field: unknown) => calls.push(['record', field]),
-        saveAndRefresh: (msg: unknown, field: unknown) => calls.push(['saveRefresh', msg, field]),
-      });
-
-      await editor.openDiagnosesEditor();
-      const editorReady = await waitFor(() => [
-        'condition-input',
-        'condition-suggestions',
-        'condition-since',
-        'condition-status',
-        'diagnosis-procedures-input',
-        'fh-relative',
-        'fh-condition',
-        'fh-condition-suggestions',
-        'fh-age',
-        'fh-note',
-        'ctx-note-input',
-      ].every(id => document.getElementById(id)));
-      if (!editorReady) throw new Error('Medical history editor controls did not render');
-      outcomes.medicalHistoryInputsUseDelegatedKeydown =
-        byId('condition-input').onkeydown === null &&
-        byId('fh-condition').onkeydown === null;
-      outcomes.openDiagnosesEditorShowsSeededModal = overlay.classList.contains('show') === true
-        && modal.getAttribute('aria-label') === 'Medical History'
-        && modal.textContent.includes('Hypertension')
-        && modal.textContent.includes('Father')
-        && byId('diagnosis-procedures-input').value === 'Appendectomy in 2010';
-      outcomes.extendedFamilyChoicesStayCompactAndLineageAware = Array.from(byId('fh-relative').options)
-        .some(option => option.value === 'half_sibling')
-        && Array.from(byId('fh-relative').options).some(option => option.value === 'maternal_relative')
-        && Array.from(byId('fh-relative').options).some(option => option.value === 'paternal_relative');
-
-      const conditionInput = byId('condition-input');
-      conditionInput!.value = 'endo';
-      editor.filterConditionSuggestions();
-      outcomes.conditionSuggestionsRespectMaleProfile = !byId('condition-suggestions').textContent.includes('Endometriosis');
-
-      conditionInput!.value = 'hypertension';
-      editor.filterConditionSuggestions();
-      outcomes.conditionSuggestionsSkipExistingConditions = byId('condition-suggestions').children.length === 0;
-
-      byId('condition-suggestions').innerHTML = '<div class="ctx-suggestion-item">stale</div>';
-      editor.selectConditionSuggestion("Hashimoto's");
-      outcomes.selectConditionSuggestionSetsInputAndClearsMenu = conditionInput!.value === "Hashimoto's"
-        && byId('condition-suggestions').children.length === 0;
-
-      byId('condition-suggestions').innerHTML = '<div class="ctx-suggestion-item">condition</div>';
-      byId('fh-condition-suggestions').innerHTML = '<div class="ctx-suggestion-item">family</div>';
-      outside.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-      outcomes.outsideClickClosesBothSuggestionMenus = byId('condition-suggestions').children.length === 0
-        && byId('fh-condition-suggestions').children.length === 0;
-
-      byId('condition-input').value = "Hashimoto's";
-      byId('condition-since').value = '2021';
-      byId('condition-status').querySelector<HTMLElement>('[data-context-value="controlled"]')?.click();
-      byId('diagnosis-procedures-input').value = 'Appendectomy in 2010; thyroid biopsy';
-      byId('ctx-note-input').value = 'diagnoses note from add';
-      editor.addCondition();
-      const addedCondition = document.querySelectorAll('#detail-modal .ctx-condition-item')[1];
-      outcomes.addConditionAppendsAndSyncsNote = state.importedData.diagnoses!.conditions!.length === 1
-        && document.querySelectorAll('#detail-modal .ctx-condition-item').length === 2
-        && addedCondition?.textContent.includes("Hashimoto's")
-        && addedCondition?.textContent.includes('controlled')
-        && addedCondition?.textContent.includes('since 2021')
-        && byId('diagnosis-procedures-input').value.includes('thyroid biopsy')
-        && byId('ctx-note-input').value === 'diagnoses note from add';
-
-      const beforeEmptyAdd = document.querySelectorAll('#detail-modal .ctx-condition-item').length;
-      byId('condition-input').value = '';
-      editor.addCondition();
-      outcomes.emptyConditionIsIgnored = document.querySelectorAll('#detail-modal .ctx-condition-item').length === beforeEmptyAdd;
-
-      editor.editCondition(1);
-      outcomes.editConditionPrefillsSelectedRow = byId('condition-input').value === "Hashimoto's"
-        && byId('condition-since').value === '2021'
-        && document.querySelector('#detail-modal .ctx-condition-item.is-editing')?.textContent.includes("Hashimoto's");
-
-      byId('diagnosis-procedures-input').value = 'Unsaved procedure retained after condition cancel';
-      byId('ctx-note-input').value = 'Unsaved note retained after condition cancel';
-      editor.cancelConditionEdit();
-      outcomes.cancelConditionEditClearsEditingState = document.querySelector('#detail-modal .ctx-condition-item.is-editing') === null
-        && byId('diagnosis-procedures-input').value === 'Unsaved procedure retained after condition cancel'
-        && byId('ctx-note-input').value === 'Unsaved note retained after condition cancel';
-
-      editor.editCondition(1);
-      byId('condition-input').value = 'Psoriasis';
-      byId('condition-since').value = '2022';
-      document.querySelectorAll('#condition-severity .ctx-btn-option').forEach(btn => btn.classList.remove('active'));
-      Array.from(document.querySelectorAll('#condition-severity .ctx-btn-option'))
-        .find(btn => btn.textContent.trim() === 'Low')
-        ?.classList.add('active');
-      editor.addCondition();
-      const updatedCondition = document.querySelectorAll('#detail-modal .ctx-condition-item')[1];
-      outcomes.editConditionUpdatesInPlace = document.querySelectorAll('#detail-modal .ctx-condition-item').length === 2
-        && updatedCondition?.textContent.includes('Psoriasis')
-        && updatedCondition?.textContent.includes('Low')
-        && updatedCondition?.textContent.includes('since 2022');
-
-      editor.deleteCondition(0);
-      outcomes.deleteConditionRemovesByIndex = document.querySelectorAll('#detail-modal .ctx-condition-item').length === 1
-        && document.querySelector('#detail-modal .ctx-condition-item')?.textContent.includes('Psoriasis');
-
-      byId('fh-condition').value = 'alzh';
-      editor.filterFamilyConditionSuggestions();
-      outcomes.familyConditionSuggestionsRenderMatches = byId('fh-condition-suggestions').textContent.includes("Alzheimer's Disease") === true;
-
-      editor.selectFamilyConditionSuggestion("Alzheimer's Disease");
-      outcomes.selectFamilySuggestionSetsInputAndClearsMenu = byId('fh-condition').value === "Alzheimer's Disease"
-        && byId('fh-condition-suggestions').children.length === 0;
-
-      const beforeInvalidFamily = document.querySelectorAll('#detail-modal .ctx-family-item').length;
-      const relative = byId('fh-relative');
-      relative.insertAdjacentHTML('beforeend', '<option value="__invalid_relative">Invalid</option>');
-      relative.value = '__invalid_relative';
-      byId('fh-condition').value = 'Asthma';
-      editor.addFamilyHistoryEntry();
-      outcomes.invalidRelativeIsRejected = document.querySelectorAll('#detail-modal .ctx-family-item').length === beforeInvalidFamily;
-
-      relative.value = 'child';
-      byId('fh-condition').value = 'Asthma';
-      byId('fh-age').value = '200';
-      byId('fh-note').value = 'childhood';
-      editor.addFamilyHistoryEntry();
-      const addedFamily = document.querySelectorAll('#detail-modal .ctx-family-item')[1];
-      outcomes.addFamilyHistoryClampsAge = document.querySelectorAll('#detail-modal .ctx-family-item').length === 2
-        && addedFamily?.textContent.includes('Child')
-        && addedFamily?.textContent.includes('age 120')
-        && addedFamily?.textContent.includes('childhood');
-
-      editor.editFamilyHistoryEntry(1);
-      outcomes.editFamilyHistoryPrefillsSelectedRow = byId('fh-relative').value === 'child'
-        && byId('fh-condition').value === 'Asthma'
-        && document.querySelector('#detail-modal .ctx-family-item.is-editing')?.textContent.includes('Asthma');
-
-      byId('diagnosis-procedures-input').value = 'Unsaved procedure retained after family cancel';
-      byId('ctx-note-input').value = 'Unsaved note retained after family cancel';
-      editor.cancelFamilyHistoryEdit();
-      outcomes.cancelFamilyHistoryEditClearsEditingState = document.querySelector('#detail-modal .ctx-family-item.is-editing') === null
-        && byId('diagnosis-procedures-input').value === 'Unsaved procedure retained after family cancel'
-        && byId('ctx-note-input').value === 'Unsaved note retained after family cancel';
-
-      editor.editFamilyHistoryEntry(1);
-      byId('fh-relative').value = 'mother';
-      byId('fh-condition').value = 'Breast Cancer';
-      byId('fh-age').value = '-5';
-      byId('fh-note').value = 'BRCA';
-      editor.addFamilyHistoryEntry();
-      const updatedFamily = Array.from(document.querySelectorAll('#detail-modal .ctx-family-item'))
-        .find(item => item.textContent.includes('Breast Cancer'));
-      outcomes.editFamilyHistoryUpdatesInPlaceAndClampsLowAge = document.querySelectorAll('#detail-modal .ctx-family-item').length === 2
-        && updatedFamily?.textContent.includes('Mother')
-        && updatedFamily?.textContent.includes('Breast Cancer')
-        && updatedFamily?.textContent.includes('age 0')
-        && updatedFamily?.textContent.includes('BRCA');
-
-      editor.deleteFamilyHistoryEntry(0);
-      outcomes.deleteFamilyHistoryRemovesByIndex = document.querySelectorAll('#detail-modal .ctx-family-item').length === 1
-        && document.querySelector('#detail-modal .ctx-family-item')?.textContent.includes('Mother');
-
-      byId('ctx-note-input').value = 'final saved note';
-      editor.saveDiagnoses();
-      outcomes.saveDiagnosesCallsConfiguredRefresh = state.importedData.diagnoses!.note === 'final saved note'
-        && state.importedData.diagnoses!.conditions!.length === 1
-        && state.importedData.diagnoses!.conditions![0]!.name === 'Psoriasis'
-        && state.importedData.diagnoses!.conditions![0]!.severity === 'minor'
-        && state.importedData.diagnoses!.conditions![0]!.status === 'controlled'
-        && state.importedData.diagnoses!.proceduresNote === 'Unsaved procedure retained after family cancel'
-        && state.importedData.diagnoses!.familyHistory!.length === 1
-        && state.importedData.diagnoses!.familyHistory![0]!.relative === 'mother'
-        && calls.some(call => call[0] === 'saveRefresh' && call[1] === 'Medical history saved' && call[2] === 'diagnoses');
-
-      state.importedData.diagnoses = { conditions: [], note: '', familyHistory: [] };
-      editor.renderDiagnosesModal(modal, state.importedData.diagnoses);
-      byId('ctx-note-input').value = '';
-      editor.saveDiagnoses();
-      outcomes.saveEmptyDiagnosesClearsState = state.importedData.diagnoses === null;
-
-      state.importedData.diagnoses = { conditions: [{ name: 'Migraine', severity: 'minor' }], note: '', familyHistory: [] };
-      editor.clearDiagnoses();
-      outcomes.clearDiagnosesClearsAndRefreshes = state.importedData.diagnoses === null
-        && calls.some(call => call[0] === 'saveRefresh' && call[1] === 'Medical history cleared' && call[2] === 'diagnoses');
-
-      overlay.classList.add('show');
-      editor.closeDiagnoses();
-      outcomes.closeDiagnosesDelegatesToCloseModal = overlay.classList.contains('show') === false
-        && calls.some(call => call[0] === 'close');
-    } finally {
-      document.removeEventListener('click', editor.closeSuggestionsOnClickOutside);
-      (state as { importedData: unknown }).importedData = saved.importedData;
-      state.profileSex = saved.profileSex;
-      document.getElementById('modal-overlay')?.classList.remove('show');
-      const modal = document.getElementById('detail-modal');
-      if (modal) modal.innerHTML = '';
-      outside?.remove();
+async function seed(page: Page) {
+  await page.evaluate(async () => {
+    const [{ state }, profile, data, editor] = await Promise.all([import('/js/state.js'), import('/js/profile.js'), import('/js/data.js'), import('/js/context-card-medical-history-editor.js')]);
+    state.importedData = profile.createDefaultProfileData(); state.profileSex = 'male';
+    state.importedData.diagnoses = { conditions: [{ name: 'Hypertension', severity: 'mild', since: '2020', status: 'controlled', source: { id: 'legacy-condition' } }], familyHistory: [{ relative: 'paternal_relative', condition: 'Later row', source: 'family-peer' }, { relative: 'mother', condition: 'Type 2 Diabetes', onsetAge: 45, note: 'metformin' }], flags: { futureFlag: true }, note: 'Original <note>', proceduresNote: '', extension: { keep: true } };
+    if (!await data.saveImportedData()) throw new Error('Medical seed failed'); await editor.openDiagnosesEditor();
+  });
+  await expect(page.locator('[data-context-medical-view]')).toBeVisible();
+}
+async function stored(page: Page) {
+  return page.evaluate(async () => { const [{ state }, crypto, profile] = await Promise.all([import('/js/state.js'), import('/js/crypto.js'), import('/js/profile.js')]); return JSON.parse((await crypto.encryptedGetItem(profile.profileStorageKey(state.currentProfile, 'imported')))!); });
+}
+const open = (page: Page) => page.evaluate(async () => { await (await import('/js/context-card-medical-history-editor.js')).openDiagnosesEditor(); });
+test('authored medical history edits literal conditions, sorted relatives, procedures and all flags without losing metadata or drafts', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' }); await seed(page); const modal = page.locator('#detail-modal'); const baseline = await stored(page);
+  await modal.locator('#ctx-note-input').fill('  Literal <script> & notes  '); await modal.locator('summary').filter({ hasText: /^Major procedures/ }).click(); await modal.locator('#diagnosis-procedures-input').fill('  Surgery <literal>  ');
+  await modal.locator('summary').filter({ hasText: /^Interpretation flags/ }).click(); for (const key of ['lowMuscleMass', 'hormoneTherapy', 'postmenopause', 'intenseTrainingRecent', 'acuteIllnessNearDraw']) await modal.locator(`#diagnosis-flag-${key}`).check();
+  await modal.locator('#ctx-family-section > summary').click(); await modal.locator('#fh-note').fill('Family input kept');
+  const condition = modal.getByRole('combobox', { name: 'Condition name' }); await condition.fill('PCOS'); await expect(modal.locator('#condition-suggestions')).toBeHidden(); await condition.fill('Alzheimer'); await expect(modal.getByRole('option', { name: "Alzheimer's Disease", exact: true })).toBeVisible();
+  await condition.press('ArrowDown'); await condition.press('Enter'); await expect(condition).toHaveValue("Alzheimer's Disease"); await condition.press('Enter');
+  await expect(modal.locator('.ctx-condition-item')).toHaveCount(2); await expect(modal.locator('#fh-note')).toHaveValue('Family input kept'); await expect(modal.locator('#ctx-note-input')).toHaveValue('  Literal <script> & notes  '); await expect(modal.locator('#diagnosis-flag-lowMuscleMass')).toBeChecked();
+  await condition.fill('Alzheimer'); await expect(modal.getByRole('option', { name: "Alzheimer's Disease", exact: true })).toHaveCount(0);
+  await modal.locator('.ctx-condition-item').first().getByRole('button', { name: 'Edit condition', exact: true }).click(); await expect(condition).toHaveValue('Hypertension'); await modal.locator('#condition-severity').getByRole('button', { name: 'High', exact: true }).click(); await modal.locator('#condition-status').getByRole('button', { name: 'resolved', exact: true }).click(); await condition.fill('Psoriasis <literal>'); await modal.locator('#condition-since').fill('2022'); await modal.getByRole('button', { name: 'Update condition', exact: true }).click();
+  const relatives = modal.locator('.ctx-family-item'); await expect(relatives.first()).toContainText('Mother'); await expect(relatives.nth(1)).toContainText('Other paternal relative');
+  await relatives.nth(1).getByRole('button', { name: 'Edit family history entry', exact: true }).click(); await modal.locator('#fh-relative').selectOption('father'); await modal.locator('#fh-condition').fill('Heart Attack (MI)'); await modal.locator('#fh-age').fill('130'); await modal.locator('#fh-note').fill('stent <note>'); await modal.getByRole('button', { name: 'Update family entry', exact: true }).click();
+  await expect(relatives).toHaveCount(2); await expect(relatives.nth(1)).toContainText('Father'); await expect(relatives.nth(1)).toContainText('age 120'); expect(await stored(page)).toEqual(baseline); expect(await modal.locator('script, literal').count()).toBe(0);
+  await modal.getByRole('button', { name: 'Save', exact: true }).focus(); await page.keyboard.press('Enter'); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/);
+  const saved = await stored(page); expect(saved.diagnoses.conditions[0]).toEqual({ name: 'Psoriasis <literal>', severity: 'major', status: 'resolved', since: '2022', source: { id: 'legacy-condition' } }); expect(saved.diagnoses.familyHistory[0]).toEqual({ relative: 'father', condition: 'Heart Attack (MI)', onsetAge: 120, note: 'stent <note>', source: 'family-peer' }); expect(saved.diagnoses.familyHistory[1]).toEqual(baseline.diagnoses.familyHistory[1]); expect(saved.diagnoses.note).toBe('Literal <script> & notes'); expect(saved.diagnoses.proceduresNote).toBe('Surgery <literal>'); expect(saved.diagnoses.extension).toEqual({ keep: true }); expect(saved.diagnoses.flags).toEqual({ futureFlag: true, lowMuscleMass: true, hormoneTherapy: true, postmenopause: true, intenseTrainingRecent: true, acuteIllnessNearDraw: true }); expect(saved.changeHistory.filter((entry: { field: string }) => entry.field === 'diagnoses')).toEqual([expect.objectContaining({ snapshot: saved.diagnoses })]);
+  await open(page); await modal.locator('.ctx-condition-item').first().getByRole('button', { name: 'Remove condition', exact: true }).click(); await modal.locator('#ctx-family-section > summary').click(); await modal.locator('.ctx-family-item').first().getByRole('button', { name: 'Remove entry', exact: true }).click(); await modal.getByRole('button', { name: 'Save', exact: true }).click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/); const deleted = await stored(page); expect(deleted.diagnoses.conditions).toHaveLength(1); expect(deleted.diagnoses.familyHistory).toEqual([saved.diagnoses.familyHistory[0]]);
+});
+test('authored medical history cancels edits, dismisses suggestions, and confirms clear without premature writes', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' }); await seed(page); const before = await stored(page), modal = page.locator('#detail-modal');
+  await modal.locator('.ctx-condition-item').getByRole('button', { name: 'Edit condition', exact: true }).click(); await modal.locator('#condition-input').fill('Discard condition'); await modal.getByRole('button', { name: 'Cancel condition edit', exact: true }).click(); await expect(modal.locator('#condition-input')).toHaveValue('');
+  await modal.locator('#ctx-family-section > summary').click(); await modal.locator('.ctx-family-item').first().getByRole('button', { name: 'Edit family history entry', exact: true }).click(); await modal.locator('#fh-condition').fill('Alzheimer'); await expect(modal.getByRole('option', { name: "Alzheimer's Disease", exact: true })).toBeVisible(); await modal.locator('#fh-condition').press('Escape'); await expect(modal.locator('#fh-condition-suggestions')).toBeHidden(); await expect(page.locator('#modal-overlay')).toHaveClass(/show/); await modal.getByRole('button', { name: 'Cancel family edit', exact: true }).click();
+  await modal.locator('#condition-input').fill('Migraine'); await modal.getByRole('heading', { name: 'Medical History', exact: true }).click(); await expect(modal.locator('#condition-suggestions')).toBeHidden(); await modal.locator('#ctx-note-input').fill('Discard notes'); await modal.getByRole('button', { name: 'Cancel', exact: true }).click(); expect(await stored(page)).toEqual(before);
+  await open(page); await modal.getByRole('button', { name: 'Clear', exact: true }).click(); await page.locator('#confirm-cancel').click(); expect(await stored(page)).toEqual(before); await expect(modal.locator('#ctx-note-input')).toHaveValue(before.diagnoses.note);
+  await modal.getByRole('button', { name: 'Clear', exact: true }).click(); await page.locator('#confirm-ok').click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/); const saved = await stored(page); expect(saved.diagnoses).toBeNull(); expect(saved.changeHistory.at(-1)).toMatchObject({ field: 'diagnoses', snapshot: null });
+});
+test('authored medical history keeps a failed storage draft for retry', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' }); await seed(page); const before = await stored(page), modal = page.locator('#detail-modal');
+  await page.evaluate(() => { const original = IDBObjectStore.prototype.put; let attempts = 0; IDBObjectStore.prototype.put = function(value, key) { if (String(key).endsWith('-imported') && ++attempts === 1) throw new DOMException('Simulated storage failure', 'QuotaExceededError'); return original.call(this, value, key); }; });
+  await modal.locator('#ctx-note-input').fill('Retry <notes>'); await modal.getByRole('button', { name: 'Save', exact: true }).click(); await expect(modal.getByRole('status')).toContainText('Not saved — try again'); await expect(modal.locator('#ctx-note-input')).toHaveValue('Retry <notes>'); expect(await stored(page)).toEqual(before);
+  await modal.getByRole('button', { name: 'Save', exact: true }).click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/); expect((await stored(page)).diagnoses.note).toBe('Retry <notes>');
+});
+test('authored medical history retains a draft and refuses to overwrite a peer edit', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' }); await seed(page); const modal = page.locator('#detail-modal'); await modal.locator('#ctx-note-input').fill('Local draft');
+  await page.evaluate(async () => { const [{ state }, crypto, profile] = await Promise.all([import('/js/state.js'), import('/js/crypto.js'), import('/js/profile.js')]); const key = profile.profileStorageKey(state.currentProfile, 'imported'), saved = JSON.parse((await crypto.encryptedGetItem(key))!); saved.diagnoses.note = 'Peer note'; await crypto.encryptedSetItem(key, JSON.stringify(saved)); window.dispatchEvent(new CustomEvent('labcharts-sync-applied')); });
+  await expect(modal.locator('#ctx-note-input')).toHaveValue('Local draft'); await modal.getByRole('button', { name: 'Save', exact: true }).click(); await expect(modal.getByRole('status')).toContainText('changed elsewhere'); await expect(modal.locator('#ctx-note-input')).toHaveValue('Local draft'); expect((await stored(page)).diagnoses.note).toBe('Peer note');
+});
+test('authored medical history public helpers affect only current controls and retire with replacement/profile change', async ({ page }) => {
+  await page.goto('/app', { waitUntil: 'load' }); await seed(page); const modal = page.locator('#detail-modal');
+  await page.evaluate(async () => { const editor = await import('/js/context-card-medical-history-editor.js'); (document.querySelector('#condition-input') as HTMLInputElement).value = "Alzheimer's Disease"; editor.selectConditionSuggestion("Alzheimer's Disease"); editor.addCondition(); editor.editCondition(1); editor.cancelConditionEdit(); editor.filterFamilyConditionSuggestions(); editor.selectFamilyConditionSuggestion('Breast Cancer'); editor.syncDiagnosesNote(); });
+  await expect(modal.locator('.ctx-condition-item')).toHaveCount(2); await expect(modal.locator('#fh-condition')).toHaveValue('Breast Cancer');
+  await page.evaluate(async () => { Reflect.set(window, 'retiredMedicalSave', document.querySelector('[data-context-medical-view] footer button')); await (await import('/js/context-card-lifestyle-editors.js')).openSleepRestEditor(); (Reflect.get(window, 'retiredMedicalSave') as HTMLButtonElement).click(); await (await import('/js/context-card-medical-history-editor.js')).saveDiagnoses(); });
+  await expect(modal.locator('[data-context-form-view="sleepRest"]')).toBeVisible(); expect((await stored(page)).diagnoses.conditions).toHaveLength(1);
+  await open(page); await modal.getByRole('button', { name: 'Clear', exact: true }).click(); await page.evaluate(async () => { const [{ state }, profile] = await Promise.all([import('/js/state.js'), import('/js/profile.js')]); state.currentProfile = 'retired-medical'; state.importedData = profile.createDefaultProfileData(); state.importedData.diagnoses = { note: 'Other' }; window.dispatchEvent(new CustomEvent('labcharts-profile-switched')); }); await page.locator('#confirm-ok').click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/); expect(await page.evaluate(async () => (await import('/js/state.js')).state.importedData.diagnoses)).toEqual({ note: 'Other' });
+});
+test('authored medical history cold module replies cannot open over a replacement dialog', async ({ page }) => {
+  let release!: () => void, requested!: () => void; const held = new Promise<void>(resolve => { release = resolve; }), started = new Promise<void>(resolve => { requested = resolve; });
+  await page.route('**/js/context-card-medical-history-editor-impl.js*', async route => { requested(); await held; await route.continue(); }); await page.goto('/app', { waitUntil: 'load' });
+  const opening = page.evaluate(async () => { await (await import('/js/context-card-medical-history-editor.js')).openDiagnosesEditor(); }); await started; await page.evaluate(async () => { await (await import('/js/context-card-lifestyle-editors.js')).openStressEditor(); }); release(); await opening; await expect(page.locator('[data-context-form-view="stress"]')).toBeVisible(); await expect(page.locator('[data-context-medical-view]')).toHaveCount(0);
+});
+test('authored medical history retries a failed stylesheet using the fixed retry URL', async ({ page }) => {
+  const requests: string[] = []; await page.route('**/css/context-editor.css*', async route => { requests.push(route.request().url()); if (!route.request().url().includes('lazy-retry=1')) return route.fulfill({ status: 503, body: '', contentType: 'text/css' }); await route.continue(); });
+  await page.goto('/app', { waitUntil: 'load' }); await open(page); await expect(page.locator('[data-context-medical-view]')).toHaveCount(0); await expect(page.locator('.notification-toast')).toContainText('could not be loaded'); await open(page); await expect(page.locator('[data-context-medical-view]')).toBeVisible(); expect(requests).toHaveLength(2); expect(requests[1]).toContain('lazy-retry=1');
+});
+test('authored medical history themes and narrow layouts retain accessible keyboard controls', async ({ page }) => {
+  test.setTimeout(120000); await page.addInitScript({ path: axePath }); await page.goto('/app', { waitUntil: 'load' }); await seed(page); const modal = page.locator('#detail-modal');
+  await page.evaluate(async () => { const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = '/themes-extra.css'; document.head.append(link); await new Promise<void>((resolve, reject) => { link.onload = () => resolve(); link.onerror = () => reject(new Error('Themes unavailable')); }); });
+  await modal.locator('#ctx-family-section > summary').click(); await modal.locator('summary').filter({ hasText: /^Major procedures/ }).click(); await modal.locator('summary').filter({ hasText: /^Interpretation flags/ }).click();
+  await modal.locator('.ctx-family-item').nth(1).getByRole('button', { name: 'Edit family history entry', exact: true }).click();
+  await modal.locator('#fh-condition').fill("Alzheimer's Disease with early cognitive symptoms and a very long literal description");
+  await modal.locator('#fh-note').fill('Long family note retained in storage and readable through the full field when editing');
+  await modal.getByRole('button', { name: 'Update family entry', exact: true }).click();
+  for (const theme of ['dark', 'light', 'cyberterm', 'glass', 'neuromancer', 'synth-sunrise']) for (const width of [320, 1100]) {
+    await page.evaluate(value => { document.documentElement.dataset.theme = value; }, theme); await page.setViewportSize({ width, height: 900 }); expect(await modal.evaluate(root => root.scrollWidth <= root.clientWidth + 1), `${theme}/${width} overflow`).toBe(true);
+    expect(await modal.evaluate(async root => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(root, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(violation => ({ id: violation.id, nodes: violation.nodes.map(node => ({ target: node.target, summary: node.failureSummary })) }))), `${theme}/${width} accessibility`).toEqual([]);
+    expect(await modal.locator('.ctx-condition-name').first().evaluate(name => name.getBoundingClientRect().height <= parseFloat(getComputedStyle(name).fontSize) * 1.5), `${theme}/${width} condition name stays on one line`).toBe(true);
+    const familyCondition = modal.locator('.ctx-family-condition').nth(1);
+    await expect(familyCondition).toHaveCSS('white-space', 'nowrap'); await expect(familyCondition).toHaveCSS('text-overflow', 'ellipsis');
+    if (width > 600) {
+      expect((await modal.locator('.ctx-family-item').nth(1).boundingBox())!.height, `${theme} compact family row with touch targets`).toBeLessThanOrEqual(56);
+      await expect(modal.locator('[title="Other paternal relative"]').first()).toHaveCSS('text-overflow', 'ellipsis');
     }
-
-    return outcomes;
-  }, { editorUrl: moduleUrl('/js/context-card-medical-history-editor.js') });
-
-  for (const [name, passed] of Object.entries(results)) {
-    expect(passed, name).toBe(true);
+    for (const control of await modal.getByRole('button').all()) expect((await control.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   }
+  await modal.locator('#condition-input').fill('Migraine'); await modal.locator('#condition-input').press('ArrowDown'); await modal.locator('#condition-input').press('Enter'); await expect(modal.locator('#condition-input')).toHaveValue('Migraine'); await modal.locator('#condition-input').press('Enter'); await expect(modal.locator('.ctx-condition-item')).toHaveCount(2);
 });

@@ -3,6 +3,7 @@ type MedicalHistoryEditorModule = typeof import('./context-card-medical-history-
 // context-card-medical-history-editor.js - cold-safe Medical History editor facade
 
 import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
+import { state } from './state.js';
 import { selectCtxOption } from './context-card-editor-ui.js';
 import { showConfirmDialog, showNotification } from './utils.js';
 
@@ -35,9 +36,10 @@ export function loadMedicalHistoryEditor() {
 }
 
 
-export function configureMedicalHistoryEditor({ close, recordChange, saveAndRefresh }: MedicalHistoryEditorDependencies = {}) {
+export function configureMedicalHistoryEditor({ close, recordChange, saveAndRefresh, afterCommit }: MedicalHistoryEditorDependencies = {}) {
 
   const update: typeof medicalHistoryEditorDeps = {};
+  if (typeof afterCommit === 'function') { medicalHistoryEditorDeps.afterCommit = afterCommit; update.afterCommit = afterCommit; }
   if (typeof close === 'function') {
     medicalHistoryEditorDeps.close = close;
     update.close = close;
@@ -54,8 +56,17 @@ export function configureMedicalHistoryEditor({ close, recordChange, saveAndRefr
 }
 
 
+let openRequest = 0;
+if (typeof globalThis.addEventListener === 'function') globalThis.addEventListener('labcharts-profile-switched', () => { ++openRequest; });
+
 function runMedicalHistoryEditorAction(name: keyof MedicalHistoryEditorModule, args: unknown[], shouldLoad: boolean = true) {
+  const opening = name === 'openDiagnosesEditor' || name === 'renderDiagnosesModal';
+  const origin = state.importedData, profile = state.currentProfile, ticket = opening ? ++openRequest : openRequest;
+  const surface = typeof document === 'undefined' ? undefined : document.getElementById('main-content')?.firstElementChild;
+  const content = typeof document === 'undefined' ? undefined : document.getElementById('detail-modal')?.firstElementChild;
   const run = (module: MedicalHistoryEditorModule): unknown => {
+    if (opening && (ticket !== openRequest || origin !== state.importedData || profile !== state.currentProfile
+      || (typeof document !== 'undefined' && (document.getElementById('main-content')?.firstElementChild !== surface || document.getElementById('detail-modal')?.firstElementChild !== content)))) return undefined;
     const action = module[name];
     if (typeof action !== 'function') {
       throw new Error(`Medical history editor action ${String(name)} is unavailable`);
@@ -101,7 +112,7 @@ async function confirmClearMedicalHistory() {
 
 function handleMedicalHistoryClick(event: MouseEvent) {
   const actionEl = closestMedicalHistoryElement(event.target, '[data-medical-history-action]');
-  if (!actionEl) return;
+  if (!actionEl || actionEl.closest('[data-context-medical-view]')) return;
   const action = actionEl.dataset.medicalHistoryAction || '';
   const idx = getMedicalHistoryIndex(actionEl);
   switch (action) {
@@ -124,7 +135,7 @@ function handleMedicalHistoryClick(event: MouseEvent) {
 
 function handleMedicalHistoryFieldActivity(event: Event) {
   const input = closestMedicalHistoryElement(event.target, '#condition-input, #fh-condition');
-  if (!input) return;
+  if (!input || input.closest('[data-context-medical-view]')) return;
   if (input.id === 'condition-input') filterConditionSuggestions();
   else filterFamilyConditionSuggestions();
 }
@@ -137,7 +148,7 @@ function handleMedicalHistoryFocusIn(event: FocusEvent) { handleMedicalHistoryFi
 
 function handleMedicalHistoryKeydown(event: KeyboardEvent) {
   const input = closestMedicalHistoryElement(event.target, '#condition-input, #fh-condition');
-  if (!input || event.key !== 'Enter') return;
+  if (!input || input.closest('[data-context-medical-view]') || event.key !== 'Enter') return;
   event.preventDefault();
   if (input.id === 'condition-input') addCondition();
   else addFamilyHistoryEntry();
@@ -146,7 +157,7 @@ function handleMedicalHistoryKeydown(event: KeyboardEvent) {
 
 function handleMedicalHistoryMouseDown(event: MouseEvent) {
   const item = closestMedicalHistoryElement(event.target, '[data-medical-history-suggestion]');
-  if (!item) return;
+  if (!item || item.closest('[data-context-medical-view]')) return;
   event.preventDefault();
   const value = item.dataset.medicalHistoryValue || '';
   if (item.dataset.medicalHistorySuggestion === 'family-condition') {
@@ -158,11 +169,12 @@ function handleMedicalHistoryMouseDown(event: MouseEvent) {
 
 
 export function closeSuggestionsOnClickOutside(event: MouseEvent) {
+  medicalHistoryEditorModuleLoader.module?.hideMedicalHistorySuggestions?.(event);
   const container = document.getElementById('condition-suggestions');
   const input = document.getElementById('condition-input');
   const target = (event.target as Node | null);
   if (target && container && input && !input.contains(target) && !container.contains(target)) {
-    container.innerHTML = '';
+    if (!container.closest('[data-context-medical-view]')) container.replaceChildren();
   }
   const fhContainer = document.getElementById('fh-condition-suggestions');
   const fhInput = document.getElementById('fh-condition');
@@ -173,7 +185,7 @@ export function closeSuggestionsOnClickOutside(event: MouseEvent) {
     && !fhInput.contains(target)
     && !fhContainer.contains(target)
   ) {
-    fhContainer.innerHTML = '';
+    if (!fhContainer.closest('[data-context-medical-view]')) fhContainer.replaceChildren();
   }
 }
 

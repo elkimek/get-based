@@ -1941,3 +1941,11 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/data-protection-status.js
 /js/data-protection-picker-model.js
 /js/data-protection-picker-view.js
+
+/js/context-medical-history-model.js
+/js/context-medical-history-session.js
+/js/context-medical-history-view.js
+/js/context-field-session.js
+/js/context-form-classes.js
+
+/tests/helpers/offline-launch-diagnostics.js

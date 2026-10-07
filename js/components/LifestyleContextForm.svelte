@@ -12,11 +12,7 @@
   let busy = $state(false), status = $state(''), pendingLabel = $state('Saving…');
   export function readDraft(): LifestyleDraft { return $state.snapshot(draft); }
   export function report(message: string, pending: boolean, label = 'Saving…'): void { status = message; busy = pending; pendingLabel = label; }
-  const focus = 'gb:context-form:focus-visible:outline-2 gb:context-form:focus-visible:outline-accent gb:context-form:focus-visible:outline-offset-2';
-  const label = 'gb:context-form:block gb:context-form:mb-2 gb:context-form:text-[11px] gb:context-form:font-semibold gb:context-form:uppercase gb:context-form:tracking-[0.05em] gb:context-form:text-secondary';
-  const button = `gb:context-form:min-h-11 gb:context-form:rounded-control gb:context-form:border gb:context-form:border-line gb:context-form:px-3 gb:context-form:py-2 gb:context-form:text-[13px] gb:context-form:font-body gb:context-form:leading-snug gb:context-form:text-left gb:context-form:whitespace-normal gb:context-form:cursor-pointer gb:context-form:disabled:cursor-wait ${focus}`;
-  const input = `gb:context-form:block gb:context-form:w-full gb:context-form:min-w-0 gb:context-form:min-h-11 gb:context-form:box-border gb:context-form:rounded-control gb:context-form:border gb:context-form:border-line gb:context-form:bg-[var(--bg-primary)] gb:context-form:p-2.5 gb:context-form:text-ink gb:context-form:font-body gb:context-form:text-[13px] gb:context-form:max-[720px]:text-base gb:context-form:placeholder:text-secondary gb:context-form:disabled:cursor-not-allowed ${focus}`;
-  const surfaceButton = `${button} gb:context-form:bg-surface gb:context-form:text-ink gb:context-form:hover:bg-hover`;
+  import { focus, label, button, input, surfaceButton } from '../context-form-classes.js';
   function selected(field: LifestyleField, value: string): boolean {
     const answer = draft[field.key]; return Array.isArray(answer) ? answer.includes(value) : answer === value;
   }
