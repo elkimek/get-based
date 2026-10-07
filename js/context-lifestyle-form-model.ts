@@ -2,8 +2,10 @@
 import type { ProfileData } from '../types/app-state.js';
 import * as options from './constants.js';
 import { formatTime, getTimeFormat, parseTimeInput } from './theme.js';
+import { emfAssessmentLauncherView } from './context-emf-launcher-model.js';
+import type { EMFLauncherView } from './context-emf-launcher-model.js';
 import { getSleepContextMismatch } from './lab-context-wearables.js';
-export type LifestyleFormKey = 'sleepRest' | 'exercise' | 'stress' | 'loveLife' | 'diet';
+export type LifestyleFormKey = 'sleepRest' | 'exercise' | 'stress' | 'loveLife' | 'diet' | 'environment';
 export type LifestyleDraft = Record<string, string | string[] | null>;
 export interface LifestyleOption {
   value: string;
@@ -21,6 +23,8 @@ export interface LifestyleSection {
   fallback: string;
   fields: LifestyleField[];
   meals?: { disabled: boolean; timePlaceholder: string };
+  emf?: EMFLauncherView;
+  summaryPrefix?: string;
   summaryFields?: Array<{ key: string; prefix?: string; suffix?: string; omit?: string }>;
 }
 export const lifestyleMeals = [
@@ -50,6 +54,42 @@ const tags = (key: string, id: string, label: string, values: readonly (string |
 });
 export function lifestyleFormModel(key: LifestyleFormKey, data: ProfileData, sex: string | null, preferences: { unitSystem?: string; mealsPaused?: boolean } = {}): LifestyleFormModel {
   switch (key) {
+    case 'environment': {
+      const assessments = data.emfAssessment?.assessments;
+      const emf = emfAssessmentLauncherView(Array.isArray(assessments) ? assessments : []);
+      return {
+        key, title: 'Environment & Exposures', message: 'Environment', mismatch: null,
+        subtitle: 'Your location, air, water, work, and home environment can add context to health and lab patterns.',
+        fields: [
+          single('setting', 'env-setting', 'Living setting', options.ENV_SETTING),
+          single('climate', 'env-climate', 'Climate', options.ENV_CLIMATE),
+          single('altitude', 'env-altitude', 'Altitude exposure', options.ENV_ALTITUDE),
+          tags('inhaledExposures', 'env-inhaled', 'Smoking and inhaled exposure', options.ENV_INHALED_EXPOSURES)
+        ],
+        sections: [
+          { title: 'Work and hobby exposures', fallback: 'Optional dusts, fumes, chemicals, metals, and radiation', fields: [
+            tags('occupationalExposures', 'env-occupational', 'Known exposures', options.ENV_OCCUPATIONAL_EXPOSURES)
+          ] },
+          { title: 'Water', fallback: 'Optional source and concerns', fields: [
+            single('water', 'env-water', 'Primary water source', options.ENV_WATER),
+            tags('waterConcerns', 'env-water-concerns', 'Water concerns', options.ENV_WATER_CONCERNS)
+          ] },
+          { title: 'EMF', fallback: 'Optional exposure assessment', emf,
+            summaryPrefix: emf.count ? `${emf.count} saved assessment${emf.count === 1 ? '' : 's'}` : '',
+            summaryFields: [{ key: 'emf' }, { key: 'emfMitigation' }],
+            fields: emf.hasAssessments ? [] : [
+              tags('emf', 'env-emf', 'EMF exposure', options.ENV_EMF),
+              tags('emfMitigation', 'env-emf-mit', 'EMF mitigation', options.ENV_EMF_MITIGATION)
+            ] },
+          { title: 'Home and exposures', fallback: 'Optional lighting, air, toxins, and building', fields: [
+            single('homeLight', 'env-light', 'Home/work lighting', options.ENV_HOME_LIGHT),
+            tags('air', 'env-air', 'Air quality', options.ENV_AIR),
+            tags('toxins', 'env-toxins', 'Toxin exposure', options.ENV_TOXINS),
+            single('building', 'env-building', 'Building', options.ENV_BUILDING)
+          ] }
+        ]
+      };
+    }
     case 'diet': {
       const current = data.diet && typeof data.diet === 'object' ? data.diet : null;
       const legacy = (values: readonly (string | LifestyleOption)[], selected: string | null | undefined) =>
@@ -180,6 +220,13 @@ export function lifestyleDraft(model: LifestyleFormModel, data: ProfileData): Li
     const value = values[field.key];
     draft[field.key] = field.multiple ? field.options.filter(option => Array.isArray(value) && (value.includes(option.value) || value.includes(option.label))).map(option => option.value) : field.options.find(option => option.value === value || option.label === value)?.value || null;
   }
+  if (model.key === 'environment' && model.sections.some(section => section.emf?.hasAssessments)) {
+    // Assessment readings supersede quick choices; hidden legacy values remain stored verbatim.
+    for (const key of ['emf', 'emfMitigation']) {
+      const value = values[key];
+      draft[key] = Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+    }
+  }
   if (model.key === 'diet') for (const meal of lifestyleMeals) {
     const description = values[meal.key];
     draft[meal.key] = typeof description === 'string' ? description : '';
@@ -212,10 +259,10 @@ export function lifestyleSectionSummary(section: LifestyleSection, draft: Lifest
     return lifestyleMeals.filter(meal => draft[meal.key]).map(meal => meal.label).join(' · ') || section.fallback;
   }
   const summaryFields: NonNullable<LifestyleSection['summaryFields']> = section.summaryFields || section.fields;
-  const answers = [...new Set(summaryFields.flatMap(field => {
+  const answers = [...new Set([...(section.summaryPrefix ? [section.summaryPrefix] : []), ...summaryFields.flatMap(field => {
     const answer = draft[field.key], values = Array.isArray(answer) ? answer : answer ? [answer] : [];
     return values.filter(value => value && value !== field.omit).map(value => `${field.prefix || ''}${value}${field.suffix || ''}`);
-  }))];
+  })])];
   return answers.length ? `${answers.slice(0, 3).join(' · ')}${answers.length > 3 ? ` · +${answers.length - 3} more` : ''}` : section.fallback;
 }
 /** An explicit projection keeps UI-only state out of stored profile data. */
@@ -226,6 +273,13 @@ export function applyLifestyleDraft(data: ProfileData, key: LifestyleFormKey, dr
   const empty = draft === null || Object.entries(draft).filter(([field]) => key !== 'diet' || !field.endsWith('Time')).every(([, value]) => Array.isArray(value) ? !value.length : !value?.trim());
   const note = text('note');
   switch (key) {
+    case 'environment':
+      data.environment = empty ? null : {
+        setting: one('setting'), climate: one('climate'), altitude: one('altitude'), inhaledExposures: many('inhaledExposures'),
+        occupationalExposures: many('occupationalExposures'), water: one('water'), waterConcerns: many('waterConcerns'),
+        emf: many('emf'), emfMitigation: many('emfMitigation'), homeLight: one('homeLight'), air: many('air'), toxins: many('toxins'), building: one('building'), note
+      };
+      break;
     case 'diet':
       data.diet = empty ? null : {
         type: one('type'), pattern: one('pattern'), proteinIntake: one('proteinIntake'), hydration: one('hydration'),

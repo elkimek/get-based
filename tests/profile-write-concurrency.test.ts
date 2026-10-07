@@ -418,7 +418,7 @@ it('keeps the atomic notes guard effective if a conflict observer throws', async
   expect((await read()).contextNotes).toBe('Saved elsewhere');
 });
 
-for (const field of ['sleepRest', 'exercise', 'stress', 'loveLife', 'diet'] as const) it(`guards stale ${field} form writes inside the locked storage transaction`, async () => {
+for (const field of ['sleepRest', 'exercise', 'stress', 'loveLife', 'diet', 'environment'] as const) it(`guards stale ${field} form writes inside the locked storage transaction`, async () => {
   const base = structuredClone(state.importedData), draft = structuredClone(base);
   draft[field] = { note: 'Stale local draft' };
   const peer = structuredClone(base); peer[field] = { note: 'Saved by another tab' };

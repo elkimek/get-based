@@ -2,8 +2,9 @@ import type { Diagnoses, DietContext, ExerciseContext, SleepContext, LightCircad
 // context-card-summaries.js - Context card metadata, summaries, and filled-state helpers
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr } from './utils.js';
-import { getEMFSeverity } from './schema.js';
+import { renderHTML as renderEMFLauncherHTML } from './components/ContextEMFLauncher.svelte.html.js';
+import { emfAssessmentLauncherView, emfAssessmentSummary } from './context-emf-launcher-model.js';
+import type { SummaryEMFAssessment } from './context-emf-launcher-model.js';
 import { sortHealthGoalsByPriority } from './health-goals-utils.js';
 import { getNutritionContextDays, isNutritionContextEnabled } from './lab-context-settings.js';
 
@@ -25,63 +26,16 @@ export const CONTEXT_CARD_KEYS = [
   'environment',
 ];
 
-interface SummaryEMFAssessment {
-  date?: string;
-  rooms?: Array<{ sleeping?: boolean; measurements?: Record<string, {value?: number | null} | null> }>;
-}
 export function getEMFAssessments(): SummaryEMFAssessment[] {
   const assessments = state.importedData.emfAssessment?.assessments;
   return Array.isArray(assessments) ? assessments as SummaryEMFAssessment[] : [];
 }
 
-function getEMFSummary() {
-  const assessments = getEMFAssessments();
-  if (!assessments.length) return '';
-  const sorted = [...assessments].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
-  const latest = sorted[0]!;
-  let worst: ReturnType<typeof getEMFSeverity> = null, worstIdx = -1;
-  const tierOrder = ['green', 'yellow', 'orange', 'red'];
-  for (const room of latest.rooms || []) {
-    const sleeping = room.sleeping !== false;
-    for (const [type, m] of Object.entries(room.measurements || {})) {
-      if (m && m.value != null) {
-        const sev = getEMFSeverity(type, m.value, sleeping);
-        if (sev) {
-          const idx = tierOrder.indexOf(sev.color);
-          if (idx > worstIdx) { worst = sev; worstIdx = idx; }
-        }
-      }
-    }
-  }
-  const fmtDate = (d: string) => {
-    const parsed = new Date(d + 'T00:00:00');
-    if (Number.isNaN(parsed.getTime())) return String(d || 'saved');
-    return parsed.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  };
-  const latestText = latest.date ? fmtDate(latest.date) : 'saved';
-  return `EMF: ${sorted.length} assessment${sorted.length > 1 ? 's' : ''} (latest: ${latestText}${worst ? ', ' + worst.label : ''})`;
-}
+function getEMFSummary() { return emfAssessmentSummary(getEMFAssessments()); }
 
+/** Stable synchronous HTML contract backed by the same authored launcher as the live form. */
 export function renderEMFAssessmentLauncher({ inModal = false, surface = 'environment-editor' } = {}) {
-  const assessments = getEMFAssessments();
-  const hasAssessments = assessments.length > 0;
-  const summary = hasAssessments
-    ? getEMFSummary()
-    : 'Room-by-room Baubiologie workflow with readings, photos, comparison, and AI interpretation.';
-  const kicker = hasAssessments
-    ? `${assessments.length} saved`
-    : 'Environment tool';
-  const title = hasAssessments ? 'Open EMF assessment' : 'Start EMF assessment';
-  const cta = hasAssessments ? 'Open' : 'Start';
-  return `<button type="button" class="ctx-emf-launcher${hasAssessments ? ' has-data' : ''}" data-context-card-action="open-emf-assessment" data-context-card-close-modal="${inModal ? 'true' : 'false'}" data-umami-event="${escapeAttr('emf-launcher-' + surface)}">
-    <span class="ctx-emf-launcher-mark" aria-hidden="true">EMF</span>
-    <span class="ctx-emf-launcher-copy">
-      <span class="ctx-emf-launcher-kicker">${escapeHTML(kicker)}</span>
-      <strong>${escapeHTML(title)}</strong>
-      <span>${escapeHTML(summary)}</span>
-    </span>
-    <span class="ctx-emf-launcher-action">${escapeHTML(cta)}</span>
-  </button>`;
+  return renderEMFLauncherHTML({ view: emfAssessmentLauncherView(getEMFAssessments()), inModal, surface });
 }
 
 export function getConditionsSummary(d: Diagnoses | null | undefined) {

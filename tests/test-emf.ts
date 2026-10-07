@@ -145,6 +145,7 @@ assert('45e. main.js no longer owns the EMF function list', !mainSrc.includes('c
 const navSrc = read('js/nav.js');
 const contextCardLifestyleEditorsSrc = read('js/context-card-lifestyle-editors-impl.js');
 const contextCardSummariesSrc = read('js/context-card-summaries.js');
+const emfLauncherSrc = read('js/components/ContextEMFLauncher.svelte');
 const contextEditorCss = read('css/context-editor.css');
 const lensPagesSrc = read('js/lens-pages.js');
 const emfSrc = read('js/emf.js').replace(/\}\s+else if \(piiAvailable\.available\) \{/g, '} else if (piiAvailable.available) {');
@@ -160,14 +161,15 @@ assert('45g. EMF sidebar entry is available before assessment data exists',
 assert('45h. Environment context card counts saved EMF assessments',
   contextCardSummariesSrc.includes("key === 'environment'") && contextCardSummariesSrc.includes('getEMFAssessments().length > 0'));
 assert('45i. Environment editor uses the EMF assessment launcher',
-  contextCardLifestyleEditorsSrc.includes('renderEMFAssessmentLauncher({ inModal: true') && contextCardSummariesSrc.includes('ctx-emf-launcher'));
+  contextCardLifestyleEditorsSrc.includes("openLifestyleForm('environment')") &&
+  read('js/components/LifestyleContextForm.svelte').includes('EMFLauncher view={section.emf}') && contextCardSummariesSrc.includes('renderEMFLauncherHTML'));
 assert('45i2. EMF assessment launcher uses delegated context-card action',
-  contextCardSummariesSrc.includes('data-context-card-action="open-emf-assessment"') &&
+  emfLauncherSrc.includes("data-context-card-action={activate ? undefined : 'open-emf-assessment'}") &&
   !contextCardSummariesSrc.includes('onclick="${escapeAttr(action)}"'));
-assert('45j. EMF launcher has dedicated context CSS',
-  contextEditorCss.includes('.ctx-emf-launcher') &&
-  contextEditorCss.includes('.ctx-emf-launcher-action') &&
-  contextEditorCss.includes('.ctx-emf-launcher.has-data'));
+assert('45j. Authored EMF launcher has scoped Tailwind styles',
+  contextEditorCss.includes('[data-context-emf-launcher]') &&
+  emfLauncherSrc.includes('ctx-emf-launcher-action gb:context-emf:') &&
+  emfLauncherSrc.includes('has-data gb:context-emf:border-accent'));
 assert('45k. Insight lens exposes EMF assessment action',
   lensPagesSrc.includes('EMF assessment') && lensPagesSrc.includes("lensPageActionAttrs('open-emf-assessment')"));
 assert('45l. EMF PII review streams current PDF text',

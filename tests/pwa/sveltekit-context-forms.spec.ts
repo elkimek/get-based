@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
-const keys = ['sleepRest', 'exercise', 'stress', 'loveLife', 'diet'] as const;
+const keys = ['sleepRest', 'exercise', 'stress', 'loveLife', 'diet', 'environment'] as const;
 async function persisted(page: Page) {
   return page.evaluate(async () => {
     const request = indexedDB.open('labcharts-blobs', 1);
@@ -18,7 +18,7 @@ async function persisted(page: Page) {
         tx.onabort = () => reject(tx.error || new Error('Profile read aborted'));
         tx.onerror = () => reject(tx.error || read.error || new Error('Profile read failed'));
       });
-      return JSON.parse(value) as Record<'sleepRest' | 'exercise' | 'stress' | 'loveLife' | 'diet', { note: string }> & { changeHistory: Array<{ field: string; snapshot: unknown }> };
+      return JSON.parse(value) as Record<'sleepRest' | 'exercise' | 'stress' | 'loveLife' | 'diet' | 'environment', { note: string }> & { emfAssessment?: { assessments: unknown[] }; changeHistory: Array<{ field: string; snapshot: unknown }> };
     } finally { db.close(); }
   });
 }
@@ -45,7 +45,7 @@ test('static lifestyle editors work on offline first use and preserve committed 
     if (!localStorage.getItem('context-forms-seeded')) {
       localStorage.setItem('context-forms-seeded', '1');
       // Start with the canonical empty meal list, avoiding unrelated legacy null-to-list normalization on reload.
-      localStorage.setItem('labcharts-default-imported', JSON.stringify({ entries: [], notes: [], nutritionMeals: [] }));
+      localStorage.setItem('labcharts-default-imported', JSON.stringify({ entries: [], notes: [], nutritionMeals: [], environment: { emf: ['WiFi router nearby'], emfMitigation: ['WiFi off at night'] } }));
     }
   });
   const errors: string[] = [], csp: string[] = [];
@@ -67,7 +67,19 @@ test('static lifestyle editors work on offline first use and preserve committed 
       await modal.getByLabel('Notes', { exact: true }).fill(`Offline <${key}> & saved`);
       await modal.getByRole('button', { name: 'Save', exact: true }).click(); await expect(page.locator('#modal-overlay')).not.toHaveClass(/show/);
     }
+    await open(page, 'environment');
+    await page.locator('#detail-modal summary').filter({ hasText: /^EMF/ }).click();
+    await page.locator('[data-context-emf-launcher]').focus(); await page.keyboard.press('Enter');
+    await expect(page.locator('#detail-modal').getByRole('heading', { name: 'Baubiologie EMF Assessment', exact: true })).toBeVisible();
+    await page.locator('#detail-modal [data-emf-action="add-assessment"]').click();
+    await page.locator('#detail-modal [data-emf-action="return-to-origin"]').click();
+    await expect(page.locator('[data-context-form-view]')).toHaveAttribute('data-context-form-view', 'environment');
+    await expect(page.locator('#env-emf')).toHaveCount(0);
+    await expect(page.locator('#detail-modal').getByLabel('Notes', { exact: true })).toHaveValue('Offline <environment> & saved');
+    await page.locator('#detail-modal').getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect.poll(async () => (await persisted(page)).emfAssessment?.assessments.length).toBe(1);
     const saved = await persisted(page);
+    expect(saved.environment).toMatchObject({ emf: ['WiFi router nearby'], emfMitigation: ['WiFi off at night'] });
     for (const key of keys) { expect(saved[key].note).toBe(`Offline <${key}> & saved`); expect(saved.changeHistory.find(item => item.field === key)?.snapshot).toEqual(saved[key]); }
     await page.close();
     for (let launch = 0; launch < 2; launch++) {
@@ -78,6 +90,10 @@ test('static lifestyle editors work on offline first use and preserve committed 
         if (key === 'diet') {
           await modal.locator('summary').filter({ hasText: 'Typical meals' }).click();
           for (const meal of ['breakfast', 'lunch', 'dinner', 'snacks']) { await expect(modal.locator(`#diet-${meal}`)).toHaveValue(`Offline ${meal} <example>`); await expect(modal.locator(`#diet-${meal}-time`)).toHaveValue('20:30'); }
+        }
+        if (key === 'environment') {
+          await modal.locator('summary').filter({ hasText: /^EMF/ }).click();
+          await expect(modal.locator('[data-context-emf-launcher]')).toContainText('1 saved'); await expect(modal.locator('#env-emf')).toHaveCount(0);
         }
         await expect(modal.getByRole('button', { name: 'Clear', exact: true })).toBeVisible();
         await modal.getByRole('button', { name: 'Cancel', exact: true }).click(); await expect(cold.locator('#modal-overlay')).not.toHaveClass(/show/);

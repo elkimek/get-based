@@ -8,3 +8,6 @@
 @source "../js/components/LifestyleContextForm.svelte";
 @source "../js/context-lifestyle-form-view.ts";
 @custom-variant context-form (&:is([data-context-form-modal], [data-context-form-modal] *));
+
+@source "../js/components/ContextEMFLauncher.svelte";
+@custom-variant context-emf (&:is([data-context-emf-launcher], [data-context-emf-launcher] *));

@@ -1,6 +1,7 @@
 // Live Svelte form ownership; public legacy URLs delegate here without DOM reads.
 import Form, { mount, unmount, flushSync } from './components/LifestyleContextForm.svelte.native.js';
 import { doesNutritionContextOverrideTypicalMeals } from './context-card-summaries.js';
+import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { state } from './state.js';
 import { runWithContextEditorStylesheet } from './context-card-editor-ui.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -23,6 +24,7 @@ interface View {
   observer: MutationObserver;
   saving: boolean;
   confirming: boolean;
+  launching: boolean;
   message: string;
   afterCommit: (message: string) => void;
 }
@@ -56,7 +58,7 @@ export function saveLifestyleForm(key: LifestyleFormKey, clear = false): Promise
   return save(owned, clear);
 }
 async function save(owned: View, clear: boolean): Promise<void> {
-  if (!current(owned) || owned.saving)
+  if (!current(owned) || owned.saving || owned.launching)
     return;
   owned.saving = true;
   flushSync();
@@ -77,6 +79,25 @@ async function save(owned: View, clear: boolean): Promise<void> {
     : result === 'blocked' ? 'Not saved — reload profile. Your draft is kept here.' : 'Not saved — try again. Your draft is kept here.';
   owned.component.report(status, false);
   flushSync();
+}
+async function launchEMF(owned: View): Promise<void> {
+  if (owned.key !== 'environment' || !current(owned) || owned.saving || owned.confirming || owned.launching) return;
+  const profile = state.currentProfile, origin = state.importedData, ticket = request;
+  owned.launching = true;
+  owned.component.report('Opening EMF assessment…', true, 'Opening…');
+  flushSync();
+  await openEMFAssessmentEditor({
+    isCurrent: () => current(owned) && request === ticket,
+    returnLabel: 'Back to Environment & Exposures',
+    onReturn: () => {
+      if (request === ticket && state.currentProfile === profile && state.importedData === origin) void openLifestyleForm('environment');
+    },
+  });
+  owned.launching = false;
+  if (current(owned)) {
+    owned.component.report('Could not open EMF assessment. Try again. Your draft is kept here.', false);
+    flushSync();
+  }
 }
 export function openLifestyleForm(key: LifestyleFormKey): void | Promise<unknown> {
   const profile = state.currentProfile, origin = state.importedData, ticket = ++request;
@@ -116,7 +137,7 @@ export function openLifestyleForm(key: LifestyleFormKey): void | Promise<unknown
             if (confirmed && current(owned))
               await save(owned, true);
           })();
-        }, close: () => close(owned),
+        }, close: () => close(owned), openEMF: () => { void launchEMF(owned); },
       }
     });
     flushSync();
@@ -130,7 +151,7 @@ export function openLifestyleForm(key: LifestyleFormKey): void | Promise<unknown
       dispose(owned);
     });
     owned = {
-      key, root, modal, title: model.title, overlay, session, component, observer, saving: false, confirming: false, message: model.message, afterCommit
+      key, root, modal, title: model.title, overlay, session, component, observer, saving: false, confirming: false, launching: false, message: model.message, afterCommit
     };
     view = owned;
     openModalOverlay(overlay);

@@ -551,7 +551,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       const occupationalExposure = setTag('env-occupational');
       const waterConcern = setTag('env-water-concerns');
       const emfTag = setTag('env-emf');
-      lifestyle.saveEnvironment();
+      await lifestyle.saveEnvironment();
       outcomes.saveEnvironmentStoresFallbackEmfFields = (state.importedData as unknown as ContextFixtureRead).environment?.setting === setting
         && (state.importedData as unknown as ContextFixtureRead).environment?.altitude === altitude
         && ((state.importedData as unknown as ContextFixtureRead).environment?.inhaledExposures as {includes(value:unknown):unknown} | null | undefined)?.includes(inhaledExposure)
@@ -560,13 +560,15 @@ test('lifestyle context editors cover save clear health goals lens and contamina
         && ((state.importedData as unknown as ContextFixtureRead).environment?.emf as {includes(value:unknown):unknown} | null | undefined)?.includes(emfTag);
       (state.importedData as unknown as ContextFixtureRead).emfAssessment = { assessments: [{ id: 'emf-one', date: '2026-06-07', rooms: [] }] };
       (state.importedData as unknown as ContextFixtureRead).environment = { emf: ['existing emf'], emfMitigation: ['existing mitigation'] };
+      if (!await data.saveImportedData()) throw new Error('Could not seed Environment assessment');
       await lifestyle.openEnvironmentEditor();
       outcomes.environmentWithAssessmentUsesLauncherInsteadOfFallbackTags = !!modal.querySelector<HTMLElement>('.ctx-emf-launcher.has-data')
         && !document.getElementById('env-emf');
-      lifestyle.saveEnvironment();
+      await lifestyle.saveEnvironment();
       outcomes.environmentWithAssessmentPreservesExistingEmfFields = ((state.importedData as unknown as ContextFixtureRead).environment?.emf as {includes(value:unknown):unknown} | null | undefined)?.includes('existing emf')
         && ((state.importedData as unknown as ContextFixtureRead).environment?.emfMitigation as {includes(value:unknown):unknown} | null | undefined)?.includes('existing mitigation');
-      lifestyle.clearEnvironment();
+      await lifestyle.openEnvironmentEditor();
+      await lifestyle.clearEnvironment();
       outcomes.clearEnvironmentNullsValue = (state.importedData as unknown as ContextFixtureRead).environment === null;
 
       await lifestyle.openHealthGoalsEditor();

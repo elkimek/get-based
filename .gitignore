@@ -1913,3 +1913,10 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/context-lifestyle-form-view.js
 /js/components/LifestyleContextForm.svelte.native.js
 /js/components/LifestyleContextForm.svelte.native.js.map
+
+# Authored EMF launcher runtime output
+/js/components/ContextEMFLauncher.svelte.native.js
+/js/components/ContextEMFLauncher.svelte.native.js.map
+/js/components/ContextEMFLauncher.svelte.html.js
+/js/components/ContextEMFLauncher.svelte.html.js.map
+/js/context-emf-launcher-model.js

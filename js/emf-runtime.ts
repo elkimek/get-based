@@ -5,6 +5,8 @@ import { showNotification } from './utils.js';
 
 export interface EMFEditorOptions {
   returnLabel?: string;
+  /** A caller can retire a pending lazy open without changing shared loader caching. */
+  isCurrent?: () => boolean;
   onReturn?: (() => void) | null;
 }
 export interface EMFModule {
@@ -98,13 +100,16 @@ export async function loadEMFModule() {
 }
 
 export async function openEMFAssessmentEditor(options: EMFEditorOptions = {}) {
+  if (options.isCurrent && !options.isCurrent()) return false;
   try {
     const [mod] = await Promise.all([
       loadEMFModule(),
       emfRuntimeDeps.loadStylesheet(),
     ]);
+    if (options.isCurrent && !options.isCurrent()) return false;
     return mod.openEMFAssessmentEditor(options);
   } catch (err) {
+    if (options.isCurrent && !options.isCurrent()) return false;
     console.error('[emf] Could not load assessment UI:', err);
     showNotification('Could not open the EMF assessment. Reload the app to finish updating, then try again.', 'error');
     return false;

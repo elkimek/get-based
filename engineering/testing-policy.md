@@ -55,10 +55,17 @@ storage suite checks observed context fields and reordered object keys.
 checks real field interactions, persistence/history, reopen, clear confirmation,
 profile retirement, actual IndexedDB failure/retry, keyboard controls, Diet clock/unit
 formats, legacy estimates, nutrition precedence, clean modal handoff to the
-contaminant tool and shared form styles in all six themes at narrow/wide widths. Lifestyle loader cases cover retirement and overlapping opens.
+contaminant tool and shared form styles in all six themes at narrow/wide widths.
+Lifestyle loader cases cover retirement and overlapping opens.
+[`context-environment-owned.spec.ts`](../tests/playwright/context-environment-owned.spec.ts)
+checks both launcher states in every theme, hidden legacy values, actual EMF
+stylesheet failure/retry, assessment creation/return, and retirement of delayed
+opens and return callbacks. [`emf-runtime.test.ts`](../tests/emf-runtime.test.ts)
+checks caller guards without discarding shared module caching.
 [`sveltekit-context-forms.spec.ts`](../tests/pwa/sveltekit-context-forms.spec.ts)
 checks the editors through real catalog actions with the assembled static PWA,
-including offline first use, committed history and two cold launches. Its offline
+including offline first use, committed history, Environment-to-EMF creation/return
+and two cold launches with full stored-profile equality. Its offline
 boundary drops origin-server connections while the real worker/cache serves the app.
 [`context-card-status-ownership.test.ts`](../tests/context-card-status-ownership.test.ts)
 checks simultaneous authored assessment/tips publication, literal text, unique IDs,

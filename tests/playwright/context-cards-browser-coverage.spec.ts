@@ -306,14 +306,15 @@ test('environment to EMF workflow returns to the originating editor', async ({ p
       note: 'Keep this editor context',
     };
     state.importedData.emfAssessment = { assessments: [] };
+    if (!await (await import('/js/data.js')).saveImportedData()) throw new Error('Could not seed Environment');
     await contextCards.openEnvironmentEditor();
   });
 
   await expect(page.locator('#detail-modal')).toHaveAttribute('aria-label', 'Environment & Exposures');
-  await page.locator('#detail-modal details:has([data-context-card-action="open-emf-assessment"])').evaluate(details => {
+  await page.locator('#detail-modal details:has([data-context-emf-launcher])').evaluate(details => {
     (details as HTMLDetailsElement).open = true;
   });
-  await page.locator('#detail-modal [data-context-card-action="open-emf-assessment"]').click();
+  await page.locator('#detail-modal [data-context-emf-launcher]').click();
   await expect(page.locator('#detail-modal')).toContainText('Baubiologie EMF Assessment');
   await expect(page.locator('#detail-modal [data-emf-action="return-to-origin"]')).toHaveAttribute(
     'aria-label',
@@ -322,5 +323,5 @@ test('environment to EMF workflow returns to the originating editor', async ({ p
 
   await page.locator('#detail-modal [data-emf-action="return-to-origin"]').click();
   await expect(page.locator('#detail-modal')).toHaveAttribute('aria-label', 'Environment & Exposures');
-  await expect(page.locator('#detail-modal')).toContainText('Keep this editor context');
+  await expect(page.locator('#detail-modal').getByLabel('Notes', { exact: true })).toHaveValue('Keep this editor context');
 });

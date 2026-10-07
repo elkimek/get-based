@@ -8,6 +8,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 const editors = [
+  { key: 'environment', open: 'openEnvironmentEditor', title: 'Environment & Exposures', first: 'env-setting' },
   { key: 'diet', open: 'openDietEditor', title: 'Diet & Digestion', first: 'diet-type' },
   { key: 'sleepRest', open: 'openSleepRestEditor', title: 'Sleep & Rest', first: 'sleep-duration' },
   { key: 'exercise', open: 'openExerciseEditor', title: 'Exercise', first: 'exercise-freq' },

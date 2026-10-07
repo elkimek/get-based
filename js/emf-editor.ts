@@ -116,13 +116,18 @@ function closeEMFEditorModal() {
 
 function returnFromEMFEditor() {
   const route = emfEditorReturnRoute;
+  const modal = document.getElementById('detail-modal'), content = modal?.firstElementChild;
   emfEditorDeps.collectActiveAssessmentState?.();
   saveImportedData();
   document.querySelectorAll('.emf-lightbox').forEach(element => removeModalOverlay(element));
   removeEMFEditorDelegates();
   emfEditorReturnRoute = null;
   emfEditorDeps.closeModal?.();
-  if (route?.callback) setTimeout(route.callback as () => void, 0);
+  if (route?.callback) {
+    setTimeout(() => {
+      if (modal?.isConnected && document.getElementById('detail-modal') === modal && modal.firstElementChild === content) (route.callback as () => void)();
+    }, 0);
+  }
 }
 
 function emfNumberAttr(element: HTMLElement, name: string, fallback = 0) {
@@ -338,6 +343,11 @@ function severityBadge(assessment: AssessmentOperations) {
 }
 
 export function renderEMFEditor(modal: {innerHTML: string} | null) {
+  if (typeof HTMLElement !== 'undefined' && modal instanceof HTMLElement) {
+    modal.className = 'modal';
+    modal.setAttribute('aria-label', 'Baubiologie EMF Assessment');
+    modal.removeAttribute('aria-labelledby');
+  }
   const assessments = ensureEMFAssessments() as AssessmentOperations[];
   const sorted = [...assessments].sort((a, b) => (b.date as {localeCompare(value: unknown): number}).localeCompare(a.date));
 

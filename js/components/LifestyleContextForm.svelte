@@ -1,15 +1,16 @@
 <script lang="ts">
+  import EMFLauncher from './ContextEMFLauncher.svelte';
   import { untrack } from 'svelte';
   import { lifestyleMeals, lifestyleSectionSummary, toggleLifestyleChoice } from '../context-lifestyle-form-model.js';
   import type { LifestyleDraft, LifestyleField, LifestyleFormModel } from '../context-lifestyle-form-model.js';
-  let { model, initial, hasCurrent, current, save, clear, close }: {
+  let { model, initial, hasCurrent, current, save, clear, close, openEMF }: {
     model: LifestyleFormModel; initial: LifestyleDraft; hasCurrent: boolean; current(): boolean;
-    save(): void; clear(): void; close(): void;
+    save(): void; clear(): void; close(): void; openEMF(): void;
   } = $props();
   let draft = $state<LifestyleDraft>(untrack(() => structuredClone(initial)));
-  let busy = $state(false), status = $state('');
+  let busy = $state(false), status = $state(''), pendingLabel = $state('Saving…');
   export function readDraft(): LifestyleDraft { return $state.snapshot(draft); }
-  export function report(message: string, pending: boolean): void { status = message; busy = pending; }
+  export function report(message: string, pending: boolean, label = 'Saving…'): void { status = message; busy = pending; pendingLabel = label; }
   const focus = 'gb:context-form:focus-visible:outline-2 gb:context-form:focus-visible:outline-accent gb:context-form:focus-visible:outline-offset-2';
   const label = 'gb:context-form:block gb:context-form:mb-2 gb:context-form:text-[11px] gb:context-form:font-semibold gb:context-form:uppercase gb:context-form:tracking-[0.05em] gb:context-form:text-secondary';
   const button = `gb:context-form:min-h-11 gb:context-form:rounded-control gb:context-form:border gb:context-form:border-line gb:context-form:px-3 gb:context-form:py-2 gb:context-form:text-[13px] gb:context-form:font-body gb:context-form:leading-snug gb:context-form:text-left gb:context-form:whitespace-normal gb:context-form:cursor-pointer gb:context-form:disabled:cursor-wait ${focus}`;
@@ -43,7 +44,8 @@
     {#each model.sections as section}
       <details class="gb:context-form:my-3.5 gb:context-form:overflow-clip gb:context-form:rounded-[var(--radius-md)] gb:context-form:border gb:context-form:border-line gb:context-form:bg-[color-mix(in_srgb,var(--bg-card)_70%,transparent)]">
         <summary class={`gb:context-form:min-h-14 gb:context-form:px-3.5 gb:context-form:py-[11px] gb:context-form:text-ink gb:context-form:cursor-pointer gb:context-form:hover:bg-hover ${focus}`}><span class="gb:context-form:text-[13px] gb:context-form:font-bold">{section.title}</span><span class="gb:context-form:block gb:context-form:mt-1 gb:context-form:text-[11px] gb:context-form:leading-snug gb:context-form:text-secondary">{lifestyleSectionSummary(section, draft)}</span></summary>
-        <div class="gb:context-form:border-t gb:context-form:border-line gb:context-form:px-3.5 gb:context-form:pt-3.5">{#each section.fields as field}{@render fieldControl(field)}{/each}
+        <div class="gb:context-form:border-t gb:context-form:border-line gb:context-form:px-3.5 gb:context-form:pt-3.5">{#if section.emf}<div class="gb:context-form:mb-4"><EMFLauncher view={section.emf} inModal={true} disabled={busy} activate={() => { if (current() && !busy) openEMF(); }} /></div>{/if}
+          {#each section.fields as field}{@render fieldControl(field)}{/each}
           {#if section.meals}
             {#if section.meals.disabled}
               <div id="diet-meal-precedence" role="status" class="gb:context-form:grid gb:context-form:gap-1 gb:context-form:mb-3.5 gb:context-form:p-3 gb:context-form:rounded-control gb:context-form:border gb:context-form:border-accent gb:context-form:bg-accent-fill gb:context-form:text-xs gb:context-form:leading-normal gb:context-form:text-secondary"><strong class="gb:context-form:text-[13px] gb:context-form:text-ink">Detailed meal log has priority</strong><span>Saved examples stay here but are not sent to AI while Meals &amp; Nutrition context is active.</span><small class="gb:context-form:text-[11px]">Logs may be partial; unlogged meals stay unknown.</small></div>
@@ -62,7 +64,7 @@
     <textarea id="ctx-note-input" rows="2" placeholder="Anything else that may be relevant" value={typeof draft.note === 'string' ? draft.note : ''} disabled={busy} oninput={event => { if (current() && !busy) draft.note = event.currentTarget.value; }} class={`gb:context-form:block gb:context-form:w-full gb:context-form:box-border gb:context-form:resize-y gb:context-form:rounded-control gb:context-form:border gb:context-form:border-line gb:context-form:bg-[var(--bg-primary)] gb:context-form:p-2.5 gb:context-form:text-ink gb:context-form:font-body gb:context-form:text-[13px] gb:context-form:max-[720px]:text-base gb:context-form:placeholder:text-secondary ${focus}`}></textarea>
     <p role="status" aria-live="polite" class="gb:context-form:my-2 gb:context-form:text-xs gb:context-form:text-secondary">{status}</p>
     <div class="gb:context-form:sticky gb:context-form:bottom-0 gb:context-form:z-[7] gb:context-form:-mx-[26px] gb:context-form:mt-[22px] gb:context-form:flex gb:context-form:flex-wrap gb:context-form:gap-2 gb:context-form:border-t gb:context-form:border-line gb:context-form:bg-secondary-surface gb:context-form:px-[26px] gb:context-form:pt-3.5 gb:context-form:pb-[calc(14px+env(safe-area-inset-bottom))] gb:context-form:max-[720px]:-mx-[18px] gb:context-form:max-[720px]:px-[18px]">
-      <button type="button" class={`${button} gb:context-form:border-accent gb:context-form:bg-accent gb:context-form:text-on-accent gb:context-form:hover:bg-accent`} disabled={busy} onclick={() => { if (current() && !busy) save(); }}>{busy ? 'Saving…' : 'Save'}</button>
+      <button type="button" class={`${button} gb:context-form:border-accent gb:context-form:bg-accent gb:context-form:text-on-accent gb:context-form:hover:bg-accent`} disabled={busy} onclick={() => { if (current() && !busy) save(); }}>{busy ? pendingLabel : 'Save'}</button>
       <button type="button" class={surfaceButton} onclick={() => { if (current()) close(); }}>Cancel</button>
       {#if hasCurrent}<button type="button" class={`${button} gb:context-form:bg-surface gb:context-form:hover:bg-hover gb:context-form:ml-auto gb:context-form:border-danger gb:context-form:text-danger-ink`} disabled={busy} onclick={() => { if (current() && !busy) clear(); }}>Clear</button>{/if}
     </div>

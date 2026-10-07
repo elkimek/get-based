@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
+import { emfAssessmentLauncherView } from '../js/context-emf-launcher-model.js';
+import { renderEMFAssessmentLauncher } from '../js/context-card-summaries.js';
 import { state } from '../js/state.js';
 import { createDefaultProfileData } from '../js/profile.js';
 import { readProfileForLoad } from '../js/profile-load-safety.js';
@@ -26,7 +28,7 @@ let sequence = 0;
 beforeEach(() => { vi.resetAllMocks(); mocks.save.mockResolvedValue(true); state.currentProfile = `form-origin-${++sequence}`; state.importedData = createDefaultProfileData(); rememberProfileData(state.importedData); });
 afterEach(() => vi.restoreAllMocks());
 function deferred() { let resolve!: (saved: boolean) => void; const promise = new Promise<boolean>(done => { resolve = done; }); return { promise, resolve }; }
-for (const key of ['sleepRest', 'exercise', 'stress', 'loveLife', 'diet'] as const) {
+for (const key of ['sleepRest', 'exercise', 'stress', 'loveLife', 'diet', 'environment'] as const) {
   it(`${key} round trips every field, preserves option values and empties to null`, () => {
     const model = lifestyleFormModel(key, state.importedData, 'female'), draft = lifestyleDraft(model, state.importedData);
     for (const field of lifestyleFields(model)) {
@@ -145,4 +147,29 @@ it('retains meaningful Diet disclosure summaries without describing absent sympt
   expect(lifestyleSectionSummary(model.sections[0]!, { alcohol: 'rare', caffeine: '1 cup' })).toBe('alcohol: rare · caffeine: 1 cup');
   expect(lifestyleSectionSummary(model.sections[2]!, { bloating: 'none', gas: 'none', acidReflux: 'never' })).toBe('Optional symptoms and sensitivities');
   expect(lifestyleSectionSummary(model.sections[2]!, { bloating: 'mild', gas: 'moderate', foodSensitivities: ['dairy'] })).toBe('mild bloating · moderate gas · dairy');
+});
+
+it('keeps hidden legacy EMF values and assessment data through Environment save and clear', () => {
+  state.importedData.environment = { emf: ['Legacy <source>'], emfMitigation: ['Legacy mitigation'], note: 'Old note' };
+  state.importedData.emfAssessment = { assessments: [{ date: '2026-10-07', rooms: [{ sleeping: true, measurements: { acElectric: { value: 50 } } }] }] };
+  const assessment = structuredClone(state.importedData.emfAssessment);
+  const model = lifestyleFormModel('environment', state.importedData, null), draft = lifestyleDraft(model, state.importedData);
+  expect(lifestyleFields(model).map(field => field.id)).not.toContain('env-emf');
+  expect(draft).toMatchObject({ emf: ['Legacy <source>'], emfMitigation: ['Legacy mitigation'] });
+  expect(model.sections[2]!.emf).toMatchObject({ count: 1, hasAssessments: true, title: 'Open EMF assessment' });
+  expect(model.sections[2]!.emf?.summary).toContain('Extreme concern');
+  expect(lifestyleSectionSummary(model.sections[2]!, draft)).toBe('1 saved assessment · Legacy <source> · Legacy mitigation');
+  draft.note = '  New note  '; applyLifestyleDraft(state.importedData, 'environment', draft);
+  expect(state.importedData.environment).toMatchObject({ emf: ['Legacy <source>'], emfMitigation: ['Legacy mitigation'], note: 'New note' });
+  applyLifestyleDraft(state.importedData, 'environment', null);
+  expect(state.importedData.environment).toBeNull(); expect(state.importedData.emfAssessment).toEqual(assessment);
+});
+it('uses one authored EMF launcher for the synchronous HTML contract, with escaped text and delegated actions', () => {
+  expect(emfAssessmentLauncherView([])).toMatchObject({ count: 0, hasAssessments: false, title: 'Start EMF assessment' });
+  state.importedData.emfAssessment = { assessments: [{ date: '<img src=x onerror=bad>' }] };
+  const template = document.createElement('template'); template.innerHTML = renderEMFAssessmentLauncher({ inModal: true, surface: 'literal" onmouseover="bad' });
+  const button = template.content.querySelector('button')!;
+  expect(button.textContent).toContain('<img src=x onerror=bad>'); expect(template.content.querySelector('img, script')).toBeNull();
+  expect(button.dataset.contextCardAction).toBe('open-emf-assessment'); expect(button.dataset.contextCardCloseModal).toBe('true');
+  expect(button.dataset.umamiEvent).toBe('emf-launcher-literal" onmouseover="bad'); expect(button.hasAttribute('onclick')).toBe(false); expect(button.hasAttribute('onmouseover')).toBe(false);
 });
