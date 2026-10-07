@@ -393,9 +393,10 @@ assert('clearLensCache callable', true);
 // ─── 18. CSS classes for unified context states ───
 console.log('\n18. CSS classes');
 const cssSrc = ['styles.css', 'css/chat-panel.css', 'css/chat-panel-open.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/chat-redesign.css', 'css/chat-redesign-open.css'].map(read).join('\n');
-assert('styles include the unified AI Context status', cssSrc.includes('.chat-context-status'));
-assert('styles include pending AI Context state', cssSrc.includes('.chat-context-status-pending'));
-assert('styles include error AI Context state', cssSrc.includes('.chat-context-status-error'));
+const contextClasses = read('js/chat-header-classes.ts');
+assert('styles include the unified AI Context status', contextClasses.includes('chat-context-status gb:header:inline-flex'));
+assert('styles include pending AI Context state', contextClasses.includes('chat-context-status-pending gb:header:border-warning/55'));
+assert('styles include error AI Context state', contextClasses.includes('chat-context-status-error gb:header:border-danger/55'));
 assert('styles remove the legacy KB indicator', !cssSrc.includes('.chat-lens-indicator'));
 
 // ─── 19. BUG 1 regression: handleRemoveLens uses promise-based showConfirmDialog ───

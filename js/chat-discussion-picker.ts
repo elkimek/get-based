@@ -1,3 +1,4 @@
+import { requestChatLayoutSync } from './chat-layout-view.js';
 import { closePersonalityPickerView } from './chat-personality-picker-view.js';
 // chat-discussion-picker.js - persona picker controls for multi-persona discussions
 
@@ -56,7 +57,7 @@ export function showDiscussPersonaPicker() {
 
   closePersonalityPickerView();
   document.getElementById('chat-thread-rail')?.classList.remove('open');
-  document.querySelector('.chat-rail-toggle')?.setAttribute('aria-expanded', 'false');
+  requestChatLayoutSync();
 
   // Imported extension fields are consumed without adding validation.
   const thread = state.chatThreads.find(t => t.id === state.currentThreadId) as { discussionPersonas?: unknown; discussionEnded?: unknown } | undefined;

@@ -434,7 +434,6 @@
 [data-theme="neuromancer"] .header {
   border-bottom: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
 }
-
 [data-theme="neuromancer"] .brand-mark,
 [data-theme="neuromancer"] .header h1.brand-mark,
 [data-theme="neuromancer"] .app-footer-logo,
@@ -476,7 +475,6 @@
 [data-theme="neuromancer"] .cl-section-title,
 [data-theme="neuromancer"] .passphrase-title,
 [data-theme="neuromancer"] .encryption-status-title,
-[data-theme="neuromancer"] .chat-header-title,
 [data-theme="neuromancer"] .chat-thread-rail-title,
 [data-theme="neuromancer"] .chat-saved-summaries-title,
 [data-theme="neuromancer"] .emf-interp-header h3,
@@ -718,7 +716,6 @@
 [data-theme="neuromancer"] body {
   font-family: var(--font-body);
 }
-
 [data-theme="cyberterm"] .nav-item,
 [data-theme="cyberterm"] .sidebar-search,
 [data-theme="cyberterm"] .chat-panel,
@@ -727,10 +724,7 @@
 [data-theme="cyberterm"] .chat-input,
 [data-theme="cyberterm"] .chat-send-btn,
 [data-theme="cyberterm"] .chat-thread-item,
-[data-theme="cyberterm"] .chat-thread-new-btn,
-[data-theme="cyberterm"] .chat-fullscreen-btn,
-[data-theme="cyberterm"] .chat-close-btn,
-[data-theme="cyberterm"] .chat-rail-toggle {
+[data-theme="cyberterm"] .chat-thread-new-btn {
   border-radius: 0;
 }
 [data-theme="cyberterm"] .chat-panel {
@@ -755,10 +749,8 @@
 [data-theme="cyberterm"] .chat-msg.chat-ai {
   border-left-color: var(--accent);
 }
-
 [data-theme="glass"] .chat-panel,
 [data-theme="glass"] .chat-panel-conversation,
-[data-theme="glass"] .chat-header,
 [data-theme="glass"] .chat-input-area {
   background: color-mix(in srgb, var(--bg-secondary) 84%, transparent);
   backdrop-filter: blur(30px) saturate(160%);
@@ -913,7 +905,6 @@
   border-left-color: color-mix(in srgb, var(--accent) 45%, transparent);
   box-shadow: -18px 0 48px -24px rgba(255, 43, 214, 0.62), var(--shadow-lg);
 }
-[data-theme="synth-sunrise"] .chat-header,
 [data-theme="synth-sunrise"] .chat-input-area {
   border-color: color-mix(in srgb, var(--accent) 35%, transparent);
 }

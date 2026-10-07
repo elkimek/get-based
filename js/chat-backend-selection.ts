@@ -30,13 +30,9 @@ export function getChatBackendDisplay() {
 }
 
 export function refreshChatBackendControl() {
-  const select = (document.getElementById('chat-backend-select') as HTMLSelectElement | null);
-  if (select) select.value = getChatBackend();
-  void refreshLocalAgentAvailability();
   if (isCodexChatBackend() && !hasAgentChatConnection()) void ensureSelectedCodexConnection();
 }
 
-let localAgentAvailabilityRequest: Promise<DiscoveredAgent[]> | null = null;
 let selectedCodexConnectionRequest: Promise<DiscoveredAgent> | null = null;
 
 async function ensureSelectedCodexConnection() {
@@ -48,22 +44,9 @@ async function ensureSelectedCodexConnection() {
   try { await selectedCodexConnectionRequest; } catch { /* unavailable state is rendered by the caller */ }
 }
 
+/** Compatibility discovery entry; the shared model picker owns availability UI. */
 export async function refreshLocalAgentAvailability(force = false) {
-  const select = (document.getElementById('chat-backend-select') as HTMLSelectElement | null);
-  const option = (select?.querySelector('option[value="codex"]') || null) as HTMLOptionElement | null;
-  const dot = document.getElementById('chat-agent-status-dot');
-  if (!select || !option || !dot) return;
-  if (!localAgentAvailabilityRequest || force) {
-    localAgentAvailabilityRequest = discoverLocalChatAgents({ refresh: force }).catch(() => []);
-  }
-  dot.className = 'chat-agent-status-dot is-checking';
-  const agents = await localAgentAvailabilityRequest;
-  const selected = agents.find(agent => agent.id === getAgentHostAgent() && agent.compatible);
-  const ready = selected?.status === 'available';
-  option.disabled = !ready;
-  option.textContent = selected ? `${selected.name}${ready ? '' : ' · unavailable'}` : 'CLI agent · not found';
-  dot.className = `chat-agent-status-dot ${ready ? 'is-ready' : selected ? 'is-starting' : 'is-unavailable'}`;
-  dot.title = ready ? `${selected.name} is ready` : selected?.message || 'The selected CLI agent is unavailable';
+  await discoverLocalChatAgents({ refresh: force }).catch(() => []);
 }
 
 export function setChatBackendFromUI(value: unknown) {

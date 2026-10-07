@@ -1,3 +1,4 @@
+import { requestChatLayoutSync } from './chat-layout-view.js';
 import { closePersonalityPickerView } from './chat-personality-picker-view.js';
 // chat-threads.js — Conversation-thread management for the chat panel
 import { state } from './state.js';
@@ -486,7 +487,7 @@ function closeThreadRailAfterMobileSelection() {
   const rail = document.getElementById('chat-thread-rail');
   if (!rail?.classList.contains('open')) return false;
   rail.classList.remove('open');
-  document.querySelector('.chat-rail-toggle')?.setAttribute('aria-expanded', 'false');
+  requestChatLayoutSync();
   localStorage.setItem(`labcharts-${state.currentProfile}-chatRailOpen`, 'false');
   return true;
 }
@@ -514,7 +515,6 @@ export function toggleThreadRail() {
     closePersonalityPickerView();
     document.querySelector('.discuss-persona-picker')?.remove();
   }
-  document.querySelector('.chat-rail-toggle')?.setAttribute('aria-expanded', String(isOpen));
   localStorage.setItem(`labcharts-${state.currentProfile}-chatRailOpen`, isOpen ? 'true' : 'false');
   syncChatLayout();
 }
@@ -528,10 +528,7 @@ export function restoreRailState() {
   } else {
     rail.classList.remove('open');
   }
-  document.querySelector('.chat-rail-toggle')?.setAttribute(
-    'aria-expanded',
-    String(rail.classList.contains('open')),
-  );
+
   syncChatLayout();
 }
 

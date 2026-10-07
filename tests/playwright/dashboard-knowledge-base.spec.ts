@@ -358,6 +358,7 @@ test('Context hub data source toggles control prompt and score context', async (
 
 test('chat header shows clickable green AI Context status chip', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
 
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
@@ -367,8 +368,10 @@ test('chat header shows clickable green AI Context status chip', async ({ page }
     localStorage.removeItem('labcharts-ai-paused');
     localStorage.setItem('labcharts-ai-provider', 'ollama');
     localStorage.removeItem('labcharts-lens-config');
-    localStorage.setItem('labcharts-lens-local-count', '24');
-    saveLensConfig({ backend: 'in-browser', enabled: true, name: 'Research Notes', topK: 5, multiQuery: true });
+    // This test covers header state across browsers, independently of OPFS support.
+    const { updateKeyCache } = await import('/js/crypto.js');
+    updateKeyCache('labcharts-lens-key', 'synthetic-context-key');
+    saveLensConfig({ backend: 'external-server', url: 'https://kb-header.example/query', enabled: true, name: 'Research Notes', topK: 5, multiQuery: true });
     state.importedData.interpretiveLens = 'Functional endocrinology';
     await openChatPanel();
     chat.updateChatHeaderModel();
@@ -395,6 +398,7 @@ test('chat AI Context chip carries the last Knowledge Base search error', async 
     body: JSON.stringify({ error: 'worker unavailable' }),
   }));
   await page.goto('/app', { waitUntil: 'load' });
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
 
   await page.evaluate(async () => {
     const { saveLensConfig, queryLens } = await import('/js/lens.js');
@@ -425,6 +429,7 @@ test('chat AI Context chip carries the last Knowledge Base search error', async 
 
 test('chat header shows pending KB state when Knowledge Base is enabled but empty', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
 
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
@@ -455,6 +460,7 @@ test('chat header shows pending KB state when Knowledge Base is enabled but empt
 
 test('clearing Interpretive Lens immediately clears chat header context chip', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
 
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');
@@ -491,6 +497,7 @@ test('clearing Interpretive Lens immediately clears chat header context chip', a
 
 test('chat header hides AI Context status chip when no AI provider is configured', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await expect(page.locator('html[data-app-ready]')).toBeAttached();
 
   await page.evaluate(async () => {
     const { state } = await import('/js/state.js');

@@ -24,3 +24,12 @@
 @custom-variant theme-synth (&:where([data-theme="synth-sunrise"], [data-theme="synth-sunrise"] *));
 @custom-variant theme-neuro (&:where([data-theme="neuromancer"], [data-theme="neuromancer"] *));
 @custom-variant theme-decorative (&:where([data-theme="glass"], [data-theme="glass"] *, [data-theme="synth-sunrise"], [data-theme="synth-sunrise"] *, [data-theme="neuromancer"], [data-theme="neuromancer"] *));
+
+@source "../js/components/ChatHeader.svelte";
+@source "../js/chat-header-classes.ts";
+@source "../js/components/ChatAttestationBadge.svelte";
+@source "../js/components/ChatAttestationTooltip.svelte";
+@custom-variant header (&:is([data-chat-header-view], [data-chat-header-view] *));
+@custom-variant attestation (&:is([data-chat-attestation-view], [data-chat-attestation-view] *));
+
+@custom-variant theme-cyber (&:where([data-theme="cyberterm"], [data-theme="cyberterm"] *));

@@ -141,7 +141,7 @@ export function updateChatContextStatusIfLoaded(...args: unknown[]) {
   // (including browser fixtures). Preserve the cold boundary unless a Chat
   // context chip is actually present, then adopt the open panel into the
   // configured composition before refreshing it.
-  if (typeof document === 'undefined' || !document.querySelector('.chat-context-status')) {
+  if (typeof document === 'undefined' || !document.querySelector('#chat-panel.open .chat-context-status')) {
     return false;
   }
   return callChatModule('updateChatContextStatus', args);
@@ -152,9 +152,8 @@ export function updateChatHeaderModelIfLoaded(...args: unknown[]) {
     return callLoadedChatModule('updateChatHeaderModel', args, false);
   }
   // Do not pull Chat into a closed panel merely because profile context
-  // changed. The chip is created by Chat on first render, so its presence is
-  // a safe signal that a directly-rendered panel needs adopting.
-  if (typeof document === 'undefined' || !document.querySelector('.chat-context-status')) {
+  // changed. An open panel with its owned chip is a safe signal that a directly-rendered panel needs adopting.
+  if (typeof document === 'undefined' || !document.querySelector('#chat-panel.open .chat-context-status')) {
     return false;
   }
   return callChatModule('updateChatHeaderModel', args);

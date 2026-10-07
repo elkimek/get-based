@@ -363,7 +363,7 @@ const cssClasses = [
   'chat-toggle-arrow', 'chat-toggle-slider'
 ];
 for (const cls of cssClasses) {
-  assert(`CSS .${cls} defined`, cssSrc.includes('.' + cls), 'found in CSS bundle');
+  assert(`CSS .${cls} defined`, cls === 'chat-toggle-slider' ? read('js/components/ChatHeader.svelte').includes('chat-toggle-slider gb:header:relative') : cssSrc.includes('.' + cls), 'found in owned styling');
 }
 assert('CSS has shimmer animation', cssSrc.includes('@keyframes shimmer'), 'found');
 assert('CSS .chat-action-btn.active removed', !cssSrc.includes('.chat-action-btn.active'), 'removed');
@@ -497,7 +497,7 @@ assert('chat-prompt-context.js exports tagged messages helper', chatPromptContex
 assert('chat-send.js imports attestation helpers', chatSendSrc.includes("from './chat-attestation.js'"), 'found');
 assert('chat-attestation.js exports E2EE lock footnote helper', chatAttestationSrc.includes('export function e2eeLockFootnote'), 'found');
 assert('chat.js imports personality helpers', chatSrc.includes("from './chat-personalities.js'"), 'found');
-assert('chat-personalities.js exports header model helper', chatPersonalitiesSrc.includes('export function updateChatHeaderModel'), 'found');
+assert('chat-personalities.js exports header model helper', chatPersonalitiesSrc.includes('updateChatHeaderModel, updateSummaryButton } from') && read('js/chat-header-presentation.ts').includes('export function updateChatHeaderModel'), 'found');
 assert('chat.js imports history helpers', chatSrc.includes("from './chat-history.js'"), 'found');
 assert('chat-history.js exports save/load helpers', chatHistorySrc.includes('export async function saveChatHistory') && chatHistorySrc.includes('export async function loadChatHistory'), 'found');
 assert('chat-actions.js saves regenerated history through chat-history helper', chatActionsSrc.includes('saveChatHistory'), 'found');
@@ -527,7 +527,7 @@ assert('API messages tag other personas', chatPromptContextSrc.includes('Respons
 assert('chat.js imports chat panel helpers', chatSrc.includes("from './chat-panel.js'"), 'found');
 assert('chat-panel.js exports open/close helpers', chatPanelSrc.includes('export async function openChatPanel') && chatPanelSrc.includes('export function closeChatPanel'), 'found');
 assert('chat-panel.js owns web-search toggle state', chatPanelSrc.includes('export function getChatWebSearchEnabled') && chatPanelSrc.includes('export function setChatWebSearchEnabled'), 'found');
-assert('chat-panel scopes web-search selector to chat panel', chatPanelSrc.includes("querySelector('#chat-panel .chat-websearch-toggle-label')"), 'found');
+assert('chat-panel scopes web-search presentation to owned header', chatPanelSrc.includes('refreshChatHeaderWebSearch()') && read('js/chat-header-view.ts').includes("owner.root.ownerDocument.querySelector('[data-chat-header-view]') === owner.root"), 'found');
 assert('chat.js imports chat nudge helpers', chatSrc.includes("from './chat-nudge.js'"), 'found');
 assert('chat-nudge.js owns FAB nudge state', chatNudgeSrc.includes('export function setChatNudge') && chatNudgeSrc.includes('export function updateChatNudge'), 'found');
 assert('chat-panel delegates nudge dismissal', chatPanelSrc.includes("from './chat-nudge.js'") && chatPanelSrc.includes('dismissCurrentChatNudge()'), 'found');

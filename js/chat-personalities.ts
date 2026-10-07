@@ -1,20 +1,17 @@
+import { requestChatLayoutSync } from './chat-layout-view.js';
+import { updateChatHeaderTitle } from './chat-header-presentation.js';
+export { updateChatHeaderTitle, updateChatHeaderModel, updateSummaryButton } from './chat-header-presentation.js';
 // chat-personalities.js - chat personality selection, custom personas, and header status
 
 import type { PersonaEditorLocation } from './chat-personality-editor.js';
 
 import { state } from './state.js';
 import { CHAT_PERSONALITIES } from './constants.js';
-import { escapeAttr, escapeHTML, showNotification } from './utils.js';
-import { getAIProvider, isVeniceE2EEActive, isPpqPrivateModeActive, isRoutstrPrivateModeActive } from './api.js';
+import { escapeAttr, showNotification } from './utils.js';
 import { saveChatThreadIndex, renderThreadList } from './chat-threads.js';
 import { configurePersonalityPicker, getPersonalityPickerView, closePersonalityPickerView } from './chat-personality-picker-view.js';
-import { e2eeLockHTML } from './chat-attestation.js';
 import { updateChatContextStatus } from './chat-context-status.js';
 import {
-  getChatBackendDisplay, hasChatResponseBackend, isCodexChatBackend,
-} from './chat-backend-selection.js';
-import {
-  getChatProviderAttestation,
   renderChatMessagesRuntime,
 } from './chat-runtime.js';
 import { hasCurrentPersonaAgreement, isCustomPersonalityUsable, isOfficialHostedPersonaApp } from './chat-personality-policy.js';
@@ -91,73 +88,6 @@ export async function setChatPersonality(id: string, opts: { locationLike?: Pers
   if (!opts.keepPickerOpen) closePersonalityPickerView();
 }
 
-export function updateChatHeaderTitle() {
-  const el = (document.querySelector('.chat-header-title') as HTMLElement | null);
-  if (!el) return;
-  const names: string[] = [];
-  const seen = new Set();
-  for (const m of state.chatHistory) {
-    if (m.role === 'assistant' && m.personalityName && !seen.has(m.personalityName)) {
-      seen.add(m.personalityName);
-      names.push((m.personalityIcon || '') + ' ' + m.personalityName);
-    }
-  }
-  if (names.length >= 2) {
-    el.textContent = `${names[0]} + ${names.length - 1} perspective${names.length === 2 ? '' : 's'}`;
-    el.title = names.join(', ');
-  } else {
-    const p = getActivePersonality();
-    el.textContent = p.name;
-    el.removeAttribute('title');
-  }
-  updateChatHeaderModel();
-  updateSummaryButton();
-}
-
-export function updateSummaryButton() {
-  const btn = document.querySelector<HTMLButtonElement>('.chat-summary-btn');
-  if (!btn) return;
-  const thread = state.chatThreads.find(t => t.id === state.currentThreadId);
-  const hasSummary = !!thread?.summary;
-  const eligibleMessages = state.chatHistory.filter(message => !message.hidden && !message.joined).length;
-  const canSummarize = hasSummary || eligibleMessages >= 4;
-  btn.classList.toggle('has-summary', hasSummary);
-  btn.disabled = !canSummarize;
-  btn.title = hasSummary
-    ? 'View summary'
-    : canSummarize
-      ? 'Summarize this conversation'
-      : 'Summary available after four messages';
-  btn.setAttribute('aria-label', btn.title);
-}
-
-let _headerListenerAdded = false;
-
-export function updateChatHeaderModel() {
-  const el = document.querySelector('.chat-header-model');
-  if (!el) return;
-  if (!_headerListenerAdded) {
-    el.addEventListener('e2ee-attestation', () => updateChatHeaderModel());
-    _headerListenerAdded = true;
-  }
-  if (!hasChatResponseBackend()) { el.textContent = ''; updateChatContextStatus(); return; }
-  updateChatContextStatus();
-  const display = getChatBackendDisplay();
-  if (isCodexChatBackend()) {
-    el.textContent = display;
-    return;
-  }
-  const provider = getAIProvider();
-  const e2ee = provider === 'venice' && isVeniceE2EEActive();
-  const ppqPrivate = provider === 'ppq' && isPpqPrivateModeActive();
-  const routstrPrivate = provider === 'routstr' && isRoutstrPrivateModeActive();
-  if (e2ee || ppqPrivate || routstrPrivate) {
-    el.innerHTML = escapeHTML(display) + e2eeLockHTML(getChatProviderAttestation(provider));
-  } else {
-    el.textContent = display;
-  }
-}
-
 let pickerVersion = 0;
 let pickerContext: { profile: typeof state.currentProfile; thread: typeof state.currentThreadId; view: ReturnType<typeof getPersonalityPickerView>; version: number; } | null = null;
 function acceptsPickerAction(version: number): boolean {
@@ -187,7 +117,7 @@ export function togglePersonalityBar() {
   if (view.isOpen()) { view.setOpen(false); return; }
   document.querySelector('.discuss-persona-picker')?.remove();
   document.getElementById('chat-thread-rail')?.classList.remove('open');
-  document.querySelector('.chat-rail-toggle')?.setAttribute('aria-expanded', 'false');
+  requestChatLayoutSync();
   updatePersonalityBar(); view.setOpen(true);
 }
 

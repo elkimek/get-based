@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ChatHeader from './ChatHeader.svelte';
   import { flushSync } from 'svelte';
   import ChatPersonalityPicker from './ChatPersonalityPicker.svelte';
   import ChatComposer from './ChatComposer.svelte';
@@ -47,39 +48,7 @@
     </div>
     <ChatResizeHandle kind="rail" {layout} />
     <div class="chat-panel-conversation">
-      <div class="chat-header">
-        <div class="chat-header-left">
-          <button class="chat-rail-toggle" data-chat-action="toggle-thread-rail" title="Conversations" aria-label="Toggle conversations" aria-expanded="false" aria-controls="chat-thread-rail">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
-          </button>
-          <div class="chat-header-info">
-            <span class="chat-header-title">AI Lab Analyst</span>
-            <span class="chat-header-model"></span>
-          </div>
-        </div>
-        <div class="chat-header-actions">
-          <label class="chat-websearch-toggle-label" title="Let AI search the web for current information (Venice &amp; OpenRouter)" style="display:none">
-            <span class="chat-toggle-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/></svg></span>
-            <span class="chat-toggle-text">Web</span>
-            <input type="checkbox" id="chat-websearch-checkbox" aria-label="Toggle web search" data-chat-change-action="set-websearch">
-            <span class="chat-toggle-slider"></span>
-          </label>
-          <span class="sr-only" aria-live="polite" id="chat-context-live-status"></span>
-          <button class="chat-summary-btn" data-chat-action="summarize-thread" title="Summarize this conversation" aria-label="Summarize this conversation"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16"/><path d="M4 9h10"/><path d="M4 14h16"/><path d="M4 19h10"/></svg></button>
-          <details class="chat-more-menu">
-            <summary aria-label="More chat actions" title="More chat actions"><span aria-hidden="true">•••</span></summary>
-            <div class="chat-more-menu-popover">
-              <button class="chat-clear-btn" data-chat-action="clear-history">Clear conversation</button>
-            </div>
-          </details>
-          <button class="chat-fullscreen-btn" data-chat-action="toggle-fullscreen" aria-label="Enter fullscreen chat" title="Enter fullscreen" aria-pressed="false">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
-          </button>
-          <button class="chat-close-btn" data-chat-action="close-panel" aria-label="Close chat">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-          </button>
-        </div>
-      </div>
+      <ChatHeader {layout} />
       <ChatPersonalityPicker />
       <div class="chat-messages" id="chat-messages" role="log" aria-live="off" aria-busy="false" aria-label="Conversation"></div>
       <span class="sr-only" id="chat-stream-status" role="status" aria-live="polite" aria-atomic="true"></span>

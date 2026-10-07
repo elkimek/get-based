@@ -1753,3 +1753,14 @@ js/custom-settings-controller.js
 /tests/chat-personality-storage-order.test.js
 /tests/playwright/chat-personality-owned.spec.js
 /tests/pwa/sveltekit-chat-personality.spec.js
+
+# Generated owned Chat header runtime
+/js/chat-header-contract.js
+/js/chat-header-view.js
+/js/chat-header-presentation.js
+/js/chat-header-classes.js
+/js/chat-attestation-presentation.js
+/js/chat-attestation-component.js
+/tests/chat-header-owned.test.js
+/tests/playwright/chat-header-owned.spec.js
+/tests/pwa/sveltekit-chat-header.spec.js

@@ -214,12 +214,14 @@ try {
 
   // ─── 8. Current-head Greptile regressions ───
   {
-    const chatSrc = readAuthoredRepositorySource('js/chat-personalities.js', 'utf8');
+    const chatSrc = readAuthoredRepositorySource('js/chat-header-presentation.js', 'utf8');
     const chatContextStatusSrc = fs.readFileSync('js/chat-context-status.js', 'utf8');
+    const { projectChatContext } = await import('../js/chat-header-contract.js');
+    const absent = projectChatContext(['Lens'], ['KB empty'], 'Last retrieval failed', false);
     assert('chat header hides AI Context chip when no provider is configured',
-      /function updateChatContextStatus\(\)[\s\S]*?const clearStatus = \(\) => \{[\s\S]*?status\.hidden = true;[\s\S]*?if \(!hasChatResponseBackend\(\)\) \{[\s\S]*?clearStatus\(\);[\s\S]*?return;[\s\S]*?const contextState/.test(chatContextStatusSrc));
+      absent.label === '' && absent.announcement === '' && absent.error === false);
     assert('chat header clears model before refreshing hidden context state in no-provider path',
-      /if \(!hasChatResponseBackend\(\)\) \{ el\.textContent = ''; updateChatContextStatus\(\); return; \}/.test(chatSrc));
+      chatSrc.includes("model: available ? getChatBackendDisplay() : ''") && chatSrc.includes('context: getChatContextView()'));
     assert('chat header reads Genome lookup status from Context source registry helper',
       chatContextStatusSrc.includes("import { CONTEXT_SOURCE_IDS, isContextSourceEnabled } from './context-source-registry.js';")
       && /function isGenomeLookupContextActive\(\) \{[\s\S]{0,160}isContextSourceEnabled\(CONTEXT_SOURCE_IDS\.GENOME_INVENTORY\)/.test(chatContextStatusSrc)

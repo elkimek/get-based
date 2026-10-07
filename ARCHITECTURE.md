@@ -1082,3 +1082,26 @@ waits for both resources, concurrent stylesheet requests share one load, and a
 failed link is removed and cache-busted for retry. An HTML anchor preserves
 the original cascade position, and the service-worker app shell retains the
 stylesheet for offline first use.
+
+`ChatHeader.svelte` owns header controls, literal perspective/model labels,
+context states, summary eligibility, menu dismissal/focus and web-search input.
+The context chip occupies its own row so compact screens retain a readable label
+without reducing touch targets.
+`chat-header-contract.ts` projects title, summary and context values without DOM
+access; `chat-header-presentation.ts` reads existing domain services and publishes
+through `chat-header-view.ts`. The view accepts only its current component root
+and releases provider/receipt subscriptions when disposed. Fullscreen and rail
+accessibility follow the shell's existing layout state. Shell action injection
+routes component callbacks to existing workflows; document delegates skip the
+owned header. Public header refresh entry points retain their previous URLs.
+
+`ChatAttestationBadge.svelte` authors both live header badges and synchronous
+transcript compatibility HTML. `chat-attestation-presentation.ts` preserves
+receipt tiers and explicit verification limitations; it performs no verification.
+`ChatAttestationTooltip.svelte` owns shared hover, focus, Escape, positioning and
+receipt-removal behavior. Its adapter adopts one host per document and disposes
+removed hosts. Header and attestation styling uses scoped Tailwind utilities,
+existing theme variables and contrast-adjusted status colors. The model picker
+owns backend availability presentation; obsolete header selector/dot writers are
+removed. Transcript rendering and summary dialogs remain separate services until
+their migration.

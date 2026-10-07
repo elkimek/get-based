@@ -1,3 +1,4 @@
+import { configureChatHeaderActions } from './chat-header-view.js';
 import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // shell-actions.js - delegated actions for static index.html controls
 
@@ -205,7 +206,7 @@ function runChatAction(action: string | undefined, actionEl: HTMLElement) {
 
 function handleShellClick(event: Event) {
   const actionEl = closestAction(event, '[data-shell-action], [data-chat-action]');
-  if (!actionEl || actionEl.closest('[data-chat-personality-view]')) return;
+  if (!actionEl || actionEl.closest('[data-chat-personality-view], [data-chat-header-view]')) return;
 
   const shellAction = actionEl.dataset.shellAction;
   const chatAction = actionEl.dataset.chatAction;
@@ -228,6 +229,7 @@ function handleShellInput(event: Event) {
 function handleShellChange(event: Event) {
   const input = event.target;
   if (!(input instanceof HTMLInputElement) && !(input instanceof HTMLSelectElement)) return;
+  if (input.closest('[data-chat-header-view]')) return;
   if (input.dataset.chatChangeAction === 'set-websearch' && input instanceof HTMLInputElement) {
     shellChatActionDeps.setChatWebSearchEnabled(input.checked);
   } else if (input.dataset.chatChangeAction === 'set-backend' && input instanceof HTMLSelectElement) {
@@ -260,3 +262,15 @@ export function installShellActionDelegates() {
   document.addEventListener('change', handleShellChange);
   document.addEventListener('keydown', handleShellKeydown);
 }
+
+configureChatHeaderActions({
+  act(action) {
+    if (action === 'rail') return shellChatThreadDeps.toggleThreadRail();
+    if (action === 'summary') return shellChatActionDeps.summarizeThread();
+    if (action === 'clear') return shellChatActionDeps.clearChatHistory();
+    if (action === 'fullscreen') return shellChatActionDeps.toggleChatFullscreen();
+    if (action === 'close') return shellChatActionDeps.closeChatPanel();
+    return openChatContextModalRuntime();
+  },
+  webSearch: enabled => shellChatActionDeps.setChatWebSearchEnabled(enabled),
+});

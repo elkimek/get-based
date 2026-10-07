@@ -198,7 +198,7 @@ test('chat prompt context attestation and discussion prompt helpers cover browse
 
 test('E2EE attestation badge reveals verification details on hover and focus', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForSelector('#chat-input');
+  await page.waitForSelector('#chat-input', { state: 'attached' });
 
   await page.evaluate(async ({ attestationUrl }) => {
     const attestation = (await import(attestationUrl) as unknown) as Pick<typeof import('../../js/chat-attestation.js'), "attestationTooltip" | "e2eeLockHTML" | "e2eeLockFootnote">;

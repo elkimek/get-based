@@ -1,3 +1,4 @@
+import { closeChatHeaderMenu } from './chat-header-view.js';
 // chat-history.js - thread-aware chat history persistence and clearing
 
 import { state } from './state.js';
@@ -234,7 +235,7 @@ export async function clearChatHistory() {
       updateChatHeaderTitle();
       updateDiscussButtonRuntime();
       showNotification('Chat history cleared', 'info');
-      document.querySelector('.chat-more-menu')?.removeAttribute('open');
+      closeChatHeaderMenu();
       return true;
     } finally { clearingHistoryKeys.delete(clearKey); }
   }

@@ -428,10 +428,9 @@ assert('Venice model dropdown uses delegated change handler',
     providerSrc.includes('onVeniceModelDropdownChange,'));
 const chatSrc = read('js/chat.js');
 const chatSendSrc = read('js/chat-send.js');
-const chatAttestationSrc = read('js/chat-attestation.js');
 assert('chat send uses isVeniceE2EEActive', chatSendSrc.includes('isVeniceE2EEActive'));
 assert('chat send imports E2EE attestation helpers', chatSendSrc.includes("from './chat-attestation.js'"));
-assert('chat attestation shows lock emoji for E2EE', chatAttestationSrc.includes('\\uD83D\\uDD12'));
+assert('chat attestation shows lock emoji for E2EE', read('js/components/ChatAttestationBadge.svelte').includes('🔒'));
 const limitedVenice = {
   verificationLevel: 'binding',
   nonceVerified: true,
@@ -466,7 +465,7 @@ const dcapLock = chatAttestationMod.e2eeLockHTML(dcapVenice);
 assert('Venice DCAP lock has a distinct non-green tier',
   dcapLock.includes('#38bdf8')
     && dcapLock.includes('TEE')
-    && dcapLock.includes('class="e2ee-attestation-badge"')
+    && /class="e2ee-attestation-badge(?:\s|")/.test(dcapLock)
     && dcapLock.includes('data-attestation-tooltip=')
     && !dcapLock.includes('#22c55e'),
   dcapLock);
