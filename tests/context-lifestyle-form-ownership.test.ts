@@ -199,3 +199,34 @@ it('Light setup projection preserves zero and all burden tiers, skipped state an
   expect(project().burden).toEqual({ label: 'skipped', tier: null });
   expect(project().rows.map(row => row.value)).toEqual(['—', '<img src=x>', 'Legacy & lens']);
 });
+
+it('projects literal multiline interpretive lens text and serializes trimmed strings without extra note fields', () => {
+  state.importedData.interpretiveLens = '  Framework <literal> & text\nSecond line  ';
+  const model = lifestyleFormModel('interpretiveLens', state.importedData, null), draft = lifestyleDraft(model, state.importedData);
+  expect(model).toMatchObject({ title: 'Interpretive Lens', backToContext: true, fields: [], sections: [], textField: { id: 'interpretive-lens-textarea', label: 'Interpretive lens' } });
+  expect(draft).toEqual({ text: state.importedData.interpretiveLens });
+  applyLifestyleDraft(state.importedData, 'interpretiveLens', draft); expect(state.importedData.interpretiveLens).toBe('Framework <literal> & text\nSecond line');
+  applyLifestyleDraft(state.importedData, 'interpretiveLens', { text: '   ' }); expect(state.importedData.interpretiveLens).toBe('');
+  applyLifestyleDraft(state.importedData, 'interpretiveLens', null); expect(state.importedData.interpretiveLens).toBe('');
+});
+it('commits accepted lens text and history to its originating profile after closure and switching', async () => {
+  const origin = state.importedData, profile = state.currentProfile, pending = deferred(); mocks.save.mockReturnValueOnce(pending.promise);
+  const session = createLifestyleFormSession('interpretiveLens'), saving = session.save({ text: '  Origin <lens>  ' });
+  expect(origin.interpretiveLens).toBe(''); expect(origin.changeHistory).toEqual([]); expect(await session.save({ text: 'Duplicate' })).toBe('busy'); session.retire();
+  state.currentProfile = 'other-lens'; state.importedData = createDefaultProfileData(); state.importedData.interpretiveLens = 'Other profile'; rememberProfileData(state.importedData);
+  pending.resolve(true); expect(await saving).toBe('saved'); expect(origin.interpretiveLens).toBe('Origin <lens>'); expect(origin.changeHistory).toEqual([expect.objectContaining({ field: 'interpretiveLens', snapshot: 'Origin <lens>' })]);
+  expect(state.importedData.interpretiveLens).toBe('Other profile'); expect(mocks.contextChanged).not.toHaveBeenCalled();
+  expect(mocks.save).toHaveBeenCalledWith(profile, expect.anything(), expect.objectContaining({ expectedContextField: { key: 'interpretiveLens', value: '' } }));
+});
+it('retains failed lens input and reports peer conflicts without publishing draft text', async () => {
+  const session = createLifestyleFormSession('interpretiveLens'), draft = { text: 'Retry lens' }; mocks.save.mockResolvedValueOnce(false);
+  expect(await session.save(draft)).toBe('failed'); expect(state.importedData.interpretiveLens).toBe(''); expect(draft.text).toBe('Retry lens');
+  mocks.save.mockImplementationOnce((_profile, _draft, options: ProfileSaveOptions) => { options.onContextFieldConflict?.(); return false; });
+  expect(await session.save(draft)).toBe('conflict'); expect(state.importedData.changeHistory).toEqual([]);
+  expect(await session.save(draft)).toBe('saved'); expect(state.importedData.interpretiveLens).toBe('Retry lens');
+});
+it('clears a saved lens as the existing empty-string contract and records its committed history', async () => {
+  state.importedData.interpretiveLens = 'Saved framework'; rememberProfileData(state.importedData);
+  expect(await createLifestyleFormSession('interpretiveLens').save(null)).toBe('saved'); expect(state.importedData.interpretiveLens).toBe('');
+  expect(state.importedData.changeHistory).toEqual([expect.objectContaining({ field: 'interpretiveLens', snapshot: '' })]);
+});

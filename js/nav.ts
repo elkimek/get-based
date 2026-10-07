@@ -117,6 +117,7 @@ function handleNavActionClick(event: Event) {
   } else if (action === 'open-report-builder') {
     openReportBuilderFromNavRuntime();
   } else if (action === 'open-context') {
+    if (document.getElementById('sidebar-nav')?.classList.contains('mobile-open')) closeMobileSidebar();
     openContextFromNavRuntime();
   } else if (action === 'open-custom-marker') {
     openCreateMarkerFromNavRuntime();

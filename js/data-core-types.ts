@@ -6,7 +6,7 @@ export interface ProfileSaveOptions {
   baseData?: Partial<ImportedDataRecord> | undefined;
   expectedData?: string | null | undefined;
   expectedContextNotes?: string;
-  expectedContextField?: { key: 'sleepRest' | 'exercise' | 'stress' | 'loveLife' | 'diet' | 'environment' | 'lightCircadian' | 'healthGoals'; value: unknown };
+  expectedContextField?: { key: 'sleepRest' | 'exercise' | 'stress' | 'loveLife' | 'diet' | 'environment' | 'lightCircadian' | 'healthGoals' | 'interpretiveLens'; value: unknown };
   onContextFieldConflict?: () => void;
   onContextNotesConflict?: (saved: string) => void;
   activeSave?: boolean;

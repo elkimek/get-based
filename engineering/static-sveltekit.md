@@ -240,5 +240,10 @@ and removes goals, explicitly restores a deleted goal, cancels clearing, and
 checks committed IndexedDB history and deletion markers through two offline cold
 launches. It uses the real catalog and stored profile without importing pruned
 source module URLs.
+Interpretive Lens shares the authored context form and captured storage session.
+[`sveltekit-context-lens.spec.ts`](../tests/pwa/sveltekit-context-lens.spec.ts)
+opens it through real Context navigation on offline first use, saves literal
+multiline text and history, checks cancellation and Back without saving draft
+text, and verifies two offline cold launches plus the empty-string Clear contract.
 This is scoped editor acceptance; final whole-application migration acceptance
 remains required.

@@ -56,8 +56,9 @@ export function configureDashboardAIDataProtectionDeps(deps: unknown = {}) {
   return previous;
 }
 
-function runDashboardAIAction(name: keyof DashboardAIModule) {
+function runDashboardAIAction(name: keyof DashboardAIModule, isCurrent: () => boolean = () => true) {
   const run = (module: DashboardAIModule) => {
+    if (!isCurrent()) return false;
     const action = module[name];
     if (typeof action !== 'function') {
       throw new Error(`Dashboard AI action ${String(name)} is unavailable`);
@@ -65,6 +66,7 @@ function runDashboardAIAction(name: keyof DashboardAIModule) {
     return Reflect.apply(action, module, []) as unknown;
   };
   return invokeCachedModule(dashboardAIModuleLoader, loadDashboardAIModule, run, (err) => {
+    if (!isCurrent()) return false;
     console.error(`[context-cards] Could not run ${String(name)}:`, err);
     showNotification('Dashboard context tools could not be loaded. Try again.', 'error');
     return false;
@@ -79,8 +81,15 @@ export function openDataProtectionPicker() {
   return runDashboardAIAction('openDataProtectionPicker');
 }
 
+let contextOpenRequest = 0;
 export function openContextModal() {
-  return runDashboardAIAction('openContextModal');
+  const ticket = ++contextOpenRequest, profile = state.currentProfile, origin = state.importedData;
+  const modal = typeof document === 'undefined' ? null : document.getElementById('detail-modal');
+  const content = modal?.firstElementChild, surface = typeof document === 'undefined' ? null : document.getElementById('main-content')?.firstElementChild;
+  return runDashboardAIAction('openContextModal', () => ticket === contextOpenRequest
+    && state.currentProfile === profile && state.importedData === origin
+    && (typeof document === 'undefined' || (document.getElementById('detail-modal') === modal
+      && modal?.firstElementChild === content && document.getElementById('main-content')?.firstElementChild === surface)));
 }
 
 export function openPersonalizeAIPicker() {

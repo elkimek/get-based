@@ -286,7 +286,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
   const results = await page.evaluate(async ({ lifestyleUrl }) => {
     const [{ state }, lifestyle, lifestyleRuntime] = await Promise.all([
       import('/js/state.js'),
-      (import(lifestyleUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/context-card-lifestyle-editors.js'), "openExerciseEditor" | "openHealthGoalsEditor" | "renderHealthGoalsModal" | "configureLifestyleContextEditors" | "openDietEditor" | "renderDietContaminantsBadge" | "showDietContaminantsModal" | "openSleepRestEditor" | "saveSleepRest" | "clearSleepRest" | "openLightCircadianEditor" | "saveLightCircadian" | "clearLightCircadian" | "saveExercise" | "clearExercise" | "openStressEditor" | "saveStress" | "clearStress" | "openLoveLifeEditor" | "saveLoveLife" | "clearLoveLife" | "openEnvironmentEditor" | "saveEnvironment" | "clearEnvironment" | "openInterpretiveLensEditor" | "addHealthGoal" | "closeHealthGoals">>,
+      (import(lifestyleUrl) as Promise<unknown>) as Promise<Pick<typeof import('../../js/context-card-lifestyle-editors.js'), "openExerciseEditor" | "openHealthGoalsEditor" | "renderHealthGoalsModal" | "configureLifestyleContextEditors" | "openDietEditor" | "renderDietContaminantsBadge" | "showDietContaminantsModal" | "openSleepRestEditor" | "saveSleepRest" | "clearSleepRest" | "openLightCircadianEditor" | "saveLightCircadian" | "clearLightCircadian" | "saveExercise" | "clearExercise" | "openStressEditor" | "saveStress" | "clearStress" | "openLoveLifeEditor" | "saveLoveLife" | "clearLoveLife" | "openEnvironmentEditor" | "saveEnvironment" | "clearEnvironment" | "openInterpretiveLensEditor" | "addHealthGoal" | "closeHealthGoals" | "saveInterpretiveLens" | "clearInterpretiveLens">>,
       import('/js/context-card-lifestyle-runtime.js'),
     ]);
     const data = await import('/js/data.js');
@@ -603,10 +603,11 @@ test('lifestyle context editors cover save clear health goals lens and contamina
 
       await lifestyle.openInterpretiveLensEditor();
       ((document.getElementById('interpretive-lens-textarea') as HTMLTextAreaElement | null))!.value = 'Functional endocrinology';
-      document.querySelector<HTMLElement>('[data-lifestyle-action="save-interpretive-lens"]')?.click();
+      document.getElementById('interpretive-lens-textarea')!.dispatchEvent(new Event('input', { bubbles: true }));
+      await lifestyle.saveInterpretiveLens();
       outcomes.saveInterpretiveLensStoresTrimmedText = state.importedData.interpretiveLens === 'Functional endocrinology';
       await lifestyle.openInterpretiveLensEditor();
-      document.querySelector<HTMLElement>('[data-lifestyle-action="clear-interpretive-lens"]')?.click();
+      await lifestyle.clearInterpretiveLens();
       outcomes.clearInterpretiveLensBlanksText = state.importedData.interpretiveLens === '';
 
       await lifestyle.openHealthGoalsEditor();

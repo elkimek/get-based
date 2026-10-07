@@ -5,8 +5,9 @@ import { doesNutritionContextOverrideTypicalMeals } from './context-card-summari
 import { openEMFAssessmentEditor } from './emf-runtime.js';
 import { getLatitudeFromLocation } from './profile.js';
 import { reopenSunSetup } from './sun-defaults.js';
-import { openLightSetupFromLifestyleRuntime } from './context-card-lifestyle-runtime.js';
+import { closeLifestyleContextModalAndNavigateRuntime, updateLifestyleChatHeaderModelRuntime, openLightSetupFromLifestyleRuntime } from './context-card-lifestyle-runtime.js';
 import { state } from './state.js';
+import { openContextModalRuntime } from './context-cards-runtime.js';
 import { runWithContextEditorStylesheet } from './context-card-editor-ui.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
 import { showConfirmDialog, showNotification } from './utils.js';
@@ -67,7 +68,8 @@ async function save(owned: View, clear: boolean): Promise<void> {
   if (!current(owned))
     return;
   if (result === 'saved') {
-    const message = `${owned.message} ${clear ? 'cleared' : 'saved'}`;
+    const cleared = clear || (owned.key === 'interpretiveLens' && typeof draft?.text === 'string' && !draft.text.trim());
+    const message = `${owned.message} ${cleared ? 'cleared' : 'saved'}`;
     close(owned);
     try { owned.afterCommit(message); } catch { showNotification(message, 'success'); }
     return;
@@ -108,6 +110,23 @@ function launchLightSetup(owned: View): void {
       && document.querySelector<HTMLElement>('.nav-item.active')?.dataset.category === 'light') reopenSunSetup();
   });
 }
+function backToContext(owned: View): void {
+  if (!current(owned)) return;
+  const profile = state.currentProfile, origin = state.importedData, ticket = request;
+  close(owned);
+  const content = owned.modal.firstElementChild;
+  setTimeout(() => {
+    if (ticket === request && state.currentProfile === profile && state.importedData === origin
+      && document.getElementById('detail-modal') === owned.modal && owned.modal.firstElementChild === content
+      && !owned.overlay.classList.contains('show')) openContextModalRuntime();
+  }, 0);
+}
+function finishInterpretiveLens(message: string): void {
+  updateLifestyleChatHeaderModelRuntime();
+  const category = document.querySelector<HTMLElement>('.nav-item.active')?.dataset.category || 'dashboard';
+  closeLifestyleContextModalAndNavigateRuntime(category);
+  showNotification(message, message.endsWith('cleared') ? 'info' : 'success');
+}
 export function openLifestyleForm(key: LifestyleFormKey): void | Promise<unknown> {
   const profile = state.currentProfile, origin = state.importedData, ticket = ++request;
   const surface = document.getElementById('main-content')?.firstElementChild;
@@ -127,7 +146,7 @@ export function openLifestyleForm(key: LifestyleFormKey): void | Promise<unknown
     let owned: View;
     const component = mount(Form, {
       target: modal, props: {
-        model, initial: lifestyleDraft(model, origin), hasCurrent: origin[key] != null,
+        model, initial: lifestyleDraft(model, origin), hasCurrent: key === 'interpretiveLens' ? !!origin.interpretiveLens : origin[key] != null,
         current: () => !!owned && current(owned), save: () => { void save(owned, false); },
         clear: () => {
           void (async () => {
@@ -141,7 +160,7 @@ export function openLifestyleForm(key: LifestyleFormKey): void | Promise<unknown
             if (confirmed && current(owned))
               await save(owned, true);
           })();
-        }, close: () => close(owned), openEMF: () => { void launchEMF(owned); }, openLightSetup: () => launchLightSetup(owned),
+        }, close: () => close(owned), back: () => backToContext(owned), openEMF: () => { void launchEMF(owned); }, openLightSetup: () => launchLightSetup(owned),
       }
     });
     flushSync();
@@ -155,10 +174,11 @@ export function openLifestyleForm(key: LifestyleFormKey): void | Promise<unknown
       dispose(owned);
     });
     owned = {
-      key, root, modal, title: model.title, overlay, session, component, observer, saving: false, confirming: false, launching: false, message: model.message, afterCommit
+      key, root, modal, title: model.title, overlay, session, component, observer, saving: false, confirming: false, launching: false, message: model.message, afterCommit: key === 'interpretiveLens' ? finishInterpretiveLens : afterCommit
     };
     view = owned;
     openModalOverlay(overlay);
+    if (model.textField) modal.querySelector<HTMLTextAreaElement>(`#${model.textField.id}`)?.focus({ preventScroll: true });
     observer.observe(document.documentElement, {
       childList: true, subtree: true
     });

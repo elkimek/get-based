@@ -4,9 +4,9 @@
   import { untrack } from 'svelte';
   import { lifestyleMeals, lifestyleSectionSummary, toggleLifestyleChoice } from '../context-lifestyle-form-model.js';
   import type { LifestyleDraft, LifestyleField, LifestyleFormModel } from '../context-lifestyle-form-model.js';
-  let { model, initial, hasCurrent, current, save, clear, close, openEMF, openLightSetup }: {
+  let { model, initial, hasCurrent, current, save, clear, close, back, openEMF, openLightSetup }: {
     model: LifestyleFormModel; initial: LifestyleDraft; hasCurrent: boolean; current(): boolean;
-    save(): void; clear(): void; close(): void; openEMF(): void; openLightSetup(): void;
+    save(): void; clear(): void; close(): void; back(): void; openEMF(): void; openLightSetup(): void;
   } = $props();
   let draft = $state<LifestyleDraft>(untrack(() => structuredClone(initial)));
   let busy = $state(false), status = $state(''), pendingLabel = $state('Saving…');
@@ -33,7 +33,8 @@
 {/snippet}
 <div data-context-form-view={model.key} class="gb:context-form:min-w-0 gb:context-form:[overflow-wrap:anywhere]">
   <div class="gb:context-form:sticky gb:context-form:top-0 gb:context-form:z-[8] gb:context-form:flex gb:context-form:items-start gb:context-form:justify-between gb:context-form:gap-4 gb:context-form:border-b gb:context-form:border-line gb:context-form:bg-dialog-head gb:context-form:px-[26px] gb:context-form:py-5 gb:context-form:max-[720px]:px-[18px] gb:context-form:max-[720px]:py-4">
-    <div><div class="gb:context-form:text-[10px] gb:context-form:uppercase gb:context-form:tracking-wider gb:context-form:text-secondary">Profile context</div><h2 id="lifestyle-form-title" class="gb:context-form:m-0 gb:context-form:text-xl gb:context-form:font-semibold gb:context-form:text-ink">{model.title}</h2></div>
+    {#if model.backToContext}<button type="button" aria-label="Back to Context" title="Back to Context" class={`gb:context-form:min-h-11 gb:context-form:min-w-11 gb:context-form:shrink-0 gb:context-form:border-0 gb:context-form:bg-transparent gb:context-form:text-xl gb:context-form:text-secondary gb:context-form:cursor-pointer ${focus}`} onclick={() => { if (current()) back(); }}>←</button>{/if}
+    <div class="gb:context-form:min-w-0 gb:context-form:flex-1"><div class="gb:context-form:text-[10px] gb:context-form:uppercase gb:context-form:tracking-wider gb:context-form:text-secondary">Profile context</div><h2 id="lifestyle-form-title" class="gb:context-form:m-0 gb:context-form:text-xl gb:context-form:font-semibold gb:context-form:text-ink">{model.title}</h2></div>
     <button type="button" class={`gb:context-form:shrink-0 gb:context-form:min-h-11 gb:context-form:min-w-11 gb:context-form:border-0 gb:context-form:bg-transparent gb:context-form:text-2xl gb:context-form:text-secondary gb:context-form:cursor-pointer ${focus}`} aria-label={`Close ${model.title}`} onclick={() => { if (current()) close(); }}>×</button>
   </div>
   <div class="gb:context-form:px-[26px] gb:context-form:pt-[22px] gb:context-form:max-[720px]:px-[18px] gb:context-form:max-[720px]:pt-[18px]">
@@ -65,8 +66,13 @@
     {#if model.lightSetup}
       <p class="gb:context-form:mt-2 gb:context-form:text-xs gb:context-form:text-secondary">{#if model.latitude}📍 Latitude: <strong class="gb:context-form:text-ink">{model.latitude}</strong> <span class="gb:context-form:text-[11px]">(from Settings → Location)</span>{:else}💡 Set your country in Settings → Profile for automatic latitude detection{/if}</p>
     {/if}
+    {#if model.textField}
+      <label class={label} for={model.textField.id}>{model.textField.label}</label>
+      <textarea id={model.textField.id} rows="5" placeholder={model.textField.placeholder} value={typeof draft[model.textField.key] === 'string' ? draft[model.textField.key] : ''} disabled={busy} oninput={event => { if (current() && !busy && model.textField) draft[model.textField.key] = event.currentTarget.value; }} class={`${input} gb:context-form:min-h-32 gb:context-form:resize-y`}></textarea>
+    {:else}
     <label class={`${label} gb:context-form:mt-4`} for="ctx-note-input">Notes</label>
     <textarea id="ctx-note-input" rows="2" placeholder="Anything else that may be relevant" value={typeof draft.note === 'string' ? draft.note : ''} disabled={busy} oninput={event => { if (current() && !busy) draft.note = event.currentTarget.value; }} class={`gb:context-form:block gb:context-form:w-full gb:context-form:box-border gb:context-form:resize-y gb:context-form:rounded-control gb:context-form:border gb:context-form:border-line gb:context-form:bg-[var(--bg-primary)] gb:context-form:p-2.5 gb:context-form:text-ink gb:context-form:font-body gb:context-form:text-[13px] gb:context-form:max-[720px]:text-base gb:context-form:placeholder:text-secondary ${focus}`}></textarea>
+    {/if}
     <p role="status" aria-live="polite" class="gb:context-form:my-2 gb:context-form:text-xs gb:context-form:text-secondary">{status}</p>
     <div class="gb:context-form:sticky gb:context-form:bottom-0 gb:context-form:z-[7] gb:context-form:-mx-[26px] gb:context-form:mt-[22px] gb:context-form:flex gb:context-form:flex-wrap gb:context-form:gap-2 gb:context-form:border-t gb:context-form:border-line gb:context-form:bg-secondary-surface gb:context-form:px-[26px] gb:context-form:pt-3.5 gb:context-form:pb-[calc(14px+env(safe-area-inset-bottom))] gb:context-form:max-[720px]:-mx-[18px] gb:context-form:max-[720px]:px-[18px]">
       <button type="button" class={`${button} gb:context-form:border-accent gb:context-form:bg-accent gb:context-form:text-on-accent gb:context-form:hover:bg-accent`} disabled={busy} onclick={() => { if (current() && !busy) save(); }}>{busy ? pendingLabel : 'Save'}</button>

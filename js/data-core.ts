@@ -228,7 +228,10 @@ export function createDataCore(ports: DataCorePorts) {
           try { options.onContextNotesConflict?.(String(stored.contextNotes || '')); } catch { /* Observation cannot bypass the conflict guard. */ }
           throw new ports.ProfileWriteConflict('Context notes changed since this edit');
         }
-        if (expectedField && !ports.profileDataValuesEqual(stored[expectedField.key] ?? null, expectedField.value)) {
+        // Legacy profiles omit an empty Lens; it has the same string contract as ''.
+        const contextValue = expectedField?.key === 'interpretiveLens' ? stored.interpretiveLens ?? '' : expectedField ? stored[expectedField.key] ?? null : null;
+        const observedContextValue = expectedField?.key === 'interpretiveLens' ? expectedField.value ?? '' : expectedField?.value;
+        if (expectedField && !ports.profileDataValuesEqual(contextValue, observedContextValue)) {
           try { options.onContextFieldConflict?.(); } catch { /* Observation cannot bypass the guard. */ }
           throw new ports.ProfileWriteConflict('Context field changed since this edit');
         }

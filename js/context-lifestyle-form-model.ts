@@ -6,7 +6,7 @@ import { formatTime, getTimeFormat, parseTimeInput } from './theme.js';
 import { emfAssessmentLauncherView } from './context-emf-launcher-model.js';
 import type { EMFLauncherView } from './context-emf-launcher-model.js';
 import { getSleepContextMismatch } from './lab-context-wearables.js';
-export type LifestyleFormKey = 'sleepRest' | 'exercise' | 'stress' | 'loveLife' | 'diet' | 'environment' | 'lightCircadian';
+export type LifestyleFormKey = 'sleepRest' | 'exercise' | 'stress' | 'loveLife' | 'diet' | 'environment' | 'lightCircadian' | 'interpretiveLens';
 export type LifestyleDraft = Record<string, string | string[] | null>;
 export interface LifestyleOption {
   value: string;
@@ -61,6 +61,8 @@ export interface LifestyleFormModel {
   fields: LifestyleField[];
   sections: LifestyleSection[];
   mismatch: string | null;
+  textField?: { key: string; id: string; label: string; placeholder: string };
+  backToContext?: boolean;
   lightSetup?: LifestyleLightSetup;
   latitude?: string | null;
 }
@@ -76,6 +78,12 @@ const tags = (key: string, id: string, label: string, values: readonly (string |
 });
 export function lifestyleFormModel(key: LifestyleFormKey, data: ProfileData, sex: string | null, preferences: { unitSystem?: string; mealsPaused?: boolean; latitude?: string | null } = {}): LifestyleFormModel {
   switch (key) {
+    case 'interpretiveLens': return {
+      key, title: 'Interpretive Lens', message: 'Interpretive lens', mismatch: null,
+      subtitle: 'List researchers, clinicians, or scientific paradigms whose frameworks you follow. The AI will consider their perspectives when interpreting your results.',
+      fields: [], sections: [], backToContext: true,
+      textField: { key: 'text', id: 'interpretive-lens-textarea', label: 'Interpretive lens', placeholder: 'e.g. Longevity medicine, quantum biology, functional endocrinology framework...' }
+    };
     case 'lightCircadian': return {
       key, title: 'Light & Circadian', message: 'Light & circadian', mismatch: null,
       subtitle: 'Light, screen, and meal-timing habits help frame circadian and metabolic patterns.',
@@ -256,6 +264,7 @@ export function lifestyleFormModel(key: LifestyleFormKey, data: ProfileData, sex
 export function lifestyleFields(model: LifestyleFormModel): LifestyleField[] { return [...model.fields, ...model.sections.flatMap(section => section.fields)]; }
 export function lifestyleDraft(model: LifestyleFormModel, data: ProfileData): LifestyleDraft {
   const current = data[model.key];
+  if (model.textField) return { [model.textField.key]: typeof current === 'string' ? current : '' };
   const values: Record<string, unknown> = current && typeof current === 'object' ? current : {};
   const draft: LifestyleDraft = {
     note: typeof values.note === 'string' ? values.note : ''
@@ -318,6 +327,9 @@ export function applyLifestyleDraft(data: ProfileData, key: LifestyleFormKey, dr
   const empty = draft === null || Object.entries(draft).filter(([field]) => key !== 'diet' || !field.endsWith('Time')).every(([, value]) => Array.isArray(value) ? !value.length : !value?.trim());
   const note = text('note');
   switch (key) {
+    case 'interpretiveLens':
+      data.interpretiveLens = text('text');
+      break;
     case 'lightCircadian':
       data.lightCircadian = empty ? null : {
         amLight: one('amLight'), daytime: one('daytime'), uvExposure: one('uvExposure'), skinType: one('skinType'),

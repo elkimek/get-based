@@ -452,3 +452,19 @@ it('guards observed goal arrays atomically and retains peer goals without publis
   expect(await saveImportedDataForProfile(profileId, draft, { forceProfileScope: true, baseData: base, expectedContextField: { key: 'healthGoals', value: base.healthGoals }, onContextFieldConflict: conflict })).toBe(false);
   expect(conflict).toHaveBeenCalledOnce(); expect(JSON.parse((await crypto.encryptedGetItem(key))!).healthGoals).toEqual(peer.healthGoals);
 });
+
+it('guards an observed lens inside the storage transaction and preserves a peer lens on conflict', async () => {
+  state.importedData.interpretiveLens = 'Original lens'; expect(await saveImportedData()).toBe(true);
+  const base = structuredClone(state.importedData), draft = structuredClone(base); draft.interpretiveLens = 'Stale lens';
+  const peer = structuredClone(base); peer.interpretiveLens = 'Peer lens'; await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  const conflict = vi.fn();
+  expect(await saveImportedDataForProfile(profileId, draft, { forceProfileScope: true, baseData: base, expectedContextField: { key: 'interpretiveLens', value: base.interpretiveLens }, onContextFieldConflict: conflict })).toBe(false);
+  expect(conflict).toHaveBeenCalledOnce(); expect(JSON.parse((await crypto.encryptedGetItem(key))!).interpretiveLens).toBe('Peer lens');
+});
+
+it('accepts the first lens edit when a legacy stored profile has no lens property', async () => {
+  expect(await saveImportedData()).toBe(true); const base = structuredClone(state.importedData), draft = structuredClone(base); draft.interpretiveLens = 'First lens';
+  const legacy = JSON.parse((await crypto.encryptedGetItem(key))!); delete legacy.interpretiveLens; await crypto.encryptedSetItem(key, JSON.stringify(legacy));
+  expect(await saveImportedDataForProfile(profileId, draft, { forceProfileScope: true, baseData: base, expectedContextField: { key: 'interpretiveLens', value: base.interpretiveLens } })).toBe(true);
+  expect(JSON.parse((await crypto.encryptedGetItem(key))!).interpretiveLens).toBe('First lens');
+});

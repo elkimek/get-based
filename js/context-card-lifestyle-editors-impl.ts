@@ -10,7 +10,6 @@ import {
   closeLifestyleContextModalRuntime,
   discussDietContaminantsRuntime,
   markLifestyleContextDelegatesBoundRuntime,
-  returnToLifestyleContextModalRuntime,
 } from './context-card-lifestyle-runtime.js';
 import {
   addHealthGoal,
@@ -18,7 +17,6 @@ import {
   clearInterpretiveLens,
   clearLightCircadian,
   closeHealthGoals,
-  configureLifestyleSpecialEditors,
   deleteHealthGoal,
   openHealthGoalsEditor,
   openInterpretiveLensEditor,
@@ -29,9 +27,8 @@ import {
   showDietContaminantsModal,
 } from './context-card-lifestyle-special-editors.js';
 
-export function configureLifestyleContextEditors({ recordChange, saveAndRefresh, afterCommit }: LifestyleEditorDependencies = {}) {
+export function configureLifestyleContextEditors({ afterCommit }: LifestyleEditorDependencies = {}) {
   configureLifestyleFormView(afterCommit);
-  configureLifestyleSpecialEditors({ recordChange, saveAndRefresh });
 }
 
 
@@ -46,18 +43,11 @@ function discussDietContaminants() {
   discussDietContaminantsRuntime();
 }
 
-function returnToContextModal() {
-  returnToLifestyleContextModalRuntime();
-}
-
 function handleLifestyleContextClick(event: MouseEvent) {
   const actionEl = closestLifestyleElement(event.target, '[data-lifestyle-action]');
   if (!actionEl) return;
   switch (actionEl.dataset.lifestyleAction || '') {
     case 'show-diet-contaminants': event.preventDefault(); event.stopPropagation(); showDietContaminantsModal(); break;
-    case 'save-interpretive-lens': saveInterpretiveLens(); break;
-    case 'clear-interpretive-lens': clearInterpretiveLens(); break;
-    case 'back-to-context': returnToContextModal(); break;
     case 'discuss-diet-contaminants': discussDietContaminants(); break;
     case 'close-modal': closeLifestyleContextModalRuntime(); break;
   }

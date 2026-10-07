@@ -105,7 +105,7 @@ small helper text stays opaque and status text uses readable theme inks.
 Opening tips resets the reused detail modal layout and accessible name. Close and
 EMF controls use existing recommendation action services, with proper keyboard buttons.
 Insight schedules the same scoped tips loader as Dashboard after inserting its catalog.
-`LifestyleContextForm.svelte` owns the Diet, Environment, Light/Circadian, Sleep, Exercise, Stress and Relationships
+`LifestyleContextForm.svelte` owns the Diet, Environment, Light/Circadian, Sleep, Exercise, Stress, Relationships and Interpretive Lens
 forms, their drafts, disclosures, pressed states, notes and keyboard actions.
 `context-lifestyle-form-model.ts` projects the canonical options, wearable mismatch,
 sex-specific concerns, canonical Diet meal times and explicit stored field shapes.
@@ -153,8 +153,18 @@ profile after closure. Delete/clear retain tombstones; explicit re-add records a
 restore. Array deletion/restore metadata preserves observed intent order when
 wall-clock timestamps tie or move backwards, so stale peer deletions cannot erase
 an explicitly restored goal.
-Medical history, interpretive lens and nutrition fragments still use existing
-adapters and remain migration work.
+Interpretive Lens uses the shared form's labeled multiline text field and the
+existing trimmed-string/empty-string storage contract, including older profiles
+that omit the empty Lens property. Save and Clear use the
+same captured history/transaction session as other forms, retaining failed and
+conflicted drafts. Its accepted completion updates the chat header and existing
+navigation; Cancel and Back do not save a draft. Back captures the originating
+profile and modal before returning to the existing Context overview. The Context
+facade also rechecks that owner after its lazy module load, so a late reply cannot
+open over another profile, view or dialog. Opening Context from mobile navigation
+closes the sidebar before opening the overview, keeping Lens controls reachable.
+Medical history and nutrition fragments still use existing adapters and remain
+migration work.
 `context-notes-session.ts` captures accepted text and originating profile/data,
 serializes debounced scoped writes and retains retry drafts through catalog rebuilds
 and fresh profile reload objects. Failed idle sessions retain draft text without
