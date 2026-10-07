@@ -49,7 +49,8 @@ body.chat-autostart-reserved.chat-fullscreen .main {
   .chat-panel {
     left: 0;
     right: 0;
-    width: 100%;
+    /* Fill the viewport rather than the document scrollbar gutter. */
+    width: 100vw;
     max-width: none;
     border-left: 0;
   }

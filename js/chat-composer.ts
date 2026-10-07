@@ -2,6 +2,8 @@ import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // chat-composer.js — growing message input and per-conversation draft state
 
 import { state } from './state.js';
+import { ensureChatShell } from './chat-shell-component.js';
+import { ownChatComposerInput, captureChatComposerInput } from './chat-composer-input-port.js';
 import {
   clearStoredChatDraft,
   getCachedChatDraft,
@@ -9,7 +11,8 @@ import {
   rememberChatDraft,
 } from './chat-draft-storage.js';
 
-let composerInstalled = false;
+let composerInput: HTMLTextAreaElement | null = null;
+let releaseComposerInput: (() => void) | null = null;
 let draftRestoreRequest = 0;
 
 const composerDeps: { updateSendButtonState: () => unknown } = {
@@ -90,10 +93,14 @@ export function setChatInputValue(value: unknown, { remember = true, focus = fal
 export async function restoreChatDraft(threadId: string | null | undefined = state.currentThreadId, { focus = false }: { focus?: boolean } = {}) {
   const context = draftContext(threadId);
   if (!context) return applyChatInputValue('', focus);
+  const input = getChatInput();
+  if (!input) return false;
+  const isInputCurrent = captureChatComposerInput(input);
   const request = ++draftRestoreRequest;
   applyChatInputValue(getCachedChatDraft(context.profileId, context.threadId) || '', focus);
   const value = await loadChatDraft(context.profileId, context.threadId);
   if (request !== draftRestoreRequest
+    || !isInputCurrent()
     || state.currentProfile !== context.profileId
     || state.currentThreadId !== context.threadId) return false;
   return applyChatInputValue(value, focus);
@@ -116,11 +123,14 @@ function handleComposerInput() {
 }
 
 export function initChatComposer() {
+  ensureChatShell();
   const input = getChatInput();
   if (!input) return false;
-  if (!composerInstalled) {
-    composerInstalled = true;
-    input.addEventListener('input', handleComposerInput);
+  if (composerInput !== input) {
+    releaseComposerInput?.();
+    composerInput = input;
+    draftRestoreRequest += 1;
+    releaseComposerInput = ownChatComposerInput(input, handleComposerInput);
   }
   refreshChatComposer();
   return true;

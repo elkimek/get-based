@@ -27,9 +27,13 @@ const mode = import.meta.env.MODE;`;
     expect(rewriteNativeAssetBase('import.meta.url', path.join(root, 'vendor/feature.js'), root)).toBeNull();
   });
   it('preserves the canonical shell while replacing its entry with the Kit root', () => {
-    const input = `<!doctype html><html><head><script src="js/theme-bootstrap.js"></script><link href="https://outside.test/x"></head><body><button id="native-control">Native</button><script src="js/legal-consent-bootstrap.js"></script><!-- PRODUCTION_MAIN_SCRIPT_START --><script type="module" src="js/main.js"></script><!-- PRODUCTION_MAIN_SCRIPT_END --></body></html>`;
+    const input = `<!doctype html><html><head><script src="js/theme-bootstrap.js"></script><link href="https://outside.test/x"></head><body><button id="native-control">Native</button><!-- CHAT_SVELTE_SHELL_START --><div id="chat-panel">Generated</div><!-- CHAT_SVELTE_SHELL_END --><script src="js/legal-consent-bootstrap.js"></script><!-- PRODUCTION_MAIN_SCRIPT_START --><script type="module" src="js/main.js"></script><!-- PRODUCTION_MAIN_SCRIPT_END --></body></html>`;
     const output = staticKitTemplate(input);
     expect(output).toContain('id="native-control"');
+    expect(output).not.toContain('id="chat-panel"');
+    expect(output.match(/%sveltekit.body%/g)).toHaveLength(1);
+    expect(output.indexOf('%sveltekit.body%')).toBeLessThan(output.indexOf('legal-consent-bootstrap'));
+    expect(() => staticKitTemplate(input.replace('CHAT_SVELTE_SHELL_END', 'BROKEN'))).toThrow('one generated Chat');
     expect(output).toContain('src="/js/theme-bootstrap.js"');
     expect(output).toContain('src="/js/legal-consent-bootstrap.js"');
     expect(output).toContain('href="https://outside.test/x"');

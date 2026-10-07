@@ -1,1 +1,4 @@
-<!-- Native views remain owned by their services during incremental migration. -->
+<script lang="ts">
+  import ChatShell from '../../../components/ChatShell.svelte';
+</script>
+<ChatShell />

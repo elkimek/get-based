@@ -7,14 +7,14 @@ let state: typeof import('../js/state.js').state;
 
 beforeEach(async () => {
   vi.resetModules();
-  document.body.innerHTML = `
-    <textarea id="chat-input" style="--chat-input-max-height: 120px"></textarea>
-    <button id="chat-send-btn"></button>
-  `;
+  const { renderHTML } = await import('../js/components/ChatShell.svelte.html.js');
+  document.body.innerHTML = `<div id="chat-shell-host">${renderHTML()}</div>`;
   ({ state } = await import('../js/state.js'));
   composer = await import('../js/chat-composer.js');
   state.currentProfile = 'composer-test';
   state.currentThreadId = 'thread-one';
+  composer.initChatComposer();
+  document.getElementById('chat-input')!.style.setProperty('--chat-input-max-height', '120px');
 });
 
 describe('chat composer', () => {

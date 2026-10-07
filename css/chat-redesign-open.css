@@ -72,10 +72,7 @@ body.chat-open .analytics-consent-banner {
 .chat-close-btn,
 .chat-thread-new-btn,
 .chat-project-new-btn,
-.chat-context-menu-toggle,
-.chat-model-menu-toggle,
-.chat-voice-btn,
-.chat-discuss-btn {
+.chat-model-menu-toggle {
   border-radius: var(--radius-sm);
 }
 .chat-fullscreen-btn,
@@ -93,8 +90,6 @@ body.chat-open .analytics-consent-banner {
 .chat-thread-new-btn svg,
 .chat-fullscreen-btn svg,
 .chat-close-btn svg,
-.chat-discuss-btn svg,
-.chat-send-btn svg,
 .chat-action-btn svg,
 .chat-personality-edit svg,
 .chat-personality-delete svg,
@@ -107,10 +102,6 @@ body.chat-open .analytics-consent-banner {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-.chat-send-btn svg {
-  width: 18px;
-  height: 18px;
 }
 .chat-toggle-icon {
   display: none;
@@ -200,30 +191,6 @@ body.chat-open .analytics-consent-banner {
 .chat-user a {
   color: var(--on-accent);
 }
-.chat-input-area {
-  gap: 8px;
-  padding: 14px;
-  background: var(--bg-secondary);
-}
-.chat-input-row {
-  gap: 8px;
-  align-items: stretch;
-}
-.chat-input {
-  min-height: 48px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
-}
-.chat-send-btn {
-  width: 44px;
-  height: 40px;
-  border-radius: var(--radius-sm);
-  color: var(--on-accent);
-}
-.chat-send-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 18px -10px color-mix(in srgb, var(--accent) 70%, transparent);
-}
 .chat-prompt-btn,
 .chat-quiz-option,
 .chat-setup-btn,
@@ -289,7 +256,6 @@ body.chat-open .analytics-consent-banner {
   body.chat-open.chat-fullscreen .main { padding-right: 32px; }
   .chat-messages { padding: 18px; gap: 14px; }
   .chat-header { padding: 14px 18px; }
-  .chat-input-area { padding: 14px; gap: 8px; }
   .chat-personality-current { padding: 8px 18px; }
   .chat-msg { font-size: 14px; padding: 12px 14px; }
 }
@@ -429,9 +395,6 @@ body.chat-open .analytics-consent-banner {
 }
 .chat-panel.chat-panel-fullscreen .chat-msg.chat-user {
   max-width: min(100%, 1120px);
-}
-.chat-panel.chat-panel-fullscreen .chat-input-area {
-  padding-inline: clamp(16px, 2.5vw, 48px);
 }
 body.chat-open.chat-fullscreen:has(#chat-thread-rail.open) .main {
   padding-right: 32px;

@@ -4,7 +4,7 @@
   let { children }: { children: Snippet } = $props();
   let failed = $state(false);
   onMount(() => {
-    // The native shell sits outside Kit's route DOM; services initialize once.
+    // Shared domain services initialize after the route's components hydrate.
     document.documentElement.dataset.shellFramework = 'sveltekit';
     void import('../../../main.js').catch(() => { failed = true; });
   });

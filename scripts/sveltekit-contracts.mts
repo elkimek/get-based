@@ -26,16 +26,17 @@ export function rewriteNativeAssetBase(code: string, file: string, root: string)
   return changed ? { code: rewritten.toString(), map: rewritten.generateMap({ hires: true, source: file, includeContent: true }) } : null;
 }
 
-/** index.html remains the canonical native shell during incremental UI migration. */
+/** Shared Chat markup belongs to the Kit route; other shell areas migrate next. */
 export function staticKitTemplate(index: string): string {
   const marker = /<!-- PRODUCTION_MAIN_SCRIPT_START -->[\s\S]*?<!-- PRODUCTION_MAIN_SCRIPT_END -->/g;
   if ([...index.matchAll(marker)].length !== 1 || !index.includes('</head>') || !index.includes('</body>')) {
     throw new Error('The app shell must contain one production entry section and a complete document');
   }
-  return index.replace(marker, '')
+  const chat = /<!-- CHAT_SVELTE_SHELL_START[^>]*-->[\s\S]*?<!-- CHAT_SVELTE_SHELL_END -->/g;
+  if ([...index.matchAll(chat)].length !== 1) throw new Error('Expected one generated Chat shell section');
+  return index.replace(marker, '').replace(chat, '<div id="kit-root" style="display:contents">%sveltekit.body%</div>')
     .replace(/(src|href)="(?![a-z][a-z\d+.-]*:|\/|#)([^"]+)"/gi, '$1="/$2"')
-    .replace('</head>', '%sveltekit.head%</head>')
-    .replace('</body>', '<div id="kit-root" style="display:contents">%sveltekit.body%</div></body>');
+    .replace('</head>', '%sveltekit.head%</head>');
 }
 
 /** External classic bootstrap preserves document.currentScript and the deployed CSP. */

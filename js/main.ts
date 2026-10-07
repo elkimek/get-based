@@ -15,6 +15,8 @@ import './app-shell-hooks.js';
 import './light-env-shell-hooks.js';
 import { installShellActionDelegates } from './shell-actions.js';
 import { startApp } from './startup-orchestrator.js';
+import { ensureChatShell } from './chat-shell-component.js';
 
+ensureChatShell();
 installShellActionDelegates();
 startApp();

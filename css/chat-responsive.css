@@ -1,5 +1,4 @@
 @media (max-width: 768px) {
-  .chat-panel { width: 100%; }
   /* Mobile chat is full-screen takeover — no need to shift the
      dashboard since the user can't see it anyway. */
   body.chat-open .main,

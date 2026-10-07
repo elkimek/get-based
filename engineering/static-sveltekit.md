@@ -30,6 +30,10 @@ while this bridge is evaluated; building locally does not publish it.
 
 - Native shell services initialize once; Kit owns its route DOM and Svelte shares
   the same runtime with the component adapters.
+- Chat's initial shell and composer are authored once as shared Svelte
+  components. Kit owns them in its `/app` route; the native document contains
+  their deterministic build-generated snapshot, hydrated without replacing
+  controls or live transcript hosts. `svelte:check` verifies that snapshot.
 - Settings CSS, worker entry points, computed vendor URLs and delegated preference
   mutations keep their contracts.
 - Manifest `id`, `start_url` and `scope` remain `/app`; `/`, `/index.html` and

@@ -243,6 +243,8 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/chat-model-preferences.js', '/js/chat-runtime.js',
   '/js/chat-render-runtime.js', '/js/chat-render.js',
   '/js/chat-message-avatars.js', '/js/chat-thinking-status.js',
+  '/js/chat-shell-component.js', '/js/chat-composer-input-port.js', '/js/chat-composer-classes.js',
+  '/js/components/ChatShell.svelte.native.js',
   '/js/chat-composer.js', '/js/chat-recommendation-disclosure.js',
   '/js/chat-scroll.js', '/js/chat-storage-safety.js',
   '/js/chat-send.js',

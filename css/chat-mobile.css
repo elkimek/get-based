@@ -1,10 +1,8 @@
 @media (max-width: 375px) {
   .chat-messages { padding: 14px 12px; }
-  .chat-input-area { padding: 10px 12px; }
 }
 
 @media (max-width: 768px) {
-  .chat-input { font-size: 16px; }
   .chat-thread-rail .chat-thread-search { min-height: 44px; box-sizing: border-box; font-size: 16px; }
   .chat-action-btn.chat-fork-action { display: none; }
   .chat-action-bar .chat-action-more { display: block; }
@@ -45,8 +43,6 @@
   .chat-clear-btn,
   .chat-websearch-toggle-label { min-height: 44px; }
   .chat-personality-bar .chat-personality-current { min-height: 44px; }
-  .chat-send-btn,
-  .chat-discuss-btn { min-width: 44px; min-height: 44px; }
   .chat-action-btn,
   .chat-discussion-mode-actions button,
   .chat-message-edit-controls button,

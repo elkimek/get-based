@@ -3,10 +3,11 @@
 // coverage. The static Kit build consumes their sources with a shared runtime.
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build } from 'rolldown';
 import { walkSourceFiles } from './source-files.js';
 import { compile } from 'svelte/compiler';
+import { withChatShellSnapshot } from './chat-shell-snapshot.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const COMPONENT = path.join(ROOT, 'js/components/DisplaySettings.svelte');
@@ -28,7 +29,7 @@ export async function buildSvelte({ component = COMPONENT, outputDirectory = pat
       async load(id) {
         if (id === 'getbased:component-entry') {
           if (output === 'html') return `import Component from ${JSON.stringify(component)}; import { render } from 'svelte/server'; export const renderHTML = props => render(Component, { props }).body;`;
-          const hydration = component.endsWith('/RoutstrActions.svelte') ? ', hydrate' : '';
+          const hydration = /\/(?:RoutstrActions|ChatShell)\.svelte$/.test(component) ? ', hydrate' : '';
           return `export { default } from ${JSON.stringify(component)}; export { mount, unmount, flushSync${hydration} } from 'svelte';`;
         }
         if (!id.endsWith('.svelte')) return null;
@@ -63,6 +64,13 @@ export async function buildSvelte({ component = COMPONENT, outputDirectory = pat
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   for (const component of [...walkSourceFiles(path.join(ROOT, 'js/components')), ...walkSourceFiles(path.join(ROOT, 'js/kit'))].filter(file => file.endsWith('.svelte'))) {
     await buildSvelte({ component, check: process.argv.includes('--check') });
-    if (component.endsWith('/RoutstrActions.svelte')) await buildSvelte({ component, output: 'html', check: process.argv.includes('--check') });
+    if (/\/(?:RoutstrActions|ChatShell)\.svelte$/.test(component)) await buildSvelte({ component, output: 'html', check: process.argv.includes('--check') });
   }
+  const { renderHTML } = await import(pathToFileURL(path.join(ROOT, 'js/components/ChatShell.svelte.html.js')).href) as { renderHTML: () => string };
+  const indexPath = path.join(ROOT, 'index.html');
+  const index = await fs.readFile(indexPath, 'utf8');
+  const generated = withChatShellSnapshot(index, renderHTML());
+  if (process.argv.includes('--check')) {
+    if (generated !== index) throw new Error('Native Chat shell snapshot is stale; run npm run svelte:build');
+  } else await fs.writeFile(indexPath, generated);
 }

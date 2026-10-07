@@ -577,9 +577,16 @@ with SvelteKit 3 and `adapter-static`. `tooling/svelte` isolates Kit's TypeScrip
 peer alongside the existing checker; application sources still compile with
 TypeScript 7. The native production command remains independently available.
 
-`index.html` is the canonical shell during incremental migration. Its native
-controls remain outside the Kit route root, and `js/kit/routes/app/+layout.svelte`
-starts the existing services after mount. The Vite graph compiles authored
+`ChatShell.svelte` is the canonical initial Chat structure, with its composer in
+`ChatComposer.svelte`. The Kit `/app` page prerenders and hydrates that shared
+shell inside its route. For native runtime compatibility, `svelte:build` writes
+a bounded generated snapshot into `index.html`; `chat-shell-component.ts`
+hydrates it once before startup delegates without replacing controls. The Kit
+template removes that snapshot and places its route root in the same document
+position, so the two builds each have exactly one Chat shell. Other native
+shell areas remain outside the route during migration.
+`js/kit/routes/app/+layout.svelte` starts existing services after mount.
+The Vite graph compiles authored
 components directly and shares one Svelte runtime with Kit. Native CSS,
 worker and computed vendor URLs keep their original module-relative meaning.
 Kit discovers only canonical `.ts` route modules, excluding emitted siblings.
@@ -849,7 +856,7 @@ Cross-theme shell geometry and Sunset Mode rules remain in a final eager
 inline block after that anchor, preserving their original cascade while keeping
 the deferred sheet scoped to the four optional themes.
 
-Only the persistent Chat launcher, closed panel markup, nudge state, base
+Only the persistent Chat launcher, shared closed shell component, nudge state, base
 shell styles, and final redesign overrides remain eager. `chat-loader.js`
 single-flights the behavior composition on the first shell action, feature
 prompt, keyboard shortcut, or startup deep-link. `app-chat-hooks.js` then wires
@@ -877,13 +884,28 @@ query, input, thread inventory and view lifetime before reading stored content.
 Result content prefixes stay in bound callbacks, and animation-frame jumps check
 their accepted destination before touching the transcript.
 
+The shared Chat shell keeps stable transcript, personality, model, attachment
+and summary hosts while those features retain their own services. Hydration
+does not rerender those live hosts on reopen. `ChatComposer.svelte` owns initial
+composer controls and input events; `chat-composer-input-port.ts` connects a
+current input to the draft service without installing native input listeners.
+`chat-composer.ts` owns per-conversation draft persistence and restore revisions,
+including originating input identity and profile/thread checks. Its published
+resize/value helpers keep their existing runtime contract. The input, toolbar,
+send and tool controls use scoped Tailwind classes and shared theme variables;
+dynamic model content, attachments and voice presentation migrate separately.
+The focusable window splitters and scrollable conversation region intentionally
+retain their keyboard semantics; narrowly documented Svelte accessibility
+annotations cover its static noninteractive-role classification, with browser
+keyboard and geometry assertions retained.
+
 `css/chat-panel-open.base.css` owns the remaining outer Chat shell, summary and
 transcript bridge styles. `css/chat-navigation.tailwind.css` scans only the
-navigation component and its shared typed classes, uses semantic theme tokens,
+navigation and composer components and their shared typed classes, uses semantic theme tokens,
 and omits Preflight. `scripts/build-styles.mts` combines both into ignored
 `css/chat-panel-open.css`, preserving the deferred URL and cascade position.
-The outer Chat rail, transcript, composer and other Chat feature surfaces retain
-their separate presentation ownership; navigation does not own their lifecycle.
+The outer Chat rail and transcript styles and dynamic Chat feature surfaces
+retain their separate presentation ownership; navigation does not own their lifecycle.
 
 Voice preserves this Chat boundary. `voice-loader.js` is a small first-use
 facade; microphone capture, playback, settings resolution, and provider

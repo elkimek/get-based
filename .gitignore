@@ -1727,3 +1727,7 @@ js/custom-settings-controller.js
 /js/chat-thread-navigation-component.js
 /js/chat-thread-navigation-presentation.js
 /js/chat-thread-navigation-classes.js
+/js/chat-composer-classes.js
+/js/chat-composer-input-port.js
+/js/chat-shell-component.js
+/scripts/chat-shell-snapshot.mjs

@@ -86,3 +86,7 @@ export const providerStatusCompatible: typeof NativeProviderStatus = ProviderSta
 import ChatThreadNavigation from '../../js/components/ChatThreadNavigation.svelte';
 import type NativeChatThreadNavigation from '../../js/components/ChatThreadNavigation.svelte.native.js';
 export const chatThreadNavigationCompatible: typeof NativeChatThreadNavigation = ChatThreadNavigation;
+
+import ChatShell from '../../js/components/ChatShell.svelte';
+import type NativeChatShell from '../../js/components/ChatShell.svelte.native.js';
+export const chatShellCompatible: typeof NativeChatShell = ChatShell;
