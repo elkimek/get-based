@@ -903,6 +903,12 @@ and `chat-discussion-ui.ts` preserve public runtime entry points while publishin
 values rather than authoring markup. Existing shell/message action delegates
 remain the single discussion action dispatchers. Round execution, provider requests
 and thread persistence stay in the discussion services, outside the component.
+The round request builder captures persona instructions, tagged history, lab
+context and model/search/reasoning selections before asynchronous knowledge
+lookup. Direct requests pass the accepted model through every automatic
+continuation; CLI dispatch rejects a changed agent, target or model selection.
+Cancellation is checked after lookup and provider completion before returning a
+response or updating the CLI thread session.
 The composer owns discussion help associations and photo-action restrictions.
 `chat-composer-input-port.ts` also publishes backend-unavailable placeholders,
 so availability refreshes cannot overwrite the discussion prompt. Scoped Tailwind

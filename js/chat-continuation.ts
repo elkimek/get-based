@@ -65,8 +65,8 @@ function mergeAIUsage(total: ChatUsage = {}, next: ChatUsage = {}) {
   };
 }
 
-export async function callChatAPIWithContinuation({ system, messages, maxTokens, signal, onStream, webSearch, provider, reasoningEffort }: ChatContinuationOptions): Promise<ChatContinuationResponse> {
-  let result = await callClaudeAPI({ system, messages, maxTokens, signal, onStream, webSearch, reasoningEffort }, provider) as ChatResponse;
+export async function callChatAPIWithContinuation({ system, messages, maxTokens, signal, onStream, webSearch, provider, reasoningEffort, modelOverride }: ChatContinuationOptions): Promise<ChatContinuationResponse> {
+  let result = await callClaudeAPI({ system, messages, maxTokens, signal, onStream, webSearch, reasoningEffort, modelOverride }, provider) as ChatResponse;
   let fullText = result.text || '';
   let usage = result.usage || {};
   let continued = 0;
@@ -89,6 +89,7 @@ export async function callChatAPIWithContinuation({ system, messages, maxTokens,
       },
       webSearch,
       reasoningEffort,
+      modelOverride,
     }, provider) as ChatResponse;
     fullText += result.text || '';
     usage = mergeAIUsage(usage, result.usage || {});

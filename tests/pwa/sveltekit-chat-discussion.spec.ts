@@ -38,7 +38,9 @@ test('static discussion restores pending participants, resumes offline and retai
     await cold.getByRole('button', { name: 'Close participant picker' }).click();
     await cold.locator('.chat-discussion-resume').click(); await expect(cold.locator('#chat-messages')).toContainText('Synthetic discussion reply.');
     await expect(cold.locator('.chat-discussion-resume')).toHaveCount(0);
-    expect(await cold.evaluate(() => (window as unknown as { discussionRequests: unknown[]; }).discussionRequests.length)).toBe(1);
+    const requests = await cold.evaluate(() => (window as unknown as { discussionRequests: unknown[]; }).discussionRequests);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toMatchObject({ model: 'fixture-model' });
     await cold.locator('.chat-discussion-end').click(); await expect(cold.locator('.chat-discussion-mode')).toHaveCount(0);
     await expect(cold.locator('#chat-input')).not.toHaveAttribute('aria-describedby');
     const transcript = await cold.evaluate(() => localStorage.getItem('labcharts-default-chat-t_discussion-thread'));

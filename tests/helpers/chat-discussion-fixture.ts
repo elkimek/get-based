@@ -1,4 +1,4 @@
-import type { BrowserContext } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 /** Returning-user consent and a locally configured provider; no network AI calls are fabricated here. */
 export async function installDiscussionFixture(context: BrowserContext): Promise<void> {
   await context.addInitScript({ path: 'node_modules/axe-core/axe.min.js' });
@@ -38,5 +38,15 @@ export async function installDiscussionProvider(context: BrowserContext): Promis
       if (url.endsWith('/api/tags') || url.endsWith('/api/ps')) return Response.json({ models: [{ name: 'fixture-model' }] });
       return new Response('Not found', { status: 404 });
     };
+  });
+}
+
+/** Module coverage starts with an actual open, nonempty conversation on every layout. */
+export async function openDiscussionFixturePanel(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    await (await import('/js/chat-loader.js')).openChatPanel();
+    const { state } = await import('/js/state.js');
+    state.chatHistory = [{ role: 'assistant', content: 'Discussion fixture' }];
+    (await import('/js/chat-render.js')).renderChatMessages();
   });
 }

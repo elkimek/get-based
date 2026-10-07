@@ -451,7 +451,7 @@ assert('sendChatMessage keeps AI placeholder in abort-handler scope',
 assert('chat raises response token headroom', chatContinuationSrc.includes('CHAT_RESPONSE_MAX_TOKENS = 16384'), 'found');
 assert('chat auto-continues token-limit stops', chatContinuationSrc.includes('CHAT_AUTO_CONTINUE_LIMIT') && chatContinuationSrc.includes('callChatAPIWithContinuation'), 'found');
 assert('chat continuation uses provider snapshot',
-  chatContinuationSrc.includes('reasoningEffort }, provider)') && chatContinuationSrc.includes('    }, provider);'), 'found');
+  chatContinuationSrc.includes('reasoningEffort, modelOverride }, provider)') && chatContinuationSrc.includes('      modelOverride,') && chatContinuationSrc.includes('    }, provider);'), 'found');
 assert('chat auto-continues likely mid-sentence stops', chatContinuationSrc.includes('isLikelyIncompleteResponse') && chatContinuationSrc.includes('shouldAutoContinueResponse'), 'found');
 assert('chat incomplete heuristic does not continue solely because final line is long',
   !chatSrc.includes('return lastLine.length > 60') && !chatSendSrc.includes('return lastLine.length > 60') && !chatContinuationSrc.includes('return lastLine.length > 60'), 'length-only fallback removed');

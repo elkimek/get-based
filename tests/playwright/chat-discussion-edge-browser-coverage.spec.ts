@@ -1,12 +1,15 @@
-import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
+import { installDiscussionFixture, openDiscussionFixturePanel } from '../helpers/chat-discussion-fixture.js';
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
 
 const moduleUrl = createModuleUrl('chatDiscussionEdgeCoverage');
 
+test.beforeEach(async ({ context }) => { await installDiscussionFixture(context); });
+
 test('chat discussion callbacks cover default and configured bridge paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
-  await page.waitForSelector('#chat-input');
+  await openDiscussionFixturePanel(page);
+  await expect(page.locator('#chat-input')).toBeVisible();
 
   const results = await page.evaluate(async ({ callbacksUrl }) => {
     const callbacks = await ((import(callbacksUrl) as Promise<unknown>) as Promise<Pick<typeof import("../../js/chat-discussion-callbacks.js"), "createDiscussionTypewriter" | "setChatAbortController" | "renderChatMessages" | "setSendButtonMode" | "getChatAbortController" | "configureChatDiscussion"> >);
@@ -77,10 +80,9 @@ test('chat discussion callbacks cover default and configured bridge paths', asyn
 });
 
 test('chat discussion turns cover single-turn join and error cleanup paths', async ({ page }) => {
-  await installDiscussionFixture(page.context());
   await page.goto('/app', { waitUntil: 'load' });
-  await page.evaluate(async () => { await (await import('/js/chat-loader.js')).openChatPanel(); const { state } = await import('/js/state.js'); state.chatHistory = [{ role: 'assistant', content: 'Discussion fixture' }]; (await import('/js/chat-render.js')).renderChatMessages(); });
-  await page.waitForSelector('#chat-send-btn');
+  await openDiscussionFixturePanel(page);
+  await expect(page.locator('#chat-send-btn')).toBeVisible();
 
   const results = await page.evaluate(async ({ turnsUrl }) => {
     const [{ state }, callbacks, turns, cloudConsent] = await Promise.all([
