@@ -69,6 +69,13 @@
 @source "../js/components/ChatMessage.svelte";
 @source "../js/components/ChatRecommendations.svelte";
 @source "../js/chat-transcript-classes.ts";
-@custom-variant transcript (&:is([data-chat-transcript-view], [data-chat-transcript-view] *, [data-chat-live-view], [data-chat-live-view] *));
+@custom-variant transcript (&:is([data-chat-transcript-view], [data-chat-transcript-view] *, [data-chat-live-view], [data-chat-live-view] *, [data-chat-provider-setup-view], [data-chat-provider-setup-view] *));
 
 @source "../js/components/ChatLiveMessage.svelte";
+
+@source "../js/components/ChatOnboardingProgress.svelte";
+@source "../js/components/ChatProviderChoice.svelte";
+@source "../js/components/ChatProviderQuiz.svelte";
+@source "../js/components/ChatProviderSetup.svelte";
+@source "../js/chat-onboarding-classes.ts";
+@custom-variant onboarding (&:is([data-chat-provider-setup-view], [data-chat-provider-setup-view] *, [data-chat-provider-view], [data-chat-provider-view] *, [data-chat-onboard-progress-view], [data-chat-onboard-progress-view] *));

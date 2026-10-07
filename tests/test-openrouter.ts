@@ -140,12 +140,15 @@ assert('owned model display uses its checked catalog and saved ID fallback',
 assert('imports validateOpenRouterKey', ppSrc.includes('validateOpenRouterKey'));
 assert('imports fetchOpenRouterModels', ppSrc.includes('fetchOpenRouterModels'));
 const settingsSrc = read('js/settings.js');
-assert('provider button with data-provider="openrouter"', settingsSrc.includes('data-provider="openrouter"'));
-assert('OpenRouter provider button uses delegated settings action',
-  /<button[^>]*data-provider="openrouter"[^>]*data-settings-action="switch-ai-provider"/.test(settingsSrc));
+const aiSettingsSrc = read('js/components/AiSettings.svelte');
+assert('provider button retains the OpenRouter choice and provider identity',
+  read('js/ai-settings-presentation.ts').includes("{ id: 'openrouter', label: 'OpenRouter'")
+    && aiSettingsSrc.includes('data-provider={choice.id}'));
+assert('OpenRouter provider button retains its settings action and bound owner dispatch',
+  aiSettingsSrc.includes("data-settings-action={choice.id === 'cli' ? 'show-cli-agent-provider' : 'switch-ai-provider'}")
+    && aiSettingsSrc.includes('actions.select(choice.id,event.currentTarget)'));
 assert('settings calls provider bridge APIs directly',
-  settingsSrc.includes('renderAIProviderPanelBridge()') &&
-    settingsSrc.includes('initSettingsProviderPanels()'));
+  settingsSrc.includes('switchAIProviderBridge(provider)') && settingsSrc.includes('initSettingsProviderPanels()'));
 assert('settings provider bridge has eager provider switch', settingsBridgeSrc.includes('function switchAIProviderBridge(provider)'));
 assert('provider bridge defers persistence to the activation-aware provider module',
   !settingsBridgeSrc.includes('setAIProvider(provider);')
@@ -377,7 +380,8 @@ assert('startup sync reconciliation pushes local AI setting drift',
     && syncReconcileSrc.includes('newer local AI settings')
     && syncReconcileSrc.includes('collectAISettings()'));
 const cssSrc = read('styles.css') + '\n' + read('css/settings.css');
-assert('CSS: .or-oauth-btn defined', cssSrc.includes('.or-oauth-btn'));
+const onboardingQuizSrc = read('js/components/ChatProviderQuiz.svelte');
+assert('superseded native OAuth button CSS is removed', !cssSrc.includes('.or-oauth-btn') && onboardingQuizSrc.includes('gb:onboarding:bg-[image:var(--accent-gradient)]'));
 assert('superseded OAuth divider CSS removed after owned wallet seed migration', !cssSrc.includes('.or-oauth-divider') && read('js/components/WalletSeed.svelte').includes('gb:cloud-provider:border-t'));
 assert('owned OpenRouter OAuth button uses scoped Tailwind and the delegated action',
   openRouterComponentSrc.includes('class={OR_PRIMARY} data-provider-panel-action="start-openrouter-oauth"')
@@ -385,7 +389,7 @@ assert('owned OpenRouter OAuth button uses scoped Tailwind and the delegated act
   && !openRouterComponentSrc.includes('or-oauth-btn'));
 assert('provider entry and wallet restore retain owned separators', openRouterComponentSrc.includes('or enter key manually') && read('js/components/WalletSeed.svelte').includes('Restore from your 12-word wallet seed') && !read('js/components/WalletNode.svelte').includes('or-oauth-divider'));
 assert('OAuth button conditional on disconnected snapshot', /\{#if !snapshot.connected\}[\s\S]*?data-provider-panel-action="start-openrouter-oauth"/.test(openRouterComponentSrc));
-assert('Chat setup guide has or-oauth-btn', chatOnboardingSrc.includes('or-oauth-btn'));
+assert('Chat setup guide has an owned, accessible OAuth button', onboardingQuizSrc.includes('or-oauth-btn') && onboardingQuizSrc.includes('gb:onboarding:min-h-11'));
 assert('Chat setup guide has delegated startOpenRouterOAuth action',
   chatOnboardingSrc.includes('data-chat-onboarding-action') &&
   chatOnboardingSrc.includes('start-openrouter-oauth'));

@@ -870,6 +870,23 @@ cache-busted for group retry, a shared HTML anchor preserves their original
 order before redesign overrides, and the service worker keeps the deferred
 modules and stylesheets precached for offline first use.
 
+Chat provider onboarding has one presentation owner,
+`js/components/ChatProviderSetup.svelte`, sharing `ChatProviderQuiz.svelte`,
+`ChatProviderChoice.svelte`, `ChatOnboardingProgress.svelte` and the transcript's
+persona label. `chat-onboarding-presentation.ts` projects displayed progress and
+backward destinations; connected users skip the provider step in the normal
+sequence without losing explicit provider revisits. `chat-provider-setup-component.ts`
+retains the mounted view during branch changes, restores keyboard focus and
+retires profile/thread/history/root owners and removed branch controls.
+`chat-onboarding.ts` keeps navigation, provider selection, OAuth and persistence;
+its delayed settings handoffs check their originating owner before opening and
+after awaiting Settings. Existing synchronous quiz/progress HTML helpers render
+the same authored components. Trusted edition extensions retain the
+`provider-quiz` HTML slot and delegated action contract; legacy quiz CSS is
+restricted to extension-owned markup. First-party setup uses scoped Tailwind.
+The profile form, optional context tasks, context cards and other empty states
+remain distinct presentation boundaries.
+
 Conversation navigation has one presentation owner,
 `js/components/ChatThreadNavigation.svelte`. `chat-thread-list-view.ts` preserves
 the published renderer boundary and projects current profile, sort and thread
@@ -966,8 +983,8 @@ orchestration. Neither authors normal message body or footer markup.
 containment. It captures the exact profile/thread/history/message before saving
 visibility changes. Finite attention runs for newly completed recommendations,
 never restored history, and releases its observer/frame/listener on retirement;
-reduced motion suppresses the pulse. Catalog card markup, onboarding and the
-empty-conversation views remain separate migration boundaries.
+reduced motion suppresses the pulse. Catalog card markup, profile/context
+onboarding and the remaining empty-conversation views are separate migration boundaries.
 Discussion rounds capture profile, thread record and history identity in
 `chat-discussion-origin.ts`. Background rounds may persist to their original
 conversation; profile/history replacement, deletion or a newer controller retires

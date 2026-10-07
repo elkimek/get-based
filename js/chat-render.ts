@@ -6,6 +6,7 @@ import { projectChatTranscript } from './chat-transcript-presentation.js';
 import { updateChatHeaderTitle } from './chat-personalities.js';
 import { updateChatInputState } from './chat-panel.js';
 import { updateDiscussButton } from './chat-discussion.js';
+import { disposeChatProviderSetup } from './chat-provider-setup-component.js';
 import { renderEmptyChatState } from './chat-empty-state.js';
 import { renderChatCitations } from './chat-message-content.js';
 import {
@@ -45,6 +46,7 @@ export function renderChatMessages({ preserveScroll = false, attentionMessage }:
     updateDiscussButton();
     return;
   }
+  disposeChatProviderSetup();
   const renderStart = getChatRenderStart(state.currentThreadId, state.chatHistory.length);
   renderChatTranscript(container, projectChatTranscript(renderStart, attentionMessage));
   if (preserveScroll) notifyChatContentAdded(container);

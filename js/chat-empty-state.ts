@@ -2,6 +2,9 @@ import { configureRuntimeFunctions } from './runtime-callbacks.js';
 // chat-empty-state.js — chat empty states and onboarding message HTML
 
 import { state } from './state.js';
+import { disposeChatProviderSetup, renderChatProviderSetup } from './chat-provider-setup-component.js';
+import { projectOnboardingProgress } from './chat-onboarding-presentation.js';
+import { renderAppExtensionOnboardingSlot } from './app-extension-runtime.js';
 import { isAIPaused } from './api.js';
 import { hasChatResponseBackend } from './chat-backend-selection.js';
 import { getActiveData } from './data.js';
@@ -18,7 +21,7 @@ import { getSettingsModuleFunction } from './settings-runtime-bridge.js';
 import { resumeChatAIRuntime } from './chat-runtime.js';
 import {
   chatOnboardingActionAttrs,
-  _countFilledCards, _renderOnboardCrumbs, _renderProviderQuiz,
+  _countFilledCards, _renderOnboardCrumbs,
   _updateOnboardNextBtn, onboardHeightUnitChanged,
   continueAfterContextCards, requestOnboardingLabImportProvider, saveChatLocation, saveChatProfile,
   setChatProfileSex, skipContextCards, skipOnboardingExtras, startOnboardingFileImport, startOnboardingLabImport,
@@ -191,6 +194,9 @@ export function renderEmptyChatState(container: HTMLElement, panel?: HTMLElement
   installChatEmptyStateDelegates(container);
   const context = getEmptyChatContext();
   const forcedStep = sessionStorage.getItem(`chat-onboard-force-step-${state.currentProfile}`) || '';
+  const providerStep = context.hasProfile && forcedStep !== 'profile' && !isAIPaused()
+    && (forcedStep === 'provider' || (!(!context.hasData && forcedStep === 'extras') && shouldRenderProviderSetup()));
+  if (!providerStep) disposeChatProviderSetup();
 
   if (forcedStep === 'profile') return renderProfileOnboardingState(container, panel, context);
   if (!context.hasProfile) return renderProfileOnboardingState(container, panel, context);
@@ -325,26 +331,15 @@ function renderAIPausedState(container: HTMLElement, panel: HTMLElement|null|und
 
 function renderProviderSetupState(container: HTMLElement, panel: HTMLElement|null|undefined, { personality, name }: PersonaContext) {
   setOnboardingActive(panel);
-  if (hasChatResponseBackend()) return renderProviderConnectedState(container, { personality, name });
+  const connected = hasChatResponseBackend();
   const branch = sessionStorage.getItem(`chat-onboard-provider-branch-${state.currentProfile}`) || '';
-  container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
-    <div class="chat-msg chat-ai">
-      ${_renderOnboardCrumbs(2)}
-      ${_renderProviderQuiz(branch, name)}
-    </div>`;
-  return true;
-}
-
-function renderProviderConnectedState(container: HTMLElement, { personality, name }: PersonaContext) {
-  container.innerHTML = `<div class="chat-persona-label">${escapeHTML(personality.icon)} ${escapeHTML(personality.name)}</div>
-    <div class="chat-msg chat-ai">
-      ${renderOnboardingCompleteLabel('AI connected')}
-      <p>${escapeHTML(name)}, AI is connected. You can continue the setup or change providers from AI settings.</p>
-      <div class="chat-onboard-actions">
-        <button type="button" class="chat-onboard-cta" ${chatOnboardingActionAttrs('go-onboarding-step', { step: 3 })}>Continue</button>
-        <button type="button" class="chat-prompt-btn" ${chatOnboardingActionAttrs('open-ai-settings')}>Change AI provider</button>
-      </div>
-    </div>`;
+  renderChatProviderSetup(container, {
+    name,
+    personalityLabel: `${personality.icon} ${personality.name}`,
+    connected, branch,
+    progress: projectOnboardingProgress(2, connected),
+    extensionHTML: connected ? '' : renderAppExtensionOnboardingSlot('provider-quiz', { actionAttrs: chatOnboardingActionAttrs, branch, name }),
+  });
   return true;
 }
 

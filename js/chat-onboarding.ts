@@ -4,8 +4,12 @@ import type { ProfileData } from '../types/app-state.js';
 import type { ActiveData } from './data-view-types.js';
 import type { LocationCacheEntry } from './profile.js';
 import { state } from './state.js';
+import { projectOnboardingProgress } from './chat-onboarding-presentation.js';
+import { renderHTML as renderProgressHTML } from './components/ChatOnboardingProgress.svelte.html.js';
+import { renderHTML as renderProviderHTML } from './components/ChatProviderQuiz.svelte.html.js';
+import { isChatProviderSetupActionCurrent } from './chat-provider-setup-component.js';
 import { LATITUDE_BANDS } from './constants.js';
-import { escapeAttr, escapeHTML, showNotification } from './utils.js';
+import { showNotification } from './utils.js';
 import { actionAttributes } from './action-attributes.js';
 import { saveImportedData } from './data.js';
 import { appendImportedArrayItem, deleteImportedArrayItem } from './data-merge.js';
@@ -57,22 +61,24 @@ export function chatOnboardingActionAttrs(action: string, attrs: Parameters<type
 }
 
 function isChatOnboardingActionScope(actionEl: Element) {
-  return !!actionEl.closest('#chat-panel, .chat-provider-quiz');
+  return !!actionEl.closest('#chat-panel, .chat-provider-quiz') && isChatProviderSetupActionCurrent(actionEl);
 }
 
-function openAiSettings() {
+function openAiSettings(current: () => boolean) {
   clearForcedOnboardingStep();
   closeChatPanel();
   setTimeout(() => {
-    openSettingsModal('ai');
+    if (current()) openSettingsModal('ai');
   }, 300);
 }
 
-function openAiProviderSettings(provider: string) {
+function openAiProviderSettings(provider: string, current: () => boolean) {
   clearForcedOnboardingStep();
   closeChatPanel();
   setTimeout(async () => {
+    if (!current()) return;
     await openSettingsModal('ai');
+    if (!current()) return;
     if (provider === 'cli') {
       const cliButton = (document.querySelector('[data-settings-action="show-cli-agent-provider"]') as HTMLElement | null);
       cliButton?.click();
@@ -86,6 +92,11 @@ async function handleChatOnboardingClick(event: MouseEvent) {
   const actionEl = (target.closest('[data-chat-onboarding-action]') as HTMLElement | null);
   if (!actionEl || !isChatOnboardingActionScope(actionEl)) return;
   const action = actionEl.dataset.chatOnboardingAction || '';
+  const profile = state.currentProfile;
+  const thread = state.currentThreadId;
+  const history = state.chatHistory;
+  const current = () => profile === state.currentProfile && thread === state.currentThreadId
+    && history === state.chatHistory && actionEl.isConnected && isChatProviderSetupActionCurrent(actionEl);
   event.preventDefault();
 
   const extensionHandled = handleAppExtensionOnboardingAction({
@@ -98,6 +109,7 @@ async function handleChatOnboardingClick(event: MouseEvent) {
   });
   if (extensionHandled === true
     || (extensionHandled instanceof Promise && await extensionHandled)) return;
+  if (!current()) return;
 
   if (action === 'back-to-provider-quiz') {
     backToProviderQuiz();
@@ -105,9 +117,9 @@ async function handleChatOnboardingClick(event: MouseEvent) {
     clearForcedOnboardingStep();
     startOpenRouterOAuth();
   } else if (action === 'open-ai-settings') {
-    openAiSettings();
+    openAiSettings(current);
   } else if (action === 'open-provider-settings') {
-    openAiProviderSettings(actionEl.dataset.chatProvider || '');
+    openAiProviderSettings(actionEl.dataset.chatProvider || '', current);
   } else if (action === 'set-provider-branch') {
     setProviderQuizBranch(actionEl.dataset.chatProviderBranch || '');
   } else if (action === 'start-file-import') {
@@ -534,137 +546,15 @@ function _refreshDashboardCycle() {
   }
 }
 
-function getOnboardingProgressMeta(currentStep: number) {
-  const providerConnected = hasChatResponseBackend();
-  const labels: Record<number, string> = {
-    1: 'Basics',
-    2: 'AI setup',
-    3: 'Add-ons',
-    4: 'Context',
-  };
-  if (providerConnected && currentStep === 1) {
-    return {
-      step: 1,
-      total: 3,
-      label: labels[1]!,
-    };
-  }
-  if (providerConnected && currentStep >= 3) {
-    return {
-      step: currentStep - 1,
-      total: 3,
-      label: labels[currentStep] || 'Setup',
-    };
-  }
-  return {
-    step: currentStep,
-    total: 4,
-    label: labels[currentStep] || 'Setup',
-  };
-}
-
-// Thin progress strip shown at the top of each onboarding chat message.
-// AI-connected users skip the AI setup phase, so the displayed progress is
-// mapped to a 3-step path while navigation still uses the internal 4 routes.
+/** Displayed progress skips provider setup when a response backend is already connected. */
 export function _renderOnboardCrumbs(currentStep: number) {
-  const progress = getOnboardingProgressMeta(currentStep);
-  const dots = Array.from({ length: progress.total }, (_, i) => `<span class="chat-onboard-crumb${i + 1 <= progress.step ? ' active' : ''}"></span>`).join('');
-  const previousStep = currentStep === 3 && hasChatResponseBackend() ? 1 : currentStep - 1;
-  const back = currentStep > 1
-    ? `<button type="button" class="chat-onboard-back-btn" ${chatOnboardingActionAttrs('go-onboarding-step', { step: previousStep })} aria-label="Back to previous onboarding step" title="Previous step">&larr;</button>`
-    : '';
-  return `<div class="chat-onboard-crumbs" aria-label="Onboarding step ${progress.step} of ${progress.total}: ${escapeAttr(progress.label)}">
-    <span class="chat-onboard-crumbs-main">${back}<span class="chat-onboard-crumbs-label">Step ${progress.step} of ${progress.total} &middot; ${escapeHTML(progress.label)}</span></span>
-    <span class="chat-onboard-crumbs-dots" aria-hidden="true">${dots}</span>
-  </div>`;
+  return renderProgressHTML({ progress: projectOnboardingProgress(currentStep, hasChatResponseBackend()) });
 }
 
-// Plain-language provider branches. Session state survives refreshes, while a new session starts at the root.
+/** Extension-owned quiz HTML keeps its established slot/action contract. */
 export function _renderProviderQuiz(branch: string, name: string) {
-  const safeName = escapeHTML(name);
   const extensionQuiz = renderAppExtensionOnboardingSlot('provider-quiz', { actionAttrs: chatOnboardingActionAttrs, branch, name });
-  if (extensionQuiz) return extensionQuiz;
-  if (branch === 'cli') {
-    return `<div class="chat-provider-quiz"><button type="button" class="chat-quiz-back" ${chatOnboardingActionAttrs('back-to-provider-quiz')} aria-label="Back to provider options">&larr; Back</button>
-      <p><strong>Use an existing AI account &rarr; CLI agents</strong></p><p style="font-size:13px">getbased scans this computer for configured agents such as Codex, OpenCode, Hermes, Grok, and OpenClaw. You need a supported CLI installed and signed in, plus getbased Companion. We’ll check for an existing Companion connection first and guide you through any missing setup.</p><button type="button" class="chat-setup-btn" ${chatOnboardingActionAttrs('open-provider-settings', { provider: 'cli' })}>Find my installed agents &rarr;</button><p style="font-size:11px;color:var(--text-muted);margin-top:10px">Choose any ready agent, then pick its model and reasoning level directly in getbased. Health-data changes always remain reviewable drafts.</p></div>`;
-  }
-  if (branch === 'card') {
-    return `<div class="chat-provider-quiz"><button type="button" class="chat-quiz-back" ${chatOnboardingActionAttrs('back-to-provider-quiz')} aria-label="Back to provider options">&larr; Back</button>
-      <p><strong>Pay with a card &rarr; OpenRouter</strong></p>
-      <p style="font-size:13px">Click below &mdash; log in with Google or email, top up with your card, you&rsquo;re done. You&rsquo;ll come right back here.</p>
-      <button type="button" class="or-oauth-btn" ${chatOnboardingActionAttrs('start-openrouter-oauth')}>Connect with OpenRouter</button>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:10px;text-align:center">
-        <button type="button" class="chat-quiz-link" ${chatOnboardingActionAttrs('open-provider-settings', { provider: 'openrouter' })}>or paste a key manually</button>
-      </div></div>`;
-  }
-  if (branch === 'local') {
-    return `<div class="chat-provider-quiz"><button type="button" class="chat-quiz-back" ${chatOnboardingActionAttrs('back-to-provider-quiz')} aria-label="Back to provider options">&larr; Back</button>
-      <p><strong>Runs on your computer &rarr; Local AI</strong></p>
-      <p style="font-size:13px">Install <a href="https://ollama.com" target="_blank" rel="noopener" style="color:var(--accent)">Ollama</a>, <a href="https://lmstudio.ai" target="_blank" rel="noopener" style="color:var(--accent)">LM Studio</a>, or <a href="https://jan.ai" target="_blank" rel="noopener" style="color:var(--accent)">Jan</a> on your computer &mdash; they run AI models locally. Nothing leaves your machine, free forever. After install, point getbased at it.</p>
-      <button type="button" class="chat-setup-btn" ${chatOnboardingActionAttrs('open-provider-settings', { provider: 'ollama' })}>Open Local AI setup &rarr;</button></div>`;
-  }
-  if (branch === 'bitcoin') {
-    return `<div class="chat-provider-quiz"><button type="button" class="chat-quiz-back" ${chatOnboardingActionAttrs('back-to-provider-quiz')} aria-label="Back to provider options">&larr; Back</button>
-      <p><strong>Pay with Bitcoin &rarr; 2 options</strong></p>
-      <div class="chat-quiz-options" style="margin-top:8px">
-        <button type="button" class="chat-quiz-option" ${chatOnboardingActionAttrs('open-provider-settings', { provider: 'routstr' })}>
-          <span class="chat-quiz-body">
-            <strong>Routstr</strong>
-            <span>Lightning + Cashu eCash. No account. Top up with a QR code.</span>
-          </span>
-          <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
-        </button>
-        <button type="button" class="chat-quiz-option" ${chatOnboardingActionAttrs('open-provider-settings', { provider: 'ppq' })}>
-          <span class="chat-quiz-body">
-            <strong>PPQ</strong>
-            <span>300+ models. Pay with BTC, Lightning, Monero, or Litecoin.</span>
-          </span>
-          <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
-        </button>
-      </div></div>`;
-  }
-  // Root question
-  return `<div class="chat-provider-quiz"><p>Welcome, ${safeName}! Next, pick how you want to power the AI:</p>
-    <div class="chat-quiz-options">
-      <button type="button" class="chat-quiz-option chat-quiz-recommended" ${chatOnboardingActionAttrs('set-provider-branch', { 'provider-branch': 'card' })}>
-        <span class="chat-quiz-icon" aria-hidden="true">&#128179;</span>
-        <span class="chat-quiz-body">
-          <strong>Easiest &mdash; pay with a card</strong>
-          <span>One-click login through OpenRouter. <em class="chat-quiz-rec">Recommended</em></span>
-        </span>
-        <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
-      </button>
-      <button type="button" class="chat-quiz-option" ${chatOnboardingActionAttrs('set-provider-branch', { 'provider-branch': 'cli' })}>
-        <span class="chat-quiz-icon" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="6.5" width="23" height="19" rx="4.5"/><path d="m10 12 4 4-4 4M17 20h5"/></svg></span><span class="chat-quiz-body"><strong>Use an AI subscription I already have</strong><span>Requires an installed CLI, sign-in, and getbased Companion.</span></span><span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
-      </button>
-      <button type="button" class="chat-quiz-option" ${chatOnboardingActionAttrs('set-provider-branch', { 'provider-branch': 'local' })}>
-        <span class="chat-quiz-icon" aria-hidden="true">&#128274;</span>
-        <span class="chat-quiz-body">
-          <strong>Most private &mdash; runs on my computer</strong>
-          <span>No internet calls, free forever. Needs a desktop app.</span>
-        </span>
-        <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
-      </button>
-      <button type="button" class="chat-quiz-option" ${chatOnboardingActionAttrs('set-provider-branch', { 'provider-branch': 'bitcoin' })}>
-        <span class="chat-quiz-icon" aria-hidden="true">&#8383;</span>
-        <span class="chat-quiz-body">
-          <strong>No account &mdash; pay with Bitcoin</strong>
-          <span>Anonymous. Top up with sats or eCash.</span>
-        </span>
-        <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
-      </button>
-      <button type="button" class="chat-quiz-option" ${chatOnboardingActionAttrs('open-ai-settings')}>
-        <span class="chat-quiz-icon" aria-hidden="true">&#128273;</span>
-        <span class="chat-quiz-body">
-          <strong>Advanced: I have an API key</strong>
-          <span>Skip ahead to AI settings to paste it.</span>
-        </span>
-        <span class="chat-quiz-arrow" aria-hidden="true">&rarr;</span>
-      </button>
-    </div>
-    <div class="chat-quiz-skip">
-      <button type="button" class="chat-quiz-skip-btn" ${chatOnboardingActionAttrs('skip-provider-setup')}>Try the app first &mdash; I&rsquo;ll connect AI later</button>
-    </div></div>`;
+  return extensionQuiz || renderProviderHTML({ branch, name });
 }
 
 export function setProviderQuizBranch(branch: string) {

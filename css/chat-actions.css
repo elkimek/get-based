@@ -1,11 +1,11 @@
 /* Chat Example Prompts */
 .chat-prompts { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; width: 100%; }
-.chat-prompt-btn {
+.chat-prompt-btn:where(:not([data-chat-provider-setup-view] *)) {
   padding: 10px 16px; border-radius: 20px; border: 1px solid var(--border);
   background: transparent; color: var(--text-secondary); font-size: 13px;
   cursor: pointer; font-family: inherit; transition: all 0.15s; text-align: left;
 }
-.chat-prompt-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(79,140,255,0.05); }
+.chat-prompt-btn:where(:not([data-chat-provider-setup-view] *)):hover { border-color: var(--accent); color: var(--accent); background: rgba(79,140,255,0.05); }
 
 .chat-cost-footnote:not(:where([data-chat-transcript-message] *)) {
   font-size: 11px;

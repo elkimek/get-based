@@ -203,13 +203,6 @@
   border-left: 3px solid var(--accent); padding: 8px 12px; margin-bottom: 12px;
   background: var(--bg-hover); border-radius: 0 4px 4px 0;
 }
-/* Chat onboarding retains this native OAuth button until its own migration. */
-.or-oauth-btn {
-  width: 100%; padding: 10px 16px; border: none; border-radius: var(--radius);
-  background: var(--accent-gradient); color: white; font-weight: 600; font-size: 14px;
-  font-family: inherit; cursor: pointer; transition: all 0.2s;
-}
-.or-oauth-btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-glow); }
 /* Local AI settings in Settings modal */
 .local-ai-settings { margin-top: 4px; }
 .local-ai-status {

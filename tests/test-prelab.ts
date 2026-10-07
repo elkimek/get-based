@@ -24,6 +24,7 @@ console.log('=== Pre-Lab Onboarding Tests ===\n');
 const chatSrc = read('js/chat.js');
 const chatPanelSrc = read('js/chat-panel.js');
 const chatOnboardingSrc = read('js/chat-onboarding.js');
+const providerQuizSrc = read('js/components/ChatProviderQuiz.svelte');
 const chatEmptyStateSrc = read('js/chat-empty-state.js').replace(/if \(hasLabs\)\s+return null;/g, 'if (hasLabs) return null;');
 const chatRenderSrc = read('js/chat-render.js');
 const chatSendSrc = read('js/chat-send.js');
@@ -208,16 +209,16 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
     const cardEnd = insightSrc.indexOf('\n', cardStart);
     return cardStart !== -1 && insightSrc.substring(cardStart, cardEnd).includes("size: 'full'");
   })(), 'Insight page should not cram Profile Context into a half-width column');
-  assert('Settings modal content owns vertical scroll', (() => {
-    const block = (cssSrc.match(/\.settings-modal \.settings-content\s*{([\s\S]*?)}/) || [null, ''])[1];
-    return block.includes('min-height: 0') && block.includes('overflow-y: auto');
-  })(), 'Long settings sections should scroll inside the modal instead of being clipped');
-  assert('Settings modal layout shrinks to viewport height', (() => {
-    const block = (cssSrc.match(/\.settings-modal \.settings-layout\s*{([\s\S]*?)}/) || [null, ''])[1];
-    return block.includes('height: min(560px, calc(90vh - 78px))') &&
-      block.includes('height: min(560px, calc(90dvh - 78px))') &&
-      block.includes('min-height: 0');
-  })(), 'Short desktop viewports should not clip long settings panels');
+  const settingsShellSrc = read('js/components/SettingsShell.svelte');
+  assert('Settings modal content owns vertical scroll',
+    /settings-content[^"\n]*(?:\n[^"\n]*)*?gb:settings:min-h-0/.test(settingsShellSrc)
+      && /settings-content[^"\n]*(?:\n[^"\n]*)*?gb:settings:overflow-y-auto/.test(settingsShellSrc),
+    'The owned Settings content must shrink and scroll instead of clipping long sections');
+  assert('Settings modal layout shrinks to viewport height',
+    settingsShellSrc.includes('settings-layout gb:settings:grid')
+      && settingsShellSrc.includes('gb:settings:h-[min(560px,calc(90dvh-78px))] gb:settings:min-h-0')
+      && settingsShellSrc.includes('gb:settings:max-h-[calc(90dvh-78px)]'),
+    'The owned Settings layout must remain bounded in short desktop viewports');
   assert('Settings modal wheel scrolling is not blocked by global wheel guard', (() => {
     const appEventsSrc = read('js/app-event-listeners.js');
     return appEventsSrc.includes('.settings-content') && appEventsSrc.includes('e.preventDefault()');
@@ -316,14 +317,14 @@ const onboardingRuntimeSrc = read('js/onboarding-view-runtime.js');
     'setOnboardingFocus("cards") should scroll to card editors, not prefill a prompt');
   assert('Chat onboarding lab import CTA handles no-provider state', chatEmptyStateSrc.includes('startOnboardingLabImport') && chatEmptyStateSrc.includes('requestOnboardingLabImportProvider') && chatEmptyStateSrc.includes('Connect AI to import labs'),
     'No-provider lab-import CTA should explain AI setup instead of focusing hidden import controls');
-  assert('Chat onboarding hides composer while active', cssSrc.includes('.chat-panel.chat-onboarding-active .chat-input-area') && cssSrc.includes('display: none'),
+  assert('Chat onboarding hides composer while active', read('js/chat-composer-classes.ts').includes('gb:composer:[.chat-onboarding-active_&]:hidden') && read('js/components/ChatComposer.svelte').includes('class={COMPOSER_AREA}'),
     'Onboarding steps should not compete with the disabled composer on mobile');
   assert('Chat onboarding uses solid active surfaces', cssSrc.includes('.chat-panel.chat-onboarding-active .chat-msg.chat-ai') && cssSrc.includes('var(--bg-card) 94%'),
     'Onboarding cards should stay readable in glass/synth themes');
-  assert('Chat onboarding has OpenRouter OAuth', chatOnboardingSrc.includes('startOpenRouterOAuth') && chatOnboardingSrc.includes('paste a key manually'),
+  assert('Chat onboarding has OpenRouter OAuth', chatOnboardingSrc.includes('startOpenRouterOAuth') && providerQuizSrc.includes('paste a key manually') && providerQuizSrc.includes('data-chat-onboarding-action="start-openrouter-oauth"'),
     'Should have OAuth button and manual key option for API step');
   const hasDelegatedProviderSetup = (provider: string) =>
-    chatOnboardingSrc.includes(`chatOnboardingActionAttrs('open-provider-settings', { provider: '${provider}' })`) &&
+    providerQuizSrc.includes(`provider="${provider}"`) && providerQuizSrc.includes('action="open-provider-settings"') && chatOnboardingSrc.includes("action === 'open-provider-settings'") &&
     chatOnboardingSrc.includes(`'${provider}'`);
   assert('Chat onboarding has PPQ', hasDelegatedProviderSetup('ppq'),
     'Should have PPQ setup link');

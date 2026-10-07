@@ -142,6 +142,18 @@ origin-only persistence and public element facades. Both normal and background
 saves use the same transactional encrypted history writer; these checks do not
 establish remote transport availability or OS-installed PWA acceptance.
 
+Provider onboarding and its shared progress strip use the same authored Svelte
+components in native and static entries. The
+[offline provider scenario](../tests/pwa/sveltekit-chat-onboarding-provider.spec.ts)
+checks first-use setup after a cached cold launch, literal profile names,
+keyboard branch navigation, actual Settings handoff, connected progress and
+unchanged profile records while the origin is unavailable. The
+[native ownership scenarios](../tests/playwright/chat-onboarding-provider-owned.spec.ts)
+also check OAuth callback dispatch, manual-key/Bitcoin/CLI entry, edition
+extension slots/actions, stale controls and delayed settings replies, six themes
+and three widths. Callback checks do not establish successful remote OAuth,
+paid provider availability, Companion installation or OS-installed acceptance.
+
 Stored citations and image previews use the same authored Svelte components in
 native transcript HTML and the static Kit artifact. The
 [message-content cold-launch scenario](../tests/pwa/sveltekit-chat-message-content.spec.ts)

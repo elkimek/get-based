@@ -2,11 +2,15 @@ type OnboardingConfigurator = Pick<typeof import('../../js/chat-onboarding.js'),
 type CycleFixtureReader = { cycleStatus?: unknown; periods: { flow?: unknown }[]; periodLength: unknown };
 import { createModuleUrl } from '../helpers/browser-module-url.js';
 import { expect, test } from './coverage-fixture.js';
+import { installDiscussionFixture, openDiscussionFixturePanel } from '../helpers/chat-discussion-fixture.js';
+
+test.beforeEach(async ({ context }) => { await installDiscussionFixture(context); });
 
 const moduleUrl = createModuleUrl('chatOnboardingCoverage');
 
 test('chat onboarding provider import and profile helpers cover browser paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await openDiscussionFixturePanel(page);
   await page.waitForSelector('#chat-input');
 
   const results = await page.evaluate(async ({ onboardingUrl }) => {
@@ -232,8 +236,9 @@ test('chat onboarding provider import and profile helpers cover browser paths', 
   }
 });
 
-test('chat onboarding browser coverage keeps default callbacks safe before chat wiring', async ({ page }) => {
+test('chat onboarding isolated module keeps default callbacks safe before its callback wiring', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await openDiscussionFixturePanel(page);
   await page.waitForSelector('#chat-input');
 
   const results = await page.evaluate(async ({ onboardingUrl }) => {
@@ -360,6 +365,7 @@ test('chat onboarding browser coverage keeps default callbacks safe before chat 
 
 test('chat onboarding cycle supplement and provider quiz helpers cover browser paths', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await openDiscussionFixturePanel(page);
   await page.waitForSelector('#chat-input');
 
   const results = await page.evaluate(async ({ onboardingUrl }) => {
@@ -499,6 +505,7 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
       const quizCard = onboarding._renderProviderQuiz('card', 'Ada');
       const quizLocal = onboarding._renderProviderQuiz('local', 'Ada');
       const quizBitcoin = onboarding._renderProviderQuiz('bitcoin', 'Ada');
+      const parsedQuiz = new DOMParser().parseFromString(quizRoot, 'text/html');
       outcomes.renderHelpersEscapeAndBranch = crumbs.includes('Step 3 of 4')
         && crumbs.includes('Add-ons')
         && (crumbs.match(/chat-onboard-crumb active/g) || []).length === 3
@@ -511,7 +518,7 @@ test('chat onboarding cycle supplement and provider quiz helpers cover browser p
         && connectedContextCrumbs.includes('Step 3 of 3')
         && connectedContextCrumbs.includes('Context')
         && crumbs.includes('chat-onboard-back-btn')
-        && quizRoot.includes('Welcome, &lt;Ada&gt;')
+        && parsedQuiz.body.textContent!.includes('Welcome, <Ada>!') && !parsedQuiz.querySelector('ada')
         && quizRoot.includes('Next, pick how you want to power the AI')
         && !quizRoot.includes('One more step')
         && quizRoot.includes('chat-quiz-recommended')
