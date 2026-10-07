@@ -36,7 +36,9 @@ while this bridge is evaluated; building locally does not publish it.
 - Chat's initial shell and composer are authored once as shared Svelte
   components. Kit owns them in its `/app` route; the native document contains
   their deterministic build-generated snapshot, hydrated without replacing
-  controls or live transcript hosts. `svelte:check` verifies that snapshot.
+  controls or live transcript hosts. The shared composer owns its model/reasoning
+  picker as well, using the same provider and CLI services in both builds.
+  `svelte:check` verifies that snapshot.
 - Settings CSS, worker entry points, computed vendor URLs and delegated preference
   mutations keep their contracts.
 - Manifest `id`, `start_url` and `scope` remain `/app`; `/`, `/index.html` and

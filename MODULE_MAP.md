@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1015 |
-| Internal import edges | 3868 |
+| Modules | 1021 |
+| Internal import edges | 3882 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -66,12 +66,12 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
 | [`js/utils.ts`](js/utils.ts) | 291 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
-| [`js/state.ts`](js/state.ts) | 203 | [`js/chat-send.ts`](js/chat-send.ts) | 42 |
+| [`js/state.ts`](js/state.ts) | 204 | [`js/chat-send.ts`](js/chat-send.ts) | 42 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 91 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 80 | [`js/settings.ts`](js/settings.ts) | 35 |
 | [`js/data.ts`](js/data.ts) | 79 | [`js/provider-panels.ts`](js/provider-panels.ts) | 34 |
 | [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts) | 65 | [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) | 30 |
-| [`js/api.ts`](js/api.ts) | 51 | [`js/pdf-import.ts`](js/pdf-import.ts) | 28 |
+| [`js/api.ts`](js/api.ts) | 52 | [`js/pdf-import.ts`](js/pdf-import.ts) | 28 |
 | [`js/profile.ts`](js/profile.ts) | 51 | [`js/sync-configure.ts`](js/sync-configure.ts) | 28 |
 | [`js/schema.ts`](js/schema.ts) | 42 | [`js/wearables-connect.ts`](js/wearables-connect.ts) | 28 |
 | [`js/crypto.ts`](js/crypto.ts) | 39 | [`js/export.ts`](js/export.ts) | 25 |
@@ -387,7 +387,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>chat</code> family — 70 modules</summary>
+<details><summary><code>chat</code> family — 75 modules</summary>
 
 - [`js/chat-actions.ts`](js/chat-actions.ts) → [`js/agent-draft-claims.ts`](js/agent-draft-claims.ts), [`js/agent-drafts.ts`](js/agent-drafts.ts), [`js/chat-history.ts`](js/chat-history.ts), [`js/chat-icons.ts`](js/chat-icons.ts), [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-message-action-attrs.ts`](js/chat-message-action-attrs.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/chat-attestation.ts`](js/chat-attestation.ts) → [`js/utils.ts`](js/utils.ts)
@@ -425,7 +425,12 @@ Native browser modules shipped with the static application.
 - [`js/chat-message-avatars.ts`](js/chat-message-avatars.ts) → [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/state.ts`](js/state.ts)
 - [`js/chat-message-edit.ts`](js/chat-message-edit.ts) → [`js/chat-composer.ts`](js/chat-composer.ts), [`js/chat-message-action-attrs.ts`](js/chat-message-action-attrs.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/chat-mobile-viewport.ts`](js/chat-mobile-viewport.ts) → no in-scope imports
-- [`js/chat-model-controls.ts`](js/chat-model-controls.ts) → [`js/agent-chat-client.ts`](js/agent-chat-client.ts), [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api.ts`](js/api.ts), [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-model-preferences.ts`](js/chat-model-preferences.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/provider-local-ai-runtime.ts`](js/provider-local-ai-runtime.ts), [`js/provider-model-controls.ts`](js/provider-model-controls.ts) *(dynamic)*, [`js/reasoning-capabilities.ts`](js/reasoning-capabilities.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/chat-model-control-state.ts`](js/chat-model-control-state.ts) → [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/api-provider-storage.ts`](js/api-provider-storage.ts), [`js/api.ts`](js/api.ts), [`js/chat-model-preferences.ts`](js/chat-model-preferences.ts), [`js/provider-local-ai-runtime.ts`](js/provider-local-ai-runtime.ts), [`js/reasoning-capabilities.ts`](js/reasoning-capabilities.ts)
+- [`js/chat-model-controls.ts`](js/chat-model-controls.ts) → [`js/agent-chat-client.ts`](js/agent-chat-client.ts), [`js/agent-chat-settings.ts`](js/agent-chat-settings.ts), [`js/agent-model-catalog.ts`](js/agent-model-catalog.ts), [`js/api.ts`](js/api.ts), [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-model-control-state.ts`](js/chat-model-control-state.ts), [`js/chat-model-picker-presentation.ts`](js/chat-model-picker-presentation.ts), [`js/chat-model-picker-view.ts`](js/chat-model-picker-view.ts), [`js/chat-model-preferences.ts`](js/chat-model-preferences.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/local-ai-discovery.ts`](js/local-ai-discovery.ts), [`js/provider-local-ai-runtime.ts`](js/provider-local-ai-runtime.ts), [`js/provider-model-controls.ts`](js/provider-model-controls.ts) *(dynamic)*, [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/chat-model-picker-classes.ts`](js/chat-model-picker-classes.ts) → no in-scope imports
+- [`js/chat-model-picker-contract.ts`](js/chat-model-picker-contract.ts) → no in-scope imports
+- [`js/chat-model-picker-presentation.ts`](js/chat-model-picker-presentation.ts) → [`js/chat-model-control-state.ts`](js/chat-model-control-state.ts)
+- [`js/chat-model-picker-view.ts`](js/chat-model-picker-view.ts) → no in-scope imports
 - [`js/chat-model-preferences.ts`](js/chat-model-preferences.ts) → no in-scope imports
 - [`js/chat-nudge.ts`](js/chat-nudge.ts) → [`js/chat-backend-selection.ts`](js/chat-backend-selection.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts)
 - [`js/chat-onboarding-host-bindings.ts`](js/chat-onboarding-host-bindings.ts) → [`js/chat-onboarding.ts`](js/chat-onboarding.ts)
@@ -464,7 +469,13 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>ChatComposer.svelte</code> family — 1 module</summary>
 
-- [`js/components/ChatComposer.svelte`](js/components/ChatComposer.svelte) → [`js/chat-composer-classes.ts`](js/chat-composer-classes.ts), [`js/chat-composer-input-port.ts`](js/chat-composer-input-port.ts)
+- [`js/components/ChatComposer.svelte`](js/components/ChatComposer.svelte) → [`js/chat-composer-classes.ts`](js/chat-composer-classes.ts), [`js/chat-composer-input-port.ts`](js/chat-composer-input-port.ts), [`js/components/ChatModelPicker.svelte`](js/components/ChatModelPicker.svelte)
+
+</details>
+
+<details><summary><code>ChatModelPicker.svelte</code> family — 1 module</summary>
+
+- [`js/components/ChatModelPicker.svelte`](js/components/ChatModelPicker.svelte) → [`js/chat-model-picker-classes.ts`](js/chat-model-picker-classes.ts), [`js/chat-model-picker-contract.ts`](js/chat-model-picker-contract.ts), [`js/chat-model-picker-view.ts`](js/chat-model-picker-view.ts)
 
 </details>
 

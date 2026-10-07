@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ChatModelPicker from './ChatModelPicker.svelte';
   import { notifyChatComposerInput, registerChatComposerInput } from '../chat-composer-input-port.js';
   import { COMPOSER_AREA, COMPOSER_ROW, COMPOSER_INPUT, COMPOSER_TOOLBAR,
     COMPOSER_GROUP, COMPOSER_TOOL_BUTTON, COMPOSER_SEND_BUTTON } from '../chat-composer-classes.js';
@@ -31,13 +32,7 @@
               <button type="button" class={"chat-discuss-btn " + COMPOSER_TOOL_BUTTON} id="chat-discuss-btn" data-chat-action="start-discussion" style="display:none" aria-label="Start discussion" title="Personas discuss your results">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
               </button>
-              <details class="chat-model-menu" id="chat-model-menu">
-                <summary class="chat-model-menu-toggle gb:composer:max-[480px]:min-w-11 gb:composer:max-w-full" id="chat-model-menu-toggle" aria-label="Choose model and reasoning effort" title="Choose model and reasoning effort">
-                  <span class="chat-model-menu-label" id="chat-model-menu-label">Select model</span>
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
-                </summary>
-                <div class="chat-model-menu-popover" id="chat-model-menu-popover" aria-live="polite"></div>
-              </details>
+              <ChatModelPicker />
               <button type="button" class={"chat-voice-btn " + COMPOSER_TOOL_BUTTON} id="chat-voice-btn" data-chat-action="toggle-voice-recording" aria-label="Speak message" aria-pressed="false" title="Speak message">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3M8 22h8"/></svg>
               </button>

@@ -71,8 +71,7 @@ body.chat-open .analytics-consent-banner {
 .chat-fullscreen-btn,
 .chat-close-btn,
 .chat-thread-new-btn,
-.chat-project-new-btn,
-.chat-model-menu-toggle {
+.chat-project-new-btn {
   border-radius: var(--radius-sm);
 }
 .chat-fullscreen-btn,

@@ -239,7 +239,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/chat-onboarding-host-bindings.js',
   '/js/chat-loader.js',
   '/js/chat-empty-state.js',
-  '/js/chat-layout.js', '/js/chat-model-controls.js',
+  '/js/chat-layout.js', '/js/chat-model-controls.js', '/js/chat-model-control-state.js', '/js/chat-model-picker-contract.js', '/js/chat-model-picker-view.js', '/js/chat-model-picker-presentation.js', '/js/chat-model-picker-classes.js',
   '/js/chat-model-preferences.js', '/js/chat-runtime.js',
   '/js/chat-render-runtime.js', '/js/chat-render.js',
   '/js/chat-message-avatars.js', '/js/chat-thinking-status.js',

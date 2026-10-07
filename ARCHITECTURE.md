@@ -893,7 +893,19 @@ current input to the draft service without installing native input listeners.
 including originating input identity and profile/thread checks. Its published
 resize/value helpers keep their existing runtime contract. The input, toolbar,
 send and tool controls use scoped Tailwind classes and shared theme variables;
-dynamic model content, attachments and voice presentation migrate separately.
+attachments and voice presentation retain their separate services.
+`ChatModelPicker.svelte` owns the model menu, search, range preview, selection
+buttons and dismiss/focus behavior. `chat-model-picker-view.ts` binds only the
+current root and releases provider event subscriptions on disposal.
+`chat-model-control-state.ts` reads existing provider and CLI catalogs, ordering
+and reasoning capabilities; `chat-model-picker-presentation.ts` projects literal
+display metadata without exposing connection credentials.
+`chat-model-controls.ts` retains domain actions and captures profile, thread,
+backend, target, connection settings and view lifetime before asynchronous work.
+Late catalog replies cannot publish across those boundaries, and the latest model
+choice wins. Negotiated CLI connection settings are adopted only by the current
+request. The picker uses scoped Tailwind; browser-specific range track/thumb
+pseudo-elements remain a narrowly owned custom CSS exception.
 `ChatResizeHandle.svelte` owns splitter pointer capture, keyboard resizing and
 reset actions. `chat-layout.ts` reads and persists the existing independent
 panel/rail preferences; its typed view port publishes geometry to the shell.

@@ -1734,3 +1734,9 @@ js/custom-settings-controller.js
 
 /js/chat-layout-view.js
 /js/chat-layout-classes.js
+
+/js/chat-model-control-state.js
+/js/chat-model-picker-contract.js
+/js/chat-model-picker-view.js
+/js/chat-model-picker-presentation.js
+/js/chat-model-picker-classes.js

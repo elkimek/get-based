@@ -330,7 +330,7 @@ export function getActiveModelDisplay(provider = getAIProvider()) {
 // Exclude specialized variants not suited for medical analysis.
 const OPENROUTER_EXCLUDE = ['codex', 'audio', 'image', 'oss', 'safeguard', 'coder'];
 
-export async function fetchOpenRouterModels(key?: string) {
+export async function fetchOpenRouterModels(key?: string, { isCurrent = () => true }: { isCurrent?: () => boolean } = {}) {
   try {
     let extensionPolicy = getAppExtensionAIModelPolicy({ provider: 'openrouter' });
     if (extensionPolicy?.enforced && !Array.isArray(extensionPolicy.allowlist)) return [];
@@ -348,6 +348,7 @@ export async function fetchOpenRouterModels(key?: string) {
     });
     if (!res.ok) return [];
     const json = await res.json() as CatalogResponse;
+    if (!isCurrent()) return [];
     const all = (json.data || []).filter(function(m) {
       if (!m.id || !modelMetadataIsAvailable(m)) return false;
       if (OPENROUTER_EXCLUDE.some(function(ex) { return m.id.includes(ex); })) return false;

@@ -11,3 +11,6 @@
 @source "../js/components/ChatResizeHandle.svelte";
 @source "../js/chat-layout-classes.ts";
 @custom-variant chat-layout (&:is([data-chat-layout-view], [data-chat-layout-view] *));
+@source "../js/components/ChatModelPicker.svelte";
+@source "../js/chat-model-picker-classes.ts";
+@custom-variant model-picker (&:is([data-chat-model-picker-view], [data-chat-model-picker-view] *));
