@@ -62,10 +62,14 @@ checks both launcher states in every theme, hidden legacy values, actual EMF
 stylesheet failure/retry, assessment creation/return, and retirement of delayed
 opens and return callbacks. [`emf-runtime.test.ts`](../tests/emf-runtime.test.ts)
 checks caller guards without discarding shared module caching.
+[`context-light-owned.spec.ts`](../tests/playwright/context-light-owned.spec.ts)
+checks setup metadata, retained skin type, clear isolation, all six themes and
+keyboard entry to the actual Light setup. Deferred setup callbacks are retired
+by profile changes, newer authored forms and native modal replacements.
 [`sveltekit-context-forms.spec.ts`](../tests/pwa/sveltekit-context-forms.spec.ts)
 checks the editors through real catalog actions with the assembled static PWA,
-including offline first use, committed history, Environment-to-EMF creation/return
-and two cold launches with full stored-profile equality. Its offline
+including offline first use, committed history, Light setup metadata/skin preservation
+and actual setup entry, Environment-to-EMF creation/return, and two cold launches with full stored-profile equality. Its offline
 boundary drops origin-server connections while the real worker/cache serves the app.
 [`context-card-status-ownership.test.ts`](../tests/context-card-status-ownership.test.ts)
 checks simultaneous authored assessment/tips publication, literal text, unique IDs,

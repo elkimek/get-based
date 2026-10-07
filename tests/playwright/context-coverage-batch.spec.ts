@@ -477,6 +477,7 @@ test('lifestyle context editors cover save clear health goals lens and contamina
 
       (state.importedData as unknown as ContextFixtureRead).sunDefaults = { fitzpatrick: 'III', homeLight: 'led-warm', eyewear: 'sunglasses', ottScore: 4 };
       (state.importedData as unknown as ContextFixtureRead).lightCircadian = { skinType: 'III' };
+      if (!await data.saveImportedData()) throw new Error('Light fixture could not be saved');
       await lifestyle.openLightCircadianEditor();
       outcomes.lightCircadianMirrorRendersSetup = modal.textContent.includes('Mostly LED — warm white')
         && modal.textContent.includes('Sunglasses outdoors')
@@ -484,12 +485,13 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       const amLight = setOption('light-am');
       const evening = setTag('light-evening');
       const tech = setTag('light-tech');
-      lifestyle.saveLightCircadian();
+      await lifestyle.saveLightCircadian();
       outcomes.saveLightCircadianPreservesSkinAndStoresTags = (state.importedData as unknown as ContextFixtureRead).lightCircadian?.skinType === 'III'
         && (state.importedData as unknown as ContextFixtureRead).lightCircadian?.amLight === amLight
         && ((state.importedData as unknown as ContextFixtureRead).lightCircadian?.evening as {includes(value:unknown):unknown} | null | undefined)?.includes(evening)
         && ((state.importedData as unknown as ContextFixtureRead).lightCircadian?.techEnv as {includes(value:unknown):unknown} | null | undefined)?.includes(tech);
-      lifestyle.clearLightCircadian();
+      await lifestyle.openLightCircadianEditor();
+      await lifestyle.clearLightCircadian();
       outcomes.clearLightCircadianNullsValue = (state.importedData as unknown as ContextFixtureRead).lightCircadian === null;
 
       await lifestyle.openExerciseEditor();

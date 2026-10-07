@@ -2,6 +2,9 @@
 import Form, { mount, unmount, flushSync } from './components/LifestyleContextForm.svelte.native.js';
 import { doesNutritionContextOverrideTypicalMeals } from './context-card-summaries.js';
 import { openEMFAssessmentEditor } from './emf-runtime.js';
+import { getLatitudeFromLocation } from './profile.js';
+import { reopenSunSetup } from './sun-defaults.js';
+import { openLightSetupFromLifestyleRuntime } from './context-card-lifestyle-runtime.js';
 import { state } from './state.js';
 import { runWithContextEditorStylesheet } from './context-card-editor-ui.js';
 import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
@@ -99,6 +102,18 @@ async function launchEMF(owned: View): Promise<void> {
     flushSync();
   }
 }
+function launchLightSetup(owned: View): void {
+  if (owned.key !== 'lightCircadian' || !current(owned) || owned.saving || owned.confirming) return;
+  const profile = state.currentProfile, origin = state.importedData, ticket = request;
+  close(owned);
+  const content = owned.modal.firstElementChild;
+  openLightSetupFromLifestyleRuntime(() => {
+    if (owned.modal.isConnected && document.getElementById('detail-modal') === owned.modal
+      && owned.modal.firstElementChild === content && !owned.overlay.classList.contains('show')
+      && request === ticket && state.currentProfile === profile && state.importedData === origin
+      && document.querySelector<HTMLElement>('.nav-item.active')?.dataset.category === 'light') reopenSunSetup();
+  });
+}
 export function openLifestyleForm(key: LifestyleFormKey): void | Promise<unknown> {
   const profile = state.currentProfile, origin = state.importedData, ticket = ++request;
   const surface = document.getElementById('main-content')?.firstElementChild;
@@ -113,7 +128,7 @@ export function openLifestyleForm(key: LifestyleFormKey): void | Promise<unknown
       return;
     if (view)
       dispose(view);
-    const session = createLifestyleFormSession(key), model = lifestyleFormModel(key, origin, state.profileSex, { unitSystem: state.unitSystem, mealsPaused: key === 'diet' && doesNutritionContextOverrideTypicalMeals(state.nutritionSummary, origin) });
+    const session = createLifestyleFormSession(key), model = lifestyleFormModel(key, origin, state.profileSex, { latitude: key === 'lightCircadian' ? getLatitudeFromLocation() : null, unitSystem: state.unitSystem, mealsPaused: key === 'diet' && doesNutritionContextOverrideTypicalMeals(state.nutritionSummary, origin) });
     modal.replaceChildren();
     modal.className = 'modal gb:context-form:w-[min(94vw,760px)] gb:context-form:max-w-[760px] gb:context-form:max-h-[min(90vh,860px)] gb:context-form:p-0 gb:context-form:overflow-y-auto gb:context-form:overflow-x-hidden gb:context-form:bg-secondary-surface gb:context-form:shadow-dialog gb:context-form:max-[720px]:w-[calc(100vw-24px)] gb:context-form:max-[720px]:max-h-[calc(100dvh-24px)]';
     modal.dataset.contextFormModal = '';
@@ -137,7 +152,7 @@ export function openLifestyleForm(key: LifestyleFormKey): void | Promise<unknown
             if (confirmed && current(owned))
               await save(owned, true);
           })();
-        }, close: () => close(owned), openEMF: () => { void launchEMF(owned); },
+        }, close: () => close(owned), openEMF: () => { void launchEMF(owned); }, openLightSetup: () => launchLightSetup(owned),
       }
     });
     flushSync();

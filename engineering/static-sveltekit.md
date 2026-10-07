@@ -221,13 +221,15 @@ inside the locked read/merge/write. If saved notes have changed, the UI presents
 the saved text alongside the draft and offers an explicit choice; keeping saved
 notes does not write or discard unrelated edits.
 
-The authored Diet, Environment, Sleep, Exercise, Stress and Relationships editors use the same live
-Svelte form and typed model/session services in native and static builds. Their
+The authored Diet, Environment, Light/Circadian, Sleep, Exercise, Stress and
+Relationships editors use the same live Svelte form and typed model/session services in native and static builds. Their
 stable facade and lazy stylesheet URLs are retained in the worker graph. Focused
 [`sveltekit-context-forms.spec.ts`](../tests/pwa/sveltekit-context-forms.spec.ts)
 acceptance opens them from the real catalog after the origin becomes unavailable,
 saves profile/history data offline, and reopens them across two cold launches.
 Environment also cold-loads the real EMF editor/stylesheet offline, creates an
 assessment and returns to the authored form while preserving quick-exposure values.
+Light/Circadian preserves its stored skin type and opens the actual Light setup
+offline from the authored summary.
 This is scoped editor acceptance; final whole-application migration acceptance
 remains required.

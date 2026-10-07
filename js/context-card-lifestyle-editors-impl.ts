@@ -5,14 +5,12 @@ import type { LifestyleEditorDependencies } from './context-card-editor-ui.js';
 import { state } from './state.js';
 import { showConfirmDialog } from './utils.js';
 import { scanDietForContaminants } from './food-contaminants.js';
-import { reopenSunSetup } from './sun-defaults.js';
 import { doesNutritionContextOverrideTypicalMeals } from './context-card-summaries.js';
 import { getTextInput, lifestyleActionAttrs, selectCtxOption } from './context-card-editor-ui.js';
 import {
   closeLifestyleContextModalRuntime,
   discussDietContaminantsRuntime,
   markLifestyleContextDelegatesBoundRuntime,
-  openLightSetupFromLifestyleRuntime,
   returnToLifestyleContextModalRuntime,
 } from './context-card-lifestyle-runtime.js';
 import {
@@ -62,10 +60,6 @@ function getLifestyleIndex(el: HTMLElement) {
   return Number.isInteger(idx) ? idx : -1;
 }
 
-function openLightSetupFromContext() {
-  openLightSetupFromLifestyleRuntime(reopenSunSetup);
-}
-
 function discussDietContaminants() {
   discussDietContaminantsRuntime();
 }
@@ -81,17 +75,11 @@ function useHealthGoalStarter(text: string) {
   input.focus();
 }
 
-const lifestyleEditorActions: Record<string, () => void> = {
-  'save-light-circadian': saveLightCircadian,
-  'clear-light-circadian': () => { void confirmClearProfileContext('Light & Circadian', clearLightCircadian); },
-};
-
 function handleLifestyleContextClick(event: MouseEvent) {
   const actionEl = closestLifestyleElement(event.target, '[data-lifestyle-action]');
   if (!actionEl) return;
   switch (actionEl.dataset.lifestyleAction || '') {
     case 'show-diet-contaminants': event.preventDefault(); event.stopPropagation(); showDietContaminantsModal(); break;
-    case 'open-light-setup': openLightSetupFromContext(); break;
     case 'delete-health-goal': { const idx = getLifestyleIndex(actionEl); if (idx >= 0) deleteHealthGoal(idx); break; }
     case 'suggest-health-goal': useHealthGoalStarter(actionEl.dataset.lifestyleValue || ''); break;
     case 'add-health-goal': addHealthGoal(); break;
@@ -103,7 +91,6 @@ function handleLifestyleContextClick(event: MouseEvent) {
     case 'back-to-context': returnToContextModal(); break;
     case 'discuss-diet-contaminants': discussDietContaminants(); break;
     case 'close-modal': closeLifestyleContextModalRuntime(); break;
-    default: lifestyleEditorActions[actionEl.dataset.lifestyleAction || '']?.(); break;
   }
 }
 

@@ -635,15 +635,14 @@ assert('marker rename refreshes the backing view before reopening modal',
 console.log('3c. exhaustive HTML sink review ratchet');
 
 const contextCardEditorSrc = read('js/context-card-editor-ui.js');
-const contextCardLifestyleSrc = [
-  read('js/context-card-lifestyle-editors-impl.js'),
-  read('js/context-card-lifestyle-special-editors.js'),
-].join('\n');
+const contextCardLifestyleSrc = [read('js/context-card-lifestyle-editors-impl.js'), read('js/context-card-lifestyle-special-editors.js')].join('\n');
+const contextLightMirrorSrc = read('js/components/ContextLightSetupMirror.svelte');
 assert('context Light setup mirror owns its deferred editor styling',
-  contextCardLifestyleSrc.includes('ctx-lightsetup-ott-badge') &&
-  !contextCardLifestyleSrc.includes('class="light-ott-badge') &&
-  contextEditorCssAuditSrc.includes('.ctx-lightsetup-ott-badge') &&
-  contextEditorCssAuditSrc.includes('.ctx-lightsetup-ott-tier-4'));
+  contextLightMirrorSrc.includes('data-context-light-setup') &&
+  contextLightMirrorSrc.includes('data-light-burden-tier') &&
+  contextLightMirrorSrc.includes('gb:context-form:border-danger') &&
+  read('css/context-editor.tailwind.css').includes('@source "../js/components/ContextLightSetupMirror.svelte"') &&
+  !contextEditorCssAuditSrc.includes('.ctx-lightsetup-ott-badge'));
 assert('Context select field escapes label text',
   /function renderSelectField[\s\S]{0,1800}<label class="ctx-field-label"[^>]*>\$\{escapeHTML\(label\)\}<\/label>/.test(contextCardEditorSrc));
 assert('Context tags field escapes label text',
@@ -895,7 +894,8 @@ assert('Active sun session live and stop vitamin D paths apply genetics multipli
   sunActiveSessionSrc.includes('genetics: state.importedData?.genetics') &&
   sunActiveSessionSrc.includes('activeDeps.vitaminDIU(live.doses.vitamin_d, fitz, uvi, rotated, state.importedData?.genetics || null)'));
 assert('Light context setup mirror is not double-framed',
-  /\.ctx-lightsetup-mirror\s*\{[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;[\s\S]*padding:\s*0;/.test(cssSrc));
+  !/gb:context-form:(?:border|bg-|shadow)/.test(contextLightMirrorSrc.match(/<section[^>]+>/)?.[0] || '') &&
+  !cssSrc.includes('.ctx-lightsetup-mirror'));
 assert('Light setup AI context wrapper is not double-framed',
   /\.light-setup-ai-block\s*\{[\s\S]*padding:\s*0;[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;/.test(cssSrc) &&
   /\.light-setup-ai-block-green,[\s\S]*\.light-setup-ai-block-yellow,[\s\S]*\.light-setup-ai-block-red\s*\{\s*border-left:\s*0;\s*\}/.test(cssSrc));

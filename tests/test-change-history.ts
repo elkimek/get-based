@@ -186,13 +186,14 @@ const contextCards = await import('../js/context-cards.js');
   const ctxLifestyleSrc = read('js/context-card-lifestyle-editors-impl.js');
   const ctxLifestyleSpecialSrc = read('js/context-card-lifestyle-special-editors.js');
   assert('saveAndRefresh has field parameter', ctxSrc.includes('function saveAndRefresh(msg, field)'));
-  assert('Diet passes field to saveAndRefresh', ctxLifestyleSrc.includes("saveContextAndRefresh('Diet & Digestion saved', 'diet')"));
-  assert('Exercise passes field to saveAndRefresh', ctxLifestyleSrc.includes("saveContextAndRefresh('Exercise saved', 'exercise')"));
-  assert('Sleep passes field to saveAndRefresh', ctxLifestyleSrc.includes("saveContextAndRefresh('Sleep saved', 'sleepRest')"));
-  assert('Light passes field to saveAndRefresh', ctxLifestyleSpecialSrc.includes("saveContextAndRefresh('Light & circadian saved', 'lightCircadian')"));
-  assert('Stress passes field to saveAndRefresh', ctxLifestyleSrc.includes("saveContextAndRefresh('Stress profile saved', 'stress')"));
-  assert('Love life passes field to saveAndRefresh', ctxLifestyleSrc.includes("saveContextAndRefresh('Love life saved', 'loveLife')"));
-  assert('Environment passes field to saveAndRefresh', ctxLifestyleSrc.includes("saveContextAndRefresh('Environment saved', 'environment')"));
+  const formSessionSrc = read('js/context-lifestyle-form-session.js');
+  for (const [label, key, owner] of [
+    ['Diet', 'diet', ctxLifestyleSrc], ['Exercise', 'exercise', ctxLifestyleSrc],
+    ['Sleep', 'sleepRest', ctxLifestyleSrc], ['Light', 'lightCircadian', ctxLifestyleSpecialSrc],
+    ['Stress', 'stress', ctxLifestyleSrc], ['Love life', 'loveLife', ctxLifestyleSrc],
+    ['Environment', 'environment', ctxLifestyleSrc],
+  ]) assert(`${label} records captured draft history before scoped persistence`,
+    owner!.includes(`saveLifestyleForm('${key}')`) && formSessionSrc.includes('recordContextCardChange(key, draft)') && formSessionSrc.includes('saveImportedDataForProfile(profile, draft'));
   assert('Diagnoses passes field to saveAndRefresh', ctxMedicalSrc.includes("saveContextAndRefresh('Medical history saved', 'diagnoses')"));
 
   // ═══════════════════════════════════════

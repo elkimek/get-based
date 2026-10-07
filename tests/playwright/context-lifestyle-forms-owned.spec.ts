@@ -8,6 +8,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 const editors = [
+  { key: 'lightCircadian', open: 'openLightCircadianEditor', title: 'Light & Circadian', first: 'light-am' },
   { key: 'environment', open: 'openEnvironmentEditor', title: 'Environment & Exposures', first: 'env-setting' },
   { key: 'diet', open: 'openDietEditor', title: 'Diet & Digestion', first: 'diet-type' },
   { key: 'sleepRest', open: 'openSleepRestEditor', title: 'Sleep & Rest', first: 'sleep-duration' },

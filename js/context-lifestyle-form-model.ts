@@ -1,11 +1,12 @@
 // Typed presentation and serialization for the ordinary lifestyle forms.
 import type { ProfileData } from '../types/app-state.js';
 import * as options from './constants.js';
+import { EYEWEAR_OPTIONS, HOME_LIGHT_OPTIONS, ottScoreToLabel } from './sun-defaults-model.js';
 import { formatTime, getTimeFormat, parseTimeInput } from './theme.js';
 import { emfAssessmentLauncherView } from './context-emf-launcher-model.js';
 import type { EMFLauncherView } from './context-emf-launcher-model.js';
 import { getSleepContextMismatch } from './lab-context-wearables.js';
-export type LifestyleFormKey = 'sleepRest' | 'exercise' | 'stress' | 'loveLife' | 'diet' | 'environment';
+export type LifestyleFormKey = 'sleepRest' | 'exercise' | 'stress' | 'loveLife' | 'diet' | 'environment' | 'lightCircadian';
 export type LifestyleDraft = Record<string, string | string[] | null>;
 export interface LifestyleOption {
   value: string;
@@ -33,6 +34,25 @@ export const lifestyleMeals = [
   { key: 'dinner', label: 'Dinner', placeholder: 'Dinner — e.g. salmon, rice, vegetables' },
   { key: 'snacks', label: 'Snacks', placeholder: 'Snacks — e.g. nuts, fruit, dark chocolate' },
 ] as const;
+export interface LifestyleLightSetup {
+  populated: boolean;
+  rows: Array<{ label: string; value: string }>;
+  burden: { label: string; tier: number | null } | null;
+}
+export function lifestyleLightSetup(data: ProfileData): LifestyleLightSetup {
+  const defaults = data.sunDefaults;
+  const skin = data.lightCircadian?.skinType || (defaults?.fitzpatrick ? String(defaults.fitzpatrick) : null);
+  const burden = typeof defaults?.ottScore === 'number' ? ottScoreToLabel(defaults.ottScore)
+    : defaults?.skipped ? { label: 'skipped', tier: null } : null;
+  return {
+    populated: !!(skin || defaults?.homeLight || defaults?.eyewear || burden), burden,
+    rows: [
+      { label: 'Skin type', value: skin || '—' },
+      { label: 'Home lighting', value: HOME_LIGHT_OPTIONS.find(option => option.key === defaults?.homeLight)?.label || defaults?.homeLight || '—' },
+      { label: 'Eyewear outside', value: EYEWEAR_OPTIONS.find(option => option.key === defaults?.eyewear)?.label || defaults?.eyewear || '—' }
+    ]
+  };
+}
 export interface LifestyleFormModel {
   key: LifestyleFormKey;
   title: string;
@@ -41,6 +61,8 @@ export interface LifestyleFormModel {
   fields: LifestyleField[];
   sections: LifestyleSection[];
   mismatch: string | null;
+  lightSetup?: LifestyleLightSetup;
+  latitude?: string | null;
 }
 const single = (key: string, id: string, label: string, values: readonly (string | LifestyleOption)[]): LifestyleField => ({
   key, id, label, options: values.map(value => typeof value === 'string' ? {
@@ -52,8 +74,30 @@ const tags = (key: string, id: string, label: string, values: readonly (string |
     value, label: value
   } : value), multiple: true
 });
-export function lifestyleFormModel(key: LifestyleFormKey, data: ProfileData, sex: string | null, preferences: { unitSystem?: string; mealsPaused?: boolean } = {}): LifestyleFormModel {
+export function lifestyleFormModel(key: LifestyleFormKey, data: ProfileData, sex: string | null, preferences: { unitSystem?: string; mealsPaused?: boolean; latitude?: string | null } = {}): LifestyleFormModel {
   switch (key) {
+    case 'lightCircadian': return {
+      key, title: 'Light & Circadian', message: 'Light & circadian', mismatch: null,
+      subtitle: 'Light, screen, and meal-timing habits help frame circadian and metabolic patterns.',
+      lightSetup: lifestyleLightSetup(data), latitude: preferences.latitude || null,
+      fields: [
+        single('amLight', 'light-am', 'Morning light', options.LIGHT_AM),
+        single('daytime', 'light-daytime', 'Daytime outdoor exposure', options.LIGHT_DAYTIME),
+        single('uvExposure', 'light-uv', 'UV / sun exposure', options.LIGHT_UV)
+      ],
+      sections: [
+        { title: 'Evening and technology', fallback: 'Optional screens, lighting, and device environment', fields: [
+          tags('evening', 'light-evening', 'Evening light discipline', options.LIGHT_EVENING),
+          single('screenTime', 'light-screen', 'Daily screen time', options.LIGHT_SCREEN_TIME),
+          tags('techEnv', 'light-tech', 'Technology environment', options.LIGHT_TECH_ENV)
+        ] },
+        { title: 'Other circadian signals', fallback: 'Optional cold, grounding, and meal timing', fields: [
+          single('cold', 'light-cold', 'Cold exposure', options.LIGHT_COLD),
+          single('grounding', 'light-grounding', 'Grounding / earthing', options.LIGHT_GROUNDING),
+          tags('mealTiming', 'light-meal', 'Meal timing signals', options.LIGHT_MEAL_TIMING)
+        ] }
+      ]
+    };
     case 'environment': {
       const assessments = data.emfAssessment?.assessments;
       const emf = emfAssessmentLauncherView(Array.isArray(assessments) ? assessments : []);
@@ -220,6 +264,7 @@ export function lifestyleDraft(model: LifestyleFormModel, data: ProfileData): Li
     const value = values[field.key];
     draft[field.key] = field.multiple ? field.options.filter(option => Array.isArray(value) && (value.includes(option.value) || value.includes(option.label))).map(option => option.value) : field.options.find(option => option.value === value || option.label === value)?.value || null;
   }
+  if (model.key === 'lightCircadian') draft.skinType = typeof values.skinType === 'string' ? values.skinType : null;
   if (model.key === 'environment' && model.sections.some(section => section.emf?.hasAssessments)) {
     // Assessment readings supersede quick choices; hidden legacy values remain stored verbatim.
     for (const key of ['emf', 'emfMitigation']) {
@@ -273,6 +318,12 @@ export function applyLifestyleDraft(data: ProfileData, key: LifestyleFormKey, dr
   const empty = draft === null || Object.entries(draft).filter(([field]) => key !== 'diet' || !field.endsWith('Time')).every(([, value]) => Array.isArray(value) ? !value.length : !value?.trim());
   const note = text('note');
   switch (key) {
+    case 'lightCircadian':
+      data.lightCircadian = empty ? null : {
+        amLight: one('amLight'), daytime: one('daytime'), uvExposure: one('uvExposure'), skinType: one('skinType'),
+        evening: many('evening'), screenTime: one('screenTime'), techEnv: many('techEnv'), cold: one('cold'), grounding: one('grounding'), mealTiming: many('mealTiming'), note
+      };
+      break;
     case 'environment':
       data.environment = empty ? null : {
         setting: one('setting'), climate: one('climate'), altitude: one('altitude'), inhaledExposures: many('inhaledExposures'),

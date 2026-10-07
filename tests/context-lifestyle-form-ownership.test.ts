@@ -28,7 +28,7 @@ let sequence = 0;
 beforeEach(() => { vi.resetAllMocks(); mocks.save.mockResolvedValue(true); state.currentProfile = `form-origin-${++sequence}`; state.importedData = createDefaultProfileData(); rememberProfileData(state.importedData); });
 afterEach(() => vi.restoreAllMocks());
 function deferred() { let resolve!: (saved: boolean) => void; const promise = new Promise<boolean>(done => { resolve = done; }); return { promise, resolve }; }
-for (const key of ['sleepRest', 'exercise', 'stress', 'loveLife', 'diet', 'environment'] as const) {
+for (const key of ['sleepRest', 'exercise', 'stress', 'loveLife', 'diet', 'environment', 'lightCircadian'] as const) {
   it(`${key} round trips every field, preserves option values and empties to null`, () => {
     const model = lifestyleFormModel(key, state.importedData, 'female'), draft = lifestyleDraft(model, state.importedData);
     for (const field of lifestyleFields(model)) {
@@ -172,4 +172,30 @@ it('uses one authored EMF launcher for the synchronous HTML contract, with escap
   expect(button.textContent).toContain('<img src=x onerror=bad>'); expect(template.content.querySelector('img, script')).toBeNull();
   expect(button.dataset.contextCardAction).toBe('open-emf-assessment'); expect(button.dataset.contextCardCloseModal).toBe('true');
   expect(button.dataset.umamiEvent).toBe('emf-launcher-literal" onmouseover="bad'); expect(button.hasAttribute('onclick')).toBe(false); expect(button.hasAttribute('onmouseover')).toBe(false);
+});
+it('Light retains its stored skin type without copying the read-only setup fallback into context', () => {
+  state.importedData.sunDefaults = { fitzpatrick: 'III', homeLight: 'led-warm', eyewear: 'sunglasses', ottScore: 4 };
+  const model = lifestyleFormModel('lightCircadian', state.importedData, null, { latitude: 'Temperate' });
+  expect(model.latitude).toBe('Temperate');
+  expect(model.lightSetup?.rows).toEqual([{ label: 'Skin type', value: 'III' }, { label: 'Home lighting', value: 'Mostly LED — warm white (2700–3000K)' }, { label: 'Eyewear outside', value: 'Sunglasses outdoors' }]);
+  const draft = lifestyleDraft(model, state.importedData); expect(draft.skinType).toBeNull();
+  applyLifestyleDraft(state.importedData, 'lightCircadian', draft); expect(state.importedData.lightCircadian).toBeNull();
+  state.importedData.lightCircadian = { skinType: 'Legacy <skin> & type' };
+  const stored = lifestyleDraft(lifestyleFormModel('lightCircadian', state.importedData, null), state.importedData);
+  expect(stored.skinType).toBe('Legacy <skin> & type'); stored.note = 'Updated';
+  applyLifestyleDraft(state.importedData, 'lightCircadian', stored);
+  expect(state.importedData.lightCircadian).toMatchObject({ skinType: 'Legacy <skin> & type', note: 'Updated' });
+  applyLifestyleDraft(state.importedData, 'lightCircadian', null);
+  expect(state.importedData.lightCircadian).toBeNull(); expect(state.importedData.sunDefaults).toMatchObject({ fitzpatrick: 'III', ottScore: 4 });
+});
+it('Light setup projection preserves zero and all burden tiers, skipped state and unknown literal labels', () => {
+  const project = () => lifestyleFormModel('lightCircadian', state.importedData, null).lightSetup!;
+  expect(project().populated).toBe(false);
+  for (const [score, tier, label] of [[0, 0, 'no patterns selected'], [1, 1, 'a few patterns to explore'], [2, 1, 'a few patterns to explore'], [4, 2, 'several patterns to explore'], [6, 3, 'many patterns to review'], [10, 4, 'broad light-context mismatch']] as const) {
+    state.importedData.sunDefaults = { ottScore: score };
+    expect(project().populated).toBe(true); expect(project().burden).toEqual({ label, tier });
+  }
+  state.importedData.sunDefaults = { skipped: true, homeLight: '<img src=x>', eyewear: 'Legacy & lens' };
+  expect(project().burden).toEqual({ label: 'skipped', tier: null });
+  expect(project().rows.map(row => row.value)).toEqual(['—', '<img src=x>', 'Legacy & lens']);
 });

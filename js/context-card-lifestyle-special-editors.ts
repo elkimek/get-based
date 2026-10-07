@@ -1,20 +1,9 @@
-import type { LightCircadianContext } from '../types/profile-context-data.js';
 import type { ModalSyncRefreshContext } from './utils.js';
 import type { LifestyleEditorDependencies } from './context-card-editor-ui.js';
 // Light, goals, interpretive-lens, and diet-contaminant lifestyle editors.
 
 import { state } from './state.js';
-import {
-  LIGHT_AM,
-  LIGHT_DAYTIME,
-  LIGHT_UV,
-  LIGHT_EVENING,
-  LIGHT_COLD,
-  LIGHT_GROUNDING,
-  LIGHT_SCREEN_TIME,
-  LIGHT_TECH_ENV,
-  LIGHT_MEAL_TIMING,
-} from './constants.js';
+import { openLifestyleForm, saveLifestyleForm } from './context-lifestyle-form-view.js';
 import {
   bindDetailModalSyncRefresh,
   escapeAttr,
@@ -28,29 +17,16 @@ import {
   clearImportedArray,
   deleteImportedArrayItem,
 } from './data-merge.js';
-import { getLatitudeFromLocation } from './profile.js';
 import { scanDietForContaminants } from './food-contaminants.js';
 import { sortHealthGoalsByPriority } from './health-goals-utils.js';
 import {
-  EYEWEAR_OPTIONS,
-  HOME_LIGHT_OPTIONS,
-  ottScoreToLabel,
-} from './sun-defaults.js';
-import {
-  contextEditorActions,
   getTextInput,
   getInputValue,
-  summarizeSection,
   lifestyleActionAttrs,
   getSelectedOption,
-  getSelectedTags,
   isContextEditorStylesheetLoaded,
   runWithContextEditorStylesheet,
   renderContextEditorModal,
-  renderContextEditorSection,
-  renderNoteField,
-  renderSelectField,
-  renderTagsField,
 } from './context-card-editor-ui.js';
 import {
   closeLifestyleContextModalAndNavigateRuntime,
@@ -72,16 +48,8 @@ const HEALTH_GOAL_STARTERS = [
 
 let recordContextChange: (field: string) => void = () => {};
 
-let saveContextAndRefresh: (msg: string, field?: string) => void = (msg, field) => {
-  if (field) recordContextChange(field);
-  saveImportedData();
-  showNotification(msg, 'success');
-};
-
-
-export function configureLifestyleSpecialEditors({ recordChange, saveAndRefresh }: LifestyleEditorDependencies = {}) {
+export function configureLifestyleSpecialEditors({ recordChange }: LifestyleEditorDependencies = {}) {
   if (typeof recordChange === 'function') recordContextChange = recordChange;
-  if (typeof saveAndRefresh === 'function') saveContextAndRefresh = saveAndRefresh;
 }
 
 function getActiveNavCategory() {
@@ -90,83 +58,9 @@ function getActiveNavCategory() {
 }
 
 // ── Light & Circadian ──
-
-export function openLightCircadianEditor(): void | Promise<unknown> {
-  if (!isContextEditorStylesheetLoaded()) return runWithContextEditorStylesheet(openLightCircadianEditor);
-  const modal = document.getElementById('detail-modal');
-  const overlay = document.getElementById('modal-overlay');
-  const current = state.importedData.lightCircadian || { amLight: null, daytime: null, uvExposure: null, skinType: null, evening: [], screenTime: null, techEnv: [], cold: null, grounding: null, mealTiming: [], note: '' };
-  const lat = getLatitudeFromLocation();
-  renderContextEditorModal(modal, 'Light & Circadian', 'Light, screen, and meal-timing habits help frame circadian and metabolic patterns.', `
-    ${renderSelectField('Morning light', 'light-am', LIGHT_AM, current.amLight)}
-    ${renderSelectField('Daytime outdoor exposure', 'light-daytime', LIGHT_DAYTIME, current.daytime)}
-    ${renderSelectField('UV / sun exposure', 'light-uv', LIGHT_UV, current.uvExposure)}
-    ${renderLightSetupMirror(current)}
-    ${renderContextEditorSection('Evening and technology', summarizeSection([current.evening, current.screenTime, current.techEnv], 'Optional screens, lighting, and device environment'), `
-      ${renderTagsField('Evening light discipline', 'light-evening', LIGHT_EVENING, current.evening)}
-      ${renderSelectField('Daily screen time', 'light-screen', LIGHT_SCREEN_TIME, current.screenTime)}
-      ${renderTagsField('Technology environment', 'light-tech', LIGHT_TECH_ENV, current.techEnv)}
-    `)}
-    ${renderContextEditorSection('Other circadian signals', summarizeSection([current.cold, current.grounding, current.mealTiming], 'Optional cold, grounding, and meal timing'), `
-      ${renderSelectField('Cold exposure', 'light-cold', LIGHT_COLD, current.cold)}
-      ${renderSelectField('Grounding / earthing', 'light-grounding', LIGHT_GROUNDING, current.grounding)}
-      ${renderTagsField('Meal timing signals', 'light-meal', LIGHT_MEAL_TIMING, current.mealTiming)}
-    `)}
-    ${lat ? `<div style="font-size:12px;color:var(--text-muted);margin-top:8px">📍 Latitude: <strong style="color:var(--text-primary)">${escapeHTML(lat)}</strong> <span style="font-size:11px">(from Settings → Location)</span></div>` : `<div style="font-size:12px;color:var(--text-muted);margin-top:8px">💡 Set your country in Settings → Profile for automatic latitude detection</div>`}
-    ${renderNoteField(current.note)}
-    ${contextEditorActions(state.importedData.lightCircadian != null, lifestyleActionAttrs('save-light-circadian'), lifestyleActionAttrs('clear-light-circadian'))}`);
-  openModalOverlay(overlay);
-}
-
-function renderLightSetupMirror(current: LightCircadianContext) {
-  const defaults = state.importedData?.sunDefaults || null;
-  const skin = current.skinType || (defaults?.fitzpatrick ? `${defaults.fitzpatrick}` : null);
-  const homeMeta = HOME_LIGHT_OPTIONS.find(option => option.key === defaults?.homeLight);
-  const eyewearMeta = EYEWEAR_OPTIONS.find(option => option.key === defaults?.eyewear);
-  let ottBadge = '';
-  if (defaults && typeof defaults.ottScore === 'number') {
-    const { label, tier } = ottScoreToLabel(defaults.ottScore);
-    ottBadge = `<span class="ctx-lightsetup-ott-badge ctx-lightsetup-ott-tier-${tier}">${escapeHTML(label)}</span>`;
-  } else if (defaults?.skipped) {
-    ottBadge = '<span class="ctx-lightsetup-ott-badge">skipped</span>';
-  }
-  if (!(skin || defaults?.homeLight || defaults?.eyewear || ottBadge)) {
-    return `<div class="ctx-field-group ctx-lightsetup-mirror"><label class="ctx-field-label">Light lens setup</label><div class="ctx-lightsetup-empty"><span>Not set yet — covers skin type, home lighting, eyewear, and indoor/outdoor lifestyle.</span><button type="button" class="ctx-lightsetup-edit" ${lifestyleActionAttrs('open-light-setup')}>Set up Light lens →</button></div></div>`;
-  }
-  return `<div class="ctx-field-group ctx-lightsetup-mirror">
-    <div class="ctx-lightsetup-head"><label class="ctx-field-label" style="margin:0">Light lens setup</label><button type="button" class="ctx-lightsetup-edit" ${lifestyleActionAttrs('open-light-setup')}>Edit →</button></div>
-    <div class="ctx-lightsetup-grid">
-      <div class="ctx-lightsetup-row"><span class="ctx-lightsetup-label">Skin type</span><span class="ctx-lightsetup-value">${skin ? escapeHTML(skin) : '—'}</span></div>
-      <div class="ctx-lightsetup-row"><span class="ctx-lightsetup-label">Home lighting</span><span class="ctx-lightsetup-value">${escapeHTML(homeMeta?.label || defaults?.homeLight || '—')}</span></div>
-      <div class="ctx-lightsetup-row"><span class="ctx-lightsetup-label">Eyewear outside</span><span class="ctx-lightsetup-value">${escapeHTML(eyewearMeta?.label || defaults?.eyewear || '—')}</span></div>
-      <div class="ctx-lightsetup-row"><span class="ctx-lightsetup-label">Light lifestyle</span><span class="ctx-lightsetup-value">${ottBadge || '—'}</span></div>
-    </div>
-    <div class="ctx-lightsetup-hint">Skin type drives UV tolerance and vitamin D math. Home lighting + eyewear shape your indoor light dose. Lifestyle frames the AI's interpretation everywhere.</div>
-  </div>`;
-}
-
-export function saveLightCircadian() {
-  const amLight = getSelectedOption('light-am');
-  const daytime = getSelectedOption('light-daytime');
-  const uvExposure = getSelectedOption('light-uv');
-  const skinType = state.importedData.lightCircadian?.skinType || null;
-  const evening = getSelectedTags('light-evening');
-  const screenTime = getSelectedOption('light-screen');
-  const techEnv = getSelectedTags('light-tech');
-  const cold = getSelectedOption('light-cold');
-  const grounding = getSelectedOption('light-grounding');
-  const mealTiming = getSelectedTags('light-meal');
-  const note = getInputValue('ctx-note-input');
-  state.importedData.lightCircadian = !amLight && !daytime && !uvExposure && !skinType && evening.length === 0 && !screenTime && techEnv.length === 0 && !cold && !grounding && mealTiming.length === 0 && !note.trim()
-    ? null
-    : { amLight, daytime, uvExposure, skinType, evening, screenTime, techEnv, cold, grounding, mealTiming, note: note.trim() };
-  saveContextAndRefresh('Light & circadian saved', 'lightCircadian');
-}
-
-export function clearLightCircadian() {
-  state.importedData.lightCircadian = null;
-  saveContextAndRefresh('Light & circadian cleared', 'lightCircadian');
-}
+export function openLightCircadianEditor() { return openLifestyleForm('lightCircadian'); }
+export function saveLightCircadian() { return saveLifestyleForm('lightCircadian'); }
+export function clearLightCircadian() { return saveLifestyleForm('lightCircadian', true); }
 
 // ── Health Goals ──
 

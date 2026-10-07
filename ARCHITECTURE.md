@@ -105,10 +105,15 @@ small helper text stays opaque and status text uses readable theme inks.
 Opening tips resets the reused detail modal layout and accessible name. Close and
 EMF controls use existing recommendation action services, with proper keyboard buttons.
 Insight schedules the same scoped tips loader as Dashboard after inserting its catalog.
-`LifestyleContextForm.svelte` owns the Diet, Environment, Sleep, Exercise, Stress and Relationships
+`LifestyleContextForm.svelte` owns the Diet, Environment, Light/Circadian, Sleep, Exercise, Stress and Relationships
 forms, their drafts, disclosures, pressed states, notes and keyboard actions.
 `context-lifestyle-form-model.ts` projects the canonical options, wearable mismatch,
 sex-specific concerns, canonical Diet meal times and explicit stored field shapes.
+`ContextLightSetupMirror.svelte` renders read-only setup metadata from the typed form model.
+Stored skin type is retained separately from the Fitzpatrick display fallback; clearing
+circadian habits leaves Light setup intact. Its captured setup action keeps navigation
+and refuses a delayed open after a profile or form change. Latitude uses the existing
+profile resolver.
 Diet keeps unit-aware fluid labels separate from saved metric values, retains legacy
 estimates, and preserves typical meal examples while detailed nutrition has priority.
 `context-lifestyle-form-view.ts` mounts one live form, captures its profile/view and
@@ -131,7 +136,7 @@ their originating profile, and unrelated unsaved fields remain live. Presentatio
 callbacks cannot turn a committed write into a failed save. Scoped Tailwind owns
 these forms; their superseded native templates, meal styles and sleep mismatch
 rules are removed.
-Light/Circadian, medical history, goals, interpretive lens and
+Medical history, goals, interpretive lens and
 nutrition fragments still use existing adapters and remain migration work.
 `context-notes-session.ts` captures accepted text and originating profile/data,
 serializes debounced scoped writes and retains retry drafts through catalog rebuilds

@@ -1,11 +1,12 @@
 <script lang="ts">
+  import LightSetupMirror from './ContextLightSetupMirror.svelte';
   import EMFLauncher from './ContextEMFLauncher.svelte';
   import { untrack } from 'svelte';
   import { lifestyleMeals, lifestyleSectionSummary, toggleLifestyleChoice } from '../context-lifestyle-form-model.js';
   import type { LifestyleDraft, LifestyleField, LifestyleFormModel } from '../context-lifestyle-form-model.js';
-  let { model, initial, hasCurrent, current, save, clear, close, openEMF }: {
+  let { model, initial, hasCurrent, current, save, clear, close, openEMF, openLightSetup }: {
     model: LifestyleFormModel; initial: LifestyleDraft; hasCurrent: boolean; current(): boolean;
-    save(): void; clear(): void; close(): void; openEMF(): void;
+    save(): void; clear(): void; close(): void; openEMF(): void; openLightSetup(): void;
   } = $props();
   let draft = $state<LifestyleDraft>(untrack(() => structuredClone(initial)));
   let busy = $state(false), status = $state(''), pendingLabel = $state('Saving…');
@@ -41,6 +42,7 @@
       <div class="ctx-data-mismatch gb:context-form:grid gb:context-form:gap-1 gb:context-form:mb-4 gb:context-form:px-3 gb:context-form:py-[11px] gb:context-form:border gb:context-form:border-warning gb:context-form:rounded-control gb:context-form:bg-[color-mix(in_srgb,var(--orange)_8%,var(--bg-card))] gb:context-form:text-xs gb:context-form:leading-normal gb:context-form:text-secondary" role="status"><strong class="gb:context-form:text-ink gb:context-form:text-[13px]">Profile and tracked sleep differ</strong><span>{model.mismatch}.</span><small class="gb:context-form:text-[11px] gb:context-form:text-secondary">Both are kept. Recent device data can differ from your usual experience or have incomplete coverage.</small></div>
     {/if}
     {#each model.fields as field}{@render fieldControl(field)}{/each}
+    {#if model.lightSetup}<LightSetupMirror view={model.lightSetup} disabled={busy} activate={() => { if (current() && !busy) openLightSetup(); }} />{/if}
     {#each model.sections as section}
       <details class="gb:context-form:my-3.5 gb:context-form:overflow-clip gb:context-form:rounded-[var(--radius-md)] gb:context-form:border gb:context-form:border-line gb:context-form:bg-[color-mix(in_srgb,var(--bg-card)_70%,transparent)]">
         <summary class={`gb:context-form:min-h-14 gb:context-form:px-3.5 gb:context-form:py-[11px] gb:context-form:text-ink gb:context-form:cursor-pointer gb:context-form:hover:bg-hover ${focus}`}><span class="gb:context-form:text-[13px] gb:context-form:font-bold">{section.title}</span><span class="gb:context-form:block gb:context-form:mt-1 gb:context-form:text-[11px] gb:context-form:leading-snug gb:context-form:text-secondary">{lifestyleSectionSummary(section, draft)}</span></summary>
@@ -60,6 +62,9 @@
         </div>
       </details>
     {/each}
+    {#if model.lightSetup}
+      <p class="gb:context-form:mt-2 gb:context-form:text-xs gb:context-form:text-secondary">{#if model.latitude}📍 Latitude: <strong class="gb:context-form:text-ink">{model.latitude}</strong> <span class="gb:context-form:text-[11px]">(from Settings → Location)</span>{:else}💡 Set your country in Settings → Profile for automatic latitude detection{/if}</p>
+    {/if}
     <label class={`${label} gb:context-form:mt-4`} for="ctx-note-input">Notes</label>
     <textarea id="ctx-note-input" rows="2" placeholder="Anything else that may be relevant" value={typeof draft.note === 'string' ? draft.note : ''} disabled={busy} oninput={event => { if (current() && !busy) draft.note = event.currentTarget.value; }} class={`gb:context-form:block gb:context-form:w-full gb:context-form:box-border gb:context-form:resize-y gb:context-form:rounded-control gb:context-form:border gb:context-form:border-line gb:context-form:bg-[var(--bg-primary)] gb:context-form:p-2.5 gb:context-form:text-ink gb:context-form:font-body gb:context-form:text-[13px] gb:context-form:max-[720px]:text-base gb:context-form:placeholder:text-secondary ${focus}`}></textarea>
     <p role="status" aria-live="polite" class="gb:context-form:my-2 gb:context-form:text-xs gb:context-form:text-secondary">{status}</p>
