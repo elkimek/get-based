@@ -62,7 +62,7 @@ try {
   closeLifestyleContextModalAndNavigateRuntime('labs');
   updateLifestyleChatHeaderModelRuntime();
   openLightSetupFromLifestyleRuntime(() => calls.push(['sun-setup']));
-  discussDietContaminantsRuntime();
+  await discussDietContaminantsRuntime();
   returnToLifestyleContextModalRuntime();
 
   assert('lifestyle runtime delegates shell hooks',
@@ -97,7 +97,7 @@ try {
   closeLifestyleContextModalAndNavigateRuntime('labs');
   updateLifestyleChatHeaderModelRuntime();
   openLightSetupFromLifestyleRuntime();
-  discussDietContaminantsRuntime();
+  await discussDietContaminantsRuntime();
   returnToLifestyleContextModalRuntime();
   assert('lifestyle runtime no-ops safely when window is missing',
     calls.filter(call => call[0] !== 'timer').length === shellCallCount);

@@ -13,3 +13,5 @@
 
 @source "../js/components/ContextEMFLauncher.svelte";
 @custom-variant context-emf (&:is([data-context-emf-launcher], [data-context-emf-launcher] *));
+
+@source "../js/components/ContextFoodContaminants.svelte";

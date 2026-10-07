@@ -651,9 +651,11 @@ assert('Context editor controls use delegated data actions',
   contextCardEditorSrc.includes('initContextEditorDelegates')
     && contextCardEditorSrc.includes('contextEditorActionAttrs')
     && !/\son(?:click|keydown|input|change)\s*=/.test(contextCardEditorSrc));
-assert('Lifestyle context actions use delegated handlers',
+assert('Lifestyle context actions use delegated badge handlers and authored dialog callbacks',
   contextCardLifestyleSrc.includes('initLifestyleContextDelegates')
-    && contextCardLifestyleSrc.includes('lifestyleActionAttrs')
+    && read('js/components/ContextFoodContaminantsBadge.svelte').includes('data-lifestyle-action="show-diet-contaminants"')
+    && read('js/components/ContextFoodContaminants.svelte').includes('if (current()) discuss()')
+    && read('js/components/ContextFoodContaminants.svelte').includes('if (current()) close()')
     && !/\son(?:click|keydown)\s*=/.test(contextCardLifestyleSrc));
 assert('Lens settings controls use delegated handlers',
   lensKnowledgeBaseUiSrc.includes("from './lens-actions.js'")

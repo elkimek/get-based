@@ -1,5 +1,6 @@
 // context-card-lifestyle-runtime.js - Browser runtime adapters for lifestyle context editors.
 
+import { state } from './state.js';
 import { configureRuntimeCallbacks } from './runtime-callbacks.js';
 import { openContextModalRuntime } from './context-cards-runtime.js';
 import { updateChatHeaderModelRuntime } from './chat-runtime.js';
@@ -62,12 +63,21 @@ export function openLightSetupFromLifestyleRuntime(reopenSunSetup?: (() => void)
   }, 200);
 }
 
-export function discussDietContaminantsRuntime() {
-  closeLifestyleContextModalRuntime();
-  lifestyleRuntimeDeps.openChatPanel?.();
-  setTimeout(() => {
-    lifestyleRuntimeDeps.useChatPrompt?.('What food contaminants should I be concerned about based on my diet?');
-  }, 300);
+export async function discussDietContaminantsRuntime(isCurrent: () => boolean = () => true): Promise<boolean> {
+  const ports = { ...lifestyleRuntimeDeps }, thread = state.currentThreadId, profile = state.currentProfile, origin = state.importedData;
+  const current = () => isCurrent() && state.currentProfile === profile && state.importedData === origin;
+  try {
+    if (!current()) return false;
+    ports.closeModal?.();
+    const opened = await ports.openChatPanel?.();
+    if (opened === false || !current() || (thread !== null && state.currentThreadId !== thread)) return false;
+    const history = state.chatHistory, messages = history.slice(), openedThread = state.currentThreadId;
+    await new Promise<void>(resolve => setTimeout(resolve, 300));
+    if (!current() || state.chatHistory !== history || state.currentThreadId !== openedThread
+      || history.length !== messages.length || messages.some((message, index) => history[index] !== message)) return false;
+    await ports.useChatPrompt?.('What food contaminants should I be concerned about based on my diet?');
+    return true;
+  } catch { return false; }
 }
 
 export function returnToLifestyleContextModalRuntime() {

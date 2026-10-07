@@ -7,3 +7,6 @@
 @source "../js/components/ContextCardStatus.svelte";
 @source "../js/context-card-catalog-classes.ts";
 @custom-variant context-catalog (&:is([data-context-cards-view], [data-context-cards-view] *));
+
+@source "../js/components/ContextFoodContaminantsBadge.svelte";
+@custom-variant food-badge (&:is([data-food-contaminant-badge], [data-food-contaminant-badge] *));

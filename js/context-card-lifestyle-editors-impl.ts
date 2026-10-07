@@ -2,13 +2,7 @@ import { openLifestyleForm, saveLifestyleForm, configureLifestyleFormView } from
 import type { LifestyleEditorDependencies } from './context-card-editor-ui.js';
 // context-card-lifestyle-editors-impl.js - lazy lifestyle context card editor implementation
 
-import { state } from './state.js';
-import { scanDietForContaminants } from './food-contaminants.js';
-import { doesNutritionContextOverrideTypicalMeals } from './context-card-summaries.js';
-import { lifestyleActionAttrs } from './context-card-editor-ui.js';
 import {
-  closeLifestyleContextModalRuntime,
-  discussDietContaminantsRuntime,
   markLifestyleContextDelegatesBoundRuntime,
 } from './context-card-lifestyle-runtime.js';
 import {
@@ -34,13 +28,9 @@ export function configureLifestyleContextEditors({ afterCommit }: LifestyleEdito
 
 function closestLifestyleElement(target: EventTarget | null, selector: string) {
   const el = target instanceof Element ? target.closest(selector) : null;
-  if (!(el instanceof HTMLElement)) return null;
+  if (!(el instanceof HTMLElement) || !el.isConnected) return null;
   if (el.closest('#detail-modal')) return el;
   return el.dataset.lifestyleAction === 'show-diet-contaminants' ? el : null;
-}
-
-function discussDietContaminants() {
-  discussDietContaminantsRuntime();
 }
 
 function handleLifestyleContextClick(event: MouseEvent) {
@@ -48,8 +38,6 @@ function handleLifestyleContextClick(event: MouseEvent) {
   if (!actionEl) return;
   switch (actionEl.dataset.lifestyleAction || '') {
     case 'show-diet-contaminants': event.preventDefault(); event.stopPropagation(); showDietContaminantsModal(); break;
-    case 'discuss-diet-contaminants': discussDietContaminants(); break;
-    case 'close-modal': closeLifestyleContextModalRuntime(); break;
   }
 }
 
@@ -73,14 +61,7 @@ function initLifestyleContextDelegates() {
 
 initLifestyleContextDelegates();
 
-export function renderDietContaminantsBadge() {
-  if (doesNutritionContextOverrideTypicalMeals()) return '';
-  const warnings = scanDietForContaminants(state.importedData.diet);
-  if (warnings.length === 0) return '';
-  const flagged = warnings.filter(w => w.type !== 'clean').length;
-  if (flagged === 0) return '';
-  return `<div class="diet-contaminants" role="button" tabindex="0" ${lifestyleActionAttrs('show-diet-contaminants')}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 10 18H2L12 3Z"></path><path d="M12 9v5M12 17h.01"></path></svg><span>${flagged} food contaminant signal${flagged > 1 ? 's' : ''} detected</span></div>`;
-}
+export { renderDietContaminantsBadge } from './context-food-contaminants-badge.js';
 
 export function openDietEditor() { return openLifestyleForm('diet'); }
 export function saveDiet() { return saveLifestyleForm('diet'); }

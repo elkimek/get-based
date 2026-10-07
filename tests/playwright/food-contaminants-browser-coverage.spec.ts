@@ -95,7 +95,7 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
       const badge = lifestyle.renderDietContaminantsBadge();
       outcomes.dietBadgeCountsOnlyFlaggedSignals =
         badge.includes('2 food contaminant signals detected')
-        && badge.includes('role="button"')
+        && new DOMParser().parseFromString(badge, 'text/html').querySelector('.diet-contaminants')?.tagName === 'BUTTON'
         && badge.includes('data-lifestyle-action="show-diet-contaminants"')
         && !badge.includes('onclick=');
 
@@ -110,6 +110,7 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
       fixture!.append(contextCard);
       contextCard.querySelector<HTMLElement>('.diet-contaminants')?.click();
       await lifestyle.loadLifestyleContextEditors();
+      for (let attempt = 0; attempt < 200 && !document.querySelector('[data-food-contaminants-view]'); attempt++) await new Promise(resolve => setTimeout(resolve, 10));
       outcomes.dashboardBadgeClickBypassesParentCard =
         openedDietEditor === false
         && document.getElementById('modal-overlay')?.classList.contains('show') === true
@@ -126,7 +127,7 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
         dinner: 'Yogurt',
         snacks: '',
       };
-      (lifestyle.showDietContaminantsModal as (...args: Parameters<typeof lifestyle.showDietContaminantsModal>) => unknown)();
+      await lifestyle.showDietContaminantsModal();
       const modal = document.getElementById('detail-modal');
       const overlay = document.getElementById('modal-overlay');
       const modalText = modal?.textContent || '';
@@ -139,12 +140,12 @@ test('food contaminant browser coverage scans diet fields and renders warning UI
         && modalText.includes('EWG Shopper')
         && modalText.includes('PlasticList')
         && modal?.querySelectorAll('a[target="_blank"][rel="noopener"]').length! >= 3
-        && modal?.querySelector('[data-lifestyle-action="discuss-diet-contaminants"]')
+        && Array.from(modal?.querySelectorAll<HTMLButtonElement>('button') || []).some(button => button.textContent === 'Discuss with AI')
         && !modal?.querySelector('[onclick]');
 
       (state.importedData as {diet?: unknown}).diet = { breakfast: '' };
       document.getElementById('detail-modal')!.innerHTML = 'unchanged';
-      (lifestyle.showDietContaminantsModal as (...args: Parameters<typeof lifestyle.showDietContaminantsModal>) => unknown)();
+      await lifestyle.showDietContaminantsModal();
       outcomes.emptyWarningsLeaveModalUntouched = document.getElementById('detail-modal')?.innerHTML === 'unchanged';
     } finally {
       if (savedDiet === undefined) delete (state.importedData as {diet?: unknown}).diet;

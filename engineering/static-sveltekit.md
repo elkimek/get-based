@@ -245,5 +245,13 @@ Interpretive Lens shares the authored context form and captured storage session.
 opens it through real Context navigation on offline first use, saves literal
 multiline text and history, checks cancellation and Back without saving draft
 text, and verifies two offline cold launches plus the empty-string Clear contract.
+The authored food-contaminant badge and dialog retain their stable facade and
+lazy stylesheet in the static worker graph.
+[`sveltekit-context-food.spec.ts`](../tests/pwa/sveltekit-context-food.spec.ts)
+opens the dialog through the real Insight badge on offline first use and two cold
+launches, preserves original signal/source groups and keyboard controls, and
+checks that the complete committed profile remains unchanged. Native headless
+checks separately exercise the actual Chat opening with a captured prompt port,
+without sending a model request, and reject retired profile/dialog handoffs.
 This is scoped editor acceptance; final whole-application migration acceptance
 remains required.

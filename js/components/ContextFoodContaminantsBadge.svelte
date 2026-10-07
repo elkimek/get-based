@@ -1,0 +1,6 @@
+<script lang="ts">
+  let { count }: { count: number } = $props();
+</script>
+{#if count > 0}<button type="button" data-food-contaminant-badge data-lifestyle-action="show-diet-contaminants" class="diet-contaminants gb:food-badge:relative gb:food-badge:z-[2] gb:food-badge:inline-flex gb:food-badge:items-center gb:food-badge:gap-1.5 gb:food-badge:self-start gb:food-badge:mt-[5px] gb:food-badge:min-h-11 gb:food-badge:max-w-full gb:food-badge:rounded-control gb:food-badge:border-0 gb:food-badge:bg-transparent gb:food-badge:px-0 gb:food-badge:py-1 gb:food-badge:font-body gb:food-badge:text-[11px] gb:food-badge:leading-snug gb:food-badge:text-warning-ink gb:food-badge:text-left gb:food-badge:cursor-pointer gb:food-badge:hover:underline gb:food-badge:focus-visible:outline-2 gb:food-badge:focus-visible:outline-accent gb:food-badge:focus-visible:outline-offset-2">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="gb:food-badge:size-3.5 gb:food-badge:shrink-0"><path d="m12 3 10 18H2L12 3Z"></path><path d="M12 9v5M12 17h.01"></path></svg><span>{count} food contaminant signal{count > 1 ? 's' : ''} detected</span>
+</button>{/if}

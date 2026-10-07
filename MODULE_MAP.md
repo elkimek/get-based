@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1126 |
-| Internal import edges | 4131 |
+| Modules | 1131 |
+| Internal import edges | 4138 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,8 +65,8 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 284 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
-| [`js/state.ts`](js/state.ts) | 230 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
+| [`js/utils.ts`](js/utils.ts) | 283 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
+| [`js/state.ts`](js/state.ts) | 231 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 91 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/data.ts`](js/data.ts) | 81 | [`js/settings.ts`](js/settings.ts) | 35 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 80 | [`js/provider-panels.ts`](js/provider-panels.ts) | 34 |
@@ -806,7 +806,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>context</code> family — 30 modules</summary>
+<details><summary><code>context</code> family — 33 modules</summary>
 
 - [`js/context-card-catalog-classes.ts`](js/context-card-catalog-classes.ts) → no in-scope imports
 - [`js/context-card-catalog-presentation.ts`](js/context-card-catalog-presentation.ts) → no in-scope imports
@@ -816,10 +816,10 @@ Native browser modules shipped with the static application.
 - [`js/context-card-dashboard-ai.ts`](js/context-card-dashboard-ai.ts) → [`js/backup.ts`](js/backup.ts), [`js/context-card-dashboard-ai-actions.ts`](js/context-card-dashboard-ai-actions.ts), [`js/context-card-dashboard-ai-impl.ts`](js/context-card-dashboard-ai-impl.ts) *(dynamic)*, [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/crypto.ts`](js/crypto.ts), [`js/lens.ts`](js/lens.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/settings-sync-panel.ts`](js/settings-sync-panel.ts), [`js/state.ts`](js/state.ts), [`js/sync.ts`](js/sync.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/context-card-health-dots.ts`](js/context-card-health-dots.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/context-card-status.ts`](js/context-card-status.ts), [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/lab-context.ts`](js/lab-context.ts), [`js/local-ai-provider-shared.ts`](js/local-ai-provider-shared.ts), [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/context-card-lifestyle-editors-impl.ts`](js/context-card-lifestyle-editors-impl.ts) → [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/context-card-lifestyle-runtime.ts`](js/context-card-lifestyle-runtime.ts), [`js/context-card-lifestyle-special-editors.ts`](js/context-card-lifestyle-special-editors.ts), [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/context-lifestyle-form-view.ts`](js/context-lifestyle-form-view.ts), [`js/food-contaminants.ts`](js/food-contaminants.ts), [`js/state.ts`](js/state.ts)
-- [`js/context-card-lifestyle-editors.ts`](js/context-card-lifestyle-editors.ts) → [`js/context-card-lifestyle-editors-impl.ts`](js/context-card-lifestyle-editors-impl.ts) *(dynamic)*, [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/food-contaminants.ts`](js/food-contaminants.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/context-card-lifestyle-runtime.ts`](js/context-card-lifestyle-runtime.ts) → [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
-- [`js/context-card-lifestyle-special-editors.ts`](js/context-card-lifestyle-special-editors.ts) → [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/context-health-goals-view.ts`](js/context-health-goals-view.ts), [`js/context-lifestyle-form-view.ts`](js/context-lifestyle-form-view.ts), [`js/food-contaminants.ts`](js/food-contaminants.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/context-card-lifestyle-editors-impl.ts`](js/context-card-lifestyle-editors-impl.ts) → [`js/context-card-lifestyle-runtime.ts`](js/context-card-lifestyle-runtime.ts), [`js/context-card-lifestyle-special-editors.ts`](js/context-card-lifestyle-special-editors.ts), [`js/context-food-contaminants-badge.ts`](js/context-food-contaminants-badge.ts), [`js/context-lifestyle-form-view.ts`](js/context-lifestyle-form-view.ts)
+- [`js/context-card-lifestyle-editors.ts`](js/context-card-lifestyle-editors.ts) → [`js/context-card-lifestyle-editors-impl.ts`](js/context-card-lifestyle-editors-impl.ts) *(dynamic)*, [`js/context-food-contaminants-badge.ts`](js/context-food-contaminants-badge.ts), [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/context-card-lifestyle-runtime.ts`](js/context-card-lifestyle-runtime.ts) → [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts)
+- [`js/context-card-lifestyle-special-editors.ts`](js/context-card-lifestyle-special-editors.ts) → [`js/context-food-contaminants-view.ts`](js/context-food-contaminants-view.ts), [`js/context-health-goals-view.ts`](js/context-health-goals-view.ts), [`js/context-lifestyle-form-view.ts`](js/context-lifestyle-form-view.ts)
 - [`js/context-card-medical-history-editor-impl.ts`](js/context-card-medical-history-editor-impl.ts) → [`js/constants.ts`](js/constants.ts), [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/context-card-medical-history-editor.ts`](js/context-card-medical-history-editor.ts) → [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/context-card-medical-history-editor-impl.ts`](js/context-card-medical-history-editor-impl.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/context-card-status-view.ts`](js/context-card-status-view.ts) → [`js/components/ContextCardStatus.svelte`](js/components/ContextCardStatus.svelte), [`js/context-card-status.ts`](js/context-card-status.ts)
@@ -829,6 +829,9 @@ Native browser modules shipped with the static application.
 - [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts)
 - [`js/context-cards.ts`](js/context-cards.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/components/ContextCardCatalog.svelte`](js/components/ContextCardCatalog.svelte), [`js/context-card-catalog-presentation.ts`](js/context-card-catalog-presentation.ts), [`js/context-card-dashboard-ai.ts`](js/context-card-dashboard-ai.ts), [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/context-card-health-dots.ts`](js/context-card-health-dots.ts), [`js/context-card-lifestyle-editors.ts`](js/context-card-lifestyle-editors.ts), [`js/context-card-medical-history-editor.ts`](js/context-card-medical-history-editor.ts), [`js/context-card-status-view.ts`](js/context-card-status-view.ts), [`js/context-card-status.ts`](js/context-card-status.ts), [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/context-notes-session.ts`](js/context-notes-session.ts), [`js/context-notes-view.ts`](js/context-notes-view.ts), [`js/data.ts`](js/data.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-context-card-extensions.ts`](js/nutrition-context-card-extensions.ts), [`js/nutrition-context.ts`](js/nutrition-context.ts) *(dynamic)*, [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/context-emf-launcher-model.ts`](js/context-emf-launcher-model.ts) → [`js/schema.ts`](js/schema.ts)
+- [`js/context-food-contaminants-badge.ts`](js/context-food-contaminants-badge.ts) → [`js/components/ContextFoodContaminantsBadge.svelte`](js/components/ContextFoodContaminantsBadge.svelte), [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/context-food-contaminants-model.ts`](js/context-food-contaminants-model.ts), [`js/food-contaminants.ts`](js/food-contaminants.ts), [`js/state.ts`](js/state.ts)
+- [`js/context-food-contaminants-model.ts`](js/context-food-contaminants-model.ts) → no in-scope imports
+- [`js/context-food-contaminants-view.ts`](js/context-food-contaminants-view.ts) → [`js/components/ContextFoodContaminants.svelte`](js/components/ContextFoodContaminants.svelte), [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/context-card-lifestyle-runtime.ts`](js/context-card-lifestyle-runtime.ts), [`js/context-food-contaminants-model.ts`](js/context-food-contaminants-model.ts), [`js/context-form-dialog.ts`](js/context-form-dialog.ts), [`js/food-contaminants.ts`](js/food-contaminants.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/state.ts`](js/state.ts)
 - [`js/context-form-dialog.ts`](js/context-form-dialog.ts) → no in-scope imports
 - [`js/context-health-goals-session.ts`](js/context-health-goals-session.ts) → [`js/context-cards-runtime.ts`](js/context-cards-runtime.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/state.ts`](js/state.ts)
 - [`js/context-health-goals-view.ts`](js/context-health-goals-view.ts) → [`js/components/ContextHealthGoals.svelte`](js/components/ContextHealthGoals.svelte), [`js/context-card-editor-ui.ts`](js/context-card-editor-ui.ts), [`js/context-card-lifestyle-runtime.ts`](js/context-card-lifestyle-runtime.ts), [`js/context-form-dialog.ts`](js/context-form-dialog.ts), [`js/context-health-goals-session.ts`](js/context-health-goals-session.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
@@ -862,6 +865,18 @@ Native browser modules shipped with the static application.
 <details><summary><code>ContextEMFLauncher.svelte</code> family — 1 module</summary>
 
 - [`js/components/ContextEMFLauncher.svelte`](js/components/ContextEMFLauncher.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>ContextFoodContaminants.svelte</code> family — 1 module</summary>
+
+- [`js/components/ContextFoodContaminants.svelte`](js/components/ContextFoodContaminants.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>ContextFoodContaminantsBadge.svelte</code> family — 1 module</summary>
+
+- [`js/components/ContextFoodContaminantsBadge.svelte`](js/components/ContextFoodContaminantsBadge.svelte) → no in-scope imports
 
 </details>
 

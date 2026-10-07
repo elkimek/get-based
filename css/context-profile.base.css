@@ -365,15 +365,6 @@
     justify-content: center;
   }
 }
-/* Food contaminant warnings on diet card */
-.diet-contaminants {
-  position: relative; z-index: 2;
-  display: inline-flex; align-items: center; gap: 6px;
-  align-self: flex-start; margin-top: 5px; font-size: 11px; color: var(--yellow); line-height: 1.4;
-  cursor: pointer; padding: 4px 0;
-}
-.diet-contaminants svg { width: 14px; height: 14px; flex: 0 0 14px; stroke: currentColor; }
-.diet-contaminants:hover { text-decoration: underline; }
 .diet-nutrition-extension {
   position: relative; z-index: 2;
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 7px;
@@ -383,23 +374,6 @@
 }
 .diet-nutrition-extension-title { color: var(--text-primary); font-weight: 700; }
 .diet-nutrition-extension:hover { border-color: var(--accent); }
-@media (pointer: coarse) {
-  .diet-contaminants { min-height: 44px; display: flex; align-items: center; }
-  .contaminant-detail-item a { min-height: 44px; display: inline-flex; align-items: center; padding: 0 8px; }
-}
-.contaminant-section { margin: 16px 0 12px; }
-.contaminant-section-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
-.contaminant-detail-item {
-  font-size: 13px; line-height: 1.5; padding: 8px 10px; margin-bottom: 6px;
-  background: var(--bg-card); border-radius: 6px; border-left: 3px solid var(--yellow);
-}
-.contaminant-detail-item a { color: var(--accent); font-size: 11px; margin-left: 4px; }
-.contaminant-section:last-of-type .contaminant-detail-item { border-left-color: var(--green); }
-.contaminant-actions { display: flex; gap: 8px; margin-top: 20px; }
-.contaminant-attribution {
-  margin-top: 12px; font-size: 11px; color: var(--text-muted); text-align: center;
-}
-.contaminant-attribution a { color: var(--text-muted); text-decoration: underline; }
 /* Native supplement-impact dots retain their owned presentation until migration. */
 .supp-impact-section .ctx-health-dot {
   width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;

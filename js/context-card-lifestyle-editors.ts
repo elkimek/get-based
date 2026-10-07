@@ -4,8 +4,6 @@ import type { LifestyleEditorDependencies } from './context-card-editor-ui.js';
 
 import { createRetryingModuleLoader, invokeCachedModule } from './retrying-module-loader.js';
 import { state } from './state.js';
-import { scanDietForContaminants } from './food-contaminants.js';
-import { doesNutritionContextOverrideTypicalMeals } from './context-card-summaries.js';
 import { showNotification } from './utils.js';
 
 
@@ -52,32 +50,22 @@ export function configureLifestyleContextEditors({ recordChange, saveAndRefresh,
   lifestyleContextEditorsModuleLoader.module?.configureLifestyleContextEditors(update);
 }
 
-function lifestyleActionAttrs(action: string, extra = '') {
-  return `data-lifestyle-action="${action}"${extra ? ` ${extra}` : ''}`;
-}
-
 // The badge is part of the dashboard's cold render, so keep only its small
 // scanner/rendering path in the facade.
-export function renderDietContaminantsBadge() {
-  if (doesNutritionContextOverrideTypicalMeals()) return '';
-  const warnings = scanDietForContaminants(state.importedData.diet);
-  if (warnings.length === 0) return '';
-  const flagged = warnings.filter(warning => warning.type !== 'clean').length;
-  if (flagged === 0) return '';
-  return `<div class="diet-contaminants" role="button" tabindex="0" ${lifestyleActionAttrs('show-diet-contaminants')}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 10 18H2L12 3Z"></path><path d="M12 9v5M12 17h.01"></path></svg><span>${flagged} food contaminant signal${flagged > 1 ? 's' : ''} detected</span></div>`;
-}
+export { renderDietContaminantsBadge } from './context-food-contaminants-badge.js';
 
 
 let openRequest = 0;
 if (typeof globalThis.addEventListener === 'function') globalThis.addEventListener('labcharts-profile-switched', () => { ++openRequest; });
 
 function runLifestyleContextEditorAction(name: keyof LifestyleContextEditorsModule, args: unknown[], shouldLoad: boolean = true) {
-  const opening = name.startsWith('open');
+  const opening = name.startsWith('open') || name === 'showDietContaminantsModal';
   const origin = state.importedData, profile = state.currentProfile, request = opening ? ++openRequest : openRequest;
   const surface = typeof document === 'undefined' ? undefined : document.getElementById('main-content')?.firstElementChild;
+  const content = typeof document === 'undefined' ? undefined : document.getElementById('detail-modal')?.firstElementChild;
   const run = (module: LifestyleContextEditorsModule): unknown => {
     if (opening && (request !== openRequest || origin !== state.importedData || profile !== state.currentProfile
-      || (typeof document !== 'undefined' && document.getElementById('main-content')?.firstElementChild !== surface))) return undefined;
+      || (typeof document !== 'undefined' && (document.getElementById('main-content')?.firstElementChild !== surface || document.getElementById('detail-modal')?.firstElementChild !== content)))) return undefined;
     const action = module[name];
     if (typeof action !== 'function') {
       throw new Error(`Lifestyle context editor action ${String(name)} is unavailable`);
@@ -95,7 +83,7 @@ function runLifestyleContextEditorAction(name: keyof LifestyleContextEditorsModu
 function closestColdDietContaminantsBadge(target: EventTarget | null) {
   if (!(target instanceof Element)) return null;
   const badge = target.closest('[data-lifestyle-action="show-diet-contaminants"]');
-  return badge instanceof HTMLElement ? badge : null;
+  return badge instanceof HTMLElement && badge.isConnected ? badge : null;
 }
 
 

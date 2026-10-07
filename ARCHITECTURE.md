@@ -163,6 +163,18 @@ profile and modal before returning to the existing Context overview. The Context
 facade also rechecks that owner after its lazy module load, so a late reply cannot
 open over another profile, view or dialog. Opening Context from mobile navigation
 closes the sidebar before opening the overview, keeping Lens controls reachable.
+`ContextFoodContaminantsBadge.svelte` owns the synchronous authored catalog badge;
+`context-food-contaminants-badge.ts` shares its renderer across the cold facade and
+loaded editors, retaining detailed-nutrition precedence. `ContextFoodContaminants.svelte`
+owns the read-only dialog and source links. Its pure model preserves the original
+scanner output and group ordering while accepting only HTTP/HTTPS source URLs.
+`context-food-contaminants-view.ts` captures the profile, diet snapshot and modal,
+retires on replacement or sync, and rejects delayed opens over another dialog.
+The lifestyle runtime awaits Chat opening and its existing delay before handing
+off the original prompt, checking the captured profile, thread, history and caller
+ownership at each boundary. Retired controls cannot dispatch into another conversation.
+Scoped Tailwind owns both views; duplicate native badge/dialog templates and
+superseded contaminant styles are removed. The scanner and source data remain domain services.
 Medical history and nutrition fragments still use existing adapters and remain
 migration work.
 `context-notes-session.ts` captures accepted text and originating profile/data,

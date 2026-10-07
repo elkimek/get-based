@@ -420,12 +420,12 @@ test('lifestyle context editors cover save clear health goals lens and contamina
       outcomes.dietContaminantsBadgeUsesDelegatedActions = contaminantBadge.includes('data-lifestyle-action="show-diet-contaminants"')
         && !contaminantBadge.includes('onclick=')
         && !contaminantBadge.includes('onkeydown=');
-      lifestyle.showDietContaminantsModal();
+      await lifestyle.showDietContaminantsModal();
       outcomes.dietContaminantsModalGroupsWarnings = modal.textContent.includes('Pesticide Residues')
         && modal.textContent.includes('Plastic Chemicals')
         && modal.textContent.includes('Low Contamination');
       outcomes.dietContaminantsModalUsesDelegatedActions = !modal.querySelector<HTMLElement>('[onclick]');
-      modal.querySelector<HTMLElement>('.contaminant-actions .import-btn-primary')?.click();
+      Array.from(modal.querySelectorAll<HTMLButtonElement>('button')).find(button => button.textContent === 'Discuss with AI')?.click();
       await delay(350);
       outcomes.dietContaminantsDiscussesWithAI = calls.some(call => call[0] === 'chat')
         && calls.some(call => call[0] === 'prompt' && (call[1] as string).includes('food contaminants'));
