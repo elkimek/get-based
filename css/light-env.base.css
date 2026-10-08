@@ -13,72 +13,7 @@
   margin-bottom: 14px;
 }
 
-/* Light Environment — rooms + screens survey */
-.light-env-assessment-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  border-left: 4px solid var(--text-muted);
-  padding-left: 14px;
-}
-.light-env-assessment-summary-green { border-left-color: var(--green); }
-.light-env-assessment-summary-orange { border-left-color: var(--orange); }
-.light-env-assessment-summary-red { border-left-color: var(--red); }
-.light-env-assessment-summary-incomplete { border-left-color: var(--text-muted); }
-.light-env-assessment-status {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.light-env-assessment-tier {
-  color: var(--text-primary);
-  font-weight: 700;
-  font-size: 16px;
-}
-.light-env-assessment-parts {
-  color: var(--text-muted);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-.light-env-assessment-lead {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.5;
-}
-.light-env-assessment-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 8px;
-}
-.light-env-assessment-metric {
-  min-width: 0;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.light-env-assessment-metric-label,
-.light-env-assessment-metric span:last-child {
-  color: var(--text-muted);
-  font-size: 11px;
-  line-height: 1.25;
-}
-.light-env-assessment-metric strong {
-  color: var(--text-primary);
-  font-size: 22px;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-}
-.light-env-assessment-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
+/* Assessment modal lifecycle shell; summaries are authored components. */
 .light-env-assessment-overlay.modal-overlay.show {
   align-items: flex-start;
   overflow: hidden;
@@ -107,13 +42,7 @@
 .light-env-section-embedded {
   margin-top: 0;
 }
-.light-env-section-embedded .light-env-summary-top {
-  margin-top: 0;
-}
 @media (max-width: 700px) {
-  .light-env-assessment-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
   .light-env-assessment-modal {
     width: 100%;
     height: 100dvh;
@@ -122,11 +51,6 @@
     border-radius: 0;
   }
   .light-env-assessment-overlay.modal-overlay.show { padding: 0; }
-}
-@media (max-width: 420px) {
-  .light-env-assessment-metrics {
-    grid-template-columns: 1fr;
-  }
 }
 .light-env-section { margin-top: 24px; }
 .light-env-block { margin-top: 16px; }
@@ -190,70 +114,6 @@
 }
 .light-env-delete:hover { color: var(--red); }
 
-/* Indoor-light burden summary — interpretive plain-English copy with
-   tier indicator, instead of raw "8.2 hr/day · 4.2 hr/day" numbers
-   that read as abstract without context. Color-coded by tier so a
-   row of green / orange / red strips down the page tells the story
-   at a glance. */
-.light-env-summary {
-  margin-top: 16px; padding: 14px 18px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  display: flex; flex-direction: column; gap: 6px;
-  border-left: 4px solid var(--text-muted);
-}
-.light-env-summary-top {
-  margin: 0 0 18px;
-  padding: 16px 18px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 68%),
-    color-mix(in srgb, var(--bg-card) 94%, transparent);
-  box-shadow: var(--shadow);
-}
-.light-env-summary-green  { background: var(--green-bg, rgba(34,197,94,0.06));  border-left-color: var(--green); }
-.light-env-summary-orange { background: var(--orange-bg, rgba(249,115,22,0.06)); border-left-color: var(--orange); }
-.light-env-summary-red    { background: var(--red-bg, rgba(239,68,68,0.06));    border-left-color: var(--red); }
-.light-env-summary-top.light-env-summary-green {
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--green) 9%, transparent), transparent 68%),
-    color-mix(in srgb, var(--bg-card) 94%, transparent);
-}
-.light-env-summary-top.light-env-summary-orange {
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--orange) 10%, transparent), transparent 68%),
-    color-mix(in srgb, var(--bg-card) 94%, transparent);
-}
-.light-env-summary-top.light-env-summary-red {
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--red) 10%, transparent), transparent 68%),
-    color-mix(in srgb, var(--bg-card) 94%, transparent);
-}
-.light-env-summary-kicker {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-.light-env-summary-head {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-}
-.light-env-summary-tier {
-  font-size: 13px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.04em;
-  color: var(--text-primary);
-}
-.light-env-summary-parts {
-  font-size: 12px; color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-.light-env-summary-interp:not(:where([data-light-review-ai],
-[data-light-review-ai] *)) {
-  margin: 0; font-size: 13px; line-height: 1.5;
-  color: var(--text-secondary);
-}
-.light-env-summary-incomplete { border-left-color: var(--text-muted); }
 .light-env-picker-help:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   display: block;
   margin-top: 5px;
@@ -261,10 +121,6 @@
   font-size: 11px;
   line-height: 1.35;
 }
-/* Legacy classes used elsewhere — kept for back-compat */
-.light-env-summary strong { color: var(--text-primary); }
-.light-env-summary-sep { opacity: 0.4; }
-
 /* Severity dot — mirrors EMF assessment color tokens */
 .light-env-sev-dot:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   display: inline-block; width: 10px; height: 10px; border-radius: 50%;
@@ -954,5 +810,4 @@
   .light-env-room-tabs::-webkit-scrollbar { height: 4px; }
   .light-env-room-card-head { flex-wrap: wrap; }
   .light-env-empty-cta { padding: 14px 16px; }
-  .light-env-summary { padding: 12px 14px; }
 }

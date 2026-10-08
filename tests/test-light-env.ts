@@ -857,8 +857,13 @@ const {
   };
   const unmappedSummaryHtml = renderEnvironmentAssessmentSummary();
   const unmappedAssessmentHtml = renderEnvironmentSection({ embedded: true });
+  const { JSDOM } = await import('jsdom');
+  const summaryDocument = new JSDOM(unmappedSummaryHtml).window.document;
+  const readingMetrics = [...summaryDocument.querySelectorAll('.light-env-assessment-metric')]
+    .filter(metric => metric.querySelector('.light-env-assessment-metric-label')?.textContent === 'Readings');
   assert('Assessment summary counts only readings mapped to existing rooms',
-    /light-env-assessment-metric-label">Readings<\/span>\s*<strong>0<\/strong>/.test(unmappedSummaryHtml));
+    readingMetrics.length === 1 && readingMetrics[0]?.querySelectorAll('strong').length === 1 &&
+    readingMetrics[0]?.querySelector('strong')?.textContent === '0');
   assert('Assessment workspace hides unmapped portable readings',
     !unmappedAssessmentHtml.includes('Portable readings') &&
     !unmappedAssessmentHtml.includes('not matched to a room'));

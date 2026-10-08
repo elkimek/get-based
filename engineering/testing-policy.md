@@ -373,3 +373,14 @@ The corresponding static-PWA case,
 uses real editor actions and committed IndexedDB profile reads for first-offline
 creation/editing/reassignment and two closed-client cold launches. Cached room,
 measurement, screen and audit verdicts retain their adjacent static acceptance.
+
+The live environment summaries have independent pre-migration copy, counts,
+severity and callback contracts in
+[`light-environment-summary.test.ts`](../tests/light-environment-summary.test.ts).
+[`light-environment-summary-owned.spec.ts`](../tests/playwright/light-environment-summary-owned.spec.ts)
+compares frozen original geometry and severity across six themes and widths
+including both sides of the inclusive 700/420px metric breakpoints. It verifies
+current-theme foreground, readable-ink and coarse-target improvements, AA and keyboard focus in all four
+headless browser profiles. The existing delegated editor and static environment
+cases exercise assessment actions, saved data and adjacent cached verdicts;
+they retain first-offline and two closed-client cold-launch acceptance.

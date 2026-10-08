@@ -1233,8 +1233,16 @@ configured screen AI renderer enter the two explicitly named trusted HTML slots.
 Persisted screen and room metadata always use escaped interpolation. Scoped
 Tailwind replaces screen-only selectors and today-toggle selectors; remaining
 shared room/audit rules exclude the authored screen boundary.
-Remaining assessment, room editor and audit-shell presentation stays owned by
-its existing modules until migrated.
+`LightEnvironmentSummary.svelte` owns both the dashboard assessment summary and
+workspace burden banner through typed `EnvironmentSummaryView` contracts.
+`light-env.ts` supplies live model grading, mapped reading counts, daily active
+counts and audit recency; the component does not read or mutate domain state.
+The configured burden interpreter is the single explicit trusted HTML slot;
+labels, metrics and fallback copy use escaped interpolation. Scoped Tailwind at
+the existing `light-env.css` URL owns summary layout, severity rails, accessible
+ink, action styling and inclusive 700/420px metric breakpoints. Superseded native
+summary templates and selectors are removed. Assessment modal lifecycle, room
+editor and audit-shell presentation retain their existing owners until migrated.
 
 Room and screen render-time auto-analysis captures `ai-verdict-owner.ts` before
 queuing. Both the deduplication key and delayed callback belong to that owner;

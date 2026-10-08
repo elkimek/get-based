@@ -1,3 +1,4 @@
+import { renderHTML as renderEnvironmentSummaryHTML } from './components/LightEnvironmentSummary.svelte.html.js';
 import { renderHTML as renderTodayToggleHTML } from './components/LightEnvironmentTodayToggle.svelte.html.js';
 import { projectEnvironmentToday } from './light-environment-screen-presentation.js';
 // light-env.js — Light Environment module: rooms, screens, indoor light dose.
@@ -323,22 +324,13 @@ const PRIMARY_SOURCE_SHORT = {
 
 function renderEnvironmentLoadSummary() {
   const burden = computeIndoorBurden();
-  const interpHTML = (typeof lightEnvDeps.renderBurdenInterp === 'function')
-    ? lightEnvDeps.renderBurdenInterp(burden)
-    : `<p class="light-env-summary-interp">${escapeHTML(burden.interp)}</p>`;
-  // Keep the deterministic screening header tied to the current inputs.
-  // Cached AI copy may be stale between an edit and the next analysis; it
-  // must not recolor the live assessment during that period.
-  const bannerColor = burden.color;
-  const bannerLabel = burden.label;
-  return `<div class="light-env-summary light-env-summary-top light-env-summary-${bannerColor}">
-    <div class="light-env-summary-kicker">Indoor light picture</div>
-    <div class="light-env-summary-head">
-      <span class="light-env-summary-tier">${escapeHTML(bannerLabel)}</span>
-      ${burden.parts.length ? `<span class="light-env-summary-parts">${escapeHTML(burden.parts.join(' · '))}</span>` : ''}
-    </div>
-    ${interpHTML}
-  </div>`;
+  // Live model grading remains authoritative even while cached AI copy is stale.
+  const trustedBurdenHTML = typeof lightEnvDeps.renderBurdenInterp === 'function'
+    ? String(lightEnvDeps.renderBurdenInterp(burden)) : null;
+  return renderEnvironmentSummaryHTML({ view: {
+    kind: 'load', color: burden.color ?? '', label: burden.label ?? '', parts: burden.parts,
+    interp: burden.interp, trustedBurdenHTML,
+  } });
 }
 
 function formatLatestLightAudit(audits: EnvironmentAuditCollection) {
@@ -392,25 +384,10 @@ export function renderEnvironmentAssessmentSummary() {
       sub: formatLatestLightAudit(audits),
     });
   }
-  return `<div class="light-env-assessment-summary light-env-assessment-summary-${escapeAttr(burden.color)}">
-    <div class="light-env-assessment-status">
-      <span class="light-env-summary-kicker">Indoor light picture</span>
-      <span class="light-env-assessment-tier">${escapeHTML(burden.label)}</span>
-      ${burden.parts.length ? `<span class="light-env-assessment-parts">${escapeHTML(burden.parts.join(' · '))}</span>` : ''}
-    </div>
-    <p class="light-env-assessment-lead">${escapeHTML(lead)}</p>
-    <div class="light-env-assessment-metrics">
-      ${metrics.map(m => `<div class="light-env-assessment-metric">
-        <span class="light-env-assessment-metric-label">${escapeHTML(m.label)}</span>
-        <strong>${escapeHTML(m.value)}</strong>
-        <span>${escapeHTML(m.sub)}</span>
-      </div>`).join('')}
-    </div>
-    <div class="light-env-assessment-actions">
-      <button class="dashboard-action-btn dashboard-action-btn-primary" ${lightEnvActionAttrs('open-assessment')}>${escapeHTML(actionLabel)}</button>
-      ${rooms.length ? `<button class="dashboard-action-btn" ${lightEnvActionAttrs('open-assessment-save-audit')}>Save audit</button>` : ''}
-    </div>
-  </div>`;
+  return renderEnvironmentSummaryHTML({ view: {
+    kind: 'assessment', color: burden.color ?? '', label: burden.label ?? '', parts: burden.parts,
+    lead, actionLabel, hasRooms, metrics,
+  } });
 }
 
 const LIGHT_ENV_ASSESSMENT_OVERLAY_ID = 'light-env-assessment-overlay';

@@ -30,8 +30,13 @@ function seed({ defaults, now }: { defaults: ProfileData; now: number }) {
 }
 async function inspect(page: Page) {
   await openLight(page);
-  await page.locator('[data-light-env-action="open-assessment"]').click();
+  const summary=page.locator('[data-light-environment-summary].light-env-assessment-summary');
+  await expect(summary).toHaveCount(1);
+  await expect(summary.locator('.light-env-assessment-metric-label')).toHaveText(['Rooms','Screens','Readings','Audits']);
+  await expect(summary.locator('.light-env-assessment-metric strong')).toHaveText(['1','1','1','1']);
+  await summary.getByRole('button',{name:'Open assessment',exact:true}).click();
   const dialog = page.getByRole('dialog', { name: 'Indoor Light Assessment', exact: true });
+  await expect(dialog.locator('[data-light-environment-summary].light-env-summary')).toHaveCount(1);
   const room = dialog.locator('.light-env-room-disclosure[data-id="cached-room"]');
   const roomToggle = room.locator('[data-light-env-action="toggle-room-expanded"]');
   if (await roomToggle.getAttribute('aria-expanded') !== 'true') await roomToggle.click();

@@ -13,3 +13,10 @@
 @source "../js/light-environment-screen-classes.ts";
 @custom-variant environment-mobile (@media (max-width: 600px));
 @custom-variant device-coarse (@media (pointer: coarse));
+
+/* Live assessment and burden summaries share a single authored owner. */
+@custom-variant environment-summary (&:is([data-light-environment-summary], [data-light-environment-summary] *));
+@custom-variant assessment-mobile (@media (max-width: 700px));
+@custom-variant assessment-narrow (@media (max-width: 420px));
+@source "../js/components/LightEnvironmentSummary.svelte";
+@source "../js/light-environment-summary-classes.ts";

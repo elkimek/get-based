@@ -1,0 +1,33 @@
+// Scoped assessment and live-burden presentation; tokens remain shared across themes.
+const classes: Record<string, string> = {
+  "light-env-assessment-summary": "gb:environment-summary:flex gb:environment-summary:flex-col gb:environment-summary:[gap:14px] gb:environment-summary:[border-left:4px_solid_var(--summary-rail,var(--text-muted))] gb:environment-summary:[padding-left:14px] gb:environment-summary:text-ink",
+  "light-env-assessment-status": "gb:environment-summary:flex gb:environment-summary:items-center gb:environment-summary:[gap:10px] gb:environment-summary:flex-wrap",
+  "light-env-assessment-tier": "gb:environment-summary:text-ink gb:environment-summary:[font-weight:700] gb:environment-summary:[font-size:16px]",
+  "light-env-assessment-parts": "gb:environment-summary:text-secondary gb:environment-summary:[font-size:12px] gb:environment-summary:tabular-nums",
+  "light-env-assessment-lead": "gb:environment-summary:m-0 gb:environment-summary:text-secondary gb:environment-summary:[font-size:13px] gb:environment-summary:[line-height:1.5]",
+  "light-env-assessment-metrics": "gb:environment-summary:grid gb:environment-summary:[grid-template-columns:repeat(auto-fit,minmax(150px,1fr))] gb:environment-summary:[gap:8px] gb:environment-summary:assessment-mobile:grid-cols-2 gb:environment-summary:assessment-narrow:grid-cols-1",
+  "light-env-assessment-metric": "gb:environment-summary:min-w-0 gb:environment-summary:[padding:10px_12px] gb:environment-summary:[border:1px_solid_var(--border)] gb:environment-summary:rounded-control gb:environment-summary:[background:color-mix(in_srgb,var(--bg-secondary)_72%,transparent)] gb:environment-summary:flex gb:environment-summary:flex-col gb:environment-summary:[gap:3px]",
+  "light-env-assessment-metric-label": "gb:environment-summary:text-secondary gb:environment-summary:[font-size:11px] gb:environment-summary:[line-height:1.25]",
+  "assessment-metric-detail": "gb:environment-summary:text-secondary gb:environment-summary:[font-size:11px] gb:environment-summary:[line-height:1.25]",
+  "assessment-metric-value": "gb:environment-summary:text-ink gb:environment-summary:[font-size:22px] gb:environment-summary:[line-height:1.1] gb:environment-summary:tabular-nums",
+  "light-env-assessment-actions": "gb:environment-summary:flex gb:environment-summary:[gap:8px] gb:environment-summary:flex-wrap",
+  "light-env-summary": "gb:environment-summary:flex gb:environment-summary:flex-col gb:environment-summary:[gap:6px] gb:environment-summary:[border-width:1px_1px_1px_4px] gb:environment-summary:[border-style:solid] gb:environment-summary:[border-color:var(--border)_var(--border)_var(--border)_var(--summary-rail,var(--text-muted))] gb:environment-summary:rounded-control gb:environment-summary:text-ink",
+  "light-env-summary-top": "gb:environment-summary:environment-mobile:[padding:12px_14px] gb:environment-summary:[margin:0_0_18px] gb:environment-summary:[padding:16px_18px] gb:environment-summary:[background:linear-gradient(135deg,color-mix(in_srgb,var(--summary-tint,var(--accent))_var(--summary-mix,7%),transparent),transparent_68%),color-mix(in_srgb,var(--bg-card)_94%,transparent)] gb:environment-summary:[box-shadow:var(--shadow)]",
+  "light-env-summary-kicker": "gb:environment-summary:text-secondary gb:environment-summary:font-mono gb:environment-summary:[font-size:10px] gb:environment-summary:[font-weight:800] gb:environment-summary:[letter-spacing:0] gb:environment-summary:uppercase",
+  "light-env-summary-head": "gb:environment-summary:flex gb:environment-summary:items-center gb:environment-summary:[gap:12px] gb:environment-summary:flex-wrap",
+  "light-env-summary-tier": "gb:environment-summary:[font-size:13px] gb:environment-summary:[font-weight:700] gb:environment-summary:uppercase gb:environment-summary:[letter-spacing:.04em] gb:environment-summary:text-ink",
+  "light-env-summary-parts": "gb:environment-summary:[font-size:12px] gb:environment-summary:text-secondary gb:environment-summary:tabular-nums",
+  "light-env-summary-interp": "gb:environment-summary:m-0 gb:environment-summary:[font-size:13px] gb:environment-summary:[line-height:1.5] gb:environment-summary:text-secondary",
+  "dashboard-action-btn": "gb:environment-summary:[padding:8px_12px] gb:environment-summary:rounded-control gb:environment-summary:[border:1px_solid_var(--summary-action-border,var(--border))] gb:environment-summary:[background:var(--summary-action-bg,var(--bg-secondary))] gb:environment-summary:[color:var(--summary-action-ink,var(--text-primary))] gb:environment-summary:[font-family:inherit] gb:environment-summary:[line-height:inherit] gb:environment-summary:[font-size:12px] gb:environment-summary:[font-weight:600] gb:environment-summary:cursor-pointer gb:environment-summary:[transition:background_.15s,border-color_.15s,transform_.05s] gb:environment-summary:[&.dashboard-action-btn:hover]:bg-hover gb:environment-summary:[&.dashboard-action-btn:hover]:border-accent gb:environment-summary:[&.dashboard-action-btn:hover]:text-ink gb:environment-summary:active:[transform:translateY(1px)] gb:environment-summary:focus-visible:outline-2! gb:environment-summary:focus-visible:outline-offset-2 gb:environment-summary:focus-visible:outline-accent gb:environment-summary:device-coarse:min-h-11 gb:environment-summary:device-coarse:min-w-11 gb:environment-summary:motion-reduce:transition-none",
+  "dashboard-action-btn-primary": "gb:environment-summary:[--summary-action-bg:var(--accent)] gb:environment-summary:[--summary-action-ink:var(--on-accent)] gb:environment-summary:[--summary-action-border:transparent]",
+  "light-env-assessment-summary-green": "gb:environment-summary:[--summary-rail:var(--green)]",
+  "light-env-summary-green": "gb:environment-summary:[--summary-rail:var(--green)] gb:environment-summary:[--summary-tint:var(--green)] gb:environment-summary:[--summary-mix:9%]",
+  "light-env-assessment-summary-orange": "gb:environment-summary:[--summary-rail:var(--orange)]",
+  "light-env-summary-orange": "gb:environment-summary:[--summary-rail:var(--orange)] gb:environment-summary:[--summary-tint:var(--orange)] gb:environment-summary:[--summary-mix:10%]",
+  "light-env-assessment-summary-red": "gb:environment-summary:[--summary-rail:var(--red)]",
+  "light-env-summary-red": "gb:environment-summary:[--summary-rail:var(--red)] gb:environment-summary:[--summary-tint:var(--red)] gb:environment-summary:[--summary-mix:10%]",
+  "light-env-assessment-summary-incomplete": "gb:environment-summary:[--summary-rail:var(--text-muted)]",
+};
+export function environmentSummaryClasses(names: string) {
+  return names.split(/\s+/).filter(Boolean).flatMap(name => [name, classes[name] || '']).filter(Boolean).join(' ');
+}

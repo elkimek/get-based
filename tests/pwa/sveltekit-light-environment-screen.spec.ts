@@ -37,7 +37,12 @@ async function inspectSaved(page:Page) {
   await expect(screen.getByRole('checkbox',{name:'Blue reduction active'})).toBeChecked();
   await expect(screen.locator('[data-light-environment-today]')).toHaveAttribute('aria-pressed','false');
   await expect(dialog.locator('[data-light-environment-screen]')).toHaveCount(2);
+  await expect(dialog.locator('[data-light-environment-summary].light-env-summary')).toHaveCount(1);
   await dialog.getByRole('button',{name:'Close',exact:true}).click();
+  const summary=page.locator('[data-light-environment-summary].light-env-assessment-summary');
+  await expect(summary.locator('.light-env-assessment-metric-label')).toHaveText(['Rooms','Screens','Readings','Audits']);
+  await expect(summary.locator('.light-env-assessment-metric strong')).toHaveText(['1','2','0','0']);
+  await expect(summary.locator('.light-env-assessment-metric').filter({has:page.locator('.light-env-assessment-metric-label',{hasText:'Screens'})})).toContainText('1 active today');
 }
 interface Saved {lightEnvironment:{rooms:unknown[];screens:Array<Record<string,unknown>>};[key:string]:unknown}
 test('static screen editor creates, edits, reassigns and saves first offline with two closed-client cold launches',async({page,context})=>{
