@@ -30,22 +30,16 @@ type ScoreValue = BiologyRenderScore['score'];
 
 import { renderHTML as renderPlanning } from './components/BiologyPlanningPresentation.svelte.html.js';
 import { projectBiologyNextChecks, projectBiologyCoverage } from './biology-planning-presentation.js';
-import { specimenLabel } from './biology-score-panel-policy.js';
+import { renderHTML as renderReading } from './components/BiologyReadingPresentation.svelte.html.js';
+import { biologyMarkerTitle as getMarkerTitle, biologyEvidenceBadge as getEvidenceBadge, biologyScoreColor as scoreColor, projectBiologyFacts, projectBiologyMarkerSections, projectBiologyMethodology } from './biology-reading-presentation.js';
 import { escapeAttr, escapeHTML } from './utils.js';
 import { renderScoreAIAnswer, renderScoreAISummary } from './biology-score-sections.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { TONE_LABELS, clamp, resolveScoreTone, coreScoreDrivers } from './biology-score-engine.js';
 import { renderLensDashboardToggle } from './lens-page-shell.js';
 import {
-  effectiveMissingMarkers,
   markerDisplayLabel,
 } from './biology-score-coverage-planner.js';
-
-function getMarkerTitle(item: Partial<ScorePart>) {
-  return item.displayValue != null
-    ? `${item.label}: ${item.displayValue}${item.unit ? ` ${item.unit}` : ''}`
-    : item.label;
-}
 
 function renderMarkerToken(item: Partial<ScorePart>, muted = false) {
   const title = getMarkerTitle(item);
@@ -56,24 +50,8 @@ function renderMarkerToken(item: Partial<ScorePart>, muted = false) {
   return `<span class="biology-score-token${muted ? ' biology-score-token-muted' : ''}" title="${escapeAttr(title)}">${escapeHTML(label)}</span>`;
 }
 
-function renderMarkerTableLink(item: Partial<ScorePart>) {
-  const title = getMarkerTitle(item);
-  const label = markerDisplayLabel(item);
-  if (item.id) {
-    return `<button type="button" class="biology-score-marker-link" title="${escapeAttr(title)}" data-biology-score-action="open-marker" data-biology-marker-id="${escapeAttr(item.id)}">${escapeHTML(label)}</button>`;
-  }
-  return `<span class="biology-score-marker-link-static" title="${escapeAttr(title)}">${escapeHTML(label)}</span>`;
-}
-
 function renderScoreStatusItem(kind: string, label: string, value: unknown, tone = '') {
   return `<span class="biology-score-status biology-score-status-${escapeAttr(kind)}${tone ? ` biology-score-status-${escapeAttr(tone)}` : ''}"><span>${escapeHTML(label)}</span><strong>${escapeHTML(value)}</strong></span>`;
-}
-
-function getEvidenceBadge(evidence: BiologyRenderScore['evidence']) {
-  if (evidence === 'production') return 'Established marker biology · heuristic score';
-  if (evidence === 'contextual') return 'Contextual proxy · heuristic score';
-  if (evidence === 'experimental') return 'Exploratory pattern · heuristic score';
-  return 'Unrated';
 }
 
 function isDirectionalOnly(score: BiologyRenderScore) {
@@ -127,12 +105,6 @@ function renderScoreInputs(score: BiologyRenderScore) {
   </div>`;
 }
 
-function rangeText(item: Partial<ScorePart>) {
-  const bound = (value: number | null | undefined) => Number.isFinite(value) ? String(Number(Number(value).toPrecision(5))) : '—';
-  if (item.range?.min == null && item.range?.max == null) return 'Not available';
-  return `${item.range?.min == null ? `≤${bound(item.range?.max)}` : item.range?.max == null ? `≥${bound(item.range?.min)}` : `${bound(item.range.min)}–${bound(item.range.max)}`} ${item.unit || ''}`.trim();
-}
-
 export function getScorePresentation(score: BiologyRenderScore) {
   score = score.historicalSnapshot || score;
   const historical = !Number.isFinite(score.score) && Number.isFinite(score.rawScore)
@@ -163,10 +135,6 @@ export function groupBiologyScores<Score extends BiologyRenderScore>(scores: rea
   return groups;
 }
 
-function scoreColor(value: ScoreValue, tone: BiologyRenderScore['tone'] = resolveScoreTone(value)) {
-  return !Number.isFinite(value) ? 'var(--text-muted)' : tone === 'excellent' || tone === 'good' ? 'var(--green, #34d399)' : tone === 'strained' ? 'var(--yellow, #fbbf24)' : 'var(--red, #f87171)';
-}
-
 function renderScoreMetric(score: BiologyRenderScore) {
   const { value, tone, historical } = getScorePresentation(score);
   const color = scoreColor(value, tone);
@@ -174,28 +142,15 @@ function renderScoreMetric(score: BiologyRenderScore) {
 }
 
 function renderReadingFacts(facts: readonly (readonly [unknown, unknown])[]) {
-  return `<dl class="biology-reading-facts">${facts.map(([label, value]) => `<div><dt>${escapeHTML(label)}</dt><dd>${escapeHTML(value)}</dd></div>`).join('')}</dl>`;
+  return renderReading({kind: 'facts', facts: projectBiologyFacts(facts)});
 }
 
 function renderInterpretationNotes(flags: readonly string[] = []) {
-  return flags.length ? `<details class="biology-reading-notes"><summary>Interpretation notes <span class="biology-section-count">${flags.length}</span></summary><ul>${flags.map(flag => `<li>${escapeHTML(flag)}</li>`).join('')}</ul></details>` : '';
+  return flags.length ? renderReading({kind: 'notes', flags}) : '';
 }
 
 function renderMethodology(score: BiologyRenderScore) {
-  const coreWeight = score.available.filter(i => i.core && !i.profileContextOnly).reduce((n, i) => n + (i.effectiveWeight ?? i.weight ?? 0), 0);
-  const familyLabel = (value: unknown) => String(value || '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, c => c.toUpperCase());
-  return `<details class="biology-score-methodology biology-reading-panel"><summary>How this score works</summary><div class="biology-reading-body">
-    <p class="biology-reading-lead">${escapeHTML(score.question || score.summary)}</p><p>${escapeHTML(score.methodology || score.summary)}</p>
-    ${renderReadingFacts([
-      ['Core score', 'Weighted range fit of available core markers. Related measurements share a capped family weight. Missing core markers make the result provisional.'],
-      ['Additional markers', 'Support the core pattern, differ from it, or add a separate dimension. More tests do not automatically mean more confidence.'],
-      ['Range fit', 'Within the selected range = 100. Departure reduces fit linearly to a minimum of 0. The number describes range agreement, not a health probability.'],
-      ['Collection window', 'Current scores use results from the last 180 days, with core draws within 90 days of each other. Older and mixed-date estimates keep their date labels.'],
-    ])}
-    <div class="biology-reading-source"><span>${escapeHTML(getEvidenceBadge(score.evidence))}</span>${score.sourceUrl ? `<a href="${escapeAttr(score.sourceUrl)}" target="_blank" rel="noopener noreferrer">Biological background ↗</a>` : ''}</div>
-    <details class="biology-reading-notes"><summary>Calculation details &amp; weights</summary><p>Two-sided ranges reach 0 one range-width beyond the boundary. One-sided ranges use half the boundary magnitude. Core share is the weight used after grouping related markers. Family budgets stay fixed when an accepted alternative is used. These curves are design choices; core completeness describes inputs, not scientific certainty. Model ${escapeHTML(score.algorithmVersion || 'legacy')}. The expanded-panel fit (${Number.isFinite(score.refinedScore) ? score.refinedScore : 'unavailable'}/100) is a diagnostic calculation over this exact panel, not a confidence measure or a stable trend.</p>
-      <div class="biology-score-table-scroll" tabindex="0" role="region" aria-label="Marker weights"><table class="data-table biology-score-table"><thead><tr><th scope="col">Marker</th><th scope="col">Related group</th><th scope="col">Assigned weight</th><th scope="col">Core share</th><th scope="col">Role</th></tr></thead><tbody>${score.available.map(i => `<tr><th scope="row">${escapeHTML(i.label)}</th><td>${escapeHTML(familyLabel(i.evidenceGroup || i.key))}</td><td class="value-cell">${escapeHTML(String(i.configuredWeight ?? i.weight ?? 0))}</td><td class="value-cell">${i.core && !i.profileContextOnly && coreWeight ? `${((i.effectiveWeight ?? i.weight ?? 0) / coreWeight * 100).toFixed(1)}%` : "—"}</td><td>${i.core ? 'Core' : 'Additional'}</td></tr>`).join('')}</tbody></table></div>
-    </details></div></details>`;
+  return renderReading({kind: 'methodology', view: projectBiologyMethodology(score)});
 }
 
 function scoreSentence(score: BiologyRenderScore) {
@@ -211,19 +166,6 @@ function scoreSentence(score: BiologyRenderScore) {
 }
 
 export function renderScoreDetail(score: BiologyRenderScore, options: { showDashboardToggle?: boolean } = {}) {
-  const coreWeight = score.available.filter(i => i.core && !i.profileContextOnly).reduce((n, i) => n + (i.effectiveWeight || i.weight || 0), 0);
-  const row = (item: RenderMarker) => {
-    const weight = item.effectiveWeight || item.weight || 0;
-    const impact = item.core && !item.profileContextOnly && coreWeight ? (100 - item.partial!) * weight / coreWeight : null;
-    return `<tr><th scope="row">${renderMarkerTableLink(item)}${specimenLabel(item) || item.method ? `<small>${escapeHTML([specimenLabel(item), item.method].filter(Boolean).join(' · '))}</small>` : ''}</th><td class="value-cell">${escapeHTML(item.displayValue)} <span class="unit-col">${escapeHTML(item.unit || '')}</span></td><td class="ref-col">${escapeHTML(rangeText(item))}<small>${escapeHTML(item.rangeLabel || '')}</small></td><td>${escapeHTML(item.date || 'Unknown')}</td><td><span class="biology-fit-badge" style="--score-color:${scoreColor(item.profileContextOnly ? null : item.partial)}">${item.profileContextOnly ? 'Context only' : `${Math.round(item.partial!)}/100`}</span><small>${escapeHTML(item.contextReason || (impact == null ? item.evidenceRole || 'Additional context' : `−${impact.toFixed(1)} core points`))}</small></td></tr>`;
-  };
-  const table = (core: boolean) => {
-    const items = score.available.filter(i => !!i.core === core);
-    const missing = effectiveMissingMarkers(score).filter(i => !!i.core === core);
-    return `<section class="biology-score-marker-section"><header><h4>${core ? 'Core markers' : 'Additional markers'} <span class="biology-section-count">${items.length}</span></h4><p>${core ? 'These markers determine the headline score.' : 'Optional results add context and help interpret the core panel.'}</p></header>
-      ${items.length ? `<p class="biology-table-scroll-hint">Swipe or scroll sideways for dates and contributions ↔</p><div class="biology-score-table-scroll" tabindex="0" role="region" aria-label="${core ? 'Core' : 'Additional'} marker results"><table class="data-table biology-score-table"><thead><tr><th scope="col">Marker</th><th scope="col">Result</th><th scope="col">Scoring range</th><th scope="col">Collected</th><th scope="col">Range fit / contribution</th></tr></thead><tbody>${items.map(row).join('')}</tbody></table></div>` : '<p>No results yet.</p>'}
-      ${missing.length ? `<p class="biology-score-missing"><strong>Missing:</strong> ${missing.map(i => escapeHTML(i.coreGroupLabel || i.label)).join(', ')}</p>` : ''}</section>`;
-  };
   const status = `${score.coreCovered ?? 0}/${score.coreTotal ?? 0} core · ${score.optionalAvailable ?? 0} additional${score.evidence === 'experimental' ? ' · Exploratory' : ''}`;
   const presentation = getScorePresentation(score);
   return `<article class="biology-score-detail biology-score-compact" id="biology-score-${escapeAttr(score.id)}">
@@ -234,7 +176,7 @@ export function renderScoreDetail(score: BiologyRenderScore, options: { showDash
       <div class="biology-score-detail-heading"><h3>${escapeHTML(score.title)}</h3>${score.boundary ? `<p>${escapeHTML(score.boundary)}</p>` : ''}</div>
       <div class="biology-score-ai-details">${renderScoreAIAnswer(score)}</div>
       ${renderInterpretationNotes(score.flags)}
-      ${table(true)}${table(false)}
+      ${renderReading({kind: 'markers', sections: projectBiologyMarkerSections(score)})}
       ${score.descriptiveRatio ? `<p>${escapeHTML(score.descriptiveRatio.label)}: ${escapeHTML(score.descriptiveRatio.value)} · ${escapeHTML(score.descriptiveRatio.date)} · context only</p>` : ''}
       ${renderMethodology(score)}
     </div>

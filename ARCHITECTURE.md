@@ -54,11 +54,22 @@ Biology Scores reading priorities and lab planning are authored in
 escaped text, delegate IDs and numeric progress from the existing shared planner;
 scoring, collection-context policy and chat prompt generation retain their domain
 owners. `biology-score-render.ts` preserves the public synchronous HTML facades.
-`biology-planning-classes.ts` and `css/biology-planning.tailwind.css` own their
+`biology-planning-classes.ts` and `css/biology-scores.tailwind.css` own their
 scoped utilities. The dashboard stylesheet is generated at its unchanged URL from
 `css/dashboard-widgets.base.css` and those utilities; remaining dashboard/score
 styles stay in the base until their owners migrate. Authored disclosures preserve
 native keyboard behavior and add visible focus and coarse-pointer target sizes.
+
+Biology marker results, interpretation notes, reading facts and methodology are
+owned by `BiologyReadingPresentation.svelte` and its typed child components.
+`biology-reading-presentation.ts` projects their primitive view data without
+changing score calculation or collection policy. `BiologyReadingTable.svelte`
+owns the shared labeled, keyboard-scrollable table; `BiologyReadingFacts.svelte`
+shares fact layout across score and coherence panels. `biology-reading-classes.ts`
+adds scoped reading utilities through `css/biology-scores.tailwind.css`. The
+remaining native score cards, coherence composition and AI controls retain their
+existing owners until migrated. Public renderer facades and marker delegates stay
+stable; no raw HTML slots are introduced in these authored reading components.
 
 Settings navigation/layout, Display, Privacy, Voice, Agent Access, imported records
 and AI usage use scoped Tailwind utilities

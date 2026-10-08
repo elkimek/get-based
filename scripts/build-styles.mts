@@ -51,7 +51,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     await buildChatStyles({ check });
     await buildLightSetupStyles({ check });
     await compileStyles('light-conditions-now.base.css', 'light-conditions-now.tailwind.css', path.join(ROOT, 'css/light-conditions-now.css'), check, 'Light conditions');
-    await compileStyles('dashboard-widgets.base.css', 'biology-planning.tailwind.css', path.join(ROOT, 'css/dashboard-widgets.css'), check, 'Dashboard widgets');
+    await compileStyles('dashboard-widgets.base.css', 'biology-scores.tailwind.css', path.join(ROOT, 'css/dashboard-widgets.css'), check, 'Dashboard widgets');
     await compileStyles('light-tools.base.css', 'light-tools.tailwind.css', path.join(ROOT, 'css/light-tools.css'), check, 'Light tools');
     await compileStyles('light-env.base.css', 'light-env.tailwind.css', path.join(ROOT, 'css/light-env.css'), check, 'Light environment');
     await compileStyles('light-devices.base.css', 'light-devices.tailwind.css', path.join(ROOT, 'css/light-devices.css'), check, 'Light device library');

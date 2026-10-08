@@ -175,6 +175,17 @@ changed discovery totals. A policy refresh requires review of the changed sinks.
 
 ## Behavioral requirements
 
+Biology reading presentation has focused [frozen content checks](../tests/biology-reading-presentation.test.ts)
+for all 18 score types and empty/context/zero-weight inputs, plus
+[headless theme, geometry and keyboard checks](../tests/playwright/biology-reading-owned.spec.ts).
+The [static reading scenario](../tests/pwa/sveltekit-biology-reading.spec.ts) opens
+all score methodologies and weight tables, exercises marker dialogs, and checks
+full canonical profile equality through two closed-client offline launches.
+[Existing Biology lens scenarios](../tests/playwright/biology-scores-dashboard-lens.spec.ts)
+cover adjacent context, planning and sparse-profile behavior. These focused
+presentation checks do not establish clinical validity, whole-app accessibility,
+installed-PWA acceptance or complete migration acceptance.
+
 Preserve independently failing assertions for these workflows:
 
 | Workflow | Required behavior | Selected regression sources |

@@ -13,3 +13,14 @@
 @source "../js/components/BiologyCoverageBundle.svelte";
 @source "../js/components/BiologyCoveragePlanner.svelte";
 @source "../js/components/BiologyPlanningPresentation.svelte";
+
+/* Shared Biology Scores marker and methodology reading components. */
+@custom-variant reading-ui (&:is([data-biology-reading-view], [data-biology-reading-view] *));
+@custom-variant reading-mobile (@media (max-width: 700px));
+@custom-variant reading-phone (@media (max-width: 650px));
+@source "../js/biology-reading-classes.ts";
+@source "../js/components/BiologyReadingFacts.svelte";
+@source "../js/components/BiologyInterpretationNotes.svelte";
+@source "../js/components/BiologyMarkerResults.svelte";
+@source "../js/components/BiologyMethodology.svelte";
+@source "../js/components/BiologyReadingPresentation.svelte";
