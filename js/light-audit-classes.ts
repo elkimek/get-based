@@ -1,0 +1,50 @@
+// Literal scoped utilities for the historical audit card and snapshot detail.
+// Keep every token static so the Tailwind source scanner can prove ownership.
+const classes: Readonly<Record<string, string>> = {
+  "light-audit-card": "gb:environment-audit:[border:1px_solid_var(--border)] gb:environment-audit:rounded-control gb:environment-audit:[margin-bottom:8px] gb:environment-audit:[.light-audits-block>&]:[margin:10px_12px] gb:environment-audit:overflow-hidden gb:environment-audit:bg-surface",
+  "light-audit-header": "gb:environment-audit:flex gb:environment-audit:justify-between gb:environment-audit:items-center gb:environment-audit:[padding:10px_14px] gb:environment-audit:[cursor:pointer] gb:environment-audit:[transition:background_0.15s] gb:environment-audit:hover:bg-hover gb:environment-audit:environment-mobile:flex-col gb:environment-audit:environment-mobile:items-start gb:environment-audit:environment-mobile:[gap:6px] gb:environment-audit:relative",
+  "light-audit-info": "gb:environment-audit:flex gb:environment-audit:flex-col gb:environment-audit:[gap:2px] gb:environment-audit:[min-width:0] gb:environment-audit:[flex:1] gb:environment-audit:pointer-events-none",
+  "light-audit-info-top": "gb:environment-audit:flex gb:environment-audit:[gap:10px] gb:environment-audit:items-center gb:environment-audit:flex-wrap gb:environment-audit:[min-width:0]",
+  "light-audit-date": "gb:environment-audit:[font-weight:600] gb:environment-audit:[font-size:13px]",
+  "light-audit-label": "gb:environment-audit:[font-size:12px] gb:environment-audit:text-secondary",
+  "light-audit-meta": "gb:environment-audit:[font-size:11px] gb:environment-audit:text-muted",
+  "light-audit-detail": "gb:environment-audit:[padding:0_14px_14px]",
+  "light-audit-meta-row": "gb:environment-audit:flex gb:environment-audit:[gap:12px] gb:environment-audit:[margin-bottom:14px] gb:environment-audit:flex-wrap gb:environment-audit:items-end",
+  "light-audit-meta-field": "gb:environment-audit:flex gb:environment-audit:flex-col gb:environment-audit:[gap:4px] gb:environment-audit:[font-size:11px] gb:environment-audit:text-muted",
+  "light-audit-meta-field--date": "gb:environment-audit:[flex:0_0_auto] gb:environment-audit:[width:160px]",
+  "light-audit-meta-field--label": "gb:environment-audit:[flex:1_1_200px] gb:environment-audit:[min-width:0] gb:environment-audit:[max-width:360px]",
+  "light-audit-meta-field-text": "gb:environment-audit:[font-size:11px] gb:environment-audit:[font-weight:600] gb:environment-audit:[letter-spacing:0.4px] gb:environment-audit:[text-transform:uppercase] gb:environment-audit:text-muted",
+  "light-audit-footer": "gb:environment-audit:flex gb:environment-audit:[gap:8px] gb:environment-audit:items-center gb:environment-audit:[margin-top:12px] gb:environment-audit:[padding-top:12px] gb:environment-audit:[border-top:1px_solid_var(--border)]",
+  "light-audit-rooms": "gb:environment-audit:flex gb:environment-audit:flex-col gb:environment-audit:[gap:8px]",
+  "light-audit-room-card": "gb:environment-audit:bg-secondary-surface gb:environment-audit:[border:1px_solid_var(--border)] gb:environment-audit:rounded-control gb:environment-audit:[padding:10px_12px]",
+  "light-audit-room-head": "gb:environment-audit:flex gb:environment-audit:items-center gb:environment-audit:[gap:8px] gb:environment-audit:flex-wrap gb:environment-audit:[margin-bottom:8px] gb:environment-audit:[.light-audits-block>&]:[margin:10px_12px]",
+  "light-audit-room-name": "gb:environment-audit:[font-size:13px] gb:environment-audit:[font-weight:600] gb:environment-audit:text-ink",
+  "light-audit-room-status": "gb:environment-audit:[font-size:11px] gb:environment-audit:[font-weight:600] gb:environment-audit:[padding:2px_8px] gb:environment-audit:[border-radius:10px] gb:environment-audit:whitespace-nowrap",
+  "light-audit-room-status-green": "gb:environment-audit:[background:rgba(34,197,94,0.12)] gb:environment-audit:[color:var(--green)]",
+  "light-audit-room-status-yellow": "gb:environment-audit:[background:rgba(234,179,8,0.12)] gb:environment-audit:[color:var(--yellow)]",
+  "light-audit-room-status-orange": "gb:environment-audit:[background:rgba(249,115,22,0.12)] gb:environment-audit:[color:var(--orange)]",
+  "light-audit-room-status-red": "gb:environment-audit:[background:rgba(239,68,68,0.12)] gb:environment-audit:[color:var(--red)]",
+  "light-audit-room-status-incomplete": "gb:environment-audit:bg-surface gb:environment-audit:text-muted",
+  "light-audit-room-empty": "gb:environment-audit:[font-size:12px] gb:environment-audit:text-muted gb:environment-audit:[margin:0] gb:environment-audit:italic",
+  "light-audit-room-channels": "gb:environment-audit:flex gb:environment-audit:flex-wrap gb:environment-audit:[gap:6px]",
+  "light-audit-channel": "gb:environment-audit:inline-flex gb:environment-audit:items-center gb:environment-audit:[gap:6px] gb:environment-audit:bg-surface gb:environment-audit:[border:1px_solid_var(--border)] gb:environment-audit:[border-radius:6px] gb:environment-audit:[padding:4px_8px] gb:environment-audit:[font-size:12px]",
+  "light-audit-channel-label": "gb:environment-audit:text-muted gb:environment-audit:[font-size:11px]",
+  "light-audit-channel-value": "gb:environment-audit:text-ink gb:environment-audit:[font-weight:500]",
+  "light-audit-empty": "gb:environment-audit:text-muted gb:environment-audit:[font-size:12px] gb:environment-audit:[padding:12px_0] gb:environment-audit:[line-height:1.5]",
+  "expanded": "gb:environment-audit:[border-color:var(--accent)]",
+  "ctx-input": "gb:environment-audit:[margin-top:0] gb:environment-audit:[font-size:13px] gb:environment-audit:[padding:6px_10px] gb:environment-audit:text-ink gb:environment-audit:focus-visible:outline-2! gb:environment-audit:focus-visible:outline-offset-2 gb:environment-audit:focus-visible:outline-accent gb:environment-audit:device-coarse:min-h-11",
+  "light-audit-disclosure-toggle": "gb:environment-audit:focus-visible:[outline:2px_solid_var(--accent)] gb:environment-audit:focus-visible:[outline-offset:-2px] gb:environment-audit:absolute gb:environment-audit:inset-0 gb:environment-audit:border-0 gb:environment-audit:bg-transparent gb:environment-audit:p-0 gb:environment-audit:cursor-pointer gb:environment-audit:device-coarse:min-h-11",
+  "light-audit-ai-dot": "gb:environment-audit:flex gb:environment-audit:items-center gb:environment-audit:relative gb:environment-audit:z-10 gb:environment-audit:pointer-events-auto gb:environment-audit:empty:hidden",
+  "audit-delete-button": "gb:environment-audit:[color:var(--red)] gb:environment-audit:[border-color:var(--red)] gb:environment-audit:focus-visible:outline-2! gb:environment-audit:focus-visible:outline-offset-2 gb:environment-audit:focus-visible:outline-accent gb:environment-audit:device-coarse:min-h-11",
+  "light-env-sev-dot": "gb:environment-audit:inline-block gb:environment-audit:[width:10px] gb:environment-audit:[height:10px] gb:environment-audit:[border-radius:50%] gb:environment-audit:shrink-0 gb:environment-audit:[box-shadow:0_0_6px_currentColor] gb:environment-audit:pointer-events-none",
+  "light-env-sev-green": "gb:environment-audit:[background:var(--green)] gb:environment-audit:[color:var(--green)]",
+  "light-env-sev-yellow": "gb:environment-audit:[background:var(--yellow)] gb:environment-audit:[color:var(--yellow)]",
+  "light-env-sev-orange": "gb:environment-audit:[background:var(--orange)] gb:environment-audit:[color:var(--orange)]",
+  "light-env-sev-red": "gb:environment-audit:[background:var(--red)] gb:environment-audit:[color:var(--red)]",
+  "light-env-sev-incomplete": "gb:environment-audit:bg-transparent gb:environment-audit:text-muted gb:environment-audit:[border:1.5px_dashed_var(--text-muted)] gb:environment-audit:shadow-none",
+};
+
+export function lightAuditClasses(names: string): string {
+  return names.split(/\s+/).filter(Boolean)
+    .map(name => classes[name] ? `${name} ${classes[name]}` : name).join(' ');
+}

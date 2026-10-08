@@ -39,7 +39,27 @@ for(const sample of original.cases)it(`preserves independent room and section co
     renderMeasurementAIInline:sample.callbacks?()=>'<span data-fixture-reading-ai>Trusted reading verdict</span>':null,
     renderRoomAIBlock:sample.callbacks?()=>'<div data-fixture-room-ai>Trusted room verdict</div>':null});
   const before=JSON.stringify(state.importedData),html=renderEnvironmentSection({embedded:sample.embedded});
-  expect(describe(html)).toEqual(describe(sample.section));expect(JSON.stringify(state.importedData)).toBe(before);
+  const expected=describe(sample.section);
+  // Audit cards now use a native sibling button. Keep the comparator and all
+  // unrelated expectations exact; assert the old and new semantic contracts
+  // explicitly rather than discarding role, tab order or action text globally.
+  const auditIndex=expected.actions.findIndex(action=>action.attrs['data-light-env-action']==='toggle-audit');
+  if(auditIndex!==-1){
+    const originalAction=expected.actions[auditIndex]!;
+    expect(originalAction.tag).toBe('DIV');
+    expect(originalAction.attrs['role']).toBe('button');
+    expect(originalAction.attrs['tabindex']).toBe('0');
+    expect(originalAction.text).toBeUndefined();
+    const {role,tabindex,...nativeAttributes}=originalAction.attrs;
+    expect([role,tabindex]).toEqual(['button','0']);
+    expected.actions[auditIndex]={tag:'BUTTON',attrs:nativeAttributes,text:''};
+    const parsed=document.createElement('div');parsed.innerHTML=html;
+    const control=parsed.querySelector<HTMLButtonElement>('[data-light-env-action="toggle-audit"]')!;
+    expect(control.tagName).toBe('BUTTON');expect(control.type).toBe('button');expect(control.tabIndex).toBe(0);
+    expect(control.closest('.light-audit-header')?.querySelectorAll('button')).toHaveLength(1);
+    expect(control.querySelector('button,input,a')).toBeNull();
+  }
+  expect(describe(html)).toEqual(expected);expect(JSON.stringify(state.importedData)).toBe(before);
   const host=document.createElement('div');host.innerHTML=html;
   expect(host.querySelector('button button,[role="button"] button')).toBeNull();
   for(const disclosure of host.querySelectorAll('[data-light-env-action="toggle-room-expanded"]'))expect(disclosure.tagName).toBe('BUTTON');

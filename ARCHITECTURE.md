@@ -1259,6 +1259,18 @@ stylesheet URL. Native shared block layout remains only because the audit shell
 still consumes it. Superseded room and modal templates/selectors are removed;
 audit-shell presentation retains its existing owner until migrated.
 
+`LightAuditCard.svelte` and `LightAuditDetail.svelte` own saved-audit card and
+snapshot-detail markup through the `LightAuditCardView` presentation contract.
+`light-env-audits.ts` retains historical grading, snapshot screen ownership,
+sorting, history, comparison, editing and persistence. Its typed projection
+preserves callback order and invokes detail callbacks only for expanded cards.
+The two explicit trusted slots accept the configured audit AI dot and verdict;
+stored labels, dates and room names use escaped interpolation. A native card
+disclosure button sits beside the interactive AI dot, avoiding nested buttons.
+Scoped Tailwind replaces card/detail selectors at the established environment
+stylesheet URL. The audit block and comparison presentation remain native owners
+pending their migration.
+
 Room and screen render-time auto-analysis captures `ai-verdict-owner.ts` before
 queuing. Both the deduplication key and delayed callback belong to that owner;
 profile/root/epoch replacement retires queued work without suppressing the new

@@ -683,7 +683,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/light-devices-store.js',
   '/js/light-device-session-engine.js',
   '/js/light-device-modal-loader.js',
-  '/js/light-environment-room-presentation.js', '/js/light-environment-room-classes.js', '/js/components/LightEnvironmentPresentation.svelte.html.js',
+  '/js/light-audit-presentation.js', '/js/light-audit-classes.js', '/js/components/LightAuditCard.svelte.html.js', '/js/light-environment-room-presentation.js', '/js/light-environment-room-classes.js', '/js/components/LightEnvironmentPresentation.svelte.html.js',
   '/js/light-environment-summary-classes.js', '/js/components/LightEnvironmentSummary.svelte.html.js',
   '/js/light-environment-screen-presentation.js', '/js/light-environment-screen-classes.js', '/js/components/LightEnvironmentScreen.svelte.html.js', '/js/components/LightEnvironmentTodayToggle.svelte.html.js',
   '/js/light-device-recommendations-presentation.js', '/js/light-device-recommendations-classes.js', '/js/components/LightDeviceRecommendations.svelte.html.js',

@@ -6,11 +6,13 @@
 // without importing light-env.js back into itself.
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
+import { escapeHTML, showNotification, showPromptDialog, showConfirmDialog } from './utils.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItems } from './data-merge.js';
 import { lightEnvActionAttrs } from './light-env-actions.js';
 import { createUniqueId } from './unique-id.js';
+import { renderHTML as renderAuditCardHTML } from './components/LightAuditCard.svelte.html.js';
+import { auditActionValue, type LightAuditCardView, type LightAuditDetailView } from './light-audit-presentation.js';
 
 // Mirrors the EMF Assessment pattern: each audit is a dated, labeled,
 // immutable snapshot of the rooms + screens + recent measurements at
@@ -258,26 +260,31 @@ function keepAuditVisible(id: unknown) {
   if (!visibleIds.has(id)) _showAllAudits = true;
 }
 
-function renderLightAuditCard(a: AuditReader, expanded: unknown) {
-  const sev = computeAuditSeverity(a);
+function readLightAuditCard(a: AuditReader, expanded: boolean): LightAuditCardView {
+  const severity = computeAuditSeverity(a);
   const roomsCount = (a.rooms || []).length;
-  const measCount = (a.measurements || []).length;
-  const cardAriaLabel = `${fmtAuditDate(a.date)}${a.label ? ' — ' + a.label : ''} — ${roomsCount} room${roomsCount === 1 ? '' : 's'}, ${measCount} measurement${measCount === 1 ? '' : 's'}, ${sev.label}${expanded ? ', expanded' : ', collapsed'}`;
-  let html = `<div class="light-audit-card${expanded ? ' expanded' : ''}" data-id="${escapeAttr(a.id)}">
-    <div class="light-audit-header" role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="${escapeAttr(cardAriaLabel)}" ${lightEnvActionAttrs('toggle-audit', { id: a.id })}>
-      <div class="light-audit-info">
-        <div class="light-audit-info-top">
-          ${renderAuditAIDot(a)}
-          <span class="light-audit-date">${escapeHTML(fmtAuditDate(a.date))}</span>
-          ${a.label ? `<span class="light-audit-label">${escapeHTML(a.label)}</span>` : ''}
-        </div>
-        <span class="light-audit-meta">${roomsCount} room${roomsCount === 1 ? '' : 's'} · ${measCount} measurement${measCount === 1 ? '' : 's'}</span>
-      </div>
-      <span class="light-env-sev-dot light-env-sev-${sev.color}" title="${escapeAttr(sev.label)}"><span class="sr-only">${escapeHTML(sev.label)}</span></span>
-    </div>`;
-  if (expanded) html += renderLightAuditDetail(a);
-  html += `</div>`;
-  return html;
+  const measurementsCount = (a.measurements || []).length;
+  const date = fmtAuditDate(a.date);
+  const meta = `${roomsCount} room${roomsCount === 1 ? '' : 's'} · ${measurementsCount} measurement${measurementsCount === 1 ? '' : 's'}`;
+  // Preserve callback order and laziness: dot follows rollup grading; detail
+  // callbacks and historical room grading run only for the expanded card.
+  const trustedDotHTML = String(renderAuditAIDot(a));
+  return {
+    id: String(a.id ?? ''),
+    actionId: auditActionValue(a.id),
+    expanded,
+    ariaLabel: `${date}${a.label ? ' — ' + a.label : ''} — ${roomsCount} room${roomsCount === 1 ? '' : 's'}, ${measurementsCount} measurement${measurementsCount === 1 ? '' : 's'}, ${severity.label}${expanded ? ', expanded' : ', collapsed'}`,
+    date,
+    label: String(a.label || ''),
+    meta,
+    severity: { color: String(severity.color), label: String(severity.label ?? '') },
+    trustedDotHTML,
+    detail: expanded ? readLightAuditDetail(a) : null,
+  };
+}
+
+function renderLightAuditCard(audit: AuditReader, expanded: boolean) {
+  return renderAuditCardHTML({ view: readLightAuditCard(audit, expanded) });
 }
 
 // Pull the per-channel measurement values for a room inside an audit.
@@ -300,55 +307,21 @@ function _auditRoomChannels(audit: AuditReader, room: AuditRoomReader) {
   ].filter(ch => ch !== null);
 }
 
-function renderLightAuditDetail(a: AuditReader) {
-  let html = `<div class="light-audit-detail">
-    <div class="light-audit-meta-row">
-      <label class="light-audit-meta-field light-audit-meta-field--date">
-        <span class="light-audit-meta-field-text">Date</span>
-        <input type="date" class="ctx-input" value="${escapeAttr(a.date)}" aria-label="Audit date" ${lightEnvActionAttrs('update-audit-field', { id: a.id, field: 'date' })}>
-      </label>
-      <label class="light-audit-meta-field light-audit-meta-field--label">
-        <span class="light-audit-meta-field-text">Label</span>
-        <input type="text" class="ctx-input" value="${escapeHTML(a.label || '')}" placeholder="e.g. Pre-mitigation" aria-label="Audit label" ${lightEnvActionAttrs('update-audit-field', { id: a.id, field: 'label' })}>
-      </label>
-    </div>
-    ${renderAuditAIBlock(a)}`;
-
-  if (!(a.rooms || []).length) {
-    html += `<p class="light-audit-empty">No rooms in this audit's snapshot.</p>`;
-  } else {
-    html += `<div class="light-audit-rooms">`;
-    for (const r of a.rooms!) {
-      const sev = computeAuditRoomSeverity(a, r);
-      const channels = _auditRoomChannels(a, r);
-      html += `<div class="light-audit-room-card">
-        <div class="light-audit-room-head">
-          <span class="light-env-sev-dot light-env-sev-${sev.color}"></span>
-          <span class="light-audit-room-name">${escapeHTML(r.name || 'Room')}</span>
-          <span class="light-audit-room-status light-audit-room-status-${sev.color}">${escapeHTML(sev.label)}</span>
-        </div>`;
-      if (channels.length === 0) {
-        html += `<p class="light-audit-room-empty">No measurements taken in this room before the snapshot.</p>`;
-      } else {
-        html += `<div class="light-audit-room-channels">`;
-        for (const ch of channels) {
-          html += `<div class="light-audit-channel">
-            <span class="light-audit-channel-label">${escapeHTML(ch.label)}</span>
-            <span class="light-audit-channel-value">${escapeHTML(ch.text)}</span>
-          </div>`;
-        }
-        html += `</div>`;
-      }
-      html += `</div>`;
-    }
-    html += `</div>`;
-  }
-
-  html += `<div class="light-audit-footer">
-      <button class="import-btn import-btn-secondary" style="color:var(--red);border-color:var(--red)" ${lightEnvActionAttrs('delete-audit-confirm', { id: a.id })}>Delete audit</button>
-    </div>
-  </div>`;
-  return html;
+function readLightAuditDetail(audit: AuditReader): LightAuditDetailView {
+  const trustedAIHTML = String(renderAuditAIBlock(audit));
+  return {
+    date: String(audit.date ?? ''),
+    label: String(audit.label || ''),
+    trustedAIHTML,
+    rooms: (audit.rooms || []).map(room => {
+      const severity = computeAuditRoomSeverity(audit, room);
+      return {
+        name: String(room.name || 'Room'),
+        severity: { color: String(severity.color), label: String(severity.label ?? '') },
+        channels: _auditRoomChannels(audit, room),
+      };
+    }),
+  };
 }
 
 // Compare-view directional arrow + color. `better` says which direction

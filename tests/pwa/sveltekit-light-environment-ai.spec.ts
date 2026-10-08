@@ -56,6 +56,14 @@ async function inspect(page: Page) {
   const auditToggle = audit.locator('[data-light-env-action="toggle-audit"]');
   if (await auditToggle.getAttribute('aria-expanded') !== 'true') await auditToggle.click();
   await expect(auditToggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(audit).toHaveAttribute('data-light-audit-card', '');
+  expect(await auditToggle.evaluate(node => ({tag: node.tagName, type: (node as HTMLButtonElement).type, tabIndex: (node as HTMLButtonElement).tabIndex}))).toEqual({tag: 'BUTTON', type: 'button', tabIndex: 0});
+  await expect(audit.getByRole('textbox', {name: 'Audit label', exact: true})).toHaveValue('Saved snapshot');
+  await expect(audit.locator('input[aria-label="Audit date"]')).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
+  await expect(audit.locator('.light-audit-room-name')).toHaveText('Bedroom');
+  await expect(audit.locator('.light-audit-channel-label')).toHaveText(['Brightness']);
+  await expect(audit.locator('.light-audit-channel-value')).toHaveText(['250 lux (method unknown)']);
+  await expect(audit.locator('button button,[role="button"] button')).toHaveCount(0);
   await expect(audit.locator('.light-audit-ai[data-light-environment-ai] .sun-detail-ai-tip')).toHaveText('✓ Audit <literal>');
   await expect(audit.locator('.light-audit-ai .sun-detail-ai-body')).toHaveText('Audit detail & retained.');
   await expect(dialog.locator('[data-light-environment-ai] img, [data-light-environment-ai] script')).toHaveCount(0);

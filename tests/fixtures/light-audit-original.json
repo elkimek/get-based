@@ -1,0 +1,2718 @@
+{
+  "revision": "c0db71acc488c5333938d2b19cf93719f88d6e86",
+  "cases": [
+    {
+      "name": "empty",
+      "data": {
+        "lightAudits": [],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": null,
+      "all": false,
+      "compare": false,
+      "callbacks": false,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        \n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><p class=\"light-env-empty\">Snapshot your rooms + measurements so you can see what a change actually did. Run the tools, save a \"Before\" audit, make a change (warmer bulbs, blackouts, blue blockers), save an \"After\". Once you have two, Compare lights up and you'll see the deltas per room.</p></details>",
+      "calls": []
+    },
+    {
+      "name": "empty-open",
+      "data": {
+        "lightAudits": [],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": null,
+      "all": false,
+      "compare": false,
+      "callbacks": false,
+      "provider": false,
+      "open": true,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        \n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><p class=\"light-env-empty\">Snapshot your rooms + measurements so you can see what a change actually did. Run the tools, save a \"Before\" audit, make a change (warmer bulbs, blackouts, blue blockers), save an \"After\". Once you have two, Compare lights up and you'll see the deltas per room.</p></details>",
+      "calls": []
+    },
+    {
+      "name": "collapsed",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "a",
+            "date": "2026-10-08",
+            "label": "Before lighting change",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              }
+            ],
+            "createdAt": 100
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": null,
+      "all": false,
+      "compare": false,
+      "callbacks": false,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        \n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><p class=\"light-audit-hint\">Save a second audit after making changes to unlock the side-by-side comparison.</p><div class=\"light-audit-card\" data-id=\"a\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Oct 8, 2026 — Before lighting change — 1 room, 5 measurements, Strong signal, collapsed\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"a\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          \n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Before lighting change</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 5 measurements</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Strong signal\"><span class=\"sr-only\">Strong signal</span></span>\n    </div></div></details>",
+      "calls": [
+        "severity:r",
+        "dot:a"
+      ]
+    },
+    {
+      "name": "expanded",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "a",
+            "date": "2026-10-08",
+            "label": "Before lighting change",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              }
+            ],
+            "createdAt": 100
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": "a",
+      "all": false,
+      "compare": false,
+      "callbacks": true,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        \n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><p class=\"light-audit-hint\">Save a second audit after making changes to unlock the side-by-side comparison.</p><div class=\"light-audit-card expanded\" data-id=\"a\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Oct 8, 2026 — Before lighting change — 1 room, 5 measurements, Strong signal, expanded\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"a\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          <button type=\"button\" data-fixture-audit-dot>Trusted audit dot</button>\n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Before lighting change</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 5 measurements</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Strong signal\"><span class=\"sr-only\">Strong signal</span></span>\n    </div><div class=\"light-audit-detail\">\n    <div class=\"light-audit-meta-row\">\n      <label class=\"light-audit-meta-field light-audit-meta-field--date\">\n        <span class=\"light-audit-meta-field-text\">Date</span>\n        <input type=\"date\" class=\"ctx-input\" value=\"2026-10-08\" aria-label=\"Audit date\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"date\">\n      </label>\n      <label class=\"light-audit-meta-field light-audit-meta-field--label\">\n        <span class=\"light-audit-meta-field-text\">Label</span>\n        <input type=\"text\" class=\"ctx-input\" value=\"Before lighting change\" placeholder=\"e.g. Pre-mitigation\" aria-label=\"Audit label\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"label\">\n      </label>\n    </div>\n    <div data-fixture-audit-ai>Trusted audit verdict</div><div class=\"light-audit-rooms\"><div class=\"light-audit-room-card\">\n        <div class=\"light-audit-room-head\">\n          <span class=\"light-env-sev-dot light-env-sev-red\"></span>\n          <span class=\"light-audit-room-name\">Bedroom</span>\n          <span class=\"light-audit-room-status light-audit-room-status-red\">Strong signal</span>\n        </div><div class=\"light-audit-room-channels\"><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Brightness</span>\n            <span class=\"light-audit-channel-value\">~52 lux (camera estimate)</span>\n          </div><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Sleep light</span>\n            <span class=\"light-audit-channel-value\">2.35 lux (meter)</span>\n          </div><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Flicker</span>\n            <span class=\"light-audit-channel-value\">Strong banding</span>\n          </div><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Warm / cool</span>\n            <span class=\"light-audit-channel-value\">~5300 K (camera)</span>\n          </div><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Camera blue proxy</span>\n            <span class=\"light-audit-channel-value\">73%</span>\n          </div></div></div></div><div class=\"light-audit-footer\">\n      <button class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red)\" data-light-env-action=\"delete-audit-confirm\" data-light-env-id=\"a\">Delete audit</button>\n    </div>\n  </div></div></details>",
+      "calls": [
+        "severity:r",
+        "dot:a",
+        "ai:a",
+        "severity:r"
+      ]
+    },
+    {
+      "name": "empty-snapshot",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "a",
+            "date": "2026-10-08",
+            "label": "Before lighting change",
+            "notes": "Stored notes retained",
+            "rooms": [],
+            "screens": [],
+            "measurements": [],
+            "createdAt": 100
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": "a",
+      "all": false,
+      "compare": false,
+      "callbacks": false,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        \n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><p class=\"light-audit-hint\">Save a second audit after making changes to unlock the side-by-side comparison.</p><div class=\"light-audit-card expanded\" data-id=\"a\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Oct 8, 2026 — Before lighting change — 0 rooms, 0 measurements, Needs details, expanded\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"a\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          \n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Before lighting change</span>\n        </div>\n        <span class=\"light-audit-meta\">0 rooms · 0 measurements</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-incomplete\" title=\"Needs details\"><span class=\"sr-only\">Needs details</span></span>\n    </div><div class=\"light-audit-detail\">\n    <div class=\"light-audit-meta-row\">\n      <label class=\"light-audit-meta-field light-audit-meta-field--date\">\n        <span class=\"light-audit-meta-field-text\">Date</span>\n        <input type=\"date\" class=\"ctx-input\" value=\"2026-10-08\" aria-label=\"Audit date\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"date\">\n      </label>\n      <label class=\"light-audit-meta-field light-audit-meta-field--label\">\n        <span class=\"light-audit-meta-field-text\">Label</span>\n        <input type=\"text\" class=\"ctx-input\" value=\"Before lighting change\" placeholder=\"e.g. Pre-mitigation\" aria-label=\"Audit label\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"label\">\n      </label>\n    </div>\n    <p class=\"light-audit-empty\">No rooms in this audit's snapshot.</p><div class=\"light-audit-footer\">\n      <button class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red)\" data-light-env-action=\"delete-audit-confirm\" data-light-env-id=\"a\">Delete audit</button>\n    </div>\n  </div></div></details>",
+      "calls": [
+        "dot:a",
+        "ai:a"
+      ]
+    },
+    {
+      "name": "no-readings",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "a",
+            "date": "2026-10-08",
+            "label": "Before lighting change",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [],
+            "createdAt": 100
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": "a",
+      "all": false,
+      "compare": false,
+      "callbacks": false,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        \n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><p class=\"light-audit-hint\">Save a second audit after making changes to unlock the side-by-side comparison.</p><div class=\"light-audit-card expanded\" data-id=\"a\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Oct 8, 2026 — Before lighting change — 1 room, 0 measurements, Needs attention, expanded\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"a\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          \n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Before lighting change</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 0 measurements</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Needs attention\"><span class=\"sr-only\">Needs attention</span></span>\n    </div><div class=\"light-audit-detail\">\n    <div class=\"light-audit-meta-row\">\n      <label class=\"light-audit-meta-field light-audit-meta-field--date\">\n        <span class=\"light-audit-meta-field-text\">Date</span>\n        <input type=\"date\" class=\"ctx-input\" value=\"2026-10-08\" aria-label=\"Audit date\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"date\">\n      </label>\n      <label class=\"light-audit-meta-field light-audit-meta-field--label\">\n        <span class=\"light-audit-meta-field-text\">Label</span>\n        <input type=\"text\" class=\"ctx-input\" value=\"Before lighting change\" placeholder=\"e.g. Pre-mitigation\" aria-label=\"Audit label\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"label\">\n      </label>\n    </div>\n    <div class=\"light-audit-rooms\"><div class=\"light-audit-room-card\">\n        <div class=\"light-audit-room-head\">\n          <span class=\"light-env-sev-dot light-env-sev-orange\"></span>\n          <span class=\"light-audit-room-name\">Bedroom</span>\n          <span class=\"light-audit-room-status light-audit-room-status-orange\">Needs attention</span>\n        </div><p class=\"light-audit-room-empty\">No measurements taken in this room before the snapshot.</p></div></div><div class=\"light-audit-footer\">\n      <button class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red)\" data-light-env-action=\"delete-audit-confirm\" data-light-env-id=\"a\">Delete audit</button>\n    </div>\n  </div></div></details>",
+      "calls": [
+        "severity:r",
+        "dot:a",
+        "ai:a",
+        "severity:r"
+      ]
+    },
+    {
+      "name": "lux-manual-entry",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "a",
+            "date": "2026-10-08",
+            "label": "Before lighting change",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "roomId": "r",
+                "tool": "lux",
+                "value": 21.6,
+                "extra": {
+                  "source": "manual-entry"
+                }
+              }
+            ],
+            "createdAt": 100
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": "a",
+      "all": false,
+      "compare": false,
+      "callbacks": false,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        \n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><p class=\"light-audit-hint\">Save a second audit after making changes to unlock the side-by-side comparison.</p><div class=\"light-audit-card expanded\" data-id=\"a\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Oct 8, 2026 — Before lighting change — 1 room, 1 measurement, Needs attention, expanded\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"a\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          \n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Before lighting change</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 1 measurement</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Needs attention\"><span class=\"sr-only\">Needs attention</span></span>\n    </div><div class=\"light-audit-detail\">\n    <div class=\"light-audit-meta-row\">\n      <label class=\"light-audit-meta-field light-audit-meta-field--date\">\n        <span class=\"light-audit-meta-field-text\">Date</span>\n        <input type=\"date\" class=\"ctx-input\" value=\"2026-10-08\" aria-label=\"Audit date\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"date\">\n      </label>\n      <label class=\"light-audit-meta-field light-audit-meta-field--label\">\n        <span class=\"light-audit-meta-field-text\">Label</span>\n        <input type=\"text\" class=\"ctx-input\" value=\"Before lighting change\" placeholder=\"e.g. Pre-mitigation\" aria-label=\"Audit label\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"label\">\n      </label>\n    </div>\n    <div class=\"light-audit-rooms\"><div class=\"light-audit-room-card\">\n        <div class=\"light-audit-room-head\">\n          <span class=\"light-env-sev-dot light-env-sev-orange\"></span>\n          <span class=\"light-audit-room-name\">Bedroom</span>\n          <span class=\"light-audit-room-status light-audit-room-status-orange\">Needs attention</span>\n        </div><div class=\"light-audit-room-channels\"><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Brightness</span>\n            <span class=\"light-audit-channel-value\">22 lux</span>\n          </div></div></div></div><div class=\"light-audit-footer\">\n      <button class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red)\" data-light-env-action=\"delete-audit-confirm\" data-light-env-id=\"a\">Delete audit</button>\n    </div>\n  </div></div></details>",
+      "calls": [
+        "severity:r",
+        "dot:a",
+        "ai:a",
+        "severity:r"
+      ]
+    },
+    {
+      "name": "lux-meter-entry",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "a",
+            "date": "2026-10-08",
+            "label": "Before lighting change",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "roomId": "r",
+                "tool": "lux",
+                "value": 21.6,
+                "extra": {
+                  "source": "meter-entry"
+                }
+              }
+            ],
+            "createdAt": 100
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": "a",
+      "all": false,
+      "compare": false,
+      "callbacks": false,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        \n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><p class=\"light-audit-hint\">Save a second audit after making changes to unlock the side-by-side comparison.</p><div class=\"light-audit-card expanded\" data-id=\"a\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Oct 8, 2026 — Before lighting change — 1 room, 1 measurement, Needs attention, expanded\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"a\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          \n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Before lighting change</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 1 measurement</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Needs attention\"><span class=\"sr-only\">Needs attention</span></span>\n    </div><div class=\"light-audit-detail\">\n    <div class=\"light-audit-meta-row\">\n      <label class=\"light-audit-meta-field light-audit-meta-field--date\">\n        <span class=\"light-audit-meta-field-text\">Date</span>\n        <input type=\"date\" class=\"ctx-input\" value=\"2026-10-08\" aria-label=\"Audit date\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"date\">\n      </label>\n      <label class=\"light-audit-meta-field light-audit-meta-field--label\">\n        <span class=\"light-audit-meta-field-text\">Label</span>\n        <input type=\"text\" class=\"ctx-input\" value=\"Before lighting change\" placeholder=\"e.g. Pre-mitigation\" aria-label=\"Audit label\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"label\">\n      </label>\n    </div>\n    <div class=\"light-audit-rooms\"><div class=\"light-audit-room-card\">\n        <div class=\"light-audit-room-head\">\n          <span class=\"light-env-sev-dot light-env-sev-orange\"></span>\n          <span class=\"light-audit-room-name\">Bedroom</span>\n          <span class=\"light-audit-room-status light-audit-room-status-orange\">Needs attention</span>\n        </div><div class=\"light-audit-room-channels\"><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Brightness</span>\n            <span class=\"light-audit-channel-value\">22 lux</span>\n          </div></div></div></div><div class=\"light-audit-footer\">\n      <button class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red)\" data-light-env-action=\"delete-audit-confirm\" data-light-env-id=\"a\">Delete audit</button>\n    </div>\n  </div></div></details>",
+      "calls": [
+        "severity:r",
+        "dot:a",
+        "ai:a",
+        "severity:r"
+      ]
+    },
+    {
+      "name": "lux-AmbientLightSensor",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "a",
+            "date": "2026-10-08",
+            "label": "Before lighting change",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "roomId": "r",
+                "tool": "lux",
+                "value": 21.6,
+                "extra": {
+                  "source": "AmbientLightSensor"
+                }
+              }
+            ],
+            "createdAt": 100
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": "a",
+      "all": false,
+      "compare": false,
+      "callbacks": false,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        \n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><p class=\"light-audit-hint\">Save a second audit after making changes to unlock the side-by-side comparison.</p><div class=\"light-audit-card expanded\" data-id=\"a\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Oct 8, 2026 — Before lighting change — 1 room, 1 measurement, Needs attention, expanded\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"a\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          \n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Before lighting change</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 1 measurement</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Needs attention\"><span class=\"sr-only\">Needs attention</span></span>\n    </div><div class=\"light-audit-detail\">\n    <div class=\"light-audit-meta-row\">\n      <label class=\"light-audit-meta-field light-audit-meta-field--date\">\n        <span class=\"light-audit-meta-field-text\">Date</span>\n        <input type=\"date\" class=\"ctx-input\" value=\"2026-10-08\" aria-label=\"Audit date\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"date\">\n      </label>\n      <label class=\"light-audit-meta-field light-audit-meta-field--label\">\n        <span class=\"light-audit-meta-field-text\">Label</span>\n        <input type=\"text\" class=\"ctx-input\" value=\"Before lighting change\" placeholder=\"e.g. Pre-mitigation\" aria-label=\"Audit label\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"label\">\n      </label>\n    </div>\n    <div class=\"light-audit-rooms\"><div class=\"light-audit-room-card\">\n        <div class=\"light-audit-room-head\">\n          <span class=\"light-env-sev-dot light-env-sev-orange\"></span>\n          <span class=\"light-audit-room-name\">Bedroom</span>\n          <span class=\"light-audit-room-status light-audit-room-status-orange\">Needs attention</span>\n        </div><div class=\"light-audit-room-channels\"><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Brightness</span>\n            <span class=\"light-audit-channel-value\">22 lux</span>\n          </div></div></div></div><div class=\"light-audit-footer\">\n      <button class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red)\" data-light-env-action=\"delete-audit-confirm\" data-light-env-id=\"a\">Delete audit</button>\n    </div>\n  </div></div></details>",
+      "calls": [
+        "severity:r",
+        "dot:a",
+        "ai:a",
+        "severity:r"
+      ]
+    },
+    {
+      "name": "lux-unknown",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "a",
+            "date": "2026-10-08",
+            "label": "Before lighting change",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "roomId": "r",
+                "tool": "lux",
+                "value": 21.6,
+                "extra": {
+                  "source": "unknown"
+                }
+              }
+            ],
+            "createdAt": 100
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": "a",
+      "all": false,
+      "compare": false,
+      "callbacks": false,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        \n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><p class=\"light-audit-hint\">Save a second audit after making changes to unlock the side-by-side comparison.</p><div class=\"light-audit-card expanded\" data-id=\"a\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Oct 8, 2026 — Before lighting change — 1 room, 1 measurement, Needs attention, expanded\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"a\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          \n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Before lighting change</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 1 measurement</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Needs attention\"><span class=\"sr-only\">Needs attention</span></span>\n    </div><div class=\"light-audit-detail\">\n    <div class=\"light-audit-meta-row\">\n      <label class=\"light-audit-meta-field light-audit-meta-field--date\">\n        <span class=\"light-audit-meta-field-text\">Date</span>\n        <input type=\"date\" class=\"ctx-input\" value=\"2026-10-08\" aria-label=\"Audit date\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"date\">\n      </label>\n      <label class=\"light-audit-meta-field light-audit-meta-field--label\">\n        <span class=\"light-audit-meta-field-text\">Label</span>\n        <input type=\"text\" class=\"ctx-input\" value=\"Before lighting change\" placeholder=\"e.g. Pre-mitigation\" aria-label=\"Audit label\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"label\">\n      </label>\n    </div>\n    <div class=\"light-audit-rooms\"><div class=\"light-audit-room-card\">\n        <div class=\"light-audit-room-head\">\n          <span class=\"light-env-sev-dot light-env-sev-orange\"></span>\n          <span class=\"light-audit-room-name\">Bedroom</span>\n          <span class=\"light-audit-room-status light-audit-room-status-orange\">Needs attention</span>\n        </div><div class=\"light-audit-room-channels\"><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Brightness</span>\n            <span class=\"light-audit-channel-value\">22 lux (method unknown)</span>\n          </div></div></div></div><div class=\"light-audit-footer\">\n      <button class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red)\" data-light-env-action=\"delete-audit-confirm\" data-light-env-id=\"a\">Delete audit</button>\n    </div>\n  </div></div></details>",
+      "calls": [
+        "severity:r",
+        "dot:a",
+        "ai:a",
+        "severity:r"
+      ]
+    },
+    {
+      "name": "darkness-camera-relative",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "a",
+            "date": "2026-10-08",
+            "label": "Before lighting change",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "roomId": "r",
+                "tool": "darkness",
+                "value": 0.035,
+                "extra": {
+                  "method": "camera-relative",
+                  "levelLabel": "Very dark"
+                }
+              }
+            ],
+            "createdAt": 100
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": "a",
+      "all": false,
+      "compare": false,
+      "callbacks": false,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        \n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><p class=\"light-audit-hint\">Save a second audit after making changes to unlock the side-by-side comparison.</p><div class=\"light-audit-card expanded\" data-id=\"a\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Oct 8, 2026 — Before lighting change — 1 room, 1 measurement, Needs attention, expanded\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"a\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          \n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Before lighting change</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 1 measurement</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Needs attention\"><span class=\"sr-only\">Needs attention</span></span>\n    </div><div class=\"light-audit-detail\">\n    <div class=\"light-audit-meta-row\">\n      <label class=\"light-audit-meta-field light-audit-meta-field--date\">\n        <span class=\"light-audit-meta-field-text\">Date</span>\n        <input type=\"date\" class=\"ctx-input\" value=\"2026-10-08\" aria-label=\"Audit date\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"date\">\n      </label>\n      <label class=\"light-audit-meta-field light-audit-meta-field--label\">\n        <span class=\"light-audit-meta-field-text\">Label</span>\n        <input type=\"text\" class=\"ctx-input\" value=\"Before lighting change\" placeholder=\"e.g. Pre-mitigation\" aria-label=\"Audit label\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"label\">\n      </label>\n    </div>\n    <div class=\"light-audit-rooms\"><div class=\"light-audit-room-card\">\n        <div class=\"light-audit-room-head\">\n          <span class=\"light-env-sev-dot light-env-sev-orange\"></span>\n          <span class=\"light-audit-room-name\">Bedroom</span>\n          <span class=\"light-audit-room-status light-audit-room-status-orange\">Needs attention</span>\n        </div><div class=\"light-audit-room-channels\"><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Sleep light</span>\n            <span class=\"light-audit-channel-value\">Very dark camera check</span>\n          </div></div></div></div><div class=\"light-audit-footer\">\n      <button class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red)\" data-light-env-action=\"delete-audit-confirm\" data-light-env-id=\"a\">Delete audit</button>\n    </div>\n  </div></div></details>",
+      "calls": [
+        "severity:r",
+        "dot:a",
+        "ai:a",
+        "severity:r"
+      ]
+    },
+    {
+      "name": "darkness-unknown",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "a",
+            "date": "2026-10-08",
+            "label": "Before lighting change",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "roomId": "r",
+                "tool": "darkness",
+                "value": 0.035,
+                "extra": {
+                  "method": "unknown",
+                  "levelLabel": "Very dark"
+                }
+              }
+            ],
+            "createdAt": 100
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": "a",
+      "all": false,
+      "compare": false,
+      "callbacks": false,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        \n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><p class=\"light-audit-hint\">Save a second audit after making changes to unlock the side-by-side comparison.</p><div class=\"light-audit-card expanded\" data-id=\"a\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Oct 8, 2026 — Before lighting change — 1 room, 1 measurement, Needs attention, expanded\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"a\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          \n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Before lighting change</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 1 measurement</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Needs attention\"><span class=\"sr-only\">Needs attention</span></span>\n    </div><div class=\"light-audit-detail\">\n    <div class=\"light-audit-meta-row\">\n      <label class=\"light-audit-meta-field light-audit-meta-field--date\">\n        <span class=\"light-audit-meta-field-text\">Date</span>\n        <input type=\"date\" class=\"ctx-input\" value=\"2026-10-08\" aria-label=\"Audit date\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"date\">\n      </label>\n      <label class=\"light-audit-meta-field light-audit-meta-field--label\">\n        <span class=\"light-audit-meta-field-text\">Label</span>\n        <input type=\"text\" class=\"ctx-input\" value=\"Before lighting change\" placeholder=\"e.g. Pre-mitigation\" aria-label=\"Audit label\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"label\">\n      </label>\n    </div>\n    <div class=\"light-audit-rooms\"><div class=\"light-audit-room-card\">\n        <div class=\"light-audit-room-head\">\n          <span class=\"light-env-sev-dot light-env-sev-orange\"></span>\n          <span class=\"light-audit-room-name\">Bedroom</span>\n          <span class=\"light-audit-room-status light-audit-room-status-orange\">Needs attention</span>\n        </div><div class=\"light-audit-room-channels\"><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Sleep light</span>\n            <span class=\"light-audit-channel-value\">0.04 legacy value (method unknown)</span>\n          </div></div></div></div><div class=\"light-audit-footer\">\n      <button class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red)\" data-light-env-action=\"delete-audit-confirm\" data-light-env-id=\"a\">Delete audit</button>\n    </div>\n  </div></div></details>",
+      "calls": [
+        "severity:r",
+        "dot:a",
+        "ai:a",
+        "severity:r"
+      ]
+    },
+    {
+      "name": "legacy-proxy",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "a",
+            "date": "2026-10-08",
+            "label": "Before lighting change",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "roomId": "r",
+                "tool": "spectrum",
+                "extra": {
+                  "melanopic": 0.27
+                }
+              }
+            ],
+            "createdAt": 100
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": "a",
+      "all": false,
+      "compare": false,
+      "callbacks": false,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        \n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><p class=\"light-audit-hint\">Save a second audit after making changes to unlock the side-by-side comparison.</p><div class=\"light-audit-card expanded\" data-id=\"a\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Oct 8, 2026 — Before lighting change — 1 room, 1 measurement, Needs attention, expanded\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"a\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          \n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Before lighting change</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 1 measurement</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Needs attention\"><span class=\"sr-only\">Needs attention</span></span>\n    </div><div class=\"light-audit-detail\">\n    <div class=\"light-audit-meta-row\">\n      <label class=\"light-audit-meta-field light-audit-meta-field--date\">\n        <span class=\"light-audit-meta-field-text\">Date</span>\n        <input type=\"date\" class=\"ctx-input\" value=\"2026-10-08\" aria-label=\"Audit date\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"date\">\n      </label>\n      <label class=\"light-audit-meta-field light-audit-meta-field--label\">\n        <span class=\"light-audit-meta-field-text\">Label</span>\n        <input type=\"text\" class=\"ctx-input\" value=\"Before lighting change\" placeholder=\"e.g. Pre-mitigation\" aria-label=\"Audit label\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"label\">\n      </label>\n    </div>\n    <div class=\"light-audit-rooms\"><div class=\"light-audit-room-card\">\n        <div class=\"light-audit-room-head\">\n          <span class=\"light-env-sev-dot light-env-sev-orange\"></span>\n          <span class=\"light-audit-room-name\">Bedroom</span>\n          <span class=\"light-audit-room-status light-audit-room-status-orange\">Needs attention</span>\n        </div><div class=\"light-audit-room-channels\"><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Camera blue proxy</span>\n            <span class=\"light-audit-channel-value\">27%</span>\n          </div></div></div></div><div class=\"light-audit-footer\">\n      <button class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red)\" data-light-env-action=\"delete-audit-confirm\" data-light-env-id=\"a\">Delete audit</button>\n    </div>\n  </div></div></details>",
+      "calls": [
+        "severity:r",
+        "dot:a",
+        "ai:a",
+        "severity:r"
+      ]
+    },
+    {
+      "name": "latest-reading",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "a",
+            "date": "2026-10-08",
+            "label": "Before lighting change",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              },
+              {
+                "roomId": "r",
+                "tool": "lux",
+                "value": 1234,
+                "capturedAt": 999,
+                "extra": {
+                  "source": "manual-entry"
+                }
+              }
+            ],
+            "createdAt": 100
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": "a",
+      "all": false,
+      "compare": false,
+      "callbacks": false,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        \n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><p class=\"light-audit-hint\">Save a second audit after making changes to unlock the side-by-side comparison.</p><div class=\"light-audit-card expanded\" data-id=\"a\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Oct 8, 2026 — Before lighting change — 1 room, 6 measurements, Strong signal, expanded\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"a\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          \n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Before lighting change</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 6 measurements</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Strong signal\"><span class=\"sr-only\">Strong signal</span></span>\n    </div><div class=\"light-audit-detail\">\n    <div class=\"light-audit-meta-row\">\n      <label class=\"light-audit-meta-field light-audit-meta-field--date\">\n        <span class=\"light-audit-meta-field-text\">Date</span>\n        <input type=\"date\" class=\"ctx-input\" value=\"2026-10-08\" aria-label=\"Audit date\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"date\">\n      </label>\n      <label class=\"light-audit-meta-field light-audit-meta-field--label\">\n        <span class=\"light-audit-meta-field-text\">Label</span>\n        <input type=\"text\" class=\"ctx-input\" value=\"Before lighting change\" placeholder=\"e.g. Pre-mitigation\" aria-label=\"Audit label\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"label\">\n      </label>\n    </div>\n    <div class=\"light-audit-rooms\"><div class=\"light-audit-room-card\">\n        <div class=\"light-audit-room-head\">\n          <span class=\"light-env-sev-dot light-env-sev-red\"></span>\n          <span class=\"light-audit-room-name\">Bedroom</span>\n          <span class=\"light-audit-room-status light-audit-room-status-red\">Strong signal</span>\n        </div><div class=\"light-audit-room-channels\"><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Brightness</span>\n            <span class=\"light-audit-channel-value\">1234 lux</span>\n          </div><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Sleep light</span>\n            <span class=\"light-audit-channel-value\">2.35 lux (meter)</span>\n          </div><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Flicker</span>\n            <span class=\"light-audit-channel-value\">Strong banding</span>\n          </div><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Warm / cool</span>\n            <span class=\"light-audit-channel-value\">~5300 K (camera)</span>\n          </div><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Camera blue proxy</span>\n            <span class=\"light-audit-channel-value\">73%</span>\n          </div></div></div></div><div class=\"light-audit-footer\">\n      <button class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red)\" data-light-env-action=\"delete-audit-confirm\" data-light-env-id=\"a\">Delete audit</button>\n    </div>\n  </div></div></details>",
+      "calls": [
+        "severity:r",
+        "dot:a",
+        "ai:a",
+        "severity:r"
+      ]
+    },
+    {
+      "name": "snapshot-screen",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "a",
+            "date": "2026-10-08",
+            "label": "Before lighting change",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [
+              {
+                "id": "frozen-screen",
+                "roomId": "r",
+                "device": "phone",
+                "hoursPerDay": 16,
+                "eveningUseAfterSunset": 10
+              }
+            ],
+            "measurements": [],
+            "createdAt": 100
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": "a",
+      "all": false,
+      "compare": false,
+      "callbacks": false,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        \n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><p class=\"light-audit-hint\">Save a second audit after making changes to unlock the side-by-side comparison.</p><div class=\"light-audit-card expanded\" data-id=\"a\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Oct 8, 2026 — Before lighting change — 1 room, 0 measurements, High signal, expanded\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"a\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          \n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Before lighting change</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 0 measurements</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"High signal\"><span class=\"sr-only\">High signal</span></span>\n    </div><div class=\"light-audit-detail\">\n    <div class=\"light-audit-meta-row\">\n      <label class=\"light-audit-meta-field light-audit-meta-field--date\">\n        <span class=\"light-audit-meta-field-text\">Date</span>\n        <input type=\"date\" class=\"ctx-input\" value=\"2026-10-08\" aria-label=\"Audit date\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"date\">\n      </label>\n      <label class=\"light-audit-meta-field light-audit-meta-field--label\">\n        <span class=\"light-audit-meta-field-text\">Label</span>\n        <input type=\"text\" class=\"ctx-input\" value=\"Before lighting change\" placeholder=\"e.g. Pre-mitigation\" aria-label=\"Audit label\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"a\" data-light-env-field=\"label\">\n      </label>\n    </div>\n    <div class=\"light-audit-rooms\"><div class=\"light-audit-room-card\">\n        <div class=\"light-audit-room-head\">\n          <span class=\"light-env-sev-dot light-env-sev-red\"></span>\n          <span class=\"light-audit-room-name\">Bedroom</span>\n          <span class=\"light-audit-room-status light-audit-room-status-red\">High signal</span>\n        </div><p class=\"light-audit-room-empty\">No measurements taken in this room before the snapshot.</p></div></div><div class=\"light-audit-footer\">\n      <button class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red)\" data-light-env-action=\"delete-audit-confirm\" data-light-env-id=\"a\">Delete audit</button>\n    </div>\n  </div></div></details>",
+      "calls": [
+        "severity:r",
+        "dot:a",
+        "ai:a",
+        "severity:r"
+      ]
+    },
+    {
+      "name": "literal-fields",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "\"><img src=x onerror=alert(1)> & literal",
+            "date": "2026-10-08",
+            "label": "\"><img src=x onerror=alert(1)> & literal",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "\"><img src=x onerror=alert(1)> & literal",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              }
+            ],
+            "createdAt": 100
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": "\"><img src=x onerror=alert(1)> & literal",
+      "all": false,
+      "compare": false,
+      "callbacks": true,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        \n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><p class=\"light-audit-hint\">Save a second audit after making changes to unlock the side-by-side comparison.</p><div class=\"light-audit-card expanded\" data-id=\"&quot;&gt;&lt;img src=x onerror=alert(1)&gt; &amp; literal\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Oct 8, 2026 — &quot;&gt;&lt;img src=x onerror=alert(1)&gt; &amp; literal — 1 room, 5 measurements, Strong signal, expanded\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"&quot;&gt;&lt;img src=x onerror=alert(1)&gt; &amp; literal\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          <button type=\"button\" data-fixture-audit-dot>Trusted audit dot</button>\n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">&quot;&gt;&lt;img src=x onerror=alert(1)&gt; &amp; literal</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 5 measurements</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Strong signal\"><span class=\"sr-only\">Strong signal</span></span>\n    </div><div class=\"light-audit-detail\">\n    <div class=\"light-audit-meta-row\">\n      <label class=\"light-audit-meta-field light-audit-meta-field--date\">\n        <span class=\"light-audit-meta-field-text\">Date</span>\n        <input type=\"date\" class=\"ctx-input\" value=\"2026-10-08\" aria-label=\"Audit date\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"&quot;&gt;&lt;img src=x onerror=alert(1)&gt; &amp; literal\" data-light-env-field=\"date\">\n      </label>\n      <label class=\"light-audit-meta-field light-audit-meta-field--label\">\n        <span class=\"light-audit-meta-field-text\">Label</span>\n        <input type=\"text\" class=\"ctx-input\" value=\"&quot;&gt;&lt;img src=x onerror=alert(1)&gt; &amp; literal\" placeholder=\"e.g. Pre-mitigation\" aria-label=\"Audit label\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"&quot;&gt;&lt;img src=x onerror=alert(1)&gt; &amp; literal\" data-light-env-field=\"label\">\n      </label>\n    </div>\n    <div data-fixture-audit-ai>Trusted audit verdict</div><div class=\"light-audit-rooms\"><div class=\"light-audit-room-card\">\n        <div class=\"light-audit-room-head\">\n          <span class=\"light-env-sev-dot light-env-sev-red\"></span>\n          <span class=\"light-audit-room-name\">&quot;&gt;&lt;img src=x onerror=alert(1)&gt; &amp; literal</span>\n          <span class=\"light-audit-room-status light-audit-room-status-red\">Strong signal</span>\n        </div><div class=\"light-audit-room-channels\"><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Brightness</span>\n            <span class=\"light-audit-channel-value\">~52 lux (camera estimate)</span>\n          </div><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Sleep light</span>\n            <span class=\"light-audit-channel-value\">2.35 lux (meter)</span>\n          </div><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Flicker</span>\n            <span class=\"light-audit-channel-value\">Strong banding</span>\n          </div><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Warm / cool</span>\n            <span class=\"light-audit-channel-value\">~5300 K (camera)</span>\n          </div><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Camera blue proxy</span>\n            <span class=\"light-audit-channel-value\">73%</span>\n          </div></div></div></div><div class=\"light-audit-footer\">\n      <button class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red)\" data-light-env-action=\"delete-audit-confirm\" data-light-env-id=\"&quot;&gt;&lt;img src=x onerror=alert(1)&gt; &amp; literal\">Delete audit</button>\n    </div>\n  </div></div></details>",
+      "calls": [
+        "severity:r",
+        "dot:\"><img src=x onerror=alert(1)> & literal",
+        "ai:\"><img src=x onerror=alert(1)> & literal",
+        "severity:r"
+      ]
+    },
+    {
+      "name": "history-cap",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "old",
+            "date": "2026-10-01",
+            "label": "Oldest",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              }
+            ],
+            "createdAt": 100
+          },
+          {
+            "id": "second",
+            "date": "2026-10-07",
+            "label": "Second",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              }
+            ],
+            "createdAt": 100
+          },
+          {
+            "id": "new",
+            "date": "2026-10-08",
+            "label": "Newest",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              }
+            ],
+            "createdAt": 100
+          },
+          {
+            "id": "tie",
+            "date": "2026-10-08",
+            "label": "Tie winner",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              }
+            ],
+            "createdAt": 200
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": null,
+      "all": false,
+      "compare": false,
+      "callbacks": false,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-primary\" data-light-env-action=\"toggle-audit-compare\">⇄ Compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-card\" data-id=\"tie\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Oct 8, 2026 — Tie winner — 1 room, 5 measurements, Strong signal, collapsed\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"tie\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          \n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Tie winner</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 5 measurements</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Strong signal\"><span class=\"sr-only\">Strong signal</span></span>\n    </div></div><div class=\"light-audit-card\" data-id=\"new\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Oct 8, 2026 — Newest — 1 room, 5 measurements, Strong signal, collapsed\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"new\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          \n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Newest</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 5 measurements</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Strong signal\"><span class=\"sr-only\">Strong signal</span></span>\n    </div></div><button class=\"light-audit-show-more\" data-light-env-action=\"toggle-audit-history\">\n        Show 2 older audits\n      </button></details>",
+      "calls": [
+        "severity:r",
+        "dot:tie",
+        "severity:r",
+        "dot:new"
+      ]
+    },
+    {
+      "name": "history-all",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "old",
+            "date": "2026-10-01",
+            "label": "Oldest",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              }
+            ],
+            "createdAt": 100
+          },
+          {
+            "id": "second",
+            "date": "2026-10-07",
+            "label": "Second",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              }
+            ],
+            "createdAt": 100
+          },
+          {
+            "id": "new",
+            "date": "2026-10-08",
+            "label": "Newest",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              }
+            ],
+            "createdAt": 100
+          },
+          {
+            "id": "tie",
+            "date": "2026-10-08",
+            "label": "Tie winner",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              }
+            ],
+            "createdAt": 200
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": "old",
+      "all": true,
+      "compare": false,
+      "callbacks": true,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-primary\" data-light-env-action=\"toggle-audit-compare\">⇄ Compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-card\" data-id=\"tie\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Oct 8, 2026 — Tie winner — 1 room, 5 measurements, Strong signal, collapsed\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"tie\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          <button type=\"button\" data-fixture-audit-dot>Trusted audit dot</button>\n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Tie winner</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 5 measurements</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Strong signal\"><span class=\"sr-only\">Strong signal</span></span>\n    </div></div><div class=\"light-audit-card\" data-id=\"new\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Oct 8, 2026 — Newest — 1 room, 5 measurements, Strong signal, collapsed\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"new\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          <button type=\"button\" data-fixture-audit-dot>Trusted audit dot</button>\n          <span class=\"light-audit-date\">Oct 8, 2026</span>\n          <span class=\"light-audit-label\">Newest</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 5 measurements</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Strong signal\"><span class=\"sr-only\">Strong signal</span></span>\n    </div></div><div class=\"light-audit-card\" data-id=\"second\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Oct 7, 2026 — Second — 1 room, 5 measurements, Strong signal, collapsed\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"second\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          <button type=\"button\" data-fixture-audit-dot>Trusted audit dot</button>\n          <span class=\"light-audit-date\">Oct 7, 2026</span>\n          <span class=\"light-audit-label\">Second</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 5 measurements</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Strong signal\"><span class=\"sr-only\">Strong signal</span></span>\n    </div></div><div class=\"light-audit-card expanded\" data-id=\"old\">\n    <div class=\"light-audit-header\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Oct 1, 2026 — Oldest — 1 room, 5 measurements, Strong signal, expanded\" data-light-env-action=\"toggle-audit\" data-light-env-id=\"old\">\n      <div class=\"light-audit-info\">\n        <div class=\"light-audit-info-top\">\n          <button type=\"button\" data-fixture-audit-dot>Trusted audit dot</button>\n          <span class=\"light-audit-date\">Oct 1, 2026</span>\n          <span class=\"light-audit-label\">Oldest</span>\n        </div>\n        <span class=\"light-audit-meta\">1 room · 5 measurements</span>\n      </div>\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Strong signal\"><span class=\"sr-only\">Strong signal</span></span>\n    </div><div class=\"light-audit-detail\">\n    <div class=\"light-audit-meta-row\">\n      <label class=\"light-audit-meta-field light-audit-meta-field--date\">\n        <span class=\"light-audit-meta-field-text\">Date</span>\n        <input type=\"date\" class=\"ctx-input\" value=\"2026-10-01\" aria-label=\"Audit date\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"old\" data-light-env-field=\"date\">\n      </label>\n      <label class=\"light-audit-meta-field light-audit-meta-field--label\">\n        <span class=\"light-audit-meta-field-text\">Label</span>\n        <input type=\"text\" class=\"ctx-input\" value=\"Oldest\" placeholder=\"e.g. Pre-mitigation\" aria-label=\"Audit label\" data-light-env-action=\"update-audit-field\" data-light-env-id=\"old\" data-light-env-field=\"label\">\n      </label>\n    </div>\n    <div data-fixture-audit-ai>Trusted audit verdict</div><div class=\"light-audit-rooms\"><div class=\"light-audit-room-card\">\n        <div class=\"light-audit-room-head\">\n          <span class=\"light-env-sev-dot light-env-sev-red\"></span>\n          <span class=\"light-audit-room-name\">Bedroom</span>\n          <span class=\"light-audit-room-status light-audit-room-status-red\">Strong signal</span>\n        </div><div class=\"light-audit-room-channels\"><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Brightness</span>\n            <span class=\"light-audit-channel-value\">~52 lux (camera estimate)</span>\n          </div><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Sleep light</span>\n            <span class=\"light-audit-channel-value\">2.35 lux (meter)</span>\n          </div><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Flicker</span>\n            <span class=\"light-audit-channel-value\">Strong banding</span>\n          </div><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Warm / cool</span>\n            <span class=\"light-audit-channel-value\">~5300 K (camera)</span>\n          </div><div class=\"light-audit-channel\">\n            <span class=\"light-audit-channel-label\">Camera blue proxy</span>\n            <span class=\"light-audit-channel-value\">73%</span>\n          </div></div></div></div><div class=\"light-audit-footer\">\n      <button class=\"import-btn import-btn-secondary\" style=\"color:var(--red);border-color:var(--red)\" data-light-env-action=\"delete-audit-confirm\" data-light-env-id=\"old\">Delete audit</button>\n    </div>\n  </div></div><button class=\"light-audit-show-more\" data-light-env-action=\"toggle-audit-history\">\n        Show only latest 2 audits\n      </button></details>",
+      "calls": [
+        "severity:r",
+        "dot:tie",
+        "severity:r",
+        "dot:new",
+        "severity:r",
+        "dot:second",
+        "severity:r",
+        "dot:old",
+        "ai:old",
+        "severity:r"
+      ]
+    },
+    {
+      "name": "comparison",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "a",
+            "date": "2026-10-08",
+            "label": "Before lighting change",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              }
+            ],
+            "createdAt": 100
+          },
+          {
+            "id": "after",
+            "date": "2026-10-09",
+            "label": "After",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Renamed Bedroom",
+                "primarySource": "led-warm",
+                "daylightLevel": "strong",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 0.5
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 200,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 0,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 0
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 2700
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.2
+                }
+              }
+            ],
+            "createdAt": 100
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": null,
+      "all": false,
+      "compare": true,
+      "callbacks": false,
+      "provider": true,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Before lighting change</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    <button class=\"import-btn import-btn-secondary light-audit-interpret-btn\" data-light-env-action=\"interpret-audit-compare\" data-light-env-old-id=\"a\" data-light-env-new-id=\"after\" title=\"Open the chat panel with a pre-filled comparison summary so the AI can interpret what changed.\">✨ Interpret changes</button>\n  </div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Renamed Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Brightness</span>\n          <span class=\"light-audit-compare-channel-before\">~52 lux (camera estimate)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↑</span>\n          <span class=\"light-audit-compare-channel-after\">~200 lux (camera estimate)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Sleep light</span>\n          <span class=\"light-audit-compare-channel-before\">2.35 lux (meter)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">0.00 lux (meter)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Banding</span>\n          <span class=\"light-audit-compare-channel-before\">Strong banding</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">No banding detected</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Warm / cool</span>\n          <span class=\"light-audit-compare-channel-before\">~5300 K</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">~2700 K</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">73%</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">20%</span>\n        </div></div></div></div></details>",
+      "calls": [
+        "severity:r",
+        "severity:r"
+      ]
+    },
+    {
+      "name": "comparison-history",
+      "data": {
+        "lightAudits": [
+          {
+            "id": "old",
+            "date": "2026-10-01",
+            "label": "Oldest",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              }
+            ],
+            "createdAt": 100
+          },
+          {
+            "id": "second",
+            "date": "2026-10-07",
+            "label": "Second",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              }
+            ],
+            "createdAt": 100
+          },
+          {
+            "id": "new",
+            "date": "2026-10-08",
+            "label": "Newest",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              }
+            ],
+            "createdAt": 100
+          },
+          {
+            "id": "tie",
+            "date": "2026-10-08",
+            "label": "Tie winner",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Bedroom",
+                "primarySource": "led-cool",
+                "daylightLevel": "low",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 4
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 51.5,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 2.35,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 3
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 5260
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.73,
+                  "melanopic": 0.1
+                }
+              }
+            ],
+            "createdAt": 200
+          },
+          {
+            "id": "after",
+            "date": "2026-10-09",
+            "label": "After",
+            "notes": "Stored notes retained",
+            "rooms": [
+              {
+                "id": "r",
+                "name": "Renamed Bedroom",
+                "primarySource": "led-warm",
+                "daylightLevel": "strong",
+                "hoursOccupiedPerDay": 8,
+                "eveningHoursAfterSunset": 0.5
+              }
+            ],
+            "screens": [],
+            "measurements": [
+              {
+                "id": "m0",
+                "roomId": "r",
+                "capturedAt": 100,
+                "tool": "lux",
+                "value": 200,
+                "extra": {
+                  "source": "camera-estimate"
+                }
+              },
+              {
+                "id": "m1",
+                "roomId": "r",
+                "capturedAt": 101,
+                "tool": "darkness",
+                "value": 0,
+                "extra": {
+                  "method": "meter-entry"
+                }
+              },
+              {
+                "id": "m2",
+                "roomId": "r",
+                "capturedAt": 102,
+                "tool": "flicker",
+                "value": 0
+              },
+              {
+                "id": "m3",
+                "roomId": "r",
+                "capturedAt": 103,
+                "tool": "cct",
+                "value": 2700
+              },
+              {
+                "id": "m4",
+                "roomId": "r",
+                "capturedAt": 104,
+                "tool": "spectrum",
+                "value": 0,
+                "extra": {
+                  "cameraBlueRatioProxy": 0.2
+                }
+              }
+            ],
+            "createdAt": 100
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom",
+              "primarySource": "led-cool",
+              "daylightLevel": "low",
+              "hoursOccupiedPerDay": 8,
+              "eveningHoursAfterSunset": 4
+            }
+          ],
+          "screens": [
+            {
+              "id": "live-screen",
+              "roomId": "r",
+              "device": "phone",
+              "hoursPerDay": 16,
+              "eveningUseAfterSunset": 10
+            }
+          ]
+        }
+      },
+      "expanded": null,
+      "all": false,
+      "compare": true,
+      "callbacks": false,
+      "provider": false,
+      "open": false,
+      "html": "<details class=\"light-env-block light-audits-block\" open data-light-env-action=\"set-audits-block-open\">\n    <summary class=\"light-env-block-head light-audits-summary\">\n      <strong>Light audits</strong>\n      <div class=\"light-audit-actions\">\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"toggle-audit-compare\">Exit compare</button>\n        <button class=\"import-btn import-btn-secondary\" data-light-env-action=\"save-audit\" title=\"Snapshot the current rooms + screens + recent measurements as a dated audit. Save another after you make changes (warmer bulbs, blackouts, blue blockers) to unlock the side-by-side compare.\">+ Save audit</button>\n      </div>\n    </summary><div class=\"light-audit-compare-head\">\n    <span class=\"light-audit-compare-label\">Before: Oct 8, 2026 — Tie winner</span>\n    <span class=\"light-audit-compare-arrow\">→</span>\n    <span class=\"light-audit-compare-label\">After: Oct 9, 2026 — After</span>\n    \n  </div><div class=\"light-audit-compare-note\">Comparing the two most recent audits. 3 earlier audits not shown.</div><div class=\"light-audit-compare-rooms\"><div class=\"light-audit-compare-room light-audit-compare-room-improved\">\n      <div class=\"light-audit-compare-room-head\">\n        <span class=\"light-env-sev-dot light-env-sev-red\" title=\"Before\"></span>\n        <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">→</span>\n        <span class=\"light-env-sev-dot light-env-sev-green\" title=\"After\"></span>\n        <span class=\"light-audit-compare-room-name\">Renamed Bedroom</span>\n        <span class=\"light-audit-compare-verdict light-audit-compare-verdict-improved\">improved</span>\n      </div><div class=\"light-audit-compare-channels\"><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Brightness</span>\n          <span class=\"light-audit-compare-channel-before\">~52 lux (camera estimate)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↑</span>\n          <span class=\"light-audit-compare-channel-after\">~200 lux (camera estimate)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Sleep light</span>\n          <span class=\"light-audit-compare-channel-before\">2.35 lux (meter)</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">0.00 lux (meter)</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Banding</span>\n          <span class=\"light-audit-compare-channel-before\">Strong banding</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">No banding detected</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\">Warm / cool</span>\n          <span class=\"light-audit-compare-channel-before\">~5300 K</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--text-muted)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">~2700 K</span>\n        </div><div class=\"light-audit-compare-channel\">\n          <span class=\"light-audit-compare-channel-label\" title=\"Normalized phone-camera RGB blue ratio; not CIE melanopic EDI\">Camera blue proxy</span>\n          <span class=\"light-audit-compare-channel-before\">73%</span>\n          <span class=\"light-audit-arrow\" style=\"color:var(--green)\">↓</span>\n          <span class=\"light-audit-compare-channel-after\">20%</span>\n        </div></div></div></div></details>",
+      "calls": [
+        "severity:r",
+        "severity:r"
+      ]
+    }
+  ],
+  "styleBlocks": [
+    {
+      "selector": ".light-env-sev-dot:not(:where([data-light-environment-screen], [data-light-environment-screen] *, [data-light-environment-room], [data-light-environment-room] *))",
+      "declarations": "display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0;box-shadow:0 0 6px currentColor;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-green:not(:where([data-light-environment-screen], [data-light-environment-screen] *, [data-light-environment-room], [data-light-environment-room] *))",
+      "declarations": "background:var(--green);color:var(--green);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-yellow:not(:where([data-light-environment-screen], [data-light-environment-screen] *, [data-light-environment-room], [data-light-environment-room] *))",
+      "declarations": "background:var(--yellow);color:var(--yellow);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-orange:not(:where([data-light-environment-screen], [data-light-environment-screen] *, [data-light-environment-room], [data-light-environment-room] *))",
+      "declarations": "background:var(--orange);color:var(--orange);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-red:not(:where([data-light-environment-screen], [data-light-environment-screen] *, [data-light-environment-room], [data-light-environment-room] *))",
+      "declarations": "background:var(--red);color:var(--red);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-incomplete:not(:where([data-light-environment-screen], [data-light-environment-screen] *, [data-light-environment-room], [data-light-environment-room] *))",
+      "declarations": "background:transparent;color:var(--text-muted);border:1.5px dashed var(--text-muted);box-shadow:none;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-block",
+      "declarations": "margin-top:16px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-block-head",
+      "declarations": "display:flex;align-items:center;gap:12px;margin-bottom:10px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-block-head strong",
+      "declarations": "color:var(--text-primary);font-size:14px;flex:1;",
+      "media": null
+    },
+    {
+      "selector": ".light-audits-block",
+      "declarations": "margin-top:18px;border:1px solid var(--border);border-radius:var(--radius-sm);background:color-mix(in srgb, var(--bg-card) 88%, transparent);overflow:hidden;",
+      "media": null
+    },
+    {
+      "selector": ".light-audits-block > summary",
+      "declarations": "list-style:none;",
+      "media": null
+    },
+    {
+      "selector": ".light-audits-block > summary::-webkit-details-marker",
+      "declarations": "display:none;",
+      "media": null
+    },
+    {
+      "selector": ".light-audits-summary",
+      "declarations": "margin:0;padding:10px 12px;cursor:pointer;background:color-mix(in srgb, var(--bg-secondary) 70%, transparent);",
+      "media": null
+    },
+    {
+      "selector": ".light-audits-block[open] .light-audits-summary",
+      "declarations": "border-bottom:1px solid var(--border);",
+      "media": null
+    },
+    {
+      "selector": ".light-audits-block > .light-env-empty,\n.light-audits-block > .light-audit-hint,\n.light-audits-block > .light-audit-card,\n.light-audits-block > .light-audit-compare",
+      "declarations": "margin:10px 12px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-actions",
+      "declarations": "display:flex;gap:8px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-show-more",
+      "declarations": "display:block;width:calc(100% - 24px);margin:10px 12px;padding:8px 12px;background:transparent;border:1px dashed var(--border);border-radius:6px;color:var(--text-muted);font-size:12.5px;cursor:pointer;transition:color 0.15s, border-color 0.15s, background 0.15s;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-show-more:hover",
+      "declarations": "color:var(--accent);border-color:var(--accent);border-style:solid;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-show-more:focus-visible",
+      "declarations": "outline:2px solid var(--accent);outline-offset:2px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-card",
+      "declarations": "border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;overflow:hidden;background:var(--bg-card);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-card.expanded",
+      "declarations": "border-color:var(--accent);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-header",
+      "declarations": "display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:pointer;transition:background 0.15s;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-header:hover",
+      "declarations": "background:var(--bg-hover);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-header:focus-visible",
+      "declarations": "outline:2px solid var(--accent);outline-offset:-2px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-info",
+      "declarations": "display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-info-top",
+      "declarations": "display:flex;gap:10px;align-items:center;flex-wrap:wrap;min-width:0;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-date",
+      "declarations": "font-weight:600;font-size:13px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-label",
+      "declarations": "font-size:12px;color:var(--text-secondary);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-meta",
+      "declarations": "font-size:11px;color:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-detail",
+      "declarations": "padding:0 14px 14px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-meta-row",
+      "declarations": "display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-meta-field",
+      "declarations": "display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-meta-field--date",
+      "declarations": "flex:0 0 auto;width:160px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-meta-field--label",
+      "declarations": "flex:1 1 200px;min-width:0;max-width:360px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-meta-field-text",
+      "declarations": "font-size:11px;font-weight:600;letter-spacing:0.4px;text-transform:uppercase;color:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-meta-row .ctx-input",
+      "declarations": "margin-top:0;font-size:13px;padding:6px 10px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-empty",
+      "declarations": "color:var(--text-muted);font-size:12px;padding:12px 0;line-height:1.5;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-hint",
+      "declarations": "font-size:12px;color:var(--text-muted);padding:6px 10px;margin-bottom:10px;background:var(--bg-secondary);border-left:2px solid var(--accent);border-radius:4px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-footer",
+      "declarations": "display:flex;gap:8px;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-rooms",
+      "declarations": "display:flex;flex-direction:column;gap:8px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-room-card",
+      "declarations": "background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-room-head",
+      "declarations": "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-room-name",
+      "declarations": "font-size:13px;font-weight:600;color:var(--text-primary);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-room-status",
+      "declarations": "font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-room-status-green",
+      "declarations": "background:rgba(34,197,94,0.12);color:var(--green);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-room-status-yellow",
+      "declarations": "background:rgba(234,179,8,0.12);color:var(--yellow);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-room-status-orange",
+      "declarations": "background:rgba(249,115,22,0.12);color:var(--orange);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-room-status-red",
+      "declarations": "background:rgba(239,68,68,0.12);color:var(--red);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-room-status-incomplete",
+      "declarations": "background:var(--bg-card);color:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-room-empty",
+      "declarations": "font-size:12px;color:var(--text-muted);margin:0;font-style:italic;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-room-channels",
+      "declarations": "display:flex;flex-wrap:wrap;gap:6px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-channel",
+      "declarations": "display:inline-flex;align-items:center;gap:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-channel-label",
+      "declarations": "color:var(--text-muted);font-size:11px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-channel-value",
+      "declarations": "color:var(--text-primary);font-weight:500;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-head",
+      "declarations": "display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 14px;background:var(--bg-card);border-radius:var(--radius-sm);border:1px solid var(--border);flex-wrap:wrap;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-label",
+      "declarations": "font-size:13px;font-weight:600;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-arrow",
+      "declarations": "color:var(--text-muted);font-size:16px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-note",
+      "declarations": "font-size:11px;color:var(--text-muted);margin-bottom:10px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-interpret-btn",
+      "declarations": "margin-left:auto;font-size:12px;padding:5px 10px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-interpret-btn",
+      "declarations": "margin-left:0;width:100%;",
+      "media": "(max-width: 600px)"
+    },
+    {
+      "selector": ".light-audit-compare-rooms",
+      "declarations": "display:flex;flex-direction:column;gap:8px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-room",
+      "declarations": "background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-room-improved",
+      "declarations": "border-left:3px solid var(--green);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-room-regressed",
+      "declarations": "border-left:3px solid var(--red);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-room-measured",
+      "declarations": "border-left:3px solid var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-room-unchanged",
+      "declarations": "border-left:3px solid transparent;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-room-head",
+      "declarations": "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-sev-empty",
+      "declarations": "display:inline-block;width:10px;height:10px;border:1.5px dashed var(--text-muted);border-radius:50%;flex-shrink:0;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-room-name",
+      "declarations": "font-size:13px;font-weight:600;color:var(--text-primary);flex:1;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-verdict",
+      "declarations": "font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;padding:2px 8px;border-radius:10px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-verdict-improved",
+      "declarations": "background:rgba(34,197,94,0.12);color:var(--green);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-verdict-regressed",
+      "declarations": "background:rgba(239,68,68,0.12);color:var(--red);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-verdict-measured",
+      "declarations": "background:var(--bg-card);color:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-verdict-unchanged",
+      "declarations": "display:none;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-channels",
+      "declarations": "display:flex;flex-direction:column;gap:4px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-channel",
+      "declarations": "display:grid;grid-template-columns:minmax(80px, 1fr) minmax(60px, auto) auto minmax(60px, auto);gap:8px;align-items:baseline;font-size:12px;padding:3px 0;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-channel-label",
+      "declarations": "color:var(--text-muted);font-size:11px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-channel-before",
+      "declarations": "color:var(--text-secondary);text-align:right;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-compare-channel-after",
+      "declarations": "color:var(--text-primary);font-weight:500;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-arrow",
+      "declarations": "font-weight:600;font-size:13px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-header",
+      "declarations": "flex-direction:column;align-items:flex-start;gap:6px;",
+      "media": "(max-width: 600px)"
+    },
+    {
+      "selector": ".light-audit-compare-channel",
+      "declarations": "grid-template-columns:minmax(70px, 1fr) auto auto auto;font-size:11px;",
+      "media": "(max-width: 600px)"
+    }
+  ]
+}

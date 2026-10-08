@@ -29,3 +29,9 @@
 @source "../js/components/LightEnvironmentPicker.svelte";
 @source "../js/components/LightEnvironmentQuickPicks.svelte";
 @source "../js/light-environment-room-classes.ts";
+
+/* Historical audit cards own their presentation; snapshot services own data. */
+@custom-variant environment-audit (&:is([data-light-audit-card], [data-light-audit-card] *));
+@source "../js/components/LightAuditCard.svelte";
+@source "../js/components/LightAuditDetail.svelte";
+@source "../js/light-audit-classes.ts";
