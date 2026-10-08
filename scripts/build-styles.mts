@@ -41,11 +41,15 @@ export async function buildProtectionStyles({ outputPath = path.join(ROOT, 'css/
 export async function buildChatStyles({ outputPath = path.join(ROOT, 'css/chat-panel-open.css'), check = false }: StyleOptions = {}): Promise<void> {
     await compileStyles('chat-panel-open.base.css', 'chat-navigation.tailwind.css', outputPath, check, 'Chat');
 }
+export async function buildLightSetupStyles({ outputPath = path.join(ROOT, 'css/light-setup.css'), check = false }: StyleOptions = {}): Promise<void> {
+    await compileStyles('light-setup.base.css', 'light-setup.tailwind.css', outputPath, check, 'Light setup');
+}
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
     const check = process.argv.includes('--check');
     await buildStyles({ check });
     await buildProtectionStyles({ check });
     await buildChatStyles({ check });
+    await buildLightSetupStyles({ check });
     await compileStyles('light-sun.base.css', 'light-page.tailwind.css', path.join(ROOT, 'css/light-sun.css'), check, 'Light page');
     await compileStyles('nutrition.base.css', 'nutrition.tailwind.css', path.join(ROOT, 'css/nutrition.css'), check, 'Nutrition');
     await compileStyles('context-editor.base.css', 'context-editor.tailwind.css', path.join(ROOT, 'css/context-editor.css'), check, 'Context editor');

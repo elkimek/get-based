@@ -2,6 +2,7 @@ import type { SunSetupDefaults, SunSetupValues } from './sun-defaults-model.js';
 import type { SunSetupRendererDeps } from './sun-defaults-setup-renderer.js';
 // sun-defaults-setup-ui.js — Light setup modal lifecycle and delegated behavior.
 
+import { setupClasses } from './light-setup-classes.js';
 import { SKIN_TYPE } from './constants.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
@@ -12,9 +13,9 @@ import {
 } from './sun-defaults-model.js';
 import {
   configureSunDefaultsSetupRenderer,
-  renderSetupActions,
+  renderSetupModal,
+  renderSetupSkinLabel,
   renderSetupCard,
-  renderSetupEditor,
   renderSetupLocationStatus,
 } from './sun-defaults-setup-renderer.js';
 import {
@@ -24,7 +25,7 @@ import {
   openSunSetupProfileLocationRuntime,
   requestSunSetupPreciseLocationRuntime,
 } from './sun-defaults-runtime.js';
-import { escapeHTML, showNotification } from './utils.js';
+import { showNotification } from './utils.js';
 
 const LIGHT_SETUP_OVERLAY_ID = 'light-setup-focus-overlay';
 
@@ -155,6 +156,16 @@ function handleLightSetupInput(event: Event) {
 function handleLightSetupKeydown(event: Event) {
   const target = event.target as Element | null;
   if (!target || typeof target.closest !== 'function') return;
+  const tab = target.closest<HTMLElement>('[data-setup-tab]');
+  const key = (event as KeyboardEvent).key;
+  if (tab?.closest('.light-setup-focus-modal') && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(key)) {
+    event.preventDefault();
+    const step = key === 'Home' ? 'core' : key === 'End' ? 'score'
+      : tab.dataset.setupTab === 'core' ? 'score' : 'core';
+    setLightSetupStep(step, { focus: false });
+    tab.closest('.light-setup-focus-modal')?.querySelector<HTMLElement>(`[data-setup-tab="${step}"]`)?.focus();
+    return;
+  }
   const actionElement = (target.closest('[data-light-setup-action="select-skin"]') as HTMLElement | null);
   if (!actionElement?.dataset) return;
   const index = parseSetupIndex(actionElement.dataset.lightSetupSkinIdx);
@@ -186,41 +197,17 @@ function openSunSetupOverlay() {
 
   const overlay = document.createElement('div');
   overlay.id = LIGHT_SETUP_OVERLAY_ID;
-  overlay.className = 'modal-overlay light-setup-focus-overlay';
-  overlay.innerHTML = `<div class="modal light-setup-focus-modal" data-setup-step="core" role="dialog" aria-modal="true" aria-labelledby="light-setup-focus-title">
-    <header class="light-setup-focus-head">
-      <div>
-        <div class="gb-modal-kicker">Light baseline</div>
-        <h3 id="light-setup-focus-title">Personalize Light</h3>
-        <p>Connect skin, location, indoor lighting, eyewear, and daily spectrum patterns to your Light context.</p>
-      </div>
-      <button type="button" class="modal-close" aria-label="Close light setup" data-light-setup-close>&times;</button>
-    </header>
-    <div class="light-setup-focus-body" tabindex="-1">
-      ${renderSetupEditor({ includeActions: false })}
-    </div>
-    ${renderSetupActions()}
-  </div>`;
+  overlay.className = setupClasses('modal-overlay light-setup-focus-overlay');
+  overlay.setAttribute('data-light-setup-presentation', '');
+  overlay.innerHTML = renderSetupModal();
 
   overlay.querySelector('[data-light-setup-close]')
     ?.addEventListener('click', closeSunSetupOverlay);
-  openAppendedModalOverlay(overlay, closeSunSetupOverlay);
-
-  const observer = new MutationObserver(() => {
-    if (!document.body.contains(overlay)) observer.disconnect();
+  openAppendedModalOverlay(overlay, closeSunSetupOverlay, {
+    initialFocus: '.light-setup-focus-body', focusDelay: 40,
   });
-  observer.observe(document.body, { childList: true, subtree: true });
-
   setLightSetupStep('core', { focus: false });
-  const focusBody = () => {
-    const body = (overlay.querySelector('.light-setup-focus-body') as HTMLElement | null);
-    body?.focus({ preventScroll: true });
-  };
-  setTimeout(() => {
-    refreshSetupProgress();
-    focusBody();
-  }, 40);
-  setTimeout(focusBody, 120);
+  refreshSetupProgress();
 }
 
 function closeSunSetupOverlay() {
@@ -241,6 +228,7 @@ function setLightSetupStep(step: string, opts: { focus?: boolean } = {}) {
     const active = setupTab.dataset.setupTab === nextStep;
     setupTab.classList.toggle('active', active);
     setupTab.setAttribute('aria-selected', active ? 'true' : 'false');
+    setupTab.tabIndex = active ? 0 : -1;
   });
   modal.querySelectorAll('[data-setup-pane]').forEach(pane => {
     const setupPane = (pane as HTMLElement);
@@ -254,7 +242,10 @@ function setLightSetupStep(step: string, opts: { focus?: boolean } = {}) {
         `[data-setup-pane="${nextStep}"] .light-setup-title, `
         + `[data-setup-pane="${nextStep}"] h4`,
       ) as HTMLElement | null);
-    setTimeout(() => target?.focus({ preventScroll: true }), 0);
+    const focusOwner = document.activeElement;
+    setTimeout(() => {
+      if (target?.isConnected && modal.dataset.setupStep === nextStep && document.activeElement === focusOwner) target.focus({ preventScroll: true });
+    }, 0);
   }
 }
 
@@ -384,7 +375,10 @@ function updateOttRunningScore() {
     const previousTier = label.dataset.tier;
     const nextTier = String(meta.tier);
     label.textContent = meta.label;
-    label.className = `light-ott-badge light-ott-tier-${meta.tier}`;
+    for (const token of [...label.classList]) {
+      if (/^light-ott-tier-\d+$/.test(token)) label.classList.remove(token);
+    }
+    label.classList.add(`light-ott-tier-${meta.tier}`);
     label.dataset.tier = nextTier;
     if (previousTier !== undefined && previousTier !== nextTier) {
       label.classList.add('tier-changed');
@@ -401,6 +395,7 @@ function updateSetupSkinSlider(value: string | number) {
       const active = elementIndex === index;
       element.classList.toggle('active', active);
       element.setAttribute('aria-checked', active ? 'true' : 'false');
+      element.setAttribute('tabindex', active ? '0' : '-1');
     });
   const label = document.getElementById('setup-skin-label');
   const valid = index >= 0 && index < SKIN_TYPE.length;
@@ -410,7 +405,7 @@ function updateSetupSkinSlider(value: string | number) {
   const descriptor = valid ? FITZPATRICK_DESCRIPTOR[index] : '';
   if (label) {
     if (valid) {
-      label.innerHTML = `${escapeHTML(skinLabel)}<span class="ctx-skin-label-detail" id="setup-skin-label-detail">${escapeHTML(descriptor)}</span>`;
+      label.innerHTML = renderSetupSkinLabel(index);
     } else {
       label.textContent = skinLabel;
     }

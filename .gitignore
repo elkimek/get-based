@@ -2079,3 +2079,14 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 
 /js/sun-body-picker-presentation.js
 /tests/sun-body-picker-presentation.test.js
+
+/css/light-setup.css
+/js/light-setup-presentation.js
+/js/light-setup-classes.js
+
+/tests/light-setup-presentation.test.js
+/tests/playwright/light-setup-owned.spec.js
+
+/tests/pwa/sveltekit-light-setup.spec.js
+
+/tests/light-setup-styles.test.js

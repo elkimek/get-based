@@ -1,0 +1,6 @@
+/* Light setup owns scoped Tailwind utilities without Preflight. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+@source "../js/light-setup-classes.ts";
+@custom-variant light-setup (&:is([data-light-setup-presentation], [data-light-setup-presentation] *));

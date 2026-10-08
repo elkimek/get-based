@@ -1120,6 +1120,24 @@ conditions, channel SVG/details, source controls and Sun/device widgets. Those
 child owners remain migration work; the authored page shell does not establish
 whole-Light migration or whole-app PWA acceptance.
 
+`LightSetupPresentation.svelte` composes the setup prompt, saved summary, two-step
+editor, location status, action rows and modal. Its child components own escaped
+markup and explicit control semantics. `light-setup-presentation.ts` projects
+stored defaults, legacy skin fallback, option summaries and temporary-location
+copy without changing the domain catalogs or calculations. The stable
+`sun-defaults-setup-renderer.ts` facade retains synchronous HTML imports; only
+the separate onboarding AI owner supplies a trusted HTML slot.
+`sun-defaults-setup-ui.ts` retains delegated input, collection, persistence and
+location actions. Tabs expose labelled panels and roving keyboard focus; native
+skin buttons keep explicit confirmation and the range has an accessible label.
+The shared modal lifecycle guards initial focus. Live tier changes preserve the
+utility classes on the existing badge rather than replacing its class list.
+`light-setup-classes.ts` owns source-scanned, scoped Tailwind classes, including
+responsive, selected and theme states. `css/light-setup.css` is generated at its
+unchanged lazy URL from `light-setup.base.css` and `light-setup.tailwind.css`.
+The small base retains host integration, the tier animation and separately owned
+AI styles. Setup-specific overrides have moved out of the global theme sheets.
+
 `LightSessionPresentation.svelte` composes the past-Sun and device log forms,
 completed Sun/device rows and shared inline/full history. Its pure
 `light-session-presentation.ts` projections preserve option selection, source

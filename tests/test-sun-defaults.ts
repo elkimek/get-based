@@ -31,7 +31,9 @@ const sunDefaultsModelSrc = fs.readFileSync(path.join(root, 'js/sun-defaults-mod
 const sunDefaultsRuntimeSrc = fs.readFileSync(path.join(root, 'js/sun-defaults-runtime.js'), 'utf8');
 const sunDefaultsRendererSrc = fs.readFileSync(path.join(root, 'js/sun-defaults-setup-renderer.js'), 'utf8');
 const sunDefaultsUiSrc = fs.readFileSync(path.join(root, 'js/sun-defaults-setup-ui.js'), 'utf8');
+const sunDefaultsComponentSrc = fs.readdirSync(path.join(root, 'js/components')).filter(name => /^LightSetup.*\.svelte$/.test(name)).map(name => fs.readFileSync(path.join(root, 'js/components', name), 'utf8')).join('\n');
 const sunDefaultsOwnerSrc = [
+  sunDefaultsComponentSrc,
   sunDefaultsSrc,
   sunDefaultsModelSrc,
   sunDefaultsRendererSrc,
@@ -104,7 +106,7 @@ installLightSetupDelegates(delegateDom.window.document);
     sunDefaultsUiSrc.includes('installLightSetupDelegates();') &&
     !sunDefaultsOwnerSrc.includes('invokeSunDefaultsBinding') &&
     sunDefaultsRendererSrc.includes("data-light-setup-action=") &&
-    sunDefaultsRendererSrc.includes("data-light-setup-input=") &&
+    sunDefaultsComponentSrc.includes('data-light-setup-input="') &&
     sunDefaultsSrc.includes("from './sun-defaults-setup-ui.js'"));
   assert('sun-defaults browser hooks are isolated in runtime adapter',
     sunDefaultsUiSrc.includes("from './sun-defaults-runtime.js'") &&
