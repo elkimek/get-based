@@ -1,0 +1,12 @@
+/* Light page-owned utilities; the ordered lazy URL and shared child styles remain stable. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+@source "../js/components/LightPagePresentation.svelte";
+@source "../js/components/LightMethods.svelte";
+@source "../js/components/LightSessionActions.svelte";
+@source "../js/components/LightUVSafety.svelte";
+@source "../js/components/LightWidgetPrompt.svelte";
+@custom-variant light-page (&:is([data-light-page-presentation], [data-light-page-presentation] *));
+@source "../js/components/LightTodayStrip.svelte";
+@source "../js/components/LightDashboardPills.svelte";

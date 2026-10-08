@@ -8,21 +8,6 @@
    ═══════════════════════════════════════════════ */
 
 /* Strip — matches .wearable-strip surface treatment */
-.light-page {
-  width: 100%;
-  max-width: none;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
-  min-width: 0;
-}
-.light-page > * {
-  min-width: 0;
-  max-width: 100%;
-}
-.light-page > .category-header {
-  margin-bottom: 0;
-}
 .light-page .lens-page-header h2 {
   letter-spacing: 0;
 }
@@ -52,7 +37,6 @@
 }
 
 @media (max-width: 720px) {
-  .light-page { padding-bottom: 88px; }
   .light-page small,
   .light-page .dashboard-widget-description,
   .light-page .light-section-hint,
@@ -93,20 +77,7 @@
   background: transparent;
   box-shadow: none;
 }
-.light-session-log-actions {
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-}
-.light-quicklog-row .dashboard-action-btn {
-  width: 100%;
-  justify-content: center;
-  text-align: center;
-}
-.light-log-action {
-  min-height: 38px;
-}
-.light-widget-prompt {
+.light-widget-prompt:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -117,90 +88,30 @@
   background: color-mix(in srgb, var(--bg-secondary) 60%, transparent);
   min-width: 0;
 }
-.light-widget-prompt-copy {
+.light-widget-prompt-copy:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) {
   min-width: 0;
 }
-.light-widget-prompt-copy strong {
+.light-widget-prompt-copy strong:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) {
   display: block;
   color: var(--text-primary);
   font-size: 13px;
   margin-bottom: 3px;
 }
-.light-widget-prompt-copy p {
+.light-widget-prompt-copy p:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) {
   margin: 0;
   color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.5;
 }
-.light-widget-prompt-cta {
+.light-widget-prompt-cta:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) {
   flex-shrink: 0;
 }
-.light-widget-loading {
-  color: var(--text-muted);
-  font-size: 12px;
-  padding: 8px 0;
-}
-.light-methods-stack {
-  display: grid;
-  gap: 10px;
-}
-.light-today-strip {
-  margin: 16px 0 8px;
-  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  border-radius: var(--radius);
-  padding: 14px 16px 12px;
-  box-shadow: var(--shadow);
-  display: flex; flex-direction: column; gap: 10px;
-}
-.light-today-head {
-  display: flex; align-items: center; gap: 8px;
-  margin-bottom: 4px;
-}
-.light-today-icon { font-size: 16px; color: var(--accent); }
-.light-today-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
-.light-today-sub { font-size: 12px; color: var(--text-muted); margin-left: 4px; }
-.light-today-altitude {
-  font-size: 11px; color: var(--text-primary); font-weight: 600;
-  padding: 2px 8px; border-radius: 999px;
-  background: var(--yellow-bg);
-  border: 1px solid color-mix(in srgb, var(--yellow) 40%, transparent);
-  margin-left: 6px;
-}
-.light-today-link { margin-left: auto; font-size: 12px; color: var(--accent); text-decoration: none; }
-.light-today-link:hover { text-decoration: underline; }
 
 /* Strip footer — burn-risk gauge + CTA */
-.light-today-foot {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  font-size: 12px; color: var(--text-secondary);
-  margin-top: 4px;
-}
-.light-today-med strong { color: var(--text-primary); }
-.light-today-med-warn { color: var(--orange); }
-.light-today-med-warn strong { color: var(--orange); }
-.light-today-med-over { color: var(--red); }
-.light-today-med-over strong { color: var(--red); }
 
 /* Weekly vitamin D total — small line between pills and footer.
    Approximate; tooltip explains the per-session-with-saturation
    summing methodology. */
-.light-today-vitd-row {
-  margin-top: 6px;
-  display: flex; align-items: center;
-}
-.light-today-vitd {
-  font-size: 12px; font-weight: 600;
-  /* accent-light reads as a vit-D-blue identity (matches surrounding chips)
-     while clearing AA against the translucent accent-tint background.
-     accent itself failed contrast against the blended bg (3.93:1);
-     accent-light passes (4.68:1 on dark bg-card). */
-  color: var(--accent-light);
-  display: inline-flex; align-items: center;
-  padding: 3px 10px; border-radius: 10px;
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 24%, transparent);
-}
 
 /* CTA group — wraps one or more CTA buttons together so they sit
    adjacent (8px gap) and the GROUP gets pushed right via margin-left:
@@ -208,40 +119,10 @@
    made multiple CTAs spread out across the foot row instead of
    clustering. Single-button case still works (group of 1 → button
    right-aligned as before). */
-.light-today-cta-group {
-  margin-left: auto;
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-}
 /* CTA — active (mid-session) flips to red as a "stop" cue. */
-.light-today-cta {
-  padding: 8px 16px;
-  background: var(--accent);
-  color: var(--on-accent);
-  border: none; border-radius: var(--radius-sm);
-  font-weight: 600; font-size: 13px;
-  cursor: pointer;
-}
-.light-today-cta:hover {
-  filter: brightness(1.06);
-  box-shadow: 0 2px 12px color-mix(in srgb, var(--accent) 22%, transparent);
-}
-.light-today-cta-active {
-  background: var(--red);
-  color: #fff;
-}
-.light-today-cta-active:hover { box-shadow: 0 2px 12px var(--red-bg); }
 /* Secondary CTA used as a paired "🔴 Device" button next to the
    primary "☀ Sun" — slightly subdued so the eye lands on the
    solar-window CTA first when both are present. */
-.light-today-cta-secondary {
-  background: var(--bg-card);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-}
-.light-today-cta-secondary:hover {
-  box-shadow: 0 2px 12px color-mix(in srgb, var(--text-primary) 8%, transparent);
-  border-color: var(--accent);
-}
 
 /* Pinned active sun-session row — sits at the very top of the Light &
    Sun page when a session is running, above Conditions / Setup / the
@@ -267,21 +148,6 @@
 .light-active-session-pinned .sun-session { position: relative; }
 
 /* Light & Sun page — quick-log row + section headings */
-.light-quicklog-row {
-  margin: 0;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  padding: 14px 16px;
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
-  box-shadow: var(--shadow);
-}
-.light-quicklog-row .import-btn {
-  width: 100%;
-  justify-content: center;
-}
 .light-summary-tally { color: var(--text-secondary); font-size: 13px; }
 .light-recent-sessions-header {
   margin-top: 24px;
@@ -417,15 +283,6 @@
 
 /* Touch tap-target sizing — coarse pointer (touchscreen) gets 44×44 minimum
    per WCAG 2.5.5 / WAI Mobile guidance. Mouse-only sessions stay compact. */
-@media (pointer: coarse) {
-  .light-today-altitude {
-    min-height: 44px;
-    min-width: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-}
 
 /* Generic .ctx-* form controls — used by the Light feature (sun setup,
    past-session modal, device dialogs, light-environment survey, light
@@ -1088,101 +945,10 @@ svg.sun-silhouette text.sun-silhouette-label {
 .sun-session-forgot:hover { background: color-mix(in srgb, var(--yellow) 15%, transparent); }
 
 /* Vit-D daily budget chip on the dashboard Light Today row. */
-.light-today-vitd-warn {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 8px; border-radius: 999px;
-  font-size: 11px; font-weight: 500;
-  background: var(--red-bg); color: var(--red);
-  border: 1px solid color-mix(in srgb, var(--red) 30%, transparent);
-  margin-left: 8px;
-}
-.light-today-vitd-info {
-  display: inline-flex; align-items: center;
-  padding: 2px 8px; border-radius: 999px;
-  font-size: 11px; color: var(--text-secondary);
-  background: var(--bg-input, var(--bg-secondary)); border: 1px solid var(--border);
-  margin-left: 8px;
-}
 
 /* Burn-risk banner on the Light & Sun page */
-.light-today-uv-safety {
-  display: grid;
-  gap: 7px;
-}
-.light-today-safety-label {
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-}
-.light-med-banner {
-  margin: 16px 0;
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 16px; border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  box-shadow: var(--shadow);
-}
-.light-med-banner.light-med-warn { border-color: var(--orange); background: var(--orange-bg); }
-.light-med-banner.light-med-over { border-color: var(--red); background: var(--red-bg); }
-.light-med-banner.light-med-info .light-med-icon { color: var(--text-muted); }
-.light-med-icon { font-size: 20px; }
-.light-med-banner.light-med-ok .light-med-icon { color: var(--green); }
-.light-med-banner.light-med-warn .light-med-icon { color: var(--orange); }
-.light-med-banner.light-med-over .light-med-icon { color: var(--red); }
-.light-med-title { font-size: 14px; color: var(--text-primary); }
-.light-med-pct { color: var(--text-muted); font-weight: normal; font-size: 12px; }
-.light-med-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
-.light-med-carryover {
-  margin-top: 6px; font-size: 12px; color: var(--text-primary);
-  padding: 6px 10px; border-radius: 6px;
-  background: var(--yellow-bg);
-  border: 1px solid color-mix(in srgb, var(--yellow) 40%, transparent);
-}
-.light-explainer {
-  margin: 0; padding: 0;
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
-  box-shadow: var(--shadow);
-}
-.light-explainer summary {
-  padding: 12px 16px; cursor: pointer;
-  font-size: 13px; font-weight: 600; color: var(--text-secondary);
-  user-select: none;
-}
-.light-explainer summary::marker { color: var(--text-muted); }
-.light-explainer-body {
-  padding: 0 16px 14px 16px;
-  border-top: 1px solid var(--border);
-  font-size: 12.5px; line-height: 1.55; color: var(--text-secondary);
-}
-.light-explainer-body p { margin: 10px 0; }
-.light-explainer-body strong { color: var(--text-primary); }
-.light-explainer-body a { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
-.light-explainer-body a:hover { color: var(--accent-light); }
-.light-data-source-details {
-  margin: 0;
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  border-radius: var(--radius);
-  padding: 0;
-  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
-  box-shadow: var(--shadow);
-}
-.light-data-source-details summary {
-  padding: 12px 16px;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--text-secondary);
-  user-select: none;
-}
-.light-data-source-body {
-  padding: 0 16px 16px;
-}
 
 /* Light & Sun page */
-.light-quicklog-row { align-items: stretch; }
 
 /* Sessions list */
 .sun-sessions-list { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
@@ -1734,29 +1500,16 @@ svg.sun-silhouette text.sun-silhouette-label {
   /* Quick-log CTA row stacks: primary CTAs full-width, tally on its
      own line below. Was a 4-element flex row that collapsed into a
      visual pile of buttons + text on narrow widths. */
-  .light-quicklog-row {
-    align-items: stretch;
-    gap: 8px;
-  }
-  .light-quicklog-row .dashboard-action-btn { width: 100%; }
-  .light-quicklog-row .light-summary-tally {
-    text-align: center;
-    margin-top: 2px;
-  }
-  .light-widget-prompt {
+  .light-widget-prompt:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) {
     flex-direction: column;
     align-items: stretch;
   }
-  .light-widget-prompt-cta {
+  .light-widget-prompt-cta:not(:where([data-light-widget-prompt], [data-light-widget-prompt] *)) {
     width: 100%;
   }
 
   /* Light Today (dashboard) strip — pill row tighter, foot wraps so
      burn-risk pill doesn't hog horizontal space. */
-  .light-today-strip { padding: 12px; }
-  .light-today-foot { gap: 8px; }
-  .light-today-cta-group { width: 100%; margin-left: 0; }
-  .light-today-cta-group .light-today-cta { flex: 1 1 auto; }
 
   /* Sessions list rows — head row wraps cleanly so duration / kind /
      med pill don't overflow. */

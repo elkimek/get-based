@@ -2,7 +2,9 @@
 
 import type { PageCalls, PageActionEvent, PageDelegateRoot, PageInnerHTMLWriter, PageOuterHTMLWriter, PageMetaOperations, PageWidget, PageSessionOperations } from '../types/light-page-view.js';
 import { state } from './state.js';
-import { escapeHTML, escapeAttr } from './utils.js';
+import { renderHTML as renderLightPresentation } from './components/LightPagePresentation.svelte.html.js';
+import { projectLightToday } from './light-today-presentation.js';
+import { projectLightSessionActions, projectLightUVSafety } from './light-page-presentation.js';
 import { renderLensHeader, renderLensPageWidgets } from './lens-page-shell.js';
 import { renderLightConditionsWidgetBody, renderConditionsNow, _formatElapsedShort } from './light-conditions-now.js';
 import { renderUnifiedSessionsList } from './light-sessions-view.js';
@@ -111,70 +113,32 @@ if (typeof document !== 'undefined') installLightPageActionDelegates();
 // ═══════════════════════════════════════════════
 
 export function renderDashboardLightChannelPills() {
-  const ch = (lightPageDeps.channelDisplay || {}) as Record<string, PageMetaOperations | undefined>;
-  const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
-  const sunTotals7d = lightPageDeps.rollingChannelTotals(7) || {};
-  const devTotals7d = lightPageDeps.rollingDeviceTotals(7) || {};
-  return `<div class="light-pills-row">
-    ${order.map(k => {
-      const meta = ch[k] || {};
-      const hasSun = (sunTotals7d[k] || 0) > 0.0001;
-      const hasDevice = (devTotals7d[k] || 0) > 0.0001;
-      const active = hasSun || hasDevice;
-      const source = hasSun && hasDevice ? 'Sunlight and device logged' : hasSun ? 'Sunlight logged' : hasDevice ? 'Device logged' : 'Not logged';
-      const dc = _channelDayCount(k);
-      const tip = `${meta.what || ''} — ${source}${dc.n ? ` on ${dc.n} day${dc.n === 1 ? '' : 's'} this week` : ''}. Tap for details.`;
-      return `<button type="button" class="light-pill light-pill-tier-${active ? 2 : 0} light-pill-signal-${active ? 'logged' : 'empty'} light-pill-dashboard" data-light-page-action="open-channel" data-channel="${escapeAttr(k)}" title="${escapeHTML(tip)}" aria-label="${escapeHTML((meta.label || k) + ', ' + source + ', tap to open detail')}">
-        <span class="light-pill-icon" aria-hidden="true">${meta.icon || '·'}</span>
-        <span class="light-pill-label">${escapeHTML(meta.label || k)}</span>
-        ${_channelSparkline(k)}
-        <span class="light-pill-daycount">${escapeHTML(dc.txt)}</span>
-      </button>`;
-    }).join('')}
-  </div>`;
+  const channels = (lightPageDeps.channelDisplay || {}) as Record<string, PageMetaOperations | undefined>;
+  const sun = lightPageDeps.rollingChannelTotals(7) || {};
+  const device = lightPageDeps.rollingDeviceTotals(7) || {};
+  const pills = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'].map(key => {
+    const meta = channels[key] || {};
+    const hasSun = (sun[key] || 0) > 0.0001;
+    const hasDevice = (device[key] || 0) > 0.0001;
+    const source = hasSun && hasDevice ? 'Sunlight and device logged' : hasSun ? 'Sunlight logged' : hasDevice ? 'Device logged' : 'Not logged';
+    const days = _channelDayCount(key);
+    return { key, active: hasSun || hasDevice, name: String(meta.label || key), icon: String(meta.icon || '·'),
+      title: `${meta.what || ''} — ${source}${days.n ? ` on ${days.n} day${days.n === 1 ? '' : 's'} this week` : ''}. Tap for details.`,
+      label: (meta.label || key) + ', ' + source + ', tap to open detail',
+      days: String(days.txt), sparklineHTML: _channelSparkline(key),
+    };
+  });
+  return renderLightPresentation({ kind: 'pills', pills });
 }
 
 export function renderLightSessionLogActions() {
   const sessions = lightPageDeps.getSessions() || [];
   const devices = lightPageDeps.getDevices() || [];
-  const deviceSessionsAll = lightPageDeps.getDeviceSessions() || [];
-  const hasDevices = devices.length > 0;
-  const totalSessions = sessions.length + deviceSessionsAll.length;
-  const sunCount = sessions.length;
-  const devCount = deviceSessionsAll.length;
-  const tallyDetail = (sunCount > 0 || devCount > 0)
-    ? `${sunCount} sun + ${devCount} device`
-    : '';
-  const sunActive = !!lightPageDeps.getActiveSession();
-  const deviceActive = !!lightPageDeps.getActiveDeviceSession();
-  let ctaButtons = '';
-  if (sunActive || deviceActive) {
-    // Stop controls live in the live-session card. Keep only starts that are
-    // actually available; the device store permits one device timer at once.
-    const availableStarts: string[] = [];
-    if (!sunActive) {
-      availableStarts.push('<button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-log-action" data-light-page-action="quick-log-sun">Start sun session</button>');
-    }
-    if (!deviceActive) {
-      availableStarts.push(hasDevices
-        ? '<button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-log-action" data-light-page-action="quick-log-device">Start device session</button>'
-        : '<button type="button" class="dashboard-action-btn light-log-action" data-light-page-action="open-add-device">Add light device</button>');
-    }
-    ctaButtons = availableStarts.join('');
-  } else if (hasDevices) {
-    ctaButtons = `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-log-action" data-light-page-action="quick-log-sun">Start sun session</button>
-      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-log-action" data-light-page-action="quick-log-device">Start device session</button>`;
-  } else {
-    ctaButtons = `<button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-log-action" data-light-page-action="quick-log-sun">Start sun session</button>
-      <button type="button" class="dashboard-action-btn light-log-action" data-light-page-action="open-add-device">Add light device</button>`;
-  }
-  return `<div class="light-session-log-actions">
-    <div class="light-quicklog-row">
-      ${ctaButtons}
-      <button type="button" class="dashboard-action-btn light-log-action" data-light-page-action="open-detailed-session">Log past session</button>
-      ${totalSessions === 0 ? `<span class="light-summary-tally"${tallyDetail ? ` title="${tallyDetail}"` : ''}>No sessions yet</span>` : ''}
-    </div>
-  </div>`;
+  const deviceSessions = lightPageDeps.getDeviceSessions() || [];
+  return renderLightPresentation({ kind: 'actions', view: projectLightSessionActions({
+    sunActive: !!lightPageDeps.getActiveSession(), deviceActive: !!lightPageDeps.getActiveDeviceSession(),
+    hasDevices: devices.length > 0, totalSessions: sessions.length + deviceSessions.length,
+  }) });
 }
 
 /**
@@ -186,217 +150,59 @@ export function renderLightSessionLogActions() {
  * @param {{ includeEmptyState?: boolean }} [options]
  */
 export function renderLightLiveSession({ includeEmptyState = false }: { includeEmptyState?: unknown } = {}) {
-  const activeSunSession = lightPageDeps.getActiveSession() || null;
-  let html = '';
-  if (activeSunSession) {
-    html += `<div class="light-active-session-pinned" aria-label="Active sun session">${lightPageDeps.renderSunSessionRow(activeSunSession)}</div>`;
-  }
-  const activeDeviceHtml = lightPageDeps.renderActiveDeviceSessionCard();
-  if (activeDeviceHtml) {
-    html += `<div class="light-active-session-pinned" aria-label="Active device session">${activeDeviceHtml}</div>`;
-  }
-  if (html || !includeEmptyState) return html;
-  return renderLightWidgetPrompt(
-    'No light session is running',
-    'Open Light & Sun',
-    'navigate-light',
-    'Start an outdoor or therapy-device session there; this widget will then show its live timer, estimates, and stop controls.',
-    'light-live-session-empty',
-  );
+  const activeSun = lightPageDeps.getActiveSession() || null;
+  const sunHTML = activeSun ? String(lightPageDeps.renderSunSessionRow(activeSun)) : '';
+  const deviceHTML = lightPageDeps.renderActiveDeviceSessionCard();
+  if (activeSun || deviceHTML) return renderLightPresentation({ kind: 'live',
+    sun: !!activeSun, device: !!deviceHTML, sunHTML, deviceHTML: String(deviceHTML),
+  });
+  if (!includeEmptyState) return '';
+  return renderLightWidgetPrompt('No light session is running', 'Open Light & Sun', 'navigate-light',
+    'Start an outdoor or therapy-device session there; this widget will then show its live timer, estimates, and stop controls.', 'light-live-session-empty');
 }
 
 function renderLightWidgetPrompt(status: unknown, ctaLabel: unknown, ctaAction: unknown, hint: unknown, extraClass = '') {
-  return `<div class="light-widget-prompt ${escapeAttr(extraClass)}">
-    <div class="light-widget-prompt-copy">
-      <strong>${escapeHTML(status)}</strong>
-      <p>${escapeHTML(hint)}</p>
-    </div>
-    <button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-widget-prompt-cta" data-light-page-action="${escapeAttr(ctaAction)}">${escapeHTML(ctaLabel)}</button>
-  </div>`;
+  return renderLightPresentation({ kind: 'prompt', view: {
+    status: String(status ?? ''), label: String(ctaLabel ?? ''), action: String(ctaAction ?? ''),
+    hint: String(hint ?? ''), extraClass,
+  } });
 }
 
 function renderLightMethodsWidgetBody() {
-  const configuredFitzpatrick = state.importedData?.sunDefaults?.fitzpatrick || null;
-  const skinBasis = configuredFitzpatrick
-    ? `The current model uses Fitzpatrick ${escapeHTML(configuredFitzpatrick)} as a rough base-MED reference, not a personal safe exposure time.`
+  const fitzpatrick = state.importedData?.sunDefaults?.fitzpatrick || null;
+  const skinBasis = fitzpatrick
+    ? `The current model uses Fitzpatrick ${fitzpatrick} as a rough base-MED reference, not a personal safe exposure time.`
     : 'Personalized burn-time guidance stays hidden until a skin type is configured.';
-  let html = `<details class="light-explainer">
-    <summary>How these estimates work</summary>
-    <div class="light-explainer-body">
-      <p><strong>Burn risk.</strong> UV dose is estimated for the skin that is exposed. Exposing more skin changes the whole-body estimate, but does not make the dose safer for each patch. Sunscreen is not counted as extra safe time. ${skinBasis} Medicines, altitude, reflection, irritated skin, uneven sunscreen, and personal sensitivity can all change the real limit. Stop before redness and never stay longer just to raise an estimate.</p>
-      <p><strong>Vitamin D.</strong> We estimate how much vitamin-D-making UVB reaches uncovered skin, then account for exposed area and skin type. The result is an IU-equivalent estimate, not a measurement of absorption or a prediction of blood vitamin D.</p>
-      <p><strong>Other light signals.</strong> The cards show when parts of sunlight or device light may reach light-sensitive pathways in the eyes and skin. They describe possible stimulation, not a measured body response, daily requirement, or completion score. Sunlight and devices stay separate because a targeted device is not the same as full-spectrum daylight.</p>
-      <p><strong>Uncertainty.</strong> Weather, shade, glass, clothing, skin, distance, and device specifications can change the estimate. Treat ranges as context, not a prescription.</p>
-      <p><strong>UV-A transition.</strong> “On” marks when modeled UV-A becomes meaningfully available as the sun rises; “off” marks when it fades near sunset. It is a useful transition window, not an instant whole-body switch. Small amounts may still be present outside it. Never look directly at the sun.</p>
-      <p><strong>Safety basis.</strong> Eye and skin UV warnings use <a href="https://www.icnirp.org/cms/upload/publications/ICNIRPUVWorkersHP.pdf" target="_blank" rel="noopener">ICNIRP exposure references</a> and <a href="https://www.who.int/news-room/questions-and-answers/item/radiation-protecting-against-skin-cancer" target="_blank" rel="noopener">WHO protection guidance</a>. UV can damage skin and eyes, and <a href="https://www.iarc.who.int/news-events/sunbeds-and-uv-radiation/" target="_blank" rel="noopener">artificial UV is not treated as harmless</a> because it is used for wellness. The app withholds UV numbers when device output, band split, or distance is not adequately specified.</p>
-      <p><strong>Photobiology lens.</strong> Channel explanations draw on published photobiology, circadian biology, and light-response research. Safety limits and numerical doses use the cited primary or institutional sources, while exploratory mechanisms remain labeled as modeled or under study.</p>
-      <p><strong>Weather data.</strong> On the hosted app, the default first requests <a href="https://atmosphere.copernicus.eu/" target="_blank" rel="noopener">CAMS</a> data through a fixed private relay using only coordinates rounded to a ~11 km grid and the requested time. The relay looks up a locally downloaded CAMS grid; it does not forward your coordinates to Copernicus or Open-Meteo. If CAMS is unavailable or incomplete, your browser contacts <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> directly with the same rounded location for weather and air-quality fields. A self-hoster can use a relay under their own control.</p>
-      <p><strong>Want the technical details?</strong> See <a href="https://docs.getbased.health/developers/sun-spectrum-model" target="_blank" rel="noopener">the model notes and sources</a>.</p>
-    </div>
-  </details>`;
-  const dataSourceSettings = lightPageDeps.renderSunDataSourceSettings();
-  if (dataSourceSettings) {
-    html += `<details class="light-data-source-details">
-      <summary>Sun data source</summary>
-      <div class="light-data-source-body">${dataSourceSettings}</div>
-    </details>`;
-  }
-  return `<div class="light-methods-stack">${html}</div>`;
+  const dataSource = lightPageDeps.renderSunDataSourceSettings();
+  return renderLightPresentation({ kind: 'methods', skinBasis,
+    showDataSource: !!dataSource, dataSourceHTML: String(dataSource || ''),
+  });
 }
 
 export function renderLightTodayStrip() {
   const sessions = lightPageDeps.getSessions() || [];
-  const inSolarWindow = isSolarWindow();
-  // Always render — even a fresh user outside a solar window needs to see
-  // that the Light lens exists. The CTA copy adapts to the situation.
-
+  const solarWindow = isSolarWindow();
   const active = lightPageDeps.getActiveSession() || null;
   const medToday = lightPageDeps.cumulativeMEDToday() || 0;
-
-  // CTA — adaptive to whether the user has therapy devices set up. A
-  // winter user with a Joovv but no recent sun should see the device
-  // option as a peer, not buried under sun-only copy. Solar windows
-  // still privilege outdoor sun (it's a transient cue you'd miss).
-  // CTAs are wrapped in .light-today-cta-group so margin-left:auto
-  // applies once to the GROUP — without the wrapper each individual
-  // CTA's margin-left:auto pushed every button to the right edge,
-  // spreading them apart instead of clustering them.
-  const devicesArr = lightPageDeps.getDevices() || [];
-  const hasDevices = devicesArr.length > 0;
-  // Device button copy adapts to how many devices the user owns. With
-  // 1 device, name it inline so the click goes straight to that
-  // device's session log. With 2+, show a generic "Device ▼" — taps
-  // open the picker (quickLogDeviceSession already handles this case).
-  let deviceBtn = '';
-  if (hasDevices) {
-    if (devicesArr.length === 1) {
-      const d = devicesArr[0]!;
-      const label = `🔴 ${d.brand || ''} ${d.model || ''}`.trim();
-      deviceBtn = `<button type="button" class="light-today-cta light-today-cta-secondary" data-light-page-action="quick-log-device" title="Log a session on your ${escapeAttr(d.brand || '')} ${escapeAttr(d.model || '')}">${escapeHTML(label)}</button>`;
-    } else {
-      deviceBtn = `<button type="button" class="light-today-cta light-today-cta-secondary" data-light-page-action="quick-log-device" title="Pick from your ${devicesArr.length} devices">🔴 Device <span aria-hidden="true">▼</span></button>`;
-    }
-  }
-  // Onboarding CTA — graduated by what's already filled in:
-  //   1. No Light setup yet (no skin type / location / Ott)  → "Set up Light & Sun"
-  //      The Light setup card is the FIRST thing on the Light page; without it
-  //      no other tracking math works correctly.
-  //   2. Setup done, no rooms                                → "Map a room"
-  //      Most users spend 8-14 h/day indoors — once setup is in, surface the
-  //      indoor environment as the natural next layer.
-  //   3. Both done                                            → no CTA
-  // Earlier draft only had the room CTA, which oversold the link target —
-  // clicking "Map a room" actually drops users at a page where Light setup
-  // is the dominant card. Naming it for what it actually leads to is more
-  // honest + improves the empty-state conversion path.
-  const sd = state.importedData?.sunDefaults;
-  const hasSetup = !!(sd && sd.completedAt && sd.fitzpatrick);
-  const lightEnv = state.importedData?.lightEnvironment;
-  const hasRooms = lightEnv && Array.isArray(lightEnv.rooms) && lightEnv.rooms.length > 0;
-  let setupBtn = '';
-  if (!hasSetup) {
-    setupBtn = `<button type="button" class="light-today-cta light-today-cta-secondary" data-light-page-action="navigate-light" title="Skin type, location, indoor light, photosensitive meds — 30 seconds. Drives every Light & Sun calculation.">🌞 Set up Light & Sun</button>`;
-  } else if (!hasRooms) {
-    setupBtn = `<button type="button" class="light-today-cta light-today-cta-secondary" data-light-page-action="navigate-light" title="Map your rooms — most of your day is under indoor lights">🛋 Map a room</button>`;
-  }
-  // Keep the legacy roomBtn name so the template strings below don't change.
-  const roomBtn = setupBtn;
-
-  let cta: string;
-  if (active) {
-    // mm:ss live counter; the active-session ticker updates this same
-    // element every second via the [data-live-elapsed-for] selector.
-    const currentPauseMs = active.paused && Number.isFinite(active.pausedAt)
-      ? Math.max(0, Date.now() - active.pausedAt)
-      : 0;
-    const elapsedMs = Math.max(0, Date.now() - active.startedAt - (active.accumulatedPausedMs || 0) - currentPauseMs);
-    const elapsed = _formatElapsedShort(elapsedMs);
-    cta = `<div class="light-today-cta-group"><button type="button" class="light-today-cta light-today-cta-active" data-light-page-action="quick-log-sun" aria-label="Stop active sun session"><span aria-hidden="true">⏹ Stop session — </span><span data-live-elapsed-for="${active.id}" aria-live="off">${elapsed}</span></button></div>`;
-  } else if (inSolarWindow) {
-    const wlabel = solarWindowLabel();
-    cta = `<div class="light-today-cta-group"><button type="button" class="light-today-cta" data-light-page-action="quick-log-sun"><span aria-hidden="true">☀</span> ${wlabel} — log a session</button>${deviceBtn}${roomBtn}</div>`;
-  } else if (hasDevices) {
-    cta = `<div class="light-today-cta-group"><button type="button" class="light-today-cta" data-light-page-action="quick-log-sun"><span aria-hidden="true">☀</span> Log sun</button>${deviceBtn}${roomBtn}</div>`;
-  } else {
-    cta = `<div class="light-today-cta-group"><button type="button" class="light-today-cta" data-light-page-action="quick-log-sun">☀ Log a sun session</button>${roomBtn}</div>`;
-  }
-
-  // Burn-risk gauge — qualitative, plain English, no acronyms
-  const medPct = Math.round(medToday * 100);
-  let medCls = 'ok', medMsg = 'low modeled UV dose';
-  if (medToday >= 1) { medCls = 'over'; medMsg = 'base MED reference reached — stop UV exposure'; }
-  else if (medToday >= 0.7) { medCls = 'warn'; medMsg = 'approaching the base MED reference'; }
-  else if (medToday >= 0.3) { medCls = 'ok'; medMsg = 'moderate sun exposure today'; }
-
-  // Surface the burn-risk gauge only when it actually carries information.
-  // Below 30% MED it's noise on a normal day — the user has the full
-  // banner one click away on the Light & Sun page if they need it.
-  const showBurnRisk = medToday >= 0.3;
-  // Combined session count for the past 7 days — sun + device. Replaces
-  // the previous sun-only "X sessions this week" copy which lied about
-  // its window (it was actually counting all-time sun sessions).
-  const weekCutoff = Date.now() - 7 * 86400 * 1000;
-  const sunWeek = sessions.filter(s => (s.startedAt || 0) >= weekCutoff).length;
-  const devSessionsAll = lightPageDeps.getDeviceSessions() || [];
-  const devWeek = devSessionsAll.filter(s => (s.startedAt || 0) >= weekCutoff).length;
-  const weekTotal = sunWeek + devWeek;
-  // Rolling 7-day vitamin D total in IU — sums per-session yields with
-  // each session's 20k saturation cap, so a week of three good sessions
-  // doesn't get clipped to one session's maximum. Hidden when the total
-  // is essentially zero (cloudy week / no UVB exposure / device-only).
+  const devices = lightPageDeps.getDevices() || [];
+  const defaults = state.importedData?.sunDefaults;
+  const hasSetup = !!(defaults && defaults.completedAt && defaults.fitzpatrick);
+  const environment = state.importedData?.lightEnvironment;
+  const hasRooms = !!(environment && Array.isArray(environment.rooms) && environment.rooms.length > 0);
+  const currentPause = active?.paused && Number.isFinite(active.pausedAt) ? Math.max(0, Date.now() - active.pausedAt) : 0;
+  const elapsed = active ? _formatElapsedShort(Math.max(0, Date.now() - active.startedAt - (active.accumulatedPausedMs || 0) - currentPause)) : '';
+  const now = Date.now();
+  const deviceSessions = lightPageDeps.getDeviceSessions() || [];
   const weeklyIU = lightPageDeps.rollingVitaminDIU(7) || 0;
-  let weeklyIUStr = '';
-  if (weeklyIU >= 100) {
-    // Keep this explicitly as an IU-equivalent comparison total. Aggregating
-    // sessions does not remove the model's biological uncertainty.
-    const fmt = (n: number) => n >= 10000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k'
-      : n >= 1000 ? Math.round(n / 100) * 100
-      : Math.round(n / 10) * 10;
-    weeklyIUStr = `<span class="light-today-vitd" title="Modeled vitamin D IU-equivalent from incident action-weighted UVB over the last 7 days. This is not measured skin absorption or a predicted blood response; optical and individual biological uncertainty is multi-fold.">☀ ~${fmt(weeklyIU)} IU-eq vitamin D estimate this week</span>`;
-  }
-
-  // Vitamin-D cross-check. Oral intake and the sunlight IU-equivalent are
-  // deliberately displayed as separate, non-additive quantities. The app
-  // currently models supplement intake, not vitamin D from foods/beverages;
-  // therefore its 4,000 IU adult-UL alert is explicitly incomplete.
-  let vitDBudgetChip = '';
-  const b = lightPageDeps.vitaminDBudgetStatus();
-  if (b) {
-    const fmtIU = (n: number) => n >= 1000 ? `${(n/1000).toFixed(1).replace(/\.0$/, '')}k` : `${Math.round(n)}`;
-    if (b.exceedsSupplementUL) {
-      vitDBudgetChip = `<span class="light-today-vitd-warn" title="The adult tolerable upper intake level is 4,000 IU/day from food, beverages, and supplements. The app sees ${fmtIU(b.supplementIU)} IU in logged supplements but does not know dietary intake. Its separate ~${fmtIU(b.sunIU)} IU-eq sunlight estimate is not intake and is not added. Discuss clinician-directed high-dose treatment with the prescriber.">⚠ Logged vitamin D supplements: ${fmtIU(b.supplementIU)} IU above the adult intake UL</span>`;
-    } else if (b.supplementIU > 0 && b.sunIU > 0) {
-      vitDBudgetChip = `<span class="light-today-vitd-info" title="Separate quantities: ${fmtIU(b.supplementIU)} IU in logged supplements; ~${fmtIU(b.sunIU)} IU-equivalent from the optical sunlight model. The sunlight estimate is not measured synthesis or intake and is not added to the supplement amount.">Vit D: ${fmtIU(b.supplementIU)} IU supplements · ~${fmtIU(b.sunIU)} IU-eq sunlight</span>`;
-    }
-  }
-
-  // High-altitude UV chip — UV irradiance climbs ~10% per 1000m above sea
-  // level (WHO/INTERSUN). At >1500m it's a meaningful safety modifier the
-  // user should see before going outside.
-  const altCoords = lightPageDeps.getSunCoords() || null;
-  const altM = altCoords?.altitudeM || 0;
-  const altChip = altM > 1500
-    ? `<span class="light-today-altitude" title="UV irradiance climbs ~10% per 1000m above sea level. At ${Math.round(altM)}m, expect ~${Math.round((altM / 1000) * 10)}% more UV than sea-level estimates.">⛰ +${Math.round((altM / 1000) * 10)}% UV (altitude ${Math.round(altM)}m)</span>`
-    : '';
-  return `<section class="light-today-strip">
-    <div class="light-today-head">
-      <span class="light-today-icon">☀</span>
-      <span class="light-today-title">Light Today</span>
-      <span class="light-today-sub" title="${sunWeek} sun + ${devWeek} device · last 7 days">${weekTotal} light session${weekTotal !== 1 ? 's' : ''} this week</span>
-      ${altChip}
-      <a href="#" class="light-today-link" data-light-page-action="navigate-light">Open Light &amp; Sun →</a>
-    </div>
-    ${lightPageDeps.renderLightTodayDashboardChip() || ''}
-    ${renderConditionsNow({ variant: 'compact' })}
-    ${renderDashboardLightChannelPills()}
-    ${weeklyIUStr || vitDBudgetChip ? `<div class="light-today-vitd-row">${weeklyIUStr}${vitDBudgetChip ? ' ' + vitDBudgetChip : ''}</div>` : ''}
-    <div class="light-today-foot">
-      ${showBurnRisk ? `<span class="light-today-med light-today-med-${medCls}" title="Today's modeled erythemal dose compared with a rough Fitzpatrick base MED. This is not a personal threshold, and sunscreen is not credited as extra safe time.">
-        ☀ Sun exposure today: <strong>${medMsg}</strong>${medPct > 0 ? ` (${medPct}%)` : ''}
-      </span>` : ''}
-      ${cta}
-    </div>
-  </section>`;
+  const budget = lightPageDeps.vitaminDBudgetStatus();
+  const coords = lightPageDeps.getSunCoords() || null;
+  const view = projectLightToday({ sessions, solarWindow, windowLabel: solarWindowLabel(), active, medToday,
+    devices, hasSetup, hasRooms, now, elapsed, deviceSessions, weeklyIU, budget, coords,
+  });
+  return renderLightPresentation({ kind: 'today', view,
+    dashboardHTML: String(lightPageDeps.renderLightTodayDashboardChip() || ''),
+    conditionsHTML: renderConditionsNow({ variant: 'compact' }), pillsHTML: renderDashboardLightChannelPills(),
+  });
 }
 
 // In-place re-render of the Light & Sun page channel pill row only.
@@ -450,36 +256,7 @@ function _hasCompletedSunSessionToday(sessions: unknown) {
 
 function renderTodayUVSafety(sessions: unknown, medToday: number, medYesterday: number) {
   if (!_hasCompletedSunSessionToday(sessions) && !(medToday > 0)) return '';
-  const medPct = Math.round(medToday * 100);
-  let medCls = 'info';
-  let medTitle = 'Modeled UV dose today: low';
-  let medMsg = 'The estimate is below the base MED reference, but it cannot certify safety.';
-  if (medToday >= 1) {
-    medCls = 'over';
-    medTitle = 'Base MED reference reached';
-    medMsg = 'Stop UV exposure and move to shade or cover up. This is not a personal threshold.';
-  } else if (medToday >= 0.7) {
-    medCls = 'warn';
-    medTitle = 'Approaching base MED reference';
-    medMsg = 'Move to shade or cover up; do not chase a channel or vitamin-D estimate.';
-  } else if (medToday >= 0.3) {
-    medTitle = 'Moderate modeled UV dose today';
-    medMsg = 'Avoid redness; medication reactions and individual response are not predicted.';
-  }
-  const carryChip = (medYesterday >= 0.7 && medToday > 0)
-    ? `<div class="light-med-carryover" title="Yesterday's modeled dose was ${Math.round(medYesterday * 100)}% of its base MED reference. Recent redness or tenderness matters more than an arithmetic carry-over formula.">⚠ High modeled UV exposure yesterday — be extra cautious today.</div>`
-    : '';
-  return `<section class="light-today-uv-safety" aria-label="UV safety today">
-    <div class="light-today-safety-label">UV safety today</div>
-    <div class="light-med-banner light-med-${medCls}">
-      <div class="light-med-icon">${medToday >= 1 ? '⚠' : medToday >= 0.7 ? '!' : 'i'}</div>
-      <div class="light-med-body">
-        <div class="light-med-title">${medTitle}${medPct > 0 ? ` <span class="light-med-pct">(${medPct}% of base MED)</span>` : ''}</div>
-        <div class="light-med-sub">${medMsg}</div>
-        ${carryChip}
-      </div>
-    </div>
-  </section>`;
+  return renderLightPresentation({ kind: 'safety', view: projectLightUVSafety(medToday, medYesterday) });
 }
 
 // ═══════════════════════════════════════════════
@@ -502,8 +279,7 @@ export function showLight(_data: unknown) {
   const totalSessions = sessions.length + deviceSessionsAll.length;
   const widgets: PageWidget[] = [];
 
-  let html = `<div class="light-page">
-    ${renderLensHeader('Light & Sun', 'Sunlight, indoor light, and your daily rhythm.')}`;
+  const headerHTML = renderLensHeader('Light & Sun', 'Sunlight, indoor light, and your daily rhythm.');
 
   // AI hero verdict — synthesizes today's full picture (sun + devices +
   // environment + trends) into one read. Sits above active-session and
@@ -588,11 +364,9 @@ export function showLight(_data: unknown) {
   const lead = isEmpty
     ? 'Sunlight does more than make vitamin D. Start a session to see which light-responsive systems the exposure may have reached.'
     : 'Each card shows a light-responsive pathway seen in your recent logs. It is an exposure story, not a daily score or quota.';
-  const channelsBody = `<div class="light-channels-section">
-    <p class="light-section-hint">${lead}</p>
-    ${renderChannelPills(totals7d, devTotals7d)}
-    ${isEmpty ? getSunCoordsHint() : ''}
-  </div>`;
+  const channelsBody = renderLightPresentation({ kind: 'channels', lead,
+    channelHTML: renderChannelPills(totals7d, devTotals7d), locationHTML: isEmpty ? getSunCoordsHint() : '',
+  });
   widgets.push({
     id: 'light-channels',
     title: 'What Your Light May Stimulate',
@@ -608,7 +382,7 @@ export function showLight(_data: unknown) {
   // that state is labeled as missing data rather than missing exposure.
   const staticWeeklyReview = renderSuggestion(totals7d, devTotals7d, sessions, deviceSessionsAll);
   const weeklyReview = lightPageDeps.renderChannelMixVerdict(staticWeeklyReview) || staticWeeklyReview;
-  const weeklyBody = `${weeklyReview}<p class="light-weekly-disclaimer">Wellness interpretation, not medical advice. This review uses logged sessions and may miss unrecorded exposure; it does not measure vitamin-D status or a personal safe UV limit.</p>`;
+  const weeklyBody = renderLightPresentation({ kind: 'weekly', reviewHTML: String(weeklyReview) });
   widgets.push({
     id: 'light-guidance',
     title: 'Weekly Light Review',
@@ -652,7 +426,7 @@ export function showLight(_data: unknown) {
     id: 'light-devices',
     title: 'Light Devices',
     description: 'Therapy panels, SAD lamps, dawn simulators, and device logging',
-    body: `<div id="${escapeAttr(devicesSlotId)}" class="light-widget-loading">Loading devices...</div>`,
+    body: renderLightPresentation({ kind: 'loading', id: devicesSlotId, label: 'Loading devices...' }),
     size: 'full',
     opts: { source: 'Light', dashboardId: '' },
   });
@@ -660,7 +434,7 @@ export function showLight(_data: unknown) {
     id: 'light-environment',
     title: 'Indoor Light Assessment',
     description: 'Rooms, screens, readings, and saved audit snapshots',
-    body: `<div id="${escapeAttr(environmentSlotId)}" class="light-widget-loading">Loading environment...</div>`,
+    body: renderLightPresentation({ kind: 'loading', id: environmentSlotId, label: 'Loading environment...' }),
     size: 'full',
     opts: { source: 'Light', dashboardId: '' },
   });
@@ -668,7 +442,7 @@ export function showLight(_data: unknown) {
     id: 'light-tools',
     title: 'Measurement Tools',
     description: 'On-device light checks and room measurement workflows',
-    body: `<div id="${escapeAttr(toolsSlotId)}" class="light-widget-loading">Loading tools...</div>`,
+    body: renderLightPresentation({ kind: 'loading', id: toolsSlotId, label: 'Loading tools...' }),
     size: 'full',
     opts: { source: 'Light', dashboardId: '' },
   });
@@ -681,9 +455,7 @@ export function showLight(_data: unknown) {
     opts: { source: 'Light', dashboardId: '' },
   });
 
-  html += `${renderLensPageWidgets('light', widgets)}</div>`;
-
-  main.innerHTML = html;
+  main.innerHTML = renderLightPresentation({ kind: 'page', headerHTML, widgetsHTML: renderLensPageWidgets('light', widgets) });
   main.querySelector('.light-page')?.classList.add('is-ready');
 
   let devicesRender: unknown;
@@ -736,12 +508,8 @@ export function _expandLightToolsSection() {
 }
 
 function getSunCoordsHint() {
-  const c = lightPageDeps.getSunCoords();
-  if (!c) {
-    return `<p class="light-intro-hint">Tip: set your home country in Profile, or <a href="#" data-light-page-action="request-precise-location">use your current location today</a>. Device coordinates are privacy-rounded and temporary.</p>`;
-  }
-  if (c.source === 'country-band') {
-    return `<p class="light-intro-hint">Calculations use your country (~${c.lat}° lat). Add a postal code in Profile, or <a href="#" data-light-page-action="request-precise-location">use current location today</a> for local conditions.</p>`;
-  }
+  const coords = lightPageDeps.getSunCoords();
+  if (!coords) return renderLightPresentation({ kind: 'location', country: false });
+  if (coords.source === 'country-band') return renderLightPresentation({ kind: 'location', country: true, latitude: String(coords.lat) });
   return '';
 }

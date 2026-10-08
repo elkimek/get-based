@@ -125,7 +125,9 @@ export function createNavigate({ routeHandlers, syncMobileBottomNav, destroyAllC
     // Close mobile sidebar on navigation
     closeMobileSidebarFromRuntime();
     if (routeCategory !== "dashboard" && typeof document !== 'undefined') {
-      document.body.classList.remove('mobile-dashboard-active', 'empty-dashboard-active');
+      // Leaving the welcome route cancels its delayed guided-Chat opening
+      // and releases the layout reservation before the new route renders.
+      document.body.classList.remove('mobile-dashboard-active', 'empty-dashboard-active', 'chat-autostart-reserved');
     }
     syncImportStatusFabFromRuntime();
     destroyAllCharts?.();

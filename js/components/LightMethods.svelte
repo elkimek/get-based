@@ -1,0 +1,25 @@
+<script lang="ts">
+  let { skinBasis, dataSourceHTML, showDataSource }: { skinBasis: string; dataSourceHTML: string; showDataSource: boolean } = $props();
+</script>
+<div class="light-methods-stack gb:light-page:grid gb:light-page:gap-2.5" data-light-page-presentation>
+<details class="light-explainer gb:light-page:border gb:light-page:border-line gb:light-page:rounded-control gb:light-page:bg-surface">
+    <summary class="gb:light-page:cursor-pointer gb:light-page:min-h-[45px] gb:light-page:px-3 gb:light-page:py-3 gb:light-page:text-[13px] gb:light-page:font-semibold gb:light-page:text-ink gb:light-page:focus-visible:outline-2 gb:light-page:focus-visible:outline-accent">How these estimates work</summary>
+    <div class="light-explainer-body gb:light-page:px-3 gb:light-page:pb-3 gb:light-page:text-xs gb:light-page:text-secondary gb:light-page:leading-relaxed gb:light-page:[&_p]:my-2.5 gb:light-page:[&_strong]:text-ink gb:light-page:[&_a]:text-ink gb:light-page:[&_a]:underline gb:light-page:[&_a]:decoration-accent gb:light-page:[&_a]:underline-offset-2">
+      <p><strong>Burn risk.</strong> UV dose is estimated for the skin that is exposed. Exposing more skin changes the whole-body estimate, but does not make the dose safer for each patch. Sunscreen is not counted as extra safe time. {skinBasis} Medicines, altitude, reflection, irritated skin, uneven sunscreen, and personal sensitivity can all change the real limit. Stop before redness and never stay longer just to raise an estimate.</p>
+      <p><strong>Vitamin D.</strong> We estimate how much vitamin-D-making UVB reaches uncovered skin, then account for exposed area and skin type. The result is an IU-equivalent estimate, not a measurement of absorption or a prediction of blood vitamin D.</p>
+      <p><strong>Other light signals.</strong> The cards show when parts of sunlight or device light may reach light-sensitive pathways in the eyes and skin. They describe possible stimulation, not a measured body response, daily requirement, or completion score. Sunlight and devices stay separate because a targeted device is not the same as full-spectrum daylight.</p>
+      <p><strong>Uncertainty.</strong> Weather, shade, glass, clothing, skin, distance, and device specifications can change the estimate. Treat ranges as context, not a prescription.</p>
+      <p><strong>UV-A transition.</strong> “On” marks when modeled UV-A becomes meaningfully available as the sun rises; “off” marks when it fades near sunset. It is a useful transition window, not an instant whole-body switch. Small amounts may still be present outside it. Never look directly at the sun.</p>
+      <p><strong>Safety basis.</strong> Eye and skin UV warnings use <a href="https://www.icnirp.org/cms/upload/publications/ICNIRPUVWorkersHP.pdf" target="_blank" rel="noopener">ICNIRP exposure references</a> and <a href="https://www.who.int/news-room/questions-and-answers/item/radiation-protecting-against-skin-cancer" target="_blank" rel="noopener">WHO protection guidance</a>. UV can damage skin and eyes, and <a href="https://www.iarc.who.int/news-events/sunbeds-and-uv-radiation/" target="_blank" rel="noopener">artificial UV is not treated as harmless</a> because it is used for wellness. The app withholds UV numbers when device output, band split, or distance is not adequately specified.</p>
+      <p><strong>Photobiology lens.</strong> Channel explanations draw on published photobiology, circadian biology, and light-response research. Safety limits and numerical doses use the cited primary or institutional sources, while exploratory mechanisms remain labeled as modeled or under study.</p>
+      <p><strong>Weather data.</strong> On the hosted app, the default first requests <a href="https://atmosphere.copernicus.eu/" target="_blank" rel="noopener">CAMS</a> data through a fixed private relay using only coordinates rounded to a ~11 km grid and the requested time. The relay looks up a locally downloaded CAMS grid; it does not forward your coordinates to Copernicus or Open-Meteo. If CAMS is unavailable or incomplete, your browser contacts <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> directly with the same rounded location for weather and air-quality fields. A self-hoster can use a relay under their own control.</p>
+      <p><strong>Want the technical details?</strong> See <a href="https://docs.getbased.health/developers/sun-spectrum-model" target="_blank" rel="noopener">the model notes and sources</a>.</p>
+    </div>
+  </details>
+  {#if showDataSource}
+    <details class="light-data-source-details gb:light-page:border gb:light-page:border-line gb:light-page:rounded-control gb:light-page:bg-surface">
+      <summary class="gb:light-page:cursor-pointer gb:light-page:min-h-[45px] gb:light-page:px-3 gb:light-page:py-3 gb:light-page:text-[13px] gb:light-page:font-semibold gb:light-page:text-ink gb:light-page:focus-visible:outline-2 gb:light-page:focus-visible:outline-accent">Sun data source</summary>
+      <div class="light-data-source-body gb:light-page:p-3">{@html dataSourceHTML}</div>
+    </details>
+  {/if}
+</div>

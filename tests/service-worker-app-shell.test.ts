@@ -141,6 +141,14 @@ describe('service worker app-shell completeness', () => {
     expect(missing).toEqual([]);
   });
 
+  it('pre-caches the production body-picker illustration and alpha mask', () => {
+    const stock = readRepoFile('/js/sun-body-silhouette.js').match(/const STOCK_IMG = \{([\s\S]*?)cells:/)?.[1] || '';
+    const assets = [...stock.matchAll(/\b(?:src|mask):\s*'([^']+)'/g)].map(match => match[1]!);
+    expect(assets).toEqual(['/er.svg', '/er-mask.png']);
+    const cached = new Set(appShellEntries());
+    expect(assets.filter(asset => !cached.has(asset))).toEqual([]);
+  });
+
   it('pre-caches the complete local ES-module and worker dependency graph', () => {
     const cached = new Set(appShellEntries());
     const { entries, missingFiles, reachable } = reachableAppModules();

@@ -5,6 +5,8 @@ import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // Light page view delegated-action source guards.
 
 const src = readRepositorySource('js/light-page-view.js', 'utf8');
+const pillsSrc = readRepositorySource('js/components/LightDashboardPills.svelte', 'utf8');
+const presentationSrc = readRepositorySource('js/components/LightWidgetPrompt.svelte', 'utf8');
 const hooksSrc = readRepositorySource('js/light-page-view-hooks.js', 'utf8');
 const todayAiSrc = readRepositorySource('js/light-today-ai.js', 'utf8');
 const dashboardRenderersSrc = readRepositorySource('js/dashboard-widget-renderers.js', 'utf8');
@@ -93,10 +95,10 @@ assert('Service worker caches Light page hooks',
 
 assert('Light widget prompt receives action ids instead of JavaScript snippets',
   /function renderLightWidgetPrompt\(status, ctaLabel, ctaAction/.test(src)
-    && /data-light-page-action="\$\{escapeAttr\(ctaAction\)\}"/.test(src)
+    && presentationSrc.includes('data-light-page-action={view.action}') && src.includes("kind: 'prompt'")
     && !/function renderLightWidgetPrompt\(status, ctaLabel, ctaJs/.test(src));
 assert('Dashboard channel pill action passes channel through data attribute',
-  /data-light-page-action="open-channel" data-channel="\$\{escapeAttr\(k\)\}"/.test(src)
+  pillsSrc.includes('data-light-page-action="open-channel" data-channel={pill.key}')
     && /lightPageDeps\.openChannelOnLightPage\(actionEl\.dataset\.channel \|\| ''\)/.test(src));
 
 console.log(`\nResults: ${legacyAssertions.pass} passed, ${legacyAssertions.fail} failed, ${legacyAssertions.pass + legacyAssertions.fail} total`);

@@ -397,7 +397,12 @@ test('Light page today strip and empty-state hints cover adaptive branches', asy
       const noDevices = lightPage.renderLightTodayStrip();
       outcomes.nonSolarCtasAdaptToDeviceAndRoomState =
         oneDevice.includes('Joovv Solo')
-        && manyDevices.includes('Device <span aria-hidden="true">▼</span>')
+        && (() => {
+          const rendered = new DOMParser().parseFromString(manyDevices, 'text/html');
+          const button = rendered.querySelector('[data-light-page-action="quick-log-device"]');
+          return button?.textContent?.trim() === '🔴 Device ▼'
+            && button.querySelector('span[aria-hidden="true"]')?.textContent === '▼';
+        })()
         && noDevices.includes('Log a sun session')
         && oneDevice.includes('Map a room');
 

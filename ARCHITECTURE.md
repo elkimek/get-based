@@ -1096,7 +1096,29 @@ waits for the module graph and all seven ordered Light stylesheets before
 rendering. An HTML anchor preserves the original cascade position.
 Marker-history controls and the context-card Ott badge keep their cross-feature
 styles in their eager owning bundles, while the deferred Light stylesheets and
-modules remain in the service-worker app shell for offline first use.
+modules remain in the service-worker app shell for offline first use. The
+body-region picker illustration and alpha mask are also explicit app-shell
+assets, so native and static builds can open the session picker offline.
+
+The Light route shell, session-start actions, empty/loading prompts, UV safety,
+methods/source disclosures, compact Light Today strip and dashboard channel pills
+are authored in `LightPagePresentation.svelte` and its focused child components.
+`light-page-presentation.ts` and `light-today-presentation.ts` project display
+fields; `light-page-view.ts` retains orchestration and existing delegate/ticker
+contracts. Calculations and writes remain with the Light/Sun services. Literal
+profile and device fields use Svelte escaping. The synchronous HTML adapter
+preserves callers that compose shared dashboard and route widgets.
+
+`css/light-sun.css` is generated from `light-sun.base.css` and scoped
+`light-page.tailwind.css`, at the same lazy URL and cascade position. Superseded
+page-owned native templates and ordinary styles are removed. The remaining base
+sheet owns separately rendered children, including session/device/setup views.
+Leaving Dashboard cancels its pending guided-Chat reservation before the next
+route renders, so a stale welcome timer cannot squeeze or reopen over that route.
+Explicit HTML slots accept only named existing renderers: shared Lens chrome,
+conditions, channel SVG/details, source controls and Sun/device widgets. Those
+child owners remain migration work; the authored page shell does not establish
+whole-Light migration or whole-app PWA acceptance.
 
 Settings and Tweaks are loaded through `settings-loader.js` on their first
 shell, startup deep-link, or feature action. Theme-owned accent initialization

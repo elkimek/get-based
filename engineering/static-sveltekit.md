@@ -358,3 +358,17 @@ checks generation using a synthetic local model transport, actual canonical writ
 download, deletion tombstones, unrelated profile equality, two offline closed-client
 launches and backup. Synthetic inference does not establish live-provider acceptance;
 these scoped checks do not establish whole-app startup or installed-PWA acceptance.
+
+The Light page shell and compact Light Today/dashboard pills share authored Svelte
+presentation with existing synchronous runtime adapters. Scoped Tailwind is built
+into the original ordered `css/light-sun.css` URL; the remaining base CSS serves
+separately owned children. Calculations, session persistence, active tickers,
+widget preferences and async child ownership remain in their existing services.
+[`light-page-owned.spec.ts`](../tests/playwright/light-page-owned.spec.ts) checks
+authored surfaces across themes, widths, keyboard interaction and accessibility.
+[`sveltekit-light-page.spec.ts`](../tests/pwa/sveltekit-light-page.spec.ts) uses the
+actual route with AI paused and the artifact origin disabled, saves a past session through the
+existing dialog, checks canonical IndexedDB records and unrelated profile data,
+and verifies cached body-picker artwork decoding, two closed-client launches and backup. A session without coordinates
+retains its honest `needs-location` status; this check does not establish live
+atmosphere-provider, remaining Light child, installed-PWA or whole-app acceptance.
