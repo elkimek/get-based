@@ -13,6 +13,7 @@ function seed({defaults,now,version}:{defaults:ProfileData;now:number;version:nu
   if(!['http:','https:'].includes(location.protocol))return;
   localStorage.setItem('labcharts-ai-paused','true');if(localStorage.getItem('channel-seeded'))return;localStorage.setItem('channel-seeded','1');
   localStorage.setItem('labcharts-profiles',JSON.stringify([{id:'default',name:'Ada',sex:'male',dob:'1990-01-01',createdAt:1}]));localStorage.setItem('labcharts-active-profile','default');
+  localStorage.setItem('labcharts-default-lastViewV1','insight');
   localStorage.setItem('labcharts-default-dashboardWidgetsV13',JSON.stringify({order:['light-channels'],hidden:[]}));
   for(const key of ['emptyTour','tour'])localStorage.setItem(`labcharts-default-${key}`,'completed');
   const device={id:'channel-panel',brand:'Saved <Panel>',model:'Red & NIR',type:'pbm',channels:['nir_solar','pbm_red'],peakWavelengths:[660,850],mwPerCm2At15cm:20};
@@ -66,7 +67,10 @@ test('static channel details first open offline with retained source charts, res
   await context.exposeBinding('channelCsp',(_,value:string)=>csp.push(value));await context.addInitScript(()=>document.addEventListener('securitypolicyviolation',event=>{void(window as unknown as{channelCsp(value:string):Promise<void>}).channelCsp(event.violatedDirective);}));
   const server=await startKitServer(process.env.GETBASED_KIT_ARTIFACT||path.resolve('.local-notes/sveltekit-build'));
   try{
-    const loading=[{phase:'initial-online',readyMs:await ready(page,server.origin)}];const before=await page.evaluate(readComparisonAcceptanceProfile);server.state.offline=true;
+    const loading=[{phase:'initial-online',readyMs:await ready(page,server.origin)}];
+    // Keep the first Dashboard pill render behind the offline boundary.
+    await expect(page.locator('[data-light-dashboard-pills]')).toHaveCount(0);
+    const before=await page.evaluate(readComparisonAcceptanceProfile);server.state.offline=true;
     await inspect(page);expect(await page.evaluate(readComparisonAcceptanceProfile)).toEqual(before);await page.close();
     for(let launch=0;launch<2;launch++){const cold=await context.newPage();loading.push({phase:`offline-cold-${launch+1}`,readyMs:await ready(cold,server.origin)});await inspect(cold);expect(await cold.evaluate(readComparisonAcceptanceProfile)).toEqual(before);await cold.close();}
     expect(errors).toEqual([]);expect(csp).toEqual([]);await fs.writeFile(test.info().outputPath('channel-loading.json'),JSON.stringify(loading,null,2));
