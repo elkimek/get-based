@@ -1,5 +1,31 @@
 // Failure-only static PWA evidence. No worker instrumentation or storage writes.
-import type { Page, TestInfo } from '@playwright/test';
+import type { Page, Request, Response, TestInfo } from '@playwright/test';
+
+/** Observe navigation without retries, page evaluations, or waits on the success path. */
+export async function navigateWithOfflineLaunchDiagnostics(page: Page, url: string, info: TestInfo): Promise<void> {
+  const events: { kind: string; path: string; status?: number; error?: string | undefined; reportedFromServiceWorker?: boolean }[] = [];
+  const record = (event: typeof events[number]) => {
+    if (events.length === 64) events.shift();
+    events.push(event);
+  };
+  const failed = (request: Request) => record({ kind: 'requestfailed', path: new URL(request.url()).pathname, error: request.failure()?.errorText });
+  const responded = (response: Response) => record({ kind: 'response', path: new URL(response.url()).pathname, status: response.status(), reportedFromServiceWorker: response.fromServiceWorker() });
+  page.on('requestfailed', failed);
+  page.on('response', responded);
+  try {
+    await page.goto(url);
+  } catch (error) {
+    await info.attach('offline-launch-navigation-state', {
+      body: JSON.stringify({ requestedURL: url, pageURL: page.url(), error: String(error), events }, null, 2), contentType: 'application/json',
+    });
+    await captureOfflineLaunchDiagnostics(page, info);
+    throw error;
+  } finally {
+    page.off('requestfailed', failed);
+    page.off('response', responded);
+  }
+}
+
 export async function captureOfflineLaunchDiagnostics(page: Page, info: TestInfo): Promise<void> {
   try {
     const state = await page.evaluate(async () => {
@@ -13,7 +39,7 @@ export async function captureOfflineLaunchDiagnostics(page: Page, info: TestInfo
         const requests = await bounded(cache.keys(), `keys ${key}`);
         if (!Array.isArray(requests)) { snapshots.push({ key, requests }); continue; }
         const shell = requests.filter(request => {
-          const url = new URL(request.url); return url.origin === location.origin && (/^\/_app\/immutable\//.test(url.pathname) || ['/app', '/index.html', '/css/context-editor.css', '/css/emf.css'].includes(url.pathname));
+          const url = new URL(request.url); return url.origin === location.origin && (/^\/_app\/immutable\//.test(url.pathname) || /^\/vendor\/fonts\//.test(url.pathname) || ['/app', '/index.html', '/css/context-editor.css', '/css/emf.css'].includes(url.pathname));
         });
         // Bounded parallel batches avoid a diagnostic flood after a stalled launch.
         const entries = [];

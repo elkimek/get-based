@@ -2,7 +2,7 @@ import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { startKitServer } from './kit-server.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
-import { captureOfflineLaunchDiagnostics } from '../helpers/offline-launch-diagnostics.js';
+import { captureOfflineLaunchDiagnostics, navigateWithOfflineLaunchDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 const artifact = process.env.GETBASED_KIT_ARTIFACT || path.resolve('.local-notes/sveltekit-build');
 async function ready(page: Page) {
   try { await expect(page.locator('html[data-app-ready][data-shell-framework="sveltekit"]')).toBeAttached({ timeout: 30000 }); }
@@ -58,11 +58,11 @@ test('static authored History preserves paging, trends, ranges and profile data 
   await context.addInitScript(() => document.addEventListener('securitypolicyviolation', event => { void (window as unknown as { nutritionHistoryCsp(value: string): Promise<void> }).nutritionHistoryCsp(event.violatedDirective); }));
   const server = await startKitServer(artifact);
   try {
-    await page.goto(server.origin + '/app?dev-sw=1'); await ready(page); const before = await stored(page);
+    await navigateWithOfflineLaunchDiagnostics(page, server.origin + '/app?dev-sw=1', test.info()); await ready(page); const before = await stored(page);
     await expect(page.locator('link[href="/css/nutrition.css"]')).toHaveCount(0); server.state.offline = true;
     await verifyHistory(page, before); await page.close();
     for (let launch = 0; launch < 2; launch++) {
-      const cold = await context.newPage(); await cold.goto(server.origin + '/app?dev-sw=1'); await ready(cold);
+      const cold = await context.newPage(); await navigateWithOfflineLaunchDiagnostics(cold, server.origin + '/app?dev-sw=1', test.info()); await ready(cold);
       await verifyHistory(cold, before); await cold.close();
     }
     expect(errors).toEqual([]); expect(csp).toEqual([]);
