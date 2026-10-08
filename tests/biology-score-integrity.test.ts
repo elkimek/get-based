@@ -1,3 +1,4 @@
+import {JSDOM} from 'jsdom';
 import type {BiologyOverview,BiologyInterpretedDomain} from '../types/biology-scores.js';
 import type {ScoreProfileContext} from '../js/biology-score-types.js';
 interface FixtureMarker {values:Array<number|null|undefined>;name?:string|undefined;[key:string]:unknown}
@@ -440,7 +441,11 @@ describe('Biology Scores integrity', () => {
     expect(getScorePresentation(s)).toMatchObject({ value: s.rawScore, historical: true, status: 'Historical score' });
     let html = renderScoreDetail(s);
     expect(html).toContain('Historical score'); expect(html).toContain('Jan 2026');
-    expect(html).toContain(`biology-score-dial-number">${s.rawScore}`);
+    const dial = new JSDOM(html).window.document.querySelector('.biology-score-dial-number');
+    expect(dial).not.toBeNull();
+    expect(dial!.firstChild!.nodeType).toBe(3);
+    expect(dial!.firstChild!.nodeValue).toBe(String(s.rawScore));
+    expect(dial!.querySelector('small')!.textContent).toBe('/100');
     d.categories.thyroid!.markers.ft4!.singleDate = '2024-07-08';
     s = score(d, 'thyroidCoherence');
     expect(getScorePresentation(s).status).toBe('Mixed-date estimate');

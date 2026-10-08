@@ -28,15 +28,19 @@ type ScoreValue = BiologyRenderScore['score'];
 
 // biology-score-render.ts — HTML rendering for Biology Score cards, details, and dashboard/lens widgets.
 
+import {renderHTML as renderCard} from './components/BiologyCardPresentation.svelte.html.js';
+import {getScorePresentation, biologyScoreSentence as scoreSentence, projectBiologyScoreDetail, projectBiologyScoreMetric} from './biology-card-presentation.js';
+export {getScorePresentation} from './biology-card-presentation.js';
+
 import { renderHTML as renderPlanning } from './components/BiologyPlanningPresentation.svelte.html.js';
 import { projectBiologyNextChecks, projectBiologyCoverage } from './biology-planning-presentation.js';
 import { renderHTML as renderReading } from './components/BiologyReadingPresentation.svelte.html.js';
-import { biologyMarkerTitle as getMarkerTitle, biologyEvidenceBadge as getEvidenceBadge, biologyScoreColor as scoreColor, projectBiologyFacts, projectBiologyMarkerSections, projectBiologyMethodology } from './biology-reading-presentation.js';
+import { biologyMarkerTitle as getMarkerTitle, biologyEvidenceBadge as getEvidenceBadge, biologyScoreColor as scoreColor, projectBiologyFacts } from './biology-reading-presentation.js';
 import { escapeAttr, escapeHTML } from './utils.js';
-import { renderScoreAIAnswer, renderScoreAISummary } from './biology-score-sections.js';
+import { getBiologyAIState, renderScoreAIAnswer, renderScoreAISummary } from './biology-score-sections.js';
 import { getBiologyProfileContext } from './profile-context.js';
-import { TONE_LABELS, clamp, resolveScoreTone, coreScoreDrivers } from './biology-score-engine.js';
-import { renderLensDashboardToggle } from './lens-page-shell.js';
+import { TONE_LABELS, clamp } from './biology-score-engine.js';
+import { getLensDashboardToggleView, renderLensDashboardToggle } from './lens-page-shell.js';
 import {
   markerDisplayLabel,
 } from './biology-score-coverage-planner.js';
@@ -105,19 +109,6 @@ function renderScoreInputs(score: BiologyRenderScore) {
   </div>`;
 }
 
-export function getScorePresentation(score: BiologyRenderScore) {
-  score = score.historicalSnapshot || score;
-  const historical = !Number.isFinite(score.score) && Number.isFinite(score.rawScore)
-    && ['stale', 'mixed-dates'].includes(score.recencyStatus as string);
-  const value = Number.isFinite(score.score) ? score.score : historical ? score.rawScore : null;
-  const dates = [...new Set((score.presentationDates || (score.available || []).filter(i => i.core && !i.profileContextOnly).map(i => i.date)).filter(Boolean))].sort();
-  const date = (text: string | undefined) => { const d = new Date(`${text}T00:00:00Z`); return Number.isFinite(d.getTime()) ? d.toLocaleDateString('en', { month: 'short', year: 'numeric', timeZone: 'UTC' }) : ''; };
-  const period = dates.length ? dates[0] === dates.at(-1) ? date(dates[0]) : `${date(dates[0])} – ${date(dates.at(-1))}` : '';
-  const tone = historical ? score.attention && value! >= 70 ? 'strained' : resolveScoreTone(value) : score.tone;
-  const status = historical ? score.recencyStatus === 'mixed-dates' ? 'Mixed-date estimate' : 'Historical score'
-    : value == null ? 'Needs markers or context' : score.coverage < 1 ? 'Partial panel' : TONE_LABELS[tone as keyof typeof TONE_LABELS] || 'Range fit';
-  return { value, historical, period, tone, status };
-}
 
 // Priority is a reading order, independent of AI state and clinical urgency.
 export function groupBiologyScores<Score extends BiologyRenderScore>(scores: readonly Score[]) {
@@ -136,9 +127,7 @@ export function groupBiologyScores<Score extends BiologyRenderScore>(scores: rea
 }
 
 function renderScoreMetric(score: BiologyRenderScore) {
-  const { value, tone, historical } = getScorePresentation(score);
-  const color = scoreColor(value, tone);
-  return `<span class="biology-score-dial${value === 0 ? ' biology-score-dial-zero' : ''}${historical ? ' biology-score-dial-historical' : ''}" style="--score-value:${value ?? 0};--score-color:${color}"><span class="biology-score-dial-number">${value ?? '—'}<small>${value == null ? 'No score yet' : '/100'}</small></span></span>`;
+  return renderCard({kind: 'metric', view: projectBiologyScoreMetric(score)});
 }
 
 function renderReadingFacts(facts: readonly (readonly [unknown, unknown])[]) {
@@ -149,38 +138,11 @@ function renderInterpretationNotes(flags: readonly string[] = []) {
   return flags.length ? renderReading({kind: 'notes', flags}) : '';
 }
 
-function renderMethodology(score: BiologyRenderScore) {
-  return renderReading({kind: 'methodology', view: projectBiologyMethodology(score)});
-}
 
-function scoreSentence(score: BiologyRenderScore) {
-  const presentation = getScorePresentation(score);
-  if (presentation.historical) return presentation.period;
-  if (!Number.isFinite(score.score)) return score.panelLabel ? `Complete the ${score.panelLabel.toLowerCase()} to score this route.` : 'Review the core markers and collection context in Details.';
-  const alerted = score.available.find(i => i.referenceDirection);
-  if (alerted) return `${alerted.label} is ${alerted.referenceDirection} its reference range${alerted.profileContextOnly ? ' (context result)' : ''}.`;
-  if (score.scoreConfidenceWarning) return score.coverage < 1 ? 'The core panel is incomplete; check the missing inputs in Details.' : 'Collection or profile context limits interpretation; check Details.';
-  const weakest = coreScoreDrivers(score)[0]?.item;
-  if (weakest?.partial! < 35) return `${weakest!.label} is far from the selected range.`;
-  return weakest && weakest.partial < 100 ? `${weakest.label} contributes most to the lower fit.` : 'Core markers align with your selected ranges.';
-}
 
 export function renderScoreDetail(score: BiologyRenderScore, options: { showDashboardToggle?: boolean } = {}) {
-  const status = `${score.coreCovered ?? 0}/${score.coreTotal ?? 0} core · ${score.optionalAvailable ?? 0} additional${score.evidence === 'experimental' ? ' · Exploratory' : ''}`;
-  const presentation = getScorePresentation(score);
-  return `<article class="biology-score-detail biology-score-compact" id="biology-score-${escapeAttr(score.id)}">
-    <div class="biology-score-summary"><span class="biology-score-title">${escapeHTML(score.title)}${score.panelLabel || score.scopeLabel ? `<small class="biology-score-scope">${escapeHTML(score.panelLabel || score.scopeLabel)}</small>` : ''}</span>${renderScoreMetric(score)}<span class="biology-score-summary-copy"><strong>${escapeHTML(presentation.status)}</strong><span>${escapeHTML(scoreSentence(score))}</span></span>${renderScoreAISummary(score)}<span class="biology-score-summary-footer"><span class="biology-score-footer-meta">${renderMembershipBadge(score)}<small>${escapeHTML(status)}</small></span><button type="button" class="biology-score-details-label" data-biology-score-action="toggle-score" aria-expanded="false" aria-controls="biology-score-panel-${escapeAttr(score.id)}" aria-label="Details for ${escapeAttr(score.title)}">Details <span aria-hidden="true">⌄</span></button></span></div>
-    <div class="biology-score-expanded" id="biology-score-panel-${escapeAttr(score.id)}">
-      <div class="biology-score-detail-tools"><!--score-tools-->${options.showDashboardToggle ? renderLensDashboardToggle(`biology-score-${score.id}`) : ''}</div>
-      ${presentation.historical ? `<p class="biology-score-history-note">${escapeHTML(presentation.status)} · ${escapeHTML(presentation.period)}. ${escapeHTML(score.recencyMessage || 'Not a current, simultaneous panel.')}</p>` : ''}
-      <div class="biology-score-detail-heading"><h3>${escapeHTML(score.title)}</h3>${score.boundary ? `<p>${escapeHTML(score.boundary)}</p>` : ''}</div>
-      <div class="biology-score-ai-details">${renderScoreAIAnswer(score)}</div>
-      ${renderInterpretationNotes(score.flags)}
-      ${renderReading({kind: 'markers', sections: projectBiologyMarkerSections(score)})}
-      ${score.descriptiveRatio ? `<p>${escapeHTML(score.descriptiveRatio.label)}: ${escapeHTML(score.descriptiveRatio.value)} · ${escapeHTML(score.descriptiveRatio.date)} · context only</p>` : ''}
-      ${renderMethodology(score)}
-    </div>
-  </article>`;
+  const dashboardToggle = options.showDashboardToggle ? getLensDashboardToggleView(`biology-score-${score.id}`) : null;
+  return renderCard({kind: 'detail', view: projectBiologyScoreDetail(score, getBiologyAIState(score), dashboardToggle)});
 }
 
 function renderScoreCard(score: BiologyRenderScore) {
@@ -207,10 +169,6 @@ function renderOverviewMembership(score: BiologyRenderScore) {
   return `<details id="biology-score-membership" class="biology-overview-membership biology-reading-panel"><summary>Overview contributors <span class="biology-membership-count">${included}/${score.membership.length} included</span></summary><div class="biology-reading-body"><p>13 baseline scores form 12 domains. Iron Handling and Blood Flow Context share the blood domain.</p><div class="biology-membership-list">${score.membership.map(item => `<button type="button" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(item.id)}"><span>${escapeHTML(item.title)}${item.domain === 'blood' ? '<small>Shared blood domain</small>' : ''}</span><span class="biology-membership-badge" data-overview-membership="${item.included ? 'included' : 'excluded'}">${escapeHTML(item.label)}</span></button>`).join('')}</div></div></details>`;
 }
 
-function renderMembershipBadge(score: BiologyRenderScore) {
-  const membership = score.overviewMembership;
-  return membership ? `<span class="biology-membership-badge" data-overview-membership="${membership.optional ? 'optional' : membership.included ? 'included' : 'excluded'}">${escapeHTML(membership.label)}</span>` : '';
-}
 
 function renderBiologicalCoherenceHero(score: BiologyRenderScore | null | undefined) {
   if (!score) return '';

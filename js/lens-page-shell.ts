@@ -1,5 +1,9 @@
 // lens-page-shell.ts — shared lens page chrome, ordering, and widget helpers
 
+import {renderHTML as renderDashboardToggle} from './components/LensDashboardToggle.svelte.html.js';
+
+export interface LensDashboardToggleView {id: string; label: string; action: 'remove-dashboard-widget' | 'add-dashboard-widget'}
+
 import { state } from './state.js';
 import { getWidgetHeaderDescription } from './dashboard-widget-copy.js';
 import { escapeHTML, escapeAttr } from './utils.js';
@@ -199,20 +203,25 @@ export function moveLensPageWidget(route: unknown, id: unknown, direction: unkno
   if (state.currentView === route) callLensPageRuntime('navigate', route);
 }
 
-export function renderLensDashboardToggle(dashboardId: string | null | undefined) {
+export function getLensDashboardToggleView(dashboardId: string | null | undefined): LensDashboardToggleView | null {
   const availableIds = _shellDeps.getAvailableDashboardFixedWidgetIds();
   // Biology Score widgets are generated dynamically from score definitions. In
   // isolated Node/source-inspection tests the dashboard registry is not always
   // configured before the lens renderer runs, so keep the toggle renderable for
   // these declared dynamic widget ids instead of silently dropping it.
   const isDeclaredDynamicBiologyScoreWidget = typeof dashboardId === 'string' && dashboardId.startsWith('biology-score-');
-  if (!dashboardId || (!availableIds.includes(dashboardId) && !isDeclaredDynamicBiologyScoreWidget)) return '';
+  if (!dashboardId || (!availableIds.includes(dashboardId) && !isDeclaredDynamicBiologyScoreWidget)) return null;
   const prefs = _shellDeps.getDashboardWidgetPrefs();
   const hidden = Array.isArray(prefs?.hidden) ? prefs.hidden : [];
   const isVisible = !hidden.includes(dashboardId);
   const label = isVisible ? 'Remove from Dashboard' : 'Add to Dashboard';
   const action = isVisible ? 'remove-dashboard-widget' : 'add-dashboard-widget';
-  return `<button type="button" class="dashboard-widget-tool lens-widget-dashboard-toggle" ${lensPageActionAttrs(action, { id: dashboardId })}>${label}</button>`;
+  return {id: dashboardId, label, action};
+}
+
+export function renderLensDashboardToggle(dashboardId: string | null | undefined) {
+  const view = getLensDashboardToggleView(dashboardId);
+  return view ? renderDashboardToggle({view}) : '';
 }
 
 export function renderLensWidget(id: string, title: unknown, description: string | undefined, body: unknown, size = 'full', opts: LensWidgetOptions = {}) {

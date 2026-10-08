@@ -195,6 +195,20 @@ sanitized Markdown and stale provenance offline, then compares the complete stor
 profile across two closed-client launches. Existing Biology integrity and lens
 scenarios remain responsible for request, saving, navigation and refresh behavior.
 
+Biology score cards have [frozen full-composition checks](../tests/biology-card-presentation.test.ts)
+for all 18 score types plus empty, zero, escaped, historical, mixed-date snapshot,
+pending and cached inputs. They verify dashboard action state and the existing
+lens-shell insertion contract independently. [Headless card parity](../tests/playwright/biology-cards-owned.spec.ts)
+compares collapsed and expanded geometry, palettes, dial pseudo-elements and
+focus across six themes and breakpoint boundaries. Existing lens scenarios and
+the static reading/AI scenarios exercise the complete card's actual delegates,
+full-width panels, marker dialogs, persistence and offline launches.
+[Static card controls](../tests/pwa/sveltekit-biology-cards.spec.ts) independently
+verify dashboard preferences and exact page order across two closed-client
+offline launches while preserving the complete lab profile. The historical
+score integrity check verifies the exact numeric DOM text and unit independently
+of presentation utility classes.
+
 Preserve independently failing assertions for these workflows:
 
 | Workflow | Required behavior | Selected regression sources |

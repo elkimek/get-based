@@ -67,7 +67,7 @@ export function renderScoreQuestion(score: BiologySectionScore) {
 }
 
 /** Snapshot domain-owned AI state at the existing synchronous render boundary. */
-function biologyAIState(score: BiologySectionScore) {
+export function getBiologyAIState(score: BiologySectionScore) {
   return {record: readScoreAIAnswer(score), processing: isScoreAIProcessing(score),
     refreshReason: getScoreAIRefreshReason(score), retry: hasUnsavedScoreAIAnswers(),
     error: scoreExplanationErrors.get(getScoreAIRequestKey(score)) || '', encryption: getEncryptionEnabled()};
@@ -184,7 +184,7 @@ export function hasCurrentScoreAIAssessment(score: BiologySectionScore) {
 }
 
 export function renderScoreAISummary(score: BiologySectionScore) {
-  return renderBiologyAI({kind: 'summary', view: projectBiologyAISummary(score, biologyAIState(score))});
+  return renderBiologyAI({kind: 'summary', view: projectBiologyAISummary(score, getBiologyAIState(score))});
 }
 
 // Failed durable saves remain retryable without another provider request. This
@@ -247,5 +247,5 @@ export function scoreAIAnswerNeedsRefresh(score: BiologySectionScore) {
 }
 
 export function renderScoreAIAnswer(score: BiologySectionScore) {
-  return renderBiologyAI({kind: 'answer', view: projectBiologyAIAnswer(score, biologyAIState(score))});
+  return renderBiologyAI({kind: 'answer', view: projectBiologyAIAnswer(score, getBiologyAIState(score))});
 }

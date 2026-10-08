@@ -67,7 +67,7 @@ changing score calculation or collection policy. `BiologyReadingTable.svelte`
 owns the shared labeled, keyboard-scrollable table; `BiologyReadingFacts.svelte`
 shares fact layout across score and coherence panels. `biology-reading-classes.ts`
 adds scoped reading utilities through `css/biology-scores.tailwind.css`. The
-remaining native score cards and coherence composition retain their
+remaining native coherence composition and dashboard widgets retain their
 existing owners until migrated. Public renderer facades and marker delegates stay
 stable; no raw HTML slots are introduced in these authored reading components.
 
@@ -82,6 +82,21 @@ The full answer has one intentional raw-content boundary through the existing
 and rejecting unsafe link protocols. It accepts Markdown text, never arbitrary
 presentation HTML. Shared dashboard action styling remains owned by the dashboard
 until its controls migrate.
+
+Biology score cards and full expanded panels are composed by
+`BiologyCardPresentation.svelte`, `BiologyScoreDetail.svelte` and
+`BiologyScoreMetric.svelte`. `biology-card-presentation.ts` projects primitive
+card data and directly composes the typed AI and reading views. Domain-owned AI
+snapshots come from `getBiologyAIState`; calculation, request and save behavior
+remain outside the components. `biology-card-classes.ts` owns their scoped
+Tailwind utilities, including the shared coherence metric. Public renderer URLs,
+score IDs, delegate attributes and disclosure state remain stable. Cards keep
+the existing `score-tools` insertion marker for the shared lens shell; only that
+component preserves source comments during compilation. No raw HTML slots are
+introduced. `LensDashboardToggle.svelte` renders the shared typed dashboard
+action supplied by `getLensDashboardToggleView`; the shell still owns preference
+reads, page ordering and delegated writes. Grid offsets and the remaining shared
+dashboard controls keep their existing stylesheet owner.
 
 Settings navigation/layout, Display, Privacy, Voice, Agent Access, imported records
 and AI usage use scoped Tailwind utilities

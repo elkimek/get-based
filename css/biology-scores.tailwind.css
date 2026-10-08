@@ -36,3 +36,13 @@
 @source "../js/components/BiologyAISummary.svelte";
 @source "../js/components/BiologyAIAnswer.svelte";
 @source "../js/components/BiologyAIPresentation.svelte";
+
+/* Biology cards and shared score metrics. */
+@custom-variant biology-card (&:is([data-biology-card-view], [data-biology-card-view] *));
+@custom-variant card-phone (@media (max-width: 650px));
+@custom-variant card-container (@container biology-page (max-width: 650px));
+@custom-variant card-narrow (@media (max-width: 600px));
+@source "../js/biology-card-classes.ts";
+@source "../js/components/BiologyScoreMetric.svelte";
+@source "../js/components/BiologyScoreDetail.svelte";
+@source "../js/components/BiologyCardPresentation.svelte";
