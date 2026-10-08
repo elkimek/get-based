@@ -174,8 +174,10 @@ export async function stopSession(id: string) {
     await persistSessionChanges();
     return sess;
   }
-  const now = Date.now();
   if (!sess.paused) storeDeps.commitCurrentSlice(sess);
+  // Committing reads its own end clock. Capture the session boundary after
+  // that synchronous work so no modeled slice extends past the saved stop.
+  const now = Date.now();
   if (sess.paused && Number.isFinite(sess.pausedAt)) {
     sess.accumulatedPausedMs = (sess.accumulatedPausedMs || 0) + Math.max(0, now - sess.pausedAt!);
   }

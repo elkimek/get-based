@@ -402,3 +402,11 @@ precise paused-time accounting, device doses, unrelated profile equality, two
 saved-session cold launches and exact backup equality. External providers are
 blocked and AI is paused; this is static local acceptance, not live-weather or
 installed-PWA evidence.
+
+The [Sun entry acceptance](../tests/pwa/sveltekit-sun-entry.spec.ts) exercises
+first offline use of authored live-start and coverage dialogs, native keyboard
+region selection and confirmation, unchanged glass/eye/posture/surface inputs,
+old/new timed body-exposure slices, exact unrelated-profile equality, closed-client
+cold launches and backup export. The body silhouette remains its existing asset
+and interaction owner; preflight thresholds are checked separately through the
+stable formatter and native browser entry workflow.

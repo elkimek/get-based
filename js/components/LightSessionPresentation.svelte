@@ -1,4 +1,6 @@
 <script lang="ts">
+  import SunStartSessionForm from './SunStartSessionForm.svelte';
+  import SunPreflightBanner from './SunPreflightBanner.svelte';
   import LightActiveSession from './LightActiveSession.svelte';
   import LightLiveReadouts from './LightLiveReadouts.svelte';
   import LightSessionChips from './LightSessionChips.svelte';
@@ -11,7 +13,9 @@
   import DeviceSessionForm from './DeviceSessionForm.svelte';
   let props: LightSessionPresentationProps = $props();
 </script>
-{#if props.kind === 'active'}<LightActiveSession view={props.view}/>
+{#if props.kind === 'start' || props.kind === 'coverage'}<SunStartSessionForm view={props.kind === 'start' ? props.view : null} silhouetteHTML={props.silhouetteHTML}/>
+{:else if props.kind === 'preflight'}<SunPreflightBanner view={props.view}/>
+{:else if props.kind === 'active'}<LightActiveSession view={props.view}/>
 {:else if props.kind === 'live-readouts'}<LightLiveReadouts readouts={props.readouts}/>
 {:else if props.kind === 'channel-chips'}<LightSessionChips chips={props.chips}/>
 {:else if props.kind === 'detail'}<LightSessionDetail view={props.view} aiHTML={props.aiHTML}/>

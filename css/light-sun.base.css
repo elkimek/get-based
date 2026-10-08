@@ -214,9 +214,6 @@
 /* Textarea variant */
 textarea.ctx-input { resize: vertical; min-height: 56px; }
 
-/* Detailed (past) session modal — silhouette picker + form fields */
-.sun-detailed-modal:not([data-light-session-presentation]), .sun-start-modal { max-width: 560px; }
-
 /* Shared native Conditions/AI-extraction sections; authored session details own their utilities. */
 .sun-detail-section:not([data-light-detail-presentation] *) { margin: 14px 0; }
 .sun-detail-section-label:not([data-light-detail-presentation] *) {
@@ -454,46 +451,6 @@ svg.sun-silhouette text.sun-silhouette-label {
   color: var(--red);
   font-weight: 500;
 }
-.sun-start-details {
-  margin-top: 8px; padding-top: 8px;
-  border-top: 1px solid var(--border);
-}
-.sun-start-details summary {
-  font-size: 12px; color: var(--text-muted);
-  cursor: pointer; padding: 4px 0;
-  list-style: none;
-}
-.sun-start-details summary::before { content: '▸ '; opacity: 0.6; }
-.sun-start-details[open] summary::before { content: '▾ '; }
-.sun-detailed-row:not([data-light-session-presentation] *) {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-@media (max-width: 480px) {
-  .sun-detailed-row:not([data-light-session-presentation] *) { grid-template-columns: 1fr; }
-}
-.sun-detailed-glass:not([data-light-session-presentation] *) { display: flex; align-items: center; gap: 8px; }
-.sun-detailed-glass-hint:not([data-light-session-presentation] *) {
-  margin: 4px 0 0 24px; font-size: 11px; color: var(--text-muted); line-height: 1.45;
-}
-
-/* Pre-session UVI warning banner — surfaces extreme/very-high UV before
-   the user starts a session. Color escalates by tier. */
-.sun-start-uvi-banner {
-  margin: 0 0 12px 0;
-}
-.sun-uvi-warn, .sun-uvi-veryhigh, .sun-uvi-extreme {
-  padding: 10px 14px; border-radius: var(--radius-sm);
-  font-size: 13px; line-height: 1.5;
-  border: 1px solid; display: block;
-}
-.sun-uvi-warn     { background: var(--yellow-bg); border-color: var(--yellow); color: var(--text-primary); }
-.sun-uvi-veryhigh { background: var(--orange-bg); border-color: var(--orange); color: var(--text-primary); }
-.sun-uvi-extreme  { background: var(--red-bg); border-color: var(--red); color: var(--text-primary); }
-.sun-uvi-warn strong, .sun-uvi-veryhigh strong, .sun-uvi-extreme strong { color: var(--text-primary); }
-
 /* Legacy touch-tooltip class kept for any cached DOM created by older app
    code; new tooltips use .app-tooltip from light-conditions-now.css. */
 .touch-tooltip {

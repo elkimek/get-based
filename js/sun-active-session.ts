@@ -2,9 +2,10 @@ import type { ActiveSessionCalls, SessionOperations, AtmosphereOperations, LiveO
 export type { SunLiveDosesReader, SunLiveSegmentReader } from '../types/sun-active-session.js';
 // sun-active-session.js — active sun-session UI and live dose ticker.
 import { renderHTML } from './components/LightSessionPresentation.svelte.html.js';
+import { projectStartSunSessionForm } from './light-session-presentation.js';
 import { liveSessionReadouts } from './light-active-session-presentation.js';
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, showNotification } from './utils.js';
+import { showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { BODY_REGIONS, renderBodySilhouette, bindBodySilhouette } from './sun-body-silhouette.js';
 import { sunSessionInputKey, sunSessionExposure } from './sun-session-model.js';
@@ -97,11 +98,6 @@ export async function openStartSunSessionDialog() {
   }
   const last = activeDeps.getSessions().filter(s => s.endedAt).slice(-1)[0];
   const lastRegions = new Set((last?.bodyExposure?.regions || []) as Iterable<string>);
-  const defaultEye = last?.eyeExposure?.mode || 'direct';
-  const defaultLens = last?.eyeExposure?.lensTint || 'clear';
-  const defaultGlass = !!last?.bodyExposure?.glassBetween;
-  const defaultPosture = last?.posture || 'standing';
-  const defaultSurface = last?.surfaceAlbedo || 'grass';
   const fitz = configuredFitz;
   const psm = state.importedData?.sunDefaults?.photosensitiveMeds ?? 'unknown';
   const uviPromise = _fetchCurrentUVI();
@@ -109,65 +105,10 @@ export async function openStartSunSessionDialog() {
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = `<div class="modal sun-start-modal" role="dialog" aria-label="Start sun session">
-    <div class="modal-header">
-      <h3>Start a sun session</h3>
-      <button type="button" class="modal-close" data-sun-start-close aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      <div id="sun-start-uvi-banner" class="sun-start-uvi-banner" hidden></div>
-      <p class="modal-body-hint">Tap each body region that's uncovered right now. The session begins as soon as you hit Start.</p>
-      <div class="sun-silhouette-wrap" id="sun-start-silhouette-slot">${renderBodySilhouette(lastRegions)}</div>
-      <div class="sun-silhouette-hint-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <div class="sun-silhouette-hint" id="sun-start-hint">Tap any body region to toggle whether it's uncovered.</div>
-        <button type="button" class="ctx-btn-option" id="sun-start-clear" style="padding:2px 10px;font-size:11px">Clear</button>
-      </div>
-
-      <details class="sun-start-details">
-        <summary>Posture, surface, eyewear, sunscreen, glass — change defaults</summary>
-        <div class="sun-detailed-row" style="margin-top:10px">
-          <label class="ctx-label">Posture
-            <select id="start-posture" class="ctx-select">
-              ${activeDeps.postureOptions.map(o => `<option value="${escapeAttr(o.key)}"${o.key === defaultPosture ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
-            </select>
-          </label>
-          <label class="ctx-label">Surface
-            <select id="start-surface" class="ctx-select">
-              ${activeDeps.surfaceOptions.map(o => `<option value="${escapeAttr(o.key)}"${o.key === defaultSurface ? ' selected' : ''}>${escapeHTML(o.label)}</option>`).join('')}
-            </select>
-          </label>
-        </div>
-        <p class="sun-detailed-glass-hint">Choose a protected-eye option only when the lenses are labeled UV-blocking. Dark tint alone does not prove UV protection.</p>
-        <p class="sun-detailed-glass-hint">Lying flat catches more sun than standing (~40%). Reflective surfaces (sand, water, snow) bounce UV onto your skin from below.</p>
-        <div class="sun-detailed-row" style="margin-top:10px">
-          <label class="ctx-label">Eyes
-            <select id="start-eye-mode" class="ctx-select">
-              ${activeDeps.eyeModes.map(e => `<option value="${escapeAttr(e.key)}"${e.key === defaultEye ? ' selected' : ''}>${escapeHTML(e.pickerLabel || e.label)}</option>`).join('')}
-            </select>
-          </label>
-          <label class="ctx-label">Lens tint
-            <select id="start-lens-tint" class="ctx-select">
-              ${activeDeps.lensTints.map(l => `<option value="${escapeAttr(l.key)}"${l.key === defaultLens ? ' selected' : ''}>${escapeHTML(l.label)}</option>`).join('')}
-            </select>
-          </label>
-        </div>
-        <div class="ctx-label sun-detailed-glass" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:12px">
-          <span style="flex:1;min-width:0">Behind glass (window / car / sunroom)</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="start-glass"${defaultGlass ? ' checked' : ''} />
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <p class="sun-detailed-glass-hint">Ordinary window glass usually blocks most vitamin-D-effective UVB but can pass some UVA, visible light, and near-infrared. Glass types vary, so the model uses a generic wavelength-by-wavelength estimate and never treats glass as guaranteed UV protection. Light tools → Window check compares camera-visible light only; it cannot measure your glass's UV protection.</p>
-        <p class="sun-detailed-glass-hint">If you turn over later, use <strong>Side change</strong> at that moment. It records the timing boundary without multiplying the dose; use <strong>Coverage</strong> too if different skin becomes exposed.</p>
-      </details>
-
-      <div class="modal-actions" style="margin-top:18px">
-        <button type="button" class="import-btn import-btn-secondary" data-sun-start-close>Cancel</button>
-        <button class="import-btn import-btn-primary" id="start-confirm">☀ Start session</button>
-      </div>
-    </div>
-  </div>`;
+  overlay.innerHTML = renderHTML({ kind: 'start', view: projectStartSunSessionForm({ lastUsed: last ?? null,
+    eyeModes: activeDeps.eyeModes, lensTints: activeDeps.lensTints,
+    postureOptions: activeDeps.postureOptions, surfaceOptions: activeDeps.surfaceOptions,
+  }), silhouetteHTML: renderBodySilhouette(lastRegions) });
   const closeDialog = () => removeModalOverlay(overlay);
   overlay.querySelectorAll('[data-sun-start-close]').forEach(btn => {
     btn.addEventListener('click', closeDialog);

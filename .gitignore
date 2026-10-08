@@ -2070,3 +2070,9 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/components/LightLiveReadouts.svelte.native.js.map
 /js/components/LightSessionChips.svelte.native.js
 /js/components/LightSessionChips.svelte.native.js.map
+
+/js/components/SunStartSessionForm.svelte.native.js
+/js/components/SunStartSessionForm.svelte.native.js.map
+/js/components/SunPreflightBanner.svelte.native.js
+/js/components/SunPreflightBanner.svelte.native.js.map
+/tests/sun-start-presentation.test.js

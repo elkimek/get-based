@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 1161,
-  "sinkCount": 325,
+  "scannedFiles": 1163,
+  "sinkCount": 326,
   "files": {
     "js/biology-scores.js": {
       "count": 1,
@@ -191,6 +191,13 @@
       }
     },
     "js/components/SunPastSessionForm.svelte.native.js": {
+      "count": 1,
+      "digest": "fbdb577412dadc3e241db4b34d117c619fac4ff6725f876b9e7023d17622fbfa",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/SunStartSessionForm.svelte.native.js": {
       "count": 1,
       "digest": "fbdb577412dadc3e241db4b34d117c619fac4ff6725f876b9e7023d17622fbfa",
       "kinds": {
@@ -688,7 +695,7 @@
     },
     "js/sun-active-session.js": {
       "count": 10,
-      "digest": "ab9b60640b3fd23708c5afd08de861c8e758dcbbbd2e005e29cba89ca6edd154",
+      "digest": "884c03caa52337ce61088dd7af705e49a73570836f82fd0b0657255b9a41b414",
       "kinds": {
         "innerHTML": 7,
         "insertAdjacentHTML": 2,
@@ -719,7 +726,7 @@
     },
     "js/sun.js": {
       "count": 1,
-      "digest": "b7c8efe9bfe1ca6639c394cb3c78ecfe03be482db56df968b53722c420a6c05a",
+      "digest": "4eaee3b84fbc91a2e1856d9dd541edfc67e118064d08e5b551712211eb02f074",
       "kinds": {
         "innerHTML": 1
       }

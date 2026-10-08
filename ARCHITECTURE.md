@@ -1179,7 +1179,27 @@ and start a new slice at recovery time; no unknown paused span is treated as
 exposure. Manual duration edits retire the resume boundary with the timed slices.
 Completed hydration continues to sum modeled slices; the stop clock separately
 excludes completed/current pauses. Integration formulas and safety thresholds
-remain in their existing services.
+remain in their existing services. The stopped session boundary is captured
+after committing its final synchronous exposure slice, keeping modeled dose
+intervals inside the saved session end.
+
+`SunStartSessionForm.svelte` owns the shared live-start and mid-session coverage
+shell. `light-session-presentation.ts` selects the same ordered options and
+last-completed-session defaults. The existing active-session and Sun controllers
+retain skin/location prerequisites, region binding, clear/empty validation,
+glass-to-eye-mode mapping, modal lifecycle and canonical save/coverage handlers.
+The silhouette HTML is an explicit slot from `sun-body-silhouette.ts`; its geometry,
+selection, overlays and asset ownership remain separate. Start controls and the
+glass label retain 45px hit areas; disclosure and region hints work with keyboard
+and assistive announcements. Superseded entry templates and exclusive native
+form/disclosure styles are removed.
+
+`SunPreflightBanner.svelte` renders literal warning metadata with scoped Tailwind.
+`sun-active-session-format.ts` retains preflight visibility/tier thresholds,
+base-MED minutes, medication uncertainty and assumption copy. Its stable public
+HTML function delegates the final markup to the authored renderer. Formatting,
+calculation callbacks and the consolidated start toast keep their existing
+contracts; no additional rendering backend or provider request is introduced.
 
 Settings and Tweaks are loaded through `settings-loader.js` on their first
 shell, startup deep-link, or feature action. Theme-owned accent initialization

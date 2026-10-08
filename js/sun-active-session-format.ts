@@ -1,4 +1,5 @@
-import { escapeHTML } from './utils.js';
+import { renderHTML } from './components/LightSessionPresentation.svelte.html.js';
+import type { SunPreflightBannerView } from './light-session-presentation.js';
 import type { SunSessionExposureInput } from './sun-session-model.js';
 
 export interface SunSessionSummaryInput extends SunSessionExposureInput {
@@ -90,7 +91,7 @@ export function _renderUVIPreflightBanner(
   if (uvi! < 8 && !psmHigh && !fairSkin) return '';
   if (uvi! < 5 && !psmHigh) return '';
   const medMin = _estimateMedMinutes(uvi, fitzpatrick, psmTier, photosensitiveMedScale);
-  let cls = 'sun-uvi-warn';
+  let cls: SunPreflightBannerView['className'] = 'sun-uvi-warn';
   let icon = '☀';
   let title = '';
   if (uvi! >= 11) { cls = 'sun-uvi-extreme'; icon = '⚠'; title = `Extreme UV (UVI ${uvi!.toFixed(1)})`; }
@@ -102,7 +103,7 @@ export function _renderUVIPreflightBanner(
   const medicationLine = psmTier !== 'none'
     ? ' Medication effects are not included because a drug-specific burn threshold cannot be inferred; follow the label or clinician.'
     : '';
-  return `<div class="${cls}"><strong>${icon} ${escapeHTML(title)}</strong> ${escapeHTML(medLine + medicationLine)} Use shade, clothing, and suitable sun protection; shorten or skip the session when warnings apply.</div>`;
+  return renderHTML({ kind: 'preflight', view: { className: cls, icon, title, text: medLine + medicationLine } });
 }
 
 export function _buildStartSessionToast<T>({ regionCount, uvi, psmTier, eyeMode }: {

@@ -50,13 +50,31 @@ export interface PastSessionLogOptions {
   postureOptions: ReadonlyArray<{ key?: unknown; label?: unknown }>;
   surfaceOptions: ReadonlyArray<{ key?: unknown; label?: unknown }>;
 }
+function sessionChoices(items: ReadonlyArray<{ key?: unknown; label?: unknown; pickerLabel?: unknown }>, selected: unknown, picker = false): SessionOption[] {
+  return items.map(item => ({ key: literal(item.key), label: literal(picker ? item.pickerLabel || item.label : item.label), selected: item.key === selected }));
+}
 export function projectPastSessionForm(options: PastSessionLogOptions) {
-  const choices = (items: ReadonlyArray<{ key?: unknown; label?: unknown; pickerLabel?: unknown }>, selected: unknown, picker = false): SessionOption[] => items.map(item => ({ key: literal(item.key), label: literal(picker ? item.pickerLabel || item.label : item.label), selected: item.key === selected }));
   return { lastUsed: !!options.lastUsed, start: literal(options.localStartDefault), now: literal(options.localNow),
-    eyeModes: choices(options.eyeModes, options.eyeMode, true), lensTints: choices(options.lensTints, options.lensTint),
-    postures: choices(options.postureOptions, options.lastUsed?.posture || 'standing'), surfaces: choices(options.surfaceOptions, options.lastUsed?.surfaceAlbedo || 'grass') };
+    eyeModes: sessionChoices(options.eyeModes, options.eyeMode, true), lensTints: sessionChoices(options.lensTints, options.lensTint),
+    postures: sessionChoices(options.postureOptions, options.lastUsed?.posture || 'standing'), surfaces: sessionChoices(options.surfaceOptions, options.lastUsed?.surfaceAlbedo || 'grass') };
 }
 export type PastSessionFormView = ReturnType<typeof projectPastSessionForm>;
+export interface StartSunSessionFormOptions extends Pick<PastSessionLogOptions, 'eyeModes' | 'lensTints' | 'postureOptions' | 'surfaceOptions'> {
+  lastUsed?: SessionReader | null;
+}
+export function projectStartSunSessionForm(options: StartSunSessionFormOptions) {
+  const last = options.lastUsed;
+  return { glass: !!last?.bodyExposure?.glassBetween,
+    eyeModes: sessionChoices(options.eyeModes, last?.eyeExposure?.mode || 'direct', true),
+    lensTints: sessionChoices(options.lensTints, last?.eyeExposure?.lensTint || 'clear'),
+    postures: sessionChoices(options.postureOptions, last?.posture || 'standing'),
+    surfaces: sessionChoices(options.surfaceOptions, last?.surfaceAlbedo || 'grass') };
+}
+export type StartSunSessionFormView = ReturnType<typeof projectStartSunSessionForm>;
+export interface SunPreflightBannerView {
+  className: 'sun-uvi-warn' | 'sun-uvi-veryhigh' | 'sun-uvi-extreme';
+  icon: string; title: string; text: string;
+}
 export interface DeviceSessionFormView {
   name: string; modes: Array<{ id: string; label: string }>; defaultMode: string | null;
   duration: number; distance: number; unit: 'cm' | 'in'; referenceCm: number; distanceHint: string;
@@ -73,7 +91,10 @@ export function projectDeviceSessionForm(input: { device: LightDeviceRecord; val
     distanceHint: `Vendor reference: ${referenceCm} cm (${inches(referenceCm)} in).${override ? ` You usually log at ${defaultDistanceCm} cm — prefilled below.` : ''} ${modelHint}`,
     eyeLabel: input.isUVDevice ? 'UV-rated goggles worn (closed eyelids are not protection)' : input.isEyeLightDevice ? 'Eyes open to receive ambient light (never stare at lamp)' : 'Device-appropriate eye protection worn', eyesChecked: input.defaultEyeControlChecked };
 }
-export type LightSessionPresentationProps = { kind: 'active'; view: ActiveSessionView }
+export type LightSessionPresentationProps = { kind: 'start'; view: StartSunSessionFormView; silhouetteHTML: string }
+  | { kind: 'coverage'; silhouetteHTML: string }
+  | { kind: 'preflight'; view: SunPreflightBannerView }
+  | { kind: 'active'; view: ActiveSessionView }
   | { kind: 'live-readouts'; readouts: LiveSessionReadout[] }
   | { kind: 'channel-chips'; chips: SessionChannelChip[] }
   | LightSessionDetailProps | { kind: 'row'; view: CompletedLightSessionView }

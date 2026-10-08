@@ -28,3 +28,6 @@
 @source "../js/components/LightSessionControls.svelte";
 @source "../js/components/LightLiveReadouts.svelte";
 @source "../js/components/LightSessionChips.svelte";
+
+@source "../js/components/SunStartSessionForm.svelte";
+@source "../js/components/SunPreflightBanner.svelte";

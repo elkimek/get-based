@@ -151,6 +151,27 @@ it('stopping while paused accounts for the final pause without committing anothe
   session.endedAt = null; session.startedAt = 900000; session.paused = true; session.pausedAt = 960000;
   await store.stopSession(session.id); expect(session.durationMin).toBe(1); expect(deps.commitCurrentSlice).not.toHaveBeenCalled(); expect(deps.clearLiveState).toHaveBeenCalledWith(session.id);
 });
+it.each([1, 3, 15])('the final slice stays inside the stopped session when committing takes %i ms', async commitMs => {
+  session.startedAt = 900000;
+  session.endedAt = null;
+  session.accumulatedPausedMs = 20000;
+  session.eyeExposure!.durationSec = null;
+  const segments = [{ startedAt: 900000, endedAt: 930000, durationMin: 0.5 }];
+  session.exposureSegments = segments;
+  deps.commitCurrentSlice.mockImplementation(() => {
+    // A real commit reads its end clock and integrates synchronously. Model
+    // the clock advancing across the commit rather than freezing both reads.
+    vi.setSystemTime(Date.now() + commitMs);
+    segments.push({ startedAt: 950000, endedAt: Date.now(), durationMin: (Date.now() - 950000) / 60000 });
+  });
+  await store.stopSession(session.id);
+  expect(session.endedAt).toBe(1000000 + commitMs);
+  const activeMs = session.endedAt! - Number(session.startedAt) - session.accumulatedPausedMs!;
+  expect(segments.reduce((sum, slice) => sum + slice.durationMin * 60000, 0)).toBeLessThanOrEqual(activeMs);
+  for (const slice of segments) expect(slice.endedAt).toBeLessThanOrEqual(session.endedAt!);
+  expect(session.durationMin * 60000).toBe(activeMs);
+  expect(session.eyeExposure!.durationSec).toBe(Math.round(activeMs / 1000));
+});
 it.each(['pauseSession', 'resumeSession', 'markSessionRotated', 'setSessionSunscreen', 'setSessionCoverage'])('%s does not edit an ended session', async method => {
   const before = structuredClone(session); expect(await (store[method as keyof typeof store] as (id: unknown, value?: unknown) => Promise<unknown>)(session.id, 20)).toBeNull(); expect(session).toEqual(before); expect(saveImportedData).not.toHaveBeenCalled();
 });
