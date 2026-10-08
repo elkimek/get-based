@@ -63,7 +63,9 @@ async function inspect(page: Page) {
   await expect(weekly.locator('.light-weekly-ai-tip')).toHaveText('Weekly <literal>');
   await expect(weekly.locator('.light-weekly-ai-detail')).toHaveText('Weekly detail & retained.');
   await expect(weekly.locator('button')).toHaveCount(0);
-  const indoor = page.locator('.light-page .light-env-summary-top .light-env-summary-ai[data-light-review-ai]');
+  await page.locator('[data-light-env-action="open-assessment"]').click();
+  const dialog = page.getByRole('dialog', { name: 'Indoor Light Assessment', exact: true });
+  const indoor = dialog.locator('.light-env-summary-top .light-env-summary-ai[data-light-review-ai]');
   await expect(indoor.locator('.sun-detail-ai-tip')).toHaveText('⚠ Indoor <literal>');
   await expect(indoor.locator('.sun-detail-ai-body')).toHaveText('Indoor detail & retained.');
   await expect(page.locator('[data-light-review-ai] img,[data-light-review-ai] script')).toHaveCount(0);
@@ -72,6 +74,8 @@ async function inspect(page: Page) {
     await expect(button).toHaveAttribute('data-ai-owner', /^verdict-\d+:control$/);
     await expect(button).not.toHaveAttribute('data-ai-target');
   }
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(dialog).not.toBeVisible();
 }
 test('static cached daily, Weekly and indoor reviews first open offline and preserve the full profile over two cold launches', async ({ page, context }) => {
   test.setTimeout(120000);
