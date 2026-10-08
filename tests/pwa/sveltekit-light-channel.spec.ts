@@ -35,6 +35,7 @@ async function inspect(page:Page){
   await expect(dashboard.locator('[data-light-dashboard-pills] .light-pill')).toHaveCount(6);
   await dashboard.getByRole('button',{name:'Open Light & Sun',exact:true}).focus();
   await page.keyboard.press('Enter');await expect(page.locator('.light-page')).toBeVisible();
+  if(await menu.isVisible())await menu.click();
   await page.locator('[data-nav-action="navigate"][data-nav-route="dashboard"]').click();
   await expect(dashboard.locator('[data-light-dashboard-pills] .light-pill')).toHaveCount(6);
   const shortcut=dashboard.locator('.light-pill[data-channel="circadian"]');
