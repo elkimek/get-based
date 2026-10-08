@@ -71,9 +71,19 @@ export function configurePdfImportFileHandlers(deps: PdfImportFileHandlerDepende
 
 async function _showImageModeDialog() {
   return new Promise<ImageModeChoice>(resolve => {
-    const overlay = document.getElementById('confirm-dialog-overlay');
-    const dialog = document.getElementById('confirm-dialog');
-    if (!overlay || !dialog) { resolve('cancel'); return; }
+    // The shared confirm overlay is created lazily by showConfirmDialog(); it may
+    // not exist yet, and it never carries a #confirm-dialog child. Build both
+    // here so scanned PDFs do not silently resolve as "cancel".
+    let overlay = document.getElementById('confirm-dialog-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'confirm-dialog-overlay';
+      overlay.className = 'confirm-overlay';
+      document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = '<div class="confirm-dialog" id="confirm-dialog" role="alertdialog" aria-modal="true" aria-label="Limited text extracted"></div>';
+    const dialog = overlay.querySelector('#confirm-dialog') as HTMLElement | null;
+    if (!dialog) { resolve('cancel'); return; }
     dialog.innerHTML = `
       <div style="font-size:14px;font-weight:600;margin-bottom:8px">Limited text extracted</div>
       <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
@@ -145,7 +155,7 @@ export async function handlePDFFileWorkflow(file: File, forceImageMode = false, 
     let useImageMode = forceImageMode;
     if (!forceImageMode && (textQuality === 'empty' || textQuality === 'poor')) {
       const choice = await _showImageModeDialog();
-      if (choice === 'cancel') { hideImportProgress(); return; }
+      if (choice === 'cancel') { hideImportProgress('cancel'); return; }
       useImageMode = choice === 'image';
       updateImportBenchmark(benchmarkId, { importMode: useImageMode ? 'image' : 'text' }, { persist: false });
       logPrivacyDiagnostic('import-mode-selected', { mode: choice, quality: textQuality });

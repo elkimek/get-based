@@ -46,6 +46,7 @@ import {
 import {
   closeImportModal,
   getExcludedImportIndices,
+  highlightImportErrorRows,
   getPendingImport,
   resolveImportPreviewBatch,
   showImportPreview,
@@ -258,10 +259,12 @@ export async function confirmImport() {
   const excludedIdxs = getExcludedImportIndices();
   const prepared = prepareImportCommit(result, excludedIdxs, state.importedData.customMarkers);
   if (prepared.error) {
+    highlightImportErrorRows(prepared.errorRows);
     showNotification(prepared.error, 'error', 12000);
     if (confirmBtn) confirmBtn.disabled = false;
     return;
   }
+  highlightImportErrorRows([]);
   const rollback = snapshotImportedData();
   const matched = prepared.markers.filter(m => m.matched);
   const newMarkers = prepared.markers.filter(m => !m.matched && m.suggestedKey);
