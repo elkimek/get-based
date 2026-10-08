@@ -107,6 +107,14 @@ Nutrition dashboard projections and both authored widget branches are covered by
 and Body widgets, six themes, narrow containers, and first offline use through two
 cold launches without profile writes.
 
+Saved meal details and check-ins are authored in `js/components/NutritionMealDetail.svelte`
+and `NutritionMealResponse.svelte`, with pure projections and captured commits in
+`js/nutrition-meal-detail-model.ts` and `js/nutrition-meal-detail-session.ts`.
+Focused coverage lives in `tests/nutrition-meal-detail.test.ts`,
+`tests/nutrition-meal-detail-ownership.test.ts`,
+`tests/playwright/nutrition-meal-detail-owned.spec.ts` and
+`tests/pwa/sveltekit-nutrition-meal-detail.spec.ts`.
+
 Nutrition History and its shared meal, target and fuel displays are authored in
 `js/components/NutritionHistory.svelte` and the shared `Nutrition*.svelte` components.
 Edit `css/nutrition.tailwind.css` and `js/nutrition-view-classes.ts` for their scoped

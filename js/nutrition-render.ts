@@ -1,7 +1,7 @@
 // nutrition-render.js — pure Meals & Nutrition view templates and formatting.
 
 import { state } from './state.js';
-import { getMealAnalysisAvailability, nutritionUsageSummary } from './nutrition-analysis.js';
+import { getMealAnalysisAvailability } from './nutrition-analysis.js';
 import { getDefaultNutritionComparisonModelValues, getMealAISelection, isNutritionLocalAICatalogLoading, listNutritionVisionModels, nutritionModelPricing } from './nutrition-ai-settings.js';
 import { MEAL_COMPARISON_REFERENCE_FIELDS } from './nutrition-comparison.js';
 import { assessFuelStrategy, calculateFuelOverlap } from './nutrition-fuel-mix.js';
@@ -28,7 +28,7 @@ type NativeSource = Awaited<ReturnType<typeof analyzeMealPhoto>>['source'];
 export type NutritionRenderMeal = RawFields<NutritionMeal, 'id' | 'eatenAt' | 'name' | 'mealType' | 'note' | 'nutrients' | 'components' | 'images' | 'confidence' | 'responseCheckIn'> & RawFields<StoredNutritionMeal, 'source' | 'image' | 'localDate' | 'localTimeMinutes' | 'warnings' | 'assumptions'>;
 export type MealImageReader = RawFields<MealImage, 'thumbnailUrl'> & { dataUrl?: unknown };
 export type MealComponentReader = RawFields<MealComponent, 'name' | 'quantityG'>;
-type MealSourceReader = RawFields<NativeSource, 'kind' | 'modelDisplay' | 'model' | 'provider' | 'usage'> & {
+export type MealSourceReader = RawFields<NativeSource, 'kind' | 'modelDisplay' | 'model' | 'provider' | 'usage'> & {
   originalSource?: RawFields<NativeSource, 'kind'> | null; correction?: { userProvidedMealName?: unknown } | null;
   label?: RawFields<NonNullable<MealPhotoAnalysis['label']>> | null;
   review?: { editedPortions?: unknown; editedNutrients?: unknown; editedComponentIdentities?: unknown } | null;
@@ -51,10 +51,11 @@ export type TargetReader = Partial<ResolvedTargets> & { [key: string]: unknown }
 export interface FuelOverlapRenderOptions {scope?: 'window' | 'meal'; compact?: unknown; fallbackTotalMeals?: unknown; period?: PeriodReader | null | undefined; targets?: Parameters<typeof assessFuelStrategy>[1]}
 export interface NutritionEditorRenderOptions {editingMealId?: unknown; reusedMealId?: unknown; storageError?: unknown; returnTo?: unknown; returnMealId?: unknown; returnMealOrigin?: unknown}
 
+import { projectNutritionMealDetail } from './nutrition-meal-detail-model.js';
 import { buildNutritionTargetsView, buildNutritionFluidView, localDateTimeValue } from './nutrition-entry-model.js';
 export { localDateTimeValue } from './nutrition-entry-model.js';
 import { renderHTML as renderPresentation } from './components/NutritionPresentation.svelte.html.js';
-import { formatNumber, hasFiniteNumber, MEAL_TYPES, mealTypeLabel, mealImages, projectNutritionFuel, projectNutritionMealRow, projectNutritionHistory } from './nutrition-presentation-model.js';
+import { hasFiniteNumber, MEAL_TYPES, projectNutritionFuel, projectNutritionMealRow, projectNutritionHistory } from './nutrition-presentation-model.js';
 export { formatNumber, hasFiniteNumber, MEAL_TYPES, mealTypeLabel, mealImages, HISTORY_MEAL_PAGE_SIZE } from './nutrition-presentation-model.js';
 
 import { projectNutritionDashboard, projectNutritionFuelDashboard, nutritionDashboardGoalFields } from './nutrition-dashboard-model.js';
@@ -75,9 +76,6 @@ const DETAILED_REVIEW_GROUPS = Object.freeze(NUTRIENT_GROUPS
     fields: reviewFields(nutrientFieldsForGroup(group.id)),
   })));
 export const ALL_REVIEW_FIELDS = reviewFields(NUTRIENT_DEFINITIONS);
-const NUTRIENT_DETAILS = Object.freeze(NUTRIENT_DEFINITIONS.map(field => Object.freeze([
-  field.key, field.label, field.unit,
-] as const)));
 
 export function actionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   const rest = Object.entries(attrs).map(([key, value]) => ` data-nutrition-${escapeAttr(key)}="${escapeAttr(String(value))}"`).join('');
@@ -185,80 +183,8 @@ function renderRecentMeals(meals: readonly NutritionRenderMeal[], storageError: 
   return `<div class="nutrition-recent-list">${visible.map(renderRecentMeal as typeof renderRecentMeal & ((meal: NutritionRenderMeal, index: number) => string)).join('')}</div>${remaining.length ? `<div id="nutrition-recent-more" class="nutrition-recent-list nutrition-recent-more" hidden>${remaining.map(renderRecentMeal as typeof renderRecentMeal & ((meal: NutritionRenderMeal, index: number) => string)).join('')}</div><button type="button" class="nutrition-recent-toggle" aria-expanded="false" aria-controls="nutrition-recent-more" ${actionAttrs('toggle-recent', { remaining: remaining.length })}>Show ${remainingLabel}</button>` : ''}`;
 }
 
-function renderDetailList(title: string, items: unknown) {
-  const rows = (Array.isArray(items) ? items as unknown[] : []).map(item => `<li>${escapeHTML(item)}</li>`).join('');
-  return rows ? `<section class="nutrition-detail-section"><h4>${escapeHTML(title)}</h4><ul>${rows}</ul></section>` : '';
-}
-
-function responseChoice(name: string, value: number, label: string, selected: unknown) {
-  return `<label class="nutrition-response-choice"><input type="radio" name="${escapeAttr(name)}" value="${value}"${Number(selected) === value ? ' checked' : ''}><span>${escapeHTML(label)}</span></label>`;
-}
-
-function renderFuelResponseCheckIn(meal: NutritionRenderMeal) {
-  const response = (meal?.responseCheckIn || {}) as {satiety2h?: unknown; energy2h?: unknown};
-  const saved = hasFiniteNumber(response?.satiety2h) || hasFiniteNumber(response?.energy2h);
-  return `<section class="nutrition-response-card"><div class="nutrition-response-head"><div><span class="nutrition-fuel-kicker">Personal evidence</span><strong>How did this meal feel 2–3 hours later?</strong><small>Repeated check-ins can compare meals with different carb/fat compositions. They do not measure metabolism or prove cause.</small></div>${saved ? '<span class="nutrition-fuel-badge">Checked in</span>' : '<span class="nutrition-fuel-badge">Optional</span>'}</div><div class="nutrition-response-fields"><fieldset><legend>Hunger</legend><div>${responseChoice('nutrition-response-satiety', 1, 'Hungry again', response.satiety2h)}${responseChoice('nutrition-response-satiety', 2, 'Neutral', response.satiety2h)}${responseChoice('nutrition-response-satiety', 3, 'Still satisfied', response.satiety2h)}</div></fieldset><fieldset><legend>Energy</legend><div>${responseChoice('nutrition-response-energy', 1, 'Slump', response.energy2h)}${responseChoice('nutrition-response-energy', 2, 'Steady', response.energy2h)}${responseChoice('nutrition-response-energy', 3, 'Energized', response.energy2h)}</div></fieldset></div><div class="nutrition-response-actions"><small>Saved and cross-synced with this meal. It is not added to the compact AI nutrition summary.</small><div>${saved ? `<button type="button" class="nutrition-text-btn" ${actionAttrs('clear-response', { id: meal.id })}>Clear</button>` : ''}<button type="button" class="import-btn import-btn-primary" ${actionAttrs('save-response', { id: meal.id })}>Save check-in</button></div></div></section>`;
-}
-
-export function renderMealDetail(meal: NutritionRenderMeal, { returnTo = 'history' }: {returnTo?: unknown} = {}) {
-  const eaten = new Date(meal.eatenAt as DateInput);
-  const date = Number.isFinite(eaten.getTime()) ? eaten.toLocaleString([], { dateStyle: 'long', timeStyle: 'short' }) : '';
-  const nutrientRows = NUTRIENT_DETAILS.flatMap(([key, label, unit]) => hasFiniteNumber((meal.nutrients as Record<string, unknown> | null | undefined)?.[key]) ? [`<div><span>${escapeHTML(label)}</span><strong>${formatNumber((meal.nutrients as Record<string, unknown>)[key])} <small>${escapeHTML(unit)}</small></strong></div>`] : []).join('');
-  const componentRows = ((meal.components || []) as MealComponentReader[]).map(item => `<div><span>${escapeHTML(item.name)}</span><strong>${item.quantityG == null ? '—' : `${formatNumber(item.quantityG, 0)} g`}</strong></div>`).join('');
-  const confidence = meal.confidence == null ? '' : 'Uncalibrated identity self-check';
-  const usage = nutritionUsageSummary((meal.source as MealSourceReader | null | undefined));
-  const usageModel = (meal.source as MealSourceReader | null | undefined)?.modelDisplay || (meal.source as MealSourceReader | null | undefined)?.model || 'Selected model';
-  const hasAIUsageSource = (meal.source as MealSourceReader | null | undefined)?.kind === 'ai-photo-estimate' || (meal.source as MealSourceReader | null | undefined)?.kind === 'ai-label-scan';
-  const usageDetails = usage
-    ? `${usageModel} · ${usage.costLabel} · ${usage.totalTokens.toLocaleString()} tokens (${usage.inputTokens.toLocaleString()} in · ${usage.outputTokens.toLocaleString()} out)`
-    : hasAIUsageSource ? `${usageModel} · token usage was not reported by the provider` : '';
-  const reusedOriginal = (meal.source as MealSourceReader | null | undefined)?.originalSource;
-  const reusedOriginalLabel = reusedOriginal?.kind === 'ai-label-scan' ? 'label scan' : reusedOriginal?.kind === 'ai-photo-estimate' ? 'photo estimate' : reusedOriginal?.kind === 'barcode-database' ? 'barcode database' : 'manual/reviewed values';
-  const sourceModel = (meal.source as MealSourceReader | null | undefined)?.modelDisplay || (meal.source as MealSourceReader | null | undefined)?.model || 'AI model';
-  const source = (meal.source as MealSourceReader | null | undefined)?.kind === 'ai-label-scan' ? `${sourceModel} label scan${(meal.source as MealSourceReader).provider ? ` via ${(meal.source as MealSourceReader).provider}` : ''}` : (meal.source as MealSourceReader | null | undefined)?.kind === 'ai-photo-estimate' ? `${sourceModel}${(meal.source as MealSourceReader).provider ? ` via ${(meal.source as MealSourceReader).provider}` : ''}` : (meal.source as MealSourceReader | null | undefined)?.kind === 'barcode-database' ? `${(meal.source as MealSourceReader).foodData?.sourceName || 'Open Food Facts'} · barcode ${(meal.source as MealSourceReader).foodData?.barcode || ''}` : (meal.source as MealSourceReader | null | undefined)?.kind === 'reused-meal' ? `Logged again from a reviewed meal · originally ${reusedOriginalLabel}` : 'Manual entry';
-  const corrected = (meal.source as MealSourceReader | null | undefined)?.correction?.userProvidedMealName ? 'Identification corrected' : '';
-  const mealType = mealTypeLabel(meal.mealType);
-  const label = (meal.source as MealSourceReader | null | undefined)?.label;
-  const images = mealImages(meal);
-  const editedPortions = Number((meal.source as MealSourceReader | null | undefined)?.review?.editedPortions || 0);
-  const editedNutrients = Array.isArray((meal.source as MealSourceReader | null | undefined)?.review?.editedNutrients) ? ((meal.source as MealSourceReader).review!.editedNutrients as unknown[]).length : 0;
-  const editedIdentities = Array.isArray((meal.source as MealSourceReader | null | undefined)?.review?.editedComponentIdentities) ? ((meal.source as MealSourceReader).review!.editedComponentIdentities as unknown[]).length : 0;
-  const reviewParts = [editedIdentities && `${editedIdentities} ingredient identit${editedIdentities === 1 ? 'y' : 'ies'} corrected`, editedPortions && `${editedPortions} portion${editedPortions === 1 ? '' : 's'} adjusted`, editedNutrients && `${editedNutrients} nutrient value${editedNutrients === 1 ? '' : 's'} adjusted`].filter(Boolean);
-  const labelDetails = label ? [label.servingSizeText && `Serving size: ${label.servingSizeText}`, hasFiniteNumber(label.servingsPerContainer) && `${formatNumber(label.servingsPerContainer)} servings/container`, hasFiniteNumber(label.consumedAmount) && `${formatNumber(label.consumedAmount)} ${label.consumedUnit || 'servings'} logged`].filter(Boolean).join(' · ') : '';
-  const foodData = (meal.source as MealSourceReader | null | undefined)?.foodData;
-  const foodDataDetails = foodData ? [foodData.schemaVersion != null && `Product schema ${foodData.schemaVersion}`, foodData.productUpdatedAt && `Product updated ${new Date(foodData.productUpdatedAt as DateInput).toLocaleDateString([], { dateStyle: 'medium' })}`, foodData.cacheHit ? 'Loaded from encrypted local cache' : 'Fetched when logged', 'Community database values reviewed by user'].filter(Boolean).join(' · ') : '';
-  const foodComposition = (meal.source as MealSourceReader | null | undefined)?.foodComposition;
-  const foodCompositionDetails = foodComposition ? [
-    `Historical source: ${foodComposition.sourceName || 'food-composition database'} · ${foodComposition.dataset || 'legacy dataset'}`,
-    `${Number(foodComposition.matchedComponents || 0)}/${Number(foodComposition.totalComponents || 0)} ingredients matched`,
-    Array.isArray(foodComposition.completeMicronutrientKeys) && foodComposition.completeMicronutrientKeys.length
-      ? `${foodComposition.completeMicronutrientKeys.length} micronutrients calculated from reviewed portions`
-      : 'Unmatched nutrients remain unknown',
-  ].join(' · ') : '';
-  const overviewFields = [
-    ['energyKcal', 'Energy', 'kcal', 0], ['proteinG', 'Protein', 'g', 1],
-    ['carbohydrateG', 'Carbs', 'g', 1], ['fatG', 'Fat', 'g', 1],
-  ] as const;
-  const overview = overviewFields.flatMap(([key, labelText, unit, digits]) => hasFiniteNumber((meal.nutrients as Record<string, unknown> | null | undefined)?.[key])
-    ? [`<div><span>${escapeHTML(labelText)}</span><strong>${formatNumber((meal.nutrients as Record<string, unknown>)[key], Number(digits))}</strong><small>${escapeHTML(unit)}</small></div>`]
-    : []).join('');
-  const fuelMix = calculateFuelOverlap(meal?.nutrients as Parameters<typeof calculateFuelOverlap>[0]);
-  const ingredientsSection = componentRows ? `<section class="nutrition-detail-section"><h4>Ingredients and reviewed portions</h4><div class="nutrition-detail-components">${componentRows}</div></section>` : '';
-  const nutrientsSection = nutrientRows ? `<section class="nutrition-detail-section"><h4>Nutrients</h4><div class="nutrition-detail-nutrients">${nutrientRows}</div></section>` : '<div class="nutrition-empty">No nutrient estimates were saved for this meal.</div>';
-  const reviewSections = `${renderDetailList('Estimate assumptions', meal.assumptions)}${renderDetailList('Remaining checks', meal.warnings)}${meal.note ? `<section class="nutrition-detail-section"><h4>Note</h4><p>${escapeHTML(meal.note)}</p></section>` : ''}`;
-  return `<button type="button" class="modal-close" aria-label="Close Meals & Nutrition" ${actionAttrs('close')}>&times;</button>
-    <div class="nutrition-modal-head"><div><h3>${escapeHTML(meal.name || 'Meal')}</h3><p>${escapeHTML(date)}</p></div></div>
-    <div class="nutrition-detail-layout">
-      ${images.length ? `<div class="nutrition-detail-gallery">${images.map((image, index) => `<img class="nutrition-detail-photo" src="${escapeAttr((image as MealImageReader).dataUrl || (image as MealImageReader).thumbnailUrl)}" alt="Saved meal view ${index + 1}">`).join('')}</div>` : ''}
-      <div class="nutrition-detail-overview">
-        <div class="nutrition-detail-meta">${mealType ? `<span>${escapeHTML(mealType)}</span>` : ''}<span>${escapeHTML(source)}</span>${confidence ? `<span>${escapeHTML(confidence)}</span>` : ''}${corrected ? `<span>${escapeHTML(corrected)}</span>` : ''}</div>
-        ${overview ? `<div class="nutrition-detail-summary">${overview}</div>` : ''}
-        ${fuelMix ? `${renderFuelOverlapCard(fuelMix, { scope: 'meal' })}${renderFuelResponseCheckIn(meal)}` : ''}
-        <div class="nutrition-detail-evidence">${usageDetails ? `<div class="nutrition-review-evidence"><strong>AI request usage</strong><span class="nutrition-analysis-usage">${escapeHTML(usageDetails)}</span></div>` : ''}${reviewParts.length ? `<div class="nutrition-review-evidence"><strong>User review</strong><span>${escapeHTML(reviewParts.join(' · '))}</span></div>` : ''}${labelDetails ? `<div class="nutrition-label-summary">${escapeHTML(labelDetails)}</div>` : ''}${foodDataDetails ? `<div class="nutrition-label-summary">${escapeHTML(foodDataDetails)}</div>` : ''}${foodCompositionDetails ? `<div class="nutrition-label-summary">${escapeHTML(foodCompositionDetails)}</div>` : ''}</div>
-      </div>
-      <div class="nutrition-detail-content-grid"><div class="nutrition-detail-column">${ingredientsSection}${reviewSections}</div><div class="nutrition-detail-column">${nutrientsSection}</div></div>
-    </div>
-    <div class="nutrition-detail-actions"><button type="button" class="import-btn import-btn-secondary" ${actionAttrs('back', { origin: returnTo })}>← ${returnTo === 'history' ? 'Meals' : 'Meal entry'}</button><button type="button" class="import-btn import-btn-secondary" ${actionAttrs('reuse', { id: meal.id, origin: returnTo })}>Log again</button><button type="button" class="import-btn import-btn-primary" ${actionAttrs('edit', { id: meal.id, origin: returnTo })}>Edit meal</button><button type="button" class="import-btn import-btn-secondary" ${actionAttrs('delete', { id: meal.id, origin: returnTo })}>Delete meal</button></div>`;
+export function renderMealDetail(meal: NutritionRenderMeal, options: { returnTo?: unknown } = {}) {
+  return renderPresentation({ kind: 'detail', view: projectNutritionMealDetail(meal, options) });
 }
 
 function renderComparisonModelChoices(models: ReturnType<typeof listNutritionVisionModels>, defaults: ReadonlySet<string>) {

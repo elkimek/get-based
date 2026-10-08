@@ -10,3 +10,6 @@
 
 @source "../js/nutrition-entry-view.ts";
 @custom-variant nutrition-entry-modal (&[data-nutrition-entry-modal]);
+
+@source "../js/nutrition-meal-detail-view.ts";
+@custom-variant nutrition-detail-modal (&[data-nutrition-meal-detail-modal]);

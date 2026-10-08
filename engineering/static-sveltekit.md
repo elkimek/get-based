@@ -210,7 +210,8 @@ updates; removed or replaced profile views cannot receive new assessments or ope
 late tips dialogs. Tips dialogs share typed `context-card-tips-presentation.ts`
 projection and authored `ContextCardTips.svelte` markup with escaped catalog/genetics
 text, safe study links and keyboard close/EMF controls. Their lazy stylesheet keeps
-its original URL and ordering. Card editors and nutrition fragments remain separate work. Notes edits
+its original URL and ordering. Card editors and nutrition views retain separate
+presentation and persistence owners. Notes edits
 retain their originating profile through debounced scoped persistence, expose
 confirmed commit status through the shared authored `ContextNotes.svelte` component.
 Independent notes boundaries hydrate in place, retain textarea focus, use unique
@@ -282,5 +283,17 @@ Headless native checks cover all configured/capability combinations, existing
 callback configuration, six themes, keyboard focus, responsive resizing, failed
 stylesheet retry and retired controls. Folder selection dispatch is checked with
 a callback fixture; no operating-system folder picker is opened.
+Saved meal details share authored `NutritionMealDetail.svelte` and
+`NutritionMealResponse.svelte` components, scoped Tailwind and captured meal/profile
+sessions in native and static builds. The public detail renderer and delegated
+meal actions remain available. The session rejects stale reads and changed meals;
+accepted writes finish on their originating profile. Focused
+[`sveltekit-nutrition-meal-detail.spec.ts`](../tests/pwa/sveltekit-nutrition-meal-detail.spec.ts)
+acceptance opens the actual History detail offline, saves and clears optional
+check-ins through two cold launches, and verifies committed IndexedDB data while
+preserving unrelated profile content. Headless native checks cover all six themes,
+small and wide layouts, keyboard controls, accessibility, profile retirement and
+late stylesheet/encrypted-read handoffs. Check-ins retain their existing personal
+evidence and AI-summary exclusion contracts.
 This is scoped editor acceptance; final whole-application migration acceptance
 remains required.

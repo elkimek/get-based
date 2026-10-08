@@ -231,7 +231,7 @@ without mutating stored meals or changing domain calculations. Shared authored m
 rows, target rings, goal rows and fuel cards are used by History and the remaining
 nutrition renderers through one synchronous `NutritionPresentation.svelte` HTML
 entry. This preserves public render contracts without duplicate native templates.
-`css/nutrition.base.css` retains unmigrated editor and detail wrappers, while
+`css/nutrition.base.css` retains unmigrated editor and benchmark wrappers, while
 `css/nutrition.tailwind.css` provides scoped authored utilities at the unchanged
 lazy `css/nutrition.css` URL. Failed stylesheet attempts can be retried. Meal deletion
 checks its originating profile/modal after confirmation before starting a write.
@@ -248,6 +248,15 @@ atomic field guard and drinks through the encrypted meal queue. Failures retain
 the input; retired forms cannot start writes, while accepted writes finish on their
 originating profile. `nutrition-entry-view.ts` owns modal/route retirement and
 save navigation. Existing renderer/control exports delegate to this implementation.
+`NutritionMealDetail.svelte` and `NutritionMealResponse.svelte` own saved meal
+provenance, photos, reviewed portions, nutrient details and optional after-meal
+check-ins. `nutrition-meal-detail-model.ts` projects the existing display semantics;
+`nutrition-meal-detail-view.ts` retires modal/profile/route owners and guards delayed
+stylesheet, read and focus work. `nutrition-meal-detail-session.ts` rejects retired
+controls, failed profile reads and a meal changed since opening; accepted encrypted
+and canonical writes finish on their captured profile. Failed writes retain choices.
+The existing detail renderer and save/clear exports delegate to these authored
+components and owner. Superseded native detail/check-in templates and CSS are removed.
 `NutritionDashboard.svelte` owns the intake and fuel widgets on Dashboard and
 Body, including seven-day coverage, selected nutrient rows and the starter/empty
 states. `nutrition-dashboard-model.ts` projects canonical registry order and
