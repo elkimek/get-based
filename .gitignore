@@ -2181,3 +2181,19 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /tests/helpers/frozen-style-scope.js
 /tests/playwright/light-review-ai-owned.spec.js
 /tests/pwa/sveltekit-light-review-ai.spec.js
+
+# Authored Light channel detail output
+/js/light-channel-content.js
+/js/light-channel-presentation.js
+/js/light-channel-classes.js
+/js/components/LightChannelDetail.svelte.native.js
+/js/components/LightChannelDetail.svelte.native.js.map
+/js/components/LightChannelChart.svelte.native.js
+/js/components/LightChannelChart.svelte.native.js.map
+/js/components/LightChannelResearch.svelte.native.js
+/js/components/LightChannelResearch.svelte.native.js.map
+/js/components/LightChannelDetail.svelte.html.js
+/js/components/LightChannelDetail.svelte.html.js.map
+/tests/light-channel-presentation.test.js
+/tests/playwright/light-channel-owned.spec.js
+/tests/pwa/sveltekit-light-channel.spec.js

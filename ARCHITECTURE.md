@@ -1241,6 +1241,17 @@ Daily, Weekly and burden render-time requests capture owner identity before
 queuing; both deduplication and delayed execution retire across profile/root/epoch
 replacement. Today hero and dashboard share one current-owner daily attempt.
 
+`LightChannelDetail.svelte` owns each channel's expanded reading region, with
+`LightChannelChart.svelte` and `LightChannelResearch.svelte` for the seven-day
+source-separated SVG and research disclosure. `light-channel-presentation.ts`
+projects observed chart geometry, real-unit labels, source counts and explanatory
+copy without DOM or storage access. `light-channel-content.ts` owns maintained
+reading notes and citations. The stable `light-channel-view.ts` adapter gathers
+current domain-service values and retains pill toggles, focus, navigation and
+quick-log delegates. Scoped Tailwind replaces the detail's native styles; chart
+bars remain scaled to the user's own week and never imply biological completion.
+The pill-row renderer and its remaining native styles are separate consumers.
+
 `LightSessionPresentation.svelte` composes the past-Sun and device log forms,
 completed Sun/device rows and shared inline/full history. Its pure
 `light-session-presentation.ts` projections preserve option selection, source

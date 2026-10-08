@@ -52,3 +52,9 @@
 @source "../js/components/LightWeeklyFallback.svelte";
 @source "../js/components/LightBurdenAI.svelte";
 @source "../js/light-review-ai-classes.ts";
+
+@custom-variant channel-detail (&:where([data-light-channel-presentation], [data-light-channel-presentation] *));
+@source "../js/components/LightChannelDetail.svelte";
+@source "../js/components/LightChannelChart.svelte";
+@source "../js/components/LightChannelResearch.svelte";
+@source "../js/light-channel-classes.ts";

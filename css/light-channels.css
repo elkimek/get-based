@@ -1,3 +1,4 @@
+/* Channel pill row and its Light-page container; detail styles are owned by scoped Tailwind. */
 /* Light channel widget, pill row, drill-down panel, and AI synthesis. */
 
 .dashboard-widget[data-widget-id="light-channels"] .light-channels-section {
@@ -179,7 +180,6 @@
 .light-pill-dashboard {
   cursor: pointer;
   font-family: inherit;
-  /* button-element reset */
 }
 .light-pills-interactive .light-pill-interactive:hover,
 .light-pill-dashboard:hover {
@@ -211,242 +211,6 @@
 /* Drill-down detail panel — appears below the pill row when a pill is
    tapped. One channel expanded at a time. */
 .light-channel-detail-slot { margin-top: 12px; }
-.light-channel-detail {
-  --channel-accent: var(--accent);
-  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
-  border: 1px solid color-mix(in srgb, var(--channel-accent) 18%, var(--border));
-  border-radius: var(--radius);
-  padding: 16px 20px;
-  display: flex; flex-direction: column; gap: 10px;
-  outline: none;
-  transition: box-shadow 0.3s, border-color 0.3s;
-}
-.light-channel-detail[data-channel="vitamin_d"] { --channel-accent: var(--yellow); }
-.light-channel-detail[data-channel="circadian"] { --channel-accent: var(--accent); }
-.light-channel-detail[data-channel="nir_solar"] { --channel-accent: var(--red); }
-.light-channel-detail[data-channel="no_cv"] { --channel-accent: var(--green); }
-.light-channel-detail[data-channel="pomc"] { --channel-accent: var(--orange); }
-.light-channel-detail[data-channel="violet_eye"] { --channel-accent: var(--purple); }
-/* Briefly outline the panel after expansion (deep-link from session
-   detail modal or another off-page surface) so the user notices what
-   just opened — the panel can be far below the fold. */
-.light-channel-detail.light-channel-detail-flash {
-  box-shadow: 0 0 0 2px var(--accent), 0 8px 24px color-mix(in srgb, var(--accent) 18%, transparent);
-  border-color: var(--accent);
-}
-.light-channel-detail-head {
-  display: flex; align-items: center; gap: 10px;
-}
-.light-channel-detail-icon { font-size: 18px; }
-.light-channel-detail-title {
-  font-size: 15px; font-weight: 600; color: var(--text-primary); margin: 0;
-}
-.light-channel-detail-close {
-  margin-left: auto;
-  background: transparent; border: none;
-  color: var(--text-muted);
-  font-size: 20px; line-height: 1;
-  padding: 4px 10px; border-radius: 4px;
-  cursor: pointer;
-}
-.light-channel-detail-close:hover { color: var(--text-primary); background: var(--bg-secondary); }
-.light-channel-detail-body {
-  font-size: 13px; line-height: 1.5; color: var(--text-secondary);
-  margin: 0;
-}
-/* Legacy tier-pill styling retained for cached/older markup. The current
-   source-aware view uses neutral logged/empty states instead. */
-.light-channel-detail-tierpill {
-  margin-left: auto;
-  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
-  padding: 3px 9px; border-radius: 999px;
-  border: 1px solid var(--border); background: var(--bg-secondary);
-  color: var(--text-muted);
-}
-/* These colors no longer communicate biological sufficiency. New cards use
-   tier 0 for no log and tier 2 as a compatibility class for signal logged. */
-.light-channel-detail-tierpill.tier1 { color: var(--text-secondary); border-color: var(--border); background: var(--bg-secondary); }
-.light-channel-detail-tierpill.tier2 {
-  color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-}
-.light-channel-detail-tierpill.tier3 {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-}
-.light-channel-detail-tierpill.tier4 {
-  color: var(--green);
-  border-color: color-mix(in srgb, var(--green) 40%, transparent);
-  background: color-mix(in srgb, var(--green) 12%, transparent);
-}
-
-/* Hero block leads with a plain source state rather than a score. */
-.light-channel-hero {
-  display: flex; flex-direction: column; gap: 2px;
-  padding: 10px 14px; border-radius: var(--radius-sm);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--channel-accent) 10%, transparent), transparent 66%),
-    color-mix(in srgb, var(--bg-secondary) 58%, transparent);
-  border: 1px solid color-mix(in srgb, var(--channel-accent) 24%, var(--border));
-}
-.light-channel-hero-top {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-.light-channel-hero-primary {
-  font-size: 18px; font-weight: 700; line-height: 1.2;
-  color: var(--text-primary);
-}
-.light-channel-hero-sub {
-  font-size: 12px; color: var(--text-secondary); line-height: 1.4;
-}
-.light-channel-hero-trend {
-  font-size: 11px; margin-top: 4px; font-weight: 500;
-  color: var(--text-muted);
-}
-.light-channel-hero-trend.up   { color: var(--green); }
-.light-channel-hero-trend.down { color: var(--orange); }
-.light-channel-hero-trend.flat { color: var(--text-muted); }
-
-/* Source labels deliberately avoid a percentage mix: a targeted device is
-   not presented as a fraction of a sunlight-equivalent biological score. */
-.light-channel-sources {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 7px 10px;
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-.light-channel-source {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--bg-secondary);
-}
-.light-channel-source.is-empty { color: var(--text-muted); opacity: 0.7; }
-.light-channel-sources small {
-  flex: 1 1 100%;
-  color: var(--text-muted);
-}
-.light-channel-mix {
-  display: flex; flex-direction: column; gap: 4px;
-}
-.light-channel-mix-bar {
-  display: flex; height: 6px; border-radius: 999px; overflow: hidden;
-  background: var(--bg-secondary);
-}
-.light-channel-mix-sun { background: var(--channel-accent); }
-.light-channel-mix-dev { background: var(--channel-accent); opacity: 0.45; }
-.light-channel-mix-legend {
-  display: flex; gap: 14px;
-  font-size: 11px; color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-.lc-leg-sun, .lc-leg-dev, .lc-leg-tgt {
-  display: inline-block; width: 8px; height: 8px; border-radius: 2px;
-  margin-right: 4px; vertical-align: middle;
-}
-.lc-leg-sun { background: var(--channel-accent, var(--accent)); }
-.lc-leg-dev { background: var(--channel-accent, var(--accent)); opacity: 0.45; }
-.lc-leg-tgt { background: transparent; border-bottom: 2px dashed var(--text-muted); border-radius: 0; height: 0; margin-bottom: 2px; }
-
-/* 7-day rhythm chart wrapper + the legend strip below the section label. */
-.light-channel-weekchart {
-  margin-top: 4px;
-  padding: 12px 12px 8px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--channel-accent) 8%, transparent), transparent 62%),
-    color-mix(in srgb, var(--bg-secondary) 76%, transparent);
-  border: 1px solid color-mix(in srgb, var(--channel-accent) 22%, var(--border));
-  border-radius: var(--radius-sm);
-}
-.light-channel-weekchart-label {
-  font-size: 11px; color: var(--text-secondary);
-  margin-bottom: 6px;
-  display: flex; justify-content: space-between; align-items: center;
-  gap: 10px;
-}
-.light-channel-weekchart-legend {
-  font-size: 10px; color: var(--text-muted);
-  display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 10px;
-}
-
-/* Quiet reading note beneath the chart. */
-.light-channel-banking-note {
-  margin: 0;
-  padding: 8px 12px;
-  font-size: 11.5px; line-height: 1.5; color: var(--text-secondary);
-  border-left: 3px solid var(--text-muted);
-  background: var(--neutral-soft-bg);
-  border-radius: 0 6px 6px 0;
-}
-.light-channel-banking-note strong {
-  color: var(--text-primary);
-  display: inline-block; margin-right: 4px;
-}
-
-/* "Next move" — channel-specific concrete recipe + action button(s).
-   Distinct from the hero (this is what to DO; hero is what you HAVE). */
-.light-channel-nextmove {
-  padding: 10px 14px; border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--bg-secondary) 58%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  display: flex; flex-direction: column; gap: 8px;
-}
-.light-channel-nextmove-label {
-  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--text-muted);
-}
-.light-channel-nextmove-text {
-  font-size: 13px; line-height: 1.5; color: var(--text-primary);
-  margin: 0;
-}
-.light-channel-nextmove-text strong { color: var(--accent); font-weight: 600; }
-.light-channel-nextmove-actions {
-  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px;
-}
-.light-channel-cta-btn { font-size: 12px !important; padding: 6px 12px !important; }
-.light-channel-cit { margin-top: 12px; }
-.light-channel-cit summary {
-  font-size: 12px; color: var(--text-muted); cursor: pointer;
-  user-select: none; padding: 4px 0;
-}
-.light-channel-cit-spec { font-size: 12px; color: var(--text-secondary); margin: 6px 0; }
-.light-channel-cit-spec strong { color: var(--text-primary); }
-.light-channel-cit-refs {
-  margin: 4px 0 0 0; padding-left: 18px;
-  font-size: 11px; color: var(--text-secondary); line-height: 1.55;
-}
-.light-channel-cit-refs li { margin-bottom: 8px; }
-/* "Why this paper matters" tag under each citation — gives the user a
-   one-line reason to choose between papers instead of staring at three
-   bare titles. Indented + lower-contrast so it reads as annotation, not
-   another link. */
-.light-channel-cit-why {
-  margin-top: 2px; padding-left: 2px;
-  font-size: 11px; line-height: 1.45; color: var(--text-muted);
-  font-style: italic;
-}
-/* "Suggest a better study" link at the foot of the citations expander.
-   Mirrors the .rec-suggest pattern from recommendations.js — quiet
-   default state, accent on hover. Pre-fills a GitHub issue with the
-   channel + current ref list so the maintainer has context. */
-.light-channel-cit-suggest {
-  margin-top: 8px; padding-top: 8px;
-  border-top: 1px dashed var(--border);
-  font-size: 11px; text-align: right;
-}
-.light-channel-cit-suggest a { color: var(--text-muted); text-decoration: none; }
-.light-channel-cit-suggest a:hover { color: var(--accent); text-decoration: underline; }
-.light-channel-cit-refs a { color: var(--accent); text-decoration: none; }
-.light-channel-cit-refs a:hover { text-decoration: underline; }
 
 /* Coords hint shown below the channel pills on the Light page empty state */
 .light-intro-hint {
@@ -457,24 +221,11 @@
 .light-intro-hint a:hover { text-decoration: underline; }
 
 
-
-
 @media (prefers-reduced-motion: reduce) {
-  .light-pill-interactive,
-  .light-channel-detail {
+  .light-pill-interactive {
     transition: none !important;
     animation: none !important;
     transform: none !important;
-  }
-}
-
-@media (pointer: coarse) {
-  .light-channel-detail-close {
-    min-height: 44px;
-    min-width: 44px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
   }
 }
 
@@ -518,31 +269,6 @@
     text-align: left;
   }
   .light-pill-dots { font-size: 12px; }
-
-  /* Drill-down stats row stacks vertically so the trend arrow and
-     the two stat blocks aren't squeezed onto a wrapping line. */
-  .light-channel-detail-stats {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  .light-channel-detail-trend {
-    align-self: center;
-    transform: rotate(90deg);
-  }
-  .light-channel-hero-top {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
-  .light-channel-detail-tierpill {
-    margin-left: 0;
-  }
-
-  /* Channel-detail close button — keep the corner anchor but tighten
-     the head row spacing. */
-  .light-channel-detail { padding: 14px 16px; }
-  .light-channel-detail-head { gap: 8px; }
 }
 
 @media (max-width: 375px) {

@@ -1,0 +1,61 @@
+import path from 'node:path';
+import fs from 'node:fs/promises';
+import { expect, test, type Page } from '@playwright/test';
+import { createDefaultProfileData } from '../../js/profile.js';
+import { DEVICE_ENGINE_VERSION } from '../../js/light-device-session-engine.js';
+import { startKitServer } from './kit-server.js';
+import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
+import { readComparisonAcceptanceProfile } from '../helpers/nutrition-comparison-fixture.js';
+import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
+import { readyLightArtifact as ready, openLightArtifact as openLight } from '../helpers/light-artifact-navigation.js';
+import type { ProfileData } from '../../types/app-state.js';
+function seed({defaults,now,version}:{defaults:ProfileData;now:number;version:number}){
+  if(!['http:','https:'].includes(location.protocol))return;
+  localStorage.setItem('labcharts-ai-paused','true');if(localStorage.getItem('channel-seeded'))return;localStorage.setItem('channel-seeded','1');
+  localStorage.setItem('labcharts-profiles',JSON.stringify([{id:'default',name:'Ada',sex:'male',dob:'1990-01-01',createdAt:1}]));localStorage.setItem('labcharts-active-profile','default');
+  for(const key of ['emptyTour','tour'])localStorage.setItem(`labcharts-default-${key}`,'completed');
+  const device={id:'channel-panel',brand:'Saved <Panel>',model:'Red & NIR',type:'pbm',channels:['nir_solar','pbm_red'],peakWavelengths:[660,850],mwPerCm2At15cm:20};
+  localStorage.setItem('labcharts-default-imported',JSON.stringify({...defaults,contextNotes:'Keep unrelated channel context',sunDefaults:{fitzpatrick:'II',completedAt:1},lightDevices:[device],
+    sunSessions:[{id:'channel-sun',startedAt:now-3600000,endedAt:now-2700000,durationMin:15,bodyExposure:{preset:'shorts_top_off',fraction:0.45},eyeExposure:{mode:'direct'},
+      doses:{vitamin_d:100,circadian:2000,nir_solar:400,no_cv:20,pomc:100,violet_eye:120},safety:{medFraction:0.1,fitzpatrick:'II'},calculationStatus:'computed'}],
+    deviceSessions:[{id:'channel-device',deviceId:device.id,deviceSnapshot:device,startedAt:now-1800000,endedAt:now-1380000,durationMin:7,distanceCm:25,bodyArea:'torso',eyesProtected:true,
+      doses:{nir_solar:5,pbm_red:5},safety:{hasUV:false,unsafeEyeExposure:false},engineVersion:version}],lightEnvironment:{rooms:[],screens:[]},lightMeasurements:[],lightAudits:[],lightDailyVerdicts:{}}));
+}
+const channels=['vitamin_d','circadian','nir_solar','no_cv','pomc','violet_eye'];
+async function inspect(page:Page){
+  await openLight(page);
+  for(const channel of channels){
+    const pill=page.locator(`.light-page .light-pill[data-channel="${channel}"]`);
+    await pill.focus();await page.keyboard.press('Enter');await expect(pill).toHaveAttribute('aria-expanded','true');
+    const detail=page.locator('.light-page [data-light-channel-presentation]');await expect(detail).toHaveCount(1);await expect(detail).toHaveAttribute('data-channel',channel);await expect(detail).toBeFocused();
+    await expect(detail.locator('.light-channel-hero-primary')).toHaveText(channel==='nir_solar'?'Sunlight + device logged':'Sunlight logged');
+    await expect(detail.locator('svg[role="img"]')).toHaveAttribute('aria-label',/7-day per-day exposure:/);
+    const bars=detail.locator('svg rect');expect(await bars.count()).toBeGreaterThan(0);
+    const research=detail.locator('details');await research.locator('summary').focus();await page.keyboard.press('Enter');await expect(research).toHaveAttribute('open','');
+    await expect(research.locator('.light-channel-cit-refs a')).toHaveCount(channel==='nir_solar'?4:3);
+    for(const link of await research.locator('.light-channel-cit-refs a').all()){
+      await expect(link).toHaveAttribute('target','_blank');await expect(link).toHaveAttribute('rel','noopener');await expect(link).toHaveAttribute('href',/^https:\/\//);
+    }
+    await expect(detail.locator('[data-light-channel-action="quick-log-sun"]')).toHaveAttribute('type','button');
+    await expect(detail.locator('[data-light-channel-action="quick-log-device"]')).toHaveCount(channel==='nir_solar'?1:0);
+    if(channel==='vitamin_d'||channel==='nir_solar'){
+      await detail.locator(`[data-light-channel-action="${channel==='vitamin_d'?'quick-log-sun':'quick-log-device'}"]`).click();
+      const dialog=page.getByRole('dialog',{name:channel==='vitamin_d'?'Past session log':'Log device session',exact:true});
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole('button',{name:'Cancel',exact:true}).click();await expect(dialog).not.toBeVisible();
+    }
+    await detail.getByRole('button',{name:/^Close .* detail$/}).click();await expect(detail).toHaveCount(0);await expect(pill).toHaveAttribute('aria-expanded','false');
+  }
+}
+test('static channel details first open offline with retained source charts, research and full profile across two cold launches',async({page,context})=>{
+  test.setTimeout(120000);await installDiscussionFixture(context);await installOfflineStartupDiagnostics(context);await context.addInitScript(seed,{defaults:createDefaultProfileData(),now:Date.now(),version:DEVICE_ENGINE_VERSION});
+  const errors:string[]=[],csp:string[]=[];const observe=(p:Page)=>p.on('pageerror',error=>errors.push(error.message));observe(page);context.on('page',observe);
+  await context.exposeBinding('channelCsp',(_,value:string)=>csp.push(value));await context.addInitScript(()=>document.addEventListener('securitypolicyviolation',event=>{void(window as unknown as{channelCsp(value:string):Promise<void>}).channelCsp(event.violatedDirective);}));
+  const server=await startKitServer(process.env.GETBASED_KIT_ARTIFACT||path.resolve('.local-notes/sveltekit-build'));
+  try{
+    const loading=[{phase:'initial-online',readyMs:await ready(page,server.origin)}];const before=await page.evaluate(readComparisonAcceptanceProfile);server.state.offline=true;
+    await inspect(page);expect(await page.evaluate(readComparisonAcceptanceProfile)).toEqual(before);await page.close();
+    for(let launch=0;launch<2;launch++){const cold=await context.newPage();loading.push({phase:`offline-cold-${launch+1}`,readyMs:await ready(cold,server.origin)});await inspect(cold);expect(await cold.evaluate(readComparisonAcceptanceProfile)).toEqual(before);await cold.close();}
+    expect(errors).toEqual([]);expect(csp).toEqual([]);await fs.writeFile(test.info().outputPath('channel-loading.json'),JSON.stringify(loading,null,2));
+  }finally{await server.close();}
+});

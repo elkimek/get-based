@@ -165,3 +165,13 @@ artifact and does not require GitHub Actions. See
 [static Kit build and acceptance](engineering/static-sveltekit.md) for the
 preserved runtime, PWA and size-measurement contracts. Standard browser checks
 remove access to the user's desktop session in addition to requesting headless mode.
+
+Light channel drill-downs are authored in `LightChannelDetail.svelte`,
+`LightChannelChart.svelte` and `LightChannelResearch.svelte`. Edit
+`js/light-channel-presentation.ts` for pure chart/view projections,
+`js/light-channel-content.ts` for maintained explanations and research, and
+`js/light-channel-classes.ts` with `css/light-page.tailwind.css` for scoped styles.
+The existing channel adapter owns service reads and delegated navigation/actions;
+`css/light-channels.css` retains the pill row's styles. Focused parity contracts
+are in `tests/light-channel-presentation.test.ts` and the headless
+`tests/playwright/light-channel-owned.spec.ts`.

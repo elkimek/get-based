@@ -106,7 +106,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/import-drop-zone.js',
   '/js/import-drop-zone-runtime.js',
   '/js/ai-verdict-engine-runtime.js',
-  '/js/ai-verdict-engine.js', '/js/ai-verdict-owner.js', '/js/ai-verdict-write.js', '/js/light-review-ai-presentation.js', '/js/light-review-ai-classes.js', '/js/components/LightReviewAI.svelte.html.js', '/js/light-environment-ai-presentation.js', '/js/light-environment-ai-classes.js', '/js/components/LightEnvironmentAI.svelte.html.js', '/js/light-session-ai-presentation.js', '/js/light-session-ai-classes.js', '/js/components/LightSessionAI.svelte.html.js',
+  '/js/ai-verdict-engine.js', '/js/ai-verdict-owner.js', '/js/ai-verdict-write.js', '/js/light-channel-content.js', '/js/light-channel-presentation.js', '/js/light-channel-classes.js', '/js/components/LightChannelDetail.svelte.html.js', '/js/light-review-ai-presentation.js', '/js/light-review-ai-classes.js', '/js/components/LightReviewAI.svelte.html.js', '/js/light-environment-ai-presentation.js', '/js/light-environment-ai-classes.js', '/js/components/LightEnvironmentAI.svelte.html.js', '/js/light-session-ai-presentation.js', '/js/light-session-ai-classes.js', '/js/components/LightSessionAI.svelte.html.js',
   '/js/ai-action-delegates.js',
   '/js/health-goals-utils.js',
   '/js/lab-date-range.js',

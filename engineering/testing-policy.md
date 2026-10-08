@@ -287,3 +287,13 @@ WebGPU, and larger model tiers require their own acceptance evidence. Synthetic
 transport and mint fixtures do not prove live billing or hardware behavior.
 Use checks and retained artifacts for the exact selected revision when assessing
 release readiness. Local working logs do not establish current release acceptance.
+
+Channel drill-down contracts in
+[`light-channel-presentation.test.ts`](../tests/light-channel-presentation.test.ts)
+compare frozen original DOM/SVG trees, source-separated chart values, formatter
+boundaries, literal metadata and real delegated actions. The headless
+[`light-channel-owned.spec.ts`](../tests/playwright/light-channel-owned.spec.ts)
+compares original computed geometry across six themes and narrow/wide layouts,
+then exercises keyboard opening, research disclosure, quick-log actions and
+single-region replacement. These focused checks do not replace final whole-app
+or installed-PWA acceptance.

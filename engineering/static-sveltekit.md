@@ -419,3 +419,11 @@ overlay updates that do not steal external focus.
 The [SVG projection contracts](../tests/sun-body-picker-presentation.test.ts)
 cover literal metadata, source placement, namespaces, masks and the retained
 parametric fallback. Existing region-map/input browser assertions remain intact.
+
+The [channel detail acceptance](../tests/pwa/sveltekit-light-channel.spec.ts)
+opens all six source-aware channel drill-downs and their research disclosures
+for the first time offline, checks separate sunlight/device labels and charts,
+and retains the full canonical profile over two closed-client cold launches.
+It exercises the shipped static artifact and CSP through real navigation; the
+component contract separately verifies chart coordinates and delegated quick-log
+actions. External research links are inspected without opening browser windows.
