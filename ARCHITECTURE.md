@@ -1259,7 +1259,11 @@ for compact strips and channel-card contexts, including empty/logged, hover,
 expanded, keyboard and responsive states. The stable `_channelSparkline` HTML
 export delegates to the same authored component for compatibility. Live refresh
 replaces the row and slot together, then restores the one expanded channel.
-`css/light-channels.css` currently owns only surrounding widget/location chrome.
+`LightChannelSection.svelte` composes typed channel pills and `LightLocationHint.svelte`
+without raw child HTML. The dashboard uses the same section through an explicit
+lazy renderer port; its controller retains the loading gate and session count.
+`light-channel-section-classes.ts` and scoped Tailwind own container geometry;
+`css/light-channels.css` is an empty compatibility URL for existing lazy imports.
 
 `LightSessionPresentation.svelte` composes the past-Sun and device log forms,
 completed Sun/device rows and shared inline/full history. Its pure

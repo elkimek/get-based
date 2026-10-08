@@ -1,7 +1,7 @@
 import type {MobileInsight} from './mobile-dashboard.js';
 export interface WidgetRendererDependencies {
  markerHasData(marker:unknown):unknown;
- renderDashboardLightChannelPills():unknown;renderLightConditionsWidgetBody(options:{variant:string;slotId:string}):unknown;
+ renderDashboardLightChannelsWidget(totalSessions:number):unknown;renderLightConditionsWidgetBody(options:{variant:string;slotId:string}):unknown;
  renderLightLiveSession?:((options:{includeEmptyState:boolean})=>unknown)|undefined;renderLightSessionLogActions():unknown;
  getMobileDashboardMarkers(ctx:unknown):unknown;getMobileDashboardInsights(ctx:unknown,markers:unknown):MobileInsight[];
  getMobileWearableTiles():{id:unknown}[];formatMobileWearableValue(id:unknown,metric:unknown,summary:unknown):unknown;formatMobileWearableDelta(id:unknown,metric:unknown,canon:unknown):unknown;

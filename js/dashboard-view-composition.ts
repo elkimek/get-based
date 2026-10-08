@@ -22,7 +22,7 @@ import {
   ensureLoadedActiveDeviceTicker,
   isLightSunUILoaded,
   loadLightSunUI,
-  renderLoadedDashboardLightChannelPills,
+  renderLoadedDashboardLightChannelsWidget,
   renderLoadedLightConditionsWidgetBody,
   renderLoadedLightLiveSession,
   renderLoadedLightSessionLogActions,
@@ -60,7 +60,7 @@ export function createDashboardViewComposition({
 
   const dashboardWidgetRenderers = createDashboardWidgetRenderers({
     markerHasData,
-    renderDashboardLightChannelPills: renderLoadedDashboardLightChannelPills,
+    renderDashboardLightChannelsWidget: renderLoadedDashboardLightChannelsWidget,
     renderLightConditionsWidgetBody: renderLoadedLightConditionsWidgetBody,
     renderLightLiveSession: renderLoadedLightLiveSession,
     renderLightSessionLogActions: renderLoadedLightSessionLogActions,

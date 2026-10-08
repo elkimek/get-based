@@ -2210,3 +2210,6 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/components/LightChannelSparkline.svelte.html.js.map
 /tests/light-channel-pills.test.js
 /tests/playwright/light-channel-pills-owned.spec.js
+
+/js/light-channel-section-classes.js
+/tests/playwright/light-channel-section-owned.spec.js

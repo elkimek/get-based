@@ -433,7 +433,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/light-page-view.js', '/js/light-page-presentation.js', '/js/light-today-presentation.js', '/js/components/LightPagePresentation.svelte.html.js',
   '/js/light-page-view-hooks.js',
   '/js/light-page-view-ui-hooks.js',
-  '/js/light-channel-view.js', '/js/light-channel-pill-classes.js', '/js/components/LightChannelPills.svelte.html.js', '/js/components/LightChannelSparkline.svelte.html.js',
+  '/js/light-channel-view.js', '/js/light-channel-section-classes.js', '/js/light-channel-pill-classes.js', '/js/components/LightChannelPills.svelte.html.js', '/js/components/LightChannelSparkline.svelte.html.js',
   '/js/light-channel-view-hooks.js',
   '/js/light-channel-view-ui-hooks.js',
   '/js/light-sessions-view.js', '/js/light-session-presentation.js', '/js/light-session-detail-presentation.js', '/js/light-active-session-presentation.js', '/js/components/LightSessionPresentation.svelte.html.js',

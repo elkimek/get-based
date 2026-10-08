@@ -23,10 +23,6 @@ import type {WidgetRendererDependencies, BiometricTile, GenomeStored, GenomeProf
 
 const DASHBOARD_BIOMETRIC_STALE_MS = 12 * 60 * 60 * 1000;
 
-function dashboardNavigateAttrs(route: unknown) {
-  return dashboardWidgetActionAttrs('navigate', { route });
-}
-
 function dashboardMarkerDetailAttrs(id: unknown) {
   return dashboardWidgetActionAttrs('open-marker-detail', { id });
 }
@@ -38,7 +34,7 @@ export function createDashboardWidgetRenderers(deps: unknown) {
 
   const {
     markerHasData,
-    renderDashboardLightChannelPills,
+    renderDashboardLightChannelsWidget: renderDashboardLightChannelsWidgetBody,
     renderLightConditionsWidgetBody,
     renderLightLiveSession = () => '',
     renderLightSessionLogActions,
@@ -133,14 +129,7 @@ export function createDashboardWidgetRenderers(deps: unknown) {
     const sessions = getDashboardLightSessions();
     const deviceSessionsAll = getDashboardDeviceSessions();
     const totalSessions = sessions.length + deviceSessionsAll.length;
-    const lead = totalSessions === 0
-      ? 'No light sessions yet. Log sunlight or a device session to see which pathways may have received a signal.'
-      : 'Seven-day light rhythm, with sunlight and device signals kept separate.';
-    return `<div class="light-channels-section light-channels-section-dashboard">
-      <p class="light-section-hint">${lead}</p>
-      ${renderDashboardLightChannelPills()}
-      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary light-dashboard-open-btn" ${dashboardNavigateAttrs('light')}>Open Light &amp; Sun</button>
-    </div>`;
+    return renderDashboardLightChannelsWidgetBody(totalSessions);
   }
 
   function renderDashboardInsightsListWidget(ctx: unknown) {

@@ -942,7 +942,7 @@ assert('Light setup AI context wrapper is not double-framed',
   !/['"]light-setup-ai-block-(green|yellow|red)['"]\s*:/.test(lightOnboardingClasses));
 assert('Light page surfaces use shared card/theme tokens',
   lightPageComponent.includes('class="light-page ') &&
-  /\.light-channels-section\s*\{[\s\S]*background:\s*color-mix\(in srgb, var\(--bg-card\)/.test(cssSrc) &&
+  read('js/light-channel-section-classes.ts').includes('[background:color-mix(in_srgb,_var(--bg-card)_94%,_transparent)]') &&
   lightSetupClasses.includes('[border-top:3px_solid_var(--accent)]') &&
   lightSetupClasses.includes('[background:color-mix(in_srgb,_var(--bg-card)_94%,_transparent)]'));
 assert('Light page status chips use theme tokens instead of legacy blue fallbacks',

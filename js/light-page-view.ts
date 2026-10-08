@@ -13,6 +13,7 @@ import {
   _channelSparklineView,
   _channelDayCount,
   renderChannelPills,
+  getChannelPillsView,
   _toggleChannelDetail,
   renderSuggestion,
 } from './light-channel-view.js';
@@ -113,7 +114,7 @@ if (typeof document !== 'undefined') installLightPageActionDelegates();
 // LIGHT TODAY STRIP — legacy compact surface used by welcome/embedded views
 // ═══════════════════════════════════════════════
 
-export function renderDashboardLightChannelPills() {
+function getDashboardLightChannelPills() {
   const channels = (lightPageDeps.channelDisplay || {}) as Record<string, PageMetaOperations | undefined>;
   const sun = lightPageDeps.rollingChannelTotals(7) || {};
   const device = lightPageDeps.rollingDeviceTotals(7) || {};
@@ -129,7 +130,18 @@ export function renderDashboardLightChannelPills() {
       days: String(days.txt), chart: _channelSparklineView(key),
     };
   });
-  return renderLightPresentation({ kind: 'pills', pills });
+  return pills;
+}
+export function renderDashboardLightChannelPills() {
+  return renderLightPresentation({ kind: 'pills', pills: getDashboardLightChannelPills() });
+}
+
+// Called through the lazy dashboard port; the widget controller owns its log count.
+export function renderDashboardLightChannelsWidget(totalSessions: number) {
+  const lead = totalSessions === 0
+    ? 'No light sessions yet. Log sunlight or a device session to see which pathways may have received a signal.'
+    : 'Seven-day light rhythm, with sunlight and device signals kept separate.';
+  return renderLightPresentation({ kind: 'dashboard-channels', lead, pills: getDashboardLightChannelPills() });
 }
 
 export function renderLightSessionLogActions() {
@@ -366,7 +378,7 @@ export function showLight(_data: unknown) {
     ? 'Sunlight does more than make vitamin D. Start a session to see which light-responsive systems the exposure may have reached.'
     : 'Each card shows a light-responsive pathway seen in your recent logs. It is an exposure story, not a daily score or quota.';
   const channelsBody = renderLightPresentation({ kind: 'channels', lead,
-    channelHTML: renderChannelPills(totals7d, devTotals7d), locationHTML: isEmpty ? getSunCoordsHint() : '',
+    pills: getChannelPillsView(totals7d, devTotals7d), location: isEmpty ? getSunCoordsHintView() : null,
   });
   widgets.push({
     id: 'light-channels',
@@ -508,9 +520,14 @@ export function _expandLightToolsSection() {
   if (wrap.firstElementChild) collapsed.replaceWith(wrap.firstElementChild);
 }
 
-function getSunCoordsHint() {
+function getSunCoordsHintView() {
   const coords = lightPageDeps.getSunCoords();
-  if (!coords) return renderLightPresentation({ kind: 'location', country: false });
-  if (coords.source === 'country-band') return renderLightPresentation({ kind: 'location', country: true, latitude: String(coords.lat) });
-  return '';
+  if (!coords) return { country: false };
+  if (coords.source === 'country-band') return { country: true, latitude: String(coords.lat) };
+  return null;
+}
+
+function getSunCoordsHint() {
+  const view = getSunCoordsHintView();
+  return view ? renderLightPresentation({ kind: 'location', ...view }) : '';
 }

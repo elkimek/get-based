@@ -66,3 +66,8 @@
 @source "../js/components/LightChannelPills.svelte";
 @source "../js/components/LightChannelSparkline.svelte";
 @source "../js/light-channel-pill-classes.ts";
+
+@custom-variant channel-section (&:where([data-light-channel-section], [data-light-channel-section] *));
+@source "../js/components/LightChannelSection.svelte";
+@source "../js/components/LightLocationHint.svelte";
+@source "../js/light-channel-section-classes.ts";

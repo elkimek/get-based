@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1278 |
-| Internal import edges | 4484 |
+| Modules | 1281 |
+| Internal import edges | 4490 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1340,7 +1340,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>light</code> family — 76 modules</summary>
+<details><summary><code>light</code> family — 77 modules</summary>
 
 - [`js/light-active-session-presentation.ts`](js/light-active-session-presentation.ts) → no in-scope imports
 - [`js/light-ai-save-hooks.ts`](js/light-ai-save-hooks.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/light-audit-ai-analysis.ts`](js/light-audit-ai-analysis.ts), [`js/light-env-ai-analysis.ts`](js/light-env-ai-analysis.ts), [`js/light-env-audits.ts`](js/light-env-audits.ts), [`js/light-env.ts`](js/light-env.ts), [`js/light-screen-ai-analysis.ts`](js/light-screen-ai-analysis.ts), [`js/light-tools-ai-analysis.ts`](js/light-tools-ai-analysis.ts), [`js/light-tools.ts`](js/light-tools.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun-onboarding-ai.ts`](js/sun-onboarding-ai.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts)
@@ -1350,6 +1350,7 @@ Native browser modules shipped with the static application.
 - [`js/light-channel-content.ts`](js/light-channel-content.ts) → no in-scope imports
 - [`js/light-channel-pill-classes.ts`](js/light-channel-pill-classes.ts) → no in-scope imports
 - [`js/light-channel-presentation.ts`](js/light-channel-presentation.ts) → [`js/light-channel-content.ts`](js/light-channel-content.ts)
+- [`js/light-channel-section-classes.ts`](js/light-channel-section-classes.ts) → no in-scope imports
 - [`js/light-channel-view-hooks.ts`](js/light-channel-view-hooks.ts) → [`js/light-channel-view.ts`](js/light-channel-view.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/light-devices.ts`](js/light-devices.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/sun.ts`](js/sun.ts)
 - [`js/light-channel-view-ui-hooks.ts`](js/light-channel-view-ui-hooks.ts) → [`js/light-channel-view.ts`](js/light-channel-view.ts), [`js/views.ts`](js/views.ts)
 - [`js/light-channel-view.ts`](js/light-channel-view.ts) → [`js/components/LightChannelDetail.svelte`](js/components/LightChannelDetail.svelte), [`js/components/LightChannelPills.svelte`](js/components/LightChannelPills.svelte), [`js/components/LightChannelSparkline.svelte`](js/components/LightChannelSparkline.svelte), [`js/components/LightReviewAI.svelte`](js/components/LightReviewAI.svelte), [`js/light-channel-presentation.ts`](js/light-channel-presentation.ts), [`js/light-conditions-now.ts`](js/light-conditions-now.ts), [`js/state.ts`](js/state.ts)
@@ -1457,6 +1458,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>LightChannelSection.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightChannelSection.svelte`](js/components/LightChannelSection.svelte) → [`js/components/LightChannelPills.svelte`](js/components/LightChannelPills.svelte), [`js/components/LightDashboardPills.svelte`](js/components/LightDashboardPills.svelte), [`js/components/LightLocationHint.svelte`](js/components/LightLocationHint.svelte), [`js/light-channel-section-classes.ts`](js/light-channel-section-classes.ts)
+
+</details>
+
 <details><summary><code>LightChannelSparkline.svelte</code> family — 1 module</summary>
 
 - [`js/components/LightChannelSparkline.svelte`](js/components/LightChannelSparkline.svelte) → [`js/light-channel-pill-classes.ts`](js/light-channel-pill-classes.ts)
@@ -1523,6 +1530,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>LightLocationHint.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightLocationHint.svelte`](js/components/LightLocationHint.svelte) → no in-scope imports
+
+</details>
+
 <details><summary><code>LightMethods.svelte</code> family — 1 module</summary>
 
 - [`js/components/LightMethods.svelte`](js/components/LightMethods.svelte) → no in-scope imports
@@ -1537,7 +1550,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>LightPagePresentation.svelte</code> family — 1 module</summary>
 
-- [`js/components/LightPagePresentation.svelte`](js/components/LightPagePresentation.svelte) → [`js/components/LightDashboardPills.svelte`](js/components/LightDashboardPills.svelte), [`js/components/LightMethods.svelte`](js/components/LightMethods.svelte), [`js/components/LightSessionActions.svelte`](js/components/LightSessionActions.svelte), [`js/components/LightTodayStrip.svelte`](js/components/LightTodayStrip.svelte), [`js/components/LightUVSafety.svelte`](js/components/LightUVSafety.svelte), [`js/components/LightWidgetPrompt.svelte`](js/components/LightWidgetPrompt.svelte)
+- [`js/components/LightPagePresentation.svelte`](js/components/LightPagePresentation.svelte) → [`js/components/LightChannelSection.svelte`](js/components/LightChannelSection.svelte), [`js/components/LightDashboardPills.svelte`](js/components/LightDashboardPills.svelte), [`js/components/LightLocationHint.svelte`](js/components/LightLocationHint.svelte), [`js/components/LightMethods.svelte`](js/components/LightMethods.svelte), [`js/components/LightSessionActions.svelte`](js/components/LightSessionActions.svelte), [`js/components/LightTodayStrip.svelte`](js/components/LightTodayStrip.svelte), [`js/components/LightUVSafety.svelte`](js/components/LightUVSafety.svelte), [`js/components/LightWidgetPrompt.svelte`](js/components/LightWidgetPrompt.svelte)
 
 </details>
 

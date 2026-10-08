@@ -99,6 +99,10 @@ export function renderLoadedLightConditionsWidgetBody(options?: unknown) {
   return (_lightSunModules?.renderLightConditionsWidgetBody as RawConditionsRenderer | undefined)?.(options) || '';
 }
 
+export function renderLoadedDashboardLightChannelsWidget(totalSessions: number) {
+  return _lightSunModules?.renderDashboardLightChannelsWidget?.(totalSessions) || '';
+}
+
 export function renderLoadedDashboardLightChannelPills() {
   return _lightSunModules?.renderDashboardLightChannelPills?.() || '';
 }

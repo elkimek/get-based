@@ -21,10 +21,11 @@ test('authored Light and dashboard pills preserve source SVGs, themes, responsiv
     await page.evaluate(async theme=>(await import('/js/theme.js')).setTheme(theme),theme);
     const result=await host.evaluate(async(element,samples)=>{
       const channel=await import('/js/light-channel-view.js'),page=await import('/js/light-page-view.js');
+      const {channelSectionClasses}=await import('/js/light-channel-section-classes.js');
       element.innerHTML=samples.flatMap((sample,index)=>{
         channel.configureLightChannelView({channelDisplay:sample.meta,dailyChannelBreakdown:sample.rows?()=>sample.rows:null});page.configureLightPageView({channelDisplay:sample.meta,rollingChannelTotals:()=>sample.sun,rollingDeviceTotals:()=>sample.device});
         const light=channel.renderChannelPills(sample.sun,sample.device),dashboard=page.renderDashboardLightChannelPills();
-        return [['light',sample.lightHTML,light,true],['dashboard',sample.dashboardHTML,dashboard,false],['dashboard-card',sample.dashboardHTML,dashboard,true]].map(([kind,old,next,card])=>`<div data-pair="${index}/${kind}"><section data-original><div class="${card?'light-channels-section':''}">${old}</div></section><section data-current><div class="${card?'light-channels-section':''}">${next}</div></section></div>`);
+        return [['light',sample.lightHTML,light,true],['dashboard',sample.dashboardHTML,dashboard,false],['dashboard-card',sample.dashboardHTML,dashboard,true]].map(([kind,old,next,card])=>`<div data-pair="${index}/${kind}"><section data-original><div class="${card?'light-channels-section':''}">${old}</div></section><section data-current><div data-light-channel-section class="${card?channelSectionClasses(false):''}">${next}</div></section></div>`);
       }).join('');
       await document.fonts.ready;await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
       const props=['display','width','height','minHeight','maxWidth','fontSize','fontWeight','lineHeight','marginTop','paddingTop','paddingRight','paddingBottom','paddingLeft','gap','alignItems','gridTemplateColumns','gridTemplateAreas','gridArea','borderTopWidth','borderTopStyle','borderTopColor','backgroundColor','backgroundImage','borderRadius','color','boxShadow','opacity','flexGrow','flexShrink','minWidth','letterSpacing','fill'] as const;

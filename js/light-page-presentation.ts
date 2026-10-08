@@ -1,4 +1,4 @@
-import type { ChannelSparkline } from './light-channel-presentation.js';
+import type { ChannelPillView, ChannelSparkline } from './light-channel-presentation.js';
 import type { LightTodayView } from './light-today-presentation.js';
 // Pure display contracts. Light/Sun services keep calculations, persistence,
 // session ownership and the rendering of their separately owned children.
@@ -70,6 +70,10 @@ export interface LightDashboardPill {
   days: string;
   chart: ChannelSparkline | null;
 }
+export interface LightLocationHintView {
+  country: boolean;
+  latitude?: string;
+}
 export type LightPagePresentationProps = {
   kind: 'pills';
   pills: readonly LightDashboardPill[];
@@ -104,8 +108,12 @@ export type LightPagePresentationProps = {
 } | {
   kind: 'channels';
   lead: string;
-  channelHTML: string;
-  locationHTML: string;
+  pills: readonly ChannelPillView[];
+  location: LightLocationHintView | null;
+} | {
+  kind: 'dashboard-channels';
+  lead: string;
+  pills: readonly LightDashboardPill[];
 } | {
   kind: 'weekly';
   reviewHTML: string;

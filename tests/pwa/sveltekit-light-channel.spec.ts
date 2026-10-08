@@ -33,6 +33,10 @@ async function inspect(page:Page){
   await page.locator('[data-nav-action="navigate"][data-nav-route="dashboard"]').click();
   const dashboard=page.locator('.dashboard-widget[data-widget-id="light-channels"]');
   await expect(dashboard.locator('[data-light-dashboard-pills] .light-pill')).toHaveCount(6);
+  await dashboard.getByRole('button',{name:'Open Light & Sun',exact:true}).focus();
+  await page.keyboard.press('Enter');await expect(page.locator('.light-page')).toBeVisible();
+  await page.locator('[data-nav-action="navigate"][data-nav-route="dashboard"]').click();
+  await expect(dashboard.locator('[data-light-dashboard-pills] .light-pill')).toHaveCount(6);
   const shortcut=dashboard.locator('.light-pill[data-channel="circadian"]');
   await expect(shortcut.locator('svg[aria-hidden="true"] rect')).not.toHaveCount(0);
   await shortcut.focus();await page.keyboard.press('Enter');

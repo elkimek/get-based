@@ -87,12 +87,15 @@ export function _channelDayCount(channelKey: unknown) {
 
 // Services own the dose values. Authored Svelte owns every pill and SVG node;
 // the row/slot relationship remains stable for delegated toggles and live refresh.
-export function renderChannelPills(sunTotals7d: unknown, deviceTotals7d: unknown = {}) {
+export function getChannelPillsView(sunTotals7d: unknown, deviceTotals7d: unknown = {}) {
   const channels = getChannelDisplay();
   const pills = LIGHT_CHANNEL_ORDER.map(key => projectChannelPill(key, channels[key] || {},
     (sunTotals7d as Record<string, unknown>)[key] || 0, (deviceTotals7d as Record<string, unknown>)[key] || 0,
     _channelDayCount(key), _channelSparklineView(key)));
-  return renderPillRow({ pills });
+  return pills;
+}
+export function renderChannelPills(sunTotals7d: unknown, deviceTotals7d: unknown = {}) {
+  return renderPillRow({ pills: getChannelPillsView(sunTotals7d, deviceTotals7d) });
 }
 
 // Gather current service values once. The pure view model owns chart geometry

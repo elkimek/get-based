@@ -174,8 +174,10 @@ Light channel drill-downs are authored in `LightChannelDetail.svelte`,
 The existing channel adapter owns service reads and delegated navigation/actions;
 `LightChannelPills.svelte` and `LightDashboardPills.svelte` share the typed
 `LightChannelSparkline.svelte`; edit `js/light-channel-pill-classes.ts` for their
-scoped Tailwind styling. `css/light-channels.css` retains surrounding widget and
-location chrome. Focused parity contracts are in
+scoped Tailwind styling. `LightChannelSection.svelte` and `LightLocationHint.svelte`
+compose typed children; `js/light-channel-section-classes.ts` owns container styles.
+`css/light-channels.css` remains an empty compatibility URL. Focused parity contracts are in
 `tests/light-channel-presentation.test.ts`, `tests/light-channel-pills.test.ts`
 and the headless `tests/playwright/light-channel-owned.spec.ts` and
-`tests/playwright/light-channel-pills-owned.spec.ts`.
+`tests/playwright/light-channel-pills-owned.spec.ts` and
+`tests/playwright/light-channel-section-owned.spec.ts`.

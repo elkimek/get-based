@@ -259,7 +259,7 @@ test('dashboard Light widgets share lazy initialization before rendering', async
     const pendingLoad = new Promise<void>(resolve => { resolveLoad = resolve; });
     const renderers = createDashboardWidgetRenderers({
       markerHasData: () => false,
-      renderDashboardLightChannelPills: () => '<div>channels</div>',
+      renderDashboardLightChannelsWidget: () => '<div>channels</div>',
       renderLightConditionsWidgetBody: () => '<div>conditions</div>',
       renderLightLiveSession: () => '<div>live session</div>',
       renderLightSessionLogActions: () => '<div>sessions</div>',
@@ -354,7 +354,7 @@ test('dashboard widget renderers browser coverage uses default wearable priority
 
       const renderers = renderersModule.createDashboardWidgetRenderers({
         markerHasData: () => true,
-        renderDashboardLightChannelPills: () => '',
+        renderDashboardLightChannelsWidget: () => '',
         renderLightConditionsWidgetBody: () => '',
         renderLightSessionLogActions: () => '',
         getMobileDashboardMarkers: () => [],

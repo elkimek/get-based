@@ -307,3 +307,12 @@ compares original computed styles in compact strips and channel-card contexts
 across six themes and three widths, checks axe AA, keyboard/touch targets and
 actual delegated row/dashboard actions. Empty-card ink uses the secondary text
 token as a declared contrast improvement; source scaling and counts stay exact.
+
+Channel section ownership in
+[`light-channel-section-owned.spec.ts`](../tests/playwright/light-channel-section-owned.spec.ts)
+is compared with independently frozen container CSS and location markup across
+six themes and four widths, including the inclusive 375px boundary. It covers
+empty/country/precise-location visibility, both dashboard log states, exact
+container resets, axe AA and real keyboard location/dashboard actions. The
+static channel acceptance additionally covers the offline dashboard navigation
+button before exercising all six pathway details and two cold launches.
