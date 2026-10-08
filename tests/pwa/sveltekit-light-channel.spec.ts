@@ -13,6 +13,7 @@ function seed({defaults,now,version}:{defaults:ProfileData;now:number;version:nu
   if(!['http:','https:'].includes(location.protocol))return;
   localStorage.setItem('labcharts-ai-paused','true');if(localStorage.getItem('channel-seeded'))return;localStorage.setItem('channel-seeded','1');
   localStorage.setItem('labcharts-profiles',JSON.stringify([{id:'default',name:'Ada',sex:'male',dob:'1990-01-01',createdAt:1}]));localStorage.setItem('labcharts-active-profile','default');
+  localStorage.setItem('labcharts-default-dashboardWidgetsV13',JSON.stringify({order:['light-channels'],hidden:[]}));
   for(const key of ['emptyTour','tour'])localStorage.setItem(`labcharts-default-${key}`,'completed');
   const device={id:'channel-panel',brand:'Saved <Panel>',model:'Red & NIR',type:'pbm',channels:['nir_solar','pbm_red'],peakWavelengths:[660,850],mwPerCm2At15cm:20};
   localStorage.setItem('labcharts-default-imported',JSON.stringify({...defaults,contextNotes:'Keep unrelated channel context',sunDefaults:{fitzpatrick:'II',completedAt:1,coords:{lat:50.1,lon:14.4}},lightDevices:[device],
@@ -23,6 +24,18 @@ function seed({defaults,now,version}:{defaults:ProfileData;now:number;version:nu
 }
 const channels=['vitamin_d','circadian','nir_solar','no_cv','pomc','violet_eye'];
 async function inspect(page:Page){
+  // Exercise the real optional Dashboard widget and cross-route navigation.
+  if(await page.locator('#chat-panel.open').isVisible())await page.getByRole('button',{name:'Close chat',exact:true}).click();
+  const menu=page.getByRole('button',{name:'Menu',exact:true});if(await menu.isVisible())await menu.click();
+  await page.locator('[data-nav-action="navigate"][data-nav-route="dashboard"]').click();
+  const dashboard=page.locator('.dashboard-widget[data-widget-id="light-channels"]');
+  await expect(dashboard.locator('[data-light-dashboard-pills] .light-pill')).toHaveCount(6);
+  const shortcut=dashboard.locator('.light-pill[data-channel="circadian"]');
+  await expect(shortcut.locator('svg[aria-hidden="true"] rect')).not.toHaveCount(0);
+  await shortcut.focus();await page.keyboard.press('Enter');
+  const routed=page.locator('.light-page [data-light-channel-presentation]');
+  await expect(routed).toHaveAttribute('data-channel','circadian');await expect(routed).toBeFocused();
+  await routed.getByRole('button',{name:/^Close .* detail$/}).click();
   await openLight(page);
   for(const channel of channels){
     const pill=page.locator(`.light-page .light-pill[data-channel="${channel}"]`);

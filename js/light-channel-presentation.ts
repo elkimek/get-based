@@ -91,3 +91,39 @@ export function projectChannelDetail(input: ChannelDetailInput, now = new Date()
     research: citation ? { ...citation, suggestURL: `https://github.com/elkimek/get-based/issues/new?title=${issueTitle}&body=${issueBody}&labels=enhancement` } : null,
   };
 }
+
+
+export const LIGHT_CHANNEL_ORDER = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'] as const;
+export interface ChannelSparkBar { x: number; empty: boolean; sunHeight: number; deviceHeight: number }
+export interface ChannelSparkline { bars: ChannelSparkBar[] }
+export interface ChannelDayCount { txt: string; n: number; sun: number; device: number }
+export interface ChannelPillView {
+  key: string; icon: string; label: string; active: boolean; title: string;
+  days: string; description: string; chart: ChannelSparkline | null;
+}
+
+// The mini chart retains the same relative scaling and source separation as
+// the detail chart. The adapter handles absent services; an empty week shows placeholders.
+export function projectChannelSparkline(days: readonly Pick<ChannelDay, 'sun' | 'device'>[]): ChannelSparkline {
+  const max = Math.max(Math.max(0, ...days.flatMap(day => [day.sun, day.device])), 0.001);
+  return { bars: days.map((day, index) => ({ x: index * 7, empty: !hasSignal(day.sun + day.device),
+    sunHeight: Math.max(0, day.sun / max * 14), deviceHeight: Math.max(0, day.device / max * 14) })) };
+}
+export function projectChannelDayCount(days: readonly Pick<ChannelDay, 'sun' | 'device'>[]): ChannelDayCount {
+  let n = 0, sun = 0, device = 0;
+  for (const day of days) {
+    if (hasSignal(day.sun + day.device)) n++;
+    if (hasSignal(day.sun)) sun++;
+    if (hasSignal(day.device)) device++;
+  }
+  return { txt: n ? `${n} day${n === 1 ? '' : 's'}` : 'Not logged', n, sun, device };
+}
+export function projectChannelPill(key: string, meta: ChannelDetailInput['meta'], sun: unknown, device: unknown,
+  counts: ChannelDayCount, chart: ChannelSparkline | null): ChannelPillView {
+  const hasSun = hasSignal(sun), hasDevice = hasSignal(device);
+  const source = hasSun && hasDevice ? 'Sunlight + device logged' : hasSun ? 'Sunlight logged' : hasDevice ? 'Device logged' : 'Not logged';
+  const sourceDays = [counts.sun ? `sunlight ${counts.sun}d` : '', counts.device ? `device ${counts.device}d` : ''].filter(Boolean).join(' · ');
+  return { key, icon: String(meta.icon || '·'), label: String(meta.label || key), active: hasSun || hasDevice,
+    title: `${meta.what || ''} — ${source}${sourceDays ? ` (${sourceDays})` : ''}.`, days: counts.txt,
+    description: source + (counts.n ? ` on ${counts.n} day${counts.n === 1 ? '' : 's'} this week` : ''), chart };
+}

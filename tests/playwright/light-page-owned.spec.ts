@@ -31,7 +31,7 @@ test('authored Light surfaces preserve actions and read-only data across themes,
       renderHTML({ kind: 'prompt', view: { status: 'No rooms mapped', label: 'Open assessment', action: 'open-light-environment', hint: 'Literal <img src=x> & retained.', extraClass: '' } }),
       renderHTML({ kind: 'safety', view: models.projectLightUVSafety(0.72, 0.8) }),
       renderHTML({ kind: 'methods', skinBasis: 'The current model uses Fitzpatrick II as a rough base-MED reference, not a personal safe exposure time.', showDataSource: false, dataSourceHTML: '' }),
-      renderHTML({ kind: 'today', view: strip, dashboardHTML: '', conditionsHTML: '', pillsHTML: renderHTML({ kind: 'pills', pills: [{ key: 'circadian', name: 'Circadian', icon: '☀', title: 'Not logged', label: 'Circadian, Not logged, tap to open detail', active: false, days: 'Not logged', sparklineHTML: '' }] }) }),
+      renderHTML({ kind: 'today', view: strip, dashboardHTML: '', conditionsHTML: '', pillsHTML: renderHTML({ kind: 'pills', pills: [{ key: 'circadian', name: 'Circadian', icon: '☀', title: 'Not logged', label: 'Circadian, Not logged, tap to open detail', active: false, days: 'Not logged', chart: null }] }) }),
     ].join('');
   });
   const root = page.locator('#light-owned-acceptance');

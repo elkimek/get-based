@@ -3,13 +3,14 @@
 import type { PageCalls, PageActionEvent, PageDelegateRoot, PageInnerHTMLWriter, PageOuterHTMLWriter, PageMetaOperations, PageWidget, PageSessionOperations } from '../types/light-page-view.js';
 import { state } from './state.js';
 import { renderHTML as renderLightPresentation } from './components/LightPagePresentation.svelte.html.js';
+import { LIGHT_CHANNEL_ORDER } from './light-channel-presentation.js';
 import { projectLightToday } from './light-today-presentation.js';
 import { projectLightSessionActions, projectLightUVSafety } from './light-page-presentation.js';
 import { renderLensHeader, renderLensPageWidgets } from './lens-page-shell.js';
 import { renderLightConditionsWidgetBody, renderConditionsNow, _formatElapsedShort } from './light-conditions-now.js';
 import { renderUnifiedSessionsList } from './light-sessions-view.js';
 import {
-  _channelSparkline,
+  _channelSparklineView,
   _channelDayCount,
   renderChannelPills,
   _toggleChannelDetail,
@@ -116,7 +117,7 @@ export function renderDashboardLightChannelPills() {
   const channels = (lightPageDeps.channelDisplay || {}) as Record<string, PageMetaOperations | undefined>;
   const sun = lightPageDeps.rollingChannelTotals(7) || {};
   const device = lightPageDeps.rollingDeviceTotals(7) || {};
-  const pills = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'].map(key => {
+  const pills = LIGHT_CHANNEL_ORDER.map(key => {
     const meta = channels[key] || {};
     const hasSun = (sun[key] || 0) > 0.0001;
     const hasDevice = (device[key] || 0) > 0.0001;
@@ -125,7 +126,7 @@ export function renderDashboardLightChannelPills() {
     return { key, active: hasSun || hasDevice, name: String(meta.label || key), icon: String(meta.icon || '·'),
       title: `${meta.what || ''} — ${source}${days.n ? ` on ${days.n} day${days.n === 1 ? '' : 's'} this week` : ''}. Tap for details.`,
       label: (meta.label || key) + ', ' + source + ', tap to open detail',
-      days: String(days.txt), sparklineHTML: _channelSparkline(key),
+      days: String(days.txt), chart: _channelSparklineView(key),
     };
   });
   return renderLightPresentation({ kind: 'pills', pills });

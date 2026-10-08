@@ -172,6 +172,10 @@ Light channel drill-downs are authored in `LightChannelDetail.svelte`,
 `js/light-channel-content.ts` for maintained explanations and research, and
 `js/light-channel-classes.ts` with `css/light-page.tailwind.css` for scoped styles.
 The existing channel adapter owns service reads and delegated navigation/actions;
-`css/light-channels.css` retains the pill row's styles. Focused parity contracts
-are in `tests/light-channel-presentation.test.ts` and the headless
-`tests/playwright/light-channel-owned.spec.ts`.
+`LightChannelPills.svelte` and `LightDashboardPills.svelte` share the typed
+`LightChannelSparkline.svelte`; edit `js/light-channel-pill-classes.ts` for their
+scoped Tailwind styling. `css/light-channels.css` retains surrounding widget and
+location chrome. Focused parity contracts are in
+`tests/light-channel-presentation.test.ts`, `tests/light-channel-pills.test.ts`
+and the headless `tests/playwright/light-channel-owned.spec.ts` and
+`tests/playwright/light-channel-pills-owned.spec.ts`.

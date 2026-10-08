@@ -61,7 +61,7 @@ describe('authored Light page presentation', () => {
     const literal = '<img src=x onerror=alert(1)> & "';
     const rendered = host({ kind: 'pills', pills: [{
       key: literal, name: literal, icon: literal, title: literal, label: literal,
-      active: true, days: literal, sparklineHTML: '<svg aria-hidden="true" data-owned-sparkline></svg>',
+      active: true, days: literal, chart: { bars: [{ x: 0, empty: true, sunHeight: 0, deviceHeight: 0 }] },
     }] });
     const button = rendered.querySelector('button')!;
     expect(button.dataset.lightPageAction).toBe('open-channel');
@@ -72,7 +72,7 @@ describe('authored Light page presentation', () => {
     expect(button.querySelector('.light-pill-icon')?.textContent).toBe(literal);
     expect(button.querySelector('.light-pill-daycount')?.textContent).toBe(literal);
     expect(button.querySelector('img,script,[onerror]')).toBeNull();
-    expect(button.querySelectorAll('[data-owned-sparkline]')).toHaveLength(1);
+    expect(button.querySelectorAll('svg[aria-hidden="true"] rect')).toHaveLength(1);
   });
 
 });

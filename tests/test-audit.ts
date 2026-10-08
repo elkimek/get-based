@@ -153,7 +153,7 @@ assert('index defers import CSS behind its ordered lazy-load anchor',
   importLoaderAuditSrc.includes("new URL('../css/import.css', import.meta.url)") &&
   importLoaderAuditSrc.includes('data-import-stylesheet-anchor'));
 assert('shared import controls remain in the eager app shell',
-  appShellCssAuditSrc.includes('.import-btn {') &&
+  appShellCssAuditSrc.includes('.import-btn:not([data-chat-empty-view] *) {') &&
   appShellCssAuditSrc.includes('.header-icon-btn.header-import-btn {') &&
   appShellCssAuditSrc.includes('.drop-zone {'));
 assert('SW APP_SHELL includes import CSS bundle', swAuditSrc.includes("'/css/import.css'"));
@@ -229,7 +229,8 @@ assert('index defers context editor CSS behind its ordered lazy-load anchor',
   contextEditorAuditSrc.includes("new URL('../css/context-editor.css', import.meta.url)") &&
   contextEditorAuditSrc.includes('data-context-editor-stylesheet-anchor'));
 assert('context editor and tips actions wait for their presentation',
-  read('js/context-card-medical-history-editor-impl.js').includes('runWithContextEditorStylesheet(openDiagnosesEditor)') &&
+  read('js/context-card-medical-history-editor-impl.js').includes('openDiagnosesEditor as openMedicalHistory') &&
+  read('js/context-medical-history-view.js').includes('runWithContextEditorStylesheet(() =>') &&
   read('js/context-card-lifestyle-editors-impl.js').includes("openLifestyleForm('diet')") &&
   read('js/context-lifestyle-form-view.js').includes('runWithContextEditorStylesheet(() =>') &&
   read('js/context-cards.js').includes('runWithContextEditorStylesheet(() => openCardTipsModal(cardKey, ticket, owner))'));
@@ -561,7 +562,8 @@ assert('marker history controls keep their styling in the lazy marker-detail bun
   markerDetailCssAuditSrc.includes('.marker-detail-modal .marker-history-show-more:hover'));
 assert('Correlation option names escaped', /escapeHTML\(marker\.name\)/.test(compareCorrelationsSrc));
 assert('Light channel next-move HTML does not render dynamic device names',
-  lightChannelViewSrc.includes('const showDev = !!matchingDevice;') &&
+  read('js/components/LightChannelDetail.svelte').includes('view.takeaway.matchingDevice') &&
+    read('js/light-channel-presentation.ts').includes('matchingDevice: input.matchingDevice') &&
     !lightChannelViewSrc.includes('matchingDevice.brand') &&
     !lightChannelViewSrc.includes('matchingDevice.model'));
 assert('Genome genetics refs keep shared unscoped CSS',
@@ -707,6 +709,20 @@ console.log('5. CSS Variable Fixes');
 const cssSrc = readCssBundle();
 const lightSunCss = read('css/light-sun.css');
 const lightChannelsCss = read('css/light-channels.css');
+const lightPageComponent = read('js/components/LightPagePresentation.svelte');
+const lightActionsComponent = read('js/components/LightSessionActions.svelte');
+const lightLiveReadoutsComponent = read('js/components/LightLiveReadouts.svelte');
+const lightActiveProjection = read('js/light-active-session-presentation.ts');
+const lightSetupClasses = read('js/light-setup-classes.ts');
+const lightOnboardingClasses = read('js/light-onboarding-ai-classes.ts');
+const lightRowComponent = read('js/components/LightSessionRow.svelte');
+const lightDetailComponent = read('js/components/LightSessionDetail.svelte');
+const lightMethodsComponent = read('js/components/LightMethods.svelte');
+const channelPillClasses = read('js/light-channel-pill-classes.ts');
+const channelDetailClasses = read('js/light-channel-classes.ts');
+const channelPillsComponent = read('js/components/LightChannelPills.svelte');
+const channelDetailComponent = read('js/components/LightChannelDetail.svelte');
+const channelChartComponent = read('js/components/LightChannelChart.svelte');
 const lightDevicesCss = read('css/light-devices.css');
 const lightConditionsCss = read('css/light-conditions-now.css');
 const lightConditionsClasses = read('js/light-conditions-classes.ts');
@@ -723,7 +739,7 @@ assert('No var(--card-bg) reference', !cssSrc.includes('var(--card-bg)'));
 assert('No var(--text) without suffix', !/(var\(--text\))(?!-)/.test(cssSrc));
 assert('Dead overview-grid CSS removed', !cssSrc.includes('.overview-grid'));
 assert('Dead overview-card CSS removed', !cssSrc.includes('.overview-card'));
-assert('Light page uses scoped layout wrapper', lightPageViewSrc.includes('class="light-page"'));
+assert('Light page uses scoped layout wrapper', lightPageComponent.includes('class="light-page ') && lightPageComponent.includes('data-light-page-presentation'));
 assert('Modal lifecycle helpers live outside sun-active-session.js',
   /export function wireBackdropClose/.test(modalLifecycleSrc)
     && /export function trapModalFocus/.test(modalLifecycleSrc)
@@ -760,10 +776,12 @@ assert('Light page renders as a reorderable page widget route',
   !lightPageViewSrc.includes("id: 'light-workbench'") &&
   !lightPageViewSrc.includes("id: 'light-now-log'"));
 assert('Light page uses full workspace width',
-  /\.light-page\s*\{[\s\S]*width:\s*100%;[\s\S]*max-width:\s*none;/.test(cssSrc));
+  lightPageComponent.includes('gb:light-page:w-full') && lightPageComponent.includes('gb:light-page:max-w-none'));
 assert('Light page grid uses zero-min track for mobile',
-  /\.light-page\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*min-width:\s*0;/.test(cssSrc) &&
-  /\.light-page > \*\s*\{[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%;/.test(cssSrc));
+  lightPageComponent.includes('gb:light-page:grid-cols-[minmax(0,1fr)]') &&
+  lightPageComponent.includes('gb:light-page:min-w-0') &&
+  lightPageComponent.includes('gb:light-page:[&>*]:min-w-0') &&
+  lightPageComponent.includes('gb:light-page:[&>*]:max-w-full'));
 assert('Light page splits conditions, setup, and logging into separate widgets',
   !lightPageViewSrc.includes('class="light-top-grid"') &&
   lightPageViewSrc.indexOf("id: 'light-conditions-now'") < lightPageViewSrc.indexOf("id: 'light-setup'") &&
@@ -822,13 +840,13 @@ assert('Live Light widget uses a shared full-width renderer with wrapping estima
   /id: 'light-live-session'[\s\S]*?size: 'full'[\s\S]*?render: renderers\.renderDashboardLightLiveSessionWidget/.test(dashboardWidgetsBlock) &&
   lightPageViewSrc.includes('export function renderLightLiveSession') &&
   dashboardRenderersSrc.includes('return renderLightLiveSession({ includeEmptyState: true });') &&
-  /\.sun-session-live-readouts\s*\{[\s\S]*flex-wrap:\s*wrap;/.test(lightSunCss));
+  lightLiveReadoutsComponent.includes('sun-session-live-readouts gb:light-active:flex gb:light-active:flex-wrap'));
 assert('Active sun card keeps vitamin D visible outside the fixed header',
-  sunSessionUiSrc.includes('class="sun-session-live-readouts"') &&
-  sunSessionUiSrc.includes('☀ Vitamin D estimate') &&
-  sunActiveSessionSrc.includes("else if (live)") &&
-  sunActiveSessionSrc.includes('Number.isFinite(iu) && iu > 0') &&
-  !sunActiveSessionSrc.includes('if (iu >= 50)'));
+  lightLiveReadoutsComponent.includes('sun-session-live-readouts') &&
+  lightLiveReadoutsComponent.includes('☀ Vitamin D estimate') &&
+  sunActiveSessionSrc.includes("kind: 'live-readouts', readouts: liveSessionReadouts(") &&
+  lightActiveProjection.includes('Number.isFinite(iu) && iu > 0') &&
+  !lightActiveProjection.includes('iu >= 50') && !sunActiveSessionSrc.includes('if (iu >= 50)'));
 assert('Light setup chrome is owned by split CSS',
   /\.light-page \.dashboard-widget\[data-widget-id="light-setup"\] \.light-setup-card,[\s\S]*\.light-page \.dashboard-widget\[data-widget-id="light-setup"\] \.light-setup-summary\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/.test(lightSetupCss) &&
   !/\.light-setup-card\s*\{/.test(lightSunCss) &&
@@ -841,23 +859,28 @@ assert('Conditions Now CSS owns tooltip and responsive grid styles',
   !/\.conditions-now-grid\s*\{/.test(lightSunCss) &&
   !/\.app-tooltip\s*\{/.test(lightSunCss));
 assert('Light setup CSS owns onboarding editor and setup AI styles',
-  /\.light-setup-card\s*\{[\s\S]*border-top:\s*3px solid var\(--accent\)/.test(lightSetupCss) &&
-  /\.light-setup-ott-questions\s*\{[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(lightSetupCss) &&
-  /\.light-setup-ai-block\s*\{[\s\S]*padding:\s*0;[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;/.test(lightSetupCss));
-assert('Light channels CSS owns pill, drill-down, and channel AI styles',
-  /\.light-channels-section \.light-pill\s*\{[\s\S]*grid-template-areas:[\s\S]*"icon label count"[\s\S]*"icon spark spark";/.test(lightChannelsCss) &&
-  /\.light-channel-detail\s*\{[\s\S]*--channel-accent:\s*var\(--accent\);[\s\S]*border:\s*1px solid color-mix\(in srgb, var\(--channel-accent\)/.test(lightChannelsCss) &&
-  /\.light-channel-mix-ai\s*\{[\s\S]*margin:\s*12px 0;/.test(lightChannelsCss) &&
-  !/\.light-channels-section \.light-pill\s*\{/.test(lightSunCss) &&
-  !/\.light-channel-detail\s*\{/.test(lightSunCss) &&
-  !/\.light-channel-mix-ai\s*\{/.test(lightSunCss));
+  lightSetupClasses.includes('[border-top:3px_solid_var(--accent)]') &&
+  lightSetupClasses.includes('"light-setup-ott-questions"') &&
+  lightSetupClasses.includes('[grid-template-columns:repeat(2,_minmax(0,_1fr))]') &&
+  lightOnboardingClasses.includes('gb:onboarding-ai:p-0') &&
+  lightOnboardingClasses.includes('gb:onboarding-ai:bg-transparent') &&
+  lightOnboardingClasses.includes('gb:onboarding-ai:[border:0]'));
+assert('Light channel presentation is owned by authored components and scoped Tailwind',
+  channelPillsComponent.includes('LightChannelSparkline') &&
+  channelDetailComponent.includes('LightChannelChart') &&
+  channelDetailComponent.includes('LightChannelResearch') &&
+  channelPillClasses.includes('gb:channel-pill:') && channelDetailClasses.includes('gb:channel-detail:') &&
+  !/\.light-pill\s*\{/.test(lightChannelsCss) &&
+  !/\.light-channel-detail\s*\{/.test(lightChannelsCss) &&
+  !/\.light-channel-mix-ai\s*\{/.test(lightChannelsCss) &&
+  !/\.light-channels-section \.light-pill\s*\{/.test(read('css/light-sun.base.css')));
 assert('Light devices CSS owns device cards, picker, and distance controls',
   /\.light-devices-section\s*\{[\s\S]*margin-top:\s*24px/.test(lightDevicesCss) &&
   /\.light-device-card\s*\{[\s\S]*display:\s*flex;[\s\S]*flex-direction:\s*column/.test(lightDevicesCss) &&
-  /\.dev-distance-row\s*\{[\s\S]*display:\s*flex/.test(lightDevicesCss) &&
+  /\.dev-distance-row:not\(\[data-light-session-presentation\] \*\)\s*\{[\s\S]*display:\s*flex/.test(lightDevicesCss) &&
   /\.light-device-picker-row\s*\{[\s\S]*cursor:\s*pointer/.test(lightDevicesCss) &&
   !/\.light-device-card\s*\{/.test(lightSunCss) &&
-  !/\.dev-distance-row\s*\{/.test(lightSunCss) &&
+  !/\.dev-distance-row\s*\{/.test(read('css/light-sun.base.css')) &&
   !/\.light-device-picker-row\s*\{/.test(lightSunCss));
 assert('Light page workbench is split into page-only redesigned widgets',
   lightPageViewSrc.includes("id: 'light-devices'") &&
@@ -865,37 +888,43 @@ assert('Light page workbench is split into page-only redesigned widgets',
   lightPageViewSrc.includes("id: 'light-tools'") &&
   lightPageViewSrc.includes("id: 'light-methods'") &&
   lightPageViewSrc.includes('renderLightWidgetPrompt') &&
-  cssSrc.includes('.light-widget-prompt') &&
-  cssSrc.includes('.light-setup-fields-grid') &&
-  lightSessionLogBlock.includes('dashboard-action-btn') &&
-  !lightSessionLogBlock.includes('import-btn') &&
+  read('js/components/LightWidgetPrompt.svelte').includes('light-widget-prompt gb:light-page:') &&
+  lightSetupClasses.includes('light-setup-fields-grid') &&
+  lightSessionLogBlock.includes("kind: 'actions'") && lightActionsComponent.includes('data-light-page-action={action.action}') && lightActionsComponent.includes('gb:light-page:bg-accent') &&
+  !lightSessionLogBlock.includes('import-btn') && !lightActionsComponent.includes('import-btn') &&
   !lightPageViewSrc.includes('function renderCollapsedSubsection'));
 assert('Light conditions grid stays compact on phones',
-  /@media \(max-width:\s*600px\)\s*\{[\s\S]*\.conditions-now-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/.test(cssSrc) &&
-  /\.conditions-now-cell-hero\s*\{[\s\S]*grid-column:\s*1\s*\/\s*-1;/.test(cssSrc));
+  lightConditionsClasses.includes('gb:conditions:max-[600px]:grid-cols-[repeat(3,minmax(0,1fr))]') &&
+  lightConditionsClasses.includes('gb:conditions:max-[600px]:col-[1/-1]') &&
+  lightConditionsClasses.includes('gb:conditions:conditions-narrow:grid-cols-[1fr]'));
 assert('Light page sun data source avoids inline card styling',
-  lightPageViewSrc.includes('class="light-data-source-details"') &&
-  !lightPageViewSrc.includes('light-data-source-details" style='));
+  lightMethodsComponent.includes('class="light-data-source-details gb:light-page:') &&
+  !/<details[^>]*class="light-data-source-details[^>]*style=/.test(lightMethodsComponent));
 assert('Light channel pills use redesigned channel tile treatment',
-  /\.light-channels-section \.light-pills-row\s*\{[\s\S]*display:\s*grid;[\s\S]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(174px,\s*100%\),\s*1fr\)\);/.test(cssSrc) &&
-  /\.light-channels-section \.light-pill\s*\{[\s\S]*grid-template-areas:[\s\S]*"icon label count"[\s\S]*"icon spark spark";[\s\S]*box-shadow:\s*inset 3px 0 0/.test(cssSrc) &&
-  cssSrc.includes('.light-channels-section .light-pill[data-channel="violet_eye"] { --channel-accent: var(--purple); }'));
+  channelPillClasses.includes('[grid-template-columns:repeat(auto-fit,_minmax(min(174px,_100%),_1fr))]') &&
+  channelPillClasses.includes("[grid-template-areas:'icon_label_count'_'icon_spark_spark']") &&
+  channelPillClasses.includes('[box-shadow:inset_3px_0_0') &&
+  channelPillClasses.includes('violet_eye:') && channelPillClasses.includes('[--channel-accent:var(--purple)]'));
 assert('Light channel detail charts inherit activated channel accent',
-  lightChannelViewSrc.includes('class="light-channel-detail" data-channel="${escapeAttr(channelKey)}"') &&
-  lightChannelViewSrc.includes('fill="var(--channel-accent, var(--accent))"') &&
-  /\.light-channel-detail\s*\{[\s\S]*--channel-accent:\s*var\(--accent\);[\s\S]*border:\s*1px solid color-mix\(in srgb, var\(--channel-accent\)/.test(cssSrc) &&
-  cssSrc.includes('.light-channel-detail[data-channel="violet_eye"] { --channel-accent: var(--purple); }') &&
-  /\.light-channel-weekchart\s*\{[\s\S]*color-mix\(in srgb, var\(--channel-accent\) 8%, transparent\)/.test(cssSrc));
+  channelDetailComponent.includes('data-channel={view.channel}') &&
+  channelChartComponent.includes('fill="var(--channel-accent, var(--accent))"') &&
+  channelDetailClasses.includes('[--channel-accent:var(--accent)]') &&
+  channelDetailClasses.includes('[border:1px_solid_color-mix(in_srgb,_var(--channel-accent)') &&
+  channelDetailClasses.includes('violet_eye:') && channelDetailClasses.includes('[--channel-accent:var(--purple)]') &&
+  channelDetailClasses.includes('color-mix(in_srgb,_var(--channel-accent)_8%,_transparent)'));
 assert('Light recent session rows and modals use session/channel accents',
-  sunSessionUiSrc.includes('class="sun-session light-session-row light-session-complete light-session-sun"') &&
-  lightSessionsViewSrc.includes('class="sun-session light-session-row light-session-complete light-session-device"') &&
+  lightRowComponent.includes('sun-session light-session-row light-session-complete light-session-${view.kind}') &&
+  lightRowComponent.includes("view.kind === 'sun' ? 'gb:light-session:bg-[var(--yellow-bg)] gb:light-session:text-warning-ink' : 'gb:light-session:bg-[var(--red-bg)] gb:light-session:text-danger-ink'") &&
   !lightSessionsViewSrc.includes('_renderLightSessionChannelChips') &&
-  sunSessionUiSrc.includes('class="modal sun-detail-modal" data-session-kind="sun"') &&
-  lightDevicesSrc.includes('class="modal sun-detail-modal" data-session-kind="device"') &&
-  /sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-\$\{hasSignal \? 2 : 0\}" data-channel="\$\{escapeAttr\(k\)\}"/.test(sunSessionUiSrc) &&
-  /sun-detail-channel-row sun-detail-channel-row-clickable sun-chip-tier-\$\{hasSignal \? 2 : 0\}" data-channel="\$\{escapeAttr\(k\)\}"/.test(lightDevicesSrc) &&
-  /\.light-session-row\s*\{[\s\S]*--session-accent:\s*var\(--orange\);[\s\S]*box-shadow:[\s\S]*inset 3px 0 0/.test(cssSrc) &&
-  /\.sun-detail-channel-row\s*\{[\s\S]*--channel-accent:\s*var\(--accent\);[\s\S]*grid-template-columns:[\s\S]*box-shadow:\s*inset 3px 0 0/.test(cssSrc));
+  sunSessionUiSrc.includes("kind: 'sun', id:") && lightDevicesSrc.includes("kind: 'device', id:") &&
+  lightDetailComponent.includes('data-session-kind={view.kind}') &&
+  lightDetailComponent.includes('sun-detail-channel-row sun-detail-channel-row-clickable gb:light-detail:grid') &&
+  lightDetailComponent.includes('sun-chip-tier-${item.hasSignal ? 2 : 0}') &&
+  lightDetailComponent.includes('data-channel={item.key}') &&
+  lightDetailComponent.includes('gb:light-detail:grid-cols-[30px_minmax(0,1fr)_auto_auto_14px]') &&
+  lightDetailComponent.includes('[--session-accent:var(--orange)]') &&
+  lightDetailComponent.includes('[--session-accent:var(--red)]') &&
+  lightDetailComponent.includes('[box-shadow:var(--shadow-lg),inset_0_3px_0_color-mix(in_srgb,var(--session-accent)_78%,transparent)]'));
 assert('Sun session chip legacy vitamin D path applies genetics multiplier',
   sunSessionUiSrc.includes('uiDeps.vitaminDIU(channelAu, fitz, uvi, !!sess?.bodyExposure?.rotatedSides, state.importedData?.genetics || null)'));
 assert('Active sun session live and stop vitamin D paths apply genetics multiplier',
@@ -906,12 +935,16 @@ assert('Light context setup mirror is not double-framed',
   !/gb:context-form:(?:border|bg-|shadow)/.test(contextLightMirrorSrc.match(/<section[^>]+>/)?.[0] || '') &&
   !cssSrc.includes('.ctx-lightsetup-mirror'));
 assert('Light setup AI context wrapper is not double-framed',
-  /\.light-setup-ai-block\s*\{[\s\S]*padding:\s*0;[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;/.test(cssSrc) &&
-  /\.light-setup-ai-block-green,[\s\S]*\.light-setup-ai-block-yellow,[\s\S]*\.light-setup-ai-block-red\s*\{\s*border-left:\s*0;\s*\}/.test(cssSrc));
+  lightOnboardingClasses.includes('gb:onboarding-ai:p-0') &&
+  lightOnboardingClasses.includes('gb:onboarding-ai:bg-transparent') &&
+  lightOnboardingClasses.includes('gb:onboarding-ai:[border:0]') &&
+  lightOnboardingClasses.includes('gb:onboarding-ai:rounded-none') &&
+  !/['"]light-setup-ai-block-(green|yellow|red)['"]\s*:/.test(lightOnboardingClasses));
 assert('Light page surfaces use shared card/theme tokens',
-  cssSrc.includes('.light-page') &&
+  lightPageComponent.includes('class="light-page ') &&
   /\.light-channels-section\s*\{[\s\S]*background:\s*color-mix\(in srgb, var\(--bg-card\)/.test(cssSrc) &&
-  /\.light-setup-card\s*\{[\s\S]*border-top:\s*3px solid var\(--accent\)/.test(cssSrc));
+  lightSetupClasses.includes('[border-top:3px_solid_var(--accent)]') &&
+  lightSetupClasses.includes('[background:color-mix(in_srgb,_var(--bg-card)_94%,_transparent)]'));
 assert('Light page status chips use theme tokens instead of legacy blue fallbacks',
   !cssSrc.includes('var(--accent-bg, rgba(96,165,250,0.10))') &&
   cssSrc.includes('background: color-mix(in srgb, var(--accent) 10%, transparent);') &&

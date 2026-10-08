@@ -58,3 +58,11 @@
 @source "../js/components/LightChannelChart.svelte";
 @source "../js/components/LightChannelResearch.svelte";
 @source "../js/light-channel-classes.ts";
+
+/* Inclusive legacy breakpoints; ordered narrow after mobile for exact parity. */
+@custom-variant pill-mobile (@media (max-width: 600px));
+@custom-variant pill-narrow (@media (max-width: 375px));
+@custom-variant channel-pill (&:where([data-light-channel-pills], [data-light-channel-pills] *));
+@source "../js/components/LightChannelPills.svelte";
+@source "../js/components/LightChannelSparkline.svelte";
+@source "../js/light-channel-pill-classes.ts";

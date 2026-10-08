@@ -2197,3 +2197,16 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /tests/light-channel-presentation.test.js
 /tests/playwright/light-channel-owned.spec.js
 /tests/pwa/sveltekit-light-channel.spec.js
+
+# Authored Light channel pills and mini charts
+/js/light-channel-pill-classes.js
+/js/components/LightChannelPills.svelte.native.js
+/js/components/LightChannelPills.svelte.native.js.map
+/js/components/LightChannelPills.svelte.html.js
+/js/components/LightChannelPills.svelte.html.js.map
+/js/components/LightChannelSparkline.svelte.native.js
+/js/components/LightChannelSparkline.svelte.native.js.map
+/js/components/LightChannelSparkline.svelte.html.js
+/js/components/LightChannelSparkline.svelte.html.js.map
+/tests/light-channel-pills.test.js
+/tests/playwright/light-channel-pills-owned.spec.js

@@ -428,3 +428,9 @@ It exercises the shipped static artifact and CSP through real navigation; the
 component contract separately verifies chart coordinates and delegated quick-log
 actions. The actual offline UI opens and cancels live Sun and device entry using
 a configured home location, with external weather/provider requests blocked. External research links are inspected without opening browser windows.
+
+The same channel acceptance enables the optional Dashboard Light Channels widget,
+checks all six authored pills and retained mini-chart bars, and opens the selected
+Light detail through the real cross-route shortcut before checking each channel.
+The Dashboard and Light row share typed Svelte SVG output; no raw mini-chart HTML
+slot remains. This is exercised offline after first install and on each cold launch.

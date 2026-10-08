@@ -1,3 +1,4 @@
+import type { ChannelSparkline } from './light-channel-presentation.js';
 import type { LightTodayView } from './light-today-presentation.js';
 // Pure display contracts. Light/Sun services keep calculations, persistence,
 // session ownership and the rendering of their separately owned children.
@@ -67,7 +68,7 @@ export interface LightDashboardPill {
   label: string;
   active: boolean;
   days: string;
-  sparklineHTML: string;
+  chart: ChannelSparkline | null;
 }
 export type LightPagePresentationProps = {
   kind: 'pills';

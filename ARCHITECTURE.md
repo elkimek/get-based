@@ -1250,7 +1250,16 @@ reading notes and citations. The stable `light-channel-view.ts` adapter gathers
 current domain-service values and retains pill toggles, focus, navigation and
 quick-log delegates. Scoped Tailwind replaces the detail's native styles; chart
 bars remain scaled to the user's own week and never imply biological completion.
-The pill-row renderer and its remaining native styles are separate consumers.
+`LightChannelPills.svelte` owns the interactive row and its adjacent detail slot.
+`LightDashboardPills.svelte` and the row share `LightChannelSparkline.svelte`;
+mini charts use typed geometry rather than an HTML slot. Pure projections in
+`light-channel-presentation.ts` own the shared channel order, day counts and
+source-relative mini bars. `light-channel-pill-classes.ts` owns scoped Tailwind
+for compact strips and channel-card contexts, including empty/logged, hover,
+expanded, keyboard and responsive states. The stable `_channelSparkline` HTML
+export delegates to the same authored component for compatibility. Live refresh
+replaces the row and slot together, then restores the one expanded channel.
+`css/light-channels.css` currently owns only surrounding widget/location chrome.
 
 `LightSessionPresentation.svelte` composes the past-Sun and device log forms,
 completed Sun/device rows and shared inline/full history. Its pure

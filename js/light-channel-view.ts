@@ -1,10 +1,11 @@
+import { renderHTML as renderPillRow } from './components/LightChannelPills.svelte.html.js';
+import { renderHTML as renderSparkline } from './components/LightChannelSparkline.svelte.html.js';
 import { renderHTML as renderChannelDetail } from './components/LightChannelDetail.svelte.html.js';
-import { projectChannelDetail } from './light-channel-presentation.js';
+import { LIGHT_CHANNEL_ORDER, projectChannelDayCount, projectChannelPill, projectChannelSparkline, projectChannelDetail } from './light-channel-presentation.js';
 import { renderHTML as renderLightReview } from './components/LightReviewAI.svelte.html.js';
 // light-channel-view.js — Light channel pill and detail renderers
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr } from './utils.js';
 import { getCachedConditionsAtmosphere } from './light-conditions-now.js';
 
 // Private operations used by the original renderer, not validation of injected
@@ -70,86 +71,28 @@ export function mergeTotals(a: unknown, b: unknown): Record<string, unknown> {
 
 const _hasSignal = (value: unknown) => Number.isFinite(value) && (value as number) > 0.0001;
 
-function _sourceSignalLabel(sun: unknown, device: unknown) {
-  const hasSun = _hasSignal(sun);
-  const hasDevice = _hasSignal(device);
-  if (hasSun && hasDevice) return 'Sunlight + device logged';
-  if (hasSun) return 'Sunlight logged';
-  if (hasDevice) return 'Device logged';
-  return 'Not logged';
-}
-
-// Mini 7-day sparkline rendered as inline SVG. Height shows the rhythm of
-// modeled exposure, while solid/faded segments keep sunlight and devices
-// visibly separate. There is no target or completion color.
+// Stable HTML export retained for callers outside the authored component tree.
 export function _channelSparkline(channelKey: unknown) {
-  const breakdown = lightChannelDeps.dailyChannelBreakdown;
-  if (!breakdown) return '';
-  const days = breakdown(channelKey, 7);
-  const observedMax = Math.max(0, ...days.flatMap(d => [d.sun, d.device]));
-  const max = Math.max(observedMax, 0.001);
-  const W = 47, H = 14, barW = 2, pairGap = 1, gap = 2;
-  const bars = days.map((d, i) => {
-    const x = i * (barW * 2 + pairGap + gap);
-    const total = d.sun + d.device;
-    if (!_hasSignal(total)) {
-      return `<rect x="${x}" y="${H - 1.5}" width="${barW * 2 + pairGap}" height="1.5" fill="var(--text-muted)" opacity="0.22" rx="0.6"/>`;
-    }
-    const sunH = Math.max(0, (d.sun / max) * H);
-    const devH = Math.max(0, (d.device / max) * H);
-    return `${sunH > 0 ? `<rect x="${x}" y="${H - sunH}" width="${barW}" height="${sunH}" fill="var(--channel-accent, var(--accent))" opacity="0.9" rx="0.6"/>` : ''}${devH > 0 ? `<rect x="${x + barW + pairGap}" y="${H - devH}" width="${barW}" height="${devH}" fill="var(--channel-accent, var(--accent))" opacity="0.38" rx="0.6"/>` : ''}`;
-  }).join('');
-  return `<svg class="light-pill-sparkline" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" aria-hidden="true">${bars}</svg>`;
+  const chart = _channelSparklineView(channelKey);
+  return chart ? renderSparkline({ chart }) : '';
 }
-
-// Count days on which this channel received any modeled signal. This is a log
-// summary, not a sufficiency threshold or a biological streak.
+export function _channelSparklineView(channelKey: unknown) {
+  const breakdown = lightChannelDeps.dailyChannelBreakdown;
+  return breakdown ? projectChannelSparkline(breakdown(channelKey, 7)) : null;
+}
 export function _channelDayCount(channelKey: unknown) {
   const breakdown = lightChannelDeps.dailyChannelBreakdown;
-  if (!breakdown) return { txt: 'Not logged', n: 0, sun: 0, device: 0 };
-  const days = breakdown(channelKey, 7);
-  let n = 0, sun = 0, device = 0;
-  for (const d of days) {
-    if (_hasSignal(d.sun + d.device)) n++;
-    if (_hasSignal(d.sun)) sun++;
-    if (_hasSignal(d.device)) device++;
-  }
-  return { txt: n ? `${n} day${n === 1 ? '' : 's'}` : 'Not logged', n, sun, device };
+  return projectChannelDayCount(breakdown ? breakdown(channelKey, 7) : []);
 }
 
-// Unified channel pill row — same vocabulary as the dashboard strip,
-// reused on the Light page where each pill is a click-to-expand entry into
-// a per-channel drill-down panel (source, rhythm, plain-language meaning,
-// and research). Empty state renders the same row with all-empty
-// sparklines; bars fill in as data accumulates. One renderer for both
-// states.
+// Services own the dose values. Authored Svelte owns every pill and SVG node;
+// the row/slot relationship remains stable for delegated toggles and live refresh.
 export function renderChannelPills(sunTotals7d: unknown, deviceTotals7d: unknown = {}) {
-  const ch = getChannelDisplay();
-  const order = ['vitamin_d', 'circadian', 'nir_solar', 'no_cv', 'pomc', 'violet_eye'];
-  let html = `<div class="light-pills-row light-pills-interactive">`;
-  for (const k of order) {
-    const meta = ch[k] || {};
-    const sun = (sunTotals7d as Record<string, unknown>)[k] || 0;
-    const device = (deviceTotals7d as Record<string, unknown>)[k] || 0;
-    const active = _hasSignal(sun) || _hasSignal(device);
-    const sourceLabel = _sourceSignalLabel(sun, device);
-    const dc = _channelDayCount(k);
-    const sourceDays = [dc.sun ? `sunlight ${dc.sun}d` : '', dc.device ? `device ${dc.device}d` : ''].filter(Boolean).join(' · ');
-    const tip = `${meta.what || ''} — ${sourceLabel}${sourceDays ? ` (${sourceDays})` : ''}.`;
-    const detailId = `light-pill-detail-${k}`;
-    html += `<button type="button" class="light-pill light-pill-tier-${active ? 2 : 0} light-pill-signal-${active ? 'logged' : 'empty'} light-pill-interactive" data-light-channel-action="toggle-detail" data-channel="${escapeAttr(k)}" aria-expanded="false" aria-controls="${detailId}" title="${escapeHTML(tip)}">
-      <span class="light-pill-icon" aria-hidden="true">${meta.icon || '·'}</span>
-      <span class="light-pill-label">${escapeHTML(meta.label || k)}</span>
-      ${_channelSparkline(k)}
-      <span class="light-pill-daycount">${escapeHTML(dc.txt)}</span>
-      <span class="sr-only">${escapeHTML(sourceLabel)}${dc.n ? ` on ${dc.n} day${dc.n === 1 ? '' : 's'} this week` : ''}</span>
-    </button>`;
-  }
-  html += `</div>`;
-  // The drill-down slot lives below the row. Only one channel is expanded
-  // at a time — toggling collapses any other open detail.
-  html += `<div class="light-channel-detail-slot" data-channel-detail-slot></div>`;
-  return html;
+  const channels = getChannelDisplay();
+  const pills = LIGHT_CHANNEL_ORDER.map(key => projectChannelPill(key, channels[key] || {},
+    (sunTotals7d as Record<string, unknown>)[key] || 0, (deviceTotals7d as Record<string, unknown>)[key] || 0,
+    _channelDayCount(key), _channelSparklineView(key)));
+  return renderPillRow({ pills });
 }
 
 // Gather current service values once. The pure view model owns chart geometry

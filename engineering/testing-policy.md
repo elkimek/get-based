@@ -297,3 +297,13 @@ compares original computed geometry across six themes and narrow/wide layouts,
 then exercises keyboard opening, research disclosure, quick-log actions and
 single-region replacement. These focused checks do not replace final whole-app
 or installed-PWA acceptance.
+
+Channel pill contracts in
+[`light-channel-pills.test.ts`](../tests/light-channel-pills.test.ts) compare
+independently captured original row, dashboard and SVG trees, signal thresholds,
+missing/empty service data, literal metadata and live refresh of an open detail.
+[`light-channel-pills-owned.spec.ts`](../tests/playwright/light-channel-pills-owned.spec.ts)
+compares original computed styles in compact strips and channel-card contexts
+across six themes and three widths, checks axe AA, keyboard/touch targets and
+actual delegated row/dashboard actions. Empty-card ink uses the secondary text
+token as a declared contrast improvement; source scaling and counts stay exact.
