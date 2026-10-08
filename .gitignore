@@ -2107,3 +2107,13 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /tests/ai-verdict-ownership.test.js
 /tests/helpers/light-ai-ownership-fixture.js
 /tests/pwa/sveltekit-light-ai-ownership.spec.js
+
+/css/light-conditions-now.css
+/js/light-conditions-classes.js
+/js/light-conditions-presentation.js
+/js/components/LightConditionsPresentation.svelte.html.js
+/js/components/LightConditionsPresentation.svelte.html.js.map
+
+/tests/light-conditions-presentation.test.js
+
+/tests/pwa/sveltekit-light-conditions.spec.js

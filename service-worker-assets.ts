@@ -428,7 +428,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/marker-context-ranges.js',
   '/js/light-conditions-now.js',
   '/js/light-conditions-interpretation.js',
-  '/js/light-conditions-renderer.js',
+  '/js/light-conditions-renderer.js', '/js/light-conditions-presentation.js', '/js/light-conditions-classes.js', '/js/components/LightConditionsPresentation.svelte.html.js',
   '/js/light-conditions-now-hooks.js',
   '/js/light-page-view.js', '/js/light-page-presentation.js', '/js/light-today-presentation.js', '/js/components/LightPagePresentation.svelte.html.js',
   '/js/light-page-view-hooks.js',

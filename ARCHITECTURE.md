@@ -1116,9 +1116,32 @@ sheet owns separately rendered children, including session/device/setup views.
 Leaving Dashboard cancels its pending guided-Chat reservation before the next
 route renders, so a stale welcome timer cannot squeeze or reopen over that route.
 Explicit HTML slots accept only named existing renderers: shared Lens chrome,
-conditions, channel SVG/details, source controls and Sun/device widgets. Those
+the conditions renderer, channel SVG/details, source controls and Sun/device
+widgets. Conditions now has its own authored owner below; the remaining native
 child owners remain migration work; the authored page shell does not establish
 whole-Light migration or whole-app PWA acceptance.
+
+`LightConditionsPresentation.svelte` composes the current-conditions widget,
+slot, full/compact readings, source attribution, event rail and inspection dialog
+through five focused children. `light-conditions-presentation.ts` projects display
+fields without changing provider classifications, UV interpretation or calculations.
+The stable `light-conditions-renderer.ts` facade retains synchronous imports;
+`light-conditions-now.ts` retains provider injection, coordinate-keyed cache,
+refresh intervals, delegated actions and modal lifecycle. All literal provider,
+location, error and raw payload values use Svelte escaping; no raw HTML slot is
+needed inside this owner. The actual timeline and payload scroll regions are
+named keyboard focus targets. Coarse-pointer refresh/details controls have 44px
+minimum targets. Foreground tokens correct theme contrast separately from the
+unchanged severity-dot colors.
+
+`light-conditions-classes.ts` owns scoped Tailwind layout, typography, responsive
+container rules, severity states and theme surfaces. `css/light-conditions-now.css`
+is generated from `light-conditions-now.base.css` and
+`light-conditions-now.tailwind.css` at its existing ordered lazy URL. The small
+base owns foreground tokens, dashboard-body integration and the shared app-tooltip
+overlay/focus rules. Superseded conditions templates and ordinary native styles,
+including their global theme selectors, are removed. Other Light data widgets
+continue to own their existing provider, persistence and presentation contracts.
 
 `LightSetupPresentation.svelte` composes the setup prompt, saved summary, two-step
 editor, location status, action rows and modal. Its child components own escaped

@@ -130,6 +130,14 @@ Nutrition History and its shared meal, target and fuel displays are authored in
 Edit `css/nutrition.tailwind.css` and `js/nutrition-view-classes.ts` for their scoped
 utilities; `css/nutrition.base.css` retains the remaining native nutrition styles.
 The build generates `css/nutrition.css` at its unchanged lazy URL.
+Current conditions use `js/components/LightConditionsPresentation.svelte` and
+its focused content/source/timeline/inspection children. Edit
+`js/light-conditions-presentation.ts` for display projections and
+`js/light-conditions-classes.ts` for scoped Tailwind utilities. The stable
+`css/light-conditions-now.css` URL is generated from its `.base.css` and
+`.tailwind.css` inputs; the base retains shared tooltip integration and
+foreground tokens. Provider execution and refresh/cache ownership remain in
+`js/light-conditions-now.ts`.
 Run `npm run styles:build` after styling edits;
 `npm run styles:check` verifies the bundle. The standard TypeScript build,
 prepare, development, test and production commands also compile these styles

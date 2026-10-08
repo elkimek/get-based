@@ -709,6 +709,8 @@ const lightSunCss = read('css/light-sun.css');
 const lightChannelsCss = read('css/light-channels.css');
 const lightDevicesCss = read('css/light-devices.css');
 const lightConditionsCss = read('css/light-conditions-now.css');
+const lightConditionsClasses = read('js/light-conditions-classes.ts');
+const lightConditionsTailwind = read('css/light-conditions-now.tailwind.css');
 const lightSetupCss = read('css/light-setup.css');
 read('js/sun.js');
 const sunActiveSessionSrc = read('js/sun-active-session.js');
@@ -809,7 +811,10 @@ assert('Light page dashboard toggles are explicitly scoped',
   /id: 'light-methods'[\s\S]*?dashboardId: ''/.test(lightPageViewSrc) &&
   lensPageShellSrc.includes("Object.prototype.hasOwnProperty.call(opts, 'dashboardId')"));
 assert('Light Conditions Now chrome is owned by split CSS',
-  /\.dashboard-widget\[data-widget-id="light-conditions-now"\] \.light-conditions-now-wrap\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/.test(lightConditionsCss) &&
+  lightConditionsClasses.includes("[.dashboard-widget[data-widget-id='light-conditions-now']_&.light-conditions-now-wrap]:bg-transparent") &&
+  lightConditionsClasses.includes("[.dashboard-widget[data-widget-id='light-conditions-now']_&.light-conditions-now-wrap]:[box-shadow:none]") &&
+  lightConditionsCss.includes('data-light-conditions-presentation') &&
+  lightConditionsTailwind.includes('@source "../js/light-conditions-classes.ts"') &&
   !lightSunCss.includes('.dashboard-widget[data-widget-id="light-conditions-now"] .light-conditions-now-wrap'));
 assert('Light session widget keeps deframed operation surface',
   /\.dashboard-widget\[data-widget-id="light-session-log"\] \.light-quicklog-row\s*\{[\s\S]*background:\s*transparent;[\s\S]*box-shadow:\s*none;/.test(lightSunCss));
@@ -829,7 +834,9 @@ assert('Light setup chrome is owned by split CSS',
   !/\.light-setup-card\s*\{/.test(lightSunCss) &&
   !/\.light-setup-focus-modal\s*\{/.test(lightSunCss));
 assert('Conditions Now CSS owns tooltip and responsive grid styles',
-  /\.conditions-now-grid\s*\{[\s\S]*grid-template-columns:\s*2fr 1fr 1fr 1fr;/.test(lightConditionsCss) &&
+  lightConditionsClasses.includes('gb:conditions:grid-cols-[2fr_1fr_1fr_1fr]') &&
+  lightConditionsCss.includes('grid-template-columns:2fr 1fr 1fr 1fr') &&
+  lightConditionsClasses.includes('gb:conditions:conditions-narrow:grid-cols-[1fr]') &&
   /\.app-tooltip\s*\{[\s\S]*position:\s*fixed/.test(lightConditionsCss) &&
   !/\.conditions-now-grid\s*\{/.test(lightSunCss) &&
   !/\.app-tooltip\s*\{/.test(lightSunCss));
@@ -908,7 +915,8 @@ assert('Light page surfaces use shared card/theme tokens',
 assert('Light page status chips use theme tokens instead of legacy blue fallbacks',
   !cssSrc.includes('var(--accent-bg, rgba(96,165,250,0.10))') &&
   cssSrc.includes('background: color-mix(in srgb, var(--accent) 10%, transparent);') &&
-  cssSrc.includes('.conditions-uvi-extreme   .conditions-now-value { color: var(--purple); }'));
+  lightConditionsClasses.includes('gb:conditions:[&_.conditions-now-value]:[color:var(--conditions-purple,var(--purple))]') &&
+  lightConditionsClasses.includes('gb:conditions:[&_.conditions-now-label]:before:[background:var(--purple)]'));
 assert('Mobile hides closed chat panel so it cannot widen pages',
   /@media \(max-width:\s*768px\)\s*\{[\s\S]*\.chat-panel:not\(\.open\)\s*\{[\s\S]*display:\s*none;/.test(cssSrc));
 const quickMarkerBaseIndex = cssSrc.indexOf('.db-quick-marker-grid {\n  display: grid;');
@@ -932,8 +940,9 @@ assert('Compare and correlations headings are text-only',
   !compareCorrelationsSrc.includes('<h2>\\uD83D\\uDCC8 Correlations</h2>'));
 const themesExtraSrc = read('themes-extra.css');
 assert('Glass theme includes Light page surfaces',
-  themesExtraSrc.includes('[data-theme="glass"] .light-setup-card') &&
-  themesExtraSrc.includes('[data-theme="glass"] .light-conditions-now-wrap'));
+  read('js/light-setup-classes.ts').includes("[[data-theme='glass']_&]") &&
+  lightConditionsClasses.includes("gb:conditions:[[data-theme='glass']_&]:[backdrop-filter:blur(8px)_saturate(140%)]") &&
+  !themesExtraSrc.includes('[data-theme="glass"] .light-conditions-now-wrap'));
 
 // ═══════════════════════════════════════
 // 6. Data integrity fixes

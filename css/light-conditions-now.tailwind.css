@@ -1,0 +1,8 @@
+/* Conditions owns scoped utilities; shared tooltip and widget integration stay in the base. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+@source "../js/light-conditions-classes.ts";
+@source "../js/components/LightConditions*.svelte";
+@custom-variant conditions (&:is([data-light-conditions-presentation], [data-light-conditions-presentation] *));
+@custom-variant conditions-narrow (@container conditions-now (max-width: 300px));

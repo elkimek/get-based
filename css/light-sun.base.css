@@ -213,14 +213,14 @@
 /* Textarea variant */
 textarea.ctx-input { resize: vertical; min-height: 56px; }
 
-/* Shared native Conditions/AI-extraction sections; authored session details own their utilities. */
-.sun-detail-section:not([data-light-detail-presentation] *) { margin: 14px 0; }
-.sun-detail-section-label:not([data-light-detail-presentation] *) {
+/* Shared native AI-extraction sections; authored session/conditions details own their utilities. */
+.sun-detail-section:not([data-light-detail-presentation] *):not(:where([data-light-conditions-presentation], [data-light-conditions-presentation] *)) { margin: 14px 0; }
+.sun-detail-section-label:not([data-light-detail-presentation] *):not(:where([data-light-conditions-presentation], [data-light-conditions-presentation] *)) {
   font-size: 11px; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: 0.5px;
   margin-bottom: 6px;
 }
-.sun-detail-section-value:not([data-light-detail-presentation] *) {
+.sun-detail-section-value:not([data-light-detail-presentation] *):not(:where([data-light-conditions-presentation], [data-light-conditions-presentation] *)) {
   font-size: 13px; color: var(--text-primary); line-height: 1.5;
 }
 .sun-detail-disclosure:not([data-light-detail-presentation] *) {

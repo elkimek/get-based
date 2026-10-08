@@ -50,6 +50,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     await buildProtectionStyles({ check });
     await buildChatStyles({ check });
     await buildLightSetupStyles({ check });
+    await compileStyles('light-conditions-now.base.css', 'light-conditions-now.tailwind.css', path.join(ROOT, 'css/light-conditions-now.css'), check, 'Light conditions');
     await compileStyles('light-sun.base.css', 'light-page.tailwind.css', path.join(ROOT, 'css/light-sun.css'), check, 'Light page');
     await compileStyles('nutrition.base.css', 'nutrition.tailwind.css', path.join(ROOT, 'css/nutrition.css'), check, 'Nutrition');
     await compileStyles('context-editor.base.css', 'context-editor.tailwind.css', path.join(ROOT, 'css/context-editor.css'), check, 'Context editor');

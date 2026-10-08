@@ -1,7 +1,6 @@
 // light-conditions-now.js — Current outdoor conditions widget for Light & Sun
 
 import { getErrorMessage } from './caught-error.js';
-import { escapeHTML, escapeAttr } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
   _formatElapsedShort,
@@ -9,7 +8,9 @@ import {
   configureLightConditionsInterpretation,
 } from './light-conditions-interpretation.js';
 import { renderConditionsHTML } from './light-conditions-renderer.js';
-import type { ConditionsAtmosphere } from './light-conditions-renderer.js';
+import { projectConditions } from './light-conditions-presentation.js';
+import type { ConditionsAtmosphere, ConditionsSlotView, ConditionsInspectionView } from './light-conditions-presentation.js';
+import { renderHTML } from './components/LightConditionsPresentation.svelte.html.js';
 import type { computeUVConfidence } from './sun-uvdata-atmosphere.js';
 
 export interface ConditionsNowOptions { variant?: unknown; slotId?: unknown }
@@ -123,21 +124,7 @@ if (typeof document !== 'undefined') installLightConditionsActionDelegates();
 export function renderLightConditionsWidgetBody({ variant = 'full', slotId = '' }: ConditionsNowOptions = {}) {
   const conditionsOpts: ConditionsNowOptions = { variant };
   if (slotId) conditionsOpts.slotId = slotId;
-  const locationSetup = _getSunCoords() ? '' : `<div class="conditions-now-location-setup">
-      <span>To see local conditions, set your country in the profile editor or use your phone location for this session.</span>
-      <button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-light-page-action="request-precise-location">Use phone location</button>
-    </div>`;
-  return `<div class="light-conditions-now-wrap">
-      <div class="light-conditions-now-head">
-        <span class="light-conditions-now-title">Conditions now</span>
-        <span class="light-conditions-now-actions">
-          <button type="button" class="conditions-now-refresh light-widget-mini-btn" data-light-conditions-action="refresh" aria-label="Refresh conditions data — bypasses cache"${_conditionsTooltipAttr('Force a fresh fetch, bypassing the short cache')}>Refresh</button>
-          <button type="button" class="conditions-now-inspect light-widget-mini-btn" data-light-conditions-action="inspect" aria-label="Show raw conditions response, source, cache, and sanity check"${_conditionsTooltipAttr('See raw response, source, cache age, and sanity checks')}>Details</button>
-        </span>
-      </div>
-      ${locationSetup}
-      ${renderConditionsNow(conditionsOpts)}
-  </div>`;
+  return renderHTML({ kind: 'widget', hasLocation: !!_getSunCoords(), slot: conditionsSlot(conditionsOpts) });
 }
 
 // "Conditions now" strip — renders current UVI / ozone / AQI / sun-angle
@@ -158,11 +145,6 @@ let _conditionsFetchInFlight = false;
 // ('cond-now-compact' / 'cond-now-full'). Survives strip re-renders
 // so a single interval handles auto-refresh for the slot's lifetime.
 const _conditionsIntervals = new Map<string, ReturnType<typeof setInterval>>();
-
-function _conditionsTooltipAttr(text: unknown, opts: { focusable?: unknown } = {}) {
-  if (!text) return '';
-  return ` data-conditions-tooltip="${escapeAttr(text)}"${opts.focusable ? ' tabindex="0"' : ''}`;
-}
 
 function _coordKey(coords: CoordinateOperationReader | null | undefined) {
   if (!coords || !Number.isFinite(coords.lat) || !Number.isFinite(coords.lon)) return null;
@@ -190,6 +172,10 @@ function _centerConditionsNowMarker(slotOrId: unknown) {
 }
 
 export function renderConditionsNow(opts: ConditionsNowOptions = {}) {
+  return renderHTML({ kind: 'slot', slot: conditionsSlot(opts) });
+}
+
+function conditionsSlot(opts: ConditionsNowOptions): ConditionsSlotView {
   const variant = (opts.variant || 'full') as string; // 'full' (Light page) | 'compact' (dashboard)
   // Deterministic slotId per variant — pre-2026-05-08 used Date.now()
   // which made the rendered HTML differ on every call, so any caller
@@ -223,18 +209,13 @@ export function renderConditionsNow(opts: ConditionsNowOptions = {}) {
     if (coords && _conditionsCache && _conditionsCache.coordKey === _coordKey(coords)
         && (Date.now() - _conditionsCache.fetchedAt) < 5 * 60 * 1000) {
       setTimeout(() => _centerConditionsNowMarker(slotId), 0);
-      return `<div class="conditions-now conditions-now-${variant}" id="${slotId}" data-variant="${variant}" aria-busy="false">${renderConditionsHTML(_conditionsCache.atm, coords, variant)}</div>`;
+      return { id: slotId, variant, view: projectConditions(_conditionsCache.atm, coords, variant) };
     }
   } catch (_) {}
   // No aria-live on the wrapper — auto-refresh would re-announce the whole
   // strip every cycle. Only user-triggered refresh announces, via a separate
   // sr-only live region populated in _refreshConditions(opts.force).
-  return `<div class="conditions-now conditions-now-${variant}" id="${slotId}" data-variant="${variant}" aria-busy="true">
-    <div class="conditions-now-loading">
-      <span class="conditions-now-icon">☼</span>
-      <span class="conditions-now-text">Loading current conditions…</span>
-    </div>
-  </div>`;
+  return { id: slotId, variant, view: null };
 }
 
 async function _refreshConditions(slotId: string, variant: string, opts: { force?: unknown } = {}) {
@@ -247,7 +228,7 @@ async function _refreshConditions(slotId: string, variant: string, opts: { force
   const coords = _getSunCoords() as CoordinateOperationReader | null | undefined;
   if (!coords) {
     _resolveBusy();
-    slot.innerHTML = `<div class="conditions-now-msg">Set a country in your profile to see current sun conditions.</div>`;
+    slot.innerHTML = renderHTML({ kind: 'message', message: 'Set a country in your profile to see current sun conditions.' });
     return;
   }
   // Throttle: serve in-memory cache if we fetched recently (5 min) AND the
@@ -312,7 +293,7 @@ async function _refreshConditions(slotId: string, variant: string, opts: { force
     if (!atm) {
       slot.classList.remove('is-refreshing');
       slot.setAttribute('aria-busy', 'false');
-      slot.innerHTML = `<div class="conditions-now-msg">Conditions data unavailable offline. Reconnect once and we'll cache it.${fetchError ? ` <small>(${escapeHTML(fetchError)})</small>` : ''}</div>`;
+      slot.innerHTML = renderHTML({ kind: 'message', message: "Conditions data unavailable offline. Reconnect once and we'll cache it.", error: fetchError });
       return;
     }
     _conditionsCache = { coordKey: key, atm, fetchedAt: Date.now() };
@@ -354,6 +335,44 @@ export function _refreshConditionsNow() {
   });
 }
 
+function conditionsConfidence(atm: InspectionAtmosphereReader | null, coords: CoordinateOperationReader | null | undefined) {
+  // Computed real-time confidence — weights snapshot age, cloud
+  // cover, solar elevation, and UVI band so a low-sun heavy-cloud
+  // CAMS reading isn't dishonestly reported as 95%.
+  const computed = typeof lightConditionsDeps.computeUVConfidence === 'function' ? lightConditionsDeps.computeUVConfidence({
+    source: atm?.source,
+    snapshotAgeSec: atm?._camsMeta?.ageSec ?? null,
+    cloudCover: atm?.cloudCover ?? null,
+    zenithDeg: coords && (atm?.validAt || atm?.fetchedAt) ? _solarZenithAngle(new Date(atm.validAt || atm.fetchedAt), coords) : null,
+    uvIndex: atm?.uvIndex ?? null,
+    isStale: !!atm?._stale,
+  }) : (atm?.confidence ?? null);
+  if (computed == null) return { value: '—' };
+  const pct = Math.round(computed * 100);
+  // Tooltip lists the active discounts so the user can see WHY
+  // confidence dropped — turns a single number into honest reasoning.
+  const factors: string[] = [];
+  const age = atm?._camsMeta?.ageSec;
+  if (typeof age === 'number' && Number.isFinite(age)) {
+    if (age > 86400) factors.push(`stale grid (${Math.round(age/3600)}h old)`);
+    else if (age > 43200) factors.push(`grid ${Math.round(age/3600)}h old`);
+    else if (age > 21600) factors.push(`grid ${Math.round(age/3600)}h old`);
+  }
+  const cc = atm?.cloudCover;
+  const ccNorm = cc != null && cc > 1 ? cc / 100 : cc;
+  if (typeof ccNorm === 'number' && Number.isFinite(ccNorm)) {
+    if (ccNorm > 0.8) factors.push(`heavy cloud (${Math.round(ccNorm*100)}%)`);
+    else if (ccNorm > 0.5) factors.push(`moderate cloud (${Math.round(ccNorm*100)}%)`);
+  }
+  if (atm?._stale) factors.push('upstream marked stale');
+  if (atm?._offline) factors.push('offline geometry-only estimate');
+  const u = atm?.uvIndex;
+  if (typeof u === 'number' && Number.isFinite(u) && u < 2) factors.push(`low UVI (${u.toFixed(1)} — model band noisy below 2)`);
+  const tip = factors.length ? `Discounted by: ${factors.join('; ')}` : 'No active discounts; baseline source confidence.';
+  return { value: `${pct}%`, title: tip };
+}
+
+
 // User-triggered: open a modal showing the raw atmosphere response so the
 // user can verify what the provider returned, what we parsed, and what the
 // engine will use. Pure inspection — no side effects.
@@ -372,94 +391,19 @@ export function _inspectConditionsNow() {
       if (k && k.startsWith('meteo:')) cacheKeys.push(k);
     }
   } catch (e) {}
-  overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Inspect conditions data" style="max-width:640px">
-    <div class="modal-header">
-      <h3>Inspect conditions data</h3>
-      <button class="modal-close" aria-label="Close" data-conditions-inspect-close>×</button>
-    </div>
-    <div class="modal-body">
-      <p class="modal-body-hint">Last response from the conditions provider, exactly as parsed. Use this to verify the math is using the values you expect.</p>
-
-      <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Source</div>
-        <div class="sun-detail-section-value">${atm?.source ? escapeHTML(atm.source) : '—'}</div>
-      </div>
-      <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Valid at</div>
-        <div class="sun-detail-section-value">${atm?.validAt ? escapeHTML(new Date(atm.validAt).toLocaleString()) : '—'}</div>
-      </div>
-      <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Retrieved at</div>
-        <div class="sun-detail-section-value">${atm?.fetchedAt ? escapeHTML(new Date(atm.fetchedAt).toLocaleString()) : '—'}</div>
-      </div>
-      <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Profile location (local)</div>
-        <div class="sun-detail-section-value">${coords ? `${coords.lat.toFixed(2)}°, ${coords.lon.toFixed(2)}° (${escapeHTML(coords.source || 'unknown')})` : '—'}</div>
-      </div>
-      <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Location sent to provider</div>
-        <div class="sun-detail-section-value">${Number.isFinite(atm?._requestCoords?.lat) && Number.isFinite(atm?._requestCoords?.lon) ? `${atm._requestCoords.lat.toFixed(2)}°, ${atm._requestCoords.lon.toFixed(2)}°${atm._requestCoords.privacyRounded ? ' (privacy-rounded)' : ''}` : '—'}</div>
-      </div>
-      <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Confidence</div>
-        <div class="sun-detail-section-value">${(() => {
-          // Computed real-time confidence — weights snapshot age, cloud
-          // cover, solar elevation, and UVI band so a low-sun heavy-cloud
-          // CAMS reading isn't dishonestly reported as 95%.
-          const computed = typeof lightConditionsDeps.computeUVConfidence === 'function' ? lightConditionsDeps.computeUVConfidence({
-            source: atm?.source,
-            snapshotAgeSec: atm?._camsMeta?.ageSec ?? null,
-            cloudCover: atm?.cloudCover ?? null,
-            zenithDeg: coords && (atm?.validAt || atm?.fetchedAt) ? _solarZenithAngle(new Date(atm.validAt || atm.fetchedAt), coords) : null,
-            uvIndex: atm?.uvIndex ?? null,
-            isStale: !!atm?._stale,
-          }) : (atm?.confidence ?? null);
-          if (computed == null) return '—';
-          const pct = Math.round(computed * 100);
-          // Tooltip lists the active discounts so the user can see WHY
-          // confidence dropped — turns a single number into honest reasoning.
-          const factors: string[] = [];
-          const age = atm?._camsMeta?.ageSec;
-          if (Number.isFinite(age)) {
-            if (age > 86400) factors.push(`stale grid (${Math.round(age/3600)}h old)`);
-            else if (age > 43200) factors.push(`grid ${Math.round(age/3600)}h old`);
-            else if (age > 21600) factors.push(`grid ${Math.round(age/3600)}h old`);
-          }
-          const cc = atm?.cloudCover;
-          const ccNorm = cc != null && cc > 1 ? cc / 100 : cc;
-          if (Number.isFinite(ccNorm)) {
-            if (ccNorm > 0.8) factors.push(`heavy cloud (${Math.round(ccNorm*100)}%)`);
-            else if (ccNorm > 0.5) factors.push(`moderate cloud (${Math.round(ccNorm*100)}%)`);
-          }
-          if (atm?._stale) factors.push('upstream marked stale');
-          if (atm?._offline) factors.push('offline geometry-only estimate');
-          const u = atm?.uvIndex;
-          if (Number.isFinite(u) && u < 2) factors.push(`low UVI (${u.toFixed(1)} — model band noisy below 2)`);
-          const tip = factors.length ? `Discounted by: ${factors.join('; ')}` : 'No active discounts; baseline source confidence.';
-          return `<span title="${escapeAttr(tip)}">${pct}%</span>`;
-        })()}</div>
-      </div>
-      ${warnings.length ? `<div class="sun-detail-section">
-        <div class="sun-detail-section-label">Sanity warnings</div>
-        <div class="sun-detail-section-value" style="color:var(--orange)">${warnings.map(w => '⚠ ' + escapeHTML(w)).join('<br>')}</div>
-      </div>` : `<div class="sun-detail-section"><div class="sun-detail-section-label">Sanity check</div><div class="sun-detail-section-value" style="color:var(--green)">✓ All values plausible</div></div>`}
-
-      <div class="sun-detail-section">
-        <div class="sun-detail-section-label">Raw payload</div>
-        <pre tabindex="0" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;font-size:11px;color:var(--text-primary);overflow:auto;max-height:200px;overscroll-behavior:contain;white-space:pre-wrap;word-break:break-word">${atm ? escapeHTML(JSON.stringify(atm, null, 2)) : 'No cached response.'}</pre>
-      </div>
-
-      <div class="sun-detail-section">
-        <div class="sun-detail-section-label">localStorage cache (${cacheKeys.length} entr${cacheKeys.length === 1 ? 'y' : 'ies'})</div>
-        <div class="sun-detail-section-value" style="font-family:var(--font-mono,monospace);font-size:11px;color:var(--text-muted)">${cacheKeys.length ? cacheKeys.map(k => escapeHTML(k)).join('<br>') : '— (no cached entries)'}</div>
-      </div>
-
-      <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" data-conditions-inspect-close>Close</button>
-        <button class="import-btn import-btn-primary" id="conditions-inspect-refresh">↻ Force refresh</button>
-      </div>
-    </div>
-  </div>`;
+  const confidence = conditionsConfidence(atm, coords);
+  const view: ConditionsInspectionView = {
+    fields: [
+      { label: 'Source', value: String(atm?.source || '—') },
+      { label: 'Valid at', value: atm?.validAt ? new Date(atm.validAt).toLocaleString() : '—' },
+      { label: 'Retrieved at', value: atm?.fetchedAt ? new Date(atm.fetchedAt).toLocaleString() : '—' },
+      { label: 'Profile location (local)', value: coords ? `${coords.lat.toFixed(2)}°, ${coords.lon.toFixed(2)}° (${coords.source || 'unknown'})` : '—' },
+      { label: 'Location sent to provider', value: Number.isFinite(atm?._requestCoords?.lat) && Number.isFinite(atm?._requestCoords?.lon) ? `${atm._requestCoords.lat.toFixed(2)}°, ${atm._requestCoords.lon.toFixed(2)}°${atm._requestCoords.privacyRounded ? ' (privacy-rounded)' : ''}` : '—' },
+      { label: 'Confidence', ...confidence },
+    ],
+    warnings, raw: atm ? JSON.stringify(atm, null, 2) : 'No cached response.', cacheKeys,
+  };
+  overlay.innerHTML = renderHTML({ kind: 'inspect', view });
   openAppendedModalOverlay(overlay, closeDialog);
   overlay.querySelectorAll('[data-conditions-inspect-close]').forEach(btn => {
     btn.addEventListener('click', closeDialog);

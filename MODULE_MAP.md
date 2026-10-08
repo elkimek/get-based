@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1242 |
-| Internal import edges | 4401 |
+| Modules | 1250 |
+| Internal import edges | 4415 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,7 +65,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 277 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
+| [`js/utils.ts`](js/utils.ts) | 275 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
 | [`js/state.ts`](js/state.ts) | 243 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 93 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 84 | [`js/settings.ts`](js/settings.ts) | 35 |
@@ -1339,7 +1339,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>light</code> family — 63 modules</summary>
+<details><summary><code>light</code> family — 65 modules</summary>
 
 - [`js/light-active-session-presentation.ts`](js/light-active-session-presentation.ts) → no in-scope imports
 - [`js/light-ai-save-hooks.ts`](js/light-ai-save-hooks.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/light-audit-ai-analysis.ts`](js/light-audit-ai-analysis.ts), [`js/light-env-ai-analysis.ts`](js/light-env-ai-analysis.ts), [`js/light-env-audits.ts`](js/light-env-audits.ts), [`js/light-env.ts`](js/light-env.ts), [`js/light-screen-ai-analysis.ts`](js/light-screen-ai-analysis.ts), [`js/light-tools-ai-analysis.ts`](js/light-tools-ai-analysis.ts), [`js/light-tools.ts`](js/light-tools.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun-onboarding-ai.ts`](js/sun-onboarding-ai.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts)
@@ -1349,10 +1349,12 @@ Native browser modules shipped with the static application.
 - [`js/light-channel-view-ui-hooks.ts`](js/light-channel-view-ui-hooks.ts) → [`js/light-channel-view.ts`](js/light-channel-view.ts), [`js/views.ts`](js/views.ts)
 - [`js/light-channel-view.ts`](js/light-channel-view.ts) → [`js/light-conditions-now.ts`](js/light-conditions-now.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-channels-ai-analysis.ts`](js/light-channels-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/state.ts`](js/state.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts), [`js/sun.ts`](js/sun.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-conditions-classes.ts`](js/light-conditions-classes.ts) → no in-scope imports
 - [`js/light-conditions-interpretation.ts`](js/light-conditions-interpretation.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
 - [`js/light-conditions-now-hooks.ts`](js/light-conditions-now-hooks.ts) → [`js/light-conditions-now.ts`](js/light-conditions-now.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/light-conditions-now.ts`](js/light-conditions-now.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/light-conditions-interpretation.ts`](js/light-conditions-interpretation.ts), [`js/light-conditions-renderer.ts`](js/light-conditions-renderer.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/light-conditions-renderer.ts`](js/light-conditions-renderer.ts) → [`js/light-conditions-interpretation.ts`](js/light-conditions-interpretation.ts), [`js/sun-uvdata-atmosphere.ts`](js/sun-uvdata-atmosphere.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-conditions-now.ts`](js/light-conditions-now.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/components/LightConditionsPresentation.svelte`](js/components/LightConditionsPresentation.svelte), [`js/light-conditions-interpretation.ts`](js/light-conditions-interpretation.ts), [`js/light-conditions-presentation.ts`](js/light-conditions-presentation.ts), [`js/light-conditions-renderer.ts`](js/light-conditions-renderer.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts)
+- [`js/light-conditions-presentation.ts`](js/light-conditions-presentation.ts) → [`js/light-conditions-interpretation.ts`](js/light-conditions-interpretation.ts), [`js/sun-uvdata-atmosphere.ts`](js/sun-uvdata-atmosphere.ts)
+- [`js/light-conditions-renderer.ts`](js/light-conditions-renderer.ts) → [`js/components/LightConditionsPresentation.svelte`](js/components/LightConditionsPresentation.svelte), [`js/light-conditions-presentation.ts`](js/light-conditions-presentation.ts)
 - [`js/light-device-ai-analysis.ts`](js/light-device-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun.ts`](js/sun.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-device-modal-loader.ts`](js/light-device-modal-loader.ts) → [`js/light-device-session-modal.ts`](js/light-device-session-modal.ts) *(dynamic)*, [`js/light-device-setup-modal.ts`](js/light-device-setup-modal.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-device-session-engine.ts`](js/light-device-session-engine.ts) → [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts)
@@ -1410,6 +1412,42 @@ Native browser modules shipped with the static application.
 <details><summary><code>LightActiveSession.svelte</code> family — 1 module</summary>
 
 - [`js/components/LightActiveSession.svelte`](js/components/LightActiveSession.svelte) → [`js/components/LightLiveReadouts.svelte`](js/components/LightLiveReadouts.svelte), [`js/components/LightSessionChips.svelte`](js/components/LightSessionChips.svelte), [`js/components/LightSessionControls.svelte`](js/components/LightSessionControls.svelte)
+
+</details>
+
+<details><summary><code>LightConditionsContent.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightConditionsContent.svelte`](js/components/LightConditionsContent.svelte) → [`js/components/LightConditionsSource.svelte`](js/components/LightConditionsSource.svelte), [`js/components/LightConditionsTimeline.svelte`](js/components/LightConditionsTimeline.svelte), [`js/light-conditions-classes.ts`](js/light-conditions-classes.ts)
+
+</details>
+
+<details><summary><code>LightConditionsInspection.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightConditionsInspection.svelte`](js/components/LightConditionsInspection.svelte) → [`js/light-conditions-classes.ts`](js/light-conditions-classes.ts)
+
+</details>
+
+<details><summary><code>LightConditionsPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightConditionsPresentation.svelte`](js/components/LightConditionsPresentation.svelte) → [`js/components/LightConditionsContent.svelte`](js/components/LightConditionsContent.svelte), [`js/components/LightConditionsInspection.svelte`](js/components/LightConditionsInspection.svelte), [`js/components/LightConditionsSlot.svelte`](js/components/LightConditionsSlot.svelte), [`js/light-conditions-classes.ts`](js/light-conditions-classes.ts)
+
+</details>
+
+<details><summary><code>LightConditionsSlot.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightConditionsSlot.svelte`](js/components/LightConditionsSlot.svelte) → [`js/components/LightConditionsContent.svelte`](js/components/LightConditionsContent.svelte), [`js/light-conditions-classes.ts`](js/light-conditions-classes.ts)
+
+</details>
+
+<details><summary><code>LightConditionsSource.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightConditionsSource.svelte`](js/components/LightConditionsSource.svelte) → [`js/light-conditions-classes.ts`](js/light-conditions-classes.ts)
+
+</details>
+
+<details><summary><code>LightConditionsTimeline.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightConditionsTimeline.svelte`](js/components/LightConditionsTimeline.svelte) → [`js/light-conditions-classes.ts`](js/light-conditions-classes.ts)
 
 </details>
 

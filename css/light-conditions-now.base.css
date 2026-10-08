@@ -1,0 +1,63 @@
+/* Readable foreground tokens are separate from the unchanged severity dots. */
+[data-theme="light"] [data-light-conditions-presentation] {
+  --conditions-green: var(--success-ink);
+  --conditions-yellow: var(--warning-ink);
+  --conditions-orange: var(--warning-ink);
+  --conditions-red: var(--danger-ink);
+  --conditions-purple: #6d28d9;
+  --conditions-accent: var(--accent-light, var(--accent));
+}
+:is([data-theme="neuromancer"], [data-theme="cyberterm"]) [data-light-conditions-presentation] {
+  --conditions-muted: var(--text-secondary);
+}
+/* Cross-widget integration and the app-wide tooltip overlay retain their shared owners. */
+.light-page .dashboard-widget[data-widget-id="light-conditions-now"] .dashboard-widget-body { gap: 0; }
+/* App tooltip carriers used by custom data attrs. Legacy `title`
+   attributes are picked up by js/touch-tooltip.js without extra markup. */
+.conditions-now [data-conditions-tooltip],
+.light-conditions-now-actions [data-conditions-tooltip],
+[data-app-tooltip] {
+  cursor: help;
+}
+.conditions-now button[data-conditions-tooltip],
+.light-conditions-now-actions button[data-conditions-tooltip],
+button[data-app-tooltip] {
+  cursor: pointer;
+}
+.conditions-now [data-conditions-tooltip]:focus-visible,
+.light-conditions-now-actions [data-conditions-tooltip]:focus-visible,
+[data-app-tooltip]:focus-visible,
+[aria-describedby="app-tooltip"]:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 78%, transparent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+/* App-wide tooltip overlay — fixed-position so scroll containers,
+   modals, and timeline rails cannot clip it. */
+.app-tooltip {
+  position: fixed;
+  z-index: 10000;
+  max-width: min(340px, calc(100vw - 20px));
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-elevated, var(--bg-card)) 96%, transparent);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-lg);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.app-tooltip.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-tooltip { transition: none; }
+}
