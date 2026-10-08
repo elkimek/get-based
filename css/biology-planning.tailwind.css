@@ -1,0 +1,15 @@
+/* Biology Scores lab planning and reading priorities; no reset. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+@custom-variant plan-ui (&:is([data-biology-planning-view], [data-biology-planning-view] *));
+@custom-variant device-coarse (@media (pointer: coarse));
+@custom-variant plan-small (@media (max-width: 760px));
+@custom-variant plan-phone (@media (max-width: 650px));
+@custom-variant plan-default (html:not([data-theme]) &);
+@source "../js/biology-planning-classes.ts";
+@source "../js/components/BiologyPlanningCard.svelte";
+@source "../js/components/BiologyNextChecks.svelte";
+@source "../js/components/BiologyCoverageBundle.svelte";
+@source "../js/components/BiologyCoveragePlanner.svelte";
+@source "../js/components/BiologyPlanningPresentation.svelte";

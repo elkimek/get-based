@@ -1,6 +1,5 @@
 import type { BiologySectionScore } from './biology-score-sections.js';
 import type { ScoreDefinition, ScorePart, ScoringData } from './biology-score-types.js';
-import type { PlannerMarker } from './biology-score-coverage-planner.js';
 import type { finalizeCustomScore } from './biology-score-engine.js';
 import type { computeBiologicalCoherence } from './biology-score-coherence.js';
 import type { addScoreInterpretation } from './biology-score-methodology.js';
@@ -29,6 +28,8 @@ type ScoreValue = BiologyRenderScore['score'];
 
 // biology-score-render.ts — HTML rendering for Biology Score cards, details, and dashboard/lens widgets.
 
+import { renderHTML as renderPlanning } from './components/BiologyPlanningPresentation.svelte.html.js';
+import { projectBiologyNextChecks, projectBiologyCoverage } from './biology-planning-presentation.js';
 import { specimenLabel } from './biology-score-panel-policy.js';
 import { escapeAttr, escapeHTML } from './utils.js';
 import { renderScoreAIAnswer, renderScoreAISummary } from './biology-score-sections.js';
@@ -36,9 +37,7 @@ import { getBiologyProfileContext } from './profile-context.js';
 import { TONE_LABELS, clamp, resolveScoreTone, coreScoreDrivers } from './biology-score-engine.js';
 import { renderLensDashboardToggle } from './lens-page-shell.js';
 import {
-  buildBiologyScoreCoveragePlannerModel,
-  effectiveMissingMarkers, optionalMarkerReason,
-  effectiveContextMarkers,
+  effectiveMissingMarkers,
   markerDisplayLabel,
 } from './biology-score-coverage-planner.js';
 
@@ -389,72 +388,12 @@ export function renderBiologyScoresWidget(ctx: ScoreContext, computeBiologyScore
 
 
 export function renderBiologyScoresActionSummary(live: readonly BiologyRenderScore[], waiting: readonly BiologyRenderScore[], coherence: BiologyRenderScore | null | undefined = null) {
-  if (!live.length && !waiting.length) return '';
-  const weakest = live.slice().sort((a, b) => a.score! - b.score!)[0];
-  const weakestCoherenceDomain = (coherence?.available || [])
-    .filter(item => item.primaryScoreId && Number.isFinite(Number(item.partial)))
-    .slice()
-    .sort((a, b) => Number(a.partial || 0) - Number(b.partial || 0))[0];
-  const openFirst = weakestCoherenceDomain
-    ? { id: weakestCoherenceDomain.primaryScoreId, title: weakestCoherenceDomain.label }
-    : weakest
-      ? { id: weakest.id, title: weakest.title }
-      : null;
-  const lowConfidence = live.filter(score => score.scoreConfidence && score.scoreConfidence !== 'high').sort((a, b) => a.score! - b.score!);
-  const stale = waiting.find(score => score.recencyStatus && score.recencyStatus !== 'fresh');
-  const nextMissing = lowConfidence
-    .flatMap(score => effectiveMissingMarkers(score).filter(item => item.core).map(item => ({ ...item, scoreTitle: score.title })))
-    [0]
-    || lowConfidence.flatMap(score => effectiveMissingMarkers(score).slice(0, 1).map(item => ({ ...item, scoreTitle: score.title })))[0]
-    || waiting.flatMap(score => effectiveMissingMarkers(score).slice(0, 1).map(item => ({ ...item, scoreTitle: score.title })))[0];
-  const contextCheck = [...live, ...waiting].filter(s => s.panelTier !== 'extended').flatMap(s => effectiveContextMarkers(s, { unresolvedOnly: true }).filter(i => i.core).map(i => ({ ...i, score: s })))[0];
-  const rows = [
-    openFirst ? { label: 'Open first', text: `${openFirst.title}: lowest range fit in your available results.`, scoreId: openFirst.id } : null,
-    contextCheck ? { label: 'Review collection context', text: `${contextCheck.score.title}: ${markerDisplayLabel(contextCheck)} needs collection or profile details. Check the existing result before ordering more tests.`, scoreId: contextCheck.score.id } : nextMissing ? { label: 'Complete the core panel', text: `${markerDisplayLabel(nextMissing)} would improve coverage${nextMissing.scoreTitle ? ` for ${nextMissing.scoreTitle}` : ''}.` } : null,
-    stale ? { label: 'Retest together', text: `${stale.title}: ${stale.recencyBadge || 'some inputs are stale or date-mismatched'}.`, scoreId: stale.id } : null,
-  ].filter(row => row !== null);
-  return `<details open class="biology-score-action-summary biology-planning-card"><summary>Suggested next checks</summary><div class="biology-next-checks">${rows.map((row) => {
-    const inner = `<strong>${escapeHTML(row.label)}${row.scoreId ? ' <span aria-hidden="true">↗</span>' : ''}</strong><span>${escapeHTML(row.text)}</span>`;
-    return row.scoreId
-      ? `<button type="button" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(row.scoreId)}">${inner}</button>`
-      : `<div>${inner}</div>`;
-  }).join('')}</div></details>`;
-}
-
-
-function renderCoverageMarkerList(markers: readonly PlannerMarker[], emptyText: string) {
-  if (!markers.length) return `<span class="biology-score-token biology-score-token-muted">${escapeHTML(emptyText)}</span>`;
-  return markers.map(item => {
-    const label = markerDisplayLabel(item);
-    const title = item.contextReason || (!item.core ? optionalMarkerReason(item) : '') || (item.scoreTitle ? `${item.scoreTitle}: ${item.label}` : item.label);
-    return `<span class="biology-score-token biology-score-token-muted" title="${escapeAttr(title)}">${escapeHTML(label)}</span>`;
-  }).join('');
-}
-
-function renderCoverageBundle(title: string, markers: readonly PlannerMarker[], emptyText: string) {
-  return `<div class="biology-coverage-bundle-card">
-    <strong>${escapeHTML(title)}</strong>
-    <div class="biology-coverage-marker-list">${renderCoverageMarkerList(markers, emptyText)}</div>
-  </div>`;
+  const rows = projectBiologyNextChecks(live, waiting, coherence);
+  return rows.length ? renderPlanning({kind: 'checks', rows}) : '';
 }
 
 export function renderBiologyScoreCoveragePlanner(detailScores: readonly BiologyRenderScore[], coherence: BiologyRenderScore | null | undefined) {
-  const planner = buildBiologyScoreCoveragePlannerModel(detailScores, coherence);
-  const { baselineCoverage, coreShortlist, optionalUpgrades, advancedDepth, baselineIntro } = planner;
-  return `<details open id="biology-score-coverage" class="biology-score-coverage-planner biology-planning-card"><summary>Plan additional labs</summary>
-    <div class="biology-score-coverage-head">
-      <div class="biology-score-coverage-main"><div class="biology-score-coverage-title-row"><div class="biology-score-coverage-metric"><strong>${baselineCoverage}%</strong><span>baseline coverage</span></div><div><p>${escapeHTML(baselineIntro)}</p></div></div></div>
-      <div class="biology-score-coverage-actions"><button type="button" class="dashboard-action-btn dashboard-action-btn-primary" data-biology-score-action="plan-coverage-chat">Make lab plan</button></div>
-      <div class="biology-coverage-progress-row"><div class="biology-coverage-progress" role="progressbar" aria-label="Baseline coverage" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${baselineCoverage}"><span style="width:${Math.max(0, Math.min(100, baselineCoverage))}%"></span></div></div>
-    </div>
-    ${!coreShortlist.length && optionalUpgrades.length ? `<div class="biology-coverage-questions">${optionalUpgrades.slice(0, 2).map(item => `<p><strong>${escapeHTML(markerDisplayLabel(item))}</strong> · ${escapeHTML(optionalMarkerReason(item))}</p>`).join('')}</div>` : ''}
-    ${coreShortlist.length ? `<div class="biology-coverage-priority">${renderCoverageBundle('Baseline first', coreShortlist.slice(0, 4), '')}</div>` : ''}
-    <details class="biology-reading-notes biology-coverage-more"><summary>All suggested markers &amp; optional extras</summary><div class="biology-coverage-bundle-grid">
-      ${renderCoverageBundle('Baseline first', coreShortlist, 'Baseline core markers covered')}
-      ${renderCoverageBundle('Optional context', optionalUpgrades, 'No obvious baseline upgrades')}
-      ${renderCoverageBundle('Optional score panels', advancedDepth, 'Optional score markers covered')}
-    </div></details>
-  </details>`;
+  return renderPlanning({kind: 'coverage', view: projectBiologyCoverage(detailScores, coherence)});
 }
 
 export function renderBiologyScoresLens(ctx: ScoreContext, computeBiologyScores: ComputeScores) {

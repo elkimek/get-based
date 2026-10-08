@@ -2311,3 +2311,10 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /tests/pwa/sveltekit-light-camera.spec.js
 
 /tests/helpers/light-tool-artifact-fixture.js
+
+/css/dashboard-widgets.css
+/js/biology-planning-presentation.js
+/js/biology-planning-classes.js
+/tests/biology-planning-presentation.test.js
+/tests/playwright/biology-planning-owned.spec.js
+/tests/pwa/sveltekit-biology-planning.spec.js

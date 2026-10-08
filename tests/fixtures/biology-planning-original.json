@@ -1,0 +1,814 @@
+{
+  "revision": "c5044325d5dee9e5060edd65549b1f22daac6327",
+  "sourceSHA256": "e46f5b9b5b4ae02e8a8c3a2de45ae38946c5fd3bddb9940a63ac4b34712e9713",
+  "actions": [
+    {
+      "name": "empty",
+      "live": [],
+      "waiting": [],
+      "html": ""
+    },
+    {
+      "name": "live-only",
+      "live": [
+        {
+          "id": "metabolicFlexibility",
+          "title": "Metabolic Flexibility",
+          "score": 65,
+          "coverage": 0.5,
+          "panelTier": "baseline",
+          "available": [],
+          "missing": []
+        }
+      ],
+      "waiting": [],
+      "html": "<details open class=\"biology-score-action-summary biology-planning-card\"><summary>Suggested next checks</summary><div class=\"biology-next-checks\"><button type=\"button\" data-biology-score-action=\"jump-to-domain\" data-biology-score-id=\"metabolicFlexibility\"><strong>Open first <span aria-hidden=\"true\">↗</span></strong><span>Metabolic Flexibility: lowest range fit in your available results.</span></button></div></details>"
+    },
+    {
+      "name": "missing-core",
+      "live": [
+        {
+          "id": "metabolicFlexibility",
+          "title": "Metabolic Flexibility",
+          "score": 65,
+          "coverage": 0.5,
+          "panelTier": "baseline",
+          "available": [],
+          "missing": [
+            {
+              "key": "glucose",
+              "label": "glucose",
+              "core": true
+            },
+            {
+              "key": "insulin",
+              "label": "insulin",
+              "core": true
+            }
+          ],
+          "scoreConfidence": "low"
+        }
+      ],
+      "waiting": [],
+      "html": "<details open class=\"biology-score-action-summary biology-planning-card\"><summary>Suggested next checks</summary><div class=\"biology-next-checks\"><button type=\"button\" data-biology-score-action=\"jump-to-domain\" data-biology-score-id=\"metabolicFlexibility\"><strong>Open first <span aria-hidden=\"true\">↗</span></strong><span>Metabolic Flexibility: lowest range fit in your available results.</span></button><div><strong>Complete the core panel</strong><span>Glucose would improve coverage for Metabolic Flexibility.</span></div></div></details>"
+    },
+    {
+      "name": "missing-optional",
+      "live": [
+        {
+          "id": "metabolicFlexibility",
+          "title": "Metabolic Flexibility",
+          "score": 65,
+          "coverage": 0.5,
+          "panelTier": "baseline",
+          "available": [],
+          "missing": [
+            {
+              "key": "hba1c",
+              "label": "hba1c",
+              "core": false
+            }
+          ],
+          "scoreConfidence": "medium"
+        }
+      ],
+      "waiting": [],
+      "html": "<details open class=\"biology-score-action-summary biology-planning-card\"><summary>Suggested next checks</summary><div class=\"biology-next-checks\"><button type=\"button\" data-biology-score-action=\"jump-to-domain\" data-biology-score-id=\"metabolicFlexibility\"><strong>Open first <span aria-hidden=\"true\">↗</span></strong><span>Metabolic Flexibility: lowest range fit in your available results.</span></button><div><strong>Complete the core panel</strong><span>HbA1c would improve coverage for Metabolic Flexibility.</span></div></div></details>"
+    },
+    {
+      "name": "waiting-stale",
+      "live": [],
+      "waiting": [
+        {
+          "id": "metabolicFlexibility",
+          "title": "Metabolic Flexibility",
+          "score": null,
+          "coverage": 0.5,
+          "panelTier": "baseline",
+          "available": [],
+          "missing": [
+            {
+              "key": "apoB",
+              "label": "apoB",
+              "core": true
+            }
+          ],
+          "recencyStatus": "stale",
+          "recencyBadge": "Old collection date"
+        }
+      ],
+      "html": "<details open class=\"biology-score-action-summary biology-planning-card\"><summary>Suggested next checks</summary><div class=\"biology-next-checks\"><div><strong>Complete the core panel</strong><span>ApoB would improve coverage for Metabolic Flexibility.</span></div><button type=\"button\" data-biology-score-action=\"jump-to-domain\" data-biology-score-id=\"metabolicFlexibility\"><strong>Retest together <span aria-hidden=\"true\">↗</span></strong><span>Metabolic Flexibility: Old collection date.</span></button></div></details>"
+    },
+    {
+      "name": "context-before-ordering",
+      "live": [
+        {
+          "id": "metabolicFlexibility",
+          "title": "Metabolic Flexibility",
+          "score": 65,
+          "coverage": 0.5,
+          "panelTier": "baseline",
+          "available": [
+            {
+              "key": "creatinine",
+              "label": "creatinine",
+              "core": true,
+              "profileContextOnly": true,
+              "contextReason": "Needs collection context",
+              "contextLimited": true
+            }
+          ],
+          "missing": [
+            {
+              "key": "insulin",
+              "label": "insulin",
+              "core": true
+            }
+          ]
+        }
+      ],
+      "waiting": [],
+      "html": "<details open class=\"biology-score-action-summary biology-planning-card\"><summary>Suggested next checks</summary><div class=\"biology-next-checks\"><button type=\"button\" data-biology-score-action=\"jump-to-domain\" data-biology-score-id=\"metabolicFlexibility\"><strong>Open first <span aria-hidden=\"true\">↗</span></strong><span>Metabolic Flexibility: lowest range fit in your available results.</span></button><button type=\"button\" data-biology-score-action=\"jump-to-domain\" data-biology-score-id=\"metabolicFlexibility\"><strong>Review collection context <span aria-hidden=\"true\">↗</span></strong><span>Metabolic Flexibility: Creatinine needs collection or profile details. Check the existing result before ordering more tests.</span></button></div></details>"
+    },
+    {
+      "name": "coherence-priority",
+      "live": [
+        {
+          "id": "metabolicFlexibility",
+          "title": "Metabolic Flexibility",
+          "score": 65,
+          "coverage": 0.5,
+          "panelTier": "baseline",
+          "available": [],
+          "missing": []
+        },
+        {
+          "id": "thyroidCoherence",
+          "title": "Thyroid Coherence",
+          "score": 20,
+          "coverage": 0.5,
+          "panelTier": "baseline",
+          "available": [],
+          "missing": []
+        }
+      ],
+      "waiting": [],
+      "coherence": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic Flexibility",
+        "score": 65,
+        "coverage": 0.5,
+        "panelTier": "baseline",
+        "available": [
+          {
+            "key": "blood",
+            "label": "Blood domain",
+            "core": true,
+            "partial": 10,
+            "primaryScoreId": "ironHandling"
+          }
+        ],
+        "missing": []
+      },
+      "html": "<details open class=\"biology-score-action-summary biology-planning-card\"><summary>Suggested next checks</summary><div class=\"biology-next-checks\"><button type=\"button\" data-biology-score-action=\"jump-to-domain\" data-biology-score-id=\"ironHandling\"><strong>Open first <span aria-hidden=\"true\">↗</span></strong><span>Blood domain: lowest range fit in your available results.</span></button></div></details>"
+    },
+    {
+      "name": "literal",
+      "live": [
+        {
+          "id": "quoted\"<&",
+          "title": "<img src=x onerror=alert(1)>",
+          "score": 65,
+          "coverage": 0.5,
+          "panelTier": "baseline",
+          "available": [],
+          "missing": [
+            {
+              "key": "unknown",
+              "label": "<script>literal & quoted</script>",
+              "core": true
+            }
+          ],
+          "scoreConfidence": "low"
+        }
+      ],
+      "waiting": [
+        {
+          "id": "metabolicFlexibility",
+          "title": "Metabolic Flexibility",
+          "score": null,
+          "coverage": 0.5,
+          "panelTier": "baseline",
+          "available": [],
+          "missing": [],
+          "recencyStatus": "mixed-dates",
+          "recencyBadge": "Mixed < & dates"
+        }
+      ],
+      "html": "<details open class=\"biology-score-action-summary biology-planning-card\"><summary>Suggested next checks</summary><div class=\"biology-next-checks\"><button type=\"button\" data-biology-score-action=\"jump-to-domain\" data-biology-score-id=\"quoted&quot;&lt;&amp;\"><strong>Open first <span aria-hidden=\"true\">↗</span></strong><span>&lt;img src=x onerror=alert(1)&gt;: lowest range fit in your available results.</span></button><div><strong>Complete the core panel</strong><span>&lt;script&gt;literal &amp; quoted&lt;/script&gt; would improve coverage for &lt;img src=x onerror=alert(1)&gt;.</span></div><button type=\"button\" data-biology-score-action=\"jump-to-domain\" data-biology-score-id=\"metabolicFlexibility\"><strong>Retest together <span aria-hidden=\"true\">↗</span></strong><span>Metabolic Flexibility: Mixed &lt; &amp; dates.</span></button></div></details>"
+    }
+  ],
+  "planners": [
+    {
+      "name": "empty",
+      "scores": [],
+      "coherence": null,
+      "html": "<details open id=\"biology-score-coverage\" class=\"biology-score-coverage-planner biology-planning-card\"><summary>Plan additional labs</summary>\n    <div class=\"biology-score-coverage-head\">\n      <div class=\"biology-score-coverage-main\"><div class=\"biology-score-coverage-title-row\"><div class=\"biology-score-coverage-metric\"><strong>0%</strong><span>baseline coverage</span></div><div><p>Core markers are covered. Choose optional tests only when they help answer a question.</p></div></div></div>\n      <div class=\"biology-score-coverage-actions\"><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-biology-score-action=\"plan-coverage-chat\">Make lab plan</button></div>\n      <div class=\"biology-coverage-progress-row\"><div class=\"biology-coverage-progress\" role=\"progressbar\" aria-label=\"Baseline coverage\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"0\"><span style=\"width:0%\"></span></div></div>\n    </div>\n    \n    \n    <details class=\"biology-reading-notes biology-coverage-more\"><summary>All suggested markers &amp; optional extras</summary><div class=\"biology-coverage-bundle-grid\">\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Baseline first</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\">Baseline core markers covered</span></div>\n  </div>\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Optional context</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\">No obvious baseline upgrades</span></div>\n  </div>\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Optional score panels</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\">Optional score markers covered</span></div>\n  </div>\n    </div></details>\n  </details>"
+    },
+    {
+      "name": "missing",
+      "scores": [
+        {
+          "id": "metabolicFlexibility",
+          "title": "Metabolic Flexibility",
+          "score": 65,
+          "coverage": 0.5,
+          "panelTier": "baseline",
+          "available": [],
+          "missing": [
+            {
+              "key": "glucose",
+              "label": "glucose",
+              "core": true
+            },
+            {
+              "key": "insulin",
+              "label": "insulin",
+              "core": true
+            },
+            {
+              "key": "apoB",
+              "label": "apoB",
+              "core": true
+            },
+            {
+              "key": "ferritin",
+              "label": "ferritin",
+              "core": true
+            },
+            {
+              "key": "tsh",
+              "label": "tsh",
+              "core": true
+            },
+            {
+              "key": "hba1c",
+              "label": "hba1c",
+              "core": false
+            }
+          ]
+        }
+      ],
+      "coherence": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic Flexibility",
+        "score": 65,
+        "coverage": 0.25,
+        "panelTier": "baseline",
+        "available": [],
+        "missing": []
+      },
+      "html": "<details open id=\"biology-score-coverage\" class=\"biology-score-coverage-planner biology-planning-card\"><summary>Plan additional labs</summary>\n    <div class=\"biology-score-coverage-head\">\n      <div class=\"biology-score-coverage-main\"><div class=\"biology-score-coverage-title-row\"><div class=\"biology-score-coverage-metric\"><strong>25%</strong><span>baseline coverage</span></div><div><p>Start with missing core markers. Additional tests can wait until you have a specific question.</p></div></div></div>\n      <div class=\"biology-score-coverage-actions\"><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-biology-score-action=\"plan-coverage-chat\">Make lab plan</button></div>\n      <div class=\"biology-coverage-progress-row\"><div class=\"biology-coverage-progress\" role=\"progressbar\" aria-label=\"Baseline coverage\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"25\"><span style=\"width:25%\"></span></div></div>\n    </div>\n    \n    <div class=\"biology-coverage-priority\"><div class=\"biology-coverage-bundle-card\">\n    <strong>Baseline first</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\" title=\"Metabolic Flexibility: glucose\">Glucose</span><span class=\"biology-score-token biology-score-token-muted\" title=\"Metabolic Flexibility: insulin\">Insulin</span><span class=\"biology-score-token biology-score-token-muted\" title=\"Metabolic Flexibility: apoB\">ApoB</span><span class=\"biology-score-token biology-score-token-muted\" title=\"Metabolic Flexibility: ferritin\">Ferritin</span></div>\n  </div></div>\n    <details class=\"biology-reading-notes biology-coverage-more\"><summary>All suggested markers &amp; optional extras</summary><div class=\"biology-coverage-bundle-grid\">\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Baseline first</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\" title=\"Metabolic Flexibility: glucose\">Glucose</span><span class=\"biology-score-token biology-score-token-muted\" title=\"Metabolic Flexibility: insulin\">Insulin</span><span class=\"biology-score-token biology-score-token-muted\" title=\"Metabolic Flexibility: apoB\">ApoB</span><span class=\"biology-score-token biology-score-token-muted\" title=\"Metabolic Flexibility: ferritin\">Ferritin</span><span class=\"biology-score-token biology-score-token-muted\" title=\"Metabolic Flexibility: tsh\">TSH</span></div>\n  </div>\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Optional context</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\" title=\"Adds longer-term glucose context; consider red-cell and iron factors.\">HbA1c</span></div>\n  </div>\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Optional score panels</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\">Optional score markers covered</span></div>\n  </div>\n    </div></details>\n  </details>"
+    },
+    {
+      "name": "optional",
+      "scores": [
+        {
+          "id": "metabolicFlexibility",
+          "title": "Metabolic Flexibility",
+          "score": 65,
+          "coverage": 0.5,
+          "panelTier": "baseline",
+          "available": [],
+          "missing": [
+            {
+              "key": "hba1c",
+              "label": "hba1c",
+              "core": false
+            },
+            {
+              "key": "uacr",
+              "label": "uacr",
+              "core": false
+            },
+            {
+              "key": "lpA",
+              "label": "lpA",
+              "core": false
+            }
+          ]
+        }
+      ],
+      "coherence": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic Flexibility",
+        "score": 65,
+        "coverage": 1,
+        "panelTier": "baseline",
+        "available": [],
+        "missing": []
+      },
+      "html": "<details open id=\"biology-score-coverage\" class=\"biology-score-coverage-planner biology-planning-card\"><summary>Plan additional labs</summary>\n    <div class=\"biology-score-coverage-head\">\n      <div class=\"biology-score-coverage-main\"><div class=\"biology-score-coverage-title-row\"><div class=\"biology-score-coverage-metric\"><strong>100%</strong><span>baseline coverage</span></div><div><p>Core markers are covered. Choose optional tests only when they help answer a question.</p></div></div></div>\n      <div class=\"biology-score-coverage-actions\"><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-biology-score-action=\"plan-coverage-chat\">Make lab plan</button></div>\n      <div class=\"biology-coverage-progress-row\"><div class=\"biology-coverage-progress\" role=\"progressbar\" aria-label=\"Baseline coverage\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"100\"><span style=\"width:100%\"></span></div></div>\n    </div>\n    <div class=\"biology-coverage-questions\"><p><strong>uacr</strong> · Adds kidney-damage information beyond filtration.</p><p><strong>Lp(a)</strong> · Adds an inherited lipoprotein dimension beyond ApoB.</p></div>\n    \n    <details class=\"biology-reading-notes biology-coverage-more\"><summary>All suggested markers &amp; optional extras</summary><div class=\"biology-coverage-bundle-grid\">\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Baseline first</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\">Baseline core markers covered</span></div>\n  </div>\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Optional context</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\" title=\"Adds kidney-damage information beyond filtration.\">uacr</span><span class=\"biology-score-token biology-score-token-muted\" title=\"Adds an inherited lipoprotein dimension beyond ApoB.\">Lp(a)</span><span class=\"biology-score-token biology-score-token-muted\" title=\"Adds longer-term glucose context; consider red-cell and iron factors.\">HbA1c</span></div>\n  </div>\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Optional score panels</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\">Optional score markers covered</span></div>\n  </div>\n    </div></details>\n  </details>"
+    },
+    {
+      "name": "advanced",
+      "scores": [
+        {
+          "id": "metabolicFlexibility",
+          "title": "Metabolic Flexibility",
+          "score": 65,
+          "coverage": 0.5,
+          "panelTier": "extended",
+          "available": [],
+          "missing": [
+            {
+              "key": "lactate",
+              "label": "lactate",
+              "core": true
+            },
+            {
+              "key": "pyruvate",
+              "label": "pyruvate",
+              "core": true
+            },
+            {
+              "key": "calprotectin",
+              "label": "calprotectin",
+              "core": false
+            }
+          ]
+        }
+      ],
+      "coherence": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic Flexibility",
+        "score": 65,
+        "coverage": 0,
+        "panelTier": "baseline",
+        "available": [],
+        "missing": []
+      },
+      "html": "<details open id=\"biology-score-coverage\" class=\"biology-score-coverage-planner biology-planning-card\"><summary>Plan additional labs</summary>\n    <div class=\"biology-score-coverage-head\">\n      <div class=\"biology-score-coverage-main\"><div class=\"biology-score-coverage-title-row\"><div class=\"biology-score-coverage-metric\"><strong>0%</strong><span>baseline coverage</span></div><div><p>Core markers are covered. Choose optional tests only when they help answer a question.</p></div></div></div>\n      <div class=\"biology-score-coverage-actions\"><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-biology-score-action=\"plan-coverage-chat\">Make lab plan</button></div>\n      <div class=\"biology-coverage-progress-row\"><div class=\"biology-coverage-progress\" role=\"progressbar\" aria-label=\"Baseline coverage\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"0\"><span style=\"width:0%\"></span></div></div>\n    </div>\n    \n    \n    <details class=\"biology-reading-notes biology-coverage-more\"><summary>All suggested markers &amp; optional extras</summary><div class=\"biology-coverage-bundle-grid\">\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Baseline first</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\">Baseline core markers covered</span></div>\n  </div>\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Optional context</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\">No obvious baseline upgrades</span></div>\n  </div>\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Optional score panels</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\" title=\"Metabolic Flexibility: lactate\">Lactate</span><span class=\"biology-score-token biology-score-token-muted\" title=\"Metabolic Flexibility: pyruvate\">Pyruvate</span><span class=\"biology-score-token biology-score-token-muted\" title=\"Consider for a specific question about Metabolic Flexibility.\">calprotectin</span></div>\n  </div>\n    </div></details>\n  </details>"
+    },
+    {
+      "name": "equivalent-group",
+      "scores": [
+        {
+          "id": "metabolicFlexibility",
+          "title": "Metabolic Flexibility",
+          "score": 65,
+          "coverage": 0.5,
+          "panelTier": "baseline",
+          "available": [
+            {
+              "key": "activeB12",
+              "label": "activeB12",
+              "core": true,
+              "coreGroup": "b12"
+            }
+          ],
+          "missing": [
+            {
+              "key": "b12",
+              "label": "b12",
+              "core": true,
+              "coreGroup": "b12",
+              "coreGroupLabel": "B12 status (active or total B12)"
+            }
+          ]
+        }
+      ],
+      "coherence": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic Flexibility",
+        "score": 65,
+        "coverage": 1,
+        "panelTier": "baseline",
+        "available": [],
+        "missing": []
+      },
+      "html": "<details open id=\"biology-score-coverage\" class=\"biology-score-coverage-planner biology-planning-card\"><summary>Plan additional labs</summary>\n    <div class=\"biology-score-coverage-head\">\n      <div class=\"biology-score-coverage-main\"><div class=\"biology-score-coverage-title-row\"><div class=\"biology-score-coverage-metric\"><strong>100%</strong><span>baseline coverage</span></div><div><p>Core markers are covered. Choose optional tests only when they help answer a question.</p></div></div></div>\n      <div class=\"biology-score-coverage-actions\"><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-biology-score-action=\"plan-coverage-chat\">Make lab plan</button></div>\n      <div class=\"biology-coverage-progress-row\"><div class=\"biology-coverage-progress\" role=\"progressbar\" aria-label=\"Baseline coverage\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"100\"><span style=\"width:100%\"></span></div></div>\n    </div>\n    \n    \n    <details class=\"biology-reading-notes biology-coverage-more\"><summary>All suggested markers &amp; optional extras</summary><div class=\"biology-coverage-bundle-grid\">\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Baseline first</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\">Baseline core markers covered</span></div>\n  </div>\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Optional context</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\">No obvious baseline upgrades</span></div>\n  </div>\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Optional score panels</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\">Optional score markers covered</span></div>\n  </div>\n    </div></details>\n  </details>"
+    },
+    {
+      "name": "conditional-calcium",
+      "scores": [
+        {
+          "id": "boneMineralSignal",
+          "title": "Metabolic Flexibility",
+          "score": 65,
+          "coverage": 0.5,
+          "panelTier": "baseline",
+          "available": [
+            {
+              "key": "calcium",
+              "label": "calcium",
+              "core": true,
+              "contextLimited": true
+            }
+          ],
+          "missing": [
+            {
+              "key": "calciumIonized",
+              "label": "calciumIonized",
+              "core": false
+            }
+          ],
+          "contextLimited": true
+        }
+      ],
+      "coherence": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic Flexibility",
+        "score": 65,
+        "coverage": 0.75,
+        "panelTier": "baseline",
+        "available": [],
+        "missing": []
+      },
+      "html": "<details open id=\"biology-score-coverage\" class=\"biology-score-coverage-planner biology-planning-card\"><summary>Plan additional labs</summary>\n    <div class=\"biology-score-coverage-head\">\n      <div class=\"biology-score-coverage-main\"><div class=\"biology-score-coverage-title-row\"><div class=\"biology-score-coverage-metric\"><strong>75%</strong><span>baseline coverage</span></div><div><p>Core results are present. Review collection and profile context before adding more tests.</p></div></div></div>\n      <div class=\"biology-score-coverage-actions\"><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-biology-score-action=\"plan-coverage-chat\">Make lab plan</button></div>\n      <div class=\"biology-coverage-progress-row\"><div class=\"biology-coverage-progress\" role=\"progressbar\" aria-label=\"Baseline coverage\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"75\"><span style=\"width:75%\"></span></div></div>\n    </div>\n    <div class=\"biology-coverage-questions\"><p><strong>Ionized calcium</strong> · Can clarify total calcium when albumin limits its interpretation.</p></div>\n    \n    <details class=\"biology-reading-notes biology-coverage-more\"><summary>All suggested markers &amp; optional extras</summary><div class=\"biology-coverage-bundle-grid\">\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Baseline first</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\">Baseline core markers covered</span></div>\n  </div>\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Optional context</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\" title=\"Can clarify total calcium when albumin limits its interpretation.\">Ionized calcium</span></div>\n  </div>\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Optional score panels</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\">Optional score markers covered</span></div>\n  </div>\n    </div></details>\n  </details>"
+    },
+    {
+      "name": "literal",
+      "scores": [
+        {
+          "id": "metabolicFlexibility",
+          "title": "<img src=x>",
+          "score": 65,
+          "coverage": 0.5,
+          "panelTier": "baseline",
+          "available": [],
+          "missing": [
+            {
+              "key": "unknown",
+              "label": "<img src=x onerror=alert(1)>",
+              "core": true,
+              "contextReason": "\"quoted\" < &"
+            },
+            {
+              "key": "other",
+              "label": "<script>literal</script>",
+              "core": false
+            }
+          ]
+        }
+      ],
+      "coherence": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic Flexibility",
+        "score": 65,
+        "coverage": 0.444,
+        "panelTier": "baseline",
+        "available": [],
+        "missing": []
+      },
+      "html": "<details open id=\"biology-score-coverage\" class=\"biology-score-coverage-planner biology-planning-card\"><summary>Plan additional labs</summary>\n    <div class=\"biology-score-coverage-head\">\n      <div class=\"biology-score-coverage-main\"><div class=\"biology-score-coverage-title-row\"><div class=\"biology-score-coverage-metric\"><strong>44%</strong><span>baseline coverage</span></div><div><p>Start with missing core markers. Additional tests can wait until you have a specific question.</p></div></div></div>\n      <div class=\"biology-score-coverage-actions\"><button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-primary\" data-biology-score-action=\"plan-coverage-chat\">Make lab plan</button></div>\n      <div class=\"biology-coverage-progress-row\"><div class=\"biology-coverage-progress\" role=\"progressbar\" aria-label=\"Baseline coverage\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"44\"><span style=\"width:44%\"></span></div></div>\n    </div>\n    \n    <div class=\"biology-coverage-priority\"><div class=\"biology-coverage-bundle-card\">\n    <strong>Baseline first</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\" title=\"&quot;quoted&quot; &lt; &amp;\">&lt;img src=x onerror=alert(1)&gt;</span></div>\n  </div></div>\n    <details class=\"biology-reading-notes biology-coverage-more\"><summary>All suggested markers &amp; optional extras</summary><div class=\"biology-coverage-bundle-grid\">\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Baseline first</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\" title=\"&quot;quoted&quot; &lt; &amp;\">&lt;img src=x onerror=alert(1)&gt;</span></div>\n  </div>\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Optional context</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\" title=\"Consider for a specific question about &lt;img src=x&gt;.\">&lt;script&gt;literal&lt;/script&gt;</span></div>\n  </div>\n      <div class=\"biology-coverage-bundle-card\">\n    <strong>Optional score panels</strong>\n    <div class=\"biology-coverage-marker-list\"><span class=\"biology-score-token biology-score-token-muted\">Optional score markers covered</span></div>\n  </div>\n    </div></details>\n  </details>"
+    }
+  ],
+  "styleBlocks": [
+    {
+      "selector": ".biology-score-token",
+      "declarations": "min-width: 0;max-width: 100%;display: inline-flex;align-items: baseline;padding: 0;border: 0;background: transparent;color: var(--text-primary);font: inherit;font-size: 12px;line-height: 1.35;overflow-wrap: anywhere",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-token + .biology-score-token::before",
+      "declarations": "content: '·';color: var(--text-muted);margin-right: 10px",
+      "media": null
+    },
+    {
+      "selector": "button.biology-score-token",
+      "declarations": "cursor: pointer;text-decoration: underline;text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);text-underline-offset: 3px",
+      "media": null
+    },
+    {
+      "selector": "button.biology-score-token:hover,\nbutton.biology-score-token:focus-visible",
+      "declarations": "color: var(--accent);outline: none",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-token-muted",
+      "declarations": "color: var(--text-muted)",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-action-summary",
+      "declarations": "display: grid;grid-template-columns: repeat(3, minmax(0, 1fr));gap: 10px;margin: 0 0 18px;padding: 14px;border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));border-radius: var(--radius);background: color-mix(in srgb, var(--accent) 7%, var(--bg-card))",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-action-summary .biology-scores-eyebrow",
+      "declarations": "grid-column: 1 / -1",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-action-summary > :is(div, button):not(.biology-scores-eyebrow)",
+      "declarations": "min-width: 0;display: grid;gap: 4px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-action-summary > button",
+      "declarations": "width: 100%;padding: 0;border: 0;background: transparent;color: inherit;text-align: left;cursor: pointer",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-action-summary > button:hover strong,\n.biology-score-action-summary > button:focus-visible strong",
+      "declarations": "color: var(--accent)",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-action-summary > button:focus-visible",
+      "declarations": "outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);outline-offset: 4px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-action-summary strong",
+      "declarations": "color: var(--text-primary);font-size: 13px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-action-summary span",
+      "declarations": "color: var(--text-secondary);font-size: 12px;line-height: 1.45",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-coverage-planner",
+      "declarations": "display: grid;gap: 12px;margin: 0 0 18px;padding: 14px;border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));border-radius: var(--radius);background: linear-gradient(135deg, color-mix(in srgb, var(--bg-card) 86%, var(--accent) 6%), color-mix(in srgb, var(--bg-secondary) 82%, transparent))",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-coverage-head",
+      "declarations": "display: grid;grid-template-columns: minmax(0, 1fr) minmax(230px, 0.34fr);gap: 14px;align-items: stretch",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-coverage-main",
+      "declarations": "min-width: 0",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-coverage-title-row",
+      "declarations": "display: grid;grid-template-columns: auto minmax(0, 1fr);gap: 12px;align-items: start",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-coverage-head h3",
+      "declarations": "margin: 4px 0 6px;color: var(--text-primary);font-family: var(--font-display);font-size: 20px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-coverage-head p",
+      "declarations": "margin: 0;color: var(--text-secondary);font-size: 13px;line-height: 1.45",
+      "media": null
+    },
+    {
+      "selector": ".biology-coverage-progress-row",
+      "declarations": "grid-column: 1 / -1;min-width: 0",
+      "media": null
+    },
+    {
+      "selector": ".biology-coverage-progress",
+      "declarations": "width: 100%;height: 8px;margin-top: 2px;overflow: hidden;border-radius: 999px;background: color-mix(in srgb, var(--border) 55%, transparent)",
+      "media": null
+    },
+    {
+      "selector": ".biology-coverage-progress span",
+      "declarations": "display: block;height: 100%;border-radius: inherit;background: color-mix(in srgb, var(--accent) 72%, var(--green, #22c55e))",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-coverage-metric",
+      "declarations": "display: grid;gap: 2px;justify-items: start;color: var(--text-muted);font-size: 12px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-coverage-metric strong",
+      "declarations": "color: var(--text-primary);font-family: var(--font-display);font-size: 40px;line-height: 0.95",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-coverage-actions",
+      "declarations": "display: grid;gap: 10px;justify-items: end;align-content: start",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-coverage-actions .dashboard-action-btn",
+      "declarations": "white-space: nowrap",
+      "media": null
+    },
+    {
+      "selector": ".biology-coverage-mini-stats",
+      "declarations": "display: grid;gap: 4px;justify-items: end;color: var(--text-secondary);font-size: 12px",
+      "media": null
+    },
+    {
+      "selector": ".biology-coverage-mini-stats b",
+      "declarations": "color: var(--text-primary)",
+      "media": null
+    },
+    {
+      "selector": ".biology-coverage-section-kicker",
+      "declarations": "color: var(--text-muted);font-size: 11px;font-weight: 700;letter-spacing: 0.08em;text-transform: uppercase",
+      "media": null
+    },
+    {
+      "selector": ".biology-coverage-marker-list",
+      "declarations": "display: flex;flex-wrap: wrap;gap: 6px",
+      "media": null
+    },
+    {
+      "selector": ".biology-coverage-marker-preview",
+      "declarations": "margin-top: 10px",
+      "media": null
+    },
+    {
+      "selector": ".biology-coverage-bundle-grid",
+      "declarations": "display: grid;grid-template-columns: repeat(3, minmax(0, 1fr));gap: 10px",
+      "media": null
+    },
+    {
+      "selector": ".biology-coverage-bundle-card",
+      "declarations": "display: grid;align-content: start;gap: 8px;min-width: 0;padding: 12px;border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);border-radius: calc(var(--radius) - 4px);background: color-mix(in srgb, var(--bg-card) 74%, transparent)",
+      "media": null
+    },
+    {
+      "selector": ".biology-coverage-bundle-card:first-child",
+      "declarations": "border-color: color-mix(in srgb, var(--accent) 34%, var(--border));background: color-mix(in srgb, var(--accent) 7%, var(--bg-card))",
+      "media": null
+    },
+    {
+      "selector": ".biology-coverage-bundle-card strong",
+      "declarations": "color: var(--text-primary);font-size: 14px",
+      "media": null
+    },
+    {
+      "selector": ".biology-coverage-bundle-grid",
+      "declarations": "grid-template-columns: 1fr",
+      "media": "(max-width: 980px)"
+    },
+    {
+      "selector": ".biology-score-action-summary,\n  .biology-score-coverage-head,\n  .biology-score-coverage-title-row",
+      "declarations": "grid-template-columns: 1fr",
+      "media": "(max-width: 760px)"
+    },
+    {
+      "selector": ".biology-score-coverage-title-row",
+      "declarations": "gap: 8px",
+      "media": "(max-width: 760px)"
+    },
+    {
+      "selector": ".biology-score-coverage-title-row .biology-score-coverage-metric strong",
+      "declarations": "font-size: 34px",
+      "media": "(max-width: 760px)"
+    },
+    {
+      "selector": ".biology-score-coverage-metric,\n  .biology-score-coverage-actions,\n  .biology-coverage-mini-stats",
+      "declarations": "justify-items: start",
+      "media": "(max-width: 760px)"
+    },
+    {
+      "selector": ".biology-score-methodology summary, .biology-score-ai-details summary, .biology-coherence-breakdown summary, .biology-score-coverage-planner > summary, .biology-score-action-summary > summary, .biology-context-review-details > summary",
+      "declarations": "cursor: pointer;font-weight: 500;font-size: 14px;padding: 8px 0",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-action-summary, .biology-score-coverage-planner",
+      "declarations": "display: block;margin: 4px 0;padding: 4px 0;background: none;border: 0;box-shadow: none",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-action-summary:not([open]) > :not(summary), .biology-score-coverage-planner:not([open]) > :not(summary)",
+      "declarations": "display: none",
+      "media": null
+    },
+    {
+      "selector": ".biology-reading-notes",
+      "declarations": "clear: both;margin: 12px 0;font-size: 14px;line-height: 1.6",
+      "media": null
+    },
+    {
+      "selector": ".biology-reading-notes > summary",
+      "declarations": "cursor: pointer;padding: 10px 0;color: var(--text-primary);font-weight: 500",
+      "media": null
+    },
+    {
+      "selector": ".biology-reading-notes > ul",
+      "declarations": "margin: 4px 0 16px;padding-left: 24px;max-width: 90ch;color: var(--text-secondary)",
+      "media": null
+    },
+    {
+      "selector": ".biology-reading-notes li + li",
+      "declarations": "margin-top: 10px",
+      "media": null
+    },
+    {
+      "selector": ".biology-reading-notes > p",
+      "declarations": "max-width: 80ch;color: var(--text-secondary)",
+      "media": null
+    },
+    {
+      "selector": ".biology-planning-card",
+      "declarations": "margin: 0;padding: 18px;border: 1px solid var(--border);border-radius: 12px;background: var(--bg-card);min-width: 0",
+      "media": null
+    },
+    {
+      "selector": ".biology-planning-card > summary",
+      "declarations": "padding: 0 0 14px;color: var(--text-primary);font-size: 16px;font-weight: 600",
+      "media": null
+    },
+    {
+      "selector": ".biology-planning-card:not([open]) > summary",
+      "declarations": "padding-bottom: 0",
+      "media": null
+    },
+    {
+      "selector": ".biology-next-checks",
+      "declarations": "display: grid;gap: 10px",
+      "media": null
+    },
+    {
+      "selector": ".biology-next-checks > :is(button, div)",
+      "declarations": "display: grid;gap: 5px;padding: 12px 14px;border: 1px solid var(--border);border-radius: 8px;background: var(--bg-secondary);text-align: left;font: inherit",
+      "media": null
+    },
+    {
+      "selector": ".biology-next-checks > button",
+      "declarations": "cursor: pointer",
+      "media": null
+    },
+    {
+      "selector": ".biology-next-checks > button:hover",
+      "declarations": "border-color: var(--accent);background: var(--bg-hover)",
+      "media": null
+    },
+    {
+      "selector": ".biology-next-checks strong",
+      "declarations": "font-size: 14px",
+      "media": null
+    },
+    {
+      "selector": ".biology-next-checks span",
+      "declarations": "font-size: 13px;line-height: 1.5",
+      "media": null
+    },
+    {
+      "selector": ".biology-planning-card .biology-score-coverage-head",
+      "declarations": "grid-template-columns: minmax(0, 1fr) auto;gap: 12px",
+      "media": null
+    },
+    {
+      "selector": ".biology-planning-card .biology-score-coverage-title-row",
+      "declarations": "grid-template-columns: 1fr;gap: 8px",
+      "media": null
+    },
+    {
+      "selector": ".biology-planning-card .biology-score-coverage-metric",
+      "declarations": "display: flex;align-items: baseline;gap: 8px",
+      "media": null
+    },
+    {
+      "selector": ".biology-planning-card .biology-score-coverage-metric strong",
+      "declarations": "font-size: 26px",
+      "media": null
+    },
+    {
+      "selector": ".biology-planning-card .biology-score-coverage-head h3",
+      "declarations": "font-size: 14px;margin: 0 0 4px",
+      "media": null
+    },
+    {
+      "selector": ".biology-planning-card .biology-coverage-mini-stats",
+      "declarations": "display: none",
+      "media": null
+    },
+    {
+      "selector": ".biology-coverage-priority",
+      "declarations": "margin-top: 12px",
+      "media": null
+    },
+    {
+      "selector": ".biology-coverage-more",
+      "declarations": "margin-bottom: 0",
+      "media": null
+    },
+    {
+      "selector": ".biology-planning-card .biology-coverage-bundle-grid",
+      "declarations": "grid-template-columns: 1fr",
+      "media": null
+    },
+    {
+      "selector": ".biology-planning-card .biology-score-coverage-head",
+      "declarations": "grid-template-columns: 1fr",
+      "media": "(max-width: 650px)"
+    },
+    {
+      "selector": ".biology-score-coverage-actions",
+      "declarations": "justify-items: start",
+      "media": "(max-width: 650px)"
+    },
+    {
+      "selector": ".biology-coverage-questions p",
+      "declarations": "margin: 8px 0;font-size: 13px;line-height: 1.5;color: var(--text-secondary)",
+      "media": null
+    }
+  ]
+}

@@ -48,6 +48,18 @@ the completed migration was merged in [PR #1660](https://github.com/elkimek/get-
 
 ## Styling source contract
 
+Biology Scores reading priorities and lab planning are authored in
+`BiologyNextChecks.svelte` and `BiologyCoveragePlanner.svelte`, composed by
+`BiologyPlanningPresentation.svelte`. `biology-planning-presentation.ts` projects
+escaped text, delegate IDs and numeric progress from the existing shared planner;
+scoring, collection-context policy and chat prompt generation retain their domain
+owners. `biology-score-render.ts` preserves the public synchronous HTML facades.
+`biology-planning-classes.ts` and `css/biology-planning.tailwind.css` own their
+scoped utilities. The dashboard stylesheet is generated at its unchanged URL from
+`css/dashboard-widgets.base.css` and those utilities; remaining dashboard/score
+styles stay in the base until their owners migrate. Authored disclosures preserve
+native keyboard behavior and add visible focus and coarse-pointer target sizes.
+
 Settings navigation/layout, Display, Privacy, Voice, Agent Access, imported records
 and AI usage use scoped Tailwind utilities
 alongside the remaining native feature styles. `css/settings.base.css` owns the
