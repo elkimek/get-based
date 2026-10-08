@@ -407,6 +407,15 @@ The [Sun entry acceptance](../tests/pwa/sveltekit-sun-entry.spec.ts) exercises
 first offline use of authored live-start and coverage dialogs, native keyboard
 region selection and confirmation, unchanged glass/eye/posture/surface inputs,
 old/new timed body-exposure slices, exact unrelated-profile equality, closed-client
-cold launches and backup export. The body silhouette remains its existing asset
-and interaction owner; preflight thresholds are checked separately through the
+cold launches and backup export. The authored body silhouette retains its existing asset
+and interaction services; preflight thresholds are checked separately through the
 stable formatter and native browser entry workflow.
+
+The [body-picker browser contract](../tests/playwright/sun-body-picker-owned.spec.ts)
+checks responsive geometry and caption styling in six themes, accessible SVG
+region controls, front/back independence, Enter/Space focus retention, actual
+image/canvas blob readiness, a visible focus contour after tint readiness, and
+overlay updates that do not steal external focus.
+The [SVG projection contracts](../tests/sun-body-picker-presentation.test.ts)
+cover literal metadata, source placement, namespaces, masks and the retained
+parametric fallback. Existing region-map/input browser assertions remain intact.

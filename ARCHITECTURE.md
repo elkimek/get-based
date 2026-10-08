@@ -1127,8 +1127,8 @@ metadata, mode resolution and safety notices. Existing session controllers own
 field binding, precise body-region selection, validation, dose calculations,
 canonical writes and modal lifecycle. The only HTML slots accept the separately
 owned body-silhouette renderer and assembled authored rows. Literal metadata is
-escaped by Svelte. Active cards, rich details and the silhouette itself remain
-separate owners.
+escaped by Svelte. Active cards, rich details and the authored silhouette retain
+separate presentation owners.
 
 Completed history rows are native buttons. Document delegates open their
 existing details, and the history overlay closes after the generated click;
@@ -1136,8 +1136,8 @@ Space keydown cannot retire the button before keyup. Device-mode radios use
 roving focus and arrow/Home/End keys, while distance units use pressed buttons.
 Entering a UV mode still requires fresh UV-goggle confirmation, with the same
 conservative duration default and save/start validation. Scoped Tailwind shares
-the ordered Light stylesheet; native setup/illustration styles remain
-restricted to their owning children.
+the ordered Light stylesheet; setup and illustration styles retain their
+separate child ownership.
 
 `LightSessionDetail.svelte` owns one rich Sun/device detail layout, shared
 field grids and native channel buttons. `light-session-detail-presentation.ts`
@@ -1151,7 +1151,7 @@ validator. Device channel keydown ignores native buttons, allowing the browser's
 single generated click to own activation and modal dismissal.
 `DeviceSessionModeForm.svelte` retains the existing coupling-filtered options and
 save handler; the canonical device-session store recomputes doses. Native setup
-forms and body-silhouette rendering remain separate owners. Shared native
+forms and authored body-silhouette rendering remain separate owners. Shared native
 section/disclosure rules remain for Conditions and device setup; exclusive detail
 layout rules are removed.
 
@@ -1200,6 +1200,22 @@ base-MED minutes, medication uncertainty and assumption copy. Its stable public
 HTML function delegates the final markup to the authored renderer. Formatting,
 calculation callbacks and the consolidated start toast keep their existing
 contracts; no additional rendering backend or provider request is introduced.
+
+`SunBodyPicker.svelte` owns the two-view SVG, masks, stock images, parametric
+fallback, accessible region titles and pressed states. The pure
+`sun-body-picker-presentation.ts` projection formats source-cell placement and
+literal region metadata. `sun-body-silhouette.ts` retains its public synchronous
+HTML/binding contract and owns profile-sex resolution, unchanged region geometry,
+canvas pixel lookup/tinting, blob lifecycle and input handling. `SunBodyPickerFrame.svelte`
+shares the Tailwind frame across Start, Coverage, Past Session and Device forms;
+its sole HTML slot accepts only the authored picker renderer. No native SVG or
+frame template remains. Region-map and overlay completion preserve a currently
+focused region inside the picker, without stealing focus from another control.
+A dashed keyboard focus contour remains visible when the canvas tint is ready.
+`css/sun-body-picker.css` owns the SVG-specific state cascade and coarse-pointer
+hit halo using Tailwind utilities; geometry presentation, captions and frame
+layout use scoped component utilities in the unchanged Light stylesheet.
+The licensed stock figure and independent parametric escape hatch remain intact.
 
 Settings and Tweaks are loaded through `settings-loader.js` on their first
 shell, startup deep-link, or feature action. Theme-owned accent initialization

@@ -31,3 +31,8 @@
 
 @source "../js/components/SunStartSessionForm.svelte";
 @source "../js/components/SunPreflightBanner.svelte";
+
+@custom-variant sun-body (&:is([data-sun-body-picker], [data-sun-body-picker] *));
+@source "../js/components/SunBodyPicker.svelte";
+@import "./sun-body-picker.css";
+@source "../js/components/SunBodyPickerFrame.svelte";

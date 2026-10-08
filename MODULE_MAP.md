@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1223 |
-| Internal import edges | 4358 |
+| Modules | 1226 |
+| Internal import edges | 4362 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,7 +65,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 279 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
+| [`js/utils.ts`](js/utils.ts) | 278 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
 | [`js/state.ts`](js/state.ts) | 241 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 93 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 84 | [`js/settings.ts`](js/settings.ts) | 35 |
@@ -1076,7 +1076,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>DeviceSessionForm.svelte</code> family — 1 module</summary>
 
-- [`js/components/DeviceSessionForm.svelte`](js/components/DeviceSessionForm.svelte) → no in-scope imports
+- [`js/components/DeviceSessionForm.svelte`](js/components/DeviceSessionForm.svelte) → [`js/components/SunBodyPickerFrame.svelte`](js/components/SunBodyPickerFrame.svelte)
 
 </details>
 
@@ -2205,13 +2205,14 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>sun</code> family — 35 modules</summary>
+<details><summary><code>sun</code> family — 36 modules</summary>
 
 - [`js/sun-active-session-format.ts`](js/sun-active-session-format.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte)
 - [`js/sun-active-session.ts`](js/sun-active-session.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte), [`js/light-active-session-presentation.ts`](js/light-active-session-presentation.ts), [`js/light-session-presentation.ts`](js/light-session-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/sun-active-session-format.ts`](js/sun-active-session-format.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-session-actions.ts`](js/sun-session-actions.ts), [`js/sun-session-model.ts`](js/sun-session-model.ts), [`js/sun-session-ui.ts`](js/sun-session-ui.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sun-ai-analysis.ts`](js/sun-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/sun-body-picker-presentation.ts`](js/sun-body-picker-presentation.ts) → no in-scope imports
 - [`js/sun-body-silhouette-runtime.ts`](js/sun-body-silhouette-runtime.ts) → [`js/profile.ts`](js/profile.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
-- [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts) → [`js/silhouette-paths.ts`](js/silhouette-paths.ts), [`js/sun-body-silhouette-runtime.ts`](js/sun-body-silhouette-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts) → [`js/components/SunBodyPicker.svelte`](js/components/SunBodyPicker.svelte), [`js/silhouette-paths.ts`](js/silhouette-paths.ts), [`js/sun-body-picker-presentation.ts`](js/sun-body-picker-presentation.ts), [`js/sun-body-silhouette-runtime.ts`](js/sun-body-silhouette-runtime.ts)
 - [`js/sun-channel-metrics.ts`](js/sun-channel-metrics.ts) → [`js/state.ts`](js/state.ts), [`js/sun-active-session.ts`](js/sun-active-session.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/supplement-impact.ts`](js/supplement-impact.ts), [`js/supplement-medication-domain.ts`](js/supplement-medication-domain.ts)
 - [`js/sun-context-environment.ts`](js/sun-context-environment.ts) → [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/state.ts`](js/state.ts), [`js/sun-context-runtime.ts`](js/sun-context-runtime.ts)
 - [`js/sun-context-hooks.ts`](js/sun-context-hooks.ts) → [`js/data.ts`](js/data.ts), [`js/lab-context.ts`](js/lab-context.ts), [`js/light-devices-store.ts`](js/light-devices-store.ts), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/light-env-store.ts`](js/light-env-store.ts), [`js/state.ts`](js/state.ts), [`js/sun-context.ts`](js/sun-context.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts), [`js/utils.ts`](js/utils.ts)
@@ -2245,9 +2246,21 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>SunBodyPicker.svelte</code> family — 1 module</summary>
+
+- [`js/components/SunBodyPicker.svelte`](js/components/SunBodyPicker.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>SunBodyPickerFrame.svelte</code> family — 1 module</summary>
+
+- [`js/components/SunBodyPickerFrame.svelte`](js/components/SunBodyPickerFrame.svelte) → no in-scope imports
+
+</details>
+
 <details><summary><code>SunPastSessionForm.svelte</code> family — 1 module</summary>
 
-- [`js/components/SunPastSessionForm.svelte`](js/components/SunPastSessionForm.svelte) → no in-scope imports
+- [`js/components/SunPastSessionForm.svelte`](js/components/SunPastSessionForm.svelte) → [`js/components/SunBodyPickerFrame.svelte`](js/components/SunBodyPickerFrame.svelte)
 
 </details>
 
@@ -2259,7 +2272,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>SunStartSessionForm.svelte</code> family — 1 module</summary>
 
-- [`js/components/SunStartSessionForm.svelte`](js/components/SunStartSessionForm.svelte) → no in-scope imports
+- [`js/components/SunStartSessionForm.svelte`](js/components/SunStartSessionForm.svelte) → [`js/components/SunBodyPickerFrame.svelte`](js/components/SunBodyPickerFrame.svelte)
 
 </details>
 

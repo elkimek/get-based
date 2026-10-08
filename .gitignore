@@ -2076,3 +2076,6 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/components/SunPreflightBanner.svelte.native.js
 /js/components/SunPreflightBanner.svelte.native.js.map
 /tests/sun-start-presentation.test.js
+
+/js/sun-body-picker-presentation.js
+/tests/sun-body-picker-presentation.test.js

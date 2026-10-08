@@ -1,0 +1,46 @@
+/* SVG region state ordering is deliberate: a ready canvas tint replaces the
+   selected fill, while coarse pointers retain the original invisible hit halo.
+   These selectors belong only to SunBodyPicker. Ordinary SVG styling is authored
+   in the component; this owned cascade uses the same Tailwind palette. */
+[data-sun-body-picker] .sun-silhouette-region {
+  @apply gb:fill-transparent gb:stroke-transparent gb:stroke-[1.2] gb:cursor-pointer gb:[pointer-events:all];
+  transition: fill 0.22s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.22s, fill-opacity 0.22s;
+}
+[data-sun-body-picker] .sun-silhouette-region:hover {
+  @apply gb:fill-[var(--accent-light)] gb:[fill-opacity:0.30];
+}
+[data-sun-body-picker] .sun-silhouette-region:focus-visible {
+  @apply gb:outline-none gb:fill-[var(--accent)] gb:[fill-opacity:0.45] gb:stroke-[var(--accent)] gb:stroke-[0.8] gb:[stroke-dasharray:2_1.5] gb:[stroke-opacity:0.7];
+}
+[data-sun-body-picker] .sun-silhouette-region.selected {
+  @apply gb:fill-[var(--accent)] gb:[fill-opacity:0.78] gb:stroke-[var(--accent-light)] gb:stroke-[0.4] gb:[stroke-opacity:0.6];
+}
+[data-sun-body-picker] .sun-silhouette-region.selected:hover {
+  @apply gb:[fill-opacity:0.85];
+}
+[data-sun-body-picker].sun-silhouette-stock[data-selection-overlay="pending"] .sun-silhouette-region.selected {
+  @apply gb:[fill-opacity:0.38] gb:[stroke-opacity:0];
+}
+[data-sun-body-picker].sun-silhouette-stock[data-selection-overlay="ready"] .sun-silhouette-region.selected {
+  @apply gb:[fill-opacity:0] gb:[stroke-opacity:0];
+}
+/* Canvas selection must not erase the keyboard focus cue. Keep the original
+   tint precedence while showing a dashed contour on the focused region.
+   Match the stock overlay selector's specificity so readiness cannot hide it. */
+[data-sun-body-picker] .sun-silhouette-region:focus-visible,
+[data-sun-body-picker].sun-silhouette-stock[data-selection-overlay] .sun-silhouette-region:focus-visible {
+  @apply gb:stroke-[var(--accent)] gb:stroke-[0.8] gb:[stroke-opacity:1];
+}
+/* Five SVG units preserve the original touch target without overlapping
+   adjacent anatomy as a larger non-scaling stroke would. */
+@media (pointer: coarse) {
+  [data-sun-body-picker] .sun-silhouette-region {
+    @apply gb:stroke-transparent gb:stroke-[5] gb:[stroke-opacity:0] gb:[paint-order:stroke_fill];
+  }
+  [data-sun-body-picker] .sun-silhouette-region:hover {
+    @apply gb:fill-transparent gb:[fill-opacity:0] gb:[stroke-opacity:0];
+  }
+  [data-sun-body-picker] .sun-silhouette-region:focus-visible {
+    @apply gb:[stroke-opacity:1] gb:stroke-[0.8] gb:[paint-order:fill_stroke];
+  }
+}

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SunBodyPickerFrame from './SunBodyPickerFrame.svelte';
   import type { PastSessionFormView } from '../light-session-presentation.js';
   let { view, silhouetteHTML }: { view: PastSessionFormView; silhouetteHTML: string } = $props();
   const row = 'sun-detailed-row gb:light-session:grid gb:light-session:grid-cols-2 gb:light-session:gap-3 gb:light-session:mb-2 gb:light-session:max-[480px]:grid-cols-1';
@@ -10,7 +11,7 @@
   <div class="modal-body gb:light-session:min-w-0">
     <p class="modal-body-hint gb:light-session:text-secondary">For sessions that already happened. Tap each body region that was uncovered.{view.lastUsed ? ' Body regions, eyewear, and lens tint default to your last session.' : ''}</p>
     <div class="ctx-label gb:light-session:text-secondary">Body regions exposed</div>
-    <div class="sun-silhouette-wrap" id="sun-silhouette-slot">{@html silhouetteHTML}</div>
+    <SunBodyPickerFrame id="sun-silhouette-slot" {silhouetteHTML} />
     <div class={hint} id="sun-silhouette-hint">Tap any body region to toggle whether it was uncovered.</div>
     <div class={row}>
       <label class="ctx-label gb:light-session:text-secondary">Started at<input type="datetime-local" id="det-started-at" class={`ctx-input ${input}`} value={view.start} max={view.now}/></label>

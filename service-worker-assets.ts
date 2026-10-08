@@ -656,7 +656,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/sun-session-actions.js',
   '/js/sun-runtime.js',
   '/js/sun-body-silhouette-runtime.js',
-  '/js/sun-body-silhouette.js',
+  '/js/sun-body-silhouette.js', '/js/sun-body-picker-presentation.js', '/js/components/SunBodyPicker.svelte.html.js',
   '/js/sun-ai-analysis.js',
   '/js/sun-context.js',
   '/js/sun-context-environment.js',

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SunBodyPickerFrame from './SunBodyPickerFrame.svelte';
   import type { DeviceSessionFormView } from '../light-session-presentation.js';
   let { view, silhouetteHTML }: { view: DeviceSessionFormView; silhouetteHTML: string } = $props();
   const input = 'gb:light-session:min-h-[45px] gb:light-session:min-w-0 gb:light-session:box-border';
@@ -48,7 +49,7 @@
         </div>
       </div><span class={hint}>{view.distanceHint}</span>
     </div>
-    <div class="ctx-label gb:light-session:text-secondary gb:light-session:block"><span>Body area treated</span><div class="sun-silhouette-wrap" id="dev-session-silhouette-slot">{@html silhouetteHTML}</div>
+    <div class="ctx-label gb:light-session:text-secondary gb:light-session:block"><span>Body area treated</span><SunBodyPickerFrame id="dev-session-silhouette-slot" {silhouetteHTML} />
       <div class="sun-silhouette-hint-row gb:light-session:flex gb:light-session:items-center gb:light-session:justify-between gb:light-session:gap-2"><div class="sun-silhouette-hint gb:light-session:opacity-100 gb:light-session:text-secondary" id="dev-session-area-hint">Tap regions the panel reaches.</div><button type="button" class="ctx-btn-option gb:light-session:min-h-[45px] gb:light-session:min-w-[45px] gb:light-session:px-2.5 gb:light-session:py-0.5 gb:light-session:text-xs" id="dev-session-clear">Clear</button></div>
     </div>
     <div class="ctx-label gb:light-session:text-secondary gb:light-session:flex gb:light-session:items-center gb:light-session:justify-between gb:light-session:gap-3"><span class="gb:light-session:flex-1 gb:light-session:min-w-0" id="dev-session-eye-label">{view.eyeLabel}</span><label class="toggle-switch"><input type="checkbox" id="dev-session-eyes" checked={view.eyesChecked} aria-labelledby="dev-session-eye-label"/><span class="toggle-slider"></span></label></div>

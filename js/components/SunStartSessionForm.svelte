@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SunBodyPickerFrame from './SunBodyPickerFrame.svelte';
   import type { StartSunSessionFormView } from '../light-session-presentation.js';
   let { view, silhouetteHTML }: { view: StartSunSessionFormView | null; silhouetteHTML: string } = $props();
   const coverage = $derived(view === null);
@@ -12,7 +13,7 @@
   <div class="modal-body gb:light-session:min-w-0">
     {#if !coverage}<div id="sun-start-uvi-banner" class="sun-start-uvi-banner gb:light-session:mb-3" hidden></div>{/if}
     <p class="modal-body-hint gb:light-session:text-secondary">{#if coverage}Tap each body region that's uncovered <strong>now</strong>. The dose accrued under the previous coverage stays — the change applies from this moment forward.{:else}Tap each body region that's uncovered right now. The session begins as soon as you hit Start.{/if}</p>
-    <div class="sun-silhouette-wrap" id={coverage ? 'sun-coverage-silhouette-slot' : 'sun-start-silhouette-slot'}>{@html silhouetteHTML}</div>
+    <SunBodyPickerFrame id={coverage ? 'sun-coverage-silhouette-slot' : 'sun-start-silhouette-slot'} {silhouetteHTML} />
     <div class="sun-silhouette-hint-row gb:light-session:flex gb:light-session:items-center gb:light-session:justify-between gb:light-session:gap-2">
       <div class={`sun-silhouette-hint ${hint} gb:light-session:opacity-100 gb:light-session:[&.sun-silhouette-hint-error]:text-danger-ink`} id={coverage ? 'sun-coverage-hint' : 'sun-start-hint'} aria-live="polite">{coverage ? '' : "Tap any body region to toggle whether it's uncovered."}</div>
       {#if !coverage}<button type="button" class="ctx-btn-option gb:light-session:min-h-[45px] gb:light-session:min-w-[45px] gb:light-session:px-2.5 gb:light-session:py-1 gb:light-session:text-xs gb:light-session:text-ink" id="sun-start-clear">Clear</button>{/if}

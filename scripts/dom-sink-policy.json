@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 1163,
-  "sinkCount": 326,
+  "scannedFiles": 1166,
+  "sinkCount": 324,
   "files": {
     "js/biology-scores.js": {
       "count": 1,
@@ -134,13 +134,6 @@
         "svelte.html": 2
       }
     },
-    "js/components/DeviceSessionForm.svelte.native.js": {
-      "count": 1,
-      "digest": "fbdb577412dadc3e241db4b34d117c619fac4ff6725f876b9e7023d17622fbfa",
-      "kinds": {
-        "svelte.html": 1
-      }
-    },
     "js/components/LightDashboardPills.svelte.native.js": {
       "count": 1,
       "digest": "d0994e0035c703363dc26d23095f8d4fc5d9fd50fd6d498f4eaa42b7e22b7b0a",
@@ -190,14 +183,7 @@
         "svelte.html": 2
       }
     },
-    "js/components/SunPastSessionForm.svelte.native.js": {
-      "count": 1,
-      "digest": "fbdb577412dadc3e241db4b34d117c619fac4ff6725f876b9e7023d17622fbfa",
-      "kinds": {
-        "svelte.html": 1
-      }
-    },
-    "js/components/SunStartSessionForm.svelte.native.js": {
+    "js/components/SunBodyPickerFrame.svelte.native.js": {
       "count": 1,
       "digest": "fbdb577412dadc3e241db4b34d117c619fac4ff6725f876b9e7023d17622fbfa",
       "kinds": {

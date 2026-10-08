@@ -33,6 +33,9 @@ test('static authored Sun entry and coverage preserve actual session slices, off
     await expect(start.locator('#sun-start-hint')).toContainText('Tap at least one region');
     expect(await page.evaluate(readComparisonAcceptanceProfile)).toEqual(before);
     await start.locator('[data-region="breast-chest"]').first().focus(); await page.keyboard.press('Enter');
+    await expect(start.locator('svg[data-sun-body-picker]')).toHaveAttribute('data-selection-overlay','ready');
+    await expect(start.locator('[data-region="breast-chest"]').first()).toBeFocused();
+    await expect(start.locator('image[href^="blob:"]')).toHaveCount(2);
     await start.locator('summary').focus(); await page.keyboard.press('Enter'); await expect(start.locator('details')).toHaveAttribute('open','');
     await start.locator('#start-posture').selectOption('lying-prone'); await start.locator('#start-surface').selectOption('snow');
     await start.locator('#start-eye-mode').selectOption('direct'); await start.locator('#start-lens-tint').selectOption('amber'); await start.locator('.toggle-switch').click(); await expect(start.locator('#start-glass')).toBeChecked();
@@ -52,6 +55,8 @@ test('static authored Sun entry and coverage preserve actual session slices, off
     await expect(coverage.locator('#sun-coverage-hint')).toContainText('fully clothed');
     await coverage.locator('[data-region="face"]').first().focus(); await page.keyboard.press('Enter');
     await expect(coverage.locator('#sun-coverage-hint')).toContainText('Face');
+    await expect(coverage.locator('svg[data-sun-body-picker]')).toHaveAttribute('data-selection-overlay','ready');
+    await expect(coverage.locator('[data-region="face"]').first()).toBeFocused();
     await coverage.screenshot({path:test.info().outputPath('actual-sun-coverage-offline.png')});
     await coverage.locator('#coverage-confirm').focus(); await page.keyboard.press('Space'); await expect(coverage).not.toBeVisible();
     snapshot = await page.evaluate(readComparisonAcceptanceProfile) as ProfileData;

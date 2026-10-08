@@ -1,11 +1,11 @@
 interface StockCell { sx: number; sy: number; cw: number; ch: number }
-interface ImagePlacement { imgX: number; imgY: number; fullW: number; fullH: number }
 type OverlayReady = ((url?: string) => void) | undefined;
 type PickerInputEvent = (MouseEvent | TouchEvent | PointerEvent) & { target: Element };
 
 // sun-body-silhouette.js — Anatomical body-region picker for sun sessions.
 
-import { escapeAttr } from './utils.js';
+import { renderHTML } from './components/SunBodyPicker.svelte.html.js';
+import { projectBodyPicker } from './sun-body-picker-presentation.js';
 import { buildBody, buildLandmarks, buildDetails } from './silhouette-paths.js';
 import {
   addSunOverlayReadyListenerRuntime,
@@ -432,149 +432,21 @@ function _renderSelectionOverlay(selected: Set<string>, onReady: OverlayReady) {
   return _overlayCache.url || null;
 }
 
-// Render the two-view silhouette picker as an SVG. `selected` is a Set of
-// region keys; each region path fills with accent when selected. Sex
-// follows the active profile (Settings → Profile) — there is no in-modal
-// toggle.
+// Preserve the synchronous public render contract. Geometry, source-cell placement,
+// selection overlays and input binding stay here; Svelte owns SVG presentation.
 export function renderBodySilhouette(selected: Set<string>) {
   const sex = _activeProfileSex();
-  const { front, back } = _silhouetteRegionPaths(sex);
-  const bodyFront = buildBody(sex, 'front');
-  const bodyBack = buildBody(sex, 'back');
-  const frontLandmarks = buildLandmarks(sex, 'front');
-  const backLandmarks = buildLandmarks(sex, 'back');
-  const frontDetails = buildDetails(sex, 'front');
-  const backDetails = buildDetails(sex, 'back');
-
-  // Stock-figure prototype — compute the SVG <image> placement so each
-  // view shows just the matching cell of the source grid, scaled to fit
-  // a 100×210 figure area (top of the 100×220 view, leaving y 210–220 for
-  // the italic-serif label).
-  let renderStockImage: ((view?: string) => string) & { _placement?: (view?: string) => ImagePlacement | null } = () => '';
-  // Per-view alpha mask using the er.svg image itself — selection rects
-  // are masked to figure-shape so the blue wash fills the body exactly,
-  // no rectangular overflow past the silhouette.
-  let renderFigureMask: (view?: string, maskId?: string) => string = () => '';
-  if (STOCK_FIGURE_PROTOTYPE) {
-    // Per-cell scale so each figure fits 210 high regardless of source
-    // figure dimensions (female cells are narrower than male).
-    const placement = (view?: string) => {
-      const cell = STOCK_IMG.cells[`${sex}-${view}`];
-      if (!cell) return null;
+  const regions = _silhouetteRegionPaths(sex);
+  const overlay = _renderSelectionOverlay(selected, () => dispatchSunOverlayReadyRuntime());
+  const overlayState = selected.size ? (overlay && _overlayCache.key === _selectedKey(selected) ? 'ready' : 'pending') : 'none';
+  return renderHTML({ view: projectBodyPicker({ sex, stock: STOCK_FIGURE_PROTOTYPE,
+    source: STOCK_IMG.src, mask: STOCK_IMG.mask, overlay, overlayState,
+    views: (['front', 'back'] as const).map(side => {
+      const cell = STOCK_IMG.cells[`${sex}-${side}`]!;
       const scale = 210 / cell.ch;
-      const fullW = STOCK_IMG.imgW * scale;
-      const fullH = STOCK_IMG.imgH * scale;
-      const cellWScaled = cell.cw * scale;
-      const xOffset = (100 - cellWScaled) / 2;
-      const imgX = xOffset - cell.sx * scale;
-      const imgY = -cell.sy * scale;
-      return { imgX, imgY, fullW, fullH };
-    };
-    renderStockImage = (view) => {
-      const p = placement(view);
-      if (!p) return '';
-      return `<image href="${STOCK_IMG.src}" x="${p.imgX.toFixed(2)}" y="${p.imgY.toFixed(2)}" width="${p.fullW.toFixed(2)}" height="${p.fullH.toFixed(2)}" preserveAspectRatio="none" pointer-events="none"/>`;
-    };
-    renderFigureMask = (view, maskId) => {
-      const p = placement(view);
-      if (!p) return '';
-      // Mask uses the image's own alpha — figure pixels = visible (alpha 1),
-      // transparent background = hidden. The mask must match the figure's
-      // exact placement so the cut-out aligns 1:1.
-      return `<mask id="${maskId}" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="210" mask-type="alpha"><image href="${STOCK_IMG.mask}" x="${p.imgX.toFixed(2)}" y="${p.imgY.toFixed(2)}" width="${p.fullW.toFixed(2)}" height="${p.fullH.toFixed(2)}" preserveAspectRatio="none"/></mask>`;
-    };
-    // Expose placement() so click handler / overlay rendering can use it.
-    renderStockImage._placement = placement;
-  }
-  // Selection overlay generated from the region map — pixel-perfect tint
-  // of selected regions. Returns null if region map hasn't loaded yet, or
-  // a previous overlay while the next blob is encoding; in both cases the
-  // caller re-renders when ready (renderBodySilhouette is sync; bind binds
-  // the load promise + rebakes via dispatchEvent('sun-overlay-ready')).
-  const selOverlayUrl = _renderSelectionOverlay(selected, () => {
-    dispatchSunOverlayReadyRuntime();
-  });
-  const overlayMatchesSelection = !!selOverlayUrl && _overlayCache.key === _selectedKey(selected);
-  const overlayState = selected?.size
-    ? (overlayMatchesSelection ? 'ready' : 'pending')
-    : 'none';
-  const renderSelectionImage = (view: string) => {
-    if (!selOverlayUrl || !STOCK_FIGURE_PROTOTYPE) return '';
-    const p = renderStockImage._placement && renderStockImage._placement(view);
-    if (!p) return '';
-    return `<image href="${selOverlayUrl}" x="${p.imgX.toFixed(2)}" y="${p.imgY.toFixed(2)}" width="${p.fullW.toFixed(2)}" height="${p.fullH.toFixed(2)}" preserveAspectRatio="none" pointer-events="none"/>`;
-  };
-
-  const renderRegion = (regions: Record<string, string>, viewKey: string) =>
-    Object.entries(regions).map(([region, d]) => {
-      const isSel = selected.has(region);
-      const label = (BODY_REGIONS.find(r => r.key === region)?.label) || region;
-      const cls = `sun-silhouette-region${isSel ? ' selected' : ''}`;
-      // Avoid "Arms (front) (front)" — label already encodes the side
-      // for split regions; only append (viewKey) for ambiguous regions
-      // that exist on both views (face / thyroid / abdomen / etc).
-      const labelHasSide = /\((front|back)\)/.test(label);
-      const aria = labelHasSide ? label : `${label} (${viewKey})`;
-      return `<path d="${d}" data-region="${region}" data-view="${viewKey}" class="${cls}" role="button" tabindex="0" aria-pressed="${isSel}" aria-label="${escapeAttr(aria)}"><title>${label}${isSel ? ' (selected)' : ''}</title></path>`;
-    }).join('');
-
-  const renderLandmarks = (paths: string[]) =>
-    paths.map(d => `<path d="${d}" class="sun-silhouette-landmark" />`).join('');
-
-  const renderDetails = (paths: string[]) =>
-    paths.map(d => `<path d="${d}" class="sun-silhouette-detail" />`).join('');
-
-  // Per-view clip paths so the female front silhouette (with bust bulge) and
-  // the back silhouette (without) each clip their own region overlays
-  // correctly. clipPathUnits defaults to userSpaceOnUse — the back-view
-  // clipPath is referenced from inside the translated <g> so its coords
-  // resolve against that group's local space.
-  const clipFrontId = `sun-silhouette-clip-${sex}-front`;
-  const clipBackId = `sun-silhouette-clip-${sex}-back`;
-
-  // Two columns: front 0–100, back 100–200 (translated). Region tap targets
-  // overlay the body silhouette and are clipped to its shape so the gold
-  // selection wash hugs the figure. A small radial-gold gradient lives in
-  // <defs> so we can paint individual selected regions with a soft sun-pool
-  // effect via CSS class match — this is what gives the "sunlight on skin"
-  // feel rather than a flat fill.
-  const svg = `<svg viewBox="0 0 200 220" class="sun-silhouette${STOCK_FIGURE_PROTOTYPE ? ' sun-silhouette-stock' : ''}" data-sex="${sex}" data-selection-overlay="${overlayState}" role="group" aria-label="Body region picker — tap or press Enter on each region you want to toggle">
-    <defs>
-      <clipPath id="${clipFrontId}"><path d="${bodyFront.d}" /></clipPath>
-      <clipPath id="${clipBackId}"><path d="${bodyBack.d}" /></clipPath>
-      <!-- Cell clip — restricts the stock image AND the region tap zones
-           to a 100×210 rectangle. Used in place of the parametric body
-           clipPath so the entire rect (including outer arm columns) is
-           hit-testable, then a figure-shape alpha mask trims the visible
-           selection fill to the actual silhouette. -->
-      <clipPath id="sun-silhouette-cell-clip"><rect x="0" y="0" width="100" height="210"/></clipPath>
-      ${STOCK_FIGURE_PROTOTYPE ? renderFigureMask('front', 'sun-fig-mask-front') : ''}
-      ${STOCK_FIGURE_PROTOTYPE ? renderFigureMask('back', 'sun-fig-mask-back') : ''}
-    </defs>
-
-    <g class="sun-silhouette-view sun-silhouette-front">
-      ${STOCK_FIGURE_PROTOTYPE
-        ? `<g clip-path="url(#sun-silhouette-cell-clip)">${renderStockImage('front')}${renderSelectionImage('front')}</g>`
-        : `<path d="${bodyFront.d}" class="sun-silhouette-outline"/>${renderLandmarks(frontLandmarks)}${renderDetails(frontDetails)}`}
-      ${STOCK_FIGURE_PROTOTYPE
-        ? `<rect x="0" y="0" width="100" height="210" fill="transparent" data-click-view="front" style="cursor:pointer"/>`
-        : ''}
-      <g clip-path="url(#sun-silhouette-cell-clip)" ${STOCK_FIGURE_PROTOTYPE ? 'mask="url(#sun-fig-mask-front)"' : ''}>${renderRegion(front, 'front')}</g>
-      <text x="50" y="218" text-anchor="middle" class="sun-silhouette-label" aria-hidden="true">front</text>
-    </g>
-    <g class="sun-silhouette-view sun-silhouette-back" transform="translate(100 0)">
-      ${STOCK_FIGURE_PROTOTYPE
-        ? `<g clip-path="url(#sun-silhouette-cell-clip)">${renderStockImage('back')}${renderSelectionImage('back')}</g>`
-        : `<path d="${bodyBack.d}" class="sun-silhouette-outline"/>${renderLandmarks(backLandmarks)}${renderDetails(backDetails)}`}
-      ${STOCK_FIGURE_PROTOTYPE
-        ? `<rect x="0" y="0" width="100" height="210" fill="transparent" data-click-view="back" style="cursor:pointer"/>`
-        : ''}
-      <g clip-path="url(#sun-silhouette-cell-clip)" ${STOCK_FIGURE_PROTOTYPE ? 'mask="url(#sun-fig-mask-back)"' : ''}>${renderRegion(back, 'back')}</g>
-      <text x="50" y="218" text-anchor="middle" class="sun-silhouette-label" aria-hidden="true">back</text>
-    </g>
-  </svg>`;
-
-  return svg;
+      return { side, outline: buildBody(sex, side).d, landmarks: buildLandmarks(sex, side), details: buildDetails(sex, side), regions: regions[side],
+        placement: { imgX: (100 - cell.cw * scale) / 2 - cell.sx * scale, imgY: -cell.sy * scale, fullW: STOCK_IMG.imgW * scale, fullH: STOCK_IMG.imgH * scale } };
+    }), labels: BODY_REGIONS, selected }) });
 }
 
 // Bind silhouette tap + keyboard handlers — call once after inserting the
@@ -586,6 +458,14 @@ export function renderBodySilhouette(selected: Set<string>) {
 // new aria-pressed state without losing their place.
 export function bindBodySilhouette(rootEl: Element, selected: Set<string>, onChange?: (selected: Set<string>) => void) {
   const rerender = (focusRegion?: string, focusView?: string) => {
+    // Region-map and blob completion can replace the SVG after a keyboard
+    // toggle. Preserve a region still focused here, without reclaiming focus
+    // once the user has moved to another control or another picker.
+    const active = document.activeElement;
+    if (!focusRegion && active && rootEl.contains(active)) {
+      focusRegion = active.getAttribute('data-region') || undefined;
+      focusView = active.getAttribute('data-view') || undefined;
+    }
     rootEl.innerHTML = renderBodySilhouette(selected);
     if (focusRegion) {
       const next = rootEl.querySelector<SVGElement>(`[data-region="${CSS.escape(focusRegion)}"][data-view="${CSS.escape(focusView!)}"]`);
