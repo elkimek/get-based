@@ -209,6 +209,19 @@ offline launches while preserving the complete lab profile. The historical
 score integrity check verifies the exact numeric DOM text and unit independently
 of presentation utility classes.
 
+Biology overview and dashboard presentations have [frozen structure and state
+checks](../tests/biology-overview-presentation.test.ts) for current, absent, zero,
+escaped, historical, cached and unlinked domains. The original fixture is captured
+before replacement, including its owned CSS. [Headless parity](../tests/playwright/biology-overview-owned.spec.ts)
+compares overview and dashboard geometry, themes and disclosure states, and checks
+focus and inert unlinked rows. The native-button improvement for linked dashboard
+domains is explicit in the structural baseline. [Static overview acceptance](../tests/pwa/sveltekit-biology-overview.spec.ts)
+exercises actual keyboard navigation, contributors, saved explanations and reading
+facts with the origin offline, then repeats through two closed-client launches.
+The complete stored profile must remain equal. Shared reading, AI and card-control
+scenarios remain independent regression checks. These are focused presentation
+checks, not clinical or whole-app release acceptance.
+
 Preserve independently failing assertions for these workflows:
 
 | Workflow | Required behavior | Selected regression sources |

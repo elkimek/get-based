@@ -28,19 +28,21 @@ type ScoreValue = BiologyRenderScore['score'];
 
 // biology-score-render.ts — HTML rendering for Biology Score cards, details, and dashboard/lens widgets.
 
+import {renderHTML as renderOverview} from './components/BiologyOverviewPresentation.svelte.html.js';
+import {projectBiologyCoherence, projectBiologyDashboardScore, projectBiologyDashboardCoherence} from './biology-overview-presentation.js';
+
 import {renderHTML as renderCard} from './components/BiologyCardPresentation.svelte.html.js';
-import {getScorePresentation, biologyScoreSentence as scoreSentence, projectBiologyScoreDetail, projectBiologyScoreMetric} from './biology-card-presentation.js';
+import {getScorePresentation, projectBiologyScoreDetail} from './biology-card-presentation.js';
 export {getScorePresentation} from './biology-card-presentation.js';
 
 import { renderHTML as renderPlanning } from './components/BiologyPlanningPresentation.svelte.html.js';
 import { projectBiologyNextChecks, projectBiologyCoverage } from './biology-planning-presentation.js';
-import { renderHTML as renderReading } from './components/BiologyReadingPresentation.svelte.html.js';
-import { biologyMarkerTitle as getMarkerTitle, biologyEvidenceBadge as getEvidenceBadge, biologyScoreColor as scoreColor, projectBiologyFacts } from './biology-reading-presentation.js';
+import { biologyMarkerTitle as getMarkerTitle, biologyEvidenceBadge as getEvidenceBadge } from './biology-reading-presentation.js';
 import { escapeAttr, escapeHTML } from './utils.js';
-import { getBiologyAIState, renderScoreAIAnswer, renderScoreAISummary } from './biology-score-sections.js';
+import { getBiologyAIState } from './biology-score-sections.js';
 import { getBiologyProfileContext } from './profile-context.js';
 import { TONE_LABELS, clamp } from './biology-score-engine.js';
-import { getLensDashboardToggleView, renderLensDashboardToggle } from './lens-page-shell.js';
+import { getLensDashboardToggleView } from './lens-page-shell.js';
 import {
   markerDisplayLabel,
 } from './biology-score-coverage-planner.js';
@@ -126,18 +128,6 @@ export function groupBiologyScores<Score extends BiologyRenderScore>(scores: rea
   return groups;
 }
 
-function renderScoreMetric(score: BiologyRenderScore) {
-  return renderCard({kind: 'metric', view: projectBiologyScoreMetric(score)});
-}
-
-function renderReadingFacts(facts: readonly (readonly [unknown, unknown])[]) {
-  return renderReading({kind: 'facts', facts: projectBiologyFacts(facts)});
-}
-
-function renderInterpretationNotes(flags: readonly string[] = []) {
-  return flags.length ? renderReading({kind: 'notes', flags}) : '';
-}
-
 
 
 export function renderScoreDetail(score: BiologyRenderScore, options: { showDashboardToggle?: boolean } = {}) {
@@ -163,35 +153,10 @@ function renderScoreCard(score: BiologyRenderScore) {
   </article>`;
 }
 
-function renderOverviewMembership(score: BiologyRenderScore) {
-  if (!score.membership?.length) return '';
-  const included = score.membership.filter(item => item.included).length;
-  return `<details id="biology-score-membership" class="biology-overview-membership biology-reading-panel"><summary>Overview contributors <span class="biology-membership-count">${included}/${score.membership.length} included</span></summary><div class="biology-reading-body"><p>13 baseline scores form 12 domains. Iron Handling and Blood Flow Context share the blood domain.</p><div class="biology-membership-list">${score.membership.map(item => `<button type="button" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(item.id)}"><span>${escapeHTML(item.title)}${item.domain === 'blood' ? '<small>Shared blood domain</small>' : ''}</span><span class="biology-membership-badge" data-overview-membership="${item.included ? 'included' : 'excluded'}">${escapeHTML(item.label)}</span></button>`).join('')}</div></div></details>`;
-}
-
-
 function renderBiologicalCoherenceHero(score: BiologyRenderScore | null | undefined) {
   if (!score) return '';
-  const sourceScore = score;
-  score = score.historicalSnapshot || score;
-  const domains = (score.available || []).filter(item => Number.isFinite(item.partial));
-  const presentation = getScorePresentation(score);
-  const explanation = score.anchorWarning || (presentation.historical ? `${presentation.status} · ${presentation.period}` : score.coverage < 1 ? 'Your available core domains, brought together.' : 'Your core domains at a glance.');
-  return `<section class="biology-coherence-hero biology-coherence-visual" id="biology-score-biologicalCoherence">
-    <div class="biology-coherence-overview">${renderScoreMetric(score)}<div><h2>Biological Coherence</h2><p>${escapeHTML(explanation)}</p><small>${domains.length}/${domains.length + score.missing.length} domains · ${Math.round(score.coverage * 100)}% core coverage</small></div></div>
-    <div class="biology-coherence-ai">${renderScoreAISummary(sourceScore)}<p class="biology-scores-note">AI runs when requested. Update missing insights reuses saved answers; provider charges may apply. Scores are calculated locally.</p></div>
-    ${domains.length ? `<div class="biology-coherence-domains">${domains.map(item => `<button type="button" class="biology-coherence-domain-row" style="--score-color:${scoreColor(item.partial)}" title="${item.partial}/100 · Open ${escapeAttr(item.label)}" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(item.primaryScoreId || '')}"><span class="biology-domain-label">${escapeHTML(item.label)}</span><span class="biology-domain-meter" aria-hidden="true"><span style="width:${clamp(item.partial!, 0, 100)}%"></span></span><strong>${item.partial}</strong></button>`).join('')}</div>` : ''}
-    ${renderOverviewMembership(sourceScore)}
-    <details class="biology-coherence-interpretation"><summary>Explanation</summary>${renderScoreAIAnswer(sourceScore)}</details>
-    <details class="biology-coherence-breakdown"><summary>How the overview works</summary>
-      <div class="biology-reading-body">${renderReadingFacts([
-        ['What is combined', '13 baseline scores form 12 domains: Iron Handling and Blood Flow Context share one domain. An overview needs at least 3 domains and 25% core coverage. Available domain results remain visible below that threshold. Excluded domains remain reflected in coverage; open Overview contributors to see exactly which scores are included.'],
-        ['What the colors mean', 'Green: strong range fit (70–100). Amber: review pattern (50–69). Red: lower range fit (0–49). These describe range agreement, not clinical severity.'],
-        ['Coverage stays separate', 'Missing core inputs reduce coverage. Additional tests add context without increasing a domain’s vote. Five optional scores stay outside the baseline.'],
-        ['Dates stay visible', presentation.historical ? `${presentation.status}: ${presentation.period}. This estimate combines the available historical results, not a current simultaneous panel.` : 'Current domains use the collection-date limits. Historical and mixed-date estimates are labeled separately.'],
-      ])}${renderInterpretationNotes(score.flags)}<div class="biology-reading-source">${renderLensDashboardToggle('biology-score-biologicalCoherence')}</div></div>
-    </details>
-  </section>`;
+  const view = projectBiologyCoherence(score, getBiologyAIState(score), getLensDashboardToggleView('biology-score-biologicalCoherence'));
+  return renderOverview({kind: 'coherence', view});
 }
 
 /**
@@ -205,59 +170,14 @@ export function renderBiologicalCoherenceLensHero(ctx: ScoreContext, computeBiol
   return renderBiologicalCoherenceHero(coherence);
 }
 
-function renderDashboardScoreRail(score: ScoreValue, tone: BiologyRenderScore['tone']) {
-  const pct = Number.isFinite(score) ? clamp(score!, 0, 100) : 0;
-  const colorVar = tone === 'excellent' || tone === 'good' ? 'var(--green, #22c55e)' : tone === 'strained' ? 'var(--yellow, #f59e0b)' : tone === 'poor' || tone === 'concerning' || tone === 'severe' ? 'var(--red, #ef4444)' : 'var(--text-muted)';
-  return `<div class="db-hero-bio-bar db-hero-bio-bar-track" aria-hidden="true">
-      <div class="db-hero-bio-bar-fill" style="width:${pct.toFixed(0)}%; background:${colorVar};"></div>
-      <span class="db-hero-bio-bar-pin" style="left:${pct.toFixed(0)}%;"></span>
-    </div>`;
-}
-
-function renderDashboardScoreHeadline(score: BiologyRenderScore, meta: string, detailLine: string) {
-  const presentation = getScorePresentation(score);
-  return `<button type="button" class="db-hero-bio db-hero-biology-score" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(score.id)}" aria-label="Open ${escapeAttr(score.title)} in Biology Scores lens">
-    <span class="db-hero-bio-left"><span class="db-hero-bio-num">${presentation.value ?? '—'}<small>/100</small></span><span class="db-hero-bio-label"><span class="top">${escapeHTML(presentation.status)}</span><span class="actual">${escapeHTML(meta)}</span><span class="delta">${escapeHTML(detailLine)}</span></span></span>
-    <span class="db-hero-bio-right">${renderDashboardScoreRail(presentation.value, presentation.tone)}<span class="db-hero-scale"><span>0</span><span>50</span><span>100</span></span></span>
-  </button>`;
-}
-
 export function renderDashboardBiologyScoreWidget(ctx: ScoreContext, scoreId: string, computeBiologyScores: ComputeScores) {
   const score = computeBiologyScores((ctx?.data || {}) as ScoringData).find(item => item.id === scoreId);
-  if (!score) return '';
-  const presentation = getScorePresentation(score);
-  const meta = `${score.coreCovered ?? 0}/${score.coreTotal ?? 0} core${score.overviewMembership ? ` · ${score.overviewMembership.label}` : ''}`;
-  const detail = presentation.historical ? `${presentation.period}. Open to review the markers.` : scoreSentence(score);
-  return renderDashboardScoreHeadline(score, meta, detail);
+  return score ? renderOverview({kind: 'dashboard-score', view: projectBiologyDashboardScore(score)}) : '';
 }
 
 export function renderDashboardBiologicalCoherenceWidget(ctx: ScoreContext, computeBiologyScores: ComputeScores) {
-  const currentScore = computeBiologyScores((ctx?.data || {}) as ScoringData).find(item => item.id === 'biologicalCoherence');
-  const score = currentScore?.historicalSnapshot || currentScore;
-  if (!score) return '';
-  const domains = (score.available || []).filter(item => Number.isFinite(item.partial)).sort((a, b) => Number(b.partial || 0) - Number(a.partial || 0));
-  const weakest = domains.slice().sort((a, b) => Number(a.partial || 0) - Number(b.partial || 0))[0];
-  const missingCount = score.missing?.length || 0;
-  const domainMicroBars = domains.map((item) => {
-    const pct = clamp(Number(item.partial || 0), 0, 100);
-    const clickable = !!item.primaryScoreId;
-    const attrs = clickable
-      ? ` role="button" tabindex="0" data-biology-score-action="jump-to-domain" data-biology-score-id="${escapeAttr(item.primaryScoreId)}" title="Jump to ${escapeAttr(item.label)} score"`
-      : ` title="${escapeAttr(item.label)} — no individual score available yet"`;
-    const noJumpClass = clickable ? '' : ' bc-micro-domain-no-jump';
-    return `<div class="bc-micro-domain${noJumpClass}"${attrs}>
-      <span class="bc-micro-domain-label">${escapeHTML(item.label)}</span>
-      <div class="bc-micro-domain-bar" aria-hidden="true"><div style="width:${pct}%;background:${scoreColor(pct)}" class="bc-micro-domain-fill bc-micro-domain-fill-${pct >= 70 ? 'good' : pct >= 50 ? 'fair' : 'poor'}"></div></div>
-      <span class="bc-micro-domain-score">${Math.round(pct)}</span>
-    </div>`;
-  }).join('');
-  const insight = weakest ? `Review first: ${weakest.label} (${weakest.partial}/100).` : 'Open Biology Scores to review missing markers or collection context.';
-  const presentation = getScorePresentation(score);
-  const meta = `${domains.length}/${domains.length + missingCount} domains${presentation.historical ? ` · ${presentation.period}` : ''}`;
-  return `<section class="db-bio-coherence-hero">
-    ${renderDashboardScoreHeadline(score, meta, insight)}
-    ${domainMicroBars ? `<div class="db-bio-coherence-domains">${domainMicroBars}</div>` : ''}
-  </section>`;
+  const score = computeBiologyScores((ctx?.data || {}) as ScoringData).find(item => item.id === 'biologicalCoherence');
+  return score ? renderOverview({kind: 'dashboard-coherence', view: projectBiologyDashboardCoherence(score)}) : '';
 }
 
 /** Legacy summary widget — still exported for backward compatibility. The dashboard

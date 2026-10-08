@@ -379,7 +379,12 @@ describe('Biology Scores integrity', () => {
     expect(all.find(i => i.id === 'fluidFiltrationCoherence')!.title).toBe('Kidney & Filtration');
     expect(all.some(i => /hydration/i.test(i.title))).toBe(false);
     const html = (renderDashboardBiologicalCoherenceWidget as unknown as (ctx:{data:FixtureData},compute:typeof scores)=>ReturnType<typeof renderDashboardBiologicalCoherenceWidget>)({ data: dataset() }, scores);
-    expect(html).toContain('db-hero-bio-num">—<small>'); expect(html).not.toContain('locked');
+    const number = new JSDOM(html).window.document.querySelector('.db-hero-bio-num');
+    expect(number).not.toBeNull();
+    expect(number!.firstChild!.nodeType).toBe(3);
+    expect(number!.firstChild!.nodeValue).toBe('—');
+    expect(number!.querySelector('small')!.textContent).toBe('/100');
+    expect(html).not.toContain('locked');
     expect(getBiologyScoreMapping().find(i => i.id === 'ironHandling')!.inputs.filter(i => i.core)).toHaveLength(3);
   });
   it('retains canonical precision through a filtered HbA1c display projection', () => {

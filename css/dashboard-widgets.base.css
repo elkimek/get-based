@@ -252,221 +252,6 @@
 }
 
 /* Biological Coherence — distinguished full-width dashboard hero widget. */
-.db-bio-coherence-hero {
-  min-width: 0;
-  display: grid;
-  gap: 16px;
-  padding: 24px;
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
-  border-radius: calc(var(--radius) + 6px);
-  background:
-    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 36%),
-    linear-gradient(135deg, color-mix(in srgb, var(--bg-card) 92%, var(--accent) 8%), color-mix(in srgb, var(--bg-secondary) 88%, transparent));
-  box-shadow: var(--shadow), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent) inset;
-  overflow: hidden;
-}
-.db-bio-coherence-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.db-bio-coherence-eyebrow {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.db-bio-coherence-status {
-  padding: 3px 8px;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--accent) 14%, var(--bg-card));
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 700;
-}
-.db-bio-coherence-body {
-  display: grid;
-  grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
-  gap: 24px;
-  align-items: center;
-}
-.db-bio-coherence-score {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 140px;
-  height: 140px;
-}
-.db-bio-coherence-ring {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle, var(--biology-coherence-center-bg, var(--bg-card)) 56%, transparent 58%),
-    conic-gradient(
-      var(--accent) calc(var(--bc-score) * 1%),
-      color-mix(in srgb, var(--accent) 20%, var(--border)) 0
-    );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 25%, var(--border));
-}
-.db-bio-coherence-excellent .db-bio-coherence-ring,
-.db-bio-coherence-good .db-bio-coherence-ring {
-  background:
-    radial-gradient(circle, var(--biology-coherence-center-bg, var(--bg-card)) 56%, transparent 58%),
-    conic-gradient(
-      var(--green, #22c55e) calc(var(--bc-score) * 1%),
-      color-mix(in srgb, var(--green, #22c55e) 20%, var(--border)) 0
-    );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green, #22c55e) 25%, var(--border));
-}
-.db-bio-coherence-strained .db-bio-coherence-ring {
-  background:
-    radial-gradient(circle, var(--biology-coherence-center-bg, var(--bg-card)) 56%, transparent 58%),
-    conic-gradient(
-      var(--yellow, #f59e0b) calc(var(--bc-score) * 1%),
-      color-mix(in srgb, var(--yellow, #f59e0b) 20%, var(--border)) 0
-    );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--yellow, #f59e0b) 25%, var(--border));
-}
-.db-bio-coherence-poor .db-bio-coherence-ring,
-.db-bio-coherence-concerning .db-bio-coherence-ring,
-.db-bio-coherence-severe .db-bio-coherence-ring {
-  background:
-    radial-gradient(circle, var(--biology-coherence-center-bg, var(--bg-card)) 56%, transparent 58%),
-    conic-gradient(
-      var(--red, #ef4444) calc(var(--bc-score) * 1%),
-      color-mix(in srgb, var(--red, #ef4444) 20%, var(--border)) 0
-    );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red, #ef4444) 25%, var(--border));
-}
-.db-bio-coherence-excellent .db-bio-coherence-status,
-.db-bio-coherence-good .db-bio-coherence-status { background: color-mix(in srgb, var(--green, #22c55e) 16%, var(--bg-card)); color: var(--green, #22c55e); }
-.db-bio-coherence-strained .db-bio-coherence-status { background: color-mix(in srgb, var(--yellow, #f59e0b) 16%, var(--bg-card)); color: var(--yellow, #f59e0b); }
-.db-bio-coherence-poor .db-bio-coherence-status,
-.db-bio-coherence-concerning .db-bio-coherence-status,
-.db-bio-coherence-severe .db-bio-coherence-status { background: color-mix(in srgb, var(--red, #ef4444) 16%, var(--bg-card)); color: var(--red, #ef4444); }
-.db-bio-coherence-number {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  text-align: center;
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-}
-.db-bio-coherence-number strong {
-  font-size: 38px;
-  line-height: 0.9;
-  color: var(--text-primary);
-  letter-spacing: -0.04em;
-}
-.db-bio-coherence-number span {
-  font-size: 12px;
-}
-.db-bio-coherence-summary h3 {
-  margin: 0 0 6px;
-  font-family: var(--font-display);
-  font-size: 22px;
-  line-height: 1.1;
-  color: var(--text-primary);
-}
-.db-bio-coherence-summary p {
-  margin: 0 0 10px;
-  color: var(--text-secondary);
-  font-size: 14px;
-  line-height: 1.5;
-}
-.db-bio-coherence-summary p:last-child { margin-bottom: 0; }
-.db-bio-coherence-insight {
-  padding-left: 10px;
-  border-left: 2px solid color-mix(in srgb, var(--accent) 60%, var(--border));
-  color: var(--text-primary) !important;
-  font-size: 13px !important;
-}
-.db-bio-coherence-domains {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 10px;
-}
-.bc-micro-domain {
-  display: grid;
-  gap: 5px;
-  padding: 8px;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--bg-card) 70%, transparent);
-  transition: background 0.12s;
-}
-.bc-micro-domain[data-biology-score-action="jump-to-domain"] {
-  cursor: pointer;
-}
-.bc-micro-domain-no-jump {
-  opacity: 0.6;
-  cursor: default;
-}
-.bc-micro-domain[data-biology-score-action="jump-to-domain"]:hover,
-.bc-micro-domain[data-biology-score-action="jump-to-domain"]:focus-visible {
-  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
-  outline: none;
-}
-.bc-micro-domain-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-secondary);
-  font-size: 11px;
-}
-.bc-micro-domain-bar {
-  height: 4px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--accent) 12%, var(--border));
-  overflow: hidden;
-}
-.bc-micro-domain-fill {
-  height: 100%;
-  border-radius: 2px;
-}
-.bc-micro-domain-fill-good { background: var(--green, #22c55e); }
-.bc-micro-domain-fill-fair { background: var(--yellow, #f59e0b); }
-.bc-micro-domain-fill-poor { background: var(--red, #ef4444); }
-.bc-micro-domain-score {
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 700;
-}
-@media (max-width: 720px) {
-  .db-bio-coherence-hero {
-    gap: 12px;
-    padding: 18px;
-  }
-  .db-bio-coherence-body {
-    grid-template-columns: minmax(0, 96px) minmax(0, 1fr);
-    gap: 14px;
-    align-items: center;
-  }
-  .db-bio-coherence-score { width: 96px; height: 96px; }
-  .db-bio-coherence-number strong { font-size: 30px; }
-  .dashboard-widget .db-bio-coherence-summary h3,
-  .dashboard-widget .db-bio-coherence-summary > p:not(.db-bio-coherence-insight) {
-    display: none;
-  }
-  .db-bio-coherence-summary p { font-size: 13px; }
-  .db-bio-coherence-domains {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-  .db-bio-coherence-domains::before {
-    content: 'Baseline domains';
-    grid-column: 1 / -1;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-  }
-}
 
 .biology-scores-hero {
   display: flex;
@@ -733,105 +518,6 @@ button.biology-score-token:focus-visible {
   display: grid;
   gap: 16px;
 }
-.biology-coherence-hero {
-  position: relative;
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-  margin: 0 0 18px;
-  padding: 22px;
-  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
-  border-radius: calc(var(--radius) + 4px);
-  background:
-    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
-    linear-gradient(135deg, color-mix(in srgb, var(--bg-card) 94%, var(--accent) 6%), color-mix(in srgb, var(--bg-secondary) 86%, transparent));
-  box-shadow: var(--shadow), 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent) inset;
-  overflow: hidden;
-}
-.biology-coherence-hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(120deg, transparent 0 55%, color-mix(in srgb, var(--accent) 9%, transparent) 76%, transparent 100%);
-}
-.biology-coherence-domains { position: relative; z-index: 1; }
-.biology-coherence-domain-row {
-  min-width: 0;
-  border-left: 2px solid color-mix(in srgb, var(--accent) 42%, var(--border));
-  background: color-mix(in srgb, var(--bg-card) 54%, transparent);
-}
-.biology-coherence-domains {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 8px;
-}
-.biology-coherence-domain-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 7px 9px;
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-.biology-coherence-domain-excellent,
-.biology-coherence-domain-good {
-  border-left-color: color-mix(in srgb, var(--green, #22c55e) 58%, var(--border));
-}
-.biology-coherence-domain-strained {
-  border-left-color: color-mix(in srgb, var(--yellow, #f59e0b) 62%, var(--border));
-}
-.biology-coherence-domain-poor,
-.biology-coherence-domain-concerning,
-.biology-coherence-domain-severe {
-  border-left-color: color-mix(in srgb, var(--red, #ef4444) 58%, var(--border));
-}
-.biology-coherence-domain-row[data-biology-score-action="jump-to-domain"] {
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
-}
-.biology-coherence-domain-no-jump {
-  opacity: 0.6;
-  cursor: default;
-}
-.biology-coherence-domain-row[data-biology-score-action="jump-to-domain"]:hover,
-.biology-coherence-domain-row[data-biology-score-action="jump-to-domain"]:focus-visible {
-  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
-  border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
-  color: var(--text-primary);
-  outline: none;
-}
-.biology-coherence-domain-row > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.biology-coherence-domain-row strong {
-  color: var(--text-primary);
-  font-weight: 800;
-}
-@media (max-width: 720px) {
-  .biology-coherence-hero { grid-template-columns: 1fr; gap: 14px; padding: 18px; }
-  .biology-coherence-domains {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-  .biology-coherence-domains::before {
-    content: 'Baseline domains';
-    grid-column: 1 / -1;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-  }
-  .biology-coherence-domain-row { padding: 7px 8px; }
-}
 .biology-score-research-note {
   min-width: 0;
   display: grid;
@@ -975,9 +661,8 @@ button.biology-score-token:focus-visible {
 /* Biology Scores: quiet overview, all detail available on demand. */
 .biology-score-summary { display: flex; align-items: center; gap: 20px; padding: 20px; cursor: pointer; list-style: none; }
 .biology-score-summary::-webkit-details-marker { display: none; }
-.biology-coherence-breakdown summary, .biology-context-review-details > summary { cursor: pointer; font-weight: 500; font-size: 14px; padding: 8px 0; }
+.biology-context-review-details > summary { cursor: pointer; font-weight: 500; font-size: 14px; padding: 8px 0; }
 .biology-score-flags { font-size: 13px; line-height: 1.6; }
-.biology-coherence-breakdown { grid-column: 1 / -1; }
 .biology-score-context-fields { display: grid; gap: 10px; margin: 16px 0; font-size: 14px; }
 .biology-score-context-fields label { display: flex; align-items: center; gap: 10px; }
 .biology-score-lens-row { grid-column: 1 / -1; min-width: 0; }
@@ -989,42 +674,19 @@ button.biology-score-token:focus-visible {
 .biology-scores-page { max-width: 1400px; margin-inline: auto; container: biology-page / inline-size; }
 .biology-scores-page .lens-page-widgets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .biology-score-lens-row { grid-column: auto; }
-.biology-coherence-visual { display: grid; grid-template-columns: minmax(280px, .9fr) minmax(0, 1.5fr); gap: 20px 36px; padding: 26px; margin: 20px 0; }
-.biology-coherence-overview { display: flex; gap: 24px; align-items: center; }
-.biology-coherence-overview h2 { font-size: 23px; margin: 0 0 10px; color: var(--text-primary); }
-.biology-coherence-overview p { font-size: 14px; margin: 0 0 8px; color: var(--text-secondary); }
-.biology-coherence-overview small { font-size: 12px; color: var(--text-secondary); }
-.biology-coherence-visual > .biology-coherence-domains { grid-column: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; margin: 0; }
-.biology-coherence-visual .biology-coherence-domain-row { display: grid; grid-template-columns: 1fr 32px; gap: 5px 8px; min-width: 0; padding: 5px 0; background: none; border: 0; text-align: left; color: var(--text-secondary); cursor: pointer; font: inherit; font-size: 12px; }
-.biology-coherence-visual .biology-coherence-domain-row > strong { grid-column: 2; grid-row: 1 / 3; align-self: center; font-size: 16px; color: var(--text-primary); text-align: right; }
-.biology-domain-meter { height: 4px; border-radius: 4px; background: color-mix(in srgb, var(--text-muted) 18%, transparent); overflow: hidden; }
-.biology-domain-meter > span { display: block; height: 100%; background: var(--score-color, var(--accent)); border-radius: inherit; }
-.biology-coherence-visual .biology-coherence-breakdown { grid-column: 1 / -1; border-top: 1px solid var(--border); padding-top: 6px; }
 @media (max-width: 1200px) {
   .biology-scores-page .lens-page-widgets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .biology-coherence-visual { grid-template-columns: 1fr; }
 }
 @media (max-width: 650px) {
   .biology-scores-page .lens-page-widgets { grid-template-columns: minmax(0, 1fr); }
-  .biology-coherence-visual { padding: 18px; }
-  .biology-coherence-overview { gap: 16px; }
-  .biology-coherence-overview h2 { font-size: 20px; }
 }
 
-/* Biology reading panels share the marker table's type, surfaces and spacing. */
-.biology-coherence-visual .biology-coherence-domain-row > strong { color: var(--score-color, var(--text-primary)); }
-.biology-coherence-domain-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+/* Shared Biology page grids, counters and panel offsets. */
 .biology-scores-page .lens-page-widgets { container-type: inline-size; }
 .biology-score-lens-row { --biology-panel-offset: 0px; }
 .biology-score-lens-row:nth-child(3n + 2) { --biology-panel-offset: calc((100cqw + 16px) / -3); }
 .biology-score-lens-row:nth-child(3n) { --biology-panel-offset: calc((100cqw + 16px) / -3 * 2); }
 .biology-section-count { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; padding: 2px 6px; border-radius: 6px; background: var(--bg-secondary); border: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); font-weight: 500; }
-.biology-reading-panel { border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); }
-.biology-reading-panel > summary { padding: 16px; color: var(--text-primary); font-size: 15px; font-weight: 600; }
-.biology-reading-panel[open] > summary { border-bottom: 1px solid var(--border); }
-.biology-reading-body { padding: 20px; color: var(--text-secondary); font-size: 14px; line-height: 1.65; }
-.biology-reading-body > p { max-width: 80ch; margin: 0 0 16px; overflow-wrap: anywhere; }
-.biology-reading-source { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13px; }
 .biology-planning-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 20px 0; align-items: stretch; }
 @media (max-width: 1200px) {
   .biology-score-lens-row:nth-child(n) { --biology-panel-offset: 0px; }
@@ -1035,25 +697,6 @@ button.biology-score-token:focus-visible {
 }
 @media (max-width: 650px) {
   .biology-score-lens-row:nth-child(n) { --biology-panel-offset: 0px; }
-  .biology-reading-body { padding: 16px; }
-}
-
-/* Remaining native AI disclosure and coherence layout ownership. */
-.biology-coherence-visual .biology-coherence-overview { grid-column: 1; grid-row: 1; }
-.biology-coherence-visual .biology-coherence-ai { grid-column: 1; grid-row: 2; }
-.biology-coherence-visual > .biology-coherence-domains { grid-column: 2; grid-row: 1 / 3; }
-@media (max-width: 1200px) {
-  .biology-coherence-visual .biology-coherence-overview, .biology-coherence-visual .biology-coherence-ai, .biology-coherence-visual > .biology-coherence-domains { grid-column: 1; grid-row: auto; }
-}
-
-/* Rows follow their longest insight; the full explanation stays separate. */
-.biology-coherence-interpretation { grid-column: 1 / -1; border-top: 1px solid var(--border); padding-top: 6px; }
-.biology-coherence-interpretation > summary { cursor: pointer; font-size: 14px; font-weight: 500; padding: 8px 0; }
-.biology-coherence-ai { align-self: start; }
-
-/* Keep Biology controls easy to tap, including when there is no AI summary. */
-@media (pointer: coarse) {
-  .biology-coherence-visual .biology-coherence-domain-row { min-height: 44px; }
 }
 
 /* Keep scored panels distinct from optional depth and inputs still to resolve. */
@@ -1062,46 +705,10 @@ button.biology-score-token:focus-visible {
 .biology-score-group > summary { cursor: pointer; padding: 14px 0; }
 .biology-score-group > p { margin: 8px 0 16px; font-size: 13px; line-height: 1.6; color: var(--text-secondary); max-width: 85ch; }
 .biology-score-unavailable-group { border-top: 1px solid var(--border); }
-.biology-coherence-visual .biology-coherence-domain-row > .biology-domain-label { white-space: normal; overflow: visible; }
-
-.biology-membership-count { margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--text-secondary); white-space: nowrap; }
-
-/* Coherence membership is distinct from the marker's range-fit color. */
-.biology-membership-badge { font-size: 11px; line-height: 1.5; color: var(--text-secondary); }
-.biology-membership-badge[data-overview-membership=included] { color: var(--accent); }
-.biology-membership-badge[data-overview-membership=excluded] { padding: 2px 6px; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-secondary); }
-.biology-overview-membership { grid-column: 1 / -1; }
-.biology-membership-list { display: grid; gap: 0; }
-.biology-membership-list > button { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 0; border: 0; border-bottom: 1px solid var(--border); background: none; color: var(--text-primary); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
-.biology-membership-list small { display: block; margin-top: 3px; font-size: 11px; color: var(--text-secondary); }
-.biology-membership-list > button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.biology-membership-list .biology-membership-badge { text-align: right; flex-shrink: 0; }
-/* Coherence reuses the existing dashboard sub-score theme and typography. */
-.dashboard-widget .db-bio-coherence-hero { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; gap: 12px; }
-.db-hero-biology-score .db-hero-bio-num small { display: block; margin-top: 5px; font: 12px var(--font-mono); color: var(--text-secondary); letter-spacing: 0; }
-@media (max-width: 600px) {
-  .biology-membership-list > button { align-items: flex-start; gap: 8px; }
-  .biology-membership-list .biology-membership-badge { flex-shrink: 1; max-width: 45%; }
-}
-
-.db-bio-coherence-hero .db-bio-coherence-domains { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-.db-bio-coherence-hero .bc-micro-domain-label { white-space: normal; overflow: visible; }
-@media (max-width: 1000px) { .db-bio-coherence-hero .db-bio-coherence-domains { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 600px) {
-  .db-bio-coherence-hero .db-bio-coherence-domains { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-/* Biology panel interpretation: preserve a visible zero and readable mobile tables. */
-
-/* Expansion and AI refresh are sibling controls, never nested buttons. */
 
 /* Chat can narrow a desktop page without changing the viewport breakpoint. */
 @container biology-page (max-width: 900px) {
   .biology-scores-page .lens-page-widgets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .biology-coherence-visual { grid-template-columns: minmax(0, 1fr); }
-  .biology-coherence-visual .biology-coherence-overview,
-  .biology-coherence-visual .biology-coherence-ai,
-  .biology-coherence-visual > .biology-coherence-domains { grid-column: 1; grid-row: auto; }
   .biology-score-lens-row:nth-child(n) { --biology-panel-offset: 0px; }
   .biology-score-lens-row:nth-child(2n) { --biology-panel-offset: calc((100cqw + 16px) / -2); }
 }
@@ -1109,6 +716,4 @@ button.biology-score-token:focus-visible {
   .biology-scores-page .lens-page-widgets,
   .biology-planning-grid { grid-template-columns: minmax(0, 1fr); }
   .biology-score-lens-row:nth-child(n) { --biology-panel-offset: 0px; }
-  .biology-coherence-overview { gap: 16px; }
-  .biology-coherence-overview h2 { font-size: 20px; }
 }

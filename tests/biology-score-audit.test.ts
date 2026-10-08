@@ -1,3 +1,4 @@
+import {JSDOM} from 'jsdom';
 
 import type {BiologyOverview,BiologyInterpretedDomain} from '../types/biology-scores.js';
 interface FixtureMarker {values:number[];name?:string|undefined;[key:string]:unknown}
@@ -232,7 +233,7 @@ it('overview hides unscored domains but retains zero and historical numeric resu
     expect(html).toContain('>0</');
     expect(html).not.toContain('class="biology-coherence-domain-unavailable"');
     const empty = (render as unknown as (ctx:object,compute:()=>Array<Omit<typeof overview,"score"|"rawScore">&{score:null;rawScore:null}>)=>string)({}, () => [{ ...overview, available: [], score: null, rawScore: null }]);
-    expect(empty).not.toMatch(/class="(?:biology-coherence-domain-row|bc-micro-domain)"/);
+    expect(new JSDOM(empty).window.document.querySelectorAll('.biology-coherence-domain-row,.bc-micro-domain')).toHaveLength(0);
     const historical = (render as unknown as (ctx:object,compute:()=>Array<Omit<typeof overview,"score"|"historicalSnapshot">&{score:null;historicalSnapshot:Omit<typeof overview,"score"|"rawScore"|"recencyStatus">&{score:null;rawScore:number;recencyStatus:string}}>)=>string)({}, () => [{ ...overview, score: null, historicalSnapshot: { ...overview, score: null, rawScore: 0, recencyStatus: 'stale' } }]);
     expect(historical).toContain('>0</');
   }

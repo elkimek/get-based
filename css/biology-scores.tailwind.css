@@ -1,4 +1,4 @@
-/* Biology Scores lab planning and reading priorities; no reset. */
+/* Biology Scores component-owned utilities; no reset. */
 @import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
 @import "tailwindcss/utilities.css" prefix(gb) source(none);
 @import "./ui-tokens.tailwind.css";
@@ -46,3 +46,19 @@
 @source "../js/components/BiologyScoreMetric.svelte";
 @source "../js/components/BiologyScoreDetail.svelte";
 @source "../js/components/BiologyCardPresentation.svelte";
+
+/* Coherence overview, contributors and dashboard domain presentation. */
+@custom-variant biology-overview (&:is([data-biology-overview-view], [data-biology-overview-view] *));
+@custom-variant overview-wide (@media (max-width: 1200px));
+@custom-variant overview-medium (@media (max-width: 1000px));
+@custom-variant overview-small (@media (max-width: 720px));
+@custom-variant overview-phone (@media (max-width: 650px));
+@custom-variant overview-narrow (@media (max-width: 600px));
+@custom-variant overview-container (@container biology-page (max-width: 900px));
+@custom-variant overview-container-phone (@container biology-page (max-width: 650px));
+@source "../js/biology-overview-classes.ts";
+@source "../js/components/BiologyContributors.svelte";
+@source "../js/components/BiologyCoherenceOverview.svelte";
+@source "../js/components/BiologyDashboardScore.svelte";
+@source "../js/components/BiologyDashboardCoherence.svelte";
+@source "../js/components/BiologyOverviewPresentation.svelte";

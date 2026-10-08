@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1369 |
-| Internal import edges | 4670 |
+| Modules | 1376 |
+| Internal import edges | 4690 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -263,12 +263,14 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>biology</code> family — 34 modules</summary>
+<details><summary><code>biology</code> family — 36 modules</summary>
 
 - [`js/biology-ai-classes.ts`](js/biology-ai-classes.ts) → no in-scope imports
 - [`js/biology-ai-presentation.ts`](js/biology-ai-presentation.ts) → [`js/biology-score-engine.ts`](js/biology-score-engine.ts)
 - [`js/biology-card-classes.ts`](js/biology-card-classes.ts) → no in-scope imports
 - [`js/biology-card-presentation.ts`](js/biology-card-presentation.ts) → [`js/biology-ai-presentation.ts`](js/biology-ai-presentation.ts), [`js/biology-reading-presentation.ts`](js/biology-reading-presentation.ts), [`js/biology-score-engine.ts`](js/biology-score-engine.ts)
+- [`js/biology-overview-classes.ts`](js/biology-overview-classes.ts) → no in-scope imports
+- [`js/biology-overview-presentation.ts`](js/biology-overview-presentation.ts) → [`js/biology-ai-presentation.ts`](js/biology-ai-presentation.ts), [`js/biology-card-presentation.ts`](js/biology-card-presentation.ts), [`js/biology-reading-presentation.ts`](js/biology-reading-presentation.ts), [`js/biology-score-engine.ts`](js/biology-score-engine.ts)
 - [`js/biology-planning-classes.ts`](js/biology-planning-classes.ts) → no in-scope imports
 - [`js/biology-planning-presentation.ts`](js/biology-planning-presentation.ts) → [`js/biology-score-coverage-planner.ts`](js/biology-score-coverage-planner.ts)
 - [`js/biology-reading-classes.ts`](js/biology-reading-classes.ts) → no in-scope imports
@@ -291,7 +293,7 @@ Native browser modules shipped with the static application.
 - [`js/biology-score-panel-policy.ts`](js/biology-score-panel-policy.ts) → [`js/biology-score-contract.ts`](js/biology-score-contract.ts), [`js/biology-score-dates.ts`](js/biology-score-dates.ts), [`js/biology-score-inputs.ts`](js/biology-score-inputs.ts)
 - [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts) → no in-scope imports
 - [`js/biology-score-profile-modifiers.ts`](js/biology-score-profile-modifiers.ts) → [`js/marker-context-ranges.ts`](js/marker-context-ranges.ts)
-- [`js/biology-score-render.ts`](js/biology-score-render.ts) → [`js/biology-card-presentation.ts`](js/biology-card-presentation.ts), [`js/biology-planning-presentation.ts`](js/biology-planning-presentation.ts), [`js/biology-reading-presentation.ts`](js/biology-reading-presentation.ts), [`js/biology-score-coverage-planner.ts`](js/biology-score-coverage-planner.ts), [`js/biology-score-engine.ts`](js/biology-score-engine.ts), [`js/biology-score-sections.ts`](js/biology-score-sections.ts), [`js/components/BiologyCardPresentation.svelte`](js/components/BiologyCardPresentation.svelte), [`js/components/BiologyPlanningPresentation.svelte`](js/components/BiologyPlanningPresentation.svelte), [`js/components/BiologyReadingPresentation.svelte`](js/components/BiologyReadingPresentation.svelte), [`js/lens-page-shell.ts`](js/lens-page-shell.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/biology-score-render.ts`](js/biology-score-render.ts) → [`js/biology-card-presentation.ts`](js/biology-card-presentation.ts), [`js/biology-overview-presentation.ts`](js/biology-overview-presentation.ts), [`js/biology-planning-presentation.ts`](js/biology-planning-presentation.ts), [`js/biology-reading-presentation.ts`](js/biology-reading-presentation.ts), [`js/biology-score-coverage-planner.ts`](js/biology-score-coverage-planner.ts), [`js/biology-score-engine.ts`](js/biology-score-engine.ts), [`js/biology-score-sections.ts`](js/biology-score-sections.ts), [`js/components/BiologyCardPresentation.svelte`](js/components/BiologyCardPresentation.svelte), [`js/components/BiologyOverviewPresentation.svelte`](js/components/BiologyOverviewPresentation.svelte), [`js/components/BiologyPlanningPresentation.svelte`](js/components/BiologyPlanningPresentation.svelte), [`js/lens-page-shell.ts`](js/lens-page-shell.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/biology-score-sections.ts`](js/biology-score-sections.ts) → [`js/biology-ai-presentation.ts`](js/biology-ai-presentation.ts), [`js/biology-score-contract.ts`](js/biology-score-contract.ts), [`js/biology-score-inputs.ts`](js/biology-score-inputs.ts), [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts), [`js/components/BiologyAIPresentation.svelte`](js/components/BiologyAIPresentation.svelte), [`js/crypto.ts`](js/crypto.ts), [`js/data.ts`](js/data.ts), [`js/demo-biology-insights.ts`](js/demo-biology-insights.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts)
 - [`js/biology-score-thyroid.ts`](js/biology-score-thyroid.ts) → [`js/biology-score-engine.ts`](js/biology-score-engine.ts)
 - [`js/biology-score-tier1-definitions.ts`](js/biology-score-tier1-definitions.ts) → no in-scope imports
@@ -344,6 +346,18 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>BiologyCoherenceOverview.svelte</code> family — 1 module</summary>
+
+- [`js/components/BiologyCoherenceOverview.svelte`](js/components/BiologyCoherenceOverview.svelte) → [`js/biology-overview-classes.ts`](js/biology-overview-classes.ts), [`js/components/BiologyAIAnswer.svelte`](js/components/BiologyAIAnswer.svelte), [`js/components/BiologyAISummary.svelte`](js/components/BiologyAISummary.svelte), [`js/components/BiologyContributors.svelte`](js/components/BiologyContributors.svelte), [`js/components/BiologyInterpretationNotes.svelte`](js/components/BiologyInterpretationNotes.svelte), [`js/components/BiologyReadingFacts.svelte`](js/components/BiologyReadingFacts.svelte), [`js/components/BiologyScoreMetric.svelte`](js/components/BiologyScoreMetric.svelte), [`js/components/LensDashboardToggle.svelte`](js/components/LensDashboardToggle.svelte)
+
+</details>
+
+<details><summary><code>BiologyContributors.svelte</code> family — 1 module</summary>
+
+- [`js/components/BiologyContributors.svelte`](js/components/BiologyContributors.svelte) → [`js/biology-overview-classes.ts`](js/biology-overview-classes.ts)
+
+</details>
+
 <details><summary><code>BiologyCoverageBundle.svelte</code> family — 1 module</summary>
 
 - [`js/components/BiologyCoverageBundle.svelte`](js/components/BiologyCoverageBundle.svelte) → [`js/biology-planning-classes.ts`](js/biology-planning-classes.ts)
@@ -353,6 +367,18 @@ Native browser modules shipped with the static application.
 <details><summary><code>BiologyCoveragePlanner.svelte</code> family — 1 module</summary>
 
 - [`js/components/BiologyCoveragePlanner.svelte`](js/components/BiologyCoveragePlanner.svelte) → [`js/biology-planning-classes.ts`](js/biology-planning-classes.ts), [`js/components/BiologyCoverageBundle.svelte`](js/components/BiologyCoverageBundle.svelte), [`js/components/BiologyPlanningCard.svelte`](js/components/BiologyPlanningCard.svelte)
+
+</details>
+
+<details><summary><code>BiologyDashboardCoherence.svelte</code> family — 1 module</summary>
+
+- [`js/components/BiologyDashboardCoherence.svelte`](js/components/BiologyDashboardCoherence.svelte) → [`js/biology-overview-classes.ts`](js/biology-overview-classes.ts), [`js/components/BiologyDashboardScore.svelte`](js/components/BiologyDashboardScore.svelte)
+
+</details>
+
+<details><summary><code>BiologyDashboardScore.svelte</code> family — 1 module</summary>
+
+- [`js/components/BiologyDashboardScore.svelte`](js/components/BiologyDashboardScore.svelte) → [`js/biology-overview-classes.ts`](js/biology-overview-classes.ts)
 
 </details>
 
@@ -377,6 +403,12 @@ Native browser modules shipped with the static application.
 <details><summary><code>BiologyNextChecks.svelte</code> family — 1 module</summary>
 
 - [`js/components/BiologyNextChecks.svelte`](js/components/BiologyNextChecks.svelte) → [`js/biology-planning-classes.ts`](js/biology-planning-classes.ts), [`js/components/BiologyPlanningCard.svelte`](js/components/BiologyPlanningCard.svelte)
+
+</details>
+
+<details><summary><code>BiologyOverviewPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/BiologyOverviewPresentation.svelte`](js/components/BiologyOverviewPresentation.svelte) → [`js/components/BiologyCoherenceOverview.svelte`](js/components/BiologyCoherenceOverview.svelte), [`js/components/BiologyDashboardCoherence.svelte`](js/components/BiologyDashboardCoherence.svelte), [`js/components/BiologyDashboardScore.svelte`](js/components/BiologyDashboardScore.svelte)
 
 </details>
 

@@ -67,9 +67,11 @@ changing score calculation or collection policy. `BiologyReadingTable.svelte`
 owns the shared labeled, keyboard-scrollable table; `BiologyReadingFacts.svelte`
 shares fact layout across score and coherence panels. `biology-reading-classes.ts`
 adds scoped reading utilities through `css/biology-scores.tailwind.css`. The
-remaining native coherence composition and dashboard widgets retain their
+remaining native widget cards and shared lens composition retain their
 existing owners until migrated. Public renderer facades and marker delegates stay
 stable; no raw HTML slots are introduced in these authored reading components.
+The standalone reading HTML entry supports isolated native regression tests;
+production composes its children through the card and overview entries.
 
 Biology questions, AI card summaries and full answers are authored by
 `BiologyAIPresentation.svelte` and its typed question/summary/answer components.
@@ -97,6 +99,21 @@ introduced. `LensDashboardToggle.svelte` renders the shared typed dashboard
 action supplied by `getLensDashboardToggleView`; the shell still owns preference
 reads, page ordering and delegated writes. Grid offsets and the remaining shared
 dashboard controls keep their existing stylesheet owner.
+
+Biological Coherence, its contributors and dashboard score/domain presentations
+are authored by `BiologyOverviewPresentation.svelte` and four typed children.
+`biology-overview-presentation.ts` projects source membership and AI separately
+from historical display snapshots, preserving finite-domain filtering, sorting,
+raw lens values and clamped dashboard bars. `biology-overview-classes.ts` owns
+scoped overview layout through the existing Biology Tailwind entry. Dashboard
+number typography and theme rules remain shared with Bio Age in
+`css/dashboard-data.css`; the overview does not duplicate them. Linked dashboard
+domains are native keyboard buttons; domains without an individual score remain
+inert. Public HTML facades, score IDs and delegated actions stay stable. The
+composition directly reuses typed metric, AI, reading and dashboard-toggle
+components without presentation HTML slots. Native overview templates and their
+superseded styles are removed; generic widget cards and shared lens composition
+remain to migrate.
 
 Settings navigation/layout, Display, Privacy, Voice, Agent Access, imported records
 and AI usage use scoped Tailwind utilities
