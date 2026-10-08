@@ -7,6 +7,7 @@
   import History from './NutritionHistory.svelte';
   import Entry from './NutritionEntry.svelte';
   import Detail from './NutritionMealDetail.svelte';
+  import ComparisonResults from './NutritionComparisonResults.svelte';
   import Dashboard from './NutritionDashboard.svelte';
   let props: NutritionPresentationProps = $props();
 </script>
@@ -16,5 +17,6 @@
 {:else if props.kind === 'meal'}<Meal view={props.view}/>
 {:else if props.kind === 'history'}<History view={props.view}/>
 {:else if props.kind === 'entry'}<Entry view={props.view}/>
+{:else if props.kind === 'comparison-results'}<ComparisonResults view={props.view}/>
 {:else if props.kind === 'detail'}<Detail view={props.view}/>
 {:else}<Dashboard view={props.view}/>{/if}

@@ -295,5 +295,15 @@ preserving unrelated profile content. Headless native checks cover all six theme
 small and wide layouts, keyboard controls, accessibility, profile retirement and
 late stylesheet/encrypted-read handoffs. Check-ins retain their existing personal
 evidence and AI-summary exclusion contracts.
+Benchmark result cards and nutrient/difference tables share authored Svelte markup
+and a pure projection through the synchronous presentation entry. Scoring, costs,
+provider execution and encrypted device-local snapshots retain their domain and
+storage owners. [`sveltekit-nutrition-comparison.spec.ts`](../tests/pwa/sveltekit-nutrition-comparison.spec.ts)
+opens restored results through real Insight/History navigation on offline first
+use, verifies two cold launches, clears only local comparison metadata, and checks
+that the complete committed profile remains unchanged. Restored failures require
+a new photo to retry and remain explicit about unavailable request costs. Headless
+native checks cover keyboard tables, six themes, responsive result layouts and
+reduced motion alongside the existing retry/cancel/full-screen workflow.
 This is scoped editor acceptance; final whole-application migration acceptance
 remains required.

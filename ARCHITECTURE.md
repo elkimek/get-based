@@ -257,6 +257,15 @@ controls, failed profile reads and a meal changed since opening; accepted encryp
 and canonical writes finish on their captured profile. Failed writes retain choices.
 The existing detail renderer and save/clear exports delegate to these authored
 components and owner. Superseded native detail/check-in templates and CSS are removed.
+`NutritionComparisonResults.svelte` and `NutritionComparisonTable.svelte` own
+benchmark result cards and shared accessible nutrient/difference tables.
+`nutrition-comparison-results-model.ts` projects existing domain ranking, costs,
+zero/unknown values, baseline status and original action indices. The stable
+`nutrition-comparison-results.ts` adapter renders authored HTML through the shared
+presentation entry; execution, cancellation and encrypted local comparison
+persistence remain with `nutrition-comparison-ui.ts` and the store. Scoped Tailwind
+owns normal result styling; the benchmark shell owns full-screen workspace
+integration.
 `NutritionDashboard.svelte` owns the intake and fuel widgets on Dashboard and
 Body, including seven-day coverage, selected nutrient rows and the starter/empty
 states. `nutrition-dashboard-model.ts` projects canonical registry order and

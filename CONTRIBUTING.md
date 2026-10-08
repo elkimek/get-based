@@ -107,6 +107,14 @@ Nutrition dashboard projections and both authored widget branches are covered by
 and Body widgets, six themes, narrow containers, and first offline use through two
 cold launches without profile writes.
 
+Benchmark result cards and shared comparison tables are authored in
+`js/components/NutritionComparisonResults.svelte` and `NutritionComparisonTable.svelte`.
+The pure result projection is `js/nutrition-comparison-results-model.ts`; model
+execution and encrypted local persistence remain separate. Focused coverage lives
+in `tests/nutrition-comparison-results-model.test.ts`, the existing comparison and
+request-lifecycle suites, `tests/playwright/nutrition-comparison-owned.spec.ts` and
+`tests/pwa/sveltekit-nutrition-comparison.spec.ts`.
+
 Saved meal details and check-ins are authored in `js/components/NutritionMealDetail.svelte`
 and `NutritionMealResponse.svelte`, with pure projections and captured commits in
 `js/nutrition-meal-detail-model.ts` and `js/nutrition-meal-detail-session.ts`.

@@ -1976,3 +1976,6 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/nutrition-meal-detail-session.js
 /js/nutrition-meal-detail-view.js
 /tests/helpers/nutrition-meal-detail-fixture.js
+
+/js/nutrition-comparison-results-model.js
+/tests/helpers/nutrition-comparison-fixture.js
