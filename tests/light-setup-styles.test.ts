@@ -18,16 +18,29 @@ it('retains the lazy stylesheet URL, valid numeric state selectors and scoped ut
     // when the shared animation safety rule supplies an important duration.
     const important: postcss.Declaration[] = [];
     postcss.parse(source).walkDecls(declaration => { if (declaration.important) important.push(declaration); });
-    expect(important).toHaveLength(7);
+    const setupMotion = important.filter(declaration => declaration.parent?.toString().includes('gb\\:light-setup\\:'));
+    const onboardingMotion = important.filter(declaration => declaration.parent?.toString().includes('gb\\:onboarding-ai\\:'));
+    expect(setupMotion).toHaveLength(7); expect(onboardingMotion).toHaveLength(3);
+    expect(important).toHaveLength(setupMotion.length + onboardingMotion.length);
     for (const declaration of important) {
       expect(['transition', 'animation', 'transform']).toContain(declaration.prop);
       expect(declaration.value).toBe('none');
       expect(declaration.parent?.type).toBe('rule');
-      expect(declaration.parent?.toString()).toContain('gb\\:light-setup\\:');
+      expect(declaration.parent?.toString()).toMatch(/gb\\:(?:light-setup|onboarding-ai)\\:/);
       let ancestor: postcss.Node | undefined = declaration.parent;
       while (ancestor && ancestor.type !== 'atrule') ancestor = ancestor.parent;
       expect(ancestor?.toString()).toContain('prefers-reduced-motion:reduce');
     }
+    const onboarding = selectors.filter(selector => selector.includes('.gb\\:onboarding-ai\\:'));
+    expect(onboarding.length).toBeGreaterThan(40);
+    expect(onboarding.every(selector => selector.includes(':is([data-light-onboarding-ai],[data-light-onboarding-ai] *)'))).toBe(true);
+    expect(base).not.toContain('.light-setup-ai-');
+    const nativeAI: string[] = [];
+    postcss.parse(await fs.readFile('css/light-sun.base.css', 'utf8')).walkRules(rule => {
+      nativeAI.push(...rule.selectors.filter(selector => /\.sun-(?:session-ai|detail-ai)/.test(selector)));
+    });
+    expect(nativeAI.length).toBeGreaterThan(0);
+    expect(nativeAI.every(selector => selector.includes(':not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *))'))).toBe(true);
     expect(source).toContain('[data-tier="2"]'); expect(source).toContain('[data-idx="5"]');
     await buildLightSetupStyles({ outputPath, check: true }); await fs.writeFile(outputPath, source + '/* stale */');
     await expect(buildLightSetupStyles({ outputPath, check: true })).rejects.toThrow('Light setup CSS is stale');

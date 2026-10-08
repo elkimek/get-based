@@ -669,7 +669,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/sun-defaults-runtime.js',
   '/js/sun-defaults-setup-renderer.js', '/js/light-setup-presentation.js', '/js/light-setup-classes.js', '/js/components/LightSetupPresentation.svelte.html.js',
   '/js/sun-defaults-setup-ui.js',
-  '/js/sun-onboarding-ai.js',
+  '/js/sun-onboarding-ai.js', '/js/light-onboarding-ai-presentation.js', '/js/light-onboarding-ai-classes.js', '/js/components/LightOnboardingAI.svelte.html.js',
   '/js/sun-spectrum-actions.js',
   '/js/sun-spectrum-device.js',
   '/js/sun-spectrum.js',

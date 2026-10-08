@@ -410,7 +410,7 @@ const { state } = await import('../js/state.js');
     });
     const ok = mod.renderOnboardingAIBlock();
     assert('onboarding render shows actions[] list',
-      ok.includes('<ul class="light-setup-ai-actions">') && ok.includes('Walk outside'));
+      /<ul\b[^>]*class="[^"]*\blight-setup-ai-actions\b/.test(ok) && ok.includes('Walk outside'));
 
     // Skip rendering when setup not completed
     delete state.importedData.sunDefaults!.completedAt;

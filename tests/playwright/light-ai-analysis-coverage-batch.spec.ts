@@ -579,6 +579,7 @@ test('light environment AI analysis covers audit room screen and onboarding verd
       const cachedRoomHtml = roomAI.renderRoomAIBlock(bedroom);
       const cachedScreenHtml = screenAI.renderScreenAIBlock(phoneScreen);
       const cachedOnboardingHtml = onboarding.renderOnboardingAIBlock();
+      const cachedOnboardingDOM = new DOMParser().parseFromString(cachedOnboardingHtml, 'text/html');
       // `sun-session-ai-dot-*` is the shared verdict-dot class across Light/Sun AI surfaces.
       outcomes.cachedVerdictsRenderWhenProviderPaused = cachedAuditHtml.includes('sun-session-ai-dot-green')
         && cachedAuditHtml.includes('&lt;audit&gt;')
@@ -586,7 +587,8 @@ test('light environment AI analysis covers audit room screen and onboarding verd
         && cachedScreenHtml.includes('sun-session-ai-dot-red')
         && cachedScreenHtml.includes('&lt;screen detail&gt;')
         && cachedOnboardingHtml.includes('setup tip')
-        && cachedOnboardingHtml.includes('&lt;dim lamps&gt;');
+        && [...cachedOnboardingDOM.querySelectorAll('li')].some(item => item.textContent === '<dim lamps>')
+        && !cachedOnboardingDOM.querySelector('dim, script, img');
 
       setLiveProvider();
       delete (auditSnapshot as {aiAnalysis?: FixtureVerdictRead}).aiAnalysis;

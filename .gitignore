@@ -2093,3 +2093,12 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 
 /tests/sun-defaults-ownership.test.js
 /js/sun-defaults-session.js
+
+/js/light-onboarding-ai-presentation.js
+/js/light-onboarding-ai-classes.js
+/js/components/LightOnboardingAI.svelte.native.js
+/js/components/LightOnboardingAI.svelte.native.js.map
+/js/components/LightOnboardingAI.svelte.html.js
+/js/components/LightOnboardingAI.svelte.html.js.map
+/tests/light-onboarding-ai-presentation.test.js
+/tests/pwa/sveltekit-light-onboarding-ai.spec.js

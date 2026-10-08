@@ -4,3 +4,5 @@
 @import "./ui-tokens.tailwind.css";
 @source "../js/light-setup-classes.ts";
 @custom-variant light-setup (&:is([data-light-setup-presentation], [data-light-setup-presentation] *));
+@source "../js/light-onboarding-ai-classes.ts";
+@custom-variant onboarding-ai (&:is([data-light-onboarding-ai], [data-light-onboarding-ai] *));

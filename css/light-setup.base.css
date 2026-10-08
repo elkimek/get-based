@@ -1,4 +1,4 @@
-/* Owned host integration, tier animation and the separate onboarding AI surface. */
+/* Owned host integration and the shared setup tier animation. */
 
 .light-page .dashboard-widget[data-widget-id="light-setup"] .dashboard-widget-body {
   gap: 0;
@@ -18,39 +18,4 @@
   0%   { transform: scale(1); }
   50%  { transform: scale(1.12); box-shadow: 0 0 0 4px currentColor; }
   100% { transform: scale(1); }
-}
-
-.light-setup-ai-block {
-  margin-top: 14px;
-  padding: 0;
-  border-radius: 0;
-  background: transparent;
-  border: 0;
-}
-
-.light-setup-ai-block-green,
-.light-setup-ai-block-yellow,
-.light-setup-ai-block-red {
-  border-left: 0;
-}
-
-.light-setup-ai-head {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-}
-
-.light-setup-ai-head-label {
-  flex: 1;
-}
-
-.light-setup-ai-actions {
-  margin: 8px 0 0; padding-left: 18px;
-  font-size: 13px; line-height: 1.5;
-  color: var(--text-primary);
-}
-
-.light-setup-ai-actions li {
-  margin: 2px 0;
 }

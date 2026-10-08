@@ -17,12 +17,13 @@ export interface OnboardingDefaults extends SunSetupDefaults {
 
 import { state } from './state.js';
 import { latestVitaminDContext } from './lab-vitamin-d-context.js';
-import { escapeHTML } from './utils.js';
+import { projectOnboardingAI } from './light-onboarding-ai-presentation.js';
+import { renderHTML } from './components/LightOnboardingAI.svelte.html.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
+import { registerAIActionHandler } from './ai-action-delegates.js';
 import { getSunSetupCoords } from './sun-defaults-runtime.js';
 
 function _getDefaults() { return (state.importedData?.sunDefaults as OnboardingDefaults | null | undefined) || null; }
@@ -179,57 +180,8 @@ export function maybeAnalyzeOnboardingAfterSave() {
 // ─── Render ────────────────────────────────────────────────────────────
 
 export function renderOnboardingAIBlock() {
-  const d = _getDefaults();
-  if (!d || !d.completedAt) return '';
-  if (!hasAssistantFeatureProvider() && !(d.aiAnalysis?.status === 'ok' && d.aiAnalysis?.dot)) return '';
-  const status = engine.getStatus(SINGLETON_TARGET);
-  const a = d.aiAnalysis;
-  if (status === 'analyzing') {
-    return `<div class="light-setup-ai-block">
-      <div class="light-setup-ai-head">Your light context</div>
-      <div class="sun-detail-ai sun-detail-ai-loading">
-        <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
-        <span>Synthesizing your setup…</span>
-      </div>
-    </div>`;
-  }
-  if (status === 'ok') {
-    const dot = a!.dot;
-    const actionsHtml = Array.isArray(a!.actions) && a!.actions.length
-      ? `<ul class="light-setup-ai-actions">${a!.actions.map((s: unknown) => `<li>${escapeHTML(s)}</li>`).join('')}</ul>`
-      : '';
-    return `<div class="light-setup-ai-block light-setup-ai-block-${dot}">
-      <div class="light-setup-ai-head">
-        <span class="light-setup-ai-head-label">Your light context</span>
-        <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-onboarding')} title="Re-run analysis" aria-label="Re-run">↻</button>
-      </div>
-      <div class="sun-detail-ai sun-detail-ai-${dot}">
-        <div class="sun-detail-ai-head">
-          <span class="sun-session-ai-dot sun-session-ai-dot-${dot}" aria-hidden="true"></span>
-          <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a!.tip || '')}</span>
-        </div>
-        ${a!.detail ? `<div class="sun-detail-ai-body">${escapeHTML(a!.detail)}</div>` : ''}
-        ${actionsHtml}
-      </div>
-    </div>`;
-  }
-  if (status === 'error') {
-    const msg = a?.errorMessage ? `Analysis failed — ${a.errorMessage}` : 'Analysis failed.';
-    return `<div class="light-setup-ai-block">
-      <div class="light-setup-ai-head">Your light context</div>
-      <div class="sun-detail-ai sun-detail-ai-error">
-        <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-        <span>${escapeHTML(msg)}</span>
-        <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-onboarding')}>Try again</button>
-      </div>
-    </div>`;
-  }
-  return `<div class="light-setup-ai-block">
-    <div class="light-setup-ai-head">Your light context</div>
-    <div class="sun-detail-ai sun-detail-ai-idle">
-      <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-      <span>Get a contextual read on your skin type, lighting environment, and goals.</span>
-      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-onboarding')}>Generate context</button>
-    </div>
-  </div>`;
+  const defaults = _getDefaults();
+  const view = projectOnboardingAI({ completed: !!defaults?.completedAt, provider: hasAssistantFeatureProvider(),
+    status: engine.getStatus(SINGLETON_TARGET), analysis: defaults?.aiAnalysis, prefix: dotPrefix(defaults?.aiAnalysis?.dot) });
+  return view ? renderHTML({ view }) : '';
 }

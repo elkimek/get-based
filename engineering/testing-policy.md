@@ -75,7 +75,15 @@ error/draft retention, retry, rejected persistence callbacks, old prompt retirem
 and delayed save/location responses across reopened dialogs and profile changes.
 [`sveltekit-light-setup.spec.ts`](../tests/pwa/sveltekit-light-setup.spec.ts) verifies
 offline first use, actual canonical storage, cancellation and two cold launches
-against the assembled static artifact. These checks establish their named workflows;
+against the assembled static artifact.
+[`light-onboarding-ai-presentation.test.ts`](../tests/light-onboarding-ai-presentation.test.ts)
+checks providerless cached results, all verdict states and escaped literal values.
+[`light-onboarding-ai-owned.spec.ts`](../tests/playwright/light-onboarding-ai-owned.spec.ts)
+checks six-theme accessibility, narrow/wide layouts, keyboard/touch controls,
+reduced motion and actual delegated loading, failure, retry and persisted results.
+[`sveltekit-light-onboarding-ai.spec.ts`](../tests/pwa/sveltekit-light-onboarding-ai.spec.ts)
+checks offline first use of cached results, setup-save preservation and two cold
+launches with full stored-profile equality. These checks establish their named workflows;
 they do not substitute for whole-application release acceptance.
 [`sveltekit-context-forms.spec.ts`](../tests/pwa/sveltekit-context-forms.spec.ts)
 checks the editors through real catalog actions with the assembled static PWA,

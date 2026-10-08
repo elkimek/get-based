@@ -1126,7 +1126,11 @@ markup and explicit control semantics. `light-setup-presentation.ts` projects
 stored defaults, legacy skin fallback, option summaries and temporary-location
 copy without changing the domain catalogs or calculations. The stable
 `sun-defaults-setup-renderer.ts` facade retains synchronous HTML imports; only
-the separate onboarding AI owner supplies a trusted HTML slot.
+`LightOnboardingAI.svelte` supplies the named onboarding AI slot through its
+compiled HTML entry. `light-onboarding-ai-presentation.ts` projects loading,
+error, idle and saved-result states; the established `sun-onboarding-ai.ts`
+facade retains provider, prompt, engine and refresh ownership. Literal analysis
+text and action lists are escaped by Svelte, including cached providerless results.
 `sun-defaults-setup-ui.ts` owns delegated input, draft collection and modal/location
 lifecycle. `sun-defaults-session.ts` captures the initiating profile and data root,
 stages setup defaults and mirrored skin together, and commits them through the
@@ -1142,8 +1146,11 @@ utility classes on the existing badge rather than replacing its class list.
 `light-setup-classes.ts` owns source-scanned, scoped Tailwind classes, including
 responsive, selected and theme states. `css/light-setup.css` is generated at its
 unchanged lazy URL from `light-setup.base.css` and `light-setup.tailwind.css`.
-The small base retains host integration, the tier animation and separately owned
-AI styles. Setup-specific overrides have moved out of the global theme sheets.
+The small base retains host integration and the tier animation.
+`light-onboarding-ai-classes.ts` owns the onboarding AI utilities under a separate
+marker, including reduced motion, touch targets and theme contrast corrections.
+Shared native AI selectors explicitly exclude that marker until their remaining
+owners migrate. Setup-specific overrides have moved out of the global theme sheets.
 
 `LightSessionPresentation.svelte` composes the past-Sun and device log forms,
 completed Sun/device rows and shared inline/full history. Its pure

@@ -147,9 +147,8 @@
 @media (prefers-reduced-motion: reduce) {
   .light-today-cta,
   .sun-silhouette-region,
-  /* AI verdict shimmer dot — explicit suppression for vestibular
-     sensitivity. Static gray dot reads as "loading" without animation. */
-  .sun-session-ai-dot-shimmer {
+  /* Shared verdict shimmer; the authored onboarding owner supplies its own reduced-motion rules. */
+  .sun-session-ai-dot-shimmer:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
     transition: none !important;
     animation: none !important;
     transform: none !important;
@@ -284,8 +283,8 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 @media (pointer: coarse) {
   /* AI verdict refresh + CTA buttons — meet 44×44 minimum
      hit target on touch devices. */
-  .sun-session-ai-refresh,
-  .sun-session-ai-cta {
+  .sun-session-ai-refresh:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)),
+  .sun-session-ai-cta:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
     min-width: 44px;
     min-height: 44px;
     padding: 8px 12px;
@@ -324,34 +323,34 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 .touch-tooltip-show { opacity: 1; transform: translateY(0); }
 
 /* Per-session AI verdict (inline in row + richer block in detail modal). */
-.sun-session-ai {
+.sun-session-ai:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
   display: flex; align-items: center; gap: 8px;
   margin-top: 8px; padding-top: 8px;
   border-top: 1px solid var(--border);
   font-size: 12px;
 }
-.sun-session-ai-dot {
+.sun-session-ai-dot:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
   width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
   display: inline-block; transition: background 0.3s, box-shadow 0.3s;
 }
-.sun-session-ai-dot-gray { background: var(--text-muted); opacity: 0.45; }
-.sun-session-ai-dot-green { background: var(--green); box-shadow: 0 0 6px rgba(52, 211, 153, 0.5); }
-.sun-session-ai-dot-yellow { background: var(--yellow); box-shadow: 0 0 6px rgba(251, 191, 36, 0.5); }
-.sun-session-ai-dot-red { background: var(--red); box-shadow: 0 0 6px rgba(248, 113, 113, 0.5); }
-.sun-session-ai-dot-shimmer {
+.sun-session-ai-dot-gray:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) { background: var(--text-muted); opacity: 0.45; }
+.sun-session-ai-dot-green:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) { background: var(--green); box-shadow: 0 0 6px rgba(52, 211, 153, 0.5); }
+.sun-session-ai-dot-yellow:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) { background: var(--yellow); box-shadow: 0 0 6px rgba(251, 191, 36, 0.5); }
+.sun-session-ai-dot-red:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) { background: var(--red); box-shadow: 0 0 6px rgba(248, 113, 113, 0.5); }
+.sun-session-ai-dot-shimmer:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
   background: linear-gradient(90deg, var(--text-muted) 25%, var(--border) 50%, var(--text-muted) 75%);
   background-size: 200% 100%; animation: shimmer 1.5s infinite;
 }
-.sun-session-ai-tip {
+.sun-session-ai-tip:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
   flex: 1; min-width: 0;
   color: var(--text-muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.sun-session-ai-tip-green { color: var(--green); }
-.sun-session-ai-tip-yellow { color: var(--yellow); }
-.sun-session-ai-tip-red { color: var(--red); }
-.sun-session-ai-prefix { margin-right: 2px; opacity: 0.85; }
-.sun-session-ai-refresh {
+.sun-session-ai-tip-green:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) { color: var(--green); }
+.sun-session-ai-tip-yellow:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) { color: var(--yellow); }
+.sun-session-ai-tip-red:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) { color: var(--red); }
+.sun-session-ai-prefix:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) { margin-right: 2px; opacity: 0.85; }
+.sun-session-ai-refresh:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
   background: transparent;
   /* Subtle border anchors the icon as a button — earlier the all-
      transparent treatment + grayscale color made the affordance
@@ -365,25 +364,25 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   background: var(--bg-elev-1, rgba(255,255,255,0.03));
   transition: color 0.15s, background 0.15s, border-color 0.15s;
 }
-.sun-session-ai-refresh:hover { color: var(--text-primary); background: var(--bg-elev-2, rgba(255,255,255,0.06)); border-color: var(--accent); }
-.sun-session-ai-refresh:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sun-session-ai-refresh:hover:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) { color: var(--text-primary); background: var(--bg-elev-2, rgba(255,255,255,0.06)); border-color: var(--accent); }
+.sun-session-ai-refresh:focus-visible:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Idle "Analyze this session" CTA — passive prompt for sessions that
    haven't been auto-analyzed yet (created before this feature, or
    imported from another device). */
-.sun-session-ai-idle .sun-session-ai-cta {
+.sun-session-ai-idle .sun-session-ai-cta:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
   background: transparent; border: none;
   color: var(--accent); cursor: pointer;
   font-size: 12px; padding: 0;
   text-align: left;
   flex: 1; min-width: 0;
 }
-.sun-session-ai-idle .sun-session-ai-cta:hover { text-decoration: underline; }
-.sun-session-ai-idle .sun-session-ai-cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
-.sun-detail-ai-idle {
+.sun-session-ai-idle .sun-session-ai-cta:hover:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) { text-decoration: underline; }
+.sun-session-ai-idle .sun-session-ai-cta:focus-visible:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+.sun-detail-ai-idle:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
   display: flex; align-items: center; gap: 10px;
   font-size: 13px; color: var(--text-muted);
 }
-.sun-detail-ai-idle .sun-session-ai-refresh {
+.sun-detail-ai-idle .sun-session-ai-refresh:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
   color: var(--text-primary);
   font-size: 12px; padding: 4px 10px;
   border: 1px solid var(--border); border-radius: 6px;
@@ -409,7 +408,7 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   color: var(--text-muted);
   flex: 1;
 }
-.light-today-hero .sun-detail-ai {
+.light-today-hero .sun-detail-ai:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
   margin-bottom: 0; padding: 10px 12px;
 }
 .light-ai-question,
@@ -518,7 +517,7 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 .light-today-dash-ai-row {
   display: flex; align-items: flex-start; gap: 8px;
 }
-.light-today-dash-ai-row .sun-session-ai-dot {
+.light-today-dash-ai-row .sun-session-ai-dot:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
   margin-top: 4px; /* align with first line of tip text */
   flex-shrink: 0;
 }
@@ -527,7 +526,7 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   font-weight: 500;
   line-height: 1.45;
 }
-.light-today-dash-ai-row .sun-session-ai-refresh {
+.light-today-dash-ai-row .sun-session-ai-refresh:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
   flex-shrink: 0;
 }
 /* Detail body — full paragraph + deep-link to the Light & Sun hero. */
@@ -574,28 +573,28 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
 }
 
 /* Detail-modal block — richer, two-line layout. */
-.sun-detail-ai {
+.sun-detail-ai:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
   margin-bottom: 14px; padding: 12px 14px;
   border-radius: 8px;
   background: var(--bg-elev-1, rgba(255,255,255,0.03));
   border-left: 3px solid var(--text-muted);
 }
-.sun-detail-ai-green  { border-left-color: var(--green); }
-.sun-detail-ai-yellow { border-left-color: var(--yellow); }
-.sun-detail-ai-red    { border-left-color: var(--red); }
-.sun-detail-ai-head {
+.sun-detail-ai-green:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *))  { border-left-color: var(--green); }
+.sun-detail-ai-yellow:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) { border-left-color: var(--yellow); }
+.sun-detail-ai-red:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *))    { border-left-color: var(--red); }
+.sun-detail-ai-head:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
   display: flex; align-items: center; gap: 10px;
   font-size: 14px; font-weight: 600;
   color: var(--text-primary);
 }
-.sun-detail-ai-tip { flex: 1; min-width: 0; }
-.sun-detail-ai-body {
+.sun-detail-ai-tip:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) { flex: 1; min-width: 0; }
+.sun-detail-ai-body:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
   margin-top: 6px;
   font-size: 13px; line-height: 1.5;
   color: var(--text-muted);
 }
-.sun-detail-ai-loading,
-.sun-detail-ai-error {
+.sun-detail-ai-loading:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)),
+.sun-detail-ai-error:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
   display: flex; align-items: center; gap: 10px;
   font-size: 13px; color: var(--text-muted);
 }
@@ -632,7 +631,7 @@ textarea.ctx-input { resize: vertical; min-height: 56px; }
   /* Light Today (dashboard) strip — pill row tighter, foot wraps so
      burn-risk pill doesn't hog horizontal space. */
 
-  .sun-session-ai {
+  .sun-session-ai:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *)) {
     min-width: 0;
     max-width: 100%;
   }
