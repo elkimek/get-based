@@ -721,10 +721,14 @@ const {
     !burdenSrc.includes('window.renderBurdenInterp') &&
     burdenSrc.includes("import { computeIndoorBurden, configureLightEnv, isActiveToday } from './light-env.js';") &&
     burdenSrc.includes('configureLightEnv({ renderBurdenInterp });'));
+  const reviewProjectionSrc = await fs.readFile(new URL('../js/light-review-ai-presentation.ts', import.meta.url), 'utf8');
+  const weeklyComponentSrc = await fs.readFile(new URL('../js/components/LightWeeklyAI.svelte', import.meta.url), 'utf8');
   assert('Channel mix AI renderer routes through Light page wiring instead of window lookup',
     appLightSunSrc.includes("import './light-channels-ai-analysis.js';") &&
     channelAiSrc.includes('registerAIActionHandler') &&
-    channelAiSrc.includes("aiActionAttrs('refresh-channel-mix')") &&
+    channelAiSrc.includes("kind: 'weekly'") &&
+    reviewProjectionSrc.includes("weekly: 'refresh-channel-mix'") &&
+    weeklyComponentSrc.includes('data-ai-action={view.action}') &&
     !channelAiSrc.includes('Object.assign(window, {') &&
     !channelAiSrc.includes('window.refreshChannelMixAI') &&
     !channelAiSrc.includes('window.analyzeChannelMixAI') &&

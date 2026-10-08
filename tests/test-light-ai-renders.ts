@@ -6,6 +6,7 @@
 // Run: node tests/test-light-ai-renders.js  (or via npm test)
 
 import './_node-shim.js';
+import { JSDOM } from 'jsdom';
 
 let pass = 0, fail = 0;
 function assert(name: string, cond: unknown, detail?: unknown) {
@@ -338,7 +339,7 @@ const { state } = await import('../js/state.js');
     await new Promise(resolve => setTimeout(resolve, 0));
     (window as typeof window & { DISABLE_AI_VERDICTS?: unknown }).DISABLE_AI_VERDICTS = false;
     assert('stale weekly review uses the standard compact action design',
-      stale.includes('dashboard-action-btn light-channel-mix-ai-cta')
+      !!new JSDOM(stale).window.document.querySelector('button.dashboard-action-btn.light-channel-mix-ai-cta[data-ai-action="refresh-channel-mix"]')
         && stale.includes('Refresh review')
         && stale.includes('Your logs changed'));
 

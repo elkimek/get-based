@@ -1,21 +1,22 @@
+import { scopedFrozenStyles } from '../helpers/frozen-style-scope.js';
 import fs from 'node:fs';
 import { expect, test } from './coverage-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import type { AIVerdictStatus } from '../../js/ai-verdict-engine.js';
 interface Example { kind: import('../../js/light-environment-ai-presentation.js').EnvironmentAIKind; status: AIVerdictStatus; analysis: { dot?: string; tip?: string; detail?: string; errorMessage?: string } | null; provider: boolean; html: string }
-const original = JSON.parse(fs.readFileSync('tests/fixtures/light-environment-ai-original.json', 'utf8')) as { cases: Example[]; sharedInlineCSS: { selector: string; declarations: string; media: string | null }[]; styleBlocks: { selector: string; declarations: string; media: string | null }[] };
+const original = JSON.parse(fs.readFileSync('tests/fixtures/light-environment-ai-original.json', 'utf8')) as { cases: Example[]; sharedInlineCSS: { selector: string; declarations: string; media: string | null }[]; sharedVerdictCSS: { selector: string; declarations: string; media: string | null }[]; styleBlocks: { selector: string; declarations: string; media: string | null }[] };
 const examples = original.cases.filter(item => item.provider && item.html);
 test('authored environment verdicts retain original geometry, accessible themes, keyboard actions and render ownership', async ({ page }, info) => {
   test.setTimeout(120000); await installDiscussionFixture(page.context()); await page.goto('/app');
-  await page.evaluate(async blocks => {
-    const style = document.createElement('style'); style.textContent = blocks.map(block => { const rule = `${block.selector.split(',').map(selector => `[data-original] ${selector.trim()}`).join(',')} {${block.declarations}}`; return block.media ? `@media ${block.media} {${rule}}` : rule; }).join('\n');
+  await page.evaluate(async originalCSS => {
+    const style = document.createElement('style'); style.textContent = originalCSS;
     // Explicit touch improvement: the legacy room override reduced the 44px target to 28px.
     // Apply only this declared improvement to the reference, including its layout consequences.
     style.textContent += '@media (pointer:coarse) { [data-original] .light-env-room-ai-refresh { min-height:44px; } }';
     document.head.append(style);
     localStorage.setItem('labcharts-ai-paused','true'); await (await import('/js/light-sun-loader.js')).loadLightSunUI();
     const host = document.createElement('div'); host.id = 'environment-ai-acceptance'; host.style.cssText = 'position:fixed;inset:16px;overflow:auto;z-index:20000;background:var(--bg-primary);padding:12px'; document.body.append(host);
-  }, [...original.sharedInlineCSS, ...original.styleBlocks]);
+  }, scopedFrozenStyles([...original.sharedInlineCSS, ...original.sharedVerdictCSS, ...original.styleBlocks]));
   const host = page.locator('#environment-ai-acceptance'); let pairs = 0;
   await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const width of [320,1100]) {
@@ -82,4 +83,5 @@ test('authored environment verdicts retain original geometry, accessible themes,
   });
   await expect(host.locator('.sun-session-ai-dot-shimmer')).toHaveCSS('animation-name','none'); await page.emulateMedia({reducedMotion:'no-preference'});
   await expect(host.locator('.sun-session-ai-dot-shimmer')).toHaveCSS('animation-name','shimmer');
+  expect(await host.locator('.sun-session-ai-dot-shimmer').evaluate(element => element.getAnimations().filter(animation => animation instanceof CSSAnimation && animation.animationName === 'shimmer').length)).toBe(1);
 });

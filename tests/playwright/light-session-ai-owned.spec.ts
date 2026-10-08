@@ -1,17 +1,18 @@
+import { scopedFrozenStyles } from '../helpers/frozen-style-scope.js';
 import fs from 'node:fs';
 import { expect, test } from './coverage-fixture.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import type { AIVerdictStatus } from '../../js/ai-verdict-engine.js';
 interface Example { feature: string; mode: 'inline' | 'detail'; status: AIVerdictStatus; analysis: { dot?: string; tip?: string; detail?: string; errorMessage?: string }; provider: boolean; html: string }
-const original = JSON.parse(fs.readFileSync('tests/fixtures/light-session-ai-original.json', 'utf8')) as { cases: Example[]; sessionRootCSS: string; sharedInlineCSS: { selector: string; declarations: string; media: string | null }[] };
+const original = JSON.parse(fs.readFileSync('tests/fixtures/light-session-ai-original.json', 'utf8')) as { cases: Example[]; sessionRootCSS: string; sharedInlineCSS: { selector: string; declarations: string; media: string | null }[]; sharedVerdictCSS: { selector: string; declarations: string; media: string | null }[] };
 const examples = original.cases.filter(item => item.feature === 'sun' && item.provider);
 test('authored session verdicts retain original geometry and semantics, accessible themes, keyboard actions and render ownership', async ({ page }, info) => {
   test.setTimeout(120000); await installDiscussionFixture(page.context()); await page.goto('/app');
-  await page.evaluate(async ({originalCSS,blocks}) => {
-    const style = document.createElement('style'); style.textContent = `[data-original] .sun-session-ai {${originalCSS}}`; style.textContent += blocks.map(block => { const rule = `${block.selector.split(',').map(selector => `[data-original] ${selector.trim()}`).join(',')} {${block.declarations}}`; return block.media ? `@media ${block.media} {${rule}}` : rule; }).join('\n'); document.head.append(style);
+  await page.evaluate(async originalCSS => {
+    const style = document.createElement('style'); style.textContent = originalCSS; document.head.append(style);
     localStorage.setItem('labcharts-ai-paused','true'); await (await import('/js/light-sun-loader.js')).loadLightSunUI();
     const host = document.createElement('div'); host.id = 'session-ai-acceptance'; host.style.cssText = 'position:fixed;inset:16px;overflow:auto;z-index:20000;background:var(--bg-primary);padding:12px'; document.body.append(host);
-  }, {originalCSS:original.sessionRootCSS,blocks:original.sharedInlineCSS});
+  }, `[data-original] .sun-session-ai {${original.sessionRootCSS}}\n${scopedFrozenStyles([...original.sharedInlineCSS, ...original.sharedVerdictCSS])}`);
   const host = page.locator('#session-ai-acceptance'); let pairs = 0;
   await page.emulateMedia({ reducedMotion: 'reduce' });
   for (const width of [320,1100]) {
@@ -78,4 +79,5 @@ test('authored session verdicts retain original geometry and semantics, accessib
   });
   await expect(host.locator('.sun-session-ai-dot-shimmer')).toHaveCSS('animation-name','none'); await page.emulateMedia({reducedMotion:'no-preference'});
   await expect(host.locator('.sun-session-ai-dot-shimmer')).toHaveCSS('animation-name','shimmer');
+  expect(await host.locator('.sun-session-ai-dot-shimmer').evaluate(element => element.getAnimations().filter(animation => animation instanceof CSSAnimation && animation.animationName === 'shimmer').length)).toBe(1);
 });

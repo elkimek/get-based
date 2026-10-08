@@ -7,16 +7,18 @@ import type { ProfileData } from '../types/app-state.js';
 // shared engine can drive it.
 
 import { state } from './state.js';
+import { captureAIVerdictOwner } from './ai-verdict-owner.js';
+import { projectReviewAI } from './light-review-ai-presentation.js';
+import { renderHTML } from './components/LightReviewAI.svelte.html.js';
 import { latestVitaminDContext } from './lab-vitamin-d-context.js';
-import { escapeHTML } from './utils.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { CHANNEL_DISPLAY, formatChannelUnit, rollingChannelTotals, rollingVitaminDIU } from './sun.js';
 import { rollingDeviceTotals } from './light-devices-store.js';
 import { solarZenithAngle } from './sun-uvdata.js';
-import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
+import { createAIVerdict, hashString } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
+import { aiActionOwner, registerAIActionHandler } from './ai-action-delegates.js';
 
 import type { SunSessionRecord } from './sun-sessions-store.js';
 import type { DeviceSessionRecord, LightDeviceRecord } from './light-devices-store.js';
@@ -331,199 +333,44 @@ registerAIActionHandler('refresh-day', refreshDayAIAnalysis);
 // way to re-fire.
 const _autoFiredKeys = new Set<string>();
 
-function renderLightTodayQuestion() {
-  return `<section class="light-ai-question">
-    <div class="light-ai-kicker">Question this AI answers</div>
-    <p>What stands out in today’s logged light, and is there a useful next step?</p>
-    <div class="light-ai-panel-levels">
-      <div><span>Minimum useful data</span><strong><span>Sun/device sessions</span><span>Time of day</span><span>Duration</span></strong></div>
-      <div><span>Extended confidence data</span><strong><span>UV/MED</span><span>Lux/CCT/flicker</span><span>Sleep room darkness</span><span>7-day trends</span></strong></div>
-    </div>
-  </section>`;
-}
-
-function renderLightAIAnswer(dot: unknown, body: string, action = '') {
-  return `<section class="light-ai-answer light-ai-answer-${escapeHTML(dot || 'gray')}">
-    <div class="light-ai-answer-head">
-      <div><div class="light-ai-kicker">AI answer</div><p>Auto-generated once per day when light data exists. Cached in this profile.</p></div>
-      ${action}
-    </div>
-    ${body}
-  </section>`;
+// Both surfaces share one attempt per current profile/root/epoch and date.
+function queueDayAnalysis(target: DayTarget, status: import('./ai-verdict-engine.js').AIVerdictStatus, cached: VerdictRead | undefined) {
+  const stale = !!(cached?.fingerprint && cached.fingerprint !== getDayFingerprint(target));
+  const owner = captureAIVerdictOwner();
+  const key = owner.key(target.key);
+  if ((status !== 'idle' && !stale) || _autoFiredKeys.has(key)) return;
+  const data = state.importedData;
+  const hasActivity = (data.sunSessions || []).some(session => session.endedAt)
+    || (data.deviceSessions || []).some(session => session.endedAt)
+    || (data.lightMeasurements || []).length > 0;
+  if (!hasActivity) return;
+  _autoFiredKeys.add(key);
+  setTimeout(() => { if (owner.current()) void engine.analyze(target).catch(() => {}); }, 0);
 }
 
 export function renderLightTodayHero() {
   const today = new Date();
   const target = _wrapDate(today);
   const status = engine.getStatus(target);
-  const cached = _getDailyVerdicts()[target.key] as VerdictRead;
-  // No provider: still render a cached `ok` verdict (pre-populated demo
-  // or cross-device-synced from a device that has a key).
+  const cached = _getDailyVerdicts()[target.key] as VerdictRead | undefined;
   if (!hasAssistantFeatureProvider() && !(cached?.status === 'ok' && cached?.dot)) return '';
-
-  // Auto-fire on first idle render of the day. Skip if we've already
-  // tried in this tab session (prevents tight-loop refire on transient
-  // errors), if there's any cached verdict including error (manual retry
-  // is the recovery path), or if there's no light activity worth
-  // analyzing (no sessions + no measurements + no devices). The engine
-  // itself dedupes via _inflight so concurrent calls are fine, but the
-  // autoFired guard keeps log noise + telemetry counts honest.
-  // Auto-fire on first idle render OR when the cached verdict is stale
-  // against the current fingerprint (e.g. _dayFingerprintSalt was bumped
-  // because the prompt logic changed and the old verdict's wording
-  // doesn't match the new constraints). engine.analyze() is fingerprint-
-  // aware so it will short-circuit if the cache is actually fresh.
-  const _currentFp = getDayFingerprint(target);
-  const _stale = !!(cached?.fingerprint && cached.fingerprint !== _currentFp);
-  if ((status === 'idle' || _stale) && !_autoFiredKeys.has(target.key)) {
-    const hasLightActivity = (() => {
-      const sun = ((state.importedData?.sunSessions || []) as SunSessionRecord[]).some(s => s.endedAt);
-      const dev = ((state.importedData?.deviceSessions || []) as DeviceSessionRecord[]).some(s => s.endedAt);
-      const meas = ((state.importedData?.lightMeasurements || []) as StoredLightMeasurement[]).length > 0;
-      return sun || dev || meas;
-    })();
-    if (hasLightActivity) {
-      _autoFiredKeys.add(target.key);
-      // Defer to next tick so the caller's render completes (and the
-      // shimmer state has time to mount) before the engine flips back
-      // to analyzing + triggers a re-render. Keeps the first paint
-      // showing idle CTA briefly, then a smooth flip to shimmer rather
-      // than a synchronous double-flip mid-render.
-      setTimeout(() => engine.analyze(target).catch(() => {}), 0);
-    }
-  }
-  const trends = computeLightTrends(today);
-  const trendBar = trends.signals.length
-    ? `<div class="light-today-trends">${trends.signals.slice(0, 2).map(s => `<span class="light-today-trend">⚡ ${escapeHTML(s)}</span>`).join('')}</div>`
-    : '';
-
-  // Shimmer ONLY while a request is genuinely in flight. Stale-ok falls
-  // through to the ok branch so the ↻ button stays reachable; auto-fire
-  // updates the verdict underneath.
-  if (status === 'analyzing') {
-    return `<div class="light-today-hero">
-      <div class="light-today-hero-head"><span class="light-today-hero-label">Today's light</span></div>
-      ${renderLightTodayQuestion()}
-      ${renderLightAIAnswer('gray', `<div class="sun-detail-ai sun-detail-ai-loading">
-        <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
-        <span>Synthesizing your day…</span>
-      </div>`)}
-      ${trendBar}
-    </div>`;
-  }
-  if (status === 'ok') {
-    const dot = cached.dot;
-    // Trend bar repeats deterministic flags the verdict has already
-    // incorporated — when the verdict is green, suppress it to avoid
-    // the "✓ Solid coverage" + "⚡ days since…" contradiction surfaced
-    // in the v1.6.x UX review. Yellow / red verdicts keep the trend
-    // bar as supporting context.
-    const _showTrendBar = dot !== 'green';
-    const action = `<button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-day')} title="Re-run today's verdict" aria-label="Re-run today's verdict">↻</button>`;
-    return `<div class="light-today-hero light-today-hero-${dot}">
-      <div class="light-today-hero-head"><span class="light-today-hero-label">Today's light</span></div>
-      ${renderLightTodayQuestion()}
-      ${renderLightAIAnswer(dot, `<div class="sun-detail-ai sun-detail-ai-${dot}">
-        <div class="sun-detail-ai-head">
-          <span class="sun-session-ai-dot sun-session-ai-dot-${dot}" aria-hidden="true"></span>
-          <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(cached.tip || '')}</span>
-        </div>
-        ${cached.detail ? `<div class="sun-detail-ai-body">${escapeHTML(cached.detail)}</div>` : ''}
-      </div>`, action)}
-      ${_showTrendBar ? trendBar : ''}
-    </div>`;
-  }
-  if (status === 'error') {
-    const msg = cached?.errorMessage ? `Analysis failed — ${cached.errorMessage}` : 'Analysis failed.';
-    const action = `<button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-day')}>Try again</button>`;
-    return `<div class="light-today-hero">
-      <div class="light-today-hero-head"><span class="light-today-hero-label">Today's light</span></div>
-      ${renderLightTodayQuestion()}
-      ${renderLightAIAnswer('gray', `<div class="sun-detail-ai sun-detail-ai-error">
-        <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-        <span>${escapeHTML(msg)}</span>
-      </div>`, action)}
-      ${trendBar}
-    </div>`;
-  }
-  const action = `<button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-day')}>Run today's verdict</button>`;
-  return `<div class="light-today-hero">
-    <div class="light-today-hero-head"><span class="light-today-hero-label">Today's light</span></div>
-    ${renderLightTodayQuestion()}
-    ${renderLightAIAnswer('gray', `<div class="sun-detail-ai sun-detail-ai-idle">
-      <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-      <span>Get an AI read on today's full picture — sun, devices, environment, trends.</span>
-    </div>`, action)}
-    ${trendBar}
-  </div>`;
+  queueDayAnalysis(target, status, cached);
+  return renderHTML({ view: projectReviewAI({ kind: 'today', status, variant: status,
+    analysis: cached, actionOwner: aiActionOwner(), trends: computeLightTrends(today).signals,
+  }) });
 }
 
-// Legacy verdict block for the older Light Today strip. Reuses the same
-// cached verdict as the Light & Sun page hero — runs the AI once per
-// day, both surfaces display it. Renders the full tip + detail + a
-// deep-link to the Light & Sun page hero by default; no
-// hover-tooltip dependency, no collapse-by-default that hides the
-// content.
+// The dashboard reads the same daily cache and exposes full detail without hover.
 export function renderLightTodayDashboardChip() {
-  const today = new Date();
-  const target = _wrapDate(today);
+  const target = _wrapDate(new Date());
   const status = engine.getStatus(target);
-  const cached = _getDailyVerdicts()[target.key] as VerdictRead;
+  const cached = _getDailyVerdicts()[target.key] as VerdictRead | undefined;
   if (!hasAssistantFeatureProvider() && !(cached?.status === 'ok' && cached?.dot)) return '';
-  // Stale-verdict auto-fire — same logic as renderLightTodayHero. The
-  // dashboard is what the user sees first, so triggering re-analysis
-  // here means a stale cached verdict (e.g. one from before the
-  // _dayFingerprintSalt bump) doesn't sit forever waiting for the user
-  // to navigate to /light.
-  const _currentFp = getDayFingerprint(target);
-  const _stale = !!(cached?.fingerprint && cached.fingerprint !== _currentFp);
-  if ((status === 'idle' || _stale) && !_autoFiredKeys.has(target.key)) {
-    const hasLightActivity = (() => {
-      const sun = ((state.importedData?.sunSessions || []) as SunSessionRecord[]).some(s => s.endedAt);
-      const dev = ((state.importedData?.deviceSessions || []) as DeviceSessionRecord[]).some(s => s.endedAt);
-      const meas = ((state.importedData?.lightMeasurements || []) as StoredLightMeasurement[]).length > 0;
-      return sun || dev || meas;
-    })();
-    if (hasLightActivity) {
-      _autoFiredKeys.add(target.key);
-      setTimeout(() => engine.analyze(target).catch(() => {}), 0);
-    }
-  }
-  // Shimmer ONLY while a request is genuinely in flight. Stale-ok falls
-  // through to the ok branch so the ↻ button stays reachable; auto-fire
-  // updates the verdict underneath.
-  if (status === 'analyzing') {
-    return `<div class="light-today-dash-ai">
-      <div class="light-today-dash-ai-row">
-        <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
-        <span class="light-today-dash-ai-tip">Analyzing today's light…</span>
-      </div>
-    </div>`;
-  }
-  if (status === 'ok' && cached?.dot) {
-    const dot = cached.dot;
-    return `<div class="light-today-dash-ai light-today-dash-ai-${dot}">
-      <div class="light-today-dash-ai-row">
-        <span class="sun-session-ai-dot sun-session-ai-dot-${dot}" aria-hidden="true"></span>
-        <span class="light-today-dash-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(cached.tip || '')}</span>
-        <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-day')} title="Re-run today's verdict" aria-label="Re-run today's verdict">↻</button>
-      </div>
-      ${cached.detail ? `<div class="light-today-dash-ai-body">
-        <p>${escapeHTML(cached.detail)}</p>
-      </div>` : ''}
-    </div>`;
-  }
-  if (status === 'error') {
-    const msg = cached?.errorMessage || 'AI verdict failed — retry';
-    return `<button class="light-today-dash-ai light-today-dash-ai-cta" ${aiActionAttrs('refresh-day')}>
-      <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-      <span class="light-today-dash-ai-tip">${escapeHTML(msg)}</span>
-    </button>`;
-  }
-  return `<button class="light-today-dash-ai light-today-dash-ai-cta" ${aiActionAttrs('refresh-day')}>
-    <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-    <span class="light-today-dash-ai-tip">✨ Get today's AI verdict</span>
-  </button>`;
+  queueDayAnalysis(target, status, cached);
+  return renderHTML({ view: projectReviewAI({ kind: 'dashboard', status,
+    variant: status === 'ok' && !cached?.dot ? 'idle' : status,
+    analysis: cached, actionOwner: aiActionOwner(),
+  }) });
 }
 
 // Cross-page live-update — when a verdict completes elsewhere (e.g. an

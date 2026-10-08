@@ -1,5 +1,6 @@
 // dashboard-widget-renderers.js - dashboard widget body renderers
 
+import { renderHTML as renderLightReview } from './components/LightReviewAI.svelte.html.js';
 import { state } from './state.js';
 import { DEFAULT_METRIC_ORDER, canonicalMetric, metricsForSources } from './wearable-adapters.js';
 import { dashboardWidgetActionAttrs } from './dashboard-widget-controls.js';
@@ -108,14 +109,7 @@ export function createDashboardWidgetRenderers(deps: unknown) {
   function renderDashboardLightTodayWidget() {
     if (!lightSunModulesReady()) return renderLightSunLoadingState();
     const hero = renderLightTodayHero();
-    const heroHtml = hero || `<div class="light-today-hero light-today-hero-dashboard-fallback">
-      <div class="light-today-hero-head"><span class="light-today-hero-label">Today's light</span></div>
-      <div class="sun-detail-ai sun-detail-ai-idle">
-        <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-        <span>Open Light &amp; Sun to review today's sun, devices, environment, and channel rhythm.</span>
-        <button type="button" class="sun-session-ai-refresh" ${dashboardNavigateAttrs('light')}>Open Light &amp; Sun</button>
-      </div>
-    </div>`;
+    const heroHtml = hero || renderLightReview({ view: { kind: 'dashboard-fallback' } });
     return heroHtml;
   }
 

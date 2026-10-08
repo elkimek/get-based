@@ -15,14 +15,16 @@ import type { ProfileData } from '../types/app-state.js';
 // guard keeps tight-loop refire from happening on transient errors.
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr } from './utils.js';
+import { captureAIVerdictOwner } from './ai-verdict-owner.js';
+import { projectReviewAI, type ReviewAIVariant } from './light-review-ai-presentation.js';
+import { renderHTML } from './components/LightReviewAI.svelte.html.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
-import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
+import { createAIVerdict, hashString } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { computeIndoorBurden, configureLightEnv, isActiveToday } from './light-env.js';
 import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
+import { aiActionOwner, registerAIActionHandler } from './ai-action-delegates.js';
 
 import type { LightRoom, LightScreen, LightMeasurement } from './light-env-model.js';
 import type { AIVerdictAnalysis, AIVerdictConfig, AIVerdictEngine } from './ai-verdict-engine.js';
@@ -194,83 +196,29 @@ const _autoFiredKeys = new Set<string>();
 // state). Caller is renderEnvironment() in light-env.js, which now
 // delegates the interp content to this fn instead of using burden.interp
 // directly. Falls through to the heuristic interp when no AI provider.
-export function renderBurdenInterp(burden: {interp?: unknown} | null | undefined) {
+export function renderBurdenInterp(burden: { interp?: unknown } | null | undefined) {
   const heuristic = burden?.interp || '';
   const env = _getEnv();
-  if (!env || ((env.rooms || []).length === 0 && (env.screens || []).length === 0)) {
-    return `<p class="light-env-summary-interp">${escapeHTML(heuristic)}</p>`;
-  }
-  // No provider: render a cached AI verdict if one exists (pre-populated
-  // demo, cross-device sync from a device that had a provider, etc.) —
-  // otherwise fall back to the static heuristic interp text.
+  const analysis = env?.burdenAI;
+  const render = (variant: ReviewAIVariant, status: import('./ai-verdict-engine.js').AIVerdictStatus = 'idle') =>
+    renderHTML({ view: projectReviewAI({ kind: 'burden', variant, status, analysis, heuristic, actionOwner: aiActionOwner() }) });
+  if (!env || ((env.rooms || []).length === 0 && (env.screens || []).length === 0)) return render('heuristic');
+  const fingerprint = getBurdenFingerprint();
   if (!hasAssistantFeatureProvider()) {
-    const cached = env?.burdenAI;
-    if (cached?.status === 'ok' && cached?.dot && cached?.tip && cached.fingerprint === getBurdenFingerprint()) {
-      const dot = cached.dot;
-      return `<div class="light-env-summary-ai">
-        <div class="sun-detail-ai sun-detail-ai-${escapeAttr(dot)}">
-          <div class="sun-detail-ai-head">
-            <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
-            <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(cached.tip)}</span>
-          </div>
-          ${cached.detail ? `<div class="sun-detail-ai-body">${escapeHTML(cached.detail)}</div>` : ''}
-        </div>
-      </div>`;
-    }
-    return `<p class="light-env-summary-interp">${escapeHTML(heuristic)}</p>`;
+    return analysis?.status === 'ok' && analysis.dot && analysis.tip && analysis.fingerprint === fingerprint
+      ? render('cached', 'ok') : render('heuristic');
   }
   const status = engine.getStatus(SINGLETON);
-  const a = env.burdenAI as RawAnalysis;
-  const currentFingerprint = getBurdenFingerprint();
-  const cachedFingerprint = a?.fingerprint;
-  const stale = cachedFingerprint && cachedFingerprint !== currentFingerprint;
-
-  // Auto-fire on first render when there's something to analyze AND
-  // we don't have a fresh cached verdict. Same pattern as
-  // renderLightTodayHero: deferred to next tick so the caller's render
-  // completes (and the shimmer state has time to mount) before the
-  // engine flips back to analyzing. _autoFiredKeys guards against
-  // refire on transient errors.
-  const _autoKey = currentFingerprint;
-  if ((status === 'idle' || stale) && !_autoFiredKeys.has(_autoKey)) {
-    _autoFiredKeys.add(_autoKey);
-    setTimeout(() => engine.analyze(SINGLETON).catch(() => {}), 0);
+  const stale = !!(analysis?.fingerprint && analysis.fingerprint !== fingerprint);
+  const owner = captureAIVerdictOwner();
+  const key = owner.key(fingerprint);
+  if ((status === 'idle' || stale) && !_autoFiredKeys.has(key)) {
+    _autoFiredKeys.add(key);
+    setTimeout(() => { if (owner.current()) void engine.analyze(SINGLETON).catch(() => {}); }, 0);
   }
-
-  // Shimmer ONLY while a request is genuinely in flight. Stale-ok falls
-  // through to the bottom CTA branch ("Refresh AI verdict (your setup
-  // changed)"); errored falls through to its retry CTA.
-  if (status === 'analyzing') {
-    return `<div class="light-env-summary-ai">
-      <div class="sun-detail-ai sun-detail-ai-loading">
-        <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
-        <span>Analyzing your burden mix…</span>
-      </div>
-    </div>`;
-  }
-  if (status === 'ok' && !stale) {
-    const dot = a.dot;
-    return `<div class="light-env-summary-ai light-env-summary-ai-${dot}">
-      <span class="sun-session-ai-dot sun-session-ai-dot-${dot}" aria-hidden="true"></span>
-      <span class="light-env-summary-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a.tip || '')}</span>
-      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-burden')} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
-      ${a.detail ? `<div class="light-env-summary-ai-detail">${escapeHTML(a.detail)}</div>` : ''}
-    </div>`;
-  }
-  if (status === 'error') {
-    return `<div class="light-env-summary-ai">
-      <p class="light-env-summary-interp">${escapeHTML(heuristic)}</p>
-      <button class="sun-session-ai-refresh light-env-summary-ai-cta" ${aiActionAttrs('refresh-burden')}>AI verdict failed — retry</button>
-    </div>`;
-  }
-  // Idle, OR cached but stale (env changed since last analyze). Show the
-  // heuristic + a CTA. The CTA copy adapts so the user knows when their
-  // last AI take is out of date.
-  const ctaLabel = stale ? 'Refresh AI verdict (your setup changed)' : '✨ Get AI verdict';
-  return `<div class="light-env-summary-ai">
-    <p class="light-env-summary-interp">${escapeHTML(heuristic)}</p>
-    <button class="sun-session-ai-refresh light-env-summary-ai-cta" ${aiActionAttrs('refresh-burden')}>${escapeHTML(ctaLabel)}</button>
-  </div>`;
+  const variant = status === 'analyzing' || status === 'error' ? status
+    : status === 'ok' && !stale ? 'ok' : stale ? 'stale' : 'idle';
+  return render(variant, status);
 }
 
 configureLightEnv({ renderBurdenInterp });

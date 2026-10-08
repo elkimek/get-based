@@ -29,7 +29,7 @@
       "analysis": {
         "status": "analyzing"
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-shimmer\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\">Analyzing\u2026</span>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-shimmer\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\">Analyzing…</span>\n    </div>"
     },
     {
       "feature": "sun",
@@ -49,7 +49,7 @@
       "analysis": {
         "status": "error"
       },
-      "html": "<div class=\"sun-session-ai sun-session-ai-error\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\" title=\"Analysis failed\">Analysis failed</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai sun-session-ai-error\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\" title=\"Analysis failed\">Analysis failed</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "sun",
@@ -70,7 +70,7 @@
         "status": "error",
         "errorMessage": "Offline <literal> & unavailable"
       },
-      "html": "<div class=\"sun-session-ai sun-session-ai-error\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\" title=\"Analysis failed \u2014 Offline &lt;literal&gt; &amp; unavailable\">Analysis failed \u2014 Offline &lt;literal&gt; &amp; unavailable</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai sun-session-ai-error\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\" title=\"Analysis failed — Offline &lt;literal&gt; &amp; unavailable\">Analysis failed — Offline &lt;literal&gt; &amp; unavailable</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "sun",
@@ -94,7 +94,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">✓</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "sun",
@@ -107,7 +107,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">✓</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "sun",
@@ -120,7 +120,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-yellow\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u26a0</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-yellow\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">⚠</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "sun",
@@ -133,7 +133,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-yellow\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u26a0</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-yellow\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">⚠</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "sun",
@@ -146,7 +146,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-red\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u25b2</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-red\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">▲</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "sun",
@@ -159,7 +159,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-red\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u25b2</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-red\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">▲</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "sun",
@@ -172,7 +172,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-gray\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u00b7</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-gray\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">·</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "sun",
@@ -185,7 +185,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-gray\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u00b7</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-gray\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">·</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "sun",
@@ -198,7 +198,7 @@
         "tip": "",
         "detail": ""
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> </span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">✓</span> </span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "sun",
@@ -211,7 +211,7 @@
         "tip": "",
         "detail": ""
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> </span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">✓</span> </span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "sun",
@@ -241,7 +241,7 @@
       "analysis": {
         "status": "analyzing"
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-loading\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-shimmer\" aria-hidden=\"true\"></span>\n      <span>Analyzing this session\u2026</span>\n    </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-loading\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-shimmer\" aria-hidden=\"true\"></span>\n      <span>Analyzing this session…</span>\n    </div>"
     },
     {
       "feature": "sun",
@@ -282,7 +282,7 @@
         "status": "error",
         "errorMessage": "Offline <literal> & unavailable"
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-error\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span>Analysis failed \u2014 Offline &lt;literal&gt; &amp; unavailable</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\">Try again</button>\n    </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-error\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span>Analysis failed — Offline &lt;literal&gt; &amp; unavailable</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\">Try again</button>\n    </div>"
     },
     {
       "feature": "sun",
@@ -306,7 +306,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
     },
     {
       "feature": "sun",
@@ -319,7 +319,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
     },
     {
       "feature": "sun",
@@ -332,7 +332,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-yellow\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-yellow\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
     },
     {
       "feature": "sun",
@@ -345,7 +345,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-yellow\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-yellow\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
     },
     {
       "feature": "sun",
@@ -358,7 +358,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-red\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-red\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
     },
     {
       "feature": "sun",
@@ -371,7 +371,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-red\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-red\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
     },
     {
       "feature": "sun",
@@ -384,7 +384,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-gray\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-gray\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
     },
     {
       "feature": "sun",
@@ -397,7 +397,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-gray\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-gray\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
     },
     {
       "feature": "sun",
@@ -410,7 +410,7 @@
         "tip": "",
         "detail": ""
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\"></span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    \n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\"></span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    \n  </div>"
     },
     {
       "feature": "sun",
@@ -423,7 +423,7 @@
         "tip": "",
         "detail": ""
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\"></span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    \n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\"></span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    \n  </div>"
     },
     {
       "feature": "device",
@@ -453,7 +453,7 @@
       "analysis": {
         "status": "analyzing"
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-shimmer\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\">Analyzing\u2026</span>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-shimmer\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\">Analyzing…</span>\n    </div>"
     },
     {
       "feature": "device",
@@ -473,7 +473,7 @@
       "analysis": {
         "status": "error"
       },
-      "html": "<div class=\"sun-session-ai sun-session-ai-error\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\" title=\"Analysis failed\">Analysis failed</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai sun-session-ai-error\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\" title=\"Analysis failed\">Analysis failed</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "device",
@@ -494,7 +494,7 @@
         "status": "error",
         "errorMessage": "Offline <literal> & unavailable"
       },
-      "html": "<div class=\"sun-session-ai sun-session-ai-error\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\" title=\"Analysis failed \u2014 Offline &lt;literal&gt; &amp; unavailable\">Analysis failed \u2014 Offline &lt;literal&gt; &amp; unavailable</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai sun-session-ai-error\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\" title=\"Analysis failed — Offline &lt;literal&gt; &amp; unavailable\">Analysis failed — Offline &lt;literal&gt; &amp; unavailable</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "device",
@@ -518,7 +518,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">✓</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "device",
@@ -531,7 +531,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">✓</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "device",
@@ -544,7 +544,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-yellow\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u26a0</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-yellow\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">⚠</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "device",
@@ -557,7 +557,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-yellow\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u26a0</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-yellow\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">⚠</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "device",
@@ -570,7 +570,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-red\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u25b2</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-red\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">▲</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "device",
@@ -583,7 +583,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-red\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u25b2</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-red\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">▲</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "device",
@@ -596,7 +596,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-gray\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u00b7</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-gray\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">·</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "device",
@@ -609,7 +609,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-gray\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u00b7</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-gray\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">·</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "device",
@@ -622,7 +622,7 @@
         "tip": "",
         "detail": ""
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> </span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">✓</span> </span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "device",
@@ -635,7 +635,7 @@
         "tip": "",
         "detail": ""
       },
-      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> </span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">✓</span> </span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>"
     },
     {
       "feature": "device",
@@ -665,7 +665,7 @@
       "analysis": {
         "status": "analyzing"
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-loading\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-shimmer\" aria-hidden=\"true\"></span>\n      <span>Analyzing this session\u2026</span>\n    </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-loading\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-shimmer\" aria-hidden=\"true\"></span>\n      <span>Analyzing this session…</span>\n    </div>"
     },
     {
       "feature": "device",
@@ -706,7 +706,7 @@
         "status": "error",
         "errorMessage": "Offline <literal> & unavailable"
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-error\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span>Analysis failed \u2014 Offline &lt;literal&gt; &amp; unavailable</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\">Try again</button>\n    </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-error\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span>Analysis failed — Offline &lt;literal&gt; &amp; unavailable</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\">Try again</button>\n    </div>"
     },
     {
       "feature": "device",
@@ -730,7 +730,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
     },
     {
       "feature": "device",
@@ -743,7 +743,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
     },
     {
       "feature": "device",
@@ -756,7 +756,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-yellow\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-yellow\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
     },
     {
       "feature": "device",
@@ -769,7 +769,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-yellow\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-yellow\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
     },
     {
       "feature": "device",
@@ -782,7 +782,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-red\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-red\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
     },
     {
       "feature": "device",
@@ -795,7 +795,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-red\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-red\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
     },
     {
       "feature": "device",
@@ -808,7 +808,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-gray\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-gray\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
     },
     {
       "feature": "device",
@@ -821,7 +821,7 @@
         "tip": "Saved <literal> context",
         "detail": "Detail & context."
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-gray\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-gray\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
     },
     {
       "feature": "device",
@@ -834,7 +834,7 @@
         "tip": "",
         "detail": ""
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\"></span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    \n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\"></span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    \n  </div>"
     },
     {
       "feature": "device",
@@ -847,7 +847,7 @@
         "tip": "",
         "detail": ""
       },
-      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\"></span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    \n  </div>"
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\"></span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">↻</button>\n    </div>\n    \n  </div>"
     }
   ],
   "sessionRootCSS": "display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;",
@@ -896,6 +896,138 @@
       "selector": ".sun-session-ai",
       "declarations": "min-width: 0;\n    max-width: 100%;",
       "media": "(max-width: 600px)"
+    }
+  ],
+  "sharedVerdictCSS": [
+    {
+      "selector": ".light-today-cta,\n  .sun-silhouette-region,\n  \n  .sun-session-ai-dot-shimmer:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "transition: none !important;animation: none !important;transform: none !important",
+      "media": "(prefers-reduced-motion: reduce)"
+    },
+    {
+      "selector": ".sun-session-ai-refresh:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "min-width: 44px;min-height: 44px;padding: 8px 12px",
+      "media": "(pointer: coarse)"
+    },
+    {
+      "selector": ".sun-session-ai-dot:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "width: 8px;height: 8px;border-radius: 50%;flex-shrink: 0;display: inline-block;transition: background 0.3s, box-shadow 0.3s",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-dot-gray:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "background: var(--text-muted);opacity: 0.45",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-dot-green:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "background: var(--green);box-shadow: 0 0 6px rgba(52, 211, 153, 0.5)",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-dot-yellow:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "background: var(--yellow);box-shadow: 0 0 6px rgba(251, 191, 36, 0.5)",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-dot-red:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "background: var(--red);box-shadow: 0 0 6px rgba(248, 113, 113, 0.5)",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-dot-shimmer:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "background: linear-gradient(90deg, var(--text-muted) 25%, var(--border) 50%, var(--text-muted) 75%);background-size: 200% 100%;animation: shimmer 1.5s infinite",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-prefix:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "margin-right: 2px;opacity: 0.85",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-refresh:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "background: transparent;border: 1px solid var(--border, rgba(255,255,255,0.08));color: var(--text-primary);cursor: pointer;font-size: 14px;line-height: 1;padding: 4px 8px;border-radius: 6px;flex-shrink: 0;background: var(--bg-elev-1, rgba(255,255,255,0.03));transition: color 0.15s, background 0.15s, border-color 0.15s",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-refresh:hover:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "color: var(--text-primary);background: var(--bg-elev-2, rgba(255,255,255,0.06));border-color: var(--accent)",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-refresh:focus-visible:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "outline: 2px solid var(--accent);outline-offset: 2px",
+      "media": null
+    },
+    {
+      "selector": ".sun-detail-ai-idle:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "display: flex;align-items: center;gap: 10px;font-size: 13px;color: var(--text-muted)",
+      "media": null
+    },
+    {
+      "selector": ".sun-detail-ai-idle .sun-session-ai-refresh:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "color: var(--text-primary);font-size: 12px;padding: 4px 10px;border: 1px solid var(--border);border-radius: 6px",
+      "media": null
+    },
+    {
+      "selector": ".light-today-hero .sun-detail-ai:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "margin-bottom: 0;padding: 10px 12px",
+      "media": null
+    },
+    {
+      "selector": ".light-today-dash-ai-row .sun-session-ai-dot:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "margin-top: 4px;flex-shrink: 0",
+      "media": null
+    },
+    {
+      "selector": ".light-today-dash-ai-row .sun-session-ai-refresh:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "flex-shrink: 0",
+      "media": null
+    },
+    {
+      "selector": ".sun-detail-ai:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "margin-bottom: 14px;padding: 12px 14px;border-radius: 8px;background: var(--bg-elev-1, rgba(255,255,255,0.03));border-left: 3px solid var(--text-muted)",
+      "media": null
+    },
+    {
+      "selector": ".sun-detail-ai-green:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "border-left-color: var(--green)",
+      "media": null
+    },
+    {
+      "selector": ".sun-detail-ai-yellow:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "border-left-color: var(--yellow)",
+      "media": null
+    },
+    {
+      "selector": ".sun-detail-ai-red:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "border-left-color: var(--red)",
+      "media": null
+    },
+    {
+      "selector": ".sun-detail-ai-head:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "display: flex;align-items: center;gap: 10px;font-size: 14px;font-weight: 600;color: var(--text-primary)",
+      "media": null
+    },
+    {
+      "selector": ".sun-detail-ai-tip:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "flex: 1;min-width: 0",
+      "media": null
+    },
+    {
+      "selector": ".sun-detail-ai-body:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "margin-top: 6px;font-size: 13px;line-height: 1.5;color: var(--text-muted)",
+      "media": null
+    },
+    {
+      "selector": ".sun-detail-ai-loading:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *)),\n.sun-detail-ai-error:not(:where([data-light-onboarding-ai], [data-light-onboarding-ai] *, [data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *))",
+      "declarations": "display: flex;align-items: center;gap: 10px;font-size: 13px;color: var(--text-muted)",
+      "media": null
+    },
+    {
+      "selector": ".light-channel-mix-ai .sun-detail-ai",
+      "declarations": "margin-bottom: 0",
+      "media": null
     }
   ]
 }

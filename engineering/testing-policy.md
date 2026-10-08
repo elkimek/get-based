@@ -126,6 +126,16 @@ keyboard behavior and reduced motion across six themes and two widths.
 [`sveltekit-light-environment-ai.spec.ts`](../tests/pwa/sveltekit-light-environment-ai.spec.ts)
 opens cached environment verdicts through the actual assessment/audit UI on offline
 first use and two cold launches while checking complete canonical profile equality.
+[`light-review-ai-presentation.test.ts`](../tests/light-review-ai-presentation.test.ts)
+compares the captured daily/dashboard/Weekly/burden states and deterministic Weekly
+summaries, including the dashboard fallback and literal escaping. The
+[`review ownership checks`](../tests/light-review-ai-ownership.test.ts) cover
+queued work across profile/root/epoch changes and shared daily deduplication.
+[`light-review-ai-owned.spec.ts`](../tests/playwright/light-review-ai-owned.spec.ts)
+checks original geometry, six themes, two widths, foreground contrast, focus and
+coarse targets. [`sveltekit-light-review-ai.spec.ts`](../tests/pwa/sveltekit-light-review-ai.spec.ts)
+opens actual cached reviews offline and checks full canonical profile equality
+over two cold launches. These focused checks do not establish whole-app acceptance.
 [`views-router-refresh.test.ts`](../tests/views-router-refresh.test.ts) checks
 that background same-route refreshes preserve an open mobile menu while explicit
 navigation and route changes still close it. The static persistence check also

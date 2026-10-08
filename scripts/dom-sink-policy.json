@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 1200,
-  "sinkCount": 325,
+  "scannedFiles": 1209,
+  "sinkCount": 326,
   "files": {
     "js/biology-scores.js": {
       "count": 1,
@@ -181,6 +181,13 @@
       "digest": "531837e6754c2bd6181c4e239975663783f34221a56dc095c7cc445027a9add2",
       "kinds": {
         "svelte.html": 3
+      }
+    },
+    "js/components/LightWeeklyAI.svelte.native.js": {
+      "count": 1,
+      "digest": "0d6e21cef551be04fad2e04770210fc1bb2764fecd380cbc927ac6968b7a052b",
+      "kinds": {
+        "svelte.html": 1
       }
     },
     "js/components/SettingsShell.svelte.native.js": {

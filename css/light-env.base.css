@@ -248,7 +248,7 @@
   font-size: 12px; color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
-.light-env-summary-interp {
+.light-env-summary-interp:not(:where([data-light-review-ai], [data-light-review-ai] *)) {
   margin: 0; font-size: 13px; line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -1027,32 +1027,7 @@
 }
 
 
-/* Indoor-burden AI verdict — replaces the static heuristic interp at
-   the bottom of the Light Environment block when an AI verdict has
-   been generated. */
-.light-env-summary-ai {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-  margin-top: 6px;
-  font-size: 13px; line-height: 1.5;
-}
-.light-env-summary-ai-green  { color: var(--green); }
-.light-env-summary-ai-yellow { color: var(--yellow); }
-.light-env-summary-ai-red    { color: var(--red); }
-.light-env-summary-ai-tip { flex: 1; min-width: 0; }
-.light-env-summary-ai-detail {
-  width: 100%;
-  margin-top: 4px;
-  font-size: 12.5px;
-  color: var(--text-muted);
-  font-style: normal;
-}
-.light-env-summary-ai-cta {
-  background: transparent; border: 1px solid var(--border);
-  color: var(--accent); cursor: pointer;
-  font-size: 11.5px; padding: 3px 10px; border-radius: 6px;
-  white-space: nowrap;
-}
-.light-env-summary-ai-cta:hover { border-color: var(--accent); }
+
 
 @media (max-width: 600px) {
   /* Light Environment — room-card meta grid stacks; screens fields

@@ -1208,8 +1208,8 @@ prompts and saved-data ownership. All literal result/error/target fields are
 Svelte-escaped; severity classes are restricted to known dots. Scoped Tailwind
 uses distinct foreground and severity-border variables, keyboard focus and coarse
 targets; it replaces the two duplicated native renderer implementations. The
-standalone native session row style is removed; shared legacy AI styles remain
-owned by the still-unmigrated daily/weekly/burden surfaces.
+standalone native session row style and superseded shared verdict selectors are
+removed; session, environment and review verdicts use the authored shared primitives.
 
 `LightEnvironmentAI.svelte` owns measurement, room, screen and audit verdicts,
 including the cached audit header dot. Its pure environment projection supplies
@@ -1226,6 +1226,20 @@ queuing. Both the deduplication key and delayed callback belong to that owner;
 profile/root/epoch replacement retires queued work without suppressing the new
 owner's same-ID/fingerprint analysis. Request execution and saved results remain
 owned by the shared engine.
+
+`LightReviewAI.svelte` composes the Today hero, dashboard verdict, Weekly review
+and indoor-burden verdict through small authored child components. The dashboard
+providerless fallback shares the authored Today layout and its existing delegated
+navigation contract. The pure
+`light-review-ai-presentation.ts` projection owns literal copy, normalized severity
+and action metadata. Stable adapters retain data/provider gates, fingerprints,
+prompts, requests and persistence. `LightWeeklyFallback.svelte` renders the existing
+deterministic summary after `light-channel-view.ts` computes it; the Weekly
+fallback slot accepts only that existing deterministic renderer, never model HTML.
+Scoped Tailwind owns review layout and replaces native verdict and summary styles.
+Daily, Weekly and burden render-time requests capture owner identity before
+queuing; both deduplication and delayed execution retire across profile/root/epoch
+replacement. Today hero and dashboard share one current-owner daily attempt.
 
 `LightSessionPresentation.svelte` composes the past-Sun and device log forms,
 completed Sun/device rows and shared inline/full history. Its pure

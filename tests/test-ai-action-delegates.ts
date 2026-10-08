@@ -96,9 +96,15 @@ for (const action of actions) {
   const environmentProjection = fs.readFileSync(path.join(root, 'js/light-environment-ai-presentation.ts'), 'utf8');
   const authoredEnvironment = fs.readFileSync(path.join(root, 'js/components/LightEnvironmentAI.svelte'), 'utf8');
   const authoredControl = fs.readFileSync(path.join(root, 'js/components/LightVerdictButton.svelte'), 'utf8');
+  const reviewKinds: Record<string, string> = { 'refresh-day': 'today', 'refresh-channel-mix': 'weekly', 'refresh-burden': 'burden' };
+  const reviewKind = reviewKinds[action];
+  const reviewProjection = fs.readFileSync(path.join(root, 'js/light-review-ai-presentation.ts'), 'utf8');
+  const reviewComponent = reviewKind ? fs.readFileSync(path.join(root, `js/components/Light${reviewKind === 'today' ? 'Today' : reviewKind === 'weekly' ? 'Weekly' : 'Burden'}AI.svelte`), 'utf8') : '';
   const authoredOnboarding = fs.readFileSync(path.join(root, 'js/components/LightOnboardingAI.svelte'), 'utf8');
   assert(`AI action ${action} is rendered by target modules`,
     combined.includes(`aiActionAttrs('${action}'`) || sources[actionOwners[action]].includes(`action: '${action}'`) ||
+      (reviewKind && sources[actionOwners[action]].includes(`kind: '${reviewKind}'`) && reviewProjection.includes(`${reviewKind}: '${action}'`) &&
+        reviewComponent.includes('<LightVerdictButton') && authoredControl.includes('data-ai-action={view.action}')) ||
       (action === 'refresh-onboarding' && authoredOnboarding.includes('data-ai-action="refresh-onboarding"')) ||
       (kind && sources[actionOwners[action]].includes(`kind: '${kind}'`) && environmentProjection.includes(`${kind}: '${action}'`) &&
         authoredEnvironment.includes('<LightVerdictButton') && authoredControl.includes('data-ai-action={view.action}')));

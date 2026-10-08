@@ -18,7 +18,7 @@
 </script>
 
 <button type="button" class={buttonClass}
-  data-ai-action={view.action} data-ai-target={view.targetId} data-ai-owner={view.actionOwner}
+  data-ai-action={view.action} data-ai-target={view.targetId || undefined} data-ai-owner={view.actionOwner}
   data-ai-stop-propagation={stops ? 'true' : undefined}
   title={title ?? (icon ? 'Re-run analysis' : undefined)}
   aria-label={ariaLabel ?? (icon ? 'Re-run AI analysis' : undefined)}>{label}</button>

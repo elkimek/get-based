@@ -1,3 +1,4 @@
+import { renderHTML as renderLightReview } from './components/LightReviewAI.svelte.html.js';
 // light-channel-view.js — Light channel pill and detail renderers
 
 import { state } from './state.js';
@@ -661,11 +662,5 @@ export function renderSuggestion(sunTotals7d: unknown = {}, deviceTotals7d: unkn
     comparison = `Previous 7 days: ${_sessionCountText(previousSun.sessions, 'outdoor')} and ${_sessionCountText(previousDevice.sessions, 'device')}.`;
   }
 
-  return `<div class="light-suggestion light-weekly-fallback">
-    <div class="light-weekly-period">Past 7 days</div>
-    <p class="light-weekly-summary-text">${escapeHTML(headline)}</p>
-    <p class="light-weekly-comparison">${escapeHTML(comparison)}</p>
-    <p class="light-weekly-next-step">${escapeHTML(nextStep)}</p>
-    ${currentTotal === 0 ? '<button type="button" class="dashboard-action-btn light-weekly-log-cta" data-light-page-action="quick-log-sun">Log outdoor exposure</button>' : ''}
-  </div>`;
+  return renderLightReview({ view: { kind: 'weekly-fallback', headline, comparison, nextStep, empty: currentTotal === 0 } });
 }
