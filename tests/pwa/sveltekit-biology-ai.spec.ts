@@ -17,7 +17,10 @@ async function inspect(page:Page){
  await expect(summary.locator('[role="status"][aria-live]')).toHaveAttribute('aria-label','refresh needed');
  await expect(summary.locator('.biology-score-ai-refresh-reason')).toHaveText('This explanation uses an older context format.');
  const toggle=card.locator('[data-biology-score-action="toggle-score"]');await toggle.focus();await page.keyboard.press('Enter');await expect(card).toHaveAttribute('open','');
- await expect(card.locator('.biology-score-question')).toBeVisible();
+ const methodology=card.locator('.biology-score-methodology');
+ await methodology.locator(':scope > summary').focus();await page.keyboard.press('Enter');
+ await expect(methodology.locator('.biology-reading-lead')).toBeVisible();
+ await expect(methodology.locator('.biology-reading-lead')).not.toBeEmpty();
  const answer=card.locator('[data-biology-score-ai-panel]');await expect(answer).toBeVisible();
  await expect(answer.locator('.chat-h2')).toHaveText('Cached signal');
  await expect(answer.locator('strong')).toHaveText('Full explanation');
