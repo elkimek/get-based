@@ -495,6 +495,14 @@ select.import-unit-input {
   width: 30px;
   text-align: center;
 }
+.import-row-num-heading,
+.import-row-num {
+  width: 34px;
+  text-align: right;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .import-status-cell {
   padding-left: 10px;
   padding-right: 8px;

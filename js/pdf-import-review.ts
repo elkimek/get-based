@@ -376,6 +376,7 @@ function renderImportReviewRow(m: ImportReviewMarker, origIdx: number, status: '
   const label = status === 'matched' ? 'Matched' : status === 'new' ? 'New' : 'Unmatched';
   return `<tr data-import-idx="${origIdx}" data-import-status="${status}">
       ${pad}<td class="import-status-cell ${dotClass}" data-label="Status"><span class="import-status-dot" title="${label}" role="img" aria-label="${label}"></span></td>
+      ${pad}<td class="import-row-num" data-label="Row">${origIdx + 1}</td>
       ${pad}<td class="import-name-cell" data-label="Test name">${escapeHTML(m.rawName)}</td>
       ${pad}<td data-label="Value">
         ${pad}<input type="number" step="any" class="import-value-input" data-marker-idx="${origIdx}" value="${escapeHTML(String(m.value))}" ${importReviewActionAttrs('edit-value')} aria-label="Value for ${escapeHTML(m.rawName)}">
@@ -467,7 +468,7 @@ export function showImportPreview(parseResult: PendingImport) {
     <span class="import-visible-count" id="import-visible-count" aria-live="polite"></span>
   </div>`;
 
-  html += '<div class="import-table-wrap"><table class="import-table"><thead><tr><th class="import-state-heading" aria-label="Status"></th><th>Test Name</th><th>Value</th><th>Unit</th><th>Lab Range</th><th>Maps To</th><th>Action</th></tr></thead><tbody>';
+  html += '<div class="import-table-wrap"><table class="import-table"><thead><tr><th class="import-state-heading" aria-label="Status"></th><th class="import-row-num-heading" title="Row number used in import error messages">#</th><th>Test Name</th><th>Value</th><th>Unit</th><th>Lab Range</th><th>Maps To</th><th>Action</th></tr></thead><tbody>';
   for (const m of matched) {
     html += renderImportReviewRow(m, markers.indexOf(m), 'matched');
   }
