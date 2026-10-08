@@ -17,9 +17,12 @@ type DeviceAIResponse = Pick<Awaited<ReturnType<typeof import('./agent-feature-i
 // callbacks. This module owns the preset-picker modal, custom-device form,
 // and AI-assisted URL/photo spec extraction.
 
+import { renderHTML } from './components/LightDeviceSetup.svelte.html.js';
+import { projectDevicePresets, projectDeviceCustomSetup } from './light-device-setup-presentation.js';
+
 import { getErrorMessage } from './caught-error.js';
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, showNotification, isDebugMode } from './utils.js';
+import { showNotification, isDebugMode } from './utils.js';
 import {
   assistantFeatureSupports, callAssistantFeatureAI, hasAssistantFeatureProvider,
 } from './ai-feature-routing.js';
@@ -54,67 +57,12 @@ export function configureLightDeviceSetup(deps: Partial<LightDeviceSetupDeps> = 
 
 export async function openAddDeviceDialog() {
   const { presets, types } = await setupDeps.loadPresets();
-  const groups: Record<string, LightDeviceRecord[]> = {};
-  for (const p of presets) {
-    if (!groups[p.type as string]) groups[p.type as string] = [];
-    groups[p.type as string]!.push(p);
-  }
-  // Order: UV (most distinctive — vitamin D capable) first, then UVA-only,
-  // then red+NIR panels, then targeted PBM, then eye-channel devices
-  // (SAD → dawn → full-spectrum bulbs). Mirrors the natural mental
-  // model "what kind of light am I trying to add?"
-  const orderedTypes = ['uvb', 'uva', 'combined', 'pbm-targeted', 'sad', 'dawn-sim', 'full-spectrum'];
-
-  let presetSections = '';
-  for (const t of orderedTypes) {
-    if (!groups[t]) continue;
-    const meta = types[t] || {};
-    const groupId = `add-device-group-${t.replace(/[^a-z0-9-]/gi, '-')}`;
-    presetSections += `<section class="light-device-preset-group" aria-labelledby="${escapeAttr(groupId)}">
-      <h4 class="light-device-preset-heading" id="${escapeAttr(groupId)}">${escapeHTML((meta.icon || '') + ' ' + (meta.label || t))}</h4>
-      <div class="light-device-preset-list">`;
-    for (const p of groups[t]!) {
-      const presetMeta = _formatPresetMeta(p);
-      presetSections += `<button type="button" class="light-device-preset-row" data-preset-id="${escapeAttr(p.id)}" aria-pressed="false">
-        <span class="light-device-preset-name">${escapeHTML(p.brand)} ${escapeHTML(p.model)}</span>
-        ${presetMeta ? `<span class="light-device-preset-meta">${escapeHTML(presetMeta)}</span>` : ''}
-      </button>`;
-    }
-    presetSections += '</div></section>';
-  }
-
-  // Anything not in the curated preset list goes through the AI-powered
-  // custom-add flow (paste URL or scan label) — same UX shape as the
-  // supplement-add modal in supplements.js.
-  const hasAI = hasAssistantFeatureProvider();
-  const aiHint = hasAI
-    ? 'Don\'t see your device? Paste its product page or snap a photo of the back panel — AI extracts the specs.'
-    : 'Don\'t see your device? Set up an AI provider in Settings to auto-extract specs from a URL or photo, or click below to enter manually.';
-
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const closeDialog = () => removeModalOverlay(overlay);
-  overlay.innerHTML = `<div class="modal light-device-add-modal" role="dialog" aria-label="Add light device">
-    <div class="modal-header">
-      <h3>Add a light device</h3>
-      <button class="modal-close" data-light-device-setup-close aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      <p class="modal-body-hint">Pick from the curated brand presets — Mitochondriak, Chroma, EMR-Tek. Anything else uses the custom-add flow below.</p>
-      <div class="light-device-preset-groups">
-        ${presetSections}
-      </div>
-      <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" data-light-device-setup-close>Cancel</button>
-        <button class="import-btn import-btn-primary" id="add-device-confirm" disabled>Add device</button>
-      </div>
-
-      <hr style="margin:20px 0;border:none;border-top:1px solid var(--border)">
-
-      <p class="modal-body-hint">${escapeHTML(aiHint)}</p>
-      <button type="button" class="import-btn import-btn-secondary" id="add-device-custom" style="width:100%;margin-top:8px">+ Custom device (paste link or scan photo)</button>
-    </div>
-  </div>`;
+  overlay.innerHTML = renderHTML({ kind: 'presets', view: projectDevicePresets({
+    presets, types, hasAI: hasAssistantFeatureProvider(),
+  }) });
   setupDeps.wireModal(overlay, closeDialog);
   overlay.querySelectorAll('[data-light-device-setup-close]').forEach(btn => {
     btn.addEventListener('click', closeDialog);
@@ -164,24 +112,6 @@ export async function openAddDeviceDialog() {
   });
 }
 
-function _formatPresetMeta(p: Partial<LightDeviceRecord>) {
-  const parts: string[] = [];
-  if (Array.isArray(p.peakWavelengths) && p.peakWavelengths.length) {
-    parts.push(`${p.peakWavelengths.join('/')} nm`);
-  }
-  if (Number.isFinite(Number(p.mwPerCm2At15cm)) && Number(p.mwPerCm2At15cm) > 0) {
-    parts.push(`${p.mwPerCm2At15cm} mW/cm²`);
-  } else if (Number.isFinite(Number(p.lux)) && Number(p.lux) > 0) {
-    parts.push(`${Number(p.lux).toLocaleString()} lux`);
-  } else if (Number.isFinite(Number(p.melanopicEdiLux)) && Number(p.melanopicEdiLux) > 0) {
-    parts.push(`${Number(p.melanopicEdiLux).toLocaleString()} lx M-EDI`);
-  }
-  if (Number.isFinite(Number(p.recommendedDistanceCm)) && Number(p.recommendedDistanceCm) > 0) {
-    parts.push(`${p.recommendedDistanceCm} cm`);
-  }
-  return parts.join(' · ');
-}
-
 // AI-powered custom-device add modal. Mirrors the supplement custom-add flow
 // (see supplements.js fetchSupplementFromURL + scanSupplementLabel): paste a
 // product URL or snap a photo, AI extracts specs, user verifies and saves.
@@ -191,80 +121,9 @@ export async function openCustomDeviceDialog() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const closeDialog = () => removeModalOverlay(overlay);
-  overlay.innerHTML = `<div class="modal" role="dialog" aria-label="Add custom light device">
-    <div class="modal-header">
-      <h3>Add a custom device</h3>
-      <button class="modal-close" data-light-device-custom-close aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      ${hasAI ? `
-      <p class="modal-body-hint">Paste a product page URL or scan the label. AI fills the main fields and keeps any stated mode or measurement details. Verify them against the product page before saving.</p>
-      <div class="custom-device-ai-row">
-        <input type="url" id="custom-dev-url" class="ctx-input" placeholder="https://..." style="flex:1" />
-        <button type="button" class="import-btn import-btn-secondary custom-dev-fetch" id="custom-dev-fetch">Fetch &amp; analyse</button>
-      </div>
-      ${hasVision ? `<div class="custom-device-ai-row" style="margin-top:8px">
-        <button type="button" class="import-btn import-btn-secondary custom-dev-scan" id="custom-dev-scan">📷 Scan device label</button>
-        <input type="file" id="custom-dev-image" accept="image/*" style="display:none">
-      </div>` : `<p class="modal-body-hint" style="margin-top:8px">Image scan needs a vision-capable AI model (Claude or OpenAI).</p>`}
-      <hr style="margin:16px 0;border:none;border-top:1px solid var(--border)">
-      ` : `<p class="modal-body-hint">Set up an AI provider in Settings to auto-extract specs from a URL or photo. For now, fill in fields manually:</p>`}
-      <div class="custom-device-form">
-        <label class="ctx-label">Brand
-          <input type="text" id="custom-dev-brand" class="ctx-input" placeholder="e.g. Mitochondriak" />
-        </label>
-        <label class="ctx-label">Model
-          <input type="text" id="custom-dev-model" class="ctx-input" placeholder="e.g. Maxi UVB" />
-        </label>
-        <label class="ctx-label">Type
-          <select id="custom-dev-type" class="ctx-select">
-            <option value="combined">Red + near-IR panel</option>
-            <option value="uvb">UV phototherapy (UVB-capable)</option>
-            <option value="uva">UVA panel (no UVB)</option>
-            <option value="pbm-targeted">Targeted PBM device</option>
-            <option value="sad">SAD light box (10k lux)</option>
-            <option value="dawn-sim">Dawn simulator</option>
-            <option value="full-spectrum">Full-spectrum bulb</option>
-          </select>
-        </label>
-        <label class="ctx-label">Peak wavelengths (nm, comma-separated)
-          <input type="text" id="custom-dev-peaks" class="ctx-input" placeholder="e.g. 660, 850" />
-        </label>
-        <label class="ctx-label">Irradiance (mW/cm² at vendor's reference distance)
-          <input type="number" id="custom-dev-irradiance" class="ctx-input" min="0" step="any" placeholder="e.g. 100 (leave blank for SAD lamps)" />
-        </label>
-        ${(() => {
-          const useUS = state.unitSystem === 'US';
-          const startUnit = useUS ? 'in' : 'cm';
-          const ph = startUnit === 'in' ? 'e.g. 6' : 'e.g. 15';
-          return `<label class="ctx-label">Vendor reference distance — distance the irradiance was measured at
-            <div class="dev-distance-row">
-              <input type="number" id="custom-dev-distance" class="ctx-input" min="1" max="200" step="any" placeholder="${ph}" data-unit="${startUnit}" />
-              <div class="dev-unit-toggle" role="tablist" aria-label="Distance unit">
-                <button type="button" class="dev-unit-btn${startUnit === 'cm' ? ' active' : ''}" data-target="custom-dev-distance" data-unit="cm" role="tab" aria-selected="${startUnit === 'cm'}">cm</button>
-                <button type="button" class="dev-unit-btn${startUnit === 'in' ? ' active' : ''}" data-target="custom-dev-distance" data-unit="in" role="tab" aria-selected="${startUnit === 'in'}">in</button>
-              </div>
-            </div>
-          </label>`;
-        })()}
-        <label class="ctx-label">Lux at the eye (for SAD / dawn lamps)
-          <input type="number" id="custom-dev-lux" class="ctx-input" min="0" step="any" placeholder="e.g. 10000" />
-        </label>
-        <label class="ctx-label">Melanopic EDI at the eye (lx, if the source states it)
-          <input type="number" id="custom-dev-medi" class="ctx-input" min="0" step="any" placeholder="Leave blank unless explicitly measured or stated" />
-        </label>
-        <input type="hidden" id="custom-dev-advanced" value="" />
-      </div>
-      <details id="custom-dev-extracted-details" class="sun-detail-disclosure" hidden>
-        <summary>Review extracted mode and measurement details</summary>
-        <pre id="custom-dev-extracted-json" style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px"></pre>
-      </details>
-      <div class="modal-actions" style="margin-top:18px">
-        <button type="button" class="import-btn import-btn-secondary" data-light-device-custom-close>Cancel</button>
-        <button type="button" class="import-btn import-btn-primary" id="custom-dev-save">Add device</button>
-      </div>
-    </div>
-  </div>`;
+  overlay.innerHTML = renderHTML({ kind: 'custom', view: projectDeviceCustomSetup({
+    hasAI, hasVision, unitSystem: state.unitSystem,
+  }) });
   setupDeps.wireModal(overlay, closeDialog);
   overlay.querySelectorAll('[data-light-device-custom-close]').forEach(btn => {
     btn.addEventListener('click', closeDialog);

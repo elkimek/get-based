@@ -14,3 +14,11 @@
 @source "../js/components/LightDevicePicker.svelte";
 @source "../js/components/LightDeviceChannelChips.svelte";
 @source "../js/components/LightDeviceAffiliate.svelte";
+
+/* Preset and custom-device setup share this ordered lazy stylesheet. */
+@custom-variant device-setup (&:where([data-light-device-setup], [data-light-device-setup] *));
+@source "../js/light-device-setup-classes.ts";
+@source "../js/components/LightDeviceSetup.svelte";
+@source "../js/components/LightDevicePresets.svelte";
+@source "../js/components/LightDeviceCustomForm.svelte";
+@source "../js/components/LightDeviceSpecFields.svelte";

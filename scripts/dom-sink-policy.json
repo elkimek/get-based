@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 1228,
+  "scannedFiles": 1234,
   "sinkCount": 323,
   "files": {
     "js/biology-scores.js": {
@@ -395,7 +395,7 @@
     },
     "js/light-device-setup-modal.js": {
       "count": 2,
-      "digest": "64e4c7a0e0f179b47fb2df86eba0657604bc62c518383cc74039ae3cdcf09b50",
+      "digest": "abd947edd79a158c6d8015af7389ddc08ef93dfbc2a080ed0f0e32fef817850d",
       "kinds": {
         "innerHTML": 2
       }

@@ -187,8 +187,19 @@ Edit the Light device library and picker in `LightDeviceLibrary.svelte`,
 projections are in `js/light-device-library-presentation.ts`. The shared affiliate
 component is `LightDeviceAffiliate.svelte`; recommendation policy stays in
 `js/recommendations-products.ts`. Use `js/light-device-library-classes.ts` and
-`css/light-devices.tailwind.css` for styles. The remaining native setup and
+`css/light-devices.tailwind.css` for styles. The remaining native
 recommendation styles belong to `css/light-devices.base.css`; never edit generated
 `css/light-devices.css`. Focused contracts are in
 `tests/light-device-library.test.ts` and
 `tests/playwright/light-device-library-owned.spec.ts`.
+
+
+Device setup lives in `LightDeviceSetup.svelte`, `LightDevicePresets.svelte`,
+`LightDeviceCustomForm.svelte` and `LightDeviceSpecFields.svelte`. Edit
+`js/light-device-setup-presentation.ts` for pure display projections and
+`js/light-device-setup-classes.ts` for scoped Tailwind styling. Existing modal,
+selection, conversion, AI extraction and save behavior stays in
+`js/light-device-setup-modal.ts`. Focused original-markup contracts and headless
+acceptance are in `tests/light-device-setup-presentation.test.ts`,
+`tests/playwright/light-device-setup-owned.spec.ts` and
+`tests/pwa/sveltekit-light-device-setup.spec.ts`.

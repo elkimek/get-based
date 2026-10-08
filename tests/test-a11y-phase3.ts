@@ -8,6 +8,11 @@
 //
 // Run: node tests/test-a11y-phase3.ts  (or via npm test)
 
+import { deviceSetupClasses } from '../js/light-device-setup-classes.js';
+import { setupClasses } from '../js/light-setup-classes.js';
+import { projectChannelPill, projectChannelDetail } from '../js/light-channel-presentation.js';
+import { renderHTML as renderChannelPills } from '../js/components/LightChannelPills.svelte.html.js';
+import { renderHTML as renderChannelDetail } from '../js/components/LightChannelDetail.svelte.html.js';
 import { readAuthoredRepositorySource } from './helpers/repository-source.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -298,11 +303,20 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const ownedChatTitle = read('/js/components/ChatHeader.svelte').match(/class="chat-header-title [^"]*"/)?.[0] || '';
   const ownedChatTitleUsesDisplayFont = ownedChatTitle.includes('gb:header:theme-neuro:[font-family:var(--font-neuromancer-display)]')
     && ownedChatTitle.includes('gb:header:theme-neuro:[font-size-adjust:0.62]');
+  const ownedLightTitle = new Map([
+    ['.light-setup-title',setupClasses('light-setup-title')],
+    ['.light-setup-focus-head h3',setupClasses('light-setup-focus-head')],
+    ['.light-setup-ott h4',setupClasses('light-setup-ott')],
+  ]);
   assert('neuromancer VT323 stays scoped to display accents',
     !!neuromancerDisplayToken &&
     !!neuromancerDisplayRule &&
     neuromancerDisplaySelectors.every(selector => selector === '.chat-header-title'
-      ? ownedChatTitleUsesDisplayFont : neuromancerDisplayRule[0]!.includes(selector)) &&
+      ? ownedChatTitleUsesDisplayFont : ownedLightTitle.has(selector)
+        ? ownedLightTitle.get(selector)!.includes("[[data-theme='neuromancer']_")
+          && ownedLightTitle.get(selector)!.includes('[font-family:var(--font-neuromancer-display)]')
+          && ownedLightTitle.get(selector)!.includes('[font-size-adjust:0.62]')
+        : neuromancerDisplayRule[0]!.includes(selector)) &&
     neuromancerBaseFontSelectors.every(selector => !neuromancerDisplayRule[0]!.includes(selector)) &&
     neuromancerDisplayRule[0]!.includes('font-size-adjust: 0.62') &&
     !/\[data-theme="neuromancer"\]\s+body\s*\{[^}]*VT323/.test(themesSrc));
@@ -332,8 +346,11 @@ console.log('=== Phase 3 A11y Tests ===\n');
 
   const chatRenderSrc = read('/js/chat-render.js');
   const chatRenderRuntimeSrc = read('/js/chat-render-runtime.js');
+  const chatTranscriptProjectionSrc = read('/js/chat-transcript-presentation.ts');
   assert('chat-render browser hooks are isolated in runtime adapter',
-    chatRenderSrc.includes("from './chat-render-runtime.js'")
+    chatRenderSrc.includes("from './chat-transcript-presentation.js'")
+      && chatTranscriptProjectionSrc.includes("from './chat-render-runtime.js'")
+      && !/\bwindow(\.|\s*\[)/.test(chatTranscriptProjectionSrc)
       && !/\bwindow(\.|\s*\[)/.test(chatRenderSrc)
       && chatRenderRuntimeSrc.includes('isChatRenderProductRecsEnabled')
       && chatRenderRuntimeSrc.includes('renderChatRecommendationSections'));
@@ -353,7 +370,7 @@ console.log('=== Phase 3 A11y Tests ===\n');
   const lightDevModalLoaderSrc = read('/js/light-device-modal-loader.ts');
   const lightDevSetupSrc = read('/js/light-device-setup-modal.ts');
   const lightDevSessionSrc = read('/js/light-device-session-modal.ts');
-  const lightDevCss = read('/css/light-devices.css');
+  const lightDevPresetsSrc = read('/js/components/LightDevicePresets.svelte');
   assert('light-devices.js lazily delegates session dialog rendering',
     lightDevSrc.includes("from './light-device-modal-loader.js'")
       && !lightDevSrc.includes("from './light-device-session-modal.js'")
@@ -363,17 +380,17 @@ console.log('=== Phase 3 A11y Tests ===\n');
       && !lightDevSrc.includes("from './light-device-setup-modal.js'")
       && lightDevModalLoaderSrc.includes("import('./light-device-setup-modal.js')"));
   assert('Add-device preset picker stays inside modal as button rows, not a native dropdown',
-    lightDevSetupSrc.includes('light-device-preset-groups') &&
-    lightDevSetupSrc.includes('light-device-preset-row') &&
-    !lightDevSetupSrc.includes('id="add-device-preset"'));
+    lightDevPresetsSrc.includes("c('light-device-preset-groups')") &&
+    lightDevPresetsSrc.includes("c('light-device-preset-row')") &&
+    !lightDevPresetsSrc.includes('id="add-device-preset"'));
   assert('Add-device preset picker uses one vertical modal scroller with no horizontal row overflow',
     lightDevSetupSrc.includes("overlay.addEventListener('wheel'") &&
     lightDevSetupSrc.includes('modal.scrollBy({ top: event.deltaY * unit, left: 0') &&
-    lightDevCss.includes('.light-device-add-modal') &&
-    lightDevCss.includes('touch-action: pan-y') &&
-    lightDevCss.includes('overflow-x: hidden') &&
-    lightDevCss.includes('word-break: break-word') &&
-    lightDevCss.includes('overflow: visible'));
+    lightDevPresetsSrc.includes('light-device-add-modal') &&
+    deviceSetupClasses('light-device-add-modal').includes('[touch-action:pan-y]') &&
+    deviceSetupClasses('modal-body').includes('[overflow-x:hidden]') &&
+    deviceSetupClasses('light-device-preset-meta').includes('[word-break:break-word]') &&
+    deviceSetupClasses('light-device-preset-groups').includes('[overflow:visible]'));
   assert('custom-device URL extraction checks hosted proxy response status',
     lightDevSetupSrc.includes('if (!res.ok) throw new Error(`Proxy error ${res.status}`);'));
   assert('custom-device async extraction suppresses stale detached-overlay notifications',
@@ -406,17 +423,23 @@ console.log('=== Phase 3 A11y Tests ===\n');
   // The detail panel is role=region with aria-label; close button has its
   // own aria-label. Hidden text in .sr-only carries the qualitative tier
   // for screen readers since the dots are aria-hidden.
+  const pillMarkup = renderChannelPills({pills:[projectChannelPill('circadian',
+    {label:'Circadian',icon:'☀',what:'Daily rhythm'},1,0,
+    {n:2,sun:2,device:0,txt:'2 days'},{bars:[]})]});
+  const detailMarkup = renderChannelDetail({view:projectChannelDetail({
+    channel:'circadian',meta:{label:'Circadian',icon:'☀',what:'Daily rhythm'},sun:1,device:0,
+    recentDays:[],chartDays:null,iuDays:null,pbmJoulesPerCm2:null,matchingDevice:false,peakAt:null,peakUV:null,
+  })});
   assert('pill is a <button> with aria-expanded + aria-controls',
-    /<button type="button" class="light-pill light-pill-tier-\$\{active \? 2 : 0\}[\s\S]{0,400}aria-expanded="false" aria-controls="\$\{detailId\}"/.test(lightChannelViewSrc));
+    /<button type="button"[^>]*aria-expanded="false" aria-controls="light-pill-detail-circadian"/.test(pillMarkup));
   assert('pill sparkline is aria-hidden (qualitative info already in sr-only span)',
-    lightChannelViewSrc.includes('class="light-pill-sparkline"') &&
-    /<svg class="light-pill-sparkline"[^>]*aria-hidden="true"/.test(lightChannelViewSrc));
+    /<svg[^>]*class="light-pill-sparkline [^"]*"[^>]*aria-hidden="true"/.test(pillMarkup));
   assert('pill carries sr-only tier + day-count label for assistive tech',
-    /class="sr-only">\$\{escapeHTML\(sourceLabel\)\}\$\{dc\.n \? ` on \$\{dc\.n\} day/.test(lightChannelViewSrc));
+    pillMarkup.includes('<span class="sr-only">Sunlight logged on 2 days this week</span>'));
   assert('detail panel is role=region with aria-label',
-    /class="light-channel-detail"[\s\S]{0,200}role="region" aria-label="\$\{escapeHTML\(meta\.label/.test(lightChannelViewSrc));
+    /id="light-pill-detail-circadian" role="region" aria-label="Circadian detail"/.test(detailMarkup));
   assert('detail close button has aria-label',
-    /class="light-channel-detail-close" aria-label="Close \$\{escapeAttr\(meta\.label/.test(lightChannelViewSrc));
+    /<button type="button"[^>]*class="light-channel-detail-close [^"]*"[^>]*aria-label="Close Circadian detail"/.test(detailMarkup));
   assert('_toggleChannelDetail flips aria-expanded on the active pill',
     /p\.setAttribute\('aria-expanded', 'true'\)/.test(lightChannelViewSrc) &&
     /p\.setAttribute\('aria-expanded', 'false'\)/.test(lightChannelViewSrc));

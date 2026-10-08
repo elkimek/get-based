@@ -1865,8 +1865,25 @@ child-HTML composition in the library, chips, picker or affiliate component.
 `css/light-devices.css` is generated from `light-devices.base.css` and scoped
 `light-devices.tailwind.css` at the unchanged lazy URL. Tailwind owns library and
 picker states, type bands and inclusive 768/600/375px layouts. The base retains
-separate setup/recommendation owners and the shared Lens widget-body gap. Link
+separate recommendation owners and the shared Lens widget-body gap. Link
 and metadata ink use readable shared semantic tokens; phone delete controls stay
 visible, and authored controls have visible keyboard focus and at least 44px
 targets for coarse pointers. Native library/picker/chip
 and affiliate templates and their superseded styles are removed.
+
+`LightDeviceSetup.svelte` composes preset selection and the custom-device form;
+`LightDeviceSpecFields.svelte` owns the common specification fields. Pure setup
+projections retain curated grouping, metadata priority, provider/vision gates and
+initial units. `light-device-setup-modal.ts` retains selection and save handlers,
+unit conversion, form readers, modal lifecycle, URL/photo extraction, prompt
+contracts and detached-overlay guards. The store continues to own validation,
+channel inference, snapshots and canonical writes. No extracted HTML slot or
+provider request is introduced by these components.
+
+`light-device-setup-classes.ts` owns setup states and scoped Tailwind utilities at
+the same generated `light-devices.css` URL. Preset selection remains visible on
+hover and focus; the single modal scroller and long-label wrapping are retained.
+Authored setup controls add visible focus and coarse 44px targets, readable label
+and unit ink, and an accessible URL input name. The native setup templates and
+superseded preset/custom/distance CSS are removed. Shared session controls retain
+their existing independent authored owner.

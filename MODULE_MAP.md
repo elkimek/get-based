@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1288 |
-| Internal import edges | 4504 |
+| Modules | 1294 |
+| Internal import edges | 4513 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1340,7 +1340,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>light</code> family — 79 modules</summary>
+<details><summary><code>light</code> family — 81 modules</summary>
 
 - [`js/light-active-session-presentation.ts`](js/light-active-session-presentation.ts) → no in-scope imports
 - [`js/light-ai-save-hooks.ts`](js/light-ai-save-hooks.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/light-audit-ai-analysis.ts`](js/light-audit-ai-analysis.ts), [`js/light-env-ai-analysis.ts`](js/light-env-ai-analysis.ts), [`js/light-env-audits.ts`](js/light-env-audits.ts), [`js/light-env.ts`](js/light-env.ts), [`js/light-screen-ai-analysis.ts`](js/light-screen-ai-analysis.ts), [`js/light-tools-ai-analysis.ts`](js/light-tools-ai-analysis.ts), [`js/light-tools.ts`](js/light-tools.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun-onboarding-ai.ts`](js/sun-onboarding-ai.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts)
@@ -1367,7 +1367,9 @@ Native browser modules shipped with the static application.
 - [`js/light-device-modal-loader.ts`](js/light-device-modal-loader.ts) → [`js/light-device-session-modal.ts`](js/light-device-session-modal.ts) *(dynamic)*, [`js/light-device-setup-modal.ts`](js/light-device-setup-modal.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-device-session-engine.ts`](js/light-device-session-engine.ts) → [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts)
 - [`js/light-device-session-modal.ts`](js/light-device-session-modal.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte), [`js/light-device-session-engine.ts`](js/light-device-session-engine.ts), [`js/light-session-presentation.ts`](js/light-session-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/light-device-setup-modal.ts`](js/light-device-setup-modal.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/image-utils.ts`](js/image-utils.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-device-setup-classes.ts`](js/light-device-setup-classes.ts) → no in-scope imports
+- [`js/light-device-setup-modal.ts`](js/light-device-setup-modal.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/components/LightDeviceSetup.svelte`](js/components/LightDeviceSetup.svelte), [`js/image-utils.ts`](js/image-utils.ts), [`js/light-device-setup-presentation.ts`](js/light-device-setup-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/proxy-runtime.ts`](js/proxy-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-device-setup-presentation.ts`](js/light-device-setup-presentation.ts) → no in-scope imports
 - [`js/light-device-view-formatters.ts`](js/light-device-view-formatters.ts) → [`js/components/LightDevicePresentation.svelte`](js/components/LightDevicePresentation.svelte), [`js/utils.ts`](js/utils.ts)
 - [`js/light-devices-actions.ts`](js/light-devices-actions.ts) → no in-scope imports
 - [`js/light-devices-runtime.ts`](js/light-devices-runtime.ts) → [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/sun.ts`](js/sun.ts), [`js/utils.ts`](js/utils.ts)
@@ -1526,6 +1528,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>LightDeviceCustomForm.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightDeviceCustomForm.svelte`](js/components/LightDeviceCustomForm.svelte) → [`js/components/LightDeviceSpecFields.svelte`](js/components/LightDeviceSpecFields.svelte), [`js/light-device-setup-classes.ts`](js/light-device-setup-classes.ts)
+
+</details>
+
 <details><summary><code>LightDeviceLibrary.svelte</code> family — 1 module</summary>
 
 - [`js/components/LightDeviceLibrary.svelte`](js/components/LightDeviceLibrary.svelte) → [`js/components/LightDeviceAffiliate.svelte`](js/components/LightDeviceAffiliate.svelte), [`js/components/LightDeviceChannelChips.svelte`](js/components/LightDeviceChannelChips.svelte), [`js/light-device-library-classes.ts`](js/light-device-library-classes.ts)
@@ -1541,6 +1549,24 @@ Native browser modules shipped with the static application.
 <details><summary><code>LightDevicePresentation.svelte</code> family — 1 module</summary>
 
 - [`js/components/LightDevicePresentation.svelte`](js/components/LightDevicePresentation.svelte) → [`js/components/LightDeviceChannelChips.svelte`](js/components/LightDeviceChannelChips.svelte), [`js/components/LightDeviceLibrary.svelte`](js/components/LightDeviceLibrary.svelte), [`js/components/LightDevicePicker.svelte`](js/components/LightDevicePicker.svelte)
+
+</details>
+
+<details><summary><code>LightDevicePresets.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightDevicePresets.svelte`](js/components/LightDevicePresets.svelte) → [`js/light-device-setup-classes.ts`](js/light-device-setup-classes.ts)
+
+</details>
+
+<details><summary><code>LightDeviceSetup.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightDeviceSetup.svelte`](js/components/LightDeviceSetup.svelte) → [`js/components/LightDeviceCustomForm.svelte`](js/components/LightDeviceCustomForm.svelte), [`js/components/LightDevicePresets.svelte`](js/components/LightDevicePresets.svelte)
+
+</details>
+
+<details><summary><code>LightDeviceSpecFields.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightDeviceSpecFields.svelte`](js/components/LightDeviceSpecFields.svelte) → [`js/light-device-setup-classes.ts`](js/light-device-setup-classes.ts), [`js/light-device-setup-presentation.ts`](js/light-device-setup-presentation.ts)
 
 </details>
 

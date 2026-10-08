@@ -330,3 +330,19 @@ touch targets; assertions and compiler safety remain unchanged.
 [`sveltekit-light-device-library.spec.ts`](../tests/pwa/sveltekit-light-device-library.spec.ts)
 exercises the real owned-device list, picker-to-session path, dismissals and
 complete stored profile through two closed-client offline cold launches.
+
+Device setup contracts in
+[`light-device-setup-presentation.test.ts`](../tests/light-device-setup-presentation.test.ts)
+compare independently frozen original preset/custom markup for manual, text-AI
+and vision-AI branches, both initial distance units, and full/empty curated lists.
+[`light-device-setup-owned.spec.ts`](../tests/playwright/light-device-setup-owned.spec.ts)
+compares original computed styles across six themes and five widths, including
+selected preset states and hover, and checks AA, keyboard focus and coarse targets.
+Readable ink, URL naming/sizing, explicit button types and touch sizing are declared
+improvements. Existing controlled-provider browser tests retain URL extraction,
+form readers, validation, conversion and fallback assertions.
+[`sveltekit-light-device-setup.spec.ts`](../tests/pwa/sveltekit-light-device-setup.spec.ts)
+creates actual preset and manual devices offline, checks full unrelated profile
+preservation and canonical specifications, and verifies both records through two
+closed-client cold launches. These checks do not establish live external AI
+provider availability or whole-application release acceptance.

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { sourceFunctionHasInitializer } from './helpers/native-source-contracts.js';
 import { deviceLibraryClasses } from '../js/light-device-library-classes.js';
+import { deviceSetupClasses } from '../js/light-device-setup-classes.js';
 import { dataModuleSource } from './helpers/data-module-source.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
@@ -724,7 +725,6 @@ const channelDetailClasses = read('js/light-channel-classes.ts');
 const channelPillsComponent = read('js/components/LightChannelPills.svelte');
 const channelDetailComponent = read('js/components/LightChannelDetail.svelte');
 const channelChartComponent = read('js/components/LightChannelChart.svelte');
-const lightDevicesCss = read('css/light-devices.css');
 const lightConditionsCss = read('css/light-conditions-now.css');
 const lightConditionsClasses = read('js/light-conditions-classes.ts');
 const lightConditionsTailwind = read('css/light-conditions-now.tailwind.css');
@@ -880,7 +880,8 @@ assert('Light devices CSS owns device cards, picker, and distance controls',
   deviceLibraryClasses('light-device-card').includes('[display:flex]') &&
   deviceLibraryClasses('light-device-card').includes('[flex-direction:column]') &&
   read('js/components/LightDeviceLibrary.svelte').includes('light-device-card') &&
-  /\.dev-distance-row:not\(\[data-light-session-presentation\] \*\)\s*\{[\s\S]*display:\s*flex/.test(lightDevicesCss) &&
+  deviceSetupClasses('dev-distance-row').includes('[display:flex]') &&
+  read('js/components/LightDeviceSpecFields.svelte').includes("c('dev-distance-row')") &&
   read('js/components/LightDevicePicker.svelte').includes('light-device-picker-row') &&
   deviceLibraryClasses('light-device-picker-row').includes('[cursor:pointer]') &&
   !/\.light-device-card\s*\{/.test(lightSunCss) &&

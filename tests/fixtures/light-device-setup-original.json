@@ -1,0 +1,560 @@
+{
+  "revision": "3ce11e2962c13c87d3f7682255eb5f7834048a97",
+  "cases": [
+    {
+      "kind": "custom",
+      "name": "custom-manual-SI",
+      "hasAI": false,
+      "hasVision": false,
+      "unit": "SI",
+      "html": "<div class=\"modal\" role=\"dialog\" aria-label=\"Add custom light device\">\n    <div class=\"modal-header\">\n      <h3>Add a custom device</h3>\n      <button class=\"modal-close\" data-light-device-custom-close=\"\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <p class=\"modal-body-hint\">Set up an AI provider in Settings to auto-extract specs from a URL or photo. For now, fill in fields manually:</p>\n      <div class=\"custom-device-form\">\n        <label class=\"ctx-label\">Brand\n          <input type=\"text\" id=\"custom-dev-brand\" class=\"ctx-input\" placeholder=\"e.g. Mitochondriak\">\n        </label>\n        <label class=\"ctx-label\">Model\n          <input type=\"text\" id=\"custom-dev-model\" class=\"ctx-input\" placeholder=\"e.g. Maxi UVB\">\n        </label>\n        <label class=\"ctx-label\">Type\n          <select id=\"custom-dev-type\" class=\"ctx-select\">\n            <option value=\"combined\">Red + near-IR panel</option>\n            <option value=\"uvb\">UV phototherapy (UVB-capable)</option>\n            <option value=\"uva\">UVA panel (no UVB)</option>\n            <option value=\"pbm-targeted\">Targeted PBM device</option>\n            <option value=\"sad\">SAD light box (10k lux)</option>\n            <option value=\"dawn-sim\">Dawn simulator</option>\n            <option value=\"full-spectrum\">Full-spectrum bulb</option>\n          </select>\n        </label>\n        <label class=\"ctx-label\">Peak wavelengths (nm, comma-separated)\n          <input type=\"text\" id=\"custom-dev-peaks\" class=\"ctx-input\" placeholder=\"e.g. 660, 850\">\n        </label>\n        <label class=\"ctx-label\">Irradiance (mW/cm² at vendor's reference distance)\n          <input type=\"number\" id=\"custom-dev-irradiance\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"e.g. 100 (leave blank for SAD lamps)\">\n        </label>\n        <label class=\"ctx-label\">Vendor reference distance — distance the irradiance was measured at\n            <div class=\"dev-distance-row\">\n              <input type=\"number\" id=\"custom-dev-distance\" class=\"ctx-input\" min=\"1\" max=\"200\" step=\"any\" placeholder=\"e.g. 15\" data-unit=\"cm\">\n              <div class=\"dev-unit-toggle\" role=\"tablist\" aria-label=\"Distance unit\">\n                <button type=\"button\" class=\"dev-unit-btn active\" data-target=\"custom-dev-distance\" data-unit=\"cm\" role=\"tab\" aria-selected=\"true\">cm</button>\n                <button type=\"button\" class=\"dev-unit-btn\" data-target=\"custom-dev-distance\" data-unit=\"in\" role=\"tab\" aria-selected=\"false\">in</button>\n              </div>\n            </div>\n          </label>\n        <label class=\"ctx-label\">Lux at the eye (for SAD / dawn lamps)\n          <input type=\"number\" id=\"custom-dev-lux\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"e.g. 10000\">\n        </label>\n        <label class=\"ctx-label\">Melanopic EDI at the eye (lx, if the source states it)\n          <input type=\"number\" id=\"custom-dev-medi\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"Leave blank unless explicitly measured or stated\">\n        </label>\n        <input type=\"hidden\" id=\"custom-dev-advanced\" value=\"\">\n      </div>\n      <details id=\"custom-dev-extracted-details\" class=\"sun-detail-disclosure\" hidden=\"\">\n        <summary>Review extracted mode and measurement details</summary>\n        <pre id=\"custom-dev-extracted-json\" style=\"white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px\"></pre>\n      </details>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary\" data-light-device-custom-close=\"\">Cancel</button>\n        <button type=\"button\" class=\"import-btn import-btn-primary\" id=\"custom-dev-save\">Add device</button>\n      </div>\n    </div>\n  </div>"
+    },
+    {
+      "kind": "custom",
+      "name": "custom-manual-US",
+      "hasAI": false,
+      "hasVision": false,
+      "unit": "US",
+      "html": "<div class=\"modal\" role=\"dialog\" aria-label=\"Add custom light device\">\n    <div class=\"modal-header\">\n      <h3>Add a custom device</h3>\n      <button class=\"modal-close\" data-light-device-custom-close=\"\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <p class=\"modal-body-hint\">Set up an AI provider in Settings to auto-extract specs from a URL or photo. For now, fill in fields manually:</p>\n      <div class=\"custom-device-form\">\n        <label class=\"ctx-label\">Brand\n          <input type=\"text\" id=\"custom-dev-brand\" class=\"ctx-input\" placeholder=\"e.g. Mitochondriak\">\n        </label>\n        <label class=\"ctx-label\">Model\n          <input type=\"text\" id=\"custom-dev-model\" class=\"ctx-input\" placeholder=\"e.g. Maxi UVB\">\n        </label>\n        <label class=\"ctx-label\">Type\n          <select id=\"custom-dev-type\" class=\"ctx-select\">\n            <option value=\"combined\">Red + near-IR panel</option>\n            <option value=\"uvb\">UV phototherapy (UVB-capable)</option>\n            <option value=\"uva\">UVA panel (no UVB)</option>\n            <option value=\"pbm-targeted\">Targeted PBM device</option>\n            <option value=\"sad\">SAD light box (10k lux)</option>\n            <option value=\"dawn-sim\">Dawn simulator</option>\n            <option value=\"full-spectrum\">Full-spectrum bulb</option>\n          </select>\n        </label>\n        <label class=\"ctx-label\">Peak wavelengths (nm, comma-separated)\n          <input type=\"text\" id=\"custom-dev-peaks\" class=\"ctx-input\" placeholder=\"e.g. 660, 850\">\n        </label>\n        <label class=\"ctx-label\">Irradiance (mW/cm² at vendor's reference distance)\n          <input type=\"number\" id=\"custom-dev-irradiance\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"e.g. 100 (leave blank for SAD lamps)\">\n        </label>\n        <label class=\"ctx-label\">Vendor reference distance — distance the irradiance was measured at\n            <div class=\"dev-distance-row\">\n              <input type=\"number\" id=\"custom-dev-distance\" class=\"ctx-input\" min=\"1\" max=\"200\" step=\"any\" placeholder=\"e.g. 6\" data-unit=\"in\">\n              <div class=\"dev-unit-toggle\" role=\"tablist\" aria-label=\"Distance unit\">\n                <button type=\"button\" class=\"dev-unit-btn\" data-target=\"custom-dev-distance\" data-unit=\"cm\" role=\"tab\" aria-selected=\"false\">cm</button>\n                <button type=\"button\" class=\"dev-unit-btn active\" data-target=\"custom-dev-distance\" data-unit=\"in\" role=\"tab\" aria-selected=\"true\">in</button>\n              </div>\n            </div>\n          </label>\n        <label class=\"ctx-label\">Lux at the eye (for SAD / dawn lamps)\n          <input type=\"number\" id=\"custom-dev-lux\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"e.g. 10000\">\n        </label>\n        <label class=\"ctx-label\">Melanopic EDI at the eye (lx, if the source states it)\n          <input type=\"number\" id=\"custom-dev-medi\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"Leave blank unless explicitly measured or stated\">\n        </label>\n        <input type=\"hidden\" id=\"custom-dev-advanced\" value=\"\">\n      </div>\n      <details id=\"custom-dev-extracted-details\" class=\"sun-detail-disclosure\" hidden=\"\">\n        <summary>Review extracted mode and measurement details</summary>\n        <pre id=\"custom-dev-extracted-json\" style=\"white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px\"></pre>\n      </details>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary\" data-light-device-custom-close=\"\">Cancel</button>\n        <button type=\"button\" class=\"import-btn import-btn-primary\" id=\"custom-dev-save\">Add device</button>\n      </div>\n    </div>\n  </div>"
+    },
+    {
+      "kind": "presets",
+      "name": "presets-manual-full",
+      "hasAI": false,
+      "presets": [
+        {
+          "id": "preset-uvb",
+          "type": "uvb",
+          "brand": "Saved",
+          "model": "Reference uvb",
+          "peakWavelengths": [],
+          "mwPerCm2At15cm": 20,
+          "recommendedDistanceCm": 25,
+          "addedAt": 0
+        },
+        {
+          "id": "preset-uva",
+          "type": "uva",
+          "brand": "Saved",
+          "model": "Reference uva",
+          "peakWavelengths": [
+            660,
+            850
+          ],
+          "mwPerCm2At15cm": 20,
+          "recommendedDistanceCm": 25,
+          "addedAt": 1
+        },
+        {
+          "id": "preset-combined",
+          "type": "combined",
+          "brand": "Saved",
+          "model": "Reference combined",
+          "peakWavelengths": [
+            660,
+            850
+          ],
+          "mwPerCm2At15cm": 20,
+          "recommendedDistanceCm": 25,
+          "addedAt": 2
+        },
+        {
+          "id": "preset-pbm-targeted",
+          "type": "pbm-targeted",
+          "brand": "Saved",
+          "model": "Reference pbm-targeted",
+          "peakWavelengths": [
+            660,
+            850
+          ],
+          "mwPerCm2At15cm": 20,
+          "recommendedDistanceCm": 25,
+          "addedAt": 3
+        },
+        {
+          "id": "preset-sad",
+          "type": "sad",
+          "brand": "Saved",
+          "model": "Reference sad",
+          "peakWavelengths": [
+            660,
+            850
+          ],
+          "lux": 10000,
+          "addedAt": 4
+        },
+        {
+          "id": "preset-dawn-sim",
+          "type": "dawn-sim",
+          "brand": "Saved",
+          "model": "Reference dawn-sim",
+          "peakWavelengths": [
+            660,
+            850
+          ],
+          "melanopicEdiLux": 425,
+          "addedAt": 5
+        },
+        {
+          "id": "preset-full-spectrum",
+          "type": "full-spectrum",
+          "brand": "Literal <brand> & \"quote\"",
+          "model": "Reference full-spectrum",
+          "peakWavelengths": [
+            660,
+            850
+          ],
+          "addedAt": 6
+        },
+        {
+          "id": "unsupported",
+          "type": "unsupported",
+          "brand": "Excluded",
+          "model": "Uncurated"
+        }
+      ],
+      "types": {
+        "uvb": {
+          "label": "UV phototherapy",
+          "icon": "☀"
+        },
+        "uva": {
+          "label": "UVA panel",
+          "icon": "🟧"
+        },
+        "combined": {
+          "label": "Red + near-IR panel",
+          "icon": "🔴"
+        },
+        "pbm-targeted": {
+          "label": "Targeted PBM device",
+          "icon": "🔴"
+        },
+        "sad": {
+          "label": "SAD light box (10k lux)",
+          "icon": "🌅"
+        },
+        "dawn-sim": {
+          "label": "Dawn simulator",
+          "icon": "🌄"
+        },
+        "full-spectrum": {
+          "icon": "☀",
+          "label": "Literal <group> & \"label\""
+        }
+      },
+      "html": "<div class=\"modal light-device-add-modal\" role=\"dialog\" aria-label=\"Add light device\">\n    <div class=\"modal-header\">\n      <h3>Add a light device</h3>\n      <button class=\"modal-close\" data-light-device-setup-close=\"\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <p class=\"modal-body-hint\">Pick from the curated brand presets — Mitochondriak, Chroma, EMR-Tek. Anything else uses the custom-add flow below.</p>\n      <div class=\"light-device-preset-groups\">\n        <section class=\"light-device-preset-group\" aria-labelledby=\"add-device-group-uvb\">\n      <h4 class=\"light-device-preset-heading\" id=\"add-device-group-uvb\">☀ UV phototherapy</h4>\n      <div class=\"light-device-preset-list\"><button type=\"button\" class=\"light-device-preset-row\" data-preset-id=\"preset-uvb\" aria-pressed=\"false\">\n        <span class=\"light-device-preset-name\">Saved Reference uvb</span>\n        <span class=\"light-device-preset-meta\">20 mW/cm² · 25 cm</span>\n      </button></div></section><section class=\"light-device-preset-group\" aria-labelledby=\"add-device-group-uva\">\n      <h4 class=\"light-device-preset-heading\" id=\"add-device-group-uva\">🟧 UVA panel</h4>\n      <div class=\"light-device-preset-list\"><button type=\"button\" class=\"light-device-preset-row\" data-preset-id=\"preset-uva\" aria-pressed=\"false\">\n        <span class=\"light-device-preset-name\">Saved Reference uva</span>\n        <span class=\"light-device-preset-meta\">660/850 nm · 20 mW/cm² · 25 cm</span>\n      </button></div></section><section class=\"light-device-preset-group\" aria-labelledby=\"add-device-group-combined\">\n      <h4 class=\"light-device-preset-heading\" id=\"add-device-group-combined\">🔴 Red + near-IR panel</h4>\n      <div class=\"light-device-preset-list\"><button type=\"button\" class=\"light-device-preset-row\" data-preset-id=\"preset-combined\" aria-pressed=\"false\">\n        <span class=\"light-device-preset-name\">Saved Reference combined</span>\n        <span class=\"light-device-preset-meta\">660/850 nm · 20 mW/cm² · 25 cm</span>\n      </button></div></section><section class=\"light-device-preset-group\" aria-labelledby=\"add-device-group-pbm-targeted\">\n      <h4 class=\"light-device-preset-heading\" id=\"add-device-group-pbm-targeted\">🔴 Targeted PBM device</h4>\n      <div class=\"light-device-preset-list\"><button type=\"button\" class=\"light-device-preset-row\" data-preset-id=\"preset-pbm-targeted\" aria-pressed=\"false\">\n        <span class=\"light-device-preset-name\">Saved Reference pbm-targeted</span>\n        <span class=\"light-device-preset-meta\">660/850 nm · 20 mW/cm² · 25 cm</span>\n      </button></div></section><section class=\"light-device-preset-group\" aria-labelledby=\"add-device-group-sad\">\n      <h4 class=\"light-device-preset-heading\" id=\"add-device-group-sad\">🌅 SAD light box (10k lux)</h4>\n      <div class=\"light-device-preset-list\"><button type=\"button\" class=\"light-device-preset-row\" data-preset-id=\"preset-sad\" aria-pressed=\"false\">\n        <span class=\"light-device-preset-name\">Saved Reference sad</span>\n        <span class=\"light-device-preset-meta\">660/850 nm · 10,000 lux</span>\n      </button></div></section><section class=\"light-device-preset-group\" aria-labelledby=\"add-device-group-dawn-sim\">\n      <h4 class=\"light-device-preset-heading\" id=\"add-device-group-dawn-sim\">🌄 Dawn simulator</h4>\n      <div class=\"light-device-preset-list\"><button type=\"button\" class=\"light-device-preset-row\" data-preset-id=\"preset-dawn-sim\" aria-pressed=\"false\">\n        <span class=\"light-device-preset-name\">Saved Reference dawn-sim</span>\n        <span class=\"light-device-preset-meta\">660/850 nm · 425 lx M-EDI</span>\n      </button></div></section><section class=\"light-device-preset-group\" aria-labelledby=\"add-device-group-full-spectrum\">\n      <h4 class=\"light-device-preset-heading\" id=\"add-device-group-full-spectrum\">☀ Literal &lt;group&gt; &amp; \"label\"</h4>\n      <div class=\"light-device-preset-list\"><button type=\"button\" class=\"light-device-preset-row\" data-preset-id=\"preset-full-spectrum\" aria-pressed=\"false\">\n        <span class=\"light-device-preset-name\">Literal &lt;brand&gt; &amp; \"quote\" Reference full-spectrum</span>\n        <span class=\"light-device-preset-meta\">660/850 nm</span>\n      </button></div></section>\n      </div>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-device-setup-close=\"\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"add-device-confirm\" disabled=\"\">Add device</button>\n      </div>\n\n      <hr style=\"margin:20px 0;border:none;border-top:1px solid var(--border)\">\n\n      <p class=\"modal-body-hint\">Don't see your device? Set up an AI provider in Settings to auto-extract specs from a URL or photo, or click below to enter manually.</p>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" id=\"add-device-custom\" style=\"width:100%;margin-top:8px\">+ Custom device (paste link or scan photo)</button>\n    </div>\n  </div>"
+    },
+    {
+      "kind": "presets",
+      "name": "presets-manual-empty",
+      "hasAI": false,
+      "presets": [],
+      "types": {
+        "uvb": {
+          "label": "UV phototherapy",
+          "icon": "☀"
+        },
+        "uva": {
+          "label": "UVA panel",
+          "icon": "🟧"
+        },
+        "combined": {
+          "label": "Red + near-IR panel",
+          "icon": "🔴"
+        },
+        "pbm-targeted": {
+          "label": "Targeted PBM device",
+          "icon": "🔴"
+        },
+        "sad": {
+          "label": "SAD light box (10k lux)",
+          "icon": "🌅"
+        },
+        "dawn-sim": {
+          "label": "Dawn simulator",
+          "icon": "🌄"
+        },
+        "full-spectrum": {
+          "icon": "☀",
+          "label": "Literal <group> & \"label\""
+        }
+      },
+      "html": "<div class=\"modal light-device-add-modal\" role=\"dialog\" aria-label=\"Add light device\">\n    <div class=\"modal-header\">\n      <h3>Add a light device</h3>\n      <button class=\"modal-close\" data-light-device-setup-close=\"\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <p class=\"modal-body-hint\">Pick from the curated brand presets — Mitochondriak, Chroma, EMR-Tek. Anything else uses the custom-add flow below.</p>\n      <div class=\"light-device-preset-groups\">\n        \n      </div>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-device-setup-close=\"\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"add-device-confirm\" disabled=\"\">Add device</button>\n      </div>\n\n      <hr style=\"margin:20px 0;border:none;border-top:1px solid var(--border)\">\n\n      <p class=\"modal-body-hint\">Don't see your device? Set up an AI provider in Settings to auto-extract specs from a URL or photo, or click below to enter manually.</p>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" id=\"add-device-custom\" style=\"width:100%;margin-top:8px\">+ Custom device (paste link or scan photo)</button>\n    </div>\n  </div>"
+    },
+    {
+      "kind": "custom",
+      "name": "custom-text-SI",
+      "hasAI": true,
+      "hasVision": false,
+      "unit": "SI",
+      "html": "<div class=\"modal\" role=\"dialog\" aria-label=\"Add custom light device\">\n    <div class=\"modal-header\">\n      <h3>Add a custom device</h3>\n      <button class=\"modal-close\" data-light-device-custom-close=\"\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      \n      <p class=\"modal-body-hint\">Paste a product page URL or scan the label. AI fills the main fields and keeps any stated mode or measurement details. Verify them against the product page before saving.</p>\n      <div class=\"custom-device-ai-row\">\n        <input type=\"url\" id=\"custom-dev-url\" class=\"ctx-input\" placeholder=\"https://...\" style=\"flex:1\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary custom-dev-fetch\" id=\"custom-dev-fetch\">Fetch &amp; analyse</button>\n      </div>\n      <p class=\"modal-body-hint\" style=\"margin-top:8px\">Image scan needs a vision-capable AI model (Claude or OpenAI).</p>\n      <hr style=\"margin:16px 0;border:none;border-top:1px solid var(--border)\">\n      \n      <div class=\"custom-device-form\">\n        <label class=\"ctx-label\">Brand\n          <input type=\"text\" id=\"custom-dev-brand\" class=\"ctx-input\" placeholder=\"e.g. Mitochondriak\">\n        </label>\n        <label class=\"ctx-label\">Model\n          <input type=\"text\" id=\"custom-dev-model\" class=\"ctx-input\" placeholder=\"e.g. Maxi UVB\">\n        </label>\n        <label class=\"ctx-label\">Type\n          <select id=\"custom-dev-type\" class=\"ctx-select\">\n            <option value=\"combined\">Red + near-IR panel</option>\n            <option value=\"uvb\">UV phototherapy (UVB-capable)</option>\n            <option value=\"uva\">UVA panel (no UVB)</option>\n            <option value=\"pbm-targeted\">Targeted PBM device</option>\n            <option value=\"sad\">SAD light box (10k lux)</option>\n            <option value=\"dawn-sim\">Dawn simulator</option>\n            <option value=\"full-spectrum\">Full-spectrum bulb</option>\n          </select>\n        </label>\n        <label class=\"ctx-label\">Peak wavelengths (nm, comma-separated)\n          <input type=\"text\" id=\"custom-dev-peaks\" class=\"ctx-input\" placeholder=\"e.g. 660, 850\">\n        </label>\n        <label class=\"ctx-label\">Irradiance (mW/cm² at vendor's reference distance)\n          <input type=\"number\" id=\"custom-dev-irradiance\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"e.g. 100 (leave blank for SAD lamps)\">\n        </label>\n        <label class=\"ctx-label\">Vendor reference distance — distance the irradiance was measured at\n            <div class=\"dev-distance-row\">\n              <input type=\"number\" id=\"custom-dev-distance\" class=\"ctx-input\" min=\"1\" max=\"200\" step=\"any\" placeholder=\"e.g. 15\" data-unit=\"cm\">\n              <div class=\"dev-unit-toggle\" role=\"tablist\" aria-label=\"Distance unit\">\n                <button type=\"button\" class=\"dev-unit-btn active\" data-target=\"custom-dev-distance\" data-unit=\"cm\" role=\"tab\" aria-selected=\"true\">cm</button>\n                <button type=\"button\" class=\"dev-unit-btn\" data-target=\"custom-dev-distance\" data-unit=\"in\" role=\"tab\" aria-selected=\"false\">in</button>\n              </div>\n            </div>\n          </label>\n        <label class=\"ctx-label\">Lux at the eye (for SAD / dawn lamps)\n          <input type=\"number\" id=\"custom-dev-lux\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"e.g. 10000\">\n        </label>\n        <label class=\"ctx-label\">Melanopic EDI at the eye (lx, if the source states it)\n          <input type=\"number\" id=\"custom-dev-medi\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"Leave blank unless explicitly measured or stated\">\n        </label>\n        <input type=\"hidden\" id=\"custom-dev-advanced\" value=\"\">\n      </div>\n      <details id=\"custom-dev-extracted-details\" class=\"sun-detail-disclosure\" hidden=\"\">\n        <summary>Review extracted mode and measurement details</summary>\n        <pre id=\"custom-dev-extracted-json\" style=\"white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px\"></pre>\n      </details>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary\" data-light-device-custom-close=\"\">Cancel</button>\n        <button type=\"button\" class=\"import-btn import-btn-primary\" id=\"custom-dev-save\">Add device</button>\n      </div>\n    </div>\n  </div>"
+    },
+    {
+      "kind": "custom",
+      "name": "custom-text-US",
+      "hasAI": true,
+      "hasVision": false,
+      "unit": "US",
+      "html": "<div class=\"modal\" role=\"dialog\" aria-label=\"Add custom light device\">\n    <div class=\"modal-header\">\n      <h3>Add a custom device</h3>\n      <button class=\"modal-close\" data-light-device-custom-close=\"\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      \n      <p class=\"modal-body-hint\">Paste a product page URL or scan the label. AI fills the main fields and keeps any stated mode or measurement details. Verify them against the product page before saving.</p>\n      <div class=\"custom-device-ai-row\">\n        <input type=\"url\" id=\"custom-dev-url\" class=\"ctx-input\" placeholder=\"https://...\" style=\"flex:1\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary custom-dev-fetch\" id=\"custom-dev-fetch\">Fetch &amp; analyse</button>\n      </div>\n      <p class=\"modal-body-hint\" style=\"margin-top:8px\">Image scan needs a vision-capable AI model (Claude or OpenAI).</p>\n      <hr style=\"margin:16px 0;border:none;border-top:1px solid var(--border)\">\n      \n      <div class=\"custom-device-form\">\n        <label class=\"ctx-label\">Brand\n          <input type=\"text\" id=\"custom-dev-brand\" class=\"ctx-input\" placeholder=\"e.g. Mitochondriak\">\n        </label>\n        <label class=\"ctx-label\">Model\n          <input type=\"text\" id=\"custom-dev-model\" class=\"ctx-input\" placeholder=\"e.g. Maxi UVB\">\n        </label>\n        <label class=\"ctx-label\">Type\n          <select id=\"custom-dev-type\" class=\"ctx-select\">\n            <option value=\"combined\">Red + near-IR panel</option>\n            <option value=\"uvb\">UV phototherapy (UVB-capable)</option>\n            <option value=\"uva\">UVA panel (no UVB)</option>\n            <option value=\"pbm-targeted\">Targeted PBM device</option>\n            <option value=\"sad\">SAD light box (10k lux)</option>\n            <option value=\"dawn-sim\">Dawn simulator</option>\n            <option value=\"full-spectrum\">Full-spectrum bulb</option>\n          </select>\n        </label>\n        <label class=\"ctx-label\">Peak wavelengths (nm, comma-separated)\n          <input type=\"text\" id=\"custom-dev-peaks\" class=\"ctx-input\" placeholder=\"e.g. 660, 850\">\n        </label>\n        <label class=\"ctx-label\">Irradiance (mW/cm² at vendor's reference distance)\n          <input type=\"number\" id=\"custom-dev-irradiance\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"e.g. 100 (leave blank for SAD lamps)\">\n        </label>\n        <label class=\"ctx-label\">Vendor reference distance — distance the irradiance was measured at\n            <div class=\"dev-distance-row\">\n              <input type=\"number\" id=\"custom-dev-distance\" class=\"ctx-input\" min=\"1\" max=\"200\" step=\"any\" placeholder=\"e.g. 6\" data-unit=\"in\">\n              <div class=\"dev-unit-toggle\" role=\"tablist\" aria-label=\"Distance unit\">\n                <button type=\"button\" class=\"dev-unit-btn\" data-target=\"custom-dev-distance\" data-unit=\"cm\" role=\"tab\" aria-selected=\"false\">cm</button>\n                <button type=\"button\" class=\"dev-unit-btn active\" data-target=\"custom-dev-distance\" data-unit=\"in\" role=\"tab\" aria-selected=\"true\">in</button>\n              </div>\n            </div>\n          </label>\n        <label class=\"ctx-label\">Lux at the eye (for SAD / dawn lamps)\n          <input type=\"number\" id=\"custom-dev-lux\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"e.g. 10000\">\n        </label>\n        <label class=\"ctx-label\">Melanopic EDI at the eye (lx, if the source states it)\n          <input type=\"number\" id=\"custom-dev-medi\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"Leave blank unless explicitly measured or stated\">\n        </label>\n        <input type=\"hidden\" id=\"custom-dev-advanced\" value=\"\">\n      </div>\n      <details id=\"custom-dev-extracted-details\" class=\"sun-detail-disclosure\" hidden=\"\">\n        <summary>Review extracted mode and measurement details</summary>\n        <pre id=\"custom-dev-extracted-json\" style=\"white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px\"></pre>\n      </details>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary\" data-light-device-custom-close=\"\">Cancel</button>\n        <button type=\"button\" class=\"import-btn import-btn-primary\" id=\"custom-dev-save\">Add device</button>\n      </div>\n    </div>\n  </div>"
+    },
+    {
+      "kind": "presets",
+      "name": "presets-text-full",
+      "hasAI": true,
+      "presets": [
+        {
+          "id": "preset-uvb",
+          "type": "uvb",
+          "brand": "Saved",
+          "model": "Reference uvb",
+          "peakWavelengths": [],
+          "mwPerCm2At15cm": 20,
+          "recommendedDistanceCm": 25,
+          "addedAt": 0
+        },
+        {
+          "id": "preset-uva",
+          "type": "uva",
+          "brand": "Saved",
+          "model": "Reference uva",
+          "peakWavelengths": [
+            660,
+            850
+          ],
+          "mwPerCm2At15cm": 20,
+          "recommendedDistanceCm": 25,
+          "addedAt": 1
+        },
+        {
+          "id": "preset-combined",
+          "type": "combined",
+          "brand": "Saved",
+          "model": "Reference combined",
+          "peakWavelengths": [
+            660,
+            850
+          ],
+          "mwPerCm2At15cm": 20,
+          "recommendedDistanceCm": 25,
+          "addedAt": 2
+        },
+        {
+          "id": "preset-pbm-targeted",
+          "type": "pbm-targeted",
+          "brand": "Saved",
+          "model": "Reference pbm-targeted",
+          "peakWavelengths": [
+            660,
+            850
+          ],
+          "mwPerCm2At15cm": 20,
+          "recommendedDistanceCm": 25,
+          "addedAt": 3
+        },
+        {
+          "id": "preset-sad",
+          "type": "sad",
+          "brand": "Saved",
+          "model": "Reference sad",
+          "peakWavelengths": [
+            660,
+            850
+          ],
+          "lux": 10000,
+          "addedAt": 4
+        },
+        {
+          "id": "preset-dawn-sim",
+          "type": "dawn-sim",
+          "brand": "Saved",
+          "model": "Reference dawn-sim",
+          "peakWavelengths": [
+            660,
+            850
+          ],
+          "melanopicEdiLux": 425,
+          "addedAt": 5
+        },
+        {
+          "id": "preset-full-spectrum",
+          "type": "full-spectrum",
+          "brand": "Literal <brand> & \"quote\"",
+          "model": "Reference full-spectrum",
+          "peakWavelengths": [
+            660,
+            850
+          ],
+          "addedAt": 6
+        },
+        {
+          "id": "unsupported",
+          "type": "unsupported",
+          "brand": "Excluded",
+          "model": "Uncurated"
+        }
+      ],
+      "types": {
+        "uvb": {
+          "label": "UV phototherapy",
+          "icon": "☀"
+        },
+        "uva": {
+          "label": "UVA panel",
+          "icon": "🟧"
+        },
+        "combined": {
+          "label": "Red + near-IR panel",
+          "icon": "🔴"
+        },
+        "pbm-targeted": {
+          "label": "Targeted PBM device",
+          "icon": "🔴"
+        },
+        "sad": {
+          "label": "SAD light box (10k lux)",
+          "icon": "🌅"
+        },
+        "dawn-sim": {
+          "label": "Dawn simulator",
+          "icon": "🌄"
+        },
+        "full-spectrum": {
+          "icon": "☀",
+          "label": "Literal <group> & \"label\""
+        }
+      },
+      "html": "<div class=\"modal light-device-add-modal\" role=\"dialog\" aria-label=\"Add light device\">\n    <div class=\"modal-header\">\n      <h3>Add a light device</h3>\n      <button class=\"modal-close\" data-light-device-setup-close=\"\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <p class=\"modal-body-hint\">Pick from the curated brand presets — Mitochondriak, Chroma, EMR-Tek. Anything else uses the custom-add flow below.</p>\n      <div class=\"light-device-preset-groups\">\n        <section class=\"light-device-preset-group\" aria-labelledby=\"add-device-group-uvb\">\n      <h4 class=\"light-device-preset-heading\" id=\"add-device-group-uvb\">☀ UV phototherapy</h4>\n      <div class=\"light-device-preset-list\"><button type=\"button\" class=\"light-device-preset-row\" data-preset-id=\"preset-uvb\" aria-pressed=\"false\">\n        <span class=\"light-device-preset-name\">Saved Reference uvb</span>\n        <span class=\"light-device-preset-meta\">20 mW/cm² · 25 cm</span>\n      </button></div></section><section class=\"light-device-preset-group\" aria-labelledby=\"add-device-group-uva\">\n      <h4 class=\"light-device-preset-heading\" id=\"add-device-group-uva\">🟧 UVA panel</h4>\n      <div class=\"light-device-preset-list\"><button type=\"button\" class=\"light-device-preset-row\" data-preset-id=\"preset-uva\" aria-pressed=\"false\">\n        <span class=\"light-device-preset-name\">Saved Reference uva</span>\n        <span class=\"light-device-preset-meta\">660/850 nm · 20 mW/cm² · 25 cm</span>\n      </button></div></section><section class=\"light-device-preset-group\" aria-labelledby=\"add-device-group-combined\">\n      <h4 class=\"light-device-preset-heading\" id=\"add-device-group-combined\">🔴 Red + near-IR panel</h4>\n      <div class=\"light-device-preset-list\"><button type=\"button\" class=\"light-device-preset-row\" data-preset-id=\"preset-combined\" aria-pressed=\"false\">\n        <span class=\"light-device-preset-name\">Saved Reference combined</span>\n        <span class=\"light-device-preset-meta\">660/850 nm · 20 mW/cm² · 25 cm</span>\n      </button></div></section><section class=\"light-device-preset-group\" aria-labelledby=\"add-device-group-pbm-targeted\">\n      <h4 class=\"light-device-preset-heading\" id=\"add-device-group-pbm-targeted\">🔴 Targeted PBM device</h4>\n      <div class=\"light-device-preset-list\"><button type=\"button\" class=\"light-device-preset-row\" data-preset-id=\"preset-pbm-targeted\" aria-pressed=\"false\">\n        <span class=\"light-device-preset-name\">Saved Reference pbm-targeted</span>\n        <span class=\"light-device-preset-meta\">660/850 nm · 20 mW/cm² · 25 cm</span>\n      </button></div></section><section class=\"light-device-preset-group\" aria-labelledby=\"add-device-group-sad\">\n      <h4 class=\"light-device-preset-heading\" id=\"add-device-group-sad\">🌅 SAD light box (10k lux)</h4>\n      <div class=\"light-device-preset-list\"><button type=\"button\" class=\"light-device-preset-row\" data-preset-id=\"preset-sad\" aria-pressed=\"false\">\n        <span class=\"light-device-preset-name\">Saved Reference sad</span>\n        <span class=\"light-device-preset-meta\">660/850 nm · 10,000 lux</span>\n      </button></div></section><section class=\"light-device-preset-group\" aria-labelledby=\"add-device-group-dawn-sim\">\n      <h4 class=\"light-device-preset-heading\" id=\"add-device-group-dawn-sim\">🌄 Dawn simulator</h4>\n      <div class=\"light-device-preset-list\"><button type=\"button\" class=\"light-device-preset-row\" data-preset-id=\"preset-dawn-sim\" aria-pressed=\"false\">\n        <span class=\"light-device-preset-name\">Saved Reference dawn-sim</span>\n        <span class=\"light-device-preset-meta\">660/850 nm · 425 lx M-EDI</span>\n      </button></div></section><section class=\"light-device-preset-group\" aria-labelledby=\"add-device-group-full-spectrum\">\n      <h4 class=\"light-device-preset-heading\" id=\"add-device-group-full-spectrum\">☀ Literal &lt;group&gt; &amp; \"label\"</h4>\n      <div class=\"light-device-preset-list\"><button type=\"button\" class=\"light-device-preset-row\" data-preset-id=\"preset-full-spectrum\" aria-pressed=\"false\">\n        <span class=\"light-device-preset-name\">Literal &lt;brand&gt; &amp; \"quote\" Reference full-spectrum</span>\n        <span class=\"light-device-preset-meta\">660/850 nm</span>\n      </button></div></section>\n      </div>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-device-setup-close=\"\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"add-device-confirm\" disabled=\"\">Add device</button>\n      </div>\n\n      <hr style=\"margin:20px 0;border:none;border-top:1px solid var(--border)\">\n\n      <p class=\"modal-body-hint\">Don't see your device? Paste its product page or snap a photo of the back panel — AI extracts the specs.</p>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" id=\"add-device-custom\" style=\"width:100%;margin-top:8px\">+ Custom device (paste link or scan photo)</button>\n    </div>\n  </div>"
+    },
+    {
+      "kind": "presets",
+      "name": "presets-text-empty",
+      "hasAI": true,
+      "presets": [],
+      "types": {
+        "uvb": {
+          "label": "UV phototherapy",
+          "icon": "☀"
+        },
+        "uva": {
+          "label": "UVA panel",
+          "icon": "🟧"
+        },
+        "combined": {
+          "label": "Red + near-IR panel",
+          "icon": "🔴"
+        },
+        "pbm-targeted": {
+          "label": "Targeted PBM device",
+          "icon": "🔴"
+        },
+        "sad": {
+          "label": "SAD light box (10k lux)",
+          "icon": "🌅"
+        },
+        "dawn-sim": {
+          "label": "Dawn simulator",
+          "icon": "🌄"
+        },
+        "full-spectrum": {
+          "icon": "☀",
+          "label": "Literal <group> & \"label\""
+        }
+      },
+      "html": "<div class=\"modal light-device-add-modal\" role=\"dialog\" aria-label=\"Add light device\">\n    <div class=\"modal-header\">\n      <h3>Add a light device</h3>\n      <button class=\"modal-close\" data-light-device-setup-close=\"\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <p class=\"modal-body-hint\">Pick from the curated brand presets — Mitochondriak, Chroma, EMR-Tek. Anything else uses the custom-add flow below.</p>\n      <div class=\"light-device-preset-groups\">\n        \n      </div>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-device-setup-close=\"\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"add-device-confirm\" disabled=\"\">Add device</button>\n      </div>\n\n      <hr style=\"margin:20px 0;border:none;border-top:1px solid var(--border)\">\n\n      <p class=\"modal-body-hint\">Don't see your device? Paste its product page or snap a photo of the back panel — AI extracts the specs.</p>\n      <button type=\"button\" class=\"import-btn import-btn-secondary\" id=\"add-device-custom\" style=\"width:100%;margin-top:8px\">+ Custom device (paste link or scan photo)</button>\n    </div>\n  </div>"
+    },
+    {
+      "kind": "custom",
+      "name": "custom-vision-SI",
+      "hasAI": true,
+      "hasVision": true,
+      "unit": "SI",
+      "html": "<div class=\"modal\" role=\"dialog\" aria-label=\"Add custom light device\">\n    <div class=\"modal-header\">\n      <h3>Add a custom device</h3>\n      <button class=\"modal-close\" data-light-device-custom-close=\"\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      \n      <p class=\"modal-body-hint\">Paste a product page URL or scan the label. AI fills the main fields and keeps any stated mode or measurement details. Verify them against the product page before saving.</p>\n      <div class=\"custom-device-ai-row\">\n        <input type=\"url\" id=\"custom-dev-url\" class=\"ctx-input\" placeholder=\"https://...\" style=\"flex:1\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary custom-dev-fetch\" id=\"custom-dev-fetch\">Fetch &amp; analyse</button>\n      </div>\n      <div class=\"custom-device-ai-row\" style=\"margin-top:8px\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary custom-dev-scan\" id=\"custom-dev-scan\">📷 Scan device label</button>\n        <input type=\"file\" id=\"custom-dev-image\" accept=\"image/*\" style=\"display:none\">\n      </div>\n      <hr style=\"margin:16px 0;border:none;border-top:1px solid var(--border)\">\n      \n      <div class=\"custom-device-form\">\n        <label class=\"ctx-label\">Brand\n          <input type=\"text\" id=\"custom-dev-brand\" class=\"ctx-input\" placeholder=\"e.g. Mitochondriak\">\n        </label>\n        <label class=\"ctx-label\">Model\n          <input type=\"text\" id=\"custom-dev-model\" class=\"ctx-input\" placeholder=\"e.g. Maxi UVB\">\n        </label>\n        <label class=\"ctx-label\">Type\n          <select id=\"custom-dev-type\" class=\"ctx-select\">\n            <option value=\"combined\">Red + near-IR panel</option>\n            <option value=\"uvb\">UV phototherapy (UVB-capable)</option>\n            <option value=\"uva\">UVA panel (no UVB)</option>\n            <option value=\"pbm-targeted\">Targeted PBM device</option>\n            <option value=\"sad\">SAD light box (10k lux)</option>\n            <option value=\"dawn-sim\">Dawn simulator</option>\n            <option value=\"full-spectrum\">Full-spectrum bulb</option>\n          </select>\n        </label>\n        <label class=\"ctx-label\">Peak wavelengths (nm, comma-separated)\n          <input type=\"text\" id=\"custom-dev-peaks\" class=\"ctx-input\" placeholder=\"e.g. 660, 850\">\n        </label>\n        <label class=\"ctx-label\">Irradiance (mW/cm² at vendor's reference distance)\n          <input type=\"number\" id=\"custom-dev-irradiance\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"e.g. 100 (leave blank for SAD lamps)\">\n        </label>\n        <label class=\"ctx-label\">Vendor reference distance — distance the irradiance was measured at\n            <div class=\"dev-distance-row\">\n              <input type=\"number\" id=\"custom-dev-distance\" class=\"ctx-input\" min=\"1\" max=\"200\" step=\"any\" placeholder=\"e.g. 15\" data-unit=\"cm\">\n              <div class=\"dev-unit-toggle\" role=\"tablist\" aria-label=\"Distance unit\">\n                <button type=\"button\" class=\"dev-unit-btn active\" data-target=\"custom-dev-distance\" data-unit=\"cm\" role=\"tab\" aria-selected=\"true\">cm</button>\n                <button type=\"button\" class=\"dev-unit-btn\" data-target=\"custom-dev-distance\" data-unit=\"in\" role=\"tab\" aria-selected=\"false\">in</button>\n              </div>\n            </div>\n          </label>\n        <label class=\"ctx-label\">Lux at the eye (for SAD / dawn lamps)\n          <input type=\"number\" id=\"custom-dev-lux\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"e.g. 10000\">\n        </label>\n        <label class=\"ctx-label\">Melanopic EDI at the eye (lx, if the source states it)\n          <input type=\"number\" id=\"custom-dev-medi\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"Leave blank unless explicitly measured or stated\">\n        </label>\n        <input type=\"hidden\" id=\"custom-dev-advanced\" value=\"\">\n      </div>\n      <details id=\"custom-dev-extracted-details\" class=\"sun-detail-disclosure\" hidden=\"\">\n        <summary>Review extracted mode and measurement details</summary>\n        <pre id=\"custom-dev-extracted-json\" style=\"white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px\"></pre>\n      </details>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary\" data-light-device-custom-close=\"\">Cancel</button>\n        <button type=\"button\" class=\"import-btn import-btn-primary\" id=\"custom-dev-save\">Add device</button>\n      </div>\n    </div>\n  </div>"
+    },
+    {
+      "kind": "custom",
+      "name": "custom-vision-US",
+      "hasAI": true,
+      "hasVision": true,
+      "unit": "US",
+      "html": "<div class=\"modal\" role=\"dialog\" aria-label=\"Add custom light device\">\n    <div class=\"modal-header\">\n      <h3>Add a custom device</h3>\n      <button class=\"modal-close\" data-light-device-custom-close=\"\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      \n      <p class=\"modal-body-hint\">Paste a product page URL or scan the label. AI fills the main fields and keeps any stated mode or measurement details. Verify them against the product page before saving.</p>\n      <div class=\"custom-device-ai-row\">\n        <input type=\"url\" id=\"custom-dev-url\" class=\"ctx-input\" placeholder=\"https://...\" style=\"flex:1\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary custom-dev-fetch\" id=\"custom-dev-fetch\">Fetch &amp; analyse</button>\n      </div>\n      <div class=\"custom-device-ai-row\" style=\"margin-top:8px\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary custom-dev-scan\" id=\"custom-dev-scan\">📷 Scan device label</button>\n        <input type=\"file\" id=\"custom-dev-image\" accept=\"image/*\" style=\"display:none\">\n      </div>\n      <hr style=\"margin:16px 0;border:none;border-top:1px solid var(--border)\">\n      \n      <div class=\"custom-device-form\">\n        <label class=\"ctx-label\">Brand\n          <input type=\"text\" id=\"custom-dev-brand\" class=\"ctx-input\" placeholder=\"e.g. Mitochondriak\">\n        </label>\n        <label class=\"ctx-label\">Model\n          <input type=\"text\" id=\"custom-dev-model\" class=\"ctx-input\" placeholder=\"e.g. Maxi UVB\">\n        </label>\n        <label class=\"ctx-label\">Type\n          <select id=\"custom-dev-type\" class=\"ctx-select\">\n            <option value=\"combined\">Red + near-IR panel</option>\n            <option value=\"uvb\">UV phototherapy (UVB-capable)</option>\n            <option value=\"uva\">UVA panel (no UVB)</option>\n            <option value=\"pbm-targeted\">Targeted PBM device</option>\n            <option value=\"sad\">SAD light box (10k lux)</option>\n            <option value=\"dawn-sim\">Dawn simulator</option>\n            <option value=\"full-spectrum\">Full-spectrum bulb</option>\n          </select>\n        </label>\n        <label class=\"ctx-label\">Peak wavelengths (nm, comma-separated)\n          <input type=\"text\" id=\"custom-dev-peaks\" class=\"ctx-input\" placeholder=\"e.g. 660, 850\">\n        </label>\n        <label class=\"ctx-label\">Irradiance (mW/cm² at vendor's reference distance)\n          <input type=\"number\" id=\"custom-dev-irradiance\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"e.g. 100 (leave blank for SAD lamps)\">\n        </label>\n        <label class=\"ctx-label\">Vendor reference distance — distance the irradiance was measured at\n            <div class=\"dev-distance-row\">\n              <input type=\"number\" id=\"custom-dev-distance\" class=\"ctx-input\" min=\"1\" max=\"200\" step=\"any\" placeholder=\"e.g. 6\" data-unit=\"in\">\n              <div class=\"dev-unit-toggle\" role=\"tablist\" aria-label=\"Distance unit\">\n                <button type=\"button\" class=\"dev-unit-btn\" data-target=\"custom-dev-distance\" data-unit=\"cm\" role=\"tab\" aria-selected=\"false\">cm</button>\n                <button type=\"button\" class=\"dev-unit-btn active\" data-target=\"custom-dev-distance\" data-unit=\"in\" role=\"tab\" aria-selected=\"true\">in</button>\n              </div>\n            </div>\n          </label>\n        <label class=\"ctx-label\">Lux at the eye (for SAD / dawn lamps)\n          <input type=\"number\" id=\"custom-dev-lux\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"e.g. 10000\">\n        </label>\n        <label class=\"ctx-label\">Melanopic EDI at the eye (lx, if the source states it)\n          <input type=\"number\" id=\"custom-dev-medi\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"Leave blank unless explicitly measured or stated\">\n        </label>\n        <input type=\"hidden\" id=\"custom-dev-advanced\" value=\"\">\n      </div>\n      <details id=\"custom-dev-extracted-details\" class=\"sun-detail-disclosure\" hidden=\"\">\n        <summary>Review extracted mode and measurement details</summary>\n        <pre id=\"custom-dev-extracted-json\" style=\"white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px\"></pre>\n      </details>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary\" data-light-device-custom-close=\"\">Cancel</button>\n        <button type=\"button\" class=\"import-btn import-btn-primary\" id=\"custom-dev-save\">Add device</button>\n      </div>\n    </div>\n  </div>"
+    }
+  ],
+  "styleBlocks": [
+    {
+      "selector": ".light-page .dashboard-widget[data-widget-id=\"light-devices\"] .dashboard-widget-body",
+      "declarations": "gap:0;",
+      "media": null
+    },
+    {
+      "selector": ".custom-device-ai-row",
+      "declarations": "display:flex;gap:8px;align-items:stretch;margin-top:8px;",
+      "media": null
+    },
+    {
+      "selector": ".custom-device-form",
+      "declarations": "display:flex;flex-direction:column;gap:10px;margin-top:4px;",
+      "media": null
+    },
+    {
+      "selector": ".custom-device-form .ctx-label",
+      "declarations": "display:block;",
+      "media": null
+    },
+    {
+      "selector": ".custom-device-form .ctx-input,\n.custom-device-form .ctx-select",
+      "declarations": "width:100%;margin-top:4px;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-add-modal,\n.light-device-add-modal .modal-body",
+      "declarations": "min-width:0;overflow-x:hidden;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-add-modal",
+      "declarations": "-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-groups",
+      "declarations": "display:flex;flex-direction:column;gap:12px;margin-top:12px;min-width:0;max-width:100%;overflow:visible;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-group",
+      "declarations": "display:flex;flex-direction:column;gap:6px;min-width:0;max-width:100%;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-heading",
+      "declarations": "margin:0;color:var(--text-secondary);font-family:var(--font-mono);font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-list",
+      "declarations": "display:flex;flex-direction:column;gap:6px;min-width:0;max-width:100%;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-row",
+      "declarations": "display:flex;flex-direction:column;gap:2px;align-items:flex-start;width:100%;min-width:0;max-width:100%;overflow-x:hidden;padding:10px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-secondary);font-family:inherit;cursor:pointer;text-align:left;transition:border-color 0.15s, background 0.15s, box-shadow 0.15s;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-row:hover,\n.light-device-preset-row:focus-visible",
+      "declarations": "border-color:var(--accent);background:var(--bg-card);outline:none;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-row.active",
+      "declarations": "border-color:var(--accent);background:color-mix(in srgb, var(--accent) 10%, var(--bg-card));box-shadow:inset 3px 0 0 var(--accent);",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-name",
+      "declarations": "color:var(--text-primary);font-size:14px;font-weight:600;max-width:100%;overflow-wrap:anywhere;",
+      "media": null
+    },
+    {
+      "selector": ".light-device-preset-meta",
+      "declarations": "color:var(--text-secondary);font-size:12px;line-height:1.35;max-width:100%;overflow-wrap:anywhere;word-break:break-word;",
+      "media": null
+    },
+    {
+      "selector": ".dev-session-hint:not([data-light-session-presentation] *)",
+      "declarations": "display:block;font-size:11px;color:var(--text-muted);margin-top:4px;line-height:1.4;",
+      "media": null
+    },
+    {
+      "selector": ".dev-distance-row:not([data-light-session-presentation] *)",
+      "declarations": "display:flex;align-items:stretch;gap:8px;margin-top:4px;",
+      "media": null
+    },
+    {
+      "selector": ".dev-distance-row .ctx-input:not([data-light-session-presentation] *)",
+      "declarations": "flex:1;min-width:0;",
+      "media": null
+    },
+    {
+      "selector": ".dev-unit-toggle:not([data-light-session-presentation] *)",
+      "declarations": "display:inline-flex;align-items:stretch;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;background:var(--bg-secondary);",
+      "media": null
+    },
+    {
+      "selector": ".dev-unit-btn:not([data-light-session-presentation] *)",
+      "declarations": "padding:0 12px;font-size:12px;font-weight:600;background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-family:inherit;",
+      "media": null
+    },
+    {
+      "selector": ".dev-unit-btn + .dev-unit-btn:not([data-light-session-presentation] *)",
+      "declarations": "border-left:1px solid var(--border);",
+      "media": null
+    },
+    {
+      "selector": ".dev-unit-btn.active:not([data-light-session-presentation] *)",
+      "declarations": "background:var(--accent);color:#fff;",
+      "media": null
+    },
+    {
+      "selector": ".dev-unit-btn:not(.active):hover:not([data-light-session-presentation] *)",
+      "declarations": "color:var(--text-primary);background:var(--bg-card);",
+      "media": null
+    },
+    {
+      "selector": ".rec-channel-deficit",
+      "declarations": "margin:16px 0;padding:12px 14px;background:color-mix(in srgb, var(--bg-card) 94%, transparent);border:1px solid color-mix(in srgb, var(--border) 82%, transparent);border-radius:var(--radius);box-shadow:var(--shadow);",
+      "media": null
+    },
+    {
+      "selector": ".rec-channel-deficit-head",
+      "declarations": "font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:8px;",
+      "media": null
+    },
+    {
+      "selector": ".rec-channel-deficit-list",
+      "declarations": "display:flex;flex-direction:column;gap:6px;",
+      "media": null
+    },
+    {
+      "selector": ".rec-light-deficit-link",
+      "declarations": "display:block;padding:8px 10px;font-size:12px;color:var(--text-primary);background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-xs);text-decoration:none;",
+      "media": null
+    },
+    {
+      "selector": ".rec-light-deficit-link:hover",
+      "declarations": "border-color:var(--accent);",
+      "media": null
+    },
+    {
+      "selector": ".rec-light-deficit-link strong",
+      "declarations": "color:var(--accent);margin-right:4px;",
+      "media": null
+    },
+    {
+      "selector": ".rec-light-deficit-link .rec-vendor",
+      "declarations": "display:inline-block;margin-left:6px;color:var(--text-secondary);font-size:11px;",
+      "media": null
+    },
+    {
+      "selector": ".rec-channel-deficit-foot",
+      "declarations": "margin-top:8px;font-size:11px;color:var(--text-secondary);",
+      "media": null
+    },
+    {
+      "selector": ".rec-channel-deficit-foot a",
+      "declarations": "color:var(--text-secondary);",
+      "media": null
+    },
+    {
+      "selector": ".dev-distance-row:not([data-light-session-presentation] *)",
+      "declarations": "flex-direction:column;align-items:stretch;gap:6px;",
+      "media": "(max-width: 600px)"
+    },
+    {
+      "selector": ".dev-unit-toggle:not([data-light-session-presentation] *)",
+      "declarations": "align-self:flex-start;",
+      "media": "(max-width: 600px)"
+    }
+  ]
+}
