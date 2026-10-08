@@ -98,6 +98,10 @@ its existing lazy URL. The shared health-context catalog is authored in
 and `js/context-card-catalog-classes.ts` for its scoped utilities.
 `css/context-profile.base.css` retains the remaining context/editor styles;
 `css/context-profile.css` is generated at its existing eager URL.
+Nutrition setup and drink forms are authored in `js/components/NutritionEntry.svelte`,
+`NutritionTargets.svelte`, `NutritionFluidLog.svelte` and `NutritionNumberField.svelte`.
+Their pure form projections and captured-profile commits live in `js/nutrition-entry-model.ts`
+and `js/nutrition-entry-session.ts`.
 Nutrition History and its shared meal, target and fuel displays are authored in
 `js/components/NutritionHistory.svelte` and the shared `Nutrition*.svelte` components.
 Edit `css/nutrition.tailwind.css` and `js/nutrition-view-classes.ts` for their scoped

@@ -52,8 +52,10 @@ export type TargetReader = Partial<ResolvedTargets> & { [key: string]: unknown }
 export interface FuelOverlapRenderOptions {scope?: 'window' | 'meal'; compact?: unknown; fallbackTotalMeals?: unknown; period?: PeriodReader | null | undefined; targets?: Parameters<typeof assessFuelStrategy>[1]}
 export interface NutritionEditorRenderOptions {editingMealId?: unknown; reusedMealId?: unknown; storageError?: unknown; returnTo?: unknown; returnMealId?: unknown; returnMealOrigin?: unknown}
 
+import { buildNutritionTargetsView, buildNutritionFluidView, localDateTimeValue } from './nutrition-entry-model.js';
+export { localDateTimeValue } from './nutrition-entry-model.js';
 import { renderHTML as renderPresentation } from './components/NutritionPresentation.svelte.html.js';
-import { formatNumber, hasFiniteNumber, MEAL_TYPES, mealTypeLabel, mealImages, proteinTargetSource, projectNutritionGoal, projectNutritionRing, projectNutritionFuel, projectNutritionMealRow, projectNutritionHistory } from './nutrition-presentation-model.js';
+import { formatNumber, hasFiniteNumber, MEAL_TYPES, mealTypeLabel, mealImages, projectNutritionGoal, projectNutritionRing, projectNutritionFuel, projectNutritionMealRow, projectNutritionHistory } from './nutrition-presentation-model.js';
 export { formatNumber, hasFiniteNumber, MEAL_TYPES, mealTypeLabel, mealImages, HISTORY_MEAL_PAGE_SIZE } from './nutrition-presentation-model.js';
 
 const ACTION_ATTR = 'data-nutrition-action';
@@ -91,11 +93,6 @@ const DASHBOARD_GOAL_FIELDS: readonly GoalField[] = Object.freeze(NUTRIENT_DETAI
       [key, widgetLabel, unit, targetKey, kind] as const
     );
   }));
-const NUTRIENT_DETAIL_BY_KEY = new Map(NUTRIENT_DETAILS.map(field => [field[0], field]));
-const WIDGET_NUTRIENT_GROUPS = Object.freeze(NUTRIENT_GROUPS.map(group => ([
-  group.label,
-  nutrientFieldsForGroup(group.id).map(field => field.key).filter(key => key !== 'energyKcal'),
-] as const)));
 
 export function actionAttrs(action: unknown, attrs: Record<string, unknown> = {}) {
   const rest = Object.entries(attrs).map(([key, value]) => ` data-nutrition-${escapeAttr(key)}="${escapeAttr(String(value))}"`).join('');
@@ -190,66 +187,11 @@ export function renderNutritionFuelWidget() {
   return `<div class="nutrition-fuel-widget">${renderFuelOverlapCard(period?.fuelOverlap, { scope: 'window', fallbackTotalMeals: foodMealCount, period, targets })}</div>`;
 }
 
-function renderWidgetNutrientOptions(targets: ReturnType<typeof getNutritionTargets>) {
-  const selected = new Set(targets.widgetNutrients || []);
-  return WIDGET_NUTRIENT_GROUPS.map(([group, nutrientIds]) => `<fieldset class="nutrition-widget-metric-group"><legend>${escapeHTML(group)}</legend><div>${nutrientIds.map(id => {
-    const label = NUTRIENT_DETAIL_BY_KEY.get(id)?.[1] || id;
-    return `<label class="nutrition-widget-metric-option"><input type="checkbox" value="${escapeAttr(id)}" data-nutrition-widget-metric${selected.has(id) ? ' checked' : ''}><span>${escapeHTML(label)}</span></label>`;
-  }).join('')}</div></fieldset>`).join('');
+export function renderNutritionCustomizeModal(options: { returnTo?: unknown } = {}) {
+  return renderPresentation({ kind: 'entry', view: buildNutritionTargetsView(state.importedData, options) });
 }
-
-export function renderNutritionCustomizeModal({ returnTo = '' }: {returnTo?: unknown} = {}) {
-  const targets = getNutritionTargets();
-  const resolved = resolveNutritionTargets();
-  const fixed = targets.proteinBasis === 'fixed';
-  const returnControl = returnTo === 'history'
-    ? `<button type="button" class="nutrition-route-back" ${actionAttrs('return-history')}>← Meals &amp; Nutrition</button>`
-    : '';
-  return `<button type="button" class="modal-close" aria-label="Close nutrition customization" ${actionAttrs('close')}>&times;</button>
-    ${returnControl}
-    <div class="nutrition-modal-head"><div><h3>Nutrition setup</h3><p>Set daily guides and choose the nutrients you want in your widget.</p></div></div>
-    <section class="nutrition-target-settings nutrition-target-settings-standalone" id="nutrition-target-settings" tabindex="-1">
-      <div class="nutrition-target-settings-head"><h4>Daily targets</h4><span class="nutrition-target-weight">${resolved.weight ? `${escapeHTML(formatNumber(resolved.weight.kg, 1))} kg · ${escapeHTML(resolved.weight.source)}` : 'No weight measurement yet'}</span></div>
-      ${targets.configured ? '' : '<div class="nutrition-target-setup-state">Starter guides — review and save to make them personal.</div>'}
-      <div class="nutrition-target-form">
-        <label class="nutrition-field"><span>Energy <small>kcal</small></span><input id="nutrition-target-energy" type="number" min="500" max="10000" step="10" value="${escapeAttr(String(targets.energyKcal))}" required></label>
-        <label class="nutrition-field nutrition-target-protein-basis"><span>Protein target</span><select id="nutrition-target-protein-basis"><option value="general"${targets.proteinBasis === 'general' ? ' selected' : ''}>General adult · 0.83 g/kg</option><option value="active"${targets.proteinBasis === 'active' ? ' selected' : ''}>Active / training · 1.6 g/kg</option><option value="high"${targets.proteinBasis === 'high' ? ' selected' : ''}>High training · 2.0 g/kg</option><option value="custom"${targets.proteinBasis === 'custom' ? ' selected' : ''}>Custom g/kg</option><option value="fixed"${fixed ? ' selected' : ''}>Fixed grams</option></select></label>
-        <label class="nutrition-field" id="nutrition-target-protein-factor-wrap"${fixed ? ' hidden' : ''}><span>Protein factor <small>g/kg</small></span><input id="nutrition-target-protein-factor" type="number" min="0.4" max="3.5" step="0.01" value="${escapeAttr(String(resolved.proteinFactor || targets.proteinGPerKg))}" required${['general', 'active', 'high'].includes(targets.proteinBasis) ? ' disabled' : ''}></label>
-        <label class="nutrition-field" id="nutrition-target-protein-fixed-wrap"${fixed ? '' : ' hidden'}><span>Protein <small>g</small></span><input id="nutrition-target-protein-fixed" type="number" min="10" max="500" step="1" value="${escapeAttr(String(targets.proteinFixedG))}" required></label>
-        <label class="nutrition-field"><span>Carbohydrate <small>g</small></span><input id="nutrition-target-carbohydrate" type="number" min="0" max="1500" step="1" value="${escapeAttr(String(targets.carbohydrateG))}" required></label>
-        <label class="nutrition-field"><span>Fat <small>g</small></span><input id="nutrition-target-fat" type="number" min="0" max="500" step="1" value="${escapeAttr(String(targets.fatG))}" required></label>
-        <label class="nutrition-field"><span>Fiber <small>g</small></span><input id="nutrition-target-fiber" type="number" min="0" max="150" step="1" value="${escapeAttr(String(targets.fiberG))}" required></label>
-        <label class="nutrition-field"><span>Logged drinks <small>mL</small></span><input id="nutrition-target-fluid" type="number" min="0" max="10000" step="50" value="${escapeAttr(String(targets.fluidMl))}" required></label>
-      </div>
-      <div class="nutrition-target-note"><span id="nutrition-target-protein-preview">Protein guide: ${escapeHTML(formatNumber(resolved.proteinG, 1))} g/day · ${escapeHTML(proteinTargetSource(resolved))}</span></div>
-      <details class="nutrition-target-optional"><summary>Optional sugar and sodium guides</summary><div class="nutrition-target-form nutrition-target-optional-form"><label class="nutrition-field"><span>Sugar <small>g</small></span><input id="nutrition-target-sugar" type="number" min="0" max="500" step="1" value="${escapeAttr(String(targets.sugarG))}" required></label><label class="nutrition-field"><span>Sodium <small>mg</small></span><input id="nutrition-target-sodium" type="number" min="0" max="10000" step="10" value="${escapeAttr(String(targets.sodiumMg))}" required></label><p>Optional references. Meal-photo estimates may not reliably separate total, added, and free sugar.</p></div></details>
-      <details class="nutrition-target-about"><summary>About these guides</summary><p>Targets are planning guides, not medical recommendations. Meal-photo values are estimates. Logged drinks measure beverage volume, not net hydration or water from food.</p></details>
-      <div class="nutrition-widget-metric-settings"><div class="nutrition-widget-metric-settings-head"><strong>Widget nutrients</strong><span id="nutrition-widget-metric-count" role="status" aria-live="polite">${targets.widgetNutrients.length} selected</span></div><div class="nutrition-widget-metric-groups">${renderWidgetNutrientOptions(targets)}</div></div>
-      <div class="nutrition-target-actions"><p id="nutrition-target-status" role="status" aria-live="polite"></p><button type="button" class="import-btn import-btn-primary" ${actionAttrs('save-targets', { return: returnTo })}>Save nutrition setup</button></div>
-    </section>`;
-}
-
 export function renderFluidLogModal() {
-  return `<button type="button" class="modal-close" aria-label="Close drink log" ${actionAttrs('close')}>&times;</button>
-    <div class="nutrition-modal-head"><div><h3>Log a drink</h3></div></div>
-    <section class="nutrition-fluid-log">
-      <fieldset class="nutrition-fluid-kind-fieldset"><legend>Beverage type</legend><div class="nutrition-fluid-kind-grid">
-        <label class="nutrition-fluid-kind"><input type="radio" name="nutrition-fluid-kind" value="water" checked><span aria-hidden="true">◌</span><strong>Water</strong><small>Counts as plain water</small></label>
-        <label class="nutrition-fluid-kind"><input type="radio" name="nutrition-fluid-kind" value="tea-coffee"><span aria-hidden="true">☕</span><strong>Tea or coffee</strong><small>Counts as a logged drink</small></label>
-        <label class="nutrition-fluid-kind"><input type="radio" name="nutrition-fluid-kind" value="other"><span aria-hidden="true">◒</span><strong>Other</strong><small>Juice, milk, or another drink</small></label>
-      </div></fieldset>
-      <div class="nutrition-fluid-amount-panel"><div class="nutrition-comparison-section-title"><strong>Amount</strong><span>milliliters</span></div><div class="nutrition-fluid-presets" role="group" aria-label="Common drink amounts">${[250, 350, 500, 750].map(amount => `<button type="button" class="nutrition-fluid-preset${amount === 350 ? ' is-selected' : ''}" aria-pressed="${amount === 350 ? 'true' : 'false'}" ${actionAttrs('set-fluid-amount', { amount })}>${amount}<small>mL</small></button>`).join('')}</div><label class="nutrition-field"><span>Custom amount <small>mL</small></span><input id="nutrition-fluid-amount" type="number" inputmode="decimal" min="1" max="10000" step="10" value="350"></label></div>
-      <label class="nutrition-field"><span>When</span><input id="nutrition-fluid-at" type="datetime-local" value="${escapeAttr(localDateTimeValue())}"></label>
-      <label class="nutrition-field nutrition-field-wide"><span>Label <small>optional</small></span><input id="nutrition-fluid-label" maxlength="80" placeholder="e.g. Sparkling water, green tea"></label>
-      <div id="nutrition-fluid-preview" class="nutrition-fluid-preview" aria-live="polite"><span aria-hidden="true">＋</span><div><strong>350 mL water</strong><small>Adds to logged drinks and plain water.</small></div></div>
-      <div class="nutrition-fluid-explainer"><strong>Hydration, without false precision</strong><span>This records beverage volume. It does not estimate absorption, subtract caffeine, or present a medical hydration score.</span></div>
-      <div class="nutrition-target-actions"><button type="button" class="import-btn import-btn-primary" ${actionAttrs('save-fluid')}>Log 350 mL</button></div>
-    </section>`;
-}
-
-export function localDateTimeValue(date = new Date()) {
-  const adjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return adjusted.toISOString().slice(0, 16);
+  return renderPresentation({ kind: 'entry', view: buildNutritionFluidView() });
 }
 
 export function mealLocalDateTime(meal: NutritionRenderMeal | null | undefined, reuse = false) {

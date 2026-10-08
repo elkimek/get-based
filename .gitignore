@@ -1963,3 +1963,7 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/components/NutritionPresentation.svelte.html.js.map
 
 /js/route-lifecycle.js
+
+/js/nutrition-entry-model.js
+/js/nutrition-entry-session.js
+/js/nutrition-entry-view.js

@@ -1,4 +1,6 @@
 import { state } from './state.js';
+import { buildNutritionTargetsView, buildNutritionFluidView } from './nutrition-entry-model.js';
+import { captureNutritionEntryOpen, mountNutritionEntry } from './nutrition-entry-view.js';
 import type { ComponentOperations, SourceOperations, AnalysisOperations, MealOperations, ImageOperations, NutritionEditorOptions, RequestLifecycleReader } from '../types/nutrition-controller.js';
 import { PHOTO_NUTRIENT_KEYS } from './nutrition-analysis.js';
 import { deleteActiveProfileMeal, getActiveProfileMeal, saveActiveProfileMeal } from './nutrition-store.js';
@@ -9,11 +11,11 @@ import { escapeAttr, showConfirmDialog, showNotification } from './utils.js';
 import { getErrorMessage } from './caught-error.js';
 import { cancelComparisonRun, clearComparisonReference, clearSavedNutritionComparison, configureNutritionComparisonUI, filterNutritionComparisonModels, isNutritionComparisonRunning, refreshComparisonModelPicker, rememberNutritionComparisonWorkspace, removeComparisonRun, replaceComparisonRun, resetNutritionComparison, restoreNutritionComparison, retryComparisonRun, runModelComparison, setComparisonReference, toggleComparisonPresentation, updateComparisonControls, useComparisonEstimate, useManualComparisonReference } from './nutrition-comparison-ui.js';
 import { analysisInputsDirty, applyAnalysis, clearAnalyzedFields, componentCorrectionContext, componentPortionNeedsReanalysis, configureNutritionReviewUI, consumptionKey, currentKnownDetails, currentMealName, finishAnalysisProgress, focusMobileNutritionReview, isAnalysisProgressRunning, isPhotoEstimate, labelConsumption, mealNameCorrectionIsDirty, normalizeKnownDetails, normalizeMealName, renderEditableComponents, renderFuelOverlapPreview, renderNutrientEstimateSummary, renderReviewEvidence, resetAnalysisProgress, setAnalysisKind, setStatus, startAnalysisProgress, updateAnalysisProgress, updateCorrectionState } from './nutrition-review-ui.js';
-import { ALL_REVIEW_FIELDS, MEAL_TYPES, ensureNutritionStylesheet, hasFiniteNumber, mealLocalDateTime, mealImages, renderStoredPhotoPreview, renderFluidLogModal, renderMealModelControl, renderNutritionCustomizeModal, renderNutritionEditor, renderNutritionFuelWidget, renderNutritionWidget, setElementValue } from './nutrition-render.js';
+import { ALL_REVIEW_FIELDS, MEAL_TYPES, ensureNutritionStylesheet, hasFiniteNumber, mealLocalDateTime, mealImages, renderStoredPhotoPreview, renderMealModelControl, renderNutritionEditor, renderNutritionFuelWidget, renderNutritionWidget, setElementValue } from './nutrition-render.js';
 import { hydrateNutritionLocalAICatalog, setNutritionAIRouteFromValue } from './nutrition-ai-settings.js';
 import { discardSuspendedNutritionEditor, enhanceNutritionEditorNavigation, hasSuspendedNutritionEditor, setManualEntryMode, suspendNutritionEditor, suspendedNutritionEditorHasDraft } from './nutrition-editor-navigation.js';
 import { askAIAboutNutritionHistory, getNutritionHistoryRange, getNutritionHistoryView, openNutritionHistory, openNutritionHistoryView, showMoreNutritionHistoryMeals } from './nutrition-history.js';
-import { clearMealResponse, configureNutritionEntryForms, openMealDetail, saveFluidLog, saveMealResponse, saveNutritionTargets, updateFluidLogControls, updateNutritionTargetControls, updateNutritionWidgetMetricControls } from './nutrition-entry-forms.js';
+import { clearMealResponse, configureNutritionEntryForms, openMealDetail, saveFluidLog, saveMealResponse, saveNutritionTargets, updateFluidLogControls } from './nutrition-entry-forms.js';
 import { closeNutritionEditor as closeEditor, configureNutritionModalController, handleNutritionEditorKeydown as handleNutritionKeydown, openNutritionAISettings, requestCloseNutritionEditor as requestCloseEditor, requestNutritionEditorNavigation } from './nutrition-modal-controller.js';
 import { clearNutritionBenchmarkPhotos, configureNutritionBenchmarkWorkspace, handleNutritionBenchmarkPhotoSelection, hasNutritionBenchmarkSource, nutritionBenchmarkAnalysisFiles, nutritionBenchmarkContext, nutritionBenchmarkHasPhotos, openNutritionBenchmark, resetNutritionBenchmarkWorkspace, restoreNutritionMealEntry } from './nutrition-benchmark-workspace.js';
 import { beginNutritionBackgroundSession, cancelNutritionMealAnalysis, configureNutritionRequestLifecycle, finishNutritionComparisonRequest, isNutritionBackgroundSession, isNutritionComparisonRequestActive, resetNutritionRequestLifecycle, resumeNutritionBackgroundSession, runNutritionMealAnalysis, startNutritionComparisonRequest } from './nutrition-request-lifecycle.js';
@@ -145,19 +147,22 @@ export async function openNutritionTargets(options: Pick<NutritionEditorOptions,
     showNotification('Return to the background meal request before opening Nutrition setup.', 'info');
     return false;
   }
-  await ensureNutritionStylesheet();
-  const modal = document.getElementById('detail-modal');
-  const overlay = document.getElementById('modal-overlay');
-  if (!modal || !overlay) return false;
+  const pending = captureNutritionEntryOpen();
+  if (!pending) return false;
+  const stylesheet = await ensureNutritionStylesheet();
+  if (!pending.current()) return false;
+  if (stylesheet?.type === 'error') { showNotification('Nutrition styles could not be loaded. Try again.', 'error'); return false; }
+  const { modal, overlay } = pending;
   if (!hasSuspendedNutritionEditor()) resetEditorState();
   const returnTo = options?.returnTo === 'history' ? 'history' : '';
-  modal.innerHTML = renderNutritionCustomizeModal({ returnTo });
+  const current = mountNutritionEntry(modal, overlay, buildNutritionTargetsView(state.importedData, { returnTo }), returnToNutritionHistory);
   modal.scrollTop = 0;
   modal.classList.remove('nutrition-fluid-modal', 'nutrition-history-modal', 'nutrition-manual-mode');
   modal.classList.add('nutrition-modal', 'nutrition-targets-modal');
   if (hasSuspendedNutritionEditor()) overlay.setAttribute('data-modal-dismiss-protected', '');
   else overlay.removeAttribute('data-modal-dismiss-protected');
-  openModalOverlay(overlay, { initialFocus: '#nutrition-target-settings', focusDelay: 30 });
+  openModalOverlay(overlay, { autoFocus: false });
+  setTimeout(() => { if (current() && !modal.contains(document.activeElement)) modal.querySelector<HTMLElement>('#nutrition-target-settings')?.focus({ preventScroll: true }); }, 30);
   return true;
 }
 export async function openFluidLog() {
@@ -165,18 +170,20 @@ export async function openFluidLog() {
     showNotification('Return to the background meal request before opening the drink logger.', 'info');
     return false;
   }
-  await ensureNutritionStylesheet();
-  const modal = document.getElementById('detail-modal');
-  const overlay = document.getElementById('modal-overlay');
-  if (!modal || !overlay) return false;
+  const pending = captureNutritionEntryOpen();
+  if (!pending) return false;
+  const stylesheet = await ensureNutritionStylesheet();
+  if (!pending.current()) return false;
+  if (stylesheet?.type === 'error') { showNotification('Nutrition styles could not be loaded. Try again.', 'error'); return false; }
+  const { modal, overlay } = pending;
   resetEditorState();
-  modal.innerHTML = renderFluidLogModal();
+  const current = mountNutritionEntry(modal, overlay, buildNutritionFluidView(), returnToNutritionHistory);
   modal.scrollTop = 0;
   modal.classList.remove('nutrition-targets-modal', 'nutrition-history-modal', 'nutrition-manual-mode');
   modal.classList.add('nutrition-modal', 'nutrition-fluid-modal');
   overlay.removeAttribute('data-modal-dismiss-protected');
-  updateFluidLogControls();
-  openModalOverlay(overlay, { initialFocus: '#nutrition-fluid-amount', focusDelay: 30 });
+  openModalOverlay(overlay, { autoFocus: false });
+  setTimeout(() => { if (current() && !modal.contains(document.activeElement)) modal.querySelector<HTMLElement>('#nutrition-fluid-amount')?.focus({ preventScroll: true }); }, 30);
   return true;
 }
 async function openMealEditor(id: string, mode: string, origin = 'history') {
@@ -736,17 +743,12 @@ function handleChange(event: Event) {
     refreshMealModelControl();
     showNotification('Meal photo model updated.', 'success');
   }
-  else if (target instanceof HTMLSelectElement && target.id === 'nutrition-target-protein-basis') updateNutritionTargetControls();
-  else if (target instanceof HTMLInputElement && target.hasAttribute('data-nutrition-widget-metric')) updateNutritionWidgetMetricControls();
-  else if (target instanceof HTMLInputElement && target.name === 'nutrition-fluid-kind') updateFluidLogControls();
   else if (target instanceof HTMLInputElement && target.hasAttribute('data-nutrition-component-grams')) updateComponentGrams(Number(target.getAttribute('data-nutrition-component-grams')), target.value);
 }
 
 function handleInput(event: Event) {
   const target = event.target;
   if (target instanceof HTMLInputElement && target.hasAttribute('data-nutrition-comparison-search')) filterNutritionComparisonModels(target.value);
-  else if (target instanceof HTMLInputElement && target.id.startsWith('nutrition-target-')) updateNutritionTargetControls();
-  else if (target instanceof HTMLInputElement && target.id === 'nutrition-fluid-amount') updateFluidLogControls();
   else if (target instanceof HTMLInputElement && ['nutrition-meal-name', 'nutrition-consumed-amount'].includes(target.id)) updateCorrectionState();
   else if ((target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) && target.hasAttribute('data-nutrition-reference')) {
     useManualComparisonReference();

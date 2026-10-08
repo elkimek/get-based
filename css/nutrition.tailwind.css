@@ -7,3 +7,6 @@
 @source "../js/nutrition-history-view.ts";
 @custom-variant nutrition (&:is([data-nutrition-view], [data-nutrition-view] *));
 @custom-variant nutrition-modal (&[data-nutrition-history-modal]);
+
+@source "../js/nutrition-entry-view.ts";
+@custom-variant nutrition-entry-modal (&[data-nutrition-entry-modal]);

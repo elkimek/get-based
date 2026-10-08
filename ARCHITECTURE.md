@@ -238,7 +238,18 @@ checks its originating profile/modal after confirmation before starting a write.
 `nutrition-store.ts` completes canonical and encrypted cache commits and summary
 updates independently of the optional browser storage-persistence permission;
 `nutrition-storage-permission.ts` shares a pending request across meal writes.
-The rest of the meal editor and dashboard remains subsequent migration work.
+`NutritionEntry.svelte` mounts the authored `NutritionTargets.svelte` and
+`NutritionFluidLog.svelte` forms. They own draft values, native constraints,
+keyboard submission and scoped Tailwind controls. `nutrition-entry-model.ts`
+projects the weight/nutrient registry and creates the existing reviewed drink
+record shape without retaining meal photos or unrelated profile fields.
+`nutrition-entry-session.ts` commits settings through the captured profile's
+atomic field guard and drinks through the encrypted meal queue. Failures retain
+the input; retired forms cannot start writes, while accepted writes finish on their
+originating profile. `nutrition-entry-view.ts` owns modal/route retirement and
+save navigation. Existing renderer/control exports delegate to this implementation.
+The remaining meal editor, details, benchmark and dashboard are subsequent
+migration work.
 `context-notes-session.ts` captures accepted text and originating profile/data,
 serializes debounced scoped writes and retains retry drafts through catalog rebuilds
 and fresh profile reload objects. Failed idle sessions retain draft text without

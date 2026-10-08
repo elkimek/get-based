@@ -612,7 +612,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/nutrition-render.js',
   '/js/nutrition-food-data.js',
   '/js/nutrition-nutrient-registry.js', '/js/nutrition-photo-provenance.js',
-  '/js/nutrition-editor-navigation.js', '/js/nutrition-entry-forms.js',
+  '/js/nutrition-editor-navigation.js', '/js/nutrition-entry-forms.js', '/js/nutrition-entry-model.js', '/js/nutrition-entry-session.js', '/js/nutrition-entry-view.js', '/js/components/NutritionEntry.svelte.native.js',
   '/js/nutrition-modal-controller.js',
   '/js/nutrition-request-lifecycle.js',
   '/js/nutrition-targets.js',

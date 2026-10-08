@@ -1,14 +1,13 @@
 // nutrition-entry-forms.js — targets and first-class drink entry controller.
 
-import { saveImportedData } from './data.js';
 import { getErrorMessage } from './caught-error.js';
 import { openModalOverlay } from './modal-lifecycle.js';
 import { ensureNutritionStylesheet, renderMealDetail } from './nutrition-render.js';
 import { hasSuspendedNutritionEditor } from './nutrition-editor-navigation.js';
 import { getActiveProfileMeal, saveActiveProfileMeal } from './nutrition-store.js';
-import { normalizeNutritionTargets, resolveNutritionTargets } from './nutrition-targets.js';
-import { state } from './state.js';
 import { showNotification } from './utils.js';
+import { configureNutritionEntryView } from './nutrition-entry-view.js';
+export { saveNutritionTargets, saveFluidLog, updateFluidLogControls, updateNutritionTargetControls, updateNutritionWidgetMetricControls } from './nutrition-entry-view.js';
 
 interface NutritionEntryCallbacks {
   refreshWidget: () => unknown;
@@ -21,6 +20,7 @@ let mealDetailReturnTo = 'meals';
 
 export function configureNutritionEntryForms(deps: Partial<NutritionEntryCallbacks> = {}) {
   entryDeps = { ...entryDeps, ...deps };
+  configureNutritionEntryView(deps);
 }
 
 export async function openMealDetail(id: Parameters<typeof getActiveProfileMeal>[0], { returnTo = mealDetailReturnTo }: { returnTo?: unknown } = {}) {
@@ -90,196 +90,5 @@ export async function clearMealResponse(id: Parameters<typeof getActiveProfileMe
     showNotification('After-meal check-in cleared and queued for sync.', 'info');
   } catch (error) {
     showNotification(getErrorMessage(error, 'The after-meal check-in could not be cleared.'), 'error');
-  }
-}
-
-function selectedFluidKind() {
-  return (document.querySelector('input[name="nutrition-fluid-kind"]:checked') as HTMLInputElement | null)?.value || 'other';
-}
-
-export function updateFluidLogControls() {
-  const amountInput = (document.getElementById('nutrition-fluid-amount') as HTMLInputElement | null);
-  if (!amountInput) return;
-  const amount = Number(amountInput.value);
-  const validAmount = Number.isFinite(amount) && amount > 0 && amount <= 10000;
-  const kind = selectedFluidKind();
-  const labels: Readonly<Record<string, unknown>> = { water: 'water', 'tea-coffee': 'tea or coffee', other: 'beverage' };
-  const amountLabel = validAmount ? `${amount.toLocaleString(undefined, { maximumFractionDigits: 1 })} mL` : 'Drink amount';
-  const preview = document.getElementById('nutrition-fluid-preview');
-  const previewTitle = preview?.querySelector('strong');
-  const previewNote = preview?.querySelector('small');
-  if (previewTitle) previewTitle.textContent = `${amountLabel}${validAmount ? ` ${labels[kind] || 'beverage'}` : ''}`;
-  if (previewNote) previewNote.textContent = kind === 'water'
-    ? 'Adds to logged drinks and plain water.'
-    : 'Adds to logged drinks; the plain-water total stays unchanged.';
-  document.querySelectorAll('[data-nutrition-action="set-fluid-amount"]').forEach(button => {
-    const selected = validAmount && Number(button.getAttribute('data-nutrition-amount')) === amount;
-    button.classList.toggle('is-selected', selected);
-    button.setAttribute('aria-pressed', String(selected));
-  });
-  const saveButton = (document.querySelector('[data-nutrition-action="save-fluid"]') as HTMLButtonElement | null);
-  if (saveButton) saveButton.textContent = validAmount ? `Log ${amountLabel}` : 'Log drink';
-}
-
-function targetInputValue(id: string, fallback: number) {
-  const value = Number((document.getElementById(id) as HTMLInputElement | null)?.value);
-  return Number.isFinite(value) ? value : fallback;
-}
-
-function nutritionTargetsFromForm() {
-  const current = normalizeNutritionTargets((state.importedData as { nutritionTargets?: unknown } | null | undefined)?.nutritionTargets || {});
-  const widgetNutrients = Array.from(document.querySelectorAll('[data-nutrition-widget-metric]:checked'))
-    .map(input => input instanceof HTMLInputElement ? input.value : '')
-    .filter(Boolean);
-  return normalizeNutritionTargets({
-    configured: true,
-    energyKcal: targetInputValue('nutrition-target-energy', current.energyKcal),
-    proteinBasis: (document.getElementById('nutrition-target-protein-basis') as HTMLSelectElement | null)?.value,
-    proteinGPerKg: targetInputValue('nutrition-target-protein-factor', current.proteinGPerKg),
-    proteinFixedG: targetInputValue('nutrition-target-protein-fixed', current.proteinFixedG),
-    carbohydrateG: targetInputValue('nutrition-target-carbohydrate', current.carbohydrateG),
-    fatG: targetInputValue('nutrition-target-fat', current.fatG),
-    fiberG: targetInputValue('nutrition-target-fiber', current.fiberG),
-    fluidMl: targetInputValue('nutrition-target-fluid', current.fluidMl),
-    sugarG: targetInputValue('nutrition-target-sugar', current.sugarG),
-    sodiumMg: targetInputValue('nutrition-target-sodium', current.sodiumMg),
-    widgetNutrients,
-  });
-}
-
-export function updateNutritionWidgetMetricControls() {
-  const inputs = (Array.from(document.querySelectorAll('[data-nutrition-widget-metric]'))
-    .filter(input => input instanceof HTMLInputElement));
-  const selected = inputs.filter(input => input.checked);
-  const count = document.getElementById('nutrition-widget-metric-count');
-  if (count) count.textContent = `${selected.length} selected`;
-}
-
-function setNutritionTargetStatus(message: string, isError = false) {
-  const status = document.getElementById('nutrition-target-status');
-  if (!status) return;
-  status.textContent = message;
-  status.classList.toggle('is-error', isError);
-}
-
-function validateNutritionTargetsForm() {
-  const basis = (document.getElementById('nutrition-target-protein-basis') as HTMLSelectElement | null)?.value || 'general';
-  const fields: Array<[string, string]> = [
-    ['nutrition-target-energy', 'Energy'],
-    ['nutrition-target-carbohydrate', 'Carbohydrate'],
-    ['nutrition-target-fat', 'Fat'],
-    ['nutrition-target-fiber', 'Fiber'],
-    ['nutrition-target-fluid', 'Logged drinks'],
-    ['nutrition-target-sugar', 'Sugar'],
-    ['nutrition-target-sodium', 'Sodium'],
-    [basis === 'fixed' ? 'nutrition-target-protein-fixed' : 'nutrition-target-protein-factor', 'Protein'],
-  ];
-  document.querySelectorAll('#nutrition-target-settings input[aria-invalid="true"]')
-    .forEach(input => input.removeAttribute('aria-invalid'));
-  for (const [id, label] of fields) {
-    const input = (document.getElementById(id) as HTMLInputElement | null);
-    if (!input || input.disabled) continue;
-    if (!input.value.trim() || !input.checkValidity()) {
-      input.setAttribute('aria-invalid', 'true');
-      const message = `Review ${label}; it is blank or outside the allowed range.`;
-      setNutritionTargetStatus(message, true);
-      showNotification(message, 'error');
-      input.focus();
-      input.reportValidity();
-      return false;
-    }
-  }
-  setNutritionTargetStatus('');
-  return true;
-}
-
-export function updateNutritionTargetControls() {
-  const basis = (document.getElementById('nutrition-target-protein-basis') as HTMLSelectElement | null)?.value || 'general';
-  const factors: Readonly<Record<string, number>> = { general: 0.83, active: 1.6, high: 2 };
-  const factor = (document.getElementById('nutrition-target-protein-factor') as HTMLInputElement | null);
-  const fixed = basis === 'fixed';
-  const factorWrap = document.getElementById('nutrition-target-protein-factor-wrap');
-  const fixedWrap = document.getElementById('nutrition-target-protein-fixed-wrap');
-  if (factorWrap) factorWrap.hidden = fixed;
-  if (fixedWrap) fixedWrap.hidden = !fixed;
-  if (factor) {
-    if (Object.hasOwn(factors, basis)) factor.value = String(factors[basis]);
-    factor.disabled = Object.hasOwn(factors, basis);
-  }
-  const resolved = resolveNutritionTargets({ ...state.importedData, nutritionTargets: nutritionTargetsFromForm() });
-  const preview = document.getElementById('nutrition-target-protein-preview');
-  if (preview) {
-    const source = resolved.proteinUsesWeight && resolved.weight
-      ? `${resolved.proteinFactor} g/kg × ${resolved.weight.kg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg from ${resolved.weight.source}`
-      : resolved.proteinBasis === 'fixed' ? 'fixed daily guide' : 'fallback until a weight measurement is available';
-    preview.textContent = `Protein guide: ${resolved.proteinG.toLocaleString(undefined, { maximumFractionDigits: 1 })} g/day · ${source}`;
-  }
-}
-
-export async function saveNutritionTargets({ closeOnSave = true } = {}) {
-  if (!validateNutritionTargetsForm()) return false;
-  const hadPrevious = Object.hasOwn(state.importedData, 'nutritionTargets');
-  const previous: unknown = state.importedData.nutritionTargets;
-  state.importedData.nutritionTargets = nutritionTargetsFromForm();
-  let saved = false;
-  try {
-    saved = await saveImportedData();
-  } catch {
-    saved = false;
-  }
-  if (!saved) {
-    if (hadPrevious) (state.importedData as { nutritionTargets?: unknown }).nutritionTargets = previous;
-    else delete state.importedData.nutritionTargets;
-    const message = 'Nutrition setup could not be saved; your previous settings are unchanged.';
-    setNutritionTargetStatus(message, true);
-    showNotification(message, 'error');
-    return false;
-  }
-  entryDeps.refreshWidget();
-  if (closeOnSave) entryDeps.closeEditor();
-  showNotification('Nutrition setup saved.', 'success');
-  return true;
-}
-
-export async function saveFluidLog() {
-  const amountInput = (document.getElementById('nutrition-fluid-amount') as HTMLInputElement | null);
-  const amount = Number(amountInput?.value);
-  if (!Number.isFinite(amount) || amount <= 0 || amount > 10000) {
-    showNotification('Enter a drink amount between 1 and 10,000 mL.', 'error');
-    amountInput?.focus();
-    return;
-  }
-  const kind = selectedFluidKind();
-  const localDate = (document.getElementById('nutrition-fluid-at') as HTMLInputElement | null)?.value || '';
-  const eatenAt = new Date(localDate);
-  if (!Number.isFinite(eatenAt.getTime())) {
-    showNotification('Choose a valid drink date and time.', 'error');
-    document.getElementById('nutrition-fluid-at')?.focus();
-    return;
-  }
-  const customLabel = (document.getElementById('nutrition-fluid-label') as HTMLInputElement | null)?.value.trim() || '';
-  const defaultLabels: Readonly<Record<string, unknown>> = { water: 'Water', 'tea-coffee': 'Tea or coffee', other: 'Beverage' };
-  const name = customLabel || defaultLabels[kind] || 'Beverage';
-  const value = Math.round(amount * 10) / 10;
-  const [, timePart = '00:00'] = localDate.split('T');
-  const [localHour, localMinute] = timePart.split(':').map(Number);
-  let timeZone = '';
-  try { timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch {}
-  try {
-    await saveActiveProfileMeal({
-      name, mealType: 'drink', eatenAt: eatenAt.toISOString(), localDate: localDate.slice(0, 10),
-      localTimeMinutes: Number.isFinite(localHour) && Number.isFinite(localMinute) ? localHour! * 60 + localMinute! : null,
-      timezoneOffsetMinutes: eatenAt.getTimezoneOffset(), timeZone, note: '', analysisContext: '',
-      nutrients: { fluidMl: value, ...(kind === 'water' ? { plainWaterMl: value } : {}) },
-      components: [{ name, quantityG: null, confidence: 1, nutrients: {} }],
-      assumptions: [], warnings: [], confidence: 1, images: [],
-      source: { kind: kind === 'water' ? 'manual-water' : 'manual-beverage', recordedAt: new Date().toISOString(), nutrientBasis: 'user-entered' },
-      reviewed: true,
-    });
-    entryDeps.refreshWidget();
-    entryDeps.closeEditor();
-    showNotification(`${name} logged.`, 'success');
-  } catch (error) {
-    showNotification(getErrorMessage(error, 'Drink could not be saved.'), 'error');
   }
 }

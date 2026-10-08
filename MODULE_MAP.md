@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1159 |
-| Internal import edges | 4207 |
+| Modules | 1166 |
+| Internal import edges | 4236 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,11 +65,11 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 282 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
-| [`js/state.ts`](js/state.ts) | 238 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
-| [`js/caught-error.ts`](js/caught-error.ts) | 91 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
-| [`js/data.ts`](js/data.ts) | 82 | [`js/settings.ts`](js/settings.ts) | 35 |
-| [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 82 | [`js/provider-panels.ts`](js/provider-panels.ts) | 34 |
+| [`js/utils.ts`](js/utils.ts) | 283 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
+| [`js/state.ts`](js/state.ts) | 239 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
+| [`js/caught-error.ts`](js/caught-error.ts) | 92 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
+| [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 83 | [`js/settings.ts`](js/settings.ts) | 35 |
+| [`js/data.ts`](js/data.ts) | 82 | [`js/provider-panels.ts`](js/provider-panels.ts) | 34 |
 | [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts) | 65 | [`js/provider-wallet-panels.ts`](js/provider-wallet-panels.ts) | 30 |
 | [`js/api.ts`](js/api.ts) | 52 | [`js/pdf-import.ts`](js/pdf-import.ts) | 28 |
 | [`js/profile.ts`](js/profile.ts) | 51 | [`js/sync-configure.ts`](js/sync-configure.ts) | 28 |
@@ -1479,7 +1479,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>nutrition</code> family — 32 modules</summary>
+<details><summary><code>nutrition</code> family — 35 modules</summary>
 
 - [`js/nutrition-ai-settings-classes.ts`](js/nutrition-ai-settings-classes.ts) → no in-scope imports
 - [`js/nutrition-ai-settings-component.ts`](js/nutrition-ai-settings-component.ts) → [`js/components/NutritionAISettings.svelte`](js/components/NutritionAISettings.svelte)
@@ -1493,7 +1493,10 @@ Native browser modules shipped with the static application.
 - [`js/nutrition-context-card-extensions.ts`](js/nutrition-context-card-extensions.ts) → [`js/components/ContextNutritionLink.svelte`](js/components/ContextNutritionLink.svelte), [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/state.ts`](js/state.ts)
 - [`js/nutrition-context.ts`](js/nutrition-context.ts) → [`js/context-card-summaries.ts`](js/context-card-summaries.ts), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts) *(dynamic)*, [`js/nutrition.ts`](js/nutrition.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/nutrition-editor-navigation.ts`](js/nutrition-editor-navigation.ts) → no in-scope imports
-- [`js/nutrition-entry-forms.ts`](js/nutrition-entry-forms.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data.ts`](js/data.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-editor-navigation.ts`](js/nutrition-editor-navigation.ts), [`js/nutrition-render.ts`](js/nutrition-render.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts), [`js/nutrition-targets.ts`](js/nutrition-targets.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/nutrition-entry-forms.ts`](js/nutrition-entry-forms.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-editor-navigation.ts`](js/nutrition-editor-navigation.ts), [`js/nutrition-entry-view.ts`](js/nutrition-entry-view.ts), [`js/nutrition-render.ts`](js/nutrition-render.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/nutrition-entry-model.ts`](js/nutrition-entry-model.ts) → [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts), [`js/nutrition-presentation-model.ts`](js/nutrition-presentation-model.ts), [`js/nutrition-targets.ts`](js/nutrition-targets.ts)
+- [`js/nutrition-entry-session.ts`](js/nutrition-entry-session.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/data.ts`](js/data.ts), [`js/nutrition-entry-model.ts`](js/nutrition-entry-model.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts), [`js/nutrition-targets.ts`](js/nutrition-targets.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/state.ts`](js/state.ts)
+- [`js/nutrition-entry-view.ts`](js/nutrition-entry-view.ts) → [`js/components/NutritionEntry.svelte`](js/components/NutritionEntry.svelte), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-entry-model.ts`](js/nutrition-entry-model.ts), [`js/nutrition-entry-session.ts`](js/nutrition-entry-session.ts), [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/nutrition-food-data.ts`](js/nutrition-food-data.ts) → [`js/nutrition-summary.ts`](js/nutrition-summary.ts)
 - [`js/nutrition-fuel-mix.ts`](js/nutrition-fuel-mix.ts) → no in-scope imports
 - [`js/nutrition-history-view.ts`](js/nutrition-history-view.ts) → [`js/components/NutritionHistory.svelte`](js/components/NutritionHistory.svelte), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/route-lifecycle.ts`](js/route-lifecycle.ts), [`js/state.ts`](js/state.ts)
@@ -1502,7 +1505,7 @@ Native browser modules shipped with the static application.
 - [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts) → no in-scope imports
 - [`js/nutrition-photo-provenance.ts`](js/nutrition-photo-provenance.ts) → no in-scope imports
 - [`js/nutrition-presentation-model.ts`](js/nutrition-presentation-model.ts) → [`js/nutrition-fuel-mix.ts`](js/nutrition-fuel-mix.ts), [`js/nutrition-summary.ts`](js/nutrition-summary.ts)
-- [`js/nutrition-render.ts`](js/nutrition-render.ts) → [`js/components/NutritionPresentation.svelte`](js/components/NutritionPresentation.svelte), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-comparison.ts`](js/nutrition-comparison.ts), [`js/nutrition-fuel-mix.ts`](js/nutrition-fuel-mix.ts), [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts), [`js/nutrition-presentation-model.ts`](js/nutrition-presentation-model.ts), [`js/nutrition-targets.ts`](js/nutrition-targets.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/nutrition-render.ts`](js/nutrition-render.ts) → [`js/components/NutritionPresentation.svelte`](js/components/NutritionPresentation.svelte), [`js/lab-context-settings.ts`](js/lab-context-settings.ts), [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-comparison.ts`](js/nutrition-comparison.ts), [`js/nutrition-entry-model.ts`](js/nutrition-entry-model.ts), [`js/nutrition-fuel-mix.ts`](js/nutrition-fuel-mix.ts), [`js/nutrition-nutrient-registry.ts`](js/nutrition-nutrient-registry.ts), [`js/nutrition-presentation-model.ts`](js/nutrition-presentation-model.ts), [`js/nutrition-targets.ts`](js/nutrition-targets.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/nutrition-request-lifecycle.ts`](js/nutrition-request-lifecycle.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/nutrition-review-ui.ts`](js/nutrition-review-ui.ts) → [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-comparison-ui.ts`](js/nutrition-comparison-ui.ts), [`js/nutrition-food-data.ts`](js/nutrition-food-data.ts), [`js/nutrition-fuel-mix.ts`](js/nutrition-fuel-mix.ts), [`js/nutrition-render.ts`](js/nutrition-render.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/nutrition-storage-permission.ts`](js/nutrition-storage-permission.ts) → no in-scope imports
@@ -1512,13 +1515,25 @@ Native browser modules shipped with the static application.
 - [`js/nutrition-sync-sanitize.ts`](js/nutrition-sync-sanitize.ts) → [`js/nutrition-photo-provenance.ts`](js/nutrition-photo-provenance.ts)
 - [`js/nutrition-targets.ts`](js/nutrition-targets.ts) → [`js/nutrition-summary.ts`](js/nutrition-summary.ts), [`js/state.ts`](js/state.ts), [`js/wearables-formatters.ts`](js/wearables-formatters.ts)
 - [`js/nutrition-view-classes.ts`](js/nutrition-view-classes.ts) → no in-scope imports
-- [`js/nutrition.ts`](js/nutrition.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-benchmark-workspace.ts`](js/nutrition-benchmark-workspace.ts), [`js/nutrition-comparison-ui.ts`](js/nutrition-comparison-ui.ts), [`js/nutrition-editor-navigation.ts`](js/nutrition-editor-navigation.ts), [`js/nutrition-entry-forms.ts`](js/nutrition-entry-forms.ts), [`js/nutrition-food-data.ts`](js/nutrition-food-data.ts), [`js/nutrition-history.ts`](js/nutrition-history.ts), [`js/nutrition-modal-controller.ts`](js/nutrition-modal-controller.ts), [`js/nutrition-photo-provenance.ts`](js/nutrition-photo-provenance.ts), [`js/nutrition-render.ts`](js/nutrition-render.ts), [`js/nutrition-request-lifecycle.ts`](js/nutrition-request-lifecycle.ts), [`js/nutrition-review-ui.ts`](js/nutrition-review-ui.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/nutrition.ts`](js/nutrition.ts) → [`js/caught-error.ts`](js/caught-error.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nutrition-ai-settings.ts`](js/nutrition-ai-settings.ts), [`js/nutrition-analysis.ts`](js/nutrition-analysis.ts), [`js/nutrition-benchmark-workspace.ts`](js/nutrition-benchmark-workspace.ts), [`js/nutrition-comparison-ui.ts`](js/nutrition-comparison-ui.ts), [`js/nutrition-editor-navigation.ts`](js/nutrition-editor-navigation.ts), [`js/nutrition-entry-forms.ts`](js/nutrition-entry-forms.ts), [`js/nutrition-entry-model.ts`](js/nutrition-entry-model.ts), [`js/nutrition-entry-view.ts`](js/nutrition-entry-view.ts), [`js/nutrition-food-data.ts`](js/nutrition-food-data.ts), [`js/nutrition-history.ts`](js/nutrition-history.ts), [`js/nutrition-modal-controller.ts`](js/nutrition-modal-controller.ts), [`js/nutrition-photo-provenance.ts`](js/nutrition-photo-provenance.ts), [`js/nutrition-render.ts`](js/nutrition-render.ts), [`js/nutrition-request-lifecycle.ts`](js/nutrition-request-lifecycle.ts), [`js/nutrition-review-ui.ts`](js/nutrition-review-ui.ts), [`js/nutrition-store.ts`](js/nutrition-store.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 
 </details>
 
 <details><summary><code>NutritionAISettings.svelte</code> family — 1 module</summary>
 
 - [`js/components/NutritionAISettings.svelte`](js/components/NutritionAISettings.svelte) → [`js/nutrition-ai-settings-classes.ts`](js/nutrition-ai-settings-classes.ts)
+
+</details>
+
+<details><summary><code>NutritionEntry.svelte</code> family — 1 module</summary>
+
+- [`js/components/NutritionEntry.svelte`](js/components/NutritionEntry.svelte) → [`js/components/NutritionFluidLog.svelte`](js/components/NutritionFluidLog.svelte), [`js/components/NutritionTargets.svelte`](js/components/NutritionTargets.svelte)
+
+</details>
+
+<details><summary><code>NutritionFluidLog.svelte</code> family — 1 module</summary>
+
+- [`js/components/NutritionFluidLog.svelte`](js/components/NutritionFluidLog.svelte) → [`js/nutrition-entry-model.ts`](js/nutrition-entry-model.ts), [`js/nutrition-view-classes.ts`](js/nutrition-view-classes.ts)
 
 </details>
 
@@ -1546,15 +1561,27 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>NutritionNumberField.svelte</code> family — 1 module</summary>
+
+- [`js/components/NutritionNumberField.svelte`](js/components/NutritionNumberField.svelte) → [`js/nutrition-view-classes.ts`](js/nutrition-view-classes.ts)
+
+</details>
+
 <details><summary><code>NutritionPresentation.svelte</code> family — 1 module</summary>
 
-- [`js/components/NutritionPresentation.svelte`](js/components/NutritionPresentation.svelte) → [`js/components/NutritionFuelCard.svelte`](js/components/NutritionFuelCard.svelte), [`js/components/NutritionGoalRow.svelte`](js/components/NutritionGoalRow.svelte), [`js/components/NutritionHistory.svelte`](js/components/NutritionHistory.svelte), [`js/components/NutritionMealRow.svelte`](js/components/NutritionMealRow.svelte), [`js/components/NutritionTargetRing.svelte`](js/components/NutritionTargetRing.svelte)
+- [`js/components/NutritionPresentation.svelte`](js/components/NutritionPresentation.svelte) → [`js/components/NutritionEntry.svelte`](js/components/NutritionEntry.svelte), [`js/components/NutritionFuelCard.svelte`](js/components/NutritionFuelCard.svelte), [`js/components/NutritionGoalRow.svelte`](js/components/NutritionGoalRow.svelte), [`js/components/NutritionHistory.svelte`](js/components/NutritionHistory.svelte), [`js/components/NutritionMealRow.svelte`](js/components/NutritionMealRow.svelte), [`js/components/NutritionTargetRing.svelte`](js/components/NutritionTargetRing.svelte)
 
 </details>
 
 <details><summary><code>NutritionTargetRing.svelte</code> family — 1 module</summary>
 
 - [`js/components/NutritionTargetRing.svelte`](js/components/NutritionTargetRing.svelte) → [`js/nutrition-presentation-model.ts`](js/nutrition-presentation-model.ts)
+
+</details>
+
+<details><summary><code>NutritionTargets.svelte</code> family — 1 module</summary>
+
+- [`js/components/NutritionTargets.svelte`](js/components/NutritionTargets.svelte) → [`js/components/NutritionNumberField.svelte`](js/components/NutritionNumberField.svelte), [`js/nutrition-entry-model.ts`](js/nutrition-entry-model.ts), [`js/nutrition-targets.ts`](js/nutrition-targets.ts), [`js/nutrition-view-classes.ts`](js/nutrition-view-classes.ts)
 
 </details>
 
