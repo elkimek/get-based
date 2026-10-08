@@ -1,6 +1,9 @@
 // ai-action-delegates.js - shared delegated actions for AI verdict controls.
 
 import { escapeAttr } from './utils.js';
+import { captureAIVerdictOwner } from './ai-verdict-owner.js';
+
+export const aiActionOwner = () => captureAIVerdictOwner().key('control');
 
 let aiActionDelegatesInstalled = false;
 
@@ -34,7 +37,7 @@ export function getRegisteredAIActionHandler(action: string) {
 }
 
 export function aiActionAttrs(action: unknown, targetId: unknown = '', opts: { stopPropagation?: boolean } = {}) {
-  const attrs = [`data-ai-action="${escapeAttr(action)}"`];
+  const attrs = [`data-ai-action="${escapeAttr(action)}"`, `data-ai-owner="${aiActionOwner()}"`];
   if (targetId != null && targetId !== '') attrs.push(`data-ai-target="${escapeAttr(String(targetId))}"`);
   if (opts.stopPropagation) attrs.push('data-ai-stop-propagation="true"');
   return attrs.join(' ');
@@ -58,6 +61,8 @@ function _handleAIActionClick(event: Event) {
   const handler = getRegisteredAIActionHandler(action);
   if (!handler) return;
   event.preventDefault();
+  // A retained modal/row must never start work in a replacement profile.
+  if (actionEl.dataset.aiOwner !== aiActionOwner()) return;
   if (actionEl.dataset.aiTarget === undefined) (handler as () => unknown)();
   else handler(actionEl.dataset.aiTarget);
 }

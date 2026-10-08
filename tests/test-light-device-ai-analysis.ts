@@ -358,6 +358,7 @@ const {
     lightDevices: [{ id: 'dev-mitochondriak-maxi-uvb', brand: 'Mito', model: 'Maxi UVB', type: 'uvb' }],
     deviceSessions: [sess],
   });
+  assert('refresh fixture persists before analysis', await (await import('../js/data.js')).saveImportedData());
   const origFetch = window.fetch;
   window.fetch = () => Promise.reject(new Error('test stub: no provider running'));
   try {

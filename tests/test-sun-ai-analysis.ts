@@ -327,6 +327,7 @@ const {
   enableAI();
   const sess = makeSess({ id: 'sun_refresh_target' });
   reset({ sunSessions: [sess] });
+  assert('refresh fixture persists before analysis', await (await import('../js/data.js')).saveImportedData());
   const origFetch = window.fetch;
   window.fetch = () => Promise.reject(new Error('test stub: provider unreachable'));
   try { await refreshSessionAIAnalysis('sun_refresh_target'); } catch (_) {}

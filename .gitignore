@@ -2125,3 +2125,22 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /tests/pwa/sveltekit-light-ai-persistence.spec.js
 
 /tests/views-router-refresh.test.js
+
+/tests/ai-action-ownership.test.js
+
+/js/light-session-ai-presentation.js
+/js/light-session-ai-classes.js
+/js/components/LightSessionAI.svelte.native.js
+/js/components/LightSessionAI.svelte.native.js.map
+/js/components/LightSessionAI.svelte.html.js
+/js/components/LightSessionAI.svelte.html.js.map
+/js/components/LightVerdictDot.svelte.native.js
+/js/components/LightVerdictDot.svelte.native.js.map
+/js/components/LightVerdictButton.svelte.native.js
+/js/components/LightVerdictButton.svelte.native.js.map
+
+/tests/light-session-ai-presentation.test.js
+
+/tests/playwright/light-session-ai-owned.spec.js
+
+/tests/pwa/sveltekit-light-session-ai.spec.js

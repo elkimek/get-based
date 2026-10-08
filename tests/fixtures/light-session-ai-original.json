@@ -1,0 +1,854 @@
+{
+  "revision": "e0c1af3ead562d04233f24448a3c6f221d336253",
+  "cases": [
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "idle",
+      "provider": true,
+      "analysis": {
+        "status": "idle"
+      },
+      "html": "<div class=\"sun-session-ai sun-session-ai-idle\" data-ai-action=\"stop-propagation\">\n    <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n    <button class=\"sun-session-ai-cta\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\">Analyze this session</button>\n  </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "idle",
+      "provider": false,
+      "analysis": {
+        "status": "idle"
+      },
+      "html": ""
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "analyzing",
+      "provider": true,
+      "analysis": {
+        "status": "analyzing"
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-shimmer\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\">Analyzing\u2026</span>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "analyzing",
+      "provider": false,
+      "analysis": {
+        "status": "analyzing"
+      },
+      "html": ""
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error"
+      },
+      "html": "<div class=\"sun-session-ai sun-session-ai-error\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\" title=\"Analysis failed\">Analysis failed</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error"
+      },
+      "html": ""
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": "<div class=\"sun-session-ai sun-session-ai-error\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\" title=\"Analysis failed \u2014 Offline &lt;literal&gt; &amp; unavailable\">Analysis failed \u2014 Offline &lt;literal&gt; &amp; unavailable</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": ""
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-yellow\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u26a0</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-yellow\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u26a0</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-red\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u25b2</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-red\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u25b2</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-gray\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u00b7</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-gray\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u00b7</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": ""
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> </span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "inline",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": ""
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> </span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "idle",
+      "provider": true,
+      "analysis": {
+        "status": "idle"
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-idle\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span>Not analyzed yet.</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\">Analyze now</button>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "idle",
+      "provider": false,
+      "analysis": {
+        "status": "idle"
+      },
+      "html": ""
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "analyzing",
+      "provider": true,
+      "analysis": {
+        "status": "analyzing"
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-loading\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-shimmer\" aria-hidden=\"true\"></span>\n      <span>Analyzing this session\u2026</span>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "analyzing",
+      "provider": false,
+      "analysis": {
+        "status": "analyzing"
+      },
+      "html": ""
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error"
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-error\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span>Analysis failed.</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\">Try again</button>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error"
+      },
+      "html": ""
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-error\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span>Analysis failed \u2014 Offline &lt;literal&gt; &amp; unavailable</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\">Try again</button>\n    </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": ""
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-yellow\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-yellow\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-red\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-red\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-gray\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-gray\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": ""
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\"></span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    \n  </div>"
+    },
+    {
+      "feature": "sun",
+      "mode": "detail",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": ""
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\"></span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-sun-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    \n  </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "idle",
+      "provider": true,
+      "analysis": {
+        "status": "idle"
+      },
+      "html": "<div class=\"sun-session-ai sun-session-ai-idle\" data-ai-action=\"stop-propagation\">\n    <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n    <button class=\"sun-session-ai-cta\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\">Analyze this session</button>\n  </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "idle",
+      "provider": false,
+      "analysis": {
+        "status": "idle"
+      },
+      "html": ""
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "analyzing",
+      "provider": true,
+      "analysis": {
+        "status": "analyzing"
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-shimmer\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\">Analyzing\u2026</span>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "analyzing",
+      "provider": false,
+      "analysis": {
+        "status": "analyzing"
+      },
+      "html": ""
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error"
+      },
+      "html": "<div class=\"sun-session-ai sun-session-ai-error\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\" title=\"Analysis failed\">Analysis failed</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error"
+      },
+      "html": ""
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": "<div class=\"sun-session-ai sun-session-ai-error\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\" title=\"Analysis failed \u2014 Offline &lt;literal&gt; &amp; unavailable\">Analysis failed \u2014 Offline &lt;literal&gt; &amp; unavailable</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": ""
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-yellow\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u26a0</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-yellow\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u26a0</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-red\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u25b2</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-red\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u25b2</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-gray\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u00b7</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-gray\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u00b7</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": ""
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> </span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "inline",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": ""
+      },
+      "html": "<div class=\"sun-session-ai\" data-ai-action=\"stop-propagation\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> </span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "idle",
+      "provider": true,
+      "analysis": {
+        "status": "idle"
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-idle\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span>Not analyzed yet.</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\">Analyze now</button>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "idle",
+      "provider": false,
+      "analysis": {
+        "status": "idle"
+      },
+      "html": ""
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "analyzing",
+      "provider": true,
+      "analysis": {
+        "status": "analyzing"
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-loading\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-shimmer\" aria-hidden=\"true\"></span>\n      <span>Analyzing this session\u2026</span>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "analyzing",
+      "provider": false,
+      "analysis": {
+        "status": "analyzing"
+      },
+      "html": ""
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error"
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-error\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span>Analysis failed.</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\">Try again</button>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error"
+      },
+      "html": ""
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-error\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span>Analysis failed \u2014 Offline &lt;literal&gt; &amp; unavailable</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\">Try again</button>\n    </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": ""
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-yellow\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-yellow\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-red\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-red\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-gray\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context."
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-gray\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\">Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n  </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": ""
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\"></span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    \n  </div>"
+    },
+    {
+      "feature": "device",
+      "mode": "detail",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": ""
+      },
+      "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\"></span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    \n  </div>"
+    }
+  ],
+  "sessionRootCSS": "display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;"
+}

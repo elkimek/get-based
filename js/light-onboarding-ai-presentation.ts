@@ -2,6 +2,7 @@ import type { AIVerdictAnalysis, AIVerdictStatus } from './ai-verdict-engine.js'
 
 export type OnboardingAIDot = 'green' | 'yellow' | 'red' | 'gray';
 export interface OnboardingAIView {
+  actionOwner: string;
   status: AIVerdictStatus;
   dot: OnboardingAIDot;
   prefix: string;
@@ -14,6 +15,7 @@ const text = (value: unknown) => value == null ? '' : String(value);
 
 // Provider gating and saved-result visibility match the stable facade. No profile writes.
 export function projectOnboardingAI(input: {
+  actionOwner?: string;
   completed: boolean;
   provider: boolean;
   status: AIVerdictStatus;
@@ -25,7 +27,7 @@ export function projectOnboardingAI(input: {
   const rawDot = analysis?.dot;
   const dot: OnboardingAIDot = rawDot === 'green' || rawDot === 'yellow' || rawDot === 'red' ? rawDot : 'gray';
   return {
-    status, dot, prefix: input.prefix,
+    actionOwner: input.actionOwner || '', status, dot, prefix: input.prefix,
     tip: text(analysis?.tip || ''), detail: text(analysis?.detail || ''),
     actions: Array.isArray(analysis?.actions) ? analysis.actions.map(text) : [],
     message: status === 'analyzing' ? 'Synthesizing your setup…'

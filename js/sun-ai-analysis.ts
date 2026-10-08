@@ -9,15 +9,16 @@
 // naturally via the per-row CRDT and the row template can read it
 // without a side-channel cache.
 
-import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { getSunDefaults } from './sun-defaults.js';
 import { getSessions, formatChannelUnit, CHANNEL_DISPLAY } from './sun.js';
 import { solarZenithAngle } from './sun-uvdata.js';
-import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
-import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
+import { createAIVerdict, hashString } from './ai-verdict-engine.js';
+import { aiActionOwner, registerAIActionHandler } from './ai-action-delegates.js';
 
 import type { SunSessionRecord } from './sun-sessions-store.js';
+import { projectSessionAI } from './light-session-ai-presentation.js';
+import { renderHTML } from './components/LightSessionAI.svelte.html.js';
 import type { AnalyzeOptions, AIVerdictAnalysis } from './ai-verdict-engine.js';
 
 // Saved verdicts are opaque; these views describe existing property reads,
@@ -239,83 +240,14 @@ function _hasCompleteModeledSession(sess: SunSessionRecord | null | undefined): 
     && (!sess.calculationStatus || sess.calculationStatus === 'computed');
 }
 
-export function renderSessionAIInline(sess: SunSessionRecord | null | undefined) {
+// One authored presentation serves both inline rows and rich detail dialogs.
+function renderVerdict(sess: SunSessionRecord | null | undefined, mode: 'inline' | 'detail') {
   if (!_hasCompleteModeledSession(sess)) return '';
-  // Render cached verdict even when no provider — pre-populated demos +
-  // cross-device-synced verdicts shouldn't disappear just because the
-  // current device hasn't configured an AI key. Provider-gate only the
-  // fresh-analyze paths (engine.analyze checks hasAIProvider internally).
-  if (!hasAssistantFeatureProvider() && !((sess.aiAnalysis as VerdictRead | null)?.status === 'ok' && (sess.aiAnalysis as VerdictRead | null)?.dot)) return '';
-  const status = engine.getStatus(sess);
-  const a = sess.aiAnalysis as VerdictRead;
-  const refreshBtn = `<button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-sun-session', sess.id, { stopPropagation: true })} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`;
-  if (status === 'analyzing') {
-    return `<div class="sun-session-ai" ${aiActionAttrs('stop-propagation')}>
-      <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
-      <span class="sun-session-ai-tip">Analyzing…</span>
-    </div>`;
-  }
-  if (status === 'ok') {
-    const dot = a.dot;
-    return `<div class="sun-session-ai" ${aiActionAttrs('stop-propagation')}>
-      <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
-      <span class="sun-session-ai-tip sun-session-ai-tip-${escapeAttr(dot)}"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a.tip || '')}</span>
-      ${refreshBtn}
-    </div>`;
-  }
-  if (status === 'error') {
-    const msg = a?.errorMessage ? `Analysis failed — ${a.errorMessage}` : 'Analysis failed';
-    return `<div class="sun-session-ai sun-session-ai-error" ${aiActionAttrs('stop-propagation')}>
-      <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-      <span class="sun-session-ai-tip" title="${escapeAttr(msg)}">${escapeHTML(msg)}</span>
-      ${refreshBtn}
-    </div>`;
-  }
-  return `<div class="sun-session-ai sun-session-ai-idle" ${aiActionAttrs('stop-propagation')}>
-    <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-    <button class="sun-session-ai-cta" ${aiActionAttrs('refresh-sun-session', sess.id, { stopPropagation: true })}>Analyze this session</button>
-  </div>`;
+  const analysis = sess.aiAnalysis as VerdictRead | null | undefined;
+  if (!hasAssistantFeatureProvider() && !(analysis?.status === 'ok' && analysis.dot)) return '';
+  return renderHTML({ view: projectSessionAI({ mode, status: engine.getStatus(sess), analysis,
+    action: 'refresh-sun-session', targetId: sess.id, actionOwner: aiActionOwner(),
+  }) });
 }
-
-export function renderSessionAIDetail(sess: SunSessionRecord | null | undefined) {
-  if (!_hasCompleteModeledSession(sess)) return '';
-  // Render cached verdict even when no provider — pre-populated demos +
-  // cross-device-synced verdicts shouldn't disappear just because the
-  // current device hasn't configured an AI key. Provider-gate only the
-  // fresh-analyze paths (engine.analyze checks hasAIProvider internally).
-  if (!hasAssistantFeatureProvider() && !((sess.aiAnalysis as VerdictRead | null)?.status === 'ok' && (sess.aiAnalysis as VerdictRead | null)?.dot)) return '';
-  const status = engine.getStatus(sess);
-  const a = sess.aiAnalysis as VerdictRead;
-  if (status === 'analyzing') {
-    return `<div class="sun-detail-ai sun-detail-ai-loading">
-      <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
-      <span>Analyzing this session…</span>
-    </div>`;
-  }
-  if (status === 'error') {
-    const msg = a?.errorMessage ? `Analysis failed — ${a.errorMessage}` : 'Analysis failed.';
-    return `<div class="sun-detail-ai sun-detail-ai-error">
-      <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-      <span>${escapeHTML(msg)}</span>
-      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-sun-session', sess.id)}>Try again</button>
-    </div>`;
-  }
-  if (status !== 'ok') {
-    return `<div class="sun-detail-ai sun-detail-ai-idle">
-      <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-      <span>Not analyzed yet.</span>
-      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-sun-session', sess.id)}>Analyze now</button>
-    </div>`;
-  }
-  const dot = a.dot;
-  const tip = a.tip || '';
-  const detail = a.detail || '';
-  return `<div class="sun-detail-ai sun-detail-ai-${escapeAttr(dot)}">
-    <div class="sun-detail-ai-head">
-      <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
-      <span class="sun-detail-ai-tip">${escapeHTML(tip)}</span>
-      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-sun-session', sess.id)} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
-    </div>
-    ${detail ? `<div class="sun-detail-ai-body">${escapeHTML(detail)}</div>` : ''}
-  </div>`;
-}
+export const renderSessionAIInline = (sess: SunSessionRecord | null | undefined) => renderVerdict(sess, 'inline');
+export const renderSessionAIDetail = (sess: SunSessionRecord | null | undefined) => renderVerdict(sess, 'detail');

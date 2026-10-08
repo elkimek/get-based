@@ -104,6 +104,18 @@ forces an actual IndexedDB profile-write failure through the shipped refresh UI,
 then checks an unchanged saved/live verdict, successful retry, unrelated profile
 equality and two offline cold launches. These focused checks do not establish
 whole-application release acceptance.
+[`ai-action-ownership.test.ts`](../tests/ai-action-ownership.test.ts) checks all ten
+rendered actions against profile/root/epoch replacement and retained row controls.
+[`light-session-ai-presentation.test.ts`](../tests/light-session-ai-presentation.test.ts)
+compares 72 frozen original-renderer semantic trees through actual Sun/device
+adapters, including provider gates, action attributes, literal escaping and incomplete
+records. [`light-session-ai-owned.spec.ts`](../tests/playwright/light-session-ai-owned.spec.ts)
+checks original geometry, separately specified accessible foregrounds, six themes,
+two widths, keyboard actions, coarse targets and reduced motion.
+[`sveltekit-light-session-ai.spec.ts`](../tests/pwa/sveltekit-light-session-ai.spec.ts)
+opens actual Sun/device cached verdict details on offline first use and two cold
+launches while retaining the entire canonical profile. The static profile-owner
+check also exercises a retained A control after switching to B.
 [`views-router-refresh.test.ts`](../tests/views-router-refresh.test.ts) checks
 that background same-route refreshes preserve an open mobile menu while explicit
 navigation and route changes still close it. The static persistence check also

@@ -80,10 +80,19 @@ test('static offline Light AI requests retain profile ownership and canonical re
     const panel = page.locator('.light-setup-summary [data-light-onboarding-ai]');
     // Re-enter through the profile picker so the actual UI reflects the newly configured provider.
     await switchProfile(page, 'owner-b'); await switchProfile(page, 'default');
+    await panel.getByRole('button', { name: 'Generate context', exact: true }).evaluate(button => { Object.assign(window, { retiredAIControl: button.cloneNode(true) }); });
     await panel.getByRole('button', { name: 'Generate context', exact: true }).click();
     await expect(panel).toHaveAttribute('data-ai-state', 'analyzing');
     await expect.poll(() => page.evaluate(() => (window as unknown as { lightAIGate: { count(): number } }).lightAIGate.count())).toBe(1);
     await switchProfile(page, 'owner-b'); await expect(panel).toHaveAttribute('data-ai-state', 'idle');
+    await page.evaluate(() => {
+      const retired = (window as unknown as { retiredAIControl: HTMLButtonElement }).retiredAIControl;
+      retired.id = 'retired-ai-control'; retired.style.cssText = 'position:fixed;top:0;left:0;z-index:30000'; document.body.append(retired);
+    });
+    const retired = page.locator('#retired-ai-control');
+    expect(await retired.getAttribute('data-ai-owner')).not.toBe(await panel.getByRole('button', { name: 'Generate context', exact: true }).getAttribute('data-ai-owner'));
+    await retired.click(); await retired.evaluate(element => element.remove());
+    expect(await page.evaluate(() => (window as unknown as { lightAIGate: { count(): number } }).lightAIGate.count())).toBe(1);
     await panel.getByRole('button', { name: 'Generate context', exact: true }).click();
     await expect(panel.locator('.sun-detail-ai-tip')).toContainText('Current B response');
     await page.evaluate(() => (window as unknown as { lightAIGate: { release(): void } }).lightAIGate.release());

@@ -1179,7 +1179,9 @@ The shared `ai-verdict-engine.ts` captures a profile/root identity from
 `ai-verdict-owner.ts` for each request and auto-fire retry sequence. In-flight
 state is keyed by that identity plus the target ID, so singleton IDs cannot
 mark or suppress work in another profile. Context and fingerprint are captured
-before the concurrency wait. Responses, error sidecars, retries and refreshes
+before the concurrency wait. Delegated controls also carry their render-owner
+identity; retained controls cannot initiate work after profile/root/epoch replacement.
+The attribute helper and authored onboarding/session controls share that contract. Responses, error sidecars, retries and refreshes
 retire when their profile/root or profile-switch epoch changes. A current
 response resolves its target again before writing, so removed records are not
 revived and replacement objects receive the verdict. The existing stale-input
@@ -1198,6 +1200,16 @@ profiles receive no result or immediate push. Context notification and extra
 immediate sync run only for the still-current request owner. Deferred Sun/Light
 refreshes preserve an open mobile sidebar when rebuilding the same route; user
 navigation still closes it, including selecting the current route.
+
+`LightSessionAI.svelte` owns the shared Sun/device inline and rich-detail verdict
+states, with reusable dot/button components and a pure `light-session-ai-presentation.ts`
+projection. Existing adapters retain completeness/provider gates, engine calls,
+prompts and saved-data ownership. All literal result/error/target fields are
+Svelte-escaped; severity classes are restricted to known dots. Scoped Tailwind
+uses distinct foreground and severity-border variables, keyboard focus and coarse
+targets; it replaces the two duplicated native renderer implementations. The
+standalone native session row style is removed; shared legacy AI styles remain
+owned by the still-unmigrated measurement/room/screen/daily/weekly/burden surfaces.
 
 `LightSessionPresentation.svelte` composes the past-Sun and device log forms,
 completed Sun/device rows and shared inline/full history. Its pure

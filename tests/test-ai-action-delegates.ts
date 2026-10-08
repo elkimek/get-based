@@ -79,7 +79,7 @@ assert('AI action helper escapes action and target attributes',
     helperSrc.includes('escapeAttr(String(targetId))'));
 assert('AI action helper handles row-level stop propagation',
   helperSrc.includes("action === 'stop-propagation'") &&
-    combined.includes("aiActionAttrs('stop-propagation')") &&
+    (combined.includes("aiActionAttrs('stop-propagation')") || fs.readFileSync(path.join(root, 'js/components/LightSessionAI.svelte'), 'utf8').includes('data-ai-action="stop-propagation"')) &&
     combined.includes('{ stopPropagation: true }'));
 assert('AI action helper dispatches through registry instead of window globals',
   helperSrc.includes('registerAIActionHandler') &&
@@ -90,8 +90,10 @@ assert('AI action helper dispatches through registry instead of window globals',
 for (const action of actions) {
   assert(`AI action ${action} is declared in helper`,
     helperSrc.includes(`'${action}'`));
+  const authoredOnboarding = fs.readFileSync(path.join(root, 'js/components/LightOnboardingAI.svelte'), 'utf8');
   assert(`AI action ${action} is rendered by target modules`,
-    combined.includes(`aiActionAttrs('${action}'`));
+    combined.includes(`aiActionAttrs('${action}'`) || sources[actionOwners[action]].includes(`action: '${action}'`) ||
+      (action === 'refresh-onboarding' && authoredOnboarding.includes('data-ai-action="refresh-onboarding"')));
   assert(`AI action ${action} is registered by its owner module`,
     sources[actionOwners[action]].includes(`registerAIActionHandler('${action}'`));
 }

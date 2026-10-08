@@ -24,7 +24,7 @@ import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
 import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { registerAIActionHandler } from './ai-action-delegates.js';
+import { aiActionOwner, registerAIActionHandler } from './ai-action-delegates.js';
 import { getSunSetupCoords } from './sun-defaults-runtime.js';
 
 function _getDefaults(data: ProfileData = state.importedData) { return (data?.sunDefaults as OnboardingDefaults | null | undefined) || null; }
@@ -182,7 +182,7 @@ export function maybeAnalyzeOnboardingAfterSave() {
 
 export function renderOnboardingAIBlock() {
   const defaults = _getDefaults();
-  const view = projectOnboardingAI({ completed: !!defaults?.completedAt, provider: hasAssistantFeatureProvider(),
+  const view = projectOnboardingAI({ actionOwner: aiActionOwner(), completed: !!defaults?.completedAt, provider: hasAssistantFeatureProvider(),
     status: engine.getStatus(SINGLETON_TARGET), analysis: defaults?.aiAnalysis, prefix: dotPrefix(defaults?.aiAnalysis?.dot) });
   return view ? renderHTML({ view }) : '';
 }
