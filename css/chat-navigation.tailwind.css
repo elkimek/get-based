@@ -87,3 +87,7 @@
 @source "../js/chat-optional-onboarding-classes.ts";
 
 @source "../js/components/ChatEmptyState.svelte";
+
+@source "../js/components/ChatSavedSummaries.svelte";
+@source "../js/components/ChatSummaryDialog.svelte";
+@custom-variant summary (&:is([data-chat-saved-summaries-view], [data-chat-saved-summaries-view] *, [data-chat-summary-dialog], [data-chat-summary-dialog] *));

@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 1132,
-  "sinkCount": 307,
+  "scannedFiles": 1137,
+  "sinkCount": 308,
   "files": {
     "js/biology-scores.js": {
       "count": 1,
@@ -49,11 +49,11 @@
       }
     },
     "js/chat-summaries.js": {
-      "count": 5,
-      "digest": "d3e500a3d10f2132c9d0ab906893f50f7779714b0ea3ee82fcdf895da5c1941c",
+      "count": 4,
+      "digest": "35739c19c3852676c46049abbc31646992660ee580ed894709fa2e6a60ce144c",
       "kinds": {
         "document.write": 1,
-        "innerHTML": 4
+        "innerHTML": 3
       }
     },
     "js/client-list-form.js": {
@@ -109,6 +109,20 @@
     "js/components/ChatRecommendations.svelte.native.js": {
       "count": 1,
       "digest": "7173ce5a97da1b8a46394a3ef3a7a9844ad54333a39cd4b24114f4aeeda42655",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ChatSummaryDialog.svelte.native.js": {
+      "count": 1,
+      "digest": "4f7a879f1f398b04aefb05129b7ee53c3c5aeefd9fcfcc469af85cc0222d14a2",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/ChatSummaryPrint.svelte.native.js": {
+      "count": 1,
+      "digest": "4f7a879f1f398b04aefb05129b7ee53c3c5aeefd9fcfcc469af85cc0222d14a2",
       "kinds": {
         "svelte.html": 1
       }

@@ -3,7 +3,7 @@
 import { getErrorMessage, getErrorName } from './caught-error.js';
 import { state } from './state.js';
 import { calculateCost, formatCost } from './schema.js';
-import { bindModalSyncRefresh, escapeHTML, showNotification } from './utils.js';
+import { bindModalSyncRefresh, showNotification } from './utils.js';
 import { shouldHideAppExtensionAIUsage } from './app-extension-runtime.js';
 import { saveImportedData } from './data.js';
 import { isAIPaused } from './api.js';
@@ -12,8 +12,9 @@ import {
 } from './ai-feature-routing.js';
 import { renderThreadList, saveChatThreadIndex } from './chat-threads.js';
 import { renderMarkdown } from './markdown.js';
-import { closeModalOverlay, openModalOverlay } from './modal-lifecycle.js';
-import { chatMessageActionAttrs } from './chat-message-action-attrs.js';
+import { closeModalOverlay, openModalOverlay, trapModalFocus } from './modal-lifecycle.js';
+import { renderHTML as renderSummaryPresentation } from './components/ChatSummaryPresentation.svelte.html.js';
+import { projectSavedSummaries, projectSummaryDialog, projectSummaryPrint } from './chat-summary-presentation.js';
 import { openUtilsRuntimeWindow } from './utils-runtime.js';
 import {
   appendImportedArrayItem,
@@ -45,9 +46,6 @@ interface SummaryThreadReader extends Record<string, unknown> {
 }
 interface SummaryUsageReader { provider?: unknown; modelId?: unknown; modelDisplay?: unknown; inputTokens?: unknown; outputTokens?: unknown }
 interface ActiveSummaryReader { content: unknown; name: unknown; date: unknown; model: unknown; attribution: string }
-// This local rendering projection describes the original unchecked Date operation,
-// not a normalized storage record. Malformed imported values keep original errors.
-type SummaryDateRenderReader = Omit<SavedSummaryReader, 'createdAt'> & { createdAt: ConstructorParameters<typeof Date>[0] };
 
 const SUMMARY_PROMPT = `You are a concise medical note-taker. Summarize this health consultation into a structured note.
 
@@ -69,6 +67,8 @@ RULES:
 
 let _summaryAbortController: AbortController | null = null;
 let _activeSummary: ActiveSummaryReader | null = null;
+const summaryCloseTimers = new WeakMap<Element, ReturnType<typeof setTimeout>>();
+const summaryFocusTraps = new WeakMap<Element, (restoreFocus?: boolean) => void>();
 
 function _contentToText(content: unknown) {
   if (typeof content === 'string') return content;
@@ -290,20 +290,7 @@ export function viewSavedSummary(id: unknown) {
 export function renderSavedSummaries() {
   const container = document.getElementById('chat-saved-summaries');
   if (!container) return;
-  const summaries = (_getSavedSummaries() as SummaryDateRenderReader[]).slice().sort((a, b) => (b.createdAt as { localeCompare(value: unknown): number }).localeCompare(a.createdAt));
-  if (summaries.length === 0) {
-    container.innerHTML = '';
-    return;
-  }
-  container.innerHTML = '<div class="chat-saved-summaries-title">Summaries</div>' +
-    summaries.map(s => {
-      const date = new Date(s.createdAt);
-      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      return `<div class="chat-saved-summary-item" role="button" tabindex="0" ${chatMessageActionAttrs('view-summary', { summaryId: s.id })}>
-        <div class="chat-saved-summary-name">${escapeHTML(s.threadName)}</div>
-        <div class="chat-saved-summary-meta">${dateStr}${s.model ? ' \u00b7 ' + escapeHTML(s.model) : ''}</div>
-      </div>`;
-    }).join('');
+  container.innerHTML = renderSummaryPresentation({ kind: 'list', rows: projectSavedSummaries(_getSavedSummaries()) });
 }
 
 function _showSummaryModal(summaryText: unknown, thread: SummaryThreadReader | null | undefined, loading = false, usageInfo: SummaryUsageReader | null = null) {
@@ -329,44 +316,29 @@ function _showSummaryModal(summaryText: unknown, thread: SummaryThreadReader | n
   } else if (!overlay.classList.contains('show')) {
     overlay.className = 'modal-overlay';
   }
+  clearTimeout(summaryCloseTimers.get(overlay));
+  summaryCloseTimers.delete(overlay);
+  summaryFocusTraps.get(overlay)?.(false);
+  overlay.setAttribute('data-modal-lifecycle-managed', '');
   overlay.dataset.syncRefreshKind = 'chat-summary';
   (overlay.dataset as Record<string, unknown>).syncRefreshSummaryId = thread?._savedId || '';
-
-  const threadName = thread ? escapeHTML(thread.name) : 'Conversation';
-  const dateStr = thread?.summaryDate ? new Date(thread.summaryDate as ConstructorParameters<typeof Date>[0]).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-  const modelStr = thread?.summaryModel ? ` \u00b7 ${escapeHTML(thread.summaryModel)}` : '';
 
   let costLine = '';
   const ui = (usageInfo || thread?.summaryCost) as SummaryUsageReader | null | undefined;
   if (ui && ui.modelDisplay && !(shouldHideAppExtensionAIUsage as (provider: unknown) => ReturnType<typeof shouldHideAppExtensionAIUsage>)(ui.provider)) {
     const cost = (calculateCost as (provider: unknown, modelId: unknown, inputTokens: unknown, outputTokens: unknown) => ReturnType<typeof calculateCost>)(ui.provider, ui.modelId, ui.inputTokens, ui.outputTokens);
     const totalTokens = ((ui.inputTokens || 0) as number) + ((ui.outputTokens || 0) as number);
-    costLine = ` \u00b7 ${escapeHTML(formatCost(cost))} \u00b7 ${totalTokens.toLocaleString()} tokens`;
+    costLine = ` · ${formatCost(cost)} · ${totalTokens.toLocaleString()} tokens`;
   }
 
-  let bodyContent;
-  if (loading) {
-    bodyContent = '<div class="typing-indicator" style="margin:20px auto"><span></span><span></span><span></span></div>';
-  } else if (summaryText) {
-    bodyContent = renderMarkdown(summaryText);
-  } else {
-    bodyContent = '';
-  }
-
-  overlay.innerHTML = `<div class="modal">
-    <button class="modal-close" type="button" ${chatMessageActionAttrs('close-summary')} aria-label="Close">&times;</button>
-    <h3>Summary</h3>
-    <div class="summary-modal-meta">${threadName}${dateStr ? ' \u00b7 ' + dateStr : ''}${modelStr}${costLine}</div>
-    <div id="summary-modal-body" class="summary-modal-body">${bodyContent}</div>
-    ${!loading && _activeSummary ? `<div class="chat-provider-attribution">${escapeHTML(_activeSummary.attribution)}</div>` : ''}
-    <div class="summary-modal-actions"${loading ? ' style="display:none"' : ''}>
-      <button class="summary-action-btn" type="button" ${chatMessageActionAttrs('copy-summary')} title="Copy as markdown">Copy</button>
-      <button class="summary-action-btn" type="button" ${chatMessageActionAttrs('download-summary')} title="Download as .md file">Download</button>
-      <button class="summary-action-btn" type="button" ${chatMessageActionAttrs('print-summary')} title="Print">Print</button>
-      ${thread?._savedId ? `<button class="summary-action-btn secondary delete" type="button" ${chatMessageActionAttrs('delete-summary', { summaryId: thread._savedId })} title="Delete summary">Delete</button>` : ''}
-    </div>
-  </div>`;
+  overlay.innerHTML = renderSummaryPresentation({ kind: 'dialog', view: projectSummaryDialog({
+    name: thread ? thread.name : 'Conversation', date: thread?.summaryDate,
+    model: thread?.summaryModel, costLabel: costLine, content: summaryText, loading,
+    attribution: !loading && _activeSummary ? _activeSummary.attribution : null,
+    savedId: thread?._savedId,
+  }) });
   openModalOverlay(overlay);
+  summaryFocusTraps.set(overlay, trapModalFocus(overlay, { autoFocus: false, onEscape: _closeSummaryModal }));
 }
 
 function _closeSummaryModal() {
@@ -377,8 +349,14 @@ function _closeSummaryModal() {
   _activeSummary = null;
   const overlay = document.getElementById('summary-modal-overlay');
   if (overlay) {
+    summaryFocusTraps.get(overlay)?.(false);
+    summaryFocusTraps.delete(overlay);
     closeModalOverlay(overlay);
-    setTimeout(() => overlay.remove(), 300);
+    clearTimeout(summaryCloseTimers.get(overlay));
+    summaryCloseTimers.set(overlay, setTimeout(() => {
+      summaryCloseTimers.delete(overlay);
+      if (!overlay.classList.contains('show')) overlay.remove();
+    }, 300));
   }
 }
 
@@ -413,25 +391,10 @@ export function downloadSummary() {
 
 export function printSummary() {
   if (!_activeSummary?.content) return;
-  const name = _activeSummary.name || 'Summary';
-  const html = renderMarkdown(_activeSummary.content);
-  const attribution = _activeSummary.attribution
-    ? `<p class="attribution">${escapeHTML(_activeSummary.attribution)}</p>` : '';
-  const dateLine = _activeSummary.date ? `Summarized ${new Date(_activeSummary.date as ConstructorParameters<typeof Date>[0]).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}${_activeSummary.model ? ' \u00b7 ' + escapeHTML(_activeSummary.model) : ''}` : '';
+  const view = projectSummaryPrint(_activeSummary);
   const w = openUtilsRuntimeWindow('', '_blank');
   if (!w) { showNotification('Popup blocked \u2014 allow popups for this site', 'error'); return; }
-  w.document.write(`<!DOCTYPE html><html><head><title>${escapeHTML(name)} - Summary</title>
-<style>body{font-family:-apple-system,system-ui,sans-serif;max-width:700px;margin:40px auto;padding:0 20px;line-height:1.6;color:#1a1a1a}
-h1{font-size:20px;border-bottom:1px solid #ddd;padding-bottom:8px}h2{font-size:16px;margin-top:24px}
-ul,ol{padding-left:20px}li{margin:4px 0}.meta{color:#666;font-size:13px;margin-bottom:20px}
-table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left}.attribution{color:#555;font-size:12px;font-weight:700;margin-top:18px}
-@media print{body{margin:20px}}</style>
-</head><body>
-<h1>${escapeHTML(name)}</h1>
-${dateLine ? `<div class="meta">${dateLine}</div>` : ''}
-${html}
-${attribution}
-</body></html>`);
+  w.document.write('<!DOCTYPE html>' + renderSummaryPresentation({ kind: 'print', view }));
   w.document.close();
   w.print();
 }

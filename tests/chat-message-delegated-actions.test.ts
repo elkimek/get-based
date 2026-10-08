@@ -87,12 +87,19 @@ it('retains chat-message delegated-action source contracts', () => {
       && recommendationsView.includes("root.addEventListener('click', contain)")
       && recommendationsView.includes("root.removeEventListener('click', contain)")
       && !sendSrc.includes("wrapper.setAttribute('data-chat-message-action', 'contain-click')"));
-  assert('summary list and modal use delegated summary actions', summariesSrc.includes("chatMessageActionAttrs('view-summary', { summaryId: s.id })")
-      && summariesSrc.includes("chatMessageActionAttrs('close-summary')")
-      && summariesSrc.includes("chatMessageActionAttrs('copy-summary')")
-      && summariesSrc.includes("chatMessageActionAttrs('download-summary')")
-      && summariesSrc.includes("chatMessageActionAttrs('print-summary')")
-      && summariesSrc.includes("chatMessageActionAttrs('delete-summary', { summaryId: thread._savedId })"));
+  const savedSummaryView = read('js/components/ChatSavedSummaries.svelte');
+  const summaryDialogView = read('js/components/ChatSummaryDialog.svelte');
+  assert('summary list and modal use delegated summary actions',
+      summariesSrc.includes("renderSummaryPresentation({ kind: 'list'")
+      && summariesSrc.includes("renderSummaryPresentation({ kind: 'dialog'")
+      && savedSummaryView.includes('data-chat-message-action="view-summary"')
+      && savedSummaryView.includes('data-chat-message-summary-id={row.id}')
+      && summaryDialogView.includes('data-chat-message-action="close-summary"')
+      && summaryDialogView.includes('data-chat-message-action="copy-summary"')
+      && summaryDialogView.includes('data-chat-message-action="download-summary"')
+      && summaryDialogView.includes('data-chat-message-action="print-summary"')
+      && summaryDialogView.includes('data-chat-message-action="delete-summary"')
+      && summaryDialogView.includes('data-chat-message-summary-id={view.savedId}'));
   const discussionView = read('js/components/ChatDiscussion.svelte');
   assert('discussion mode publishes owned delegated resume and end controls',
       discussionUiSrc.includes('publishDiscussionRound(chatDiscussionScope(),')

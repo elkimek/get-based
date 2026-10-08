@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1192 |
-| Internal import edges | 4314 |
+| Modules | 1197 |
+| Internal import edges | 4321 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -389,7 +389,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>chat</code> family — 125 modules</summary>
+<details><summary><code>chat</code> family — 126 modules</summary>
 
 - [`js/chat-actions.ts`](js/chat-actions.ts) → [`js/agent-draft-claims.ts`](js/agent-draft-claims.ts), [`js/agent-drafts.ts`](js/agent-drafts.ts), [`js/chat-history.ts`](js/chat-history.ts), [`js/chat-images.ts`](js/chat-images.ts), [`js/chat-message-action-attrs.ts`](js/chat-message-action-attrs.ts), [`js/chat-message-actions-component.ts`](js/chat-message-actions-component.ts), [`js/chat-message-actions-view.ts`](js/chat-message-actions-view.ts), [`js/chat-runtime.ts`](js/chat-runtime.ts), [`js/chat-speech-component.ts`](js/chat-speech-component.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/chat-attachment-classes.ts`](js/chat-attachment-classes.ts) → no in-scope imports
@@ -499,7 +499,8 @@ Native browser modules shipped with the static application.
 - [`js/chat-speech-view.ts`](js/chat-speech-view.ts) → [`js/state.ts`](js/state.ts)
 - [`js/chat-storage-safety.ts`](js/chat-storage-safety.ts) → no in-scope imports
 - [`js/chat-stream-status.ts`](js/chat-stream-status.ts) → no in-scope imports
-- [`js/chat-summaries.ts`](js/chat-summaries.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/chat-message-action-attrs.ts`](js/chat-message-action-attrs.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/markdown.ts`](js/markdown.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/chat-summaries.ts`](js/chat-summaries.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/api.ts`](js/api.ts), [`js/app-extension-runtime.ts`](js/app-extension-runtime.ts), [`js/caught-error.ts`](js/caught-error.ts), [`js/chat-summary-presentation.ts`](js/chat-summary-presentation.ts), [`js/chat-threads.ts`](js/chat-threads.ts), [`js/cli-agent-brand-assets.ts`](js/cli-agent-brand-assets.ts), [`js/components/ChatSummaryPresentation.svelte`](js/components/ChatSummaryPresentation.svelte), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/markdown.ts`](js/markdown.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/schema.ts`](js/schema.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/chat-summary-presentation.ts`](js/chat-summary-presentation.ts) → no in-scope imports
 - [`js/chat-system-prompt.ts`](js/chat-system-prompt.ts) → no in-scope imports
 - [`js/chat-thinking-status.ts`](js/chat-thinking-status.ts) → [`js/chat-message-avatars.ts`](js/chat-message-avatars.ts), [`js/components/ChatThinkingStatus.svelte`](js/components/ChatThinkingStatus.svelte), [`js/state.ts`](js/state.ts)
 - [`js/chat-thread-list-view.ts`](js/chat-thread-list-view.ts) → [`js/chat-thread-navigation-component.ts`](js/chat-thread-navigation-component.ts), [`js/chat-thread-navigation-presentation.ts`](js/chat-thread-navigation-presentation.ts), [`js/constants.ts`](js/constants.ts), [`js/state.ts`](js/state.ts)
@@ -687,6 +688,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>ChatSavedSummaries.svelte</code> family — 1 module</summary>
+
+- [`js/components/ChatSavedSummaries.svelte`](js/components/ChatSavedSummaries.svelte) → no in-scope imports
+
+</details>
+
 <details><summary><code>ChatShell.svelte</code> family — 1 module</summary>
 
 - [`js/components/ChatShell.svelte`](js/components/ChatShell.svelte) → [`js/chat-attachment-classes.ts`](js/chat-attachment-classes.ts), [`js/chat-attachment-view.ts`](js/chat-attachment-view.ts), [`js/chat-layout-view.ts`](js/chat-layout-view.ts), [`js/components/ChatComposer.svelte`](js/components/ChatComposer.svelte), [`js/components/ChatHeader.svelte`](js/components/ChatHeader.svelte), [`js/components/ChatPersonalityPicker.svelte`](js/components/ChatPersonalityPicker.svelte), [`js/components/ChatResizeHandle.svelte`](js/components/ChatResizeHandle.svelte)
@@ -708,6 +715,24 @@ Native browser modules shipped with the static application.
 <details><summary><code>ChatStreamingText.svelte</code> family — 1 module</summary>
 
 - [`js/components/ChatStreamingText.svelte`](js/components/ChatStreamingText.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>ChatSummaryDialog.svelte</code> family — 1 module</summary>
+
+- [`js/components/ChatSummaryDialog.svelte`](js/components/ChatSummaryDialog.svelte) → [`js/chat-message-content-classes.ts`](js/chat-message-content-classes.ts), [`js/markdown.ts`](js/markdown.ts)
+
+</details>
+
+<details><summary><code>ChatSummaryPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/ChatSummaryPresentation.svelte`](js/components/ChatSummaryPresentation.svelte) → [`js/components/ChatSavedSummaries.svelte`](js/components/ChatSavedSummaries.svelte), [`js/components/ChatSummaryDialog.svelte`](js/components/ChatSummaryDialog.svelte), [`js/components/ChatSummaryPrint.svelte`](js/components/ChatSummaryPrint.svelte)
+
+</details>
+
+<details><summary><code>ChatSummaryPrint.svelte</code> family — 1 module</summary>
+
+- [`js/components/ChatSummaryPrint.svelte`](js/components/ChatSummaryPrint.svelte) → [`js/markdown.ts`](js/markdown.ts)
 
 </details>
 

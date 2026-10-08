@@ -1191,6 +1191,20 @@ Shared extension/cycle/supplement styles remain scoped to their owners. Shell-ow
 import-button rules exclude the migrated empty-state controls; its solid primary
 action and secondary greeting text use theme tokens with verified contrast.
 
+`ChatSavedSummaries.svelte`, `ChatSummaryDialog.svelte` and `ChatSummaryPrint.svelte`
+own saved rows, the accessible summary dialog and standalone print document.
+`chat-summary-presentation.ts` projects literal display fields; their synchronous
+`ChatSummaryPresentation.svelte` HTML entry preserves delegated actions and runtime
+URLs. `chat-summaries.ts` retains generation, provider attribution, profile/thread
+ownership guards, persistence, sync refresh and export dispatch. Markdown passes
+only through the shared escaping renderer, including streaming and printing.
+Native buttons give saved rows browser keyboard behavior. Dialog focus is trapped,
+Escape closes through the controller, and reopening cancels stale removal timers.
+Scoped Tailwind owns rows, metadata and actions; shared Markdown formatting stays
+in the deferred Chat stylesheet. The standalone print document owns its small
+inline stylesheet so synchronous offline printing requires no extra asset request.
+Superseded native summary templates and ordinary layout/action CSS are removed.
+
 `ChatOptionalSetup.svelte` owns the add-on task catalog, summaries, DNA import
 confirmation and import/re-import controls. `chat-optional-onboarding-presentation.ts`
 projects cycle visibility, current versus historical therapies, saved SNP findings,
@@ -1385,9 +1399,9 @@ retain their keyboard semantics; narrowly documented Svelte accessibility
 annotations cover its static noninteractive-role classification, with browser
 keyboard and geometry assertions retained.
 
-`css/chat-panel-open.base.css` owns the remaining outer Chat shell, summary and
+`css/chat-panel-open.base.css` owns the remaining outer Chat shell, shared Markdown and
 transcript bridge styles. `css/chat-navigation.tailwind.css` scans only the
-navigation, composer and splitter components and their shared typed classes, uses semantic theme tokens,
+navigation, composer, splitter and summary components and their shared typed classes, uses semantic theme tokens,
 and omits Preflight. `scripts/build-styles.mts` combines both into ignored
 `css/chat-panel-open.css`, preserving the deferred URL and cascade position.
 The outer Chat rail and transcript styles and dynamic Chat feature surfaces
@@ -1551,8 +1565,8 @@ receipt-removal behavior. Its adapter adopts one host per document and disposes
 removed hosts. Header and attestation styling uses scoped Tailwind utilities,
 existing theme variables and contrast-adjusted status colors. The model picker
 owns backend availability presentation; obsolete header selector/dot writers are
-removed. Transcript rendering and summary dialogs remain separate services until
-their migration.
+removed. Transcript rendering and summary generation retain separate domain services;
+summary presentation has its own authored components.
 
 `ChatAttachmentPreview.svelte` and `ChatAttachmentMenu.svelte` own ephemeral
 image previews, removal, picker inputs and the composer tools disclosure.

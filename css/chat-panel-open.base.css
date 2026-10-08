@@ -101,10 +101,7 @@ body.chat-autostart-reserved:not(.chat-fullscreen) .dashboard-sticky-actions {
 .chat-msg-highlight { box-shadow: inset 3px 0 0 var(--accent); }
 .chat-search-mark { background: var(--accent); color: var(--bg-primary); border-radius: 2px; padding: 0 1px; }
 
-/* Summary modal */
-#summary-modal-overlay .modal { max-width: 640px; }
-.summary-modal-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
-.summary-modal-body { line-height: 1.7; color: var(--text-primary); font-size: 14px; }
+/* Shared escaping Markdown renderer classes inside the authored summary dialog. */
 .summary-modal-body a { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
 .summary-modal-body a:hover { text-decoration-thickness: 2px; }
 .summary-modal-body .chat-h1 { font-size: 17px; font-weight: 700; margin: 14px 0 8px; font-family: var(--font-display); }
@@ -131,39 +128,6 @@ body.chat-autostart-reserved:not(.chat-fullscreen) .dashboard-sticky-actions {
 .summary-modal-body .chat-table th { background: var(--bg-primary); font-weight: 600; font-size: 12px; }
 .summary-modal-body .chat-blockquote { margin: 8px 0; padding: 8px 14px; border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; background: var(--bg-hover); color: var(--text-secondary); }
 .summary-modal-body .chat-hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
-.summary-modal-actions {
-  display: flex; gap: 8px; margin-top: 16px; padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-.summary-action-btn {
-  background: none; border: 1px solid var(--border); color: var(--text-secondary);
-  font-size: 12px; padding: 6px 14px; border-radius: 4px; cursor: pointer;
-  font-family: inherit; transition: all 0.15s;
-}
-.summary-action-btn:hover { color: var(--accent); border-color: var(--accent); }
-.summary-action-btn.secondary { margin-left: auto; }
-.summary-action-btn.secondary:hover { color: var(--text-muted); border-color: var(--text-muted); }
-.summary-action-btn.delete:hover { color: var(--red); border-color: var(--red); }
-
-/* Saved summaries list in thread rail */
-.chat-saved-summaries-title {
-  font-size: 10px; color: var(--text-muted); padding: 12px 10px 6px;
-  text-transform: uppercase; letter-spacing: 0.5px;
-  border-top: 1px solid var(--border);
-}
-.chat-saved-summary-item {
-  padding: 8px 10px; cursor: pointer; border-radius: 6px;
-  transition: background 0.15s;
-}
-.chat-saved-summary-item:hover { background: var(--bg-hover); }
-.chat-saved-summary-name {
-  font-size: 12px; color: var(--text-primary);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.chat-saved-summary-meta {
-  font-size: 10px; color: var(--text-muted);
-}
-
 /* Local Knowledge Base — per-document row delete button */
 .kb-doc-delete {
   flex-shrink: 0;

@@ -597,6 +597,8 @@ test('mobile chat panel behaves as a modal and restores the page on close', asyn
 
 test('chat summaries cover saved summary modal actions without network calls', async ({ page }) => {
   await page.goto('/app', { waitUntil: 'load' });
+  await page.waitForSelector('#chat-panel', { state: 'attached' });
+  await page.evaluate(async () => { await (await import('/js/chat-loader.js')).openChatPanel(); });
   await page.waitForSelector('#chat-panel');
 
   const results = await page.evaluate(async ({ summariesUrl }) => {
@@ -714,8 +716,10 @@ test('chat summaries cover saved summary modal actions without network calls', a
         print() { printed.push('printed'); },
       });
       summaries.printSummary();
-      outcomes.printSummaryWritesWindow = printed.some(item => String(item).includes('Wellness &lt;Plan&gt; - Summary'))
-        && printed.includes('printed');
+      const printedDocument = new DOMParser().parseFromString(String(printed[0]), 'text/html');
+      outcomes.printSummaryWritesWindow = printedDocument.title === 'Wellness <Plan> - Summary'
+        && !printedDocument.querySelector('script,img,[onclick]')
+        && printed.includes('closed') && printed.includes('printed');
 
       await summaries.deleteSavedSummary('s_new');
       outcomes.deleteSavedSummaryRemovesItemAndCloses = !(state.importedData.chatSummaries as {id?: unknown}[]).some(s => s.id === 's_new')

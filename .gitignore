@@ -1993,3 +1993,17 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/components/ChatEmptyState.svelte.html.js
 /js/components/ChatEmptyState.svelte.html.js.map
 /tests/chat-empty-presentation.test.js
+
+/js/chat-summary-presentation.js
+/js/components/ChatSavedSummaries.svelte.native.js
+/js/components/ChatSavedSummaries.svelte.native.js.map
+/js/components/ChatSummaryDialog.svelte.native.js
+/js/components/ChatSummaryDialog.svelte.native.js.map
+/js/components/ChatSummaryPrint.svelte.native.js
+/js/components/ChatSummaryPrint.svelte.native.js.map
+/js/components/ChatSummaryPresentation.svelte.native.js
+/js/components/ChatSummaryPresentation.svelte.native.js.map
+/js/components/ChatSummaryPresentation.svelte.html.js
+/js/components/ChatSummaryPresentation.svelte.html.js.map
+/tests/chat-summary-presentation.test.js
+/tests/helpers/chat-summary-fixture.js

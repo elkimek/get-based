@@ -344,3 +344,17 @@ all seven branches, supported themes, narrow layouts, keyboard and accessibility
 offline first use, actual context-note/history commits, skip/return and closed-client
 cold launches with unrelated profile parity. This scoped acceptance does not prove
 whole-app startup stability or physical installed-PWA acceptance.
+
+Saved Chat summaries, dialog content and standalone print documents share authored
+Svelte presentation with the native runtime adapters. Controllers preserve AI
+execution, originating profile/thread guards, sync refresh, persistence and export
+contracts. Summary rows and dialog actions use scoped Tailwind; escaped Markdown
+keeps shared formatting. Print output owns a small inline stylesheet for immediate
+offline use. No rendering backend is required.
+[`chat-summary-owned.spec.ts`](../tests/playwright/chat-summary-owned.spec.ts)
+checks themes, widths, accessibility, keyboard and literal export content.
+[`sveltekit-chat-summary.spec.ts`](../tests/pwa/sveltekit-chat-summary.spec.ts)
+checks generation using a synthetic local model transport, actual canonical writes,
+download, deletion tombstones, unrelated profile equality, two offline closed-client
+launches and backup. Synthetic inference does not establish live-provider acceptance;
+these scoped checks do not establish whole-app startup or installed-PWA acceptance.
