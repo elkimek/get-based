@@ -61,9 +61,12 @@ test('static screen editor creates, edits, reassigns and saves first offline wit
     await screen.getByRole('combobox',{name:'Used in room'}).selectOption('');
     await expect(dialog.locator('.light-env-room-disclosure[data-id="screen-office"] [data-light-environment-screen]')).toHaveCount(0);
     await expect(dialog.locator('.light-env-screen-cards [data-id="screen-phone"]')).toHaveCount(1);
-    await dialog.locator('[data-light-env-action="add-screen-with-device"][data-light-env-device="laptop"]:not([data-light-env-room-id])').click();
+    await dialog.locator('[data-light-env-action="add-screen"]:not([data-light-env-room-id])').click();
     await expect(dialog.locator('[data-light-environment-screen]')).toHaveCount(2);
-    await expect.poll(async()=>((await page.evaluate(readComparisonAcceptanceProfile)) as Saved).lightEnvironment.screens.length).toBe(2);
+    const added=dialog.locator('.light-env-screen-cards [data-light-environment-screen]:not([data-id="screen-phone"])');
+    await added.locator('.light-env-screen-disclosure').focus();await page.keyboard.press('Enter');
+    await added.getByRole('combobox',{name:'Device type'}).selectOption('laptop');
+    await expect.poll(async()=>((await page.evaluate(readComparisonAcceptanceProfile)) as Saved).lightEnvironment.screens.find(screen=>screen.id!=='screen-phone')).toMatchObject({device:'laptop',roomId:null});
     const saved=await page.evaluate(readComparisonAcceptanceProfile) as Saved;
     const expected=structuredClone(before);expected.lightEnvironment=saved.lightEnvironment;expect(saved).toEqual(expected);
     expect(saved.lightEnvironment.rooms).toEqual(before.lightEnvironment.rooms);
