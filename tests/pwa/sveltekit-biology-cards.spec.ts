@@ -17,9 +17,13 @@ async function order(page:Page){
  return page.locator('[data-lens-order-key="biology-scores-baseline"] > [data-widget-id]').evaluateAll(nodes=>nodes.map(node=>node.getAttribute('data-widget-id')!));
 }
 async function dashboardPreferences(page:Page){
- return page.evaluate(async()=>{
-  const key=(await import('/js/dashboard-widgets.js')).dashboardWidgetStorageKey();
-  const stored=localStorage.getItem(key);if(!stored)throw new Error('Dashboard action did not persist preferences');
+ return page.evaluate(()=>{
+  const profileId=localStorage.getItem('labcharts-active-profile');
+  if(profileId!=='default')throw new Error('Dashboard action changed the active profile');
+  const keys=Object.keys(localStorage).filter(key=>/^labcharts-default-dashboardWidgetsV\d+$/.test(key));
+  if(keys.length!==1)throw new Error('Expected exactly one persisted dashboard preference record');
+  const key=keys[0]!,stored=localStorage.getItem(key);
+  if(!stored)throw new Error('Dashboard action did not persist preferences');
   return {key,value:JSON.parse(stored) as {order:string[];hidden:string[]}};
  });
 }
