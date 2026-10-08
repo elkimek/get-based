@@ -460,11 +460,14 @@ test('background telemetry does not discard AI and a real input edit preserves a
 });
 
 
-test('requested insights survive reload and backups; bulk updates reuse completed answers', async ({ page }) => {
+test('requested insights survive reload and backups; bulk updates reuse completed answers', async ({ page, browserName }) => {
   test.setTimeout(60000);
-  // Exercise startup maintenance overlapping a slower device's first render.
-  const cdp = await page.context().newCDPSession(page);
-  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
+  // Chromium adds slow-device coverage; CDP is unavailable in Firefox/WebKit.
+  // Every browser runs the same persistence, restore and request-reuse assertions.
+  if (browserName === 'chromium') {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
+  }
   await prepareDemoProfile(page);
   const calls: string[][] = [];
   await page.exposeFunction('recordBiologyAIRequest', (ids: string[]) => calls.push(ids));

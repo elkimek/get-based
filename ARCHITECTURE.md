@@ -67,9 +67,21 @@ changing score calculation or collection policy. `BiologyReadingTable.svelte`
 owns the shared labeled, keyboard-scrollable table; `BiologyReadingFacts.svelte`
 shares fact layout across score and coherence panels. `biology-reading-classes.ts`
 adds scoped reading utilities through `css/biology-scores.tailwind.css`. The
-remaining native score cards, coherence composition and AI controls retain their
+remaining native score cards and coherence composition retain their
 existing owners until migrated. Public renderer facades and marker delegates stay
 stable; no raw HTML slots are introduced in these authored reading components.
+
+Biology questions, AI card summaries and full answers are authored by
+`BiologyAIPresentation.svelte` and its typed question/summary/answer components.
+`biology-ai-presentation.ts` projects snapshots supplied by the stable synchronous
+facades in `biology-score-sections.ts`; those facades retain request keys, cache
+selection, refresh reasons, profile guards and durable save/retry ownership.
+`biology-ai-classes.ts` owns scoped utilities in `css/biology-scores.tailwind.css`.
+The full answer has one intentional raw-content boundary through the existing
+`renderMarkdown` sanitizer, preserving saved rich text while escaping raw HTML
+and rejecting unsafe link protocols. It accepts Markdown text, never arbitrary
+presentation HTML. Shared dashboard action styling remains owned by the dashboard
+until its controls migrate.
 
 Settings navigation/layout, Display, Privacy, Voice, Agent Access, imported records
 and AI usage use scoped Tailwind utilities

@@ -1,0 +1,847 @@
+{
+  "revision": "6cf3848fe19f5f72dde6094b1cd1697495284e43",
+  "sourceSHA256": "88dca030cf54873a4aeffdd3c45d6755bfd772d63148488036e0ab4c1dea4e4b",
+  "samples": [
+    {
+      "name": "empty",
+      "score": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic flexibility",
+        "question": "What does this pattern mean?",
+        "score": 75,
+        "rawScore": 75,
+        "tone": "good",
+        "basicInputs": [
+          "Glucose",
+          "HbA1c"
+        ],
+        "extendedInputs": [
+          "Insulin",
+          "Triglycerides"
+        ],
+        "available": [],
+        "missing": [],
+        "flags": [],
+        "profileContext": {}
+      },
+      "record": null,
+      "processing": false,
+      "refreshReason": "",
+      "retry": false,
+      "error": "",
+      "encryption": false,
+      "question": "<section class=\"biology-score-question\">\n    <p>What does this pattern mean?</p>\n    <div class=\"biology-score-panel-levels\" role=\"group\" aria-label=\"Labs used for this score\">\n      <div><span>Core markers</span><strong><span>Glucose</span><span>HbA1c</span></strong></div>\n      <div><span>Additional context</span><strong><span>Insulin</span><span>Triglycerides</span></strong></div>\n    </div>\n  </section>",
+      "summary": "<span class=\"biology-score-ai-teaser\" data-biology-score-ai-summary=\"metabolicFlexibility\" aria-busy=\"false\">\n    <span class=\"biology-score-ai-teaser-label\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"Interpretation not generated\"><span class=\"biology-score-ai-dot\" style=\"background:var(--text-muted)\" aria-hidden=\"true\"></span></span>\n    <span class=\"biology-score-ai-teaser-text\"></span>\n    <button type=\"button\" class=\"biology-score-ai-teaser-action\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\" aria-label=\"Explain score — Metabolic flexibility\">Explain score</button>\n    \n    <span class=\"biology-score-ai-error\" role=\"status\"></span>\n  </span>",
+      "answer": "<section class=\"biology-score-ai\" tabindex=\"-1\" data-biology-score-ai-panel=\"metabolicFlexibility\" aria-busy=\"false\">\n    <div class=\"biology-score-ai-head\">\n      <div>\n        <h4>AI interpretation</h4>\n        \n      </div>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-secondary\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\">Explain score</button>\n    </div>\n    \n    \n    <div class=\"biology-score-ai-answer\" data-biology-score-ai-answer=\"metabolicFlexibility\">Explain the main signal, the context that matters, and what to check next.</div>\n  </section>"
+    },
+    {
+      "name": "processing",
+      "score": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic flexibility",
+        "question": "What does this pattern mean?",
+        "score": 75,
+        "rawScore": 75,
+        "tone": "good",
+        "basicInputs": [
+          "Glucose",
+          "HbA1c"
+        ],
+        "extendedInputs": [
+          "Insulin",
+          "Triglycerides"
+        ],
+        "available": [],
+        "missing": [],
+        "flags": [],
+        "profileContext": {}
+      },
+      "record": null,
+      "processing": true,
+      "refreshReason": "",
+      "retry": false,
+      "error": "",
+      "encryption": false,
+      "question": "<section class=\"biology-score-question\">\n    <p>What does this pattern mean?</p>\n    <div class=\"biology-score-panel-levels\" role=\"group\" aria-label=\"Labs used for this score\">\n      <div><span>Core markers</span><strong><span>Glucose</span><span>HbA1c</span></strong></div>\n      <div><span>Additional context</span><strong><span>Insulin</span><span>Triglycerides</span></strong></div>\n    </div>\n  </section>",
+      "summary": "<span class=\"biology-score-ai-teaser\" data-biology-score-ai-summary=\"metabolicFlexibility\" aria-busy=\"true\">\n    <span class=\"biology-score-ai-teaser-label\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"Assessing markers\"><span class=\"biology-score-ai-dot ctx-health-dot-shimmer\" aria-hidden=\"true\"></span>Assessing</span>\n    <span class=\"biology-score-ai-teaser-text\"><span class=\"biology-score-ai-skeleton\" aria-hidden=\"true\"><span></span><span></span><span></span></span></span>\n    <button type=\"button\" class=\"biology-score-ai-teaser-action\" disabled data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\" aria-label=\"Explain score — Metabolic flexibility\">Explain score</button>\n    \n    <span class=\"biology-score-ai-error\" role=\"status\"></span>\n  </span>",
+      "answer": "<section class=\"biology-score-ai\" tabindex=\"-1\" data-biology-score-ai-panel=\"metabolicFlexibility\" aria-busy=\"true\">\n    <div class=\"biology-score-ai-head\">\n      <div>\n        <h4>AI interpretation</h4>\n        <span class=\"biology-score-ai-processing\" role=\"status\"><span class=\"biology-score-ai-dot ctx-health-dot-shimmer\" aria-hidden=\"true\"></span>Assessing markers</span>\n      </div>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-secondary\" disabled data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\">Explain score</button>\n    </div>\n    \n    \n    <div class=\"biology-score-ai-answer\" data-biology-score-ai-answer=\"metabolicFlexibility\"><span class=\"biology-score-ai-skeleton\" aria-hidden=\"true\"><span></span><span></span><span></span></span></div>\n  </section>"
+    },
+    {
+      "name": "saved",
+      "score": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic flexibility",
+        "question": "What does this pattern mean?",
+        "score": 75,
+        "rawScore": 75,
+        "tone": "good",
+        "basicInputs": [
+          "Glucose",
+          "HbA1c"
+        ],
+        "extendedInputs": [
+          "Insulin",
+          "Triglycerides"
+        ],
+        "available": [],
+        "missing": [],
+        "flags": [],
+        "profileContext": {}
+      },
+      "record": {
+        "text": "## Main signal\n\n**Saved explanation**, with [source](https://example.com/evidence).\n\n- First context\n- Second context\n\n1. Check next\n2. Compare dates\n\n<script>alert(1)</script> [unsafe](javascript:alert(1))",
+        "summary": "Independent complete insight.",
+        "updatedAt": 1786104000000,
+        "generation": {
+          "modelId": "fixture/model"
+        },
+        "materialFingerprint": "{\"available\":[],\"flags\":[],\"historical\":null,\"id\":\"metabolicFlexibility\",\"materialFormat\":2,\"missing\":[],\"panelRoute\":\"\",\"profileContext\":{},\"rangeMode\":\"reference\",\"rawScore\":75,\"score\":75,\"version\":\"2026-09-16.3\"}"
+      },
+      "processing": false,
+      "refreshReason": "",
+      "retry": false,
+      "error": "",
+      "encryption": false,
+      "question": "<section class=\"biology-score-question\">\n    <p>What does this pattern mean?</p>\n    <div class=\"biology-score-panel-levels\" role=\"group\" aria-label=\"Labs used for this score\">\n      <div><span>Core markers</span><strong><span>Glucose</span><span>HbA1c</span></strong></div>\n      <div><span>Additional context</span><strong><span>Insulin</span><span>Triglycerides</span></strong></div>\n    </div>\n  </section>",
+      "summary": "<span class=\"biology-score-ai-teaser\" data-biology-score-ai-summary=\"metabolicFlexibility\" aria-busy=\"false\">\n    <span class=\"biology-score-ai-teaser-label\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"Saved interpretation\"><span class=\"biology-score-ai-dot\" style=\"background:var(--green)\" aria-hidden=\"true\"></span></span>\n    <span class=\"biology-score-ai-teaser-text\">Independent complete insight.</span>\n    <button type=\"button\" class=\"biology-score-ai-teaser-action\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\" aria-label=\"Refresh — Metabolic flexibility\">Refresh</button>\n    \n    <span class=\"biology-score-ai-error\" role=\"status\"></span>\n  </span>",
+      "answer": "<section class=\"biology-score-ai\" tabindex=\"-1\" data-biology-score-ai-panel=\"metabolicFlexibility\" aria-busy=\"false\">\n    <div class=\"biology-score-ai-head\">\n      <div>\n        <h4>AI interpretation</h4>\n        \n      </div>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-secondary\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\">Refresh explanation</button>\n    </div>\n    \n    <p class=\"biology-scores-note\">Saved 8/7/2026, 2:00:00 PM · fixture/model. Saved with your profile for sync and backups. Local encryption is off; enable it in Settings → Data protection.</p>\n    <div class=\"biology-score-ai-answer\" data-biology-score-ai-answer=\"metabolicFlexibility\"><div class=\"chat-h2\">Main signal</div><div class=\"chat-para\"><strong>Saved explanation</strong>, with <a href=\"https://example.com/evidence\" target=\"_blank\" rel=\"noopener noreferrer\">source</a>.</div><ul class=\"chat-list\"><li>First context</li><li>Second context</li></ul><ol class=\"chat-list\"><li>Check next</li><li>Compare dates</li></ol><div class=\"chat-para\">&lt;script&gt;alert(1)&lt;/script&gt; <a href=\"#\" target=\"_blank\" rel=\"noopener noreferrer\">unsafe</a>)</div></div>\n  </section>"
+    },
+    {
+      "name": "legacy",
+      "score": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic flexibility",
+        "question": "What does this pattern mean?",
+        "score": 75,
+        "rawScore": 75,
+        "tone": "good",
+        "basicInputs": [
+          "Glucose",
+          "HbA1c"
+        ],
+        "extendedInputs": [
+          "Insulin",
+          "Triglycerides"
+        ],
+        "available": [],
+        "missing": [],
+        "flags": [],
+        "profileContext": {}
+      },
+      "record": {
+        "text": "## Main signal\n\n**Saved explanation**, with [source](https://example.com/evidence).\n\n- First context\n- Second context\n\n1. Check next\n2. Compare dates\n\n<script>alert(1)</script> [unsafe](javascript:alert(1))",
+        "materialFingerprint": "{\"available\":[],\"flags\":[],\"historical\":null,\"id\":\"metabolicFlexibility\",\"materialFormat\":2,\"missing\":[],\"panelRoute\":\"\",\"profileContext\":{},\"rangeMode\":\"reference\",\"rawScore\":75,\"score\":75,\"version\":\"2026-09-16.3\"}"
+      },
+      "processing": false,
+      "refreshReason": "",
+      "retry": false,
+      "error": "",
+      "encryption": false,
+      "question": "<section class=\"biology-score-question\">\n    <p>What does this pattern mean?</p>\n    <div class=\"biology-score-panel-levels\" role=\"group\" aria-label=\"Labs used for this score\">\n      <div><span>Core markers</span><strong><span>Glucose</span><span>HbA1c</span></strong></div>\n      <div><span>Additional context</span><strong><span>Insulin</span><span>Triglycerides</span></strong></div>\n    </div>\n  </section>",
+      "summary": "<span class=\"biology-score-ai-teaser\" data-biology-score-ai-summary=\"metabolicFlexibility\" aria-busy=\"false\">\n    <span class=\"biology-score-ai-teaser-label\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"Saved interpretation\"><span class=\"biology-score-ai-dot\" style=\"background:var(--green)\" aria-hidden=\"true\"></span></span>\n    <span class=\"biology-score-ai-teaser-text\">Refresh to add a short, complete insight. Your full explanation is saved.</span>\n    <button type=\"button\" class=\"biology-score-ai-teaser-action\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\" aria-label=\"Refresh — Metabolic flexibility\">Refresh</button>\n    \n    <span class=\"biology-score-ai-error\" role=\"status\"></span>\n  </span>",
+      "answer": "<section class=\"biology-score-ai\" tabindex=\"-1\" data-biology-score-ai-panel=\"metabolicFlexibility\" aria-busy=\"false\">\n    <div class=\"biology-score-ai-head\">\n      <div>\n        <h4>AI interpretation</h4>\n        \n      </div>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-secondary\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\">Refresh explanation</button>\n    </div>\n    \n    \n    <div class=\"biology-score-ai-answer\" data-biology-score-ai-answer=\"metabolicFlexibility\"><div class=\"chat-h2\">Main signal</div><div class=\"chat-para\"><strong>Saved explanation</strong>, with <a href=\"https://example.com/evidence\" target=\"_blank\" rel=\"noopener noreferrer\">source</a>.</div><ul class=\"chat-list\"><li>First context</li><li>Second context</li></ul><ol class=\"chat-list\"><li>Check next</li><li>Compare dates</li></ol><div class=\"chat-para\">&lt;script&gt;alert(1)&lt;/script&gt; <a href=\"#\" target=\"_blank\" rel=\"noopener noreferrer\">unsafe</a>)</div></div>\n  </section>"
+    },
+    {
+      "name": "stale",
+      "score": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic flexibility",
+        "question": "What does this pattern mean?",
+        "score": 75,
+        "rawScore": 75,
+        "tone": "good",
+        "basicInputs": [
+          "Glucose",
+          "HbA1c"
+        ],
+        "extendedInputs": [
+          "Insulin",
+          "Triglycerides"
+        ],
+        "available": [],
+        "missing": [],
+        "flags": [],
+        "profileContext": {}
+      },
+      "record": {
+        "text": "## Main signal\n\n**Saved explanation**, with [source](https://example.com/evidence).\n\n- First context\n- Second context\n\n1. Check next\n2. Compare dates\n\n<script>alert(1)</script> [unsafe](javascript:alert(1))",
+        "summary": "Earlier insight.",
+        "materialFingerprint": "obsolete"
+      },
+      "processing": false,
+      "refreshReason": "This explanation uses an older context format.",
+      "retry": false,
+      "error": "",
+      "encryption": false,
+      "question": "<section class=\"biology-score-question\">\n    <p>What does this pattern mean?</p>\n    <div class=\"biology-score-panel-levels\" role=\"group\" aria-label=\"Labs used for this score\">\n      <div><span>Core markers</span><strong><span>Glucose</span><span>HbA1c</span></strong></div>\n      <div><span>Additional context</span><strong><span>Insulin</span><span>Triglycerides</span></strong></div>\n    </div>\n  </section>",
+      "summary": "<span class=\"biology-score-ai-teaser\" data-biology-score-ai-summary=\"metabolicFlexibility\" aria-busy=\"false\">\n    <span class=\"biology-score-ai-teaser-label\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"refresh needed\"><span class=\"biology-score-ai-dot\" style=\"background:var(--green)\" aria-hidden=\"true\"></span>refresh needed</span>\n    <span class=\"biology-score-ai-teaser-text\">Earlier insight.</span>\n    <button type=\"button\" class=\"biology-score-ai-teaser-action\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\" aria-label=\"Refresh — Metabolic flexibility\">Refresh</button>\n    <span class=\"biology-score-ai-refresh-reason\">This explanation uses an older context format.</span>\n    <span class=\"biology-score-ai-error\" role=\"status\"></span>\n  </span>",
+      "answer": "<section class=\"biology-score-ai\" tabindex=\"-1\" data-biology-score-ai-panel=\"metabolicFlexibility\" aria-busy=\"false\">\n    <div class=\"biology-score-ai-head\">\n      <div>\n        <h4>AI interpretation</h4>\n        \n      </div>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-secondary\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\">Refresh explanation</button>\n    </div>\n    <p class=\"biology-score-ai-stale\">This explanation uses an older context format. Refresh to use the latest inputs.</p>\n    \n    <div class=\"biology-score-ai-answer\" data-biology-score-ai-answer=\"metabolicFlexibility\"><div class=\"chat-h2\">Main signal</div><div class=\"chat-para\"><strong>Saved explanation</strong>, with <a href=\"https://example.com/evidence\" target=\"_blank\" rel=\"noopener noreferrer\">source</a>.</div><ul class=\"chat-list\"><li>First context</li><li>Second context</li></ul><ol class=\"chat-list\"><li>Check next</li><li>Compare dates</li></ol><div class=\"chat-para\">&lt;script&gt;alert(1)&lt;/script&gt; <a href=\"#\" target=\"_blank\" rel=\"noopener noreferrer\">unsafe</a>)</div></div>\n  </section>"
+    },
+    {
+      "name": "processing-saved",
+      "score": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic flexibility",
+        "question": "What does this pattern mean?",
+        "score": 75,
+        "rawScore": 75,
+        "tone": "good",
+        "basicInputs": [
+          "Glucose",
+          "HbA1c"
+        ],
+        "extendedInputs": [
+          "Insulin",
+          "Triglycerides"
+        ],
+        "available": [],
+        "missing": [],
+        "flags": [],
+        "profileContext": {}
+      },
+      "record": {
+        "text": "## Main signal\n\n**Saved explanation**, with [source](https://example.com/evidence).\n\n- First context\n- Second context\n\n1. Check next\n2. Compare dates\n\n<script>alert(1)</script> [unsafe](javascript:alert(1))",
+        "summary": "Existing summary.",
+        "materialFingerprint": "{\"available\":[],\"flags\":[],\"historical\":null,\"id\":\"metabolicFlexibility\",\"materialFormat\":2,\"missing\":[],\"panelRoute\":\"\",\"profileContext\":{},\"rangeMode\":\"reference\",\"rawScore\":75,\"score\":75,\"version\":\"2026-09-16.3\"}"
+      },
+      "processing": true,
+      "refreshReason": "",
+      "retry": false,
+      "error": "",
+      "encryption": false,
+      "question": "<section class=\"biology-score-question\">\n    <p>What does this pattern mean?</p>\n    <div class=\"biology-score-panel-levels\" role=\"group\" aria-label=\"Labs used for this score\">\n      <div><span>Core markers</span><strong><span>Glucose</span><span>HbA1c</span></strong></div>\n      <div><span>Additional context</span><strong><span>Insulin</span><span>Triglycerides</span></strong></div>\n    </div>\n  </section>",
+      "summary": "<span class=\"biology-score-ai-teaser\" data-biology-score-ai-summary=\"metabolicFlexibility\" aria-busy=\"true\">\n    <span class=\"biology-score-ai-teaser-label\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"Assessing markers\"><span class=\"biology-score-ai-dot ctx-health-dot-shimmer\" aria-hidden=\"true\"></span>Assessing</span>\n    <span class=\"biology-score-ai-teaser-text\">Existing summary.</span>\n    <button type=\"button\" class=\"biology-score-ai-teaser-action\" disabled data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\" aria-label=\"Refresh — Metabolic flexibility\">Refresh</button>\n    \n    <span class=\"biology-score-ai-error\" role=\"status\"></span>\n  </span>",
+      "answer": "<section class=\"biology-score-ai\" tabindex=\"-1\" data-biology-score-ai-panel=\"metabolicFlexibility\" aria-busy=\"true\">\n    <div class=\"biology-score-ai-head\">\n      <div>\n        <h4>AI interpretation</h4>\n        <span class=\"biology-score-ai-processing\" role=\"status\"><span class=\"biology-score-ai-dot ctx-health-dot-shimmer\" aria-hidden=\"true\"></span>Assessing markers</span>\n      </div>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-secondary\" disabled data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\">Refresh explanation</button>\n    </div>\n    \n    \n    <div class=\"biology-score-ai-answer\" data-biology-score-ai-answer=\"metabolicFlexibility\"><div class=\"chat-h2\">Main signal</div><div class=\"chat-para\"><strong>Saved explanation</strong>, with <a href=\"https://example.com/evidence\" target=\"_blank\" rel=\"noopener noreferrer\">source</a>.</div><ul class=\"chat-list\"><li>First context</li><li>Second context</li></ul><ol class=\"chat-list\"><li>Check next</li><li>Compare dates</li></ol><div class=\"chat-para\">&lt;script&gt;alert(1)&lt;/script&gt; <a href=\"#\" target=\"_blank\" rel=\"noopener noreferrer\">unsafe</a>)</div></div>\n  </section>"
+    },
+    {
+      "name": "processing-legacy",
+      "score": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic flexibility",
+        "question": "What does this pattern mean?",
+        "score": 75,
+        "rawScore": 75,
+        "tone": "good",
+        "basicInputs": [
+          "Glucose",
+          "HbA1c"
+        ],
+        "extendedInputs": [
+          "Insulin",
+          "Triglycerides"
+        ],
+        "available": [],
+        "missing": [],
+        "flags": [],
+        "profileContext": {}
+      },
+      "record": {
+        "text": "## Main signal\n\n**Saved explanation**, with [source](https://example.com/evidence).\n\n- First context\n- Second context\n\n1. Check next\n2. Compare dates\n\n<script>alert(1)</script> [unsafe](javascript:alert(1))",
+        "materialFingerprint": "{\"available\":[],\"flags\":[],\"historical\":null,\"id\":\"metabolicFlexibility\",\"materialFormat\":2,\"missing\":[],\"panelRoute\":\"\",\"profileContext\":{},\"rangeMode\":\"reference\",\"rawScore\":75,\"score\":75,\"version\":\"2026-09-16.3\"}"
+      },
+      "processing": true,
+      "refreshReason": "",
+      "retry": false,
+      "error": "",
+      "encryption": false,
+      "question": "<section class=\"biology-score-question\">\n    <p>What does this pattern mean?</p>\n    <div class=\"biology-score-panel-levels\" role=\"group\" aria-label=\"Labs used for this score\">\n      <div><span>Core markers</span><strong><span>Glucose</span><span>HbA1c</span></strong></div>\n      <div><span>Additional context</span><strong><span>Insulin</span><span>Triglycerides</span></strong></div>\n    </div>\n  </section>",
+      "summary": "<span class=\"biology-score-ai-teaser\" data-biology-score-ai-summary=\"metabolicFlexibility\" aria-busy=\"true\">\n    <span class=\"biology-score-ai-teaser-label\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"Assessing markers\"><span class=\"biology-score-ai-dot ctx-health-dot-shimmer\" aria-hidden=\"true\"></span>Assessing</span>\n    <span class=\"biology-score-ai-teaser-text\"><span class=\"biology-score-ai-skeleton\" aria-hidden=\"true\"><span></span><span></span><span></span></span></span>\n    <button type=\"button\" class=\"biology-score-ai-teaser-action\" disabled data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\" aria-label=\"Refresh — Metabolic flexibility\">Refresh</button>\n    \n    <span class=\"biology-score-ai-error\" role=\"status\"></span>\n  </span>",
+      "answer": "<section class=\"biology-score-ai\" tabindex=\"-1\" data-biology-score-ai-panel=\"metabolicFlexibility\" aria-busy=\"true\">\n    <div class=\"biology-score-ai-head\">\n      <div>\n        <h4>AI interpretation</h4>\n        <span class=\"biology-score-ai-processing\" role=\"status\"><span class=\"biology-score-ai-dot ctx-health-dot-shimmer\" aria-hidden=\"true\"></span>Assessing markers</span>\n      </div>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-secondary\" disabled data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\">Refresh explanation</button>\n    </div>\n    \n    \n    <div class=\"biology-score-ai-answer\" data-biology-score-ai-answer=\"metabolicFlexibility\"><div class=\"chat-h2\">Main signal</div><div class=\"chat-para\"><strong>Saved explanation</strong>, with <a href=\"https://example.com/evidence\" target=\"_blank\" rel=\"noopener noreferrer\">source</a>.</div><ul class=\"chat-list\"><li>First context</li><li>Second context</li></ul><ol class=\"chat-list\"><li>Check next</li><li>Compare dates</li></ol><div class=\"chat-para\">&lt;script&gt;alert(1)&lt;/script&gt; <a href=\"#\" target=\"_blank\" rel=\"noopener noreferrer\">unsafe</a>)</div></div>\n  </section>"
+    },
+    {
+      "name": "demo",
+      "score": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic flexibility",
+        "question": "What does this pattern mean?",
+        "score": 75,
+        "rawScore": 75,
+        "tone": "good",
+        "basicInputs": [
+          "Glucose",
+          "HbA1c"
+        ],
+        "extendedInputs": [
+          "Insulin",
+          "Triglycerides"
+        ],
+        "available": [],
+        "missing": [],
+        "flags": [],
+        "profileContext": {}
+      },
+      "record": {
+        "source": "demo",
+        "text": "## Main signal\n\n**Saved explanation**, with [source](https://example.com/evidence).\n\n- First context\n- Second context\n\n1. Check next\n2. Compare dates\n\n<script>alert(1)</script> [unsafe](javascript:alert(1))",
+        "summary": "Local demo insight.",
+        "updatedAt": 1786104000000,
+        "materialFingerprint": "{\"available\":[],\"flags\":[],\"historical\":null,\"id\":\"metabolicFlexibility\",\"materialFormat\":2,\"missing\":[],\"panelRoute\":\"\",\"profileContext\":{},\"rangeMode\":\"reference\",\"rawScore\":75,\"score\":75,\"version\":\"2026-09-16.3\"}"
+      },
+      "processing": false,
+      "refreshReason": "",
+      "retry": false,
+      "error": "",
+      "encryption": false,
+      "question": "<section class=\"biology-score-question\">\n    <p>What does this pattern mean?</p>\n    <div class=\"biology-score-panel-levels\" role=\"group\" aria-label=\"Labs used for this score\">\n      <div><span>Core markers</span><strong><span>Glucose</span><span>HbA1c</span></strong></div>\n      <div><span>Additional context</span><strong><span>Insulin</span><span>Triglycerides</span></strong></div>\n    </div>\n  </section>",
+      "summary": "<span class=\"biology-score-ai-teaser\" data-biology-score-ai-summary=\"metabolicFlexibility\" aria-busy=\"false\">\n    <span class=\"biology-score-ai-teaser-label\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"Demo insight, generated locally without AI\"><span class=\"biology-score-ai-dot\" style=\"background:var(--green)\" aria-hidden=\"true\"></span>Demo insight</span>\n    <span class=\"biology-score-ai-teaser-text\">Local demo insight.</span>\n    <button type=\"button\" class=\"biology-score-ai-teaser-action\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\" aria-label=\"Use AI — Metabolic flexibility\">Use AI</button>\n    \n    <span class=\"biology-score-ai-error\" role=\"status\"></span>\n  </span>",
+      "answer": "<section class=\"biology-score-ai\" tabindex=\"-1\" data-biology-score-ai-panel=\"metabolicFlexibility\" aria-busy=\"false\">\n    <div class=\"biology-score-ai-head\">\n      <div>\n        <h4>Demo explanation</h4>\n        \n      </div>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-secondary\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\">Explain with AI</button>\n    </div>\n    \n    \n    <div class=\"biology-score-ai-answer\" data-biology-score-ai-answer=\"metabolicFlexibility\"><div class=\"chat-h2\">Main signal</div><div class=\"chat-para\"><strong>Saved explanation</strong>, with <a href=\"https://example.com/evidence\" target=\"_blank\" rel=\"noopener noreferrer\">source</a>.</div><ul class=\"chat-list\"><li>First context</li><li>Second context</li></ul><ol class=\"chat-list\"><li>Check next</li><li>Compare dates</li></ol><div class=\"chat-para\">&lt;script&gt;alert(1)&lt;/script&gt; <a href=\"#\" target=\"_blank\" rel=\"noopener noreferrer\">unsafe</a>)</div></div>\n  </section>"
+    },
+    {
+      "name": "error",
+      "score": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic flexibility",
+        "question": "What does this pattern mean?",
+        "score": 75,
+        "rawScore": 75,
+        "tone": "good",
+        "basicInputs": [
+          "Glucose",
+          "HbA1c"
+        ],
+        "extendedInputs": [
+          "Insulin",
+          "Triglycerides"
+        ],
+        "available": [],
+        "missing": [],
+        "flags": [],
+        "profileContext": {}
+      },
+      "record": null,
+      "processing": false,
+      "refreshReason": "",
+      "retry": false,
+      "error": "Could not save <explanation>. Retry without another AI charge.",
+      "encryption": false,
+      "question": "<section class=\"biology-score-question\">\n    <p>What does this pattern mean?</p>\n    <div class=\"biology-score-panel-levels\" role=\"group\" aria-label=\"Labs used for this score\">\n      <div><span>Core markers</span><strong><span>Glucose</span><span>HbA1c</span></strong></div>\n      <div><span>Additional context</span><strong><span>Insulin</span><span>Triglycerides</span></strong></div>\n    </div>\n  </section>",
+      "summary": "<span class=\"biology-score-ai-teaser\" data-biology-score-ai-summary=\"metabolicFlexibility\" aria-busy=\"false\">\n    <span class=\"biology-score-ai-teaser-label\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"Interpretation not generated\"><span class=\"biology-score-ai-dot\" style=\"background:var(--text-muted)\" aria-hidden=\"true\"></span></span>\n    <span class=\"biology-score-ai-teaser-text\"></span>\n    <button type=\"button\" class=\"biology-score-ai-teaser-action\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\" aria-label=\"Explain score — Metabolic flexibility\">Explain score</button>\n    \n    <span class=\"biology-score-ai-error\" role=\"status\">Could not save &lt;explanation&gt;. Retry without another AI charge.</span>\n  </span>",
+      "answer": "<section class=\"biology-score-ai\" tabindex=\"-1\" data-biology-score-ai-panel=\"metabolicFlexibility\" aria-busy=\"false\">\n    <div class=\"biology-score-ai-head\">\n      <div>\n        <h4>AI interpretation</h4>\n        \n      </div>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-secondary\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\">Explain score</button>\n    </div>\n    \n    \n    <div class=\"biology-score-ai-answer\" data-biology-score-ai-answer=\"metabolicFlexibility\">Explain the main signal, the context that matters, and what to check next.</div>\n  </section>"
+    },
+    {
+      "name": "encrypted",
+      "score": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic flexibility",
+        "question": "What does this pattern mean?",
+        "score": 75,
+        "rawScore": 75,
+        "tone": "good",
+        "basicInputs": [
+          "Glucose",
+          "HbA1c"
+        ],
+        "extendedInputs": [
+          "Insulin",
+          "Triglycerides"
+        ],
+        "available": [],
+        "missing": [],
+        "flags": [],
+        "profileContext": {}
+      },
+      "record": {
+        "text": "## Main signal\n\n**Saved explanation**, with [source](https://example.com/evidence).\n\n- First context\n- Second context\n\n1. Check next\n2. Compare dates\n\n<script>alert(1)</script> [unsafe](javascript:alert(1))",
+        "summary": "Saved privately.",
+        "updatedAt": 1786104000000,
+        "materialFingerprint": "{\"available\":[],\"flags\":[],\"historical\":null,\"id\":\"metabolicFlexibility\",\"materialFormat\":2,\"missing\":[],\"panelRoute\":\"\",\"profileContext\":{},\"rangeMode\":\"reference\",\"rawScore\":75,\"score\":75,\"version\":\"2026-09-16.3\"}"
+      },
+      "processing": false,
+      "refreshReason": "",
+      "retry": false,
+      "error": "",
+      "encryption": true,
+      "question": "<section class=\"biology-score-question\">\n    <p>What does this pattern mean?</p>\n    <div class=\"biology-score-panel-levels\" role=\"group\" aria-label=\"Labs used for this score\">\n      <div><span>Core markers</span><strong><span>Glucose</span><span>HbA1c</span></strong></div>\n      <div><span>Additional context</span><strong><span>Insulin</span><span>Triglycerides</span></strong></div>\n    </div>\n  </section>",
+      "summary": "<span class=\"biology-score-ai-teaser\" data-biology-score-ai-summary=\"metabolicFlexibility\" aria-busy=\"false\">\n    <span class=\"biology-score-ai-teaser-label\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"Saved interpretation\"><span class=\"biology-score-ai-dot\" style=\"background:var(--green)\" aria-hidden=\"true\"></span></span>\n    <span class=\"biology-score-ai-teaser-text\">Saved privately.</span>\n    <button type=\"button\" class=\"biology-score-ai-teaser-action\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\" aria-label=\"Refresh — Metabolic flexibility\">Refresh</button>\n    \n    <span class=\"biology-score-ai-error\" role=\"status\"></span>\n  </span>",
+      "answer": "<section class=\"biology-score-ai\" tabindex=\"-1\" data-biology-score-ai-panel=\"metabolicFlexibility\" aria-busy=\"false\">\n    <div class=\"biology-score-ai-head\">\n      <div>\n        <h4>AI interpretation</h4>\n        \n      </div>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-secondary\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\">Refresh explanation</button>\n    </div>\n    \n    <p class=\"biology-scores-note\">Saved 8/7/2026, 2:00:00 PM. Saved with your profile for sync and backups. Local encryption is enabled.</p>\n    <div class=\"biology-score-ai-answer\" data-biology-score-ai-answer=\"metabolicFlexibility\"><div class=\"chat-h2\">Main signal</div><div class=\"chat-para\"><strong>Saved explanation</strong>, with <a href=\"https://example.com/evidence\" target=\"_blank\" rel=\"noopener noreferrer\">source</a>.</div><ul class=\"chat-list\"><li>First context</li><li>Second context</li></ul><ol class=\"chat-list\"><li>Check next</li><li>Compare dates</li></ol><div class=\"chat-para\">&lt;script&gt;alert(1)&lt;/script&gt; <a href=\"#\" target=\"_blank\" rel=\"noopener noreferrer\">unsafe</a>)</div></div>\n  </section>"
+    },
+    {
+      "name": "overview",
+      "score": {
+        "id": "biologicalCoherence",
+        "title": "Biological coherence",
+        "question": "What does this pattern mean?",
+        "score": 75,
+        "rawScore": 75,
+        "tone": "good",
+        "basicInputs": [
+          "Glucose",
+          "HbA1c"
+        ],
+        "extendedInputs": [
+          "Insulin",
+          "Triglycerides"
+        ],
+        "available": [],
+        "missing": [],
+        "flags": [],
+        "profileContext": {}
+      },
+      "record": null,
+      "processing": false,
+      "refreshReason": "",
+      "retry": false,
+      "error": "",
+      "encryption": false,
+      "question": "<section class=\"biology-score-question\">\n    <p>What does this pattern mean?</p>\n    <div class=\"biology-score-panel-levels\" role=\"group\" aria-label=\"Labs used for this score\">\n      <div><span>Core markers</span><strong><span>Glucose</span><span>HbA1c</span></strong></div>\n      <div><span>Additional context</span><strong><span>Insulin</span><span>Triglycerides</span></strong></div>\n    </div>\n  </section>",
+      "summary": "<span class=\"biology-score-ai-teaser\" data-biology-score-ai-summary=\"biologicalCoherence\" aria-busy=\"false\">\n    <span class=\"biology-score-ai-teaser-label\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"Interpretation not generated\"><span class=\"biology-score-ai-dot\" style=\"background:var(--text-muted)\" aria-hidden=\"true\"></span></span>\n    <span class=\"biology-score-ai-teaser-text\"></span>\n    <button type=\"button\" class=\"biology-score-ai-teaser-action\"  data-biology-score-action=\"update-score-insights\" data-biology-score-id=\"biologicalCoherence\" aria-label=\"Update missing insights — Biology Scores\">Update missing insights</button>\n    \n    <span class=\"biology-score-ai-error\" role=\"status\"></span>\n  </span>",
+      "answer": "<section class=\"biology-score-ai\" tabindex=\"-1\" data-biology-score-ai-panel=\"biologicalCoherence\" aria-busy=\"false\">\n    <div class=\"biology-score-ai-head\">\n      <div>\n        \n        \n      </div>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-secondary\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"biologicalCoherence\">Explain score</button>\n    </div>\n    \n    \n    <div class=\"biology-score-ai-answer\" data-biology-score-ai-answer=\"biologicalCoherence\">Explain the main signal, the context that matters, and what to check next.</div>\n  </section>"
+    },
+    {
+      "name": "retry",
+      "score": {
+        "id": "biologicalCoherence",
+        "title": "Biological coherence",
+        "question": "What does this pattern mean?",
+        "score": 75,
+        "rawScore": 75,
+        "tone": "good",
+        "basicInputs": [
+          "Glucose",
+          "HbA1c"
+        ],
+        "extendedInputs": [
+          "Insulin",
+          "Triglycerides"
+        ],
+        "available": [],
+        "missing": [],
+        "flags": [],
+        "profileContext": {}
+      },
+      "record": {
+        "text": "## Main signal\n\n**Saved explanation**, with [source](https://example.com/evidence).\n\n- First context\n- Second context\n\n1. Check next\n2. Compare dates\n\n<script>alert(1)</script> [unsafe](javascript:alert(1))",
+        "summary": "Unsaved pending.",
+        "materialFingerprint": "{\"available\":[],\"flags\":[],\"historical\":null,\"id\":\"biologicalCoherence\",\"materialFormat\":2,\"missing\":[],\"panelRoute\":\"\",\"profileContext\":{},\"rangeMode\":\"reference\",\"rawScore\":75,\"score\":75,\"version\":\"2026-09-16.3\"}"
+      },
+      "processing": false,
+      "refreshReason": "",
+      "retry": true,
+      "error": "",
+      "encryption": false,
+      "question": "<section class=\"biology-score-question\">\n    <p>What does this pattern mean?</p>\n    <div class=\"biology-score-panel-levels\" role=\"group\" aria-label=\"Labs used for this score\">\n      <div><span>Core markers</span><strong><span>Glucose</span><span>HbA1c</span></strong></div>\n      <div><span>Additional context</span><strong><span>Insulin</span><span>Triglycerides</span></strong></div>\n    </div>\n  </section>",
+      "summary": "<span class=\"biology-score-ai-teaser\" data-biology-score-ai-summary=\"biologicalCoherence\" aria-busy=\"false\">\n    <span class=\"biology-score-ai-teaser-label\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"Saved interpretation\"><span class=\"biology-score-ai-dot\" style=\"background:var(--green)\" aria-hidden=\"true\"></span></span>\n    <span class=\"biology-score-ai-teaser-text\">Unsaved pending.</span>\n    <button type=\"button\" class=\"biology-score-ai-teaser-action\"  data-biology-score-action=\"retry-save-score-insights\" data-biology-score-id=\"biologicalCoherence\" aria-label=\"Retry saving — Biology Scores\">Retry saving</button>\n    \n    <span class=\"biology-score-ai-error\" role=\"status\"></span>\n  </span>",
+      "answer": "<section class=\"biology-score-ai\" tabindex=\"-1\" data-biology-score-ai-panel=\"biologicalCoherence\" aria-busy=\"false\">\n    <div class=\"biology-score-ai-head\">\n      <div>\n        \n        \n      </div>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-secondary\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"biologicalCoherence\">Refresh explanation</button>\n    </div>\n    \n    \n    <div class=\"biology-score-ai-answer\" data-biology-score-ai-answer=\"biologicalCoherence\"><div class=\"chat-h2\">Main signal</div><div class=\"chat-para\"><strong>Saved explanation</strong>, with <a href=\"https://example.com/evidence\" target=\"_blank\" rel=\"noopener noreferrer\">source</a>.</div><ul class=\"chat-list\"><li>First context</li><li>Second context</li></ul><ol class=\"chat-list\"><li>Check next</li><li>Compare dates</li></ol><div class=\"chat-para\">&lt;script&gt;alert(1)&lt;/script&gt; <a href=\"#\" target=\"_blank\" rel=\"noopener noreferrer\">unsafe</a>)</div></div>\n  </section>"
+    },
+    {
+      "name": "history",
+      "score": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic flexibility",
+        "question": "What does this pattern mean?",
+        "score": null,
+        "rawScore": 20,
+        "tone": "good",
+        "basicInputs": [
+          "Glucose",
+          "HbA1c"
+        ],
+        "extendedInputs": [
+          "Insulin",
+          "Triglycerides"
+        ],
+        "available": [],
+        "missing": [],
+        "flags": [],
+        "profileContext": {},
+        "recencyStatus": "stale",
+        "historicalSnapshot": {
+          "id": "metabolicFlexibility",
+          "score": 30,
+          "tone": "strained"
+        }
+      },
+      "record": {
+        "text": "## Main signal\n\n**Saved explanation**, with [source](https://example.com/evidence).\n\n- First context\n- Second context\n\n1. Check next\n2. Compare dates\n\n<script>alert(1)</script> [unsafe](javascript:alert(1))",
+        "summary": "Historical signal.",
+        "materialFingerprint": "{\"available\":[],\"flags\":[],\"historical\":{\"available\":[]},\"id\":\"metabolicFlexibility\",\"materialFormat\":2,\"missing\":[],\"panelRoute\":\"\",\"profileContext\":{},\"rangeMode\":\"reference\",\"rawScore\":20,\"recency\":\"stale\",\"score\":null,\"version\":\"2026-09-16.3\"}"
+      },
+      "processing": false,
+      "refreshReason": "",
+      "retry": false,
+      "error": "",
+      "encryption": false,
+      "question": "<section class=\"biology-score-question\">\n    <p>What does this pattern mean?</p>\n    <div class=\"biology-score-panel-levels\" role=\"group\" aria-label=\"Labs used for this score\">\n      <div><span>Core markers</span><strong><span>Glucose</span><span>HbA1c</span></strong></div>\n      <div><span>Additional context</span><strong><span>Insulin</span><span>Triglycerides</span></strong></div>\n    </div>\n  </section>",
+      "summary": "<span class=\"biology-score-ai-teaser\" data-biology-score-ai-summary=\"metabolicFlexibility\" aria-busy=\"false\">\n    <span class=\"biology-score-ai-teaser-label\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"Saved interpretation\"><span class=\"biology-score-ai-dot\" style=\"background:var(--yellow)\" aria-hidden=\"true\"></span></span>\n    <span class=\"biology-score-ai-teaser-text\">Historical signal.</span>\n    <button type=\"button\" class=\"biology-score-ai-teaser-action\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\" aria-label=\"Refresh — Metabolic flexibility\">Refresh</button>\n    \n    <span class=\"biology-score-ai-error\" role=\"status\"></span>\n  </span>",
+      "answer": "<section class=\"biology-score-ai\" tabindex=\"-1\" data-biology-score-ai-panel=\"metabolicFlexibility\" aria-busy=\"false\">\n    <div class=\"biology-score-ai-head\">\n      <div>\n        <h4>AI interpretation</h4>\n        \n      </div>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-secondary\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\">Refresh explanation</button>\n    </div>\n    \n    \n    <div class=\"biology-score-ai-answer\" data-biology-score-ai-answer=\"metabolicFlexibility\"><div class=\"chat-h2\">Main signal</div><div class=\"chat-para\"><strong>Saved explanation</strong>, with <a href=\"https://example.com/evidence\" target=\"_blank\" rel=\"noopener noreferrer\">source</a>.</div><ul class=\"chat-list\"><li>First context</li><li>Second context</li></ul><ol class=\"chat-list\"><li>Check next</li><li>Compare dates</li></ol><div class=\"chat-para\">&lt;script&gt;alert(1)&lt;/script&gt; <a href=\"#\" target=\"_blank\" rel=\"noopener noreferrer\">unsafe</a>)</div></div>\n  </section>"
+    },
+    {
+      "name": "zero",
+      "score": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic flexibility",
+        "question": "What does this pattern mean?",
+        "score": 0,
+        "rawScore": 75,
+        "tone": "poor",
+        "basicInputs": [
+          "Glucose",
+          "HbA1c"
+        ],
+        "extendedInputs": [
+          "Insulin",
+          "Triglycerides"
+        ],
+        "available": [],
+        "missing": [],
+        "flags": [],
+        "profileContext": {}
+      },
+      "record": null,
+      "processing": false,
+      "refreshReason": "",
+      "retry": false,
+      "error": "",
+      "encryption": false,
+      "question": "<section class=\"biology-score-question\">\n    <p>What does this pattern mean?</p>\n    <div class=\"biology-score-panel-levels\" role=\"group\" aria-label=\"Labs used for this score\">\n      <div><span>Core markers</span><strong><span>Glucose</span><span>HbA1c</span></strong></div>\n      <div><span>Additional context</span><strong><span>Insulin</span><span>Triglycerides</span></strong></div>\n    </div>\n  </section>",
+      "summary": "<span class=\"biology-score-ai-teaser\" data-biology-score-ai-summary=\"metabolicFlexibility\" aria-busy=\"false\">\n    <span class=\"biology-score-ai-teaser-label\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"Interpretation not generated\"><span class=\"biology-score-ai-dot\" style=\"background:var(--text-muted)\" aria-hidden=\"true\"></span></span>\n    <span class=\"biology-score-ai-teaser-text\"></span>\n    <button type=\"button\" class=\"biology-score-ai-teaser-action\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\" aria-label=\"Explain score — Metabolic flexibility\">Explain score</button>\n    \n    <span class=\"biology-score-ai-error\" role=\"status\"></span>\n  </span>",
+      "answer": "<section class=\"biology-score-ai\" tabindex=\"-1\" data-biology-score-ai-panel=\"metabolicFlexibility\" aria-busy=\"false\">\n    <div class=\"biology-score-ai-head\">\n      <div>\n        <h4>AI interpretation</h4>\n        \n      </div>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-secondary\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\">Explain score</button>\n    </div>\n    \n    \n    <div class=\"biology-score-ai-answer\" data-biology-score-ai-answer=\"metabolicFlexibility\">Explain the main signal, the context that matters, and what to check next.</div>\n  </section>"
+    },
+    {
+      "name": "scalar",
+      "score": {
+        "id": "quoted\"<&",
+        "title": "Title < &",
+        "question": "<img src=x onerror=alert(1)>",
+        "score": 75,
+        "rawScore": 75,
+        "tone": "good",
+        "basicInputs": [
+          0,
+          null,
+          "<b>literal</b>"
+        ],
+        "extendedInputs": [],
+        "available": [],
+        "missing": [],
+        "flags": [],
+        "profileContext": {}
+      },
+      "record": {
+        "text": 123,
+        "summary": 0,
+        "updatedAt": "invalid",
+        "generation": {
+          "modelId": "<unsafe>"
+        },
+        "materialFingerprint": "{\"available\":[],\"flags\":[],\"historical\":null,\"id\":\"quoted\\\"<&\",\"materialFormat\":2,\"missing\":[],\"panelRoute\":\"\",\"profileContext\":{},\"rangeMode\":\"reference\",\"rawScore\":75,\"score\":75,\"version\":\"2026-09-16.3\"}"
+      },
+      "processing": false,
+      "refreshReason": "",
+      "retry": false,
+      "error": "",
+      "encryption": false,
+      "question": "<section class=\"biology-score-question\">\n    <p>&lt;img src=x onerror=alert(1)&gt;</p>\n    <div class=\"biology-score-panel-levels\" role=\"group\" aria-label=\"Labs used for this score\">\n      <div><span>Core markers</span><strong><span>0</span><span></span><span>&lt;b&gt;literal&lt;/b&gt;</span></strong></div>\n      <div><span>Additional context</span><strong></strong></div>\n    </div>\n  </section>",
+      "summary": "<span class=\"biology-score-ai-teaser\" data-biology-score-ai-summary=\"quoted&quot;&lt;&amp;\" aria-busy=\"false\">\n    <span class=\"biology-score-ai-teaser-label\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"Saved interpretation\"><span class=\"biology-score-ai-dot\" style=\"background:var(--green)\" aria-hidden=\"true\"></span></span>\n    <span class=\"biology-score-ai-teaser-text\">Refresh to add a short, complete insight. Your full explanation is saved.</span>\n    <button type=\"button\" class=\"biology-score-ai-teaser-action\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"quoted&quot;&lt;&amp;\" aria-label=\"Refresh — Title &lt; &amp;\">Refresh</button>\n    \n    <span class=\"biology-score-ai-error\" role=\"status\"></span>\n  </span>",
+      "answer": "<section class=\"biology-score-ai\" tabindex=\"-1\" data-biology-score-ai-panel=\"quoted&quot;&lt;&amp;\" aria-busy=\"false\">\n    <div class=\"biology-score-ai-head\">\n      <div>\n        <h4>AI interpretation</h4>\n        \n      </div>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-secondary\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"quoted&quot;&lt;&amp;\">Refresh explanation</button>\n    </div>\n    \n    <p class=\"biology-scores-note\">Saved Invalid Date · &lt;unsafe&gt;. Saved with your profile for sync and backups. Local encryption is off; enable it in Settings → Data protection.</p>\n    <div class=\"biology-score-ai-answer\" data-biology-score-ai-answer=\"quoted&quot;&lt;&amp;\"><div class=\"chat-para\">123</div></div>\n  </section>"
+    },
+    {
+      "name": "empty-inputs",
+      "score": {
+        "id": "metabolicFlexibility",
+        "title": "Metabolic flexibility",
+        "question": "",
+        "score": 75,
+        "rawScore": 75,
+        "tone": "good",
+        "basicInputs": [],
+        "extendedInputs": [],
+        "available": [],
+        "missing": [],
+        "flags": [],
+        "profileContext": {}
+      },
+      "record": null,
+      "processing": false,
+      "refreshReason": "",
+      "retry": false,
+      "error": "",
+      "encryption": false,
+      "question": "<section class=\"biology-score-question\">\n    <p>What does Metabolic flexibility say about this biology pattern?</p>\n    <div class=\"biology-score-panel-levels\" role=\"group\" aria-label=\"Labs used for this score\">\n      <div><span>Core markers</span><strong></strong></div>\n      <div><span>Additional context</span><strong></strong></div>\n    </div>\n  </section>",
+      "summary": "<span class=\"biology-score-ai-teaser\" data-biology-score-ai-summary=\"metabolicFlexibility\" aria-busy=\"false\">\n    <span class=\"biology-score-ai-teaser-label\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\" aria-label=\"Interpretation not generated\"><span class=\"biology-score-ai-dot\" style=\"background:var(--text-muted)\" aria-hidden=\"true\"></span></span>\n    <span class=\"biology-score-ai-teaser-text\"></span>\n    <button type=\"button\" class=\"biology-score-ai-teaser-action\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\" aria-label=\"Explain score — Metabolic flexibility\">Explain score</button>\n    \n    <span class=\"biology-score-ai-error\" role=\"status\"></span>\n  </span>",
+      "answer": "<section class=\"biology-score-ai\" tabindex=\"-1\" data-biology-score-ai-panel=\"metabolicFlexibility\" aria-busy=\"false\">\n    <div class=\"biology-score-ai-head\">\n      <div>\n        <h4>AI interpretation</h4>\n        \n      </div>\n      <button type=\"button\" class=\"dashboard-action-btn dashboard-action-btn-secondary\"  data-biology-score-action=\"interpret-score-ai\" data-biology-score-id=\"metabolicFlexibility\">Explain score</button>\n    </div>\n    \n    \n    <div class=\"biology-score-ai-answer\" data-biology-score-ai-answer=\"metabolicFlexibility\">Explain the main signal, the context that matters, and what to check next.</div>\n  </section>"
+    }
+  ],
+  "styleBlocks": [
+    {
+      "selector": ".biology-score-question,\n.biology-score-ai",
+      "declarations": "display: grid;gap: 10px;padding: 12px;border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);border-radius: calc(var(--radius) - 4px);background: color-mix(in srgb, var(--bg-secondary) 55%, transparent)",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-question-kicker",
+      "declarations": "font-family: var(--font-mono);font-size: 9px;font-weight: 800;letter-spacing: 0.08em;text-transform: uppercase;color: var(--accent)",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-question p,\n.biology-score-ai p",
+      "declarations": "margin: 0;color: var(--text-primary);font-size: 13px;line-height: 1.45",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-panel-levels",
+      "declarations": "display: grid;grid-template-columns: repeat(2, minmax(0, 1fr));gap: 10px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-panel-levels > div",
+      "declarations": "min-width: 0;display: grid;gap: 4px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-panel-levels span",
+      "declarations": "font-family: var(--font-mono);font-size: 9px;font-weight: 800;letter-spacing: 0.06em;text-transform: uppercase;color: var(--text-muted)",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-panel-levels strong",
+      "declarations": "display: flex;flex-wrap: wrap;gap: 4px 8px;color: var(--text-secondary);font-size: 12px;font-weight: 500;line-height: 1.35",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-panel-levels strong span + span::before",
+      "declarations": "content: '·';color: var(--text-muted);margin-right: 8px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-head",
+      "declarations": "display: flex;align-items: flex-start;justify-content: space-between;gap: 12px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-answer:empty",
+      "declarations": "display: none",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-stale",
+      "declarations": "padding: 8px 10px;border: 1px solid color-mix(in srgb, var(--yellow, #f59e0b) 28%, var(--border));border-radius: var(--radius-sm);background: color-mix(in srgb, var(--yellow, #f59e0b) 7%, var(--bg-card));color: var(--text-secondary) !important;font-size: 12px;line-height: 1.4",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-answer p",
+      "declarations": "margin: 0 0 6px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-answer p:last-child",
+      "declarations": "margin-bottom: 0",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-answer",
+      "declarations": "color: var(--text-secondary);font-size: 13px;line-height: 1.5;white-space: normal",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-panel-levels",
+      "declarations": "grid-template-columns: 1fr",
+      "media": "(max-width: 640px)"
+    },
+    {
+      "selector": ".biology-score-ai-head",
+      "declarations": "flex-direction: column",
+      "media": "(max-width: 640px)"
+    },
+    {
+      "selector": ".biology-score-debug .biology-score-detail-grid,\n.biology-score-debug .biology-score-flags,\n.biology-score-debug .biology-score-ai",
+      "declarations": "margin: 12px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-details",
+      "declarations": "margin-top: 20px;font-size: 14px;line-height: 1.6",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-details summary, .biology-coherence-breakdown summary, .biology-context-review-details > summary",
+      "declarations": "cursor: pointer;font-weight: 500;font-size: 14px;padding: 8px 0",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-teaser",
+      "declarations": "grid-column: 1 / -1;display: grid;grid-template-columns: minmax(0, 1fr) auto;gap: 7px 10px;padding: 10px 0 0;border-top: 1px solid var(--border);cursor: default",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-teaser-label",
+      "declarations": "display: flex;align-items: center;gap: 7px;font-size: 11px;font-weight: 650;color: var(--text-muted)",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-dot",
+      "declarations": "width: 10px;height: 10px;border-radius: 50%;flex-shrink: 0",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-teaser-text",
+      "declarations": "grid-column: 1 / -1;grid-row: 2;color: var(--text-secondary);font-size: 13px;line-height: 19px;display: block;overflow-wrap: anywhere",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-teaser-action",
+      "declarations": "grid-column: 2;grid-row: 1;padding: 4px 0 4px 8px;margin: -4px 0;min-height: 28px;background: none;border: 0;color: var(--accent);font: inherit;font-size: 12px;cursor: pointer",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-teaser-action:disabled",
+      "declarations": "cursor: wait;opacity: .65",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-teaser-action:focus-visible",
+      "declarations": "outline: 2px solid var(--accent);outline-offset: 4px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-error:empty",
+      "declarations": "display: none",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-error",
+      "declarations": "grid-column: 1 / -1;font-size: 12px;line-height: 1.5;color: var(--red)",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-details",
+      "declarations": "clear: both;margin: 16px 0",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-teaser",
+      "declarations": "box-sizing: border-box;grid-template-rows: 20px auto;align-content: start;gap: 6px 8px;position: relative",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-teaser-text",
+      "declarations": "align-self: start",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-teaser-label",
+      "declarations": "line-height: 14px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-error:not(:empty)",
+      "declarations": "position: static;padding: 8px;overflow-wrap: anywhere;background: var(--bg-secondary);border: 1px solid var(--border);border-radius: 4px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai",
+      "declarations": "scroll-margin-top: calc(var(--app-sticky-top, 65px) + 16px);padding: 22px 24px;gap: 18px;background: var(--bg-secondary);border-radius: 10px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-head",
+      "declarations": "align-items: center",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-head h4",
+      "declarations": "margin: 0;color: var(--text-primary);font-size: 16px;font-weight: 600",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-answer",
+      "declarations": "font-size: 14px;line-height: 1.7;max-width: 76ch;white-space: normal;scroll-margin-bottom: 100px;overflow-wrap: anywhere",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-answer :is(p, li)",
+      "declarations": "font-size: inherit;line-height: inherit;color: inherit",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-answer :is(p, .chat-para)",
+      "declarations": "margin: 0 0 12px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-answer :is(ul, ol)",
+      "declarations": "padding-inline-start: 24px;margin: 12px 0",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-answer li",
+      "declarations": "padding-inline-start: 4px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-answer li + li",
+      "declarations": "margin-top: 12px",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-answer :is(.chat-h1, .chat-h2, .chat-h3)",
+      "declarations": "margin: 20px 0 6px;font-size: 14px;line-height: 1.5;font-weight: 600;color: var(--text-primary);letter-spacing: normal;text-transform: none",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-answer > :first-child",
+      "declarations": "margin-top: 0",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-answer strong",
+      "declarations": "color: var(--text-primary);font-weight: 600",
+      "media": null
+    },
+    {
+      "selector": ".biology-coherence-interpretation .biology-score-ai",
+      "declarations": "margin: 8px 0",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai",
+      "declarations": "padding: 18px 16px",
+      "media": "(max-width: 650px)"
+    },
+    {
+      "selector": ".biology-score-ai-head",
+      "declarations": "align-items: flex-start",
+      "media": "(max-width: 650px)"
+    },
+    {
+      "selector": ".biology-score-ai-processing",
+      "declarations": "display: flex;align-items: center;gap: 7px;margin-top: 6px;font-size: 12px;color: var(--text-muted)",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-skeleton",
+      "declarations": "display: grid;gap: 11px;padding: 5px 0;width: 100%",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-skeleton > span",
+      "declarations": "height: 8px;border-radius: 4px;background: linear-gradient(90deg, var(--border) 25%, var(--bg-hover) 50%, var(--border) 75%);background-size: 200% 100%;animation: shimmer 1.5s infinite",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-skeleton > span:nth-child(2)",
+      "declarations": "width: 88%",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-skeleton > span:last-child",
+      "declarations": "width: 62%",
+      "media": null
+    },
+    {
+      "selector": ".biology-score-ai-skeleton > span",
+      "declarations": "animation: none",
+      "media": "(prefers-reduced-motion: reduce)"
+    },
+    {
+      "selector": ".biology-score-ai-teaser-action",
+      "declarations": "min-height: 44px;padding: 10px 8px;margin: -10px -8px",
+      "media": "(pointer: coarse)"
+    },
+    {
+      "selector": ".biology-score-ai-refresh-reason",
+      "declarations": "grid-column: 1 / -1;color: var(--text-secondary);font-size: 12px;line-height: 1.5",
+      "media": null
+    }
+  ]
+}

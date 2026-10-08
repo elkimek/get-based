@@ -186,6 +186,15 @@ cover adjacent context, planning and sparse-profile behavior. These focused
 presentation checks do not establish clinical validity, whole-app accessibility,
 installed-PWA acceptance or complete migration acceptance.
 
+Biology AI presentation has [frozen state checks](../tests/biology-ai-presentation.test.ts)
+for empty, loading, cached, stale, demo, failure, retry, encryption, historical and
+legacy scalar inputs. [Headless parity checks](../tests/playwright/biology-ai-owned.spec.ts)
+cover six themes and breakpoint boundaries, focus, touch targets and reduced motion.
+[Static cached-answer acceptance](../tests/pwa/sveltekit-biology-ai.spec.ts) exercises
+sanitized Markdown and stale provenance offline, then compares the complete stored
+profile across two closed-client launches. Existing Biology integrity and lens
+scenarios remain responsible for request, saving, navigation and refresh behavior.
+
 Preserve independently failing assertions for these workflows:
 
 | Workflow | Required behavior | Selected regression sources |

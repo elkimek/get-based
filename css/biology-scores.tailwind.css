@@ -24,3 +24,15 @@
 @source "../js/components/BiologyMarkerResults.svelte";
 @source "../js/components/BiologyMethodology.svelte";
 @source "../js/components/BiologyReadingPresentation.svelte";
+
+/* Biology question and AI content; domain state remains in its existing services. */
+@custom-variant biology-ai (&:is([data-biology-ai-view], [data-biology-ai-view] *));
+@custom-variant ai-stack (@media (max-width: 640px));
+@custom-variant ai-phone (@media (max-width: 650px));
+@source "../js/biology-ai-classes.ts";
+@source "../js/components/BiologyAIQuestion.svelte";
+@source "../js/components/BiologyAIDot.svelte";
+@source "../js/components/BiologyAISkeleton.svelte";
+@source "../js/components/BiologyAISummary.svelte";
+@source "../js/components/BiologyAIAnswer.svelte";
+@source "../js/components/BiologyAIPresentation.svelte";

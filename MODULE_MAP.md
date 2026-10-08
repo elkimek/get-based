@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1355 |
-| Internal import edges | 4640 |
+| Modules | 1363 |
+| Internal import edges | 4653 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,7 +65,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 264 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
+| [`js/utils.ts`](js/utils.ts) | 263 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
 | [`js/state.ts`](js/state.ts) | 244 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 93 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 84 | [`js/settings.ts`](js/settings.ts) | 35 |
@@ -263,8 +263,10 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>biology</code> family — 30 modules</summary>
+<details><summary><code>biology</code> family — 32 modules</summary>
 
+- [`js/biology-ai-classes.ts`](js/biology-ai-classes.ts) → no in-scope imports
+- [`js/biology-ai-presentation.ts`](js/biology-ai-presentation.ts) → [`js/biology-score-engine.ts`](js/biology-score-engine.ts)
 - [`js/biology-planning-classes.ts`](js/biology-planning-classes.ts) → no in-scope imports
 - [`js/biology-planning-presentation.ts`](js/biology-planning-presentation.ts) → [`js/biology-score-coverage-planner.ts`](js/biology-score-coverage-planner.ts)
 - [`js/biology-reading-classes.ts`](js/biology-reading-classes.ts) → no in-scope imports
@@ -288,13 +290,49 @@ Native browser modules shipped with the static application.
 - [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts) → no in-scope imports
 - [`js/biology-score-profile-modifiers.ts`](js/biology-score-profile-modifiers.ts) → [`js/marker-context-ranges.ts`](js/marker-context-ranges.ts)
 - [`js/biology-score-render.ts`](js/biology-score-render.ts) → [`js/biology-planning-presentation.ts`](js/biology-planning-presentation.ts), [`js/biology-reading-presentation.ts`](js/biology-reading-presentation.ts), [`js/biology-score-coverage-planner.ts`](js/biology-score-coverage-planner.ts), [`js/biology-score-engine.ts`](js/biology-score-engine.ts), [`js/biology-score-sections.ts`](js/biology-score-sections.ts), [`js/components/BiologyPlanningPresentation.svelte`](js/components/BiologyPlanningPresentation.svelte), [`js/components/BiologyReadingPresentation.svelte`](js/components/BiologyReadingPresentation.svelte), [`js/lens-page-shell.ts`](js/lens-page-shell.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/biology-score-sections.ts`](js/biology-score-sections.ts) → [`js/biology-score-contract.ts`](js/biology-score-contract.ts), [`js/biology-score-engine.ts`](js/biology-score-engine.ts), [`js/biology-score-inputs.ts`](js/biology-score-inputs.ts), [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts), [`js/crypto.ts`](js/crypto.ts), [`js/data.ts`](js/data.ts), [`js/demo-biology-insights.ts`](js/demo-biology-insights.ts), [`js/markdown.ts`](js/markdown.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/biology-score-sections.ts`](js/biology-score-sections.ts) → [`js/biology-ai-presentation.ts`](js/biology-ai-presentation.ts), [`js/biology-score-contract.ts`](js/biology-score-contract.ts), [`js/biology-score-inputs.ts`](js/biology-score-inputs.ts), [`js/biology-score-persistence.ts`](js/biology-score-persistence.ts), [`js/components/BiologyAIPresentation.svelte`](js/components/BiologyAIPresentation.svelte), [`js/crypto.ts`](js/crypto.ts), [`js/data.ts`](js/data.ts), [`js/demo-biology-insights.ts`](js/demo-biology-insights.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts)
 - [`js/biology-score-thyroid.ts`](js/biology-score-thyroid.ts) → [`js/biology-score-engine.ts`](js/biology-score-engine.ts)
 - [`js/biology-score-tier1-definitions.ts`](js/biology-score-tier1-definitions.ts) → no in-scope imports
 - [`js/biology-score-tier2-definitions.ts`](js/biology-score-tier2-definitions.ts) → no in-scope imports
 - [`js/biology-score-types.ts`](js/biology-score-types.ts) → no in-scope imports
 - [`js/biology-scores-runtime.ts`](js/biology-scores-runtime.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/data.ts`](js/data.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/biology-scores.ts`](js/biology-scores.ts) → [`js/biology-score-ai.ts`](js/biology-score-ai.ts), [`js/biology-score-coherence.ts`](js/biology-score-coherence.ts), [`js/biology-score-contract.ts`](js/biology-score-contract.ts), [`js/biology-score-copy.ts`](js/biology-score-copy.ts), [`js/biology-score-coverage-planner.ts`](js/biology-score-coverage-planner.ts), [`js/biology-score-dates.ts`](js/biology-score-dates.ts), [`js/biology-score-engine.ts`](js/biology-score-engine.ts), [`js/biology-score-methodology.ts`](js/biology-score-methodology.ts), [`js/biology-score-render.ts`](js/biology-score-render.ts), [`js/biology-score-sections.ts`](js/biology-score-sections.ts), [`js/biology-score-tier1-definitions.ts`](js/biology-score-tier1-definitions.ts), [`js/biology-score-tier2-definitions.ts`](js/biology-score-tier2-definitions.ts), [`js/biology-scores-runtime.ts`](js/biology-scores-runtime.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/data.ts`](js/data.ts), [`js/profile-context.ts`](js/profile-context.ts), [`js/state.ts`](js/state.ts)
+
+</details>
+
+<details><summary><code>BiologyAIAnswer.svelte</code> family — 1 module</summary>
+
+- [`js/components/BiologyAIAnswer.svelte`](js/components/BiologyAIAnswer.svelte) → [`js/biology-ai-classes.ts`](js/biology-ai-classes.ts), [`js/components/BiologyAIDot.svelte`](js/components/BiologyAIDot.svelte), [`js/components/BiologyAISkeleton.svelte`](js/components/BiologyAISkeleton.svelte), [`js/markdown.ts`](js/markdown.ts)
+
+</details>
+
+<details><summary><code>BiologyAIDot.svelte</code> family — 1 module</summary>
+
+- [`js/components/BiologyAIDot.svelte`](js/components/BiologyAIDot.svelte) → [`js/biology-ai-classes.ts`](js/biology-ai-classes.ts)
+
+</details>
+
+<details><summary><code>BiologyAIPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/BiologyAIPresentation.svelte`](js/components/BiologyAIPresentation.svelte) → [`js/components/BiologyAIAnswer.svelte`](js/components/BiologyAIAnswer.svelte), [`js/components/BiologyAIQuestion.svelte`](js/components/BiologyAIQuestion.svelte), [`js/components/BiologyAISummary.svelte`](js/components/BiologyAISummary.svelte)
+
+</details>
+
+<details><summary><code>BiologyAIQuestion.svelte</code> family — 1 module</summary>
+
+- [`js/components/BiologyAIQuestion.svelte`](js/components/BiologyAIQuestion.svelte) → [`js/biology-ai-classes.ts`](js/biology-ai-classes.ts)
+
+</details>
+
+<details><summary><code>BiologyAISkeleton.svelte</code> family — 1 module</summary>
+
+- [`js/components/BiologyAISkeleton.svelte`](js/components/BiologyAISkeleton.svelte) → [`js/biology-ai-classes.ts`](js/biology-ai-classes.ts)
+
+</details>
+
+<details><summary><code>BiologyAISummary.svelte</code> family — 1 module</summary>
+
+- [`js/components/BiologyAISummary.svelte`](js/components/BiologyAISummary.svelte) → [`js/biology-ai-classes.ts`](js/biology-ai-classes.ts), [`js/components/BiologyAIDot.svelte`](js/components/BiologyAIDot.svelte), [`js/components/BiologyAISkeleton.svelte`](js/components/BiologyAISkeleton.svelte)
 
 </details>
 

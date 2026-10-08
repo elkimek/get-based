@@ -643,92 +643,6 @@
 .biology-score-status-low { border-left-color: var(--red, #ef4444); }
 .biology-score-status-mixed-dates,
 .biology-score-status-stale { border-left-color: var(--yellow, #f59e0b); }
-.biology-score-question,
-.biology-score-ai {
-  display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
-  border-radius: calc(var(--radius) - 4px);
-  background: color-mix(in srgb, var(--bg-secondary) 55%, transparent);
-}
-.biology-score-question-kicker {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-.biology-score-question p,
-.biology-score-ai p {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 13px;
-  line-height: 1.45;
-}
-.biology-score-panel-levels {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-.biology-score-panel-levels > div {
-  min-width: 0;
-  display: grid;
-  gap: 4px;
-}
-.biology-score-panel-levels span {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-.biology-score-panel-levels strong {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 8px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.35;
-}
-.biology-score-panel-levels strong span + span::before {
-  content: '·';
-  color: var(--text-muted);
-  margin-right: 8px;
-}
-.biology-score-ai-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-.biology-score-ai-answer:empty { display: none; }
-.biology-score-ai-stale {
-  padding: 8px 10px;
-  border: 1px solid color-mix(in srgb, var(--yellow, #f59e0b) 28%, var(--border));
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--yellow, #f59e0b) 7%, var(--bg-card));
-  color: var(--text-secondary) !important;
-  font-size: 12px;
-  line-height: 1.4;
-}
-.biology-score-ai-answer p {
-  margin: 0 0 6px;
-}
-.biology-score-ai-answer p:last-child { margin-bottom: 0; }
-.biology-score-ai-answer {
-  color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.5;
-  white-space: normal;
-}
-@media (max-width: 640px) {
-  .biology-score-panel-levels { grid-template-columns: 1fr; }
-  .biology-score-ai-head { flex-direction: column; }
-}
 .biology-score-inputs {
   display: grid;
   gap: 7px;
@@ -998,8 +912,7 @@ button.biology-score-token:focus-visible {
 .biology-score-debug[open] > summary { border-bottom: 1px solid var(--border); color: var(--text-primary); }
 .biology-score-debug[open] > summary::before { content: '−'; color: var(--accent); }
 .biology-score-debug .biology-score-detail-grid,
-.biology-score-debug .biology-score-flags,
-.biology-score-debug .biology-score-ai { margin: 12px; }
+.biology-score-debug .biology-score-flags { margin: 12px; }
 .biology-score-unavailable-group {
   display: grid;
   gap: 12px;
@@ -1263,16 +1176,7 @@ button.biology-score-token:focus-visible {
   .biology-score-detail-tools { float: none; margin: 0 0 16px; justify-content: flex-start; }
 }
 
-/* AI explains the deterministic score directly on the card. */
-.biology-score-ai-teaser { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 10px; padding: 10px 0 0; border-top: 1px solid var(--border); cursor: default; }
-.biology-score-ai-teaser-label { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 650; color: var(--text-muted); }
-.biology-score-ai-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-.biology-score-ai-teaser-text { grid-column: 1 / -1; grid-row: 2; color: var(--text-secondary); font-size: 13px; line-height: 19px; display: block; overflow-wrap: anywhere; }
-.biology-score-ai-teaser-action { grid-column: 2; grid-row: 1; padding: 4px 0 4px 8px; margin: -4px 0; min-height: 28px; background: none; border: 0; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; }
-.biology-score-ai-teaser-action:disabled { cursor: wait; opacity: .65; }
-.biology-score-ai-teaser-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
-.biology-score-ai-error:empty { display: none; }
-.biology-score-ai-error { grid-column: 1 / -1; font-size: 12px; line-height: 1.5; color: var(--red); }
+/* Remaining native AI disclosure and coherence layout ownership. */
 .biology-score-ai-details { clear: both; margin: 16px 0; }
 .biology-coherence-visual .biology-coherence-overview { grid-column: 1; grid-row: 1; }
 .biology-coherence-visual .biology-coherence-ai { grid-column: 1; grid-row: 2; }
@@ -1285,46 +1189,17 @@ button.biology-score-token:focus-visible {
 .biology-score-compact > .biology-score-summary { height: var(--biology-summary-height, auto); grid-template-rows: 48px 100px auto minmax(36px, 1fr); gap: 12px 16px; align-content: start; }
 .biology-score-title { align-self: start; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .biology-score-summary-copy > span { overflow-wrap: anywhere; }
-.biology-score-ai-teaser { box-sizing: border-box; grid-template-rows: 20px auto; align-content: start; gap: 6px 8px; position: relative; }
-.biology-score-ai-teaser-text { align-self: start; }
-.biology-score-ai-teaser-label { line-height: 14px; }
-.biology-score-ai-error:not(:empty) { position: static; padding: 8px; overflow-wrap: anywhere; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 4px; }
-.biology-score-ai { scroll-margin-top: calc(var(--app-sticky-top, 65px) + 16px); padding: 22px 24px; gap: 18px; background: var(--bg-secondary); border-radius: 10px; }
-.biology-score-ai-head { align-items: center; }
-.biology-score-ai-head h4 { margin: 0; color: var(--text-primary); font-size: 16px; font-weight: 600; }
-.biology-score-ai-answer { font-size: 14px; line-height: 1.7; max-width: 76ch; white-space: normal; scroll-margin-bottom: 100px; overflow-wrap: anywhere; }
-.biology-score-ai-answer :is(p, li) { font-size: inherit; line-height: inherit; color: inherit; }
-.biology-score-ai-answer :is(p, .chat-para) { margin: 0 0 12px; }
-.biology-score-ai-answer :is(ul, ol) { padding-inline-start: 24px; margin: 12px 0; }
-.biology-score-ai-answer li { padding-inline-start: 4px; }
-.biology-score-ai-answer li + li { margin-top: 12px; }
-.biology-score-ai-answer :is(.chat-h1, .chat-h2, .chat-h3) { margin: 20px 0 6px; font-size: 14px; line-height: 1.5; font-weight: 600; color: var(--text-primary); letter-spacing: normal; text-transform: none; }
-.biology-score-ai-answer > :first-child { margin-top: 0; }
-.biology-score-ai-answer strong { color: var(--text-primary); font-weight: 600; }
 .biology-coherence-interpretation { grid-column: 1 / -1; border-top: 1px solid var(--border); padding-top: 6px; }
 .biology-coherence-interpretation > summary { cursor: pointer; font-size: 14px; font-weight: 500; padding: 8px 0; }
-.biology-coherence-interpretation .biology-score-ai { margin: 8px 0; }
 @media (max-width: 650px) {
   .biology-score-compact > .biology-score-summary { min-height: 0; padding: 18px; }
-  .biology-score-ai { padding: 18px 16px; }
-  .biology-score-ai-head { align-items: flex-start; }
 }
 
 .biology-score-compact > .biology-score-summary .biology-score-summary-footer { align-self: end; }
 .biology-coherence-ai { align-self: start; }
 
-.biology-score-ai-processing { display: flex; align-items: center; gap: 7px; margin-top: 6px; font-size: 12px; color: var(--text-muted); }
-.biology-score-ai-skeleton { display: grid; gap: 11px; padding: 5px 0; width: 100%; }
-.biology-score-ai-skeleton > span { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--border) 25%, var(--bg-hover) 50%, var(--border) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
-.biology-score-ai-skeleton > span:nth-child(2) { width: 88%; }
-.biology-score-ai-skeleton > span:last-child { width: 62%; }
-@media (prefers-reduced-motion: reduce) {
-  .biology-score-ai-skeleton > span { animation: none; }
-}
-
 /* Keep Biology controls easy to tap, including when there is no AI summary. */
 @media (pointer: coarse) {
-  .biology-score-ai-teaser-action { min-height: 44px; padding: 10px 8px; margin: -10px -8px; }
   .biology-coherence-visual .biology-coherence-domain-row { min-height: 44px; }
 }
 
@@ -1338,7 +1213,6 @@ button.biology-score-token:focus-visible {
 .biology-score-scope { display: block; margin-top: 4px; font-size: 12px; line-height: 1.4; color: var(--text-secondary); font-weight: 400; }
 .biology-score-compact:has(.biology-score-scope) > .biology-score-summary { grid-template-rows: minmax(48px, auto) 100px auto minmax(36px, 1fr); }
 .biology-coherence-visual .biology-coherence-domain-row > .biology-domain-label { white-space: normal; overflow: visible; }
-.biology-score-ai-refresh-reason { grid-column: 1 / -1; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
 
 .biology-membership-count { margin-left: 8px; font-size: 12px; font-weight: 400; color: var(--text-secondary); white-space: nowrap; }
 

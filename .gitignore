@@ -2326,3 +2326,8 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /tests/pwa/sveltekit-biology-reading.spec.js
 
 /tests/pwa/sveltekit-readiness-clock.spec.js
+/js/biology-ai-presentation.js
+/js/biology-ai-classes.js
+/tests/biology-ai-presentation.test.js
+/tests/playwright/biology-ai-owned.spec.js
+/tests/pwa/sveltekit-biology-ai.spec.js
