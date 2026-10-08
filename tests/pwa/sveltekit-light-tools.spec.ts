@@ -2,30 +2,13 @@ import path from 'node:path';
 import fs from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import { createDefaultProfileData } from '../../js/profile.js';
-import type { ProfileData } from '../../types/app-state.js';
+import {seedDeniedLightToolProfile} from '../helpers/light-tool-artifact-fixture.js';
 import { startKitServer } from './kit-server.js';
 import { installDiscussionFixture } from '../helpers/chat-discussion-fixture.js';
 import { readComparisonAcceptanceProfile } from '../helpers/nutrition-comparison-fixture.js';
 import { installOfflineStartupDiagnostics } from '../helpers/offline-launch-diagnostics.js';
 import { readyLightArtifact as ready, openLightArtifact as openLight } from '../helpers/light-artifact-navigation.js';
-function seed({defaults, now}: {defaults: ProfileData; now: number}) {
-  if (!['http:', 'https:'].includes(location.protocol)) return;
-  localStorage.setItem('labcharts-ai-paused', 'true');
-  Object.assign(window, {lightToolCameraRequests: 0});
-  Object.defineProperty(navigator, 'mediaDevices', {configurable: true, value: {getUserMedia: async () => {
-    (window as unknown as {lightToolCameraRequests: number}).lightToolCameraRequests++;
-    throw new DOMException('Fixture camera permission denied', 'NotAllowedError');
-  }}});
-  if (localStorage.getItem('light-tools-seeded')) return;
-  localStorage.setItem('light-tools-seeded', '1');
-  localStorage.setItem('labcharts-profiles', JSON.stringify([{id: 'default', name: 'Ada', sex: 'male', dob: '1990-01-01', createdAt: 1}]));
-  localStorage.setItem('labcharts-active-profile', 'default');
-  for (const key of ['emptyTour', 'tour']) localStorage.setItem(`labcharts-default-${key}`, 'completed');
-  localStorage.setItem('labcharts-default-imported', JSON.stringify({...defaults, contextNotes: 'Retain unrelated tool context',
-    sunDefaults: {fitzpatrick: 'II', completedAt: 1}, lightEnvironment: {rooms: [{id: 'tools-room', name: 'Bedroom', primarySource: 'led-warm', hoursOccupiedPerDay: 8}], screens: []},
-    lightMeasurements: [{id: 'tools-lux', roomId: 'tools-room', tool: 'lux', value: 150, capturedAt: now, source: 'manual', confidence: 1}],
-  }));
-}
+
 async function inspect(page: Page) {
   await openLight(page);
   const widget = page.locator('[data-widget-id="light-tools"]');
@@ -60,7 +43,7 @@ async function inspect(page: Page) {
 test('static tool launcher, golden logger and walkthrough retry preserve the full profile over offline cold launches', async ({page, context}) => {
   test.setTimeout(120000);
   await installDiscussionFixture(context); await installOfflineStartupDiagnostics(context);
-  await context.addInitScript(seed, {defaults: createDefaultProfileData(), now: Date.now()});
+  await context.addInitScript(seedDeniedLightToolProfile, {defaults: createDefaultProfileData(), now: Date.now()});
   const errors: string[] = [], csp: string[] = [];
   const observe = (page: Page) => page.on('pageerror', error => errors.push(error.message)); observe(page); context.on('page', observe);
   await context.exposeBinding('lightToolCsp', (_, value: string) => csp.push(value));

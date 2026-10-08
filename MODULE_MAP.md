@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1327 |
-| Internal import edges | 4571 |
+| Modules | 1340 |
+| Internal import edges | 4612 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -65,7 +65,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
-| [`js/utils.ts`](js/utils.ts) | 265 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
+| [`js/utils.ts`](js/utils.ts) | 264 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
 | [`js/state.ts`](js/state.ts) | 244 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 93 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 84 | [`js/settings.ts`](js/settings.ts) | 35 |
@@ -1340,7 +1340,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>light</code> family — 93 modules</summary>
+<details><summary><code>light</code> family — 95 modules</summary>
 
 - [`js/light-active-session-presentation.ts`](js/light-active-session-presentation.ts) → no in-scope imports
 - [`js/light-ai-save-hooks.ts`](js/light-ai-save-hooks.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/light-audit-ai-analysis.ts`](js/light-audit-ai-analysis.ts), [`js/light-env-ai-analysis.ts`](js/light-env-ai-analysis.ts), [`js/light-env-audits.ts`](js/light-env-audits.ts), [`js/light-env.ts`](js/light-env.ts), [`js/light-screen-ai-analysis.ts`](js/light-screen-ai-analysis.ts), [`js/light-tools-ai-analysis.ts`](js/light-tools-ai-analysis.ts), [`js/light-tools.ts`](js/light-tools.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun-onboarding-ai.ts`](js/sun-onboarding-ai.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts)
@@ -1348,6 +1348,8 @@ Native browser modules shipped with the static application.
 - [`js/light-audit-classes.ts`](js/light-audit-classes.ts) → no in-scope imports
 - [`js/light-audit-presentation.ts`](js/light-audit-presentation.ts) → no in-scope imports
 - [`js/light-burden-ai-analysis.ts`](js/light-burden-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/ai-verdict-owner.ts`](js/ai-verdict-owner.ts), [`js/components/LightReviewAI.svelte`](js/components/LightReviewAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env.ts`](js/light-env.ts), [`js/light-review-ai-presentation.ts`](js/light-review-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts)
+- [`js/light-camera-classes.ts`](js/light-camera-classes.ts) → [`js/light-tools-classes.ts`](js/light-tools-classes.ts)
+- [`js/light-camera-presentation.ts`](js/light-camera-presentation.ts) → no in-scope imports
 - [`js/light-channel-classes.ts`](js/light-channel-classes.ts) → no in-scope imports
 - [`js/light-channel-content.ts`](js/light-channel-content.ts) → no in-scope imports
 - [`js/light-channel-pill-classes.ts`](js/light-channel-pill-classes.ts) → no in-scope imports
@@ -1421,13 +1423,13 @@ Native browser modules shipped with the static application.
 - [`js/light-today-presentation.ts`](js/light-today-presentation.ts) → no in-scope imports
 - [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts) → no in-scope imports
 - [`js/light-tool-camera-modals.ts`](js/light-tool-camera-modals.ts) → [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-cct-meter.ts`](js/light-tool-cct-meter.ts), [`js/light-tool-darkness-meter.ts`](js/light-tool-darkness-meter.ts), [`js/light-tool-flicker-detector.ts`](js/light-tool-flicker-detector.ts), [`js/light-tool-glass-transmission.ts`](js/light-tool-glass-transmission.ts), [`js/light-tool-lux-meter.ts`](js/light-tool-lux-meter.ts), [`js/light-tool-spectrum-classifier.ts`](js/light-tool-spectrum-classifier.ts)
-- [`js/light-tool-camera.ts`](js/light-tool-camera.ts) → [`js/utils.ts`](js/utils.ts)
-- [`js/light-tool-cct-meter.ts`](js/light-tool-cct-meter.ts) → [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/light-tool-darkness-meter.ts`](js/light-tool-darkness-meter.ts) → [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/light-tool-flicker-detector.ts`](js/light-tool-flicker-detector.ts) → [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/light-tool-glass-transmission.ts`](js/light-tool-glass-transmission.ts) → [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/light-tool-lux-meter.ts`](js/light-tool-lux-meter.ts) → [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/light-tool-spectrum-classifier.ts`](js/light-tool-spectrum-classifier.ts) → [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-tool-camera.ts`](js/light-tool-camera.ts) → [`js/components/LightCameraGuidePresentation.svelte`](js/components/LightCameraGuidePresentation.svelte), [`js/light-camera-presentation.ts`](js/light-camera-presentation.ts)
+- [`js/light-tool-cct-meter.ts`](js/light-tool-cct-meter.ts) → [`js/components/LightCameraPresentation.svelte`](js/components/LightCameraPresentation.svelte), [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-tool-darkness-meter.ts`](js/light-tool-darkness-meter.ts) → [`js/components/LightCameraPresentation.svelte`](js/components/LightCameraPresentation.svelte), [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-tool-flicker-detector.ts`](js/light-tool-flicker-detector.ts) → [`js/components/LightCameraPresentation.svelte`](js/components/LightCameraPresentation.svelte), [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-tool-glass-transmission.ts`](js/light-tool-glass-transmission.ts) → [`js/components/LightCameraPresentation.svelte`](js/components/LightCameraPresentation.svelte), [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-tool-lux-meter.ts`](js/light-tool-lux-meter.ts) → [`js/components/LightCameraPresentation.svelte`](js/components/LightCameraPresentation.svelte), [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-tool-spectrum-classifier.ts`](js/light-tool-spectrum-classifier.ts) → [`js/components/LightCameraPresentation.svelte`](js/components/LightCameraPresentation.svelte), [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-tools-ai-analysis.ts`](js/light-tools-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/components/LightEnvironmentAI.svelte`](js/components/LightEnvironmentAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-environment-ai-presentation.ts`](js/light-environment-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts)
 - [`js/light-tools-classes.ts`](js/light-tools-classes.ts) → no in-scope imports
 - [`js/light-tools-presentation.ts`](js/light-tools-presentation.ts) → [`js/light-tools-solar-time.ts`](js/light-tools-solar-time.ts)
@@ -1441,6 +1443,12 @@ Native browser modules shipped with the static application.
 <details><summary><code>LightActiveSession.svelte</code> family — 1 module</summary>
 
 - [`js/components/LightActiveSession.svelte`](js/components/LightActiveSession.svelte) → [`js/components/LightLiveReadouts.svelte`](js/components/LightLiveReadouts.svelte), [`js/components/LightSessionChips.svelte`](js/components/LightSessionChips.svelte), [`js/components/LightSessionControls.svelte`](js/components/LightSessionControls.svelte)
+
+</details>
+
+<details><summary><code>LightAimingGuide.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightAimingGuide.svelte`](js/components/LightAimingGuide.svelte) → [`js/light-camera-classes.ts`](js/light-camera-classes.ts)
 
 </details>
 
@@ -1476,7 +1484,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>LightAuditWalkthrough.svelte</code> family — 1 module</summary>
 
-- [`js/components/LightAuditWalkthrough.svelte`](js/components/LightAuditWalkthrough.svelte) → [`js/components/LightToolFrame.svelte`](js/components/LightToolFrame.svelte), [`js/light-tools-classes.ts`](js/light-tools-classes.ts)
+- [`js/components/LightAuditWalkthrough.svelte`](js/components/LightAuditWalkthrough.svelte) → [`js/components/LightAimingGuide.svelte`](js/components/LightAimingGuide.svelte), [`js/components/LightToolFrame.svelte`](js/components/LightToolFrame.svelte), [`js/light-tools-classes.ts`](js/light-tools-classes.ts)
 
 </details>
 
@@ -1489,6 +1497,66 @@ Native browser modules shipped with the static application.
 <details><summary><code>LightBurdenAI.svelte</code> family — 1 module</summary>
 
 - [`js/components/LightBurdenAI.svelte`](js/components/LightBurdenAI.svelte) → [`js/components/LightReviewDetail.svelte`](js/components/LightReviewDetail.svelte), [`js/components/LightVerdictButton.svelte`](js/components/LightVerdictButton.svelte), [`js/components/LightVerdictDot.svelte`](js/components/LightVerdictDot.svelte), [`js/light-review-ai-classes.ts`](js/light-review-ai-classes.ts), [`js/light-session-ai-classes.ts`](js/light-session-ai-classes.ts)
+
+</details>
+
+<details><summary><code>LightCameraCCT.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightCameraCCT.svelte`](js/components/LightCameraCCT.svelte) → [`js/components/LightAimingGuide.svelte`](js/components/LightAimingGuide.svelte), [`js/components/LightToolFrame.svelte`](js/components/LightToolFrame.svelte), [`js/light-camera-classes.ts`](js/light-camera-classes.ts)
+
+</details>
+
+<details><summary><code>LightCameraDarkness.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightCameraDarkness.svelte`](js/components/LightCameraDarkness.svelte) → [`js/components/LightAimingGuide.svelte`](js/components/LightAimingGuide.svelte), [`js/components/LightToolFrame.svelte`](js/components/LightToolFrame.svelte), [`js/light-camera-classes.ts`](js/light-camera-classes.ts)
+
+</details>
+
+<details><summary><code>LightCameraFlicker.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightCameraFlicker.svelte`](js/components/LightCameraFlicker.svelte) → [`js/components/LightAimingGuide.svelte`](js/components/LightAimingGuide.svelte), [`js/components/LightToolFrame.svelte`](js/components/LightToolFrame.svelte), [`js/light-camera-classes.ts`](js/light-camera-classes.ts)
+
+</details>
+
+<details><summary><code>LightCameraGlass.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightCameraGlass.svelte`](js/components/LightCameraGlass.svelte) → [`js/components/LightAimingGuide.svelte`](js/components/LightAimingGuide.svelte), [`js/components/LightToolFrame.svelte`](js/components/LightToolFrame.svelte), [`js/light-camera-classes.ts`](js/light-camera-classes.ts)
+
+</details>
+
+<details><summary><code>LightCameraGuidePresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightCameraGuidePresentation.svelte`](js/components/LightCameraGuidePresentation.svelte) → [`js/components/LightAimingGuide.svelte`](js/components/LightAimingGuide.svelte), [`js/components/LightCameraLock.svelte`](js/components/LightCameraLock.svelte)
+
+</details>
+
+<details><summary><code>LightCameraLock.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightCameraLock.svelte`](js/components/LightCameraLock.svelte) → [`js/light-camera-classes.ts`](js/light-camera-classes.ts), [`js/light-camera-presentation.ts`](js/light-camera-presentation.ts)
+
+</details>
+
+<details><summary><code>LightCameraLux.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightCameraLux.svelte`](js/components/LightCameraLux.svelte) → [`js/components/LightAimingGuide.svelte`](js/components/LightAimingGuide.svelte), [`js/components/LightToolFrame.svelte`](js/components/LightToolFrame.svelte), [`js/light-camera-classes.ts`](js/light-camera-classes.ts)
+
+</details>
+
+<details><summary><code>LightCameraPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightCameraPresentation.svelte`](js/components/LightCameraPresentation.svelte) → [`js/components/LightCameraCCT.svelte`](js/components/LightCameraCCT.svelte), [`js/components/LightCameraDarkness.svelte`](js/components/LightCameraDarkness.svelte), [`js/components/LightCameraFlicker.svelte`](js/components/LightCameraFlicker.svelte), [`js/components/LightCameraGlass.svelte`](js/components/LightCameraGlass.svelte), [`js/components/LightCameraLux.svelte`](js/components/LightCameraLux.svelte), [`js/components/LightCameraResult.svelte`](js/components/LightCameraResult.svelte), [`js/components/LightCameraSpectrum.svelte`](js/components/LightCameraSpectrum.svelte)
+
+</details>
+
+<details><summary><code>LightCameraResult.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightCameraResult.svelte`](js/components/LightCameraResult.svelte) → [`js/components/LightCameraLock.svelte`](js/components/LightCameraLock.svelte), [`js/light-camera-classes.ts`](js/light-camera-classes.ts)
+
+</details>
+
+<details><summary><code>LightCameraSpectrum.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightCameraSpectrum.svelte`](js/components/LightCameraSpectrum.svelte) → [`js/components/LightAimingGuide.svelte`](js/components/LightAimingGuide.svelte), [`js/components/LightToolFrame.svelte`](js/components/LightToolFrame.svelte), [`js/light-camera-classes.ts`](js/light-camera-classes.ts)
 
 </details>
 

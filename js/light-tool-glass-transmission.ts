@@ -1,9 +1,10 @@
+import {renderHTML as renderCameraToolHTML} from './components/LightCameraPresentation.svelte.html.js';
 // Two-sample visible-light transmission workflow for windows and glass.
 
 import { queryRequired, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
-  aimingGuideHTML,
+  getAimingGuideView,
   getRequired2DContext,
   lockCameraForMeasurement,
 } from './light-tool-camera.js';
@@ -11,7 +12,6 @@ import {
   clearCameraToolCloser,
   getSaveMeasurement,
   installLightToolModalDelegates,
-  lightToolModalActionAttrs,
   queryOptionalLightToolElement,
   registerCameraToolCloser,
 } from './light-tool-camera-modal-runtime.js';
@@ -23,31 +23,7 @@ export async function openGlassTransmission(opts: { roomId?: unknown } = {}, dep
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay light-tool-overlay';
-  overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Glass transmission test">
-    <div class="modal-header">
-      <h3>Window / Glass Transmission</h3>
-      <button class="modal-close" ${lightToolModalActionAttrs('close-glass')} aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      ${aimingGuideHTML('glass-transmission')}
-      <p class="modal-body-hint" style="color:var(--orange);background:rgba(255,160,80,0.08);border-left:3px solid var(--orange);padding:8px 10px;border-radius:4px;font-size:11px;margin-bottom:8px">⚠ Aim at the same patch of sky / light source for both readings. North-window through the glass vs. east-window without it measures scene difference, not glass transmission.</p>
-      <div class="glass-step" id="glass-step-inside">
-        <span>Step 1: <strong>through the glass</strong></span>
-        <button class="import-btn import-btn-secondary" id="glass-measure-inside">Measure inside</button>
-        <span class="glass-reading" id="glass-reading-inside">—</span>
-      </div>
-      <div class="glass-step" id="glass-step-outside">
-        <span>Step 2: <strong>direct (no glass)</strong></span>
-        <button class="import-btn import-btn-secondary" id="glass-measure-outside">Measure outside</button>
-        <span class="glass-reading" id="glass-reading-outside">—</span>
-      </div>
-      <div class="glass-result" id="glass-result"></div>
-      <div class="modal-actions" style="margin-top:14px">
-        <button class="import-btn import-btn-secondary" ${lightToolModalActionAttrs('close-glass')}>Done</button>
-        <button class="import-btn import-btn-primary" id="glass-save" disabled>Save reading</button>
-      </div>
-    </div>
-    </div>`;
+  overlay.innerHTML = renderCameraToolHTML({kind: 'shell', view: {tool: 'glass-transmission', guide: getAimingGuideView('glass-transmission')}});
   let closed = false;
   const activeGlassStreams = new Set<MediaStream>();
   const closeGlassOverlay = () => {
@@ -124,12 +100,7 @@ export async function openGlassTransmission(opts: { roomId?: unknown } = {}, dep
   function computeGlass() {
     if (glassReadings.inside == null || glassReadings.outside == null) return;
     const transmission = Math.min(1, glassReadings.inside / Math.max(glassReadings.outside, 1));
-    const lockNote = lastGlassLock && lastGlassLock.exposure !== 'manual'
-      ? '<br><small style="color:var(--orange)">⚠ Camera auto-exposure was active, so it may have erased part of the difference. Treat this as qualitative.</small>'
-      : '';
-    queryRequired(overlay, '#glass-result').innerHTML =
-      `<strong>Camera-visible response through glass: about ${(transmission * 100).toFixed(0)}% of the direct comparison</strong>` +
-      `<br><small>This is not a calibrated visible-transmission value. Scene movement, reflections, exposure, and phone spectral response affect it. <strong>UV or infrared transmission cannot be inferred</strong>; those require wavelength-appropriate meters.</small>${lockNote}`;
+    queryRequired(overlay, '#glass-result').innerHTML = renderCameraToolHTML({kind: 'glass-reading', transmission, lock: lastGlassLock});
     const glassSave = queryRequired<HTMLButtonElement>(overlay, '#glass-save');
     glassSave.disabled = false;
     glassSave.onclick = async () => {

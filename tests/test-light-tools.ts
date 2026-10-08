@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import {cameraToolClasses as cameraClasses} from '../js/light-camera-classes.js';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { sourcePath } from '../scripts/source-files.js';
 import { fileURLToPath } from 'node:url';
@@ -371,8 +372,8 @@ type FixtureMeasurementStream = Omit<NonNullable<Parameters<typeof lockCameraFor
     assert('Lux AmbientLightSensor error retries the camera fallback',
       /sensor\.addEventListener\('error'[\s\S]{0,500}startCameraFallback/.test(lightToolCameraModalsSrc));
     assert('Lux prefers the phone light sensor and exposes a camera source switch',
-      lightToolCameraModalsSrc.includes('id="lux-source-als"') &&
-      lightToolCameraModalsSrc.includes('id="lux-source-camera"') &&
+      fs.readFileSync(new URL('../js/components/LightCameraLux.svelte', import.meta.url), 'utf8').includes('id="lux-source-als"') &&
+      fs.readFileSync(new URL('../js/components/LightCameraLux.svelte', import.meta.url), 'utf8').includes('id="lux-source-camera"') &&
       appearsBefore(lightToolCameraModalsSrc, 'if (!startAmbientSensor())', 'await startCameraFallback();') &&
       lightToolCameraModalsSrc.includes("cameraButton.addEventListener('click'") &&
       lightToolCameraModalsSrc.includes("alsButton.addEventListener('click'"));
@@ -397,21 +398,21 @@ type FixtureMeasurementStream = Omit<NonNullable<Parameters<typeof lockCameraFor
     assert('Light tool overlay is top-anchored so height changes do not recenter',
       /\.light-tool-overlay\.modal-overlay\.show\s*\{[\s\S]{0,140}align-items:\s*flex-start/.test(stylesSrc));
     assert('Live light tool video previews reserve aspect-ratio space before camera metadata',
-      /\.light-tool-modal video\s*\{[\s\S]{0,160}aspect-ratio:\s*4\s*\/\s*3/.test(stylesSrc));
+      cameraClasses('camera-video').includes('[aspect-ratio:4_/_3]'));
     assert('Lux live number reserves tabular-width space',
-      /\.lux-dial-value\s*\{[\s\S]{0,220}min-width:\s*6ch[\s\S]{0,220}font-variant-numeric:\s*tabular-nums/.test(stylesSrc));
+      cameraClasses('lux-dial-value').includes('[min-width:6ch]') && cameraClasses('lux-dial-value').includes('[font-variant-numeric:tabular-nums]'));
     assert('Flicker and darkness result boxes reserve stable height',
-      /\.flicker-result,\s*\.dark-status\s*\{[\s\S]{0,260}min-height:\s*74px/.test(stylesSrc));
+      ['flicker-result', 'dark-status'].every(name => cameraClasses(name).includes('[min-height:74px]')));
     assert('CCT and spectrum live result boxes reserve stable height',
-      /\.cct-result\s*\{[\s\S]{0,160}min-height:\s*116px/.test(stylesSrc) &&
-      /\.spec-result\s*\{[\s\S]{0,220}min-height:\s*140px/.test(stylesSrc));
+      cameraClasses('cct-result').includes('[min-height:116px]') &&
+      cameraClasses('spec-result').includes('[min-height:140px]'));
     assert('Glass and audit result boxes reserve stable numeric layout',
-      /\.glass-reading\s*\{[\s\S]{0,220}min-width:\s*9ch[\s\S]{0,220}font-variant-numeric:\s*tabular-nums/.test(stylesSrc) &&
+      cameraClasses('glass-reading').includes('[min-width:9ch]') && cameraClasses('glass-reading').includes('[font-variant-numeric:tabular-nums]') &&
       lightToolClassesSrc.includes('[min-height:88px]') && walkthroughSrc.includes("class={c('audit-status')}"));
     assert('Light tools CSS owns tool modal and aiming guide styles',
       lightToolCss.includes('.light-tool-overlay.modal-overlay.show') &&
-      lightToolCss.includes('.tool-aiming-guide') &&
-      lightToolCss.includes('.lux-dial-value'));
+      cameraClasses('tool-aiming-guide').includes('gb:tool-ui:') &&
+      cameraClasses('lux-dial-value').includes('gb:tool-ui:') && lightToolCss.includes('font-variant-numeric:tabular-nums'));
     assert('Light/Sun CSS no longer owns Light Tools modal styles',
       !lightSunCss.includes('.light-tool-overlay.modal-overlay.show') &&
       !lightSunCss.includes('.lux-dial-value') &&

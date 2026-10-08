@@ -1,10 +1,10 @@
+import {renderHTML as renderCameraToolHTML} from './components/LightCameraPresentation.svelte.html.js';
 // Camera-backed rolling-shutter flicker detector.
 
-import { escapeHTML, queryRequired, showNotification } from './utils.js';
+import { queryRequired, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
-  aimingGuideHTML,
-  cameraLockStatusLine,
+  getAimingGuideView,
   computeRowBanding,
   getRequired2DContext,
   lockCameraForMeasurement,
@@ -13,7 +13,6 @@ import {
   clearCameraToolCloser,
   getSaveMeasurement,
   installLightToolModalDelegates,
-  lightToolModalActionAttrs,
   registerCameraToolCloser,
 } from './light-tool-camera-modal-runtime.js';
 import type { CameraLockResult } from './light-tool-camera.js';
@@ -36,22 +35,7 @@ export async function openFlickerDetector(opts: { roomId?: unknown } = {}, deps:
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay light-tool-overlay';
-  overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Flicker detector">
-    <div class="modal-header">
-      <h3>Flicker Detector</h3>
-      <button class="modal-close" ${lightToolModalActionAttrs('close-flicker')} aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      ${aimingGuideHTML('flicker')}
-      <p class="modal-body-hint">Rolling-shutter bands can reveal some modulated lights. No bands does not prove a light is flicker-free, and this camera cannot report a reliable flicker frequency.</p>
-      <video id="flicker-video" autoplay playsinline muted style="width:100%;border-radius:var(--radius-sm);background:#000;max-height:240px"></video>
-      <div class="flicker-result" id="flicker-result">Hold camera on a light for 5 seconds…</div>
-      <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" ${lightToolModalActionAttrs('close-flicker')}>Done</button>
-        <button class="import-btn import-btn-primary" id="flicker-save">Save reading</button>
-      </div>
-    </div>
-    </div>`;
+  overlay.innerHTML = renderCameraToolHTML({kind: 'shell', view: {tool: 'flicker', guide: getAimingGuideView('flicker')}});
   let closed = false;
   const closeFlickerOverlay = () => {
     if (closed) return;
@@ -87,11 +71,7 @@ export async function openFlickerDetector(opts: { roomId?: unknown } = {}, deps:
     if (closed) return;
     const lock = await lockCameraForMeasurement(stream, { shortExposure: true });
     if (closed) return;
-    const lockNote = cameraLockStatusLine(lock);
-    if (lockNote) resultEl.innerHTML = `Hold camera on a light for 5 seconds…<br>${lockNote}`;
-    if (lock.frameRate && lock.frameRate < 60) {
-      resultEl.innerHTML += `<br><small style="color:var(--orange)">⚠ camera running at ${Math.round(lock.frameRate)} fps. Frame rate, rolling-shutter timing, and exposure limit what this screen can detect.</small>`;
-    }
+    resultEl.innerHTML = renderCameraToolHTML({kind: 'flicker-wait', lock});
 
     const canvas = document.createElement('canvas');
     canvas.width = 64;
@@ -115,7 +95,7 @@ export async function openFlickerDetector(opts: { roomId?: unknown } = {}, deps:
     requestAnimationFrame(tick);
   } catch (error) {
     if (closed) return;
-    resultEl.innerHTML = 'Camera access denied — banding screen unavailable. <br><span style="font-size:11px;color:var(--text-muted)">To re-enable this qualitative camera check, open your browser\'s site settings and allow camera access. Use a purpose-built meter for flicker frequency and modulation.</span>';
+    resultEl.innerHTML = renderCameraToolHTML({kind: 'flicker-denied'});
   }
 
   function renderFlicker(frameSamples: FrameSample[], bandingSamples: BandingSample[], lock: CameraLockResult | null | undefined) {
@@ -161,7 +141,7 @@ export async function openFlickerDetector(opts: { roomId?: unknown } = {}, deps:
       exposureLock: lock?.exposure || 'auto',
       frameRate: lock?.frameRate || null,
     };
-    resultEl.innerHTML = `<strong class="flicker-score-${score}">${escapeHTML(label)}</strong><br><small style="color:var(--text-muted)">banding proxy ${peakBanding.toFixed(3)} · frame change ${frameRatio.toFixed(3)}${peakStripes >= 2 ? ` · ${peakStripes} stripes/frame` : ''} · no frequency estimate</small>`;
+    resultEl.innerHTML = renderCameraToolHTML({kind: 'flicker-reading', score, label, bandingRatio: peakBanding, frameRatio, stripes: peakStripes});
   }
 
   queryRequired(overlay, '#flicker-save').addEventListener('click', async () => {

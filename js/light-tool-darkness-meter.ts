@@ -1,10 +1,10 @@
+import {renderHTML as renderCameraToolHTML} from './components/LightCameraPresentation.svelte.html.js';
 // Long-exposure sleep-darkness measurement workflow.
 
-import { escapeHTML, queryRequired, showNotification } from './utils.js';
+import { queryRequired, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
-  aimingGuideHTML,
-  cameraLockStatusLine,
+  getAimingGuideView,
   getRequired2DContext,
   lockCameraForMeasurement,
 } from './light-tool-camera.js';
@@ -12,7 +12,6 @@ import {
   clearCameraToolCloser,
   getSaveMeasurement,
   installLightToolModalDelegates,
-  lightToolModalActionAttrs,
   registerCameraToolCloser,
 } from './light-tool-camera-modal-runtime.js';
 
@@ -34,32 +33,7 @@ export async function openDarknessMeter(opts: DarknessMeterOptions = {}, deps: M
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay light-tool-overlay';
-  overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Sleep darkness meter">
-    <div class="modal-header">
-      <h3>Sleep Darkness Meter</h3>
-      <button class="modal-close" ${lightToolModalActionAttrs('close-dark')} aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      ${aimingGuideHTML('darkness')}
-      <p class="modal-body-hint">Set the room as you actually sleep. The camera check is qualitative; enter a meter reading below for lux.</p>
-      <div class="dark-status" id="dark-status">Press Start when ready.</div>
-      <details style="margin-top:14px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px">
-        <summary style="cursor:pointer;color:var(--text-secondary);font-size:12px">Enter a lux-meter reading instead</summary>
-        <div style="display:flex;gap:8px;align-items:end;margin-top:10px;flex-wrap:wrap">
-          <label class="ctx-label" style="margin:0;flex:1;min-width:160px">Reading at the pillow (photopic lux)
-            <input type="number" id="dark-meter-input" class="ctx-input" min="0" max="10000" step="0.01" inputmode="decimal" placeholder="e.g. 0.2" />
-          </label>
-          <button class="import-btn import-btn-secondary" id="dark-meter-save">Save meter reading</button>
-        </div>
-        <small style="display:block;margin-top:7px;color:var(--text-muted)">Photopic lux is not melanopic EDI; source spectrum still matters.</small>
-      </details>
-      <div class="modal-actions" style="margin-top:18px">
-        <button class="import-btn import-btn-secondary" ${lightToolModalActionAttrs('close-dark')}>Cancel</button>
-        <button class="import-btn import-btn-primary" id="dark-start">Start 30-second read</button>
-        <button class="import-btn import-btn-primary" id="dark-save" disabled>Save camera check</button>
-      </div>
-    </div>
-  </div>`;
+  overlay.innerHTML = renderCameraToolHTML({kind: 'shell', view: {tool: 'darkness', guide: getAimingGuideView('darkness')}});
   let closed = false;
   const closeDarknessOverlay = () => {
     if (closed) return;
@@ -173,12 +147,7 @@ export async function openDarknessMeter(opts: DarknessMeterOptions = {}, deps: M
         levelLabel: label,
         cls: className,
       };
-      const calibrationNote = lock.iso != null && lock.exposure === 'manual'
-        ? `<small style="color:var(--text-muted)">Camera exposure held for this qualitative check. Device-specific low-light response still prevents an absolute lux reading.</small>`
-        : `<small style="color:var(--orange)">Camera exposure could not be fully fixed. Treat this only as a check for obvious light or bright points. ${cameraLockStatusLine(lock)}</small>`;
-      statusEl.innerHTML = `<strong class="dark-status-${className}">${escapeHTML(label)}</strong>` +
-        `<br><small style="color:var(--text-muted)">Camera level ${cameraLevel.toFixed(0)}% · peak ${peakLevel.toFixed(0)}%. Not lux and not a melatonin estimate.</small>` +
-        `<br>${calibrationNote}`;
+      statusEl.innerHTML = renderCameraToolHTML({kind: 'darkness-reading', label, cls: className, cameraLevel, peakLevel, lock});
       startBtn.textContent = 'Read again';
       startBtn.disabled = false;
       saveBtn.disabled = false;
@@ -188,7 +157,7 @@ export async function openDarknessMeter(opts: DarknessMeterOptions = {}, deps: M
         try { darknessState.stream.getTracks().forEach(track => track.stop()); } catch (stopError) {}
         darknessState.stream = null;
       }
-      statusEl.innerHTML = 'Camera access denied — the qualitative camera check is unavailable. <br><span style="font-size:11px;color:var(--text-muted)">Use the meter-entry option above for a numerical photopic-lux reading.</span>';
+      statusEl.innerHTML = renderCameraToolHTML({kind: 'darkness-denied'});
       startBtn.disabled = false;
     }
   });

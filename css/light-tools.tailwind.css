@@ -15,3 +15,17 @@
 @source "../js/components/LightAuditPauseRows.svelte";
 @source "../js/components/LightAuditWalkthroughStatus.svelte";
 @source "../js/components/LightToolPresentation.svelte";
+
+@custom-variant tool-phone (@media (max-width: 430px));
+@source "../js/light-camera-classes.ts";
+@source "../js/components/LightCameraLux.svelte";
+@source "../js/components/LightCameraFlicker.svelte";
+@source "../js/components/LightCameraDarkness.svelte";
+@source "../js/components/LightCameraCCT.svelte";
+@source "../js/components/LightCameraSpectrum.svelte";
+@source "../js/components/LightCameraGlass.svelte";
+@source "../js/components/LightAimingGuide.svelte";
+@source "../js/components/LightCameraLock.svelte";
+@source "../js/components/LightCameraResult.svelte";
+@source "../js/components/LightCameraPresentation.svelte";
+@source "../js/components/LightCameraGuidePresentation.svelte";

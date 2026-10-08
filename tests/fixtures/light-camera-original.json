@@ -1,0 +1,900 @@
+{
+  "revision": "ae9edaaac29fa3820d42aa3c0812bc091d0a3eea",
+  "shells": [
+    {
+      "key": "lux",
+      "initial": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Lux meter\">\n    <div class=\"modal-header\">\n      <h3>Lux Meter</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-lux\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"lux\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">AT the point you want to check</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"lux\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Hold the phone at <b>eye height</b> where you normally sit, work, or read. Keep the light sensor uncovered and point its side toward the light field you want to check (usually the screen/front side). If you choose the camera fallback, face the camera into the room rather than directly at a bulb.</div>\n    <div class=\"tool-aiming-guide-webcam\">A laptop may not expose a light sensor. Its camera can make a relative estimate, but a phone light sensor or real lux meter is preferable.</div>\n  </div>\n      <div class=\"lux-source-picker\" id=\"lux-source-picker\" role=\"group\" aria-label=\"Lux measurement source\">\n        <span class=\"lux-source-picker-label\">Measure with</span>\n        <button type=\"button\" class=\"lux-source-option\" id=\"lux-source-als\" aria-pressed=\"false\" disabled=\"\" title=\"This browser does not expose the phone light sensor\">\n          <span>Phone light sensor</span>\n          <small id=\"lux-source-als-detail\">Unavailable here</small>\n        </button>\n        <button type=\"button\" class=\"lux-source-option active\" id=\"lux-source-camera\" aria-pressed=\"true\">\n          <span>Camera</span>\n          <small id=\"lux-source-camera-detail\">Approximate fallback</small>\n        </button>\n      </div>\n      <p class=\"modal-body-hint\" id=\"lux-source-line\">Starting the camera fallback…</p>\n      <div class=\"lux-dial\" id=\"lux-live-dial\">\n        <div class=\"lux-dial-value\" id=\"lux-value\">—</div>\n        <div class=\"lux-dial-unit\" id=\"lux-unit\">lux</div>\n        <div class=\"lux-dial-zone\" id=\"lux-zone\">—</div>\n      </div>\n      <div class=\"lux-manual-entry\" id=\"lux-manual-entry\" hidden=\"\">\n        <label for=\"lux-manual-input\">Enter a reading from a lux meter</label>\n        <div class=\"lux-manual-entry-row\">\n          <input type=\"number\" id=\"lux-manual-input\" class=\"ctx-input\" min=\"0\" max=\"200000\" step=\"1\" placeholder=\"e.g. 400\" inputmode=\"decimal\">\n          <span>lux</span>\n        </div>\n        <div class=\"lux-dial-zone\" id=\"lux-manual-zone\">—</div>\n      </div>\n      <div class=\"lux-zones\">\n        <div class=\"lux-zone-marker\">≤ 10 <span>Very dim</span></div><div class=\"lux-zone-marker\">≤ 100 <span>Dim indoor</span></div><div class=\"lux-zone-marker\">≤ 500 <span>Typical indoor</span></div><div class=\"lux-zone-marker\">≤ 1000 <span>Bright indoor</span></div><div class=\"lux-zone-marker\">≤ 10000 <span>Overcast outdoor</span></div><div class=\"lux-zone-marker\">≤ 100000 <span>Outdoor daylight</span></div>\n      </div>\n      <details id=\"lux-calibration-panel\" style=\"margin-top:14px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:0\">\n        <summary style=\"padding:8px 12px;cursor:pointer;font-size:12px;color:var(--text-secondary);user-select:none\">⚙ Calibrate against a known reference</summary>\n        <div style=\"padding:0 12px 12px 12px;font-size:12px;color:var(--text-muted)\">\n          <p style=\"margin:4px 0 8px 0\">Place a real lux meter beside this phone, aim both in the same direction, and enter the reference. Camera lux is withheld until this device has been calibrated.</p>\n          <div style=\"display:flex;gap:8px;align-items:center;margin-top:6px\">\n            <label for=\"lux-cal-reference\" style=\"font-size:12px;color:var(--text-muted)\">Known reading (lux)</label>\n            <input type=\"number\" id=\"lux-cal-reference\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"e.g. 400\" style=\"flex:1;max-width:140px\">\n            <button class=\"import-btn import-btn-secondary\" id=\"lux-cal-apply\" style=\"font-size:12px;padding:6px 10px\">Apply</button>\n          </div>\n          <div style=\"margin-top:8px;display:flex;gap:8px;align-items:center;font-size:11px\">\n            <span>Current factor:</span>\n            <strong id=\"lux-cal-current\" style=\"font-family:monospace\">not calibrated</strong>\n            <button class=\"import-btn import-btn-secondary\" id=\"lux-cal-reset\" style=\"font-size:11px;padding:4px 8px;margin-left:auto\">Reset to 1.00×</button>\n          </div>\n        </div>\n      </details>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-lux\">Done</button>\n        <button class=\"import-btn import-btn-primary\" id=\"lux-save\">Save reading</button>\n      </div>\n    </div>\n  </div>",
+      "denied": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Lux meter\">\n    <div class=\"modal-header\">\n      <h3>Lux Meter</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-lux\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"lux\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">AT the point you want to check</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"lux\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Hold the phone at <b>eye height</b> where you normally sit, work, or read. Keep the light sensor uncovered and point its side toward the light field you want to check (usually the screen/front side). If you choose the camera fallback, face the camera into the room rather than directly at a bulb.</div>\n    <div class=\"tool-aiming-guide-webcam\">A laptop may not expose a light sensor. Its camera can make a relative estimate, but a phone light sensor or real lux meter is preferable.</div>\n  </div>\n      <div class=\"lux-source-picker\" id=\"lux-source-picker\" role=\"group\" aria-label=\"Lux measurement source\">\n        <span class=\"lux-source-picker-label\">Measure with</span>\n        <button type=\"button\" class=\"lux-source-option\" id=\"lux-source-als\" aria-pressed=\"false\" disabled=\"\" title=\"This browser does not expose the phone light sensor\">\n          <span>Phone light sensor</span>\n          <small id=\"lux-source-als-detail\">Unavailable here</small>\n        </button>\n        <button type=\"button\" class=\"lux-source-option\" id=\"lux-source-camera\" aria-pressed=\"false\" disabled=\"\" title=\"The browser blocked or could not start the camera\">\n          <span>Camera</span>\n          <small id=\"lux-source-camera-detail\">Unavailable here</small>\n        </button>\n      </div>\n      <p class=\"modal-body-hint\" id=\"lux-source-line\"><b>Camera unavailable.</b> Enter a reading from a real lux meter or a trusted meter app. Do not estimate it from the scale.</p>\n      <div class=\"lux-dial\" id=\"lux-live-dial\" hidden=\"\">\n        <div class=\"lux-dial-value\" id=\"lux-value\">—</div>\n        <div class=\"lux-dial-unit\" id=\"lux-unit\">lux</div>\n        <div class=\"lux-dial-zone\" id=\"lux-zone\">—</div>\n      </div>\n      <div class=\"lux-manual-entry\" id=\"lux-manual-entry\">\n        <label for=\"lux-manual-input\">Enter a reading from a lux meter</label>\n        <div class=\"lux-manual-entry-row\">\n          <input type=\"number\" id=\"lux-manual-input\" class=\"ctx-input\" min=\"0\" max=\"200000\" step=\"1\" placeholder=\"e.g. 400\" inputmode=\"decimal\">\n          <span>lux</span>\n        </div>\n        <div class=\"lux-dial-zone\" id=\"lux-manual-zone\">—</div>\n      </div>\n      <div class=\"lux-zones\">\n        <div class=\"lux-zone-marker\">≤ 10 <span>Very dim</span></div><div class=\"lux-zone-marker\">≤ 100 <span>Dim indoor</span></div><div class=\"lux-zone-marker\">≤ 500 <span>Typical indoor</span></div><div class=\"lux-zone-marker\">≤ 1000 <span>Bright indoor</span></div><div class=\"lux-zone-marker\">≤ 10000 <span>Overcast outdoor</span></div><div class=\"lux-zone-marker\">≤ 100000 <span>Outdoor daylight</span></div>\n      </div>\n      <details id=\"lux-calibration-panel\" style=\"margin-top: 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0px; display: none;\">\n        <summary style=\"padding:8px 12px;cursor:pointer;font-size:12px;color:var(--text-secondary);user-select:none\">⚙ Calibrate against a known reference</summary>\n        <div style=\"padding:0 12px 12px 12px;font-size:12px;color:var(--text-muted)\">\n          <p style=\"margin:4px 0 8px 0\">Place a real lux meter beside this phone, aim both in the same direction, and enter the reference. Camera lux is withheld until this device has been calibrated.</p>\n          <div style=\"display:flex;gap:8px;align-items:center;margin-top:6px\">\n            <label for=\"lux-cal-reference\" style=\"font-size:12px;color:var(--text-muted)\">Known reading (lux)</label>\n            <input type=\"number\" id=\"lux-cal-reference\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"e.g. 400\" style=\"flex:1;max-width:140px\">\n            <button class=\"import-btn import-btn-secondary\" id=\"lux-cal-apply\" style=\"font-size:12px;padding:6px 10px\">Apply</button>\n          </div>\n          <div style=\"margin-top:8px;display:flex;gap:8px;align-items:center;font-size:11px\">\n            <span>Current factor:</span>\n            <strong id=\"lux-cal-current\" style=\"font-family:monospace\">not calibrated</strong>\n            <button class=\"import-btn import-btn-secondary\" id=\"lux-cal-reset\" style=\"font-size:11px;padding:4px 8px;margin-left:auto\">Reset to 1.00×</button>\n          </div>\n        </div>\n      </details>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-lux\">Done</button>\n        <button class=\"import-btn import-btn-primary\" id=\"lux-save\">Save reading</button>\n      </div>\n    </div>\n  </div>",
+      "authored": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Lux meter\">\n    <div class=\"modal-header\">\n      <h3>Lux Meter</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-lux\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"lux\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">AT the point you want to check</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"lux\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Hold the phone at <b>eye height</b> where you normally sit, work, or read. Keep the light sensor uncovered and point its side toward the light field you want to check (usually the screen/front side). If you choose the camera fallback, face the camera into the room rather than directly at a bulb.</div>\n    <div class=\"tool-aiming-guide-webcam\">A laptop may not expose a light sensor. Its camera can make a relative estimate, but a phone light sensor or real lux meter is preferable.</div>\n  </div>\n      <div class=\"lux-source-picker\" id=\"lux-source-picker\" role=\"group\" aria-label=\"Lux measurement source\">\n        <span class=\"lux-source-picker-label\">Measure with</span>\n        <button type=\"button\" class=\"lux-source-option\" id=\"lux-source-als\" aria-pressed=\"false\">\n          <span>Phone light sensor</span>\n          <small id=\"lux-source-als-detail\">Preferred</small>\n        </button>\n        <button type=\"button\" class=\"lux-source-option\" id=\"lux-source-camera\" aria-pressed=\"false\">\n          <span>Camera</span>\n          <small id=\"lux-source-camera-detail\">Approximate fallback</small>\n        </button>\n      </div>\n      <p class=\"modal-body-hint\" id=\"lux-source-line\">Initializing…</p>\n      <div class=\"lux-dial\" id=\"lux-live-dial\">\n        <div class=\"lux-dial-value\" id=\"lux-value\">—</div>\n        <div class=\"lux-dial-unit\" id=\"lux-unit\">lux</div>\n        <div class=\"lux-dial-zone\" id=\"lux-zone\">—</div>\n      </div>\n      <div class=\"lux-manual-entry\" id=\"lux-manual-entry\" hidden>\n        <label for=\"lux-manual-input\">Enter a reading from a lux meter</label>\n        <div class=\"lux-manual-entry-row\">\n          <input type=\"number\" id=\"lux-manual-input\" class=\"ctx-input\" min=\"0\" max=\"200000\" step=\"1\" placeholder=\"e.g. 400\" inputmode=\"decimal\" />\n          <span>lux</span>\n        </div>\n        <div class=\"lux-dial-zone\" id=\"lux-manual-zone\">—</div>\n      </div>\n      <div class=\"lux-zones\">\n        <div class=\"lux-zone-marker\">≤ 10 <span>Very dim</span></div><div class=\"lux-zone-marker\">≤ 100 <span>Dim indoor</span></div><div class=\"lux-zone-marker\">≤ 500 <span>Typical indoor</span></div><div class=\"lux-zone-marker\">≤ 1000 <span>Bright indoor</span></div><div class=\"lux-zone-marker\">≤ 10000 <span>Overcast outdoor</span></div><div class=\"lux-zone-marker\">≤ 100000 <span>Outdoor daylight</span></div>\n      </div>\n      <details id=\"lux-calibration-panel\" style=\"margin-top:14px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:0\">\n        <summary style=\"padding:8px 12px;cursor:pointer;font-size:12px;color:var(--text-secondary);user-select:none\">⚙ Calibrate against a known reference</summary>\n        <div style=\"padding:0 12px 12px 12px;font-size:12px;color:var(--text-muted)\">\n          <p style=\"margin:4px 0 8px 0\">Place a real lux meter beside this phone, aim both in the same direction, and enter the reference. Camera lux is withheld until this device has been calibrated.</p>\n          <div style=\"display:flex;gap:8px;align-items:center;margin-top:6px\">\n            <label for=\"lux-cal-reference\" style=\"font-size:12px;color:var(--text-muted)\">Known reading (lux)</label>\n            <input type=\"number\" id=\"lux-cal-reference\" class=\"ctx-input\" min=\"0\" step=\"any\" placeholder=\"e.g. 400\" style=\"flex:1;max-width:140px\">\n            <button class=\"import-btn import-btn-secondary\" id=\"lux-cal-apply\" style=\"font-size:12px;padding:6px 10px\">Apply</button>\n          </div>\n          <div style=\"margin-top:8px;display:flex;gap:8px;align-items:center;font-size:11px\">\n            <span>Current factor:</span>\n            <strong id=\"lux-cal-current\" style=\"font-family:monospace\">—</strong>\n            <button class=\"import-btn import-btn-secondary\" id=\"lux-cal-reset\" style=\"font-size:11px;padding:4px 8px;margin-left:auto\">Reset to 1.00×</button>\n          </div>\n        </div>\n      </details>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-lux\">Done</button>\n        <button class=\"import-btn import-btn-primary\" id=\"lux-save\">Save reading</button>\n      </div>\n    </div>\n  </div>"
+    },
+    {
+      "key": "flicker",
+      "initial": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Flicker detector\">\n    <div class=\"modal-header\">\n      <h3>Flicker Detector</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-flicker\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"flicker\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">AT the source</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"flicker\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Point the camera <b>directly at the bulb / fixture</b> from ~30–50 cm, so the source fills a noticeable chunk of the frame. Rolling-shutter bands are harder to see after light reflects off walls or skin.</div>\n    <div class=\"tool-aiming-guide-webcam\">⚠ A user-facing webcam under-reads flicker — modulation amplitude attenuates when bouncing off your face. Use a phone for a real read.</div>\n  </div>\n      <p class=\"modal-body-hint\">Rolling-shutter bands can reveal some modulated lights. No bands does not prove a light is flicker-free, and this camera cannot report a reliable flicker frequency.</p>\n      <video id=\"flicker-video\" autoplay=\"\" playsinline=\"\" muted=\"\" style=\"width:100%;border-radius:var(--radius-sm);background:#000;max-height:240px\"></video>\n      <div class=\"flicker-result\" id=\"flicker-result\">Hold camera on a light for 5 seconds…</div>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-flicker\">Done</button>\n        <button class=\"import-btn import-btn-primary\" id=\"flicker-save\">Save reading</button>\n      </div>\n    </div>\n    </div>",
+      "denied": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Flicker detector\">\n    <div class=\"modal-header\">\n      <h3>Flicker Detector</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-flicker\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"flicker\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">AT the source</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"flicker\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Point the camera <b>directly at the bulb / fixture</b> from ~30–50 cm, so the source fills a noticeable chunk of the frame. Rolling-shutter bands are harder to see after light reflects off walls or skin.</div>\n    <div class=\"tool-aiming-guide-webcam\">⚠ A user-facing webcam under-reads flicker — modulation amplitude attenuates when bouncing off your face. Use a phone for a real read.</div>\n  </div>\n      <p class=\"modal-body-hint\">Rolling-shutter bands can reveal some modulated lights. No bands does not prove a light is flicker-free, and this camera cannot report a reliable flicker frequency.</p>\n      <video id=\"flicker-video\" autoplay=\"\" playsinline=\"\" muted=\"\" style=\"width:100%;border-radius:var(--radius-sm);background:#000;max-height:240px\"></video>\n      <div class=\"flicker-result\" id=\"flicker-result\">Camera access denied — banding screen unavailable. <br><span style=\"font-size:11px;color:var(--text-muted)\">To re-enable this qualitative camera check, open your browser's site settings and allow camera access. Use a purpose-built meter for flicker frequency and modulation.</span></div>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-flicker\">Done</button>\n        <button class=\"import-btn import-btn-primary\" id=\"flicker-save\">Save reading</button>\n      </div>\n    </div>\n    </div>",
+      "authored": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Flicker detector\">\n    <div class=\"modal-header\">\n      <h3>Flicker Detector</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-flicker\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"flicker\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">AT the source</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"flicker\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Point the camera <b>directly at the bulb / fixture</b> from ~30–50 cm, so the source fills a noticeable chunk of the frame. Rolling-shutter bands are harder to see after light reflects off walls or skin.</div>\n    <div class=\"tool-aiming-guide-webcam\">⚠ A user-facing webcam under-reads flicker — modulation amplitude attenuates when bouncing off your face. Use a phone for a real read.</div>\n  </div>\n      <p class=\"modal-body-hint\">Rolling-shutter bands can reveal some modulated lights. No bands does not prove a light is flicker-free, and this camera cannot report a reliable flicker frequency.</p>\n      <video id=\"flicker-video\" autoplay playsinline muted style=\"width:100%;border-radius:var(--radius-sm);background:#000;max-height:240px\"></video>\n      <div class=\"flicker-result\" id=\"flicker-result\">Hold camera on a light for 5 seconds…</div>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-flicker\">Done</button>\n        <button class=\"import-btn import-btn-primary\" id=\"flicker-save\">Save reading</button>\n      </div>\n    </div>\n    </div>"
+    },
+    {
+      "key": "darkness",
+      "initial": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Sleep darkness meter\">\n    <div class=\"modal-header\">\n      <h3>Sleep Darkness Meter</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-dark\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"darkness\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">FROM your sleeping position</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"darkness\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Place the phone <b>face-up on your pillow or bedside table</b> at night, lens facing the ceiling. Check the light field at your sleeping position with the room set as you normally sleep (door, hallway light, alarm clock, and curtains included).</div>\n    <div class=\"tool-aiming-guide-webcam\">⚠ A monitor webcam in a different room can't measure your bedroom darkness. This one needs to be physically on the bed.</div>\n  </div>\n      <p class=\"modal-body-hint\">Set the room as you actually sleep. The camera check is qualitative; enter a meter reading below for lux.</p>\n      <div class=\"dark-status\" id=\"dark-status\">Press Start when ready.</div>\n      <details style=\"margin-top:14px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px\">\n        <summary style=\"cursor:pointer;color:var(--text-secondary);font-size:12px\">Enter a lux-meter reading instead</summary>\n        <div style=\"display:flex;gap:8px;align-items:end;margin-top:10px;flex-wrap:wrap\">\n          <label class=\"ctx-label\" style=\"margin:0;flex:1;min-width:160px\">Reading at the pillow (photopic lux)\n            <input type=\"number\" id=\"dark-meter-input\" class=\"ctx-input\" min=\"0\" max=\"10000\" step=\"0.01\" inputmode=\"decimal\" placeholder=\"e.g. 0.2\">\n          </label>\n          <button class=\"import-btn import-btn-secondary\" id=\"dark-meter-save\">Save meter reading</button>\n        </div>\n        <small style=\"display:block;margin-top:7px;color:var(--text-muted)\">Photopic lux is not melanopic EDI; source spectrum still matters.</small>\n      </details>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-dark\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"dark-start\">Start 30-second read</button>\n        <button class=\"import-btn import-btn-primary\" id=\"dark-save\" disabled=\"\">Save camera check</button>\n      </div>\n    </div>\n  </div>",
+      "denied": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Sleep darkness meter\">\n    <div class=\"modal-header\">\n      <h3>Sleep Darkness Meter</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-dark\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"darkness\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">FROM your sleeping position</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"darkness\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Place the phone <b>face-up on your pillow or bedside table</b> at night, lens facing the ceiling. Check the light field at your sleeping position with the room set as you normally sleep (door, hallway light, alarm clock, and curtains included).</div>\n    <div class=\"tool-aiming-guide-webcam\">⚠ A monitor webcam in a different room can't measure your bedroom darkness. This one needs to be physically on the bed.</div>\n  </div>\n      <p class=\"modal-body-hint\">Set the room as you actually sleep. The camera check is qualitative; enter a meter reading below for lux.</p>\n      <div class=\"dark-status\" id=\"dark-status\">Camera access denied — the qualitative camera check is unavailable. <br><span style=\"font-size:11px;color:var(--text-muted)\">Use the meter-entry option above for a numerical photopic-lux reading.</span></div>\n      <details style=\"margin-top:14px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px\">\n        <summary style=\"cursor:pointer;color:var(--text-secondary);font-size:12px\">Enter a lux-meter reading instead</summary>\n        <div style=\"display:flex;gap:8px;align-items:end;margin-top:10px;flex-wrap:wrap\">\n          <label class=\"ctx-label\" style=\"margin:0;flex:1;min-width:160px\">Reading at the pillow (photopic lux)\n            <input type=\"number\" id=\"dark-meter-input\" class=\"ctx-input\" min=\"0\" max=\"10000\" step=\"0.01\" inputmode=\"decimal\" placeholder=\"e.g. 0.2\">\n          </label>\n          <button class=\"import-btn import-btn-secondary\" id=\"dark-meter-save\">Save meter reading</button>\n        </div>\n        <small style=\"display:block;margin-top:7px;color:var(--text-muted)\">Photopic lux is not melanopic EDI; source spectrum still matters.</small>\n      </details>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-dark\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"dark-start\">Start 30-second read</button>\n        <button class=\"import-btn import-btn-primary\" id=\"dark-save\" disabled=\"\">Save camera check</button>\n      </div>\n    </div>\n  </div>",
+      "authored": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Sleep darkness meter\">\n    <div class=\"modal-header\">\n      <h3>Sleep Darkness Meter</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-dark\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"darkness\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">FROM your sleeping position</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"darkness\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Place the phone <b>face-up on your pillow or bedside table</b> at night, lens facing the ceiling. Check the light field at your sleeping position with the room set as you normally sleep (door, hallway light, alarm clock, and curtains included).</div>\n    <div class=\"tool-aiming-guide-webcam\">⚠ A monitor webcam in a different room can't measure your bedroom darkness. This one needs to be physically on the bed.</div>\n  </div>\n      <p class=\"modal-body-hint\">Set the room as you actually sleep. The camera check is qualitative; enter a meter reading below for lux.</p>\n      <div class=\"dark-status\" id=\"dark-status\">Press Start when ready.</div>\n      <details style=\"margin-top:14px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 10px\">\n        <summary style=\"cursor:pointer;color:var(--text-secondary);font-size:12px\">Enter a lux-meter reading instead</summary>\n        <div style=\"display:flex;gap:8px;align-items:end;margin-top:10px;flex-wrap:wrap\">\n          <label class=\"ctx-label\" style=\"margin:0;flex:1;min-width:160px\">Reading at the pillow (photopic lux)\n            <input type=\"number\" id=\"dark-meter-input\" class=\"ctx-input\" min=\"0\" max=\"10000\" step=\"0.01\" inputmode=\"decimal\" placeholder=\"e.g. 0.2\" />\n          </label>\n          <button class=\"import-btn import-btn-secondary\" id=\"dark-meter-save\">Save meter reading</button>\n        </div>\n        <small style=\"display:block;margin-top:7px;color:var(--text-muted)\">Photopic lux is not melanopic EDI; source spectrum still matters.</small>\n      </details>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-dark\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"dark-start\">Start 30-second read</button>\n        <button class=\"import-btn import-btn-primary\" id=\"dark-save\" disabled>Save camera check</button>\n      </div>\n    </div>\n  </div>"
+    },
+    {
+      "key": "cct",
+      "initial": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Color temperature meter\">\n    <div class=\"modal-header\">\n      <h3>Color Temperature</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-cct\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"cct\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">AT the source</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"cct\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Point the camera <b>directly at the fixture or a white wall lit by it</b> from ~30–50 cm. White paper or a grey card under the source also works.</div>\n    <div class=\"tool-aiming-guide-webcam\">⚠ A user-facing webcam can be skewed by skin, clothing, automatic white balance, and the display. Use a phone aimed at a neutral surface when possible.</div>\n  </div>\n      <p class=\"modal-body-hint\">Approximate warm/cool camera check. It cannot show spectral completeness, red/infrared content, or melanopic EDI.</p>\n      <video id=\"cct-video\" autoplay=\"\" playsinline=\"\" muted=\"\" style=\"width:100%;border-radius:var(--radius-sm);background:#000;max-height:200px\"></video>\n      <div class=\"cct-result\">\n        <div class=\"cct-value\" id=\"cct-value\">— K</div>\n        <div class=\"cct-tone\" id=\"cct-tone\">—</div>\n        <div class=\"cct-coherence\" id=\"cct-coherence\"></div>\n      </div>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-cct\">Done</button>\n        <button class=\"import-btn import-btn-primary\" id=\"cct-save\">Save reading</button>\n      </div>\n    </div>\n    </div>",
+      "denied": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Color temperature meter\">\n    <div class=\"modal-header\">\n      <h3>Color Temperature</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-cct\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"cct\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">AT the source</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"cct\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Point the camera <b>directly at the fixture or a white wall lit by it</b> from ~30–50 cm. White paper or a grey card under the source also works.</div>\n    <div class=\"tool-aiming-guide-webcam\">⚠ A user-facing webcam can be skewed by skin, clothing, automatic white balance, and the display. Use a phone aimed at a neutral surface when possible.</div>\n  </div>\n      <p class=\"modal-body-hint\">Approximate warm/cool camera check. It cannot show spectral completeness, red/infrared content, or melanopic EDI.</p>\n      <video id=\"cct-video\" autoplay=\"\" playsinline=\"\" muted=\"\" style=\"width:100%;border-radius:var(--radius-sm);background:#000;max-height:200px\"></video>\n      <div class=\"cct-result\">\n        <div class=\"cct-value\" id=\"cct-value\">Camera denied</div>\n        <div class=\"cct-tone\" id=\"cct-tone\">—</div>\n        <div class=\"cct-coherence\" id=\"cct-coherence\"></div>\n      </div>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-cct\">Done</button>\n        <button class=\"import-btn import-btn-primary\" id=\"cct-save\">Save reading</button>\n      </div>\n    </div>\n    </div>",
+      "authored": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Color temperature meter\">\n    <div class=\"modal-header\">\n      <h3>Color Temperature</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-cct\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"cct\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">AT the source</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"cct\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Point the camera <b>directly at the fixture or a white wall lit by it</b> from ~30–50 cm. White paper or a grey card under the source also works.</div>\n    <div class=\"tool-aiming-guide-webcam\">⚠ A user-facing webcam can be skewed by skin, clothing, automatic white balance, and the display. Use a phone aimed at a neutral surface when possible.</div>\n  </div>\n      <p class=\"modal-body-hint\">Approximate warm/cool camera check. It cannot show spectral completeness, red/infrared content, or melanopic EDI.</p>\n      <video id=\"cct-video\" autoplay playsinline muted style=\"width:100%;border-radius:var(--radius-sm);background:#000;max-height:200px\"></video>\n      <div class=\"cct-result\">\n        <div class=\"cct-value\" id=\"cct-value\">— K</div>\n        <div class=\"cct-tone\" id=\"cct-tone\">—</div>\n        <div class=\"cct-coherence\" id=\"cct-coherence\"></div>\n      </div>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-cct\">Done</button>\n        <button class=\"import-btn import-btn-primary\" id=\"cct-save\">Save reading</button>\n      </div>\n    </div>\n    </div>"
+    },
+    {
+      "key": "spectrum",
+      "initial": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Spectrum classifier\">\n    <div class=\"modal-header\">\n      <h3>What kind of light is this?</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-spec\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"spectrum\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">AT the source</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"spectrum\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Point the camera <b>directly at the bulb or LED panel</b> so it dominates the frame. The classifier reads the RGB profile of whatever it sees.</div>\n    <div class=\"tool-aiming-guide-webcam\">⚠ A user-facing webcam mostly sees the person and display, so its RGB balance may not represent the room source. Use a phone aimed at the source when possible.</div>\n  </div>\n      <p class=\"modal-body-hint\">Qualitative warm/cool RGB pattern and rolling-shutter banding screen. This cannot identify a full spectrum, UV, infrared, melanopic EDI, or sleep safety.</p>\n      <video id=\"spec-video\" autoplay=\"\" playsinline=\"\" muted=\"\" style=\"width:100%;border-radius:var(--radius-sm);background:#000;max-height:200px\"></video>\n      <div class=\"spec-result\" id=\"spec-result\">Reading…</div>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-spec\">Done</button>\n        <button class=\"import-btn import-btn-primary\" id=\"spec-save\">Save reading</button>\n      </div>\n    </div>\n    </div>",
+      "denied": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Spectrum classifier\">\n    <div class=\"modal-header\">\n      <h3>What kind of light is this?</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-spec\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"spectrum\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">AT the source</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"spectrum\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Point the camera <b>directly at the bulb or LED panel</b> so it dominates the frame. The classifier reads the RGB profile of whatever it sees.</div>\n    <div class=\"tool-aiming-guide-webcam\">⚠ A user-facing webcam mostly sees the person and display, so its RGB balance may not represent the room source. Use a phone aimed at the source when possible.</div>\n  </div>\n      <p class=\"modal-body-hint\">Qualitative warm/cool RGB pattern and rolling-shutter banding screen. This cannot identify a full spectrum, UV, infrared, melanopic EDI, or sleep safety.</p>\n      <video id=\"spec-video\" autoplay=\"\" playsinline=\"\" muted=\"\" style=\"width: 100%; border-radius: var(--radius-sm); background: rgb(0, 0, 0); max-height: 200px; display: none;\"></video>\n      <div class=\"spec-result\" id=\"spec-result\">\n      <div style=\"padding:14px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);\">\n        <div style=\"font-weight:600;color:var(--text-primary);margin-bottom:6px\">Camera access denied</div>\n        <div style=\"font-size:12px;color:var(--text-muted);margin-bottom:10px\">This tool reads the bulb's RGB profile to classify the source. To re-enable, open your browser's site settings and allow camera access for this page, then reopen the tool.</div>\n        <div style=\"font-size:12px;color:var(--text-muted);margin-bottom:6px\">Or pick the closest match manually:</div>\n        <div style=\"display:flex;flex-wrap:wrap;gap:6px\">\n          <button class=\"ctx-btn-option\" data-spec-manual=\"Warm LED (2700–3000K)\">Warm LED</button>\n          <button class=\"ctx-btn-option\" data-spec-manual=\"Cool LED (4000K+)\">Cool LED</button>\n          <button class=\"ctx-btn-option\" data-spec-manual=\"Fluorescent\">Fluorescent</button>\n          <button class=\"ctx-btn-option\" data-spec-manual=\"Incandescent / halogen\">Incandescent</button>\n          <button class=\"ctx-btn-option\" data-spec-manual=\"Daylight\">Daylight</button>\n        </div>\n      </div></div>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-spec\">Done</button>\n        <button class=\"import-btn import-btn-primary\" id=\"spec-save\">Save reading</button>\n      </div>\n    </div>\n    </div>",
+      "authored": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Spectrum classifier\">\n    <div class=\"modal-header\">\n      <h3>What kind of light is this?</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-spec\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"spectrum\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">AT the source</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"spectrum\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Point the camera <b>directly at the bulb or LED panel</b> so it dominates the frame. The classifier reads the RGB profile of whatever it sees.</div>\n    <div class=\"tool-aiming-guide-webcam\">⚠ A user-facing webcam mostly sees the person and display, so its RGB balance may not represent the room source. Use a phone aimed at the source when possible.</div>\n  </div>\n      <p class=\"modal-body-hint\">Qualitative warm/cool RGB pattern and rolling-shutter banding screen. This cannot identify a full spectrum, UV, infrared, melanopic EDI, or sleep safety.</p>\n      <video id=\"spec-video\" autoplay playsinline muted style=\"width:100%;border-radius:var(--radius-sm);background:#000;max-height:200px\"></video>\n      <div class=\"spec-result\" id=\"spec-result\">Reading…</div>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-spec\">Done</button>\n        <button class=\"import-btn import-btn-primary\" id=\"spec-save\">Save reading</button>\n      </div>\n    </div>\n    </div>"
+    },
+    {
+      "key": "glass-transmission",
+      "initial": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Glass transmission test\">\n    <div class=\"modal-header\">\n      <h3>Window / Glass Transmission</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-glass\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"glass-transmission\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">TWO-STEP — same direction both times</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"glass-transmission\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Step 1: hold the camera <b>against the closed window</b> (looking out at the sky / scene). Step 2: same direction, but with the window open or stepping outside, so only the glass changes between readings.</div>\n    <div class=\"tool-aiming-guide-webcam\">Webcam can't do this — it can't physically move outside.</div>\n  </div>\n      <p class=\"modal-body-hint\" style=\"color:var(--orange);background:rgba(255,160,80,0.08);border-left:3px solid var(--orange);padding:8px 10px;border-radius:4px;font-size:11px;margin-bottom:8px\">⚠ Aim at the same patch of sky / light source for both readings. North-window through the glass vs. east-window without it measures scene difference, not glass transmission.</p>\n      <div class=\"glass-step\" id=\"glass-step-inside\">\n        <span>Step 1: <strong>through the glass</strong></span>\n        <button class=\"import-btn import-btn-secondary\" id=\"glass-measure-inside\">Measure inside</button>\n        <span class=\"glass-reading\" id=\"glass-reading-inside\">—</span>\n      </div>\n      <div class=\"glass-step\" id=\"glass-step-outside\">\n        <span>Step 2: <strong>direct (no glass)</strong></span>\n        <button class=\"import-btn import-btn-secondary\" id=\"glass-measure-outside\">Measure outside</button>\n        <span class=\"glass-reading\" id=\"glass-reading-outside\">—</span>\n      </div>\n      <div class=\"glass-result\" id=\"glass-result\"></div>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-glass\">Done</button>\n        <button class=\"import-btn import-btn-primary\" id=\"glass-save\" disabled=\"\">Save reading</button>\n      </div>\n    </div>\n    </div>",
+      "denied": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Glass transmission test\">\n    <div class=\"modal-header\">\n      <h3>Window / Glass Transmission</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-glass\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"glass-transmission\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">TWO-STEP — same direction both times</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"glass-transmission\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Step 1: hold the camera <b>against the closed window</b> (looking out at the sky / scene). Step 2: same direction, but with the window open or stepping outside, so only the glass changes between readings.</div>\n    <div class=\"tool-aiming-guide-webcam\">Webcam can't do this — it can't physically move outside.</div>\n  </div>\n      <p class=\"modal-body-hint\" style=\"color:var(--orange);background:rgba(255,160,80,0.08);border-left:3px solid var(--orange);padding:8px 10px;border-radius:4px;font-size:11px;margin-bottom:8px\">⚠ Aim at the same patch of sky / light source for both readings. North-window through the glass vs. east-window without it measures scene difference, not glass transmission.</p>\n      <div class=\"glass-step\" id=\"glass-step-inside\">\n        <span>Step 1: <strong>through the glass</strong></span>\n        <button class=\"import-btn import-btn-secondary\" id=\"glass-measure-inside\">Measure inside</button>\n        <span class=\"glass-reading\" id=\"glass-reading-inside\">—</span>\n      </div>\n      <div class=\"glass-step\" id=\"glass-step-outside\">\n        <span>Step 2: <strong>direct (no glass)</strong></span>\n        <button class=\"import-btn import-btn-secondary\" id=\"glass-measure-outside\">Measure outside</button>\n        <span class=\"glass-reading\" id=\"glass-reading-outside\">—</span>\n      </div>\n      <div class=\"glass-result\" id=\"glass-result\"></div>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-glass\">Done</button>\n        <button class=\"import-btn import-btn-primary\" id=\"glass-save\" disabled=\"\">Save reading</button>\n      </div>\n    </div>\n    </div>",
+      "authored": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Glass transmission test\">\n    <div class=\"modal-header\">\n      <h3>Window / Glass Transmission</h3>\n      <button class=\"modal-close\" data-light-tool-modal-action=\"close-glass\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"glass-transmission\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">TWO-STEP — same direction both times</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"glass-transmission\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Step 1: hold the camera <b>against the closed window</b> (looking out at the sky / scene). Step 2: same direction, but with the window open or stepping outside, so only the glass changes between readings.</div>\n    <div class=\"tool-aiming-guide-webcam\">Webcam can't do this — it can't physically move outside.</div>\n  </div>\n      <p class=\"modal-body-hint\" style=\"color:var(--orange);background:rgba(255,160,80,0.08);border-left:3px solid var(--orange);padding:8px 10px;border-radius:4px;font-size:11px;margin-bottom:8px\">⚠ Aim at the same patch of sky / light source for both readings. North-window through the glass vs. east-window without it measures scene difference, not glass transmission.</p>\n      <div class=\"glass-step\" id=\"glass-step-inside\">\n        <span>Step 1: <strong>through the glass</strong></span>\n        <button class=\"import-btn import-btn-secondary\" id=\"glass-measure-inside\">Measure inside</button>\n        <span class=\"glass-reading\" id=\"glass-reading-inside\">—</span>\n      </div>\n      <div class=\"glass-step\" id=\"glass-step-outside\">\n        <span>Step 2: <strong>direct (no glass)</strong></span>\n        <button class=\"import-btn import-btn-secondary\" id=\"glass-measure-outside\">Measure outside</button>\n        <span class=\"glass-reading\" id=\"glass-reading-outside\">—</span>\n      </div>\n      <div class=\"glass-result\" id=\"glass-result\"></div>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" data-light-tool-modal-action=\"close-glass\">Done</button>\n        <button class=\"import-btn import-btn-primary\" id=\"glass-save\" disabled>Save reading</button>\n      </div>\n    </div>\n    </div>"
+    }
+  ],
+  "guides": [
+    {
+      "key": "lux",
+      "html": "<div class=\"tool-aiming-guide\" data-tool=\"lux\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">AT the point you want to check</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"lux\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Hold the phone at <b>eye height</b> where you normally sit, work, or read. Keep the light sensor uncovered and point its side toward the light field you want to check (usually the screen/front side). If you choose the camera fallback, face the camera into the room rather than directly at a bulb.</div>\n    <div class=\"tool-aiming-guide-webcam\">A laptop may not expose a light sensor. Its camera can make a relative estimate, but a phone light sensor or real lux meter is preferable.</div>\n  </div>"
+    },
+    {
+      "key": "flicker",
+      "html": "<div class=\"tool-aiming-guide\" data-tool=\"flicker\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">AT the source</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"flicker\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Point the camera <b>directly at the bulb / fixture</b> from ~30–50 cm, so the source fills a noticeable chunk of the frame. Rolling-shutter bands are harder to see after light reflects off walls or skin.</div>\n    <div class=\"tool-aiming-guide-webcam\">⚠ A user-facing webcam under-reads flicker — modulation amplitude attenuates when bouncing off your face. Use a phone for a real read.</div>\n  </div>"
+    },
+    {
+      "key": "darkness",
+      "html": "<div class=\"tool-aiming-guide\" data-tool=\"darkness\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">FROM your sleeping position</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"darkness\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Place the phone <b>face-up on your pillow or bedside table</b> at night, lens facing the ceiling. Check the light field at your sleeping position with the room set as you normally sleep (door, hallway light, alarm clock, and curtains included).</div>\n    <div class=\"tool-aiming-guide-webcam\">⚠ A monitor webcam in a different room can't measure your bedroom darkness. This one needs to be physically on the bed.</div>\n  </div>"
+    },
+    {
+      "key": "cct",
+      "html": "<div class=\"tool-aiming-guide\" data-tool=\"cct\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">AT the source</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"cct\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Point the camera <b>directly at the fixture or a white wall lit by it</b> from ~30–50 cm. White paper or a grey card under the source also works.</div>\n    <div class=\"tool-aiming-guide-webcam\">⚠ A user-facing webcam can be skewed by skin, clothing, automatic white balance, and the display. Use a phone aimed at a neutral surface when possible.</div>\n  </div>"
+    },
+    {
+      "key": "spectrum",
+      "html": "<div class=\"tool-aiming-guide\" data-tool=\"spectrum\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">AT the source</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"spectrum\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Point the camera <b>directly at the bulb or LED panel</b> so it dominates the frame. The classifier reads the RGB profile of whatever it sees.</div>\n    <div class=\"tool-aiming-guide-webcam\">⚠ A user-facing webcam mostly sees the person and display, so its RGB balance may not represent the room source. Use a phone aimed at the source when possible.</div>\n  </div>"
+    },
+    {
+      "key": "glass-transmission",
+      "html": "<div class=\"tool-aiming-guide\" data-tool=\"glass-transmission\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">TWO-STEP — same direction both times</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"glass-transmission\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Step 1: hold the camera <b>against the closed window</b> (looking out at the sky / scene). Step 2: same direction, but with the window open or stepping outside, so only the glass changes between readings.</div>\n    <div class=\"tool-aiming-guide-webcam\">Webcam can't do this — it can't physically move outside.</div>\n  </div>"
+    },
+    {
+      "key": "audit",
+      "html": "<div class=\"tool-aiming-guide\" data-tool=\"audit\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">FROM your position, at eye height</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"audit\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Hold the phone <b>at eye height, facing forward</b> while you walk through each room. The pause-detection captures the lighting where you actually look — not the floor or ceiling.</div>\n    <div class=\"tool-aiming-guide-webcam\">Walking with a phone is the whole point — a fixed webcam misses the inter-room comparison this tool exists to provide.</div>\n  </div>"
+    }
+  ],
+  "locks": [
+    {
+      "lock": null,
+      "html": ""
+    },
+    {
+      "lock": {},
+      "html": "<span style=\"color:var(--orange);font-size:11px\">⚠ camera exposure + white-balance on auto — reading may drift</span>"
+    },
+    {
+      "lock": {
+        "exposure": "manual",
+        "whiteBalance": "manual",
+        "frameRate": null
+      },
+      "html": "<span style=\"color:var(--green);font-size:11px\">✓ camera locked</span>"
+    },
+    {
+      "lock": {
+        "exposure": "manual",
+        "whiteBalance": "manual",
+        "frameRate": 29.6
+      },
+      "html": "<span style=\"color:var(--green);font-size:11px\">✓ camera locked · 30 fps</span>"
+    },
+    {
+      "lock": {
+        "exposure": "manual",
+        "whiteBalance": "manual",
+        "frameRate": 120
+      },
+      "html": "<span style=\"color:var(--green);font-size:11px\">✓ camera locked · 120 fps</span>"
+    },
+    {
+      "lock": {
+        "exposure": "manual",
+        "whiteBalance": "auto",
+        "frameRate": null
+      },
+      "html": "<span style=\"color:var(--orange);font-size:11px\">⚠ camera white-balance on auto — reading may drift</span>"
+    },
+    {
+      "lock": {
+        "exposure": "manual",
+        "whiteBalance": "auto",
+        "frameRate": 29.6
+      },
+      "html": "<span style=\"color:var(--orange);font-size:11px\">⚠ camera white-balance on auto — reading may drift</span>"
+    },
+    {
+      "lock": {
+        "exposure": "manual",
+        "whiteBalance": "auto",
+        "frameRate": 120
+      },
+      "html": "<span style=\"color:var(--orange);font-size:11px\">⚠ camera white-balance on auto — reading may drift</span>"
+    },
+    {
+      "lock": {
+        "exposure": "auto",
+        "whiteBalance": "manual",
+        "frameRate": null
+      },
+      "html": "<span style=\"color:var(--orange);font-size:11px\">⚠ camera exposure on auto — reading may drift</span>"
+    },
+    {
+      "lock": {
+        "exposure": "auto",
+        "whiteBalance": "manual",
+        "frameRate": 29.6
+      },
+      "html": "<span style=\"color:var(--orange);font-size:11px\">⚠ camera exposure on auto — reading may drift</span>"
+    },
+    {
+      "lock": {
+        "exposure": "auto",
+        "whiteBalance": "manual",
+        "frameRate": 120
+      },
+      "html": "<span style=\"color:var(--orange);font-size:11px\">⚠ camera exposure on auto — reading may drift</span>"
+    },
+    {
+      "lock": {
+        "exposure": "auto",
+        "whiteBalance": "auto",
+        "frameRate": null
+      },
+      "html": "<span style=\"color:var(--orange);font-size:11px\">⚠ camera exposure + white-balance on auto — reading may drift</span>"
+    },
+    {
+      "lock": {
+        "exposure": "auto",
+        "whiteBalance": "auto",
+        "frameRate": 29.6
+      },
+      "html": "<span style=\"color:var(--orange);font-size:11px\">⚠ camera exposure + white-balance on auto — reading may drift</span>"
+    },
+    {
+      "lock": {
+        "exposure": "auto",
+        "whiteBalance": "auto",
+        "frameRate": 120
+      },
+      "html": "<span style=\"color:var(--orange);font-size:11px\">⚠ camera exposure + white-balance on auto — reading may drift</span>"
+    }
+  ],
+  "styleBlocks": [
+    {
+      "selector": ".light-page .dashboard-widget[data-widget-id=\"light-tools\"] .dashboard-widget-body",
+      "declarations": "gap:0;",
+      "media": null
+    },
+    {
+      "selector": ".light-tool-overlay.modal-overlay.show",
+      "declarations": "align-items:flex-start;overflow-y:auto;",
+      "media": null
+    },
+    {
+      "selector": ".light-tool-modal:not([data-light-tool-view])",
+      "declarations": "width:min(92vw, 480px);max-width:480px;margin-block:clamp(12px, 5vh, 40px);",
+      "media": null
+    },
+    {
+      "selector": ".light-tool-modal video",
+      "declarations": "aspect-ratio:4 / 3;display:block;object-fit:cover;",
+      "media": null
+    },
+    {
+      "selector": ".light-tool-modal:not([data-light-tool-view]) .modal-body-hint",
+      "declarations": "min-height:1.35em;",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-picker",
+      "declarations": "display:grid;grid-template-columns:auto minmax(0, 1fr) minmax(0, 1fr);gap:8px;align-items:stretch;margin:12px 0 8px;",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-picker-label",
+      "declarations": "align-self:center;font-size:12px;color:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-option",
+      "declarations": "min-height:48px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-secondary);cursor:pointer;text-align:left;",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-option span,\n.lux-source-option small",
+      "declarations": "display:block;",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-option span",
+      "declarations": "font-size:12px;font-weight:600;color:var(--text-primary);",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-option small",
+      "declarations": "margin-top:2px;font-size:10px;color:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-option.active",
+      "declarations": "border-color:var(--accent);background:color-mix(in srgb, var(--accent) 10%, var(--bg-secondary));box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-option:disabled",
+      "declarations": "cursor:not-allowed;opacity:0.45;",
+      "media": null
+    },
+    {
+      "selector": ".lux-manual-entry",
+      "declarations": "min-height:132px;padding:18px 0;text-align:center;box-sizing:border-box;",
+      "media": null
+    },
+    {
+      "selector": ".lux-dial[hidden],\n.lux-manual-entry[hidden]",
+      "declarations": "display:none;",
+      "media": null
+    },
+    {
+      "selector": ".lux-manual-entry label",
+      "declarations": "display:block;margin-bottom:8px;font-size:12px;color:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".lux-manual-entry-row",
+      "declarations": "display:flex;align-items:baseline;justify-content:center;gap:8px;",
+      "media": null
+    },
+    {
+      "selector": ".lux-manual-entry-row input",
+      "declarations": "width:140px;padding:8px 10px;font-size:20px;text-align:center;",
+      "media": null
+    },
+    {
+      "selector": ".lux-manual-entry-row span",
+      "declarations": "font-size:14px;color:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".lux-dial",
+      "declarations": "text-align:center;padding:24px 0;min-height:132px;display:grid;align-content:center;justify-items:center;",
+      "media": null
+    },
+    {
+      "selector": ".lux-dial-value",
+      "declarations": "display:inline-block;min-width:6ch;font-size:48px;font-weight:700;color:var(--text-primary);line-height:1;font-variant-numeric:tabular-nums;",
+      "media": null
+    },
+    {
+      "selector": ".lux-dial-unit",
+      "declarations": "font-size:13px;color:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".lux-dial-zone",
+      "declarations": "min-height:1.3em;font-size:14px;font-weight:600;margin-top:8px;color:var(--text-secondary);",
+      "media": null
+    },
+    {
+      "selector": ".lux-zones",
+      "declarations": "display:flex;flex-wrap:wrap;gap:8px;justify-content:center;font-size:11px;color:var(--text-muted);margin-top:8px;",
+      "media": null
+    },
+    {
+      "selector": ".lux-zone-marker span",
+      "declarations": "color:var(--text-secondary);margin-left:2px;",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-picker",
+      "declarations": "grid-template-columns:1fr 1fr;",
+      "media": "(max-width: 430px)"
+    },
+    {
+      "selector": ".lux-source-picker-label",
+      "declarations": "grid-column:1 / -1;",
+      "media": "(max-width: 430px)"
+    },
+    {
+      "selector": ".flicker-result, .dark-status",
+      "declarations": "margin-top:14px;padding:12px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;min-height:74px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;font-variant-numeric:tabular-nums;",
+      "media": null
+    },
+    {
+      "selector": ".flicker-score-0",
+      "declarations": "color:var(--green);",
+      "media": null
+    },
+    {
+      "selector": ".flicker-score-1",
+      "declarations": "color:var(--text-primary);",
+      "media": null
+    },
+    {
+      "selector": ".flicker-score-2",
+      "declarations": "color:var(--orange);",
+      "media": null
+    },
+    {
+      "selector": ".flicker-score-3",
+      "declarations": "color:var(--red);",
+      "media": null
+    },
+    {
+      "selector": ".dark-status-ok",
+      "declarations": "color:var(--green);",
+      "media": null
+    },
+    {
+      "selector": ".dark-status-warn",
+      "declarations": "color:var(--orange);",
+      "media": null
+    },
+    {
+      "selector": ".dark-status-over",
+      "declarations": "color:var(--red);",
+      "media": null
+    },
+    {
+      "selector": ".cct-result",
+      "declarations": "text-align:center;padding:16px 0;margin-top:12px;min-height:116px;box-sizing:border-box;",
+      "media": null
+    },
+    {
+      "selector": ".cct-value",
+      "declarations": "display:inline-block;min-width:6ch;font-size:36px;font-weight:700;color:var(--text-primary);line-height:1;font-variant-numeric:tabular-nums;",
+      "media": null
+    },
+    {
+      "selector": ".cct-tone",
+      "declarations": "min-height:1.25em;font-size:13px;color:var(--text-secondary);margin-top:4px;",
+      "media": null
+    },
+    {
+      "selector": ".cct-coherence",
+      "declarations": "min-height:3.2em;font-size:12px;margin-top:8px;",
+      "media": null
+    },
+    {
+      "selector": ".spec-result",
+      "declarations": "margin-top:12px;padding:12px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;min-height:140px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;font-variant-numeric:tabular-nums;",
+      "media": null
+    },
+    {
+      "selector": ".glass-step",
+      "declarations": "display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-top:10px;font-size:13px;color:var(--text-secondary);min-height:50px;box-sizing:border-box;",
+      "media": null
+    },
+    {
+      "selector": ".glass-step strong",
+      "declarations": "color:var(--text-primary);",
+      "media": null
+    },
+    {
+      "selector": ".glass-step .import-btn",
+      "declarations": "padding:6px 14px;font-size:12px;",
+      "media": null
+    },
+    {
+      "selector": ".glass-reading",
+      "declarations": "display:inline-block;min-width:9ch;margin-left:auto;color:var(--text-muted);font-family:var(--font-mono, monospace);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;",
+      "media": null
+    },
+    {
+      "selector": ".glass-result",
+      "declarations": "margin-top:12px;padding:12px 14px;background:var(--bg-secondary);border-left:3px solid var(--accent);border-radius:var(--radius-sm);font-size:13px;color:var(--text-secondary);min-height:76px;box-sizing:border-box;font-variant-numeric:tabular-nums;",
+      "media": null
+    },
+    {
+      "selector": ".glass-result strong",
+      "declarations": "color:var(--text-primary);",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide",
+      "declarations": "margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;background:var(--bg-elev-1, rgba(255,255,255,0.03));font-size:12.5px;line-height:1.45;",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-head",
+      "declarations": "display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:11.5px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--accent);",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-icon",
+      "declarations": "font-size:14px;",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-mode",
+      "declarations": "flex:1;min-width:0;",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-dismiss",
+      "declarations": "background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;line-height:1;padding:0 4px;flex-shrink:0;",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-dismiss:hover",
+      "declarations": "color:var(--text-primary);",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-body",
+      "declarations": "color:var(--text-primary);margin-bottom:4px;",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-body b",
+      "declarations": "color:var(--text-primary);font-weight:600;",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-webcam",
+      "declarations": "margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);font-size:11.5px;color:var(--text-muted);font-style:italic;",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-dismiss",
+      "declarations": "min-width:44px;min-height:44px;padding:8px 12px;",
+      "media": "(pointer: coarse)"
+    }
+  ],
+  "messages": [
+    {
+      "view": {
+        "kind": "cct-reading",
+        "melanopic": 0.2,
+        "banding": false
+      },
+      "html": "<span style=\"color:var(--text-muted);font-size:11px\">blue-poor camera signal (20% RGB-blue proxy) — not a sleep-safety determination</span><br><span style=\"color:var(--text-muted);font-size:11px\">Warm/cool appearance only. Similar CCT values can have very different spectra.</span>"
+    },
+    {
+      "view": {
+        "kind": "cct-reading",
+        "melanopic": 0.2,
+        "banding": true
+      },
+      "html": "<span style=\"color:var(--text-muted);font-size:11px\">blue-poor camera signal (20% RGB-blue proxy) — not a sleep-safety determination</span><br><span style=\"color:var(--orange);font-size:11px\">⚠ Rolling-shutter banding detected — use a suitable flicker meter to quantify it</span><br><span style=\"color:var(--text-muted);font-size:11px\">Warm/cool appearance only. Similar CCT values can have very different spectra.</span>"
+    },
+    {
+      "view": {
+        "kind": "cct-reading",
+        "melanopic": 0.28,
+        "banding": false
+      },
+      "html": "<span style=\"color:var(--text-muted);font-size:11px\">mixed camera RGB signal (28% blue proxy) — not M-EDI</span><br><span style=\"color:var(--text-muted);font-size:11px\">Warm/cool appearance only. Similar CCT values can have very different spectra.</span>"
+    },
+    {
+      "view": {
+        "kind": "cct-reading",
+        "melanopic": 0.28,
+        "banding": true
+      },
+      "html": "<span style=\"color:var(--text-muted);font-size:11px\">mixed camera RGB signal (28% blue proxy) — not M-EDI</span><br><span style=\"color:var(--orange);font-size:11px\">⚠ Rolling-shutter banding detected — use a suitable flicker meter to quantify it</span><br><span style=\"color:var(--text-muted);font-size:11px\">Warm/cool appearance only. Similar CCT values can have very different spectra.</span>"
+    },
+    {
+      "view": {
+        "kind": "cct-reading",
+        "melanopic": 0.4,
+        "banding": false
+      },
+      "html": "<span style=\"color:var(--orange);font-size:11px\">blue-rich camera signal (40% RGB-blue proxy) — not M-EDI</span><br><span style=\"color:var(--text-muted);font-size:11px\">Warm/cool appearance only. Similar CCT values can have very different spectra.</span>"
+    },
+    {
+      "view": {
+        "kind": "cct-reading",
+        "melanopic": 0.4,
+        "banding": true
+      },
+      "html": "<span style=\"color:var(--orange);font-size:11px\">blue-rich camera signal (40% RGB-blue proxy) — not M-EDI</span><br><span style=\"color:var(--orange);font-size:11px\">⚠ Rolling-shutter banding detected — use a suitable flicker meter to quantify it</span><br><span style=\"color:var(--text-muted);font-size:11px\">Warm/cool appearance only. Similar CCT values can have very different spectra.</span>"
+    },
+    {
+      "view": {
+        "kind": "cct-auto"
+      },
+      "html": "<span style=\"color:var(--orange);font-size:11px\">⚠ camera auto-white-balance is on — CCT reading is the camera's error, not the source. Try a different browser / phone, or use a meter for accurate readings.</span>"
+    },
+    {
+      "view": {
+        "kind": "spectrum-auto",
+        "lock": {
+          "exposure": "manual",
+          "whiteBalance": "manual",
+          "iso": 100,
+          "frameRate": 120
+        }
+      },
+      "html": "<span style=\"color:var(--orange);font-size:12px\">⚠ camera auto-mode partially active — classification reliability is reduced. <span style=\"color:var(--green);font-size:11px\">✓ camera locked · 120 fps</span></span>"
+    },
+    {
+      "view": {
+        "kind": "flicker-wait",
+        "lock": {
+          "exposure": "manual",
+          "whiteBalance": "manual",
+          "iso": 100,
+          "frameRate": 120
+        }
+      },
+      "html": "Hold camera on a light for 5 seconds…<br><span style=\"color:var(--green);font-size:11px\">✓ camera locked · 120 fps</span>"
+    },
+    {
+      "view": {
+        "kind": "lux-camera",
+        "calibrated": false,
+        "exposureHeld": true,
+        "lock": {
+          "exposure": "manual",
+          "whiteBalance": "manual",
+          "iso": 100,
+          "frameRate": 120
+        }
+      },
+      "html": "<b>Camera brightness proxy only.</b> Calibrate beside a lux meter before saving an approximate lux value. <span style=\"color:var(--green);font-size:11px\">✓ camera locked · 120 fps</span>"
+    },
+    {
+      "view": {
+        "kind": "lux-camera",
+        "calibrated": true,
+        "exposureHeld": true,
+        "lock": {
+          "exposure": "manual",
+          "whiteBalance": "manual",
+          "iso": 100,
+          "frameRate": 120
+        }
+      },
+      "html": "Device-calibrated camera estimate. Repeatable on this phone, but not meter-grade. <span style=\"color:var(--green);font-size:11px\">✓ camera locked · 120 fps</span>"
+    },
+    {
+      "view": {
+        "kind": "spectrum-auto",
+        "lock": {
+          "exposure": "auto",
+          "whiteBalance": "auto",
+          "iso": null,
+          "frameRate": 30
+        }
+      },
+      "html": "<span style=\"color:var(--orange);font-size:12px\">⚠ camera auto-mode partially active — classification reliability is reduced. <span style=\"color:var(--orange);font-size:11px\">⚠ camera exposure + white-balance on auto — reading may drift</span></span>"
+    },
+    {
+      "view": {
+        "kind": "flicker-wait",
+        "lock": {
+          "exposure": "auto",
+          "whiteBalance": "auto",
+          "iso": null,
+          "frameRate": 30
+        }
+      },
+      "html": "Hold camera on a light for 5 seconds…<br><span style=\"color:var(--orange);font-size:11px\">⚠ camera exposure + white-balance on auto — reading may drift</span><br><small style=\"color:var(--orange)\">⚠ camera running at 30 fps. Frame rate, rolling-shutter timing, and exposure limit what this screen can detect.</small>"
+    },
+    {
+      "view": {
+        "kind": "lux-camera",
+        "calibrated": false,
+        "exposureHeld": false,
+        "lock": {
+          "exposure": "auto",
+          "whiteBalance": "auto",
+          "iso": null,
+          "frameRate": 30
+        }
+      },
+      "html": "<b>Camera brightness proxy only.</b> This browser could not hold exposure, so camera lux is unavailable. <span style=\"color:var(--orange);font-size:11px\">⚠ camera exposure + white-balance on auto — reading may drift</span>"
+    },
+    {
+      "view": {
+        "kind": "lux-camera",
+        "calibrated": true,
+        "exposureHeld": false,
+        "lock": {
+          "exposure": "auto",
+          "whiteBalance": "auto",
+          "iso": null,
+          "frameRate": 30
+        }
+      },
+      "html": "<b>Camera brightness proxy only.</b> This browser could not hold exposure, so camera lux is unavailable. <span style=\"color:var(--orange);font-size:11px\">⚠ camera exposure + white-balance on auto — reading may drift</span>"
+    },
+    {
+      "view": {
+        "kind": "spectrum-reading",
+        "result": {
+          "label": "Literal <warm> \"&\"",
+          "reason": "Reason <&>",
+          "confidence": 0.55,
+          "melanopic": 0.32,
+          "circadian": "blue-poor"
+        }
+      },
+      "html": "<strong>Literal &lt;warm&gt; &quot;&amp;&quot;</strong> <span style=\"color:var(--text-muted)\">· 55% confidence</span><br><small style=\"color:var(--text-secondary)\">Reason &lt;&amp;&gt;</small><br><span style=\"color:var(--text-muted);font-size:11px\">blue-poor camera-RGB pattern</span> <span style=\"color:var(--text-muted);font-size:11px\">· camera blue ratio 32% · not a spectrum or M-EDI</span>"
+    },
+    {
+      "view": {
+        "kind": "spectrum-reading",
+        "result": {
+          "label": "Literal <warm> \"&\"",
+          "reason": "Reason <&>",
+          "confidence": 0.55,
+          "melanopic": 0.32,
+          "circadian": "mixed"
+        }
+      },
+      "html": "<strong>Literal &lt;warm&gt; &quot;&amp;&quot;</strong> <span style=\"color:var(--text-muted)\">· 55% confidence</span><br><small style=\"color:var(--text-secondary)\">Reason &lt;&amp;&gt;</small><br><span style=\"color:var(--text-muted);font-size:11px\">mixed camera-RGB pattern</span> <span style=\"color:var(--text-muted);font-size:11px\">· camera blue ratio 32% · not a spectrum or M-EDI</span>"
+    },
+    {
+      "view": {
+        "kind": "spectrum-reading",
+        "result": {
+          "label": "Literal <warm> \"&\"",
+          "reason": "Reason <&>",
+          "confidence": 0.55,
+          "melanopic": 0.32,
+          "circadian": "blue-rich"
+        }
+      },
+      "html": "<strong>Literal &lt;warm&gt; &quot;&amp;&quot;</strong> <span style=\"color:var(--text-muted)\">· 55% confidence</span><br><small style=\"color:var(--text-secondary)\">Reason &lt;&amp;&gt;</small><br><span style=\"color:var(--orange);font-size:11px\">blue-rich camera-RGB pattern</span> <span style=\"color:var(--text-muted);font-size:11px\">· camera blue ratio 32% · not a spectrum or M-EDI</span>"
+    },
+    {
+      "view": {
+        "kind": "spectrum-denied"
+      },
+      "html": "\n      <div style=\"padding:14px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);\">\n        <div style=\"font-weight:600;color:var(--text-primary);margin-bottom:6px\">Camera access denied</div>\n        <div style=\"font-size:12px;color:var(--text-muted);margin-bottom:10px\">This tool reads the bulb's RGB profile to classify the source. To re-enable, open your browser's site settings and allow camera access for this page, then reopen the tool.</div>\n        <div style=\"font-size:12px;color:var(--text-muted);margin-bottom:6px\">Or pick the closest match manually:</div>\n        <div style=\"display:flex;flex-wrap:wrap;gap:6px\">\n          <button class=\"ctx-btn-option\" data-spec-manual=\"Warm LED (2700–3000K)\">Warm LED</button>\n          <button class=\"ctx-btn-option\" data-spec-manual=\"Cool LED (4000K+)\">Cool LED</button>\n          <button class=\"ctx-btn-option\" data-spec-manual=\"Fluorescent\">Fluorescent</button>\n          <button class=\"ctx-btn-option\" data-spec-manual=\"Incandescent / halogen\">Incandescent</button>\n          <button class=\"ctx-btn-option\" data-spec-manual=\"Daylight\">Daylight</button>\n        </div>\n      </div>"
+    },
+    {
+      "view": {
+        "kind": "flicker-reading",
+        "score": 0,
+        "label": "Result <&>",
+        "bandingRatio": 0.12345,
+        "frameRatio": 0.03456,
+        "stripes": 0
+      },
+      "html": "<strong class=\"flicker-score-0\">Result &lt;&amp;&gt;</strong><br><small style=\"color:var(--text-muted)\">banding proxy 0.123 · frame change 0.035 · no frequency estimate</small>"
+    },
+    {
+      "view": {
+        "kind": "flicker-reading",
+        "score": 0,
+        "label": "Result <&>",
+        "bandingRatio": 0.12345,
+        "frameRatio": 0.03456,
+        "stripes": 3
+      },
+      "html": "<strong class=\"flicker-score-0\">Result &lt;&amp;&gt;</strong><br><small style=\"color:var(--text-muted)\">banding proxy 0.123 · frame change 0.035 · 3 stripes/frame · no frequency estimate</small>"
+    },
+    {
+      "view": {
+        "kind": "flicker-reading",
+        "score": 1,
+        "label": "Result <&>",
+        "bandingRatio": 0.12345,
+        "frameRatio": 0.03456,
+        "stripes": 0
+      },
+      "html": "<strong class=\"flicker-score-1\">Result &lt;&amp;&gt;</strong><br><small style=\"color:var(--text-muted)\">banding proxy 0.123 · frame change 0.035 · no frequency estimate</small>"
+    },
+    {
+      "view": {
+        "kind": "flicker-reading",
+        "score": 1,
+        "label": "Result <&>",
+        "bandingRatio": 0.12345,
+        "frameRatio": 0.03456,
+        "stripes": 3
+      },
+      "html": "<strong class=\"flicker-score-1\">Result &lt;&amp;&gt;</strong><br><small style=\"color:var(--text-muted)\">banding proxy 0.123 · frame change 0.035 · 3 stripes/frame · no frequency estimate</small>"
+    },
+    {
+      "view": {
+        "kind": "flicker-reading",
+        "score": 2,
+        "label": "Result <&>",
+        "bandingRatio": 0.12345,
+        "frameRatio": 0.03456,
+        "stripes": 0
+      },
+      "html": "<strong class=\"flicker-score-2\">Result &lt;&amp;&gt;</strong><br><small style=\"color:var(--text-muted)\">banding proxy 0.123 · frame change 0.035 · no frequency estimate</small>"
+    },
+    {
+      "view": {
+        "kind": "flicker-reading",
+        "score": 2,
+        "label": "Result <&>",
+        "bandingRatio": 0.12345,
+        "frameRatio": 0.03456,
+        "stripes": 3
+      },
+      "html": "<strong class=\"flicker-score-2\">Result &lt;&amp;&gt;</strong><br><small style=\"color:var(--text-muted)\">banding proxy 0.123 · frame change 0.035 · 3 stripes/frame · no frequency estimate</small>"
+    },
+    {
+      "view": {
+        "kind": "flicker-reading",
+        "score": 3,
+        "label": "Result <&>",
+        "bandingRatio": 0.12345,
+        "frameRatio": 0.03456,
+        "stripes": 0
+      },
+      "html": "<strong class=\"flicker-score-3\">Result &lt;&amp;&gt;</strong><br><small style=\"color:var(--text-muted)\">banding proxy 0.123 · frame change 0.035 · no frequency estimate</small>"
+    },
+    {
+      "view": {
+        "kind": "flicker-reading",
+        "score": 3,
+        "label": "Result <&>",
+        "bandingRatio": 0.12345,
+        "frameRatio": 0.03456,
+        "stripes": 3
+      },
+      "html": "<strong class=\"flicker-score-3\">Result &lt;&amp;&gt;</strong><br><small style=\"color:var(--text-muted)\">banding proxy 0.123 · frame change 0.035 · 3 stripes/frame · no frequency estimate</small>"
+    },
+    {
+      "view": {
+        "kind": "flicker-denied"
+      },
+      "html": "Camera access denied — banding screen unavailable. <br><span style=\"font-size:11px;color:var(--text-muted)\">To re-enable this qualitative camera check, open your browser's site settings and allow camera access. Use a purpose-built meter for flicker frequency and modulation.</span>"
+    },
+    {
+      "view": {
+        "kind": "darkness-reading",
+        "label": "Dark <&>",
+        "cls": "ok",
+        "cameraLevel": 12.45,
+        "peakLevel": 31.6,
+        "lock": {
+          "exposure": "manual",
+          "whiteBalance": "manual",
+          "iso": 100,
+          "frameRate": 120
+        }
+      },
+      "html": "<strong class=\"dark-status-ok\">Dark &lt;&amp;&gt;</strong><br><small style=\"color:var(--text-muted)\">Camera level 12% · peak 32%. Not lux and not a melatonin estimate.</small><br><small style=\"color:var(--text-muted)\">Camera exposure held for this qualitative check. Device-specific low-light response still prevents an absolute lux reading.</small>"
+    },
+    {
+      "view": {
+        "kind": "darkness-reading",
+        "label": "Dark <&>",
+        "cls": "ok",
+        "cameraLevel": 12.45,
+        "peakLevel": 31.6,
+        "lock": {
+          "exposure": "auto",
+          "whiteBalance": "auto",
+          "iso": null,
+          "frameRate": 30
+        }
+      },
+      "html": "<strong class=\"dark-status-ok\">Dark &lt;&amp;&gt;</strong><br><small style=\"color:var(--text-muted)\">Camera level 12% · peak 32%. Not lux and not a melatonin estimate.</small><br><small style=\"color:var(--orange)\">Camera exposure could not be fully fixed. Treat this only as a check for obvious light or bright points. <span style=\"color:var(--orange);font-size:11px\">⚠ camera exposure + white-balance on auto — reading may drift</span></small>"
+    },
+    {
+      "view": {
+        "kind": "darkness-reading",
+        "label": "Dark <&>",
+        "cls": "warn",
+        "cameraLevel": 12.45,
+        "peakLevel": 31.6,
+        "lock": {
+          "exposure": "manual",
+          "whiteBalance": "manual",
+          "iso": 100,
+          "frameRate": 120
+        }
+      },
+      "html": "<strong class=\"dark-status-warn\">Dark &lt;&amp;&gt;</strong><br><small style=\"color:var(--text-muted)\">Camera level 12% · peak 32%. Not lux and not a melatonin estimate.</small><br><small style=\"color:var(--text-muted)\">Camera exposure held for this qualitative check. Device-specific low-light response still prevents an absolute lux reading.</small>"
+    },
+    {
+      "view": {
+        "kind": "darkness-reading",
+        "label": "Dark <&>",
+        "cls": "warn",
+        "cameraLevel": 12.45,
+        "peakLevel": 31.6,
+        "lock": {
+          "exposure": "auto",
+          "whiteBalance": "auto",
+          "iso": null,
+          "frameRate": 30
+        }
+      },
+      "html": "<strong class=\"dark-status-warn\">Dark &lt;&amp;&gt;</strong><br><small style=\"color:var(--text-muted)\">Camera level 12% · peak 32%. Not lux and not a melatonin estimate.</small><br><small style=\"color:var(--orange)\">Camera exposure could not be fully fixed. Treat this only as a check for obvious light or bright points. <span style=\"color:var(--orange);font-size:11px\">⚠ camera exposure + white-balance on auto — reading may drift</span></small>"
+    },
+    {
+      "view": {
+        "kind": "darkness-reading",
+        "label": "Dark <&>",
+        "cls": "over",
+        "cameraLevel": 12.45,
+        "peakLevel": 31.6,
+        "lock": {
+          "exposure": "manual",
+          "whiteBalance": "manual",
+          "iso": 100,
+          "frameRate": 120
+        }
+      },
+      "html": "<strong class=\"dark-status-over\">Dark &lt;&amp;&gt;</strong><br><small style=\"color:var(--text-muted)\">Camera level 12% · peak 32%. Not lux and not a melatonin estimate.</small><br><small style=\"color:var(--text-muted)\">Camera exposure held for this qualitative check. Device-specific low-light response still prevents an absolute lux reading.</small>"
+    },
+    {
+      "view": {
+        "kind": "darkness-reading",
+        "label": "Dark <&>",
+        "cls": "over",
+        "cameraLevel": 12.45,
+        "peakLevel": 31.6,
+        "lock": {
+          "exposure": "auto",
+          "whiteBalance": "auto",
+          "iso": null,
+          "frameRate": 30
+        }
+      },
+      "html": "<strong class=\"dark-status-over\">Dark &lt;&amp;&gt;</strong><br><small style=\"color:var(--text-muted)\">Camera level 12% · peak 32%. Not lux and not a melatonin estimate.</small><br><small style=\"color:var(--orange)\">Camera exposure could not be fully fixed. Treat this only as a check for obvious light or bright points. <span style=\"color:var(--orange);font-size:11px\">⚠ camera exposure + white-balance on auto — reading may drift</span></small>"
+    },
+    {
+      "view": {
+        "kind": "darkness-denied"
+      },
+      "html": "Camera access denied — the qualitative camera check is unavailable. <br><span style=\"font-size:11px;color:var(--text-muted)\">Use the meter-entry option above for a numerical photopic-lux reading.</span>"
+    },
+    {
+      "view": {
+        "kind": "glass-reading",
+        "transmission": 0.5432,
+        "lock": null
+      },
+      "html": "<strong>Camera-visible response through glass: about 54% of the direct comparison</strong><br><small>This is not a calibrated visible-transmission value. Scene movement, reflections, exposure, and phone spectral response affect it. <strong>UV or infrared transmission cannot be inferred</strong>; those require wavelength-appropriate meters.</small>"
+    },
+    {
+      "view": {
+        "kind": "glass-reading",
+        "transmission": 0.5432,
+        "lock": {
+          "exposure": "manual",
+          "whiteBalance": "manual",
+          "iso": 100,
+          "frameRate": 120
+        }
+      },
+      "html": "<strong>Camera-visible response through glass: about 54% of the direct comparison</strong><br><small>This is not a calibrated visible-transmission value. Scene movement, reflections, exposure, and phone spectral response affect it. <strong>UV or infrared transmission cannot be inferred</strong>; those require wavelength-appropriate meters.</small>"
+    },
+    {
+      "view": {
+        "kind": "glass-reading",
+        "transmission": 0.5432,
+        "lock": {
+          "exposure": "auto",
+          "whiteBalance": "auto",
+          "iso": null,
+          "frameRate": 30
+        }
+      },
+      "html": "<strong>Camera-visible response through glass: about 54% of the direct comparison</strong><br><small>This is not a calibrated visible-transmission value. Scene movement, reflections, exposure, and phone spectral response affect it. <strong>UV or infrared transmission cannot be inferred</strong>; those require wavelength-appropriate meters.</small><br><small style=\"color:var(--orange)\">⚠ Camera auto-exposure was active, so it may have erased part of the difference. Treat this as qualitative.</small>"
+    },
+    {
+      "view": {
+        "kind": "lux-denied"
+      },
+      "html": "<b>Camera unavailable.</b> Enter a reading from a real lux meter or a trusted meter app. Do not estimate it from the scale."
+    }
+  ]
+}

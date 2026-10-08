@@ -24,7 +24,7 @@ test('authored light tool launchers and logs preserve frozen layouts and native 
     await (await import('/js/light-sun-loader.js')).loadLightSunUI();
     const {renderHTML} = await import('/js/components/LightToolPresentation.svelte.html.js');
     const {projectLightTools, projectAuditPauseRows} = await import('/js/light-tools-presentation.js');
-    const {aimingGuideHTML} = await import('/js/light-tool-camera.js');
+    const {getAimingGuideView} = await import('/js/light-tool-camera.js');
     const style = document.createElement('style');
     // Explicit improvements: shrinkable room labels and 44px coarse controls.
     style.textContent = css + '[data-original] .audit-room-label-input{min-width:0}' + '@media(pointer:coarse){[data-original] .light-tools-group-head,[data-original] .modal-close,[data-original] .import-btn,[data-original] #sunrise-duration,[data-original] .audit-room-label-input{min-height:44px;min-width:44px}}'; document.head.append(style);
@@ -50,7 +50,7 @@ test('authored light tool launchers and logs preserve frozen layouts and native 
       pair(sample.name, sample.html, html); if (sample.name === 'empty') pair('widget', sample.html, html, true);
     }
     for (const sample of golden) pair(sample.name, sample.html, renderHTML({kind: 'golden', view: sample.view}));
-    const auditHTML = renderHTML({kind: 'audit', trustedGuideHTML: aimingGuideHTML('audit')});
+    const auditHTML = renderHTML({kind: 'audit', guide: getAimingGuideView('audit')});
     pair('walkthrough', walkthrough, auditHTML);
     for (const state of states) {
       const element = pair(`walkthrough-${state.kind}`, walkthrough, auditHTML);

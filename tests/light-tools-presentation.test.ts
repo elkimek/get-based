@@ -46,7 +46,9 @@ it('retains the actual walkthrough shell, shared guide and native close actions'
     const current = document.querySelector('[aria-label="Home audit"]')!, reference = host(original.walkthrough);
     expect(text(current.querySelector('h3'))).toBe(text(reference.querySelector('h3')));
     expect(texts(current, '.modal-body-hint')).toEqual(texts(reference, '.modal-body-hint'));
-    expect(current.querySelector('.tool-aiming-guide')?.outerHTML).toBe(reference.querySelector('.tool-aiming-guide')?.outerHTML);
+    expect(text(current.querySelector('.tool-aiming-guide'))).toBe(text(reference.querySelector('.tool-aiming-guide')));
+    expect(texts(current, '.tool-aiming-guide-body b')).toEqual(texts(reference, '.tool-aiming-guide-body b'));
+    expect(current.querySelector('[data-aiming-guide-action]')?.getAttribute('data-tool')).toBe('audit');
     expect(actions(current)).toEqual(actions(reference));
     expect(current.querySelector('#audit-status')?.getAttribute('aria-live')).toBe('polite');
     expect(current.querySelector('#audit-status')?.getAttribute('aria-atomic')).toBe('true');
@@ -75,10 +77,11 @@ it('retains pause rows, labels, datalists and literal escaping', () => {
   expect(literal.querySelector('input')?.value).toBe('"><script>bad</script>');
   expect(projectAuditPauseRows([{lux: 12.6, levelLabel: 'ignored', label: ''}])[0]?.reading).toBe('~13 lux');
 });
-it('keeps facade rendering authored and the shared guide as its only trusted slot', () => {
+it('keeps facade and shared guide fully authored without raw slots', () => {
   const facade = readFileSync('js/light-tools.ts', 'utf8');
   expect(facade).not.toMatch(/innerHTML\s*=\s*`|return\s*`</);
   expect(facade).toContain("from './components/LightToolPresentation.svelte.html.js'");
-  expect(readFileSync('js/components/LightAuditWalkthrough.svelte', 'utf8').match(/\{@html/g)).toHaveLength(1);
+  expect(readFileSync('js/components/LightAuditWalkthrough.svelte', 'utf8')).not.toContain('{@html');
+  expect(readFileSync('js/components/LightAimingGuide.svelte', 'utf8')).not.toContain('{@html');
   expect(readFileSync('css/light-tools.base.css', 'utf8')).not.toMatch(/\.light-tools-section|\.light-tool-action\s*\{|\.audit-status\s*\{/);
 });

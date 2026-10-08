@@ -469,3 +469,19 @@ launcher, cancels a golden-hour form and exercises denied-camera retry/close ove
 closed-client offline launches, with exact full-profile equality. Camera input is
 mocked; these checks do not establish physical sensor accuracy, audit-wide AA,
 installed-PWA, update-consent or whole-app acceptance.
+
+The [camera presentation contract](../tests/light-camera-presentation.test.ts)
+compares all six shells, shared guides, lock states and camera-result fragments
+against preserved native output. The
+[camera browser contract](../tests/playwright/light-camera-owned.spec.ts)
+compares complete element geometry, palette and typography across themes and
+breakpoints, with actual shown overlays, hidden/manual states, keyboard focus,
+native disclosure and coarse targets. Existing
+[camera workflow checks](../tests/playwright/light-tool-camera-modals-edge-browser-coverage.spec.ts)
+retain frame-based calibration, confidence, result, saving and cleanup assertions.
+The [static camera acceptance](../tests/pwa/sveltekit-light-camera.spec.ts)
+exercises denial fallbacks, manual source choices, per-tool guide dismissal and
+close actions over closed-client offline cold launches with exact full-profile
+equality. It shares a self-contained denied-camera seed with the adjacent tools
+acceptance. These checks use mocked camera input; they do not establish physical
+sensor accuracy, camera-wide AA, installed-PWA, update or whole-app acceptance.

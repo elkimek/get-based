@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 1267,
-  "sinkCount": 330,
+  "scannedFiles": 1280,
+  "sinkCount": 326,
   "files": {
     "js/biology-scores.js": {
       "count": 1,
@@ -144,13 +144,6 @@
     "js/components/LightAuditDetail.svelte.native.js": {
       "count": 1,
       "digest": "d6046f24dc9e72070a8ea51901908b89023cb4fa06717053523f8125ceb0f328",
-      "kinds": {
-        "svelte.html": 1
-      }
-    },
-    "js/components/LightAuditWalkthrough.svelte.native.js": {
-      "count": 1,
-      "digest": "8d739b50e364b2252aefc3b439acdd6299d125f8c19a34329b963bb473f342ad",
       "kinds": {
         "svelte.html": 1
       }
@@ -480,49 +473,49 @@
     },
     "js/light-tool-cct-meter.js": {
       "count": 3,
-      "digest": "7584eb83e21fa8b6e6ad60026242cc38277f73578dd0be1c7eef84b44eec2ba3",
+      "digest": "6b50248e25485ff5918d289e035b2f2781948f411c4f889311f26f846cdfeb28",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/light-tool-darkness-meter.js": {
       "count": 3,
-      "digest": "b75a133e5daa5be4241c8d12b9258c7bc4f4eafebb2e5f9cf5a9ad39b30e528d",
+      "digest": "91912195c84969001ad7732089b0038e49c57b3cd6dd16843d6cd3dcc1f67e54",
       "kinds": {
         "innerHTML": 3
       }
     },
     "js/light-tool-flicker-detector.js": {
-      "count": 5,
-      "digest": "f76c2758ae16e947bc1a51b071c19a59ddfbaa7c080c7179fd3e3ca97ca5d4bb",
+      "count": 4,
+      "digest": "896a2f09f1ca268d21e394ca39a71a080ec911e13afbf97af8145babd7974961",
       "kinds": {
-        "innerHTML": 5
+        "innerHTML": 4
       }
     },
     "js/light-tool-glass-transmission.js": {
       "count": 2,
-      "digest": "845a2624a2807c44c22b13c9f341ba1183049a95ceae6e4eba08b1334ae44585",
+      "digest": "00c6169902792e9a907327d123d694b6b3c3c98c7c87fc1f77f6f35450ad6a8c",
       "kinds": {
         "innerHTML": 2
       }
     },
     "js/light-tool-lux-meter.js": {
-      "count": 6,
-      "digest": "e3846d7175570c6d0bcc7a63aa840a787616b0eed8a13effb9774de2ef9f7cb4",
+      "count": 4,
+      "digest": "ea2cb2d16a8a72610df8c4bf211c590d35488cebff1059fb9682cbe63f9c8be1",
       "kinds": {
-        "innerHTML": 6
+        "innerHTML": 4
       }
     },
     "js/light-tool-spectrum-classifier.js": {
       "count": 4,
-      "digest": "6c064c2db9aed61d71d0307dfa72460ae92ae7e3c1f4009ab921285352af267c",
+      "digest": "54d3d59429810ab3480d2900839ad6619f49ab05b9f21cf58e7717e446e2cb65",
       "kinds": {
         "innerHTML": 4
       }
     },
     "js/light-tools.js": {
       "count": 5,
-      "digest": "da4c2c643871027a1a3db8e0a856b23f7d1bd3e49f76db4ea7ae1da9bcf4860b",
+      "digest": "95bfc44e0f8a40d7f9d9826b1e77c370da89158743d7acd30b9b90eea82bd343",
       "kinds": {
         "innerHTML": 5
       }

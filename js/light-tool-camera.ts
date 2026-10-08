@@ -1,4 +1,3 @@
-interface AimingGuide { mode: string; body: string; webcam: string }
 interface CameraRange { min: number; max: number }
 interface CameraModes { exposureMode?: string; whiteBalanceMode?: string; focusMode?: string }
 interface CameraCapabilities extends MediaTrackCapabilities {
@@ -23,7 +22,8 @@ export interface CameraLockResult {
 
 // light-tool-camera.ts — Shared camera/runtime helpers for Light tools.
 
-import { escapeAttr, escapeHTML } from './utils.js';
+import {renderHTML as renderCameraGuideHTML} from './components/LightCameraGuidePresentation.svelte.html.js';
+import {projectAimingGuide} from './light-camera-presentation.js';
 
 export function getRequired2DContext(canvas: HTMLCanvasElement) {
   const context = canvas.getContext('2d', { willReadFrequently: true });
@@ -40,43 +40,6 @@ export function getRequired2DContext(canvas: HTMLCanvasElement) {
 // "warm" regardless of actual ceiling source; rolling-shutter bands attenuate
 // when reflected; "bedroom" measurements done from a desk webcam are
 // actually office measurements with a bedroom label).
-const _AIMING_GUIDES: Record<string, AimingGuide> = {
-  lux: {
-    mode: 'AT the point you want to check',
-    body: 'Hold the phone at <b>eye height</b> where you normally sit, work, or read. Keep the light sensor uncovered and point its side toward the light field you want to check (usually the screen/front side). If you choose the camera fallback, face the camera into the room rather than directly at a bulb.',
-    webcam: 'A laptop may not expose a light sensor. Its camera can make a relative estimate, but a phone light sensor or real lux meter is preferable.',
-  },
-  flicker: {
-    mode: 'AT the source',
-    body: 'Point the camera <b>directly at the bulb / fixture</b> from ~30–50 cm, so the source fills a noticeable chunk of the frame. Rolling-shutter bands are harder to see after light reflects off walls or skin.',
-    webcam: '⚠ A user-facing webcam under-reads flicker — modulation amplitude attenuates when bouncing off your face. Use a phone for a real read.',
-  },
-  cct: {
-    mode: 'AT the source',
-    body: 'Point the camera <b>directly at the fixture or a white wall lit by it</b> from ~30–50 cm. White paper or a grey card under the source also works.',
-    webcam: '⚠ A user-facing webcam can be skewed by skin, clothing, automatic white balance, and the display. Use a phone aimed at a neutral surface when possible.',
-  },
-  spectrum: {
-    mode: 'AT the source',
-    body: 'Point the camera <b>directly at the bulb or LED panel</b> so it dominates the frame. The classifier reads the RGB profile of whatever it sees.',
-    webcam: '⚠ A user-facing webcam mostly sees the person and display, so its RGB balance may not represent the room source. Use a phone aimed at the source when possible.',
-  },
-  darkness: {
-    mode: 'FROM your sleeping position',
-    body: 'Place the phone <b>face-up on your pillow or bedside table</b> at night, lens facing the ceiling. Check the light field at your sleeping position with the room set as you normally sleep (door, hallway light, alarm clock, and curtains included).',
-    webcam: '⚠ A monitor webcam in a different room can\'t measure your bedroom darkness. This one needs to be physically on the bed.',
-  },
-  'glass-transmission': {
-    mode: 'TWO-STEP — same direction both times',
-    body: 'Step 1: hold the camera <b>against the closed window</b> (looking out at the sky / scene). Step 2: same direction, but with the window open or stepping outside, so only the glass changes between readings.',
-    webcam: 'Webcam can\'t do this — it can\'t physically move outside.',
-  },
-  audit: {
-    mode: 'FROM your position, at eye height',
-    body: 'Hold the phone <b>at eye height, facing forward</b> while you walk through each room. The pause-detection captures the lighting where you actually look — not the floor or ceiling.',
-    webcam: 'Walking with a phone is the whole point — a fixed webcam misses the inter-room comparison this tool exists to provide.',
-  },
-};
 
 let aimingGuideDelegatesInstalled = false;
 
@@ -102,22 +65,13 @@ function installAimingGuideDelegates() {
 // Returns a small expandable info card for the tool modal. Persists per-
 // tool dismissal in localStorage so users who've internalized the
 // guidance don't have to dismiss it on every open.
+export function getAimingGuideView(toolKey: string) {
+  const dismissed = typeof localStorage !== 'undefined' && localStorage.getItem(`labcharts-aim-guide-${toolKey}`) === 'dismissed';
+  return projectAimingGuide(toolKey, dismissed);
+}
 export function aimingGuideHTML(toolKey: string) {
-  const g = _AIMING_GUIDES[toolKey];
-  if (!g) return '';
-  const dismissed = (typeof localStorage !== 'undefined' && localStorage.getItem(`labcharts-aim-guide-${toolKey}`) === 'dismissed');
-  // Hide entirely once dismissed — re-enable via a small "?" affordance
-  // up by the modal title (added below per tool).
-  if (dismissed) return '';
-  return `<div class="tool-aiming-guide" data-tool="${escapeHTML(toolKey)}">
-    <div class="tool-aiming-guide-head">
-      <span class="tool-aiming-guide-icon">📐</span>
-      <span class="tool-aiming-guide-mode">${escapeHTML(g.mode)}</span>
-      <button type="button" class="tool-aiming-guide-dismiss" data-aiming-guide-action="dismiss" data-tool="${escapeAttr(toolKey)}" aria-label="Dismiss aiming guide">×</button>
-    </div>
-    <div class="tool-aiming-guide-body">${g.body}</div>
-    ${g.webcam ? `<div class="tool-aiming-guide-webcam">${g.webcam}</div>` : ''}
-  </div>`;
+  const guide = getAimingGuideView(toolKey);
+  return guide ? renderCameraGuideHTML({kind: 'guide', guide}) : '';
 }
 
 export function dismissAimingGuide(toolKey: string) {
@@ -243,16 +197,7 @@ export async function lockCameraForMeasurement(stream: MeasurementStream | null 
 // Short status line for the tool UI — tells the user when the camera is
 // running in degraded auto-mode so a low-confidence reading is expected.
 export function cameraLockStatusLine(lock: Partial<CameraLockResult> | null | undefined) {
-  if (!lock) return '';
-  const allManual = lock.exposure === 'manual' && lock.whiteBalance === 'manual';
-  if (allManual) {
-    const fps = lock.frameRate ? ` · ${Math.round(lock.frameRate)} fps` : '';
-    return `<span style="color:var(--green);font-size:11px">✓ camera locked${fps}</span>`;
-  }
-  const auto: string[] = [];
-  if (lock.exposure !== 'manual') auto.push('exposure');
-  if (lock.whiteBalance !== 'manual') auto.push('white-balance');
-  return `<span style="color:var(--orange);font-size:11px">⚠ camera ${auto.join(' + ')} on auto — reading may drift</span>`;
+  return lock ? renderCameraGuideHTML({kind: 'lock', lock}) : '';
 }
 
 // ─── Shared row-banding analyzer ───────────────────────────────────────

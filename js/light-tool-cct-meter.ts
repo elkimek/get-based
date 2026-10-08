@@ -1,9 +1,10 @@
+import {renderHTML as renderCameraToolHTML} from './components/LightCameraPresentation.svelte.html.js';
 // Camera-backed warm/cool appearance workflow.
 
 import { queryRequired, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
-  aimingGuideHTML,
+  getAimingGuideView,
   computeRowBanding,
   getRequired2DContext,
   lockCameraForMeasurement,
@@ -12,7 +13,6 @@ import {
   clearCameraToolCloser,
   getSaveMeasurement,
   installLightToolModalDelegates,
-  lightToolModalActionAttrs,
   registerCameraToolCloser,
 } from './light-tool-camera-modal-runtime.js';
 
@@ -26,26 +26,7 @@ export async function openCCTMeter(opts: { roomId?: unknown } = {}, deps: Parame
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay light-tool-overlay';
-  overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Color temperature meter">
-    <div class="modal-header">
-      <h3>Color Temperature</h3>
-      <button class="modal-close" ${lightToolModalActionAttrs('close-cct')} aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      ${aimingGuideHTML('cct')}
-      <p class="modal-body-hint">Approximate warm/cool camera check. It cannot show spectral completeness, red/infrared content, or melanopic EDI.</p>
-      <video id="cct-video" autoplay playsinline muted style="width:100%;border-radius:var(--radius-sm);background:#000;max-height:200px"></video>
-      <div class="cct-result">
-        <div class="cct-value" id="cct-value">— K</div>
-        <div class="cct-tone" id="cct-tone">—</div>
-        <div class="cct-coherence" id="cct-coherence"></div>
-      </div>
-      <div class="modal-actions" style="margin-top:14px">
-        <button class="import-btn import-btn-secondary" ${lightToolModalActionAttrs('close-cct')}>Done</button>
-        <button class="import-btn import-btn-primary" id="cct-save">Save reading</button>
-      </div>
-    </div>
-    </div>`;
+  overlay.innerHTML = renderCameraToolHTML({kind: 'shell', view: {tool: 'cct', guide: getAimingGuideView('cct')}});
   let closed = false;
   const closeCCTOverlay = () => {
     if (closed) return;
@@ -90,7 +71,7 @@ export async function openCCTMeter(opts: { roomId?: unknown } = {}, deps: Parame
     whiteBalanceMode = lock.whiteBalance;
     measurementConfidence = lock.whiteBalance === 'manual' ? 0.35 : 0.2;
     if (lock.whiteBalance !== 'manual') {
-      coherenceEl.innerHTML = `<span style="color:var(--orange);font-size:11px">⚠ camera auto-white-balance is on — CCT reading is the camera's error, not the source. Try a different browser / phone, or use a meter for accurate readings.</span>`;
+      coherenceEl.innerHTML = renderCameraToolHTML({kind: 'cct-auto'});
     }
     const canvas = document.createElement('canvas');
     canvas.width = 64;
@@ -129,15 +110,7 @@ export async function openCCTMeter(opts: { roomId?: unknown } = {}, deps: Parame
       valueEl.textContent = `~${cct} K`;
       toneEl.textContent = cctTone(cct);
       if (lock.whiteBalance === 'manual') {
-        const melanopicNote = melanopic > 0.32
-          ? `<span style="color:var(--orange);font-size:11px">blue-rich camera signal (${(melanopic * 100).toFixed(0)}% RGB-blue proxy) — not M-EDI</span>`
-          : melanopic < 0.25
-            ? `<span style="color:var(--text-muted);font-size:11px">blue-poor camera signal (${(melanopic * 100).toFixed(0)}% RGB-blue proxy) — not a sleep-safety determination</span>`
-            : `<span style="color:var(--text-muted);font-size:11px">mixed camera RGB signal (${(melanopic * 100).toFixed(0)}% blue proxy) — not M-EDI</span>`;
-        const pwmNote = peakBanding > 0.10 && stripes >= 2
-          ? '<br><span style="color:var(--orange);font-size:11px">⚠ Rolling-shutter banding detected — use a suitable flicker meter to quantify it</span>'
-          : '';
-        coherenceEl.innerHTML = `${melanopicNote}${pwmNote}<br><span style="color:var(--text-muted);font-size:11px">Warm/cool appearance only. Similar CCT values can have very different spectra.</span>`;
+        coherenceEl.innerHTML = renderCameraToolHTML({kind: 'cct-reading', melanopic, banding: peakBanding > 0.10 && stripes >= 2});
       }
       if (cctState.running && !closed) requestAnimationFrame(tick);
     };

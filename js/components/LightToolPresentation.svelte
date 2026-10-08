@@ -9,6 +9,6 @@
 </script>
 {#if props.kind === 'launcher'}<LightToolsLauncher view={props.view}/>
 {:else if props.kind === 'golden'}<LightGoldenHourLog view={props.view}/>
-{:else if props.kind === 'audit'}<LightAuditWalkthrough trustedGuideHTML={props.trustedGuideHTML}/>
+{:else if props.kind === 'audit'}<LightAuditWalkthrough guide={props.guide}/>
 {:else if props.kind === 'audit-rows'}<LightAuditPauseRows rows={props.rows}/>
 {:else}<LightAuditWalkthroughStatus state={props.state}/>{/if}

@@ -12,7 +12,7 @@ import { queryRequired, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
-import { aimingGuideHTML, getRequired2DContext, lockCameraForMeasurement } from './light-tool-camera.js';
+import { getAimingGuideView, getRequired2DContext, lockCameraForMeasurement } from './light-tool-camera.js';
 import { createUniqueId } from './unique-id.js';
 import { classifyDayWindow, normalizeGoldenHourMinutes } from './light-tools-solar-time.js';
 export { normalizeGoldenHourMinutes } from './light-tools-solar-time.js';
@@ -410,7 +410,7 @@ export function closeEyeLevelAudit() {
 export async function openEyeLevelAudit() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay light-tool-overlay';
-  overlay.innerHTML = renderLightToolHTML({ kind: 'audit', trustedGuideHTML: aimingGuideHTML('audit') });
+  overlay.innerHTML = renderLightToolHTML({ kind: 'audit', guide: getAimingGuideView('audit') });
   let closed = false;
   const closeAuditOverlay = () => {
     if (closed) return;

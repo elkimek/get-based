@@ -1,4 +1,5 @@
 // Pure display projection. Camera, solar calculations and storage keep their owners.
+import type {AimingGuideView} from './light-camera-presentation.js';
 import { formatSunClock, type classifyDayWindow } from './light-tools-solar-time.js';
 
 export interface LightToolActionView { id: string; icon: string; name: string; title: string; reason: string; primary: boolean }
@@ -11,7 +12,7 @@ export type WalkthroughStatus = 'manual' | 'auto' | 'denied' | 'no-context';
 export type LightToolPresentationProps =
   | { kind: 'launcher'; view: LightToolsLauncherView }
   | { kind: 'golden'; view: GoldenHourLogView }
-  | { kind: 'audit'; trustedGuideHTML: string }
+  | { kind: 'audit'; guide: AimingGuideView | null }
   | { kind: 'audit-rows'; rows: AuditPauseRowView[] }
   | { kind: 'audit-status'; state: WalkthroughStatus };
 

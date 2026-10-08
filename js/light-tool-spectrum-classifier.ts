@@ -1,10 +1,10 @@
+import {renderHTML as renderCameraToolHTML} from './components/LightCameraPresentation.svelte.html.js';
 // Camera-backed RGB pattern and rolling-shutter banding screen.
 
-import { escapeHTML, queryRequired, showNotification } from './utils.js';
+import { queryRequired, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import {
-  aimingGuideHTML,
-  cameraLockStatusLine,
+  getAimingGuideView,
   computeRowBanding,
   getRequired2DContext,
   lockCameraForMeasurement,
@@ -13,7 +13,6 @@ import {
   clearCameraToolCloser,
   getSaveMeasurement,
   installLightToolModalDelegates,
-  lightToolModalActionAttrs,
   registerCameraToolCloser,
 } from './light-tool-camera-modal-runtime.js';
 interface SpectrumSample { r: number; g: number; b: number; peakBanding: number; stripes: number }
@@ -37,22 +36,7 @@ export async function openSpectrumClassifier(opts: { roomId?: unknown } = {}, de
   const roomId = opts.roomId || null;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay light-tool-overlay';
-  overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Spectrum classifier">
-    <div class="modal-header">
-      <h3>What kind of light is this?</h3>
-      <button class="modal-close" ${lightToolModalActionAttrs('close-spec')} aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      ${aimingGuideHTML('spectrum')}
-      <p class="modal-body-hint">Qualitative warm/cool RGB pattern and rolling-shutter banding screen. This cannot identify a full spectrum, UV, infrared, melanopic EDI, or sleep safety.</p>
-      <video id="spec-video" autoplay playsinline muted style="width:100%;border-radius:var(--radius-sm);background:#000;max-height:200px"></video>
-      <div class="spec-result" id="spec-result">Reading…</div>
-      <div class="modal-actions" style="margin-top:14px">
-        <button class="import-btn import-btn-secondary" ${lightToolModalActionAttrs('close-spec')}>Done</button>
-        <button class="import-btn import-btn-primary" id="spec-save">Save reading</button>
-      </div>
-    </div>
-    </div>`;
+  overlay.innerHTML = renderCameraToolHTML({kind: 'shell', view: {tool: 'spectrum', guide: getAimingGuideView('spectrum')}});
   let closed = false;
   const closeSpectrumOverlay = () => {
     if (closed) return;
@@ -89,7 +73,7 @@ export async function openSpectrumClassifier(opts: { roomId?: unknown } = {}, de
     const lock = await lockCameraForMeasurement(stream, { shortExposure: true });
     if (closed) return;
     if (lock.whiteBalance !== 'manual' || lock.exposure !== 'manual') {
-      resultEl.innerHTML = `<span style="color:var(--orange);font-size:12px">⚠ camera auto-mode partially active — classification reliability is reduced. ${cameraLockStatusLine(lock)}</span>`;
+      resultEl.innerHTML = renderCameraToolHTML({kind: 'spectrum-auto', lock});
     }
     const canvas = document.createElement('canvas');
     canvas.width = 64;
@@ -124,31 +108,14 @@ export async function openSpectrumClassifier(opts: { roomId?: unknown } = {}, de
           reason: result.reason + ' (camera auto-WB → low confidence)',
         };
       }
-      const circadianBadge = result.circadian === 'blue-poor'
-        ? '<span style="color:var(--text-muted);font-size:11px">blue-poor camera-RGB pattern</span>'
-        : result.circadian === 'blue-rich'
-          ? '<span style="color:var(--orange);font-size:11px">blue-rich camera-RGB pattern</span>'
-          : '<span style="color:var(--text-muted);font-size:11px">mixed camera-RGB pattern</span>';
-      resultEl.innerHTML = `<strong>${escapeHTML(result.label)}</strong> <span style="color:var(--text-muted)">· ${(result.confidence * 100).toFixed(0)}% confidence</span><br><small style="color:var(--text-secondary)">${escapeHTML(result.reason)}</small><br>${circadianBadge} <span style="color:var(--text-muted);font-size:11px">· camera blue ratio ${(result.melanopic * 100).toFixed(0)}% · not a spectrum or M-EDI</span>`;
+      resultEl.innerHTML = renderCameraToolHTML({kind: 'spectrum-reading', result});
       if (spectrumState.running && !closed) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
   } catch (error) {
     if (closed) return;
     video.style.display = 'none';
-    resultEl.innerHTML = `
-      <div style="padding:14px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);">
-        <div style="font-weight:600;color:var(--text-primary);margin-bottom:6px">Camera access denied</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">This tool reads the bulb's RGB profile to classify the source. To re-enable, open your browser's site settings and allow camera access for this page, then reopen the tool.</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Or pick the closest match manually:</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
-          <button class="ctx-btn-option" data-spec-manual="Warm LED (2700–3000K)">Warm LED</button>
-          <button class="ctx-btn-option" data-spec-manual="Cool LED (4000K+)">Cool LED</button>
-          <button class="ctx-btn-option" data-spec-manual="Fluorescent">Fluorescent</button>
-          <button class="ctx-btn-option" data-spec-manual="Incandescent / halogen">Incandescent</button>
-          <button class="ctx-btn-option" data-spec-manual="Daylight">Daylight</button>
-        </div>
-      </div>`;
+    resultEl.innerHTML = renderCameraToolHTML({kind: 'spectrum-denied'});
     overlay.querySelectorAll('[data-spec-manual]').forEach(button => {
       button.addEventListener('click', () => {
         const label = button.getAttribute('data-spec-manual');
