@@ -1865,7 +1865,7 @@ child-HTML composition in the library, chips, picker or affiliate component.
 `css/light-devices.css` is generated from `light-devices.base.css` and scoped
 `light-devices.tailwind.css` at the unchanged lazy URL. Tailwind owns library and
 picker states, type bands and inclusive 768/600/375px layouts. The base retains
-separate recommendation owners and the shared Lens widget-body gap. Link
+only the shared Lens widget-body gap. Link
 and metadata ink use readable shared semantic tokens; phone delete controls stay
 visible, and authored controls have visible keyboard focus and at least 44px
 targets for coarse pointers. Native library/picker/chip
@@ -1887,3 +1887,17 @@ Authored setup controls add visible focus and coarse 44px targets, readable labe
 and unit ink, and an accessible URL input name. The native setup templates and
 superseded preset/custom/distance CSS are removed. Shared session controls retain
 their existing independent authored owner.
+
+`LightDeviceRecommendations.svelte` owns the public channel-device-options
+renderer, with typed scalar display projection in
+`light-device-recommendations-presentation.ts` and scoped Tailwind in
+`light-device-recommendations-classes.ts`. `recommendations-products.ts` retains
+channel/catalog joins, regional filtering, deduplication, the three-product cap
+before URL rejection, trusted-host checks, UTM attribution and toggle suppression.
+The current Light page does not insert these options automatically; the public
+HTML contract remains available through the recommendation module namespace.
+There is no raw HTML slot or new provider/backend. Superseded native markup and
+nine ordinary CSS rules are removed. Readable product ink, wrapping, focus and
+coarse targets improve accessibility. The opt-out is a native button using the
+existing privacy-settings delegate; it inherits font-size adjustment and letter
+spacing to preserve theme typography.

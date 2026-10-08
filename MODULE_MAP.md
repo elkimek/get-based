@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1294 |
-| Internal import edges | 4513 |
+| Modules | 1297 |
+| Internal import edges | 4516 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1340,7 +1340,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>light</code> family — 81 modules</summary>
+<details><summary><code>light</code> family — 83 modules</summary>
 
 - [`js/light-active-session-presentation.ts`](js/light-active-session-presentation.ts) → no in-scope imports
 - [`js/light-ai-save-hooks.ts`](js/light-ai-save-hooks.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/light-audit-ai-analysis.ts`](js/light-audit-ai-analysis.ts), [`js/light-env-ai-analysis.ts`](js/light-env-ai-analysis.ts), [`js/light-env-audits.ts`](js/light-env-audits.ts), [`js/light-env.ts`](js/light-env.ts), [`js/light-screen-ai-analysis.ts`](js/light-screen-ai-analysis.ts), [`js/light-tools-ai-analysis.ts`](js/light-tools-ai-analysis.ts), [`js/light-tools.ts`](js/light-tools.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun-onboarding-ai.ts`](js/sun-onboarding-ai.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts)
@@ -1365,6 +1365,8 @@ Native browser modules shipped with the static application.
 - [`js/light-device-library-classes.ts`](js/light-device-library-classes.ts) → no in-scope imports
 - [`js/light-device-library-presentation.ts`](js/light-device-library-presentation.ts) → [`js/light-device-view-formatters.ts`](js/light-device-view-formatters.ts)
 - [`js/light-device-modal-loader.ts`](js/light-device-modal-loader.ts) → [`js/light-device-session-modal.ts`](js/light-device-session-modal.ts) *(dynamic)*, [`js/light-device-setup-modal.ts`](js/light-device-setup-modal.ts) *(dynamic)*, [`js/retrying-module-loader.ts`](js/retrying-module-loader.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-device-recommendations-classes.ts`](js/light-device-recommendations-classes.ts) → no in-scope imports
+- [`js/light-device-recommendations-presentation.ts`](js/light-device-recommendations-presentation.ts) → no in-scope imports
 - [`js/light-device-session-engine.ts`](js/light-device-session-engine.ts) → [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts)
 - [`js/light-device-session-modal.ts`](js/light-device-session-modal.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte), [`js/light-device-session-engine.ts`](js/light-device-session-engine.ts), [`js/light-session-presentation.ts`](js/light-session-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-spectrum.ts`](js/sun-spectrum.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-device-setup-classes.ts`](js/light-device-setup-classes.ts) → no in-scope imports
@@ -1555,6 +1557,12 @@ Native browser modules shipped with the static application.
 <details><summary><code>LightDevicePresets.svelte</code> family — 1 module</summary>
 
 - [`js/components/LightDevicePresets.svelte`](js/components/LightDevicePresets.svelte) → [`js/light-device-setup-classes.ts`](js/light-device-setup-classes.ts)
+
+</details>
+
+<details><summary><code>LightDeviceRecommendations.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightDeviceRecommendations.svelte`](js/components/LightDeviceRecommendations.svelte) → [`js/light-device-recommendations-classes.ts`](js/light-device-recommendations-classes.ts)
 
 </details>
 
@@ -2305,7 +2313,7 @@ Native browser modules shipped with the static application.
 
 <details><summary><code>recommendations</code> family — 4 modules</summary>
 
-- [`js/recommendations-products.ts`](js/recommendations-products.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/components/LightDeviceAffiliate.svelte`](js/components/LightDeviceAffiliate.svelte), [`js/profile.ts`](js/profile.ts), [`js/recommendations-region.ts`](js/recommendations-region.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/recommendations-products.ts`](js/recommendations-products.ts) → [`js/action-attributes.ts`](js/action-attributes.ts), [`js/components/LightDeviceAffiliate.svelte`](js/components/LightDeviceAffiliate.svelte), [`js/components/LightDeviceRecommendations.svelte`](js/components/LightDeviceRecommendations.svelte), [`js/light-device-recommendations-presentation.ts`](js/light-device-recommendations-presentation.ts), [`js/profile.ts`](js/profile.ts), [`js/recommendations-region.ts`](js/recommendations-region.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/recommendations-region.ts`](js/recommendations-region.ts) → no in-scope imports
 - [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts) → [`js/emf-runtime.ts`](js/emf-runtime.ts), [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts)
 - [`js/recommendations.ts`](js/recommendations.ts) → [`js/components/ContextCardTips.svelte`](js/components/ContextCardTips.svelte), [`js/context-card-tips-presentation.ts`](js/context-card-tips-presentation.ts), [`js/dna-evidence.ts`](js/dna-evidence.ts), [`js/dna-genotype.ts`](js/dna-genotype.ts), [`js/recommendations-products.ts`](js/recommendations-products.ts), [`js/recommendations-runtime.ts`](js/recommendations-runtime.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)

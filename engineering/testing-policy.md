@@ -346,3 +346,18 @@ creates actual preset and manual devices offline, checks full unrelated profile
 preservation and canonical specifications, and verifies both records through two
 closed-client cold launches. These checks do not establish live external AI
 provider availability or whole-application release acceptance.
+
+Channel-device-option contracts in
+[`light-device-recommendations.test.ts`](../tests/light-device-recommendations.test.ts)
+compare independent original output and preserve regional joins, ordering,
+deduplication, cap-before-URL-rejection, toggle suppression, attribution and literal
+metadata. [`light-device-recommendations-owned.spec.ts`](../tests/playwright/light-device-recommendations-owned.spec.ts)
+compares original computed styles across six themes and five widths, with explicit
+readable-ink, wrapping, native button and coarse-target improvements; it checks AA,
+hover, focus and both Enter/Space on the real settings delegate.
+[`sveltekit-light-device-recommendations.spec.ts`](../tests/pwa/sveltekit-light-device-recommendations.spec.ts)
+locates the actual bundled public namespace from the exact artifact, renders its
+maintained export with cached real catalog/preset data, and exercises actual
+privacy/display opt-out controls offline and through two closed-client cold
+launches with full stored-profile equality. This is public-contract acceptance;
+it does not claim that the current Light page inserts the renderer automatically.

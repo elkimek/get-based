@@ -22,3 +22,8 @@
 @source "../js/components/LightDevicePresets.svelte";
 @source "../js/components/LightDeviceCustomForm.svelte";
 @source "../js/components/LightDeviceSpecFields.svelte";
+
+/* Public channel-device-options renderer; catalog policy remains service-owned. */
+@custom-variant device-options (&:where([data-light-device-options], [data-light-device-options] *));
+@source "../js/light-device-recommendations-classes.ts";
+@source "../js/components/LightDeviceRecommendations.svelte";

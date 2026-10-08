@@ -2260,3 +2260,12 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/components/LightDeviceSpecFields.svelte.native.js.map
 /js/components/LightDeviceSpecFields.svelte.html.js
 /js/components/LightDeviceSpecFields.svelte.html.js.map
+
+/js/light-device-recommendations-presentation.js
+/js/light-device-recommendations-classes.js
+/js/components/LightDeviceRecommendations.svelte.native.js
+/js/components/LightDeviceRecommendations.svelte.native.js.map
+/js/components/LightDeviceRecommendations.svelte.html.js
+/js/components/LightDeviceRecommendations.svelte.html.js.map
+/tests/light-device-recommendations.test.js
+/tests/playwright/light-device-recommendations-owned.spec.js

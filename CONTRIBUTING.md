@@ -187,9 +187,8 @@ Edit the Light device library and picker in `LightDeviceLibrary.svelte`,
 projections are in `js/light-device-library-presentation.ts`. The shared affiliate
 component is `LightDeviceAffiliate.svelte`; recommendation policy stays in
 `js/recommendations-products.ts`. Use `js/light-device-library-classes.ts` and
-`css/light-devices.tailwind.css` for styles. The remaining native
-recommendation styles belong to `css/light-devices.base.css`; never edit generated
-`css/light-devices.css`. Focused contracts are in
+`css/light-devices.tailwind.css` for styles. The base
+`css/light-devices.base.css` retains only the shared Lens widget-body gap. Never edit generated `css/light-devices.css`. Focused contracts are in
 `tests/light-device-library.test.ts` and
 `tests/playwright/light-device-library-owned.spec.ts`.
 
@@ -203,3 +202,14 @@ selection, conversion, AI extraction and save behavior stays in
 acceptance are in `tests/light-device-setup-presentation.test.ts`,
 `tests/playwright/light-device-setup-owned.spec.ts` and
 `tests/pwa/sveltekit-light-device-setup.spec.ts`.
+
+Channel device options use `LightDeviceRecommendations.svelte`, the pure
+`js/light-device-recommendations-presentation.ts` projection and scoped
+`js/light-device-recommendations-classes.ts` Tailwind catalog. Selection, regional
+filtering, trusted URLs, attribution and the recommendation toggle stay in
+`js/recommendations-products.ts`. The public renderer remains available without
+automatic insertion into the Light page. Its opt-out uses the real delegated
+privacy-settings action; native button semantics add Space activation. Focused
+contracts are in `tests/light-device-recommendations.test.ts`,
+`tests/playwright/light-device-recommendations-owned.spec.ts` and
+`tests/pwa/sveltekit-light-device-recommendations.spec.ts`.

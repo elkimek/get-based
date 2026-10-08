@@ -1,0 +1,1125 @@
+{
+  "revision": "a71808fd26f169183489d1eea5b9a3c63d07c6b7",
+  "cases": [
+    {
+      "name": "INTL",
+      "country": "",
+      "enabled": true,
+      "catalog": {
+        "vendors": {
+          "fixture": {
+            "homepage": "https://fixture.example/"
+          }
+        },
+        "products": {
+          "_internal.lightDevices": [
+            {
+              "key": "panel-one",
+              "name": "Red <Panel> & \"lab\"",
+              "vendor": "Vendor <one>",
+              "blurb": "Measured red & NIR",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/panel?source=original"
+            },
+            {
+              "key": "panel-two",
+              "brand": "Brand fallback",
+              "blurb": "",
+              "regions": [
+                "EU"
+              ],
+              "url": {
+                "CZ": "https://cz.fixture.example/two",
+                "EU": "https://eu.fixture.example/two",
+                "INTL": "https://fixture.example/two"
+              }
+            },
+            {
+              "key": "panel-three",
+              "name": 42,
+              "vendor": 23,
+              "blurb": 71,
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/three"
+            },
+            {
+              "key": "panel-four",
+              "name": "Fourth capped option",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/four"
+            },
+            {
+              "key": "panel-one",
+              "name": "Duplicate excluded",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/duplicate"
+            },
+            {
+              "key": "no-channel",
+              "name": "No matching channel",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/unmatched"
+            }
+          ]
+        }
+      },
+      "presets": [
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-two",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-three",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-four",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        }
+      ],
+      "channel": "pbm_red",
+      "label": "Red <660> & NIR",
+      "html": "<div class=\"rec-channel-deficit\" role=\"region\" aria-label=\"Red &lt;660&gt; &amp; NIR channel device options\">\n    <div class=\"rec-channel-deficit-head\">Device options related to the Red &lt;660&gt; &amp; NIR channel</div>\n    <div class=\"rec-channel-deficit-list\"><a class=\"rec-product-link rec-light-deficit-link\" href=\"https://fixture.example/panel?source=original&amp;utm_source=getbased&amp;utm_medium=affiliate&amp;utm_campaign=light-devices&amp;utm_content=light-deficit-panel-one\" target=\"_blank\" rel=\"noopener sponsored\" data-umami-event=\"light-deficit-rec-panel-one\" aria-label=\"View Red &lt;Panel&gt; &amp; &quot;lab&quot; on Vendor &lt;one&gt;, opens in new tab\"><strong>Red &lt;Panel&gt; &amp; &quot;lab&quot;</strong> — Measured red &amp; NIR <span class=\"rec-vendor\">View on Vendor &lt;one&gt; →</span></a><a class=\"rec-product-link rec-light-deficit-link\" href=\"https://fixture.example/three?utm_source=getbased&amp;utm_medium=affiliate&amp;utm_campaign=light-devices&amp;utm_content=light-deficit-panel-three\" target=\"_blank\" rel=\"noopener sponsored\" data-umami-event=\"light-deficit-rec-panel-three\" aria-label=\"View 42 on 23, opens in new tab\"><strong>42</strong> — 71 <span class=\"rec-vendor\">View on 23 →</span></a><a class=\"rec-product-link rec-light-deficit-link\" href=\"https://fixture.example/four?utm_source=getbased&amp;utm_medium=affiliate&amp;utm_campaign=light-devices&amp;utm_content=light-deficit-panel-four\" target=\"_blank\" rel=\"noopener sponsored\" data-umami-event=\"light-deficit-rec-panel-four\" aria-label=\"View Fourth capped option on vendor, opens in new tab\"><strong>Fourth capped option</strong> <span class=\"rec-vendor\">View on vendor →</span></a></div>\n    <div class=\"rec-channel-deficit-foot\">Affiliate links · <a href=\"#\" data-rec-action=\"open-privacy-settings\">turn off</a></div>\n  </div>"
+    },
+    {
+      "name": "Czech Republic",
+      "country": "Czech Republic",
+      "enabled": true,
+      "catalog": {
+        "vendors": {
+          "fixture": {
+            "homepage": "https://fixture.example/"
+          }
+        },
+        "products": {
+          "_internal.lightDevices": [
+            {
+              "key": "panel-one",
+              "name": "Red <Panel> & \"lab\"",
+              "vendor": "Vendor <one>",
+              "blurb": "Measured red & NIR",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/panel?source=original"
+            },
+            {
+              "key": "panel-two",
+              "brand": "Brand fallback",
+              "blurb": "",
+              "regions": [
+                "EU"
+              ],
+              "url": {
+                "CZ": "https://cz.fixture.example/two",
+                "EU": "https://eu.fixture.example/two",
+                "INTL": "https://fixture.example/two"
+              }
+            },
+            {
+              "key": "panel-three",
+              "name": 42,
+              "vendor": 23,
+              "blurb": 71,
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/three"
+            },
+            {
+              "key": "panel-four",
+              "name": "Fourth capped option",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/four"
+            },
+            {
+              "key": "panel-one",
+              "name": "Duplicate excluded",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/duplicate"
+            },
+            {
+              "key": "no-channel",
+              "name": "No matching channel",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/unmatched"
+            }
+          ]
+        }
+      },
+      "presets": [
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-two",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-three",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-four",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        }
+      ],
+      "channel": "pbm_red",
+      "label": "Red <660> & NIR",
+      "html": "<div class=\"rec-channel-deficit\" role=\"region\" aria-label=\"Red &lt;660&gt; &amp; NIR channel device options\">\n    <div class=\"rec-channel-deficit-head\">Device options related to the Red &lt;660&gt; &amp; NIR channel</div>\n    <div class=\"rec-channel-deficit-list\"><a class=\"rec-product-link rec-light-deficit-link\" href=\"https://fixture.example/panel?source=original&amp;utm_source=getbased&amp;utm_medium=affiliate&amp;utm_campaign=light-devices&amp;utm_content=light-deficit-panel-one\" target=\"_blank\" rel=\"noopener sponsored\" data-umami-event=\"light-deficit-rec-panel-one\" aria-label=\"View Red &lt;Panel&gt; &amp; &quot;lab&quot; on Vendor &lt;one&gt;, opens in new tab\"><strong>Red &lt;Panel&gt; &amp; &quot;lab&quot;</strong> — Measured red &amp; NIR <span class=\"rec-vendor\">View on Vendor &lt;one&gt; →</span></a><a class=\"rec-product-link rec-light-deficit-link\" href=\"https://cz.fixture.example/two?utm_source=getbased&amp;utm_medium=affiliate&amp;utm_campaign=light-devices&amp;utm_content=light-deficit-panel-two\" target=\"_blank\" rel=\"noopener sponsored\" data-umami-event=\"light-deficit-rec-panel-two\" aria-label=\"View panel-two on Brand fallback, opens in new tab\"><strong>panel-two</strong> <span class=\"rec-vendor\">View on Brand fallback →</span></a><a class=\"rec-product-link rec-light-deficit-link\" href=\"https://fixture.example/three?utm_source=getbased&amp;utm_medium=affiliate&amp;utm_campaign=light-devices&amp;utm_content=light-deficit-panel-three\" target=\"_blank\" rel=\"noopener sponsored\" data-umami-event=\"light-deficit-rec-panel-three\" aria-label=\"View 42 on 23, opens in new tab\"><strong>42</strong> — 71 <span class=\"rec-vendor\">View on 23 →</span></a></div>\n    <div class=\"rec-channel-deficit-foot\">Affiliate links · <a href=\"#\" data-rec-action=\"open-privacy-settings\">turn off</a></div>\n  </div>"
+    },
+    {
+      "name": "Germany",
+      "country": "Germany",
+      "enabled": true,
+      "catalog": {
+        "vendors": {
+          "fixture": {
+            "homepage": "https://fixture.example/"
+          }
+        },
+        "products": {
+          "_internal.lightDevices": [
+            {
+              "key": "panel-one",
+              "name": "Red <Panel> & \"lab\"",
+              "vendor": "Vendor <one>",
+              "blurb": "Measured red & NIR",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/panel?source=original"
+            },
+            {
+              "key": "panel-two",
+              "brand": "Brand fallback",
+              "blurb": "",
+              "regions": [
+                "EU"
+              ],
+              "url": {
+                "CZ": "https://cz.fixture.example/two",
+                "EU": "https://eu.fixture.example/two",
+                "INTL": "https://fixture.example/two"
+              }
+            },
+            {
+              "key": "panel-three",
+              "name": 42,
+              "vendor": 23,
+              "blurb": 71,
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/three"
+            },
+            {
+              "key": "panel-four",
+              "name": "Fourth capped option",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/four"
+            },
+            {
+              "key": "panel-one",
+              "name": "Duplicate excluded",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/duplicate"
+            },
+            {
+              "key": "no-channel",
+              "name": "No matching channel",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/unmatched"
+            }
+          ]
+        }
+      },
+      "presets": [
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-two",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-three",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-four",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        }
+      ],
+      "channel": "pbm_red",
+      "label": "Red <660> & NIR",
+      "html": "<div class=\"rec-channel-deficit\" role=\"region\" aria-label=\"Red &lt;660&gt; &amp; NIR channel device options\">\n    <div class=\"rec-channel-deficit-head\">Device options related to the Red &lt;660&gt; &amp; NIR channel</div>\n    <div class=\"rec-channel-deficit-list\"><a class=\"rec-product-link rec-light-deficit-link\" href=\"https://fixture.example/panel?source=original&amp;utm_source=getbased&amp;utm_medium=affiliate&amp;utm_campaign=light-devices&amp;utm_content=light-deficit-panel-one\" target=\"_blank\" rel=\"noopener sponsored\" data-umami-event=\"light-deficit-rec-panel-one\" aria-label=\"View Red &lt;Panel&gt; &amp; &quot;lab&quot; on Vendor &lt;one&gt;, opens in new tab\"><strong>Red &lt;Panel&gt; &amp; &quot;lab&quot;</strong> — Measured red &amp; NIR <span class=\"rec-vendor\">View on Vendor &lt;one&gt; →</span></a><a class=\"rec-product-link rec-light-deficit-link\" href=\"https://eu.fixture.example/two?utm_source=getbased&amp;utm_medium=affiliate&amp;utm_campaign=light-devices&amp;utm_content=light-deficit-panel-two\" target=\"_blank\" rel=\"noopener sponsored\" data-umami-event=\"light-deficit-rec-panel-two\" aria-label=\"View panel-two on Brand fallback, opens in new tab\"><strong>panel-two</strong> <span class=\"rec-vendor\">View on Brand fallback →</span></a><a class=\"rec-product-link rec-light-deficit-link\" href=\"https://fixture.example/three?utm_source=getbased&amp;utm_medium=affiliate&amp;utm_campaign=light-devices&amp;utm_content=light-deficit-panel-three\" target=\"_blank\" rel=\"noopener sponsored\" data-umami-event=\"light-deficit-rec-panel-three\" aria-label=\"View 42 on 23, opens in new tab\"><strong>42</strong> — 71 <span class=\"rec-vendor\">View on 23 →</span></a></div>\n    <div class=\"rec-channel-deficit-foot\">Affiliate links · <a href=\"#\" data-rec-action=\"open-privacy-settings\">turn off</a></div>\n  </div>"
+    },
+    {
+      "name": "United States",
+      "country": "United States",
+      "enabled": true,
+      "catalog": {
+        "vendors": {
+          "fixture": {
+            "homepage": "https://fixture.example/"
+          }
+        },
+        "products": {
+          "_internal.lightDevices": [
+            {
+              "key": "panel-one",
+              "name": "Red <Panel> & \"lab\"",
+              "vendor": "Vendor <one>",
+              "blurb": "Measured red & NIR",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/panel?source=original"
+            },
+            {
+              "key": "panel-two",
+              "brand": "Brand fallback",
+              "blurb": "",
+              "regions": [
+                "EU"
+              ],
+              "url": {
+                "CZ": "https://cz.fixture.example/two",
+                "EU": "https://eu.fixture.example/two",
+                "INTL": "https://fixture.example/two"
+              }
+            },
+            {
+              "key": "panel-three",
+              "name": 42,
+              "vendor": 23,
+              "blurb": 71,
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/three"
+            },
+            {
+              "key": "panel-four",
+              "name": "Fourth capped option",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/four"
+            },
+            {
+              "key": "panel-one",
+              "name": "Duplicate excluded",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/duplicate"
+            },
+            {
+              "key": "no-channel",
+              "name": "No matching channel",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/unmatched"
+            }
+          ]
+        }
+      },
+      "presets": [
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-two",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-three",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-four",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        }
+      ],
+      "channel": "pbm_red",
+      "label": "Red <660> & NIR",
+      "html": "<div class=\"rec-channel-deficit\" role=\"region\" aria-label=\"Red &lt;660&gt; &amp; NIR channel device options\">\n    <div class=\"rec-channel-deficit-head\">Device options related to the Red &lt;660&gt; &amp; NIR channel</div>\n    <div class=\"rec-channel-deficit-list\"><a class=\"rec-product-link rec-light-deficit-link\" href=\"https://fixture.example/panel?source=original&amp;utm_source=getbased&amp;utm_medium=affiliate&amp;utm_campaign=light-devices&amp;utm_content=light-deficit-panel-one\" target=\"_blank\" rel=\"noopener sponsored\" data-umami-event=\"light-deficit-rec-panel-one\" aria-label=\"View Red &lt;Panel&gt; &amp; &quot;lab&quot; on Vendor &lt;one&gt;, opens in new tab\"><strong>Red &lt;Panel&gt; &amp; &quot;lab&quot;</strong> — Measured red &amp; NIR <span class=\"rec-vendor\">View on Vendor &lt;one&gt; →</span></a><a class=\"rec-product-link rec-light-deficit-link\" href=\"https://fixture.example/three?utm_source=getbased&amp;utm_medium=affiliate&amp;utm_campaign=light-devices&amp;utm_content=light-deficit-panel-three\" target=\"_blank\" rel=\"noopener sponsored\" data-umami-event=\"light-deficit-rec-panel-three\" aria-label=\"View 42 on 23, opens in new tab\"><strong>42</strong> — 71 <span class=\"rec-vendor\">View on 23 →</span></a><a class=\"rec-product-link rec-light-deficit-link\" href=\"https://fixture.example/four?utm_source=getbased&amp;utm_medium=affiliate&amp;utm_campaign=light-devices&amp;utm_content=light-deficit-panel-four\" target=\"_blank\" rel=\"noopener sponsored\" data-umami-event=\"light-deficit-rec-panel-four\" aria-label=\"View Fourth capped option on vendor, opens in new tab\"><strong>Fourth capped option</strong> <span class=\"rec-vendor\">View on vendor →</span></a></div>\n    <div class=\"rec-channel-deficit-foot\">Affiliate links · <a href=\"#\" data-rec-action=\"open-privacy-settings\">turn off</a></div>\n  </div>"
+    },
+    {
+      "name": "disabled",
+      "country": "",
+      "enabled": false,
+      "catalog": {
+        "vendors": {
+          "fixture": {
+            "homepage": "https://fixture.example/"
+          }
+        },
+        "products": {
+          "_internal.lightDevices": [
+            {
+              "key": "panel-one",
+              "name": "Red <Panel> & \"lab\"",
+              "vendor": "Vendor <one>",
+              "blurb": "Measured red & NIR",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/panel?source=original"
+            },
+            {
+              "key": "panel-two",
+              "brand": "Brand fallback",
+              "blurb": "",
+              "regions": [
+                "EU"
+              ],
+              "url": {
+                "CZ": "https://cz.fixture.example/two",
+                "EU": "https://eu.fixture.example/two",
+                "INTL": "https://fixture.example/two"
+              }
+            },
+            {
+              "key": "panel-three",
+              "name": 42,
+              "vendor": 23,
+              "blurb": 71,
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/three"
+            },
+            {
+              "key": "panel-four",
+              "name": "Fourth capped option",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/four"
+            },
+            {
+              "key": "panel-one",
+              "name": "Duplicate excluded",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/duplicate"
+            },
+            {
+              "key": "no-channel",
+              "name": "No matching channel",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/unmatched"
+            }
+          ]
+        }
+      },
+      "presets": [
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-two",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-three",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-four",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        }
+      ],
+      "channel": "pbm_red",
+      "label": "Red <660> & NIR",
+      "html": ""
+    },
+    {
+      "name": "missing-catalog",
+      "country": "",
+      "enabled": true,
+      "catalog": null,
+      "presets": [
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-two",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-three",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-four",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        }
+      ],
+      "channel": "pbm_red",
+      "label": "Red <660> & NIR",
+      "html": ""
+    },
+    {
+      "name": "missing-presets",
+      "country": "",
+      "enabled": true,
+      "catalog": {
+        "vendors": {
+          "fixture": {
+            "homepage": "https://fixture.example/"
+          }
+        },
+        "products": {
+          "_internal.lightDevices": [
+            {
+              "key": "panel-one",
+              "name": "Red <Panel> & \"lab\"",
+              "vendor": "Vendor <one>",
+              "blurb": "Measured red & NIR",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/panel?source=original"
+            },
+            {
+              "key": "panel-two",
+              "brand": "Brand fallback",
+              "blurb": "",
+              "regions": [
+                "EU"
+              ],
+              "url": {
+                "CZ": "https://cz.fixture.example/two",
+                "EU": "https://eu.fixture.example/two",
+                "INTL": "https://fixture.example/two"
+              }
+            },
+            {
+              "key": "panel-three",
+              "name": 42,
+              "vendor": 23,
+              "blurb": 71,
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/three"
+            },
+            {
+              "key": "panel-four",
+              "name": "Fourth capped option",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/four"
+            },
+            {
+              "key": "panel-one",
+              "name": "Duplicate excluded",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/duplicate"
+            },
+            {
+              "key": "no-channel",
+              "name": "No matching channel",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/unmatched"
+            }
+          ]
+        }
+      },
+      "presets": [],
+      "channel": "pbm_red",
+      "label": "Red <660> & NIR",
+      "html": ""
+    },
+    {
+      "name": "missing-channel",
+      "country": "",
+      "enabled": true,
+      "catalog": {
+        "vendors": {
+          "fixture": {
+            "homepage": "https://fixture.example/"
+          }
+        },
+        "products": {
+          "_internal.lightDevices": [
+            {
+              "key": "panel-one",
+              "name": "Red <Panel> & \"lab\"",
+              "vendor": "Vendor <one>",
+              "blurb": "Measured red & NIR",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/panel?source=original"
+            },
+            {
+              "key": "panel-two",
+              "brand": "Brand fallback",
+              "blurb": "",
+              "regions": [
+                "EU"
+              ],
+              "url": {
+                "CZ": "https://cz.fixture.example/two",
+                "EU": "https://eu.fixture.example/two",
+                "INTL": "https://fixture.example/two"
+              }
+            },
+            {
+              "key": "panel-three",
+              "name": 42,
+              "vendor": 23,
+              "blurb": 71,
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/three"
+            },
+            {
+              "key": "panel-four",
+              "name": "Fourth capped option",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/four"
+            },
+            {
+              "key": "panel-one",
+              "name": "Duplicate excluded",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/duplicate"
+            },
+            {
+              "key": "no-channel",
+              "name": "No matching channel",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/unmatched"
+            }
+          ]
+        }
+      },
+      "presets": [
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-two",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-three",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-four",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        }
+      ],
+      "channel": "unsupported",
+      "label": "Red <660> & NIR",
+      "html": ""
+    },
+    {
+      "name": "fallback-label",
+      "country": "",
+      "enabled": true,
+      "catalog": {
+        "vendors": {
+          "fixture": {
+            "homepage": "https://fixture.example/"
+          }
+        },
+        "products": {
+          "_internal.lightDevices": [
+            {
+              "key": "panel-one",
+              "name": "Red <Panel> & \"lab\"",
+              "vendor": "Vendor <one>",
+              "blurb": "Measured red & NIR",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/panel?source=original"
+            },
+            {
+              "key": "panel-two",
+              "brand": "Brand fallback",
+              "blurb": "",
+              "regions": [
+                "EU"
+              ],
+              "url": {
+                "CZ": "https://cz.fixture.example/two",
+                "EU": "https://eu.fixture.example/two",
+                "INTL": "https://fixture.example/two"
+              }
+            },
+            {
+              "key": "panel-three",
+              "name": 42,
+              "vendor": 23,
+              "blurb": 71,
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/three"
+            },
+            {
+              "key": "panel-four",
+              "name": "Fourth capped option",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/four"
+            },
+            {
+              "key": "panel-one",
+              "name": "Duplicate excluded",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/duplicate"
+            },
+            {
+              "key": "no-channel",
+              "name": "No matching channel",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/unmatched"
+            }
+          ]
+        }
+      },
+      "presets": [
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-two",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-three",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-four",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        }
+      ],
+      "channel": "pbm_red",
+      "label": "",
+      "html": "<div class=\"rec-channel-deficit\" role=\"region\" aria-label=\"pbm_red channel device options\">\n    <div class=\"rec-channel-deficit-head\">Device options related to the pbm_red channel</div>\n    <div class=\"rec-channel-deficit-list\"><a class=\"rec-product-link rec-light-deficit-link\" href=\"https://fixture.example/panel?source=original&amp;utm_source=getbased&amp;utm_medium=affiliate&amp;utm_campaign=light-devices&amp;utm_content=light-deficit-panel-one\" target=\"_blank\" rel=\"noopener sponsored\" data-umami-event=\"light-deficit-rec-panel-one\" aria-label=\"View Red &lt;Panel&gt; &amp; &quot;lab&quot; on Vendor &lt;one&gt;, opens in new tab\"><strong>Red &lt;Panel&gt; &amp; &quot;lab&quot;</strong> — Measured red &amp; NIR <span class=\"rec-vendor\">View on Vendor &lt;one&gt; →</span></a><a class=\"rec-product-link rec-light-deficit-link\" href=\"https://fixture.example/three?utm_source=getbased&amp;utm_medium=affiliate&amp;utm_campaign=light-devices&amp;utm_content=light-deficit-panel-three\" target=\"_blank\" rel=\"noopener sponsored\" data-umami-event=\"light-deficit-rec-panel-three\" aria-label=\"View 42 on 23, opens in new tab\"><strong>42</strong> — 71 <span class=\"rec-vendor\">View on 23 →</span></a><a class=\"rec-product-link rec-light-deficit-link\" href=\"https://fixture.example/four?utm_source=getbased&amp;utm_medium=affiliate&amp;utm_campaign=light-devices&amp;utm_content=light-deficit-panel-four\" target=\"_blank\" rel=\"noopener sponsored\" data-umami-event=\"light-deficit-rec-panel-four\" aria-label=\"View Fourth capped option on vendor, opens in new tab\"><strong>Fourth capped option</strong> <span class=\"rec-vendor\">View on vendor →</span></a></div>\n    <div class=\"rec-channel-deficit-foot\">Affiliate links · <a href=\"#\" data-rec-action=\"open-privacy-settings\">turn off</a></div>\n  </div>"
+    },
+    {
+      "name": "invalid-protocol",
+      "country": "",
+      "enabled": true,
+      "catalog": {
+        "vendors": {
+          "fixture": {
+            "homepage": "https://fixture.example/"
+          }
+        },
+        "products": {
+          "_internal.lightDevices": [
+            {
+              "key": "panel-one",
+              "name": "Red <Panel> & \"lab\"",
+              "vendor": "Vendor <one>",
+              "blurb": "Measured red & NIR",
+              "regions": [
+                "INTL"
+              ],
+              "url": "javascript:alert(1)"
+            }
+          ]
+        }
+      },
+      "presets": [
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-two",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-three",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-four",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        }
+      ],
+      "channel": "pbm_red",
+      "label": "Red <660> & NIR",
+      "html": ""
+    },
+    {
+      "name": "cap-before-invalid-filter",
+      "country": "",
+      "enabled": true,
+      "catalog": {
+        "vendors": {
+          "fixture": {
+            "homepage": "https://fixture.example/"
+          }
+        },
+        "products": {
+          "_internal.lightDevices": [
+            {
+              "key": "panel-one",
+              "name": "Red <Panel> & \"lab\"",
+              "vendor": "Vendor <one>",
+              "blurb": "Measured red & NIR",
+              "regions": [
+                "INTL"
+              ],
+              "url": "javascript:alert(1)"
+            },
+            {
+              "key": "panel-two",
+              "brand": "Brand fallback",
+              "blurb": "",
+              "regions": [
+                "INTL"
+              ],
+              "url": "javascript:alert(1)"
+            },
+            {
+              "key": "panel-three",
+              "name": 42,
+              "vendor": 23,
+              "blurb": 71,
+              "regions": [
+                "INTL"
+              ],
+              "url": "javascript:alert(1)"
+            },
+            {
+              "key": "panel-four",
+              "name": "Fourth capped option",
+              "regions": [
+                "INTL"
+              ],
+              "url": "https://fixture.example/four"
+            }
+          ]
+        }
+      },
+      "presets": [
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-two",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-three",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-four",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        },
+        {
+          "catalogSlug": "panel-one",
+          "channels": [
+            "pbm_red",
+            "pbm_nir"
+          ]
+        }
+      ],
+      "channel": "pbm_red",
+      "label": "Red <660> & NIR",
+      "html": ""
+    }
+  ],
+  "styleBlocks": [
+    {
+      "selector": ".rec-channel-deficit",
+      "declarations": "margin:16px 0;padding:12px 14px;background:color-mix(in srgb, var(--bg-card) 94%, transparent);border:1px solid color-mix(in srgb, var(--border) 82%, transparent);border-radius:var(--radius);box-shadow:var(--shadow);",
+      "media": null
+    },
+    {
+      "selector": ".rec-channel-deficit-head",
+      "declarations": "font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:8px;",
+      "media": null
+    },
+    {
+      "selector": ".rec-channel-deficit-list",
+      "declarations": "display:flex;flex-direction:column;gap:6px;",
+      "media": null
+    },
+    {
+      "selector": ".rec-light-deficit-link",
+      "declarations": "display:block;padding:8px 10px;font-size:12px;color:var(--text-primary);background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius-xs);text-decoration:none;",
+      "media": null
+    },
+    {
+      "selector": ".rec-light-deficit-link:hover",
+      "declarations": "border-color:var(--accent);",
+      "media": null
+    },
+    {
+      "selector": ".rec-light-deficit-link strong",
+      "declarations": "color:var(--accent);margin-right:4px;",
+      "media": null
+    },
+    {
+      "selector": ".rec-light-deficit-link .rec-vendor",
+      "declarations": "display:inline-block;margin-left:6px;color:var(--text-secondary);font-size:11px;",
+      "media": null
+    },
+    {
+      "selector": ".rec-channel-deficit-foot",
+      "declarations": "margin-top:8px;font-size:11px;color:var(--text-secondary);",
+      "media": null
+    },
+    {
+      "selector": ".rec-channel-deficit-foot a",
+      "declarations": "color:var(--text-secondary);",
+      "media": null
+    }
+  ]
+}

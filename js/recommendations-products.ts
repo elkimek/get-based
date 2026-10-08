@@ -1,3 +1,5 @@
+import { renderHTML as renderDeviceOptions } from './components/LightDeviceRecommendations.svelte.html.js';
+import { projectDeviceRecommendations, type ResolvedDeviceOption } from './light-device-recommendations-presentation.js';
 import { renderHTML as renderDeviceAffiliate } from './components/LightDeviceAffiliate.svelte.html.js';
 import type { LightDeviceAffiliateView } from './light-device-library-presentation.js';
 import type { LightDeviceRecord } from './light-devices-store.js';
@@ -577,25 +579,20 @@ export function renderChannelDeficitDeviceRecs(catalog: CatalogInput, channelKey
   const products = recommendDeviceProductsForChannelDeficit(catalog, channelKey, presets);
   if (!products.length) return '';
   const region = getUserRegion();
-  const humanLabel = escapeHTML(opts.label || channelKey);
+  const humanLabel = opts.label || channelKey;
   // Cap at 3 to keep the card compact - the catalog is curated, not a
   // marketplace. If the user wants more they can browse Light devices.
-  const rows: string[] = [];
+  const rows: ResolvedDeviceOption[] = [];
   for (const product of products.slice(0, 3)) {
     const rawUrl = _resolveProductUrlForRegion(product, region) || product.url;
     if (!_isTrustedAffiliateUrl(rawUrl, catalog)) continue;
     const slug_ = _eventSlug(product.key || product.name || '');
     const evtName = `light-deficit-rec-${slug_}`.slice(0, 50).replace(/-+$/, '');
     const url = _addUTMParams(rawUrl, `light-deficit-${slug_}`, 'light-devices');
-    const name = escapeHTML(product.name || product.key);
-    const vendor = escapeHTML(product.vendor || product.brand || 'vendor');
-    const blurb = product.blurb ? escapeHTML(product.blurb) : '';
-    rows.push(`<a class="rec-product-link rec-light-deficit-link" href="${escapeHTML(url)}" target="_blank" rel="noopener sponsored" data-umami-event="${escapeHTML(evtName)}" aria-label="View ${name} on ${vendor}, opens in new tab"><strong>${name}</strong>${blurb ? ` — ${blurb}` : ''} <span class="rec-vendor">View on ${vendor} →</span></a>`);
+    rows.push({ href: url == null ? '' : String(url), event: evtName,
+      name: product.name || product.key, vendor: product.vendor || product.brand || 'vendor',
+      blurb: product.blurb || '' });
   }
-  if (!rows.length) return '';
-  return `<div class="rec-channel-deficit" role="region" aria-label="${humanLabel} channel device options">
-    <div class="rec-channel-deficit-head">Device options related to the ${humanLabel} channel</div>
-    <div class="rec-channel-deficit-list">${rows.join('')}</div>
-    <div class="rec-channel-deficit-foot">Affiliate links · <a href="#" ${recActionAttrs('open-privacy-settings')}>turn off</a></div>
-  </div>`;
+  const view = projectDeviceRecommendations(humanLabel, rows);
+  return view ? renderDeviceOptions({ view }) : '';
 }

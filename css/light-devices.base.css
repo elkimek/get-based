@@ -1,32 +1,4 @@
-/* Remaining recommendation owners and shared Lens widget-body gap. */
+/* Shared Lens layout integration; ordinary device presentation is Tailwind-owned. */
 .light-page .dashboard-widget[data-widget-id="light-devices"] .dashboard-widget-body {
   gap: 0;
 }
-.rec-channel-deficit {
-  margin: 16px 0; padding: 12px 14px;
-  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-.rec-channel-deficit-head {
-  font-size: 13px; font-weight: 600; color: var(--text-primary);
-  margin-bottom: 8px;
-}
-.rec-channel-deficit-list { display: flex; flex-direction: column; gap: 6px; }
-.rec-light-deficit-link {
-  display: block; padding: 8px 10px;
-  font-size: 12px; color: var(--text-primary);
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  border-radius: var(--radius-xs); text-decoration: none;
-}
-.rec-light-deficit-link:hover { border-color: var(--accent); }
-.rec-light-deficit-link strong { color: var(--accent); margin-right: 4px; }
-.rec-light-deficit-link .rec-vendor {
-  display: inline-block; margin-left: 6px;
-  color: var(--text-secondary); font-size: 11px;
-}
-.rec-channel-deficit-foot {
-  margin-top: 8px; font-size: 11px; color: var(--text-secondary);
-}
-.rec-channel-deficit-foot a { color: var(--text-secondary); }
