@@ -9,6 +9,7 @@ export interface LightSetupChip {
   tier?: number;
 }
 export interface LightSetupView {
+  ownerTicket: string;
   defaults: SunSetupDefaults;
   complete: boolean;
   initialFitzpatrick: string | null;
@@ -35,6 +36,7 @@ export function projectLightSetup(input: {
   coords: SunSetupCoords | null;
   profileLocation: { country?: string | null } | null;
   aiHTML?: string;
+  ownerTicket?: string;
 }): LightSetupView {
   const defaults = input.defaults || {};
   const initialFitzpatrick = input.savedFitzpatrick || skinTypeToFitzpatrick(input.legacySkin);
@@ -75,7 +77,7 @@ export function projectLightSetup(input: {
     ? Object.values(defaults.ott).filter(Boolean).length
     : typeof defaults.ottScore === 'number' ? defaults.ottScore : 0;
   return {
-    defaults, complete: input.complete, initialFitzpatrick,
+    defaults, complete: input.complete, initialFitzpatrick, ownerTicket: input.ownerTicket || '',
     skinIndex: initialFitzpatrick ? fitzpatrickToSkinTypeIndex(initialFitzpatrick) : 2,
     filledCount: [!!initialFitzpatrick, !!defaults.homeLight, !!defaults.eyewear].filter(Boolean).length,
     selectedPatterns: Math.max(0, Math.min(10, Number(selectedPatterns) || 0)),

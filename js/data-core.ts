@@ -202,7 +202,7 @@ export function createDataCore(ports: DataCorePorts) {
 
   function persistProfileSnapshot(profileId: string, source: ImportedDataRecord, options: ProfileSaveOptions) {
     const intent = structuredClone(source);
-    const expectedField = options.expectedContextField ? structuredClone(options.expectedContextField) : undefined;
+    const expectedFields = structuredClone([...(options.expectedContextFields || []), ...(options.expectedContextField ? [options.expectedContextField] : [])]);
     const previousSave = options.activeSave && pendingProfileSaves.get(source);
     const snapshot: ProfileSaveSnapshot = { baseline: options.baseData, base: options.baseData ? structuredClone(options.baseData) : null, intent, committed: false, profileId };
     if (options.activeSave) pendingProfileSaves.set(source, snapshot);
@@ -221,7 +221,7 @@ export function createDataCore(ports: DataCorePorts) {
         const previous = await (0, ports.encryptedGetItem)(key, { throwOnDecryptError: true });
         // Explicit restores must retry if their reviewed snapshot changed.
         if (options.expectedData !== undefined && previous !== options.expectedData) throw new ports.ProfileWriteConflict('Stale import');
-        const stored = previous != null && (base || options.expectedContextNotes !== undefined || expectedField !== undefined) ? JSON.parse(previous) : {};
+        const stored = previous != null && (base || options.expectedContextNotes !== undefined || expectedFields.length > 0) ? JSON.parse(previous) : {};
         // Notes drafts can outlive a view/profile load. Check their observed
         // value inside the same locked read/merge/write that commits the edit.
         if (options.expectedContextNotes !== undefined && String(stored.contextNotes || '') !== options.expectedContextNotes) {
@@ -229,11 +229,13 @@ export function createDataCore(ports: DataCorePorts) {
           throw new ports.ProfileWriteConflict('Context notes changed since this edit');
         }
         // Legacy profiles omit an empty Lens; it has the same string contract as ''.
-        const contextValue = expectedField?.key === 'interpretiveLens' ? stored.interpretiveLens ?? '' : expectedField ? stored[expectedField.key] ?? null : null;
-        const observedContextValue = expectedField?.key === 'interpretiveLens' ? expectedField.value ?? '' : expectedField?.value;
-        if (expectedField && !ports.profileDataValuesEqual(contextValue, observedContextValue)) {
-          try { options.onContextFieldConflict?.(); } catch { /* Observation cannot bypass the guard. */ }
-          throw new ports.ProfileWriteConflict('Context field changed since this edit');
+        for (const expectedField of expectedFields) {
+          const contextValue = expectedField.key === 'interpretiveLens' ? stored.interpretiveLens ?? '' : stored[expectedField.key] ?? null;
+          const observedContextValue = expectedField.key === 'interpretiveLens' ? expectedField.value ?? '' : expectedField.value;
+          if (!ports.profileDataValuesEqual(contextValue, observedContextValue)) {
+            try { options.onContextFieldConflict?.(); } catch { /* Observation cannot bypass the guard. */ }
+            throw new ports.ProfileWriteConflict('Context field changed since this edit');
+          }
         }
         const latest = base ? stored : {};
         persisted = base ? (0, ports.mergeProfileMutation)(base, intent, latest) : intent;

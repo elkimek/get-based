@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1237 |
-| Internal import edges | 4390 |
+| Modules | 1238 |
+| Internal import edges | 4397 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -66,7 +66,7 @@ High fan-in modules have many dependants; high fan-out modules coordinate many d
 | High fan-in | Dependants | High fan-out | Imports |
 | --- | ---: | --- | ---: |
 | [`js/utils.ts`](js/utils.ts) | 278 | [`js/app-shell-hooks.ts`](js/app-shell-hooks.ts) | 77 |
-| [`js/state.ts`](js/state.ts) | 241 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
+| [`js/state.ts`](js/state.ts) | 242 | [`js/chat-send.ts`](js/chat-send.ts) | 38 |
 | [`js/caught-error.ts`](js/caught-error.ts) | 93 | [`js/app-light-sun-modules.ts`](js/app-light-sun-modules.ts) | 36 |
 | [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts) | 84 | [`js/settings.ts`](js/settings.ts) | 35 |
 | [`js/data.ts`](js/data.ts) | 82 | [`js/provider-panels.ts`](js/provider-panels.ts) | 34 |
@@ -2261,7 +2261,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>sun</code> family — 36 modules</summary>
+<details><summary><code>sun</code> family — 37 modules</summary>
 
 - [`js/sun-active-session-format.ts`](js/sun-active-session-format.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte)
 - [`js/sun-active-session.ts`](js/sun-active-session.ts) → [`js/components/LightSessionPresentation.svelte`](js/components/LightSessionPresentation.svelte), [`js/light-active-session-presentation.ts`](js/light-active-session-presentation.ts), [`js/light-session-presentation.ts`](js/light-session-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/sun-active-session-format.ts`](js/sun-active-session-format.ts), [`js/sun-body-silhouette.ts`](js/sun-body-silhouette.ts), [`js/sun-session-actions.ts`](js/sun-session-actions.ts), [`js/sun-session-model.ts`](js/sun-session-model.ts), [`js/sun-session-ui.ts`](js/sun-session-ui.ts), [`js/utils.ts`](js/utils.ts)
@@ -2278,9 +2278,10 @@ Native browser modules shipped with the static application.
 - [`js/sun-correlations.ts`](js/sun-correlations.ts) → [`js/state.ts`](js/state.ts), [`js/sun.ts`](js/sun.ts)
 - [`js/sun-defaults-model.ts`](js/sun-defaults-model.ts) → no in-scope imports
 - [`js/sun-defaults-runtime.ts`](js/sun-defaults-runtime.ts) → [`js/profile.ts`](js/profile.ts)
-- [`js/sun-defaults-setup-renderer.ts`](js/sun-defaults-setup-renderer.ts) → [`js/components/LightSetupPresentation.svelte`](js/components/LightSetupPresentation.svelte), [`js/light-setup-presentation.ts`](js/light-setup-presentation.ts), [`js/state.ts`](js/state.ts), [`js/sun-defaults-runtime.ts`](js/sun-defaults-runtime.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/sun-defaults-setup-ui.ts`](js/sun-defaults-setup-ui.ts) → [`js/constants.ts`](js/constants.ts), [`js/light-setup-classes.ts`](js/light-setup-classes.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/sun-defaults-model.ts`](js/sun-defaults-model.ts), [`js/sun-defaults-runtime.ts`](js/sun-defaults-runtime.ts), [`js/sun-defaults-setup-renderer.ts`](js/sun-defaults-setup-renderer.ts), [`js/utils.ts`](js/utils.ts)
-- [`js/sun-defaults.ts`](js/sun-defaults.ts) → [`js/constants.ts`](js/constants.ts), [`js/data.ts`](js/data.ts), [`js/state.ts`](js/state.ts), [`js/sun-defaults-model.ts`](js/sun-defaults-model.ts), [`js/sun-defaults-setup-ui.ts`](js/sun-defaults-setup-ui.ts)
+- [`js/sun-defaults-session.ts`](js/sun-defaults-session.ts) → [`js/constants.ts`](js/constants.ts), [`js/data.ts`](js/data.ts), [`js/profile-data-writes.ts`](js/profile-data-writes.ts), [`js/profile-load-safety.ts`](js/profile-load-safety.ts), [`js/state.ts`](js/state.ts), [`js/sun-defaults-model.ts`](js/sun-defaults-model.ts)
+- [`js/sun-defaults-setup-renderer.ts`](js/sun-defaults-setup-renderer.ts) → [`js/components/LightSetupPresentation.svelte`](js/components/LightSetupPresentation.svelte), [`js/light-setup-presentation.ts`](js/light-setup-presentation.ts), [`js/state.ts`](js/state.ts), [`js/sun-defaults-runtime.ts`](js/sun-defaults-runtime.ts), [`js/sun-defaults-session.ts`](js/sun-defaults-session.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/sun-defaults-setup-ui.ts`](js/sun-defaults-setup-ui.ts) → [`js/constants.ts`](js/constants.ts), [`js/light-setup-classes.ts`](js/light-setup-classes.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/sun-defaults-model.ts`](js/sun-defaults-model.ts), [`js/sun-defaults-runtime.ts`](js/sun-defaults-runtime.ts), [`js/sun-defaults-session.ts`](js/sun-defaults-session.ts), [`js/sun-defaults-setup-renderer.ts`](js/sun-defaults-setup-renderer.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/sun-defaults.ts`](js/sun-defaults.ts) → [`js/state.ts`](js/state.ts), [`js/sun-defaults-model.ts`](js/sun-defaults-model.ts), [`js/sun-defaults-session.ts`](js/sun-defaults-session.ts), [`js/sun-defaults-setup-ui.ts`](js/sun-defaults-setup-ui.ts)
 - [`js/sun-location.ts`](js/sun-location.ts) → [`js/constants.ts`](js/constants.ts), [`js/profile.ts`](js/profile.ts), [`js/state.ts`](js/state.ts), [`js/sun-runtime.ts`](js/sun-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sun-onboarding-ai.ts`](js/sun-onboarding-ai.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/lab-vitamin-d-context.ts`](js/lab-vitamin-d-context.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts), [`js/sun-defaults-runtime.ts`](js/sun-defaults-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/sun-runtime.ts`](js/sun-runtime.ts) → [`js/runtime-callbacks.ts`](js/runtime-callbacks.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)

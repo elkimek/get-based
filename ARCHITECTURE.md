@@ -1127,8 +1127,15 @@ stored defaults, legacy skin fallback, option summaries and temporary-location
 copy without changing the domain catalogs or calculations. The stable
 `sun-defaults-setup-renderer.ts` facade retains synchronous HTML imports; only
 the separate onboarding AI owner supplies a trusted HTML slot.
-`sun-defaults-setup-ui.ts` retains delegated input, collection, persistence and
-location actions. Tabs expose labelled panels and roving keyboard focus; native
+`sun-defaults-setup-ui.ts` owns delegated input, draft collection and modal/location
+lifecycle. `sun-defaults-session.ts` captures the initiating profile and data root,
+stages setup defaults and mirrored skin together, and commits them through the
+profile transaction with atomic guards on both observed stored fields. Failed,
+blocked or conflicting saves publish neither field and keep the dialog draft.
+Accepted writes finish on their captured profile; retired dialogs cannot close a
+new dialog, navigate or trigger analysis when the earlier write resolves. Rendered
+actions carry a profile/root identity ticket invalidated by profile switching.
+Location requests refresh only the dialog that initiated them. Tabs expose labelled panels and roving keyboard focus; native
 skin buttons keep explicit confirmation and the range has an accessible label.
 The shared modal lifecycle guards initial focus. Live tier changes preserve the
 utility classes on the existing badge rather than replacing its class list.

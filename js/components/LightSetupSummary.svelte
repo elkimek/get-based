@@ -4,7 +4,7 @@
   let { view }: { view: LightSetupView } = $props();
 </script>
 
-<div class={setupClasses("light-setup-summary")} data-light-setup-presentation>
+<div class={setupClasses("light-setup-summary")} data-light-setup-presentation data-light-setup-owner={view.ownerTicket || undefined}>
   <div class={setupClasses("light-setup-summary-head")}><span class={setupClasses("light-setup-summary-headline")}><span class={setupClasses("light-setup-summary-tick")}>✓</span>Your light setup</span>
     <button type="button" class={setupClasses("import-btn import-btn-secondary light-setup-summary-edit")} data-light-setup-action="reopen">Edit</button>
   </div>

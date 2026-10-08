@@ -162,3 +162,160 @@ test('authored prompt and saved summary retain readable themes and reduced-motio
   });
   await expect(page.locator('#ott-running-label')).toHaveCSS('animation-name', 'none');
 });
+
+test('setup keeps its draft on false, empty and rejected saves and retries without false success', async ({ page }) => {
+  await openSetup(page); const modal = page.getByRole('dialog', { name: 'Personalize Light', exact: true });
+  await modal.getByRole('radio').nth(3).click();
+  await modal.locator('[data-choice-group="setup-homelight"][data-value="led-warm"]').click();
+  await modal.locator('[data-setup-tab="score"]').click();
+  const before = await stored(page);
+  const liveBefore = await page.evaluate(async () => structuredClone((await import('/js/state.js')).state.importedData));
+  await page.evaluate(async () => {
+    const setup = await import('/js/sun-defaults.js'), runtime = await import('/js/sun-defaults-runtime.js');
+    const counters = { saves: 0, analysis: 0, navigation: 0 };
+    Object.assign(window, { setupCounters: counters });
+    runtime.configureSunDefaultsRuntimeDeps({ navigate: () => { counters.navigation++; } });
+    setup.configureSunDefaults({ maybeAnalyzeOnboardingAfterSave: () => { counters.analysis++; },
+      persistSunSetupValues: async () => {
+        counters.saves++;
+        if (counters.saves === 1) return false;
+        if (counters.saves === 2) return null;
+        throw new Error('Synthetic setup write failure');
+      },
+    });
+  });
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await modal.getByRole('button', { name: 'Save setup', exact: true }).click();
+    await expect(modal.locator('[data-light-setup-status]')).toContainText('Your draft is still here');
+    await expect(modal).not.toHaveAttribute('aria-busy', 'true');
+    await expect(modal.locator('#setup-homelight')).toHaveValue('led-warm');
+    await expect(modal.locator('#setup-skin-range')).toHaveValue('3');
+    expect(await stored(page)).toEqual(before);
+    expect(await page.evaluate(() => (window as unknown as { setupCounters: object }).setupCounters)).toEqual({ saves: attempt, analysis: 0, navigation: 0 });
+  }
+  await page.evaluate(async () => {
+    const [setup, { state }, profile] = await Promise.all([import('/js/sun-defaults.js'), import('/js/state.js'), import('/js/profile.js')]);
+    setup.configureSunDefaults({ persistSunSetupValues: setup.persistSunSetupValues });
+    const key = profile.profileStorageKey(state.currentProfile, 'imported'), original = IDBObjectStore.prototype.put;
+    let attempts = 0;
+    IDBObjectStore.prototype.put = function(value, putKey) {
+      if (putKey === key && ++attempts === 1) throw new DOMException('Synthetic setup quota', 'QuotaExceededError');
+      return original.call(this, value, putKey);
+    };
+    Object.assign(window, { restoreSetupStore: () => { IDBObjectStore.prototype.put = original; return attempts; } });
+  });
+  await modal.getByRole('button', { name: 'Save setup', exact: true }).click();
+  await expect(modal.locator('[data-light-setup-status]')).toContainText('Your draft is still here');
+  await expect(modal.getByRole('button', { name: 'Save setup', exact: true })).toBeEnabled();
+  expect(await page.evaluate(() => (window as unknown as { restoreSetupStore(): number }).restoreSetupStore())).toBe(1);
+  expect(await stored(page)).toEqual(before);
+  expect(await page.evaluate(async () => structuredClone((await import('/js/state.js')).state.importedData))).toEqual(liveBefore);
+  expect(await modal.evaluate(async element => (await (window as unknown as { axe: typeof import('axe-core') }).axe.run(element, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } })).violations.map(item => item.id))).toEqual([]);
+  await modal.getByRole('button', { name: 'Save setup', exact: true }).click(); await expect(modal).toHaveCount(0);
+  expect((await stored(page)).sunDefaults).toMatchObject({ fitzpatrick: 'IV', homeLight: 'led-warm' });
+  expect(await page.evaluate(() => (window as unknown as { setupCounters: object }).setupCounters)).toEqual({ saves: 3, analysis: 1, navigation: 1 });
+});
+
+test('a completed older save cannot close or alter a reopened setup dialog', async ({ page }) => {
+  await openSetup(page); const modal = page.getByRole('dialog', { name: 'Personalize Light', exact: true });
+  await modal.getByRole('radio').nth(3).click(); await modal.locator('[data-setup-tab="score"]').click();
+  await page.evaluate(async () => {
+    const setup = await import('/js/sun-defaults.js'), runtime = await import('/js/sun-defaults-runtime.js');
+    let release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });
+    const pending = { release, stored: false, finished: false, analysis: 0, navigation: 0 };
+    Object.assign(window, { pendingSetup: pending });
+    runtime.configureSunDefaultsRuntimeDeps({ navigate: () => { pending.navigation++; } });
+    setup.configureSunDefaults({ maybeAnalyzeOnboardingAfterSave: () => { pending.analysis++; },
+      persistSunSetupValues: async (values, now, session) => {
+        const result = await setup.persistSunSetupValues(values, now, session);
+        pending.stored = true; await gate; pending.finished = true; return result;
+      },
+    });
+  });
+  await modal.getByRole('button', { name: 'Save setup', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as { pendingSetup: { stored: boolean } }).pendingSetup.stored)).toBe(true);
+  await expect(modal).toHaveAttribute('aria-busy', 'true');
+  await expect(modal.getByRole('button', { name: 'Save setup', exact: true })).toBeDisabled();
+  await modal.getByRole('button', { name: 'Close light setup', exact: true }).click();
+  await page.evaluate(async () => (await import('/js/sun-defaults.js')).reopenSunSetup());
+  await modal.locator('[data-choice-group="setup-homelight"][data-value="incandescent"]').click();
+  await page.evaluate(() => (window as unknown as { pendingSetup: { release(): void } }).pendingSetup.release());
+  await expect.poll(() => page.evaluate(() => (window as unknown as { pendingSetup: { finished: boolean } }).pendingSetup.finished)).toBe(true);
+  await expect(modal).toBeVisible(); await expect(modal.locator('#setup-homelight')).toHaveValue('incandescent');
+  await expect(modal).not.toHaveAttribute('aria-busy', 'true');
+  expect(await page.evaluate(() => {
+    const pending = (window as unknown as { pendingSetup: { analysis: number; navigation: number } }).pendingSetup;
+    return { analysis: pending.analysis, navigation: pending.navigation };
+  })).toEqual({ analysis: 0, navigation: 0 });
+  expect((await stored(page)).sunDefaults.fitzpatrick).toBe('IV');
+});
+
+test('Later reports failed persistence and ignores an old prompt after profile replacement', async ({ page }) => {
+  await openSetup(page); await page.getByRole('button', { name: 'Close light setup', exact: true }).click();
+  await page.evaluate(async () => {
+    const setup = await import('/js/sun-defaults.js'), runtime = await import('/js/sun-defaults-runtime.js');
+    const root = document.createElement('div'); root.id = 'setup-owned-prompt'; root.style.cssText = 'position:fixed;top:10px;left:10px;right:10px;z-index:20000'; root.innerHTML = setup.renderSetupCard(); document.body.append(root);
+    const counters = { saves: 0, navigation: 0 }; Object.assign(window, { promptCounters: counters });
+    setup.configureSunDefaults({ saveSunDefaults: async () => { counters.saves++; return false; } });
+    runtime.configureSunDefaultsRuntimeDeps({ navigate: () => { counters.navigation++; } });
+  });
+  const later = page.locator('#setup-owned-prompt').getByRole('button', { name: 'Later', exact: true });
+  const before = await stored(page); await later.click();
+  await expect(later).toBeEnabled(); expect(await stored(page)).toEqual(before);
+  expect(await page.evaluate(() => (window as unknown as { promptCounters: object }).promptCounters)).toEqual({ saves: 1, navigation: 0 });
+  const replacement = await page.evaluate(async () => {
+    const [{ state }, profile] = await Promise.all([import('/js/state.js'), import('/js/profile.js')]);
+    state.currentProfile = 'replacement-light-profile'; state.importedData = profile.createDefaultProfileData();
+    return structuredClone(state.importedData);
+  });
+  await later.click();
+  expect(await page.evaluate(() => (window as unknown as { promptCounters: object }).promptCounters)).toEqual({ saves: 1, navigation: 0 });
+  expect(await page.evaluate(async () => structuredClone((await import('/js/state.js')).state.importedData))).toEqual(replacement);
+});
+
+test('a retired location request cannot replace the new dialog location row or discard choices', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await openSetup(page); const modal = page.getByRole('dialog', { name: 'Personalize Light', exact: true });
+  await page.evaluate(async () => {
+    const runtime = await import('/js/sun-defaults-runtime.js');
+    let current = false, release!: () => void; const gate = new Promise<void>(resolve => { release = resolve; });
+    Object.assign(window, { releaseSetupLocation: release });
+    runtime.configureSunDefaultsRuntimeDeps({ getProfileLocation: () => ({ country: 'Czechia', zip: '' }),
+      getSunCoords: () => current ? { lat: 50.1, lon: 14.4, source: 'current-device' } : { lat: 50, lon: 14, source: 'country-band' },
+      requestPreciseLocation: async () => { await gate; current = true; return { lat: 50.1, lon: 14.4, source: 'current-device' }; },
+    });
+  });
+  await modal.getByRole('button', { name: 'Use current location today', exact: true }).click();
+  await modal.getByRole('button', { name: 'Close light setup', exact: true }).click();
+  await page.evaluate(async () => (await import('/js/sun-defaults.js')).reopenSunSetup());
+  await modal.locator('[data-choice-group="setup-homelight"][data-value="incandescent"]').click();
+  const row = await modal.locator('.light-setup-location-status').textContent();
+  await page.evaluate(() => (window as unknown as { releaseSetupLocation(): void }).releaseSetupLocation());
+  await expect.poll(() => page.evaluate(async () => (await import('/js/sun-defaults-runtime.js')).getSunSetupCoords()?.source)).toBe('current-device');
+  await expect(modal.locator('.light-setup-location-status')).toHaveText(row!);
+  await expect(modal.locator('#setup-homelight')).toHaveValue('incandescent');
+  await page.evaluate(async () => (await import('/js/sun-defaults-runtime.js')).configureSunDefaultsRuntimeDeps({ requestPreciseLocation: async () => { throw new Error('Synthetic location rejection'); } }));
+  await modal.getByRole('button', { name: 'Use current location today', exact: true }).click();
+  await expect(modal.locator('#setup-homelight')).toHaveValue('incandescent');
+  expect(errors.filter(message => message.includes('Synthetic location rejection'))).toEqual([]);
+});
+
+test('switching profiles retires setup actions even when the original data root returns', async ({ page }) => {
+  await openSetup(page);
+  const originalTicket = await page.getByRole('dialog', { name: 'Personalize Light', exact: true }).getAttribute('data-light-setup-owner');
+  await page.evaluate(async () => {
+    const setup = await import('/js/sun-defaults.js'), { state } = await import('/js/state.js');
+    const root = document.createElement('div'); root.id = 'retired-setup-prompt'; root.style.cssText = 'position:fixed;top:10px;left:10px;right:10px;z-index:20000'; root.innerHTML = setup.renderSetupCard(); document.body.append(root);
+    const originalProfile = state.currentProfile, originalData = state.importedData;
+    state.currentProfile = 'temporary-light-profile'; window.dispatchEvent(new Event('labcharts-profile-switched'));
+    state.currentProfile = originalProfile; state.importedData = originalData;
+    window.dispatchEvent(new Event('labcharts-profile-switched'));
+    let calls = 0; Object.assign(window, { retiredSetupCalls: () => calls });
+    setup.configureSunDefaults({ saveSunDefaults: async () => { calls++; return true; } });
+  });
+  await expect(page.getByRole('dialog', { name: 'Personalize Light', exact: true })).toHaveCount(0);
+  await page.locator('#retired-setup-prompt').getByRole('button', { name: 'Later', exact: true }).click();
+  expect(await page.evaluate(() => (window as unknown as { retiredSetupCalls(): number }).retiredSetupCalls())).toBe(0);
+  await page.evaluate(async () => (await import('/js/sun-defaults.js')).reopenSunSetup());
+  await expect(page.getByRole('dialog', { name: 'Personalize Light', exact: true })).not.toHaveAttribute('data-light-setup-owner', originalTicket!);
+});

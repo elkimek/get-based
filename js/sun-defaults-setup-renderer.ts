@@ -1,5 +1,6 @@
 import type { SunSetupDefaults } from './sun-defaults-model.js';
 import type { LightSetupPresentationProps } from './light-setup-presentation.js';
+import { captureSunSetupIdentity } from './sun-defaults-session.js';
 import { state } from './state.js';
 import { getSunSetupCoords, getSunSetupProfileLocation } from './sun-defaults-runtime.js';
 import { escapeAttr } from './utils.js';
@@ -40,7 +41,7 @@ function render(surface: LightSetupPresentationProps['surface'], options: Pick<L
     defaults: rendererDeps.getSunDefaults(),
     savedFitzpatrick: (state.importedData?.sunDefaults as SunSetupDefaults | null | undefined)?.fitzpatrick,
     legacySkin: state.importedData?.lightCircadian?.skinType,
-    complete,
+    complete, ownerTicket: captureSunSetupIdentity(),
     coords: getSunSetupCoords(), profileLocation: getSunSetupProfileLocation(), aiHTML,
   }) });
 }

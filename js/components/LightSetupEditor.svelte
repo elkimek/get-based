@@ -15,7 +15,7 @@
   const filledCount = $derived(view.filledCount);
 </script>
 
-<div class={setupClasses("light-setup-card light-setup-card-editor")} data-light-setup-presentation>
+<div class={setupClasses("light-setup-card light-setup-card-editor")} data-light-setup-presentation data-light-setup-owner={view.ownerTicket || undefined}>
     <div class={setupClasses("light-setup-step-tabs")} role="tablist" aria-label="Light setup steps">
       <button type="button" class={setupClasses("light-setup-step-tab active")} id="light-setup-tab-core" data-setup-tab="core" aria-controls="light-setup-pane-core" tabindex="0" role="tab" aria-selected="true" data-light-setup-action="set-step" data-light-setup-step="core">
         <span class={setupClasses("light-setup-step-tab-index")}>1</span>

@@ -66,6 +66,17 @@ checks caller guards without discarding shared module caching.
 checks setup metadata, retained skin type, clear isolation, all six themes and
 keyboard entry to the actual Light setup. Deferred setup callbacks are retired
 by profile changes, newer authored forms and native modal replacements.
+[`sun-defaults-ownership.test.ts`](../tests/sun-defaults-ownership.test.ts) checks
+staged defaults and mirrored skin as one guarded profile transaction, failed-read
+blocking, captured-profile completion, retry and both local/peer conflicts.
+The focused [`light-setup-owned.spec.ts`](../tests/playwright/light-setup-owned.spec.ts)
+cases verify actual IndexedDB failure without live or stored publication, accessible
+error/draft retention, retry, rejected persistence callbacks, old prompt retirement
+and delayed save/location responses across reopened dialogs and profile changes.
+[`sveltekit-light-setup.spec.ts`](../tests/pwa/sveltekit-light-setup.spec.ts) verifies
+offline first use, actual canonical storage, cancellation and two cold launches
+against the assembled static artifact. These checks establish their named workflows;
+they do not substitute for whole-application release acceptance.
 [`sveltekit-context-forms.spec.ts`](../tests/pwa/sveltekit-context-forms.spec.ts)
 checks the editors through real catalog actions with the assembled static PWA,
 including offline first use, committed history, Light setup metadata/skin preservation

@@ -2,11 +2,16 @@ import type { ProfileData as ImportedDataRecord } from '../types/app-state.js';
 import type { ActiveData } from './data-view-types.js';
 export type ProfileConversion = ReturnType<typeof import('./unit-profiles.js').resolveMarkerUnitProfile>['conversion'];
 export interface DataContextDependencies { invalidateLabContextCache: (() => void) | null | undefined }
+export interface ProfileFieldExpectation {
+  key: 'diagnoses' | 'sleepRest' | 'exercise' | 'stress' | 'loveLife' | 'diet' | 'environment' | 'lightCircadian' | 'healthGoals' | 'interpretiveLens' | 'nutritionTargets' | 'sunDefaults';
+  value: unknown;
+}
 export interface ProfileSaveOptions {
   baseData?: Partial<ImportedDataRecord> | undefined;
   expectedData?: string | null | undefined;
   expectedContextNotes?: string;
-  expectedContextField?: { key: 'diagnoses' | 'sleepRest' | 'exercise' | 'stress' | 'loveLife' | 'diet' | 'environment' | 'lightCircadian' | 'healthGoals' | 'interpretiveLens' | 'nutritionTargets'; value: unknown };
+  expectedContextField?: ProfileFieldExpectation;
+  expectedContextFields?: readonly ProfileFieldExpectation[];
   onContextFieldConflict?: () => void;
   onContextNotesConflict?: (saved: string) => void;
   activeSave?: boolean;

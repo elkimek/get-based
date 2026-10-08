@@ -664,7 +664,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/sun-context-runtime.js',
   '/js/sun-context-session-tools.js',
   '/js/sun-correlations.js',
-  '/js/sun-defaults.js',
+  '/js/sun-defaults.js', '/js/sun-defaults-session.js',
   '/js/sun-defaults-model.js',
   '/js/sun-defaults-runtime.js',
   '/js/sun-defaults-setup-renderer.js', '/js/light-setup-presentation.js', '/js/light-setup-classes.js', '/js/components/LightSetupPresentation.svelte.html.js',

@@ -75,6 +75,7 @@ function restoreDelegateDomGlobals() {
 }
 
 const { state } = await import('../js/state.js');
+const { saveImportedData } = await import('../js/data.js');
 const mod = await import('../js/sun-defaults.js');
 const {
   FITZPATRICK_OPTIONS,
@@ -282,12 +283,10 @@ installLightSetupDelegates(delegateDom.window.document);
   // ─── 5. getSunDefaults / saveSunDefaults round-trip ───────────────────
   console.log('%c 5. Defaults persistence ', 'font-weight:bold;color:#f59e0b');
 
-  // Stub a clean importedData with a no-op saveImportedData so we don't
-  // hit the real CRDT/IDB save path.
+  // Seed each replacement root through the real store so its observed
+  // baseline agrees with the guarded profile transaction.
   (state as unknown as { importedData: unknown }).importedData = { entries: [] };
-  // saveImportedData is imported by sun-defaults from data.js; the real
-  // implementation persists. We don't need to mock it — just keep the
-  // test profile id constant so artifacts don't accumulate.
+  await saveImportedData();
 
   const empty = getSunDefaults();
   assert('getSunDefaults seeds importedData.sunDefaults when missing',
@@ -337,6 +336,7 @@ installLightSetupDelegates(delegateDom.window.document);
     missingSkin.ok === false && missingSkin.reason === 'skin-type-required');
 
   (state as unknown as { importedData: unknown }).importedData = { entries: [], sunDefaults: {}, lightCircadian: null };
+  await saveImportedData();
   await persistSunSetupValues(collected.values, 1234567890);
   assert('persistSunSetupValues saves defaults and mirrors skin context in one path',
     (state as unknown as { importedData: SunDefaultsFixtureReader }).importedData.sunDefaults!.fitzpatrick === 'IV' &&
@@ -352,6 +352,7 @@ installLightSetupDelegates(delegateDom.window.document);
 
   // Just fitzpatrick set is not enough — needs completedAt
   (state as unknown as { importedData: unknown }).importedData = { entries: [], sunDefaults: { fitzpatrick: 'III' } };
+  await saveImportedData();
   assert('isOnboardingComplete falsy without completedAt',
     !isOnboardingComplete());
 

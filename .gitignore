@@ -2090,3 +2090,6 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /tests/pwa/sveltekit-light-setup.spec.js
 
 /tests/light-setup-styles.test.js
+
+/tests/sun-defaults-ownership.test.js
+/js/sun-defaults-session.js

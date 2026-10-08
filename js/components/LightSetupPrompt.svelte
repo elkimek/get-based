@@ -1,9 +1,9 @@
 <script lang="ts">
   import { setupClasses } from '../light-setup-classes.js';
-  let { deferred }: { deferred: boolean } = $props();
+  let { deferred, ownerTicket = '' }: { deferred: boolean; ownerTicket?: string } = $props();
 </script>
 
-<div class={setupClasses("light-setup-prompt light-widget-prompt")} data-light-setup-presentation data-light-widget-prompt>
+<div class={setupClasses("light-setup-prompt light-widget-prompt")} data-light-setup-presentation data-light-setup-owner={ownerTicket || undefined} data-light-widget-prompt>
   <div class={setupClasses("light-widget-prompt-copy")}><strong>{deferred ? 'Light setup not finished' : 'Make light part of your health picture'}</strong>
     <p>{deferred ? 'Confirm skin type before starting sun or device sessions; add the rest whenever you are ready.' : 'A short setup connects skin, daylight, indoor lighting, eyewear, and spectrum patterns to your Light context.'}</p>
   </div>

@@ -468,3 +468,16 @@ it('accepts the first lens edit when a legacy stored profile has no lens propert
   expect(await saveImportedDataForProfile(profileId, draft, { forceProfileScope: true, baseData: base, expectedContextField: { key: 'interpretiveLens', value: base.interpretiveLens } })).toBe(true);
   expect(JSON.parse((await crypto.encryptedGetItem(key))!).interpretiveLens).toBe('First lens');
 });
+
+it('snapshots and checks every expected setup field in the same queued transaction', async () => {
+  const base = structuredClone(state.importedData), draft = structuredClone(base);
+  draft.sunDefaults = { fitzpatrick: 'IV' }; draft.lightCircadian = { skinType: 'IV — olive' };
+  const peer = structuredClone(base); peer.lightCircadian = { skinType: 'V — brown' };
+  await crypto.encryptedSetItem(key, JSON.stringify(peer));
+  const expected = [{ key: 'sunDefaults' as const, value: base.sunDefaults ?? null }, { key: 'lightCircadian' as const, value: base.lightCircadian ?? null }];
+  const conflict = vi.fn(() => { throw new Error('Observer failed'); });
+  const pending = saveImportedDataForProfile(profileId, draft, { forceProfileScope: true, baseData: base, expectedContextFields: expected, onContextFieldConflict: conflict });
+  expected[1]!.value = peer.lightCircadian;
+  expect(await pending).toBe(false); expect(conflict).toHaveBeenCalledOnce();
+  expect(JSON.parse((await crypto.encryptedGetItem(key))!)).toEqual(peer);
+});
