@@ -17,6 +17,7 @@ function seed(defaults:ProfileData) {
   localStorage.setItem('labcharts-active-profile','default');
   localStorage.setItem('labcharts-default-imported',JSON.stringify({...defaults,
     contextNotes:'Preserve unrelated screen migration context',sunDefaults:{fitzpatrick:'II',completedAt:1},
+    lightDailyVerdicts:{'2026-01-02':{status:'ok',dot:'green',tip:'Saved daily note',detail:'Preserve historical daily analysis'}},
     lightEnvironment:{rooms:[{id:'screen-office',name:'Office',primarySource:'led-warm',hoursOccupiedPerDay:8,daylightLevel:'some',eveningHoursAfterSunset:1}],screens:[{id:'screen-phone',roomId:'screen-office',device:'phone',hoursPerDay:2,eveningUseAfterSunset:0,blueBlockerEnabled:false,annotation:{futureField:'retained'}}]},
   }));
 }
