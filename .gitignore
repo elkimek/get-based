@@ -2144,3 +2144,15 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /tests/playwright/light-session-ai-owned.spec.js
 
 /tests/pwa/sveltekit-light-session-ai.spec.js
+
+# Authored environment verdict runtime/style output
+/css/light-env.css
+/js/light-verdict-control.js
+/js/light-environment-ai-presentation.js
+/js/light-environment-ai-classes.js
+/js/components/LightEnvironmentAI.svelte.native.js
+/js/components/LightEnvironmentAI.svelte.native.js.map
+/js/components/LightEnvironmentAI.svelte.html.js
+/js/components/LightEnvironmentAI.svelte.html.js.map
+/tests/light-environment-ai-ownership.test.js
+/tests/light-environment-ai-presentation.test.js

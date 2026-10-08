@@ -18,13 +18,14 @@ export const KNOWN_AI_ACTIONS = [
   'refresh-channel-mix',
   'refresh-burden',
   'refresh-onboarding',
-];
+] as const;
+export type AIActionName = typeof KNOWN_AI_ACTIONS[number];
 
 export type AIActionHandler = ((targetId: string) => unknown) | (() => unknown);
 const AI_ACTION_HANDLERS = new Map<string, AIActionHandler>();
 
 export function registerAIActionHandler(action: string, handler: AIActionHandler) {
-  if (!KNOWN_AI_ACTIONS.includes(action)) throw new Error(`Unknown AI action: ${action}`);
+  if (!KNOWN_AI_ACTIONS.some(known => known === action)) throw new Error(`Unknown AI action: ${action}`);
   if (typeof handler !== 'function') throw new Error(`AI action handler must be a function: ${action}`);
   AI_ACTION_HANDLERS.set(action, handler);
   return () => {

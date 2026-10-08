@@ -116,6 +116,16 @@ two widths, keyboard actions, coarse targets and reduced motion.
 opens actual Sun/device cached verdict details on offline first use and two cold
 launches while retaining the entire canonical profile. The static profile-owner
 check also exercises a retained A control after switching to B.
+[`light-environment-ai-presentation.test.ts`](../tests/light-environment-ai-presentation.test.ts)
+compares 90 frozen measurement/room/screen/audit trees through their actual
+adapters. [`light-environment-ai-ownership.test.ts`](../tests/light-environment-ai-ownership.test.ts)
+checks delayed analysis across profile/root/epoch changes and same-owner deduplication.
+[`light-environment-ai-owned.spec.ts`](../tests/playwright/light-environment-ai-owned.spec.ts)
+checks original geometry, declared accessible foreground/touch improvements,
+keyboard behavior and reduced motion across six themes and two widths.
+[`sveltekit-light-environment-ai.spec.ts`](../tests/pwa/sveltekit-light-environment-ai.spec.ts)
+opens cached environment verdicts through the actual assessment/audit UI on offline
+first use and two cold launches while checking complete canonical profile equality.
 [`views-router-refresh.test.ts`](../tests/views-router-refresh.test.ts) checks
 that background same-route refreshes preserve an open mobile menu while explicit
 navigation and route changes still close it. The static persistence check also

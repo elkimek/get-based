@@ -92,6 +92,8 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+/* Keep the absolute close control above the following positioned header. */
+.light-env-assessment-modal > .modal-close { z-index: 1; }
 .light-env-assessment-modal .modal-header {
   margin-bottom: 6px;
   padding-right: 38px;
@@ -679,41 +681,6 @@
   line-height: 1.35;
 }
 
-.light-env-room-ai {
-  display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  margin: -2px 0 0 28px;
-  padding: 7px 0 0;
-  border-top: 1px dashed color-mix(in srgb, var(--border) 82%, transparent);
-  font-size: 12px;
-  line-height: 1.35;
-}
-.light-env-room-ai-green { border-top-color: color-mix(in srgb, var(--green) 34%, var(--border)); }
-.light-env-room-ai-yellow { border-top-color: color-mix(in srgb, var(--yellow) 38%, var(--border)); }
-.light-env-room-ai-red { border-top-color: color-mix(in srgb, var(--red) 36%, var(--border)); }
-.light-env-room-ai-label {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.light-env-room-ai-tip {
-  min-width: 0;
-  color: var(--text-secondary);
-  overflow-wrap: anywhere;
-}
-.light-env-room-ai-refresh {
-  align-self: center;
-  min-height: 28px;
-  padding: 3px 8px;
-  font-size: 12px;
-}
-
 /* Quick-pick chip row for adding rooms — replaces the bare "+ Room"
    button. Common names are one-click; "Other…" prompts for custom. */
 .light-env-room-quickpicks { margin-top: 12px; }
@@ -745,9 +712,7 @@
   .light-env-room-today-row {
     align-items: flex-start;
   }
-  .light-env-room-ai {
-    margin-left: 0;
-  }
+
   .light-env-measure-toolbar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1061,67 +1026,6 @@
   }
 }
 
-/* Compact AI verdict line for Light Tools measurement readings —
-   sits directly under the value row in the room detail panel.
-   `flex-basis: 100%` forces this onto its own row inside the
-   flex-wrap parent (.light-env-room-readings) so the tip text can
-   wrap on narrow viewports instead of overflowing horizontally. */
-.light-env-reading-ai {
-  display: flex; align-items: center; gap: 6px;
-  flex-basis: 100%; min-width: 0; width: 100%;
-  margin: 4px 0 8px 22px;
-  font-size: 11.5px;
-  color: var(--text-muted);
-}
-.light-env-reading-ai .sun-session-ai-tip {
-  flex: 1; min-width: 0;
-  white-space: normal; overflow-wrap: anywhere;
-}
-.light-env-reading-ai .sun-session-ai-cta {
-  background: transparent; border: none;
-  color: var(--accent); cursor: pointer;
-  font-size: 11.5px; padding: 0; text-align: left;
-}
-.light-env-reading-ai .sun-session-ai-cta:hover { text-decoration: underline; }
-
-/* Per-screen AI verdict block — sits at the bottom of an expanded screen card. */
-.light-env-screen-ai {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-.light-env-screen-ai-head {
-  font-size: 11px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.05em;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-}
-.light-env-screen-ai .sun-detail-ai { margin-bottom: 0; }
-
-/* Per-audit AI verdict block — sits at the top of the audit detail body. */
-.light-audit-ai {
-  margin: 12px 0 14px 0;
-}
-.light-audit-ai-head {
-  font-size: 11px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.05em;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-}
-.light-audit-ai .sun-detail-ai { margin-bottom: 0; }
-/* At-a-glance dot in the audit card header (collapsed view). */
-.light-audit-ai-dot {
-  display: inline-block;
-  width: 9px; height: 9px;
-  margin-right: 4px;
-  vertical-align: middle;
-}
-/* On very narrow screens the audit card header is already cramped
-   (date + label + delete + chevron). Drop the verdict dot from the
-   header — it's still rendered in the expanded detail body. */
-@media (max-width: 375px) {
-  .light-audit-ai-dot { display: none; }
-}
 
 /* Indoor-burden AI verdict — replaces the static heuristic interp at
    the bottom of the Light Environment block when an AI verdict has

@@ -1209,7 +1209,23 @@ Svelte-escaped; severity classes are restricted to known dots. Scoped Tailwind
 uses distinct foreground and severity-border variables, keyboard focus and coarse
 targets; it replaces the two duplicated native renderer implementations. The
 standalone native session row style is removed; shared legacy AI styles remain
-owned by the still-unmigrated measurement/room/screen/daily/weekly/burden surfaces.
+owned by the still-unmigrated daily/weekly/burden surfaces.
+
+`LightEnvironmentAI.svelte` owns measurement, room, screen and audit verdicts,
+including the cached audit header dot. Its pure environment projection supplies
+literal copy, normalized severity and action identity; the four stable adapters
+retain provider gates, fingerprints, prompts and persistence. Authored verdicts
+share the typed `VerdictControlView`, dot and button primitives. The existing
+`light-env.css` URL is generated from `light-env.base.css` and scoped Tailwind;
+superseded verdict templates and their native selectors are removed. Remaining
+assessment, room/screen editor and audit-shell presentation stays owned by its
+existing modules until migrated.
+
+Room and screen render-time auto-analysis captures `ai-verdict-owner.ts` before
+queuing. Both the deduplication key and delayed callback belong to that owner;
+profile/root/epoch replacement retires queued work without suppressing the new
+owner's same-ID/fingerprint analysis. Request execution and saved results remain
+owned by the shared engine.
 
 `LightSessionPresentation.svelte` composes the past-Sun and device log forms,
 completed Sun/device rows and shared inline/full history. Its pure

@@ -8,13 +8,14 @@ import type { ProfileData } from '../types/app-state.js';
 // `m.tool` for per-tool prompt context.
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
-import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
+import { createAIVerdict, hashString } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
+import { aiActionOwner, registerAIActionHandler } from './ai-action-delegates.js';
 import type { LightMeasurement, LightRoom } from './light-env-model.js';
+import { projectEnvironmentAI } from './light-environment-ai-presentation.js';
+import { renderHTML } from './components/LightEnvironmentAI.svelte.html.js';
 import type { AIVerdictAnalysis } from './ai-verdict-engine.js';
 
 export interface MeasurementFactsInput extends LightMeasurement {
@@ -246,32 +247,7 @@ export function renderMeasurementAIInline(m: AILightMeasurement | null | undefin
   if (!m) return '';
   if (m.tool === 'audit') return ''; // aggregate row carries no per-tool verdict
   if (!hasAssistantFeatureProvider() && !(m.aiAnalysis?.status === 'ok' && m.aiAnalysis?.dot)) return '';
-  const status = engine.getStatus(m);
-  const a = m.aiAnalysis;
-  const refreshBtn = `<button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-measurement', m.id, { stopPropagation: true })} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`;
-  if (status === 'analyzing') {
-    return `<div class="light-env-reading-ai">
-      <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
-      <span class="sun-session-ai-tip">Analyzing…</span>
-    </div>`;
-  }
-  if (status === 'ok') {
-    const dot = a!.dot;
-    return `<div class="light-env-reading-ai" title="${escapeAttr(a!.detail || '')}">
-      <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
-      <span class="sun-session-ai-tip sun-session-ai-tip-${escapeAttr(dot)}"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a!.tip || '')}</span>
-      ${refreshBtn}
-    </div>`;
-  }
-  if (status === 'error') {
-    return `<div class="light-env-reading-ai sun-session-ai-error">
-      <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-      <span class="sun-session-ai-tip">Analysis failed</span>
-      ${refreshBtn}
-    </div>`;
-  }
-  return `<div class="light-env-reading-ai sun-session-ai-idle">
-    <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-    <button class="sun-session-ai-cta" ${aiActionAttrs('refresh-measurement', m.id, { stopPropagation: true })} title="Run an AI verdict on this measurement — flags significant issues and suggests fixes">Get AI verdict</button>
-  </div>`;
+  return renderHTML({ view: projectEnvironmentAI({ kind: 'measurement', status: engine.getStatus(m), analysis: m.aiAnalysis,
+    targetId: m.id, actionOwner: aiActionOwner(),
+  }) });
 }

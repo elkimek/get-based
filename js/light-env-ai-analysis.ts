@@ -6,18 +6,20 @@ import type { ProfileData } from '../types/app-state.js';
 // Thin wrapper around ai-verdict-engine. Stored on the room itself at
 // `r.aiAnalysis` (lightEnvironment.rooms is on the per-row CRDT).
 
+import { captureAIVerdictOwner } from './ai-verdict-owner.js';
 import { state } from './state.js';
-import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
-import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
+import { createAIVerdict, hashString } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
 import { isQuantitativeDarknessMeasurement, isQuantitativeLuxMeasurement } from './light-env-model.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
+import { aiActionOwner, registerAIActionHandler } from './ai-action-delegates.js';
 
 import type { LightRoom, LightScreen } from './light-env-model.js';
 import type { MeasurementContextInput } from './light-tools-ai-analysis.js';
+import { projectEnvironmentAI } from './light-environment-ai-presentation.js';
+import { renderHTML } from './components/LightEnvironmentAI.svelte.html.js';
 import type { AIVerdictAnalysis } from './ai-verdict-engine.js';
 
 export interface AIRoom extends LightRoom { id: string; aiAnalysis?: AIVerdictAnalysis | null; }
@@ -225,19 +227,18 @@ export function renderRoomAIBlock(r: AIRoom | null | undefined) {
   const currentFingerprint = getRoomFingerprint(r);
   const cachedFingerprint = a?.fingerprint;
   const stale = !!(cachedFingerprint && cachedFingerprint !== currentFingerprint);
-  const renderInline = (state: unknown, bodyHTML: string) => `<div class="light-env-room-ai light-env-room-ai-${escapeAttr(state)}">
-    ${bodyHTML}
-  </div>`;
+
 
   // Auto-fire on first render when the room has enough data to analyze
   // (a primarySource set OR at least one measurement) AND we don't have
   // a fresh cached verdict. Empty rooms skip auto-fire so the user doesn't
   // burn API calls on a freshly-added blank room they're still editing.
   const _hasData = !!(r.primarySource || _getMeasurementsForRoom(r.id).length);
-  const _autoKey = `${r.id}:${currentFingerprint}`;
+  const owner = captureAIVerdictOwner();
+  const _autoKey = owner.key(`${r.id}:${currentFingerprint}`);
   if (_hasData && (status === 'idle' || stale) && !_autoFiredRoomKeys.has(_autoKey)) {
     _autoFiredRoomKeys.add(_autoKey);
-    setTimeout(() => engine.analyze(r).catch(() => {}), 0);
+    setTimeout(() => { if (owner.current()) void engine.analyze(r).catch(() => {}); }, 0);
   }
 
   // Shimmer ONLY while a request is genuinely in flight. Stale-ok used
@@ -245,31 +246,7 @@ export function renderRoomAIBlock(r: AIRoom | null | undefined) {
   // no way to retry while the auto-fire was queued/racing. Now stale-ok
   // falls through to the ok branch (with ↻); the auto-fire above
   // updates the verdict underneath when it resolves.
-  if (status === 'analyzing') {
-    return renderInline('loading', `
-      <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
-      <span class="light-env-room-ai-label">AI read</span>
-      <span class="light-env-room-ai-tip">Checking this room…</span>`);
-  }
-  if (status === 'ok') {
-    const dot = a!.dot;
-    return renderInline(dot, `
-      <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
-      <span class="light-env-room-ai-label">AI read</span>
-      <span class="light-env-room-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(a!.tip || '')}</span>
-      <button class="sun-session-ai-refresh light-env-room-ai-refresh" ${aiActionAttrs('refresh-room', r.id)} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>`);
-  }
-  if (status === 'error') {
-    const msg = a?.errorMessage ? `Analysis failed — ${a.errorMessage}` : 'Analysis failed.';
-    return renderInline('error', `
-      <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-      <span class="light-env-room-ai-label">AI read</span>
-      <span class="light-env-room-ai-tip">${escapeHTML(msg)}</span>
-      <button class="sun-session-ai-refresh light-env-room-ai-refresh" ${aiActionAttrs('refresh-room', r.id)}>Try again</button>`);
-  }
-  return renderInline('idle', `
-    <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-    <span class="light-env-room-ai-label">AI read</span>
-    <span class="light-env-room-ai-tip">Circadian-friendliness check for this room.</span>
-    <button class="sun-session-ai-refresh light-env-room-ai-refresh" ${aiActionAttrs('refresh-room', r.id)}>Analyze</button>`);
+  return renderHTML({ view: projectEnvironmentAI({ kind: 'room', status, analysis: a,
+    targetId: r.id, actionOwner: aiActionOwner(),
+  }) });
 }

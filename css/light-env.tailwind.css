@@ -1,0 +1,7 @@
+/* Authored environment verdict styles at the established lazy stylesheet URL. */
+@import "tailwindcss/theme.css" layer(gb-theme) prefix(gb);
+@import "tailwindcss/utilities.css" prefix(gb) source(none);
+@import "./ui-tokens.tailwind.css";
+@custom-variant environment-ai (&:is([data-light-environment-ai], [data-light-environment-ai] *));
+@source "../js/components/LightEnvironmentAI.svelte";
+@source "../js/light-environment-ai-classes.ts";

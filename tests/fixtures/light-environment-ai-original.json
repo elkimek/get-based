@@ -1,0 +1,1134 @@
+{
+  "revision": "c902226dad6f531935d1981451ab4d8651740d94",
+  "cases": [
+    {
+      "kind": "measurement",
+      "status": "idle",
+      "provider": true,
+      "analysis": null,
+      "html": "<div class=\"light-env-reading-ai sun-session-ai-idle\">\n    <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n    <button class=\"sun-session-ai-cta\" data-ai-action=\"refresh-measurement\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" data-ai-stop-propagation=\"true\" title=\"Run an AI verdict on this measurement \u2014 flags significant issues and suggests fixes\">Get AI verdict</button>\n  </div>"
+    },
+    {
+      "kind": "measurement",
+      "status": "idle",
+      "provider": false,
+      "analysis": null,
+      "html": ""
+    },
+    {
+      "kind": "measurement",
+      "status": "analyzing",
+      "provider": true,
+      "analysis": null,
+      "html": "<div class=\"light-env-reading-ai\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-shimmer\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\">Analyzing\u2026</span>\n    </div>"
+    },
+    {
+      "kind": "measurement",
+      "status": "analyzing",
+      "provider": false,
+      "analysis": null,
+      "html": ""
+    },
+    {
+      "kind": "measurement",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error"
+      },
+      "html": "<div class=\"light-env-reading-ai sun-session-ai-error\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\">Analysis failed</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-measurement\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "kind": "measurement",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error"
+      },
+      "html": ""
+    },
+    {
+      "kind": "measurement",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": "<div class=\"light-env-reading-ai sun-session-ai-error\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip\">Analysis failed</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-measurement\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "kind": "measurement",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": ""
+    },
+    {
+      "kind": "measurement",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-reading-ai\" title=\"Detail &amp; context.\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-measurement\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "kind": "measurement",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-reading-ai\" title=\"Detail &amp; context.\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-measurement\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "kind": "measurement",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-reading-ai\" title=\"Detail &amp; context.\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-yellow\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u26a0</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-measurement\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "kind": "measurement",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-reading-ai\" title=\"Detail &amp; context.\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-yellow\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u26a0</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-measurement\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "kind": "measurement",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-reading-ai\" title=\"Detail &amp; context.\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-red\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u25b2</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-measurement\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "kind": "measurement",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-reading-ai\" title=\"Detail &amp; context.\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-red\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u25b2</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-measurement\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "kind": "measurement",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-reading-ai\" title=\"Detail &amp; context.\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-gray\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u00b7</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-measurement\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "kind": "measurement",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-reading-ai\" title=\"Detail &amp; context.\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-gray\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u00b7</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-measurement\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "kind": "measurement",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": "",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-reading-ai\" title=\"\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> </span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-measurement\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "kind": "measurement",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": "",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-reading-ai\" title=\"\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-session-ai-tip sun-session-ai-tip-green\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> </span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-measurement\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" data-ai-stop-propagation=\"true\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>"
+    },
+    {
+      "kind": "room",
+      "status": "idle",
+      "provider": true,
+      "analysis": null,
+      "html": "<div class=\"light-env-room-ai light-env-room-ai-idle\">\n    \n    <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n    <span class=\"light-env-room-ai-label\">AI read</span>\n    <span class=\"light-env-room-ai-tip\">Circadian-friendliness check for this room.</span>\n    <button class=\"sun-session-ai-refresh light-env-room-ai-refresh\" data-ai-action=\"refresh-room\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\">Analyze</button>\n  </div>"
+    },
+    {
+      "kind": "room",
+      "status": "idle",
+      "provider": false,
+      "analysis": null,
+      "html": ""
+    },
+    {
+      "kind": "room",
+      "status": "analyzing",
+      "provider": true,
+      "analysis": null,
+      "html": "<div class=\"light-env-room-ai light-env-room-ai-loading\">\n    \n      <span class=\"sun-session-ai-dot sun-session-ai-dot-shimmer\" aria-hidden=\"true\"></span>\n      <span class=\"light-env-room-ai-label\">AI read</span>\n      <span class=\"light-env-room-ai-tip\">Checking this room\u2026</span>\n  </div>"
+    },
+    {
+      "kind": "room",
+      "status": "analyzing",
+      "provider": false,
+      "analysis": null,
+      "html": ""
+    },
+    {
+      "kind": "room",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error"
+      },
+      "html": "<div class=\"light-env-room-ai light-env-room-ai-error\">\n    \n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"light-env-room-ai-label\">AI read</span>\n      <span class=\"light-env-room-ai-tip\">Analysis failed.</span>\n      <button class=\"sun-session-ai-refresh light-env-room-ai-refresh\" data-ai-action=\"refresh-room\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\">Try again</button>\n  </div>"
+    },
+    {
+      "kind": "room",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error"
+      },
+      "html": ""
+    },
+    {
+      "kind": "room",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": "<div class=\"light-env-room-ai light-env-room-ai-error\">\n    \n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"light-env-room-ai-label\">AI read</span>\n      <span class=\"light-env-room-ai-tip\">Analysis failed \u2014 Offline &lt;literal&gt; &amp; unavailable</span>\n      <button class=\"sun-session-ai-refresh light-env-room-ai-refresh\" data-ai-action=\"refresh-room\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\">Try again</button>\n  </div>"
+    },
+    {
+      "kind": "room",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": ""
+    },
+    {
+      "kind": "room",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-room-ai light-env-room-ai-green\">\n    \n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"light-env-room-ai-label\">AI read</span>\n      <span class=\"light-env-room-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh light-env-room-ai-refresh\" data-ai-action=\"refresh-room\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n  </div>"
+    },
+    {
+      "kind": "room",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-room-ai light-env-room-ai-green\">\n    \n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"light-env-room-ai-label\">AI read</span>\n      <span class=\"light-env-room-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh light-env-room-ai-refresh\" data-ai-action=\"refresh-room\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n  </div>"
+    },
+    {
+      "kind": "room",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-room-ai light-env-room-ai-yellow\">\n    \n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"light-env-room-ai-label\">AI read</span>\n      <span class=\"light-env-room-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u26a0</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh light-env-room-ai-refresh\" data-ai-action=\"refresh-room\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n  </div>"
+    },
+    {
+      "kind": "room",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-room-ai light-env-room-ai-yellow\">\n    \n      <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n      <span class=\"light-env-room-ai-label\">AI read</span>\n      <span class=\"light-env-room-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u26a0</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh light-env-room-ai-refresh\" data-ai-action=\"refresh-room\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n  </div>"
+    },
+    {
+      "kind": "room",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-room-ai light-env-room-ai-red\">\n    \n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"light-env-room-ai-label\">AI read</span>\n      <span class=\"light-env-room-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u25b2</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh light-env-room-ai-refresh\" data-ai-action=\"refresh-room\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n  </div>"
+    },
+    {
+      "kind": "room",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-room-ai light-env-room-ai-red\">\n    \n      <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n      <span class=\"light-env-room-ai-label\">AI read</span>\n      <span class=\"light-env-room-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u25b2</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh light-env-room-ai-refresh\" data-ai-action=\"refresh-room\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n  </div>"
+    },
+    {
+      "kind": "room",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-room-ai light-env-room-ai-gray\">\n    \n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"light-env-room-ai-label\">AI read</span>\n      <span class=\"light-env-room-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u00b7</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh light-env-room-ai-refresh\" data-ai-action=\"refresh-room\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n  </div>"
+    },
+    {
+      "kind": "room",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-room-ai light-env-room-ai-gray\">\n    \n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span class=\"light-env-room-ai-label\">AI read</span>\n      <span class=\"light-env-room-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u00b7</span> Saved &lt;literal&gt; context</span>\n      <button class=\"sun-session-ai-refresh light-env-room-ai-refresh\" data-ai-action=\"refresh-room\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n  </div>"
+    },
+    {
+      "kind": "room",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": "",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-room-ai light-env-room-ai-green\">\n    \n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"light-env-room-ai-label\">AI read</span>\n      <span class=\"light-env-room-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> </span>\n      <button class=\"sun-session-ai-refresh light-env-room-ai-refresh\" data-ai-action=\"refresh-room\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n  </div>"
+    },
+    {
+      "kind": "room",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": "",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-room-ai light-env-room-ai-green\">\n    \n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"light-env-room-ai-label\">AI read</span>\n      <span class=\"light-env-room-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> </span>\n      <button class=\"sun-session-ai-refresh light-env-room-ai-refresh\" data-ai-action=\"refresh-room\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n  </div>"
+    },
+    {
+      "kind": "screen",
+      "status": "idle",
+      "provider": true,
+      "analysis": null,
+      "html": "<div class=\"light-env-screen-ai\">\n    <div class=\"light-env-screen-ai-head\">\u26a1 AI verdict</div>\n    <div class=\"sun-detail-ai sun-detail-ai-idle\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span>Get a circadian-impact verdict for this screen.</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-screen\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\">Analyze screen</button>\n    </div>\n  </div>"
+    },
+    {
+      "kind": "screen",
+      "status": "idle",
+      "provider": false,
+      "analysis": null,
+      "html": ""
+    },
+    {
+      "kind": "screen",
+      "status": "analyzing",
+      "provider": true,
+      "analysis": null,
+      "html": "<div class=\"light-env-screen-ai\">\n      <div class=\"light-env-screen-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-loading\">\n        <span class=\"sun-session-ai-dot sun-session-ai-dot-shimmer\" aria-hidden=\"true\"></span>\n        <span>Analyzing this screen\u2026</span>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "screen",
+      "status": "analyzing",
+      "provider": false,
+      "analysis": null,
+      "html": ""
+    },
+    {
+      "kind": "screen",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error"
+      },
+      "html": "<div class=\"light-env-screen-ai\">\n      <div class=\"light-env-screen-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-error\">\n        <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n        <span>Analysis failed.</span>\n        <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-screen\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\">Try again</button>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "screen",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error"
+      },
+      "html": ""
+    },
+    {
+      "kind": "screen",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": "<div class=\"light-env-screen-ai\">\n      <div class=\"light-env-screen-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-error\">\n        <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n        <span>Analysis failed \u2014 Offline &lt;literal&gt; &amp; unavailable</span>\n        <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-screen\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\">Try again</button>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "screen",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": ""
+    },
+    {
+      "kind": "screen",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-screen-ai\">\n      <div class=\"light-env-screen-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-green\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> Saved &lt;literal&gt; context</span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-screen\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "screen",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-screen-ai\">\n      <div class=\"light-env-screen-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-green\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> Saved &lt;literal&gt; context</span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-screen\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "screen",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-screen-ai\">\n      <div class=\"light-env-screen-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-yellow\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u26a0</span> Saved &lt;literal&gt; context</span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-screen\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "screen",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-screen-ai\">\n      <div class=\"light-env-screen-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-yellow\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u26a0</span> Saved &lt;literal&gt; context</span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-screen\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "screen",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-screen-ai\">\n      <div class=\"light-env-screen-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-red\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u25b2</span> Saved &lt;literal&gt; context</span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-screen\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "screen",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-screen-ai\">\n      <div class=\"light-env-screen-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-red\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u25b2</span> Saved &lt;literal&gt; context</span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-screen\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "screen",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-screen-ai\">\n      <div class=\"light-env-screen-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-gray\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u00b7</span> Saved &lt;literal&gt; context</span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-screen\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "screen",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-screen-ai\">\n      <div class=\"light-env-screen-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-gray\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u00b7</span> Saved &lt;literal&gt; context</span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-screen\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "screen",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": "",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-screen-ai\">\n      <div class=\"light-env-screen-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-green\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> </span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-screen\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        \n      </div>\n    </div>"
+    },
+    {
+      "kind": "screen",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": "",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-env-screen-ai\">\n      <div class=\"light-env-screen-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-green\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> </span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-screen\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        \n      </div>\n    </div>"
+    },
+    {
+      "kind": "audit",
+      "status": "idle",
+      "provider": true,
+      "analysis": null,
+      "html": "<div class=\"light-audit-ai\">\n    <div class=\"light-audit-ai-head\">\u26a1 AI verdict</div>\n    <div class=\"sun-detail-ai sun-detail-ai-idle\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n      <span>Get a circadian-friendliness verdict for this entire snapshot.</span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-audit\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\">Analyze audit</button>\n    </div>\n  </div>"
+    },
+    {
+      "kind": "audit",
+      "status": "idle",
+      "provider": false,
+      "analysis": null,
+      "html": ""
+    },
+    {
+      "kind": "audit",
+      "status": "analyzing",
+      "provider": true,
+      "analysis": null,
+      "html": "<div class=\"light-audit-ai\">\n      <div class=\"light-audit-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-loading\">\n        <span class=\"sun-session-ai-dot sun-session-ai-dot-shimmer\" aria-hidden=\"true\"></span>\n        <span>Synthesizing this audit\u2026</span>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "audit",
+      "status": "analyzing",
+      "provider": false,
+      "analysis": null,
+      "html": ""
+    },
+    {
+      "kind": "audit",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error"
+      },
+      "html": "<div class=\"light-audit-ai\">\n      <div class=\"light-audit-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-error\">\n        <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n        <span>Analysis failed.</span>\n        <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-audit\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\">Try again</button>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "audit",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error"
+      },
+      "html": ""
+    },
+    {
+      "kind": "audit",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": "<div class=\"light-audit-ai\">\n      <div class=\"light-audit-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-error\">\n        <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n        <span>Analysis failed \u2014 Offline &lt;literal&gt; &amp; unavailable</span>\n        <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-audit\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\">Try again</button>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "audit",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": ""
+    },
+    {
+      "kind": "audit",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-audit-ai\">\n      <div class=\"light-audit-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-green\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> Saved &lt;literal&gt; context</span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-audit\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "audit",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-audit-ai\">\n      <div class=\"light-audit-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-green\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> Saved &lt;literal&gt; context</span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-audit\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "audit",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-audit-ai\">\n      <div class=\"light-audit-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-yellow\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u26a0</span> Saved &lt;literal&gt; context</span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-audit\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "audit",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-audit-ai\">\n      <div class=\"light-audit-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-yellow\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-yellow\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u26a0</span> Saved &lt;literal&gt; context</span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-audit\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "audit",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-audit-ai\">\n      <div class=\"light-audit-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-red\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u25b2</span> Saved &lt;literal&gt; context</span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-audit\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "audit",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-audit-ai\">\n      <div class=\"light-audit-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-red\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-red\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u25b2</span> Saved &lt;literal&gt; context</span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-audit\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "audit",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-audit-ai\">\n      <div class=\"light-audit-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-gray\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u00b7</span> Saved &lt;literal&gt; context</span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-audit\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "audit",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-audit-ai\">\n      <div class=\"light-audit-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-gray\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-gray\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u00b7</span> Saved &lt;literal&gt; context</span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-audit\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        <div class=\"sun-detail-ai-body\">Detail &amp; context.</div>\n      </div>\n    </div>"
+    },
+    {
+      "kind": "audit",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": "",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-audit-ai\">\n      <div class=\"light-audit-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-green\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> </span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-audit\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        \n      </div>\n    </div>"
+    },
+    {
+      "kind": "audit",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": "",
+        "fingerprint": "fresh"
+      },
+      "html": "<div class=\"light-audit-ai\">\n      <div class=\"light-audit-ai-head\">\u26a1 AI verdict</div>\n      <div class=\"sun-detail-ai sun-detail-ai-green\">\n        <div class=\"sun-detail-ai-head\">\n          <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n          <span class=\"sun-detail-ai-tip\"><span class=\"sun-session-ai-prefix\" aria-hidden=\"true\">\u2713</span> </span>\n          <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-audit\" data-ai-owner=\"verdict-1:control\" data-ai-target=\"environment-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n        </div>\n        \n      </div>\n    </div>"
+    },
+    {
+      "kind": "audit-dot",
+      "status": "idle",
+      "provider": true,
+      "analysis": null,
+      "html": ""
+    },
+    {
+      "kind": "audit-dot",
+      "status": "idle",
+      "provider": false,
+      "analysis": null,
+      "html": ""
+    },
+    {
+      "kind": "audit-dot",
+      "status": "analyzing",
+      "provider": true,
+      "analysis": null,
+      "html": ""
+    },
+    {
+      "kind": "audit-dot",
+      "status": "analyzing",
+      "provider": false,
+      "analysis": null,
+      "html": ""
+    },
+    {
+      "kind": "audit-dot",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error"
+      },
+      "html": ""
+    },
+    {
+      "kind": "audit-dot",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error"
+      },
+      "html": ""
+    },
+    {
+      "kind": "audit-dot",
+      "status": "error",
+      "provider": true,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": ""
+    },
+    {
+      "kind": "audit-dot",
+      "status": "error",
+      "provider": false,
+      "analysis": {
+        "status": "error",
+        "errorMessage": "Offline <literal> & unavailable"
+      },
+      "html": ""
+    },
+    {
+      "kind": "audit-dot",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<span class=\"sun-session-ai-dot sun-session-ai-dot-green light-audit-ai-dot\" title=\"AI verdict: Saved &lt;literal&gt; context\" aria-hidden=\"true\"></span>"
+    },
+    {
+      "kind": "audit-dot",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<span class=\"sun-session-ai-dot sun-session-ai-dot-green light-audit-ai-dot\" title=\"AI verdict: Saved &lt;literal&gt; context\" aria-hidden=\"true\"></span>"
+    },
+    {
+      "kind": "audit-dot",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<span class=\"sun-session-ai-dot sun-session-ai-dot-yellow light-audit-ai-dot\" title=\"AI verdict: Saved &lt;literal&gt; context\" aria-hidden=\"true\"></span>"
+    },
+    {
+      "kind": "audit-dot",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "yellow",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<span class=\"sun-session-ai-dot sun-session-ai-dot-yellow light-audit-ai-dot\" title=\"AI verdict: Saved &lt;literal&gt; context\" aria-hidden=\"true\"></span>"
+    },
+    {
+      "kind": "audit-dot",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<span class=\"sun-session-ai-dot sun-session-ai-dot-red light-audit-ai-dot\" title=\"AI verdict: Saved &lt;literal&gt; context\" aria-hidden=\"true\"></span>"
+    },
+    {
+      "kind": "audit-dot",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "red",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<span class=\"sun-session-ai-dot sun-session-ai-dot-red light-audit-ai-dot\" title=\"AI verdict: Saved &lt;literal&gt; context\" aria-hidden=\"true\"></span>"
+    },
+    {
+      "kind": "audit-dot",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<span class=\"sun-session-ai-dot sun-session-ai-dot-gray light-audit-ai-dot\" title=\"AI verdict: Saved &lt;literal&gt; context\" aria-hidden=\"true\"></span>"
+    },
+    {
+      "kind": "audit-dot",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "gray",
+        "tip": "Saved <literal> context",
+        "detail": "Detail & context.",
+        "fingerprint": "fresh"
+      },
+      "html": "<span class=\"sun-session-ai-dot sun-session-ai-dot-gray light-audit-ai-dot\" title=\"AI verdict: Saved &lt;literal&gt; context\" aria-hidden=\"true\"></span>"
+    },
+    {
+      "kind": "audit-dot",
+      "status": "ok",
+      "provider": true,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": "",
+        "fingerprint": "fresh"
+      },
+      "html": "<span class=\"sun-session-ai-dot sun-session-ai-dot-green light-audit-ai-dot\" title=\"AI verdict: \" aria-hidden=\"true\"></span>"
+    },
+    {
+      "kind": "audit-dot",
+      "status": "ok",
+      "provider": false,
+      "analysis": {
+        "status": "ok",
+        "dot": "green",
+        "tip": "",
+        "detail": "",
+        "fingerprint": "fresh"
+      },
+      "html": "<span class=\"sun-session-ai-dot sun-session-ai-dot-green light-audit-ai-dot\" title=\"AI verdict: \" aria-hidden=\"true\"></span>"
+    }
+  ],
+  "styleBlocks": [
+    {
+      "selector": ".light-env-room-ai",
+      "declarations": "display: grid;\n  grid-template-columns: auto auto minmax(0, 1fr) auto;\n  align-items: center;\n  gap: 8px;\n  margin: -2px 0 0 28px;\n  padding: 7px 0 0;\n  border-top: 1px dashed color-mix(in srgb, var(--border) 82%, transparent);\n  font-size: 12px;\n  line-height: 1.35;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-room-ai-green",
+      "declarations": "border-top-color: color-mix(in srgb, var(--green) 34%, var(--border));",
+      "media": null
+    },
+    {
+      "selector": ".light-env-room-ai-yellow",
+      "declarations": "border-top-color: color-mix(in srgb, var(--yellow) 38%, var(--border));",
+      "media": null
+    },
+    {
+      "selector": ".light-env-room-ai-red",
+      "declarations": "border-top-color: color-mix(in srgb, var(--red) 36%, var(--border));",
+      "media": null
+    },
+    {
+      "selector": ".light-env-room-ai-label",
+      "declarations": "color: var(--text-muted);\n  font-family: var(--font-mono);\n  font-size: 10px;\n  font-weight: 800;\n  letter-spacing: 0;\n  text-transform: uppercase;\n  white-space: nowrap;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-room-ai-tip",
+      "declarations": "min-width: 0;\n  color: var(--text-secondary);\n  overflow-wrap: anywhere;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-room-ai-refresh",
+      "declarations": "align-self: center;\n  min-height: 28px;\n  padding: 3px 8px;\n  font-size: 12px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-room-ai",
+      "declarations": "margin-left: 0;",
+      "media": "(max-width: 600px)"
+    },
+    {
+      "selector": "/* Compact AI verdict line for Light Tools measurement readings \u2014\n   sits directly under the value row in the room detail panel.\n   `flex-basis: 100%` forces this onto its own row inside the\n   flex-wrap parent (.light-env-room-readings) so the tip text can\n   wrap on narrow viewports instead of overflowing horizontally. */\n.light-env-reading-ai",
+      "declarations": "display: flex; align-items: center; gap: 6px;\n  flex-basis: 100%; min-width: 0; width: 100%;\n  margin: 4px 0 8px 22px;\n  font-size: 11.5px;\n  color: var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-reading-ai .sun-session-ai-tip",
+      "declarations": "flex: 1; min-width: 0;\n  white-space: normal; overflow-wrap: anywhere;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-reading-ai .sun-session-ai-cta",
+      "declarations": "background: transparent; border: none;\n  color: var(--accent); cursor: pointer;\n  font-size: 11.5px; padding: 0; text-align: left;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-reading-ai .sun-session-ai-cta:hover",
+      "declarations": "text-decoration: underline;",
+      "media": null
+    },
+    {
+      "selector": "/* Per-screen AI verdict block \u2014 sits at the bottom of an expanded screen card. */\n.light-env-screen-ai",
+      "declarations": "margin-top: 14px;\n  padding-top: 12px;\n  border-top: 1px solid var(--border);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-ai-head",
+      "declarations": "font-size: 11px; font-weight: 600;\n  text-transform: uppercase; letter-spacing: 0.05em;\n  color: var(--text-muted);\n  margin-bottom: 8px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-ai .sun-detail-ai",
+      "declarations": "margin-bottom: 0;",
+      "media": null
+    },
+    {
+      "selector": "/* Per-audit AI verdict block \u2014 sits at the top of the audit detail body. */\n.light-audit-ai",
+      "declarations": "margin: 12px 0 14px 0;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-ai-head",
+      "declarations": "font-size: 11px; font-weight: 600;\n  text-transform: uppercase; letter-spacing: 0.05em;\n  color: var(--text-muted);\n  margin-bottom: 8px;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-ai .sun-detail-ai",
+      "declarations": "margin-bottom: 0;",
+      "media": null
+    },
+    {
+      "selector": "/* At-a-glance dot in the audit card header (collapsed view). */\n.light-audit-ai-dot",
+      "declarations": "display: inline-block;\n  width: 9px; height: 9px;\n  margin-right: 4px;\n  vertical-align: middle;",
+      "media": null
+    },
+    {
+      "selector": ".light-audit-ai-dot",
+      "declarations": "display: none;",
+      "media": "(max-width: 375px)"
+    }
+  ],
+  "sharedInlineCSS": [
+    {
+      "selector": ".sun-session-ai-cta",
+      "declarations": "min-width: 44px;\n    min-height: 44px;\n    padding: 8px 12px;",
+      "media": "(pointer: coarse)"
+    },
+    {
+      "selector": ".sun-session-ai-tip",
+      "declarations": "flex: 1; min-width: 0;\n  color: var(--text-muted);\n  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-tip-green",
+      "declarations": "color: var(--green);",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-tip-yellow",
+      "declarations": "color: var(--yellow);",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-tip-red",
+      "declarations": "color: var(--red);",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-idle .sun-session-ai-cta",
+      "declarations": "background: transparent; border: none;\n  color: var(--accent); cursor: pointer;\n  font-size: 12px; padding: 0;\n  text-align: left;\n  flex: 1; min-width: 0;",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-idle .sun-session-ai-cta:hover",
+      "declarations": "text-decoration: underline;",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-idle .sun-session-ai-cta:focus-visible",
+      "declarations": "outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px;",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai",
+      "declarations": "min-width: 0;\n    max-width: 100%;",
+      "media": "(max-width: 600px)"
+    }
+  ]
+}

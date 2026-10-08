@@ -1,6 +1,6 @@
 // Shared Sun/device verdict utilities. Semantic hooks retain existing contracts.
 const styles: Readonly<Record<string, string>> = {
-  'sun-session-ai': 'gb:session-ai:flex gb:session-ai:items-center gb:session-ai:gap-[8px] gb:session-ai:mt-[8px] gb:session-ai:pt-[8px] gb:session-ai:[border-top:1px_solid_var(--border)] gb:session-ai:text-[12px]',
+  'sun-session-ai': 'gb:session-ai:flex gb:session-ai:items-center gb:session-ai:gap-[8px] gb:session-ai:mt-[8px] gb:session-ai:pt-[8px] gb:session-ai:[border-top:1px_solid_var(--border)] gb:session-ai:text-[12px] gb:session-ai:[@media(max-width:600px)]:min-w-0 gb:session-ai:[@media(max-width:600px)]:max-w-full',
   'sun-session-ai-dot': 'gb:session-ai:w-[8px] gb:session-ai:h-[8px] gb:session-ai:[border-radius:50%] gb:session-ai:shrink-0 gb:session-ai:inline-block gb:session-ai:[transition:background_0.3s,box-shadow_0.3s]',
   'sun-session-ai-dot-gray': 'gb:session-ai:[background:var(--text-muted)] gb:session-ai:opacity-[0.45]',
   'sun-session-ai-dot-green': 'gb:session-ai:[background:var(--green)] gb:session-ai:[box-shadow:0_0_6px_rgba(52,211,153,0.5)]',

@@ -37,7 +37,7 @@
 @import "./sun-body-picker.css";
 @source "../js/components/SunBodyPickerFrame.svelte";
 
-@custom-variant session-ai (&:is([data-light-session-ai], [data-light-session-ai] *));
+@custom-variant session-ai (&:is([data-light-session-ai], [data-light-session-ai] *, [data-light-environment-ai], [data-light-environment-ai] *));
 @source "../js/components/LightSessionAI.svelte";
 @source "../js/components/LightVerdictDot.svelte";
 @source "../js/components/LightVerdictButton.svelte";

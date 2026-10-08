@@ -850,5 +850,52 @@
       "html": "<div class=\"sun-detail-ai sun-detail-ai-green\">\n    <div class=\"sun-detail-ai-head\">\n      <span class=\"sun-session-ai-dot sun-session-ai-dot-green\" aria-hidden=\"true\"></span>\n      <span class=\"sun-detail-ai-tip\"></span>\n      <button class=\"sun-session-ai-refresh\" data-ai-action=\"refresh-device-session\" data-ai-target=\"session-1\" title=\"Re-run analysis\" aria-label=\"Re-run AI analysis\">\u21bb</button>\n    </div>\n    \n  </div>"
     }
   ],
-  "sessionRootCSS": "display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;"
+  "sessionRootCSS": "display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;",
+  "sharedInlineCSS": [
+    {
+      "selector": ".sun-session-ai-cta",
+      "declarations": "min-width: 44px;\n    min-height: 44px;\n    padding: 8px 12px;",
+      "media": "(pointer: coarse)"
+    },
+    {
+      "selector": ".sun-session-ai-tip",
+      "declarations": "flex: 1; min-width: 0;\n  color: var(--text-muted);\n  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-tip-green",
+      "declarations": "color: var(--green);",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-tip-yellow",
+      "declarations": "color: var(--yellow);",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-tip-red",
+      "declarations": "color: var(--red);",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-idle .sun-session-ai-cta",
+      "declarations": "background: transparent; border: none;\n  color: var(--accent); cursor: pointer;\n  font-size: 12px; padding: 0;\n  text-align: left;\n  flex: 1; min-width: 0;",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-idle .sun-session-ai-cta:hover",
+      "declarations": "text-decoration: underline;",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai-idle .sun-session-ai-cta:focus-visible",
+      "declarations": "outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px;",
+      "media": null
+    },
+    {
+      "selector": ".sun-session-ai",
+      "declarations": "min-width: 0;\n    max-width: 100%;",
+      "media": "(max-width: 600px)"
+    }
+  ]
 }

@@ -13,16 +13,17 @@ import type { ProfileData } from '../types/app-state.js';
 // verdicts sync naturally.
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr } from './utils.js';
 import { hasAssistantFeatureProvider } from './ai-feature-routing.js';
-import { createAIVerdict, hashString, dotPrefix } from './ai-verdict-engine.js';
+import { createAIVerdict, hashString } from './ai-verdict-engine.js';
 import { LIGHTING_HARDWARE_CAVEATS } from './lighting-hardware-caveats.js';
 import { getRoomEveningHoursAfterSunset } from './light-env-evening.js';
 import { isQuantitativeDarknessMeasurement, isQuantitativeLuxMeasurement } from './light-env-model.js';
 import { formatHealthGoalsText } from './health-goals-utils.js';
-import { aiActionAttrs, registerAIActionHandler } from './ai-action-delegates.js';
+import { aiActionOwner, registerAIActionHandler } from './ai-action-delegates.js';
 import type { LightRoom, LightScreen } from './light-env-model.js';
 import type { MeasurementContextInput } from './light-tools-ai-analysis.js';
+import { projectEnvironmentAI } from './light-environment-ai-presentation.js';
+import { renderHTML } from './components/LightEnvironmentAI.svelte.html.js';
 import type { AIVerdictAnalysis } from './ai-verdict-engine.js';
 
 export type AuditRoomInput = Pick<LightRoom, 'id' | 'name' | 'primarySource' | 'daylightLevel' | 'hoursOccupiedPerDay' | 'eveningHoursAfterSunset' | 'eveningUseAfterSunset'>;
@@ -257,50 +258,9 @@ export const maybeAnalyzeAuditAfterSave = engine.maybeAfterFinish;
 export function renderAuditAIBlock(a: AILightAudit | null | undefined) {
   if (!a) return '';
   if (!hasAssistantFeatureProvider() && !(a.aiAnalysis?.status === 'ok' && a.aiAnalysis?.dot)) return '';
-  const status = engine.getStatus(a);
-  const verdict = a.aiAnalysis;
-  if (status === 'analyzing') {
-    return `<div class="light-audit-ai">
-      <div class="light-audit-ai-head">⚡ AI verdict</div>
-      <div class="sun-detail-ai sun-detail-ai-loading">
-        <span class="sun-session-ai-dot sun-session-ai-dot-shimmer" aria-hidden="true"></span>
-        <span>Synthesizing this audit…</span>
-      </div>
-    </div>`;
-  }
-  if (status === 'ok') {
-    const dot = verdict!.dot;
-    return `<div class="light-audit-ai">
-      <div class="light-audit-ai-head">⚡ AI verdict</div>
-      <div class="sun-detail-ai sun-detail-ai-${escapeAttr(dot)}">
-        <div class="sun-detail-ai-head">
-          <span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)}" aria-hidden="true"></span>
-          <span class="sun-detail-ai-tip"><span class="sun-session-ai-prefix" aria-hidden="true">${dotPrefix(dot)}</span> ${escapeHTML(verdict!.tip || '')}</span>
-          <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-audit', a.id)} title="Re-run analysis" aria-label="Re-run AI analysis">↻</button>
-        </div>
-        ${verdict!.detail ? `<div class="sun-detail-ai-body">${escapeHTML(verdict!.detail)}</div>` : ''}
-      </div>
-    </div>`;
-  }
-  if (status === 'error') {
-    const msg = verdict?.errorMessage ? `Analysis failed — ${verdict.errorMessage}` : 'Analysis failed.';
-    return `<div class="light-audit-ai">
-      <div class="light-audit-ai-head">⚡ AI verdict</div>
-      <div class="sun-detail-ai sun-detail-ai-error">
-        <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-        <span>${escapeHTML(msg)}</span>
-        <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-audit', a.id)}>Try again</button>
-      </div>
-    </div>`;
-  }
-  return `<div class="light-audit-ai">
-    <div class="light-audit-ai-head">⚡ AI verdict</div>
-    <div class="sun-detail-ai sun-detail-ai-idle">
-      <span class="sun-session-ai-dot sun-session-ai-dot-gray" aria-hidden="true"></span>
-      <span>Get a circadian-friendliness verdict for this entire snapshot.</span>
-      <button class="sun-session-ai-refresh" ${aiActionAttrs('refresh-audit', a.id)}>Analyze audit</button>
-    </div>
-  </div>`;
+  return renderHTML({ view: projectEnvironmentAI({ kind: 'audit', status: engine.getStatus(a), analysis: a.aiAnalysis,
+    targetId: a.id, actionOwner: aiActionOwner(),
+  }) });
 }
 
 // Compact dot for the audit card header (collapsed view) — gives users
@@ -309,6 +269,7 @@ export function renderAuditAIDot(a: Pick<AILightAudit, 'aiAnalysis'> | null | un
   // Dot is purely a cached-verdict indicator — render whenever the
   // verdict is present, regardless of provider state.
   if (!a?.aiAnalysis?.dot) return '';
-  const dot = a.aiAnalysis.dot;
-  return `<span class="sun-session-ai-dot sun-session-ai-dot-${escapeAttr(dot)} light-audit-ai-dot" title="AI verdict: ${escapeAttr(a.aiAnalysis.tip || '')}" aria-hidden="true"></span>`;
+  return renderHTML({ view: projectEnvironmentAI({ kind: 'audit-dot', status: 'ok', analysis: a.aiAnalysis,
+    targetId: '', actionOwner: '',
+  }) });
 }
