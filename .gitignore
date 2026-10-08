@@ -2281,3 +2281,9 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/light-environment-summary-classes.js
 /tests/light-environment-summary.test.js
 /tests/playwright/light-environment-summary-owned.spec.js
+
+/js/light-environment-room-presentation.js
+/js/light-environment-room-classes.js
+/tests/light-environment-room.test.js
+/tests/playwright/light-environment-room-owned.spec.js
+/tests/pwa/sveltekit-light-environment-room.spec.js

@@ -43,7 +43,7 @@ test('shared authored screen editor preserves independent layouts, accessible th
           old.forEach((node,index)=>{const a=getComputedStyle(node),b=getComputedStyle(current[index]!);for(const prop of props)if(a[prop]!==b[prop])failures.push(`${pair.getAttribute('data-pair')}/${selector}/${index}/${prop}: ${b[prop]} != ${a[prop]}`);});
         }
         const probe=document.createElement('span');probe.style.cssText='position:fixed;visibility:hidden';element.append(probe);
-        probe.style.backgroundColor='var(--accent-fill)';probe.style.color='var(--on-accent)';
+        probe.style.backgroundColor='var(--accent)';probe.style.color='var(--on-accent)';
         const selectedFill=getComputedStyle(probe).backgroundColor,selectedInk=getComputedStyle(probe).color;
         for(const chip of element.querySelectorAll('[data-current] .light-env-chip-active')){
           const css=getComputedStyle(chip);if(css.backgroundColor!==selectedFill||css.color!==selectedInk)failures.push(`selected palette: ${css.backgroundColor}/${css.color} != ${selectedFill}/${selectedInk}`);

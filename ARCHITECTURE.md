@@ -1241,8 +1241,23 @@ The configured burden interpreter is the single explicit trusted HTML slot;
 labels, metrics and fallback copy use escaped interpolation. Scoped Tailwind at
 the existing `light-env.css` URL owns summary layout, severity rails, accessible
 ink, action styling and inclusive 700/420px metric breakpoints. Superseded native
-summary templates and selectors are removed. Assessment modal lifecycle, room
-editor and audit-shell presentation retain their existing owners until migrated.
+summary templates and selectors are removed.
+
+`LightEnvironmentPresentation.svelte` composes the assessment dialog and workspace
+through `LightEnvironmentSection.svelte`, `LightEnvironmentRoom.svelte`, and shared
+picker, quick-pick, screen, today and summary components. The pure
+`light-environment-room-presentation.ts` module projects labels, measurement
+formatting and editor choices. The `light-env.ts` facade retains public render
+URLs, domain reads, callback invocation, modal lifecycle and sync/scroll ownership;
+`light-env-editor.ts` and the store remain mutation owners. Room disclosure uses
+a native button beside today/delete controls, preserving keyboard activation
+without nested interactive elements. Saved fields use escaped interpolation;
+the only raw room slots are configured measurement and room verdict renderers.
+The section has one explicitly named slot for the remaining saved-audit owner.
+Scoped Tailwind owns room/editor/section/modal styling at the unchanged lazy
+stylesheet URL. Native shared block layout remains only because the audit shell
+still consumes it. Superseded room and modal templates/selectors are removed;
+audit-shell presentation retains its existing owner until migrated.
 
 Room and screen render-time auto-analysis captures `ai-verdict-owner.ts` before
 queuing. Both the deduplication key and delayed callback belong to that owner;

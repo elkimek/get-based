@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1304 |
-| Internal import edges | 4524 |
+| Modules | 1311 |
+| Internal import edges | 4543 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1340,7 +1340,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>light</code> family — 87 modules</summary>
+<details><summary><code>light</code> family — 89 modules</summary>
 
 - [`js/light-active-session-presentation.ts`](js/light-active-session-presentation.ts) → no in-scope imports
 - [`js/light-ai-save-hooks.ts`](js/light-ai-save-hooks.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/light-audit-ai-analysis.ts`](js/light-audit-ai-analysis.ts), [`js/light-env-ai-analysis.ts`](js/light-env-ai-analysis.ts), [`js/light-env-audits.ts`](js/light-env-audits.ts), [`js/light-env.ts`](js/light-env.ts), [`js/light-screen-ai-analysis.ts`](js/light-screen-ai-analysis.ts), [`js/light-tools-ai-analysis.ts`](js/light-tools-ai-analysis.ts), [`js/light-tools.ts`](js/light-tools.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun-onboarding-ai.ts`](js/sun-onboarding-ai.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts)
@@ -1386,9 +1386,11 @@ Native browser modules shipped with the static application.
 - [`js/light-env-screen-ui.ts`](js/light-env-screen-ui.ts) → [`js/components/LightEnvironmentScreen.svelte`](js/components/LightEnvironmentScreen.svelte), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/light-env-store.ts`](js/light-env-store.ts), [`js/light-environment-screen-presentation.ts`](js/light-environment-screen-presentation.ts)
 - [`js/light-env-shell-hooks.ts`](js/light-env-shell-hooks.ts) → [`js/app-event-listeners.ts`](js/app-event-listeners.ts), [`js/light-sun-loader.ts`](js/light-sun-loader.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/nav.ts`](js/nav.ts), [`js/views.ts`](js/views.ts)
 - [`js/light-env-store.ts`](js/light-env-store.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts)
-- [`js/light-env.ts`](js/light-env.ts) → [`js/components/LightEnvironmentSummary.svelte`](js/components/LightEnvironmentSummary.svelte), [`js/components/LightEnvironmentTodayToggle.svelte`](js/components/LightEnvironmentTodayToggle.svelte), [`js/light-env-actions.ts`](js/light-env-actions.ts), [`js/light-env-audits.ts`](js/light-env-audits.ts), [`js/light-env-editor.ts`](js/light-env-editor.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/light-env-screen-ui.ts`](js/light-env-screen-ui.ts), [`js/light-env-store.ts`](js/light-env-store.ts), [`js/light-environment-screen-presentation.ts`](js/light-environment-screen-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-env.ts`](js/light-env.ts) → [`js/components/LightEnvironmentPresentation.svelte`](js/components/LightEnvironmentPresentation.svelte), [`js/components/LightEnvironmentSummary.svelte`](js/components/LightEnvironmentSummary.svelte), [`js/light-env-actions.ts`](js/light-env-actions.ts), [`js/light-env-audits.ts`](js/light-env-audits.ts), [`js/light-env-editor.ts`](js/light-env-editor.ts), [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env-model.ts`](js/light-env-model.ts), [`js/light-env-screen-ui.ts`](js/light-env-screen-ui.ts), [`js/light-env-store.ts`](js/light-env-store.ts), [`js/light-environment-room-classes.ts`](js/light-environment-room-classes.ts), [`js/light-environment-room-presentation.ts`](js/light-environment-room-presentation.ts), [`js/light-environment-screen-presentation.ts`](js/light-environment-screen-presentation.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-environment-ai-classes.ts`](js/light-environment-ai-classes.ts) → no in-scope imports
 - [`js/light-environment-ai-presentation.ts`](js/light-environment-ai-presentation.ts) → no in-scope imports
+- [`js/light-environment-room-classes.ts`](js/light-environment-room-classes.ts) → [`js/light-environment-screen-classes.ts`](js/light-environment-screen-classes.ts)
+- [`js/light-environment-room-presentation.ts`](js/light-environment-room-presentation.ts) → [`js/light-env-evening.ts`](js/light-env-evening.ts), [`js/light-env-model.ts`](js/light-env-model.ts)
 - [`js/light-environment-screen-classes.ts`](js/light-environment-screen-classes.ts) → no in-scope imports
 - [`js/light-environment-screen-presentation.ts`](js/light-environment-screen-presentation.ts) → no in-scope imports
 - [`js/light-environment-summary-classes.ts`](js/light-environment-summary-classes.ts) → no in-scope imports
@@ -1588,9 +1590,39 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>LightEnvironmentPicker.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightEnvironmentPicker.svelte`](js/components/LightEnvironmentPicker.svelte) → [`js/light-environment-room-classes.ts`](js/light-environment-room-classes.ts)
+
+</details>
+
+<details><summary><code>LightEnvironmentPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightEnvironmentPresentation.svelte`](js/components/LightEnvironmentPresentation.svelte) → [`js/components/LightEnvironmentSection.svelte`](js/components/LightEnvironmentSection.svelte), [`js/light-environment-room-classes.ts`](js/light-environment-room-classes.ts)
+
+</details>
+
+<details><summary><code>LightEnvironmentQuickPicks.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightEnvironmentQuickPicks.svelte`](js/components/LightEnvironmentQuickPicks.svelte) → [`js/light-environment-room-classes.ts`](js/light-environment-room-classes.ts)
+
+</details>
+
+<details><summary><code>LightEnvironmentRoom.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightEnvironmentRoom.svelte`](js/components/LightEnvironmentRoom.svelte) → [`js/components/LightEnvironmentPicker.svelte`](js/components/LightEnvironmentPicker.svelte), [`js/components/LightEnvironmentQuickPicks.svelte`](js/components/LightEnvironmentQuickPicks.svelte), [`js/components/LightEnvironmentScreen.svelte`](js/components/LightEnvironmentScreen.svelte), [`js/components/LightEnvironmentTodayToggle.svelte`](js/components/LightEnvironmentTodayToggle.svelte), [`js/light-environment-room-classes.ts`](js/light-environment-room-classes.ts)
+
+</details>
+
 <details><summary><code>LightEnvironmentScreen.svelte</code> family — 1 module</summary>
 
 - [`js/components/LightEnvironmentScreen.svelte`](js/components/LightEnvironmentScreen.svelte) → [`js/components/LightEnvironmentTodayToggle.svelte`](js/components/LightEnvironmentTodayToggle.svelte), [`js/light-environment-screen-classes.ts`](js/light-environment-screen-classes.ts), [`js/light-environment-screen-presentation.ts`](js/light-environment-screen-presentation.ts)
+
+</details>
+
+<details><summary><code>LightEnvironmentSection.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightEnvironmentSection.svelte`](js/components/LightEnvironmentSection.svelte) → [`js/components/LightEnvironmentQuickPicks.svelte`](js/components/LightEnvironmentQuickPicks.svelte), [`js/components/LightEnvironmentRoom.svelte`](js/components/LightEnvironmentRoom.svelte), [`js/components/LightEnvironmentScreen.svelte`](js/components/LightEnvironmentScreen.svelte), [`js/components/LightEnvironmentSummary.svelte`](js/components/LightEnvironmentSummary.svelte), [`js/light-environment-room-classes.ts`](js/light-environment-room-classes.ts)
 
 </details>
 

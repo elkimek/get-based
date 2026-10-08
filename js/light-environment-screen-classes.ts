@@ -76,8 +76,8 @@ const classes: Record<string, string> = {
     "gb:environment-editor:device-coarse:[padding:0_14px]",
   ].join(' '),
   "light-env-chip-active": [
-    "gb:environment-editor:[--screen-chip-bg:var(--accent-fill)] gb:environment-editor:[--screen-chip-border:var(--accent)] gb:environment-editor:[--screen-chip-ink:var(--on-accent)]",
-    "gb:environment-editor:[--screen-chip-hover:var(--accent-fill)]",
+    "gb:environment-editor:[--screen-chip-bg:var(--accent)] gb:environment-editor:[--screen-chip-border:var(--accent)] gb:environment-editor:[--screen-chip-ink:var(--on-accent)]",
+    "gb:environment-editor:[--screen-chip-hover:var(--accent)]",
   ].join(' '),
   "light-env-screen-blocker": [
     "gb:environment-editor:[font-size:13px] gb:environment-editor:[color:var(--text-secondary)] gb:environment-editor:flex",

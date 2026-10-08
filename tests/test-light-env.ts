@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { JSDOM } from 'jsdom';
 import { readServiceWorkerSource } from '../scripts/service-worker-source.js';
 import { createLegacyAssertions } from './helpers/legacy-assertions.js';
 // test-light-env.js — Light Environment math + CRUD: rooms, screens,
@@ -531,12 +532,12 @@ const {
     !summaryHtml.includes('light-env-room-disclosure'));
   const fullHtml = renderEnvironmentSection();
   assert('Full environment section remains available for the assessment workspace',
-    fullHtml.includes('class="light-env-head"') &&
-    fullHtml.includes('light-env-room-disclosure'));
+    new JSDOM(fullHtml).window.document.querySelectorAll('.light-env-head').length === 1 &&
+    new JSDOM(fullHtml).window.document.querySelectorAll('.light-env-room-disclosure').length > 0);
   const embeddedHtml = renderEnvironmentSection({ embedded: true });
   assert('Embedded assessment section suppresses duplicate page header',
-    embeddedHtml.includes('light-env-section-embedded') &&
-    !embeddedHtml.includes('class="light-env-head"'));
+    new JSDOM(embeddedHtml).window.document.querySelector('.light-env-section')?.classList.contains('light-env-section-embedded') === true &&
+    new JSDOM(embeddedHtml).window.document.querySelectorAll('.light-env-head').length === 0);
   assert('Assessment modal functions stay module exports instead of window facade',
     typeof openLightEnvironmentAssessment === 'function' &&
     typeof closeLightEnvironmentAssessment === 'function' &&
@@ -572,7 +573,7 @@ const {
       dataset: {},
       _html: '',
       classList: {
-        add(cls: string) { if (!overlayEl.className.includes(cls)) overlayEl.className += `${overlayEl.className ? ' ' : ''}${cls}`; },
+        add(cls: string) { if (!overlayEl.className.split(/\s+/).includes(cls)) overlayEl.className += `${overlayEl.className ? ' ' : ''}${cls}`; },
         remove(cls: string) { overlayEl.className = overlayEl.className.split(/\s+/).filter(x => x && x !== cls).join(' '); },
         contains(cls: string) { return overlayEl.className.split(/\s+/).includes(cls); },
       },
@@ -597,9 +598,9 @@ const {
     state.importedData.lightEnvironment!.rooms[0].name = 'Bedroom';
     (window.dispatchEvent as unknown as (event: Pick<Event, "type">) => ReturnType<typeof window.dispatchEvent>)({ type: 'labcharts-sync-applied' });
     assert('Open Light Environment modal refreshes clean content on sync',
-      initialModalHtml.includes('light-env-room-disclosure-name">Office') &&
-      (storedOverlay as { innerHTML: string } | null)?.innerHTML.includes('light-env-room-disclosure-name">Bedroom') &&
-      !(storedOverlay as { innerHTML: string } | null)?.innerHTML.includes('light-env-room-disclosure-name">Office'));
+      new JSDOM(initialModalHtml).window.document.querySelector('.light-env-room-disclosure-name')?.textContent === 'Office' &&
+      new JSDOM((storedOverlay as {innerHTML:string}).innerHTML).window.document.querySelector('.light-env-room-disclosure-name')?.textContent === 'Bedroom' &&
+      ![...new JSDOM((storedOverlay as {innerHTML:string}).innerHTML).window.document.querySelectorAll('.light-env-room-disclosure-name')].some(node=>node.textContent === 'Office'));
 
     dirtyModal = true;
     const cleanSyncedHtml = (storedOverlay as { innerHTML: string }).innerHTML;
@@ -607,7 +608,7 @@ const {
     (window.dispatchEvent as unknown as (event: Pick<Event, "type">) => ReturnType<typeof window.dispatchEvent>)({ type: 'labcharts-sync-applied' });
     assert('Open Light Environment modal skips sync refresh while form is dirty',
       (storedOverlay as { innerHTML: string } | null)?.innerHTML === cleanSyncedHtml &&
-      !(storedOverlay as { innerHTML: string } | null)?.innerHTML.includes('light-env-room-disclosure-name">Kitchen'));
+      ![...new JSDOM((storedOverlay as {innerHTML:string}).innerHTML).window.document.querySelectorAll('.light-env-room-disclosure-name')].some(node=>node.textContent === 'Kitchen'));
     closeLightEnvironmentAssessment();
   } finally {
     document.createElement = originalCreateElement;
@@ -620,10 +621,12 @@ const {
   const envSrc = await fs.readFile(new URL('../js/light-env.js', import.meta.url), 'utf8');
   const editorSrc = await fs.readFile(new URL('../js/light-env-editor.js', import.meta.url), 'utf8');
   const modelSrc = await fs.readFile(new URL('../js/light-env-model.js', import.meta.url), 'utf8');
+  const presentationSrc = await fs.readFile(new URL('../js/components/LightEnvironmentPresentation.svelte', import.meta.url), 'utf8');
   assert('Assessment modal uses user-facing indoor assessment copy',
-    envSrc.includes('Indoor Light Assessment') &&
-    envSrc.includes('Save snapshots before and after changes') &&
-    !envSrc.includes('The Light page keeps the summary'));
+    envSrc.includes('LightEnvironmentPresentation.svelte.html.js') &&
+    presentationSrc.includes('Indoor Light Assessment') &&
+    presentationSrc.includes('Save snapshots before and after changes') &&
+    !presentationSrc.includes('The Light page keeps the summary'));
   assert('Light environment deterministic model is isolated from rendering/storage',
     envSrc.includes("from './light-env-model.js'") &&
     modelSrc.includes('export function computeRoomSeverityForRoom') &&
@@ -803,10 +806,6 @@ const {
     !globalsSrc.includes('closeLightEnvironmentAssessment') &&
     !globalsSrc.includes('refreshLightEnvironmentAssessment'));
   const swSrc = await readServiceWorkerSource(relative => fs.readFile(new URL('../' + relative, import.meta.url), 'utf8'));
-  const cssSrc = [
-    await fs.readFile(new URL('../css/light-sun.css', import.meta.url), 'utf8'),
-    await fs.readFile(new URL('../css/light-env.css', import.meta.url), 'utf8'),
-  ].join('\n');
   assert('Service worker precaches the light environment model module',
     swSrc.includes("'/js/light-env-model.js'") &&
     swSrc.includes("'/js/light-env-screen-ui.js'") &&
@@ -820,10 +819,11 @@ const {
     navSrc.includes('lightAuditCount') &&
     navSrc.includes('lightRoomCount') &&
     !navSrc.includes('lightEnvItems'));
-  const modalCss = cssSrc.match(/\.light-env-assessment-modal\s*\{[^}]+\}/)?.[0] || '';
+  const roomClassesSrc=await fs.readFile(new URL('../js/light-environment-room-classes.ts',import.meta.url),'utf8');
   assert('Assessment modal owns vertical scrolling',
-    /max-height:\s*calc\(100dvh - 48px\)/.test(modalCss) &&
-    /overflow-y:\s*auto/.test(modalCss));
+    roomClassesSrc.includes('gb:environment-room:[max-height:calc(100dvh_-_48px)]') &&
+    roomClassesSrc.includes('gb:environment-room:overflow-y-auto'));
+
   const beforeEmptyAssessment = state.importedData;
   (state as { importedData: unknown }).importedData = {
     lightEnvironment: { rooms: [], screens: [] },
@@ -857,7 +857,6 @@ const {
   };
   const unmappedSummaryHtml = renderEnvironmentAssessmentSummary();
   const unmappedAssessmentHtml = renderEnvironmentSection({ embedded: true });
-  const { JSDOM } = await import('jsdom');
   const summaryDocument = new JSDOM(unmappedSummaryHtml).window.document;
   const readingMetrics = [...summaryDocument.querySelectorAll('.light-env-assessment-metric')]
     .filter(metric => metric.querySelector('.light-env-assessment-metric-label')?.textContent === 'Readings');

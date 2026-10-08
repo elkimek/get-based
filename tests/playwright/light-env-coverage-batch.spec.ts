@@ -16,6 +16,10 @@ test('Light environment assessment drives delegated room and screen controls', a
   await page.goto('/app', { waitUntil: 'load' });
   await waitForInitialView(page);
 
+  await page.exposeFunction('environmentRoomKeyboard',async(key:string,id:string)=>{
+    const disclosure=page.locator(`[data-light-env-action="toggle-room-expanded"][data-light-env-id="${id}"]`);
+    await disclosure.focus();await page.keyboard.press(key);
+  });
   const results = await page.evaluate(async () => {
     const [{ state }, data, lightEnv] = await Promise.all([
       import('/js/state.js'),
@@ -152,19 +156,17 @@ test('Light environment assessment drives delegated room and screen controls', a
         && document.querySelector<HTMLElement>(selectorFor('set-room-hours-bucket', { id: roomId, key: 'lots' }))?.getAttribute('aria-pressed') === 'true'
         && document.querySelector<HTMLElement>(selectorFor('set-room-evening-bucket', { id: roomId, key: 'gt3' }))?.getAttribute('aria-pressed') === 'true';
 
-      document.querySelector<HTMLElement>(`.light-env-room-disclosure[data-id="${roomId}"] .light-env-room-disclosure-head`)
-        ?.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
+      await (window as unknown as {environmentRoomKeyboard(key:string,id:string):Promise<void>}).environmentRoomKeyboard('Space',roomId);
       await waitUntil(
-        () => document.querySelector<HTMLElement>(`.light-env-room-disclosure[data-id="${roomId}"] .light-env-room-disclosure-head`)?.getAttribute('aria-expanded') === 'false',
+        () => document.querySelector<HTMLElement>(`.light-env-room-disclosure[data-id="${roomId}"] .light-env-room-disclosure-toggle`)?.getAttribute('aria-expanded') === 'false',
         'room collapsed by keyboard'
       );
       outcomes.roomKeyboardCollapseShowsSummary =
         document.querySelector<HTMLElement>(`.light-env-room-disclosure[data-id="${roomId}"]`)?.textContent.includes('Cool LED')
         && document.querySelector<HTMLElement>(`.light-env-room-disclosure[data-id="${roomId}"]`)?.textContent.includes('evening');
-      document.querySelector<HTMLElement>(`.light-env-room-disclosure[data-id="${roomId}"] .light-env-room-disclosure-head`)
-        ?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+      await (window as unknown as {environmentRoomKeyboard(key:string,id:string):Promise<void>}).environmentRoomKeyboard('Enter',roomId);
       await waitUntil(
-        () => document.querySelector<HTMLElement>(`.light-env-room-disclosure[data-id="${roomId}"] .light-env-room-disclosure-head`)?.getAttribute('aria-expanded') === 'true',
+        () => document.querySelector<HTMLElement>(`.light-env-room-disclosure[data-id="${roomId}"] .light-env-room-disclosure-toggle`)?.getAttribute('aria-expanded') === 'true',
         'room expanded by keyboard'
       );
 

@@ -434,3 +434,15 @@ checks all six authored pills and retained mini-chart bars, and opens the select
 Light detail through the real cross-route shortcut before checking each channel.
 The Dashboard and Light row share typed Svelte SVG output; no raw mini-chart HTML
 slot remains. This is exercised offline after first install and on each cold launch.
+
+The [room editor acceptance](../tests/pwa/sveltekit-light-environment-room.spec.ts)
+exercises native keyboard disclosure, room names, source archetypes and the full
+source selector, daylight, bucket and exact-hour inputs, evening timing, daily
+exclusion, nested screen creation and room quick picks. It performs the edits for
+the first time offline, checks the full committed profile including unknown saved
+fields, and reopens the assessment through two closed-client offline cold launches.
+The [room browser contract](../tests/playwright/light-environment-room-owned.spec.ts)
+compares independent frozen layouts across themes and breakpoints, audits visible
+advanced fields, and checks keyboard focus, touch targets, responsive dialog bounds
+and sync-scroll preservation. These focused checks do not establish whole-app,
+physical installed-PWA, live-provider or update-consent acceptance.

@@ -11,7 +11,7 @@ export interface ScreenCardOptions {
 }
 type TodayToggleRenderer = (kind: 'screen', id: unknown, active: boolean) => unknown;
 type ScreenAIRenderer = (screen: ScreenCardReader) => unknown;
-export function renderScreenCard(screen: ScreenCardReader, opts: ScreenCardOptions = {}) {
+export function readScreenCardView(screen: ScreenCardReader, opts: ScreenCardOptions = {}) {
   const status = (computeScreenStatus as (screen: ScreenCardReader) => ReturnType<typeof computeScreenStatus>)(screen);
   const active = (isActiveToday as (screen: ScreenCardReader) => boolean)(screen);
   const expanded = !!opts.expanded;
@@ -21,6 +21,10 @@ export function renderScreenCard(screen: ScreenCardReader, opts: ScreenCardOptio
     ? String((opts.renderTodayToggle as TodayToggleRenderer)('screen', screen.id, active)) : '';
   const trustedAIHTML = expanded && typeof opts.renderScreenAIBlock === 'function'
     ? String((opts.renderScreenAIBlock as ScreenAIRenderer)(screen)) : '';
-  return renderHTML({ view: projectEnvironmentScreen({ screen, status, active, expanded,
-    devices: SCREEN_DEVICES, rooms: opts.rooms, today: opts.todayToggle ? projectEnvironmentToday('screen', screen.id, active) : null, trustedTodayHTML, trustedAIHTML }) });
+  return projectEnvironmentScreen({ screen, status, active, expanded,
+    devices: SCREEN_DEVICES, rooms: opts.rooms, today: opts.todayToggle ? projectEnvironmentToday('screen', screen.id, active) : null, trustedTodayHTML, trustedAIHTML });
+}
+
+export function renderScreenCard(screen: ScreenCardReader, opts: ScreenCardOptions = {}) {
+  return renderHTML({view:readScreenCardView(screen,opts)});
 }

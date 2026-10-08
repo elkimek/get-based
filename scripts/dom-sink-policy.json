@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 1244,
-  "sinkCount": 326,
+  "scannedFiles": 1251,
+  "sinkCount": 329,
   "files": {
     "js/biology-scores.js": {
       "count": 1,
@@ -134,11 +134,25 @@
         "svelte.html": 2
       }
     },
+    "js/components/LightEnvironmentRoom.svelte.native.js": {
+      "count": 2,
+      "digest": "262115cad9a7816dd49bf6eba36f02402d39b4f8771c58f5111902ce9fe8b242",
+      "kinds": {
+        "svelte.html": 2
+      }
+    },
     "js/components/LightEnvironmentScreen.svelte.native.js": {
       "count": 2,
       "digest": "9a81163ffc68e610f0c53ec8328c5f9b95d6ed9e982101339cf5f1c88eb38eb8",
       "kinds": {
         "svelte.html": 2
+      }
+    },
+    "js/components/LightEnvironmentSection.svelte.native.js": {
+      "count": 1,
+      "digest": "3613390804ace8fb2e760259ed9f0d29e2eba6669f6e23324d6917a75c7a7f50",
+      "kinds": {
+        "svelte.html": 1
       }
     },
     "js/components/LightEnvironmentSummary.svelte.native.js": {
@@ -423,7 +437,7 @@
     },
     "js/light-env.js": {
       "count": 1,
-      "digest": "5a93ca8bb9ce953b2aa4eb85aee75f4f682b959778efcad89da5aa6021291e4e",
+      "digest": "9b89a0fcd007cdb7b9b4c43f3bdb755eb92b2d1e01c30f61ac77576f0e6c4df0",
       "kinds": {
         "innerHTML": 1
       }
