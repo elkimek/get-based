@@ -6,13 +6,15 @@
 // Measurements persist in importedData.lightMeasurements[] with tool, timestamp, value, confidence, and location.
 
 import { state } from './state.js';
-import { escapeHTML, escapeAttr, queryRequired, showNotification } from './utils.js';
+import { renderHTML as renderLightToolHTML } from './components/LightToolPresentation.svelte.html.js';
+import { projectLightTools, projectGoldenHourLog, projectAuditPauseRows } from './light-tools-presentation.js';
+import { queryRequired, showNotification } from './utils.js';
 import { openAppendedModalOverlay, removeModalOverlay } from './modal-lifecycle.js';
 import { saveImportedData } from './data.js';
 import { deleteImportedArrayItem } from './data-merge.js';
 import { aimingGuideHTML, getRequired2DContext, lockCameraForMeasurement } from './light-tool-camera.js';
 import { createUniqueId } from './unique-id.js';
-import { classifyDayWindow, formatSunClock, normalizeGoldenHourMinutes } from './light-tools-solar-time.js';
+import { classifyDayWindow, normalizeGoldenHourMinutes } from './light-tools-solar-time.js';
 export { normalizeGoldenHourMinutes } from './light-tools-solar-time.js';
 import type { LightRoom } from './light-env-model.js';
 import type { AILightMeasurement } from './light-tools-ai-analysis.js';
@@ -362,34 +364,7 @@ export function openSunriseLogger() {
   overlay.className = 'modal-overlay light-tool-overlay';
   const coords = getSunCoords();
   const cls = (classifyDayWindow as (coords: Pick<SunSetupCoords, 'lat' | 'lon'> | null, now: Date, solar: LightToolsDeps['solarZenithAngle']) => ReturnType<typeof classifyDayWindow>)(coords, new Date(), lightToolsDeps.solarZenithAngle);
-  const subtitleHtml = cls.kind === 'unknown'
-    ? `<span style="color:var(--orange);font-size:11px">No location coords — set country in profile for accurate sunrise/sunset windows.</span>`
-    : (cls.sunrise && cls.sunset)
-      ? `<span style="color:var(--text-muted);font-size:11px">today: sunrise ${formatSunClock(cls.sunrise)} · sunset ${formatSunClock(cls.sunset)}</span>`
-      : '';
-  // CTA copy adapts to the actual window we're in. Outside golden hour
-  // we can still log a session but flag it so the user knows.
-  const inGolden = cls.kind === 'sunrise' || cls.kind === 'sunset';
-  const headerHint = inGolden
-    ? `Quick log for ambient golden-hour outdoor light. The modeled eye channel uses the logged duration; never look directly at the sun.`
-    : `It's <strong>${escapeHTML(cls.label.toLowerCase())}</strong> right now. You can still log this as a regular outdoor-light session; the engine will use the actual solar angle.`;
-  overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Golden hour log">
-    <div class="modal-header">
-      <h3>Golden hour log <span style="font-weight:400;color:var(--text-muted);font-size:13px">— ${escapeHTML(cls.label)}</span></h3>
-      <button class="modal-close" id="sunrise-close" aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      <p class="modal-body-hint">${headerHint}</p>
-      ${subtitleHtml ? `<p style="margin:0 0 12px 0">${subtitleHtml}</p>` : ''}
-      <label class="ctx-label">Duration outside (minutes)
-        <input type="number" id="sunrise-duration" class="ctx-input" min="1" max="120" value="15" />
-      </label>
-      <div class="modal-actions" style="margin-top:14px">
-        <button class="import-btn import-btn-secondary" id="sunrise-cancel">Cancel</button>
-        <button class="import-btn import-btn-primary" id="sunrise-save">Log session</button>
-      </div>
-    </div>
-  </div>`;
+  overlay.innerHTML = renderLightToolHTML({ kind: 'golden', view: projectGoldenHourLog(cls) });
   const closeSunriseLogger = () => removeModalOverlay(overlay);
   openAppendedModalOverlay(overlay, closeSunriseLogger);
   queryRequired(overlay, '#sunrise-close').addEventListener('click', closeSunriseLogger);
@@ -435,22 +410,7 @@ export function closeEyeLevelAudit() {
 export async function openEyeLevelAudit() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay light-tool-overlay';
-  overlay.innerHTML = `<div class="modal light-tool-modal" role="dialog" aria-label="Home audit">
-    <div class="modal-header">
-      <h3>Home audit <span style="font-weight:400;color:var(--text-muted);font-size:13px">— 10 min walkthrough</span></h3>
-      <button type="button" class="modal-close" data-light-tools-action="close-audit" aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      ${aimingGuideHTML('audit')}
-      <p class="modal-body-hint">Pause briefly in each room (~5–10 seconds). Press Done when finished — we'll surface a per-room mini-report.</p>
-      <div class="audit-status" id="audit-status" aria-live="polite" aria-atomic="true">Press Start when ready.</div>
-      <ol class="audit-room-list" id="audit-room-list" style="margin-top:12px;list-style:decimal inside;color:var(--text-secondary)"></ol>
-      <div class="modal-actions" style="margin-top:18px">
-        <button type="button" class="import-btn import-btn-secondary" data-light-tools-action="close-audit">Cancel</button>
-        <button type="button" class="import-btn import-btn-primary" id="audit-toggle">Start audit</button>
-      </div>
-    </div>
-  </div>`;
+  overlay.innerHTML = renderLightToolHTML({ kind: 'audit', trustedGuideHTML: aimingGuideHTML('audit') });
   let closed = false;
   const closeAuditOverlay = () => {
     if (closed) return;
@@ -468,21 +428,8 @@ export async function openEyeLevelAudit() {
   const toggleBtn = (queryRequired(overlay, '#audit-toggle') as HTMLButtonElement);
   let pauseDetections: Array<{ at: number; luma: number; cameraLevel: number; lux: number | null; levelLabel: string; label: string }> = [];
 
-  // Common room labels for one-tap selection. The free-text input is
-  // always available; this just removes the typing burden mid-walkthrough.
-  const COMMON_ROOMS = ['Bedroom', 'Living room', 'Kitchen', 'Bathroom', 'Office', 'Hallway', 'Kids room'];
-
-  // Render each detected pause with a label input + datalist of common
-  // names. Default placeholder shows "Room N" so an unlabeled save still
-  // works, but the input is always live for the user to type into.
   function renderAuditList() {
-    listEl.innerHTML = pauseDetections.map((p, i) => `
-      <li style="margin-bottom:8px;list-style:none;display:flex;gap:8px;align-items:center">
-        <span style="font-size:12px;color:var(--text-muted);min-width:92px">${p.lux != null ? `~${Math.round(p.lux)} lux` : escapeHTML(p.levelLabel)}</span>
-        <input type="text" class="audit-room-label-input" aria-label="Label for room ${i + 1} (${p.lux != null ? `about ${Math.round(p.lux)} lux` : escapeAttr(p.levelLabel)})" data-idx="${i}" placeholder="Room ${i + 1} (tap to label)" value="${escapeAttr(p.label || '')}" list="audit-rooms-${i}" style="flex:1;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary)">
-        <datalist id="audit-rooms-${i}">${COMMON_ROOMS.map(r => `<option value="${escapeAttr(r)}">`).join('')}</datalist>
-      </li>
-    `).join('');
+    listEl.innerHTML = renderLightToolHTML({ kind: 'audit-rows', rows: projectAuditPauseRows(pauseDetections) });
     // Wire up the inputs every render — DOM was just rebuilt.
     listEl.querySelectorAll('.audit-room-label-input').forEach((input) => {
       const labelInput = (input as HTMLInputElement);
@@ -519,11 +466,7 @@ export async function openEyeLevelAudit() {
         // the per-room luma values incomparable. We want the absolute
         // brightness signal, not the camera-corrected one.
         const lock = await lockCameraForMeasurement(stream);
-        if (lock.exposure !== 'manual') {
-          statusEl.innerHTML = `Recording… <span style="color:var(--orange);font-size:11px">⚠ camera auto-exposure is on — room levels are rough comparisons only.</span>`;
-        } else {
-          statusEl.innerHTML = `Recording… <span style="color:var(--text-muted);font-size:11px">Exposure is held so rooms can be compared. The walkthrough saves relative brightness—not lux.</span>`;
-        }
+        statusEl.innerHTML = renderLightToolHTML({ kind: 'audit-status', state: lock.exposure === 'manual' ? 'manual' : 'auto' });
         const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 24;
         const ctx = getRequired2DContext(canvas);
         let lastSampleLuma: number | null = null;
@@ -565,7 +508,8 @@ export async function openEyeLevelAudit() {
         };
         tick();
       } catch (e) {
-        statusEl.innerHTML = e instanceof Error && e.message.includes('2D canvas context') ? 'Camera processing is unavailable in this browser.' : 'Camera access denied — audit unavailable. <br><span style="font-size:11px;color:var(--text-muted)">The walkthrough captures 4 frames per second to detect when you\'ve paused in a new room. Open your browser\'s site settings to allow camera access, or log rooms manually from the Light Environment section.</span>';
+        statusEl.innerHTML = renderLightToolHTML({ kind: 'audit-status', state: e instanceof Error && e.message.includes('2D canvas context') ? 'no-context' : 'denied' });
+        toggleBtn.textContent = 'Retry audit';
         _auditState.running = false; if (_auditState.stream) { try { _auditState.stream.getTracks().forEach(t => t.stop()); } catch (stopError) {} _auditState.stream = null; }
       }
     } else {
@@ -574,7 +518,7 @@ export async function openEyeLevelAudit() {
       if (_auditState.stream) { try { _auditState.stream.getTracks().forEach(t => t.stop()); } catch (e) {} _auditState.stream = null; }
       // Save detections as one bulk audit measurement (preserves the
       // walkthrough as a single record with labels) AND emit per-pause
-      // tool='lux' measurements bound to rooms so the room cards
+      // relative brightness measurements bound to rooms so the room cards
       // actually pick them up. Earlier the audit-only record was
       // invisible to the per-room rendering path: the measurements
       // got recorded but never reached the room UI.
@@ -634,127 +578,5 @@ export async function openEyeLevelAudit() {
 // ─── Tools page render ────────────────────────────────────────────────
 
 export function renderLightTools() {
-  const all = getMeasurements();
-  const total = all.length;
-  const cutoff7d = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const recent7 = all.filter(m => ((m.capturedAt || 0) as number) >= cutoff7d).length;
-  const env = state.importedData?.lightEnvironment || {};
-  const rooms = Array.isArray(env.rooms) ? env.rooms : [];
-  const roomCount = rooms.length;
-
-  const tools: Record<string, { icon: string; name: string; desc: string; short: string } | undefined> = {
-    spectrum: {
-      icon: '🔬',
-      name: 'What is this light?',
-      desc: 'Screen the camera RGB pattern as warm, cool, or mixed without calling it a spectrum.',
-      short: 'Warm / cool pattern',
-    },
-    lux: {
-      icon: '📏',
-      name: 'Lux meter',
-      desc: 'Measure photopic lux from a built-in sensor, meter entry, or a device-calibrated camera.',
-      short: 'Brightness baseline',
-    },
-    cct: {
-      icon: '🎨',
-      name: 'Color temp',
-      desc: 'Get an approximate warm/cool camera estimate and screen for visible banding.',
-      short: 'Warm vs cool',
-    },
-    flicker: {
-      icon: '⚡',
-      name: 'Flicker detector',
-      desc: 'Screen for rolling-shutter banding; absence does not prove flicker-free output.',
-      short: 'Banding screen',
-    },
-    darkness: {
-      icon: '🌙',
-      name: 'Sleep darkness',
-      desc: 'Run a qualitative low-light camera check or enter a meter reading at the pillow.',
-      short: 'Bedroom night check',
-    },
-    glass: {
-      icon: '🪟',
-      name: 'Window check',
-      desc: 'Compare two readings with and without glass for a better behind-glass estimate.',
-      short: 'Glass transmission',
-    },
-    audit: {
-      icon: '🚶',
-      name: 'Home audit',
-      desc: 'Walk through rooms for relative brightness with one held camera exposure.',
-      short: 'Room sweep',
-    },
-    golden: {
-      icon: '🌅',
-      name: 'Golden hour log',
-      desc: 'After-the-fact log for sunrise or sunset sessions.',
-      short: 'Solar timing',
-    },
-  };
-
-  const action = (id: string, opts: { reason?: string; primary?: boolean } = {}) => {
-    const t = tools[id];
-    if (!t) return '';
-    const reason = opts.reason || t.short;
-    return `<button type="button" class="light-tool-action${opts.primary ? ' light-tool-action-primary' : ''}" data-light-tools-action="open-tool" data-light-tool-id="${escapeAttr(id)}" title="${escapeAttr(t.desc)}">
-      <span class="light-tool-action-icon" aria-hidden="true">${t.icon}</span>
-      <span class="light-tool-action-copy">
-        <span class="light-tool-action-name">${escapeHTML(t.name)}</span>
-        <span class="light-tool-action-desc">${escapeHTML(reason)}</span>
-      </span>
-    </button>`;
-  };
-
-  const next = [
-    { id: 'lux', reason: 'Set brightness baseline', primary: true },
-    { id: 'flicker', reason: 'Screen for visible banding' },
-    { id: 'spectrum', reason: 'Check warm / cool pattern' },
-  ];
-
-  const statusChips = total > 0
-    ? [
-      `${total} measurement${total === 1 ? '' : 's'}`,
-      recent7 > 0 ? `${recent7} in the last 7 days` : 'No readings this week',
-      roomCount > 0 ? `${roomCount} room${roomCount === 1 ? '' : 's'} mapped` : 'No rooms mapped',
-    ]
-    : [
-      'No measurements yet',
-      'Camera frames stay local',
-      roomCount > 0 ? `${roomCount} room${roomCount === 1 ? '' : 's'} ready` : 'Map rooms to attach readings',
-    ];
-
-  const group = (title: string, time: string, ids: string[]) => `<details class="light-tools-group">
-    <summary class="light-tools-group-head">
-      <span>${escapeHTML(title)}</span>
-      <span class="light-tools-group-time">${escapeHTML(time)}</span>
-    </summary>
-    <div class="light-tools-grid">
-      ${ids.map(id => action(id)).join('')}
-    </div>
-  </details>`;
-
-  return `<div class="light-tools-section">
-    <h3 class="light-section-title">Light tools</h3>
-    <p class="light-section-hint">On-device checks for room light, screens, windows, and solar logs.</p>
-
-    <div class="light-tools-status" aria-label="Measurement status">
-      ${statusChips.map(s => `<span>${escapeHTML(s)}</span>`).join('')}
-    </div>
-
-    <div class="light-tools-recommended">
-      <div class="light-tools-recommended-head">
-        <span>Recommended next</span>
-        <span>Camera stays on device</span>
-      </div>
-      <div class="light-tools-action-grid">
-        ${next.map((rec, i) => action(rec.id, { reason: rec.reason, primary: rec.primary || i === 0 })).join('')}
-      </div>
-    </div>
-
-    <div class="light-tools-drawer">
-      ${group('Specialized checks', '30 s-2 min', ['cct', 'darkness', 'glass'])}
-      ${group('Walkthroughs & logs', '2-10 min', ['audit', 'golden'])}
-    </div>
-  </div>`;
+  return renderLightToolHTML({ kind: 'launcher', view: projectLightTools(getMeasurements(), state.importedData?.lightEnvironment, Date.now()) });
 }

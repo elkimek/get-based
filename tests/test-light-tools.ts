@@ -51,6 +51,8 @@ const tools = await import('../js/light-tools.js');
     ].map(file => fs.readFileSync(sourcePath(fileURLToPath(new URL(`../js/${file}`, import.meta.url))), 'utf8')).join('\n');
     const lightSunCss = fs.readFileSync(new URL('../css/light-sun.css', import.meta.url), 'utf8');
     const lightToolCss = fs.readFileSync(new URL('../css/light-tools.css', import.meta.url), 'utf8');
+    const lightToolClassesSrc = fs.readFileSync(sourcePath(fileURLToPath(new URL('../js/light-tools-classes.js', import.meta.url))), 'utf8');
+    const walkthroughSrc = fs.readFileSync(new URL('../js/components/LightAuditWalkthrough.svelte', import.meta.url), 'utf8');
     const cssFiles = ['styles.css', 'css/app-shell.css', 'css/import.css', 'css/emf.css', 'css/modal-shared.css', 'css/dashboard-core.css', 'css/dashboard-widgets.css', 'css/dashboard-welcome.css', 'css/dashboard-data.css', 'css/category-views.css', 'css/context-profile.css', 'css/genetics.css', 'css/data-protection.css', 'css/settings.css', 'css/mobile-dashboard.css', 'css/cycle.css', 'css/marker-detail-modal.css', 'css/recommendations.css', 'css/client-list.css', 'css/wearables.css', 'css/light-sun.css', 'css/light-channels.css', 'css/light-devices.css', 'css/light-conditions-now.css', 'css/light-setup.css', 'css/light-tools.css', 'css/light-env.css', 'css/chat-panel.css', 'css/chat-panel-open.css', 'css/chat-personality.css', 'css/chat-messages.css', 'css/chat-composer.css', 'css/chat-onboarding.css', 'css/chat-responsive.css', 'css/chat-actions.css', 'css/chat-mobile.css', 'css/redesign-shell.css', 'css/chat-redesign.css', 'css/chat-redesign-open.css'];
     const stylesSrc = cssFiles.map(rel => fs.readFileSync(new URL('../' + rel, import.meta.url), 'utf8')).join('\n');
     const appearsBefore = (src: string, needleA: string, needleB: string, from = 0) => {
@@ -405,7 +407,7 @@ type FixtureMeasurementStream = Omit<NonNullable<Parameters<typeof lockCameraFor
       /\.spec-result\s*\{[\s\S]{0,220}min-height:\s*140px/.test(stylesSrc));
     assert('Glass and audit result boxes reserve stable numeric layout',
       /\.glass-reading\s*\{[\s\S]{0,220}min-width:\s*9ch[\s\S]{0,220}font-variant-numeric:\s*tabular-nums/.test(stylesSrc) &&
-      /\.audit-status\s*\{[\s\S]{0,220}min-height:\s*88px/.test(stylesSrc));
+      lightToolClassesSrc.includes('[min-height:88px]') && walkthroughSrc.includes("class={c('audit-status')}"));
     assert('Light tools CSS owns tool modal and aiming guide styles',
       lightToolCss.includes('.light-tool-overlay.modal-overlay.show') &&
       lightToolCss.includes('.tool-aiming-guide') &&

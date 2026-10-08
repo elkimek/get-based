@@ -712,7 +712,7 @@ const APP_SHELL = [ // Includes dynamic chat and Knowledge Base modules for firs
   '/js/light-tool-glass-transmission.js',
   '/js/light-tool-lux-meter.js',
   '/js/light-tool-spectrum-classifier.js',
-  '/js/light-tools.js',
+  '/js/light-tools.js', '/js/light-tools-presentation.js', '/js/light-tools-classes.js', '/js/components/LightToolPresentation.svelte.html.js',
   '/js/light-tools-solar-time.js',
   '/js/light-tools-ui-hooks.js',
   '/js/light-tools-ai-analysis.js',

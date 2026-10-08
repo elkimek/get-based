@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Compile the isolated Tailwind pilot and retain the existing lazy CSS URL.
+// Compile scoped Tailwind styles at the established lazy stylesheet URLs.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -51,6 +51,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     await buildChatStyles({ check });
     await buildLightSetupStyles({ check });
     await compileStyles('light-conditions-now.base.css', 'light-conditions-now.tailwind.css', path.join(ROOT, 'css/light-conditions-now.css'), check, 'Light conditions');
+    await compileStyles('light-tools.base.css', 'light-tools.tailwind.css', path.join(ROOT, 'css/light-tools.css'), check, 'Light tools');
     await compileStyles('light-env.base.css', 'light-env.tailwind.css', path.join(ROOT, 'css/light-env.css'), check, 'Light environment');
     await compileStyles('light-devices.base.css', 'light-devices.tailwind.css', path.join(ROOT, 'css/light-devices.css'), check, 'Light device library');
     await compileStyles('light-sun.base.css', 'light-page.tailwind.css', path.join(ROOT, 'css/light-sun.css'), check, 'Light page');

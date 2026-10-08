@@ -456,3 +456,16 @@ checks native disclosure activation, independent AI actions, header-to-content t
 order and collapsed content. The existing cached-environment PWA acceptance checks
 audit fields, readings, verdicts, renamed-room comparison and modal disclosure focus
 with exact full-profile equality over closed-client offline cold launches. These remain focused checks with the boundaries stated above.
+
+The [Light Tools presentation contract](../tests/light-tools-presentation.test.ts)
+compares independent native launcher and solar-window snapshots, walkthrough
+fields, camera status copy and literal pause labels. The
+[tool browser contract](../tests/playwright/light-tools-owned.spec.ts) compares
+independent layouts, themes and breakpoints, including widget placement, native
+keyboard disclosure, focus and coarse controls. Existing tool and loader browser
+checks retain storage, camera teardown and lazy-load coverage. The
+[static tool acceptance](../tests/pwa/sveltekit-light-tools.spec.ts) opens the
+launcher, cancels a golden-hour form and exercises denied-camera retry/close over
+closed-client offline launches, with exact full-profile equality. Camera input is
+mocked; these checks do not establish physical sensor accuracy, audit-wide AA,
+installed-PWA, update-consent or whole-app acceptance.

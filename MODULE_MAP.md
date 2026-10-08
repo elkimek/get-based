@@ -9,8 +9,8 @@ The human-maintained architecture contract is in [`ARCHITECTURE.md`](ARCHITECTUR
 
 | Metric | Current |
 | --- | ---: |
-| Modules | 1317 |
-| Internal import edges | 4552 |
+| Modules | 1327 |
+| Internal import edges | 4571 |
 | Dynamic internal edges | 121 |
 | Modules participating in cycles | 0 |
 | Cyclic components | 0 |
@@ -1340,7 +1340,7 @@ Native browser modules shipped with the static application.
 
 </details>
 
-<details><summary><code>light</code> family — 91 modules</summary>
+<details><summary><code>light</code> family — 93 modules</summary>
 
 - [`js/light-active-session-presentation.ts`](js/light-active-session-presentation.ts) → no in-scope imports
 - [`js/light-ai-save-hooks.ts`](js/light-ai-save-hooks.ts) → [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/chat-loader.ts`](js/chat-loader.ts), [`js/light-audit-ai-analysis.ts`](js/light-audit-ai-analysis.ts), [`js/light-env-ai-analysis.ts`](js/light-env-ai-analysis.ts), [`js/light-env-audits.ts`](js/light-env-audits.ts), [`js/light-env.ts`](js/light-env.ts), [`js/light-screen-ai-analysis.ts`](js/light-screen-ai-analysis.ts), [`js/light-tools-ai-analysis.ts`](js/light-tools-ai-analysis.ts), [`js/light-tools.ts`](js/light-tools.ts), [`js/sun-defaults.ts`](js/sun-defaults.ts), [`js/sun-onboarding-ai.ts`](js/sun-onboarding-ai.ts), [`js/sun-sessions-store.ts`](js/sun-sessions-store.ts), [`js/sun-uvdata.ts`](js/sun-uvdata.ts), [`js/sun.ts`](js/sun.ts)
@@ -1429,9 +1429,11 @@ Native browser modules shipped with the static application.
 - [`js/light-tool-lux-meter.ts`](js/light-tool-lux-meter.ts) → [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils-runtime.ts`](js/utils-runtime.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-tool-spectrum-classifier.ts`](js/light-tool-spectrum-classifier.ts) → [`js/light-tool-camera-modal-runtime.ts`](js/light-tool-camera-modal-runtime.ts), [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-tools-ai-analysis.ts`](js/light-tools-ai-analysis.ts) → [`js/ai-action-delegates.ts`](js/ai-action-delegates.ts), [`js/ai-feature-routing.ts`](js/ai-feature-routing.ts), [`js/ai-verdict-engine.ts`](js/ai-verdict-engine.ts), [`js/components/LightEnvironmentAI.svelte`](js/components/LightEnvironmentAI.svelte), [`js/health-goals-utils.ts`](js/health-goals-utils.ts), [`js/light-environment-ai-presentation.ts`](js/light-environment-ai-presentation.ts), [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts), [`js/state.ts`](js/state.ts)
+- [`js/light-tools-classes.ts`](js/light-tools-classes.ts) → no in-scope imports
+- [`js/light-tools-presentation.ts`](js/light-tools-presentation.ts) → [`js/light-tools-solar-time.ts`](js/light-tools-solar-time.ts)
 - [`js/light-tools-solar-time.ts`](js/light-tools-solar-time.ts) → no in-scope imports
 - [`js/light-tools-ui-hooks.ts`](js/light-tools-ui-hooks.ts) → [`js/light-tools.ts`](js/light-tools.ts), [`js/views.ts`](js/views.ts)
-- [`js/light-tools.ts`](js/light-tools.ts) → [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/light-tool-camera-modals.ts`](js/light-tool-camera-modals.ts) *(dynamic)*, [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/light-tools-solar-time.ts`](js/light-tools-solar-time.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils.ts`](js/utils.ts)
+- [`js/light-tools.ts`](js/light-tools.ts) → [`js/components/LightToolPresentation.svelte`](js/components/LightToolPresentation.svelte), [`js/data-merge.ts`](js/data-merge.ts), [`js/data.ts`](js/data.ts), [`js/light-tool-camera-modals.ts`](js/light-tool-camera-modals.ts) *(dynamic)*, [`js/light-tool-camera.ts`](js/light-tool-camera.ts), [`js/light-tools-presentation.ts`](js/light-tools-presentation.ts), [`js/light-tools-solar-time.ts`](js/light-tools-solar-time.ts), [`js/modal-lifecycle.ts`](js/modal-lifecycle.ts), [`js/state.ts`](js/state.ts), [`js/unique-id.ts`](js/unique-id.ts), [`js/utils.ts`](js/utils.ts)
 - [`js/light-verdict-control.ts`](js/light-verdict-control.ts) → no in-scope imports
 
 </details>
@@ -1463,6 +1465,24 @@ Native browser modules shipped with the static application.
 <details><summary><code>LightAuditDetail.svelte</code> family — 1 module</summary>
 
 - [`js/components/LightAuditDetail.svelte`](js/components/LightAuditDetail.svelte) → [`js/light-audit-classes.ts`](js/light-audit-classes.ts)
+
+</details>
+
+<details><summary><code>LightAuditPauseRows.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightAuditPauseRows.svelte`](js/components/LightAuditPauseRows.svelte) → [`js/light-tools-classes.ts`](js/light-tools-classes.ts), [`js/light-tools-presentation.ts`](js/light-tools-presentation.ts)
+
+</details>
+
+<details><summary><code>LightAuditWalkthrough.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightAuditWalkthrough.svelte`](js/components/LightAuditWalkthrough.svelte) → [`js/components/LightToolFrame.svelte`](js/components/LightToolFrame.svelte), [`js/light-tools-classes.ts`](js/light-tools-classes.ts)
+
+</details>
+
+<details><summary><code>LightAuditWalkthroughStatus.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightAuditWalkthroughStatus.svelte`](js/components/LightAuditWalkthroughStatus.svelte) → [`js/light-tools-classes.ts`](js/light-tools-classes.ts)
 
 </details>
 
@@ -1664,6 +1684,12 @@ Native browser modules shipped with the static application.
 
 </details>
 
+<details><summary><code>LightGoldenHourLog.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightGoldenHourLog.svelte`](js/components/LightGoldenHourLog.svelte) → [`js/components/LightToolFrame.svelte`](js/components/LightToolFrame.svelte), [`js/light-tools-classes.ts`](js/light-tools-classes.ts)
+
+</details>
+
 <details><summary><code>lighting</code> family — 1 module</summary>
 
 - [`js/lighting-hardware-caveats.ts`](js/lighting-hardware-caveats.ts) → no in-scope imports
@@ -1835,6 +1861,30 @@ Native browser modules shipped with the static application.
 <details><summary><code>LightTodayStrip.svelte</code> family — 1 module</summary>
 
 - [`js/components/LightTodayStrip.svelte`](js/components/LightTodayStrip.svelte) → no in-scope imports
+
+</details>
+
+<details><summary><code>LightToolAction.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightToolAction.svelte`](js/components/LightToolAction.svelte) → [`js/light-tools-classes.ts`](js/light-tools-classes.ts)
+
+</details>
+
+<details><summary><code>LightToolFrame.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightToolFrame.svelte`](js/components/LightToolFrame.svelte) → [`js/light-tools-classes.ts`](js/light-tools-classes.ts)
+
+</details>
+
+<details><summary><code>LightToolPresentation.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightToolPresentation.svelte`](js/components/LightToolPresentation.svelte) → [`js/components/LightAuditPauseRows.svelte`](js/components/LightAuditPauseRows.svelte), [`js/components/LightAuditWalkthrough.svelte`](js/components/LightAuditWalkthrough.svelte), [`js/components/LightAuditWalkthroughStatus.svelte`](js/components/LightAuditWalkthroughStatus.svelte), [`js/components/LightGoldenHourLog.svelte`](js/components/LightGoldenHourLog.svelte), [`js/components/LightToolsLauncher.svelte`](js/components/LightToolsLauncher.svelte)
+
+</details>
+
+<details><summary><code>LightToolsLauncher.svelte</code> family — 1 module</summary>
+
+- [`js/components/LightToolsLauncher.svelte`](js/components/LightToolsLauncher.svelte) → [`js/components/LightToolAction.svelte`](js/components/LightToolAction.svelte), [`js/light-tools-classes.ts`](js/light-tools-classes.ts)
 
 </details>
 

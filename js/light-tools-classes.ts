@@ -1,0 +1,42 @@
+// Static utilities for authored tool views; camera and guide CSS keep separate owners.
+const classes: Readonly<Record<string, string>> = {
+  "light-tools-section": "gb:tool-ui:[margin-top:24px] gb:tool-ui:[display:grid] gb:tool-ui:[gap:14px] gb:tool-ui:[.light-page_.dashboard-widget[data-widget-id=light-tools]_&]:[margin-top:0]",
+  "light-tools-status": "gb:tool-ui:[display:flex] gb:tool-ui:[flex-wrap:wrap] gb:tool-ui:[gap:6px]",
+  "light-tools-status-chip": "gb:tool-ui:[display:inline-flex] gb:tool-ui:[align-items:center] gb:tool-ui:[min-height:24px] gb:tool-ui:[padding:3px_9px] gb:tool-ui:[border:1px_solid_color-mix(in_srgb,_var(--border)_82%,_transparent)] gb:tool-ui:[border-radius:var(--radius-sm)] gb:tool-ui:[background:color-mix(in_srgb,_var(--bg-secondary)_58%,_transparent)] gb:tool-ui:[color:var(--text-secondary)] gb:tool-ui:[font-size:11px] gb:tool-ui:[font-weight:650]",
+  "light-tools-recommended": "gb:tool-ui:[display:grid] gb:tool-ui:[gap:8px]",
+  "light-tools-recommended-head": "gb:tool-ui:[display:flex] gb:tool-ui:[align-items:center] gb:tool-ui:[justify-content:space-between] gb:tool-ui:[gap:12px] gb:tool-ui:[color:var(--text-muted)] gb:tool-ui:[font-family:var(--font-mono)] gb:tool-ui:[font-size:10px] gb:tool-ui:[font-weight:800] gb:tool-ui:[letter-spacing:0] gb:tool-ui:[text-transform:uppercase] gb:tool-ui:tool-mobile:[align-items:flex-start] gb:tool-ui:tool-mobile:[flex-direction:column] gb:tool-ui:tool-mobile:[gap:3px]",
+  "light-tools-private": "gb:tool-ui:[color:var(--accent)] gb:tool-ui:[text-align:right] gb:tool-ui:tool-mobile:[text-align:left]",
+  "light-tools-action-grid": "gb:tool-ui:[display:grid] gb:tool-ui:[grid-template-columns:repeat(3,_minmax(0,_1fr))] gb:tool-ui:[gap:10px] gb:tool-ui:tool-mobile:[grid-template-columns:1fr]",
+  "light-tools-grid": "gb:tool-ui:[display:grid] gb:tool-ui:[gap:10px] gb:tool-ui:[grid-template-columns:repeat(auto-fit,_minmax(min(210px,_100%),_1fr))] gb:tool-ui:[padding:10px]",
+  "light-tool-action": "gb:tool-ui:[display:grid] gb:tool-ui:[grid-template-columns:34px_minmax(0,_1fr)] gb:tool-ui:[align-items:center] gb:tool-ui:[gap:10px] gb:tool-ui:[min-height:68px] gb:tool-ui:[padding:10px_12px] gb:tool-ui:[border:1px_solid_var(--tool-action-border,color-mix(in_srgb,_var(--border)_86%,_transparent))] gb:tool-ui:[border-radius:var(--radius-sm)] gb:tool-ui:[background:var(--tool-action-background,color-mix(in_srgb,_var(--bg-secondary)_64%,_transparent))] gb:tool-ui:[color:var(--text-primary)] gb:tool-ui:[cursor:pointer] gb:tool-ui:[font:inherit] gb:tool-ui:[text-align:left] gb:tool-ui:[transition:background_0.15s,_border-color_0.15s] gb:tool-ui:hover:[border-color:color-mix(in_srgb,_var(--accent)_45%,_var(--border))] gb:tool-ui:hover:[background:var(--bg-hover)] gb:tool-ui:focus-visible:outline-2! gb:tool-ui:focus-visible:outline-offset-2 gb:tool-ui:focus-visible:outline-accent gb:tool-ui:device-coarse:[min-width:44px]",
+  "light-tool-action-primary": "gb:tool-ui:[--tool-action-border:var(--accent)] gb:tool-ui:[--tool-action-background:linear-gradient(135deg,_color-mix(in_srgb,_var(--accent)_8%,_transparent),_transparent_68%),_____color-mix(in_srgb,_var(--bg-secondary)_70%,_transparent)]",
+  "light-tool-action-icon": "gb:tool-ui:[display:inline-flex] gb:tool-ui:[align-items:center] gb:tool-ui:[justify-content:center] gb:tool-ui:[width:34px] gb:tool-ui:[height:34px] gb:tool-ui:[border-radius:var(--radius-sm)] gb:tool-ui:[background:color-mix(in_srgb,_var(--bg-card)_76%,_transparent)] gb:tool-ui:[font-size:19px]",
+  "light-tool-action-copy": "gb:tool-ui:[display:grid] gb:tool-ui:[gap:2px] gb:tool-ui:[min-width:0]",
+  "light-tool-action-name": "gb:tool-ui:[color:var(--tool-action-name,var(--text-primary))] gb:tool-ui:[font-size:13px] gb:tool-ui:[font-weight:750] gb:tool-ui:[line-height:1.2]",
+  "light-tool-primary-name": "gb:tool-ui:[--tool-action-name:var(--accent)]",
+  "light-tool-action-desc": "gb:tool-ui:[color:var(--text-muted)] gb:tool-ui:[font-size:11px] gb:tool-ui:[line-height:1.3] gb:tool-ui:[overflow-wrap:anywhere]",
+  "light-tools-drawer": "gb:tool-ui:[display:grid] gb:tool-ui:[gap:8px]",
+  "light-tools-group": "gb:tool-ui:[border:1px_solid_color-mix(in_srgb,_var(--border)_82%,_transparent)] gb:tool-ui:[border-radius:var(--radius-sm)] gb:tool-ui:[background:color-mix(in_srgb,_var(--bg-card)_72%,_transparent)] gb:tool-ui:[overflow:hidden]",
+  "light-tools-group-head": "gb:tool-ui:[list-style:none] gb:tool-ui:[&::-webkit-details-marker]:[display:none] gb:tool-ui:[display:flex] gb:tool-ui:[align-items:center] gb:tool-ui:[justify-content:space-between] gb:tool-ui:[gap:12px] gb:tool-ui:[padding:10px_12px] gb:tool-ui:[cursor:pointer] gb:tool-ui:[color:var(--text-secondary)] gb:tool-ui:[font-size:12px] gb:tool-ui:[font-weight:750] gb:tool-ui:[.light-tools-group[open]_&]:[border-bottom:1px_solid_var(--border)] gb:tool-ui:focus-visible:outline-2! gb:tool-ui:focus-visible:outline-offset-2 gb:tool-ui:focus-visible:outline-accent gb:tool-ui:device-coarse:[min-height:44px] gb:tool-ui:device-coarse:[min-width:44px]",
+  "light-tools-group-time": "gb:tool-ui:[color:var(--text-muted)] gb:tool-ui:[font-family:var(--font-mono)] gb:tool-ui:[font-size:10px] gb:tool-ui:[font-weight:800] gb:tool-ui:[text-transform:uppercase] gb:tool-ui:[white-space:nowrap]",
+  "light-section-title": "gb:tool-ui:[font-family:var(--font-display)] gb:tool-ui:[font-size:15px] gb:tool-ui:[font-weight:700] gb:tool-ui:[color:var(--text-primary)] gb:tool-ui:[margin:0_0_4px] gb:tool-ui:[.light-page_.dashboard-widget[data-widget-id=light-tools]_&]:[display:none]",
+  "light-section-hint": "gb:tool-ui:tool-hint-mobile:[.light-page_.dashboard-widget[data-widget-id=light-tools]_&]:[font-size:12px] gb:tool-ui:[font-size:13px] gb:tool-ui:[color:var(--text-secondary)] gb:tool-ui:[margin:0_0_12px]",
+  "light-tool-modal": "gb:tool-ui:[width:min(92vw,_480px)] gb:tool-ui:[max-width:480px] gb:tool-ui:[margin-block:clamp(12px,_5vh,_40px)]",
+  "modal-body-hint": "gb:tool-ui:[min-height:1.35em]",
+  "tool-suffix": "gb:tool-ui:[font-weight:400] gb:tool-ui:[color:var(--text-muted)] gb:tool-ui:[font-size:13px]",
+  "tool-subtitle": "gb:tool-ui:[margin:0_0_12px]",
+  "tool-note": "gb:tool-ui:[color:var(--tool-note-color,var(--text-muted))] gb:tool-ui:[font-size:11px]",
+  "tool-warning": "gb:tool-ui:[--tool-note-color:var(--orange)]",
+  "tool-actions-golden": "gb:tool-ui:[margin-top:14px]",
+  "tool-actions-audit": "gb:tool-ui:[margin-top:18px]",
+  "audit-status": "gb:tool-ui:[margin-top:8px] gb:tool-ui:[padding:10px_12px] gb:tool-ui:[background:var(--bg-secondary)] gb:tool-ui:[border:1px_solid_var(--border)] gb:tool-ui:[border-radius:var(--radius-sm)] gb:tool-ui:[font-size:13px] gb:tool-ui:[color:var(--text-secondary)] gb:tool-ui:[min-height:88px] gb:tool-ui:[box-sizing:border-box] gb:tool-ui:[display:flex] gb:tool-ui:[flex-direction:column] gb:tool-ui:[justify-content:center] gb:tool-ui:[font-variant-numeric:tabular-nums]",
+  "audit-room-list": "gb:tool-ui:[margin-top:12px] gb:tool-ui:[list-style:decimal_inside] gb:tool-ui:[color:var(--text-secondary)] gb:tool-ui:[padding-left:24px] gb:tool-ui:[font-size:13px]",
+  "audit-pause-row": "gb:tool-ui:[margin-bottom:8px] gb:tool-ui:[list-style:none] gb:tool-ui:[display:flex] gb:tool-ui:[gap:8px] gb:tool-ui:[align-items:center]",
+  "audit-pause-level": "gb:tool-ui:[font-size:12px] gb:tool-ui:[color:var(--text-muted)] gb:tool-ui:[min-width:92px]",
+  "audit-room-label-input": "gb:tool-ui:[flex:1] gb:tool-ui:[padding:4px_8px] gb:tool-ui:[font-size:12px] gb:tool-ui:[border:1px_solid_var(--border)] gb:tool-ui:[border-radius:var(--radius-sm)] gb:tool-ui:[background:var(--bg-card)] gb:tool-ui:[color:var(--text-primary)] gb:tool-ui:[min-width:0]",
+  "tool-control": "gb:tool-ui:focus-visible:outline-2! gb:tool-ui:focus-visible:outline-offset-2 gb:tool-ui:focus-visible:outline-accent gb:tool-ui:device-coarse:[min-height:44px] gb:tool-ui:device-coarse:[min-width:44px]",
+};
+
+export function lightToolClasses(names: string): string {
+  return names.split(/\s+/).map(name => [name, classes[name] || ''].filter(Boolean).join(' ')).join(' ');
+}

@@ -1,0 +1,658 @@
+{
+  "revision": "21fc2730a89d30768a79a2f08abe9c0a788b3b59",
+  "launchers": [
+    {
+      "name": "empty",
+      "now": 1791453600000,
+      "data": {
+        "lightMeasurements": [],
+        "lightEnvironment": {
+          "rooms": []
+        }
+      },
+      "html": "<div class=\"light-tools-section\">\n    <h3 class=\"light-section-title\">Light tools</h3>\n    <p class=\"light-section-hint\">On-device checks for room light, screens, windows, and solar logs.</p>\n\n    <div class=\"light-tools-status\" aria-label=\"Measurement status\">\n      <span>No measurements yet</span><span>Camera frames stay local</span><span>Map rooms to attach readings</span>\n    </div>\n\n    <div class=\"light-tools-recommended\">\n      <div class=\"light-tools-recommended-head\">\n        <span>Recommended next</span>\n        <span>Camera stays on device</span>\n      </div>\n      <div class=\"light-tools-action-grid\">\n        <button type=\"button\" class=\"light-tool-action light-tool-action-primary\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"lux\" title=\"Measure photopic lux from a built-in sensor, meter entry, or a device-calibrated camera.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">📏</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Lux meter</span>\n        <span class=\"light-tool-action-desc\">Set brightness baseline</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"flicker\" title=\"Screen for rolling-shutter banding; absence does not prove flicker-free output.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Flicker detector</span>\n        <span class=\"light-tool-action-desc\">Screen for visible banding</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"spectrum\" title=\"Screen the camera RGB pattern as warm, cool, or mixed without calling it a spectrum.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🔬</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">What is this light?</span>\n        <span class=\"light-tool-action-desc\">Check warm / cool pattern</span>\n      </span>\n    </button>\n      </div>\n    </div>\n\n    <div class=\"light-tools-drawer\">\n      <details class=\"light-tools-group\">\n    <summary class=\"light-tools-group-head\">\n      <span>Specialized checks</span>\n      <span class=\"light-tools-group-time\">30 s-2 min</span>\n    </summary>\n    <div class=\"light-tools-grid\">\n      <button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"cct\" title=\"Get an approximate warm/cool camera estimate and screen for visible banding.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🎨</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Color temp</span>\n        <span class=\"light-tool-action-desc\">Warm vs cool</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"darkness\" title=\"Run a qualitative low-light camera check or enter a meter reading at the pillow.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🌙</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Sleep darkness</span>\n        <span class=\"light-tool-action-desc\">Bedroom night check</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"glass\" title=\"Compare two readings with and without glass for a better behind-glass estimate.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🪟</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Window check</span>\n        <span class=\"light-tool-action-desc\">Glass transmission</span>\n      </span>\n    </button>\n    </div>\n  </details>\n      <details class=\"light-tools-group\">\n    <summary class=\"light-tools-group-head\">\n      <span>Walkthroughs &amp; logs</span>\n      <span class=\"light-tools-group-time\">2-10 min</span>\n    </summary>\n    <div class=\"light-tools-grid\">\n      <button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"audit\" title=\"Walk through rooms for relative brightness with one held camera exposure.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🚶</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Home audit</span>\n        <span class=\"light-tool-action-desc\">Room sweep</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"golden\" title=\"After-the-fact log for sunrise or sunset sessions.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🌅</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Golden hour log</span>\n        <span class=\"light-tool-action-desc\">Solar timing</span>\n      </span>\n    </button>\n    </div>\n  </details>\n    </div>\n  </div>"
+    },
+    {
+      "name": "rooms-ready",
+      "now": 1791453600000,
+      "data": {
+        "lightMeasurements": [],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r",
+              "name": "Bedroom"
+            }
+          ]
+        }
+      },
+      "html": "<div class=\"light-tools-section\">\n    <h3 class=\"light-section-title\">Light tools</h3>\n    <p class=\"light-section-hint\">On-device checks for room light, screens, windows, and solar logs.</p>\n\n    <div class=\"light-tools-status\" aria-label=\"Measurement status\">\n      <span>No measurements yet</span><span>Camera frames stay local</span><span>1 room ready</span>\n    </div>\n\n    <div class=\"light-tools-recommended\">\n      <div class=\"light-tools-recommended-head\">\n        <span>Recommended next</span>\n        <span>Camera stays on device</span>\n      </div>\n      <div class=\"light-tools-action-grid\">\n        <button type=\"button\" class=\"light-tool-action light-tool-action-primary\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"lux\" title=\"Measure photopic lux from a built-in sensor, meter entry, or a device-calibrated camera.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">📏</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Lux meter</span>\n        <span class=\"light-tool-action-desc\">Set brightness baseline</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"flicker\" title=\"Screen for rolling-shutter banding; absence does not prove flicker-free output.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Flicker detector</span>\n        <span class=\"light-tool-action-desc\">Screen for visible banding</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"spectrum\" title=\"Screen the camera RGB pattern as warm, cool, or mixed without calling it a spectrum.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🔬</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">What is this light?</span>\n        <span class=\"light-tool-action-desc\">Check warm / cool pattern</span>\n      </span>\n    </button>\n      </div>\n    </div>\n\n    <div class=\"light-tools-drawer\">\n      <details class=\"light-tools-group\">\n    <summary class=\"light-tools-group-head\">\n      <span>Specialized checks</span>\n      <span class=\"light-tools-group-time\">30 s-2 min</span>\n    </summary>\n    <div class=\"light-tools-grid\">\n      <button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"cct\" title=\"Get an approximate warm/cool camera estimate and screen for visible banding.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🎨</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Color temp</span>\n        <span class=\"light-tool-action-desc\">Warm vs cool</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"darkness\" title=\"Run a qualitative low-light camera check or enter a meter reading at the pillow.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🌙</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Sleep darkness</span>\n        <span class=\"light-tool-action-desc\">Bedroom night check</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"glass\" title=\"Compare two readings with and without glass for a better behind-glass estimate.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🪟</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Window check</span>\n        <span class=\"light-tool-action-desc\">Glass transmission</span>\n      </span>\n    </button>\n    </div>\n  </details>\n      <details class=\"light-tools-group\">\n    <summary class=\"light-tools-group-head\">\n      <span>Walkthroughs &amp; logs</span>\n      <span class=\"light-tools-group-time\">2-10 min</span>\n    </summary>\n    <div class=\"light-tools-grid\">\n      <button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"audit\" title=\"Walk through rooms for relative brightness with one held camera exposure.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🚶</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Home audit</span>\n        <span class=\"light-tool-action-desc\">Room sweep</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"golden\" title=\"After-the-fact log for sunrise or sunset sessions.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🌅</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Golden hour log</span>\n        <span class=\"light-tool-action-desc\">Solar timing</span>\n      </span>\n    </button>\n    </div>\n  </details>\n    </div>\n  </div>"
+    },
+    {
+      "name": "one-recent",
+      "now": 1791453600000,
+      "data": {
+        "lightMeasurements": [
+          {
+            "id": "m",
+            "tool": "lux",
+            "roomId": "r",
+            "capturedAt": 1791453600000,
+            "value": 12
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r"
+            }
+          ]
+        }
+      },
+      "html": "<div class=\"light-tools-section\">\n    <h3 class=\"light-section-title\">Light tools</h3>\n    <p class=\"light-section-hint\">On-device checks for room light, screens, windows, and solar logs.</p>\n\n    <div class=\"light-tools-status\" aria-label=\"Measurement status\">\n      <span>1 measurement</span><span>1 in the last 7 days</span><span>1 room mapped</span>\n    </div>\n\n    <div class=\"light-tools-recommended\">\n      <div class=\"light-tools-recommended-head\">\n        <span>Recommended next</span>\n        <span>Camera stays on device</span>\n      </div>\n      <div class=\"light-tools-action-grid\">\n        <button type=\"button\" class=\"light-tool-action light-tool-action-primary\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"lux\" title=\"Measure photopic lux from a built-in sensor, meter entry, or a device-calibrated camera.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">📏</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Lux meter</span>\n        <span class=\"light-tool-action-desc\">Set brightness baseline</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"flicker\" title=\"Screen for rolling-shutter banding; absence does not prove flicker-free output.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Flicker detector</span>\n        <span class=\"light-tool-action-desc\">Screen for visible banding</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"spectrum\" title=\"Screen the camera RGB pattern as warm, cool, or mixed without calling it a spectrum.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🔬</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">What is this light?</span>\n        <span class=\"light-tool-action-desc\">Check warm / cool pattern</span>\n      </span>\n    </button>\n      </div>\n    </div>\n\n    <div class=\"light-tools-drawer\">\n      <details class=\"light-tools-group\">\n    <summary class=\"light-tools-group-head\">\n      <span>Specialized checks</span>\n      <span class=\"light-tools-group-time\">30 s-2 min</span>\n    </summary>\n    <div class=\"light-tools-grid\">\n      <button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"cct\" title=\"Get an approximate warm/cool camera estimate and screen for visible banding.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🎨</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Color temp</span>\n        <span class=\"light-tool-action-desc\">Warm vs cool</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"darkness\" title=\"Run a qualitative low-light camera check or enter a meter reading at the pillow.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🌙</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Sleep darkness</span>\n        <span class=\"light-tool-action-desc\">Bedroom night check</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"glass\" title=\"Compare two readings with and without glass for a better behind-glass estimate.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🪟</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Window check</span>\n        <span class=\"light-tool-action-desc\">Glass transmission</span>\n      </span>\n    </button>\n    </div>\n  </details>\n      <details class=\"light-tools-group\">\n    <summary class=\"light-tools-group-head\">\n      <span>Walkthroughs &amp; logs</span>\n      <span class=\"light-tools-group-time\">2-10 min</span>\n    </summary>\n    <div class=\"light-tools-grid\">\n      <button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"audit\" title=\"Walk through rooms for relative brightness with one held camera exposure.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🚶</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Home audit</span>\n        <span class=\"light-tool-action-desc\">Room sweep</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"golden\" title=\"After-the-fact log for sunrise or sunset sessions.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🌅</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Golden hour log</span>\n        <span class=\"light-tool-action-desc\">Solar timing</span>\n      </span>\n    </button>\n    </div>\n  </details>\n    </div>\n  </div>"
+    },
+    {
+      "name": "old-readings",
+      "now": 1791453600000,
+      "data": {
+        "lightMeasurements": [
+          {
+            "id": "m",
+            "tool": "lux",
+            "capturedAt": 1790762400000,
+            "value": 42
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": [
+            {
+              "id": "r"
+            },
+            {
+              "id": "r2"
+            }
+          ]
+        }
+      },
+      "html": "<div class=\"light-tools-section\">\n    <h3 class=\"light-section-title\">Light tools</h3>\n    <p class=\"light-section-hint\">On-device checks for room light, screens, windows, and solar logs.</p>\n\n    <div class=\"light-tools-status\" aria-label=\"Measurement status\">\n      <span>1 measurement</span><span>No readings this week</span><span>2 rooms mapped</span>\n    </div>\n\n    <div class=\"light-tools-recommended\">\n      <div class=\"light-tools-recommended-head\">\n        <span>Recommended next</span>\n        <span>Camera stays on device</span>\n      </div>\n      <div class=\"light-tools-action-grid\">\n        <button type=\"button\" class=\"light-tool-action light-tool-action-primary\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"lux\" title=\"Measure photopic lux from a built-in sensor, meter entry, or a device-calibrated camera.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">📏</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Lux meter</span>\n        <span class=\"light-tool-action-desc\">Set brightness baseline</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"flicker\" title=\"Screen for rolling-shutter banding; absence does not prove flicker-free output.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Flicker detector</span>\n        <span class=\"light-tool-action-desc\">Screen for visible banding</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"spectrum\" title=\"Screen the camera RGB pattern as warm, cool, or mixed without calling it a spectrum.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🔬</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">What is this light?</span>\n        <span class=\"light-tool-action-desc\">Check warm / cool pattern</span>\n      </span>\n    </button>\n      </div>\n    </div>\n\n    <div class=\"light-tools-drawer\">\n      <details class=\"light-tools-group\">\n    <summary class=\"light-tools-group-head\">\n      <span>Specialized checks</span>\n      <span class=\"light-tools-group-time\">30 s-2 min</span>\n    </summary>\n    <div class=\"light-tools-grid\">\n      <button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"cct\" title=\"Get an approximate warm/cool camera estimate and screen for visible banding.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🎨</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Color temp</span>\n        <span class=\"light-tool-action-desc\">Warm vs cool</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"darkness\" title=\"Run a qualitative low-light camera check or enter a meter reading at the pillow.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🌙</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Sleep darkness</span>\n        <span class=\"light-tool-action-desc\">Bedroom night check</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"glass\" title=\"Compare two readings with and without glass for a better behind-glass estimate.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🪟</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Window check</span>\n        <span class=\"light-tool-action-desc\">Glass transmission</span>\n      </span>\n    </button>\n    </div>\n  </details>\n      <details class=\"light-tools-group\">\n    <summary class=\"light-tools-group-head\">\n      <span>Walkthroughs &amp; logs</span>\n      <span class=\"light-tools-group-time\">2-10 min</span>\n    </summary>\n    <div class=\"light-tools-grid\">\n      <button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"audit\" title=\"Walk through rooms for relative brightness with one held camera exposure.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🚶</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Home audit</span>\n        <span class=\"light-tool-action-desc\">Room sweep</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"golden\" title=\"After-the-fact log for sunrise or sunset sessions.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🌅</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Golden hour log</span>\n        <span class=\"light-tool-action-desc\">Solar timing</span>\n      </span>\n    </button>\n    </div>\n  </details>\n    </div>\n  </div>"
+    },
+    {
+      "name": "boundary",
+      "now": 1791453600000,
+      "data": {
+        "lightMeasurements": [
+          {
+            "id": "m",
+            "tool": "lux",
+            "capturedAt": 1790848800000,
+            "value": 12
+          },
+          {
+            "id": "n",
+            "tool": "flicker",
+            "capturedAt": 1790848799999,
+            "value": 2
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": []
+        }
+      },
+      "html": "<div class=\"light-tools-section\">\n    <h3 class=\"light-section-title\">Light tools</h3>\n    <p class=\"light-section-hint\">On-device checks for room light, screens, windows, and solar logs.</p>\n\n    <div class=\"light-tools-status\" aria-label=\"Measurement status\">\n      <span>2 measurements</span><span>1 in the last 7 days</span><span>No rooms mapped</span>\n    </div>\n\n    <div class=\"light-tools-recommended\">\n      <div class=\"light-tools-recommended-head\">\n        <span>Recommended next</span>\n        <span>Camera stays on device</span>\n      </div>\n      <div class=\"light-tools-action-grid\">\n        <button type=\"button\" class=\"light-tool-action light-tool-action-primary\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"lux\" title=\"Measure photopic lux from a built-in sensor, meter entry, or a device-calibrated camera.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">📏</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Lux meter</span>\n        <span class=\"light-tool-action-desc\">Set brightness baseline</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"flicker\" title=\"Screen for rolling-shutter banding; absence does not prove flicker-free output.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Flicker detector</span>\n        <span class=\"light-tool-action-desc\">Screen for visible banding</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"spectrum\" title=\"Screen the camera RGB pattern as warm, cool, or mixed without calling it a spectrum.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🔬</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">What is this light?</span>\n        <span class=\"light-tool-action-desc\">Check warm / cool pattern</span>\n      </span>\n    </button>\n      </div>\n    </div>\n\n    <div class=\"light-tools-drawer\">\n      <details class=\"light-tools-group\">\n    <summary class=\"light-tools-group-head\">\n      <span>Specialized checks</span>\n      <span class=\"light-tools-group-time\">30 s-2 min</span>\n    </summary>\n    <div class=\"light-tools-grid\">\n      <button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"cct\" title=\"Get an approximate warm/cool camera estimate and screen for visible banding.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🎨</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Color temp</span>\n        <span class=\"light-tool-action-desc\">Warm vs cool</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"darkness\" title=\"Run a qualitative low-light camera check or enter a meter reading at the pillow.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🌙</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Sleep darkness</span>\n        <span class=\"light-tool-action-desc\">Bedroom night check</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"glass\" title=\"Compare two readings with and without glass for a better behind-glass estimate.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🪟</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Window check</span>\n        <span class=\"light-tool-action-desc\">Glass transmission</span>\n      </span>\n    </button>\n    </div>\n  </details>\n      <details class=\"light-tools-group\">\n    <summary class=\"light-tools-group-head\">\n      <span>Walkthroughs &amp; logs</span>\n      <span class=\"light-tools-group-time\">2-10 min</span>\n    </summary>\n    <div class=\"light-tools-grid\">\n      <button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"audit\" title=\"Walk through rooms for relative brightness with one held camera exposure.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🚶</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Home audit</span>\n        <span class=\"light-tool-action-desc\">Room sweep</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"golden\" title=\"After-the-fact log for sunrise or sunset sessions.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🌅</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Golden hour log</span>\n        <span class=\"light-tool-action-desc\">Solar timing</span>\n      </span>\n    </button>\n    </div>\n  </details>\n    </div>\n  </div>"
+    },
+    {
+      "name": "missing-timestamp",
+      "now": 1791453600000,
+      "data": {
+        "lightMeasurements": [
+          {
+            "id": "m",
+            "tool": "cct",
+            "value": 3000
+          }
+        ],
+        "lightEnvironment": {
+          "rooms": null
+        }
+      },
+      "html": "<div class=\"light-tools-section\">\n    <h3 class=\"light-section-title\">Light tools</h3>\n    <p class=\"light-section-hint\">On-device checks for room light, screens, windows, and solar logs.</p>\n\n    <div class=\"light-tools-status\" aria-label=\"Measurement status\">\n      <span>1 measurement</span><span>No readings this week</span><span>No rooms mapped</span>\n    </div>\n\n    <div class=\"light-tools-recommended\">\n      <div class=\"light-tools-recommended-head\">\n        <span>Recommended next</span>\n        <span>Camera stays on device</span>\n      </div>\n      <div class=\"light-tools-action-grid\">\n        <button type=\"button\" class=\"light-tool-action light-tool-action-primary\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"lux\" title=\"Measure photopic lux from a built-in sensor, meter entry, or a device-calibrated camera.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">📏</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Lux meter</span>\n        <span class=\"light-tool-action-desc\">Set brightness baseline</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"flicker\" title=\"Screen for rolling-shutter banding; absence does not prove flicker-free output.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">⚡</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Flicker detector</span>\n        <span class=\"light-tool-action-desc\">Screen for visible banding</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"spectrum\" title=\"Screen the camera RGB pattern as warm, cool, or mixed without calling it a spectrum.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🔬</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">What is this light?</span>\n        <span class=\"light-tool-action-desc\">Check warm / cool pattern</span>\n      </span>\n    </button>\n      </div>\n    </div>\n\n    <div class=\"light-tools-drawer\">\n      <details class=\"light-tools-group\">\n    <summary class=\"light-tools-group-head\">\n      <span>Specialized checks</span>\n      <span class=\"light-tools-group-time\">30 s-2 min</span>\n    </summary>\n    <div class=\"light-tools-grid\">\n      <button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"cct\" title=\"Get an approximate warm/cool camera estimate and screen for visible banding.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🎨</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Color temp</span>\n        <span class=\"light-tool-action-desc\">Warm vs cool</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"darkness\" title=\"Run a qualitative low-light camera check or enter a meter reading at the pillow.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🌙</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Sleep darkness</span>\n        <span class=\"light-tool-action-desc\">Bedroom night check</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"glass\" title=\"Compare two readings with and without glass for a better behind-glass estimate.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🪟</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Window check</span>\n        <span class=\"light-tool-action-desc\">Glass transmission</span>\n      </span>\n    </button>\n    </div>\n  </details>\n      <details class=\"light-tools-group\">\n    <summary class=\"light-tools-group-head\">\n      <span>Walkthroughs &amp; logs</span>\n      <span class=\"light-tools-group-time\">2-10 min</span>\n    </summary>\n    <div class=\"light-tools-grid\">\n      <button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"audit\" title=\"Walk through rooms for relative brightness with one held camera exposure.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🚶</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Home audit</span>\n        <span class=\"light-tool-action-desc\">Room sweep</span>\n      </span>\n    </button><button type=\"button\" class=\"light-tool-action\" data-light-tools-action=\"open-tool\" data-light-tool-id=\"golden\" title=\"After-the-fact log for sunrise or sunset sessions.\">\n      <span class=\"light-tool-action-icon\" aria-hidden=\"true\">🌅</span>\n      <span class=\"light-tool-action-copy\">\n        <span class=\"light-tool-action-name\">Golden hour log</span>\n        <span class=\"light-tool-action-desc\">Solar timing</span>\n      </span>\n    </button>\n    </div>\n  </details>\n    </div>\n  </div>"
+    }
+  ],
+  "golden": [
+    {
+      "name": "unknown-01",
+      "now": 1791414000000,
+      "coords": null,
+      "html": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Golden hour log\">\n    <div class=\"modal-header\">\n      <h3>Golden hour log <span style=\"font-weight:400;color:var(--text-muted);font-size:13px\">— Outside golden hour</span></h3>\n      <button class=\"modal-close\" id=\"sunrise-close\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <p class=\"modal-body-hint\">It's <strong>outside golden hour</strong> right now. You can still log this as a regular outdoor-light session; the engine will use the actual solar angle.</p>\n      <p style=\"margin:0 0 12px 0\"><span style=\"color:var(--orange);font-size:11px\">No location coords — set country in profile for accurate sunrise/sunset windows.</span></p>\n      <label class=\"ctx-label\">Duration outside (minutes)\n        <input type=\"number\" id=\"sunrise-duration\" class=\"ctx-input\" min=\"1\" max=\"120\" value=\"15\">\n      </label>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" id=\"sunrise-cancel\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"sunrise-save\">Log session</button>\n      </div>\n    </div>\n  </div>"
+    },
+    {
+      "name": "unknown-06",
+      "now": 1791432000000,
+      "coords": null,
+      "html": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Golden hour log\">\n    <div class=\"modal-header\">\n      <h3>Golden hour log <span style=\"font-weight:400;color:var(--text-muted);font-size:13px\">— Sunrise window</span></h3>\n      <button class=\"modal-close\" id=\"sunrise-close\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <p class=\"modal-body-hint\">It's <strong>sunrise window</strong> right now. You can still log this as a regular outdoor-light session; the engine will use the actual solar angle.</p>\n      <p style=\"margin:0 0 12px 0\"><span style=\"color:var(--orange);font-size:11px\">No location coords — set country in profile for accurate sunrise/sunset windows.</span></p>\n      <label class=\"ctx-label\">Duration outside (minutes)\n        <input type=\"number\" id=\"sunrise-duration\" class=\"ctx-input\" min=\"1\" max=\"120\" value=\"15\">\n      </label>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" id=\"sunrise-cancel\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"sunrise-save\">Log session</button>\n      </div>\n    </div>\n  </div>"
+    },
+    {
+      "name": "unknown-12",
+      "now": 1791453600000,
+      "coords": null,
+      "html": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Golden hour log\">\n    <div class=\"modal-header\">\n      <h3>Golden hour log <span style=\"font-weight:400;color:var(--text-muted);font-size:13px\">— Outside golden hour</span></h3>\n      <button class=\"modal-close\" id=\"sunrise-close\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <p class=\"modal-body-hint\">It's <strong>outside golden hour</strong> right now. You can still log this as a regular outdoor-light session; the engine will use the actual solar angle.</p>\n      <p style=\"margin:0 0 12px 0\"><span style=\"color:var(--orange);font-size:11px\">No location coords — set country in profile for accurate sunrise/sunset windows.</span></p>\n      <label class=\"ctx-label\">Duration outside (minutes)\n        <input type=\"number\" id=\"sunrise-duration\" class=\"ctx-input\" min=\"1\" max=\"120\" value=\"15\">\n      </label>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" id=\"sunrise-cancel\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"sunrise-save\">Log session</button>\n      </div>\n    </div>\n  </div>"
+    },
+    {
+      "name": "unknown-18",
+      "now": 1791475200000,
+      "coords": null,
+      "html": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Golden hour log\">\n    <div class=\"modal-header\">\n      <h3>Golden hour log <span style=\"font-weight:400;color:var(--text-muted);font-size:13px\">— Sunset window</span></h3>\n      <button class=\"modal-close\" id=\"sunrise-close\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <p class=\"modal-body-hint\">It's <strong>sunset window</strong> right now. You can still log this as a regular outdoor-light session; the engine will use the actual solar angle.</p>\n      <p style=\"margin:0 0 12px 0\"><span style=\"color:var(--orange);font-size:11px\">No location coords — set country in profile for accurate sunrise/sunset windows.</span></p>\n      <label class=\"ctx-label\">Duration outside (minutes)\n        <input type=\"number\" id=\"sunrise-duration\" class=\"ctx-input\" min=\"1\" max=\"120\" value=\"15\">\n      </label>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" id=\"sunrise-cancel\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"sunrise-save\">Log session</button>\n      </div>\n    </div>\n  </div>"
+    },
+    {
+      "name": "unknown-23",
+      "now": 1791493200000,
+      "coords": null,
+      "html": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Golden hour log\">\n    <div class=\"modal-header\">\n      <h3>Golden hour log <span style=\"font-weight:400;color:var(--text-muted);font-size:13px\">— Outside golden hour</span></h3>\n      <button class=\"modal-close\" id=\"sunrise-close\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <p class=\"modal-body-hint\">It's <strong>outside golden hour</strong> right now. You can still log this as a regular outdoor-light session; the engine will use the actual solar angle.</p>\n      <p style=\"margin:0 0 12px 0\"><span style=\"color:var(--orange);font-size:11px\">No location coords — set country in profile for accurate sunrise/sunset windows.</span></p>\n      <label class=\"ctx-label\">Duration outside (minutes)\n        <input type=\"number\" id=\"sunrise-duration\" class=\"ctx-input\" min=\"1\" max=\"120\" value=\"15\">\n      </label>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" id=\"sunrise-cancel\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"sunrise-save\">Log session</button>\n      </div>\n    </div>\n  </div>"
+    },
+    {
+      "name": "solar-01",
+      "now": 1791414000000,
+      "coords": {
+        "lat": 50,
+        "lon": 14,
+        "source": "fixture"
+      },
+      "html": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Golden hour log\">\n    <div class=\"modal-header\">\n      <h3>Golden hour log <span style=\"font-weight:400;color:var(--text-muted);font-size:13px\">— Night — sun is below horizon</span></h3>\n      <button class=\"modal-close\" id=\"sunrise-close\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <p class=\"modal-body-hint\">It's <strong>night — sun is below horizon</strong> right now. You can still log this as a regular outdoor-light session; the engine will use the actual solar angle.</p>\n      <p style=\"margin:0 0 12px 0\"><span style=\"color:var(--text-muted);font-size:11px\">today: sunrise 06:00 AM · sunset 06:00 PM</span></p>\n      <label class=\"ctx-label\">Duration outside (minutes)\n        <input type=\"number\" id=\"sunrise-duration\" class=\"ctx-input\" min=\"1\" max=\"120\" value=\"15\">\n      </label>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" id=\"sunrise-cancel\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"sunrise-save\">Log session</button>\n      </div>\n    </div>\n  </div>"
+    },
+    {
+      "name": "solar-06",
+      "now": 1791432000000,
+      "coords": {
+        "lat": 50,
+        "lon": 14,
+        "source": "fixture"
+      },
+      "html": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Golden hour log\">\n    <div class=\"modal-header\">\n      <h3>Golden hour log <span style=\"font-weight:400;color:var(--text-muted);font-size:13px\">— Sunrise window</span></h3>\n      <button class=\"modal-close\" id=\"sunrise-close\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <p class=\"modal-body-hint\">Quick log for ambient golden-hour outdoor light. The modeled eye channel uses the logged duration; never look directly at the sun.</p>\n      <p style=\"margin:0 0 12px 0\"><span style=\"color:var(--text-muted);font-size:11px\">today: sunrise 06:00 AM · sunset 06:00 PM</span></p>\n      <label class=\"ctx-label\">Duration outside (minutes)\n        <input type=\"number\" id=\"sunrise-duration\" class=\"ctx-input\" min=\"1\" max=\"120\" value=\"15\">\n      </label>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" id=\"sunrise-cancel\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"sunrise-save\">Log session</button>\n      </div>\n    </div>\n  </div>"
+    },
+    {
+      "name": "solar-12",
+      "now": 1791453600000,
+      "coords": {
+        "lat": 50,
+        "lon": 14,
+        "source": "fixture"
+      },
+      "html": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Golden hour log\">\n    <div class=\"modal-header\">\n      <h3>Golden hour log <span style=\"font-weight:400;color:var(--text-muted);font-size:13px\">— Midday — past sunrise, before sunset</span></h3>\n      <button class=\"modal-close\" id=\"sunrise-close\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <p class=\"modal-body-hint\">It's <strong>midday — past sunrise, before sunset</strong> right now. You can still log this as a regular outdoor-light session; the engine will use the actual solar angle.</p>\n      <p style=\"margin:0 0 12px 0\"><span style=\"color:var(--text-muted);font-size:11px\">today: sunrise 06:00 AM · sunset 06:00 PM</span></p>\n      <label class=\"ctx-label\">Duration outside (minutes)\n        <input type=\"number\" id=\"sunrise-duration\" class=\"ctx-input\" min=\"1\" max=\"120\" value=\"15\">\n      </label>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" id=\"sunrise-cancel\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"sunrise-save\">Log session</button>\n      </div>\n    </div>\n  </div>"
+    },
+    {
+      "name": "solar-18",
+      "now": 1791475200000,
+      "coords": {
+        "lat": 50,
+        "lon": 14,
+        "source": "fixture"
+      },
+      "html": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Golden hour log\">\n    <div class=\"modal-header\">\n      <h3>Golden hour log <span style=\"font-weight:400;color:var(--text-muted);font-size:13px\">— Sunset window</span></h3>\n      <button class=\"modal-close\" id=\"sunrise-close\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <p class=\"modal-body-hint\">Quick log for ambient golden-hour outdoor light. The modeled eye channel uses the logged duration; never look directly at the sun.</p>\n      <p style=\"margin:0 0 12px 0\"><span style=\"color:var(--text-muted);font-size:11px\">today: sunrise 06:00 AM · sunset 06:00 PM</span></p>\n      <label class=\"ctx-label\">Duration outside (minutes)\n        <input type=\"number\" id=\"sunrise-duration\" class=\"ctx-input\" min=\"1\" max=\"120\" value=\"15\">\n      </label>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" id=\"sunrise-cancel\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"sunrise-save\">Log session</button>\n      </div>\n    </div>\n  </div>"
+    },
+    {
+      "name": "solar-23",
+      "now": 1791493200000,
+      "coords": {
+        "lat": 50,
+        "lon": 14,
+        "source": "fixture"
+      },
+      "html": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Golden hour log\">\n    <div class=\"modal-header\">\n      <h3>Golden hour log <span style=\"font-weight:400;color:var(--text-muted);font-size:13px\">— Night — sun is below horizon</span></h3>\n      <button class=\"modal-close\" id=\"sunrise-close\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <p class=\"modal-body-hint\">It's <strong>night — sun is below horizon</strong> right now. You can still log this as a regular outdoor-light session; the engine will use the actual solar angle.</p>\n      <p style=\"margin:0 0 12px 0\"><span style=\"color:var(--text-muted);font-size:11px\">today: sunrise 06:00 AM · sunset 06:00 PM</span></p>\n      <label class=\"ctx-label\">Duration outside (minutes)\n        <input type=\"number\" id=\"sunrise-duration\" class=\"ctx-input\" min=\"1\" max=\"120\" value=\"15\">\n      </label>\n      <div class=\"modal-actions\" style=\"margin-top:14px\">\n        <button class=\"import-btn import-btn-secondary\" id=\"sunrise-cancel\">Cancel</button>\n        <button class=\"import-btn import-btn-primary\" id=\"sunrise-save\">Log session</button>\n      </div>\n    </div>\n  </div>"
+    }
+  ],
+  "walkthrough": "<div class=\"modal light-tool-modal\" role=\"dialog\" aria-label=\"Home audit\">\n    <div class=\"modal-header\">\n      <h3>Home audit <span style=\"font-weight:400;color:var(--text-muted);font-size:13px\">— 10 min walkthrough</span></h3>\n      <button type=\"button\" class=\"modal-close\" data-light-tools-action=\"close-audit\" aria-label=\"Close\">×</button>\n    </div>\n    <div class=\"modal-body\">\n      <div class=\"tool-aiming-guide\" data-tool=\"audit\">\n    <div class=\"tool-aiming-guide-head\">\n      <span class=\"tool-aiming-guide-icon\">📐</span>\n      <span class=\"tool-aiming-guide-mode\">FROM your position, at eye height</span>\n      <button type=\"button\" class=\"tool-aiming-guide-dismiss\" data-aiming-guide-action=\"dismiss\" data-tool=\"audit\" aria-label=\"Dismiss aiming guide\">×</button>\n    </div>\n    <div class=\"tool-aiming-guide-body\">Hold the phone <b>at eye height, facing forward</b> while you walk through each room. The pause-detection captures the lighting where you actually look — not the floor or ceiling.</div>\n    <div class=\"tool-aiming-guide-webcam\">Walking with a phone is the whole point — a fixed webcam misses the inter-room comparison this tool exists to provide.</div>\n  </div>\n      <p class=\"modal-body-hint\">Pause briefly in each room (~5–10 seconds). Press Done when finished — we'll surface a per-room mini-report.</p>\n      <div class=\"audit-status\" id=\"audit-status\" aria-live=\"polite\" aria-atomic=\"true\">Press Start when ready.</div>\n      <ol class=\"audit-room-list\" id=\"audit-room-list\" style=\"margin-top:12px;list-style:decimal inside;color:var(--text-secondary)\"></ol>\n      <div class=\"modal-actions\" style=\"margin-top:18px\">\n        <button type=\"button\" class=\"import-btn import-btn-secondary\" data-light-tools-action=\"close-audit\">Cancel</button>\n        <button type=\"button\" class=\"import-btn import-btn-primary\" id=\"audit-toggle\">Start audit</button>\n      </div>\n    </div>\n  </div>",
+  "styleBlocks": [
+    {
+      "selector": ".light-page .dashboard-widget[data-widget-id=\"light-tools\"] .dashboard-widget-body",
+      "declarations": "gap:0;",
+      "media": null
+    },
+    {
+      "selector": ".light-page .dashboard-widget[data-widget-id=\"light-tools\"] .light-tools-section",
+      "declarations": "margin-top:0;",
+      "media": null
+    },
+    {
+      "selector": ".light-page .dashboard-widget[data-widget-id=\"light-tools\"] .light-section-title",
+      "declarations": "display:none;",
+      "media": null
+    },
+    {
+      "selector": ".light-tools-section",
+      "declarations": "margin-top:24px;display:grid;gap:14px;",
+      "media": null
+    },
+    {
+      "selector": ".light-tools-status",
+      "declarations": "display:flex;flex-wrap:wrap;gap:6px;",
+      "media": null
+    },
+    {
+      "selector": ".light-tools-status span",
+      "declarations": "display:inline-flex;align-items:center;min-height:24px;padding:3px 9px;border:1px solid color-mix(in srgb, var(--border) 82%, transparent);border-radius:var(--radius-sm);background:color-mix(in srgb, var(--bg-secondary) 58%, transparent);color:var(--text-secondary);font-size:11px;font-weight:650;",
+      "media": null
+    },
+    {
+      "selector": ".light-tools-recommended",
+      "declarations": "display:grid;gap:8px;",
+      "media": null
+    },
+    {
+      "selector": ".light-tools-recommended-head",
+      "declarations": "display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--text-muted);font-family:var(--font-mono);font-size:10px;font-weight:800;letter-spacing:0;text-transform:uppercase;",
+      "media": null
+    },
+    {
+      "selector": ".light-tools-recommended-head span:last-child",
+      "declarations": "color:var(--accent);text-align:right;",
+      "media": null
+    },
+    {
+      "selector": ".light-tools-action-grid,\n.light-tools-grid",
+      "declarations": "display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:10px;",
+      "media": null
+    },
+    {
+      "selector": ".light-tool-action",
+      "declarations": "display:grid;grid-template-columns:34px minmax(0, 1fr);align-items:center;gap:10px;min-height:68px;padding:10px 12px;border:1px solid color-mix(in srgb, var(--border) 86%, transparent);border-radius:var(--radius-sm);background:color-mix(in srgb, var(--bg-secondary) 64%, transparent);color:var(--text-primary);cursor:pointer;font:inherit;text-align:left;transition:background 0.15s, border-color 0.15s;",
+      "media": null
+    },
+    {
+      "selector": ".light-tool-action:hover",
+      "declarations": "border-color:color-mix(in srgb, var(--accent) 45%, var(--border));background:var(--bg-hover);",
+      "media": null
+    },
+    {
+      "selector": ".light-tool-action-primary",
+      "declarations": "border-color:var(--accent);background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 68%),\n    color-mix(in srgb, var(--bg-secondary) 70%, transparent);",
+      "media": null
+    },
+    {
+      "selector": ".light-tool-action-icon",
+      "declarations": "display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:var(--radius-sm);background:color-mix(in srgb, var(--bg-card) 76%, transparent);font-size:19px;",
+      "media": null
+    },
+    {
+      "selector": ".light-tool-action-copy",
+      "declarations": "display:grid;gap:2px;min-width:0;",
+      "media": null
+    },
+    {
+      "selector": ".light-tool-action-name",
+      "declarations": "color:var(--text-primary);font-size:13px;font-weight:750;line-height:1.2;",
+      "media": null
+    },
+    {
+      "selector": ".light-tool-action-primary .light-tool-action-name",
+      "declarations": "color:var(--accent);",
+      "media": null
+    },
+    {
+      "selector": ".light-tool-action-desc",
+      "declarations": "color:var(--text-muted);font-size:11px;line-height:1.3;overflow-wrap:anywhere;",
+      "media": null
+    },
+    {
+      "selector": ".light-tools-drawer",
+      "declarations": "display:grid;gap:8px;",
+      "media": null
+    },
+    {
+      "selector": ".light-tools-group",
+      "declarations": "border:1px solid color-mix(in srgb, var(--border) 82%, transparent);border-radius:var(--radius-sm);background:color-mix(in srgb, var(--bg-card) 72%, transparent);overflow:hidden;",
+      "media": null
+    },
+    {
+      "selector": ".light-tools-group > summary",
+      "declarations": "list-style:none;",
+      "media": null
+    },
+    {
+      "selector": ".light-tools-group > summary::-webkit-details-marker",
+      "declarations": "display:none;",
+      "media": null
+    },
+    {
+      "selector": ".light-tools-group-head",
+      "declarations": "display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;cursor:pointer;color:var(--text-secondary);font-size:12px;font-weight:750;",
+      "media": null
+    },
+    {
+      "selector": ".light-tools-group[open] .light-tools-group-head",
+      "declarations": "border-bottom:1px solid var(--border);",
+      "media": null
+    },
+    {
+      "selector": ".light-tools-group-time",
+      "declarations": "color:var(--text-muted);font-family:var(--font-mono);font-size:10px;font-weight:800;text-transform:uppercase;white-space:nowrap;",
+      "media": null
+    },
+    {
+      "selector": ".light-tools-group .light-tools-grid",
+      "declarations": "grid-template-columns:repeat(auto-fit, minmax(min(210px, 100%), 1fr));padding:10px;",
+      "media": null
+    },
+    {
+      "selector": ".light-tools-action-grid,\n  .light-tools-grid",
+      "declarations": "grid-template-columns:1fr;",
+      "media": "(max-width: 700px)"
+    },
+    {
+      "selector": ".light-tools-recommended-head",
+      "declarations": "align-items:flex-start;flex-direction:column;gap:3px;",
+      "media": "(max-width: 700px)"
+    },
+    {
+      "selector": ".light-tools-recommended-head span:last-child",
+      "declarations": "text-align:left;",
+      "media": "(max-width: 700px)"
+    },
+    {
+      "selector": ".light-tool-overlay.modal-overlay.show",
+      "declarations": "align-items:flex-start;overflow-y:auto;",
+      "media": null
+    },
+    {
+      "selector": ".light-tool-modal",
+      "declarations": "width:min(92vw, 480px);max-width:480px;margin-block:clamp(12px, 5vh, 40px);",
+      "media": null
+    },
+    {
+      "selector": ".light-tool-modal video",
+      "declarations": "aspect-ratio:4 / 3;display:block;object-fit:cover;",
+      "media": null
+    },
+    {
+      "selector": ".light-tool-modal .modal-body-hint",
+      "declarations": "min-height:1.35em;",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-picker",
+      "declarations": "display:grid;grid-template-columns:auto minmax(0, 1fr) minmax(0, 1fr);gap:8px;align-items:stretch;margin:12px 0 8px;",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-picker-label",
+      "declarations": "align-self:center;font-size:12px;color:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-option",
+      "declarations": "min-height:48px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-secondary);color:var(--text-secondary);cursor:pointer;text-align:left;",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-option span,\n.lux-source-option small",
+      "declarations": "display:block;",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-option span",
+      "declarations": "font-size:12px;font-weight:600;color:var(--text-primary);",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-option small",
+      "declarations": "margin-top:2px;font-size:10px;color:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-option.active",
+      "declarations": "border-color:var(--accent);background:color-mix(in srgb, var(--accent) 10%, var(--bg-secondary));box-shadow:0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-option:disabled",
+      "declarations": "cursor:not-allowed;opacity:0.45;",
+      "media": null
+    },
+    {
+      "selector": ".lux-manual-entry",
+      "declarations": "min-height:132px;padding:18px 0;text-align:center;box-sizing:border-box;",
+      "media": null
+    },
+    {
+      "selector": ".lux-dial[hidden],\n.lux-manual-entry[hidden]",
+      "declarations": "display:none;",
+      "media": null
+    },
+    {
+      "selector": ".lux-manual-entry label",
+      "declarations": "display:block;margin-bottom:8px;font-size:12px;color:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".lux-manual-entry-row",
+      "declarations": "display:flex;align-items:baseline;justify-content:center;gap:8px;",
+      "media": null
+    },
+    {
+      "selector": ".lux-manual-entry-row input",
+      "declarations": "width:140px;padding:8px 10px;font-size:20px;text-align:center;",
+      "media": null
+    },
+    {
+      "selector": ".lux-manual-entry-row span",
+      "declarations": "font-size:14px;color:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".lux-dial",
+      "declarations": "text-align:center;padding:24px 0;min-height:132px;display:grid;align-content:center;justify-items:center;",
+      "media": null
+    },
+    {
+      "selector": ".lux-dial-value",
+      "declarations": "display:inline-block;min-width:6ch;font-size:48px;font-weight:700;color:var(--text-primary);line-height:1;font-variant-numeric:tabular-nums;",
+      "media": null
+    },
+    {
+      "selector": ".lux-dial-unit",
+      "declarations": "font-size:13px;color:var(--text-muted);",
+      "media": null
+    },
+    {
+      "selector": ".lux-dial-zone",
+      "declarations": "min-height:1.3em;font-size:14px;font-weight:600;margin-top:8px;color:var(--text-secondary);",
+      "media": null
+    },
+    {
+      "selector": ".lux-zones",
+      "declarations": "display:flex;flex-wrap:wrap;gap:8px;justify-content:center;font-size:11px;color:var(--text-muted);margin-top:8px;",
+      "media": null
+    },
+    {
+      "selector": ".lux-zone-marker span",
+      "declarations": "color:var(--text-secondary);margin-left:2px;",
+      "media": null
+    },
+    {
+      "selector": ".lux-source-picker",
+      "declarations": "grid-template-columns:1fr 1fr;",
+      "media": "(max-width: 430px)"
+    },
+    {
+      "selector": ".lux-source-picker-label",
+      "declarations": "grid-column:1 / -1;",
+      "media": "(max-width: 430px)"
+    },
+    {
+      "selector": ".flicker-result, .dark-status",
+      "declarations": "margin-top:14px;padding:12px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;min-height:74px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;font-variant-numeric:tabular-nums;",
+      "media": null
+    },
+    {
+      "selector": ".flicker-score-0",
+      "declarations": "color:var(--green);",
+      "media": null
+    },
+    {
+      "selector": ".flicker-score-1",
+      "declarations": "color:var(--text-primary);",
+      "media": null
+    },
+    {
+      "selector": ".flicker-score-2",
+      "declarations": "color:var(--orange);",
+      "media": null
+    },
+    {
+      "selector": ".flicker-score-3",
+      "declarations": "color:var(--red);",
+      "media": null
+    },
+    {
+      "selector": ".dark-status-ok",
+      "declarations": "color:var(--green);",
+      "media": null
+    },
+    {
+      "selector": ".dark-status-warn",
+      "declarations": "color:var(--orange);",
+      "media": null
+    },
+    {
+      "selector": ".dark-status-over",
+      "declarations": "color:var(--red);",
+      "media": null
+    },
+    {
+      "selector": ".cct-result",
+      "declarations": "text-align:center;padding:16px 0;margin-top:12px;min-height:116px;box-sizing:border-box;",
+      "media": null
+    },
+    {
+      "selector": ".cct-value",
+      "declarations": "display:inline-block;min-width:6ch;font-size:36px;font-weight:700;color:var(--text-primary);line-height:1;font-variant-numeric:tabular-nums;",
+      "media": null
+    },
+    {
+      "selector": ".cct-tone",
+      "declarations": "min-height:1.25em;font-size:13px;color:var(--text-secondary);margin-top:4px;",
+      "media": null
+    },
+    {
+      "selector": ".cct-coherence",
+      "declarations": "min-height:3.2em;font-size:12px;margin-top:8px;",
+      "media": null
+    },
+    {
+      "selector": ".spec-result",
+      "declarations": "margin-top:12px;padding:12px 14px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;min-height:140px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;font-variant-numeric:tabular-nums;",
+      "media": null
+    },
+    {
+      "selector": ".glass-step",
+      "declarations": "display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-top:10px;font-size:13px;color:var(--text-secondary);min-height:50px;box-sizing:border-box;",
+      "media": null
+    },
+    {
+      "selector": ".glass-step strong",
+      "declarations": "color:var(--text-primary);",
+      "media": null
+    },
+    {
+      "selector": ".glass-step .import-btn",
+      "declarations": "padding:6px 14px;font-size:12px;",
+      "media": null
+    },
+    {
+      "selector": ".glass-reading",
+      "declarations": "display:inline-block;min-width:9ch;margin-left:auto;color:var(--text-muted);font-family:var(--font-mono, monospace);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;",
+      "media": null
+    },
+    {
+      "selector": ".glass-result",
+      "declarations": "margin-top:12px;padding:12px 14px;background:var(--bg-secondary);border-left:3px solid var(--accent);border-radius:var(--radius-sm);font-size:13px;color:var(--text-secondary);min-height:76px;box-sizing:border-box;font-variant-numeric:tabular-nums;",
+      "media": null
+    },
+    {
+      "selector": ".glass-result strong",
+      "declarations": "color:var(--text-primary);",
+      "media": null
+    },
+    {
+      "selector": ".audit-status",
+      "declarations": "margin-top:8px;padding:10px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;color:var(--text-secondary);min-height:88px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;font-variant-numeric:tabular-nums;",
+      "media": null
+    },
+    {
+      "selector": ".audit-room-list",
+      "declarations": "padding-left:24px;font-size:13px;",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide",
+      "declarations": "margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;background:var(--bg-elev-1, rgba(255,255,255,0.03));font-size:12.5px;line-height:1.45;",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-head",
+      "declarations": "display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:11.5px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:var(--accent);",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-icon",
+      "declarations": "font-size:14px;",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-mode",
+      "declarations": "flex:1;min-width:0;",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-dismiss",
+      "declarations": "background:transparent;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;line-height:1;padding:0 4px;flex-shrink:0;",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-dismiss:hover",
+      "declarations": "color:var(--text-primary);",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-body",
+      "declarations": "color:var(--text-primary);margin-bottom:4px;",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-body b",
+      "declarations": "color:var(--text-primary);font-weight:600;",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-webcam",
+      "declarations": "margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);font-size:11.5px;color:var(--text-muted);font-style:italic;",
+      "media": null
+    },
+    {
+      "selector": ".tool-aiming-guide-dismiss",
+      "declarations": "min-width:44px;min-height:44px;padding:8px 12px;",
+      "media": "(pointer: coarse)"
+    }
+  ],
+  "walkthroughStates": [
+    {
+      "kind": "manual",
+      "html": "Recording… <span style=\"color:var(--text-muted);font-size:11px\">Exposure is held so rooms can be compared. The walkthrough saves relative brightness—not lux.</span>"
+    },
+    {
+      "kind": "rows",
+      "html": "\n      <li style=\"margin-bottom:8px;list-style:none;display:flex;gap:8px;align-items:center\">\n        <span style=\"font-size:12px;color:var(--text-muted);min-width:92px\">Medium</span>\n        <input type=\"text\" class=\"audit-room-label-input\" aria-label=\"Label for room 1 (Medium)\" data-idx=\"0\" placeholder=\"Room 1 (tap to label)\" value=\"Bedroom &quot;quoted&quot; < &amp;\" list=\"audit-rooms-0\" style=\"flex:1;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary)\">\n        <datalist id=\"audit-rooms-0\"><option value=\"Bedroom\"></option><option value=\"Living room\"></option><option value=\"Kitchen\"></option><option value=\"Bathroom\"></option><option value=\"Office\"></option><option value=\"Hallway\"></option><option value=\"Kids room\"></option></datalist>\n      </li>\n    \n      <li style=\"margin-bottom:8px;list-style:none;display:flex;gap:8px;align-items:center\">\n        <span style=\"font-size:12px;color:var(--text-muted);min-width:92px\">Brighter</span>\n        <input type=\"text\" class=\"audit-room-label-input\" aria-label=\"Label for room 2 (Brighter)\" data-idx=\"1\" placeholder=\"Room 2 (tap to label)\" value=\"\" list=\"audit-rooms-1\" style=\"flex:1;padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary)\">\n        <datalist id=\"audit-rooms-1\"><option value=\"Bedroom\"></option><option value=\"Living room\"></option><option value=\"Kitchen\"></option><option value=\"Bathroom\"></option><option value=\"Office\"></option><option value=\"Hallway\"></option><option value=\"Kids room\"></option></datalist>\n      </li>\n    "
+    },
+    {
+      "kind": "auto",
+      "html": "Recording… <span style=\"color:var(--orange);font-size:11px\">⚠ camera auto-exposure is on — room levels are rough comparisons only.</span>"
+    },
+    {
+      "kind": "denied",
+      "html": "Camera access denied — audit unavailable. <br><span style=\"font-size:11px;color:var(--text-muted)\">The walkthrough captures 4 frames per second to detect when you've paused in a new room. Open your browser's site settings to allow camera access, or log rooms manually from the Light Environment section.</span>"
+    },
+    {
+      "kind": "no-context",
+      "html": "Camera processing is unavailable in this browser."
+    }
+  ]
+}

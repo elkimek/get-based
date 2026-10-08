@@ -1281,6 +1281,20 @@ screens, method labels,
 channel direction and the camera proxy deadband. The AI handoff serializer and
 storage actions retain their domain owner.
 
+`light-tools.ts` retains measurement persistence, camera acquisition and teardown,
+walkthrough pause detection/room binding, solar-session writes and lazy camera
+module loading. `light-tools-presentation.ts` projects display-only launcher,
+solar-window and pause-row views. `LightToolPresentation.svelte` composes the
+launcher, golden-hour form, walkthrough, rows and status messages; the two forms
+share `LightToolFrame.svelte`. Native tool IDs, close delegates, field IDs and
+modal lifecycle remain stable. The walkthrough's single named trusted slot is
+only the existing shared aiming-guide renderer; stored labels are escaped Svelte
+values. Failed capture explicitly offers Retry audit. Scoped Tailwind owns these
+views at the established `css/light-tools.css` URL. Its generated output is
+ignored; the base stylesheet retains the host integration rule and the separate
+camera-modal/aiming-guide owners until their migration. Superseded launcher,
+walkthrough status and room-list templates/styles are removed.
+
 Room and screen render-time auto-analysis captures `ai-verdict-owner.ts` before
 queuing. Both the deduplication key and delayed callback belong to that owner;
 profile/root/epoch replacement retires queued work without suppressing the new

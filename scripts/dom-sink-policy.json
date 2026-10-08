@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 1257,
+  "scannedFiles": 1267,
   "sinkCount": 330,
   "files": {
     "js/biology-scores.js": {
@@ -144,6 +144,13 @@
     "js/components/LightAuditDetail.svelte.native.js": {
       "count": 1,
       "digest": "d6046f24dc9e72070a8ea51901908b89023cb4fa06717053523f8125ceb0f328",
+      "kinds": {
+        "svelte.html": 1
+      }
+    },
+    "js/components/LightAuditWalkthrough.svelte.native.js": {
+      "count": 1,
+      "digest": "8d739b50e364b2252aefc3b439acdd6299d125f8c19a34329b963bb473f342ad",
       "kinds": {
         "svelte.html": 1
       }
@@ -514,10 +521,10 @@
       }
     },
     "js/light-tools.js": {
-      "count": 6,
-      "digest": "13efcbc69f825a1b2a883865e3418fbd01b677052f03ecef9a0b250918a3d551",
+      "count": 5,
+      "digest": "da4c2c643871027a1a3db8e0a856b23f7d1bd3e49f76db4ea7ae1da9bcf4860b",
       "kinds": {
-        "innerHTML": 6
+        "innerHTML": 5
       }
     },
     "js/marker-detail-custom-markers.js": {

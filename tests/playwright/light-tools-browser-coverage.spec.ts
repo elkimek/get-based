@@ -373,6 +373,7 @@ test('light tools browser coverage exercises storage render and modal flows', as
       await wait(20);
       results.auditDeniedPathShowsCameraMessage = (document.getElementById('audit-status')?.textContent || '')
         .includes('Camera access denied');
+      results.auditDeniedPathShowsRetryAction = document.getElementById('audit-toggle')?.textContent === 'Retry audit';
       lightTools.closeEyeLevelAudit();
       results.auditCloseRemovesOverlay = !document.querySelector('[aria-label="Home audit"]');
       auditOverlay?.remove();
