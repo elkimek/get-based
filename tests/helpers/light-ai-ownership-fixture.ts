@@ -1,4 +1,4 @@
-// Real profile switching and storage with gated localhost AI responses; shared by native and static acceptance.
+// Real profile switching and storage with gated localhost AI responses; used by native browser acceptance.
 export async function startLightAIProfileOwnership() {
   localStorage.setItem('labcharts-ai-paused', 'true');
   await (await import('/js/light-sun-loader.js')).loadLightSunUI();
@@ -45,9 +45,4 @@ export async function finishLightAIProfileOwnership() {
   const a = await crypto.encryptedGetItem(profile.profileStorageKey(fixture.a, 'imported'));
   const b = JSON.parse((await crypto.encryptedGetItem(profile.profileStorageKey(fixture.b, 'imported')))!);
   return { initial, current, retired, aUnchanged: a === fixture.beforeA, beforeB: fixture.beforeB, b, live: structuredClone(state.importedData), profile: state.currentProfile, bId: fixture.b, aId: fixture.a, aSnapshot: fixture.beforeA };
-}
-
-export async function readLightAIProfileSnapshot() {
-  const [{ state }, crypto, profile] = await Promise.all([import('/js/state.js'), import('/js/crypto.js'), import('/js/profile.js')]);
-  return { profile: state.currentProfile, data: JSON.parse((await crypto.encryptedGetItem(profile.profileStorageKey(state.currentProfile, 'imported')))!) };
 }
