@@ -17,7 +17,9 @@ function seed({defaults,now,version}:{defaults:ProfileData;now:number;version:nu
   localStorage.setItem('labcharts-default-dashboardWidgetsV13',JSON.stringify({order:['light-channels'],hidden:[]}));
   for(const key of ['emptyTour','tour'])localStorage.setItem(`labcharts-default-${key}`,'completed');
   const device={id:'channel-panel',brand:'Saved <Panel>',model:'Red & NIR',type:'pbm',channels:['nir_solar','pbm_red'],peakWavelengths:[660,850],mwPerCm2At15cm:20};
-  localStorage.setItem('labcharts-default-imported',JSON.stringify({...defaults,contextNotes:'Keep unrelated channel context',sunDefaults:{fitzpatrick:'II',completedAt:1,coords:{lat:50.1,lon:14.4}},lightDevices:[device],
+  localStorage.setItem('labcharts-default-imported',JSON.stringify({...defaults,contextNotes:'Keep unrelated channel context',
+    // Dashboard requires lab, wearable or food data; Light-only logs retain its welcome gate.
+    wearableSummary:{metrics:{weight:{latest:80,primarySource:'fitbit'}}},sunDefaults:{fitzpatrick:'II',completedAt:1,coords:{lat:50.1,lon:14.4}},lightDevices:[device],
     sunSessions:[{id:'channel-sun',startedAt:now-3600000,endedAt:now-2700000,durationMin:15,bodyExposure:{preset:'shorts_top_off',fraction:0.45},eyeExposure:{mode:'direct'},
       doses:{vitamin_d:100,circadian:2000,nir_solar:400,no_cv:20,pomc:100,violet_eye:120},safety:{medFraction:0.1,fitzpatrick:'II'},calculationStatus:'computed'}],
     deviceSessions:[{id:'channel-device',deviceId:device.id,deviceSnapshot:device,startedAt:now-1800000,endedAt:now-1380000,durationMin:7,distanceCm:25,bodyArea:'torso',eyesProtected:true,
