@@ -743,7 +743,8 @@ const {
     envSrc.includes('lightEnvDeps.renderMeasurementAIInline') &&
     envSrc.includes('lightEnvDeps.renderRoomAIBlock') &&
     screenUiSrc.includes('opts.renderScreenAIBlock') &&
-    screenUiSrc.includes('renderScreenAIBlock(s)') &&
+    screenUiSrc.includes('opts.renderScreenAIBlock(screen)') &&
+    screenUiSrc.includes('trustedAIHTML') &&
     aiSaveHooksSrc.includes("import { addRoom, configureLightEnv, getRooms, refreshLightEnvironmentAssessment, suggestRoomSourceFromSpectrum } from './light-env.js';") &&
     aiSaveHooksSrc.includes('configureLightTools,') &&
     aiSaveHooksSrc.includes('getMeasurementsForRoom,') &&

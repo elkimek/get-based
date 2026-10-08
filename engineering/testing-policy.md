@@ -361,3 +361,15 @@ maintained export with cached real catalog/preset data, and exercises actual
 privacy/display opt-out controls offline and through two closed-client cold
 launches with full stored-profile equality. This is public-contract acceptance;
 it does not claim that the current Light page inserts the renderer automatically.
+
+The shared Light Environment screen editor has independent pre-migration markup
+contracts in [`light-environment-screen.test.ts`](../tests/light-environment-screen.test.ts)
+and headless theme/layout/keyboard/touch coverage in
+[`light-environment-screen-owned.spec.ts`](../tests/playwright/light-environment-screen-owned.spec.ts).
+The existing Light Environment CRUD, grading, today-reset and delegated editor
+checks continue to cover its domain and action contracts.
+The corresponding static-PWA case,
+[`sveltekit-light-environment-screen.spec.ts`](../tests/pwa/sveltekit-light-environment-screen.spec.ts),
+uses real editor actions and committed IndexedDB profile reads for first-offline
+creation/editing/reassignment and two closed-client cold launches. Cached room,
+measurement, screen and audit verdicts retain their adjacent static acceptance.

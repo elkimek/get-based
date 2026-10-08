@@ -1,3 +1,5 @@
+import { renderHTML as renderTodayToggleHTML } from './components/LightEnvironmentTodayToggle.svelte.html.js';
+import { projectEnvironmentToday } from './light-environment-screen-presentation.js';
 // light-env.js — Light Environment module: rooms, screens, indoor light dose.
 //
 // Tracks continuous indoor light context alongside episodic Sun Sessions.
@@ -253,23 +255,14 @@ const TOOL_ICONS = {
 
 // Per-day use toggle; the stored date makes it reset at midnight.
 function _renderTodayToggle(kind: unknown, id: unknown, activeToday: unknown, opts: { compact?: unknown } = {}) {
-  const compact = opts.compact !== false;
-  const cls = `light-env-today-toggle${activeToday ? ' light-env-today-on' : ' light-env-today-off'}${compact ? ' light-env-today-compact' : ''}`;
-  const icon = activeToday ? '✓' : '⊘';
-  const label = activeToday ? 'In use today' : 'Skipped today';
-  const flipTo = activeToday ? 'false' : 'true';
-  const tip = activeToday
-    ? "Click to skip today — won't count toward today's exposure. Resets to 'in use' tomorrow."
-    : "Click to use today — counts toward today's exposure.";
-  const inner = compact ? `<span aria-hidden="true">${icon}</span><span class="visually-hidden">${escapeHTML(label)}</span>` : `${icon} ${escapeHTML(label)}`;
-  return `<button type="button" class="${cls}" ${lightEnvActionAttrs('set-today-active', { kind, id, active: flipTo })} title="${escapeAttr(tip)}" aria-label="${escapeAttr(label)} — click to flip" aria-pressed="${activeToday}">${inner}</button>`;
+  return renderTodayToggleHTML({ view: projectEnvironmentToday(kind, id, activeToday, opts.compact !== false) });
 }
 
 // Screen disclosure card.
 function renderLightEnvScreenCard(s: EnvironmentScreenReader, rooms: unknown) {
   return renderScreenCard(s, {
     expanded: isLightEnvScreenExpanded(s.id),
-    renderTodayToggle: _renderTodayToggle,
+    todayToggle: true,
     renderScreenAIBlock: lightEnvDeps.renderScreenAIBlock,
     rooms,
   });

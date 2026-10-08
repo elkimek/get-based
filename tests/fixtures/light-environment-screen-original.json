@@ -1,0 +1,1234 @@
+{
+  "revision": "955bfd17503d3cf8c8bb3744a7c99eaae1e1a215",
+  "now": 1791460800000,
+  "cases": [
+    {
+      "name": "0/false/false",
+      "screen": {
+        "id": "screen-0",
+        "device": "phone",
+        "hoursPerDay": null,
+        "eveningUseAfterSunset": null,
+        "blueBlockerEnabled": false,
+        "roomId": null
+      },
+      "expanded": false,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-incomplete\" data-id=\"screen-0\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Phone — Needs timing, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-0\">\n      <span class=\"light-env-sev-dot light-env-sev-incomplete\" title=\"Needs timing — set time used after sunset\"><span class=\"sr-only\">Needs timing</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📱</span>\n      <span class=\"light-env-screen-card-name\">Phone</span>\n      <span class=\"light-env-screen-card-summary\">Tap to set up</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "0/false/true",
+      "screen": {
+        "id": "screen-0",
+        "device": "phone",
+        "hoursPerDay": null,
+        "eveningUseAfterSunset": null,
+        "blueBlockerEnabled": false,
+        "roomId": null
+      },
+      "expanded": false,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-incomplete\" data-id=\"screen-0\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Phone — Needs timing, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-0\">\n      <span class=\"light-env-sev-dot light-env-sev-incomplete\" title=\"Needs timing — set time used after sunset\"><span class=\"sr-only\">Needs timing</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📱</span>\n      <span class=\"light-env-screen-card-name\">Phone</span>\n      <span class=\"light-env-screen-card-summary\">Tap to set up</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "0/true/false",
+      "screen": {
+        "id": "screen-0",
+        "device": "phone",
+        "hoursPerDay": null,
+        "eveningUseAfterSunset": null,
+        "blueBlockerEnabled": false,
+        "roomId": null
+      },
+      "expanded": true,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-incomplete expanded\" data-id=\"screen-0\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Phone — Needs timing, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-0\">\n      <span class=\"light-env-sev-dot light-env-sev-incomplete\" title=\"Needs timing — set time used after sunset\"><span class=\"sr-only\">Needs timing</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📱</span>\n      <span class=\"light-env-screen-card-name\">Phone</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"screen-0\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"screen-0\" aria-label=\"Device type\">\n          <option value=\"phone\" selected>Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\">External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      \n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-0\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-0\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-0\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-0\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-0\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-0\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-0\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-0\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"screen-0\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "0/true/true",
+      "screen": {
+        "id": "screen-0",
+        "device": "phone",
+        "hoursPerDay": null,
+        "eveningUseAfterSunset": null,
+        "blueBlockerEnabled": false,
+        "roomId": null
+      },
+      "expanded": true,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-incomplete expanded\" data-id=\"screen-0\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Phone — Needs timing, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-0\">\n      <span class=\"light-env-sev-dot light-env-sev-incomplete\" title=\"Needs timing — set time used after sunset\"><span class=\"sr-only\">Needs timing</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📱</span>\n      <span class=\"light-env-screen-card-name\">Phone</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"screen-0\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"screen-0\" aria-label=\"Device type\">\n          <option value=\"phone\" selected>Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\">External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      <label class=\"ctx-label\">Used in\n        <select class=\"ctx-select light-env-screen-room\" data-light-env-action=\"update-screen-room\" data-light-env-id=\"screen-0\" aria-label=\"Used in room\">\n        <option value=\"\" selected>Portable / multiple rooms</option>\n        <option value=\"room-1\">Office &lt;west&gt; &amp; &quot;lab&quot;</option><option value=\"room-2\">42</option><option value=\"room-3\">Room</option>\n      </select>\n      </label>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-0\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-0\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-0\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-0\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-0\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-0\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-0\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-0\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"screen-0\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "1/false/false",
+      "screen": {
+        "id": "screen-1",
+        "device": "laptop",
+        "hoursPerDay": 0.5,
+        "eveningUseAfterSunset": 0,
+        "blueBlockerEnabled": true,
+        "roomId": "room-1"
+      },
+      "expanded": false,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-green\" data-id=\"screen-1\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Laptop — Daytime only, 0.5 hr/day · daytime only · blue reduced, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-1\">\n      <span class=\"light-env-sev-dot light-env-sev-green\" title=\"Daytime only — no use after sunset recorded\"><span class=\"sr-only\">Daytime only</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">💻</span>\n      <span class=\"light-env-screen-card-name\">Laptop</span>\n      <span class=\"light-env-screen-card-summary\">0.5 hr/day · daytime only · blue reduced</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "1/false/true",
+      "screen": {
+        "id": "screen-1",
+        "device": "laptop",
+        "hoursPerDay": 0.5,
+        "eveningUseAfterSunset": 0,
+        "blueBlockerEnabled": true,
+        "roomId": "room-1"
+      },
+      "expanded": false,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-green\" data-id=\"screen-1\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Laptop — Daytime only, 0.5 hr/day · daytime only · blue reduced, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-1\">\n      <span class=\"light-env-sev-dot light-env-sev-green\" title=\"Daytime only — no use after sunset recorded\"><span class=\"sr-only\">Daytime only</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">💻</span>\n      <span class=\"light-env-screen-card-name\">Laptop</span>\n      <span class=\"light-env-screen-card-summary\">0.5 hr/day · daytime only · blue reduced</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "1/true/false",
+      "screen": {
+        "id": "screen-1",
+        "device": "laptop",
+        "hoursPerDay": 0.5,
+        "eveningUseAfterSunset": 0,
+        "blueBlockerEnabled": true,
+        "roomId": "room-1"
+      },
+      "expanded": true,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-green expanded\" data-id=\"screen-1\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Laptop — Daytime only, 0.5 hr/day · daytime only · blue reduced, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-1\">\n      <span class=\"light-env-sev-dot light-env-sev-green\" title=\"Daytime only — no use after sunset recorded\"><span class=\"sr-only\">Daytime only</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">💻</span>\n      <span class=\"light-env-screen-card-name\">Laptop</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"screen-1\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"screen-1\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\" selected>Laptop</option><option value=\"monitor\">External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      \n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-1\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-1\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-1\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-1\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-1\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-1\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-1\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-1\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" checked data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"screen-1\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "1/true/true",
+      "screen": {
+        "id": "screen-1",
+        "device": "laptop",
+        "hoursPerDay": 0.5,
+        "eveningUseAfterSunset": 0,
+        "blueBlockerEnabled": true,
+        "roomId": "room-1"
+      },
+      "expanded": true,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-green expanded\" data-id=\"screen-1\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Laptop — Daytime only, 0.5 hr/day · daytime only · blue reduced, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-1\">\n      <span class=\"light-env-sev-dot light-env-sev-green\" title=\"Daytime only — no use after sunset recorded\"><span class=\"sr-only\">Daytime only</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">💻</span>\n      <span class=\"light-env-screen-card-name\">Laptop</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"screen-1\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"screen-1\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\" selected>Laptop</option><option value=\"monitor\">External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      <label class=\"ctx-label\">Used in\n        <select class=\"ctx-select light-env-screen-room\" data-light-env-action=\"update-screen-room\" data-light-env-id=\"screen-1\" aria-label=\"Used in room\">\n        <option value=\"\">Portable / multiple rooms</option>\n        <option value=\"room-1\" selected>Office &lt;west&gt; &amp; &quot;lab&quot;</option><option value=\"room-2\">42</option><option value=\"room-3\">Room</option>\n      </select>\n      </label>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-1\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-1\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-1\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-1\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-1\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-1\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-1\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-1\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" checked data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"screen-1\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "2/false/false",
+      "screen": {
+        "id": "screen-2",
+        "device": "monitor",
+        "hoursPerDay": 2,
+        "eveningUseAfterSunset": 0.5,
+        "blueBlockerEnabled": false,
+        "roomId": null
+      },
+      "expanded": false,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-yellow\" data-id=\"screen-2\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"External monitor — Low, 2 hr/day · 0.5 hr evening, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-2\">\n      <span class=\"light-env-sev-dot light-env-sev-yellow\" title=\"Low — 0.5 evening hours\"><span class=\"sr-only\">Low</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">🖥</span>\n      <span class=\"light-env-screen-card-name\">External monitor</span>\n      <span class=\"light-env-screen-card-summary\">2 hr/day · 0.5 hr evening</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "2/false/true",
+      "screen": {
+        "id": "screen-2",
+        "device": "monitor",
+        "hoursPerDay": 2,
+        "eveningUseAfterSunset": 0.5,
+        "blueBlockerEnabled": false,
+        "roomId": null
+      },
+      "expanded": false,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-yellow\" data-id=\"screen-2\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"External monitor — Low, 2 hr/day · 0.5 hr evening, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-2\">\n      <span class=\"light-env-sev-dot light-env-sev-yellow\" title=\"Low — 0.5 evening hours\"><span class=\"sr-only\">Low</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">🖥</span>\n      <span class=\"light-env-screen-card-name\">External monitor</span>\n      <span class=\"light-env-screen-card-summary\">2 hr/day · 0.5 hr evening</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "2/true/false",
+      "screen": {
+        "id": "screen-2",
+        "device": "monitor",
+        "hoursPerDay": 2,
+        "eveningUseAfterSunset": 0.5,
+        "blueBlockerEnabled": false,
+        "roomId": null
+      },
+      "expanded": true,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-yellow expanded\" data-id=\"screen-2\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"External monitor — Low, 2 hr/day · 0.5 hr evening, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-2\">\n      <span class=\"light-env-sev-dot light-env-sev-yellow\" title=\"Low — 0.5 evening hours\"><span class=\"sr-only\">Low</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">🖥</span>\n      <span class=\"light-env-screen-card-name\">External monitor</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"screen-2\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"screen-2\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\" selected>External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      \n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-2\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-2\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-2\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-2\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-2\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-2\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-2\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-2\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"screen-2\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "2/true/true",
+      "screen": {
+        "id": "screen-2",
+        "device": "monitor",
+        "hoursPerDay": 2,
+        "eveningUseAfterSunset": 0.5,
+        "blueBlockerEnabled": false,
+        "roomId": null
+      },
+      "expanded": true,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-yellow expanded\" data-id=\"screen-2\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"External monitor — Low, 2 hr/day · 0.5 hr evening, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-2\">\n      <span class=\"light-env-sev-dot light-env-sev-yellow\" title=\"Low — 0.5 evening hours\"><span class=\"sr-only\">Low</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">🖥</span>\n      <span class=\"light-env-screen-card-name\">External monitor</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"screen-2\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"screen-2\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\" selected>External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      <label class=\"ctx-label\">Used in\n        <select class=\"ctx-select light-env-screen-room\" data-light-env-action=\"update-screen-room\" data-light-env-id=\"screen-2\" aria-label=\"Used in room\">\n        <option value=\"\" selected>Portable / multiple rooms</option>\n        <option value=\"room-1\">Office &lt;west&gt; &amp; &quot;lab&quot;</option><option value=\"room-2\">42</option><option value=\"room-3\">Room</option>\n      </select>\n      </label>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-2\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-2\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-2\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-2\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-2\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-2\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-2\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-2\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"screen-2\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "3/false/false",
+      "screen": {
+        "id": "screen-3",
+        "device": "tablet",
+        "hoursPerDay": 4.5,
+        "eveningUseAfterSunset": 1,
+        "blueBlockerEnabled": true,
+        "roomId": "room-1"
+      },
+      "expanded": false,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-yellow\" data-id=\"screen-3\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Tablet — Low, 4.5 hr/day · 1 hr evening · blue reduced, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-3\">\n      <span class=\"light-env-sev-dot light-env-sev-yellow\" title=\"Low — 1 evening hour; blue reduction may help, but brightness and duration still matter\"><span class=\"sr-only\">Low</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📲</span>\n      <span class=\"light-env-screen-card-name\">Tablet</span>\n      <span class=\"light-env-screen-card-summary\">4.5 hr/day · 1 hr evening · blue reduced</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "3/false/true",
+      "screen": {
+        "id": "screen-3",
+        "device": "tablet",
+        "hoursPerDay": 4.5,
+        "eveningUseAfterSunset": 1,
+        "blueBlockerEnabled": true,
+        "roomId": "room-1"
+      },
+      "expanded": false,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-yellow\" data-id=\"screen-3\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Tablet — Low, 4.5 hr/day · 1 hr evening · blue reduced, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-3\">\n      <span class=\"light-env-sev-dot light-env-sev-yellow\" title=\"Low — 1 evening hour; blue reduction may help, but brightness and duration still matter\"><span class=\"sr-only\">Low</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📲</span>\n      <span class=\"light-env-screen-card-name\">Tablet</span>\n      <span class=\"light-env-screen-card-summary\">4.5 hr/day · 1 hr evening · blue reduced</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "3/true/false",
+      "screen": {
+        "id": "screen-3",
+        "device": "tablet",
+        "hoursPerDay": 4.5,
+        "eveningUseAfterSunset": 1,
+        "blueBlockerEnabled": true,
+        "roomId": "room-1"
+      },
+      "expanded": true,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-yellow expanded\" data-id=\"screen-3\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Tablet — Low, 4.5 hr/day · 1 hr evening · blue reduced, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-3\">\n      <span class=\"light-env-sev-dot light-env-sev-yellow\" title=\"Low — 1 evening hour; blue reduction may help, but brightness and duration still matter\"><span class=\"sr-only\">Low</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📲</span>\n      <span class=\"light-env-screen-card-name\">Tablet</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"screen-3\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"screen-3\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\">External monitor</option><option value=\"tablet\" selected>Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      \n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-3\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-3\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-3\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-3\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-3\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-3\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-3\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-3\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" checked data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"screen-3\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "3/true/true",
+      "screen": {
+        "id": "screen-3",
+        "device": "tablet",
+        "hoursPerDay": 4.5,
+        "eveningUseAfterSunset": 1,
+        "blueBlockerEnabled": true,
+        "roomId": "room-1"
+      },
+      "expanded": true,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-yellow expanded\" data-id=\"screen-3\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Tablet — Low, 4.5 hr/day · 1 hr evening · blue reduced, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-3\">\n      <span class=\"light-env-sev-dot light-env-sev-yellow\" title=\"Low — 1 evening hour; blue reduction may help, but brightness and duration still matter\"><span class=\"sr-only\">Low</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📲</span>\n      <span class=\"light-env-screen-card-name\">Tablet</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"screen-3\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"screen-3\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\">External monitor</option><option value=\"tablet\" selected>Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      <label class=\"ctx-label\">Used in\n        <select class=\"ctx-select light-env-screen-room\" data-light-env-action=\"update-screen-room\" data-light-env-id=\"screen-3\" aria-label=\"Used in room\">\n        <option value=\"\">Portable / multiple rooms</option>\n        <option value=\"room-1\" selected>Office &lt;west&gt; &amp; &quot;lab&quot;</option><option value=\"room-2\">42</option><option value=\"room-3\">Room</option>\n      </select>\n      </label>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-3\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-3\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-3\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-3\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-3\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-3\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-3\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-3\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" checked data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"screen-3\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "4/false/false",
+      "screen": {
+        "id": "screen-4",
+        "device": "tv",
+        "hoursPerDay": 8,
+        "eveningUseAfterSunset": 3,
+        "blueBlockerEnabled": false,
+        "roomId": null
+      },
+      "expanded": false,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-red\" data-id=\"screen-4\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"TV — High, 8 hr/day · 3 hr evening, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-4\">\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"High — 3 evening hours\"><span class=\"sr-only\">High</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📺</span>\n      <span class=\"light-env-screen-card-name\">TV</span>\n      <span class=\"light-env-screen-card-summary\">8 hr/day · 3 hr evening</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "4/false/true",
+      "screen": {
+        "id": "screen-4",
+        "device": "tv",
+        "hoursPerDay": 8,
+        "eveningUseAfterSunset": 3,
+        "blueBlockerEnabled": false,
+        "roomId": null
+      },
+      "expanded": false,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-red\" data-id=\"screen-4\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"TV — High, 8 hr/day · 3 hr evening, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-4\">\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"High — 3 evening hours\"><span class=\"sr-only\">High</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📺</span>\n      <span class=\"light-env-screen-card-name\">TV</span>\n      <span class=\"light-env-screen-card-summary\">8 hr/day · 3 hr evening</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "4/true/false",
+      "screen": {
+        "id": "screen-4",
+        "device": "tv",
+        "hoursPerDay": 8,
+        "eveningUseAfterSunset": 3,
+        "blueBlockerEnabled": false,
+        "roomId": null
+      },
+      "expanded": true,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-red expanded\" data-id=\"screen-4\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"TV — High, 8 hr/day · 3 hr evening, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-4\">\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"High — 3 evening hours\"><span class=\"sr-only\">High</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📺</span>\n      <span class=\"light-env-screen-card-name\">TV</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"screen-4\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"screen-4\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\">External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\" selected>TV</option>\n        </select>\n      </label>\n      \n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-4\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-4\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-4\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-4\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-4\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-4\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-4\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-4\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"screen-4\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "4/true/true",
+      "screen": {
+        "id": "screen-4",
+        "device": "tv",
+        "hoursPerDay": 8,
+        "eveningUseAfterSunset": 3,
+        "blueBlockerEnabled": false,
+        "roomId": null
+      },
+      "expanded": true,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-red expanded\" data-id=\"screen-4\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"TV — High, 8 hr/day · 3 hr evening, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-4\">\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"High — 3 evening hours\"><span class=\"sr-only\">High</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📺</span>\n      <span class=\"light-env-screen-card-name\">TV</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"screen-4\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"screen-4\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\">External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\" selected>TV</option>\n        </select>\n      </label>\n      <label class=\"ctx-label\">Used in\n        <select class=\"ctx-select light-env-screen-room\" data-light-env-action=\"update-screen-room\" data-light-env-id=\"screen-4\" aria-label=\"Used in room\">\n        <option value=\"\" selected>Portable / multiple rooms</option>\n        <option value=\"room-1\">Office &lt;west&gt; &amp; &quot;lab&quot;</option><option value=\"room-2\">42</option><option value=\"room-3\">Room</option>\n      </select>\n      </label>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-4\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-4\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-4\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-4\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-4\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-4\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-4\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-4\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"screen-4\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "5/false/false",
+      "screen": {
+        "id": "screen-5",
+        "device": "unknown",
+        "hoursPerDay": 0,
+        "eveningUseAfterSunset": -1,
+        "blueBlockerEnabled": true,
+        "roomId": "room-1"
+      },
+      "expanded": false,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-green\" data-id=\"screen-5\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Device — Daytime only, blue reduced, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-5\">\n      <span class=\"light-env-sev-dot light-env-sev-green\" title=\"Daytime only — no use after sunset recorded\"><span class=\"sr-only\">Daytime only</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📱</span>\n      <span class=\"light-env-screen-card-name\">Device</span>\n      <span class=\"light-env-screen-card-summary\">blue reduced</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "5/false/true",
+      "screen": {
+        "id": "screen-5",
+        "device": "unknown",
+        "hoursPerDay": 0,
+        "eveningUseAfterSunset": -1,
+        "blueBlockerEnabled": true,
+        "roomId": "room-1"
+      },
+      "expanded": false,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-green\" data-id=\"screen-5\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Device — Daytime only, blue reduced, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-5\">\n      <span class=\"light-env-sev-dot light-env-sev-green\" title=\"Daytime only — no use after sunset recorded\"><span class=\"sr-only\">Daytime only</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📱</span>\n      <span class=\"light-env-screen-card-name\">Device</span>\n      <span class=\"light-env-screen-card-summary\">blue reduced</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "5/true/false",
+      "screen": {
+        "id": "screen-5",
+        "device": "unknown",
+        "hoursPerDay": 0,
+        "eveningUseAfterSunset": -1,
+        "blueBlockerEnabled": true,
+        "roomId": "room-1"
+      },
+      "expanded": true,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-green expanded\" data-id=\"screen-5\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Device — Daytime only, blue reduced, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-5\">\n      <span class=\"light-env-sev-dot light-env-sev-green\" title=\"Daytime only — no use after sunset recorded\"><span class=\"sr-only\">Daytime only</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📱</span>\n      <span class=\"light-env-screen-card-name\">Device</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"screen-5\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"screen-5\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\">External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      \n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-5\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-5\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-5\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-5\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-5\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-5\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-5\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-5\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" checked data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"screen-5\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "5/true/true",
+      "screen": {
+        "id": "screen-5",
+        "device": "unknown",
+        "hoursPerDay": 0,
+        "eveningUseAfterSunset": -1,
+        "blueBlockerEnabled": true,
+        "roomId": "room-1"
+      },
+      "expanded": true,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-green expanded\" data-id=\"screen-5\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Device — Daytime only, blue reduced, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"screen-5\">\n      <span class=\"light-env-sev-dot light-env-sev-green\" title=\"Daytime only — no use after sunset recorded\"><span class=\"sr-only\">Daytime only</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📱</span>\n      <span class=\"light-env-screen-card-name\">Device</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"screen-5\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"screen-5\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\">External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      <label class=\"ctx-label\">Used in\n        <select class=\"ctx-select light-env-screen-room\" data-light-env-action=\"update-screen-room\" data-light-env-id=\"screen-5\" aria-label=\"Used in room\">\n        <option value=\"\">Portable / multiple rooms</option>\n        <option value=\"room-1\" selected>Office &lt;west&gt; &amp; &quot;lab&quot;</option><option value=\"room-2\">42</option><option value=\"room-3\">Room</option>\n      </select>\n      </label>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-5\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-5\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-5\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"screen-5\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-5\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-5\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-5\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"screen-5\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" checked data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"screen-5\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "6/false/false",
+      "screen": {
+        "id": "literal-\"<&",
+        "device": "__proto__",
+        "hoursPerDay": "2",
+        "eveningUseAfterSunset": "1",
+        "blueBlockerEnabled": false,
+        "roomId": "room-1"
+      },
+      "expanded": false,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-orange\" data-id=\"literal-&quot;&lt;&amp;\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Device — Moderate, 2 hr/day · 1 hr evening, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"literal-&quot;&lt;&amp;\">\n      <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Moderate — 1 evening hour\"><span class=\"sr-only\">Moderate</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">[object Object]</span>\n      <span class=\"light-env-screen-card-name\">Device</span>\n      <span class=\"light-env-screen-card-summary\">2 hr/day · 1 hr evening</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "6/false/true",
+      "screen": {
+        "id": "literal-\"<&",
+        "device": "__proto__",
+        "hoursPerDay": "2",
+        "eveningUseAfterSunset": "1",
+        "blueBlockerEnabled": false,
+        "roomId": "room-1"
+      },
+      "expanded": false,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-orange\" data-id=\"literal-&quot;&lt;&amp;\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Device — Moderate, 2 hr/day · 1 hr evening, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"literal-&quot;&lt;&amp;\">\n      <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Moderate — 1 evening hour\"><span class=\"sr-only\">Moderate</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">[object Object]</span>\n      <span class=\"light-env-screen-card-name\">Device</span>\n      <span class=\"light-env-screen-card-summary\">2 hr/day · 1 hr evening</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "6/true/false",
+      "screen": {
+        "id": "literal-\"<&",
+        "device": "__proto__",
+        "hoursPerDay": "2",
+        "eveningUseAfterSunset": "1",
+        "blueBlockerEnabled": false,
+        "roomId": "room-1"
+      },
+      "expanded": true,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-orange expanded\" data-id=\"literal-&quot;&lt;&amp;\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Device — Moderate, 2 hr/day · 1 hr evening, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"literal-&quot;&lt;&amp;\">\n      <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Moderate — 1 evening hour\"><span class=\"sr-only\">Moderate</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">[object Object]</span>\n      <span class=\"light-env-screen-card-name\">Device</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"literal-&quot;&lt;&amp;\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"literal-&quot;&lt;&amp;\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\">External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      \n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"literal-&quot;&lt;&amp;\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "6/true/true",
+      "screen": {
+        "id": "literal-\"<&",
+        "device": "__proto__",
+        "hoursPerDay": "2",
+        "eveningUseAfterSunset": "1",
+        "blueBlockerEnabled": false,
+        "roomId": "room-1"
+      },
+      "expanded": true,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-orange expanded\" data-id=\"literal-&quot;&lt;&amp;\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Device — Moderate, 2 hr/day · 1 hr evening, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"literal-&quot;&lt;&amp;\">\n      <span class=\"light-env-sev-dot light-env-sev-orange\" title=\"Moderate — 1 evening hour\"><span class=\"sr-only\">Moderate</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">[object Object]</span>\n      <span class=\"light-env-screen-card-name\">Device</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"literal-&quot;&lt;&amp;\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"literal-&quot;&lt;&amp;\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\">External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      <label class=\"ctx-label\">Used in\n        <select class=\"ctx-select light-env-screen-room\" data-light-env-action=\"update-screen-room\" data-light-env-id=\"literal-&quot;&lt;&amp;\" aria-label=\"Used in room\">\n        <option value=\"\">Portable / multiple rooms</option>\n        <option value=\"room-1\" selected>Office &lt;west&gt; &amp; &quot;lab&quot;</option><option value=\"room-2\">42</option><option value=\"room-3\">Room</option>\n      </select>\n      </label>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"literal-&quot;&lt;&amp;\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"literal-&quot;&lt;&amp;\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "7/false/false",
+      "screen": {
+        "id": 0,
+        "device": false,
+        "hoursPerDay": "bad",
+        "eveningUseAfterSunset": "bad",
+        "blueBlockerEnabled": true,
+        "roomId": 0
+      },
+      "expanded": false,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-green\" data-id=\"0\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Device — Daytime only, blue reduced, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"0\">\n      <span class=\"light-env-sev-dot light-env-sev-green\" title=\"Daytime only — no use after sunset recorded\"><span class=\"sr-only\">Daytime only</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📱</span>\n      <span class=\"light-env-screen-card-name\">Device</span>\n      <span class=\"light-env-screen-card-summary\">blue reduced</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "7/false/true",
+      "screen": {
+        "id": 0,
+        "device": false,
+        "hoursPerDay": "bad",
+        "eveningUseAfterSunset": "bad",
+        "blueBlockerEnabled": true,
+        "roomId": 0
+      },
+      "expanded": false,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-green\" data-id=\"0\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"Device — Daytime only, blue reduced, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"0\">\n      <span class=\"light-env-sev-dot light-env-sev-green\" title=\"Daytime only — no use after sunset recorded\"><span class=\"sr-only\">Daytime only</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📱</span>\n      <span class=\"light-env-screen-card-name\">Device</span>\n      <span class=\"light-env-screen-card-summary\">blue reduced</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "7/true/false",
+      "screen": {
+        "id": 0,
+        "device": false,
+        "hoursPerDay": "bad",
+        "eveningUseAfterSunset": "bad",
+        "blueBlockerEnabled": true,
+        "roomId": 0
+      },
+      "expanded": true,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-green expanded\" data-id=\"0\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Device — Daytime only, blue reduced, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"0\">\n      <span class=\"light-env-sev-dot light-env-sev-green\" title=\"Daytime only — no use after sunset recorded\"><span class=\"sr-only\">Daytime only</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📱</span>\n      <span class=\"light-env-screen-card-name\">Device</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"0\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"0\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\">External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      \n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"0\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"0\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"0\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"0\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"0\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"0\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"0\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"0\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" checked data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"0\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "7/true/true",
+      "screen": {
+        "id": 0,
+        "device": false,
+        "hoursPerDay": "bad",
+        "eveningUseAfterSunset": "bad",
+        "blueBlockerEnabled": true,
+        "roomId": 0
+      },
+      "expanded": true,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-green expanded\" data-id=\"0\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Device — Daytime only, blue reduced, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"0\">\n      <span class=\"light-env-sev-dot light-env-sev-green\" title=\"Daytime only — no use after sunset recorded\"><span class=\"sr-only\">Daytime only</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📱</span>\n      <span class=\"light-env-screen-card-name\">Device</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"0\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"0\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\">External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      <label class=\"ctx-label\">Used in\n        <select class=\"ctx-select light-env-screen-room\" data-light-env-action=\"update-screen-room\" data-light-env-id=\"0\" aria-label=\"Used in room\">\n        <option value=\"\" selected>Portable / multiple rooms</option>\n        <option value=\"room-1\">Office &lt;west&gt; &amp; &quot;lab&quot;</option><option value=\"room-2\">42</option><option value=\"room-3\">Room</option>\n      </select>\n      </label>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"0\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"0\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"0\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"0\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"0\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"0\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"0\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"0\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" checked data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"0\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "8/false/false",
+      "screen": {
+        "id": "skipped",
+        "device": "monitor",
+        "hoursPerDay": 8,
+        "eveningUseAfterSunset": 4,
+        "blueBlockerEnabled": false,
+        "todayOverride": {
+          "date": "2026-10-08",
+          "active": false
+        }
+      },
+      "expanded": false,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-red light-env-card-skipped\" data-id=\"skipped\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"External monitor — High, 8 hr/day · 4 hr evening, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"skipped\">\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"High — 4 evening hours\"><span class=\"sr-only\">High</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">🖥</span>\n      <span class=\"light-env-screen-card-name\">External monitor</span>\n      <span class=\"light-env-screen-card-summary\">8 hr/day · 4 hr evening</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "8/false/true",
+      "screen": {
+        "id": "skipped",
+        "device": "monitor",
+        "hoursPerDay": 8,
+        "eveningUseAfterSunset": 4,
+        "blueBlockerEnabled": false,
+        "todayOverride": {
+          "date": "2026-10-08",
+          "active": false
+        }
+      },
+      "expanded": false,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-red light-env-card-skipped\" data-id=\"skipped\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"false\" aria-label=\"External monitor — High, 8 hr/day · 4 hr evening, collapsed\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"skipped\">\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"High — 4 evening hours\"><span class=\"sr-only\">High</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">🖥</span>\n      <span class=\"light-env-screen-card-name\">External monitor</span>\n      <span class=\"light-env-screen-card-summary\">8 hr/day · 4 hr evening</span>\n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      \n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▸</span>\n    </div></div>"
+    },
+    {
+      "name": "8/true/false",
+      "screen": {
+        "id": "skipped",
+        "device": "monitor",
+        "hoursPerDay": 8,
+        "eveningUseAfterSunset": 4,
+        "blueBlockerEnabled": false,
+        "todayOverride": {
+          "date": "2026-10-08",
+          "active": false
+        }
+      },
+      "expanded": true,
+      "rooms": [],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-red light-env-card-skipped expanded\" data-id=\"skipped\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"External monitor — High, 8 hr/day · 4 hr evening, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"skipped\">\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"High — 4 evening hours\"><span class=\"sr-only\">High</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">🖥</span>\n      <span class=\"light-env-screen-card-name\">External monitor</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"skipped\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"skipped\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\" selected>External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      \n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"skipped\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"skipped\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"skipped\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"skipped\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"skipped\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"skipped\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"skipped\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"skipped\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"skipped\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "8/true/true",
+      "screen": {
+        "id": "skipped",
+        "device": "monitor",
+        "hoursPerDay": 8,
+        "eveningUseAfterSunset": 4,
+        "blueBlockerEnabled": false,
+        "todayOverride": {
+          "date": "2026-10-08",
+          "active": false
+        }
+      },
+      "expanded": true,
+      "rooms": [
+        {
+          "id": "room-1",
+          "name": "Office <west> & \"lab\""
+        },
+        {
+          "id": "room-2",
+          "name": 42
+        },
+        {
+          "id": "room-3",
+          "name": ""
+        }
+      ],
+      "todayHTML": "<button type=\"button\" data-fixture-today>Trusted today</button>",
+      "aiHTML": "<div data-fixture-ai>Trusted AI renderer</div>",
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-red light-env-card-skipped expanded\" data-id=\"skipped\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"External monitor — High, 8 hr/day · 4 hr evening, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"skipped\">\n      <span class=\"light-env-sev-dot light-env-sev-red\" title=\"High — 4 evening hours\"><span class=\"sr-only\">High</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">🖥</span>\n      <span class=\"light-env-screen-card-name\">External monitor</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      <button type=\"button\" data-fixture-today>Trusted today</button>\n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"skipped\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"skipped\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\" selected>External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      <label class=\"ctx-label\">Used in\n        <select class=\"ctx-select light-env-screen-room\" data-light-env-action=\"update-screen-room\" data-light-env-id=\"skipped\" aria-label=\"Used in room\">\n        <option value=\"\" selected>Portable / multiple rooms</option>\n        <option value=\"room-1\">Office &lt;west&gt; &amp; &quot;lab&quot;</option><option value=\"room-2\">42</option><option value=\"room-3\">Room</option>\n      </select>\n      </label>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"skipped\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"skipped\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"skipped\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"skipped\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"skipped\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"skipped\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"skipped\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip light-env-chip-active\" aria-pressed=\"true\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"skipped\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"skipped\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    <div data-fixture-ai>Trusted AI renderer</div>\n  </div></div>"
+    },
+    {
+      "name": "no-callbacks",
+      "screen": {
+        "id": "empty"
+      },
+      "expanded": true,
+      "rooms": [],
+      "html": "<div class=\"light-env-screen-card light-env-card-sev-incomplete expanded\" data-id=\"empty\">\n    <div class=\"light-env-screen-card-head\" role=\"button\" tabindex=\"0\" aria-expanded=\"true\" aria-label=\"Device — Needs timing, expanded\" data-light-env-action=\"toggle-screen-expanded\" data-light-env-id=\"empty\">\n      <span class=\"light-env-sev-dot light-env-sev-incomplete\" title=\"Needs timing — set time used after sunset\"><span class=\"sr-only\">Needs timing</span></span>\n      <span class=\"light-env-screen-card-icon\" aria-hidden=\"true\">📱</span>\n      <span class=\"light-env-screen-card-name\">Device</span>\n      \n      <span class=\"light-env-room-disclosure-spacer\"></span>\n      \n      <button class=\"light-env-overflow\" data-light-env-action=\"delete-screen-confirm\" data-light-env-id=\"empty\" title=\"Delete screen\" aria-label=\"Delete screen\">⋯</button>\n      <span class=\"light-env-room-disclosure-chevron\" aria-hidden=\"true\">▾</span>\n    </div><div class=\"light-env-screen-card-body\">\n    <div class=\"light-env-screen-meta-row\">\n      <label class=\"ctx-label\">Device\n        <select class=\"ctx-select\" data-light-env-action=\"update-screen-device\" data-light-env-id=\"empty\" aria-label=\"Device type\">\n          <option value=\"phone\">Phone</option><option value=\"laptop\">Laptop</option><option value=\"monitor\">External monitor</option><option value=\"tablet\">Tablet</option><option value=\"tv\">TV</option>\n        </select>\n      </label>\n      \n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Hours per day</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"empty\" data-light-env-key=\"short\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"empty\" data-light-env-key=\"some\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"empty\" data-light-env-key=\"lots\">3–6 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-hours-bucket\" data-light-env-id=\"empty\" data-light-env-key=\"most\">6+ hr</button></div>\n    </div>\n    <div class=\"light-env-picker\">\n      <span class=\"light-env-picker-label\">Time after sunset</span>\n      <div class=\"light-env-chip-row\"><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"empty\" data-light-env-key=\"none\">None</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"empty\" data-light-env-key=\"lt1\">&lt; 1 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"empty\" data-light-env-key=\"mid\">1–3 hr</button><button type=\"button\" class=\"light-env-chip\" aria-pressed=\"false\" data-light-env-action=\"set-screen-evening-bucket\" data-light-env-id=\"empty\" data-light-env-key=\"gt3\">3+ hr</button></div>\n    </div>\n    <div class=\"light-env-screen-blocker\" style=\"display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px\">\n      <span style=\"flex:1;min-width:0;font-size:13px;color:var(--text-secondary)\">Blue reduction active\n        <span style=\"display:block;font-size:11px;color:var(--text-muted);margin-top:2px\">Night Shift, f.lux, amber tint, or glasses may reduce short-wavelength light. Brightness, distance, and duration still matter.</span>\n      </span>\n      <label class=\"toggle-switch\">\n        <input type=\"checkbox\" data-light-env-action=\"update-screen-blue-blocker\" data-light-env-id=\"empty\" />\n        <span class=\"toggle-slider\"></span>\n      </label>\n    </div>\n    \n  </div></div>"
+    }
+  ],
+  "styleBlocks": [
+    {
+      "selector": ".light-env-picker-help",
+      "declarations": "display:block;margin-top:5px;color:var(--text-muted);font-size:11px;line-height:1.35;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-dot",
+      "declarations": "display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0;box-shadow:0 0 6px currentColor;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-green",
+      "declarations": "background:var(--green);color:var(--green);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-yellow",
+      "declarations": "background:var(--yellow);color:var(--yellow);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-orange",
+      "declarations": "background:var(--orange);color:var(--orange);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-red",
+      "declarations": "background:var(--red);color:var(--red);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-incomplete",
+      "declarations": "background:transparent;color:var(--text-muted);border:1.5px dashed var(--text-muted);box-shadow:none;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-label",
+      "declarations": "font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-muted);margin-left:auto;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-chip",
+      "declarations": "display:inline-flex;align-items:center;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;margin-left:auto;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-chip-green",
+      "declarations": "background:var(--green-bg, rgba(34,197,94,0.12));color:var(--green);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-chip-yellow",
+      "declarations": "background:var(--yellow-bg, rgba(234,179,8,0.12));color:var(--yellow);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-chip-orange",
+      "declarations": "background:var(--orange-bg, rgba(249,115,22,0.12));color:var(--orange);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-sev-chip-red",
+      "declarations": "background:var(--red-bg,    rgba(239,68,68,0.12));color:var(--red);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-card-sev-green::before,\n.light-env-card-sev-yellow::before,\n.light-env-card-sev-orange::before,\n.light-env-card-sev-red::before",
+      "declarations": "content:'';position:absolute;left:0;top:0;bottom:0;width:4px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-card-sev-green::before",
+      "declarations": "background:var(--green);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-card-sev-yellow::before",
+      "declarations": "background:var(--yellow);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-card-sev-orange::before",
+      "declarations": "background:var(--orange);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-card-sev-red::before",
+      "declarations": "background:var(--red);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-card-sev-green,\n.light-env-card-sev-yellow,\n.light-env-card-sev-orange,\n.light-env-card-sev-red",
+      "declarations": "position:relative;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-today-toggle",
+      "declarations": "display:inline-flex;align-items:center;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:500;font-family:inherit;cursor:pointer;border:1px solid var(--border);background:var(--bg-card);color:var(--text-secondary);white-space:nowrap;transition:all 0.15s;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-today-toggle:hover",
+      "declarations": "border-color:var(--accent);color:var(--text-primary);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-today-on",
+      "declarations": "background:color-mix(in srgb, var(--green) 8%, transparent);border-color:var(--green);color:var(--green);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-today-off",
+      "declarations": "background:var(--bg-secondary);border-color:var(--text-muted);color:var(--text-muted);font-style:italic;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-card-skipped",
+      "declarations": "opacity:0.55;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-card-skipped:hover",
+      "declarations": "opacity:0.85;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-card-skipped .light-env-today-toggle",
+      "declarations": "opacity:1;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-card-skipped .light-env-sev-chip",
+      "declarations": "opacity:0.85;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-today-compact",
+      "declarations": "width:26px;height:26px;padding:0;justify-content:center;font-size:13px;line-height:1;",
+      "media": null
+    },
+    {
+      "selector": ".visually-hidden",
+      "declarations": "position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-overflow",
+      "declarations": "width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;padding:0;border-radius:6px;background:transparent;border:1px solid transparent;color:var(--text-muted);cursor:pointer;font-size:16px;line-height:1;transition:all 0.15s;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-overflow:hover",
+      "declarations": "background:var(--alert-soft-bg);color:var(--red);border-color:var(--red);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-overflow:focus-visible",
+      "declarations": "outline:2px solid var(--accent);outline-offset:2px;background:var(--alert-soft-bg);color:var(--red);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-cards",
+      "declarations": "display:flex;flex-direction:column;gap:8px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-card",
+      "declarations": "background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;transition:border-color 0.15s;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-card.expanded",
+      "declarations": "border-color:var(--accent);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-card-head",
+      "declarations": "display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;background:var(--bg-secondary);transition:background 0.15s;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-card-head:hover",
+      "declarations": "background:var(--bg-hover);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-card.expanded .light-env-screen-card-head",
+      "declarations": "border-bottom:1px solid var(--border);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-card-icon",
+      "declarations": "font-size:16px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-card-name",
+      "declarations": "font-size:14px;font-weight:600;color:var(--text-primary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-card-summary",
+      "declarations": "font-size:12px;color:var(--text-muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-card-body",
+      "declarations": "padding:14px 16px;display:flex;flex-direction:column;gap:14px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-meta-row",
+      "declarations": "display:grid;grid-template-columns:minmax(140px, 1fr) minmax(160px, 1fr);gap:12px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-meta-row .ctx-label",
+      "declarations": "margin:0;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-blocker",
+      "declarations": "font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:8px;cursor:pointer;padding-top:6px;border-top:1px solid var(--border);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-blocker input[type=\"checkbox\"]",
+      "declarations": "margin-right:4px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-room",
+      "declarations": "width:100%;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-card-head",
+      "declarations": "flex-wrap:wrap;gap:6px;",
+      "media": "(max-width: 600px)"
+    },
+    {
+      "selector": ".light-env-screen-meta-row",
+      "declarations": "grid-template-columns:1fr;",
+      "media": "(max-width: 600px)"
+    },
+    {
+      "selector": ".light-env-screen-quickpicks",
+      "declarations": "margin-top:10px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-room-disclosure-spacer",
+      "declarations": "flex:1;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-room-disclosure-chevron",
+      "declarations": "color:var(--text-muted);font-size:12px;flex-shrink:0;transition:transform 0.15s;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-room-disclosure.light-env-card-skipped",
+      "declarations": "opacity:0.7;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-room-disclosure-spacer",
+      "declarations": "display:none;",
+      "media": "(max-width: 600px)"
+    },
+    {
+      "selector": ".light-env-picker",
+      "declarations": "display:flex;flex-direction:column;gap:6px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-picker-label",
+      "declarations": "font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;font-weight:600;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-chip-row",
+      "declarations": "display:flex;flex-wrap:wrap;gap:6px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-chip",
+      "declarations": "background:var(--bg-secondary);border:1px solid var(--border);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--text-primary);cursor:pointer;transition:all 0.15s;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-chip:hover",
+      "declarations": "background:var(--bg-hover);border-color:var(--accent);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-chip-active",
+      "declarations": "background:var(--accent);border-color:var(--accent);color:white;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-chip-active:hover",
+      "declarations": "background:var(--accent);border-color:var(--accent);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-chip:focus-visible",
+      "declarations": "outline:2px solid var(--accent);outline-offset:2px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-room-disclosure,\n  .light-env-screen-card",
+      "declarations": "transition:none !important;animation:none !important;transform:none !important;",
+      "media": "(prefers-reduced-motion: reduce)"
+    },
+    {
+      "selector": ".light-env-chip,\n  .light-env-tool-pill,\n  .light-env-overflow,\n  .light-env-picker-more summary",
+      "declarations": "min-height:44px;min-width:44px;display:inline-flex;align-items:center;justify-content:center;",
+      "media": "(pointer: coarse)"
+    },
+    {
+      "selector": ".light-env-chip",
+      "declarations": "padding:0 14px;",
+      "media": "(pointer: coarse)"
+    },
+    {
+      "selector": ".light-env-picker-more",
+      "declarations": "margin-top:2px;font-size:12px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-picker-more summary",
+      "declarations": "cursor:pointer;color:var(--text-muted);padding:2px 0;user-select:none;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-picker-more summary:hover",
+      "declarations": "color:var(--text-primary);",
+      "media": null
+    },
+    {
+      "selector": ".light-env-picker-more[open]",
+      "declarations": "padding-top:6px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-picker-more select,\n.light-env-picker-more input",
+      "declarations": "margin-top:4px;",
+      "media": null
+    },
+    {
+      "selector": ".light-env-screen-fields",
+      "declarations": "grid-template-columns:1fr;gap:10px;padding:12px;",
+      "media": "(max-width: 600px)"
+    },
+    {
+      "selector": ".toggle-switch",
+      "declarations": "position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0;",
+      "media": null
+    },
+    {
+      "selector": ".toggle-switch input",
+      "declarations": "opacity:0;width:0;height:0;",
+      "media": null
+    },
+    {
+      "selector": ".toggle-slider",
+      "declarations": "position:absolute;cursor:pointer;inset:0;background:var(--border);border-radius:20px;transition:background 0.2s;",
+      "media": null
+    },
+    {
+      "selector": ".toggle-slider::before",
+      "declarations": "content:'';position:absolute;width:14px;height:14px;left:3px;bottom:3px;background:var(--text-secondary);border-radius:50%;transition:transform 0.2s, background 0.2s;",
+      "media": null
+    },
+    {
+      "selector": ".toggle-switch input:checked + .toggle-slider",
+      "declarations": "background:var(--accent);",
+      "media": null
+    },
+    {
+      "selector": ".toggle-switch input:checked + .toggle-slider::before",
+      "declarations": "transform:translateX(16px);background:#fff;",
+      "media": null
+    },
+    {
+      "selector": ".toggle-switch input:focus-visible + .toggle-slider",
+      "declarations": "outline:2px solid color-mix(in srgb, var(--accent) 82%, transparent);outline-offset:3px;",
+      "media": null
+    },
+    {
+      "selector": ".toggle-switch input:disabled + .toggle-slider",
+      "declarations": "cursor:not-allowed;",
+      "media": null
+    }
+  ]
+}

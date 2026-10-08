@@ -248,12 +248,13 @@
   font-size: 12px; color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
-.light-env-summary-interp:not(:where([data-light-review-ai], [data-light-review-ai] *)) {
+.light-env-summary-interp:not(:where([data-light-review-ai],
+[data-light-review-ai] *)) {
   margin: 0; font-size: 13px; line-height: 1.5;
   color: var(--text-secondary);
 }
 .light-env-summary-incomplete { border-left-color: var(--text-muted); }
-.light-env-picker-help {
+.light-env-picker-help:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   display: block;
   margin-top: 5px;
   color: var(--text-muted);
@@ -265,113 +266,72 @@
 .light-env-summary-sep { opacity: 0.4; }
 
 /* Severity dot — mirrors EMF assessment color tokens */
-.light-env-sev-dot {
+.light-env-sev-dot:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   display: inline-block; width: 10px; height: 10px; border-radius: 50%;
   flex-shrink: 0; box-shadow: 0 0 6px currentColor;
 }
-.light-env-sev-green  { background: var(--green);  color: var(--green); }
-.light-env-sev-yellow { background: var(--yellow); color: var(--yellow); }
-.light-env-sev-orange { background: var(--orange); color: var(--orange); }
-.light-env-sev-red    { background: var(--red);    color: var(--red); }
+.light-env-sev-green:not(:where([data-light-environment-screen], [data-light-environment-screen] *))  { background: var(--green);  color: var(--green); }
+.light-env-sev-yellow:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { background: var(--yellow); color: var(--yellow); }
+.light-env-sev-orange:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { background: var(--orange); color: var(--orange); }
+.light-env-sev-red:not(:where([data-light-environment-screen], [data-light-environment-screen] *))    { background: var(--red);    color: var(--red); }
 /* Distinct from "Good" — gray dot for rooms that have nothing graders
    can use yet, so users don't read an unreviewed default green dot
    as "we verified you're good." */
-.light-env-sev-incomplete {
+.light-env-sev-incomplete:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   background: transparent;
   color: var(--text-muted);
   border: 1.5px dashed var(--text-muted);
   box-shadow: none;
 }
-.light-env-sev-label {
+.light-env-sev-label:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   font-size: 11px; font-weight: 600; text-transform: uppercase;
   letter-spacing: 0.4px; color: var(--text-muted);
   margin-left: auto;
 }
 /* Severity chip — pill-shaped tinted background, more prominent than
    the previous tiny grey label. Used in room + screen card heads. */
-.light-env-sev-chip {
+.light-env-sev-chip:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   display: inline-flex; align-items: center;
   padding: 3px 10px; border-radius: 12px;
   font-size: 11px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.04em;
   margin-left: auto;
 }
-.light-env-sev-chip-green  { background: var(--green-bg, rgba(34,197,94,0.12));  color: var(--green); }
-.light-env-sev-chip-yellow { background: var(--yellow-bg, rgba(234,179,8,0.12)); color: var(--yellow); }
-.light-env-sev-chip-orange { background: var(--orange-bg, rgba(249,115,22,0.12)); color: var(--orange); }
-.light-env-sev-chip-red    { background: var(--red-bg,    rgba(239,68,68,0.12)); color: var(--red); }
+.light-env-sev-chip-green:not(:where([data-light-environment-screen], [data-light-environment-screen] *))  { background: var(--green-bg, rgba(34,197,94,0.12));  color: var(--green); }
+.light-env-sev-chip-yellow:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { background: var(--yellow-bg, rgba(234,179,8,0.12)); color: var(--yellow); }
+.light-env-sev-chip-orange:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { background: var(--orange-bg, rgba(249,115,22,0.12)); color: var(--orange); }
+.light-env-sev-chip-red:not(:where([data-light-environment-screen], [data-light-environment-screen] *))    { background: var(--red-bg,    rgba(239,68,68,0.12)); color: var(--red); }
 /* Card-level severity accent strip on the left edge — ties room +
    screen cards into the same visual language as the device cards. */
-.light-env-card-sev-green::before,
-.light-env-card-sev-yellow::before,
-.light-env-card-sev-orange::before,
-.light-env-card-sev-red::before {
+.light-env-card-sev-green:not(:where([data-light-environment-screen], [data-light-environment-screen] *))::before,
+.light-env-card-sev-yellow:not(:where([data-light-environment-screen], [data-light-environment-screen] *))::before,
+.light-env-card-sev-orange:not(:where([data-light-environment-screen], [data-light-environment-screen] *))::before,
+.light-env-card-sev-red:not(:where([data-light-environment-screen], [data-light-environment-screen] *))::before {
   content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
 }
-.light-env-card-sev-green::before  { background: var(--green); }
-.light-env-card-sev-yellow::before { background: var(--yellow); }
-.light-env-card-sev-orange::before { background: var(--orange); }
-.light-env-card-sev-red::before    { background: var(--red); }
-.light-env-card-sev-green,
-.light-env-card-sev-yellow,
-.light-env-card-sev-orange,
-.light-env-card-sev-red { position: relative; }
+.light-env-card-sev-green:not(:where([data-light-environment-screen], [data-light-environment-screen] *))::before  { background: var(--green); }
+.light-env-card-sev-yellow:not(:where([data-light-environment-screen], [data-light-environment-screen] *))::before { background: var(--yellow); }
+.light-env-card-sev-orange:not(:where([data-light-environment-screen], [data-light-environment-screen] *))::before { background: var(--orange); }
+.light-env-card-sev-red:not(:where([data-light-environment-screen], [data-light-environment-screen] *))::before    { background: var(--red); }
+.light-env-card-sev-green:not(:where([data-light-environment-screen], [data-light-environment-screen] *)),
+.light-env-card-sev-yellow:not(:where([data-light-environment-screen], [data-light-environment-screen] *)),
+.light-env-card-sev-orange:not(:where([data-light-environment-screen], [data-light-environment-screen] *)),
+.light-env-card-sev-red:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { position: relative; }
 /* Tab severity tint — subtle border-bottom hue so the active+inactive
    tabs both telegraph the room's status. */
 .light-env-tab-sev-yellow { border-bottom: 2px solid var(--yellow); }
 .light-env-tab-sev-orange { border-bottom: 2px solid var(--orange); }
 .light-env-tab-sev-red    { border-bottom: 2px solid var(--red); }
 
-/* Per-day "in use today / skipped today" toggle. Auto-resets at
-   midnight so the baseline schedule stays set-and-forget; the toggle
-   only affects today's exposure math. */
-.light-env-today-toggle {
-  display: inline-flex; align-items: center;
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 11px; font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  white-space: nowrap;
-  transition: all 0.15s;
-}
-.light-env-today-toggle:hover {
-  border-color: var(--accent);
-  color: var(--text-primary);
-}
-.light-env-today-on {
-  background: color-mix(in srgb, var(--green) 8%, transparent);
-  border-color: var(--green);
-  color: var(--green);
-}
-.light-env-today-off {
-  background: var(--bg-secondary);
-  border-color: var(--text-muted);
-  color: var(--text-muted);
-  font-style: italic;
-}
 /* Cards toggled "skipped today" dim down so the user can see at a
    glance which items aren't contributing to today's burden math.
    The severity chip stays at full opacity (it's a baseline judgement,
    not a today value) so the room's chronic state is still readable. */
-.light-env-card-skipped { opacity: 0.55; }
-.light-env-card-skipped:hover { opacity: 0.85; }
-.light-env-card-skipped .light-env-today-toggle { opacity: 1; }
-.light-env-card-skipped .light-env-sev-chip { opacity: 0.85; }
+.light-env-card-skipped:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { opacity: 0.55; }
+.light-env-card-skipped:hover:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { opacity: 0.85; }
+.light-env-card-skipped .light-env-sev-chip:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { opacity: 0.85; }
 
-/* Compact mode — icon-only pill in disclosure headers. Most users
-   never touch the today-toggle, so it shouldn't burn header space
-   with a verbose label. The icon (✓ / ⊘) carries the state; full
-   text lives in the title attribute + visually-hidden span for SR. */
-.light-env-today-compact {
-  width: 26px; height: 26px;
-  padding: 0;
-  justify-content: center;
-  font-size: 13px; line-height: 1;
-}
+/* Shared legacy visually-hidden copy outside the authored screen editor. */
 .visually-hidden {
   position: absolute; width: 1px; height: 1px;
   padding: 0; margin: -1px; overflow: hidden;
@@ -382,7 +342,7 @@
    structured as a button so we can swap to a popover later when
    more actions land. Sits next to the chevron, away from primary
    scan path. */
-.light-env-overflow {
+.light-env-overflow:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   /* 32px visual size — was 26px, but hybrid mouse+touch devices
      (iPad with cursor, Surface, etc.) treat it as a mouse target without
      the @media (pointer: coarse) expansion firing. WCAG 2.5.5 minimum
@@ -398,12 +358,12 @@
   font-size: 16px; line-height: 1;
   transition: all 0.15s;
 }
-.light-env-overflow:hover {
+.light-env-overflow:hover:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   background: var(--alert-soft-bg);
   color: var(--red);
   border-color: var(--red);
 }
-.light-env-overflow:focus-visible {
+.light-env-overflow:focus-visible:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   background: var(--alert-soft-bg);
@@ -416,56 +376,6 @@
    hours / evening + the blue-blocker checkbox + room-reassignment. */
 .light-env-screen-cards {
   display: flex; flex-direction: column; gap: 8px;
-}
-.light-env-screen-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  transition: border-color 0.15s;
-}
-.light-env-screen-card.expanded { border-color: var(--accent); }
-.light-env-screen-card-head {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px; cursor: pointer;
-  background: var(--bg-secondary);
-  transition: background 0.15s;
-}
-.light-env-screen-card-head:hover { background: var(--bg-hover); }
-.light-env-screen-card.expanded .light-env-screen-card-head {
-  border-bottom: 1px solid var(--border);
-}
-.light-env-screen-card-icon { font-size: 16px; }
-.light-env-screen-card-name {
-  font-size: 14px; font-weight: 600; color: var(--text-primary);
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.light-env-screen-card-summary {
-  font-size: 12px; color: var(--text-muted);
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.light-env-screen-card-body {
-  padding: 14px 16px;
-  display: flex; flex-direction: column; gap: 14px;
-}
-.light-env-screen-meta-row {
-  display: grid;
-  grid-template-columns: minmax(140px, 1fr) minmax(160px, 1fr);
-  gap: 12px;
-}
-.light-env-screen-meta-row .ctx-label { margin: 0; }
-.light-env-screen-blocker {
-  font-size: 13px; color: var(--text-secondary);
-  display: flex; align-items: center; gap: 8px;
-  cursor: pointer;
-  padding-top: 6px;
-  border-top: 1px solid var(--border);
-}
-.light-env-screen-blocker input[type="checkbox"] { margin-right: 4px; }
-.light-env-screen-room { width: 100%; }
-@media (max-width: 600px) {
-  .light-env-screen-card-head { flex-wrap: wrap; gap: 6px; }
-  .light-env-screen-meta-row { grid-template-columns: 1fr; }
 }
 
 /* Inline "Screens used here" block within each room card — appears
@@ -582,8 +492,8 @@
 }
 .light-env-room-signal { white-space: nowrap; }
 .light-env-room-signal-evening { color: var(--orange); }
-.light-env-room-disclosure-spacer { flex: 1; }
-.light-env-room-disclosure-chevron {
+.light-env-room-disclosure-spacer:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { flex: 1; }
+.light-env-room-disclosure-chevron:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   color: var(--text-muted); font-size: 12px; flex-shrink: 0;
   transition: transform 0.15s;
 }
@@ -596,7 +506,7 @@
   padding: 12px 16px;
   border-top: 1px solid var(--border);
 }
-.light-env-room-disclosure.light-env-card-skipped { opacity: 0.7; }
+.light-env-room-disclosure.light-env-card-skipped:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { opacity: 0.7; }
 
 /* Step blocks inside the expanded body — numbered to make the linear
    flow obvious (versus the old layout where 5 concerns competed for
@@ -707,7 +617,7 @@
 
 @media (max-width: 600px) {
   .light-env-room-disclosure-head { flex-wrap: wrap; gap: 6px; }
-  .light-env-room-disclosure-spacer { display: none; }
+  .light-env-room-disclosure-spacer:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { display: none; }
   .light-env-room-step-body { padding-left: 0; }
   .light-env-room-today-row {
     align-items: flex-start;
@@ -729,13 +639,13 @@
   font-size: 12px; color: var(--text-muted);
   line-height: 1.4;
 }
-.light-env-picker { display: flex; flex-direction: column; gap: 6px; }
-.light-env-picker-label {
+.light-env-picker:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { display: flex; flex-direction: column; gap: 6px; }
+.light-env-picker-label:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   font-size: 11px; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600;
 }
-.light-env-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.light-env-chip {
+.light-env-chip-row:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { display: flex; flex-wrap: wrap; gap: 6px; }
+.light-env-chip:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -743,20 +653,19 @@
   color: var(--text-primary); cursor: pointer;
   transition: all 0.15s;
 }
-.light-env-chip:hover { background: var(--bg-hover); border-color: var(--accent); }
-.light-env-chip-active {
+.light-env-chip:hover:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { background: var(--bg-hover); border-color: var(--accent); }
+.light-env-chip-active:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   background: var(--accent); border-color: var(--accent); color: white;
 }
-.light-env-chip-active:hover { background: var(--accent); border-color: var(--accent); }
-.light-env-chip:focus-visible {
+.light-env-chip-active:hover:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { background: var(--accent); border-color: var(--accent); }
+.light-env-chip:focus-visible:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 /* Reduced motion — keep Light Environment disclosure and screen-card state changes static. */
 @media (prefers-reduced-motion: reduce) {
-  .light-env-room-disclosure,
-  .light-env-screen-card {
+  .light-env-room-disclosure {
     transition: none !important;
     animation: none !important;
     transform: none !important;
@@ -765,29 +674,29 @@
 
 /* Touch tap-target sizing — coarse pointer gets larger Light Environment controls. */
 @media (pointer: coarse) {
-  .light-env-chip,
-  .light-env-tool-pill,
-  .light-env-overflow,
-  .light-env-picker-more summary {
+  .light-env-chip:not(:where([data-light-environment-screen], [data-light-environment-screen] *)),
+.light-env-tool-pill,
+.light-env-overflow:not(:where([data-light-environment-screen], [data-light-environment-screen] *)),
+.light-env-picker-more summary:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
     min-height: 44px;
     min-width: 44px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
   }
-  .light-env-chip { padding: 0 14px; }
+  .light-env-chip:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { padding: 0 14px; }
 }
-.light-env-picker-more {
+.light-env-picker-more:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   margin-top: 2px; font-size: 12px;
 }
-.light-env-picker-more summary {
+.light-env-picker-more summary:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) {
   cursor: pointer; color: var(--text-muted);
   padding: 2px 0; user-select: none;
 }
-.light-env-picker-more summary:hover { color: var(--text-primary); }
-.light-env-picker-more[open] { padding-top: 6px; }
-.light-env-picker-more select,
-.light-env-picker-more input { margin-top: 4px; }
+.light-env-picker-more summary:hover:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { color: var(--text-primary); }
+.light-env-picker-more[open]:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { padding-top: 6px; }
+.light-env-picker-more select:not(:where([data-light-environment-screen], [data-light-environment-screen] *)),
+.light-env-picker-more input:not(:where([data-light-environment-screen], [data-light-environment-screen] *)) { margin-top: 4px; }
 
 /* Spectrum tool gets primary-action treatment as the recommended
    start — it auto-detects warm / cool / fluorescent so it's the

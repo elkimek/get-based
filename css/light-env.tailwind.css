@@ -5,3 +5,11 @@
 @custom-variant environment-ai (&:is([data-light-environment-ai], [data-light-environment-ai] *));
 @source "../js/components/LightEnvironmentAI.svelte";
 @source "../js/light-environment-ai-classes.ts";
+
+/* Shared screen editor and today control; model/store services keep their owners. */
+@custom-variant environment-editor (&:where([data-light-environment-screen], [data-light-environment-screen] *, [data-light-environment-today], [data-light-environment-today] *));
+@source "../js/components/LightEnvironmentScreen.svelte";
+@source "../js/components/LightEnvironmentTodayToggle.svelte";
+@source "../js/light-environment-screen-classes.ts";
+@custom-variant environment-mobile (@media (max-width: 600px));
+@custom-variant device-coarse (@media (pointer: coarse));

@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "scope": "Every authored JavaScript, TypeScript and Svelte module under js/",
   "reviewRule": "Any added or modified HTML-writing sink requires security review and a policy refresh.",
-  "scannedFiles": 1237,
-  "sinkCount": 323,
+  "scannedFiles": 1241,
+  "sinkCount": 325,
   "files": {
     "js/biology-scores.js": {
       "count": 1,
@@ -130,6 +130,13 @@
     "js/components/ContextCardCatalog.svelte.native.js": {
       "count": 2,
       "digest": "e1ce59482ade23a0497aefc91eba249670add42df58a7fc0f2430ca530740fb6",
+      "kinds": {
+        "svelte.html": 2
+      }
+    },
+    "js/components/LightEnvironmentScreen.svelte.native.js": {
+      "count": 2,
+      "digest": "9a81163ffc68e610f0c53ec8328c5f9b95d6ed9e982101339cf5f1c88eb38eb8",
       "kinds": {
         "svelte.html": 2
       }

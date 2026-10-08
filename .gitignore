@@ -2269,3 +2269,10 @@ js/components/ChatOptionalSetup.svelte.native.js.map
 /js/components/LightDeviceRecommendations.svelte.html.js.map
 /tests/light-device-recommendations.test.js
 /tests/playwright/light-device-recommendations-owned.spec.js
+
+# Authored Light Environment screen editor runtime output
+/js/light-environment-screen-presentation.js
+/js/light-environment-screen-classes.js
+/tests/light-environment-screen.test.js
+/tests/playwright/light-environment-screen-owned.spec.js
+/tests/pwa/sveltekit-light-environment-screen.spec.js

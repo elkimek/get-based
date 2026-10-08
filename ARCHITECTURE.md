@@ -1217,9 +1217,24 @@ literal copy, normalized severity and action identity; the four stable adapters
 retain provider gates, fingerprints, prompts and persistence. Authored verdicts
 share the typed `VerdictControlView`, dot and button primitives. The existing
 `light-env.css` URL is generated from `light-env.base.css` and scoped Tailwind;
-superseded verdict templates and their native selectors are removed. Remaining
-assessment, room/screen editor and audit-shell presentation stays owned by its
-existing modules until migrated.
+superseded verdict templates and their native selectors are removed.
+
+`LightEnvironmentScreen.svelte` now owns portable and room-assigned screen
+cards and editors. Its pure `light-environment-screen-presentation.ts` projection
+supplies literal metadata, picker state and delegated action identity;
+`light-env-screen-ui.ts` keeps its synchronous public renderer and helper exports.
+The model owns grading, the store owns mutations and per-day overrides, and the
+editor owns expansion and refresh. The native disclosure button is a sibling of
+today/delete controls, avoiding nested interactive elements; the blue-reduction
+checkbox has an accessible label and a real focusable hit area.
+`LightEnvironmentTodayToggle.svelte` is shared by rooms and screens. Core screens
+compose its typed view; only existing public today-renderer callbacks and the
+configured screen AI renderer enter the two explicitly named trusted HTML slots.
+Persisted screen and room metadata always use escaped interpolation. Scoped
+Tailwind replaces screen-only selectors and today-toggle selectors; remaining
+shared room/audit rules exclude the authored screen boundary.
+Remaining assessment, room editor and audit-shell presentation stays owned by
+its existing modules until migrated.
 
 Room and screen render-time auto-analysis captures `ai-verdict-owner.ts` before
 queuing. Both the deduplication key and delayed callback belong to that owner;

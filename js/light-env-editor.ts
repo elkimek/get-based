@@ -306,6 +306,7 @@ function toggleLightEnvScreenExpanded(id: unknown, event: unknown) {
   if ((event as DisclosureEventOperations | null | undefined)?.target) {
     const target = (event as DisclosureEventOperations).target!;
     if (target.closest('button, input, select, textarea, a, label')
+        && !target.classList.contains('light-env-screen-disclosure')
         && !target.classList.contains('light-env-screen-card-head')
         && !target.classList.contains('light-env-screen-card-name')
         && !target.classList.contains('light-env-screen-card-icon')
