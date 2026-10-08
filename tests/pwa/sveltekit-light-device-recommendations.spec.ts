@@ -59,9 +59,9 @@ async function inspect(page:Page,url:string,toggle:boolean) {
   const optOut=options.getByRole('button',{name:'turn off',exact:true});await optOut.focus();await page.keyboard.press('Space');
   await expect(page.locator('#settings-modal-overlay')).toHaveClass(/\bshow\b/);await expect(page.locator('#settings-tab-privacy')).toBeVisible();
   if(toggle) {
-    await page.locator('#settings-nav-display').click();const checkbox=page.locator('#settings-product-recs');await expect(checkbox).toBeChecked();await checkbox.uncheck();
+    await page.locator('#settings-nav-display').click();const checkbox=page.locator('#settings-product-recs');await expect(checkbox).toBeChecked();await page.locator('label[for="settings-product-recs"]').click();await expect(checkbox).not.toBeChecked();
     expect(await renderPublicOptions(page,url,false)).toEqual({enabled:false,html:''});
-    await checkbox.check();expect((await renderPublicOptions(page,url,false)).enabled).toBe(true);
+    await page.locator('label[for="settings-product-recs"]').click();await expect(checkbox).toBeChecked();expect((await renderPublicOptions(page,url,false)).enabled).toBe(true);
   }
   await page.locator('#settings-modal [data-settings-action="close"]').click();await expect(page.locator('#settings-modal-overlay')).not.toHaveClass(/\bshow\b/);
   // The established Tips setting navigates to Dashboard; return through real navigation.
